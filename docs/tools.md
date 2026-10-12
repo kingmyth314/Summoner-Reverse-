@@ -47,3 +47,14 @@ boilerplate removed: evidence ID, result and any non-generic limitations.
 2. Send `open_binary` for `Summoner\Sum.exe` with `provider_id: "ghidra"`.
 3. The first analysis query takes about 100 s; after that, queries take about 1 s.
 4. Send `close_binary` when finished, then stop the daemon.
+
+## `tools/start-x32dbg.ps1`
+
+Starts x32dbg, if it is not already running, and waits until its MCP server listens on
+`127.0.0.1:9095`. With `-Game`, it also loads `Summoner\Sum.exe` into the debugger. See
+[Live debugging](setup.md#live-debugging-x64dbg--mcp).
+
+## `tools/build-summonerfix.ps1` and `tools/test-run.ps1`
+
+Build SummonerFix (`-Install` copies it next to Sum.exe), and start the game for a timed
+test with screenshots, dialog text and the SummonerFix log. See [SummonerFix](summonerfix/index.md).

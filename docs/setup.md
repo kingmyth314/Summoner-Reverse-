@@ -26,6 +26,53 @@ SHA-256 `ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db` befor
 REA was installed globally rather than run through `npx`, so that MCP registrations point
 at a stable path instead of the npm cache.
 
+### Live debugging: x64dbg + MCP
+
+Added 2026-10-12 for real-time inspection of the running game.
+
+| Component | Version | Source | Location |
+|---|---|---|---|
+| x64dbg (includes 32-bit x32dbg) | snapshot 2026-05-27 (`snapshot_2026-05-27_12-11.zip`, 30.1 MB) | [x64dbg/x64dbg releases](https://github.com/x64dbg/x64dbg/releases), SHA-256 verified against GitHub's digest | `%LOCALAPPDATA%\Programs\x64dbg` (portable, 85 MB) |
+| x64dbg-MCP Server plugin | v1.6 (`x64dbg-MCP-Server-v1.6.zip`, 1.4 MB, MIT) | [duty1g/x64dbg-mcp-server](https://github.com/duty1g/x64dbg-mcp-server), SHA-256 `3165390c…868bde` verified | `x32\plugins\x64dbg-MCP-Server.dp32`, `x64\plugins\x64dbg-MCP-Server.dp64` |
+
+Sum.exe is 32-bit, so **x32dbg** is the debugger to use. The plugin starts an MCP server
+inside x32dbg using Streamable HTTP with a required bearer token. Its config is
+`x32\mcp_config.json`: `IpAddress` **`127.0.0.1`** (local only), `Port` **9095**,
+`AutoStart` true. The token was regenerated after the first run.
+
+Claude Code registration (user scope, `%USERPROFILE%\.claude.json`):
+
+```json
+"x32dbg": { "type": "http", "url": "http://127.0.0.1:9095/",
+            "headers": { "Authorization": "Bearer <token from mcp_config.json>" } }
+```
+
+{: .important }
+The MCP server only exists while **x32dbg is running**. Start it before Claude Code with
+`tools/start-x32dbg.ps1` (add `-Game` to also load Sum.exe). If the token is changed in the
+plugin's config dialog, update the header in `.claude.json` to match.
+
+The plugin offers 80 tools: load/attach, run, step, breakpoints (software, hardware, memory,
+conditional, with commands), registers, call stack, memory read/write, disassembly, pattern
+and string search, module imports/exports, and more.
+
+**Verified 2026-10-12** (via a raw HTTP MCP client, before restarting Claude Code): loaded
+Sum.exe, set a breakpoint at `FrameDone` (`0x501510`) and ran to it. The game's live state
+matched the static analysis: `gr::Screen` 1024x768, `mode` `0x68` (OpenGL), `window_mode`
+200; `reported_frametime` clamped to 0.25 s on a 0.65 s loading frame; `frametime_divisor` 1.0.
+
+Practical notes:
+
+- x32dbg by default also stops at the system breakpoint and on DLL entry. Expect several
+  pauses (system DLLs, the graphics driver) before a breakpoint in Sum.exe is reached.
+- Breaking inside the game freezes its fullscreen window. Prefer breakpoints that log and
+  auto-resume (`SetBreakpointCommand` + `SetBreakpointFastResume`) for anything in the
+  per-frame path.
+- Debugging runs the same `dinput.dll` (SummonerFix), so the game behaves as it does normally.
+- Most debugger calls return at once, but `run`, `WaitForPause` and `RunToAddress` wait for the
+  game. In the Claude desktop app keep their `timeoutMs` below 60000, because calls over
+  about 60 s are cut off (see [Timeouts](#timeouts-on-large-binaries)).
+
 ## Environment variables
 
 | Variable | Scope | Value |
