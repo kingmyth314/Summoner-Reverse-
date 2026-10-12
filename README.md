@@ -15,6 +15,7 @@ GitHub Pages site.
 | Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a six-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
 | ">4 GHz" timer bug | The QueryPerformanceFrequency result is truncated to 32 bits | [Timing bugs](docs/sum-exe/timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug) |
 | Cutscene skip bug | Cutscene timer reads `timeGetTime` as a signed 32-bit value and breaks after ~24.9 days of uptime (inferred) | [Timing bugs](docs/sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
+| Video settings | The game reads its own registry settings, accepts only 640x480 / 800x600 / 1024x768, and has an unused OpenGL renderer | [Video settings](docs/sum-exe/video-settings.md) |
 | Timeslip's patch (v3) | Hooks QPC/QPF through the import table, adds a virtual-clock speed control and removes the CD check | [Timeslip's patch](docs/patches/timeslip.md) |
 
 ## Repository layout

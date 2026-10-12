@@ -22,7 +22,7 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x436a90` | `FUN_00436a90` | `SequenceTimer` (cutscenes, *inferred*) | [Timing bugs](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
 | `0x436c00` | `FUN_00436c00` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x43d7b0` | `FUN_0043d7b0` | `MainLoop` | [Main loop](../sum-exe/main-loop.md#outer-loop-mainloop-fun_0043d7b0) |
-| `0x43d7f0` | `FUN_0043d7f0` | `InitTimers` | [Main loop](../sum-exe/main-loop.md) |
+| `0x43d7f0` | `FUN_0043d7f0` | `LoadSettings` (earlier labelled `InitTimers`) | [Video settings](../sum-exe/video-settings.md#settings-loader-loadsettings-fun_0043d7f0) |
 | `0x43df40` | `FUN_0043df40` | `GameInit` | [Main loop](../sum-exe/main-loop.md) |
 | `0x43e9b0` | `FUN_0043e9b0` | `CdCheck` (JGE at `0x43e9cb`) | [Timeslip](../patches/timeslip.md#how-it-hooks-the-game) |
 | `0x494310` | `FUN_00494310` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
@@ -30,6 +30,9 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x501510` | `FUN_00501510` | `FrameTimer` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510) |
 | `0x5016f0` | `FUN_005016f0` | `SetFrameTimeLimits(min, max)` | [Main loop](../sum-exe/main-loop.md) |
 | `0x5017f0` | `FUN_005017f0` | `GameClockAdvance(ms)` | [Main loop](../sum-exe/main-loop.md#game-clocks-gameclockadvance-fun_005017f0) |
+| `0x505e00` | `FUN_00505e00` | `GrInit(w, h, renderer, mode, hwnd)` | [Video settings](../sum-exe/video-settings.md#graphics-init-grinit-fun_00505e00) |
+| `0x512110` | `FUN_00512110` | `RegSetAppKey` (builds `Software\Volition\Summoner`) | [Video settings](../sum-exe/video-settings.md) |
+| `0x512340` | `FUN_00512340` | `RegReadDword(root, name, out, default)` | [Video settings](../sum-exe/video-settings.md) |
 | `0x530bf0` | `FUN_00530bf0` | `SleepMs` | [Main loop](../sum-exe/main-loop.md) |
 | `0x530ca0` | `FUN_00530ca0` | `PumpMessages` wrapper | [Main loop](../sum-exe/main-loop.md) |
 | `0x530cb0` | `FUN_00530cb0` | `PumpMessages` (PeekMessage loop) | [Main loop](../sum-exe/main-loop.md) |
@@ -38,6 +41,9 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x532840` | `FUN_00532840` | `FrameClockInit` | [Timing bugs](../sum-exe/timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug) |
 | `0x5328d0` | `FUN_005328d0` | `FrameClockRead(scale)` | [Main loop](../sum-exe/main-loop.md#frame-clock-frameclockinit--frameclockread) |
 | `0x5329b1` | `FUN_005329b1` | `ReadTSC` (RDTSC) | [Timing bugs](../sum-exe/timing-bugs.md#false-lead) |
+| `0x5394e0` | `FUN_005394e0` | Direct3D renderer init (`0x66`) | [Video settings](../sum-exe/video-settings.md) |
+| `0x549d10` | `FUN_00549d10` | Glide renderer init (`0x67`) | [Video settings](../sum-exe/video-settings.md) |
+| `0x54f6f0` | `FUN_0054f6f0` | OpenGL renderer init (`0x68`, never selected) | [Video settings](../sum-exe/video-settings.md) |
 | `0x566560` | `FUN_00566560` | `timeSetEvent` user (audio, *inferred*) | - |
 | `0x566cf0` | `FUN_00566cf0` | calls `timeBeginPeriod(1)` | [Main loop](../sum-exe/main-loop.md) |
 
@@ -53,11 +59,21 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x57e3fc` | IAT | `timeGetTime` | Candidate hook for the cutscene fix |
 | `0x57ef28` | float | 1000.0 | |
 | `0x580df0` | float | 16.0 | |
+| `0x580e38` | int[2][3] | `resolution_table` | 640x480, 800x600, 1024x768, then `0xffffffff` |
 | `0x581d20` | float | 1e-6 | |
 | `0x581d24` | float | 1e6 | |
 | `0x588a70` | struct[] | `state_table` | `{enter, frame, leave}` x 12 bytes |
 | `0x5931f0` | string | `Gamewide_show_framerate` | |
 | `0x593314` | string | `FPS=%3.1f` | |
+| `0x594868` | strings | command-line flags | `-port` ... `-dsinit` |
+| `0x594a04` | string | `InstallPath` | registry value |
+| `0x594a10` | string | `Direct 3D` | renderer match string |
+| `0x594a1c` | string | `3DFX` | renderer match string |
+| `0x594a2c` | string | `Video Card %d` | registry value |
+| `0x594a3c` | string | `Selected Video Card` | registry value |
+| `0x594a78` | string | `Resolution Height` | registry value |
+| `0x594a8c` | string | `Resolution Width` | registry value |
+| `0x594ac0` | string | `Volition` | registry company key |
 | `0x5a573c` | float | `raw_dt` | |
 | `0x5a5740` | float | `frame_dt` | |
 | `0x5a5744` | float | `fps_avg` | |

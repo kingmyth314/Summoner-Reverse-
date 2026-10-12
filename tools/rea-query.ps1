@@ -5,7 +5,8 @@ $repoRoot = Split-Path $PSScriptRoot -Parent
 $qdir = if ([IO.Path]::IsPathRooted($Queue)) { $Queue } else { Join-Path $repoRoot $Queue }
 if (-not (Test-Path "$qdir\daemon.ready")) { "Daemon not running (no $qdir\daemon.ready). Start: node tools/rea-daemon.mjs"; exit 1 }
 if (Test-Path "$qdir\daemon.exit") { "DAEMON EXITED"; exit 1 }
-$list = $Calls | ConvertFrom-Json
+try { $list = $Calls | ConvertFrom-Json -ErrorAction Stop } catch { $list = $null }
+if ($null -eq $list) { "Invalid -Calls JSON (quotes stripped by the calling shell?): $Calls"; exit 1 }
 $ids = @()
 $n = 0
 foreach ($c in @($list)) {

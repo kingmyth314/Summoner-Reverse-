@@ -49,7 +49,15 @@ setInterval(() => {
   if (!req) return;
   const id = req.slice(0, -".req.json".length);
   const p = join(qdir, req);
-  const { name, arguments: args } = JSON.parse(readFileSync(p, "utf8"));
+  let name, args;
+  try {
+    ({ name, arguments: args } = JSON.parse(readFileSync(p, "utf8")));
+  } catch (e) {
+    // A malformed request must not kill the session (and its Ghidra analysis): answer with an error.
+    renameSync(p, join(qdir, id + ".bad"));
+    writeFileSync(join(qdir, id + ".res.json"), JSON.stringify({ isError: true, elapsedMs: 0, text: `invalid request file: ${e.message}` }));
+    return;
+  }
   renameSync(p, join(qdir, id + ".sent"));
   busy = { id, rpcId: nextId++, started: Date.now() };
   send({ jsonrpc: "2.0", id: busy.rpcId, method: "tools/call", params: { name, arguments: args ?? {} } });

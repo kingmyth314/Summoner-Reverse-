@@ -29,6 +29,9 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 | Timeslip's speed keys scale a virtual QPC clock (50-200 %) | Observed in the patch DLL |
 | Cutscenes skip after ~24.9 days of Windows uptime | Inferred from code; not reproduced |
 | Timeslip's patch also removes the CD check (not in its readme) | Observed in the patch DLL |
+| Sum.exe reads its own video settings from `Software\Volition\Summoner`; the launcher isn't required | Observed |
+| With no settings the game defaults to the Glide renderer, which needs a 3dfx `glide2x.dll` | Observed |
+| Sum.exe contains a complete OpenGL renderer that its settings code never selects | Observed (code); whether it works is unknown |
 
 ## Evidence levels
 
