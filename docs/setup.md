@@ -67,14 +67,33 @@ analyzer, native decompiler, Java 21, both client registrations and the skill id
 A live end-to-end test opened `whoami.exe` with `provider_id: ghidra` and decompiled
 `entry` successfully from both Claude Code and a Desktop-equivalent launch.
 
-## Known issue: first-query timeout on large binaries
+## Timeouts on large binaries
 
 Ghidra's initial auto-analysis of `Sum.exe` (1.7 MB, 6,612 functions) takes about
-**100 seconds**. The MCP client in Claude Code gives up first (`Request timed out`), and
-REA discards the ephemeral analysis when a request is cancelled, so direct MCP calls on
-`Sum.exe` never succeed.
+**100 seconds**. Before the change below, Claude Code's MCP client gave up first
+(`Request timed out`). REA discards the ephemeral analysis when a request is cancelled,
+so direct MCP calls on `Sum.exe` never succeeded.
 
-Workaround: `tools/rea-daemon.mjs` keeps a single REA MCP session open with no per-call
+There are two separate limits:
+
+| Limit | Default | Set to | Where |
+|---|---|---|---|
+| Claude Code MCP tool-call timeout (`MCP_TOOL_TIMEOUT`) | client default; observed to cut off before 100 s (this was the one hit) | 900,000 ms (15 min) | `env` block of `%USERPROFILE%\.claude\settings.json` |
+| REA Ghidra startup deadline (`REA_GHIDRA_STARTUP_TIMEOUT_MS`) | 330,000 ms | 840,000 ms (14 min) | `env` of the `rea` server in `.claude.json` and `claude_desktop_config.json` |
+
+The REA deadline is set just below the client timeout, so an over-long analysis returns a
+clear REA error instead of a silent client cutoff. Both changes take effect after
+restarting Claude Code and Claude Desktop. Backups of the client configs from before the
+change are kept as `*.2026-10-12T21-13-50-511Z.bak`.
+
+{: .note }
+Claude Desktop's own MCP client timeout is separate from Claude Code's, and no
+user-facing setting for it was found. The first query on `Sum.exe` from Desktop may still
+time out. *Unknown*; not tested.
+
+### Fallback: the long-lived session daemon
+
+If a direct call still times out: `tools/rea-daemon.mjs` keeps a single REA MCP session open with no per-call
 timeout and takes requests from a queue folder, and `tools/rea-query.ps1` submits calls to
 it. After the first 100-second analysis, every query in the same session returns in about
 a second. See [Analysis tools](tools.md).
