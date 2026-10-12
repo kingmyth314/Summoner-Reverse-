@@ -32,4 +32,4 @@ build/
 summonerfix.log
 
 # Third-party reference repositories (read-only, not ours to redistribute)
-reference/
+/reference/
