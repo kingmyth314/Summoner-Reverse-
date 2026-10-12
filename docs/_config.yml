@@ -1,0 +1,17 @@
+title: Summoner Reverse
+description: Reverse-engineering notes for Summoner (Volition, 2000) using REA and Ghidra
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+plugins:
+  - jekyll-remote-theme
+
+search_enabled: true
+heading_anchors: true
+color_scheme: dark
+
+mermaid:
+  version: "10.9.1"
+
+aux_links:
+  "REA on GitHub": "https://github.com/morluto/rea"
+
+footer_content: "Documentation and original scripts only. No game files or third-party binaries are distributed."

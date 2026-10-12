@@ -1,0 +1,26 @@
+# Game install: copyrighted, never commit
+Summoner/
+*.vpp
+*.bik
+*.exe
+*.dll
+
+# Third-party patch downloads (keep local only)
+third_party/
+
+# REA / Ghidra working files
+.rea-queue/
+*.snapshot.json
+*.rea.backup
+
+# Jekyll build output
+docs/_site/
+docs/.jekyll-cache/
+docs/.sass-cache/
+docs/Gemfile.lock
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
