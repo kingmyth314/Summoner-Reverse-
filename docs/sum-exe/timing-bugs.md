@@ -103,6 +103,35 @@ function that returns `timeGetTime() - value_at_startup`, so the value stays sma
 `0x601e78` is also referenced at `0x43703f` (`FUN_00436c00`) and `0x49431e`
 (`FUN_00494310`). Both may share the bug. **Unknown**; not yet checked.
 
+## 3. Frame limiter double-counts its sleep (2x game speed)
+
+**Status:** Observed at runtime on Windows 11 (2026-10-12). Fixed by
+[SummonerFix](../summonerfix/index.md#frame-limiter-2x-speed).
+
+### The defect
+
+`FrameTimer` (`FUN_00501510`) stores `last = now` (`0x501577`) **before** it sleeps
+(`CALL SleepMs` at `0x5015bc`). A frame shorter than `MIN_DT` (1/120 s) sleeps the remainder
+and reports `dt = MIN_DT`, but the next frame then measures from that pre-sleep timestamp, so
+it counts the same sleep again.
+
+### When it triggers
+
+When frames take far less than `MIN_DT`. That is every frame on modern hardware: the menu
+frames measured about 0.1-0.6 ms. On 2000-era PCs frames were slower than 8.3 ms, so the
+limiter rarely ran.
+
+### Effect
+
+Frames alternate: "sleep, count 8.3 ms" then "don't sleep, count the 8 ms sleep". The result
+is 2 x 8.3 ms of game time per 8.3 ms of real time, so **the game runs at double speed**.
+Measured with SummonerFix diagnostics: about 218 `FrameTimer` calls/s, about 112 sleeps/s of
+about 7.8 ms, while the game believed it ran at about 115 FPS. Players reported the game
+"runs super fast".
+
+This corrects the earlier note on the [main loop page](main-loop.md#behaviour-implications),
+which said the effect was only that the slept time was "counted in the next frame".
+
 ## Evidence
 
 | Claim | REA evidence ID |

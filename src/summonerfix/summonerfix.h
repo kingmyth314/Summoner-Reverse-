@@ -8,10 +8,15 @@
 typedef enum { RENDERER_DIRECT3D = 0x66, RENDERER_GLIDE = 0x67, RENDERER_OPENGL = 0x68 } Renderer;
 
 typedef struct {
-    int width;
+    int width;          // game's internal resolution (UI is laid out for 1024x768)
     int height;
     Renderer renderer;
-    int windowed;
+    int windowed;       // Direct3D/Glide: game window mode 200 instead of 201
+    int borderless;     // OpenGL output: 1 = borderless fullscreen, 0 = window
+    int windowWidth;    // OpenGL output window client size when borderless == 0
+    int windowHeight;
+    int maxFps;         // 0 = game default (120)
+    int captureEvery;   // debug: seconds between frame captures to summonerfix-capture-N.bmp, 0 = off
     int maxTextureSize;
     char soundcard[64];
     char installPath[MAX_PATH];
@@ -36,3 +41,12 @@ void DiagInstall(HMODULE exe);
 
 // glfix.c
 void GlFixInstall(HMODULE exe);
+
+// display.c
+void DisplayInstall(HMODULE exe);
+
+// diag.c
+void FpsLoggerStart(void);
+
+// timing.c
+void TimingFixInstall(void);

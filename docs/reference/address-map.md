@@ -21,6 +21,7 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x4328b0` | `FUN_004328b0` | `FrameEnd` / HUD overlays | [Main loop](../sum-exe/main-loop.md) |
 | `0x436a90` | `FUN_00436a90` | `SequenceTimer` (cutscenes, *inferred*) | [Timing bugs](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
 | `0x436c00` | `FUN_00436c00` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
+| `0x437c80` | `FUN_00437c80` | Loading-screen progress draw (also calls `FrameTimer`) | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x43d7b0` | `FUN_0043d7b0` | `MainLoop` | [Main loop](../sum-exe/main-loop.md#outer-loop-mainloop-fun_0043d7b0) |
 | `0x43d7f0` | `FUN_0043d7f0` | `LoadSettings` (earlier labelled `InitTimers`) | [Video settings](../sum-exe/video-settings.md#settings-loader-loadsettings-fun_0043d7f0) |
 | `0x43da64` | (instruction) | `MOV EDI, 0x67`: default renderer; SummonerFix patches to `0x68` | [SummonerFix](../summonerfix/index.md#fixes) |
@@ -28,11 +29,17 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x43df40` | `FUN_0043df40` | `GameInit` | [Main loop](../sum-exe/main-loop.md) |
 | `0x43e9b0` | `FUN_0043e9b0` | `CdCheck` (JGE at `0x43e9cb`) | [Timeslip](../patches/timeslip.md#how-it-hooks-the-game) |
 | `0x494310` | `FUN_00494310` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
+| `0x500b3f` | (instruction) | Mouse poll: `GetCursorPos` + `ScreenToClient` (`0x500b50`); SummonerFix maps coordinates | [SummonerFix](../summonerfix/index.md#display-scaling) |
+| `0x500ca7` | (instruction) | Cursor warp: `ClientToScreen` + `SetCursorPos` (`0x500cb7`) | [SummonerFix](../summonerfix/index.md#display-scaling) |
 | `0x5014b0` | `FUN_005014b0` | `FrameTimerInit` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510) |
+| `0x5014e4` | (instruction) | `MOV [0x5a574c], 1/120f`: `MIN_DT` init; `MaxFPS` patches the immediate at `0x5014ea` | [SummonerFix](../summonerfix/index.md#fixes) |
 | `0x501510` | `FUN_00501510` | `FrameTimer` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510) |
+| `0x5015bc` | (instruction) | `CALL SleepMs` in `FrameTimer`; SummonerFix redirects to `FrameSleep` | [Timing bugs](../sum-exe/timing-bugs.md#3-frame-limiter-double-counts-its-sleep-2x-game-speed) |
 | `0x5016f0` | `FUN_005016f0` | `SetFrameTimeLimits(min, max)` | [Main loop](../sum-exe/main-loop.md) |
 | `0x5017f0` | `FUN_005017f0` | `GameClockAdvance(ms)` | [Main loop](../sum-exe/main-loop.md#game-clocks-gameclockadvance-fun_005017f0) |
 | `0x505e00` | `FUN_00505e00` | `GrInit(w, h, renderer, mode, hwnd)` | [Video settings](../sum-exe/video-settings.md#graphics-init-grinit-fun_00505e00) |
+| `0x506840` | `FUN_00506840` | `SetClip(x, y, w, h)`: clip rectangle, 27 callers; re-applies the viewport | [SummonerFix](../summonerfix/index.md#display-scaling) |
+| `0x5069a0` | `FUN_005069a0` | `ResetClip()`: full-screen clip | [SummonerFix](../summonerfix/index.md#display-scaling) |
 | `0x512110` | `FUN_00512110` | `RegSetAppKey` (builds `Software\Volition\Summoner`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x512340` | `FUN_00512340` | `RegReadDword(root, name, out, default)` | [Video settings](../sum-exe/video-settings.md) |
 | `0x530bf0` | `FUN_00530bf0` | `SleepMs` | [Main loop](../sum-exe/main-loop.md) |
@@ -45,10 +52,11 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x5329b1` | `FUN_005329b1` | `ReadTSC` (RDTSC) | [Timing bugs](../sum-exe/timing-bugs.md#false-lead) |
 | `0x5394e0` | `FUN_005394e0` | Direct3D renderer init (`0x66`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x5395c0` | `FUN_005395c0` | Direct3D device setup; any failure -> `exit(0)` at `0x539b41` | [SummonerFix](../summonerfix/index.md#direct3d-silent-exit-not-fixed) |
+| `0x549d10` | `FUN_00549d10` | Glide renderer init (`0x67`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x54e690` | `FUN_0054e690` | `GlTextureInit`: allocates max_texture_size² x 4 bytes | [SummonerFix](../summonerfix/index.md#opengl-failed-to-allocate-1073741824-bytes) |
 | `0x54f410` | `FUN_0054f410` | OpenGL init step that calls `GlTextureInit` | [SummonerFix](../summonerfix/index.md) |
-| `0x549d10` | `FUN_00549d10` | Glide renderer init (`0x67`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x54f6f0` | `FUN_0054f6f0` | OpenGL renderer init (`0x68`, never selected) | [Video settings](../sum-exe/video-settings.md) |
+| `0x54f8c0` | `FUN_0054f8c0` | OpenGL `glOrtho` + `glViewport` from the clip rectangle | [SummonerFix](../summonerfix/index.md#display-scaling) |
 | `0x566560` | `FUN_00566560` | `timeSetEvent` user (audio, *inferred*) | - |
 | `0x566cf0` | `FUN_00566cf0` | calls `timeBeginPeriod(1)` | [Main loop](../sum-exe/main-loop.md) |
 

@@ -13,8 +13,11 @@ has_children: false
 **Summary:** SummonerFix is our own open-source replacement for Timeslip's patch: a
 `dinput.dll` proxy plus `summonerfix.ini` placed next to `Sum.exe`. It makes the game start
 on Windows 11 without the original launcher, using the game's built-in but never-enabled
-OpenGL renderer. **Status (2026-10-12): the game reaches its main menu in a 1600x900 window
-on Windows 11.** The menu is still drawn at 1024x768 in the top-left corner.
+OpenGL renderer. The game keeps its native 1024x768 layout, and the image is scaled to fill a
+borderless fullscreen window (4:3, centred), with the 3D world rasterised at the monitor's
+native resolution. **Status (2026-10-12): main menu correct at 2560x1440 fullscreen; frame
+rate and game speed fixed (120 FPS, 1:1 game time). The user has play-tested sound and
+cutscenes (working); input, menus and gameplay at the new scaling still need testing.**
 
 Source: `src/summonerfix/`. Build: `tools/build-summonerfix.ps1 [-Install]` (LLVM-MinGW,
 `i686-w64-mingw32-gcc`). Test harness: `tools/test-run.ps1`.
@@ -37,11 +40,16 @@ folder before any game code runs. `DllMain`:
 | Fix | Mechanism | Why |
 |---|---|---|
 | No launcher needed | IAT hooks on `RegOpenKeyExA`, `RegCreateKeyExA`, `RegQueryValueExA`, `RegSetValueExA`, `RegDeleteValueA`, `RegDeleteKeyA`, `RegCloseKey` | The launcher can't detect modern cards, so the registry key stays empty. Display and sound values now come from the ini, and values the game writes are kept in ini `[Registry]`. Other keys pass through. See [Video settings](../sum-exe/video-settings.md). |
-| Any resolution | Writes the size into resolution-table slot 2 (`0x580e48`, `0x580e4c`) | `LoadSettings` only accepts sizes in the table |
+| Game resolution | `GameWidth`/`GameHeight` (default 1024x768); other sizes are written into resolution-table slot 2 (`0x580e48`, `0x580e4c`) | `LoadSettings` only accepts sizes in the table. Keep 1024x768: UI, clip rectangles and menus are laid out for it |
 | OpenGL renderer | `0x43da64`: `BF 67` -> `BF 68` (`MOV EDI, 0x68`) | The default renderer is Glide; the OpenGL renderer `0x68` is never selected by the game |
-| Windowed mode | `0x43db45`: `68 C9` -> `68 C8` (`PUSH 200`) | `gr_opengl.cpp` refuses fullscreen mode 201 |
+| Windowed mode | `0x43db45`: `68 C9` -> `68 C8` (`PUSH 200`), always for OpenGL | `gr_opengl.cpp` refuses fullscreen mode 201 |
+| Fullscreen output and scaling | Hooks on `SetWindowLongA`/`SetWindowPos` (only calls from `GrInit`), `glViewport`, `SwapBuffers` | See [Display scaling](#display-scaling) |
+| Mouse mapping | Hooks on `ScreenToClient` (game poll at `0x500b50`) and `ClientToScreen` (cursor warp at `0x500ca7`) | Converts window pixels to game pixels and back |
+| Correct 3D aspect | Hook on `GetSystemMetrics` for calls from `GrInit` | Windowed `GrInit` takes the aspect from the desktop (16:9) instead of the game's 4:3 |
+| 2x game speed | `CALL SleepMs` at `0x5015bc` -> `FrameSleep` | See [Frame limiter](#frame-limiter-2x-speed) |
+| Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
-| Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`; logs them with a heuristic stack trace | Tracing failures to game code |
+| Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ## Problems found and fixed
 
@@ -49,7 +57,8 @@ folder before any game code runs. `DllMain`:
 
 **Observed** at runtime: in fullscreen mode (201) the OpenGL renderer stops with
 `Error: OpenGl can only be used in windowed modes for now` (`gr_opengl.cpp` line 657).
-Workaround: windowed mode (200). A borderless fullscreen window is still to do.
+Workaround: always use windowed mode (200) and turn that window into a borderless fullscreen
+window (see below).
 
 ### OpenGL: "Failed to allocate 1073741824 bytes"
 
@@ -71,16 +80,54 @@ Diagnostics show `exit(0)` called from `0x539B4D` in the Direct3D init
 `exit` block at `0x539b41`, so which call fails is **unknown**. Not pursued while OpenGL
 works.
 
+### Display scaling
+
+**Why:** the game lays out everything in fixed pixels for its internal resolution: UI
+positions, menu bitmaps, and `SetClip(x, y, w, h)` (`FUN_00506840`, 27 callers). Timeslip's
+patch moved UI elements around (a position table at `0x58acbc`-`0x58bc40`), which left menus
+misplaced. Running the OpenGL renderer at a larger size than 1024x768 drew everything in
+the top-left 1024x768, and the uncovered area showed garbage under the mouse (user report).
+
+**How:** the game keeps its 1024x768 coordinates. `glOrtho` stays in game pixels; only
+`glViewport` is changed, mapped to a centred, aspect-correct rectangle of the real window
+(`scale = min(clientW/1024, clientH/768)`). OpenGL then rasterises all geometry at the
+window's native resolution. Before each `SwapBuffers` the unused bars are cleared with a
+scissored `glClear`. Mouse coordinates are mapped back to game pixels.
+
+**Observed:** main menu centred at 2560x1440 with black bars (frame capture, 2026-10-12).
+
+### Frame limiter: 2x speed
+
+**Observed.** The game's frame limiter double-counts its sleep, so on a fast PC game time
+runs at twice real time. Details: [Timing bugs](../sum-exe/timing-bugs.md#3-frame-limiter-double-counts-its-sleep-2x-game-speed).
+
+`FrameSleep` (in `timing.c`) replaces the limiter's sleep. It waits with a high-resolution
+waitable timer until exactly one `MIN_DT` after the previous frame's end (kept internally,
+because `FrameTimer` has already overwritten its own timestamp), then sets the game's
+`last` timestamp (`0x257f098`) to that time.
+
+| Build | Real FPS | Game's own FPS | Game speed |
+|---|---|---|---|
+| Original | ~218 | ~115 | about 2x |
+| `last` = wake-up time | ~113 | 120 | 0.94x |
+| Final (`last` = scheduled time) | **120.0** | **120.0** | **1x** |
+
+The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 ms over 5 s.
+
 ## Configuration (`summonerfix.ini`)
 
 | Key | Default | Meaning |
 |---|---|---|
-| `[Display] Width`, `Height` | 1024, 768 | Render resolution |
 | `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide` |
-| `[Display] Windowed` | 0 | 1 = windowed (required for OpenGL for now) |
+| `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size) or `Window` |
+| `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable) |
+| `[Display] GameWidth`, `GameHeight` | 1024, 768 | The game's internal layout resolution |
+| `[Display] Windowed` | 0 | Direct3D/Glide only: use the game's own windowed mode |
+| `[Game] MaxFPS` | 0 | Frame cap; 0 = game default 120 |
 | `[Display] MaxTextureSize` | 2048 | OpenGL texture-size cap |
 | `[Sound] Soundcard` | `DirectSound` | or `No Sound` |
-| `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits and large allocations |
+| `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits, large allocations, FPS and sleep statistics |
+| `[Debug] CaptureEvery` | 0 | Seconds between back-buffer captures (`summonerfix-capture-N.bmp`) |
 | `[Registry]` | | Values the game saved (`Version\*`, and later options) |
 
 Settings the game asked for at startup that were not set: `CmdLineOptions`,
@@ -95,11 +142,15 @@ The game uses its defaults for these.
 | 2026-10-12 | OpenGL, windowed, 1600x900 | Error: failed to allocate 1 GB |
 | 2026-10-12 | Direct3D, fullscreen, 1920x1080 | Silent `exit(0)` from D3D init |
 | 2026-10-12 | OpenGL, windowed, 1600x900, texture cap 2048 | **Main menu shown**; drawn at 1024x768 in the top-left corner |
+| 2026-10-12 | Same, user play-test (about 5 min) | Sound and cutscenes work; image limited to 1024x768 top-left; display glitches over the uncovered area; game "super fast" |
+| 2026-10-12 | OpenGL, borderless fullscreen 2560x1440, viewport scaling | Menu centred 4:3 with bars (frame capture). 218 FPS measured, 2x speed |
+| 2026-10-12 | Same + FrameSleep (final) | **120.0 FPS real = 120.0 game**; 1:1 speed |
 
 ## Still to do
 
-- Borderless fullscreen for OpenGL.
-- Scale or centre the 1024x768 UI and menus at larger resolutions.
-- Play-test in-game rendering, input (DirectInput) and sound.
+- User play-test of the scaled fullscreen build: mouse accuracy in menus and in game, game
+  speed, cutscenes, alt-tab.
+- Widescreen (16:9) instead of 4:3 pillarboxing: needs a wider game resolution with the UI
+  kept centred.
 - Port Timeslip's features (QPC fix, speed keys, Bink fixes, intro skip, zoom, interaction
   ranges, console bindings) and add the cutscene `timeGetTime` fix.

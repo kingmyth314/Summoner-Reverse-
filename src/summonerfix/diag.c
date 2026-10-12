@@ -88,6 +88,65 @@ static void WINAPI Diag_GlobalMemoryStatus(LPMEMORYSTATUS ms)
         (unsigned long)ms->dwTotalPhys, (unsigned long)ms->dwAvailPhys, (unsigned long)ms->dwTotalVirtual);
 }
 
+// Sleep statistics: the frame limiter sleeps through SleepMs (FUN_00530bf0 -> Sleep).
+typedef void(WINAPI *PFN_Sleep)(DWORD);
+static PFN_Sleep real_Sleep;
+static volatile LONG g_sleepCalls, g_sleepAskedMs, g_sleepActualUs;
+static LARGE_INTEGER g_qpf;
+
+static void WINAPI Diag_Sleep(DWORD ms)
+{
+    LARGE_INTEGER a, b;
+    QueryPerformanceCounter(&a);
+    real_Sleep(ms);
+    QueryPerformanceCounter(&b);
+    InterlockedIncrement(&g_sleepCalls);
+    InterlockedExchangeAdd(&g_sleepAskedMs, (LONG)ms);
+    InterlockedExchangeAdd(&g_sleepActualUs, (LONG)((b.QuadPart - a.QuadPart) * 1000000 / g_qpf.QuadPart));
+}
+
+// Every 5 s, log the game's own frame statistics (FrameTimer globals, docs/sum-exe/main-loop.md):
+// fps_avg 0x5a5744, frame_dt 0x5a5740, frame count 0x257f088.
+static DWORD WINAPI FpsLoggerThread(LPVOID unused)
+{
+    (void)unused;
+    DWORD lastFrames = 0, lastTick = GetTickCount();
+    typedef int(__cdecl * PFN_Clock)(int);
+    PFN_Clock gameClock = (PFN_Clock)(UINT_PTR)SumVa(0x5328d0);
+    LARGE_INTEGER q0, q1, qf;
+    QueryPerformanceFrequency(&qf);
+    QueryPerformanceCounter(&q0);
+    int c0 = gameClock(1000000);
+    for (;;) {
+        Sleep(5000);
+        QueryPerformanceCounter(&q1);
+        int c1 = gameClock(1000000);
+        Log("clock check: game FrameClockRead %+.1f ms vs QPC %+.1f ms", (c1 - c0) / 1000.0,
+            (double)(q1.QuadPart - q0.QuadPart) * 1000.0 / (double)qf.QuadPart);
+        q0 = q1;
+        c0 = c1;
+        DWORD frames = *(volatile DWORD *)(UINT_PTR)SumVa(0x257f088);
+        float fps = *(volatile float *)(UINT_PTR)SumVa(0x5a5744);
+        float dt = *(volatile float *)(UINT_PTR)SumVa(0x5a5740);
+        DWORD now = GetTickCount();
+        double measured = (frames - lastFrames) * 1000.0 / (double)(now - lastTick);
+        float raw = *(volatile float *)(UINT_PTR)SumVa(0x5a573c);
+        LONG calls = InterlockedExchange(&g_sleepCalls, 0), asked = InterlockedExchange(&g_sleepAskedMs, 0),
+             actual = InterlockedExchange(&g_sleepActualUs, 0);
+        Log("frames %lu: measured %.1f FPS (game avg %.1f), raw_dt %.4f, frame_dt %.4f s; Sleep x%ld asked %ld ms, "
+            "got %.1f ms",
+            (unsigned long)frames, measured, (double)fps, (double)raw, (double)dt, calls, asked, actual / 1000.0);
+        lastFrames = frames;
+        lastTick = now;
+    }
+    return 0;
+}
+
+void FpsLoggerStart(void)
+{
+    CloseHandle(CreateThread(NULL, 0, FpsLoggerThread, NULL, 0, NULL));
+}
+
 void DiagInstall(HMODULE exe)
 {
     real_MessageBoxA = HookImport(exe, "USER32.dll", "MessageBoxA", Diag_MessageBoxA);
@@ -95,4 +154,6 @@ void DiagInstall(HMODULE exe)
     real_HeapAlloc = HookImport(exe, "KERNEL32.dll", "HeapAlloc", Diag_HeapAlloc);
     real_VirtualAlloc = HookImport(exe, "KERNEL32.dll", "VirtualAlloc", Diag_VirtualAlloc);
     real_GlobalMemoryStatus = HookImport(exe, "KERNEL32.dll", "GlobalMemoryStatus", Diag_GlobalMemoryStatus);
+    QueryPerformanceFrequency(&g_qpf);
+    real_Sleep = HookImport(exe, "KERNEL32.dll", "Sleep", Diag_Sleep);
 }

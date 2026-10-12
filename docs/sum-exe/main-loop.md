@@ -186,6 +186,11 @@ because the subtraction is modular. *Inferred* from the assembly; not tested.
 - The sleep happens after the clock was read, so the slept time is counted in the next
   frame's measurement.
 
+{: .important }
+**Correction (observed 2026-10-12):** this double-counting makes the game run at **2x speed**
+on any PC whose frames are much shorter than 1/120 s. See
+[Timing bugs](timing-bugs.md#3-frame-limiter-double-counts-its-sleep-2x-game-speed).
+
 ## Other timers (not yet analysed)
 
 - `FUN_00436a90` (and `0x436c00`, `0x494310`): a `timeGetTime`-based sequence timer,

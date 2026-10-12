@@ -14,6 +14,20 @@ public static class WinText {
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+    // Capture one window's content even when other windows cover it (PW_RENDERFULLCONTENT = 2).
+    public static bool Capture(IntPtr h, string path, int maxW) {
+        RECT r; if (!GetWindowRect(h, out r)) return false;
+        int w = r.R - r.L, ht = r.B - r.T; if (w <= 0 || ht <= 0) return false;
+        using (var bmp = new System.Drawing.Bitmap(w, ht)) {
+            using (var g = System.Drawing.Graphics.FromImage(bmp)) { var dc = g.GetHdc(); PrintWindow(h, dc, 2); g.ReleaseHdc(dc); }
+            int sw = Math.Min(maxW, w), sh = (int)((long)ht * sw / w);
+            using (var small = new System.Drawing.Bitmap(bmp, sw, sh)) small.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        return true;
+    }
     static string Text(IntPtr h) { var s = new StringBuilder(4096); GetWindowText(h, s, s.Capacity); return s.ToString(); }
     // Visible top-level windows of a process, each with the text of its child controls (dialog message text).
     public static List<string> Dump(uint pid) {
@@ -30,7 +44,7 @@ public static class WinText {
         return r;
     }
 }
-'@
+'@ -ReferencedAssemblies System.Drawing
 }
 
 function Save-Screen([string]$path) {
@@ -56,7 +70,10 @@ for ($i = 1; $i -le $Shots; $i++) {
     Start-Sleep -Seconds $step
     $p.Refresh()
     $state = if ($p.HasExited) { "EXITED code $($p.ExitCode)" } else { "running, window '$($p.MainWindowTitle)', $([int]($p.WorkingSet64/1MB)) MB" }
-    $shot = Save-Screen (Join-Path $OutDir ("sum-shot-$i.png"))
+    $shot = Join-Path $OutDir ("sum-shot-$i.png")
+    if ($p.HasExited -or $p.MainWindowHandle -eq [IntPtr]::Zero -or -not [WinText]::Capture($p.MainWindowHandle, $shot, 1280)) {
+        $shot = Save-Screen $shot
+    } else { $shot = "$shot (game window)" }
     "t+$($i*$step)s: $state  screenshot: $shot"
     if (-not $p.HasExited) { [WinText]::Dump([uint32]$p.Id) | ForEach-Object { "   window $_" } }
     if ($p.HasExited) { break }

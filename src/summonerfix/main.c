@@ -24,10 +24,17 @@ static void LoadConfig(void)
     _snprintf(g_cfg.iniPath, MAX_PATH, "%s\\summonerfix.ini", dir);
     lstrcpynA(g_cfg.installPath, dir, MAX_PATH);
 
-    g_cfg.width = GetPrivateProfileIntA("Display", "Width", 1024, g_cfg.iniPath);
-    g_cfg.height = GetPrivateProfileIntA("Display", "Height", 768, g_cfg.iniPath);
+    g_cfg.width = GetPrivateProfileIntA("Display", "GameWidth", 1024, g_cfg.iniPath);
+    g_cfg.height = GetPrivateProfileIntA("Display", "GameHeight", 768, g_cfg.iniPath);
     g_cfg.windowed = GetPrivateProfileIntA("Display", "Windowed", 0, g_cfg.iniPath);
+    char mode[32];
+    GetPrivateProfileStringA("Display", "Mode", "Fullscreen", mode, sizeof mode, g_cfg.iniPath);
+    g_cfg.borderless = lstrcmpiA(mode, "Window") != 0;
+    g_cfg.windowWidth = GetPrivateProfileIntA("Display", "WindowWidth", 1600, g_cfg.iniPath);
+    g_cfg.windowHeight = GetPrivateProfileIntA("Display", "WindowHeight", 1200, g_cfg.iniPath);
     g_cfg.maxTextureSize = GetPrivateProfileIntA("Display", "MaxTextureSize", 2048, g_cfg.iniPath);
+    g_cfg.maxFps = GetPrivateProfileIntA("Game", "MaxFPS", 0, g_cfg.iniPath);
+    g_cfg.captureEvery = GetPrivateProfileIntA("Debug", "CaptureEvery", 0, g_cfg.iniPath);
 
     char r[32];
     GetPrivateProfileStringA("Display", "Renderer", "OpenGL", r, sizeof r, g_cfg.iniPath);
@@ -42,9 +49,11 @@ static void LoadConfig(void)
     _snprintf(log, MAX_PATH, "%s\\summonerfix.log", dir);
     LogInit(log);
     Log("SummonerFix loaded. ini: %s", g_cfg.iniPath);
-    Log("config: %dx%d, renderer %s, %s, sound '%s'", g_cfg.width, g_cfg.height,
+    Log("config: game %dx%d, renderer %s, output %s (window %dx%d), max FPS %d, sound '%s'", g_cfg.width,
+        g_cfg.height,
         g_cfg.renderer == RENDERER_DIRECT3D ? "Direct3D" : g_cfg.renderer == RENDERER_GLIDE ? "Glide" : "OpenGL",
-        g_cfg.windowed ? "windowed" : "fullscreen", g_cfg.soundcard);
+        g_cfg.borderless ? "borderless fullscreen" : "window", g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.maxFps,
+        g_cfg.soundcard);
 }
 
 static BOOL IsSupportedBuild(void)
@@ -76,11 +85,20 @@ static void ApplyDisplayPatches(void)
         PatchBytes(0x43da64, orig, ogl, sizeof orig, "default renderer -> OpenGL (0x68)");
     }
 
-    // Window mode: `PUSH 0xc9` (201 = fullscreen) at 0x43db45 -> 200 (windowed).
-    if (g_cfg.windowed) {
+    // Window mode: `PUSH 0xc9` (201 = fullscreen) at 0x43db45 -> 200 (windowed). The OpenGL renderer
+    // only supports windowed mode; display.c then turns that window into our output window.
+    if (g_cfg.windowed || g_cfg.renderer == RENDERER_OPENGL) {
         static const BYTE orig[] = {0x68, 0xC9, 0x00, 0x00, 0x00};
         static const BYTE win[] = {0x68, 0xC8, 0x00, 0x00, 0x00};
         PatchBytes(0x43db45, orig, win, sizeof orig, "window mode -> windowed (200)");
+    }
+
+    // Frame cap: FrameTimerInit (FUN_005014b0) stores MIN_DT = 1/120 s with
+    // `MOV dword ptr [0x5a574c], 0x3c088889` at 0x5014e4; its float immediate is at 0x5014ea.
+    if (g_cfg.maxFps > 0) {
+        float minDt = 1.0f / (float)g_cfg.maxFps;
+        static const BYTE orig[] = {0x89, 0x88, 0x08, 0x3C};
+        PatchBytes(0x5014ea, orig, &minDt, 4, "frame cap (MIN_DT)");
     }
 }
 
@@ -97,11 +115,16 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         return TRUE;
     }
     Log("Sum.exe v1.40 detected.");
-    if (GetPrivateProfileIntA("Debug", "Diagnostics", 0, g_cfg.iniPath))
+    if (GetPrivateProfileIntA("Debug", "Diagnostics", 0, g_cfg.iniPath)) {
         DiagInstall(GetModuleHandleA(NULL));
+        FpsLoggerStart();
+    }
     RegHookInstall(GetModuleHandleA(NULL));
     GlFixInstall(GetModuleHandleA(NULL));
+    if (g_cfg.renderer == RENDERER_OPENGL)
+        DisplayInstall(GetModuleHandleA(NULL));
     ApplyDisplayPatches();
+    TimingFixInstall();
     Log("startup fixes applied.");
     return TRUE;
 }
