@@ -17,6 +17,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
+- [Roadmap](roadmap.md) - planned work: custom key bindings, a fast-travel speed control, widescreen.
 - [Address map](reference/address-map.md) - every address and label used in these notes.
 - [Documentation standard](contributing.md) - how new findings are written up.
 

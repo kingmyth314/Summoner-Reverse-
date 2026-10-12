@@ -15,9 +15,8 @@ has_children: false
 on Windows 11 without the original launcher, using the game's built-in but never-enabled
 OpenGL renderer. The game keeps its native 1024x768 layout, and the image is scaled to fill a
 borderless fullscreen window (4:3, centred), with the 3D world rasterised at the monitor's
-native resolution. **Status (2026-10-12): main menu correct at 2560x1440 fullscreen; frame
-rate and game speed fixed (120 FPS, 1:1 game time). The user has play-tested sound and
-cutscenes (working); input, menus and gameplay at the new scaling still need testing.**
+native resolution. **Status (2026-10-12): user play-test after the scaling and speed fixes: "everything seems to
+feel a bit better now and everything works".** Fullscreen 2560x1440, 120 FPS, 1:1 game speed.
 
 Source: `src/summonerfix/`. Build: `tools/build-summonerfix.ps1 [-Install]` (LLVM-MinGW,
 `i686-w64-mingw32-gcc`). Test harness: `tools/test-run.ps1`.
@@ -145,12 +144,8 @@ The game uses its defaults for these.
 | 2026-10-12 | Same, user play-test (about 5 min) | Sound and cutscenes work; image limited to 1024x768 top-left; display glitches over the uncovered area; game "super fast" |
 | 2026-10-12 | OpenGL, borderless fullscreen 2560x1440, viewport scaling | Menu centred 4:3 with bars (frame capture). 218 FPS measured, 2x speed |
 | 2026-10-12 | Same + FrameSleep (final) | **120.0 FPS real = 120.0 game**; 1:1 speed |
+| 2026-10-12 | Same, user play-test | Everything works; game feels better |
 
 ## Still to do
 
-- User play-test of the scaled fullscreen build: mouse accuracy in menus and in game, game
-  speed, cutscenes, alt-tab.
-- Widescreen (16:9) instead of 4:3 pillarboxing: needs a wider game resolution with the UI
-  kept centred.
-- Port Timeslip's features (QPC fix, speed keys, Bink fixes, intro skip, zoom, interaction
-  ranges, console bindings) and add the cutscene `timeGetTime` fix.
+See the [Roadmap](../roadmap.md).
