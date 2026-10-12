@@ -69,6 +69,11 @@ First steps:
 2. Play-test walking, combat, AI and scripted events at 2x and 4x.
 3. Add `[Game] FastTravelKey` and `FastTravelSpeed` to `summonerfix.ini`.
 
+## Decompilation
+
+See the [Decompilation plan](decomp-plan.md): map the whole binary first (engine core
+first), structured so it can become a byte-matching decompilation later.
+
 ## Other planned work
 
 - Widescreen (16:9) instead of 4:3 pillarboxing, with the 1024-wide UI kept centred.
