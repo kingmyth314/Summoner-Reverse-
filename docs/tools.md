@@ -9,10 +9,10 @@ Helper scripts live in the repository's `tools/` folder.
 
 ## `tools/rea-daemon.mjs`
 
-A long-lived REA MCP session with no client-side timeout. It is now a fallback: since the
-timeout settings were raised (see [Tooling setup](setup.md#timeouts-on-large-binaries)),
-direct MCP calls should work for `Sum.exe`. It is still useful for scripted batches of
-queries, or when a client's timeout can't be changed.
+A long-lived REA MCP session with no client-side timeout. **This is the required route for
+`Sum.exe` inside the Claude desktop app**, which cuts off MCP calls at about 60 s no matter
+what the timeout settings say (see [Tooling setup](setup.md#timeouts-on-large-binaries)).
+It is also handy for scripted batches of queries.
 
 - Spawns `rea mcp` from the global npm install.
 - Watches a queue folder (default `.rea-queue/` in the repository root).

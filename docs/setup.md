@@ -82,14 +82,27 @@ There are two separate limits:
 | REA Ghidra startup deadline (`REA_GHIDRA_STARTUP_TIMEOUT_MS`) | 330,000 ms | 840,000 ms (14 min) | `env` of the `rea` server in `.claude.json` and `claude_desktop_config.json` |
 
 The REA deadline is set just below the client timeout, so an over-long analysis returns a
-clear REA error instead of a silent client cutoff. Both changes take effect after
-restarting Claude Code and Claude Desktop. Backups of the client configs from before the
-change are kept as `*.2026-10-12T21-13-50-511Z.bak`.
+clear REA error instead of a silent client cutoff. Backups of the client configs from before
+the change are kept as `*.2026-10-12T21-13-50-511Z.bak`.
 
-{: .note }
-Claude Desktop's own MCP client timeout is separate from Claude Code's, and no
-user-facing setting for it was found. The first query on `Sum.exe` from Desktop may still
-time out. *Unknown*; not tested.
+{: .important }
+**Tested 2026-10-12: this does not fix the timeout inside the Claude desktop app.** After a
+restart, `MCP_TOOL_TIMEOUT=900000` was confirmed active, yet a direct `binary_overview` on
+`Sum.exe` still failed with `Request timed out` about 60 s after the call began. The desktop
+app then restarted the REA server, which threw away the Ghidra analysis. This matches a
+[reported bug](https://claudeissues.com/issue/63379-bug-desktop-app-cancels-stdio-mcp-tool-calls-at-60s-and-ignores-mcp-tool-timeout):
+the desktop app cancels stdio MCP calls at about 60 s and ignores `MCP_TOOL_TIMEOUT`, while
+the `claude` terminal CLI is reported to honor it (not tested here).
+
+What works, by where you run Claude:
+
+| Where | Large binaries such as `Sum.exe` |
+|---|---|
+| Claude desktop app (Code tab or chat) | Use the daemon below; direct REA calls time out at about 60 s |
+| `claude` CLI in a terminal | Direct REA calls are expected to work with the settings above (*reported*, not tested) |
+| Any client, small binaries (under 60 s to analyze) | Direct REA calls work |
+
+The settings are kept, because they are harmless and help the CLI and REA's own deadline.
 
 ### Fallback: the long-lived session daemon
 

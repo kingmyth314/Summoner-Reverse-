@@ -11,6 +11,8 @@ nav_order: 2
 - [REA](https://github.com/morluto/rea) - `rea-agents` 6.4.0 on npm
 - [Ghidra](https://github.com/NationalSecurityAgency/ghidra) - 12.1.4, released 2026-09-21
 - [Eclipse Temurin](https://adoptium.net/) - JDK 21.0.12
+- [Bug report: desktop app cancels stdio MCP tool calls at ~60 s and ignores MCP_TOOL_TIMEOUT](https://claudeissues.com/issue/63379-bug-desktop-app-cancels-stdio-mcp-tool-calls-at-60s-and-ignores-mcp-tool-timeout)
+- [Bug report: timeout field in claude_desktop_config.json not honored](https://claudeissues.com/issue/43791-bug-timeout-field-in-claude-desktop-config-json-not-honored-for-mcp-servers)
 
 ## Timeslip's patch
 
