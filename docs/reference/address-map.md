@@ -8,6 +8,8 @@ nav_order: 1
 
 Sum.exe v1.40 (SHA-256 `f22c84a1…f8bf9d3`). Labels are ours; the binary has no symbols.
 Keep this table sorted by address, and add every new address that appears in any page.
+The machine-readable source of truth for names is `symbols/sum.symbols` (see the
+[Decompilation plan](../decomp-plan.md)); this page adds context and links.
 "Volition:" notes give the original engine name where a reference project confirms it (see
 [Engine references](engine-references.md)).
 

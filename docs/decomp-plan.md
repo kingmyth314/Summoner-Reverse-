@@ -106,6 +106,24 @@ When a small translation unit is fully mapped (for example `frametime.cpp`):
   bytes function by function (objdiff, as the Summoner 2 project does).
 - If it matches, set up the project layout and progress tracking for the rest.
 
+## Status
+
+| Phase 0 step | Status (2026-10-12) |
+|---|---|
+| 1. Symbol file | Done: `symbols/sum.symbols` (78 symbols, 43 functions) and `symbols/types.h`; `node tools/symbols.mjs check` |
+| 2. Apply symbols | x32dbg: done and verified (`apply-x32dbg`; names appear in the live disassembly). REA/Ghidra: `apply-rea` written, blocked (see below) |
+| 3. Progress report | `progress` written; it needs the Ghidra function list (`fetch-functions`), blocked |
+| 4. Translation-unit map | Done: [Source-file map](sum-exe/source-map.md) (`node tools/tu-map.mjs`, no Ghidra needed) |
+| 5. Mark C runtime | Approximate boundary `~0x56a000`; to be refined with the function list |
+
+{: .warning }
+**Blocker (2026-10-12):** REA's Ghidra sessions fail with "Open Windows path component failed
+[C:\] (Win32 32)". Another process holds `C:\` open with write access, which REA's sandbox
+won't share. A test open of `C:\` with `FILE_LIST_DIRECTORY` and share-read only also fails,
+while normal sharing works. It isn't x32dbg and isn't any REA server. The only recently started
+process found was Windows Update's `MoNotificationUx` (*inferred* suspect). A Windows restart
+is expected to clear it.
+
 ## Where we start
 
 Phase 0, steps 1-4: create the symbol file seeded with the ~70 names already in the

@@ -1,0 +1,39 @@
+// Structure layouts for Sum.exe v1.40, referenced by symbols/sum.symbols.
+// Field offsets are observed in Sum.exe unless noted. Reference names come from the projects listed
+// in docs/reference/engine-references.md (layouts only; no code is copied).
+#pragma once
+#include <stdint.h>
+
+// gr::Screen at 0x25d8d30 (zeroed by gr__init, 0x2a dwords). Layout matches Dash Faction's
+// rf::gr::Screen for every field Sum.exe has been seen to use.
+typedef struct gr__Screen {
+    int32_t signature;      // +0x00
+    int32_t max_w;          // +0x04 screen width
+    int32_t max_h;          // +0x08 screen height
+    int32_t mode;           // +0x0C renderer: 0x66 Direct3D, 0x67 Glide, 0x68 OpenGL
+    int32_t window_mode;    // +0x10 200 windowed, 201 fullscreen, 202 desktop size
+    int32_t dual_monitors;  // +0x14 (bool in DF; padded)
+    float   aspect;         // +0x18 (width / height) * 0.75
+    int32_t rowsize;        // +0x1C
+    int32_t bits_per_pixel; // +0x20
+    int32_t bytes_per_pixel;// +0x24
+    float   far_zvalue;     // +0x28
+    int32_t offset_x;       // +0x2C clip origin x
+    int32_t offset_y;       // +0x30 clip origin y
+    int32_t clip_width;     // +0x34
+    int32_t clip_height;    // +0x38
+    int32_t max_bitmap_w;   // +0x3C from GL_MAX_TEXTURE_SIZE (OpenGL) / device caps (D3D)
+    int32_t max_bitmap_h;   // +0x40
+    int32_t clip_left;      // +0x44
+    int32_t clip_right;     // +0x48
+    int32_t clip_top;       // +0x4C
+    int32_t clip_bottom;    // +0x50
+    // +0x54.. colour, textures, fog, tint (Dash Faction layout; not yet verified in Sum.exe)
+} gr__Screen;
+
+// One entry of gameseq_state_table (0x588a70): handlers for a game state.
+typedef struct GameStateHandlers {
+    void (*enter)(void);    // +0x0 called after the state becomes current
+    void (*frame)(void);    // +0x4 called every GameTick while current
+    void (*leave)(void);    // +0x8 called before switching away
+} GameStateHandlers;

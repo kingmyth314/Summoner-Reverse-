@@ -58,3 +58,26 @@ Starts x32dbg, if it is not already running, and waits until its MCP server list
 
 Build SummonerFix (`-Install` copies it next to Sum.exe), and start the game for a timed
 test with screenshots, dialog text and the SummonerFix log. See [SummonerFix](summonerfix/index.md).
+
+## `tools/symbols.mjs`
+
+Works with the symbol file `symbols/sum.symbols` (format described in its header).
+
+| Command | What it does |
+|---|---|
+| `check` | Validates format, duplicates and sort order |
+| `apply-x32dbg` | Labels every symbol in x32dbg (Sum.exe must be loaded; see `start-x32dbg.ps1 -Game`) |
+| `apply-rea` | Names every symbol in the running REA/Ghidra session (`rea-daemon.mjs`) |
+| `fetch-functions` | Saves Ghidra's function list to `symbols/ghidra-functions.tsv` |
+| `progress` | Named and unnamed functions per 64 KB of `.text` |
+
+## `tools/tu-map.mjs`
+
+Builds the [Source-file map](sum-exe/source-map.md) by scanning `.text` for references to the
+source-path strings. No Ghidra needed. `--md <path>` also writes the Markdown table.
+
+## `tools/lib/rea-queue.mjs`
+
+Node client for the REA daemon queue (`reaCall(name, args)`), used by `symbols.mjs`. It avoids
+the PowerShell argument-quoting problems of `rea-query.ps1`. Pass Windows paths with
+backslashes: a forward-slash path is accepted by `open_binary` but doesn't bind the session.
