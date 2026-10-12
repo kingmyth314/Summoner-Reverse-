@@ -30,3 +30,6 @@ build/
 
 # Game-folder runtime files created by SummonerFix
 summonerfix.log
+
+# Third-party reference repositories (read-only, not ours to redistribute)
+reference/

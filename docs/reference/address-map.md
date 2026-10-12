@@ -8,6 +8,8 @@ nav_order: 1
 
 Sum.exe v1.40 (SHA-256 `f22c84a1…f8bf9d3`). Labels are ours; the binary has no symbols.
 Keep this table sorted by address, and add every new address that appears in any page.
+"Volition:" notes give the original engine name where a reference project confirms it (see
+[Engine references](engine-references.md)).
 
 ## Functions
 
@@ -31,24 +33,24 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x494310` | `FUN_00494310` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x500b3f` | (instruction) | Mouse poll: `GetCursorPos` + `ScreenToClient` (`0x500b50`); SummonerFix maps coordinates | [SummonerFix](../summonerfix/index.md#display-scaling) |
 | `0x500ca7` | (instruction) | Cursor warp: `ClientToScreen` + `SetCursorPos` (`0x500cb7`) | [SummonerFix](../summonerfix/index.md#display-scaling) |
-| `0x5014b0` | `FUN_005014b0` | `FrameTimerInit` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510) |
+| `0x5014b0` | `FUN_005014b0` | `FrameTimerInit` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510); Volition: `frametime_initialize` |
 | `0x5014e4` | (instruction) | `MOV [0x5a574c], 1/120f`: `MIN_DT` init; `MaxFPS` patches the immediate at `0x5014ea` | [SummonerFix](../summonerfix/index.md#fixes) |
-| `0x501510` | `FUN_00501510` | `FrameTimer` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510) |
+| `0x501510` | `FUN_00501510` | `FrameTimer` | [Main loop](../sum-exe/main-loop.md#frame-timer-frametimer-fun_00501510); Volition: `FrameDone` |
 | `0x5015bc` | (instruction) | `CALL SleepMs` in `FrameTimer`; SummonerFix redirects to `FrameSleep` | [Timing bugs](../sum-exe/timing-bugs.md#3-frame-limiter-double-counts-its-sleep-2x-game-speed) |
 | `0x5016f0` | `FUN_005016f0` | `SetFrameTimeLimits(min, max)` | [Main loop](../sum-exe/main-loop.md) |
-| `0x5017f0` | `FUN_005017f0` | `GameClockAdvance(ms)` | [Main loop](../sum-exe/main-loop.md#game-clocks-gameclockadvance-fun_005017f0) |
+| `0x5017f0` | `FUN_005017f0` | `GameClockAdvance(ms)` | [Main loop](../sum-exe/main-loop.md#game-clocks-gameclockadvance-fun_005017f0); Volition: `UpdateTicker` |
 | `0x505e00` | `FUN_00505e00` | `GrInit(w, h, renderer, mode, hwnd)` | [Video settings](../sum-exe/video-settings.md#graphics-init-grinit-fun_00505e00) |
-| `0x506840` | `FUN_00506840` | `SetClip(x, y, w, h)`: clip rectangle, 27 callers; re-applies the viewport | [SummonerFix](../summonerfix/index.md#display-scaling) |
-| `0x5069a0` | `FUN_005069a0` | `ResetClip()`: full-screen clip | [SummonerFix](../summonerfix/index.md#display-scaling) |
+| `0x506840` | `FUN_00506840` | `SetClip(x, y, w, h)`: clip rectangle, 27 callers; re-applies the viewport | [SummonerFix](../summonerfix/index.md#display-scaling); Volition: `gr::set_clip` |
+| `0x5069a0` | `FUN_005069a0` | `ResetClip()`: full-screen clip | [SummonerFix](../summonerfix/index.md#display-scaling); Volition: `gr::reset_clip` |
 | `0x512110` | `FUN_00512110` | `RegSetAppKey` (builds `Software\Volition\Summoner`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x512340` | `FUN_00512340` | `RegReadDword(root, name, out, default)` | [Video settings](../sum-exe/video-settings.md) |
-| `0x530bf0` | `FUN_00530bf0` | `SleepMs` | [Main loop](../sum-exe/main-loop.md) |
+| `0x530bf0` | `FUN_00530bf0` | `SleepMs` | [Main loop](../sum-exe/main-loop.md); Volition: `timer_wait` |
 | `0x530ca0` | `FUN_00530ca0` | `PumpMessages` wrapper | [Main loop](../sum-exe/main-loop.md) |
 | `0x530cb0` | `FUN_00530cb0` | `PumpMessages` (PeekMessage loop) | [Main loop](../sum-exe/main-loop.md) |
 | `0x5312d6` | `FUN_005312d6` | CPU identification | - |
 | `0x53171f` | `FUN_0053171f` | `PrintSystemInfo` (CPU, RAM, RAM speed) | [Main loop](../sum-exe/main-loop.md#other-timers-not-yet-analysed) |
 | `0x532840` | `FUN_00532840` | `FrameClockInit` | [Timing bugs](../sum-exe/timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug) |
-| `0x5328d0` | `FUN_005328d0` | `FrameClockRead(scale)` | [Main loop](../sum-exe/main-loop.md#frame-clock-frameclockinit--frameclockread) |
+| `0x5328d0` | `FUN_005328d0` | `FrameClockRead(scale)` | [Main loop](../sum-exe/main-loop.md#frame-clock-frameclockinit--frameclockread); Volition: `timer_get` |
 | `0x5329b1` | `FUN_005329b1` | `ReadTSC` (RDTSC) | [Timing bugs](../sum-exe/timing-bugs.md#false-lead) |
 | `0x5394e0` | `FUN_005394e0` | Direct3D renderer init (`0x66`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x5395c0` | `FUN_005395c0` | Direct3D device setup; any failure -> `exit(0)` at `0x539b41` | [SummonerFix](../summonerfix/index.md#direct3d-silent-exit-not-fixed) |
@@ -87,13 +89,13 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x594a78` | string | `Resolution Height` | registry value |
 | `0x594a8c` | string | `Resolution Width` | registry value |
 | `0x594ac0` | string | `Volition` | registry company key |
-| `0x5a573c` | float | `raw_dt` | |
-| `0x5a5740` | float | `frame_dt` | |
-| `0x5a5744` | float | `fps_avg` | |
-| `0x5a5748` | float | `time_scale` | Always 1.0 |
-| `0x5a574c` | float | `MIN_DT` | 1/120 |
-| `0x5a5750` | float | `MAX_DT` | 0.25 |
-| `0x5a5754` | int | `ring_index` | |
+| `0x5a573c` | float | `raw_dt` |; Volition: `actual_frametime` |
+| `0x5a5740` | float | `frame_dt` |; Volition: `reported_frametime` |
+| `0x5a5744` | float | `fps_avg` |; Volition: `fps` |
+| `0x5a5748` | float | `time_scale` | Always 1.0; Volition: `frametime_divisor` |
+| `0x5a574c` | float | `MIN_DT` | 1/120; Volition: `min_reported_frametime` |
+| `0x5a5750` | float | `MAX_DT` | 0.25; Volition: `max_reported_frametime` |
+| `0x5a5754` | int | `ring_index` |; Volition: `frametime_history_index` |
 | `0x5a5758` | int | game clock (pause-aware, ms) | |
 | `0x5a575c` | int | game clock (always, ms) | |
 | `0x5b27e0` | int | `state_cur` | |
@@ -104,12 +106,12 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x5fc01f` | byte | `show_framerate` flag | |
 | `0x601e78` | int | sequence start time (`timeGetTime`) | |
 | `0x2491a5c` | byte | frame freeze flag (*inferred:* pause) | |
-| `0x257f040` | float[16] | frame-time ring buffer | |
-| `0x257f088` | int | frame count | |
-| `0x257f08c` | int | total ms | |
-| `0x257f098` | int | last clock reading (µs) | |
-| `0x257f0a4` | int | timer frozen | |
-| `0x257f0a8` | int | total-ms paused | |
+| `0x257f040` | float[16] | frame-time ring buffer |; Volition: `frametime_history` |
+| `0x257f088` | int | frame count |; Volition: `frames_rendered` |
+| `0x257f08c` | int | total ms |; Volition: `milliseconds_unpaused` |
+| `0x257f098` | int | last clock reading (µs) |; Volition: `previous_done_time` |
+| `0x257f0a4` | int | timer frozen |; Volition: `Frametime_paused` |
+| `0x257f0a8` | int | total-ms paused |; Volition: `Animation_timer_paused` |
 | `0x257f0ac` | int | game-clock paused | |
 | `0x2cbffa8` | int64 | `qpc_last` | |
 | `0x2cbffb0` | int | RDTSC result (unused) | |
