@@ -24,3 +24,9 @@ Thumbs.db
 desktop.ini
 .DS_Store
 .vscode/
+
+# Build output
+build/
+
+# Game-folder runtime files created by SummonerFix
+summonerfix.log

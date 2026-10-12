@@ -16,6 +16,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Main loop and frame timer](sum-exe/main-loop.md) - how the game advances time each frame.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
+- [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
 - [Address map](reference/address-map.md) - every address and label used in these notes.
 - [Documentation standard](contributing.md) - how new findings are written up.
 
@@ -31,7 +32,8 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 | Timeslip's patch also removes the CD check (not in its readme) | Observed in the patch DLL |
 | Sum.exe reads its own video settings from `Software\Volition\Summoner`; the launcher isn't required | Observed |
 | With no settings the game defaults to the Glide renderer, which needs a 3dfx `glide2x.dll` | Observed |
-| Sum.exe contains a complete OpenGL renderer that its settings code never selects | Observed (code); whether it works is unknown |
+| Sum.exe contains a complete OpenGL renderer that its settings code never selects | Observed |
+| With SummonerFix, the OpenGL renderer reaches the main menu on Windows 11 (windowed) | Observed 2026-10-12 |
 
 ## Evidence levels
 

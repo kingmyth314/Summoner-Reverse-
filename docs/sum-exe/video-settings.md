@@ -89,8 +89,9 @@ the embedded source paths and error strings (`Glide DLL not found!`,
 
 {: .important }
 `LoadSettings` only ever picks `0x66` or `0x67`. No code path found so far selects the
-OpenGL renderer `0x68`. Whether it works (or is complete) is **unknown**; it is a
-candidate for the modern-driver fix, because OpenGL runs natively at any resolution.
+OpenGL renderer `0x68`. **Update:** forced on by [SummonerFix](../summonerfix/index.md), it
+works on Windows 11 in windowed mode, after a texture-size fix (*observed*: the main menu
+renders).
 
 ## Evidence
 

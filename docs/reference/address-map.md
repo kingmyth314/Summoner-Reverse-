@@ -23,6 +23,8 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x436c00` | `FUN_00436c00` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x43d7b0` | `FUN_0043d7b0` | `MainLoop` | [Main loop](../sum-exe/main-loop.md#outer-loop-mainloop-fun_0043d7b0) |
 | `0x43d7f0` | `FUN_0043d7f0` | `LoadSettings` (earlier labelled `InitTimers`) | [Video settings](../sum-exe/video-settings.md#settings-loader-loadsettings-fun_0043d7f0) |
+| `0x43da64` | (instruction) | `MOV EDI, 0x67`: default renderer; SummonerFix patches to `0x68` | [SummonerFix](../summonerfix/index.md#fixes) |
+| `0x43db45` | (instruction) | `PUSH 0xc9`: window mode; SummonerFix patches to `0xc8` | [SummonerFix](../summonerfix/index.md#fixes) |
 | `0x43df40` | `FUN_0043df40` | `GameInit` | [Main loop](../sum-exe/main-loop.md) |
 | `0x43e9b0` | `FUN_0043e9b0` | `CdCheck` (JGE at `0x43e9cb`) | [Timeslip](../patches/timeslip.md#how-it-hooks-the-game) |
 | `0x494310` | `FUN_00494310` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
@@ -42,6 +44,9 @@ Keep this table sorted by address, and add every new address that appears in any
 | `0x5328d0` | `FUN_005328d0` | `FrameClockRead(scale)` | [Main loop](../sum-exe/main-loop.md#frame-clock-frameclockinit--frameclockread) |
 | `0x5329b1` | `FUN_005329b1` | `ReadTSC` (RDTSC) | [Timing bugs](../sum-exe/timing-bugs.md#false-lead) |
 | `0x5394e0` | `FUN_005394e0` | Direct3D renderer init (`0x66`) | [Video settings](../sum-exe/video-settings.md) |
+| `0x5395c0` | `FUN_005395c0` | Direct3D device setup; any failure -> `exit(0)` at `0x539b41` | [SummonerFix](../summonerfix/index.md#direct3d-silent-exit-not-fixed) |
+| `0x54e690` | `FUN_0054e690` | `GlTextureInit`: allocates max_texture_size² x 4 bytes | [SummonerFix](../summonerfix/index.md#opengl-failed-to-allocate-1073741824-bytes) |
+| `0x54f410` | `FUN_0054f410` | OpenGL init step that calls `GlTextureInit` | [SummonerFix](../summonerfix/index.md) |
 | `0x549d10` | `FUN_00549d10` | Glide renderer init (`0x67`) | [Video settings](../sum-exe/video-settings.md) |
 | `0x54f6f0` | `FUN_0054f6f0` | OpenGL renderer init (`0x68`, never selected) | [Video settings](../sum-exe/video-settings.md) |
 | `0x566560` | `FUN_00566560` | `timeSetEvent` user (audio, *inferred*) | - |

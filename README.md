@@ -16,13 +16,15 @@ GitHub Pages site.
 | ">4 GHz" timer bug | The QueryPerformanceFrequency result is truncated to 32 bits | [Timing bugs](docs/sum-exe/timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug) |
 | Cutscene skip bug | Cutscene timer reads `timeGetTime` as a signed 32-bit value and breaks after ~24.9 days of uptime (inferred) | [Timing bugs](docs/sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
 | Video settings | The game reads its own registry settings, accepts only 640x480 / 800x600 / 1024x768, and has an unused OpenGL renderer | [Video settings](docs/sum-exe/video-settings.md) |
+| SummonerFix | Our own `dinput.dll` patch: no launcher, forces the hidden OpenGL renderer; **main menu works on Windows 11** | [SummonerFix](docs/summonerfix/index.md) |
 | Timeslip's patch (v3) | Hooks QPC/QPF through the import table, adds a virtual-clock speed control and removes the CD check | [Timeslip's patch](docs/patches/timeslip.md) |
 
 ## Repository layout
 
 ```
 docs/            GitHub Pages site (Markdown, Jekyll "Just the Docs" theme)
-tools/           Helper scripts used during analysis
+src/summonerfix/ SummonerFix source (C, built with LLVM-MinGW)
+tools/           Build, test and analysis helper scripts
 Summoner/        Local game install - NOT committed (see .gitignore)
 ```
 
