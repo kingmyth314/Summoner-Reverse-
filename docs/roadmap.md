@@ -94,6 +94,9 @@ What is known:
   Centring a 1024-wide UI could therefore be done with the clip origin, but mouse
   hit-testing for that UI would need the same offset.
 
+- **Done 2026-10-13:** menus (every game state except 4) are centred by shifting SummonerFix's output mapping (`[Display] CenterMenus`). Checked by frame capture.
+- User test 2026-10-13: works in game, but leaves empty space in the UI (in-game screens sit in the left 1024 pixels) and at the right of the menus (now fixed).
+
 Next steps:
 
 1. Play-test in game with `GameWidth=1366` and note what is wrong (HUD placement, panels,

@@ -49,6 +49,7 @@ folder before any game code runs. `DllMain`:
 | Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
 | Custom key bindings | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]`. A watcher thread reloads the table when `summonerfix.ini` changes, so bindings change live | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Tested 2026-10-13 (E=I, A=Left) |
+| Centred menus at wide resolutions | `GetMap` (viewport, bar clearing and mouse mapping) shifts the picture by `(GameWidth - 1024) / 2` game pixels while the game state is not 4 (gameplay) | Menus are a fixed 1024-wide layout; at `GameWidth=1366` they sat at the left with an empty right side. Checked by frame capture 2026-10-13: centred with even bars. `[Display] CenterMenus=0` turns it off |
 | Mouse bindings | The six `CALL mouse_mark_button` sites in the mouse message handler (`0x500f79`-`0x500fba`) -> `MouseMark`; our own handler registered with `os_add_msg_handler` (`0x530c20`) for `WM_XBUTTON*` (side buttons) and for keys bound to mouse buttons; mouse-to-key bindings are injected through `key_mark` | `[KeyBindings]` accepts `MouseLeft`, `MouseRight`, `MouseMiddle`, `Mouse4`, `Mouse5`, e.g. `Mouse4=M`, `Q=MouseRight`, `MouseMiddle=Space`. **Untested** |
 | Speed-up key (fast travel) | While `[Game] SpeedKey` (default F11) is held and the game has focus, `frametime_divisor` (`0x5a5748`) = `1 / SpeedFactor` | `FrameDone` reports frame time / divisor, so the whole game advances faster. **Untested** |
 | Typing ignores key bindings | `key_to_ascii` (`0x509ca0`) -> `KeyToAscii`: `KeyRemap` records which physical key produced each game key code; text entry translates back before the character lookup | With `E=I` bound, typing a save name with E gave "i" (user report 2026-10-13). **Untested** |
@@ -137,7 +138,8 @@ A binding adds a key; the default key keeps working. If the new key already belo
 | `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide` |
 | `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size) or `Window` |
 | `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable) |
-| `[Display] GameWidth`, `GameHeight` | 1024, 768 | The game's internal layout resolution |
+| `[Display] GameWidth`, `GameHeight` | 1024, 768 | The game's internal layout resolution; e.g. 1366x768 for 16:9 |
+| `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |
 | `[Display] Windowed` | 0 | Direct3D/Glide only: use the game's own windowed mode |
 | `[Game] MaxFPS` | 0 | Frame cap; 0 = game default 120 |
 | `[Display] MaxTextureSize` | 2048 | OpenGL texture-size cap |

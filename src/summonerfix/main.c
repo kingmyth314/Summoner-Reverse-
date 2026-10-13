@@ -33,6 +33,7 @@ static void LoadConfig(void)
     g_cfg.windowWidth = GetPrivateProfileIntA("Display", "WindowWidth", 1600, g_cfg.iniPath);
     g_cfg.windowHeight = GetPrivateProfileIntA("Display", "WindowHeight", 1200, g_cfg.iniPath);
     g_cfg.maxTextureSize = GetPrivateProfileIntA("Display", "MaxTextureSize", 2048, g_cfg.iniPath);
+    g_cfg.centerMenus = GetPrivateProfileIntA("Display", "CenterMenus", 1, g_cfg.iniPath);
     g_cfg.maxFps = GetPrivateProfileIntA("Game", "MaxFPS", 0, g_cfg.iniPath);
     g_cfg.captureEvery = GetPrivateProfileIntA("Debug", "CaptureEvery", 0, g_cfg.iniPath);
 
