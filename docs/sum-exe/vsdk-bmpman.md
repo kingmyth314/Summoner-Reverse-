@@ -79,7 +79,21 @@ Summoner's "missing texture" pattern.
   helpers used by the mark/release mechanism.
 - **C runtime:** `atexit` (`0x56d1cd`).
 
-## Not yet named
+## Image readers and writers (`targautils.cpp`, `0x554b60`-`0x5565e0`)
 
-The image readers in `targautils.cpp` and nearby (`0x554b60`-`0x556600`: TGA, PCX and M2V
-header/pixel readers) and the renderer texture cache (`0x506c70`, `0x5069e0`, `0x508020`).
+| Format | Read | Write |
+|---|---|---|
+| TGA | `tga_read_header` `0x555110`, `tga_read_bitmap` `0x555450` (RLE: `tga_rle_decode` `0x555330`) | `tga_write` `0x555b50` (type 2), `tga_write_rle` `0x555970` (type 10) |
+| PCX | `pcx_read_header` `0x555cf0`, `pcx_read_bitmap` `0x555f60` | `pcx_write` `0x5562a0` |
+| M2V | `m2v_read_header` `0x554b60`, `m2v_read_bitmap` `0x554d00` (whole file loaded raw) | |
+| JPEG | | `jpeg_write_file` `0x5565e0` |
+
+**Screenshots can be JPEG:** [`gr_screenshot`](vsdk-gr.md#drawing) writes either an RLE
+`.tga` or a `.jpg`. The JPEG writer drives the Independent JPEG Group's libjpeg, which is
+statically linked: its messages, such as "Bogus marker", are in `.rdata`. The libjpeg
+functions after `0x5565e0` are library code and do not need decompiling; they can be
+matched against the IJG source later.
+
+File helpers named alongside: `File::size` (`0x514860`), `File::error` (`0x514a40`),
+`File::write` (`0x526410`) with `write_uint8`/`write_uint16`, `file_change_ext`
+(`0x5130a0`), and the C runtime's `fwrite` (`0x56fcdf`).

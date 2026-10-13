@@ -405,11 +405,14 @@
 0x512820  allocate_in_commonblock  func  memory.cpp             V ; Summoner 2 text "Common block is already locked."; PC heap-allocates (new at line 600)
 0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
+0x5130a0  file_change_ext          func  vsdk\vfile             I ; (out, name, ext)
 0x5140d0  File__File               func  vsdk\vfile             O ; Dash Faction rf::File (0x114-byte object)
 0x5140f0  File__dtor               func  vsdk\vfile             O ; closes if open
 0x5141c0  File__find               func  vsdk\vfile             O ; (name, path_id); Dash Faction
 0x514630  File__open               func  vsdk\vfile             O ; (name, mode, path_id); Dash Faction
 0x514740  File__close              func  vsdk\vfile             O ; fclose or packfile_fclose
+0x514860  File__size               func  vsdk\vfile             O ; Dash Faction File::size(name, path_id)
+0x514a40  File__error              func  vsdk\vfile             O ; Dash Faction File::error
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
@@ -461,6 +464,9 @@
 0x524470  vector3__normalize_length func  vsdk\math              I ; same body; callers use the returned length
 0x525990  File__read_int           func  vsdk\vfile             I ; (min_ver, default), as Dash Faction File::read<int>
 0x525fe0  File__read               func  vsdk\vfile             O ; (buf, len, min_ver, unused); Dash Faction
+0x526220  File__write_uint8        func  vsdk\vfile             I
+0x526240  File__write_uint16       func  vsdk\vfile             I
+0x526410  File__write              func  vsdk\vfile             I ; (buf, len); optional transform when the file flag bit 0 is set
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530c20  os_add_msg_handler       func  vsdk\os                O ; Dash Faction rf::os_add_msg_handler; key_init registers its window-message hook
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
@@ -558,6 +564,24 @@
 0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
+0x554b60  m2v_read_header          func  vsdk\bmpman\targautils.cpp I ; (name, &w, &h); retries with ".m2v" appended; reads an 8-byte header
+0x554d00  m2v_read_bitmap          func  vsdk\bmpman\targautils.cpp I ; (name, &data): whole file into a new buffer
+0x554ea0  tga_rle_encode_row       func  vsdk\bmpman\targautils.cpp I ; used by gr_screenshot
+0x555020  tga_convert_pixels       func  vsdk\bmpman\targautils.cpp I ; 1555/565 to TGA byte order
+0x5550d0  bytes_equal              func  vsdk\bmpman\targautils.cpp I ; (a, b, n)
+0x555110  tga_read_header          func  vsdk\bmpman\targautils.cpp O ; (name, &w, &h, &bpp, ..., path_id); bm_read_header type 2
+0x555330  tga_rle_decode           func  vsdk\bmpman\targautils.cpp I
+0x555410  copy_pixels_advance      func  vsdk\bmpman\targautils.cpp I
+0x555450  tga_read_bitmap          func  vsdk\bmpman\targautils.cpp O ; "Could not open file: %s"; bm_lock_tga
+0x555970  tga_write_rle            func  vsdk\bmpman\targautils.cpp I ; image type 10
+0x555b50  tga_write                func  vsdk\bmpman\targautils.cpp I ; image type 2
+0x555cf0  pcx_read_header          func  vsdk\bmpman\targautils.cpp O ; bm_read_header type 1
+0x555f60  pcx_read_bitmap          func  vsdk\bmpman\targautils.cpp O ; bm_lock_pcx; 8-bit + 0x300-byte palette
+0x5562a0  pcx_write                func  vsdk\bmpman\targautils.cpp I ; ".pcx", version 5 RLE header
+0x556470  pcx_encode_line          func  vsdk\bmpman\targautils.cpp I
+0x556550  pcx_encode_byte          func  vsdk\bmpman\targautils.cpp I ; run byte 0xC0 | count
+0x5565a0  bm_image_error_string    func  vsdk\bmpman\targautils.cpp I ; nth string of a "No error." table
+0x5565e0  jpeg_write_file          func  vsdk\bmpman            I ; (name, rgb, w, h): fopen + IJG libjpeg compress sequence; gr_screenshot ".jpg"
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
@@ -579,6 +603,7 @@
 0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
 0x56f979  fseek                    func  crt                    O ; C runtime
 0x56fbc8  fread                    func  crt                    O ; C runtime
+0x56fcdf  fwrite                   func  crt                    O
 0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
 0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
 # ---- data -----------------------------------------------------------------------------------

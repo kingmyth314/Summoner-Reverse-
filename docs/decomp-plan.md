@@ -125,16 +125,16 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1 progress (2026-10-13): **411 / 5,548** game/engine functions named
-(7.4%), plus 136 pointer-only callbacks.
+Phase 0 is complete. Phase 1 progress (2026-10-13): **435 / 5,548** game/engine functions named
+(7.8%), plus 136 pointer-only callbacks.
 
 | Module | Status | Page |
 |---|---|---|
 | `os`: timestamp, timer, memory/mempool, stringpool, debug, registry, cmdline, console, key state | Mostly done; a few helpers left | [OS layer](sum-exe/vsdk-os.md), [Console](sum-exe/console.md) |
 | `parse` (TextFile) | Done (33 methods) | [Parser](sum-exe/vsdk-parse.md) |
 | `vfile\packfile` | Done | [Packfiles](sum-exe/vsdk-packfile.md) |
-| `bmpman` | Done (45 functions); image readers left | [Bitmap manager](sum-exe/vsdk-bmpman.md) |
+| `bmpman` + image readers | Done (TGA/PCX/M2V, JPEG screenshots) | [Bitmap manager](sum-exe/vsdk-bmpman.md) |
 | Localization (strings.tbl, name tables) | Done | [Localization](sum-exe/localize.md) |
 | `gr`, `gr_font`, keyboard; back-end dispatch targets | Done (front end); back ends partly | [Graphics and keyboard](sum-exe/vsdk-gr.md) |
 | `math\matrix` and vector helpers | Done (V for the Summoner 2 functions) | [Math](sum-exe/vsdk-math.md) |
-| Next: image readers, mouse/joystick, geom, ca (characters) | Not started | |
+| Next: mouse/joystick, geom, ca (characters) | Not started | |
