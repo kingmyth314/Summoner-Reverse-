@@ -125,5 +125,6 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Next: Phase 1, module 1 (`os`: timer, registry, memory, cmdline,
+Phase 0 is complete. Phase 1, module 1 is in progress ([OS layer](sum-exe/vsdk-os.md): timestamp, memory,
+stringpool and DebugError named, 63 / 5,548 functions); remaining in module 1 (`os`: timer, registry, memory, cmdline,
 stringpool, console), each compared with the Summoner 2 decomp source.

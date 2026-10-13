@@ -62,3 +62,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Timing bugs](timing-bugs.md)
 - [Video settings and renderers](video-settings.md)
 - [Source-file map](source-map.md)
+- [vsdk: OS layer](vsdk-os.md)

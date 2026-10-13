@@ -30,7 +30,21 @@
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
-0x5017f0 UpdateTicker             func  frametime.cpp            V ; Summoner 2 decomp; advances millisecond game clocks
+0x5017f0  UpdateTicker             func  timestamp.cpp          V ; Summoner 2 decomp; advances Timestamp_ticker / Timestamp_realtime_ticker (wrap at MAX_TIME 0x3ff1a100)
+0x501840  IncrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
+0x501850  DecrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
+0x501880  GameTimer__SetTimeout    func  timestamp.cpp          V ; Summoner 2 decomp; this in ECX
+0x5018d0  GameTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp; rand()
+0x501910  GameTimer__elapsed       func  timestamp.cpp          V ; Summoner 2 decomp
+0x501940  GameTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
+0x501980  GameTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
+0x501990  GameTimer__valid         func  timestamp.cpp          V ; Summoner 2 decomp
+0x501a00  RealtimeTimer__SetTimeout func  timestamp.cpp          V ; Summoner 2 decomp
+0x501a50  RealtimeTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp
+0x501a90  RealtimeTimer__elapsed   func  timestamp.cpp          V ; Summoner 2 decomp
+0x501ac0  RealtimeTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
+0x501b00  RealtimeTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
+0x501b10  RealtimeTimer__valid     func  timestamp.cpp          V ; Summoner 2 decomp
 0x505e00 gr__init                 func  vsdk\gr\gr.cpp           I ; (w, h, mode, window_mode, hwnd, far_z, dual)
 0x506840 gr__set_clip             func  vsdk\gr\gr.cpp           V ; Dash Faction gr::set_clip; 27 callers
 0x5069a0 gr__reset_clip           func  vsdk\gr\gr.cpp           V ; Dash Faction gr::reset_clip
@@ -39,16 +53,22 @@
 0x512280 os_registry_read_string  func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512340 os_registry_read_dword   func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512370 os_registry_write_dword  func  vsdk\os\registry.cpp     O
+0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
+0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
+0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
 0x5312d6 cpu_identify             func  -                        O ; CPU type/speed/extensions
 0x53171f PrintSystemInfo          func  -                        O ; prints CPU, RAM, RAM speed
+0x531cb0  DebugError               func  -                      V ; Summoner 2 DebugError(File, Line, Error); PC: MessageBox + exit(1)
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
+0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
+0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
@@ -56,6 +76,9 @@
 0x54f8c0 gr_opengl_set_viewport   func  vsdk\gr\opengl\gr_opengl.cpp     O ; glOrtho + glViewport from the clip rectangle
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
+0x56c740  sprintf                  func  crt                    O ; C runtime
+0x56da99  exit                     func  crt                    O ; C runtime
+0x56ea9b  free                     func  crt                    O ; C runtime
 
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
@@ -67,8 +90,8 @@
 0x5a574c min_reported_frametime   data:float           frametime.cpp     V ; 1/120
 0x5a5750 max_reported_frametime   data:float           frametime.cpp     V ; 0.25
 0x5a5754 frametime_history_index  data:int             frametime.cpp     V
-0x5a5758 game_ticker_ms           data:int             frametime.cpp     I ; pause-aware millisecond clock (UpdateTicker)
-0x5a575c game_ticker_ms_always    data:int             frametime.cpp     I ; always-running millisecond clock (UpdateTicker)
+0x5a5758 Timestamp_ticker           data:int             timestamp.cpp     V ; Summoner 2 decomp; game-time ms clock, starts at 1
+0x5a575c Timestamp_realtime_ticker    data:int             timestamp.cpp     V ; Summoner 2 decomp; real-time ms clock, starts at 1
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
 0x5b27e8 gameseq_state_next       data:int             -                 O
@@ -85,7 +108,7 @@
 0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
-0x257f0ac game_ticker_paused      data:int             frametime.cpp     I ; skips game_ticker_ms in UpdateTicker
+0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
 0x25d8d30 gr_screen               data:gr__Screen      vsdkgrgr.cpp    V ; Dash Faction rf::gr::Screen layout
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read

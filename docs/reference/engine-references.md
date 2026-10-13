@@ -41,7 +41,7 @@ the [2x-speed bug](../sum-exe/timing-bugs.md#3-frame-limiter-double-counts-its-s
 |---|---|---|
 | `0x5014b0` | `FrameTimerInit` | `frametime_initialize()` |
 | `0x501510` | `FrameTimer` | `FrameDone()` |
-| `0x5017f0` | `GameClockAdvance` | `UpdateTicker(int ms)` |
+| `0x5017f0` | `GameClockAdvance` | `UpdateTicker(int ms)` (in `timestamp.cpp`; see [OS layer](../sum-exe/vsdk-os.md)) |
 | `0x5328d0` | `FrameClockRead(scale)` | `timer_get(int scale)` |
 | `0x530bf0` | `SleepMs` | `timer_wait(int ms)` |
 | `0x5a573c` | `raw_dt` | `actual_frametime` |

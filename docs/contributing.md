@@ -15,7 +15,7 @@ be pushed to GitHub and published with GitHub Pages at any time.
 | A topic about `Sum.exe` | `docs/sum-exe/<topic>.md` with `parent: Sum.exe` |
 | Another binary (for example `Summoner.exe`) | new section `docs/<binary>/index.md` with `has_children: true` |
 | A third-party patch or mod | `docs/patches/<name>.md` with `parent: Patches` |
-| Every new address or label | `docs/reference/address-map.md`, sorted by address |
+| Every new name | `symbols/sum.symbols` via `node tools/symbols.mjs add` (the source of truth); `docs/reference/address-map.md` only for addresses that need narrative context |
 | Every external link or downloaded file | `docs/reference/sources.md` |
 | Tool or environment changes | `docs/setup.md` or `docs/tools.md` |
 | Headline findings | the table in `docs/index.md` and the root `README.md` |

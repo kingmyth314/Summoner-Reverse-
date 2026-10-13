@@ -136,7 +136,44 @@ function progress(symbols) {
 }
 
 if (process.argv[1] && !process.argv[1].endsWith("symbols.mjs")) { /* imported as a module */ } else {
+// Insert or replace one symbol line, keeping functions and data each sorted by address.
+//   add <addr> <name> <kind> <module> <conf> [comment...]
+//   rename <old-name-or-addr> <new-name> [conf]
+function editSymbols(cmd, a) {
+  const text = readFileSync(SYMBOLS, "utf8");
+  const nl = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const isSym = (l) => /^0x[0-9a-f]+\s/.test(l);
+  const addrOf = (l) => parseInt(l.split(/\s+/)[0], 16);
+  if (cmd === "rename") {
+    const [key, newName, conf] = a;
+    const i = lines.findIndex((l) => isSym(l) && (l.split(/\s+/)[1] === key || l.split(/\s+/)[0] === key));
+    if (i < 0) throw new Error(`no symbol ${key}`);
+    const f = lines[i].split(/(\s+)/);
+    f[2] = newName.padEnd(f[2].length);
+    if (conf) f[8] = conf;
+    lines[i] = f.join("");
+  } else {
+    const [addr, name, kind, module, conf, ...comment] = a;
+    const hex = "0x" + parseInt(addr, 16).toString(16);
+    const line = `${hex.padEnd(9)} ${name.padEnd(24)} ${kind.padEnd(5)} ${module.padEnd(22)} ${conf}${comment.length ? " ; " + comment.join(" ") : ""}`;
+    const existing = lines.findIndex((l) => isSym(l) && addrOf(l) === parseInt(hex, 16));
+    if (existing >= 0) lines[existing] = line;
+    else {
+      const isFunc = kind === "func";
+      const section = lines.map((l, i) => ({ l, i })).filter(({ l }) => isSym(l) && (l.split(/\s+/)[2] === "func") === isFunc);
+      const after = section.filter(({ l }) => addrOf(l) < parseInt(hex, 16)).pop();
+      const at = after ? after.i + 1 : section.length ? section[0].i : lines.length;
+      lines.splice(at, 0, line);
+    }
+  }
+  writeFileSync(SYMBOLS, lines.join(nl));
+  const { errors } = loadSymbols();
+  if (errors.length) { console.log(errors.join("\n")); process.exit(1); }
+}
+
 const [cmd] = process.argv.slice(2);
+if (cmd === "add" || cmd === "rename") { editSymbols(cmd, process.argv.slice(3)); console.log(`${cmd} ok`); process.exit(0); }
 const { symbols, errors } = loadSymbols();
 if (cmd === "check" || !cmd) {
   if (errors.length) { console.log(errors.join("\n")); process.exit(1); }
