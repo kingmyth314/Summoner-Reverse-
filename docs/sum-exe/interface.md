@@ -21,18 +21,18 @@ strings confirm it; **I** means it is placed by position.
 | Id | Init | Leave | Screen | File | Conf. |
 |---|---|---|---|---|---|
 | 0 | `0x40cef0` | – | HUD (no menu) | `new_hud.cpp` | I |
-| 1 | `0x414fc0` | `0x4158b0` | Inventory | `new_inventory.cpp` | I |
-| 2 | `0x42b480` | `0x42b910` | Status | `new_status.cpp` | I |
-| 3 | `0x402250` | – | Automap | `new_automap.cpp` | I |
+| 1 | `0x414fc0` | `0x4158b0` | Inventory: full-screen panel, "Inventory", "Party Items" | `new_inventory.cpp` | O |
+| 2 | `0x42b480` | `0x42b910` | Character (status): full-screen panel, "Character", "Skills", "Resistances" | `new_status.cpp` | O |
+| 3 | `0x402250` | – | Map: left side panel with the automap | `new_automap.cpp` | O |
 | 4 | `0x4207d0` | `0x420960` | Pickup | `new_pickup.cpp` | I |
-| 5 | `0x429b30` | – | ? (between skill and spell) | | |
-| 6 | `0x427520` | `0x427df0` | ? (between save/load and skill) | | |
+| 5 | `0x429b30` | – | Spells: left side panel | `new_spell.cpp` | O |
+| 6 | `0x427520` | `0x427df0` | Skills: left side panel, "Combat" | `new_skill.cpp` | O |
 | 7 | `0x404bd0` | `0x4051a0` | Buy/sell | `new_buysell.cpp` | I |
 | 8 | `0x4256a0` | `0x425c80` | Save/load (arg: which) | `new_saveload.cpp` | I |
 | 9 | `0x4216f0` | `0x4217b0` | Play menu | `new_playmenu.cpp` | I |
 | 10 | `0x41ab10` | `0x41aef0` | ? (between item trade and main menu) | | |
 | 11 | `0x422fc0` | `0x422370` | PXO chat lobby | `new_pxochat.cpp` | I |
-| 12 | `0x41f0f0` | `0x41fa60` | ? (between multichat and pickup) | | |
+| 12 | `0x41f0f0` | `0x41fa60` | Quest Journal: full-screen panel, "Main Quests", "Side Quests", "Description" | | O |
 | 13 | `0x408f90` | `0x408fe0` | ? (between credits and game create) | | |
 | 14 | `0x41d8b0` | – | Main menu: "Title", plays `vlogo.bik` and `eaxlogo.bik` | `new_mainmenu.cpp` | O |
 | 15 | `0x40a850` | – | Multiplayer game list | `new_gamelist.cpp` | I |
@@ -44,9 +44,7 @@ strings confirm it; **I** means it is placed by position.
 | 21 | `0x4085b0` | `0x4089c0` | Credits: `credits.tbl`, `Credits-Bkgrnd640/1024.tga` | `new_credits.cpp` | O |
 | 22 | `0x40c7e0` | `0x40c850` | Help: `DemoHelp640.tga` | `new_help.cpp` | O |
 
-The screens marked "?" lie between known files. Candidates from the alphabetical order are,
-for example, a quest journal (there is a `qjournal.tbl`) or options, but this is not yet
-checked.
+Screens 1, 2, 3, 5, 6 and 12 were confirmed from in-game frame captures (2026-10-13), opened with I, R, M, C, S and F2. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal uses `qjournal.tbl`.
 
 ## The 3D view is clipped per screen
 

@@ -43,22 +43,21 @@ does.
 | Esc | `0x01` | Play menu (screen 9); first closes a pending prompt | `hud_key_playmenu` |
 | 1-6 | `0x02`-`0x07` | Use quick slot 1-6 (spell or item) | inline |
 | Tab / Shift+Tab | `0x0f` / `0x100f` | Next / previous party member | `party_cycle` |
-| R | `0x13` | Status screen (2) | `hud_key_status` |
+| R | `0x13` | Character screen (2) | `hud_key_status` |
 | I | `0x17` | Inventory (1) | `hud_key_inventory` |
-| S | `0x1f` | Toggle screen 6 (*inferred*: skills) | `hud_key_screen6` |
+| S | `0x1f` | Toggle the Skills panel (screen 6) | `hud_key_screen6` |
 | H | `0x23` | Toggles `game_debug_flags` bit `0x1000` or shows a prompt (*unknown* meaning) | `hud_key_h` |
 | X, middle mouse | `0x2d` | Interact with the nearest usable object (within 3 units) | `hud_interact_nearest` |
-| C | `0x2e` | Toggle screen 5 (*inferred*: spells) | `hud_key_screen5` |
+| C | `0x2e` | Toggle the Spells panel (screen 5) | `hud_key_screen5` |
 | M | `0x32` | Toggle automap (3) | `hud_key_automap` |
 | Space, NumLock | `0x39`, `0x45` | Pause / unpause | `hud_key_pause` |
 | F1 | `0x3b` | Help (22) | `hud_key_help` |
-| F2 | `0x3c` | Screen 12 | inline |
+| F2 | `0x3c` | Quest Journal (screen 12) | inline |
 | F5-F9 | `0x3f`-`0x43` | Select party member 1-5 | `hud_select_party_member` |
 | F12 | `0x58` | Cycle camera mode (0, 1, 2) | `hud_key_camera` → `camera_cycle_mode` |
 | Q, Enter, F3, F4, Alt+S, Alt+L | | Debug only (`game_debug_flags & 1`) | |
 
-Screens 5 and 6 sit between the save/load, skill and spell code in the
-[screen list](interface.md). C for spells and S for skills is therefore likely.
+Confirmed from in-game frame captures (2026-10-13).
 
 ## Mouse and camera
 

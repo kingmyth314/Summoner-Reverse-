@@ -45,9 +45,9 @@
 0x40e300  hud_key_h                func  new_hud.cpp            I ; H: toggles game_debug_flags 0x1000 (0x439620) or shows a prompt
 0x40e390  hud_key_automap          func  new_hud.cpp            I ; M: toggle screen 3
 0x40e3e0  hud_key_status           func  new_hud.cpp            I ; R: interface_set_screen(2)
-0x40e3f0  hud_key_screen5          func  new_hud.cpp            I ; C: toggle screen 5
+0x40e3f0  hud_key_spells           func  new_hud.cpp            O ; C: toggle screen 5
 0x40e430  hud_key_inventory        func  new_hud.cpp            I ; I: interface_set_screen(1)
-0x40e450  hud_key_screen6          func  new_hud.cpp            I ; S: toggle screen 6
+0x40e450  hud_key_skills           func  new_hud.cpp            O ; S: toggle screen 6
 0x40e480  hud_interact_nearest     func  new_hud.cpp            I ; X / middle mouse: nearest usable object within 3 units (or 5 for some types)
 0x40e980  hud_key_camera           func  new_hud.cpp            I ; F12: camera_cycle_mode
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
@@ -68,8 +68,8 @@
 0x41aef0  screen10_leave           func  -                      I
 0x41c080  screen18_init            func  -                      I ; screen 18; between new_itemtrade and new_mainmenu
 0x41d8b0  mainmenu_init            func  new_mainmenu.cpp       O ; screen 14: "Title" table, vlogo.bik / eaxlogo.bik intro movies
-0x41f0f0  screen12_init            func  -                      I ; screen 12; between new_multichat and new_pickup
-0x41fa60  screen12_leave           func  -                      I
+0x41f0f0  journal_init             func  -                      O ; screen 12; between new_multichat and new_pickup
+0x41fa60  journal_leave            func  -                      O
 0x4207d0  pickup_init              func  new_pickup.cpp         I ; screen 4 (arg: item)
 0x420960  pickup_leave             func  new_pickup.cpp         I
 0x4216f0  playmenu_init            func  new_playmenu.cpp       I ; screen 9
@@ -78,9 +78,9 @@
 0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
 0x425c80  saveload_leave           func  new_saveload.cpp       I
 0x425de0  saveload_text_input      func  new_saveload.cpp       I ; save-name entry, uses key_to_ascii
-0x427520  screen6_init             func  -                      I ; screen 6; between new_saveload and new_skill
-0x427df0  screen6_leave            func  -                      I
-0x429b30  screen5_init             func  -                      I ; screen 5; between new_skill and new_spell
+0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
+0x427df0  skills_leave             func  -                      O
+0x429b30  spells_init              func  -                      O ; screen 5; between new_skill and new_spell
 0x42b480  status_init              func  new_status.cpp         I ; screen 2
 0x42b910  status_leave             func  new_status.cpp         I
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
