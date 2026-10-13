@@ -19,14 +19,16 @@
 0x4045c0  cmd_map_grid             func  -                      O ; console command "map_grid": Toggles Map_grid
 0x4046b0  cmd_show_coordinates     func  -                      O ; console command "show_coordinates": Toggles Show_coordinates
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
+0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
+0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
+
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
 0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
-
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
 0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
@@ -121,6 +123,7 @@
 0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
 0x4b1440  cmd_Turn_anims           func  -                      O ; console command "Turn_anims": Toggles Use_turn_anims
 0x4b1530  cmd_turn_scaler          func  -                      O ; console command "turn_scaler": Set the turn scaler
+0x4b8350  determine_point_visibility func  engine\ai\pathfinding_visibility.cpp I ; prints "determine_point_visibility() took %d ms."
 0x4b8850  cmd_pyrul_stage          func  -                      O ; console command "pyrul_stage": Set Pyrul's current combat stage
 0x4b88c0  cmd_pyrul_combat         func  -                      O ; console command "pyrul_combat": Sets pyrul in combat state
 0x4b9ea0  cmd_ghost_stage          func  -                      O ; console command "ghost_stage": Set Ghost rider's current combat stage
@@ -179,12 +182,27 @@
 0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
-0x505e00 gr__init                 func  vsdk\gr\gr.cpp           I ; (w, h, mode, window_mode, hwnd, far_z, dual)
+0x505e00 gr_init                  func  vsdk\gr\gr.cpp           O ; (w, h, mode, window_mode, hwnd, far_z, dual)
 0x506840 gr__set_clip             func  vsdk\gr\gr.cpp           V ; Dash Faction gr::set_clip; 27 callers
 0x5069a0 gr__reset_clip           func  vsdk\gr\gr.cpp           V ; Dash Faction gr::reset_clip
+0x509e20  key_get_press_count      func  -                      I ; returns and clears the press counter of key N (0..255) under the key lock
+0x509ec0  key_queue_not_empty      func  -                      I ; key queue head != tail, under the key lock
+0x509f00  key_is_down              func  -                      I ; returns the current down-state byte of key N
 0x50a030  cmd_print_to_file        func  -                      O ; console command "print_to_file": Print out console commands to the text file console.txt
-0x50a180  console_command__console_command func  -                      O ; ctor(name, description, callback); 145 static instances
+0x50a180  console_command__console_command func  console.cpp                      V ; Summoner 2 class; ctor(name, description, callback) inserts into Console_commands, sorted; 145 static instances
+0x50a210  execute_command_line     func  console.cpp            V ; Summoner 2 name; "Searching for command", "Unknown command", "Calling function", ...
+0x50a560  set_command_line         func  console.cpp            V ; Summoner 2 static helper; sets the cursor, reads the first char
+0x50a570  get_next_char            func  console.cpp            V ; Summoner 2 static helper
+0x50a5a0  print_to_console         func  console.cpp            I ; empty in this build; position matches Summoner 2's print_to_console
+0x50a5b0  process_command          func  console.cpp            V ; Summoner 2 name; "next arg is ...", "Not enough parameters", "invalid type"
+0x50a9a0  get_token                func  console.cpp            V ; Summoner 2 static helper; switch on char type
+0x50aa30  skip_whitespace          func  console.cpp            V ; Summoner 2 static helper
+0x50aa50  make_lowercase_token     func  console.cpp            V ; Summoner 2 static helper
+0x50aab0  read_word                func  console.cpp            V ; Summoner 2 static helper
+0x50ab00  read_quoted_string       func  console.cpp            V ; Summoner 2 static helper
+0x50ab60  init_char_types          func  console.cpp            V ; Summoner 2 static helper; letters 0, digits 4, others 2, '"' 1, NUL 3
 0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
+0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
 0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
 0x50db80  cmd_far_max              func  -                      O ; console command "far_max": Sets Gr_far_max
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
@@ -197,6 +215,14 @@
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
 0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
 0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
+0x518bb0  nw_NewReceiveReliable    func  -                      O ; own assert "Invalid socket id passed to nw_NewReceiveReliable()"
+0x518d70  nw_NewSendReliable       func  -                      O ; own assert "Invalid socket id passed to nw_NewSendReliable()"
+0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
+0x5193a0  net_get_reliable_socket_status func  -                      O ; own assert "Invalid socket id passed to net_get_reliable_socket_status()"
+0x51a230  character_instance__increment_tick func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::increment_tick"
+0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
+0x51a780  character_instance__setup_matrices_b func  vsdk\ca\character_instance.cpp I ; second function with label "character_instance::setup_matrices"
+0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
@@ -226,6 +252,7 @@
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
 0x588a70 gameseq_state_table      data:GameStateHandlers[6] -            O ; {enter, frame, leave} per state
@@ -265,6 +292,8 @@
 0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
 
 0x5a605c  Gr_level_fog_multiplier  data:int -                      I ; set by console command "level_fog" (sets); type inferred
+0x5a6f20  command_line_cursor      data:char* console.cpp            O ; current position in the command line
+0x5a6f24  token_write_ptr          data:char* console.cpp            O
 0x5a7294  Gr_far_min               data:int -                      I ; set by console command "far_min" (sets); type inferred
 0x5a7298  Gr_far_max               data:int -                      I ; set by console command "far_max" (sets); type inferred
 0x5a72a0  Gr_3d_zmult              data:int -                      I ; set by console command "zmult" (sets); type inferred
@@ -407,9 +436,9 @@
 0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
+
 0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
 0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
-
 0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
 0x248c7c0 ccmd_gs_stage            data:console_command -                      O ; console command object "gs_stage"
 0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
@@ -452,8 +481,18 @@
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
+0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
+0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
+0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
+0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
+0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
+0x25db214 current_char             data:char console.cpp            O
+0x25db21c lowercase_token          data:char[128] console.cpp            O
+0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
+0x25db894 token                    data:char[128] console.cpp            O
+0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
@@ -461,6 +500,7 @@
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O

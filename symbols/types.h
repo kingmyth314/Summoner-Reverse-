@@ -31,6 +31,14 @@ typedef struct gr__Screen {
     // +0x54.. colour, textures, fog, tint (Dash Faction layout; not yet verified in Sum.exe)
 } gr__Screen;
 
+// A developer console command (Summoner 2: console_command). On PC the constructor takes
+// (name, description, callback); there is no type field at +0xC as in Summoner 2's version.
+typedef struct console_command {
+    const char* name;        // +0x0
+    const char* description; // +0x4
+    void (*callback)(void);  // +0x8
+} console_command;
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current

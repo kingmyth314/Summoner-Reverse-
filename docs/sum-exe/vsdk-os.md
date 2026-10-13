@@ -79,9 +79,44 @@ format string as Summoner 2 (`"Error: %s\nFile: %s - Line: %d"`); the PC version
 titled `Error!`, and calls `exit(1)`. Every `vsdk` assert goes through it. It produced
 the dialogs seen while bringing up SummonerFix.
 
+## `console.cpp`: the developer console
+
+Strings at `0x5a7000`-`0x5a7258` match Summoner 2's `console.cpp` messages exactly, and the
+functions that use them follow its structure (**observed**). See
+[Console commands](console.md) for the 145 registered commands.
+
+| Address | Name | Evidence |
+|---|---|---|
+| `0x50a180` | `console_command::console_command(name, description, callback)` | Inserts `this` into `Console_commands` (`0x25db3e4`, at most 300), keeping it sorted with `_stricmp`; increments `current_command_count` (`0x25db918`) |
+| `0x50a210` | `execute_command_line` | "Searching for command", "Unknown command", "Calling function", "Checking status for", "Doing help for", "Ignoring the unused command line tail" |
+| `0x50a5b0` | `process_command` | "next arg is '%s', was originally '%s'", "Found float number!", "Not enough parameters", "invalid type" |
+| `0x50acd0` | `load_script` | "Couldn't find a script file", "Error processing script line %d" |
+| `0x50a560` | `set_command_line` | Sets the cursor (`0x5a6f20`), then `get_next_char` |
+| `0x50a570` | `get_next_char` | Reads `*cursor` into `current_char` (`0x25db214`) and advances |
+| `0x50a9a0` | `get_token` | Dispatches on `char_types[current_char]` to `read_word` / `read_quoted_string` |
+| `0x50aa30`, `0x50aa50`, `0x50aab0`, `0x50ab00`, `0x50ab60` | `skip_whitespace`, `make_lowercase_token`, `read_word`, `read_quoted_string`, `init_char_types` | Same roles as Summoner 2's static helpers |
+| `0x50a5a0` | `print_to_console` (*inferred*) | Empty in this build |
+
+The PC constructor takes three arguments where Summoner 2's takes four (name, description,
+**type**, callback). The command type is therefore decided elsewhere on PC (*unknown*).
+
+### Keyboard state (just before the console)
+
+Three small functions at `0x509e20`-`0x509f00` manage a 256-entry key table under a
+critical section (`0x25daa58`). They are named with confidence **I**:
+
+| Address | Name | Behaviour |
+|---|---|---|
+| `0x509e20` | `key_get_press_count(key)` | Returns and clears `key_press_counts[key]` (`0x25da140`) |
+| `0x509ec0` | `key_queue_not_empty()` | Queue head != tail |
+| `0x509f00` | `key_is_down(key)` | Returns `key_down_state[key]` (`0x25da94c`) |
+
+These are the most direct hook points found so far for the planned
+[custom key bindings](../roadmap.md#custom-key-bindings-for-player-actions).
+
 ## C runtime functions identified
 
-`sprintf` (`0x56c740`), `exit` (`0x56da99`), `free` (`0x56ea9b`): identified from their
+`sprintf` (`0x56c740`), `exit` (`0x56da99`), `free` (`0x56ea9b`), `_stricmp` (`0x57ae80`): identified from their
 use in the functions above (*observed* behaviour).
 
 ## Still to do in this module
@@ -90,6 +125,6 @@ use in the functions above (*observed* behaviour).
   names) around `0x532840`.
 - `registry.cpp` (`0x512037`) and `cmdline.cpp` (`0x53e3ab`): partly named; no Summoner 2
   counterpart (PS2 has neither).
-- The console (`console.cpp` in Summoner 2): command registration and the
-  `Toggles ...`/`Usage: ...` strings.
+- Console: the key-binding layer between key_* and commands (Timeslip binds keys to commands; see
+  [Timeslip's patch](../patches/timeslip.md)).
 - Mempool functions.
