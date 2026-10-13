@@ -129,3 +129,14 @@ node tools/strings-tu.mjs            # function -> file(s)
 node tools/strings-tu.mjs --md       # address ranges per file (used in the source map)
 node tools/strings-tu.mjs --symbols  # unnamed functions as I-confidence stubs
 ```
+
+## `tools/disasm.mjs`
+
+Linear disassembly through REA's `inspect_native_instruction`. Use it for code Ghidra did not
+turn into a function (game-state handlers, console callbacks), where `tools/decomp.mjs`
+fails. It stops at the first `ret` past any forward branch. Call targets are labelled with
+symbol names, and immediates that point at strings are printed.
+
+```
+node tools/disasm.mjs 0x431c60 [max_instructions]
+```

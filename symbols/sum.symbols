@@ -15,21 +15,67 @@
 # ---- functions ------------------------------------------------------------------------------
 0x401070 GameTick                 func  -                        O ; one frame: state transitions, FrameDone, state frame handler, frame end
 0x401190 GameStateSwap            func  -                        O ; prev = cur; cur = next; pending = 0
+0x401380  assess_init              func  new_assess.cpp         I ; screen 20 (arg: target)
+0x4017e0  assess_leave             func  new_assess.cpp         I
+0x402250  automap_init             func  new_automap.cpp        I ; screen 3; position between new_assess and new_automap strings
 0x4044d0  cmd_map_mask             func  -                      O ; console command "map_mask": Toggles Map_mask
 0x4045c0  cmd_map_grid             func  -                      O ; console command "map_grid": Toggles Map_grid
 0x4046b0  cmd_show_coordinates     func  -                      O ; console command "show_coordinates": Toggles Show_coordinates
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
+0x404bd0  buysell_init             func  new_buysell.cpp        I ; screen 7; position before new_buysell strings
+0x4051a0  buysell_leave            func  new_buysell.cpp        I
+0x406590  mp_charselect_init       func  new_charselect.cpp     O ; screen 16: "Multiplayer Char", *.plr files
+0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
+
+0x4089c0  credits_leave            func  new_credits.cpp        I
+0x408f90  screen13_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
+0x408fe0  screen13_leave           func  -                      I
+0x409b10  gamecreate_init          func  new_gamecreate.cpp     I ; screen 17
+0x40a850  gamelist_init            func  new_gamelist.cpp       I ; screen 15
+0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga
+0x40c850  help_leave               func  new_help.cpp           I
+0x40cef0  hud_init                 func  new_hud.cpp            I ; screen 0
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
+0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
+0x412220  interface_set_view_clip  func  -                      I ; clips the 3D view per open screen (side panels shrink it), then draws
+0x412620  interface_set_screen     func  -                      I ; (id, arg): current screen's leave, then the new screen's init (23 ids); see docs/sum-exe/interface.md
 0x413190  vector3__assign          func  vsdk\math              I ; a = b, returns a copy
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
+0x414fc0  inventory_init           func  new_inventory.cpp      I ; screen 1 (arg: page)
+0x4158b0  inventory_leave          func  new_inventory.cpp      I
+0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
+0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
+0x41ab10  screen10_init            func  -                      I ; screen 10; between new_itemtrade and new_mainmenu
+0x41aef0  screen10_leave           func  -                      I
+0x41c080  screen18_init            func  -                      I ; screen 18; between new_itemtrade and new_mainmenu
+0x41d8b0  mainmenu_init            func  new_mainmenu.cpp       O ; screen 14: "Title" table, vlogo.bik / eaxlogo.bik intro movies
+0x41f0f0  screen12_init            func  -                      I ; screen 12; between new_multichat and new_pickup
+0x41fa60  screen12_leave           func  -                      I
+0x4207d0  pickup_init              func  new_pickup.cpp         I ; screen 4 (arg: item)
+0x420960  pickup_leave             func  new_pickup.cpp         I
+0x4216f0  playmenu_init            func  new_playmenu.cpp       I ; screen 9
+0x4217b0  playmenu_leave           func  new_playmenu.cpp       I
+0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
+0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
+0x425c80  saveload_leave           func  new_saveload.cpp       I
+0x427520  screen6_init             func  -                      I ; screen 6; between new_saveload and new_skill
+0x427df0  screen6_leave            func  -                      I
+0x429b30  screen5_init             func  -                      I ; screen 5; between new_skill and new_spell
+0x42b480  status_init              func  new_status.cpp         I ; screen 2
+0x42b910  status_leave             func  new_status.cpp         I
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
-
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
+0x430ad0  state7_enter             func  -                      I ; state 7: frame draws a centred message with gr_string
+0x430b80  state_credits_enter      func  -                      I ; state 9: interface_set_screen(21 credits)
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
+0x431c60  state_boot_enter         func  -                      I ; state 1: build_stamp_show, then interface_set_screen(14 main menu)
 0x431cb0  build_stamp_show         func  -                      I ; once at start-up: "This version of Summoner has been built for:" <name>, or "has expired." then exit(1); skipped when unstamped
+0x431e00  state_boot_frame         func  -                      I ; PollInputEvents + interface_frame
+0x431e20  state_title_enter        func  -                      I ; state 2: "Title"
+0x431e80  state_loadgame_enter     func  -                      I ; state 8: "Load" screen table
 0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
@@ -49,11 +95,17 @@
 0x4379e0  cmd_add_xp               func  -                      O ; console command "add_xp": Adds experience points to currently selected character
 0x437c80 LoadingScreenDraw        func  -                        O ; loading-screen progress draw, calls FrameDone
 0x438070  cmd_Give_all_items       func  -                      O ; console command "Give_all_items": Toggles Give_all_items
+0x438130  state_game_enter         func  -                      I ; state 4: in-game (level start)
+0x438c80  state_game_leave         func  -                      I
+0x438f30  state_game_frame         func  -                      I ; state 4 per-frame gameplay
 0x439840  cmd_render_3d_obstacles  func  -                      O ; console command "render_3d_obstacles": Toggles Render_3d_obstacles
 0x439930  cmd_character            func  -                      O ; console command "character": Set the current main character
 0x439d80  cmd_flece                func  -                      O ; console command "flece": Add Flece to the game
 0x439dd0  cmd_jekhar               func  -                      O ; console command "jekhar": Add Jekhar to the game
 0x439e20  cmd_rosalind             func  -                      O ; console command "rosalind": Add Rosalind to the game
+0x43a2b0  state_loading_enter      func  -                      I ; state 5
+0x43a2e0  state_loading_frame      func  -                      I
+0x43a300  state_loading_leave      func  -                      I ; clears both buffers
 0x43b580  vector3__vector3         func  vsdk\math              I ; (x, y, z)
 0x43d520  cmd_gamma                func  -                      O ; console command "gamma": Sets Summoner_options.gamma_correction
 0x43d5e0  cmd_play_sound           func  -                      O ; console command "play_sound": Streams a wav file from disk
@@ -64,7 +116,13 @@
 0x43e5e0  WinMain                  func  -                      O ; called by WinMainCRTStartup; __try { MainLoop() } __except (RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread"))
 0x43e660  cd_find_drive            func  -                      I ; scans drive letters, GetDriveTypeA/GetVolumeInformationA for the game disc; used by CdCheck
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
+0x43eb00  state14_enter            func  -                      I ; state 14: interface_set_screen(18), multiplayer (0x4ab110)
 0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
+0x43ed80  state_mp_gamecreate_enter func  -                      I ; state 13: interface_set_screen(17)
+0x43eed0  state_mp_gamelist_enter  func  -                      I ; state 12: interface_set_screen(15)
+0x43eff0  state_mp_lobby_enter     func  -                      I ; state 11: interface_set_screen(11 PXO chat)
+0x43f9c0  state_mp_charselect_enter func  -                      I ; state 10: interface_set_screen(16)
+0x43fb60  state6_enter             func  -                      I ; state 6: builds a UI table, frame waits with timer_wait
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
 0x4402f0  cmd_save_mlayout         func  -                      O ; console command "save_mlayout": Save a monster layout file
 0x441820  multi_process_packet     func  -                      I ; (data, len, from, reliable)
@@ -165,7 +223,7 @@
 0x4db1f0  cmd_dcamera              func  -                      O ; console command "dcamera": Change the dialog camera options.
 0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
 0x4ecf90  cmd_render_s3d_navpoints func  -                      O ; console command "render_s3d_navpoints": Toggles Render_s3d_navpoints
-0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game
+0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game; body is a bare RET in retail, shared with several state leave handlers
 0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
 0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)
@@ -766,7 +824,7 @@
 0x57b5ca  gluLookAt                func  crt                    O ; import thunk: jmp [GLU32.dll!gluLookAt]
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
-0x588a70 gameseq_state_table      data:GameStateHandlers[6] -            O ; {enter, frame, leave} per state
+0x588a70 gameseq_state_table      data:GameStateHandlers[15] -           O ; {enter, frame, leave} per state; 0 and 3 empty
 0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
 0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
 0x5931b0  Gamewide_show_net_stats  data:bool -                      I ; set by console command "net_stats" (toggles); type inferred
@@ -831,6 +889,7 @@
 0x5b2da8  ccmd_map_mask            data:console_command -                      O ; console command object "map_mask"
 0x5b2db4  Map_grid                 data:bool -                      I ; set by console command "map_grid" (toggles); type inferred
 0x5bd780  ccmd_show_ui             data:console_command -                      O ; console command object "show_ui"
+0x5bd814  interface_cur_screen     data:int -                      I ; 0 = HUD (no menu)
 0x5f9610  ccmd_Ignore_tutorial     data:console_command -                      O ; console command object "Ignore_tutorial"
 0x5f9625  Ignore_tutorial          data:bool -                      I ; set by console command "Ignore_tutorial" (toggles); type inferred
 0x5f9e38  ccmd_save_map_labels     data:console_command -                      O ; console command object "save_map_labels"
@@ -946,8 +1005,8 @@
 0x24523f8 ccmd_serpent_unlink      data:console_command -                      O ; console command object "serpent_unlink"
 0x2452408 ccmd_serpent_combat      data:console_command -                      O ; console command object "serpent_combat"
 0x24529f8 ccmd_phoenix_stage       data:console_command -                      O ; console command object "phoenix_stage"
-0x2452a38 ccmd_phoenix_solo        data:console_command -                      O ; console command object "phoenix_solo"
 
+0x2452a38 ccmd_phoenix_solo        data:console_command -                      O ; console command object "phoenix_solo"
 0x2452a48 ccmd_phoenix_combat      data:console_command -                      O ; console command object "phoenix_combat"
 0x2452a58 ccmd_phoenix_unlink      data:console_command -                      O ; console command object "phoenix_unlink"
 0x2452a70 ccmd_tiger_solo          data:console_command -                      O ; console command object "tiger_solo"
@@ -1010,8 +1069,8 @@
 0x257efe0 mouse_x                  data:int vsdk\os\mouse          I
 0x257efe8 mouse_buttons_live       data:uint8[3][16] vsdk\os\mouse          I ; written by the message handler
 0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
-0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
 
+0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
 0x257f020 mouse_di_active          data:bool vsdk\os\mouse          I
 0x257f021 mouse_inited             data:bool vsdk\os\mouse          I
 0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
@@ -1023,24 +1082,24 @@
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
 0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
-0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 
+0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
 0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
 0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
-0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 
+0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
 0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
+
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
-
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
-0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 
+0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
@@ -1057,8 +1116,8 @@
 0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
-0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
 
+0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
@@ -1071,8 +1130,8 @@
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94e0 key_queue                data:uint16[] -                      I
-0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
 
+0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
 0x25da940 key_queue_head           data:int -                      I
 0x25da944 key_queue_tail           data:int -                      I
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
@@ -1083,8 +1142,8 @@
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
-0x25db214 current_char             data:char console.cpp            O
 
+0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
@@ -1102,10 +1161,10 @@
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
+
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
-
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
@@ -1124,20 +1183,21 @@
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
+
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
 
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
-
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
 0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
-0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 
+0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
 0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
-0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
 
+0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
 0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
+
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred

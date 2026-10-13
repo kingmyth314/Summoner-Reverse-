@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1 progress (2026-10-13): **540 / 5,548** game/engine functions named
-(9.7%), plus 136 pointer-only callbacks.
+Phase 0 is complete. Phase 1 progress (2026-10-13): **580 / 5,548** game/engine functions named
+(10.5%), plus 136 pointer-only callbacks.
 
 | Module | Status | Page |
 |---|---|---|
@@ -139,4 +139,5 @@ Phase 0 is complete. Phase 1 progress (2026-10-13): **540 / 5,548** game/engine 
 | `math\matrix` and vector helpers | Done (V for the Summoner 2 functions) | [Math](sum-exe/vsdk-math.md) |
 | `ca` loading (characters, skeletons, meshes), `FileReader`, start-up fonts | Started | [Characters](sum-exe/vsdk-ca.md) |
 | `ui` table parsers, build stamp | Started | [User interface](sum-exe/vsdk-ui.md) |
+| Game: states, interface screens (23) | Started | [Interface](sum-exe/interface.md) |
 | Next: `ca` animation, `geom`, `ui` widgets | Not started | |

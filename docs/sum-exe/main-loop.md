@@ -83,9 +83,23 @@ Each entry is 12 bytes: `{ enter, frame, leave }`.
 | 2 | `0x431e20` | `0x431e70` | `0x4f13e0` | |
 | 3 | - | - | - | quit; ends `MainLoop` |
 | 4 | `0x438130` | `0x438f30` | `0x438c80` | *Inferred* in-game; `FrameEnd` special-cases state 4 |
-| 5 | `0x43a2b0` | `0x43a2e0` | `0x43a300` | |
+| 5 | `0x43a2b0` | `0x43a2e0` | `0x43a300` | Loading (*inferred*); leave clears both buffers |
+| 6 | `0x43fb60` | `0x43fc80` | `0x43fc70` | Builds a UI table; frame sleeps with `timer_wait` |
+| 7 | `0x430ad0` | `0x430b20` | `0x430b10` | Draws a centred message |
+| 8 | `0x431e80` | `0x432370` | `0x4323d0` | "Load" screen |
+| 9 | `0x430b80` | `0x430b90` | `0x4f13e0` | Credits (screen 21) |
+| 10 | `0x43f9c0` | `0x43ed90` | `0x4f13e0` | Multiplayer character select (screen 16) |
+| 11 | `0x43eff0` | `0x43f080` | `0x43f740` | Multiplayer PXO lobby (screen 11) |
+| 12 | `0x43eed0` | `0x43eef0` | `0x43ef20` | Multiplayer game list (screen 15) |
+| 13 | `0x43ed80` | `0x43ed90` | `0x4f13e0` | Multiplayer game creation (screen 17) |
+| 14 | `0x43eb00` | `0x43eb30` | `0x43eb60` | Multiplayer screen 18 |
 
-Only the first six entries were read. Whether the table has more is **unknown**.
+There are **15** states (read 2026-10-13). State 1 (boot) opens the main menu (screen 14).
+States 10-14 belong to the [multiplayer code](source-map.md#more-file-names-from-stringstbl).
+`0x4f13e0` is a bare `ret`, shared by several leave handlers and by the `charinfo` console
+command (a stub in retail). Ghidra did not mark these handlers as functions;
+`tools/disasm.mjs` reads them. The menu screens are listed on the
+[Interface](interface.md) page.
 
 ## Frame timer: `FrameTimer` (`FUN_00501510`)
 
