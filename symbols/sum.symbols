@@ -207,9 +207,14 @@
 0x50db80  cmd_far_max              func  -                      O ; console command "far_max": Sets Gr_far_max
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
 0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
+0x511d80  os_registry_write        func  vsdk\os\registry.cpp   O ; (subkey, name, type, data, size): RegCreateKeyExA + RegSetValueExA; "Error writing registry key"
+0x511e50  os_registry_resolve_key  func  vsdk\os\registry.cpp   O ; (out_path, subkey) -> HKEY: NULL = app key; no "hkey" prefix = relative to app key; else "HKEY_...\path"
+0x511f90  os_registry_hkey_from_string func  vsdk\os\registry.cpp   O ; HKEY_CLASSES_ROOT/CURRENT_USER/LOCAL_MACHINE/USERS; "Bogus HKEY string" -> DebugError line 185
 0x512050 os_registry_read         func  vsdk\os\registry.cpp     O ; RegOpenKeyExA + RegQueryValueExA
 0x512110 os_registry_set_app_key  func  vsdk\os\registry.cpp     O ; builds Software\<company>\<app>
+0x512210  os_registry_read_string_nodefault func  vsdk\os\registry.cpp   I ; like os_registry_read_string but returns -1 instead of copying a default
 0x512280 os_registry_read_string  func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
+0x512310  os_registry_write_string func  vsdk\os\registry.cpp   O ; os_registry_write(..., REG_SZ, s, strlen(s))
 0x512340 os_registry_read_dword   func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512370 os_registry_write_dword  func  vsdk\os\registry.cpp     O
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
@@ -302,6 +307,16 @@
 0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
+0x53e030  cmdline_parse            func  vsdk\os\cmdline.cpp    O ; (cmd_line, check_unknown, ...): split, match params, optionally reject unknown "-x"
+0x53e060  cmdline_split            func  vsdk\os\cmdline.cpp    O ; strtok on spaces; rejoins "quoted args"; fills cmdline_args (max 50)
+0x53e1e0  cmdline_match_params     func  vsdk\os\cmdline.cpp    O ; for each registered CmdLineParam, _stricmp against every arg; sets name_found
+0x53e250  cmdline_take_argument    func  vsdk\os\cmdline.cpp    O ; copies the following arg into param->arg; "Command line parameter %s requires an argument"
+0x53e310  cmdline_check_unknown    func  vsdk\os\cmdline.cpp    O ; "Unrecognized command line parameter" -> DebugError line 260
+0x53e3e0  CmdLineParam__CmdLineParam func  vsdk\os\cmdline.cpp    O ; (name, help, has_argument); same layout as Dash Faction's rf::CmdLineParam
+0x53e450  CmdLineParam__dtor       func  vsdk\os\cmdline.cpp    O ; frees arg, unlinks
+0x53e480  CmdLineParam__free_arg   func  vsdk\os\cmdline.cpp    O
+0x53e4a0  CmdLineParam__found      func  vsdk\os\cmdline.cpp    O ; returns name_found (+0x14), as Dash Faction
+0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
@@ -317,7 +332,9 @@
 0x56cebe  tolower                  func  crt                    O ; C runtime
 0x56d02c  fclose                   func  crt                    O ; C runtime
 0x56d13c  fopen                    func  crt                    O ; C runtime
+0x56d5b7  strtok                   func  crt                    O
 0x56da99  exit                     func  crt                    O ; C runtime
+0x56e311  atoi                     func  crt                    O
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
 0x56ea9b  free                     func  crt                    O ; C runtime
 0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
@@ -416,9 +433,18 @@
 0x60a648  ccmd_render_3d_obstacles data:console_command -                      O ; console command object "render_3d_obstacles"
 0x60a658  ccmd_rosalind            data:console_command -                      O ; console command object "rosalind"
 0x60a665  Render_3d_obstacles      data:bool -                      I ; set by console command "render_3d_obstacles" (toggles); type inferred
+0x60abb8  cmdline_param_direct3d   data:CmdLineParam -                      O ; "-direct3d"
 0x60abd0  ccmd_stop_sound          data:console_command -                      O ; console command object "stop_sound"
 0x60abe8  ccmd_gamma               data:console_command -                      O ; console command object "gamma"
+0x60abf8  cmdline_param_eax        data:CmdLineParam -                      O ; "-eax"
 0x60ac20  ccmd_play_sound          data:console_command -                      O ; console command object "play_sound"
+0x60ac38  cmdline_param_directsound3d data:CmdLineParam -                      O ; "-directsound3d"
+0x60ac68  cmdline_param_pack       data:CmdLineParam -                      O ; "-pack"
+0x60ac90  cmdline_param_dsinit     data:CmdLineParam -                      O ; "-dsinit"
+0x60aca8  cmdline_param_port       data:CmdLineParam -                      O ; "-port" (takes an argument)
+0x60ad18  cmdline_param_800        data:CmdLineParam -                      O ; "-800"
+0x60ad30  cmdline_param_1024       data:CmdLineParam -                      O ; "-1024"
+0x60ad50  cmdline_param_glide      data:CmdLineParam -                      O ; "-glide"
 0x60ae58  ccmd_all_multi_levels    data:console_command -                      O ; console command object "all_multi_levels"
 0x60ae64  All_multi_levels         data:bool -                      I ; set by console command "all_multi_levels" (toggles); type inferred
 0x60f4f0  ccmd_save_mlayout        data:console_command -                      O ; console command object "save_mlayout"
@@ -499,6 +525,7 @@
 0x247e8c0 Use_turn_anims           data:bool -                      I ; set by console command "Turn_anims" (toggles); type inferred
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
 0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
+
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
 0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
 0x2480928 ccmd_ghost_stage         data:console_command -                      O ; console command object "ghost_stage"
@@ -508,7 +535,6 @@
 0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
-
 0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
 0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
 0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
@@ -563,37 +589,49 @@
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
+
 0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
+0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
 0x2693040 mem_report_depth         data:int memory.cpp             I
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
-
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
+
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
+
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
-0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 
+0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
+
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
-
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
+0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
+0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
+0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
+0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
+0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
+0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
+0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"

@@ -141,16 +141,63 @@ critical section (`0x25daa58`). They are named with confidence **I**:
 These are the most direct hook points found so far for the planned
 [custom key bindings](../roadmap.md#custom-key-bindings-for-player-actions).
 
+## `registry.cpp`: settings in the Windows registry
+
+No Summoner 2 counterpart (the PS2 has no registry). Names are ours (**O**), from behaviour
+and the error strings.
+
+| Address | Name | Notes |
+|---|---|---|
+| `0x512110` | `os_registry_set_app_key(company, app)` | Builds `Software<company><app>` in `os_registry_app_key` (`0x2692ef8`) |
+| `0x511e50` | `os_registry_resolve_key(out, subkey)` | A NULL subkey means the app key under `HKEY_CURRENT_USER`. A subkey without an `hkey` prefix is relative to the app key. Otherwise `HKEY_...path` is split |
+| `0x511f90` | `os_registry_hkey_from_string` | The four root names; anything else is a fatal "Bogus HKEY string" |
+| `0x512050` | `os_registry_read(subkey, name, buf, size)` | `RegOpenKeyExA` + `RegQueryValueExA`; -1 on failure (the error text is formatted but never shown) |
+| `0x511d80` | `os_registry_write(subkey, name, type, data, size)` | `RegCreateKeyExA` + `RegSetValueExA` |
+| `0x512280` / `0x512210` | `os_registry_read_string` (with default) / `_nodefault` | |
+| `0x512340` / `0x512370` | `os_registry_read_dword` / `os_registry_write_dword` | |
+| `0x512310` | `os_registry_write_string` | `REG_SZ` |
+
+[SummonerFix](../summonerfix/index.md) emulates these keys by hooking the registry imports.
+
+## `cmdline.cpp`: command-line parameters
+
+This is the same system as Red Faction's: `CmdLineParam` objects link themselves into a list
+when constructed. Their layout matches Dash Faction's `rf::CmdLineParam` field for field:
+`next`, `prev`, `name`, `help`, `arg`, `name_found` (+0x14), `has_argument` (+0x15).
+`cmdline_args` (`0x2dc6ea8`) is `CmdArg[50]`, also as in Dash Faction (**observed**).
+
+| Address | Name | Notes |
+|---|---|---|
+| `0x53e3e0` | `CmdLineParam::CmdLineParam(name, help, has_argument)` | Links into `cmdline_params` (`0x2dc7038`) |
+| `0x53e030` | `cmdline_parse` | Split, match, then optionally reject unknown `-x` |
+| `0x53e060` | `cmdline_split` | `strtok` on spaces; keeps `"quoted arguments"` together |
+| `0x53e1e0` / `0x53e250` | `cmdline_match_params` / `cmdline_take_argument` | "Command line parameter %s requires an argument" |
+| `0x53e310` | `cmdline_check_unknown` | Fatal "Unrecognized command line parameter" |
+| `0x53e4a0` / `0x53e4b0` | `CmdLineParam::found` / `get_arg_int` | |
+
+Parameters registered in Sum.exe (found by scanning for constructor calls):
+
+| Parameter | Object | Registered in |
+|---|---|---|
+| `-port` (with argument) | `0x60aca8` | game startup (`0x43d241`) |
+| `-directsound3d`, `-eax`, `-dsinit` | `0x60ac38`, `0x60abf8`, `0x60ac90` | game startup |
+| `-pack` | `0x60ac68` | game startup |
+| `-glide`, `-direct3d` | `0x60ad50`, `0x60abb8` | game startup: renderer choice |
+| `-800`, `-1024` | `0x60ad18`, `0x60ad30` | game startup: resolution |
+| `-nosound` | `0x2cb5440` | sound (`0x5204e1`) |
+| `-fb2`, `-vertexfog`, `-rz` (with argument) | `0x2dc6c10`, `0x2dc05e0`, `0x2dc2908` | renderer (`0x538671`-`0x53870e`) |
+
+What each parameter does is not yet traced (*unknown*); `-glide`/`-direct3d` and
+`-800`/`-1024` probably override the [video settings](video-settings.md) (*inferred*).
+
 ## C runtime functions identified
 
-`sprintf` (`0x56c740`), `exit` (`0x56da99`), `free` (`0x56ea9b`), `_stricmp` (`0x57ae80`): identified from their
+`sprintf` (`0x56c740`), `exit` (`0x56da99`), `free` (`0x56ea9b`), `_stricmp` (`0x57ae80`), `strtok` (`0x56d5b7`), `atoi` (`0x56e311`): identified from their
 use in the functions above (*observed* behaviour).
 
 ## Still to do in this module
 
-- `timer.cpp`: `timer_initialize`, `timer_get_ticks`, `timer_get_elapsed` (Summoner 2
-  names) around `0x532840`.
-- `registry.cpp` (`0x512037`) and `cmdline.cpp` (`0x53e3ab`): partly named; no Summoner 2
-  counterpart (PS2 has neither).
+- `timer.cpp`: `timer_init` (`0x532840`), `timer_get` (`0x5328d0`) and `timer_wait` (`0x530bf0`) are named (see [main loop](main-loop.md)); the rest of the file is still unread.
+- The six -1 setters in `timestamp.cpp` and the PC console command type mechanism.
 - Console: the key-binding layer between key_* and commands (Timeslip binds keys to commands; see
   [Timeslip's patch](../patches/timeslip.md)).

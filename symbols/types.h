@@ -84,6 +84,21 @@ typedef struct Mempool {
     char name[1];            // +0x0C length not yet known
 } Mempool;
 
+// Command-line parameter (vsdkoscmdline.cpp). Same layout as Dash Faction's rf::CmdLineParam.
+typedef struct CmdLineParam {
+    struct CmdLineParam* next; // +0x00
+    struct CmdLineParam* prev; // +0x04
+    const char* name;        // +0x08 e.g. "-glide"
+    const char* help;        // +0x0C
+    char* arg;               // +0x10 heap copy of the following argument
+    uint8_t name_found;      // +0x14
+    uint8_t has_argument;    // +0x15
+} CmdLineParam;
+typedef struct CmdArg {
+    char* arg;               // +0x0
+    uint8_t is_done;         // +0x4
+} CmdArg;                    // cmdline_args[50] at 0x2dc6ea8
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current
