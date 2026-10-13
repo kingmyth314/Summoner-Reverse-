@@ -256,8 +256,72 @@
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
 0x505e00 gr_init                  func  vsdk\gr\gr.cpp           O ; (w, h, mode, window_mode, hwnd, far_z, dual)
+0x506110  gr_check_dual_monitors   func  vsdk\gr\gr.cpp         O ; fullscreen only: SST_DUALHEAD environment variable (3dfx)
+0x506170  gr_screen_width          func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_width
+0x506180  gr_screen_height         func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_height
+0x5061f0  gr_screenshot            func  vsdk\gr\gr.cpp         O ; (name, format, path_id): read_backbuffer, then TGA or the 0x5565e0 writer
+0x5065e0  gr_fade_out              func  vsdk\gr\gr.cpp         I ; (ms): black overlay alpha 0 -> 1; ms < 1 = instantly black
+0x506630  gr_fade_in               func  vsdk\gr\gr.cpp         I ; (ms): alpha 1 -> 0, then off; ms < 1 = instantly clear
+0x506680  gr_get_fade_level        func  vsdk\gr\gr.cpp         I
+0x5066b0  gr_draw_fade             func  vsdk\gr\gr.cpp         I ; advances by reported_frametime, draws the full-screen black rect; called by gr_flip
+0x5067c0  gr_close                 func  vsdk\gr\gr.cpp         O ; Dash Faction gr::close; back-end close, then gr_close_fonts
+0x5067f0  Color__Color             func  vsdk\gr\gr.cpp         I ; (r, g, b, a) thiscall
+0x506820  Color__set               func  vsdk\gr\gr.cpp         I ; (r, g, b, a) thiscall; identical body
 0x506840 gr__set_clip             func  vsdk\gr\gr.cpp           V ; Dash Faction gr::set_clip; 27 callers
+0x506950  gr_get_aspect            func  vsdk\gr\gr.cpp         O
+0x506970  gr_get_clip              func  vsdk\gr\gr.cpp         O ; Dash Faction gr::get_clip
 0x5069a0 gr__reset_clip           func  vsdk\gr\gr.cpp           V ; Dash Faction gr::reset_clip
+0x5069c0  gr_clear                 func  vsdk\gr\gr.cpp         O ; Dash Faction gr::clear
+0x5069e0  gr_page_in               func  vsdk\gr\gr.cpp         O ; Dash Faction gr::page_in; bm_load preloads through it
+0x506a20  gr_flip                  func  vsdk\gr\gr.cpp         O ; reset clip, gr_draw_fade, back-end flip (SwapBuffers on OpenGL)
+0x506a50  gr_zbuffer_clear         func  vsdk\gr\gr.cpp         O ; (enable)
+0x506a90  gr_set_gamma             func  vsdk\gr\gr.cpp         O ; Dash Faction gr::set_gamma; builds gr_gamma_ramp[256]
+0x506b90  gr_set_color             func  vsdk\gr\gr.cpp         O ; (r, g, b, a); only calls the back end when it changes
+0x506c10  gr_set_color_ptr         func  vsdk\gr\gr.cpp         O ; (Color*)
+0x506c40  gr_set_alpha             func  vsdk\gr\gr.cpp         O ; Dash Faction gr::set_alpha
+0x506c50  gr_set_texture           func  vsdk\gr\gr.cpp         O ; Dash Faction gr::set_texture(bm, bm2)
+0x506c70  gr_mark_texture_dirty    func  vsdk\gr\gr.cpp         O ; Dash Faction gr::mark_texture_dirty
+0x506cb0  gr_bitmap_ex             func  vsdk\gr\gr.cpp         O ; (bm, x, y, w, h, sx, sy, mode), clipped
+0x506ec0  gr_bitmap_stretched      func  vsdk\gr\gr.cpp         O ; (bm, x, y, w, h, sx, sy, sw, sh, mode) straight to the back end
+0x506f90  gr_bitmap                func  vsdk\gr\gr.cpp         O ; (bm, x, y, mode), clipped
+0x507100  gr_bitmap_float          func  vsdk\gr\gr.cpp         I ; float rectangle through gr_tmapper
+0x507310  gr_line                  func  vsdk\gr\gr.cpp         O ; (x1, y1, x2, y2, mode)
+0x5077d0  gr_rect                  func  vsdk\gr\gr.cpp         I ; (x, y, w, h, mode) through gr_tmapper
+0x507a20  gr_tmapper               func  vsdk\gr\gr.cpp         O ; (nv, verts, mode); Dash Faction gr::tmapper
+0x507a80  gr_tmapper_multipass     func  vsdk\gr\gr.cpp         I ; per-pass uv/colour/alpha, then gr_tmapper
+0x507d30  gr_read_backbuffer       func  vsdk\gr\gr.cpp         O ; Dash Faction gr::read_backbuffer(x, y, w, h, buf) -> format
+0x507db0  gr_set_fog               func  vsdk\gr\gr.cpp         I ; (enable, r, g, b, near, far); uses Gr_alpha_fog_ratio / Gr_level_fog_multiplier
+0x507f70  gr_set_tint              func  vsdk\gr\gr.cpp         I ; (enable, r, g, b): back ends modulate vertex colours
+0x507fd0  gr_tcache_flush          func  vsdk\gr\gr.cpp         I
+0x508020  gr_tcache_free           func  vsdk\gr\gr.cpp         I ; (bm); bm_release calls it per frame
+0x508160  gr__Mode__Mode           func  vsdk\gr\gr.cpp         O ; packs six 5-bit fields, as Dash Faction gr::Mode
+0x5081d0  gr_close_fonts           func  vsdk\gr\gr_font.cpp    I ; frees every font's tables
+0x508290  gr_font_is_whitespace    func  vsdk\gr\gr_font.cpp    I ; space, tab, newline
+0x5082b0  gr_font_is_space         func  vsdk\gr\gr_font.cpp    I ; space, tab
+0x5082d0  gr_font_french_punct     func  vsdk\gr\gr_font.cpp    I ; French only: colon, question and exclamation marks keep their leading space when wrapping
+0x508300  gr_get_font_height       func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::get_font_height
+0x508330  gr_get_font_height2      func  vsdk\gr\gr_font.cpp    I ; Font.height2
+0x508360  gr_get_string_size       func  vsdk\gr\gr_font.cpp    O ; Dash Faction (out_w, out_h, s, len, font)
+0x508440  gr_font_get_char         func  vsdk\gr\gr_font.cpp    I ; (c, next, &width, &spacing) -> glyph index, with kerning
+0x508510  gr_load_font             func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::load_font(name, a2); first font becomes the default
+0x508560  gr_font_create           func  vsdk\gr\gr_font.cpp    O ; "Too many fonts" (max 6), "Font too big"; builds a 4444 texture of the glyphs
+0x508970  gr_font_read_file        func  vsdk\gr\gr_font.cpp    O ; "Trying to read a newer font version"
+0x508c60  gr_string                func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::string(x, y, s, font, mode); x = 0x8000 centres
+0x508d70  gr_font_center_x         func  vsdk\gr\gr_font.cpp    I ; (clip_width - width) / 2
+0x509030  gr_font_fit_string       func  vsdk\gr\gr_font.cpp    I ; how much of s fits in max_w, backing up to whitespace
+0x509130  gr_split_str             func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::split_str (7 arguments)
+0x5093a0  key_mark                 func  -                      I ; (code, state, latency): remap layout, update key_down_state/key_press_counts, queue the key
+0x509560  key_remap_layout         func  -                      I ; scan-code swaps for key_layout 1-4 (2: AZERTY A/Q Z/W M; 3: QWERTZ Y/Z)
+0x509630  key_numlock_off          func  -                      I ; Get/SetKeyboardState, clears VK_NUMLOCK
+0x509660  key_on_keydown           func  -                      I ; WM_KEYDOWN: extended keys, Print Screen (0xb7), shift
+0x5096e0  key_on_keyup             func  -                      I ; WM_KEYUP
+0x509770  key_init                 func  -                      I ; (layout, fix_numlock): critical section, flush, message handler, atexit
+0x509a00  key_numlock_fix          func  -                      I ; Windows 9x only: turns NumLock off if on
+0x509a50  key_numlock_is_on        func  -                      I
+0x509ab0  key_flush                func  -                      I ; clears the queue and key states
+0x509bb0  key_down_time            func  -                      I ; (key) -> seconds held
+0x509ca0  key_to_ascii             func  -                      I ; two 127-entry tables, shifted when bit 0x1000 set
+0x509ce0  key_inkey                func  -                      I ; dequeues the next key code
 0x509e20  key_get_press_count      func  -                      I ; returns and clears the press counter of key N (0..255) under the key lock
 0x509ec0  key_queue_not_empty      func  -                      I ; key queue head != tail, under the key lock
 0x509f00  key_is_down              func  -                      I ; returns the current down-state byte of key N
@@ -358,6 +422,7 @@
 0x525990  File__read_int           func  vsdk\vfile             I ; (min_ver, default), as Dash Faction File::read<int>
 0x525fe0  File__read               func  vsdk\vfile             O ; (buf, len, min_ver, unused); Dash Faction
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
+0x530c20  os_add_msg_handler       func  vsdk\os                O ; Dash Faction rf::os_add_msg_handler; key_init registers its window-message hook
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
 0x5312d6 cpu_identify             func  -                        O ; CPU type/speed/extensions
@@ -386,8 +451,20 @@
 0x5348a0  packfile_fread           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; "FREAD BAIL"
 0x5348f0  packfile_fstatus         func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; always 1 on PC
 0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
+0x535520  gr_d3d_page_in           func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535550  gr_d3d_clear             func  vsdk\gr\directx\gr_direct3d.cpp I
+0x5355e0  gr_d3d_zbuffer_clear     func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535670  gr_d3d_set_viewport      func  vsdk\gr\directx\gr_direct3d.cpp I
+0x5356d0  gr_d3d_bitmap            func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535d10  gr_d3d_set_color         func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535da0  gr_d3d_line              func  vsdk\gr\directx\gr_direct3d.cpp I
+0x5361a0  gr_d3d_tmapper           func  vsdk\gr\directx\gr_direct3d.cpp I
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
+0x53a4f0  gr_d3d_close             func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
+0x53a660  gr_d3d_flip              func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
+0x53a7f0  gr_d3d_read_backbuffer   func  vsdk\gr\directx\gr_direct3d.cpp I
+0x53ab20  gr_d3d_set_gamma         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53e030  cmdline_parse            func  vsdk\os\cmdline.cpp    O ; (cmd_line, check_unknown, ...): split, match params, optionally reject unknown "-x"
 0x53e060  cmdline_split            func  vsdk\os\cmdline.cpp    O ; strtok on spaces; rejoins "quoted args"; fills cmdline_args (max 50)
 0x53e1e0  cmdline_match_params     func  vsdk\os\cmdline.cpp    O ; for each registered CmdLineParam, _stricmp against every arg; sets name_found
@@ -405,11 +482,41 @@
 0x544c40  StringPool__Add          func  vsdk\os\stringpool.cpp V ; Summoner 2; "Length of string pool exceeded"
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
 0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
+0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
+0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
+0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
+0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
+0x54a5b0  gr_glide_set_viewport    func  vsdk\gr\glide\gr_glide.cpp I
+0x54a600  gr_glide_clear           func  vsdk\gr\glide\gr_glide.cpp I
+0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
+0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
+0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
+0x54a800  gr_glide_bitmap          func  vsdk\gr\glide\gr_glide.cpp I
+0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
+0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
+0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
+0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
+0x54bc60  gr_d3d_tcache_flush      func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d3f0  gr_d3d_mark_texture_dirty func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d430  gr_d3d_tcache_free       func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
+0x54e7a0  gr_opengl_tcache_flush   func  vsdk\gr\opengl\gr_opengl.cpp O ; glFinish, frees all; "WARNING: VRAM is at %d"
+0x54eed0  gr_opengl_mark_texture_dirty func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54ef20  gr_opengl_tcache_free    func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54f320  gr_opengl_page_in        func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
 0x54f6f0 gr_opengl_init           func  vsdk\gr\opengl\gr_opengl.cpp     O ; renderer 0x68
+0x54f790  gr_opengl_close          func  vsdk\gr\opengl\gr_opengl.cpp O ; wglDeleteContext, ReleaseDC
+0x54f7c0  gr_opengl_flip           func  vsdk\gr\opengl\gr_opengl.cpp O ; SwapBuffers
+0x54f7e0  gr_opengl_clear          func  vsdk\gr\opengl\gr_opengl.cpp O ; black glRecti over the clip rect
+0x54f870  gr_opengl_zbuffer_clear  func  vsdk\gr\opengl\gr_opengl.cpp O ; glClear(GL_DEPTH_BUFFER_BIT)
 0x54f8c0 gr_opengl_set_viewport   func  vsdk\gr\opengl\gr_opengl.cpp     O ; glOrtho + glViewport from the clip rectangle
+0x54fa30  gr_opengl_bitmap         func  vsdk\gr\opengl\gr_opengl.cpp O ; textured quad with glDrawArrays
+0x54fe10  gr_opengl_set_color      func  vsdk\gr\opengl\gr_opengl.cpp O ; empty
+0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
+0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
+0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
@@ -471,6 +578,10 @@
 
 0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
 0x5a605c  Gr_level_fog_multiplier  data:int -                      I ; set by console command "level_fog" (sets); type inferred
+0x5a6060  gr_fade_level            data:float vsdk\gr\gr.cpp         I ; below 0 = no overlay
+0x5a6064  gr_gamma                 data:float vsdk\gr\gr.cpp         O
+0x5a64c0  key_ascii_table          data:int[127] -                      I
+0x5a66c0  key_ascii_table_shifted  data:int[127] -                      I
 0x5a6f20  command_line_cursor      data:char* console.cpp            O ; current position in the command line
 0x5a6f24  token_write_ptr          data:char* console.cpp            O
 0x5a7294  Gr_far_min               data:int -                      I ; set by console command "far_min" (sets); type inferred
@@ -610,11 +721,11 @@
 0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
+
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
 0x247e8c0 Use_turn_anims           data:bool -                      I ; set by console command "Turn_anims" (toggles); type inferred
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
-
 0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
 0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
@@ -674,11 +785,11 @@
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
 0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
+
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
-
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
 0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
 0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
@@ -687,27 +798,42 @@
 0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
 0x25d847c localize_item_table      data:void*[0xfd] localize               O
 0x25d8878 localize_language        data:int localize               O
+
 0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
-0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
+0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 
+0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
+0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
-0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
-0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
-0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
+0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
 
+0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
+0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
+
+0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
+0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
+0x25d94e0 key_queue                data:uint16[] -                      I
+0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
+0x25da940 key_queue_head           data:int -                      I
+0x25da944 key_queue_tail           data:int -                      I
+0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
+0x25daa50 key_layout               data:int -                      I ; set by key_init
+0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
+0x25daa74 key_inited               data:bool -                      I
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
-
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
-0x25db894 token                    data:char[128] console.cpp            O
 
+0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
@@ -720,18 +846,19 @@
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
+
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
-
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
+
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
@@ -739,7 +866,6 @@
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
-
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"

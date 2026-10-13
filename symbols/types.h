@@ -128,6 +128,38 @@ typedef struct bitmap_entry {
     int32_t mark_count;      // +0x44 bm_set_mark nesting
 } bitmap_entry;              // 0x48 bytes
 
+// Bitmap font (vsdk\gr\gr_font.cpp), gr_fonts[6] at 0x25d9238. Same 0x6C-byte layout as Dash
+// Faction's rf::gr::Font; offsets observed in gr_font_create, gr_font_get_char, gr_string.
+typedef struct FontCharInfo {
+    int32_t spacing;         // +0x0
+    int32_t width;           // +0x4
+    int32_t pixel_data_offset; // +0x8
+    int16_t kerning_entry;   // +0xC first kern pair for this char, -1 none
+    int16_t user_data;       // +0xE
+} FontCharInfo;
+typedef struct Font {
+    char filename[32];       // +0x00
+    int32_t signature;       // +0x20 0 = free slot
+    int32_t format;          // +0x24 0xF 4-bit alpha, 0x0F0F0F0F 16-bit, -0x10 8-bit paletted
+    int32_t num_chars;       // +0x28
+    int32_t first_ascii;     // +0x2C
+    int32_t default_spacing; // +0x30
+    int32_t height;          // +0x34
+    int32_t height2;         // +0x38
+    int32_t num_kern_pairs;  // +0x3C
+    int32_t pixel_data_size; // +0x40
+    uint8_t* kern_data;      // +0x44 3-byte {ch0, ch1, offset}
+    FontCharInfo* chars;     // +0x48
+    uint8_t* pixel_data;     // +0x4C
+    int32_t* palette;        // +0x50
+    int32_t bm_handle;       // +0x54 4444 texture made with bm_create
+    int32_t bm_width;        // +0x58 64, 128 or 256
+    int32_t bm_height;       // +0x5C
+    int32_t* char_x_coords;  // +0x60
+    int32_t* char_y_coords;  // +0x64
+    uint16_t* bm_bits;       // +0x68
+} Font;                      // 0x6C bytes
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current

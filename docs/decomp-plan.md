@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1 progress (2026-10-13): **263 / 5,548** game/engine functions named
-(4.7%), plus 136 pointer-only callbacks.
+Phase 0 is complete. Phase 1 progress (2026-10-13): **370 / 5,548** game/engine functions named
+(6.7%), plus 136 pointer-only callbacks.
 
 | Module | Status | Page |
 |---|---|---|
@@ -135,4 +135,5 @@ Phase 0 is complete. Phase 1 progress (2026-10-13): **263 / 5,548** game/engine 
 | `vfile\packfile` | Done | [Packfiles](sum-exe/vsdk-packfile.md) |
 | `bmpman` | Done (45 functions); image readers left | [Bitmap manager](sum-exe/vsdk-bmpman.md) |
 | Localization (strings.tbl, name tables) | Done | [Localization](sum-exe/localize.md) |
-| Next: `gr`, `gr_font`, image readers, input, math/geom | Not started | |
+| `gr`, `gr_font`, keyboard; back-end dispatch targets | Done (front end); back ends partly | [Graphics and keyboard](sum-exe/vsdk-gr.md) |
+| Next: image readers, mouse/joystick, math/geom | Not started | |
