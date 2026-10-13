@@ -12,30 +12,29 @@ work can start from evidence instead of from scratch.
 
 **Requested 2026-10-12.** Let players bind their own keys to in-game actions.
 
-What is known so far:
+**Update 2026-10-13: the input path is mapped.** See
+[Controls and keyboard map](sum-exe/controls.md).
 
-- The game reads the keyboard through DirectInput: Sum.exe imports only
-  `DINPUT.dll!DirectInputCreateA`, and SummonerFix is already the `dinput.dll` it loads.
-  Every keyboard device the game creates therefore passes through our proxy, so we could
-  wrap the DirectInput device and remap key states before the game sees them. *Inferred;*
-  the device wrapper is not written yet.
-- The game also calls `GetKeyboardState`/`SetKeyboardState` (USER32 imports). Which input
-  path the action controls actually use is **unknown**.
-- The game has a developer console with named commands. Timeslip's patch binds console
-  commands to keys (`[console] k###=command` in its `dinput.ini`). The command list ships in
-  `console_commands.txt`. This is a second route for actions that exist as commands.
-- Controls the player sets in the game's own options menu are presumably saved through
-  the registry calls SummonerFix now redirects into `summonerfix.ini [Registry]`. Not yet
-  observed.
+- The keyboard does **not** use DirectInput. Keys come from window messages through
+  `key_mark`; only the mouse uses DirectInput.
+- The controls are a hard-coded `switch` in `hud_handle_keys` (`0x40d930`). There is no
+  binding table to edit and no in-game control options.
+- Every key event first goes through `key_remap_layout` (`0x509560`), a scan code → scan
+  code function used for AZERTY/QWERTZ layouts.
 
-First steps:
+Plan:
 
-1. Change a control in the in-game options menu and look at what appears in
-   `summonerfix.ini [Registry]`, to find the game's own binding format.
-2. Find the code that turns key state into actions (xrefs from the DirectInput
-   `GetDeviceState` result buffer).
-3. Decide between remapping inside the DirectInput proxy and editing the game's own
-   binding table.
+1. In SummonerFix, patch a `JMP` at `0x509560` to our own `remap(code)`. It applies a
+   256-entry table from a new `[KeyBindings]` section of `summonerfix.ini` (for example
+   `I=Tab`), then the original layout swaps.
+2. Test that remapped keys open the right screens and that held keys (camera arrows) follow
+   the remap.
+3. Optional later steps:
+   - mouse-button remapping in `mouse_update`;
+   - binding console commands to keys, as Timeslip's patch does.
+
+Timeslip's patch already binds console commands to keys (`[console] k###=command`). That
+stays a separate route for actions that only exist as console commands.
 
 ## Turn the frame-rate speed bug into a "fast travel" speed control
 

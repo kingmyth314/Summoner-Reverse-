@@ -13,6 +13,7 @@
 # Keep sorted by address.
 
 # ---- functions ------------------------------------------------------------------------------
+0x401020  gameseq_set_state        func  -                      O ; state_change_pending = 1, next = arg (3 = quit)
 0x401070 GameTick                 func  -                        O ; one frame: state transitions, FrameDone, state frame handler, frame end
 0x401190 GameStateSwap            func  -                        O ; prev = cur; cur = next; pending = 0
 0x401380  assess_init              func  new_assess.cpp         I ; screen 20 (arg: target)
@@ -25,8 +26,8 @@
 0x404bd0  buysell_init             func  new_buysell.cpp        I ; screen 7; position before new_buysell strings
 0x4051a0  buysell_leave            func  new_buysell.cpp        I
 0x406590  mp_charselect_init       func  new_charselect.cpp     O ; screen 16: "Multiplayer Char", *.plr files
-0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 
+0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 0x4089c0  credits_leave            func  new_credits.cpp        I
 0x408f90  screen13_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
 0x408fe0  screen13_leave           func  -                      I
@@ -35,12 +36,27 @@
 0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga
 0x40c850  help_leave               func  new_help.cpp           I
 0x40cef0  hud_init                 func  new_hud.cpp            I ; screen 0
+0x40cf40  hud_frame                func  new_hud.cpp            I ; per-frame HUD; calls hud_handle_keys
+0x40d930  hud_handle_keys          func  new_hud.cpp            I ; the in-game keyboard map: switch on key codes (scan code | 0x1000 Shift | 0x4000 Alt); see docs/sum-exe/controls.md
+0x40e1f0  hud_select_party_member  func  new_hud.cpp            I ; F5-F9: (index 0-4)
+0x40e250  hud_key_playmenu         func  new_hud.cpp            I ; Esc: interface_set_screen(9)
+0x40e260  hud_key_help             func  new_hud.cpp            I ; F1: interface_set_screen(22)
+0x40e270  hud_key_pause            func  new_hud.cpp            I ; Space / NumLock: pause or unpause
+0x40e300  hud_key_h                func  new_hud.cpp            I ; H: toggles game_debug_flags 0x1000 (0x439620) or shows a prompt
+0x40e390  hud_key_automap          func  new_hud.cpp            I ; M: toggle screen 3
+0x40e3e0  hud_key_status           func  new_hud.cpp            I ; R: interface_set_screen(2)
+0x40e3f0  hud_key_screen5          func  new_hud.cpp            I ; C: toggle screen 5
+0x40e430  hud_key_inventory        func  new_hud.cpp            I ; I: interface_set_screen(1)
+0x40e450  hud_key_screen6          func  new_hud.cpp            I ; S: toggle screen 6
+0x40e480  hud_interact_nearest     func  new_hud.cpp            I ; X / middle mouse: nearest usable object within 3 units (or 5 for some types)
+0x40e980  hud_key_camera           func  new_hud.cpp            I ; F12: camera_cycle_mode
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
 0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
 0x412220  interface_set_view_clip  func  -                      I ; clips the 3D view per open screen (side panels shrink it), then draws
 0x412620  interface_set_screen     func  -                      I ; (id, arg): current screen's leave, then the new screen's init (23 ids); see docs/sum-exe/interface.md
 0x413190  vector3__assign          func  vsdk\math              I ; a = b, returns a copy
+0x413360  party_cycle              func  -                      I ; Tab (1) / Shift+Tab (0)
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
@@ -79,12 +95,19 @@
 0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
+0x432da0  game_is_paused           func  -                      I ; game_debug_flags bit 2
 0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
 0x4330a0  cmd_targa                func  -                      O ; console command "targa": Toggles Print_screen_as_targa
 0x433190  cmd_net_stats            func  -                      O ; console command "net_stats": Toggles Gamewide_show_net_stats
 0x433280  cmd_gr_info              func  -                      O ; console command "gr_info": Toggles Gamewide_show_gr_info
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
 0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
+0x434440  input_drain_events       func  gameplay.cpp           I ; PollInputEvents until empty, feeding interface_frame
+0x434470  player_input_frame       func  gameplay.cpp           I ; poll events, then mouse input and camera
+0x4344b0  player_read_mouse_input  func  gameplay.cpp           I ; builds {flags, mouse x, mouse y}: Shift 0x20, Alt 0x40, left click 0x04 (+Ctrl 0x08), left held 400 ms 0x10, right press/click 0x01/0x02
+0x434660  camera_process_input     func  gameplay.cpp           I ; Left/Right and screen-edge mouse rotate, Up/Down tilt (not in camera type 4), wheel zoom; speed 0x60ad00, invert 0x60acd1
+0x434840  camera_key_yaw           func  gameplay.cpp           I ; key_down_time(Right) - key_down_time(Left)
+0x434870  camera_key_pitch         func  gameplay.cpp           I ; key_down_time(Up) - key_down_time(Down)
 0x436a90 SequenceTimer            func  -                        I ; timeGetTime-based sequence (cutscene) timer; 24.9-day sign bug
 0x436c00 SequenceTimer2           func  -                        I ; another timeGetTime user of sequence_start_time
 0x4374d0  cmd_play_cutscene        func  -                      O ; console command "play_cutscene": Play a cutscene
@@ -156,6 +179,7 @@
 0x4778e0  cmd_zoom_limit           func  -                      O ; console command "zoom_limit": Toggle camera zoom limiting.
 0x477990  cmd_geom_avoid           func  -                      O ; console command "geom_avoid": Toggles Camera_geometry_avoidance
 0x477a80  cmd_mlook_sensitivity    func  -                      O ; console command "mlook_sensitivity": Sets the sensitivity value for mouse look.
+0x479a60  camera_cycle_mode        func  -                      I ; F12: mode 0 -> 1 -> 2 -> 0
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x4811d0  cmd_Multi_path_type      func  -                      O ; console command "Multi_path_type": Sets the method used to generate paths on multiplayer machiens
 0x481710  cmd_lod_dist             func  -                      O ; console command "lod_dist": Sets Character_lod_dist
@@ -907,6 +931,7 @@
 0x5fc022  Print_screen_as_targa    data:bool -                      I ; set by console command "targa" (toggles); type inferred
 0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
 0x5fcc91  Max_skills               data:bool -                      I ; set by console command "max_skills" (toggles); type inferred
+0x5fcc98  player_input             data:uint32[3] gameplay.cpp           I ; {flags, mouse x, mouse y}
 0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
 0x601e78 sequence_start_time      data:int             -                 O ; timeGetTime at sequence start
 0x6034b8  ccmd_play_cutscene       data:console_command -                      O ; console command object "play_cutscene"
@@ -1004,8 +1029,8 @@
 0x24523e8 ccmd_serpent_stage       data:console_command -                      O ; console command object "serpent_stage"
 0x24523f8 ccmd_serpent_unlink      data:console_command -                      O ; console command object "serpent_unlink"
 0x2452408 ccmd_serpent_combat      data:console_command -                      O ; console command object "serpent_combat"
-0x24529f8 ccmd_phoenix_stage       data:console_command -                      O ; console command object "phoenix_stage"
 
+0x24529f8 ccmd_phoenix_stage       data:console_command -                      O ; console command object "phoenix_stage"
 0x2452a38 ccmd_phoenix_solo        data:console_command -                      O ; console command object "phoenix_solo"
 0x2452a48 ccmd_phoenix_combat      data:console_command -                      O ; console command object "phoenix_combat"
 0x2452a58 ccmd_phoenix_unlink      data:console_command -                      O ; console command object "phoenix_unlink"
@@ -1068,8 +1093,8 @@
 0x257efdc mouse_y                  data:int vsdk\os\mouse          I
 0x257efe0 mouse_x                  data:int vsdk\os\mouse          I
 0x257efe8 mouse_buttons_live       data:uint8[3][16] vsdk\os\mouse          I ; written by the message handler
-0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
 
+0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
 0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
 0x257f020 mouse_di_active          data:bool vsdk\os\mouse          I
 0x257f021 mouse_inited             data:bool vsdk\os\mouse          I
@@ -1081,24 +1106,24 @@
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
-0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
 
+0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
 0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
-0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
 
+0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
 0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
 0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
+
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
-
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
-0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
 
+0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
 0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
@@ -1115,8 +1140,8 @@
 0x25d8878 localize_language        data:int localize               O
 0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
-0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 
+0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
@@ -1129,8 +1154,8 @@
 0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
-0x25d94e0 key_queue                data:uint16[] -                      I
 
+0x25d94e0 key_queue                data:uint16[] -                      I
 0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
 0x25da940 key_queue_head           data:int -                      I
 0x25da944 key_queue_tail           data:int -                      I
@@ -1141,8 +1166,8 @@
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
-0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 
+0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
@@ -1160,10 +1185,10 @@
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
+
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
-
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
@@ -1182,22 +1207,23 @@
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
+
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
-
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
-0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
 
+0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
-0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
 
+0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
 0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
 0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
+
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred
