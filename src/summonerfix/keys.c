@@ -76,9 +76,68 @@ static DWORD WINAPI WatchIni(LPVOID unused)
     return 0;
 }
 
+// In-game hotkey ([Game] ConfigKey, default F10): opens SummonerFixConfig.exe (or brings it forward) so
+// bindings can be changed without leaving the game by hand. Polled, so it works whatever the game does with keys.
+#define VA_MAIN_WND 0x2cbff10u
+
+static DWORD WINAPI ConfigHotkey(LPVOID vk)
+{
+    BOOL wasDown = FALSE;
+    for (;;) {
+        Sleep(50);
+        HWND game = *(volatile HWND *)(UINT_PTR)SumVa(VA_MAIN_WND);
+        BOOL down = (GetAsyncKeyState((int)(INT_PTR)vk) & 0x8000) != 0;
+        BOOL pressed = down && !wasDown;
+        wasDown = down;
+        if (!pressed || !game || GetForegroundWindow() != game)
+            continue;
+        AllowSetForegroundWindow(ASFW_ANY);
+        HWND cfg = FindWindowA("SummonerFixConfig", NULL);
+        if (cfg) {
+            ShowWindow(cfg, SW_RESTORE);
+            SetForegroundWindow(cfg);
+            Log("config hotkey: brought SummonerFixConfig forward");
+            continue;
+        }
+        char exe[MAX_PATH];
+        strcpy(exe, g_cfg.iniPath);
+        char *slash = strrchr(exe, '\\');
+        strcpy(slash ? slash + 1 : exe, "SummonerFixConfig.exe");
+        STARTUPINFOA si;
+        ZeroMemory(&si, sizeof si);
+        si.cb = sizeof si;
+        PROCESS_INFORMATION pi;
+        if (CreateProcessA(exe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+            Log("config hotkey: started %s", exe);
+        } else {
+            Log("config hotkey: cannot start %s (error %lu)", exe, GetLastError());
+        }
+    }
+    return 0;
+}
+
+static void StartConfigHotkey(void)
+{
+    char name[32];
+    GetPrivateProfileStringA("Game", "ConfigKey", "F10", name, sizeof name, g_cfg.iniPath);
+    if (!name[0] || _stricmp(name, "none") == 0)
+        return;
+    int scan = KeyParse(name);
+    UINT vk = scan > 0 ? MapVirtualKeyA((scan & 0x7f) | (scan & 0x80 ? 0xe000 : 0), 3 /* MAPVK_VSC_TO_VK_EX */) : 0;
+    if (!vk) {
+        Log("config hotkey: unknown key \"%s\"", name);
+        return;
+    }
+    Log("config hotkey: %s opens SummonerFixConfig", name);
+    CloseHandle(CreateThread(NULL, 0, ConfigHotkey, (LPVOID)(INT_PTR)vk, 0, NULL));
+}
+
 void KeyBindInstall(void)
 {
     LoadBindings(TRUE);
+    StartConfigHotkey();
 
     // Always hooked (an identity table changes nothing), so bindings added later take effect live.
     g_layout = (PFN_KeyRemapLayout)(UINT_PTR)SumVa(VA_KEY_REMAP_LAYOUT);

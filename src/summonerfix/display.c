@@ -214,8 +214,11 @@ static DWORD ReturnVa(void *ret)
 static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, int cy, UINT flags)
 {
     DWORD from = ReturnVa(__builtin_return_address(0));
-    if (from == VA_WNDPROC_SETPOS_DEACTIVATE)
-        return TRUE; // losing focus: leave the window where it is, don't re-activate it
+    if (from == VA_WNDPROC_SETPOS_DEACTIVATE) {
+        // Losing focus: don't re-activate. Send the (screen-covering, borderless) window to the back so
+        // the program being switched to is actually visible.
+        return real_SetWindowPos(w, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
     if (from == VA_WNDPROC_SETPOS_ACTIVATE)
         flags |= SWP_NOACTIVATE; // already being activated; keep our geometry below
     if (w == g_wnd && g_wnd && !(flags & SWP_NOSIZE)) {

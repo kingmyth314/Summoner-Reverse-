@@ -239,7 +239,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         ListView_SetItemState(g_list, 0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
         SetStatus(GetFileAttributesA(g_ini) == INVALID_FILE_ATTRIBUTES
                       ? "summonerfix.ini not found next to this program; it will be created."
-                      : "Select an action and click Change key. The game picks up changes immediately.");
+                      : "Select an action and click Change key. Changes apply to a running game at once (F10 in game opens this window).");
         return 0;
     }
     case WM_NOTIFY:
@@ -282,7 +282,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     RECT r = {0, 0, 670, 470};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
-    g_wnd = CreateWindowA(wc.lpszClassName, "SummonerFix - Key bindings", style, CW_USEDEFAULT, CW_USEDEFAULT,
+    g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings", style, CW_USEDEFAULT, CW_USEDEFAULT,
                           r.right - r.left, r.bottom - r.top, NULL, NULL, inst, NULL);
     ShowWindow(g_wnd, show);
     MSG m;
