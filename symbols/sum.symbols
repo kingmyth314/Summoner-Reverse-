@@ -71,6 +71,7 @@
 0x442060  multi_send_packet        func  -                      I ; (data, len, to, reliable): per-type rate stats ("Unable to add net rate info"), nw_NewSendReliable
 0x442380  cmd_disp_rate            func  -                      O ; console command "disp_rate": Toggle whether net rate info for a packet is displayed
 0x444a50  cmd_All_summons          func  -                      O ; console command "All_summons": Toggles All_summons
+0x447b10  level_load_preload       func  -                      I ; loads the level's character preload index (ca_load_preload_index) and per-level effects
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
 0x449c00  cmd_levelchars           func  -                      O ; console command "levelchars": dump info on all characters in the level
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
@@ -418,12 +419,33 @@
 0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
 0x5130a0  file_change_ext          func  vsdk\vfile             I ; (out, name, ext)
+0x513100  file_strip_ext           func  vsdk\vfile             I ; (out, name)
+0x513a20  FileReader__FileReader   func  vsdk\vfile             I ; {mode +0 (0 File, 1 memory, -1 none), File* +4, buffer +8, pos +0xC, size +0x10}
+0x513a30  FileReader__attach_memory func  vsdk\vfile             I ; (buffer, size)
+0x513a50  FileReader__attach_file  func  vsdk\vfile             I ; (File*)
+0x513a70  FileReader__tell         func  vsdk\vfile             I
+0x513a90  FileReader__seek         func  vsdk\vfile             I ; (offset, origin 0/1/2)
+0x513b00  FileReader__eof          func  vsdk\vfile             I
+0x513b30  FileReader__error        func  vsdk\vfile             I
+0x513b40  FileReader__read         func  vsdk\vfile             I ; (buf, len)
+0x513bb0  FileReader__read_int     func  vsdk\vfile             I
+0x513bf0  FileReader__read_float   func  vsdk\vfile             I
+0x513c40  FileReader__read_int16   func  vsdk\vfile             I
+0x513c80  FileReader__read_uint16  func  vsdk\vfile             I
+0x513cc0  FileReader__read_int8    func  vsdk\vfile             I
+0x513d00  FileReader__read_uint8   func  vsdk\vfile             I
+0x513d40  FileReader__read_vector  func  vsdk\vfile             I ; 12 bytes
+0x513da0  FileReader__read_quaternion func  vsdk\vfile             I ; 16 bytes
+0x513e00  FileReader__read_string  func  vsdk\vfile             I ; (buf, max): NUL-terminated
 0x5140d0  File__File               func  vsdk\vfile             O ; Dash Faction rf::File (0x114-byte object)
 0x5140f0  File__dtor               func  vsdk\vfile             O ; closes if open
 0x5141c0  File__find               func  vsdk\vfile             O ; (name, path_id); Dash Faction
 0x514630  File__open               func  vsdk\vfile             O ; (name, mode, path_id); Dash Faction
 0x514740  File__close              func  vsdk\vfile             O ; fclose or packfile_fclose
 0x514860  File__size               func  vsdk\vfile             O ; Dash Faction File::size(name, path_id)
+0x514910  File__seek               func  vsdk\vfile             O ; Dash Faction File::seek(pos, origin); fseek or packfile_fseek
+0x5149f0  File__tell               func  vsdk\vfile             O ; Dash Faction File::tell
+0x514a10  File__eof                func  vsdk\vfile             I
 0x514a40  File__error              func  vsdk\vfile             O ; Dash Faction File::error
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
@@ -489,14 +511,26 @@
 0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
 0x51a780  character_instance__setup_matrices_b func  vsdk\ca\character_instance.cpp I ; second function with label "character_instance::setup_matrices"
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
+0x51abd0  character_instance__check_anims func  vsdk\ca\character_instance.cpp I ; "Character has NULL anim: %s (%d)"
+0x51b4a0  character_instance__report_memory func  vsdk\ca\character_instance.cpp I ; mem_report_line "cur time", "anim pct", "bone info", "TOTAL"
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
+0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
+0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
 0x524270  vector3__normalized      func  vsdk\math              I
 0x524430  vector3__normalize       func  vsdk\math              I
 0x524470  vector3__normalize_length func  vsdk\math              I ; same body; callers use the returned length
+0x525850  File__read_int8          func  vsdk\vfile             I
+0x5258a0  File__read_uint8         func  vsdk\vfile             I
+0x5258f0  File__read_int16         func  vsdk\vfile             I
+0x525940  File__read_uint16        func  vsdk\vfile             I
 0x525990  File__read_int           func  vsdk\vfile             I ; (min_ver, default), as Dash Faction File::read<int>
+0x525a30  File__read_float         func  vsdk\vfile             I
+0x525a80  File__read_vector        func  vsdk\vfile             I ; (v, min_ver, default)
+0x525ad0  File__read_quaternion    func  vsdk\vfile             I ; (q, min_ver, default)
+0x525ee0  File__read_string        func  vsdk\vfile             I ; (buf, max, min_ver, unused)
 0x525fe0  File__read               func  vsdk\vfile             O ; (buf, len, min_ver, unused); Dash Faction
 0x526220  File__write_uint8        func  vsdk\vfile             I
 0x526240  File__write_uint16       func  vsdk\vfile             I
@@ -558,6 +592,12 @@
 0x53e4a0  CmdLineParam__found      func  vsdk\os\cmdline.cpp    O ; returns name_found (+0x14), as Dash Faction
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
+0x540970  character_add_skeleton   func  vsdk\ca\character.cpp  O ; "No more room for skeletons in character %s -- see allender"; from the preload index or a File, then skeleton_read
+0x540df0  character_load_shadow    func  vsdk\ca\character.cpp  O ; "ATTEMPTING TO LOAD", "SHADOW LOADED" / "SHADOW FAILED TO LOAD"; vim_load
+0x541450  character_load           func  vsdk\ca\character.cpp  O ; "Couldn't load character %s in charanim.tbl file."; reloads bitmaps if needed
+0x541500  character_create_base    func  vsdk\ca\character.cpp  O ; "No more base character room. Please up the MAX_BASE_CHARACTERS constant."
+0x541790  ca_load_preload_index    func  vsdk\ca\character.cpp  I ; reads count, size, 0x48-byte name entries and one data blob into 0x2de20c4
+0x5418f0  ca_preload_find          func  vsdk\ca\character.cpp  I ; (name, &offset, &size) in the preload index
 0x5419a0  RecordExceptionInfo      func  exceptionhandler       O ; Bruce Dawson's ExceptionHandler.cpp (Game Developer 1999): appends a report to errorlog.txt beside Sum.exe
 0x541ec0  hprintf                  func  exceptionhandler       O ; printf to a file HANDLE (Dawson)
 0x541f10  RecordModuleList         func  exceptionhandler       O ; "Module list: names, addresses, sizes, time stamps and file times:"
@@ -567,6 +607,11 @@
 0x5422f0  GetExceptionDescription  func  exceptionhandler       O ; "an Access Violation", "a Float Divide by Zero", ...
 0x5424e0  GetFilePart              func  exceptionhandler       O ; text after the last backslash
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
+0x543430  vim_read                 func  vsdk\ca\skeleton.cpp   I ; mesh body: vertices, faces, materials; textures through bm_load
+0x543920  vim_load                 func  vsdk\ca\skeleton.cpp   O ; "VIF LOADING: %s", "Unable to load vim: %s"
+0x543a80  vim_reload_bitmaps       func  vsdk\ca\skeleton.cpp   I ; "RE-LOADING bitmaps for %s" (printed by character_load)
+0x543d50  skeleton_add             func  vsdk\ca\skeleton.cpp   O ; "Too many skeletons"
+0x544090  skeleton_read            func  vsdk\ca\skeleton.cpp   O ; "FILE ISN'T MVFREDUCED AND HAS MORPHING!!!", "Skeletons using too much memory"
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
 0x544c10  StringPool__GetLength    func  vsdk\os\stringpool.cpp O
@@ -803,6 +848,7 @@
 0x60a665  Render_3d_obstacles      data:bool -                      I ; set by console command "render_3d_obstacles" (toggles); type inferred
 0x60abb8  cmdline_param_direct3d   data:CmdLineParam -                      O ; "-direct3d"
 0x60abd0  ccmd_stop_sound          data:console_command -                      O ; console command object "stop_sound"
+0x60abe0  font_small               data:int -                      I ; font_small.vf, also given to 0x50af50 (console)
 0x60abe8  ccmd_gamma               data:console_command -                      O ; console command object "gamma"
 0x60abf8  cmdline_param_eax        data:CmdLineParam -                      O ; "-eax"
 0x60ac20  ccmd_play_sound          data:console_command -                      O ; console command object "play_sound"
@@ -810,9 +856,12 @@
 0x60ac68  cmdline_param_pack       data:CmdLineParam -                      O ; "-pack"
 0x60ac90  cmdline_param_dsinit     data:CmdLineParam -                      O ; "-dsinit"
 0x60aca8  cmdline_param_port       data:CmdLineParam -                      O ; "-port" (takes an argument)
+0x60ad0c  font_main                data:int -                      I ; sumbones640/800/1024.vf by resolution index
+0x60ad10  font_bones_small         data:int -                      I ; SumBones_small.vf
 0x60ad18  cmdline_param_800        data:CmdLineParam -                      O ; "-800"
 0x60ad30  cmdline_param_1024       data:CmdLineParam -                      O ; "-1024"
 0x60ad50  cmdline_param_glide      data:CmdLineParam -                      O ; "-glide"
+0x60ad68  resolution_index         data:int -                      O ; row of resolution_table used by LoadSettings (mouse_init, gr_init) and the font choice
 0x60ae58  ccmd_all_multi_levels    data:console_command -                      O ; console command object "all_multi_levels"
 0x60ae64  All_multi_levels         data:bool -                      I ; set by console command "all_multi_levels" (toggles); type inferred
 0x60f4f0  ccmd_save_mlayout        data:console_command -                      O ; console command object "save_mlayout"
@@ -881,11 +930,11 @@
 0x2452a48 ccmd_phoenix_combat      data:console_command -                      O ; console command object "phoenix_combat"
 0x2452a58 ccmd_phoenix_unlink      data:console_command -                      O ; console command object "phoenix_unlink"
 0x2452a70 ccmd_tiger_solo          data:console_command -                      O ; console command object "tiger_solo"
+
 0x2452a80 ccmd_tiger_stage         data:console_command -                      O ; console command object "tiger_stage"
 0x2452c98 ccmd_tiger_combat        data:console_command -                      O ; console command object "tiger_combat"
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
-
 0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
@@ -945,11 +994,11 @@
 0x257f020 mouse_di_active          data:bool vsdk\os\mouse          I
 0x257f021 mouse_inited             data:bool vsdk\os\mouse          I
 0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
+
 0x257f028 mouse_dy                 data:int vsdk\os\mouse          I
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f088 frames_rendered         data:int             frametime.cpp     V
-
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
@@ -958,27 +1007,27 @@
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
 0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
+
 0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
 0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
-
 0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
+
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
-
 0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
+
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
+
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
-
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
 0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
-
 0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
 0x25c70cc localize_quest_table     data:void*[0xfd] localize               O
 0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
@@ -992,11 +1041,11 @@
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
-
 0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
 0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
@@ -1006,11 +1055,11 @@
 0x25da940 key_queue_head           data:int -                      I
 0x25da944 key_queue_tail           data:int -                      I
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
+
 0x25daa50 key_layout               data:int -                      I ; set by key_init
 0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
 0x25daa74 key_inited               data:bool -                      I
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
-
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
@@ -1018,11 +1067,11 @@
 0x25db21c lowercase_token          data:char[128] console.cpp            O
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
+
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
-
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
@@ -1037,13 +1086,13 @@
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
+
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
 0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name
-
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
-
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
@@ -1059,9 +1108,15 @@
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
+
 0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
+
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
-0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
+0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
+0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
 
+0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
+0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
+0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred
