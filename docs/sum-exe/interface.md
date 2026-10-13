@@ -44,7 +44,7 @@ strings confirm it; **I** means it is placed by position.
 | 21 | `0x4085b0` | `0x4089c0` | Credits: `credits.tbl`, `Credits-Bkgrnd640/1024.tga` | `new_credits.cpp` | O |
 | 22 | `0x40c7e0` | `0x40c850` | Help: `DemoHelp640.tga` | `new_help.cpp` | O |
 
-Screens 1, 2, 3, 5, 6 and 12 were confirmed from in-game frame captures (2026-10-13), opened with I, R, M, C, S and F2. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal uses `qjournal.tbl`.
+Screens 1, 2, 3, 5, 6 and 12 were confirmed from in-game frame captures (2026-10-13), opened with I, R, M, C, S and F2. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
 
 ## The 3D view is clipped per screen
 
