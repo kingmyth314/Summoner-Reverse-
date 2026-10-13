@@ -124,7 +124,7 @@ magazine, 1999), so its function names are used:
 
 When a test crashes, check `Summoner\errorlog.txt` first. None existed on 2026-10-13. The
 Direct3D failure path is not a crash: it calls `exit(0)`
-([video settings](video-settings.md)).
+([SummonerFix notes](../summonerfix/index.md#direct3d-silent-exit-not-fixed)).
 
 ## `console.cpp`: the developer console
 
