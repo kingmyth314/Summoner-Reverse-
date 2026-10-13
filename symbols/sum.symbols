@@ -223,6 +223,35 @@
 0x503b60  bm_get_filename          func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_filename
 0x503c80  bm_release               func  vsdk\bmpman\bmpman.cpp O ; frees texture cache entries (0x508020) for every frame, then the entry
 0x503cf0  bm_create                func  vsdk\bmpman\bmpman.cpp O ; (format, w, h, data, pal) named "USERBMAP"; Dash Faction bm::create
+0x503da0  bm_set_preload_on_load   func  vsdk\bmpman\bmpman.cpp I ; bm_preload_on_load = arg
+0x503dc0  imin                     func  -                      I ; min(a, b); used by bm_read_header
+0x503dd0  progress_set_callback    func  -                      I ; (cb, param, check_keys): cb(0,0) now, then every 100 ms via progress_update; NULL ends with cb(-1,0)
+0x503e80  progress_update          func  -                      I ; calls the callback when 100 ms passed; returns 1 once a key was pressed (if check_keys)
+0x503fb0  localize_init_string_pool func  localize               I ; static initialiser: StringPool of 0xa800 bytes at 0x25c68d0
+0x503fe0  localize_unescape        func  localize               O ; in place: \n \r \" \xHH
+0x504070  localize_strdup          func  localize               O ; into localize_string_pool, or allocate_in_mempool of the current pool; "INVALID" if none
+0x5040e0  localize_table_add       func  localize               O ; (text, english_hash, table): chained hash, 0xfd buckets, 12-byte nodes {hash, text, next}
+0x5041b0  localize_table_lookup    func  localize               O ; (english, table) -> translation, or the input when not found
+0x504200  localize_hash            func  localize               O ; rol(h, 6) ^ c, case-sensitive (bm_hash_name lowercases)
+0x504230  localize_load_strings    func  localize               O ; strings.tbl, section "#<language>" to "#end", into localize_strings[1000]
+0x504400  localize_set_string      func  localize               O ; (text, id): unescape, charset remap (except ids 935/936/942/944), copy into the string buffer
+0x5044d0  localize_parse_string_line func  localize               O ; "<id>, {text}"
+0x504520  localize_load_names      func  localize               O ; (1 item_names.tbl -> item table, 2 quest_names.tbl -> quest table); #english ids, then the #<language> section
+0x5047f0  localize_load_non_level  func  localize               O ; strings, item names, quest names into the non-level pool
+0x504830  localize_add_if_missing  func  localize               I ; adds a fixed english/translated pair unless the hash is already listed
+0x504870  localize_load_level_table func  localize               O ; (file, 0 topic_names / 3 script_names): "#english", "#Stop File", "!!!Not found!!! section"; hard-coded character names
+0x504ed0  localize_clear_level     func  localize               O ; resets the level pool and the topic/script tables
+0x504f10  localize_level_init      func  localize               O ; (file): topic and script names into the level pool
+0x504f60  localize_init            func  localize               O ; English, creates the "loc  non level" (0x3800) and "loc  level" (0x2800) pools, loads non-level text
+0x505020  localize_topic_name      func  localize               O
+0x505040  localize_item_name       func  localize               O
+0x505070  localize_quest_name      func  localize               O
+0x505090  localize_script_name     func  localize               O
+0x5050b0  localize_set_language    func  localize               O ; "Setting language to %s"; 0 English, 1 German, 2 French
+0x5051a0  localize_remap_charset   func  localize               O ; (text, to_font): German/French Windows-1252 <-> font code points (CP437 positions for German)
+0x5054f0  localize_string_or_invalid func  localize               I ; *p or "INVALID"
+0x505510  localize_get_language_name func  localize               O
+0x505540  Mempool__ResetOffset     func  vsdk\os\memory.cpp     V ; Summoner 2 inline ResetOffset: offset = 0
 0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
@@ -287,6 +316,7 @@
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
 0x515a20  TextFile__SkipSpaces     func  vsdk\parse\parse.cpp   I ; skips blanks and control whitespace (used by SkipWhitespace?)
 0x515a80  TextFile__SkipWhitespace func  vsdk\parse\parse.cpp   I ; called first by Peek/Accept/ParseFloat, as Summoner 2's SkipWhitespace
+0x515af0  TextFile__SkipToNextLine func  vsdk\parse\parse.cpp   I ; to CR, counting the line, then past LF
 0x515ba0  TextFile__SkipTo         func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipTo(string, stop); strstr, stop must not come first
 0x515c50  TextFile__SkipPast       func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipPast(string, stop) = SkipTo + Expect
 0x515c80  TextFile__CopyUntil      func  vsdk\parse\parse.cpp   O ; copies text up to SkipTo(string, stop) into dest; not in Summoner 2
@@ -389,10 +419,13 @@
 0x56d13c  fopen                    func  crt                    O ; C runtime
 0x56d1cd  atexit                   func  crt                    O
 0x56d5b7  strtok                   func  crt                    O
+0x56d7c0  _chkstk                  func  crt                    O ; stack probe for large frames
+0x56da2b  printf                   func  crt                    O ; stdout (_iob + 0x20)
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56e311  atoi                     func  crt                    O
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x56ed51  strtol                   func  crt                    O
 0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
 0x56f979  fseek                    func  crt                    O ; C runtime
 0x56fbc8  fread                    func  crt                    O ; C runtime
@@ -434,8 +467,9 @@
 0x5a5758 Timestamp_ticker           data:int             timestamp.cpp     V ; Summoner 2 decomp; game-time ms clock, starts at 1
 0x5a575c Timestamp_realtime_ticker    data:int             timestamp.cpp     V ; Summoner 2 decomp; real-time ms clock, starts at 1
 0x5a5760  Load_mipmaps             data:bool -                      I ; set by console command "load_mipmaps" (toggles); type inferred
-0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
+0x5a5c38  localize_language_names  data:char[3][0x42] localize               O ; English, German, French
 
+0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
 0x5a605c  Gr_level_fog_multiplier  data:int -                      I ; set by console command "level_fog" (sets); type inferred
 0x5a6f20  command_line_cursor      data:char* console.cpp            O ; current position in the command line
 0x5a6f24  token_write_ptr          data:char* console.cpp            O
@@ -580,8 +614,8 @@
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
 0x247e8c0 Use_turn_anims           data:bool -                      I ; set by console command "Turn_anims" (toggles); type inferred
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
-0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
 
+0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
 0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
 0x2480928 ccmd_ghost_stage         data:console_command -                      O ; console command object "ghost_stage"
@@ -643,15 +677,27 @@
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
+0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
+
+0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
+0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
+0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
+0x25c70cc localize_quest_table     data:void*[0xfd] localize               O
+0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
+0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
+0x25d847c localize_item_table      data:void*[0xfd] localize               O
+0x25d8878 localize_language        data:int localize               O
+0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
-
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
 0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
 0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
+
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
@@ -661,26 +707,25 @@
 
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
+
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
-
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
 0x2693040 mem_report_depth         data:int memory.cpp             I
-
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
-
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
+
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
@@ -692,9 +737,9 @@
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
-
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
+
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
