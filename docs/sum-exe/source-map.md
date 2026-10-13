@@ -115,6 +115,105 @@ Because strings are numbered in file order, the id ranges also show the order of
 files. That can help assign functions to files later: a function that uses string 47 belongs
 to the file whose section contains 47.
 
+### Functions placed by string id
+
+`tools/strings-tu.mjs` scans the code for references to `localize_strings[id]` (`0x25cd4dc + 4*id`) and assigns each function to the file whose section holds that id. 175 functions were placed. Ranges with several functions are reliable. A single function can be a stray: it may use another file's string, for example the HUD strings are used in many places.
+
+The result supports the expected link order: the `new_*` screens are alphabetical from `0x404000` (`new_automap`, `new_buysell`, `new_charselect`, `new_gamecreate`, `new_gamelist`, `new_help`, `new_hud`, …), followed by gameplay, the multiplayer files, and the level scripts (`0x4ede50`-`0x4fe5e0`).
+
+| Functions | Count | File |
+|---|---|---|
+| `0x4013f0` | 1 | `living_entity.cpp` |
+| `0x404310` | 1 | `new_automap.cpp` |
+| `0x4056b0`-`0x4057f0` | 2 | `new_buysell.cpp` |
+| `0x4076d0` | 1 | `new_charselect.cpp` |
+| `0x4078b0` | 1 | `new_hud.cpp` |
+| `0x4079c0` | 1 | `new_charselect.cpp` |
+| `0x408fe0` | 1 | `level_scripts.cpp` |
+| `0x409b10` | 1 | `new_gamecreate.cpp` |
+| `0x40a9b0`-`0x40b5c0` | 4 | `new_gamelist.cpp` |
+| `0x40be80`-`0x40ca50` | 2 | `new_help.cpp` |
+| `0x40d640`-`0x4102a0` | 10 | `new_hud.cpp` |
+| `0x410cf0`-`0x410f10` | 3 | `new_int_multi_update.cpp` |
+| `0x414bb0` | 1 | `new_inventory.cpp` |
+| `0x416290` | 1 | `new_buysell.cpp` |
+| `0x416fb0` | 1 | `new_inventory.cpp` |
+| `0x417110` | 1 | `new_hud.cpp` |
+| `0x419380` | 1 | `new_itemtrade.cpp` |
+| `0x41d1d0` | 1 | `living_entity.cpp` |
+| `0x41dae0` | 1 | `new_mainmenu.cpp` |
+| `0x41dde0`-`0x41e060` | 2 | `new_multi.cpp` |
+| `0x41e6b0` | 1 | `new_multichat.cpp` |
+| `0x420da0` | 1 | `new_pickup.cpp` |
+| `0x421aa0`-`0x421ca0` | 3 | `new_hud.cpp` |
+| `0x421de0` | 1 | `characterinfo.cpp` |
+| `0x422790` | 1 | `new_pxochat.cpp` |
+| `0x423530`-`0x4236c0` | 2 | `characterinfo.cpp` |
+| `0x423950` | 1 | `new_pxochat.cpp` |
+| `0x4253e0` | 1 | `new_saveload.cpp` |
+| `0x4258c0` | 1 | `multisave.cpp` |
+| `0x4262f0` | 1 | `new_saveload.cpp` |
+| `0x426500`-`0x4266c0` | 2 | `new_hud.cpp` |
+| `0x426700`-`0x426a20` | 2 | `new_saveload.cpp` |
+| `0x426be0` | 1 | `living_entity.cpp` |
+| `0x4282a0`-`0x429410` | 2 | `new_skill.cpp` |
+| `0x42a5b0` | 1 | `new_spell.cpp` |
+| `0x42b170` | 1 | `new_status.cpp` |
+| `0x42c020`-`0x42c2d0` | 2 | `new_hud.cpp` |
+| `0x42cd80`-`0x42dcd0` | 5 | `new_status.cpp` |
+| `0x42e5c0` | 1 | `new_tutorial.cpp` |
+| `0x433f40` | 1 | `player.cpp` |
+| `0x4340d0`-`0x439ba0` | 2 | `gameplay.cpp` |
+| `0x43a960`-`0x43cb60` | 5 | `gametarget.cpp` |
+| `0x43cd50` | 1 | `summoner.cpp` |
+| `0x43e9b0`-`0x43ea20` | 2 | `summoner_cd.cpp` |
+| `0x4425c0`-`0x449650` | 4 | `characterinfo.cpp` |
+| `0x449b80`-`0x44b7a0` | 2 | `items.cpp` |
+| `0x44fab0`-`0x462070` | 7 | `living_entity.cpp` |
+| `0x464700`-`0x464f50` | 2 | `combat.cpp` |
+| `0x46d0b0` | 1 | `multisave.cpp` |
+| `0x470f80` | 1 | `multitrade.cpp` |
+| `0x471df0` | 1 | `multiendgame.cpp` |
+| `0x471f40`-`0x4742b0` | 2 | `ai.cpp` |
+| `0x479ad0` | 1 | `spells.cpp` |
+| `0x481340`-`0x4814e0` | 2 | `multiendgame.cpp` |
+| `0x487b90` | 1 | `multichat.cpp` |
+| `0x488c00`-`0x4895e0` | 2 | `multicontainer.cpp` |
+| `0x4aa760` | 1 | `multi_door.cpp` |
+| `0x4ac240`-`0x4adcd0` | 2 | `multi_chattracker.cpp` |
+| `0x4af3c0` | 1 | `multiplayerdata.cpp` |
+| `0x4b02a0`-`0x4b0750` | 2 | `multispell.cpp` |
+| `0x4ceab0`-`0x4ceb00` | 2 | `level_scripts_common.cpp` |
+| `0x4d5110` | 1 | `new_mainmenu.cpp` |
+| `0x4d5990`-`0x4d6040` | 2 | `level_scripts.cpp` |
+| `0x4d63b0` | 1 | `living_entity.cpp` |
+| `0x4d6730` | 1 | `new_mainmenu.cpp` |
+| `0x4d8760` | 1 | `conversation.cpp` |
+| `0x4dacb0` | 1 | `conversationctl.cpp` |
+| `0x4dd0b0` | 1 | `living_entity.cpp` |
+| `0x4ede50`-`0x4ee4f0` | 7 | `level_script_sewers.cpp` |
+| `0x4ef0e0` | 1 | `level_script_ikaemosl2.cpp` |
+| `0x4ef6b0` | 1 | `level_script_templeint2.cpp` |
+| `0x4efe80` | 1 | `level_script_lenele1aa.cpp` |
+| `0x4f0360`-`0x4f0680` | 2 | `level_script_jadetemple.cpp` |
+| `0x4f0990` | 1 | `level_scripts.cpp` |
+| `0x4f0f10` | 1 | `level_script_lenele3d.cpp` |
+| `0x4f1420` | 1 | `level_script_lenele2aa.cpp` |
+| `0x4f16e0` | 1 | `level_script_eleh.cpp` |
+| `0x4f1e40`-`0x4f21f0` | 2 | `level_script_wolong2.cpp` |
+| `0x4f29c0`-`0x4f3880` | 3 | `level_script_lpalaceint.cpp` |
+| `0x4f48d0` | 1 | `level_script_iona_ext2.cpp` |
+| `0x4f4df0`-`0x4f54b0` | 12 | `level_script_liangshan.cpp` |
+| `0x4f6df0`-`0x4f6f10` | 2 | `level_script_wolong_caverns.cpp` |
+| `0x4f8f80`-`0x4f92a0` | 7 | `level_script_khosani_lab.cpp` |
+| `0x4f9d10`-`0x4fa230` | 3 | `level_script_ikaemosu.cpp` |
+| `0x4fb060` | 1 | `level_script_slums.cpp` |
+| `0x4fbd50` | 1 | `level_script_worldmap.cpp` |
+| `0x4fe0a0`-`0x4fe410` | 4 | `level_script_catacombs.cpp` |
+| `0x4fe5e0` | 1 | `level_script_wolong.cpp` |
+| `0x5395c0`-`0x549d10` | 2 | `gr_direct3d.cpp` |
+
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`

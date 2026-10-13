@@ -117,3 +117,15 @@ Other tools:
 - `tools/console-commands.mjs`, `tools/console-vars.mjs`, `tools/make-console-page.mjs`:
   the [console command](sum-exe/console.md) tables.
 - `tools/name-from-strings.mjs`: functions that reference given strings.
+
+## `tools/strings-tu.mjs`
+
+Places game functions in their original source files. It uses the `// file.cpp` sections of
+`strings.tbl`: any function that reads `localize_strings[id]` belongs to the file that owns
+that id. Extract `strings.tbl` first with `tools/vpp.mjs`.
+
+```
+node tools/strings-tu.mjs            # function -> file(s)
+node tools/strings-tu.mjs --md       # address ranges per file (used in the source map)
+node tools/strings-tu.mjs --symbols  # unnamed functions as I-confidence stubs
+```
