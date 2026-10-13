@@ -91,6 +91,10 @@ The layout remapping still has to be kept (it depends on `key_layout`, `0x25daa5
 console keys stay separate. Mouse buttons do not pass through this function; remapping
 them would need a hook in `mouse_update`.
 
+## Text entry
+
+Save names, the console, chat and input boxes read the same key queue, and turn codes into characters with `key_to_ascii` (`0x509ca0`, 23 callers). Bindings must not apply there: SummonerFix's replacement translates each code back to the physical key that produced it before the lookup.
+
 ## Chain attacks
 
 A chain attack is started with a **right-click**: `chain_attack_select` (`0x43c830`) runs only in a frame where the right mouse button was pressed (`player_input` flag `0x01`). There is also a 1-second cooldown (a `GameTimer` of 1000 ms). The function checks which modifier key is held at that moment and picks one of the character's four chain-skill slots

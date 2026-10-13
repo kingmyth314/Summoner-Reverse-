@@ -17,12 +17,36 @@ static unsigned char g_maps[2][256];
 static unsigned char *volatile g_map = g_maps[0]; // table in use; the other one is filled on reload
 static char g_lastSection[8192];
 
+// Text entry (save names, console, chat, input boxes) turns queued key codes into characters with
+// key_to_ascii (0x509ca0). The queued codes are already remapped, so typing E with E=I bound gave "i".
+// KeyRemap remembers which physical key produced each game key code, and our key_to_ascii replacement
+// translates back before the character lookup, so text gets the keys actually pressed.
+#define VA_KEY_TO_ASCII 0x509ca0u
+#define VA_KEY_INITED 0x25daa74u
+#define VA_ASCII_TABLE 0x5a64c0u
+#define VA_ASCII_TABLE_SHIFTED 0x5a66c0u
+static volatile unsigned char g_physical[256]; // game key code -> physical key that last produced it
+
 static int __cdecl KeyRemap(int code)
 {
     int c = g_layout(code);
-    if (c >= 0 && c < 256)
-        c = g_map[c];
+    if (c >= 0 && c < 256) {
+        int p = c;
+        c = g_map[p];
+        g_physical[c] = (unsigned char)p;
+    }
     return c;
+}
+
+static int __cdecl KeyToAscii(int code)
+{
+    if (!*(volatile char *)(UINT_PTR)SumVa(VA_KEY_INITED))
+        return 0xff;
+    int c = g_physical[code & 0xff];
+    if (c >= 0x7f)
+        return 0xff;
+    const int *table = (const int *)(UINT_PTR)SumVa((code & 0x1000) ? VA_ASCII_TABLE_SHIFTED : VA_ASCII_TABLE);
+    return table[c];
 }
 
 static void LogBad(const char *line)
@@ -149,4 +173,13 @@ void KeyBindInstall(void)
     memcpy(repl + 1, &rel, 4);
     if (PatchBytes(VA_KEY_MARK_REMAP_CALL, orig, repl, 5, "key_mark -> KeyRemap (custom key bindings)"))
         CloseHandle(CreateThread(NULL, 0, WatchIni, NULL, 0, NULL));
+
+    // key_to_ascii: replace its first instruction (MOV AL, [key_inited], 5 bytes) with JMP KeyToAscii.
+    for (int i = 0; i < 256; i++)
+        g_physical[i] = (unsigned char)i;
+    static const BYTE kOrig[5] = {0xA0, 0x74, 0xAA, 0x5D, 0x02};
+    BYTE jmp[5] = {0xE9};
+    rel = (DWORD)(UINT_PTR)KeyToAscii - (SumVa(VA_KEY_TO_ASCII) + 5);
+    memcpy(jmp + 1, &rel, 4);
+    PatchBytes(VA_KEY_TO_ASCII, kOrig, jmp, 5, "key_to_ascii -> KeyToAscii (typing ignores key bindings)");
 }

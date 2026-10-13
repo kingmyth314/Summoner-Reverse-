@@ -77,6 +77,7 @@
 0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
 0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
 0x425c80  saveload_leave           func  new_saveload.cpp       I
+0x425de0  saveload_text_input      func  new_saveload.cpp       I ; save-name entry, uses key_to_ascii
 0x427520  screen6_init             func  -                      I ; screen 6; between new_saveload and new_skill
 0x427df0  screen6_leave            func  -                      I
 0x429b30  screen5_init             func  -                      I ; screen 5; between new_skill and new_spell
