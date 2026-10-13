@@ -66,3 +66,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Console commands](console.md)
 - [vsdk: parser (TextFile)](vsdk-parse.md)
 - [vsdk: packfiles (.vpp)](vsdk-packfile.md)
+- [vsdk: bitmap manager](vsdk-bmpman.md)

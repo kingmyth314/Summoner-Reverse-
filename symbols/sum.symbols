@@ -178,7 +178,51 @@
 0x501b00  RealtimeTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b10  RealtimeTimer__valid     func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b50  cmd_load_mipmaps         func  -                      O ; console command "load_mipmaps": Toggles Load_mipmaps
+0x501c20  bm_init_name_pool        func  vsdk\bmpman\bmpman.cpp O ; static initialiser: bm_name_pool = StringPool(64 KB)
 0x501c90  cmd_change_texture_res   func  -                      O ; console command "change_texture_res": Toggle the texture resolution between high and low resolutions.
+0x501ce0  bm_calc_num_pixels       func  vsdk\bmpman\bmpman.cpp O ; (w, h, levels): sum of w*h over halving mip levels
+0x501d20  bm_read_vbm_header       func  vsdk\bmpman\bmpman.cpp O ; "Unable to open %s.  Maybe file doesn't exist."; reads version, w, h, format, fps, frames, mips
+0x501eb0  bm_set_mark              func  vsdk\bmpman\bmpman.cpp O ; self-named assert "bm_set_mark within bm_set_mark not allowed!"; snapshots hash table and name pool
+0x501f20  bm_release_from_mark     func  vsdk\bmpman\bmpman.cpp O ; self-named assert; frees bitmaps loaded since bm_set_mark
+0x502040  bm_hash_insert           func  vsdk\bmpman\bmpman.cpp O ; open addressing in bm_hash_table (0xaf1 slots)
+0x502090  bm_close                 func  vsdk\bmpman\bmpman.cpp O ; frees every used bitmap, resets the name pool
+0x5020f0  bm_free_data             func  vsdk\bmpman\bmpman.cpp O ; (handle, force): drops locked pixels/palette when the lock count reaches 0
+0x5021d0  bm_handle_to_index       func  vsdk\bmpman\bmpman.cpp I ; identity in this build
+0x5021e0  bm_set_reduce_textures   func  vsdk\bmpman\bmpman.cpp I ; (bool): applies bm_set_reduced to every used bitmap
+0x502240  bm_set_reduced           func  vsdk\bmpman\bmpman.cpp I ; (handle, bool): halve/restore w,h and drop/restore a mip level
+0x502320  bm_init                  func  vsdk\bmpman\bmpman.cpp O ; builds free/used lists, clears hash, makes the 32x32 default checker
+0x5023e0  bm_free_entry            func  vsdk\bmpman\bmpman.cpp O ; (index): back to the free list, fields cleared
+0x502450  bm_bytes_per_pixel       func  vsdk\bmpman\bmpman.cpp O ; (format): 1; 565/4444/1555/88 2; 888 3; 8888 4
+0x5024a0  bm_bits_per_pixel        func  vsdk\bmpman\bmpman.cpp O ; bm_bytes_per_pixel * 8
+0x502500  bm_get_num_frames        func  vsdk\bmpman\bmpman.cpp O ; (handle, &secs_per_frame)
+0x502560  bm_get_current_frame     func  vsdk\bmpman\bmpman.cpp I ; animated handle -> index of the frame for the current time
+0x5025d0  bm_find                  func  vsdk\bmpman\bmpman.cpp O ; (name) -> handle or -1, hash + _stricmp
+0x502650  bm_hash_name             func  vsdk\bmpman\bmpman.cpp O ; rol(h, 6) ^ tolower(c), abs (packfile_hash uses rol 5)
+0x5026e0  bm_load                  func  vsdk\bmpman\bmpman.cpp O ; (name, path_id): bm_load_internal, then preload when bm_preload_on_load
+0x502720  bm_load_internal         func  vsdk\bmpman\bmpman.cpp O ; (name, path_id, force_new); missing file -> bm_create_missing
+0x502a00  bm_read_header           func  vsdk\bmpman\bmpman.cpp O ; named by its own error "Cannot determine bitmap type in bm_read_header"; tga mips "%s_mip%d.tga"
+0x502e30  bm_get_type_from_ext     func  vsdk\bmpman\bmpman.cpp O ; pcx 1, tga 2, vbm 4, m2v 5
+0x502eb0  bm_alloc_entry           func  vsdk\bmpman\bmpman.cpp O ; free list head -> used list
+0x502ee0  bm_alloc_entries         func  vsdk\bmpman\bmpman.cpp O ; (count): contiguous run for an animation
+0x502f70  bm_prefer_vbm            func  vsdk\bmpman\bmpman.cpp I ; for a .tga, use name.vbm instead if it is loaded or exists
+0x5030a0  bm_create_missing        func  vsdk\bmpman\bmpman.cpp I ; 32x32 checker user bitmap registered under the missing name
+0x503190  bm_reload                func  vsdk\bmpman\bmpman.cpp I ; bm_load_internal(name, path_id, force_new=1)
+0x5031c0  bm_replace_file          func  vsdk\bmpman\bmpman.cpp I ; (handle, name, path_id): swap the source file if size/format match
+0x5033c0  bm_is_valid_size         func  vsdk\bmpman\bmpman.cpp I ; both dimensions powers of two in 4..256
+0x503500  bm_get_dimensions        func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_dimensions
+0x503550  bm_get_mipmap_info       func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_mipmap_info (w, h, num_pixels, levels)
+0x5035c0  bm_get_format            func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_format
+0x5035e0  bm_has_alpha             func  vsdk\bmpman\bmpman.cpp I ; format 4444, 1555 or 8888
+0x503610  bm_get_data              func  vsdk\bmpman\bmpman.cpp I ; (handle, &data, &pal) -> format, without locking
+0x503650  bm_lock                  func  vsdk\bmpman\bmpman.cpp O ; "Unsupported type in bm_lock"; Dash Faction bm::lock
+0x503710  bm_lock_tga              func  vsdk\bmpman\bmpman.cpp O ; with mip files
+0x5038f0  bm_lock_vbm              func  vsdk\bmpman\bmpman.cpp O
+0x503aa0  bm_lock_pcx              func  vsdk\bmpman\bmpman.cpp O
+0x503b20  bm_lock_m2v              func  vsdk\bmpman\bmpman.cpp O
+0x503b50  bm_unlock                func  vsdk\bmpman\bmpman.cpp O ; bm_free_data(h, 0); Dash Faction bm::unlock
+0x503b60  bm_get_filename          func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_filename
+0x503c80  bm_release               func  vsdk\bmpman\bmpman.cpp O ; frees texture cache entries (0x508020) for every frame, then the entry
+0x503cf0  bm_create                func  vsdk\bmpman\bmpman.cpp O ; (format, w, h, data, pal) named "USERBMAP"; Dash Faction bm::create
 0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
@@ -233,6 +277,11 @@
 0x512820  allocate_in_commonblock  func  memory.cpp             V ; Summoner 2 text "Common block is already locked."; PC heap-allocates (new at line 600)
 0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
+0x5140d0  File__File               func  vsdk\vfile             O ; Dash Faction rf::File (0x114-byte object)
+0x5140f0  File__dtor               func  vsdk\vfile             O ; closes if open
+0x5141c0  File__find               func  vsdk\vfile             O ; (name, path_id); Dash Faction
+0x514630  File__open               func  vsdk\vfile             O ; (name, mode, path_id); Dash Faction
+0x514740  File__close              func  vsdk\vfile             O ; fclose or packfile_fclose
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
@@ -276,6 +325,8 @@
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
+0x525990  File__read_int           func  vsdk\vfile             I ; (min_ver, default), as Dash Faction File::read<int>
+0x525fe0  File__read               func  vsdk\vfile             O ; (buf, len, min_ver, unused); Dash Faction
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
@@ -319,7 +370,11 @@
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
+0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
+0x544c10  StringPool__GetLength    func  vsdk\os\stringpool.cpp O
+0x544c40  StringPool__Add          func  vsdk\os\stringpool.cpp V ; Summoner 2; "Length of string pool exceeded"
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
+0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
@@ -332,6 +387,7 @@
 0x56cebe  tolower                  func  crt                    O ; C runtime
 0x56d02c  fclose                   func  crt                    O ; C runtime
 0x56d13c  fopen                    func  crt                    O ; C runtime
+0x56d1cd  atexit                   func  crt                    O
 0x56d5b7  strtok                   func  crt                    O
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56e311  atoi                     func  crt                    O
@@ -572,10 +628,24 @@
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
+0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
+0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
+0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
+0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
+0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
+0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
+0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
+0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
+0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
+0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
+0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
+0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
+0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
-0x25d8d30 gr_screen               data:gr__Screen      vsdkgrgr.cpp    V ; Dash Faction rf::gr::Screen layout
+0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
+
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
@@ -588,18 +658,20 @@
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
-0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 
+0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
+
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
 0x2693040 mem_report_depth         data:int memory.cpp             I
+
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
 
@@ -608,21 +680,19 @@
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
-
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
-
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
-
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
+
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"

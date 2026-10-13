@@ -99,6 +99,35 @@ typedef struct CmdArg {
     uint8_t is_done;         // +0x4
 } CmdArg;                    // cmdline_args[50] at 0x2dc6ea8
 
+// Bitmap manager entry (vsdk\bmpman\bmpman.cpp), bm_bitmaps[0xaf0] at 0x2591c78; handle = index.
+// Smaller than Red Faction's 0x6C-byte BitmapEntry (Dash Faction): the name is a pointer into
+// bm_name_pool instead of char[32]. Offsets observed in bm_load_internal, bm_create, bm_lock_*.
+typedef struct bitmap_entry {
+    const char* name;        // +0x00 in bm_name_pool
+    int32_t name_checksum;   // +0x04 bm_hash_name(name); -1 for user bitmaps
+    uint16_t width;          // +0x08
+    uint16_t height;         // +0x0A
+    int32_t num_pixels;      // +0x0C all mip levels (bm_calc_num_pixels)
+    int32_t type;            // +0x10 0 none, 1 pcx, 2 tga, 3 user, 4 vbm, 5 m2v
+    int32_t anim_type;       // +0x14 0 single, 1 animation header, 2 frame
+    int32_t format;          // +0x18 same numbering as Dash Faction bm::Format
+    uint8_t num_levels;      // +0x1C mip levels
+    uint8_t num_frames;      // +0x1D header: frame count; frame: frame number (1-based)
+    uint8_t _pad1e[2];
+    void* data;              // +0x20 locked pixels
+    float frames_per_ms;     // +0x24
+    void* palette;           // +0x28 0x300 bytes for 8-bit paletted
+    struct bitmap_entry* next; // +0x2C used/free list
+    struct bitmap_entry* prev; // +0x30
+    uint8_t lock_count;      // +0x34
+    uint8_t _pad35[3];
+    int32_t total_bytes;     // +0x38
+    int32_t path_id;         // +0x3C File::open path id (9999999 = default)
+    uint8_t reduced;         // +0x40 loaded at half size (bm_reduce_textures)
+    uint8_t _pad41[3];
+    int32_t mark_count;      // +0x44 bm_set_mark nesting
+} bitmap_entry;              // 0x48 bytes
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current
