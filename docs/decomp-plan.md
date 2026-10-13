@@ -125,6 +125,12 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1, module 1 is in progress ([OS layer](sum-exe/vsdk-os.md): timestamp, memory,
-stringpool and DebugError named, 63 / 5,548 functions); remaining in module 1 (`os`: timer, registry, memory, cmdline,
-stringpool, console), each compared with the Summoner 2 decomp source.
+Phase 0 is complete. Phase 1 progress (2026-10-13): **178 / 5,548** game/engine functions named
+(3.2%), plus 136 pointer-only callbacks.
+
+| Module | Status | Page |
+|---|---|---|
+| `os`: timestamp, timer, memory/mempool, stringpool, debug, registry, cmdline, console, key state | Mostly done; a few helpers left | [OS layer](sum-exe/vsdk-os.md), [Console](sum-exe/console.md) |
+| `parse` (TextFile) | Done (33 methods) | [Parser](sum-exe/vsdk-parse.md) |
+| `vfile\packfile` | Done | [Packfiles](sum-exe/vsdk-packfile.md) |
+| Next: `gr`, `bmpman`, `gr_font`, input, math/geom | Not started | |
