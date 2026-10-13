@@ -57,9 +57,36 @@ Around the `memory.cpp` reference at `0x512516`.
 | `0x512550` | `operator new(size)` | `operator_new_dbg(size, 0, 0)`, as in Summoner 2 |
 | `0x512570` | `operator delete(p)` | `free` (`0x56ea9b`) |
 
-Not yet named: `0x512530` (another forwarding overload, probably `operator new[]`), the
-mempool functions around `0x5127c0` (Summoner 2's `allocate_in_mempool` and related), and a
-debug allocation logger (`0x512600`-`0x512640`: an indent counter and a line builder).
+| `0x512530` | `operator_new_array_dbg` (*inferred*) | Forwards `(size, file, line)`; its only caller is `allocate_in_commonblock` |
+
+### Mempools and the common block
+
+These follow Summoner 2's `memory.cpp` in order and behaviour (**observed**), with PC differences:
+
+| Address | Name | PC difference from Summoner 2 |
+|---|---|---|
+| `0x512770` | `Mempool::Copy(dest, size, name)` | No alignment argument; name copied to +0xC |
+| `0x5127c0` | `allocate_in_mempool(size)` | `thiscall` on the pool; alignment fixed at 16 bytes; returns NULL **without** an error message |
+| `0x5127f0` / `0x512800` / `0x512810` | `set_current_mempool` / `get_current_mempool` / `is_mempool_active` | Same; `Pool` is `0x2693048` |
+| `0x512820` | `allocate_in_commonblock(size)` | Same "Common block is already locked." check, but the block is **heap-allocated** (`new` at line 600) instead of carved from a static 0x47000-byte array |
+| `0x512880` | `deallocate_from_commonblock(p)` | Frees the block |
+
+Globals: `Common_block_index` (`0x2693050`) and a two-slot `Common_block_allocations`
+(`0x2693054`). `TextFile::Open` (`0x515d20`) reads its file into a common-block buffer, as
+in Summoner 2's `parse.cpp`. That confirms the `Open` placement from the
+[parser page](vsdk-parse.md).
+
+PC layout of `Mempool` (from `Copy` and `allocate_in_mempool`): `destination` +0,
+`size` +4, `offset` +8, `name` +0xC.
+
+### Memory-usage report (disabled)
+
+`0x512600`-`0x512640` print an indented memory report (`mem_report_indent`,
+`mem_report_unindent`, `mem_report_is_verbose`, `mem_report_line`). One caller is
+`0x51b4a0`, which reports an animation's "cur time", "anim pct", "bone info" and "TOTAL" sizes.
+The output file (`0x269303c`) and the verbose flag (`0x2693044`) are never written. The
+report is therefore compiled in but always off (*observed*: no write references).
+`0x56f285` (`vsprintf`) and `0x56e4dd` (`fprintf`) were identified here.
 
 ## `stringpool.cpp`
 
@@ -127,4 +154,3 @@ use in the functions above (*observed* behaviour).
   counterpart (PS2 has neither).
 - Console: the key-binding layer between key_* and commands (Timeslip binds keys to commands; see
   [Timeslip's patch](../patches/timeslip.md)).
-- Mempool functions.

@@ -75,6 +75,15 @@ typedef struct PackfileLookup {
     PackfileEntry* entry;
 } PackfileLookup;            // table of 0x50e9 entries at 0x2d68780
 
+// Bump allocator (vsdk memory.cpp). PC layout from Mempool__Copy / allocate_in_mempool; Summoner 2's
+// version also has an alignment byte at +0xC, which PC replaces with the name (alignment fixed at 16).
+typedef struct Mempool {
+    uint8_t* destination;    // +0x00
+    uint32_t size;           // +0x04
+    uint32_t offset;         // +0x08
+    char name[1];            // +0x0C length not yet known
+} Mempool;
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current

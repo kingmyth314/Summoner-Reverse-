@@ -213,8 +213,21 @@
 0x512340 os_registry_read_dword   func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512370 os_registry_write_dword  func  vsdk\os\registry.cpp     O
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
+0x512530  operator_new_array_dbg   func  memory.cpp             I ; forwards (size, file, line) to operator_new_dbg; only caller allocate_in_commonblock
 0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
 0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
+0x512600  mem_report_indent        func  memory.cpp             I ; mem_report_depth += 1
+0x512610  mem_report_unindent      func  memory.cpp             I ; mem_report_depth -= 1, clamped at 0
+0x512630  mem_report_is_verbose    func  memory.cpp             I ; returns mem_report_verbose (never written: always 0)
+0x512640  mem_report_line          func  memory.cpp             I ; (label, fmt, ...): indented, padded line to mem_report_file; no-op when the file is NULL
+0x512770  Mempool__Copy            func  memory.cpp             V ; Summoner 2 Mempool::Copy(dest, size, name) minus alignment; name at +0xC
+0x5127c0  allocate_in_mempool      func  memory.cpp             V ; Summoner 2; PC is thiscall, fixed 16-byte alignment, returns NULL with no error
+0x5127f0  set_current_mempool      func  memory.cpp             V ; Summoner 2
+0x512800  get_current_mempool      func  memory.cpp             V ; Summoner 2
+0x512810  is_mempool_active        func  memory.cpp             V ; Summoner 2
+0x512820  allocate_in_commonblock  func  memory.cpp             V ; Summoner 2 text "Common block is already locked."; PC heap-allocates (new at line 600)
+0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
+0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
@@ -225,7 +238,7 @@
 0x515c80  TextFile__CopyUntil      func  vsdk\parse\parse.cpp   O ; copies text up to SkipTo(string, stop) into dest; not in Summoner 2
 0x515ce0  TextFile__GetPosition    func  vsdk\parse\parse.cpp   V ; Summoner 2; {line, cursor}
 0x515d00  TextFile__SetPosition    func  vsdk\parse\parse.cpp   V ; Summoner 2
-0x515d20  TextFile__Open           func  vsdk\parse\parse.cpp   I ; position matches Summoner 2 Open(name, max_size); not yet verified
+0x515d20  TextFile__Open           func  vsdk\parse\parse.cpp   V ; Summoner 2 Open: buffer from allocate_in_commonblock (parse.cpp:183)
 0x515e90  TextFile__Close          func  vsdk\parse\parse.cpp   V ; Summoner 2; frees the buffer unless a static buffer is in use
 0x515ec0  TextFile__Rewind         func  vsdk\parse\parse.cpp   V ; Summoner 2; line = 1, cursor = buffer
 0x515ee0  TextFile__Error          func  vsdk\parse\parse.cpp   V ; Summoner 2; "Parsing file %s, at line #%d Expected %s but found this text"
@@ -305,7 +318,9 @@
 0x56d02c  fclose                   func  crt                    O ; C runtime
 0x56d13c  fopen                    func  crt                    O ; C runtime
 0x56da99  exit                     func  crt                    O ; C runtime
+0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
 0x56f979  fseek                    func  crt                    O ; C runtime
 0x56fbc8  fread                    func  crt                    O ; C runtime
 0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
@@ -554,23 +569,30 @@
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
+0x2693040 mem_report_depth         data:int memory.cpp             I
+0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
+
+0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
+0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
+0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
-
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
+
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
-0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 
+0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred

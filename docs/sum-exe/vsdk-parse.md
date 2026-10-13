@@ -54,6 +54,6 @@ formatting ints and `< %.*f, %.*f, %.*f >` vectors) are not yet named.
 
 ## Uncertain
 
-`Open` (`0x515d20`, **I**) is placed by position only. `SkipWhitespace` (`0x515a80`) and
+`Open` (`0x515d20`) is now confirmed (**V**): it loads the file into a common-block buffer, as Summoner 2 does ([memory](vsdk-os.md#mempools-and-the-common-block)). `SkipWhitespace` (`0x515a80`) and
 `SkipSpaces` (`0x515a20`) may be the other way round. The one with comment handling should be
 `SkipWhitespace`; this needs a closer read.
