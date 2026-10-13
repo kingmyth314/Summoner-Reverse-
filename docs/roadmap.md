@@ -24,9 +24,10 @@ work can start from evidence instead of from scratch.
 
 Plan (step 1 **implemented 2026-10-13, untested**: `src/summonerfix/keys.c`, which redirects the single `CALL` at `0x5093a6` instead of patching the function):
 
-1. In SummonerFix, patch a `JMP` at `0x509560` to our own `remap(code)`. It applies a
-   256-entry table from a new `[KeyBindings]` section of `summonerfix.ini` (for example
-   `I=Tab`), then the original layout swaps.
+1. In SummonerFix, send the key code through our own `KeyRemap(code)`. It runs the original
+   layout swap, then a 256-entry table from a new `[KeyBindings]` section of
+   `summonerfix.ini`. Entries are `PhysicalKey=GameKey`; for example `E=I` makes E open the
+   inventory.
 2. Test that remapped keys open the right screens and that held keys (camera arrows) follow
    the remap.
 3. Optional later steps:
