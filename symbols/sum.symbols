@@ -21,12 +21,13 @@
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
+0x413190  vector3__assign          func  vsdk\math              I ; a = b, returns a copy
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
-0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 
+0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
 0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
@@ -52,6 +53,7 @@
 0x439d80  cmd_flece                func  -                      O ; console command "flece": Add Flece to the game
 0x439dd0  cmd_jekhar               func  -                      O ; console command "jekhar": Add Jekhar to the game
 0x439e20  cmd_rosalind             func  -                      O ; console command "rosalind": Add Rosalind to the game
+0x43b580  vector3__vector3         func  vsdk\math              I ; (x, y, z)
 0x43d520  cmd_gamma                func  -                      O ; console command "gamma": Sets Summoner_options.gamma_correction
 0x43d5e0  cmd_play_sound           func  -                      O ; console command "play_sound": Streams a wav file from disk
 0x43d780  cmd_stop_sound           func  -                      O ; console command "stop_sound": Stops all sounds that are playing
@@ -340,10 +342,43 @@
 0x50ab60  init_char_types          func  console.cpp            V ; Summoner 2 static helper; letters 0, digits 4, others 2, '"' 1, NUL 3
 0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
 0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
+0x50d7e0  vector3__cross           func  vsdk\math              I
 0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
 0x50db80  cmd_far_max              func  -                      O ; console command "far_max": Sets Gr_far_max
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
 0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
+0x50f6a0  vector3__scale           func  vsdk\math              I ; *= s
+0x50f790  vector3__scaled          func  vsdk\math              I ; returns v * s
+0x50f840  vector3__sub_assign      func  vsdk\math              I ; -= v
+0x50faa0  matrix3__matrix3_copy    func  vsdk\math\matrix.cpp   I
+0x50fad0  matrix3__matrix3_ruf     func  vsdk\math\matrix.cpp   I ; (r, u, f)
+0x50fbc0  matrix3__multiply        func  vsdk\math\matrix.cpp   I ; this * m
+0x50fe20  matrix3__multiply_transposed func  vsdk\math\matrix.cpp   I ; this^T * m
+0x50ff50  matrix3__is_normalized   func  vsdk\math\matrix.cpp   I ; each row length within 5e-7 of 1
+0x510020  matrix3__set_from_sincos func  vsdk\math\matrix.cpp   I ; (sin p, cos p, sin b, cos b, sin h, cos h)
+0x5100c0  matrix3__set_from_angles func  vsdk\math\matrix.cpp   I ; (p, b, h)
+0x510110  matrix3__set_from_axis_angle func  vsdk\math\matrix.cpp   I ; (axis, angle) via a half-angle quaternion
+0x510240  matrix3__extract_angles  func  vsdk\math\matrix.cpp   I ; (&p, &b, &h) with atan2
+0x510390  matrix3__get_axis_angle  func  vsdk\math\matrix.cpp   V ; Summoner 2; same "invalid index - this should never happen" assert (PC line 505)
+0x510660  matrix3__is_valid        func  vsdk\math\matrix.cpp   I ; every row passes vector3__is_valid
+0x510b40  matrix3__orthogonalize   func  vsdk\math\matrix.cpp   V ; Summoner 2; same zero-up/zero-right fallbacks
+0x511050  matrix3__make_identity   func  vsdk\math\matrix.cpp   V ; Summoner 2
+0x511080  matrix3__set_from_forward func  vsdk\math\matrix.cpp   V ; Summoner 2; fvec = forward.normalized()
+0x511140  matrix3__set_from_unit_forward func  vsdk\math\matrix.cpp   V ; Summoner 2; fvec = forward
+0x511200  matrix3__set_from_forward_up func  vsdk\math\matrix.cpp   V ; Summoner 2; falls back to set_from_forward
+0x5113a0  matrix43__matrix43_rot   func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(const matrix3&), zero position
+0x5113f0  matrix43__matrix43_rufp  func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(r, u, f, position)
+0x511450  matrix43__matrix43_pos_rot func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(position, rotation)
+0x5114b0  matrix43__multiply_4x4   func  vsdk\math\matrix.cpp   I ; uses Homogeneous_column {0,0,0,1} as Summoner 2 multiply_4x4; thiscall form
+0x5116f0  matrix43__inverse        func  vsdk\math\matrix.cpp   V ; Summoner 2: identity, transpose, -position * result
+0x511840  matrix43__set_quat       func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43::set(const quaternion&, const vector3&)
+0x511ab0  matrix43__multiply_4x4_b func  vsdk\math\matrix.cpp   I ; second variant with its own {0,0,0,1} table, result in this
+0x511b70  matrix43__get_rotation   func  vsdk\math\matrix.cpp   V ; Summoner 2
+0x511c10  vector3__set             func  vsdk\math              I ; (x, y, z)
+0x511c30  vector3__equals          func  vsdk\math              I ; exact component compare
+0x511c70  matrix43__transform_point func  vsdk\math\matrix.cpp   I ; returns m * v (rotation + position)
+0x511cf0  matrix43__set_position   func  vsdk\math\matrix.cpp   I
+0x511d10  matrix43__get_position   func  vsdk\math\matrix.cpp   I
 0x511d80  os_registry_write        func  vsdk\os\registry.cpp   O ; (subkey, name, type, data, size): RegCreateKeyExA + RegSetValueExA; "Error writing registry key"
 0x511e50  os_registry_resolve_key  func  vsdk\os\registry.cpp   O ; (out_path, subkey) -> HKEY: NULL = app key; no "hkey" prefix = relative to app key; else "HKEY_...\path"
 0x511f90  os_registry_hkey_from_string func  vsdk\os\registry.cpp   O ; HKEY_CLASSES_ROOT/CURRENT_USER/LOCAL_MACHINE/USERS; "Bogus HKEY string" -> DebugError line 185
@@ -419,6 +454,11 @@
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
+0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
+0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
+0x524270  vector3__normalized      func  vsdk\math              I
+0x524430  vector3__normalize       func  vsdk\math              I
+0x524470  vector3__normalize_length func  vsdk\math              I ; same body; callers use the returned length
 0x525990  File__read_int           func  vsdk\vfile             I ; (min_ver, default), as Dash Faction File::read<int>
 0x525fe0  File__read               func  vsdk\vfile             O ; (buf, len, min_ver, unused); Dash Faction
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
@@ -476,6 +516,7 @@
 0x53e4a0  CmdLineParam__found      func  vsdk\os\cmdline.cpp    O ; returns name_found (+0x14), as Dash Faction
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
+0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
 0x544c10  StringPool__GetLength    func  vsdk\os\stringpool.cpp O
@@ -529,8 +570,10 @@
 0x56d7c0  _chkstk                  func  crt                    O ; stack probe for large frames
 0x56da2b  printf                   func  crt                    O ; stdout (_iob + 0x20)
 0x56da99  exit                     func  crt                    O ; C runtime
+0x56dd70  _CIacos                  func  crt                    O ; x87 intrinsic acos
 0x56e311  atoi                     func  crt                    O
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
+0x56e90c  _isnan                   func  crt                    O
 0x56ea9b  free                     func  crt                    O ; C runtime
 0x56ed51  strtol                   func  crt                    O
 0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
@@ -588,6 +631,7 @@
 0x5a7298  Gr_far_max               data:int -                      I ; set by console command "far_max" (sets); type inferred
 0x5a72a0  Gr_3d_zmult              data:int -                      I ; set by console command "zmult" (sets); type inferred
 0x5a72a4  Gr_3d_zmax               data:int -                      I ; set by console command "zmax" (sets); type inferred
+0x5a7480  Homogeneous_column       data:float[4] vsdk\math\matrix.cpp   V ; Summoner 2 name; {0, 0, 0, 1}
 0x5a98d4  Allow_movement_vel_change data:bool -                      I ; set by console command "movement_vel_change" (toggles); type inferred
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
@@ -720,8 +764,8 @@
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
 0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
-0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
 
+0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
 0x247e8c0 Use_turn_anims           data:bool -                      I ; set by console command "Turn_anims" (toggles); type inferred
@@ -784,8 +828,8 @@
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
 0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
-0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 
+0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
@@ -797,24 +841,24 @@
 0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
 0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
 0x25d847c localize_item_table      data:void*[0xfd] localize               O
-0x25d8878 localize_language        data:int localize               O
 
+0x25d8878 localize_language        data:int localize               O
 0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
-0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 
+0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
+
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
-
 0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
-0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
 
+0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94e0 key_queue                data:uint16[] -                      I
@@ -831,8 +875,8 @@
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
-0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 
+0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
@@ -845,8 +889,8 @@
 0x2693040 mem_report_depth         data:int memory.cpp             I
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
-0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 
+0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
@@ -857,8 +901,8 @@
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
-0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 
+0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
@@ -876,4 +920,5 @@
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
+
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred

@@ -160,6 +160,12 @@ typedef struct Font {
     uint16_t* bm_bits;       // +0x68
 } Font;                      // 0x6C bytes
 
+// Math types (vsdk\math), Summoner 2 names. matrix3 rows are right/up/forward vectors.
+typedef struct vector3 { float x, y, z; } vector3;
+typedef struct matrix3 { vector3 rvec, uvec, fvec; } matrix3;          // 0x24 bytes
+typedef struct matrix43 { float m[4][3]; } matrix43;                     // rotation rows + position (m[3])
+typedef struct quaternion { float x, y, z, w; } quaternion;              // w at +0xC (quaternion__to_matrix)
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current
