@@ -50,3 +50,6 @@ void FpsLoggerStart(void);
 
 // timing.c
 void TimingFixInstall(void);
+
+// keys.c
+void KeyBindInstall(void);

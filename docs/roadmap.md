@@ -22,7 +22,7 @@ work can start from evidence instead of from scratch.
 - Every key event first goes through `key_remap_layout` (`0x509560`), a scan code → scan
   code function used for AZERTY/QWERTZ layouts.
 
-Plan:
+Plan (step 1 **implemented 2026-10-13, untested**: `src/summonerfix/keys.c`, which redirects the single `CALL` at `0x5093a6` instead of patching the function):
 
 1. In SummonerFix, patch a `JMP` at `0x509560` to our own `remap(code)`. It applies a
    256-entry table from a new `[KeyBindings]` section of `summonerfix.ini` (for example

@@ -125,6 +125,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         DisplayInstall(GetModuleHandleA(NULL));
     ApplyDisplayPatches();
     TimingFixInstall();
+    KeyBindInstall();
     Log("startup fixes applied.");
     return TRUE;
 }

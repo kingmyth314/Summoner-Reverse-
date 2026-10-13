@@ -48,6 +48,7 @@ folder before any game code runs. `DllMain`:
 | 2x game speed | `CALL SleepMs` at `0x5015bc` -> `FrameSleep` | See [Frame limiter](#frame-limiter-2x-speed) |
 | Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
+| Custom key bindings (optional, **untested**) | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]` | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Not patched when the section is empty |
 | Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ## Problems found and fixed
@@ -127,6 +128,7 @@ The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 m
 | `[Sound] Soundcard` | `DirectSound` | or `No Sound` |
 | `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits, large allocations, FPS and sleep statistics |
 | `[Debug] CaptureEvery` | 0 | Seconds between back-buffer captures (`summonerfix-capture-N.bmp`) |
+| `[KeyBindings]` | (empty) | `PhysicalKey=GameKey` lines, e.g. `E=I`; key names or hex scan codes |
 | `[Registry]` | | Values the game saved (`Version\*`, and later options) |
 
 Settings the game asked for at startup that were not set: `CmdLineOptions`,
