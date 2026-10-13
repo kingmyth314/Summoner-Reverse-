@@ -1,5 +1,5 @@
-# Build SummonerFix (dinput.dll) with LLVM-MinGW's 32-bit compiler.
-# usage: .\tools\build-summonerfix.ps1 [-Install]   (-Install copies the DLL and, if missing, the ini next to Sum.exe)
+# Build SummonerFix (dinput.dll) and SummonerFixConfig.exe with LLVM-MinGW's 32-bit compiler.
+# usage: .\tools\build-summonerfix.ps1 [-Install]   (-Install copies the DLL, the config app and, if missing, the ini next to Sum.exe)
 param([switch]$Install)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -20,11 +20,19 @@ $ErrorActionPreference = 'Continue'
 $ErrorActionPreference = 'Stop'
 if ($LASTEXITCODE -ne 0) { throw "compile failed ($LASTEXITCODE)" }
 Copy-Item (Join-Path $src 'summonerfix.ini') (Join-Path $out 'summonerfix.ini') -Force
-Get-Item (Join-Path $out 'dinput.dll') | ForEach-Object { "built $($_.FullName) ($($_.Length) bytes)" }
+$cfgArgs = @('-O2', '-Wall', '-Wextra', '-Wno-unused-parameter', '-static', '-mwindows',
+          '-o', (Join-Path $out 'SummonerFixConfig.exe'), (Join-Path $repo 'src\summonerfix-config\config.c'),
+          '-lcomctl32', '-luser32', '-lgdi32')
+$ErrorActionPreference = 'Continue'
+& $cc.Source @cfgArgs 2>&1 | ForEach-Object { "$_" }
+$ErrorActionPreference = 'Stop'
+if ($LASTEXITCODE -ne 0) { throw "config app compile failed ($LASTEXITCODE)" }
+Get-Item (Join-Path $out 'dinput.dll'), (Join-Path $out 'SummonerFixConfig.exe') | ForEach-Object { "built $($_.FullName) ($($_.Length) bytes)" }
 
 if ($Install) {
     $game = Join-Path $repo 'Summoner'
     Copy-Item (Join-Path $out 'dinput.dll') (Join-Path $game 'dinput.dll') -Force
+    Copy-Item (Join-Path $out 'SummonerFixConfig.exe') (Join-Path $game 'SummonerFixConfig.exe') -Force
     if (-not (Test-Path (Join-Path $game 'summonerfix.ini'))) {
         Copy-Item (Join-Path $src 'summonerfix.ini') (Join-Path $game 'summonerfix.ini')
     }

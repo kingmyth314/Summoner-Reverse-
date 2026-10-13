@@ -48,7 +48,7 @@ folder before any game code runs. `DllMain`:
 | 2x game speed | `CALL SleepMs` at `0x5015bc` -> `FrameSleep` | See [Frame limiter](#frame-limiter-2x-speed) |
 | Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
-| Custom key bindings (optional, **untested**) | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]` | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Not patched when the section is empty |
+| Custom key bindings | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]`. A watcher thread reloads the table when `summonerfix.ini` changes, so bindings change live | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Tested 2026-10-13 (E=I, A=Left) |
 | Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ## Problems found and fixed
@@ -113,6 +113,18 @@ because `FrameTimer` has already overwritten its own timestamp), then sets the g
 | Final (`last` = scheduled time) | **120.0** | **120.0** | **1x** |
 
 The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 ms over 5 s.
+
+## Key binding app (`SummonerFixConfig.exe`)
+
+`SummonerFixConfig.exe` (source: `src/summonerfix-config/config.c`) is installed next to `Sum.exe`. It lists the game's keyboard actions with their default keys and any extra keys bound to them:
+
+1. Select an action and click **Change key...** (or double-click it).
+2. Press the key you want. The app writes `[KeyBindings]` in `summonerfix.ini` straight away.
+3. A running game reloads the bindings within a fraction of a second, so you can switch to the app, rebind and return.
+
+**Clear** removes the extra keys from one action, and **Reset all** restores the game defaults.
+
+A binding adds a key; the default key keeps working. If the new key already belonged to another action, that action loses it, and the app says so. The list shows "(moved)" next to a default key that now does something else.
 
 ## Configuration (`summonerfix.ini`)
 
