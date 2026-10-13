@@ -118,8 +118,11 @@ function progress(symbols) {
   const game = funcs.filter((f) => f.addr < crtStart), crt = funcs.filter((f) => f.addr >= crtStart);
   const pct = (a, b) => (b ? ((100 * a) / b).toFixed(1) : "0.0");
   const gameNamed = game.filter((f) => named.has(f.addr)).length;
+  const known = new Set(funcs.map((f) => f.addr));
+  const extra = [...named].filter((a) => a < crtStart && !known.has(a)).length;
   console.log(`functions: ${funcs.length} total (${game.length} game/engine below 0x${crtStart.toString(16)}, ${crt.length} C runtime/library)`);
   console.log(`named in symbols/sum.symbols: ${gameNamed} / ${game.length} game/engine functions (${pct(gameNamed, game.length)}%)`);
+  console.log(`plus ${extra} named functions that Ghidra's analysis missed (reached only through pointers, e.g. console command callbacks)`);
   console.log(`Ghidra already identified ${funcs.filter((f) => f.kind === "ghidra-named").length} library functions by signature`);
   const conf = { V: 0, O: 0, I: 0 };
   for (const s of symbols) conf[s.conf]++;
@@ -172,8 +175,57 @@ function editSymbols(cmd, a) {
   if (errors.length) { console.log(errors.join("\n")); process.exit(1); }
 }
 
+// Bulk-merge symbol lines (same format) from a file. Existing addresses and names are kept; conflicts
+// are reported, not overwritten.
+//   import <file>
+function importSymbols(file) {
+  const { symbols: have } = loadSymbols();
+  const { symbols: incoming, errors } = loadSymbols(file);
+  if (errors.filter((e) => !/not sorted/.test(e)).length) { console.log(errors.join("\n")); process.exit(1); }
+  const byAddr = new Map(have.map((s) => [s.addr, s])), byName = new Map(have.map((s) => [s.name, s]));
+  const text = readFileSync(SYMBOLS, "utf8"), nl = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  let added = 0, kept = 0;
+  const conflicts = [];
+  for (const s of incoming) {
+    const a = byAddr.get(s.addr), n = byName.get(s.name);
+    if (a && a.name === s.name) { kept++; continue; }
+    if (a) { conflicts.push(`${s.addrText}: have ${a.name}, incoming ${s.name}`); continue; }
+    if (n) { conflicts.push(`${s.name}: already at ${n.addrText}, incoming ${s.addrText}`); continue; }
+    lines.push(`${s.addrText.padEnd(9)} ${s.name.padEnd(24)} ${s.kind.padEnd(5)} ${s.module.padEnd(22)} ${s.conf}${s.comment ? " ; " + s.comment : ""}`);
+    byAddr.set(s.addr, s); byName.set(s.name, s);
+    added++;
+  }
+  // Re-sort each section (functions, then data) while keeping the header/comments in place.
+  const isSym = (l) => /^0x[0-9a-f]+\s/.test(l);
+  const funcs = lines.filter((l) => isSym(l) && l.split(/\s+/)[2] === "func");
+  const data = lines.filter((l) => isSym(l) && l.split(/\s+/)[2] !== "func");
+  const byA = (x, y) => parseInt(x, 16) - parseInt(y, 16);
+  funcs.sort(byA); data.sort(byA);
+  const out = [];
+  let fi = 0, di = 0, inData = false;
+  for (const l of lines) {
+    if (/^# ---- data/.test(l)) inData = true;
+    if (!isSym(l)) {
+      if (/^# ---- data/.test(l)) while (fi < funcs.length) out.push(funcs[fi++]);
+      out.push(l);
+      continue;
+    }
+    if (!inData && fi < funcs.length) out.push(funcs[fi++]);
+    else if (inData && di < data.length) out.push(data[di++]);
+  }
+  while (di < data.length) out.push(data[di++]);
+  while (fi < funcs.length) out.push(funcs[fi++]);
+  writeFileSync(SYMBOLS, out.join(nl).replace(/(\r?\n)+$/, "") + nl);
+  const check = loadSymbols();
+  if (check.errors.length) { console.log(check.errors.join("\n")); process.exit(1); }
+  console.log(`import: ${added} added, ${kept} already present, ${conflicts.length} conflicts`);
+  for (const c of conflicts) console.log("  conflict " + c);
+}
+
 const [cmd] = process.argv.slice(2);
 if (cmd === "add" || cmd === "rename") { editSymbols(cmd, process.argv.slice(3)); console.log(`${cmd} ok`); process.exit(0); }
+if (cmd === "import") { importSymbols(process.argv[3]); process.exit(0); }
 const { symbols, errors } = loadSymbols();
 if (cmd === "check" || !cmd) {
   if (errors.length) { console.log(errors.join("\n")); process.exit(1); }

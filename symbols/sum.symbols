@@ -15,18 +15,147 @@
 # ---- functions ------------------------------------------------------------------------------
 0x401070 GameTick                 func  -                        O ; one frame: state transitions, FrameDone, state frame handler, frame end
 0x401190 GameStateSwap            func  -                        O ; prev = cur; cur = next; pending = 0
+0x4044d0  cmd_map_mask             func  -                      O ; console command "map_mask": Toggles Map_mask
+0x4045c0  cmd_map_grid             func  -                      O ; console command "map_grid": Toggles Map_grid
+0x4046b0  cmd_show_coordinates     func  -                      O ; console command "show_coordinates": Toggles Show_coordinates
+0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
+0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
+0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
+0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
+0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
+0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
+
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
+0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
+0x4330a0  cmd_targa                func  -                      O ; console command "targa": Toggles Print_screen_as_targa
+0x433190  cmd_net_stats            func  -                      O ; console command "net_stats": Toggles Gamewide_show_net_stats
+0x433280  cmd_gr_info              func  -                      O ; console command "gr_info": Toggles Gamewide_show_gr_info
+0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
+0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
 0x436a90 SequenceTimer            func  -                        I ; timeGetTime-based sequence (cutscene) timer; 24.9-day sign bug
 0x436c00 SequenceTimer2           func  -                        I ; another timeGetTime user of sequence_start_time
+0x4374d0  cmd_play_cutscene        func  -                      O ; console command "play_cutscene": Play a cutscene
+0x437590  cmd_play_and_load_cutscene func  -                      O ; console command "play_and_load_cutscene": Play a cutscene and loads the level associated with it
+0x437650  cmd_stop_cutscene        func  -                      O ; console command "stop_cutscene": Stop the current cutscene
+0x437800  cmd_full_party           func  -                      O ; console command "full_party": Toggles Full_party
+0x4378f0  cmd_dump_sound_usage     func  -                      O ; console command "dump_sound_usage": Toggles Dump_sound_usage
+0x4379e0  cmd_add_xp               func  -                      O ; console command "add_xp": Adds experience points to currently selected character
 0x437c80 LoadingScreenDraw        func  -                        O ; loading-screen progress draw, calls FrameDone
+0x438070  cmd_Give_all_items       func  -                      O ; console command "Give_all_items": Toggles Give_all_items
+0x439840  cmd_render_3d_obstacles  func  -                      O ; console command "render_3d_obstacles": Toggles Render_3d_obstacles
+0x439930  cmd_character            func  -                      O ; console command "character": Set the current main character
+0x439d80  cmd_flece                func  -                      O ; console command "flece": Add Flece to the game
+0x439dd0  cmd_jekhar               func  -                      O ; console command "jekhar": Add Jekhar to the game
+0x439e20  cmd_rosalind             func  -                      O ; console command "rosalind": Add Rosalind to the game
+0x43d520  cmd_gamma                func  -                      O ; console command "gamma": Sets Summoner_options.gamma_correction
+0x43d5e0  cmd_play_sound           func  -                      O ; console command "play_sound": Streams a wav file from disk
+0x43d780  cmd_stop_sound           func  -                      O ; console command "stop_sound": Stops all sounds that are playing
 0x43d7b0 MainLoop                 func  -                        O ; init, then PumpMessages + GameTick until state 3
 0x43d7f0 LoadSettings             func  -                        O ; registry settings, resolution table, renderer choice, GrInit
 0x43df40 GameInit                 func  -                        O
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
+0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
+0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
+0x4402f0  cmd_save_mlayout         func  -                      O ; console command "save_mlayout": Save a monster layout file
+0x442380  cmd_disp_rate            func  -                      O ; console command "disp_rate": Toggle whether net rate info for a packet is displayed
+0x444a50  cmd_All_summons          func  -                      O ; console command "All_summons": Toggles All_summons
+0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
+0x449c00  cmd_levelchars           func  -                      O ; console command "levelchars": dump info on all characters in the level
+0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
+0x4619b0  cmd_health               func  -                      O ; console command "health": Sets the percentage health for the debug object
+0x463080  cmd_chance_gold          func  -                      O ; console command "chance_gold": Sets Chance_to_drop_gold
+0x463140  cmd_kill_summon          func  -                      O ; console command "kill_summon": kills off friendly summoned creature
+0x4631b0  cmd_no_resist            func  -                      O ; console command "no_resist": Toggles No_resist
+0x4632a0  cmd_Spell_ap             func  -                      O ; console command "Spell_ap": Toggles Use_spell_ap
+0x463390  cmd_bloodspots           func  -                      O ; console command "bloodspots": Toggles Bloodspots
+0x463480  cmd_death                func  -                      O ; console command "death": Toggles Debug_death
+0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
+0x46c570  cmd_add_gold             func  -                      O ; console command "add_gold": Adds gold to party inventory
+0x46ddf0  cmd_test_meshes_on_load  func  -                      O ; console command "test_meshes_on_load": Toggles Test_meshes_on_load
+0x46dee0  cmd_load_lightmaps       func  -                      O ; console command "load_lightmaps": Toggles S3d_load_lightmaps
+0x46dfd0  cmd_p3d_files            func  -                      O ; console command "p3d_files": Toggles P3D_files
+0x4720e0  cmd_ai_frame_update_rate func  -                      O ; console command "ai_frame_update_rate": Set the rate at which AI is updated in frames for offscreen creatures
+0x472190  cmd_slowdown_scaler      func  -                      O ; console command "slowdown_scaler": Set the slowdown scaler
+0x473260  cmd_attack_point         func  -                      O ; console command "attack_point": attack point
+0x473300  cmd_offense_point        func  -                      O ; console command "offense_point": offense point
+0x474d10  cmd_ai_state             func  -                      O ; console command "ai_state": Change the AI state of the study object
+0x474e10  cmd_pause_ai             func  -                      O ; console command "pause_ai": Toggles Ai_paused
+0x474f00  cmd_ai_wander            func  -                      O ; console command "ai_wander": Toggles Ai_path_wandering_enabled
+0x4778e0  cmd_zoom_limit           func  -                      O ; console command "zoom_limit": Toggle camera zoom limiting.
+0x477990  cmd_geom_avoid           func  -                      O ; console command "geom_avoid": Toggles Camera_geometry_avoidance
+0x477a80  cmd_mlook_sensitivity    func  -                      O ; console command "mlook_sensitivity": Sets the sensitivity value for mouse look.
+0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
+0x4811d0  cmd_Multi_path_type      func  -                      O ; console command "Multi_path_type": Sets the method used to generate paths on multiplayer machiens
+0x481710  cmd_lod_dist             func  -                      O ; console command "lod_dist": Sets Character_lod_dist
+0x4817d0  cmd_main_lod_dist        func  -                      O ; console command "main_lod_dist": Sets Main_character_lod_dist
+0x481890  cmd_render_level         func  -                      O ; console command "render_level": Toggles Render_level
+0x481980  cmd_render_characters    func  -                      O ; console command "render_characters": Toggles Render_characters
+0x481a70  cmd_render_effects       func  -                      O ; console command "render_effects": Toggles Render_effects
+0x481b60  cmd_set_fog              func  -                      O ; console command "set_fog": Set the fogging clip plane.
+0x481ea0  cmd_Cull_ground          func  -                      O ; console command "Cull_ground": Toggles Cull_ground
+0x481f90  cmd_Cull_ground_too      func  -                      O ; console command "Cull_ground_too": Toggles Cull_ground_too
+0x48dc50  cmd_time_mult            func  -                      O ; console command "time_mult": Sets Time_mult
+0x48dd10  cmd_space_mult           func  -                      O ; console command "space_mult": Sets Space_mult
+0x48ddd0  cmd_small_mesh_threshold func  -                      O ; console command "small_mesh_threshold": Sets Small_mesh_threshold
+0x493d90  cmd_party_controller_check func  -                      O ; console command "party_controller_check": Toggles Party_controller_check
 0x494310 SequenceTimer3           func  -                        I ; another timeGetTime user of sequence_start_time
+0x4950e0  cmd_snow                 func  -                      O ; console command "snow": Toggles Snow_enabled
+0x4951d0  cmd_snow_render          func  -                      O ; console command "snow_render": Toggles Snow_render
+0x495340  cmd_serpent_stage        func  -                      O ; console command "serpent_stage": Set Serpent rider's current combat stage
+0x4953a0  cmd_serpent_unlink       func  -                      O ; console command "serpent_unlink": Unlinks serpent to mount
+0x495450  cmd_serpent_solo         func  -                      O ; console command "serpent_solo": Set serpent without horse
+0x4954a0  cmd_serpent_combat       func  -                      O ; console command "serpent_combat": Sets serpent rider in combat state
+0x497af0  cmd_phoenix_stage        func  -                      O ; console command "phoenix_stage": Set phoenix rider's current combat stage
+0x497b50  cmd_phoenix_unlink       func  -                      O ; console command "phoenix_unlink": Unlinks phoenix to mount
+0x497c50  cmd_phoenix_solo         func  -                      O ; console command "phoenix_solo": Set phoenix without horse
+0x497ca0  cmd_phoenix_combat       func  -                      O ; console command "phoenix_combat": Sets phoenix rider in combat state
+0x499ec0  cmd_tiger_stage          func  -                      O ; console command "tiger_stage": Set Tiger rider's current combat stage
+0x499f30  cmd_tiger_unlink         func  -                      O ; console command "tiger_unlink": Unlinks tiger to mount
+0x499ff0  cmd_tiger_combat         func  -                      O ; console command "tiger_combat": Sets tiger in combat state
+0x49a080  cmd_tiger_solo           func  -                      O ; console command "tiger_solo": Set tiger without horse
+0x49c870  cmd_precalc_vis_method   func  -                      O ; console command "precalc_vis_method": Toggles Precalc_vis_method
+0x4a3e10  cmd_obstacle_height_offset func  -                      O ; console command "obstacle_height_offset": Set the height level to draw obstacles relative to main player pos
+0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
+0x4b1440  cmd_Turn_anims           func  -                      O ; console command "Turn_anims": Toggles Use_turn_anims
+0x4b1530  cmd_turn_scaler          func  -                      O ; console command "turn_scaler": Set the turn scaler
+0x4b8850  cmd_pyrul_stage          func  -                      O ; console command "pyrul_stage": Set Pyrul's current combat stage
+0x4b88c0  cmd_pyrul_combat         func  -                      O ; console command "pyrul_combat": Sets pyrul in combat state
+0x4b9ea0  cmd_ghost_stage          func  -                      O ; console command "ghost_stage": Set Ghost rider's current combat stage
+0x4b9f00  cmd_ghost_unlink         func  -                      O ; console command "ghost_unlink": Unlinks ghost from mount
+0x4b9fc0  cmd_ghost_combat         func  -                      O ; console command "ghost_combat": Puts ghost rider in combat state
+0x4ba050  cmd_ghost_solo           func  -                      O ; console command "ghost_solo": Set ghost without horse
+0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
+0x4c2180  cmd_titus_stage          func  -                      O ; console command "titus_stage": Set Titus's current combat stage
+0x4c21f0  cmd_titus_combat         func  -                      O ; console command "titus_combat": Sets titus in combat state
+0x4c34e0  cmd_darkjo_combat        func  -                      O ; console command "darkjo_combat": Sets dark josesph in combat state
+0x4c41e0  cmd_urath_combat         func  -                      O ; console command "urath_combat": Sets urath in combat state
+0x4c7cc0  cmd_tentacles            func  -                      O ; console command "tentacles": Start battle with tentacle beasts
+0x4c7e90  cmd_tentacle_test        func  -                      O ; console command "tentacle_test": Makes tentacles go in and out of water quickly -- no attacks
+0x4c80a0  cmd_gs_stage             func  -                      O ; console command "gs_stage": Set Giant salamanka's current combat stage
+0x4c8100  cmd_gsal_combat          func  -                      O ; console command "gsal_combat": Sets gsal in combat state
+0x4c8d90  cmd_stage                func  -                      O ; console command "stage": Set Luminar's current combat stage
+0x4ca790  cmd_dont_load_fx         func  -                      O ; console command "dont_load_fx": Toggles Dont_load_fx
+0x4ca880  cmd_do_frame_callback    func  -                      O ; console command "do_frame_callback": Toggles Do_frame_callback
+0x4ca970  cmd_eax_save_props       func  -                      O ; console command "eax_save_props": Saves the EAX properties to disk
+0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
+0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
+0x4d4bf0  cmd_gamestage            func  -                      O ; console command "gamestage": Set the important event flags to different stages of the game.
+0x4d4c80  cmd_savegame             func  -                      O ; console command "savegame": Save the game to a file
+0x4d4ea0  cmd_loadgame             func  -                      O ; console command "loadgame": Load a previously saved game
+0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
+0x4d6580  cmd_door_close           func  -                      O ; console command "door_close": closes a specified door in the level.
+0x4d6600  cmd_door_toggle          func  -                      O ; console command "door_toggle": opens or closes a specified door in the level.
+0x4db010  cmd_dialogue_make_topic_available func  -                      O ; console command "dialogue_make_topic_available": mark a specific dialogue topic as available.
+0x4db100  cmd_dialogue_make_topic_unavailable func  -                      O ; console command "dialogue_make_topic_unavailable": mark a specific dialogue topic as unavailable.
+0x4db1f0  cmd_dcamera              func  -                      O ; console command "dcamera": Change the dialog camera options.
+0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
+0x4ecf90  cmd_render_s3d_navpoints func  -                      O ; console command "render_s3d_navpoints": Toggles Render_s3d_navpoints
+0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game
+0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
+0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
@@ -45,9 +174,21 @@
 0x501ac0  RealtimeTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b00  RealtimeTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b10  RealtimeTimer__valid     func  timestamp.cpp          V ; Summoner 2 decomp
+0x501b50  cmd_load_mipmaps         func  -                      O ; console command "load_mipmaps": Toggles Load_mipmaps
+0x501c90  cmd_change_texture_res   func  -                      O ; console command "change_texture_res": Toggle the texture resolution between high and low resolutions.
+0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
+0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
+0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
 0x505e00 gr__init                 func  vsdk\gr\gr.cpp           I ; (w, h, mode, window_mode, hwnd, far_z, dual)
 0x506840 gr__set_clip             func  vsdk\gr\gr.cpp           V ; Dash Faction gr::set_clip; 27 callers
 0x5069a0 gr__reset_clip           func  vsdk\gr\gr.cpp           V ; Dash Faction gr::reset_clip
+0x50a030  cmd_print_to_file        func  -                      O ; console command "print_to_file": Print out console commands to the text file console.txt
+0x50a180  console_command__console_command func  -                      O ; ctor(name, description, callback); 145 static instances
+0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
+0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
+0x50db80  cmd_far_max              func  -                      O ; console command "far_max": Sets Gr_far_max
+0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
+0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
 0x512050 os_registry_read         func  vsdk\os\registry.cpp     O ; RegOpenKeyExA + RegQueryValueExA
 0x512110 os_registry_set_app_key  func  vsdk\os\registry.cpp     O ; builds Software\<company>\<app>
 0x512280 os_registry_read_string  func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
@@ -56,17 +197,22 @@
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
 0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
 0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
+0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
+0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
 0x5312d6 cpu_identify             func  -                        O ; CPU type/speed/extensions
 0x53171f PrintSystemInfo          func  -                        O ; prints CPU, RAM, RAM speed
+0x531aa8  cmd_sysinfo              func  -                      O ; console command "sysinfo": Shows system info
 0x531cb0  DebugError               func  -                      V ; Summoner 2 DebugError(File, Line, Error); PC: MessageBox + exit(1)
+0x531e10  cmd_movement_vel_change  func  -                      O ; console command "movement_vel_change": Toggles Allow_movement_vel_change
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
+0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
@@ -74,12 +220,12 @@
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
 0x54f6f0 gr_opengl_init           func  vsdk\gr\opengl\gr_opengl.cpp     O ; renderer 0x68
 0x54f8c0 gr_opengl_set_viewport   func  vsdk\gr\opengl\gr_opengl.cpp     O ; glOrtho + glViewport from the clip rectangle
+0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56ea9b  free                     func  crt                    O ; C runtime
-
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
 0x588a70 gameseq_state_table      data:GameStateHandlers[6] -            O ; {enter, frame, leave} per state
@@ -96,10 +242,140 @@
 0x5b27e4 gameseq_state_prev       data:int             -                 O
 0x5b27e8 gameseq_state_next       data:int             -                 O
 0x5b27ec gameseq_state_pending    data:bool            -                 O
+0x5b2a00  ccmd_map_grid            data:console_command -                      O ; console command object "map_grid"
+0x5b2b60  ccmd_show_coordinates    data:console_command -                      O ; console command object "show_coordinates"
+0x5b2ca8  ccmd_reset_map_labels    data:console_command -                      O ; console command object "reset_map_labels"
+
+0x5b2da8  ccmd_map_mask            data:console_command -                      O ; console command object "map_mask"
+0x5bd780  ccmd_show_ui             data:console_command -                      O ; console command object "show_ui"
+0x5f9610  ccmd_Ignore_tutorial     data:console_command -                      O ; console command object "Ignore_tutorial"
+0x5f9e38  ccmd_save_map_labels     data:console_command -                      O ; console command object "save_map_labels"
+0x5fade0  ccmd_us_open_demo        data:console_command -                      O ; console command object "us_open_demo"
+0x5fbf20  ccmd_show_hud_info       data:console_command -                      O ; console command object "show_hud_info"
+0x5fbf30  ccmd_gr_info             data:console_command -                      O ; console command object "gr_info"
 0x5fbfd8 game_debug_flags         data:int             -                 I
+0x5fbfe8  ccmd_show_framerate      data:console_command -                      O ; console command object "show_framerate"
+0x5fbff8  ccmd_targa               data:console_command -                      O ; console command object "targa"
+0x5fc008  ccmd_net_stats           data:console_command -                      O ; console command object "net_stats"
 0x5fc01f show_framerate           data:bool            -                 O ; console variable Gamewide_show_framerate
+0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
+0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
 0x601e78 sequence_start_time      data:int             -                 O ; timeGetTime at sequence start
+0x6034b8  ccmd_play_cutscene       data:console_command -                      O ; console command object "play_cutscene"
+0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
+
+0x609f20  ccmd_stop_cutscene       data:console_command -                      O ; console command object "stop_cutscene"
+0x609f60  ccmd_Give_all_items      data:console_command -                      O ; console command object "Give_all_items"
+0x609f70  ccmd_full_party          data:console_command -                      O ; console command object "full_party"
+0x609f90  ccmd_add_xp              data:console_command -                      O ; console command object "add_xp"
+0x609fb0  ccmd_dump_sound_usage    data:console_command -                      O ; console command object "dump_sound_usage"
+0x60a410  ccmd_flece               data:console_command -                      O ; console command object "flece"
+0x60a420  ccmd_character           data:console_command -                      O ; console command object "character"
+0x60a638  ccmd_jekhar              data:console_command -                      O ; console command object "jekhar"
+0x60a648  ccmd_render_3d_obstacles data:console_command -                      O ; console command object "render_3d_obstacles"
+0x60a658  ccmd_rosalind            data:console_command -                      O ; console command object "rosalind"
+0x60abd0  ccmd_stop_sound          data:console_command -                      O ; console command object "stop_sound"
+0x60abe8  ccmd_gamma               data:console_command -                      O ; console command object "gamma"
+0x60ac20  ccmd_play_sound          data:console_command -                      O ; console command object "play_sound"
+0x60ae58  ccmd_all_multi_levels    data:console_command -                      O ; console command object "all_multi_levels"
+0x60f4f0  ccmd_save_mlayout        data:console_command -                      O ; console command object "save_mlayout"
+0x60f928  ccmd_load_mlayout        data:console_command -                      O ; console command object "load_mlayout"
+0x65e0c0  ccmd_disp_rate           data:console_command -                      O ; console command object "disp_rate"
+0x65e968  ccmd_charinfo            data:console_command -                      O ; console command object "charinfo"
+0x65e998  ccmd_Quick_combo         data:console_command -                      O ; console command object "Quick_combo"
+0x68e200  ccmd_All_summons         data:console_command -                      O ; console command object "All_summons"
+0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
+0x8eca30  ccmd_chance_gold         data:console_command -                      O ; console command object "chance_gold"
+0x8eca40  ccmd_Spell_ap            data:console_command -                      O ; console command object "Spell_ap"
+0x8eca50  ccmd_kill_summon         data:console_command -                      O ; console command object "kill_summon"
+0x8ed970  ccmd_immortal            data:console_command -                      O ; console command object "immortal"
+0x940428  ccmd_no_resist           data:console_command -                      O ; console command object "no_resist"
+0x941508  ccmd_health              data:console_command -                      O ; console command object "health"
+0x941710  ccmd_death               data:console_command -                      O ; console command object "death"
+0x941720  ccmd_Super_power         data:console_command -                      O ; console command object "Super_power"
+0x941730  ccmd_bloodspots          data:console_command -                      O ; console command object "bloodspots"
+0x970810  ccmd_add_gold            data:console_command -                      O ; console command object "add_gold"
+0x22c4388 ccmd_load_lightmaps      data:console_command -                      O ; console command object "load_lightmaps"
+0x22e43a8 ccmd_p3d_files           data:console_command -                      O ; console command object "p3d_files"
+0x22e43e8 ccmd_test_meshes_on_load data:console_command -                      O ; console command object "test_meshes_on_load"
+0x22e47d0 ccmd_offense_point       data:console_command -                      O ; console command object "offense_point"
+0x22e47e0 ccmd_slowdown_scaler     data:console_command -                      O ; console command object "slowdown_scaler"
+0x22e48b0 ccmd_pause_ai            data:console_command -                      O ; console command object "pause_ai"
+0x22e48c0 ccmd_ai_state            data:console_command -                      O ; console command object "ai_state"
+0x22e48d0 ccmd_ai_wander           data:console_command -                      O ; console command object "ai_wander"
+0x22e4930 ccmd_attack_point        data:console_command -                      O ; console command object "attack_point"
+0x22e4990 ccmd_ai_frame_update_rate data:console_command -                      O ; console command object "ai_frame_update_rate"
+0x22e4ae0 ccmd_mlook_sensitivity   data:console_command -                      O ; console command object "mlook_sensitivity"
+0x22e4af0 ccmd_zoom_limit          data:console_command -                      O ; console command object "zoom_limit"
+0x22e4b00 ccmd_geom_avoid          data:console_command -                      O ; console command object "geom_avoid"
+0x22e9240 ccmd_summon              data:console_command -                      O ; console command object "summon"
+0x22e94e8 ccmd_Multi_path_type     data:console_command -                      O ; console command object "Multi_path_type"
+0x22ec4c8 ccmd_Cull_ground         data:console_command -                      O ; console command object "Cull_ground"
+0x22ec4d8 ccmd_lod_dist            data:console_command -                      O ; console command object "lod_dist"
+0x22f8cf0 ccmd_render_level        data:console_command -                      O ; console command object "render_level"
+0x22f8d00 ccmd_render_effects      data:console_command -                      O ; console command object "render_effects"
+0x22f8d78 ccmd_main_lod_dist       data:console_command -                      O ; console command object "main_lod_dist"
+0x22f9d80 ccmd_set_fog             data:console_command -                      O ; console command object "set_fog"
+0x22f9dd0 ccmd_Cull_ground_too     data:console_command -                      O ; console command object "Cull_ground_too"
+0x22faed0 ccmd_render_characters   data:console_command -                      O ; console command object "render_characters"
+0x23f81d8 ccmd_small_mesh_threshold data:console_command -                      O ; console command object "small_mesh_threshold"
+0x23fc838 ccmd_time_mult           data:console_command -                      O ; console command object "time_mult"
+0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"
+0x243e388 ccmd_party_controller_check data:console_command -                      O ; console command object "party_controller_check"
+0x24445a0 ccmd_snow_render         data:console_command -                      O ; console command object "snow_render"
+0x2451d50 ccmd_snow                data:console_command -                      O ; console command object "snow"
+0x24523d8 ccmd_serpent_solo        data:console_command -                      O ; console command object "serpent_solo"
+0x24523e8 ccmd_serpent_stage       data:console_command -                      O ; console command object "serpent_stage"
+0x24523f8 ccmd_serpent_unlink      data:console_command -                      O ; console command object "serpent_unlink"
+0x2452408 ccmd_serpent_combat      data:console_command -                      O ; console command object "serpent_combat"
+0x24529f8 ccmd_phoenix_stage       data:console_command -                      O ; console command object "phoenix_stage"
+0x2452a38 ccmd_phoenix_solo        data:console_command -                      O ; console command object "phoenix_solo"
+0x2452a48 ccmd_phoenix_combat      data:console_command -                      O ; console command object "phoenix_combat"
+0x2452a58 ccmd_phoenix_unlink      data:console_command -                      O ; console command object "phoenix_unlink"
+0x2452a70 ccmd_tiger_solo          data:console_command -                      O ; console command object "tiger_solo"
+0x2452a80 ccmd_tiger_stage         data:console_command -                      O ; console command object "tiger_stage"
+0x2452c98 ccmd_tiger_combat        data:console_command -                      O ; console command object "tiger_combat"
+0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
+0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
+0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
+0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
+0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
+0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
+0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
+0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
+0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
+0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
+0x2480928 ccmd_ghost_stage         data:console_command -                      O ; console command object "ghost_stage"
+0x2480938 ccmd_ghost_solo          data:console_command -                      O ; console command object "ghost_solo"
+0x248b010 ccmd_machival_combat     data:console_command -                      O ; console command object "machival_combat"
+0x248b958 ccmd_titus_combat        data:console_command -                      O ; console command object "titus_combat"
+0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
+0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
+0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
+0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
+0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
+0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
+0x248c7c0 ccmd_gs_stage            data:console_command -                      O ; console command object "gs_stage"
+0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
+0x24902b8 ccmd_eax_save_props      data:console_command -                      O ; console command object "eax_save_props"
+0x2490c68 ccmd_do_frame_callback   data:console_command -                      O ; console command object "do_frame_callback"
+0x2490c80 ccmd_dont_load_fx        data:console_command -                      O ; console command object "dont_load_fx"
+0x2490c90 ccmd_No_cutscenes        data:console_command -                      O ; console command object "No_cutscenes"
 0x2491a5c game_frozen             data:bool            -                 I ; GameTick sets reported_frametime = 0 when 1
+0x2493a18 ccmd_loadgame            data:console_command -                      O ; console command object "loadgame"
+0x2493a28 ccmd_Preparse_scripts    data:console_command -                      O ; console command object "Preparse_scripts"
+0x2494b20 ccmd_savegame            data:console_command -                      O ; console command object "savegame"
+0x24dfb30 ccmd_gamestage           data:console_command -                      O ; console command object "gamestage"
+0x24ed5f0 ccmd_door_toggle         data:console_command -                      O ; console command object "door_toggle"
+0x25388b0 ccmd_door_open           data:console_command -                      O ; console command object "door_open"
+0x253ef30 ccmd_door_close          data:console_command -                      O ; console command object "door_close"
+0x2546730 ccmd_dialogue_make_topic_unavailable data:console_command -                      O ; console command object "dialogue_make_topic_unavailable"
+0x2546740 ccmd_dialogue_make_topic_available data:console_command -                      O ; console command object "dialogue_make_topic_available"
+0x2546750 ccmd_dcamera             data:console_command -                      O ; console command object "dcamera"
+0x2549d30 ccmd_render_s3d_navpoints data:console_command -                      O ; console command object "render_s3d_navpoints"
+0x254a8a0 ccmd_remove_nav          data:console_command -                      O ; console command object "remove_nav"
+0x257ed10 ccmd_random_encounters   data:console_command -                      O ; console command object "random_encounters"
+0x257ed50 ccmd_iw                  data:console_command -                      O ; console command object "iw"
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f088 frames_rendered         data:int             frametime.cpp     V
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
@@ -109,10 +385,27 @@
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
+0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
+0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
+0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdkgrgr.cpp    V ; Dash Faction rf::gr::Screen layout
+0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
+0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
+0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
+0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
+0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
+0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
+0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
+0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
+0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
+0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
+0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
