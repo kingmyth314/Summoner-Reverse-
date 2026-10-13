@@ -1,7 +1,7 @@
 // Symbol-file tool for symbols/sum.symbols (see docs/decomp-plan.md).
 //
 //   node tools/symbols.mjs check                 validate the symbol file
-//   node tools/symbols.mjs apply-rea             push names into the running REA/Ghidra session (tools/rea-daemon.mjs)
+//   node tools/symbols.mjs apply-rea             (not possible: REA's Windows Ghidra is read-only; use tools/decomp.mjs)
 //   node tools/symbols.mjs apply-x32dbg          push names into x32dbg as labels (Sum.exe must be loaded)
 //   node tools/symbols.mjs fetch-functions       save Ghidra's function list to symbols/ghidra-functions.tsv
 //   node tools/symbols.mjs progress              named/unnamed functions per address range and module
@@ -56,15 +56,10 @@ export function loadFunctions() {
 }
 
 async function applyRea(symbols) {
-  const names = {};
-  for (const s of symbols) names[s.addrText] = s.name;
-  const r = await reaCall("set_addresses_names", { names });
-  if (r.isError) throw new Error(r.text.slice(0, 800));
-  const results = Array.isArray(r.json) ? r.json : r.json?.results ?? r.json?.items ?? [];
-  const failed = results.filter((x) => x && (x.success === false || x.ok === false || x.applied === false));
-  console.log(`applied ${symbols.length} names to the REA session; ${failed.length} failed`);
-  for (const f of failed.slice(0, 20)) console.log("  failed:", JSON.stringify(f).slice(0, 200));
-  if (!results.length) console.log("  result:", r.text.slice(0, 400));
+  // REA's Windows Ghidra provider rejects database mutation ("Windows Ghidra P0 does not admit
+  // database mutation"), so names can't be stored in the Ghidra session. tools/decomp.mjs applies
+  // them to Ghidra's output instead.
+  console.log(`REA/Ghidra on Windows is read-only; ${symbols.length} names are applied to output by tools/decomp.mjs instead.`);
 }
 
 async function applyX32dbg(symbols) {
@@ -119,7 +114,7 @@ function progress(symbols) {
   const funcs = loadFunctions();
   if (!funcs) { console.log("run fetch-functions first"); process.exit(1); }
   const named = new Set(symbols.filter((s) => s.kind === "func").map((s) => s.addr));
-  const crtStart = 0x56a000; // see docs/decomp-plan.md; refined by the translation-unit map
+  const crtStart = 0x56c740; // first C-runtime function (sprintf); see docs/sum-exe/source-map.md
   const game = funcs.filter((f) => f.addr < crtStart), crt = funcs.filter((f) => f.addr >= crtStart);
   const pct = (a, b) => (b ? ((100 * a) / b).toFixed(1) : "0.0");
   const gameNamed = game.filter((f) => named.has(f.addr)).length;
@@ -140,6 +135,7 @@ function progress(symbols) {
   }
 }
 
+if (process.argv[1] && !process.argv[1].endsWith("symbols.mjs")) { /* imported as a module */ } else {
 const [cmd] = process.argv.slice(2);
 const { symbols, errors } = loadSymbols();
 if (cmd === "check" || !cmd) {
@@ -152,4 +148,5 @@ if (cmd === "check" || !cmd) {
   else if (cmd === "fetch-functions") await fetchFunctions();
   else if (cmd === "progress") progress(symbols);
   else { console.log("unknown command"); process.exit(1); }
+}
 }

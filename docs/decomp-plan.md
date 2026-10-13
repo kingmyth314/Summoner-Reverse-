@@ -108,24 +108,22 @@ When a small translation unit is fully mapped (for example `frametime.cpp`):
 
 ## Status
 
-| Phase 0 step | Status (2026-10-12) |
+| Phase 0 step | Status (2026-10-13) |
 |---|---|
-| 1. Symbol file | Done: `symbols/sum.symbols` (78 symbols, 43 functions) and `symbols/types.h`; `node tools/symbols.mjs check` |
-| 2. Apply symbols | x32dbg: done and verified (`apply-x32dbg`; names appear in the live disassembly). REA/Ghidra: `apply-rea` written, blocked (see below) |
-| 3. Progress report | `progress` written; it needs the Ghidra function list (`fetch-functions`), blocked |
-| 4. Translation-unit map | Done: [Source-file map](sum-exe/source-map.md) (`node tools/tu-map.mjs`, no Ghidra needed) |
-| 5. Mark C runtime | Approximate boundary `~0x56a000`; to be refined with the function list |
+| 1. Symbol file | Done: `symbols/sum.symbols` and `symbols/types.h`; `node tools/symbols.mjs check` |
+| 2. Apply symbols | x32dbg: `apply-x32dbg` (names show in the live disassembly). Ghidra: REA's Windows provider is **read-only** ("does not admit database mutation"), so `tools/decomp.mjs` applies names to Ghidra's output instead, including struct fields (`gr_screen.max_w`) |
+| 3. Progress report | Done: `symbols/ghidra-functions.tsv` (6,329 functions) and `node tools/symbols.mjs progress` |
+| 4. Translation-unit map | Done: [Source-file map](sum-exe/source-map.md) |
+| 5. Mark C runtime | Done: it starts at `0x56c740` (*inferred*: first non-16-byte-aligned code; Ghidra's library names begin at `__ftol` `0x56c7e4`) |
 
-{: .warning }
-**Blocker (2026-10-12):** REA's Ghidra sessions fail with "Open Windows path component failed
-[C:\] (Win32 32)". Another process holds `C:\` open with write access, which REA's sandbox
-won't share. A test open of `C:\` with `FILE_LIST_DIRECTORY` and share-read only also fails,
-while normal sharing works. It isn't x32dbg and isn't any REA server. The only recently started
-process found was Windows Update's `MoNotificationUx` (*inferred* suspect). A Windows restart
-is expected to clear it.
+**Baseline (2026-10-13):** 6,329 functions. 5,531 of them are game/engine code below
+`0x56c740`; the rest are C runtime and library code (Ghidra recognised 441 by signature).
+**43 / 5,531 named (0.8%).**
+
+The 2026-10-12 REA blocker ("Open Windows path component failed [C:]") was cleared by a
+Windows restart.
 
 ## Where we start
 
-Phase 0, steps 1-4: create the symbol file seeded with the ~70 names already in the
-[Address map](reference/address-map.md), the apply script for REA and x32dbg, the progress
-report, and the translation-unit map from assert strings.
+Phase 0 is complete. Next: Phase 1, module 1 (`os`: timer, registry, memory, cmdline,
+stringpool, console), each compared with the Summoner 2 decomp source.

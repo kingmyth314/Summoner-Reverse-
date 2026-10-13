@@ -67,7 +67,7 @@ Works with the symbol file `symbols/sum.symbols` (format described in its header
 |---|---|
 | `check` | Validates format, duplicates and sort order |
 | `apply-x32dbg` | Labels every symbol in x32dbg (Sum.exe must be loaded; see `start-x32dbg.ps1 -Game`) |
-| `apply-rea` | Names every symbol in the running REA/Ghidra session (`rea-daemon.mjs`) |
+| `apply-rea` | Not possible: REA's Windows Ghidra provider is read-only. Use `tools/decomp.mjs` |
 | `fetch-functions` | Saves Ghidra's function list to `symbols/ghidra-functions.tsv` |
 | `progress` | Named and unnamed functions per 64 KB of `.text` |
 
@@ -81,3 +81,20 @@ source-path strings. No Ghidra needed. `--md <path>` also writes the Markdown ta
 Node client for the REA daemon queue (`reaCall(name, args)`), used by `symbols.mjs`. It avoids
 the PowerShell argument-quoting problems of `rea-query.ps1`. Pass Windows paths with
 backslashes: a forward-slash path is accepted by `open_binary` but doesn't bind the session.
+
+## `tools/decomp.mjs`
+
+Decompiles functions through the REA daemon and substitutes names from `symbols/`. That covers
+functions, globals and fields of known structures (`DAT_025d8d34` becomes
+`gr_screen.max_w`). It also lists the unnamed functions each one calls.
+
+```bash
+node tools/decomp.mjs FrameDone 0x5328d0
+node tools/decomp.mjs --asm timer_get
+node tools/decomp.mjs --callees GameTick
+```
+
+## `tools/rea-open.mjs`
+
+Opens `Summoner\Sum.exe` in the running REA daemon session (with the backslash path it needs).
+The first analysis query afterwards takes about 100 s.
