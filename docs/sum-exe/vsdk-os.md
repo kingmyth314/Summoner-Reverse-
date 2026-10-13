@@ -190,6 +190,33 @@ Parameters registered in Sum.exe (found by scanning for constructor calls):
 What each parameter does is not yet traced (*unknown*); `-glide`/`-direct3d` and
 `-800`/`-1024` probably override the [video settings](video-settings.md) (*inferred*).
 
+## Networking (`0x5175e0`-`0x519370`)
+
+Summoner shipped without multiplayer, but its engine has a complete UDP layer with
+"reliable sockets", and the game code uses it. Names are by behaviour (**I**), apart from
+four functions that name themselves in their asserts (`nw_NewReceiveReliable`,
+`nw_NewSendReliable`, `nw_NewCloseSocket`, `net_get_reliable_socket_status`).
+
+- **Start-up:** `nw_init_networking` (`0x5188d0`) is called by `LoadSettings` at start-up.
+  - It reads `ConnectionSpeed` from the registry.
+  - It loads the RAS (dial-up) API (`nw_ras_init`) and calls `WSAStartup(1.1)`.
+  - It opens one UDP socket on the [`-port`](#cmdlinecpp-command-line-parameters) port
+    (`nw_init_socket`, `0x517c10`).
+- **Traffic:** `nw_receive_all` (`0x518770`) sorts incoming datagrams into per-type buffers
+  by their first byte.
+- **Reliable sockets:** `nw_work_reliable` (`0x517e00`) runs the reliable protocol:
+  - connection requests and the "IAMHERE"/ACK handshake;
+  - resends and time-outs.
+- **Game side:** `multi_process_incoming` (`0x441b10`) and `multi_send_packet` (`0x442060`,
+  which keeps per-type "net rate info") sit on top. The `net_stats` console command shows
+  the statistics.
+- **Imports:** WinSock is imported by ordinal. The import thunks at `0x57b4b0`-`0x57b5ca`
+  are now named (`socket`, `sendto`, `recvfrom`, `select`, …), along with the DirectInput,
+  DirectSound, ACM and GLU thunks.
+
+Whether this is a cut multiplayer mode or a development tool (for example a remote
+console) is *unknown*; it would need a live test with `-port`.
+
 ## C runtime functions identified
 
 `sprintf` (`0x56c740`), `exit` (`0x56da99`), `free` (`0x56ea9b`), `_stricmp` (`0x57ae80`), `strtok` (`0x56d5b7`), `atoi` (`0x56e311`): identified from their

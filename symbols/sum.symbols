@@ -64,6 +64,9 @@
 0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
 0x4402f0  cmd_save_mlayout         func  -                      O ; console command "save_mlayout": Save a monster layout file
+0x441820  multi_process_packet     func  -                      I ; (data, len, from, reliable)
+0x441b10  multi_process_incoming   func  -                      I ; polls nw_receive and nw_NewReceiveReliable (0x4000-byte buffer), dispatches to 0x441820
+0x442060  multi_send_packet        func  -                      I ; (data, len, to, reliable): per-type rate stats ("Unable to add net rate info"), nw_NewSendReliable
 0x442380  cmd_disp_rate            func  -                      O ; console command "disp_rate": Toggle whether net rate info for a packet is displayed
 0x444a50  cmd_All_summons          func  -                      O ; console command "All_summons": Toggles All_summons
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
@@ -454,9 +457,31 @@
 0x516940  TextFile__ParseIntList   func  vsdk\parse\parse.cpp   V ; Error("an integer list")
 0x516a30  TextFile__ParseFloatList func  vsdk\parse\parse.cpp   V ; Error("a float list")
 0x516bd0  TextFile__ParseTypeString func  vsdk\parse\parse.cpp   V ; Error("a valid type string")
+0x516cd0  vector3_to_string        func  -                      I ; "<x, y, z>"-style text through the string class (0x556f70 / 0x557070 / 0x557c00)
+0x516e80  matrix3_to_string        func  -                      I ; three vector3_to_string rows
+0x517590  nw_buffer_receive        func  vsdk\net               I ; pops a packet from the per-type receive buffer
+0x5175e0  nw_can_write             func  vsdk\net               I ; select() for writability on nw_udp_socket
+0x517680  nw_send_packet           func  vsdk\net               I ; (data, len, flags, addr, type): prefixes a type byte, sendto()
+0x517730  nw_buffer_init           func  vsdk\net               I
+0x517780  nw_buffer_push           func  vsdk\net               I
+0x517820  nw_buffer_pop            func  vsdk\net               I
+0x5178c0  nw_ras_init              func  vsdk\net               I ; loads RasEnumConnectionsA / RasGetConnectStatusA / RasGetProjectionInfoA (dial-up)
+0x517ae0  nw_set_socket_options    func  vsdk\net               I ; broadcast, non-blocking ("Unable to make socket non-blocking"), receive buffer size
+0x517c10  nw_init_socket           func  vsdk\net               I ; (port): UDP socket (message says "TCP"), bind, options
+0x517d20  nw_send_reliable_reply   func  vsdk\net               I ; 14-byte control packet to a reliable peer
+0x517d70  nw_send_heartbeat        func  vsdk\net               I ; 10-byte control packet, records the send time
+0x517e00  nw_work_reliable         func  vsdk\net               I ; connection requests, IAMHERE/ACK, resends, "Reliable socket %d timed out"
+0x518770  nw_receive_all           func  vsdk\net               I ; select + recvfrom, sorts packets into per-type buffers by the first byte
+0x5188d0  nw_init_networking       func  vsdk\net               I ; ConnectionSpeed from the registry, RAS, WSAStartup(1.1), nw_init_socket
+0x518a30  nw_addr_to_string        func  vsdk\net               I ; "IP: %s:%d"
+0x518a90  nw_send_to               func  vsdk\net               I
+0x518ac0  nw_send                  func  vsdk\net               I ; waits for writability, "Couldn't send data"
+0x518b80  nw_receive               func  vsdk\net               I ; unreliable packets
 0x518bb0  nw_NewReceiveReliable    func  -                      O ; own assert "Invalid socket id passed to nw_NewReceiveReliable()"
+0x518ce0  nw_accept_reliable       func  vsdk\net               I ; "Got address from: %s"
 0x518d70  nw_NewSendReliable       func  -                      O ; own assert "Invalid socket id passed to nw_NewSendReliable()"
 0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
+0x519370  nw_addr_equal            func  vsdk\net               I
 0x5193a0  net_get_reliable_socket_status func  -                      O ; own assert "Invalid socket id passed to net_get_reliable_socket_status()"
 0x51a230  character_instance__increment_tick func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::increment_tick"
 0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
@@ -573,6 +598,7 @@
 0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
+0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
 0x554b60  m2v_read_header          func  vsdk\bmpman\targautils.cpp I ; (name, &w, &h); retries with ".m2v" appended; reads an 8-byte header
 0x554d00  m2v_read_bitmap          func  vsdk\bmpman\targautils.cpp I ; (name, &data): whole file into a new buffer
 0x554ea0  tga_rle_encode_row       func  vsdk\bmpman\targautils.cpp I ; used by gr_screenshot
@@ -614,7 +640,57 @@
 0x56fbc8  fread                    func  crt                    O ; C runtime
 0x56fcdf  fwrite                   func  crt                    O
 0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
+0x578ea5  GetOEMCP                 func  crt                    O ; import thunk: jmp [KERNEL32.dll!GetOEMCP]
+0x578eba  GetACP                   func  crt                    O ; import thunk: jmp [KERNEL32.dll!GetACP]
 0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
+0x57b4b0  DirectInputCreateA       func  crt                    O ; import thunk: jmp [DINPUT.dll!DirectInputCreateA]
+0x57b4b6  ntohl                    func  crt                    O ; import thunk: jmp [WSOCK32.dll!ntohl]
+0x57b4bc  gethostbyname            func  crt                    O ; import thunk: jmp [WSOCK32.dll!gethostbyname]
+0x57b4c2  inet_addr                func  crt                    O ; import thunk: jmp [WSOCK32.dll!inet_addr]
+0x57b4c8  ntohs                    func  crt                    O ; import thunk: jmp [WSOCK32.dll!ntohs]
+0x57b4ce  send                     func  crt                    O ; import thunk: jmp [WSOCK32.dll!send]
+0x57b4d4  select                   func  crt                    O ; import thunk: jmp [WSOCK32.dll!select]
+0x57b4da  WSAGetLastError          func  crt                    O ; import thunk: jmp [WSOCK32.dll!WSAGetLastError]
+0x57b4e0  connect                  func  crt                    O ; import thunk: jmp [WSOCK32.dll!connect]
+0x57b4e6  htons                    func  crt                    O ; import thunk: jmp [WSOCK32.dll!htons]
+0x57b4ec  ioctlsocket              func  crt                    O ; import thunk: jmp [WSOCK32.dll!ioctlsocket]
+0x57b4f2  bind                     func  crt                    O ; import thunk: jmp [WSOCK32.dll!bind]
+0x57b4f8  socket                   func  crt                    O ; import thunk: jmp [WSOCK32.dll!socket]
+0x57b4fe  closesocket              func  crt                    O ; import thunk: jmp [WSOCK32.dll!closesocket]
+0x57b504  shutdown                 func  crt                    O ; import thunk: jmp [WSOCK32.dll!shutdown]
+0x57b50a  recv                     func  crt                    O ; import thunk: jmp [WSOCK32.dll!recv]
+0x57b510  sendto                   func  crt                    O ; import thunk: jmp [WSOCK32.dll!sendto]
+0x57b516  htonl                    func  crt                    O ; import thunk: jmp [WSOCK32.dll!htonl]
+0x57b51c  getsockopt               func  crt                    O ; import thunk: jmp [WSOCK32.dll!getsockopt]
+0x57b522  setsockopt               func  crt                    O ; import thunk: jmp [WSOCK32.dll!setsockopt]
+0x57b528  recvfrom                 func  crt                    O ; import thunk: jmp [WSOCK32.dll!recvfrom]
+0x57b52e  __WSAFDIsSet             func  crt                    O ; import thunk: jmp [WSOCK32.dll!__WSAFDIsSet]
+0x57b534  WSACleanup               func  crt                    O ; import thunk: jmp [WSOCK32.dll!WSACleanup]
+0x57b53a  WSACancelBlockingCall    func  crt                    O ; import thunk: jmp [WSOCK32.dll!WSACancelBlockingCall]
+0x57b540  WSAStartup               func  crt                    O ; import thunk: jmp [WSOCK32.dll!WSAStartup]
+0x57b546  inet_ntoa                func  crt                    O ; import thunk: jmp [WSOCK32.dll!inet_ntoa]
+0x57b54c  listen                   func  crt                    O ; import thunk: jmp [WSOCK32.dll!listen]
+0x57b552  accept                   func  crt                    O ; import thunk: jmp [WSOCK32.dll!accept]
+0x57b558  getsockname              func  crt                    O ; import thunk: jmp [WSOCK32.dll!getsockname]
+0x57b55e  getservbyname            func  crt                    O ; import thunk: jmp [WSOCK32.dll!getservbyname]
+0x57b564  DirectDrawEnumerateA     func  crt                    O ; import thunk: jmp [DDRAW.dll!DirectDrawEnumerateA]
+0x57b56a  DirectSoundCreate        func  crt                    O ; import thunk: jmp [DSOUND.dll!DirectSoundCreate]
+0x57b570  acmMetrics               func  crt                    O ; import thunk: jmp [MSACM32.dll!acmMetrics]
+0x57b576  acmDriverDetailsA        func  crt                    O ; import thunk: jmp [MSACM32.dll!acmDriverDetailsA]
+0x57b57c  acmStreamOpen            func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamOpen]
+0x57b582  acmStreamClose           func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamClose]
+0x57b588  acmStreamUnprepareHeader func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamUnprepareHeader]
+0x57b58e  acmStreamConvert         func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamConvert]
+0x57b594  acmStreamPrepareHeader   func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamPrepareHeader]
+0x57b59a  acmStreamSize            func  crt                    O ; import thunk: jmp [MSACM32.dll!acmStreamSize]
+0x57b5a0  acmDriverPriority        func  crt                    O ; import thunk: jmp [MSACM32.dll!acmDriverPriority]
+0x57b5a6  acmDriverOpen            func  crt                    O ; import thunk: jmp [MSACM32.dll!acmDriverOpen]
+0x57b5ac  acmDriverEnum            func  crt                    O ; import thunk: jmp [MSACM32.dll!acmDriverEnum]
+0x57b5b2  acmGetVersion            func  crt                    O ; import thunk: jmp [MSACM32.dll!acmGetVersion]
+0x57b5b8  acmDriverClose           func  crt                    O ; import thunk: jmp [MSACM32.dll!acmDriverClose]
+0x57b5be  RtlUnwind                func  crt                    O ; import thunk: jmp [KERNEL32.dll!RtlUnwind]
+0x57b5c4  gluPerspective           func  crt                    O ; import thunk: jmp [GLU32.dll!gluPerspective]
+0x57b5ca  gluLookAt                func  crt                    O ; import thunk: jmp [GLU32.dll!gluLookAt]
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
 0x588a70 gameseq_state_table      data:GameStateHandlers[6] -            O ; {enter, frame, leave} per state
@@ -667,6 +743,7 @@
 0x5a72a0  Gr_3d_zmult              data:int -                      I ; set by console command "zmult" (sets); type inferred
 0x5a72a4  Gr_3d_zmax               data:int -                      I ; set by console command "zmax" (sets); type inferred
 0x5a7480  Homogeneous_column       data:float[4] vsdk\math\matrix.cpp   V ; Summoner 2 name; {0, 0, 0, 1}
+0x5a7dd0  nw_udp_socket            data:SOCKET vsdk\net               I
 0x5a98d4  Allow_movement_vel_change data:bool -                      I ; set by console command "movement_vel_change" (toggles); type inferred
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
@@ -797,8 +874,8 @@
 0x2452c98 ccmd_tiger_combat        data:console_command -                      O ; console command object "tiger_combat"
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
-0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 
+0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
@@ -861,8 +938,8 @@
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f088 frames_rendered         data:int             frametime.cpp     V
-0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
 
+0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
 0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
@@ -874,24 +951,24 @@
 0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
-0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
 
+0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
-0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 
+0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
+
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
-
 0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
-0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
 
+0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
 0x25c70cc localize_quest_table     data:void*[0xfd] localize               O
 0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
 0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
@@ -908,8 +985,8 @@
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
-0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
 
+0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
 0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
@@ -922,8 +999,8 @@
 0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
 0x25daa74 key_inited               data:bool -                      I
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
-0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 
+0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
@@ -934,8 +1011,8 @@
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
-0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 
+0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
@@ -953,10 +1030,10 @@
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
 0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name
+
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
-
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
@@ -975,4 +1052,5 @@
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
+
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred
