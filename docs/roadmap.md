@@ -46,6 +46,8 @@ stays a separate route for actions that only exist as console commands.
 shows the game copes with game time running faster than real time. Offer it deliberately,
 for example as a hotkey to speed up walking long distances.
 
+**Implemented 2026-10-13 (lever 1), untested:** hold `[Game] SpeedKey` (default F11) to set `frametime_divisor` (`0x5a5748`) to `1 / SpeedFactor` (default 3, range 1-8). It is polled every 15 ms by SummonerFix and only applies while the game has focus. The key can be changed in `SummonerFixConfig.exe`. Still open: an on-screen indicator, and play-testing combat/AI/scripts at high factors.
+
 What is known so far:
 
 - Game time comes from `FrameTimer` (`FUN_00501510`). Its result `frame_dt` (`0x5a5740`)

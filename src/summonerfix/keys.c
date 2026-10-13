@@ -16,6 +16,7 @@ static PFN_KeyRemapLayout g_layout;
 static unsigned char g_maps[2][256];
 static unsigned char *volatile g_map = g_maps[0]; // table in use; the other one is filled on reload
 static char g_lastSection[8192];
+static void LoadGameKeys(void);
 
 // Text entry (save names, console, chat, input boxes) turns queued key codes into characters with
 // key_to_ascii (0x509ca0). The queued codes are already remapped, so typing E with E=I bound gave "i".
@@ -93,6 +94,7 @@ static DWORD WINAPI WatchIni(LPVOID unused)
             break;
         Sleep(150); // let the writer finish
         LoadBindings(FALSE);
+        LoadGameKeys();
         if (!FindNextChangeNotification(h))
             break;
     }
@@ -100,68 +102,101 @@ static DWORD WINAPI WatchIni(LPVOID unused)
     return 0;
 }
 
-// In-game hotkey ([Game] ConfigKey, default F10): opens SummonerFixConfig.exe (or brings it forward) so
-// bindings can be changed without leaving the game by hand. Polled, so it works whatever the game does with keys.
+// In-game hotkeys from [Game], polled (so they work whatever the game does with keys) and re-read on reload:
+//   ConfigKey (default F10): opens SummonerFixConfig.exe, or brings it forward.
+//   SpeedKey (default F11): while held, the game runs SpeedFactor (default 3) times faster. FrameDone (0x501510)
+//   reports frame time / frametime_divisor (0x5a5748, normally 1.0), and everything in the game advances by
+//   reported_frametime, so lowering the divisor speeds up the whole game consistently.
 #define VA_MAIN_WND 0x2cbff10u
+#define VA_FRAMETIME_DIVISOR 0x5a5748u
 
-static DWORD WINAPI ConfigHotkey(LPVOID vk)
+static volatile UINT g_configVk, g_speedVk;
+static volatile float g_speedFactor = 3.0f;
+
+static UINT VkFromIni(const char *key, const char *def)
 {
-    BOOL wasDown = FALSE;
+    char name[32];
+    GetPrivateProfileStringA("Game", key, def, name, sizeof name, g_cfg.iniPath);
+    if (!name[0] || _stricmp(name, "none") == 0)
+        return 0;
+    int scan = KeyParse(name);
+    UINT vk = scan > 0 ? MapVirtualKeyA((scan & 0x7f) | (scan & 0x80 ? 0xe000 : 0), 3 /* MAPVK_VSC_TO_VK_EX */) : 0;
+    if (!vk)
+        Log("hotkeys: unknown key \"%s\" for %s", name, key);
+    return vk;
+}
+
+static void LoadGameKeys(void)
+{
+    UINT config = VkFromIni("ConfigKey", "F10"), speed = VkFromIni("SpeedKey", "F11");
+    char f[16];
+    GetPrivateProfileStringA("Game", "SpeedFactor", "3", f, sizeof f, g_cfg.iniPath);
+    float factor = (float)atof(f);
+    if (factor < 1.0f) factor = 1.0f;
+    if (factor > 8.0f) factor = 8.0f;
+    if (config != g_configVk || speed != g_speedVk || factor != g_speedFactor)
+        Log("hotkeys: config key vk 0x%02X, speed key vk 0x%02X, speed x%.1f", config, speed, factor);
+    g_configVk = config;
+    g_speedVk = speed;
+    g_speedFactor = factor;
+}
+
+static void OpenConfigApp(void)
+{
+    AllowSetForegroundWindow(ASFW_ANY);
+    HWND cfg = FindWindowA("SummonerFixConfig", NULL);
+    if (cfg) {
+        ShowWindow(cfg, SW_RESTORE);
+        SetForegroundWindow(cfg);
+        Log("config hotkey: brought SummonerFixConfig forward");
+        return;
+    }
+    char exe[MAX_PATH];
+    strcpy(exe, g_cfg.iniPath);
+    char *slash = strrchr(exe, '\\');
+    strcpy(slash ? slash + 1 : exe, "SummonerFixConfig.exe");
+    STARTUPINFOA si;
+    ZeroMemory(&si, sizeof si);
+    si.cb = sizeof si;
+    PROCESS_INFORMATION pi;
+    if (CreateProcessA(exe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        Log("config hotkey: started %s", exe);
+    } else {
+        Log("config hotkey: cannot start %s (error %lu)", exe, GetLastError());
+    }
+}
+
+static DWORD WINAPI PollHotkeys(LPVOID unused)
+{
+    volatile float *divisor = (volatile float *)(UINT_PTR)SumVa(VA_FRAMETIME_DIVISOR);
+    BOOL configWas = FALSE, fast = FALSE;
     for (;;) {
-        Sleep(50);
+        Sleep(15);
         HWND game = *(volatile HWND *)(UINT_PTR)SumVa(VA_MAIN_WND);
-        BOOL down = (GetAsyncKeyState((int)(INT_PTR)vk) & 0x8000) != 0;
-        BOOL pressed = down && !wasDown;
-        wasDown = down;
-        if (!pressed || !game || GetForegroundWindow() != game)
-            continue;
-        AllowSetForegroundWindow(ASFW_ANY);
-        HWND cfg = FindWindowA("SummonerFixConfig", NULL);
-        if (cfg) {
-            ShowWindow(cfg, SW_RESTORE);
-            SetForegroundWindow(cfg);
-            Log("config hotkey: brought SummonerFixConfig forward");
-            continue;
-        }
-        char exe[MAX_PATH];
-        strcpy(exe, g_cfg.iniPath);
-        char *slash = strrchr(exe, '\\');
-        strcpy(slash ? slash + 1 : exe, "SummonerFixConfig.exe");
-        STARTUPINFOA si;
-        ZeroMemory(&si, sizeof si);
-        si.cb = sizeof si;
-        PROCESS_INFORMATION pi;
-        if (CreateProcessA(exe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-            CloseHandle(pi.hThread);
-            CloseHandle(pi.hProcess);
-            Log("config hotkey: started %s", exe);
-        } else {
-            Log("config hotkey: cannot start %s (error %lu)", exe, GetLastError());
+        BOOL focused = game && GetForegroundWindow() == game;
+        UINT cvk = g_configVk, svk = g_speedVk;
+
+        BOOL configDown = cvk && (GetAsyncKeyState((int)cvk) & 0x8000);
+        if (configDown && !configWas && focused)
+            OpenConfigApp();
+        configWas = configDown;
+
+        BOOL want = focused && svk && (GetAsyncKeyState((int)svk) & 0x8000);
+        if (want != fast) {
+            *divisor = want ? 1.0f / g_speedFactor : 1.0f;
+            fast = want;
         }
     }
     return 0;
 }
 
-static void StartConfigHotkey(void)
-{
-    char name[32];
-    GetPrivateProfileStringA("Game", "ConfigKey", "F10", name, sizeof name, g_cfg.iniPath);
-    if (!name[0] || _stricmp(name, "none") == 0)
-        return;
-    int scan = KeyParse(name);
-    UINT vk = scan > 0 ? MapVirtualKeyA((scan & 0x7f) | (scan & 0x80 ? 0xe000 : 0), 3 /* MAPVK_VSC_TO_VK_EX */) : 0;
-    if (!vk) {
-        Log("config hotkey: unknown key \"%s\"", name);
-        return;
-    }
-    Log("config hotkey: %s opens SummonerFixConfig", name);
-    CloseHandle(CreateThread(NULL, 0, ConfigHotkey, (LPVOID)(INT_PTR)vk, 0, NULL));
-}
-
 void KeyBindInstall(void)
 {
     LoadBindings(TRUE);
-    StartConfigHotkey();
+    LoadGameKeys();
+    CloseHandle(CreateThread(NULL, 0, PollHotkeys, NULL, 0, NULL));
 
     // Always hooked (an identity table changes nothing), so bindings added later take effect live.
     g_layout = (PFN_KeyRemapLayout)(UINT_PTR)SumVa(VA_KEY_REMAP_LAYOUT);

@@ -29,6 +29,15 @@ static const Action k_actions[] = {
 };
 #define ACTION_COUNT (int)(sizeof k_actions / sizeof k_actions[0])
 
+// SummonerFix's own hotkeys, stored as key names in [Game] (not remappings). Listed after the actions.
+typedef struct { const char *iniKey, *def, *action; } Hotkey;
+static const Hotkey k_hotkeys[] = {
+    {"SpeedKey", "F11", "Speed up the game (hold)  [SummonerFix]"},
+    {"ConfigKey", "F10", "Open this window while playing  [SummonerFix]"},
+};
+#define HOTKEY_COUNT (int)(sizeof k_hotkeys / sizeof k_hotkeys[0])
+#define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
+
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS };
 
 static char g_ini[MAX_PATH];
@@ -84,6 +93,22 @@ static void BoundKeys(int gameKey, char *out, size_t size)
     }
 }
 
+static const char *RowLabel(int row)
+{
+    return row < ACTION_COUNT ? k_actions[row].action : k_hotkeys[row - ACTION_COUNT].action;
+}
+
+static void HotkeyValue(int h, char *out, DWORD size)
+{
+    GetPrivateProfileStringA("Game", k_hotkeys[h].iniKey, k_hotkeys[h].def, out, size, g_ini);
+}
+
+static void SetHotkey(int h, const char *value)
+{
+    if (!WritePrivateProfileStringA("Game", k_hotkeys[h].iniKey, value, g_ini))
+        SetStatus("Could not write %s (error %lu)", g_ini, GetLastError());
+}
+
 static const char *ActionUsing(int key)
 {
     for (int i = 0; i < ACTION_COUNT; i++)
@@ -102,6 +127,12 @@ static void Refresh(void)
         ListView_SetItemText(g_list, i, 1, def);
         ListView_SetItemText(g_list, i, 2, extra);
     }
+    for (int h = 0; h < HOTKEY_COUNT; h++) {
+        char v[32];
+        HotkeyValue(h, v, sizeof v);
+        ListView_SetItemText(g_list, ACTION_COUNT + h, 1, v);
+        ListView_SetItemText(g_list, ACTION_COUNT + h, 2, "");
+    }
 }
 
 static void StopCapture(void)
@@ -115,9 +146,20 @@ static void StopCapture(void)
 
 static void Assign(int row, int physical)
 {
-    const Action *a = &k_actions[row];
     char name[8];
     KeyNameOf(physical, name, sizeof name);
+    if (row >= ACTION_COUNT) {
+        int h = row - ACTION_COUNT;
+        SetHotkey(h, name);
+        Refresh();
+        const char *other = ActionUsing(g_map[physical]);
+        if (other)
+            SetStatus("%s now does \"%s\" (it still also does \"%s\" in the game). Saved.", name, k_hotkeys[h].action, other);
+        else
+            SetStatus("%s now does \"%s\". Saved.", name, k_hotkeys[h].action);
+        return;
+    }
+    const Action *a = &k_actions[row];
     if (physical == a->gameKey) {
         SetStatus("%s is already the default key for %s.", name, a->action);
         return;
@@ -166,7 +208,7 @@ static void StartCapture(void)
     g_capturing = row;
     g_hook = SetWindowsHookExA(WH_KEYBOARD, KeyHook, NULL, GetCurrentThreadId());
     SetWindowTextA(GetDlgItem(g_wnd, ID_CHANGE), "&Cancel");
-    SetStatus("Press the key you want for \"%s\"...", k_actions[row].action);
+    SetStatus("Press the key you want for \"%s\"...", RowLabel(row));
 }
 
 static void ClearRow(void)
@@ -174,6 +216,12 @@ static void ClearRow(void)
     int row = SelectedRow();
     if (row < 0) {
         SetStatus("Select an action first.");
+        return;
+    }
+    if (row >= ACTION_COUNT) {
+        SetHotkey(row - ACTION_COUNT, "none");
+        Refresh();
+        SetStatus("\"%s\" is now off. Saved.", RowLabel(row));
         return;
     }
     int k = k_actions[row].gameKey, n = 0;
@@ -189,13 +237,15 @@ static void ClearRow(void)
 
 static void ResetAll(void)
 {
-    if (MessageBoxA(g_wnd, "Remove all custom key bindings?", "SummonerFix", MB_YESNO | MB_ICONQUESTION) != IDYES)
+    if (MessageBoxA(g_wnd, "Remove all custom key bindings and restore the F10/F11 hotkeys?", "SummonerFix", MB_YESNO | MB_ICONQUESTION) != IDYES)
         return;
     for (int i = 0; i < 256; i++)
         g_map[i] = (unsigned char)i;
     Save();
+    for (int h = 0; h < HOTKEY_COUNT; h++)
+        SetHotkey(h, k_hotkeys[h].def);
     Refresh();
-    SetStatus("All keys are back to the game defaults. Saved.");
+    SetStatus("All keys are back to the defaults. Saved.");
 }
 
 static HWND Button(HWND parent, int id, const char *text, int x, int y, int w)
@@ -226,6 +276,14 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             it.mask = LVIF_TEXT;
             it.iItem = i;
             it.pszText = (char *)k_actions[i].action;
+            ListView_InsertItem(g_list, &it);
+        }
+        for (int h = 0; h < HOTKEY_COUNT; h++) {
+            LVITEMA it;
+            ZeroMemory(&it, sizeof it);
+            it.mask = LVIF_TEXT;
+            it.iItem = ACTION_COUNT + h;
+            it.pszText = (char *)k_hotkeys[h].action;
             ListView_InsertItem(g_list, &it);
         }
         Button(w, ID_CHANGE, "&Change key...", 540, 10, 120);
