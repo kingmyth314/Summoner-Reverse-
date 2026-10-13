@@ -199,8 +199,25 @@ static LONG WINAPI Hook_SetWindowLongA(HWND w, int index, LONG value)
     return real_SetWindowLongA(w, index, value);
 }
 
+// The game's window procedure (0x530ff0) answers WM_ACTIVATE/WM_ACTIVATEAPP with
+// SetWindowPos(main_wnd, HWND_TOPMOST or HWND_NOTOPMOST, 0, 0, screen w, screen h, 0): return addresses
+// 0x5310b7 (gaining focus) and 0x5310ef (losing focus). Flags 0 means "activate", so the losing-focus call
+// pulled the game straight back to the front and Alt+Tab to another program (e.g. SummonerFixConfig) failed.
+#define VA_WNDPROC_SETPOS_ACTIVATE 0x5310b7u
+#define VA_WNDPROC_SETPOS_DEACTIVATE 0x5310efu
+
+static DWORD ReturnVa(void *ret)
+{
+    return (DWORD)(UINT_PTR)ret - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE;
+}
+
 static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, int cy, UINT flags)
 {
+    DWORD from = ReturnVa(__builtin_return_address(0));
+    if (from == VA_WNDPROC_SETPOS_DEACTIVATE)
+        return TRUE; // losing focus: leave the window where it is, don't re-activate it
+    if (from == VA_WNDPROC_SETPOS_ACTIVATE)
+        flags |= SWP_NOACTIVATE; // already being activated; keep our geometry below
     if (w == g_wnd && g_wnd && !(flags & SWP_NOSIZE)) {
         HMONITOR mon = MonitorFromWindow(w, MONITOR_DEFAULTTOPRIMARY);
         MONITORINFO mi;

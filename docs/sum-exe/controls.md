@@ -90,3 +90,33 @@ looks up a 256-entry table loaded from `summonerfix.ini`. Remapped keys would th
 The layout remapping still has to be kept (it depends on `key_layout`, `0x25daa50`), and
 console keys stay separate. Mouse buttons do not pass through this function; remapping
 them would need a hook in `mouse_update`.
+
+## Chain attacks
+
+When a chain attack is possible, `chain_attack_select` (`0x43c830`) checks which modifier key is
+held and picks one of the character's four chain-skill slots
+(`character_get_chain_skill(char, slot)`, `0x449440`):
+
+| Held key | Slot |
+|---|---|
+| Shift (left or right) | 1 |
+| Ctrl (left or right) | 2 |
+| Alt (left or right) | 3 |
+| CapsLock | 0 |
+| none | The character's default slot (`+0x184`). After a chain made this way it rotates 0 → 3 → 1 → 2 (`character_cycle_default_chain`) |
+
+A slot with no skill shows "No chain skill configured!". Skills are assigned per slot with
+`character_set_chain_skill` (`0x4493e0`).
+
+These are held-key checks (`key_is_down`). The [key-binding hook](#hook-for-custom-bindings)
+runs before the key-down state is stored, so a binding such as `Q=LShift` makes Q select
+chain slot 1. It also makes Q act as Shift everywhere else, for example in Shift+Tab and
+Shift+click.
+
+## Switching away from the game (Alt+Tab)
+
+`os_wndproc` (`0x530ff0`) answers `WM_ACTIVATE`/`WM_ACTIVATEAPP` with `SetWindowPos(main_wnd,
+HWND_TOPMOST or HWND_NOTOPMOST, 0, 0, screen width, screen height, 0)`. Flags 0 include
+activation, so the call made on *losing* focus brought the game straight back. SummonerFix
+skips that call and adds `SWP_NOACTIVATE` to the other one (see
+[SummonerFix](../summonerfix/index.md)).

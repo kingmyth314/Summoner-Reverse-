@@ -20,6 +20,12 @@ static const Action k_actions[] = {
     {0x58, "Camera mode"},
     {0xcb, "Turn camera left"}, {0xcd, "Turn camera right"}, {0xc8, "Tilt camera up"}, {0xd0, "Tilt camera down"},
     {0x23, "H key action"}, {0x3c, "F2 screen"},
+    // Chain attacks: chain_attack_select (0x43c830) checks these keys while held when a chain is possible.
+    // Binding a key here makes it act as that modifier everywhere (e.g. Shift+Tab, Ctrl+click).
+    {0x2a, "Chain attack slot 1 (hold; also Shift)"},
+    {0x1d, "Chain attack slot 2 (hold; also Ctrl)"},
+    {0x38, "Chain attack slot 3 (hold; also Alt)"},
+    {0x3a, "Chain attack slot 0 (hold)"},
 };
 #define ACTION_COUNT (int)(sizeof k_actions / sizeof k_actions[0])
 
@@ -211,9 +217,9 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         LVCOLUMNA col;
         ZeroMemory(&col, sizeof col);
         col.mask = LVCF_TEXT | LVCF_WIDTH;
-        col.pszText = "Action"; col.cx = 250; ListView_InsertColumn(g_list, 0, &col);
+        col.pszText = "Action"; col.cx = 270; ListView_InsertColumn(g_list, 0, &col);
         col.pszText = "Game key"; col.cx = 110; ListView_InsertColumn(g_list, 1, &col);
-        col.pszText = "Also on"; col.cx = 150; ListView_InsertColumn(g_list, 2, &col);
+        col.pszText = "Also on"; col.cx = 130; ListView_InsertColumn(g_list, 2, &col);
         for (int i = 0; i < ACTION_COUNT; i++) {
             LVITEMA it;
             ZeroMemory(&it, sizeof it);
