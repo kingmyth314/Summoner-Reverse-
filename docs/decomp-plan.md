@@ -125,12 +125,12 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1 progress (2026-10-13): **469 / 5,548** game/engine functions named
-(8.5%), plus 136 pointer-only callbacks.
+Phase 0 is complete. Phase 1 progress (2026-10-13): **479 / 5,548** game/engine functions named
+(8.6%), plus 136 pointer-only callbacks.
 
 | Module | Status | Page |
 |---|---|---|
-| `os`: timestamp, timer, memory/mempool, stringpool, debug, registry, cmdline, console, key state, networking, import thunks | Mostly done; a few helpers left | [OS layer](sum-exe/vsdk-os.md), [Console](sum-exe/console.md) |
+| `os`: timestamp, timer, memory/mempool, stringpool, debug, registry, cmdline, console, key state, networking, import thunks, crash reporter | Mostly done; a few helpers left | [OS layer](sum-exe/vsdk-os.md), [Console](sum-exe/console.md) |
 | `parse` (TextFile) | Done (33 methods) | [Parser](sum-exe/vsdk-parse.md) |
 | `vfile\packfile` | Done | [Packfiles](sum-exe/vsdk-packfile.md) |
 | `bmpman` + image readers | Done (TGA/PCX/M2V, JPEG screenshots) | [Bitmap manager](sum-exe/vsdk-bmpman.md) |

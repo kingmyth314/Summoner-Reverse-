@@ -60,6 +60,8 @@
 0x43d7b0 MainLoop                 func  -                        O ; init, then PumpMessages + GameTick until state 3
 0x43d7f0 LoadSettings             func  -                        O ; registry settings, resolution table, renderer choice, GrInit
 0x43df40 GameInit                 func  -                        O
+0x43e5e0  WinMain                  func  -                      O ; called by WinMainCRTStartup; __try { MainLoop() } __except (RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread"))
+0x43e660  cd_find_drive            func  -                      I ; scans drive letters, GetDriveTypeA/GetVolumeInformationA for the game disc; used by CdCheck
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
 0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
@@ -556,6 +558,14 @@
 0x53e4a0  CmdLineParam__found      func  vsdk\os\cmdline.cpp    O ; returns name_found (+0x14), as Dash Faction
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
+0x5419a0  RecordExceptionInfo      func  exceptionhandler       O ; Bruce Dawson's ExceptionHandler.cpp (Game Developer 1999): appends a report to errorlog.txt beside Sum.exe
+0x541ec0  hprintf                  func  exceptionhandler       O ; printf to a file HANDLE (Dawson)
+0x541f10  RecordModuleList         func  exceptionhandler       O ; "Module list: names, addresses, sizes, time stamps and file times:"
+0x541fb0  ShowModuleInfo           func  exceptionhandler       O ; "%s, loaded at 0x%08x - %d bytes"
+0x542130  PrintTime                func  exceptionhandler       O ; FILETIME -> "%d/%d/%d %02d:%02d:%02d"
+0x5421d0  RecordSystemInformation  func  exceptionhandler       O ; time, exe and user, processors, physical memory
+0x5422f0  GetExceptionDescription  func  exceptionhandler       O ; "an Access Violation", "a Float Divide by Zero", ...
+0x5424e0  GetFilePart              func  exceptionhandler       O ; text after the last backslash
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
@@ -630,6 +640,7 @@
 0x56da2b  printf                   func  crt                    O ; stdout (_iob + 0x20)
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56dd70  _CIacos                  func  crt                    O ; x87 intrinsic acos
+0x56e135  WinMainCRTStartup        func  crt                    O ; calls WinMain
 0x56e311  atoi                     func  crt                    O
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
 0x56e90c  _isnan                   func  crt                    O

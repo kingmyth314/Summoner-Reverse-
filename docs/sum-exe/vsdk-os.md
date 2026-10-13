@@ -106,6 +106,26 @@ format string as Summoner 2 (`"Error: %s\nFile: %s - Line: %d"`); the PC version
 titled `Error!`, and calls `exit(1)`. Every `vsdk` assert goes through it. It produced
 the dialogs seen while bringing up SummonerFix.
 
+### Crash reports: `errorlog.txt`
+
+`WinMain` (`0x43e5e0`) runs `MainLoop` inside `__try`/`__except`. The filter calls
+`RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread")` (`0x5419a0`), which
+**appends a crash report to `errorlog.txt` in the game folder**. The report contains:
+- the exception type and address;
+- registers, the bytes at EIP and a stack dump;
+- a module list with load addresses and sizes;
+- the time, the user, processors and memory.
+
+The code and strings match Bruce Dawson's public `ExceptionHandler.cpp` (Game Developer
+magazine, 1999), so its function names are used:
+- `RecordExceptionInfo`, `hprintf`, `RecordModuleList`, `ShowModuleInfo`;
+- `PrintTime`, `RecordSystemInformation`, `GetExceptionDescription`, `GetFilePart`
+  (`0x541ec0`-`0x5424e0`).
+
+When a test crashes, check `Summoner\errorlog.txt` first. None existed on 2026-10-13. The
+Direct3D failure path is not a crash: it calls `exit(0)`
+([video settings](video-settings.md)).
+
 ## `console.cpp`: the developer console
 
 Strings at `0x5a7000`-`0x5a7258` match Summoner 2's `console.cpp` messages exactly, and the
