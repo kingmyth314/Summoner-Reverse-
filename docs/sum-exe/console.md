@@ -42,6 +42,20 @@ Toggle callbacks read the argument flags that the console sets before calling. F
 `show_framerate` (`0x432410`): flag `0x40` sets the variable to 1, `0x80` sets it to 0, and
 `0x01` flips it; it then prints `"<variable> is <state>"` with `sprintf`.
 
+## Variables named from command descriptions
+
+64 commands are described as `Toggles <Variable>` or `Sets <Variable>`, which gives the
+original name of the global they control. `node tools/console-vars.mjs` scans each callback
+for absolute memory operands into `.data`/`.bss`. It drops addresses shared by more than
+three callbacks (output buffers, console state) and keeps a variable when exactly one
+candidate remains: 63 of 64 resolve this way. They are in `symbols/sum.symbols` with
+confidence **I**. The scan is byte-based rather than a full instruction decoder, and the
+types (`bool` for toggles, `int` for setters) are guesses.
+
+Check case: `show_framerate` resolves to `0x5fc01f`, which is already known from
+`FrameEnd`. The one ambiguous result is that same command, where the scanner also hit a
+misaligned match. Its variable is named `Gamewide_show_framerate` from its own description.
+
 ## Using the commands
 
 The descriptions name many internal variables ("Toggles Players_immortal", "Sets Gr_far_min"),

@@ -229,6 +229,29 @@
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
 0x588a70 gameseq_state_table      data:GameStateHandlers[6] -            O ; {enter, frame, leave} per state
+0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
+0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
+0x5931b0  Gamewide_show_net_stats  data:bool -                      I ; set by console command "net_stats" (toggles); type inferred
+0x599690  Chance_to_drop_gold      data:int -                      I ; set by console command "chance_gold" (sets); type inferred
+0x599694  Use_spell_ap             data:bool -                      I ; set by console command "Spell_ap" (toggles); type inferred
+0x59a16c  Debug_death              data:bool -                      I ; set by console command "death" (toggles); type inferred
+0x59aa58  S3d_load_lightmaps       data:bool -                      I ; set by console command "load_lightmaps" (toggles); type inferred
+0x59af58  Ai_path_wandering_enabled data:bool -                      I ; set by console command "ai_wander" (toggles); type inferred
+0x59bd79  Render_level             data:bool -                      I ; set by console command "render_level" (toggles); type inferred
+0x59bd7a  Render_characters        data:bool -                      I ; set by console command "render_characters" (toggles); type inferred
+0x59bd7b  Render_effects           data:bool -                      I ; set by console command "render_effects" (toggles); type inferred
+0x59bd9c  Main_character_lod_dist  data:int -                      I ; set by console command "main_lod_dist" (sets); type inferred
+0x59bda0  Character_lod_dist       data:int -                      I ; set by console command "lod_dist" (sets); type inferred
+0x59bda8  Cull_ground_too          data:bool -                      I ; set by console command "Cull_ground_too" (toggles); type inferred
+0x59c47c  Small_mesh_threshold     data:int -                      I ; set by console command "small_mesh_threshold" (sets); type inferred
+0x59c480  Time_mult                data:int -                      I ; set by console command "time_mult" (sets); type inferred
+
+0x59c484  Space_mult               data:int -                      I ; set by console command "space_mult" (sets); type inferred
+0x59c594  Party_controller_check   data:bool -                      I ; set by console command "party_controller_check" (toggles); type inferred
+0x59c5e8  Snow_enabled             data:bool -                      I ; set by console command "snow" (toggles); type inferred
+0x59c5e9  Snow_render              data:bool -                      I ; set by console command "snow_render" (toggles); type inferred
+0x59e0fc  Do_frame_callback        data:bool -                      I ; set by console command "do_frame_callback" (toggles); type inferred
+0x5a4c4c  Random_encounters_enabled data:bool -                      I ; set by console command "random_encounters" (toggles); type inferred
 0x5a573c actual_frametime         data:float           frametime.cpp     V
 0x5a5740 reported_frametime       data:float           frametime.cpp     V
 0x5a5744 fps                      data:float           frametime.cpp     V
@@ -238,6 +261,15 @@
 0x5a5754 frametime_history_index  data:int             frametime.cpp     V
 0x5a5758 Timestamp_ticker           data:int             timestamp.cpp     V ; Summoner 2 decomp; game-time ms clock, starts at 1
 0x5a575c Timestamp_realtime_ticker    data:int             timestamp.cpp     V ; Summoner 2 decomp; real-time ms clock, starts at 1
+0x5a5760  Load_mipmaps             data:bool -                      I ; set by console command "load_mipmaps" (toggles); type inferred
+0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
+
+0x5a605c  Gr_level_fog_multiplier  data:int -                      I ; set by console command "level_fog" (sets); type inferred
+0x5a7294  Gr_far_min               data:int -                      I ; set by console command "far_min" (sets); type inferred
+0x5a7298  Gr_far_max               data:int -                      I ; set by console command "far_max" (sets); type inferred
+0x5a72a0  Gr_3d_zmult              data:int -                      I ; set by console command "zmult" (sets); type inferred
+0x5a72a4  Gr_3d_zmax               data:int -                      I ; set by console command "zmax" (sets); type inferred
+0x5a98d4  Allow_movement_vel_change data:bool -                      I ; set by console command "movement_vel_change" (toggles); type inferred
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
 0x5b27e8 gameseq_state_next       data:int             -                 O
@@ -245,39 +277,49 @@
 0x5b2a00  ccmd_map_grid            data:console_command -                      O ; console command object "map_grid"
 0x5b2b60  ccmd_show_coordinates    data:console_command -                      O ; console command object "show_coordinates"
 0x5b2ca8  ccmd_reset_map_labels    data:console_command -                      O ; console command object "reset_map_labels"
-
 0x5b2da8  ccmd_map_mask            data:console_command -                      O ; console command object "map_mask"
+0x5b2db4  Map_grid                 data:bool -                      I ; set by console command "map_grid" (toggles); type inferred
 0x5bd780  ccmd_show_ui             data:console_command -                      O ; console command object "show_ui"
 0x5f9610  ccmd_Ignore_tutorial     data:console_command -                      O ; console command object "Ignore_tutorial"
+0x5f9625  Ignore_tutorial          data:bool -                      I ; set by console command "Ignore_tutorial" (toggles); type inferred
 0x5f9e38  ccmd_save_map_labels     data:console_command -                      O ; console command object "save_map_labels"
 0x5fade0  ccmd_us_open_demo        data:console_command -                      O ; console command object "us_open_demo"
+0x5fbf1a  US_open_demo             data:bool -                      I ; set by console command "us_open_demo" (toggles); type inferred
 0x5fbf20  ccmd_show_hud_info       data:console_command -                      O ; console command object "show_hud_info"
 0x5fbf30  ccmd_gr_info             data:console_command -                      O ; console command object "gr_info"
 0x5fbfd8 game_debug_flags         data:int             -                 I
 0x5fbfe8  ccmd_show_framerate      data:console_command -                      O ; console command object "show_framerate"
 0x5fbff8  ccmd_targa               data:console_command -                      O ; console command object "targa"
 0x5fc008  ccmd_net_stats           data:console_command -                      O ; console command object "net_stats"
-0x5fc01f show_framerate           data:bool            -                 O ; console variable Gamewide_show_framerate
+0x5fc01f Gamewide_show_framerate           data:bool            -                 O ; console variable Gamewide_show_framerate
+0x5fc020  Gamewide_show_gr_info    data:bool -                      I ; set by console command "gr_info" (toggles); type inferred
+0x5fc021  Gamewide_show_hud_info   data:bool -                      I ; set by console command "show_hud_info" (toggles); type inferred
+0x5fc022  Print_screen_as_targa    data:bool -                      I ; set by console command "targa" (toggles); type inferred
 0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
+0x5fcc91  Max_skills               data:bool -                      I ; set by console command "max_skills" (toggles); type inferred
 0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
 0x601e78 sequence_start_time      data:int             -                 O ; timeGetTime at sequence start
 0x6034b8  ccmd_play_cutscene       data:console_command -                      O ; console command object "play_cutscene"
 0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
-
 0x609f20  ccmd_stop_cutscene       data:console_command -                      O ; console command object "stop_cutscene"
 0x609f60  ccmd_Give_all_items      data:console_command -                      O ; console command object "Give_all_items"
 0x609f70  ccmd_full_party          data:console_command -                      O ; console command object "full_party"
 0x609f90  ccmd_add_xp              data:console_command -                      O ; console command object "add_xp"
 0x609fb0  ccmd_dump_sound_usage    data:console_command -                      O ; console command object "dump_sound_usage"
+0x609fe0  Full_party               data:bool -                      I ; set by console command "full_party" (toggles); type inferred
+0x609fe1  Dump_sound_usage         data:bool -                      I ; set by console command "dump_sound_usage" (toggles); type inferred
+0x609fec  Give_all_items           data:bool -                      I ; set by console command "Give_all_items" (toggles); type inferred
 0x60a410  ccmd_flece               data:console_command -                      O ; console command object "flece"
 0x60a420  ccmd_character           data:console_command -                      O ; console command object "character"
 0x60a638  ccmd_jekhar              data:console_command -                      O ; console command object "jekhar"
 0x60a648  ccmd_render_3d_obstacles data:console_command -                      O ; console command object "render_3d_obstacles"
 0x60a658  ccmd_rosalind            data:console_command -                      O ; console command object "rosalind"
+0x60a665  Render_3d_obstacles      data:bool -                      I ; set by console command "render_3d_obstacles" (toggles); type inferred
 0x60abd0  ccmd_stop_sound          data:console_command -                      O ; console command object "stop_sound"
 0x60abe8  ccmd_gamma               data:console_command -                      O ; console command object "gamma"
 0x60ac20  ccmd_play_sound          data:console_command -                      O ; console command object "play_sound"
 0x60ae58  ccmd_all_multi_levels    data:console_command -                      O ; console command object "all_multi_levels"
+0x60ae64  All_multi_levels         data:bool -                      I ; set by console command "all_multi_levels" (toggles); type inferred
 0x60f4f0  ccmd_save_mlayout        data:console_command -                      O ; console command object "save_mlayout"
 0x60f928  ccmd_load_mlayout        data:console_command -                      O ; console command object "load_mlayout"
 0x65e0c0  ccmd_disp_rate           data:console_command -                      O ; console command object "disp_rate"
@@ -285,19 +327,27 @@
 0x65e998  ccmd_Quick_combo         data:console_command -                      O ; console command object "Quick_combo"
 0x68e200  ccmd_All_summons         data:console_command -                      O ; console command object "All_summons"
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
+0x8b50b0  All_summons              data:bool -                      I ; set by console command "All_summons" (toggles); type inferred
+0x8b50b2  Quick_combo              data:bool -                      I ; set by console command "Quick_combo" (toggles); type inferred
 0x8eca30  ccmd_chance_gold         data:console_command -                      O ; console command object "chance_gold"
 0x8eca40  ccmd_Spell_ap            data:console_command -                      O ; console command object "Spell_ap"
 0x8eca50  ccmd_kill_summon         data:console_command -                      O ; console command object "kill_summon"
 0x8ed970  ccmd_immortal            data:console_command -                      O ; console command object "immortal"
 0x940428  ccmd_no_resist           data:console_command -                      O ; console command object "no_resist"
 0x941508  ccmd_health              data:console_command -                      O ; console command object "health"
+0x941704  Players_immortal         data:bool -                      I ; set by console command "immortal" (toggles); type inferred
+0x941705  No_resist                data:bool -                      I ; set by console command "no_resist" (toggles); type inferred
 0x941710  ccmd_death               data:console_command -                      O ; console command object "death"
 0x941720  ccmd_Super_power         data:console_command -                      O ; console command object "Super_power"
 0x941730  ccmd_bloodspots          data:console_command -                      O ; console command object "bloodspots"
+0x94173c  Bloodspots               data:bool -                      I ; set by console command "bloodspots" (toggles); type inferred
+0x94173d  Super_power              data:bool -                      I ; set by console command "Super_power" (toggles); type inferred
 0x970810  ccmd_add_gold            data:console_command -                      O ; console command object "add_gold"
 0x22c4388 ccmd_load_lightmaps      data:console_command -                      O ; console command object "load_lightmaps"
 0x22e43a8 ccmd_p3d_files           data:console_command -                      O ; console command object "p3d_files"
 0x22e43e8 ccmd_test_meshes_on_load data:console_command -                      O ; console command object "test_meshes_on_load"
+0x22e4423 Test_meshes_on_load      data:bool -                      I ; set by console command "test_meshes_on_load" (toggles); type inferred
+0x22e4424 P3D_files                data:bool -                      I ; set by console command "p3d_files" (toggles); type inferred
 0x22e47d0 ccmd_offense_point       data:console_command -                      O ; console command object "offense_point"
 0x22e47e0 ccmd_slowdown_scaler     data:console_command -                      O ; console command object "slowdown_scaler"
 0x22e48b0 ccmd_pause_ai            data:console_command -                      O ; console command object "pause_ai"
@@ -305,9 +355,11 @@
 0x22e48d0 ccmd_ai_wander           data:console_command -                      O ; console command object "ai_wander"
 0x22e4930 ccmd_attack_point        data:console_command -                      O ; console command object "attack_point"
 0x22e4990 ccmd_ai_frame_update_rate data:console_command -                      O ; console command object "ai_frame_update_rate"
+0x22e499c Ai_paused                data:bool -                      I ; set by console command "pause_ai" (toggles); type inferred
 0x22e4ae0 ccmd_mlook_sensitivity   data:console_command -                      O ; console command object "mlook_sensitivity"
 0x22e4af0 ccmd_zoom_limit          data:console_command -                      O ; console command object "zoom_limit"
 0x22e4b00 ccmd_geom_avoid          data:console_command -                      O ; console command object "geom_avoid"
+0x22e4b0c Camera_geometry_avoidance data:bool -                      I ; set by console command "geom_avoid" (toggles); type inferred
 0x22e9240 ccmd_summon              data:console_command -                      O ; console command object "summon"
 0x22e94e8 ccmd_Multi_path_type     data:console_command -                      O ; console command object "Multi_path_type"
 0x22ec4c8 ccmd_Cull_ground         data:console_command -                      O ; console command object "Cull_ground"
@@ -318,6 +370,7 @@
 0x22f9d80 ccmd_set_fog             data:console_command -                      O ; console command object "set_fog"
 0x22f9dd0 ccmd_Cull_ground_too     data:console_command -                      O ; console command object "Cull_ground_too"
 0x22faed0 ccmd_render_characters   data:console_command -                      O ; console command object "render_characters"
+0x22fb716 Cull_ground              data:bool -                      I ; set by console command "Cull_ground" (toggles); type inferred
 0x23f81d8 ccmd_small_mesh_threshold data:console_command -                      O ; console command object "small_mesh_threshold"
 0x23fc838 ccmd_time_mult           data:console_command -                      O ; console command object "time_mult"
 0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"
@@ -337,10 +390,12 @@
 0x2452c98 ccmd_tiger_combat        data:console_command -                      O ; console command object "tiger_combat"
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
+0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
+0x247e8c0 Use_turn_anims           data:bool -                      I ; set by console command "Turn_anims" (toggles); type inferred
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
 0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
@@ -354,6 +409,7 @@
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
 0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
 0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
+
 0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
 0x248c7c0 ccmd_gs_stage            data:console_command -                      O ; console command object "gs_stage"
 0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
@@ -362,10 +418,13 @@
 0x2490c80 ccmd_dont_load_fx        data:console_command -                      O ; console command object "dont_load_fx"
 0x2490c90 ccmd_No_cutscenes        data:console_command -                      O ; console command object "No_cutscenes"
 0x2491a5c game_frozen             data:bool            -                 I ; GameTick sets reported_frametime = 0 when 1
+0x2493a15 Dont_load_fx             data:bool -                      I ; set by console command "dont_load_fx" (toggles); type inferred
+0x2493a16 No_cutscenes             data:bool -                      I ; set by console command "No_cutscenes" (toggles); type inferred
 0x2493a18 ccmd_loadgame            data:console_command -                      O ; console command object "loadgame"
 0x2493a28 ccmd_Preparse_scripts    data:console_command -                      O ; console command object "Preparse_scripts"
 0x2494b20 ccmd_savegame            data:console_command -                      O ; console command object "savegame"
 0x24dfb30 ccmd_gamestage           data:console_command -                      O ; console command object "gamestage"
+0x24e3b48 Preparse_scripts         data:bool -                      I ; set by console command "Preparse_scripts" (toggles); type inferred
 0x24ed5f0 ccmd_door_toggle         data:console_command -                      O ; console command object "door_toggle"
 0x25388b0 ccmd_door_open           data:console_command -                      O ; console command object "door_open"
 0x253ef30 ccmd_door_close          data:console_command -                      O ; console command object "door_close"
@@ -374,6 +433,7 @@
 0x2546750 ccmd_dcamera             data:console_command -                      O ; console command object "dcamera"
 0x2549d30 ccmd_render_s3d_navpoints data:console_command -                      O ; console command object "render_s3d_navpoints"
 0x254a8a0 ccmd_remove_nav          data:console_command -                      O ; console command object "remove_nav"
+0x256b74a Render_s3d_navpoints     data:bool -                      I ; set by console command "render_s3d_navpoints" (toggles); type inferred
 0x257ed10 ccmd_random_encounters   data:console_command -                      O ; console command object "random_encounters"
 0x257ed50 ccmd_iw                  data:console_command -                      O ; console command object "iw"
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
@@ -391,6 +451,7 @@
 0x25d8d30 gr_screen               data:gr__Screen      vsdkgrgr.cpp    V ; Dash Faction rf::gr::Screen layout
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
+0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
@@ -398,6 +459,7 @@
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
+0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
@@ -408,4 +470,6 @@
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
+0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
+0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred
