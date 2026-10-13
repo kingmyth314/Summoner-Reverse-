@@ -215,6 +215,39 @@
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
 0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
 0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
+0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
+0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
+0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
+0x515a20  TextFile__SkipSpaces     func  vsdk\parse\parse.cpp   I ; skips blanks and control whitespace (used by SkipWhitespace?)
+0x515a80  TextFile__SkipWhitespace func  vsdk\parse\parse.cpp   I ; called first by Peek/Accept/ParseFloat, as Summoner 2's SkipWhitespace
+0x515ba0  TextFile__SkipTo         func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipTo(string, stop); strstr, stop must not come first
+0x515c50  TextFile__SkipPast       func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipPast(string, stop) = SkipTo + Expect
+0x515c80  TextFile__CopyUntil      func  vsdk\parse\parse.cpp   O ; copies text up to SkipTo(string, stop) into dest; not in Summoner 2
+0x515ce0  TextFile__GetPosition    func  vsdk\parse\parse.cpp   V ; Summoner 2; {line, cursor}
+0x515d00  TextFile__SetPosition    func  vsdk\parse\parse.cpp   V ; Summoner 2
+0x515d20  TextFile__Open           func  vsdk\parse\parse.cpp   I ; position matches Summoner 2 Open(name, max_size); not yet verified
+0x515e90  TextFile__Close          func  vsdk\parse\parse.cpp   V ; Summoner 2; frees the buffer unless a static buffer is in use
+0x515ec0  TextFile__Rewind         func  vsdk\parse\parse.cpp   V ; Summoner 2; line = 1, cursor = buffer
+0x515ee0  TextFile__Error          func  vsdk\parse\parse.cpp   V ; Summoner 2; "Parsing file %s, at line #%d Expected %s but found this text"
+0x515f90  TextFile__SkipLine       func  vsdk\parse\parse.cpp   O ; skips the rest of the line; PC-only
+0x516010  TextFile__ReadLine       func  vsdk\parse\parse.cpp   V ; Summoner 2 ReadLine(dest, dest_size)
+0x516090  TextFile__SkipWhitespaceAndLine func  vsdk\parse\parse.cpp   I ; SkipWhitespace + SkipLine
+0x5160b0  TextFile__ReadNextLine   func  vsdk\parse\parse.cpp   I ; SkipWhitespace + ReadLine
+0x5160d0  TextFile__Peek           func  vsdk\parse\parse.cpp   V ; Summoner 2; _strnicmp at cursor
+0x516110  TextFile__Accept         func  vsdk\parse\parse.cpp   V ; Summoner 2; consumes the string on match
+0x5161e0  TextFile__Expect         func  vsdk\parse\parse.cpp   V ; Summoner 2; Accept or Error
+0x516230  TextFile__ParseBool      func  vsdk\parse\parse.cpp   O ; Error("a boolean value"); PC-only
+0x516290  TextFile__ParseInt       func  vsdk\parse\parse.cpp   V ; Error("an integer")
+0x516380  TextFile__ParseUInt      func  vsdk\parse\parse.cpp   V ; Error("a uint")
+0x516460  TextFile__ParseFloat     func  vsdk\parse\parse.cpp   V ; between ParseUInt and ParseVector, handles '-' as in Summoner 2
+0x516510  TextFile__ParseVector    func  vsdk\parse\parse.cpp   V ; Error("a vector", "a vector terminator")
+0x5165a0  TextFile__ParseMatrix    func  vsdk\parse\parse.cpp   V ; Error("a matrix")
+0x516630  TextFile__ParseString_b  func  vsdk\parse\parse.cpp   I ; Error("a string"); second string parser
+0x5166b0  TextFile__ParseString    func  vsdk\parse\parse.cpp   V ; Error("a string"), "Not enough storage provided (%d) for parsed C string"
+0x5168b0  TextFile__ParseStringList func  vsdk\parse\parse.cpp   O ; Error("a string list")
+0x516940  TextFile__ParseIntList   func  vsdk\parse\parse.cpp   V ; Error("an integer list")
+0x516a30  TextFile__ParseFloatList func  vsdk\parse\parse.cpp   V ; Error("a float list")
+0x516bd0  TextFile__ParseTypeString func  vsdk\parse\parse.cpp   V ; Error("a valid type string")
 0x518bb0  nw_NewReceiveReliable    func  -                      O ; own assert "Invalid socket id passed to nw_NewReceiveReliable()"
 0x518d70  nw_NewSendReliable       func  -                      O ; own assert "Invalid socket id passed to nw_NewSendReliable()"
 0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
@@ -252,6 +285,7 @@
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
 0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1

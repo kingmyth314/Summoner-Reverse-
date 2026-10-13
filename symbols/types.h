@@ -39,6 +39,17 @@ typedef struct console_command {
     void (*callback)(void);  // +0x8
 } console_command;
 
+// Text-table parser (Summoner 2: TextFile, vsdk\parse\parse.cpp). Partial layout observed in the
+// TextFile__* methods; the gap holds the file name and other state (not yet mapped).
+typedef struct TextFile {
+    char* buffer;            // +0x00 file contents (freed by Close unless a static buffer is used)
+    char* cursor;            // +0x04 current parse position
+    uint8_t flag08;          // +0x08 zeroed by the constructor
+    uint8_t _unmapped[0x3f]; // +0x09
+    int32_t line;            // +0x48 current line number (Rewind sets 1)
+    int32_t size;            // +0x4C buffer length (SkipTo bounds check)
+} TextFile;
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current
