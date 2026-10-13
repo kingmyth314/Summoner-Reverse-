@@ -50,6 +50,31 @@ typedef struct TextFile {
     int32_t size;            // +0x4C buffer length (SkipTo bounds check)
 } TextFile;
 
+// .vpp packfile records (vsdk\vfile\packfile\file_packfile.cpp). PC layouts differ from Summoner 2's:
+// observed in packfile_find_packfile / packfile_find_in_packfile / packfile_fopen / fseek.
+typedef struct Packfile Packfile;
+typedef struct PackfileEntry {
+    uint32_t hash;           // +0x00 packfile_hash(name)
+    const char* name;        // +0x04
+    int32_t sector;          // +0x08 offset in 2048-byte sectors from the packfile start
+    int32_t size;            // +0x0C bytes
+    Packfile* packfile;      // +0x10
+    void* hdd_file;          // +0x14 FILE* when opened from the hard drive
+    void* cd_file;           // +0x18 FILE* when the packfile is on the CD (Packfile.flags & 1)
+} PackfileEntry;             // 0x1C bytes
+struct Packfile {
+    char name[0x20];         // +0x00 e.g. "summoner.vpp"
+    uint8_t flags;           // +0x20 bit 0: on CD
+    uint8_t _pad[7];
+    int32_t num_files;       // +0x28
+    PackfileEntry* entries;  // +0x2C
+    int32_t directory_size;  // +0x30
+};                           // 0x34 bytes
+typedef struct PackfileLookup {
+    uint32_t hash;           // -1 = empty slot
+    PackfileEntry* entry;
+} PackfileLookup;            // table of 0x50e9 entries at 0x2d68780
+
 // One entry of gameseq_state_table (0x588a70): handlers for a game state.
 typedef struct GameStateHandlers {
     void (*enter)(void);    // +0x0 called after the state becomes current

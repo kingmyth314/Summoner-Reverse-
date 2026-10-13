@@ -269,6 +269,24 @@
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
+0x533df0  packfile_init            func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; adds tables/summoner/chars/items/effects/music/sounds/cutscene.vpp, prints load time
+0x533f10  packfile_lookup_insert   func  vsdk\vfile\packfile\file_packfile.cpp O ; open-addressing insert into the 0x50e9-slot {hash, entry} table
+0x533f60  packfile_check_header    func  vsdk\vfile\packfile\file_packfile.cpp O ; VPP header magic 0x51890ace; reads num_files and directory size
+0x533f90  packfile_read_directory  func  vsdk\vfile\packfile\file_packfile.cpp I ; copies 15-dword directory records into entries
+0x534090  packfile_hash            func  vsdk\vfile\packfile\file_packfile.cpp O ; filename hash: h = rol(h, 5) ^ tolower(c), then abs
+0x5340d0  packfile_assign_offsets  func  vsdk\vfile\packfile\file_packfile.cpp O ; consecutive 2048-byte sector offsets from entry sizes
+0x534110  packfile_alloc_directory func  vsdk\vfile\packfile\file_packfile.cpp I ; Summoner 2 name by role; "Out of packfile space!"
+0x5341a0  packfile_load_cd         func  vsdk\vfile\packfile\file_packfile.cpp O ; opens <cd root>\<name>; PC counterpart of Summoner 2 packfile_load_dvd
+0x5342e0  packfile_load_hdd        func  vsdk\vfile\packfile\file_packfile.cpp O ; opens <install path>\<name>; Summoner 2 has packfile_load_hdd
+0x534420  packfile_add             func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; "Ignoring packfile (%s) which was already loaded!", "Adding CD/HARD DRIVE PACKFILE"
+0x5345a0  packfile_find_packfile   func  vsdk\vfile\packfile\file_packfile.cpp O ; finds a loaded .vpp by name (0x34-byte records)
+0x5345f0  packfile_find            func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; hash lookup of a file name
+0x534690  packfile_fopen           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name
+0x5347e0  packfile_fclose          func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name
+0x534830  packfile_fseek           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; offset + sector * 0x800
+0x5348a0  packfile_fread           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; "FREAD BAIL"
+0x5348f0  packfile_fstatus         func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; always 1 on PC
+0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
@@ -283,8 +301,13 @@
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
 0x56c740  sprintf                  func  crt                    O ; C runtime
+0x56cebe  tolower                  func  crt                    O ; C runtime
+0x56d02c  fclose                   func  crt                    O ; C runtime
+0x56d13c  fopen                    func  crt                    O ; C runtime
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x56f979  fseek                    func  crt                    O ; C runtime
+0x56fbc8  fread                    func  crt                    O ; C runtime
 0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
 0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
 # ---- data -----------------------------------------------------------------------------------
@@ -531,10 +554,12 @@
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
+0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
+
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
-
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
@@ -543,6 +568,10 @@
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
+0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
+0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
+
+0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
