@@ -49,7 +49,7 @@ folder before any game code runs. `DllMain`:
 | Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
 | Custom key bindings | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]`. A watcher thread reloads the table when `summonerfix.ini` changes, so bindings change live | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Tested 2026-10-13 (E=I, A=Left) |
-| Alt+Tab works | `SetWindowPos` hook: the call from the game's focus-loss handler (return address `0x5310ef`) becomes `HWND_BOTTOM` + `SWP_NOACTIVATE`, and `SWP_NOACTIVATE` is added to the focus-gain call (`0x5310b7`). The F10 hotkey (`[Game] ConfigKey`) opens the key binding app, which is topmost | The game re-activated itself on losing focus, so other programs (such as `SummonerFixConfig.exe`) could not be brought forward; see [Controls](../sum-exe/controls.md#switching-away-from-the-game-alttab). **Untested** |
+| Alt+Tab works | `SetWindowPos` hook: the call from the game's focus-loss handler (return address `0x5310ef`) becomes `HWND_BOTTOM` + `SWP_NOACTIVATE`, and `SWP_NOACTIVATE` is added to the focus-gain call (`0x5310b7`). The F10 hotkey (`[Game] ConfigKey`) opens the key binding app, which is topmost | The game re-activated itself on losing focus, so other programs (such as `SummonerFixConfig.exe`) could not be brought forward; see [Controls](../sum-exe/controls.md#switching-away-from-the-game-alttab). Tested 2026-10-13 |
 | Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ## Problems found and fixed
@@ -161,6 +161,8 @@ The game uses its defaults for these.
 | 2026-10-12 | OpenGL, borderless fullscreen 2560x1440, viewport scaling | Menu centred 4:3 with bars (frame capture). 218 FPS measured, 2x speed |
 | 2026-10-12 | Same + FrameSleep (final) | **120.0 FPS real = 120.0 game**; 1:1 speed |
 | 2026-10-12 | Same, user play-test | Everything works; game feels better |
+| 2026-10-13 | Key bindings (E=I, A=Left, WASD camera, CapsLock/Home remaps) | Bindings work, including chain-attack modifiers (hold + right-click) |
+| 2026-10-13 | Alt+Tab and F10 to `SummonerFixConfig.exe` while playing; rebind live | Works: the app comes forward and new bindings apply on return |
 
 ## Still to do
 
