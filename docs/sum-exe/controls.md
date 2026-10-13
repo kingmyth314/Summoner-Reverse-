@@ -91,6 +91,10 @@ The layout remapping still has to be kept (it depends on `key_layout`, `0x25daa5
 console keys stay separate. Mouse buttons do not pass through this function; remapping
 them would need a hook in `mouse_update`.
 
+## Mouse buttons
+
+The mouse message handler (`0x500f60`, registered by `mouse_init`) maps `WM_LBUTTONDOWN`...`WM_MBUTTONUP` to `mouse_mark_button(button 0-2, down)` (`0x501100`). That function updates the live button state, the press/release counters read by `mouse_was_pressed`/`mouse_was_released` (`0x501360`/`0x501390`), and a double-click flag, under `mouse_lock`. The mouse wheel (`0x20a`) is added to `mouse_wheel`. Side buttons (`WM_XBUTTON*`) are ignored by the game.
+
 ## Text entry
 
 Save names, the console, chat and input boxes read the same key queue, and turn codes into characters with `key_to_ascii` (`0x509ca0`, 23 callers). Bindings must not apply there: SummonerFix's replacement translates each code back to the physical key that produced it before the lookup.

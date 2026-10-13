@@ -49,6 +49,7 @@ folder before any game code runs. `DllMain`:
 | Frame cap (optional) | `MaxFPS` writes `MIN_DT` into the immediate at `0x5014ea` (`MOV [0x5a574c], imm` at `0x5014e4`) | Default 0 keeps the game's 120 FPS |
 | 1 GB allocation | IAT hook on `glGetIntegerv`; caps `GL_MAX_TEXTURE_SIZE` (default 2048) | See below |
 | Custom key bindings | `CALL key_remap_layout` at `0x5093a6` in `key_mark` -> `KeyRemap`: the original layout swap, then a 256-entry table from `[KeyBindings]`. A watcher thread reloads the table when `summonerfix.ini` changes, so bindings change live | The game key map is hard-coded; see [Controls](../sum-exe/controls.md). Tested 2026-10-13 (E=I, A=Left) |
+| Mouse bindings | The six `CALL mouse_mark_button` sites in the mouse message handler (`0x500f79`-`0x500fba`) -> `MouseMark`; our own handler registered with `os_add_msg_handler` (`0x530c20`) for `WM_XBUTTON*` (side buttons) and for keys bound to mouse buttons; mouse-to-key bindings are injected through `key_mark` | `[KeyBindings]` accepts `MouseLeft`, `MouseRight`, `MouseMiddle`, `Mouse4`, `Mouse5`, e.g. `Mouse4=M`, `Q=MouseRight`, `MouseMiddle=Space`. **Untested** |
 | Speed-up key (fast travel) | While `[Game] SpeedKey` (default F11) is held and the game has focus, `frametime_divisor` (`0x5a5748`) = `1 / SpeedFactor` | `FrameDone` reports frame time / divisor, so the whole game advances faster. **Untested** |
 | Typing ignores key bindings | `key_to_ascii` (`0x509ca0`) -> `KeyToAscii`: `KeyRemap` records which physical key produced each game key code; text entry translates back before the character lookup | With `E=I` bound, typing a save name with E gave "i" (user report 2026-10-13). **Untested** |
 | Alt+Tab works | `SetWindowPos` hook: the call from the game's focus-loss handler (return address `0x5310ef`) becomes `HWND_BOTTOM` + `SWP_NOACTIVATE`, and `SWP_NOACTIVATE` is added to the focus-gain call (`0x5310b7`). The F10 hotkey (`[Game] ConfigKey`) opens the key binding app, which is topmost | The game re-activated itself on losing focus, so other programs (such as `SummonerFixConfig.exe`) could not be brought forward; see [Controls](../sum-exe/controls.md#switching-away-from-the-game-alttab). Tested 2026-10-13 |
@@ -125,7 +126,7 @@ The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 m
 2. Press the key you want. The app writes `[KeyBindings]` in `summonerfix.ini` straight away.
 3. A running game reloads the bindings within a fraction of a second, so you can switch to the app, rebind and return.
 
-**Clear** removes the extra keys from one action, and **Reset all** restores the game defaults.
+**Clear** removes the extra keys from one action, and **Reset all** restores the game defaults. Mouse buttons, including the side buttons Mouse4/Mouse5, can be bound like keys: click them while the app waits for a key. The rows for left, right and middle click let a key act as a mouse button, for example a key for right-click chain attacks. Rebinding the left button away also removes it from the menus; Reset all undoes that.
 
 A binding adds a key; the default key keeps working. If the new key already belonged to another action, that action loses it, and the app says so. The list shows "(moved)" next to a default key that now does something else.
 

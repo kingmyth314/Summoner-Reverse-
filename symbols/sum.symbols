@@ -261,6 +261,10 @@
 0x500de0  mouse_init               func  vsdk\os\mouse          I ; (w, h): critical section, centre, mouse_di_init (failure -> cursor mode), os_add_msg_handler, atexit
 0x500e90  mouse_di_init            func  vsdk\os\mouse          I ; DirectInputCreateA version 0x700, then 0x300; SysMouse, c_dfDIMouse, cooperative level 6 (non-exclusive | foreground), Acquire
 0x501090  mouse_flush              func  vsdk\os\mouse          I ; clears deltas and button state
+0x501100  mouse_mark_button        func  vsdk\os\mouse          I ; (button 0-2, down): live state, press/release counts, double-click flag
+0x5012c0  mouse_is_down            func  vsdk\os\mouse          I
+0x501360  mouse_was_pressed        func  vsdk\os\mouse          I ; press count of button > 0
+0x501390  mouse_was_released       func  vsdk\os\mouse          I ; release count of button > 0
 0x501450  clamp_int                func  -                      I ; (int*, lo, hi)
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep

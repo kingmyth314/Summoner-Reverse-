@@ -13,8 +13,9 @@
 
 typedef int(__cdecl *PFN_KeyRemapLayout)(int code);
 static PFN_KeyRemapLayout g_layout;
-static unsigned char g_maps[2][256];
-static unsigned char *volatile g_map = g_maps[0]; // table in use; the other one is filled on reload
+static Bindings g_sets[2];
+static Bindings *volatile g_bind = &g_sets[0]; // set in use; the other one is filled on reload
+static volatile int g_injecting;               // KeyInject in progress: pass codes through unchanged
 static char g_lastSection[8192];
 static void LoadGameKeys(void);
 
@@ -30,13 +31,99 @@ static volatile unsigned char g_physical[256]; // game key code -> physical key 
 
 static int __cdecl KeyRemap(int code)
 {
+    if (g_injecting)
+        return code; // already a game key code (from a mouse binding)
     int c = g_layout(code);
     if (c >= 0 && c < 256) {
         int p = c;
-        c = g_map[p];
+        c = g_bind->map[p];
         g_physical[c] = (unsigned char)p;
     }
     return c;
+}
+
+// ---- Mouse bindings ---------------------------------------------------------------------------------
+// The game's mouse message handler (0x500f60) turns WM_L/R/MBUTTONDOWN/UP into mouse_mark_button(button,
+// down) (0x501100) at six call sites; we redirect them to MouseMark. Side buttons (WM_XBUTTON*) are ignored
+// by the game, and keys bound to mouse buttons need their WM_KEYDOWN/UP, so we also register our own window
+// message handler with os_add_msg_handler (0x530c20). All of this runs on the game's main thread.
+#define VA_MOUSE_MARK_BUTTON 0x501100u
+#define VA_KEY_MARK 0x5093a0u
+#define VA_OS_ADD_MSG_HANDLER 0x530c20u
+static const DWORD k_mouseCalls[6] = {0x500f79, 0x500f86, 0x500f93, 0x500fa0, 0x500fad, 0x500fba};
+
+typedef void(__cdecl *PFN_MouseMark)(int button, char down);
+typedef void(__cdecl *PFN_KeyMark)(int code, int down, int latency);
+typedef void(__cdecl *PFN_MsgHandler)(UINT msg, WPARAM wp, LPARAM lp);
+typedef void(__cdecl *PFN_AddMsgHandler)(PFN_MsgHandler);
+static PFN_MouseMark g_mouseMark;
+static PFN_KeyMark g_keyMark;
+
+static void KeyInject(int code, int down)
+{
+    g_injecting = 1;
+    g_keyMark(code, down, 0);
+    g_injecting = 0;
+}
+
+// A mouse button (0-4) went down/up: apply its binding, or the default for left/right/middle.
+static void MouseEvent(int button, int down)
+{
+    int to = g_bind->mouseTo[button];
+    if (to < 0) {
+        if (button < 3)
+            g_mouseMark(button, (char)down);
+    } else if (to >= KEY_MOUSE_BASE) {
+        g_mouseMark(to - KEY_MOUSE_BASE, (char)down);
+    } else {
+        KeyInject(to, down);
+    }
+}
+
+static void __cdecl MouseMark(int button, char down)
+{
+    MouseEvent(button, down != 0);
+}
+
+static void __cdecl MsgHandler(UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_XBUTTONDOWN:
+    case WM_XBUTTONUP:
+        if (HIWORD(wp) == XBUTTON1 || HIWORD(wp) == XBUTTON2)
+            MouseEvent(HIWORD(wp) == XBUTTON1 ? 3 : 4, msg == WM_XBUTTONDOWN);
+        break;
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        int scan = (int)((lp >> 16) & 0xff) | ((lp & 0x01000000) ? 0x80 : 0);
+        int target = g_bind->keyMouse[scan];
+        if (target < 0)
+            break;
+        int down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
+        if (down && (lp & 0x40000000))
+            break; // auto-repeat
+        g_mouseMark(target, (char)down);
+        break;
+    }
+    }
+}
+
+static void MouseBindInstall(void)
+{
+    g_mouseMark = (PFN_MouseMark)(UINT_PTR)SumVa(VA_MOUSE_MARK_BUTTON);
+    g_keyMark = (PFN_KeyMark)(UINT_PTR)SumVa(VA_KEY_MARK);
+    for (int i = 0; i < 6; i++) {
+        DWORD site = SumVa(k_mouseCalls[i]);
+        BYTE orig[5] = {0xE8}, repl[5] = {0xE8};
+        DWORD rel = SumVa(VA_MOUSE_MARK_BUTTON) - (site + 5);
+        memcpy(orig + 1, &rel, 4);
+        rel = (DWORD)(UINT_PTR)MouseMark - (site + 5);
+        memcpy(repl + 1, &rel, 4);
+        PatchBytes(k_mouseCalls[i], orig, repl, 5, "mouse button -> MouseMark (mouse bindings)");
+    }
+    ((PFN_AddMsgHandler)(UINT_PTR)SumVa(VA_OS_ADD_MSG_HANDLER))(MsgHandler);
 }
 
 static int __cdecl KeyToAscii(int code)
@@ -52,7 +139,7 @@ static int __cdecl KeyToAscii(int code)
 
 static void LogBad(const char *line)
 {
-    Log("key bindings: ignoring \"%s\" (unknown key name)", line);
+    Log("key bindings: ignoring \"%s\" (unknown key name or unsupported combination)", line);
 }
 
 // Re-read [KeyBindings]; returns FALSE if the section text did not change.
@@ -66,13 +153,19 @@ static BOOL LoadBindings(BOOL initial)
         return FALSE;
     memcpy(g_lastSection, section, len + 2);
 
-    unsigned char *next = g_map == g_maps[0] ? g_maps[1] : g_maps[0];
+    Bindings *next = g_bind == &g_sets[0] ? &g_sets[1] : &g_sets[0];
     int count = KeyParseSection(section, next, LogBad);
-    g_map = next; // single pointer store: KeyRemap sees either the old or the new table
+    g_bind = next; // single pointer store: readers see either the old or the new set
     char a[8], b[8];
-    for (int i = 0; i < 256; i++)
-        if (next[i] != i)
-            Log("key bindings: %s acts as %s", KeyNameOf(i, a, sizeof a), KeyNameOf(next[i], b, sizeof b));
+    for (int i = 0; i < 256; i++) {
+        if (next->keyMouse[i] >= 0)
+            Log("key bindings: %s acts as %s", KeyNameOf(i, a, sizeof a), KeyNameOf(KEY_MOUSE_BASE + next->keyMouse[i], b, sizeof b));
+        else if (next->map[i] != i)
+            Log("key bindings: %s acts as %s", KeyNameOf(i, a, sizeof a), KeyNameOf(next->map[i], b, sizeof b));
+    }
+    for (int i = 0; i < KEY_MOUSE_COUNT; i++)
+        if (next->mouseTo[i] >= 0)
+            Log("key bindings: %s acts as %s", KeyNameOf(KEY_MOUSE_BASE + i, a, sizeof a), KeyNameOf(next->mouseTo[i], b, sizeof b));
     Log("key bindings: %d %s", count, initial ? "loaded" : "reloaded");
     return TRUE;
 }
@@ -208,6 +301,8 @@ void KeyBindInstall(void)
     memcpy(repl + 1, &rel, 4);
     if (PatchBytes(VA_KEY_MARK_REMAP_CALL, orig, repl, 5, "key_mark -> KeyRemap (custom key bindings)"))
         CloseHandle(CreateThread(NULL, 0, WatchIni, NULL, 0, NULL));
+
+    MouseBindInstall();
 
     // key_to_ascii: replace its first instruction (MOV AL, [key_inited], 5 bytes) with JMP KeyToAscii.
     for (int i = 0; i < 256; i++)

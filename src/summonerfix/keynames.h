@@ -5,7 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct { const char *name; unsigned char code; } KeyName;
+typedef struct { const char *name; unsigned short code; } KeyName;
+
+// Mouse buttons use codes above the keyboard range. The game itself knows left/right/middle (0-2);
+// Mouse4/Mouse5 (side buttons) are only usable as binding sources.
+#define KEY_MOUSE_BASE 0x100
+#define KEY_MOUSE_COUNT 5
+// Keyboard keys bound to a mouse button are sent to the game as this unused code, so they lose their own action.
+#define KEY_DEAD 0x54
 
 static const KeyName k_keyNames[] = {
     {"Esc", 0x01}, {"1", 0x02}, {"2", 0x03}, {"3", 0x04}, {"4", 0x05}, {"5", 0x06},
@@ -25,6 +32,7 @@ static const KeyName k_keyNames[] = {
     {"RCtrl", 0x9d}, {"NumpadSlash", 0xb5}, {"RAlt", 0xb8}, {"Home", 0xc7}, {"Up", 0xc8}, {"PageUp", 0xc9},
     {"Left", 0xcb}, {"Right", 0xcd}, {"End", 0xcf}, {"Down", 0xd0}, {"PageDown", 0xd1}, {"Insert", 0xd2},
     {"Delete", 0xd3},
+    {"MouseLeft", 0x100}, {"MouseRight", 0x101}, {"MouseMiddle", 0x102}, {"Mouse4", 0x103}, {"Mouse5", 0x104},
 };
 #define KEYNAME_COUNT (sizeof k_keyNames / sizeof k_keyNames[0])
 
@@ -51,7 +59,7 @@ static int KeyParse(const char *s)
     return -1;
 }
 
-// code -> name, or "0xNN" written into buf.
+// code -> name, or "0xNN" written into buf (buf needs 8 bytes).
 static const char *KeyNameOf(int code, char *buf, size_t size)
 {
     for (size_t i = 0; i < KEYNAME_COUNT; i++)
@@ -62,12 +70,48 @@ static const char *KeyNameOf(int code, char *buf, size_t size)
     return buf;
 }
 
-// Parse a [KeyBindings] section (GetPrivateProfileSection format: NUL-separated "A=B" strings, double NUL at
-// the end) into map[256] (identity for unbound keys). Calls bad(line) for unparseable entries. Returns the count.
-static int KeyParseSection(const char *section, unsigned char map[256], void (*bad)(const char *line))
+// All bindings from a [KeyBindings] section.
+typedef struct {
+    unsigned char map[256];     // physical key -> game key (identity when unbound; KEY_DEAD when bound to a mouse button)
+    signed char keyMouse[256];  // physical key -> mouse button 0-2 it presses, or -1
+    short mouseTo[KEY_MOUSE_COUNT]; // mouse button (left, right, middle, 4, 5) -> game key, or 0x100+button, or -1 = default
+} Bindings;
+
+static void BindingsReset(Bindings *b)
 {
-    for (int i = 0; i < 256; i++)
-        map[i] = (unsigned char)i;
+    for (int i = 0; i < 256; i++) {
+        b->map[i] = (unsigned char)i;
+        b->keyMouse[i] = -1;
+    }
+    for (int i = 0; i < KEY_MOUSE_COUNT; i++)
+        b->mouseTo[i] = -1;
+}
+
+// Apply one binding; FALSE if the combination is not supported.
+static int BindingsSet(Bindings *b, int from, int to)
+{
+    int toMouse = to >= KEY_MOUSE_BASE;
+    if (toMouse && to >= KEY_MOUSE_BASE + 3)
+        return 0; // the game has no side buttons to press
+    if (from < KEY_MOUSE_BASE) {
+        if (toMouse) {
+            b->keyMouse[from] = (signed char)(to - KEY_MOUSE_BASE);
+            b->map[from] = KEY_DEAD;
+        } else {
+            b->map[from] = (unsigned char)to;
+            b->keyMouse[from] = -1;
+        }
+    } else {
+        b->mouseTo[from - KEY_MOUSE_BASE] = (short)to;
+    }
+    return 1;
+}
+
+// Parse a [KeyBindings] section (GetPrivateProfileSection format: NUL-separated "A=B" strings, double NUL at
+// the end). Calls bad(line) for unparseable entries. Returns the count.
+static int KeyParseSection(const char *section, Bindings *b, void (*bad)(const char *line))
+{
+    BindingsReset(b);
     int count = 0;
     for (const char *line = section; *line; line += strlen(line) + 1) {
         if (*line == ';' || *line == '#')
@@ -82,12 +126,11 @@ static int KeyParseSection(const char *section, unsigned char map[256], void (*b
         memcpy(lhs, line, n);
         lhs[n] = 0;
         int from = KeyParse(lhs), to = KeyParse(eq + 1);
-        if (from < 0 || to < 0) {
+        if (from < 0 || to < 0 || !BindingsSet(b, from, to)) {
             if (bad)
                 bad(line);
             continue;
         }
-        map[from] = (unsigned char)to;
         count++;
     }
     return count;

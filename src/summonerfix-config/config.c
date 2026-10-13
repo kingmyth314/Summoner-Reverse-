@@ -7,7 +7,7 @@
 #include "../summonerfix/keynames.h"
 
 // The game's hard-coded key map (docs/sum-exe/controls.md). gameKey is the code the game reacts to.
-typedef struct { unsigned char gameKey; const char *action; } Action;
+typedef struct { unsigned short gameKey; const char *action; } Action;
 static const Action k_actions[] = {
     {0x01, "Menu"},
     {0x02, "Quick slot 1"}, {0x03, "Quick slot 2"}, {0x04, "Quick slot 3"},
@@ -26,6 +26,10 @@ static const Action k_actions[] = {
     {0x1d, "Chain attack slot 2 (hold; also Ctrl)"},
     {0x38, "Chain attack slot 3 (hold; also Alt)"},
     {0x3a, "Chain attack slot 0 (hold)"},
+    // Mouse buttons (KEY_MOUSE_BASE + 0/1/2). Right click starts chain attacks.
+    {0x100, "Left click (move / attack)"},
+    {0x101, "Right click (chain attack)"},
+    {0x102, "Middle click (interact)"},
 };
 #define ACTION_COUNT (int)(sizeof k_actions / sizeof k_actions[0])
 
@@ -41,9 +45,9 @@ static const Hotkey k_hotkeys[] = {
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS };
 
 static char g_ini[MAX_PATH];
-static unsigned char g_map[256]; // physical -> game
+static Bindings g_b; // physical key/button -> game key/button
 static HWND g_wnd, g_list, g_status;
-static HHOOK g_hook;
+static HHOOK g_hook, g_mouseHook;
 static int g_capturing = -1; // action row waiting for a key
 
 static void SetStatus(const char *fmt, ...)
@@ -63,7 +67,7 @@ static void Load(void)
     DWORD len = GetPrivateProfileSectionA("KeyBindings", section, sizeof section, g_ini);
     if (!len)
         section[0] = section[1] = 0;
-    KeyParseSection(section, g_map, NULL);
+    KeyParseSection(section, &g_b, NULL);
 }
 
 static void Save(void)
@@ -71,25 +75,59 @@ static void Save(void)
     static char buf[8192];
     char *p = buf, a[8], b[8];
     p += sprintf(p, "; PhysicalKey=GameKey, written by SummonerFixConfig") + 1;
-    for (int i = 0; i < 256; i++)
-        if (g_map[i] != i)
-            p += sprintf(p, "%s=%s", KeyNameOf(i, a, sizeof a), KeyNameOf(g_map[i], b, sizeof b)) + 1;
+    for (int i = 0; i < 256; i++) {
+        if (g_b.keyMouse[i] >= 0)
+            p += sprintf(p, "%s=%s", KeyNameOf(i, a, sizeof a), KeyNameOf(KEY_MOUSE_BASE + g_b.keyMouse[i], b, sizeof b)) + 1;
+        else if (g_b.map[i] != i)
+            p += sprintf(p, "%s=%s", KeyNameOf(i, a, sizeof a), KeyNameOf(g_b.map[i], b, sizeof b)) + 1;
+    }
+    for (int m = 0; m < KEY_MOUSE_COUNT; m++)
+        if (g_b.mouseTo[m] >= 0)
+            p += sprintf(p, "%s=%s", KeyNameOf(KEY_MOUSE_BASE + m, a, sizeof a), KeyNameOf(g_b.mouseTo[m], b, sizeof b)) + 1;
     *p = 0;
     if (!WritePrivateProfileSectionA("KeyBindings", buf, g_ini))
         SetStatus("Could not write %s (error %lu)", g_ini, GetLastError());
 }
 
-// Text of the extra keys bound to a game key ("E, Numpad5"), or "" if none.
-static void BoundKeys(int gameKey, char *out, size_t size)
+// What a physical key or mouse button does now (a game key/button code), or -1 if nothing.
+static int TargetOf(int physical)
+{
+    if (physical >= KEY_MOUSE_BASE) {
+        int t = g_b.mouseTo[physical - KEY_MOUSE_BASE];
+        return t >= 0 ? t : (physical < KEY_MOUSE_BASE + 3 ? physical : -1);
+    }
+    if (g_b.keyMouse[physical] >= 0)
+        return KEY_MOUSE_BASE + g_b.keyMouse[physical];
+    return g_b.map[physical];
+}
+
+static void AppendName(char *out, size_t size, int code)
 {
     char tmp[8];
+    if (out[0])
+        strncat(out, ", ", size - strlen(out) - 1);
+    strncat(out, KeyNameOf(code, tmp, sizeof tmp), size - strlen(out) - 1);
+}
+
+// Text of the extra keys/buttons that do a game action ("E, Mouse4"), or "" if none.
+static void BoundKeys(int gameKey, char *out, size_t size)
+{
     out[0] = 0;
-    for (int i = 0; i < 256; i++) {
-        if (i == gameKey || g_map[i] != gameKey)
+    for (int i = 0; i < KEY_MOUSE_BASE + KEY_MOUSE_COUNT; i++) {
+        if (i == gameKey || (i >= 256 && i < KEY_MOUSE_BASE))
             continue;
-        if (out[0])
-            strncat(out, ", ", size - strlen(out) - 1);
-        strncat(out, KeyNameOf(i, tmp, sizeof tmp), size - strlen(out) - 1);
+        if (TargetOf(i) == gameKey)
+            AppendName(out, size, i);
+    }
+}
+
+static void Unbind(int physical)
+{
+    if (physical >= KEY_MOUSE_BASE) {
+        g_b.mouseTo[physical - KEY_MOUSE_BASE] = -1;
+    } else {
+        g_b.map[physical] = (unsigned char)physical;
+        g_b.keyMouse[physical] = -1;
     }
 }
 
@@ -122,7 +160,7 @@ static void Refresh(void)
     char def[16], extra[128], tmp[8];
     for (int i = 0; i < ACTION_COUNT; i++) {
         int k = k_actions[i].gameKey;
-        snprintf(def, sizeof def, "%s%s", KeyNameOf(k, tmp, sizeof tmp), g_map[k] != k ? " (moved)" : "");
+        snprintf(def, sizeof def, "%s%s", KeyNameOf(k, tmp, sizeof tmp), TargetOf(k) != k ? " (moved)" : "");
         BoundKeys(k, extra, sizeof extra);
         ListView_SetItemText(g_list, i, 1, def);
         ListView_SetItemText(g_list, i, 2, extra);
@@ -139,7 +177,9 @@ static void StopCapture(void)
 {
     if (g_hook)
         UnhookWindowsHookEx(g_hook);
-    g_hook = NULL;
+    if (g_mouseHook)
+        UnhookWindowsHookEx(g_mouseHook);
+    g_hook = g_mouseHook = NULL;
     g_capturing = -1;
     SetWindowTextA(GetDlgItem(g_wnd, ID_CHANGE), "&Change key...");
 }
@@ -150,9 +190,13 @@ static void Assign(int row, int physical)
     KeyNameOf(physical, name, sizeof name);
     if (row >= ACTION_COUNT) {
         int h = row - ACTION_COUNT;
+        if (physical >= KEY_MOUSE_BASE) {
+            SetStatus("SummonerFix hotkeys must be keyboard keys.");
+            return;
+        }
         SetHotkey(h, name);
         Refresh();
-        const char *other = ActionUsing(g_map[physical]);
+        const char *other = ActionUsing(TargetOf(physical));
         if (other)
             SetStatus("%s now does \"%s\" (it still also does \"%s\" in the game). Saved.", name, k_hotkeys[h].action, other);
         else
@@ -164,14 +208,42 @@ static void Assign(int row, int physical)
         SetStatus("%s is already the default key for %s.", name, a->action);
         return;
     }
-    const char *other = ActionUsing(physical);
-    g_map[physical] = a->gameKey;
+    if (!BindingsSet(&g_b, physical, a->gameKey)) {
+        SetStatus("Mouse4/Mouse5 can't be used as \"%s\" (the game has no side buttons).", a->action);
+        return;
+    }
+    const char *other = ActionUsing(physical); // what physical did before (NULL for side buttons)
     Save();
     Refresh();
     if (other)
         SetStatus("%s now does \"%s\" (it no longer does \"%s\"). Saved.", name, a->action, other);
     else
         SetStatus("%s now does \"%s\". Saved.", name, a->action);
+}
+
+// Thread mouse hook: a mouse button pressed while capturing is the new binding (a left click on the
+// Cancel button still cancels).
+static LRESULT CALLBACK MouseHook(int code, WPARAM wp, LPARAM lp)
+{
+    if (code == HC_ACTION && g_capturing >= 0) {
+        MOUSEHOOKSTRUCTEX *m = (MOUSEHOOKSTRUCTEX *)lp;
+        int button = -1;
+        if (wp == WM_LBUTTONDOWN && ((MOUSEHOOKSTRUCT *)lp)->hwnd != GetDlgItem(g_wnd, ID_CHANGE))
+            button = 0;
+        else if (wp == WM_RBUTTONDOWN)
+            button = 1;
+        else if (wp == WM_MBUTTONDOWN)
+            button = 2;
+        else if (wp == WM_XBUTTONDOWN)
+            button = HIWORD(m->mouseData) == XBUTTON1 ? 3 : 4;
+        if (button >= 0) {
+            int row = g_capturing;
+            StopCapture();
+            Assign(row, KEY_MOUSE_BASE + button);
+            return 1;
+        }
+    }
+    return CallNextHookEx(g_mouseHook, code, wp, lp);
 }
 
 // Thread keyboard hook: catches the next key press while capturing, whatever control has focus.
@@ -207,8 +279,9 @@ static void StartCapture(void)
     }
     g_capturing = row;
     g_hook = SetWindowsHookExA(WH_KEYBOARD, KeyHook, NULL, GetCurrentThreadId());
+    g_mouseHook = SetWindowsHookExA(WH_MOUSE, MouseHook, NULL, GetCurrentThreadId());
     SetWindowTextA(GetDlgItem(g_wnd, ID_CHANGE), "&Cancel");
-    SetStatus("Press the key you want for \"%s\"...", RowLabel(row));
+    SetStatus("Press the key or mouse button you want for \"%s\"...", RowLabel(row));
 }
 
 static void ClearRow(void)
@@ -225,11 +298,12 @@ static void ClearRow(void)
         return;
     }
     int k = k_actions[row].gameKey, n = 0;
-    for (int i = 0; i < 256; i++)
-        if (i != k && g_map[i] == k) {
-            g_map[i] = (unsigned char)i;
-            n++;
-        }
+    for (int i = 0; i < KEY_MOUSE_BASE + KEY_MOUSE_COUNT; i++) {
+        if (i == k || (i >= 256 && i < KEY_MOUSE_BASE) || TargetOf(i) != k)
+            continue;
+        Unbind(i);
+        n++;
+    }
     Save();
     Refresh();
     SetStatus(n ? "Removed the extra keys for \"%s\". Saved." : "\"%s\" has no extra keys.", k_actions[row].action);
@@ -239,8 +313,7 @@ static void ResetAll(void)
 {
     if (MessageBoxA(g_wnd, "Remove all custom key bindings and restore the F10/F11 hotkeys?", "SummonerFix", MB_YESNO | MB_ICONQUESTION) != IDYES)
         return;
-    for (int i = 0; i < 256; i++)
-        g_map[i] = (unsigned char)i;
+    BindingsReset(&g_b);
     Save();
     for (int h = 0; h < HOTKEY_COUNT; h++)
         SetHotkey(h, k_hotkeys[h].def);
