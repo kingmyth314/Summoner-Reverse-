@@ -29,6 +29,7 @@
 
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
+0x431cb0  build_stamp_show         func  -                      I ; once at start-up: "This version of Summoner has been built for:" <name>, or "has expired." then exit(1); skipped when unstamped
 0x432410  cmd_show_framerate       func  -                      O ; console command "show_framerate": Toggles Gamewide_show_framerate
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
@@ -535,6 +536,21 @@
 0x526220  File__write_uint8        func  vsdk\vfile             I
 0x526240  File__write_uint16       func  vsdk\vfile             I
 0x526410  File__write              func  vsdk\vfile             I ; (buf, len); optional transform when the file flag bit 0 is set
+0x528430  ui_parse_hotkey          func  vsdk\ui\window.cpp     I ; optional Shift/Ctrl/Alt prefixes, then the key name
+0x528530  ui_parse_button          func  vsdk\ui\window.cpp     I ; $Position $Size $Drag and drop $Repeats $Always use face color $Use right mouse button $Text $Font $Hotkey $Hotspot $State bitmap (Normal/Highlighted/Pressed/Disabled) $Tooltip
+0x528a40  ui_parse_checkbox        func  vsdk\ui\window.cpp     I ; $Box size $Label $Initially checked $Label offset ...
+0x528ec0  ui_parse_container       func  vsdk\ui\window.cpp     I ; $Mask bitmap; children $Button $Checkbox $Container $Inputbox $Listbox $Radio button $Slider $Static, $Inventory start/end
+0x5292f0  ui_parse_inputbox        func  vsdk\ui\window.cpp     I ; $Ignore esc $No scroll $Password $Valid/Invalid chars $Max text length $Cursor bitmap ...
+0x5298c0  ui_parse_listbox         func  vsdk\ui\window.cpp     I ; $Allow wrap $Content size $Align view with bottom $Mouseover highlights $Add ... scrollbar $Entry spacing
+0x529d70  ui_parse_radio_button    func  vsdk\ui\window.cpp     I
+0x52a180  ui_parse_slider          func  vsdk\ui\window.cpp     I ; $Horizontal $Dot slider $Marker bitmap/size/position $Left/Right/Up/Down button
+0x52a700  ui_parse_static          func  vsdk\ui\window.cpp     I ; $Horizontal/Vertical justification $Text $Font $State bitmap
+0x52b200  ui_load_table            func  vsdk\ui\window.cpp     I ; "unable to open UI table file %s"; $Position $Size $Name, then widgets ($Allow arrows, $Always a selection, ...)
+0x52b8e0  ui_window_load_a         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2532)
+0x52b970  ui_window_load_b         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2599)
+0x52d4a0  ui_set_text              func  vsdk\ui                I ; replaces over-long text with "text too long for pc version"
+0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
+0x52f540  build_stamp_get_name     func  vsdk\ui                I ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.")
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530c00  os_get_main_wnd          func  vsdk\os                O ; returns main_wnd (0x2cbff10), as Dash Faction rf::main_wnd
 0x530c10  os_foreground            func  vsdk\os                O ; Dash Faction rf::os_foreground; returns 0x2cbff1c
@@ -682,6 +698,7 @@
 0x56d1cd  atexit                   func  crt                    O
 0x56d5b7  strtok                   func  crt                    O
 0x56d7c0  _chkstk                  func  crt                    O ; stack probe for large frames
+0x56d7ef  time                     func  crt                    O
 0x56da2b  printf                   func  crt                    O ; stdout (_iob + 0x20)
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56dd70  _CIacos                  func  crt                    O ; x87 intrinsic acos
@@ -800,6 +817,9 @@
 0x5a72a4  Gr_3d_zmax               data:int -                      I ; set by console command "zmax" (sets); type inferred
 0x5a7480  Homogeneous_column       data:float[4] vsdk\math\matrix.cpp   V ; Summoner 2 name; {0, 0, 0, 1}
 0x5a7dd0  nw_udp_socket            data:SOCKET vsdk\net               I
+0x5a9604  build_stamp_checksum     data:uint32 vsdk\ui                I ; rotate-right-add checksum of the name, high bit set
+0x5a9608  build_stamp_expiry       data:time_t vsdk\ui                I
+0x5a960c  build_stamp_name         data:char[] vsdk\ui                I
 0x5a98d4  Allow_movement_vel_change data:bool -                      I ; set by console command "movement_vel_change" (toggles); type inferred
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
@@ -927,10 +947,10 @@
 0x2452408 ccmd_serpent_combat      data:console_command -                      O ; console command object "serpent_combat"
 0x24529f8 ccmd_phoenix_stage       data:console_command -                      O ; console command object "phoenix_stage"
 0x2452a38 ccmd_phoenix_solo        data:console_command -                      O ; console command object "phoenix_solo"
+
 0x2452a48 ccmd_phoenix_combat      data:console_command -                      O ; console command object "phoenix_combat"
 0x2452a58 ccmd_phoenix_unlink      data:console_command -                      O ; console command object "phoenix_unlink"
 0x2452a70 ccmd_tiger_solo          data:console_command -                      O ; console command object "tiger_solo"
-
 0x2452a80 ccmd_tiger_stage         data:console_command -                      O ; console command object "tiger_stage"
 0x2452c98 ccmd_tiger_combat        data:console_command -                      O ; console command object "tiger_combat"
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
@@ -991,10 +1011,10 @@
 0x257efe8 mouse_buttons_live       data:uint8[3][16] vsdk\os\mouse          I ; written by the message handler
 0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
 0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
+
 0x257f020 mouse_di_active          data:bool vsdk\os\mouse          I
 0x257f021 mouse_inited             data:bool vsdk\os\mouse          I
 0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
-
 0x257f028 mouse_dy                 data:int vsdk\os\mouse          I
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
@@ -1004,26 +1024,26 @@
 0x257f09c total_history_frametime data:float           frametime.cpp     V
 0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
+
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
 0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
-
 0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
 0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
+
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
 0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
-
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
+
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
 0x25c688c bm_missing_created       data:bool vsdk\bmpman\bmpman.cpp I
-0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 
+0x25c688d bm_reduce_textures       data:bool vsdk\bmpman\bmpman.cpp I
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
-
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
@@ -1038,10 +1058,10 @@
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
+
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
-
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
@@ -1052,10 +1072,10 @@
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94e0 key_queue                data:uint16[] -                      I
 0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
+
 0x25da940 key_queue_head           data:int -                      I
 0x25da944 key_queue_tail           data:int -                      I
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
-
 0x25daa50 key_layout               data:int -                      I ; set by key_init
 0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
 0x25daa74 key_inited               data:bool -                      I
@@ -1064,10 +1084,10 @@
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
+
 0x25db21c lowercase_token          data:char[128] console.cpp            O
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
-
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
@@ -1083,12 +1103,12 @@
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
+
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
+
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
-
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
-
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
 0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name
@@ -1105,18 +1125,19 @@
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
+
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
+
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
-
 0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
-
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
+
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
 0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
-
 0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
+
 0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred

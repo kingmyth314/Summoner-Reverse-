@@ -69,7 +69,8 @@ uses the 1024 font and scales it to fit. Native-resolution UI work (see the
 the file is too big ("I refuse to run!"), and prints checkpoints "AS 0" to "AS 9" plus "ADD
 STREAMING EFFECT". `vfx_preload` (`0x51c9c0`) loads named `.vfx` effects; for example, the
 level loader preloads the `Mach_*` effects (MeteorStorm, DarkVoid, teleport in/out, quake)
-for the `templeint2` level.
+for the `templeint2` level. These are probably the Machival boss's effects (there is a
+`machival_boss.tbl`; *inferred*).
 
 ## Still to do
 
