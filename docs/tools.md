@@ -98,3 +98,22 @@ node tools/decomp.mjs --callees GameTick
 
 Opens `Summoner\Sum.exe` in the running REA daemon session (with the backslash path it needs).
 The first analysis query afterwards takes about 100 s.
+
+## `tools/vpp.mjs`
+
+Lists or extracts `.vpp` packfiles, using the format worked out in
+[Packfiles](sum-exe/vsdk-packfile.md).
+
+```
+node tools/vpp.mjs list Summoner/tables.vpp [filter]
+node tools/vpp.mjs extract Summoner/tables.vpp "*.tbl" [--out <dir>]
+```
+
+The filter is a case-insensitive substring, or a glob with `*` and `?`. Files are extracted
+to `extracted/<packfile>/` by default. That folder is git-ignored: **extracted game data must
+never be committed**.
+
+Other tools:
+- `tools/console-commands.mjs`, `tools/console-vars.mjs`, `tools/make-console-page.mjs`:
+  the [console command](sum-exe/console.md) tables.
+- `tools/name-from-strings.mjs`: functions that reference given strings.

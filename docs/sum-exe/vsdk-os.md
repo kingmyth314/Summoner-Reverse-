@@ -234,8 +234,10 @@ four functions that name themselves in their asserts (`nw_NewReceiveReliable`,
   are now named (`socket`, `sendto`, `recvfrom`, `select`, …), along with the DirectInput,
   DirectSound, ACM and GLU thunks.
 
-Whether this is a cut multiplayer mode or a development tool (for example a remote
-console) is *unknown*; it would need a live test with `-port`.
+This is the remains of a **multiplayer mode**. `strings.tbl` names multiplayer source files
+(`multichat.cpp`, `multitrade.cpp`, `new_gamelist.cpp`, `new_pxochat.cpp`, …); see the
+[source map](source-map.md#more-file-names-from-stringstbl). Whether any of it can still be
+reached in the retail build is *unknown*; testing it would need a live run with `-port`.
 
 ## C runtime functions identified
 

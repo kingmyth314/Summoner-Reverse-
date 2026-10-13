@@ -49,8 +49,33 @@ or the hard drive (`packfile_load_hdd`, `0x5342e0`), and logs "Adding CD PACKFIL
 The C runtime file functions they use are named too: `fopen` `0x56d13c`, `fread`
 `0x56fbc8`, `fseek` `0x56f979`, `fclose` `0x56d02c`, and `tolower` `0x56cebe`.
 
-## Why this matters
+## On-disk layout and extractor
 
-With the header magic, directory layout, sector alignment and hash known, a small tool can
-list and extract `.vpp` contents. That opens up the game's tables, textures and models for
-later phases.
+`packfile_load_hdd` (`0x5342e0`) shows the layout. It is the same as Red Faction's VPP
+version 1:
+
+1. **Sector 0 (header):** magic `0x51890ACE`, version (1), file count, total size.
+2. **Directory:** 64-byte entries, 32 per 2048-byte sector. Each entry is a 60-byte
+   NUL-padded name followed by a 4-byte size.
+3. **Data:** starts at the sector after the directory. Each file starts on a 2048-byte
+   boundary, in directory order.
+
+[`tools/vpp.mjs`](../tools.md#toolsvppmjs) lists and extracts packfiles; extracting
+`strings.tbl` gave the expected `#english` ... `#end` text. Retail contents (from `list`,
+2026-10-13):
+
+| Packfile | Contents |
+|---|---|
+| `tables.vpp` | 466 `.tbl` tables, 49 `.eax` |
+| `summoner.vpp` | 1328 `.tga`, 29 `.vbm`, 7 `.vf` fonts, `.vaf`, `.arr` |
+| `chars.vpp` | 1349 `.tga`, 380 `.mvf` skeletons/animations, 83 `.vim` meshes, 147 `.svf` |
+| `items.vpp` | 560 `.tga`, 500 `.vim` |
+| `effects.vpp` | 193 `.rfx` effects, 246 `.tga`, 54 `.vbm` |
+| `cutscene.vpp` | 94 `.csc` cutscene scripts, 291 `.mvf`, 77 `.wav`, 119 `.tga` |
+| `levele.vpp` | 50 `.lcf`, 60 `.pfg`, 37 `.vis` (level data) |
+| `levelm.vpp` | 60 `.s3d` (level meshes) |
+| `levelt.vpp` | 4743 `.tga`, 20 `.vbm` (level textures) |
+| `music.vpp` / `sounds.vpp` | 36 / 1332 `.wav` |
+
+`packfile_init` does not list `levele`, `levelm` or `levelt`. They are presumably added
+elsewhere, for example per level (*inferred*).

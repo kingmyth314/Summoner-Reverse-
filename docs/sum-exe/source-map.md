@@ -78,6 +78,43 @@ before and after, up to the neighbouring file. Files that reference no path stri
 | `0x5536ef` | `0x5536ef` | 1 | `vsdk\ui\ui_container.cpp` |
 | `0x555519` | `0x555519` | 1 | `vsdk\bmpman\targautils.cpp` |
 
+## More file names from `strings.tbl`
+
+`strings.tbl` (in `tables.vpp`; extract it with [`tools/vpp.mjs`](../tools.md#toolsvppmjs))
+groups its numbered UI strings under comments naming the **game source file** that uses
+them. This adds many files that have no assert path in the executable:
+
+- **Gameplay:**
+  - `ai.cpp`, `characterinfo.cpp`, `combat.cpp`, `gameplay.cpp`, `gametarget.cpp`
+  - `items.cpp`, `living_entity.cpp`, `player.cpp`, `spells.cpp`
+  - `summoner.cpp`, `summoner_cd.cpp`
+- **Conversation:** `conversation.cpp`, `conversationctl.cpp`
+- **Interface screens (`new_*.cpp`):**
+  - `new_hud`, `new_inventory`, `new_status`, `new_spell`, `new_skill`
+  - `new_automap`, `new_assess`, `new_buysell`, `new_itemtrade`, `new_pickup`
+  - `new_saveload`, `new_mainmenu`, `new_playmenu`, `new_charselect`, `new_help`, `new_tutorial`
+- **Multiplayer:**
+  - `multiplayerdata.cpp`, `multisave.cpp`, `multispell.cpp`, `multitrade.cpp`
+  - `multichat.cpp`, `multi_chattracker.cpp`, `multicontainer.cpp`, `multi_door.cpp`,
+    `multiendgame.cpp`
+  - `new_multi`, `new_multichat`, `new_gamecreate`, `new_gamelist`, `new_int_multi_update`
+  - `new_pxochat`, `new_pxo_banner`: PXO is Parallax Online, Interplay's matchmaking
+    service.
+- **Level scripts:** `level_scripts.cpp`, `level_scripts_common.cpp` and one
+  `level_script_<level>.cpp` per scripted level (catacombs, courtyard, eleh, ikaemos, iona,
+  jadetemple, khosani_lab, lenele…, liangshan, lpalace…, sewers, slums, temple…, wolong…,
+  worldmap).
+- **Engine:** `gr_direct3d.cpp`.
+
+The multiplayer files explain the [network layer](vsdk-os.md#networking-0x5175e0-0x519370):
+PC Summoner was built with a multiplayer mode (chat, trading, saved multiplayer games,
+PXO lobby). It was not offered in the retail game, but much of its code is still in
+Sum.exe.
+
+Because strings are numbered in file order, the id ranges also show the order of these
+files. That can help assign functions to files later: a function that uses string 47 belongs
+to the file whose section contains 47.
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`
