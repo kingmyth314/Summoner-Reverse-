@@ -98,6 +98,36 @@ Two details matter for the planned
 - **NumLock:** on Windows 9x only, `key_numlock_fix` (`0x509a00`) turns NumLock off at
   start-up.
 
+## Mouse (`0x500a90`-`0x501090`)
+
+The mouse module sits just before `frametime.cpp`. The `vsdk` block therefore starts a little
+earlier than the [source map](source-map.md) estimated (`0x501000`).
+
+| Address | Name | Notes |
+|---|---|---|
+| `0x500de0` | `mouse_init(w, h)` | Centres the pointer and registers a message handler with `os_add_msg_handler` |
+| `0x500e90` | `mouse_di_init` | `DirectInputCreateA` version 0x700, falling back to 0x300. Opens the system mouse, non-exclusive and foreground |
+| `0x500a90` | `mouse_update` | Called every frame: latches the buttons, then reads movement |
+| `0x500cd0` | `mouse_di_read` | DirectInput `GetDeviceState`; re-acquires after focus loss (`Sleep(500)`) |
+| `0x500c80` | `mouse_set_pos(x, y)` | `ClientToScreen` + `SetCursorPos`, only while the window is in the foreground |
+| `0x501090` | `mouse_flush` | |
+
+How `mouse_update` reads movement:
+- **DirectInput mode:** the mouse moves by DirectInput deltas.
+- **Cursor mode:** used if DirectInput fails (`mouse_use_cursor`, `0x5a5734`). The position
+  comes from `GetCursorPos` + `ScreenToClient`.
+- **Mouse look:** optionally warps the pointer back to the centre and reports
+  `mouse_dx`/`mouse_dy`.
+
+[SummonerFix](../summonerfix/index.md) relates to this module in two ways:
+- It **is** the `dinput.dll` that `mouse_di_init` loads. Its `DirectInputCreateA` forwards to
+  the system DLL.
+- Its mouse mapping hooks the `ScreenToClient` call in `mouse_update` and the
+  `ClientToScreen` call in `mouse_set_pos`.
+
+`os_get_main_wnd` (`0x530c00`) and `os_foreground` (`0x530c10`) return the Dash Faction
+globals `main_wnd` (`0x2cbff10`) and `is_main_wnd_active` (`0x2cbff1c`).
+
 ## Still to do
 
 - The Direct3D and Glide back ends beyond the dispatch targets (named **I** only).

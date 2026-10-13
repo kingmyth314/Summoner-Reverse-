@@ -161,6 +161,13 @@
 0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game
 0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
+0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)
+0x500c80  mouse_set_pos            func  vsdk\os\mouse          I ; (x, y) client coords -> ClientToScreen + SetCursorPos, only when foreground
+0x500cd0  mouse_di_read            func  vsdk\os\mouse          I ; IDirectInputDevice::GetDeviceState; on INPUTLOST/NOTACQUIRED Sleep(500) and Acquire; clamps x/y to the screen
+0x500de0  mouse_init               func  vsdk\os\mouse          I ; (w, h): critical section, centre, mouse_di_init (failure -> cursor mode), os_add_msg_handler, atexit
+0x500e90  mouse_di_init            func  vsdk\os\mouse          I ; DirectInputCreateA version 0x700, then 0x300; SysMouse, c_dfDIMouse, cooperative level 6 (non-exclusive | foreground), Acquire
+0x501090  mouse_flush              func  vsdk\os\mouse          I ; clears deltas and button state
+0x501450  clamp_int                func  -                      I ; (int*, lo, hi)
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
@@ -468,6 +475,8 @@
 0x526240  File__write_uint16       func  vsdk\vfile             I
 0x526410  File__write              func  vsdk\vfile             I ; (buf, len); optional transform when the file flag bit 0 is set
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
+0x530c00  os_get_main_wnd          func  vsdk\os                O ; returns main_wnd (0x2cbff10), as Dash Faction rf::main_wnd
+0x530c10  os_foreground            func  vsdk\os                O ; Dash Faction rf::os_foreground; returns 0x2cbff1c
 0x530c20  os_add_msg_handler       func  vsdk\os                O ; Dash Faction rf::os_add_msg_handler; key_init registers its window-message hook
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
@@ -632,6 +641,7 @@
 0x59c5e9  Snow_render              data:bool -                      I ; set by console command "snow_render" (toggles); type inferred
 0x59e0fc  Do_frame_callback        data:bool -                      I ; set by console command "do_frame_callback" (toggles); type inferred
 0x5a4c4c  Random_encounters_enabled data:bool -                      I ; set by console command "random_encounters" (toggles); type inferred
+0x5a5734  mouse_use_cursor         data:int vsdk\os\mouse          I ; 1 when DirectInput is unavailable
 0x5a573c actual_frametime         data:float           frametime.cpp     V
 0x5a5740 reported_frametime       data:float           frametime.cpp     V
 0x5a5744 fps                      data:float           frametime.cpp     V
@@ -642,8 +652,8 @@
 0x5a5758 Timestamp_ticker           data:int             timestamp.cpp     V ; Summoner 2 decomp; game-time ms clock, starts at 1
 0x5a575c Timestamp_realtime_ticker    data:int             timestamp.cpp     V ; Summoner 2 decomp; real-time ms clock, starts at 1
 0x5a5760  Load_mipmaps             data:bool -                      I ; set by console command "load_mipmaps" (toggles); type inferred
-0x5a5c38  localize_language_names  data:char[3][0x42] localize               O ; English, German, French
 
+0x5a5c38  localize_language_names  data:char[3][0x42] localize               O ; English, German, French
 0x5a6058  Gr_alpha_fog_ratio       data:int -                      I ; set by console command "alpha_fog" (sets); type inferred
 0x5a605c  Gr_level_fog_multiplier  data:int -                      I ; set by console command "level_fog" (sets); type inferred
 0x5a6060  gr_fade_level            data:float vsdk\gr\gr.cpp         I ; below 0 = no overlay
@@ -788,8 +798,8 @@
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
 0x245c9d8 Precalc_vis_method       data:bool -                      I ; set by console command "precalc_vis_method" (toggles); type inferred
-0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 
+0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
@@ -833,9 +843,26 @@
 0x256b74a Render_s3d_navpoints     data:bool -                      I ; set by console command "render_s3d_navpoints" (toggles); type inferred
 0x257ed10 ccmd_random_encounters   data:console_command -                      O ; console command object "random_encounters"
 0x257ed50 ccmd_iw                  data:console_command -                      O ; console command object "iw"
+0x257ef84 mouse_screen_w           data:int vsdk\os\mouse          I
+0x257ef88 mouse_wheel              data:int vsdk\os\mouse          I ; z axis
+0x257ef8c mouse_screen_h           data:int vsdk\os\mouse          I
+0x257ef90 mouse_buttons            data:uint8[3][16] vsdk\os\mouse          I ; latched copy for this frame
+0x257efc0 mouse_lock               data:CRITICAL_SECTION vsdk\os\mouse          I
+0x257efd8 mouse_z                  data:int vsdk\os\mouse          I
+0x257efdc mouse_y                  data:int vsdk\os\mouse          I
+0x257efe0 mouse_x                  data:int vsdk\os\mouse          I
+0x257efe8 mouse_buttons_live       data:uint8[3][16] vsdk\os\mouse          I ; written by the message handler
+0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
+0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
+0x257f020 mouse_di_active          data:bool vsdk\os\mouse          I
+0x257f021 mouse_inited             data:bool vsdk\os\mouse          I
+0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
+0x257f028 mouse_dy                 data:int vsdk\os\mouse          I
+0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f088 frames_rendered         data:int             frametime.cpp     V
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
+
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
 0x257f0a0 Frametime_initialized   data:bool            frametime.cpp     V
@@ -848,6 +875,7 @@
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
 0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
+
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
@@ -860,26 +888,25 @@
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
+
 0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
 0x25c6cd8 localize_script_table    data:void*[0xfd] localize               O
+
 0x25c70cc localize_quest_table     data:void*[0xfd] localize               O
 0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
 0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
 0x25d847c localize_item_table      data:void*[0xfd] localize               O
-
 0x25d8878 localize_language        data:int localize               O
 0x25d8898 localize_current_pool    data:Mempool* localize               O
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
-
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
-
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
 0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
 
@@ -896,11 +923,11 @@
 0x25daa74 key_inited               data:bool -                      I
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
 0x25dadf8 ccmd_print_to_file       data:console_command -                      O ; console command object "print_to_file"
+
 0x25dae08 ccmd_script              data:console_command -                      O ; console command object "script"
 0x25dae14 char_types               data:uint8[256] console.cpp            O ; filled by init_char_types
 0x25db214 current_char             data:char console.cpp            O
 0x25db21c lowercase_token          data:char[128] console.cpp            O
-
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
@@ -908,13 +935,13 @@
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
 0x2693040 mem_report_depth         data:int memory.cpp             I
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
 0x2693048 Pool                     data:Mempool* memory.cpp             V ; Summoner 2 name
-
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
@@ -924,7 +951,10 @@
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
+0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
+0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
+
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
@@ -945,5 +975,4 @@
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
-
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred
