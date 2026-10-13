@@ -73,6 +73,34 @@ First steps:
 2. Play-test walking, combat, AI and scripted events at 2x and 4x.
 3. Add `[Game] FastTravelKey` and `FastTravelSpeed` to `summonerfix.ini`.
 
+## Widescreen
+
+**Started 2026-10-13.** The goal is to use the whole width of a 16:9 or 16:10 screen in game,
+not a 4:3 picture with bars.
+
+What is known:
+
+- SummonerFix can already run the game at a wide internal resolution: `GameWidth=1366`,
+  `GameHeight=768` goes into resolution-table slot 2. Its scaling keeps the aspect ratio, so
+  1366x768 fills a 2560x1440 screen exactly. The 3D aspect follows the resolution (`gr_screen.aspect`).
+- **Test 2026-10-13 (main menu, frame capture):** it runs normally at 120 FPS. The menu is
+  drawn at the left in its original 1024x768 layout, and the right 342 pixels stay black.
+  Table-driven menus use absolute pixel positions ([UI tables](sum-exe/vsdk-ui.md)).
+- In game, layout is partly relative to the screen:
+  - `gr_screen_width`/`gr_screen_height` have 91 call sites, mostly HUD code (`0x403690`-`0x4122ab`);
+  - `interface_set_view_clip` sizes the 3D view from the width;
+  - camera edge-scrolling uses the width.
+- Every 2D draw adds `gr_screen.offset_x`, the clip origin set by `gr::set_clip`.
+  Centring a 1024-wide UI could therefore be done with the clip origin, but mouse
+  hit-testing for that UI would need the same offset.
+
+Next steps:
+
+1. Play-test in game with `GameWidth=1366` and note what is wrong (HUD placement, panels,
+   clicking, camera edges).
+2. Based on that, either centre the 1024-wide UI with a clip/mouse offset while the 3D view
+   uses the full width, or anchor individual HUD elements.
+
 ## Decompilation
 
 See the [Decompilation plan](decomp-plan.md): map the whole binary first (engine core
