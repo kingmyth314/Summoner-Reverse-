@@ -139,6 +139,12 @@ static void RunLine(char *line)
         Sleep(argc > 2 ? (DWORD)atoi(argv[2]) : 80);
         PostMessageA(wnd, WM_KEYUP, vk, lp | 0xC0000000);
         Out("postkey %s: ok (vk 0x%02X)", argv[1], vk);
+    } else if (!_stricmp(c, "postmsg") && argc >= 4) {
+        // postmsg MSG WPARAM LPARAM (hex), e.g. "postmsg 20b 10000 0" = WM_XBUTTONDOWN with XBUTTON1
+        HWND wnd = *(volatile HWND *)(UINT_PTR)SumVa(0x2cbff10);
+        UINT msg = (UINT)strtoul(argv[1], NULL, 16);
+        PostMessageA(wnd, msg, (WPARAM)strtoul(argv[2], NULL, 16), (LPARAM)strtoul(argv[3], NULL, 16));
+        Out("postmsg 0x%X: ok", msg);
     } else if (!_stricmp(c, "move") && argc >= 3) {
         Move(atoi(argv[1]), atoi(argv[2]));
         Out("move: ok");
