@@ -818,6 +818,7 @@
 0x479ad0  spell_description        func  -                    I ; L"Restore HPs to target.", L"Remove target's status effects." ...
 0x47a190  spells_parse_table       func  -                    O ; spells.tbl: "$Spell:", "+Name:", "+Class:", "+Damage type:", "+Hit Chance:" ...
 0x47a870  spell_get_cast_effect    func  -                    O ; spells[i].cast_effect (0x22e4f28 + 0x80*i + 0xC)
+0x47f4d0  spell_roll_amount        func  -                    O ; (target, spell, dice count, die size, resist): sums count x floor(frand x die + 1), damage x (1 - resistance(spell damage type)) x (1 - resist), party-size factor 0.15/0.3/0.45
 0x47f710  init_ccmd_summon         func  -                    O ; static initialiser: registers console command object ccmd_summon
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x4811b0  init_ccmd_Multi_path_type func  -                    O ; static initialiser: registers console command object ccmd_Multi_path_type
@@ -2211,6 +2212,7 @@
 0x56dd70  _CIacos                  func  crt                    O ; x87 intrinsic acos
 0x56e135  WinMainCRTStartup        func  crt                    O ; calls WinMain
 0x56e311  atoi                     func  crt                    O
+0x56e31c  crt_floor                func  -                    I ; C runtime, double -> double rounding down, used by spell_roll_amount
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
 0x56e90c  _isnan                   func  crt                    O
 0x56ea9b  free                     func  crt                    O ; C runtime

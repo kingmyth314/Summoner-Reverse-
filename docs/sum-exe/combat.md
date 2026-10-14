@@ -1,10 +1,10 @@
 ---
-title: "Combat: melee damage"
+title: "Combat: melee and spell damage"
 parent: Sum.exe
 nav_order: 6.25
 ---
 
-# Combat: melee damage
+# Combat: melee and spell damage
 
 **Summary:** `combat_melee_damage` (`0x464f50`) computes the damage of one melee hit. It takes the weapon's
 damage and material, the attacker's level, a random spread, a party-size modifier and per-attack-type
@@ -62,3 +62,25 @@ shows the weapon's raw damage (35), not this value.
 | `0x455a30` | `character_status_value` | strength of an active status |
 | `0x434350` | `party_count_active` | party members that exist and are not flagged out |
 | `0x5426e0` | `frand` | `rand() / 32768` |
+
+## Spell hits
+
+`living_entity_get_hit_by_spell` (`0x45dea0`) handles a spell hitting a target. Its arguments are the spell index
+into [`spells`](game-tables.md#spells) and a source type (`+0x18`; 0 = cast by a character). It then:
+
+1. **Resist chance.** It takes the spell's hit chance (`+0x5c`, with special cases: one species uses level x 2 / 100,
+   and source type 8 uses 0.3) and the target's magic resistance (`character_get_resistance(3)`). From those it
+   computes a resist value: `1 - (1 - (0.5 + magic resist - power x 0.04)) x hit chance`.
+2. **Per-spell handler.** A 108-way switch on the spell index chooses the effect. For example:
+   - lightning: `amount = caster level x (1 + energy skill)` dice of size 6 (negative, so damage);
+   - heal and vitalize: `amount = caster level` dice of size 12 or 8 (positive, so healing);
+   - the status spells (blind, silence, curse, freeze, sleep, ...) share one block that calls `status_effect_add`;
+   - resurrect and revive share a block, as do the meteor storms and the death spells.
+3. **Roll** (`spell_roll_amount`, `0x47f4d0`):
+   - the result is `amount` dice of the spell's `die` size, each `floor(frand() x die + 1)` (fixed `-amount`
+     when the die is 0);
+   - damage (a negative result) is multiplied by `1 - resistance(spell damage type)` (fire, ice, energy, ... at
+     `spell +0x78`) and by `1 - resist`; the `No_resist` console variable skips both;
+   - a party-size factor applies as in melee, but smaller: 0.15, 0.30 or 0.45 for 3, 4 or 5 members. Party members
+     take more damage, monsters less.
+4. **Apply:** `character_add_hp(result)`, then the spell's hit effect.
