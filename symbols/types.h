@@ -172,3 +172,29 @@ typedef struct GameStateHandlers {
     void (*frame)(void);    // +0x4 called every GameTick while current
     void (*leave)(void);    // +0x8 called before switching away
 } GameStateHandlers;
+
+// A character (party member, NPC or monster); cur_character (0x5fcc88) points at one. Partial layout from
+// character_add_xp (0x44fab0), character_get_max_stat (0x462840), character_equip_bonus (0x4627c0),
+// party_level_reset (0x437e50) and a runtime dump of Joseph at level 3 (HP 128, AP 26, 200 xp).
+typedef struct Character {
+    uint8_t _unmapped00[0x0c];
+    int32_t type;            // +0x00C 7 for player party members (level-up message, skill copy)
+    int32_t _unmapped10[0x1c];
+    int32_t template_handle; // +0x080 resolved by 0x46b1a0; record has a skill list at +0x20/+0x24, skill points +0x17c
+    uint8_t _unmapped84[0x270];
+    char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
+    uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
+    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x5AC two identical groups of six ints (31,30,29,26,30,29), meaning unknown
+    float   base_max_hp;     // +0x5F4 max HP without equipment; written by the level table
+    float   hp;              // +0x5F8 current HP (119 code references)
+    int16_t base_max_ap;     // +0x5FC
+    int16_t ap;              // +0x5FE current AP
+    int16_t level;           // +0x600
+    int16_t _pad602;
+    int32_t xp;              // +0x604 experience
+    uint8_t _unmapped608[0x0c];
+    uint8_t skill_byte[0x60];// +0x614 per-skill byte indexed by skill id, copied from the template on level-up (not the displayed level)
+    uint8_t _unmapped674[0xe0];
+    void*   equipment[10];   // +0x754 equipped items; item->+4 type, type->+0x40 two {stat, value} modifiers
+    // +0x758/+0x75C (slots 1-2) also receive a share of experience; +0x768/+0x76C model pointers
+} Character;

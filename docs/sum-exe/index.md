@@ -74,3 +74,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [vsdk: user interface](vsdk-ui.md)
 - [Interface screens](interface.md)
 - [Controls and keyboard map](controls.md)
+- [Characters, experience and levels](characters.md)

@@ -164,6 +164,7 @@
 0x4378f0  cmd_dump_sound_usage     func  -                      O ; console command "dump_sound_usage": Toggles Dump_sound_usage
 0x4379e0  cmd_add_xp               func  -                      O ; console command "add_xp": Adds experience points to currently selected character
 0x437c80 LoadingScreenDraw        func  -                        O ; loading-screen progress draw, calls FrameDone
+0x437e50  party_level_reset        func  -                    I ; (arg 1: clear party lists and cur_character; else revive/restore every party member, HP/AP to max); walks 0x970770 and 0x5fc350 lists
 0x438070  cmd_Give_all_items       func  -                      O ; console command "Give_all_items": Toggles Give_all_items
 0x438130  state_game_enter         func  -                      I ; state 4: in-game (level start)
 0x438c80  state_game_leave         func  -                      I
@@ -207,8 +208,11 @@
 0x449510  character_cycle_default_chain func  characterinfo.cpp      I ; +0x184: 0 -> 3 -> 1 -> 2 -> 0
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
 0x449c00  cmd_levelchars           func  -                      O ; console command "levelchars": dump info on all characters in the level
+0x44fab0  character_add_xp         func  -                    O ; thiscall (xp, ?, ?): +0x604 += xp, shares xp with equipment slots 1-2 (0x44ffc0), on level-up applies xp_level_table and refills HP/AP; "%s gained level %d!", "+Level!"
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
 0x4619b0  cmd_health               func  -                      O ; console command "health": Sets the percentage health for the debug object
+0x4627c0  character_equip_bonus    func  -                    O ; thiscall (stat): sum of {stat, value} modifiers (item type +0x40, 2 entries) over the 10 equipment slots at +0x754
+0x462840  character_get_max_stat   func  -                    O ; thiscall (0 = HP: base +0x5f4 + bonus, min 1; 1 = AP: base +0x5fc + bonus, min 0)
 0x463080  cmd_chance_gold          func  -                      O ; console command "chance_gold": Sets Chance_to_drop_gold
 0x463140  cmd_kill_summon          func  -                      O ; console command "kill_summon": kills off friendly summoned creature
 0x4631b0  cmd_no_resist            func  -                      O ; console command "no_resist": Toggles No_resist
@@ -241,6 +245,9 @@
 0x481b60  cmd_set_fog              func  -                      O ; console command "set_fog": Set the fogging clip plane.
 0x481ea0  cmd_Cull_ground          func  -                      O ; console command "Cull_ground": Toggles Cull_ground
 0x481f90  cmd_Cull_ground_too      func  -                      O ; console command "Cull_ground_too": Toggles Cull_ground_too
+0x489a60  xp_for_level             func  -                    O ; (level) -> experience needed: xp_level_table[level] below 20, then +50000, +60000, ... per level; x5 with game_debug_flags & 2
+0x489aa0  xp_level_reached         func  -                    O ; (level, xp) -> xp >= xp_for_level(level + 1)
+0x489c20  xp_max_level             func  -                    O ; 50, or 75 with game_debug_flags & 2
 0x48dc50  cmd_time_mult            func  -                      O ; console command "time_mult": Sets Time_mult
 0x48dd10  cmd_space_mult           func  -                      O ; console command "space_mult": Sets Space_mult
 0x48ddd0  cmd_small_mesh_threshold func  -                      O ; console command "small_mesh_threshold": Sets Small_mesh_threshold
@@ -988,6 +995,7 @@
 0x5fc021  Gamewide_show_hud_info   data:bool -                      I ; set by console command "show_hud_info" (toggles); type inferred
 0x5fc022  Print_screen_as_targa    data:bool -                      I ; set by console command "targa" (toggles); type inferred
 0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
+0x5fcc88  cur_character            data:Character* -                    O ; selected party member (character screen, add_xp); 0 between levels
 0x5fcc91  Max_skills               data:bool -                      I ; set by console command "max_skills" (toggles); type inferred
 0x5fcc98  player_input             data:uint32[3] gameplay.cpp           I ; {flags, mouse x, mouse y}
 0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
@@ -1077,6 +1085,7 @@
 0x22f9dd0 ccmd_Cull_ground_too     data:console_command -                      O ; console command object "Cull_ground_too"
 0x22faed0 ccmd_render_characters   data:console_command -                      O ; console command object "render_characters"
 0x22fb716 Cull_ground              data:bool -                      I ; set by console command "Cull_ground" (toggles); type inferred
+0x2305420  xp_level_table           data:uint8[20*0x18] -                    O ; 0x18-byte records per level; +0 experience needed (0, 0, 100, 200, 450, ...); rest per-level values not yet mapped
 0x23f81d8 ccmd_small_mesh_threshold data:console_command -                      O ; console command object "small_mesh_threshold"
 0x23fc838 ccmd_time_mult           data:console_command -                      O ; console command object "time_mult"
 0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"
