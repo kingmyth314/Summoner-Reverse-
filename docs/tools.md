@@ -181,6 +181,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 **Commands:**
 - `key NAME [ms]`, `keydown NAME`, `keyup NAME` (straight into `key_mark`);
 - `postkey NAME [ms]`: a real `WM_KEYDOWN`/`WM_KEYUP` posted to the game window, for window-message paths such as `[ConsoleKeys]`;
+- `postmsg MSG WPARAM LPARAM` (hex): any window message, e.g. `postmsg 20b 10000 0` for side button 1 (`WM_XBUTTONDOWN`);
+- `speedkey 1|0`: acts as if the speed key were held or released (the real key is read with `GetAsyncKeyState`, which agent mode cannot set);
 - `move X Y`, `click [left|right|middle] [X Y] [ms]`, `down/up BUTTON`, `drag X1 Y1 X2 Y2`;
 - `wait MS`, `capture NAME`;
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `quit`.

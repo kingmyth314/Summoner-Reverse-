@@ -277,6 +277,12 @@ static DWORD WINAPI WatchIni(LPVOID unused)
 #define VA_FRAMETIME_DIVISOR 0x5a5748u
 
 static volatile UINT g_configVk, g_speedVk;
+static volatile int g_agentSpeed; // agent mode: speed key held
+
+void KeysAgentSpeed(int held)
+{
+    g_agentSpeed = held;
+}
 static volatile float g_speedFactor = 3.0f;
 
 static UINT VkFromIni(const char *key, const char *def)
@@ -349,7 +355,7 @@ static DWORD WINAPI PollHotkeys(LPVOID unused)
             OpenConfigApp();
         configWas = configDown;
 
-        BOOL want = focused && svk && (GetAsyncKeyState((int)svk) & 0x8000);
+        BOOL want = (focused && svk && (GetAsyncKeyState((int)svk) & 0x8000)) || g_agentSpeed;
         if (want != fast) {
             *divisor = want ? 1.0f / g_speedFactor : 1.0f;
             fast = want;

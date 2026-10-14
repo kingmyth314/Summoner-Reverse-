@@ -63,6 +63,7 @@ void KeyBindInstall(void);
 // keys.c (agent mode)
 void KeysInjectKey(int code, int down);
 void KeysInjectMouse(int button, int down);
+void KeysAgentSpeed(int held); // agent mode: act as if the speed key were held
 
 // display.c (agent mode)
 void DisplayRequestCapture(const char *path);

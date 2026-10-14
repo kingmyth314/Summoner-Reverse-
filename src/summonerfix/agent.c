@@ -139,6 +139,9 @@ static void RunLine(char *line)
         Sleep(argc > 2 ? (DWORD)atoi(argv[2]) : 80);
         PostMessageA(wnd, WM_KEYUP, vk, lp | 0xC0000000);
         Out("postkey %s: ok (vk 0x%02X)", argv[1], vk);
+    } else if (!_stricmp(c, "speedkey") && argc > 1) {
+        KeysAgentSpeed(atoi(argv[1]));
+        Out("speedkey %s: ok", argv[1]);
     } else if (!_stricmp(c, "postmsg") && argc >= 4) {
         // postmsg MSG WPARAM LPARAM (hex), e.g. "postmsg 20b 10000 0" = WM_XBUTTONDOWN with XBUTTON1
         HWND wnd = *(volatile HWND *)(UINT_PTR)SumVa(0x2cbff10);
