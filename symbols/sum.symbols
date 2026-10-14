@@ -226,6 +226,7 @@
 0x433eb0  player_from_handle       func  player.cpp           O ; (object handle) -> player record whose +0xc matches, searching party_list then player_list_other; 0 if none
 0x433f40  party_remove_member      func  -                    I ; L"%s has left the party!\n"
 0x4340d0  party_add_member         func  -                    I ; L"%s has joined the party!\n"
+0x434350  party_count_active       func  player.cpp           O ; number of party members that exist and are not flagged out (+0x320 & 0x800000; & 0x8 outside state 4)
 0x4343b0  init_ccmd_slew           func  -                    O ; static initialiser: registers console command object ccmd_slew
 0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
 0x434440  input_drain_events       func  gameplay.cpp           I ; PollInputEvents until empty, feeding interface_frame
@@ -351,6 +352,8 @@
 0x4537f0  summon_turn_hostile      func  -                    I ; "Summoned creature has turned against you!"
 0x454700  status_effect_add        func  -                    O ; thiscall (id, ...): Character +0xac + id*0x20; immunity checks; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"
 0x4553a0  status_effect_cure       func  -                    O ; thiscall (id): clears Character +0xac + id*0x20; "Cant cure!"; floating text "-Silence" ... "-Slow"
+0x455950  character_has_status     func  living_entity.cpp    O ; thiscall (status id): GameTimer__valid on status slot +0xb0 + id*0x20
+0x455a30  character_status_value   func  living_entity.cpp    I ; thiscall (status id) -> float strength of an active status (used for protection and magic resistance)
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
 0x461870  init_ccmd_immortal       func  -                    O ; static initialiser: registers console command object ccmd_immortal
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
@@ -381,7 +384,7 @@
 0x464020  init_ccmd_Super_power    func  -                    O ; static initialiser: registers console command object ccmd_Super_power
 0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
 0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of materials[type +8].protection_mult * type +0xf0 over armour slots; Character screen shows x100
-0x464f50  combat_steal_gold        func  -                    I ; L"Stole %d gold!"
+0x464f50  combat_melee_damage      func  -                    O ; thiscall on an attack record ([+0] attacker, [+8] -> target, +0x3c attack/skill id): melee damage formula (docs/sum-exe/combat.md); the mug branch shows L"Stole %d gold!"
 0x4681b0  living_combat__ctor      func  -                    I ; constructor of the sub-object at living entity +0x558 (character_get_protection's this)
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
@@ -1364,6 +1367,7 @@
 0x5421d0  RecordSystemInformation  func  exceptionhandler       O ; time, exe and user, processors, physical memory
 0x5422f0  GetExceptionDescription  func  exceptionhandler       O ; "an Access Violation", "a Float Divide by Zero", ...
 0x5424e0  GetFilePart              func  exceptionhandler       O ; text after the last backslash
+0x5426e0  frand                    func  -                    O ; rand() * (1/32768): uniform 0..1
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
 0x543430  vim_read                 func  vsdk\ca\skeleton.cpp   I ; mesh body: vertices, faces, materials; textures through bm_load
 0x543920  vim_load                 func  vsdk\ca\skeleton.cpp   O ; "VIF LOADING: %s", "Unable to load vim: %s"
