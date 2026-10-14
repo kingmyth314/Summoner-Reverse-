@@ -1186,6 +1186,7 @@
 0x516bd0  TextFile__ParseTypeString func  vsdk\parse\parse.cpp   V ; Error("a valid type string")
 0x516cd0  vector3_to_string        func  -                      I ; "<x, y, z>"-style text through the string class (0x556f70 / 0x557070 / 0x557c00)
 0x516e80  matrix3_to_string        func  -                      I ; three vector3_to_string rows
+0x5172f0  movie_play               func  -                    O ; (file name): plays a Bink movie until it ends or a key is pressed; called for vlogo.bik/eaxlogo.bik (mainmenu_init) and by credits_frame
 0x517590  nw_buffer_receive        func  vsdk\net               I ; pops a packet from the per-type receive buffer
 0x5175e0  nw_can_write             func  vsdk\net               I ; select() for writability on nw_udp_socket
 0x517680  nw_send_packet           func  vsdk\net               I ; (data, len, flags, addr, type): prefixes a type byte, sendto()
@@ -1554,6 +1555,7 @@
 0x588a70 gameseq_state_table      data:GameStateHandlers[15] -           O ; {enter, frame, leave} per state; 0 and 3 empty
 0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
 0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
+0x5930bd  play_intro_movies        data:bool -                    O ; 1 until the first mainmenu_init plays vlogo.bik and (with EAX) eaxlogo.bik; SummonerFix SkipIntroMovies clears it
 0x5931b0  Gamewide_show_net_stats  data:bool -                      I ; set by console command "net_stats" (toggles); type inferred
 0x593508  joseph_skill_progression data:skill_progression[17] characterinfo.cpp    I ; player record +0x24 for Joseph: {skill, level, value}; character_add_xp copies value into Character.skill[skill] at that level
 0x599690  Chance_to_drop_gold      data:int -                      I ; set by console command "chance_gold" (sets); type inferred
@@ -1561,6 +1563,7 @@
 0x59a16c  Debug_death              data:bool -                      I ; set by console command "death" (toggles); type inferred
 0x59aa58  S3d_load_lightmaps       data:bool -                      I ; set by console command "load_lightmaps" (toggles); type inferred
 0x59af58  Ai_path_wandering_enabled data:bool -                      I ; set by console command "ai_wander" (toggles); type inferred
+0x59b800  camera_zoom_max          data:float -                    O ; camera zoom-out limit (1.0); camera +0x184 is clamped to [0.3, camera_zoom_max]; zoom_limit console command sets 1.0 / 1000
 0x59bd79  Render_level             data:bool -                      I ; set by console command "render_level" (toggles); type inferred
 0x59bd7a  Render_characters        data:bool -                      I ; set by console command "render_characters" (toggles); type inferred
 0x59bd7b  Render_effects           data:bool -                      I ; set by console command "render_effects" (toggles); type inferred

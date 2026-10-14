@@ -18,9 +18,9 @@ typedef struct {
     int maxFps;         // 0 = game default (120)
     int captureEvery;   // debug: seconds between frame captures to summonerfix-capture-N.bmp, 0 = off
     int maxTextureSize;
-    int centerMenus;
-    int centerHud;
-    int sidePanelsOverWorld; // wide screens: keep the 3D view full width behind side panels (map, spells, skills)      // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay    // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
+    int centerMenus;         // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
+    int centerHud;           // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay
+    int sidePanelsOverWorld; // wide screens: keep the 3D view full width behind side panels (map, spells, skills)
     char soundcard[64];
     char installPath[MAX_PATH];
     char iniPath[MAX_PATH];
@@ -53,6 +53,9 @@ void FpsLoggerStart(void);
 
 // timing.c
 void TimingFixInstall(void);
+
+// gameopts.c
+void GameOptionsInstall(void);
 
 // keys.c
 void KeyBindInstall(void);
