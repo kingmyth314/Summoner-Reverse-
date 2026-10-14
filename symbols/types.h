@@ -189,7 +189,7 @@ typedef struct Character {
     uint8_t _unmapped2ec[0x08];     // +0x2EC GameTimer
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
-    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC two identical groups of six ints (31,30,29,26,30,29), meaning unknown
+    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC two groups of six ints (31,30,29,26,30,29), probably body-part texture refs (head, torso, cape, thigh, leg, arms)
     float   base_max_hp;     // +0x5F4 max HP without equipment; written by the level table
     float   hp;              // +0x5F8 current HP (119 code references)
     int16_t base_max_ap;     // +0x5FC
