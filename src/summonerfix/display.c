@@ -9,6 +9,7 @@
 //   - clear the unused bars each frame (before SwapBuffers),
 //   - map mouse coordinates between window pixels and game pixels.
 #include "summonerfix.h"
+#include <stdio.h>
 #include <string.h>
 
 #define GL_COLOR_BUFFER_BIT 0x00004000
@@ -233,6 +234,118 @@ void DisplayGetAgentCursor(int *clientX, int *clientY)
     *clientY = g_agentY;
 }
 
+// Fast-mode indicator: a small "FAST x3" badge at the top-left of the game picture while the speed key's fast
+// mode is on during gameplay. Drawn with fixed-function OpenGL and a GDI bitmap font just before the swap; all
+// GL state it touches is saved and restored.
+typedef void(WINAPI *PFN_gl0)(void);
+typedef void(WINAPI *PFN_glu)(unsigned);
+typedef void(WINAPI *PFN_glf4)(float, float, float, float);
+typedef void(WINAPI *PFN_glf2)(float, float);
+typedef void(WINAPI *PFN_gli2)(int, int);
+typedef void(WINAPI *PFN_glOrtho)(double, double, double, double, double, double);
+typedef void(WINAPI *PFN_glCallLists)(int, unsigned, const void *);
+typedef unsigned(WINAPI *PFN_glGenLists)(int);
+typedef void(WINAPI *PFN_glViewportRaw)(int, int, int, int);
+typedef BOOL(WINAPI *PFN_wglUseFontBitmapsA)(HDC, DWORD, DWORD, DWORD);
+typedef void(WINAPI *PFN_glActiveTexture)(unsigned);
+static struct {
+    PFN_glu PushAttrib, MatrixMode, ListBase, Begin, Disable;
+    PFN_gl0 PopAttrib, PushMatrix, PopMatrix, LoadIdentity, End;
+    PFN_glf4 Color4f;
+    PFN_glf2 Vertex2f;
+    PFN_gli2 RasterPos2i;
+    PFN_glOrtho Ortho;
+    PFN_glCallLists CallLists;
+    PFN_glGenLists GenLists;
+    PFN_wglUseFontBitmapsA UseFontBitmapsA;
+    PFN_glActiveTexture ActiveTexture;
+    BOOL ok;
+} gi;
+static unsigned g_fontBase;
+static int g_fontHeight;
+
+static void IndicatorInit(void)
+{
+    HMODULE gl = GetModuleHandleA("opengl32.dll");
+    if (!gl)
+        return;
+#define GLP(field, name) *(FARPROC *)&gi.field = GetProcAddress(gl, name)
+    GLP(PushAttrib, "glPushAttrib"); GLP(PopAttrib, "glPopAttrib"); GLP(MatrixMode, "glMatrixMode");
+    GLP(PushMatrix, "glPushMatrix"); GLP(PopMatrix, "glPopMatrix"); GLP(LoadIdentity, "glLoadIdentity");
+    GLP(Ortho, "glOrtho"); GLP(Disable, "glDisable"); GLP(Color4f, "glColor4f"); GLP(Begin, "glBegin");
+    GLP(End, "glEnd"); GLP(Vertex2f, "glVertex2f"); GLP(RasterPos2i, "glRasterPos2i"); GLP(ListBase, "glListBase");
+    GLP(CallLists, "glCallLists"); GLP(GenLists, "glGenLists"); GLP(UseFontBitmapsA, "wglUseFontBitmapsA");
+#undef GLP
+    gi.ok = gi.PushAttrib && gi.PopAttrib && gi.MatrixMode && gi.PushMatrix && gi.PopMatrix && gi.LoadIdentity &&
+            gi.Ortho && gi.Disable && gi.Color4f && gi.Begin && gi.End && gi.Vertex2f && gi.RasterPos2i &&
+            gi.ListBase && gi.CallLists && gi.GenLists && gi.UseFontBitmapsA;
+}
+
+static void DrawSpeedIndicator(HDC dc, const Map *m)
+{
+    float factor = KeysSpeedActive();
+    if (factor <= 0.0f || *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4)
+        return;
+    if (!gi.ok) {
+        static BOOL tried;
+        if (!tried) {
+            tried = TRUE;
+            IndicatorInit();
+            typedef PROC(WINAPI * PFN_wglGetProcAddress)(LPCSTR);
+            PFN_wglGetProcAddress gpa = (PFN_wglGetProcAddress)GetProcAddress(GetModuleHandleA("opengl32.dll"), "wglGetProcAddress");
+            if (gpa)
+                *(FARPROC *)&gi.ActiveTexture = (FARPROC)gpa("glActiveTextureARB");
+        }
+        if (!gi.ok)
+            return;
+    }
+    int fh = (int)(18 * m->scale + 0.5);
+    if (fh != g_fontHeight) { // (re)build the bitmap font for this output size
+        HFONT font = CreateFontA(-fh, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                 ANTIALIASED_QUALITY, DEFAULT_PITCH, "Arial");
+        HGDIOBJ old = SelectObject(dc, font);
+        if (!g_fontBase)
+            g_fontBase = gi.GenLists(96);
+        gi.UseFontBitmapsA(dc, 32, 96, g_fontBase);
+        SelectObject(dc, old);
+        DeleteObject(font);
+        g_fontHeight = fh;
+    }
+    char text[32];
+    snprintf(text, sizeof text, "FAST x%g", factor);
+    int len = (int)strlen(text);
+
+    gi.PushAttrib(0x000FFFFF); // GL_ALL_ATTRIB_BITS (viewport, enables, colour, lists, ...)
+    if (gi.ActiveTexture) {
+        gi.ActiveTexture(0x84C1); // GL_TEXTURE1
+        gi.Disable(0x0DE1);       // GL_TEXTURE_2D
+        gi.ActiveTexture(0x84C0); // GL_TEXTURE0
+    }
+    gi.Disable(0x0DE1); gi.Disable(0x0B71 /* DEPTH_TEST */); gi.Disable(0x0B50 /* LIGHTING */);
+    gi.Disable(0x0B60 /* FOG */); gi.Disable(0x0C11 /* SCISSOR_TEST */); gi.Disable(0x0BC0 /* ALPHA_TEST */);
+    gi.Disable(0x0B44 /* CULL_FACE */);
+    real_glViewport(0, 0, m->cw, m->ch);
+    gi.MatrixMode(0x1701 /* PROJECTION */); gi.PushMatrix(); gi.LoadIdentity();
+    gi.Ortho(0, m->cw, 0, m->ch, -1, 1);
+    gi.MatrixMode(0x1700 /* MODELVIEW */); gi.PushMatrix(); gi.LoadIdentity();
+
+    // Badge in the top-left of the game picture (GL origin is bottom-left).
+    float pad = 6 * (float)m->scale, x0 = (float)m->offX + 12 * (float)m->scale;
+    float y1 = (float)(m->ch - m->offY) - 12 * (float)m->scale, w = len * fh * 0.62f + 2 * pad, h = fh + 2 * pad;
+    gi.Color4f(0.0f, 0.0f, 0.0f, 1.0f);
+    gi.Begin(7 /* QUADS */);
+    gi.Vertex2f(x0, y1 - h); gi.Vertex2f(x0 + w, y1 - h); gi.Vertex2f(x0 + w, y1); gi.Vertex2f(x0, y1);
+    gi.End();
+    gi.Color4f(1.0f, 0.82f, 0.25f, 1.0f); // gold, like the game's highlight text
+    gi.RasterPos2i((int)(x0 + pad), (int)(y1 - pad - fh * 0.8f));
+    gi.ListBase(g_fontBase - 32);
+    gi.CallLists(len, 0x1401 /* UNSIGNED_BYTE */, text);
+
+    gi.MatrixMode(0x1700); gi.PopMatrix();
+    gi.MatrixMode(0x1701); gi.PopMatrix();
+    gi.PopAttrib(); // restores the viewport, enables and current colour
+}
+
 static BOOL WINAPI Hook_SwapBuffers(HDC dc)
 {
     Map m;
@@ -253,6 +366,8 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
             p_glDisable(GL_SCISSOR_TEST);
         p_glClearColor(old[0], old[1], old[2], old[3]);
     }
+    if (GetMap(&m))
+        DrawSpeedIndicator(dc, &m);
     if (g_captureWanted && GetMap(&m)) {
         SaveFrame(&m, g_capturePath);
         InterlockedExchange(&g_captureWanted, 0);

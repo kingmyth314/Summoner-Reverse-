@@ -270,20 +270,28 @@ static DWORD WINAPI WatchIni(LPVOID unused)
 
 // In-game hotkeys from [Game], polled (so they work whatever the game does with keys) and re-read on reload:
 //   ConfigKey (default F10): opens SummonerFixConfig.exe, or brings it forward.
-//   SpeedKey (default F11): while held, the game runs SpeedFactor (default 3) times faster. FrameDone (0x501510)
+//   SpeedKey (default F11): with SpeedMode=Toggle (default) each press turns fast mode on or off; with
+//   SpeedMode=Hold it is on while held. In fast mode the game runs SpeedFactor (default 3) times faster. FrameDone (0x501510)
 //   reports frame time / frametime_divisor (0x5a5748, normally 1.0), and everything in the game advances by
 //   reported_frametime, so lowering the divisor speeds up the whole game consistently.
 #define VA_MAIN_WND 0x2cbff10u
 #define VA_FRAMETIME_DIVISOR 0x5a5748u
 
 static volatile UINT g_configVk, g_speedVk;
-static volatile int g_agentSpeed; // agent mode: speed key held
+static volatile int g_agentSpeedReq; // agent mode: 1 = switch fast mode off, 2 = on
+static volatile int g_speedToggle = 1; // SpeedMode: 1 Toggle, 0 Hold
+static volatile int g_speedOn;         // fast mode active (read by the on-screen indicator)
 
-void KeysAgentSpeed(int held)
+void KeysAgentSpeed(int on)
 {
-    g_agentSpeed = held;
+    g_agentSpeedReq = on ? 2 : 1;
 }
 static volatile float g_speedFactor = 3.0f;
+
+float KeysSpeedActive(void)
+{
+    return g_speedOn ? g_speedFactor : 0.0f;
+}
 
 static UINT VkFromIni(const char *key, const char *def)
 {
@@ -308,9 +316,15 @@ static void LoadGameKeys(void)
     if (factor > 8.0f) factor = 8.0f;
     if (config != g_configVk || speed != g_speedVk || factor != g_speedFactor)
         Log("hotkeys: config key vk 0x%02X, speed key vk 0x%02X, speed x%.1f", config, speed, factor);
+    char mode[16];
+    GetPrivateProfileStringA("Game", "SpeedMode", "Toggle", mode, sizeof mode, g_cfg.iniPath);
+    int toggle = _stricmp(mode, "Hold") != 0;
+    if (toggle != g_speedToggle)
+        Log("hotkeys: speed key mode %s", toggle ? "toggle" : "hold");
     g_configVk = config;
     g_speedVk = speed;
     g_speedFactor = factor;
+    g_speedToggle = toggle;
 }
 
 static void OpenConfigApp(void)
@@ -343,7 +357,8 @@ static void OpenConfigApp(void)
 static DWORD WINAPI PollHotkeys(LPVOID unused)
 {
     volatile float *divisor = (volatile float *)(UINT_PTR)SumVa(VA_FRAMETIME_DIVISOR);
-    BOOL configWas = FALSE, fast = FALSE;
+    BOOL configWas = FALSE, speedWas = FALSE, on = FALSE;
+    float applied = 1.0f;
     for (;;) {
         Sleep(15);
         HWND game = *(volatile HWND *)(UINT_PTR)SumVa(VA_MAIN_WND);
@@ -355,11 +370,25 @@ static DWORD WINAPI PollHotkeys(LPVOID unused)
             OpenConfigApp();
         configWas = configDown;
 
-        BOOL want = (focused && svk && (GetAsyncKeyState((int)svk) & 0x8000)) || g_agentSpeed;
-        if (want != fast) {
-            *divisor = want ? 1.0f / g_speedFactor : 1.0f;
-            fast = want;
+        BOOL speedDown = focused && svk && (GetAsyncKeyState((int)svk) & 0x8000);
+        if (g_speedToggle) {
+            if (speedDown && !speedWas)
+                on = !on;
+        } else {
+            on = speedDown;
         }
+        speedWas = speedDown;
+        if (g_agentSpeedReq) {
+            on = g_agentSpeedReq == 2;
+            g_agentSpeedReq = 0;
+        }
+        float want = on ? 1.0f / g_speedFactor : 1.0f;
+        if (want != applied) {
+            *divisor = want;
+            applied = want;
+            Log("fast mode %s", on ? "on" : "off");
+        }
+        g_speedOn = on;
     }
     return 0;
 }

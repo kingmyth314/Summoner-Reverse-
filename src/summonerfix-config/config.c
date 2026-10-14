@@ -38,20 +38,20 @@ static const Action k_actions[] = {
 // SummonerFix's own hotkeys, stored as key names in [Game] (not remappings). Listed after the actions.
 typedef struct { const char *iniKey, *def, *action; } Hotkey;
 static const Hotkey k_hotkeys[] = {
-    {"SpeedKey", "F11", "Speed up the game (hold)  [SummonerFix]"},
+    {"SpeedKey", "F11", "Fast mode on/off (or hold)  [SummonerFix]"},
     {"ConfigKey", "F10", "Open this window while playing  [SummonerFix]"},
 };
 #define HOTKEY_COUNT (int)(sizeof k_hotkeys / sizeof k_hotkeys[0])
 #define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
 
-enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY };
+enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE };
 
 // Optional [Game] settings (src/summonerfix/gameopts.c), read once at game start. Empty = the game's own value.
-typedef struct { int id; const char *iniKey, *label; } NumOption;
+typedef struct { int id; const char *iniKey, *label, *hint; } NumOption;
 static const NumOption k_numOptions[] = {
-    {ID_ZOOM, "CameraZoomMax", "Zoom-out limit (game 1):"},
-    {ID_INTERACT, "InteractRange", "Talk/use range (game 5):"},
-    {ID_CONTAINER, "ContainerRange", "Container range (game 5):"},
+    {ID_ZOOM, "CameraZoomMax", "Camera zoom-out limit:", "(standard game is 1)"},
+    {ID_INTERACT, "InteractRange", "Talk / use range:", "(standard game is 5)"},
+    {ID_CONTAINER, "ContainerRange", "Container open range:", "(standard game is 5)"},
 };
 #define NUM_OPTION_COUNT (int)(sizeof k_numOptions / sizeof k_numOptions[0])
 
@@ -335,6 +335,9 @@ static void ResetAll(void)
 static void LoadOptions(void)
 {
     CheckDlgButton(g_wnd, ID_SKIPMOVIES, GetPrivateProfileIntA("Game", "SkipIntroMovies", 0, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+    char mode[16];
+    GetPrivateProfileStringA("Game", "SpeedMode", "Toggle", mode, sizeof mode, g_ini);
+    CheckDlgButton(g_wnd, ID_SPEEDTOGGLE, _stricmp(mode, "Hold") ? BST_CHECKED : BST_UNCHECKED);
     for (int i = 0; i < NUM_OPTION_COUNT; i++) {
         char v[32];
         GetPrivateProfileStringA("Game", k_numOptions[i].iniKey, "", v, sizeof v, g_ini);
@@ -345,6 +348,7 @@ static void LoadOptions(void)
 static void ApplyOptions(void)
 {
     WritePrivateProfileStringA("Game", "SkipIntroMovies", IsDlgButtonChecked(g_wnd, ID_SKIPMOVIES) ? "1" : "0", g_ini);
+    WritePrivateProfileStringA("Game", "SpeedMode", IsDlgButtonChecked(g_wnd, ID_SPEEDTOGGLE) ? "Toggle" : "Hold", g_ini);
     for (int i = 0; i < NUM_OPTION_COUNT; i++) {
         char v[32];
         GetDlgItemTextA(g_wnd, k_numOptions[i].id, v, sizeof v);
@@ -354,7 +358,7 @@ static void ApplyOptions(void)
         }
         WritePrivateProfileStringA("Game", k_numOptions[i].iniKey, v, g_ini);
     }
-    SetStatus("Options saved. They take effect the next time the game starts.");
+    SetStatus("Options saved. The speed key mode applies at once; the others the next time the game starts.");
 }
 
 static HWND Label(HWND parent, const char *text, int x, int y, int w)
@@ -405,20 +409,24 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Button(w, ID_CHANGE, "&Change key...", 540, 10, 120);
         Button(w, ID_CLEAR, "C&lear", 540, 45, 120);
         Button(w, ID_RESET, "&Reset all", 540, 80, 120);
-        Label(w, "Game options:", 540, 130, 125);
-        HWND cb = CreateWindowA("BUTTON", "Skip intro movies", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 540, 150, 125, 20,
+        Label(w, "Game options:", 540, 125, 200);
+        HWND cb = CreateWindowA("BUTTON", "Skip intro movies", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 540, 143, 200, 20,
                                 w, (HMENU)(INT_PTR)ID_SKIPMOVIES, NULL, NULL);
         SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        cb = CreateWindowA("BUTTON", "Speed key toggles (off = hold)", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 540, 163, 200, 20,
+                           w, (HMENU)(INT_PTR)ID_SPEEDTOGGLE, NULL, NULL);
+        SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         for (int i = 0; i < NUM_OPTION_COUNT; i++) {
-            int y = 178 + i * 44;
-            Label(w, k_numOptions[i].label, 540, y, 128);
-            HWND e = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, y + 17, 70, 22,
+            int y = 190 + i * 42;
+            Label(w, k_numOptions[i].label, 540, y, 200);
+            HWND e = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, y + 16, 60, 22,
                                      w, (HMENU)(INT_PTR)k_numOptions[i].id, NULL, NULL);
             SendMessageA(e, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+            Label(w, k_numOptions[i].hint, 606, y + 19, 140);
         }
-        Button(w, ID_APPLY, "Save &options", 540, 315, 120);
+        Button(w, ID_APPLY, "Save &options", 540, 320, 120);
         Button(w, ID_CLOSE, "Close", 540, 402, 120);
-        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 440, 650, 20, w, (HMENU)ID_STATUS, NULL, NULL);
+        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 440, 740, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
         Refresh();
@@ -468,7 +476,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpszClassName = "SummonerFixConfig";
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     RegisterClassA(&wc);
-    RECT r = {0, 0, 670, 470};
+    RECT r = {0, 0, 760, 470};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings and options", style, CW_USEDEFAULT, CW_USEDEFAULT,
