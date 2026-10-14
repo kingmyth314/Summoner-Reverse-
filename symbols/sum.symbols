@@ -339,7 +339,7 @@
 0x4619b0  cmd_health               func  -                      O ; console command "health": Sets the percentage health for the debug object
 0x461b80  living_entity_create     func  living_entity.cpp    O ; "No more space for living entities. Please increase MAX_LIVING..."
 0x462400  character_skill_allowed  func  -                    I ; thiscall (skill): player_skill_unlocked on the player record unless flags +0x320 & 0x100; false makes character_get_skill return -999999
-0x462440  character_get_skill      func  -                    O ; thiscall (skill id) -> float: skill_byte[id] * 0.01 with equipment modifiers (0x462540); id 2 = speed (1.1 = 110%), id 1 = base protection
+0x462440  character_get_skill      func  -                    O ; thiscall (skill id) -> float: skill_byte[id] * 0.01 with equipment modifiers (0x462540); id 2 = speed (byte 11 = 0.11, shown x1000 = 110%), id 1 = base protection
 0x462540  character_skill_equip_mod func  -                    I ; thiscall (skill): modifiers from the 10 equipment slots (item type +0x20, 4 entries); multiplier for speed
 0x462660  character_resist_equip_bonus func  -                    O ; thiscall (type): sum of +Resist Mod: {type, value} entries (item type +0x30, 4 entries) over the 10 equipment slots
 0x4626b0  character_get_resistance func  -                    O ; thiscall (type 0 fire, 1 ice, 2 energy, 3 magic, 4-6 slashing/piercing/blunt) -> fraction; magic = skill(0x23)*0.5 + equipment + status + level*0.02 (Joseph lvl 3: 6%)

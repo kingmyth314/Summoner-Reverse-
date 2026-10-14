@@ -198,7 +198,7 @@ typedef struct Character {
     int16_t _pad602;
     int32_t xp;              // +0x604 experience
     uint8_t _unmapped608[0x0c];
-    uint8_t skill[0x60];     // +0x614 skill/attribute values x100 by skill id (character_get_skill); id 2 speed (110 = 110%), id 1 base protection; set from the template on level-up
+    uint8_t skill[0x60];     // +0x614 skill/attribute values by skill_id, value = byte * 0.01 (character_get_skill); skill level shown = value * 10; speed (id 2) shown = value * 1000 (11 -> 110%)
     uint8_t _unmapped674[0xa8];
     struct char_info* info;  // +0x71C character info record (char_infos); +0x10 species, +0x258 flags
     uint8_t _unmapped720[0x34];
@@ -274,7 +274,7 @@ typedef struct chat_command {
 typedef struct skill_progression {
     int32_t skill;           // skill id (index into Character.skill)
     int32_t level;           // character level at which it applies
-    int32_t value;           // new Character.skill[skill] value (x100)
+    int32_t value;           // new Character.skill[skill] value (hundredths)
 } skill_progression;
 
 // A player record (player.cpp), one per party member, in party_list (0x5fc350). Observed for Joseph in a

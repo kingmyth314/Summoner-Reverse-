@@ -36,7 +36,7 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | `+0x600` | short | level | dump (3); `character_add_xp` |
 | `+0x604` | int | experience | dump (200); `character_add_xp` adds to it |
 | `+0x558` | sub-object | protection helper; its first field points back at the character | `character_get_protection` |
-| `+0x614` | byte[] | skill and attribute values x100, by skill id | `character_get_skill`: id 2 = speed (110), id 1 = base protection |
+| `+0x614` | byte[] | skill and attribute values by skill id; value = byte x 0.01 | `character_get_skill`: id 2 = speed (11), id 1 = base protection |
 | `+0x754` | item*[10] | equipment slots; slots 1 and 2 are rings (they gain experience through `ring_add_xp`), slot 5 (`+0x768`) is the weapon, slots 3, 4, 6, 7 and 8 are armour | `character_equip_bonus`; the dump had a Short Sword in slot 5 and a Tunic in slot 7 |
 
 Maximum HP is `base_max_hp + character_equip_bonus(0)`, with a minimum of 1. Maximum AP is
@@ -56,7 +56,7 @@ the normal colour for none.
 | Shown | Computed as | Joseph at level 3 |
 |---|---|---|
 | HP, AP | current / `character_get_max_stat` | 128/128, 26/26 |
-| Speed | `character_get_skill(2)` x 100 | skill byte 110 → 1.10 → 110% |
+| Speed | `character_get_skill(2)` x 1000 | skill byte 11 → 0.11 → 110% |
 | Damage | weapon item type `+0x68` (slot 5) | Short Sword: 35 |
 | Protection | `character_get_protection` x 100 | Tunic 0.07 + level 3 x 0.01 = 0.10 → 10 |
 
@@ -79,7 +79,7 @@ The item type layout is `ItemType` in `symbols/types.h`. It is mapped from the `
 
 ## Skills
 
-`Character.skill[id]` stores each skill or attribute x100, with 10 shown as level 1 (110 for speed means 110%).
+`Character.skill[id]` stores each skill or attribute as hundredths: byte 10 = 0.10, shown as level 1 (value x 10). Speed is shown as value x 1000, so byte 11 = 110%.
 `skill_table` (`0x8b3f88`, 85 records of 0x34 bytes) holds each skill's localized name and description. It is
 filled by `init_skill_table` (`0x442ba0`). Id `0x55` means "none" (no chain skill). The enum is `skill_id` in
 `symbols/types.h`. Joseph at level 3 has non-zero speed, sword weapons, dodge, push, summon and heal, which
