@@ -432,6 +432,8 @@
 0x487d00  chat_cmd_list            func  -                    O ; chat_commands entry "/list": L"Players:"
 0x487ea0  chat_process_command     func  -                    I ; multiplayer chat line starting with "/": "/msg" or a chat_commands entry
 0x489930  experience_parse_table   func  -                    I ; "experience.tbl"; presumably fills xp_level_table
+0x4899d0  experience_parse_level   func  -                    O ; one experience.tbl line into an xp_level record: xp, skill points, level, 4 species groups
+0x489a30  experience_parse_pair    func  -                    I ; (file, &a, &b): two bytes of a species group
 0x489a60  xp_for_level             func  -                    O ; (level) -> experience needed: xp_level_table[level] below 20, then +50000, +60000, ... per level; x5 with game_debug_flags & 2
 0x489aa0  xp_level_reached         func  -                    O ; (level, xp) -> xp >= xp_for_level(level + 1)
 0x489c20  xp_max_level             func  -                    O ; 50, or 75 with game_debug_flags & 2
@@ -1596,7 +1598,7 @@
 0x22f9dd0 ccmd_Cull_ground_too     data:console_command -                      O ; console command object "Cull_ground_too"
 0x22faed0 ccmd_render_characters   data:console_command -                      O ; console command object "render_characters"
 0x22fb716 Cull_ground              data:bool -                      I ; set by console command "Cull_ground" (toggles); type inferred
-0x2305420  xp_level_table           data:uint8[20*0x18] -                    O ; 0x18-byte records per level; +0 experience needed (0, 0, 100, 200, 450, ...); rest per-level values not yet mapped
+0x2305420  xp_level_table           data:xp_level[21] -                    O ; experience.tbl: per level xp needed, skill points, HP/AP gain per species (xp_level in types.h)
 0x23f81d8 ccmd_small_mesh_threshold data:console_command -                      O ; console command object "small_mesh_threshold"
 0x23fc838 ccmd_time_mult           data:console_command -                      O ; console command object "time_mult"
 0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"

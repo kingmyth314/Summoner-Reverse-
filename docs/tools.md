@@ -191,3 +191,13 @@ screen). Key names are the ones `summonerfix.ini [KeyBindings]` uses.
 the load screen's Load (798, 368).
 
 Set `Agent=0` again for normal play.
+
+## `tools/tbl-fields.mjs`
+
+Pairs each `$Field:` / `+Field:` string in a `.tbl` parser with the offset its value is stored at. It works
+on a listing from `tools/asm.mjs`. See [Game data tables](sum-exe/game-tables.md) for the method and its limits.
+
+```
+node tools/asm.mjs fn spells_parse_table 6000 > spells.txt
+node tools/tbl-fields.mjs spells.txt
+```

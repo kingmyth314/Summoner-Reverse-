@@ -381,3 +381,19 @@ typedef struct char_info {
     const char* drop;        // +0x300 +Drop: / +Multiplayer Drop:
     uint8_t _unk304[0xcc];
 } char_info;
+
+// One experience.tbl level (xp_level_table 0x2305420, 21 records x 0x18), read by 0x4899d0.
+// Joseph (species group 0): level 1 = 64 HP / 5 AP, levels 2 and 3 = +32 HP / +3 AP each -> 128 HP at level 3;
+// skill points 2 + 2 = 4 (both match the Character screen).
+typedef struct xp_level {
+    int32_t xp;              // +0x00 experience needed (0, 0, 100, 200, 450, ...)
+    uint8_t skill_points;    // +0x04 skill points gained at this level (2)
+    uint8_t level;           // +0x05 the level number
+    struct {                 // +0x06 one group per species (char_info +0x10); read as two pairs by 0x489a30
+        uint8_t hp_gain;     //   (hp_gain, hp_extra) and (ap_gain, ap_extra); the second value of each pair
+        uint8_t ap_gain;     //   was 0 in the levels checked (perhaps a random range)
+        uint8_t hp_extra;
+        uint8_t ap_extra;
+    } species[4];
+    uint8_t _pad16[2];
+} xp_level;

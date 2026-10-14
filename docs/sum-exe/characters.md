@@ -129,12 +129,18 @@ and a network handle at `+0x8c`. `obj_from_handle` (`0x46b130`) reverses this. `
 
 `xp_level_table` has 0x18-byte records indexed by level. The first field is the experience needed:
 level 2 = 100, 3 = 200, 4 = 450 (confirmed in game). Beyond level 20, each level adds 50,000, then
-60,000, and so on. Debug flag 2 multiplies the thresholds by 5. The other fields of a record are not
-mapped yet.
+60,000, and so on. Debug flag 2 multiplies the thresholds by 5.
+
+The rest of each record (`xp_level` in `symbols/types.h`, read by `experience_parse_level`) is:
+- the skill points gained at that level (2);
+- the level number;
+- four 4-byte groups, one per species (`char_info +0x10`), with the HP and AP gained.
+
+For Joseph's group, level 1 gives 64 HP and 5 AP, and levels 2 and 3 each add 32 HP and 3 AP. That makes
+128 HP at level 3, and 2 + 2 = 4 skill points, both as the Character screen shows.
 
 ## Open questions
 
 - The meaning of the two six-value groups at `+0x5ac` (attributes? base and current?).
-- The rest of each `xp_level_table` record: four shorts per level that differ between levels.
 - Where the resistances come from.
 - The rest of the stat panel after protection (`0x42d58f` onwards).
