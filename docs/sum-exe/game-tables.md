@@ -37,3 +37,23 @@ displacements are then negative and need that base added.
   timings, distance, damage type, target radius.
 - **Character info:** HP/AP, experience awarded for a kill (`+0x2c`), level, damage, team, size, the four
   direction skills, AI ranges and turn rates, intelligence, icon height, drops.
+
+## Materials (`materials.tbl`)
+
+The 17 materials, in index order (`ItemType +0x08`; names from the parser's list at `0x598f5c`, values from
+`materials.tbl`):
+
+| Index | Material | Damage modifier | Weight | Speed | Protection |
+|---|---|---|---|---|---|
+| 0-4 | default, flesh, leather, stone, wood | 0 | 1.0 | 1.0 | 1.0 |
+| 5-9 | bone, fire, water, gas, ice | 0 | 1.0 | 1.0 | 0.5 |
+| 10 | copper | -2 | 0.6 | 0.7 | 0.8 |
+| 11 | gold | -3 | 1.2 | 1.0 | 0.7 |
+| 12 | bronze | -1 | 0.8 | 0.9 | 0.9 |
+| 13 | iron | 0 | 1.0 | 1.0 | 1.0 |
+| 14 | silver | 0 | 1.1 | 1.1 | 1.0 |
+| 15 | admantium | +1 | 0.9 | 0.9 | 1.2 |
+| 16 | volitionite | +2 | 1.0 | 1.0 | 1.4 |
+
+The damage modifier is added to `weapon damage x 0.1` before the level factor (see [Combat](combat.md)). Volitionite
+is named after the developer.

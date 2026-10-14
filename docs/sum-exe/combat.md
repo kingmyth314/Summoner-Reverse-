@@ -41,8 +41,8 @@ After this, a second jump table on the attack type applies the side effects: sta
 
 ## Example (from the numbers on Joseph's screen)
 
-Joseph at level 3 with a Short Sword (damage 35): `B = 3.5`. The material modifier is not known yet (`M`).
-The result is `D = (3.5 + M) x 2.5` before the spread, party and protection factors. The Character screen
+Joseph at level 3 with a Short Sword (damage 35, material 13 = iron, damage modifier 0): `B = 3.5`, `M = 0`, so
+`D = 3.5 x 2.5 = 8.75` before the spread, party and protection factors. The Character screen
 shows the weapon's raw damage (35), not this value.
 
 ## Helpers named here
