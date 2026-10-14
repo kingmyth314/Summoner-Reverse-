@@ -234,3 +234,9 @@ typedef struct level_script_info {
     const char* music;                   // +0x20 music name (looked up with 0x4696d0 in debug mode)
     uint8_t _unused24[0x1c];
 } level_script_info;
+
+// Multiplayer chat command (chat_commands, 0x59c180).
+typedef struct chat_command {
+    const char* name;        // "/kick", "/ping", "/list"
+    void (*handler)(void);   // argument list not yet mapped
+} chat_command;
