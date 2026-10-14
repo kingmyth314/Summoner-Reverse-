@@ -295,6 +295,7 @@
 0x442060  multi_send_packet        func  -                      I ; (data, len, to, reliable): per-type rate stats ("Unable to add net rate info"), nw_NewSendReliable
 0x442360  init_ccmd_disp_rate      func  -                    O ; static initialiser: registers console command object ccmd_disp_rate
 0x442380  cmd_disp_rate            func  -                      O ; console command "disp_rate": Toggle whether net rate info for a packet is displayed
+0x442ba0  init_skill_table         func  characterinfo.cpp    O ; static initialiser: fills skill_table with localized names and descriptions (L33 "hand to hand" ...)
 0x444a30  init_ccmd_All_summons    func  -                    O ; static initialiser: registers console command object ccmd_All_summons
 0x444a50  cmd_All_summons          func  -                      O ; console command "All_summons": Toggles All_summons
 0x4450c0  characterinfo_load_party func  characterinfo.cpp    I ; "Joseph char", "Joseph model" ... "Player instance", "%s.tbl"
@@ -1550,6 +1551,7 @@
 0x6d7e50  char_infos               data:char_info[256] characterinfo.cpp    O ; "$Character:" records (0x3d0 bytes); Character +0x71c points at one
 0x714e54  num_char_infos           data:int characterinfo.cpp    O ; record count, incremented by characterinfo_parse_table
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
+0x8b3f88  skill_table              data:uint8[85*0x34] characterinfo.cpp    O ; 85 skills x 0x34 bytes: +0 name (localize_strings pointer), +0x2c description; index = skill_id
 0x8b50b0  All_summons              data:bool -                      I ; set by console command "All_summons" (toggles); type inferred
 0x8b50b2  Quick_combo              data:bool -                      I ; set by console command "Quick_combo" (toggles); type inferred
 0x8b9d4c  materials                data:material[17] -                    O ; materials.tbl records (materials_parse_table): damage, weight, speed, protection multipliers; indexed by ItemType +0x08
