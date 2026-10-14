@@ -115,6 +115,8 @@
 0x416fb0  inventory_identify_item  func  -                    I ; L"Couldn't identify item."
 0x417110  inventory_confirm_destroy func  -                    I ; L"Destroy item?"
 0x417860  inventory_draw           func  -                      O ; screen 1 drawing (interface_draw switch)
+0x4185a0  item_info_popup_draw     func  -                    I ; "ItemInfoPopupbkgrnd"
+0x4191b0  multitrade_draw          func  -                    I ; "MultiTrade-Bkgrnd" (screen 19 item trade background)
 0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
 0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
 0x419560  itemtrade_frame          func  -                      O ; screen 19 per-frame input (interface_frame switch); (key) -> key
@@ -413,12 +415,14 @@
 0x473260  cmd_attack_point         func  -                      O ; console command "attack_point": attack point
 0x4732e0  init_ccmd_offense_point  func  -                    O ; static initialiser: registers console command object ccmd_offense_point
 0x473300  cmd_offense_point        func  -                      O ; console command "offense_point": offense point
+0x4739e0  ai_class_die             func  -                    I ; "AI_CLASS : DIE", "AI_CLASS : OF_SHOULD_BE_DEAD"
 0x474cf0  init_ccmd_ai_state       func  -                    O ; static initialiser: registers console command object ccmd_ai_state
 0x474d10  cmd_ai_state             func  -                      O ; console command "ai_state": Change the AI state of the study object
 0x474df0  init_ccmd_pause_ai       func  -                    O ; static initialiser: registers console command object ccmd_pause_ai
 0x474e10  cmd_pause_ai             func  -                      O ; console command "pause_ai": Toggles Ai_paused
 0x474ee0  init_ccmd_ai_wander      func  -                    O ; static initialiser: registers console command object ccmd_ai_wander
 0x474f00  cmd_ai_wander            func  -                      O ; console command "ai_wander": Toggles Ai_path_wandering_enabled
+0x4766f0  ai_service_request       func  -                    I ; "WARNING: unknown service request type -- %d"
 0x4778c0  init_ccmd_zoom_limit     func  -                    O ; static initialiser: registers console command object ccmd_zoom_limit
 0x4778e0  cmd_zoom_limit           func  -                      O ; console command "zoom_limit": Toggle camera zoom limiting.
 0x477970  init_ccmd_geom_avoid     func  -                    O ; static initialiser: registers console command object ccmd_geom_avoid
@@ -455,6 +459,8 @@
 0x487c10  chat_cmd_ping            func  -                    O ; chat_commands entry "/ping": L"Ping to %s: %d ms", L"Ping to server: %d ms"
 0x487d00  chat_cmd_list            func  -                    O ; chat_commands entry "/list": L"Players:"
 0x487ea0  chat_process_command     func  -                    I ; multiplayer chat line starting with "/": "/msg" or a chat_commands entry
+0x488230  mp_remote_walk           func  -                    I ; "What the heehaw -- someone's walking for me"
+0x488390  mp_remote_attack         func  -                    I ; "What the heehaw -- someone's attacking for me"
 0x489930  experience_parse_table   func  -                    I ; "experience.tbl"; presumably fills xp_level_table
 0x4899d0  experience_parse_level   func  -                    O ; one experience.tbl line into an xp_level record: xp, skill points, level, 4 species groups
 0x489a30  experience_parse_pair    func  -                    I ; (file, &a, &b): two bytes of a species group
@@ -484,6 +490,7 @@
 0x495450  cmd_serpent_solo         func  -                      O ; console command "serpent_solo": Set serpent without horse
 0x495480  init_ccmd_serpent_combat func  -                    O ; static initialiser: registers console command object ccmd_serpent_combat
 0x4954a0  cmd_serpent_combat       func  -                      O ; console command "serpent_combat": Sets serpent rider in combat state
+0x4954c0  serpent_rider_set_flinch func  -                    O ; "Unable to set Serpent Rider flinch for %s -- bad $Action"
 0x497ad0  init_ccmd_phoenix_stage  func  -                    O ; static initialiser: registers console command object ccmd_phoenix_stage
 0x497af0  cmd_phoenix_stage        func  -                      O ; console command "phoenix_stage": Set phoenix rider's current combat stage
 0x497b30  init_ccmd_phoenix_unlink func  -                    O ; static initialiser: registers console command object ccmd_phoenix_unlink
@@ -492,6 +499,7 @@
 0x497c50  cmd_phoenix_solo         func  -                      O ; console command "phoenix_solo": Set phoenix without horse
 0x497c80  init_ccmd_phoenix_combat func  -                    O ; static initialiser: registers console command object ccmd_phoenix_combat
 0x497ca0  cmd_phoenix_combat       func  -                      O ; console command "phoenix_combat": Sets phoenix rider in combat state
+0x498720  phoenix_rider_set_flinch func  -                    O ; "Unable to set Phoenix Rider flinch for %s -- bad $Action"
 0x499ea0  init_ccmd_tiger_stage    func  -                    O ; static initialiser: registers console command object ccmd_tiger_stage
 0x499ec0  cmd_tiger_stage          func  -                      O ; console command "tiger_stage": Set Tiger rider's current combat stage
 0x499f10  init_ccmd_tiger_unlink   func  -                    O ; static initialiser: registers console command object ccmd_tiger_unlink
@@ -500,19 +508,29 @@
 0x499ff0  cmd_tiger_combat         func  -                      O ; console command "tiger_combat": Sets tiger in combat state
 0x49a060  init_ccmd_tiger_solo     func  -                    O ; static initialiser: registers console command object ccmd_tiger_solo
 0x49a080  cmd_tiger_solo           func  -                      O ; console command "tiger_solo": Set tiger without horse
+0x49a1a0  tiger_rider_set_flinch   func  -                    O ; "Unable to set Tiger Rider flinch for %s -- bad $Action"
 0x49c850  init_ccmd_precalc_vis_method func  -                    O ; static initialiser: registers console command object ccmd_precalc_vis_method
 0x49c870  cmd_precalc_vis_method   func  -                      O ; console command "precalc_vis_method": Toggles Precalc_vis_method
 0x49cdd0  pathfinding_load_graph   func  pathfinding.cpp      O ; ".pfg": "Couldn't open pathfinding graph data file %s", "PFG memory size: %d"
+0x4a02d0  ai_path_alloc_node       func  pathfinding.cpp      I ; "Out of ai path nodes -- current max is %d."
 0x4a1790  boss_ai_parse_table      func  boss_ai.cpp          O ; "#Boss Info", "$Num Stages:", "$Stage:", "$Offense point:" ...
 0x4a3df0  init_ccmd_obstacle_height_offset func  -                    O ; static initialiser: registers console command object ccmd_obstacle_height_offset
 0x4a3e10  cmd_obstacle_height_offset func  -                      O ; console command "obstacle_height_offset": Set the height level to draw obstacles relative to main player pos
 0x4a67f0  init_ccmd_avoidance      func  -                    O ; static initialiser: registers console command object ccmd_avoidance
 0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
+0x4a8390  avoid_do_poly_seg_list_links func  -                    O ; "do_poly_seg_list_links -- out of memory"
+0x4a9440  avoid_create_obstacle_polys func  -                    I ; "create_obstacle_poly_from_avoid_poly failed", "add_primative_to_avoid_poly failed"
+0x4aa8e0  door_find_by_mesh        func  -                    O ; "Unable to find door for mesh id %d"
+0x4aaa10  door_pick_by_mesh        func  -                    I ; "Unable to find door to pick for mesh id %d"
+0x4ab130  mp_process_join_request  func  -                    I ; "WARNING -- ignoring redundant join request packet from net ID"
 0x4ac240  chat_process_irc_message func  -                    O ; IRC: PRIVMSG, CTCP, PING, JOIN, PART, KICK, NICK, MODE, TOPIC
+0x4ae410  mp_send_update           func  -                    I ; "Sending update", "Sending update because no ack"
+0x4af400  mp_process_new_player    func  -                    I ; "Received new player packet but player %s is already connected"
 0x4b1420  init_ccmd_Turn_anims     func  -                    O ; static initialiser: registers console command object ccmd_Turn_anims
 0x4b1440  cmd_Turn_anims           func  -                      O ; console command "Turn_anims": Toggles Use_turn_anims
 0x4b1510  init_ccmd_turn_scaler    func  -                    O ; static initialiser: registers console command object ccmd_turn_scaler
 0x4b1530  cmd_turn_scaler          func  -                      O ; console command "turn_scaler": Set the turn scaler
+0x4b7d30  pathvis_add_edge_node    func  -                    I ; "Edge tree node limit of %d reached" (pathfinding_visibility.cpp)
 0x4b8350  determine_point_visibility func  engine\ai\pathfinding_visibility.cpp I ; prints "determine_point_visibility() took %d ms."
 0x4b8830  init_ccmd_pyrul_stage    func  -                    O ; static initialiser: registers console command object ccmd_pyrul_stage
 0x4b8850  cmd_pyrul_stage          func  -                      O ; console command "pyrul_stage": Set Pyrul's current combat stage
@@ -528,6 +546,7 @@
 0x4ba050  cmd_ghost_solo           func  -                      O ; console command "ghost_solo": Set ghost without horse
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
+0x4c0f60  machival_boss_load       func  -                    I ; "machival_boss.tbl"
 0x4c2160  init_ccmd_titus_stage    func  -                    O ; static initialiser: registers console command object ccmd_titus_stage
 0x4c2180  cmd_titus_stage          func  -                      O ; console command "titus_stage": Set Titus's current combat stage
 0x4c21d0  init_ccmd_titus_combat   func  -                    O ; static initialiser: registers console command object ccmd_titus_combat
@@ -536,6 +555,7 @@
 0x4c34e0  cmd_darkjo_combat        func  -                      O ; console command "darkjo_combat": Sets dark josesph in combat state
 0x4c41c0  init_ccmd_urath_combat   func  -                    O ; static initialiser: registers console command object ccmd_urath_combat
 0x4c41e0  cmd_urath_combat         func  -                      O ; console command "urath_combat": Sets urath in combat state
+0x4c5cc0  murod_oni_boss_load      func  -                    I ; "murod_oni_boss.tbl"
 0x4c7ca0  init_ccmd_tentacles      func  -                    O ; static initialiser: registers console command object ccmd_tentacles
 0x4c7cc0  cmd_tentacles            func  -                      O ; console command "tentacles": Start battle with tentacle beasts
 0x4c7e70  init_ccmd_tentacle_test  func  -                    O ; static initialiser: registers console command object ccmd_tentacle_test
@@ -544,6 +564,7 @@
 0x4c80a0  cmd_gs_stage             func  -                      O ; console command "gs_stage": Set Giant salamanka's current combat stage
 0x4c80e0  init_ccmd_gsal_combat    func  -                    O ; static initialiser: registers console command object ccmd_gsal_combat
 0x4c8100  cmd_gsal_combat          func  -                      O ; console command "gsal_combat": Sets gsal in combat state
+0x4c8280  giant_salamanka_set_flinch func  -                    O ; "Unable to set Giant Salamanka flinch for %s -- bad $Action"
 0x4c8d70  init_ccmd_stage          func  -                    O ; static initialiser: registers console command object ccmd_stage
 0x4c8d90  cmd_stage                func  -                      O ; console command "stage": Set Luminar's current combat stage
 0x4ca770  init_ccmd_dont_load_fx   func  -                    O ; static initialiser: registers console command object ccmd_dont_load_fx
@@ -564,11 +585,14 @@
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4cd120  level_trigger_trip       func  -                    I ; "Tripped trigger: %s"
+0x4ce3c0  script_check_navpoint    func  -                    I ; "WARNING: Script trying to check navpoint that doesn't exist!"
 0x4ceab0  script_party_acquire_item func  -                    I ; L"Party acquired %s!"
 0x4ceb00  script_party_gain_xp     func  -                    I ; L"party gained %d XP"
+0x4cedf0  script_alloc_avoid_spline func  -                    O ; "Ran out of level_script_avoid_spline slots"
 0x4cef10  init_ccmd_Preparse_scripts func  -                    O ; static initialiser: registers console command object ccmd_Preparse_scripts
 0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
 0x4d0c90  quest_evaluate           func  -                    O ; "Evaluating quests!", "INVALIDATING QUEST!"
+0x4d3920  savegame_alloc           func  -                    I ; "SAVE GAME ALLOCATED : %d"
 0x4d4bd0  init_ccmd_gamestage      func  -                    O ; static initialiser: registers console command object ccmd_gamestage
 0x4d4bf0  cmd_gamestage            func  -                      O ; console command "gamestage": Set the important event flags to different stages of the game.
 0x4d4c60  init_ccmd_savegame       func  -                    O ; static initialiser: registers console command object ccmd_savegame
@@ -596,9 +620,14 @@
 0x4db100  cmd_dialogue_make_topic_unavailable func  -                      O ; console command "dialogue_make_topic_unavailable": mark a specific dialogue topic as unavailable.
 0x4db1d0  init_ccmd_dcamera        func  -                    O ; static initialiser: registers console command object ccmd_dcamera
 0x4db1f0  cmd_dcamera              func  -                      O ; console command "dcamera": Change the dialog camera options.
+0x4db420  script_parse_navpoint    func  -                    I ; "$Name:" "$Type:" ($npc/$player/$c_npc/$camera) "+Plane:" "$Position:" "$Orientation:"
 0x4e0050  init_ccmd_remove_nav     func  -                    O ; static initialiser: registers console command object ccmd_remove_nav
 0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
+0x4e2990  navpoint_set_name        func  -                    I ; "Unable to assign name to navpoint -- duplicate navpoint name"
+0x4e88a0  script_create            func  -                    I ; "Unable to create cutscene script / level script -- maximum ... reached"
+0x4e8cf0  script_make_filename     func  -                    I ; "_script.tbl" / "_cscript.tbl", "*** INVALID FILENAME ***"
 0x4e9ba0  script_write_navpoint    func  -                    O ; editor save: "$Name: \"%s\"", "$Type:", "+Plane: %d", "$Position: %s"
+0x4e9ce0  script_write_objects     func  -                    O ; editor save: "$Name: \"%s\"", "$Character: \"%s\"", "+Monster", "+Boss" ...
 0x4ea500  level_items_write_table  func  -                    O ; editor save of level_items.tbl
 0x4eac70  script_save              func  -                    O ; "Script \"%s\" saved.", read-only file errors
 0x4ecf70  init_ccmd_render_s3d_navpoints func  -                    O ; static initialiser: registers console command object ccmd_render_s3d_navpoints
@@ -1194,6 +1223,7 @@
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
 0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
 0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x5207d0  sound_check_filename     func  -                    I ; "Sound filename %s too long"
 0x521a60  sounds_parse_table       func  -                    O ; "sounds.tbl", "#Sounds Start" / "#Sounds End"
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
@@ -1269,6 +1299,7 @@
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
+0x5337a0  vif_instantiate_level    func  -                    I ; "VIF INSTANTIATE : LEVEL", "COMPACTING VIF PARTICLES"
 0x533df0  packfile_init            func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; adds tables/summoner/chars/items/effects/music/sounds/cutscene.vpp, prints load time
 0x533f10  packfile_lookup_insert   func  vsdk\vfile\packfile\file_packfile.cpp O ; open-addressing insert into the 0x50e9-slot {hash, entry} table
 0x533f60  packfile_check_header    func  vsdk\vfile\packfile\file_packfile.cpp O ; VPP header magic 0x51890ace; reads num_files and directory size
@@ -1344,9 +1375,11 @@
 0x544c40  StringPool__Add          func  vsdk\os\stringpool.cpp V ; Summoner 2; "Length of string pool exceeded"
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
 0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
+0x5466f0  sound_create_emitter     func  -                    I ; "Failed to create sound emitter since sound file missing: %s"
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
 0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
 0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
+0x547cc0  gr_glide_bitmap_size_check func  vsdk\gr\glide\gr_glide.cpp I ; "Glide: Not drawing %dx%d bitmap '%s'"
 0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
 0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
@@ -1356,12 +1389,13 @@
 0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
 0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
 0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
-0x54a800  gr_glide_bitmap          func  vsdk\gr\glide\gr_glide.cpp I
+0x54a800  gr_glide_bitmap          func  vsdkgrglidegr_glide.cpp I
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
 0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
 0x54bc60  gr_d3d_tcache_flush      func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d120  gr_d3d_bitmap_size_check       func  vsdk\gr\directx\gr_direct3d.cpp I ; "D3D: Not drawing %dx%d bitmap '%s'"
 0x54d3f0  gr_d3d_mark_texture_dirty func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54d430  gr_d3d_tcache_free       func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
@@ -1413,13 +1447,20 @@
 0x556550  pcx_encode_byte          func  vsdk\bmpman\targautils.cpp I ; run byte 0xC0 | count
 0x5565a0  bm_image_error_string    func  vsdk\bmpman\targautils.cpp I ; nth string of a "No error." table
 0x5565e0  jpeg_write_file          func  vsdk\bmpman            I ; (name, rgb, w, h): fopen + IJG libjpeg compress sequence; gr_screenshot ".jpg"
+0x55a3f0  ftp_send_port            func  -                    I ; "PORT %d,%d,%d,%d,%d,%d"
 0x55abd0  http_send_get            func  -                    I ; "GET %s%s HTTP/1.1", parses "Content-Length:"
+0x55c000  ds_duplicate_buffer      func  -                    I ; "DuplicateSoundBuffer failed because: %s"
 0x55c1a0  ds_init                  func  -                    O ; "dsound.dll", DirectSoundCreate, SetCooperativeLevel
+0x55c5b0  ds_channel_release       func  -                    I ; "c->pdsb->Stop() failed", "c->pds3db->Release() failed"
+0x55c6e0  ds_sound_release         func  -                    I ; "s->pdsb->Stop() failed", "s->pds3db->Release() failed"
+0x55cb60  ds_get_3d_interface      func  -                    I ; "Could not obtain 3D interface for hardware buffer: %s"
 0x55db80  ds_error_string          func  -                    O ; DSERR_* HRESULT -> name
+0x55dfe0  ds_init_primary_buffer   func  -                    I ; "Fatal error calling pPrimaryBuffer->QueryInterface(): %s"
 0x55e4c0  ui_slider__process       func  vsdk\ui              O ; vtable slot 5 (also used by 0x582308): mouse_is_down
 0x55eb70  ui_slider__draw          func  vsdk\ui              O ; vtable slot 7: gr_rect inside a clip
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
+0x562f60  mesh_check_materials     func  -                    I ; "Face is missing a material -- mesh %s"
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
 0x566fe0  acm_init                 func  -                    I ; "msacm32.dll"
