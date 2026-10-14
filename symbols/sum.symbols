@@ -666,6 +666,7 @@
 0x44b3f0  item_create_misc         func  items.cpp            O ; kind 2 branch of item_create (same body)
 0x44b430  item_create_misc_by_name func  items.cpp            O ; item_type_find(name) then item_create_misc (monster_drop_loot)
 0x44b450  item_type_find           func  items.cpp            O ; stricmp over item_types (0x8cbec0, 0x100 bytes each, count 0x8ec7c0), index or -1
+0x44b4a0  item_type_find_by_hash   func  items.cpp            I ; name hash -> item_types index or -1, used by savegame_read_items and savegame_read_inventory
 0x44b500  item_type_is_stackable   func  items.cpp            O ; false when ItemType+0x58 magic info has charges > 1 or +0x14 >= 1.0, party_inventory_add_item merges counts when true
 0x44b670  item_can_destroy         func  items.cpp            I ; !(item->type->flags(+0x5c) & 4), used by inventory_confirm_destroy
 0x44b690  item_is_identified       func  items.cpp            O ; debug mode -> true, else !(item->type +0x5c & 1)
@@ -697,6 +698,9 @@
 0x4553a0  status_effect_cure       func  -                    O ; thiscall (id): clears Character +0xac + id*0x20; "Cant cure!"; floating text "-Silence" ... "-Slow"
 0x455950  character_has_status     func  living_entity.cpp    O ; thiscall (status id): GameTimer__valid on status slot +0xb0 + id*0x20
 0x455a30  character_status_value   func  living_entity.cpp    I ; thiscall (status id) -> float strength of an active status (used for protection and magic resistance)
+0x457150  character_save_state     func  living_entity.cpp    O ; (buf) serializes a living entity by type: pos, heading, flags, effect slots, equipment, timers, skills, level, xp, HP, AP, AI state, returns bytes used
+0x4587f0  character_save_state_size func  living_entity.cpp    O ; returns 0x17c, the fixed record size
+0x458800  character_load_state     func  living_entity.cpp    I ; reader of character_save_state, called from savegame_read_character
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
 0x461370  character_find_move      func  living_entity.cpp    O ; charinfo_find_move(info, category, id, 1), category 4 refused for type 9
 0x4613b0  character_find_move_alt  func  living_entity.cpp    O ; charinfo_find_move_alt(info, category, id, 1), category 4 refused for type 9
@@ -797,6 +801,7 @@
 0x473320  ai_set_mode              func  -                    O ; (mode, submode): no-op if unchanged, saves previous mode at +8/+0xC, frees path +0x80, restarts timer +0x1C, 89 callers
 0x473750  ai_count_attackers       func  -                    I ; counts living entities (list 0x8ecd78, next +0x318) whose ai target handle (+0x384) is this owner and ai mode 3 sub 0x0f/0x1f/0x3f
 0x4739e0  ai_class_die             func  -                    I ; "AI_CLASS : DIE", "AI_CLASS : OF_SHOULD_BE_DEAD"
+0x4746d0  ai_state_save            func  -                    I ; (buf) on the ai_state at +0x324, called by character_save_state, returns bytes written
 0x474cf0  init_ccmd_ai_state       func  -                    O ; static initialiser: registers console command object ccmd_ai_state
 0x474d10  cmd_ai_state             func  -                      O ; console command "ai_state": Change the AI state of the study object
 0x474df0  init_ccmd_pause_ai       func  -                    O ; static initialiser: registers console command object ccmd_pause_ai
@@ -814,6 +819,8 @@
 0x477990  cmd_geom_avoid           func  -                      O ; console command "geom_avoid": Toggles Camera_geometry_avoidance
 0x477a60  init_ccmd_mlook_sensitivity func  -                    O ; static initialiser: registers console command object ccmd_mlook_sensitivity
 0x477a80  cmd_mlook_sensitivity    func  -                      O ; console command "mlook_sensitivity": Sets the sensitivity value for mouse look.
+0x478890  camera_get_state         func  -                    I ; copies 9 dwords of camera state (camera 0x60a018) for the CMRA chunk
+0x4788e0  camera_set_state         func  -                    I ; restores the 9 camera dwords on load (savegame_read_camera)
 0x479a60  camera_cycle_mode        func  -                      I ; F12: mode 0 -> 1 -> 2 -> 0
 0x479ad0  spell_description        func  -                    I ; L"Restore HPs to target.", L"Remove target's status effects." ...
 0x47a190  spells_parse_table       func  -                    O ; spells.tbl: "$Spell:", "+Name:", "+Class:", "+Damage type:", "+Hit Chance:" ...
@@ -996,6 +1003,7 @@
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4cd120  level_trigger_trip       func  -                    I ; "Tripped trigger: %s"
+0x4cd570  lc_find_by_hash          func  -                    I ; hash of level_script_name + name over table 0x248ce40 (0x10c each, count 0x2491a68) -> index or -1, "lc" entries in the two-stage section
 0x4cd5f0  level_script_parse_table func  -                    O ; "_script.tbl" #Town #Navpoints #Objects #Doors #Clicks
 0x4ce3c0  script_check_navpoint    func  -                    I ; "WARNING: Script trying to check navpoint that doesn't exist!"
 0x4ceab0  script_party_acquire_item func  -                    I ; L"Party acquired %s!"
@@ -1005,8 +1013,17 @@
 0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
 0x4ceff0  savegame_report_sizes    func  -                    O ; printf of section sizes "thumb_size", "le_size", "quest_flag_size", "automap_labels_size"
 0x4cf260  savegame_report_read_sizes func  -                    O ; same sizes with "i = %d," prefix, from savegame_read_header
+0x4cf500  savegame_write_party_state func  -                    O ; LENT: packed party dword (members, combat mode, selected member, summon species) + summon name, 0x24 bytes
+0x4cf680  savegame_read_party_state func  -                    I ; LENT: copies the 0x24-byte party state out of the chunk (pair of savegame_write_party_state)
 0x4cf6c0  savegame_write_character func  -                    O ; "saving %s (%d)", from savegame_write_living
+0x4cf790  savegame_read_character  func  -                    O ; LENT: matches a record's name hash to a living entity, character_load_state, player +0x178/+0x17c for type 7
+0x4cf8d0  savegame_write_groups    func  -                    I ; LENT: group table 0x243e040 (10 x 0x54): leader hash, member count - 1, member hashes, +0x4c
+0x4cfa00  savegame_read_groups     func  -                    I ; LENT: rebuilds the groups from name hashes (pair of savegame_write_groups)
+0x4cfbb0  savegame_init_buffer     func  -                    O ; (buffer, size): stores buffer/size at +0/+4 then savegame_clear_buffer, from savegame_alloc with 0x2494b2c, 0x4b000
 0x4cfbd0  savegame_data_offset     func  -                    O ; bit offset of entry n of type 0/1/2 in per-level data block
+0x4cfc40  savegame_get_visit_count func  -                    O ; (level) -> dword [+0x1c][level], 0 if no buffer
+0x4cfc60  savegame_set_visit_count func  -                    I ; (level, value): stores dword [+0x1c][level], level < 0x33
+0x4cfc80  savegame_inc_visit_count func  -                    O ; (level): visit count + 1, from state_game_enter
 0x4cfca0  savegame_get_flag        func  -                    O ; (level, flag name): hash name, find in level_script_table flag list, test bit, ~150 callers
 0x4cfd30  savegame_set_flag        func  -                    O ; (level, name, value): sets bit then quest_evaluate and refresh helpers
 0x4cfe00  savegame_refresh_object_flags func  -                    I ; after a flag change: updates objects whose flag field matches (bit 1 of +0x84)
@@ -1015,14 +1032,41 @@
 0x4cff80  savegame_set_bit         func  -                    O ; "bit_flag = %u, byte_number = %d" bounds message
 0x4d0030  savegame_get_int         func  -                    O ; (level, name): type-2 int variable
 0x4d00b0  savegame_set_int         func  -                    O ; (level, name, value): type-2 int variable
+0x4d0130  savegame_get_float       func  -                    O ; (level, name): type-3 float variable via level_script_table +0x38/+0x3c hash list, ls_worldmap1_init
+0x4d01c0  savegame_set_float       func  -                    O ; (level, name, value): type-3 float variable, ls_worldmap1_frame
 0x4d0240  savegame_find_flag_level func  -                    I ; searches all 51 level_script_table flag lists for a name hash
 0x4d0590  savegame_has_conversation_data func  -                    I ; tested before restoring conversation state
+0x4d06e0  savegame_set_speaker_bit func  -                    I ; (level, conversation, ..., speaker name, value, propagate): sets a speaker bit in the conversation block, optionally in the level's other conversations, from conversation_save_state
+0x4d09e0  savegame_set_topic_bit   func  -                    I ; (level, conversation, speaker, topic, kind 0..3, value, ...): sets one of four topic bits, from conversation_save_state
 0x4d0c00  savegame_get_quest_bit   func  -                    O ; bit n of +0x103c, journal_init/journal_draw callers
 0x4d0c40  savegame_set_quest_bit   func  -                    O ; set/clear bit n of +0x103c, quest_evaluate, journal_notify_updated
 0x4d0c90  quest_evaluate           func  -                    O ; "Evaluating quests!", "INVALIDATING QUEST!"
 0x4d0d00  savegame_level_item_add  func  -                    O ; adds name hash to list +0x1044 (max 0x200)
 0x4d0d60  savegame_level_item_remove func  -                    O ; removes name hash from list +0x1044
 0x4d0dd0  savegame_level_item_has  func  -                    O ; name hash in list +0x1044
+0x4d0e20  savegame_two_stage_set   func  -                    I ; (open, flag2, obj): hash of level_script_name + object name, appends to the level list (max 0x79), sets the 2 state bits at +0x6138, "finding lc", "stuffing flag"
+0x4d1110  savegame_two_stage_get   func  -                    I ; (out bit0, out bit1, obj): reads the 2 state bits of a two-stage object, used by savegame_read_two_stage, lockpick_attempt, object_use_result
+0x4d12b0  savegame_automap_label_add func  -                    O ; (level, layer, {x,y,int,text}): appends a 0x34-byte label, max 0x80
+0x4d14f0  savegame_automap_labels_reset_level func  -                    I ; only caller cmd_reset_map_labels, removes labels from the 0x1054 list
+0x4d1620  savegame_automap_label_count func  -                    O ; returns the dword count at +0x1054
+0x4d1630  savegame_hot_buttons_clear_member func  -                    O ; (member 0..4): zeroes that member's 6 hot buttons (36 bytes at +0x105c)
+0x4d1660  savegame_hot_button_clear func  -                    O ; (member 0..4, button 0..5): zeroes one 6-byte hot button
+0x4d16a0  savegame_hot_button_set  func  -                    I ; (member, button, flag, id): stores {1, flag, id} and clears the same id from the member's other buttons
+0x4d17e0  savegame_clear_buffer    func  -                    O ; zeroes the whole savegame buffer (+0, +4 bytes)
+0x4d1800  savegame_layout_header   func  -                    O ; header section at buffer+0, size 0x1f8 (+0xc/+0x10)
+0x4d1820  savegame_layout_thumbnail func  -                    O ; thumbnail section aligned to 16, 0xed1e bytes (201x151 RGB565) (+0x14/+0x18)
+0x4d1860  savegame_layout_level_data func  -                    O ; 51 visit-count dwords (+0x1c) then per-level flag/automap/int/float blocks sized from level_script_table +0x24..+0x38
+0x4d18e0  savegame_layout_conversation func  -                    O ; 7 conversation blocks per level from table 0x25388c0, skips names ending _m1 (+0x4e8, +0x4ec)
+0x4d19e0  savegame_layout_items    func  -                    O ; ITEM section 8 + 4N + (N+7)/8, N = item type count 0x8ec7c0 (+0x1014/+0x1018)
+0x4d1a50  savegame_layout_inventory func  -                    O ; INVT section 0x20a0 bytes (+0x101c/+0x1020)
+0x4d1a80  savegame_layout_living   func  -                    O ; LENT section 0x34 + 175 x (4 + character_save_state_size) + 0x198 (+0x1024/+0x1028)
+0x4d1ae0  savegame_layout_camera   func  -                    O ; CMRA section 0x28 bytes (+0x102c/+0x1030)
+0x4d1b10  savegame_layout_item_objects func  -                    O ; CONT section 0x18b4 bytes (+0x1034/+0x1038)
+0x4d1b40  savegame_layout_quest_flags func  -                    O ; quest bits 0x19 bytes (+0x103c/+0x1040), then journal_notify_updated(n,0) for 200 quests
+0x4d1b80  savegame_layout_level_items func  -                    O ; level item hash list 0x804 bytes (+0x1044/+0x1048)
+0x4d1bb0  savegame_layout_two_stage func  -                    O ; two-stage object section 0x673f bytes (+0x104c/+0x1050)
+0x4d1be0  savegame_layout_automap_labels func  -                    O ; automap label section 0x1a04 bytes = 4 + 128 x 0x34 (+0x1054/+0x1058)
+0x4d1c10  savegame_layout_hot_buttons func  -                    O ; hot button section 0xb4 bytes = 5 x 6 x 6 (+0x105c/+0x1060)
 0x4d1c40  savegame_write           func  -                    O ; writes chunks then File__write, callers quicksave, saveload_save_to_slot, cmd_savegame
 0x4d1df0  savegame_write_header    func  -                    O ; tag "SAVg", version 0x27, level_filename
 0x4d1f80  savegame_write_thumbnail func  -                    O ; copies the 565 thumbnail at 0x5e5d28 (filled by saveload_capture_thumbnail) into the save buffer
@@ -1031,6 +1075,7 @@
 0x4d2150  savegame_write_living    func  -                    O ; tag "LENT" (living entities)
 0x4d2320  savegame_write_camera    func  -                    O ; tag "CMRA"
 0x4d2370  savegame_write_item_objects func  -                    O ; tag "CONT" (item_object section)
+0x4d25a0  savegame_chunk_stub      func  -                    O ; returns 1, called by savegame_write and savegame_read in place of the untagged sections
 0x4d25b0  savegame_read            func  -                    O ; opens file, File__read, calls the chunk readers
 0x4d2800  savegame_read_info       func  -                    O ; reads header only, quickload, saveload_scan_saves, cmd_loadgame
 0x4d2910  savegame_read_thumbnail_file func  -                    I ; File__read into thumbnail bitmap + gr_mark_texture_dirty
@@ -2314,6 +2359,8 @@
 0x59c5e8  Snow_enabled             data:bool -                      I ; set by console command "snow" (toggles); type inferred
 0x59c5e9  Snow_render              data:bool -                      I ; set by console command "snow_render" (toggles); type inferred
 0x59e0fc  Do_frame_callback        data:bool -                      I ; set by console command "do_frame_callback" (toggles); type inferred
+0x59e794  savegame_thumbnail_bm    data:int -                    O ; bitmap handle created on the thumbnail section, 201x151
+0x59f120  cur_level_index          data:int -                    I ; index of the current level in level_script_table, used by the two-stage code and 0x4ddaf0
 0x59f128  level_script_table       data:level_script_info[51] -                    O ; 0x40-byte records: name, init, frame, leave, use, +0x14 (unused), action, load steps, music name
 0x5a4c4c  Random_encounters_enabled data:bool -                      I ; set by console command "random_encounters" (toggles); type inferred
 0x5a5734  mouse_use_cursor         data:int vsdk\os\mouse          I ; 1 when DirectInput is unavailable
@@ -2378,9 +2425,11 @@
 0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
 0x5fc350  party_list               data:Player player.cpp           O ; circular list head of party player records (next +0, prev +4); walked by party_level_reset
 0x5fcc88  cur_character            data:Character* -                    O ; selected party member (character screen, add_xp); 0 between levels
+0x5fcc8c  cur_summon               data:Character* -                    I ; active summoned creature, its species and name are saved in the LENT party state
 0x5fcc91  Max_skills               data:bool -                      I ; set by console command "max_skills" (toggles); type inferred
 0x5fcc98  player_input             data:uint32[3] gameplay.cpp           I ; {flags, mouse x, mouse y}
 0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
+0x5fccb4  combat_mode              data:bool -                    I ; toggled by hud_toggle_combat_mode, LENT party bit 4
 0x601e78 sequence_start_time      data:int             -                 O ; timeGetTime at sequence start
 0x6034b8  ccmd_play_cutscene       data:console_command -                      O ; console command object "play_cutscene"
 0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
@@ -2392,11 +2441,14 @@
 0x609fe0  Full_party               data:bool -                      I ; set by console command "full_party" (toggles); type inferred
 0x609fe1  Dump_sound_usage         data:bool -                      I ; set by console command "dump_sound_usage" (toggles); type inferred
 0x609fec  Give_all_items           data:bool -                      I ; set by console command "Give_all_items" (toggles); type inferred
+0x60a018  game_camera              data:camera -                    I ; the camera object, CMRA chunk via camera_get_state/camera_set_state
 0x60a2c8  level_filename           data:char[] -                    I ; current level name (compared with _stricmp throughout level scripts)
+0x60a2e8  level_script_name        data:char[32] -                    I ; set by game_change_level, header +0x88, prefix of two-stage and lc hashes
 0x60a410  ccmd_flece               data:console_command -                      O ; console command object "flece"
 0x60a420  ccmd_character           data:console_command -                      O ; console command object "character"
 0x60a638  ccmd_jekhar              data:console_command -                      O ; console command object "jekhar"
 0x60a648  ccmd_render_3d_obstacles data:console_command -                      O ; console command object "render_3d_obstacles"
+0x60a654  level_time               data:float -                    O ; unpaused seconds since state_game_enter (reset there, += reported_frametime in state_game_frame), header +0xac
 0x60a658  ccmd_rosalind            data:console_command -                      O ; console command object "rosalind"
 0x60a665  Render_3d_obstacles      data:bool -                      I ; set by console command "render_3d_obstacles" (toggles); type inferred
 0x60abb8  cmdline_param_direct3d   data:CmdLineParam -                      O ; "-direct3d"
@@ -2447,6 +2499,7 @@
 0x9438ac  obj_free_list            data:void* objects.cpp          O ; free object slots
 0x9438b0  obj_slots                data:uint8[] objects.cpp          O ; 12-byte slots {next, prev, object}; slot index + handle base = object handle
 0x970810  ccmd_add_gold            data:console_command -                      O ; console command object "add_gold"
+0x971868  party_gold               data:int -                    I ; INVT +0x04, buysell_recharge_item subtracts from it, party_inventory_reset sets 30
 0x22c4388 ccmd_load_lightmaps      data:console_command -                      O ; console command object "load_lightmaps"
 0x22e43a8 ccmd_p3d_files           data:console_command -                      O ; console command object "p3d_files"
 0x22e43e8 ccmd_test_meshes_on_load data:console_command -                      O ; console command object "test_meshes_on_load"
@@ -2529,12 +2582,17 @@
 0x2493a16 No_cutscenes             data:bool -                      I ; set by console command "No_cutscenes" (toggles); type inferred
 0x2493a18 ccmd_loadgame            data:console_command -                      O ; console command object "loadgame"
 0x2493a28 ccmd_Preparse_scripts    data:console_command -                      O ; console command object "Preparse_scripts"
+0x2493a38  savegame_state           data:savegame -                    O ; savegame object: buffer, sizes, section pointers +0xc..+0x1060, pending load +0x1064
 0x2494b20 ccmd_savegame            data:console_command -                      O ; console command object "savegame"
+0x2494b2c  savegame_buffer          data:uint8_t[0x4b000] -                    O ; the save buffer, a .sav file is its first +0x08 bytes (270755 in v1.40)
 0x24dfb30 ccmd_gamestage           data:console_command -                      O ; console command object "gamestage"
+0x24e3b3c  savegame_file_version    data:int -                    O ; version read from the last header (must be 0x27)
 0x24e3b48 Preparse_scripts         data:bool -                      I ; set by console command "Preparse_scripts" (toggles); type inferred
 0x24ed5f0 ccmd_door_toggle         data:console_command -                      O ; console command object "door_toggle"
 0x25388b0 ccmd_door_open           data:console_command -                      O ; console command object "door_open"
+0x25388c0  conversation_save_table  data:void*[357*4] -                    I ; 51 x 7 entries of 0x10: {conversation name, speaker count, topic count, ?}, sizes the conversation section
 0x253ef30 ccmd_door_close          data:console_command -                      O ; console command object "door_close"
+0x25443ac  Script_filenames_tbl_checksum data:uint32_t -                    O ; name from the printf string, written to header +0x1e4, not checked on load
 0x2546730 ccmd_dialogue_make_topic_unavailable data:console_command -                      O ; console command object "dialogue_make_topic_unavailable"
 0x2546740 ccmd_dialogue_make_topic_available data:console_command -                      O ; console command object "dialogue_make_topic_available"
 0x2546750 ccmd_dcamera             data:console_command -                      O ; console command object "dcamera"

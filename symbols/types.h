@@ -270,7 +270,13 @@ typedef struct level_script_info {
     void* action;                        // +0x18 -> 0x2490c5c; script/dialogue action handler (journal_format_event)
     int32_t load_steps;                  // +0x1C loading-screen progress total (LoadingScreenDraw)
     const char* music;                   // +0x20 music name (looked up with 0x4696d0 in debug mode)
-    uint8_t _unused24[0x1c];
+    int32_t num_flags;                   // +0x24 savegame flag bits for this level (savegame_get_flag)
+    const uint32_t* flag_hashes;         // +0x28 case-insensitive name hash of each flag
+    int32_t automap_layers;              // +0x2C 4096 reveal bits each
+    int32_t num_ints;                    // +0x30 integer script variables
+    const uint32_t* int_hashes;          // +0x34
+    int32_t num_floats;                  // +0x38 float script variables
+    const uint32_t* float_hashes;        // +0x3C
 } level_script_info;
 
 // Multiplayer chat command (chat_commands, 0x59c180).
