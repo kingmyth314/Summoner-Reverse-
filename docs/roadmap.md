@@ -97,6 +97,9 @@ What is known:
 - **Done 2026-10-13:** menus (every game state except 4) are centred by shifting SummonerFix's output mapping (`[Display] CenterMenus`). Checked by frame capture.
 - User test 2026-10-13: works in game, but leaves empty space in the UI (in-game screens sit in the left 1024 pixels) and at the right of the menus (now fixed).
 
+- **User capture 2026-10-13 at 1366x768:** the 3D world fills the width; the HUD bar, full-screen panels (inventory, character, journal, options) and side panels sit in the left 1024 pixels. The play menu is centred in that 1024 area.
+- **Implemented 2026-10-13, untested in game:** `widescreen.c` shifts the UI layer by redirecting UI call sites (see [SummonerFix](summonerfix/index.md)).
+
 Next steps:
 
 1. Play-test in game with `GameWidth=1366` and note what is wrong (HUD placement, panels,

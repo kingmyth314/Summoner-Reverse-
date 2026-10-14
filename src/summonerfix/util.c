@@ -41,9 +41,13 @@ DWORD SumVa(DWORD va)
 
 // Write `repl` over `n` bytes at a Sum.exe address, but only if the current bytes equal `expect`.
 // A mismatch means a different game build (or another patch) and the change is skipped.
+// what == NULL: bulk patch, only failures are logged.
 BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const char *what)
 {
     BYTE *p = (BYTE *)(UINT_PTR)SumVa(va);
+    const char *quiet = what;
+    if (!what)
+        what = "(bulk patch)";
     if (memcmp(p, expect, n) != 0) {
         Log("SKIP %s: unexpected bytes at 0x%06lX", what, va);
         return FALSE;
@@ -56,7 +60,8 @@ BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const 
     memcpy(p, repl, n);
     VirtualProtect(p, n, old, &old);
     FlushInstructionCache(GetCurrentProcess(), p, n);
-    Log("patched %s at 0x%06lX (%u bytes)", what, va, (unsigned)n);
+    if (quiet)
+        Log("patched %s at 0x%06lX (%u bytes)", what, va, (unsigned)n);
     return TRUE;
 }
 

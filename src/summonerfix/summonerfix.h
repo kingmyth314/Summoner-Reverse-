@@ -18,7 +18,8 @@ typedef struct {
     int maxFps;         // 0 = game default (120)
     int captureEvery;   // debug: seconds between frame captures to summonerfix-capture-N.bmp, 0 = off
     int maxTextureSize;
-    int centerMenus;    // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
+    int centerMenus;
+    int centerHud;      // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay    // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
     char soundcard[64];
     char installPath[MAX_PATH];
     char iniPath[MAX_PATH];
@@ -54,3 +55,6 @@ void TimingFixInstall(void);
 
 // keys.c
 void KeyBindInstall(void);
+
+// widescreen.c
+void WidescreenInstall(void);
