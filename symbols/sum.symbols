@@ -1095,6 +1095,13 @@
 0x526220  File__write_uint8        func  vsdk\vfile             I
 0x526240  File__write_uint16       func  vsdk\vfile             I
 0x526410  File__write              func  vsdk\vfile             I ; (buf, len); optional transform when the file flag bit 0 is set
+0x526a50  ui_button__process       func  vsdk\ui              O ; vtable slot 5: input (mouse_is_down)
+0x526f30  ui_button__vfunc0        func  vsdk\ui              I ; ui_button vtable slot 0 (destructor)
+0x526f70  ui_button__ui_button     func  vsdk\ui              O ; constructor (vtable 0x581d88); used by ui_parse_button and static screen initialisers
+0x527690  ui_button__draw          func  vsdk\ui              O ; vtable slot 7: gr_string, state colours
+0x527e50  ui_static__process       func  vsdk\ui              O ; vtable slot 5
+0x527ea0  ui_static__ui_static     func  vsdk\ui              O ; constructor (vtable 0x581dac); used by ui_parse_static
+0x5280e0  ui_static__draw          func  vsdk\ui              O ; vtable slot 7: gr_rect, gr_string with justification
 0x528430  ui_parse_hotkey          func  vsdk\ui\window.cpp     I ; optional Shift/Ctrl/Alt prefixes, then the key name
 0x528530  ui_parse_button          func  vsdk\ui\window.cpp     I ; $Position $Size $Drag and drop $Repeats $Always use face color $Use right mouse button $Text $Font $Hotkey $Hotspot $State bitmap (Normal/Highlighted/Pressed/Disabled) $Tooltip
 0x528a40  ui_parse_checkbox        func  vsdk\ui\window.cpp     I ; $Box size $Label $Initially checked $Label offset ...
@@ -1104,10 +1111,25 @@
 0x529d70  ui_parse_radio_button    func  vsdk\ui\window.cpp     I
 0x52a180  ui_parse_slider          func  vsdk\ui\window.cpp     I ; $Horizontal $Dot slider $Marker bitmap/size/position $Left/Right/Up/Down button
 0x52a700  ui_parse_static          func  vsdk\ui\window.cpp     I ; $Horizontal/Vertical justification $Text $Font $State bitmap
+0x52b020  ui_window__ui_window     func  vsdk\ui\window.cpp   I ; constructor (vtable 0x581df4, 5 slots); base 0x52c3f0 + member 0x542d20; one per screen (static initialisers)
+0x52b0a0  ui_window__dtor          func  vsdk\ui\window.cpp   I ; destructor counterpart of ui_window__ui_window
 0x52b200  ui_load_table            func  vsdk\ui\window.cpp     I ; "unable to open UI table file %s"; $Position $Size $Name, then widgets ($Allow arrows, $Always a selection, ...)
 0x52b8e0  ui_window_load_a         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2532)
 0x52b970  ui_window_load_b         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2599)
+0x52bfa0  ui_slider__ui_slider     func  vsdk\ui              O ; constructor (vtable 0x581dd0); used by ui_parse_slider and the list-box scrollbars (0x52d650)
+0x52c330  ui_gadget__send_event    func  vsdk\ui              I ; vtable slot 1 (event, value; 0xfffe7961 = use +0x120): +0x244 callback, else parent (+0x268) or window (+0x25c) slot 1
+0x52c3d0  ui_gadget__dtor          func  vsdk\ui              I ; clears ui_current_gadget if it is this; window = 0; then 0x542cd0
+0x52c3f0  ui_gadget__ui_gadget     func  vsdk\ui              O ; base constructor (vtable 0x581e08), called by every widget constructor
+0x52c410  ui_gadget__dtor_base     func  vsdk\ui              I ; base destructor counterpart
+0x52c530  ui_gadget__is_blocked    func  vsdk\ui              I ; vtable slot 4: true if the window or parent says so (their slot 4), else 0x543000; probably disabled/hidden
+0x52c6f0  ui_gadget__vfunc6        func  vsdk\ui              I ; vtable slot 6 (a, b): forwarded to the parent's slot 6, else 0x52be90 on the window
+0x52c880  ui_gadget__vfunc8        func  vsdk\ui              I ; vtable slot 8: returns false
+0x52c890  ui_gadget__vfunc2        func  vsdk\ui              I ; vtable slot 2 (x): 0x542f10(x), then 0x52c8f0 if slot 4
+0x52c8c0  ui_gadget__vfunc3        func  vsdk\ui              I ; vtable slot 3 (x): 0x542f70(x), then 0x52c8f0 if slot 4
+0x52d080  ui_listbox__process      func  vsdk\ui              O ; vtable slot 5: keys (key_to_ascii) and mouse
 0x52d4a0  ui_set_text              func  vsdk\ui                I ; replaces over-long text with "text too long for pc version"
+0x52d5c0  ui_listbox__ui_listbox   func  vsdk\ui              O ; constructor (vtable 0x581e34); used by ui_parse_listbox
+0x52f080  ui_listbox__draw         func  vsdk\ui              O ; vtable slot 7: entries with gr_string/gr_bitmap inside a clip
 0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
 0x52f540  build_stamp_get_name     func  vsdk\ui                I ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.")
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
@@ -1243,7 +1265,18 @@
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
+0x552310  ui_inputbox__process     func  vsdk\ui              O ; vtable slot 5: typing, cursor
+0x5526a0  ui_inputbox__vfunc0      func  vsdk\ui              I ; ui_inputbox vtable slot 0 (destructor)
+0x5526b0  ui_inputbox__ui_inputbox func  vsdk\ui              O ; constructor (vtable 0x581f1c); used by ui_parse_inputbox
+0x5530b0  ui_inputbox__draw        func  vsdk\ui              O ; vtable slot 7: text, cursor bitmap, gr_line
+0x5534f0  ui_container__process    func  vsdk\ui\ui_container.cpp I ; vtable slot 5
+0x553560  ui_container__ui_container func  vsdk\ui\ui_container.cpp O ; constructor (vtable 0x581f40); used by ui_parse_container
 0x5536b0  ui_container_load        func  vsdk\ui\ui_container.cpp I ; "Could not load in \"%s\"!"
+0x5537a0  ui_container__vfunc6     func  vsdk\ui\ui_container.cpp I ; vtable slot 6 override; draws text and lines
+0x553800  ui_container__draw       func  vsdk\ui\ui_container.cpp O ; vtable slot 7
+0x553ba0  ui_checkbox__process     func  vsdk\ui              O ; vtable slot 5: mouse_is_down
+0x553ce0  ui_checkbox__ui_checkbox func  vsdk\ui              O ; constructor (vtable 0x581f68); used by ui_parse_checkbox (and radio buttons)
+0x553f00  ui_checkbox__draw        func  vsdk\ui              O ; vtable slot 7: box, label, state bitmaps
 0x554b60  m2v_read_header          func  vsdk\bmpman\targautils.cpp I ; (name, &w, &h); retries with ".m2v" appended; reads an 8-byte header
 0x554d00  m2v_read_bitmap          func  vsdk\bmpman\targautils.cpp I ; (name, &data): whole file into a new buffer
 0x554ea0  tga_rle_encode_row       func  vsdk\bmpman\targautils.cpp I ; used by gr_screenshot
@@ -1265,6 +1298,8 @@
 0x55abd0  http_send_get            func  -                    I ; "GET %s%s HTTP/1.1", parses "Content-Length:"
 0x55c1a0  ds_init                  func  -                    O ; "dsound.dll", DirectSoundCreate, SetCooperativeLevel
 0x55db80  ds_error_string          func  -                    O ; DSERR_* HRESULT -> name
+0x55e4c0  ui_slider__process       func  vsdk\ui              O ; vtable slot 5 (also used by 0x582308): mouse_is_down
+0x55eb70  ui_slider__draw          func  vsdk\ui              O ; vtable slot 7: gr_rect inside a clip
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
@@ -1345,6 +1380,15 @@
 0x57b5ca  gluLookAt                func  crt                    O ; import thunk: jmp [GLU32.dll!gluLookAt]
 # ---- data -----------------------------------------------------------------------------------
 0x580e38 resolution_table         data:int[3][2]       -                 O ; {640,480},{800,600},{1024,768}, then -1
+0x581d88  ui_button__vtable        data:void*[9] vsdk\ui              O ; slots: 0 dtor, 1-4 gadget, 5 process, 6, 7 draw, 8
+0x581dac  ui_static__vtable        data:void*[9] vsdk\ui              O ; 
+0x581dd0  ui_slider__vtable        data:void*[9] vsdk\ui              O ; 
+0x581df4  ui_window__vtable        data:void*[5] vsdk\ui\window.cpp   I ; 
+0x581e08  ui_gadget__vtable        data:void*[9] vsdk\ui              O ; base widget class
+0x581e34  ui_listbox__vtable       data:void*[9] vsdk\ui              O ; 
+0x581f1c  ui_inputbox__vtable      data:void*[9] vsdk\ui              O ; 
+0x581f40  ui_container__vtable     data:void*[9] vsdk\ui\ui_container.cpp O ; 
+0x581f68  ui_checkbox__vtable      data:void*[9] vsdk\ui              O ; 
 0x588a70 gameseq_state_table      data:GameStateHandlers[15] -           O ; {enter, frame, leave} per state; 0 and 3 empty
 0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
 0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
@@ -1697,6 +1741,7 @@
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
+0x2cbfcc4  ui_current_gadget        data:void* vsdk\ui              I ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture)
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
 0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name

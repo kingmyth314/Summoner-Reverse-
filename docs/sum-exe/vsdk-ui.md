@@ -28,6 +28,37 @@ builds menus and screens from **text tables**. Each widget type has its own pars
 Widget positions and sizes are absolute pixels in the table files, which is why the UI is
 laid out for one resolution. Any widescreen or native-resolution UI work starts here.
 
+## Widget classes
+
+The C++ widget classes were found from their vtables (2026-10-14). There is no RTTI, so the class names are
+ours. Every widget constructor first calls the base constructor `ui_gadget__ui_gadget` (`0x52c3f0`).
+
+| Class | Constructor | Vtable | Parser |
+|---|---|---|---|
+| `ui_gadget` (base) | `0x52c3f0` | `0x581e08` | |
+| `ui_button` | `0x526f70` | `0x581d88` | `ui_parse_button` |
+| `ui_static` | `0x527ea0` | `0x581dac` | `ui_parse_static` |
+| `ui_slider` | `0x52bfa0` | `0x581dd0` | `ui_parse_slider`; also the list-box scrollbars |
+| `ui_listbox` | `0x52d5c0` | `0x581e34` | `ui_parse_listbox` |
+| `ui_inputbox` | `0x5526b0` | `0x581f1c` | `ui_parse_inputbox` |
+| `ui_container` | `0x553560` | `0x581f40` | `ui_parse_container` |
+| `ui_checkbox` | `0x553ce0` | `0x581f68` | `ui_parse_checkbox`, radio buttons |
+| `ui_window` | `0x52b020` | `0x581df4` (5 slots) | one per screen, built by static initialisers |
+
+Widget vtables have nine slots:
+
+| Slot | Meaning | Evidence |
+|---|---|---|
+| 0 | destructor | |
+| 1 | send event (event, value) | calls the callback at `+0x244`, else forwards to the parent container (`+0x268`) or the window (`+0x25c`) |
+| 2, 3 | update a state through `0x542f10` / `0x542f70` | shared by all widgets |
+| 4 | "blocked" test | true if the window or parent says so; probably disabled or hidden |
+| 5 | **process input** | overridden by every widget; calls `mouse_is_down` / `key_to_ascii` |
+| 6 | forwarded to the parent | overridden by the container |
+| 7 | **draw** | overridden by every widget; calls `gr_string`, `gr_bitmap` and `gr_rect` |
+| 8 | returns false in the base | |
+
+
 ## Build stamp (press/beta watermark)
 
 `build_stamp_show` (`0x431cb0`) runs once at start-up and calls `build_stamp_check`
