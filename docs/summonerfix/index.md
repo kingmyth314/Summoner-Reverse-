@@ -15,8 +15,10 @@ has_children: false
 on Windows 11 without the original launcher, using the game's built-in but never-enabled
 OpenGL renderer. The game keeps its native 1024x768 layout, and the image is scaled to fill a
 borderless fullscreen window (4:3, centred), with the 3D world rasterised at the monitor's
-native resolution. **Status (2026-10-12): user play-test after the scaling and speed fixes: "everything seems to
-feel a bit better now and everything works".** Fullscreen 2560x1440, 120 FPS, 1:1 game speed.
+native resolution. **Status (2026-10-14):** user-tested on Windows 11 at 2560x1440: key and mouse rebinding, the config app, Alt+Tab,
+widescreen (`GameWidth=1366`), shops, looting, and the optional zoom and range settings all work. Fast mode (toggle,
+"FAST x3" badge), the cutscene-uptime fix and the save-thumbnail fix were verified in agent mode. Earlier play-tests
+confirmed 120 FPS at 1:1 game speed.
 
 Source: `src/summonerfix/`. Build: `tools/build-summonerfix.ps1 [-Install]` (LLVM-MinGW,
 `i686-w64-mingw32-gcc`). Test harness: `tools/test-run.ps1`.

@@ -12,11 +12,15 @@ GitHub Pages site.
 
 | Topic | Summary | Page |
 |---|---|---|
-| Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a six-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
-| ">4 GHz" timer bug | The QueryPerformanceFrequency result is truncated to 32 bits | [Timing bugs](docs/sum-exe/timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug) |
-| Cutscene skip bug | Cutscene timer reads `timeGetTime` as a signed 32-bit value and breaks after ~24.9 days of uptime (inferred) | [Timing bugs](docs/sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
-| Video settings | The game reads its own registry settings, accepts only 640x480 / 800x600 / 1024x768, and has an unused OpenGL renderer | [Video settings](docs/sum-exe/video-settings.md) |
-| SummonerFix | Our own `dinput.dll` patch: no launcher, forces the hidden OpenGL renderer; **main menu works on Windows 11** | [SummonerFix](docs/summonerfix/index.md) |
+| SummonerFix | Our own `dinput.dll` patch: runs on Windows 11 without the launcher (hidden OpenGL renderer), fixes 2x game speed, the >4 GHz timer and the 24.9-day cutscene skip, black save thumbnails; widescreen; key and mouse rebinding with a config app; fast-mode key with an on-screen badge; console-command keys; optional zoom, interaction-range and intro-skip settings | [SummonerFix](docs/summonerfix/index.md) |
+| Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a 15-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
+| Timing bugs | QPC frequency truncated to 32 bits (>4 GHz); frame limiter double-counts its sleep (2x speed); cutscene timer breaks after ~24.9 days of uptime (reproduced and fixed) | [Timing bugs](docs/sum-exe/timing-bugs.md) |
+| Characters | Character object, player record, 85 skills, status effects, experience table, resistances | [Characters](docs/sum-exe/characters.md) |
+| Combat | Melee and spell damage formulas | [Combat](docs/sum-exe/combat.md) |
+| Game data | items, materials, spells (all 108), character info tables in memory | [Game data tables](docs/sum-exe/game-tables.md) |
+| Level scripts | Per-level story logic through a 51-entry handler table | [Level scripts](docs/sum-exe/level-scripts.md) |
+| Interface | All 23 interface screens and their functions; UI widget classes | [Interface](docs/sum-exe/interface.md), [UI](docs/sum-exe/vsdk-ui.md) |
+| Decompilation | About a third of the game's functions are named in `symbols/sum.symbols` | [Decompilation plan](docs/decomp-plan.md) |
 | Timeslip's patch (v3) | Hooks QPC/QPF through the import table, adds a virtual-clock speed control and removes the CD check | [Timeslip's patch](docs/patches/timeslip.md) |
 
 ## Repository layout
@@ -24,6 +28,8 @@ GitHub Pages site.
 ```
 docs/            GitHub Pages site (Markdown, Jekyll "Just the Docs" theme)
 src/summonerfix/ SummonerFix source (C, built with LLVM-MinGW)
+src/summonerfix-config/ SummonerFixConfig.exe (key bindings and options)
+symbols/         Symbol file and structure layouts for Sum.exe
 tools/           Build, test and analysis helper scripts
 Summoner/        Local game install - NOT committed (see .gitignore)
 ```
