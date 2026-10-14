@@ -128,8 +128,6 @@ first), structured so it can become a byte-matching decompilation later.
 - Widescreen (16:9) instead of 4:3 pillarboxing, with the 1024-wide UI kept centred.
 - Port the remaining Timeslip features: speed keys, Bink 32-bit fixes, intro-movie skip,
   camera zoom range, interaction ranges, console key bindings.
-- Fix the cutscene uptime bug
-  ([Timing bugs](sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime)) by hooking
-  `timeGetTime`.
+- ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

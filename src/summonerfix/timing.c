@@ -70,8 +70,51 @@ static void __cdecl FrameSleep(DWORD requestedMs)
     *last = s_end;
 }
 
+// Cutscene timer fix (cutscenes "at mach speed" after ~24.9 days of Windows uptime).
+//
+// SequenceTimer (0x436a90) subtracts its start time with a signed 32-bit FISUB, so once timeGetTime()
+// passes 2^31 ms the start reads as about -2.1e9 and every sequence event looks overdue. Fix: return
+// time since start-up instead. GetMessageTime is rebased by the same amount because 0x509880
+// computes timeGetTime() - GetMessageTime() for key timing, and both must keep a common epoch.
+typedef DWORD(WINAPI *PFN_timeGetTime)(void);
+typedef LONG(WINAPI *PFN_GetMessageTime)(void);
+static PFN_timeGetTime real_timeGetTime;
+static PFN_GetMessageTime real_GetMessageTime;
+static DWORD g_timeBase;
+
+static DWORD WINAPI Hook_timeGetTime(void)
+{
+    return real_timeGetTime() - g_timeBase;
+}
+
+static LONG WINAPI Hook_GetMessageTime(void)
+{
+    return (LONG)((DWORD)real_GetMessageTime() - g_timeBase);
+}
+
+static void CutsceneTimerFixInstall(void)
+{
+    HMODULE exe = GetModuleHandleA(NULL);
+    real_timeGetTime = (PFN_timeGetTime)HookImport(exe, "WINMM.dll", "timeGetTime", (void *)Hook_timeGetTime);
+    if (!real_timeGetTime)
+        return;
+    real_GetMessageTime = (PFN_GetMessageTime)HookImport(exe, "USER32.dll", "GetMessageTime", (void *)Hook_GetMessageTime);
+    if (!real_GetMessageTime)
+        real_GetMessageTime = GetMessageTime;
+    // Start one second in, so the rebased clock is never 0 (some callers treat 0 as "not started").
+    // [Debug] FakeUptimeDays=N instead starts the clock at N days, to reproduce the original bug.
+    DWORD fakeDays = (DWORD)GetPrivateProfileIntA("Debug", "FakeUptimeDays", 0, g_cfg.iniPath);
+    DWORD now = real_timeGetTime();
+    g_timeBase = now - 1000 - fakeDays * 86400000u;
+    Log("cutscene timer: timeGetTime rebased to start-up (Windows uptime %.1f days%s)", now / 86400000.0,
+        now >= 0x80000000u ? ", past the 24.9-day limit: the fix is needed now" : "");
+    if (fakeDays)
+        Log("cutscene timer: FakeUptimeDays=%lu, testing only: the game sees %lu days of uptime", fakeDays, fakeDays);
+}
+
 void TimingFixInstall(void)
 {
+    CutsceneTimerFixInstall();
     g_clock = (PFN_FrameClockRead)(UINT_PTR)SumVa(VA_FRAMECLOCKREAD);
 
     // High-resolution waitable timer (Windows 10 1803+); otherwise fall back to Sleep.

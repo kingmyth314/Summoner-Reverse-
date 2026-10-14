@@ -51,8 +51,9 @@ harmless.
 
 ## 2. Cutscene timer sign bug (~24.9-day uptime)
 
-**Status:** Inferred from the assembly. Not reproduced in-game. **Not** fixed by
-Timeslip's patch.
+**Status:** **Reproduced and fixed by SummonerFix (2026-10-14).** With a simulated 30 days of uptime
+(`[Debug] FakeUptimeDays=30`), the new-game intro cutscene is skipped within 2 seconds. With the fix
+it plays normally (agent-mode screenshots). **Not** fixed by Timeslip's patch.
 
 ### The defect
 
@@ -93,15 +94,17 @@ Timeslip's patch installed. All of that fits an uptime-dependent bug in a `timeG
 path that the patch does not hook. Not every report fits: one user only partly improved
 it by limiting CPU speed, which this bug does not explain.
 
-### Possible fix (not implemented)
+### Fix (SummonerFix, `src/summonerfix/timing.c`)
 
-Hook `timeGetTime` the same way Timeslip hooked QPC: redirect the IAT slot `0x57e3fc` to a
-function that returns `timeGetTime() - value_at_startup`, so the value stays small.
+The IAT slot `0x57e3fc` (`timeGetTime`) is redirected to a function that returns
+`timeGetTime() - value_at_startup + 1000`, so the value stays small. `GetMessageTime` (`0x57e39c`) is
+rebased by the same amount, because `0x509880` computes `timeGetTime() - GetMessageTime()` for key
+timing. Rebasing only one of them would break that difference.
 
 ### Other users of the same start time
 
 `0x601e78` is also referenced at `0x43703f` (`FUN_00436c00`) and `0x49431e`
-(`FUN_00494310`). Both may share the bug. **Unknown**; not yet checked.
+(`FUN_00494310`). Both read `timeGetTime` through the same IAT slot, so the SummonerFix hook covers them too.
 
 ## 3. Frame limiter double-counts its sleep (2x game speed)
 
