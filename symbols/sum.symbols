@@ -345,6 +345,7 @@
 0x4626b0  character_get_resistance func  -                    O ; thiscall (type 0 fire, 1 ice, 2 energy, 3 magic, 4-6 slashing/piercing/blunt) -> fraction; magic = skill(0x23)*0.5 + equipment + status + level*0.02 (Joseph lvl 3: 6%)
 0x4627c0  character_equip_bonus    func  -                    O ; thiscall (stat): sum of {stat, value} modifiers (item type +0x40, 2 entries) over the 10 equipment slots at +0x754
 0x462840  character_get_max_stat   func  -                    O ; thiscall (0 = HP: base +0x5f4 + bonus, min 1; 1 = AP: base +0x5fc + bonus, min 0)
+0x462a20  character_set_underwear_textures func  -                    I ; per party member six body-part textures (head, torso, cape, thigh, leg, arms: "Joseph05.tga", "Torso_Uwear_Josp.tga" ...), bm_replace_file
 0x463060  init_ccmd_chance_gold    func  -                    O ; static initialiser: registers console command object ccmd_chance_gold
 0x463080  cmd_chance_gold          func  -                      O ; console command "chance_gold": Sets Chance_to_drop_gold
 0x463120  init_ccmd_kill_summon    func  -                    O ; static initialiser: registers console command object ccmd_kill_summon
@@ -370,6 +371,7 @@
 0x469dd0  obj_handle_base_next     func  objects.cpp          I ; returns and increments the counter at 0x59a5a0 (handle base), wraps at 0x59a5a4
 0x46a0b0  obj_is_living            func  objects.cpp          I ; thiscall: type test used by living_from_handle
 0x46a920  container_deinit         func  -                    O ; "deinit for container with handle %d"
+0x46af70  character_fill_body_textures func  -                    I ; copies Character +0x5ac.. entries from the second group where the first is 0, and back
 0x46b130  obj_from_handle          func  objects.cpp          I ; (handle) -> object or 0
 0x46b1a0  living_from_handle       func  objects.cpp          O ; (handle) -> obj_from_handle if obj_is_living, else 0; used throughout character code
 0x46c550  init_ccmd_add_gold       func  -                    O ; static initialiser: registers console command object ccmd_add_gold
