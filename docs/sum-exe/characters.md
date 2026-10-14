@@ -67,10 +67,10 @@ the normal colour for none.
 `character_get_protection` (`0x464de0`) works in one of two ways:
 
 - with no armour worn, it returns `get_skill(1) + level x 0.01`;
-- otherwise it adds up `armour_class_table[type +0x08] x type +0xf0` for each worn armour piece.
+- otherwise it adds up `materials[type +0x08].protection_mult x type +0xf0` for each worn armour piece (`materials` is the `materials.tbl` table at `0x8b9d4c`).
 
-The item type layout is `ItemType` in `symbols/types.h`. Its fields so far: name `+0x00`, model `+0x0c`,
-damage `+0x68` and protection `+0xf0`.
+The item type layout is `ItemType` in `symbols/types.h`. It is mapped from the `items.tbl` parser (`items_parse_table`), where each
+`$Field:` is stored at a fixed offset: for example kind `+0x04`, material `+0x08`, value `+0x18`, slot `+0x1c`, damage `+0x68`, weapon skill `+0x6c` and protection `+0xf0`.
 
 ## Status effects
 

@@ -356,7 +356,7 @@
 0x463860  combat_queue_counter_attack func  -                    O ; "Queueing counter attack for %s"
 0x464020  init_ccmd_Super_power    func  -                    O ; static initialiser: registers console command object ccmd_Super_power
 0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
-0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of armour_class_table[type+8] * item type +0xf0 over armour slots; Character screen shows x100
+0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of materials[type +8].protection_mult * type +0xf0 over armour slots; Character screen shows x100
 0x464f50  combat_steal_gold        func  -                    I ; L"Stole %d gold!"
 0x4681b0  living_combat__ctor      func  -                    I ; constructor of the sub-object at living entity +0x558 (character_get_protection's this)
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
@@ -1545,7 +1545,7 @@
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
 0x8b50b0  All_summons              data:bool -                      I ; set by console command "All_summons" (toggles); type inferred
 0x8b50b2  Quick_combo              data:bool -                      I ; set by console command "Quick_combo" (toggles); type inferred
-0x8b9d58  armour_class_table       data:uint8[] -                    I ; 20-byte records indexed by item type +0x08; +0 float protection multiplier (1.0 for class 0)
+0x8b9d4c  materials                data:material[17] -                    O ; materials.tbl records (materials_parse_table): damage, weight, speed, protection multipliers; indexed by ItemType +0x08
 0x8eca30  ccmd_chance_gold         data:console_command -                      O ; console command object "chance_gold"
 0x8eca40  ccmd_Spell_ap            data:console_command -                      O ; console command object "Spell_ap"
 0x8eca50  ccmd_kill_summon         data:console_command -                      O ; console command object "kill_summon"

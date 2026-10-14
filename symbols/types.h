@@ -204,26 +204,48 @@ typedef struct Character {
     // +0x758/+0x75C (slots 1-2) also receive a share of experience
 } Character;
 
-// An item type, shared by every item of that kind; an equipped item's +0x4 points at one. Observed for
-// "Short Sword" and "Tunic" in a runtime dump; most fields are not mapped yet.
+// An item type, shared by every item of that kind; an equipped item's +0x4 points at one. Fields from
+// items_parse_table (items.tbl), checked against "Short Sword" and "Tunic" in a runtime dump.
 typedef struct ItemType {
-    const char* name;        // +0x00 "Short Sword"
-    int32_t _unk04;          // +0x04 1 for the tunic, 0 for the sword
-    int32_t armour_class;    // +0x08 index into armour_class_table (0x8b9d58); 0x0d for the sword
-    const char* model;       // +0x0C "prop-sword-short.v3d"
+    const char* name;        // +0x00 $Name: "Short Sword"
+    int32_t kind;            // +0x04 $Type: 0 Weapon, 1 Armor, 2 Misc
+    int32_t material;        // +0x08 $Default Material: index into materials (0x8b9d4c, 17 entries)
+    const char* model;       // +0x0C $Model: "prop-sword-short.v3d"
     uint8_t _unmapped10[0x08];
-    int32_t _unk18;          // +0x18 100 sword, 20 tunic (price?)
-    int32_t _unk1c;          // +0x1C 4 sword, 6 tunic
-    void*   skill_mods[4];   // +0x20 -> {skill, value} (character_skill_equip_mod)
+    int32_t value;           // +0x18 $Value: (100 sword, 20 tunic)
+    int32_t slot;            // +0x1C +Slot: equipment slot (default 4; sword 4, tunic 6)
+    void*   skill_mods[4];   // +0x20 +Skill Mod: -> {skill, value} (character_skill_equip_mod)
     uint8_t _unmapped30[0x10];
-    void*   stat_mods[2];    // +0x40 -> {stat, value} (character_equip_bonus: 0 HP, 1 AP)
-    uint8_t _unmapped48[0x20];
-    int16_t damage;          // +0x68 weapon damage (35 for the short sword)
+    void*   stat_mods[2];    // +0x40 +Stat Mod: -> {stat, value} (character_equip_bonus: 0 HP, 1 AP)
+    uint8_t _unmapped48[0x0c];
+    float   ap_regen;        // +0x54 +AP Regen:
+    uint8_t _unmapped58[0x10];
+    // weapon fields
+    int16_t damage;          // +0x68 $Damage: (35 for the short sword)
     int16_t _unk6a;          // +0x6A 2 for the short sword
-    int16_t _unk6c;          // +0x6C 3 for the short sword
-    uint8_t _unmapped6e[0x82];
-    float   protection;      // +0xF0 armour protection (0.07 for the tunic, shown as 7)
+    int32_t weapon_skill;    // +0x6C $Skill: skill id (3 = sword weapons for the short sword)
+    float   speed;           // +0x70 $Speed:
+    float   attack_radius;   // +0x74 $Attack Radius:
+    float   weight;          // +0x78 $Weight:
+    uint8_t _unmapped7c[0x0c];
+    int32_t weapon_class;    // +0x88 $Class:
+    int32_t damage_type;     // +0x8C $Damage Type:
+    int32_t elemental_damage;// +0x90 +Elemental Damage: (type)
+    uint8_t _unmapped94[0x54];
+    // armour fields
+    float   armour_speed;    // +0xE8 $Speed:
+    float   armour_weight;   // +0xEC $Weight:
+    float   protection;      // +0xF0 $Protection: (0.07 for the tunic, shown as 7)
 } ItemType;
+
+// A materials.tbl record (materials, 0x8b9d4c), 20 bytes.
+typedef struct material {
+    float damage_mod;        // +0x00 +Damage Modifier:
+    float weight_mult;       // +0x04 +Weight Multiplier:
+    float speed_mult;        // +0x08 +Speed Multiplier:
+    float protection_mult;   // +0x0C +Protection Multiplier: (character_get_protection reads 0x8b9d58 + 20*material)
+    uint32_t _unk10;
+} material;
 
 // One level's script hooks in level_script_table (0x59f128, 51 records). level_script_select copies the
 // handlers into globals when a level loads. 0x4f13e0 (a bare RET) is used as an empty handler.
