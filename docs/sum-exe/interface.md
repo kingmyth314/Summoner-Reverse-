@@ -57,6 +57,10 @@ Screens 1, 2, 3, 5, 6, 10 and 12 were confirmed from in-game frame captures (202
 | Chest | Inventory (1) |
 | Figure | Skills (6) |
 
+## Per-screen functions
+
+Each screen also has a per-frame input function and a draw function. `interface_frame` (`0x4119a0`) and `interface_draw` (`0x411cd0`) switch on `interface_cur_screen` to call them. They are named `<screen>_frame` (for example `inventory_frame`, `0x4158f0`) and `<screen>_draw` (`inventory_draw`, `0x417860`) in `symbols/sum.symbols`. A frame function takes the key code and returns it, or 0 when it consumed it. `interface_draw` draws the HUD (`hud_draw`, `0x40f6e0`) before the screen.
+
 ## The 3D view is clipped per screen
 
 `interface_set_view_clip` (`0x412220`) runs before the 3D view is drawn. For screens with a

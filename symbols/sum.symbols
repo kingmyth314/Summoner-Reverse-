@@ -18,23 +18,41 @@
 0x401190 GameStateSwap            func  -                        O ; prev = cur; cur = next; pending = 0
 0x401380  assess_init              func  new_assess.cpp         I ; screen 20 (arg: target)
 0x4017e0  assess_leave             func  new_assess.cpp         I
+0x4017f0  assess_frame             func  -                      O ; screen 20 per-frame input (interface_frame switch); (key) -> key
+0x401c80  assess_draw              func  -                      O ; screen 20 drawing (interface_draw switch)
 0x402250  automap_init             func  new_automap.cpp        I ; screen 3; position between new_assess and new_automap strings
+0x402680  automap_frame            func  -                      O ; screen 3 per-frame input (interface_frame switch); (key) -> key
+0x403690  automap_draw             func  -                      O ; screen 3 drawing (interface_draw switch)
 0x4044d0  cmd_map_mask             func  -                      O ; console command "map_mask": Toggles Map_mask
 0x4045c0  cmd_map_grid             func  -                      O ; console command "map_grid": Toggles Map_grid
 0x4046b0  cmd_show_coordinates     func  -                      O ; console command "show_coordinates": Toggles Show_coordinates
+
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
 0x404bd0  buysell_init             func  new_buysell.cpp        I ; screen 7; position before new_buysell strings
 0x4051a0  buysell_leave            func  new_buysell.cpp        I
+0x4051e0  buysell_frame            func  -                      O ; screen 7 per-frame input (interface_frame switch); (key) -> key
+0x405f10  buysell_draw             func  -                      O ; screen 7 drawing (interface_draw switch)
 0x406590  mp_charselect_init       func  new_charselect.cpp     O ; screen 16: "Multiplayer Char", *.plr files
-
+0x4069e0  mp_charselect_frame      func  -                      O ; screen 16 per-frame input (interface_frame switch); (key) -> key
+0x407ed0  mp_charselect_draw       func  -                      O ; screen 16 drawing (interface_draw switch)
 0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 0x4089c0  credits_leave            func  new_credits.cpp        I
+0x4089f0  credits_frame            func  -                      O ; screen 21 per-frame input (interface_frame switch); (key) -> key
+0x408ac0  credits_draw             func  -                      O ; screen 21 drawing (interface_draw switch)
 0x408f90  dialogue_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
 0x408fe0  dialogue_leave           func  -                      I
+0x409000  dialogue_frame           func  -                      O ; screen 13 per-frame input (interface_frame switch); (key) -> key
+0x409650  dialogue_draw            func  -                      O ; screen 13 drawing (interface_draw switch)
 0x409b10  gamecreate_init          func  new_gamecreate.cpp     I ; screen 17
+0x409cd0  gamecreate_frame         func  -                      O ; screen 17 per-frame input (interface_frame switch); (key) -> key
+0x40a310  gamecreate_draw          func  -                      O ; screen 17 drawing (interface_draw switch)
 0x40a850  gamelist_init            func  new_gamelist.cpp       I ; screen 15
+0x40a880  gamelist_frame           func  -                      O ; screen 15 per-frame input (interface_frame switch); (key) -> key
+0x40b530  gamelist_draw            func  -                      O ; screen 15 drawing (interface_draw switch)
 0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga
 0x40c850  help_leave               func  new_help.cpp           I
+0x40c860  help_frame               func  -                      O ; screen 22 per-frame input (interface_frame switch); (key) -> key
+0x40ca50  help_draw                func  -                      O ; screen 22 drawing (interface_draw switch)
 0x40cef0  hud_init                 func  new_hud.cpp            I ; screen 0
 0x40cf40  hud_frame                func  new_hud.cpp            I ; per-frame HUD; calls hud_handle_keys
 0x40d930  hud_handle_keys          func  new_hud.cpp            I ; the in-game keyboard map: switch on key codes (scan code | 0x1000 Shift | 0x4000 Alt); see docs/sum-exe/controls.md
@@ -50,9 +68,11 @@
 0x40e450  hud_key_skills           func  new_hud.cpp            O ; S: toggle screen 6
 0x40e480  hud_interact_nearest     func  new_hud.cpp            I ; X / middle mouse: nearest usable object within 3 units (or 5 for some types)
 0x40e980  hud_key_camera           func  new_hud.cpp            I ; F12: camera_cycle_mode
+0x40f6e0  hud_draw                 func  new_hud.cpp            I ; the HUD bar, drawn by interface_draw unless a full panel hides it
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
 0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
+0x411cd0  interface_draw           func  -                      O ; HUD (0x40f6e0) then the current screen draw (switch), overlays
 0x412220  interface_set_view_clip  func  -                      I ; clips the 3D view per open screen (side panels shrink it), then draws
 0x412620  interface_set_screen     func  -                      I ; (id, arg): current screen's leave, then the new screen's init (23 ids); see docs/sum-exe/interface.md
 0x413190  vector3__assign          func  vsdk\math              I ; a = b, returns a copy
@@ -62,27 +82,53 @@
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
 0x414fc0  inventory_init           func  new_inventory.cpp      I ; screen 1 (arg: page)
 0x4158b0  inventory_leave          func  new_inventory.cpp      I
+0x4158f0  inventory_frame          func  -                      O ; screen 1 per-frame input (interface_frame switch); (key) -> key
+0x417860  inventory_draw           func  -                      O ; screen 1 drawing (interface_draw switch)
 0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
 0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
+0x419560  itemtrade_frame          func  -                      O ; screen 19 per-frame input (interface_frame switch); (key) -> key
+0x41a230  itemtrade_draw           func  -                      O ; screen 19 drawing (interface_draw switch)
 0x41ab10  journal_init             func  -                      I ; screen 10; between new_itemtrade and new_mainmenu
 0x41aef0  journal_leave            func  -                      I
+0x41af30  journal_frame            func  -                      O ; screen 10 per-frame input (interface_frame switch); (key) -> key
+0x41b9f0  journal_draw             func  -                      O ; screen 10 drawing (interface_draw switch)
 0x41c080  mp_levelselect_init            func  -                      O ; screen 18; between new_itemtrade and new_mainmenu
+0x41c2a0  mp_levelselect_frame     func  -                      O ; screen 18 per-frame input (interface_frame switch); (key) -> key
+0x41cf00  mp_levelselect_draw      func  -                      O ; screen 18 drawing (interface_draw switch)
 0x41d8b0  mainmenu_init            func  new_mainmenu.cpp       O ; screen 14: "Title" table, vlogo.bik / eaxlogo.bik intro movies
+0x41d910  mainmenu_frame           func  -                      O ; screen 14 per-frame input (interface_frame switch); (key) -> key
+0x41dd90  mainmenu_draw            func  -                      O ; screen 14 drawing (interface_draw switch)
 0x41f0f0  options_init             func  -                      I ; screen 12; between new_multichat and new_pickup
 0x41fa60  options_leave            func  -                      I
+0x41fb00  options_frame            func  -                      O ; screen 12 per-frame input (interface_frame switch); (key) -> key
+0x420320  options_draw             func  -                      O ; screen 12 drawing (interface_draw switch)
 0x4207d0  pickup_init              func  new_pickup.cpp         I ; screen 4 (arg: item)
 0x420960  pickup_leave             func  new_pickup.cpp         I
+0x4209b0  pickup_frame             func  -                      O ; screen 4 per-frame input (interface_frame switch); (key) -> key
+0x421260  pickup_draw              func  -                      O ; screen 4 drawing (interface_draw switch)
 0x4216f0  playmenu_init            func  new_playmenu.cpp       I ; screen 9
 0x4217b0  playmenu_leave           func  new_playmenu.cpp       I
+0x4217c0  playmenu_frame           func  -                      O ; screen 9 per-frame input (interface_frame switch); (key) -> key
+0x421cf0  playmenu_draw            func  -                      O ; screen 9 drawing (interface_draw switch)
 0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
+0x423220  pxochat_frame            func  -                      O ; screen 11 per-frame input (interface_frame switch); (key) -> key
+0x4246d0  pxochat_draw             func  -                      O ; screen 11 drawing (interface_draw switch)
 0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
 0x425c80  saveload_leave           func  new_saveload.cpp       I
+0x425c90  saveload_frame           func  -                      O ; screen 8 per-frame input (interface_frame switch); (key) -> key
 0x425de0  saveload_text_input      func  new_saveload.cpp       I ; save-name entry, uses key_to_ascii
+0x4269c0  saveload_draw            func  -                      O ; screen 8 drawing (interface_draw switch)
 0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
 0x427df0  skills_leave             func  -                      O
+0x427e10  skills_frame             func  -                      O ; screen 6 per-frame input (interface_frame switch); (key) -> key
+0x428c30  skills_draw              func  -                      O ; screen 6 drawing (interface_draw switch)
 0x429b30  spells_init              func  -                      O ; screen 5; between new_skill and new_spell
+0x42a190  spells_frame             func  -                      O ; screen 5 per-frame input (interface_frame switch); (key) -> key
+0x42ab60  spells_draw              func  -                      O ; screen 5 drawing (interface_draw switch)
 0x42b480  status_init              func  new_status.cpp         I ; screen 2
 0x42b910  status_leave             func  new_status.cpp         I
+0x42ba50  status_frame             func  -                      O ; screen 2 per-frame input (interface_frame switch); (key) -> key
+0x42c9c0  status_draw              func  -                      O ; screen 2 drawing (interface_draw switch)
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x430ad0  state7_enter             func  -                      I ; state 7: frame draws a centred message with gr_string
