@@ -105,6 +105,11 @@ What is known:
 - **User test of the second version:** the inventory model and the character portrait sat about 171 px too far right. Cause: the 3D projection is centred on the wide 3D view. Side panels still moved the scene, because the 3D view narrows to the right of the panel (original behaviour).
 - **Third version 2026-10-13:** full panels get a 1024-wide 3D view, and side panels keep the full-width world behind them. User test: the portrait and side panels are fine; the inventory models were still too small.
 - **Fourth version 2026-10-13:** 4:3 aspect while a full panel is open. Agent-mode screenshots show the inventory identical to 1024x768.
+- **Agent-mode check of every reachable screen at 1366x768 (2026-10-13):**
+  - correct: HUD, play menu (centred over the world), Options, Save, Load, Inventory, Character, Quest Journal;
+  - side panels: Map, Spells and Skills flush left with the world behind;
+  - world: clicking into the world walks to the right spot; the world health-bar overlay is unshifted.
+  - Not seen (no NPC or shop reached): dialogue (13, call-shift path), buy/sell (7, full-panel path; its layout matches the inventory), item trade (19), pickup (4), assess (20).
 
 Next steps:
 

@@ -29,8 +29,8 @@
 
 0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 0x4089c0  credits_leave            func  new_credits.cpp        I
-0x408f90  screen13_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
-0x408fe0  screen13_leave           func  -                      I
+0x408f90  dialogue_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
+0x408fe0  dialogue_leave           func  -                      I
 0x409b10  gamecreate_init          func  new_gamecreate.cpp     I ; screen 17
 0x40a850  gamelist_init            func  new_gamelist.cpp       I ; screen 15
 0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga

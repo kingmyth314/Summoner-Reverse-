@@ -33,7 +33,7 @@ strings confirm it; **I** means it is placed by position.
 | 10 | `0x41ab10` | `0x41aef0` | Quest Journal: full-screen panel, "Main Quests", "Side Quests", "Description" | `new_journal.cpp` (*inferred* name) | I |
 | 11 | `0x422fc0` | `0x422370` | PXO chat lobby | `new_pxochat.cpp` | I |
 | 12 | `0x41f0f0` | `0x41fa60` | Summoner Options: full-screen panel (audio, gameplay, visual settings); opened by F2 and by the main menu's Options button (`0x41dbf4`) | `new_options.cpp` (*inferred* name) | O |
-| 13 | `0x408f90` | `0x408fe0` | ? (between credits and game create) | | |
+| 13 | `0x408f90` | `0x408fe0` | Dialogue (arg: character name): copies the name and starts the conversation (`0x4d7650`); `hud-dialoguebox` is loaded nearby (`0x408d80`) | `new_dialogue.cpp` (*inferred* name) | I |
 | 14 | `0x41d8b0` | – | Main menu: "Title", plays `vlogo.bik` and `eaxlogo.bik` | `new_mainmenu.cpp` | O |
 | 15 | `0x40a850` | – | Multiplayer game list | `new_gamelist.cpp` | I |
 | 16 | `0x406590` | – | Multiplayer character select: "Multiplayer Char", `*.plr` | `new_charselect.cpp` | O |
@@ -45,6 +45,17 @@ strings confirm it; **I** means it is placed by position.
 | 22 | `0x40c7e0` | `0x40c850` | Help: `DemoHelp640.tga` | `new_help.cpp` | O |
 
 Screens 1, 2, 3, 5, 6, 10 and 12 were confirmed from in-game frame captures (2026-10-13). The keys are I, R, M, C, S and F2 (Options); the journal was opened from the HUD. Correction: screen 12 is Options, not the journal; the journal is screen 10. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
+
+**HUD action icons** (agent mode, 2026-10-13):
+
+| Icon | Opens |
+|---|---|
+| Crossed swords | No screen (probably a combat-mode toggle) |
+| Portrait | Character (2) |
+| Scroll | Spells (5) |
+| Book | Quest Journal (10) |
+| Chest | Inventory (1) |
+| Figure | Skills (6) |
 
 ## The 3D view is clipped per screen
 
