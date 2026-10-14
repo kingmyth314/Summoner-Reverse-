@@ -328,8 +328,8 @@
 0x450220  ring_check_summon_unlock func  -                    I ; "Joseph acquired Summon Wraith!" etc. per ring
 0x450e30  monster_drop_loot        func  -                    O ; "No drop for Medevan Knights", "Rolling %d %d", "Dropping", per-boss key items
 0x4537f0  summon_turn_hostile      func  -                    I ; "Summoned creature has turned against you!"
-0x454700  status_effect_add        func  -                    I ; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"
-0x4553a0  status_effect_cure       func  -                    I ; "Cant cure!"; floating text "-Silence" ... "-Slow"
+0x454700  status_effect_add        func  -                    O ; thiscall (id, ...): Character +0xac + id*0x20; immunity checks; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"
+0x4553a0  status_effect_cure       func  -                    O ; thiscall (id): clears Character +0xac + id*0x20; "Cant cure!"; floating text "-Silence" ... "-Slow"
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
 0x461870  init_ccmd_immortal       func  -                    O ; static initialiser: registers console command object ccmd_immortal
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal

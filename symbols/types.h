@@ -185,7 +185,7 @@ typedef struct Character {
     int32_t _unmapped10[0x1c];
     int32_t handle;          // +0x080 object handle (obj_create); player_from_handle(handle) gives the Player record
     uint8_t _unmapped84[0x28];
-    uint8_t status_slots[18][0x20]; // +0x0AC 18 records with GameTimers at +4 and +0x14 (status effects?)
+    uint8_t status_slots[18][0x20]; // +0x0AC status effects by status_effect_id: +0 state (-1..2), +4 and +0x14 GameTimers
     uint8_t _unmapped2ec[0x08];     // +0x2EC GameTimer
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
@@ -275,3 +275,11 @@ typedef struct Player {
     int32_t _unk18c;
     struct Character* character; // +0x190
 } Player;
+
+// Status effect ids: Character.status_slots index (status_effect_add 0x454700; floating text L326-L337).
+// 7, 8 and 14-16 show no text; the id must be <= 0x10.
+enum status_effect_id {
+    STATUS_BLIND = 0, STATUS_SILENCE = 1, STATUS_FAITH = 2, STATUS_CURSE = 3, STATUS_BLESS = 4,
+    STATUS_REGEN = 5, STATUS_POWER = 6, STATUS_SLEEP = 9, STATUS_PARALYZE = 10, STATUS_POISON = 11,
+    STATUS_CRIPPLE = 12, STATUS_SLOW = 13,
+};

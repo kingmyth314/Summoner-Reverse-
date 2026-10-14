@@ -72,6 +72,23 @@ the normal colour for none.
 The item type layout is `ItemType` in `symbols/types.h`. Its fields so far: name `+0x00`, model `+0x0c`,
 damage `+0x68` and protection `+0xf0`.
 
+## Status effects
+
+`Character +0xac` holds 18 status slots of 0x20 bytes, indexed by status id. Each slot has a state at `+0` and
+`GameTimer`s at `+4` and `+0x14`. `status_effect_add` (`0x454700`) checks immunities, sets the slot and shows
+floating text. `status_effect_cure` (`0x4553a0`) clears it ("-Silence" ...).
+
+| Id | Effect | Id | Effect |
+|---|---|---|---|
+| 0 | Blind | 6 | Power |
+| 1 | Silence | 9 | Sleep |
+| 2 | Faith | 10 | Paralyze |
+| 3 | Curse | 11 | Poison |
+| 4 | Bless | 12 | Cripple |
+| 5 | Regen | 13 | Slow |
+
+Ids 7, 8 and 14-16 exist (the maximum is 0x10) but show no text.
+
 ## Player record
 
 Each party member also has a `Player` record (`player.cpp`), kept in the circular list `party_list` (`0x5fc350`).
