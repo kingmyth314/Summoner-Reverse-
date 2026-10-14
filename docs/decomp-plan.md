@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Phase 1 progress (2026-10-13): **604 / 5,548** game/engine functions named
-(10.9%), plus 136 pointer-only callbacks.
+Phase 0 is complete. Progress (2026-10-14): **832 / 5,548** game/engine functions named
+(15.0%), plus 424 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -141,3 +141,12 @@ Phase 0 is complete. Phase 1 progress (2026-10-13): **604 / 5,548** game/engine 
 | `ui` table parsers, build stamp | Started | [User interface](sum-exe/vsdk-ui.md) |
 | Game: states, interface screens (23), controls/keyboard map | Started | [Interface](sum-exe/interface.md) |
 | Next: `ca` animation, `geom`, `ui` widgets | Not started | |
+
+**2026-10-14:** `tools/asm.mjs` (llvm-objdump, 2 seconds for the whole binary) replaced per-instruction
+REA disassembly for bulk work. Its `strings` report, which shows the debug and in-game text each function
+references, named about 130 functions. Data-table scans named another 280:
+- console-command initialisers;
+- the [level-script table](sum-exe/level-scripts.md);
+- the chat commands.
+
+Phase 2 has started with the [character object](sum-exe/characters.md).
