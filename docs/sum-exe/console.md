@@ -30,6 +30,10 @@ call 0x50a180        ; console_command::console_command(name, description, callb
 ret
 ```
 
+All 145 initialisers are named `init_ccmd_<command>` in the symbol file (2026-10-14). Ghidra does not
+make them into functions, because only the C runtime's initialiser table points at them. Some are
+built without a stack frame, as above; others start with `push ebp; mov ebp, esp`.
+
 The PC constructor takes three arguments. Summoner 2's takes four (name, description, type,
 callback; see [Engine references](../reference/engine-references.md)), so the command type
 is decided differently on PC (*inferred*; not yet analysed).

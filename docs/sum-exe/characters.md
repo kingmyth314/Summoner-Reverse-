@@ -37,7 +37,7 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | `+0x604` | int | experience | dump (200); `character_add_xp` adds to it |
 | `+0x558` | sub-object | protection helper; its first field points back at the character | `character_get_protection` |
 | `+0x614` | byte[] | skill and attribute values x100, by skill id | `character_get_skill`: id 2 = speed (110), id 1 = base protection |
-| `+0x754` | item*[10] | equipment slots; slot 5 (`+0x768`) is the weapon, slots 3, 4, 6, 7 and 8 are armour | `character_equip_bonus`; the dump had a Short Sword in slot 5 and a Tunic in slot 7 |
+| `+0x754` | item*[10] | equipment slots; slots 1 and 2 are rings (they gain experience through `ring_add_xp`), slot 5 (`+0x768`) is the weapon, slots 3, 4, 6, 7 and 8 are armour | `character_equip_bonus`; the dump had a Short Sword in slot 5 and a Tunic in slot 7 |
 
 Maximum HP is `base_max_hp + character_equip_bonus(0)`, with a minimum of 1. Maximum AP is
 `base_max_ap + character_equip_bonus(1)`, with a minimum of 0. `character_equip_bonus(stat)` adds up
@@ -74,7 +74,7 @@ damage `+0x68` and protection `+0xf0`.
 
 1. stops at the level cap, `xp_max_level` (50, or 75 with debug flag 2);
 2. adds the experience to `+0x604`;
-3. gives a share of the experience to the items in equipment slots 1 and 2 (`0x44ffc0`);
+3. gives a share of the experience to the rings in equipment slots 1 and 2 (`ring_add_xp`, `0x44ffc0`), which counts it per ring (`dark_ring_xp`, `fire_ring_xp`, ...);
 4. checks `xp_level_reached(level, xp)`, which means `xp >= xp_for_level(level + 1)`;
 5. on a level-up, calls `0x489ac0` with the template's class. That call updates the level, base max
    HP, base max AP and the skill points;

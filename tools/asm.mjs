@@ -4,6 +4,7 @@
 //   node tools/asm.mjs fn <addr|name> [max_lines]   one function, up to the next known function start
 //   node tools/asm.mjs grep <regex> [max]           matching instructions in game code, with the containing function
 //   node tools/asm.mjs callers <addr|name>          call sites of a function, with the containing function
+//   node tools/asm.mjs strings <lo> <hi> [--unnamed] strings referenced by each function in an address range
 //
 // The listing is cached in build/sum.asm (git-ignored) and rebuilt when Sum.exe is newer.
 import { readFileSync, existsSync, statSync, mkdirSync } from "node:fs";
@@ -75,6 +76,21 @@ if (cmd === "fn") {
   const hex = "0x" + parseTarget(arg).toString(16);
   for (let i = 0; i < ins.length; i++)
     if (ins[i].text === `call ${hex}` || ins[i].text === `jmp ${hex}`) console.log(`${ins[i].va.toString(16)} [${fname(funcOf(ins[i].va))}]: ${ins[i].text}`);
+} else if (cmd === "strings") {
+  // Strings referenced per function in [lo, hi); --unnamed skips functions that already have a symbol.
+  const lo = parseInt(arg, 16), hi = parseInt(maxArg, 16), unnamed = process.argv.includes("--unnamed");
+  const map = new Map();
+  for (let i = indexOf(lo); i < ins.length && ins[i].va < hi; i++) {
+    for (const m of ins[i].text.matchAll(/0x[0-9a-f]{6,7}\b/g)) {
+      const s = stringAt(parseInt(m[0], 16));
+      if (!s || !/[a-z]{3}/i.test(s)) continue;
+      const f = funcOf(ins[i].va);
+      if (unnamed && byAddr.has(f)) continue;
+      if (!map.has(f)) map.set(f, new Set());
+      map.get(f).add(s.replace(/\s+/g, " ").slice(0, 60));
+    }
+  }
+  for (const [f, ss] of [...map].sort((a, b) => a[0] - b[0])) console.log(`${f.toString(16)} ${fname(f)} | ${[...ss].join(" || ")}`);
 } else {
-  console.log("usage: node tools/asm.mjs fn <addr|name> [max] | grep <regex> [max] | callers <addr|name>");
+  console.log("usage: node tools/asm.mjs fn <addr|name> [max] | grep <regex> [max] | callers <addr|name> | strings <lo> <hi> [--unnamed]");
 }
