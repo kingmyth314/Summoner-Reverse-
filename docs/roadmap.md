@@ -113,6 +113,8 @@ What is known:
     choices were drawn at the far left, because the conversation text widgets (`0x4d6600`-`0x4d7ab0`) were outside the
     redirected ranges. With that range added, text, choices and choice clicks are correct. The floating speech above NPCs
     stays on the NPC (a world overlay, correctly unshifted).
+  - The new-game intro's "Presents" credit (a bitmap placed by the cutscene, not a string) sits left of centre at
+    1366. Not checked against 1024 yet (the intro timing differs between runs).
   - Not seen yet: buy/sell (7, full-panel path; its layout matches the inventory), item trade (19), pickup (4), assess (20).
 
 Next steps:
