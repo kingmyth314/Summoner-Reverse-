@@ -38,13 +38,13 @@ strings confirm it; **I** means it is placed by position.
 | 15 | `0x40a850` | – | Multiplayer game list | `new_gamelist.cpp` | I |
 | 16 | `0x406590` | – | Multiplayer character select: "Multiplayer Char", `*.plr` | `new_charselect.cpp` | O |
 | 17 | `0x409b10` | – | Multiplayer game creation | `new_gamecreate.cpp` | I |
-| 18 | `0x41c080` | – | ? (multiplayer; opened by state 14) | | |
+| 18 | `0x41c080` | – | Multiplayer level selection: UI table "PXO_LevelSelect" (`0x41c450`); opened by state 14 | `new_levelselect.cpp` (*inferred* name) | O |
 | 19 | `0x419380` | `0x419550` | Item trade | `new_itemtrade.cpp` | I |
 | 20 | `0x401380` | `0x4017e0` | Assess (arg: target) | `new_assess.cpp` | I |
 | 21 | `0x4085b0` | `0x4089c0` | Credits: `credits.tbl`, `Credits-Bkgrnd640/1024.tga` | `new_credits.cpp` | O |
 | 22 | `0x40c7e0` | `0x40c850` | Help: `DemoHelp640.tga` | `new_help.cpp` | O |
 
-Screens 1, 2, 3, 5, 6, 10 and 12 were confirmed from in-game frame captures (2026-10-13). The keys are I, R, M, C, S and F2 (Options); the journal was opened from the HUD. Correction: screen 12 is Options, not the journal; the journal is screen 10. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
+Screens 1, 2, 3, 5, 6, 10 and 12 were confirmed from in-game frame captures (2026-10-13). The keys are I, R, M, C, S and F2 (Options); the journal was opened from the HUD. Correction: screen 12 is Options, not the journal; the journal is screen 10. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. All 23 screens are now identified. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
 
 **HUD action icons** (agent mode, 2026-10-13):
 
