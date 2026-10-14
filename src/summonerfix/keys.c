@@ -98,8 +98,67 @@ static void __cdecl MouseMark(int button, char down)
     MouseEvent(button, down != 0);
 }
 
+// ---- Console-command keys -----------------------------------------------------------------------------
+// [ConsoleKeys] Key=command (e.g. F9=add_gold 1000, F=show_framerate) runs a developer console command when
+// the key is pressed, through the game's execute_command_line (0x50a210, Summoner 2 name). It runs from
+// MsgHandler, so on the game thread. Double-buffered like the bindings so the ini can be reloaded live.
+#define VA_EXECUTE_COMMAND_LINE 0x50a210u
+#define CONSOLE_CMD_LEN 96
+typedef int(__cdecl *PFN_ExecuteCommandLine)(const char *line);
+typedef struct {
+    char cmd[256][CONSOLE_CMD_LEN];
+} ConsoleKeys;
+static ConsoleKeys g_ckSets[2];
+static ConsoleKeys *volatile g_ck = &g_ckSets[0];
+
+static void LoadConsoleKeys(void)
+{
+    ConsoleKeys *next = g_ck == &g_ckSets[0] ? &g_ckSets[1] : &g_ckSets[0];
+    ZeroMemory(next, sizeof *next);
+    static char buf[8192];
+    DWORD n = GetPrivateProfileSectionA("ConsoleKeys", buf, sizeof buf, g_cfg.iniPath);
+    int count = 0;
+    for (char *line = buf; n && *line; line += strlen(line) + 1) {
+        char *eq = strchr(line, '=');
+        if (!eq || *line == ';')
+            continue;
+        char name[32];
+        size_t len = (size_t)(eq - line);
+        if (len >= sizeof name)
+            continue;
+        memcpy(name, line, len);
+        name[len] = 0;
+        int scan = KeyParse(name);
+        if (scan <= 0 || scan > 0xff || !eq[1]) {
+            Log("console keys: ignored \"%s\"", line);
+            continue;
+        }
+        lstrcpynA(next->cmd[scan], eq + 1, CONSOLE_CMD_LEN);
+        count++;
+    }
+    // Log only on a change: the log file is in the watched folder, so logging on every reload would
+    // trigger the next reload.
+    BOOL changed = memcmp(next, g_ck, sizeof *next) != 0;
+    g_ck = next;
+    if (changed)
+        Log("console keys: %d command key(s)", count);
+}
+
+static void RunConsoleKey(int scan)
+{
+    const char *cmd = g_ck->cmd[scan & 0xff];
+    if (!cmd[0])
+        return;
+    char line[CONSOLE_CMD_LEN];
+    lstrcpynA(line, cmd, sizeof line); // the parser works on its own copy
+    Log("console key: %s", line);
+    ((PFN_ExecuteCommandLine)(UINT_PTR)SumVa(VA_EXECUTE_COMMAND_LINE))(line);
+}
+
 static void __cdecl MsgHandler(UINT msg, WPARAM wp, LPARAM lp)
 {
+    if ((msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) && !(lp & 0x40000000))
+        RunConsoleKey((int)((lp >> 16) & 0xff) | ((lp & 0x01000000) ? 0x80 : 0));
     switch (msg) {
     case WM_XBUTTONDOWN:
     case WM_XBUTTONUP:
@@ -201,6 +260,7 @@ static DWORD WINAPI WatchIni(LPVOID unused)
         Sleep(150); // let the writer finish
         LoadBindings(FALSE);
         LoadGameKeys();
+        LoadConsoleKeys();
         if (!FindNextChangeNotification(h))
             break;
     }
@@ -302,6 +362,7 @@ void KeyBindInstall(void)
 {
     LoadBindings(TRUE);
     LoadGameKeys();
+    LoadConsoleKeys();
     CloseHandle(CreateThread(NULL, 0, PollHotkeys, NULL, 0, NULL));
 
     // Always hooked (an identity table changes nothing), so bindings added later take effect live.

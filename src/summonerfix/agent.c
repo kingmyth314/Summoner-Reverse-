@@ -124,6 +124,21 @@ static void RunLine(char *line)
             }
         }
         Out("%s %s: ok", c, argv[1]);
+    } else if (!_stricmp(c, "postkey") && argc > 1) {
+        // A real WM_KEYDOWN/WM_KEYUP through the game's window procedure (unlike "key", which calls
+        // key_mark directly), so window-message handlers such as [ConsoleKeys] see it.
+        int code = KeyParse(argv[1]);
+        HWND wnd = *(volatile HWND *)(UINT_PTR)SumVa(0x2cbff10);
+        if (code < 0 || code >= 256 || !wnd) {
+            Out("postkey: unknown key or no window");
+            return;
+        }
+        UINT vk = MapVirtualKeyA((code & 0x7f) | (code & 0x80 ? 0xe000 : 0), 3 /* MAPVK_VSC_TO_VK_EX */);
+        LPARAM lp = 1 | ((LPARAM)(code & 0x7f) << 16) | (code & 0x80 ? 0x01000000 : 0);
+        PostMessageA(wnd, WM_KEYDOWN, vk, lp);
+        Sleep(argc > 2 ? (DWORD)atoi(argv[2]) : 80);
+        PostMessageA(wnd, WM_KEYUP, vk, lp | 0xC0000000);
+        Out("postkey %s: ok (vk 0x%02X)", argv[1], vk);
     } else if (!_stricmp(c, "move") && argc >= 3) {
         Move(atoi(argv[1]), atoi(argv[2]));
         Out("move: ok");

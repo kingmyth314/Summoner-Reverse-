@@ -179,7 +179,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 ```
 
 **Commands:**
-- `key NAME [ms]`, `keydown NAME`, `keyup NAME`;
+- `key NAME [ms]`, `keydown NAME`, `keyup NAME` (straight into `key_mark`);
+- `postkey NAME [ms]`: a real `WM_KEYDOWN`/`WM_KEYUP` posted to the game window, for window-message paths such as `[ConsoleKeys]`;
 - `move X Y`, `click [left|right|middle] [X Y] [ms]`, `down/up BUTTON`, `drag X1 Y1 X2 Y2`;
 - `wait MS`, `capture NAME`;
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `quit`.
