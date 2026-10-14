@@ -348,6 +348,8 @@
 0x44fab0  character_add_xp         func  -                    O ; thiscall (xp, ?, ?): +0x604 += xp, shares xp with equipment slots 1-2 (0x44ffc0), on level-up applies xp_level_table and refills HP/AP; "%s gained level %d!", "+Level!"
 0x44ffc0  ring_add_xp              func  -                    I ; (ring name, ...): "<ring>_xp" counters for Ring of Darkness/Light/Fire/...; character_add_xp calls it for equipment slots 1-2
 0x450220  ring_check_summon_unlock func  -                    I ; "Joseph acquired Summon Wraith!" etc. per ring
+0x450850  character_add_hp         func  living_entity.cpp    O ; thiscall (delta, source, ?, ?) -> alive: status 16 absorbs damage first; Players_immortal/Debug_death skip damage to party members; clamps to max HP (excess to +0x6e8); 0x450d90(0x22) at 0 HP
+0x450d90  character_check_death    func  living_entity.cpp    I ; thiscall (0x22) called by character_add_hp when HP <= 0; returns whether the character survives
 0x450e30  monster_drop_loot        func  -                    O ; "No drop for Medevan Knights", "Rolling %d %d", "Dropping", per-boss key items
 0x4537f0  summon_turn_hostile      func  -                    I ; "Summoned creature has turned against you!"
 0x454700  status_effect_add        func  -                    O ; thiscall (id, ...): Character +0xac + id*0x20; immunity checks; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"

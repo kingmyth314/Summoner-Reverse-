@@ -39,6 +39,15 @@ target, `+0x20` a bonus count, `+0x3c` the attack or skill id (see [Skills](char
 After this, a second jump table on the attack type applies the side effects: status effects, life leech
 (`0x450c70` with `-0.1` / `0.1` of the damage), mug ("Stole %d gold!") and others.
 
+## Applying damage and healing
+
+`character_add_hp` (`0x450850`, `thiscall (delta, source, ...)`) changes current HP: negative values damage
+and positive values heal. Status 16, when active, absorbs damage into its own value first (a shield).
+Damage to party members is skipped while `Players_immortal` (console command `immortal`) is set; `Debug_death` is
+checked next to it. HP is capped at `character_get_max_stat(0)`, with the excess kept at `Character +0x6e8`.
+At 0 HP, `character_check_death` (`0x450d90`) decides whether the character survives. Life leech in
+`combat_melee_damage` heals the attacker through this function.
+
 ## Example (from the numbers on Joseph's screen)
 
 Joseph at level 3 with a Short Sword (damage 35, material 13 = iron, damage modifier 0): `B = 3.5`, `M = 0`, so
