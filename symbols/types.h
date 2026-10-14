@@ -176,12 +176,17 @@ typedef struct GameStateHandlers {
 // A character (party member, NPC or monster); cur_character (0x5fcc88) points at one. Partial layout from
 // character_add_xp (0x44fab0), character_get_max_stat (0x462840), character_equip_bonus (0x4627c0),
 // party_level_reset (0x437e50) and a runtime dump of Joseph at level 3 (HP 128, AP 26, 200 xp).
+// The class is living_entity (constructor living_entity__living_entity, 0x44e060) on top of the base object (obj__obj).
 typedef struct Character {
-    uint8_t _unmapped00[0x0c];
+    void*   vtable;          // +0x000 living_entity__vtable (0x581914)
+    void*   _link04;         // +0x004 0x970770 in the dump (living-entity list head)
+    int32_t _unk08;
     int32_t type;            // +0x00C 7 for player party members (level-up message, skill copy)
     int32_t _unmapped10[0x1c];
     int32_t handle;          // +0x080 object handle (obj_create); player_from_handle(handle) gives the Player record
-    uint8_t _unmapped84[0x270];
+    uint8_t _unmapped84[0x28];
+    uint8_t status_slots[18][0x20]; // +0x0AC 18 records with GameTimers at +4 and +0x14 (status effects?)
+    uint8_t _unmapped2ec[0x08];     // +0x2EC GameTimer
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
     uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC two identical groups of six ints (31,30,29,26,30,29), meaning unknown
