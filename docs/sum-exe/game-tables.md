@@ -55,5 +55,5 @@ The 17 materials, in index order (`ItemType +0x08`; names from the parser's list
 | 15 | admantium | +1 | 0.9 | 0.9 | 1.2 |
 | 16 | volitionite | +2 | 1.0 | 1.0 | 1.4 |
 
-The damage modifier is added to `weapon damage x 0.1` before the level factor (see [Combat](combat.md)). Volitionite
-is named after the developer.
+The damage modifier is added to `weapon damage x 0.1` before the level factor (see [Combat](combat.md)). "Volitionite" is
+presumably a nod to the developer, Volition.
