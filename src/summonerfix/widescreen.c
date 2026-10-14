@@ -213,7 +213,8 @@ static int InUi(DWORD va)
     return (va >= 0x401000 && va < 0x430000)    // game UI (new_*.cpp)
            || (va >= 0x527000 && va < 0x530c00) // vsdk ui (window.cpp)
            || (va >= 0x552000 && va < 0x554b60) // vsdk ui (ui_container.cpp)
-           || (va >= 0x55e000 && va < 0x560000); // vsdk ui gadgets
+           || (va >= 0x55e000 && va < 0x560000)  // vsdk ui gadgets
+           || (va >= 0x4d6600 && va < 0x4d7ab0); // conversation text widgets (dialogue text and choices)
 }
 
 static BOOL PatchCall(DWORD siteVa, DWORD targetVa, void *wrapper)

@@ -109,7 +109,11 @@ What is known:
   - correct: HUD, play menu (centred over the world), Options, Save, Load, Inventory, Character, Quest Journal;
   - side panels: Map, Spells and Skills flush left with the world behind;
   - world: clicking into the world walks to the right spot; the world health-bar overlay is unshifted.
-  - Not seen (no NPC or shop reached): dialogue (13, call-shift path), buy/sell (7, full-panel path; its layout matches the inventory), item trade (19), pickup (4), assess (20).
+  - **Dialogue (13), checked 2026-10-14** (new game, talking to Mulik in Masad): at first the frame was shifted but the text and
+    choices were drawn at the far left, because the conversation text widgets (`0x4d6600`-`0x4d7ab0`) were outside the
+    redirected ranges. With that range added, text, choices and choice clicks are correct. The floating speech above NPCs
+    stays on the NPC (a world overlay, correctly unshifted).
+  - Not seen yet: buy/sell (7, full-panel path; its layout matches the inventory), item trade (19), pickup (4), assess (20).
 
 Next steps:
 
