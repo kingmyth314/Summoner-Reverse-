@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **832 / 5,548** game/engine functions named
-(15.0%), plus 424 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14, end of day): **1,020 / 5,548** game/engine functions named
+(18.4%), plus 435 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -149,4 +149,6 @@ references, named about 130 functions. Data-table scans named another 280:
 - the [level-script table](sum-exe/level-scripts.md);
 - the chat commands.
 
-Phase 2 has started with the [character object](sum-exe/characters.md).
+Phase 2 has started. It now covers the [character object and player record](sum-exe/characters.md), the
+[game data tables](sum-exe/game-tables.md), the [melee damage formula](sum-exe/combat.md) and the
+[level scripts](sum-exe/level-scripts.md).
