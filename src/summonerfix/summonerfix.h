@@ -19,7 +19,8 @@ typedef struct {
     int captureEvery;   // debug: seconds between frame captures to summonerfix-capture-N.bmp, 0 = off
     int maxTextureSize;
     int centerMenus;
-    int centerHud;      // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay    // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
+    int centerHud;
+    int sidePanelsOverWorld; // wide screens: keep the 3D view full width behind side panels (map, spells, skills)      // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay    // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
     char soundcard[64];
     char installPath[MAX_PATH];
     char iniPath[MAX_PATH];

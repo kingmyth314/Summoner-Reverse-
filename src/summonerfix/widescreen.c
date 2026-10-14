@@ -174,6 +174,26 @@ PANEL_FRAME(0) PANEL_FRAME(1) PANEL_FRAME(2) PANEL_FRAME(3)
 static void *const k_panelDrawW[4] = {W_panelDraw0, W_panelDraw1, W_panelDraw2, W_panelDraw3};
 static void *const k_panelFrameW[4] = {W_panelFrame0, W_panelFrame1, W_panelFrame2, W_panelFrame3};
 
+// interface_set_view_clip (0x412220-0x41236x) sizes the 3D view per screen:
+//  - its gr_screen_width() calls: report 1024 while a full-screen panel is open, so models drawn inside
+//    the panel (inventory character, character portrait) are projected around the layout centre (512)
+//    rather than the wide screen's centre;
+//  - side panels: the per-panel width it starts the 3D view at is replaced by 0 ([Display]
+//    SidePanelsOverWorld=1), so the world keeps its full width behind the panel and does not move.
+static const DWORD k_viewWidthCalls[] = {0x412233, 0x412284, 0x4122ab, 0x4122da, 0x412300, 0x412326, 0x41234d};
+static const DWORD k_panelWidthCalls[] = {0x4122a2, 0x4122d1, 0x4122f7, 0x41231d};
+static const DWORD k_panelWidthFns[] = {0x404460, 0x42ada0, 0x429060, 0x41a8b0};
+static int(__cdecl *o_panelWidth[4])(void);
+
+static int __cdecl W_viewWidth(void)
+{
+    return WidescreenFullPanel() ? LAYOUT_WIDTH : o_screenWidth();
+}
+
+#define PANEL_WIDTH(i) static int __cdecl W_panelWidth##i(void) {         int r = o_panelWidth[i](); return (g_cfg.sidePanelsOverWorld && g_shift > 0 && InGame()) ? 0 : r; }
+PANEL_WIDTH(0) PANEL_WIDTH(1) PANEL_WIDTH(2) PANEL_WIDTH(3)
+static void *const k_panelWidthW[4] = {W_panelWidth0, W_panelWidth1, W_panelWidth2, W_panelWidth3};
+
 static int InUi(DWORD va)
 {
     if (va >= 0x412220 && va < 0x412620) // interface_set_view_clip: the 3D view, not UI
@@ -251,6 +271,15 @@ void WidescreenInstall(void)
     }
     PatchCall(VA_GAMETICK_MOUSE_CALL, VA_MOUSE_GET_POS, W_mouseGetPosTick);
 
+    // interface_set_view_clip: 3D view width for full panels, world behind side panels.
+    int view = 0;
+    for (size_t i = 0; i < sizeof k_viewWidthCalls / sizeof k_viewWidthCalls[0]; i++)
+        view += PatchCall(k_viewWidthCalls[i], VA_GR_SCREEN_WIDTH, W_viewWidth);
+    for (int i = 0; i < 4; i++) {
+        o_panelWidth[i] = (int(__cdecl *)(void))(UINT_PTR)SumVa(k_panelWidthFns[i]);
+        view += PatchCall(k_panelWidthCalls[i], k_panelWidthFns[i], k_panelWidthW[i]);
+    }
+
     // Side panels: the per-screen calls in interface_draw / interface_frame.
     int panels = 0;
     for (int i = 0; i < 4; i++) {
@@ -289,7 +318,7 @@ void WidescreenInstall(void)
     }
     Log("widescreen UI: shift %d px; UI calls patched: bitmap %d, bitmap_ex %d, stretched %d, float %d, "
         "string %d, rect %d, line %d, set_clip %d (+%d other), get_clip %d, screen_width %d, mouse %d; "
-        "world mouse reads %d/9; side-panel calls %d/8",
+        "world mouse reads %d/9; side-panel calls %d/8; view-clip calls %d/11",
         g_shift, counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[7], other,
-        counts[8], counts[9], counts[10], raw, panels);
+        counts[8], counts[9], counts[10], raw, panels, view);
 }
