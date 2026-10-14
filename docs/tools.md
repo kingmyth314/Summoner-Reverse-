@@ -195,6 +195,15 @@ the load screen's Load (798, 368).
 
 Set `Agent=0` again for normal play.
 
+## `tools/addsym.mjs`
+
+Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address
+order. Lines with a known address or name, or a bad field, are skipped and listed. `--dry-run` only reports.
+
+```
+node tools/addsym.mjs proposals.txt --dry-run
+```
+
 ## `tools/tbl-fields.mjs`
 
 Pairs each `$Field:` / `+Field:` string in a `.tbl` parser with the offset its value is stored at. It works
