@@ -2,7 +2,7 @@
 // in-game screens are a fixed 1024-wide layout drawn at the left. During gameplay (game state 4) we
 // shift that layout to the centre by X = (GameWidth - 1024) / 2 game pixels:
 //
-//  - Calls from UI code (game UI 0x401000-0x430000, vsdk ui) to the 2D primitives are redirected to
+//  - Calls from UI code (game UI 0x401000-0x430000, vsdk ui, conversation text widgets 0x4d6600-0x4d7ab0) to the 2D primitives are redirected to
 //    wrappers that add X to the x coordinate.
 //  - Every 2D draw adds the clip origin gr_screen.offset_x (set by gr::set_clip). UI code that sets its
 //    own clip (panels, list boxes) gets X added to the clip instead, and draws inside a shifted clip are
