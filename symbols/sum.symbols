@@ -1389,7 +1389,7 @@
 0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
 0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
 0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
-0x54a800  gr_glide_bitmap          func  vsdkgrglidegr_glide.cpp I
+0x54a800  gr_glide_bitmap          func  vsdk\gr\glide\gr_glide.cpp I
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
 0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
