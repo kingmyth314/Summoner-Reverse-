@@ -33,6 +33,7 @@
 
 0x404780  init_ccmd_reset_map_labels func  -                    O ; static initialiser: registers console command object ccmd_reset_map_labels
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
+0x404880  eh_vector_constructor_iterator func  -                    O ; MSVC `eh vector constructor iterator' (ptr, size, count, ctor): calls ctor on each element
 0x404bd0  buysell_init             func  new_buysell.cpp        I ; screen 7; position before new_buysell strings
 0x4051a0  buysell_leave            func  new_buysell.cpp        I
 0x4051e0  buysell_frame            func  -                      O ; screen 7 per-frame input (interface_frame switch); (key) -> key
@@ -723,12 +724,14 @@
 0x5017f0  UpdateTicker             func  timestamp.cpp          V ; Summoner 2 decomp; advances Timestamp_ticker / Timestamp_realtime_ticker (wrap at MAX_TIME 0x3ff1a100)
 0x501840  IncrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
 0x501850  DecrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
+0x501860  GameTimer__GameTimer     func  timestamp.cpp        O ; sets the timer to -1 (invalid); 45 static initialisers construct global timers
 0x501880  GameTimer__SetTimeout    func  timestamp.cpp          V ; Summoner 2 decomp; this in ECX
 0x5018d0  GameTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp; rand()
 0x501910  GameTimer__elapsed       func  timestamp.cpp          V ; Summoner 2 decomp
 0x501940  GameTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501980  GameTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501990  GameTimer__valid         func  timestamp.cpp          V ; Summoner 2 decomp
+0x5019e0  RealtimeTimer__RealtimeTimer func  timestamp.cpp        O ; sets the timer to -1 (invalid); 37 static initialisers
 0x501a00  RealtimeTimer__SetTimeout func  timestamp.cpp          V ; Summoner 2 decomp
 0x501a50  RealtimeTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp
 0x501a90  RealtimeTimer__elapsed   func  timestamp.cpp          V ; Summoner 2 decomp
@@ -811,6 +814,7 @@
 0x5051a0  localize_remap_charset   func  localize               O ; (text, to_font): German/French Windows-1252 <-> font code points (CP437 positions for German)
 0x5054f0  localize_string_or_invalid func  localize               I ; *p or "INVALID"
 0x505510  localize_get_language_name func  localize               O
+0x505530  vector3__vector3_default func  vsdk\math            I ; trivial default constructor (returns this); 19 static initialisers
 0x505540  Mempool__ResetOffset     func  vsdk\os\memory.cpp     V ; Summoner 2 inline ResetOffset: offset = 0
 0x505b20  init_ccmd_level_fog      func  -                    O ; static initialiser: registers console command object ccmd_level_fog
 0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
@@ -914,6 +918,7 @@
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
 0x50dd10  init_ccmd_zmax           func  -                    O ; static initialiser: registers console command object ccmd_zmax
 0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
+0x50f660  matrix__matrix_default   func  vsdk\math            I ; default constructor: three 0xc-byte rows via vector3__vector3_default
 0x50f6a0  vector3__scale           func  vsdk\math              I ; *= s
 0x50f790  vector3__scaled          func  vsdk\math              I ; returns v * s
 0x50f840  vector3__sub_assign      func  vsdk\math              I ; -= v
@@ -1389,6 +1394,7 @@
 0x581f1c  ui_inputbox__vtable      data:void*[9] vsdk\ui              O ; 
 0x581f40  ui_container__vtable     data:void*[9] vsdk\ui\ui_container.cpp O ; 
 0x581f68  ui_checkbox__vtable      data:void*[9] vsdk\ui              O ; 
+0x588004  static_initializers      data:void*[712] -                    O ; C runtime constructor table (__xc_a..__xc_z); each entry is a jmp thunk to one static initialiser, in link (source file) order
 0x588a70 gameseq_state_table      data:GameStateHandlers[15] -           O ; {enter, frame, leave} per state; 0 and 3 empty
 0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
 0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
