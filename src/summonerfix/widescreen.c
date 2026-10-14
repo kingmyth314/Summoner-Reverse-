@@ -185,9 +185,21 @@ static const DWORD k_panelWidthCalls[] = {0x4122a2, 0x4122d1, 0x4122f7, 0x41231d
 static const DWORD k_panelWidthFns[] = {0x404460, 0x42ada0, 0x429060, 0x41a8b0};
 static int(__cdecl *o_panelWidth[4])(void);
 
+// The 3D projection scale is the view width divided by gr_screen.aspect ((w / h) * 0.75, 1.33 at 1366x768).
+// With a 1024-wide view for a full panel that made the panel's models 25% too small, so the 4:3 aspect (1.0)
+// is used while a full panel is open and the wide one restored afterwards.
+#define VA_GR_SCREEN_ASPECT 0x25d8d48u
+static float g_wideAspect;
+
 static int __cdecl W_viewWidth(void)
 {
-    return WidescreenFullPanel() ? LAYOUT_WIDTH : o_screenWidth();
+    volatile float *aspect = (volatile float *)(UINT_PTR)SumVa(VA_GR_SCREEN_ASPECT);
+    int full = WidescreenFullPanel();
+    if (!g_wideAspect && !full)
+        g_wideAspect = *aspect;
+    if (g_wideAspect)
+        *aspect = full ? 1.0f : g_wideAspect;
+    return full ? LAYOUT_WIDTH : o_screenWidth();
 }
 
 #define PANEL_WIDTH(i) static int __cdecl W_panelWidth##i(void) {         int r = o_panelWidth[i](); return (g_cfg.sidePanelsOverWorld && g_shift > 0 && InGame()) ? 0 : r; }

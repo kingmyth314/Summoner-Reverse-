@@ -57,6 +57,19 @@ void TimingFixInstall(void);
 // keys.c
 void KeyBindInstall(void);
 
+// keys.c (agent mode)
+void KeysInjectKey(int code, int down);
+void KeysInjectMouse(int button, int down);
+
+// display.c (agent mode)
+void DisplayRequestCapture(const char *path);
+BOOL DisplayCapturePending(void);
+void DisplaySetAgentCursor(int clientX, int clientY);
+void DisplayGetAgentCursor(int *clientX, int *clientY);
+
+// agent.c
+void AgentInstall(void);
+
 // widescreen.c
 void WidescreenInstall(void);
 int WidescreenFullPanel(void); // in game with a full-screen panel open: shift the whole output

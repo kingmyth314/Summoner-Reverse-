@@ -131,6 +131,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     KeyBindInstall();
     if (g_cfg.renderer == RENDERER_OPENGL)
         WidescreenInstall();
+    AgentInstall();
     Log("startup fixes applied.");
     return TRUE;
 }

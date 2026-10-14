@@ -37,7 +37,7 @@ static const KeyName k_keyNames[] = {
 #define KEYNAME_COUNT (sizeof k_keyNames / sizeof k_keyNames[0])
 
 // "E", "escape", "0x17" -> code; -1 if unknown. Stops at whitespace, ';' or end of string.
-static int KeyParse(const char *s)
+static inline int KeyParse(const char *s)
 {
     while (*s == ' ' || *s == '\t')
         s++;
@@ -60,7 +60,7 @@ static int KeyParse(const char *s)
 }
 
 // code -> name, or "0xNN" written into buf (buf needs 8 bytes).
-static const char *KeyNameOf(int code, char *buf, size_t size)
+static inline const char *KeyNameOf(int code, char *buf, size_t size)
 {
     for (size_t i = 0; i < KEYNAME_COUNT; i++)
         if (k_keyNames[i].code == code)
@@ -77,7 +77,7 @@ typedef struct {
     short mouseTo[KEY_MOUSE_COUNT]; // mouse button (left, right, middle, 4, 5) -> game key, or 0x100+button, or -1 = default
 } Bindings;
 
-static void BindingsReset(Bindings *b)
+static inline void BindingsReset(Bindings *b)
 {
     for (int i = 0; i < 256; i++) {
         b->map[i] = (unsigned char)i;
@@ -88,7 +88,7 @@ static void BindingsReset(Bindings *b)
 }
 
 // Apply one binding; FALSE if the combination is not supported.
-static int BindingsSet(Bindings *b, int from, int to)
+static inline int BindingsSet(Bindings *b, int from, int to)
 {
     int toMouse = to >= KEY_MOUSE_BASE;
     if (toMouse && to >= KEY_MOUSE_BASE + 3)
@@ -109,7 +109,7 @@ static int BindingsSet(Bindings *b, int from, int to)
 
 // Parse a [KeyBindings] section (GetPrivateProfileSection format: NUL-separated "A=B" strings, double NUL at
 // the end). Calls bad(line) for unparseable entries. Returns the count.
-static int KeyParseSection(const char *section, Bindings *b, void (*bad)(const char *line))
+static inline int KeyParseSection(const char *section, Bindings *b, void (*bad)(const char *line))
 {
     BindingsReset(b);
     int count = 0;

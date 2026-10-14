@@ -140,3 +140,33 @@ symbol names, and immediates that point at strings are printed.
 ```
 node tools/disasm.mjs 0x431c60 [max_instructions]
 ```
+
+## `tools/agent.mjs` (agent mode)
+
+Plays the game from scripts, through SummonerFix's agent mode (`[Debug] Agent=1`,
+`src/summonerfix/agent.c`). The real mouse and keyboard are not used:
+- key presses go into the game's `key_mark`, mouse buttons into `mouse_mark_button`;
+- the cursor position replaces the real one in the `ScreenToClient` hook;
+- screenshots come from the back buffer;
+- the game is kept "in the foreground", so it does not pause.
+
+```
+node tools/agent.mjs start [--width 1366]    # set Agent=1 in the game's ini, launch, wait until ready
+node tools/agent.mjs run "info; click left 858 368; wait 1500; key I; wait 1000; capture inv"
+node tools/agent.mjs shot [name]             # screenshot -> Summoner\agent\name.png
+node tools/agent.mjs stop                    # quit (kill after 15 s)
+```
+
+**Commands:**
+- `key NAME [ms]`, `keydown NAME`, `keyup NAME`;
+- `move X Y`, `click [left|right|middle] [X Y] [ms]`, `down/up BUTTON`, `drag X1 Y1 X2 Y2`;
+- `wait MS`, `capture NAME`;
+- `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `quit`.
+
+Coordinates are screenshot pixels, which are half the window size (1280x720 on a 2560x1440
+screen). Key names are the ones `summonerfix.ini [KeyBindings]` uses.
+
+**Useful positions** at 1280x720 screenshots: main menu Load Saved Game (858, 368), then
+the load screen's Load (798, 368).
+
+Set `Agent=0` again for normal play.

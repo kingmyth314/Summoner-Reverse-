@@ -66,6 +66,19 @@ static void KeyInject(int code, int down)
     g_injecting = 0;
 }
 
+// Agent mode (agent.c): press game keys / mouse buttons directly (no remapping; thread-safe in the game).
+void KeysInjectKey(int code, int down)
+{
+    if (g_keyMark)
+        KeyInject(code, down);
+}
+
+void KeysInjectMouse(int button, int down)
+{
+    if (g_mouseMark)
+        g_mouseMark(button, (char)down);
+}
+
 // A mouse button (0-4) went down/up: apply its binding, or the default for left/right/middle.
 static void MouseEvent(int button, int down)
 {

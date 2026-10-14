@@ -103,7 +103,8 @@ What is known:
 - **User test 2026-10-13 (first version):** HUD, character screen and journal centred. Side panels shifted while the 3D view did not, so the scene appeared to jump left. In the inventory, models and equipment icons stayed at the old position. Options was not moved.
 - **Second version 2026-10-13:** full-screen panels shift the whole output; side panels stay flush left with only the HUD centred.
 - **User test of the second version:** the inventory model and the character portrait sat about 171 px too far right. Cause: the 3D projection is centred on the wide 3D view. Side panels still moved the scene, because the 3D view narrows to the right of the panel (original behaviour).
-- **Third version 2026-10-13:** full panels get a 1024-wide 3D view, and side panels keep the full-width world behind them.
+- **Third version 2026-10-13:** full panels get a 1024-wide 3D view, and side panels keep the full-width world behind them. User test: the portrait and side panels are fine; the inventory models were still too small.
+- **Fourth version 2026-10-13:** 4:3 aspect while a full panel is open. Agent-mode screenshots show the inventory identical to 1024x768.
 
 Next steps:
 

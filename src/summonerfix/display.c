@@ -109,15 +109,11 @@ static PFN_glGetIntegerv p_glGetIntegerv;
 static PFN_glPixelStorei p_glPixelStorei;
 static PFN_glReadBuffer p_glReadBuffer;
 
-static void CaptureFrame(const Map *m)
+// Save the back buffer at half size as a 24-bit BMP.
+static void SaveFrame(const Map *m, const char *path)
 {
-    static DWORD next;
-    static int index;
-    DWORD now = GetTickCount();
-    if (!p_glReadPixels || (int)(now - next) < 0)
+    if (!p_glReadPixels)
         return;
-    next = now + (DWORD)g_cfg.captureEvery * 1000;
-
     int w = m->cw, h = m->ch, stride = (w * 3 + 3) & ~3;
     BYTE *full = (BYTE *)HeapAlloc(GetProcessHeap(), 0, (SIZE_T)stride * h);
     if (!full)
@@ -140,10 +136,6 @@ static void CaptureFrame(const Map *m)
         BITMAPFILEHEADER fh = {0x4D42, 0, 0, 0, sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)};
         BITMAPINFOHEADER ih = {sizeof ih, ow, oh, 1, 24, BI_RGB, (DWORD)(ostride * oh), 0, 0, 0, 0};
         fh.bfSize = fh.bfOffBits + ih.biSizeImage;
-        char path[MAX_PATH];
-        lstrcpynA(path, g_cfg.iniPath, MAX_PATH);
-        char *slash = strrchr(path, '\\');
-        wsprintfA(slash ? slash + 1 : path, "summonerfix-capture-%d.bmp", ++index);
         HANDLE f = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (f != INVALID_HANDLE_VALUE) {
             DWORD wr;
@@ -156,6 +148,47 @@ static void CaptureFrame(const Map *m)
         HeapFree(GetProcessHeap(), 0, half);
     }
     HeapFree(GetProcessHeap(), 0, full);
+}
+
+static void CaptureFrame(const Map *m)
+{
+    static DWORD next;
+    static int index;
+    DWORD now = GetTickCount();
+    if ((int)(now - next) < 0)
+        return;
+    next = now + (DWORD)g_cfg.captureEvery * 1000;
+    char path[MAX_PATH];
+    lstrcpynA(path, g_cfg.iniPath, MAX_PATH);
+    char *slash = strrchr(path, '\\');
+    wsprintfA(slash ? slash + 1 : path, "summonerfix-capture-%d.bmp", ++index);
+    SaveFrame(m, path);
+}
+
+// Agent mode (agent.c): one-shot capture requests, and a cursor position that replaces the real one.
+static char g_capturePath[MAX_PATH];
+static volatile LONG g_captureWanted;
+static volatile LONG g_agentCursor, g_agentX, g_agentY; // client pixels
+
+void DisplayRequestCapture(const char *path)
+{
+    lstrcpynA(g_capturePath, path, MAX_PATH);
+    InterlockedExchange(&g_captureWanted, 1);
+}
+
+BOOL DisplayCapturePending(void) { return g_captureWanted != 0; }
+
+void DisplaySetAgentCursor(int clientX, int clientY)
+{
+    InterlockedExchange(&g_agentX, clientX);
+    InterlockedExchange(&g_agentY, clientY);
+    InterlockedExchange(&g_agentCursor, 1);
+}
+
+void DisplayGetAgentCursor(int *clientX, int *clientY)
+{
+    *clientX = g_agentX;
+    *clientY = g_agentY;
 }
 
 static BOOL WINAPI Hook_SwapBuffers(HDC dc)
@@ -177,6 +210,10 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
         if (!scissor)
             p_glDisable(GL_SCISSOR_TEST);
         p_glClearColor(old[0], old[1], old[2], old[3]);
+    }
+    if (g_captureWanted && GetMap(&m)) {
+        SaveFrame(&m, g_capturePath);
+        InterlockedExchange(&g_captureWanted, 0);
     }
     return real_SwapBuffers(dc);
 }
@@ -261,6 +298,10 @@ static BOOL WINAPI Hook_ScreenToClient(HWND w, LPPOINT p)
 {
     BOOL ok = real_ScreenToClient(w, p);
     Map m;
+    if (ok && w == g_wnd && g_agentCursor) {
+        p->x = g_agentX;
+        p->y = g_agentY;
+    }
     if (ok && w == g_wnd && GetMap(&m)) {
         int gx = (int)((p->x - m.offX) / m.scale), gy = (int)((p->y - m.offY) / m.scale);
         p->x = gx < 0 ? 0 : gx >= g_cfg.width ? g_cfg.width - 1 : gx;
@@ -276,6 +317,10 @@ static BOOL WINAPI Hook_ClientToScreen(HWND w, LPPOINT p)
     if (w == g_wnd && va >= 0x500b00 && va < 0x500d00 && GetMap(&m)) {
         p->x = m.offX + Round(p->x * m.scale);
         p->y = m.offY + Round(p->y * m.scale);
+        if (g_agentCursor) { // the game warps the cursor (mouse look): the agent cursor follows
+            InterlockedExchange(&g_agentX, p->x);
+            InterlockedExchange(&g_agentY, p->y);
+        }
     }
     return real_ClientToScreen(w, p);
 }
