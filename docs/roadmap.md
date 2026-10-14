@@ -134,8 +134,8 @@ first), structured so it can become a byte-matching decompilation later.
 - Widescreen (16:9) instead of 4:3 pillarboxing, with the 1024-wide UI kept centred.
 - Port the remaining Timeslip features. Done 2026-10-14: intro-movie skip, camera zoom range and interaction
   ranges (`[Game]` options, see [SummonerFix](summonerfix/index.md#fixes)). The speed key was done 2026-10-13.
-  Console-command keys were done the same day (`[ConsoleKeys]`). Still open: the Bink/save-image 32-bit fixes (no
-  corruption seen yet with OpenGL).
+  Console-command keys were done the same day (`[ConsoleKeys]`). The save-image problem showed up as black thumbnails under SummonerFix's scaling and is fixed
+  (`glReadPixels` hook). Still open: Timeslip's Bink 32-bit fix (no movie corruption seen with OpenGL).
 - ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

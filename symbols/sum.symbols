@@ -167,6 +167,7 @@
 0x4266c0  saveload_confirm_delete  func  -                    I ; L"Are you sure?" L"Confirm delete"
 0x4269c0  saveload_draw            func  -                      O ; screen 8 drawing (interface_draw switch)
 0x426a20  saveload_list_entries    func  -                    I ; L"<New Savegame>"
+0x427100  saveload_capture_thumbnail func  -                    O ; renders the scene into a 201x151 clip (0x482200 with debug flag 0x20000) and reads it back with gr_read_backbuffer into 0x5c5ba0, converted to 565 at 0x5e5d28, called by quicksave, saveload_init, cmd_savegame
 0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
 0x427df0  skills_leave             func  -                      O
 0x427e10  skills_frame             func  -                      O ; screen 6 per-frame input (interface_frame switch); (key) -> key

@@ -86,6 +86,48 @@ static void WINAPI Hook_glViewport(int x, int y, int w, int h)
     real_glViewport(x0, y0, x1 - x0, y1 - y0);
 }
 
+// Savegame thumbnails: the game renders the scene into a 201x151 clip and reads it back with
+// gr_opengl_read_backbuffer (0x5502c0), the only caller of glReadPixels, in game-pixel coordinates. Our
+// framebuffer is the scaled output, so read the mapped rectangle and box-filter it down to the requested size
+// (unmapped, the read hit an unrelated region and thumbnails came out black).
+typedef void(WINAPI *PFN_glReadPixels)(int, int, int, int, unsigned, unsigned, void *);
+static PFN_glReadPixels real_glReadPixels;
+
+static void WINAPI Hook_glReadPixels(int x, int y, int w, int h, unsigned format, unsigned type, void *data)
+{
+    Map m;
+    if (!GetMap(&m) || format != 0x1908 /* GL_RGBA */ || type != 0x1401 /* GL_UNSIGNED_BYTE */ || w <= 0 || h <= 0) {
+        real_glReadPixels(x, y, w, h, format, type, data);
+        return;
+    }
+    int x0 = m.offX + Round(x * m.scale), x1 = m.offX + Round((x + w) * m.scale);
+    int y0 = m.offY + Round(y * m.scale), y1 = m.offY + Round((y + h) * m.scale);
+    int fw = x1 - x0, fh = y1 - y0;
+    unsigned char *src = fw > 0 && fh > 0 ? (unsigned char *)HeapAlloc(GetProcessHeap(), 0, (SIZE_T)fw * fh * 4) : NULL;
+    if (!src) {
+        real_glReadPixels(x, y, w, h, format, type, data);
+        return;
+    }
+    real_glReadPixels(x0, y0, fw, fh, format, type, src);
+    unsigned char *dst = (unsigned char *)data;
+    for (int dy = 0; dy < h; dy++) {
+        int sy0 = dy * fh / h, sy1 = (dy + 1) * fh / h;
+        if (sy1 <= sy0) sy1 = sy0 + 1;
+        for (int dx = 0; dx < w; dx++) {
+            int sx0 = dx * fw / w, sx1 = (dx + 1) * fw / w;
+            if (sx1 <= sx0) sx1 = sx0 + 1;
+            unsigned sum[4] = {0, 0, 0, 0}, n = 0;
+            for (int sy = sy0; sy < sy1 && sy < fh; sy++)
+                for (int sx = sx0; sx < sx1 && sx < fw; sx++, n++)
+                    for (int c = 0; c < 4; c++)
+                        sum[c] += src[((size_t)sy * fw + sx) * 4 + c];
+            for (int c = 0; c < 4; c++)
+                dst[((size_t)dy * w + dx) * 4 + c] = (unsigned char)(n ? sum[c] / n : 0);
+        }
+    }
+    HeapFree(GetProcessHeap(), 0, src);
+}
+
 static void ClearRect(int x, int y, int w, int h)
 {
     if (w <= 0 || h <= 0)
@@ -358,6 +400,7 @@ void DisplayInstall(HMODULE exe)
         p_glClear = NULL;
     }
     real_glViewport = HookImport(exe, "OPENGL32.dll", "glViewport", Hook_glViewport);
+    real_glReadPixels = (PFN_glReadPixels)HookImport(exe, "OPENGL32.dll", "glReadPixels", (void *)Hook_glReadPixels);
     real_SwapBuffers = HookImport(exe, "GDI32.dll", "SwapBuffers", Hook_SwapBuffers);
     real_SetWindowLongA = HookImport(exe, "USER32.dll", "SetWindowLongA", Hook_SetWindowLongA);
     real_SetWindowPos = HookImport(exe, "USER32.dll", "SetWindowPos", Hook_SetWindowPos);
