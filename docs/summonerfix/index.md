@@ -134,6 +134,11 @@ The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 m
 
 **Clear** removes the extra keys from one action, and **Reset all** restores the game defaults. Mouse buttons, including the side buttons Mouse4/Mouse5, can be bound like keys: click them while the app waits for a key. The rows for left, right and middle click let a key act as a mouse button, for example a key for right-click chain attacks. Rebinding the left button away also removes it from the menus; Reset all undoes that.
 
+**Game options** (right-hand column, added 2026-10-14) edit the optional `[Game]` settings: **Skip intro movies**,
+the zoom-out limit, the talk/use range and the container range. Leave a field empty for the game's own value.
+**Save options** writes them; they take effect the next time the game starts. `[ConsoleKeys]` is still edited in the
+ini file.
+
 A binding adds a key; the default key keeps working. If the new key already belonged to another action, that action loses it, and the app says so. The list shows "(moved)" next to a default key that now does something else.
 
 ## Configuration (`summonerfix.ini`)
