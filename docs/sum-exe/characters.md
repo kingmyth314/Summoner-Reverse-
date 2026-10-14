@@ -25,7 +25,7 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | Offset | Type | Field | How it is known |
 |---|---|---|---|
 | `+0x00c` | int | type: 7 for player party members | `character_add_xp` only shows the level-up message for type 7 |
-| `+0x080` | handle | character template; resolved by `0x46b1a0` | the template has a skill list (`+0x20` count, `+0x24` 12-byte entries) and skill points at `+0x17c` |
+| `+0x080` | handle | the object's handle | written by `obj_create`; `player_from_handle(handle)` returns the player record |
 | `+0x2f4` | char[] | name | argument of `"%s gained level %d!"` |
 | `+0x320` | flags | `0x80` = dead | `party_level_reset` revives characters with this flag set |
 | `+0x5ac` | int[6] x2 | unknown: two identical groups (31, 30, 29, 26, 30, 29) | dump only |
@@ -62,7 +62,7 @@ the normal colour for none.
 
 `character_get_skill(id)` (`0x462440`) returns `skill[id] x 0.01`, adjusted by equipment
 (`character_skill_equip_mod`, four `{skill, value}` entries at item type `+0x20`). It returns -999999 when
-`character_skill_allowed` says the template does not allow the skill.
+`character_skill_allowed` says the skill is locked (`player_skill_unlocked` on the player record, which checks story flags).
 
 `character_get_protection` (`0x464de0`) works in one of two ways:
 
@@ -72,6 +72,31 @@ the normal colour for none.
 The item type layout is `ItemType` in `symbols/types.h`. Its fields so far: name `+0x00`, model `+0x0c`,
 damage `+0x68` and protection `+0xf0`.
 
+## Player record
+
+Each party member also has a `Player` record (`player.cpp`), kept in the circular list `party_list` (`0x5fc350`).
+`player_from_handle` (`0x433eb0`) finds it from the character's object handle. The record was confirmed in a runtime
+dump of Joseph's record at `0x5fcaf8` (2026-10-14).
+
+| Offset | Field | Joseph |
+|---|---|---|
+| `+0x000` / `+0x004` | next / prev in `party_list` | |
+| `+0x00c` | character object handle | `0x2658d` (= `Character +0x80`) |
+| `+0x020` / `+0x024` | count and pointer of the skill progression: `{skill, level, value}` entries | 17 entries at `0x593508` |
+| `+0x17c` | **unspent skill points** | 4 (matches the Character screen) |
+| `+0x180` | set on level-up from the level table | 3 |
+| `+0x190` | pointer to the `Character` | `0x9086c8` |
+
+On a level-up, `character_add_xp` adds the level table's skill points to `+0x17c`. For each progression
+entry whose level equals the new level, it also sets `Character.skill[skill] = value`.
+
+## Objects and handles
+
+`obj_create` (`0x469c40`) takes a 12-byte slot from `obj_free_list` and links it into `obj_used_list`. The
+slots are in `obj_slots` (`0x9438b0`). It stores the handle (slot index + a running base) at object `+0x80`,
+and a network handle at `+0x8c`. `obj_from_handle` (`0x46b130`) reverses this. `living_from_handle`
+(`0x46b1a0`) also checks that the object is a living entity.
+
 ## Experience and levels
 
 `character_add_xp` (`thiscall`, ECX = character) is called by the console command `add_xp`. In order, it:
@@ -80,10 +105,10 @@ damage `+0x68` and protection `+0xf0`.
 2. adds the experience to `+0x604`;
 3. gives a share of the experience to the rings in equipment slots 1 and 2 (`ring_add_xp`, `0x44ffc0`), which counts it per ring (`dark_ring_xp`, `fire_ring_xp`, ...);
 4. checks `xp_level_reached(level, xp)`, which means `xp >= xp_for_level(level + 1)`;
-5. on a level-up, calls `0x489ac0` with the template's class. That call updates the level, base max
+5. on a level-up, calls `0x489ac0` with the class. That call updates the level, base max
    HP, base max AP and the skill points;
 6. sets current HP and AP to the new maximum;
-7. for party members, copies the template's per-level skill bytes and shows "+Level!".
+7. for party members, applies the player record's skill progression and shows "+Level!".
 
 `xp_level_table` has 0x18-byte records indexed by level. The first field is the experience needed:
 level 2 = 100, 3 = 200, 4 = 450 (confirmed in game). Beyond level 20, each level adds 50,000, then
@@ -94,5 +119,5 @@ mapped yet.
 
 - The meaning of the two six-value groups at `+0x5ac` (attributes? base and current?).
 - The rest of each `xp_level_table` record: four shorts per level that differ between levels.
-- Where the resistances and skill points (4) come from. The skill points are probably at template `+0x17c`.
+- Where the resistances come from.
 - The rest of the stat panel after protection (`0x42d58f` onwards).

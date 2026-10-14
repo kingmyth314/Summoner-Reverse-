@@ -180,7 +180,7 @@ typedef struct Character {
     uint8_t _unmapped00[0x0c];
     int32_t type;            // +0x00C 7 for player party members (level-up message, skill copy)
     int32_t _unmapped10[0x1c];
-    int32_t template_handle; // +0x080 resolved by 0x46b1a0; record has a skill list at +0x20/+0x24, skill points +0x17c
+    int32_t handle;          // +0x080 object handle (obj_create); player_from_handle(handle) gives the Player record
     uint8_t _unmapped84[0x270];
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
@@ -240,3 +240,33 @@ typedef struct chat_command {
     const char* name;        // "/kick", "/ping", "/list"
     void (*handler)(void);   // argument list not yet mapped
 } chat_command;
+
+// {skill, level, value} entry of a player's skill progression (e.g. joseph_skill_progression, 0x593508).
+typedef struct skill_progression {
+    int32_t skill;           // skill id (index into Character.skill)
+    int32_t level;           // character level at which it applies
+    int32_t value;           // new Character.skill[skill] value (x100)
+} skill_progression;
+
+// A player record (player.cpp), one per party member, in party_list (0x5fc350). Observed for Joseph in a
+// runtime dump; player_from_handle finds it from the character's object handle.
+typedef struct Player {
+    struct Player* next;     // +0x000 circular list (head party_list)
+    struct Player* prev;     // +0x004
+    int32_t _unk08;
+    int32_t handle;          // +0x00C the character object's handle
+    int32_t _unk10;          // +0x010 8 for Joseph
+    int32_t _unk14;
+    int32_t _unk18;          // +0x018 682
+    int32_t _unk1c;          // +0x01C 536
+    int32_t num_progression; // +0x020 17
+    const skill_progression* progression; // +0x024 per-level skill gains
+    float   _unk28[0x24];    // +0x028 36 floats, all 1.8228 for Joseph
+    int32_t _unkb8[0x31];    // +0x0B8 49 ints, all 1
+    int32_t skill_points;    // +0x17C unspent skill points (Character screen "Skill points: 4"); character_add_xp adds to it
+    int32_t _unk180;         // +0x180 3 for Joseph (set by character_add_xp on level-up)
+    int32_t _unk184;
+    struct Player* self;     // +0x188
+    int32_t _unk18c;
+    struct Character* character; // +0x190
+} Player;

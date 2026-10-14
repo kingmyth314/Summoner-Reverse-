@@ -206,6 +206,7 @@
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
 0x4334f0  player_alloc_slot        func  player.cpp           O ; "No more player slots availeble -- something went horribly wrong"
 0x4339f0  player_skill_unlocked    func  player.cpp           I ; thiscall on a template (skill): story flags got_ring_of_darkness, act2_done, ...; used by character_skill_allowed
+0x433eb0  player_from_handle       func  player.cpp           O ; (object handle) -> player record whose +0xc matches, searching party_list then player_list_other; 0 if none
 0x433f40  party_remove_member      func  -                    I ; L"%s has left the party!\n"
 0x4340d0  party_add_member         func  -                    I ; L"%s has joined the party!\n"
 0x4343b0  init_ccmd_slew           func  -                    O ; static initialiser: registers console command object ccmd_slew
@@ -356,8 +357,12 @@
 0x464f50  combat_steal_gold        func  -                    I ; L"Stole %d gold!"
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
-0x469c40  obj_create               func  objects.cpp          O ; "No more free objects. Please increase MAX_OBJECTS"
+0x469c40  obj_create               func  objects.cpp          O ; (obj): takes a slot from obj_free_list, links it into obj_used_list, sets obj +0x80 = slot index + 0x469dd0() (handle) and +0x8c (net handle, -1 unless multiplayer); "No more free objects"
+0x469dd0  obj_handle_base_next     func  objects.cpp          I ; returns and increments the counter at 0x59a5a0 (handle base), wraps at 0x59a5a4
+0x46a0b0  obj_is_living            func  objects.cpp          I ; thiscall: type test used by living_from_handle
 0x46a920  container_deinit         func  -                    O ; "deinit for container with handle %d"
+0x46b130  obj_from_handle          func  objects.cpp          I ; (handle) -> object or 0
+0x46b1a0  living_from_handle       func  objects.cpp          O ; (handle) -> obj_from_handle if obj_is_living, else 0; used throughout character code
 0x46c550  init_ccmd_add_gold       func  -                    O ; static initialiser: registers console command object ccmd_add_gold
 0x46c570  cmd_add_gold             func  -                      O ; console command "add_gold": Adds gold to party inventory
 0x46cb50  item_paging_find_player_slot func  item_paging.cpp      O ; "Unable to find paging slot for player"
@@ -1399,6 +1404,7 @@
 0x588bc4  Map_mask                 data:bool -                      I ; set by console command "map_mask" (toggles); type inferred
 0x588bd0  Show_coordinates         data:bool -                      I ; set by console command "show_coordinates" (toggles); type inferred
 0x5931b0  Gamewide_show_net_stats  data:bool -                      I ; set by console command "net_stats" (toggles); type inferred
+0x593508  joseph_skill_progression data:skill_progression[17] characterinfo.cpp    I ; player record +0x24 for Joseph: {skill, level, value}; character_add_xp copies value into Character.skill[skill] at that level
 0x599690  Chance_to_drop_gold      data:int -                      I ; set by console command "chance_gold" (sets); type inferred
 0x599694  Use_spell_ap             data:bool -                      I ; set by console command "Spell_ap" (toggles); type inferred
 0x59a16c  Debug_death              data:bool -                      I ; set by console command "death" (toggles); type inferred
@@ -1479,7 +1485,9 @@
 0x5fc020  Gamewide_show_gr_info    data:bool -                      I ; set by console command "gr_info" (toggles); type inferred
 0x5fc021  Gamewide_show_hud_info   data:bool -                      I ; set by console command "show_hud_info" (toggles); type inferred
 0x5fc022  Print_screen_as_targa    data:bool -                      I ; set by console command "targa" (toggles); type inferred
+0x5fc030  player_list_other        data:Player player.cpp           I ; second list head searched by player_from_handle (players not in the party?)
 0x5fc1b8  ccmd_max_skills          data:console_command -                      O ; console command object "max_skills"
+0x5fc350  party_list               data:Player player.cpp           O ; circular list head of party player records (next +0, prev +4); walked by party_level_reset
 0x5fcc88  cur_character            data:Character* -                    O ; selected party member (character screen, add_xp); 0 between levels
 0x5fcc91  Max_skills               data:bool -                      I ; set by console command "max_skills" (toggles); type inferred
 0x5fcc98  player_input             data:uint32[3] gameplay.cpp           I ; {flags, mouse x, mouse y}
@@ -1543,6 +1551,9 @@
 0x941730  ccmd_bloodspots          data:console_command -                      O ; console command object "bloodspots"
 0x94173c  Bloodspots               data:bool -                      I ; set by console command "bloodspots" (toggles); type inferred
 0x94173d  Super_power              data:bool -                      I ; set by console command "Super_power" (toggles); type inferred
+0x9438a4  obj_used_list            data:void* objects.cpp          O ; circular list of used object slots
+0x9438ac  obj_free_list            data:void* objects.cpp          O ; free object slots
+0x9438b0  obj_slots                data:uint8[] objects.cpp          O ; 12-byte slots {next, prev, object}; slot index + handle base = object handle
 0x970810  ccmd_add_gold            data:console_command -                      O ; console command object "add_gold"
 0x22c4388 ccmd_load_lightmaps      data:console_command -                      O ; console command object "load_lightmaps"
 0x22e43a8 ccmd_p3d_files           data:console_command -                      O ; console command object "p3d_files"
