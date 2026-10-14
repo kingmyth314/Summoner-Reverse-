@@ -510,10 +510,14 @@
 0x4ca950  init_ccmd_eax_save_props func  -                    O ; static initialiser: registers console command object ccmd_eax_save_props
 0x4ca970  cmd_eax_save_props       func  -                      O ; console command "eax_save_props": Saves the EAX properties to disk
 0x4caf40  level_find_player_starts func  -                    O ; "$player%d-%02d", "Unable to locate player starts for level %s"
+0x4cb060  level_script_restart     func  -                    I ; calls the leave (+0xc) then init (+4) handler, then resets party/objects
 0x4cb430  level_items_parse_table  func  -                    O ; level_items.tbl: "#Level:", "$Item:", "$Navpoint:", "+Count:", "+Event:"
 0x4cc010  level_parse_ambient      func  -                    O ; "$Ambient:", "Ambient sound navpoint not found: %s"
 0x4cc190  level_parse_trigger      func  -                    O ; "$Trigger:", "+Script:", "+Type:", "+Radius:", "Couldn't find level trigger: %s"
 0x4cc4d0  level_parse_shopkeeper   func  -                    O ; "$Shopkeeper:", "+Sell List:", "+Buy List:"
+0x4cc7e0  level_script_init        func  -                    O ; state_game_enter: calls the level's init handler (+4)
+0x4ccab0  level_script_frame       func  -                    O ; state_game_frame: timers, then the level's frame handler (+8) when Do_frame_callback
+0x4ccc70  level_script_leave       func  -                    O ; state_game_leave: calls the level's leave handler (+0xc) and frees script state
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4cd120  level_trigger_trip       func  -                    I ; "Tripped trigger: %s"
@@ -528,10 +532,13 @@
 0x4d4c80  cmd_savegame             func  -                      O ; console command "savegame": Save the game to a file
 0x4d4e80  init_ccmd_loadgame       func  -                    O ; static initialiser: registers console command object ccmd_loadgame
 0x4d4ea0  cmd_loadgame             func  -                      O ; console command "loadgame": Load a previously saved game
+0x4d5570  level_script_select      func  -                    O ; finds the current level in level_script_table and copies its handlers to globals; "Unable to locate level script info for %s"
+0x4d56d0  level_script_load_steps  func  -                    O ; (level file) -> record +0x1c, the loading-screen progress total (default 10000)
 0x4d5990  journal_format_event     func  -                    I ; L"<%s gained %d XP>", L"<party received %d gold>", L"<gained item: \"%s\">" ...
 0x4d5e50  init_ccmd_door_open      func  -                    O ; static initialiser: registers console command object ccmd_door_open
 0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
 0x4d6040  journal_notify_updated   func  -                    I ; L"Quest Journal Updated"
+0x4d6300  level_script_find        func  -                    I ; (level name) -> index in level_script_table or -1
 0x4d6560  init_ccmd_door_close     func  -                    O ; static initialiser: registers console command object ccmd_door_close
 0x4d6580  cmd_door_close           func  -                      O ; console command "door_close": closes a specified door in the level.
 0x4d65e0  init_ccmd_door_toggle    func  -                    O ; static initialiser: registers console command object ccmd_door_toggle
@@ -551,11 +558,149 @@
 0x4ecf70  init_ccmd_render_s3d_navpoints func  -                    O ; static initialiser: registers console command object ccmd_render_s3d_navpoints
 0x4ecf90  cmd_render_s3d_navpoints func  -                      O ; console command "render_s3d_navpoints": Toggles Render_s3d_navpoints
 0x4ed0f0  cutscene_script_load     func  -                    O ; "_cscript.tbl", "#Navpoints", "Cutscene script string pool usage: %d bytes"
+0x4ed7e0  ls_sewer_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4edc30  ls_sewerboss_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4edd30  ls_sewerboss_leave       func  -                    O ; level_script_table entry: level script leave handler
+0x4edd50  ls_sewer_frame           func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ee0e0  ls_sewerboss_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ee4f0  ls_sewer_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_sewerboss_use
+0x4ee580  ls_sewer_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names); shared with ls_sewerboss_action
+0x4ee730  ls_lenele2d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ee760  ls_lenele2d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ee7d0  ls_lenele2d_action       func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4ee800  ls_lenele2d_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4ee840  ls_rand_iceland01_init   func  -                    O ; level_script_table entry: level script init (state_game_enter); shared with ls_rand_icelandnite01_init
+0x4ee860  ls_rand_grasslandnite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ee880  ls_rand_desertnite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ee8a0  ls_rand_orenianite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ee8f0  ls_rand_orenia01_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ee940  ls_rand_grassland01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4eed80  ls_rand_grassland01_action func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4eee20  ls_rand_hillsnite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4eee60  ls_ikaemosbottomint2_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4eeef0  ls_ikaemosbottomint2_frame func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ef120  ls_ikaemosext2_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ef140  ls_ikaemosext2_frame     func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ef190  ls_templeint2_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4ef1e0  ls_templeint2_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ef770  ls_templeint2_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4ef850  ls_lenele1ab_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4efa30  ls_lenele1aa_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4efdb0  ls_lenele1aa_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4efef0  ls_lenele1aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4eff30  ls_lenele1aa_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4effe0  ls_jadetemple_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f0110  ls_jadetemple_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f0a40  ls_jadetemple_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f0da0  ls_lenele3d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f0eb0  ls_lenele3d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f0f00  ls_ionaext02_leave       func  -                    O ; level_script_table entry: level script leave handler; shared with ls_lenele3d_leave
+0x4f0f10  ls_lenele3d_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f0f70  ls_lenele3a_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f1000  ls_lenele3a_leave        func  -                    O ; level_script_table entry: level script leave handler
+0x4f1030  ls_lenele3a_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f1070  ls_lenele2ab_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f10a0  ls_lenele2ab_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f1220  ls_lenele2ab_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f12c0  ls_lenele2aa_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f1310  ls_lenele2aa_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game; body is a bare RET in retail, shared with several state leave handlers
+0x4f13f0  ls_lenele2aa_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f1420  ls_lenele2aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f1490  ls_eleh_init             func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f1560  ls_eleh_frame            func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f1890  ls_eleh_action           func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f1910  ls_eleh_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f2060  ls_wolong2_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f2140  ls_wolong2_frame         func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f21e0  ls_wolong2_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f21f0  ls_wolong2_use          func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f2250  ls_khosanilab2_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f22a0  ls_khosanilab2_frame     func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f2450  ls_lpalaceint02_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f2550  ls_lpalaceint02_frame    func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f27c0  ls_lpalaceint02_leave    func  -                    O ; level_script_table entry: level script leave handler
+0x4f27f0  ls_lpalaceint02_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f2830  ls_tancredhouse_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f2930  ls_tancredhouse_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f29c0  ls_test_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_ikaemosbottomint_use, ls_ikaemosext_use, ls_ionaext_use, ls_ionaext_slot14, ls_ionaext02_use, ls_khosanistrng_use, ls_tancredhouse_use, ls_khosanilab2_use, ls_lenele2ab_use, ls_jadetemple_use, ls_lenele1ab_use, ls_ikaemosext2_use, ls_ikaemosbottomint2_use
+0x4f2ac0  ls_lpalaceint_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f2ce0  ls_lpalaceint_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f3890  ls_lpalaceint_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f3a40  ls_lpalaceint_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f3a80  ls_khosanistrng_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f3ee0  ls_khosanistrng_frame    func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f4210  ls_khosanistrng_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f4570  ls_ionaext02_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f4650  ls_ionaext02_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f4910  ls_rand_desert_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f4930  ls_liangshan_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f4a20  ls_liangshan_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f54f0  ls_liangshan_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f5630  ls_liangshan_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f5670  ls_rand_forestnite1_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f56e0  ls_rand_forestnite1_frame func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f5910  ls_rand_forest01_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f5b90  ls_rand_forest01_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f5e70  ls_rand_forest01_action  func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f5e90  ls_templeint_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f5f80  ls_templeint_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f64f0  ls_templeint_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f65e0  ls_templeint_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f66c0  ls_wolongcaverns_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f68f0  ls_wolongcaverns_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f6f80  ls_wolongcaverns_action  func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f6ff0  ls_wolongcaverns_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f7220  ls_ionaext_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f7270  ls_ionaext_frame         func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f7760  ls_ionaext_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f8920  ls_khosanilab_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f8a30  ls_khosanilab_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f9580  ls_khosanilab_leave      func  -                    O ; level_script_table entry: level script leave handler
+0x4f95a0  ls_khosanilab_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f9e50  ls_ikaemosext_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f9e70  ls_ikaemosext_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f9ec0  ls_ikaemostopint_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f9f50  ls_ikaemostopint_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fa230  ls_ikaemostopint_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fa400  ls_ikaemosbottomint_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fa420  ls_rand_hills01_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fa4a0  ls_rand_hills01_frame    func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fa780  ls_rand_hills01_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fa7c0  ls_lenele1e_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fa850  ls_lenele1e_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fa890  ls_lenele1d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fa970  ls_lenele1d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fa9d0  ls_lenele1d_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4faa60  ls_lenele1c_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fab80  ls_lenele1c_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fad50  ls_lenele1c_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fad90  ls_lenele1b_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4faf90  ls_lenele1b_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fb0c0  ls_lenele1b_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fb160  ls_lenele1b_action       func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fb510  ls_worldmap1_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fbd80  ls_worldmap1_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fd560  ls_worldmap1_leave       func  -                    O ; level_script_table entry: level script leave handler
 0x4fd5d0  init_ccmd_iw             func  -                    O ; static initialiser: registers console command object ccmd_iw
 0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
 0x4fd610  init_ccmd_random_encounters func  -                    O ; static initialiser: registers console command object ccmd_random_encounters
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
+0x4fd750  ls_masad_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fd980  ls_masad_frame           func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fdc70  ls_masad_leave           func  -                    O ; level_script_table entry: level script leave handler
+0x4fdc90  ls_masad_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fdd60  ls_masad_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fdde0  ls_test_init             func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fde20  ls_test_frame            func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fde60  ls_test_leave            func  -                    O ; level_script_table entry: level script leave handler
+0x4fde80  ls_catacombs_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fe1c0  ls_catacombs_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fe5e0  ls_catacombs_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fe8f0  ls_wolong_init           func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fe9a0  ls_wolong_frame          func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fea40  ls_wolong_use           func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4fea80  ls_wolong_action         func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4fee50  dialogue_parse_table     func  -                    O ; "_dlg.tbl": "$Character:", "+Topic:", "+Shop", "+PCText:", "+NPCText:" ...
 0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)
 0x500c80  mouse_set_pos            func  vsdk\os\mouse          I ; (x, y) client coords -> ClientToScreen + SetCursorPos, only when foreground
@@ -1219,6 +1364,7 @@
 0x59c5e8  Snow_enabled             data:bool -                      I ; set by console command "snow" (toggles); type inferred
 0x59c5e9  Snow_render              data:bool -                      I ; set by console command "snow_render" (toggles); type inferred
 0x59e0fc  Do_frame_callback        data:bool -                      I ; set by console command "do_frame_callback" (toggles); type inferred
+0x59f128  level_script_table       data:level_script_info[51] -                    O ; 0x40-byte records: name, init, frame, leave, use, +0x14 (unused), action, load steps, music name
 0x5a4c4c  Random_encounters_enabled data:bool -                      I ; set by console command "random_encounters" (toggles); type inferred
 0x5a5734  mouse_use_cursor         data:int vsdk\os\mouse          I ; 1 when DirectInput is unavailable
 0x5a573c actual_frametime         data:float           frametime.cpp     V
@@ -1294,6 +1440,7 @@
 0x609fe0  Full_party               data:bool -                      I ; set by console command "full_party" (toggles); type inferred
 0x609fe1  Dump_sound_usage         data:bool -                      I ; set by console command "dump_sound_usage" (toggles); type inferred
 0x609fec  Give_all_items           data:bool -                      I ; set by console command "Give_all_items" (toggles); type inferred
+0x60a2c8  level_filename           data:char[] -                    I ; current level name (compared with _stricmp throughout level scripts)
 0x60a410  ccmd_flece               data:console_command -                      O ; console command object "flece"
 0x60a420  ccmd_character           data:console_command -                      O ; console command object "character"
 0x60a638  ccmd_jekhar              data:console_command -                      O ; console command object "jekhar"

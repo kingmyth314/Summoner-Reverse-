@@ -219,3 +219,18 @@ typedef struct ItemType {
     uint8_t _unmapped6e[0x82];
     float   protection;      // +0xF0 armour protection (0.07 for the tunic, shown as 7)
 } ItemType;
+
+// One level's script hooks in level_script_table (0x59f128, 51 records). level_script_select copies the
+// handlers into globals when a level loads. 0x4f13e0 (a bare RET) is used as an empty handler.
+typedef struct level_script_info {
+    const char* name;                    // +0x00 level file name ("masad", "sewer", "Rand-Desert", ...)
+    void (*init)(void);                  // +0x04 -> 0x249029c; level_script_init (state_game_enter), restart
+    void (*frame)(void);                 // +0x08 -> 0x24902ac; level_script_frame, while Do_frame_callback
+    void (*leave)(void);                 // +0x0C -> 0x2491a54; level_script_leave (state_game_leave), restart
+    char (*use)(const char* name);       // +0x10 -> 0x2491a60; an object or exit was used: opens gates or speaks a refusal; returns 0
+    void* unused14;                      // +0x14 -> 0x2491a64; 0 in every record
+    void* action;                        // +0x18 -> 0x2490c5c; script/dialogue action handler (journal_format_event)
+    int32_t load_steps;                  // +0x1C loading-screen progress total (LoadingScreenDraw)
+    const char* music;                   // +0x20 music name (looked up with 0x4696d0 in debug mode)
+    uint8_t _unused24[0x1c];
+} level_script_info;
