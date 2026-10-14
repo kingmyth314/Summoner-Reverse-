@@ -300,6 +300,7 @@
 0x4450c0  characterinfo_load_party func  characterinfo.cpp    I ; "Joseph char", "Joseph model" ... "Player instance", "%s.tbl"
 0x4452f0  characterinfo_parse_table func  characterinfo.cpp    O ; "#Character Info", "$Character:", "+Portrait Filename:", ...
 0x446740  characterinfo_add_move   func  characterinfo.cpp    O ; "Move_info array is full. Need to increase MAX_TOTAL_MOVES."
+0x446890  characterinfo_parse_name func  characterinfo.cpp    I ; "$Character:" value: name and species ("Character type %s doesn't have a species type")
 0x446930  characterinfo_parse_resistances func  characterinfo.cpp    O ; "+Resistances:" ... "#Resistances End"
 0x447410  characterinfo_load_party_anims func  characterinfo.cpp    I ; "Joseph Anims", "Jekhar Anims" ...; masad allows only Joseph
 0x447b10  level_load_preload       func  -                      I ; loads the level's character preload index (ca_load_preload_index) and per-level effects
@@ -1542,6 +1543,8 @@
 0x65e968  ccmd_charinfo            data:console_command -                      O ; console command object "charinfo"
 0x65e998  ccmd_Quick_combo         data:console_command -                      O ; console command object "Quick_combo"
 0x68e200  ccmd_All_summons         data:console_command -                      O ; console command object "All_summons"
+0x6d7e50  char_infos               data:char_info[256] characterinfo.cpp    O ; "$Character:" records (0x3d0 bytes); Character +0x71c points at one
+0x714e54  num_char_infos           data:int characterinfo.cpp    O ; record count, incremented by characterinfo_parse_table
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
 0x8b50b0  All_summons              data:bool -                      I ; set by console command "All_summons" (toggles); type inferred
 0x8b50b2  Quick_combo              data:bool -                      I ; set by console command "Quick_combo" (toggles); type inferred
@@ -1580,6 +1583,8 @@
 0x22e4af0 ccmd_zoom_limit          data:console_command -                      O ; console command object "zoom_limit"
 0x22e4b00 ccmd_geom_avoid          data:console_command -                      O ; console command object "geom_avoid"
 0x22e4b0c Camera_geometry_avoidance data:bool -                      I ; set by console command "geom_avoid" (toggles); type inferred
+0x22e4f28  spells                   data:spell_info[108] -                    O ; spells.tbl records, filled by spells_parse_table
+0x22e9228  spell_string_pool        data:StringPool -                    I ; names and effect names of spells.tbl (StringPool__Reset at load)
 0x22e9240 ccmd_summon              data:console_command -                      O ; console command object "summon"
 0x22e94e8 ccmd_Multi_path_type     data:console_command -                      O ; console command object "Multi_path_type"
 0x22ec4c8 ccmd_Cull_ground         data:console_command -                      O ; console command object "Cull_ground"

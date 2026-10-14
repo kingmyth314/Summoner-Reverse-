@@ -199,7 +199,9 @@ typedef struct Character {
     int32_t xp;              // +0x604 experience
     uint8_t _unmapped608[0x0c];
     uint8_t skill[0x60];     // +0x614 skill/attribute values x100 by skill id (character_get_skill); id 2 speed (110 = 110%), id 1 base protection; set from the template on level-up
-    uint8_t _unmapped674[0xe0];
+    uint8_t _unmapped674[0xa8];
+    struct char_info* info;  // +0x71C character info record (char_infos); +0x10 species, +0x258 flags
+    uint8_t _unmapped720[0x34];
     void*   equipment[10];   // +0x754 equipped items (item +4 = ItemType*); +0x768 (slot 5) weapon; +0x760/764/76C/770/774 armour
     // +0x758/+0x75C (slots 1-2) also receive a share of experience
 } Character;
@@ -305,3 +307,77 @@ enum status_effect_id {
     STATUS_REGEN = 5, STATUS_POWER = 6, STATUS_SLEEP = 9, STATUS_PARALYZE = 10, STATUS_POISON = 11,
     STATUS_CRIPPLE = 12, STATUS_SLOW = 13,
 };
+
+// A spells.tbl record (spells, 0x22e4f28, 108 x 0x80 bytes), from spells_parse_table (0x47a190). The parser
+// walks it with a pointer to +0x78, so its displacements are offset - 0x78.
+typedef struct spell_info {
+    int32_t spell_class;     // +0x00 +Class: 0 heal, 1 dark, 2 energy, 3 holy, 4 fire, 5 ice, 6 summon, 7 misc
+    int32_t index;           // +0x04 record number
+    const char* name;        // +0x08 +Name: (string pool 0x22e9228)
+    const char* cast_effect; // +0x0C +Cast effect:
+    uint8_t _effects10[0x44];// +0x10 hit / preloaded hit / misc / banish effects (+0x40 = banish effect name)
+    float   cost;            // +0x54 +Cost:
+    float   skill;           // +0x58 +Skill: x0.01
+    float   hit_chance;      // +0x5C +Hit Chance: x0.01 (default 1.0)
+    int32_t die;             // +0x60 +Die:
+    int16_t duration;        // +0x64 +Duration: (default -1)
+    int16_t recovery_time;   // +0x66 +Recovery time:
+    int16_t ai_recovery_time;// +0x68 +AI Recovery time:
+    int16_t loop_time;       // +0x6A +Loop Time:
+    int32_t emerge_time;     // +0x6C +Emerge time:
+    float   distance;        // +0x70 +Distance:
+    uint32_t _unk74;
+    int32_t damage_type;     // +0x78 +Damage type: (default -1)
+    float   target_radius;   // +0x7C +Target radius:
+} spell_info;
+
+// A "$Character:" record of the character info tables (characterinfo_parse_table 0x4452f0; base 0x6d7e50,
+// 0x3d0 bytes each, count at 0x714e54). Character +0x71C points at one. Offsets from the parser's stores.
+typedef struct char_info {
+    uint8_t _unk00[0x04];
+    const char* portrait;    // +0x004 +Portrait Filename: (0 by default)
+    uint8_t _unk08[0x08];
+    int32_t species;         // +0x010 set by 0x446890 with the name ("doesn't have a species type"); passed to the level table
+    uint8_t _unk14[0x04];
+    const char* anim_folder; // +0x018 +Anim Folder:
+    uint32_t _unk1c;         // +0x01C zeroed
+    uint32_t _unk20;
+    int16_t max_hp;          // +0x024 $Max Hit Points:
+    int16_t hp;              // +0x026 $Hit Points:
+    int16_t max_ap;          // +0x028 $Max Ability Points:
+    int16_t ap;              // +0x02A $Ability Points:
+    int32_t xp_gained;       // +0x02C $Experience Gained: (awarded for a kill)
+    int32_t level;           // +0x030 $Level:
+    float   attack_radius;   // +0x034 $Attack Radius:
+    int16_t damage;          // +0x038 $Damage:
+    uint8_t _unk3a[0x02];
+    int16_t special_ability; // +0x03C +Special ability:
+    uint8_t _unk3e[0x06];
+    int16_t reflex_ability;  // +0x044 +Reflex ability:
+    uint8_t _unk46[0x46];
+    int32_t team;            // +0x08C $Team:
+    int32_t size;            // +0x090 $Size:
+    uint8_t _unk94[0x54];
+    uint8_t up_skill, down_skill, right_skill, left_skill; // +0x0E8 $Up/$Down/$Right/$Left Skill:
+    uint8_t _unkec[0x38];
+    int32_t prop_tag;        // +0x124 $Prop Tag:
+    uint8_t _unk128[0xf0];
+    int32_t skin;            // +0x218 +Skin:
+    uint8_t _unk21c[0x04];
+    float   fov_range;       // +0x220 $Field of view range:
+    float   detection_range; // +0x224 $Detection range:
+    float   speedup_rate;    // +0x228 $Speedup rate:
+    float   slowdown_rate;   // +0x22C $Slowdown rate:
+    float   slow_turn_rate;  // +0x230 $Slow turn rate:
+    float   fast_turn_rate;  // +0x234 $Fast turn rate:
+    float   moving_turn_rate;// +0x238 $Moving turn rate:
+    float   intelligence;    // +0x23C +Intelligence: (AI)
+    uint8_t _unk240[0x14];
+    float   light_atten;     // +0x254 +LightAtten:
+    uint32_t flags;          // +0x258 0 by default; 0x80 / 0x100 make status_effect_add skip some effects
+    uint8_t _unk25c[0x08];
+    float   icon_height;     // +0x264 $Icon Height:
+    uint8_t _unk268[0x98];
+    const char* drop;        // +0x300 +Drop: / +Multiplayer Drop:
+    uint8_t _unk304[0xcc];
+} char_info;

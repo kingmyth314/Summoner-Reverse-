@@ -76,3 +76,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Controls and keyboard map](controls.md)
 - [Characters, experience and levels](characters.md)
 - [Level scripts](level-scripts.md)
+- [Game data tables in memory](game-tables.md)
