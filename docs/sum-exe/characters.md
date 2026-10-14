@@ -69,6 +69,11 @@ the normal colour for none.
 - with no armour worn, it returns `get_skill(1) + level x 0.01`;
 - otherwise it adds up `materials[type +0x08].protection_mult x type +0xf0` for each worn armour piece (`materials` is the `materials.tbl` table at `0x8b9d4c`).
 
+**Resistances** (`status_draw_resistances`) come from `character_get_resistance(type)` (`0x4626b0`). The types
+are 0 fire, 1 ice, 2 energy, 3 magic, then 4-6 slashing, piercing and blunt in the screen's order. Equipment adds
+its `+Resist Mod:` entries (`character_resist_equip_bonus`, item type `+0x30`). Magic resistance also
+grows with skill `0x23` x 0.5 and level x 0.02, which is Joseph's 6% at level 3.
+
 The item type layout is `ItemType` in `symbols/types.h`. It is mapped from the `items.tbl` parser (`items_parse_table`), where each
 `$Field:` is stored at a fixed offset: for example kind `+0x04`, material `+0x08`, value `+0x18`, slot `+0x1c`, damage `+0x68`, weapon skill `+0x6c` and protection `+0xf0`.
 
@@ -142,5 +147,4 @@ For Joseph's group, level 1 gives 64 HP and 5 AP, and levels 2 and 3 each add 32
 ## Open questions
 
 - The meaning of the two six-value groups at `+0x5ac` (attributes? base and current?).
-- Where the resistances come from.
 - The rest of the stat panel after protection (`0x42d58f` onwards).

@@ -217,7 +217,7 @@ typedef struct ItemType {
     int32_t value;           // +0x18 $Value: (100 sword, 20 tunic)
     int32_t slot;            // +0x1C +Slot: equipment slot (default 4; sword 4, tunic 6)
     void*   skill_mods[4];   // +0x20 +Skill Mod: -> {skill, value} (character_skill_equip_mod)
-    uint8_t _unmapped30[0x10];
+    void*   resist_mods[4];  // +0x30 +Resist Mod: -> {resistance type, value} (character_resist_equip_bonus)
     void*   stat_mods[2];    // +0x40 +Stat Mod: -> {stat, value} (character_equip_bonus: 0 HP, 1 AP)
     uint8_t _unmapped48[0x0c];
     float   ap_regen;        // +0x54 +AP Regen:
