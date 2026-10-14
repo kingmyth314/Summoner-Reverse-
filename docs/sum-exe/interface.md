@@ -30,9 +30,9 @@ strings confirm it; **I** means it is placed by position.
 | 7 | `0x404bd0` | `0x4051a0` | Buy/sell | `new_buysell.cpp` | I |
 | 8 | `0x4256a0` | `0x425c80` | Save/load (arg: which) | `new_saveload.cpp` | I |
 | 9 | `0x4216f0` | `0x4217b0` | Play menu | `new_playmenu.cpp` | I |
-| 10 | `0x41ab10` | `0x41aef0` | ? (between item trade and main menu) | | |
+| 10 | `0x41ab10` | `0x41aef0` | Quest Journal: full-screen panel, "Main Quests", "Side Quests", "Description" | `new_journal.cpp` (*inferred* name) | I |
 | 11 | `0x422fc0` | `0x422370` | PXO chat lobby | `new_pxochat.cpp` | I |
-| 12 | `0x41f0f0` | `0x41fa60` | Quest Journal: full-screen panel, "Main Quests", "Side Quests", "Description" | | O |
+| 12 | `0x41f0f0` | `0x41fa60` | Summoner Options: full-screen panel (audio, gameplay, visual settings); opened by F2 and by the main menu's Options button (`0x41dbf4`) | `new_options.cpp` (*inferred* name) | O |
 | 13 | `0x408f90` | `0x408fe0` | ? (between credits and game create) | | |
 | 14 | `0x41d8b0` | – | Main menu: "Title", plays `vlogo.bik` and `eaxlogo.bik` | `new_mainmenu.cpp` | O |
 | 15 | `0x40a850` | – | Multiplayer game list | `new_gamelist.cpp` | I |
@@ -44,7 +44,7 @@ strings confirm it; **I** means it is placed by position.
 | 21 | `0x4085b0` | `0x4089c0` | Credits: `credits.tbl`, `Credits-Bkgrnd640/1024.tga` | `new_credits.cpp` | O |
 | 22 | `0x40c7e0` | `0x40c850` | Help: `DemoHelp640.tga` | `new_help.cpp` | O |
 
-Screens 1, 2, 3, 5, 6 and 12 were confirmed from in-game frame captures (2026-10-13), opened with I, R, M, C, S and F2. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
+Screens 1, 2, 3, 5, 6, 10 and 12 were confirmed from in-game frame captures (2026-10-13). The keys are I, R, M, C, S and F2 (Options); the journal was opened from the HUD. Correction: screen 12 is Options, not the journal; the journal is screen 10. The HUD is a bottom bar with: Menu/Map/Solo buttons, the portrait, four party slots, the compass, the Summoner emblem, action icons and quick slots. The screens still marked "?" lie between known files. The quest journal probably reads `qjournal.tbl` (*inferred* from the name).
 
 ## The 3D view is clipped per screen
 

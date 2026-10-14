@@ -64,12 +64,12 @@
 0x4158b0  inventory_leave          func  new_inventory.cpp      I
 0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
 0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
-0x41ab10  screen10_init            func  -                      I ; screen 10; between new_itemtrade and new_mainmenu
-0x41aef0  screen10_leave           func  -                      I
+0x41ab10  journal_init             func  -                      I ; screen 10; between new_itemtrade and new_mainmenu
+0x41aef0  journal_leave            func  -                      I
 0x41c080  screen18_init            func  -                      I ; screen 18; between new_itemtrade and new_mainmenu
 0x41d8b0  mainmenu_init            func  new_mainmenu.cpp       O ; screen 14: "Title" table, vlogo.bik / eaxlogo.bik intro movies
-0x41f0f0  journal_init             func  -                      O ; screen 12; between new_multichat and new_pickup
-0x41fa60  journal_leave            func  -                      O
+0x41f0f0  options_init             func  -                      I ; screen 12; between new_multichat and new_pickup
+0x41fa60  options_leave            func  -                      I
 0x4207d0  pickup_init              func  new_pickup.cpp         I ; screen 4 (arg: item)
 0x420960  pickup_leave             func  new_pickup.cpp         I
 0x4216f0  playmenu_init            func  new_playmenu.cpp       I ; screen 9

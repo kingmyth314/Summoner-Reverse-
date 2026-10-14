@@ -52,7 +52,7 @@ does.
 | M | `0x32` | Toggle automap (3) | `hud_key_automap` |
 | Space, NumLock | `0x39`, `0x45` | Pause / unpause | `hud_key_pause` |
 | F1 | `0x3b` | Help (22) | `hud_key_help` |
-| F2 | `0x3c` | Quest Journal (screen 12) | inline |
+| F2 | `0x3c` | Options (screen 12) | inline |
 | F5-F9 | `0x3f`-`0x43` | Select party member 1-5 | `hud_select_party_member` |
 | F12 | `0x58` | Cycle camera mode (0, 1, 2) | `hud_key_camera` → `camera_cycle_mode` |
 | Q, Enter, F3, F4, Alt+S, Alt+L | | Debug only (`game_debug_flags & 1`) | |

@@ -14,6 +14,16 @@
 //    (camera edge scroll, clicks into the world) at the raw position. The cursor itself is drawn by
 //    FrameEnd from the raw position, so it is unaffected.
 //  - interface_set_view_clip (0x412220), which sizes the 3D view, is excluded.
+//
+// Three cases during gameplay, by interface screen (interface_cur_screen, 0x5bd814):
+//  - Full-screen panels (inventory, character, journal, options, save/load, ...): the world and HUD are
+//    hidden, but item and character models are rendered in screen coordinates by the 3D renderer, which
+//    call shifting cannot reach. Instead the whole output is shifted, exactly like the menus (display.c
+//    GetMap via WidescreenFullPanel), and no call shifting is applied.
+//  - Side panels (map, spells, skills, item trade): the panel stays flush left as in the original, the 3D
+//    view uses the rest of the width; only the HUD is centred. Their draw (interface_draw, 0x411cd0) and
+//    frame (interface_frame, 0x4119a0) calls run unshifted with the raw mouse position.
+//  - Everything else (HUD only, pickup, play menu, assess, ...): call shifting as described above.
 // See docs/sum-exe/interface.md and the roadmap's widescreen section.
 #include "summonerfix.h"
 #include <string.h>
@@ -45,9 +55,29 @@ static int g_shift;          // X in game pixels
 static int g_clipShifted;    // the current clip was set by UI code and already includes X
 static int g_rawX, g_rawY;   // cursor position in game pixels, unshifted (read by world code)
 
+#define VA_INTERFACE_CUR_SCREEN 0x5bd814u
+#define VA_INTERFACE_DRAW 0x411cd0u
+#define VA_INTERFACE_DRAW_END 0x411ea0u
+#define VA_INTERFACE_FRAME 0x4119a0u
+#define VA_INTERFACE_FRAME_END 0x411be0u
+static volatile int g_noShift; // inside a side panel's draw/frame call
+
+static int InGame(void) { return *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) == 4; }
+static int Screen(void) { return *(volatile int *)(UINT_PTR)SumVa(VA_INTERFACE_CUR_SCREEN); }
+static int IsCallShiftScreen(int s) { return s == 0 || s == 4 || s == 9 || s == 13 || s == 20; }
+static int IsSidePanel(int s) { return s == 3 || s == 5 || s == 6 || s == 19; }
+
+int WidescreenFullPanel(void)
+{
+    if (g_shift <= 0 || !InGame())
+        return 0;
+    int s = Screen();
+    return !IsCallShiftScreen(s) && !IsSidePanel(s);
+}
+
 static int Active(void)
 {
-    return g_shift > 0 && *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) == 4;
+    return g_shift > 0 && !g_noShift && InGame() && !WidescreenFullPanel();
 }
 
 static int ShiftDraw(void) { return Active() && !g_clipShifted; }
@@ -130,6 +160,20 @@ static void __cdecl W_mouseGetPosTick(int *x, int *y, int *z)
         *x -= g_shift;
 }
 
+// Side panels: their draw and frame functions run unshifted, with the raw cursor in input_x.
+typedef int(__cdecl *PFN_Frame)(int key);
+static const DWORD k_panelDraw[] = {0x403690, 0x42ab60, 0x428c30, 0x41a230};  // map, spells, skills, item trade
+static const DWORD k_panelFrame[] = {0x402680, 0x42a190, 0x427e10, 0x419560};
+static void(__cdecl *o_panelDraw[4])(void);
+static PFN_Frame o_panelFrame[4];
+
+#define PANEL_DRAW(i) static void __cdecl W_panelDraw##i(void) { g_noShift++; o_panelDraw[i](); g_noShift--; }
+#define PANEL_FRAME(i) static int __cdecl W_panelFrame##i(int key) {         volatile int *ix = (volatile int *)(UINT_PTR)SumVa(VA_INPUT_X); int saved = *ix;         if (g_shift > 0 && InGame()) *ix = g_rawX;         g_noShift++; int r = o_panelFrame[i](key); g_noShift--; *ix = saved; return r; }
+PANEL_DRAW(0) PANEL_DRAW(1) PANEL_DRAW(2) PANEL_DRAW(3)
+PANEL_FRAME(0) PANEL_FRAME(1) PANEL_FRAME(2) PANEL_FRAME(3)
+static void *const k_panelDrawW[4] = {W_panelDraw0, W_panelDraw1, W_panelDraw2, W_panelDraw3};
+static void *const k_panelFrameW[4] = {W_panelFrame0, W_panelFrame1, W_panelFrame2, W_panelFrame3};
+
 static int InUi(DWORD va)
 {
     if (va >= 0x412220 && va < 0x412620) // interface_set_view_clip: the 3D view, not UI
@@ -207,6 +251,30 @@ void WidescreenInstall(void)
     }
     PatchCall(VA_GAMETICK_MOUSE_CALL, VA_MOUSE_GET_POS, W_mouseGetPosTick);
 
+    // Side panels: the per-screen calls in interface_draw / interface_frame.
+    int panels = 0;
+    for (int i = 0; i < 4; i++) {
+        o_panelDraw[i] = (void(__cdecl *)(void))(UINT_PTR)SumVa(k_panelDraw[i]);
+        o_panelFrame[i] = (PFN_Frame)(UINT_PTR)SumVa(k_panelFrame[i]);
+    }
+    for (DWORD va = VA_INTERFACE_FRAME; va < VA_INTERFACE_DRAW_END; va++) {
+        int inDraw = va >= VA_INTERFACE_DRAW, inFrame = va < VA_INTERFACE_FRAME_END;
+        if (!inDraw && !inFrame)
+            continue;
+        const BYTE *p = base + (va - SUM_IMAGE_BASE);
+        if (*p != 0xE8)
+            continue;
+        DWORD target;
+        memcpy(&target, p + 1, 4);
+        target += va + 5;
+        for (int i = 0; i < 4; i++) {
+            if (inDraw && target == k_panelDraw[i])
+                panels += PatchCall(va, target, k_panelDrawW[i]);
+            if (inFrame && target == k_panelFrame[i])
+                panels += PatchCall(va, target, k_panelFrameW[i]);
+        }
+    }
+
     // World code reads of input_x/input_y -> the raw position (operand addresses, 4 bytes each).
     static const DWORD kRawX[] = {0x434500, 0x4346de, 0x4346ff, 0x434753, 0x4347cd, 0x4347db, 0x4e0220};
     static const DWORD kRawY[] = {0x434508, 0x4e0215};
@@ -221,7 +289,7 @@ void WidescreenInstall(void)
     }
     Log("widescreen UI: shift %d px; UI calls patched: bitmap %d, bitmap_ex %d, stretched %d, float %d, "
         "string %d, rect %d, line %d, set_clip %d (+%d other), get_clip %d, screen_width %d, mouse %d; "
-        "world mouse reads %d/9",
+        "world mouse reads %d/9; side-panel calls %d/8",
         g_shift, counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[7], other,
-        counts[8], counts[9], counts[10], raw);
+        counts[8], counts[9], counts[10], raw, panels);
 }

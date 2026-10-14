@@ -58,3 +58,4 @@ void KeyBindInstall(void);
 
 // widescreen.c
 void WidescreenInstall(void);
+int WidescreenFullPanel(void); // in game with a full-screen panel open: shift the whole output

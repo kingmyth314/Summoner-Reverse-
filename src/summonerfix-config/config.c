@@ -19,7 +19,7 @@ static const Action k_actions[] = {
     {0x42, "Select party member 4"}, {0x43, "Select party member 5"},
     {0x58, "Camera mode"},
     {0xcb, "Turn camera left"}, {0xcd, "Turn camera right"}, {0xc8, "Tilt camera up"}, {0xd0, "Tilt camera down"},
-    {0x23, "H key action"}, {0x3c, "F2 screen"},
+    {0x23, "H key action"}, {0x3c, "Options"},
     // Chain attacks: chain_attack_select (0x43c830) checks these keys while held when a chain is possible.
     // Binding a key here makes it act as that modifier everywhere (e.g. Shift+Tab, Ctrl+click).
     {0x2a, "Chain attack slot 1 (hold; also Shift)"},

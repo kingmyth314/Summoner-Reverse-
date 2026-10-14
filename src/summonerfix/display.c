@@ -64,7 +64,9 @@ static BOOL GetMap(Map *m)
     // Widescreen menus: outside gameplay (game state 4) the UI is a fixed 1024-wide layout at the left of
     // the wider game screen. Shift the output so that layout is centred; the empty right part moves off
     // screen. The mouse uses this same mapping, so clicks stay aligned.
-    if (g_cfg.centerMenus && g_cfg.width > 1024 && *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4)
+    // In game, full-screen panels (inventory, character, ...) are shifted the same way (WidescreenFullPanel).
+    if (g_cfg.centerMenus && g_cfg.width > 1024 &&
+        (*(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4 || WidescreenFullPanel()))
         m->offX += (int)((g_cfg.width - 1024) / 2.0 * m->scale + 0.5);
     return TRUE;
 }
