@@ -45,6 +45,10 @@ the modifiers of every equipped item. Each item type has two `{stat, value}` mod
 
 ## Character screen stats
 
+`status_draw` (`0x42c9c0`) draws the screen through helpers: `status_draw_level` (level, experience, bar),
+`status_draw_stats` (below), `status_draw_skills` (skill list and chain keys), `status_draw_skill_points`,
+`status_draw_resistances` and `status_draw_ai`.
+
 `status_draw_stats` (`0x42cff0`) draws the stat panel for `status_character` (`0x5bd810`). Each value
 is coloured by its equipment bonus: one colour for a positive bonus, another for a negative one, and
 the normal colour for none.

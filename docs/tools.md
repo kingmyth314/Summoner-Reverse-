@@ -154,7 +154,11 @@ SummonerFix build). The whole of Sum.exe takes about 2 seconds. The listing is c
 node tools/asm.mjs fn <addr|name> [max_lines]   # one function, up to the next known function start
 node tools/asm.mjs grep <regex> [max]           # matching instructions in game code, with the containing function
 node tools/asm.mjs callers <addr|name>          # call sites of a function
+node tools/asm.mjs strings <lo> <hi> [--unnamed] # strings each function references (finds names quickly)
 ```
+
+References to `localize_strings[id]` are shown as `L<id> "text"` when `extracted/tables/strings.tbl` has
+been extracted (`node tools/vpp.mjs extract Summoner/tables.vpp strings.tbl`).
 
 For example, `node tools/asm.mjs grep "\+ 0x5f8\]"` lists every access to a character's current HP.
 

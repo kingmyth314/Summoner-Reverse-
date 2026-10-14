@@ -47,11 +47,21 @@ function stringAt(va) {
   const s = exe.toString("latin1", o, end);
   return /^[\x20-\x7e\t\r\n]+$/.test(s) ? s : null;
 }
+// localize_strings[id] (0x25cd4dc + 4*id) -> English text from extracted/tables/strings.tbl, when extracted
+// (node tools/vpp.mjs extract Summoner/tables.vpp strings.tbl).
+const LOC = 0x25cd4dc, locText = new Map();
+const tblPath = join(repoRoot, "extracted", "tables", "strings.tbl");
+if (existsSync(tblPath)) {
+  const english = readFileSync(tblPath, "latin1").split(/^#(?!english)/im)[0];
+  for (const m of english.matchAll(/^(\d+),\s*\{([^}]*)\}/gm)) locText.set(+m[1], m[2].replace(/\s+/g, " "));
+}
+const locAt = (va) => (va > LOC && va < LOC + 4000 && (va - LOC) % 4 === 0 ? locText.get((va - LOC) / 4) ?? null : null);
 function annotate(text) {
   const notes = [];
   for (const m of text.matchAll(/0x[0-9a-f]{6,8}/gi)) {
-    const v = parseInt(m[0], 16), n = byAddr.get(v), s = stringAt(v);
-    if (n) notes.push(n);
+    const v = parseInt(m[0], 16), n = byAddr.get(v), s = stringAt(v), l = locAt(v);
+    if (l) notes.push(`L${(v - LOC) / 4} ` + JSON.stringify(l.slice(0, 60)));
+    else if (n) notes.push(n);
     else if (s) notes.push(JSON.stringify(s.length > 70 ? s.slice(0, 70) + "..." : s));
   }
   return notes.length ? `${text.padEnd(44)} ; ${notes.join(", ")}` : text;
@@ -82,7 +92,7 @@ if (cmd === "fn") {
   const map = new Map();
   for (let i = indexOf(lo); i < ins.length && ins[i].va < hi; i++) {
     for (const m of ins[i].text.matchAll(/0x[0-9a-f]{6,7}\b/g)) {
-      const s = stringAt(parseInt(m[0], 16));
+      const v = parseInt(m[0], 16), l = locAt(v), s = l ? `L"${l}"` : stringAt(v);
       if (!s || !/[a-z]{3}/i.test(s)) continue;
       const f = funcOf(ins[i].va);
       if (unnamed && byAddr.has(f)) continue;

@@ -17,6 +17,7 @@
 0x401070 GameTick                 func  -                        O ; one frame: state transitions, FrameDone, state frame handler, frame end
 0x401190 GameStateSwap            func  -                        O ; prev = cur; cur = next; pending = 0
 0x401380  assess_init              func  new_assess.cpp         I ; screen 20 (arg: target)
+0x4013f0  assess_format_info       func  -                    I ; L"%s\n\nLevel: %d\nHit Points: %d/%d\nDamage: %d\nProtection..." (assess screen text)
 0x4017e0  assess_leave             func  new_assess.cpp         I
 0x4017f0  assess_frame             func  -                      O ; screen 20 per-frame input (interface_frame switch); (key) -> key
 0x401c80  assess_draw              func  -                      O ; screen 20 drawing (interface_draw switch)
@@ -38,6 +39,9 @@
 0x405f10  buysell_draw             func  -                      O ; screen 7 drawing (interface_draw switch)
 0x406590  mp_charselect_init       func  new_charselect.cpp     O ; screen 16: "Multiplayer Char", *.plr files
 0x4069e0  mp_charselect_frame      func  -                      O ; screen 16 per-frame input (interface_frame switch); (key) -> key
+0x4076d0  mp_char_create           func  -                    O ; L"Maximum number of multiplayer characters reached.", L"Player already exists.", L"Unable to create player directory."
+0x4078b0  mp_char_confirm_delete   func  -                    I ; L"Permanently delete character?"
+0x4079c0  mp_char_format_info      func  -                    I ; L"Name: %s\n", L"Class: Summoner\n" ... L"Level: %d\n"
 0x407ed0  mp_charselect_draw       func  -                      O ; screen 16 drawing (interface_draw switch)
 0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 0x4089c0  credits_leave            func  new_credits.cpp        I
@@ -52,14 +56,18 @@
 0x40a310  gamecreate_draw          func  -                      O ; screen 17 drawing (interface_draw switch)
 0x40a850  gamelist_init            func  new_gamelist.cpp       I ; screen 15
 0x40a880  gamelist_frame           func  -                      O ; screen 15 per-frame input (interface_frame switch); (key) -> key
+0x40a9b0  mp_join_error_string     func  -                    I ; L"Game is full.", L"Incorrect password.", L"Game has already started." ...
 0x40b530  gamelist_draw            func  -                      O ; screen 15 drawing (interface_draw switch)
+0x40b5c0  mp_server_list_draw      func  -                    I ; column headers L"Name", L"Level", L"Plyr", L"Ping"; L"<No servers found>"
 0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga
 0x40c850  help_leave               func  new_help.cpp           I
 0x40c860  help_frame               func  -                      O ; screen 22 per-frame input (interface_frame switch); (key) -> key
 0x40ca50  help_draw                func  -                      O ; screen 22 drawing (interface_draw switch)
 0x40cef0  hud_init                 func  new_hud.cpp            I ; screen 0
 0x40cf40  hud_frame                func  new_hud.cpp            I ; per-frame HUD; calls hud_handle_keys
+0x40d640  hud_confirm_level_exit   func  -                    I ; L"Exit level?", L"Enter %s?", L"Hostile monsters nearby", L"Party members too far away"
 0x40d930  hud_handle_keys          func  new_hud.cpp            I ; the in-game keyboard map: switch on key codes (scan code | 0x1000 Shift | 0x4000 Alt); see docs/sum-exe/controls.md
+0x40e0d0  save_check_allowed       func  -                    I ; L"Cannot save in combat.", L"Cannot save here.", L"Cannot save during summon."
 0x40e1f0  hud_select_party_member  func  new_hud.cpp            I ; F5-F9: (index 0-4)
 0x40e250  hud_key_playmenu         func  new_hud.cpp            I ; Esc: interface_set_screen(9)
 0x40e260  hud_key_help             func  new_hud.cpp            I ; F1: interface_set_screen(22)
@@ -71,10 +79,17 @@
 0x40e430  hud_key_inventory        func  new_hud.cpp            I ; I: interface_set_screen(1)
 0x40e450  hud_key_skills           func  new_hud.cpp            O ; S: toggle screen 6
 0x40e480  hud_interact_nearest     func  new_hud.cpp            I ; X / middle mouse: nearest usable object within 3 units (or 5 for some types)
+0x40e7c0  quicksave                func  -                    O ; "quicksave%s", L"Quick save successful.", L"Error during quick save.", L"No more savegame slots."
 0x40e980  hud_key_camera           func  new_hud.cpp            I ; F12: camera_cycle_mode
+0x40eb30  hud_draw_tooltips        func  -                    I ; L"%s\nHP: %d/%d\nAP: %d/%d" for portraits; icon tooltips L"Enter combat mode" ... L"Skills"
+0x40f5d0  hud_confirm_quit         func  -                    I ; L"Are you sure?" L"Quit game"
+0x40f690  death_popup              func  -                    I ; L"You have died.", L"Restart", L"Quit"
 0x40f6e0  hud_draw                 func  new_hud.cpp            I ; the HUD bar, drawn by interface_draw unless a full panel hides it
+0x4101e0  draw_game_over           func  -                    I ; L"Game Over. Press any key to continue"
+0x4102a0  mp_draw_loading_status   func  -                    I ; L"linking players", L"linking objects", L"loading level", L"'F' forces start"
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
+0x410cf0  version_check_fetch      func  -                    I ; downloads pxo.net .../version.nfo; L"Could not get data from website"
 0x4116c0  hud_load_cursor_icons    func  -                    I ; cursoricon-chain.tga, cursoricon-quest.vbm, cursorspot-focus.tga ...
 0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
 0x411cd0  interface_draw           func  -                      O ; HUD (0x40f6e0) then the current screen draw (switch), overlays
@@ -90,6 +105,8 @@
 0x414fc0  inventory_init           func  new_inventory.cpp      I ; screen 1 (arg: page)
 0x4158b0  inventory_leave          func  new_inventory.cpp      I
 0x4158f0  inventory_frame          func  -                      O ; screen 1 per-frame input (interface_frame switch); (key) -> key
+0x416fb0  inventory_identify_item  func  -                    I ; L"Couldn't identify item."
+0x417110  inventory_confirm_destroy func  -                    I ; L"Destroy item?"
 0x417860  inventory_draw           func  -                      O ; screen 1 drawing (interface_draw switch)
 0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
 0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
@@ -112,24 +129,36 @@
 0x4207d0  pickup_init              func  new_pickup.cpp         I ; screen 4 (arg: item)
 0x420960  pickup_leave             func  new_pickup.cpp         I
 0x4209b0  pickup_frame             func  -                      O ; screen 4 per-frame input (interface_frame switch); (key) -> key
+0x420da0  pickup_report_count      func  -                    I ; L"1 item picked up" / L"%d items picked up"
 0x421260  pickup_draw              func  -                      O ; screen 4 drawing (interface_draw switch)
 0x4216f0  playmenu_init            func  new_playmenu.cpp       I ; screen 9
 0x4217b0  playmenu_leave           func  new_playmenu.cpp       I
 0x4217c0  playmenu_frame           func  -                      O ; screen 9 per-frame input (interface_frame switch); (key) -> key
+0x421aa0  mainmenu_confirm_new_game func  -                    I ; L"Are you sure?" L"New game"
+0x421b00  playmenu_check_save_allowed func  -                    I ; same "Cannot save ..." messages as save_check_allowed
+0x421ca0  mainmenu_confirm_quit    func  -                    I ; L"Are you sure?" L"Quit game"
 0x421cf0  playmenu_draw            func  -                      O ; screen 9 drawing (interface_draw switch)
+0x421de0  open_url                 func  -                    O ; ShellExecute "open"; L"Could not locate/launch default Internet Browser"
 0x421fa0  pxo_load_chat_banners    func  -                    I ; "new_chatbanners.cfg", pxo.net banner URL
+0x422790  pxo_version_check_status func  -                    I ; L"A new version of Summoner is available.", L"Checking Version", L"Validating User"
 0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
 0x423220  pxochat_frame            func  -                      O ; screen 11 per-frame input (interface_frame switch); (key) -> key
+0x423950  chat_draw_status         func  -                    I ; L"Connecting to server...", L"Requesting channels...", L"Joining channel..."
 0x4246d0  pxochat_draw             func  -                      O ; screen 11 drawing (interface_draw switch)
+0x4253e0  saveload_format_date     func  -                    I ; month names L"Jan." ... L"Dec."
 0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
+0x4258c0  saveload_scan_saves      func  -                    I ; "*.sav", L"No description"
 0x425c80  saveload_leave           func  new_saveload.cpp       I
 0x425c90  saveload_frame           func  -                      O ; screen 8 per-frame input (interface_frame switch); (key) -> key
 0x425de0  saveload_text_input      func  new_saveload.cpp       I ; save-name entry, uses key_to_ascii
+0x426500  saveload_confirm_overwrite func  -                    I ; L"Overwrite existing savegame?", L"Game Saved"
+0x4266c0  saveload_confirm_delete  func  -                    I ; L"Are you sure?" L"Confirm delete"
 0x4269c0  saveload_draw            func  -                      O ; screen 8 drawing (interface_draw switch)
 0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
 0x427df0  skills_leave             func  -                      O
 0x427e10  skills_frame             func  -                      O ; screen 6 per-frame input (interface_frame switch); (key) -> key
 0x428c30  skills_draw              func  -                      O ; screen 6 drawing (interface_draw switch)
+0x429410  lockpick_attempt         func  -                    O ; "Pick skill %f, container %f", L"Pick successful.", L"Couldn't pick lock."
 0x429b30  spells_init              func  -                      O ; screen 5; between new_skill and new_spell
 0x42a190  spells_frame             func  -                      O ; screen 5 per-frame input (interface_frame switch); (key) -> key
 0x42ab60  spells_draw              func  -                      O ; screen 5 drawing (interface_draw switch)
@@ -138,7 +167,12 @@
 0x42b910  status_leave             func  new_status.cpp         I
 0x42ba50  status_frame             func  -                      O ; screen 2 per-frame input (interface_frame switch); (key) -> key
 0x42c9c0  status_draw              func  -                      O ; screen 2 drawing (interface_draw switch)
+0x42cd80  status_draw_level        func  -                    O ; called by status_draw: L"Level:", L"Experience:", L"To Next Level:" and the experience bar
 0x42cff0  status_draw_stats        func  -                    O ; Character screen HP/AP bars and "%d/%d", speed "%d%%", damage, protection; value coloured by its equipment bonus; character = status_character
+0x42d640  status_draw_skills       func  -                    O ; called by status_draw: skill list with chain keys L"CAPS" L"SHFT" L"CTRL" L"ALT"
+0x42dac0  status_draw_skill_points func  -                    O ; called by status_draw: L"Skill points: %d"
+0x42dcd0  status_draw_resistances  func  -                    O ; called by status_draw: L"Fire:" L"Ice:" L"Energy:" L"Magic:" L"Slashing:" L"Piercing:" L"Blunt:"
+0x42e5c0  status_draw_ai           func  -                    I ; called by status_draw: AI mode name (character +0x324 via 0x473620, string table 0x22e49a0); range also holds tutorial text refs
 0x42e8f0  init_ccmd_Ignore_tutorial func  -                    O ; static initialiser: registers console command object ccmd_Ignore_tutorial
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
 0x42fc60  automap_find_map_corners func  -                    O ; "$mapUpperLeft" / "$mapLowerRight" tags, "AUTOMAP ERROR : Could not find ..."
@@ -171,6 +205,8 @@
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
 0x4334f0  player_alloc_slot        func  player.cpp           O ; "No more player slots availeble -- something went horribly wrong"
 0x4339f0  player_skill_unlocked    func  player.cpp           I ; thiscall on a template (skill): story flags got_ring_of_darkness, act2_done, ...; used by character_skill_allowed
+0x433f40  party_remove_member      func  -                    I ; L"%s has left the party!\n"
+0x4340d0  party_add_member         func  -                    I ; L"%s has joined the party!\n"
 0x4343b0  init_ccmd_slew           func  -                    O ; static initialiser: registers console command object ccmd_slew
 0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
 0x434440  input_drain_events       func  gameplay.cpp           I ; PollInputEvents until empty, feeding interface_frame
@@ -217,8 +253,11 @@
 0x43a2b0  state_loading_enter      func  -                      I ; state 5
 0x43a2e0  state_loading_frame      func  -                      I
 0x43a300  state_loading_leave      func  -                      I ; clears both buffers
+0x43a960  container_open           func  -                    I ; L"Picked up %d Gold", L"Container is currently in use", L"Locked"
 0x43b580  vector3__vector3         func  vsdk\math              I ; (x, y, z)
+0x43c420  container_examine        func  -                    I ; L"Nothing!", L"Examine", L"Found %d %s!"
 0x43c830  chain_attack_select      func  gametarget.cpp         I ; on a chain opportunity: held Shift = slot 1, Ctrl = 2, Alt = 3, CapsLock = 0, none = character default (+0x184)
+0x43cd50  level_display_name       func  -                    O ; level file name -> localized name ("masad" -> L"Masad Village", ...)
 0x43d500  init_ccmd_gamma          func  -                    O ; static initialiser: registers console command object ccmd_gamma
 0x43d520  cmd_gamma                func  -                      O ; console command "gamma": Sets Summoner_options.gamma_correction
 0x43d5c0  init_ccmd_play_sound     func  -                    O ; static initialiser: registers console command object ccmd_play_sound
@@ -233,6 +272,7 @@
 0x43e660  cd_find_drive            func  -                      I ; scans drive letters, GetDriveTypeA/GetVolumeInformationA for the game disc; used by CdCheck
 0x43e8a0  cd_select_drive          func  -                    I ; "Using %s for Summoner CD"
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
+0x43ea20  cd_prompt_disc2          func  -                    O ; L"Insert Summoner CD #2 (ESC exits game)", volume "SUMMONER_2"
 0x43eb00  state14_enter            func  -                      I ; state 14: interface_set_screen(18), multiplayer (0x4ab110)
 0x43eca0  init_ccmd_all_multi_levels func  -                    O ; static initialiser: registers console command object ccmd_all_multi_levels
 0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
@@ -268,12 +308,14 @@
 0x449510  character_cycle_default_chain func  characterinfo.cpp      I ; +0x184: 0 -> 3 -> 1 -> 2 -> 0
 0x449570  init_ccmd_Quick_combo    func  -                    O ; static initialiser: registers console command object ccmd_Quick_combo
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
+0x449650  character_learn_chain_skill func  characterinfo.cpp    I ; L"%s learned %s!", L"Chain skill"
 0x449a30  characterinfo_find_multi_slot func  characterinfo.cpp    O ; "Unable to find multiplayer character info slot"
 0x449bb0  init_ccmd_charinfo       func  -                    O ; static initialiser: registers console command object ccmd_charinfo
 0x449be0  init_ccmd_levelchars     func  -                    O ; static initialiser: registers console command object ccmd_levelchars
 0x449c00  cmd_levelchars           func  -                      O ; console command "levelchars": dump info on all characters in the level
 0x449f60  materials_parse_table    func  -                    O ; materials.tbl: "$Material:", "+Damage/Weight/Speed/Protection Multiplier:"
 0x44a090  items_parse_table        func  items.cpp            O ; items.tbl: "$Name:", "$Type:" (Misc/Armor/Weapon), "+Slot:", "+Skill Mod:", "+Stat Mod:" ...
+0x44b7a0  ring_format_info         func  -                    O ; L"Summoning Ring\n", L"Ring Power: ", L"Available Summons:\n" per ring
 0x44d540  items_level_load         func  items.cpp            O ; "ITEM LEVEL LOAD!"; finds Backpack and Leather Bag
 0x44d870  items_level_unload       func  items.cpp            O ; "ITEM LEVEL UNLOAD!"
 0x44fab0  character_add_xp         func  -                    O ; thiscall (xp, ?, ?): +0x604 += xp, shares xp with equipment slots 1-2 (0x44ffc0), on level-up applies xp_level_table and refills HP/AP; "%s gained level %d!", "+Level!"
@@ -310,6 +352,7 @@
 0x464020  init_ccmd_Super_power    func  -                    O ; static initialiser: registers console command object ccmd_Super_power
 0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
 0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of armour_class_table[type+8] * item type +0xf0 over armour slots; Character screen shows x100
+0x464f50  combat_steal_gold        func  -                    I ; L"Stole %d gold!"
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
 0x469c40  obj_create               func  objects.cpp          O ; "No more free objects. Please increase MAX_OBJECTS"
@@ -325,6 +368,7 @@
 0x46dfb0  init_ccmd_p3d_files      func  -                    O ; static initialiser: registers console command object ccmd_p3d_files
 0x46dfd0  cmd_p3d_files            func  -                      O ; console command "p3d_files": Toggles P3D_files
 0x46f100  s3d_load_lightmap        func  s3d.cpp              I ; "Lightmap too big to be loaded!"
+0x470f80  mp_trade_error           func  -                    I ; L"Player can't trade right now", L"Player is busy"
 0x4720c0  init_ccmd_ai_frame_update_rate func  -                    O ; static initialiser: registers console command object ccmd_ai_frame_update_rate
 0x4720e0  cmd_ai_frame_update_rate func  -                      O ; console command "ai_frame_update_rate": Set the rate at which AI is updated in frames for offscreen creatures
 0x472170  init_ccmd_slowdown_scaler func  -                    O ; static initialiser: registers console command object ccmd_slowdown_scaler
@@ -351,6 +395,7 @@
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x4811b0  init_ccmd_Multi_path_type func  -                    O ; static initialiser: registers console command object ccmd_Multi_path_type
 0x4811d0  cmd_Multi_path_type      func  -                      O ; console command "Multi_path_type": Sets the method used to generate paths on multiplayer machiens
+0x481340  mp_disconnect_reason_string func  -                    I ; L"You were kicked out of the game.", L"The server has ended the game." ...
 0x4816f0  init_ccmd_lod_dist       func  -                    O ; static initialiser: registers console command object ccmd_lod_dist
 0x481710  cmd_lod_dist             func  -                      O ; console command "lod_dist": Sets Character_lod_dist
 0x4817b0  init_ccmd_main_lod_dist  func  -                    O ; static initialiser: registers console command object ccmd_main_lod_dist
@@ -472,6 +517,8 @@
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4cd120  level_trigger_trip       func  -                    I ; "Tripped trigger: %s"
+0x4ceab0  script_party_acquire_item func  -                    I ; L"Party acquired %s!"
+0x4ceb00  script_party_gain_xp     func  -                    I ; L"party gained %d XP"
 0x4cef10  init_ccmd_Preparse_scripts func  -                    O ; static initialiser: registers console command object ccmd_Preparse_scripts
 0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
 0x4d0c90  quest_evaluate           func  -                    O ; "Evaluating quests!", "INVALIDATING QUEST!"
@@ -481,8 +528,10 @@
 0x4d4c80  cmd_savegame             func  -                      O ; console command "savegame": Save the game to a file
 0x4d4e80  init_ccmd_loadgame       func  -                    O ; static initialiser: registers console command object ccmd_loadgame
 0x4d4ea0  cmd_loadgame             func  -                      O ; console command "loadgame": Load a previously saved game
+0x4d5990  journal_format_event     func  -                    I ; L"<%s gained %d XP>", L"<party received %d gold>", L"<gained item: \"%s\">" ...
 0x4d5e50  init_ccmd_door_open      func  -                    O ; static initialiser: registers console command object ccmd_door_open
 0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
+0x4d6040  journal_notify_updated   func  -                    I ; L"Quest Journal Updated"
 0x4d6560  init_ccmd_door_close     func  -                    O ; static initialiser: registers console command object ccmd_door_close
 0x4d6580  cmd_door_close           func  -                      O ; console command "door_close": closes a specified door in the level.
 0x4d65e0  init_ccmd_door_toggle    func  -                    O ; static initialiser: registers console command object ccmd_door_toggle
