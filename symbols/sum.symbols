@@ -75,6 +75,7 @@
 0x40f6e0  hud_draw                 func  new_hud.cpp            I ; the HUD bar, drawn by interface_draw unless a full panel hides it
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
+0x4116c0  hud_load_cursor_icons    func  -                    I ; cursoricon-chain.tga, cursoricon-quest.vbm, cursorspot-focus.tga ...
 0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
 0x411cd0  interface_draw           func  -                      O ; HUD (0x40f6e0) then the current screen draw (switch), overlays
 0x412220  interface_set_view_clip  func  -                      I ; clips the 3D view per open screen (side panels shrink it), then draws
@@ -85,6 +86,7 @@
 0x414020 ClearFrameFlag5bd504     func  -                        O ; clears per-frame flag 0x5bd504
 0x414c90  init_ccmd_show_ui        func  -                    O ; static initialiser: registers console command object ccmd_show_ui
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
+0x414dc0  inv_cameras_parse_table  func  -                    O ; "inv_cameras.tbl" (inventory model camera positions)
 0x414fc0  inventory_init           func  new_inventory.cpp      I ; screen 1 (arg: page)
 0x4158b0  inventory_leave          func  new_inventory.cpp      I
 0x4158f0  inventory_frame          func  -                      O ; screen 1 per-frame input (interface_frame switch); (key) -> key
@@ -115,6 +117,7 @@
 0x4217b0  playmenu_leave           func  new_playmenu.cpp       I
 0x4217c0  playmenu_frame           func  -                      O ; screen 9 per-frame input (interface_frame switch); (key) -> key
 0x421cf0  playmenu_draw            func  -                      O ; screen 9 drawing (interface_draw switch)
+0x421fa0  pxo_load_chat_banners    func  -                    I ; "new_chatbanners.cfg", pxo.net banner URL
 0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
 0x423220  pxochat_frame            func  -                      O ; screen 11 per-frame input (interface_frame switch); (key) -> key
 0x4246d0  pxochat_draw             func  -                      O ; screen 11 drawing (interface_draw switch)
@@ -130,6 +133,7 @@
 0x429b30  spells_init              func  -                      O ; screen 5; between new_skill and new_spell
 0x42a190  spells_frame             func  -                      O ; screen 5 per-frame input (interface_frame switch); (key) -> key
 0x42ab60  spells_draw              func  -                      O ; screen 5 drawing (interface_draw switch)
+0x42b240  status_cameras_parse_table func  -                    O ; "status_cameras.tbl" (Character screen camera positions)
 0x42b480  status_init              func  new_status.cpp         I ; screen 2
 0x42b910  status_leave             func  new_status.cpp         I
 0x42ba50  status_frame             func  -                      O ; screen 2 per-frame input (interface_frame switch); (key) -> key
@@ -137,6 +141,7 @@
 0x42cff0  status_draw_stats        func  -                    O ; Character screen HP/AP bars and "%d/%d", speed "%d%%", damage, protection; value coloured by its equipment bonus; character = status_character
 0x42e8f0  init_ccmd_Ignore_tutorial func  -                    O ; static initialiser: registers console command object ccmd_Ignore_tutorial
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
+0x42fc60  automap_find_map_corners func  -                    O ; "$mapUpperLeft" / "$mapLowerRight" tags, "AUTOMAP ERROR : Could not find ..."
 0x430410  init_ccmd_save_map_labels func  -                    O ; static initialiser: registers console command object ccmd_save_map_labels
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x430ad0  state7_enter             func  -                      I ; state 7: frame draws a centred message with gr_string
@@ -153,6 +158,7 @@
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
 0x432da0  game_is_paused           func  -                      I ; game_debug_flags bit 2
+0x432db0  gameplay_load_cursors    func  -                    I ; cursor-walk.vbm, cursor-target.vbm, cursorspot-*.vbm, hud-loading.tga
 0x432f90  init_ccmd_show_hud_info  func  -                    O ; static initialiser: registers console command object ccmd_show_hud_info
 0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
 0x433080  init_ccmd_targa          func  -                    O ; static initialiser: registers console command object ccmd_targa
@@ -163,6 +169,8 @@
 0x433280  cmd_gr_info              func  -                      O ; console command "gr_info": Toggles Gamewide_show_gr_info
 0x433410  init_ccmd_max_skills     func  -                    O ; static initialiser: registers console command object ccmd_max_skills
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
+0x4334f0  player_alloc_slot        func  player.cpp           O ; "No more player slots availeble -- something went horribly wrong"
+0x4339f0  player_skill_unlocked    func  player.cpp           I ; thiscall on a template (skill): story flags got_ring_of_darkness, act2_done, ...; used by character_skill_allowed
 0x4343b0  init_ccmd_slew           func  -                    O ; static initialiser: registers console command object ccmd_slew
 0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
 0x434440  input_drain_events       func  gameplay.cpp           I ; PollInputEvents until empty, feeding interface_frame
@@ -171,6 +179,7 @@
 0x434660  camera_process_input     func  gameplay.cpp           I ; Left/Right and screen-edge mouse rotate, Up/Down tilt (not in camera type 4), wheel zoom; speed 0x60ad00, invert 0x60acd1
 0x434840  camera_key_yaw           func  gameplay.cpp           I ; key_down_time(Right) - key_down_time(Left)
 0x434870  camera_key_pitch         func  gameplay.cpp           I ; key_down_time(Up) - key_down_time(Down)
+0x436620  effects_kill_all         func  -                    I ; "killing off %d effects", "killing effect %d"
 0x436a90 SequenceTimer            func  -                        I ; timeGetTime-based sequence (cutscene) timer; 24.9-day sign bug
 0x436c00 SequenceTimer2           func  -                        I ; another timeGetTime user of sequence_start_time
 0x4374b0  init_ccmd_play_cutscene  func  -                    O ; static initialiser: registers console command object ccmd_play_cutscene
@@ -185,6 +194,7 @@
 0x4378f0  cmd_dump_sound_usage     func  -                      O ; console command "dump_sound_usage": Toggles Dump_sound_usage
 0x4379c0  init_ccmd_add_xp         func  -                    O ; static initialiser: registers console command object ccmd_add_xp
 0x4379e0  cmd_add_xp               func  -                      O ; console command "add_xp": Adds experience points to currently selected character
+0x437c20  loading_screen_load_bitmap func  -                    I ; "Loading-Bkgrnd1024.tga" / "Loading-Bkgrnd640.tga"
 0x437c80 LoadingScreenDraw        func  -                        O ; loading-screen progress draw, calls FrameDone
 0x437e50  party_level_reset        func  -                    I ; (arg 1: clear party lists and cur_character; else revive/restore every party member, HP/AP to max); walks 0x970770 and 0x5fc350 lists
 0x438050  init_ccmd_Give_all_items func  -                    O ; static initialiser: registers console command object ccmd_Give_all_items
@@ -202,6 +212,8 @@
 0x439dd0  cmd_jekhar               func  -                      O ; console command "jekhar": Add Jekhar to the game
 0x439e00  init_ccmd_rosalind       func  -                    O ; static initialiser: registers console command object ccmd_rosalind
 0x439e20  cmd_rosalind             func  -                      O ; console command "rosalind": Add Rosalind to the game
+0x439e60  help_draw_controls       func  -                    I ; "Mouse Controls", "Keyboard Controls", "Camera Controls"
+0x43a0a0  help_draw_page           func  -                    O ; "Summoner Help", "Page %d of %d", "ESC to exit this screen"
 0x43a2b0  state_loading_enter      func  -                      I ; state 5
 0x43a2e0  state_loading_frame      func  -                      I
 0x43a300  state_loading_leave      func  -                      I ; clears both buffers
@@ -216,8 +228,10 @@
 0x43d7b0 MainLoop                 func  -                        O ; init, then PumpMessages + GameTick until state 3
 0x43d7f0 LoadSettings             func  -                        O ; registry settings, resolution table, renderer choice, GrInit
 0x43df40 GameInit                 func  -                        O
+0x43e4a0  launch_updater           func  -                    I ; "Summoner.exe" " -straight_to_update"
 0x43e5e0  WinMain                  func  -                      O ; called by WinMainCRTStartup; __try { MainLoop() } __except (RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread"))
 0x43e660  cd_find_drive            func  -                      I ; scans drive letters, GetDriveTypeA/GetVolumeInformationA for the game disc; used by CdCheck
+0x43e8a0  cd_select_drive          func  -                    I ; "Using %s for Summoner CD"
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
 0x43eb00  state14_enter            func  -                      I ; state 14: interface_set_screen(18), multiplayer (0x4ab110)
 0x43eca0  init_ccmd_all_multi_levels func  -                    O ; static initialiser: registers console command object ccmd_all_multi_levels
@@ -227,6 +241,7 @@
 0x43eff0  state_mp_lobby_enter     func  -                      I ; state 11: interface_set_screen(11 PXO chat)
 0x43f9c0  state_mp_charselect_enter func  -                      I ; state 10: interface_set_screen(16)
 0x43fb60  state6_enter             func  -                      I ; state 6: builds a UI table, frame waits with timer_wait
+0x43fe00  monster_layout_load      func  -                    O ; "This monster layout is obsolete", "This monster layout is for map \"%s\""
 0x440180  init_ccmd_load_mlayout   func  -                    O ; static initialiser: registers console command object ccmd_load_mlayout
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
 0x4402d0  init_ccmd_save_mlayout   func  -                    O ; static initialiser: registers console command object ccmd_save_mlayout
@@ -761,6 +776,8 @@
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
 0x5130a0  file_change_ext          func  vsdk\vfile             I ; (out, name, ext)
 0x513100  file_strip_ext           func  vsdk\vfile             I ; (out, name)
+0x513370  vfile_raise_access_level func  -                    I ; "Group file access raised to level %d."
+0x513390  vfile_lower_access_level func  -                    I ; "Group file access lowered to level %d."
 0x513a20  FileReader__FileReader   func  vsdk\vfile             I ; {mode +0 (0 File, 1 memory, -1 none), File* +4, buffer +8, pos +0xC, size +0x10}
 0x513a30  FileReader__attach_memory func  vsdk\vfile             I ; (buffer, size)
 0x513a50  FileReader__attach_file  func  vsdk\vfile             I ; (File*)
@@ -860,6 +877,8 @@
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
 0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
+0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x521a60  sounds_parse_table       func  -                    O ; "sounds.tbl", "#Sounds Start" / "#Sounds End"
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
 0x524270  vector3__normalized      func  vsdk\math              I
@@ -938,12 +957,17 @@
 0x535d10  gr_d3d_set_color         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535da0  gr_d3d_line              func  vsdk\gr\directx\gr_direct3d.cpp I
 0x5361a0  gr_d3d_tmapper           func  vsdk\gr\directx\gr_direct3d.cpp I
+0x538c70  ddraw_error_string       func  -                    O ; DirectDraw HRESULT -> message text
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
 0x53a4f0  gr_d3d_close             func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a660  gr_d3d_flip              func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a7f0  gr_d3d_read_backbuffer   func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53ab20  gr_d3d_set_gamma         func  vsdk\gr\directx\gr_direct3d.cpp I
+0x53ce30  ix_linesegment_box_oriented func  -                    O ; label string "ix_linesegment_box_oriented"
+0x53d100  ix_ray_box_oriented      func  -                    O ; label string "ix_ray_box_oriented"
+0x53d2d0  ix_ray_boundingbox       func  -                    O ; label string "ix_ray_boundingbox"
+0x53d7a0  ix_ray_sphere            func  -                    O ; label string "ix_ray_sphere"
 0x53e030  cmdline_parse            func  vsdk\os\cmdline.cpp    O ; (cmd_line, check_unknown, ...): split, match params, optionally reject unknown "-x"
 0x53e060  cmdline_split            func  vsdk\os\cmdline.cpp    O ; strtok on spaces; rejoins "quoted args"; fills cmdline_args (max 50)
 0x53e1e0  cmdline_match_params     func  vsdk\os\cmdline.cpp    O ; for each registered CmdLineParam, _stricmp against every arg; sets name_found
@@ -982,6 +1006,8 @@
 0x544c40  StringPool__Add          func  vsdk\os\stringpool.cpp V ; Summoner 2; "Length of string pool exceeded"
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
 0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
+0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
+0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
 0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
 0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
 0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
@@ -1005,6 +1031,7 @@
 0x54eed0  gr_opengl_mark_texture_dirty func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54ef20  gr_opengl_tcache_free    func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54f320  gr_opengl_page_in        func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54f370  gl_init_multitexture     func  -                    O ; "GL_ARB_multitexture", glActiveTextureARB, "does not support multitexturing"
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
 0x54f6f0 gr_opengl_init           func  vsdk\gr\opengl\gr_opengl.cpp     O ; renderer 0x68
 0x54f790  gr_opengl_close          func  vsdk\gr\opengl\gr_opengl.cpp O ; wglDeleteContext, ReleaseDC
@@ -1018,6 +1045,7 @@
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
+0x5536b0  ui_container_load        func  vsdk\ui\ui_container.cpp I ; "Could not load in \"%s\"!"
 0x554b60  m2v_read_header          func  vsdk\bmpman\targautils.cpp I ; (name, &w, &h); retries with ".m2v" appended; reads an 8-byte header
 0x554d00  m2v_read_bitmap          func  vsdk\bmpman\targautils.cpp I ; (name, &data): whole file into a new buffer
 0x554ea0  tga_rle_encode_row       func  vsdk\bmpman\targautils.cpp I ; used by gr_screenshot
@@ -1036,10 +1064,14 @@
 0x556550  pcx_encode_byte          func  vsdk\bmpman\targautils.cpp I ; run byte 0xC0 | count
 0x5565a0  bm_image_error_string    func  vsdk\bmpman\targautils.cpp I ; nth string of a "No error." table
 0x5565e0  jpeg_write_file          func  vsdk\bmpman            I ; (name, rgb, w, h): fopen + IJG libjpeg compress sequence; gr_screenshot ".jpg"
+0x55abd0  http_send_get            func  -                    I ; "GET %s%s HTTP/1.1", parses "Content-Length:"
+0x55c1a0  ds_init                  func  -                    O ; "dsound.dll", DirectSoundCreate, SetCooperativeLevel
+0x55db80  ds_error_string          func  -                    O ; DSERR_* HRESULT -> name
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566cf0 snd_init_timer_period    func  -                        I ; timeBeginPeriod(1)
+0x566fe0  acm_init                 func  -                    I ; "msacm32.dll"
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56cebe  tolower                  func  crt                    O ; C runtime
 0x56d02c  fclose                   func  crt                    O ; C runtime
