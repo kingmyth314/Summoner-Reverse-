@@ -586,7 +586,16 @@
 0x4edc30  ls_sewerboss_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4edd30  ls_sewerboss_leave       func  -                    O ; level_script_table entry: level script leave handler
 0x4edd50  ls_sewer_frame           func  -                    O ; level_script_table entry: level script per-frame handler
+0x4edd90  lsf_sewer_flag_scene_a   func  -                    I ; level-script helper keyed on story flag "sewer_flag_scene_a"
+0x4edde0  lsf_sewer_flag_found_crate func  -                    I ; level-script helper keyed on story flag "sewer_flag_found_crate"
+0x4ede50  lsf_sewers_flag_crate_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_crate_comment"; L"Hmm. What are those crates doing there?"
+0x4edec0  lsf_sewers_flag_different_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_different_comment"; L"The architecture looks different here."
+0x4edf30  lsf_sewers_flag_passage_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_passage_comment"; L"Where does this passage lead?"
+0x4edfa0  lsf_sewers_flag_doll_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_doll_comment"; L"What's that on the ground?"
+0x4ee000  lsf_sewers_flag_where_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_where_comment"; L"Where are all the sewer cleaners?"
+0x4ee070  lsf_sewers_flag_smell_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_smell_comment"; L"Ugh! And you thought pigs smelled bad."
 0x4ee0e0  ls_sewerboss_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ee260  lsf_sewer_found_tb       func  -                    I ; level-script helper keyed on story flag "sewer_found_tb"
 0x4ee4f0  ls_sewer_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_sewerboss_use
 0x4ee580  ls_sewer_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names); shared with ls_sewerboss_action
 0x4ee730  ls_lenele2d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -607,14 +616,23 @@
 0x4ef140  ls_ikaemosext2_frame     func  -                    O ; level_script_table entry: level script per-frame handler
 0x4ef190  ls_templeint2_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4ef1e0  ls_templeint2_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ef2d0  lsf_urath_killed         func  -                    I ; level-script helper keyed on story flag "urath_killed"
+0x4ef360  lsf_joseph_killed        func  -                    I ; level-script helper keyed on story flag "joseph_killed"
+0x4ef3f0  lsf_mach_killed          func  -                    I ; level-script helper keyed on story flag "mach_killed"
+0x4ef5d0  lsf_mach_killed_4ef5d0   func  -                    I ; level-script helper keyed on story flag "mach_killed"
 0x4ef770  ls_templeint2_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4ef850  ls_lenele1ab_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4efa30  ls_lenele1aa_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4efdb0  ls_lenele1aa_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4efde0  lsf_lenele_flag_cart_played func  -                    I ; level-script helper keyed on story flag "lenele_flag_cart_played"
+0x4efe80  lsf_lenele1aa_jekhar_talk func  -                    I ; level-script helper keyed on story flag "lenele1aa_jekhar_talk"
 0x4efef0  ls_lenele1aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4eff30  ls_lenele1aa_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4effe0  ls_jadetemple_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0110  ls_jadetemple_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f0160  lsf_tg_intro             func  -                    I ; level-script helper keyed on story flag "tg_intro"
+0x4f0360  lsf_tiger2_dead          func  -                    I ; level-script helper keyed on story flag "tiger2_dead"; L"Joseph acquired Summon Spirit of Laharah!"
+0x4f0680  lsf_murod_intro          func  -                    I ; level-script helper keyed on story flag "murod_intro"; L"Joseph acquired Summon Jade Golem!"
 0x4f0a40  ls_jadetemple_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f0da0  ls_lenele3d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0eb0  ls_lenele3d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
@@ -625,9 +643,14 @@
 0x4f1030  ls_lenele3a_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f1070  ls_lenele2ab_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f10a0  ls_lenele2ab_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f10b0  lsf_lenele2ab_flag_escort_1 func  -                    I ; level-script helper keyed on story flag "lenele2ab_flag_escort_1"
+0x4f1140  lsf_lenele2ab_flag_ask_help func  -                    I ; level-script helper keyed on story flag "lenele2ab_flag_ask_help"
+0x4f11a0  lsf_lenele2ab_flag_escort_complete func  -                    I ; level-script helper keyed on story flag "lenele2ab_flag_escort_complete"
 0x4f1220  ls_lenele2ab_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f12c0  ls_lenele2aa_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f1310  ls_lenele2aa_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f1320  lsf_lenele2aa_flag_victim_dead func  -                    I ; level-script helper keyed on story flag "lenele2aa_flag_victim_dead"
+0x4f1380  lsf_lenele2aa_flag_vengence_done func  -                    I ; level-script helper keyed on story flag "lenele2aa_flag_vengence_done"
 0x4f13e0  cmd_charinfo             func  -                      O ; console command "charinfo": dump info on all characters in the game; body is a bare RET in retail, shared with several state leave handlers
 0x4f13f0  ls_lenele2aa_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f1420  ls_lenele2aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
@@ -635,6 +658,11 @@
 0x4f1560  ls_eleh_frame            func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f1890  ls_eleh_action           func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f1910  ls_eleh_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f1950  lsf_wolong2_fight1_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight1_won"
+0x4f1a00  lsf_wolong2_fight2_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight2_won"
+0x4f1ab0  lsf_wolong2_fight3_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight3_won"
+0x4f1b60  lsf_wolong2_fight4_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight4_won"
+0x4f1d00  lsf_wolong2_pijian_intro func  -                    I ; level-script helper keyed on story flag "wolong2_pijian_intro"
 0x4f2060  ls_wolong2_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2140  ls_wolong2_frame         func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f21e0  ls_wolong2_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
@@ -650,16 +678,31 @@
 0x4f29c0  ls_test_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_ikaemosbottomint_use, ls_ikaemosext_use, ls_ionaext_use, ls_ionaext_slot14, ls_ionaext02_use, ls_khosanistrng_use, ls_tancredhouse_use, ls_khosanilab2_use, ls_lenele2ab_use, ls_jadetemple_use, ls_lenele1ab_use, ls_ikaemosext2_use, ls_ikaemosbottomint2_use
 0x4f2ac0  ls_lpalaceint_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2ce0  ls_lpalaceint_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f36c0  lsf_lpalaceint_talked_to_joe func  -                    I ; level-script helper keyed on story flag "lpalaceint_talked_to_joe"
 0x4f3890  ls_lpalaceint_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f3a40  ls_lpalaceint_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f3a80  ls_khosanistrng_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f3ee0  ls_khosanistrng_frame    func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f41c0  lsf_khosani_strng_talked_to_portal func  -                    I ; level-script helper keyed on story flag "khosani_strng_talked_to_portal"
 0x4f4210  ls_khosanistrng_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f4570  ls_ionaext02_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4650  ls_ionaext02_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f4910  ls_rand_desert_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4930  ls_liangshan_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4a20  ls_liangshan_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f4df0  lsf_liangshan_flag_pit_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_pit_comment"; L"Looks like a pit trap. I see spikes at the bottom!"
+0x4f4e60  lsf_liangshan_flag_stone_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_stone_comment"; L"What is this place? It's so cold here..."
+0x4f4ed0  lsf_liangshan_flag_village_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_village_comment"; L"We found the old village, but where's the shrine?"
+0x4f4f40  lsf_liangshan_flag_lair_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_lair_comment"
+0x4f4f90  lsf_liangshan_flag_shrine_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_shrine_comment"; L"The shrine of the forest! We made it!"
+0x4f5010  lsf_liangshan_flag_grave_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_grave_comment"; L"The names are faded from the stones."
+0x4f5080  lsf_liangshan_flag_noise_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_noise_comment"; L"What was that? Did you hear something?"
+0x4f50f0  lsf_liangshan_flag_bones_comment func  -                    I ; level-script helper keyed on story flag "liangshan_flag_bones_comment"; L"By the sword of Urath, look at those bones!"
+0x4f5160  lsf_liangshan_flag_wave2 func  -                    I ; level-script helper keyed on story flag "liangshan_flag_wave2"; L"I see three more soldiers coming!"
+0x4f51e0  lsf_liangshan_flag_wave3 func  -                    I ; level-script helper keyed on story flag "liangshan_flag_wave3"; L"Those are scouts. The army won't be far behind!"
+0x4f5280  lsf_liangshan_flag_wave4 func  -                    I ; level-script helper keyed on story flag "liangshan_flag_wave4"; L"Here comes Wentao and his soldiers!"
+0x4f5320  lsf_liangshan_flag_finished_quest func  -                    I ; level-script helper keyed on story flag "liangshan_flag_finished_quest"; L"That must be the last of them."
+0x4f54b0  lsf_li_intro             func  -                    I ; level-script helper keyed on story flag "li_intro"
 0x4f54f0  ls_liangshan_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f5630  ls_liangshan_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f5670  ls_rand_forestnite1_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -673,19 +716,31 @@
 0x4f65e0  ls_templeint_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f66c0  ls_wolongcaverns_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f68f0  ls_wolongcaverns_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f6df0  lsf_wc_nali_used         func  -                    I ; level-script helper keyed on story flag "wc_nali_used"; L"Joseph acquired Summon Blue Imp!"
 0x4f6f80  ls_wolongcaverns_action  func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f6ff0  ls_wolongcaverns_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f7220  ls_ionaext_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f7270  ls_ionaext_frame         func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f72c0  lsf_iona_ext_flag_chick_cam func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_chick_cam"
+0x4f7370  lsf_iona_ext_played_intro func  -                    I ; level-script helper keyed on story flag "iona_ext_played_intro"
+0x4f73d0  lsf_iona_ext_flag_sweep  func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_sweep"
+0x4f7440  lsf_iona_ext_flag_wood_cam func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_wood_cam"
+0x4f74f0  lsf_iona_ext_found_rosalind func  -                    I ; level-script helper keyed on story flag "iona_ext_found_rosalind"
 0x4f7760  ls_ionaext_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f8920  ls_khosanilab_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f89c0  lsf_sal_killed           func  -                    I ; level-script helper keyed on story flag "sal_killed"
 0x4f8a30  ls_khosanilab_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f8d00  lsf_room1_killed         func  -                    I ; level-script helper keyed on story flag "room1_killed"
+0x4f9210  lsf_room7_killed         func  -                    I ; level-script helper keyed on story flag "room7_killed"; L"The final test awaits you. Heal yourselves if you are weak
+0x4f92a0  lsf_sal_killed_4f92a0    func  -                    I ; level-script helper keyed on story flag "sal_killed"; L"Joseph acquired Summon Red Minotaur!"
 0x4f9580  ls_khosanilab_leave      func  -                    O ; level_script_table entry: level script leave handler
 0x4f95a0  ls_khosanilab_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f9e50  ls_ikaemosext_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f9e70  ls_ikaemosext_frame      func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f9ec0  ls_ikaemostopint_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f9f50  ls_ikaemostopint_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fa050  lsf_ikaemos_found_boss   func  -                    I ; level-script helper keyed on story flag "ikaemos_found_boss"
+0x4fa140  lsf_ikaemos_boss_killed  func  -                    I ; level-script helper keyed on story flag "ikaemos_boss_killed"; L"Joseph acquired Summon Golem!"
 0x4fa230  ls_ikaemostopint_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fa400  ls_ikaemosbottomint_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fa420  ls_rand_hills01_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -701,6 +756,9 @@
 0x4fad50  ls_lenele1c_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fad90  ls_lenele1b_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4faf90  ls_lenele1b_frame        func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fafa0  lsf_lenele_slums_flag_prost1_speaks func  -                    I ; level-script helper keyed on story flag "lenele_slums_flag_prost1_speaks"
+0x4fb000  lsf_lenele_slums_flag_prost2_speaks func  -                    I ; level-script helper keyed on story flag "lenele_slums_flag_prost2_speaks"
+0x4fb060  lsf_lenele_slums_flag_ken_speaks func  -                    I ; level-script helper keyed on story flag "lenele_slums_flag_ken_speaks"
 0x4fb0c0  ls_lenele1b_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fb160  ls_lenele1b_action       func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4fb510  ls_worldmap1_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -712,6 +770,10 @@
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
 0x4fd750  ls_masad_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fd980  ls_masad_frame           func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fd9b0  lsf_masad_flag_gathering func  -                    I ; level-script helper keyed on story flag "masad_flag_gathering"
+0x4fda20  lsf_masad_talked_to_nath func  -                    I ; level-script helper keyed on story flag "masad_talked_to_nath"
+0x4fda90  lsf_masad_intro          func  -                    I ; level-script helper keyed on story flag "masad_intro"
+0x4fdb80  lsf_masad_talked_to_nath_4fdb80 func  -                    I ; level-script helper keyed on story flag "masad_talked_to_nath"
 0x4fdc70  ls_masad_leave           func  -                    O ; level_script_table entry: level script leave handler
 0x4fdc90  ls_masad_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fdd60  ls_masad_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
@@ -719,12 +781,22 @@
 0x4fde20  ls_test_frame            func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fde60  ls_test_leave            func  -                    O ; level_script_table entry: level script leave handler
 0x4fde80  ls_catacombs_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fdfc0  lsf_ball1_used           func  -                    I ; level-script helper keyed on story flag "ball1_used"
+0x4fe030  lsf_ball2_used           func  -                    I ; level-script helper keyed on story flag "ball2_used"
+0x4fe0a0  lsf_catacombs_boss_dead  func  -                    I ; level-script helper keyed on story flag "catacombs_boss_dead"; L"Joseph acquired Summon Mist Elemental!"
 0x4fe1c0  ls_catacombs_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4fe250  lsf_catacombs_flag_statues_comment func  -                    I ; level-script helper keyed on story flag "catacombs_flag_statues_comment"; L"The first kings of the thirteen clans are buried here."
+0x4fe2c0  lsf_catacombs_flag_bones_comment func  -                    I ; level-script helper keyed on story flag "catacombs_flag_bones_comment"; L"We're inside the bones of a three-headed serpent, Vadagar'
+0x4fe330  lsf_catacombs_flag_way_comment func  -                    I ; level-script helper keyed on story flag "CATACOMBS_FLAG_WAY_COMMENT"
+0x4fe380  lsf_maindoor_open        func  -                    I ; level-script helper keyed on story flag "maindoor_open"
+0x4fe410  lsf_catacombs_flag_iona_comment func  -                    I ; level-script helper keyed on story flag "CATACOMBS_FLAG_IONA_COMMENT"; L"Here it is! The tomb of the goddess Iona!"
+0x4fe4c0  lsf_maindoor_open_4fe4c0 func  -                    I ; level-script helper keyed on story flag "maindoor_open"
 0x4fe5e0  ls_catacombs_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fe8f0  ls_wolong_init           func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fe9a0  ls_wolong_frame          func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fea40  ls_wolong_use           func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fea80  ls_wolong_action         func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fed30  lsf_cflag_none           func  -                    I ; level-script helper keyed on story flag "Cflag_None"
 0x4fee50  dialogue_parse_table     func  -                    O ; "_dlg.tbl": "$Character:", "+Topic:", "+Shop", "+PCText:", "+NPCText:" ...
 0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)
 0x500c80  mouse_set_pos            func  vsdk\os\mouse          I ; (x, y) client coords -> ClientToScreen + SetCursorPos, only when foreground

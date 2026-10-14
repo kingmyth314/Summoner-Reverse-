@@ -34,3 +34,10 @@ symbol file (138 functions). The record layout is `level_script_info` in `symbol
   (`sewers_flag_crate_comment`, `wolong2_fight1_won`, ...).
 - A scan of `.data` for {string pointer, code pointer} pairs found the table.
 - The globals' readers gave each slot's role.
+
+## Helpers
+
+Below the table handlers, each level has helper functions that test one story flag and then act. A helper
+might speak a line, start a cutscene, open a gate or spawn the next wave of enemies. 72 of them are named
+`lsf_<flag>` after the first flag they test (for example `lsf_liangshan_flag_wave2`). These names are
+*inferred*: the flag says when the helper runs, not everything it does.
