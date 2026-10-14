@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14, end of day): **1,020 / 5,548** game/engine functions named
-(18.4%), plus 435 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14): **1,740 / 5,548** game/engine functions named (31.4%), plus 444
+pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -152,3 +152,20 @@ references, named about 130 functions. Data-table scans named another 280:
 Phase 2 has started. It now covers the [character object and player record](sum-exe/characters.md), the
 [game data tables](sum-exe/game-tables.md), the [melee damage formula](sum-exe/combat.md) and the
 [level scripts](sum-exe/level-scripts.md).
+
+**2026-10-14, parallel pass:** three sub-agents proposed names for separate address ranges. Each worked read-only
+with `tools/asm.mjs`. The proposals were spot-checked against the disassembly and merged with `tools/addsym.mjs`:
+- 112 names: game layers (`0x440000`-`0x4c0000`): items, party inventory, living entities, AI, pathfinding,
+  bosses, doors;
+- 366 names: UI screens and scripts (`0x401000`-`0x440000`, `0x4c0000`-`0x520000`): the shared screen template
+  helpers, popups, savegame chunks (tags `SAVg`, `ITEM`, `INVT`, `LENT`, `CMRA`, `CONT`), story flags
+  (`savegame_get_flag`/`savegame_set_flag`), conversation, `events.tbl`, the script editor;
+- 248 names: vsdk (`0x520000`-`0x56c740`): the sound layer and DirectSound/EAX back end, the vfile helpers, the
+  `String` class (Red Faction layout, **V**), FTP/HTTP downloaders, renderer fog/alpha back ends, ui_gadget
+  tree helpers.
+
+The pass found these layouts: sound records (0x40 bytes, 640 at `0x2cb5458`); DirectSound buffers (0x250 bytes,
+256 at `0x2f54720`) and channels (0x2c bytes, 32 at `0x2f798b8`), both sized as in Red Faction; character slots
+(200 x 0x1f8 bytes at `0x2dc7088`). It also found the ui_gadget tree links: x/y `+0xc`/`+0x10`, window `+0x25c`,
+parent `+0x268`, first child `+0x26c`, next sibling `+0x270`. Three earlier names were corrected:
+`item_info_popup_load_bitmaps`, `multitrade_load_bitmaps` and `saveload_reset_lists`.
