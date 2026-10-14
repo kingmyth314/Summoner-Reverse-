@@ -308,8 +308,10 @@
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
 0x4402d0  init_ccmd_save_mlayout   func  -                    O ; static initialiser: registers console command object ccmd_save_mlayout
 0x4402f0  cmd_save_mlayout         func  -                      O ; console command "save_mlayout": Save a monster layout file
+0x440650  file_type_from_ext       func  -                    O ; ".peg" 0, ".rfx" 1, ".mvf" 2, ".vim" 3, else -1 (stricmp on file extension)
 0x440f20  multi_set_netgame_state  func  -                    O ; "Changing netgame state to %d"
 0x441150  multi_process_client_status func  -                    O ; "Unable to process client status packet -- unknown netid %d"
+0x441710  character_xp_death_penalty func  -                    I ; xp -= 10% of (xp - xp_for_level(level)), floored at xp_for_level(level), reads +0x600/+0x604
 0x441820  multi_process_packet     func  -                      I ; (data, len, from, reliable)
 0x441b10  multi_process_incoming   func  -                      I ; polls nw_receive and nw_NewReceiveReliable (0x4000-byte buffer), dispatches to 0x441820
 0x442060  multi_send_packet        func  -                      I ; (data, len, to, reliable): per-type rate stats ("Unable to add net rate info"), nw_NewSendReliable
@@ -322,47 +324,101 @@
 0x4450c0  characterinfo_load_party func  characterinfo.cpp    I ; "Joseph char", "Joseph model" ... "Player instance", "%s.tbl"
 0x4452f0  characterinfo_parse_table func  characterinfo.cpp    O ; "#Character Info", "$Character:", "+Portrait Filename:", ...
 0x446740  characterinfo_add_move   func  characterinfo.cpp    O ; "Move_info array is full. Need to increase MAX_TOTAL_MOVES."
+0x446770  move_info_free           func  characterinfo.cpp    O ; pushes a move_info back on the free list 0x7916dc (link +0x40), pair of characterinfo_add_move
+0x446790  sound_ref_parse          func  characterinfo.cpp    O ; "$Sound:" name (path joined with %s%c%s), then 3 floats stored as bytes +8/+9/+0xA, handle +4 = -1
 0x446890  characterinfo_parse_name func  characterinfo.cpp    I ; "$Character:" value: name and species ("Character type %s doesn't have a species type")
 0x446930  characterinfo_parse_resistances func  characterinfo.cpp    O ; "+Resistances:" ... "#Resistances End"
+0x446b80  charinfo_find_by_name    func  characterinfo.cpp    O ; stricmp over char_infos[num_char_infos] names (+0x0), returns index or -1
+0x446bd0  charinfo_find_by_species func  characterinfo.cpp    O ; index of the char_info whose +0x10 species equals arg, or -1
+0x446c00  summon_find_charinfo     func  characterinfo.cpp    I ; finds the summon skill (skill_table flag 4) whose +0x18 equals arg, then charinfo_find_by_name(creature name)
+0x446c40  summon_skill_creature_name func  characterinfo.cpp    O ; skill 0x24-0x33 -> table 0x595a94 ("Golem", "Red Minotaur", ... "Forest Dragon"), else empty string
+0x446cb0  charinfo_find_move       func  characterinfo.cpp    O ; (info, category, id, flag): walks move list info+0x4c+4*category (next +0x40) for move +0x14 == id
+0x446d10  charinfo_find_move_alt   func  characterinfo.cpp    O ; same walk as charinfo_find_move but matches move +0x18
+0x446de0  multi_charinfo_slot      func  characterinfo.cpp    I ; finds the 0x3ec-byte multiplayer char info slot (0x7def08) whose +4 is the given char_info, returns slot
+0x446e70  skill_is_summon          func  characterinfo.cpp    O ; skill_table[id] flags (+0x20) bit 2, set for the summon skills (see summon_skill_from_creature_name)
+0x446e90  character_can_use_summon func  characterinfo.cpp    O ; (character, skill): All_summons cheat, else level thresholds 1/4/8/12... per summon skill and ring ownership ("Ring of Darkness" ...)
+0x4473f0  skill_is_combat_special  func  -                    I ; returns skill id in 0xc..0x11 (critical hit .. aimed attack), used by combat move choice 0x463d00
 0x447410  characterinfo_load_party_anims func  characterinfo.cpp    I ; "Joseph Anims", "Jekhar Anims" ...; masad allows only Joseph
 0x447b10  level_load_preload       func  -                      I ; loads the level's character preload index (ca_load_preload_index) and per-level effects
+0x4487f0  offense_point_name       func  -                    O ; returns table 0x59614c[i] = "$offense01".. , used by every boss loader for offense points
+0x448800  characterinfo_alloc_level_buffers func  characterinfo.cpp    I ; chooses buffer sizes by level ("templeint", "masad"/"masad_v2", multiplayer) and allocates them with operator_new
+0x448d00  summon_skill_from_creature_name func  characterinfo.cpp    O ; inverse of summon_skill_creature_name: skill id whose creature name matches, among skill_table flag-4 entries, -1 if none
 0x448f60  statscreen_load_anim     func  characterinfo.cpp    O ; "statscreen", "Loading light/heavy armor version for %s"
 0x449100  statscreen_unload_anim   func  characterinfo.cpp    O ; "Unloading stat screen animation for %s"
+0x449200  chain_config_set         func  characterinfo.cpp    O ; persistent var "chainconfig%d%d" = value (0x4d00b0 on 0x2493a38)
+0x449240  chain_config_get         func  characterinfo.cpp    O ; reads "chainconfig%d%d", on missing calls chain_config_reset_defaults and retries
+0x449290  chain_points_set         func  characterinfo.cpp    O ; persistent var "chainpts%d%d" = value
+0x4492d0  chain_points_get         func  characterinfo.cpp    O ; reads persistent var "chainpts%d%d"
+0x449310  chain_config_reset_defaults func  characterinfo.cpp    O ; for each hero writes chain_config_set(hero, dir, char_info up/down/right/left skill bytes +0xE8..)
 0x4493e0  character_set_chain_skill func  characterinfo.cpp      I ; (char, slot, skill): clears the skill from other slots first
 0x449440  character_get_chain_skill func  characterinfo.cpp      I ; (char, slot 0-3) -> chain skill id, 0x55 = none ("No chain skill configured!")
 0x449510  character_cycle_default_chain func  characterinfo.cpp      I ; +0x184: 0 -> 3 -> 1 -> 2 -> 0
 0x449570  init_ccmd_Quick_combo    func  -                    O ; static initialiser: registers console command object ccmd_Quick_combo
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
 0x449650  character_learn_chain_skill func  characterinfo.cpp    I ; L"%s learned %s!", L"Chain skill"
+0x449910  chain_config_find_skill  func  characterinfo.cpp    O ; (chain record, skill): slot 0-3 whose chain_config_get(species, slot) == skill, -1 otherwise, heroes only (species < 4)
+0x449a20  species_is_hero          func  characterinfo.cpp    O ; species <= 3 (Joseph, Jekhar, Flece, Rosalind groups), 16 callers
 0x449a30  characterinfo_find_multi_slot func  characterinfo.cpp    O ; "Unable to find multiplayer character info slot"
+0x449b80  charinfo_get_multi_appearance func  characterinfo.cpp    I ; multi_charinfo_slot(info) + 0x3d4 or 0, used by texture setup (character_set_underwear_textures)
 0x449bb0  init_ccmd_charinfo       func  -                    O ; static initialiser: registers console command object ccmd_charinfo
 0x449be0  init_ccmd_levelchars     func  -                    O ; static initialiser: registers console command object ccmd_levelchars
 0x449c00  cmd_levelchars           func  -                      O ; console command "levelchars": dump info on all characters in the level
 0x449f60  materials_parse_table    func  -                    O ; materials.tbl: "$Material:", "+Damage/Weight/Speed/Protection Multiplier:"
 0x44a090  items_parse_table        func  items.cpp            O ; items.tbl: "$Name:", "$Type:" (Misc/Armor/Weapon), "+Slot:", "+Skill Mod:", "+Stat Mod:" ...
+0x44b280  items_init_pool          func  items.cpp            O ; links the 16-byte item records 0x8b50c8..0x8b9d48 into the free list 0x8b50b8, count 0x8cbebc = 0
+0x44b2b0  item_free                func  items.cpp            O ; returns an item to the free list 0x8b50b8 (33 callers)
+0x44b2d0  item_create              func  items.cpp            O ; (item type index < 0x209): dispatch on ItemType kind (+4) 0/1/2 to item_create_weapon/armor/misc
+0x44b320  item_create_by_name      func  items.cpp            O ; item_type_find(name) then item_create
+0x44b340  item_create_weapon       func  items.cpp            O ; item_alloc, item+4 = item_types + 0x100*i (0x8cbec0), item+8 = type+0x58 ->+4 (charges) or 0
+0x44b380  item_alloc               func  items.cpp            O ; pops a 16-byte item from the free list 0x8b50b8, +0 = 0, +0xC = -1, count++
+0x44b3b0  item_create_armor        func  items.cpp            O ; kind 1 branch of item_create (same body as item_create_weapon)
+0x44b3f0  item_create_misc         func  items.cpp            O ; kind 2 branch of item_create (same body)
+0x44b430  item_create_misc_by_name func  items.cpp            O ; item_type_find(name) then item_create_misc (monster_drop_loot)
+0x44b450  item_type_find           func  items.cpp            O ; stricmp over item_types (0x8cbec0, 0x100 bytes each, count 0x8ec7c0), index or -1
+0x44b500  item_type_is_stackable   func  items.cpp            O ; false when ItemType+0x58 magic info has charges > 1 or +0x14 >= 1.0, party_inventory_add_item merges counts when true
+0x44b670  item_can_destroy         func  items.cpp            I ; !(item->type->flags(+0x5c) & 4), used by inventory_confirm_destroy
+0x44b690  item_is_identified       func  items.cpp            O ; debug mode -> true, else !(item->type +0x5c & 1)
+0x44b6b0  item_type_is_identified  func  items.cpp            O ; ItemType version of item_is_identified (+0x5c bit 0 clear)
+0x44b6d0  item_has_magic_info      func  items.cpp            I ; identified and ItemType +0x58 non-null
 0x44b7a0  ring_format_info         func  -                    O ; L"Summoning Ring\n", L"Ring Power: ", L"Available Summons:\n" per ring
 0x44d540  items_level_load         func  items.cpp            O ; "ITEM LEVEL LOAD!"; finds Backpack and Leather Bag
 0x44d870  items_level_unload       func  items.cpp            O ; "ITEM LEVEL UNLOAD!"
+0x44d8a0  item_get_display_name    func  items.cpp            O ; localize_item_name, then the part after '#' when identified, before it otherwise
+0x44d940  hero_model_index         func  items.cpp            O ; "joseph" 0, "heavy joseph" 1, "jekhar" 2, "heavy jekhar" 3, "flece" ... "rosalind"
+0x44ddb0  character_scale_stats_to_level func  living_entity.cpp    I ; ratio = level / char_info level (+0x30), scales char_info max_hp +0x24 / hp +0x26 ... into +0x5F4 base max HP etc.
 0x44e060  living_entity__living_entity func  living_entity.cpp    I ; constructor (vtable 0x581914): obj__obj, 18 x 0x20-byte records at +0xac (two GameTimers each), timer +0x2ec, AI +0x324 (0x4722f0), combat +0x558 (0x4681b0)
 0x44e150  living_entity__dtor      func  living_entity.cpp    I ; destructor; also the target of exception-unwind funclets at 0x57c560
+0x44ed90  character_get_name       func  living_entity.cpp    O ; returns this + 0x2F4 (43 callers)
 0x44edf0  living_entity__vfunc0    func  living_entity.cpp    I ; only virtual of living_entity__vtable: frees the AI state, equipment (+0x754) and other resources
 0x44fab0  character_add_xp         func  -                    O ; thiscall (xp, ?, ?): +0x604 += xp, shares xp with equipment slots 1-2 (0x44ffc0), on level-up applies xp_level_table and refills HP/AP; "%s gained level %d!", "+Level!"
 0x44ffc0  ring_add_xp              func  -                    I ; (ring name, ...): "<ring>_xp" counters for Ring of Darkness/Light/Fire/...; character_add_xp calls it for equipment slots 1-2
 0x450220  ring_check_summon_unlock func  -                    I ; "Joseph acquired Summon Wraith!" etc. per ring
+0x450420  rings_add_xp_all         func  living_entity.cpp    O ; (amount, cap): adds amount to dark/light/fire/stone/water/wind/forest/jade_ring_xp persistent vars, capped, called by character_add_xp
 0x450850  character_add_hp         func  living_entity.cpp    O ; thiscall (delta, source, ?, ?) -> alive: status 16 absorbs damage first; Players_immortal/Debug_death skip damage to party members; clamps to max HP (excess to +0x6e8); 0x450d90(0x22) at 0 HP
+0x450c70  character_add_ap         func  living_entity.cpp    O ; AP (+0x5FE) += delta clamped to [0, character_get_max_stat(1)], floating text L323 "%d AP", skipped for type 4
 0x450d90  character_check_death    func  living_entity.cpp    I ; thiscall (0x22) called by character_add_hp when HP <= 0; returns whether the character survives
 0x450e30  monster_drop_loot        func  -                    O ; "No drop for Medevan Knights", "Rolling %d %d", "Dropping", per-boss key items
 0x4537f0  summon_turn_hostile      func  -                    I ; "Summoned creature has turned against you!"
+0x454070  character_resurrect      func  living_entity.cpp    O ; type 6->5, 8->7, 10->9, HP = max, flags +0x320 &= ~0x88, +0x84 bit 0 set, re-inits instance (party_level_reset, party_add_member)
+0x4542b0  character_size_radius    func  living_entity.cpp    I ; float table 0x59d7c8[char_info size +0x90] = 0.15/0.47/1.0/99.9, bosses (type 9) via 0x4a16a0
+0x4542f0  character_size_height    func  living_entity.cpp    I ; float table 0x5818d8[size] = 0.9/1.8/2.5/99.9, bosses via 0x4a15a0
 0x454700  status_effect_add        func  -                    O ; thiscall (id, ...): Character +0xac + id*0x20; immunity checks; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"
 0x4553a0  status_effect_cure       func  -                    O ; thiscall (id): clears Character +0xac + id*0x20; "Cant cure!"; floating text "-Silence" ... "-Slow"
 0x455950  character_has_status     func  living_entity.cpp    O ; thiscall (status id): GameTimer__valid on status slot +0xb0 + id*0x20
 0x455a30  character_status_value   func  living_entity.cpp    I ; thiscall (status id) -> float strength of an active status (used for protection and magic resistance)
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
+0x461370  character_find_move      func  living_entity.cpp    O ; charinfo_find_move(info, category, id, 1), category 4 refused for type 9
+0x4613b0  character_find_move_alt  func  living_entity.cpp    O ; charinfo_find_move_alt(info, category, id, 1), category 4 refused for type 9
+0x461540  character_pick_talk_move func  living_entity.cpp    O ; random entry among char_info +0x6C moves whose name starts "talk"
+0x4617f0  character_is_badly_hurt  func  living_entity.cpp    O ; HP < 0.3 x max HP, or status 13 (slow) active
 0x461870  init_ccmd_immortal       func  -                    O ; static initialiser: registers console command object ccmd_immortal
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
 0x461990  init_ccmd_health         func  -                    O ; static initialiser: registers console command object ccmd_health
 0x4619b0  cmd_health               func  -                      O ; console command "health": Sets the percentage health for the debug object
 0x461b80  living_entity_create     func  living_entity.cpp    O ; "No more space for living entities. Please increase MAX_LIVING..."
+0x461fe0  character_set_floating_text func  living_entity.cpp    O ; (text, scale, r, g, b): copies up to 16 chars to +0x6F8, +0x70C = scale, +0x709..0x70B = colour, used for "%d AP", status texts
+0x462070  character_get_display_name func  living_entity.cpp    O ; name +0x2F4 with "#$0123..." suffix cut, "onif" -> L"Oni Female", L"Unknown" fallback
+0x462380  character_is_main_hero   func  living_entity.cpp    O ; char_info name is Joseph, Rosalind, Flece or Jekhar
 0x462400  character_skill_allowed  func  -                    I ; thiscall (skill): player_skill_unlocked on the player record unless flags +0x320 & 0x100; false makes character_get_skill return -999999
 0x462440  character_get_skill      func  -                    O ; thiscall (skill id) -> float: skill_byte[id] * 0.01 with equipment modifiers (0x462540); id 2 = speed (byte 11 = 0.11, shown x1000 = 110%), id 1 = base protection
 0x462540  character_skill_equip_mod func  -                    I ; thiscall (skill): modifiers from the 10 equipment slots (item type +0x20, 4 entries); multiplier for speed
@@ -371,6 +427,10 @@
 0x4627c0  character_equip_bonus    func  -                    O ; thiscall (stat): sum of {stat, value} modifiers (item type +0x40, 2 entries) over the 10 equipment slots at +0x754
 0x462840  character_get_max_stat   func  -                    O ; thiscall (0 = HP: base +0x5f4 + bonus, min 1; 1 = AP: base +0x5fc + bonus, min 0)
 0x462a20  character_set_underwear_textures func  -                    I ; per party member six body-part textures (head, torso, cape, thigh, leg, arms: "Joseph05.tga", "Torso_Uwear_Josp.tga" ...), bm_replace_file
+0x462d20  character_get_mount      func  living_entity.cpp    O ; living_from_handle(+0x6E0) if that entity has +0x6E4 bit 1, cmd_*_unlink use it to find a boss rider's horse
+0x462d40  character_get_rider      func  living_entity.cpp    O ; living_from_handle(+0x6E0) if that entity has +0x6E4 bit 0
+0x462d60  character_is_mount       func  living_entity.cpp    O ; +0x6E4 bit 1
+0x462d70  character_is_rider       func  living_entity.cpp    O ; +0x6E4 bit 0
 0x463060  init_ccmd_chance_gold    func  -                    O ; static initialiser: registers console command object ccmd_chance_gold
 0x463080  cmd_chance_gold          func  -                      O ; console command "chance_gold": Sets Chance_to_drop_gold
 0x463120  init_ccmd_kill_summon    func  -                    O ; static initialiser: registers console command object ccmd_kill_summon
@@ -384,24 +444,45 @@
 0x463460  init_ccmd_death          func  -                    O ; static initialiser: registers console command object ccmd_death
 0x463480  cmd_death                func  -                      O ; console command "death": Toggles Debug_death
 0x463860  combat_queue_counter_attack func  -                    O ; "Queueing counter attack for %s"
+0x463b40  combat_attack_rating     func  -                    I ; attack record: weapon damage (+0x68) or char_info damage (+0x38), plus 3 x level
+0x463b90  combat_weapon_skill      func  -                    O ; attack record: character_get_skill(weapon +0x6C skill, 0 without weapon) clamped to [0,1]
+0x463be0  combat_has_weapon_skill  func  -                    O ; combat_weapon_skill > 0
 0x464020  init_ccmd_Super_power    func  -                    O ; static initialiser: registers console command object ccmd_Super_power
 0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
 0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of materials[type +8].protection_mult * type +0xf0 over armour slots; Character screen shows x100
 0x464f50  combat_melee_damage      func  -                    O ; thiscall on an attack record ([+0] attacker, [+8] -> target, +0x3c attack/skill id): melee damage formula (docs/sum-exe/combat.md); the mug branch shows L"Stole %d gold!"
 0x4681b0  living_combat__ctor      func  -                    I ; constructor of the sub-object at living entity +0x558 (character_get_protection's this)
+0x468a90  vector3_scale_to         func  -                    O ; (out, s, v): out = v * s
+0x468cd0  sound_ref_load           func  -                    O ; loads the sound named by a sound_ref (sound_check_filename), "FAILED TO CREATE SOUND BUFFER FOR FILE %s"
+0x468d90  game_play_sound          func  -                    I ; if handle > 0 call 0x520d50(handle, ...), returns 1, 75 callers (interface clicks etc.)
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
 0x469a70  obj__obj                 func  objects.cpp          I ; base object constructor (vtable 0x5819c4)
 0x469c40  obj_create               func  objects.cpp          O ; (obj): takes a slot from obj_free_list, links it into obj_used_list, sets obj +0x80 = slot index + 0x469dd0() (handle) and +0x8c (net handle, -1 unless multiplayer); "No more free objects"
 0x469dd0  obj_handle_base_next     func  objects.cpp          I ; returns and increments the counter at 0x59a5a0 (handle base), wraps at 0x59a5a4
 0x46a0b0  obj_is_living            func  objects.cpp          I ; thiscall: type test used by living_from_handle
+0x46a100  character_is_dead_type   func  objects.cpp          O ; object type is 6, 8 or 10 (dead forms of 5, 7, 9, see character_resurrect)
+0x46a790  obj_is_gold              func  objects.cpp          O ; object +0x98 item, item->type name == "gold"
 0x46a920  container_deinit         func  -                    O ; "deinit for container with handle %d"
+0x46acd0  container_get_item       func  objects.cpp          O ; (i): items[i] at +0x98 if 0 <= i < count +0xD8
 0x46af70  character_fill_body_textures func  -                    I ; copies Character +0x5ac.. entries from the second group where the first is 0, and back
 0x46b130  obj_from_handle          func  objects.cpp          I ; (handle) -> object or 0
 0x46b1a0  living_from_handle       func  objects.cpp          O ; (handle) -> obj_from_handle if obj_is_living, else 0; used throughout character code
+0x46b1e0  handle_to_index          func  objects.cpp          O ; handle % 1000
+0x46b680  party_inventory_reset    func  -                    O ; max 0x971868 = 30, count 0x97186c = 0 (state_title_enter)
+0x46b870  party_inventory_add_item func  -                    O ; (item, count): merges into an entry of the same type when item_type_is_stackable, else appends, frees merged item
+0x46b980  party_inventory_add_type func  -                    O ; (item type index, count, ...): stacks, or creates the item with item_create, in the inventory (0x970820 {count, item*}, max 0x209)
+0x46bb00  party_inventory_add_by_name func  -                    O ; item_type_find(name) then party_inventory_add_type (state_game_enter, script_party_acquire_item)
+0x46bb30  party_inventory_remove   func  -                    O ; (slot, free): optionally item_free, memmove the 8-byte entries down, count--
+0x46bbb0  party_inventory_clear    func  -                    O ; item_free on every entry, count = 0
+0x46bd00  party_inventory_find_type func  -                    O ; index of the entry whose item->type == ItemType*, -1 otherwise
+0x46c3b0  character_find_equipped_type func  -                    O ; equipment slot (0-9, +0x754) holding an item of the given ItemType, or -1
+0x46c3e0  items_same_type          func  -                    O ; both non-null and a->type == b->type
 0x46c550  init_ccmd_add_gold       func  -                    O ; static initialiser: registers console command object ccmd_add_gold
 0x46c570  cmd_add_gold             func  -                      O ; console command "add_gold": Adds gold to party inventory
 0x46cb50  item_paging_find_player_slot func  item_paging.cpp      O ; "Unable to find paging slot for player"
+0x46cc80  mp_player_file_create    func  -                    I ; ".plr" file: if missing creates it (mp_char_create), default items "Health Tonic", "Book of Novices"
+0x46d0b0  mp_player_file_read_info func  -                    I ; reads a ".plr" file for the character list, L"No description" when missing
 0x46da80  pxo_read_config          func  -                    I ; multi.cfg: "UserTracker:", "GameTracker:", "ChatTracker:"; pxo.net defaults
 0x46ddd0  init_ccmd_test_meshes_on_load func  -                    O ; static initialiser: registers console command object ccmd_test_meshes_on_load
 0x46ddf0  cmd_test_meshes_on_load  func  -                      O ; console command "test_meshes_on_load": Toggles Test_meshes_on_load
@@ -417,10 +498,13 @@
 0x472170  init_ccmd_slowdown_scaler func  -                    O ; static initialiser: registers console command object ccmd_slowdown_scaler
 0x472190  cmd_slowdown_scaler      func  -                      O ; console command "slowdown_scaler": Set the slowdown scaler
 0x4722f0  ai_state__ctor           func  -                    I ; constructor of the AI sub-object at living entity +0x324
+0x473200  ai_is_mode               func  -                    O ; ai (+0x324 of a character): mode +0 == m and (sub == -1 or submode +4 == sub), 70 callers
 0x473240  init_ccmd_attack_point   func  -                    O ; static initialiser: registers console command object ccmd_attack_point
 0x473260  cmd_attack_point         func  -                      O ; console command "attack_point": attack point
 0x4732e0  init_ccmd_offense_point  func  -                    O ; static initialiser: registers console command object ccmd_offense_point
 0x473300  cmd_offense_point        func  -                      O ; console command "offense_point": offense point
+0x473320  ai_set_mode              func  -                    O ; (mode, submode): no-op if unchanged, saves previous mode at +8/+0xC, frees path +0x80, restarts timer +0x1C, 89 callers
+0x473750  ai_count_attackers       func  -                    I ; counts living entities (list 0x8ecd78, next +0x318) whose ai target handle (+0x384) is this owner and ai mode 3 sub 0x0f/0x1f/0x3f
 0x4739e0  ai_class_die             func  -                    I ; "AI_CLASS : DIE", "AI_CLASS : OF_SHOULD_BE_DEAD"
 0x474cf0  init_ccmd_ai_state       func  -                    O ; static initialiser: registers console command object ccmd_ai_state
 0x474d10  cmd_ai_state             func  -                      O ; console command "ai_state": Change the AI state of the study object
@@ -429,6 +513,10 @@
 0x474ee0  init_ccmd_ai_wander      func  -                    O ; static initialiser: registers console command object ccmd_ai_wander
 0x474f00  cmd_ai_wander            func  -                      O ; console command "ai_wander": Toggles Ai_path_wandering_enabled
 0x4766f0  ai_service_request       func  -                    I ; "WARNING: unknown service request type -- %d"
+0x476e00  door_set_open            func  -                    O ; called by cmd_door_open after door_find_by_name
+0x476e80  door_set_closed          func  -                    O ; called by cmd_door_close after door_find_by_name
+0x476ee0  door_toggle_state        func  -                    O ; cmd_door_toggle and object_use_result, needs door flag +8 bit 0x100
+0x477280  door_find_by_name        func  -                    O ; bsearch over door list 0xa5a308/0xa5a300, used by cmd_door_open/close/toggle
 0x4778c0  init_ccmd_zoom_limit     func  -                    O ; static initialiser: registers console command object ccmd_zoom_limit
 0x4778e0  cmd_zoom_limit           func  -                      O ; console command "zoom_limit": Toggle camera zoom limiting.
 0x477970  init_ccmd_geom_avoid     func  -                    O ; static initialiser: registers console command object ccmd_geom_avoid
@@ -438,6 +526,7 @@
 0x479a60  camera_cycle_mode        func  -                      I ; F12: mode 0 -> 1 -> 2 -> 0
 0x479ad0  spell_description        func  -                    I ; L"Restore HPs to target.", L"Remove target's status effects." ...
 0x47a190  spells_parse_table       func  -                    O ; spells.tbl: "$Spell:", "+Name:", "+Class:", "+Damage type:", "+Hit Chance:" ...
+0x47a870  spell_get_cast_effect    func  -                    O ; spells[i].cast_effect (0x22e4f28 + 0x80*i + 0xC)
 0x47f710  init_ccmd_summon         func  -                    O ; static initialiser: registers console command object ccmd_summon
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x4811b0  init_ccmd_Multi_path_type func  -                    O ; static initialiser: registers console command object ccmd_Multi_path_type
@@ -492,34 +581,49 @@
 0x495340  cmd_serpent_stage        func  -                      O ; console command "serpent_stage": Set Serpent rider's current combat stage
 0x495380  init_ccmd_serpent_unlink func  -                    O ; static initialiser: registers console command object ccmd_serpent_unlink
 0x4953a0  cmd_serpent_unlink       func  -                      O ; console command "serpent_unlink": Unlinks serpent to mount
+0x495410  serpent_get_rider        func  -                    O ; living_from_handle(0x24522ac), used by cmd_serpent_solo
 0x495430  init_ccmd_serpent_solo   func  -                    O ; static initialiser: registers console command object ccmd_serpent_solo
 0x495450  cmd_serpent_solo         func  -                      O ; console command "serpent_solo": Set serpent without horse
 0x495480  init_ccmd_serpent_combat func  -                    O ; static initialiser: registers console command object ccmd_serpent_combat
 0x4954a0  cmd_serpent_combat       func  -                      O ; console command "serpent_combat": Sets serpent rider in combat state
 0x4954c0  serpent_rider_set_flinch func  -                    O ; "Unable to set Serpent Rider flinch for %s -- bad $Action"
+0x495960  serpent_boss_load        func  -                    I ; "Liangshan"/"Jadetemple" checks, offense points, boss_ai_parse_table("serp_boss.tbl"), serpent_rider_set_flinch
+0x497a40  serpent_set_solo         func  -                    O ; rider_unlink_mount, flag 1, stage 3, combat flag 0x2451da2 = 1 (cmd_serpent_solo)
 0x497ad0  init_ccmd_phoenix_stage  func  -                    O ; static initialiser: registers console command object ccmd_phoenix_stage
 0x497af0  cmd_phoenix_stage        func  -                      O ; console command "phoenix_stage": Set phoenix rider's current combat stage
 0x497b30  init_ccmd_phoenix_unlink func  -                    O ; static initialiser: registers console command object ccmd_phoenix_unlink
 0x497b50  cmd_phoenix_unlink       func  -                      O ; console command "phoenix_unlink": Unlinks phoenix to mount
+0x497be0  phoenix_find_rider       func  -                    O ; first living entity with species 0x58, used by cmd_phoenix_solo
 0x497c30  init_ccmd_phoenix_solo   func  -                    O ; static initialiser: registers console command object ccmd_phoenix_solo
 0x497c50  cmd_phoenix_solo         func  -                      O ; console command "phoenix_solo": Set phoenix without horse
 0x497c80  init_ccmd_phoenix_combat func  -                    O ; static initialiser: registers console command object ccmd_phoenix_combat
 0x497ca0  cmd_phoenix_combat       func  -                      O ; console command "phoenix_combat": Sets phoenix rider in combat state
+0x498420  phoenix_boss_load        func  -                    I ; "phoenix_boss.tbl", "Phoenix Bow", offense points
 0x498720  phoenix_rider_set_flinch func  -                    O ; "Unable to set Phoenix Rider flinch for %s -- bad $Action"
+0x499dd0  phoenix_set_solo         func  -                    O ; rider_unlink_mount, combat flag 0x245242a = 1 (cmd_phoenix_solo)
 0x499ea0  init_ccmd_tiger_stage    func  -                    O ; static initialiser: registers console command object ccmd_tiger_stage
 0x499ec0  cmd_tiger_stage          func  -                      O ; console command "tiger_stage": Set Tiger rider's current combat stage
 0x499f10  init_ccmd_tiger_unlink   func  -                    O ; static initialiser: registers console command object ccmd_tiger_unlink
 0x499f30  cmd_tiger_unlink         func  -                      O ; console command "tiger_unlink": Unlinks tiger to mount
 0x499fd0  init_ccmd_tiger_combat   func  -                    O ; static initialiser: registers console command object ccmd_tiger_combat
 0x499ff0  cmd_tiger_combat         func  -                      O ; console command "tiger_combat": Sets tiger in combat state
+0x49a010  tiger_find_rider         func  -                    O ; living-entity list scan by species, used by cmd_tiger_solo
 0x49a060  init_ccmd_tiger_solo     func  -                    O ; static initialiser: registers console command object ccmd_tiger_solo
 0x49a080  cmd_tiger_solo           func  -                      O ; console command "tiger_solo": Set tiger without horse
 0x49a1a0  tiger_rider_set_flinch   func  -                    O ; "Unable to set Tiger Rider flinch for %s -- bad $Action"
+0x49ad20  tiger_boss_load          func  -                    I ; "Liangshan"/"Jadetemple", tiger_rider_set_flinch, TigerSpear/TigerAxe setup (0x49a2c0)
+0x49c7c0  tiger_set_solo           func  -                    O ; rider_unlink_mount, combat flag 0x2452a9a = 1 (cmd_tiger_solo)
 0x49c850  init_ccmd_precalc_vis_method func  -                    O ; static initialiser: registers console command object ccmd_precalc_vis_method
 0x49c870  cmd_precalc_vis_method   func  -                      O ; console command "precalc_vis_method": Toggles Precalc_vis_method
 0x49cdd0  pathfinding_load_graph   func  pathfinding.cpp      O ; ".pfg": "Couldn't open pathfinding graph data file %s", "PFG memory size: %d"
+0x4a01d0  ai_path_find             func  pathfinding.cpp      O ; timed graph search (0x49fa70, or 0x49f650 without Precalc_vis_method), fills each node +0x10 with the normalised step vector, path nodes linked by +0x24
 0x4a02d0  ai_path_alloc_node       func  pathfinding.cpp      I ; "Out of ai path nodes -- current max is %d."
+0x4a0440  ai_path_free_node        func  pathfinding.cpp      O ; pushes a node on the free list 0x2452d30 (link +0x24), used count 0x2452d4c--, pair of ai_path_alloc_node
+0x4a0480  ai_path_free             func  pathfinding.cpp      O ; ai_path_free_node on every node of a path (17 callers)
+0x4a14f0  species_is_boss          func  boss_ai.cpp          I ; switch table on species 0x51..0xC9 returning 1 for boss species, used by characterinfo_parse_table
 0x4a1790  boss_ai_parse_table      func  boss_ai.cpp          O ; "#Boss Info", "$Num Stages:", "$Stage:", "$Offense point:" ...
+0x4a33b0  rider_unlink_mount       func  -                    O ; clears +0x6E0/+0x6E4 on rider and mount, mount ai target +0x384 = -1, flags, called by every *_set_solo
+0x4a3410  rand_int_range           func  -                    O ; (lo, hi): lo + (int)(frand() x (hi - lo))
 0x4a3df0  init_ccmd_obstacle_height_offset func  -                    O ; static initialiser: registers console command object ccmd_obstacle_height_offset
 0x4a3e10  cmd_obstacle_height_offset func  -                      O ; console command "obstacle_height_offset": Set the height level to draw obstacles relative to main player pos
 0x4a67f0  init_ccmd_avoidance      func  -                    O ; static initialiser: registers console command object ccmd_avoidance
@@ -529,8 +633,12 @@
 0x4aa8e0  door_find_by_mesh        func  -                    O ; "Unable to find door for mesh id %d"
 0x4aaa10  door_pick_by_mesh        func  -                    I ; "Unable to find door to pick for mesh id %d"
 0x4ab130  mp_process_join_request  func  -                    I ; "WARNING -- ignoring redundant join request packet from net ID"
+0x4abf20  irc_disconnect           func  -                    O ; sends "/QUIT", shutdown + closesocket, frees buffers
 0x4ac240  chat_process_irc_message func  -                    O ; IRC: PRIVMSG, CTCP, PING, JOIN, PART, KICK, NICK, MODE, TOPIC
+0x4adcd0  irc_process_input        func  -                    I ; chat line parser: "msg"/"/msg" -> "PRIVMSG %s :%s", "list", L"Unrecognized command", 6 callers
+0x4ae010  irc_join_channel         func  -                    O ; "/PART %s" for the old channel then "/JOIN %s"
 0x4ae410  mp_send_update           func  -                    I ; "Sending update", "Sending update because no ack"
+0x4af3c0  mp_announce_player_joined func  -                    O ; L236 "%s has entered the game." via chat_process_command
 0x4af400  mp_process_new_player    func  -                    I ; "Received new player packet but player %s is already connected"
 0x4b1420  init_ccmd_Turn_anims     func  -                    O ; static initialiser: registers console command object ccmd_Turn_anims
 0x4b1440  cmd_Turn_anims           func  -                      O ; console command "Turn_anims": Toggles Use_turn_anims
@@ -542,14 +650,18 @@
 0x4b8850  cmd_pyrul_stage          func  -                      O ; console command "pyrul_stage": Set Pyrul's current combat stage
 0x4b88a0  init_ccmd_pyrul_combat   func  -                    O ; static initialiser: registers console command object ccmd_pyrul_combat
 0x4b88c0  cmd_pyrul_combat         func  -                      O ; console command "pyrul_combat": Sets pyrul in combat state
+0x4b8a10  pyrul_boss_load          func  -                    I ; "pyrul_boss.tbl", "$missile01", offense points
 0x4b9e80  init_ccmd_ghost_stage    func  -                    O ; static initialiser: registers console command object ccmd_ghost_stage
 0x4b9ea0  cmd_ghost_stage          func  -                      O ; console command "ghost_stage": Set Ghost rider's current combat stage
 0x4b9ee0  init_ccmd_ghost_unlink   func  -                    O ; static initialiser: registers console command object ccmd_ghost_unlink
 0x4b9f00  cmd_ghost_unlink         func  -                      O ; console command "ghost_unlink": Unlinks ghost from mount
 0x4b9fa0  init_ccmd_ghost_combat   func  -                    O ; static initialiser: registers console command object ccmd_ghost_combat
 0x4b9fc0  cmd_ghost_combat         func  -                      O ; console command "ghost_combat": Puts ghost rider in combat state
+0x4b9fe0  ghost_find_rider         func  -                    O ; living-entity list scan by species, used by cmd_ghost_solo
 0x4ba030  init_ccmd_ghost_solo     func  -                    O ; static initialiser: registers console command object ccmd_ghost_solo
 0x4ba050  cmd_ghost_solo           func  -                      O ; console command "ghost_solo": Set ghost without horse
+0x4ba260  ghost_rider_boss_load    func  -                    I ; "ghost_rider_boss.tbl", "Liangshan"/"Jadetemple"/"masad", offense points
+0x4bbd80  ghost_set_solo           func  -                    O ; rider_unlink_mount, combat flag 0x248031a = 1 (cmd_ghost_solo)
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
 0x4c0f60  machival_boss_load       func  -                    I ; "machival_boss.tbl"

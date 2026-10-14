@@ -199,7 +199,16 @@ typedef struct Character {
     int32_t xp;              // +0x604 experience
     uint8_t _unmapped608[0x0c];
     uint8_t skill[0x60];     // +0x614 skill/attribute values by skill_id, value = byte * 0.01 (character_get_skill); skill level shown = value * 10; speed (id 2) shown = value * 1000 (11 -> 110%)
-    uint8_t _unmapped674[0xa8];
+    uint8_t _unmapped674[0x6c];
+    int32_t mount_link;      // +0x6E0 handle of the linked mount or rider (character_get_mount, rider_unlink_mount 0x4a33b0)
+    uint32_t mount_flags;    // +0x6E4 bit 0 = is a rider, bit 1 = is a mount
+    float   hp_overflow;     // +0x6E8 healing beyond max HP (character_add_hp)
+    uint8_t _unmapped6ec[0x0c];
+    char    float_text[16];  // +0x6F8 floating text above the character ("%d AP"; 0x461fe0)
+    uint8_t _unmapped708;
+    uint8_t float_text_rgb[3]; // +0x709
+    float   float_text_scale;  // +0x70C
+    uint8_t _unmapped710[0x0c];
     struct char_info* info;  // +0x71C character info record (char_infos); +0x10 species, +0x258 flags
     uint8_t _unmapped720[0x34];
     void*   equipment[10];   // +0x754 equipped items (item +4 = ItemType*); +0x768 (slot 5) weapon; +0x760/764/76C/770/774 armour
@@ -488,3 +497,20 @@ enum skill_id {
     SKILL_WEAK = 0x54,
     SKILL_NONE = 0x55,
 };
+
+// The AI sub-object at Character +0x324 (ai_state__ctor 0x4722f0; fields from ai_set_mode 0x473320). Partial.
+typedef struct ai_state {
+    int32_t mode;            // +0x00
+    int32_t submode;         // +0x04
+    int32_t prev_mode;       // +0x08
+    int32_t prev_submode;    // +0x0C
+    uint8_t _unk10[0x0c];
+    uint8_t timer[0x08];     // +0x1C GameTimer
+    uint8_t _unk24[0x28];
+    void*   owner;           // +0x4C the Character
+    uint32_t flags;          // +0x50
+    uint8_t _unk54[0x0c];
+    int32_t target;          // +0x60 target handle
+    uint8_t _unk64[0x1c];
+    void*   path;            // +0x80 current path (ai_path_free)
+} ai_state;

@@ -24,7 +24,10 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 
 | Offset | Type | Field | How it is known |
 |---|---|---|---|
-| `+0x00c` | int | type: 7 for player party members | `character_add_xp` only shows the level-up message for type 7 |
+| `+0x00c` | int | type: 7 for player party members; 6, 8 and 10 are the dead forms of 5, 7 and 9 | `character_add_xp` (type 7), `character_resurrect` (`0x454070`) |
+| `+0x324` | ai_state | AI sub-object: mode, previous mode, timer, owner, target handle `+0x60`, path `+0x80` | `ai_set_mode` (`0x473320`) |
+| `+0x6e0` / `+0x6e4` | handle / flags | linked mount or rider; flags bit 0 rider, bit 1 mount | `character_get_mount`, `rider_unlink_mount` |
+| `+0x6f8` | char[16] | floating text over the character (colour `+0x709`, scale `+0x70c`) | `0x461fe0`, used for "%d AP" |
 | `+0x080` | handle | the object's handle | written by `obj_create`; `player_from_handle(handle)` returns the player record |
 | `+0x2f4` | char[] | name | argument of `"%s gained level %d!"` |
 | `+0x320` | flags | `0x80` = dead | `party_level_reset` revives characters with this flag set |
