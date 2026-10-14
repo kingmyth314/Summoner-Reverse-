@@ -1,0 +1,80 @@
+// Fast local disassembly of Sum.exe with llvm-objdump (from LLVM-MinGW), annotated with symbol names.
+// The whole binary takes about 2 s, against minutes per function through REA (tools/disasm.mjs).
+//
+//   node tools/asm.mjs fn <addr|name> [max_lines]   one function, up to the next known function start
+//   node tools/asm.mjs grep <regex> [max]           matching instructions in game code, with the containing function
+//   node tools/asm.mjs callers <addr|name>          call sites of a function, with the containing function
+//
+// The listing is cached in build/sum.asm (git-ignored) and rebuilt when Sum.exe is newer.
+import { readFileSync, existsSync, statSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadSymbols, loadFunctions } from "./symbols.mjs";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const exePath = join(repoRoot, "Summoner", "Sum.exe");
+const asmPath = join(repoRoot, "build", "sum.asm");
+
+if (!existsSync(asmPath) || statSync(asmPath).mtimeMs < statSync(exePath).mtimeMs) {
+  mkdirSync(dirname(asmPath), { recursive: true });
+  const out = execFileSync("llvm-objdump", ["-d", "--no-show-raw-insn", "-M", "intel", exePath], { maxBuffer: 1 << 30 });
+  (await import("node:fs")).writeFileSync(asmPath, out);
+}
+
+const exe = readFileSync(exePath);
+const { symbols } = loadSymbols();
+const byAddr = new Map(symbols.map((s) => [s.addr, s.name]));
+const byName = new Map(symbols.map((s) => [s.name, s.addr]));
+const starts = [...new Set([...(loadFunctions() ?? []).map((f) => f.addr), ...symbols.filter((s) => s.kind === "func").map((s) => s.addr)])].sort((a, b) => a - b);
+
+// Instructions: [{va, text}] in address order.
+const ins = [];
+for (const line of readFileSync(asmPath, "latin1").split(/\r?\n/)) {
+  const m = /^\s+([0-9a-f]+):\s+(.*)$/.exec(line);
+  if (m) ins.push({ va: parseInt(m[1], 16), text: m[2].replace(/\s+<\.text\+0x[0-9a-f]+>/g, "").replace(/\s+/g, " ").trim() });
+}
+const indexOf = (va) => { let lo = 0, hi = ins.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (ins[mid].va < va) lo = mid + 1; else hi = mid; } return lo; };
+const funcOf = (va) => { let lo = 0, hi = starts.length - 1, r = -1; while (lo <= hi) { const mid = (lo + hi) >> 1; if (starts[mid] <= va) { r = starts[mid]; lo = mid + 1; } else hi = mid - 1; } return r; };
+const fname = (va) => byAddr.get(va) ?? `FUN_${va.toString(16).padStart(8, "0")}`;
+
+function stringAt(va) {
+  const o = va - 0x400000;
+  if (o < 0x17f000 || o >= exe.length) return null; // .rdata/.data only
+  const end = exe.indexOf(0, o);
+  if (end < 0 || end - o < 3 || end - o > 200) return null;
+  const s = exe.toString("latin1", o, end);
+  return /^[\x20-\x7e\t\r\n]+$/.test(s) ? s : null;
+}
+function annotate(text) {
+  const notes = [];
+  for (const m of text.matchAll(/0x[0-9a-f]{6,8}/gi)) {
+    const v = parseInt(m[0], 16), n = byAddr.get(v), s = stringAt(v);
+    if (n) notes.push(n);
+    else if (s) notes.push(JSON.stringify(s.length > 70 ? s.slice(0, 70) + "..." : s));
+  }
+  return notes.length ? `${text.padEnd(44)} ; ${notes.join(", ")}` : text;
+}
+const parseTarget = (t) => (byName.has(t) ? byName.get(t) : parseInt(t.replace(/^0x/, ""), 16));
+const show = (i) => console.log(`${ins[i].va.toString(16)}: ${annotate(ins[i].text)}`);
+
+const [cmd, arg, maxArg] = process.argv.slice(2);
+if (cmd === "fn") {
+  const va = parseTarget(arg), max = parseInt(maxArg ?? "3000", 10);
+  const next = starts.find((s) => s > va) ?? Infinity;
+  console.log(`; ${fname(va)}`);
+  for (let i = indexOf(va), n = 0; i < ins.length && ins[i].va < next && n < max; i++, n++) show(i);
+} else if (cmd === "grep") {
+  const re = new RegExp(arg, "i"), max = parseInt(maxArg ?? "200", 10);
+  let n = 0;
+  for (let i = 0; i < ins.length && n < max; i++) {
+    if (ins[i].va >= 0x56c740) break; // stop at the C runtime
+    if (re.test(ins[i].text)) { console.log(`${ins[i].va.toString(16)} [${fname(funcOf(ins[i].va))}]: ${annotate(ins[i].text)}`); n++; }
+  }
+} else if (cmd === "callers") {
+  const hex = "0x" + parseTarget(arg).toString(16);
+  for (let i = 0; i < ins.length; i++)
+    if (ins[i].text === `call ${hex}` || ins[i].text === `jmp ${hex}`) console.log(`${ins[i].va.toString(16)} [${fname(funcOf(ins[i].va))}]: ${ins[i].text}`);
+} else {
+  console.log("usage: node tools/asm.mjs fn <addr|name> [max] | grep <regex> [max] | callers <addr|name>");
+}

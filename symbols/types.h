@@ -184,7 +184,7 @@ typedef struct Character {
     uint8_t _unmapped84[0x270];
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
-    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x5AC two identical groups of six ints (31,30,29,26,30,29), meaning unknown
+    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC two identical groups of six ints (31,30,29,26,30,29), meaning unknown
     float   base_max_hp;     // +0x5F4 max HP without equipment; written by the level table
     float   hp;              // +0x5F8 current HP (119 code references)
     int16_t base_max_ap;     // +0x5FC
@@ -193,8 +193,29 @@ typedef struct Character {
     int16_t _pad602;
     int32_t xp;              // +0x604 experience
     uint8_t _unmapped608[0x0c];
-    uint8_t skill_byte[0x60];// +0x614 per-skill byte indexed by skill id, copied from the template on level-up (not the displayed level)
+    uint8_t skill[0x60];     // +0x614 skill/attribute values x100 by skill id (character_get_skill); id 2 speed (110 = 110%), id 1 base protection; set from the template on level-up
     uint8_t _unmapped674[0xe0];
-    void*   equipment[10];   // +0x754 equipped items; item->+4 type, type->+0x40 two {stat, value} modifiers
-    // +0x758/+0x75C (slots 1-2) also receive a share of experience; +0x768/+0x76C model pointers
+    void*   equipment[10];   // +0x754 equipped items (item +4 = ItemType*); +0x768 (slot 5) weapon; +0x760/764/76C/770/774 armour
+    // +0x758/+0x75C (slots 1-2) also receive a share of experience
 } Character;
+
+// An item type, shared by every item of that kind; an equipped item's +0x4 points at one. Observed for
+// "Short Sword" and "Tunic" in a runtime dump; most fields are not mapped yet.
+typedef struct ItemType {
+    const char* name;        // +0x00 "Short Sword"
+    int32_t _unk04;          // +0x04 1 for the tunic, 0 for the sword
+    int32_t armour_class;    // +0x08 index into armour_class_table (0x8b9d58); 0x0d for the sword
+    const char* model;       // +0x0C "prop-sword-short.v3d"
+    uint8_t _unmapped10[0x08];
+    int32_t _unk18;          // +0x18 100 sword, 20 tunic (price?)
+    int32_t _unk1c;          // +0x1C 4 sword, 6 tunic
+    void*   skill_mods[4];   // +0x20 -> {skill, value} (character_skill_equip_mod)
+    uint8_t _unmapped30[0x10];
+    void*   stat_mods[2];    // +0x40 -> {stat, value} (character_equip_bonus: 0 HP, 1 AP)
+    uint8_t _unmapped48[0x20];
+    int16_t damage;          // +0x68 weapon damage (35 for the short sword)
+    int16_t _unk6a;          // +0x6A 2 for the short sword
+    int16_t _unk6c;          // +0x6C 3 for the short sword
+    uint8_t _unmapped6e[0x82];
+    float   protection;      // +0xF0 armour protection (0.07 for the tunic, shown as 7)
+} ItemType;

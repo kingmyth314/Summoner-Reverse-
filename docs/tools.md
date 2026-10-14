@@ -141,6 +141,23 @@ symbol names, and immediates that point at strings are printed.
 node tools/disasm.mjs 0x431c60 [max_instructions]
 ```
 
+REA makes one call per instruction, so a large function takes minutes. Prefer `tools/asm.mjs`.
+
+## `tools/asm.mjs`
+
+Fast local disassembly with `llvm-objdump`, which comes with LLVM-MinGW (already needed for the
+SummonerFix build). The whole of Sum.exe takes about 2 seconds. The listing is cached in
+`build/sum.asm` (git-ignored) and rebuilt when Sum.exe changes. Output is annotated with names from
+`symbols/sum.symbols` and with the strings that immediates point at.
+
+```
+node tools/asm.mjs fn <addr|name> [max_lines]   # one function, up to the next known function start
+node tools/asm.mjs grep <regex> [max]           # matching instructions in game code, with the containing function
+node tools/asm.mjs callers <addr|name>          # call sites of a function
+```
+
+For example, `node tools/asm.mjs grep "\+ 0x5f8\]"` lists every access to a character's current HP.
+
 ## `tools/agent.mjs` (agent mode)
 
 Plays the game from scripts, through SummonerFix's agent mode (`[Debug] Agent=1`,

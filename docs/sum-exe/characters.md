@@ -35,12 +35,38 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | `+0x5fe` | short | current AP | set to max on level-up and restore |
 | `+0x600` | short | level | dump (3); `character_add_xp` |
 | `+0x604` | int | experience | dump (200); `character_add_xp` adds to it |
-| `+0x614` | byte[] | one byte per skill id, copied from the template on level-up | not the displayed skill level (values 10-11 where the screen shows 1) |
-| `+0x754` | item*[10] | equipment slots | `character_equip_bonus`; slots 5 and 7 were in use in the dump |
+| `+0x558` | sub-object | protection helper; its first field points back at the character | `character_get_protection` |
+| `+0x614` | byte[] | skill and attribute values x100, by skill id | `character_get_skill`: id 2 = speed (110), id 1 = base protection |
+| `+0x754` | item*[10] | equipment slots; slot 5 (`+0x768`) is the weapon, slots 3, 4, 6, 7 and 8 are armour | `character_equip_bonus`; the dump had a Short Sword in slot 5 and a Tunic in slot 7 |
 
 Maximum HP is `base_max_hp + character_equip_bonus(0)`, with a minimum of 1. Maximum AP is
 `base_max_ap + character_equip_bonus(1)`, with a minimum of 0. `character_equip_bonus(stat)` adds up
 the modifiers of every equipped item. Each item type has two `{stat, value}` modifiers at `+0x40`.
+
+## Character screen stats
+
+`status_draw_stats` (`0x42cff0`) draws the stat panel for `status_character` (`0x5bd810`). Each value
+is coloured by its equipment bonus: one colour for a positive bonus, another for a negative one, and
+the normal colour for none.
+
+| Shown | Computed as | Joseph at level 3 |
+|---|---|---|
+| HP, AP | current / `character_get_max_stat` | 128/128, 26/26 |
+| Speed | `character_get_skill(2)` x 100 | skill byte 110 → 1.10 → 110% |
+| Damage | weapon item type `+0x68` (slot 5) | Short Sword: 35 |
+| Protection | `character_get_protection` x 100 | Tunic 0.07 + level 3 x 0.01 = 0.10 → 10 |
+
+`character_get_skill(id)` (`0x462440`) returns `skill[id] x 0.01`, adjusted by equipment
+(`character_skill_equip_mod`, four `{skill, value}` entries at item type `+0x20`). It returns -999999 when
+`character_skill_allowed` says the template does not allow the skill.
+
+`character_get_protection` (`0x464de0`) works in one of two ways:
+
+- with no armour worn, it returns `get_skill(1) + level x 0.01`;
+- otherwise it adds up `armour_class_table[type +0x08] x type +0xf0` for each worn armour piece.
+
+The item type layout is `ItemType` in `symbols/types.h`. Its fields so far: name `+0x00`, model `+0x0c`,
+damage `+0x68` and protection `+0xf0`.
 
 ## Experience and levels
 
@@ -64,5 +90,5 @@ mapped yet.
 
 - The meaning of the two six-value groups at `+0x5ac` (attributes? base and current?).
 - The rest of each `xp_level_table` record: four shorts per level that differ between levels.
-- Where damage (35), speed (110%), protection (10), resistances and skill points (4) come from. They are
-  probably computed or stored in the template.
+- Where the resistances and skill points (4) come from. The skill points are probably at template `+0x17c`.
+- The rest of the stat panel after protection (`0x42d58f` onwards).
