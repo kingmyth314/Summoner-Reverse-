@@ -92,4 +92,5 @@ the [savegame](savegame.md) (`LENT` chunk).
 
 `ai_reset` loads the boss AI (`boss_ai_load`, from the `*_boss.tbl` tables) for type-9 entities and for
 Luminar. Each boss has its own stage, frame and attack functions in `0x494000`-`0x4ca000`, named by boss (for
-example `serpent_rider_set_flinch`, `tiger_load_anims`, `pyrul_boss_load`).
+example `serpent_rider_set_flinch`, `tiger_load_anims`, `pyrul_boss_load`). See [Bosses](bosses.md) for the
+dispatchers, the HP-based stage machines, each boss's mechanics and the cutscenes tied to them.
