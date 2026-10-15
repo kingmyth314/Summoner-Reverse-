@@ -316,7 +316,8 @@ functions. The unit it forms was checked with `tu-split2.mjs` at gamma 10, 30 an
   `conversation.cpp` 30, `player.cpp` 12, `multi_door.cpp` 6, and 12 more spread over four files. The
   `multi_door.cpp` tag on the avoidance accessor `0x4aa760` was wrong; id 246 is read at `0x4aa8bc` in
   `mp_handle_door_lockpick`. The tag is now cleared.
-- Open: the `timer.cpp` tag on `timer_wait` (`0x530bf0`) looks wrong.
+- The `timer.cpp` tag on `timer_wait` (`0x530bf0`) was wrong. The function sits between two os functions, so it is
+  now `vsdk\os`.
 
 The tagged set is now 111 files and 4,466 functions. The blind score, which hides each tagged file in turn, falls
 to 85.6% recall and 91.3% precision. Most misses are files that sit next to each other with no gap between them:

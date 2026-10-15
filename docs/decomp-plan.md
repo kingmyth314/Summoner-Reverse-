@@ -323,6 +323,20 @@ Two more confidence rounds produced these counts. The data round fixed 16 types:
 symbol, bool vs int, and `game_camera`. The function round renamed 15, for example `gr_d3d_set_bump_env` (D3D7 bump-map
 stage states), `ix_sphere_sphere` and `LineFile__flush`.
 
+**2026-10-15, last I round:** one agent re-checked the 106 symbols still at **I**. Result: 68 confirmed, 28
+renamed (checked in a sample before merging), and 10 still unclear. The unclear ones are mostly write-only OpenGL flags and
+trivial setters with no caller. Renames that change the meaning:
+- `matrix43__multiply_b` is `matrix43__equals`;
+- `gr_clip_vertex_codes` is `gr_classify_sphere_view` (it computes no codes);
+- `gr_poly_b` is `gr_poly_project_to_screen`;
+- `nw_send_to` always sends to 255.255.255.255, so it is `nw_send_broadcast` (the LAN game search);
+- `avoid_setting__init` fills the per-action defaults of the script system: `script_action_defaults__init`.
+
+`vector3__random_direction` and `vector3__random_unit_vector` have identical bodies. Summoner 2's order would swap the two
+names, but nothing in Sum.exe tells them apart, so they are left as they are. `timer_wait` (`0x530bf0`) moved from
+`timer.cpp` to `vsdk\os`: it sits between two os functions, and `timer.cpp` starts at `0x532820`.
+Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
+
 **Next for the decompilation:**
 1. Raise the **I** names, mostly the newly found starts, the CRT libm helpers and data.
 2. Split the binary into translation units. `tools/tu-split.mjs` proposes 119 units (see the

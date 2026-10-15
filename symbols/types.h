@@ -750,7 +750,7 @@ typedef struct sound_emitter {
     uint32_t flags;          // +0x50 1 used, 2 paused, 4 segment (volume and Doppler from +0x5c/+0x68), 8 playing
     int32_t repeat_delay;    // +0x54 ms between repeats, 0 = loop (sound_emitter_get_repeat_delay)
     int32_t repeat_timer;    // +0x58 GameTimer
-    vector3 seg_start;       // +0x5C used with flag 4 (sound_emitter_calc_volume, sound_emitter_calc_doppler_b); set by sound_emitter_create_at / set_pos_vel
+    vector3 seg_start;       // +0x5C used with flag 4 (sound_emitter_calc_volume, sound_emitter_calc_doppler_segment); set by sound_emitter_create_at / set_pos_vel
     vector3 seg_end;         // +0x68
 } sound_emitter;
 
