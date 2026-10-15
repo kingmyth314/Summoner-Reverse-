@@ -529,7 +529,8 @@ typedef struct ai_state {
     int32_t prev_mode;       // +0x08
     int32_t prev_submode;    // +0x0C
     uint8_t _unk10[0x0c];
-    uint8_t timer[0x08];     // +0x1C GameTimer
+    int32_t timer;           // +0x1C GameTimer (4 bytes: GameTimer__GameTimer writes one dword, -1)
+    int32_t _unk20;
     uint8_t _unk24[0x28];
     void*   owner;           // +0x4C the Character
     uint32_t flags;          // +0x50

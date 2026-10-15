@@ -7670,6 +7670,7 @@
 0x58a7dc  gamelist_button_defs     data:uint8[] new_gamelist.cpp     O ; static button defs of 0x40 bytes walked with runtime states 0x5bc768 by gamelist_handle_click and gamelist_draw
 0x58ac50  help_page_draw_table     data:void* -                    O ; 4 page draw functions indexed by the help page 0x5bc920 (call [4*page + 0x58ac50] in help_draw)
 0x58bc48  hud_flash_paused_names   data:char*[2] new_hud.cpp          O ; {"FlashPaused640.vbm","FlashPaused1024.vbm"}, bm_load([4*ui_hires]) in hud_load_bitmaps
+0x58bd3c  version_check_result     data:int -                    I ; value returned by version_check_run, set 1 on success or the error code path
 0x58bda4  ui_bitmap_suffix_tga     data:char*[2] -                    O ; {"640.tga","1024.tga"} indexed by 0x5bd318, appended to file names in every *_load_bitmaps
 0x58bdac  ui_bitmap_suffix         data:char*[2] -                    O ; {"640","1024"} indexed by 0x5bd318, used by skills_load_bitmaps and spells_load_bitmaps
 0x58bdb4  cursoricon_chain_bm      data:int -                    O ; bm_load("cursoricon-chain.tga") result stored by interface_init_global, drawn by levelrender_render_scene
@@ -7688,12 +7689,17 @@
 0x58cddc  itemtrade_button_defs    data:uint8[] new_itemtrade.cpp    O ; static button defs of 0x40 bytes walked with runtime states 0x5c15a0 by itemtrade_handle_click and itemtrade_draw
 0x58e10c  options_button_defs      data:uint8[] new_options.cpp      O ; static button defs of 0x40 bytes (shl 6), flag byte tested by options_handle_click and options_update_buttons
 0x58f390  pickup_list_row_width    data:int[3] new_pickup.cpp       O ; per resolution_index width passed to point_in_rect for each list row in pickup_handle_click and pickup_list_handle_click
+0x58f3a8  pickup_list_button_x     data:int[3] new_pickup.cpp       I ; per resolution_index x offset added for the item bitmaps in pickup_draw_item_list
 0x58f3e0  pickup_scrollbar_track_y data:int new_pickup.cpp       O ; [8*resolution_index] scrollbar track top y used by pickup_update_scrollbar and pickup_drag_scrollbar
 0x58f3f4  pickup_scrollbar_track_height data:int[3] new_pickup.cpp       O ; per resolution_index divisor (fidiv) in pickup_drag_scrollbar
 0x58f400  pickup_page_size         data:int[3] new_pickup.cpp       O ; visible rows per resolution_index (init 7), compared with the item count in pickup_update_scrollbar and page_up/down
 0x58f7b0  pxochat_join_pending     data:bool new_pxochat.cpp      I ; init 1, set to 1 by pxochat_init and pxochat_join_selected_channel, tested by pxochat_on_channel_joined
 0x58f7f4  pxochat_button_defs      data:uint8[] new_pxochat.cpp      O ; static button defs of 0x40 bytes walked with runtime states 0x5c3f08 by pxochat_handle_click and pxochat_draw
 0x590630  saveload_thumbnail_bm    data:int new_saveload.cpp     O ; bm_create result in saveload_load_bitmaps, drawn by saveload_draw_thumbnail, gr_mark_texture_dirty after saveload_capture_thumbnail
+0x5927e0  status_model_view_xy     data:int[3][2] new_status.cpp       I ; per resolution_index pair used as the model view rectangle origin by status_draw_model (gr_rect)
+0x5927f8  status_model_view_wh     data:int[3][2] new_status.cpp       I ; per resolution_index pair used as the model view rectangle size by status_draw_model (gr_rect)
+0x592840  status_level_value_right data:int[3] -                    I ; per resolution_index right edge for the right-aligned values in status_draw_level
+0x592894  status_stats_value_right data:int[3] -                    I ; per resolution_index right edge for the right-aligned values in status_draw_stats
 0x5928e8  status_skill_row_right   data:int[3] new_status.cpp       I ; per resolution_index (init 248), right edge of the skill rows in status_handle_click, status_show_skill_tooltip, status_draw_skills
 0x5928f4  status_page_size         data:int[3] new_status.cpp       O ; visible rows per resolution_index (init 10), compared with the row count in status_update_scrollbar, handle_click, page_up/down
 0x592918  status_skill_button_x    data:int new_status.cpp       I ; [8*resolution_index] x offset (y at 0x59291c) of the skill +/- buttons in status_handle_skill_buttons and status_draw_skills
@@ -7721,6 +7727,7 @@
 0x59441c  world_hover_tint_g       data:float -                    O ; 1.0, green argument of world_hover_tint_character
 0x594420  world_hover_tint_b       data:float -                    O ; 1.0, blue argument of world_hover_tint_character
 0x594440  level_display_names      data:char*[104] -                    O ; {level name, display string} pairs, 51 levels (cmp 0x33), filled by init_level_display_names, searched by saveload_format_level_name and level_format_display_name
+0x594fd0  lobby_join_channel_index data:int -                    O ; loop index over lobby_num_channels left at the matching channel by lobby_join_channel, -1 when none
 0x59513c  effect_stream_base       data:int -                    O ; effects_find_base result stored by effect_stream_open_current, tested by effect_stream_finish_entry
 0x5951b8  mp_packet_table          data:mp_packet_info[66] -                    O ; 0x1c-byte records {type, handler, flag, send counter, name[12] "GM_QURY".."INV_UQP"}, senders increment +0xc
 0x595b64  skill_names              data:char*[] characterinfo.cpp    O ; {"hand to hand","protection","speed","sword weapons",...} matched by characterinfo_parse_table and items_parse_table
@@ -7782,6 +7789,7 @@
 0x59c65c  serpent_boss_needs_setup data:bool -                    I ; init 1, set to 1 by serpent_unload, tested == 1 by serpent_boss_load
 0x59ce88  avoidance_enabled        data:int -                    O ; init 1, console command avoidance enable: "Avoidance areas enabled/disabled", tested by avoid_add_primitive
 0x59ce8c  avoidance_no_remove      data:int -                    O ; console command avoidance no_remove: "Avoidance areas will not be removed", tested by avoid_area_remove
+0x59ce90  avoidance_area_type      data:int -                    O ; set by cmd_avoidance: 1 rectangle, 0 circle ("Avoidance areas type ... selected")
 0x59d6e4  turn_scaler              data:float -                    O ; init 2.0, set by console command turn_scaler, multiplies the turn rate in ai_turn_towards
 0x59d7c8  character_size_radii     data:float[4] living_entity.cpp    O ; {0.15,0.47,1.0,99.9} indexed by char_info +0x90 in character_size_radius, character_distance_between_edges, charinfo_boss_radius
 0x59db70  lamp_glow_bitmap         data:int -                    O ; bm_load("WolongLampGlow01.tga") handle set by lamp_glow_load, used by lamp_glow_draw
@@ -7811,6 +7819,7 @@
 
 0x5a5c24  progress_next_time       data:int -                    O ; timer_get(1000)+100 set by progress_set_callback, -1 when cleared, progress_update calls back only after this time
 0x5a5c28  progress_step_count      data:int -                    O ; total steps passed to progress_set_callback, progress_update forces the callback when the step count since the last call exceeds 0x9b
+0x5a5c30  localize_pool_used       data:int localize             O ; bytes used in the localize string pool, advanced by length + 1 in localize_set_string
 0x5a5c38  localize_language_names  data:char[3][0x42] localize               O ; English, German, French
 0x5a6058  Gr_alpha_fog_ratio       data:float -                      O ; set by console command "alpha_fog" (sets); type from the SET callback (copies command_argument_float)
 0x5a605c  Gr_level_fog_multiplier  data:float -                      O ; set by console command "level_fog" (sets); type from the SET callback (copies command_argument_float)
@@ -7828,6 +7837,7 @@
 0x5a72a4  Gr_3d_zmax               data:float -                      O ; set by console command "zmax" (sets); type from the SET callback (copies command_argument_float)
 0x5a72a8  gr_view_zfar             data:float vsdk\gr              I ; init 1000.0, 8000.0 for mode 0x67 in gr_setup_3d, saved/restored by gr_save_3d_state/gr_restore_3d_state
 0x5a7480  Homogeneous_column       data:float[4] vsdk\math\matrix.cpp   V ; Summoner 2 name; {0, 0, 0, 1}
+0x5a7814  file_last_path_id        data:int vsdk\vfile           I ; path id remembered by File__open (-1 none), checked with file_path_id_valid and against path_root
 0x5a783c  wide_charmap_table       data:uint16[86] -                    O ; 86 wide chars (cmp 0x56), mapped by string_to_wide_charmap and searched by wide_charmap_to_string
 0x5a7dcc  nw_server_socket         data:int vsdk\net             I ; init -1, set by nw_ConnectToServer, compared in nw_work_reliable and nw_NewCloseSocket
 0x5a7dd0  nw_udp_socket            data:SOCKET vsdk\net               I
@@ -7854,8 +7864,18 @@
 0x5ad859  gr_opengl_vertex_alpha   data:bool vsdk\gr\opengl\gr_opengl.cpp I ; set 0/1 from the alpha source in gr_opengl_set_mode, tested by gr_opengl_bitmap and gr_opengl_tmapper
 0x5ad85c  gr_opengl_texture_u_scale data:float vsdk\gr\opengl\gr_opengl.cpp O ; out param of gr_opengl_tcache_set in gr_opengl_page_in, multiplies u in gr_opengl_bitmap and gr_opengl_tmapper
 0x5ad860  gr_opengl_texture_v_scale data:float vsdk\gr\opengl\gr_opengl.cpp O ; out param of gr_opengl_tcache_set in gr_opengl_page_in, multiplies v in gr_opengl_bitmap and gr_opengl_tmapper
+0x5af4fc  crt_app_type             data:int crt                  O ; MSVC __app_type: compared with 1 next to __error_mode (0x2fbdbec) in _FF_MSGBANNER before message 0xfc
+0x5af540  crt_iob                  data:uint8[20*0x20] crt                  O ; MSVC _iob: 20 FILE records of 0x20 bytes whose addresses are stored into __piob by the stdio init
 0x5af7e0  crt_pctype               data:void* -                    I ; C runtime _pctype: character class table pointer, [ptr + 2*c] & mask in the is*() functions when crt_mb_cur_max is 1
 0x5af9ec  crt_mb_cur_max           data:int -                    I ; C runtime __mb_cur_max (init 1): the is*() functions call _isctype when it is above 1, else index crt_pctype
+0x5afa08  crt_locktable            data:void*[] crt                  O ; MSVC _locktable: per-lock CRITICAL_SECTION pointers allocated (0x18 bytes) on first _lock(n)
+0x5afc6c  crt_tzname               data:char*[2] crt                  O ; MSVC _tzname: standard and daylight names converted with WideCharToMultiByte from the time zone info in _tzset_lk
+0x5afc78  crt_dststart             data:int[3] crt                  O ; MSVC dststart {yr, yd, ms}: yr set -1 by _tzset_lk, yd/ms compared in _isindst
+0x5afc88  crt_dstend               data:int[3] crt                  O ; MSVC dstend {yr, yd, ms}: yr set -1 by _tzset_lk, yd/ms compared in _isindst
+0x5afe38  crt_xcpt_act_tab         data:uint8[] crt                  O ; MSVC _XcptActTab: stored in ptd +0x50 by _initptd (with _holdrand = 1 at +0x14)
+0x5b0090  crt_old_sbh_heap         data:uint8[] crt                  O ; MSVC __small_block_heap: static first region of the old small-block heap (prev/next links +0/+4), used when 0x5b00a0 is -1
+0x5b20b0  crt_old_sbh_start_region data:void* crt                  O ; MSVC __sbh_p_starting_region: moved to the previous region when that region is released
+0x5b2180  crt_days                 data:int[13] crt                  I ; MSVC cumulative day table indexed by month in the time conversion that checks years 0x46..0x8a
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
 0x5b27e8 gameseq_state_next       data:int             -                 O
@@ -8052,6 +8072,7 @@
 0x5bd0cc  hud_detail_level_timer   data:GameTimer new_hud.cpp          O ; GameTimer (init_gametimer_5bd0cc), 4000 ms set by hud_draw_detail_level when the detail level changes
 0x5bd0d4  version_check_status_text data:char[512] -                    O ; status text copied by version_check_fetch, version_check_poll_download and version_check_set_error_text, shown by pxochat_version_check_frame
 0x5bd2d4  version_check_download   data:int -                    I ; result stored by version_check_fetch (0 = failed), polled by version_check_poll_download
+0x5bd2d8  version_check_done       data:int -                    O ; set to 1 by version_check_run when the check has finished, tested on entry to return the stored result
 0x5bd2e0  ui_tooltip_rect_w        data:int -                    O ; width of the hover rectangle saved by ui_tooltip_set, point_in_rect in ui_tooltip_hide_on_mouse_activity
 0x5bd2e4  ui_tooltip_rect_h        data:int -                    O ; height of the hover rectangle saved by ui_tooltip_set, point_in_rect in ui_tooltip_hide_on_mouse_activity
 0x5bd2e8  ui_3d_saved_ambient_b    data:float -                    O ; light_ambient_b saved by ui_3d_begin and restored by ui_3d_end
@@ -8138,6 +8159,7 @@
 0x5bd962  ui_input_locked          data:bool -                    I ; tested by interface_draw, interface_set_view_clip and interface_mouse_over_panel, written by ui_input_lock / ui_input_unlock
 0x5bd964  ui_3d_light_count        data:int -                    O ; lights created by ui_3d_begin (index of ui_3d_lights), released and reset to 0 by ui_3d_end
 0x5bd968  ui_model_lights_loaded   data:int -                    I ; tested by interface_frame and ui_load_model_lights, cleared by ui_model_lights_reset, read by ui_3d_begin
+0x5bd96c  leader_marker_phase      data:float -                    I ; float decreased by reported_frametime and wrapped in game_draw_leader_marker to animate the leader marker
 0x5bd970  inventory_scroll_pos     data:int new_inventory.cpp    O ; first visible list row: 0 in inventory_init, changed by page/scroll/drag, row offset in inventory_handle_click
 0x5bd974  inventory_selected_equip_slot data:int new_inventory.cpp    I ; -1 from inventory_init/handle_click, converted with inventory_slot_for_item_slot by inventory_show_item_info
 0x5bd978  inventory_scrollbar_w    data:int new_inventory.cpp    O ; scrollbar width (bitmap width) set by inventory_update_scrollbar, hit-tested in inventory_handle_click
@@ -8149,6 +8171,7 @@
 0x5c0fc4  inventory_identify_pending data:bool new_inventory.cpp    I ; cleared by inventory_handle_click, tested by inventory_identify_item, inventory_hover_tooltips and destroy_selected_item
 0x5c0fc8  inventory_saved_view_x   data:int new_inventory.cpp    I ; 0x25d8d5c saved by inventory_model_view_begin / inventory_preview_view_begin, restored by inventory_model_view_end
 0x5c0fcc  inventory_saved_view_y   data:int new_inventory.cpp    I ; 0x25d8d60 saved by inventory_model_view_begin / inventory_preview_view_begin, restored by inventory_model_view_end
+0x5c0fd0  inventory_action_menu_strings data:char*[5] new_inventory.cpp    O ; localised action names (inventory_action_strings) for the popup menu built by inventory_handle_click
 0x5c0fe4  inventory_mouse_mode     data:int new_inventory.cpp    O ; 0 idle, 1 button held, 2 dragging (0..5 switch in inventory_frame), set by inventory_handle_click
 0x5c0fe8  inventory_item_action_count data:int new_inventory.cpp    O ; entries of inventory_item_actions, reset and counted by inventory_update_item_buttons, loop bound in handle_click
 0x5c0fec  inventory_scrollbar_bm   data:int new_inventory.cpp    O ; bm_load result in inventory_load_bitmaps, tiled by inventory_draw_scrollbar
@@ -8504,6 +8527,7 @@
 0x5fbf44  hud_loading_bm           data:int -                    O ; bm_load hud-loading.tga in gameplay_load_cursors, drawn with gr_bitmap by draw_loading_icon
 0x5fbf4c  cursor_spot_invalid_bm   data:int -                    O ; bm_load cursorspot-invalid.vbm in gameplay_load_cursors, drawn by world_mouse_hover_target for invalid targets
 0x5fbf50  cursor_target_bm         data:int -                    O ; bm_load cursor-target.vbm in gameplay_load_cursors, cursor_set_type in gameplay_update_cursor, compared in cursor_draw
+0x5fbf54  game_status_message      data:char[128] -                    I ; on-screen message drawn by FrameEnd with font_small at (10, 20), compared with "Screenshot written to"
 0x5fbfd4  cursor_walk_bm           data:int -                    O ; bm_load cursor-walk.vbm in gameplay_load_cursors, default cursor_set_type in state_boot_enter/state_game_enter/pxochat_update_banner_cursor
 0x5fbfd8 game_debug_flags         data:int             -                 I
 0x5fbfdc  game_mouse_x             data:int -                    O ; filled each frame by GameTick via mouse_get_pos(&x, &y, &z 0x257ef80), read by every ui click and draw handler
@@ -8531,6 +8555,7 @@
 0x5fcc98  player_input             data:uint32[3] gameplay.cpp           I ; {flags, mouse x, mouse y}
 0x5fcca8  ccmd_slew                data:console_command -                      O ; console command object "slew"
 0x5fccb4  combat_mode              data:bool -                    I ; toggled by hud_toggle_combat_mode, LENT party bit 4
+0x5fccb6  player_mouse_held        data:bool gameplay.cpp         O ; set when mouse button 0 is pressed and cleared when it is released in player_read_mouse_input
 0x5fccc0  cutscene_alloc_pool      data:uint8[0x28] -                    O ; NoRlsAllocPool object (init_norlsallocpool_5fccc0), NoRlsAllocPool__Init over buffer 0x5fd260 size 0x4c00 in cutscene_parse_table, allocations in cutscene_parse_visset
 0x5fcce8  cutscene_saved_actors    data:int[175][2] -                    I ; pairs (name_hash_nocase of the actor, flags bit 1/2 from Character +0x320) recorded by cutscene_play, restored by cutscene_cleanup, up to the pool buffer 0x5fd260
 0x601e60  cutscene_saved_fog_multiplier data:float -                    O ; cutscene_play saves Gr_level_fog_multiplier here and sets it to 1, cutscene_cleanup restores it
@@ -8541,6 +8566,7 @@
 0x601e7c  cutscene_num_sequences   data:int16 -                    O ; cutscene object +0x14 (ctor sets -1), cutscene_sequence_update calls cutscene_cleanup when the current sequence reaches it
 0x601e80  cutscene_sequences       data:uint8[50*0x70] -                    O ; cutscene object +0x18: 50 camera sequences of 0x70 bytes (vector ctor with cutscene_camera_sequence__ctor), passed to camera_start_sequence
 0x603460  cutscene_cur_sequence    data:int16 -                    O ; cutscene object +0x15f8 (ctor sets -1), current sequence index advanced by cutscene_sequence_update, used by cutscene_events_frame and script_entry_jump_to_sequence
+0x603462  cutscene_cur_fade_event  data:int16 -                    I ; cutscene object +0x15fa, index into cutscene_data +0x100 (count +0xfc) advanced after gr_fade_in by SequenceTimer2
 0x603464  cutscene_sequence_started data:bool -                    O ; cutscene object +0x15fc, cleared then set 1 by cutscene_sequence_update after camera_start_sequence, tested by cutscene_events_frame and cutscene_script_entries_frame
 0x603470  cutscene_fx_handles      data:int[16] -                    O ; effects attached by cutscene_events_frame (fx_attach_to_character), fx_destroy and reset to -1 by cutscene_cleanup
 0x6034b0  cutscene_num_saved_actors data:int -                    O ; count of cutscene_saved_actors, zeroed and filled by cutscene_play, looped by cutscene_cleanup
@@ -8550,6 +8576,7 @@
 0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
 0x609f1c  cutscene_saved_fog_near  data:float -                    O ; fog_get_near_current saved by cutscene_play, passed back to fog_set_distances by cutscene_cleanup
 0x609f20  ccmd_stop_cutscene       data:console_command -                      O ; console command object "stop_cutscene"
+0x609f2c  cutscene_last_time       data:float -                    I ; previous sequence time in SequenceTimer, difference stored in 0x257f094, zeroed when a sequence starts
 0x609f30  cutscene_num_entries     data:int -                    O ; count of cutscene_entries, zeroed by cutscene_parse_table, bound of the searches in cutscene_play/cutscene_change_level_for
 0x609f34  cutscene_playing         data:bool -                    I ; set by cutscene_play when the cutscene starts, cleared by cutscene_cleanup next to gr_set_cfg_34_flag(0)
 0x609f38  cutscene_pending_name    data:char* -                    O ; entry name stored by cutscene_change_level_for, compared with Tiger-Escape/Serpent-Escape in cutscene_play_escape
@@ -8568,6 +8595,7 @@
 0x60a018  game_camera              data:camera -                    I ; the camera object, CMRA chunk via camera_get_state/camera_set_state
 0x60a290  camera_view_pos          data:vector3 -                    I ; eye position written each frame by state_game_frame, passed to gr_setup_3d and snd_change_listener, read by character_is_in_view/fx_frame (may be part of game_camera)
 0x60a29c  camera_view_orient       data:matrix3 -                    I ; view matrix passed to gr_setup_3d and snd_change_listener by state_game_frame/interface_init_global, used by fx_frame/fx_create_at_camera
+0x60a2c0  game_render_frame_timer  data:GameTimer -                    O ; static GameTimer (guard 0x609ff0) of game_render_frame, compared with 10000 ms
 0x60a2c8  level_filename           data:char[] -                    I ; current level name (compared with _stricmp throughout level scripts)
 0x60a2e8  level_script_name        data:char[32] -                    I ; set by game_change_level, header +0x88, prefix of two-stage and lc hashes
 0x60a308  level_prev_filename      data:char[32] -                    O ; level_apply_pending_change copies level_filename here before switching, cleared by game_change_level/state_boot_enter, read by ls_sewer_init/ls_worldmap1_init
@@ -8591,9 +8619,11 @@
 0x60ab60  gold_highlight_timer     data:GameTimer -                    O ; GameTimer (init_gametimer_60ab60) started for 5 s by hud_set_timed_highlight, world_tint_gold_object tints the object while valid
 0x60ab6c  world_pick_target_mode   data:int -                    I ; cleared by world_pick_reset/hud_frame, when set gameplay_update_cursor shows the target cursor and world_mouse_frame picks a target
 0x60ab70  chain_attack_timer       data:GameTimer gametarget.cpp       O ; GameTimer (init_gametimer_60ab70) armed for 1 s by chain_attack_select between chain attack picks
+0x60ab78  world_mouse_hit_pos      data:vector3 -                    I ; out parameter passed by world_mouse_frame to world_pick_under_mouse, world_pick_lobj and pick_test_character
 0x60ab88  world_interact_kind      data:int -                    O ; interaction type 1..4 set by hud_interact_nearest, zeroed by world_pick_reset, switch in object_use_container, gates world_mouse_frame
 0x60ab8c  world_hover_object       data:void* -                    O ; object under the mouse (type +0xc) set by world_mouse_hover_target/hud_interact_nearest, cleared in world_mouse_frame, used by character_use_skill
 0x60ab90  world_interact_object    data:void* -                    O ; object chosen by hud_interact_nearest/world_mouse_hover_target, cleared in world_mouse_frame, used by character_use_skill and object_use_container
+0x60ab98  world_pick_hit_lobj      data:void* -                    I ; out parameter of world_pick_lobj in world_mouse_frame, then passed on to the hit handlers
 0x60ab9c  gold_highlight_handle    data:int -                    O ; object handle stored by hud_set_timed_highlight, resolved with obj_from_handle in world_tint_gold_object
 0x60aba0  world_click_handled      data:bool -                    I ; set by world_click_move and at the end of world_mouse_frame, cleared when a new click starts (button bit 4), tested before acting on cur_character
 0x60aba4  world_pick_filter        data:char* -                    O ; pointer to a filter string set by world_pick_set_skill_filter (0x5943f8 for skill 0x26, else 0x5943f0), cleared by world_pick_clear_filter, checked by world_pick_ground_point
@@ -8699,14 +8729,17 @@
 0x651598  mp_local_player          data:void* -                    O ; this machine's multiplayer player record: mp_local_player_create allocates it with mp_player_alloc, +0x10 bit 0 host, +0x34 name
 0x651890  net_stats_recv_bytes     data:int -                    O ; bytes received this second, accumulated by multi_process_incoming, saved into net_stats_recv_history by mp_net_stats_update, reset by mp_reset_net_stats
 0x65d894  net_stats_history_index  data:int -                    O ; slot of the 10-entry net rate histories written by mp_net_stats_update, zeroed by mp_reset_net_stats
+0x65d898  multi_recv_buffer_index  data:uint8 -                    O ; byte index (inc per call) selecting the 0x4000-byte receive buffer at 0x651894 in multi_process_incoming
 0x65d8a0  mp_cur_packet            data:void* -                    O ; pointer to the packet being processed set by multi_process_packet (type byte, size word +1, data +3), checked by multi_send_packet
 0x65d8a4  mp_cur_packet_size       data:uint16 -                    O ; size word of the current packet read in multi_process_packet, used by multi_send_packet
 0x65d8a8  net_stats_timer          data:float -                    O ; accumulates reported_frametime in mp_net_stats_update, history slot written and reset each second
+0x65d8b0  multi_reliable_send_bufs data:uint8[4*0x204] -                    O ; 4 per-player buffers {int len, uint8 data[0x200]} of multi_send_packet, flushed by nw_NewSendReliable when full
 0x65e0c0  ccmd_disp_rate           data:console_command -                      O ; console command object "disp_rate"
 0x65e0cc  net_stats_recv_history   data:int[10] -                    O ; bytes received per second for the last 10 s (mp_net_stats_update), cleared by mp_reset_net_stats
 0x65e0f4  net_stats_sent_packets   data:int -                    O ; packets sent this second, incremented by multi_send_packet/multi_send_packet_buffered, saved to net_stats_sent_packets_history
 0x65e0f8  net_stats_avg_sent_packets data:int -                    O ; average of net_stats_sent_packets_history computed by mp_net_stats_update
 0x65e0fc  net_stats_sent_bytes     data:int -                    O ; bytes sent this second, added by multi_send_packet (nw_NewSendReliable) and multi_send_packet_buffered (nw_send)
+0x65e100  multi_unreliable_send_bufs data:uint8[4*0x204] -                    O ; 4 per-player buffers {int len, uint8 data[0x200]} of multi_send_packet_buffered, flushed by nw_send when full
 0x65e910  net_stats_sent_packets_history data:int[10] -                    O ; packets sent per second for the last 10 s (mp_net_stats_update), cleared by mp_reset_net_stats
 0x65e938  net_stats_avg_sent_bytes data:int -                    O ; average of net_stats_sent_bytes_history computed by mp_net_stats_update
 0x65e93c  net_stats_sent_bytes_history data:int[10] -                    O ; bytes sent per second for the last 10 s (mp_net_stats_update), cleared by mp_reset_net_stats
@@ -8719,8 +8752,10 @@
 0x68e1c0  charinfo_script_anim_pool data:StringPool characterinfo.cpp    O ; StringPool (init_stringpool_68e1c0, 0x1400 bytes at 0x7dfeb8) for script anim names in charinfo_load_script_anim, reset by summon_restore_after_cutscene
 0x68e1d4  joseph_anim_buffer_size  data:int characterinfo.cpp    O ; size of joseph_anim_buffer chosen per level by characterinfo_alloc_level_buffers (masad special case), used by characterinfo_load_party_anims
 0x68e1d8  rosalind_model_mempool   data:Mempool characterinfo.cpp    O ; Mempool made current in GameInit around character_load, Mempool__Copy of the Rosalind model buffer (0x852004, 0x37000) in characterinfo_load_party
+0x68e1f4  characterinfo_anim_slot_count data:int characterinfo.cpp    I ; running index into the pointer table at 0x88904c handed to each char_info (+0x80) by characterinfo_load_party
 0x68e1f8  statscreen_anim_buffer   data:void* characterinfo.cpp    O ; operator_new block of characterinfo_alloc_level_buffers, 0x7800-byte statscreen animation area used by statscreen_load_anim
 0x68e200  ccmd_All_summons         data:console_command -                      O ; console command object "All_summons"
+0x6d7e4c  summon_anim_buffer_size  data:int characterinfo.cpp    O ; operator_new size of the "Summon" anim block (0xfa000 or per level) chosen by characterinfo_alloc_level_buffers, buffer 0x714e50
 0x6d7e50  char_infos               data:char_info[256] characterinfo.cpp    O ; "$Character:" records (0x3d0 bytes); Character +0x71c points at one
 0x714e54  num_char_infos           data:int characterinfo.cpp    O ; record count, incremented by characterinfo_parse_table
 0x714e58  jekhar_anim_buffer       data:void* characterinfo.cpp    O ; operator_new block of characterinfo_alloc_level_buffers (size 0x847fe0), used for Jekhar Anims in characterinfo_load_party_anims
@@ -8758,6 +8793,7 @@
 0x8cbebc  items_num_allocated      data:int items.cpp            O ; live item count, zeroed by items_init_pool, incremented by item_alloc, decremented by item_free
 0x8cbec0  item_types               data:ItemType[521] items.cpp            O ; item type table (0x100 bytes each, count 0x8ec7c0, index < 0x209 in item_create), searched by item_type_find, used by the shop, inventory, paging and savegame code
 0x8ec7c0  num_item_types           data:int items.cpp            O ; count of item_types (capped at 0x209 by items_parse_table), bound of item_types_free, item_types_reset_identified, item_info_popup_open_type
+0x8ec7c4  ring_info_text           data:char[512] -                    O ; text buffer filled by ring_format_info (Summoning Ring, Ring Power, Available Summons) and returned in eax, 0x200 bytes up to damage_type_loc_names
 0x8ec9c4  damage_type_loc_names    data:char*[7] items.cpp            O ; init_strptrs_8ec9c4 stores localize_strings fire, ice, energy, magic, slashing, piercing, blunt, indexed by assess_format_info and ring_format_info
 0x8ec9e0  ring_stat_names          data:char*[2] items.cpp            O ; init_strptrs_8ec9e0 stores localize_strings 254..255 (MaxHP, MaxAP), used by ring_format_info
 0x8ec9e8  status_effect_names      data:char*[18] items.cpp            O ; init_strptrs_8ec9e8 stores localize_strings 256..273 (Blind, Silenced ... Dark wall), walked by status_draw_status_effects and ring_format_info
@@ -8862,6 +8898,7 @@
 0x22e48d0 ccmd_ai_wander           data:console_command -                      O ; console command object "ai_wander"
 0x22e4908  ai_prof_timer            data:int -                    O ; RealtimeTimer (init_realtimetimers_22e48e0, second object) of ai_do_frame, each period the AI time accumulators are averaged into 0x22e48e4.. and reset
 0x22e490c  ai_prof_path_us          data:int -                    O ; microseconds (timer_get 1000000) spent in ai_path_to path searches, added unless ai_do_frame_active, averaged and zeroed by ai_do_frame
+0x22e4910  ai_prof_do_frame_us      data:int -                    O ; microseconds (timer_get 1000000) of the boss hook pass over obj_active_list in ai_do_frame, averaged and zeroed there
 0x22e4914  ai_prof_frame_us         data:int -                    O ; first time accumulator of ai_frame (timer_get 1000000 deltas), averaged and zeroed by ai_do_frame
 0x22e4918  ai_prof_frame_b_us       data:int -                    O ; second time accumulator of ai_frame, averaged into 0x22e48ec and zeroed by ai_do_frame
 0x22e491c  ai_prof_frame_c_us       data:int -                    O ; third time accumulator of ai_frame, averaged and zeroed by ai_do_frame
@@ -8877,6 +8914,9 @@
 0x22e499d  ai_do_frame_active       data:bool -                    O ; set at the start of ai_do_frame and cleared at its end, ai_path_to skips its own time accounting while set
 0x22e49a0  ai_combat_style_names    data:char*[6] -                    O ; init_strptrs_22e49a0 stores localize_strings 0..5 (.., Support, Range, Healer, Caster, Healer/Caster), used by status_ai_popup_show and status_draw_combat_style
 0x22e49b8  camera_occluders         data:int[32] -                    O ; objects between camera and target added by camera_add_occluder (max 0x20), faded by levelrender_fade_occluders
+0x22e4a38  camera_frame_guard       data:uint8 -                    O ; static-local init guard bits of camera_frame (camera_frame_static_dtor_a, camera_frame_static_dtor_b)
+0x22e4ac0  camera_frame_last_pos    data:vector3 -                    O ; static vector3 of camera_frame: last camera position (+0x1a4) compared with the current one
+0x22e4ad0  camera_frame_last_target_pos data:vector3 -                    O ; static vector3 of camera_frame: last position of the target object (+0x14c then +0x10)
 0x22e4ae0 ccmd_mlook_sensitivity   data:console_command -                      O ; console command object "mlook_sensitivity"
 0x22e4aec  camera_num_occluders     data:int -                    O ; count of camera_occluders, reset by camera_frame/camera_level_reset, bound in camera_find_occluders
 0x22e4af0 ccmd_zoom_limit          data:console_command -                      O ; console command object "zoom_limit"
@@ -8914,6 +8954,7 @@
 0x22f8d84  levelrender_sort_list    data:void*[] -                    O ; transparent render entries (count 0x22fb6cc) appended by levelrender_build_draw_lists/add_lobj/add_effect_entry, sorted by levelrender_sort_back_to_front
 0x22f9558  overhead_label_slot_used data:bool[2][3] -                    O ; occupied flags of the overhead text slots, set by levelrender_draw_speech_text, checked by overhead_label_place, cleared by overhead_label_slots_expire
 0x22f9560  overhead_label_slot_owner data:int[2][3] -                    O ; owner of each overhead text slot written by levelrender_draw_speech_text, zeroed by overhead_label_slots_clear, used by levelrender_draw_name_labels
+0x22f957c  level_vis_set_records    data:void*[512] -                    O ; per vis set result of level_vis_record_find (cap 0x200, count level_num_vis_sets), second list of level_layer_vis records
 0x22f9d7c  levelrender_lobj_states  data:void* -                    I ; per level object 0xc-byte render records (flags +4: alpha bits, 0x4000 fading) allocated by levelrender_level_load, used by world_pick_lobj, levelrender_fade_occluders, add_lobj, draw_list
 0x22f9d80 ccmd_set_fog             data:console_command -                      O ; console command object "set_fog"
 0x22f9d8c  levelrender_float_texts  data:void*[16] -                    O ; floating text entries (max 0x10) collected by levelrender_draw_list, drawn by levelrender_draw_float_text at the end of levelrender_render_scene
@@ -8926,6 +8967,7 @@
 0x22fa6a8  levelrender_opaque_list  data:void*[] -                    O ; opaque render entries (count 0x22fb6c8) appended by levelrender_build_draw_lists/add_lobj/add_effect_entry, drawn and passed to shadows_draw_characters by levelrender_render_scene
 0x22fae78  level_layer_fog_far      data:float[20] -                    O ; per-layer fog far distance stored by fog_set_layer, cleared by levelrender_level_load, copied to fog_far by level_set_current_layer and the fog_set_*_camera_default functions when > 0
 0x22faec8  hover_tint_obj_g         data:int -                    O ; third argument (green) of hover_tint_set_object, used in levelrender_draw_list
+0x22faecc  levelrender_lobj_state_bytes data:int -                    I ; zeroed by levelrender_level_load, then grows by the level_mempool bytes used for the lobj state records
 0x22faed0 ccmd_render_characters   data:console_command -                      O ; console command object "render_characters"
 0x22faedc  level_vis_force_count    data:int -                    O ; entries in level_vis_force_list (max 0x10 in level_vis_force_add), 1 after level_vis_force_begin/reset, read by levelrender_render_scene
 0x22faee0  hover_tint_obj_b         data:int -                    O ; fourth argument (blue) of hover_tint_set_object, used in levelrender_draw_list
@@ -8961,6 +9003,8 @@
 0x22fb715  level_vis_forced         data:bool -                    O ; set by level_vis_force_begin, cleared by level_vis_force_end, levelrender_render_scene then uses level_vis_force_list
 0x22fb716 Cull_ground              data:bool -                      O ; set by console command "Cull_ground" (toggles); type from the TOGGLE callback (xor byte 1)
 0x22fb717  levelrender_fade_in      data:bool -                    O ; level fade direction: 1 fade in (levelrender_fade_reset), 0 fade out (levelrender_fade_out_start), stepped in levelrender_render_scene
+0x22fb718  levelrender_layer_fog_applied data:bool -                    I ; cleared by level_set_current_layer when the layer changes, set after fog_set_color, skips the fog setup when already set
+0x22fedd0  shadows_num_entries      data:int -                    O ; count of the 0x50-byte records at 0x22fb720 read by shadows_parse_table (cap 0xaf)
 0x22fedd8  chat_history_read        data:int -                    O ; read index of the 64-entry chat_history ring, advanced by chat_history_pop, zeroed by chat_history_clear
 0x22feddc  chat_history_write       data:int -                    O ; write index of the 64-entry chat_history ring, advanced by chat_history_push, zeroed by chat_history_clear
 0x22fede0  chat_history             data:uint8[64*0x108] -                    O ; ring of 64 chat entries of 0x108 bytes written by chat_history_push, read by chat_history_pop
@@ -8980,10 +9024,34 @@
 0x2319064  utrack_reply_buffer      data:void* -                    I ; output pointer passed to pxo_login_request, receives the reply in pxo_login_poll
 0x2319068  utrack_last_send_time    data:int -                    O ; timer_get(1000) of the last login packet, pxo_login_poll resends after 3.5 s
 0x231906c  utrack_request_time      data:int -                    O ; timer_get(1000) when pxo_login_request started, pxo_login_poll gives up after 30 s
+0x2319070  levelrender_glide_poly_verts data:float[] -                    O ; GrVertex array (60 bytes each) passed to grDrawPlanarPolygonVertexList by levelrender_draw_list_glide
+0x235b1f0  levelrender_d3d_vert_colors data:vector3[] -                    I ; per-vertex float colour of levelrender_draw_list_d3d, scaled by 255 into the vertex colour bytes
+0x2366d70  levelrender_gl_texcoords1 data:float[] -                    O ; glTexCoordPointer(4, GL_FLOAT) array for texture unit 0x84c1 (GL_TEXTURE1), 16 bytes per vertex, levelrender_draw_list_opengl
+0x2378770  levelrender_gl_texcoords0 data:float[] -                    O ; glTexCoordPointer(4, GL_FLOAT) array for texture unit 0x84c0 (GL_TEXTURE0), 16 bytes per vertex, levelrender_draw_list_opengl
+0x238a170  levelrender_wave_vertex_face_count data:float[] -                    O ; per-vertex count (+1.0 per face corner) used with levelrender_wave_vertex_normals in levelrender_wave_lobj
+0x2396c90  gr_info_total_time       data:int -                    I ; denominator of the Gamewide_show_gr_info percentages printed by FrameEnd (PointRotation, Backface, Z-Sorting), reset there
+0x2396ca8  levelrender_wave_vertex_normals data:vector3[] -                    O ; per-vertex normal sums of levelrender_wave_lobj (vector3__add_assign per face corner)
+0x23c5b38  levelrender_draw_list_opengl_guard data:uint8 -                    O ; static-local init guard bits of levelrender_draw_list_opengl (atexit_nop_492af0, atexit_nop_492ae0)
+0x23c5b3c  levelrender_gl_vert_point_light data:uint8[] -                    O ; per-vertex byte result of levelrender_sum_point_lights in levelrender_draw_list_opengl, summed per face
+0x23c7a80  levelrender_glide_proj_verts data:vector3[] -                    I ; per-vertex 12-byte records of levelrender_draw_list_glide (x, y snapped by 0x581ad0), same index as levelrender_glide_vert_colors
+0x23d3600  levelrender_draw_list_d3d_guard data:uint8 -                    O ; static-local init guard bits of levelrender_draw_list_d3d (atexit_nop_4914f0, atexit_nop_4914e0)
+0x23d3608  levelrender_glide_vert_colors data:vector3[] -                    I ; per-vertex float colour of levelrender_draw_list_glide, scaled by 255, passed with levelrender_glide_vert_lit
+0x23dfb08  levelrender_d3d_proj_verts data:vector3[] -                    I ; per-vertex 12-byte records of levelrender_draw_list_d3d, x and y copied into the D3D vertex, same index as levelrender_d3d_vert_colors
+0x23eb688  levelrender_wave_timer   data:GameTimer -                    O ; static GameTimer of levelrender_wave_lobj (guard 0x2438a14), its elapsed time drives the wave
+0x23eb68c  levelrender_draw_list_glide_guard data:uint8 -                    O ; static-local init guard bits of levelrender_draw_list_glide (atexit_nop_48fda0, atexit_nop_48fd90)
+0x23eb690  levelrender_d3d_vert_point_light data:uint8[] -                    O ; per-vertex byte result of levelrender_sum_point_lights in levelrender_draw_list_d3d
+0x23ec630  levelrender_face_vert_list data:void*[10] -                    I ; vertex list built by levelrender_face_vertex_colors, passed to gr_clip_and_project_poly(3, list) and returned
 0x23ec658  levelrender_wave_vertices data:vector3[] -                    O ; temporary vertex array filled by levelrender_wave_lobj for wavy level objects (flag 0x20), used instead of the mesh vertices by the draw lists
 0x23f81d8 ccmd_small_mesh_threshold data:console_command -                      O ; console command object "small_mesh_threshold"
 0x23fc838 ccmd_time_mult           data:console_command -                      O ; console command object "time_mult"
+0x23fc844  levelrender_gl_color_array data:uint32[] -                    O ; glColorPointer(4, GL_UNSIGNED_BYTE) array of levelrender_draw_list_opengl, 4 bytes per vertex
+0x240ca48  levelrender_glide_vert_point_light data:uint8[] -                    O ; per-vertex byte result of levelrender_sum_point_lights in levelrender_draw_list_glide
+0x240d9f0  levelrender_gl_proj_verts data:vector3[] -                    I ; per-vertex 12-byte records of levelrender_draw_list_opengl, indexed in step with levelrender_gl_vert_colors, copied into the GL vertex array
+0x2419570  levelrender_gl_vertex_array data:vector3[] -                    O ; glVertexPointer(3, GL_FLOAT) array of levelrender_draw_list_opengl, 12 bytes per vertex
+0x24268f8  levelrender_gl_vert_colors data:vector3[] -                    I ; per-vertex float colour of levelrender_draw_list_opengl, scaled by 255 to bytes, same index as levelrender_gl_proj_verts
 0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"
+0x2432484  levelrender_d3d_vert_lit data:uint8[] -                    I ; per-vertex flag of levelrender_draw_list_d3d, copied from the shared vertex and tested before lighting, passed with the colour arrays
+0x2437a74  levelrender_glide_vert_lit data:uint8[] -                    I ; per-vertex flag of levelrender_draw_list_glide, copied from the shared vertex and tested before lighting, passed with the colour arrays
 0x243e03c  levelrender_d3d_vertex_buffer data:void* levelrender.cpp      O ; Direct3D vertex buffer created through the device (vtable +0x14) by levelrender_create_vertex_buffer, used by levelrender_draw_list_d3d, released by levelrender_free_d3d_vertex_buffer
 0x243e040  ai_groups                data:ai_group[10] -                    O ; 10 AI groups of 0x54 bytes (types.h ai_group), slot found by ai_group_create, reset by ai_groups_reset, timers ticked by ai_groups_frame, saved by savegame_write_groups
 0x243e388 ccmd_party_controller_check data:console_command -                      O ; console command object "party_controller_check"
@@ -9111,16 +9179,22 @@
 0x2452ca4  tiger_mount              data:Character* -                    O ; character_get_mount result stored by tiger_boss_load, used by tiger_seat_rider
 0x2452ca8 ccmd_tiger_unlink        data:console_command -                      O ; console command object "tiger_unlink"
 0x2452cb8  pf_layer_links           data:uint32[20] pathfinding.cpp      I ; per-layer bit masks of connected layers built by pathfinding_load_graph, cleared by pathfinding_init/free_graph, tested by pf_link_point_to_nodes
+0x2452d08  pf_search_start_nodes    data:void*[10] pathfinding.cpp      O ; up to 10 start entries collected by pf_graph_search, count pf_search_start_count
 0x2452d30  ai_path_free_list        data:void* pathfinding.cpp      O ; free list (next at +0x24) of the 0x28-byte path nodes built by ai_path_pool_init, popped by ai_path_alloc_node, pushed by ai_path_free_node
 0x2452d34  ai_path_peak_used        data:int pathfinding.cpp      O ; highest ai_path_used seen (0x1f4 after ai_path_pool_init), updated by ai_path_alloc_node
+0x2452d38  pf_search_iterations     data:int pathfinding.cpp      I ; zeroed then incremented per expanded entry in pf_graph_search
 0x2452d40 ccmd_precalc_vis_method  data:console_command -                      O ; console command object "precalc_vis_method"
 0x2452d4c  ai_path_used             data:int pathfinding.cpp      O ; path nodes in use, zeroed by ai_path_pool_init, changed by ai_path_alloc_node/ai_path_free_node
 0x245c998  pf_bounds_max_x          data:float pathfinding.cpp      O ; graph bounding box computed by pf_compute_graph_bounds, used to quantize positions in mp_quantize_position/mp_dequantize_position
 0x245c99c  pf_bounds_min_x          data:float pathfinding.cpp      O ; graph bounding box minimum x from pf_compute_graph_bounds, used by mp_quantize_position/mp_dequantize_position
 0x245c9a0  pf_bounds_min_z          data:float pathfinding.cpp      O ; graph bounding box minimum z from pf_compute_graph_bounds, used by mp_quantize_position/mp_dequantize_position
 0x245c9a4  pf_bounds_max_z          data:float pathfinding.cpp      O ; graph bounding box maximum z from pf_compute_graph_bounds, used by mp_quantize_position/mp_dequantize_position
+0x245c9ac  pf_search_start_count    data:int pathfinding.cpp      O ; count of pf_search_start_nodes (cap 10) in pf_graph_search
 0x245c9d8 Precalc_vis_method       data:bool -                      O ; set by console command "precalc_vis_method" (toggles); type from the TOGGLE callback (xor byte 1)
 0x245cd90 ccmd_obstacle_height_offset data:console_command -                      O ; console command object "obstacle_height_offset"
+0x245cde8  obstacles_debug_highlight data:int -                    I ; value from cur_character +0x68c compared with each obstacle (+0x10) by obstacles_debug_render to pick its colour
+0x245f3a8  seg2d_cross              data:float pathfinding.cpp      I ; cross product of the two segment directions stored by seg2d_segment_intersect, compared with 0 (parallel test)
+0x2460ae0  pf_dword_pool_remaining  data:int pathfinding.cpp      O ; size of the 4-byte entry pool read by pathfinding_load_graph and carved from 0x245c9d4
 0x2460af4  pf_region_pool_remaining data:int pathfinding.cpp      O ; size of the 12-byte record pool read by pathfinding_load_graph, carved downward by pf_read_region, zeroed by pathfinding_free_graph
 0x2460af8  pf_word_pool_remaining   data:int pathfinding.cpp      O ; size of a 2-byte entry pool read by pathfinding_load_graph and carved downward there, zeroed by pathfinding_free_graph
 0x2460afc  pf_grid_cell_results     data:void*[100] -                    O ; cells found by pf_grid_cells_in_box/pf_grid_cells_along_segment (count pf_grid_cell_count), looped by pf_sweep_segment, door_find_floor_point, fx_find_spawn_point
@@ -9137,9 +9211,15 @@
 0x246a080  avoid_obstacles          data:uint8[14*0x88] -                    O ; 14 avoidance obstacles of 0x88 bytes taken by avoid_obstacle_alloc, converted by avoid_poly_from_obstacle/avoid_merge_obstacle_polys
 0x246a7f0  avoid_polys              data:uint8[14*0x114] -                    O ; 14 avoidance polygons of 0x114 bytes taken by avoid_poly_alloc, released by avoid_poly_release, used by avoid_clip_segments/avoid_create_obstacle_polys
 0x246b918 ccmd_avoidance           data:console_command -                      O ; console command object "avoidance"
+0x2479728  irc_bind_addr            data:uint8[16] -                    O ; sockaddr_in zeroed, AF_INET, given to bind and then port 0x293b by irc_connect
+0x2479744  irc_get_word_line        data:char[600] -                    O ; copy of the line split by strtok in irc_get_word, 0x258 bytes up to irc_word_buf
+0x247999c  irc_word_buf             data:char[] -                    O ; word copied and returned by irc_get_word
+0x247ae44  chat_irc_format_buf      data:char[] -                    O ; sprintf target of chat_process_irc_message ("* %s %s", "** CTCP %s %s %s" ...), returned as the formatted line
+0x247b82c  gtrack_last_heartbeat_time data:int -                    O ; time of the last update sent by gtrack_send_heartbeat, resend after 2000 ms
 0x247e880 ccmd_turn_scaler         data:console_command -                      O ; console command object "turn_scaler"
 0x247e890 ccmd_Turn_anims          data:console_command -                      O ; console command object "Turn_anims"
 0x247e8c0 Use_turn_anims           data:bool -                      O ; set by console command "Turn_anims" (toggles); type from the TOGGLE callback (xor byte 1)
+0x247fcb8  pathvis_segment_cycles   data:int engine\ai\pathfinding_visibility.cpp O ; read_tsc cycles accumulated around pathvis_segment_visible in determine_point_visibility
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
 0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
@@ -9203,6 +9283,7 @@
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
 0x248b9b4  evil_joseph_combat_enabled data:bool -                    O ; set by cmd_darkjo_combat and lsf_urath_killed, evil_joseph_ai_idle only engages when 1
 0x248b9b8  evil_joseph_threat_table data:int[30] -                    O ; 5 threat records of 0x18 bytes, cleared by evil_joseph_boss_load, returned by boss_get_threat_table
+0x248ba30  evil_joseph_mesh_tag_count data:int -                    O ; count of the 0x1c-byte entries at 0x248ba34 filled by evil_joseph_boss_load from character_find_mesh_tag results
 0x248bb4c  evil_joseph_moves        data:uint8[0x140] -                    O ; move records of 0x20 bytes from darkjo_boss.tbl (boss_ai_parse_table), indexed by evil_joseph_init_move_tables
 0x248bc8c  evil_joseph_current_move data:void* -                    O ; boss move record chosen by the Evil Joseph AI, cleared by boss_clear_current_move
 0x248bc94  evil_joseph_target_handle data:int -                    O ; living handle of the current target (living_from_handle)
@@ -9311,7 +9392,10 @@
 0x248cde8  luminar_release_timer    data:GameTimer -                    I ; 10 s set by luminar_ai_release, 0 at boss_load
 0x248cdec  luminar_teleport_timer   data:GameTimer -                    O ; 20 s / 0.5 s set by luminar_teleport_out, checked in stage 3 by luminar_ai_select_action
 0x248cdf0  luminar_beam_timer       data:GameTimer -                    O ; reset by luminar_beam_start, 20 s after luminar_beam_hit, 6 s in luminar_ai_frame
+0x248cdf4  luminar_throw_velocity   data:vector3 -                    I ; velocity set from the distance over time in luminar_frame_hook, applied per frame, y reduced by luminar_throw_gravity
 0x248ce00  luminar_grab_release_health data:float -                    O ; health (+0x5f8) minus a constant saved by luminar_ai_grab, select_action compares the health with it
+0x248ce04  luminar_throw_gravity    data:float -                    I ; zeroed then increased by frametime * 0x581c2c in luminar_frame_hook, subtracted from luminar_throw_velocity y
+0x248ce08  luminar_grab_cooldown    data:float -                    O ; seconds decreased by reported_frametime in luminar_ai_select_action, reset to 30.0 after luminar_try_start_grab
 0x248ce0c  luminar_beam_hit_done    data:bool -                    O ; cleared by luminar_beam_start, set by luminar_beam_hit after the first hit
 0x248ce0d  luminar_beam_fx_variant  data:bool -                    I ; 1 or 0 depending on the fx_attach_to_character branch in luminar_beam_start, read by luminar_beam_hit
 0x248ce10  luminar_teleport_dest    data:vector3 -                    O ; destination saved by luminar_teleport_out, applied to the position by luminar_teleport_in
@@ -9320,6 +9404,7 @@
 0x248ce2c  luminar_attack_timer     data:GameTimer -                    O ; luminar_hold_attack / luminar_delay_next_attack
 0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
 0x248ce40  lc_entries               data:uint8[0x3458] new_hud.cpp          O ; 50 records of 0x10c bytes: +0 object/hash, +4 name[0x100], +0x104 flags, +0x108 gold (lc_entry_add, container_examine), count lc_entry_count
+0x2490298  level_fog_near           data:float -                    O ; "+Fog Near:" of level_parse_table, passed to fog_set_level_default
 0x249029c  level_script_init_fn     data:void* -                    O ; level_script_info +0x04 of the current level, copied by level_script_select, called by level_script_init / restart
 0x24902a0  level_shopkeeper_count   data:int -                    O ; number of 0x14-byte records in level_shopkeepers (level_parse_shopkeeper, level_shopkeeper_find)
 0x24902a4  level_pending_exit_name  data:char* -                    I ; string stored by level_check_triggers from the tripped trigger, copied by level_apply_pending_change
@@ -9331,6 +9416,7 @@
 0x24902c4  level_exit_trigger       data:void* -                    O ; trigger record (level_triggers entry) that started a level exit, used by hud_confirm_level_exit, cleared by hud_level_exit_step_back
 0x24902c8  level_effects            data:void* -                    O ; level effect records (0x28 bytes: name, fx handle +0x20, flag +0x24), level_create_world_effects
 0x2490458  level_ambients           data:uint8[0x800] -                    O ; ambient sound records of 0x10 bytes {emitter, vector3 pos} (level_ambient_add / remove / find_at), count level_ambient_count
+0x2490c58  level_fog_far            data:float -                    O ; "+Fog Far:" of level_parse_table, passed to fog_set_level_default
 0x2490c5c  level_script_action_fn   data:void* -                    O ; level_script_info +0x18 of the current level, used by conversation_execute_action
 0x2490c60  level_exit_trigger_flags data:int -                    I ; trigger +0x50 copied by level_check_triggers, tested (bit 2) by level_apply_pending_change
 0x2490c68 ccmd_do_frame_callback   data:console_command -                      O ; console command object "do_frame_callback"
@@ -9360,11 +9446,13 @@
 0x2494b20 ccmd_savegame            data:console_command -                      O ; console command object "savegame"
 0x2494b2c  savegame_buffer          data:uint8_t[0x4b000] -                    O ; the save buffer, a .sav file is its first +0x08 bytes (270755 in v1.40)
 0x24dfb30 ccmd_gamestage           data:console_command -                      O ; console command object "gamestage"
+0x24dfb3c  events_int_pool          data:int[0x1000] -                    I ; int pool carved by events_parse_table for the event list pointers (+0x28, +0x34, +0x3c), 0x4000 bytes up to savegame_file_version
 0x24e3b3c  savegame_file_version    data:int -                    O ; version read from the last header (must be 0x27)
 0x24e3b40  flece_joined             data:bool -                    O ; set when game_stage_set adds Flece with party_member_join, or by ls_lenele1c_frame, cleared by party_level_reset
 0x24e3b41  jekhar_joined            data:bool -                    O ; set when game_stage_set adds Jekhar, or by ls_lpalaceint_frame, cleared by party_level_reset
 0x24e3b42  rosalind_joined          data:bool -                    O ; set when game_stage_set adds Rosalind, or by lsf_iona_ext_found_rosalind, cleared by party_level_reset
 0x24e3b43  level_script_event_active data:bool -                    O ; set by level-script event helpers, cleared by level_script_event_flag_clear, savegame_location_allowed refuses saving when 1
+0x24e3b44  events_int_pool_offset   data:int -                    O ; byte offset into events_int_pool, zeroed and advanced by 4*count per event list in events_parse_table
 0x24e3b48 Preparse_scripts         data:bool -                      O ; set by console command "Preparse_scripts" (toggles); type from the TOGGLE callback (xor byte 1)
 0x24e3b50  level_items              data:uint8[0xe00] items.cpp            O ; 32 level item records of 0x70 bytes (level_items_parse_table, item_obj_pickup, savegame_read_level_items), count level_item_count
 0x24e4950  navpoints                data:uint8[0x8ca0] -                    O ; 750 navpoint records of 0x30 bytes (name, +0x10 handle, +0x14 pos), navpoint_find / level_add_navpoint, count navpoint_count
@@ -9417,6 +9505,7 @@
 0x2549d40  script_editor_door_lock_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): first field (10,25) of the door lock window, script_editor_show_door_lock
 0x254a2f0  script_editor_door_close_volume_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): second Volume field at the same place (closing sound)
 0x254a8a0 ccmd_remove_nav          data:console_command -                      O ; console command object "remove_nav"
+0x254a8b0  script_editor_saved_pos  data:vector3 -                    I ; vector3 copied from 0x255a024 and later written back to 0x255a018 by script_editor_handle_input
 0x254a8d8  script_editor_ambient_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): ambient sound dialog: name, list, Min range, Volume, Roll-off, Loop Delay, OK (script_editor_ambient_ok)
 0x254adc8  script_editor_load_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_load_window
 0x254b1f0  script_editor_door_lock_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): door lock dialog: item inputbox and list, Give item, OK / Remove (script_editor_show_door_lock)
@@ -9583,10 +9672,12 @@
 0x257e9c8  ls_jadetemple_fade_timer data:GameTimer -                    O ; GameTimer (init_ls_jadetemple_timers) 5 s with gr_fade_out in lsf_tiger2_dead
 0x257e9cc  ls_jadetemple_place_pending data:bool -                    I ; set by ls_jadetemple_action, ls_jadetemple_frame then moves the party
 0x257e9d0  ls_lenele3d_timer        data:GameTimer -                    O ; GameTimer built by init_ls_lenele3d_timer, 1 s set by ls_lenele3d_init
+0x257e9e8  ls_eleh_cutscene_timer   data:GameTimer -                    O ; static GameTimer (guard 0x257e9e4) of ls_eleh_cutscene_frame, 500 ms steps
 0x257e9ec  ls_eleh_go_ground        data:bool -                    O ; elevator choice GroundFloor set by ls_eleh_action, read by ls_eleh_fade_place_party_frame (entry point 5)
 0x257e9ed  ls_eleh_go_bottom        data:bool -                    O ; elevator choice BottomFloor set by ls_eleh_action, read by ls_eleh_fade_place_party_frame
 0x257e9ee  ls_eleh_go_other         data:bool -                    I ; third elevator choice set by ls_eleh_action, read by ls_eleh_fade_place_party_frame
 0x257e9ef  ls_eleh_go_top           data:bool -                    O ; elevator choice TopFloor set by ls_eleh_action, ls_eleh_frame moves the party and clears it
+0x257e9f0  ls_eleh_cutscene_state   data:int -                    O ; state switch 0..2 of ls_eleh_cutscene_frame (gr_fade_out then 2, reset 0)
 0x257e9f4  ls_wolong2_alert_pending data:bool -                    I ; set by ls_wolong2_force_alert, ls_wolong2_frame moves the party (character_place_at_marker) and clears it
 0x257e9f8  ls_khosanilab2_pyrulstart_done data:bool -                    O ; set when pyrulstart starts the Pyrul music (ls_khosanilab2_frame)
 0x257e9f9  ls_khosanilab2_trapped_pyrul_done data:bool -                    O ; set when trapped_pyrul starts the KhosaniLab music (ls_khosanilab2_frame)
@@ -9594,6 +9685,7 @@
 0x257e9fd  ls_lpalaceint02_bothdead_done data:bool -                    O ; set when bothdead restores the level music (ls_lpalaceint02_frame)
 0x257ea00  ls_lpalaceint_sneak_timer data:GameTimer -                    O ; GameTimer (init_ls_lpalaceint_timer) of the sneak sequence, gates ls_lpalaceint_sneak_remark
 0x257ea05  ls_lpalaceint_got_suit_done data:bool -                    O ; cleared by ls_lpalaceint_init, set once got_suit moves the palace guards (ls_lpalaceint_sneak_frame)
+0x257ea08  ls_lpalaceint_sneak_frame_timer data:GameTimer -                    O ; static GameTimer (guard 0x257ea0c) of ls_lpalaceint_sneak_frame, 500 ms before character_place_at_party_start
 0x257ea10  ls_lpalaceint_sneak_state data:int -                    O ; 0, 1 or 2 state of ls_lpalaceint_sneak_frame (caught fade sequence), 0 at ls_lpalaceint_init
 0x257ea14  ls_lpalaceint_yago_meeting_pending data:bool -                    O ; set by ls_lpalaceint_action, ls_lpalaceint_frame plays Meeting-With-Yago and clears it
 0x257ea18  ls_lpalaceint_remark_stage data:int -                    O ; 0, 1, 2 stage of ls_lpalaceint_sneak_remark (party remarks after being caught)
@@ -9625,6 +9717,7 @@
 0x257ea75  ls_templeint_play_urathmyth2d data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth2d and clears it
 0x257ea76  ls_templeint_eavesdrop_pending data:bool -                    O ; set by ls_templeint_init, ls_templeint_frame plays Eavesdropping and sets sornehan_played
 0x257ea78  ls_wolongcaverns_ptrap_timer data:GameTimer -                    O ; poison trap GameTimer (init_ls_wolongcaverns_ptrap_timer), ls_wolongcaverns_ptrap_fire
+0x257ea7c  ls_wolongcaverns_demilich_timer data:GameTimer -                    O ; static GameTimer (guard 0x257ea9c) of ls_wolongcaverns_demilich_sequence, 500 ms steps
 0x257ea80  ls_wolongcaverns_poisonmist_sound data:int -                    O ; snd_get_handle of wolong_caverns_poisonmist.wav (ls_wolongcaverns_init), played by ls_wolongcaverns_ptrap_fire
 0x257ea84  ls_wolongcaverns_trap1_timer data:GameTimer -                    O ; spear trap 1 GameTimer (init_ls_wolongcaverns_trap1_timer), ls_wolongcaverns_trap1_fire
 0x257ea88  ls_wolongcaverns_ptrap_pos data:vector3 -                    O ; position of navpoint $poisontrap (ls_wolongcaverns_init), distance test in ls_wolongcaverns_ptrap_frame / fire
@@ -9634,6 +9727,7 @@
 0x257eaa4  ls_wolongcaverns_trap1_fx data:int -                    O ; fx_create_world handle of wc-trap1.vfx (ls_wolongcaverns_trap1_fire), -1 at init
 0x257eaa8  ls_wolongcaverns_trap2_timer data:GameTimer -                    O ; spear trap 2 GameTimer (init_ls_wolongcaverns_trap2_timer), ls_wolongcaverns_trap2_fire
 0x257eaf8  ls_wolongcaverns_demilich_step data:int -                    O ; step of ls_wolongcaverns_demilich_sequence (Balis the Demilich), set by ls_wolongcaverns_action, 0 at init
+0x257eafc  ls_wolongcaverns_demilich_state data:int -                    O ; state switch 0..2 of ls_wolongcaverns_demilich_sequence (fade out, set 2, reset 0)
 0x257eb00  ls_ionaext_elevator_timer data:GameTimer -                    O ; function-static GameTimer of ls_ionaext_fade_place_party_frame (guard bit in 0x257eb04, atexit), 0.5 s steps
 0x257eb08  ls_ionaext_cutscene_state data:int -                    O ; 0, 1, 2 state of ls_ionaext_fade_place_party_frame, 0 at ls_ionaext_init
 0x257eb0c  ls_ionaext_go_up         data:bool -                    I ; first choice set by ls_ionaext_action (before GoDown), read by ls_ionaext_fade_place_party_frame
@@ -9690,6 +9784,8 @@
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
 0x257f030  mouse_hidden             data:bool vsdk\os\mouse        O ; returned by mouse_is_hidden, set by mouse_set_hidden / mouse_set_visible, mouse_update skips recentring when set
 0x257f031  keep_mouse_centered      data:bool vsdk\os\mouse        V ; Dash Faction rf::keep_mouse_centered is mouse_initialized+0x10, same as here (mouse_inited 0x257f021)
+0x257f034  mouse_prev_x             data:int vsdk\os\mouse        O ; last mouse x stored by mouse_update, subtracted to get mouse_dx
+0x257f038  mouse_prev_y             data:int vsdk\os\mouse        O ; last mouse y stored by mouse_update, subtracted to get mouse_dy
 0x257f03c  mouse_last_z             data:int -                    I ; previous wheel/z reading kept by mouse_update to compute mouse_dz (after the x/y pair at 0x257f034)
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f080  frametime_saved_max      data:float frametime.cpp        O ; max_reported_frametime saved at start (init_frametime_saved_max) and by frametime_unlimit, restored by frametime_restore_limits
@@ -9796,6 +9892,7 @@
 0x25d921c  gr_antialias_enabled     data:bool -                    O ; read by options_set_antialias, options_draw and cmd_antialiasing, set by gr_set_antialias
 0x25d921e  gr_initialized           data:bool vsdk\gr\gr.cpp       O ; set at the end of gr_init, gr_deactivate does nothing until set
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
+0x25d9224  cmd_antialiasing_on      data:bool -                    O ; state toggled by cmd_antialiasing (only when gr_antialias_enabled), new value passed to gr_set_antialias
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
 0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
 0x25d94c0 gr_num_fonts             data:int vsdk\gr\gr_font.cpp    O
@@ -9842,13 +9939,16 @@
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x25db920  debug_command_prefixed   data:int console.cpp          V ; Summoner 2 name, process_command prints next arg is ..., Found float number! ... when set
 0x25e74b0  ca_skin_positions        data:vector3[2000] vsdk\ca              O ; skinned vertex positions accumulated per bone weight by gr_glide/d3d/opengl_render_character_mesh (init_ca_vertex_buf_25e74b0)
+0x2602aa8  ca_gl_mesh_colors        data:uint32[] vsdk\ca              O ; glColorPointer(4, GL_UNSIGNED_BYTE) array of gr_opengl_render_character_mesh
 0x2622e48  ca_skin_normals          data:vector3[2000] vsdk\ca              I ; second 2000-entry vector3 buffer accumulated with the positions in the character mesh renderers (init_ca_vertex_buf_2622e48)
+0x2634788  ca_glide_mesh_verts      data:float[] vsdk\ca              O ; GrVertex array passed to grDrawPlanarPolygon(3, ...) by gr_glide_render_character_mesh
 0x266f108  ca_morph_vertices        data:vector3[2000] vsdk\ca              O ; morph target blend output of ca_render_morph_vertices, read by the character mesh renderers
 0x2674ec8  ca_vertex_done           data:uint8[2000] vsdk\ca              I ; per-vertex flag set once a vertex is transformed in the character mesh renderers (27 uses)
 0x2682988  ca_render_current_mesh   data:void* vsdk\ca              O ; mesh set by ca_render_set_mesh, drawn by ca_render_mesh, tested by ca_render_has_mesh
 0x26829a0  gr_user_clip_planes      data:gr_clip_plane[8] vsdk\gr              O ; 8 clip planes of 0x1c bytes (init_gr_user_clip_planes), saved and restored by gr_save_3d_state / gr_restore_3d_state
 0x2682a80  gr_eye_pos               data:vector3 vsdk\gr              O ; untransformed camera position copied by gr_setup_3d, Dash Faction gr::eye_pos
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
+0x2682aa0  vfx_mesh_sort_buf        data:uint8[] -                    O ; 8-byte {float key, uint16 index} entries sorted by sort_by_float_key in vfx_mesh_render
 0x26924a0  gr_num_user_clip_planes  data:int vsdk\gr              O ; number of gr_user_clip_planes in use, loop count of gr_save_3d_state / gr_restore_3d_state
 0x26924a4  gr_projection_xadd       data:float vsdk\gr              O ; clip left plus gr_projection_xmul (gr_setup_3d), Dash Faction gr::projection_xadd
 0x26924a8  gr_view_pos              data:vector3 vsdk\gr              O ; viewer position (instance-relative), set by gr_setup_3d, saved/transformed by gr_start_instance, Dash Faction gr::view_pos
@@ -9859,6 +9959,7 @@
 0x26927c0  gr_eye_matrix            data:matrix3 vsdk\gr              O ; untransformed camera orientation copied by gr_setup_3d, Dash Faction gr::eye_matrix
 0x26927e8  gr_projection_ymul       data:float vsdk\gr              I ; clip_height / 2, sy = ymul * (1 - y/z) + offset_y
 0x26927f0  gr_light_base            data:vector3 vsdk\gr              O ; zeroed by gr_setup_3d, transformed by gr_start_instance when lighting, Dash Faction gr::light_base
+0x26927fc  vfx_mesh_sort_count      data:int -                    O ; count of the 8-byte sort entries in vfx_mesh_sort_buf, zeroed and incremented by vfx_mesh_render
 0x2692800  gr_light_matrix          data:matrix3 vsdk\gr              O ; identity in gr_setup_3d, multiplied by instance orient, Dash Faction gr::light_matrix
 0x2692824  gr_projection_xmul       data:float vsdk\gr              I ; clip_width / 2, sx = xmul * (1 + x/z) + offset_x in gr_project_vertex
 0x2692828  gr_projection_ymul_neg   data:float vsdk\gr              O ; negated gr_projection_ymul stored by gr_setup_3d, saved by gr_save_3d_state
@@ -9897,9 +9998,14 @@
 0x26b637c  file_inited              data:bool vsdk\vfile           I ; set to 1 at the end of file_init
 0x26b6380  vfile_access_level       data:int -                    O ; raised by vfile_raise_access_level and lowered by vfile_lower_access_level (printed through string_buffer)
 0x26b63a0  file_blast_buffer        data:char* vsdk\parse\parse.cpp I ; in-memory file data set by file_blast_into_buffer, TextFile__Open reads from it when set, TextFile__Close clears it
-0x26b63a4  file_blast_filename      data:char[0x4c] -                    I ; file name copied by file_blast_into_buffer, passed to packfile_find_in_packfile by TextFile__Open
+0x26b63a4  file_blast_filename      data:char[0x40] -                    I ; 0x40 bytes: the Bink handle follows at 0x26b63e4. file name copied by file_blast_into_buffer, passed to packfile_find_in_packfile by TextFile__Open
+0x26b63e4  movie_bink_handle        data:void* -                    O ; _BinkOpen result in movie_play, passed to movie_blit_frame, lies inside file_blast_filename (char[0x4c]) whose size looks too big
 0x26b63f0  nw_recv_buffers          data:uint8[0x10000] vsdk\net             I ; per-socket receive ring buffers (nw_buffer_init / push / pop), nw_receive_all and nw_buffer_receive
+0x2707d2c  nw_connection_speed      data:char[] vsdk\net             O ; registry "ConnectionSpeed" string (default "None") read by nw_init_networking, compared with "none"
 0x270812c  nw_network_status        data:int -                    I ; result stored by nw_init_networking, mainmenu_check_network shows an error for 1 / 2, sent by mp_build_game_info
+0x2708398  nw_reliable_recv_buf     data:uint8[0x262] vsdk\net             O ; packet buffer of nw_work_reliable (nw_buffer_receive size 0x262): type byte (3 connect, set 7), seq +2, data +6
+0x2708600  nw_connect_reply_buf     data:uint8[0x262] vsdk\net             O ; zeroed (0x98 dwords) and filled by nw_buffer_receive in nw_ConnectToServer, reply checked for version 0x142 at +0xa
+0x2708868  nw_connect_request       data:uint8[10] vsdk\net             O ; 10-byte connect packet of nw_ConnectToServer: type 3, version 0x142 at +2, sent by nw_send_packet
 0x2708ad0  nw_reliable_sockets      data:uint8[0x83c2] vsdk\net             O ; reliable connection records of 0xd2d bytes, cleared by nw_reliable_reset, used by nw_work_reliable / nw_accept_reliable / nw_ConnectToServer
 0x2710e94  nw_reliable_resend_time  data:int vsdk\net             I ; timer_get value compared and updated by nw_work_reliable, set by nw_ConnectToServer
 0x2710e98  nw_last_heartbeat_time   data:int vsdk\net             O ; timer_get value set by nw_send_heartbeat, nw_work_reliable sends again after 750 ms
@@ -9932,6 +10038,8 @@
 0x2c9f1b0  effect_base_stream_users data:uint8[192] vsdk\geom\effect_mem.cpp I ; per effect base use counter incremented by rfx_preload and decremented by effect_base_alloc_stream_buffer
 0x2c9f270  effects_stream_slots_b   data:int[6] -                    O ; second set of streaming slots (-1 free) used by effects_alloc_stream_slot, reset by rfx_preload / effects_reset_level
 0x2c9f96c  effects_preload_count    data:int vsdk\geom            I ; incremented by rfx_preload, decremented by effect_base_release (releases when it reaches 0)
+0x2c9f970  effects_stream_slot_next data:int vsdk\geom\effect_mem.cpp O ; round-robin start index into effects_stream_slots used and advanced by effects_find_stream_slot
+0x2c9f974  effects_stream_slot_b_next data:int vsdk\geom            O ; round-robin start index into effects_stream_slots_b used and advanced by effects_alloc_stream_slot
 0x2c9f978  vfx_instance_free_list   data:void* vsdk\geom            I ; free list of vfx instances (next +0x40, prev +0x44), vfx_instance_create
 0x2c9f97c  fx_rec98_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec98_array built by effects_init_pools, popped by vfx_instance_create, pushed by vfx_instance_free
 0x2c9f980  fx_rec30_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec30_array (effects_init_pools, vfx_instance_create / free)
@@ -10007,6 +10115,8 @@
 0x2cbfcc4  ui_current_gadget        data:void* vsdk\ui              I ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture)
 0x2cbfcc8  ui_group_depth           data:int vsdk\ui              O ; incremented by ui_push_group, decremented by ui_pop_group, windows of a lower group are disabled (ui_window__is_disabled)
 0x2cbfccc  ui_tooltip_gadget        data:void* vsdk\ui              O ; gadget under the mouse whose tooltip ui_draw shows, set by ui_process
+0x2cbfcd4  ui_last_gadget           data:void* vsdk\ui              I ; gadget compared and stored each pass by ui_process, clears the pressed flags 0x2cbf700/0x2cbfc04 when it changes
+0x2cbfce0  os_mutex_name            data:char[] vsdk\os              O ; name copied by os_init and passed to CreateMutexA, also used before SetForegroundWindow of the running instance
 0x2cbfd60  os_msg_handlers          data:void*[32] vsdk\os              O ; window message handlers added by os_add_msg_handler, called by os_wndproc (Dash Faction os msg_handlers)
 0x2cbfde0  os_window_title          data:char[0x98] vsdk\os              O ; title copied by os_init / os_set_window_title, used for CreateWindow by os_create_window
 0x2cbfe78  os_window_class          data:char[0x98] vsdk\os              I ; class name copied by os_init, lpszClassName in os_create_window, passed with the title to FindWindow
@@ -10047,9 +10157,12 @@
 0x2d90f10  gr_vertex_pool           data:gr_Vertex[4000] vsdk\gr\directx\gr_direct3d.cpp I ; 4000 vertices of 0x30 bytes (init_gr_d3d_vertex_buf), output of gr_rotate_vertices in vfx_mesh_render
 0x2dbfd10  vfx_active_instance      data:void* vsdk\geom            I ; instance set during vfx_instance_process / vfx_get_camera, cleared by vfx_instance_release_nodes and fx_destroy_all
 0x2dbfd14  vfx_render_alpha         data:uint8 vsdk\ca              I ; alpha byte set by vfx_instance__setup_render_state, used as vertex alpha by the character mesh renderers, reset by vfx_render_state_reset
+0x2dbfd20  d3d_device_caps          data:uint8[0xec] vsdk\gr\directx\gr_direct3d.cpp O ; zeroed (0x3b dwords) and filled by the device vtable +0xc (GetCaps) in gr_d3d_init_device, d3d_device_desc points here
 0x2dbfe10  d3d_saved_gamma_ramp     data:uint8[0x600] vsdk\gr\directx\gr_direct3d.cpp O ; gamma ramp read through d3d_gamma_control in gr_d3d_init_device, written back by gr_d3d_close
+0x2dc058c  d3d_fog_start            data:float vsdk\gr\directx\gr_direct3d.cpp O ; fog start from the near distance (scaled per fog mode, 1.0 for mode 4) set by gr_d3d_set_fog, render state 0x24
 0x2dc05b0  d3d_window_rect          data:int[4] vsdk\gr\directx\gr_direct3d.cpp O ; RECT set by gr_d3d_set_window, filled by gr_d3d_init_device, destination of the Blt in gr_d3d_flip
 0x2dc05c0  d3d_zfunc                data:int vsdk\gr\directx\gr_direct3d.cpp O ; depth compare function (4 normal, 7 inverted) set by gr_d3d_invert_depth_test / restore_depth_test, render state 0x17 in gr_d3d_set_state
+0x2dc05d8  d3d_fog_end              data:float vsdk\gr\directx\gr_direct3d.cpp O ; fog end from the far distance (gr_scale_by_far_clip / gr_calc_depth per mode) set by gr_d3d_set_fog
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 
 0x2dc0798  d3d_texture_format_a     data:uint8[0x20] vsdk\gr\directx\gr_direct3d.cpp I ; DDPIXELFORMAT kept by d3d_enum_texture_format_callback, checked by d3d_pixel_format_masks_valid, used by gr_d3d_create_texture_section
@@ -10077,10 +10190,53 @@
 0x2dc6c60  d3d_device_desc          data:void* vsdk\gr\directx\gr_direct3d.cpp I ; device description pointer whose caps (+0x4c, +0x64) gr_d3d_set_state and gr_d3d_bitmap test
 0x2dc6c64  d3d_scene_depth          data:int vsdk\gr\directx\gr_direct3d.cpp O ; BeginScene nesting counter of gr_d3d_begin_scene / gr_d3d_end_scene
 0x2dc6c68  d3d_device_ready         data:int vsdk\gr\directx\gr_direct3d.cpp I ; set at the end of gr_d3d_init_device, cleared by gr_d3d_close, gr_d3d_begin_scene / end_scene do nothing when 0
+0x2dc6c6c  d3d_bitmap_u_offset      data:float vsdk\gr\directx\gr_direct3d.cpp I ; offset added before the texture scale in gr_d3d_bitmap (first axis)
+0x2dc6c70  d3d_bitmap_v_offset      data:float vsdk\gr\directx\gr_direct3d.cpp I ; offset added before the texture scale in gr_d3d_bitmap (second axis)
+0x2dc6c74  d3d_line_pixel_offset    data:float vsdk\gr\directx\gr_direct3d.cpp I ; offset added to the screen coordinates of the line vertices by gr_d3d_make_line_verts
 0x2dc6c90  d3d_multitexture_supported data:bool vsdk\gr\directx\gr_direct3d.cpp I ; set from the device caps (+0xba simultaneous textures) in gr_d3d_init_device, read by gr_d3d_is_mode_supported
 0x2dc6c94  d3d_hwnd                 data:HWND vsdk\gr\directx\gr_direct3d.cpp O ; window passed to gr_d3d_init, used by gr_d3d_set_window and gr_d3d_init_device
 0x2dc6c98  gr_d3d_video_memory_mb   data:int vsdk\gr\directx\gr_direct3d.cpp O ; video memory in MB, checked against 8 in gr_d3d_init_device
 0x2dc6c9c  d3d_fog_mode             data:int vsdk\gr\directx\gr_direct3d.cpp O ; fog method chosen from the caps by gr_d3d_init_device (1, 2 or 3), gr_set_fog computes the z fog values in mode 3
+0x2dc6cac  d3d_num_ddraw_devices    data:int vsdk\gr\directx\gr_direct3d.cpp O ; count of 0x428-byte DirectDraw device records at 0x2dc07c8 filled by DirectDrawEnumerateA in d3d_enumerate_ddraw_devices
+0x2dc6cb0  d3d_num_3d_devices       data:int vsdk\gr\directx\gr_direct3d.cpp I ; second count zeroed and tested (> 0) by d3d_enumerate_ddraw_devices, indexes 32-byte records
+0x2dc6cc8  ix_53b400_tmp_a          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b400, its length is tested
+0x2dc6cd8  ix_53c4a0_tmp_c          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c4a0
+0x2dc6ce4  ix_ray_box_oriented_guard data:uint8 -                    O ; static-local init guard bits of ix_ray_box_oriented
+0x2dc6ce8  ix_53c4a0_tmp_a          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c4a0 (vector3__rotate)
+0x2dc6cf4  ix_sphere_polygon_guard  data:uint8 -                    O ; static-local init guard bits of ix_sphere_polygon (vector3 statics 0x2dc6e98, 0x2dc6d18, 0x2dc6e68, 0x2dc6d88, 0x2dc6d98)
+0x2dc6cf8  ix_ray_box_oriented_tmp_b data:vector3 -                    O ; static vector3 of ix_ray_box_oriented
+0x2dc6d04  ix_53c4a0_guard          data:uint8 -                    O ; static-local init guard bits of the hidden ix routine at 0x53c4a0
+0x2dc6d08  ix_linesegment_box_oriented_tmp_d data:vector3 -                    O ; static vector3 of ix_linesegment_box_oriented
+0x2dc6d18  ix_sphere_polygon_tmp_b  data:vector3 -                    O ; static vector3 of ix_sphere_polygon, passed to ix_linesegment_boundingbox
+0x2dc6d28  ix_53c4a0_tmp_b          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c4a0
+0x2dc6d38  ix_53b130_tmp_a          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b130, dotted with ix_53b130_tmp_b
+0x2dc6d48  ix_53b400_tmp_b          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b400, ix_53b400_tmp_a divided per component
+0x2dc6d58  ix_53c2c0_tmp_b          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c2c0
+0x2dc6d68  ix_sphere_polygon_edge_tmp_b data:vector3 -                    O ; static vector3 of ix_sphere_polygon_edge
+0x2dc6d78  ix_ray_polygon_tmp       data:vector3 -                    O ; static vector3 of ix_ray_polygon (guard 0x2dc6e44)
+0x2dc6d88  ix_sphere_polygon_bbox_min data:vector3 -                    I ; static vector3 of ix_sphere_polygon expanded by bbox_expand_by_vector with ix_sphere_polygon_bbox_max
+0x2dc6d98  ix_sphere_polygon_bbox_max data:vector3 -                    I ; static vector3 of ix_sphere_polygon expanded by bbox_expand_by_vector with ix_sphere_polygon_bbox_min
+0x2dc6da8  ix_sphere_polygon_plane_tmp data:vector3 -                    O ; static vector3 of ix_sphere_polygon_plane
+0x2dc6db8  ix_ray_box_oriented_tmp_c data:vector3 -                    O ; static vector3 of ix_ray_box_oriented
+0x2dc6dc4  ix_53b400_guard          data:uint8 -                    O ; static-local init guard bits of the hidden ix routine at 0x53b400
+0x2dc6dc8  seg2d_intersect_tmp      data:vector3 vsdk\math            O ; static vector3 (guard 0x2dc6cc1) of seg2d_intersect, difference vector used with vector3__dot
+0x2dc6dd4  ix_sphere_polygon_edge_guard data:uint8 -                    O ; static-local init guard bits of ix_sphere_polygon_edge
+0x2dc6dd8  ix_53b130_tmp_b          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b130
+0x2dc6de8  ix_linesegment_box_oriented_tmp_a data:vector3 -                    O ; static vector3 of ix_linesegment_box_oriented (difference then vector3__rotate)
+0x2dc6df8  ix_53b400_tmp_c          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b400 (difference, vector3__len)
+0x2dc6e04  ix_53c2c0_guard          data:uint8 -                    O ; static-local init guard bits of the hidden ix routine at 0x53c2c0
+0x2dc6e08  ix_53c2c0_tmp_c          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c2c0
+0x2dc6e18  ix_53b400_tmp_d          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53b400
+0x2dc6e28  ix_linesegment_box_oriented_tmp_b data:vector3 -                    O ; static vector3 of ix_linesegment_box_oriented (difference then vector3__rotate)
+0x2dc6e34  ix_linesegment_box_oriented_guard data:uint8 -                    O ; static-local init guard bits of ix_linesegment_box_oriented
+0x2dc6e38  ix_sphere_polygon_edge_tmp_a data:vector3 -                    O ; static vector3 of ix_sphere_polygon_edge
+0x2dc6e48  ix_linesegment_box_oriented_tmp_c data:vector3 -                    O ; static vector3 of ix_linesegment_box_oriented
+0x2dc6e54  ix_53b130_guard          data:uint8 -                    O ; static-local init guard bits of the hidden ix routine at 0x53b130 (statics ix_53b130_tmp_a, ix_53b130_tmp_b)
+0x2dc6e58  ix_ray_box_oriented_tmp_a data:vector3 -                    O ; static vector3 of ix_ray_box_oriented (difference then vector3__rotate)
+0x2dc6e68  ix_sphere_polygon_tmp_c  data:vector3 -                    O ; static vector3 of ix_sphere_polygon, passed to ix_linesegment_boundingbox and ix_sphere_polygon_edge
+0x2dc6e78  ix_53cb60_sq             data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53cb60 (guard 0x2dc6d94) holding squared components compared with each other
+0x2dc6e88  ix_53c2c0_tmp_a          data:vector3 -                    O ; static vector3 of the hidden ix routine at 0x53c2c0 (difference then vector3__rotate)
+0x2dc6e98  ix_sphere_polygon_tmp_a  data:vector3 -                    O ; static vector3 of ix_sphere_polygon, passed to ix_linesegment_boundingbox and ix_sphere_polygon_edge
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
@@ -10273,11 +10429,14 @@
 0x2f13350  gl_hwnd                  data:HWND vsdk\gr\opengl\gr_opengl.cpp O ; window stored by gr_opengl_init_context (GetDC), ReleaseDC in gr_opengl_close
 0x2f13354  gl_hdc                   data:void* vsdk\gr\opengl\gr_opengl.cpp O ; device context from GetDC in gr_opengl_init_context, used by gr_opengl_set_pixel_format and SwapBuffers in gr_opengl_flip
 0x2f13358  gl_pixel_format          data:int vsdk\gr\opengl\gr_opengl.cpp O ; pixel format index chosen by gr_opengl_set_pixel_format, used by gr_opengl_init_context
+0x2f13568  geom_poly2d_clip_dists   data:float[32] vsdk\geom            I ; per-vertex plane distances of the 2D polygon clipper at 0x5519f0
+0x2f135e8  geom_poly2d_clip_list    data:void*[32] vsdk\geom            I ; vertex pointer list of the 2D polygon clipper at 0x5519f0 (swapped with 0x2f13668), not of init_vector_buf_2f13368
 0x2f136e8  crc32_table              data:uint32[256] -                    O ; filled by Crc32__init_table
 0x2f13ae8  crc32_table_inited       data:bool -                    O ; set by Crc32__init_table, tested by Crc32__update
 0x2f53b00  gr_clip_temp_verts       data:Vertex[] vsdk\gr              O ; temporary vertices created while clipping, allocated by gr_clip_alloc_temp_vertex
 0x2f54700  gr_clip_num_temp_verts   data:int vsdk\gr              O ; count of gr_clip_temp_verts, reset by gr_clip_free_temp_verts
 0x2f54708  http_host_addr           data:uint32 -                    I ; address copied from the hostent by http_resolve_host, returned by http_async_gethostbyname
+0x2f54714  http_async_lookup        data:void* -                    O ; request record (+4, flags +8..+0xa) of http_async_gethostbyname, set when a lookup starts, +0xa set on completion
 0x2f54720  ds_buffers               data:uint8[0x25000] -                    I ; DirectSound buffer records (+0x204 handle, +0x218 format, +0x24c ref count) used by ds_load_buffer / ds_create_buffer / ds_sound_release (Dash Faction ds_buffers)
 0x2f79720  ds_volume_table          data:int[101] -                    O ; attenuation per volume percent (first entry -10000) built by ds_init_volume_table, read by ds_volume_to_attenuation
 0x2f798b4  ds_eax_enabled           data:bool -                    O ; EAX requested in ds_init (cleared when unavailable), ds_init calls eax_init when set, returned by ds_is_eax_enabled
@@ -10293,10 +10452,13 @@
 0x2f8f740  ds_next_signature        data:int -                    O ; signature given to each started sound by ds_play / ds_play_3d / ds_play_streamed, wraps to 0 when negative
 0x2f8f744  ds3d_listener            data:void* -                    O ; 3D listener interface of ds_init_primary_buffer, updated by ds3d_update_listener, released by ds3d_release_listener
 0x2f8f748  ds3d_initialized         data:bool -                    O ; tested by ds3d_update_listener, cleared by ds3d_close
+0x2f8f750  gr_poly_split_free_list  data:void* vsdk\gr              O ; free list head of the 64 polygon records (0x8c bytes, links +0x84/+0x88) linked by gr_poly_split_sections_draw
+0x2f91a58  gr_poly_split_active_list data:void* vsdk\gr              I ; list head of gr_poly_split_sections_draw, also the end of its 64-entry 0x8c-byte polygon pool at 0x2f8f758
 0x2f91a5c  gr_mode_vfx_flat_alpha   data:uint32 vsdk\geom            I ; gr__Mode(no texture, vertex, vertex alpha, alpha, zbuffer read, fog) picked by vfx_emitter_instance__render
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 
 0x2f91a6c Dump_mesh_frames         data:bool -                      O ; set by console command "dump_mesh_frames" (toggles); type from the TOGGLE callback (xor byte 1)
+0x2f91a78  snd_acm_out_buf          data:uint8[] -                    I ; destination buffer (0x2bf20 bytes) of the ACM conversion in snd_stream_fill_acm, copied into the ring buffer
 0x2fbd998  snd_stream_lock          data:CRITICAL_SECTION -                    O ; critical section entered and left around stream changes by ds_channel_release, ds_sound_release, snd_start_timer and snd_stream_close_all
 0x2fbd9b0  snd_streams              data:uint8[0x1c0] -                    O ; 16 stream records of 0x1c bytes (+0 buffer, +4 handle, +0x18 flags bit 1 in use): snd_stream_service / find_free / fill_acm / fill_pcm / close_all
 0x2fbdb70  acm_driver_handle        data:void* -                    O ; driver opened by acmDriverOpen in acm_init, used by acm_stream_open, closed by acm_close
@@ -10308,11 +10470,22 @@
 0x2fbdc0c  _cflush                  data:int crt                  I ; incremented when a stream gets a buffer (_getbuf and the stdio helpers)
 0x2fbdc7c  __lc_handle              data:uint32[6] crt                  I ; locale handles, the LC_CTYPE entry (+8) is tested by tolower, _strnicmp and _stricmp
 0x2fbdc94  __lc_codepage            data:uint32 crt                  I ; code page passed to the multibyte conversion calls (FUN_571da0, FUN_577c16)
+0x2fbdca0  crt_tzapiused            data:int crt                  O ; MSVC tzapiused: zeroed by _tzset_lk, set 1 when GetTimeZoneInformation succeeds
+0x2fbdd54  crt_tz_last              data:char* crt                  O ; MSVC lastTZ: previous "TZ" value compared with strcmp in _tzset_lk
+0x2fbdd58  crt_tzset_first_time     data:int crt                  I ; MSVC __tzset first_time flag tested before _lock(0xb) and _tzset_lk
 0x2fbde9c  _newmode                 data:int crt                  I ; passed with the size by malloc (FUN_56eb84) to the new-handler allocator
+0x2fbdea8  crt_prev_unhandled_filter data:void* crt                  O ; MSVC pOldExceptFilter of __CxxUnhandledExceptionFilter, called for non-C++ exceptions (0xe06d7363 checked)
+0x2fbdf18  crt_pfn_message_box      data:void* crt                  I ; lazily loaded from "user32.dll" (LoadLibraryA) by __crtMessageBoxA when zero
 0x2fbdf58  __mbcodepage             data:int crt                  I ; multibyte code page set by _setmbcp (FUN_578cde), compared with the requested one and passed to the mbcs conversions
 0x2fbdf6c  __ismbcodepage           data:int crt                  I ; 1 for a multibyte code page, set and cleared by _setmbcp (FUN_578cde / FUN_578f08)
 0x2fbe080  _mbctype                 data:uint8[257] crt                  O ; multibyte character type table (index c + 1) cleared and filled by _setmbcp (FUN_578cde), tested with bit 4 by the mbcs parsers
 0x2fbe184  __mblcid                 data:int crt                  I ; locale id of the multibyte code page set by _setmbcp, passed to the string compare helpers
+0x2fbe188  crt_sbh_header_capacity  data:int crt                  O ; MSVC __sbh_sizeHeaderList: set to 16 by __sbh_heap_init
+0x2fbe18c  crt_sbh_group_defer      data:int crt                  O ; MSVC __sbh_indGroupDefer: group index (shl 0xf) of the deferred decommit in __sbh_free_block
+0x2fbe190  crt_sbh_header_scan      data:void* crt                  O ; MSVC __sbh_pHeaderScan: set to the header list by __sbh_heap_init
+0x2fbe194  crt_sbh_header_defer     data:void* crt                  O ; MSVC __sbh_pHeaderDefer: zeroed by __sbh_heap_init, deferred group decommit in __sbh_free_block
+0x2fbe198  crt_sbh_header_count     data:int crt                  O ; MSVC __sbh_cntHeaderList: zeroed by __sbh_heap_init, bound of the 0x14-byte header search
+0x2fbe19c  crt_sbh_header_list      data:void* crt                  O ; MSVC __sbh_pHeaderList: HeapAlloc(_crtheap, 0, 0x140) in __sbh_heap_init, 0x14-byte headers searched by __sbh_find_block
 0x2fbe1a0  __sbh_threshold          data:uint32 crt                  O ; small-block heap threshold set by the heap init (FUN_57549b), compared by the malloc / realloc paths
 0x2fbe1a4  _crtheap                 data:void* crt                  O ; CRT heap handle passed to HeapAlloc / HeapFree / HeapReAlloc (19 uses)
 0x2fbe1a8  __active_heap            data:int crt                  O ; heap kind compared with 3 (V6 small-block heap) by free, malloc and realloc
