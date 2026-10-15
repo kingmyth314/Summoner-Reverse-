@@ -141,7 +141,14 @@ check. **Observed.** More than 175 living characters would overwrite the table p
 
 `cutscene_load_files` (`0x434b40`) opens each `$Camera` file from the cutscene path. It checks
 the magic `0x52435343` ("CSCR") and a version of at least `0x20000`. It reads two floats and a
-shot count, then each shot with `cutscene_camera_read_track(file, start)` (`0x493fd0`). **Observed.** The
+shot count, then each shot with `cutscene_camera_read_track(file, start)` (`0x493fd0`): its start and end
+time, the field of view (times 1.6949153), the position keys (time in 1/4800 s, position, in and out vectors)
+and the rotation keys (time, quaternion stored x 16383, three tangent values x 127, ease in and out x 2.54).
+A shot whose own start lies 0.4 s or more after `start` is moved back to it, its key times with it. The keys
+come from four pools shared by the whole cutscene (250 position keys at `0x243e3e8`, 250 rotation keys at
+`0x2440af8`, two tangent pools), emptied by `cutscene_camera_tracks_clear` (`0x494680`) before the first
+file and never checked against their size (game bug C211; the largest retail use is Machival-Death with 179
+rotation keys). **Observed.** The
 shots fill `cutscene_sequences` (`0x601e80`), 50 records of `0x70` bytes with no bound check (the longest
 retail cutscene, Act2-Outro, has 48 shots in its camera files), with the count in
 `cutscene_num_sequences` (`0x601e7c`). Record `+0xc` is the shot start and `+0x10` the shot end,
@@ -161,7 +168,10 @@ cutscene. When `end[i] - cutscene_time_offset - t <= 0` it moves to the next sho
   ([Game bugs](game-bugs.md) K190). **Observed.**
 - Every shot calls `camera_start_sequence` (`0x4792c0`) with its record.
   `cutscene_camera_sequence_sample` (`0x494310`) samples the position and rotation tracks
-  (`anim_track__get_position` / `get_rotation`) from the same `timeGetTime` clock.
+  (`anim_track__get_position` / `get_rotation`) from the same `timeGetTime` clock, clamped to the shot's
+  start and end. The two methods at `0x4943f0` / `0x494400` that were filed with the shot belong to a second
+  sequence class with state 1, a blend from the gameplay view to a fixed view and back (`camera_blend_sequence`,
+  decomp54 D3401); Sum.exe never builds one, so `camera_frame` and `camera_update_sequence` never reach them.
 - After the last shot it calls `cutscene_cleanup`. If `game_flags` bit `0x8` is set it then
   calls `gameseq_set_state(1)`.
 

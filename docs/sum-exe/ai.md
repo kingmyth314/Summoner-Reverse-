@@ -90,7 +90,8 @@ in multiplayer (`mp_broadcast_ai_disable`). `mp_handle_ai_disable` calls the `_l
   frame. Type 4 runs even with the dead flag; the others only while not dead (jump table `0x474cc4`,
   `0x474bdd`..`0x474be9`). There is **no time budget**. The `RealtimeTimer` at `0x22e4908` only restarts the
   500 ms averages of the profiler counters (`0x47497d`..`0x474b24`). Before the loop it ages the five tracked cast
-  effects and runs `ai_groups_frame` (not during a cutscene script). After it, each boss gets
+  effects and runs `ai_groups_frame` (not during a cutscene script; ten groups of up to six members that share
+  an enemy list, see [Party](party.md#combat-behaviour)). After it, each boss gets
   `boss_ai_do_frame_hook`.
 - `ai_frame` (`0x472a90`) is one entity's update. It is cdecl on the character. In order:
   - multiplayer travel flags, then `character_ai_suspended` (which reads `Ai_paused`);

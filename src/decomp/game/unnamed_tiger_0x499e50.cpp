@@ -201,8 +201,8 @@ void tiger_rider_set_flinch(move_info *moves)
         else
             sprintf(msg, "Unable to set Tiger Rider flinch for %s -- bad $Action\n", m->anim_file);
     }
-    tiger.flinch_area[2] = tiger.flinch_area[1];
-    tiger.flinch_status[2] = tiger.flinch_status[1];
+    tiger.flinch_area[0] = tiger.flinch_area[1];      // stage 2 into stage 1 (0x49a29d-0x49a2ad)
+    tiger.flinch_status[0] = tiger.flinch_status[1];
 }
 
 // 0x49a2c0  Confidence: likely (the two equip results land in the argument slots). Stage 1: mounted

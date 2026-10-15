@@ -2671,19 +2671,19 @@ module "-" in sum.symbols. Written as game/unnamed_mpmenus_0x43eb00.cpp, unnamed
 unnamed_mlayout_0x43f9d0.cpp, unnamed_effectstream_0x440400.cpp, unnamed_netsession_0x440b40.cpp and
 unnamed_netpackets_0x441820.cpp; effect_stream.h keeps its name (engine/effects/, directory ours).
 
-**D3400 (engine/ai/ai.h). ai_group +0x1c / +0x20, and ai_think_members / ai_think_enemies hold the other
+**D3400 (engine/ai/ai.h). ai_group +0x1c / +0x20, and ai_think_enemies / ai_think_members hold the other
 side.** ai_group_collect_enemies (0x493ac0) writes the enemies it finds to group +0x20[n] (handles) and
 counts them in +0x1c (`mov [ecx + 4*eax + 0x20], edx` / `inc [ecx + 0x1c]`, 0x493c97-0x493caf, 10 max): the
 old `_unk1c[0x2c]` becomes num_enemies / enemies[10]. The same loop puts the enemy pointers into
-ai_think_members (0x243e394) and the group's own members into ai_think_enemies (0x243e3c0,
+ai_think_enemies (0x243e394) and the group's own members into ai_think_members (0x243e3c0,
 `mov [4*edx + 0x243e3c0], eax` with living_from_handle(group members[i]), 0x493af4-0x493b13); the
-sum.symbols names are kept and the swap is documented. ai_think_enemies is declared [6] (sum.symbols [5]):
+sum.symbols names are kept and the swap is documented. ai_think_members is declared [6] (sum.symbols [5]):
 a group holds six members and the unit's .bss ends at 0x243e3d8, where the camera key counts start.
 ai_group_remove_member writes its -1 to members[j] after the shift loop with j == 6, i.e. to +0x1c
 (`mov [eax + 4*edx + 4], -1` after the loop leaves edx = 6, 0x492d07): a game bug, kept.
 
 **D3401 (engine/camera/camera_sequence.h). time_left and advance belong to a second sequence class.**
-cutscene_camera_sequence_time_left (0x4943f0) returns [+0x14] + [+0x10] + [+0xc] - [+8] and _advance
+camera_blend_sequence__time_left (0x4943f0) returns [+0x14] + [+0x10] + [+0xc] - [+8] and _advance
 (0x494400) blends between [+0x48]->eye_pos / view_orient (camera +0x1a4 / +0x284) and +0x4c / +0x58,
 writing +0x18 / +0x24; in a cutscene shot +0x14 is the anim_track's key counts. camera_frame calls
 time_left and camera_update_sequence calls advance only for state 1 (camera_sequence_get_state == 1,

@@ -23,9 +23,9 @@ temporaries) and tiger_combat_update 0x49b6e0 (the x87 closing-speed formula).
 
 ## Layout findings (DECISIONS D3400-D3406 in include/DECISIONS.md)
 
-- ai_group +0x1c/+0x20 = num_enemies / enemies[10]; sum.symbols' ai_think_members / ai_think_enemies hold the
+- ai_group +0x1c/+0x20 = num_enemies / enemies[10]; sum.symbols' ai_think_enemies / ai_think_members hold the
   enemies / the group's members, the other way round (D3400).
-- cutscene_camera_sequence_time_left / _advance are methods of a never-constructed state-1 "blend"
+- camera_blend_sequence__time_left / _advance are methods of a never-constructed state-1 "blend"
   sequence with a different layout: new class camera_blend_sequence (D3401). anim_track +0x14..+0x20 named (D3402).
 - Each rider boss's state is one object (one timer initialiser; the serpent's is cleared with one rep stosd):
   serpent_boss 0x2451d98, phoenix_boss 0x2452420, tiger_boss 0x2452a90; old externs became macros (D3403).

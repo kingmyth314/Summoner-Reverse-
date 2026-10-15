@@ -255,7 +255,15 @@ Until 2026-10-14 this family was named `shadow_*` (`shadow_slots`, `shadow_creat
 
 ## Other
 
-- Snow: `snow_start` (`0x494ab0`) for a few levels, a 15 x 15 grid of flake cells, drawn by `snow_render`.
+- Snow: `snow_start` (`0x494ab0`) from the `lenele3d`, `lenele3a` and `ionaext02` level scripts (their leave
+  handlers call `snow_stop`), loads `SnowFlake.tga` and gives each flake kind a random fall direction. The snow
+  is a 15 x 15 grid of 5 m cells around the camera; each visible cell holds a block of 32 flakes from a pool of
+  100 blocks (`snow_cell_alloc`), a culled cell gives its block back. `snow_update` (`0x494ba0`, from `fx_frame`)
+  sets the visible height range from the view's pitch, fov and fog distance, shifts the grid by one row when the
+  camera moves one cell (else rebuilds it), moves the flakes and respawns 2.67 flakes per cell per second at the
+  top. `snow_render` (`0x495010`, from `levelrender_render_scene`) draws each flake with `gr_bitmap_3d` (size 0.07,
+  additive). The `snow` and `snow_render` console toggles switch it off; the "Nar-LeneleAct4" cutscene clears and
+  restores `Snow_enabled`. Rows that scroll in on the +x side are not refilled (game bug K210). **Observed.**
 - The console command `show_effect_mem` prints effect memory use.
 
 ## Open questions

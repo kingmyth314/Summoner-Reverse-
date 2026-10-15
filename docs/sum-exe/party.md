@@ -253,16 +253,19 @@ moving in the last 200 ms comes at it from within 3.2 units. *Inferred* from the
 Clicking an enemy calls `party_order_attack`. The leader attacks it. Every other member that is not
 held and has no target (`+0x384` = -1) gets the same attack goal. Combat mode turns on. **Observed.**
 
-After that, the AI groups decide (`ai_groups_frame`, every 1.5-2.5 s; `ai_group_combat_think`,
-`0x492db0`). Each member acts by its **combat style**, `ai_state +0x18` (`ai_get_combat_style`,
-`0x473620`). **Observed:**
+After that, the AI groups decide (`ai_groups_frame`, every 1 s while the group fights, else every 1.5-2.5 s;
+`ai_group_combat_think`, `0x492db0`). `ai_group_collect_enemies` (`0x493ac0`) first lists up to 10 enemies:
+living, active enemies of the leader that a member has in line of sight within its field-of-view range, and,
+beyond its detection range, only outside the cone ahead of it (game bug G210), within 3 units of the height of
+`cur_character`; the list is shuffled every think. Each member then acts by its **combat style**, `ai_state
++0x18` (`ai_get_combat_style`, `0x473620`). A member the player controls is skipped. **Observed:**
 
 | Value | Name (`strings.tbl`, ai.cpp) | Group order |
 |---|---|---|
 | 0 | Melee | nearest enemy that is not helpless (`ai_group_think_style0`) |
-| 1 | Support | enemy chosen by attacker count and HP (`ai_group_think_style1`) |
-| 2 | Range | enemy with the fewest attackers (`ai_group_think_style2`) |
-| 3 | Healer | heals, then attack spells (`ai_group_think_caster`) |
+| 1 | Support | an enemy that targets a Range, Healer or Caster member; else the nearest enemy nobody attacks, the target of the most hurt member, an enemy with attackers or the first one; but every such order is followed by an attack on the first enemy, which replaces it (game bug G211) (`ai_group_think_style1`) |
+| 2 | Range | the first enemy (shuffled order) that someone already attacks, else the first one; no order when a helpless enemy comes first (`ai_group_think_style2`) |
+| 3 | Healer | with more than 25 % AP a support spell (`ai_choose_support_spell`); on the second pass, when the enemies' attack rating is over three times the group's, Protect on the group or Bless on a weighted member (game bugs G212, C210); else the Melee order (`ai_group_think_caster`) |
 | 4 | Caster | like Range for targets; spell range 8.0 with enough AP (`character_get_attack_range`) |
 | 5 | Healer/Caster | as 3, with the caster range of 4 |
 

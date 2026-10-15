@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 219 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 237 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 4 | 50 | 2 |
-| Gameplay | 26 | 17 | 3 |
-| Cosmetic | 38 | 16 | 2 |
-| Invisible | 26 | 42 | 0 |
+| Crash or hang | 5 | 51 | 2 |
+| Gameplay | 33 | 17 | 3 |
+| Cosmetic | 41 | 17 | 2 |
+| Invisible | 31 | 42 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -92,6 +92,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C201 | Latent: in multiplayer, one forged packet of type 0x42 crashes the receiving machine whoever sends it, and one of type 0x40 (DMY_PCK) from a machine in the game does the same; the game's own senders never use either type | `multi_process_packet` `0x441820` | **Observed** code and data, *inferred* crash | No |
 | C202 | Latent: entering the multiplayer game list or lobby when the chosen character's `.plr` file can no longer be read writes through a NULL pointer and crashes | `mp_local_player_create` `0x441760`; lobby connect step in `state_mp_lobby_frame` `0x43f080` | **Observed** code, *inferred* crash | No |
 | C203 | Latent: the `load_mlayout` console command creates every monster of the layout with character type -1 (the map name looked up as a character type), so the memory before `char_infos` is used as its type. No console in v1.40: only a patch or a `.vcs` script can run it | `monster_layout_load` `0x43fe00` | **Observed** code, *inferred* effect | No |
+| C210 | In a hard fight, an AI-controlled Healer or Healer/Caster party member (Rosalind by default) who can cast Bless but not Protect can crash the game when four or five party members are unblessed and hurt or under attack: its candidate count runs past its six-entry list and overwrites the caller's saved registers and return address | `ai_group_think_caster` `0x4936c0`, `ai_group_combat_think` `0x492db0`, `ai_groups_frame` `0x492d30` | **Observed** code, *inferred* crash | No |
+| C211 | Latent: a cutscene whose camera files hold more than 250 position keys or 250 rotation keys in all overwrites the next key pool, and past the last pool the snow state (largest retail: Machival-Death, 179 rotation keys) | `cutscene_camera_read_track` `0x493fd0` | **Observed** code and retail data, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -541,6 +543,35 @@ the same buffer (`0x44001e`), is only used to find a type 7 party member by name
 so `charinfo_find_by_name` returns -1 (`0x446bb9`), and `characterinfo_find_multi_slot` / `charinfo_create_character_instance`
 then use the 0x3d0 bytes before `char_infos` (`0x6d7e50`) as the type.
 
+**C210. A candidate count that counts twice.** [notes 4] On its second pass (`first_pass` 0), when the enemies'
+summed `combat_attack_rating` is more than three times the group's, `ai_group_think_caster` scores every member
+that is not blessed (status 4) for Bless (spell `0x13`). It increments the candidate count `ebx` once for such a
+member (`inc ebx` at `0x49395c`) and again when its score `10 x attackers + 30 x (1 - HP fraction)` is above 0
+(`0x493988`). The count is used as a number of list entries: with Protect (`0x15`) castable and a count above 2
+it casts Protect (`0x4939c5`); otherwise it divides the scores of the first `count` entries by the total
+(`0x4939f2`..`0x493a05`). The list is six 0x10-byte records at `[esp+0x30]`..`[esp+0x90]` (the 0x80-byte frame of
+`sub esp, 0x80`; the notes' "five entries" is wrong, six members fit). A count of 7 rewrites the score slot of
+record 6, which is the function's own `group` argument (`[esp+0x98]`); a count of 8 rewrites `ai_group_combat_think`'s
+saved `ebp` (`[esp+0xa8]`, the timer pointer of `ai_groups_frame`, which calls `GameTimer__SetTimeout` through it at
+`0x492d8b` / `0x492d7d` right after); 9 or more rewrite `ai_group_combat_think`'s return address (`[esp+0xb8]`). The
+value written is the old word read as a float and divided by the total, so a pointer becomes a tiny float bit
+pattern. A count of 8 needs four members (the party group holds the four heroes and the summon) that are not
+blessed and hurt or attacked. The pass runs for style 3 and 5 members that the player does not control, are not
+attacked themselves, have more than 25 % AP and got no spell from `ai_choose_support_spell`; Rosalind is
+Healer/Caster by default ([Party](party.md#combat-behaviour)). *Inferred:* the crash (or heap write) in game; not
+reproduced. G212 is the everyday side of the same count.
+
+**C211. Camera key pools without a bound.** `cutscene_camera_read_track` takes each shot's keys from four pools
+that `cutscene_camera_tracks_clear` (`0x494680`, called by `cutscene_load_files` at `0x434ba8`) empties once per
+cutscene: 250 position keys of 0x28 bytes (`cutscene_cam_keys40` `0x243e3e8`, count `0x243e3dc`), 250 rotation
+keys of 0x14 bytes (`0x2440af8`, count `0x243e3e0`) and two tangent pools of twice that (`0x2441e80`, count
+`0x24435f0`; `0x24435f8`, count `0x243e3d8`). The counts are only added to (`0x49408e`..`0x4940d1`,
+`0x494174`..`0x4941ba`), never compared. Past 250 keys the position pool runs into the rotation pool, which runs
+into the tangent pools, and the last pool ends at `snow_grid_x` (`0x2444598`). The retail `.CSC` files of each
+`cutscene.tbl` entry, summed: Machival-Death 14 position / 179 rotation keys, Act2-Outro 109 / 99, summon jade
+dragon 97 / 16; every other entry less. **Observed** in code and data; the effect is *inferred*. C191 covers the
+shot count, not the keys.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -588,6 +619,13 @@ then use the 0x3d0 bytes before `char_infos` (`0x6d7e50`) as the type.
 | G180 | Latent: in multiplayer, a reliable packet from an address with no link (for example a machine whose link has timed out) that comes after a connected machine's packet in the same update is handled as that machine's: an ACK can free its unacknowledged packets, and data enters its stream | `nw_work_reliable` `0x517e00` | **Observed** code, *inferred* effect | No |
 | G181 | Latent: in multiplayer, once a link's receive sequence number reaches 0xffb6, a resent copy of a packet already delivered is stored again, and it is delivered in place of the real packet with that number when the sequence comes round (about 65,536 packets later) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
 | G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
+| G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code and retail data, *inferred* effect | No |
+| G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code, *inferred* effect | No |
+| G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code, *inferred* effect | No |
+| G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
+| G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
+| G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code and retail data, *inferred* effect | No |
+| G216 | The Tiger Rider's choice among several heroes it sees uses only the last hero's threat as the common base of the weights, not the sum, so it leans harder toward the heroes that hurt it than the other boss pickers do | `tiger_pick_target` `0x49b0a0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -960,6 +998,65 @@ right after the connect request to the same address succeeded.
 
 (none)
 
+**G210. The cone test is the wrong way round.** [notes 2] A member sees a living enemy when it is within its
+`$Field of view range:` (`char_info +0x220`) and in line of sight. Inside `$Detection range:` (`+0x224`) that is
+enough (`0x493be8`). Beyond it, unless the member is blind, the game normalises the direction to the enemy and
+dots it with the member's forward vector (`orient.fvec`, object `+0x50`): `fcomp [0x581ae0]` (0.71) and
+`jne 0x493c71` on C0 (`0x493c51`..`0x493c5c`) accept the enemy when the dot product is **below** 0.71, i.e. outside
+the 45-degree cone ahead. `script_guard_sees_player` uses the same constant the other way: below 0.71 it returns
+false (`0x4ce882`..`0x4ce893`). Retail characters have, for example, field of view 10 and detection 3
+(`Archlich.tbl`); most detection ranges are 4-5. *Inferred:* in game, monsters ahead of the party between those
+ranges are not put in their group's enemy list until the party is inside detection range.
+
+**G211. A missing return.** [notes 3] After the "protect a Range / Healer / Caster member" loop (which returns
+properly at `0x49344c`), `ai_group_think_style1` picks the nearest enemy nobody attacks, else the enemy of the most
+hurt member, else one with attackers, else the first, and orders the attack (`0x493545`). It then falls through to
+`ai_group_order_attack(member, ai_think_members[0], group, 1)` (`0x49354d`..`0x49355f`), the "first enemy"
+fallback. `ai_goal_add_attack` adds a type-1 goal and `ai_goal_add` removes the old type-1 goals first
+(`0x47619f`), so the second order replaces the first. `ai_group_shuffle_enemies` shuffles the list on every think
+(`0x493ce0`), so the first enemy is a random one. The member then keeps that target (the function returns early
+while it has a living target). Species 2 (Flece) gets style 1 by default (`living_entity_init`, see
+[Party](party.md#combat-behaviour)).
+
+**G212. Protect at two.** [notes 4] The doubled count of C210 also decides the group spell: `cmp ebx, 2; jle` at
+`0x4939c5`. One member that is not blessed and hurt (or attacked) already gives 2; two such members, or one plus
+one unhurt, give 3 or more, and the healer casts Protect (`0x15`) instead of Bless on one member. *Inferred:* the
+test was meant as "more than two members".
+
+**G213. An index that is a flag.** [notes 7] In stage 1, on the normal-attack path, a target re-pick by
+`boss_target_list_pick` is followed by `boss_target_list_find_b` for the new index (`0x496678`) and then
+`serpent_part_is_asleep(list, asleep)`: the argument is the previous asleep flag (`mov eax, [esp+0x2c]; and eax,
+0xff; push eax` at `0x49667f`..`0x496688`), so candidate 0 or 1 is tested instead of the new index in `esi`. The
+result feeds `serpent_part_is_busy` (`0x4966a2`) and the choice between the stage-1 knockback (move `0xba`, "Rider
+Stun", only when not busy, `0x4966ce`) and the sickle (`0xbb`), and whether it re-picks away from a sleeping
+target (`0x496706`..`0x496751`). Asleep means sleep with more than 10 s left and no poison; the Serpent's own
+stage-1 Nightmare (`serp_boss.tbl` "stage1 nightmare", spell "Nightmare") is what puts heroes to sleep.
+
+**G214. A negated point.** [notes 10] With the dive flag (`phoenix_flags` 2) in stage 3, when two or more party
+members are knocked down (AI sub-mode `0x2d`), `phoenix_reposition_update` paths to a point 4.5 m beside their
+midpoint (`ai_path_find_new` at `0x497f42`). When that fails, the second try negates all three coordinates of that
+world point (`fchs` at `0x497f5f`, `0x497f65`, `0x497f75`) and paths there (`0x497fae`); a path found sets the
+travel mode and a 5 s wander timer. The mirrored side point (`mid - dir x 4.5`) was presumably meant. G215 makes
+two members down at once a common case.
+
+**G215. One distance for everyone.** [notes 12] For spell `0x1e` (`inferno`) the move trigger walks
+`party_list`, and for every living member compares the squared distance **between the target and the boss**
+(`[esi+0x10]` minus `[edi+0x10]`, `0x499900`..`0x49992f`) with the spell's distance squared (`spells[0x1e]`
+`+Distance:` 6, `0x22e5e98`). Inside it, it creates the effect on the target and calls
+`living_entity_get_hit_by_spell(target, 0x1e, boss)` (`0x499962`), then knocks **the member** down for
+`frand_range(5, 10)` s (`ai_knock_down` `0x49998b`). `phoenix_boss.tbl` gives Inferno a range of 0-3 m in stages
+1 and 3 ("phoenix inferno1", "stage3 inferno"), so the test always passes: the target takes the hit once per
+party member (up to five with the summon) and the whole party is knocked down. Members on a mount or already down
+are refused by `ai_can_be_knocked_down`. *Inferred:* each member's own distance and one hit each were meant.
+
+**G216. Assigned, not summed.** [notes 14] With two or more candidates, `tiger_pick_target` starts the base at
+10.0 (`0x49b205`) and, for every candidate with a threat record, sets it to `-(threat[1] + threat[0])`
+(`fld; fadd; fchs; fstp [esp+0x18]` at `0x49b235`..`0x49b243`): the last such candidate wins. Each weight is then
+`base x 0.1 + 10 - (3 x threat[0] + threat[1])`. The generic `boss_target_list_pick` sums the same quantity
+(`fsubr [esp+0x14]; fstp [esp+0x14]` at `0x4a3266`..`0x4a326a`), so this looks like `=-` for `-=`. Threats are HP
+deltas, negative for damage, so the base is a common offset; a smaller base makes the pick lean more toward the
+heroes that hit it. *Inferred* intent and effect; the effect is mild.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1018,6 +1115,10 @@ right after the connect request to the same address succeeded.
 | K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code, *inferred* effect | No |
 | K194 | Latent: the help of the `play_and_load_cutscene` console command prints `play_cutscene`'s usage line. No console in v1.40 | `cmd_play_and_load_cutscene` `0x437590` | **Observed** code | No |
 | K200 | Latent: in the PXO lobby, a channel list reply with a cut-short record leaves the channel list unchanged on screen until the next refresh 10 s later | `lobby_parse_channel_list` `0x43f450` | **Observed** code | No |
+| K210 | In the snowy levels (`lenele3a`, `lenele3d`, `ionaext02`), when the camera moves one 5 m cell toward +x the new row of cells at the +x edge keeps the flakes of the row that left on the far side, so that edge has thin or misplaced snow for up to 12 s | `snow_update` `0x494ba0` | **Observed** code, *inferred* effect | No |
+| K211 | The mounted Phoenix Rider's animation is not kept in step with its horse (the Serpent and Tiger Riders' are) | `phoenix_seat_rider` `0x4982a0` | **Observed** code, *inferred* effect | No |
+| K212 | In the Tiger fight's mounted axe stage (stage 2), the rider plays its stage-2 walk animation even when it should stand; the stage-2 ready animation `tigr_stage2_ready.mvf` is loaded but never used | `tiger_set_stage2_anims` `0x49a140` | **Observed** code and retail data, *inferred* effect | No |
+| K213 | Latent: the Serpent's illusion, if it ever ran, would leave the second copy visible and active while the first one vanishes; in v1.40 nothing starts the illusion | `serpent_illusion_start` `0x496ba0`, `serpent_ai_frame` `0x4973e0` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1477,6 +1578,38 @@ record has a name but no count or no topic (`strtok` returns NULL at `0x43f4bb` 
 (`0x43f549`), so the counts and channels taken so far are not shown until the next `/list` (every 10 s,
 `lobby_request_channel_list`). Needs a chat server that sends such a line; the PXO servers are gone.
 
+**K210. An inverted test in one of four scroll loops.** [notes 5] When the camera moves one cell, `snow_update`
+shifts the 15 x 15 grid and moves the row that left to the other edge, then calls `snow_cell_update` on it, which
+returns true when the cell has no flake block (culled or the pool is empty). For -x, +z and -z it refills the cell
+when that returns false (`jne` at `0x494dfc`, `0x494e50`, `0x494e9c`); for +x it refills when it returns true
+(`je 0x494dbf` at `0x494db6`), when `snow_cell_fill` returns at once for lack of a block. So the 15 cells that
+scroll in on the +x side keep their block's old flakes, which belonged to cells 75 m away (or, for a block just
+taken from the pool, to whatever cell had it before). The per-frame loop then treats them as filled and only
+replaces `n` flakes per frame (`snow_cell_fill_count`, 2.67 flakes per second), so a block is renewed after about
+12 s. *Inferred* for what is seen: the grid reaches 35 m from the camera, so the edge row may be in fog.
+
+**K211. Time read from and written to the mount.** [notes 11] `serpent_seat_rider` and `tiger_seat_rider` read the
+mount's animation time and write it to the rider's instance (`get_set_time(&t, 0)` on `[mount+0x314]`, then
+`get_set_time(&t, 1)` on `[rider+0x314]`, `0x495e61` / `0x495e76`). `phoenix_seat_rider` uses the mount's instance
+for both calls (`mov ecx, [esi+0x314]` at `0x4982e5` and `0x4982f6`), so the rider's time is never set. *Inferred:*
+the rider's ride cycle runs out of step with the horse's.
+
+**K212. Walk in the stand slots.** [notes 15] `tiger_set_stage2_anims` (called twice by `tiger_stage_move_update`,
+`0x49c38f`, `0x49c3d9`) writes `tiger_anim_stage2_walk` into the stand, ready, stand-hurt and ready-hurt slots
+(`+0x5ac`, `+0x5b8`, `+0x5c4`, `+0x5d0`, `0x49a144`..`0x49a15c`) as well as the walk slots. `tiger_load_anims`
+stores `ride_horse_ready_axe` at `0x2452c7c` (`0x49abaa`), the only reference to that address. Retail
+`Tiger Rider.tbl` has `ride_horse_ready_axe` with `tigr_stage2_ready.mvf`. *Inferred:* the axe-stage rider never
+uses its ready pose. Stage 2 is reached after the four spear throws in `templeint`.
+
+**K213. One part short, in code that never runs.** [notes 8] The first branch of `serpent_illusion_start`
+deactivates `serpent_part_handles[0 .. num - 2]` (`edi` from 1, `cmp edi, eax; jl` with `eax` =
+`serpent_num_extra_parts` 2, `0x496bdc`..`0x496c0d`): only the first copy. Every other loop over the parts runs
+`num + 1` times from the serpent's own handle. But sub-mode `0x38` is set only by `serpent_ai_frame` when the
+serpent's pending sub-mode (`0x24523a8`) is `0x38` (`0x49741c`..`0x497430`), and the only write to that word stores
+`0x20` (`serpent_choose_attack` `0x4965ec`). So `serpent_place_parts`, the illusion start and update, and the
+copies' appearance never run in v1.40; the two copies made by `serpent_spawn_rider` stay hidden. `serp_boss.tbl`
+still lists "stage2 illusion" (variation 7).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1549,6 +1682,11 @@ record has a name but no count or no topic (`strtok` returns NULL at `0x43f4bb` 
 | V193 | At the end of every cutscene, `cutscene_unload` passes the soundtrack's sound handle to `snd_stop`, which takes a play signature, and frees a slot that `snd_level_release` has already freed | `cutscene_unload` `0x4351e0` | **Observed** code | No |
 | V200 | Latent: `load_mlayout` and `save_mlayout` with no file name clear the top byte of the console code's saved EDI register before trying the file `.mlo` | `cmd_load_mlayout` `0x4401a0`, `cmd_save_mlayout` `0x4402f0` | **Observed** code |
 | V201 | Latent: in multiplayer, the host accepts a reliable link from a machine that is not in its player list and neither stores nor closes it, so the link keeps one of the nine slots until it times out | `mp_server_accept_connections` `0x440d20` | **Observed** code, *inferred* effect |
+| V210 | Nothing known: when a group member dies or leaves, its group's enemy count becomes -1 until the group's next think (up to 2.5 s) | `ai_group_remove_member` `0x492ca0` | **Observed** code | No |
+| V211 | Nothing: a rider flinch move with an unknown `stage<N>_flinch_*` action formats an error message that is never shown (the Phoenix's `stage1_flinch_high` and `stage1_flinch_mid` do so on every load), and the per-stage flinch tables are never read | `serpent_rider_set_flinch` `0x4954c0`, `phoenix_rider_set_flinch` `0x498720`, `tiger_rider_set_flinch` `0x49a1a0` | **Observed** code and retail data | No |
+| V212 | Nothing: the Phoenix Rider's on-foot setup looks up `ready_hurt` and throws the result away (its `ready_hurt` uses the same `phnx_ready.mvf` as `ready`) | `phoenix_set_foot_anims` `0x499be0` | **Observed** code and retail data | No |
+| V213 | Nothing known: unloading the Tiger Rider frees its axe without clearing `tiger_axe`, and every Tiger load makes a new axe without freeing the one not yet handed over | `tiger_unload` `0x49ae90`, `tiger_equip_weapon` `0x49a2c0` | **Observed** code, *inferred* effect | No |
+| V214 | Nothing: the Serpent's first load clears its "rider seated" flag right after setting it; the nested loads of its two copies set it again | `serpent_boss_load` `0x495960` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1639,9 +1777,10 @@ right. Of the 12 call sites, 11 use only the heading: `character_save_state` (`0
 (`0x45c688`), `camera_sync_yaw_to_target` (`0x4798d7`), `mp_send_obj_update` (`0x480584`), `mp_handle_obj_update`
 (rebuilds with pitch 0 and bank 0, `0x48083e`), `level_add_navpoint` (`0x4d57a6`), `script_parse_navpoint(s)`
 (`0x4db553`, `0x4db8ab`), `ls_worldmap1_frame` (`0x4fbdbb`) and `build_bone_matrices` (`0x51a05f`). The one that uses
-the pitch, `cutscene_camera_sequence_advance` (`0x4944b9`, `0x4944d0`, then `set_from_angles` at `0x4945f2`), runs only
-for a camera sequence in state 1 (`0x4794bb`..`0x4794ce`). The only sequence class is built with state 0
-(`push 0` at `0x493f83`), and nothing writes the state afterwards, so that branch is dead.
+the pitch, `camera_blend_sequence__advance` (`0x4944b9`, `0x4944d0`, then `set_from_angles` at `0x4945f2`), runs only
+for a camera sequence in state 1 (`0x4794bb`..`0x4794ce`). The only sequence class Sum.exe builds is the cutscene shot,
+with state 0 (`push 0` at `0x493f83`); the blend class that owns this method has no constructor in the image, so that
+branch is dead.
 
 **V19.** `transpose_in_place` moves `m[1] -> m[4] -> m[5] -> m[9] -> m[3] -> m[1]` and
 `m[2] -> m[8] -> m[10] -> m[7] -> m[6] -> m[2]` (`0x511bb1`..`0x511c02`). A transpose would swap 1/3, 2/6 and 5/7, and
@@ -2012,6 +2151,45 @@ layer, which times links out only after 100 s without a packet (see V181). A mac
 freed (for example by `mp_server_check_clients` when the join timer ran out, `0x440c96`..`0x440cad`) would connect
 this way.
 
+**V210. The loop variable after the loop.** [notes 1] `ai_group_remove_member` shifts the members after the removed
+one down and then stores -1 at `[group + 4*edx + 4]` with `edx` = 6 after the loop (`0x492d07`), which is `+0x1c`,
+the group's enemy count, not `members[5]`. A removed member in the last slot gives the same `edx`. The next
+`ai_group_collect_enemies` rewrites the count (`0x493b22`), so the -1 lasts until the group thinks again. Readers in
+between (`ai_group_count_helpless`, the style functions, `ai_combat_cast_frame` `0x4bfc40` / `0x4bfd4b`) compare
+signed (`jle`), so -1 acts as 0. Callers: `character_on_death`, `party_remove_member`, `party_remove_player`,
+`cmd_character`, `script_entry_check_done`. *Inferred:* no visible effect.
+
+**V211. A message nobody prints, tables nobody reads.** [notes 9] Each `*_rider_set_flinch` walks the flinch move
+list and, for an action that starts with `stage` but is neither `stage<N>_flinch_area` nor `_status`, calls
+`sprintf` into a stack buffer and does nothing with it ("Unable to set Serpent / Phoenix / Tiger Rider flinch for %s
+-- bad $Action", `0x495587`, `0x4987e7`, `0x49a267`; no print call in the three functions). `Phoenix Rider.tbl`
+has flinch moves `stage1_flinch_high` and `stage1_flinch_mid`, so the Phoenix's message is built on every load.
+The tables themselves (`0x24523c0` / `0x24523cc` Serpent, `0x24529dc` / `0x24529e8` Phoenix, `0x2452c4c` /
+`0x2452c58` Tiger) have no reference outside these three functions. The Serpent and Phoenix copy stage 2 into
+stage 3 at the end; the Tiger copies stage 2 into stage **1** (`0x49a27a`..`0x49a28f`; it has stage 2 and 3
+flinches only). The digit is not range-checked either: `stage0_` or `stage4_`..`stage9_` would write outside the
+three-entry tables (latent, modded data only).
+
+**V212. A discarded lookup.** [notes 13] `phoenix_set_foot_anims` calls `charinfo_find_anim(info, "ready_hurt")`
+(`0x499c29`) and overwrites `eax` with the `walk` lookup (`0x499c3a`) without a store; the four stand and ready
+slots already got `ready`. `Phoenix Rider.tbl` maps both `ready` and `ready_hurt` to `phnx_ready.mvf`, so nothing
+changes. `serpent_set_foot_anims` stores its `ready_hurt` (`0x497650` body).
+
+**V213. A stale and a leaked axe.** [notes 16] `tiger_unload` (`boss_ai_unload` case `0x57`, from
+`ai_state_shutdown` in the entity destructor) calls `item_free(tiger_axe)` and leaves the pointer
+(`0x49ae90`..`0x49ae9f`). Every `tiger_boss_load` (each `ai_reset`: level load, cutscene actor reset, savegame
+load) runs `tiger_equip_weapon`, which overwrites `tiger_axe` with a new `item_create_weapon` (`0x49a2c0` body)
+without freeing an axe that was not handed over. A second free needs a second Tiger unload without a load in
+between (no retail case known); the leak costs one item per extra load from the 1224-item pool (C12).
+
+**V214. Set, then cleared.** [notes 6] `serpent_boss_load` sets `serpent_has_rider` (`0x2451da3`) by level
+(`0x49599a` / `0x4959a5`) and only then, on the first load, clears the 0x640-byte state from `0x2451d98`
+(`rep stosd` at `0x4959cc`), which includes the flag. `serpent_spawn_rider` then creates the two copies as type-9
+species `0x59` (`living_entity_create` at `0x49574b` / `0x4957d6`); `living_entity_create` calls `ai_reset`,
+which runs `boss_ai_load` and so `serpent_boss_load` for each copy. Those nested calls skip the setup but set the
+flag again (1 outside `Liangshan` / `Jadetemple`). So the flag is right by the time `serpent_seat_rider` runs
+(`0x495b73`). Only if both copies failed to be created would the mounted rider not be seated.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2276,6 +2454,12 @@ the tables above; the rest are below.
 - `irc_connect`'s -2 case in the lobby connect step (`cmp eax, -2`, `0x43f17b`, D3306): dead, since `irc_connect` returns -1, 0 or 1. Harmless.
 - `multi_send_packet`'s last argument (notes, multi.h): a flush flag, every packet is reliable; already listed in "Claims that did not hold" (PLY_DAT line). Nothing new.
 
+- Notes 4, "the five-entry candidate array overflows for a six-member group": the list in `ai_group_think_caster` has six 0x10-byte records (`[esp+0x30]`..`[esp+0x90]` of an 0x80-byte frame), so six members fit; the overflow comes only from the doubled count (C210).
+- Notes 6 as a live bug: the nested `serpent_boss_load` calls of the two copies restore `serpent_has_rider` (V214).
+- The decompiled `tiger_rider_set_flinch` copies `flinch_area[1]` / `flinch_status[1]` into index 2; the binary copies them into index 0 (`mov [0x2452c58], ecx` / `mov [0x2452c4c], edx` at `0x49a289` / `0x49a28f`). A decomp error, not a game bug (the tables are never read, V211).
+- `ai_group_collect_enemies` filters enemies by height against `cur_character` (`0x493c71`), not the group leader as the decomp comment says; party members stay near `cur_character`, so no effect is known.
+- The Phoenix Rider's on-foot `ready_hurt` slot (V212) and the empty flinch tables (V211) change nothing on screen.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2397,6 +2581,10 @@ the tables above; the rest are below.
 - V201: whether the unstored link lives on with heartbeats from the other machine or times out after 100 s.
 - Lobby user counts: `lobby_handle_irc_command` adds 1 to the joined channel's count for every join event, even for a user already listed, and subtracts 1 for every part, even for an unknown user (`0x43f5fe`..`0x43f61a`, `0x43f63b`..`0x43f658`). Whether the IRC layer can send such events was not traced; the next `/list` overwrites the count (`0x43f516`).
 - `.peg` stream entries: `effect_stream_open_current` starts a zero-byte read of the file object without opening it (jump table `0x440840` entry 1 -> `0x440825`, `edi = esi = 0`). Only effect base names are queued (`effect_base_queue_stream` `0x51c6f7`); whether `effects.arr` names any `.peg` (or `.mvf` / `.vim`) was not checked.
+- `ai_group_think_style2` (Range, Caster) returns without any order when it meets a helpless enemy in the shuffled list before an engaged one (`jne 0x4936b5` at `0x49362f`), where `ai_group_think_style1` skips it; a design choice or a slip is not known.
+- `ai_group_collect_enemies` returns before resetting anything when the leader handle is not living (`0x493add`), and `ai_groups_frame` still calls `ai_group_combat_think`, which then works on the previous group's `ai_think_*` lists; no retail path that leaves a group with a dead or deleted leader was found.
+- The Tiger's pending sub-mode word `0x2452b7c` has one reference, a read in `tiger_ai_frame` (`0x49bfab`, compared with `0x21`); no write was found, so that branch may be dead like the Serpent's illusion.
+- Notes 14 intent: the `=-` reading of G216 rests on the generic picker; the Tiger's own constants (base 10, weight `base x 0.1 + 10`) differ from it anyway.
 
 ## Evidence
 
@@ -2473,7 +2661,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K19 ComputerSpeed | `GameInit` `0x43e06f`..`0x43e104`; `summoner_cfg_load` `0x43e295`..`0x43e327` |
 | K20 hit effects | `combat_spawn_hit_vfx` `0x4669d2`..`0x466a54`, case bytes `0x466a64`, jump table `0x466a58`; `material_names` `0x598f5c`; `characterinfo_parse_table` `0x445f42`..`0x445f64` |
 | V17 options | `cmdline_read_params` `0x43dc7c`..`0x43dc8b`; `init_cmdline_glide` `0x43d37c`; `LoadSettings` `0x43dade`..`0x43db03`, `0x43d95b`, `0x43d968` |
-| V18 extract_angles | `matrix3__extract_angles` `0x51028f`..`0x5102c0`; `set_from_sincos` `0x510086`..`0x5100b0`; `cutscene_camera_sequence_advance` `0x4944b9`..`0x4945f2`; `camera_update_sequence` `0x4794ad`..`0x4794ce`; `cutscene_camera_sequence__ctor` `0x493f83` |
+| V18 extract_angles | `matrix3__extract_angles` `0x51028f`..`0x5102c0`; `set_from_sincos` `0x510086`..`0x5100b0`; `camera_blend_sequence__advance` `0x4944b9`..`0x4945f2`; `camera_update_sequence` `0x4794ad`..`0x4794ce`; `cutscene_camera_sequence__ctor` `0x493f83` |
 | V19 dead math helpers | `matrix43__transpose_in_place` `0x511bb1`..`0x511c02`; `skeleton__get_root_rotation` `0x544051`..`0x54405c` |
 | V20 mesh leak | `vim_load_file` `0x5438e5`..`0x5438f1`, `0x543908`..`0x54390d`; `vim_alloc` `0x54307c`..`0x543086`; `vim_free` `0x5430b9`..`0x5430be` |
 | V21 textures | `vim_read` `0x543835`..`0x543896` |
@@ -2626,3 +2814,21 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K200 channel list | `lobby_parse_channel_list` `0x43f4b9`..`0x43f4dc`, `0x43f544`, `0x43f549` |
 | V200 empty mlayout name | `cmd_load_mlayout` `0x4401b8`, `0x44023d`..`0x440250`, `0x440272`; `cmd_save_mlayout` `0x44038d`..`0x4403a0`; `execute_command_line` `0x50a50a`..`0x50a54d`; `print_to_console` `0x50a5a0` |
 | V201 unstored link | `mp_server_accept_connections` `0x440d29`..`0x440d62`; `mp_server_check_clients` `0x440c96`..`0x440cad` |
+| C210 doubled count, list overflow | `ai_group_think_caster` `0x4936c0` (frame), `0x4937ea` (list at `esp+0x30`), `0x49395c`, `0x493988`, `0x4939c5`, `0x4939f2`..`0x493a05`; `ai_group_combat_think` `0x492db5`..`0x492dbf`, `0x492fd4`..`0x492fd8`; `ai_groups_frame` `0x492d30`..`0x492d38`, `0x492d7d`, `0x492d8b` |
+| C211 camera key pools | `cutscene_camera_read_track` `0x494076`..`0x4940d1`, `0x49415c`..`0x4941ba`; `cutscene_camera_tracks_clear` `0x494680`; `cutscene_load_files` `0x434ba8`; retail `cutscene.tbl` and `cutscene.vpp` `.CSC` files |
+| G210 cone | `ai_group_collect_enemies` `0x493bac`..`0x493be8`, `0x493bf9`..`0x493c5c`; `script_guard_sees_player` `0x4ce882`..`0x4ce893`; `Archlich.tbl` |
+| G211 second order | `ai_group_think_style1` `0x49353c`..`0x49355f`; `ai_goal_add_attack` `0x473fc5`; `ai_goal_add` `0x476197`..`0x4761c8`; `ai_group_shuffle_enemies` `0x493ce0` |
+| G212 Protect threshold | `ai_group_think_caster` `0x49395c`, `0x493988`, `0x4939b5`..`0x4939d7` |
+| G213 asleep index | `serpent_choose_attack` `0x496678`..`0x4966aa`, `0x4966ce`, `0x496706`..`0x496751`; `serpent_part_is_asleep` `0x496060`; `serp_boss.tbl` stage 1 |
+| G214 negated point | `phoenix_reposition_update` `0x497f42`..`0x497fae` |
+| G215 Inferno | `phoenix_special_strike` `0x4998c0`..`0x499999`; `boss_attack_trigger_dispatch` `0x4a0d5f`; `phoenix_boss.tbl`; `spells.tbl` "inferno" `+Distance:` 6 |
+| G216 threat base | `tiger_pick_target` `0x49b1fe`..`0x49b250`, `0x49b276`..`0x49b28f`; `boss_target_list_pick` `0x4a3257`..`0x4a326a` |
+| K210 snow +x refill | `snow_update` `0x494d7e`..`0x494dbf` (+x), `0x494df5`..`0x494e00`, `0x494e49`..`0x494e54`, `0x494e95`..`0x494ea0`; `snow_cell_update` `0x494a85`, `0x494a9b`..`0x494a9f` |
+| K211 Phoenix rider time | `phoenix_seat_rider` `0x4982e5`..`0x498303`; `serpent_seat_rider` `0x495e55`..`0x495e76` |
+| K212 Tiger stage 2 anims | `tiger_set_stage2_anims` `0x49a144`..`0x49a15c`; `tiger_load_anims` `0x49abaa`; callers `0x49c38f`, `0x49c3d9`; `Tiger Rider.tbl` |
+| K213 illusion | `serpent_illusion_start` `0x496bd7`..`0x496c0d`; `serpent_ai_frame` `0x497417`..`0x497430`; only pending write `0x4965ec` |
+| V210 enemy count -1 | `ai_group_remove_member` `0x492ce8`..`0x492d07`; `ai_group_collect_enemies` `0x493b22` |
+| V211 flinch | `serpent_rider_set_flinch` `0x495579`..`0x4955af`; `phoenix_rider_set_flinch` `0x4987d9`..`0x49880f`; `tiger_rider_set_flinch` `0x49a259`..`0x49a28f`; `Phoenix Rider.tbl` |
+| V212 ready_hurt | `phoenix_set_foot_anims` `0x499c23`..`0x499c3a`; `Phoenix Rider.tbl` |
+| V213 Tiger axe | `tiger_unload` `0x49ae90`..`0x49ae9f`; `tiger_equip_weapon` (`item_create_weapon` for "TigerAxe"); `boss_ai_unload` `0x4a04f8`; `ai_state_shutdown` `0x47243b` |
+| V214 has_rider | `serpent_boss_load` `0x49599a`..`0x4959cc`, `0x495b73`; `serpent_spawn_rider` `0x495745`..`0x49574b`; `living_entity_create` `0x461c23`; `ai_reset` `0x47245a`..`0x47246e` |

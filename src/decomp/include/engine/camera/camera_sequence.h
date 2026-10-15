@@ -61,8 +61,8 @@ LAYOUT_CHECK(cutscene_camera_sequence, sizeof(cutscene_camera_sequence) == 0x70)
 // up over blend_in, holds, and ramps down over blend_out (tcb_ease 0.25 / 0.25).
 class camera_blend_sequence : public camera_sequence {
 public:
-    float time_left();                // 0x4943f0 cutscene_camera_sequence_time_left
-    void  advance(float dt);          // 0x494400 cutscene_camera_sequence_advance (ret 4)
+    float time_left();                // 0x4943f0 camera_blend_sequence__time_left
+    void  advance(float dt);          // 0x494400 camera_blend_sequence__advance (ret 4)
 
     float elapsed;                    // +0x08
     float hold;                       // +0x0C

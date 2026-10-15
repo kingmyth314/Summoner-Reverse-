@@ -6,7 +6,7 @@ nav_order: 6.28
 
 # Bosses
 
-**Summary:** 14 boss species have their own AI code in `0x495000`-`0x4ca600`. `ai_reset` (`0x472450`) calls
+**Summary:** 14 boss species have their own AI code in `0x495290`-`0x4ca600`. `ai_reset` (`0x472450`) calls
 `boss_ai_load` (`0x4a0600`) for every type-9 entity and for Luminar. Each boss then runs through a set of
 species dispatchers: load, stage check, idle, combat think, attack test and resolve, unload. Most bosses have
 three **stages**. The stage usually comes from the HP fraction (thresholds 66 % and 30 %, or 2/3 and 1/3).
@@ -140,7 +140,7 @@ Every per-boss function is reached through a species switch. The main ones:
 | Dispatcher | Address | Called from | Purpose |
 |---|---|---|---|
 | `boss_ai_load` | `0x4a0600` | `ai_reset` | per-boss setup, table, weapons, teleport navpoints |
-| `boss_ai_unload` | `0x4a04d0` | `ai_state_shutdown` | per-boss cleanup (frees the tiger weapons, bitmaps) |
+| `boss_ai_unload` | `0x4a04d0` | `ai_state_shutdown` | per-boss cleanup (frees the Tiger's axe while it is not in hand, keeping the pointer; bitmaps) |
 | `boss_ai_check_stage` | `0x4a0730` | `ai_frame` (every frame, type 9) | threat decay, then the stage check and rider seating |
 | `boss_ai_idle_dispatch` | `0x4a08c0` | `ai_frame`, idle mode | waits for the boss's "combat" flag, then `ai_enter_combat` |
 | `boss_ai_frame` | `0x4a09f0` | `ai_mode_combat_frame` | the boss's combat think function |
@@ -297,8 +297,8 @@ Notes, all **observed** unless marked:
 
 | Mechanic | Boss | Functions | Notes |
 |---|---|---|---|
-| Mount and rider | Serpent, Phoenix, Tiger, Ghost | `boss_ensure_mount` `0x4a1dc0`, `*_seat_rider`, `boss_release_mount` `0x4a1fe0` | the rider sits on the mount's `$sit` bone; a released mount runs to the farthest graph point with goal `0xd` for 5 s **observed** |
-| Illusion copies | Serpent | `serpent_spawn_rider` `0x4955e0`, `serpent_illusion_start` `0x496ba0`, `serpent_part_on_hit` `0x4a28b0` | two extra species-`0x59` type-9 copies, `Serp-illusion.vfx`; a copy that is hit is deactivated **observed**; that they are the "illusion" clones is *inferred* |
+| Mount and rider | Serpent, Phoenix, Tiger, Ghost | `boss_ensure_mount` `0x4a1dc0`, `*_seat_rider`, `boss_release_mount` `0x4a1fe0` | every frame the rider is placed on the mount's `$sit` bone (or its origin), the mount gets the rider's target and the rider the mount's animation time (not the Phoenix Rider, which reads and writes the mount's own time: game bug K211); a released mount runs to the farthest graph point with goal `0xd` for 5 s **observed** |
+| Illusion copies | Serpent | `serpent_spawn_rider` `0x4955e0`, `serpent_illusion_start` `0x496ba0`, `serpent_part_on_hit` `0x4a28b0` | two extra species-`0x59` type-9 copies, made hidden and inactive. The illusion (sub-modes `0x38` / `0x39`: `Serp-illusion.vfx`, the serpent fades out, all three reappear at points 4 m around it, the copies vanish 8 s later or when hit) never runs in v1.40: `serpent_ai_frame` enters `0x38` only when the pending sub-mode word `0x24523a8` is `0x38`, and the only write stores `0x20` (`0x4965ec`). `serp_boss.tbl` still lists "stage2 illusion" **observed**; see game bug K213 |
 | Whip | Serpent | `serpent_whip_test` `0x497890`, `serpent_whip_resolve_hit` `0x4979b0` | hits a party member in whip reach **observed** |
 | `+Plus Spell:` hit | Serpent parts, Ghost | `boss_counter_hit_dispatch` `0x4a2230` | a boss melee move with flag `0x10` also hits its target with the move's spell, before the range test (see above) **observed** |
 | Minion revive | Ghost Rider | `ghost_revive_minions` `0x4bbc70`, `ghost_fire_attack` `0x4bb9a0` | spells `0x51`-`0x53` raise a counter (`0x24808c8`, max 2); dead minions are brought back with `boss_resurrect_full` `0x4c3fb0` while it is positive **observed** |
@@ -314,7 +314,7 @@ Notes, all **observed** unless marked:
 | Grab | Luminar, Tentacle Beast | `luminar_ai_grab` `0x4c9b00`, `tentacle_beast_ai_grab` `0x4c6850` | Luminar's grab deals 96 HP; the victim is held, leadership moves off it, the camera follows **observed** |
 | Beam and teleport | Luminar | `luminar_beam_start` `0x4ca230`, `luminar_teleport_out` `0x4c9da0` | beam in every stage, teleport only in stage 3 **observed** |
 | Tentacles | Tentacle Beast | `tentacle_beast_cycle_tentacles` `0x4c76d0`, `tentacle_beast_check_stage` `0x4c7360` | four tentacle records; each rises and sinks on timers; a tentacle at HP 0 plays its death move and counts as lost **observed** |
-| Rider flinch | Serpent, Phoenix, Tiger, Giant Salamanka | `serpent_rider_set_flinch` `0x4954c0` and others | reads anims named `stage<N>_flinch_area` / `_status` into per-stage tables; how they are used is *unknown* |
+| Rider flinch | Serpent, Phoenix, Tiger, Giant Salamanka | `serpent_rider_set_flinch` `0x4954c0`, `phoenix_rider_set_flinch` `0x498720`, `tiger_rider_set_flinch` `0x49a1a0` and others | files the flinch moves whose `$Action:` is `stage<N>_flinch_area` / `_status` into per-stage tables (Serpent `0x24523c0` / `0x24523cc`, Phoenix `0x24529dc` / `0x24529e8`, Tiger `0x2452c4c` / `0x2452c58`); the Serpent and Phoenix then copy stage 2 into stage 3, the Tiger copies stage 2 into stage 1. No other code references the riders' tables, so they are never used **observed** (Giant Salamanka not rechecked); other `stage<N>_flinch_*` names give a message that is never shown (game bug V211) |
 
 ## Console commands
 
@@ -366,7 +366,7 @@ The Salamanka intro callback also gives the party the Ring of Fire (`script_part
 |---|---|---|---|---|---|
 | Serpent Rider | `0x59` | rand-forest01, Liangshan | 3 | `0x495290`-`0x497ac0` | HP 50 / 25 %, Dismount cutscene |
 | Phoenix Rider | `0x58` | rand-hills01, Liangshan | 3 | `0x497ac0`-`0x499e50` | HP 66 / 30 %, Dismount, second life at 0 |
-| Tiger Rider | `0x57` | templeint, jadetemple | 3 | `0x499e50`-`0x49c7f0` | 4 spear moves, then HP 50 % and Dismount |
+| Tiger Rider | `0x57` | templeint, jadetemple | 3 | `0x499e50`-`0x49c840` | 4 spear moves, then HP 50 % and Dismount |
 | Ghost Rider | `0x5a` | rand-forestnite1, jadetemple | 3 | `0x4b9e70`-`0x4bbe50` | HP 66 / 30 %, Dismount |
 | Pyrul | `0xc4` | khosanilab2 | 3 | `0x4b87c0`-`0x4b9e70` | HP 66 / 30 % |
 | Machival | `0xc5` | templeint2 | none | `0x4c0c40`-`0x4c20e0` | script only |
@@ -389,7 +389,7 @@ range ends.
 - Whether the bosses that rely on offense points (Pyrul, Ghost, Machival, Murod Oni, Giant Salamanka) really
   miss in game, or whether some arena lies near the world origin. A runtime check in agent mode would settle it.
 - Whether the Ghost's class-4 moves hit the main target twice (its own resolver, then `living_combat_resolve_hit`).
-- How the per-stage rider flinch tables (`0x24523c0`.. for the serpent) are used.
+- Whether anything reaches the riders' per-stage flinch tables through a pointer; no direct reference outside the three `*_rider_set_flinch` functions was found (2026-10-15).
 - The names of the ghost minion species `0x43`, `0x45`, `0x9c` and the Evil Joseph helpers.
 - Whether the Phoenix second life and the PHNX-Escape cutscene both happen at HP 0, and in which order.
 
@@ -442,4 +442,6 @@ This page lists function addresses instead of REA evidence ids. All were read wi
 - Boss heights are never used; only the radius is. `ai_retaliate_on_hit` does not skip the Serpent Rider,
   Giant Salamanka or (fully) Luminar.
 - New: the hit flow, the Urath spell list, the rider combat-style test (Phoenix reads `serpent_stage`), the
-  type-7 threat rule, and the unit end `0x4a3575`.
+  type-7 threat rule and the unit end `0x4a3575`; from the decomp54 units, that the Serpent's illusion never
+  runs, the rider flinch tables are never read, the Phoenix Rider is not kept in step with its horse, the Tiger
+  code ends at `0x49c840` and the boss code starts at `0x495290`.

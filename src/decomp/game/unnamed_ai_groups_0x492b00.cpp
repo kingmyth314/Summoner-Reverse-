@@ -12,8 +12,8 @@
 // Unit range: the static initialiser of the group timers (0x492b00, entry 263) follows levelrender.cpp's
 // last function (atexit_nop_492af0); the unit ends with cmd_party_controller_check (0x493d90-0x493e41);
 // the cutscene camera unit's first initialiser (entry 265) follows at 0x493e50.
-// Data: .bss 0x243e040-0x243e3d7 (ai_groups, the console object 0x243e388, ai_think_members,
-// ai_think_num_enemies, ai_think_enemies), .data 0x59c594-0x59c5ef (Party_controller_check and the
+// Data: .bss 0x243e040-0x243e3d7 (ai_groups, the console object 0x243e388, ai_think_enemies,
+// ai_think_num_members, ai_think_members), .data 0x59c594-0x59c5ef (Party_controller_check and the
 // console strings). The float literals 0.4 (0x581ad8), 30.0 (0x581adc) and 0.71 (0x581ae0) are in
 // .rdata just before the camera sequence vtable (0x581ae4); 0.25, 3.0, 10.0, 0.0 are pooled.
 
@@ -46,9 +46,9 @@
 // 0x492b10 init_gametimer_array_243e090: the compiler-generated array constructor of ai_groups (the
 //          GameTimer constructor of each +0x50 inlined as a call loop, stride 0x54). Confidence: exact.
 ai_group ai_groups[10];                                       // 0x243e040
-Character *ai_think_members[10];                              // 0x243e394
-int ai_think_num_enemies;                                     // 0x243e3bc
-Character *ai_think_enemies[6];                               // 0x243e3c0
+Character *ai_think_enemies[10];                              // 0x243e394
+int ai_think_num_members;                                     // 0x243e3bc
+Character *ai_think_members[6];                               // 0x243e3c0
 bool Party_controller_check = true;                           // 0x59c594
 
 // 0x492b30  Confidence: exact.
@@ -166,8 +166,8 @@ void ai_group_combat_think(ai_group *g)
 {
     int i;
 
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        Character *m = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        Character *m = ai_think_members[i];
         if (m == cur_character)
             continue;
         if (ai_group_count_helpless(g) < g->num_enemies && !ai_member_skips_group_orders(m))
@@ -192,26 +192,26 @@ void ai_group_combat_think(ai_group *g)
         g->flags &= ~AI_GROUP_FIGHTING;
         return;
     }
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        Character *m = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        Character *m = ai_think_members[i];
         if (m->type != CHAR_TYPE_4 && m->ai.get_combat_style() == 0)
             ai_group_think_style0(m, g);
     }
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        Character *m = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        Character *m = ai_think_members[i];
         if (m->type != CHAR_TYPE_4 && m->ai.get_combat_style() == 1)
             ai_group_think_style1(m, g);
     }
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        Character *m = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        Character *m = ai_think_members[i];
         if (m->type != CHAR_TYPE_4) {
             int style = m->ai.get_combat_style();
             if (style == 2 || style == 4)
                 ai_group_think_style2(m, g);
         }
     }
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        Character *m = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        Character *m = ai_think_members[i];
         if (m->type != CHAR_TYPE_4) {
             int style = m->ai.get_combat_style();
             if (style == 3 || style == 5)
@@ -220,12 +220,12 @@ void ai_group_combat_think(ai_group *g)
     }
 }
 
-// 0x493000  Confidence: exact. Helpless enemies (ai_think_members, D3400).
+// 0x493000  Confidence: exact. Helpless enemies (ai_think_enemies, D3400).
 int ai_group_count_helpless(ai_group *g)
 {
     int n = 0;
     for (int i = 0; i < g->num_enemies; i++)
-        if (character_is_helpless(ai_think_members[i]))
+        if (character_is_helpless(ai_think_enemies[i]))
             n++;
     return n;
 }
@@ -270,13 +270,13 @@ void ai_group_think_style0(Character *c, ai_group *g)
         return;
 
     if (g->num_enemies == 1) {
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
         return;
     }
     Character *best = NULL;
     float best_dist = -1.0f;
     for (int i = 0; i < g->num_enemies; i++) {
-        Character *e = ai_think_members[i];
+        Character *e = ai_think_enemies[i];
         if (e && !character_is_helpless(e)) {
             float d = distance(&c->pos, &e->pos);
             if (best == NULL || d < best_dist) {
@@ -289,8 +289,8 @@ void ai_group_think_style0(Character *c, ai_group *g)
         ai_group_order_attack(c, best, g, false);
         return;
     }
-    if (ai_think_members[0])
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+    if (ai_think_enemies[0])
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
 
 // 0x493220  Confidence: exact. The first order of a party group's think also switches the party to
@@ -327,11 +327,11 @@ void ai_group_think_style1(Character *c, ai_group *g)
         return;
 
     if (g->num_enemies == 1) {
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
         return;
     }
     for (i = 0; i < g->num_enemies; i++) {
-        Character *e = ai_think_members[i];
+        Character *e = ai_think_enemies[i];
         if (e && e->ai.target != -1) {
             Character *t = living_from_handle(e->ai.target);
             if (t && !character_is_helpless(t)) {
@@ -352,7 +352,7 @@ void ai_group_think_style1(Character *c, ai_group *g)
     if (c->ai.target != -1 && living_from_handle(c->ai.target))
         return;
     for (i = 0; i < g->num_enemies; i++) {
-        Character *e = ai_think_members[i];
+        Character *e = ai_think_enemies[i];
         if (e == NULL)
             return;
         if (character_is_helpless(e))
@@ -373,8 +373,8 @@ void ai_group_think_style1(Character *c, ai_group *g)
     }
     float lowest = 1.0f;
     if (best == NULL) {
-        for (i = 0; i < ai_think_num_enemies; i++) {
-            Character *m = ai_think_enemies[i];
+        for (i = 0; i < ai_think_num_members; i++) {
+            Character *m = ai_think_members[i];
             if (m->ai.target != -1) {
                 float frac = m->hp / (float)m->get_max_stat(0);
                 if (frac < lowest) {
@@ -390,8 +390,8 @@ void ai_group_think_style1(Character *c, ai_group *g)
         best = first;
     if (best)
         ai_group_order_attack(c, best, g, false);
-    if (ai_think_members[0])
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+    if (ai_think_enemies[0])
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
 
 // 0x493570  Confidence: likely (the found-in-loop exit as a break with a NULL-initialised result).
@@ -412,13 +412,13 @@ void ai_group_think_style2(Character *c, ai_group *g)
         return;
 
     if (g->num_enemies == 1) {
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
         return;
     }
     Character *first = NULL;
     Character *target = NULL;
     for (int i = 0; i < g->num_enemies; i++) {
-        Character *e = ai_think_members[i];
+        Character *e = ai_think_enemies[i];
         if (e == NULL)
             return;
         if (character_is_helpless(e))
@@ -438,8 +438,8 @@ void ai_group_think_style2(Character *c, ai_group *g)
         ai_group_order_attack(c, first, g, false);
         return;
     }
-    if (ai_think_members[0])
-        ai_group_order_attack(c, ai_think_members[0], g, true);
+    if (ai_think_enemies[0])
+        ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
 
 // 0x4936c0  Confidence: likely (the candidate count is incremented twice per scored member, as in the
@@ -475,15 +475,15 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
     float ap = (float)c->ap;
     bool has_ap = ap / (float)c->get_max_stat(1) > 0.25f;
     count = 0;
-    for (i = 0; i < ai_think_num_enemies; i++) {
-        list[i].character = ai_think_enemies[i];
+    for (i = 0; i < ai_think_num_members; i++) {
+        list[i].character = ai_think_members[i];
         list[i].score = 0;
         list[i].flags = 0;
     }
 
     if (has_ap) {
         chosen = NULL;
-        int spell = ai->choose_support_spell(list, ai_think_num_enemies, &chosen);
+        int spell = ai->choose_support_spell(list, ai_think_num_members, &chosen);
         if (spell != -1) {
             if (chosen == NULL)
                 ai->add_cast_spell(spell, 999999);
@@ -496,14 +496,14 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
             return;
 
         float own = 0.0f, foe = 0.0f;
-        for (i = 0; i < ai_think_num_enemies; i++)
-            own += ai_think_enemies[i]->combat.attack_rating();
+        for (i = 0; i < ai_think_num_members; i++)
+            own += ai_think_members[i]->combat.attack_rating();
         for (i = 0; i < g->num_enemies; i++)
-            foe += ai_think_members[i]->combat.attack_rating();
+            foe += ai_think_enemies[i]->combat.attack_rating();
         if (foe / own > 3.0f) {
             float total = 0.0f;
-            for (i = 0; i < ai_think_num_enemies; i++) {
-                Character *m = ai_think_enemies[i];
+            for (i = 0; i < ai_think_num_members; i++) {
+                Character *m = ai_think_members[i];
                 list[i].flags = 0;
                 list[i].score = 0;
                 if (can_member && !m->has_status(STATUS_BLESS)) {
@@ -536,7 +536,7 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
                     }
                 }
                 if (pick != -1) {
-                    ai->add_cast_at_target(SPELL_MEMBER_SUPPORT, ai_think_enemies[pick], 999999);
+                    ai->add_cast_at_target(SPELL_MEMBER_SUPPORT, ai_think_members[pick], 999999);
                     ai->process_goals();
                     return;
                 }
@@ -553,10 +553,10 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
 }
 
 // 0x493ac0  Confidence: likely (the cone test; see NOTES.md). The group's members go to
-// ai_think_enemies and every active enemy of the leader that a member sees (within its fov range and
+// ai_think_members and every active enemy of the leader that a member sees (within its fov range and
 // line of sight: inside the detection range, or, when not blind, at a dot product below 0.71 with its
 // forward vector) and that is within 3 m of the leader's height goes to the group's enemy list (10
-// max) and ai_think_members (D3400).
+// max) and ai_think_enemies (D3400).
 void ai_group_collect_enemies(ai_group *g)
 {
     Character *leader = living_from_handle(g->leader);
@@ -564,11 +564,11 @@ void ai_group_collect_enemies(ai_group *g)
 
     if (leader == NULL)
         return;
-    ai_think_num_enemies = 0;
+    ai_think_num_members = 0;
     for (i = 0; i < g->count; i++) {
-        ai_think_enemies[ai_think_num_enemies] = living_from_handle(g->members[i]);
-        if (ai_think_enemies[ai_think_num_enemies])
-            ai_think_num_enemies++;
+        ai_think_members[ai_think_num_members] = living_from_handle(g->members[i]);
+        if (ai_think_members[ai_think_num_members])
+            ai_think_num_members++;
     }
     g->num_enemies = 0;
     for (Character *e = living_list.live_next; e != &living_list; e = e->live_next) {
@@ -580,8 +580,8 @@ void ai_group_collect_enemies(ai_group *g)
             continue;
         if ((game_flags & GF_SINGLE_PLAYER) && (e->ai.flags & 0x40))
             continue;
-        for (i = 0; i < ai_think_num_enemies; i++) {
-            Character *m = ai_think_enemies[i];
+        for (i = 0; i < ai_think_num_members; i++) {
+            Character *m = ai_think_members[i];
             float d = distance(&e->pos, &m->pos);
             if (d <= m->info->fov_range && m->has_line_of_sight_to(e)) {
                 if (d < m->info->detection_range)
@@ -594,11 +594,11 @@ void ai_group_collect_enemies(ai_group *g)
                 }
             }
         }
-        if (i >= ai_think_num_enemies)
+        if (i >= ai_think_num_members)
             continue;
         if (fabs(cur_character->pos.y - e->pos.y) <= 3.0f && g->num_enemies < 10) {
             g->enemies[g->num_enemies] = e->handle;
-            ai_think_members[g->num_enemies] = e;
+            ai_think_enemies[g->num_enemies] = e;
             g->num_enemies++;
         }
     }
@@ -620,7 +620,7 @@ void ai_group_shuffle_enemies(ai_group *g)
         g->enemies[b] = t;
     }
     for (i = 0; i < g->num_enemies; i++)
-        ai_think_members[i] = living_from_handle(g->enemies[i]);
+        ai_think_enemies[i] = living_from_handle(g->enemies[i]);
 }
 
 // ---- console command -------------------------------------------------------------------------------

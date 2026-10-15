@@ -994,9 +994,10 @@ typedef struct mp_netgame_info {
 typedef struct ai_group {
     int32_t count;           // +0x00
     int32_t members[6];      // +0x04 handles
-    uint8_t _unk1c[0x2c];
+    int32_t num_enemies;     // +0x1C enemies seen at the last think (ai_group_collect_enemies); ai_group_remove_member writes -1 here (V210)
+    int32_t enemies[10];     // +0x20 handles, shuffled by ai_group_shuffle_enemies
     int32_t leader;          // +0x48
-    uint32_t flags;          // +0x4C
+    uint32_t flags;          // +0x4C 1 party, 4 fighting (1 s think), 8 combat mode set this think, 0x10 multiplayer: thought locally
     int32_t timer;           // +0x50 GameTimer
 } ai_group;
 
@@ -1126,7 +1127,7 @@ typedef struct cutscene_entry {
 typedef struct cutscene_camera_shot {
     void*   vtable;          // +0x00 0x581af0 (slot 1 get_pos, slot 2 get_orient)
     int32_t state;           // +0x04 camera_sequence_get_state
-    float   fov;             // +0x08 read from the file; camera_update_sequence sets the camera fov from it (x 0x581a58); cutscene_camera_sequence_time_left subtracts it as elapsed time
+    float   fov;             // +0x08 read from the file x 1.6949153; camera_update_sequence sets the camera fov from it (x 0x581a58). (+0x08 of the never-built blend class is its elapsed time: camera_blend_sequence__time_left, D3401)
     float   start;           // +0x0C shot start, seconds
     float   end;             // +0x10 shot end, seconds
     uint8_t track[0x2c];     // +0x14 anim_track: key counts +0x14 (position) / +0x16 (rotation), key arrays +0x1c / +0x20 (pools cutscene_cam_keys40 / keys20)

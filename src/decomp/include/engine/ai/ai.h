@@ -554,12 +554,12 @@ void ai_groups_restart_timers();                      // 0x492b60 (state_game_en
 #define AI_GROUP_FIGHTING    0x04     // cleared by ai_group_combat_think when no enemy is seen; 1 s think rate
 #define AI_GROUP_COMBAT_SET  0x08     // combat_mode_set(1) done this think (cleared by ai_groups_frame)
 #define AI_GROUP_LOCAL       0x10     // multiplayer: this machine thinks for the group
-// sum.symbols' names, but the contents are the other way round (D3400): ai_think_enemies holds the
-// group's own members (ai_think_num_enemies of them), ai_think_members the enemies they see (the
+// sum.symbols' names, but the contents are the other way round (D3400): ai_think_members holds the
+// group's own members (ai_think_num_members of them), ai_think_enemies the enemies they see (the
 // group's num_enemies of them). Names kept.
-extern Character *ai_think_members[10];               // 0x243e394
-extern int ai_think_num_enemies;                      // 0x243e3bc
-extern Character *ai_think_enemies[6];                // 0x243e3c0 (sum.symbols [5]; 0x18 bytes to 0x243e3d8, D3400)
+extern Character *ai_think_enemies[10];               // 0x243e394
+extern int ai_think_num_members;                      // 0x243e3bc
+extern Character *ai_think_members[6];                // 0x243e3c0 (sum.symbols [5]; 0x18 bytes to 0x243e3d8, D3400)
 extern bool Party_controller_check;                   // 0x59c594 (init 1; no reader)
 void ai_group_combat_think(ai_group *g);              // 0x492db0
 int  ai_group_count_helpless(ai_group *g);            // 0x493000
