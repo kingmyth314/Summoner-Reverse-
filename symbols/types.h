@@ -606,3 +606,28 @@ typedef struct quest_info {
     int32_t _unk64;
     int32_t num_steps;       // +0x68 (at most 11)
 } quest_info;
+
+// Base UI element / gadget (vsdk ui; base vtable 0x581ea0, gadget vtable 0x581e08). Fields from the agents' UI
+// passes and docs/sum-exe/vsdk-ui.md. Widgets (button, static, listbox, ...) extend this.
+typedef struct ui_element {
+    void*   vtable;          // +0x000
+    uint8_t _unk004[0x04];
+    int32_t kind;            // +0x008
+    int32_t x, y, w, h;      // +0x00C rectangle
+    uint8_t hidden;          // +0x01C
+    uint8_t disabled;        // +0x01D ui_gadget__is_disabled / set_disabled / set_enabled
+    char    name[0x102];     // +0x01E
+    int32_t id;              // +0x120 default event value (ui_gadget__send_event)
+    void*   tooltips;        // +0x124
+    uint8_t _unk128[0x11c];
+    void*   callback;        // +0x244 event callback
+    uint8_t _unk248[0x04];
+    int32_t hotkeys[2];      // +0x24C
+    int32_t gadget_type;     // +0x254 1 container, 2 button, 3 static, 4 checkbox, 5 radio, 6 inputbox, 8 listbox
+    uint8_t _unk258[0x04];
+    void*   window;          // +0x25C owning ui_window
+    uint8_t _unk260[0x08];
+    struct ui_element* parent;      // +0x268 parent container
+    struct ui_element* first_child; // +0x26C
+    struct ui_element* next_sibling;// +0x270
+} ui_element;
