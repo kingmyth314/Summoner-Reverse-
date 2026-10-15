@@ -597,6 +597,7 @@ typedef struct quest_info {
     int32_t _unk00;
     int32_t side_quest;      // +0x04 1 = side quest
     int32_t _unk08;
-    uint8_t steps[12][8];    // +0x0C 8-byte steps
-    int32_t num_steps;       // +0x68 (at most 12)
+    uint8_t steps[11][8];    // +0x0C 8-byte steps
+    int32_t _unk64;
+    int32_t num_steps;       // +0x68 (at most 11)
 } quest_info;
