@@ -98,7 +98,7 @@ What is known:
 - User test 2026-10-13: works in game, but leaves empty space in the UI (in-game screens sit in the left 1024 pixels) and at the right of the menus (now fixed).
 
 - **User capture 2026-10-13 at 1366x768:** the 3D world fills the width; the HUD bar, full-screen panels (inventory, character, journal, options) and side panels sit in the left 1024 pixels. The play menu is centred in that 1024 area.
-- **Implemented 2026-10-13, untested in game:** `widescreen.c` shifts the UI layer by redirecting UI call sites (see [SummonerFix](summonerfix/index.md)).
+- **Implemented 2026-10-13** (since play-tested, see below): `widescreen.c` shifts the UI layer by redirecting UI call sites (see [SummonerFix](summonerfix/index.md)).
 
 - **User test 2026-10-13 (first version):** HUD, character screen and journal centred. Side panels shifted while the 3D view did not, so the scene appeared to jump left. In the inventory, models and equipment icons stayed at the old position. Options was not moved.
 - **Second version 2026-10-13:** full-screen panels shift the whole output; side panels stay flush left with only the HUD centred.
@@ -115,14 +115,10 @@ What is known:
     stays on the NPC (a world overlay, correctly unshifted).
   - The new-game intro's "Presents" credit (a bitmap placed by the cutscene, not a string) sits left of centre at
     1366. Not checked against 1024 yet (the intro timing differs between runs).
-  - Not seen yet: buy/sell (7, full-panel path; its layout matches the inventory), item trade (19), pickup (4), assess (20).
+  - **User test 2026-10-14:** shops (buy/sell, 7) and looting/pickup work at 1366. Not seen yet: item trade (19),
+    assess (20).
 
-Next steps:
-
-1. Play-test in game with `GameWidth=1366` and note what is wrong (HUD placement, panels,
-   clicking, camera edges).
-2. Based on that, either centre the 1024-wide UI with a clip/mouse offset while the 3D view
-   uses the full width, or anchor individual HUD elements.
+Still open: check item trade (19) and assess (20) at 1366, and the intro credit position against a 1024 run.
 
 ## Decompilation
 
