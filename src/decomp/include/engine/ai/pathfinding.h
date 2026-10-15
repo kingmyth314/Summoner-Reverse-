@@ -229,10 +229,10 @@ extern int ai_path_peak_used;                 // 0x2452d34
 extern int pf_search_iterations;              // 0x2452d38
 extern int ai_path_used;                      // 0x2452d4c
 extern rect2d pf_bounds;                      // 0x245c998 (D1200)
-#define pf_bounds_max_x (pf_bounds.max_y)     // 0x245c998 sum.symbols names (x and z swapped, D1200)
-#define pf_bounds_min_x (pf_bounds.min_y)     // 0x245c99c
-#define pf_bounds_min_z (pf_bounds.min_x)     // 0x245c9a0
-#define pf_bounds_max_z (pf_bounds.max_x)     // 0x245c9a4
+#define pf_bounds_max_z (pf_bounds.max_y)     // 0x245c998 sum.symbols names (rect y is world z, D1200)
+#define pf_bounds_min_z (pf_bounds.min_y)     // 0x245c99c
+#define pf_bounds_min_x (pf_bounds.min_x)     // 0x245c9a0
+#define pf_bounds_max_x (pf_bounds.max_x)     // 0x245c9a4
 extern int pf_search_start_count;             // 0x245c9ac
 extern bool Precalc_vis_method;               // 0x245c9d8
 

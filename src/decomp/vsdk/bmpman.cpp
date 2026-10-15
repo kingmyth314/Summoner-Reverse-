@@ -481,7 +481,7 @@ int bm_hash_name(const char *name)
 
 // 0x502690  Confidence: exact. Despite the name, true only for bm_create_missing's placeholders: user
 // bitmaps whose name is not "USERBMAP".
-bool bm_is_user_bitmap(int bm)
+bool bm_is_missing_placeholder(int bm)
 {
     bitmap_entry *e;
 

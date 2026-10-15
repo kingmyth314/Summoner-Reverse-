@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 88 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 100 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 13 | 2 |
-| Gameplay | 19 | 5 | 3 |
-| Cosmetic | 18 | 4 | 1 |
-| Invisible | 7 | 19 | 0 |
+| Crash or hang | 3 | 17 | 2 |
+| Gameplay | 20 | 7 | 3 |
+| Cosmetic | 19 | 6 | 1 |
+| Invisible | 8 | 20 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -54,6 +54,10 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C14 | Latent: a character whose name has 32 or more characters overwrites its own mesh pointers | `character_create_base` `0x541500` | **Observed** code and retail data, *inferred* effect | No |
 | C30 | Latent: a character preload index with more than 70 entries or more than 1 MB overwrites memory | `ca_load_preload_index` `0x541790` | **Observed** code and retail data | No |
 | C40 | Latent: the `door_open`, `door_close` and `door_toggle` console commands with an unknown door name use an uninitialised pointer and can crash | `cmd_door_open` `0x4d5e70`, `cmd_door_close` `0x4d6580`, `cmd_door_toggle` `0x4d6600` | **Observed** code, *inferred* crash | No |
+| C50 | Latent: the OpenGL renderer with window mode 202 (desktop size) crashes at start-up | `gr_opengl_init` `0x54f6f0` | **Observed** code, *inferred* crash | No |
+| C51 | Latent: the OpenGL renderer crashes at start-up on a driver without `GL_ARB_multitexture` | `gl_init_multitexture` `0x54f370`, `gl_setup_multitexture_state` `0x54ffa0` | **Observed** code, *inferred* crash | No |
+| C52 | Latent: in the Khosani lab's room 4, a missing prisoner makes the script write into the event-name pool | `ls_khosanilab_room4_frame` `0x4f8d70` | **Observed** code and retail data, *inferred* effect | No |
+| C53 | Latent: a world map without `$hills`, forest or grass navpoints crashes the stage 4 to 8 encounter roll | `ls_worldmap1_pick_encounter_stage4` `0x4fc4b0` | **Observed** code, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -150,6 +154,33 @@ initialised, so `door_set_open` (`0x476e00`), `door_set_closed` or `door_toggle_
 was left on the stack. A missing argument has the same effect. These are developer console commands (see
 [Console commands](console.md)), so no retail path reaches them.
 
+**C50. Mode 202 skips the context.** `gr_opengl_init` switches on the window mode (`0x54f6f0`..`0x54f700`): 200 calls
+`gr_opengl_init_context` (`0x54f739`), 201 loops in `DebugError` ("OpenGl can only be used in windowed modes"), and 202
+jumps straight to `0x54f741`. There it calls `glGetString(GL_VERSION)` and `glGetString(GL_EXTENSIONS)` with no current
+context, which return NULL, and passes the result to `strstr` (`0x54f761`). The error for any other mode names
+`gr_direct3d_init` (`0x54f702`, a copied line). The only `gr_init` call pushes 201 (`push 0xc9` at `0x43db45`; SummonerFix
+patches it to 200), so no unpatched game reaches this.
+
+**C51. Entry points left NULL.** `gl_init_multitexture` looks for `GL_ARB_multitexture` in the extension string
+(`0x54f382`..`0x54f38c`). When it is missing, the `je 0x54f3e0` skips both `wglGetProcAddress` calls (`0x54f3c0`..`0x54f3da`)
+but still calls `gl_setup_multitexture_state` (`0x54f3e0`), whose first instructions call `gl_active_texture_arb` and
+`gl_client_active_texture_arb` (`0x54ffa7`, `0x54ffb2`). Both are 0. The "does not support multitexturing" box only covers
+fewer than two units (`cmp [esp], 2` at `0x54f39e`). Every vendor driver exposes the extension. *Inferred:* Windows' own
+software OpenGL 1.1 ("GDI Generic", used without a vendor driver, for example in some virtual machines) does not, so
+SummonerFix's OpenGL setup would crash there.
+
+**C52. No test for -1.** When the player reaches `$platform` (once, before `room4_started` is set, `0x4f8b4a`..`0x4f8b64`), the
+function opens `prisonlid01`..`08` and sets `end_mode = 1` on each prisoner through
+`script_objects[script_object_find("Khosani Prisoner#n")]` (`0x4f8e0b`..`0x4f8e9a`). `script_object_find` returns -1 when no
+living or dead character of that name is found (`or eax, -1` at `0x4cde57`). Index -1 writes the dword 1 at `0x24f5ce0`,
+0x550 bytes before `script_objects` (`0x24f6230`), inside the event-name buffer of `events_string_pool` (`0x24ede14`, 0x8400
+bytes). The four prisoners are in the retail level scripts (`tables.vpp`) and are still locked in at that moment.
+
+**C53. NULL name compared.** `ls_worldmap1_nearest_hills_nav` returns NULL when no navpoint starts with `$hills` (`0x4fc332`..`0x4fc337`)
+and reports distance 10000 (`0x461c4000`, `0x4fc2ad`). The picker switches to the forest or grass result only when that one
+is strictly nearer (`0x4fc685`..`0x4fc6c2`). With no terrain navpoint nearer than 10000 units it keeps the NULL and calls
+`_stricmp(NULL, "$hills001")` (`0x4fc6e2`..`0x4fc6e8`). The retail world map has these navpoints.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -178,6 +209,9 @@ was left on the stack. A missing argument has the same effect. These are develop
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code, *inferred* effect | No |
 | G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
 | G42 | Latent: a door whose name plus the level script name has 64 characters or more makes every save of that level fail to load | `savegame_read_two_stage` `0x4d34e0` | **Observed** code, *inferred* effect | No |
+| G50 | After a reload or a second visit to the Khosani lab, the flipper puzzle's board no longer matches the flippers: raised flippers show no lava platform, and the next presses move the wrong flippers | `ls_khosanilab_init` `0x4f8920`, `ls_khosanilab_set_flippers` `0x4f9ca0` | **Observed** code, *inferred* effect | No |
+| G51 | Latent: once the 1000 path nodes run out, every failed path search keeps its nodes until the next level load | `pf_graph_search` `0x49fa70` | **Observed** code, *inferred* effect | No |
+| G52 | Latent: a path to a goal outside the walkable area usually fails instead of ending at the area's edge | `pf_find_cell_crossing` `0x49ecb0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -367,6 +401,35 @@ combined length and returns 0 when it is 64 or more (`cmp ebx, 0x40; jae 0x4d373
 least one saved two-stage entry. `savegame_two_stage_get` and `savegame_two_stage_set` build the same string with
 `strncpy` / `strncat` and no test. We did not check the retail door names.
 
+**G50. The board is cleared, the doors are not.** `ls_khosanilab_init` clears the 10 x 7 board `ls_khosanilab_flippers` on every
+entry (`rep stosd` of 0x46 bytes, `0x4f895c`..`0x4f897e`) and then hides the platform of every cell
+(`ls_khosanilab_apply_lava_platforms`, `0x4f8980`). The flippers are doors, and a door's state is its two-stage bit in
+`savegame_state`, which `door_start_move` flips (`savegame_two_stage_set` at `0x476fe4`). That bit is kept across level changes
+and saved. A press toggles the used cell (`0x4f9b66`..`0x4f9b79`) and its four neighbours through `set_flippers`, which
+toggles the cell and calls `door_apply_saved_state(name, cell)` (`0x4f9cc4`..`0x4f9cf4`). That moves the door only when its
+bit differs from the new value (`0x47739f`..`0x4773ad`). So after a reload, a flipper that was raised keeps its door raised
+while its cell reads 0: its platform stays hidden, the beam grid (`ls_khosanilab_puzzle_build_grid`) is built from the board
+and not from the doors, and the first press on a neighbour leaves that door where it is while the cell becomes 1. The board
+catches up only as cells are toggled. *Inferred:* how far this blocks the crossing was not tested; it needs agent mode.
+
+**G51. `ai_path_free(NULL)`.** When the graph search has found the goal, it builds the path from the goal backwards with
+`path = ai_path_node_create(x, z, layer, path)` (`0x4a0180`..`0x4a019b`). When the pool is empty `ai_path_alloc_node` returns 0
+(`0x4a02d7`..`0x4a02f2`), the loop jumps to `0x4a01b5` and calls `ai_path_free(0)` (`push 0` at `0x4a01b5`), which does nothing
+(`test eax, eax; je` at `0x4a0484`). The nodes already chained, including the goal node from `ai_path_node_create_b`
+(`0x49fbec`), are lost. Only `ai_path_pool_init` refills the pool, from `pathfinding_load_graph` (`0x49ce04`). So each failure
+shrinks the pool for the rest of the level and makes the next failure likelier. We know of no retail fight that uses 1000
+nodes at once.
+
+**G52. The z test is reversed.** For a goal outside every cell, `pf_graph_search` looks for the nearest crossing of the
+start-to-goal segment with a cell edge (`0x49fafd`..`0x49fb08`) and gives up when there is none (`0x49fb3d`).
+`pf_find_cell_crossing` tests each cell's bounding box first. A cell keeps `max z` at `+0x0c`, `min z` at `+0x10`, `min x`
+at `+0x14` and `max x` at `+0x18` (`pf_compute_graph_bounds` `0x49cb17`..`0x49cb74`, `pf_find_nearest_navigable_point`
+`0x49e972`..`0x49e9ad`). The x test is a normal overlap (`seg min x < cell max x`, `seg max x > cell min x`, `0x49ed42`..`0x49ed60`),
+but the z test is `seg min z < cell min z` and `seg max z > cell max z` (`0x49ed66`..`0x49ed84`): only cells whose whole z
+extent lies inside the segment's are examined. A segment that runs mostly along x finds no crossing, and the search returns
+no path. Clicked destinations are pulled onto the mesh first (`world_click_move` calls `pf_find_nearest_navigable_point`,
+`0x43bf26`), as are most AI targets, so *inferred:* this needs a goal that no caller clamps (see "Still unclear").
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -393,6 +456,9 @@ least one saved two-stage entry. `savegame_two_stage_get` and `savegame_two_stag
 | K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code and retail data, *inferred* effect | No |
 | K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No |
 | K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code, *inferred* effect | No |
+| K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
+| K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
+| K52 | Latent: `help change_texture_res` (or `? change_texture_res`) switches the low-resolution textures on or off | `cmd_change_texture_res` `0x501c90` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -524,6 +590,34 @@ probably meant for the add. Deleting a label (`automap_handle_click`, `0x402bf3`
 (`state_game_enter`, `0x438233`), so the deleted label or the old text comes back. The list counts the labels of all
 levels together, and the editor refuses new labels at 128 (`0x40316c`), so the player can reach the limit.
 
+**K50. The 565 filter never skips a row.** Each generated 565 texel averages `src[0]`, `src[1]`, `src[w]` and `src[w + 1]`
+(`0x54e4f9`..`0x54e50d`) and the source pointer then moves on by two pixels (`add eax, 4` at `0x54e5a8`). At the end of an
+output row it is not moved past the second source row (`0x54e5c2`..`0x54e5cb`), so output row k reads source rows k and
+k + 1. The 888 and 8888 cases add two rows (`0x54e49f`..`0x54e4af`, `lea eax, [8*edi]` at `0x54e348`). The filter runs for
+the levels below the stored ones when a bitmap has more than one level (`cmp ecx, 1; jle` at `0x54e9e3`, call at
+`0x54ea00`). TGAs load as formats 5, 6 and 7 only (`bm_read_header` `0x502b4a`..`0x502b99`); a VBM with format code 2 or
+more loads as 565 (`0x501df8`..`0x501e1b`). Retail: 7 of the 104 VBMs are 565 with stored mipmaps (`grslnd-h2o-nite.vbm`,
+`ks-h2o.vbm`, `S-WatClean.vbm`, `water-test.vbm`, `water-testsmall.vbm`, `whirl.vbm` and `wlng-h2o.vbm`, all in `levelt.vpp`, 64 or 128 pixels with 1 to 3 stored
+levels), so only their 16x16 and smaller levels are wrong. Those levels are drawn only at a distance (trilinear filter
+`0x2703`, `0x54ebed`..`0x54ec0b`), so this is hard to see. Direct3D and Glide do not use this code.
+
+**K51. Truncated before the clamp.** `gr_opengl_apply_tint` computes `(r + g + b) x tint_r` and stores it as a byte
+(`mov byte [esi], al` at `0x54f9dd`) before `clamp_ubyte(.., 0, 255)` (`0x54f9df`), which can then change nothing. Same for
+green and blue (`0x54f9fb`, `0x54fa19`). `gr_d3d_apply_tint` clamps the int (`clamp_int`, `0x5354ba`..`0x5354f8`) and
+`gr_glide_apply_tint` the float (`0x54a56d`..`0x54a5a1`). So a white vertex (sum 765) with a tint of 0.5 gives 126 instead of
+255. The function runs from `gr_opengl_bitmap`, `gr_opengl_line`, `gr_opengl_line_3d` and `gr_opengl_tmapper` while
+`gr_tint_enabled` is set (`0x5501a4`..`0x5501af`). The hover and effect tints of `levelrender_draw_list` reach meshes
+(`ca_render_mesh`, which clamps first at `0x50d3a1`..`0x50d3c3`) and level geometry (`levelrender_face_vertex_colors`), and
+`gr_poly_buffer_flush` clears the flag while it replays (`0x545d9e`, `0x546028`). We found no draw that reaches this
+function with a tint set.
+
+**K52. No `calling_a_command_function` test.** `execute_command_line` also calls a command's function for a status query
+("?", `0x50a2ed`..`0x50a319`, flags at `0x50a4af`..`0x50a4bb`) and for help ("help", "man" or a "?" in the line,
+`0x50a324`..`0x50a389`, flags at `0x50a4ed`..`0x50a4fd`; call at `0x50a50a`), with `calling_a_command_function` 0.
+`cmd_load_mipmaps` tests it (`0x501b50`..`0x501b57`). `cmd_change_texture_res` does not: it calls
+`bm_set_reduce_textures(!bm_reduce_textures)` and prints "Low resolution textures are now %s!" every time
+(`0x501c90`..`0x501cd3`), and it has no help text. A developer console command, so no retail path reaches it.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -554,6 +648,8 @@ levels together, and the editor refuses new labels at 128 (`0x40316c`), so the p
 | V31 | Latent: waving level objects add their corner normals into two arrays that are never cleared or read | `levelrender_wave_lobj` `0x48de60` | **Observed** code |
 | V40 | Game stage 19 sets `trapped_luminar` on level 14 (KhosaniLab) instead of 22 (IonaExt02), which does nothing | `game_stage_set` `0x4d42e0` | **Observed** code and retail data |
 | V41 | Latent: the automap bit functions accept an index up to 8 times too large | `savegame_get_bit` `0x4cff20`, `savegame_set_bit` `0x4cff80` | **Observed** code |
+| V50 | The OpenGL texture memory count is wrong, and an updated texture is uploaded twice | `gr_opengl_create_texture` `0x54e840` | **Observed** code |
+| V51 | `gr_opengl_setup_view` looks at the forward vector instead of eye + forward and uses a near plane of 0 | `gr_opengl_setup_view` `0x550500` | **Observed**; no caller |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -698,6 +794,17 @@ An index past the real count reaches the level's int and float variables and the
 `automap_is_cell_revealed` (`0x4300c0`) and `automap_reveal_cell` (`0x430110`) check the layer but not x and y,
 so a cell outside 0..63 would get through. We know of no caller that passes one.
 
+**V50.** The byte count is `2 x w x h` of the last level the upload loop processed (`imul esi, ebp; shl esi` at
+`0x54ece0`..`0x54eced`), so a mipmapped texture counts 2 bytes (its 1x1 level) and a 32-bit one half its size. It feeds
+`gl_texture_mem_frame` and `gl_texture_mem_used` (`0x54ecfc`..`0x54ed08`), which `gr_opengl_tcache_flush` only prints into
+`string_buffer`. With `update` set, level 0 goes up with `glTexSubImage2D` (`call [0x57e30c]` at `0x54ebd0`) and then again
+with `glTexImage2D` (`call [0x57e31c]` at `0x54ec2b`), because the sub-image branch jumps to the common upload
+(`jmp 0x54ec11` at `0x54ebd6`). Only the time is lost.
+
+**V51.** `gluLookAt` gets `gr_eye_pos` as the eye and `gr_eye_matrix.fvec` (`0x26927d8`..`0x26927e0`) as the centre, not
+eye + fvec (`0x55051a`..`0x550586`), and `gluPerspective` gets near 0 (`push 0; push 0` at `0x5505a8`). Neither the address
+nor a call to it occurs in the image.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -772,6 +879,12 @@ the tables above; the rest are below.
 - The thumbnail preview misses its last 8 bytes (`0x4d2977`..`0x4d298b`); already on the savegame page as cosmetic. Not counted.
 - `level_time` swap: already listed under "Claims that did not hold".
 
+- `bm_is_user_bitmap` "inverted": it returns true for type-3 entries **not** named "USERBMAP" (`0x5026c0`..`0x5026d0`). `bm_create` names every entry "USERBMAP" (`0x503d15`) and `bm_create_missing` renames its own to the missing file (`0x5030e6`..`0x5030ec`), so the function consistently means "is a missing-file placeholder" (and for handle -1 "was any placeholder made", `0x502699`). Only the name and the sum.symbols comment are wrong. It has no caller and no pointer in the image.
+- `bm_create_missing` never reusing its placeholder: each missing name needs its own entry, because later loads find the bitmap by that name (`bm_find` at `0x50273d`); the entries share the static pixels `bm_missing_bitmap_pixels` (`push 0x25c5c8c` at `0x5030b7`), so each costs one table slot. `bm_missing_created` is only a flag for `bm_is_user_bitmap(-1)`. The sum.symbols "once" is wrong.
+- `ai_path_node_create` never writing `pos.y` (`0x4a03d6`..`0x4a03f7` store x, z, layer and next only): the height of a path node is never used. `ai_path_find` sets each step's `dir.y` to 0 (`0x4a027c`), `ai_follow_path` overwrites it with 0 after computing it (`0x4b3181`, `0x4b33ca`, `0x4b3407`), `ai_path_begin` compares x and z only (`0x473ad7`..`0x473ae5`), and the copy to `ai+0x218` (`0x4b3127`) is never read (only writes at `0x473beb`, `0x473cdc`, `0x473dd9`, `0x4b3127`, `0x4b3882`).
+- Red and blue in OpenGL screenshots and thumbnails: no swap. `gr_opengl_read_backbuffer` reads `GL_RGBA` / `GL_UNSIGNED_BYTE` (`push 0x1908` at `0x5502f0`), keeps the byte order in its row flip (`0x550340`..`0x550363`) and returns 7 (`0x55039a`). Only OpenGL returns 7 (`gr_d3d_read_backbuffer` 3 at `0x53a8b3`, Glide 3). The JPEG path copies bytes 0, 1, 2 as R, G, B (`0x506492`..`0x5064a5`; the 24-bit case swaps bytes 0 and 2 at `0x5064ec`..`0x5064f3`, so `jpeg_write_file` wants RGB), and the thumbnail writer puts byte 0 into the 565 red bits (`0x4271c6`..`0x4271eb`). SummonerFix's `glReadPixels` hook keeps RGBA order (`display.c`, `Hook_glReadPixels`). Format 7 means R, G, B, A for a read-back buffer, while 8888 *bitmaps* are B, G, R, A in the texture converters; the two never meet. The exception is the console `targa` path (K15): TGA wants B, G, R, so under OpenGL its colours are also red/blue swapped on top of K15's channel shift, and OpenGL is the renderer that "reports 32 bits" there (SummonerFix makes that the normal renderer).
+- `gr_opengl_init`'s error text naming `gr_direct3d_init` (`0x54f702`): a copied message; part of C50.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -800,6 +913,9 @@ the tables above; the rest are below.
 - `savegame_two_stage_get` / `_set` (`0x4d1110`, `0x4d0e20`) `strncat` a door or object name into a 64-byte stack buffer after `level_script_name` with count 0x40; a combined length of 64 or more would overflow it. Retail names were not checked (see G42).
 - `two_stage_set` with an existing container entry stores both bits as 0 (`0x4d0fdf`..`0x4d1070`, notes open question 1); the path looks unreachable.
 - `INVT` entry count is not clamped on load (`0x4d2cd5`); only a hand-edited save could exceed 0x209.
+- G52: which retail callers pass `ai_path_find` a goal outside every cell. `world_click_move`, `ai_follow_character`, `conversation_frame` and `ai_approach_attack_slot` clamp with `pf_find_nearest_navigable_point` first; `script_action_walk_to` (`0x4dc760`, `0x4dc7b3`), `ai_path_find_new` / `_append` (`0x473cc6`, `0x473dbe`, `0x473e40`) and `mp_handle_swi_ndir` (`0x48885a`) were not traced.
+- K51: whether any 2D bitmap, line or `gr_tmapper` draw runs while `gr_set_tint(1)` is in effect under OpenGL (none found; the tints we traced go through clamped mesh and level paths).
+- G50: the in-game effect (whether the hidden platforms or the out-of-step board block the crossing) needs agent mode.
 
 ## Evidence
 
@@ -895,3 +1011,15 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K40 labels | `savegame_automap_label_remove` `0x4d13bf`..`0x4d13ca`; `savegame_automap_labels_reset_level` `0x4d151d`..`0x4d1526`; `savegame_automap_label_add` `0x4d12d4`..`0x4d12dc`; `automap_handle_click` `0x402bd2`..`0x402bff`; `automap_label_text_input` `0x40343a`..`0x403470`, `0x4034c3`..`0x4034f9`; `state_game_enter` `0x438233` |
 | V40 stage 19 | `game_stage_set` `0x4d433e`..`0x4d4381`; `savegame_set_flag` `0x4cfd74`..`0x4cfd94`; `events.tbl` (`tables.vpp`) `$Level: "ionaext02"`, `$Level: "khosanilab"` |
 | V41 bit bound | `savegame_get_bit` `0x4cff3c`..`0x4cff4a`; `savegame_set_bit` `0x4cffae`..`0x4cffb3`; `automap_is_cell_revealed` `0x4300ce`..`0x4300f8`; `automap_reveal_cell` `0x430129`..`0x430166` |
+| C50 window mode 202 | `gr_opengl_init` `0x54f6f0`..`0x54f700`, `0x54f741`..`0x54f761`, `0x54f702`; `LoadSettings` `0x43db45` |
+| C51 multitexture | `gl_init_multitexture` `0x54f382`..`0x54f3e0`, `0x54f39e`; `gl_setup_multitexture_state` `0x54ffa2`..`0x54ffb2` |
+| C52 room 4 prisoners | `ls_khosanilab_room4_frame` `0x4f8e0b`..`0x4f8e9a`; `script_object_find` `0x4cde54`..`0x4cde57`; `ls_khosanilab_frame` `0x4f8b4a`..`0x4f8b64`; `events_string_pool` `0x24f6218` (buffer `0x24ede14`, 0x8400) |
+| C53 hills navpoint | `ls_worldmap1_nearest_hills_nav` `0x4fc2ad`, `0x4fc327`..`0x4fc337`; `ls_worldmap1_pick_encounter_stage4` `0x4fc672`..`0x4fc6e8` |
+| G50 flipper board | `ls_khosanilab_init` `0x4f895c`..`0x4f8980`; `ls_khosanilab_puzzle_use` `0x4f9b66`..`0x4f9b97`; `ls_khosanilab_set_flippers` `0x4f9cc4`..`0x4f9cf4`; `door_apply_saved_state` `0x47737d`..`0x4773ad`; `door_start_move` `0x476fd3`..`0x476fe4`; `ls_khosanilab_use` `0x4f95d4`..`0x4f95dc`; `ls_khosanilab_apply_lava_platforms` `0x4f89e4`..`0x4f89ff` |
+| G51 path leak | `pf_graph_search` `0x4a0180`..`0x4a019b`, `0x4a01b5`..`0x4a01b7`, `0x49fbec`; `ai_path_free` `0x4a0484`; `ai_path_alloc_node` `0x4a02d7`..`0x4a02f2`; `pathfinding_load_graph` `0x49ce04` |
+| G52 cell crossing | `pf_find_cell_crossing` `0x49ed02`..`0x49ed84`; `pf_compute_graph_bounds` `0x49cb17`..`0x49cb74`; `pf_find_nearest_navigable_point` `0x49e972`..`0x49e9ad`; `pf_graph_search` `0x49fae6`..`0x49fb3d`; `world_click_move` `0x43bf26` |
+| K50 565 mipmaps | `gl_build_mipmaps` `0x54e4f9`..`0x54e5cb`, `0x54e49f`..`0x54e4af`, `0x54e348`; `gr_opengl_create_texture` `0x54e9df`..`0x54ea00`, `0x54ebed`..`0x54ec0b`; `bm_read_vbm_header` `0x501df8`..`0x501e68`; `bm_read_header` `0x502b4a`..`0x502b99`; retail VBMs in the `.vpp` files |
+| K51 OpenGL tint | `gr_opengl_apply_tint` `0x54f9b6`..`0x54fa1b`; `clamp_ubyte` `0x550640`; `gr_d3d_apply_tint` `0x535491`..`0x5354f8`; `gr_glide_apply_tint` `0x54a546`..`0x54a5a1`; `gr_opengl_tmapper` `0x5501a4`..`0x5501af`; `gr_poly_buffer_flush` `0x545d9e`, `0x546028`; `gr_opengl_render_character_mesh` `0x50d3a1`..`0x50d3c3` |
+| K52 change_texture_res | `cmd_change_texture_res` `0x501c90`..`0x501cd3`; `cmd_load_mipmaps` `0x501b50`..`0x501b57`; `execute_command_line` `0x50a2ed`..`0x50a389`, `0x50a4af`..`0x50a50a` |
+| V50 texture count | `gr_opengl_create_texture` `0x54ece0`..`0x54ed08`, `0x54ebb4`..`0x54ebd6`, `0x54ec11`..`0x54ec2b`; imports `0x57e30c` (`glTexSubImage2D`), `0x57e31c` (`glTexImage2D`) |
+| V51 setup_view | `gr_opengl_setup_view` `0x55051a`..`0x5505bc`; `gr_eye_matrix` `0x26927c0` |

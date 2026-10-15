@@ -116,7 +116,7 @@ int  bm_find(const char *name);                       // 0x5025d0, -1 if none
 int  bm_hash_name(const char *name);                  // 0x502650
 // True for the missing-file placeholders of bm_create_missing (type 3 entries whose name is not
 // "USERBMAP"); for handle -1, whether a placeholder was ever made. No caller.
-bool bm_is_user_bitmap(int bm);                       // 0x502690
+bool bm_is_missing_placeholder(int bm);                       // 0x502690
 int  bm_load(const char *name, int path_id, int unk); // 0x5026e0 (the third argument is -1 at every pilot call; unused)
 int  bm_load_internal(const char *name, int path_id, int force_new);   // 0x502720
 // Returns the type (0 = failure); (name, &w, &h, &format, &num_levels, &num_frames, &fps, &size, path_id).
