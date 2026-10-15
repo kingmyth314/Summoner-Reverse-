@@ -98,7 +98,8 @@ Summoner 2 and Dash Faction give names only.
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers; decomp58: the door, lobj and level-record helpers of game/unnamed_goals_doors_0x475180.cpp (placeholder), the `door_info` state bit field |
 | `engine/rendering/unnamed_decals_0x4bbe80.h` | decal unit 0x4bbe80-0x4bce55 (source game/unnamed_decals_0x4bbe80.cpp, decomp56; file and directory names placeholders) | `decal_record`, `decal_node`, the decal rings and `decal_*` / `decals_*` |
-| `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a20 (not written; names placeholders, decomp56) | `projector_record`, `shadow_record` and `shadow_frame` (decomp57), `lobj_face_marks` |
+| `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a3e (source game/unnamed_projectors_0x4c0250.cpp, decomp59; names placeholders, decomp56) | `projector_record`, `shadow_record` and `shadow_frame` (decomp57), `geom_bsp_node`, `lobj_face_marks`, the face walk and `lobj_project_records` (D3900) |
+| `engine/rendering/unnamed_lamp_glow_0x4c0a40.h` | lamp glow unit 0x4c0a40-0x4c0c3a (source game/unnamed_lamp_glow_0x4c0a40.cpp, decomp59; names placeholders) | `lamp_glow`, `lamp_glows`, every `lamp_glow_*` (D3902) |
 | `engine/rendering/unnamed_shadows_0x4a37d0.h` | obstacle debug drawing and blob shadows 0x4a37d0-0x4a4ed7 (game/unnamed_shadows_0x4a37d0.cpp, placeholder; decomp57) | `blob_shadow`, the debug switches, `shadow_*`, `cmd_obstacle_height_offset` |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
 | `engine/camera/camera.h` | the camera unit 0x4778b0-0x479b59 (game/unnamed_camera_0x4778b0.cpp, file name a placeholder, decomp58) | `camera` (all members), `game_camera`, `CAMF_*`, the unit's globals and console commands, `camera_approach_value` |
@@ -108,6 +109,7 @@ Summoner 2 and Dash Faction give names only.
 | `engine/spells/spells.h` | spells.cpp (0x479b60-0x47f857, pilot decomp23) | `spell_info`, `spells`, groups, missiles, spell effects, the cast request, `spell_*` / `summon_*` |
 | `engine/combat/combat.h` | combat.cpp (0x463540-0x468c77, pilot decomp23; directory guessed) | `living_combat` (Character +0x558) and the combat helpers |
 | `engine/ai/boss_ai.h` | boss_ai.cpp (0x4a04b0-0x4a3580) and the per-boss units | the boss hooks combat.cpp calls, `rand_int_range`, `ghost_stage` |
+| `engine/ai/unnamed_giant_salamanka_0x4c8030.h` | the Giant Salamanka unit 0x4c8030-0x4c8d03 (game/unnamed_giant_salamanka_0x4c8030.cpp, decomp59; placeholder; included by boss_ai.h) | `giant_salamanka_boss gsal` and the sum.symbols names as macros (D3904), the unit's commands and helpers |
 | `summoner/summoner.h` | summoner.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, path ids, `SummonerOptions` |
 
 | `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |

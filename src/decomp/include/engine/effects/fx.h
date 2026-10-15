@@ -88,4 +88,6 @@ void fx_level_enter();                                 // 0x48a190
 void fx_level_leave();                                 // 0x48a1d0
 void fx_frame(float frametime, bool paused);           // 0x48a230 (bool: mov al, [esp + 8])
 
+// decomp59 (the Titus unit): "Titus-RockErrupt.VFX" at the character (handle): effect handle or -1.
+int  titus_rock_erupt_fx(int handle);                  // 0x48c9a0
 #endif

@@ -198,13 +198,44 @@ Character *tiger_find_rider();                         // 0x49a010
 // (0x2452a99, set by the script) and tiger_combat (0x2452a9a) are fields of the tiger's state object,
 // macros in engine/ai/unnamed_tiger_0x499e50.h (included at the end of this header).
 // One tentacle of the sewer boss (0x110 bytes, 4 at 0x248c328; sum.symbols types the array
-// uint8[0x440]). Only the fields the level scripts and tentacle_begin_sink touch are named. Type name ours.
+// uint8[0x440]). decomp59 (D3903): the full layout from the tentacle unit (game/unnamed_tentacle_beast_
+// 0x4c6480.cpp); init_tentacle_records constructs the five slots and the five GameTimers. Type and field
+// names ours.
+struct tentacle_slot {
+    tentacle_slot();                                   // 0x4c64f0 tentacle_slot__ctor (constructs timer)
+    int handle;                                        // +0x00 -1 free (a held character)
+    int _unk04[4];                                     // +0x04 not used
+    GameTimer timer;                                   // +0x14 not used
+};
 struct tentacle_info {
-    ubyte _unk000[0x80];
+    tentacle_slot slots[5];                            // +0x000 -1 at load
+    int _unk078;                                       // +0x078
+    move_info *move;                                   // +0x07c the chosen attack (tentacle_move_1 / _2 / _86), NULL none
     Character *character;                              // +0x080 (ls_sewer_tb_intro_cs_end, 0x4ee2dc)
-    ubyte _unk084[0x38];
+    unsigned int flags;                                // +0x084 1 submerged, 2 rising, 4 sinking
+    int splash_fx;                                     // +0x088 "splash.vfx" of the last dive / surfacing
+    int target;                                        // +0x08c the chosen attack's target handle
+    int num_hits;                                      // +0x090 tentacle_collect_area_hits
+    int hits[4];                                       // +0x094 (a fifth hit would overwrite death_anim)
+    int death_anim;                                    // +0x0a4 the death move (6, 0x22), -1 none
+    GameTimer think_timer;                             // +0x0a8 2.5-5 s between choices
+    vector3 pickup_pos;                                // +0x0ac "$tag-26-pickup" at load (not read)
+    int grab_tag;                                      // +0x0b8 "$tag-grab-point"
     int victim;                                        // +0x0bc held victim, -1 none (tentacle_begin_sink)
-    ubyte _unk0c0[0x50];
+    GameTimer timer_c0;                                // +0x0c0 constructed, never used
+    GameTimer hold_timer;                              // +0x0c4 30 s, then the release
+    GameTimer squeeze_timer;                           // +0x0c8 the victim's 3 HP every 6 s
+    int thrown;                                        // +0x0cc the released victim in flight, -1 none
+    vector3 throw_velocity;                            // +0x0d0
+    float throw_gravity;                               // +0x0dc
+    float release_hp;                                  // +0x0e0 the victim's HP * 0.75 at the grab
+    float reach;                                       // +0x0e4 distance to "$tag-27-swipe" at load
+    vector3 swipe_pos;                                 // +0x0e8 "$tag-27-swipe" (world) at load
+    vector3 squeeze_pos;                               // +0x0f4 "$tag-35-squeeze" (unrotated) + position at load
+    GameTimer sink_timer;                              // +0x100 the end of the rise / dive
+    float hold_time;                                   // +0x104
+    float up_time;                                     // +0x108 seconds above water
+    float hp_mark;                                     // +0x10c HP fraction - 0.3 (tentacle_beast_tentacle_resurface)
 };
 LAYOUT_CHECK(tentacle_info, sizeof(tentacle_info) == 0x110);
 #define NUM_TENTACLES 4
@@ -234,7 +265,7 @@ void  machival_knock_down_party(Character *boss, Character *target);   // 0x4c1a
 
 int   tiger_move_in_range(Character *boss, Character *target);         // 0x49c690 (decomp54: mov eax, 1 / xor eax; was bool)
 bool  serpent_move_in_range(Character *boss, Character *target);       // 0x497a00
-bool  giant_salamanka_target_in_reach(Character *boss, Character *target);   // 0x4c8c40
+int   giant_salamanka_target_in_reach(Character *boss, Character *target);   // 0x4c8c40 (decomp59: mov eax, 1 / xor eax; was bool, D3905)
 bool  tentacle_target_in_reach(Character *boss, Character *target);    // 0x4c7910
 bool  murod_oni_move_is_first();                       // 0x4c6460
 bool  giant_salamanka_move_pushes();                   // 0x4c8c00
@@ -314,19 +345,17 @@ void  serpent_evaluate_target(Character *boss, boss_target *t);    // 0x4961b0
 void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 
 // Per-boss data the dispatchers read (the .bss of the per-boss units).
-extern boss_threat giant_salamanka_threat_table[BOSS_MAX_THREATS];   // 0x248c7ec
+// giant_salamanka_threat_table (0x248c7ec): a field of the Giant Salamanka state object (decomp59, D3904;
+// engine/ai/unnamed_giant_salamanka_0x4c8030.h).
 // The bosses' "combat enabled" bytes (their console commands set them; level_script_init sets them for
 // the multiplayer levels 0x15 / 0x13 / 0x19; decomp41). The last two names are ours.
 extern bool titus_turn_lock;                         // 0x248b914 titus_update_turn_lock (decomp56: ai_combat_face_target)
 extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
 extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
 extern bool machival_combat_enabled;                  // 0x248b034 cmd_machival_combat, machival_ai_idle
-// The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407).
-extern bool giant_salamanka_combat_enabled;           // 0x248c7d0 gates giant_salamanka_ai_frame
-extern bool giant_salamanka_stage2_reached;           // 0x248c7dc set by giant_salamanka_check_stage
-extern bool giant_salamanka_stage2_ack;               // 0x248c7dd set by the level script (cutscene end)
-extern bool giant_salamanka_stage3_reached;           // 0x248c7de
-extern bool giant_salamanka_stage3_ack;               // 0x248c7df
+// The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407): giant_salamanka_combat_enabled
+// (0x248c7d0), _stage2_reached / _stage2_ack (0x248c7dc / 0x248c7dd), _stage3_reached / _stage3_ack (0x248c7de /
+// 0x248c7df) are fields of the state object since decomp59 (D3904), macros in unnamed_giant_salamanka_0x4c8030.h.
 // tiger_threat_table (0x2452ac0): a field of the tiger's state object (D3403).
 // serpent_threat_table (0x24522e8): a field of the serpent's state object (D3403, unnamed_serpent_0x495290.h).
 // phoenix_threat_table (0x2452938): a field of the phoenix's state object (D3403, unnamed_phoenix_0x497ac0.h).
@@ -382,7 +411,7 @@ struct boss_offense_point {
 };
 LAYOUT_CHECK(boss_offense_point, sizeof(boss_offense_point) == 0x1c);
 
-// Shared helper of another boss unit (Evil Joseph unit 0x4c3470-0x4c40d0; not written yet;
+// Shared helper of another boss unit (Evil Joseph unit 0x4c3470-0x4c40d0, written in decomp59:
 // boss_target_list_find 0x4c3c70 is declared above).
 void  boss_resurrect_full(Character *c);               // 0x4c3fb0
 
@@ -491,6 +520,267 @@ void  ghost_update_attack_points(Character *c);        // 0x4bb080
 void  ghost_choose_move_target(Character *boss);       // 0x4bb120 summon move, minion and position
 bool  ghost_point_in_attack_cone(Character *c, boss_attack *move);  // 0x4bbb80
 
+// ---- decomp59: the boss units 0x4c0c40-0x4ca6ff (files not known) ----------------------------------------
+// Placeholders game/unnamed_<boss>_<address>.cpp. The thiscall functions are ai_state members (ai.h).
+// Declarations made before decomp59 stay in their places above. Names ours unless sum.symbols has one.
+struct navpoint;
+
+// Machival (species 0xc5; game/unnamed_machival_0x4c0c40.cpp). One stage of moves; move 0 the melee.
+extern console_command ccmd_machival_combat;          // 0x248b010
+void  cmd_machival_combat();                           // 0x4c0cf0
+extern boss_attack *machival_move_3;                  // 0x248b01c &machival_attack_table[0][3]
+extern boss_attack *machival_move_5;                  // 0x248b020 [0][5]
+extern boss_attack *machival_move_4;                  // 0x248b024 [0][4]
+extern boss_attack *machival_move_2;                  // 0x248b028 [0][2]
+extern boss_attack *machival_move_1;                  // 0x248b02c [0][1]
+extern int  machival_248b030;                         // 0x248b030 zeroed when the target is lost, never read
+extern bool machival_timers_started;                  // 0x248b035
+extern boss_threat machival_threat_table[BOSS_MAX_THREATS];   // 0x248b038
+extern int  machival_num_offense_points;              // 0x248b0b0
+extern boss_offense_point machival_offense_points[10];        // 0x248b0b4
+extern boss_attack machival_attack_table[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248b1cc "machival_boss.tbl"
+extern GameTimer machival_248b310;                    // 0x248b310 constructed, never used
+extern int  machival_target_handle;                   // 0x248b314
+extern GameTimer machival_attack_timer;               // 0x248b318
+extern GameTimer machival_teleport_timer;             // 0x248b31c 70 s (2 s after a failed try)
+extern GameTimer machival_spell100_timer;             // 0x248b320 spell 0x64
+extern GameTimer machival_spell101_timer;             // 0x248b324 spell 0x65
+extern GameTimer machival_spell102_timer;             // 0x248b328 spell 0x66
+extern int  machival_cast_anim;                       // 0x248b32c
+extern int  machival_casting_spell;                   // 0x248b330 -1 none
+extern GameTimer machival_party_spell_timer;          // 0x248b334 spell 0x5b
+extern int  machival_area_hit_count;                  // 0x248b338
+extern int  machival_area_hits[5];                    // 0x248b33c
+extern navpoint *machival_teleports[6];               // 0x248b350 "$tele_01".."$tele_06"
+extern navpoint *machival_teleport_navpoint;          // 0x248b368 (mp_send_swi_boss)
+extern vector3 machival_teleport_pos;                 // 0x248b36c the facing after the teleport (mp_handle_swi_boss)
+extern boss_attack *machival_move_melee;              // 0x248b378 [0][0]
+bool  machival_offense_point_reaches(Character *c, boss_attack *move);   // 0x4c0dd0
+void  machival_reset_timers();                         // 0x4c0e70
+void  machival_find_teleports();                       // 0x4c0ee0
+void  machival_init_move_tables();                     // 0x4c1030
+// (boss, out in move 3's range, out in the melee cone, out in move 1's cone, candidates, count)
+void  machival_count_targets_in_reach(Character *boss, int *in_reach, int *in_melee, int *in_move1,
+                                      boss_target *list, int count);   // 0x4c11c0
+int   machival_pick_random_party_member();             // 0x4c1330 handle or -1
+void  machival_set_attack_timer(int min_ms, int max_ms);   // 0x4c17f0
+void  machival_update_offense_points(Character *c);    // 0x4c1820
+
+// Titus (species 0xc1; game/unnamed_titus_0x4c20e0.cpp). titus_move_<s><i> = &titus_moves[s][i].
+extern console_command ccmd_titus_stage;              // 0x248b968
+extern console_command ccmd_titus_combat;             // 0x248b958
+void  cmd_titus_stage();                               // 0x4c2180
+void  cmd_titus_combat();                              // 0x4c21f0
+extern boss_attack *titus_move_0;                     // 0x248b380
+extern boss_attack *titus_move_12;                    // 0x248b384
+extern boss_attack *titus_move_21;                    // 0x248b388 the rock eruption
+extern boss_attack *titus_move_2;                     // 0x248b38c
+extern boss_attack *titus_move_1;                     // 0x248b390
+extern boss_attack *titus_move_13;                    // 0x248b394
+extern boss_attack *titus_move_11;                    // 0x248b398 grab (turn lock)
+extern boss_attack *titus_move_23;                    // 0x248b39c grab (turn lock)
+extern boss_attack *titus_move_10;                    // 0x248b3a0
+extern boss_attack *titus_move_22;                    // 0x248b3a4
+extern boss_attack *titus_move_20;                    // 0x248b964
+extern int  titus_stage;                              // 0x248b3a8 1..3
+extern int  titus_forced_stage;                       // 0x248b3ac cmd_titus_stage (0 = by HP)
+extern unsigned int titus_flags;                      // 0x248b3b0 bit 0: the move 10 follow-up is next
+extern int  titus_offense_point_count;                // 0x248b430
+extern boss_offense_point titus_offense_points[10];   // 0x248b434
+extern boss_attack titus_moves[3][BOSS_MAX_OFFENSE_POINTS];   // 0x248b54c "titus_boss.tbl"
+extern GameTimer titus_action_timer;                  // 0x248b910
+extern int  titus_target_handle;                      // 0x248b918
+extern GameTimer titus_attack_timer;                  // 0x248b91c
+extern GameTimer titus_move10_timer;                  // 0x248b920
+extern GameTimer titus_move13_timer;                  // 0x248b924
+extern GameTimer titus_stage_timer_a;                 // 0x248b928 move 20
+extern GameTimer titus_stage_timer_b;                 // 0x248b92c move 21
+extern int  titus_pending_mode;                       // 0x248b930 0x3c
+extern int  titus_area_hit_count;                     // 0x248b934
+extern int  titus_area_hits[5];                       // 0x248b938
+extern move_info *titus_rock_erupt_move;              // 0x248b94c find_move(9, 1)
+extern int  titus_248b950;                            // 0x248b950 never accessed
+extern int  titus_rock_erupt_fx_handle;               // 0x248b954
+bool  titus_target_list_any_within(boss_target *list, int count, float range);   // 0x4c22a0
+void  titus_update_turn_lock(Character *c);            // 0x4c22e0
+void  titus_reset_attack_timers(Character *c);         // 0x4c2330 stage 2 entry (argument not read)
+void  titus_reset_stage_timers(Character *c);          // 0x4c2360 stage 3 entry (argument not read)
+void  titus_stage1_reset(Character *c);                // folded into empty_function 0x4f13e0
+void  titus_init_move_tables();                        // 0x4c2450
+void  titus_end_attack(Character *c);                  // 0x4c2610 current move NULL, go idle
+void  titus_set_attack_timer(int min_ms, int max_ms);  // 0x4c2d90
+void  titus_update_offense_points(Character *c);       // 0x4c2dc0
+// (effect position, effect owner): fx_frame's call for the eruption effect.
+void  titus_rock_erupt_damage(const vector3 *pos, int source);   // 0x4c3340
+
+// Evil Joseph (species 0xc9; game/unnamed_evil_joseph_0x4c3470.cpp). One stage; moves 0-3 summon helper
+// 0-3, move 8 the plain attack.
+extern console_command ccmd_darkjo_combat;            // 0x248b980
+void  cmd_darkjo_combat();                             // 0x4c34e0
+extern boss_attack *evil_joseph_move_1;               // 0x248b978 &evil_joseph_moves[0][1]
+extern boss_attack *evil_joseph_move_4;               // 0x248b98c
+extern boss_attack *evil_joseph_move_2;               // 0x248b990
+extern boss_attack *evil_joseph_move_5;               // 0x248b994
+extern boss_attack *evil_joseph_move_3;               // 0x248b998
+extern boss_attack *evil_joseph_move_6;               // 0x248b99c
+extern boss_attack *evil_joseph_move_7;               // 0x248b9a0
+extern int  evil_joseph_248b9a4;                      // 0x248b9a4 never accessed
+extern int  evil_joseph_248b9a8;                      // 0x248b9a8 1 at load, never read
+extern int  evil_joseph_248b9ac;                      // 0x248b9ac 1 at load, never read
+extern int  evil_joseph_248b9b0;                      // 0x248b9b0 zeroed when the target is lost
+extern int  evil_joseph_mesh_tag_count;               // 0x248ba30
+extern boss_offense_point evil_joseph_offense_points[10];   // 0x248ba34
+extern boss_attack evil_joseph_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248bb4c "darkjo_boss.tbl"
+extern int  evil_joseph_248bc90;                      // 0x248bc90 never accessed
+extern int  evil_joseph_target_handle;                // 0x248bc94
+extern GameTimer evil_joseph_attack_timer;            // 0x248bc98
+extern int  evil_joseph_attack_move_id;               // 0x248bc9c
+extern int  evil_joseph_summon_handle;                // 0x248bca0
+extern int  evil_joseph_helpers[4];                   // 0x248bca4 species 0xc0, 0xca, 0xcb, 0xb0
+extern vector3 evil_joseph_summon_pos;                // 0x248bcb4
+extern int  evil_joseph_resurrect_count;              // 0x248bcc0 summons out minus revivals
+extern int  evil_joseph_helper_index;                 // 0x248bcc4
+extern int  evil_joseph_teleport_index;               // 0x248bcc8 HP band 1..4, -1 none
+extern int  evil_joseph_248bccc[3];                   // 0x248bccc never accessed
+extern navpoint *evil_joseph_teleports[5];            // 0x248bcd8 "$tele_02", 03, 01, 05, 06
+extern int  evil_joseph_248bcec;                      // 0x248bcec -1, never read
+extern int  evil_joseph_248bcf0;                      // 0x248bcf0 -1, never read
+extern boss_attack *evil_joseph_move_8;               // 0x248bcf4
+extern boss_attack *evil_joseph_move_0;               // 0x248bcf8
+extern bool evil_joseph_loaded;                       // 0x248bcfc
+void  evil_joseph_spawn_helpers(Character *boss);      // 0x4c3500
+void  evil_joseph_find_teleports();                    // 0x4c3720
+void  evil_joseph_init_move_tables();                  // 0x4c3790
+void  evil_joseph_set_attack_timer(int min_ms, int max_ms);   // 0x4c3ca0
+void  evil_joseph_pick_helper_summon(Character *boss); // 0x4c3cd0
+
+// Evil Urath (species 0xb1; game/unnamed_evil_urath_0x4c4170.cpp). No table file: spells 0x55-0x5b and
+// leaps between the temple floor and the balconies (leap flags 1 floor, 2 balcony, 8 rising, 4 coming down).
+extern console_command ccmd_urath_combat;             // 0x248bf28
+void  cmd_urath_combat();                              // 0x4c41e0
+extern int  evil_urath_248bd00;                       // 0x248bd00 1 at load, never read
+extern int  evil_urath_248bd04;                       // 0x248bd04 0 at load, never read
+extern unsigned int evil_urath_leap_flags;            // 0x248bd08
+extern boss_attack evil_urath_unused_moves[BOSS_MAX_OFFENSE_POINTS];   // 0x248bd88 never accessed
+extern int  evil_urath_pending_mode;                  // 0x248becc 0x23
+extern int  evil_urath_target_handle;                 // 0x248bed0
+extern GameTimer evil_urath_attack_timer;             // 0x248bed4
+extern navpoint *evil_urath_leap_target;              // 0x248bed8
+extern navpoint *evil_urath_teleports_a[3];           // 0x248bedc "$balc01_0N"
+extern navpoint *evil_urath_teleports_b[3];           // 0x248bee8 "$temple_0N"
+extern navpoint *evil_urath_teleports_c[3];           // 0x248bef4 "$balc02_0N"
+extern int  evil_urath_248bf00[2];                    // 0x248bf00 never accessed
+extern float evil_urath_leap_rise_speed;              // 0x248bf08 horizontal speed
+extern float evil_urath_leap_fall_speed;              // 0x248bf0c
+extern float evil_urath_leap_height;                  // 0x248bf10
+extern float evil_urath_leap_start_y;                 // 0x248bf14
+extern float evil_urath_leap_peak_y;                  // 0x248bf18
+extern int  evil_urath_casting_spell;                 // 0x248bf1c
+extern int  evil_urath_cast_anim;                     // 0x248bf20
+extern int  evil_urath_248bf24;                       // 0x248bf24 never accessed
+// (boss, nav layer, out distance): a nav wall crosses the line to the leap target (out: the last crossing).
+bool  evil_urath_leap_check_path(Character *boss, int layer, float *dist);   // 0x4c4200
+void  evil_urath_pick_teleport_point();                // 0x4c4380
+void  evil_urath_load_hook();                          // folded into empty_frame_hook_40acc0 (name ours)
+void  evil_urath_find_teleports();                     // 0x4c4640
+void  evil_urath_set_attack_timer(int min_ms, int max_ms);   // 0x4c5110
+
+// Murod (species 0xb7; game/unnamed_murod_0x4c5140.cpp). No table file, no console command.
+extern int  murod_cure_statuses[4];                   // 0x59ddb0 blind, silence, curse, poison
+extern bool murod_engaged;                            // 0x248bf38
+extern int  murod_target_handle;                      // 0x248bfb4
+extern int  murod_casting_spell;                      // 0x248bfb8 -1 none
+extern int  murod_action22_count;                     // 0x248bfbc spell 0x22 in a row
+extern float murod_last_health;                       // 0x248bfc0
+extern int  murod_move_anim;                          // 0x248bfc4
+extern vector3 murod_leap_dest;                       // 0x248bfc8
+extern vector3 murod_leap_dir;                        // 0x248bfd4
+extern GameTimer murod_attack_timer;                  // 0x248bfe0
+extern GameTimer murod_leap_timer;                    // 0x248bfe4
+extern GameTimer murod_heal_timer;                    // 0x248bfe8
+extern GameTimer murod_spell_timer;                   // 0x248bfec
+void  murod_set_attack_timer(int min_ms, int max_ms);  // 0x4c5a30
+
+// Murod Oni (species 0xb8; game/unnamed_murod_oni_0x4c5c20.cpp). One stage of moves.
+extern boss_attack *murod_oni_move_0;                 // 0x248bff0 &murod_oni_moves[0][0]
+extern boss_attack *murod_oni_move_3;                 // 0x248bff4 [0][3] (murod_oni_move_is_first)
+extern int  murod_oni_248bff8[2];                     // 0x248bff8 never accessed
+extern int  murod_oni_248c000;                        // 0x248c000 zeroed when the target is lost
+extern bool murod_oni_engaged;                        // 0x248c004
+extern int  murod_oni_offense_point_count;            // 0x248c080
+extern boss_offense_point murod_oni_offense_points[10];   // 0x248c084
+extern boss_attack murod_oni_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248c19c "murod_oni_boss.tbl"
+extern int  murod_oni_target_handle;                  // 0x248c2e0
+extern int  murod_oni_saved_target_handle;            // 0x248c2e4
+extern GameTimer murod_oni_attack_timer;              // 0x248c2e8
+extern GameTimer murod_oni_crowd_timer;               // 0x248c2ec
+extern GameTimer murod_oni_248c2f0;                   // 0x248c2f0 never used
+extern GameTimer murod_oni_timer_b;                   // 0x248c2f4
+extern int  murod_oni_area_hit_count;                 // 0x248c2f8
+extern int  murod_oni_area_hits[5];                   // 0x248c2fc
+extern boss_attack *murod_oni_move_1;                 // 0x248c310
+extern boss_attack *murod_oni_move_4;                 // 0x248c314
+extern boss_attack *murod_oni_move_2;                 // 0x248c318
+void  murod_oni_init_move_tables();                    // 0x4c5d80
+void  murod_oni_init_timers(Character *c);             // 0x4c5dc0 (argument not read)
+void  murod_oni_update_offense_points(Character *c);   // 0x4c6010
+void  murod_oni_set_attack_timer(int min_ms, int max_ms);   // 0x4c60b0
+bool  murod_oni_offense_point_reaches(Character *c, boss_attack *move);   // 0x4c6230
+
+// Tentacle beast (species 0x93; game/unnamed_tentacle_beast_0x4c6480.cpp). tentacle_info is declared above.
+extern move_info *tentacle_move_2;                    // 0x248c320 find_move(0, 2): the squeeze
+extern int  tentacle_248c324;                         // 0x248c324 never accessed
+extern GameTimer tentacle_beast_grab_timer;           // 0x248c768
+extern int  tentacle_beast_grab_ready;                // 0x248c770
+extern int  tentacle_beast_tentacles_lost;            // 0x248c774
+extern console_command ccmd_tentacle_test;            // 0x248c778
+extern int  tentacle_248c784;                         // 0x248c784 never accessed
+extern console_command ccmd_tentacles;                // 0x248c788
+extern move_info *tentacle_move_1;                    // 0x248c794 find_move(0, 1): the swipe
+extern int  tentacle_last_cycled;                     // 0x248c79c
+extern move_info *tentacle_move_87;                   // 0x248c7a0 find_move(0, 0x87): the release
+extern move_info *tentacle_move_86;                   // 0x248c7a4 find_move(0, 0x86): the grab
+extern tentacle_info *tentacle_beast_active_tentacle; // 0x248c7a8
+extern bool tentacle_beast_loaded;                    // 0x248c7ac
+extern bool tentacle_test_mode;                       // 0x248c7ad
+void  tentacle_begin_rise(tentacle_info *t);           // 0x4c6c20
+tentacle_info *tentacle_find(Character *c);            // 0x4c7330 NULL none
+void  tentacle_beast_tentacle_submerge(tentacle_info *t);   // 0x4c74f0
+void  tentacle_beast_tentacle_resurface(tentacle_info *t);  // 0x4c7570
+void  tentacle_beast_cycle_tentacles();                // 0x4c76d0
+void  cmd_tentacles();                                 // 0x4c7cc0
+void  cmd_tentacle_test();                             // 0x4c7e90
+
+// Luminar (species 0x51; game/unnamed_luminar_0x4c8d10.cpp). luminar_free_bitmap, _frame_hook,
+// _delay_next_attack and _hold_attack are declared above.
+extern int  luminar_beam_bm;                          // 0x59dfd0 "GlowLuminarSkin02.vbm", -1 none
+extern console_command ccmd_stage;                    // 0x248ce30
+void  cmd_stage();                                     // 0x4c8d90
+extern int  luminar_move_anim;                        // 0x248cdb0
+extern int  luminar_248cdb4;                          // 0x248cdb4 never accessed
+extern int  luminar_stage;                            // 0x248cdb8 1..3
+extern int  luminar_forced_stage;                     // 0x248cdbc cmd_stage (1..3)
+extern vector3 luminar_bite_tag_pos;                  // 0x248cdc0 object space
+extern vector3 luminar_pickup_tag_pos;                // 0x248cdcc object space
+extern float luminar_melee_reach;                     // 0x248cdd8
+extern float luminar_pickup_reach;                    // 0x248cddc
+extern int  luminar_target_handle;                    // 0x248cde0 the carried character
+extern int  luminar_held_handle;                      // 0x248cde4 the thrown character in flight
+extern GameTimer luminar_release_timer;               // 0x248cde8
+extern GameTimer luminar_teleport_timer;              // 0x248cdec
+extern GameTimer luminar_beam_timer;                  // 0x248cdf0
+extern vector3 luminar_throw_velocity;                // 0x248cdf4
+extern float luminar_grab_release_health;             // 0x248ce00
+extern float luminar_throw_gravity;                   // 0x248ce04
+extern float luminar_grab_cooldown;                   // 0x248ce08
+extern bool luminar_beam_hit_done;                    // 0x248ce0c
+extern bool luminar_beam_fx_variant;                  // 0x248ce0d
+extern vector3 luminar_teleport_dest;                 // 0x248ce10
+extern vector3 luminar_teleport_dir;                  // 0x248ce1c
+extern GameTimer luminar_retarget_timer;              // 0x248ce28
+extern GameTimer luminar_attack_timer;                // 0x248ce2c
+bool  luminar_can_switch_target();                     // 0x4ca5c0 (ai_retaliate_on_hit; every 5 s)
+
 #endif
 
 // decomp54: the per-boss state objects (their fields keep the sum.symbols names as macros). Outside the
@@ -498,3 +788,4 @@ bool  ghost_point_in_attack_cone(Character *c, boss_attack *move);  // 0x4bbb80
 #include "engine/ai/unnamed_serpent_0x495290.h"
 #include "engine/ai/unnamed_phoenix_0x497ac0.h"
 #include "engine/ai/unnamed_tiger_0x499e50.h"
+#include "engine/ai/unnamed_giant_salamanka_0x4c8030.h"

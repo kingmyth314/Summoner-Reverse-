@@ -361,6 +361,62 @@ public:
     void combat_melee_attack(Character *t);   // 0x4be5f0 ai_combat_melee_attack (sub-mode 0xf)
     void combat_ranged_attack(Character *t);  // 0x4be760 ai_combat_ranged_attack (sub-mode 0x10)
 
+    // decomp59: the boss units 0x4c0c40-0x4ca6ff (game/unnamed_<boss>_<address>.cpp; files not known).
+    // Machival:
+    int  machival_ai_select_action(); // 0x4c13a0 0 none, 1 cast, 3 new move, 4 nothing, 5 busy
+    void machival_cast_spell_at(int spell, vector3 *pos, int layer);   // 0x4c18c0 (ret 0xc)
+    void machival_cast_spell(int spell, Character *target);           // 0x4c1940 (ret 8)
+    void machival_ai_melee(Character *target);  // 0x4c19f0 sub-mode 0xf
+    bool machival_teleport(int index);          // 0x4c1e20 (mp_handle_swi_boss passes the packet index)
+    void machival_ai_special_move();            // 0x4c1f90 sub-mode 0x33
+    void machival_ai_wait_move_end();           // 0x4c2090 sub-mode 0x34
+    // Titus:
+    int  titus_ai_select_action();    // 0x4c2790 0 none, 1 eruption pending, 3 new move, 5 keep
+    void titus_ai_rock_erupt();       // 0x4c3240 sub-mode 0x3c
+    void titus_start_rock_erupt();    // 0x4c32a0 sub-mode 0x3d
+    void titus_ai_wait_rock_erupt_fx(); // 0x4c32b0 sub-mode 0x3e
+    // Evil Joseph:
+    int  evil_joseph_ai_select_action(); // 0x4c39b0 0 none, 1 walk to a teleport point, 3 new move, 5 keep
+    // Evil Urath:
+    void evil_urath_cast_spell(int spell, Character *target);   // 0x4c43f0 (ret 8)
+    void evil_urath_ai_leap_start();  // 0x4c4810 sub-mode 0x23
+    void evil_urath_ai_leap_rise();   // 0x4c4870 sub-mode 0x24
+    void evil_urath_ai_leap_travel(); // 0x4c4ad0 sub-mode 0x25
+    void evil_urath_ai_leap_land();   // 0x4c4ca0 sub-mode 0x26
+    int  evil_urath_ai_select_action(); // 0x4c4db0 0 none, 1 spell or leap, 4 nothing, 5 busy
+    // Murod:
+    bool murod_start_leap();          // 0x4c51a0 false: no navigable point (retry in 5 s)
+    void murod_ai_leap();             // 0x4c53c0 sub-mode 0x33
+    void murod_end_move();            // 0x4c5550 sub-mode 0x34
+    bool murod_try_self_heal();       // 0x4c5570
+    void murod_cast_spell(int spell, Character *target);   // 0x4c5600 (ret 8)
+    int  murod_ai_select_action();    // 0x4c57b0 0 none, 1 cast / leap, 5 busy
+    // Murod Oni:
+    int  murod_oni_ai_select_action(); // 0x4c5de0 0 none, 3 new move, 5 keep
+    // Tentacle beast (thiscall on a tentacle's AI record):
+    int  tentacle_beast_ai_select_action(); // 0x4c6520 3 move chosen, 4 none in reach, 5 busy
+    void tentacle_beast_start_grab();       // 0x4c6800
+    void tentacle_beast_ai_grab(Character *victim);   // 0x4c6850 sub-mode 0x35 (ret 4)
+    void tentacle_beast_start_release();    // 0x4c69e0 (tentacle_begin_sink calls it on the tentacle)
+    void tentacle_beast_ai_release();       // 0x4c6a80 sub-mode 0x37
+    // Giant Salamanka:
+    int  giant_salamanka_ai_select_action(); // 0x4c87e0 2 spell move, 3 melee move, 4 none, 5 busy
+    // Luminar (luminar_boss_load, _ai_idle, _ai_frame are declared above; predict_owner_position 0x4ca650
+    // is defined in the Luminar unit):
+    void luminar_ai_select_action(Character *t);   // 0x4c9410 (ret 4; no result)
+    int  luminar_choose_melee_move(Character *t);  // 0x4c97b0 move id 0x83 / 0x84 / 0x85, 0x88 carrying
+    bool luminar_ai_melee(Character *t);           // 0x4c98a0 sub-mode 0xf (true: choose afterwards)
+    bool luminar_try_start_grab(Character *t);     // 0x4c9990
+    bool luminar_ai_grab_approach(Character *t);   // 0x4c9a40 sub-mode 0x36
+    void luminar_ai_grab(Character *t);            // 0x4c9b00 sub-mode 0x35
+    void luminar_start_release();                  // 0x4c9c40
+    void luminar_ai_release();                     // 0x4c9cd0 sub-mode 0x37
+    bool luminar_teleport_out();                   // 0x4c9da0
+    void luminar_teleport_in();                    // 0x4ca000 sub-mode 0x33
+    void luminar_ai_beam_move_end();               // 0x4ca1d0 sub-mode 0x34
+    bool luminar_beam_start(Character *t);         // 0x4ca230
+    void luminar_beam_hit(Character *t);           // 0x4ca3a0 sub-mode 0x32
+
     int mode;               // +0x00 enum ai_state_mode
     int submode;             // +0x04
     int prev_mode;           // +0x08

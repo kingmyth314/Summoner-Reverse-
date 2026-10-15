@@ -3014,3 +3014,79 @@ sum.symbols names set_justification (0x5280a0) and set_text_offset (0x5280c0) ar
 setters of these fields, and the sum.symbols comments of ui_static__create / __set_justification /
 __set_text_offset (+0x374 justification, +0x378 font, +0x37c / +0x380 text offset) are wrong. The text is
 the char[0x100] at +0x274 (set_text), so ui_static's _unk274 is now text + the four ints.
+
+## decomp59: projectors, lamp glows and the boss units 0x4c0250-0x4ca6ff
+
+**D3900 (engine/rendering/unnamed_projectors_0x4c0250.h). The projector unit's declarations; the receiver
+list.** The unit is written (game/unnamed_projectors_0x4c0250.cpp). New: geom_bsp_node (the 12-byte BSP node
+of s3d_geom_block +0x04: three 10-bit normal fields scaled by 2/1023 - 1 (0x581ba4, 0x57e990), child bits 30 /
+31, child index and face list in the third dword; projector_collect_lobj_faces 0x4c029a-0x4c0335,
+0x4c03fc-0x4c0447), the four unit functions, and lobj_face_mark_offsets sized 8000 (0x2485564 up to the walk's
+single-face word 0x24893e4; lamp_glows starts at 0x24893e8). decomp57's shadow_record (lobj_list[7],
+lobj_count : 3) is kept: projector_collect_lobj_faces appends with the 3-bit count
+(`and edx, -0x40; add edx, 0x40; ...; and edx, 0x1c0`, 0x4c05c0-0x4c05d0), so an eighth object goes to
++0xfc (decomp57's _unkfc) and a ninth wraps to +0xe0; the `cmp ecx, 0x10; jae` exit after it (0x4c05d2)
+tests the old 3-bit count and never fires.
+
+**D3901 (units). The eleven cuts of 0x4c0250-0x4ca6ff.** No path string and no strings.tbl read in the range:
+all files are placeholders. Each boss unit opens with its static initialisers and owns one .bss / .data block
+(initialiser entries 317-337, 0x5884f8-0x588548): projectors 0x4c0250 (no initialiser; .bss 0x2483564-0x24893e7),
+lamp glows 0x4c0a40 (317), Machival 0x4c0c40 (318-319), Titus 0x4c20e0 (320-322), Evil Joseph 0x4c3470
+(323-324; boss_target_list_find and boss_resurrect_full are its functions), Evil Urath 0x4c4170 (325-326; its
+own boss_target_list_find_b), Murod 0x4c5140 (327), Murod Oni 0x4c5c20 (328), tentacle beast 0x4c6480 (329-332),
+Giant Salamanka 0x4c8030 (333-335), Luminar 0x4c8d10 (336-337; ai_predict_owner_position 0x4ca650, without data,
+ends it before level_scripts_common.cpp's entry 338 at 0x4ca700). source-map.md's hand cuts agree except for
+the projector end (the plane::operator= COMDAT 0x4c0a20-0x4c0a3e belongs to it).
+
+**D3902 (engine/rendering/unnamed_lamp_glow_0x4c0a40.h, new). lamp_glow and the lamp glow functions.**
+lamp_glow (0x18: pos, size = radius * 5, alpha, a dword zeroed by lamp_glow_add) and lamp_glows[300] (sum.symbols).
+lamp_glow_bitmap stays declared in levelrender.h (decomp57, for level_preload_effects); the new header includes
+levelrender.h instead of declaring it again. The empty initialiser 0x4c0a50 is read as lamp_glows' construction
+(vector3's empty user constructor).
+
+**D3903 (engine/ai/boss_ai.h). tentacle_info gets its full layout; tentacle_slot.** init_tentacle_records
+(0x4c6490) runs vector_constructor_iterator(record, 0x18, 5, tentacle_slot__ctor 0x4c64f0) and five GameTimer
+constructors (+0xa8, +0xc0, +0xc4, +0xc8, +0x100) per record: the slots and timers are members with
+constructors. The field offsets come from the unit (move +0x7c, flags +0x84 (1 submerged, 2 rising, 4 sinking),
+target +0x8c, hits +0x90 / +0x94, death anim +0xa4, think timer +0xa8, grab tag +0xb8, victim +0xbc, thrown
++0xcc, throw velocity +0xd0, release HP +0xe0, reach +0xe4, swipe / squeeze points +0xe8 / +0xf4, sink timer
++0x100, hold / up times +0x104 / +0x108, HP mark +0x10c). The hit list has room for 4 (death_anim follows at
++0xa4). `character` and `victim` keep their names (level_script_sewers.cpp).
+
+**D3904 (engine/ai/unnamed_giant_salamanka_0x4c8030.h, new; boss_ai.h). The Giant Salamanka state is one object.**
+giant_salamanka_boss_load clears 0x178 dwords from 0x248c7d0 (`rep stosd`, 0x4c83b6), ending exactly at the
+Luminar unit's .bss (0x248cdb0); init_giant_salamanka_timers constructs its GameTimers. As D3403 (serpent, tiger),
+the struct giant_salamanka_boss gsal (0x5e0) carries the fields and the sum.symbols names become macros
+(giant_salamanka_combat_enabled, _stage, _forced_stage, _stage2_reached / _ack, _stage3_reached / _ack,
+_missile_tag, _threat_table, _attack_timer, _offense_point_count, _current_move, _target_handle,
+_stage1/2/3_attacks). The six externs of boss_ai.h became comments; boss_ai.h includes the new header after its
+guard (with the serpent / phoenix / tiger headers). boss_ai.cpp and level_script_khosani_lab.cpp compile
+unchanged. The move rows are indexed from 0x248c844 = &moves[stage - 1] (giant_salamanka_ai_select_action
+0x4c89ed-0x4c89fb), which is why sum.symbols speaks of "0x20 bytes from 0x248c844".
+
+**D3905 (engine/ai/boss_ai.h). giant_salamanka_target_in_reach returns int.** `mov eax, 1` / `xor eax, eax`
+(0x4c8cb7 / 0x4c8cbd), as tiger_move_in_range (D3405). Its only caller, boss_move_in_range_dispatch
+(boss_ai.cpp), returns it as bool; no call changes.
+
+**D3906 (engine/ai/ai.h, boss_ai.h, fx.h, levelrender.h, summoner/multi/multi.h). New declarations.** The
+thiscall functions of the eight boss units are ai_state members (each is called with ECX = the AI record, or
+calls go_idle / set_mode on ECX): a decomp59 block before `int mode;`. The cdecl functions and the unit globals
+are a decomp59 section of boss_ai.h. mp_send_swi_boss (0x4888d0, (boss, mode, sub-mode): pushes at 0x4c1f79,
+0x4c9a1f) goes to multi.h next to its handler; titus_rock_erupt_fx (0x48c9a0, (handle) -> effect, 0x4c326a) to
+fx.h; levelrender_fx_char (0x22fb6d0) and its three tint floats (sum.symbols names) to levelrender.h. The
+empty skin hook character_instance::ca_noop_2arg (0x51a880) is pushed a float (1.8f, 0x4ca4c1) as its second
+argument by luminar_beam_hit; the declaration (int, int) is kept and the bits are passed, because changing it
+means changing vsdk/character_instance.cpp (to do there: `(int bitmap, float scale)`).
+
+**D3907 (engine/ai/ai.h). luminar_ai_select_action takes the target and returns nothing; predict_owner_position
+is the Luminar unit's.** 0x4c9410 is `ret 4` with a pushed character (luminar_ai_idle pushes 0, the frame its
+target) and leaves whatever EAX the last call left (the grab branch returns luminar_try_start_grab's AL). The
+declared member ai_state::predict_owner_position (0x4ca650, decomp43) is defined in
+game/unnamed_luminar_0x4c8d10.cpp.
+
+**D3908 (names).** Move pointer names follow the table index: titus_move_<stage><index> as sum.symbols has them,
+machival_move_N / evil_joseph_move_N / murod_oni_move_N for [0][N] (machival_move_melee and the sum.symbols
+names kept). murod_oni_move_is_first (sum.symbols) compares with murod_oni_move_3, not move 0; the name is kept.
+evil_urath_unused_moves (0x248bd88, 0x140 bytes after the threat table, never accessed) is named for its size.
+Names ending in an address (machival_248b030, titus_248b950, ...) are dwords the code writes but never reads,
+or never touches.

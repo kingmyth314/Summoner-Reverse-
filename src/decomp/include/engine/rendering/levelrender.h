@@ -328,4 +328,11 @@ int  level_vis_load(const char *level_filename);      // 0x486c60 nonzero = fail
 void move_target_set_bitmap(int bm);                  // 0x487750 move_target_bm (0x59c124)
 void move_target_draw_decal();                        // 0x487760
 
+// decomp59 (Murod leap, Luminar teleport): the character whose tint levelrender_draw_list overrides with
+// these components (levelrender.cpp's .bss; names from sum.symbols).
+extern Character *levelrender_fx_char;                // 0x22fb6d0
+extern float levelrender_fx_char_tint_r;              // 0x22fb678
+extern float levelrender_fx_char_tint_g;              // 0x22ea4a0
+extern float levelrender_fx_char_tint_b;              // 0x22f8ce8
+
 #endif

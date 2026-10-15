@@ -264,6 +264,8 @@ void mp_handle_swi_attack(ubyte *data, void *from);           // 0x488450 SWI_AT
 void mp_handle_swi_2dir(ubyte *data, void *from);             // 0x4885f0 SWI2DIR
 void mp_handle_swi_ndir(ubyte *data, void *from);             // 0x4887e0 SWI!DIR
 void mp_handle_swi_boss(ubyte *data, void *from);             // 0x4889c0 SWI_BSS
+// decomp59 (the Machival and Luminar teleports): (boss, ai mode, sub-mode) SWI_BSS sender (packet 0x1f).
+void mp_send_swi_boss(Character *boss, int mode, int submode);   // 0x4888d0
 void mp_handle_swi_sneak(ubyte *data, void *from);            // 0x488ab0 SWI_SNK
 void mp_handle_swi_hide(ubyte *data, void *from);             // 0x488ba0 SWI_HID
 void mp_handle_combat_sequence(ubyte *data, void *from);      // 0x4b1280 COM_SEQ
