@@ -299,6 +299,29 @@ For 40 units no source path or reference names the file. They are labelled by wh
 names and the strings they use; *inferred*). Many still hold several files that the splitter merges, for example
 bosses, `level_scripts_common.cpp` and the savegame code in one unit. These are the next places to cut by hand.
 
+**Round 3 (2026-10-15).** A third pass gave 369 untagged functions a file and corrected 11 tags. Each file is
+backed by a `strings.tbl` `// file.cpp` block that its functions read, or by a path string whose uses bracket the
+functions. The unit it forms was checked with `tu-split2.mjs` at gamma 10, 30 and 80.
+- New files from `strings.tbl`: `level_scripts.cpp` (59 functions, `0x4d4bc0`-`0x4d6600`, ids 469-476),
+  `conversationctl.cpp` (31, from the controller object's static initialiser to id 468), `multichat.cpp` (13, ids
+  218-222), `multicontainer.cpp` (13, ids 223-224) and `multiplayerdata.cpp` (10).
+- `multisave.cpp` (`0x46cc60`-`0x46da80`): the multiplayer `.plr` files and the 300 s autosave.
+  `mp_player_file_write` reads id 237, "No description", from the `// multisave.cpp` block. These 10 functions
+  had been put in `item_paging.cpp` by unit propagation; that file's path string is at `0x46cc2c`, before the
+  range. Id 237 is also read by `saveload_scan_saves`, so a string id does not prove a file on its own.
+- Names known only from Summoner 2 (names, no code). `plainstring.cpp` (20, `0x514ec0`-`0x515910`) has the same
+  eight string helpers in the same order. `norlsallocpool.cpp` (14) is the `NoRlsAllocPool` class. `debug.cpp` is
+  `DebugError` and its helper. No folder is known for these three.
+- More functions for files that were already tagged: `boss_ai.cpp` 58, `s3d.cpp` 51, `levelrender.cpp` 38,
+  `conversation.cpp` 30, `player.cpp` 12, `multi_door.cpp` 6, and 12 more spread over four files. The
+  `multi_door.cpp` tag on the avoidance accessor `0x4aa760` was wrong; id 246 is read at `0x4aa8bc` in
+  `mp_handle_door_lockpick`. The tag is now cleared.
+- Open: the `timer.cpp` tag on `timer_wait` (`0x530bf0`) looks wrong.
+
+The tagged set is now 111 files and 4,466 functions. The blind score, which hides each tagged file in turn, falls
+to 85.6% recall and 91.3% precision. Most misses are files that sit next to each other with no gap between them:
+the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` into `timer.cpp`.
+
 | Range | What it holds | Evidence |
 |---|---|---|
 | `0x411330`-`0x414a10` | interface manager (interface_init/frame/draw, tooltips, HUD messages, static colours) | names interface_*, ui_tooltip_*, hud_draw_message; .cpp tag removed by commit 04c1de1 |
