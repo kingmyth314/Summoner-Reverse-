@@ -17,13 +17,18 @@ typedef unsigned int gr_mode;
 // The members are header inlines: their only out-of-line copies are COMDATs in other objects (the
 // accessors 0x5368a0-0x536930 among the Direct3D code, the constructors in gr.cpp), and the vsdk
 // objects, built without inline expansion, call them (gr_opengl_set_mode, gr_opengl_clear). A class with
-// constructors and no copy constructor or destructor is still passed by value as one dword. The rest of
-// the tree keeps passing gr_mode; Mode(gr_mode) converts.
+// constructors and no copy constructor or destructor is still passed by value as one dword.
+// decomp40 (gr.cpp): the 30 mode globals of gr.cpp are gr::Mode objects (each has a dynamic initialiser
+// `mov ecx, &global; call 0x508160`) and the front end passes gr::Mode (DECISIONS.md D2001).
+// Mode(gr_mode) is not inline: its only copy 0x506810 lies between gr_close and gr::set_clip, among
+// gr.cpp's own functions, and nothing calls it, so it is an out-of-line definition, not a COMDAT
+// (D2002). The rest of the tree still stores and passes the dword in places (gr_string's int mode,
+// ui_bitmap_scaled); operator gr_mode() (ours, inline) converts back.
 namespace gr {
 class Mode {
 public:
     Mode() { value = (gr_mode)-1; }                   // 0x5368a0 gr__Mode__Mode_invalid
-    Mode(gr_mode v) { value = v; }                    // 0x506810 gr__Mode__Mode_value
+    Mode(gr_mode v);                                  // 0x506810 gr__Mode__Mode_value (gr.cpp, D2002)
     Mode(int texture_source, int color_source, int alpha_source, int alpha_blend, int zbuffer_type,
          int fog_type)                                // 0x508160 gr__Mode__Mode
     {
@@ -39,6 +44,7 @@ public:
     int get_fog_type() const { return (value >> 25) & 0x1f; }           // 0x536910
     void invalidate() { value = (gr_mode)-1; }                          // 0x536920 gr__Mode__invalidate
     bool is_multitexture() const { return get_texture_source() >= 4; }  // 0x536930
+    operator gr_mode() const { return value; }        // ours (D2001): no copy in the binary
     gr_mode value;
 };
 }
@@ -58,14 +64,20 @@ struct Color {
 typedef Color Color_ctor;                             // the pilots' wrapper name (D41)
 LAYOUT_CHECK(Color, sizeof(Color) == 4);
 
-// gr::Screen at 0x25d8d30 (zeroed by gr__init, 0x2a dwords).
+// gr::Screen at 0x25d8d30, 0xa8 bytes (gr_init zeroes 0x2a dwords). decomp40 (D2000): the colour,
+// texture, fog and tint state that sum.symbols names as separate globals (gr_color 0x25d8d84 ..
+// gr_tint_b 0x25d8dcc, 0x25d8dd0) lies inside it: gr_init's `rep stosd` clears it, and the implicit
+// constructor gr__Screen__Screen (0x5081a0) constructs the two Color members at +0x54 and +0x61 (the
+// call goes to 0x505530, the empty constructor that vector3() / Color() share by identical-code
+// folding). The old global names are macros on the fields below.
 struct gr__Screen {
     int signature;           // +0x00
     int max_w;               // +0x04 screen width
     int max_h;               // +0x08 screen height
     int mode;                // +0x0C renderer: 0x66 Direct3D, 0x67 Glide, 0x68 OpenGL
     int window_mode;         // +0x10 200 windowed, 201 fullscreen, 202 desktop size
-    int dual_monitors;       // +0x14
+    bool dual_monitors;      // +0x14 SST_DUALHEAD (gr_check_dual_monitors writes the byte)
+    ubyte _pad15[3];
     float aspect;            // +0x18 (width / height) * 0.75
     int rowsize;             // +0x1C
     int bits_per_pixel;      // +0x20
@@ -81,24 +93,96 @@ struct gr__Screen {
     int clip_right;          // +0x48
     int clip_top;            // +0x4C
     int clip_bottom;         // +0x50
-    // +0x54.. not mapped (0x2a dwords in all)
+    Color current_color;     // +0x54 gr_color (gr_set_color)
+    int current_bitmap;      // +0x58 gr_texture (gr_set_texture)
+    int current_bitmap_2;    // +0x5C gr_texture_2
+    bool fog_enabled;        // +0x60 gr_fog_enabled (gr_set_fog)
+    Color fog_color;         // +0x61 gr_fog_color
+    ubyte _pad65[3];
+    float fog_near;          // +0x68 gr_fog_near
+    float fog_far;           // +0x6C gr_fog_far (times Gr_level_fog_multiplier)
+    float fog_z_near;        // +0x70 gr_fog_z_near (d3d_fog_mode 3)
+    float fog_z_far;         // +0x74 gr_fog_z_far
+    float fog_z_inv_range;   // +0x78 gr_fog_z_inv_range
+    float fog_alpha_near;    // +0x7C gr_fog_alpha_near
+    float fog_alpha_far;     // +0x80 gr_fog_alpha_far
+    float fog_alpha_inv_range; // +0x84 gr_fog_alpha_inv_range
+    float fog_vertex_near;   // +0x88 gr_fog_vertex_near
+    float fog_vertex_far;    // +0x8C gr_fog_vertex_far
+    bool tint_enabled;       // +0x90 gr_tint_enabled (gr_set_tint)
+    ubyte _pad91[3];
+    float tint_r;            // +0x94 gr_tint_r
+    float tint_g;            // +0x98 gr_tint_g
+    float tint_b;            // +0x9C gr_tint_b
+    bool vsync;              // +0xA0 gr_vsync (gr_set_vsync; gr_init's last argument)
+    ubyte _padA1[3];
+    int poly_arg_a4;         // +0xA4 0 from gr_init, passed to gr_poly_begin by gr_poly (name ours)
 };
+LAYOUT_CHECK(gr__Screen, sizeof(gr__Screen) == 0xa8);
 extern gr__Screen gr_screen;                          // 0x25d8d30
+#define gr_color (gr_screen.current_color)            // 0x25d8d84
+#define gr_texture (gr_screen.current_bitmap)         // 0x25d8d88
+#define gr_texture_2 (gr_screen.current_bitmap_2)     // 0x25d8d8c
+#define gr_fog_enabled (gr_screen.fog_enabled)        // 0x25d8d90
+#define gr_fog_color (gr_screen.fog_color)            // 0x25d8d91
+#define gr_fog_near (gr_screen.fog_near)              // 0x25d8d98
+#define gr_fog_far (gr_screen.fog_far)                // 0x25d8d9c
+#define gr_fog_z_near (gr_screen.fog_z_near)          // 0x25d8da0
+#define gr_fog_z_far (gr_screen.fog_z_far)            // 0x25d8da4
+#define gr_fog_z_inv_range (gr_screen.fog_z_inv_range)  // 0x25d8da8
+#define gr_fog_alpha_near (gr_screen.fog_alpha_near)  // 0x25d8dac
+#define gr_fog_alpha_far (gr_screen.fog_alpha_far)    // 0x25d8db0
+#define gr_fog_alpha_inv_range (gr_screen.fog_alpha_inv_range)  // 0x25d8db4
+#define gr_fog_vertex_near (gr_screen.fog_vertex_near)  // 0x25d8db8
+#define gr_fog_vertex_far (gr_screen.fog_vertex_far)  // 0x25d8dbc
+#define gr_tint_enabled (gr_screen.tint_enabled)      // 0x25d8dc0
+#define gr_tint_r (gr_screen.tint_r)                  // 0x25d8dc4
+#define gr_tint_g (gr_screen.tint_g)                  // 0x25d8dc8
+#define gr_tint_b (gr_screen.tint_b)                  // 0x25d8dcc
+// gr_vsync (0x25d8dd0, +0xa0) is a macro on gr_screen, after the gr_direct3d.cpp group below.
 
-// ---- modes and state ----------------------------------------------------------------------------
-extern gr_mode gr_rect_mode;                          // 0x25d88ac
-extern gr_mode gr_bitmap_wrap_mode;                   // 0x25d88c4
-extern gr_mode gr_line_mode;                          // 0x25d8ce4
-extern gr_mode gr_mode_ui_bitmap;                     // 0x25d8d08 (wrap, texture, vertex alpha, alpha)
-extern gr_mode gr_mode_automap_additive;              // 0x25d8d10 (as above, additive)
-extern gr_mode gr_mode_lightmap_multitexture;         // 0x25d8d1c
-extern gr_mode gr_mode_flat_alpha;                    // 0x25d8d28
-extern gr_mode gr_string_mode;                        // 0x25d8df4
+// ---- modes (gr.cpp .bss; D2001) ------------------------------------------------------------------
+// gr::Mode(texture, colour, alpha, blend, zbuffer, fog), as built by each global's dynamic initialiser.
+// The names are sum.symbols' where it has one (its module column puts some of them in other units;
+// all 30 initialisers are gr.cpp's, table 0x5887ec-0x588860); gr_mode_<address> are ours.
+extern gr::Mode gr_string_mode;                       // 0x25d8df4 (3, 2, 3, 3, 0, 3)
+extern gr::Mode gr_mode_25d8cdc;                      // 0x25d8cdc (3, 2, 3, 3, 0, 3)
+extern gr::Mode gr_mode_ui_bitmap;                    // 0x25d8d08 (1, 1, 0, 3, 0, 3)
+extern gr::Mode gr_bitmap_wrap_mode;                  // 0x25d88c4 (1, 2, 3, 3, 0, 3)
+extern gr::Mode gr_mode_automap_additive;             // 0x25d8d10 (1, 1, 0, 2, 0, 3)
+extern gr::Mode gr_line_mode;                         // 0x25d8ce4 (0, 0, 0, 3, 0, 3)
+extern gr::Mode gr_rect_mode;                         // 0x25d88ac (0, 0, 0, 3, 0, 3)
+extern gr::Mode gr_mode_25d88a4;                      // 0x25d88a4 (0, 0, 0, 3, 0, 3)
+extern gr::Mode gr_mode_flat_alpha;                   // 0x25d8d28 (0, 0, 0, 3, 4, 0)
+extern gr::Mode gr_line_3d_mode;                      // 0x25d88c0 (0, 0, 0, 3, 4, 0)
+extern gr::Mode gr_mode_line_quad;                    // 0x25d8ce0 (1, 1, 2, 3, 0, 0)
+extern gr::Mode gr_mode_25d88cc;                      // 0x25d88cc (1, 2, 3, 3, 0, 0)
+extern gr::Mode gr_mode_particle_alpha;               // 0x25d8df0 (2, 2, 3, 3, 1, 0)
+extern gr::Mode gr_mode_particle_additive;            // 0x25d8d24 (2, 2, 3, 2, 1, 3)
+extern gr::Mode gr_mode_level_alpha_add;              // 0x25d88a8 (1, 2, 3, 2, 1, 0)
+extern gr::Mode gr_mode_lamp_glow;                    // 0x25d8cfc (1, 2, 3, 2, 0, 0)
+extern gr::Mode gr_mode_25d88a0;                      // 0x25d88a0 (1, 2, 0, 3, 4, 0)
+extern gr::Mode gr_mode_vfx_mesh_opaque;              // 0x25d8cd4 (1, 2, 0, 0, 4, 0)
+extern gr::Mode gr_mode_mesh_alpha;                   // 0x25d8df8 (1, 2, 3, 3, 4, 0)
+extern gr::Mode gr_mode_25d8d00;                      // 0x25d8d00 (1, 2, 3, 3, 1, 0)
+extern gr::Mode gr_mode_shadow;                       // 0x25d8d0c (1, 2, 3, 3, 1, 0)
+extern gr::Mode gr_mode_25d8cd8;                      // 0x25d8cd8 (2, 2, 0, 0, 4, 1)
+extern gr::Mode gr_mode_25d88c8;                      // 0x25d88c8 (2, 2, 3, 2, 1, 1)
+extern gr::Mode gr_mode_25d8dd8;                      // 0x25d8dd8 (1, 1, 2, 5, 4, 2)
+extern gr::Mode gr_mode_vfx_flat_additive;            // 0x25d8d04 (0, 0, 0, 2, 1, 0)
+extern gr::Mode gr_mode_lightmap_multitexture;        // 0x25d8d1c (4, 1, 3, 3, 4, 0)
+extern gr::Mode gr_mode_25d8d18;                      // 0x25d8d18 (6, 2, 3, 3, 4, 0)
+extern gr::Mode gr_mode_25d8cd0;                      // 0x25d8cd0 (4, 2, 3, 2, 1, 0)
+extern gr::Mode gr_mode_25d8ce8;                      // 0x25d8ce8 (4, 2, 3, 2, 4, 0)
+extern gr::Mode gr_mode_25d8d14;                      // 0x25d8d14 (1, 1, 2, 3, 4, 0)
+
+// ---- other state --------------------------------------------------------------------------------
 extern int gr_gamma_ramp[256];                        // 0x25d8e0c
 extern bool gr_antialias_enabled;                     // 0x25d921c
 extern bool gr_byte_25d921d;                          // 0x25d921d unnamed; set to 1 by the Direct3D code (0x539efd)
-// The masked automap bitmap is drawn with an immediate gr::Mode dword (no global holds it).
-#define GR_MODE_AUTOMAP_MASKED 0x4028821u
+// The masked automap bitmap is drawn with an immediate mode: 0x4028821 = gr::Mode(1, 1, 2, 5, 0, 2),
+// the inline six-field constructor, which the optimised game unit folds to the constant.
+#define GR_MODE_AUTOMAP_MASKED gr::Mode(1, 1, 2, 5, 0, 2)
 
 // ---- gr.cpp ---------------------------------------------------------------------------------------
 class vector3;
@@ -128,26 +212,27 @@ void gr_set_alpha(int a);                             // 0x506c40
 void gr_mark_texture_dirty(int bm);                   // 0x506c70
 void gr_tcache_free(int bm);                          // 0x508020 per-mode texture cache release (bm_release, decomp31)
 // (bm, x, y, w, h, sx, sy, mode), clipped.
-void gr_bitmap_ex(int bm, int x, int y, int w, int h, int sx, int sy, gr_mode mode);   // 0x506cb0
+void gr_bitmap_ex(int bm, int x, int y, int w, int h, int sx, int sy, gr::Mode mode);   // 0x506cb0
 void gr_bitmap_stretched(int bm, int x, int y, int w, int h, int sx, int sy, int sw, int sh,
-                         gr_mode mode);               // 0x506ec0
-void gr_bitmap(int bm, int x, int y, gr_mode mode);   // 0x506f90
-// Rotated bitmap through gr_tmapper: (bm, x, y, scale, angle, mode); the two floats after y are read
-// from the automap call only (types guessed: scale = mask scale * zoom, angle = camera heading).
-void gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr_mode mode);   // 0x507100
-void gr_line(float x1, float y1, float x2, float y2, gr_mode mode);   // 0x507310
-void gr_rect(int x, int y, int w, int h, gr_mode mode, float z);       // 0x5077d0 (z 1.0f or FLT_MAX in the pilots)
-bool gr_is_mode_supported(const gr_mode *mode);       // 0x5079b0 (by address; type guessed)
-int  gr_read_backbuffer(int x, int y, int w, int h, void *buf);   // 0x507d30 -> pixel format (3 565, 7 32-bit)
-void gr_set_alpha_test(int enable);                   // 0x508110 (type guessed)
+                         gr::Mode mode);              // 0x506ec0
+void gr_bitmap(int bm, int x, int y, gr::Mode mode);  // 0x506f90
+// Rotated bitmap through gr_tmapper: (bm, x, y, scale, angle, mode): a quad of the bitmap's size times
+// scale, centred on (x, y) and rotated by angle (radians).
+void gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr::Mode mode);   // 0x507100
+void gr_line(float x1, float y1, float x2, float y2, gr::Mode mode);   // 0x507310
+void gr_rect(int x, int y, int w, int h, gr::Mode mode, float z);      // 0x5077d0 (z is each corner's sw: 1.0f or FLT_MAX in the pilots)
+bool gr_is_mode_supported(gr::Mode *mode);            // 0x5079b0 (the pointer goes on to the back end, D1606)
+int  gr_read_backbuffer(int x, int y, int w, int h, void *buf);   // 0x507d30 -> pixel format (3 565, 6 888, 7 8888; 0 none)
+void gr_set_alpha_test(bool enable);                  // 0x508110 (forwarded as a dword to gr_d3d_set_alpha_test(bool); decomp40)
 
 // ---- init / close (gr.cpp) ---------------------------------------------------------------------------
 #define GR_DIRECT3D 0x66                              // gr__Screen.mode values (names ours)
 #define GR_GLIDE    0x67
 #define GR_OPENGL   0x68
-// (w, h, mode, window_mode, hwnd, far_z, dual): far_z goes to gr_screen +0x28, dual (byte) to +0xa0.
-// LoadSettings passes 201 (fullscreen) and Summoner_options.cfg_34 as the float.
-void gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, bool dual);   // 0x505e00
+// (w, h, mode, window_mode, hwnd, far_z, vsync): far_z goes to gr_screen +0x28, vsync (byte) to +0xa0
+// (gr_screen.vsync, which gr_set_vsync writes; decomp40 D2003, was "dual"). Returns 0 (unused).
+// LoadSettings passes 201 (fullscreen), Summoner_options.cfg_34 as the float and false.
+int  gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, bool vsync);   // 0x505e00
 void gr_close();                                      // 0x5067c0
 int  gr_get_video_memory_mb();                        // 0x5079f0
 void gr_load_reflection_map();                        // 0x50b130 refmap01.tga (vsdk\gr)
@@ -179,13 +264,14 @@ LAYOUT_CHECK(gr_light_desc, sizeof(gr_light_desc) == 0x20);
 float rgb_to_lightened_grey(float r, float g, float b);  // 0x508090 (avg + (255 - avg) * 0.6) / 255 (decomp23)
 
 // ---- decomp28 (levelrender.cpp) -------------------------------------------------------------------
-// Colour tint applied by the back ends when enabled (gr.cpp .bss).
-extern bool gr_tint_enabled;                          // 0x25d8dc0
-extern float gr_tint_r;                               // 0x25d8dc4
-extern float gr_tint_g;                               // 0x25d8dc8
-extern float gr_tint_b;                               // 0x25d8dcc
+// The colour tint the back ends apply when enabled: gr_tint_enabled / _r / _g / _b are gr_screen
+// fields (macros above, D2000).
 
 // A 3D pipeline vertex (0x30 bytes; symbols/types.h gr_Vertex, +0x1a.. from levelrender_face_vertex_colors).
+// +0x1a: what the vertex supplies besides the position (gr_tmapper_multipass: 1 uv, 4 rgb, 8 alpha;
+// gr_bitmap_float sets 1, gr_rect 0, levelrender 0xf). The original has a default constructor
+// (gr__Vertex__Vertex 0x5081c0, a COMDAT at the end of gr.cpp, constructs a vector3 at +0), which gr_rect
+// and gr_bitmap_float run through `vector constructor iterator`; not declared here (D1605, still open).
 struct gr_vertex {
     float x, y, z;                    // +0x00 view space
     float sx, sy, sw;                 // +0x0c screen x / y and 1/z (gr_project_vertex)
@@ -227,14 +313,8 @@ int  light_create_spot(const vector3 *pos, const vector3 *dir, float a, float b,
                        const quaternion *orient);     // 0x51e3f0
 
 // ---- decomp33 (gr_opengl.cpp) ---------------------------------------------------------------------
-// gr.cpp state the back ends read (gr.cpp .bss).
-extern Color gr_color;                                // 0x25d8d84 current colour (gr_set_color)
-extern int gr_texture;                                // 0x25d8d88 current bitmap (gr_set_texture)
-extern int gr_texture_2;                              // 0x25d8d8c second bitmap
-extern bool gr_fog_enabled;                           // 0x25d8d90 (gr_set_fog)
-extern Color gr_fog_color;                            // 0x25d8d91
-extern float gr_fog_near;                             // 0x25d8d98
-extern float gr_fog_far;                              // 0x25d8d9c
+// gr.cpp state the back ends read: gr_color, gr_texture, gr_texture_2, gr_fog_enabled, gr_fog_color,
+// gr_fog_near, gr_fog_far are gr_screen fields (macros above, D2000).
 // Vertex colour byte -> gamma-corrected value 0..255, as float (gr_set_gamma clamps and fstp's each
 // entry; the OpenGL tmapper fld's it): DECISIONS.md D1302 (sum.symbols: uint32[256]).
 extern float gr_color_gamma_lut[256];                 // 0x25d88d0
@@ -258,7 +338,6 @@ extern void *d3d_direct3d;                            // 0x2dc6c3c IDirect3D7*
 
 // ---- gr_direct3d.cpp (decomp36) ---------------------------------------------------------------------
 // The rest of the Direct3D interface is in vsdk/gr/directx/gr_direct3d.h (it needs d3d_min.h).
-extern bool gr_vsync;                                 // 0x25d8dd0 gr_set_vsync; 0 = flip with DDFLIP_NOVSYNC (name ours)
 extern float Gr_far_min;                              // 0x5a7294 console "far_min"
 extern float Gr_far_max;                              // 0x5a7298 console "far_max"
 // (w): w / far * Gr_3d_zmult, clamped to Gr_3d_zmax: the z the back ends send (vsdk\gr).
@@ -292,5 +371,55 @@ struct gr_multipass_vertex {
 // fall in and the uv transform into it (vsdk\gr; sum.symbols' "(bitmap, u, v, ...)" is the inner part).
 int gr_poly_get_section(int nv, gr_multipass_vertex **verts, int pass, int bm, float *u_offset,
                         float *v_offset, float *u_scale, float *v_scale);   // 0x55fb00
+
+// ---- gr.cpp (decomp40) ------------------------------------------------------------------------------
+// gr_vsync is gr_screen.vsync (+0xa0, D2000; 0 = flip with DDFLIP_NOVSYNC).
+#define gr_vsync (gr_screen.vsync)                    // 0x25d8dd0
+
+// .data (0x5a6058-0x5a606b)
+extern float Gr_alpha_fog_ratio;                      // 0x5a6058 0.8, console "alpha_fog"
+extern float Gr_level_fog_multiplier;                 // 0x5a605c 1.0, console "level_fog"
+extern float gr_fade_level;                           // 0x5a6060 below 0 = no overlay
+extern float gr_gamma;                                // 0x5a6064 1.0
+extern int gr_gamma_percent;                          // 0x5a6068 180, (int)(gamma * 100) after gr_set_gamma (name ours; no reader)
+// .bss
+extern RECT gr_fullscreen_rect;                       // 0x25d88b0 {0, 0, w - 1, h - 1} from gr_init fullscreen (name ours; no reader)
+extern float gr_fade_duration;                        // 0x25d8d20
+extern float gr_fade_time;                            // 0x25d8dec
+extern bool gr_initialized;                           // 0x25d921e
+extern int Gr_show_stats;                             // 0x25d9220 console "gr_show_stats" (no reader in the game)
+extern bool cmd_antialiasing_on;                      // 0x25d9224
+extern int gr_fade_state;                             // 0x25d9228 0 none, 1 fading in, 2 fading out
+extern bool gr_zbuffer_enabled;                       // 0x25d922c gr_zbuffer_clear's argument (name ours; no reader)
+
+void gr_check_dual_monitors();                        // 0x506110
+void gr_set_vsync(bool on);                           // 0x506160
+void gr_deactivate();                                 // 0x506190
+void gr_init_context(HWND hwnd);                      // 0x5061b0
+// (name, format, path_id): format 0 = .tga (RLE, bottom-up), else .jpg; the extension is appended.
+void gr_screenshot(const char *name, int format, int path_id);   // 0x5061f0
+float gr_get_fade_level();                            // 0x506680
+void gr_draw_fade();                                  // 0x5066b0
+void gr_set_aspect(float aspect);                     // 0x506960
+void gr_flip();                                       // 0x506a20
+void gr_zbuffer_clear(bool enable);                   // 0x506a50
+void gr_set_texture(int bm, int bm2);                 // 0x506c50
+void gr_circle(int x, int y, int radius, gr::Mode mode);   // 0x507690
+void gr_tmapper(int nv, gr_vertex **verts, gr::Mode mode); // 0x507a20
+void gr_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses,
+                          gr_tmapper_pass *passes);   // 0x507a80
+void gr_noop_507d20(int flags);                       // 0x507d20 empty (gr_bitmap_3d_projected passes 0x10)
+void gr_set_fog(bool enable, int r, int g, int b, float near_dist, float far_dist);   // 0x507db0
+void gr_set_tint(bool enable, float r, float g, float b);   // 0x507f70
+void gr_stub_ret_507fa0();                            // 0x507fa0 empty, no reference
+void gr_finish();                                     // 0x507fb0
+void gr_tcache_flush();                               // 0x507fd0
+bool gr_stub_ret_false_508060();                      // 0x508060 no reference
+int  gr_stub_ret0_508070();                           // 0x508070 no reference
+void gr_stub_ret_508080();                            // 0x508080 empty, no reference
+void gr_set_antialias(bool on);                       // 0x5080c0
+void gr_flush_pipeline();                             // 0x508140
+// vsdk\gr, file not known: flushes the buffered polygons (gr_init_context, gr_flip).
+void gr_poly_buffer_flush();                          // 0x545d70
 
 #endif

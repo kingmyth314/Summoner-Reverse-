@@ -64,4 +64,8 @@ int  pcx_encode_byte(ubyte byte, ubyte count, File *f);                         
 
 const char *bm_image_error_string(int n);                                                 // 0x5565a0
 
+// decomp40 (gr_screenshot): (name, rgb, w, h), R, G, B bytes top-down; IJG libjpeg compress sequence. Just
+// past targautils.cpp's last function (module targautils.cpp in sum.symbols); return not used.
+void jpeg_write_file(const char *name, ubyte *rgb, int w, int h);                         // 0x5565e0
+
 #endif

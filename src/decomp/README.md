@@ -19,6 +19,7 @@ Rules:
 | `vsdk/registry.cpp` | `vsdk\os\registry.cpp` | 14 | 10 / 4 / 0 |
 | `vsdk/cmdline.cpp` | `vsdk\os\cmdline.cpp` | 20 | 14 / 6 / 0 |
 | `vsdk/gr_font.cpp` | `vsdk\gr\gr_font.cpp` | 17 | 9 / 7 / 1 |
+| `vsdk/gr.cpp` | `vsdk\gr\gr.cpp` (`0x505550`-..) | 102 | 89 / 13 / 0 |
 | `vsdk/effect_mem.cpp` | `vsdk\geom\effect_mem.cpp` (`0x51bb70`-`0x51e018`) | 38 | 20 / 18 / 0 (13 vfx_instance functions not written yet) |
 | `game/player.cpp` | `player.cpp` (`0x433340`-..) | 27 | 12 / 15 / 0 |
 | `game/summoner.cpp` | `summoner.cpp` (with WinMain `0x43e5e0`) | 61 | 53 / 8 / 0 |

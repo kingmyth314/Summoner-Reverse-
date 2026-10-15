@@ -207,6 +207,9 @@ void gr_d3d_tcache_flush();                           // 0x54bc60
 void gr_d3d_tcache_frame();                           // 0x54bc90 empty
 int  gr_d3d_get_section_count(int bm);                // 0x54cfe0
 void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h);   // 0x54d000
+// decomp40 (gr.cpp dispatch): (bm): the dirty flag of the bitmap's entry / release of its slots.
+void gr_d3d_mark_texture_dirty(int bm);               // 0x54d3f0
+void gr_d3d_tcache_free(int bm);                      // 0x54d430
 
 // ---- not in a written unit yet --------------------------------------------------------------------------
 // (*v, lo, hi): *v = lo below, hi above (module "-", next to frametime.cpp).

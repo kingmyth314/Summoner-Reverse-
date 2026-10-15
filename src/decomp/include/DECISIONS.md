@@ -1614,3 +1614,77 @@ goal_alloc, goal_remove, ai_groups_frame, ai_mode_frame_counts (13 ints at 0x247
 **D1908 (none; engine/combat/combat.h unchanged). living_combat::set_target's first argument.** Every
 ai.cpp caller pushes the owner pointer there (`push edi; push eax` with eax = owner, 0x4744b4); the
 declaration keeps `int unused` (combat.cpp's definition), so ai.cpp passes `(int)owner`.
+
+## gr.cpp (decomp40)
+
+**D2000 (gr.h). gr__Screen is 0xa8 bytes and holds the colour, texture, fog and tint state.** sum.symbols
+names gr_color 0x25d8d84, gr_texture / _2, gr_fog_enabled / _color / _near / _far, gr_fog_z_*,
+gr_fog_alpha_*, gr_fog_vertex_*, gr_tint_enabled / _r / _g / _b and (D1605) gr_vsync 0x25d8dd0 as separate
+globals. They lie inside gr_screen (0x25d8d30): gr_init clears 0x2a dwords from it with `rep stosd`
+(0x505e03-0x505e15), which reaches 0x25d8dd7, and then sets current_bitmap / _2 to -1 and the fog fields to 0
+(0x505e8c-0x505ea4) after the clear; the implicit constructor gr__Screen__Screen (0x5081a0, called by
+init_gr_screen 0x505b00) constructs exactly two sub-objects, at +0x54 and +0x61 (`lea ecx, [esi + 0x54]` /
+`[esi + 0x61]`, call 0x505530), which are the two Colors (gr_color, gr_fog_color; the byte-aligned +0x61
+follows the bool fog_enabled at +0x60). 0x505530 is the empty constructor that vector3() and Color() share
+by identical-code folding (sum.symbols calls them "the vector3 members"). The next object after +0xa8 is
+gr_mode_25d8dd8, built by its own initialiser. The struct gets the fields (names ours where sum.symbols has
+only the global's name), LAYOUT_CHECK 0xa8, and the old names become macros on them, as D800 did for
+level_s3d (`#define gr_color (gr_screen.current_color)`, ...); levelrender.cpp, gr_opengl.cpp and
+gr_direct3d.cpp compile unchanged. dual_monitors (+0x14) is a bool (gr_check_dual_monitors writes the
+byte, 0x506134 / 0x50614e). +0xa4 (0 from gr_init, pushed to gr_poly_begin by gr_poly 0x53e808) is
+poly_arg_a4 (name ours). The `extern bool gr_vsync` of the "gr_direct3d.cpp" group in gr.h was left as it
+was (that group belonged to another agent); a `#define gr_vsync (gr_screen.vsync)` after the group
+supersedes it, and the extern line should be deleted at merge.
+
+**D2001 (gr.h). The mode globals are gr::Mode objects and the front end takes
+gr::Mode; this revises D7 / D1300 for gr.cpp.** Every one of the 30 globals has a dynamic initialiser
+`mov ecx, &global; call 0x508160` (gr::Mode's six-field constructor, ret 0x18; table 0x5887ec-0x588860),
+so each is a gr::Mode object, not a dword (a gr_mode global cannot get such an initialiser). The front end
+hands the mode to the back ends without conversion: gr_tmapper pushes its argument dword straight to
+gr_opengl_tmapper(gr::Mode) (0x507a30-0x507a3f), and gr.cpp, built without inline expansion (it calls the
+inline 0x508160 out of line), would otherwise call Mode(gr_mode) 0x506810, which has no caller in the
+binary. So gr.h now declares the 30 globals `extern gr::Mode` (12 of them have no reader: gr_mode_<address>,
+names ours) and gr_bitmap_ex / _stretched / gr_bitmap / gr_bitmap_float / gr_line / gr_rect / gr_circle /
+gr_tmapper with gr::Mode; gr_is_mode_supported takes gr::Mode * (it passes the pointer to
+gr_d3d_is_mode_supported(gr::Mode *), D1606). The rest of the tree still stores and passes dwords
+(gr_string's int mode, ui_bitmap_scaled(gr_mode), locals): gr::Mode gets an inline `operator gr_mode()`
+(ours; no copy exists in the binary, so only the optimised game units, which expand it, may use it).
+GR_MODE_AUTOMAP_MASKED becomes `gr::Mode(1, 1, 2, 5, 0, 2)`, the six fields of 0x4028821. All src/decomp
+.cpp compile unchanged (same 11 warnings). Open: gr_string and ui_bitmap_scaled probably take gr::Mode in
+the original too; the vsdk callers of gr_string (built without inline expansion) would call the operator.
+
+**D2002 (gr.h). gr::Mode::Mode(gr_mode) is out of line, defined in gr.cpp.** Revises D1300's inline.
+0x506810 sits between Color::Color (0x5067f0) and Color::set (0x506820), which gr.h already declares out of
+line, after gr_close and before gr::set_clip, i.e. among gr.cpp's own functions in source order; the
+unit's COMDAT inlines are all at its end (0x508160 Mode(6 fields), 0x5081a0 the gr__Screen constructor,
+0x5081c0 gr_vertex's constructor), in the order of their first use. It has no caller anywhere, which a
+COMDAT copy would not be emitted without (the vsdk objects emit only the inlines they use). So it is a
+plain member defined in gr.cpp. Implicit conversions from gr_mode in the tree now call it (compiles; no
+such conversion exists in the binary).
+
+**D2003 (gr.h). gr_init returns int; the seventh argument is vsync.** gr_init ends with `xor eax, eax`
+(0x5060fb) and LoadSettings ignores EAX. The byte argument goes to 0x25d8dd0 (0x505eaa), the byte
+gr_set_vsync writes (0x506164) and gr_d3d_flip / gr_glide_flip read (D1605); the old name "dual" came from
+the neighbouring dual-monitor field (+0x14, gr_check_dual_monitors). LoadSettings pushes 0.
+
+**D2004 (vsdk/gr/opengl/gl_min.h). glFinish without dllimport for gr.cpp.** gr_finish ends with `jmp
+0x5504f0`, the linker's import thunk for glFinish (`jmp [0x57e318]`), not `jmp [0x57e318]` itself, so gr.cpp
+saw glFinish declared without __declspec(dllimport), unlike gr_opengl.cpp (D1305). gl_min.h's GL_MIN_API
+drops dllimport when GL_MIN_NO_DLLIMPORT is defined; gr.cpp defines it before including gr_opengl.h.
+
+**D2005 (new vsdk/gr/glide/gr_glide.h; gr_direct3d.h; targautils.h; gr.h). Declarations for gr.cpp's
+calls.** New gr_glide.h: the 24 Glide entry points gr.cpp dispatches to (sum.symbols names, module
+vsdk\gr\glide\gr_glide.cpp), signatures from gr.cpp's pushes (gr_glide_page_in gets both of gr_page_in's
+arguments, 0x506a00-0x506a0a; gr_glide_bitmap the ten of gr_bitmap_stretched; gr_glide_is_mode_supported
+the pointer). gr_direct3d.h, texture-cache section: gr_d3d_mark_texture_dirty (0x54d3f0) and
+gr_d3d_tcache_free (0x54d430), one argument each. targautils.h: jpeg_write_file(name, rgb, w, h) (0x5565e0;
+pushes at 0x5064b2-0x5064bd). gr.h: gr_set_alpha_test takes bool (it forwards the argument dword to
+gr_d3d_set_alpha_test(bool), 0x50812b-0x508130, as gr_set_antialias forwards its bool, which
+cmd_antialiasing builds with `sete al; push eax`, upper bytes undefined); a new "gr.cpp (decomp40)" group
+with the unit's remaining functions and globals (gr_check_dual_monitors, gr_set_vsync, gr_deactivate,
+gr_init_context, gr_screenshot, gr_get_fade_level, gr_draw_fade, gr_set_aspect, gr_flip, gr_zbuffer_clear,
+gr_set_texture, gr_circle, gr_tmapper, gr_tmapper_multipass, gr_noop_507d20, gr_set_fog, gr_set_tint,
+gr_finish, gr_tcache_flush, gr_set_antialias, gr_flush_pipeline, the four stubs, gr_poly_buffer_flush
+0x545d70; Gr_alpha_fog_ratio, Gr_level_fog_multiplier, gr_fade_level, gr_gamma, gr_gamma_percent,
+gr_fullscreen_rect, gr_fade_duration, gr_fade_time, gr_initialized, Gr_show_stats, cmd_antialiasing_on,
+gr_fade_state, gr_zbuffer_enabled). None of these was declared before (searched by address).

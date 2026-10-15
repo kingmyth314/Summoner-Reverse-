@@ -87,7 +87,14 @@ typedef void           GLvoid;
 #define GL_MAX_TEXTURE_UNITS_ARB        0x84E2
 
 // ---- OPENGL32.dll ---------------------------------------------------------------------------------
+// decomp40 (D2004): gr.cpp's gr_finish reaches glFinish through the linker thunk 0x5504f0 (`jmp
+// 0x5504f0`, not `jmp [0x57e318]`), so that unit saw it without dllimport; it defines
+// GL_MIN_NO_DLLIMPORT before including the OpenGL header.
+#ifdef GL_MIN_NO_DLLIMPORT
+#define GL_MIN_API extern "C"
+#else
 #define GL_MIN_API extern "C" __declspec(dllimport)
+#endif
 GL_MIN_API void APIENTRY glAlphaFunc(GLenum func, GLclampf ref);
 GL_MIN_API void APIENTRY glArrayElement(GLint i);
 GL_MIN_API void APIENTRY glBegin(GLenum mode);
