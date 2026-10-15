@@ -116,9 +116,9 @@ int net_stats_avg_sent_packets;                               // 0x65e0f8
 int net_stats_sent_bytes;                                     // 0x65e0fc
 mp_send_buffer multi_unreliable_send_bufs[MP_MAX_PLAYERS];    // 0x65e100
 int net_stats_sent_packets_history[MP_NET_STATS_HISTORY];     // 0x65e910
-int net_stats_avg_sent_bytes;                                 // 0x65e938
+int net_stats_avg_recv_bytes;                                 // 0x65e938
 int net_stats_sent_bytes_history[MP_NET_STATS_HISTORY];       // 0x65e93c
-int net_stats_avg_recv_bytes;                                 // 0x65e964
+int net_stats_avg_sent_bytes;                                 // 0x65e964
 
 // 0x441820  Confidence: likely (the loop variable is the offset; the invalid-type exit returns without
 // clearing mp_cur_packet). Each packet's handler runs when the sender is a listed player or the type's
@@ -168,8 +168,8 @@ void mp_reset_net_stats()
     net_stats_timer = 0.0f;
     memset(net_stats_sent_packets_history, 0, sizeof(net_stats_sent_packets_history));
     net_stats_avg_sent_packets = 0;
-    net_stats_avg_recv_bytes = 0;
     net_stats_avg_sent_bytes = 0;
+    net_stats_avg_recv_bytes = 0;
     net_stats_history_index = 0;
     net_stats_sent_packets = 0;
     net_stats_sent_bytes = 0;
@@ -273,9 +273,9 @@ void mp_net_stats_update()
     net_stats_avg_sent_packets = sent_packets / MP_NET_STATS_HISTORY;
     net_stats_sent_bytes = 0;
     net_stats_recv_bytes = 0;
-    net_stats_avg_recv_bytes = sent_bytes / MP_NET_STATS_HISTORY;
+    net_stats_avg_sent_bytes = sent_bytes / MP_NET_STATS_HISTORY;
     net_stats_timer = 0.0f;
-    net_stats_avg_sent_bytes = recv_bytes / MP_NET_STATS_HISTORY;
+    net_stats_avg_recv_bytes = recv_bytes / MP_NET_STATS_HISTORY;
 }
 
 // 0x441da0  Confidence: likely (the type byte is kept in the dead first-argument slot). An immediate

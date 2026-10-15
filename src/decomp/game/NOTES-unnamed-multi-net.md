@@ -270,8 +270,8 @@ against ca313cb, all 120 files).
   and a NUL. The new sentence "The packets themselves travel over the engine's UDP reliable sockets" holds for
   multi_send_packet only: multi_send_packet_buffered (OBJ_UPD, the swi_* forwards, GM_STAT / CT_STAT status reports)
   and mp_send_tracked (game list, join replies) send plain datagrams with nw_send.
-- **sum.symbols** mp_packet_table: "name[12]" is name[8] plus the 4 rate-flag bytes. net_stats_avg_sent_bytes /
-  net_stats_avg_recv_bytes comments are crosswise to the code (D3307). lobby_handle_irc_command: "2 user joined,
+- **sum.symbols** mp_packet_table: "name[12]" is name[8] plus the 4 rate-flag bytes. net_stats_avg_recv_bytes /
+  net_stats_avg_sent_bytes comments are crosswise to the code (D3307). lobby_handle_irc_command: "2 user joined,
   1 user left" is the other way round (1 joined, 2 left; multi_chattracker.h's IRC_CMD_* are right).
   mp_player_level_available: "(mask >> 26) is beyond the table" is the completed-difficulty test (`>= 1 <<
   difficulty`). mp_forward_cur_packet(_buffered) "with debug flag 2": the test is game_flags bit 1 (multiplayer)

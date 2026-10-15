@@ -126,10 +126,16 @@ bone too: `vfx_emitter_instance__get_transform` (`0x5612b0`) and `vif_emitter_up
   scoped. It calls `vfx_preload` then `vfx_instance_create` (`0x51d250`). **Observed.**
 - After a read, `vfx_relocate` (`0x51c9f0`) and `vfx_node_relocate` (`0x536bc0`) turn the file's offsets into
   pointers. So a `.vfx` file is a memory image with a relocation table. **Observed.**
-- Streaming: `effect_stream_queue_add` (`0x4404a0`) queues up to 100 files. `effect_stream_update`
-  (`0x4408a0`) polls an async read each `GameTick` into `effect_stream_buffer` (`0x60fe30`, 256 KB).
-  `effect_stream_finish_entry` (`0x440930`) hands skeleton files to `skeleton_read`, so the same streamer
-  also loads animation (`.mvf`) data. *Inferred* for the `.mvf` part.
+- Streaming: `effect_stream_queue_add` (`0x4404a0`) queues up to 100 entries of 0x34 bytes (name, target `+0x2c`,
+  mempool `+0x30`). `effect_stream_open_current` (`0x4406d0`) starts one asynchronous read at a time and
+  `effect_stream_update` (`0x4408a0`, from `GameTick` and `effect_base_load`) polls it. The branch is picked by the
+  extension (`file_type_from_ext` `0x440650`): an `.rfx` base is read into its own buffer
+  (`effect_base_alloc_stream_buffer`) from offset 0x14 and relocated by `effect_base_finish_stream`; `.mvf` and `.vim`
+  files go through `effect_stream_buffer` (`0x60fe30`, 256 KB) to `skeleton_read` / `vim_load_file`. **Observed.**
+  The only caller of `effect_stream_queue_add` is `effect_base_queue_stream` (`0x51c6a0`), which queues effect base
+  names, so in v1.40 the `.mvf` / `.vim` branches run only if `effects.arr` names such a file (*inferred*; the
+  retail list was not read for this). A `.peg` name starts a zero-byte read without opening a file. Decompiled as
+  `src/decomp/game/unnamed_effectstream_0x440400.cpp` (placeholder name).
 
 Parts of an effect base, from the relocation code:
 

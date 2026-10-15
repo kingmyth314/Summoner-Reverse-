@@ -45,9 +45,9 @@ extern mp_send_buffer multi_unreliable_send_bufs[MP_MAX_PLAYERS];   // 0x65e100
 extern int net_stats_sent_packets_history[MP_NET_STATS_HISTORY];   // 0x65e910
 // The two byte averages are filled crosswise (D3307): avg_sent_bytes gets the received bytes' average,
 // avg_recv_bytes the sent bytes'. Nothing reads either.
-extern int net_stats_avg_sent_bytes;                    // 0x65e938
+extern int net_stats_avg_recv_bytes;                    // 0x65e938
 extern int net_stats_sent_bytes_history[MP_NET_STATS_HISTORY];   // 0x65e93c
-extern int net_stats_avg_recv_bytes;                    // 0x65e964
+extern int net_stats_avg_sent_bytes;                    // 0x65e964
 
 // (data, total length, sender address, reliable): every packet of the datagram / stream chunk.
 void multi_process_packet(ubyte *data, int len, void *from, bool reliable);   // 0x441820

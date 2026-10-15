@@ -437,14 +437,19 @@ that only its unoptimised code uses. So they belong to the cutscene file, which 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
 | 0x43eb00 | 0x43ef20 | multiplayer level select / game create / game list states, all_multi_levels ccmd | mp_level_available_to_all reads All_multi_levels flag 0x60ae64 set by cmd_all_multi_levels; .bss 0x60ae58-0x60ae64, .data 0x594f88-0x594fb8; summoner_cd.cpp's last id (937) is at 0x43ea20 |
-| 0x43ef30 | 0x43f9c0 | IRC lobby state (channels, users, chat) | init run at 0x43ef30 (realtime timer 0x60ae78); .bss 0x60ae68-0x60aea1, .data 0x594fd0-0x594ff4. Cut from the row above rests only on the init run (inferred) |
+| 0x43ef30 | 0x43f9c0 | IRC lobby state (channels, users, chat) | init run at 0x43ef30 (realtime timer 0x60ae78); .bss 0x60ae68-0x60f1c7 (the user names 0x60ae80 and the five 0x90-byte channel records 0x60eef8 included), .data 0x594fcc-0x594ff7. The cut from the row above has .data evidence: two initialised variables (0x594fcc = 1, unreferenced, and lobby_join_channel_index 0x594fd0 = -1) follow the previous unit's literals, so a new object starts there (corrected 2026-10-15, D3309; it was given as inferred from the init run only, with .bss 0x60ae68-0x60aea1) |
 | 0x43f9d0 | 0x4402f0 | state 6 window and monster layouts (.mlo, load/save_mlayout ccmds) | init run of ui objects 0x60f938/0x60f500/0x60f1d0; ccmd objects 0x60f928/0x60f4f0 interleave with them; .bss 0x60f1d0-0x60fe24, .data 0x594ff8-0x595110 |
 | 0x440400 | 0x440b30 | effect streaming (effect_stream_*) | sinit of File 0x651288 (used by effect_stream_update) at 0x440400; .bss 0x60fe30-0x6513a4, .data 0x59513c-0x595150 |
-| 0x440b40 | 0x442380 | multiplayer session / net core (packets, net stats) and the disp_rate ccmd | init run 0x440b40; .bss 0x651414-0x65e964; ccmd_disp_rate object 0x65e0c0 sits inside the net-stats block 0x65e0c8-0x65e964; cmd_disp_rate reuses "OUT U " / "OUT R " (0x595978/0x595980) of multi_send_packet |
+| 0x440b40 | 0x441760 | multiplayer net session (session states, player records, status reports) | init run 0x440b40 (GameTimers of the list heads and records, mp_update_timer); .bss 0x6513a8-0x65188f (netgame block 0x6513a8, timer, list heads 0x651418 / 0x6514d8, mp_net_port, mp_local_player, the four records 0x6515a0); .data 0x595158-0x5951b7, only the literals of mp_handle_gm_stat and mp_handle_ct_stat |
+| 0x441820 | 0x442380 | multiplayer packet layer (receive, send, forward, net stats) and the disp_rate ccmd | .data starts with the variable mp_packet_table 0x5951b8 after the session unit's literals, its own literals from 0x5958f0; .bss 0x651890-0x65e967 (receive buffers 0x651894, send buffers, statistics); ccmd_disp_rate object 0x65e0c0 sits inside the net-stats block 0x65e0c8-0x65e964; cmd_disp_rate reuses "OUT U " / "OUT R " (0x595978/0x595980) of multi_send_packet. Split from the row above on 2026-10-15 (D3309): the two halves use disjoint .data and .bss |
 | 0x4425b0 | - | characterinfo.cpp starts | .bss 0x65e968+, init_chain_skill_names reads ids 7-9 |
 
-Tags to check: 0x442350, 0x442360, 0x442380 (disp_rate ccmd) are tagged characterinfo.cpp; by .bss and strings they
-end the net file. characterinfo.cpp should start at 0x4425b0.
+Resolved: 0x442350, 0x442360 and 0x442380 (disp_rate ccmd) are now tagged `-`; by .bss and strings they end the
+packet-layer unit, and characterinfo.cpp starts at 0x4425b0. All six units of this range are written under
+placeholder names (D3312): `src/decomp/game/unnamed_mpmenus_0x43eb00.cpp`, `unnamed_lobby_0x43ef30.cpp`,
+`unnamed_mlayout_0x43f9d0.cpp`, `unnamed_effectstream_0x440400.cpp`, `unnamed_netsession_0x440b40.cpp` and
+`unnamed_netpackets_0x441820.cpp`. The lobby / state 6 cut (0x43f9d0) still rests on the initialiser run and the .bss
+gap 0x60f1c8-0x60f1cf only; no variable marks it in .data.
 
 #### 0x46b460-0x46c5cd (table row 0x46b460-0x46c570)
 

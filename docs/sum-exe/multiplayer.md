@@ -7,12 +7,33 @@ nav_order: 6.8
 # Multiplayer packets
 
 **Summary:** `mp_packet_table` (`0x5951b8`) lists all 66 multiplayer packet types. Each 0x1c-byte record
-(`mp_packet_info` in `symbols/types.h`) holds the type, the receive handler, a flag, a send counter that the senders
-increment, and an eight-letter name. Ghidra had merged 48 of the handlers into the functions before them. The table
-gave their real starts. All handlers are named in `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the
-table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`,
-`utrack_*`). The packets themselves travel over the engine's UDP "reliable sockets" (`nw_NewSendReliable`,
-`nw_NewReceiveReliable`; see [vsdk: OS layer](vsdk-os.md#networking-0x517590-0x5194ab)).
+(`mp_packet_info` in `symbols/types.h`) holds the type, the receive handler, a flag byte, a send counter that the
+senders increment, an 8-byte name (at most seven letters and a NUL) and four net-rate bytes. Ghidra had merged 48 of
+the handlers into the functions before them. The table gave their real starts. All handlers are named in
+`symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the table; re-checked 2026-10-15). Lobby, chat
+and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`, `utrack_*`). The
+decompiled units are `src/decomp/game/unnamed_netsession_0x440b40.cpp` (session states, player records) and
+`src/decomp/game/unnamed_netpackets_0x441820.cpp` (receive, send and forward; placeholder names, D3309/D3312).
+
+- **Flag column:** `multi_process_packet` (`0x441820`) always calls the handler when the sender's address is in the
+  player list; flag 1 lets it run for an unlisted sender as well (`cmp byte ptr [ebp + 0x5951c0], 1` at `0x441959`).
+  That is why the join and query packets have it.
+- **Net-rate bytes** (`+0x18`, `+0x19`): `[0]` marks the types with net rate info, `[1]` whether its display is on
+  (toggled by the `disp_rate` console command). Both are set for SWI_PTH to SWI_BSS, only `[0]` for SWI_SNK and
+  SWI_HID. The display itself is compiled out (`debug_return_zero`).
+- **Range check off by one:** the type test is `cmp cl, 0x42; ja` (`0x441869`), so type 0x42 passes and reads
+  record 66, which is the string "multi_process_packet: Invalid packet type..." after the table. DMY_PCK (0x40) has
+  no handler and is called anyway. A single forged datagram of either type crashes the receiver
+  ([Bugs](game-bugs.md), C201). The packet's own size word is not checked against the datagram length.
+- **Transport:** only `multi_send_packet` (`0x442060`) uses the engine's UDP "reliable sockets" (`nw_NewSendReliable`;
+  received with `nw_NewReceiveReliable`; see [vsdk: OS layer](vsdk-os.md#networking-0x517590-0x5194ab)).
+  `multi_send_packet_buffered` (`0x441e90`) sends plain datagrams with `nw_send`: the 500 ms GM_STAT / CT_STAT status
+  reports, OBJ_UPD, SWI2DIR, COM_SEQ, ACPT_JN and the host's buffered forwards (OBJ_UPD, ADJ_SKL, DISABLD, SWI2DIR,
+  SWI_SNK, SWI_HID, SMN_QCK, COM_SEQ). `mp_send_tracked` (`0x441da0`) also uses `nw_send`, for JN_RQST, DENY_JN and
+  the game info reply. Both kinds go through one 0x204-byte buffer per player and kind, flushed when a packet does not
+  fit and at the end of every `mp_game_frame`.
+- **Forwarding:** on the host, `mp_forward_cur_packet` (`0x4422c0`, reliable) and `mp_forward_cur_packet_buffered`
+  (`0x442230`) resend the packet being handled to every other connected player except its sender.
 
 | Type | Name | Handler | Flag |
 |---|---|---|---|
@@ -80,5 +101,5 @@ table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses 
 | `0x3d` | D_CMPLT | `0x4b0ab0` `mp_handle_difficulty_complete` | 0 |
 | `0x3e` | NEW_MON | `0x475610` `mp_handle_new_mon` | 0 |
 | `0x3f` | SRV_REQ | `0x4767a0` `mp_handle_srv_req` | 0 |
-| `0x40` | DMY_PCK | `0x0`  | 0 |
+| `0x40` | DMY_PCK | `0x0` (none; `multi_process_packet` calls it anyway, C201) | 0 |
 | `0x41` | INV_UQP | `0x487b10` `mp_handle_unequip_item` | 0 |

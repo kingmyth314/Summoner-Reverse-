@@ -203,7 +203,18 @@ _Static_assert(offsetof(ds_buffer,num_refs)==0x24c,"n");
 _Static_assert(sizeof(snd_stream_slot)==0x1c,"s");
 _Static_assert(offsetof(ai_state,owner)==0x4c,"o");
 _Static_assert(offsetof(ai_state,travel_dest)==0x54,"t");
-_Static_assert(sizeof(Player)==0x188,"p");
+SZ(mp_packet_info, 0x1c);
+OF(mp_packet_info, handler, 0x4); OF(mp_packet_info, flag, 0x8); OF(mp_packet_info, sent, 0xc);
+OF(mp_packet_info, name, 0x10); OF(mp_packet_info, rate_flags, 0x18);
+SZ(mp_player, 0xbc);
+OF(mp_player, addr, 0x8); OF(mp_player, flags, 0x10); OF(mp_player, type, 0x14); OF(mp_player, socket, 0x18);
+OF(mp_player, id, 0x1c); OF(mp_player, join_timer, 0x24); OF(mp_player, object, 0x28); OF(mp_player, char_info, 0x2c);
+OF(mp_player, profile_flags, 0x30); OF(mp_player, name, 0x34); OF(mp_player, display_name, 0x54);
+OF(mp_player, move_update_timer, 0x64); OF(mp_player, swi_timer, 0x68); OF(mp_player, _unk6c, 0x6c);
+SZ(mp_netgame_info, 0x6c);
+OF(mp_netgame_info, password, 0x20); OF(mp_netgame_info, level, 0x30); OF(mp_netgame_info, flags, 0x38);
+OF(mp_netgame_info, num_players, 0x3c); OF(mp_netgame_info, difficulty, 0x44); OF(mp_netgame_info, state, 0x54);
+OF(mp_netgame_info, server_addr, 0x5c); OF(mp_netgame_info, server_player_id, 0x64); OF(mp_netgame_info, level_scale, 0x68);
 
 /* 2026-10-15 notes sweep */
 _Static_assert(sizeof(console_command) == 0x0C, "console_command is 0xC on PC");

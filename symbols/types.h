@@ -938,11 +938,57 @@ typedef struct cquat {
 // A multiplayer packet type (mp_packet_table 0x5951b8, 66 entries x 0x1c), e.g. {0, handler, 1, "GM_QURY"}.
 typedef struct mp_packet_info {
     int32_t type;            // +0x00
-    void  (*handler)(void);  // +0x04 receive handler (argument list not mapped)
-    int32_t flag;            // +0x08
+    void  (*handler)(uint8_t *data, void *from); // +0x04 receive handler (packet data after the 3-byte header, sender address)
+    uint8_t flag;            // +0x08 1: the handler also runs for a sender not in the player list (compared as a byte, 0x441959)
+    uint8_t _pad09[3];
     int32_t sent;            // +0x0C send counter, bumped by the senders
-    char    name[12];        // +0x10 "GM_QURY", "ACTV_GM", "JN_RQST", ...
+    char    name[8];         // +0x10 "GM_QURY", "ACTV_GM", "JN_RQST", ... (7 letters and a NUL)
+    uint8_t rate_flags[4];   // +0x18 [0] the type has net rate info, [1] its display is on (cmd_disp_rate); SWI_* only
 } mp_packet_info;
+
+// A multiplayer player record (0xbc bytes): mp_players[4] at 0x6515a0; the list heads mp_player_list 0x651418 and
+// mp_player_free_list 0x6514d8 are whole records too (their GameTimers are constructed, 0x440b50 / 0x440be0).
+// mp_session_reset clears 0xbc dwords from 0x6515a0 and links the four records 0xbc apart (0x4414a7..0x4414fb).
+typedef struct mp_player {
+    struct mp_player* next;  // +0x00 list link (mp_player_list / mp_player_free_list)
+    struct mp_player* prev;  // +0x04
+    uint8_t addr[8];         // +0x08 net address (mp_player_find_by_addr)
+    uint32_t flags;          // +0x10 bit 0 host, 0x2 announced, 0x4 PLY_DAT received, 0x8/0x10 traveling, 0x20 tracked, 0x40000000 NEW_INF just sent, 0x80000000 leaving
+    int32_t type;            // +0x14 status: 3 listed on the level select screen, 4..10 loading steps (mp_set_local_status)
+    int32_t socket;          // +0x18 reliable socket, -1 not connected
+    int32_t id;              // +0x1C player id, also the index of its send buffers
+    int32_t _unk20;          // +0x20
+    int32_t join_timer;      // +0x24 GameTimer, SetTimeout by mp_accept_join_request
+    struct Player* object;   // +0x28 its party record
+    int32_t char_info;       // +0x2C char_infos index
+    int32_t profile_flags;   // +0x30 .plr flags word; bits 26.. the completed difficulties (mp_player_level_available)
+    char    name[32];        // +0x34 character name (mp_local_player_create)
+    char    display_name[16];// +0x54 name cut to 50 pixels with "..." (mp_add_new_player)
+    int32_t move_update_timer; // +0x64 GameTimer, 100 ms OBJ_UPD resend while traveling (ai_frame)
+    int32_t swi_timer;       // +0x68 GameTimer (mp_handle_swi_2dir)
+    uint8_t _unk6c[0x50];    // +0x6C not traced
+} mp_player;
+
+// The netgame block at 0x6513a8 (0x6c bytes; mp_host_game clears it with 0x1b dwords, 0x43ede2..0x43edf1). Each field
+// also has its own symbol in sum.symbols (mp_netgame_name ... mp_netgame_level_scale), as pxo_cfg_flags does.
+typedef struct mp_netgame_info {
+    char    name[32];        // +0x00 0x6513a8 game name
+    char    password[16];    // +0x20 0x6513c8
+    int32_t level;           // +0x30 0x6513d8 selected level index
+    int32_t _unk34;          // +0x34 0x6513dc no direct reference
+    uint32_t flags;          // +0x38 0x6513e0 0x4: a join is pending (mp_accept_join_request)
+    int32_t num_players;     // +0x3C 0x6513e4
+    int32_t max_players;     // +0x40 0x6513e8 at most 4
+    int32_t difficulty;      // +0x44 0x6513ec 0..2
+    int32_t host_level;      // +0x48 0x6513f0 the host's character level
+    int32_t level_below;     // +0x4C 0x6513f4
+    int32_t level_above;     // +0x50 0x6513f8
+    int32_t state;           // +0x54 0x6513fc session state 0..5 (5 playing)
+    int32_t _unk58;          // +0x58 0x651400 no direct reference
+    uint32_t server_addr[2]; // +0x5C 0x651404 (mp_handle_acpt_jn)
+    int32_t server_player_id;// +0x64 0x65140c
+    float   level_scale;     // +0x68 0x651410 frand_range(0.8, 1.2) of mp_host_game
+} mp_netgame_info;
 
 // An AI group (10 x 0x54 bytes at 0x243e040; Character +0x4cc points at one). Saved in the LENT chunk.
 typedef struct ai_group {

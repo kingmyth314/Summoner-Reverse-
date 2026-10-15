@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 212 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 219 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 47 | 2 |
+| Crash or hang | 4 | 50 | 2 |
 | Gameplay | 26 | 17 | 3 |
-| Cosmetic | 38 | 15 | 2 |
-| Invisible | 26 | 40 | 0 |
+| Cosmetic | 38 | 16 | 2 |
+| Invisible | 26 | 42 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -88,6 +88,10 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C191 | Latent: a `cutscene.tbl` with more than 85 entries, or an entry with more than 4 `$Camera`, 2 plain or 10 shot `$Animation`, 4 `+Minitrack`, 16 `$Fog` or 16 `$Fade` lines, or camera files with more than 50 shots in all, overwrites memory | `cutscene_parse_table` `0x4355e0`, `cutscene_load_files` `0x434b40` | **Observed** code and retail data, *inferred* effect | No |
 | C192 | Latent: a script editor message box asked for a button set above 4 deletes garbage pointers when it closes, and one with an empty text shows uninitialised stack text | `editor_dialog_show` `0x430c80`, `editor_dialog_destroy` `0x4316a0` | **Observed** code, *inferred* effect | No |
 | C193 | Latent: in the debug "Load" screen (state 8, never entered in v1.40), a level-list message with no selected entry dereferences NULL | `loadgame_level_list_cb` `0x432200` | **Observed** code, *inferred* crash | No |
+| C200 | In LAN multiplayer, going from the game list to Create Game and back with Cancel four times crashes the game | `mp_local_player_create` `0x441760`, `state_mp_gamelist_enter` `0x43eed0` | **Observed** code, *inferred* crash | No |
+| C201 | Latent: in multiplayer, one forged packet of type 0x42 crashes the receiving machine whoever sends it, and one of type 0x40 (DMY_PCK) from a machine in the game does the same; the game's own senders never use either type | `multi_process_packet` `0x441820` | **Observed** code and data, *inferred* crash | No |
+| C202 | Latent: entering the multiplayer game list or lobby when the chosen character's `.plr` file can no longer be read writes through a NULL pointer and crashes | `mp_local_player_create` `0x441760`; lobby connect step in `state_mp_lobby_frame` `0x43f080` | **Observed** code, *inferred* crash | No |
+| C203 | Latent: the `load_mlayout` console command creates every monster of the layout with character type -1 (the map name looked up as a character type), so the memory before `char_infos` is used as its type. No console in v1.40: only a patch or a `.vcs` script can run it | `monster_layout_load` `0x43fe00` | **Observed** code, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -491,6 +495,51 @@ developer tool.
 only the empty hook when it is NULL (`test esi, esi; je 0x43222c` at `0x43221c`) and then reads `[esi + 0x30]` anyway
 (`0x43222c`). The callback is installed only by `state_loadgame_enter` (`0x431f73`), the enter handler of state 8,
 which has no `gameseq_set_state` caller ([Main loop](main-loop.md)).
+
+**C200. Every game list entry takes a player record.** With the LAN setting (the Options radio button that clears
+`pxo_cfg_flags` bit 0, `options_apply_and_save` `0x41fac7`), `state_mp_gamelist_enter` calls
+`mp_local_player_create` each time state 12 is entered (`0x43eed0`..`0x43eed9`). That function takes a record from
+the free list (`mp_player_alloc` `0x441610`) and stores it in `mp_local_player` without freeing the previous one
+(`0x44176d`..`0x441774`). Create Game (`gamelist_create_game`, state 13) and its Cancel (`gamecreate_cancel`
+`0x40a020`, state 12) free nothing, and the game list's leave function only frees the game entries
+(`mp_gamelist_free` `0x470820`). Records go back only through `mp_session_reset` (from `mp_charselect_init`
+`0x40659a`), `mp_leave_game` or the host's `mp_server_check_clients`. There are four records (`0x6515a0`, 0xbc
+bytes each). The first entry from the character screen takes one; after the fourth Cancel the fifth entry gets NULL.
+`mp_local_player_create` then only requests state 10 (`gameseq_set_state` just sets the pending state, `0x401020`)
+and writes `[eax + 0x10]` with `eax = 0` (`0x4417a6`..`0x4417aa`). With the default Internet (PXO) setting the game
+list skips the call, and the lobby skips it when it comes back from the game list (`0x43eff5`), so only LAN mode
+leaks. Hosting after one to three Cancels still works: the host's `mp_server_check_clients` frees every listed
+record without a socket on its first frame (`0x440c85`..`0x440cdd`).
+
+**C201. Type 0x42 passes the range check.** `multi_process_packet` rejects only types above 0x42 (`cmp cl, 0x42;
+ja` at `0x441869`), and the table has 66 records (0..0x41). Record 66 is the string "multi_process_packet: Invalid
+packet type: %d\n" at `0x5958f0`. Its rate byte `+0x18` is 'I', non-zero, so the net-rate path copies "INC R " / "INC
+U " and then the record's "name" (`+0x10`, "cket: Invalid packet type: %d\n", 31 bytes) to `esp+0x1e`, in a 16-byte
+buffer that ends at `esp+0x28` (`0x4418b4`..`0x44191b`). The copy overwrites the return address and the arguments
+`data`, `len` and `from`. For a sender in the player list the handler call (`call [ebp + 0x5951bc]`, `0x441970`) then
+jumps to 0x72705f69 ("i_pr"). For any other sender (flag byte 'o', not 1, `0x441959`) the loop goes on with
+`data` = 0x6b636170 and `len` = 0x74207465 from the copied text (`0x441979`..`0x44198f`), and the function returns
+to 0x2064696c. DMY_PCK (0x40) has handler 0 (`0x5958bc`) and flag 0, so it is called for a listed sender only. The
+packet's size word is not checked against the datagram length either. The packets arrive through
+`multi_process_incoming` (`0x441b10`), which `multi_do_frame` runs whenever `mp_local_player` is set
+(`0x4413d0`..`0x4413eb`): in the game list and lobby as well as in a game. Only a crafted datagram in the game's
+format on the game port, or a modified peer, sends these types.
+
+**C202. A failed profile read is not handled.** `mp_local_player_create` asks for the chosen profile with
+`mp_charselect_get_selected_profile(1)` (`0x441787`), which reads the `.plr` summary again and returns NULL when that
+fails (`0x408568`..`0x40857b`). On NULL it requests state 10 and then reads `[esi + 0x48]` with `esi = 0`
+(`0x441793`..`0x4417c5`). The character screen only moves on with a selection (`mp_charselect_save_choice`
+`0x407466`), so the file has to become unreadable (deleted, locked) between the choice and the next screen. A second
+NULL use in the lobby connect step (`mp_charselect_get_selected_profile(0)`, then `lea esi, [eax + 0x28]` after
+recording the error, `0x43f12b`..`0x43f150`) needs a selection below 0, which the lobby's own entry already turns
+into C202's crash.
+
+**C203. The map name's character type for every record.** `monster_layout_load` calls `charinfo_find_by_name` once,
+on the map name read from the header (`0x43feff`..`0x43ff0c`), keeps the result in `ebp`, and passes it to
+`living_entity_create` for every record that is not type 7 (`0x4400fd`..`0x440113`). The record's own name, read into
+the same buffer (`0x44001e`), is only used to find a type 7 party member by name. A map name is not a character type,
+so `charinfo_find_by_name` returns -1 (`0x446bb9`), and `characterinfo_find_multi_slot` / `charinfo_create_character_instance`
+then use the 0x3d0 bytes before `char_infos` (`0x6d7e50`) as the type.
 
 ## Gameplay
 
@@ -968,6 +1017,7 @@ right after the connect request to the same address succeeded.
 | K192 | Latent: a `+Minitrack:` sound in `cutscene.tbl` never plays | `cutscene_load_sounds` `0x435000`, `cutscene_events_frame` `0x436c00` | **Observed** code and retail data | No |
 | K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code, *inferred* effect | No |
 | K194 | Latent: the help of the `play_and_load_cutscene` console command prints `play_cutscene`'s usage line. No console in v1.40 | `cmd_play_and_load_cutscene` `0x437590` | **Observed** code | No |
+| K200 | Latent: in the PXO lobby, a channel list reply with a cut-short record leaves the channel list unchanged on screen until the next refresh 10 s later | `lobby_parse_channel_list` `0x43f450` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1421,6 +1471,12 @@ example `screenshot`) leaves the number uninitialised: `sscanf` writes nothing i
 **K194. Copied usage line.** `cmd_play_and_load_cutscene` prints the same literal as `cmd_play_cutscene`, "Usage:
 play_cutscene <cutscene name>" (`push 0x593b90` at `0x43753d` and `0x4375fd`).
 
+**K200. Early return skips the refresh.** `lobby_parse_channel_list` updates each channel's user count or adds the
+channel (`0x43f504`..`0x43f528`) and calls `pxochat_sync_channel_list` after the last record (`0x43f544`). When a
+record has a name but no count or no topic (`strtok` returns NULL at `0x43f4bb` or `0x43f4dc`), it returns at once
+(`0x43f549`), so the counts and channels taken so far are not shown until the next `/list` (every 10 s,
+`lobby_request_channel_list`). Needs a chat server that sends such a line; the PXO servers are gone.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1491,6 +1547,8 @@ play_cutscene <cutscene name>" (`push 0x593b90` at `0x43753d` and `0x4375fd`).
 | V191 | Latent: the third button of a script editor message box calls the second button's callback | `editor_dialog_handle_event` `0x4315c0` | **Observed** code | No |
 | V192 | Latent: the debug Backspace key flush in `PollInputEvents` tests a key code that can never arrive | `PollInputEvents` `0x432710` | **Observed** code | No |
 | V193 | At the end of every cutscene, `cutscene_unload` passes the soundtrack's sound handle to `snd_stop`, which takes a play signature, and frees a slot that `snd_level_release` has already freed | `cutscene_unload` `0x4351e0` | **Observed** code | No |
+| V200 | Latent: `load_mlayout` and `save_mlayout` with no file name clear the top byte of the console code's saved EDI register before trying the file `.mlo` | `cmd_load_mlayout` `0x4401a0`, `cmd_save_mlayout` `0x4402f0` | **Observed** code |
+| V201 | Latent: in multiplayer, the host accepts a reliable link from a machine that is not in its player list and neither stores nor closes it, so the link keeps one of the nine slots until it times out | `mp_server_accept_connections` `0x440d20` | **Observed** code, *inferred* effect |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1940,6 +1998,20 @@ holding one of the first few signatures; normally the call does nothing. The str
 with `snd_stop_fade` on its real signature (`0x43667a`). `snd_free` on the slot that `snd_level_release` freed is a
 no-op unless a stream took the slot in between (see K190).
 
+**V200. `buf[strlen - 1]` on an empty name.** Both commands join their words with a space after each and then
+remove the last character with `mov byte ptr [esp + ecx + 0x7], al`, where `ecx` is the length and the buffer is at
+`esp+0x8` (`0x44023d`..`0x440250`, `0x44038d`..`0x4403a0`). With no argument the length is 0 and the store hits
+`esp+0x7`, the top byte of the EDI that the command pushed (`0x4401b8`) and pops back for `execute_command_line`
+(`0x440272`), which in turn restores its own caller's EDI from it (`0x50a54d`). The messages these commands print go
+nowhere: `print_to_console` is a bare `ret` (`0x50a5a0`).
+
+**V201. The socket of an unknown address is dropped.** `mp_server_accept_connections` takes a pending link with
+`nw_accept_reliable` and looks its address up with `mp_player_find_by_addr` (`0x440d29`..`0x440d44`). When there is no
+record it returns (`je 0x440d62` at `0x440d47`) without `nw_NewCloseSocket`, so the link stays open in the reliable
+layer, which times links out only after 100 s without a packet (see V181). A machine whose join record was already
+freed (for example by `mp_server_check_clients` when the join timer ran out, `0x440c96`..`0x440cad`) would connect
+this way.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2110,8 +2182,10 @@ the tables above; the rest are below.
   are unused, which changes nothing.
 - `gameplay_no_render_60a630` never written (notes item 5): its two readers (`0x43275b`, `0x43930d`) only guard a
   debug branch (`frame_sleep_when_inactive`); a cut feature, not counted.
-- States 5 to 8 never entered (help screen, monster layout editor, debug help text, debug load screen): no
+- States 5 to 8 never entered (help screen, a character type picker, debug help text, debug load screen): no
   `gameseq_set_state` caller passes 5, 6, 7 or 8. Cut debug screens, like `camera_cut_to_view_stub`; not counted.
+  State 6 only fills a list box with the `char_infos` names; the monster layout files are handled by the
+  `load_mlayout` / `save_mlayout` console commands (C203, V200), not by that state.
 - `Full_party` cleared on `masad` (`level_spawn_party` `0x438adb`..`0x438af4`): the story starts with Joseph alone in
   Masad Village, so the test is deliberate. It does mean the cheat never works on a new game ([Party](party.md)).
 - The help screen's debug key table (`0x5940ec`, six `<debug>-x` pairs) is never drawn: only the one page function
@@ -2192,6 +2266,15 @@ the tables above; the rest are below.
 - `cutscene_events_frame` testing the shot range twice in a row: the second test is redundant and harmless.
 - Shot effects and minitracks stop at the first record whose shot is later than the current one, so an unsorted list would skip effects; every retail entry lists its shot effects in shot order. Not counted.
 - `loadgame_window_unused` (`0x5fb600`), constructed and destroyed only: a dead object, no effect.
+
+- disp_rate refusing its help and status in single player and listing the names without a separator (notes item 7): true in the code (`game_flags` test before the help test, `0x442390`; one `print_to_console` per name, `0x44253c`..`0x442557`), but `print_to_console` is a bare `ret` (`0x50a5a0`), so nothing is shown in either mode, and v1.40 has no console. Not counted.
+- "The NEW_INF skip eats a flush" (notes item 8): `mp_broadcast_new_info` sets `0x40000000` and calls `mp_broadcast_packet(..., 1)` at once (`0x4af37f`..`0x4af39b`), which clears the bit for a connected player in the same call (`0x441ad1`..`0x441aed`), so the frame-end `mp_broadcast_packet(NULL, 0, 1)` (`0x4413c0`..`0x4413c6`) finds no flagged player. Only a new player without a socket at that moment keeps the bit (the socket test comes first, `0x441ad1`), and then the next skip call skips one flush of a buffer that is sent with the next one. Not counted.
+- The lobby connect step's NULL profile (notes item 4, second part): reachable only after C202's crash on lobby entry; folded into C202.
+- C200's leaked records do not block a hosted game: `mp_server_check_clients` frees every listed non-local record with socket -1 on the host's first frame (`0x440c85`..`0x440cdd`), before `mp_levelselect_start_if_ready` tests `mp_all_players_have_status(3)` (`0x43ec71`).
+- The net-rate copy of `multi_process_packet` for valid types: "INC R " plus a name of at most 7 letters ends at `esp+0x25`, inside the 16-byte buffer (`0x4418be`..`0x44191b`); only record 66 (C201) overflows.
+- `effect_stream_next` returns 1, never a negative value, at the end (`0x440644`), so the `< 0` tests of `effect_stream_start` (`0x440594`) are dead code; the cursor is compared with the count right after (`0x44059b`..`0x4405a8`). Harmless.
+- `irc_connect`'s -2 case in the lobby connect step (`cmp eax, -2`, `0x43f17b`, D3306): dead, since `irc_connect` returns -1, 0 or 1. Harmless.
+- `multi_send_packet`'s last argument (notes, multi.h): a flush flag, every packet is reliable; already listed in "Claims that did not hold" (PLY_DAT line). Nothing new.
 
 **Still unclear (left out):**
 
@@ -2306,6 +2389,14 @@ the tables above; the rest are below.
 - `player_read_mouse_input` assigns `0x4` on a left press (`0x4345e0`), dropping Shift `0x20` and Alt `0x40` set earlier in the same call. Whether a reader of `player_input` needs Shift or Alt on the click frame (a Shift+click action) was not traced.
 - C190: whether the dword at entry `+0x74` has nonzero padding above the count word (the constructor and the parser write only the word), so whether the read is NULL or a small address; either way it faults.
 - 0x24268f0 / 0x24268f4 (two of the `gr_info` counters) are written as `esi`-indexed elements by `levelrender_draw_list_opengl` (`0x492313`), so they may be the first elements of a levelrender array rather than counters (D3104).
+- C200 before the crash, as a client: the leaked records stay in `mp_player_list` with status 0. When the player then joins another LAN game, `multi_do_frame`'s status 6 step waits for `MP_PF_DATA_RECEIVED` on every listed record (`0x441435`..`0x441458`), and `mp_add_new_player` gives up when the free list is empty (`mp_player_alloc` `0x4af5d5`, then `mp_player_disconnected`). So a join after one to three Cancels may stall at "linking players" or drop out; the join path (record ids, `mp_player_find_by_id`) was not traced.
+- C201 for an unlisted sender: whether the first fault is the read at 0x6b636170 plus the offset (`0x44185e`..`0x441863`) or the return to 0x2064696c depends on whether that address is mapped; both crash.
+- C201 port: `mp_net_port` defaults to 10234 (sum.symbols), while vsdk-os.md says `nw_init_socket` falls back to 4200 for values up to 1023 or 65535; which port a default install listens on was not re-checked.
+- C203's visible result: what the 0x3d0 bytes before `char_infos` (other characterinfo.cpp variables) make of the new monsters; a crash is likely but not traced.
+- V200: whether the console executor's caller uses EDI after the command returns.
+- V201: whether the unstored link lives on with heartbeats from the other machine or times out after 100 s.
+- Lobby user counts: `lobby_handle_irc_command` adds 1 to the joined channel's count for every join event, even for a user already listed, and subtracts 1 for every part, even for an unknown user (`0x43f5fe`..`0x43f61a`, `0x43f63b`..`0x43f658`). Whether the IRC layer can send such events was not traced; the next `/list` overwrites the count (`0x43f516`).
+- `.peg` stream entries: `effect_stream_open_current` starts a zero-byte read of the file object without opening it (jump table `0x440840` entry 1 -> `0x440825`, `edi = esi = 0`). Only effect base names are queued (`effect_base_queue_stream` `0x51c6f7`); whether `effects.arr` names any `.peg` (or `.mvf` / `.vim`) was not checked.
 
 ## Evidence
 
@@ -2528,3 +2619,10 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V191 third callback | `editor_dialog_handle_event` `0x431616`..`0x431628` |
 | V192 debug Backspace | `PollInputEvents` `0x432787`..`0x43278f`, `0x4327d9`..`0x4327e1`; `key_mark` `0x5094f4`..`0x509508` |
 | V193 handle as signature | `cutscene_unload` `0x4352d3`..`0x4352ec`; `snd_stop` `0x5215d0`..`0x5215f1`; `ds_stop` `0x55d620`; `ds_get_channel` `0x55db00`..`0x55db27`; `ds_play_streamed` `0x55d3d3`..`0x55d3e6`; `music_play` `0x4690b2`..`0x4690c4` |
+| C200 game list record leak | `state_mp_gamelist_enter` `0x43eed0`..`0x43eed9`; `mp_local_player_create` `0x44176d`..`0x4417aa`; `mp_player_alloc` `0x441610`..`0x44161e`; `gamecreate_cancel` `0x40a020`; `gamelist_create_game` `0x40b3b0`; `mp_gamelist_free` `0x470820`; `mp_session_reset` `0x4414a7`..`0x4414fb` (only caller `mp_charselect_init` `0x40659a`); lobby skip `0x43eff0`..`0x43eff8`; LAN setting `options_apply_and_save` `0x41faad`..`0x41fad3` |
+| C201 type 0x42 / DMY_PCK | `multi_process_packet` `0x441869`..`0x441877` (range), `0x4418a6`..`0x44191b` (rate copy), `0x44194f`..`0x441970` (handler call), `0x441979`..`0x44198f` (loop); record 66 at `0x5958f0`; DMY_PCK record `0x5958b8`; `multi_process_incoming` `0x441b4e`..`0x441c5d`; `multi_do_frame` `0x4413d0`..`0x4413eb` |
+| C202 NULL profile | `mp_local_player_create` `0x441787`..`0x4417c5`; `mp_charselect_get_selected_profile` `0x408540`..`0x40857e`; lobby connect step `0x43f129`..`0x43f150` |
+| C203 layout char_info | `monster_layout_load` `0x43feff`..`0x43ff0c`, `0x44001e`, `0x440063`..`0x440084`, `0x4400fd`..`0x440113`; `charinfo_find_by_name` `0x446bb7`..`0x446bbd` |
+| K200 channel list | `lobby_parse_channel_list` `0x43f4b9`..`0x43f4dc`, `0x43f544`, `0x43f549` |
+| V200 empty mlayout name | `cmd_load_mlayout` `0x4401b8`, `0x44023d`..`0x440250`, `0x440272`; `cmd_save_mlayout` `0x44038d`..`0x4403a0`; `execute_command_line` `0x50a50a`..`0x50a54d`; `print_to_console` `0x50a5a0` |
+| V201 unstored link | `mp_server_accept_connections` `0x440d29`..`0x440d62`; `mp_server_check_clients` `0x440c96`..`0x440cad` |

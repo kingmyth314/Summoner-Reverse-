@@ -2611,8 +2611,8 @@ multiplayerdata.cpp's `sizeof(mp_server_addr)` (8). Type and object names ours; 
 1 (`cmp eax, -2; je`, 0x43f17b), but multi_chattracker.cpp's irc_connect returns only -1, 0 and 1. Comment only.
 
 **D3307 (unnamed_netpackets_0x441820.h). The byte averages are crosswise.** mp_net_stats_update stores the average of
-net_stats_sent_bytes_history into net_stats_avg_recv_bytes (0x441d73) and that of net_stats_recv_history into
-net_stats_avg_sent_bytes (0x441d90). sum.symbols' comments say the opposite. Nothing reads either average (only
+net_stats_sent_bytes_history into net_stats_avg_sent_bytes (0x441d73) and that of net_stats_recv_history into
+net_stats_avg_recv_bytes (0x441d90). sum.symbols' comments say the opposite. Nothing reads either average (only
 mp_reset_net_stats and mp_net_stats_update touch them), so the code keeps the sum.symbols names and the stores as
 they are. Comment only; a note for the symbols maintainer.
 

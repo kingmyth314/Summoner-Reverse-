@@ -94,7 +94,7 @@ Each entry is 12 bytes: `{ enter, frame, leave }`.
 | 3 | - | - | - | quit; ends `MainLoop` |
 | 4 | `0x438130` | `0x438f30` | `0x438c80` | In-game: level load on enter, gameplay frame, level unload on leave; `FrameEnd` special-cases state 4 |
 | 5 | `0x43a2b0` | `0x43a2e0` | `0x43a300` | In-game help screen ("Summoner Help"), not a loading screen; **never entered** in v1.40 |
-| 6 | `0x43fb60` | `0x43fc80` | `0x43fc70` | Monster layout editor table; frame sleeps with `timer_wait`; **never entered** |
+| 6 | `0x43fb60` | `0x43fc80` | `0x43fc70` | Character type picker: a 100 x 15 window whose button opens a list box of every `char_infos` name; a double click stores the index (`state6_selection` `0x60fe24`), which nothing else reads; frame sleeps with `timer_wait`; **never entered**. The `.mlo` monster layouts next to it are reachable only through the `load_mlayout` / `save_mlayout` console commands |
 | 7 | `0x430ad0` | `0x430b20` | `0x430b10` | Debug help text (centred message); **never entered** |
 | 8 | `0x431e80` | `0x432370` | `0x4323d0` | Debug "Load" screen (level and script list boxes); **never entered** |
 | 9 | `0x430b80` | `0x430b90` | `0x4f13e0` | Credits (screen 21) |
