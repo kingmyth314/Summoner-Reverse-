@@ -750,7 +750,7 @@ typedef struct sound_emitter {
     uint32_t flags;          // +0x50 1 used, 2 paused, 4 segment (volume and Doppler from +0x5c/+0x68), 8 playing
     int32_t repeat_delay;    // +0x54 ms between repeats, 0 = loop (sound_emitter_get_repeat_delay)
     int32_t repeat_timer;    // +0x58 GameTimer
-    vector3 seg_start;       // +0x5C used with flag 4 (sound_emitter_calc_volume, sound_emitter_calc_doppler_segment); set by sound_emitter_create_at / set_pos_vel
+    vector3 seg_start;       // +0x5C used with flag 4 (sound_emitter_calc_volume, sound_emitter_calc_doppler_segment); set by sound_emitter_create_segment / set_pos_vel
     vector3 seg_end;         // +0x68
 } sound_emitter;
 
@@ -1057,7 +1057,7 @@ typedef struct light {
     float   spot_neg_cos[2]; // +0x60 / +0x64
     int32_t bitmap;          // +0x68 projected bitmap (type 4)
     matrix3 proj_orient;     // +0x6C projection orientation (vector3__rotated in lights_shade_point; built in light__light)
-    float   sort_dist;       // +0x90 distance for sorting (light_compare_dist)
+    float   sort_dist;       // +0x90 distance for sorting (light_compare_brightness)
 } light;
 
 // One shop list entry (8 bytes, level_shop_items 0x2491ac0, room for 1000; docs/sum-exe/shops-loot.md).

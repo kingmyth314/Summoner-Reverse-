@@ -717,7 +717,7 @@ bool pf_sweep_test_wall(pf_sweep *s)
         }
     }
     if (kind == 1) {
-        ok = vector2_project_onto_segment(&s->from, &s->to, corner, 0.03f, &tt);
+        ok = vector2_segment_circle_intersect(&s->from, &s->to, corner, 0.03f, &tt);
         if (!ok)
             tt = 0.0f;
         if (ok && tt >= 1.0f)

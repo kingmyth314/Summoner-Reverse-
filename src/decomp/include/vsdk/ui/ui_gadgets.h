@@ -285,7 +285,7 @@ class ui_listbox : public ui_gadget {   // 0x320, vtable 0x581e34
 public:
     ui_listbox();                     // 0x52d5c0
     // decomp62: slots 0, 5, 7 of 0x581e34 (the others are ui_gadget's).
-    virtual void dtor();              // slot 0, 0x52d420 ui_listbox__vfunc0 (deletes the entries)
+    virtual void dtor();              // slot 0, 0x52d420 ui_listbox__destroy (deletes the entries)
     virtual int  process(int key);    // slot 5, 0x52d080
     virtual void draw();              // slot 7, 0x52f080
     void create(ui_element *window, int x, int y, int w, int h, int content_w, int content_h,

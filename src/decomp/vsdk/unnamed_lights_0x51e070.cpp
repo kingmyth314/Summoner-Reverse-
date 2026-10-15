@@ -372,14 +372,14 @@ int lights_select_nearest(int a, const vector3 *pos, float radius)
         lights_shade_point(l, &c, pos, NULL, true);
         l->sort_key = float_max(float_max(c.x, c.y), c.z);
     }
-    qsort(lights_selection[d], lights_selection_counts[d], sizeof(light *), light_compare_dist);
+    qsort(lights_selection[d], lights_selection_counts[d], sizeof(light *), light_compare_brightness);
     if (lights_selection_counts[d] > lights_max_per_object)
         lights_selection_counts[d] = lights_max_per_object;
     return lights_selection_counts[d];
 }
 
 // 0x51eb10  Confidence: exact. Brightest first.
-int light_compare_dist(const void *a, const void *b)
+int light_compare_brightness(const void *a, const void *b)
 {
     light *la = *(light **)a;
     light *lb = *(light **)b;

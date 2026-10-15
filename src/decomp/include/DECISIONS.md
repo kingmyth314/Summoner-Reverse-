@@ -1217,7 +1217,7 @@ constructor), static nearly_equal 0x4a4e60 (cdecl, two pointers); vector3::lengt
 vector2_closest_point_on_segment 0x525410 is (p, a, b, out) returning the squared distance, not
 sum.symbols' "(out, p, a, b)": the body forms (b - a) . (p - a) with its first argument as p and writes
 the fourth (0x525413-0x5254b0), and pf_sweep_test_wall passes (&corner copy, &from, &to, &tmp)
-(0x49de5a-0x49de66). vector2_project_onto_segment 0x5254d0 takes five arguments (a, b, p, margin, out t;
+(0x49de5a-0x49de66). vector2_segment_circle_intersect 0x5254d0 takes five arguments (a, b, p, margin, out t;
 `add esp, 0x14` at 0x49df08). File::read_uint16(min_ver, def) 0x525940 (an overload of FileReader's
 name only, File had none) and File::read_bool 0x525800; door_is_open 0x476940 (door, fraction) -> AL.
 pf_cells_along_segment is (layer, size, a, b): it indexes 0x245f460 with arg0 + 20 * arg1

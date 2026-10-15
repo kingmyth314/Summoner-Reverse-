@@ -75,5 +75,8 @@ for the `templeint2` level. These are probably the Machival boss's effects (ther
 ## Still to do
 
 - `character_instance` animation (`0x519510`-`0x51b4a0`): blending, bone matrices.
-- The `.mvf` and `.vim` formats in detail.
+- The `.vim` format, and the `.mvf` format past what `skeleton_read` shows: a `VMVF` magic and a version
+  (every retail `.mvf`, 380 in `chars.vpp` and 291 in `cutscene.vpp`, is version 5 or 8). From version 2 on a
+  rotation key is four int16 plus eight int16 that are skipped, and `anim_track__init_tangents` runs only for
+  versions below 2 (`0x544643`), so only cutscene camera tracks build squad tangents ([game bugs](game-bugs.md), C262).
 - `geom` (`0x51c000`-`0x524000`) and `ui` (`0x52b916`, `0x5536ef`).

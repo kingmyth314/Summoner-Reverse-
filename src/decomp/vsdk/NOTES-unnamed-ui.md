@@ -63,7 +63,7 @@ unnamed_listbox_0x52ca60.cpp (ui_listbox 0x581e34, ui_listbox_entry 0x581e30, ui
 | 0x52ce20 / 0x52ce90 / 0x52ced0 | entry_at / entry_above / entry_at_y | exact x3 |
 | 0x52cf10 / 0x52cf70 | relayout_dirty / sync_scrollbars | exact x2 |
 | 0x52d080 | process (slot 5) | likely |
-| 0x52d420 | dtor (slot 0, ui_listbox__vfunc0) | likely |
+| 0x52d420 | dtor (slot 0, ui_listbox__destroy) | likely |
 | 0x52d480 / 0x52d4a0 | ui_listbox_text_entry() / set_text | exact / likely |
 | 0x52d4f0 | ui_listbox_entry::line_at_y_or_none | exact |
 | 0x52d540 / 0x52d560 | ui_listbox_entry() / ~ui_listbox_entry() | likely / exact |
@@ -138,7 +138,7 @@ names ours: ui_last_mouse_x / _y 0x2cbfcb0 / 0x2cbfcb4, ui_inited 0x2cbfcd0, ui_
   written; the list box parser's "+Add both scrollbars" sets only the vertical flag 0x2 (window.cpp).
 - sum.symbols: ui_tooltip_colors is Color[3], not Color[4] (D4202); ui_listbox_line_starts holds char
   pointers (not int); ui_listbox_entry__wrap_text is (width, y, callback), not (width, callback, ...) (D4208);
-  ui_listbox__vfunc0 is slot 0 dtor() (it deletes the entries, it is not the C++ destructor);
+  ui_listbox__destroy is slot 0 dtor() (it deletes the entries, it is not the C++ destructor);
   ui_listbox__set_hscroll_fraction / _vscroll_fraction take an unread second argument; build_stamp_get_name's
   size argument is unread.
 

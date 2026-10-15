@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 290 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 305 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 61 | 2 |
+| Crash or hang | 6 | 64 | 2 |
 | Gameplay | 48 | 21 | 3 |
-| Cosmetic | 45 | 22 | 2 |
-| Invisible | 36 | 51 | 0 |
+| Cosmetic | 47 | 26 | 2 |
+| Invisible | 39 | 54 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -105,6 +105,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C252 | Latent: drawing an arrow button whose inner height or width is exactly 5 pixels divides by zero | `ui_button__draw_arrow` `0x527440` | **Observed** code, *inferred* crash | No |
 | C253 | Latent: `file_make_path` called with the "any path" id reads far past the path table | `file_make_path` `0x512b30` | **Observed** code, *inferred* crash | No |
 | C254 | Latent: a level with five or more Tentacle Beast characters writes the fifth tentacle's record over the tentacle battle's own variables | `tentacle_beast_boss_load` `0x4c6d10` | **Observed** code and retail data, *inferred* effect | No |
+| C260 | Latent: with all 400 lights in use, a new point or spot light is written over the end of the light selection table; if it was one of the inventory model's lights, closing that screen can crash in `light_delete` | `light_create_point` `0x51e290`, `light_create_spot` `0x51e3f0`, `light_alloc` `0x51e380` | **Observed** code and retail data, *inferred* crash | No |
+| C261 | Latent: a list box entry that wraps into more than 20 lines overwrites the list box line tables and, from line 22, the UI manager's mouse flags; the next draw copies the first line with a pointer as its length and crashes | `ui_listbox_entry__wrap_text` `0x52ca60`, `ui_listbox__draw` `0x52f080` | **Observed** code, *inferred* crash | No |
+| C262 | Latent: a cutscene camera rotation key of (0, 0, 0, 0) divides by zero when the camera tangents are built; a key whose packed length is above one unit makes them zero | `cquat__normalized` `0x523050`, `cquat_log_of_delta` `0x523c60`, `anim_track__calc_rot_tangents` `0x5506e0` | **Observed** code and retail data, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -678,6 +681,37 @@ register, and those were not all traced.
 (`cmp eax, 0x248c7e8` at `0x4c6d88`) and then uses the index anyway (`0x4c6d8f`..`0x4c6d9f`): a fifth record lands on
 `tentacle_beast_grab_timer` (`0x248c768`) and the battle variables after it. Retail `sewerboss_script.tbl` has
 exactly four Tentacle Beasts (`#$npc057`..`#$npc060`).
+
+**C260. light_alloc's -1 is not tested.** `light_alloc` returns -1 when the 400 records at `lights` (`0x2ca5de0`)
+are all in use (`or eax, -1` at `0x51e3a4` and `0x51e3af`). `light_create_point` passes the result straight to
+`light_get` and writes the record (`0x51e295`..`0x51e2bf`); `light_create_spot` does the same (`0x51e3f6`..`0x51e43d`).
+`lights[-1]` is the last 0x94 bytes of `lights_selection` (`0x2c9f9e0`, 16 x 0x640 bytes, ending at `0x2ca5de0`).
+`levelrender_setup_level_lights` skips a -1 (`cmp eax, -1` at `0x482df5`), but `ui_3d_begin` stores it in `ui_3d_lights`
+(`0x412565`) and `ui_3d_end` hands it to `light_delete` (`0x4125b5`). `light_delete(-1)` finds a type in the
+overwritten record and unlinks it through its `+0x00` / `+0x04`, which `light_alloc` never set: two dwords of the
+selection table, zero unless that level was used (`0x51e5b5`..`0x51e5c8`). *Inferred:* a write to address 0. In retail
+data the largest level has 325 lights (`LPalaceInt.s3d`, header count at file offset 0x1c), plus at most 24 dynamic
+lights and the inventory lights, so the table never fills.
+
+**C261. No bound on the line tables.** `ui_listbox_entry__wrap_text` stores each line at
+`ui_listbox_line_starts[n]` and `ui_listbox_line_lengths[n]` (`0x52cad3`, `0x52cadc` / `0x52caf5`) with no compare
+against 20. Line 21 writes its start pointer into `ui_listbox_line_lengths[0]` (`0x2cbf5d4`), and from line 22 the
+lengths land on the UI manager's `.bss` (`ui_left_pressed` `0x2cbf628` on). `ui_listbox__draw` re-wraps every visible
+entry and copies each line with `strncpy(buf, start, length)` into a stack buffer of its 0x214-byte frame
+(`0x52f308`..`0x52f330`). *Inferred:* with a pointer as the length, `strncpy` pads zeros far past the frame. Only
+the script editor fills list boxes in v1.40, with one-line names in boxes 0x6f to 0x17e pixels wide.
+
+**C262. Integer normalisation of packed quaternions.** `cquat__normalized` computes `0xfff8001 / len_sq` with
+`idiv` (`0x523088`..`0x523094`) and scales by the square root of the quotient. A key with all four components 0 divides
+by zero; a key even one unit longer than 0x3fff gets quotient 0 and becomes zero; a shorter one is left unchanged.
+`cquat_log_of_delta` normalises the conjugate of a key (`0x523c7b`), and `anim_track__calc_rot_tangents` uses it for the
+squad inner quaternions. Only cutscene camera tracks reach it: `cutscene_camera_read_track` packs the `.csc` floats with
+`_ftol` (truncation, `0x4941f7`..`0x49424b`) and calls `anim_track__init_tangents` (`0x4942fc`), and
+`cutscene_camera_sequence_sample` samples with squad on (`push 0x1` at `0x49438f`). `skeleton_read` calls
+`anim_track__init_tangents` only for `.mvf` versions below 2 (`cmp [esp+0x18], 0x2; jge` at `0x544643`); all 671 retail
+`.mvf` files are version 5 or 8. The 1,744 rotation keys of the 94 retail `.csc` files pack to a squared length of
+at most 0x3fff squared (exactly that for the identity keys), and none is zero, so the division never fails and never
+yields 0. `cquat__normalize` (`0x5232b0`, same `idiv` at `0x5232f7`) has no caller.
 
 ## Gameplay
 
@@ -1343,6 +1377,8 @@ with no flag test (`0x4c9dc5`..`0x4c9de6`), picks one, lands 14 units from it (`
 AI target (`mov [esi + 0x60], ecx` at `0x4c9f9f`). After the teleport the beam test drops a dying target
 (`0x4ca20a`), so the Luminar goes idle and picks again.
 
+None.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1414,6 +1450,12 @@ AI target (`mov [esi + 0x60], ecx` at `0x4c9f9f`). After the teleport the beam t
 | K250 | Latent: a blob shadow that falls on eight level objects is drawn on none of them, and on nine to fifteen only on the last few | `projector_collect_lobj_faces` `0x4c0250`, `shadows_render` `0x4a4360` | **Observed** code, *inferred* effect | No |
 | K251 | When Evil Urath leaps across more than one obstacle edge, his rise is fitted to the last edge found, not the nearest, so the arc can be too flat or too steep | `evil_urath_leap_check_path` `0x4c4200` | **Observed** code, *inferred* effect; retail path data not checked | No |
 | K252 | Latent: a multiplayer character file whose name has 32 or more characters shows the name with junk after it in the character list | `File__read_string` `0x525ee0`, `mp_player_file_read_summary` `0x46d450` | **Observed** code, *inferred* effect | No |
+| K260 | With the `DirectSound` sound setting (the default, no DirectSound3D), sounds placed in the world (footsteps, weapon hits, spells, moves, doors, loot, voices) play at the sound-effects volume squared: at half volume they play at a quarter, while menu clicks follow the slider; level ambient loops start that way until their next volume update | `snd_play_3d` `0x521480`, `snd_calc_volume_3d` `0x520fa0`, `snd_play` `0x520d50` | **Observed** code, *inferred* effect | No |
+| K261 | Latent: a saved EAX settings file (`<level>.eax` in `data\internal`) sets the listener flags to the bits of its air-absorption value; all 49 retail `.eax` files carry -5.0 there, but the game never reads them from `tables.vpp` | `eax_get_listener_props` `0x522240`, `eax_save_props` `0x5220e0`, `eax_load_props` `0x522420` | **Observed** code and retail data, *inferred* effect | No |
+| K262 | Latent: a spell ground effect whose ground node is turned more than 90 degrees about a tilted axis gets a wrong (or NaN) orientation when it is placed on the floor | `quaternion__set_from_matrix_b` `0x522790`, `vfx_instance__set_node_transform` `0x537a10` | **Observed** code, *inferred* effect; retail `.vfx` node orientations not checked | No |
+| K263 | Latent: a spot light with a projected texture lights points outside its range, shows an undefined colour for one texture format, and leaves the texture locked | `light_sample_projected_bitmap` `0x51f0d0`, `lights_shade_point` `0x51ec70`, `light_delete` `0x51e540` | **Observed** code and retail data, *inferred* effect | No |
+| K264 | In the script editor's lists, a click in the 2 pixels above an entry selects that entry instead of the one under the mouse, and a click on the last 2 pixels of the last entry selects nothing | `ui_listbox__process` `0x52d080` | **Observed** code, *inferred* effect | No |
+| K265 | Latent: Page Down in a list box whose selected last entry is taller than the box selects the list's own head record (no text, data -1), which the list's callback then receives | `ui_listbox__select_page_down` `0x52e050` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1962,6 +2004,71 @@ byte after the name is `+0x20`, which the next `read_int` overwrites (`0x46d591`
 terminator. The character creation screen accepts at most 31 characters (`cmp esi, 0x1f; jge` at `0x406e05`), so
 only an edited `.plr` triggers it. `vim_read` passes 0x7f for 0x80-byte buffers and is safe.
 
+**K260. The group volume applied twice.** `snd_calc_volume_3d` returns `group volume * sound volume * attenuation`
+(`fmul [4*edx + 0x2cb542c]` at `0x52108b`, `[esi + 0x28]` at `0x521008`). Without DirectSound3D, `snd_play_3d` divides
+only the sound volume out (`fdiv [esi + 0x28]` at `0x521572`) and passes the rest to `snd_play` or `snd_play_looping`.
+`snd_play` multiplies by `snd_get_volume`, which is group volume times sound volume again (`0x520df5`..`0x520dff`), so
+the group volume is squared. The DirectSound3D path passes `group * volume` once (`0x521525`..`0x52152c`). The
+sound-effects slider sets group 0 (`options_set_sfx_volume` `0x41f25f`), and `sound_ref_load` and the footstep and
+ambient loaders get their handles in group 0. `sound_play_3d_at` (`0x468de0`) has 14 callers (footsteps, weapon hits,
+spell cast and hit sounds, moves, doors, loot drops, `feedback_play`). Emitters start through `snd_play_3d` too
+(`sound_emitter_play` `0x5463a7`, `0x5463e6`) and are later set by `sound_emitter_update_volume` with
+`snd_set_volume` (`0x5464d4`), which takes the value as it is. `snd_play_3d` takes this path whenever DS3D is off
+(`snd_is_ds3d_enabled` at `0x5214f7`). DS3D is on only with `Soundcard=EAX` (`0x43d9bb`..`0x43d9cd`), `-directsound3d` or
+`-eax` ([Sound](sound.md#start-up)); the default `Soundcard=DirectSound`, the only sound value SummonerFix offers besides
+`No Sound`, leaves it off.
+At full volume (the default 1.0) nothing changes. The 1.75 that `snd_play_3d` passes as scale (`push 0x3fe00000` at
+`0x5214c3`) is applied only below 1.0 in the distance case (`0x52100b`..`0x52101f`), but unclamped when the sound is
+exactly at the listener (`0x520fe3`); the notes say "never".
+
+**K261. Property 14 twice.** EAX 2 listener properties are numbered 2 (ROOM) to 15 (FLAGS) and fill
+`EAXLISTENERPROPERTIES` in that order. `eax_get_listener_props` reads them one by one with `IKsPropertySet::Get`, but
+the last two calls both ask for 14 (air absorption HF): into `+0x30` (`push 0xe` at `0x5223e4`) and into `+0x34`, the
+flags (`push 0xe` at `0x522405`). `eax_save_props` writes the flags with `"%d\n"` (`0x52221f`), so the file holds the
+float's bits, and `eax_load_props` reads them back and sets all parameters at once (`eax_set_listener_props`, property 1,
+size 0x38, `0x522596`). All 49 `.eax` files in `tables.vpp` end in `-5.000000` and `-1063256064` (`0xC0A00000`, the bits of
+-5.0), so they were saved with this bug. They are not read: `level_parse_table` builds the name with
+`file_make_path(path_internal_copy, "<level>.eax")` (`0x4cbf82`..`0x4cbfaf`) and `eax_load_props` opens it with the C
+runtime `fopen` (`0x52243e`), which does not see packfiles; the retail install has no `data\internal` directory, and every
+level keeps the environment "generic" set just before (`0x4cbf75`). `cmd_eax_save_props` (`0x4ca970`) is a console
+command, and v1.40 has no console. *Inferred:* loaded, the flags `0xC0A00000` clear the six EAX scale and clip flags
+and set reserved bits; a driver may also reject the whole set.
+
+**K262. m[0][1] read for m[0][0].** For a negative trace with `m[2][2]` the chosen diagonal,
+`quaternion__set_from_matrix_b` computes `sqrt(m[2][2] - (m[0][1] + m[1][1]) + 1)` (`fld [ecx+0x4]; fadd [ecx+0x10];
+fsubr [ecx+0x20]` at `0x522841`..`0x522847`); the other two cases use the right diagonals (`0x522892`, `0x5228e2`). The
+result is normalised (`0x522887`), so the rotation is wrong, and NaN when the root's argument is negative. Case 2 is
+taken whenever `m[2][2] > m[1][1]` (`0x5227fa`..`0x522829`), so a turn about the up axis alone (where `m[1][1] = 1` is
+the largest) never reaches it. The live caller is `vfx_instance__set_node_transform` (`0x537c3a`, `0x537d9e`),
+which in fact writes the given position and orientation into a node's track record and moves the children with it.
+Its only outside caller is `spell_probe_ground_point` (`0x47e4a9`), which puts a `$groundNN` node of a ground spell
+effect on the floor with the node's own orientation. The other caller, `s3d_read_navpoint` (`0x46f348`), runs it only
+when writing a `.s3d`, and `level_load_s3d` only reads.
+
+**K263. Projected spot-light textures.** A spot light (type 3, `light_create_spot` `or ecx, 0x3` at `0x51e436`) keeps
+its texture at `+0x68`. `light_sample_projected_bitmap` locks it with `bm_lock` when `bm_get_data` has no data
+(`0x51f10b`..`0x51f128`) and nothing unlocks it: `light_delete` unlocks only types 1 and 4 (`0x51e57a`..`0x51e5ad`),
+which no create function sets. The format jump table (`0x51f38c`) sends format 2 to the end (`0x51f36f`) and formats
+outside 1..7 skip it (`ja 0x51f36f` at `0x51f172`), so the colour returned is the uninitialised vector of
+`0x51f0db`. In `lights_shade_point` the sampled texel replaces the attenuated colour (`0x51ef8f`..`0x51ef93`), also when
+the point is beyond the outer radius, where the attenuation step is skipped (`je 0x51ee4a` at `0x51edad`). Levels make
+spot lights from record types 1 and 4 with an optional texture index at `+0x48` (`level_lights_setup` `0x48e60a`).
+In the 51 retail `.s3d` files that have lights (2,879 records: 2,582 type 0, 173 type 1, 124 type 4), no spot record
+has a texture index other than -1.
+
+**K264. The margin counted twice.** `ui_listbox__process` takes the click y relative to the gadget
+(`mouse_y - screen_y`, `0x52d1a3`..`0x52d1a9`), checks it against the vertical margin `+0x2c0`, and calls
+`entry_at(0, vscroll + y, 0)` (`0x52d1d1`..`0x52d1de`). `ui_listbox__draw` draws the entries inside a clip that starts
+at `screen_y + v_margin` (`0x52f1da`..`0x52f218`), at `entry y - vscroll` (`0x52f2a7`..`0x52f2b0`). So the hit test is
+`v_margin` pixels low. `ui_listbox__create` sets both margins to 2 (`0x52d6ea`, `0x52d6f0`), and only the table parser
+changes them. The script editor's list boxes (`script_editor_create_ui`) are the only ones in use.
+
+**K265. Page Down onto the ring head.** When the selected entry is taller than the view, `select_page_down` takes
+`selected->next` (`mov edi, [edi + 0x8]` at `0x52e09b`) and tests it only for NULL. For the last entry that is the ring
+head at list box `+0x2d4`, a `ui_listbox_entry` built by the constructor (`0x52d5fd`) with data `+0x34` = -1 and no
+text. It becomes the selection and message 0x18 goes to the callback (`0x52e0e3`..`0x52e0ee`). Entries in v1.40 are
+one-line names (script editor), so no entry is taller than a list box.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -2053,6 +2160,12 @@ only an edited `.plr` triggers it. `vim_read` passes 0x7f for 0x80-byte buffers 
 | V255 | Latent: adding a data directory a second time never adds its new extensions | `file_add_path` `0x512e60` | **Observed** code and data |
 | V256 | Four File helpers with no caller are wrong: `read_matrix43` writes `m[i][3]` of a 4x3 matrix, `find_on_cd` passes the name pointer's address as the packfile out pointer, `file_list_files` splices its own stack list head into the caller's list on no match, `read_String8` copies without bound into a 256-byte stack buffer | `File__read_matrix43` `0x525ba0`, `File__find_on_cd` `0x513f70`, `file_list_files` `0x513590`, `File__read_String8` `0x525ce0` | **Observed**; no caller |
 | V257 | Latent (UI table loader only, V9): `set_tooltip` unlinks the old tooltip without freeing it (0x120 bytes), and every button created inside a container gets the auto-repeat flag | `ui_button__set_tooltip` `0x5271c0`, `ui_static__set_tooltip` `0x527fa0`, `ui_button__create_in_parent` `0x527100` | **Observed**; no caller outside `ui_load_table` |
+| V260 | Latent: segment sound emitters would get a pan far outside -1..1 (hard left or right); nothing creates a segment emitter | `sound_emitter_calc_pan` `0x521270`, `sound_emitter_create_segment` `0x546670` | **Observed**; no caller |
+| V261 | Latent: a sound whose minimum range is 0 or less never matches its own slot and takes a new one of the 640 on every lookup; a sound name of 256 or more characters overflows the stack before the length test | `snd_get_handle` `0x5207d0` | **Observed** code and retail data |
+| V262 | With EAX on, every 3D sound buffer played in 2D keeps one reference that is never released, so its duplicate buffer is never freed; a failed `QueryInterface` would be used anyway | `eax_buffer_init` `0x521fd0`, `ds_play` `0x55d1cd` | **Observed** code, *inferred* effect |
+| V263 | Three light and effect helpers with no caller are wrong: `lights_debug_draw` draws the first `light_count` records, not the used ones; `lights_calc_point_specular_color` reads a NULL normal inside the inner radius; `vfx_all_resident` is unused | `lights_debug_draw` `0x51fa70`, `lights_calc_point_specular_color` `0x51f560`, `vfx_all_resident` `0x51dcb0` | **Observed**; no caller |
+| V264 | In the script editor, every list entry given a font is re-wrapped, and its list box's sizes and scroll bars recomputed, in every frame's process and draw: the dirty flag is never cleared | `ui_listbox__relayout_dirty` `0x52cf10`, `ui_listbox_entry__set_font` `0x52d5a0` | **Observed** code |
+| V265 | Nothing in v1.40: six list box and UI manager slips are reached only through the UI table loader (V9) or have no effect because no gadget has a tooltip and no UI sound is loaded | `ui_listbox__set_tooltip` `0x52d7e0`, `ui_parse_listbox` `0x5298c0`, `ui_state_bitmap__draw` `0x52c9a0`, `ui_listbox__remove_entry` `0x52dd00`, `ui_listbox__set_vscroll_fraction` `0x52ed70`, `ui_process` `0x530330`, `ui_listbox__process` `0x52d080` | **Observed**; no reachable trigger |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2637,6 +2750,62 @@ ORs 2 into the flags (`or al, 0x2` at `0x52713e`). Their only callers are `ui_pa
 reached only from `ui_load_table` and the container / slider / listbox parsers it calls, and `ui_load_table` has no
 caller (V9).
 
+**V260. An unnormalised direction.** For emitters with flag 4, `sound_emitter_calc_pan` takes the closest point of
+the segment `+0x5c`..`+0x68` (`ix_point_linesegment` at `0x521290`) and, beyond 0.5 units, returns
+`dot(point - listener, listener right)` (`0x5212e7`..`0x5212f1`) without dividing by the distance. `snd_set_pan`
+clamps it to -1..1 (`0x521769`..`0x521797`). Flag 4 is set only by `sound_emitter_create_segment` (`or al, 0x4` at
+`0x5466d4`), which has no caller; level ambients are point emitters (`level_ambient_add` uses `sound_create_emitter`).
+`snd_calc_pan` (point emitters, `snd_play_3d`) uses the normalised direction (`vector3_normalized_dir` at `0x52122f`).
+
+**V261. Compared before it is fixed.** `snd_get_handle(name, min_range, volume, rolloff, group, stream)` reuses a slot
+only when `snd_params_equal` matches volume `+0x28`, minimum range `+0x2c` and roll-off `+0x34`
+(`0x520848`..`0x52086b`), but it replaces a minimum range of 0 or less by 1.0 only when filling a new slot
+(`0x52091a`, `0x520962`..`0x520987`), so such a sound never matches. The name is copied into a 256-byte stack
+buffer (`0x5207ed`..`0x520803`) before the 0x28 length test (`0x5208e5`). Callers with a table value as the minimum
+range: `sound_ref_load` (`$Sound:` byte `+9`), `level_parse_ambient` (`$Ambient:`, first float), and
+`characterinfo_parse_table` (`+Footstep sounds:`, first float). In the retail tables the smallest value is 2.0
+(3,138 `$Sound:`, 1,984 `$Ambient:` and 28 `+Footstep sounds:` lines).
+
+**V262. A reference per play.** For a 3D buffer played in 2D, `ds_play` calls `eax_buffer_init` when
+`ds_eax_enabled` is set (`0x55d1bd`..`0x55d1cd`). It calls `QueryInterface` for the property set (`call [ecx]` at
+`0x521ff3`), ignores the result, sets buffer property 4 (ROOM) to -10000 through the returned pointer
+(`0x522008`..`0x52200e`) and never calls `Release`. Each play duplicates the buffer (`ds_duplicate_buffer` `0x55d170`),
+so each duplicate keeps one reference after its channel releases it. *Inferred:* a small leak per sound while EAX is
+on; a failed `QueryInterface` leaves NULL and crashes. EAX needs `Soundcard=EAX` or `-eax` and a working
+`eax.dll` listener property set (`eax_init`).
+
+**V263. Dead helpers.** `lights_debug_draw` loops `light_count` times from `lights + 0xc` (`0x51fa84`..`0x51fab2`),
+which are not the listed lights once one is deleted. `lights_calc_point_specular_color` tests the normal pointer for
+NULL (`test edi, edi` at `0x51f69d`) but, inside the inner radius, calls `vector3__dot` with it (`mov ecx, edi` at
+`0x51f701`). `vfx_all_resident` indexes the record table `0x2c8f068` with a `vfx_find_name` index
+(`0x51dcbf`..`0x51dcce`). None of the three has a call or a pointer.
+
+**V264. The dirty byte.** `ui_listbox_entry__set_font`, `set_indent`, `set_wrap_indent` and `set_line_spacing` set
+`+0x04` to 1 (`0x52d5a4` and the others); only the constructor clears it (`0x52d55c`). `ui_listbox__relayout_dirty`
+re-wraps every entry with the byte set and then recomputes the content size and both scroll bars
+(`0x52cf2a`..`0x52cf66`), and it runs at the start of every `process` and `draw` (`0x52d09a`, `0x52f098`). The script
+editor calls `set_font` on its entries (`script_editor_create_ui` `0x4e10c2` and others, `script_editor_fill_action_list`
+`0x4e4eb3`, `script_editor_list_ambient_sounds` `0x4e52f3`). Performance only.
+
+**V265. Unreachable in v1.40.**
+- `ui_listbox__set_tooltip` unlinks the old tooltip without freeing it (0x120 bytes, `0x52d7f6`..`0x52d812`) and copies
+  the text into `+0xc` without a length test; its only caller is `ui_parse_listbox` (`0x529d15`).
+- `ui_parse_listbox`: "+Add both scrollbars" sets only the vertical flag `0x2` (`0x529b58`), and "+Add horizontal
+  scrollbar" skips the other two tests (`jmp 0x529b5e` at `0x529b36`).
+- `ui_state_bitmap__draw` returns before `gr__reset_clip` for state 1 without a bitmap (`0x52ca00`..`0x52ca0d`); state 1
+  is set only by `ui_state_bitmap__set`, whose callers are `ui_parse_button` and `ui_parse_static`.
+- `ui_listbox__remove_entry` and the bottom-aligned branch of `ui_listbox__add_entry` set the scroll position
+  (`0x52ddab`, `0x52ddba`, `0x52db57`) without `ui_slider__set_pos`, so the next `sync_scrollbars` sets it back to the
+  slider's position (`0x52d03f`..`0x52d062`); `ui_slider__set_range` leaves the position alone (`0x55eeb0`). Their only
+  callers are `add_entry` with a content-size limit and `ui_listbox__remove_by_text` (no caller), and no script editor
+  list box is bottom-aligned (flag `0x80`) or size-limited.
+- `get_vscroll_fraction` / `set_vscroll_fraction` step lines by the font height without the line spacing
+  (`0x52e9c4`..`0x52e9d7`); neither has a caller.
+- `ui_process` keeps searching the windows after a tooltip hit (`0x530587`..`0x530652`), so the last window in the list
+  order sets `ui_tooltip_gadget`; every `set_tooltip` caller is a table parser.
+- A hidden list box plays UI sound 7 when clicked or on its hotkey (`0x52d108`..`0x52d13d`); `ui_sounds` (`0x2cbf684`)
+  is set to -1 by `ui_init` and written nowhere else, so `ui_play_sound` plays nothing.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2933,6 +3102,15 @@ the tables above; the rest are below.
 - "Invalid stage for titus rider" (`0x59dc38`) and "Sets dark josesph in combat state": console text; no console in v1.40.
 - F624 `ui_button__process` looping for ever above state 9: every store to `+0x278` is a constant 0-9 or a computed 6 / 0 (`0x526ce1`..`0x526cf2`) or 7 / 0 (`0x526da7`..`0x526dba`), so the default never runs.
 
+- F6203 `ui_listbox__recalc_content_size` gives an empty list a content height of minus the entry spacing (`0x52ce08`..`0x52ce16`): `entry_at` returns NULL for an empty list first (`0x52ce2f`), and `set_vscroll` clamps to 0 (`0x52ea78`). Harmless.
+- F6210 `ui_listbox__snap_scroll_bottom` reading the ring head at the end of the content (`0x52ec8f`..`0x52eca4`): the head is a constructed `ui_listbox_entry` (`0x52d5fd`) whose line count (list box `+0x300`) nothing writes. Every list box in v1.40 is a static object (zero `.bss`), so the count is 0 and the code falls back to the last entry (`jle 0x52eccd`), which is right. Only `ui_parse_listbox` uses `new`, and it has no caller.
+- L1, second half: `quaternion__set_from_matrix_b` choosing case 2 when `m[2][2] > m[1][1]` even if `m[0][0]` is larger: for a rotation matrix every case gives the right quaternion while its root is positive; this only costs precision.
+- L4, the 1.75 scale: it is applied when the sound is at the listener position (`0x520fe3`), so it is not dead; in the distance case it is used only below 1.0 (`0x52100f`..`0x52101f`), which looks like a min-style clamp. Not counted on its own.
+- `eax_buffer_init` setting ROOM to -10000: a 3D buffer played in 2D (`ds_play` sets `DS3DMODE_DISABLE`, `push 0x2` at `0x55d1b7`) gets no reverb on purpose.
+- `cquat_log_of_delta` / `quaternion_log_of_delta` using a local without a constructor call: the constructors are empty, so nothing is uninitialised that is read before it is written.
+- `lights_get_selection_count`, `lights_shade_vertices` and `lights_calc_point_specular_color` read `[4*depth + 0x2c9f99c]`, which `asm.mjs` labels `effects_num_names`: it is `lights_selection_counts[depth - 1]` (the counts start at `0x2c9f9a0` and the selection depth is 1 or more), not a read of the effect name count.
+- `s3d_read_navpoint` converting a matrix to a quaternion: that branch runs only when the `File` writes (`File__check_flags(1)` false, `0x46f31c`), and `level_load_s3d` only reads.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -3073,6 +3251,8 @@ the tables above; the rest are below.
 - The party-list walks without a NULL test: `titus_rock_erupt_damage` (`0x4c3384` multiplayer, `0x4c340a` single player), `tentacle_collect_area_hits` (`0x4c7830`) and `tentacle_beast_battle_update` (`0x4c7696`). They crash only if a party record or AI group member handle can be stale; C171 shows records can lose their characters in multiplayer, but no single-player path was found.
 - ui_button / ui_static draw return at once when slot 4 (`is_disabled`) is true (`0x52769c`..`0x5276a1`) and use the disabled look when `ui_gadget__is_hidden` (`0x52c4b0`) is true (`0x5276af`..`0x5276b6`): either the names of `+0x1c` / `+0x1d` or of the two tests are swapped. Needs a runtime check.
 - Game flag 8 widening the Luminar's teleport and grab candidates to every living entity (the boss included, `0x4c9dcb`): what sets flag 8 is not known.
+- L10 `vfx_node_create_light` passes the size channel as a raw int16 (8.8 fixed, `fild` at `0x51fc51`) as the range (`attached_light_create` `+0x50`), 256 times too large; `vfx_node_update_light` overwrites `+0x50` with `fixed8_to_float` of the sampled value (`0x51fd45`..`0x51fd4d`). Whether any frame renders an effect light between `vfx_instance_init_nodes` and its first `vfx_instance_process` (`0x53717b`) was not traced, so whether a one-frame light flash is visible is unknown.
+- L11 `character_instance__render` returns with its instance still set through `ca_render_set_instance` when bit 0 of the parameter byte is set (`test al, 0x1; jne` at `0x520462`). Who sets that bit (callers `inventory_render_character` `0x41807d`, `status_draw_model` `0x42ccab`, `levelrender_draw_list` `0x4860ad`) and whether anything reads the stale `0x268298c` / `0x2682990` before the next set was not traced.
 
 ## Evidence
 
@@ -3373,3 +3553,18 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V255 add path again | `file_add_path` `0x512f68`..`0x512f92`, `0x512fc1`..`0x51302c`; `setup_data_paths` `0x43dca0`..`0x43df04`; `cutscene_set_data_path` `0x43533f` |
 | V256 dead File helpers | `File__read_matrix43` `0x525bd9`..`0x525c42`; `File__find_on_cd` `0x513f7d`..`0x513f96`; `File__read_String8` `0x525d34`..`0x525d5c`; no reference to `0x525ba0`, `0x513f70`, `0x513590`, `0x525ce0`, `0x526840` |
 | V257 tooltip and repeats | `ui_button__set_tooltip` `0x5271d6`..`0x5271f2`; `ui_button__create_in_parent` `0x52713e`; callers `ui_parse_button` `0x528a10`, `0x52877d`, `ui_parse_static` `0x52ab9a`; `ui_load_table` `0x52b505`, `0x52b5d4` (no caller) |
+| C260 light -1 | `light_alloc` `0x51e3a4`, `0x51e3af`; `light_create_point` `0x51e295`..`0x51e2bf`; `light_create_spot` `0x51e3f6`..`0x51e43d`; `levelrender_setup_level_lights` `0x482df5`; `ui_3d_begin` `0x412554`..`0x412565`; `ui_3d_end` `0x4125b5`; `light_delete` `0x51e5b5`..`0x51e5c8`; `LPalaceInt.s3d` 325 lights |
+| C261 line tables | `ui_listbox_entry__wrap_text` `0x52cad3`..`0x52cafc`; `ui_listbox__draw` `0x52f2b6`, `0x52f308`..`0x52f330`; `ui_left_pressed` `0x2cbf628` |
+| C262 cquat division | `cquat__normalized` `0x523088`..`0x523094`; `cquat_log_of_delta` `0x523c7b`; `cutscene_camera_read_track` `0x4941f7`..`0x49424b`, `0x4942fc`; `cutscene_camera_sequence_sample` `0x49438f`; `skeleton_read` `0x544643`; retail `.mvf` versions 5 / 8, `.csc` keys max length 0x3fff |
+| K260 group volume | `snd_calc_volume_3d` `0x520fd8`..`0x520fe3`, `0x521008`, `0x52108b`; `snd_play_3d` `0x5214c3`, `0x521525`..`0x52152c`, `0x52156e`..`0x521575`, `0x5215af`; `snd_get_volume` `0x520df5`..`0x520dff`; `sound_emitter_update_volume` `0x5464d4` |
+| K261 EAX flags | `eax_get_listener_props` `0x5223e4`, `0x522405`; `eax_save_props` `0x52221f`; `eax_load_props` `0x52243e`, `0x52255d`; `eax_set_listener_props` `0x522596`; `level_parse_table` `0x4cbf75`, `0x4cbf82`..`0x4cbfbc`; 49 `tables.vpp` `.eax` files |
+| K262 matrix case 2 | `quaternion__set_from_matrix_b` `0x5227fa`..`0x522829`, `0x522841`..`0x522887`; `vfx_instance__set_node_transform` `0x537c3a`, `0x537d9e`; `spell_probe_ground_point` `0x47e4a9`; `s3d_read_navpoint` `0x46f31c`, `0x46f348` |
+| K263 projected bitmaps | `light_sample_projected_bitmap` `0x51f10b`..`0x51f128`, `0x51f172`, table `0x51f38c`; `lights_shade_point` `0x51edad`, `0x51ee4a`, `0x51ef7b`..`0x51ef93`; `light_delete` `0x51e57a`..`0x51e5ad`; `light_create_spot` `0x51e436`; `level_lights_setup` `0x48e60a`; 51 retail `.s3d` light tables |
+| K264 click margin | `ui_listbox__process` `0x52d1a3`..`0x52d1de`; `ui_listbox__draw` `0x52f1da`..`0x52f218`, `0x52f2a7`..`0x52f2b0`; `ui_listbox__create` `0x52d6ea`, `0x52d6f0` |
+| K265 page down | `ui_listbox__select_page_down` `0x52e096`..`0x52e0ee`; `ui_listbox__ui_listbox` `0x52d5fd`; `ui_listbox_entry__ui_listbox_entry` `0x52d559` |
+| V260 segment pan | `sound_emitter_calc_pan` `0x521290`, `0x5212e7`..`0x5212f1`; `snd_set_pan` `0x521769`..`0x521797`; `sound_emitter_create_segment` `0x5466d4` (no caller); `sound_emitter_update_pan` `0x546518` |
+| V261 sound slots | `snd_get_handle` `0x5207ed`..`0x520803`, `0x520848`..`0x52086b`, `0x5208e5`, `0x520962`..`0x520987`; `snd_params_equal` `0x520570`; `sound_ref_parse` `0x446859`..`0x446875`; `level_parse_ambient` `0x4cc062`..`0x4cc142`; `characterinfo_parse_table` `0x445df6`..`0x445e50` |
+| V262 EAX reference | `eax_buffer_init` `0x521fe2`..`0x52200e`; `ds_play` `0x55d170`, `0x55d1b7`, `0x55d1bd`..`0x55d1cd` |
+| V263 dead light helpers | `lights_debug_draw` `0x51fa84`..`0x51fab2`; `lights_calc_point_specular_color` `0x51f69d`, `0x51f701`; `vfx_all_resident` `0x51dcbf`..`0x51dcce`; no reference to `0x51fa70`, `0x51f560`, `0x51dcb0` |
+| V264 dirty flag | `ui_listbox_entry__set_font` `0x52d5a4`; `ui_listbox_entry__ui_listbox_entry` `0x52d55c`; `ui_listbox__relayout_dirty` `0x52cf2a`..`0x52cf66`; `ui_listbox__process` `0x52d09a`; `ui_listbox__draw` `0x52f098`; `script_editor_create_ui` `0x4e10c2` |
+| V265 unreachable UI slips | `ui_listbox__set_tooltip` `0x52d7f6`..`0x52d812`; `ui_parse_listbox` `0x529b36`, `0x529b58`, `0x529d15`; `ui_state_bitmap__draw` `0x52ca00`..`0x52ca0d`; `ui_listbox__remove_entry` `0x52ddab`, `0x52ddba`; `ui_listbox__add_entry` `0x52db57`, `0x52dbbd`; `ui_listbox__sync_scrollbars` `0x52d03f`..`0x52d062`; `ui_process` `0x530587`..`0x530652`; `ui_listbox__process` `0x52d108`..`0x52d13d`; `ui_init` `0x52f7a5` |

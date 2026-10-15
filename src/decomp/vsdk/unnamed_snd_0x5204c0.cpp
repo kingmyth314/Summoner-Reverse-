@@ -51,9 +51,9 @@ int snd_backend;                                  // 0x2cbf47c
 bool snd_disabled;                                // 0x2cbf480
 static bool snd_sounds_initialized;               // 0x2cbf481 (label ours)
 
-// 0x520570  Confidence: exact (cdecl with the record pushed; sum.symbols names it Sound__params_equal).
+// 0x520570  Confidence: exact (cdecl with the record pushed; sum.symbols names it snd_params_equal).
 // Exact compares of the stored parameters.
-static bool Sound__params_equal(snd_sound *s, float volume, float rolloff, float min_range)
+static bool snd_params_equal(snd_sound *s, float volume, float rolloff, float min_range)
 {
     if (s->volume != volume)
         return false;
@@ -177,7 +177,7 @@ int snd_get_handle(const char *name, float min_range, float volume, float rollof
     for (i = from_start ? 0 : 8; i < SND_MAX_SOUNDS; i++) {
         s = &sounds[i];
         if (s->is_used()) {
-            if (!_stricmp(s->name, buf) && Sound__params_equal(s, volume, rolloff, min_range) == true)
+            if (!_stricmp(s->name, buf) && snd_params_equal(s, volume, rolloff, min_range) == true)
                 return i;
         } else if (free_slot < 0) {
             free_slot = i;

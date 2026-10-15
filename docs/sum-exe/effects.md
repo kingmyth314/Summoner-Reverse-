@@ -202,30 +202,34 @@ The `light` record is 0x94 bytes; 400 of them live at `lights` (`0x2ca5de0`). **
 | Offset | Field |
 |---|---|
 | `+0x00` / `+0x04` | next / prev in the active list (`light_list_head` `0x2cb4520`) |
-| `+0x08` | flags: low bits type (2 point, 3 spot, 4 projected bitmap), bit 14 enabled, bit 15 dynamic |
+| `+0x08` | flags: low 14 bits type (2 point, 3 spot; `light_delete` also tests 1 and 4, which no create function sets), bit 14 enabled, bit 15 dynamic |
 | `+0x0c` / `+0x18` | position / spot direction |
-| `+0x24`, `+0x28` | spot angles (degrees); `+0x60`, `+0x64` their negated cosines |
+| `+0x24`, `+0x28` | inner and outer spot cone angles in radians; `light_set_spot_angles` stores `-cos(angle / 2)` of each at `+0x60`, `+0x64`, and `light_create_spot` raises the outer one to at least inner + 0.5 |
 | `+0x2c`, `+0x30` | inner, outer radius; squares at `+0x58`, `+0x5c` |
 | `+0x34`..`+0x3c` | colour times intensity |
-| `+0x68` | projected bitmap (type 4) |
-| `+0x90` | distance used for sorting |
+| `+0x68` / `+0x6c` | projected bitmap of a spot light (type 3; -1 for none) and its projection matrix |
+| `+0x90` | sort key set by `lights_select_nearest`: the brightest colour channel of the light at the selection point (`lights_shade_point`) |
 
 - `light_create_point` (`0x51e290`) takes (position, inner, outer, intensity, r, g, b, dynamic).
   `light_create_spot` (`0x51e3f0`) adds a direction and angles. **Observed.**
 - `lights_collect_enabled` (`0x51e910`) keeps lights with a type and bit 14. `lights_select_nearest`
-  (`0x51e970`) pushes a selection level of the lights in range, sorted by distance, at most
+  (`0x51e970`) pushes a selection level of the lights in range, sorted brightest first by `+0x90` (`0x51eb10`), at most
   `lights_max_per_object` (2, 4 or 6 by detail level). Dynamic lights are skipped when
   `lights_dynamic_enabled` is 0. Callers are the three character mesh renderers, `vfx_mesh_render` and
   `decals_draw_for_lobj`. **Observed.**
-- `lights_shade_point` (`0x51ec70`) adds distance falloff, the spot cone and projected bitmaps;
-  `lights_shade_vertices` (`0x51f3b0`) adds the ambient `light_ambient_r/g/b`. **Observed.**
+- `lights_shade_point` (`0x51ec70`) adds distance falloff, the spot cone and projected bitmaps (a bitmap's texel
+  replaces the attenuated colour, also beyond the outer radius, and the bitmap is locked but never unlocked;
+  [game bugs](game-bugs.md), K263); `lights_shade_vertices` (`0x51f3b0`) adds the ambient `light_ambient_r/g/b`.
+  **Observed.**
 
 ### Level lights and Luminar
 
 - `level_lights_setup` (`0x48e520`) calls `light_reset_all`, sets the ambient from the level
   (`0xa5a374`..`0xa5a37c`) times `level_light_scale`, then makes one light per 0x4c-byte level record
   (count `0xa5a2e8`, array `0xa5a2ec`). Type 0 is a point light; types 1 and 4 are spot lights, with an
-  optional projected level texture (`+0x48`). Intensity is `+0x2c` times `level_light_scale`. The range is
+  optional projected level texture (`+0x48`, -1 for none). In the 51 retail `.s3d` files with lights (2,879 records:
+  2,582 type 0, 173 type 1, 124 type 4) no spot light has a texture, and the largest table has 325 lights
+  (`LPalaceInt.s3d`). Intensity is `+0x2c` times `level_light_scale`. The range is
   20000.0 unless flag 2 of `+0x40` gives one. **Observed.**
 - It runs at level load and from `levelrender_render_scene` when the byte `0x243e038` is set. No code that
   sets that byte was found. *Unknown.*
@@ -249,7 +253,9 @@ Until 2026-10-14 this family was named `shadow_*` (`shadow_slots`, `shadow_creat
 
 - `living_entity_init` calls `attached_light_create` (`0x520160`) with a bone position, colour from
   `char_info +0x248..+0x250` and `+LightAtten:` (`+0x254`). Effect light nodes do the same through
-  `vfx_node_create_light` and `attached_light_create_from_vfx`.
+  `vfx_node_create_light` and `attached_light_create_from_vfx`, but pass the size channel as the raw 8.8 fixed
+  value (256 times too large) as the range; `vfx_node_update_light` replaces it with the scaled value
+  (`vfx_node__get_scale`) on the node's first update.
 - Each frame `levelrender_setup_level_lights` (`0x482d70`) turns every used slot (`level_light_get`
   `0x48d180`) into a dynamic `light_create_point`. `levelrender_rank_light` (`0x4863b0`) ranks the same
   records for level objects.

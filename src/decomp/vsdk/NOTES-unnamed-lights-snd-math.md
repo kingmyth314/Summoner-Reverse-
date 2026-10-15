@@ -49,7 +49,7 @@ Lights (45; 30 exact / 15 likely): init_lights, init_light_list_head, light_rese
 light_set_all_enabled, light_transform_to_instance, light_set_ambient / _get_ambient, light_create_point,
 light_get, light_alloc, light_create_spot, light_delete, light_set_pos / _get_pos, light_set_enabled /
 _is_enabled, light_set_radius / _get_radius, light_set_color / _get_color, light_set_spot_dir / _get,
-light_set_spot_angles / _get, lights_collect_enabled, lights_select_nearest, light_compare_dist,
+light_set_spot_angles / _get, lights_collect_enabled, lights_select_nearest, light_compare_brightness,
 lights_pop_selection, lights_transform_selection, lights_get_selection_count, lights_get_selected_info,
 lights_get_selected, lights_shade_point, light_sample_projected_bitmap, lights_shade_vertices,
 lights_set_max_per_object, lights_set_detail_flag, lights_set_dynamic_enabled,
@@ -65,7 +65,7 @@ attached_light_create_from_vfx (likely), get_scale, fixed8_to_float).
 
 character_instance::render (1, likely).
 
-Sound (67; 50 / 17): the four initialisers with the -nosound destructor pair, Sound__params_equal, snd_init,
+Sound (67; 50 / 17): the four initialisers with the -nosound destructor pair, snd_params_equal, snd_init,
 snd_init_sounds, snd_init_group_volumes, snd_close, snd_change_listener, snd_do_frame, snd_pause_all,
 snd_unpause_all, snd_get_handle, snd_load, snd_unload, snd_free, snd_unload_all, snd_level_page_in,
 snd_level_release, snd_play, snd_get_volume, snd_play_looping, snd_play_streamed(_looping),
@@ -97,7 +97,7 @@ dot_of_difference, vector3_normalized_dir, vector3_near_equal, vector3_normal, v
 vector3_angle_and_axis, direction_dot, project_onto_plane, vector3_rotate_about_axis,
 vector3_rotate_towards(_unit), bounding_sphere_from_points, polygon_calc_centroid,
 vector3_world_to_local / _local_to_world, vector2_distance(_squared), vector2_dist_sq_to_line,
-vector2_closest_point_on_segment, vector2_project_onto_segment; COMDATs vector2(x, y), vector3 /=,
+vector2_closest_point_on_segment, vector2_segment_circle_intersect; COMDATs vector2(x, y), vector3 /=,
 vector2 -, float * vector2, vector2 dot.
 
 ## Decisions (DECISIONS.md D4000-D4013)
@@ -134,16 +134,16 @@ normalisation; D4013 quaternion.h.
 - docs/sum-exe/effects.md, Lights: type 4 is never created (spot lights, type 3, carry the projected bitmap
   at +0x68, and light_delete unlocks only types 1 and 4); +0x24 / +0x28 are radians (cos(angle / 2),
   default 2 pi, create_spot keeps b >= a + 0.5), not degrees; +0x90 is the light's brightest channel at
-  the selection point and lights_select_nearest sorts brightest first, not by distance (light_compare_dist's
+  the selection point and lights_select_nearest sorts brightest first, not by distance (light_compare_brightness's
   name says dist).
 - vsdk/gr/gr.h's gr_light comment ("400 records of 0x94 bytes at 0x2ca5de0") describes the attached-light
   layout (D4002).
 - vsdk/snd/snd.h's old snd_play comment (unused, group): the fourth argument reaches ds_play, the fifth is
   unused; snd_play_3d's float arguments are (bool looping, int) (D4009).
-- vector.h's vector2_project_onto_segment description ("t of the projection of p") : it is a segment /
+- vector.h's vector2_segment_circle_intersect description ("t of the projection of p") : it is a segment /
   circle intersection (the first t where a + t (b - a) is at distance margin from p).
 - vector3::normalize_safe_length returns 1, not the old length (0), for a zero vector.
-- sum.symbols: Sound__params_equal is cdecl with the record pushed, not a member; random_direction_in_cone
+- sum.symbols: snd_params_equal is cdecl with the record pushed, not a member; random_direction_in_cone
   and random_direction_in_cone_axis are thiscall vector3 members in Sum.exe (Summoner 2's free functions).
 
 ## Game bugs (from the code; none run)
@@ -151,7 +151,7 @@ normalisation; D4013 quaternion.h.
 1. **quaternion(const matrix *) (0x522790), case 2 reads m[0][1] for m[0][0]**: sqrt(fz - (rvec.y + uy) + 1)
    (0x522841). Quaternions built from matrices with a negative trace whose largest diagonal is fvec.z (turns
    near 180 degrees about the forward axis) come out wrong, then normalised. Callers: s3d_read_navpoint,
-   vfx_instance__get_node_world_transform. The same function picks case 2 whenever fz > uy, even when rx is
+   vfx_instance__set_node_transform. The same function picks case 2 whenever fz > uy, even when rx is
    larger (precision only).
 2. **cquat::normalized / normalize divide 16383^2 by |q|^2 as integers** (0x523094, 0x5232f7): any cquat
    slightly longer than one unit normalises to zero, and a zero cquat divides by zero. cquat_log_of_delta

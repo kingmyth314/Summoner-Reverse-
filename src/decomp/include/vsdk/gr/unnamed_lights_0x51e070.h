@@ -39,7 +39,7 @@ public:
     float cos_a, cos_b;               // +0x60 -cos(angle / 2)
     int bitmap;                       // +0x68 projected bitmap of a spot light, -1 none
     matrix orient;                    // +0x6c projection orientation (quaternion::to_matrix_b)
-    float sort_key;                   // +0x90 brightness at the selection point (light_compare_dist)
+    float sort_key;                   // +0x90 brightness at the selection point (light_compare_brightness)
 };
 LAYOUT_CHECK(light, sizeof(light) == 0x94);
 
@@ -101,7 +101,7 @@ void lights_collect_enabled();                        // 0x51e910 selection leve
 // selection level of the lights whose outer radius reaches pos, brightest first, at most
 // lights_max_per_object; returns their count. The first and third arguments are not read.
 int  lights_select_nearest(int a, const vector3 *pos, float radius);   // 0x51e970
-int  light_compare_dist(const void *a, const void *b);// 0x51eb10 qsort, brightest first
+int  light_compare_brightness(const void *a, const void *b);// 0x51eb10 qsort, brightest first
 void lights_pop_selection();                          // 0x51eb50
 void lights_transform_selection();                    // 0x51eb60 (inside an instance only)
 int  lights_get_selection_count();                    // 0x51ebb0

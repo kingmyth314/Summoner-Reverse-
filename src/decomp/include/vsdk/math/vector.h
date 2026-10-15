@@ -200,6 +200,6 @@ float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const
 // decomp60: a segment / circle test (Summoner 2: segment_hits_circle): true with t = 0 when a is within
 // margin of p, else the first t in 0..1 where a + t (b - a) is at distance margin from p; false when the
 // segment misses the circle.
-bool vector2_project_onto_segment(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t);   // 0x5254d0
+bool vector2_segment_circle_intersect(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t);   // 0x5254d0
 
 #endif

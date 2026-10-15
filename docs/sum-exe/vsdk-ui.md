@@ -20,7 +20,7 @@ builds menus and screens from **text tables**. Each widget type has its own pars
 | `0x528530` | Button | `+Drag and drop`, `+Repeats`, `+Always use face color`, `+Use right mouse button`, `$Text`, `$Font`, `$Hotkey`, `$Hotspot`, `$State bitmap` (Normal/Highlighted/Pressed/Disabled), `$Tooltip` |
 | `0x528a40` / `0x529d70` | Checkbox / radio button | `$Box size`, `$Label`, `$Label offset`, `+Initially checked`, states Checked/Unchecked/Pressed/Disabled |
 | `0x5292f0` | Input box | `+Ignore esc`, `+No scroll`, `+Password`, `$Valid chars`, `$Invalid chars`, `$Max text length`, `$Cursor bitmap` |
-| `0x5298c0` | List box | `+Allow wrap`, `$Content size`, `+Align view with bottom`, `+Mouseover highlights`, scrollbars, `$Entry spacing` |
+| `0x5298c0` | List box | `+Allow wrap`, `$Content size`, `+Align view with bottom`, `+No background`, `+Mouseover highlights`, `+Preallocated text`, `+Add horizontal scrollbar` / `+Add vertical scrollbar` / `+Add both scrollbars` (the last sets only the vertical flag `0x2`, and a horizontal scroll bar skips the other two tests), `$Entry spacing`, `+Margin:`, `+Vertical margin:` |
 | `0x52a180` | Slider | `+Horizontal`, `+Dot slider`, `$Marker bitmap/size/position`, arrow buttons |
 | `0x52a700` | Static | Horizontal/vertical justification, `$Text`, `$Font` |
 | `0x528430` | (hotkey) | Optional `Shift`/`Ctrl`/`Alt` prefixes, then a key name |
@@ -99,6 +99,8 @@ Data tables referenced by name (most live in the [packfiles](vsdk-packfile.md)):
 
 ## Still to do
 
-- The widget classes and their draw/process methods (`0x52b9c0`-`0x530c00`).
+- A page section on the widget classes and their draw/process methods (`0x52b9c0`-`0x530c00`). Their code is
+  written as placeholder units in `src/decomp/vsdk`: ui_button and ui_static, then the gadget base, list box,
+  build stamp and UI manager (`0x52bfe0`-`0x530b86`, D4200).
 - `ui_container.cpp` (`0x5536ef`).
 - A `.vpp` extractor, so the UI table files themselves can be read.

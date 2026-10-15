@@ -6,7 +6,7 @@
 // unsure = the source shape is a guess.
 //
 // Unit range. Two static initialisers open the object (static_initializers entries 598 / 599, after
-// the quaternion unit's 597); the regular functions run to vector2_project_onto_segment (0x5254d0); the
+// the quaternion unit's 597); the regular functions run to vector2_segment_circle_intersect (0x5254d0); the
 // inline members it calls close it as COMDATs (0x525650-0x525710, listed at the end). The File unit's
 // initialisers follow at 0x525720 (entries 600-603). .data 0x5a8b4c-0x5a8b63 (the axis table; the File
 // unit's data follows at 0x5a8b64), .bss 0x2cbf4b0-0x2cbf4c3.
@@ -625,7 +625,7 @@ float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const
 
 // 0x5254d0  Confidence: likely (the root order swap; several values live in argument slots). The
 // circle of radius margin around p against the segment a-b.
-bool vector2_project_onto_segment(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t)
+bool vector2_segment_circle_intersect(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t)
 {
     vector2 d;
     vector2 e;

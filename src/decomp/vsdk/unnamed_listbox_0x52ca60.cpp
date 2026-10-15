@@ -400,7 +400,7 @@ int ui_listbox::process(int key)
     return key;
 }
 
-// 0x52d420  vtable slot 0 (ui_listbox__vfunc0). Confidence: likely (the head's prev as the temporary,
+// 0x52d420  vtable slot 0 (ui_listbox__destroy). Confidence: likely (the head's prev as the temporary,
 // as the code does). Every entry is deleted as a base entry (non-virtual destructor; operator delete
 // does not need the size).
 void ui_listbox::dtor()

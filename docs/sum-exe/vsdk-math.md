@@ -41,11 +41,17 @@ has no PC counterpart.
 - **vector3:**
   - constructor `0x43b580`, `set` `0x511c10`, assignment `0x413190`;
   - `cross` `0x50d7e0`;
-  - `normalize` / `normalized` / `normalize_length` (`0x524430`, `0x524270`, `0x524470`);
+  - `normalize` / `normalized` / `normalize_length` (`0x524430`, `0x524270`, `0x524470`), and
+    `normalize_safe_length` (`0x524510`), which sets a zero vector to (1, 0, 0) and returns 1.0;
   - `is_valid` `0x524220`, `equals` `0x511c30`;
   - scaling and subtraction (`0x50f6a0`, `0x50f790`, `0x50f840`).
-- `atan2_fast` (`0x542790`), and the C runtime `_CIacos` (`0x56dd70`) and `_isnan`
-  (`0x56e90c`).
+- `atan2_fast` (`0x542790`), and the C runtime `_CIacos` (`0x56dd70`) and `_isnan` (`0x56e90c`).
+- **vector2:** `0x5254d0` is a segment / circle test, not a projection: (a, b, p, radius, out t) gives the
+  first t in 0..1 where `a + t (b - a)` is `radius` from `p` (t 0 when `a` is already inside), caller
+  `pf_sweep_test_wall`.
+- **quaternion** (`0x5225b0`-`0x523f29`, written in `src/decomp/vsdk`): the second matrix conversion
+  `0x522790` reads `m[0][1]` for `m[0][0]` in its z case (`0x522841`; [game bugs](game-bugs.md), K262), and the packed
+  `cquat` normalisation (`0x523050`, `0x5232b0`) divides with integers (C262).
 
 Many vector helpers live in game code (for example `0x413190` and `0x43b580` sit in the
 `0x400000` block). MSVC emitted out-of-line copies of inline methods where they were used.

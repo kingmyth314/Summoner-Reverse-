@@ -365,7 +365,7 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 | `0x520070`-`0x525700` | attached lights, vfx light tracks, sound system (snd_*), vector math | names attached_light_*, vfx_light_desc__*, snd_init*; folders vsdk\geom, vsdk\math |
 | `0x525720`-`0x526900` | File readers, writers and sync: one object (its initialisers 0x525720-0x525780, the binary readers, read_matrix43 0x525ba0, the string and line readers, writers, sync) | names File__read/write/sync_*; folder vsdk\vfile; own initialiser table 0x588964-0x588970 |
 | `0x526940`-`0x5280e0` | ui_button and ui_static gadgets (two objects) | names ui_button__*, ui_static__*; folder vsdk\ui; ui_button's EH funclets 0x57d370-0x57d3c7 end in int3 padding before ui_static's at 0x57d3d0 |
-| `0x52da40`-`0x530b80` | UI listbox gadget and window mask helpers | names ui_listbox__*, ui_window__get_mask_data; folder vsdk\ui |
+| `0x52bfe0`-`0x530b80` | UI gadget base (`ui_gadget`, `ui_state_bitmap`), list box (from 0x52ca60), build stamp (0x52f450) and UI manager (0x52f570); the "window mask helpers" are only the two header-inline COMDATs at the end (0x530b70 / 0x530b80) | names ui_gadget__*, ui_listbox__*, build_stamp_*, ui_init / ui_draw / ui_process; folder vsdk\ui; four objects (D4200) |
 | `0x53ac20`-`0x53dec0` | ix_* intersection tests (ray/segment/sphere/box/polygon), then cmdline param inits | Dash Faction rf/math/ix.h names RF's ix_* module (ix_linesegment_boundingbox); 33 ix_* fns put in modules-out  |
 | `0x54bb30`-`0x54d5a0` | Direct3D texture cache (gr_d3d_tcache_*) and tcache slots | names gr_d3d_tcache_*, tcache_slot__*; tags now vsdk\gr\directx folder only |
 | `0x5520d0`-`0x5534c0` | CRC32 and UI inputbox gadget | names Crc32__*, ui_inputbox__*; folder vsdk\ui |
@@ -570,17 +570,19 @@ head/tail of a neighbour cannot be decided: none reads an id of its own, and .bs
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x51fb10 | 0x520420 | attached lights (vsdk\geom, tagged) | |
-| 0x5204c0 | 0x521e20 | sound system (snd_*, sounds.tbl, listener) | init run 0x5204c0 (cmdline -nosound, listener vectors); .bss 0x2cb5420-0x2cbf484, .data 0x5a8910-0x5a8954 |
-| 0x521e40 | 0x522580 | EAX reverb | .bss 0x2cbf488-0x2cbf494, .data 0x5a8960-0x5a8b48; may be the tail of the sound file |
+| 0x51fb10 | 0x520400 | attached lights (vsdk\geom, tagged) | initialiser 0x51fb10; .bss 0x2cb45d0-0x2cb540f (`attached_light_slots`, 24 x 0x98); ends with 13 COMDATs, the last `fixed8_to_float` 0x520400 |
+| 0x520420 | 0x520420 | `character_instance::render` (vsdk\ca), an object of its own | after the attached-light COMDATs and before the sound initialisers; no data (D4007) |
+| 0x5204c0 | 0x521e20 | sound system (snd_*, sounds.tbl, listener) | init run 0x5204c0 (cmdline -nosound, listener vectors); .bss 0x2cb5410-0x2cbf487 (`snd_listener_vel` 0x2cb5410 first, built by `init_snd_listener_vel` 0x520530), .data 0x5a8910-0x5a895f |
+| 0x521e40 | 0x522580 | EAX reverb, a separate object | .bss 0x2cbf488-0x2cbf497, .data 0x5a8960-0x5a8b4b. Its format literals are not pooled (one "%d\n" or "%f\n" per use, 0x5a8ad8 on) while the sound object's are ("#Sounds End" 0x5a8954 is pushed at 0x521ab2 and 0x521ad7), so the two were compiled apart (D4010) |
 | 0x5225b0 | 0x523ef0 | quaternion math (vsdk\math, tagged) | init run (cquat/quaternion identity) |
 | 0x523f30 | 0x525700 | vector math (vsdk\math, tagged) | init run (vector zero) |
 | 0x525720 | 0x526900 | File readers, writers and sync (vsdk\vfile) | init run 0x525720; .bss 0x2cbf4c8-0x2cbf550 (file_identity_quaternion 0x2cbf4c8 first, set at 0x525750) |
 | 0x526940 | 0x527df0 | ui_button gadget | method run; the current tu-split2 cut at 0x526f70 splits it |
 | 0x527e20 | 0x5280e0 | ui_static gadget | |
-| 0x52ca60 | 0x52f440 | ui_listbox gadget | |
-| 0x52f450 | 0x52f540 | build stamp check | .data 0x5a9604-0x5a966c |
-| 0x52f570 | 0x530b80 | UI manager (ui_init/draw/process, window stack, colour helpers) | init run 0x52f570; .bss 0x2cbf634-0x2cbfcd9 |
+| 0x52bfe0 | 0x52ca50 | ui_gadget base and ui_state_bitmap (vtable 0x581e08) | after window.cpp's COMDATs 0x52bfa0 / 0x52bfc0; no .data, .bss or EH; the cut to the list box is not proven (D4200) |
+| 0x52ca60 | 0x52f440 | ui_listbox gadget | .bss 0x2cbf584-0x2cbf623 (the two 20-entry line tables), .data 0x5a95e4 ("text too long for pc version"); ends with its COMDATs 0x52f400 / 0x52f420 / 0x52f440 |
+| 0x52f450 | 0x52f540 | build stamp check | .data 0x5a9604-0x5a966f |
+| 0x52f570 | 0x530b80 | UI manager (ui_init/draw/process, window stack, colour helpers) | init run 0x52f570; .bss 0x2cbf628-0x2cbfcd9 (`ui_left_pressed` 0x2cbf628 first; 0x2cbf630 is `ui_checkbox_colors`) |
 | 0x53ac20 | 0x53dea0 | ix_* intersection tests (one unit, no cut) | .bss 0x2dc6cc0-0x2dc6e98; cmdline.cpp starts 0x53dec0 |
 | 0x5520d0 | 0x552190 | CRC32 | .bss 0x2f136e8-0x2f13ae8 (table) |
 | 0x5521a0 | 0x5534c0 | ui_inputbox gadget | ui_container.cpp starts 0x5534f0 |

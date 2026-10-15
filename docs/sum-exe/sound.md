@@ -107,8 +107,11 @@ been triggered.
   quoted name and three floats (**observed**).
 - `snd_get_handle` (`0x5207d0`) finds a record by name and parameters, or takes a free one
   after `snd_file_exists`. Names must be shorter than 0x28 characters ("Sound filename %s
-  too long"). Unless its last argument is set, the search starts at slot 8 (**observed**;
-  why the first 8 are kept back is *unknown*).
+  too long"). Its arguments are (name, minimum range, volume, roll-off, group, stream). A stream
+  (`music_play`, the cutscene soundtrack) searches from slot 0, every other sound from slot 8, so slots 0-7 only
+  ever hold streams (**observed**). A slot is reused only when name, volume, minimum range and roll-off all match;
+  a minimum range of 0 or less is replaced by 1.0 only after that compare, so such a sound would take a new slot
+  on every lookup (no retail table has one; [game bugs](game-bugs.md), V261).
 - Loading is lazy: `snd_load` (`0x5209c0`) on first play. `snd_level_page_in` (`0x520c70`)
   loads every named sound at level load; `snd_level_release` (`0x520ce0`) frees sounds whose
   level count reaches 0 (**observed**).
@@ -174,12 +177,17 @@ Stream slot fields (**observed** in `snd_stream_start` and `snd_stream_init`):
   (`0x520710`), which stores them (`0x2cb5420`, `0x2cb5410`, `0x2cbf458`) and calls
   `ds3d_update_listener` (**observed**).
 - With DS3D on, `snd_play_3d` (`0x521480`) uses `ds_play_3d` and the hardware sets
-  position, velocity and min/max distance (`ds3d_update_buffer`). Without it, the game
-  computes volume (`snd_calc_volume_3d`) and pan (`snd_calc_pan`) itself and plays a 2D
-  sound (**observed**).
+  position, velocity and min/max distance (`ds3d_update_buffer`). Without it (the default
+  `Soundcard=DirectSound`), the game computes volume (`snd_calc_volume_3d`) and pan (`snd_calc_pan`)
+  itself and plays a 2D sound (**observed**). That path applies the group volume twice:
+  `snd_calc_volume_3d` already includes group and sound volume, `snd_play_3d` divides only the sound
+  volume out, and `snd_play` multiplies by both again, so below full sound-effects volume a world
+  sound plays at that volume squared ([game bugs](game-bugs.md), K260).
 - Emitters (`sound_emitters`, 128 x 0x74) are looping positional sounds. At most 16 play at
-  once; a new one stops the quietest (`sound_emitter_find_quietest`, `0x546250`). They
-  update volume, pan and a Doppler-style frequency each frame (**observed**).
+  once; a new one stops the quietest (`sound_emitter_find_quietest`, `0x546250`). Each frame they
+  update volume, pan and a Doppler-style frequency (**observed**). The volume and pan code also
+  handles segment emitters (flag 4, end points `+0x5c` / `+0x68`), but only `0x546670` creates one
+  and it has no caller, so all emitters are points ([game bugs](game-bugs.md), V260).
 - Level ambient sounds are emitters: `level_parse_ambient` (`0x4cc010`) reads `$Ambient:`
   entries from the level `.tbl`, and `level_ambient_sounds_frame` (`0x4ccb40`) updates them.
   Cutscenes pause them (`level_ambient_pause_all`) (**observed**).
@@ -191,9 +199,13 @@ Stream slot fields (**observed** in `snd_stream_start` and `snd_stream_init`):
 
 - `eax_init` (`0x521f40`) checks the listener property set; `eax_set_environment_by_name`
   (`0x521ed0`) looks a name up in 26 EAX environment names (`0x5a8960`) (**observed**).
-- `level_parse_table` sets the level's EAX environment (`snd_set_eax_environment`) and can
-  load saved EAX properties (`eax_load_props`). The console command `eax_save_props` writes
-  them (**observed**).
+- `level_parse_table` sets the EAX environment "generic" for every level (`snd_set_eax_environment`,
+  `0x4cbf75`) and then calls `eax_load_props` on `<level>.eax` in `data\internal`
+  (`file_make_path(path_internal_copy)`). `eax_load_props` opens it with the C runtime `fopen`, not through
+  the packfiles, so the 49 `.eax` files in `tables.vpp` are never read (**observed**). The console command
+  `eax_save_props` writes such a file (**observed**). `eax_get_listener_props` reads property 14 (air
+  absorption) twice and never 15 (flags), so the flags line holds the air-absorption float's bits: every
+  retail file ends in -1063256064 (`0xC0A00000`, -5.0) ([game bugs](game-bugs.md), K261).
 - The options EAX checkbox does not turn EAX off. It mutes reverb (listener ROOM = -10000,
   `eax_mute_reverb`) or restores it (`eax_restore_reverb`) (**observed**).
 
@@ -248,7 +260,8 @@ Format tag 1 (PCM) is loaded directly. Format tag 2 (MS-ADPCM) is decoded with A
 
 ## Open questions
 
-- *Unknown:* purpose of sound groups 2 and 3, and of the first 8 sound slots.
+- *Unknown:* purpose of sound groups 2 and 3. (Sound slots 0-7 are reachable only by streams; see
+  [Sound table and groups](#sound-table-and-groups).)
 - *Unknown:* the flags at `0x60ad6d` and `0x60ad6e` also skip the `Soundcard` value, but
   `cmdline_read_params` does not set them.
 - *Unknown:* whether the shipped music files are PCM or ADPCM.
