@@ -586,6 +586,50 @@ typedef struct sound_emitter {
     uint8_t _unk54[0x20];
 } sound_emitter;
 
+// A loaded DirectSound buffer (ds_buffers, 0x100 x 0x250 bytes at 0x2f54720; cleared by ds_init_buffers).
+// Field names from Dash Faction rf::DsBuffer, which has the same size; only the size is checked here.
+typedef struct ds_buffer {
+    char    filename[256];   // +0x000
+    char    packfile[256];   // +0x100
+    int32_t packfile_offset; // +0x200
+    int32_t name_checksum;   // +0x204
+    int32_t load_param;      // +0x208
+    void*   ds_buffer;       // +0x20C IDirectSoundBuffer*
+    void*   ds_3d_buffer;    // +0x210 IDirectSound3DBuffer*
+    void*   wave_format_orig;  // +0x214 WAVEFORMATEX*
+    void*   wave_format_fixed; // +0x218
+    int32_t _unk21c;
+    void*   hmmio;           // +0x220
+    uint8_t data_chunk_info[0x14]; // +0x224 MMCKINFO
+    uint8_t riff_chunk_info[0x14]; // +0x238 MMCKINFO
+    int32_t num_refs;        // +0x24C
+} ds_buffer;
+
+// A DirectSound playing channel (32 x 0x2c bytes at 0x2f798b8; ds_channel__ctor, ds_channel_init).
+// Layout as Dash Faction rf::DsChannel. Observed: ds_channel_release tests flags bit 0x8, then stops the
+// stream +0xc (when >= 0) under the stream lock 0x2fbd998, then the buffer +0x00.
+typedef struct ds_channel {
+    void*   pdsb;            // +0x00 IDirectSoundBuffer*
+    void*   pds3db;          // +0x04 IDirectSound3DBuffer*
+    int32_t buf_id;          // +0x08 ds_buffers index
+    int32_t stream;          // +0x0C stream slot, -1 none (Dash Faction: read_timer_id)
+    int32_t sig;             // +0x10
+    float   volume;          // +0x14
+    int32_t load_param;      // +0x18
+    int32_t _unk1c;
+    float   fade_out_time;   // +0x20
+    int32_t timer;           // +0x24 RealtimeTimer
+    uint32_t flags;          // +0x28 1 looping, 2 paused, 4 music, 8 (release skips the channel)
+} ds_channel;
+
+// A streamed-sound slot (16 x 0x1c bytes at 0x2fbd9b0; reset by snd_stream_init, guarded by the lock 0x2fbd998).
+// Partial: ds_sound_release stops every active slot whose +0x00 is the released buffer.
+typedef struct snd_stream_slot {
+    int32_t buffer;          // +0x00 ds_buffers index, -1 free
+    uint8_t _unk04[0x14];
+    uint32_t flags;          // +0x18 bit 0 active
+} snd_stream_slot;
+
 // A level-script object (0x550 bytes; table at 0x24f6748, indexed by Character +0x6dc). Partial.
 typedef struct script_object {
     uint8_t _unk000[0x518];
