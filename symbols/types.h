@@ -652,3 +652,38 @@ typedef struct game_camera {
 typedef struct cquat {
     int16_t x, y, z, w;
 } cquat;
+
+// A multiplayer packet type (mp_packet_table 0x5951b8, 66 entries x 0x1c), e.g. {0, handler, 1, "GM_QURY"}.
+typedef struct mp_packet_info {
+    int32_t type;            // +0x00
+    void  (*handler)(void);  // +0x04 receive handler (argument list not mapped)
+    int32_t flag;            // +0x08
+    int32_t sent;            // +0x0C send counter, bumped by the senders
+    char    name[12];        // +0x10 "GM_QURY", "ACTV_GM", "JN_RQST", ...
+} mp_packet_info;
+
+// An AI group (10 x 0x54 bytes at 0x243e040; Character +0x4cc points at one). Saved in the LENT chunk.
+typedef struct ai_group {
+    int32_t count;           // +0x00
+    int32_t members[6];      // +0x04 handles
+    uint8_t _unk1c[0x2c];
+    int32_t leader;          // +0x48
+    uint32_t flags;          // +0x4C
+    int32_t timer;           // +0x50 GameTimer
+} ai_group;
+
+// A spell/visual effect object (0x10c bytes, pool at 0x2305bc0). Partial.
+typedef struct effect_object {
+    uint8_t _unk00[0x80];
+    int32_t handle;          // +0x80
+    uint32_t flags;          // +0x84
+    uint8_t _unk88[0x18];
+    void*   instance;        // +0xA0
+    int32_t kind;            // +0xA4
+    int32_t spell;           // +0xA8 spell index
+    uint8_t _unkac[0x08];
+    int32_t owner;           // +0xB4
+    uint8_t _unkb8[0x28];
+    void*   sound;           // +0xE0 sound emitter
+    uint8_t _unke4[0x28];
+} effect_object;

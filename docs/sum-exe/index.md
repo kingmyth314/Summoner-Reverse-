@@ -80,3 +80,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Level scripts](level-scripts.md)
 - [Game data tables in memory](game-tables.md)
 - [Savegame format](savegame.md)
+- [Multiplayer packets](multiplayer.md)

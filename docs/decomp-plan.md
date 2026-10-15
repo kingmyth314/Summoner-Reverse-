@@ -125,7 +125,7 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **3,792 / 5,548** game/engine functions named (68.3%), plus about 500
+Phase 0 is complete. Progress (2026-10-14): **4,092 / 5,548** game/engine functions named (73.8%), plus 721
 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
@@ -194,8 +194,9 @@ The agents also flagged eight existing names as wrong. Each was checked in the d
 `ui_gadget` disabled/enabled methods, and the static-object destructors. The `ai_state` path is at `+0x210`, not
 `+0x80`.
 
-**2026-10-14, fourth parallel pass:** about 650 more names (still running when this was written: the
-`0x480000`-`0x4c0000` pass). It covered:
+**2026-10-14, fourth parallel pass:** about 1,000 more names, including the `0x480000`-`0x4c0000` pass (multiplayer
+packets: the [packet table](sum-exe/multiplayer.md) named 48 handlers hidden inside other functions; IRC and trackers;
+effects; level rendering; boss AI; AI groups; pathfinding). It covered:
 - boss AI and the script editor;
 - 72 static UI constructors and the options setters;
 - the statically linked **IJG libjpeg 6b** compressor (113 functions, named from its method tables and error codes,
