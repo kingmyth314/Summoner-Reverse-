@@ -10,6 +10,13 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SECTIONS = ["thumb", "level data", "conversation", "items", "inv", "le", "camera", "item_object", "quest_flag",
   "level_item", "two_stage", "automap_labels", "hot_buttons"];
+// Chunk offsets from the size table at 0x1b0 (buffer order: thumbnail, level data, INVT, conversation, ITEM, LENT;
+// savegame_read). A tag search could match the same four bytes inside the thumbnail first.
+const chunkAt = (b, tag) => {
+  const s = (i) => b.readInt32LE(0x1b0 + i * 4);
+  const invt = 0x200 + s(0) + s(1), o = tag === "INVT" ? invt : invt + s(4) + s(2) + s(3);
+  return b.toString("latin1", o, o + 4) === tag ? o : -1;
+};
 const TYPES = { 4: "object", 5: "creature", 6: "creature (dead)", 7: "party member", 8: "party member (dead)", 9: "npc", 10: "npc (dead)" };
 
 let itemNames = null;
@@ -30,7 +37,7 @@ for (const file of process.argv.slice(2)) {
   console.log(`   description: ${cstr(b, 0xb0, 0x100)}`);
   console.log(`   sections: ${SECTIONS.map((n, i) => `${n} ${b.readInt32LE(0x1b0 + i * 4)}`).join(", ")}`);
 
-  const lent = b.indexOf("LENT", 0x200, "latin1");
+  const lent = chunkAt(b, "LENT");
   if (lent < 0) { console.log("   no LENT chunk"); continue; }
   const count = b.readInt32LE(lent + 0x30);
   console.log(`   party state 0x${b.readUInt32LE(lent + 0x0c).toString(16)}, ${count} entity records`);
@@ -38,7 +45,7 @@ for (const file of process.argv.slice(2)) {
   for (let i = 0; i < count && o + 0x180 <= b.length; i++) {
     const hash = b.readUInt32LE(o), r = o + 4, type = b.readInt32LE(r);
     const line = [`#${i}`, `hash 0x${hash.toString(16).padStart(8, "0")}`, TYPES[type] ?? `type ${type}`];
-    if (type === 7 || type === 8) {
+    if (type === 7) {
       const equip = [];
       for (let k = 0; k < 9; k++) {
         const it = b.readInt32LE(r + 0x6c + k * 4);

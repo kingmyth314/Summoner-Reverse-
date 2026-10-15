@@ -215,8 +215,10 @@ node tools/savinfo.mjs Summoner/savegame/summoner7.sav
 
 Savegame editor. It **never overwrites a file**: it writes a new output file, refuses if that file exists or is the
 input, and leaves the original untouched. It can change the description, the party's gold, and a party member's
-level, experience, HP/max HP, AP/max AP and skill points. The game does not recompute anything on load, so raising
-the level does not add the HP, AP or skill points of the skipped levels. Tested 2026-10-14: an edited copy
+level, experience, HP/max HP, AP/max AP and skill points. On load the game recomputes only the skill cap from the level,
+so raising the level does not add the HP, AP or skill points of the skipped levels. Only living party members are
+counted by `--member`: a dead member (record type 8) has no level, XP or skill block. The chunks are found from the
+size table, not by a tag search (fixed 2026-10-15). Tested 2026-10-14: an edited copy
 (5000 gold, 10 skill points) loaded and showed both values.
 
 ```

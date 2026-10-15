@@ -9,12 +9,21 @@
 //   --skill ID=VALUE       a skill byte (ids 0-35 are saved; 10 = level 1, see the skill table in docs/sum-exe/characters.md).
 //                          The Skills panel only lists skills the character may have, so a new skill may not appear.
 //
-// Notes: the game does not recompute anything from these values on load. Raising --level does not grant the
-// HP, AP or skill points of the skipped levels; set those too if wanted. The file has no checksum, and the
+// Notes: on load the game recomputes only the skill cap from the level (xp_level_skill_cap at 0x4cf898). Raising
+// --level does not grant the HP, AP or skill points of the skipped levels; set those too if wanted. The header
+// checksum (0x1e4) is never read, and the
 // section sizes are not changed, so the edited save stays loadable. Copy the output into Summoner/savegame
 // under an unused slot name (summonerN.sav) to try it.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+
+// Chunk offsets from the size table at 0x1b0 (buffer order: thumbnail, level data, INVT, conversation, ITEM, LENT;
+// savegame_read). A tag search could match the same four bytes inside the thumbnail first.
+const chunkAt = (b, tag) => {
+  const s = (i) => b.readInt32LE(0x1b0 + i * 4);
+  const invt = 0x200 + s(0) + s(1), o = tag === "INVT" ? invt : invt + s(4) + s(2) + s(3);
+  return b.toString("latin1", o, o + 4) === tag ? o : -1;
+};
 
 const args = process.argv.slice(2);
 const [input, output] = args;
@@ -45,7 +54,7 @@ if (opts.desc !== undefined) {
   changes.push(`description = "${opts.desc}"`);
 }
 if (opts.gold !== undefined) {
-  const invt = b.indexOf("INVT", 0x200, "latin1");
+  const invt = chunkAt(b, "INVT");
   if (invt < 0) { console.error("no INVT chunk"); process.exit(1); }
   const old = b.readInt32LE(invt + 4);
   b.writeInt32LE(num("gold") | 0, invt + 4);
@@ -54,13 +63,16 @@ if (opts.gold !== undefined) {
 
 const fieldOpts = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"].filter((k) => opts[k] !== undefined);
 if (fieldOpts.length) {
-  const lent = b.indexOf("LENT", 0x200, "latin1");
+  const lent = chunkAt(b, "LENT");
+  if (lent < 0) { console.error("no LENT chunk"); process.exit(1); }
   const count = b.readInt32LE(lent + 0x30);
   const want = opts.member !== undefined ? num("member") : 0;
   let o = lent + 0x34, seen = -1, rec = -1;
   for (let i = 0; i < count; i++) {
     const type = b.readInt32LE(o + 4);
-    if (type === 7 || type === 8) { seen++; if (seen === want) { rec = o; break; } o += 4 + 0x17c + 8; }
+    // Only living party members (type 7) carry the extra 8 bytes (savegame_write_character 0x4cf733); a dead
+    // member (type 8) has the plain record and no level/XP/skill block, so it is not counted.
+    if (type === 7) { seen++; if (seen === want) { rec = o; break; } o += 4 + 0x17c + 8; }
     else o += 4 + 0x17c;
   }
   if (rec < 0) { console.error(`party member ${want} not found (${seen + 1} in this save)`); process.exit(1); }
