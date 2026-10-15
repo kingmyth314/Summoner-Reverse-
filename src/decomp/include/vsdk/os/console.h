@@ -23,9 +23,13 @@ typedef console_command console_command_M;
 
 // Argument types (process_command / arg_type)
 #define ARG_NONE  0x01
+#define ARG_STRING 0x02                  // decomp20: the dialogue_make_topic_* commands pass 2, then read next_arg
+#define ARG_INT   0x08                   // decomp20: cmd_dcamera passes 8, then reads command_argument_int
 #define ARG_TRUE  0x40
 #define ARG_FALSE 0x80
 
+extern char next_arg[256];               // 0x25dacec lowercase copy of the parsed argument (decomp20)
+extern int command_argument_int;         // 0x25db2dc (decomp20)
 extern int calling_a_command_function;   // 0x25db218
 extern int doing_help_for_comand;        // 0x25db2e0 (spelling as in Summoner 2)
 extern int checking_status_for_command;  // 0x25dadf0

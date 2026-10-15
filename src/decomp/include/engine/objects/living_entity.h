@@ -62,6 +62,23 @@ public:
     int   equip_bonus(int stat);      // 0x4627c0 character_equip_bonus (0 HP, 1 AP)
     int   get_max_stat(int stat);     // 0x462840 character_get_max_stat (0 HP, 1 AP)
     const char *hero_model_prefix();  // 0x462ec0 character_hero_model_prefix
+    // decomp20 (conversationctl.cpp). Argument lists from its call sites.
+    float size_radius();              // 0x4542b0 character_size_radius
+    float size_height();              // 0x4542f0 character_size_height
+    float distance_between_edges(Character *other, bool a, int b);  // 0x454330 (the calls pass false, -1)
+    void  status_effect_cure(int status, int a, int b);   // 0x4553a0 (conversation_begin: 8, 1, 0)
+    void  walk_to_point(vector3 pos, int priority);       // 0x455e70 character_walk_to_point (by value)
+    void  ai_add_goal9(vector3 *pos, int layer, int priority, int a);   // 0x455f50 character_ai_add_goal9
+    float stopping_distance(vector3 *out_vel);            // 0x45a840 character_stopping_distance (NULL)
+    int   clip_move_to_navmesh(vector3 *move);            // 0x45ab00 character_clip_move_to_navmesh
+    int   play_move(int move, float speed, int a, int b, int c);   // 0x460f20 character_play_move
+    bool  move_finished(int move);                        // 0x4614d0 character_move_finished
+    int   pick_talk_move();                               // 0x461540 character_pick_talk_move, 0 = none
+    int   is_moving();                                    // 0x462e40 character_is_moving
+    // Inline in the original header (DECISIONS.md C3): expanded in conversation_frame and
+    // conversation_camera_begin, called as the COMDAT 0x4da830 character_get_center elsewhere.
+    vector3 get_center() { vector3 c; c.x = pos.x + centre_offset.x; c.y = pos.y + centre_offset.y;
+                           c.z = pos.z + centre_offset.z; return c; }
     void  set_6ac(float v);           // 0x4570d0 character_set_6ac
     void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
     void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed
@@ -225,5 +242,8 @@ void living_entity_reset_tables();    // 0x462d80
 Character *living_entity_create(int type, int char_info, const vector3 *pos, const matrix *orient,
                                 int a, int b, int c, int d, int e);   // 0x461b80 (last five: 1, 0, 0, 0, 0)
 void character_xp_death_penalty(Character *c);        // 0x441710
+// Stops or attaches the looping effect of a status (unit not known; conversation_begin passes the
+// character's handle, Character +0x80; decomp20).
+void status_effect_update_fx(int handle, int status); // 0x48c470
 
 #endif

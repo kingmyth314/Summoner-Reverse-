@@ -5,19 +5,30 @@
 
 #include "vsdk/vsdk.h"
 
-// 0x1c bytes (items_alloc_pool 0x8b9ea0 is followed by its buffer at 0x8b9ebc). The fields are not
-// needed by the pilots yet.
+// 0x1c bytes (items_alloc_pool 0x8b9ea0 is followed by its buffer at 0x8b9ebc; conversation +0x210 ..
+// +0x22c). decomp20: the fields and the block methods, from the member functions' code.
 class NoRlsAllocPool {
 public:
     NoRlsAllocPool();                          // 0x532360
     ~NoRlsAllocPool();                         // 0x532380 (jmp Release)
-    void Release();                            // 0x532390
+    void Release();                            // 0x532390 deletes the owned block chain
+    int  AddBlock();                           // 0x5323d0 0 = done, 1 = not owned / out of memory (decomp20)
+    int  InitBlocks(int block_size, bool can_grow);  // 0x532420 nonzero = AddBlock failed (decomp20)
     void Init(void *buffer, int size);         // 0x532460
     void Reset();                              // 0x532480
-    void *Alloc(int size);                     // 0x532490
+    void *Alloc(int size);                     // 0x532490 NULL when full
     void *AllocZeroed(int size);               // 0x5324e0
+    void Align();                              // 0x532510 (decomp20)
+    int  GetUsed();                            // 0x532540 (decomp20)
 
-    ubyte _data[0x1c];
+    void *blocks;                 // +0x00 chain of owned blocks (next at +0)
+    char *start;                  // +0x04 first byte of the current block
+    char *current;                // +0x08 next allocation
+    unsigned int block_size;      // +0x0c
+    unsigned int remaining;       // +0x10
+    char *last_allocation;        // +0x14
+    unsigned int owns_blocks : 1; // +0x18 bit 0 (set by InitBlocks, Release frees only then)
+    unsigned int can_grow : 1;    //   bit 1 (Alloc adds a block when short)
 };
 LAYOUT_CHECK(NoRlsAllocPool, sizeof(NoRlsAllocPool) == 0x1c);
 

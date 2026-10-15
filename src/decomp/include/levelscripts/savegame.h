@@ -6,6 +6,7 @@
 
 #include "vsdk/vsdk.h"
 
+struct conversation_speaker;         // levelscripts/conversation.h
 struct automap_label;                // summoner/automap.h
 
 class savegame {                     // savegame_state at 0x2493a38 (thiscall members; layout not needed yet)
@@ -31,6 +32,16 @@ public:
                    float *level_time, char *description, int *version); // 0x4d2800
     void read_thumbnail_file(const char *filename, int unk);         // 0x4d2910 (return unused)
     void set_pending_load(const char *filename, int slot);           // 0x4d3870
+    // The conversation blocks (decomp20; argument lists from conversation.cpp's calls). level is the
+    // level_script_table index, slot the conversation slot of the level (level_script_find_index).
+    void init_conversation_slot(int level, int slot, conversation_speaker *speakers);    // 0x4d02d0
+    bool has_conversation_data(int level, int slot);                 // 0x4d0590
+    int  get_speaker_bit(int level, int slot, const char *speaker, int kind);           // 0x4d05f0
+    void set_speaker_bit(int level, int slot, const char *speaker, int kind, bool value,
+                         bool propagate);                            // 0x4d06e0
+    int  get_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind); // 0x4d0870
+    void set_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind, bool value,
+                       bool propagate);                              // 0x4d09e0 kind 0..3
 };
 extern savegame savegame_state;                                      // 0x2493a38
 // The pilots' wrapper spellings (new_automap.cpp, new_hud.cpp), now the object itself (D46).

@@ -36,6 +36,14 @@ int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none
 int  level_script_find_index(int level, const char *script_name);   // 0x4d6340, -1 = none
 void level_format_display_name(char *out, int level);// 0x4d63b0
 
+// level_scripts.cpp helpers the conversation code calls (decomp20).
+struct dialogue_action;                              // levelscripts/conversation.h
+void script_object_suspend(int index);               // 0x4d58f0
+void script_object_resume_index(int index);          // 0x4d5960
+void conversation_execute_action(dialogue_action *action);   // 0x4d5990 (return value never used)
+int  quest_find_by_name(const char *name);           // 0x4d5ff0, -1 = none
+void quest_journal_set_entry(int quest, int value);  // 0x4d6040 (return value never used)
+
 // The level table (0x10 bytes, level_table 0x59fde8).
 struct level_table_entry {
     int id;                                          // +0x0

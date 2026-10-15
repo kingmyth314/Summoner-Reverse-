@@ -26,6 +26,7 @@ void game_unpause();                  // 0x4326c0
 bool game_is_paused();                // 0x432da0
 void game_change_level(const char *filename, void *arg);   // 0x431a40 (second argument type guessed)
 extern bool play_intro_movies;        // 0x5930bd
+void combat_mode_set(int on);         // 0x439580 (gameplay.cpp range; decomp20: conversation_frame passes 0)
 
 // The current level's names and layer maps (set by game_change_level / level_parse_table; module "-").
 extern char level_script_name[32];             // 0x60a2e8

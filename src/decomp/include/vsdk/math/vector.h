@@ -25,10 +25,26 @@ public:
     float len() const;                                // 0x4bc290
     int  is_valid() const;                            // 0x524220
     void unrotate(const matrix &m);                   // 0x5245f0
+    void normalize_safe();                            // 0x5244b0 vector3__normalize_safe ((1,0,0) at length 0)
+    // Inline in the original header (decomp20, DECISIONS.md C3): expanded in conversation_frame, called
+    // as the COMDAT 0x4d9a80 vector3__len_sq from conversation_camera_compute_shot.
+    float len_sq() const { return x * x + y * y + z * z; }
 
     float x, y, z;
 };
 LAYOUT_CHECK(vector3, sizeof(vector3) == 0xc);
+
+// s * v: a free function, cdecl (hidden result, s, &v) (combat.cpp range, 0x468a90 vector3_scale_to).
+vector3 operator*(float s, const vector3 &v);         // 0x468a90
+float distance(const vector3 *a, const vector3 *b);   // 0x524810 |a - b|
+
+// A 2D vector, thiscall len (conversation_frame passes the x / z offset; decomp20).
+class vector2 {
+public:
+    float len() const;                                // 0x523f80 vector2__len
+    float x, y;
+};
+LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
 
 int imax(int a, int b);                               // 0x51b750 (COMDAT in character_instance.cpp)
 int imin(int a, int b);                               // 0x503dc0

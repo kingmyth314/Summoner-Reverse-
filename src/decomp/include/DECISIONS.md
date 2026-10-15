@@ -414,3 +414,81 @@ Header not changed; noted for the real build.
 **D67 (items.cpp). New headers.** `vsdk/os/norlsallocpool.h` (NoRlsAllocPool, 0x1c bytes; file name from
 sum.symbols) and `engine/spells/spells.h` (spell_find_by_name, damage_type_to_status,
 spell_display_names; directory guessed).
+
+## conversation.cpp / conversationctl.cpp pilot (decomp20)
+
+**C1 (conversation / conversationctl). Class names from sum.symbols' constructors.** The header had
+`conversation_storage` for conversation_db (0x25461a0) and `class conversation` for conversation_active
+(0x25464b0). sum.symbols names the constructors `conversation__ctor` (0x4d7b80, called with ecx = 0x25461a0
+by init_conversation_25461a0 0x4d7b40) and `conversation_controller__ctor` (0x4d8ce0, ecx = 0x25464b0 from
+0x4d87e0). So `class conversation` is now the 0x310-byte object and `class conversation_controller` the
+running one; `typedef conversation conversation_storage` keeps the old name. No .cpp used either class name
+(only the objects), so nothing else changes.
+
+**C2 (conversation). conversation +0x204 / +0x208 are the speaker and the topic, not two "nodes".**
+conversation_set_speaker (0x4d7d50) stores conversation_find_speaker's result at +0x204 and
+conversation_set_topic (0x4d7e40) stores its topic argument at +0x208. new_dialogue.cpp reads them as
+`cur_topic->flag2` / `cur_line->flag2`, `flag6`: kept as anonymous-union aliases (`conversation_node`)
+beside the typed `speaker` / `topic`. The bits match: speaker +4 bit 2 is Cflag_NoAbort
+(dialogue_parse_cflags 0x4fed30 returns 4 for "Cflag_NoAbort"; dialogue_frame tests `byte [eax+4], 4`),
+topic +4 bit 2 is +Farewell (`or al, 4` at 0x500612) and bit 6 is +Shop (`or [esi+4], 0x40` at 0x4ff290).
+The speaker's flag word is 16 bits (`mov word ptr [ebp+4], ax` at 0x4ff139; `or byte`/`and word` in
+conversation_restore_state), the topic's 32 (bitfield reads `shr; test cl, 1`). To do: switch
+new_dialogue.cpp to `speaker->flags & CFLAG_NO_ABORT`, `topic->farewell`, `topic->shop` and drop the aliases.
+
+**C3 (conversationctl). Inline header functions emitted as COMDATs in this range.** 0x4d8f30
+game_camera__get_pos / 0x4d8f40 game_camera__get_orient (`lea eax, [ecx+0x1a4/0x1b0]; ret`), 0x4d9a80
+vector3__len_sq and 0x4da830 character_get_center are inline members of camera.h / vector.h /
+living_entity.h: conversation_frame expands len_sq and get_center in place (0x4da170-0x4da1b1,
+0x4da1d9-0x4da206) while conversation_camera_compute_shot / conversation_end_cleanup call the copies.
+dialog_camera_pose::set (0x4d8f00) and operator= (0x4d9aa0) are treated the same way (inline in
+conversation.h): conversation_end_cleanup copies poses with 6 inline moves (0x4daacf-0x4dab32) while
+compute_shot calls 0x4d9aa0 for the same assignment. vector3's operators keep their out-of-line
+declarations (the source is the same); the binary shows they are inline too (the same subtraction is
+expanded in one place and called as 0x45b6b0 in another of the same function), to revisit with the
+compiler.
+
+**C4 (conversationctl). conversation_active is 0x27c bytes; 0x254672c is a separate variable.** The
+controller's last member is the 16-slot array at +0xfc (16 x 0x18 = +0x27c, conversation_controller__ctor
+0x4d8d3c-0x4d8d8c). conversation_frame reads and writes 0x254672c by absolute address (`mov byte ptr
+[0x254672c], al` at 0x4da6c1, `mov al, [0x254672c]` at 0x4da48b), never through `this`, so it is a file-scope
+bool after the object (conversation_dest_found, name ours). The old LAYOUT_CHECK of 0x280 was the gap to the
+next symbol.
+
+**C5 (conversationctl / new_dialogue). Topic box entries and choose_topic take a conversation_topic*.**
+dialogue_topic_entry +0x14 was `int topic`. conversation_farewell (0x4d8760) passes the topic pointer from
+the offered list ([entry+8]) to dialogue_topic_box_add_kind3, and conversation_choose_topic (0x4dabb0)
+passes its argument to conversation_set_topic, which dereferences it (+4 flags). Now
+`conversation_topic *topic`, `dialogue_topic_list::add(conversation_topic*, int)` and
+`conversation_controller::choose_topic(conversation_topic*)`; new_dialogue.cpp compiles unchanged
+(`add(0, kind)` passes a null pointer).
+
+**C6 (conversationctl). pf_trace_edge_crossings takes (pos, layer, dest by value).** sum.symbols' comment
+says "(pos, dest, size, layer)"; the call at 0x4da30b-0x4da348 pushes a 12-byte vector, then the layer, then
+&pos, and cleans 0x14 bytes. Declared in the new engine/ai/pathfinding.h with the call's order; the
+callee's own reading is not checked.
+
+**C7 (conversationctl). The three console commands belong to conversationctl.cpp.** dialogue_make_topic_
+available / _unavailable / dcamera (initialiser entries 371-373, 0x4dafe0-0x4db248) are untagged. Their
+objects follow conversation_active in .bss (0x2546730-0x254675f, then cutscene_saved_equipment of the next
+unit), their strings follow conversation.cpp's in .data (0x5a02cc-0x5a0451 after 0x5a0250-0x5a02cb), the
+initialiser entries follow entry 370 (the controller), and the commands only call conversation_db. Defined
+in conversationctl.cpp in initialiser order (the "unavailable" object is the lower .bss address).
+
+**C8 (conversation). NoRlsAllocPool fields.** The header (items.cpp pilot) had `ubyte _data[0x1c]`. The
+fields are from the member code: +0 block chain (Release walks [eax]), +4 start, +8 current (Alloc bumps
+it), +0xc block size (InitBlocks stores its first argument), +0x10 remaining (Alloc compares the size with
+it), +0x14 last allocation, +0x18 two bits (InitBlocks sets bit 0 and bit 1 = can_grow; Alloc tests 2,
+Release tests 1). AddBlock / InitBlocks / Align / GetUsed added. `Alloc(int)` kept as declared.
+
+**C9 (conversationctl). Smaller additions, no conflict.** camera: set_follow_flags / resume_follow /
+push_state / pop_state. ai_state: is_traveling_sub0, goal_find (8 arguments: `push 0x6c ... push 1`),
+goals_clear (already there). Character: size_radius, size_height, distance_between_edges,
+status_effect_cure, walk_to_point (vector3 by value: `sub esp, 0xc` before the call), ai_add_goal9,
+stopping_distance, clip_move_to_navmesh, play_move, move_finished, pick_talk_move, is_moving. matrix:
+set_from_forward, get_axis_angle, set_from_axis_angle; matrix43(const matrix&). vector3: normalize_safe,
+`operator*(float, const vector3&)` (0x468a90 is cdecl with the scalar before the vector), distance;
+vector2::len. savegame: the conversation bit accessors. console: next_arg, command_argument_int, ARG_STRING
+(2) / ARG_INT (8) as the commands pass them. level_scripts: script_object_suspend / resume_index,
+conversation_execute_action, quest_find_by_name, quest_journal_set_entry. plainstring: stristr. summoner:
+combat_mode_set. living_entity: status_effect_update_fx (handle, status).

@@ -13,6 +13,15 @@ class Character;
 class camera {                        // 0x2a8 bytes
 public:
     void set_target(Character *c);    // 0x478ff0 camera_set_target
+    // decomp20 (conversationctl.cpp):
+    void set_follow_flags(bool a, bool b); // 0x479740 camera_set_follow_flags
+    void resume_follow();             // 0x479790 camera_resume_follow
+    void push_state();                // 0x4797b0 camera_push_state
+    void pop_state();                 // 0x4797d0 camera_pop_state
+    // Inline accessors of the original header (DECISIONS.md C3); conversationctl.cpp calls them as the
+    // COMDATs 0x4d8f30 game_camera__get_pos / 0x4d8f40 game_camera__get_orient (lea eax, [ecx + off]).
+    vector3 &get_pos() { return eye_pos; }
+    matrix3 &get_orient() { return eye_orient; }
     void cycle_mode();                // 0x479a60 camera_cycle_mode (F12: 0 -> 1 -> 2 -> 0)
 
     int mode;            // +0x000 0 low, 1 high, 2 automatic, 3 forced high, 5 glide (camera_set_mode)

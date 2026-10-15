@@ -34,6 +34,11 @@ public:
     void go_idle();                   // 0x4738c0 ai_go_idle
     bool is_disabled_any();           // 0x475000 ai_is_disabled_any
     void goals_remove_type1();        // 0x475e00 ai_goals_remove_type1
+    // decomp20 (conversationctl.cpp):
+    bool is_traveling_sub0();         // 0x4730c0 ai_is_traveling_sub0
+    // (mask, type, ...): goal slot index or -1. The conversation calls pass (1, type, 0, 0, -1, 0, 0, 0x6c);
+    // the meaning of the last six is not known.
+    int  goal_find(int mask, int type, int a, int b, int c, int d, int e, int f);  // 0x475eb0 ai_goal_find
     void goals_clear();               // 0x476380 ai_goals_clear
     void add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell (return unused)
 

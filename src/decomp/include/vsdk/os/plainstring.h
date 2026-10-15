@@ -12,5 +12,7 @@ void int_to_string_with_commas(char *buf, int size, int value);                 
 // src without its trailing spaces, tabs and newlines into dest.
 void trim_trailing_whitespace(char *dest, const char *src);                         // 0x514f60
 void gr_string_truncate_ellipsis(char *dest, const char *s, int max_w, int font);  // 0x5153b0 (return unused)
+// Case-insensitive strstr: pointer into s, NULL when not found (decomp20, conversation_farewell).
+char *stristr(const char *s, const char *find);                                     // 0x515500
 
 #endif

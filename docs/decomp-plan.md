@@ -115,10 +115,11 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `character_instance`, `effect_mem`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
   level select, shop, item trade, options, save/load, status, automap, inventory, HUD, multiplayer game list and
-  PXO chat screens, plus `gamesound`, `item_paging`, `player`, `objects` and `items`.
+  PXO chat screens, plus `gamesound`, `item_paging`, `player`, `objects`, `items`, `conversation` and
+  `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 1,034 functions written (12.0%). Of these, 601 match the
-disassembly exactly as far as can be read, 386 likely, 14 unsure. All 34 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 1,093 functions written (12.6%). Of these, 633 match the
+disassembly exactly as far as can be read, 410 likely, 15 unsure. All 36 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

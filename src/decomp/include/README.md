@@ -79,6 +79,7 @@ Summoner 2 and Dash Faction give names only.
 | `engine/objects/living_entity.h` | `Engine\objects\living_entity.cpp` | `Character`, `living_combat`, `CF_*`, status ids |
 | `engine/characterinfo/characterinfo.h` | `Engine\characterinfo\characterinfo.cpp` | `char_info`, skills, chain attacks, experience |
 | `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state`, `ai_group` |
+| `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` | `pf_find_nearest_navigable_point`, `ai_path_find` / `ai_path_free`, `pf_trace_edge_crossings` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` | `lobj`, level render calls |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
@@ -94,5 +95,5 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |
 | `summoner/interface/new_skill.h`, `new_spell.h`, `new_tutorial.h` | new_skill.cpp, new_spell.cpp, new_tutorial.cpp (not pilots) | the functions and data the HUD and the inventory call |
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests |
-| `levelscripts/conversation.h` | `levelscripts\conversation.cpp` | dialogue boxes, conversation objects |
+| `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp | dialogue boxes; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |

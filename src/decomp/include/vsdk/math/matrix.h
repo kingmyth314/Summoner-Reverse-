@@ -15,6 +15,10 @@ public:
     void operator=(const matrix &m);                  // 0x4a4320 matrix3__copy
     void make_identity();                             // 0x511050 matrix3__make_identity
     void extract_angles(float *p, float *b, float *h);// 0x510240 matrix3__extract_angles
+    // decomp20 (conversationctl.cpp): the three pass the vector by address.
+    void set_from_forward(const vector3 &fwd);        // 0x511080 matrix3__set_from_forward
+    void get_axis_angle(vector3 *axis, float *angle); // 0x510390 matrix3__get_axis_angle
+    void set_from_axis_angle(const vector3 &axis, float angle);   // 0x510110 matrix3__set_from_axis_angle
 
     vector3 rvec, uvec, fvec;
 };
@@ -39,6 +43,7 @@ class matrix43 {                                      // rotation rows m[0..2] +
 public:
     matrix43();                                       // folded with 0x505530 (empty)
     matrix43(const vector3 &r, const vector3 &u, const vector3 &f, const vector3 &p);  // 0x5113f0
+    matrix43(const matrix &rot);                      // 0x5113a0 matrix43__matrix43_rot (zero position; decomp20)
     matrix43 operator*(const matrix43 &m) const;      // 0x5114b0 matrix43__multiply_4x4
     void operator=(const matrix43 &m);                // 0x51b6c0 matrix43__copy (COMDAT in character_instance.cpp, no result)
     void set(const quaternion &q, const vector3 &pos);// 0x511840 matrix43__set_quat
