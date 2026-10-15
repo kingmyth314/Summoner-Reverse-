@@ -237,6 +237,18 @@ node tools/tu-split.mjs --out units.txt
 node tools/tu-split.mjs --score
 ```
 
+## `tools/tu-split2.mjs`
+
+The better unit splitter: it finds file boundaries from data, calls, initialiser groups and code style, without
+needing module tags (98% of known boundaries found blind). `--score` measures it against the `.cpp` tags, `--blind`
+ignores the tags, `--loo` hides one file at a time, `--eval` prints every measurement. See the
+[Source-file map](sum-exe/source-map.md#version-2-boundaries-from-the-binary-alone-2026-10-15).
+
+```
+node tools/tu-split2.mjs --out units.txt
+node tools/tu-split2.mjs --score
+```
+
 ## `tools/addsym.mjs`
 
 Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address

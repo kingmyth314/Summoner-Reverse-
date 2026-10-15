@@ -254,6 +254,36 @@ The one split file is `vsdk\gr\gr.cpp`. It is a single file that the `.bss` rule
 interface code between `new_hud.cpp` and `new_inventory.cpp`, and the party-inventory block after `objects.cpp`.
 `--score` lists any remaining "stray?" tags for review.
 
+### Version 2: boundaries from the binary alone (2026-10-15)
+
+`node tools/tu-split2.mjs` (written by an agent, reviewed) finds file boundaries without needing module tags. Tags
+only constrain the result, and `--blind` ignores them so the method can be measured.
+
+1. **A graph of functions.** Edges join consecutive users of a private global (`.rdata`, `.data` and `.bss`), calls
+   within 60 functions, data-order inversions, and a static initialiser with the first later function that uses its
+   object. A `cmp reg, imm` against a data address is a loop bound one past an array; it counts as the array's last
+   byte, not as a use of the next file's first global.
+2. **Static-init groups.** Each of the 652 initialiser-table entries, with its jmp target, atexit registration and
+   destructor, forms a group. A group is never cut, and a cut where a run of groups starts gets a bonus: every file
+   with dynamic initialisers has them in front.
+3. **Code style.** Most files are compiled with optimisation (no frame pointer, `0x90` padding). A few,
+   `living_entity.cpp`, `objects.cpp` and the cutscene code after `gameplay.cpp`, were compiled **without**
+   optimisation: every function opens an `ebp` frame and functions are padded with `0xcc` (**observed**). Such a run
+   is one file, with exact ends.
+4. **Dynamic programming** picks the cuts that maximise a modularity-style score.
+
+Measured on the 64 transitions between the 65 reviewed `.cpp` tags (the tag set before the 450 unit-derived tags
+were added):
+
+| | Blind recall | Blind precision | Hide-one-file recall |
+|---|---|---|---|
+| `tu-split.mjs` | 2/64 (3%) | 2/2 | 79/128 (62%) |
+| `tu-split2.mjs` | **63/64 (98%)** | **96%** (8 cuts inside files) | **126/128 (98%)** |
+
+Strings, COMDAT filtering and code alignment added nothing. With the current tags it gives 210 units and no split
+file. **Remaining failures:** `skeleton.cpp` / `stringpool.cpp` is not separated, a file's console-command tail can
+merge into the next file's initialisers, and the party-inventory block merges into `item_paging.cpp`.
+
 ### Units without a file name (2026-10-15)
 
 For 40 units no source path or reference names the file. They are labelled by what their functions do (from the
