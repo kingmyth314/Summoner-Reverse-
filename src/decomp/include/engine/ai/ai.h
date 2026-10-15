@@ -55,8 +55,88 @@ public:
     void knock_down(int ms);          // 0x474350 ai_knock_down
     void disable_2f();                // 0x4743e0 ai_disable_2f
     void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
+    // decomp29 (boss_ai.cpp). (pos, layer, 30.0f, 0, 5000) at boss_release_mount; return unused.
+    void add_move_to_timed(vector3 *pos, int layer, float f, int walk, int ms);   // 0x474190 ai_goal_add_move_to_timed
 
-    int mode;                // +0x00 enum ai_state_mode
+    // boss_ai.cpp (decomp29): the species dispatchers that are thiscall on the AI record.
+    void boss_ai_unload();            // 0x4a04d0 (ai_state_shutdown)
+    void boss_ai_load();              // 0x4a0600 (ai_reset)
+    void boss_ai_check_stage();       // 0x4a0730
+    void boss_ai_idle_dispatch();     // 0x4a08c0
+    void boss_ai_frame();             // 0x4a09f0
+    void boss_threat_decay();         // 0x4a1310
+    float boss_turn_rate_override();  // 0x4a1c50 (0 = no override)
+    int  boss_get_attack_move_id();   // 0x4a2070
+    void boss_get_move_range(float *min, float *max);   // 0x4a26f0 (ret 8; also sets attack_range)
+
+    // The per-boss AI functions the dispatchers call (thiscall on the AI record: the dispatchers load
+    // ECX with it or tail-jump with it in ECX). Their units are not known (module "-" in sum.symbols;
+    // bosses.md gives the code ranges). The ones marked "folded" are empty bodies that identical-code
+    // folding merged into empty_function (summoner.h); their names are ours.
+    void luminar_boss_load();         // 0x4c8dc0
+    void tiger_boss_load();           // 0x49ad20
+    void giant_salamanka_boss_load(); // 0x4c83a0
+    void serpent_boss_load();         // 0x495960
+    void phoenix_boss_load();         // 0x498420
+    void ghost_rider_boss_load();     // 0x4ba260
+    void tentacle_beast_boss_load();  // 0x4c6d10
+    void titus_boss_load();           // 0x4c2380
+    void pyrul_boss_load();           // 0x4b8a10
+    void murod_oni_boss_load();       // 0x4c5cc0
+    void murod_boss_load();           // 0x4c56c0
+    void evil_urath_boss_load();      // 0x4c45b0
+    void evil_joseph_boss_load();     // 0x4c35e0
+    void machival_boss_load();        // 0x4c0f60
+    void tiger_check_stage();         // 0x49a6c0
+    void tiger_seat_rider();          // 0x49aeb0
+    void giant_salamanka_check_stage(); // 0x4c8560
+    void serpent_check_stage();       // 0x495b90
+    void serpent_seat_rider();        // 0x495e10
+    void serpent_part_check_timeout();// 0x497610
+    void phoenix_check_stage();       // 0x499690
+    void phoenix_seat_rider();        // 0x4982a0
+    void ghost_update_stage();        // 0x4bb4c0
+    void ghost_seat_rider();          // 0x4ba8e0
+    void tentacle_beast_check_stage();// 0x4c7360
+    void titus_check_stage();         // 0x4c24c0
+    void pyrul_check_stage();         // 0x4b8b90
+    void murod_oni_check_stage();     // folded (boss_ai_check_stage case 0xb8)
+    void murod_check_stage();         // 0x4c5750
+    void evil_urath_check_stage();    // 0x4c47e0
+    void evil_urath_hold_height();    // 0x4c46f0
+    void evil_joseph_check_stage();   // 0x4c3f20
+    void evil_joseph_check_stage_b(); // folded (the second call of boss_ai_check_stage case 0xc9)
+    void machival_check_stage();      // 0x4c19c0
+    void luminar_ai_idle();           // 0x4c95d0
+    void tiger_ai_idle();             // 0x49b040
+    void giant_salamanka_ai_idle();   // folded (boss_ai_idle_dispatch case 0xac)
+    void serpent_ai_idle();           // 0x495fa0
+    void phoenix_ai_idle();           // 0x4989e0
+    void ghost_ai_idle();             // 0x4baa60
+    void tentacle_beast_ai_idle();    // 0x4c7060
+    void titus_ai_idle();             // 0x4c2e60
+    void pyrul_ai_idle();             // 0x4b89d0
+    void murod_oni_ai_idle();         // 0x4c5c80
+    void murod_ai_idle();             // 0x4c5680
+    void evil_urath_ai_idle();        // 0x4c4710
+    void evil_joseph_ai_idle();       // 0x4c3800
+    void machival_ai_idle();          // 0x4c0f20
+    void luminar_ai_frame();          // 0x4c95f0
+    void tiger_ai_frame();            // 0x49bed0
+    void giant_salamanka_ai_frame();  // 0x4c86b0
+    void serpent_ai_frame();          // 0x4973e0
+    void phoenix_ai_frame();          // 0x499410
+    void ghost_ai_frame();            // 0x4bb380
+    void tentacle_beast_ai_frame();   // 0x4c7070
+    void titus_ai_frame();            // 0x4c2630
+    void pyrul_ai_frame();            // 0x4b8ce0
+    void murod_oni_ai_frame();        // 0x4c60e0
+    void murod_ai_frame();            // 0x4c5a60
+    void evil_urath_ai_frame();       // 0x4c4760
+    void evil_joseph_ai_frame();      // 0x4c3860
+    void machival_ai_frame();         // 0x4c1070
+
+    int mode;               // +0x00 enum ai_state_mode
     int submode;             // +0x04
     int prev_mode;           // +0x08
     int prev_submode;        // +0x0C
@@ -67,8 +147,8 @@ public:
     int _unk20;
     ubyte _unk24[0x0c];
     GameTimer timer30;       // +0x30
-    int _unk34;
-    int priority;            // +0x38 999999 for direct orders
+    float attack_range;      // +0x34 reach of the current boss move (boss_get_move_range; was _unk34, D900)
+    int priority;           // +0x38 999999 for direct orders
     GameTimer timer3c;       // +0x3C
     GameTimer timer40;       // +0x40
     GameTimer timer44;       // +0x44
@@ -140,6 +220,19 @@ struct ai_service_req {
 };
 void ai_service_request(ai_service_req *req);         // 0x4766f0 (handled locally or sent with multi_send_packet)
 void ai_global_init();                                // 0x474900 pathfinding_init, direction table (GameInit)
+
+// The query record of ai_score_target (0x14 bytes on the caller's stack; boss_target_list_build fills
+// it). Type and field names ours; ai_score_target lowers `best` (compared and replaced at 0x4b5761) and
+// writes `result`; +0x08 is 10 at boss_target_list_build. Unit not known.
+struct ai_target_query {
+    Character *self;                  // +0x00
+    Character *candidate;             // +0x04
+    int _unk08;                       // +0x08 10 at boss_target_list_build
+    int result;                       // +0x0C
+    float best;                       // +0x10 starts at the char_info fov range (+0x220)
+};
+LAYOUT_CHECK(ai_target_query, sizeof(ai_target_query) == 0x14);
+void ai_score_target(ai_target_query *q, int a);      // 0x4b53c0 (boss_target_list_build passes 1; return unused)
 
 // An avoidance-area primitive ("AA"; 0x30 bytes on the caller's stack, avoid_area_add copies it).
 // Layout from the three spells.cpp builders (decomp23); names ours, unit not known.

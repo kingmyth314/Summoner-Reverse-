@@ -100,6 +100,10 @@ public:
     bool  anim_lod_skip();            // 0x46ad10 character_anim_lod_skip
     void  process_anim(float frametime);  // 0x46adf0 character_process_anim
     void  fill_locomotion_anims();    // 0x46af70 character_fill_locomotion_anims
+    // decomp29 (boss_ai.cpp)
+    Character *get_mount();           // 0x462d20 character_get_mount (+0x6e0 when that entity has +0x6e4 bit 1)
+    Character *get_rider();           // 0x462d40 character_get_rider (+0x6e0 when that entity has +0x6e4 bit 0)
+    float get_698();                  // 0x456f80 character_get_698 (1.0 or forward_speed)
 
     int team;                         // +0x098
     int move_start_time;              // +0x09C
@@ -226,6 +230,11 @@ extern Character living_list;         // 0x8eca60 sentinel (sum.symbols' living_
 extern Character living_list_inactive; // 0x8ed1e8 second sentinel (live_next 0x8ed500), walked by
                                       // living_entities_move_all
 extern char *locomotion_anim_names[NUM_LOCO_ANIMS];   // 0x599648 "stand", "norm_walk", ... "statscreen"
+// Per char_info size (+0x90): character_size_height / character_size_radius and charinfo_boss_height /
+// _radius (boss_ai.cpp, decomp29). The heights {0.9, 1.8, 2.5, 99.9} are in .rdata (name ours), the
+// radii {0.15, 0.47, 1.0, 99.9} in living_entity.cpp's .data.
+extern const float character_size_heights[4];          // 0x5818d8
+extern float character_size_radii[4];                  // 0x59d7c8
 
 // Speech bubbles (character_say 0x461dc0, counted down by objects_do_frame). Type name ours.
 struct character_speech_record {

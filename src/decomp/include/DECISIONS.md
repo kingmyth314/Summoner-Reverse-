@@ -962,3 +962,80 @@ is named.
 (0x52292a, ret 4) like the constructor 0x522610, and s3d_read_navpoint builds a temporary with it and then
 copies it with the inline operator= (0x46f343-0x46f374) before File::write_quaternion. Declared as a second
 constructor taking the matrix by pointer (the reference one is 0x522610's).
+
+**D900 (boss_ai.cpp, decomp29). ai_state +0x34 is a float.** `int _unk34` becomes `float attack_range`:
+boss_get_move_range (0x4a26f0) copies a boss move record's second $Range: float there (`mov eax, [ecx];
+mov [esi+0x34], eax` after `*max = m->range_max`), and the Titus / Pyrul cases store an x87 result
+(`fstp dword ptr [esi + 0x34]` at 0x4a27c3 / 0x4a27d3). No existing .cpp read `_unk34`.
+
+**D901 (boss_ai.cpp). char_info +0x188 is a short count.** `ubyte _unk188[0x12]` becomes
+`short num_target_points; ubyte _unk18a[0x10];`: character_target_point_count (0x4a21b0) tests
+`cmp word ptr [eax + 0x188], 0 / jle` and returns `movsx eax, word ptr [eax + 0x188]`. Offsets and
+size unchanged (LAYOUT_CHECK 0x3d0).
+
+**D902 (boss_ai.cpp). The per-boss AI functions are ai_state members.** boss_ai_check_stage loads ECX with
+the AI record before every per-boss call (`mov ecx, esi; call 0x49a6c0 tiger_check_stage`, 0x4a075f) and
+the load / idle / frame dispatchers tail-jump with ECX unchanged; the callees read it (`mov esi, ecx`,
+`mov eax, [ecx + 0x4c]` at 0x49ad27, 0x4c56cc, 0x49b041, ...). So they are declared in ai_state (ai.h)
+next to the dispatchers boss_ai_load / _unload / _check_stage / _idle_dispatch / _frame,
+boss_threat_decay, boss_turn_rate_override, boss_get_attack_move_id and boss_get_move_range (all
+thiscall: sum.symbols "thiscall on ai"; boss_get_move_range ends `ret 8`). The unload callees never read
+ECX (luminar_free_bitmap, tiger_unload, ...: no ECX use in their first instructions) and
+ghost_revive_minions is called without loading ECX (0x4a079f), so those are free functions in boss_ai.h.
+luminar_ai_idle and tentacle_beast_ai_idle do not read ECX either; they stay members for uniformity
+(the tail jump is the same either way).
+
+**D903 (boss_ai.cpp). Boss move records.** New `struct boss_attack` (0x20 bytes) from boss_ai_parse_table's
+stores (+0 offense point, +4 / +8 $Range:, +0xc cos($Max angle:), +0x10 = 1, +0x14 +Spell:, +0x18
+$Variation:, +0x1c flags 1 Trip, 2 Push, 4 Projectile, 8 Spell Only, 0x10 Plus Spell). The bosses'
+current-move pointers are `boss_attack *`, and so is serpent_part_busy (sum.symbols: int[3]): the
+dispatchers dereference it (`test byte ptr [eax + 0x1c], 0x8` at 0x4a0b9a, `mov eax, [edi + 0x14]` at
+0x4a0cf2, `cmp dword ptr [eax + 0x18], 0xbb` at 0x4a1cd1). serpent_part_move (0x2452390) stays int[3]: it is
+returned without a dereference (0x4a20f5). The table argument is `boss_attack table[][10]`:
+the record pointer is `table + (stage * 5 - 5) << 6` = (stage - 1) * 0x140, and serpent_attack_table
+(0x2451ed8) + 3 * 0x140 is serpent_timer_attack (0x2452298), so the serpent's table is [3][10].
+
+**D904 (boss_ai.cpp). boss_threat_add argument order.** sum.symbols says "(boss, attacker, amount, melee)".
+The body reads the handle from the third argument (`mov ebp, [esp + 0x10]` after one push, then
+living_from_handle(ebp)), the amount from the second (`fld dword ptr [esp + 0x10]` after two pushes) and
+the flag from the fourth; character_add_hp pushes (a, source, delta, boss) (0x4509ff-0x450a0e). Declared
+`boss_threat_add(Character *boss, float amount, int attacker, int flag)`. boss_threat (types.h) gets a
+GameTimer at +0x14 (GameTimer::SetTimeout on `lea ecx, [esi + 0xc]` with esi = record + 8).
+
+**D905 (boss_ai.cpp). boss_counter_hit_dispatch's arguments.** The decomp23 header names (attacker,
+defender) are right: the function tests the first argument for type 9 and the Ghost / Serpent species
+and casts the move's spell on the second (`mov ecx, [esp + 0x28]` = argument 2 before
+living_entity_get_hit_by_spell, source = argument 1's handle). sum.symbols' "(boss, attacker)" and
+bosses.md's "hits the melee attacker" read it the other way round: the boss's own hit carries its
++Plus Spell: to the defender. Only the comment changed.
+
+**D906 (boss_ai.cpp). fx_create_spell_effect_at.** Declared in fx.h as (spell, caster, owner, ms, pos,
+orient): the body stores argument 2 at +0xb0, argument 3 (resolved with living_from_handle, default
+position +0x10 and orientation +0x38) at +0xb4 and passes argument 4 to GameTimer::SetTimeout on +0xdc
+(0x48cb10-0x48cb31); arguments 5 / 6 are the pos / orient overrides. sum.symbols lists the time last.
+
+**D907 (boss_ai.cpp). Folded per-boss functions.** Several dispatcher cases call or jump to
+empty_function (0x4f13e0) or ls_test_use (0x4f29c0, `xor al, al; ret`). In the source these are separate
+per-boss functions merged by identical-code folding at link time, so they are declared with names of
+ours (titus_unload, murod_oni_check_stage, evil_joseph_check_stage_b, giant_salamanka_ai_idle,
+murod_oni_fire_attack, murod_oni_cast_special, the four *_script_hook) and no address. Their calling
+conventions follow the call sites (ECX loaded = ai_state member; pushed Character * = cdecl).
+
+**D908 (boss_ai.cpp). Jump-table bounds.** Four switches have a byte table wider than their real cases:
+boss_cast_special_dispatch (0x51..0xc9, lowest real case 0x58), boss_attack_stuns_dispatch and
+boss_attack_knocks_down_dispatch (0x51..0xc9, cases 0xac / 0xb8), boss_stage_attack_enabled_dispatch
+(0x51..0xc5, case 0xac). The bounding species are written as explicit cases that share the default
+body; which other species the original listed cannot be told (they all map to the default).
+
+**D909 (boss_ai.cpp). Other additions.** living_entity.h: Character::get_mount (0x462d20), get_rider
+(0x462d40), get_698 (0x456f80), `character_size_heights` (0x5818d8, .rdata, name ours) and
+`character_size_radii` (0x59d7c8). characterinfo.h: num_char_infos (0x714e54). ai.h:
+ai_state::add_move_to_timed (0x474190) and ai_score_target (0x4b53c0) with its 0x14-byte query record
+(ai_target_query, names ours). vector.h: vector2::len_sq (0x523fa0, out of line: it is in the vector unit
+0x523f80-0x524930). pathfinding.h: pf_point_lists[3][20] (0x245f460, 0x60-byte records, index
+size * 20 + layer; three sizes fit before 0x2460ae0; names ours). effect_mem.h: effects_load_preload_rfx
+(0x51dbb0). spells.h: SPELL_NIGHTMARE 0x48, SPELL_GHOST_DEATH 0x54 (spells.tbl records 72 and 84).
+boss_ai.h: the boss species constants, boss_attack, boss_threat, boss_target (0x10-byte candidate
+record of boss_target_list_build), every boss_ai.cpp function and the per-boss functions and data the
+unit calls. tentacle_get_attack_kind takes the Character (both dispatchers push `[esi]`, the owner),
+not a handle as sum.symbols says.

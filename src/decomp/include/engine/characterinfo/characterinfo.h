@@ -155,7 +155,8 @@ struct char_info {
     int prop_tag;            // +0x124 $Default Prop Tag:
     const char *prop_tags[0x10]; // +0x128
     short _unk168[0x10];     // +0x168
-    ubyte _unk188[0x12];
+    short num_target_points; // +0x188 attack points (character_target_point_count, boss_ai.cpp; D901)
+    ubyte _unk18a[0x10];
     short num_footstep_sets; // +0x19A
     ubyte _unk19c[0x04];
     int footstep_sounds_a[3][5]; // +0x1A0
@@ -191,6 +192,7 @@ struct char_info {
 };
 LAYOUT_CHECK(char_info, sizeof(char_info) == 0x3d0);
 extern char_info char_infos[256];                     // 0x6d7e50
+extern int num_char_infos;                            // 0x714e54 record count (characterinfo_parse_table; decomp29)
 
 int   charinfo_find_by_name(const char *name);       // 0x446b80 index or -1 (decomp30, character.cpp)
 int   charinfo_find_by_species(int species);          // 0x446bd0 index or -1

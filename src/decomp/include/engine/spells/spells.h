@@ -51,6 +51,8 @@ class effect_object;
 #define SPELL_GENERIC_ARROW 0x37
 #define SPELL_TRIP          0x3b
 #define SPELL_GHOST_PARALYZING_FEAR 0x50
+#define SPELL_NIGHTMARE     0x48      // decomp29 (boss_attack_trigger_dispatch: 20 s serpent attack timer)
+#define SPELL_GHOST_DEATH   0x54      // decomp29 (boss_counter_hit_dispatch)
 
 // One spells.tbl record (0x80 bytes, spells 0x22e4f28).
 struct spell_info {

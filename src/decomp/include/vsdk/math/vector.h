@@ -90,6 +90,7 @@ class vector2 {
 public:
     float len() const;                                // 0x523f80 vector2__len
     float normalize();                                // 0x523fc0 vector2__normalize: returns the length, (1, 0) at 0
+    float len_sq() const;                             // 0x523fa0 vector2__len_sq (in the vector unit, so out of line; decomp29)
     float x, y;
 };
 LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);

@@ -42,5 +42,9 @@ int  fx_add_effect(const char *effect, const vector3 *pos, const matrix *orient,
 int  fx_attach_to_character(const char *effect, int handle, int tag, int source, int a, int b);  // 0x48c080 handle or -1
 int  fx_create_missile(int spell, const vector3 *start, const matrix *orient, int caster, int target);  // 0x48c220
 int  fx_create_ground_effect(int spell, int caster, const vector3 *pos, const matrix *orient);   // 0x48c540 handle or -1
+// (spell, caster +0xb0, owner +0xb4 whose position / orientation are the defaults, timer ms +0xdc, pos or
+// NULL, orient or NULL): handle or -1. The timer is the 4th argument (sum.symbols lists it last; decomp29).
+int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const vector3 *pos,
+                               const matrix *orient);                       // 0x48cab0
 
 #endif
