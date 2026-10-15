@@ -2081,17 +2081,21 @@
 0x49fa70  pf_graph_search          func  pathfinding.cpp      I ; graph search of ai_path_find: start/end regions (pf_select_graph, 0x4a5d40), visibility (0x49f340), avoidance nodes (0x49f810), builds the node list (ai_path_node_create)
 0x4a01d0  ai_path_find             func  pathfinding.cpp      O ; timed graph search (0x49fa70, or 0x49f650 without Precalc_vis_method), fills each node +0x10 with the normalised step vector, path nodes linked by +0x24
 0x4a02d0  ai_path_alloc_node       func  pathfinding.cpp      I ; "Out of ai path nodes -- current max is %d."
+0x4a0330  ai_path_node_create_b    func  pathfinding.cpp      O ; (x, y, z, flags, prev): ai_path_alloc_node, position, +0xc flags, +0x24 prev, +0x1c cumulative cost = prev cost + vector3__length_quick(prev - pos), same body as ai_path_node_create, callers pf_graph_search, ai_follow_path, 0x4bd2a0
 0x4a03c0  ai_path_node_create      func  pathfinding.cpp      O ; (x, y, z, flags, prev): ai_path_alloc_node, position, +0xc = flags, +0x24 = prev, cumulative length +0x1c from prev, callers mp_handle_new_path, pf_graph_search
 0x4a0440  ai_path_free_node        func  pathfinding.cpp      O ; pushes a node on the free list 0x2452d30 (link +0x24), used count 0x2452d4c--, pair of ai_path_alloc_node
 0x4a0460  ai_path_pop_node         func  pathfinding.cpp      O ; (node): ai_path_free_node and returns its next node (+0x24), caller ai_follow_path
 0x4a0480  ai_path_free             func  pathfinding.cpp      O ; ai_path_free_node on every node of a path (17 callers)
 0x4a04a0  pf_node_index            func  pathfinding.cpp      O ; (node pointer): (node - 0x2460ca8 table) / 8, caller 0x4a82a0
+0x4a04b0  static_init_boss_rider_sound_timer func  -                    O ; hidden start: initialiser table entry 290 (0x58848c): jmp init_boss_rider_sound_timer
+0x4a04c0  init_boss_rider_sound_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x245c9e0), the timer reset by boss_rider_sound_timer_reset, reached from initialiser table entry 290 (0x58848c) via jmp 0x4a04b0
 0x4a04d0  boss_ai_unload           func  -                    I ; species dispatch from 0x472420 (AI teardown, with ai_path_free) to per-boss cleanup (tiger 0x49ae90 frees the weapon item)
 0x4a0600  boss_ai_load             func  -                    O ; thiscall on ai: jump table on owner species: Luminar 0x4c8dc0, tiger/serpent/phoenix/ghost/pyrul/murod_oni/machival _boss_load, Tentacle Beast 0x4c6d10, Giant Salamanka 0x4c83a0, Titus 0x4c2380, Murod 0x4c56c0, Urath 0x4c45b0, Evil Joseph 0x4c35e0
 0x4a0730  boss_ai_check_stage      func  -                    I ; species dispatch (called from the AI frame 0x472a90) to the per-boss stage/HP checks (0x495b90 serpent, 0x499690 phoenix, 0x49a6c0 tiger, ...)
 0x4a08c0  boss_ai_idle_dispatch    func  -                    I ; species dispatch from the AI frame 0x472a90 (tiger/phoenix cases: back to combat when no move plays)
 0x4a09f0  boss_ai_frame            func  -                    O ; species dispatch from 0x4bff60 to each boss think function (phoenix 0x499410, tiger 0x49bed0, serpent 0x4973e0, ghost 0x4bb380, ...)
 0x4a0b40  boss_cast_special_dispatch func  -                    O ; species switch: phoenix_cast_special, ghost_cast_special, pyrul_cast_special, 0x4c32e0, 0x4c3980, 0x4c8b60, serpent part checks, caller living_combat_update_boss_attack
+0x4a0ca0  boss_attack_trigger_dispatch func  -                    I ; species dispatch from living_combat_update_boss_attack when a boss move trigger fires: pyrul_fire_attack, ghost_fire_attack, evil_joseph_fire_attack, giant_salamanka_fire_attack, titus / machival knock downs, serpent parts
 0x4a0e60  boss_move_target_in_range func  -                    O ; (boss, target, move): edge distance below the move range (+8) or the char_info attack radius (+0x34)
 0x4a1200  boss_get_threat_table    func  -                    O ; (boss): species switch to the boss's 5-entry threat table (0x18-byte {handle, threat floats, timer}), 0 for other species
 0x4a1310  boss_threat_decay        func  -                    O ; thiscall ai: decays each threat entry by the frame time (+0x610) and drops dead attackers (-1), caller boss_ai_check_stage
@@ -2131,9 +2135,22 @@
 0x4a34d0  boss_rider_sound_timer_reset func  -                    O ; state_game_enter: GameTimer 0x245c9e0 = now
 0x4a3570  level_preload_effects    func  -                    O ; tail jump to effects_load_preload_rfx, caller level_load_files
 0x4a3580  level_page_in_characters func  -                    I ; gr_page_in of every living entity's textures (char_info +0x268 list), sound loads
+0x4a3640  static_init_handle_slots_245c9e8 func  -                    O ; hidden start: initialiser table entry 291 (0x588490): jmp init_handle_slots_245c9e8
+0x4a3650  init_handle_slots_245c9e8 func  -                    O ; static initialiser: 8 x 0x38-byte slots at 0x245c9e8 (handle +0x30 = -1, GameTimer +0x34 constructed and invalidated), reached from initialiser table entry 291 (0x588490) via jmp 0x4a3640
+0x4a37d0  static_init_exp_const_245cdc8 func  -                    O ; hidden start: initialiser table entry 292 (0x588494): jmp init_exp_const_245cdc8
+0x4a37e0  init_exp_const_245cdc8   func  -                    O ; hidden start: static initialiser: float 0x245cdc8 = exp(*0x59cd98) (x87 fldl2e / f2xm1 / fscale sequence), reached from initialiser table entry 292 (0x588494) via jmp 0x4a37d0
+0x4a3810  static_init_copy_const_245cdcc func  -                    O ; hidden start: initialiser table entry 293 (0x588498): jmp init_copy_const_245cdcc
+0x4a3820  init_copy_const_245cdcc  func  -                    O ; hidden start: static initialiser: 0x245cdcc = 0x245cdc8, reached from initialiser table entry 293 (0x588498) via jmp 0x4a3810
+0x4a3830  static_init_empty_4a3840 func  -                    O ; hidden start: initialiser table entry 294 (0x58849c): jmp init_empty_4a3840
+0x4a3840  init_empty_4a3840        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 294 (0x58849c) via jmp 0x4a3830
+0x4a3850  static_init_empty_4a3860 func  -                    O ; hidden start: initialiser table entry 295 (0x5884a0): jmp init_empty_4a3860
+0x4a3860  init_empty_4a3860        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 295 (0x5884a0) via jmp 0x4a3850
 0x4a3870  frame_sleep_when_inactive func  -                    O ; (active): timer_wait(10) when the argument is 0, caller state_game_frame
+0x4a3de0  static_init_ccmd_obstacle_height_offset func  -                    O ; hidden start: initialiser table entry 296 (0x5884a4): jmp init_ccmd_obstacle_height_offset
 0x4a3df0  init_ccmd_obstacle_height_offset func  -                    O ; static initialiser: registers console command object ccmd_obstacle_height_offset
 0x4a3e10  cmd_obstacle_height_offset func  -                      O ; console command "obstacle_height_offset": Set the height level to draw obstacles relative to main player pos
+0x4a3e80  static_init_shadow_records func  -                    O ; hidden start: initialiser table entry 297 (0x5884a8): jmp init_shadow_records
+0x4a3e90  init_shadow_records      func  -                    O ; hidden start: static initialiser: 16 projected-shadow records (0x245ce8c, stride 0x1f8, see shadow_list_clear) through the record constructor 0x4c0690, reached from initialiser table entry 297 (0x5884a8) via jmp 0x4a3e80
 0x4a3eb0  shadow_list_clear        func  -                    O ; clears bits 0x1c0 of each projected-shadow record (0x245ce8c, 0x1f8 bytes) and the count 0x245f398, caller state_game_frame
 0x4a42e0  plane__set_normal_point_b func  vsdk\math            O ; thiscall (normal, point): copies the normal and +0xc = dot(n, p) * 0x580e1c (copy of plane__set_normal_point), callers 0x4a3ef0, 0x4bbf10, gr_clip_plane__set_from_normal
 0x4a4320  matrix3__copy            func  vsdk\math            O ; copies 9 floats
@@ -2143,8 +2160,19 @@
 0x4a4ec0  vector2__to_vector3      func  vsdk\math            O ; thiscall (out): (x, 0, y)
 0x4a4ee0  vector2__from_xz         func  vsdk\math            O ; thiscall (vector3*): x = v.x, y = v.z
 0x4a4f30  pf_select_graph          func  pathfinding.cpp      O ; (size class, layer): current graph cell 0x2460ae4 = 0x245f460 + 0x60 * (20 * size + layer), stores both in 0x245f458 / 0x245f3b0
+0x4a4f60  seg2d_point_left_of      func  -                    O ; (point, segment {a*, b*}): 2D cross product of (b - a) and (point - a) compared with 0x57eb84, 1 when positive, 6 pathfinding/avoidance callers
 0x4a5bd0  seg2d_line_intersect     func  -                    O ; (segment, line, out): 2D intersection parameter into 0x245f3ac (denominator 0x245f3a4) and the point
 0x4a5dc0  pf_point_is_navigable    func  pathfinding.cpp      O ; (point, size class, layer): pf_select_graph, false without a graph, true without a BSP, else 0x4a5d40 != 0, 23 callers
+0x4a5e00  grid_hash_bucket         func  -                    O ; (x, y, w, n): (x + y * w) % n
+0x4a5e20  grid_linear_index        func  -                    O ; (x, y, w): x + y * w
+0x4a5e30  pf_grid_hash_find        func  -                    I ; (x, y, grid): bucket grid_hash_bucket(x, y, +0x18, +0x20) of the 8-byte bucket array +0x24 ({short count, 0xc-byte entries*}), returns the entry whose key equals grid_linear_index(x, y, +0x18), else 0
+0x4a6710  static_init_vector3_arrays_246a804 func  -                    O ; hidden start: initialiser table entry 298 (0x5884ac): jmp init_vector3_arrays_246a804
+0x4a6720  init_vector3_arrays_246a804 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 30) arrays from 0x246a804 (inside the avoidance polygon table 0x246a7f0), reached from initialiser table entry 298 (0x5884ac) via jmp 0x4a6710
+0x4a6750  static_init_vector3_arrays_246a0b8 func  -                    O ; hidden start: initialiser table entry 299 (0x5884b0): jmp init_vector3_arrays_246a0b8
+0x4a6760  init_vector3_arrays_246a0b8 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 8) arrays from 0x246a0b8 (avoidance tables), reached from initialiser table entry 299 (0x5884b0) via jmp 0x4a6750
+0x4a6790  static_init_vector3_arrays_2461020 func  -                    O ; hidden start: initialiser table entry 300 (0x5884b4): jmp init_vector3_arrays_2461020
+0x4a67a0  init_vector3_arrays_2461020 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 30) arrays around 0x2461020 (avoidance tables), reached from initialiser table entry 300 (0x5884b4) via jmp 0x4a6790
+0x4a67e0  static_init_ccmd_avoidance func  -                    O ; hidden start: initialiser table entry 301 (0x5884b8): jmp init_ccmd_avoidance
 0x4a67f0  init_ccmd_avoidance      func  -                    O ; static initialiser: registers console command object ccmd_avoidance
 0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
 0x4a6b40  avoid_clear_segment_flags func  -                    O ; clears flag 0x20 and the counter +0xb of every segment referenced by the avoidance cells (0x2460dbc, 0xa78 bytes), caller cmd_avoidance
@@ -2164,6 +2192,7 @@
 0x4a7b80  avoid_area_free          func  -                    O ; (slot): clears the slot's first word
 0x4a7cb0  avoid_area_rebuild       func  -                    I ; re-runs avoid_create_obstacle_polys and avoid_do_poly_seg_list_links for an area (timer_get timing), caller avoid_area_remove
 0x4a8390  avoid_do_poly_seg_list_links func  -                    O ; "do_poly_seg_list_links -- out of memory"
+0x4a8a60  qsort_cmp_float_asc      func  -                    O ; hidden start: qsort comparator (float* a, float* b): -1 when *a < *b else 1, passed to crt qsort 0x56e6a9 with element size 0xc at 0x4a8b58 (avoid segment sorting)
 0x4a8df0  avoid_clip_segments      func  -                    I ; splits graph segments against the avoidance polygons ("ran out of backup segs"), caller avoid_create_obstacle_polys
 0x4a9400  avoid_age_segments       func  -                    O ; decrements the counter +0xb of each segment in 0x246b74c (count 0x246b748) and clears flag 0x20 at 0
 0x4a9440  avoid_create_obstacle_polys func  -                    I ; "create_obstacle_poly_from_avoid_poly failed", "add_primative_to_avoid_poly failed"
@@ -2173,6 +2202,7 @@
 0x4a9eb0  avoid_add_primitive      func  -                    I ; turns an area primitive into obstacle polygons (avoid_create_obstacle_polys), caller avoid_area_add
 0x4aa3a0  vector2__assign          func  vsdk\math            O ; thiscall (vector2*): copies x, y
 0x4aa3c0  vector2__operator_add    func  vsdk\math            O ; thiscall (out, b): out = this + b
+0x4aa3e0  avoid_poly_get           func  -                    O ; (record): &avoidance polygon table 0x246a7f0[record +0x8] (0x114-byte polygons), caller 0x49f810
 0x4aa760  mp_door_apply_remote     func  multi_door.cpp       I ; multiplayer door packet: door_set_open / door_set_closed, or an unlock that updates the saved two-stage state, plays sound 6 and 0x469720 ("This door already unlocked." when it was), caller the packet dispatcher 0x4a3890
 0x4aa780  mp_handle_door_toggle    func  -                    O ; packet 0x28 DOOR_TG handler: door_set_open
 0x4aa7d0  mp_handle_door_lockpick  func  -                    O ; packet 0x29 DOR_PCK handler: savegame_two_stage_get/set for the door, game_play_sound
@@ -2184,13 +2214,23 @@
 0x4aafb0  alt_textures_free        func  -                    O ; operator_delete on every alt texture list
 0x4aaff0  alt_textures_find        func  -                    O ; (base name, int* count) returns the texture list of that base from 0x2476bb8 / counts 0x24790b8
 0x4ab050  alt_textures_find_entry  func  -                    O ; (base name, texture name) entry (0x2d4 bytes) in the alt texture lists, used by characterinfo_parse_table
+0x4ab0f0  static_init_mp_join_timer func  -                    O ; hidden start: initialiser table entry 302 (0x5884bc): jmp init_mp_join_timer
+0x4ab100  init_mp_join_timer       func  -                    O ; hidden start: static initialiser: RealtimeTimer__RealtimeTimer(0x24794c0), the timer of mp_join_timer_reset, reached from initialiser table entry 302 (0x5884bc) via jmp 0x4ab0f0
 0x4ab110  mp_join_timer_reset      func  -                    O ; state14_enter: RealtimeTimer__invalidate(0x24794c0), 0x24794bc = 0
-0x4ab130  mp_process_join_request  func  -                    I ; "WARNING -- ignoring redundant join request packet from net ID"
+0x4ab130  chat_history_pump        func  -                    I ; per-frame from state14_enter: pops lines with chat_history_pop and shows them; the redundant join request warning string is in this range (real join handling: mp_accept_join_request 0x4ab5d0) (formerly mp_process_join_request)
 0x4ab1c0  mp_handle_game_query     func  -                    O ; packet 0 GM_QURY handler: replies with the game info built by 0x4ab1f0
+0x4ab1f0  mp_build_game_info       func  -                    I ; hidden start: (out buffer): fills the game info block (host settings 0x6513a8.., 0x6513d8.., level) sent by mp_handle_game_query and mp_send_accept_join
 0x4ab350  mp_handle_join_request   func  -                    O ; packet 2 JN_RQST handler, calls 0x4ab580
+0x4ab580  mp_send_deny_join        func  -                    O ; hidden start: packet 4 DENY_JN sender (counter 0x595234): {type 4, size 7, reason dword} through 0x441da0 to one address, callers mp_handle_join_request and mp_accept_join_request
+0x4ab5d0  mp_accept_join_request   func  -                    O ; hidden start: "WARNING -- ignoring redundant join request packet from net ID%d": nw_addr_equal over the player list 0x651418, mp_player_alloc (mp_send_deny_join when full), join timers 0x24794c0 / GameTimer, then mp_send_accept_join, called from mp_handle_join_request
+0x4ab710  mp_send_accept_join      func  -                    O ; hidden start: packet 3 ACPT_JN sender (counter 0x595218): mp_build_game_info into the packet, player id (+0x1c), host id (0x651598 +0x1c), multi_send_packet_buffered, caller mp_accept_join_request
+0x4ab780  mp_change_level          func  -                    I ; "%s_m1" multiplayer level name, mp_player_save_on_leave, game_change_level, mp_goto_wait_state / mp_set_session_state, callers mp_handle_gm_stat, level_apply_pending_change, 0x43ec40
 0x4ab8e0  mp_goto_wait_state       func  -                    O ; mp_set_local_status(3), gameseq_set_state(14), host: mp_set_session_state(1)
 0x4ab920  mp_unpause               func  -                    O ; tail jump to game_unpause, callers mp_host_update_session, multi_set_netgame_state
 0x4ab930  tracker_init             func  -                    O ; once (0x2479720): game tracker init (0x4ae330 with game type 5) and utrack_init, caller mp_session_reset
+0x4ab960  tracker_start_game       func  -                    I ; once tracker_init ran (0x2479720): fills the 0x58-byte game record (0x24794c8.., host settings 0x6513a8) and calls gtrack_start_game, caller mp_host_game
+0x4aba20  tracker_end_game         func  -                    I ; tracker side of mp_leave_game: when tracker_init ran, debug flag 2 and local player flags 1 and 0x20 are set, gtrack_send_game_over, clears the 0x58-byte game record 0x24794c8 and flag 0x20
+0x4aba70  tracker_request_games    func  -                    O ; gtrack_request_filtered_list with the filter 0x2479620 when set, else gtrack_request_game_list, caller 0x4705f0
 0x4abb50  tracker_frame            func  -                    O ; multi_do_frame: nw_receive_all, mp_send_update and the pending game list (0x4ae660 -> 0x4abaf0) when the tracker is initialised
 0x4abb80  irc_send_raw             func  -                    O ; (text, len): send() on the chat socket 0x2479740, caller irc_process_input
 0x4abba0  irc_chat_reset           func  -                    O ; zeroes the chat client state (0x247a4dc.., 0x247ae20..), caller state_mp_lobby_enter
@@ -2216,17 +2256,22 @@
 0x4ae660  gtrack_get_game_list     func  -                    O ; returns a copy (0x247b0b0) of the first received game list packet (0x180-byte slots at 0x247c428) and frees its slot, 0 when none
 0x4ae6b0  gtrack_request_game_list func  -                    O ; sends the 0x15-byte game list request to the tracker 0x247c420
 0x4ae6e0  gtrack_request_filtered_list func  -                    O ; (filter, 0x28 bytes): sends a 0x3d-byte filtered game list request to the tracker
+0x4ae720  gtrack_send_game_over    func  -                    I ; tracker state 0x247be24: 2 -> 0 and returns 1, 1 -> gtrack_send_heartbeat, 0 -> timestamps 0x247b0ac / 0x247b234 and nw_send_packet of 0x247be28 to the tracker 0x247c420, state 1
 0x4ae7a0  gtrack_send_ack          func  -                    O ; (sig): sends the ack packet (0x247b238) with the signature at +0x11, caller mp_send_update
 0x4ae7d0  gtrack_start_game        func  -                    O ; (game data, 0x58 bytes): copies it into the heartbeat packet when the tracker is ready (state 5) and arms the first update (0x247b0a0 = 1, 0x247b0a8 = -10)
 0x4ae890  lobj_raycast             func  -                    I ; (lobj index, ray, out hit, flag): rotates the ray into the object's frame and tests its geometry (0x4aea00 / 0x4aeef0), used by ground probes, line of sight 0x4a4bb0 and item drop placement
 0x4af2c0  lobj_raycast_all         func  -                    O ; (ray, out hit): lobj_raycast against every level object, stopping at the first hit (ray flag 1) or a hit nearer than +0x28 (flag 4), 11 callers
 0x4af340  mp_broadcast_new_info    func  -                    O ; packet 6 NEW_INF sender (counter 0x59526c): mp_process_new_player, mp_broadcast_packet, mp_announce_player_joined, caller mp_host_update_session
 0x4af3c0  mp_announce_player_joined func  -                    O ; L236 "%s has entered the game." via chat_process_command
-0x4af400  mp_process_new_player    func  -                    I ; "Received new player packet but player %s is already connected"
+0x4af400  mp_pack_player_info      func  -                    I ; packs a player info record into a packet buffer (callers mp_broadcast_new_info and 0x4af670); the new-player handler is mp_add_new_player 0x4af4e0 (formerly mp_process_new_player)
 0x4af4b0  mp_handle_new_info       func  -                    O ; packet 6 NEW_INF handler: 0x4af4e0 then mp_announce_player_joined
+0x4af4e0  mp_add_new_player        func  -                    O ; hidden start: "Received new player packet but player %s is already connected": mp_player_find_by_id, mp_player_alloc and fills the record from the packet, callers mp_handle_new_info and mp_handle_net_info
 0x4af760  mp_handle_net_info       func  -                    O ; packet 5 NET_INF handler: 0x4af4e0, mp_announce_player_joined, mp_set_local_status
 0x4af7d0  mp_send_player_data      func  -                    O ; packet 7 PLY_DAT sender (counter 0x595288): character stats (+0x5f4..+0x604), skill points (Player +0x17c) and equipment (+0x754..) of each party member
 0x4af990  mp_handle_player_data    func  -                    O ; packet 7 PLY_DAT handler: mp_player_find_by_id, living_from_handle, mp_map_net_handle
+0x4afbe0  mp_page_in_player_items  func  -                    I ; hidden start: item_paging_find_player_slot then item_page_in for the received player's equipment, caller mp_handle_player_data
+0x4afca0  mp_write_spell_target_point func  -                    O ; (spell, ..., buffer, ushort* offset): for spell types 0x1d / 0x1f writes the three dwords +0x1c/+0x20/+0x24 into the packet, caller mp_spell_cast_sync
+0x4afd10  mp_read_spell_target_point func  -                    O ; hidden start: reverse of mp_write_spell_target_point (spell types 0x1d / 0x1f, reads +0x1c/+0x20/+0x24), caller mp_handle_release_spell
 0x4b0130  mp_send_summon_deny      func  -                    O ; packet 0x37 SMN_DNY sender (counter 0x5957c8) to one player (mp_player_find_by_id)
 0x4b0180  mp_send_cast_anim        func  -                    O ; packet 0x34 CST_ANM sender (counter 0x595774), caller 0x4b4920 (cast spell mode)
 0x4b0210  mp_handle_cast_anim      func  -                    O ; packet 0x34 CST_ANM handler: character_perform_spell_cast on the remote caster, host forwards
@@ -2244,6 +2289,7 @@
 0x4b0850  mp_summon_map_handle     func  -                    O ; (handle): mp_map_net_handle(0x247e828, handle) when a summon net handle is pending, caller summon_create
 0x4b0870  mp_send_summon_quick     func  -                    O ; packet 0x3A SMN_QCK sender (counter 0x59581c), callers mp_game_frame and 0x4b71c0, handler dismisses
 0x4b08f0  mp_handle_summon_quick   func  -                    O ; packet 0x3A SMN_QCK handler: summon_dismiss of the remote summon, host forwards
+0x4b0940  mp_summon_claim_release  func  -                    O ; summon owner 0x247e824 = -1, handle 0x247e828 = -1, 0x247e82c = 0 (same body as mp_summon_claim_reset), callers summon_turn_hostile, summon_dismiss
 0x4b0960  mp_send_level_complete   func  -                    O ; packet 0x3C L_CMPLT sender (counter 0x595854), host only
 0x4b09c0  mp_handle_level_complete func  -                    O ; packet 0x3C L_CMPLT handler: mp_mark_level_complete
 0x4b09f0  mp_mark_level_complete   func  -                    O ; (level < 26): sets bit level in +0x30 of every multiplayer player record (list 0x651418), host broadcasts it, callers level_boss_init, 0x4b1150
@@ -2253,8 +2299,10 @@
 0x4b0b50  level_boss_init          func  -                    I ; cur_level_index lookup in 0x59fde8 (0x10-byte records up to "endgame"), switch per level finding the boss by name ("Barbarian Fighter#boss", "Galienne#$kingroom", "Carados", ...)
 0x4b11a0  mp_combat_reset_target   func  -                    I ; "resetting %s to attack %s": resynchronises a combat target in multiplayer, caller 0x463540
 0x4b1280  mp_handle_combat_sequence func  -                    O ; packet 0x22 COM_SEQ handler: ai_attack_target, "resetting %s to attack %s", living_combat_apply_net_exchange
+0x4b1410  static_init_ccmd_Turn_anims func  -                    O ; hidden start: initialiser table entry 303 (0x5884c0): jmp init_ccmd_Turn_anims
 0x4b1420  init_ccmd_Turn_anims     func  -                    O ; static initialiser: registers console command object ccmd_Turn_anims
 0x4b1440  cmd_Turn_anims           func  -                      O ; console command "Turn_anims": Toggles Use_turn_anims
+0x4b1500  static_init_ccmd_turn_scaler func  -                    O ; hidden start: initialiser table entry 304 (0x5884c4): jmp init_ccmd_turn_scaler
 0x4b1510  init_ccmd_turn_scaler    func  -                    O ; static initialiser: registers console command object ccmd_turn_scaler
 0x4b1530  cmd_turn_scaler          func  -                      O ; console command "turn_scaler": Set the turn scaler
 0x4b24f0  vector3__dot             func  vsdk\math            O ; returns x*x' + y*y' + z*z'
@@ -2266,6 +2314,8 @@
 0x4b4ad0  ai_mode_disabled_frame   func  -                    O ; AI_STATE_DISABLED (8) handler of ai_frame
 0x4b4d80  ai_mode_hiding_frame     func  -                    O ; AI_STATE_HIDING (9) handler of ai_frame
 0x4b4eb0  ai_mode_sneaking_frame   func  -                    O ; AI_STATE_SNEAKING (10) handler of ai_frame (also run while owner flag 0x400 is set)
+0x4b5140  static_init_empty_4b5150 func  -                    O ; hidden start: initialiser table entry 305 (0x5884c8): jmp init_empty_4b5150
+0x4b5150  init_empty_4b5150        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 305 (0x5884c8) via jmp 0x4b5140
 0x4b53c0  ai_score_target          func  -                    I ; scores a potential target (enemy, status, skills, line of sight, attackers, combat_attack_rating), callers boss_target_list_build, tiger_pick_target, 0x4b5900
 0x4b6000  ai_goal_do_attack        func  -                    I ; goal type 1 handler (target, flags): range check (character_distance_between_edges), weapon skill, removes travel goals, sets the combat target and attacks (0x472200)
 0x4b6240  ai_goal_do_follow        func  -                    I ; goal type 2 handler (handle): party members following cur_character stay put, else approach via 0x4b5bd0
@@ -2282,12 +2332,17 @@
 0x4b6790  ai_goal_do_sneak         func  -                    O ; goal type 0xF handler: ai_set_mode(SNEAKING, 0xC/0xD), multiplayer broadcast 0x488a20
 0x4b6810  ai_goal_do_special_attack func  -                    I ; goal type 0xE handler (target): within 2 m (character_distance_between_edges) sets combat target with attack 0x12 and ai_set_mode(COMBAT, 0x11)
 0x4b68c0  ai_goal_do_pickup        func  -                    I ; goal type 0x11 handler (obj): removes goal 0, when the object is an item/gold (type 3 or 0xB) within 0x5819b4 calls the pickup routine 0x46b6b0
+0x4b6a70  qsort_cmp_float_field4   func  -                    O ; hidden start: qsort comparator on the float at +4: -1 when a +4 < b +4 else 1, address taken at 0x4b6de0 in 0x4b6c10
 0x4b7610  ai_think                 func  -                    I ; thiscall ai: periodic think on timer +0x3c (party 500 ms, combat 50 ms, else 250-500 ms): 0x4b71c0, ai_process_goals, then per-mode follow / idle handlers, caller ai_frame
 0x4b7d30  pathvis_add_edge_node    func  -                    I ; "Edge tree node limit of %d reached" (pathfinding_visibility.cpp)
 0x4b8150  pathvis_free_edge_node   func  engine\ai\pathfinding_visibility.cpp O ; (node): pushes the edge node on the free list 0x247fce0 (links +0x20 / +0x24), initialising the pool first
 0x4b8350  determine_point_visibility func  engine\ai\pathfinding_visibility.cpp I ; prints "determine_point_visibility() took %d ms."
+0x4b87c0  static_init_pyrul_timers func  -                    O ; hidden start: initialiser table entry 306 (0x5884cc): jmp init_pyrul_timers
+0x4b87d0  init_pyrul_timers        func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x247fd50 (stride 0x18) and the pyrul timers 0x2480294..0x24802a4, reached from initialiser table entry 306 (0x5884cc) via jmp 0x4b87c0
+0x4b8820  static_init_ccmd_pyrul_stage func  -                    O ; hidden start: initialiser table entry 307 (0x5884d0): jmp init_ccmd_pyrul_stage
 0x4b8830  init_ccmd_pyrul_stage    func  -                    O ; static initialiser: registers console command object ccmd_pyrul_stage
 0x4b8850  cmd_pyrul_stage          func  -                      O ; console command "pyrul_stage": Set Pyrul's current combat stage
+0x4b8890  static_init_ccmd_pyrul_combat func  -                    O ; hidden start: initialiser table entry 308 (0x5884d4): jmp init_ccmd_pyrul_combat
 0x4b88a0  init_ccmd_pyrul_combat   func  -                    O ; static initialiser: registers console command object ccmd_pyrul_combat
 0x4b88c0  cmd_pyrul_combat         func  -                      O ; console command "pyrul_combat": Sets pyrul in combat state
 0x4b89b0  pyrul_timer_a_reset      func  -                    O ; GameTimer 0x24802a0 = now, caller pyrul_check_stage
@@ -2300,17 +2355,26 @@
 0x4b8da0  pyrul_choose_attack      func  -                    I ; pyrul combat think: target list, fx_count_spells_1a_1d_4e, move timers, caller pyrul_ai_frame
 0x4b93d0  pyrul_timer_set_random   func  -                    O ; (lo, hi): GameTimer 0x248029c = random lo..hi ms
 0x4b94a0  pyrul_cast_special       func  -                    O ; current pyrul move (0x2480290) spell: ai_goal_add_cast_at_target / character_perform_spell_cast, caller boss_cast_special_dispatch
+0x4b9670  pyrul_fire_attack        func  -                    I ; current pyrul move 0x2480290: spell_cast_execute / spell_fire_missile from the missile bone (0x4b95f0) or spell_place_ground_effect, caller boss_attack_trigger_dispatch
 0x4b9a50  pyrul_is_own_move        func  -                    O ; true when the current move 0x2480290 is one of the pyrul move slots
+0x4b9ae0  pyrul_attack_test_a      func  -                    I ; boss_attack_test_dispatch case: living_combat_test_defense of the party targets in reach (0x4b9c20) into 0x24802b8 / 0x24802bc, used by pyrul_resolve_hit
+0x4b9cc0  pyrul_attack_test_b      func  -                    I ; second boss_attack_test_dispatch pyrul case, same body shape as pyrul_attack_test_a
 0x4b9e00  pyrul_resolve_hit        func  -                    O ; living_combat_resolve_hit_vs on the target recorded in 0x24802b8 / 0x24802bc
+0x4b9e70  static_init_ccmd_ghost_stage func  -                    O ; hidden start: initialiser table entry 309 (0x5884d8): jmp init_ccmd_ghost_stage
 0x4b9e80  init_ccmd_ghost_stage    func  -                    O ; static initialiser: registers console command object ccmd_ghost_stage
 0x4b9ea0  cmd_ghost_stage          func  -                      O ; console command "ghost_stage": Set Ghost rider's current combat stage
+0x4b9ed0  static_init_ccmd_ghost_unlink func  -                    O ; hidden start: initialiser table entry 310 (0x5884dc): jmp init_ccmd_ghost_unlink
 0x4b9ee0  init_ccmd_ghost_unlink   func  -                    O ; static initialiser: registers console command object ccmd_ghost_unlink
 0x4b9f00  cmd_ghost_unlink         func  -                      O ; console command "ghost_unlink": Unlinks ghost from mount
+0x4b9f90  static_init_ccmd_ghost_combat func  -                    O ; hidden start: initialiser table entry 311 (0x5884e0): jmp init_ccmd_ghost_combat
 0x4b9fa0  init_ccmd_ghost_combat   func  -                    O ; static initialiser: registers console command object ccmd_ghost_combat
 0x4b9fc0  cmd_ghost_combat         func  -                      O ; console command "ghost_combat": Puts ghost rider in combat state
 0x4b9fe0  ghost_find_rider         func  -                    O ; living-entity list scan by species, used by cmd_ghost_solo
+0x4ba020  static_init_ccmd_ghost_solo func  -                    O ; hidden start: initialiser table entry 312 (0x5884e4): jmp init_ccmd_ghost_solo
 0x4ba030  init_ccmd_ghost_solo     func  -                    O ; static initialiser: registers console command object ccmd_ghost_solo
 0x4ba050  cmd_ghost_solo           func  -                      O ; console command "ghost_solo": Set ghost without horse
+0x4ba070  static_init_ghost_timers func  -                    O ; hidden start: initialiser table entry 313 (0x5884e8): jmp init_ghost_timers
+0x4ba080  init_ghost_timers        func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x2480830 (stride 0x18) and the ghost timers 0x2480898..0x24808a8, reached from initialiser table entry 313 (0x5884e8) via jmp 0x4ba070
 0x4ba260  ghost_rider_boss_load    func  -                    I ; "ghost_rider_boss.tbl", "Liangshan"/"Jadetemple"/"masad", offense points
 0x4ba690  ghost_timer_set_random   func  -                    O ; (lo, hi): GameTimer 0x248089c = random lo..hi ms
 0x4ba6c0  ghost_set_stage1_anims   func  -                    O ; "stage1_stand", "stage1_walk", "stage1_run" into +0x5ac..
@@ -2330,21 +2394,38 @@
 0x4bb810  ghost_dismount           func  -                    O ; (rider): clears the rider and mount links (+0x6e0 / +0x6e4), mount AI target, flags and +0x72c, caller boss_dismount_dispatch
 0x4bb870  ghost_set_ride_anims     func  -                    O ; "stage1_stand", "stage1_walk", "stage1_run" (boss_set_ride_anims case 0x5a)
 0x4bb970  ghost_cast_special       func  -                    O ; current ghost move (0x2480810) spell 0x50-0x53: character_perform_spell_cast, caller boss_cast_special_dispatch
+0x4bb9a0  ghost_fire_attack        func  -                    I ; current ghost move 0x2480810: spell_cast_execute with the target data 0x24808c8.., caller boss_attack_trigger_dispatch
 0x4bba20  ghost_target_flags       func  -                    O ; (boss, target record): sets flag 1 of record +0xc unless paralysed (status 10) and flag 2 unless silenced (status 1)
 0x4bba60  ghost_is_own_move        func  -                    O ; true when the current move 0x2480810 is one of the ghost move slots
+0x4bbae0  ghost_attack_test        func  -                    I ; boss_attack_test_dispatch ghost case: living_combat_test_defense of the target in reach (0x4bbb80) into 0x24808dc / 0x24808e0, used by ghost_resolve_hit
 0x4bbc20  ghost_resolve_hit        func  -                    O ; living_combat_resolve_hit_vs on the target recorded in 0x24808dc / 0x24808e0
 0x4bbc70  ghost_check_stage        func  -                    I ; boss_ai_check_stage case 0x5a
 0x4bbd80  ghost_set_solo           func  -                    O ; rider_unlink_mount, combat flag 0x248031a = 1 (cmd_ghost_solo)
+0x4bbe80  static_init_decal_records func  -                    O ; hidden start: initialiser table entry 314 (0x5884ec): jmp init_decal_records
+0x4bbe90  init_decal_records       func  -                    O ; hidden start: static initialiser: 32 decal records 0x2480a48 (stride 0x128, see decals_reset) through 0x4bbed0, reached from initialiser table entry 314 (0x5884ec) via jmp 0x4bbe80
+0x4bbeb0  static_init_empty_4bbec0 func  -                    O ; hidden start: initialiser table entry 315 (0x5884f0): jmp init_empty_4bbec0
+0x4bbec0  init_empty_4bbec0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 315 (0x5884f0) via jmp 0x4bbeb0
+0x4bbed0  decal_record__ctor       func  -                    O ; thiscall: GameTimer at +0, base record init 0x4c0670 at +0x38, timer invalidated, +4 = -1, +0x28/+0x2c = 0, clears bits 29-30 of +0x24, caller init_decal_records
 0x4bc290  vector3__len             func  vsdk\math            O ; thiscall: sqrt(x*x + y*y + z*z), 31 callers
 0x4bc320  decal_place              func  -                    I ; (bitmap, pos, matrix, size, colour, fade...): takes a decal record (0x4bc560) and clips it to the level (0x4bbf10), callers blood_splot_place, move_target_draw_decal, 0x487800
 0x4bc640  decals_reset             func  -                    O ; threads the 0x128-byte decal records 0x2480a48..0x2482f48 into the free ring, clears the used lists 0x248354c..0x2483554, caller levelrender_level_load
+0x4bce60  static_init_empty_4bce70 func  -                    O ; hidden start: initialiser table entry 316 (0x5884f4): jmp init_empty_4bce70
+0x4bce70  init_empty_4bce70        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 316 (0x5884f4) via jmp 0x4bce60
 0x4bce80  charinfo_within_attack_radius func  -                    O ; thiscall char_info (distance): distance <= attack_radius (+0x34) + 0x57ef10
 0x4bda50  ai_combat_approach       func  -                    I ; combat movement toward the target with range checks (character_get_attack_range, charinfo_within_attack_radius), cast goals, 19 callers (ai_goal_do_attack, boss frames)
 0x4bff60  ai_mode_combat_frame     func  -                    O ; AI_STATE_COMBAT (3) handler of ai_frame
+0x4c0690  shadow_record__ctor      func  -                    O ; thiscall: base record init 0x4c0670 then flag 0x20 in +0, caller init_shadow_records
+0x4c0a40  static_init_empty_4c0a50 func  -                    O ; hidden start: initialiser table entry 317 (0x5884f8): jmp init_empty_4c0a50
+0x4c0a50  init_empty_4c0a50        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 317 (0x5884f8) via jmp 0x4c0a40
 0x4c0a60  lamp_glow_load           func  -                    O ; bm_load("WolongLampGlow01.tga") into 0x248b008, callers shadows_init, 0x48a190
+0x4c0af0  lamp_glow_forget         func  -                    O ; 0x248b008 (bitmap loaded by lamp_glow_load) = 0, callers levelrender_level_unload, fx_shutdown, fx_level_leave
+0x4c0c40  static_init_machival_timers func  -                    O ; hidden start: initialiser table entry 318 (0x5884fc): jmp init_machival_timers
+0x4c0c50  init_machival_timers     func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248b04c (stride 0x18) and the machival timers 0x248b310..0x248b334, reached from initialiser table entry 318 (0x5884fc) via jmp 0x4c0c40
+0x4c0cc0  static_init_ccmd_machival_combat func  -                    O ; hidden start: initialiser table entry 319 (0x588500): jmp init_ccmd_machival_combat
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
 0x4c0d10  machival_evaluate_target func  -                    I ; boss target hook (species switch 0x4a2e00, called from target selection 0x4a2f60), placed with the machival code
+0x4c0e70  machival_reset_timers    func  -                    I ; GameTimer__SetTimeout on the machival timers 0x248b31c..0x248b328 with random spans (0x56d790), caller machival_ai_select_action
 0x4c0ee0  machival_find_teleports  func  -                    O ; navpoint_find("$tele_0%d") into 0x248b350/0x248b368, called by machival_boss_load
 0x4c0f20  machival_ai_idle         func  -                    O ; boss_ai_idle_dispatch handler: clears +0x56c without a move, enters combat once 0x248b034 is set
 0x4c0f60  machival_boss_load       func  -                    I ; "machival_boss.tbl"
@@ -2358,15 +2439,23 @@
 0x4c19f0  machival_ai_melee        func  -                    O ; thiscall ai_state (target): living_combat_update and ai_claim_attack_slot, combat submode handler of machival_ai_frame
 0x4c1a80  machival_knock_down_party func  -                    O ; party members in range: ai_can_be_knocked_down, ai_knock_down for 2-3 s
 0x4c1b60  machival_get_attack_kind func  -                    O ; current boss move 0x248b30c -> attack kind 0..7 (compared with the move-table pointers), -1 when no move
+0x4c1bc0  machival_attack_test     func  -                    I ; boss_attack_test_dispatch machival case: living_combat_test_defense of party members in reach (0x4c0dd0) into the hit list 0x248b33c
 0x4c1d10  machival_collect_area_hits func  -                    O ; (boss) party members (cur_character +0x4cc handle list) within the squared radius 0x581a5c that fail living_combat_test_defense -> hit list 0x248b33c, count 0x248b338, returns count > 0
 0x4c1dd0  machival_apply_area_hits func  -                    O ; (boss) living_combat_resolve_hit_vs against every handle in hit list 0x248b33c
+0x4c1e20  machival_teleport        func  -                    I ; picks a teleport navpoint (0x248b350 / 0x248b368 from machival_find_teleports), sets the position and orientation, plays the move, mp_send_swi_boss, callers machival_ai_select_action and mp_handle_swi_boss
 0x4c1f90  machival_ai_special_move func  -                    I ; thiscall ai_state: faces 0x248b36c, plays move 0x8b, ai_set_mode(3, 0x34), trigger 6 handling, submode 0x33 of machival_ai_frame
 0x4c2090  machival_ai_wait_move_end func  -                    O ; thiscall ai_state: ai_go_idle once character_move_finished, submode 0x34 of machival_ai_frame
+0x4c20e0  static_init_titus_timers func  -                    O ; hidden start: initialiser table entry 320 (0x588504): jmp init_titus_timers
+0x4c20f0  init_titus_timers        func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248b3cc (stride 0x18) and the titus timers 0x248b910..0x248b92c, reached from initialiser table entry 320 (0x588504) via jmp 0x4c20e0
+0x4c2150  static_init_ccmd_titus_stage func  -                    O ; hidden start: initialiser table entry 321 (0x588508): jmp init_ccmd_titus_stage
 0x4c2160  init_ccmd_titus_stage    func  -                    O ; static initialiser: registers console command object ccmd_titus_stage
 0x4c2180  cmd_titus_stage          func  -                      O ; console command "titus_stage": Set Titus's current combat stage
+0x4c21c0  static_init_ccmd_titus_combat func  -                    O ; hidden start: initialiser table entry 322 (0x58850c): jmp init_ccmd_titus_combat
 0x4c21d0  init_ccmd_titus_combat   func  -                    O ; static initialiser: registers console command object ccmd_titus_combat
 0x4c21f0  cmd_titus_combat         func  -                      O ; console command "titus_combat": Sets titus in combat state
 0x4c2210  titus_evaluate_target    func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the titus code
+0x4c2330  titus_reset_attack_timers func  -                    O ; GameTimers 0x248b91c = 10 s, 0x248b920 = 20 s, 0x248b924 invalidated, caller titus_check_stage
+0x4c2360  titus_reset_stage_timers func  -                    O ; GameTimers 0x248b928 = 0 and 0x248b92c = 25 s, caller titus_check_stage
 0x4c2380  titus_boss_load          func  -                    O ; boss_ai_load case 0xc1: "titus_boss.tbl" via boss_ai_parse_table, offense points
 0x4c2450  titus_init_move_tables   func  -                    O ; move-table pointers 0x248b380.. from titus_boss_load
 0x4c24c0  titus_check_stage        func  -                    I ; boss_ai_check_stage case 0xc1
@@ -2381,20 +2470,31 @@
 0x4c31f0  titus_apply_area_hits    func  -                    O ; living_combat_resolve_hit_vs against hit list 0x248b938
 0x4c3240  titus_ai_rock_erupt      func  -                    O ; thiscall ai_state: plays the move, titus_rock_erupt_fx, titus_end_attack, second entry ai_set_mode(3, 0x3d)
 0x4c32a0  titus_start_rock_erupt   func  -                    O ; ai_set_mode(3, 0x3e)
+0x4c32e0  titus_cast_special       func  -                    O ; boss_cast_special_dispatch titus case: current titus move 0x248b90c spell, ai_goal_add_cast_at_target / character_perform_spell_cast
+0x4c3470  static_init_evil_joseph_timers func  -                    O ; hidden start: initialiser table entry 323 (0x588510): jmp init_evil_joseph_timers
+0x4c3480  init_evil_joseph_timers  func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248b9cc (stride 0x18) and the attack timer 0x248bc98, reached from initialiser table entry 323 (0x588510) via jmp 0x4c3470
+0x4c34b0  static_init_ccmd_darkjo_combat func  -                    O ; hidden start: initialiser table entry 324 (0x588514): jmp init_ccmd_darkjo_combat
 0x4c34c0  init_ccmd_darkjo_combat  func  -                    O ; static initialiser: registers console command object ccmd_darkjo_combat
 0x4c34e0  cmd_darkjo_combat        func  -                      O ; console command "darkjo_combat": Sets dark josesph in combat state
 0x4c3500  evil_joseph_spawn_helpers func  -                    O ; creates four characters of species 0xc0, 0xca, 0xcb, 0xb0 near the boss (living_entity_create, ai active)
 0x4c35e0  evil_joseph_boss_load    func  -                    O ; boss_ai_load case 0xc9 (Evil Joseph, console darkjo_*): "darkjo_boss.tbl", gives "Sword of Summoners", teleport points 0x4c3720
 0x4c3720  evil_joseph_find_teleports func  -                    O ; navpoint_find("$tele_0%d") into 0x248bcd8
 0x4c3790  evil_joseph_init_move_tables func  -                    O ; move-table pointers 0x248bcf8.. from evil_joseph_boss_load
+0x4c37f0  evil_joseph_unload       func  -                    O ; boss_ai_unload evil Joseph case: byte 0x248bcfc = 0
 0x4c3800  evil_joseph_ai_idle      func  -                    I ; boss_ai_idle_dispatch handler, enters combat
 0x4c3860  evil_joseph_ai_frame     func  -                    O ; boss_ai_frame case 0xc9
+0x4c3980  evil_joseph_cast_special func  -                    O ; boss_cast_special_dispatch evil Joseph case: character_perform_spell_cast with the current move 0x248bc8c
 0x4c39b0  evil_joseph_ai_select_action func  -                    O ; thiscall ai_state: action code for evil_joseph_ai_frame (attack timer, boss_target_list_find, teleports)
 0x4c3c70  boss_target_list_find    func  -                    O ; (list, count, handle) index of the 0x10-byte record whose character has that handle, -1
 0x4c3ca0  evil_joseph_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248bc98 = random ms in range
 0x4c3f20  evil_joseph_check_stage  func  -                    I ; boss_ai_check_stage case 0xc9
 0x4c3fb0  boss_resurrect_full      func  -                    O ; character_resurrect, HP = max, reset animation, ai active, ghost / evil Joseph stage changes
+0x4c4020  evil_joseph_fire_attack  func  -                    I ; spell_cast_execute for the current move 0x248bc8c with the target data 0x248bcc0.., caller boss_attack_trigger_dispatch
 0x4c4080  evil_joseph_evaluate_target func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the evil Joseph code
+0x4c40d0  evil_joseph_destroy_effects func  -                    O ; fx_destroy of the effects 0x248bca4 / 0x248bcb4 (living_from_handle), caller lsf_joseph_killed
+0x4c4170  static_init_evil_urath_timers func  -                    O ; hidden start: initialiser table entry 325 (0x588518): jmp init_evil_urath_timers
+0x4c4180  init_evil_urath_timers   func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248bd24 (stride 0x18) and 0x248bed4, reached from initialiser table entry 325 (0x588518) via jmp 0x4c4170
+0x4c41b0  static_init_ccmd_urath_combat func  -                    O ; hidden start: initialiser table entry 326 (0x58851c): jmp init_ccmd_urath_combat
 0x4c41c0  init_ccmd_urath_combat   func  -                    O ; static initialiser: registers console command object ccmd_urath_combat
 0x4c41e0  cmd_urath_combat         func  -                      O ; console command "urath_combat": Sets urath in combat state
 0x4c43f0  evil_urath_cast_spell    func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
@@ -2407,6 +2507,8 @@
 0x4c47e0  evil_urath_check_stage   func  -                    I ; boss_ai_check_stage case 0xb1
 0x4c4db0  evil_urath_ai_select_action func  -                    O ; thiscall ai_state: action code for evil_urath_ai_frame (attack timer, evil_urath_cast_spell, boss_target_list_find_b)
 0x4c5110  evil_urath_set_attack_timer func  -                    I ; (min, max) random GameTimer
+0x4c5140  static_init_murod_timers func  -                    O ; hidden start: initialiser table entry 327 (0x588520): jmp init_murod_timers
+0x4c5150  init_murod_timers        func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248bf50 (stride 0x18) and the murod timers 0x248bfe0..0x248bfec, reached from initialiser table entry 327 (0x588520) via jmp 0x4c5140
 0x4c5550  murod_end_move           func  -                    O ; ai_go_idle once move 0x248bfc4 finished
 0x4c5600  murod_cast_spell         func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
 0x4c5680  murod_ai_idle            func  -                    I ; boss_ai_idle_dispatch handler, enters combat once 0x248bf38 is set
@@ -2416,6 +2518,8 @@
 0x4c5a30  murod_set_attack_timer   func  -                    O ; (min, max) GameTimer 0x248bfe0 = random ms in range
 0x4c5a60  murod_ai_frame           func  -                    O ; boss_ai_frame case 0xb7
 0x4c5b70  murod_evaluate_target    func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the murod code
+0x4c5c20  static_init_murod_oni_timers func  -                    O ; hidden start: initialiser table entry 328 (0x588524): jmp init_murod_oni_timers
+0x4c5c30  init_murod_oni_timers    func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248c01c (stride 0x18) and the murod oni timers 0x248c2e8..0x248c2f4, reached from initialiser table entry 328 (0x588524) via jmp 0x4c5c20
 0x4c5c80  murod_oni_ai_idle        func  -                    I ; boss_ai_idle_dispatch handler, enters combat once 0x248c004 is set
 0x4c5cc0  murod_oni_boss_load      func  -                    I ; "murod_oni_boss.tbl"
 0x4c5d80  murod_oni_init_move_tables func  -                    O ; move-table pointers 0x248bff0.. from murod_oni_boss_load
@@ -2427,22 +2531,38 @@
 0x4c62d0  murod_oni_get_attack_kind func  -                    O ; current move 0x248c2dc -> attack kind 0..4 via move pointers 0x248bff0/0x248c310.., -1 when none
 0x4c6330  murod_oni_collect_area_hits func  -                    O ; party members in reach that fail living_combat_test_defense -> hit list 0x248c2fc, count 0x248c2f8
 0x4c6410  murod_oni_apply_area_hits func  -                    O ; living_combat_resolve_hit_vs against hit list 0x248c2fc
+0x4c6460  murod_oni_move_is_first  func  -                    O ; current murod oni move 0x248c2dc == move pointer 0x248bff4, caller species switch 0x4a1090
+0x4c6480  static_init_tentacle_records func  -                    O ; hidden start: initialiser table entry 329 (0x588528): jmp init_tentacle_records
+0x4c6490  init_tentacle_records    func  -                    O ; hidden start: static initialiser: 4 tentacle records (0x248c328, stride 0x110): eh_vector_constructor_iterator(+0, 0x18, 5, 0x4c64f0) and GameTimers at +0xa8/+0xc0/+0xc4/+0xc8/+0x100, reached from initialiser table entry 329 (0x588528) via jmp 0x4c6480
+0x4c64f0  tentacle_slot__ctor      func  -                    O ; thiscall: GameTimer at +0x14, element constructor (0x18 bytes) passed to eh_vector_constructor_iterator by init_tentacle_records
+0x4c6500  static_init_tentacle_beast_timer func  -                    O ; hidden start: initialiser table entry 330 (0x58852c): jmp init_tentacle_beast_timer
+0x4c6510  init_tentacle_beast_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x248c768), the tentacle beast timer, reached from initialiser table entry 330 (0x58852c) via jmp 0x4c6500
 0x4c6520  tentacle_beast_ai_select_action func  -                    O ; thiscall ai_state: action code for tentacle_beast_ai_frame
 0x4c6d10  tentacle_beast_boss_load func  -                    O ; boss_ai_load case 0x93 (Tentacle Beast): "$tag-27-swipe"/"$tag-35-squeeze"/"$tag-26-pickup"/"$tag-grab-point" bones
+0x4c7050  tentacle_beast_unload    func  -                    O ; boss_ai_unload tentacle beast case: byte 0x248c7ac = 0
 0x4c7060  tentacle_beast_ai_idle   func  -                    O ; boss_ai_idle_dispatch handler: ai_set_mode(3, 0xf)
 0x4c7070  tentacle_beast_ai_frame  func  -                    O ; boss_ai_frame case 0x93
 0x4c7330  tentacle_find            func  -                    O ; (handle) record in the tentacle table 0x248c328 (0x110 bytes each, key at +0x80), NULL
 0x4c7360  tentacle_beast_check_stage func  -                    I ; boss_ai_check_stage case 0x93
+0x4c74f0  tentacle_beast_splash_a  func  -                    I ; tentacle_beast_check_stage helper: ai_goals_clear, ai_set_combat_mode_goal and fx_attach_to_character "splash.vfx"
+0x4c7570  tentacle_beast_splash_b  func  -                    I ; tentacle_beast_check_stage helper with an HP test (character_get_max_stat): ai_goals_clear, ai_set_combat_mode_goal, "splash.vfx"
 0x4c7770  tentacle_get_attack_kind func  -                    O ; (handle) tentacle_find, record move +0x7c -> 0 (0x248c794), 2 (0x248c7a4), 1 (0x248c320) else -1
 0x4c77c0  tentacle_collect_area_hits func  -                    O ; (handle, boss) party members within record +0xe4 (character_distance_between_edges) that fail living_combat_test_defense -> record hit list +0x94, count +0x90
 0x4c78b0  tentacle_apply_area_hits func  -                    O ; (handle, boss) living_combat_resolve_hit_vs against the tentacle record hit list
 0x4c7910  tentacle_target_in_reach func  -                    O ; (handle, target) tentacle move +0x7c is 0x248c794 and the edge distance is below record +0xe4
+0x4c7960  tentacle_beast_frame_hook func  -                    I ; boss_ai_do_frame_hook species 0x93: per-tentacle grab handling (tentacle_find, bone transforms, lobj_raycast_all, character_find_ground, moves)
+0x4c7c90  static_init_ccmd_tentacles func  -                    O ; hidden start: initialiser table entry 331 (0x588530): jmp init_ccmd_tentacles
 0x4c7ca0  init_ccmd_tentacles      func  -                    O ; static initialiser: registers console command object ccmd_tentacles
 0x4c7cc0  cmd_tentacles            func  -                      O ; console command "tentacles": Start battle with tentacle beasts
+0x4c7e60  static_init_ccmd_tentacle_test func  -                    O ; hidden start: initialiser table entry 332 (0x588534): jmp init_ccmd_tentacle_test
 0x4c7e70  init_ccmd_tentacle_test  func  -                    O ; static initialiser: registers console command object ccmd_tentacle_test
 0x4c7e90  cmd_tentacle_test        func  -                      O ; console command "tentacle_test": Makes tentacles go in and out of water quickly -- no attacks
+0x4c8030  static_init_giant_salamanka_timers func  -                    O ; hidden start: initialiser table entry 333 (0x588538): jmp init_giant_salamanka_timers
+0x4c8040  init_giant_salamanka_timers func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248c800 (stride 0x18) and 0x248c864, reached from initialiser table entry 333 (0x588538) via jmp 0x4c8030
+0x4c8070  static_init_ccmd_gs_stage func  -                    O ; hidden start: initialiser table entry 334 (0x58853c): jmp init_ccmd_gs_stage
 0x4c8080  init_ccmd_gs_stage       func  -                    O ; static initialiser: registers console command object ccmd_gs_stage
 0x4c80a0  cmd_gs_stage             func  -                      O ; console command "gs_stage": Set Giant salamanka's current combat stage
+0x4c80d0  static_init_ccmd_gsal_combat func  -                    O ; hidden start: initialiser table entry 335 (0x588540): jmp init_ccmd_gsal_combat
 0x4c80e0  init_ccmd_gsal_combat    func  -                    O ; static initialiser: registers console command object ccmd_gsal_combat
 0x4c8100  cmd_gsal_combat          func  -                      O ; console command "gsal_combat": Sets gsal in combat state
 0x4c8120  character_set_locomotion_anims func  -                    O ; (character, anim) sets locomotion anims +0x5ac/+0x5b0/+0x5b8/+0x5bc/+0x5c4/+0x5c8/+0x5d0/+0x5d4 to one id, giant salamanka placement
@@ -2455,10 +2575,16 @@
 0x4c8560  giant_salamanka_check_stage func  -                    I ; boss_ai_check_stage case 0xac (giant_salamanka_place_boss1..3)
 0x4c86b0  giant_salamanka_ai_frame func  -                    O ; boss_ai_frame case 0xac
 0x4c87e0  giant_salamanka_ai_select_action func  -                    O ; thiscall ai_state: action code 0..4 for giant_salamanka_ai_frame
+0x4c8b60  giant_salamanka_cast_special func  -                    I ; boss_cast_special_dispatch giant salamanka case on the current move record 0x248cd50
+0x4c8b80  giant_salamanka_fire_attack func  -                    I ; fx_create_missile from the bone position 0x4c8b30 for the current move 0x248cd50, GameTimer 0x248c864, caller boss_attack_trigger_dispatch
+0x4c8d10  static_init_luminar_timers func  -                    O ; hidden start: initialiser table entry 336 (0x588544): jmp init_luminar_timers
+0x4c8d20  init_luminar_timers      func  -                    O ; hidden start: static initialiser: GameTimers 0x248cde8, 0x248cdec, 0x248cdf0, 0x248ce28, 0x248ce2c (luminar), reached from initialiser table entry 336 (0x588544) via jmp 0x4c8d10
+0x4c8d60  static_init_ccmd_stage   func  -                    O ; hidden start: initialiser table entry 337 (0x588548): jmp init_ccmd_stage
 0x4c8d70  init_ccmd_stage          func  -                    O ; static initialiser: registers console command object ccmd_stage
 0x4c8d90  cmd_stage                func  -                      O ; console command "stage": Set Luminar's current combat stage
 0x4c8dc0  luminar_boss_load        func  -                    O ; boss_ai_load case 0x51 (Luminar): "$tag-30-bite"/"$tag-22-pickup"/"$tag-28-backswing-l" bones, "GlowLuminarSkin02.vbm"
 0x4c8fd0  luminar_free_bitmap      func  -                    I ; bm_release 0x59dfd0, -1, 0x59c358 = 1.0, from boss_ai_unload
+0x4c9000  luminar_frame_hook       func  -                    I ; boss_ai_do_frame_hook species 0x51: grab handling around "$tag-grab-point" (character_find_mesh_tag, bone transforms, lobj_raycast_all, moves)
 0x4c9410  luminar_ai_select_action func  -                    O ; thiscall ai_state: luminar teleport/beam decisions (luminar_teleport_out, luminar_beam_start), from luminar_ai_frame and luminar_ai_idle
 0x4c95d0  luminar_ai_idle          func  -                    O ; boss_ai_idle_dispatch handler (multiplayer client skips) -> 0x4c9410(0)
 0x4c95f0  luminar_ai_frame         func  -                    O ; boss_ai_frame case 0x51 (calls luminar_teleport_in / luminar_beam_hit)
@@ -2468,14 +2594,24 @@
 0x4ca1d0  luminar_ai_beam_move_end func  -                    O ; thiscall ai_state: after character_move_finished, luminar_beam_start on a live target, then ai_go_idle
 0x4ca230  luminar_beam_start       func  -                    O ; "spell-lbolt-source.vfx"/"LuminarBeam-source.vfx" effect and cast move
 0x4ca3a0  luminar_beam_hit         func  -                    O ; "spell-lbolt-target.vfx"/"LuminarBeam-target.vfx", damages the target (character_add_hp)
+0x4ca700  static_init_empty_4ca710 func  -                    O ; hidden start: initialiser table entry 338 (0x58854c): jmp init_empty_4ca710
+0x4ca710  init_empty_4ca710        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 338 (0x58854c) via jmp 0x4ca700
+0x4ca720  static_init_level_script_timer func  -                    O ; hidden start: initialiser table entry 339 (0x588550): jmp init_level_script_timer
+0x4ca730  init_level_script_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x24902a8), used by level_script_frame and level_script_reparse, reached from initialiser table entry 339 (0x588550) via jmp 0x4ca720
+0x4ca740  static_init_empty_4ca750 func  -                    O ; hidden start: initialiser table entry 340 (0x588554): jmp init_empty_4ca750
+0x4ca750  init_empty_4ca750        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 340 (0x588554) via jmp 0x4ca740
+0x4ca760  static_init_ccmd_dont_load_fx func  -                    O ; hidden start: initialiser table entry 341 (0x588558): jmp init_ccmd_dont_load_fx
 0x4ca770  init_ccmd_dont_load_fx   func  -                    O ; static initialiser: registers console command object ccmd_dont_load_fx
 0x4ca790  cmd_dont_load_fx         func  -                      O ; console command "dont_load_fx": Toggles Dont_load_fx
+0x4ca850  static_init_ccmd_do_frame_callback func  -                    O ; hidden start: initialiser table entry 342 (0x58855c): jmp init_ccmd_do_frame_callback
 0x4ca860  init_ccmd_do_frame_callback func  -                    O ; static initialiser: registers console command object ccmd_do_frame_callback
 0x4ca880  cmd_do_frame_callback    func  -                      O ; console command "do_frame_callback": Toggles Do_frame_callback
+0x4ca940  static_init_ccmd_eax_save_props func  -                    O ; hidden start: initialiser table entry 343 (0x588560): jmp init_ccmd_eax_save_props
 0x4ca950  init_ccmd_eax_save_props func  -                    O ; static initialiser: registers console command object ccmd_eax_save_props
 0x4ca970  cmd_eax_save_props       func  -                      O ; console command "eax_save_props": Saves the EAX properties to disk
 0x4caa00  random_encounter_check   func  -                    I ; level_script_frame: "rand-" level triggers while traveling the world map (US_open_demo check)
 0x4caf40  level_find_player_starts func  -                    O ; "$player%d-%02d", "Unable to locate player starts for level %s"
+0x4cb010  script_place_party_at_starts func  -                    O ; level_find_player_starts, character_place_at_party_start for each party member in order, camera_reset_to_player(0), 6 level-script callers
 0x4cb060  level_script_restart     func  -                    I ; calls the leave (+0xc) then init (+4) handler, then resets party/objects
 0x4cb350  level_script_reload      func  -                    I ; deletes non-party objects (vfunc 0 unless type 7), level_script_leave, level_script_reparse, script editor
 0x4cb3a0  level_script_reparse     func  -                    O ; timer 900 ms, game_frozen = 0, level_script_parse_table, level_items_parse_table, level_parse_table, player starts, script_avoid_splines_reset
@@ -2488,9 +2624,11 @@
 0x4ccab0  level_script_frame       func  -                    O ; state_game_frame: timers, then the level's frame handler (+8) when Do_frame_callback
 0x4ccb40  level_ambient_sounds_frame func  -                    I ; level_script_frame helper over the ambient sound emitters 0x2490458 (count 0x2491a58)
 0x4ccba0  level_script_entries_frame func  -                    I ; level script objects: suspended check, timer, script_entry_check_done / script_entry_advance, from level_script_frame
+0x4ccc50  script_character_has_pending_goal func  -                    O ; (character) ai_has_goal_without_flag20 on the character AI (+0x324) == 1, caller level_script_entries_frame
 0x4ccc70  level_script_leave       func  -                    O ; state_game_leave: calls the level's leave handler (+0xc) and frees script state
 0x4ccd10  level_apply_pending_change func  -                    O ; game_frozen and pending name 0x24902c4: saves 0x60a308, copies level_filename / level_script_name / start 0x60a33c, multiplayer 0x4ab780 else gameseq_set_state(4)
 0x4ccdf0  script_cutscene_done     func  -                    O ; cutscene frame-callback hook: restores the saved level frame callback 0x2493a04 and calls the script continuation 0x24902b0
+0x4cce10  static_init_ccmd_No_cutscenes func  -                    O ; hidden start: initialiser table entry 344 (0x588564): jmp init_ccmd_No_cutscenes
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4ccf00  script_play_cutscene     func  -                    O ; (name, continuation): if a party member is alive and cutscenes are on, cutscene_play with script_cutscene_done hooked, else calls the continuation directly
@@ -2537,12 +2675,19 @@
 0x4cea70  script_player_has_equipped func  -                    O ; (item name) character_has_equipped_type(cur_character, type)
 0x4ceab0  script_party_acquire_item func  -                    I ; L"Party acquired %s!"
 0x4ceb00  script_party_gain_xp     func  -                    I ; L"party gained %d XP"
+0x4ceb80  script_topic_toggle_by_item func  -                    O ; hidden start: (item, speaker, topic): conversation_set_topic_available(speaker, topic, 0) when party_count_item_by_name(item) is nonzero, else (…, 1), called from ls_lenele1b_action
+0x4cebc0  script_topic_toggle_by_item_inv func  -                    O ; hidden start: like script_topic_toggle_by_item with the flag inverted (1 when the party has the item), called from ls_lenele1b_action
 0x4cec00  party_set_level          func  -                    I ; (level) every party member reset to level 1 stats (char_info +0x24..+0x2a, skills +0x93), then character_add_xp(xp_for_level(level))
 0x4ced90  script_avoid_spline_find_free func  -                    O ; first free slot (-1 key) of the 8-byte table 0x2491a70..0x2491ac0
 0x4cedb0  script_avoid_splines_reset func  -                    O ; sets every key of 0x2491a70 to -1
 0x4cedd0  script_avoid_spline_in_use func  -                    O ; (key) true when the table holds it
 0x4cedf0  script_alloc_avoid_spline func  -                    O ; "Ran out of level_script_avoid_spline slots"
 0x4cee90  script_free_avoid_spline func  -                    O ; (key) 0x4a78b0 on the spline, slot = -1
+0x4ceec0  static_init_savegame_state func  -                    O ; hidden start: initialiser table entry 345 (0x588568): calls init_savegame_state then jmp register_atexit_savegame_state
+0x4ceed0  init_savegame_state      func  -                    O ; static initialiser: savegame_state__clear(0x2493a38), called from initialiser table entry 345 (0x588568)
+0x4ceee0  register_atexit_savegame_state func  -                    O ; atexit(atexit_dtor_savegame_state), tail of initialiser table entry 345 (0x588568)
+0x4ceef0  atexit_dtor_savegame_state func  -                    O ; hidden start: atexit handler registered by register_atexit_savegame_state: mov ecx, 0x2493a38, jmp 0x4f13e0 (shared bare ret)
+0x4cef00  static_init_ccmd_Preparse_scripts func  -                    O ; hidden start: initialiser table entry 346 (0x58856c): jmp init_ccmd_Preparse_scripts
 0x4cef10  init_ccmd_Preparse_scripts func  -                    O ; static initialiser: registers console command object ccmd_Preparse_scripts
 0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
 0x4ceff0  savegame_report_sizes    func  -                    O ; printf of section sizes "thumb_size", "le_size", "quest_flag_size", "automap_labels_size"
@@ -2632,20 +2777,38 @@
 0x4d3920  savegame_alloc           func  -                    I ; "SAVE GAME ALLOCATED : %d"
 0x4d39c0  events_parse_table       func  -                    O ; "events.tbl" $Level: +Flag: +Int: $Quest: +Main quest +Stage:
 0x4d4020  level_parse_automap_table func  -                    O ; "%s.tbl" #Automap $AutomapPC: $AutomapPSX:
+0x4d4150  level_script_event_flag_clear func  -                    O ; byte 0x24e3b43 = 0 (set to 1 by level-script event helpers such as the ikaemosbottomint2 Titus events), caller state_game_enter
 0x4d4160  level_items_load_names   func  -                    I ; "level_items.tbl" #Level Items $Name:
 0x4d42e0  game_stage_set           func  -                    I ; callers cmd_gamestage and level inits, sets story flags (trapped_titus, got_ring_of_*...)
 0x4d47b0  game_stage_get           func  -                    I ; tests the same story flags in order to work out the stage
 0x4d4a50  savegame_location_allowed func  -                    I ; flags room8/pyrulstart/got_laharah_spirit/mach_intro, called by save_check_allowed and quicksave
+0x4d4bc0  static_init_ccmd_gamestage func  -                    O ; hidden start: initialiser table entry 347 (0x588570): jmp init_ccmd_gamestage
 0x4d4bd0  init_ccmd_gamestage      func  -                    O ; static initialiser: registers console command object ccmd_gamestage
 0x4d4bf0  cmd_gamestage            func  -                      O ; console command "gamestage": Set the important event flags to different stages of the game.
+0x4d4c50  static_init_ccmd_savegame func  -                    O ; hidden start: initialiser table entry 348 (0x588574): jmp init_ccmd_savegame
 0x4d4c60  init_ccmd_savegame       func  -                    O ; static initialiser: registers console command object ccmd_savegame
 0x4d4c80  cmd_savegame             func  -                      O ; console command "savegame": Save the game to a file
+0x4d4e70  static_init_ccmd_loadgame func  -                    O ; hidden start: initialiser table entry 349 (0x588578): jmp init_ccmd_loadgame
 0x4d4e80  init_ccmd_loadgame       func  -                    O ; static initialiser: registers console command object ccmd_loadgame
 0x4d4ea0  cmd_loadgame             func  -                      O ; console command "loadgame": Load a previously saved game
+0x4d4ff0  static_init_script_object_timers func  -                    O ; hidden start: initialiser table entry 350 (0x58857c): jmp init_script_object_timers
+0x4d5000  init_script_object_timers func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer at +0x518 of the 200 script objects (0x24f6230 + 0x518, stride 0x550), reached from initialiser table entry 350 (0x58857c) via jmp 0x4d4ff0
+0x4d5020  static_init_empty_4d5030 func  -                    O ; hidden start: initialiser table entry 351 (0x588580): jmp init_empty_4d5030
+0x4d5030  init_empty_4d5030        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 351 (0x588580) via jmp 0x4d5020
+0x4d5040  static_init_stringpool_2539f18 func  -                    O ; hidden start: initialiser table entry 352 (0x588584): calls init_stringpool_2539f18 then jmp register_atexit_stringpool_2539f18
 0x4d5050  init_stringpool_2539f18  func  -                    O ; static initialiser: StringPool(0x2539f18, buffer 0x2539f30, 0x5000 bytes)
+0x4d5070  register_atexit_stringpool_2539f18 func  -                    O ; atexit(atexit_dtor_stringpool_2539f18), tail of initialiser table entry 352 (0x588584)
+0x4d5080  atexit_dtor_stringpool_2539f18 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_2539f18: mov ecx, 0x2539f18, jmp StringPool__dtor
+0x4d5090  static_init_stringpool_24f6218 func  -                    O ; hidden start: initialiser table entry 353 (0x588588): calls init_stringpool_24f6218 then jmp register_atexit_stringpool_24f6218
 0x4d50a0  init_stringpool_24f6218  func  -                    O ; static initialiser: StringPool(0x24f6218, buffer 0x24ede14, 0x8400 bytes)
+0x4d50c0  register_atexit_stringpool_24f6218 func  -                    O ; atexit(atexit_dtor_stringpool_24f6218), tail of initialiser table entry 353 (0x588588)
+0x4d50d0  atexit_dtor_stringpool_24f6218 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_24f6218: mov ecx, 0x24f6218, jmp StringPool__dtor
+0x4d50e0  static_init_stringpool_24ed600 func  -                    O ; hidden start: initialiser table entry 354 (0x58858c): calls init_stringpool_24ed600 then jmp register_atexit_stringpool_24ed600
 0x4d50f0  init_stringpool_24ed600  func  -                    O ; static initialiser: StringPool(0x24ed600, buffer 0x24ed614, 0x800 bytes)
-0x4d5110  level_display_name_b     func  -                    I ; second level-name table: L"Masad Village", L"Lenele Outskirts -- Summer" ...
+0x4d5110  register_atexit_4d5110   func  -                    I ; registers the StringPool 0x24ed600 destructor with atexit; the level display-name table is filled by init_level_table 0x4d5140 (formerly level_display_name_b)
+0x4d5120  atexit_dtor_stringpool_24ed600 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_24ed600: mov ecx, 0x24ed600, jmp StringPool__dtor
+0x4d5130  static_init_level_table  func  -                    O ; hidden start: initialiser table entry 355 (0x588590): jmp init_level_table
+0x4d5140  init_level_table         func  -                    O ; hidden start: static initialiser: fills the 0x10-byte level table 0x59fde8 (localized names L956 "Masad Village"..., numeric fields), reached from initialiser table entry 355 (0x588590) via jmp 0x4d5130
 0x4d5570  level_script_select      func  -                    O ; finds the current level in level_script_table and copies its handlers to globals; "Unable to locate level script info for %s"
 0x4d56d0  level_script_load_steps  func  -                    O ; (level file) -> record +0x1c, the loading-screen progress total (default 10000)
 0x4d5720  level_add_navpoint       func  -                    I ; level-file navpoint into 0x24e4950 records, "Layer for navpoint %s is invalid -- assuming no layer"
@@ -2653,6 +2816,7 @@
 0x4d58f0  script_object_suspend    func  -                    O ; (index) ai_goals_clear, ai_go_idle, +0x528 = 1, animation reset
 0x4d5960  script_object_resume_index func  -                    O ; (index) script_object_resume when +0x528 is set
 0x4d5990  journal_format_event     func  -                    I ; L"<%s gained %d XP>", L"<party received %d gold>", L"<gained item: \"%s\">" ...
+0x4d5e40  static_init_ccmd_door_open func  -                    O ; hidden start: initialiser table entry 356 (0x588594): jmp init_ccmd_door_open
 0x4d5e50  init_ccmd_door_open      func  -                    O ; static initialiser: registers console command object ccmd_door_open
 0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
 0x4d5ed0  level_script_flag_hash_known func  -                    O ; (hash) true when any level_script_table record (+0x24 num_flags, +0x28 flag_hashes) holds that flag hash, caller events_parse_table
@@ -2669,15 +2833,42 @@
 0x4d64c0  level_table_display_name func  -                    O ; (index < 26) localize_string_or_invalid of +4 in the 0x10-byte level table 0x59fde8
 0x4d64f0  level_ambient_pause_all  func  -                    O ; sound_emitter_pause on every ambient emitter (cutscene start)
 0x4d6520  level_ambient_unpause_all func  -                    O ; sound_emitter_unpause on every ambient emitter
+0x4d6550  static_init_ccmd_door_close func  -                    O ; hidden start: initialiser table entry 357 (0x588598): jmp init_ccmd_door_close
 0x4d6560  init_ccmd_door_close     func  -                    O ; static initialiser: registers console command object ccmd_door_close
 0x4d6580  cmd_door_close           func  -                      O ; console command "door_close": closes a specified door in the level.
+0x4d65d0  static_init_ccmd_door_toggle func  -                    O ; hidden start: initialiser table entry 358 (0x58859c): jmp init_ccmd_door_toggle
 0x4d65e0  init_ccmd_door_toggle    func  -                    O ; static initialiser: registers console command object ccmd_door_toggle
 0x4d6600  cmd_door_toggle          func  -                      O ; console command "door_toggle": opens or closes a specified door in the level.
+0x4d6660  static_init_dialogue_box_2544408 func  -                    O ; hidden start: initialiser table entry 359 (0x5885a0): calls init_dialogue_box_2544408 then jmp register_atexit_dialogue_box_2544408
 0x4d6670  init_dialogue_box_2544408 func  -                    O ; static initialiser: dialogue_box__ctor(0x2544408)
+0x4d6680  register_atexit_dialogue_box_2544408 func  -                    O ; atexit(atexit_dtor_dialogue_box_2544408), tail of initialiser table entry 359 (0x5885a0)
+0x4d6690  atexit_dtor_dialogue_box_2544408 func  -                    O ; hidden start: atexit handler registered by register_atexit_dialogue_box_2544408: mov ecx, 0x2544408, jmp 0x4d6720
 0x4d66a0  dialogue_box__ctor       func  -                    I ; text box object 0x2544408: base ctor, 64 line records, 32 empty 0x81-byte labels at +0x72c
-0x4d6730  dialogue_more_end_label  func  -                    I ; L"more" / L"end"
+0x4d66e0  static_init_dialogue_topic_box_2545b68 func  -                    O ; hidden start: initialiser table entry 360 (0x5885a4): calls init_dialogue_topic_box_2545b68 then jmp register_atexit_dialogue_topic_box_2545b68
+0x4d66f0  init_dialogue_topic_box_2545b68 func  -                    O ; static initialiser: thiscall 0x4d6730 (topic box constructor: dialogue_box_base__ctor, 64 entries with vtable 0x581c68, vtable 0x581c5c) on 0x2545b68, called from initialiser table entry 360 (0x5885a4)
+0x4d6700  register_atexit_dialogue_topic_box_2545b68 func  -                    O ; atexit(atexit_dtor_dialogue_topic_box_2545b68), tail of initialiser table entry 360 (0x5885a4)
+0x4d6710  atexit_dtor_dialogue_topic_box_2545b68 func  -                    O ; hidden start: atexit handler registered by register_atexit_dialogue_topic_box_2545b68: mov ecx, 0x2545b68, jmp 0x4d6720
+0x4d6720  dialogue_box__dtor       func  -                    O ; hidden start: jmp dialogue_box_base__dtor, atexit handler target of the dialogue boxes 0x2544408 and 0x2545b68
+0x4d6730  dialogue_topic_box__ctor func  -                    I ; dialogue topic box constructor: dialogue_box_base__ctor, then 64 entries of 0x18 bytes (vtable 0x581c68) at +0x2c (formerly dialogue_more_end_label)
+0x4d6760  static_init_color_2544400 func  -                    O ; hidden start: initialiser table entry 361 (0x5885a8): jmp init_color_2544400
+0x4d6770  init_color_2544400       func  -                    O ; hidden start: static initialiser: Color__Color(0x2544400, 0x6b, 0x9a, 0xb8, 0xff) (dialogue text colour), reached from initialiser table entry 361 (0x5885a8) via jmp 0x4d6760
+0x4d6790  static_init_color_2545b64 func  -                    O ; hidden start: initialiser table entry 362 (0x5885ac): jmp init_color_2545b64
+0x4d67a0  init_color_2545b64       func  -                    O ; hidden start: static initialiser: Color__Color(0x2545b64, 0x5f, 0xc5, 0x58, 0xff) (dialogue text colour), reached from initialiser table entry 362 (0x5885ac) via jmp 0x4d6790
+0x4d67c0  static_init_color_25443b0 func  -                    O ; hidden start: initialiser table entry 363 (0x5885b0): jmp init_color_25443b0
+0x4d67d0  init_color_25443b0       func  -                    O ; hidden start: static initialiser: Color__Color(0x25443b0, 0x96, 0x50, 0x50, 0xff) (dialogue text colour), reached from initialiser table entry 363 (0x5885b0) via jmp 0x4d67c0
+0x4d67f0  static_init_color_2545b5c func  -                    O ; hidden start: initialiser table entry 364 (0x5885b4): jmp init_color_2545b5c
+0x4d6800  init_color_2545b5c       func  -                    O ; hidden start: static initialiser: Color__Color(0x2545b5c, 0xb4, 0xb4, 0xb4, 0xff) (dialogue text colour), reached from initialiser table entry 364 (0x5885b4) via jmp 0x4d67f0
+0x4d6820  static_init_color_25443b8 func  -                    O ; hidden start: initialiser table entry 365 (0x5885b8): jmp init_color_25443b8
+0x4d6830  init_color_25443b8       func  -                    O ; hidden start: static initialiser: Color__Color(0x25443b8, 0xff, 0xff, 0x9e, 0xff) (dialogue topic colour), reached from initialiser table entry 365 (0x5885b8) via jmp 0x4d6820
+0x4d6850  static_init_color_2546194 func  -                    O ; hidden start: initialiser table entry 366 (0x5885bc): jmp init_color_2546194
+0x4d6860  init_color_2546194       func  -                    O ; hidden start: static initialiser: Color__Color(0x2546194, 0xff, 0xff, 0x9e, 0xff), reached from initialiser table entry 366 (0x5885bc) via jmp 0x4d6850
+0x4d6880  static_init_dialogue_more_text func  -                    O ; hidden start: initialiser table entry 367 (0x5885c0): jmp init_dialogue_more_text
+0x4d6890  init_dialogue_more_text  func  -                    O ; hidden start: static initialiser: 0x2545b58 = &localize_strings[949] L"more", reached from initialiser table entry 367 (0x5885c0) via jmp 0x4d6880
+0x4d68a0  static_init_dialogue_end_text func  -                    O ; hidden start: initialiser table entry 368 (0x5885c4): jmp init_dialogue_end_text
+0x4d68b0  init_dialogue_end_text   func  -                    O ; hidden start: static initialiser: 0x25443fc = &localize_strings[950] L"end", reached from initialiser table entry 368 (0x5885c4) via jmp 0x4d68a0
 0x4d6a20  dialogue_box__alloc_label func  -                    O ; first empty 0x81-byte label at +0x72c (32), NULL
 0x4d70f0  dialogue_box_base__ctor  func  -                    I ; vtable 0x581c6c, zero fields, GameTimer +0x28 invalidated
+0x4d7130  dialogue_box_base__dtor  func  -                    O ; hidden start: restores the base vtable 0x581c6c (set by dialogue_box_base__ctor)
 0x4d7140  conversation_reset       func  -                    O ; zeroes state fields +0xc..+0x24
 0x4d7160  dialogue_box__set_rect   func  -                    I ; (x, y, w, lines) +4/+8/+0x14/+0x1c then vfunc 0, from dialogue_load_bitmaps
 0x4d7190  dialogue_box__add_text   func  -                    I ; (speaker, text, kind, ...) appends wrapped lines and scrolls, via dialogue_show_line
@@ -2686,12 +2877,18 @@
 0x4d7680  dialogue_text_box_draw   func  -                    I ; scroll animation (GameTimer +0x28), clip and lines of 0x2544408, from dialogue_draw
 0x4d7800  dialogue_topic_box_add   func  -                    I ; (topic, kind) adds a topic entry to 0x2545b68 (0x4d6de0)
 0x4d7900  dialogue_box__item_y     func  -                    O ; (item) scroll +0xc + item top
+0x4d7920  dialogue_box_reset_thunk func  -                    O ; jmp conversation_reset (0x4d7140), callers dialogue_frame, dialogue_topic_box_reset
 0x4d7930  dialogue_topic_box_draw  func  -                    I ; scroll animation, clip and entries of 0x2545b68, from dialogue_draw
 0x4d7ab0  dialogue_topic_box_reset func  -                    O ; 0x2545b68 -> conversation_reset
+0x4d7ac0  dialogue_topic_box_add_kind3 func  -                    O ; (topic) dialogue_topic_box_add(0x2545b68, topic, 3), returns 0, caller conversation_farewell
 0x4d7ae0  dialogue_screen_open     func  -                    O ; (name) interface_set_screen(13, &name)
 0x4d7b00  dialogue_screen_close    func  -                    O ; interface_set_screen(0, 0)
 0x4d7b10  dialogue_show_line       func  -                    O ; (speaker, text, arg) dialogue_box__add_text on 0x2544408 with kind 1, journal_format_event, topics, ls_*_action
+0x4d7b30  static_init_conversation_25461a0 func  -                    O ; hidden start: initialiser table entry 369 (0x5885c8): calls init_conversation_25461a0 then jmp register_atexit_conversation_25461a0
 0x4d7b40  init_conversation_25461a0 func  -                    O ; static initialiser: conversation__ctor(0x25461a0)
+0x4d7b50  register_atexit_conversation_25461a0 func  -                    O ; atexit(atexit_dtor_conversation_25461a0), tail of initialiser table entry 369 (0x5885c8)
+0x4d7b60  atexit_dtor_conversation_25461a0 func  -                    O ; hidden start: atexit handler registered by register_atexit_conversation_25461a0: mov ecx, 0x25461a0, jmp 0x4d7b70
+0x4d7b70  conversation__dtor       func  -                    O ; hidden start: thiscall: NoRlsAllocPool__dtor on the pool at +0x210, atexit handler target of the conversation object 0x25461a0
 0x4d7b80  conversation__ctor       func  -                    I ; conversation object 0x25461a0: pool +0x210, lists +0x238 / +0x244
 0x4d7c20  conversation_alloc_storage func  conversation.cpp     O ; "Unable to allocate space for conversation storage"
 0x4d7c70  conversation_clear       func  -                    I ; +0x22c = -1, counts +0x200..+0x20c = 0, pool reset
@@ -2714,11 +2911,20 @@
 0x4d82b0  conversation_find_speaker func  -                    O ; list +0x20c search by name, returns node
 0x4d82f0  conversation_load        func  -                    O ; dialogue_parse_table, then restores saved state when present
 0x4d8390  conversation_save_state  func  -                    O ; callers quicksave, saveload_save_to_slot, state_game_leave, cmd_savegame
+0x4d83a0  conversation_save_topics func  -                    O ; hidden start: writes every speaker and topic flag of the conversation object into savegame_state (savegame_set_speaker_bit / savegame_set_topic_bit), caller conversation_save_state
 0x4d84d0  conversation_restore_state func  -                    I ; only caller conversation_load, reads saved topic state
 0x4d8620  conversation_build_topic_list func  -                    I ; available topics into the list +0x238, "\"Farewell.\"" handled last
 0x4d86f0  conversation_remove_topic_entry func  -                    O ; unlinks the list entry for a topic
 0x4d8760  conversation_farewell    func  conversation.cpp     I ; L"farewell"
+0x4d87d0  static_init_conversation_controller_25464b0 func  -                    O ; hidden start: initialiser table entry 370 (0x5885cc): calls init_conversation_controller_25464b0 then jmp register_atexit_conversation_controller_25464b0
+0x4d87e0  init_conversation_controller_25464b0 func  -                    O ; static initialiser: conversation_controller__ctor(0x25464b0), called from initialiser table entry 370 (0x5885cc)
+0x4d87f0  register_atexit_conversation_controller_25464b0 func  -                    O ; atexit(atexit_dtor_conversation_controller_25464b0), tail of initialiser table entry 370 (0x5885cc)
+0x4d8800  atexit_dtor_conversation_controller_25464b0 func  -                    O ; hidden start: atexit handler registered by register_atexit_conversation_controller_25464b0: mov ecx, 0x25464b0, jmp 0x4d8810
+0x4d8810  conversation_controller__dtor func  -                    O ; eh-framed destructor of the controller 0x25464b0: destroys the 16-entry array +0xfc (0x18 bytes) and the lists +0xe4 / +0xcc, reached from atexit_dtor_conversation_controller_25464b0
 0x4d8a90  conversation_update_talk_anims func  -                    I ; finished talk moves replaced with character_pick_talk_move
+0x4d8ca0  conversation_slot__ctor  func  -                    O ; thiscall: +0 / +4 = 0, then conversation_slot__reset
+0x4d8cc0  conversation_slot__reset func  -                    O ; thiscall: +8 = 0, +0xc = -1, +0x10 = 0, +0x14 = -1
+0x4d8ce0  conversation_controller__ctor func  -                    O ; controller 0x25464b0: GameTimers +4 / +0x20, list heads +0xcc / +0xe4 (conversation_slot__ctor), 16 slots of 0x18 bytes at +0xfc linked into +0xe4, state +8 = 0
 0x4d8db0  conversation_open_dialogue func  -                    I ; character_get_display_name, dialogue_screen_open, greeting topic, conversation_select_topic
 0x4d9a80  vector3__len_sq          func  -                    O ; x*x + y*y + z*z
 0x4d9d90  conversation_camera_update func  -                    I ; conversation camera blend over the speaker positions, from conversation_frame
@@ -2734,12 +2940,16 @@
 0x4dacb0  conversation_select_topic func  -                    I ; L"<Quest Journal Updated>", journal_format_event
 0x4daef0  conversation_load_for_level func  -                    O ; from state_game_enter: conversation_load for current level script
 0x4daf50  conversation_begin       func  -                    I ; (name, character) stops cur_character AI (ai_go_idle / ai_goals_clear), cures some statuses, starts the conversation (0x4da890), callers script_object_talk and 0x43c5a0
+0x4dafe0  static_init_ccmd_dialogue_make_topic_available func  -                    O ; hidden start: initialiser table entry 371 (0x5885d0): jmp init_ccmd_dialogue_make_topic_available
 0x4daff0  init_ccmd_dialogue_make_topic_available func  -                    O ; static initialiser: registers console command object ccmd_dialogue_make_topic_available
 0x4db010  cmd_dialogue_make_topic_available func  -                      O ; console command "dialogue_make_topic_available": mark a specific dialogue topic as available.
+0x4db0d0  static_init_ccmd_dialogue_make_topic_unavailable func  -                    O ; hidden start: initialiser table entry 372 (0x5885d4): jmp init_ccmd_dialogue_make_topic_unavailable
 0x4db0e0  init_ccmd_dialogue_make_topic_unavailable func  -                    O ; static initialiser: registers console command object ccmd_dialogue_make_topic_unavailable
 0x4db100  cmd_dialogue_make_topic_unavailable func  -                      O ; console command "dialogue_make_topic_unavailable": mark a specific dialogue topic as unavailable.
+0x4db1c0  static_init_ccmd_dcamera func  -                    O ; hidden start: initialiser table entry 373 (0x5885d8): jmp init_ccmd_dcamera
 0x4db1d0  init_ccmd_dcamera        func  -                    O ; static initialiser: registers console command object ccmd_dcamera
 0x4db1f0  cmd_dcamera              func  -                      O ; console command "dcamera": Change the dialog camera options.
+0x4db2c0  filename_has_cscript_suffix func  -                    O ; (name) true when the name ends with "_cscript.tbl" (cutscene script), caller 0x4e71e0
 0x4db340  script_object_spawn_at_navpoint func  -                    O ; navpoint_get_position then living_entity_create at it, links the script object (+0x34), returns the new handle (+0x80), second entry sets position/orientation directly, caller script_parse_objects
 0x4db420  script_parse_navpoint    func  -                    I ; "$Name:" "$Type:" ($npc/$player/$c_npc/$camera) "+Plane:" "$Position:" "$Orientation:"
 0x4db700  script_parse_navpoints   func  -                    O ; $Name: $Type: $npc $player $c_npc $camera +Plane: $Position:
@@ -2764,73 +2974,392 @@
 0x4dda30  script_object_near_player_dist func  -                    I ; (object, dist) cur_character within dist of the object
 0x4dda90  script_navpoint_near_player_dist func  -                    I ; (navpoint, dist) cur_character within dist of the navpoint position
 0x4ddaf0  script_check_visit_count func  -                    O ; (n) savegame_get_visit_count(cur_level_index) >= n
+0x4de0b0  static_init_script_editor_defaults func  -                    O ; hidden start: initialiser table entry 374 (0x5885dc): jmp init_script_editor_defaults
+0x4de0c0  init_script_editor_defaults func  -                    O ; hidden start: static initialiser: default values of the settings block 0x2556ab0..0x2556b0c (50, 10, byte flags) used by the avoid-spline builder 0x4ddc60, reached from initialiser table entry 374 (0x5885dc) via jmp 0x4de0b0
+0x4de440  static_init_empty_4de450 func  -                    O ; hidden start: initialiser table entry 375 (0x5885e0): jmp init_empty_4de450
+0x4de450  init_empty_4de450        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 375 (0x5885e0) via jmp 0x4de440
+0x4de460  static_init_empty_4de470 func  -                    O ; hidden start: initialiser table entry 376 (0x5885e4): jmp init_empty_4de470
+0x4de470  init_empty_4de470        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 376 (0x5885e4) via jmp 0x4de460
+0x4de480  static_init_empty_4de490 func  -                    O ; hidden start: initialiser table entry 377 (0x5885e8): jmp init_empty_4de490
+0x4de490  init_empty_4de490        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 377 (0x5885e8) via jmp 0x4de480
+0x4de4a0  static_init_empty_4de4b0 func  -                    O ; hidden start: initialiser table entry 378 (0x5885ec): jmp init_empty_4de4b0
+0x4de4b0  init_empty_4de4b0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 378 (0x5885ec) via jmp 0x4de4a0
+0x4de4c0  static_init_empty_4de4d0 func  -                    O ; hidden start: initialiser table entry 379 (0x5885f0): jmp init_empty_4de4d0
+0x4de4d0  init_empty_4de4d0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 379 (0x5885f0) via jmp 0x4de4c0
+0x4de4e0  static_init_script_editor_status_timer func  -                    O ; hidden start: initialiser table entry 380 (0x5885f4): jmp init_script_editor_status_timer
+0x4de4f0  init_script_editor_status_timer func  -                    O ; hidden start: static initialiser: RealtimeTimer__RealtimeTimer(0x255434c), used by script_editor_create_ui / script_editor_frame / script_editor_set_status, reached from initialiser table entry 380 (0x5885f4) via jmp 0x4de4e0
+0x4de500  static_init_ui_window_254c4e0 func  -                    O ; hidden start: initialiser table entry 381 (0x5885f8): calls init_ui_window_254c4e0 then jmp register_atexit_ui_window_254c4e0
 0x4de510  init_ui_window_254c4e0   func  -                    O ; static initialiser: ui_window__ui_window(0x254c4e0)
+0x4de520  register_atexit_ui_window_254c4e0 func  -                    O ; atexit(atexit_dtor_ui_window_254c4e0), tail of initialiser table entry 381 (0x5885f8)
+0x4de530  atexit_dtor_ui_window_254c4e0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_254c4e0: mov ecx, 0x254c4e0, jmp ui_window__dtor
+0x4de540  static_init_ui_button_255ced8 func  -                    O ; hidden start: initialiser table entry 382 (0x5885fc): calls init_ui_button_255ced8 then jmp register_atexit_ui_button_255ced8
 0x4de550  init_ui_button_255ced8   func  -                    O ; static initialiser: ui_button__ui_button(0x255ced8)
+0x4de560  register_atexit_ui_button_255ced8 func  -                    O ; atexit(atexit_dtor_ui_button_255ced8), tail of initialiser table entry 382 (0x5885fc)
+0x4de570  atexit_dtor_ui_button_255ced8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_255ced8: mov ecx, 0x255ced8, jmp atexit_dtor_4317e0
+0x4de580  static_init_ui_button_25527e0 func  -                    O ; hidden start: initialiser table entry 383 (0x588600): calls init_ui_button_25527e0 then jmp register_atexit_ui_button_25527e0
 0x4de590  init_ui_button_25527e0   func  -                    O ; static initialiser: ui_button__ui_button(0x25527e0)
+0x4de5a0  register_atexit_ui_button_25527e0 func  -                    O ; atexit(atexit_dtor_ui_button_25527e0), tail of initialiser table entry 383 (0x588600)
+0x4de5b0  atexit_dtor_ui_button_25527e0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_25527e0: mov ecx, 0x25527e0, jmp atexit_dtor_4317e0
+0x4de5c0  static_init_ui_button_2557b38 func  -                    O ; hidden start: initialiser table entry 384 (0x588604): calls init_ui_button_2557b38 then jmp register_atexit_ui_button_2557b38
 0x4de5d0  init_ui_button_2557b38   func  -                    O ; static initialiser: ui_button__ui_button(0x2557b38)
+0x4de5e0  register_atexit_ui_button_2557b38 func  -                    O ; atexit(atexit_dtor_ui_button_2557b38), tail of initialiser table entry 384 (0x588604)
+0x4de5f0  atexit_dtor_ui_button_2557b38 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2557b38: mov ecx, 0x2557b38, jmp atexit_dtor_4317e0
+0x4de600  static_init_ui_button_2565070 func  -                    O ; hidden start: initialiser table entry 385 (0x588608): calls init_ui_button_2565070 then jmp register_atexit_ui_button_2565070
 0x4de610  init_ui_button_2565070   func  -                    O ; static initialiser: ui_button__ui_button(0x2565070)
+0x4de620  register_atexit_ui_button_2565070 func  -                    O ; atexit(atexit_dtor_ui_button_2565070), tail of initialiser table entry 385 (0x588608)
+0x4de630  atexit_dtor_ui_button_2565070 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2565070: mov ecx, 0x2565070, jmp atexit_dtor_4317e0
+0x4de640  static_init_ui_button_2565bc8 func  -                    O ; hidden start: initialiser table entry 386 (0x58860c): calls init_ui_button_2565bc8 then jmp register_atexit_ui_button_2565bc8
 0x4de650  init_ui_button_2565bc8   func  -                    O ; static initialiser: ui_button__ui_button(0x2565bc8)
+0x4de660  register_atexit_ui_button_2565bc8 func  -                    O ; atexit(atexit_dtor_ui_button_2565bc8), tail of initialiser table entry 386 (0x58860c)
+0x4de670  atexit_dtor_ui_button_2565bc8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2565bc8: mov ecx, 0x2565bc8, jmp atexit_dtor_4317e0
+0x4de680  static_init_ui_button_254edc8 func  -                    O ; hidden start: initialiser table entry 387 (0x588610): calls init_ui_button_254edc8 then jmp register_atexit_ui_button_254edc8
 0x4de690  init_ui_button_254edc8   func  -                    O ; static initialiser: ui_button__ui_button(0x254edc8)
+0x4de6a0  register_atexit_ui_button_254edc8 func  -                    O ; atexit(atexit_dtor_ui_button_254edc8), tail of initialiser table entry 387 (0x588610)
+0x4de6b0  atexit_dtor_ui_button_254edc8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254edc8: mov ecx, 0x254edc8, jmp atexit_dtor_4317e0
+0x4de6c0  static_init_ui_button_254b6e0 func  -                    O ; hidden start: initialiser table entry 388 (0x588614): calls init_ui_button_254b6e0 then jmp register_atexit_ui_button_254b6e0
 0x4de6d0  init_ui_button_254b6e0   func  -                    O ; static initialiser: ui_button__ui_button(0x254b6e0)
+0x4de6e0  register_atexit_ui_button_254b6e0 func  -                    O ; atexit(atexit_dtor_ui_button_254b6e0), tail of initialiser table entry 388 (0x588614)
+0x4de6f0  atexit_dtor_ui_button_254b6e0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254b6e0: mov ecx, 0x254b6e0, jmp atexit_dtor_4317e0
+0x4de700  static_init_ui_button_2556260 func  -                    O ; hidden start: initialiser table entry 389 (0x588618): calls init_ui_button_2556260 then jmp register_atexit_ui_button_2556260
 0x4de710  init_ui_button_2556260   func  -                    O ; static initialiser: ui_button__ui_button(0x2556260)
+0x4de720  register_atexit_ui_button_2556260 func  -                    O ; atexit(atexit_dtor_ui_button_2556260), tail of initialiser table entry 389 (0x588618)
+0x4de730  atexit_dtor_ui_button_2556260 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2556260: mov ecx, 0x2556260, jmp atexit_dtor_4317e0
+0x4de740  static_init_ui_button_254f710 func  -                    O ; hidden start: initialiser table entry 390 (0x58861c): calls init_ui_button_254f710 then jmp register_atexit_ui_button_254f710
 0x4de750  init_ui_button_254f710   func  -                    O ; static initialiser: ui_button__ui_button(0x254f710)
+0x4de760  register_atexit_ui_button_254f710 func  -                    O ; atexit(atexit_dtor_ui_button_254f710), tail of initialiser table entry 390 (0x58861c)
+0x4de770  atexit_dtor_ui_button_254f710 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254f710: mov ecx, 0x254f710, jmp atexit_dtor_4317e0
+0x4de780  static_init_ui_button_2546c18 func  -                    O ; hidden start: initialiser table entry 391 (0x588620): calls init_ui_button_2546c18 then jmp register_atexit_ui_button_2546c18
 0x4de790  init_ui_button_2546c18   func  -                    O ; static initialiser: ui_button__ui_button(0x2546c18)
+0x4de7a0  register_atexit_ui_button_2546c18 func  -                    O ; atexit(atexit_dtor_ui_button_2546c18), tail of initialiser table entry 391 (0x588620)
+0x4de7b0  atexit_dtor_ui_button_2546c18 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2546c18: mov ecx, 0x2546c18, jmp atexit_dtor_4317e0
+0x4de7c0  static_init_ui_inputbox_2555908 func  -                    O ; hidden start: initialiser table entry 392 (0x588624): calls init_ui_inputbox_2555908 then jmp register_atexit_ui_inputbox_2555908
 0x4de7d0  init_ui_inputbox_2555908 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x2555908)
+0x4de7e0  register_atexit_ui_inputbox_2555908 func  -                    O ; atexit(atexit_dtor_ui_inputbox_2555908), tail of initialiser table entry 392 (0x588624)
+0x4de7f0  atexit_dtor_ui_inputbox_2555908 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_2555908: mov ecx, 0x2555908, jmp 0x4de800
+0x4de800  ui_gadget__dtor_thunk    func  -                    O ; hidden start: jmp ui_gadget__dtor_base, the atexit destructor used for static input boxes, containers, check and radio buttons (20+ callers)
+0x4de810  static_init_ui_container_25499a8 func  -                    O ; hidden start: initialiser table entry 393 (0x588628): calls init_ui_container_25499a8 then jmp register_atexit_ui_container_25499a8
 0x4de820  init_ui_container_25499a8 func  -                    O ; static initialiser: ui_container__ui_container(0x25499a8)
+0x4de830  register_atexit_ui_container_25499a8 func  -                    O ; atexit(atexit_dtor_ui_container_25499a8), tail of initialiser table entry 393 (0x588628)
+0x4de840  atexit_dtor_ui_container_25499a8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_container_25499a8: mov ecx, 0x25499a8, jmp 0x4de800
+0x4de850  static_init_ui_listbox_254c9d0 func  -                    O ; hidden start: initialiser table entry 394 (0x58862c): calls init_ui_listbox_254c9d0 then jmp register_atexit_ui_listbox_254c9d0
 0x4de860  init_ui_listbox_254c9d0  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x254c9d0)
+0x4de870  register_atexit_ui_listbox_254c9d0 func  -                    O ; atexit(atexit_dtor_ui_listbox_254c9d0), tail of initialiser table entry 394 (0x58862c)
+0x4de880  atexit_dtor_ui_listbox_254c9d0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_254c9d0: mov ecx, 0x254c9d0, jmp atexit_dtor_431950
+0x4de890  static_init_ui_button_2560a90 func  -                    O ; hidden start: initialiser table entry 395 (0x588630): calls init_ui_button_2560a90 then jmp register_atexit_ui_button_2560a90
 0x4de8a0  init_ui_button_2560a90   func  -                    O ; static initialiser: ui_button__ui_button(0x2560a90)
+0x4de8b0  register_atexit_ui_button_2560a90 func  -                    O ; atexit(atexit_dtor_ui_button_2560a90), tail of initialiser table entry 395 (0x588630)
+0x4de8c0  atexit_dtor_ui_button_2560a90 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2560a90: mov ecx, 0x2560a90, jmp atexit_dtor_4317e0
+0x4de8d0  static_init_ui_button_255b4e0 func  -                    O ; hidden start: initialiser table entry 396 (0x588634): calls init_ui_button_255b4e0 then jmp register_atexit_ui_button_255b4e0
 0x4de8e0  init_ui_button_255b4e0   func  -                    O ; static initialiser: ui_button__ui_button(0x255b4e0)
+0x4de8f0  register_atexit_ui_button_255b4e0 func  -                    O ; atexit(atexit_dtor_ui_button_255b4e0), tail of initialiser table entry 396 (0x588634)
+0x4de900  atexit_dtor_ui_button_255b4e0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_255b4e0: mov ecx, 0x255b4e0, jmp atexit_dtor_4317e0
+0x4de910  static_init_ui_button_2557f60 func  -                    O ; hidden start: initialiser table entry 397 (0x588638): calls init_ui_button_2557f60 then jmp register_atexit_ui_button_2557f60
 0x4de920  init_ui_button_2557f60   func  -                    O ; static initialiser: ui_button__ui_button(0x2557f60)
+0x4de930  register_atexit_ui_button_2557f60 func  -                    O ; atexit(atexit_dtor_ui_button_2557f60), tail of initialiser table entry 397 (0x588638)
+0x4de940  atexit_dtor_ui_button_2557f60 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2557f60: mov ecx, 0x2557f60, jmp atexit_dtor_4317e0
+0x4de950  static_init_ui_button_2563630 func  -                    O ; hidden start: initialiser table entry 398 (0x58863c): calls init_ui_button_2563630 then jmp register_atexit_ui_button_2563630
 0x4de960  init_ui_button_2563630   func  -                    O ; static initialiser: ui_button__ui_button(0x2563630)
+0x4de970  register_atexit_ui_button_2563630 func  -                    O ; atexit(atexit_dtor_ui_button_2563630), tail of initialiser table entry 398 (0x58863c)
+0x4de980  atexit_dtor_ui_button_2563630 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2563630: mov ecx, 0x2563630, jmp atexit_dtor_4317e0
+0x4de990  static_init_ui_button_2551a60 func  -                    O ; hidden start: initialiser table entry 399 (0x588640): calls init_ui_button_2551a60 then jmp register_atexit_ui_button_2551a60
 0x4de9a0  init_ui_button_2551a60   func  -                    O ; static initialiser: ui_button__ui_button(0x2551a60)
+0x4de9b0  register_atexit_ui_button_2551a60 func  -                    O ; atexit(atexit_dtor_ui_button_2551a60), tail of initialiser table entry 399 (0x588640)
+0x4de9c0  atexit_dtor_ui_button_2551a60 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2551a60: mov ecx, 0x2551a60, jmp atexit_dtor_4317e0
+0x4de9d0  static_init_ui_button_255f178 func  -                    O ; hidden start: initialiser table entry 400 (0x588644): calls init_ui_button_255f178 then jmp register_atexit_ui_button_255f178
 0x4de9e0  init_ui_button_255f178   func  -                    O ; static initialiser: ui_button__ui_button(0x255f178)
+0x4de9f0  register_atexit_ui_button_255f178 func  -                    O ; atexit(atexit_dtor_ui_button_255f178), tail of initialiser table entry 400 (0x588644)
+0x4dea00  atexit_dtor_ui_button_255f178 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_255f178: mov ecx, 0x255f178, jmp atexit_dtor_4317e0
+0x4dea10  static_init_ui_button_254bb08 func  -                    O ; hidden start: initialiser table entry 401 (0x588648): calls init_ui_button_254bb08 then jmp register_atexit_ui_button_254bb08
 0x4dea20  init_ui_button_254bb08   func  -                    O ; static initialiser: ui_button__ui_button(0x254bb08)
+0x4dea30  register_atexit_ui_button_254bb08 func  -                    O ; atexit(atexit_dtor_ui_button_254bb08), tail of initialiser table entry 401 (0x588648)
+0x4dea40  atexit_dtor_ui_button_254bb08 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254bb08: mov ecx, 0x254bb08, jmp atexit_dtor_4317e0
+0x4dea50  static_init_ui_window_25508e0 func  -                    O ; hidden start: initialiser table entry 402 (0x58864c): calls init_ui_window_25508e0 then jmp register_atexit_ui_window_25508e0
 0x4dea60  init_ui_window_25508e0   func  -                    O ; static initialiser: ui_window__ui_window(0x25508e0)
+0x4dea70  register_atexit_ui_window_25508e0 func  -                    O ; atexit(atexit_dtor_ui_window_25508e0), tail of initialiser table entry 402 (0x58864c)
+0x4dea80  atexit_dtor_ui_window_25508e0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_25508e0: mov ecx, 0x25508e0, jmp ui_window__dtor
+0x4dea90  static_init_ui_listbox_2563a68 func  -                    O ; hidden start: initialiser table entry 403 (0x588650): calls init_ui_listbox_2563a68 then jmp register_atexit_ui_listbox_2563a68
 0x4deaa0  init_ui_listbox_2563a68  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2563a68)
+0x4deab0  register_atexit_ui_listbox_2563a68 func  -                    O ; atexit(atexit_dtor_ui_listbox_2563a68), tail of initialiser table entry 403 (0x588650)
+0x4deac0  atexit_dtor_ui_listbox_2563a68 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2563a68: mov ecx, 0x2563a68, jmp atexit_dtor_431950
+0x4dead0  static_init_ui_button_255f5a0 func  -                    O ; hidden start: initialiser table entry 404 (0x588654): calls init_ui_button_255f5a0 then jmp register_atexit_ui_button_255f5a0
 0x4deae0  init_ui_button_255f5a0   func  -                    O ; static initialiser: ui_button__ui_button(0x255f5a0)
+0x4deaf0  register_atexit_ui_button_255f5a0 func  -                    O ; atexit(atexit_dtor_ui_button_255f5a0), tail of initialiser table entry 404 (0x588654)
+0x4deb00  atexit_dtor_ui_button_255f5a0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_255f5a0: mov ecx, 0x255f5a0, jmp atexit_dtor_4317e0
+0x4deb10  static_init_ui_button_254e050 func  -                    O ; hidden start: initialiser table entry 405 (0x588658): calls init_ui_button_254e050 then jmp register_atexit_ui_button_254e050
 0x4deb20  init_ui_button_254e050   func  -                    O ; static initialiser: ui_button__ui_button(0x254e050)
+0x4deb30  register_atexit_ui_button_254e050 func  -                    O ; atexit(atexit_dtor_ui_button_254e050), tail of initialiser table entry 405 (0x588658)
+0x4deb40  atexit_dtor_ui_button_254e050 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254e050: mov ecx, 0x254e050, jmp atexit_dtor_4317e0
+0x4deb50  static_init_ui_window_2554d28 func  -                    O ; hidden start: initialiser table entry 406 (0x58865c): calls init_ui_window_2554d28 then jmp register_atexit_ui_window_2554d28
 0x4deb60  init_ui_window_2554d28   func  -                    O ; static initialiser: ui_window__ui_window(0x2554d28)
+0x4deb70  register_atexit_ui_window_2554d28 func  -                    O ; atexit(atexit_dtor_ui_window_2554d28), tail of initialiser table entry 406 (0x58865c)
+0x4deb80  atexit_dtor_ui_window_2554d28 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_2554d28: mov ecx, 0x2554d28, jmp ui_window__dtor
+0x4deb90  static_init_ui_listbox_2564d50 func  -                    O ; hidden start: initialiser table entry 407 (0x588660): calls init_ui_listbox_2564d50 then jmp register_atexit_ui_listbox_2564d50
 0x4deba0  init_ui_listbox_2564d50  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2564d50)
+0x4debb0  register_atexit_ui_listbox_2564d50 func  -                    O ; atexit(atexit_dtor_ui_listbox_2564d50), tail of initialiser table entry 407 (0x588660)
+0x4debc0  atexit_dtor_ui_listbox_2564d50 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2564d50: mov ecx, 0x2564d50, jmp atexit_dtor_431950
+0x4debd0  static_init_ui_button_254ccf0 func  -                    O ; hidden start: initialiser table entry 408 (0x588664): calls init_ui_button_254ccf0 then jmp register_atexit_ui_button_254ccf0
 0x4debe0  init_ui_button_254ccf0   func  -                    O ; static initialiser: ui_button__ui_button(0x254ccf0)
+0x4debf0  register_atexit_ui_button_254ccf0 func  -                    O ; atexit(atexit_dtor_ui_button_254ccf0), tail of initialiser table entry 408 (0x588664)
+0x4dec00  atexit_dtor_ui_button_254ccf0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_254ccf0: mov ecx, 0x254ccf0, jmp atexit_dtor_4317e0
+0x4dec10  static_init_ui_button_2547040 func  -                    O ; hidden start: initialiser table entry 409 (0x588668): calls init_ui_button_2547040 then jmp register_atexit_ui_button_2547040
 0x4dec20  init_ui_button_2547040   func  -                    O ; static initialiser: ui_button__ui_button(0x2547040)
+0x4dec30  register_atexit_ui_button_2547040 func  -                    O ; atexit(atexit_dtor_ui_button_2547040), tail of initialiser table entry 409 (0x588668)
+0x4dec40  atexit_dtor_ui_button_2547040 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2547040: mov ecx, 0x2547040, jmp atexit_dtor_4317e0
+0x4dec50  static_init_ui_button_2560eb8 func  -                    O ; hidden start: initialiser table entry 410 (0x58866c): calls init_ui_button_2560eb8 then jmp register_atexit_ui_button_2560eb8
 0x4dec60  init_ui_button_2560eb8   func  -                    O ; static initialiser: ui_button__ui_button(0x2560eb8)
+0x4dec70  register_atexit_ui_button_2560eb8 func  -                    O ; atexit(atexit_dtor_ui_button_2560eb8), tail of initialiser table entry 410 (0x58866c)
+0x4dec80  atexit_dtor_ui_button_2560eb8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2560eb8: mov ecx, 0x2560eb8, jmp atexit_dtor_4317e0
+0x4dec90  static_init_ui_button_2560668 func  -                    O ; hidden start: initialiser table entry 411 (0x588670): calls init_ui_button_2560668 then jmp register_atexit_ui_button_2560668
 0x4deca0  init_ui_button_2560668   func  -                    O ; static initialiser: ui_button__ui_button(0x2560668)
+0x4decb0  register_atexit_ui_button_2560668 func  -                    O ; atexit(atexit_dtor_ui_button_2560668), tail of initialiser table entry 411 (0x588670)
+0x4decc0  atexit_dtor_ui_button_2560668 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2560668: mov ecx, 0x2560668, jmp atexit_dtor_4317e0
+0x4decd0  static_init_ui_button_2566a88 func  -                    O ; hidden start: initialiser table entry 412 (0x588674): calls init_ui_button_2566a88 then jmp register_atexit_ui_button_2566a88
 0x4dece0  init_ui_button_2566a88   func  -                    O ; static initialiser: ui_button__ui_button(0x2566a88)
+0x4decf0  register_atexit_ui_button_2566a88 func  -                    O ; atexit(atexit_dtor_ui_button_2566a88), tail of initialiser table entry 412 (0x588674)
+0x4ded00  atexit_dtor_ui_button_2566a88 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2566a88: mov ecx, 0x2566a88, jmp atexit_dtor_4317e0
+0x4ded10  static_init_ui_window_2552c20 func  -                    O ; hidden start: initialiser table entry 413 (0x588678): calls init_ui_window_2552c20 then jmp register_atexit_ui_window_2552c20
 0x4ded20  init_ui_window_2552c20   func  -                    O ; static initialiser: ui_window__ui_window(0x2552c20)
+0x4ded30  register_atexit_ui_window_2552c20 func  -                    O ; atexit(atexit_dtor_ui_window_2552c20), tail of initialiser table entry 413 (0x588678)
+0x4ded40  atexit_dtor_ui_window_2552c20 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_2552c20: mov ecx, 0x2552c20, jmp ui_window__dtor
+0x4ded50  static_init_ui_static_2553600_x2 func  -                    O ; hidden start: initialiser table entry 414 (0x58867c): calls init_ui_static_2553600_x2 then jmp register_atexit_ui_static_2553600_x2
+0x4ded60  init_ui_static_2553600_x2 func  -                    O ; static initialiser: ui_static__ui_static on 0x2553600 and 0x2551690 (script editor UI), called from initialiser table entry 414 (0x58867c)
+0x4ded80  register_atexit_ui_static_2553600_x2 func  -                    O ; atexit(atexit_dtor_ui_static_2553600_x2), tail of initialiser table entry 414 (0x58867c)
+0x4ded90  atexit_dtor_ui_static_2553600_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_2553600_x2: mov ecx, 0x2551690, call atexit_dtor_431780, mov ecx, 0x2553600, jmp atexit_dtor_431780
+0x4dedb0  static_init_ui_inputbox_254daa0_x2 func  -                    O ; hidden start: initialiser table entry 415 (0x588680): calls init_ui_inputbox_254daa0_x2 then jmp register_atexit_ui_inputbox_254daa0_x2
+0x4dedc0  init_ui_inputbox_254daa0_x2 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x254daa0 and 0x2567fd0 (script editor UI), called from initialiser table entry 415 (0x588680)
+0x4dede0  register_atexit_ui_inputbox_254daa0_x2 func  -                    O ; atexit(atexit_dtor_ui_inputbox_254daa0_x2), tail of initialiser table entry 415 (0x588680)
+0x4dedf0  atexit_dtor_ui_inputbox_254daa0_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_254daa0_x2: mov ecx, 0x2567fd0, call 0x4de800, mov ecx, 0x254daa0, jmp 0x4de800
+0x4dee10  static_init_ui_container_2562638 func  -                    O ; hidden start: initialiser table entry 416 (0x588684): calls init_ui_container_2562638 then jmp register_atexit_ui_container_2562638
 0x4dee20  init_ui_container_2562638 func  -                    O ; static initialiser: ui_container__ui_container(0x2562638)
+0x4dee30  register_atexit_ui_container_2562638 func  -                    O ; atexit(atexit_dtor_ui_container_2562638), tail of initialiser table entry 416 (0x588684)
+0x4dee40  atexit_dtor_ui_container_2562638 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_container_2562638: mov ecx, 0x2562638, jmp 0x4de800
+0x4dee50  static_init_ui_radio_2555eb8_x2 func  -                    O ; hidden start: initialiser table entry 417 (0x588688): calls init_ui_radio_2555eb8_x2 then jmp register_atexit_ui_radio_2555eb8_x2
+0x4dee60  init_ui_radio_2555eb8_x2 func  -                    O ; static initialiser: ui checkbox subclass constructor 0x4deeb0 (vtable 0x581c7c) on 0x2555eb8 and 0x255a420, called from initialiser table entry 417 (0x588688)
+0x4dee80  register_atexit_ui_radio_2555eb8_x2 func  -                    O ; atexit(atexit_dtor_ui_radio_2555eb8_x2), tail of initialiser table entry 417 (0x588688)
+0x4dee90  atexit_dtor_ui_radio_2555eb8_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_radio_2555eb8_x2: mov ecx, 0x255a420, call 0x4de800, mov ecx, 0x2555eb8, jmp 0x4de800
+0x4deeb0  ui_radio_button__ui_radio_button func  -                    I ; thiscall: ui_checkbox__ui_checkbox then vtable 0x581c7c, callers ui_parse_radio_button and the script-editor static initialisers
+0x4deed0  static_init_ui_button_256ae28_x2 func  -                    O ; hidden start: initialiser table entry 418 (0x58868c): calls init_ui_button_256ae28_x2 then jmp register_atexit_ui_button_256ae28_x2
+0x4deee0  init_ui_button_256ae28_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x256ae28 and 0x255bcb0, called from initialiser table entry 418 (0x58868c)
+0x4def00  register_atexit_ui_button_256ae28_x2 func  -                    O ; atexit(atexit_dtor_ui_button_256ae28_x2), tail of initialiser table entry 418 (0x58868c)
+0x4def10  atexit_dtor_ui_button_256ae28_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_256ae28_x2: mov ecx, 0x255bcb0, call atexit_dtor_4317e0, mov ecx, 0x256ae28, jmp atexit_dtor_4317e0
+0x4def30  static_init_ui_window_254f208 func  -                    O ; hidden start: initialiser table entry 419 (0x588690): calls init_ui_window_254f208 then jmp register_atexit_ui_window_254f208
 0x4def40  init_ui_window_254f208   func  -                    O ; static initialiser: ui_window__ui_window(0x254f208)
+0x4def50  register_atexit_ui_window_254f208 func  -                    O ; atexit(atexit_dtor_ui_window_254f208), tail of initialiser table entry 419 (0x588690)
+0x4def60  atexit_dtor_ui_window_254f208 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_254f208: mov ecx, 0x254f208, jmp ui_window__dtor
+0x4def70  static_init_ui_inputbox_254bf30 func  -                    O ; hidden start: initialiser table entry 420 (0x588694): calls init_ui_inputbox_254bf30 then jmp register_atexit_ui_inputbox_254bf30
 0x4def80  init_ui_inputbox_254bf30 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x254bf30)
+0x4def90  register_atexit_ui_inputbox_254bf30 func  -                    O ; atexit(atexit_dtor_ui_inputbox_254bf30), tail of initialiser table entry 420 (0x588694)
+0x4defa0  atexit_dtor_ui_inputbox_254bf30 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_254bf30: mov ecx, 0x254bf30, jmp 0x4de800
+0x4defb0  static_init_ui_listbox_2557068 func  -                    O ; hidden start: initialiser table entry 421 (0x588698): calls init_ui_listbox_2557068 then jmp register_atexit_ui_listbox_2557068
 0x4defc0  init_ui_listbox_2557068  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2557068)
+0x4defd0  register_atexit_ui_listbox_2557068 func  -                    O ; atexit(atexit_dtor_ui_listbox_2557068), tail of initialiser table entry 421 (0x588698)
+0x4defe0  atexit_dtor_ui_listbox_2557068 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2557068: mov ecx, 0x2557068, jmp atexit_dtor_431950
+0x4deff0  static_init_ui_container_2557388 func  -                    O ; hidden start: initialiser table entry 422 (0x58869c): calls init_ui_container_2557388 then jmp register_atexit_ui_container_2557388
 0x4df000  init_ui_container_2557388 func  -                    O ; static initialiser: ui_container__ui_container(0x2557388)
+0x4df010  register_atexit_ui_container_2557388 func  -                    O ; atexit(atexit_dtor_ui_container_2557388), tail of initialiser table entry 422 (0x58869c)
+0x4df020  atexit_dtor_ui_container_2557388 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_container_2557388: mov ecx, 0x2557388, jmp 0x4de800
+0x4df030  static_init_ui_radio_2565498_x2 func  -                    O ; hidden start: initialiser table entry 423 (0x5886a0): calls init_ui_radio_2565498_x2 then jmp register_atexit_ui_radio_2565498_x2
+0x4df040  init_ui_radio_2565498_x2 func  -                    O ; static initialiser: constructor 0x4deeb0 (vtable 0x581c7c) on 0x2565498 and 0x2552438, called from initialiser table entry 423 (0x5886a0)
+0x4df060  register_atexit_ui_radio_2565498_x2 func  -                    O ; atexit(atexit_dtor_ui_radio_2565498_x2), tail of initialiser table entry 423 (0x5886a0)
+0x4df070  atexit_dtor_ui_radio_2565498_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_radio_2565498_x2: mov ecx, 0x2552438, call 0x4de800, mov ecx, 0x2565498, jmp 0x4de800
+0x4df090  static_init_ui_button_2554900_x2 func  -                    O ; hidden start: initialiser table entry 424 (0x5886a4): calls init_ui_button_2554900_x2 then jmp register_atexit_ui_button_2554900_x2
+0x4df0a0  init_ui_button_2554900_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2554900 and 0x254adc8, called from initialiser table entry 424 (0x5886a4)
+0x4df0c0  register_atexit_ui_button_2554900_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2554900_x2), tail of initialiser table entry 424 (0x5886a4)
+0x4df0d0  atexit_dtor_ui_button_2554900_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2554900_x2: mov ecx, 0x254adc8, call atexit_dtor_4317e0, mov ecx, 0x2554900, jmp atexit_dtor_4317e0
+0x4df0f0  static_init_ui_window_254a8d8 func  -                    O ; hidden start: initialiser table entry 425 (0x5886a8): calls init_ui_window_254a8d8 then jmp register_atexit_ui_window_254a8d8
 0x4df100  init_ui_window_254a8d8   func  -                    O ; static initialiser: ui_window__ui_window(0x254a8d8)
+0x4df110  register_atexit_ui_window_254a8d8 func  -                    O ; atexit(atexit_dtor_ui_window_254a8d8), tail of initialiser table entry 425 (0x5886a8)
+0x4df120  atexit_dtor_ui_window_254a8d8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_254a8d8: mov ecx, 0x254a8d8, jmp ui_window__dtor
+0x4df130  static_init_ui_inputbox_2554350 func  -                    O ; hidden start: initialiser table entry 426 (0x5886ac): calls init_ui_inputbox_2554350 then jmp register_atexit_ui_inputbox_2554350
 0x4df140  init_ui_inputbox_2554350 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x2554350)
+0x4df150  register_atexit_ui_inputbox_2554350 func  -                    O ; atexit(atexit_dtor_ui_inputbox_2554350), tail of initialiser table entry 426 (0x5886ac)
+0x4df160  atexit_dtor_ui_inputbox_2554350 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_2554350: mov ecx, 0x2554350, jmp 0x4de800
+0x4df170  static_init_ui_listbox_2564a30 func  -                    O ; hidden start: initialiser table entry 427 (0x5886b0): calls init_ui_listbox_2564a30 then jmp register_atexit_ui_listbox_2564a30
 0x4df180  init_ui_listbox_2564a30  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2564a30)
+0x4df190  register_atexit_ui_listbox_2564a30 func  -                    O ; atexit(atexit_dtor_ui_listbox_2564a30), tail of initialiser table entry 427 (0x5886b0)
+0x4df1a0  atexit_dtor_ui_listbox_2564a30 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2564a30: mov ecx, 0x2564a30, jmp atexit_dtor_431950
+0x4df1b0  static_init_ui_static_255e230_x3 func  -                    O ; hidden start: initialiser table entry 428 (0x5886b4): calls init_ui_static_255e230_x3 then jmp register_atexit_ui_static_255e230_x3
+0x4df1c0  init_ui_static_255e230_x3 func  -                    O ; static initialiser: ui_static__ui_static on 0x255e230, 0x2563260, 0x255a050, called from initialiser table entry 428 (0x5886b4)
+0x4df1e0  register_atexit_ui_static_255e230_x3 func  -                    O ; atexit(atexit_dtor_ui_static_255e230_x3), tail of initialiser table entry 428 (0x5886b4)
+0x4df1f0  atexit_dtor_ui_static_255e230_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_255e230_x3: mov ecx, 0x255a050, call atexit_dtor_431780, mov ecx, 0x2563260, call atexit_dtor_431780, mov ecx, 0x255e230, jmp atexit_dtor_431780
+0x4df210  static_init_ui_static_255e9d8 func  -                    O ; hidden start: initialiser table entry 429 (0x5886b8): calls init_ui_static_255e9d8 then jmp register_atexit_ui_static_255e9d8
 0x4df220  init_ui_static_255e9d8   func  -                    O ; static initialiser: ui_static__ui_static(0x255e9d8)
+0x4df230  register_atexit_ui_static_255e9d8 func  -                    O ; atexit(atexit_dtor_ui_static_255e9d8), tail of initialiser table entry 429 (0x5886b8)
+0x4df240  atexit_dtor_ui_static_255e9d8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_255e9d8: mov ecx, 0x255e9d8, jmp atexit_dtor_431780
+0x4df250  static_init_ui_inputbox_256a878_x3 func  -                    O ; hidden start: initialiser table entry 430 (0x5886bc): calls init_ui_inputbox_256a878_x3 then jmp register_atexit_ui_inputbox_256a878_x3
+0x4df260  init_ui_inputbox_256a878_x3 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x256a878, 0x25539d0, 0x2569ea0, called from initialiser table entry 430 (0x5886bc)
+0x4df280  register_atexit_ui_inputbox_256a878_x3 func  -                    O ; atexit(atexit_dtor_ui_inputbox_256a878_x3), tail of initialiser table entry 430 (0x5886bc)
+0x4df290  atexit_dtor_ui_inputbox_256a878_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_256a878_x3: mov ecx, 0x2569ea0, call 0x4de800, mov ecx, 0x25539d0, call 0x4de800, mov ecx, 0x256a878, jmp 0x4de800
+0x4df2b0  static_init_ui_inputbox_255af28 func  -                    O ; hidden start: initialiser table entry 431 (0x5886c0): calls init_ui_inputbox_255af28 then jmp register_atexit_ui_inputbox_255af28
 0x4df2c0  init_ui_inputbox_255af28 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x255af28)
+0x4df2d0  register_atexit_ui_inputbox_255af28 func  -                    O ; atexit(atexit_dtor_ui_inputbox_255af28), tail of initialiser table entry 431 (0x5886c0)
+0x4df2e0  atexit_dtor_ui_inputbox_255af28 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_255af28: mov ecx, 0x255af28, jmp 0x4de800
+0x4df2f0  static_init_ui_button_256a450_x2 func  -                    O ; hidden start: initialiser table entry 432 (0x5886c4): calls init_ui_button_256a450_x2 then jmp register_atexit_ui_button_256a450_x2
+0x4df300  init_ui_button_256a450_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x256a450 and 0x2556c40, called from initialiser table entry 432 (0x5886c4)
+0x4df320  register_atexit_ui_button_256a450_x2 func  -                    O ; atexit(atexit_dtor_ui_button_256a450_x2), tail of initialiser table entry 432 (0x5886c4)
+0x4df330  atexit_dtor_ui_button_256a450_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_256a450_x2: mov ecx, 0x2556c40, call atexit_dtor_4317e0, mov ecx, 0x256a450, jmp atexit_dtor_4317e0
+0x4df350  static_init_ui_window_2550dd0 func  -                    O ; hidden start: initialiser table entry 433 (0x5886c8): calls init_ui_window_2550dd0 then jmp register_atexit_ui_window_2550dd0
 0x4df360  init_ui_window_2550dd0   func  -                    O ; static initialiser: ui_window__ui_window(0x2550dd0)
+0x4df370  register_atexit_ui_window_2550dd0 func  -                    O ; atexit(atexit_dtor_ui_window_2550dd0), tail of initialiser table entry 433 (0x5886c8)
+0x4df380  atexit_dtor_ui_window_2550dd0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_2550dd0: mov ecx, 0x2550dd0, jmp ui_window__dtor
+0x4df390  static_init_ui_button_2566eb0_x2 func  -                    O ; hidden start: initialiser table entry 434 (0x5886cc): calls init_ui_button_2566eb0_x2 then jmp register_atexit_ui_button_2566eb0_x2
+0x4df3a0  init_ui_button_2566eb0_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2566eb0 and 0x25672d8, called from initialiser table entry 434 (0x5886cc)
+0x4df3c0  register_atexit_ui_button_2566eb0_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2566eb0_x2), tail of initialiser table entry 434 (0x5886cc)
+0x4df3d0  atexit_dtor_ui_button_2566eb0_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2566eb0_x2: mov ecx, 0x25672d8, call atexit_dtor_4317e0, mov ecx, 0x2566eb0, jmp atexit_dtor_4317e0
+0x4df3f0  static_init_ui_listbox_255ff78 func  -                    O ; hidden start: initialiser table entry 435 (0x5886d0): calls init_ui_listbox_255ff78 then jmp register_atexit_ui_listbox_255ff78
 0x4df400  init_ui_listbox_255ff78  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x255ff78)
+0x4df410  register_atexit_ui_listbox_255ff78 func  -                    O ; atexit(atexit_dtor_ui_listbox_255ff78), tail of initialiser table entry 435 (0x5886d0)
+0x4df420  atexit_dtor_ui_listbox_255ff78 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_255ff78: mov ecx, 0x255ff78, jmp atexit_dtor_431950
+0x4df430  static_init_ui_window_25629c8 func  -                    O ; hidden start: initialiser table entry 436 (0x5886d4): calls init_ui_window_25629c8 then jmp register_atexit_ui_window_25629c8
 0x4df440  init_ui_window_25629c8   func  -                    O ; static initialiser: ui_window__ui_window(0x25629c8)
+0x4df450  register_atexit_ui_window_25629c8 func  -                    O ; atexit(atexit_dtor_ui_window_25629c8), tail of initialiser table entry 436 (0x5886d4)
+0x4df460  atexit_dtor_ui_window_25629c8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_25629c8: mov ecx, 0x25629c8, jmp ui_window__dtor
+0x4df470  static_init_ui_container_2565840 func  -                    O ; hidden start: initialiser table entry 437 (0x5886d8): calls init_ui_container_2565840 then jmp register_atexit_ui_container_2565840
 0x4df480  init_ui_container_2565840 func  -                    O ; static initialiser: ui_container__ui_container(0x2565840)
+0x4df490  register_atexit_ui_container_2565840 func  -                    O ; atexit(atexit_dtor_ui_container_2565840), tail of initialiser table entry 437 (0x5886d8)
+0x4df4a0  atexit_dtor_ui_container_2565840 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_container_2565840: mov ecx, 0x2565840, jmp 0x4de800
+0x4df4b0  static_init_ui_radio_255a7d8_x2 func  -                    O ; hidden start: initialiser table entry 438 (0x5886dc): calls init_ui_radio_255a7d8_x2 then jmp register_atexit_ui_radio_255a7d8_x2
+0x4df4c0  init_ui_radio_255a7d8_x2 func  -                    O ; static initialiser: constructor 0x4deeb0 (vtable 0x581c7c) on 0x255a7d8 and 0x255e600, called from initialiser table entry 438 (0x5886dc)
+0x4df4e0  register_atexit_ui_radio_255a7d8_x2 func  -                    O ; atexit(atexit_dtor_ui_radio_255a7d8_x2), tail of initialiser table entry 438 (0x5886dc)
+0x4df4f0  atexit_dtor_ui_radio_255a7d8_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_radio_255a7d8_x2: mov ecx, 0x255e600, call 0x4de800, mov ecx, 0x255a7d8, jmp 0x4de800
+0x4df510  static_init_ui_checkbox_2546828 func  -                    O ; hidden start: initialiser table entry 439 (0x5886e0): calls init_ui_checkbox_2546828 then jmp register_atexit_ui_checkbox_2546828
 0x4df520  init_ui_checkbox_2546828 func  -                    O ; static initialiser: ui_checkbox__ui_checkbox(0x2546828)
+0x4df530  register_atexit_ui_checkbox_2546828 func  -                    O ; atexit(atexit_dtor_ui_checkbox_2546828), tail of initialiser table entry 439 (0x5886e0)
+0x4df540  atexit_dtor_ui_checkbox_2546828 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_checkbox_2546828: mov ecx, 0x2546828, jmp 0x4de800
+0x4df550  static_init_ui_static_2553f80_x2 func  -                    O ; hidden start: initialiser table entry 440 (0x5886e4): calls init_ui_static_2553f80_x2 then jmp register_atexit_ui_static_2553f80_x2
+0x4df560  init_ui_static_2553f80_x2 func  -                    O ; static initialiser: ui_static__ui_static on 0x2553f80 and 0x25666b8, called from initialiser table entry 440 (0x5886e4)
+0x4df580  register_atexit_ui_static_2553f80_x2 func  -                    O ; atexit(atexit_dtor_ui_static_2553f80_x2), tail of initialiser table entry 440 (0x5886e4)
+0x4df590  atexit_dtor_ui_static_2553f80_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_2553f80_x2: mov ecx, 0x25666b8, call atexit_dtor_431780, mov ecx, 0x2553f80, jmp atexit_dtor_431780
+0x4df5b0  static_init_ui_static_25612e0_x3 func  -                    O ; hidden start: initialiser table entry 441 (0x5886e8): calls init_ui_static_25612e0_x3 then jmp register_atexit_ui_static_25612e0_x3
+0x4df5c0  init_ui_static_25612e0_x3 func  -                    O ; static initialiser: ui_static__ui_static on 0x25612e0, 0x25512c0, 0x255eda8, called from initialiser table entry 441 (0x5886e8)
+0x4df5e0  register_atexit_ui_static_25612e0_x3 func  -                    O ; atexit(atexit_dtor_ui_static_25612e0_x3), tail of initialiser table entry 441 (0x5886e8)
+0x4df5f0  atexit_dtor_ui_static_25612e0_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_25612e0_x3: mov ecx, 0x255eda8, call atexit_dtor_431780, mov ecx, 0x25512c0, call atexit_dtor_431780, mov ecx, 0x25612e0, jmp atexit_dtor_431780
+0x4df610  static_init_ui_inputbox_25490d8_x3 func  -                    O ; hidden start: initialiser table entry 442 (0x5886ec): calls init_ui_inputbox_25490d8_x3 then jmp register_atexit_ui_inputbox_25490d8_x3
+0x4df620  init_ui_inputbox_25490d8_x3 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x25490d8, 0x2550330, 0x2559688, called from initialiser table entry 442 (0x5886ec)
+0x4df640  register_atexit_ui_inputbox_25490d8_x3 func  -                    O ; atexit(atexit_dtor_ui_inputbox_25490d8_x3), tail of initialiser table entry 442 (0x5886ec)
+0x4df650  atexit_dtor_ui_inputbox_25490d8_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_25490d8_x3: mov ecx, 0x2559688, call 0x4de800, mov ecx, 0x2550330, call 0x4de800, mov ecx, 0x25490d8, jmp 0x4de800
+0x4df670  static_init_ui_inputbox_255f9c8_x3 func  -                    O ; hidden start: initialiser table entry 443 (0x5886f0): calls init_ui_inputbox_255f9c8_x3 then jmp register_atexit_ui_inputbox_255f9c8_x3
+0x4df680  init_ui_inputbox_255f9c8_x3 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x255f9c8, 0x25689a8, 0x255d6a8, called from initialiser table entry 443 (0x5886f0)
+0x4df6a0  register_atexit_ui_inputbox_255f9c8_x3 func  -                    O ; atexit(atexit_dtor_ui_inputbox_255f9c8_x3), tail of initialiser table entry 443 (0x5886f0)
+0x4df6b0  atexit_dtor_ui_inputbox_255f9c8_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_255f9c8_x3: mov ecx, 0x255d6a8, call 0x4de800, mov ecx, 0x25689a8, call 0x4de800, mov ecx, 0x255f9c8, jmp 0x4de800
+0x4df6d0  static_init_ui_inputbox_2567a20_x3 func  -                    O ; hidden start: initialiser table entry 444 (0x5886f4): calls init_ui_inputbox_2567a20_x3 then jmp register_atexit_ui_inputbox_2567a20_x3
+0x4df6e0  init_ui_inputbox_2567a20_x3 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x2567a20, 0x254a2f0, 0x25616b0, called from initialiser table entry 444 (0x5886f4)
+0x4df700  register_atexit_ui_inputbox_2567a20_x3 func  -                    O ; atexit(atexit_dtor_ui_inputbox_2567a20_x3), tail of initialiser table entry 444 (0x5886f4)
+0x4df710  atexit_dtor_ui_inputbox_2567a20_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_2567a20_x3: mov ecx, 0x25616b0, call 0x4de800, mov ecx, 0x254a2f0, call 0x4de800, mov ecx, 0x2567a20, jmp 0x4de800
+0x4df730  static_init_ui_listbox_2566398_x3 func  -                    O ; hidden start: initialiser table entry 445 (0x5886f8): calls init_ui_listbox_2566398_x3 then jmp register_atexit_ui_listbox_2566398_x3
+0x4df740  init_ui_listbox_2566398_x3 func  -                    O ; static initialiser: ui_listbox__ui_listbox on 0x2566398, 0x2567700, 0x2569758, called from initialiser table entry 445 (0x5886f8)
+0x4df760  register_atexit_ui_listbox_2566398_x3 func  -                    O ; atexit(atexit_dtor_ui_listbox_2566398_x3), tail of initialiser table entry 445 (0x5886f8)
+0x4df770  atexit_dtor_ui_listbox_2566398_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2566398_x3: mov ecx, 0x2569758, call atexit_dtor_431950, mov ecx, 0x2567700, call atexit_dtor_431950, mov ecx, 0x2566398, jmp atexit_dtor_431950
+0x4df790  static_init_ui_button_2564118_x2 func  -                    O ; hidden start: initialiser table entry 446 (0x5886fc): calls init_ui_button_2564118_x2 then jmp register_atexit_ui_button_2564118_x2
+0x4df7a0  init_ui_button_2564118_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2564118 and 0x254ff08, called from initialiser table entry 446 (0x5886fc)
+0x4df7c0  register_atexit_ui_button_2564118_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2564118_x2), tail of initialiser table entry 446 (0x5886fc)
+0x4df7d0  atexit_dtor_ui_button_2564118_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2564118_x2: mov ecx, 0x254ff08, call atexit_dtor_4317e0, mov ecx, 0x2564118, jmp atexit_dtor_4317e0
+0x4df7f0  static_init_ui_window_254b1f0 func  -                    O ; hidden start: initialiser table entry 447 (0x588700): calls init_ui_window_254b1f0 then jmp register_atexit_ui_window_254b1f0
 0x4df800  init_ui_window_254b1f0   func  -                    O ; static initialiser: ui_window__ui_window(0x254b1f0)
+0x4df810  register_atexit_ui_window_254b1f0 func  -                    O ; atexit(atexit_dtor_ui_window_254b1f0), tail of initialiser table entry 447 (0x588700)
+0x4df820  atexit_dtor_ui_window_254b1f0 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_254b1f0: mov ecx, 0x254b1f0, jmp ui_window__dtor
+0x4df830  static_init_ui_inputbox_2549d40 func  -                    O ; hidden start: initialiser table entry 448 (0x588704): calls init_ui_inputbox_2549d40 then jmp register_atexit_ui_inputbox_2549d40
 0x4df840  init_ui_inputbox_2549d40 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x2549d40)
+0x4df850  register_atexit_ui_inputbox_2549d40 func  -                    O ; atexit(atexit_dtor_ui_inputbox_2549d40), tail of initialiser table entry 448 (0x588704)
+0x4df860  atexit_dtor_ui_inputbox_2549d40 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_2549d40: mov ecx, 0x2549d40, jmp 0x4de800
+0x4df870  static_init_ui_inputbox_255c500 func  -                    O ; hidden start: initialiser table entry 449 (0x588708): calls init_ui_inputbox_255c500 then jmp register_atexit_ui_inputbox_255c500
 0x4df880  init_ui_inputbox_255c500 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x255c500)
+0x4df890  register_atexit_ui_inputbox_255c500 func  -                    O ; atexit(atexit_dtor_ui_inputbox_255c500), tail of initialiser table entry 449 (0x588708)
+0x4df8a0  atexit_dtor_ui_inputbox_255c500 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_255c500: mov ecx, 0x255c500, jmp 0x4de800
+0x4df8b0  static_init_ui_checkbox_255b908 func  -                    O ; hidden start: initialiser table entry 450 (0x58870c): calls init_ui_checkbox_255b908 then jmp register_atexit_ui_checkbox_255b908
 0x4df8c0  init_ui_checkbox_255b908 func  -                    O ; static initialiser: ui_checkbox__ui_checkbox(0x255b908)
+0x4df8d0  register_atexit_ui_checkbox_255b908 func  -                    O ; atexit(atexit_dtor_ui_checkbox_255b908), tail of initialiser table entry 450 (0x58870c)
+0x4df8e0  atexit_dtor_ui_checkbox_255b908 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_checkbox_255b908: mov ecx, 0x255b908, jmp 0x4de800
+0x4df8f0  static_init_ui_button_255c0d8_x3 func  -                    O ; hidden start: initialiser table entry 451 (0x588710): calls init_ui_button_255c0d8_x3 then jmp register_atexit_ui_button_255c0d8_x3
+0x4df900  init_ui_button_255c0d8_x3 func  -                    O ; static initialiser: ui_button__ui_button on 0x255c0d8, 0x254e478, 0x255cab0, called from initialiser table entry 451 (0x588710)
+0x4df920  register_atexit_ui_button_255c0d8_x3 func  -                    O ; atexit(atexit_dtor_ui_button_255c0d8_x3), tail of initialiser table entry 451 (0x588710)
+0x4df930  atexit_dtor_ui_button_255c0d8_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_255c0d8_x3: mov ecx, 0x255cab0, call atexit_dtor_4317e0, mov ecx, 0x254e478, call atexit_dtor_4317e0, mov ecx, 0x255c0d8, jmp atexit_dtor_4317e0
+0x4df950  static_init_ui_listbox_2555218 func  -                    O ; hidden start: initialiser table entry 452 (0x588714): calls init_ui_listbox_2555218 then jmp register_atexit_ui_listbox_2555218
 0x4df960  init_ui_listbox_2555218  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2555218)
+0x4df970  register_atexit_ui_listbox_2555218 func  -                    O ; atexit(atexit_dtor_ui_listbox_2555218), tail of initialiser table entry 452 (0x588714)
+0x4df980  atexit_dtor_ui_listbox_2555218 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2555218: mov ecx, 0x2555218, jmp atexit_dtor_431950
+0x4df990  static_init_ui_inputbox_255dc80 func  -                    O ; hidden start: initialiser table entry 453 (0x588718): calls init_ui_inputbox_255dc80 then jmp register_atexit_ui_inputbox_255dc80
 0x4df9a0  init_ui_inputbox_255dc80 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x255dc80)
+0x4df9b0  register_atexit_ui_inputbox_255dc80 func  -                    O ; atexit(atexit_dtor_ui_inputbox_255dc80), tail of initialiser table entry 453 (0x588718)
+0x4df9c0  atexit_dtor_ui_inputbox_255dc80 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_255dc80: mov ecx, 0x255dc80, jmp 0x4de800
+0x4df9d0  static_init_ui_window_256b250 func  -                    O ; hidden start: initialiser table entry 454 (0x58871c): calls init_ui_window_256b250 then jmp register_atexit_ui_window_256b250
 0x4df9e0  init_ui_window_256b250   func  -                    O ; static initialiser: ui_window__ui_window(0x256b250)
+0x4df9f0  register_atexit_ui_window_256b250 func  -                    O ; atexit(atexit_dtor_ui_window_256b250), tail of initialiser table entry 454 (0x58871c)
+0x4dfa00  atexit_dtor_ui_window_256b250 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_256b250: mov ecx, 0x256b250, jmp ui_window__dtor
+0x4dfa10  static_init_ui_static_254fb38_x3 func  -                    O ; hidden start: initialiser table entry 455 (0x588720): calls init_ui_static_254fb38_x3 then jmp register_atexit_ui_static_254fb38_x3
+0x4dfa20  init_ui_static_254fb38_x3 func  -                    O ; static initialiser: ui_static__ui_static on 0x254fb38, 0x2559c38, 0x2555538, called from initialiser table entry 455 (0x588720)
+0x4dfa40  register_atexit_ui_static_254fb38_x3 func  -                    O ; atexit(atexit_dtor_ui_static_254fb38_x3), tail of initialiser table entry 455 (0x588720)
+0x4dfa50  atexit_dtor_ui_static_254fb38_x3 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_254fb38_x3: mov ecx, 0x2555538, call atexit_dtor_431780, mov ecx, 0x2559c38, call atexit_dtor_431780, mov ecx, 0x254fb38, jmp atexit_dtor_431780
+0x4dfa70  static_init_ui_container_2563d90 func  -                    O ; hidden start: initialiser table entry 456 (0x588724): calls init_ui_container_2563d90 then jmp register_atexit_ui_container_2563d90
 0x4dfa80  init_ui_container_2563d90 func  -                    O ; static initialiser: ui_container__ui_container(0x2563d90)
+0x4dfa90  register_atexit_ui_container_2563d90 func  -                    O ; atexit(atexit_dtor_ui_container_2563d90), tail of initialiser table entry 456 (0x588724)
+0x4dfaa0  atexit_dtor_ui_container_2563d90 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_container_2563d90: mov ecx, 0x2563d90, jmp 0x4de800
+0x4dfab0  static_init_ui_radio_2565ff0_x4 func  -                    O ; hidden start: initialiser table entry 457 (0x588728): calls init_ui_radio_2565ff0_x4 then jmp register_atexit_ui_radio_2565ff0_x4
+0x4dfac0  init_ui_radio_2565ff0_x4 func  -                    O ; static initialiser: constructor 0x4deeb0 (vtable 0x581c7c) on 0x2565ff0, 0x255ab80, 0x2562eb8, 0x255d300, called from initialiser table entry 457 (0x588728)
+0x4dfaf0  register_atexit_ui_radio_2565ff0_x4 func  -                    O ; atexit(atexit_dtor_ui_radio_2565ff0_x4), tail of initialiser table entry 457 (0x588728)
+0x4dfb00  atexit_dtor_ui_radio_2565ff0_x4 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_radio_2565ff0_x4: mov ecx, 0x255d300, call 0x4de800, mov ecx, 0x2562eb8, call 0x4de800, mov ecx, 0x255ab80, call 0x4de800, mov ecx, 0x2565ff0, jmp 0x4de800
+0x4dfb30  static_init_ui_inputbox_254d4e8 func  -                    O ; hidden start: initialiser table entry 458 (0x58872c): calls init_ui_inputbox_254d4e8 then jmp register_atexit_ui_inputbox_254d4e8
 0x4dfb40  init_ui_inputbox_254d4e8 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox(0x254d4e8)
+0x4dfb50  register_atexit_ui_inputbox_254d4e8 func  -                    O ; atexit(atexit_dtor_ui_inputbox_254d4e8), tail of initialiser table entry 458 (0x58872c)
+0x4dfb60  atexit_dtor_ui_inputbox_254d4e8 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_254d4e8: mov ecx, 0x254d4e8, jmp 0x4de800
+0x4dfb70  static_init_ui_button_2557710_x2 func  -                    O ; hidden start: initialiser table entry 459 (0x588730): calls init_ui_button_2557710_x2 then jmp register_atexit_ui_button_2557710_x2
+0x4dfb80  init_ui_button_2557710_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2557710 and 0x254e8a0, called from initialiser table entry 459 (0x588730)
+0x4dfba0  register_atexit_ui_button_2557710_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2557710_x2), tail of initialiser table entry 459 (0x588730)
+0x4dfbb0  atexit_dtor_ui_button_2557710_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2557710_x2: mov ecx, 0x254e8a0, call atexit_dtor_4317e0, mov ecx, 0x2557710, jmp atexit_dtor_4317e0
+0x4dfbd0  static_init_ui_window_2564540 func  -                    O ; hidden start: initialiser table entry 460 (0x588734): calls init_ui_window_2564540 then jmp register_atexit_ui_window_2564540
 0x4dfbe0  init_ui_window_2564540   func  -                    O ; static initialiser: ui_window__ui_window(0x2564540)
+0x4dfbf0  register_atexit_ui_window_2564540 func  -                    O ; atexit(atexit_dtor_ui_window_2564540), tail of initialiser table entry 460 (0x588734)
+0x4dfc00  atexit_dtor_ui_window_2564540 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_2564540: mov ecx, 0x2564540, jmp ui_window__dtor
+0x4dfc10  static_init_ui_inputbox_2551e88_x2 func  -                    O ; hidden start: initialiser table entry 461 (0x588738): calls init_ui_inputbox_2551e88_x2 then jmp register_atexit_ui_inputbox_2551e88_x2
+0x4dfc20  init_ui_inputbox_2551e88_x2 func  -                    O ; static initialiser: ui_inputbox__ui_inputbox on 0x2551e88 and 0x2561c60, called from initialiser table entry 461 (0x588738)
+0x4dfc40  register_atexit_ui_inputbox_2551e88_x2 func  -                    O ; atexit(atexit_dtor_ui_inputbox_2551e88_x2), tail of initialiser table entry 461 (0x588738)
+0x4dfc50  atexit_dtor_ui_inputbox_2551e88_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_inputbox_2551e88_x2: mov ecx, 0x2561c60, call 0x4de800, mov ecx, 0x2551e88, jmp 0x4de800
+0x4dfc70  static_init_ui_listbox_2549688 func  -                    O ; hidden start: initialiser table entry 462 (0x58873c): calls init_ui_listbox_2549688 then jmp register_atexit_ui_listbox_2549688
 0x4dfc80  init_ui_listbox_2549688  func  -                    O ; static initialiser: ui_listbox__ui_listbox(0x2549688)
+0x4dfc90  register_atexit_ui_listbox_2549688 func  -                    O ; atexit(atexit_dtor_ui_listbox_2549688), tail of initialiser table entry 462 (0x58873c)
+0x4dfca0  atexit_dtor_ui_listbox_2549688 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_listbox_2549688: mov ecx, 0x2549688, jmp atexit_dtor_431950
+0x4dfcb0  static_init_ui_static_254d118 func  -                    O ; hidden start: initialiser table entry 463 (0x588740): calls init_ui_static_254d118 then jmp register_atexit_ui_static_254d118
 0x4dfcc0  init_ui_static_254d118   func  -                    O ; static initialiser: ui_static__ui_static(0x254d118)
+0x4dfcd0  register_atexit_ui_static_254d118 func  -                    O ; atexit(atexit_dtor_ui_static_254d118), tail of initialiser table entry 463 (0x588740)
+0x4dfce0  atexit_dtor_ui_static_254d118 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_254d118: mov ecx, 0x254d118, jmp atexit_dtor_431780
+0x4dfcf0  static_init_ui_button_2569a78_x2 func  -                    O ; hidden start: initialiser table entry 464 (0x588744): calls init_ui_button_2569a78_x2 then jmp register_atexit_ui_button_2569a78_x2
+0x4dfd00  init_ui_button_2569a78_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2569a78 and 0x2562210, called from initialiser table entry 464 (0x588744)
+0x4dfd20  register_atexit_ui_button_2569a78_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2569a78_x2), tail of initialiser table entry 464 (0x588744)
+0x4dfd30  atexit_dtor_ui_button_2569a78_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2569a78_x2: mov ecx, 0x2562210, call atexit_dtor_4317e0, mov ecx, 0x2569a78, jmp atexit_dtor_4317e0
+0x4dfd50  static_init_ui_window_2553110 func  -                    O ; hidden start: initialiser table entry 465 (0x588748): calls init_ui_window_2553110 then jmp register_atexit_ui_window_2553110
 0x4dfd60  init_ui_window_2553110   func  -                    O ; static initialiser: ui_window__ui_window(0x2553110)
+0x4dfd70  register_atexit_ui_window_2553110 func  -                    O ; atexit(atexit_dtor_ui_window_2553110), tail of initialiser table entry 465 (0x588748)
+0x4dfd80  atexit_dtor_ui_window_2553110 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_window_2553110: mov ecx, 0x2553110, jmp ui_window__dtor
+0x4dfd90  static_init_ui_static_2560298 func  -                    O ; hidden start: initialiser table entry 466 (0x58874c): calls init_ui_static_2560298 then jmp register_atexit_ui_static_2560298
 0x4dfda0  init_ui_static_2560298   func  -                    O ; static initialiser: ui_static__ui_static(0x2560298)
+0x4dfdb0  register_atexit_ui_static_2560298 func  -                    O ; atexit(atexit_dtor_ui_static_2560298), tail of initialiser table entry 466 (0x58874c)
+0x4dfdc0  atexit_dtor_ui_static_2560298 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_2560298: mov ecx, 0x2560298, jmp atexit_dtor_431780
+0x4dfdd0  static_init_ui_static_array_2558388 func  -                    O ; hidden start: initialiser table entry 467 (0x588750): calls init_ui_static_array_2558388 then jmp register_atexit_ui_static_array_2558388
+0x4dfde0  init_ui_static_array_2558388 func  -                    O ; static initialiser: eh_vector_constructor_iterator(0x2558388, 0x3cc, 5, ui_static__ui_static), called from initialiser table entry 467 (0x588750)
+0x4dfe00  register_atexit_ui_static_array_2558388 func  -                    O ; atexit(atexit_dtor_ui_static_array_2558388), tail of initialiser table entry 467 (0x588750)
+0x4dfe10  atexit_dtor_ui_static_array_2558388 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_array_2558388: push atexit_dtor_431780, push 0x5, push 0x3cc, push 0x2558388, call 0x56dc0e, ret
+0x4dfe30  static_init_ui_array_2547468 func  -                    O ; hidden start: initialiser table entry 468 (0x588754): calls init_ui_array_2547468 then jmp register_atexit_ui_array_2547468
+0x4dfe40  init_ui_array_2547468    func  -                    O ; static initialiser: eh_vector_constructor_iterator(0x2547468, 0x5b0, 5, 0x5526b0), destroyed through ui_gadget__dtor_base, called from initialiser table entry 468 (0x588754)
+0x4dfe60  register_atexit_ui_array_2547468 func  -                    O ; atexit(atexit_dtor_ui_array_2547468), tail of initialiser table entry 468 (0x588754)
+0x4dfe70  atexit_dtor_ui_array_2547468 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_array_2547468: push 0x4de800, push 0x5, push 0x5b0, push 0x2547468, call 0x56dc0e, ret
+0x4dfe90  static_init_ui_button_2556688_x2 func  -                    O ; hidden start: initialiser table entry 469 (0x588758): calls init_ui_button_2556688_x2 then jmp register_atexit_ui_button_2556688_x2
+0x4dfea0  init_ui_button_2556688_x2 func  -                    O ; static initialiser: ui_button__ui_button on 0x2556688 and 0x2568580, called from initialiser table entry 469 (0x588758)
+0x4dfec0  register_atexit_ui_button_2556688_x2 func  -                    O ; atexit(atexit_dtor_ui_button_2556688_x2), tail of initialiser table entry 469 (0x588758)
+0x4dfed0  atexit_dtor_ui_button_2556688_x2 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_button_2556688_x2: mov ecx, 0x2568580, call atexit_dtor_4317e0, mov ecx, 0x2556688, jmp atexit_dtor_4317e0
+0x4dfef0  static_init_empty_4dff00 func  -                    O ; hidden start: initialiser table entry 470 (0x58875c): jmp init_empty_4dff00
+0x4dff00  init_empty_4dff00        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 470 (0x58875c) via jmp 0x4dfef0
+0x4dff10  static_init_alloc_pool_255dc60 func  -                    O ; hidden start: initialiser table entry 471 (0x588760): calls init_alloc_pool_255dc60 then jmp register_atexit_alloc_pool_255dc60
+0x4dff20  init_alloc_pool_255dc60  func  -                    O ; static initialiser: NoRlsAllocPool__NoRlsAllocPool(0x255dc60), called from initialiser table entry 471 (0x588760)
+0x4dff30  register_atexit_alloc_pool_255dc60 func  -                    O ; atexit(atexit_dtor_alloc_pool_255dc60), tail of initialiser table entry 471 (0x588760)
+0x4dff40  atexit_dtor_alloc_pool_255dc60 func  -                    O ; hidden start: atexit handler registered by register_atexit_alloc_pool_255dc60: mov ecx, 0x255dc60, jmp NoRlsAllocPool__dtor
+0x4e0040  static_init_ccmd_remove_nav func  -                    O ; hidden start: initialiser table entry 472 (0x588764): jmp init_ccmd_remove_nav
 0x4e0050  init_ccmd_remove_nav     func  -                    O ; static initialiser: registers console command object ccmd_remove_nav
 0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
+0x4e0080  script_remove_redundant_npc_navpoints func  -                    O ; hidden start: the body of cmd_remove_nav: _strnicmp "$npc" over the navpoint table 0x24e4950 (count 0x2539f2c), removes unused ones (0x4dff90)
 0x4e01a0  script_editor_any_window_open func  -                    I ; 0x52bf80 on five editor windows, from camera_process_input
 0x4e01f0  script_editor_frame      func  -                    I ; "Cutscene time: %.1f" "Level time: %.1f", from game_render_frame
 0x4e0690  script_editor_create_ui  func  -                    O ; builds editor gadgets "Pos" "Ori" "New" "Del" "Save" "Load" "Cutscene Script"
+0x4e28f0  script_editor_sync_cutscene_button func  -                    O ; shows the "Cutscene Script" button 0x25527e0 (ui_element__set_visible) when cutscene_script_is_active, else hides it
 0x4e2990  navpoint_set_name        func  -                    I ; "Unable to assign name to navpoint -- duplicate navpoint name"
 0x4e2a90  script_editor_set_status func  -                    O ; copies a message to 0x254ecc8 with a 2 s RealtimeTimer
 0x4e2ad0  script_editor_close      func  -                    O ; ui_window__destroy on the twelve editor windows, ui_pop_group, camera back to cur_character, 0x4ed390, cutscene_unload, caller script_editor_frame
@@ -2844,10 +3373,17 @@
 0x4e58a0  script_editor_place_creature func  -                    O ; creates a creature at a navpoint (living_entity_create, character_set_team/name), "That navpoint is already the start for creature", "Creature ... already occupies that point in space"
 0x4e5b10  script_editor_add_navpoint func  -                    O ; "$cut%.3d" "$npc%.3d" "Limit reached - can't add any more ... navpoints"
 0x4e62e0  script_editor_fill_action_lists func  -                    I ; action editor lists: moves (charinfo_find_move), "*.mvf" and "*.vfx" files, "(none)"
+0x4e6930  script_editor_on_pos_ori func  -                    O ; hidden start: button callback (gadget +0x244) of the editor "Pos" / "Ori" mode buttons 0x2565bc8 / 0x254edc8 / 0x254b6e0: toggles the latched one
+0x4e69a0  script_editor_on_new     func  -                    O ; hidden start: button callback of the editor "New" button 0x254f710 (set in script_editor_create_ui)
 0x4e6a30  script_editor_delete_navpoint func  -                    O ; "Can't delete players."
+0x4e6ad0  script_editor_on_delete  func  -                    O ; hidden start: button callback of the editor "Del" button 0x2546c18: "Can't delete players.", script_editor_navpoint_in_use, level_ambient_remove
 0x4e6d90  script_editor_navpoint_in_use func  -                    O ; "This navpoint is used as starting point for \"%s\""
 0x4e6fe0  script_editor_show_script_dialog func  -                    I ; pauses the game and opens the script file dialog for level_script_name / level_filename with "_script.tbl" or "_cscript.tbl"
+0x4e70e0  script_editor_on_load    func  -                    O ; hidden start: button callback of the editor "Load" button 0x2560668: game_pause, script_editor_list_scripts, opens the load window 0x254f208
 0x4e7120  script_editor_list_scripts func  -                    O ; file_find_files "_script.tbl" scripts into a listbox, "$Level:" check, cutscene checkbox
+0x4e7340  script_editor_on_pause   func  -                    O ; hidden start: button callback of the editor "Pause" button 0x255ced8: game_is_paused -> game_unpause / game_pause
+0x4e7380  script_editor_on_time_back func  -                    O ; hidden start: button callback of the editor "< Time" button 0x2566a88: character_resurrect, level_script_restart, 0x4ed550
+0x4e7410  script_editor_on_prev_next func  -                    O ; hidden start: button callback of the editor "< Prev" / "Next >" buttons 0x2557b38 / 0x2565070
 0x4e7cd0  script_editor_show_action_params func  -                    O ; labels the action parameter fields per action type: "Time:", "dist from nav:", "Walk?", "Label id", "Goto id", "NPC to follow", "synch_point" ...
 0x4e88a0  script_create            func  -                    I ; "Unable to create cutscene script / level script -- maximum ... reached"
 0x4e8cf0  script_make_filename     func  -                    I ; "_script.tbl" / "_cscript.tbl", "*** INVALID FILENAME ***"
@@ -2858,12 +3394,28 @@
 0x4ea1e0  script_write_level_table func  -                    O ; "#Ambient Sounds" "$Ambient:" "#Triggers"
 0x4ea500  level_items_write_table  func  -                    O ; editor save of level_items.tbl
 0x4eac70  script_save              func  -                    O ; "Script \"%s\" saved.", read-only file errors
+0x4eb3d0  script_editor_ambient_ok func  -                    I ; hidden start: gadget callback of the ambient sound window 0x254a8d8: "ambient\%s", sound_check_filename, level_ambient_remove / level_ambient_add
+0x4ec270  script_editor_door_ok    func  -                    I ; hidden start: gadget callback of the door window: door_from_lobj, "Doors\" sound_ref_load, savegame_two_stage_get / set ("Originally locked")
+0x4ec730  script_editor_creature_ok func  -                    I ; hidden start: gadget callback of the creature window 0x256b250: character_set_team, xp_for_level, character_get_max_stat from the four team radio buttons
+0x4ecbe0  script_editor_level_item_ok func  -                    I ; hidden start: gadget callback of the level item window 0x2564540: item_create_by_name, level_item_spawn, "%s-%.3d", savegame_level_item_add / remove
+0x4ecf60  static_init_ccmd_render_s3d_navpoints func  -                    O ; hidden start: initialiser table entry 473 (0x588768): jmp init_ccmd_render_s3d_navpoints
 0x4ecf70  init_ccmd_render_s3d_navpoints func  -                    O ; static initialiser: registers console command object ccmd_render_s3d_navpoints
 0x4ecf90  cmd_render_s3d_navpoints func  -                      O ; console command "render_s3d_navpoints": Toggles Render_s3d_navpoints
+0x4ed050  static_init_cutscene_object_timers func  -                    O ; hidden start: initialiser table entry 474 (0x58876c): jmp init_cutscene_object_timers
+0x4ed060  init_cutscene_object_timers func  -                    O ; hidden start: static initialiser: GameTimers at 0x2574480 in 32 records of 0x550 bytes (users cutscene_script_entries_frame and cmd_render_s3d_navpoints), reached from initialiser table entry 474 (0x58876c) via jmp 0x4ed050
+0x4ed080  static_init_empty_4ed090 func  -                    O ; hidden start: initialiser table entry 475 (0x588770): jmp init_empty_4ed090
+0x4ed090  init_empty_4ed090        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 475 (0x588770) via jmp 0x4ed080
+0x4ed0a0  static_init_stringpool_2571750 func  -                    O ; hidden start: initialiser table entry 476 (0x588774): calls init_stringpool_2571750 then jmp register_atexit_stringpool_2571750
 0x4ed0b0  init_stringpool_2571750  func  -                    O ; static initialiser: StringPool(0x2571750, buffer 0x2571764, 0x2800 bytes)
+0x4ed0d0  register_atexit_stringpool_2571750 func  -                    O ; atexit(atexit_dtor_stringpool_2571750), tail of initialiser table entry 476 (0x588774)
+0x4ed0e0  atexit_dtor_stringpool_2571750 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_2571750: mov ecx, 0x2571750, jmp StringPool__dtor
 0x4ed0f0  cutscene_script_load     func  -                    O ; "_cscript.tbl", "#Navpoints", "Cutscene script string pool usage: %d bytes"
+0x4ed390  cutscene_script_unload   func  -                    I ; restores the cutscene actors (equipment, ai_reset, anims), script_entry_advance cleanup, StringPool__Reset(0x2571750), camera back, callers cutscene_cleanup, script_editor_close, cutscene_script_load, 0x4e7800
 0x4ed680  cutscene_script_entries_frame func  -                    I ; cutscene script objects: timers, script_entry_check_done / script_entry_advance, SequenceTimer2, state_game_frame
 0x4ed760  cutscene_script_table    func  -                    O ; returns 0x257e974
+0x4ed770  cutscene_script_is_active func  -                    O ; true when debug flag 0x20 of game_debug_flags is set or the cutscene script name 0x257e974 is not empty, callers ai_do_frame, ai_goal_evaluate, ai_score_target, 0x4e28f0
+0x4ed7c0  static_init_ls_sewerboss_timer func  -                    O ; hidden start: initialiser table entry 477 (0x588778): jmp init_ls_sewerboss_timer
+0x4ed7d0  init_ls_sewerboss_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257e99c), used by ls_sewerboss_frame and lsf_sewer_found_tb, reached from initialiser table entry 477 (0x588778) via jmp 0x4ed7c0
 0x4ed7e0  ls_sewer_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4edc30  ls_sewerboss_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4edd30  ls_sewerboss_leave       func  -                    O ; level_script_table entry: level script leave handler
@@ -2893,6 +3445,8 @@
 0x4ee940  ls_rand_grassland01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4eed80  ls_rand_grassland01_action func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4eee20  ls_rand_hillsnite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4eee40  static_init_ls_ikaemosbottomint2_timer func  -                    O ; hidden start: initialiser table entry 478 (0x58877c): jmp init_ls_ikaemosbottomint2_timer
+0x4eee50  init_ls_ikaemosbottomint2_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257e9ac), used by ls_ikaemosbottomint2_* and ls_rand_hillsnite01_init, reached from initialiser table entry 478 (0x58877c) via jmp 0x4eee40
 0x4eee60  ls_ikaemosbottomint2_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4eeef0  ls_ikaemosbottomint2_frame func  -                    O ; level_script_table entry: level script per-frame handler
 0x4ef0e0  ls_ikaemosbottomint2_jekhar_remark func  -                    O ; timer 0x257e9ac: script_party_member_say "Jekhar", re-arm 25 s
@@ -2914,6 +3468,8 @@
 0x4efe80  lsf_lenele1aa_jekhar_talk func  -                    I ; level-script helper keyed on story flag "lenele1aa_jekhar_talk"
 0x4efef0  ls_lenele1aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4eff30  ls_lenele1aa_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4effb0  static_init_ls_jadetemple_timers func  -                    O ; hidden start: initialiser table entry 479 (0x588780): jmp init_ls_jadetemple_timers
+0x4effc0  init_ls_jadetemple_timers func  -                    O ; hidden start: static initialiser: GameTimers 0x257e9c8 and 0x257e9c0, used by ls_jadetemple_init, ls_lenele1aa_action, lsf_tiger2_dead, reached from initialiser table entry 479 (0x588780) via jmp 0x4effb0
 0x4effe0  ls_jadetemple_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0110  ls_jadetemple_frame      func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f0160  lsf_tg_intro             func  -                    I ; level-script helper keyed on story flag "tg_intro"
@@ -2921,6 +3477,8 @@
 0x4f0680  lsf_murod_intro          func  -                    I ; level-script helper keyed on story flag "murod_intro"; L"Joseph acquired Summon Jade Golem!"
 0x4f0990  ls_jadetemple_finish     func  -                    I ; party_add_member Jekhar / Rosalind / Flece, next level "khosanistrng" / "khosanistrng_v3"
 0x4f0a40  ls_jadetemple_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f0d80  static_init_ls_jadetemple_timer_b func  -                    O ; hidden start: initialiser table entry 480 (0x588784): jmp init_ls_jadetemple_timer_b
+0x4f0d90  init_ls_jadetemple_timer_b func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257e9d0), used by ls_jadetemple_action and ls_lenele3d_init, reached from initialiser table entry 480 (0x588784) via jmp 0x4f0d80
 0x4f0da0  ls_lenele3d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0eb0  ls_lenele3d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f0f00  ls_ionaext02_leave       func  -                    O ; level_script_table entry: level script leave handler; shared with ls_lenele3d_leave
@@ -2967,6 +3525,14 @@
 0x4f2830  ls_tancredhouse_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2930  ls_tancredhouse_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f29c0  ls_test_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_ikaemosbottomint_use, ls_ikaemosext_use, ls_ionaext_use, ls_ionaext_slot14, ls_ionaext02_use, ls_khosanistrng_use, ls_tancredhouse_use, ls_khosanilab2_use, ls_lenele2ab_use, ls_jadetemple_use, ls_lenele1ab_use, ls_ikaemosext2_use, ls_ikaemosbottomint2_use
+0x4f29d0  static_init_ls_lpalaceint_timer func  -                    O ; hidden start: initialiser table entry 481 (0x588788): jmp init_ls_lpalaceint_timer
+0x4f29e0  init_ls_lpalaceint_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ea00), used by ls_lpalaceint_sneak_frame / ls_lpalaceint_sneak_remark, reached from initialiser table entry 481 (0x588788) via jmp 0x4f29d0
+0x4f29f0  static_init_lpalaceint_guard_halt_lines func  -                    O ; hidden start: initialiser table entry 482 (0x58878c): jmp init_lpalaceint_guard_halt_lines
+0x4f2a00  init_lpalaceint_guard_halt_lines func  -                    O ; hidden start: static initialiser: 7 localized string pointers 0x257ea20.. (L518 "You there! Halt!..."), read by ls_lpalaceint_sneak_frame, reached from initialiser table entry 482 (0x58878c) via jmp 0x4f29f0
+0x4f2a50  static_init_lpalaceint_guard_servant_lines func  -                    O ; hidden start: initialiser table entry 483 (0x588790): jmp init_lpalaceint_guard_servant_lines
+0x4f2a60  init_lpalaceint_guard_servant_lines func  -                    O ; hidden start: static initialiser: 5 localized string pointers 0x257ea3c.. (L525 "Go back. You're not allowed this way, servant."), read by ls_lpalaceint_sneak_frame, reached from initialiser table entry 483 (0x588790) via jmp 0x4f2a50
+0x4f2aa0  static_init_lpalaceint_guard_servant_line func  -                    O ; hidden start: initialiser table entry 484 (0x588794): jmp init_lpalaceint_guard_servant_line
+0x4f2ab0  init_lpalaceint_guard_servant_line func  -                    O ; hidden start: static initialiser: 0x257ea50 = L530 "You're not supposed to be here, servant.", read by ls_lpalaceint_sneak_frame, reached from initialiser table entry 484 (0x588794) via jmp 0x4f2aa0
 0x4f2ac0  ls_lpalaceint_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2ce0  ls_lpalaceint_frame      func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f2f00  ls_lpalaceint_sneak_frame func  -                    I ; palace sneaking: guards see player (script_guard_sees_player), "lpalaceint_int_sneak_attempts", teleport "$Teleport001"
@@ -2979,6 +3545,8 @@
 0x4f3ee0  ls_khosanistrng_frame    func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f41c0  lsf_khosani_strng_talked_to_portal func  -                    I ; level-script helper keyed on story flag "khosani_strng_talked_to_portal"
 0x4f4210  ls_khosanistrng_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f4550  static_init_ls_ionaext02_timer func  -                    O ; hidden start: initialiser table entry 485 (0x588798): jmp init_ls_ionaext02_timer
+0x4f4560  init_ls_ionaext02_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ea58), used by ls_ionaext02_* and ls_khosanistrng_action, reached from initialiser table entry 485 (0x588798) via jmp 0x4f4550
 0x4f4570  ls_ionaext02_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4650  ls_ionaext02_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f48d0  ls_ionaext02_rosalind_remark func  -                    O ; timer 0x257ea58: script_party_member_say "Rosalind", re-arm 25 s
@@ -3010,6 +3578,16 @@
 0x4f5f80  ls_templeint_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f64f0  ls_templeint_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f65e0  ls_templeint_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f6620  static_init_ls_wolongcaverns_trap1_timer func  -                    O ; hidden start: initialiser table entry 486 (0x58879c): jmp init_ls_wolongcaverns_trap1_timer
+0x4f6630  init_ls_wolongcaverns_trap1_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ea84), used by ls_wolongcaverns_trap1_fire, reached from initialiser table entry 486 (0x58879c) via jmp 0x4f6620
+0x4f6640  static_init_ls_wolongcaverns_trap2_timer func  -                    O ; hidden start: initialiser table entry 487 (0x5887a0): jmp init_ls_wolongcaverns_trap2_timer
+0x4f6650  init_ls_wolongcaverns_trap2_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257eaa8), used by ls_wolongcaverns_trap2_fire, reached from initialiser table entry 487 (0x5887a0) via jmp 0x4f6640
+0x4f6660  static_init_ls_wolongcaverns_ptrap_timer func  -                    O ; hidden start: initialiser table entry 488 (0x5887a4): jmp init_ls_wolongcaverns_ptrap_timer
+0x4f6670  init_ls_wolongcaverns_ptrap_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ea78), used by ls_wolongcaverns_ptrap_fire, reached from initialiser table entry 488 (0x5887a4) via jmp 0x4f6660
+0x4f6680  static_init_empty_4f6690 func  -                    O ; hidden start: initialiser table entry 489 (0x5887a8): jmp init_empty_4f6690
+0x4f6690  init_empty_4f6690        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 489 (0x5887a8) via jmp 0x4f6680
+0x4f66a0  static_init_empty_4f66b0 func  -                    O ; hidden start: initialiser table entry 490 (0x5887ac): jmp init_empty_4f66b0
+0x4f66b0  init_empty_4f66b0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 490 (0x5887ac) via jmp 0x4f66a0
 0x4f66c0  ls_wolongcaverns_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f6850  ls_wolongcaverns_update_triggers func  -                    O ; game_stage_get -> level_trigger_enable / _disable "wolong", "wolong2", "wolong2_v2"
 0x4f68f0  ls_wolongcaverns_frame   func  -                    O ; level_script_table entry: level script per-frame handler
@@ -3032,6 +3610,8 @@
 0x4f74f0  lsf_iona_ext_found_rosalind func  -                    I ; level-script helper keyed on story flag "iona_ext_found_rosalind"
 0x4f75d0  ls_ionaext_cutscene_frame func  -                    I ; fade and camera sequence with player input off
 0x4f7760  ls_ionaext_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4f77c0  static_init_ls_khosanilab_timer func  -                    O ; hidden start: initialiser table entry 491 (0x5887b0): jmp init_ls_khosanilab_timer
+0x4f77d0  init_ls_khosanilab_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ebb4), used by ls_khosanilab_* and ls_ionaext_action, reached from initialiser table entry 491 (0x5887b0) via jmp 0x4f77c0
 0x4f77e0  ls_khosanilab_puzzle_update func  -                    O ; removes the old path splines (0x4f78e0), traces the path from the start cell when grid cell 0x257eb1c is open, else the idle path 0x4f88c0
 0x4f78a0  ls_khosanilab_puzzle_flush_path func  -                    O ; turns the pending point list 0x257ebc0 (count 0x257ebb8) into a spline (0x4a7990) and appends its handle to 0x257ec84 (count 0x257ecac)
 0x4f78e0  ls_khosanilab_puzzle_clear_paths func  -                    O ; frees every path spline in 0x257ec84 (0x4a78b0, as script_free_avoid_spline) and zeroes the counts, callers ls_khosanilab_puzzle_update and ls_khosanilab_leave
@@ -3090,6 +3670,10 @@
 0x4fb060  lsf_lenele_slums_flag_ken_speaks func  -                    I ; level-script helper keyed on story flag "lenele_slums_flag_ken_speaks"
 0x4fb0c0  ls_lenele1b_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fb160  ls_lenele1b_action       func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fb4d0  static_init_empty_4fb4e0 func  -                    O ; hidden start: initialiser table entry 492 (0x5887b4): jmp init_empty_4fb4e0
+0x4fb4e0  init_empty_4fb4e0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 492 (0x5887b4) via jmp 0x4fb4d0
+0x4fb4f0  static_init_ls_worldmap1_timer func  -                    O ; hidden start: initialiser table entry 493 (0x5887b8): jmp init_ls_worldmap1_timer
+0x4fb500  init_ls_worldmap1_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ed08), used by ls_worldmap1_init / ls_worldmap1_frame and ls_lenele1b_action, reached from initialiser table entry 493 (0x5887b8) via jmp 0x4fb4f0
 0x4fb510  ls_worldmap1_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fb6d0  ls_worldmap1_setup_lenele func  -                    O ; stage-based triggers "lenele3d", "lenele2d", "lenele1d"(_v2/_v3)
 0x4fb830  ls_worldmap1_setup_masad func  -                    O ; stage >= 9: "masad_v2" instead of "masad"
@@ -3101,8 +3685,10 @@
 0x4fbd50  ls_worldmap1_setup_liangshan func  -                    O ; stage >= 13 disables "liangshan"
 0x4fbd80  ls_worldmap1_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fd560  ls_worldmap1_leave       func  -                    O ; level_script_table entry: level script leave handler
+0x4fd5c0  static_init_ccmd_iw      func  -                    O ; hidden start: initialiser table entry 494 (0x5887bc): jmp init_ccmd_iw
 0x4fd5d0  init_ccmd_iw             func  -                    O ; static initialiser: registers console command object ccmd_iw
 0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
+0x4fd600  static_init_ccmd_random_encounters func  -                    O ; hidden start: initialiser table entry 495 (0x5887c0): jmp init_ccmd_random_encounters
 0x4fd610  init_ccmd_random_encounters func  -                    O ; static initialiser: registers console command object ccmd_random_encounters
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
 0x4fd6f0  ls_masad_reset_fire      func  -                    O ; game_stage_set(0), "masad-firedoor1/2.vfx", "masad-fire1.vfx", "invis-door01".."03"
