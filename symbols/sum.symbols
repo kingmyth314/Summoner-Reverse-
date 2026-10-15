@@ -7282,7 +7282,7 @@
 0x5534f0  ui_container__process    func  vsdk\ui\ui_container.cpp O ; vtable slot 5 (checked: slot 5 of ui_container__vtable 0x581f40: unless ui_gadget__is_hidden or slot 4 (disabled), ui_gadget__process_children(arg) and returns it)
 0x553530  ui_container__dtor       func  vsdk\ui\ui_container.cpp O ; vtable slot 0 (0x581f40): unlocks the mask bitmap +0x378, then ui_gadget__dtor
 0x553560  ui_container__ui_container func  vsdk\ui\ui_container.cpp O ; constructor (vtable 0x581f40); used by ui_parse_container
-0x553590  ui_container__create     func  vsdk\ui\ui_container.cpp O ; ui_gadget__init with type 1, mask bitmap +0x378 = -1
+0x553590  ui_container__create     func  vsdk\ui\ui_container.cpp O ; ui_gadget__init with type 1, mask bitmap +0x378 = -1 (checked 2026-10-15: create sets the label font +0x380 to -1, flags +0x374 and colour set +0x384; +0x378 = -1 is done by the constructor)
 0x5535f0  ui_container__set_tooltip func  vsdk\ui\ui_container.cpp O ; adds a tooltip node to +0x124, used by ui_parse_container
 0x553680  ui_container__set_label  func  vsdk\ui\ui_container.cpp O ; strcpy into +0x274, ui_parse_container $Label:
 0x5536b0  ui_container__load_mask_bitmap func  vsdk\ui\ui_container.cpp O ; thiscall(name): bm_load, DebugError "Could not load in" (ui_container.cpp line 0x10a) on failure, then ui_container__set_mask_bitmap, same shape as the ui_window mask loader (formerly ui_container_load)
@@ -7312,7 +7312,7 @@
 0x5550d0  bytes_equal              func  vsdk\bmpman\targautils.cpp O ; (a, b, n) (checked: (a, b, n): 1 when the first n bytes are equal, else 0, caller tga_rle_encode_row)
 0x555110  tga_read_header          func  vsdk\bmpman\targautils.cpp O ; (name, &w, &h, &bpp, ..., path_id); bm_read_header type 2
 0x555330  tga_rle_decode           func  vsdk\bmpman\targautils.cpp I
-0x555410  copy_pixels_advance      func  vsdk\bmpman\targautils.cpp O ; (n, size, &dst, &src): memcpy of n*size bytes and advances both pointers, callers tga_rle_decode, tga_read_bitmap
+0x555410  copy_pixels_advance      func  vsdk\bmpman\targautils.cpp O ; (n, size, &dst, &src): memcpy of n*size bytes and advances both pointers, callers tga_rle_decode, tga_read_bitmap (argument order checked 2026-10-15: (n, &dst, &src, size), size read from [esp+0x10])
 0x555450  tga_read_bitmap          func  vsdk\bmpman\targautils.cpp O ; "Could not open file: %s"; bm_lock_tga
 0x555970  tga_write_rle            func  vsdk\bmpman\targautils.cpp O ; image type 10 (checked: (name, data, w, h, bpp): ".tga" header with image type 10 (RLE), 32-bit descriptor 0x20, tga_rle_encode_row into a buffer then File__write)
 0x555b50  tga_write                func  vsdk\bmpman\targautils.cpp O ; image type 2 (checked: (name, data, w, h, bpp): ".tga" header with image type 2 (uncompressed), descriptor 0x20, raw File__write of w*h*bytes)
