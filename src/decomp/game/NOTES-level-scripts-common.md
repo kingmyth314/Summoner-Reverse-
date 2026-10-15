@@ -144,7 +144,7 @@ a 0xc-byte console command, so alignment). 0x2490c78 is only zeroed by level_scr
 - The fog distance names: fog_set_level_default stores its first argument at 0x59bd88, which sum.symbols
   (since f7229e0) calls fog_level_near_distance, but level_parse_table passes the "+Fog Far:" value first
   (0x4cbf02-0x4cbf09). Either the table keys or one of the names are swapped; the header uses neutral
-  parameter names. fog_set_layer likewise gets the first "+Distance:" float into level_layer_fog_far.
+  parameter names. fog_set_layer likewise gets the first "+Distance:" float into level_layer_fog_near.
 - The door sound parameters: the third float defaults to 0.1 and a parsed 0.1 becomes 1.0
   (`fcomp [0x580214]` 0x4cd83e / 0x4cd8da); params[0] is the second float times 255, params[1] the first,
   params[2] the third. What the three mean is not known.

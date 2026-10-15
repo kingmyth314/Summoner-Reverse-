@@ -86,7 +86,7 @@ Decisions: D1700-D1712 in include/DECISIONS.md.
 | 0x44ed90 | character_get_name | exact |
 | 0x44edb0 | character_set_name | exact |
 | 0x44edf0 | living_entity__vfunc0 | likely |
-| 0x44f020 | character_is_in_view | likely |
+| 0x44f020 | character_is_culled | likely |
 | 0x44f1a0 | character_place_at_party_start | likely |
 | 0x44f5f0 | character_place_at_marker | likely |
 | 0x44f880 | character_has_line_of_sight_to_point | likely |

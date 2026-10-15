@@ -33,8 +33,10 @@ flowchart LR
 ## Layer 1: game effect objects (`fx_*`)
 
 - `fx_pool` (`0x2305bc0`) holds 48 effect objects of 0x10c bytes, built by `fx_pool_construct` (`0x489c90`).
-  `fx_alloc` (`0x489ce0`) takes one from the free list. `fx_new` (`0x48c3e0`) links it into
-  `fx_active_list` (`0x2305920`, next `+0x98`, prev `+0x9c`), sets the kind and the active bit. **Observed.**
+  `fx_alloc` (`0x489ce0`) takes the first object whose type `+0xc` is 0 and returns 0 when all 48 are used.
+  `fx_new` (`0x48c3e0`) links it into `fx_active_list` (`0x2305920`, next `+0x98`, prev `+0x9c`), sets the kind
+  and the active bit, and clears `+0xa0`, `+0xc0`, `+0x108` and the sound and area handles. It leaves the spell
+  `+0xa8` of the slot's last user (game bug G271). **Observed.**
 - `fx_create_instance` (`0x48bdc0`) is the common creator. It calls `vfx_load`, stores the instance at `+0xa0`,
   and adds a lamp glow for every mesh with flag `0x40` (see below). **Observed.**
 - `fx_frame` (`0x48a230`) updates every effect object each frame from `state_game_frame`. It runs status
@@ -50,12 +52,16 @@ Known fields of `effect_object` (partial; `symbols/types.h`):
 |---|---|---|
 | `+0x10` / `+0x38` | position / orientation | **Observed** (`fx_create_instance`) |
 | `+0x80` | handle (returned by the creators) | **Observed** |
-| `+0x84` | flags: 1 active, 4 stopping, `0x40` paused for a cutscene, `0x200` | **Observed** |
+| `+0x84` | flags: 1 active, 4 stopping, `0x40` paused for a cutscene | **Observed** |
 | `+0xa0` | vfx instance | **Observed** |
 | `+0xa4` | kind (see below) | **Observed** |
 | `+0xa8` | spell index, -1 for none | **Observed** |
 | `+0xac` / `+0xb4` | source handle / owner handle | **Observed** |
+| `+0xb0` | caster handle of a spell effect (missile, ground effect, area, near / facing / at); `fx_frame`'s fire, blizzard and dark wall areas take the caster from here | **Observed** (`0x48c3b7`, `0x48c693`, `0x48c870`, `0x48b3f7`) |
+| `+0xbc` | `fx_flags`: 8 instance not owned (`fx_obj_destroy` does not free it, `0x489dea`), `0x10` hit done, `0x200` status effect (`fx_stop_status_effects` `0x48ce1c`), bits 17-19 count of flagged targets | **Observed** |
 | `+0xc0` | target (`fx_set_target`) | **Observed** |
+| `+0x100` | avoidance area handle (fire, blizzard and dark wall areas, summon appearances), -1 for none; removed by `fx_obj_destroy` | **Observed** |
+| `+0x108` | spell effect record (network games; `spell_cast_launch_effects`) | **Observed** |
 | `+0xdc`, `+0x104` | two GameTimers (built in `fx_obj__ctor`) | **Observed** |
 | `+0xe0` | sound emitter handle, -1 for none | **Observed** |
 
@@ -63,15 +69,21 @@ Kinds set by the creators:
 
 | Kind | Creator | Use |
 |---|---|---|
-| 2 | (`fx_set_target` `0x48cf50` only acts on objects whose type `+0xc` is 2) | *inferred*: cast effect that waits for a target; the check is on the object type `+0xc`, not the effect kind `+0xa4` (**observed**) |
-| 3 | `fx_create_at_camera` `0x48c140` | cutscene effects at the camera |
-| 4 | `fx_create_missile` `0x48c220` | projectiles; `fx_update_missile` `0x48b7a0` homes on the target bone |
-| 7 | `fx_create_ground_effect` `0x48c540` | spell ground effects with a sound and timer |
-| 9 / 10 | `fx_get_status_holder` `0x48cc60` | status effect holder / aura on a character |
-| 0xb | `fx_create_spell_area` `0x48c630` | 1060 ms area that flags enemies within 10.0 |
-| 0xc / 0xd / 0xe | `fx_create_spell_effect_near` / `_facing` / `_at` (`0x48c800` / `0x48c8a0` / `0x48cab0`) | a spell's hit effect near, facing or at a point |
+| 0 | `fx_add_effect` `0x48bd80`, `fx_create_world` `0x48cea0` | an effect at a world position (world effects; names with "sky" also go in the 5-entry sky list) |
+| 1 / 2 | `fx_attach_to_character` `0x48c080` | an effect on a character; kind 2 follows the body centre. `fx_set_target` `0x48cf50` acts on objects whose type `+0xc` is 2, which is a different field |
+| 3 | `fx_create_at_camera` `0x48c140` | cutscene effects at the camera, with `camera_view_orient` (turned around every frame by `fx_frame`) |
+| 4 | `fx_create_missile` `0x48c220` | projectiles; `fx_update_missile` `0x48b7a0` homes on the target bone. Arrows (spell 0x37) have no instance: a trail bitmap, 20 per second, and the caster's melee hit on arrival |
+| 5 / 6 | `status_effect_update_fx` `0x48c470` | a status effect's looping effect; the character's alpha fades to 255 - 235 x progress |
+| 7 | `fx_create_ground_effect` `0x48c540` | spell ground effects with a sound and timer (sound off after 20 s) |
+| 8 | `summon_spawn_effect` `0x48cb40` | a summon's appearance; `begin_emerge` when the timer runs out |
+| 9 | `fx_get_status_holder` `0x48cc60` | status effect holder: "spell-status.vfx" on the character every 10 s; no instance |
+| 10 | `status_stone_fx` `0x48cd20` | the stone effect ("stone-loop.vfx"), "stone-fade.vfx" when the paralysis ends; `fx_get_status_holder` returns -1 while one exists |
+| 0xb | `fx_create_spell_area` `0x48c630` | 1060 ms area that flags enemies within 10.0; radius grows 4.72 per second to 5.003, hits each target once; no instance |
+| 0xc / 0xd / 0xe | `fx_create_spell_effect_near` / `_facing` / `_at` (`0x48c800` / `0x48c8a0` / `0x48cab0`) | a spell's hit effect near (hit at frame 14), facing or at a point (hit when the timer runs out; spell 0x66 hits everyone but the caster) |
+| 0xf | `titus_rock_erupt_fx` `0x48c9a0` | Titus' rock eruption, damage at frame 55.25 |
+| 0x10 | `character_equip_item_fx` `0x48ca40` | an equipped item's effect (`+Animation:`), loaded only while a weapon is in the hand; no retail item has one |
 
-The kind numbers come from the creators. Kind 1 and the other kinds were not traced. *Unknown.*
+All kinds are now traced (`fx_frame` jump table `0x48b600`). **Observed.**
 
 ### Attachment to bones
 

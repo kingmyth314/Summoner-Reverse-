@@ -142,10 +142,14 @@ computes the scaled ranges: the far distance is multiplied by `Gr_level_fog_mult
 starts at `Gr_alpha_fog_ratio` of the way from near to far. The back end is always called with 1
 (**observed**). On a skipped update the old distances stay active (game bug K92, latent).
 
-Its callers pass the start and end distance from `0x59bd80` and `0x59bd7c` (`levelrender_fog_enable`
-`0x482850`). These two globals are named the wrong way round in `sum.symbols`: `0x59bd7c` (`fog_near`) is the
-end distance. It is passed as `far` and to `gr_set_far_clip` (`0x4829a3`), `set_fog` prints it as "far"
-(`0x481beb`), and `fog_set_distances` keeps it above `0x59bd80` (`0x486b5f`-`0x486b7a`).
+Its callers pass the start and end distance from `fog_near_distance` (`0x59bd80`) and `fog_far_distance`
+(`0x59bd7c`) (`levelrender_fog_enable` `0x482850`). `sum.symbols` once had these two names the wrong way round;
+they are corrected: `0x59bd7c` is passed as `far` and to `gr_set_far_clip` (`0x4829a3`), `set_fog` prints it as
+"far" (`0x481beb`), and `fog_set_distances` keeps it above `0x59bd80` (`0x486b5f`-`0x486b7a`). The per-layer
+values follow the table order: `fog_set_layer` stores the first `+Distance:` number in `level_layer_fog_near`
+(`0x22fae78`) and the second in `level_layer_fog_far` (`0x22ea4f4`), and `level_set_current_layer` copies them
+to the near and far distance (`0x48218a`-`0x4821b6`). A level table's `+Fog Near:` / `+Fog Far:` defaults, in
+contrast, are stored swapped (game bug K273, latent: no retail table uses them).
 
 ## Drawing
 

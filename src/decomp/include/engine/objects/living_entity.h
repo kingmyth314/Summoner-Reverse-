@@ -200,7 +200,7 @@ public:
     move_info *get_current_move();    // 0x461500 character_get_current_move (NULL = none)
     int   spell_on_cooldown(int spell);// 0x44dd30 character_spell_on_cooldown
     void  add_ap(float delta);        // 0x450c70 character_add_ap
-    bool  is_in_view(float radius_scale); // 0x44f020 character_is_in_view
+    bool  is_in_view(float radius_scale); // 0x44f020 character_is_culled
     void  move_frame();               // 0x45cd00 living_entity_move_frame
     void  update_footsteps();         // 0x45d690 character_update_footsteps
     // decomp23 (combat.cpp, spells.cpp). Argument lists from the call sites; decomp37 types.

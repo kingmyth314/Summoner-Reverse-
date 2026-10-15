@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 305 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 320 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 64 | 2 |
-| Gameplay | 48 | 21 | 3 |
-| Cosmetic | 47 | 26 | 2 |
-| Invisible | 39 | 54 | 0 |
+| Crash or hang | 7 | 68 | 2 |
+| Gameplay | 50 | 21 | 3 |
+| Cosmetic | 50 | 28 | 2 |
+| Invisible | 42 | 54 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -108,6 +108,11 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C260 | Latent: with all 400 lights in use, a new point or spot light is written over the end of the light selection table; if it was one of the inventory model's lights, closing that screen can crash in `light_delete` | `light_create_point` `0x51e290`, `light_create_spot` `0x51e3f0`, `light_alloc` `0x51e380` | **Observed** code and retail data, *inferred* crash | No |
 | C261 | Latent: a list box entry that wraps into more than 20 lines overwrites the list box line tables and, from line 22, the UI manager's mouse flags; the next draw copies the first line with a pointer as its length and crashes | `ui_listbox_entry__wrap_text` `0x52ca60`, `ui_listbox__draw` `0x52f080` | **Observed** code, *inferred* crash | No |
 | C262 | Latent: a cutscene camera rotation key of (0, 0, 0, 0) divides by zero when the camera tangents are built; a key whose packed length is above one unit makes them zero | `cquat__normalized` `0x523050`, `cquat_log_of_delta` `0x523c60`, `anim_track__calc_rot_tangents` `0x5506e0` | **Observed** code and retail data, *inferred* effect | No |
+| C270 | In a fight where more than ten fireball, wall of fire, Pyrul fireball, blizzard or dark wall areas burn at the same time, the effect update overwrites its own saved registers and, from the fifteenth area, its return address (a crash) | `fx_frame` `0x48a230` | **Observed** code, *inferred* crash; not reproduced, and whether a retail fight reaches eleven areas was not measured | No |
+| C271 | Latent: a level or cutscene that creates a sixth world effect whose name contains "sky" writes past the five-entry sky list; the frame then draws a pointer built from the effect counter (a likely crash) | `fx_create_world` `0x48cea0`, `levelrender_render_scene` `0x482200` | **Observed** code and retail data, *inferred* effect | No |
+| C272 | Latent: in the Masad combat tutorial, the "part 2" step (after the Orenian Scout is defeated) crashes if an arrow is in flight, a spell area is burning or any character's status effect holder exists at that moment; the level-start callers crash the same way if such an effect already exists | `fx_disable_by_effect_name` `0x48d660`, `tutorial_cond_combat_part2` `0x42ead0` | **Observed** code and retail data, *inferred* crash | No |
+| C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
+| C274 | Latent: a level item placed while all 40 containers are in use crashes the level load | `level_item_spawn` `0x46a640`, `container_obj_create` `0x4897f0` | **Observed** code and retail data, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -713,6 +718,57 @@ squad inner quaternions. Only cutscene camera tracks reach it: `cutscene_camera_
 at most 0x3fff squared (exactly that for the identity keys), and none is zero, so the division never fails and never
 yields 0. `cquat__normalize` (`0x5232b0`, same `idiv` at `0x5232f7`) has no caller.
 
+**C270. No bound on the area list.** In its first pass `fx_frame` collects every effect object whose spell
+(`+0xa8`) is 0x1a, 0x1d, 0x1f, 0x23 or 0x4e (fireball, wall of fire, dark wall, blizzard, Pyrul fireball; case
+table `0x48b64c`) and that owns an avoidance area (`+0x100` != -1) into a stack array at `esp+0x230`
+(`mov [esp + 4*eax + 0x230], ebp; inc eax` at `0x48a40a`..`0x48a416`). There is no compare. The array has room
+for ten entries (`esp+0x230`..`0x257`); the eleventh lands on the saved `edi`, the next three on `esi`, `ebp` and
+`ebx`, the fifteenth on the return address (`0x268`) and the sixteenth on the frame time argument. The areas
+come from wall of fire (`spell_place_ground_effect` `0x47e100`), blizzard (`spell_spawn_hit_fx` `0x47e590`) and
+every fireball hit on a character (`living_entity_get_hit_by_spell` `0x45efe7`..`0x45f022` ->
+`spell_effect_obj_set_timer` `0x47e4d0`, kind 7). The effect pool holds 48 objects (`fx_alloc` `0x489cf9`), so
+up to 48 can be listed. *Inferred:* several casters with wall of fire or fireball (party AI, Fire Imps, Pyrul)
+can reach eleven in a long fight; how long each area lives (its vfx length) was not measured.
+
+**C271. No bound on the sky list.** `fx_create_world` stores every effect whose name contains "sky"
+(`stristr` at `0x48cef3`) at `fx_sky_list[fx_num_sky++]` (`0x48ceff`..`0x48cf33`). The list has five entries
+(`0x2318e2c`..`0x2318e3f`, cleared by `fx_sky_list_clear` `0x48a1a0`); the sixth lands on `fx_count`
+(`0x2318e40`), which `fx_alloc` and `fx_obj_destroy` then step by one, and the eighth on the PXO login pointer
+(`0x2318e48`). `levelrender_render_scene` draws `fx_num_sky` entries (`0x482429`..`0x48243a`). Retail: the most
+"sky" `$Level_fx` lines in one level table is 2 (`test-water.tbl`), and no `cutscene.tbl` effect name contains
+"sky"; the level-script trap callers use fixed fire effects.
+
+**C272. No NULL test on the instance.** `fx_disable_by_effect_name` reads `instance->category` (`mov ecx, [eax + 8]`
+at `0x48d67a`, with `eax` = `+0xa0`) for every active effect object. `fx_new` (`0x48c41b`) leaves `+0xa0` at 0,
+and only the instance creators fill it, so arrows (`fx_create_missile`'s weapon path stores 0 at `0x48c2bf`),
+spell areas (`fx_create_spell_area`, kind 11), status holders (`fx_get_status_holder`, kind 9) and item effects
+(kind 16, until loaded) have none. The level-start callers (`level_script_init` `0x4cca5b`..`0x4cca6f`,
+`ls_masad_init`, `ls_wolongcaverns_init`, `ls_lenele3d_init`, `ls_masad_reset_fire`) run after
+`fx_level_leave` emptied the list, but `tutorial_cond_combat_part2` (`0x42ebe2`, "masad-firedoor2.vfx") runs
+mid-level when the Masad Scout `"Orenian Scout#$npc002"` is in the inactive list and has no move. A status
+holder exists for every character with an active status (`character_update_status_effects` `0x45bee8`).
+*Inferred:* Joseph alone in the first fight rarely has a status, so we know of no retail run that hits it. A
+second slip: an effect without a base (`effect_get_base` 0, `0x48d691`) ends the whole search instead of skipping.
+
+**C273. Spell record not checked.** In a network game (`game_flags` `0x2`) kinds 12 and 14 copy 13 dwords from
+the spell record at `+0x108` with `rep movsd` (`0x48abcf`, `0x48ae06`, `0x48af99`); kind 11 tests it first
+(`0x48a925`..`0x48a92d`). `fx_create_instance` never sets `+0x108`, and `fx_obj_destroy` clears it
+(`0x489dda`), so only `spell_cast_launch_effects` fills it (`0x47d978`, `0x47da04`, `0x47da84`, `0x47db6d`),
+from `spell_effect_add` (`0x47f660`), which returns 0 when all 64 records (`spell_effects` `0x22e8528`) are used.
+`boss_counter_hit_dispatch` creates a kind 14 effect for the Ghost Rider's "+Plus Spell" moves other than ghost
+death (`0x4a2293`..`0x4a22ab`; "ghost paralyzing fear" on the stage-3 scythe in `ghost_rider_boss.tbl`) and
+never sets it. Retail: the Ghost Rider and Serpent Rider appear in `masad_m1`, `jadetemple_m1` and
+`Liangshan_m1` only inside `/* Level script creatures: */` comments or as navpoints; no multiplayer script
+creates them.
+
+**C274. Missing NULL test.** `container_obj_create` returns 0 when all 40 containers (`0x2302fe0`) are used
+(`0x48980f`) or the bag item type is missing (`0x489879`). `monster_drop_loot` (`0x452ec2`),
+`mp_handle_item_drop` (`0x4892dc`) and `savegame_read_item_objects` (`0x4d32b4`) test it; `level_item_spawn`
+passes it straight to `container_add_item` as `this` (`0x46a654`..`0x46a681`). Its callers are
+`level_items_parse_table`, `level_script_restart` (after `containers_free_all`) and the script editor. Retail
+levels place at most 18 items (`sewer` in `level_items.tbl`); whether containers restored from a save can fill
+the pool before the level items are placed was not traced.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -786,6 +842,8 @@ yields 0. `cquat__normalize` (`0x5232b0`, same `idiv` at `0x5232f7`) has no call
 | G251 | Latent: a tentacle swipe that hits five party members at once makes that tentacle unkillable: at 0 HP it never plays its death move or counts as lost | `tentacle_collect_area_hits` `0x4c77c0`, `tentacle_beast_check_stage` `0x4c7360` | **Observed** code, *inferred* effect | No |
 | G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
+| G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code, *inferred* effect | No |
+| G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1379,6 +1437,27 @@ AI target (`mov [esi + 0x60], ecx` at `0x4c9f9f`). After the teleport the beam t
 
 None.
 
+**G270. `break` instead of `continue`.** For each living character, the second pass walks the collected areas
+(C270). When the area's caster no longer resolves (`living_from_handle` of `+0xb0`), the loop ends
+(`test ebx, ebx; je 0x48b5a1` at `0x48b408`) instead of going to the next area (`0x48b581`). The code after the
+loop then cures status 14 (firewall), 15 (blizzard) and 17 (dark wall) unless an area of that kind was seen
+(`0x48b5a1`..`0x48b5db`). So one area whose caster is gone switches off all areas after it in the effect list
+for every character, and their statuses end at once. *Inferred:* a caster is "gone" when its object is removed
+(a summon that leaves, a removed corpse), not merely dead; the list order is creation order.
+
+**G271. `fx_new` keeps the slot's spell.** `fx_new` sets the kind, flags, `+0xa0`, `+0xc0`, `+0xe0`, `+0x100`
+and `+0x108` (`0x48c3f4`..`0x48c461`) but not the spell `+0xa8`, and neither does `fx_obj_destroy` nor
+`fx_obj__ctor` (the pool starts at 0, spell 0). `fx_get_status_holder` (kind 9, `0x48ccdc`) and
+`character_equip_item_fx` (kind 16, `0x48ca76`) set no spell either. Every other creator stores one
+(`fx_create_instance` -1 at `0x48c01e`, the spell creators their spell). `fx_count_spells_1a_1d_4e` counts
+objects whose `+0xa8` is 0x1a, 0x1d or 0x4e (`0x48bd50`..`0x48bd65`); `ai_choose_offensive_spell` rates
+fireball (0x1a) only when that count is 0 (`0x4bfa0b`..`0x4bfa2b`), and `pyrul_choose_attack` (`0x4b932c`) and
+`murod_ai_select_action` (`0x4c5959`) read it too. `fx_alloc` takes the first free slot, so a holder created
+right after a fireball area ended often gets its slot. *Inferred* effect, not measured. The same stale spell
+makes `fx_destroy_spell_effects` (cutscene start, `0x48d733`) destroy status holders, which
+`character_update_status_effects` recreates (harmless), and item effects, which only an equip recreates; no
+retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a402`), so that part is latent.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1456,6 +1535,11 @@ None.
 | K263 | Latent: a spot light with a projected texture lights points outside its range, shows an undefined colour for one texture format, and leaves the texture locked | `light_sample_projected_bitmap` `0x51f0d0`, `lights_shade_point` `0x51ec70`, `light_delete` `0x51e540` | **Observed** code and retail data, *inferred* effect | No |
 | K264 | In the script editor's lists, a click in the 2 pixels above an entry selects that entry instead of the one under the mouse, and a click on the last 2 pixels of the last entry selects nothing | `ui_listbox__process` `0x52d080` | **Observed** code, *inferred* effect | No |
 | K265 | Latent: Page Down in a list box whose selected last entry is taller than the box selects the list's own head record (no text, data -1), which the list's callback then receives | `ui_listbox__select_page_down` `0x52e050` | **Observed** code, *inferred* effect | No |
+| K270 | In the Ghost-Escape and Ghost-Dismount cutscenes (Rand-ForestNite1) the Ghost Rider's attached props are drawn, although the code means to hide them there | `levelrender_add_character` `0x483260` | **Observed** code and retail data, *inferred* effect; not seen in play | No |
+| K271 | A lamp glow on an effect (a torch or brazier effect) can shine through one level object that should hide it | `lamp_glow_update_effects` `0x484600` | **Observed** code, *inferred* effect | No |
+| K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No |
+| K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
+| K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -2069,6 +2153,44 @@ head at list box `+0x2d4`, a `ui_listbox_entry` built by the constructor (`0x52d
 text. It becomes the selection and message 0x18 goes to the callback (`0x52e0e3`..`0x52e0ee`). Entries in v1.40 are
 one-line names (script editor), so no entry is taller than a list box.
 
+**K270. A test that can never be true.** For species 0x5a in a cutscene (`game_flags` `0x20`) the function
+returns before the attachment list only when `_stricmp(cutscene_script_table(), "Ghost-Escape_cscript.tbl")`
+*and* `_stricmp(..., "Ghost-Dismount_cscript.tbl")` are both 0 (`0x48333d`..`0x483369`: the first `jne` goes on
+to draw, only the second `je` returns). One name cannot equal both, so the list at `+0x728` (pairs from
+`+0x72c`, slot 0x11 skipped) is always drawn. *Inferred* intent: or. Both scripts are in `tables.vpp`
+(`$Level: "Rand-ForestNite1"`). Whether the drawn props look wrong in those two cutscenes was not checked.
+
+**K271. Index of the wrong list.** `lamp_glow_update_lobjs` skips the occluder whose attach-list index equals
+its own (`cmp edi, [esp + 0x14]` at `0x48451f`). `lamp_glow_update_effects` copies the test
+(`cmp edi, [esp + 0x20]` at `0x484785`), but its outer index walks the sorted list (`levelrender_sort_list`,
+`0x48461d`..`0x484815`) while `edi` walks the attach list. So for the glow at sorted index i, attach entry i is
+never ray-tested (`lobj_raycast` `0x4847b4`), and the glow fades in although that object blocks it.
+
+**K272. `shadows.tbl` unused.** `shadows_parse_table` stores up to 175 records of 0x50 bytes (name, `$Radius:`,
+`$Scale:`, `+Prop`) at `0x22fb720` (`0x4875b4`..`0x4875d8`); no instruction reads `0x22fb720`..`0x22fedcf`
+(only the count `0x22fedd0`, inside the parser). `shadow_draw_character` reads only its character argument and
+passes the constants `0x59c12c` / `0x59c130` / `0x59c134` (0.15, 1.0, 5.0) and `shadow_bm` for everyone
+(`0x487677`..`0x48769f`); the 20.0 radius from `shadows_draw_characters` (`0x487734`) is ignored. Retail
+`shadows.tbl` has 151 entries, radius 0.47 to 25.55 (Boat), Giant Salamanka 10.37, Joseph 1.49.
+
+**K273. Arguments pushed in the wrong order.** `level_parse_table` pushes `level_fog_near` first and
+`level_fog_far` last (`0x4cbefc`..`0x4cbf09`), so `fog_set_level_default` gets the far value as its first argument
+and stores it in `fog_level_near_distance` (`0x59bd88`, `0x486ba1`), which `fog_restore_level_default` (called
+next, `0x4cbf11`) and `fog_set_distances` (for a distance <= 0, `0x486b55`) copy into the near distance.
+`levelrender_fog_enable` passes that as `gr_set_fog`'s start (`0x4829a9`). `level_set_current_layer` and the
+camera defaults overwrite the fog on the next layer change, so the swap shows only through the <= 0 fallback.
+Retail: no level table has `+Fog Near:` or `+Fog Far:`; four `cutscene.tbl` `$Fog` keys have near 0.0. The
+per-layer `+Distance:` values are *not* swapped (see "Checked, not bugs").
+
+**K274. Clip x subtracted, y not.** `gr_project_vertex` adds both clip offsets (`fiadd [0x25d8d5c]` at
+`0x50eb0e`, `fiadd [0x25d8d60]` at `0x50eb1f`). The four overhead drawers call `gr_get_clip` and subtract only the
+x offset before the clipped `gr_bitmap` / `gr_string` (`0x481d9c`, `0x4849ce`..`0x4849e1`, `0x484c0a`..`0x484c1c`,
+`0x4854c8`..`0x4854d0`). Outside cutscenes the 3D view clip starts at y 0 (`interface_set_view_clip`
+`0x412220`; only the left panels move x). In a cutscene it is the centred 2:1 letterbox, but health bars,
+speech text and speaker icons return on `game_flags` `0x20` (`0x4848e2`, `0x484aeb`, `0x48581f`).
+`levelrender_draw_float_text` only tests its own flag (`0x59bd78`, `0x485380`); whether retail cutscenes ever
+show floating text (damage, "+Level!") was not checked.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -2166,6 +2288,9 @@ one-line names (script editor), so no entry is taller than a list box.
 | V263 | Three light and effect helpers with no caller are wrong: `lights_debug_draw` draws the first `light_count` records, not the used ones; `lights_calc_point_specular_color` reads a NULL normal inside the inner radius; `vfx_all_resident` is unused | `lights_debug_draw` `0x51fa70`, `lights_calc_point_specular_color` `0x51f560`, `vfx_all_resident` `0x51dcb0` | **Observed**; no caller |
 | V264 | In the script editor, every list entry given a font is re-wrapped, and its list box's sizes and scroll bars recomputed, in every frame's process and draw: the dirty flag is never cleared | `ui_listbox__relayout_dirty` `0x52cf10`, `ui_listbox_entry__set_font` `0x52d5a0` | **Observed** code |
 | V265 | Nothing in v1.40: six list box and UI manager slips are reached only through the UI table loader (V9) or have no effect because no gadget has a tooltip and no UI sound is loaded | `ui_listbox__set_tooltip` `0x52d7e0`, `ui_parse_listbox` `0x5298c0`, `ui_state_bitmap__draw` `0x52c9a0`, `ui_listbox__remove_entry` `0x52dd00`, `ui_listbox__set_vscroll_fraction` `0x52ed70`, `ui_process` `0x530330`, `ui_listbox__process` `0x52d080` | **Observed**; no reachable trigger |
+| V270 | Nothing in v1.40: the `render_level`, `render_characters` and `render_effects` console toggles change flags that nothing reads. No console in v1.40: only a patch or a `.vcs` script can run them | `cmd_render_level` `0x481890`, `cmd_render_characters` `0x481980`, `cmd_render_effects` `0x481a70` | **Observed** code | No |
+| V271 | Nothing: three render flags are read but never set, so the frame-rate fog scaling, a "no lighting" mode (no level lights, distance culling of level objects, no lamp glows, LOD 2) and a level-light rebuild are dead code | `levelrender_fog_enable` `0x482850`, `fog_get_near_current` `0x486bf0`, `fog_get_far_current` `0x486c20`, `levelrender_render_scene` `0x482200` | **Observed** code | No |
+| V272 | Nothing: sixteen 64 x 64 blob shadow bitmaps are built at start-up and never used | `shadow_create_blob_bitmap` `0x489f10` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2806,6 +2931,19 @@ editor calls `set_font` on its entries (`script_editor_create_ui` `0x4e10c2` and
 - A hidden list box plays UI sound 7 when clicked or on its hotkey (`0x52d108`..`0x52d13d`); `ui_sounds` (`0x2cbf684`)
   is set to -1 by `ui_init` and written nowhere else, so `ui_play_sound` plays nothing.
 
+**V270. Toggles without a reader.** The three commands set, clear or toggle `Render_level` / `Render_characters` /
+`Render_effects` (`0x59bd79`..`0x59bd7b`, `0x4818af`..`0x481aea`) and print them; no other instruction references
+the three bytes.
+
+**V271. Flags never set.** `fog_fading` (`0x22fb6f8`) is read at `0x482897`, `0x486bf0` and `0x486c20`; `0x22fb714`
+at `0x482d9b`, `0x4839f4`, `0x4841fa`, `0x48438e` and `0x485f89`; `levelrender_lights_dirty` (`0x243e038`) at
+`0x48236a` and cleared at `0x482381`. No instruction writes a non-zero value to any of them.
+
+**V272. Bitmaps without a reader.** `shadow_create_blob_bitmap` fills sixteen alpha ramps at `0x2308e2c`
+(0x1000 bytes each) and stores the `bm_create` handles at `0x59c260`..`0x59c29f` (`0x48a014`..`0x48a045`). No
+instruction reads `0x59c260`..`0x59c29f`, the palette `0x230561c` or the ramps; shadows use `Shadow01.tga`
+(`shadow_bm`, `0x48a078`).
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -3111,6 +3249,13 @@ the tables above; the rest are below.
 - `lights_get_selection_count`, `lights_shade_vertices` and `lights_calc_point_specular_color` read `[4*depth + 0x2c9f99c]`, which `asm.mjs` labels `effects_num_names`: it is `lights_selection_counts[depth - 1]` (the counts start at `0x2c9f9a0` and the selection depth is 1 or more), not a read of the effect name count.
 - `s3d_read_navpoint` converting a matrix to a quaternion: that branch runs only when the `File` writes (`File__check_flags(1)` false, `0x46f31c`), and `level_load_s3d` only reads.
 
+- Per-layer fog distances swapped (render notes): `fog_set_layer` stores the first `+Distance:` number in `0x22fae78` and the second in `0x22ea4f4` (`0x487119`, `0x48712e`; `level_parse_table` `0x4cbd41`..`0x4cbddc`), and `level_set_current_layer` copies `0x22fae78` to the near and `0x22ea4f4` to the far distance (`0x48218a`..`0x4821b6`). Retail lines are written near, far ("30 50", "60 140"), so the fog is right; the two `sum.symbols` names are swapped (symfix).
+- `fx_is_finished` with no instance (`0x48d02c`): all five callers pass the handles of effects made by `fx_create_instance` (status effects via `fx_attach_to_character`, move effects, kinds 5 / 6 in `fx_frame` `0x48a7f3`, Phoenix and Titus effects); handles carry a serial (`obj_from_handle` `0x46b141`), so a stale handle returns NULL first.
+- `fx_create_spell_area` calls `character_is_enemy` on the caster without a test (`0x48c77e`): its three callers are the cast paths of that caster (`spell_cast_execute` `0x47ca4c` / `0x47d007`, `spell_cast_launch_effects` `0x47d4e4`), so the caster exists.
+- `fx_frame`'s area exit `duration < frame time` (`0x48b4d7`..`0x48b4e7`): every collected area matches one of the five spells, so the duration is 11,000 or 20,000 ms; dead code, not a defect.
+- `fx_destroy_spell_effects` destroying status holders at a cutscene start: `character_update_status_effects` recreates them (folded into G271).
+- `camera.md` fog defaults 20 / 30 and 35 / 50: confirmed (`0x4870c9`..`0x4870d3`, `0x487099`..`0x4870a3`).
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -3253,6 +3398,12 @@ the tables above; the rest are below.
 - Game flag 8 widening the Luminar's teleport and grab candidates to every living entity (the boss included, `0x4c9dcb`): what sets flag 8 is not known.
 - L10 `vfx_node_create_light` passes the size channel as a raw int16 (8.8 fixed, `fild` at `0x51fc51`) as the range (`attached_light_create` `+0x50`), 256 times too large; `vfx_node_update_light` overwrites `+0x50` with `fixed8_to_float` of the sampled value (`0x51fd45`..`0x51fd4d`). Whether any frame renders an effect light between `vfx_instance_init_nodes` and its first `vfx_instance_process` (`0x53717b`) was not traced, so whether a one-frame light flash is visible is unknown.
 - L11 `character_instance__render` returns with its instance still set through `ca_render_set_instance` when bit 0 of the parameter byte is set (`test al, 0x1; jne` at `0x520462`). Who sets that bit (callers `inventory_render_character` `0x41807d`, `status_draw_model` `0x42ccab`, `levelrender_draw_list` `0x4860ad`) and whether anything reads the stale `0x268298c` / `0x2682990` before the next set was not traced.
+- C270: how long a fireball, wall of fire or blizzard area lives (the vfx length decides how many can burn at once); a test with several fire casters would settle whether the crash is live.
+- K270: what the Ghost Rider's attachment list (`+0x728`) holds in Ghost-Escape / Ghost-Dismount, so whether the drawn props are visibly wrong.
+- K274: whether any retail cutscene shows floating text.
+- C274: whether a loaded save can restore containers before `level_items_parse_table` places the level items.
+- `detail_apply_level_settings` (`0x487370`) stores "+UnlockMedium" / "+UnlockHigh" into `game_camera +0x08`, which the camera code treats as "defer high camera requests": either the camera field's name is inverted or the flags lock the high camera (render notes, open question; not a bug candidate yet).
+- `experience.tbl` gains marked "D" are never below 3 (`fld 3.0` at `0x489b3a`..`0x489b4b`), even "D1" or "D2"; no retail line uses "D", so the intent cannot be compared.
 
 ## Evidence
 
@@ -3568,3 +3719,18 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V263 dead light helpers | `lights_debug_draw` `0x51fa84`..`0x51fab2`; `lights_calc_point_specular_color` `0x51f69d`, `0x51f701`; `vfx_all_resident` `0x51dcbf`..`0x51dcce`; no reference to `0x51fa70`, `0x51f560`, `0x51dcb0` |
 | V264 dirty flag | `ui_listbox_entry__set_font` `0x52d5a4`; `ui_listbox_entry__ui_listbox_entry` `0x52d55c`; `ui_listbox__relayout_dirty` `0x52cf2a`..`0x52cf66`; `ui_listbox__process` `0x52d09a`; `ui_listbox__draw` `0x52f098`; `script_editor_create_ui` `0x4e10c2` |
 | V265 unreachable UI slips | `ui_listbox__set_tooltip` `0x52d7f6`..`0x52d812`; `ui_parse_listbox` `0x529b36`, `0x529b58`, `0x529d15`; `ui_state_bitmap__draw` `0x52ca00`..`0x52ca0d`; `ui_listbox__remove_entry` `0x52ddab`, `0x52ddba`; `ui_listbox__add_entry` `0x52db57`, `0x52dbbd`; `ui_listbox__sync_scrollbars` `0x52d03f`..`0x52d062`; `ui_process` `0x530587`..`0x530652`; `ui_listbox__process` `0x52d108`..`0x52d13d`; `ui_init` `0x52f7a5` |
+| C270 area list | `fx_frame` `0x48a3e4`..`0x48a416`, case table `0x48b644` / `0x48b64c`; `living_entity_get_hit_by_spell` `0x45efe7`..`0x45f022`; `spell_effect_obj_set_timer` `0x47e4f3`..`0x47e583`; `spell_spawn_hit_fx` `0x47e5f6`, `0x47e66b`; `fx_alloc` `0x489cf9` |
+| C271 sky list | `fx_create_world` `0x48ced2`..`0x48cf33`; `fx_sky_list_clear` `0x48a1a0`..`0x48a1bb`; `levelrender_render_scene` `0x482429`, `0x48243a`; `fx_alloc` `0x489d01`; `pxo_login_request` `0x48d938` |
+| C272 effect name search | `fx_disable_by_effect_name` `0x48d674`..`0x48d691`; `fx_new` `0x48c41b`; `fx_create_missile` `0x48c2bf`; `tutorial_cond_combat_part2` `0x42eb43`..`0x42ebe2`; `character_update_status_effects` `0x45bee8` |
+| C273 spell record | `fx_frame` `0x48a925`..`0x48a92d`, `0x48abcf`..`0x48ac03`, `0x48ae06`..`0x48aeb9`, `0x48af99`..`0x48afcd`, jump table `0x48b600`; `spell_effect_add` `0x47f660`..`0x47f667`; `spell_effect_alloc` `0x47f694`..`0x47f6aa`; `boss_counter_hit_dispatch` `0x4a2293`..`0x4a22ab`; `fx_obj_destroy` `0x489dda` |
+| C274 container pool | `container_obj_create` `0x4897fb`..`0x48980f`, `0x489871`..`0x489879`; `level_item_spawn` `0x46a64c`..`0x46a681`; `monster_drop_loot` `0x452ec2`; `mp_handle_item_drop` `0x4892dc`; `savegame_read_item_objects` `0x4d32b4` |
+| G270 area loop | `fx_frame` `0x48b3f1`..`0x48b40a`, `0x48b581`..`0x48b59b`, `0x48b5a1`..`0x48b5db` |
+| G271 stale spell | `fx_new` `0x48c3e0`..`0x48c467`; `fx_obj__ctor` `0x489d30`..`0x489da1`; `fx_get_status_holder` `0x48ccdc`..`0x48cd09`; `character_equip_item_fx` `0x48ca74`..`0x48ca96`; `fx_count_spells_1a_1d_4e` `0x48bd50`..`0x48bd65`; `ai_choose_offensive_spell` `0x4bfa0b`..`0x4bfa2b`; `fx_destroy_spell_effects` `0x48d733`..`0x48d753` |
+| K270 Ghost cutscenes | `levelrender_add_character` `0x483329`..`0x483369`; `cutscene_script_table` `0x4ed760` |
+| K271 glow occluder | `lamp_glow_update_effects` `0x48461d`, `0x484785`, `0x4847b4`, `0x4847f9`..`0x484815`; `lamp_glow_update_lobjs` `0x48451f` |
+| K272 shadows.tbl | `shadows_parse_table` `0x4875b4`..`0x4875d8`; `shadow_draw_character` `0x487677`..`0x48769f`; `shadows_draw_characters` `0x48772f`..`0x48773a` |
+| K273 level fog | `level_parse_table` `0x4cbefc`..`0x4cbf11`; `fog_set_level_default` `0x486b99`..`0x486ba6`; `fog_restore_level_default` `0x486bc0`..`0x486bd0`; `fog_set_distances` `0x486b55`; `cutscene_events_frame` `0x4370f7` |
+| K274 clip y | `gr_project_vertex` `0x50eb0e`, `0x50eb1f`; `character_draw_overhead_bitmap` `0x481d83`..`0x481dec`; `levelrender_draw_health_bars` `0x4849c9`..`0x4849e1`; `levelrender_draw_speech_text` `0x484c05`..`0x484c1c`; `levelrender_draw_float_text` `0x48541b`, `0x4854c8`..`0x4854d0`; `interface_set_view_clip` `0x41222a`..`0x412251`, `0x41235f` |
+| V270 render toggles | `cmd_render_level` `0x4818af`..`0x48190a`; `cmd_render_characters` `0x48199f`..`0x4819fa`; `cmd_render_effects` `0x481a8f`..`0x481aea` |
+| V271 dead flags | `levelrender_fog_enable` `0x482897`; `fog_get_near_current` `0x486bf0`; `fog_get_far_current` `0x486c20`; `0x22fb714` readers `0x482d9b`, `0x4839f4`, `0x4841fa`, `0x48438e`, `0x485f89`; `levelrender_render_scene` `0x48236a`, `0x482381` |
+| V272 blob bitmaps | `shadow_create_blob_bitmap` `0x489f15`..`0x48a045`; `shadows_init` `0x48a06f`..`0x48a085` |

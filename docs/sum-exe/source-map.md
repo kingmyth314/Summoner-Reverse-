@@ -630,8 +630,13 @@ Table row (Engine ranges format: Start | End = start of the last function | Labe
   are at `0x512xxx`, `os\cmdline` at `0x53e3ab` and `os\stringpool` at `0x544c81`. It
   probably follows the original project's file order. A future matching build must link
   objects in the same order.
-- `levelrender.cpp` (`0x48e4d9`-`0x4914c6`) and `living_entity.cpp` (`0x4569a3`-`0x461bcd`)
-  span large ranges, which hints at their size.
+- `levelrender.cpp` (`0x48e4d9`-`0x4914c6`; its code starts at `0x48db30`) and `living_entity.cpp`
+  (`0x4569a3`-`0x461bcd`) span large ranges, which hints at their size. The `levelrender_*` functions at
+  `0x481680`-`0x48743f` (static initialiser entries 239-249, the console commands lod_dist to Cull_ground_too)
+  are a separate unit before `multichat.cpp`, written as `src/decomp/game/unnamed_render_scene_0x481680.cpp`;
+  the shadow table (`0x487440`-`0x48789f`) and the equip packets (`0x4878a0`-`0x487b8f`) follow it, and the
+  containers, experience table, effect objects and PXO user tracker (`0x489730`-`0x48db2f`) sit between
+  `multicontainer.cpp` and `levelrender.cpp` (placeholder files, D4304, D4400).
 - Next refinement: once the Ghidra function list is available (`symbols/ghidra-functions.tsv`),
   assign every function to the nearest bracketing file references.
 

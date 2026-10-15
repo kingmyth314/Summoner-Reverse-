@@ -333,7 +333,10 @@ threshold is multiplied by 5 (`lea eax, [eax+4*eax]` at `0x489a9b`).
 The rest of each record (`xp_level` in `symbols/types.h`, read by `experience_parse_level`) is:
 - the skill points gained at that level (2 or 3);
 - the skill cap (`+0x180`; the level number up to 10, then 10);
-- four 4-byte groups, one per species (`char_info +0x10`), with the HP and AP gained.
+- four 4-byte groups, one per species (`char_info +0x10`): the HP and AP gained, then one flag byte for each.
+  `experience_parse_stat_gain` (`0x489a30`) sets the flag when the number has a "D" before it. With the flag,
+  `xp_level_up_gains` rolls the gain: `floor(frand() x value + 1)`, but never below 3 (`0x489afe`-`0x489b4b`).
+  No retail line uses "D". The level itself is not capped; only the record index stops at 20 (`0x489aca`).
 
 For Joseph's group, level 1 gives 64 HP and 5 AP, and levels 2 and 3 each add 32 HP and 3 AP. That makes
 128 HP at level 3, and 2 + 2 = 4 skill points, both as the Character screen shows.
@@ -346,9 +349,9 @@ The heroes are species 0 to 3. `species_is_hero` (`0x449a20`) is `species <= 3`;
 - The rest of the stat panel after protection (`0x42d58f` onwards).
 - Whether the crossed hurt fallbacks (walk_hurt from norm_walk, norm_walk_hurt from walk) are meant.
   Which locomotion slot the game picks for a hurt character was not traced.
-- What bytes 2 and 3 of each species group in `xp_level_table` mean. `xp_level_up_gains` treats a non-zero
-  byte as "roll the HP (or AP) gain at random" (`0x489afe`, `0x489b69`); whether the parser ever sets them
-  was not checked.
+- Resolved: bytes 2 and 3 of each species group in `xp_level_table` are the "D" (random gain) flags of the HP
+  and AP numbers (`experience_parse_level` `0x4899d0`, `experience_parse_stat_gain` `0x489a30`); no retail
+  `experience.tbl` line sets them.
 
 ## Changes (2026-10-15)
 

@@ -240,7 +240,7 @@ frames). Notes on individual functions are in their comments.
 - docs/sum-exe/vsdk-gr.md, Fog (lines 145-148): "These two globals are named the wrong way round in
   sum.symbols: 0x59bd7c (fog_near) ...". sum.symbols has since renamed them (0x59bd7c fog_far_distance,
   0x59bd80 fog_near_distance); the paragraph should say so instead.
-- sum.symbols `character_is_in_view` (0x44f020): the result is gr_cull_sphere's, true when the sphere is
+- sum.symbols `character_is_culled` (0x44f020): the result is gr_cull_sphere's, true when the sphere is
   outside the view (levelrender_build_draw_lists treats true as culled, 0x482ecc; living_entity.cpp
   writes it so). The name reads the other way.
 - sum.symbols argument lists that differ from the code: levelrender_push_attachment is (item, character,

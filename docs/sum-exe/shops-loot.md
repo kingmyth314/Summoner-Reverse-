@@ -180,7 +180,9 @@ if (frand() < Chance_to_drop_gold)                       // 0x599690, default 0.
 
 - **Observed:** the container pool holds 40 containers (`0x2302fe0`, 0xe8 bytes each). Each holds up
   to 16 items. `container_add_item` (`0x46aa30`) merges gold into one gold item kept first.
-  *Inferred:* when the pool is full, `container_obj_create` returns 0 and the drop stays loose.
+  **Observed:** when the pool is full, or the bag's item type is missing, `container_obj_create` returns 0
+  (`0x48980f`, `0x489879`); `monster_drop_loot` then leaves the drop loose (`0x452ec6`). `level_item_spawn` does
+  not test it (game bug C274, latent).
 - **Observed:** placed level items come from `level_items.tbl` (`$Item`, `$Navpoint`, `+Count`,
   at most 32 per level). `level_item_spawn` (`0x46a640`) puts each in its own container.
 - **Observed:** "examine" spots are `lc_entries` (`0x248ce40`, 50 records): an item name and a count

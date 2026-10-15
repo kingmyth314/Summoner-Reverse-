@@ -109,7 +109,7 @@ int levelrender_22ea498;                  // 0x22ea498 (name ours)
 float hover_tint_obj_r;                   // 0x22ea49c
 float levelrender_fx_char_tint_g;         // 0x22ea4a0
 int level_layer_vis_flags[LEVEL_NUM_LAYERS];         // 0x22ea4a4
-float level_layer_fog_near[LEVEL_NUM_LAYERS];        // 0x22ea4f4
+float level_layer_fog_far[LEVEL_NUM_LAYERS];        // 0x22ea4f4
 s3d_vis_set *level_vis_force_list[LEVEL_MAX_FORCED_VIS];   // 0x22ea544
 levelrender_entry *levelrender_attach_list[LEVELRENDER_MAX_ATTACH];   // 0x22ea584
 int levelrender_22ec4c4;                  // 0x22ec4c4 never accessed (name ours)
@@ -138,7 +138,7 @@ float hover_tint_char_r;                  // 0x22fa69c
 lobj_glow_ref *levelrender_lobj_glow_map; // 0x22fa6a0
 obj *hover_tint_obj;                      // 0x22fa6a4
 levelrender_entry *levelrender_opaque_list[LEVELRENDER_MAX_SORTED];        // 0x22fa6a8
-float level_layer_fog_far[LEVEL_NUM_LAYERS];         // 0x22fae78
+float level_layer_fog_near[LEVEL_NUM_LAYERS];         // 0x22fae78
 float hover_tint_obj_g;                   // 0x22faec8
 int levelrender_lobj_state_bytes;         // 0x22faecc
 int level_vis_force_count;                // 0x22faedc
@@ -458,9 +458,9 @@ void level_set_current_layer(int layer)
         game_camera.set_mode(3);
         break;
     }
-    if (level_layer_fog_far[layer] > 0.0f) {
-        fog_near_distance = level_layer_fog_far[layer];
-        fog_far_distance = level_layer_fog_near[layer];
+    if (level_layer_fog_near[layer] > 0.0f) {
+        fog_near_distance = level_layer_fog_near[layer];
+        fog_far_distance = level_layer_fog_far[layer];
         fog_set_color(level_layer_fog_r[layer], level_layer_fog_g[layer], level_layer_fog_b[layer]);
         levelrender_layer_fog_applied = true;
         return;
@@ -830,7 +830,7 @@ void levelrender_setup_level_lights()
 // (flag 0x2000) and, when small (radius < 2), within 75 m; a living one beyond 40 m (or the fog distance
 // for type 9 / species 0x55) gets flag 0x20. In a cutscene the limit is 225 m and only the cutscene's
 // actors are drawn when the cutscene says so (flag 2). Attachments within 30 m (50 m with game flag 8).
-// Note: character_is_in_view returns true when the sphere is culled (gr_cull_sphere's result).
+// Note: character_is_culled returns true when the sphere is culled (gr_cull_sphere's result).
 void levelrender_build_draw_lists()
 {
     render_scope scope;
@@ -2237,8 +2237,8 @@ int levelrender_level_load()
     levelrender_22fb6f6 = false;
     fog_color_r = 0;
     fog_color_g = 0;
-    memset(level_layer_fog_near, 0, sizeof(level_layer_fog_near));
     memset(level_layer_fog_far, 0, sizeof(level_layer_fog_far));
+    memset(level_layer_fog_near, 0, sizeof(level_layer_fog_near));
     fog_color_b = 0;
     levelrender_create_vertex_buffer();
     levelrender_apply_lobj_detail_flag();
@@ -2532,7 +2532,7 @@ void level_vis_reset()
 // 0x487080  Confidence: exact. The high camera's fog (35 / 50) when the layer has none of its own.
 void fog_set_high_camera_default()
 {
-    if (!(level_layer_fog_far[level_current_layer] > 0.0f)) {
+    if (!(level_layer_fog_near[level_current_layer] > 0.0f)) {
         fog_near_distance = 35.0f;
         fog_far_distance = 50.0f;
     }
@@ -2541,7 +2541,7 @@ void fog_set_high_camera_default()
 // 0x4870b0  Confidence: exact. The low camera's (20 / 30).
 void fog_set_low_camera_default()
 {
-    if (!(level_layer_fog_far[level_current_layer] > 0.0f)) {
+    if (!(level_layer_fog_near[level_current_layer] > 0.0f)) {
         fog_near_distance = 20.0f;
         fog_far_distance = 30.0f;
     }
@@ -2559,9 +2559,9 @@ void fog_set_color(int r, int g, int b)
 void fog_set_layer(int layer, float a, float b, int r, int g, int bl)
 {
     if (layer >= 0 && layer < LEVEL_NUM_LAYERS) {
-        level_layer_fog_far[layer] = a;
+        level_layer_fog_near[layer] = a;
         level_layer_fog_r[layer] = (ubyte)r;
-        level_layer_fog_near[layer] = b;
+        level_layer_fog_far[layer] = b;
         level_layer_fog_g[layer] = (ubyte)g;
         level_layer_fog_b[layer] = (ubyte)bl;
     }

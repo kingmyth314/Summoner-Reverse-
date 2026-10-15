@@ -18,8 +18,8 @@
 // Layout from the three spells.cpp builders (decomp23) and avoid_area_add (decomp57): an oriented box or
 // a circle (an octagon) around (cx, cz).
 struct avoid_area_desc {
-    int _unk00;                       // +0x00 0 at every caller: soft avoidance (obstacle flag 4); nonzero
-                                      //       would make it a prohibited area (flag 2)
+    int _unk00;                       // +0x00 0 for the spell areas (soft avoidance, obstacle flag 4); 1 from
+                                      //       summon_spawn_effect (0x48cbd7): a prohibited area (flag 2)
     int shape;                        // +0x04 0 box, 1 circle (spell_spawn_hit_fx)
     float cx, cz;                     // +0x08 centre (x, z)
     float ax, az;                     // +0x10 first axis

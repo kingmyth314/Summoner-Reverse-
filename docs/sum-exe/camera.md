@@ -260,7 +260,7 @@ See [Console](console.md).
 - **CameraZoomMax** ([SummonerFix](../summonerfix/index.md)) only raises the clamp at
   `0x59b800`. **Observed.** The eye is `6 × zoom` back and `2 × zoom` (low) or `7 × zoom` (high)
   up. At zoom 3 in the low view the eye is about 19 units from the leader. With the default low
-  fog (far 20) and the fog-distance cull in `character_is_in_view` (`0x44f020`), the leader's
+  fog (far 20) and the fog-distance cull in `character_is_culled` (`0x44f020`), the leader's
   surroundings fade out first. *Inferred.*
 - Typing `zoom_limit` in the console overwrites a SummonerFix value with 1.0 or 1000.
   **Observed.**

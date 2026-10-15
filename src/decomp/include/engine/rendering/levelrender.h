@@ -241,7 +241,7 @@ s3d_named_path *level_trigger_record_find(const char *name);              // 0x4
 // the level default distances (set once per level) and the character fog of "+CharFog:". Which distance
 // is near and which far is not settled: fog_set_level_default stores its first argument at 0x59bd88
 // (sum.symbols fog_level_near_distance since f7229e0) and level_parse_table passes "+Fog Far:" first.
-// fog_set_layer stores a into level_layer_fog_far, b into level_layer_fog_near (sum.symbols names).
+// fog_set_layer stores a into level_layer_fog_near, b into level_layer_fog_far (sum.symbols names).
 void fog_set_color(int r, int g, int b);              // 0x4870e0
 void fog_set_layer(int layer, float a, float b, int r, int g, int bl);   // 0x487100 (bytes stored)
 void fog_layer_set_snow(int layer, bool snow);        // 0x4871f0
@@ -309,8 +309,9 @@ void levelrender_clear_draw_lists();  // 0x486b00
 
 // (lobj, face, point, out r, g, b): writes 0xff to the three output bytes (unit not known; decomp23).
 void lighting_sample_stub(int lobj, int face, const float *point, ubyte *r, ubyte *g, ubyte *b);  // 0x4af320
-// Shadows and level effects (0x4874c0 / 0x48a060 / 0x48a0e0, between options_apply_detail and the
-// experience table; unit not known). Called by summoner.cpp's GameInit / game_cleanup.
+// Shadows and level effects. shadows_parse_table (0x4874c0) is in the shadow-table unit after
+// options_apply_detail; shadows_init (0x48a060) and fx_shutdown (0x48a0e0) are after the experience table, in
+// the effect-object unit (unnamed_fx_0x489c40.cpp). Called by summoner.cpp's GameInit / game_cleanup.
 void shadows_parse_table();           // 0x4874c0 shadows.tbl
 void shadows_init();                  // 0x48a060 lamp glow, Shadow01.tga
 void fx_shutdown();                   // 0x48a0e0

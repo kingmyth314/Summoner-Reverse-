@@ -11,7 +11,10 @@ nav_order: 6.8
 senders increment, an 8-byte name (at most seven letters and a NUL) and four net-rate bytes. Ghidra had merged 48 of
 the handlers into the functions before them. The table gave their real starts. All handlers are named in
 `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the table; re-checked 2026-10-15). Lobby, chat
-and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`, `utrack_*`). The
+and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`, `utrack_*`; the
+user tracker login `pxo_login_request` `0x48d870` sends request type `0xd` with the 33-byte name and 27-byte
+password to port 10556 (`utrack_init` `0x48d810`), resends it every 3.5 s, gives up after 30 s, and takes reply
+`0xe` as refused and `0xf` as accepted, acknowledging every reply with type 0, code 5). The
 decompiled units are `src/decomp/game/unnamed_netsession_0x440b40.cpp` (session states, player records) and
 `src/decomp/game/unnamed_netpackets_0x441820.cpp` (receive, send and forward; placeholder names, D3309/D3312);
 the NEW_MON and SRV_REQ handlers, the player lookups, the net-handle map helpers (`mp_net_handle_map`

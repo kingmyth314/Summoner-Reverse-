@@ -537,9 +537,9 @@ typedef struct xp_level {
     uint8_t skill_points;    // +0x04 skill points gained at this level (2)
     uint8_t skill_cap;       // +0x05 per-level skill cap (xp_level_skill_cap: read as a float; 1.0 below level 1, 10.0 above 20). Equals the level number in the early levels
     struct {                 // +0x06 one group per species (char_info +0x10); read as two pairs by 0x489a30
-        uint8_t hp_gain;     //   (hp_gain, hp_extra) and (ap_gain, ap_extra); the second value of each pair
-        uint8_t ap_gain;     //   was 0 in the levels checked (perhaps a random range)
-        uint8_t hp_extra;
+        uint8_t hp_gain;     //   (hp_gain, hp_extra) and (ap_gain, ap_extra); *_extra is a flag, set by a "D"
+        uint8_t ap_gain;     //   before the number: xp_level_up_gains then rolls floor(frand() * gain + 1),
+        uint8_t hp_extra;    //   at least 3 (0x489afe-0x489b4b). No retail line uses "D" (D4406)
         uint8_t ap_extra;
     } species[4];
     uint8_t _pad16[2];

@@ -110,8 +110,8 @@ extern float hover_tint_char_r;           // 0x22fa69c
 extern float hover_tint_char_g;           // 0x22f8d10
 extern float hover_tint_char_b;           // 0x22f8cec
 extern int level_layer_vis_flags[LEVEL_NUM_LAYERS];      // 0x22ea4a4 0 low camera, 1 "$high_camera"
-extern float level_layer_fog_near[LEVEL_NUM_LAYERS];     // 0x22ea4f4 fog_set_layer's third argument
-extern float level_layer_fog_far[LEVEL_NUM_LAYERS];      // 0x22fae78 fog_set_layer's second argument
+extern float level_layer_fog_far[LEVEL_NUM_LAYERS];     // 0x22ea4f4 fog_set_layer's third argument
+extern float level_layer_fog_near[LEVEL_NUM_LAYERS];      // 0x22fae78 fog_set_layer's second argument
 extern ubyte level_layer_fog_r[LEVEL_NUM_LAYERS];        // 0x22fb6a4
 extern ubyte level_layer_fog_g[LEVEL_NUM_LAYERS];        // 0x22fb690
 extern ubyte level_layer_fog_b[LEVEL_NUM_LAYERS];        // 0x22fb67c
