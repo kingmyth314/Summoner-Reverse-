@@ -328,9 +328,9 @@ typedef struct Player {
     int32_t skill_points;    // +0x17C unspent skill points (Character screen "Skill points: 4"); character_add_xp adds to it
     int32_t _unk180;         // +0x180 3 for Joseph (set by character_add_xp on level-up)
     int32_t _unk184;
-    struct Player* self;     // +0x188
-    int32_t _unk18c;
-    struct Character* character; // +0x190
+    // The record is 0x188 bytes: party_lists_init links five of them, 0x188 apart, at 0x5fc4d8..0x5fcc80.
+    // The "self" (+0x188) and "character" (+0x190) fields listed earlier were the next record and, for the
+    // last record (0x5fcaf8), cur_character (0x5fcc88): they are not part of Player.
 } Player;
 
 // Status effect ids: Character.status_slots index (status_effect_add 0x454700; floating text L326-L337).

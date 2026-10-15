@@ -154,7 +154,7 @@ dump of Joseph's record at `0x5fcaf8` (2026-10-14).
 | `+0x020` / `+0x024` | count and pointer of the skill progression: `{skill, level, value}` entries | 17 entries at `0x593508` |
 | `+0x17c` | **unspent skill points** | 4 (matches the Character screen) |
 | `+0x180` | set on level-up from the level table | 3 |
-| `+0x190` | pointer to the `Character` | `0x9086c8` |
+| (`+0x190`) | not a field: the record is 0x188 bytes ([Party](party.md#records-and-lists)). For Joseph's record, the last of the five, `+0x190` lands on `cur_character` (`0x5fcc88`), which held his `Character` | `0x9086c8` |
 
 On a level-up, `character_add_xp` adds the level table's skill points to `+0x17c`. For each progression
 entry whose level equals the new level, it also sets `Character.skill[skill] = value`.
