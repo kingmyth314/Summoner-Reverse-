@@ -784,3 +784,77 @@ constructor calls; code unchanged for new_options.cpp's options_edit.
 halves the entries for mouse_move_to with SHR (0x43db6f / 0x43db71), which VC6 emits for an unsigned
 `/ 2` (a signed one adds the sign bit first). Declared `const uint resolution_table[3][2]` and defined
 in summoner.cpp (.rdata, next to WinMain's scope table 0x580e50).
+
+## matrix.cpp / skeleton.cpp (decomp25)
+
+**D500 (matrix.cpp). The small vector3 / matrix / quaternion / matrix43 members are inline; this settles
+D42.** The math code shows two kinds of members. (1) Out of line in their unit: vector3::normalize
+0x524430, normalized 0x524270, is_valid 0x524220, dot_xyz 0x5241c0, ... sit in the vector unit
+(0x523f80-0x524930), and the matrix / matrix43 constructors, get_rotation, operator* sit in matrix.cpp;
+optimised game code calls them (combat_get_weapon_tag_position calls 0x511b70 / 0x511450,
+conversation_camera_capture calls 0x5113a0). (2) Members whose only copy lies among another unit's
+code: vector3() 0x505530 (localize), (x, y, z) 0x43b580 (gametarget), copy 0x410cd0, operator=
+0x413190 (interface code), + / - 0x45b680 / 0x45b6b0, += 0x48e440, *= / * / -= 0x50f6a0 / 0x50f790 /
+0x50f840 and quaternion(x, y, z, w) / = 0x50f990 / 0x50f9b0 (the gr unit before matrix.cpp), cross
+0x50d7e0 (after ca_render), matrix() 0x50f660 (gr), matrix::operator= 0x4a4320 (shadows), and six
+functions after matrix.cpp's last function 0x511bb0: vector3::set 0x511c10, operator== 0x511c30,
+matrix43 transform 0x511c70, set_position 0x511cf0, get_position (by value) 0x511d10, set_rotation
+0x511d30, the same tail pattern as character_instance.cpp's 0x51b6b0-0x51b75f. These are COMDATs of
+header inlines: matrix.cpp, compiled without inline expansion, calls them for every use (0x50f9f0,
+0x50fafd, 0x5106f8, ...), while the optimised conversationctl.cpp expands transform in place with the
+same expression tree as 0x511c70 (x = (m10 v.y + m20 v.z) + v.x m00 + m30 at 0x4d8e45-0x4d8e59 and
+0x511c83-0x511c97), and objects.cpp expands matrix::operator= with a call of 0x413190 inside (D66).
+So vector.h / matrix.h now define these members in the class body (bodies from the COMDATs); the
+declarations and signatures are unchanged except D501. With inline definitions the /Ob1 units' inline
+3-dword copies of D42 and the /Ob0 vsdk units' calls both follow from the same source. The vector-unit
+members stay declared out of line. matrix::operator= is written as three row assignments (objects.cpp
+calls 0x413190 inside it; 0x4a4320, compiled in an optimised unit, has them expanded).
+
+**D501 (matrix.cpp). Signatures.** quaternion::operator= returns void: 0x50f9b0 ends with EAX = q.w
+(`mov eax, [eax+0xc]`), not this (the old header returned quaternion &; no .cpp used the result).
+matrix43 has two get_position members: 0x511d10 returns by value (inverse, anim_pos_key's constructor)
+and the existing 0x51b6e0 takes an out pointer (character_instance.cpp); different signatures, so both
+COMDATs survive. vector3::negated_b 0x524340 (vector unit, only caller matrix43::inverse) is a second
+negation besides the inline operator- 0x51b700 (name ours). New members: matrix copy / (r, u, f) /
+sin-cos / angle / axis-angle constructors, multiply_by_transpose, multiply_transposed, rows_match,
+set_from_sincos, set_from_angles, has_zero_axis, is_valid, determinant, the four orthogonalize
+variants, transpose, inverse, invert, transpose_in_place, set_random, set_from_unit_forward,
+set_from_forward_up / _right, rotate_between; matrix43 equals, make_identity, set_product_4x4,
+transpose_in_place, set_rotation; quaternion(const matrix &) 0x522610 (returns this: a constructor;
+sum.symbols quaternion__set_from_matrix), normalize 0x522f20; cdecl matrix43_interpolate,
+matrix43_interpolate_quat, matrix43_set_interpolated; globals identity_matrix, identity_matrix43,
+Homogeneous_column. extract_angles and get_axis_angle became const.
+
+**D502 (skeleton.cpp). Layouts.** skeleton is 0xd0 bytes (skeleton_mem_used +/- 0xd0 in read /
+~skeleton): +0 / +4 the rotation / position key arrays, +8 file name (strcpy in the constructor), +0x48 /
++0x4c key totals, +0x50 / +0x54 list links (list_remove in ~skeleton), +0x58 name (ca_string_pool),
++0x68 vector3 root displacement, +0x74 quaternion root rotation (read_quaternion, slerp operand; 16
+bytes up to num_bones +0x84), +0x88..+0x9c weights, tracks, morph counts and arrays. sum.symbols'
+skeleton_add 0x543d50 is the five-argument constructor (thiscall, constructs +0x68 / +0x74, returns
+this, ret 0x14; character_add_skeleton calls it on operator new(0xd0)); skeleton_read 0x544090 is
+skeleton::read(FileReader *, name, path_id) (ECX = the new skeleton, ret 0xc). anim_track gets its
+counts (+0 position, +2 rotation, ushort) and key pointers (+8 / +0xc). The key classes anim_key,
+anim_pos_key (0x28), anim_rot_key (0x14, with a cquat of four int16), anim_vec_key (0x10) and
+skeleton_morph (0xc) are new; anim_key's and anim_pos_key's constructors and get_size are inline (the
+COMDATs 0x544ad0-0x544b3f follow skeleton.cpp's last function), 0x544b40 / 0x544b60 / 0x544b70 are
+compiler-generated (implicit constructors, new[]'s default constructor closure). vim is 0x68 bytes
+(operator new(0x68) in vim_alloc) with the data block, sub-meshes (vim_submesh, 0x30), flags +0x2c,
+header copies, tags (vim_tag, 0x60) and ca_skin at +0x38: ca_bone, ca_bone_ext and ca_skin moved from
+character.h to skeleton.h (vim_read fills +0x38..+0x4c with the ca_skin fields; ca_mesh +4 points
+there). ca_bone_ext +0 is a name, not an int: vim_read stores ca_string_pool.AddUnique there and
+vim_write_header writes it with write_string_z. vim_header (0x24) is new. The vim_get_tag_transform
+declaration of decomp23 matches 0x543c70.
+
+**D503 (skeleton.cpp). FileReader, other additions.** New class FileReader (0x14 bytes, 0x513a20-0x513e5f)
+in vsdk/vfile/file.h, with the fields of sum.symbols' constructor comment; File gains write_vector
+(0x526280). bmpman.h gains bm_get_filename (0x503b60), character.h declares ca_string_pool (0x2dc7070,
+character.cpp .bss), skeleton.h declares the skeleton_* counters (0x2ee4598-0x2ee45a8, defined in
+skeleton.cpp: they lie between its literals 0x2ee4578-0x2ee4590 and character.cpp's 0x2ee45ac).
+
+**D504 (matrix.cpp). x87 order.** VC6 without /Op commutes and reassociates float sums here:
+matrix43::operator* (0x5114b0) adds the four terms of the three columns of one row in three different
+orders ((a2 b20 + h b30) + a0 b00 + a1 b10, (h b31 + a2 b21) + a0 b01 + a1 b11, (a2 b22 + a0 b02) +
+h b32 + a1 b12), and matrix::determinant's products come out as fz rx uy. So the order of the source
+terms cannot be recovered from the instructions; the expressions are written in natural index order.
+What the code does fix: which partial results are reused (2yy, 2zz, 1 - 2xx in set_from_axis_angle;
+1 - t in the interpolations), which are spilled, and `2 * a` compiled as `a + a`.

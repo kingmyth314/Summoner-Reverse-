@@ -30,6 +30,8 @@ Rules:
 | `vsdk/stringpool.cpp` | `vsdk\os\stringpool.cpp` | 16 | 14 / 2 / 0 |
 | `vsdk/plainstring.cpp` | `plainstring.cpp` (folder not known; Summoner 2 name) | 20 | 12 / 8 / 0 |
 | `vsdk/parse.cpp` | `vsdk\parse\parse.cpp` (TextFile) | 51 | 32 / 18 / 1 |
+| `vsdk/matrix.cpp` | `vsdk\math\matrix.cpp` | 48 | 27 / 20 / 1 |
+| `vsdk/skeleton.cpp` | `vsdk\ca\skeleton.cpp` | 27 | 15 / 12 / 0 |
 | `game/new_credits.cpp` | `new_credits.cpp` (`0x408590`-`0x408d72`) | 11 | 7 / 4 / 0 |
 | `game/new_help.cpp` | `new_help.cpp` (`0x40bf30`-`0x40cb55`) | 16 + 5 initialiser pairs | 5 / 11 / 0 |
 | `game/gamesound.cpp` | `gamesound.cpp` (`0x468c80`-`0x469720`..) | 20 | 14 / 5 / 1 |

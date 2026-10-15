@@ -112,14 +112,14 @@ The source half of the pilot has started without the compiler. Agents rewrote wh
 the disassembly; I reviewed them, spot-checked a function of each against the listing, and checked that they compile
 with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
 - engine: `frametime`, `timestamp`, `registry`, `cmdline`, `gr_font`, `ui_container`, `targautils`, `window`,
-  `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`;
+  `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`, `matrix`, `skeleton`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
   level select, shop, item trade, options, save/load, status, automap, inventory, HUD, skills, spells, tutorial, multiplayer game list and
   PXO chat screens, the multiplayer save, trade, chat and container code, plus `gamesound`, `item_paging`, `player`, `objects`, `items`, `spells`, `combat`, `summoner` (the main module, with WinMain), `conversation` and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 1,459 functions written (16.9%). Of these, 878 match the
-disassembly exactly as far as can be read, 521 likely, 18 unsure. All 50 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 1,533 functions written (17.7%). Of these, 919 match the
+disassembly exactly as far as can be read, 552 likely, 19 unsure. All 52 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

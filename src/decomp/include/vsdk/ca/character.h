@@ -6,32 +6,13 @@
 
 #include "vsdk/ca/skeleton.h"
 #include "vsdk/gr/gr.h"
+#include "vsdk/os/stringpool.h"
 
-struct ca_bone {                      // 0xa0 bytes (ca_skin +0x4)
-    ubyte _unk00[0x50];
-    matrix43 bind;                    // +0x50 multiplied in front of the animated bone matrix
-    int parent;                       // +0x80 -1 = root
-    vector3 tag_offset;               // +0x84 character_instance__get_tag_pos
-    int tag_value;                    // +0x90
-    vector3 base_pos;                 // +0x94 character_instance__get_bone_bind_inverse
-};
-LAYOUT_CHECK(ca_bone, sizeof(ca_bone) == 0xa0);
+// ca_bone, ca_bone_ext and ca_skin moved to skeleton.h (decomp25: they live in the .vim data block,
+// ca_skin = vim +0x38).
 
-struct ca_bone_ext {                  // 0x38 bytes: extra bones (tags) after the real bones
-    int _unk00;
-    matrix43 m;                       // +0x04
-    int parent;                       // +0x34
-};
-LAYOUT_CHECK(ca_bone_ext, sizeof(ca_bone_ext) == 0x38);
-
-struct ca_skin {                      // mesh +0x4
-    int num_bones;                    // +0x00
-    ca_bone *bones;                   // +0x04
-    int _unk08;
-    int num_ext;                      // +0x0C
-    ca_bone_ext *ext;                 // +0x10
-    int root_bone;                    // +0x14
-};
+// The animation and bone-tag names (skeleton names, trigger names, ca_bone_ext names).
+extern StringPool ca_string_pool;     // 0x2dc7070 (character.cpp .bss; decomp25)
 
 struct ca_mesh {                      // character +0x1e4 (current LOD)
     int _unk00;

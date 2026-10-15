@@ -7,6 +7,9 @@
 #include "vsdk/vsdk.h"
 #include <time.h>
 
+class vector3;
+class quaternion;
+
 #define PATH_ANY 9999999                // 0x98967f, the "search every path" id
 
 // File (0x114 bytes; Dash Faction rf::File has the same size). __thiscall members. File has a destructor,
@@ -44,6 +47,7 @@ public:
     void write_int(int v);                               // 0x526250
     void write_float(float v);                           // 0x526270 (decomp24)
     void write_string_z(const char *s);                  // 0x5263e0 with its terminator (decomp24)
+    void write_vector(const vector3 *v);                 // 0x526280 (decomp25, vim_write_header)
     // text (strlen when len < 0; NULL writes only the newline) then "\n"; < 0 failure (decomp22).
     int  write_line(const char *text, int len);          // 0x5264e0
     int  write(const void *buf, int len);                // 0x526410
@@ -56,6 +60,37 @@ public:
     int slot;                          // +0x110 open-file slot index, -1 closed (File__is_open)
 };
 LAYOUT_CHECK(File, sizeof(File) == 0x114);
+
+// FileReader (0x14 bytes, vsdk\vfile 0x513a20-0x513e5f; unit file not known): reads from an open File
+// or from a memory block with the same calls (skeleton_read reads preloaded .mvf data this way). No
+// destructor. Past the end of a memory block the readers return 0. decomp25 (skeleton.cpp).
+class FileReader {
+public:
+    FileReader();                                        // 0x513a20 mode -1
+    void attach_memory(void *buf, int size);             // 0x513a30 mode 1
+    void attach_file(File *f);                           // 0x513a50 mode 0
+    int  tell();                                         // 0x513a70
+    void seek(int offset, int origin);                   // 0x513a90 origin 0 set, 1 current, 2 end (return unused)
+    int  eof();                                          // 0x513b00
+    int  error();                                        // 0x513b30 always 0 for memory
+    void read(void *buf, int len);                       // 0x513b40 (return unused)
+    int    read_int();                                   // 0x513bb0
+    float  read_float();                                 // 0x513bf0
+    short  read_int16();                                 // 0x513c40
+    ushort read_uint16();                                // 0x513c80
+    char   read_int8();                                  // 0x513cc0
+    ubyte  read_uint8();                                 // 0x513d00
+    void read_vector(vector3 *out);                      // 0x513d40 12 bytes
+    void read_quaternion(quaternion *out);               // 0x513da0 16 bytes
+    void read_string(char *buf, int max);                // 0x513e00 NUL-terminated
+    int mode;                          // +0x00 0 File, 1 memory, -1 none
+    File *file;                        // +0x04
+    ubyte *buffer;                     // +0x08
+    int pos;                           // +0x0c
+    int size;                          // +0x10
+};
+LAYOUT_CHECK(FileReader, sizeof(FileReader) == 0x14);
+
 
 void file_change_ext(char *out, const char *name, const char *ext);   // 0x5130a0
 void file_init(const char *install_path, bool use_packfiles);        // 0x512d60 (LoadSettings: NULL, true)
