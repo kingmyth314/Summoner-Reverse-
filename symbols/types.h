@@ -390,7 +390,7 @@ typedef struct Player {
     int32_t char_info;       // +0x008 char_infos index passed to living_entity_create (player_create); player_init_from_character sets it
     int32_t handle;          // +0x00C the character object's handle
     uint32_t flags;          // +0x010 0x2 summon, 0x4 hold, 0x8 party leader (Joseph: 8); 0x4 on the others in solo mode
-    int32_t mp_owner;        // +0x014 owning multiplayer player (character_is_locally_controlled compares it with mp_local_player); 0 from player_alloc_slot
+    struct mp_player* mp_owner; // +0x014 owning multiplayer player record (mp_player_alloc: +0x14 state, +0x34 name); compared with mp_local_player; 0 from player_alloc_slot
     int32_t _unk18;          // +0x018 682
     int32_t _unk1c;          // +0x01C 536
     int32_t num_progression; // +0x020 17
