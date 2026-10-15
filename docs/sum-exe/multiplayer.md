@@ -13,7 +13,12 @@ the handlers into the functions before them. The table gave their real starts. A
 `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the table; re-checked 2026-10-15). Lobby, chat
 and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`, `utrack_*`). The
 decompiled units are `src/decomp/game/unnamed_netsession_0x440b40.cpp` (session states, player records) and
-`src/decomp/game/unnamed_netpackets_0x441820.cpp` (receive, send and forward; placeholder names, D3309/D3312).
+`src/decomp/game/unnamed_netpackets_0x441820.cpp` (receive, send and forward; placeholder names, D3309/D3312);
+the NEW_MON and SRV_REQ handlers, the player lookups, the net-handle map helpers (`mp_net_handle_map`
+`0x22e94f4`), the position quantising and the NEW_LEP orientation packing are in
+`src/decomp/game/unnamed_goals_doors_0x475180.cpp` (D3800). Only a multiplayer client sends SRV_REQ
+(`ai_service_request` `0x4766f0`), and the only NEW_LEP sender is the `load_mlayout` console command
+(`monster_layout_load` → `mp_send_new_lep`), whose orientation packing is wrong (game bug K230).
 
 - **Flag column:** `multi_process_packet` (`0x441820`) always calls the handler when the sender's address is in the
   player list; flag 1 lets it run for an unlisted sender as well (`cmp byte ptr [ebp + 0x5951c0], 1` at `0x441959`).

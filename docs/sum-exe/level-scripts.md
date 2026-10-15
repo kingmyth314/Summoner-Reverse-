@@ -58,7 +58,7 @@ sounds, effects, script objects, triggers, shops and the clickable-object list `
 
 | Parser | File | Sections |
 |---|---|---|
-| `level_script_parse_table` (`0x4cd5f0`) | `<script>_script.tbl` | `#Town`, `#Navpoints`, `#Objects`, `#Doors` (sounds, `+Locked:`, `+Key:`, saved open state), `#Clicks` (clickable objects with `+Give:` gold and `+Messagebox:` text) |
+| `level_script_parse_table` (`0x4cd5f0`) | `<script>_script.tbl` | `#Town`, `#Navpoints`, `#Objects`, `#Doors` (open and close sounds, `+Locked:`, `+Key:`, saved open state; the scripts then use `door_apply_saved_state(name, state)` (`0x477340`: every door of that name whose saved state differs starts moving, forced and with its sound, `door_start_move(lobj, -1, 1, 1)`), `door_is_open_by_name` (`0x4773d0`) and `lobjs_hide_by_prefix` / `lobjs_show_by_prefix` (`0x4777f0` / `0x477850`, level object flag `0x80`)), `#Clicks` (clickable objects with `+Give:` gold and `+Messagebox:` text) |
 | `level_items_parse_table` (`0x4cb430`) | `level_items.tbl` | the `#Level:` block of the level. Only records whose `$Script:` is the current script get their navpoint looked up and their item spawned (subject to the save's level-item list) |
 | `level_parse_table` (`0x4cb7b0`) | `<level>.tbl` | `#Effects`, `#Ambient Sounds`, `#Triggers`, `#Shopkeepers`, `#Automap`, `#Fog` |
 

@@ -96,12 +96,14 @@ Flags at `+0x0c` (**observed** unless marked):
   elevation is below 4 (low), else `+0x134`. `camera_frame` writes the current zoom back to the
   same slot each frame. So the low and high views keep separate zoom levels. **Observed.**
 - **F12** (`hud_key_camera` `0x40e980` → `camera_cycle_mode` `0x479a60`) cycles 0 → 1 → 2 → 0.
-  On the world map (`cur_level_index` 4) it does nothing. In mode 3 it does nothing, and
-  `hud_key_camera` shows a status message for 3 s and plays sound `0x27`. **Observed.** See
+  On the world map (`cur_level_index` 4) it does nothing. In mode 3 it does nothing unless the
+  forced high view is suppressed (`+0x008`): then mode 3 counts as the high view and F12 goes to mode 2. Otherwise
+  `hud_key_camera` shows a status message for 3 s and plays sound `0x27`. **Observed** (`0x479a92`..`0x479a9c`). See
   [Controls](controls.md).
 - **Automatic view** (`camera_auto_view_update` `0x4787b0`) checks once a second. It switches to
   high at once when `camera_enemy_near_leader` (`0x4796a0`) is true: the leader's current target
-  is an enemy, or a living enemy is within 8 units (squared distance 64). It switches back to low
+  is an enemy, or an enemy in the living list that is not a party character (object type 7) is within
+  8 units (squared distance 64). It switches back to low
   after 5 s without one. It does nothing while `game_flags` bit `0x100` is set (*inferred*:
   a conversation, set by `player_talk_to` and `script_object_talk`), while `Ai_paused`, or in
   solo mode (`0x1000`) while the low view is on. **Observed.**
@@ -113,8 +115,9 @@ Flags at `+0x0c` (**observed** unless marked):
 - **Detail level.** A flag in the detail record (`+0x24` or `+0x25`) sets `+0x008`. While it is
   set, a request for mode 3 is only remembered in `+0x009`; clearing it later applies mode 3.
   **Observed.** *Inferred:* low detail settings keep the player's own camera in high-view areas.
-- **Leader change.** `camera_set_target` snaps the camera when the new target is more than
-  10 units away. Closer, it stores the new follow eye in `+0x150` and enters mode 5: the eye
+- **Leader change.** `camera_set_target` always stores the new target, but does more only while
+  flag `0x1` is set (not during a shot, a conversation or slew). Then it snaps the camera when the new target is more
+  than 10 units from the old one, or when there was none. Closer, it stores the new follow eye in `+0x150` and enters mode 5: the eye
   glides there, and the camera returns to the previous mode once the new leader moves
   (`+0x698` above 0.01) or the glide settles. **Observed.**
 
@@ -157,14 +160,18 @@ editor has a window open ([Script editor](script-editor.md)). On the world map o
 1. `camera_update_target_pos`: the look-at point from the target position.
 2. `camera_apply_input_deltas`, then `camera_auto_rotate_update` (turns the yaw toward `+0x15c`).
 3. `camera_smooth_height` with the target's y. A new wanted height is taken only when it differs
-   by more than 0.3, so small steps in the floor do not move the camera. The height then moves
-   at 4 × difference per second and snaps when within 0.001.
+   from the current smoothed height by more than 0.3, so small steps in the floor do not move the camera. The height then moves
+   at 4 × difference per second and snaps when within 0.001. A step larger than the difference is replaced by the
+   *negated* difference (`fchs` at `0x478773`, game bug K231). That would need a frame time above 0.25 s, which the
+   frame timer never gives, so it never happens.
 4. `camera_update_eye_position` (`0x478130`): each axis of the eye moves toward the wanted eye
    with `camera_approach_value` (`0x478450`), a velocity step that snaps on overshoot.
 5. `camera_update_orientation` (`0x477f60`): the view looks at the target; it is set directly
    while the target moves (`+0x168` = 2), else smoothed.
-6. `camera_find_occluders` (`0x478520`), then `camera_auto_view_update`, then
-   `camera_copy_follow_view` copies the result into the rendered view.
+6. With or without a target: `camera_find_occluders` (`0x478520`), the zoom written back to its view's slot, the
+   three input rates cleared, then `camera_auto_view_update`. Only with a target and flags `0x1` and `0x2`,
+   `camera_copy_follow_view` then copies the result into the rendered view. The target position and radius are read
+   here with no NULL test (game bug C232).
 
 `state_game_frame` then adds the active effect camera offset (`vfx_get_camera`, a camera shake)
 to `camera_view_pos` / `camera_view_orient` and passes them and `+0x18c` to `gr_setup_3d`.
@@ -177,9 +184,13 @@ narrower). **Observed.**
 
 ## Walls and level geometry
 
-There is no camera collision. `camera_find_occluders` casts a ray from the eye to the target
-(`lobj_raycast_draw_lists`) and lists up to 32 level objects in the way (`camera_occluders`
-`0x22e49b8`). `levelrender_fade_occluders` (`0x4829e0`) fades them out. The eye is never moved.
+There is no camera collision. `camera_find_occluders` casts two rays with `lobj_raycast_draw_lists`, one each
+way between the last eye position and the target's last position. The target point is raised by the smaller of the
+look height (`+0x194`) and 0.8 × the target's radius (`+0x88`). Each ray is repeated while it keeps hitting. Both
+end points are statics of `camera_frame` (`camera_frame_last_pos` `0x22e4ac0`, `camera_frame_last_target_pos`
+`0x22e4ad0`), refreshed only when they have moved more than 0.08 units. It lists up to 32 level objects in the way
+(`camera_occluders` `0x22e49b8`) and does nothing during cutscenes (`game_flags` `0x20`).
+`levelrender_fade_occluders` (`0x4829e0`) fades them out. The eye is never moved.
 **Observed.** The console toggle `geom_avoid` sets `Camera_geometry_avoidance` (`0x22e4b0c`), but
 nothing else reads that byte. **Observed:** the only references are in `cmd_geom_avoid`.
 
@@ -201,7 +212,7 @@ distance, yaw, zoom, elevation, fov, look height, mode, previous mode
 
 | User | Takes over | Gives back |
 |---|---|---|
-| Cutscene shot | `camera_start_sequence`: ends the last shot (pop), push, `camera_set_follow_flags(0, 0)`, sets flag `0x8` | `cutscene_cleanup` → `camera_end_sequence(1)` (`0x4797f0`): free the shot, pop, clear flag `0x8` and `game_flags` `0x800` |
+| Cutscene shot | `camera_start_sequence`: ends the last shot (pop), push, `camera_set_follow_flags(0, 0)`, sets flag `0x8` | `cutscene_cleanup` → `camera_end_sequence(1)` (`0x4797f0`): let go of the sequence (`camera_free_sequence` `0x479440` deletes a blend, state 1, and only drops a cutscene shot, state 0), pop, clear flag `0x8` and `game_flags` `0x800` |
 | Conversation | `conversation_camera_begin` (`0x4da890`): push, `camera_set_follow_flags(1, …)` | `conversation_camera_update` (`0x4d9d90`): pop or `camera_resume_follow` |
 | Slew | `slew_set_enabled(1)` | `slew_set_enabled(0)` |
 | Script editor | `script_editor_handle_input`: push, `camera_set_follow_flags` | `script_editor_close` |
@@ -287,8 +298,8 @@ Float constants were read from `Sum.exe` (`0x581a38` 6.0, `0x581a34` 7.5, `0x580
 | Layer camera | `level_vis_parse` `0x486def`, `level_set_current_layer` `0x48213a`-`0x482171` |
 | Detail suppression | `detail_apply_level_settings` `0x4873e3`-`0x48741a` |
 | Leader change | `camera_set_target` `0x479009`-`0x4790ab` |
-| Height dead band | `camera_smooth_height` `0x478700` |
-| Occluders, unused `geom_avoid` | `camera_find_occluders` `0x478520`, xrefs of `0x22e4b0c` |
+| Height dead band, negated clamp | `camera_smooth_height` `0x478700`, `0x478773`; frame-time cap `frametime_initialize` `0x5014ee` |
+| Occluders (two rays, statics), unused `geom_avoid` | `camera_find_occluders` `0x478520`-`0x4786f1`, `camera_frame` `0x478a75`-`0x478bac`, xrefs of `0x22e4b0c` |
 | Free look | `camera_free_look_update` `0x4791b9`-`0x4792aa`, `slew_set_enabled` `0x4348b0` |
 | State stack | `camera_push_state` `0x4797b0`, `camera_get_state` `0x478890` |
 | Shots and transform | `camera_start_sequence` `0x4792c0`, `camera_update_sequence` `0x479480`, `camera_end_sequence` `0x4797f0`, `cutscene_cleanup` `0x4368d0` |

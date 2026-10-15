@@ -176,7 +176,7 @@ The result supports the expected link order: the `new_*` screens are alphabetica
 | `0x470f80` | 1 | `multitrade.cpp` |
 | `0x471df0` | 1 | `multiendgame.cpp` |
 | `0x471f40`-`0x4742b0` | 2 | `ai.cpp` |
-| `0x479ad0` | 1 | `spells.cpp` |
+| `0x479b70` (listed as `0x479ad0`, where Ghidra's function list merged it into `camera_set_sequence_transform`) | 1 | `spells.cpp` |
 | `0x481340`-`0x4814e0` | 2 | `multiendgame.cpp` |
 | `0x487b90` | 1 | `multichat.cpp` |
 | `0x488c00`-`0x4895e0` | 2 | `multicontainer.cpp` |

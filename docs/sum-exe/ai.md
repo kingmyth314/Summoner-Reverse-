@@ -125,18 +125,28 @@ argument `+0x2c` and a path `+0x30`.
 All add functions go through `ai_goal_add` (`0x476190`), whose arguments are (type, priority, flags, target,
 point, layer, spell, float). The priority is the caller's. `0x6c` is the spell argument: the "no spell" value that
 every non-cast goal passes (`push 0x6c` at `0x473f55`). Adding an attack goal removes the other attack and
-backstab goals; a travel goal removes the other travel goals; a cast goal removes the other cast goals. An existing
-goal with the same fields only gets the new priority (`0x47622e`..`0x47625b`). The goal type names are in the
+backstab goals; a travel goal removes the other travel goals; a cast goal removes the other cast goals. For a
+player-controlled owner (AI flag `0x1`, `ai_state +0x50`), an attack or travel goal removes both kinds
+(`0x4761ee`..`0x476207`). An existing goal with the same fields only gets the new priority. An existing follow goal
+also takes the new target (`0x47622e`..`0x47625b`).
+
+A new goal goes into an empty slot (priority -1). If there is none, it replaces the lowest-priority goal without flag
+`0x1`, but only when its own priority is higher or it has flag `0x1` itself (`ai_goal_alloc` `0x476020`,
+`0x476088`). Otherwise nothing is stored, but the slot is still returned and `ai_goal_add` writes the new fields
+into it (game bug G230). A stored goal gets flag `0x2`, the next id (`ai_goal_next_id` `0x59b7c8`, saved with the
+game) and `level_session_time`. When the owner is the party leader, the slot also gets flag `0x100`. Outside
+conversations (`game_flags` `0x100`), the leader's hold flag (Player `+0x10` bit `0x4`) is cleared too
+(`0x476124`..`0x476176`; with every slot kept this writes to `goals[-1]`, V230). The goal type names are in the
 game's table `0x59ae98`.
 
 | Type | Table name | Added by | Notes |
 |---|---|---|---|
 | 1 | `attack` | `ai_goal_add_attack` | refuses hidden targets and non-enemies (`character_is_enemy`) |
-| 2 | `follow` | not in this unit | |
+| 2 | `follow` | `ai_think_party_update` (priority 500, flag `0x1`), `script_action_follow` (priority 100, flags `0x21`) | the only callers that set flag `0x1` themselves |
 | 3 | `cast_spell` | `ai_goal_add_cast_spell` | |
 | 4 | `cast_targeted_spell` | `ai_goal_add_cast_at_target` | hidden targets only for spells 3 and 5 |
 | 5 | `cast_location_spell` | `ai_goal_add_cast_at_point` | |
-| 6 | `switch_combat_mode` | `ai_set_combat_mode_goal` | |
+| 6 | `switch_combat_mode` | `ai_set_combat_mode_goal` | calls `ai_goal_alloc` directly, priority from its caller, flags 0 |
 | 9 | `pathfind` | `ai_goal_add_travel` | running sets goal flag `0x200` |
 | `0xc` | `goto_navpoint` | `ai_goal_add_move_to` | walking sets flag `0x10` |
 | `0xd` | `wander` | `ai_goal_add_move_to_timed` | sets traveling sub 8; callers `script_action_wander` (priority 100) and `boss_release_mount` (priority 5000, float 30.0). The float is probably the wander radius (*inferred*) |
@@ -145,9 +155,14 @@ game's table `0x59ae98`.
 | `0x10` | `hide` | `ai_goal_add_hide` | priority 999999; leaves hiding instead when already hiding |
 
 The other table names are `unused` (0), `switch_normal_mode` (7), `protect` (8), `turn_to` (`0xa`), `run_away`
-(`0xb`) and `pickup item` (`0x11`). The goal handlers are at `0x4b6000`-`0x4b68c0`, one per type
-(`ai_goal_do_*`). `ai_process_goals` (`0x4763a0`) validates and sorts the goals, makes the top one current and
-calls its handler (from `sum.symbols`, not checked again here).
+(`0xb`) and `pickup item` (`0x11`). Nothing adds a type-7 goal; the dispatch would send it to
+`ai_goal_do_combat_mode` like type 6. The goal handlers are at `0x4b6000`-`0x4b68c0`, one per type
+(`ai_goal_do_*`). `ai_process_goals` (`0x4763a0`) does nothing in AI mode 6. Otherwise it first runs
+`ai_goal_evaluate` (`0x475830`) on every used slot (`ai_goals_validate`): result 1 or 2 removes the goal, 3
+suspends it (flag `0x8`), 0 clears the suspension. It then sorts with `ai_goal_compare`. Kept (`0x40`) and suspended
+(`0x8`) goals go last; combat-mode (6) and sneak (`0xf`) goals go first; then the higher priority, then the newer
+goal. The top goal becomes current (`+0x190` = its id) unless it is empty or suspended, or it is already current
+and the owner is not idle. Its handler is called with the goal's fields. **Observed.**
 
 ## Attacker slots
 

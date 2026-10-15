@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 237 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 244 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 5 | 51 | 2 |
-| Gameplay | 33 | 17 | 3 |
-| Cosmetic | 41 | 17 | 2 |
-| Invisible | 31 | 42 | 0 |
+| Crash or hang | 5 | 54 | 2 |
+| Gameplay | 33 | 18 | 3 |
+| Cosmetic | 41 | 19 | 2 |
+| Invisible | 31 | 43 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -94,6 +94,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C203 | Latent: the `load_mlayout` console command creates every monster of the layout with character type -1 (the map name looked up as a character type), so the memory before `char_infos` is used as its type. No console in v1.40: only a patch or a `.vcs` script can run it | `monster_layout_load` `0x43fe00` | **Observed** code, *inferred* effect | No |
 | C210 | In a hard fight, an AI-controlled Healer or Healer/Caster party member (Rosalind by default) who can cast Bless but not Protect can crash the game when four or five party members are unblessed and hurt or under attack: its candidate count runs past its six-entry list and overwrites the caller's saved registers and return address | `ai_group_think_caster` `0x4936c0`, `ai_group_combat_think` `0x492db0`, `ai_groups_frame` `0x492d30` | **Observed** code, *inferred* crash | No |
 | C211 | Latent: a cutscene whose camera files hold more than 250 position keys or 250 rotation keys in all overwrites the next key pool, and past the last pool the snow state (largest retail: Machival-Death, 179 rotation keys) | `cutscene_camera_read_track` `0x493fd0` | **Observed** code and retail data, *inferred* effect | No |
+| C230 | Latent: a monster or party member that has a cast-at-target order waiting behind another order crashes the game when that order's target no longer exists while a level cutscene script runs | `ai_goal_evaluate` `0x475830` | **Observed** code, *inferred* crash | No |
+| C231 | Latent: a door with five or more navigation edges loses its fifth edge when the level's door floor points are restored, and one with 36 or more overwrites the return address of `door_find_floor_point` (a crash) | `door_find_floor_point` `0x476ab0` | **Observed** code, *inferred* effect; retail navigation data not counted | No |
+| C232 | Latent: the game camera crashes if it is ever left without a target, or if its target is set to none while it has one | `camera_frame` `0x478990`, `camera_set_target` `0x478ff0` | **Observed** code, *inferred* crash; no retail path found | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -572,6 +575,41 @@ into the tangent pools, and the last pool ends at `snow_grid_x` (`0x2444598`). T
 dragon 97 / 16; every other entry less. **Observed** in code and data; the effect is *inferred*. C191 covers the
 shot count, not the keys.
 
+**C230. The missing return.** `ai_goal_evaluate` treats goal types 3, 4 and 5 (casts) together (jump table
+`0x475cd4`, entries 2-4 = `0x475989`). For a cast goal that is not the running one (`goal +0x08` != `ai_state
++0x190`), type 4 (cast at a target) looks the target up with `living_from_handle` (`0x4759c4`). A missing target
+only sets the result to 1 (`mov ebx, 1` at `0x4759d2`). The code then goes on: when `cutscene_script_is_active`
+(`0x4759d7`) is true, it reads the target's object type (`cmp dword ptr [esi + 0xc], 7` at `0x4759e4`) with ESI = 0.
+That reads address 0xc and crashes. The intent was to suspend casts at party members during cutscene scripts
+(result 3 at `0x475cb8`). The attack and follow cases return as soon as the target is missing (`0x4758a9`,
+`0x47591f`). The function is called once per used goal slot by `ai_goals_validate` (`0x47662c`), first thing in
+every `ai_process_goals`. A type-4 goal is added by `character_use_skill_on` (the player's cast order),
+`ai_group_think_caster`, `ai_combat_cast_frame` and the boss casters. The goal must be waiting, not running, and its
+target's handle must no longer resolve, all while `game_flags` `0x20` is set or a cutscene script name is loaded
+(`cutscene_script_is_active` `0x4ed770`). *Inferred:* the crash. We have not found a retail sequence that leaves a
+waiting cast goal with a deleted target.
+
+**C231. A four-entry edge list without a bound.** `door_find_floor_point` collects the navigation edges of the door
+(flag `0x2` at edge `+0x8`, door index at edge `+0xa`) into `[esp + 0x3c]` (`0x476b47`..`0x476b61`). That loop runs
+over all `pf_edge_count` edges with no limit. The next local is the cell count `[esp + 0x4c]`, written at `0x476bb5`.
+From `[esp + 0x50]` on lies the ray block that the code fills only after a match (`0x476ce4`..`0x476d55`). The loop
+variables are below the array (`[esp + 0x10]`..`[esp + 0x1c]`), so the notes' "overwrites the loop variables" does
+not hold. What happens:
+- With 5 to 35 edges, the fifth entry is replaced by the cell count before it is compared (`cmp esi, [edx]` at
+  `0x476bee`). The point between that edge's two ends is never found through it. If no other edge matches, the door
+  keeps its old floor point (`door +0x48`..`+0x50`).
+- With 36 or more edges, the 36th entry falls on the return address (locals end at `[esp + 0xc8]`).
+
+The only caller is `level_restore_doors` (`0x438a14`). Doors with a path (`door +4` >= 0) take this path. *Inferred:*
+the effect. We did not count door edges per door in the retail navigation data.
+
+**C232. The target is read without a test.** `camera_frame` runs the follow steps only when there is a target
+(`+0x14c`) and flag `0x2` is set (`0x478a37`..`0x478a42`). It then reads `target->pos` (`0x478a75`..`0x478a90`) and
+`target +0x88` (`0x478b5e`..`0x478b6c`) on every frame, with no test. `camera_set_target(NULL)` with a current target
+passes `NULL + 0x10` to `distance` (`0x479013`..`0x47901d`). All 21 callers pass `cur_character`, a living entity
+from a release path, or a saved target, and `camera_frame` runs only in the game state (`player_input_frame`
+`0x4344a6`). So we know no case with no target. *Inferred:* a crash if one happens.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -626,6 +664,7 @@ shot count, not the keys.
 | G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
 | G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code and retail data, *inferred* effect | No |
 | G216 | The Tiger Rider's choice among several heroes it sees uses only the last hero's threat as the common base of the weights, not the sum, so it leans harder toward the heroes that hurt it than the other boss pickers do | `tiger_pick_target` `0x49b0a0` | **Observed** code, *inferred* effect | No |
+| G230 | Latent: when all five goal slots of a character are in use, a new order whose priority is not above the lowest one is not stored but overwrites that order's target, point, spell or radius, so the character can attack, follow or walk to the wrong place | `ai_goal_alloc` `0x476020`, `ai_goal_add` `0x476190` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1057,6 +1096,20 @@ are refused by `ai_can_be_knocked_down`. *Inferred:* each member's own distance 
 deltas, negative for damage, so the base is a common offset; a smaller base makes the pick lean more toward the
 heroes that hit it. *Inferred* intent and effect; the effect is mild.
 
+**G230. A slot index for a slot that was not taken.** `ai_goal_alloc` looks for the slot with the lowest priority
+that has no flag `0x1` (`0x476048`..`0x476069`). Empty slots have priority -1 (`ai_goal_remove` `0x47632c`), so they
+come first. When the chosen slot holds a goal, the new goal is stored only if its priority is higher or it has flag
+`0x1` (`cmp ecx, [edi + 4*eax]; jle 0x476124` at `0x476088`..`0x47608b`). Otherwise the stores are skipped, but ESI
+still holds the index, and the function returns it (`0x476178`). `ai_goal_add` takes any index >= 0 as a new slot
+(`0x476272`). It writes the new goal's fields into it, chosen by the new type's `ai_goal_type_fields`: target
+`+0x28` (`0x47628d`), point and layer (`0x4762a7`..`0x4762c3`), spell `+0x24` (`0x4762d7`), float `+0x2c` (`0x4762ec`).
+The old goal keeps its type, flags, id and priority. Example: a new attack overwrites a waiting cast-at-target goal's
+target, and a new move-to overwrites a wander goal's point. `ai_set_combat_mode_goal` calls `ai_goal_alloc`
+directly and stores nothing after it, so it is not affected. For the bug to show, all five slots must be full.
+Attack, travel and cast orders first remove the old goals of their own kind (`0x47619f`..`0x4761e9`), which frees a
+slot. So the five slots must hold other kinds: follow, combat mode, move-to, wander, backstab, sneak or hide. *Inferred:*
+the effect; no retail sequence was confirmed.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1119,6 +1172,8 @@ heroes that hit it. *Inferred* intent and effect; the effect is mild.
 | K211 | The mounted Phoenix Rider's animation is not kept in step with its horse (the Serpent and Tiger Riders' are) | `phoenix_seat_rider` `0x4982a0` | **Observed** code, *inferred* effect | No |
 | K212 | In the Tiger fight's mounted axe stage (stage 2), the rider plays its stage-2 walk animation even when it should stand; the stage-2 ready animation `tigr_stage2_ready.mvf` is loaded but never used | `tiger_set_stage2_anims` `0x49a140` | **Observed** code and retail data, *inferred* effect | No |
 | K213 | Latent: the Serpent's illusion, if it ever ran, would leave the second copy visible and active while the first one vanishes; in v1.40 nothing starts the illusion | `serpent_illusion_start` `0x496ba0`, `serpent_ai_frame` `0x4973e0` | **Observed** code, *inferred* effect | No |
+| K230 | Latent: in multiplayer, monsters that a `load_mlayout` monster layout creates on the other machines get a broken orientation (their up row is a copy of their right row), until the first position update turns them by heading. No console in v1.40: only a patch or a `.vcs` script can run it | `matrix3_pack_orientation` `0x475380` | **Observed** code, *inferred* effect | No |
+| K231 | Latent: an overshooting step of the camera's height smoothing moves the camera away from the floor height instead of onto it; it cannot happen because the frame time is capped at 0.25 s | `camera_smooth_height` `0x478700` | **Observed** code and constants | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1610,6 +1665,25 @@ serpent's pending sub-mode (`0x24523a8`) is `0x38` (`0x49741c`..`0x497430`), and
 copies' appearance never run in v1.40; the two copies made by `serpent_spawn_rider` stay hidden. `serp_boss.tbl`
 still lists "stage2 illusion" (variation 7).
 
+**K230. Two terms packed twice.** `matrix3_pack_orientation` keeps five sign bits (`out +0x10`, from `m[2]`, `m[5]`,
+`m[8]`, `m[6]` and `m[7]`). It then stores `m[0]`, `m[1]`, `m[0]`, `m[1]` as the four packed terms
+(`0x4753f3`..`0x475425`). The receiver, `matrix3_unpack_orientation`, reads terms 3 and 4 as `uvec.x` / `uvec.y` (`m[3]`,
+`m[4]`, `0x47547d`, `0x475484`) and rebuilds the other four terms from them with square roots. So `uvec` comes out
+as `rvec` with only its z sign different, and `fvec` comes from `sqrt(|1 - 2·m0²|)`-style terms. A yaw-only monster
+gets a forward row that points mostly up. The only sender is `mp_send_new_lep` (`0x47fe7f`), and its only caller is
+`monster_layout_load` (`0x44012b`), the `load_mlayout` console command (C203 already covers its wrong character type).
+`mp_handle_new_lep` builds the entity with that matrix (`living_entity_create` `0x47ff88`). `mp_handle_obj_update`
+later calls `matrix3__set_from_angles(0, 0, heading)` (`0x480849`) whenever the heading it extracts differs from
+the received one (`0x48080a`..`0x48081f`), so the next update repairs it. *Inferred:* how it looks; not run.
+
+**K231. `fchs` on the clamp.** `camera_smooth_height` computes `step = frame_dt × (wanted - height) × 4.0`
+(`0x580e18`; `0x478736`..`0x478750`). When `|difference| < |step|`, it replaces the step with the *negated* difference
+(`fld [esp+4]; fchs` at `0x47876f`..`0x478773`). The height then lands at `height - difference`, twice as far from
+the wanted height as before. It snaps only once within 0.001 (`0x581938`). The overshoot needs `frame_dt × 4 > 1`.
+`FrameDone` clamps `frame_dt` (`0x5a5740`) to `max_reported_frametime`, 0.25 (`frametime_initialize` `0x5014ee`).
+The only writer that raises it, `frametime_unlimit` (`0x501750`, 10 s), has no caller. At exactly 0.25 the step equals
+the difference and is not replaced. So retail never runs the `fchs`.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1687,6 +1761,7 @@ still lists "stage2 illusion" (variation 7).
 | V212 | Nothing: the Phoenix Rider's on-foot setup looks up `ready_hurt` and throws the result away (its `ready_hurt` uses the same `phnx_ready.mvf` as `ready`) | `phoenix_set_foot_anims` `0x499be0` | **Observed** code and retail data | No |
 | V213 | Nothing known: unloading the Tiger Rider frees its axe without clearing `tiger_axe`, and every Tiger load makes a new axe without freeing the one not yet handed over | `tiger_unload` `0x49ae90`, `tiger_equip_weapon` `0x49a2c0` | **Observed** code, *inferred* effect | No |
 | V214 | Nothing: the Serpent's first load clears its "rider seated" flag right after setting it; the nested loads of its two copies set it again | `serpent_boss_load` `0x495960` | **Observed** code | No |
+| V230 | Latent: with all five goal slots kept (flag `0x1`), a new goal of the party leader sets bit `0x100` in `ai_state +0x5c`, the z of the travel point (`goals[-1].flags`) | `ai_goal_alloc` `0x476020` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2190,6 +2265,13 @@ which runs `boss_ai_load` and so `serpent_boss_load` for each copy. Those nested
 flag again (1 outside `Liangshan` / `Jadetemple`). So the flag is right by the time `serpent_seat_rider` runs
 (`0x495b73`). Only if both copies failed to be created would the mounted rider not be seated.
 
+**V230. Index -1 used.** When every slot has flag `0x1`, the slot search leaves ESI = -1 and jumps over the stores
+(`0x47606d`). The party-leader branch that follows (`0x476124`..`0x476176`) has no test of ESI. It ORs `0x100` into
+`[edi + 4*(13*-1) + 0x90]` = `ai_state +0x5c`, then returns -1. `+0x5c` is the travel point's z (`ai.md` Paths). Bit
+8 of a float is a low mantissa bit, so the point moves by a few millionths of its value. Only follow orders
+(`ai_think_party_update` flags 1, `script_action_follow` flags `0x21`) and caller-chosen travel and move-to flags set
+`0x1`. Five kept goals at once are not known to happen.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2460,6 +2542,13 @@ the tables above; the rest are below.
 - `ai_group_collect_enemies` filters enemies by height against `cur_character` (`0x493c71`), not the group leader as the decomp comment says; party members stay near `cur_character`, so no effect is known.
 - The Phoenix Rider's on-foot `ready_hurt` slot (V212) and the empty flinch tables (V211) change nothing on screen.
 
+- `door_find_floor_point` overflow "overwrites the cell count and the loop variables": the loop variables are below the array (`[esp+0x10]`..`[esp+0x1c]`); the count at `[esp+0x4c]` is rewritten at `0x476bb5` before it is read. The overflow itself is real (C231).
+- `camera_smooth_height` "at frame times above 0.25 s": the frame time never exceeds 0.25 s (`FrameDone`, `frametime_initialize` `0x5014ee`; `frametime_unlimit` has no caller), so the wrong sign is latent (K231), not an occasional visible step.
+- `ai_goal_compare` returning -1 both ways for two combat-mode / sneak goals (`0x475d6c`..`0x475d82`), and 1 both ways for equal priority and time (`0x475d97`..`0x475daa`): qsort over 5 entries still ends, and the order of two such goals does not matter. Not counted.
+- `door_start_move`'s test of bit `0x4` (`0x476ff0`): always false, because `0x476f85` clears it and the value written back keeps it clear. Dead code, not counted.
+- The SRV_REQ "unknown service request type" warning is only formatted into a buffer; `geom_avoid` / `Camera_geometry_avoidance`, `camera_occluders_unk` (`0x22e4acc`) and `camera_set_default_view_params`' values are never used; `zoom_limit`'s texts lack a newline. Dead or debug code, like the entries under "Not counted" on game-bugs.md.
+- `ai_service_request` having no single-player branch (`0x4766fb`..`0x47670e` skips everything outside a multiplayer client): `hud_key_pause`'s request only matters to a multiplayer client; a symbol correction, not counted.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2585,6 +2674,10 @@ the tables above; the rest are below.
 - `ai_group_collect_enemies` returns before resetting anything when the leader handle is not living (`0x493add`), and `ai_groups_frame` still calls `ai_group_combat_think`, which then works on the previous group's `ai_think_*` lists; no retail path that leaves a group with a dead or deleted leader was found.
 - The Tiger's pending sub-mode word `0x2452b7c` has one reference, a read in `tiger_ai_frame` (`0x49bfab`, compared with `0x21`); no write was found, so that branch may be dead like the Serpent's illusion.
 - Notes 14 intent: the `=-` reading of G216 rests on the generic picker; the Tiger's own constants (base 10, weight `base x 0.1 + 10`) differ from it anyway.
+- C230: whether any retail sequence leaves a waiting type-4 goal whose target handle no longer resolves while a cutscene script is active (corpses may keep their handles; `ai_goals_mark_keep` keeps goals across `cutscene_play`).
+- C231: the largest number of door edges (`pf_edges` flag `0x2`) per door in the retail levels.
+- G230: how often five goal slots are full in play (move-to and wander orders with different points each add a new goal, since `ai_goal_find` compares the point).
+- K230: whether the host sends an OBJ_UPD for an idle layout monster soon, so how long the broken orientation lasts.
 
 ## Evidence
 
@@ -2832,3 +2925,10 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V212 ready_hurt | `phoenix_set_foot_anims` `0x499c23`..`0x499c3a`; `Phoenix Rider.tbl` |
 | V213 Tiger axe | `tiger_unload` `0x49ae90`..`0x49ae9f`; `tiger_equip_weapon` (`item_create_weapon` for "TigerAxe"); `boss_ai_unload` `0x4a04f8`; `ai_state_shutdown` `0x47243b` |
 | V214 has_rider | `serpent_boss_load` `0x49599a`..`0x4959cc`, `0x495b73`; `serpent_spawn_rider` `0x495745`..`0x49574b`; `living_entity_create` `0x461c23`; `ai_reset` `0x47245a`..`0x47246e` |
+| C230 cast goal target | `ai_goal_evaluate` `0x4759b7`..`0x4759e8`, jump table `0x475cd4`; `ai_goals_validate` `0x47662c`; `cutscene_script_is_active` `0x4ed770` |
+| C231 door edges | `door_find_floor_point` `0x476b2f`..`0x476b61` (unbounded fill), `0x476bb5` (count), `0x476bee` (compare), `0x476ce4`..`0x476d55` (ray block); caller `level_restore_doors` `0x438a14` |
+| C232 camera target | `camera_frame` `0x478a37`..`0x478a42`, `0x478a75`..`0x478a90`, `0x478b5e`..`0x478b6c`; `camera_set_target` `0x479009`..`0x47901d` |
+| G230 unstored goal | `ai_goal_alloc` `0x476048`..`0x47608b`, `0x476178`; `ai_goal_add` `0x47625e`..`0x4762ec`; `ai_goal_remove` `0x47632c`; `ai_goal_type_fields` table `0x476008` |
+| K230 orientation packing | `matrix3_pack_orientation` `0x4753f3`..`0x475425`; `matrix3_unpack_orientation` `0x475437`..`0x475517`; `mp_send_new_lep` `0x47fe7f`; `monster_layout_load` `0x44012b`; `mp_handle_new_lep` `0x47ff6d`..`0x47ff88`; `mp_handle_obj_update` `0x480805`..`0x480849` |
+| K231 height sign | `camera_smooth_height` `0x478736`..`0x47879c`; constants `0x580e18` 4.0, `0x581938` 0.001; `frametime_initialize` `0x5014ee`; `frametime_unlimit` `0x501750` (no caller) |
+| V230 goals[-1] | `ai_goal_alloc` `0x47606b`..`0x47606d`, `0x47615f`..`0x476176` |
