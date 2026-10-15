@@ -1222,3 +1222,48 @@ the fourth (0x525413-0x5254b0), and pf_sweep_test_wall passes (&corner copy, &fr
 name only, File had none) and File::read_bool 0x525800; door_is_open 0x476940 (door, fraction) -> AL.
 pf_cells_along_segment is (layer, size, a, b): it indexes 0x245f460 with arg0 + 20 * arg1
 (0x4a64b0-0x4a64c4), the reverse of sum.symbols' "(size class, layer, ...)".
+
+**D1300 (gr_opengl.cpp, decomp33). gr::Mode is declared.** gr.h gets `class gr::Mode` (one gr_mode dword,
+`value`) with the sum.symbols members as header inlines: default constructor = gr__Mode__Mode_invalid
+(0x5368a0, value -1; it is what init_gr_opengl_current_mode 0x54efc0 calls on the global), Mode(gr_mode)
+= gr__Mode__Mode_value (0x506810, thiscall, ret 4), the six-field constructor 0x508160 (ret 0x18, fog
+in bits 25-29 down to the texture source in bits 0-4), operator== 0x5368b0 (`cmp` of the dwords, ret 4),
+the six get_* accessors 0x5368c0-0x536910, invalidate 0x536920 and is_multitexture 0x536930. Inline
+because every out-of-line copy is a COMDAT in another object (the accessors among the Direct3D code,
+module "vsdk\gr" in sum.symbols) and the vsdk units call them, as with vector3 (D500). gr_opengl.cpp
+passes it by value: gr_opengl_set_mode takes `lea ecx, [esp + 0x1c]` (its own argument slot) as `this`
+for operator== and the getters (0x54efec-0x54f049), and gr_opengl_clear builds a temporary with
+0x508160 and pushes its dword (0x54f7ed-0x54f7f8). D7's `typedef unsigned int gr_mode` stays for the rest
+of the tree (gr.cpp's front end and all pilots pass the dword); Mode(gr_mode) converts implicitly. Only
+the gr_opengl_* functions are declared with gr::Mode.
+
+**D1301 (gr_opengl.cpp). The bound textures are one int[2].** sum.symbols has gr_opengl_bound_texture0
+(0x5ad7c8) and gr_opengl_bound_texture1 (0x5ad7cc); gr_opengl_tcache_set indexes them by the stage
+(`mov dword ptr [4*eax + 0x5ad7c8], -1` at 0x54eda2, `mov eax, [4*ebx + 0x5ad7c8]` at 0x54edcc, the store
+at 0x54ee99). Defined as `int gr_opengl_bound_texture[2] = { -1, -1 }` (name ours, from the pair); the
+other functions use [0] / [1]. The -1 at 0x5ad7d0 has no reference and is a separate global.
+
+**D1302 (gr_opengl.cpp). gr_color_gamma_lut is float[256].** sum.symbols types 0x25d88d0 uint32[256].
+gr_set_gamma clamps `fild i` against two float constants and stores with `fstp dword ptr [ecx]`
+(0x506b1f-0x506b4f), and gr_opengl_tmapper reads it with `fld dword ptr [4*edx + 0x25d88d0]` + _ftol
+(0x550150). Declared `extern float gr_color_gamma_lut[256]` in gr.h.
+
+**D1303 (gr_opengl.cpp). gl_convert_1555_to_rgba8888_scaled decodes 565.** The name is kept, but the
+body extracts (p >> 5) & 0x3f scaled by the /63 magic 0x82082083 (0x54dca3-0x54dcb9), p & 0x1f and
+p >> 11 by the /31 magic, and ORs a constant 0xff alpha (`or dh, 0xff` at 0x54dce9): an opaque
+565 -> RGBA converter. No caller.
+
+**D1304 (gr_opengl.cpp). gr_vertex_depth takes a gr_vertex.** sum.symbols: (vertex*), reading only z at
++8; gr_opengl_tmapper / line_3d pass gr_vertex pointers. gr_opengl_set_fog passes a local vector3
+(`lea ecx, [esp + 0x4]; push ecx; call 0x50d8b0` at 0x55042f, after vector3::vector3(0, 0, z)), written
+as a cast in the source. gr_get_aspect (0x506950), gr_get_view_fov (0x50e5a0: two float* outputs, called
+with (&h, &v) and the second one used as gluPerspective's fovy) and gr_scale_by_far_clip (0x50ecb0)
+are added to gr.h with gr_color, gr_texture, gr_texture_2, gr_fog_enabled / color / near / far,
+gr_eye_pos, gr_eye_matrix and gr_far_clip_dist (sum.symbols names and addresses).
+
+**D1305 (gr_opengl.cpp). GL linkage.** No system GL header: vsdk/gr/opengl/gl_min.h declares the
+OPENGL32.dll functions `extern "C" __declspec(dllimport) APIENTRY` (every call in the unit is
+`call dword ptr [0x57e2xx]`, stdcall) and gluLookAt / gluPerspective without dllimport (they are called
+through the linker thunks 0x57b5ca / 0x57b5c4, `call 0x57b5ca` at 0x550586). The wgl* functions and the
+pixel-format calls come from <windows.h>. The GL_ARB_multitexture pointers are `void (APIENTRY *)(GLenum)`
+(no `add esp` after `call dword ptr [0x2f13344]`).

@@ -63,8 +63,10 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` (decomp31) | `bitmap_entry`, `BM_TYPE_*` / `BM_ANIM_*` / `BM_FORMAT_*`, the unit's globals, every `bm_*`, `progress_update` |
 | `vsdk/bmpman/targautils.h` | `vsdk\bmpman\targautils.cpp` (pilot) | TGA / PCX / m2v, `m2v_bitstream` |
-| `vsdk/gr/gr.h` | `vsdk\gr\gr.cpp` + vsdk\gr | `Color`, `gr_mode`, `gr__Screen`, `gr_*`, `gr::` clip, `gr_light_desc`; includes gr_font.h |
+| `vsdk/gr/gr.h` | `vsdk\gr\gr.cpp` + vsdk\gr | `Color`, `gr_mode`, `gr::Mode` (D1300), `gr__Screen`, `gr_*`, `gr::` clip, `gr_light_desc`; includes gr_font.h |
 | `vsdk/gr/gr_font.h` | `vsdk\gr\gr_font.cpp` (pilot) | `Font`, `FontCharInfo`, `gr_string`, `gr_split_str`, ... |
+| `vsdk/gr/opengl/gl_min.h` | (ours; stands in for `<GL/gl.h>` / `<GL/glu.h>`, D1305) | the GL 1.1 / GLU functions and constants Sum.exe imports, the multitexture pointer type |
+| `vsdk/gr/opengl/gr_opengl.h` | `vsdk\gr\opengl\gr_opengl.cpp` (decomp33) | `gl_tcache_entry`, the OpenGL back end and its globals |
 | `vsdk/localize/localize.h` | localize | `localize_strings`, `XSTR`, `localize_*` |
 | `vsdk/snd/snd.h` | snd (0x5207d0) | `snd_*`, `eax_*` |
 | `vsdk/net/net.h` | vsdk\net | `nw_*` globals |

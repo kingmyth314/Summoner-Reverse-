@@ -12,6 +12,38 @@
 // declared, it is a dword typedef (DECISIONS.md D7); gr_font.cpp's own definitions take int.
 typedef unsigned int gr_mode;
 
+// gr::Mode itself (decomp33, DECISIONS.md D1300): the packed render state as the back ends see it.
+// Six 5-bit fields, texture source in bits 0-4 up to the fog type in bits 25-29 (gr__Mode__Mode).
+// The members are header inlines: their only out-of-line copies are COMDATs in other objects (the
+// accessors 0x5368a0-0x536930 among the Direct3D code, the constructors in gr.cpp), and the vsdk
+// objects, built without inline expansion, call them (gr_opengl_set_mode, gr_opengl_clear). A class with
+// constructors and no copy constructor or destructor is still passed by value as one dword. The rest of
+// the tree keeps passing gr_mode; Mode(gr_mode) converts.
+namespace gr {
+class Mode {
+public:
+    Mode() { value = (gr_mode)-1; }                   // 0x5368a0 gr__Mode__Mode_invalid
+    Mode(gr_mode v) { value = v; }                    // 0x506810 gr__Mode__Mode_value
+    Mode(int texture_source, int color_source, int alpha_source, int alpha_blend, int zbuffer_type,
+         int fog_type)                                // 0x508160 gr__Mode__Mode
+    {
+        value = ((((((((((gr_mode)fog_type << 5) | zbuffer_type) << 5) | alpha_blend) << 5) | alpha_source)
+                  << 5) | color_source) << 5) | texture_source;
+    }
+    bool operator==(const Mode &m) const { return value == m.value; }   // 0x5368b0 gr__Mode__operator_eq
+    int get_texture_source() const { return (value >> 0) & 0x1f; }      // 0x5368c0
+    int get_color_source() const { return (value >> 5) & 0x1f; }        // 0x5368d0
+    int get_alpha_source() const { return (value >> 10) & 0x1f; }       // 0x5368e0
+    int get_alpha_blend() const { return (value >> 15) & 0x1f; }        // 0x5368f0
+    int get_zbuffer_type() const { return (value >> 20) & 0x1f; }       // 0x536900
+    int get_fog_type() const { return (value >> 25) & 0x1f; }           // 0x536910
+    void invalidate() { value = (gr_mode)-1; }                          // 0x536920 gr__Mode__invalidate
+    bool is_multitexture() const { return get_texture_source() >= 4; }  // 0x536930
+    gr_mode value;
+};
+}
+LAYOUT_CHECK(gr_Mode, sizeof(gr::Mode) == 4);
+
 // A colour (4 bytes r, g, b, a). It has a constructor (DECISIONS.md D41): the static colour objects
 // are built by Color::Color(r, g, b, a) (0x5067f0, thiscall, ret 0x10), and hud_portrait_get_color
 // (0x40f880) returns its Color through a hidden pointer, which VC6 does only for a non-POD class
@@ -193,6 +225,28 @@ int  light_create_point(const vector3 *pos, float range_a, float range_b, float 
 int  light_create_spot(const vector3 *pos, const vector3 *dir, float a, float b, float range_a,
                        float range_b, float intensity, float r, float g, float b2, int flags, int bm,
                        const quaternion *orient);     // 0x51e3f0
+
+// ---- decomp33 (gr_opengl.cpp) ---------------------------------------------------------------------
+// gr.cpp state the back ends read (gr.cpp .bss).
+extern Color gr_color;                                // 0x25d8d84 current colour (gr_set_color)
+extern int gr_texture;                                // 0x25d8d88 current bitmap (gr_set_texture)
+extern int gr_texture_2;                              // 0x25d8d8c second bitmap
+extern bool gr_fog_enabled;                           // 0x25d8d90 (gr_set_fog)
+extern Color gr_fog_color;                            // 0x25d8d91
+extern float gr_fog_near;                             // 0x25d8d98
+extern float gr_fog_far;                              // 0x25d8d9c
+// Vertex colour byte -> gamma-corrected value 0..255, as float (gr_set_gamma clamps and fstp's each
+// entry; the OpenGL tmapper fld's it): DECISIONS.md D1302 (sum.symbols: uint32[256]).
+extern float gr_color_gamma_lut[256];                 // 0x25d88d0
+float gr_get_aspect();                                // 0x506950
+// 3D view state (vsdk\gr, file not known).
+extern vector3 gr_eye_pos;                            // 0x2682a80
+extern matrix gr_eye_matrix;                          // 0x26927c0 (rvec, uvec 0x26927cc, fvec 0x26927d8)
+extern float gr_far_clip_dist;                        // 0x2692e88
+// gr_calc_depth(1 / v->z); only x, y, z are read, so the fog code passes a vector3 cast to a vertex.
+float gr_vertex_depth(const gr_vertex *v);            // 0x50d8b0
+void gr_get_view_fov(float *h_fov, float *v_fov);     // 0x50e5a0 degrees
+float gr_scale_by_far_clip(float f);                  // 0x50ecb0 f * the far clip scale
 
 // Direct3D back end (vsdk\gr\directx\gr_direct3d.cpp).
 extern bool d3d_use_vertex_buffer;                    // 0x2dc6c31
