@@ -1827,3 +1827,82 @@ multi.h mp_netgame_host_level, mp_netgame_level_scale, mp_change_level (one push
 boss_ai.h titus_combat_enabled and pyrul_combat_enabled / machival_combat_enabled (names ours: the bytes
 0x247fd38 / 0x248b034 that cmd_pyrul_combat / cmd_machival_combat set). level_pending_exit_name became
 `const char *` (it holds trigger +0x20, a pooled name or "").
+
+## gameplay.cpp (decomp42)
+
+**D2200 (summoner/gameplay.h). combat_mode_set takes a bool.** It was `void combat_mode_set(int on)` in
+summoner.h. The function compares the byte combat_mode with the argument's low byte (`mov ebx, [esp + 0xc]`;
+`mov al, [0x5fccb4]`; `cmp al, bl`, 0x439595-0x43959e), stores BL (0x4395a7) and passes the register on to
+ai_set_combat_mode_goal(bool, int) (`push ebx`, 0x4395db / 0x439603). Declared `void combat_mode_set(bool on)`
+in gameplay.h; the callers (combat.cpp, conversationctl.cpp, gametarget.cpp, living_entity.cpp,
+new_hud.cpp: 0 / 1 / true / !combat_mode) compile unchanged.
+
+**D2201 (summoner/gameplay.h). party_toggle_hold returns the solo mode bit.** It was `void`. The function
+ends with `mov eax, [game_flags]; and eax, 0x1000; ret` (0x4396b9-0x4396c4) and returns `xor eax, eax` in a
+town (0x439636). Declared `int party_toggle_hold()`; every caller ignores the value (hud_key_h_cb even
+tail-jumps to it, 0x40e388), so the existing calls are unchanged.
+
+**D2202 (engine/objects/living_entity.h). layer_lobj_list is the level's s3d_vis_set.** level_load_layers
+looks the names "$layer01".."$layer20" up in level_vis_records (`_stricmp(name, [vis_records + 0xc*j])`,
+0x4388b7-0x4388c6) and stores the record's address (`lea ecx, [esi + 2*esi]; lea eax, [edx + 4*ecx]; mov
+[edi], eax`, 0x4388e1-0x4388ed) into level_layer_ground[i] (0x9414b8). The old struct {int _unk00; ushort
+count; ushort _pad06; int *indices} is that record ({char *name; ushort count; int *indices}, 0xc bytes).
+`typedef s3d_vis_set layer_lobj_list;` replaces it and living_entity.h includes engine/s3d/s3d.h;
+living_entity.cpp reads only count and indices and compiles unchanged.
+
+**D2203 (summoner/gameplay.h). party_member_join returns the character; leader and place_at_start are
+bools.** It was `void party_member_join(const char *name, int a, int b, int c, int d)` ("meaning not
+checked"). EAX is the character: living_from_handle of a known member (0x439c36 / 0x439c4d), player_create's
+result (0x439cad-0x439cb6, returned at 0x439d37) or 0; level_spawn_party uses it (`mov edi, eax; test
+edi, edi; ... mov edx, [edi + 0x80]`, 0x438b89-0x438b96). The third argument is compared as a byte
+(`mov ebx, [esp + 0x11c]` ... `cmp bl, 1`, 0x439cc3; also passed on to player_create's bool leader) and so
+is the fourth (`cmp byte ptr [esp + 0x120], 1`, 0x439cfa); the second is the level (`cmp eax, 1; jle`,
+then xp_for_level(level), 0x439cd5-0x439cdf), the fifth the char_infos index (`test esi, esi; jge`,
+charinfo_find_by_name when negative, 0x439bc7-0x439bda). Declared `Character *party_member_join(const char
+*name, int level, bool leader, bool place_at_start, int char_index)`; level_scripts.cpp's calls
+`(name, 1, 0, 1, -1)` compile unchanged (0 / 1 convert to bool).
+
+**D2204 (summoner/gameplay.h). camera_reset_to_player takes a bool.** decomp41 declared `void
+camera_reset_to_player(int snap)` in summoner.h. The function tests a byte (`mov al, [esp + 4]; test al, al`,
+0x439510-0x439514) and state_game_enter passes its bool local. The declaration moved to gameplay.h as
+`void camera_reset_to_player(bool snap)`; level_scripts_common.cpp's call with 0 is unchanged.
+
+**D2205 (engine/camera/camera.h). camera_view_pos, camera_view_orient, camera_fov and game_camera_heading are
+macros on game_camera.** gameplay.cpp defines `camera game_camera` (0x60a018: sinit_game_camera 0x438d60,
+init_game_camera `mov ecx, 0x60a018; jmp camera::camera` 0x438d70, the atexit destructor 0x438d90), and the
+four externs are its +0x278 (0x60a290), +0x284 (0x60a29c), +0x18c (0x60a1a4) and +0x180 (0x60a198), so
+separate externs would have no definition. They become `#define camera_view_pos (game_camera.view_pos)` and
+so on, as D604 did for config_solo_confirm; the readers and writers (conversationctl.cpp, gametarget.cpp,
+new_saveload.cpp, new_automap.cpp, gameplay.cpp) compile unchanged. camera gets its constructor (0x478d70)
+and destructor (0x478df0) declared.
+
+**D2206 (several headers). New declarations for gameplay.cpp, no conflict.** summoner/gameplay.h: the unit's
+functions and data, moved out of summoner.h with the level globals (level_filename .. level_layer_automap_index,
+all in this unit's .bss 0x60a2c8-0x60a3cb), party_toggle_hold / party_select_member / party_member_join /
+party_teleport_to / combat_mode_set / camera_reset_to_player; summoner.h includes it where the party block
+was (level_entered_by_load, level_scripts.cpp's, stays in summoner.h). summoner.h also gets
+gameseq_get_prev_state / _next_state, game_pause_count_dec, ui_poll_and_process (key handler called with
+the key, return ignored: `push esi; call edi; add esp, 4`, 0x432887), input_flush, cursor_visible, the
+cursor bitmaps, the cutscene and player input calls, the cd calls and GF_ESCAPE_CUTSCENE (0x10),
+GF_CONVERSATION (0x100), GF_NO_RENDER (0x400), GF_NO_CLEAR (0x4000), GF_PARTY_DEAD (0x40000; names ours).
+mp_player +0x2c is `int char_info` (level_spawn_party pushes `[ebp + 0x2c]` as party_member_join's index,
+0x438b6d). ai_state::process_goals (0x4763a0, thiscall: `lea esi, [eax + 0x324]; mov ecx, esi`, 0x4395d0).
+fx_frame(float, bool) (`mov al, [esp + 8]; test al, al`, 0x48a230). memory.h declares the six level_mem_*
+counters (D202) that level_load zeroes. The others are plain additions (interface.h, automap.h, multi.h,
+objects.h, ai.h, levelrender.h, camera.h, fx.h, boss_ai.h, level_scripts.h, localize.h, file.h,
+file_packfile.h, effect_mem.h, snd.h, vfx.h, bmpman.h).
+
+**D2207 (gameplay.cpp). state_game_level_ready is set only when the load failed.** sum.symbols says "set
+once the level is loaded". The only store of 1 is 0x43821b, on the shared tail of the two failure paths of
+state_game_enter (level_load returned false at 0x4381bb, or savegame_load_pending returned 0 at 0x43820d);
+the success path never writes it after the clear at 0x438132. state_game_leave saves the conversation state
+(0x438cb8) and calls game_pause_count_inc (0x438d2e) only when it is 0, i.e. after a good load. The
+sum.symbols name is kept, with a comment.
+
+**D2208 (gameplay.cpp). world_last_click_pos and world_mouse_target_handle are defined here; init_empty_438db0
+is world_last_click_pos (unsure).** Both were extern only (gametarget.h, summoner.h). world_last_click_pos
+(0x609ff8) lies in this unit's .bss, and world_mouse_target_handle (0x593f50, -1) in its .data between
+level_load_layers' "$layer%02d" (0x593f44) and game_render_frame's "Fog_near" literal (0x593f54). The empty
+static initialiser entry 123 (0x438da0 / 0x438db0, a bare ret) sits between game_camera's (122) and
+ccmd_render_3d_obstacles' (124); a vector3 global (empty inline constructor, D500) is the only class object
+of the unit's .bss without a constructor call, so it is assigned to world_last_click_pos.

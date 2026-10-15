@@ -139,6 +139,7 @@ public:
     bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1
     void formation_slot_position(vector3 *out, const vector3 *base, const vector3 *dir, int slot);   // 0x4b52e0 (unit not known)
     void reset();                     // 0x472450 ai_reset
+    void process_goals();             // 0x4763a0 ai_process_goals (combat_mode_set; decomp42)
     bool is_combat_e_or_sneak_attack(); // 0x473120 ai_is_combat_e_or_sneak_attack
     bool is_mode(int mode, int sub);  // 0x473200 ai_is_mode (sub -1 = any)
     int  get_mode();                  // 0x473600 ai_get_mode
@@ -555,5 +556,7 @@ float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *o
 bool avoid_segment_hits_prim(const avoid_obstacle *ob, const vector2 *a, const vector2 *b, float margin);   // 0x4a6f50
 avoid_spline *avoid_spline_get(int i);                 // 0x4a7830 NULL unless used
 avoid_spline_point *avoid_spline_point_get(int i);     // 0x4a77d0 NULL unless used
+
+void ai_groups_restart_timers();                      // 0x492b60 (state_game_enter; decomp42)
 
 #endif

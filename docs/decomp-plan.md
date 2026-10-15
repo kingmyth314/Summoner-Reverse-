@@ -115,11 +115,11 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`, `matrix`, `skeleton`, `character`, `bmpman`, `gr`, `gr_opengl`, `gr_direct3d`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
   level select, shop, item trade, options, save/load, status, automap, inventory, HUD, skills, spells, tutorial, multiplayer game list and
-  PXO chat screens, the multiplayer save, trade, chat, chat-tracker, spell and container code, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, the Khosani lab and world map scripts and
+  PXO chat screens, the multiplayer save, trade, chat, chat-tracker, spell and container code, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, the Khosani lab and world map scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 2,798 functions written (32.4%). Of these, 1,768 match the
-disassembly exactly as far as can be read, 930 likely, 48 unsure. All 71 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 2,869 functions written (33.2%). Of these, 1,824 match the
+disassembly exactly as far as can be read, 943 likely, 50 unsure. All 72 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

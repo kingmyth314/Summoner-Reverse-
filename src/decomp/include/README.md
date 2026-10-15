@@ -104,6 +104,7 @@ Summoner 2 and Dash Faction give names only.
 
 | `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
 | `summoner/summoner.h` | summoner.cpp (decomp26), summoner_cd.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, MainLoop / LoadSettings / GameInit, path ids, fonts, command-line flags, `SummonerOptions` |
+| `summoner/gameplay.h` | gameplay.cpp (0x437660-0x43a32f, decomp42; included by summoner.h) | the cheat commands, level load / unload, state 4 and state 5 (help), party control, the level names and layer maps, the loading bar and help tables |
 | `summoner/gametarget.h` | gametarget.cpp (0x43a330-0x43cd6d, decomp35; included by summoner.h) | world picking and clicks, `WORLD_CLICK_*`, the tints, the unit's .bss / .data |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |

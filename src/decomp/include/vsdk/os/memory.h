@@ -67,4 +67,12 @@ extern FILE *mem_report_file;              // 0x269303c
 extern int mem_report_depth;               // 0x2693040
 extern int mem_report_verbose;             // 0x2693044
 
+// The six unnamed level counters (D202), zeroed by level_load (decomp42).
+extern int level_mem_2693008;
+extern int level_mem_2693010;
+extern int level_mem_2693014;
+extern int level_mem_2693018;
+extern int level_mem_269301c;
+extern int level_mem_2693020;
+
 #endif

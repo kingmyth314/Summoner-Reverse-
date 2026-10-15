@@ -165,4 +165,13 @@ extern Color ui_color_dark_red;                                     // 0x5bd924
 extern Color ui_color_magenta;                                      // 0x5bd928 (190, 80, 190)
 extern Color ui_color_red;                                          // 0x5bd954
 
+// ---- interface calls of gameplay.cpp (decomp42) -------------------------------------------------------
+void interface_load_all();                                           // 0x4118e0 (state_game_enter)
+void interface_draw();                                               // 0x411cd0 (game_render_frame)
+void interface_set_view_clip();                                      // 0x412220 (state_game_frame)
+void ui_model_lights_reset();                                        // 0x4123f0 (level_load)
+bool interface_screen_is_fullscreen();                               // 0x412ab0 (game_render_frame)
+void game_draw_leader_marker();                                      // 0x4145e0 (state_game_frame)
+extern Color ui_color_loading_bar;                                   // 0x5bd7ac (36, 121, 28, 255)
+
 #endif

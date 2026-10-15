@@ -1,8 +1,9 @@
 // summoner/summoner.h - the game's top level: state sequencing, game flags, pause, level changes, the
 // summoner.cfg options and the file path ids. Units: summoner.cpp (Summoner_options, summoner_cfg_save,
-// the path ids), gameplay.cpp (0x4340d0-0x439ba0 by string ids; game_pause 0x432660), the state sequencer
-// (gameseq_set_state 0x401020); gametarget.cpp has summoner/gametarget.h (included below). One header for
-// now; file name ours. Not original source.
+// the path ids), the state sequencer (gameseq_set_state 0x401020), the frame-end / pause unit
+// (0x432660-0x432e60), the player input unit (0x4343a0) and the cutscene file (0x4349b0-0x437650);
+// gameplay.cpp has summoner/gameplay.h and gametarget.cpp summoner/gametarget.h (both included below).
+// One header for now; file name ours. Not original source.
 #ifndef SUMMONER_SUMMONER_H
 #define SUMMONER_SUMMONER_H
 
@@ -12,8 +13,15 @@
 extern int game_flags;                // 0x5fbfd8
 #define GF_SINGLE_PLAYER 0x1
 #define GF_MULTIPLAYER   0x2
-#define GF_LEADER_SOUND  0x200        // party_set_leader plays sound 0x28 when set (meaning unsure)
+#define GF_ESCAPE_CUTSCENE 0x10       // state_game_enter plays the Tiger / Serpent escape (cutscene_play_escape; name ours, decomp42)
+#define GF_CONVERSATION  0x100        // state_game_frame runs conversation_frame until it ends (name ours, decomp42)
+// Set at the end of state_game_enter and cleared by state_game_leave (decomp42): the level is entered,
+// so leader changes during the load make no sound.
+#define GF_LEADER_SOUND  0x200        // party_set_leader plays sound 0x28 when set
+#define GF_NO_RENDER     0x400        // state_game_frame skips game_render_frame (name ours, decomp42)
 #define GF_SOLO_MODE     0x1000
+#define GF_NO_CLEAR      0x4000       // state_game_frame skips gr_clear (name ours, decomp42)
+#define GF_PARTY_DEAD    0x40000      // party_check_all_dead: nobody alive (single player); cleared on enter / leave (name ours)
 #define GF_CUTSCENE      0x20         // a cutscene is running (sum.symbols game_flags; name ours, decomp34)
 
 extern int game_mouse_x;              // 0x5fbfdc
@@ -23,52 +31,43 @@ extern int game_mouse_y;              // 0x5fbfe0
 void gameseq_init();                  // 0x401000 cur = prev = next = 0
 void gameseq_set_state(int state);    // 0x401020
 int  gameseq_get_state();             // 0x401040 (4 = game play)
+int  gameseq_get_prev_state();        // 0x401050 (decomp42)
+int  gameseq_get_next_state();        // 0x401060 (decomp42)
 int  GameTick();                      // 0x401070 one frame; returns the current state (3 = quit)
 void game_pause(int a, int b);        // 0x432660 (both 0 in the pilots)
 void game_pause_count_inc();          // 0x432d90 (GameInit)
+void game_pause_count_dec();          // 0x432d80 (state_game_enter, state_loading_leave; decomp42)
 void game_unpause();                  // 0x4326c0
 bool game_is_paused();                // 0x432da0
 void game_change_level(const char *filename, void *arg);   // 0x431a40 (second argument type guessed)
 extern bool play_intro_movies;        // 0x5930bd
-void combat_mode_set(int on);         // 0x439580 (gameplay.cpp range; decomp20: conversation_frame passes 0)
+// The input poll of the menu states: calls key_handler(key) for every key until none is left (decomp42).
+int  ui_poll_and_process(void (*key_handler)(int key), bool process_ui);   // 0x432860
+void input_flush();                   // 0x4328a0 (decomp42)
+extern bool cursor_visible;           // 0x5fc01c FrameEnd draws the mouse cursor while set (decomp42)
+extern bool frame_debug_flag_5fc01e;  // 0x5fc01e FrameEnd calls debug_noop_frame_end while set; state_game_leave clears it (name ours)
 void hud_set_timed_highlight(int handle);   // 0x43cd50 gametarget.cpp (decomp37: the dropped loot)
 extern int world_mouse_target_handle;  // 0x593f50 gametarget.cpp: the object under the mouse (cmd_health; decomp37)
 
-// The current level's names and layer maps (set by game_change_level / level_parse_table; module "-").
-extern char level_filename[32];                // 0x60a2c8 (game_cleanup clears all three)
-extern char level_script_name[32];             // 0x60a2e8
-extern char level_prev_filename[32];           // 0x60a308
-extern float level_time;                       // 0x60a654 unpaused seconds since state_game_enter (savegame header +0xac; decomp27)
-extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
-// The party start markers level_find_player_starts fills ("$player%d-%02d", index level_entry_point);
-// character_place_at_party_start reads them. sum.symbols types the array void*[4]; the records are
-// navpoints (level_scripts.h; ls_worldmap1_init points all four at its own record; D1405).
-struct navpoint;
-extern navpoint *level_player_starts[4];       // 0x60a32c
-extern int level_entry_point;                  // 0x60a33c (1 after game_change_level; 3 in ls_khosanilab_puzzle_use)
-extern bool level_entered_by_load;             // 0x25443a8 (tutorial_frame / tutorial_draw run only while set; D101)
-extern int  level_num_layers;                  // 0x60a340
-extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of each layer
-extern int  level_layer_automap_index[40];     // 0x60a36c
+extern bool level_entered_by_load;             // 0x25443a8 (level_scripts.cpp; tutorial_frame / tutorial_draw run only while set; D101)
 
-// ---- gameplay.cpp: party control (0x439580-0x4396d0) -------------------------------------------------
-void party_toggle_hold();                      // 0x439620
-void party_select_member(class Player *p);     // 0x4396d0
-// (name, 1, 0, 1, -1) from game_stage_set; meaning of the four ints not checked (decomp27).
-void party_member_join(const char *name, int a, int b, int c, int d);   // 0x439ba0
+// ---- gameplay.cpp (0x437660-0x43a32f), in its unit header (decomp42: the party control, the level
+// globals and camera_reset_to_player moved there) ------------------------------------------------------
+#include "summoner/gameplay.h"
 
 // ---- gametarget.cpp (0x43a330-0x43cd6d): world picking, in its unit header (decomp35) ---------------
 #include "summoner/gametarget.h"
-// (pos, layer): moves cur_character and the party there (world_mouse_frame's debug click, lobj flag 0x40).
-void party_teleport_to(vector3 *pos, int layer);   // 0x439750 (gameplay.cpp)
-// decomp41 (level_scripts_common.cpp): the game camera follows cur_character (snap 0 from
-// script_place_party_at_starts).
-void camera_reset_to_player(int snap);             // 0x439510 (gameplay.cpp)
 // The cutscene player (cutscene.tbl entries; unit not known) and the loaded cutscene script's name
 // (cutscene_script_name 0x257e974, "" when none).
 void cutscene_play(const char *name);              // 0x4361d0 (return unused)
 char *cutscene_script_table();                     // 0x4ed760
 extern bool US_open_demo;                          // 0x5fbf1a console "us_open_demo" (no level exits)
+// ---- player input and cutscene playback (0x4343a0-0x437650; module "-"; decomp42) ------------------
+void player_input_frame();            // 0x434470 (state_game_frame)
+void cutscene_sequence_update();      // 0x436a90 (state_game_frame while GF_CUTSCENE)
+void cutscene_events_frame();         // 0x436c00
+void cutscene_play_escape();          // 0x437130 (state_game_enter with GF_ESCAPE_CUTSCENE)
+extern bool cheat_gold_5fbf19;        // 0x5fbf19 9999900 gold on a new game (state_game_enter), read by lsf_catacombs_boss_dead (name ours)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
@@ -81,6 +80,9 @@ extern int cursor_url_bm;             // 0x5fbf2c cursor-url.vbm
 extern int cursor_walk_bm;            // 0x5fbfd4 cursor-walk.vbm (the default)
 extern int cursor_spot_target_bm;     // 0x5fbf40 cursorspot-target.vbm (world_pick_ground_point's decal; decomp35)
 extern int cursor_spot_invalid_bm;    // 0x5fbf4c cursorspot-invalid.vbm
+extern int cursor_spot_walkto_bm;     // 0x5fbf3c cursorspot-walkto.vbm (move_target_set_bitmap; decomp42)
+extern int cursor_target_bm;          // 0x5fbf50 cursor-target.vbm (decomp42)
+extern int cursor_hover_bm;           // 0x5fc018 cursor-hover.vbm (decomp42)
 
 // ---- other units GameInit / game_cleanup call (module "-" in sum.symbols; units not known) ------------
 void editor_dialog_init();            // 0x430be0 empty dialog list and its six colours
@@ -93,10 +95,14 @@ void *alt_textures_find(const char *base, int *count);               // 0x4aaff0
 void *alt_textures_find_entry(const char *base, const char *name);   // 0x4ab050 (0x2d4-byte entry)
 void debug_noop_cleanup();            // 0x531c80 bare ret
 void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 records at 0x2d064e8
+void vif_reset_all();                 // 0x532ea0 (level_load; decomp42)
+void script_editor_frame();           // 0x4e01f0 (game_render_frame; decomp42)
 
 // ---- summoner_cd.cpp (0x43e660-0x43eaff) ----------------------------------------------------------
 void cd_select_drive();               // 0x43e8a0 (WinMain, before MainLoop)
 void CdCheck();                       // 0x43e9b0 (LoadSettings; return unused)
+int  cd_has_level_data();             // 0x43e940 nonzero: the level packfiles need no adding (level_load; decomp42)
+void cd_prompt_disc2();               // 0x43ea20 (level_load, when levelm.vpp is not found; decomp42)
 
 // ---- summoner.cpp (0x43cd70-0x43e654): init, main loop, summoner.cfg (decomp26) ---------------------------
 int  MainLoop();                      // 0x43d7b0 0 when the state machine reaches 3

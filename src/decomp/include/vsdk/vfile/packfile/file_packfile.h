@@ -12,4 +12,6 @@ int packfile_read_whole_file(char *buf, int size, const char *name);            
 // (the sum.symbols comment has &offset, &size; decomp22 D206).
 int packfile_find_in_packfile(const char *vpp, const char *name, int *size, int *offset);   // 0x5349a0
 
+void packfile_add(const char *name);  // 0x534420 (level_load: levelm / levele / levelt.vpp; return unused, decomp42)
+
 #endif

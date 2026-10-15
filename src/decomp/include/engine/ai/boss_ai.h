@@ -307,4 +307,10 @@ extern int serpent_stage;                             // 0x2451d98
 extern int tiger_stage;                               // 0x2452a90
 extern int phoenix_stage;                             // 0x2452420
 
+// After boss_ai.cpp (decomp42: gameplay.cpp's calls).
+void  level_page_in_characters();                      // 0x4a3580 (level_load_files)
+void  frame_sleep_when_inactive(int active, int a);    // 0x4a3870 timer_wait(10) when active == 0
+void  obstacles_debug_render();                        // 0x4a3890 (Render_3d_obstacles)
+void  shadow_list_clear();                             // 0x4a3eb0
+
 #endif

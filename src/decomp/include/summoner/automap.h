@@ -38,4 +38,8 @@ void automap_label_delete(int index);                      // 0x430250
 int  automap_labels_reset_default();                       // 0x4302b0 nonzero = failure (type guessed)
 void automap_reveal_all();                                 // 0x42fc00 (GameInit)
 
+// decomp42 (state_game_enter / state_game_frame).
+void automap_find_map_corners();      // 0x42fc60
+void automap_reveal_around_party();   // 0x42ff50
+
 #endif

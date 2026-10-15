@@ -15,6 +15,7 @@
 #include "engine/ai/ai.h"
 #include "engine/characterinfo/characterinfo.h"
 #include "engine/combat/combat.h"
+#include "engine/s3d/s3d.h"               // s3d_vis_set (layer_lobj_list, D2202)
 
 class Character;
 class character_instance;
@@ -407,13 +408,9 @@ struct move_fade {
 extern move_fade move_fades[MAX_MOVE_FADES];          // 0x9416c8
 extern int move_play_serial;                          // 0x941708
 
-// The per-layer floor object lists (level_load_layers; character_find_ground). Type name ours.
-struct layer_lobj_list {
-    int _unk00;
-    ushort count;                     // +0x04
-    ushort _pad06;
-    int *indices;                     // +0x08 lobj indices
-};
+// The per-layer floor object lists (level_load_layers; character_find_ground): level_load_layers
+// stores the "$layerNN" vis sets of the level there (D2202). Type name ours, kept as a typedef.
+typedef s3d_vis_set layer_lobj_list;
 extern layer_lobj_list *level_layer_ground[20];       // 0x9414b8 (in living_entity.cpp's .bss)
 
 // Console toggles in living_entity.cpp's .bss (decomp23: spell_roll_amount reads No_resist).

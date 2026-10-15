@@ -572,4 +572,7 @@ void ls_wolong_action(dialogue_action *action);             // 0x4fea80
 struct s3d_navpoint;
 bool level_add_navpoint(s3d_navpoint *np);           // 0x4d5720 always true (mov al, 1; D710)
 
+// ---- the level hooks gameplay.cpp calls (decomp42) ---------------------------------------------------
+void cutscene_script_entries_frame();                 // 0x4ed680
+
 #endif

@@ -181,4 +181,6 @@ void effects_show_memory_usage();
 int effects_hash_name(const char *name);                // 0x51db50
 void effects_load_preload_rfx();                        // 0x51dbb0 (level_preload_effects tail-jumps to it; decomp29)
 
+void effects_release_level_memory();  // 0x51dc20 (level_unload; decomp42)
+
 #endif

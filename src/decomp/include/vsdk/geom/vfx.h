@@ -49,4 +49,8 @@ public:
     ubyte _unk01[0x97];
 };
 
+class quaternion;
+// The camera shake of the running effects (state_game_frame adds it to the view; decomp42).
+void vfx_get_camera(vector3 *pos, quaternion *rot);   // 0x5383e0
+
 #endif

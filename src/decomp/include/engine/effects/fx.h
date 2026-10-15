@@ -74,4 +74,9 @@ void fx_destroy(int handle);                          // 0x48cfc0
 // decomp41 (level_scripts_common.cpp): level_script_leave's reset while the level restarts.
 void fx_level_restart();                              // 0x48a200
 
+// The effect object frame and level hooks (0x48a190-0x48a230, before the fx_* code; decomp42).
+void fx_level_enter();                                 // 0x48a190
+void fx_level_leave();                                 // 0x48a1d0
+void fx_frame(float frametime, bool paused);           // 0x48a230 (bool: mov al, [esp + 8])
+
 #endif

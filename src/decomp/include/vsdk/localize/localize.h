@@ -20,4 +20,6 @@ char *localize_get_language_name();                      // 0x505510
 void  localize_init();                                   // 0x504f60 (LoadSettings)
 extern int localize_french_punct;                        // 0x25d8870 set for the French string table
 
+void localize_level_init(const char *script_name);    // 0x504f10 (level_load; decomp42)
+
 #endif

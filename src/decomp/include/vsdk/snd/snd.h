@@ -42,4 +42,12 @@ void snd_set_eax_environment(const char *name);                            // 0x
 int  eax_save_props(const char *filename);                                 // 0x5220e0 nonzero = saved
 void eax_load_props(const char *filename);                                 // 0x522420 (return unused)
 
+// decomp42 (gameplay.cpp).
+class matrix;
+void snd_change_listener(vector3 *pos, vector3 *vel, matrix *orient);   // 0x520710
+void snd_do_frame();                  // 0x520770
+void snd_level_page_in();             // 0x520c70
+void snd_level_release();             // 0x520ce0
+void snd_stop_all();                  // 0x521600
+
 #endif

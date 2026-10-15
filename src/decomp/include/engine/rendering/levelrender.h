@@ -245,4 +245,16 @@ int  name_ptr_stricmp_compare(const void *a, const void *b);      // 0x4768a0 qs
 // Ken Perlin's reference noise over a vector (unit not known; the vfx code calls it too).
 float perlin_noise3(vector3 v);       // 0x5470e0
 
+// ---- decomp42 (gameplay.cpp's calls; units not known) ---------------------------------------------------
+void door_find_floor_point(lobj *door);               // 0x476ab0 (level_restore_doors)
+bool hover_tint_active();                             // 0x482090 (gameplay_update_cursor)
+void level_set_current_layer(int layer);              // 0x482110 level_current_layer (0x59bd90)
+void levelrender_level_load();                        // 0x4865a0
+void levelrender_level_unload();                      // 0x486ab0
+bool levelrender_get_flag_22fb6f7();                  // 0x486be0 (game_render_frame's fog text)
+float fog_get_far_current();                          // 0x486bf0
+int  level_vis_load(const char *level_filename);      // 0x486c60 nonzero = failure
+void move_target_set_bitmap(int bm);                  // 0x487750 move_target_bm (0x59c124)
+void move_target_draw_decal();                        // 0x487760
+
 #endif

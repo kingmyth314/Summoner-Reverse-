@@ -31,7 +31,7 @@ struct mp_player {
     int id;                           // +0x1c player id (hud_confirm_quit passes it to mp_respawn_and_notify)
     ubyte _unk20[0x08];
     Player *object;                   // +0x28 the party record (its +0xc handle is read; party_remove_all clears it)
-    ubyte _unk2c[0x04];
+    int char_info;                    // +0x2c char_infos index (level_spawn_party passes it to party_member_join; decomp42)
     int profile_flags;                // +0x30 the .plr flags word (mp_char_record +0x4c): written and read by
                                       //       mp_player_file_write / mp_player_file_load
     char name[0x20];                  // +0x34 copied from the character profile by mp_local_player_create
@@ -255,5 +255,12 @@ void door_find_by_mesh(int player_id, int lobj_index, int open);   // 0x4aa8e0 (
 // Packet 0x22 of a living_combat exchange, the arguments as living_combat_send_net pushes them:
 // (attacker net handle, defender net handle, move variant, defence move, state argument, skill, special).
 void mp_send_living_combat(int attacker, int defender, int variant, void *defence, int arg, int skill, int special);  // 0x4b11a0
+
+// The game-state calls of gameplay.cpp (module "-", 0x441150-0x4415d0; decomp42).
+void multi_process_client_status(mp_player *p, int a);   // 0x441150 (state_game_enter: mp_local_player, 1)
+void mp_game_frame();                                    // 0x4412a0 (state_game_frame)
+void multi_do_frame();                                   // 0x4413d0 (LoadingScreenDraw)
+void mp_level_start();                                   // 0x441530 (state_game_enter)
+void mp_set_local_status(int status);                    // 0x4415d0 (state_game_enter: 5)
 
 #endif

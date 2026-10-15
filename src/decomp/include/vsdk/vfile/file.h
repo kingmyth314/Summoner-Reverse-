@@ -165,4 +165,8 @@ extern quaternion file_identity_quaternion;   // 0x2cbf4c8
 extern matrix file_default_matrix;        // 0x2cbf518
 
 
+// decomp42 (state_game_enter): the access level of the file system around the level load.
+void vfile_raise_access_level();      // 0x513370
+void vfile_lower_access_level();      // 0x513390
+
 #endif

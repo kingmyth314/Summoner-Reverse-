@@ -194,4 +194,8 @@ bool character_wearing_servant_disguise(Character *c);              // 0x46c4e0
 // shield use item_paging_find_player_slot instead).
 extern const int equip_page_slots[9];                // {10, 13, 14, 15, 12, -1, -1, 16, 11}
 
+// decomp42 (state_game_enter / state_game_leave; units not known).
+void party_inventory_zero_count();                    // 0x46b6a0 (state_game_leave when leaving the game)
+void handle_slots_reset();                            // 0x4a3700 (state_game_leave; handle_slots_reset_thunk jumps here)
+
 #endif

@@ -12,6 +12,8 @@ class Character;
 
 class camera {                        // 0x2a8 bytes
 public:
+    camera();                         // 0x478d70 camera__camera (gameplay.cpp's static game_camera; decomp42)
+    ~camera();                        // 0x478df0 camera__dtor (atexit dtor_game_camera)
     void set_target(Character *c);    // 0x478ff0 camera_set_target
     // decomp20 (conversationctl.cpp):
     void set_follow_flags(bool a, bool b); // 0x479740 camera_set_follow_flags
@@ -85,12 +87,17 @@ public:
 LAYOUT_CHECK(camera, sizeof(camera) == 0x2a8);
 extern camera game_camera;            // 0x60a018
 
-// Parts of game_camera the pilots read under their own symbols (sum.symbols names them).
-extern vector3 camera_view_pos;       // 0x60a290 (game_camera.view_pos)
-extern matrix camera_view_orient;     // 0x60a29c (game_camera.view_orient)
-extern float camera_fov;              // 0x60a1a4 (game_camera.fov; name ours)
-extern float game_camera_heading;     // 0x60a198 (game_camera.yaw; name ours, new_automap.cpp's camera icon)
+// Parts of game_camera the pilots read under their own symbols (sum.symbols names them). Macros now that
+// gameplay.cpp defines game_camera: separate externs inside the object would have no definition (D2205).
+#define camera_view_pos (game_camera.view_pos)          // 0x60a290
+#define camera_view_orient (game_camera.view_orient)    // 0x60a29c
+#define camera_fov (game_camera.fov)                    // 0x60a1a4 (name ours)
+#define game_camera_heading (game_camera.yaw)           // 0x60a198 (name ours, new_automap.cpp's camera icon)
 // new_hud.cpp's wrapper spelling (the old stubs could not name game_camera; D49).
 #define CAMERA_HM (&game_camera)
+
+// decomp42 (gameplay.cpp's static game_camera and its level hooks; free functions, no this).
+void camera_level_reset();            // 0x478d20 (level_load_files)
+void camera_leave_level();            // 0x478d40 (state_game_leave)
 
 #endif

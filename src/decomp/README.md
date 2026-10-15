@@ -23,6 +23,7 @@ Rules:
 | `vsdk/effect_mem.cpp` | `vsdk\geom\effect_mem.cpp` (`0x51bb70`-`0x51e018`) | 38 | 20 / 18 / 0 (13 vfx_instance functions not written yet) |
 | `game/player.cpp` | `player.cpp` (`0x433340`-..) | 27 | 12 / 15 / 0 |
 | `game/summoner.cpp` | `summoner.cpp` (with WinMain `0x43e5e0`) | 61 | 53 / 8 / 0 |
+| `game/gameplay.cpp` | `gameplay.cpp` (`0x437660`-`0x43a300`) | 71 | 56 / 13 / 2 |
 | `vsdk/window.cpp` | `vsdk\ui\window.cpp` (`0x528430`-`0x52bf92`) | 40 | 22 / 15 / 3 |
 | `vsdk/character_instance.cpp` | `vsdk\ca\character_instance.cpp` (`0x5194b0`-`0x51b6a1`) | 52 | 33 / 15 / 4 |
 | `vsdk/ui_container.cpp` | `vsdk\ui\ui_container.cpp` (`0x5534f0`-`0x553b9b`) | 10 | 5 / 5 / 0 (vtable `0x581f40` slot order) |
