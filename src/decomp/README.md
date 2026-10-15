@@ -34,6 +34,8 @@ Rules:
 | `game/new_pickup.cpp` | `new_pickup.cpp` | 22 | 12 / 10 / 0 |
 | `game/new_gamecreate.cpp` | `new_gamecreate.cpp` | 22 | 16 / 5 / 1 |
 | `game/new_journal.cpp` | `new_journal.cpp` | 29 | 17 / 12 / 0 |
+| `game/new_charselect.cpp` | `new_charselect.cpp` | 36 | 20 / 16 / 0 |
+| `game/new_levelselect.cpp` | `new_levelselect.cpp` | 29 | 15 / 13 / 1 |
 
 **To fix when the headers are merged** (found by the agents, not yet resolved):
 - `interface_set_screen(int id, ...)`: the second argument is `int` in two stub headers and `void*` in
