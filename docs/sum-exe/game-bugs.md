@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 156 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 167 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 30 | 2 |
-| Gameplay | 25 | 12 | 3 |
-| Cosmetic | 31 | 8 | 2 |
-| Invisible | 19 | 28 | 0 |
+| Crash or hang | 3 | 35 | 2 |
+| Gameplay | 25 | 13 | 3 |
+| Cosmetic | 31 | 9 | 2 |
+| Invisible | 19 | 32 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -71,6 +71,11 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C113 | Latent: a level with more than 10 level effects, 32 triggers, 32 level items or 50 clickable objects overwrites memory | `level_parse_table` `0x4cb7b0`, `level_parse_trigger` `0x4cc190`, `level_items_parse_table` `0x4cb430`, `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | C114 | Latent: a level item of the current script with a missing `$Navpoint:` crashes the level load; one with an unknown `$Item:` uses a stale item type | `level_items_parse_table` `0x4cb430` | **Observed** code and retail data, *inferred* effect | No |
 | C130 | Latent: a level script whose rider (Liangshan, Jade Temple) is missing from the level, or a Wolong2 "JekharJoin" while Jekhar is not in the reserve party, dereferences NULL and crashes | `ls_liangshan_init` `0x4f4930`, `ls_jadetemple_init` `0x4effe0`, `ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0320`, `ls_wolong2_frame` `0x4f2140` | **Observed** code and retail data, *inferred* crash | No |
+| C140 | Latent: a console line with a word of 133 or more characters crashes the console, and one of 128 or more corrupts its error jump; `character` with more than 128 characters of arguments overflows the stack. No console in v1.40: only a patch or a `.vcs` script can send such a line | `read_word` `0x50aab0`, `make_lowercase_token` `0x50aa50`, `execute_command_line` `0x50a210`, `cmd_character` `0x439930` | **Observed** code, *inferred* crash | No |
+| C141 | Latent: in the game intro, a Joseph "play action" or "play .mvf" whose move is missing (an unknown move or a .mvf that fails to load) crashes the cutscene | `script_entry_start` `0x4dd0b0` | **Observed** code and retail data, *inferred* crash | No |
+| C142 | Latent: a cutscene that takes off more than 16 pieces of equipment overwrites the record count and then memory after it | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
+| C143 | Latent: a script object with more than 54 actions, a level script with more than 200 scripted objects or a cutscene with more than 32 overwrites memory | `script_parse_objects` `0x4dba30` | **Observed** code and retail data, *inferred* effect | No |
+| C144 | Latent: in multiplayer, a chat or system message that wraps into more than six lines crashes the game | `chat_add_line` `0x41ed60` | **Observed** code, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -306,6 +311,53 @@ script tables place every rider (`Liangshan_script.tbl`, `jadetemple_script.tbl`
 `ls_wolong2_init` moves Jekhar to the reserve before the "Join us." topic can run (`0x4f20b7`..`0x4f20bc`), so this
 needs modded data. Found in the `NOTES-level-scripts-8.md` notes (oddity 10).
 
+**C140. Unbounded console tokens.** `read_word` and `read_quoted_string` copy characters through
+`token_write_ptr` into `token` (`0x25db894`, 128 bytes) with no count (`0x50aacd`..`0x50aadf`), and
+`make_lowercase_token` copies the result into `lowercase_token` (`0x25db21c`, 128 bytes, `0x50aa52`..`0x50aa75`).
+`execute_command_line` accepts lines of up to 254 characters (`0x50a22b`..`0x50a244`). After `token` come
+`rest_of_command_line`, `current_command_count` (`0x25db918`, word characters 132-135), `char_types_initialized`
+and `debug_command_prefixed`. A word of 133 or more characters therefore sets the command count to a large
+number, and the next look-up (`0x50a3d8`..`0x50a406`) reads past the 149 used entries of `Console_commands` into
+NULL pointers. After `lowercase_token` comes `console_error_jmp` (`0x25db29c`), so a word of 128 or more
+characters corrupts the jump buffer that every argument error `longjmp`s to (`0x50a985`). The same line limit
+answers the open question on `cmd_character`: up to 244 characters of arguments fit after `character `, so its
+128-byte stack buffer can overflow (`0x43995e`..`0x4399c9`). The retail game has no console. SummonerFix's
+`[ConsoleKeys]` cuts each command to 95 characters, so only a `.vcs` script started by a patch (or Timeslip's
+`[console]` lines, whose length limit was not read) could send such a line. No `.vcs` file ships.
+
+**C141. The game-intro hold test.** When a Joseph "play action" / "play .mvf" in a cutscene is not followed by a
+"synch" action, `script_entry_start` checks for the game intro and then compares
+`charinfo_find_move_any(info, move, 1)->action` with "gi-Josp-Sneak-Ready.mvf" (`0x4dd211`..`0x4dd245`). The
+look-up returns NULL when no move list holds that index (`xor eax, eax` at `0x446ca2`), and `mov eax, [eax]` at
+`0x4dd23d` does not test it. The parser stores -1 for an unknown "play action" move, and the .mvf index comes from
+`charinfo_load_script_anim`. In the retail `Game-Intro_cscript.tbl`, Joseph's five actions are all "play .mvf"
+with files that ship (`gi-Josp02.mvf`, `gi-Josp04.mvf`, `gi-Josp-Sneak-Ready.mvf`), and the intro plays, so this
+needs modded data or a missing file.
+
+**C142. 16 saved-equipment records without a bound.** `script_action_replace_weapon` and `_armor` append to
+`cutscene_saved_equipment` (`0x2546760`, 16 records of 12 bytes) at `cutscene_saved_equipment_count` with no
+compare (`0x4dcd3d`..`0x4dcd87` and the armour copies up to `0x4dd08b`). The 17th record would land on the count
+itself (`0x2546820`), and the next ones beyond it. A weapon removal saves at most two records per character, an
+armour change two plus one for every further armour action. The retail maximum is 14
+(`King-Audience-B_cscript.tbl`: four weapon and three armour changes); no cutscene with these actions has a
+"goto". The count is cleared by `cutscene_script_unload` (`0x4ed417`) and `cutscene_script_rewind_actors`
+(`0x4ed5e0`).
+
+**C143. Script objects without a bound.** `script_parse_objects` appends each `+Action:` at
+`so->num_actions` (`0x4dc0fb`..`0x4dc128`) into 54 records of 0x18 bytes (`+0x4`..`+0x513`, followed by the
+path pointer and the counters), and the first action of an object takes the next of 200 `script_objects`
+(`0x4dbfb9`..`0x4dbfeb`, followed by `ccmd_door_open` at `0x25388b0`) or 32 `cutscene_script_objects`
+(`0x4dbff6`..`0x4dc042`, followed by `cutscene_script_object_count` at `0x257e968`). None compares the count.
+Retail maxima: 50 actions (Joseph in `Act2-Outro_cscript.tbl`), 123 scripted objects (`WolongCaverns_script.tbl`),
+19 cutscene objects (`Game-Intro_cscript.tbl`).
+
+**C144. Negative scroll in the chat box.** `chat_add_line` wraps the text into up to 16 pieces of the chat width
+and then makes room among the six lines: `excess = chat_num_lines + n - 6`, then
+`memmove(chat_lines, &chat_lines[excess], (chat_num_lines - excess) * 72)` (`0x41edb4`..`0x41eddc`). For
+`n > 6` the size is negative, so `memmove` gets a size near 4 GB, and the loop after it writes past the six
+lines. The local input is limited to 63 characters, which gives two or three pieces with a name in front;
+only a longer remote or system text (up to 255 characters, as received) could reach seven. Needs a modified peer.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -347,6 +399,7 @@ needs modded data. Found in the `NOTES-level-scripts-8.md` notes (oddity 10).
 | G130 | After loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0` | **Observed** code and retail data, *inferred* effect | No |
 | G131 | On the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0` | **Observed** code and retail data, *inferred* effect | No |
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
+| G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -660,6 +713,14 @@ runs to `$npc197` on "go", like `#w3b`. *Inferred:* when the player kills `#w3b`
 a fight that is still going on, and the end-of-quest remark can come with `#w3a` still alive. Found in the
 `NOTES-level-scripts-8.md` notes (bug 3).
 
+**G140. A stale slot.** When a cutscene takes off an item, the record's slot is set from the item type's slot:
+weapon 4 or two-handed 9 goes back to hand 5, shield 5 to hand 6 (`0x4dcd55`..`0x4dcd87`); torso 6 or heavy 8
+to body slot 7, legs 7 to slot 8 (`0x4dcf94`..`0x4dcfb9`, `0x4dcffe`..`0x4dd023`). Any other type slot leaves
+the record's slot as it was: 0 (neck) for an unused record, or the slot of an earlier cutscene's record.
+`cutscene_script_unload` puts the item back into that slot (`character_equip_item` at `0x4ed3bf`). In retail
+data the items taken off always have the usual slots: every "replace weapon" is "(none)", and the armour
+actions use "Tunic", "Leather Jerkin" (torso) and "Bougu-Dou" (heavy) from `items.tbl`.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -703,6 +764,7 @@ a fight that is still going on, and the end-of-quest remark can come with `#w3a`
 | K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
 | K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code and retail data, *inferred* effect | No |
 | K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
+| K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1033,6 +1095,13 @@ only the narration repeats. In cutscene.tbl it is a 29 s camera flight with its 
 inside the temple, before or after the Machival fight, starts with the act 4 narration again. Found in the
 `NOTES-level-scripts-8.md` notes (oddity 9).
 
+**K140. `item_types[-1]`.** The parser stores -1 for "(none)", and `item_type_find` returns -1 for an unknown
+name. With body armour in slot 7, `script_action_replace_armor` first reads
+`item_types[a->arg0c].slot` to skip a change to the same kind of armour (`0x4dcea9`..`0x4dcecf`), without the
+`arg0c < 0` test that the no-armour branch has (`0x4dcee8`). For -1 that reads `0x8cbddc`, 0x100 bytes before
+`item_types`. If the value there is 8 (heavy armour worn) or 6, the action returns at once and the armour stays
+on. The retail cutscenes use "replace armor" only with real item names.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1084,6 +1153,10 @@ inside the temple, before or after the Machival fight, starts with the act 4 nar
 | V122 | Latent: the `Dump_sound_usage` and `Give_all_items` console toggles are stored and never read | `cmd_dump_sound_usage` `0x4378f0`, `cmd_Give_all_items` `0x438070` | **Observed** code |
 | V130 | The catacombs' "cryptintro" cutscene can never play: its guard byte is never written, the flag test is inverted, and cutscene.tbl has no such cutscene | `ls_catacombs_frame` `0x4fe1c0` | **Observed** code and retail data |
 | V131 | The "Charge" dialogue action clears `wolong2_charge`, which `ls_wolong2_init` sets on every Wolong2 entry; nothing in Sum.exe or the retail tables reads the flag | `ls_wolong2_force_alert_action` `0x4f1eb0`, `ls_wolong2_init` `0x4f2060` | **Observed** code and retail data |
+| V140 | Latent: a script object's trigger name is copied with `strcpy` into a 32-byte field; a "+No create" object copies it from a stack buffer that is never filled | `script_parse_objects` `0x4dba30` | **Observed** code and retail data |
+| V141 | Latent: a `.vcs` console script path is cut at the first `.` of the whole path, so a `.` in the install directory breaks every script; a `/* ... */` comment on one line comments out the lines after it | `load_script` `0x50acd0` | **Observed** code |
+| V142 | Latent: the console's `debug` trace prints an integer argument with `%f` | `process_command` `0x50a5b0` | **Observed** code |
+| V143 | Latent: a console command whose name is already registered, or the 301st, is dropped without a message and its object keeps NULL fields | `console_command__console_command` `0x50a180` | **Observed** code and retail data |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1396,6 +1469,30 @@ The string has only these two references (`0x5a26e0`), and no dialogue, script o
 except the `+Flag:` declaration in events.tbl. Either the polarity is backwards or the flag is unused; nothing changes
 for the player. Found in the `NOTES-level-scripts-8.md` notes (bug 6).
 
+**V140. The trigger copy.** `script_parse_objects` copies the 256-byte `trigger` buffer into the object's
+32-byte field at `+0x530` with an inline `strcpy` (`0x4dc06c`..`0x4dc0b0`); the field is the last of the
+0x550-byte record, so a longer name runs into the next script object. A normal object fills the buffer from
+`+Trigger:` or with "" (`0x4dbc30`..`0x4dbc74`). The "+No create" path (`0x4dba7f`..`0x4dbb78`) never writes it,
+so it copies whatever an earlier call left on the stack (`trigger_level` is -1 there, so the text is not used).
+In retail data the longest trigger name is 32 characters ("lenele_slums_got_salamanka_quest", the Fire
+Salamanka of `rand-hills01_script.tbl`): its terminating zero lands in the first byte of the next, unused
+record and nothing changes. The next record is set up when it is allocated, so even a longer copy would mostly
+be overwritten.
+
+**V141. `.vcs` path and comments.** `load_script` builds `install_path` + `\` + name, then cuts at
+`strchr(path, '.')` (`0x50ad05`..`0x50ad49`) before appending ".vcs": a `.` in the install directory cuts the path
+there. A line that contains `/*` sets the comment flag even when it also contains `*/` (`0x50ae24`..`0x50ae43`),
+so the following lines are skipped up to the next `*/` line; a line with `/*` after a command is skipped whole.
+The script's line numbers count only empty and executed lines (`inc ebx` at `0x50aeac`). No `.vcs` file ships
+and the console has no output.
+
+**V142. `%f` for an int.** With the `debug` prefix, `process_command` formats "Found int number! %f" with the
+integer `command_argument_int` (`0x50a7d7`..`0x50a7e8`). The text goes to the empty `print_to_console`.
+
+**V143. Silent duplicates.** The constructor returns when 300 commands are registered (`cmp eax, 0x12c` at
+`0x50a188`) or `_stricmp` finds the name (`je 0x50a1df` at `0x50a1b1`), before it stores the name, description
+and callback (`0x50a1d7`..`0x50a1dc`). The 149 retail names are all different.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1581,6 +1678,14 @@ the tables above; the rest are below.
 - Catacombs king tombs (notes, item 11): using `cry_kinge` or `cry_kingf` while the other is open opens `cry_tombcen` whatever the other tombs show; the 2000 XP needs A-D and G-M closed and `main_crypt_open` unset (`0x4fe674`..`0x4fe7a2`). The level has no `cry_kingj` (catacombs.s3d), so the list is complete. A bonus for the exact solution, not a broken test.
 - `ls_sewerboss_golems_done` not reset by `ls_sewerboss_init`: it is cleared by the TB-Intro end callback (`0x4ee36c`) before every fight, and in a fresh session it only repeats `camera_set_mode(4)` and the "Sewer" music once after the golems are already dead. No effect.
 
+- S2 `+Plane:` in `script_parse_navpoint` / `script_parse_navpoints`: the parsed value is always replaced (level and cutscene navpoints get `lobj_pick_layer`'s layer of the floor under them, `0x4db6a0`; camera and ambient navpoints -1, `0x4db6d3`; `ParseTypeString` errors on an unknown type, so no other type reaches the `ja` at `0x4db560`). This is not a lost setting: the script editor writes `+Plane:` from the same computed layer (`script_write_navpoint`, `0x4e9c14`..`0x4e9c26`, only when it is not negative), so the retail `+Plane:` lines (about 14,800 in the script tables) are a record of what the loader computes again.
+- S6 `script_entry_start` "die": end mode -1 is set even when `script_action_die` fails (`0x4dd3a5`), so the 5-second retry never runs. It fails only for a move index of -1 (`0x4dc999`), which a retry would not change. "Unable to start script entry ..." and "Unable to find prop ..." are formatted into buffers and never shown (debug text). The retail "die" actions pass 34, 1 or 18, and the parser falls back to the death state move (`0x22`) before it stores -1; whether every such character has one was not checked.
+- M2 `chat_draw_lines`: a whisper line without a space would be drawn all blue instead of name-highlighted, but `chat_format_entry` always writes "<name> " in front of a whisper.
+- The `antialiasing`, `lmap_off`, `lmap_reset` and `whee` callbacks (`0x505db0`, `0x46e0c0`, `0x46e140`, `0x54b960`) and `cmd_summon` do not test `calling_a_command_function`, so `? <command>` and `help <command>` also run them. Developer commands with no description, and there is no console; not counted.
+- `init_char_types` tests `char_types_initialized` (`0x25db91c`), which nothing sets; it has one caller (`LoadSettings` `0x43da51`), so the table is built once.
+- `make_lowercase_token` lower-cases one byte before it tests for the end (a do-while), so an empty token also lower-cases stale bytes after its NUL; they are past the terminator and never read.
+- `chat_format_entry` ignores its size argument (D2301): its output is a name plus at most 255 characters, inside the 512-byte buffer of `chat_update_lines`.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1674,6 +1779,10 @@ the tables above; the rest are below.
 - `state_game_enter` in multiplayer: when `level_load` fails it reports the local player as disconnected
   (`mp_player_disconnected(4, 0)`, `0x4381cc`) but does not leave state 4. What the game does next was not traced.
 - Wolong caverns poison mist trap (notes, bug 4): `ls_wolongcaverns_ptrap_fire` deals 15 damage and adds status 3 (Curse) with value 0.5 for 40 minutes (`push 0x3f000000`, `push 0x249f00`, `push 0x3` at `0x4f6bfd`..`0x4f6c09`). The trap is named poison (navpoint `$poisontrap`, `wolong_caverns_poisonmist.wav`, `wc-ptrap.vfx`), and the Liangshan marsh uses status 11 (Poison) with the same call shape and -24 (`0x4f4d42`..`0x4f4d56`). But 0.5 is a Curse value (damage x 1.5, magic resistance -0.5): as Poison it would add 0.5 HP at each tick. So the id and the value agree with each other, and the name does not. Whether the designers meant a curse is unknown. In game the player sees "+Curse" and a blue tint for 40 minutes, not "+Poison".
+- V140 / C143: what the stack holds at `trigger` (`[esp+0x194]` of `script_parse_objects`) on the first "+No create" object of a cutscene. In `cutscene_script_load` the previous calls are `script_parse_navpoint`, whose frame covers only the upper part of that buffer (its `orient`, `hit` and `ray` locals); the first 0x24 bytes come from deeper calls. Whether 32 bytes without a zero can occur needs a runtime read (agent mode).
+- `script_parse_navpoints` has no ray-miss test (the cutscene parser has a DebugError at `0x4db5e5`): a level navpoint with no `$layer` floor under it reads the zeroed hit, so it is raised by 2 units and gets level object 0's pick layer. Whether any retail level navpoint misses the floor needs the level geometry.
+- The `cmd_character` line in the existing list ("depends on the console input limit, which was not read") is answered by C140: the limit is 254 characters (`0x50a23e`), so the overflow is possible from a `.vcs` script; that line can be removed.
+- Timeslip's `[console]` binding length (its `dinput.dll` holds `0x50a210`; its line buffer was not read).
 
 ## Evidence
 
@@ -1840,3 +1949,14 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K131 act 4 narration | `ls_templeint2_init` `0x4ef1c3`; `ls_templeint2_frame` `0x4ef1e0`..`0x4ef1fb`; `ls_templeint2_act4_cs_end` `0x4ef230`..`0x4ef237`; retail cutscene.tbl "Nar-TempleAct4", events.tbl templeint2 flags |
 | V130 cryptintro | `ls_catacombs_frame` `0x4fe1e6`..`0x4fe227`; only reference to `0x5fc014` is `0x4fe1e6`; retail cutscene.tbl (no "cryptintro") |
 | V131 wolong2_charge | `ls_wolong2_init` `0x4f208c`..`0x4f209e`; `ls_wolong2_force_alert_action` `0x4f1ef2`..`0x4f1f17`; references to `0x5a26e0`: `0x4f1f0c`, `0x4f2093`; retail `wolong2_dlg.tbl` "Charge" trigger |
+| C140 console tokens | `read_word` `0x50aacd`..`0x50aadf`; `read_quoted_string` `0x50ab00`; `make_lowercase_token` `0x50aa52`..`0x50aa75`; `execute_command_line` `0x50a22b`..`0x50a244`, `0x50a3d8`..`0x50a406`; `process_command` `0x50a985`; `cmd_character` `0x43995e`..`0x4399c9`; `src/summonerfix/keys.c` `CONSOLE_CMD_LEN` 96 |
+| C141 game-intro hold | `script_entry_start` `0x4dd211`..`0x4dd245`; `charinfo_find_move_any` `0x446ca2`; retail `Game-Intro_cscript.tbl` |
+| C142 saved equipment | `script_action_replace_weapon` `0x4dcd3d`..`0x4dcd87`; `script_action_replace_armor` `0x4dcf94`..`0x4dd08b`; `cutscene_script_unload` `0x4ed417`; `cutscene_script_rewind_actors` `0x4ed5e0`; retail `*_cscript.tbl` "replace weapon" / "replace armor" |
+| C143 script object bounds | `script_parse_objects` `0x4dbfb9`..`0x4dc042`, `0x4dc0fb`..`0x4dc128`; retail `*_script.tbl`, `*_cscript.tbl` `#Objects` |
+| C144 chat scroll | `chat_add_line` `0x41ed8f`..`0x41eddc` |
+| G140 stale slot | `script_action_replace_weapon` `0x4dcd55`..`0x4dcd87`; `script_action_replace_armor` `0x4dcf94`..`0x4dcfb9`, `0x4dcffe`..`0x4dd023`; `cutscene_script_unload` `0x4ed3a6`..`0x4ed3bf`; retail `items.tbl` `+Slot:` |
+| K140 item_types[-1] | `script_action_replace_armor` `0x4dcea9`..`0x4dcecf`, `0x4dcee8`; `item_types` `0x8cbec0` |
+| V140 trigger copy | `script_parse_objects` `0x4dba7f`..`0x4dbb78`, `0x4dbc30`..`0x4dbc74`, `0x4dc06c`..`0x4dc0b0`; readers `savegame_refresh_character_flags` `0x4cfed5`..`0x4cfeed`, `0x4dc0d8`..`0x4dc0e6`; retail `rand-hills01_script.tbl` |
+| V141 .vcs path | `load_script` `0x50ad05`..`0x50ad49`, `0x50ae24`..`0x50aeac` |
+| V142 %f | `process_command` `0x50a7d7`..`0x50a7e8` |
+| V143 duplicates | `console_command__console_command` `0x50a188`, `0x50a1b1`, `0x50a1d7`..`0x50a1dc` |

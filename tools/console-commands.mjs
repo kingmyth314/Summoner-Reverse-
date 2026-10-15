@@ -37,7 +37,10 @@ for (let o = off(TEXT_LO); o < off(TEXT_HI) - 25; o++) {
   const va = o + BASE;
   const cb = b.readUInt32LE(o + 1), desc = b.readUInt32LE(o + 6), name = b.readUInt32LE(o + 11);
   const obj = b.readUInt32LE(o + 16), target = (va + 25 + b.readInt32LE(o + 21)) >>> 0;
-  const n = cstr(name), d = cstr(desc);
+  // Four retail commands (antialiasing, lmap_off, lmap_reset, whee) push a description pointer into .bss,
+  // which is empty at run time: keep them with an empty description.
+  const n = cstr(name), dOff = off(desc);
+  const d = cstr(desc) ?? (dOff < 0 || dOff >= b.length ? "" : null);
   if (n === null || d === null) continue;
   sites.push({ va, cb, desc: d, name: n, obj, target });
 }
