@@ -317,7 +317,7 @@ typedef struct Player {
     struct Player* prev;     // +0x004
     int32_t _unk08;
     int32_t handle;          // +0x00C the character object's handle
-    int32_t _unk10;          // +0x010 8 for Joseph
+    uint32_t flags;          // +0x010 0x8 = party leader (Joseph: 8); 0x4 on the others in solo mode
     int32_t _unk14;
     int32_t _unk18;          // +0x018 682
     int32_t _unk1c;          // +0x01C 536
@@ -631,3 +631,19 @@ typedef struct ui_element {
     struct ui_element* first_child; // +0x26C
     struct ui_element* next_sibling;// +0x270
 } ui_element;
+
+// The game camera (partial; camera methods and camera_process_input).
+typedef struct game_camera {
+    uint8_t _unk000[0x10];
+    void*   saved_states[2]; // +0x010 / +0x014 stack of up to 8 saved camera states
+    uint8_t _unk018[0x134];
+    int32_t target;          // +0x14C followed object
+    uint8_t _unk150[0x30];
+    float   yaw;             // +0x180
+    float   zoom;            // +0x184 clamped to [0.3, camera_zoom_max]
+    uint8_t _unk188[0x04];
+    float   fov;             // +0x18C
+    float   distance;        // +0x190
+    uint8_t _unk194[0xa0];
+    float   height[2];       // +0x234 / +0x238
+} game_camera;
