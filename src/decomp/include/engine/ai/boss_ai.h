@@ -265,6 +265,12 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 
 // Per-boss data the dispatchers read (the .bss of the per-boss units).
 extern boss_threat giant_salamanka_threat_table[BOSS_MAX_THREATS];   // 0x248c7ec
+// The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407).
+extern bool giant_salamanka_combat_enabled;           // 0x248c7d0 gates giant_salamanka_ai_frame
+extern bool giant_salamanka_stage2_reached;           // 0x248c7dc set by giant_salamanka_check_stage
+extern bool giant_salamanka_stage2_ack;               // 0x248c7dd set by the level script (cutscene end)
+extern bool giant_salamanka_stage3_reached;           // 0x248c7de
+extern bool giant_salamanka_stage3_ack;               // 0x248c7df
 extern boss_threat tiger_threat_table[BOSS_MAX_THREATS];             // 0x2452ac0
 extern boss_threat serpent_threat_table[BOSS_MAX_THREATS];           // 0x24522e8
 extern boss_threat phoenix_threat_table[BOSS_MAX_THREATS];           // 0x2452938

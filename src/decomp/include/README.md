@@ -115,3 +115,4 @@ Summoner 2 and Dash Faction give names only.
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests |
 | `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp | dialogue boxes; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |
+| `levelscripts/script_internal.h` | script_internal.cpp (0x4dc600; directory guessed, decomp34) | `navpoint_get_position` |

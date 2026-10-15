@@ -65,6 +65,20 @@ int  script_object_find(const char *name);           // 0x4cddf0 -1 = none
 void script_object_resume(script_object *so);        // 0x4cddc0 (level_scripts_common.cpp)
 bool script_object_is_type5(int obj);                // 0x4ce1e0 character type (+0xc) == 5
 bool script_npc_near_player(const char *name, float dist);   // 0x4ce540
+// level_scripts_common.cpp helpers the level script units call (decomp34, D1406). Argument lists from the
+// call sites in level_script_khosani_lab.cpp / level_script_worldmap.cpp and the callees' prologues.
+void level_find_player_starts();                     // 0x4caf40 "$player%d-%02d" -> level_player_starts
+void script_play_cutscene(const char *name, void (*done)());   // 0x4ccf00 (return unused)
+// A level trigger (name, script variant; NULL script = any): set_exit clears trigger +0x54 bit 2 (a live
+// level exit), set_script_use sets it (level_check_triggers calls level_script_use instead).
+void level_trigger_set_exit(const char *name, const char *script);         // 0x4ccf90
+void level_trigger_set_script_use(const char *name, const char *script);   // 0x4ccff0
+void script_object_say(int index, const char *text, float time);           // 0x4cdef0 (return unused)
+void script_npc_set_disabled(const char *name, bool disabled);             // 0x4ce1c0
+void script_npc_send_go(const char *name);           // 0x4ce320 (return unused)
+bool script_player_near_navpoint(const char *navpoint, float dist);   // 0x4ce4d0 cur_character within dist
+bool script_npc_is_dead(const char *name);           // 0x4ce600 false when not found
+void script_party_gain_xp(int xp);                   // 0x4ceb00 L570 "party gained %d XP"
 char level_script_use(const char *name);             // 0x4d5e20 the level's use handler, 0 without (D704)
 int  level_script_find_index(int level, const char *script_name);   // 0x4d6340, -1 = none
 void level_format_display_name(char *out, int level);// 0x4d63b0

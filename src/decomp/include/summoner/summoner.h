@@ -14,6 +14,7 @@ extern int game_flags;                // 0x5fbfd8
 #define GF_MULTIPLAYER   0x2
 #define GF_LEADER_SOUND  0x200        // party_set_leader plays sound 0x28 when set (meaning unsure)
 #define GF_SOLO_MODE     0x1000
+#define GF_CUTSCENE      0x20         // a cutscene is running (sum.symbols game_flags; name ours, decomp34)
 
 extern int game_mouse_x;              // 0x5fbfdc
 extern int game_mouse_y;              // 0x5fbfe0
@@ -37,6 +38,12 @@ extern char level_script_name[32];             // 0x60a2e8
 extern char level_prev_filename[32];           // 0x60a308
 extern float level_time;                       // 0x60a654 unpaused seconds since state_game_enter (savegame header +0xac; decomp27)
 extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
+// The party start markers level_find_player_starts fills ("$player%d-%02d", index level_entry_point);
+// character_place_at_party_start reads them. sum.symbols types the array void*[4]; the records are
+// navpoints (level_scripts.h; ls_worldmap1_init points all four at its own record; D1405).
+struct navpoint;
+extern navpoint *level_player_starts[4];       // 0x60a32c
+extern int level_entry_point;                  // 0x60a33c (1 after game_change_level; 3 in ls_khosanilab_puzzle_use)
 extern bool level_entered_by_load;             // 0x25443a8 (tutorial_frame / tutorial_draw run only while set; D101)
 extern int  level_num_layers;                  // 0x60a340
 extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of each layer

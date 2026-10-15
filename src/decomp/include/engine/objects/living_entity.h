@@ -109,6 +109,9 @@ public:
     Character *get_mount();           // 0x462d20 character_get_mount (+0x6e0 when that entity has +0x6e4 bit 1)
     Character *get_rider();           // 0x462d40 character_get_rider (+0x6e0 when that entity has +0x6e4 bit 0)
     float get_698();                  // 0x456f80 character_get_698 (1.0 or forward_speed)
+    // decomp34 (level_script_khosani_lab.cpp, level_script_worldmap.cpp; D1404)
+    void  place_at_party_start(int slot);         // 0x44f1a0 character_place_at_party_start (level_player_starts[slot])
+    void  set_speed_scale(float scale, bool flag);// 0x462260 character_set_speed_scale (+0x6bc; flag: +0x320 bit 0x200)
 
     int team;                         // +0x098
     int move_start_time;              // +0x09C

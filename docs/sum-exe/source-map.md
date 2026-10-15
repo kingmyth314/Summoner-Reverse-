@@ -206,9 +206,9 @@ The result supports the expected link order: the `new_*` screens are alphabetica
 | `0x4f4df0`-`0x4f54b0` | 12 | `level_script_liangshan.cpp` |
 | `0x4f6df0`-`0x4f6f10` | 2 | `level_script_wolong_caverns.cpp` |
 | `0x4f8f80`-`0x4f92a0` | 7 | `level_script_khosani_lab.cpp` |
-| `0x4f9d10`-`0x4fa230` | 3 | `level_script_ikaemosu.cpp` |
+| `0x4f9f50`-`0x4fa230` | 3 | `level_script_ikaemosu.cpp` |
 | `0x4fb060` | 1 | `level_script_slums.cpp` |
-| `0x4fbd50` | 1 | `level_script_worldmap.cpp` |
+| `0x4fbd80` | 1 | `level_script_worldmap.cpp` |
 | `0x4fe0a0`-`0x4fe410` | 4 | `level_script_catacombs.cpp` |
 | `0x4fe5e0` | 1 | `level_script_wolong.cpp` |
 | `0x5395c0`-`0x549d10` | 2 | `gr_direct3d.cpp` |

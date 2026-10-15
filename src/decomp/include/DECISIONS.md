@@ -1267,3 +1267,57 @@ OPENGL32.dll functions `extern "C" __declspec(dllimport) APIENTRY` (every call i
 through the linker thunks 0x57b5ca / 0x57b5c4, `call 0x57b5ca` at 0x550586). The wgl* functions and the
 pixel-format calls come from <windows.h>. The GL_ARB_multitexture pointers are `void (APIENTRY *)(GLenum)`
 (no `add esp` after `call dword ptr [0x2f13344]`).
+
+## level_script_khosani_lab.cpp / level_script_worldmap.cpp (decomp34)
+
+**D1400 (scheme). The per-level script units have no header of their own.** The level_script_table hooks
+of every level are already in `levelscripts/level_scripts.h` (the gathering header, decomp27), and nothing
+outside the two units calls their helpers or reads their globals (`tools/asm.mjs grep` over every
+reference to 0x257eb10-0x257ecf9 and 0x257ed08-0x257ed5b and the helper addresses: only callers inside the
+unit). So each `.cpp` declares its own helpers at the top (not `static`: the binary cannot tell) and keeps
+its unit-local types (`ls_khosanilab_cell`). sum.symbols says ls_khosanilab_timer is also used by
+ls_ionaext_action and ls_worldmap1_encounter_timer by ls_lenele1b_action; neither reads them (the only
+references are in their own units, 0x4f77d0-0x4f9d15 and 0x4fb500-0x4fbef5).
+
+**D1401 (levelscripts/script_internal.h, new). navpoint_get_position.** sum.symbols puts 0x4dc600 in
+script_internal.cpp; one small header for it (directory guessed, as the other levelscripts units). It
+returns bool (`mov al, 1` at 0x4dc6d5, `xor al, al` at 0x4dc6db); (name, vector3 *, matrix *) from the
+caller ls_khosanilab_puzzle_use (pos at its local +0, the 0x24-byte matrix at +0xc, 0x4f9ba1-0x4f9bab).
+
+**D1402 (engine/ai/ai.h). avoid_spline_def.** sum.symbols types ls_khosanilab_path (0x257ebc0) uint8[0xc4]
+"(count, kinds, points at +0x7c)". avoid_spline_create reads +0 as the count and per point i
+`avoid_spline_point_create(&def[0x44 + 8i], &def[0x84 + 8i], def[4 + 4i], def[0x24 + 4i])` (0x4a79bb-0x4a79cd),
+and ls_khosanilab_puzzle_add_point writes the same offsets (1 to +4 + 4i, 2 to +0x24 + 4i, the two
+points to +0x44 / +0x84; 0x4f885f-0x4f8892): so `{count, cell_x[8], cell_y[8], vector2 p0[8], p1[8]}`, 0xc4.
+There is nothing at +0x7c. ai.h now includes vsdk/math/vector.h for vector2. avoid_spline_create returns
+the spline index or -1 (0x4a79a3, 0x4a7a09-0x4a7a21), avoid_spline_free takes the index.
+
+**D1403 (engine/rendering/levelrender.h). The level-script door helpers.** door_apply_saved_state's
+second argument is a byte (`mov cl, [esp+0x1c]` compared with the saved state byte at 0x477397-0x47739f),
+so `bool open`; callers pass the bool flipper state unconverted (0x4f9ce7). door_is_open_by_name returns
+door_is_open's AL (0x47743b) or `xor al, al` (0x477424); its second argument is a float fraction (callers
+push 0x3c23d70a / 0x3a83126f). lobjs_hide_by_prefix / lobjs_show_by_prefix take the prefix only.
+
+**D1404 (engine/objects/living_entity.h). Character::place_at_party_start, set_speed_scale.** Both
+thiscall: `mov ecx, esi; call 0x44f1a0` with one pushed slot (0x4f9c15), `push 1; push <float>; call
+0x462260` (0x4fb64f, ret 8 per sum.symbols). The flag is pushed as 0 / 1, typed bool.
+
+**D1405 (summoner/summoner.h). level_player_starts, level_entry_point, GF_CUTSCENE.** sum.symbols types
+level_player_starts (0x60a32c) void*[4]. ls_worldmap1_init stores the address of its own 0x30-byte record
+there (0x4fb5db-0x4fb5ef) whose +0x10 / +0x14 / +0x20 are written from the saved heading, position and
+plane, the navpoint layout (level_scripts.h, D711), and character_place_at_party_start reads +0x14 / +0x10 /
++0x20: so `navpoint *[4]` (forward-declared in summoner.h, next to the other level globals 0x60a2c8-0x60a328).
+GF_CUTSCENE is game_flags bit 0x20 (sum.symbols "cutscene running"; `test byte ptr [0x5fbfd8], 0x20` at
+0x4f93c9 / 0x4f94fe before the Salamanka music changes). Name ours.
+
+**D1406 (levelscripts/level_scripts.h). level_scripts_common.cpp helpers.** New declarations, no conflict:
+level_find_player_starts, script_play_cutscene (name, continuation), level_trigger_set_exit /
+level_trigger_set_script_use (name, script; the script is compared only when not NULL, 0x4ccfbd),
+script_object_say (index, text, 5.0f), script_npc_set_disabled, script_npc_send_go,
+script_player_near_navpoint (navpoint, distance; the callers test AL), script_npc_is_dead (AL from
+script_object_is_dead, `xor al, al` at 0x4ce61b), script_party_gain_xp.
+
+**D1407 (engine/ai/boss_ai.h, engine/ai/ai.h). Giant Salamanka flags, Ai_paused.** The five byte flags
+0x248c7d0 / 0x248c7dc-0x248c7df (sum.symbols names and bool types; read with `mov al, byte ptr` at 0x4f9328
+/ 0x4f9374, written with `mov byte ptr` at 0x4f952b / 0x4f9560 / 0x4f9570) and Ai_paused (0x22e499c, a
+console toggle; `mov al, byte ptr [0x22e499c]` at 0x4fbf1b). Declarations only.

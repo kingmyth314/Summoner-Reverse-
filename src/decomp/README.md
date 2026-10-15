@@ -76,6 +76,8 @@ Rules:
 | `game/conversation.cpp` | `levelscripts\conversation.cpp` (`0x4d7b30`-..) | 32 | 22 / 10 / 0 |
 | `game/conversationctl.cpp` | `conversationctl.cpp` (`0x4d87d0`-`0x4daf50`) | 40 | 23 / 16 / 1 |
 | `game/level_scripts.cpp` | `levelscripts\level_scripts.cpp` (`0x4ceec0`-`0x4d6651`, savegame code included) | 124 + 34 initialiser helpers | 96 / 27 / 1 |
+| `game/level_script_khosani_lab.cpp` | `level_script_khosani_lab.cpp` | 48 | 33 / 15 / 0 |
+| `game/level_script_worldmap.cpp` | `level_script_worldmap.cpp` | 31 | 18 / 13 / 0 |
 
 **Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file.
 

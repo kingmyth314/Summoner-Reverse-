@@ -121,6 +121,13 @@ bool door_set_open(lobj *l, float speed, int a, int b);   // 0x476e00 (cmd_door_
 void door_set_closed(lobj *l);        // 0x476e80 (return unused)
 void door_toggle_state(lobj *l, int a);   // 0x476ee0 (return unused; cmd_door_toggle passes 1)
 lobj *lobj_from_index(int index);     // 0x477780
+// Level-script door and object helpers (unit not known, after lobj_from_index; decomp34, D1403).
+// door_apply_saved_state: every door with that name whose saved two-stage state differs from `open` starts
+// moving (door_start_move(door, -1.0, 1, 1)); the state is compared as a byte (0x47739b).
+void door_apply_saved_state(const char *name, bool open);   // 0x477340 (return unused)
+bool door_is_open_by_name(const char *name, float fraction); // 0x4773d0 first door of that name, door_is_open
+void lobjs_hide_by_prefix(const char *prefix);   // 0x4777f0 sets lobj flag 0x80 (_strnicmp prefix)
+void lobjs_show_by_prefix(const char *prefix);   // 0x477850 clears it
 int  lobj_find_by_name(const char *name);           // 0x4777a0 -1 if none
 void fx_disable_by_effect_name(const char *name);   // 0x48d660 (unit not known; effect objects)
 void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs);   // 0x4776c0

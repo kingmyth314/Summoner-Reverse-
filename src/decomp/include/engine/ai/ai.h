@@ -7,6 +7,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/os/timestamp.h"
+#include "vsdk/math/vector.h"
 #include "engine/ai/pathfinding.h"      // decomp32: rect2d, pf_edge, pf_vis_node for the avoidance records
 
 class Character;
@@ -252,6 +253,22 @@ struct avoid_area_desc {
 };
 LAYOUT_CHECK(avoid_area_desc, sizeof(avoid_area_desc) == 0x30);
 int avoid_area_add(avoid_area_desc *d);               // 0x4a9b40 index ("AA - primative not added!!")
+
+// Avoidance splines (unit not known, 0x4a7800-0x4a7a27; decomp34, D1402). The description avoid_spline_create
+// reads: a count and per point the two cell bytes and two 2D end points (avoid_spline_point_create(&p0[i],
+// &p1[i], cell_x[i], cell_y[i]) at 0x4a79c1-0x4a79cd). Type and field names ours.
+struct avoid_spline_def {
+    int count;                        // +0x00
+    int cell_x[8];                    // +0x04
+    int cell_y[8];                    // +0x24
+    vector2 p0[8];                    // +0x44
+    vector2 p1[8];                    // +0x84
+};
+LAYOUT_CHECK(avoid_spline_def, sizeof(avoid_spline_def) == 0xc4);
+int  avoid_spline_create(avoid_spline_def *def);      // 0x4a7990 spline index (< 20) or -1
+void avoid_spline_free(int index);                    // 0x4a78b0
+// Console toggle "pause_ai" (unit not known; decomp34).
+extern bool Ai_paused;                                // 0x22e499c
 
 // ---- Obstacle avoidance tables (0x4a6710-0x4aa760, file not known; decomp32, pathfinding.cpp) ----
 // Only the fields pathfinding.cpp reads; names ours. A segment-list corner starts like a pf_vis_node
