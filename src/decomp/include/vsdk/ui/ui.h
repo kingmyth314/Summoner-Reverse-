@@ -8,6 +8,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/gr/gr.h"
+#include "vsdk/os/timestamp.h"
 
 class ui_element;
 class ui_gadget;
@@ -36,7 +37,11 @@ struct ui_tooltip {
     Color *colors;                     // +0x110 ui_tooltip_colors
     int x;                             // +0x114 offset from the owner's screen position
     int y;                             // +0x118
-    int font;                          // +0x11C -1 = default
+    // +0x11C -1 = default. decomp62: ui_draw picks a container's or window's tooltip by comparing this
+    // field with the mask pixel under the mouse (ui_container::set_tooltip's "font" is the mask value).
+    int font;
+    // decomp62 (ui_draw): text at the owner's screen position plus (x, y) in a box.
+    void draw();                       // 0x55ef60 ui_tooltip__draw
 };
 LAYOUT_CHECK(ui_tooltip, sizeof(ui_tooltip) == 0x120);
 
@@ -53,6 +58,7 @@ public:
     void init(int kind, int x, int y, int w, int h, int id);   // 0x542da0
     int  get_kind();                   // 0x542e10
     void get_size(int *w, int *h);     // 0x542e80
+    void get_position(int *x, int *y); // 0x542e40 (decomp62, ui_process)
     bool is_hidden();                  // 0x542fe0
     bool is_shown();                   // 0x542ff0
     // decomp55 (the script editor): hidden = hide / = !show; hiding the focused gadget sends it event 4
@@ -114,11 +120,22 @@ public:
     ui_gadget *hit_test(int x, int y);                    // 0x52c730
     void set_hotspot(int size);        // 0x52c800
     void draw_bevel(Color *light, Color *dark, int width, int inset);   // 0x55e2e0 (last two unsure)
+    // decomp62 (the gadget base unit, vsdk/unnamed_gadget_0x52bfe0.cpp).
+    void unlink();                     // 0x52bfe0 out of the parent's child chain or the window's chain
+    int  identity(int x);              // 0x52c0e0 returns x (no caller)
+    ui_gadget *get_parent();           // 0x52c5d0 +0x268 (no caller)
+    ui_gadget *get_first_child();      // 0x52c5e0 +0x26c (no caller)
+    ui_gadget *get_next_sibling();     // 0x52c5f0 +0x270 (no caller)
+    void clear_hotkeys();              // 0x52c6b0 both -1
+    void clear_hotspot();              // 0x52c820 (no caller)
+    int  get_hotspot();                // 0x52c830 (no caller)
+    void clear_window_refs();          // 0x52c8f0 the window's mouse-over / selected pointers
 
     bool owned;                        // +0x248
     int hotkeys[2];                    // +0x24C -1 from ui_gadget__clear_hotkeys
     int gadget_type;                   // +0x254 UI_TYPE_*
-    int _unk258;                       // +0x258 hotspot (zeroed by init)
+    // +0x258 (decomp62: was _unk258) the mask value a click must hit (hit_test); < 0 any, 0 from init.
+    int hotspot;
     ui_element *window;                // +0x25C owning ui_window
     ui_gadget *window_prev;            // +0x260 the window's gadget list (sentinel window +0x250)
     ui_gadget *window_next;            // +0x264
@@ -159,12 +176,77 @@ LAYOUT_CHECK(ui_gadget, sizeof(ui_gadget) == 0x274);
 void ui_push_group();                 // 0x530910
 void ui_pop_group();                  // 0x530920
 extern ui_window ui_window_sentinel;  // 0x2cbf718 (list head: next 0x2cbfbfc, prev 0x2cbfc00)
-extern Color ui_window_colors[4];     // 0x2cbf670
-extern Color ui_tooltip_colors[4];    // 0x2cbf708 (init_ui_tooltip_state)
-extern Color ui_container_colors[4];  // 0x2cbfc20 (init_ui_container_state)
-extern Color ui_button_colors[15];    // 0x2cbf6a8 (LoadSettings sets [7])
+
+// decomp62 (D4202): the colour sets are structs of named Colors, not Color arrays. Their static
+// initialisers (init_ui_* 0x52f5d0-0x52f700) call implicit constructors that construct each Color in
+// turn (0x5309c0-0x530b50, sum.symbols ui_colors*__ctor; Color() is the folded empty 0x505530, called
+// because the UI manager unit is built without inline expansion); a Color array would go through the
+// vector constructor iterator instead. Struct and member names are ours (the ui_colors* names are
+// sum.symbols' constructor names). operator Color *() is a compatibility shim for the units that take the
+// set's address (colors = ui_button_colors; ui_window_colors[2].set(...)): it is ours, and an /Ob0 unit
+// would call it, so new /Ob0 code uses &set.c0 instead.
+struct ui_colors2 {                   // 8 bytes, ctor 0x530b30
+    Color c0, c1;
+    operator Color *() { return &c0; }
+};
+struct ui_colors3 {                   // 0xc bytes, ctor 0x5309e0
+    Color c0, c1, c2;
+    operator Color *() { return &c0; }
+};
+struct ui_colors4 {                   // 0x10 bytes, ctor 0x530a70 (four Colors, no ui_colors3 base)
+    Color c0, c1, c2, c3;
+    operator Color *() { return &c0; }
+};
+struct ui_window_color_set : ui_colors3 {   // 0x10 bytes, ctor 0x5309c0 ui_window_colors__ctor
+    Color c3;
+};
+struct ui_colors5 : ui_colors3 {      // 0x14 bytes, ctor 0x530af0
+    Color c3, c4;
+};
+struct ui_colors6 : ui_colors3 {      // 0x18 bytes, ctor 0x530ac0
+    Color c3, c4, c5;
+};
+struct ui_colors2_x3 {                // 0x18 bytes, ctor 0x530b10
+    ui_colors2 g0, g1, g2;
+    operator Color *() { return &g0.c0; }
+};
+struct ui_colors3_x2 {                // 0x18 bytes, ctor 0x530a20
+    ui_colors3 g0, g1;
+    operator Color *() { return &g0.c0; }
+};
+struct ui_colors4_x4 {                // 0x40 bytes, ctor 0x530a40
+    ui_colors4 g0, g1, g2, g3;
+    operator Color *() { return &g0.c0; }
+};
+struct ui_colors5_x3 {                // 0x3c bytes, ctor 0x530a00
+    ui_colors5 g0, g1, g2;
+    operator Color *() { return &g0.c0; }
+};
+struct ui_colors6_x2 {                // 0x30 bytes, ctor 0x530aa0
+    ui_colors6 g0, g1;
+    operator Color *() { return &g0.c0; }
+};
+struct ui_colors8 {                   // 0x20 bytes, ctor 0x530b50
+    ui_colors3 g0, g1;
+    ui_colors2 g2;
+    operator Color *() { return &g0.c0; }
+};
+LAYOUT_CHECK(ui_colors5_x3, sizeof(ui_colors5_x3) == 0x3c);
+LAYOUT_CHECK(ui_colors8, sizeof(ui_colors8) == 0x20);
+
+extern ui_window_color_set ui_window_colors;   // 0x2cbf670 [0] light, [1] dark, [2] face, [3] middle
+// 0x2cbf708: three Colors (the constructor builds three, ui_init sets three, ui_tooltip::draw reads
+// [0]..[2]); sum.symbols' Color[4] is one too many (D4202).
+extern ui_colors3 ui_tooltip_colors;
+extern ui_colors4 ui_container_colors;   // 0x2cbfc20 (init_ui_container_state)
+extern ui_colors5_x3 ui_button_colors;   // 0x2cbf6a8 (LoadSettings sets [7])
 // decomp61: three sets of three (background, text, text shadow): [0..2] shown, [3..5] hidden.
-extern Color ui_static_colors[6];     // 0x2cbf6e8
+extern ui_colors3_x2 ui_static_colors;   // 0x2cbf6e8
+extern ui_colors4_x4 ui_checkbox_colors; // 0x2cbf630 (ui_checkbox / ui_radio_button create, +0x390)
+extern ui_colors6_x2 ui_inputbox_colors; // 0x2cbfc70 (ui_inputbox::create, +0x57c)
+extern ui_colors5 ui_slider_colors;      // 0x2cbfc08 (ui_slider::create, +0x29c)
+extern ui_colors8 ui_listbox_colors;     // 0x2cbfc30 (ui_listbox::create, +0x318)
+extern ui_colors2_x3 ui_listbox_entry_colors;   // 0x2cbfc50 (ui_listbox::add_entry, entry +0x38)
 // decomp61: sound index 2 is the button press (ui_button::process).
 void ui_play_sound(int index);        // 0x52f720 snd_play of ui_sounds[index], else entry 1 for index > 1
 // decomp61 (ui_button::process): the drop target of the current drag and the "dropped" flag that
@@ -186,13 +268,31 @@ void ui_init();                       // 0x52f760 (guarded, once)
 void ui_draw_bevel(int x, int y, int w, int h, Color *light, Color *dark, int width, int inset); // 0x55e040
 // decomp51: every window's draw, then callback (NULL in the load-game state), then the tooltip.
 void ui_draw(void (*callback)());     // 0x52ff30
-// The mouse buttons into the UI globals, then the windows' process; returns the key left over. The
-// second argument is 1 at both callers (meaning not checked).
-int  ui_process(int key, int arg);    // 0x530330
-// The build stamp (vsdk\ui in sum.symbols): 3 unstamped (retail), 2 expired, 1 bad name checksum, 0 valid.
+// The mouse buttons into the UI globals, then the windows' process; returns the key left over.
+// decomp62 (D4203): the second argument is a bool (`cmp byte ptr [esp+0x38], 1`): with it, the mouse
+// clicks are cleared (mouse_clear_clicks) when a window changed the click flags. 1 at both callers.
+int  ui_process(int key, bool clear_clicks);   // 0x530330
 // decomp55 (the script editor): the topmost shown modal window that is enabled (NULL when none).
 ui_window *ui_get_top_modal_window(); // 0x530970
+// decomp62: the rest of the UI manager (vsdk/unnamed_ui_manager_0x52f570.cpp).
+void ui_destroy_all_windows();        // 0x5308e0 slot 0 of the first window until the list is empty (no caller)
+ui_gadget *ui_find_gadget_by_name(const char *name);   // 0x530930 over all windows (no caller)
+extern RealtimeTimer ui_tooltip_timer;   // 0x2cbf680 1 s after the hovered gadget changes
+extern int ui_sounds[8];              // 0x2cbf684 -1 from ui_init
+extern bool ui_tooltip_ready;         // 0x2cbf6e4
+extern ui_element *ui_tooltip_gadget; // 0x2cbfccc the gadget or window whose tooltip ui_draw shows
+extern ui_gadget *ui_last_gadget;     // 0x2cbfcd4 the gadget the last press hit
+extern int ui_mouse_wheel;            // 0x2cbfca0 (mouse_get_delta's third output)
+
+// The build stamp (vsdk\ui in sum.symbols; decomp62: vsdk/unnamed_build_stamp_0x52f450.cpp): 3 unstamped
+// (retail), 2 expired, 1 bad name checksum, 0 valid.
+class String;
 int  build_stamp_check();             // 0x52f450
+void build_stamp_get_name_String(String *out);    // 0x52f530 (no caller)
+// decomp62: a plain strcpy, the size is not read.
 void build_stamp_get_name(char *out, int size);   // 0x52f540 (build_stamp_show passes 512)
+extern int build_stamp_checksum;      // 0x5a9604 retail 0x01010101 (placeholder)
+extern long build_stamp_expiry;       // 0x5a9608 time_t, retail 0x02020202 (placeholder)
+extern char build_stamp_name[72];     // 0x5a960c (69 to 72 bytes; D4204)
 
 #endif

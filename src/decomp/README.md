@@ -40,6 +40,7 @@ Rules:
 | `vsdk/parse.cpp` | `vsdk\parse\parse.cpp` (TextFile) | 51 | 32 / 18 / 1 |
 | `vsdk/file_packfile.cpp` | `vsdk\vfile\packfile\file_packfile.cpp` | 24 | see `NOTES-packfile-mouse-exception.md` (50 / 23 / 0 for the five files) |
 | `vsdk/unnamed_vfile_0x5128b0.cpp`, `unnamed_vfile_rw_0x525720.cpp`, `unnamed_ui_button_0x526940.cpp`, `unnamed_ui_static_0x527e20.cpp` | File paths, open, seek and FileReader; File readers, writers and sync; the ui_button and ui_static gadgets (**names not known**) | 179 | 135 / 42 / 2 (`NOTES-unnamed-vfile-ui.md`) |
+| `vsdk/unnamed_gadget_0x52bfe0.cpp`, `unnamed_listbox_0x52ca60.cpp`, `unnamed_build_stamp_0x52f450.cpp`, `unnamed_ui_manager_0x52f570.cpp` | UI gadget base, list box, build stamp, UI manager (**names not known**) | 130 + 32 generated | 89 / 41 / 0 (`NOTES-unnamed-ui.md`) |
 | `vsdk/unnamed_mouse_0x500a30.cpp` | mouse module `0x500a30`-`0x501468` (**name not known**) | 30 | |
 | `vsdk/unnamed_exceptionhandler_0x5419a0.cpp` | exception handler `0x5419a0`-`0x5424fa` (**name not known**; functions as in Bruce Dawson's ExceptionHandler.cpp) | 8 | |
 | `vsdk/unnamed_localize_0x503f60.cpp`, `unnamed_net_0x517590.cpp`, `unnamed_os_0x530b90.cpp`, `unnamed_os_0x531bf0.cpp` | localize, net and os code (**names not known**) | 72 | 41 / 31 / 0 (`NOTES-localize-net-os.md`) |

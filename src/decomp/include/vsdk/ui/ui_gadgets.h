@@ -27,9 +27,15 @@ public:
     // (x, y, w, h, u, v): the bitmap at (x, y); with u >= 0 (and state != 2) only its w x h part at
     // (u, v) shows (gr::set_clip(x + u, y + v, w, h)). False when no bitmap is set.
     bool draw(int x, int y, int w, int h, int u, int v);   // 0x52c9a0
-private:
-    ubyte _data[0x18];
+    // decomp62: no sum.symbols entry (0x52ca50 sits in the padding after draw; no caller). Name ours.
+    int  get_bitmap();                // 0x52ca50 +4
+    // decomp62: the fields (was private ubyte _data[0x18]).
+    int state;                        // +0x00
+    int bm;                           // +0x04 -1 none
+    ubyte _unk08[0x14 - 0x08];        // never read or written by the gadget base unit
+    ui_state_bitmap *next;            // +0x14 ring (the constructor points it at itself)
 };
+LAYOUT_CHECK(ui_state_bitmap, sizeof(ui_state_bitmap) == 0x18);
 
 // ui_button::flags (+0x274; names ours, from ui_button::process / draw).
 #define UI_BUTTON_FLAT        0x001   // filled face, no bevel
@@ -198,18 +204,32 @@ LAYOUT_CHECK(ui_inputbox, sizeof(ui_inputbox) == 0x5b0);
 // 0x581e2c, is a subclass that ui_listbox::add_entry allocates unless the box has flag 0x400). The list
 // box embeds one as the head of its entry ring (+0x2d4). decomp51 (D3100): only what the load-game
 // screen and the implicit ui_listbox destructor need. Class name from sum.symbols (ui_listbox_entry__*).
+// decomp62 wrote the class (vsdk/unnamed_listbox_0x52ca60.cpp): the line layout members and +0x14/+0x18.
 class ui_listbox_entry {
 public:
     ui_listbox_entry();               // 0x52d540 font -1, data -1
     ~ui_listbox_entry();              // 0x52d560 (restores the vtable; non-virtual)
     virtual void set_text(const char *text);   // slot 0, 0x52d5b0 (the text entry: 0x52d4a0)
     void set_font(int font);          // 0x52d5a0 font, dirty = 1 (decomp55)
-    ubyte dirty;                      // +0x04
+    // decomp62. wrap_text splits the text into lines of at most width (or what width_cb returns for a
+    // line's y and height, when it returns non-zero) into ui_listbox_line_starts / _lengths and returns
+    // the line count.
+    int  wrap_text(int width, int y, int (*width_cb)(int y, int line_h));   // 0x52ca60
+    int  line_top(int line);          // 0x52cb70 y + line * (font height + line_spacing)
+    int  line_bottom(int line);       // 0x52cba0 line_top + font height
+    int  line_at_y_with_spacing(int y);   // 0x52cbd0 clamped to 0 .. num_lines - 1
+    int  line_at_y(int y);            // 0x52cc20 clamped
+    int  line_at_y_or_none(int y);    // 0x52d4f0 -1 outside the entry
+    void set_indent(int indent);      // 0x52d570
+    void set_wrap_indent(int indent); // 0x52d580
+    void set_line_spacing(int spacing);   // 0x52d590
+    ubyte dirty;                      // +0x04 set by the setters; nothing clears it (decomp62, F6201)
     ubyte _unk05[3];
     ui_listbox_entry *next;           // +0x08 entry ring (head: the list box's +0x2d4)
     ui_listbox_entry *prev;           // +0x0C
     int y;                            // +0x10 top of the line in the content (recalc_content_size; decomp55)
-    ubyte _unk14[0x1c - 0x14];
+    int width;                        // +0x14 widest line plus indent (wrap_text; decomp62)
+    int height;                       // +0x18 num_lines * line height - line_spacing (wrap_text)
     int indent;                       // +0x1C
     int wrap_indent;                  // +0x20
     int line_spacing;                 // +0x24
@@ -221,9 +241,53 @@ public:
 };
 LAYOUT_CHECK(ui_listbox_entry, sizeof(ui_listbox_entry) == 0x3c);
 
+// decomp62: the entry that owns its text (0x13c bytes, vtable 0x581e2c). No destructor of its own: the
+// implicit one (0x52f440, jmp ~ui_listbox_entry) and both scalar deleting destructors (0x52f400,
+// 0x52f420) are COMDATs at the end of the list box unit (D4201).
+class ui_listbox_text_entry : public ui_listbox_entry {
+public:
+    ui_listbox_text_entry();          // 0x52d480 text = buffer
+    virtual void set_text(const char *text);   // slot 0, 0x52d4a0 copies; 255 characters or more give
+                                               // "text too long for pc version"
+    char buffer[0x100];               // +0x3C
+};
+LAYOUT_CHECK(ui_listbox_text_entry, sizeof(ui_listbox_text_entry) == 0x13c);
+
+// decomp62 (D4201): the list box's ring head. ui_listbox() stores the head's next / prev before its own
+// vtable, i.e. while its members are constructed: the head is a member whose (inline) constructor runs
+// list_init after ui_listbox_entry(). Name ours.
+class ui_listbox_entry_head : public ui_listbox_entry {
+public:
+    ui_listbox_entry_head() { list_init(this); }
+};
+
+// The wrapped lines of the last entry laid out (ui_listbox_entry::wrap_text), read by ui_listbox::draw.
+// sum.symbols types the first int[20]; it holds char pointers. No bounds check (F6202).
+extern char *ui_listbox_line_starts[20];   // 0x2cbf584
+extern int ui_listbox_line_lengths[20];    // 0x2cbf5d4
+
+// ui_listbox::flags (+0x274), the "+..." lines of ui_window::parse_listbox. Names ours.
+#define UI_LISTBOX_WRAP          0x001   // "+Allow wrap": wrap to max_content_w or the view width
+#define UI_LISTBOX_VSCROLLBAR    0x002   // "+Add vertical scrollbar" (and "+Add both scrollbars")
+#define UI_LISTBOX_HSCROLLBAR    0x004   // "+Add horizontal scrollbar"
+#define UI_LISTBOX_NO_SELECT     0x008   // "+No select": up / down scroll instead
+#define UI_LISTBOX_BY_ENTRY      0x010   // "+Scroll by entry"
+#define UI_LISTBOX_BY_PIXELS     0x020   // "+Scroll by pixels": no snapping, partial lines drawn
+#define UI_LISTBOX_SORTED        0x040   // "+Sort entries" (_stricmp order)
+#define UI_LISTBOX_ALIGN_BOTTOM  0x080   // "+Align view with bottom"
+#define UI_LISTBOX_NO_BACKGROUND 0x100   // "+No background"
+#define UI_LISTBOX_MOUSEOVER     0x200   // "+Mouseover highlights"
+#define UI_LISTBOX_PREALLOCATED  0x400   // "+Preallocated text": entries keep the caller's pointer
+
+class ui_slider;
+
 class ui_listbox : public ui_gadget {   // 0x320, vtable 0x581e34
 public:
     ui_listbox();                     // 0x52d5c0
+    // decomp62: slots 0, 5, 7 of 0x581e34 (the others are ui_gadget's).
+    virtual void dtor();              // slot 0, 0x52d420 ui_listbox__vfunc0 (deletes the entries)
+    virtual int  process(int key);    // slot 5, 0x52d080
+    virtual void draw();              // slot 7, 0x52f080
     void create(ui_element *window, int x, int y, int w, int h, int content_w, int content_h,
                 int id, int flags, bool owned);       // 0x52d650
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x52d7e0
@@ -231,7 +295,8 @@ public:
     ui_listbox_entry *get_selected();                 // 0x52d8a0 +0x2b4
     // decomp55 (D3506): returns AL, false when no entry has the data (0x52d8d1 / 0x52d8e2).
     bool select_by_data(int data, bool scroll_into_view);   // 0x52d8b0 the entry whose +0x34 is data (decomp53)
-    void select_by_text(const char *text, bool scroll_into_view);   // 0x52d8f0
+    // decomp62 (D4205): returns AL like select_by_data (was void).
+    bool select_by_text(const char *text, bool scroll_into_view);   // 0x52d8f0
     void select_entry(ui_listbox_entry *e, bool scroll_into_view);  // 0x52d920
     ui_listbox_entry *find_by_text(const char *text); // 0x52d9b0 strcmp of entry +0x30
     ui_listbox_entry *add_entry(const char *text, int font, int indent, int wrap_indent,
@@ -241,18 +306,69 @@ public:
     void recalc_content_size();       // 0x52cd90
     void clear_selection();           // 0x52d9a0 +0x2b4 = NULL
     void set_hscroll(int pos);        // 0x52ea00
-    void set_vscroll(int pos, bool force);  // 0x52ea50 (second argument's meaning unsure)
+    // decomp62: force snaps to the entry / line edges also with UI_LISTBOX_BY_PIXELS.
+    void set_vscroll(int pos, bool force);  // 0x52ea50
     void set_sorted(bool sorted);     // 0x52f3d0 flag 0x40 of +0x274
-    ubyte _unk274[0x2b8 - 0x274];
+    // decomp62.
+    int  layout_entry(ui_listbox_entry *e, int y);    // 0x52cc60 wrap_text at the wrap width; line count
+    bool is_entry_visible(ui_listbox_entry *e);       // 0x52cca0
+    bool is_entry_fully_visible(ui_listbox_entry *e); // 0x52cce0
+    bool is_entry_bottom_visible(ui_listbox_entry *e);   // 0x52cd20 (no caller)
+    void update_vscrollbar();         // 0x52cd50
+    void update_hscrollbar();         // 0x52cd70
+    ui_listbox_entry *entry_at(int x, int y, bool clamp);   // 0x52ce20 content coordinates
+    ui_listbox_entry *entry_above(int y);             // 0x52ce90
+    ui_listbox_entry *entry_at_y(int y);              // 0x52ced0
+    void relayout_dirty();            // 0x52cf10
+    void sync_scrollbars();           // 0x52cf70
+    bool remove_by_text(const char *text);            // 0x52dcc0 (no caller)
+    void remove_entry(ui_listbox_entry *e);           // 0x52dd00
+    void select_prev();               // 0x52dde0
+    void select_next();               // 0x52deb0
+    void scroll_left();               // 0x52df90
+    void scroll_right();              // 0x52dfb0
+    void select_page_up();            // 0x52dfd0
+    void select_page_down();          // 0x52e050
+    void scroll_line_up();            // 0x52e110
+    void scroll_line_down();          // 0x52e290
+    void scroll_page_up();            // 0x52e380
+    void scroll_page_down();          // 0x52e590
+    void scroll_page_right();         // 0x52e870 (no caller)
+    void scroll_page_left();          // 0x52e8c0 (no caller)
+    float get_hscroll_fraction();     // 0x52e8f0 (no caller)
+    float get_vscroll_fraction();     // 0x52e920 (no caller)
+    int  snap_scroll_top(int y);      // 0x52eb20
+    int  snap_scroll_bottom(int y);   // 0x52ebe0
+    void set_hscroll_fraction(float f, bool unused);  // 0x52ed00 (no caller; second argument not read)
+    void set_vscroll_fraction(float f, bool unused);  // 0x52ed70 (no caller; second argument not read)
+    int  get_view_width();            // 0x52f020 w - 2 * margin
+    int  get_view_height();           // 0x52f030 h - 2 * v_margin
+    int  get_content_width();         // 0x52f040
+    int  get_content_height();        // 0x52f050
+    bool is_empty();                  // 0x52f060 (no caller)
+
+    int flags;                        // +0x274 UI_LISTBOX_* (decomp62: was _unk274)
+    char typeahead[0x20];             // +0x278 typed characters (key_to_ascii)
+    int typeahead_len;                // +0x298 cleared 1.5 s after the last one, by Backspace and Enter
+    RealtimeTimer typeahead_timer;    // +0x29C
+    int max_content_w;                // +0x2A0 create's content_w: wrap width and content width cap (0 none)
+    int max_content_h;                // +0x2A4 create's content_h: > 0 drops the oldest entries above it
+    int content_width;                // +0x2A8
+    int content_height;               // +0x2AC - entry_spacing for an empty list (F6203)
+    bool user_selected;               // +0x2B0 1 after a click or page key selects, 0 after a page scroll
+    ui_listbox_entry *selected;       // +0x2B4
     int bm_background;                // +0x2B8
     int margin;                       // +0x2BC
     int v_margin;                     // +0x2C0
     int hscroll;                      // +0x2C4 horizontal scroll position (set_hscroll; decomp55)
     int vscroll;                      // +0x2C8 vertical scroll position (set_vscroll; decomp55)
     int entry_spacing;                // +0x2CC
-    ubyte _unk2d0[4];
-    ui_listbox_entry entries;         // +0x2D4 entry ring head (constructed by ui_listbox(); D3100)
-    ubyte _unk310[0x320 - 0x310];
+    int hscroll_step;                 // +0x2D0 10 pixels per left / right key (decomp62: was _unk2d0)
+    ui_listbox_entry_head entries;    // +0x2D4 entry ring head (D3100; decomp62 D4201: the head type)
+    ui_slider *vscrollbar;            // +0x310 (decomp62: was _unk310; set by ui_slider::create_scrollbar)
+    ui_slider *hscrollbar;            // +0x314
+    Color *colors;                    // +0x318 ui_listbox_colors: [0..2] face, [3..5] hidden face, [6] hidden text
+    int (*wrap_width_cb)(int y, int line_h);   // +0x31C passed to wrap_text (0 from the constructor)
 };
 LAYOUT_CHECK(ui_listbox, sizeof(ui_listbox) == 0x320);
 
@@ -269,6 +385,9 @@ public:
     void set_pos(int pos);            // 0x55eb30
     void create_scrollbar(ui_gadget *listbox, bool horizontal, int marker_size, int id, int flags,
                           bool owned);                // 0x55ed30
+    // decomp62 (the list box).
+    int  get_pos();                   // 0x55eb10 +0x28c
+    void set_range(int content);      // 0x55eeb0
     ubyte _unk274[0x2a0 - 0x274];
     ui_button *inc_button;            // +0x2A0 right / down
     ui_button *dec_button;            // +0x2A4 left / up

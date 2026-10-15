@@ -3090,3 +3090,68 @@ names kept). murod_oni_move_is_first (sum.symbols) compares with murod_oni_move_
 evil_urath_unused_moves (0x248bd88, 0x140 bytes after the threat table, never accessed) is named for its size.
 Names ending in an address (machival_248b030, titus_248b950, ...) are dwords the code writes but never reads,
 or never touches.
+
+**D4200 (units). 0x52bfe0-0x530b86 is four placeholder files.** No vsdk\ui path string, strings.tbl block or
+Summoner 2 file covers the range (Summoner 2 has no UI code), so every file is `unnamed_*`. Cuts:
+(1) 0x52bfe0 starts an object because window.cpp's two COMDATs (0x52bfa0, 0x52bfc0) end window.obj;
+vsdk/unnamed_gadget_0x52bfe0.cpp = ui_gadget + ui_state_bitmap to 0x52ca53, no data, no EH.
+(2) vsdk/unnamed_listbox_0x52ca60.cpp: .bss 0x2cbf584-0x2cbf623 (the line tables, after window.cpp's ""
+literals ..0x2cbf583), .data 0x5a95e4 (after window.cpp's ..0x5a95e3), one int3-padded EH funclet block
+0x57d510-0x57d556 after window.cpp's, and it ends with its COMDATs 0x52f400-0x52f444 (two scalar deleting
+destructors, the text entry's implicit destructor). The cut between (1) and (2) is NOT proven (the gadget code
+has nothing that could differ); one object 0x52bfe0-0x52f444 is the alternative.
+(3) vsdk/unnamed_build_stamp_0x52f450.cpp: .data 0x5a9604-0x5a966f of its own; no .bss, no initialisers. It
+may be the head of (4) (which has no .data to compare).
+(4) vsdk/unnamed_ui_manager_0x52f570.cpp: the initialiser run 0x52f570-0x52f700 (table 0x588974-0x5889a0,
+twelve entries; the next entry 0x531a80 is the os unit's), .bss 0x2cbf628-0x2cbfcd9, and the COMDATs at the
+end (colour set constructors 0x5309c0-0x530b50, inline getters 0x530b70 / 0x530b80) before the os unit
+(0x530b90). It calls COMDAT copies of inlines, so it is built without inline expansion.
+
+**D4201 (vsdk/ui/ui_gadgets.h). The list box's entry head is a subclass with an inline constructor; the text
+entry is a class.** ui_listbox() (0x52d5c0) stores entries.next / entries.prev (+0x2dc / +0x2e0) right after
+the ui_listbox_entry constructor on +0x2d4 and before its own vtable (0x52d606-0x52d612), i.e. during member
+construction: `ui_listbox_entry_head : ui_listbox_entry { ui_listbox_entry_head() { list_init(this); } }`
+(name ours) is the member type. The implicit ~ui_listbox (0x431950) still calls ~ui_listbox_entry directly.
+ui_listbox_text_entry (0x13c, vtable 0x581e2c, sum.symbols ui_listbox_text_entry__*) gets its constructor
+0x52d480 and set_text 0x52d4a0; its destructor is implicit (0x52f440). All src/decomp uses of `entries`
+(`.entries.next`, `e != &x.entries`) compile unchanged (derived-to-base conversion).
+
+**D4202 (vsdk/ui/ui.h). The UI colour sets are structs.** The twelve initialisers (0x52f5d0-0x52f700) call
+implicit constructors that construct each Color in turn (0x5309c0-0x530b50, nested: ui_colors5 = ui_colors3
+then two Colors, ...); a `Color x[N]` would go through the vector constructor iterator. So: ui_colors2/3/4,
+ui_window_color_set (sum.symbols' ui_window_colors__ctor; type name ours because the object has the name),
+ui_colors5/6 (deriving from ui_colors3), ui_colors2_x3, _3_x2, _4_x4, _5_x3, _6_x2, ui_colors8 (members c0..,
+g0..; names ours). ui_tooltip_colors is three Colors (constructor, ui_init and ui_tooltip::draw use [0]..[2];
+sum.symbols says Color[4]). New declarations: ui_checkbox_colors, ui_inputbox_colors, ui_slider_colors,
+ui_listbox_colors, ui_listbox_entry_colors. An inline `operator Color *()` (ours, a shim) keeps the existing
+users compiling unchanged (`colors = ui_button_colors;`, summoner.cpp `ui_window_colors[2].set(...)`): an
+/Ob0 unit would call it, so the new files use `&set.g0.c0` / `set.c2.set(...)`. To do: switch window.cpp,
+ui_container.cpp, unnamed_ui_button/static and summoner.cpp to member access and drop the shim.
+
+**D4203 (vsdk/ui/ui.h). ui_process(int key, bool clear_clicks).** The second argument is compared as a byte
+(`cmp byte ptr [esp+0x38], 1`, 0x5308c2). Both callers pass 1 (game/unnamed_frame_0x4323e0.cpp,
+game/unnamed_states_0x431870.cpp) and compile unchanged.
+
+**D4204 (vsdk/ui/ui.h). The build stamp data.** build_stamp_checksum (int, 0x5a9604, compared signed after an
+arithmetic shift), build_stamp_expiry (long = VC6 time_t, 0x5a9608), build_stamp_name (0x5a960c). The first
+literal of the unit follows at 0x5a9654 (4-aligned), so the name array is 69 to 72 bytes; 72 is assumed.
+build_stamp_get_name keeps its (char *, int) signature: the size is never read.
+
+**D4205 (vsdk/ui/ui_gadgets.h). ui_listbox::select_by_text returns bool.** `mov al, 1` / `xor al, al`
+(0x52d914 / 0x52d901), like select_by_data (D3506). Callers ignore the result and compile unchanged.
+
+**D4206 (vsdk/ui/window.h, ui_container.h). get_mask_data / get_mask_buffer are inline members.** The only
+copies (0x530b80, 0x530b70) are the last two functions of the UI manager object, after its colour set
+COMDATs, and ui_draw is their only caller: COMDATs of header inlines in an /Ob0 unit, as D2869 / D1644
+describe for other vsdk units.
+
+**D4207 (vsdk/ui). Field names.** ui_gadget::_unk258 becomes hotspot (set_hotspot / hit_test); ui_state_bitmap's
+private _data[0x18] becomes the public state / bm / next fields; ui_listbox's _unk274 / _unk2d0 / _unk310 become
+flags, typeahead, typeahead_len, typeahead_timer, max_content_w, max_content_h, content_width,
+content_height, user_selected, selected, hscroll_step, vscrollbar, hscrollbar, colors, wrap_width_cb;
+ui_listbox_entry's _unk14 becomes width / height. No src/decomp file used the old names.
+
+**D4208 (vsdk/ui/ui_gadgets.h). ui_listbox_entry::wrap_text(int width, int y, int (*width_cb)(int y, int
+line_h)).** ui_listbox::layout_entry pushes the callback (+0x31c) first, then y, then the width (0x52cc82-
+0x52cc92); the callback gets (y, line height) (0x52ca98-0x52ca9e) and its non-zero result replaces the width.
+sum.symbols' "(width, callback, ...)" has the order wrong.
