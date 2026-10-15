@@ -25,6 +25,8 @@ GitHub Pages site.
 | Effects and lights | Effect objects, `.vfx` files and key tracks, vif particles, decals, lamp glows, the 400-entry light table | [Effects and lights](docs/sum-exe/effects.md) |
 | Summons | Rings unlock the summons and gain power from experience; the creature's level comes from ring power; one summon at a time, max HP lent; dragons cost HP | [Summons](docs/sum-exe/summons.md) |
 | Shops and loot | Fixed prices (sell 70%, 10% in multiplayer), free identification, gold and item drop rolls, boss key items | [Shops, loot and money](docs/sum-exe/shops-loot.md) |
+| Party | Five Player records, leader and selection, solo mode is a hold order, formation and follow rules, XP split between members within 20 units | [Party](docs/sum-exe/party.md) |
+| Camera | Orbit camera with low, high and automatic presets; arrows and wheel zoom (no tilt, tested); occluders fade instead of collision | [Camera](docs/sum-exe/camera.md) |
 | Savegame | File format, read-only inspector and an editor that writes new files | [Savegame format](docs/sum-exe/savegame.md) |
 | Multiplayer | All 66 packet types and their handlers | [Multiplayer packets](docs/sum-exe/multiplayer.md) |
 | Combat | Melee and spell damage formulas | [Combat](docs/sum-exe/combat.md) |

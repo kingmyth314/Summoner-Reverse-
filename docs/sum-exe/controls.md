@@ -73,8 +73,9 @@ Confirmed from in-game frame captures (2026-10-13).
 `camera_process_input` (`0x434660`) controls the camera:
 - **Rotation:** Left/Right arrows, or the mouse within 3-4 pixels of the left/right screen
   edge (`gr_screen_width`).
-- **Tilt:** Up/Down arrows.
-- **Zoom:** the mouse wheel, in steps of 10.
+- **Zoom:** Up/Down arrows (Up zooms in). The game has no tilt key: the arrows feed the zoom rate, and only
+  the low/high camera presets change the angle (tested 2026-10-15; see [Camera](camera.md#input-turning-and-zoom)).
+- **Zoom (mouse):** the mouse wheel, in steps of 10.
 - **Settings:** a speed multiplier at `0x60ad00` and an invert flag at `0x60acd1`.
 
 ## Hook for custom bindings

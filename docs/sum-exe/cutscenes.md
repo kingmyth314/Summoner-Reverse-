@@ -111,7 +111,7 @@ In order (**observed**):
    `music_stop(200)` and `snd_stop_all`. See [Sound](sound.md).
 7. `cutscene_load_data` (`0x4353e0`): data path, camera files, actors and effects, sounds. The
    loading bar advances after each step.
-8. `camera_set_focus_override(NULL)` on `game_camera`. This clears any summon focus override.
+8. `camera_set_sequence_transform(NULL)` on `game_camera`. This clears the shot transform a summon cutscene may have set ([Camera](camera.md#taking-the-camera-over)).
 9. `level_vis_force_begin` when the entry has `$VisSet` lines. `cutscene_script_load(name)`.
 10. For every living character: keep its AI goals, clear its status effects, send it idle when
     needed, and save four flags in `cutscene_saved_actors` (`0x5fcce8`). The flags are

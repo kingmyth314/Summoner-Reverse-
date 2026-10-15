@@ -222,7 +222,7 @@ The four dragon skills (`0x30`..`0x33`) have flag `0x10`. **Observed** in `summo
 3. `levelrender_fade_out_start`, then every living entity that is not a party character and not
    in Joseph's group gets flag `0x10` and its AI turned off. `cutscene_cleanup` later removes the
    dragon's effects.
-4. Point the game camera at the dragon (`camera_set_focus_override`), and cut Joseph's HP.
+4. Point the game camera at the dragon (`camera_set_sequence_transform`), and cut Joseph's HP.
 
 The dragon spells have an emerge time of 20 in `spells.tbl`. When the arrival effect has run
 out, `summon_emerge_update` (`0x4b4660`) makes the dragon cast its own spell at the target:
