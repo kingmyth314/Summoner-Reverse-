@@ -19,7 +19,9 @@ buttons) *are* the live game state. The game reads and writes them in the buffer
 writes them to the file unchanged and loading reads them back. There is no compression, encryption or
 checksum over the data.
 
-`tools/savinfo.mjs` reads these fields from a save file (read-only).
+`tools/savinfo.mjs` reads these fields from a save file (read-only). `tools/savedit.mjs` writes an edited *copy* (description,
+gold, a party member's level, experience, HP/AP and skill points); a copy edited this way loaded in game with the new
+gold and skill points (2026-10-14).
 
 ## Evidence
 
@@ -162,7 +164,7 @@ values such as `chain_config_set`'s `chainconfig%d%d` are stored as int variable
 | Offset | Type | Field |
 |---|---|---|
 | `+0x00` | char[4] | `INVT` |
-| `+0x04` | int32 | `0x971868`, probably the party's gold (*inferred*: `buysell_recharge_item` subtracts from it; 52/61/41 in the saves) |
+| `+0x04` | int32 | `0x971868`, the party's gold (*observed* 2026-10-14: setting it to 5000 with `tools/savedit.mjs` showed 5000 gold in the inventory after loading) |
 | `+0x08` | int32 | entry count n (clamped to 0..0x209) |
 | `+0x0c` | n x 12 | `{uint32 item-type name hash, int32 count, int32 item field +0x08}` from the inventory list `0x970820` |
 | then | int32 | chunk length (12 + 12n + 4) |

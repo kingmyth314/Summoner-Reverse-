@@ -206,6 +206,20 @@ node tools/vpp.mjs extract Summoner/tables.vpp items.tbl
 node tools/savinfo.mjs Summoner/savegame/summoner7.sav
 ```
 
+## `tools/savedit.mjs`
+
+Savegame editor. It **never overwrites a file**: it writes a new output file, refuses if that file exists or is the
+input, and leaves the original untouched. It can change the description, the party's gold, and a party member's
+level, experience, HP/max HP, AP/max AP and skill points. The game does not recompute anything on load, so raising
+the level does not add the HP, AP or skill points of the skipped levels. Tested 2026-10-14: an edited copy
+(5000 gold, 10 skill points) loaded and showed both values.
+
+```
+node tools/savedit.mjs Summoner/savegame/summoner7.sav edited.sav --gold 5000 --skillpoints 10 --desc "edited"
+```
+
+To use the result, copy it into `Summoner/savegame` under an unused name such as `summoner15.sav`.
+
 ## `tools/addsym.mjs`
 
 Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address
