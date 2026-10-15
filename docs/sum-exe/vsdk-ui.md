@@ -51,13 +51,18 @@ Widget vtables have nine slots:
 |---|---|---|
 | 0 | destructor | |
 | 1 | send event (event, value) | calls the callback at `+0x244`, else forwards to the parent container (`+0x268`) or the window (`+0x25c`) |
-| 2, 3 | update a state through `0x542f10` / `0x542f70` | shared by all widgets |
-| 4 | "blocked" test | true if the window or parent says so; probably disabled or hidden |
+| 2, 3 | `set_disabled` / `set_enabled` | set or clear the disabled byte `+0x1d` (`0x542f10` / `0x542f70`) |
+| 4 | `is_disabled` | true if the window or parent is disabled, else byte `+0x1d` |
 | 5 | **process input** | overridden by every widget; calls `mouse_is_down` / `key_to_ascii` |
 | 6 | forwarded to the parent | overridden by the container |
 | 7 | **draw** | overridden by every widget; calls `gr_string`, `gr_bitmap` and `gr_rect` |
-| 8 | returns false in the base | |
+| 8 | `is_selectable` | false in the base class |
 
+
+Base element fields (`ui_element`, vtable `0x581ea0`): kind `+0x8`, rectangle `+0xc`..`+0x18`, hidden `+0x1c`,
+disabled `+0x1d`, name `+0x1e`, id `+0x120`, tooltips `+0x124`, event callback `+0x244`. The gadget type is at `+0x254`
+(1 container, 2 button, 3 static, 4 checkbox, 5 radio button, 6 input box, 8 list box). A window keeps the gadget under
+the mouse at `+0x4c8` and the keyboard-selected one at `+0x4cc`.
 
 ## Build stamp (press/beta watermark)
 

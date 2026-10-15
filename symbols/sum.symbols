@@ -705,9 +705,9 @@
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x430ad0  state7_enter             func  -                      I ; state 7: frame draws a centred message with gr_string
 0x430b80  state_credits_enter      func  -                      I ; state 9: interface_set_screen(21 credits)
-0x431780  ui_static__dtor          func  -                    I ; destroys members +0x3a4, +0x38c then ui_gadget__dtor_base, atexit for ui_static__ui_static objects
-0x4317e0  ui_button__dtor          func  -                    I ; destroys five members +0x394..+0x3f4 then ui_gadget__dtor_base, atexit for ui_button__ui_button objects
-0x431950  ui_listbox__dtor         func  -                    I ; destroys member +0x2d4 then ui_gadget__dtor_base, atexit for ui_listbox__ui_listbox objects
+0x431780  atexit_dtor_431780       func  -                    I ; atexit destructor of a static UI object (static widget members) (formerly ui_static__dtor)
+0x4317e0  atexit_dtor_4317e0       func  -                    I ; atexit destructor of a static UI object (button members) (formerly ui_button__dtor)
+0x431950  atexit_dtor_431950       func  -                    I ; atexit destructor of a static UI object (list-box members) (formerly ui_listbox__dtor)
 0x431a40  game_change_level        func  -                    O ; sets level_filename and script name, checks pending load, gameseq_set_state
 0x431b80  init_ccmd_us_open_demo   func  -                    O ; static initialiser: registers console command object ccmd_us_open_demo
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
@@ -2653,19 +2653,67 @@
 0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
 0x519370  nw_addr_equal            func  vsdk\net               I
 0x5193a0  net_get_reliable_socket_status func  -                      O ; own assert "Invalid socket id passed to net_get_reliable_socket_status()"
+0x51a1e0  character_instance__advance_anim_time func  vsdk\ca              I ; thiscall (anim, dt): per-anim speed from a 5-entry (anim, scale) table, time +0x40[anim] += dt * scale
 0x51a230  character_instance__increment_tick func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::increment_tick"
+0x51a6a0  character_instance__get_active_anims func  vsdk\ca              O ; (ci, out[8]) indices of up to 8 animations with a non-zero weight (+0x44)
 0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
 0x51a780  character_instance__setup_matrices_b func  vsdk\ca\character_instance.cpp I ; second function with label "character_instance::setup_matrices"
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
 0x51abd0  character_instance__check_anims func  vsdk\ca\character_instance.cpp I ; "Character has NULL anim: %s (%d)"
+0x51ad00  character_instance__get_tag_pos func  vsdk\ca              I ; thiscall (&out, tag) world position of a mesh tag (0xa0-byte tags of mesh +0x1e4), zero vector when out of range, used by character_update_footsteps
+0x51adc0  character_instance__get_bounding_sphere func  vsdk\ca              O ; thiscall (&centre, &radius) from the mesh header (+0x28): centre +0x50, radius +0x5c
+0x51ae90  character_instance__set_state_weight func  vsdk\ca              O ; thiscall (anim, weight) only for state skeletons (+0x5c), weight > 0 makes it the dominant state (+0x5c of the instance)
+0x51aee0  character_instance__start_anim func  vsdk\ca              O ; thiscall (anim, weight, is_action): stop, weight +0x44, time = skeleton start +0x60, action index +0x54
+0x51b000  character_instance__get_anim_time_left func  vsdk\ca              I ; thiscall (anim): skeleton end +0x64 minus current time, 0 when inactive
+0x51b070  character_instance__get_anim_elapsed func  vsdk\ca              O ; thiscall (anim): (time - skeleton start) converted to seconds, 0 when the weight is 0
+0x51b0c0  character_instance__get_anim_length func  vsdk\ca              O ; thiscall (anim): max(end - start, 0) of the skeleton in seconds
+0x51b100  character_instance__clear_state_anims func  vsdk\ca              O ; zeroes the weights of all state skeletons, dominant state +0x5c = -1
+0x51b140  character_instance__clear_action_anims func  vsdk\ca              O ; zeroes the weights of all non-state skeletons
+0x51b1c0  character_instance__stop_anim func  vsdk\ca              O ; thiscall (anim): weight 0, clears the action index +0x58 if it was this anim
+0x51b250  character_instance__get_anim_root_speed func  vsdk\ca              I ; thiscall (anim): length of skeleton__get_root_velocity for state skeletons
+0x51b290  character_instance__anim_trigger_hit func  vsdk\ca              I ; thiscall (name, ...) checks the 5 trigger slots (+0xa8) of the current action skeleton (+0xb0), used by character_update_footsteps
+0x51b330  character_instance__page_in_textures func  vsdk\ca              O ; gr_page_in every texture of the mesh with progress_update, caller level_page_in_characters
 0x51b4a0  character_instance__report_memory func  vsdk\ca\character_instance.cpp I ; mem_report_line "cur time", "anim pct", "bone info", "TOTAL"
+0x51b560  ca_system_init           func  vsdk\ca              I ; LoadSettings: empty stub, ca_init(arg), then resets the skeleton read state (0x544a10)
+0x51b580  ca_system_close          func  vsdk\ca              I ; empty stub, ca_close, empty stub
 0x51b5d0  init_ccmd_high_lod       func  -                    O ; static initialiser: registers console command object ccmd_high_lod
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
+0x51b6c0  matrix43__copy           func  vsdk\math            O ; rep movsd of 12 dwords (0x30 bytes)
+0x51b700  vector3__negated         func  vsdk\math            O ; (&out) returns (-x, -y, -z)
+0x51b750  imax                     func  -                    O ; (a, b) larger int, counterpart of imin (0x503dc0)
+0x51b760  InetGetFile__AbortGet    func  -                    I ; FreeSpace 2 style InetGetFile: http_abort_get or the ftp getter (+0x8 selects http +4 / ftp +0)
+0x51b780  InetGetFile__InetGetFile func  -                    I ; (url, local file) "http:" -> http_get_create, "ftp:" -> ftp_get_create, error flag +0x14, callers version_check_fetch, pxo_load_chat_banners
+0x51b960  InetGetFile__dtor        func  -                    I ; deletes the http (+4) and ftp (+0) getters
+0x51b980  InetGetFile__IsConnecting func  -                    I ; getter status == 3
+0x51b9b0  InetGetFile__IsReceiving func  -                    I ; getter status == 0xb
+0x51b9e0  InetGetFile__IsFileReceived func  -                    I ; getter status == 0xc
+0x51ba10  InetGetFile__IsFileError func  -                    I ; error flag +0x14, else a table over getter states 0..0xf
+0x51bb30  http_get__scalar_deleting_dtor func  -                    O ; http_get_destroy then operator delete
+0x51bb50  ftp_get__scalar_deleting_dtor func  -                    O ; ftp_get_destroy then operator delete
 0x51bd70  init_ccmd_show_effect_mem func  -                    O ; static initialiser: registers console command object ccmd_show_effect_mem
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
+0x51c370  effect_base_release      func  vsdk\geom            I ; (index) clears the loaded data of the 0x14-byte effect base (table 0x2c8f060), streamed bases (kind 3) drop a use count, used by rfx_preload
+0x51c490  effect_base_load         func  vsdk\geom            I ; (index) loads an effect base unless already resident (flag 0x80000000), -1 on failure
+0x51c720  effect_get_base          func  vsdk\geom            I ; (id) effect base for an id through the byte map 0x2c8e7c8, loading it on demand, used by ui_3d_begin and the fx instance code
+0x51c800  effects_get_num_bases    func  vsdk\geom            O ; returns the effect base count 0x2c9f998
+0x51c810  effects_find_base        func  vsdk\geom            O ; (name) _stricmp over the base names (+0x10), index or -1
+0x51c8b0  effect_base_read         func  vsdk\geom            I ; (index) opens the base file by name with File and reads it into its buffer
 0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
+0x51ca60  effects_parse_arr_line   func  vsdk\geom\effect_mem.cpp O ; reads one effects.arr line: name and category preload/cutscene/level/spell/character/summon, only caller effects_load_bases
+0x51ccd0  effects_reset_level      func  vsdk\geom            I ; clears the preload/stream slot tables (-1) and the per-level flag of every base, then effects_init_pools
+0x51cd40  effects_init_pools       func  vsdk\geom            I ; zeroes the effect memory pool counters 0x2c9f978..0x2c9f990, used by effects_load_bases
 0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x51dbb0  effects_load_preload_rfx func  vsdk\geom            O ; finds the base named "preload.rfx" and loads it once (flag 0x2c9f994)
+0x51dc20  effects_release_level_memory func  vsdk\geom            I ; releases every base inside the level effect memory range, callers level_unload
+0x51dc50  effects_release_range    func  vsdk\geom            I ; (start, size) releases every loaded base whose data lies in the range
+0x51e0c0  light_reset_all          func  vsdk\gr              I ; empties the light list 0x2cb4520 and zeroes the 400 x 0x94-byte light array 0x2ca5de0
+0x51e100  light_set_all_disabled   func  vsdk\gr              I ; (bool) sets bit 14 of the flags (+8) of every light in the list, ui_3d_begin/ui_3d_end
+0x51e230  light_set_ambient        func  vsdk\gr              I ; (r, g, b) into 0x5a8904..0x5a890c, bumps the light change counter
+0x51e260  light_get_ambient        func  vsdk\gr              V ; Dash Faction rf::gr::light_get_ambient(float *r, float *g, float *b): reads 0x5a8904..0x5a890c, after padding
+0x51e290  light_create_point       func  vsdk\gr              I ; allocates a light (light_alloc) and sets type 2 (Red Faction LT_POINT) with position and colour
+0x51e360  light_get                func  vsdk\gr              O ; (index) &lights[index], 0x94-byte entries at 0x2ca5de0
+0x51e380  light_alloc              func  vsdk\gr              O ; first light with type 0 among 400, -1 when full
 0x520420  character_instance__render func  vsdk\ca\character_instance.cpp I ; thiscall (?, ?, params): setup_matrices_b, copies tint bytes +0xc9..cb, ca_render_set_instance, picks LOD mesh, ca_render_mesh
 0x5204d0  init_cmdline_param_nosound func  -                    O ; static initialiser: CmdLineParam__CmdLineParam(cmdline_param_nosound, "-nosound")
 0x520570  Sound__params_equal      func  -                    O ; (Sound*, a, b, c) floats +0x28/+0x34/+0x2c equal, used by sound_check_filename
@@ -2794,12 +2842,39 @@
 0x526880  File__sync_String        func  vsdk\vfile           O ; File__read_String or write c_str via File__write_string by mode
 0x5268c0  File__sync_string_buf    func  vsdk\vfile           O ; File__read_string_buf or File__write_string by mode
 0x526900  File__sync_bytes         func  vsdk\vfile           O ; File__read or File__write of n bytes by mode
+0x526940  ui_button__fire_click    func  vsdk\ui              O ; (right): sends event 0xc and state 6 (left) or event 0xd and state 7 (right), only caller ui_button__process
+0x526990  ui_button__set_latched   func  vsdk\ui              O ; (bool) sets/clears flag 0x20 at +0x274, latched buttons draw sunken (ui_button__draw)
+0x5269c0  ui_button__toggle_latched func  vsdk\ui              O ; flips flag 0x20 at +0x274
+0x5269e0  ui_button__is_latched    func  vsdk\ui              O ; false when hidden (+0x1c), else flag 0x20 of +0x274
+0x526a00  ui_button__can_accept_drop func  vsdk\ui              O ; drag and drop (flag 0x10): dragged button (0x2cbfcb8) type mask +0x40c matches +0x410 and +0x414+count <= +0x418
 0x526a50  ui_button__process       func  vsdk\ui              O ; vtable slot 5: input (mouse_is_down)
 0x526f30  ui_button__vfunc0        func  vsdk\ui              I ; ui_button vtable slot 0 (destructor)
 0x526f70  ui_button__ui_button     func  vsdk\ui              O ; constructor (vtable 0x581d88); used by ui_parse_button and static screen initialisers
+0x527050  ui_button__create        func  vsdk\ui              O ; ui_gadget__init with type 2 on a window, then button fields (flags +0x274, state +0x278, repeat timers +0x37c/+0x380)
+0x527100  ui_button__create_in_parent func  vsdk\ui              O ; as ui_button__create but window from the parent gadget, then ui_gadget__set_parent, used by ui_parse_button
+0x5271c0  ui_button__set_tooltip   func  vsdk\ui              O ; (text, x, y, delay) replaces the 0x120-byte tooltip node in the +0x124 list, used by ui_parse_button +Tooltip
+0x527280  ui_button__set_repeats   func  vsdk\ui              O ; (bool) flag 0x2 (+Repeats) at +0x274 and resets the repeat timer +0x37c, after nop padding
+0x5272c0  ui_button__set_text      func  vsdk\ui              O ; strcpy into +0x27c
+0x5272f0  ui_button__was_clicked   func  vsdk\ui              O ; not disabled or hidden and state +0x278 is 6 (left click) or 8
+0x527330  ui_button__was_left_clicked func  vsdk\ui              O ; not disabled or hidden and state +0x278 == 6
+0x527360  ui_button__is_state_8    func  vsdk\ui              I ; state +0x278 == 8 (after padding)
+0x527370  ui_button__is_pressed    func  vsdk\ui              O ; state 1, or 2/3 with mouse over, or repeating and state 6/7, ui_button__draw uses it to draw sunken
+0x5273c0  ui_button__get_flags     func  vsdk\ui              O ; returns +0x274
+0x5273d0  ui_button__get_text      func  vsdk\ui              O ; returns &+0x27c
+0x5273e0  ui_button__get_drag_origin func  vsdk\ui              I ; (&x, &y) screen position minus drag offset +0x384/+0x388
+0x527420  ui_button__press         func  vsdk\ui              O ; state 1 with a 100 ms timer (programmatic click, as in ui_button__process)
+0x527440  ui_button__draw_arrow    func  vsdk\ui              I ; draws a triangle glyph inside the button from flags 0x40/0x80/0x100, only caller ui_button__draw
 0x527690  ui_button__draw          func  vsdk\ui              O ; vtable slot 7: gr_string, state colours
+0x527df0  ui_button__is_selectable func  vsdk\ui              O ; vtable slot 8 of ui_button (0x581d88): shown and not disabled, ui_gadget__find_nearest_* use slot 8 to pick keyboard targets
+0x527e20  ui_static__vfunc0        func  vsdk\ui              O ; vtable slot 0 of ui_static (0x581dac), the destructor: clears the two state bitmaps (+0x38c, +0x3a4), then ui_gadget__dtor
 0x527e50  ui_static__process       func  vsdk\ui              O ; vtable slot 5
 0x527ea0  ui_static__ui_static     func  vsdk\ui              O ; constructor (vtable 0x581dac); used by ui_parse_static
+0x527f10  ui_static__create        func  vsdk\ui              O ; ui_gadget__init with type 3, static fields (+0x374 justification, +0x378 font)
+0x527fa0  ui_static__set_tooltip   func  vsdk\ui              O ; same tooltip node code as ui_button__set_tooltip, used by ui_parse_static
+0x528060  ui_static__set_text      func  vsdk\ui              O ; strcpy into +0x274
+0x528090  ui_static__get_text      func  vsdk\ui              O ; returns &+0x274 (after padding)
+0x5280a0  ui_static__set_justification func  vsdk\ui              I ; (h, v) into +0x374/+0x378 (after padding)
+0x5280c0  ui_static__set_text_offset func  vsdk\ui              I ; (x, y) into +0x37c/+0x380 when both >= 0 (after padding)
 0x5280e0  ui_static__draw          func  vsdk\ui              O ; vtable slot 7: gr_rect, gr_string with justification
 0x528430  ui_parse_hotkey          func  vsdk\ui\window.cpp     I ; optional Shift/Ctrl/Alt prefixes, then the key name
 0x528530  ui_parse_button          func  vsdk\ui\window.cpp     I ; $Position $Size $Drag and drop $Repeats $Always use face color $Use right mouse button $Text $Font $Hotkey $Hotspot $State bitmap (Normal/Highlighted/Pressed/Disabled) $Tooltip
@@ -2810,40 +2885,160 @@
 0x529d70  ui_parse_radio_button    func  vsdk\ui\window.cpp     I
 0x52a180  ui_parse_slider          func  vsdk\ui\window.cpp     I ; $Horizontal $Dot slider $Marker bitmap/size/position $Left/Right/Up/Down button
 0x52a700  ui_parse_static          func  vsdk\ui\window.cpp     I ; $Horizontal/Vertical justification $Text $Font $State bitmap
+0x52abc0  ui_window__clear_bitmaps func  vsdk\ui              O ; mask +0x4d0 and background +0x4d4 handles = -1
+0x52abf0  ui_window__handle_arrow_key func  vsdk\ui              O ; DIK_UP/LEFT/RIGHT/DOWN (0xc8-0xd0) move the selected gadget (+0x4cc) with ui_window__nav_*
+0x52aea0  ui_window__nav_up        func  vsdk\ui              O ; ui_gadget__find_nearest_up on the gadget list, wraps from the bottom when window flag 0x8
+0x52aef0  ui_window__nav_down      func  vsdk\ui              O ; ui_gadget__find_nearest_down, wraps from the top when flag 0x8
+0x52af40  ui_window__nav_left      func  vsdk\ui              O ; ui_gadget__find_nearest_left, wraps when flag 0x8
+0x52af90  ui_window__nav_right     func  vsdk\ui              O ; ui_gadget__find_nearest_right, wraps when flag 0x8
+0x52aff0  ui_window__send_event    func  vsdk\ui              O ; vtable slot 1: calls the callback at +0x244 (event, value, 0xfffe7961 = use id +0x120), after padding
 0x52b020  ui_window__ui_window     func  vsdk\ui\window.cpp   I ; constructor (vtable 0x581df4, 5 slots); base 0x52c3f0 + member 0x542d20; one per screen (static initialisers)
 0x52b0a0  ui_window__dtor          func  vsdk\ui\window.cpp   I ; destructor counterpart of ui_window__ui_window
+0x52b100  ui_window__init          func  vsdk\ui              O ; (x, y, w, h, flags, id) ui_element__init kind 1, gadget lists, inserts into the window list (modal flag 0x20 on top)
 0x52b200  ui_load_table            func  vsdk\ui\window.cpp     I ; "unable to open UI table file %s"; $Position $Size $Name, then widgets ($Allow arrows, $Always a selection, ...)
+0x52b630  ui_window__destroy       func  vsdk\ui              O ; deletes all gadgets (owned ones with operator delete), unlinks the window, deferred with flag 0x80000000 while processing
+0x52b700  ui_window__get_flags     func  vsdk\ui              O ; returns +0x248
+0x52b710  ui_window__set_tooltip   func  vsdk\ui              O ; adds a 0x120-byte tooltip node to +0x124, used by ui_load_table
+0x52b7a0  ui_window__get_selected_gadget func  vsdk\ui              O ; returns +0x4cc (keyboard selection used by the arrow keys), after padding
+0x52b7b0  ui_window__get_mouse_over_gadget func  vsdk\ui              O ; returns +0x4c8, after padding
+0x52b7c0  ui_window__contains_point func  vsdk\ui              O ; (x, y) inside x/y/w/h and not disabled
+0x52b800  ui_window__gadget_at     func  vsdk\ui              O ; (x, y) ui_gadget__hit_test over the top-level gadgets (+0x4c4)
+0x52b850  ui_window__find_gadget_by_id func  vsdk\ui              O ; walks the gadget list for id +0x120
+0x52b890  ui_window__find_gadget_by_name func  vsdk\ui              O ; _stricmp against the name at +0x1e, after padding
 0x52b8e0  ui_window_load_a         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2532)
+0x52b930  ui_window__set_mask_bitmap func  vsdk\ui              O ; unlocks the old +0x4d0, stores the new handle and gets its size, used by ui_window_load_a
 0x52b970  ui_window_load_b         func  vsdk\ui\window.cpp     I ; "Could not load in \"%s\"!" (line 2599)
+0x52b9c0  ui_window__set_background_bitmap func  vsdk\ui              O ; stores +0x4d4 and gets its size, used by ui_window_load_b
+0x52b9f0  ui_window__draw          func  vsdk\ui              O ; background bitmap stretched to the window, else border style (flags & 3) with gr_rect, then the gadgets
+0x52bc20  ui_window__process       func  vsdk\ui              O ; mouse delta/buttons, gadget under the mouse, keyboard navigation (ui_window__handle_arrow_key)
+0x52be90  ui_window__get_mask_pixel func  vsdk\ui              O ; (x, y) byte from mask data +0x4d8, -1 outside
+0x52bee0  ui_window__is_hidden     func  vsdk\ui              O ; true if a shown modal (flag 0x20) window is above it, else ui_element__is_hidden
+0x52bf30  ui_window__is_shown      func  vsdk\ui              O ; inverse of ui_window__is_hidden
+0x52bf80  ui_window__is_disabled   func  vsdk\ui              I ; true if its group +0x24c is not the current group (0x2cbfcc8), else ui_element__is_disabled
 0x52bfa0  ui_slider__ui_slider     func  vsdk\ui              O ; constructor (vtable 0x581dd0); used by ui_parse_slider and the list-box scrollbars (0x52d650)
+0x52bfc0  ui_gadget__scalar_deleting_dtor func  vsdk\ui              O ; ui_gadget__dtor_base then operator delete when flag 1
 0x52bfe0  ui_gadget__unlink        func  vsdk\ui              O ; removes gadget from parent child list (+0x26c/+0x270) or window list (+0x4c4)
+0x52c040  ui_gadget__init          func  vsdk\ui              O ; (window, type, x, y, w, h, id, owned): ui_element__init, links into the window list, type +0x254, owned flag +0x248, types 1 container 2 button 3 static 4 checkbox 5 radio 6 inputbox 8 listbox
+0x52c0f0  ui_gadget__find_nearest_up func  vsdk\ui              O ; (x, y) recursive over siblings/children: nearest enabled gadget above the point, result in 0x2cbf554 (distance 0x2cbf558)
+0x52c180  ui_gadget__find_nearest_down func  vsdk\ui              O ; as ui_gadget__find_nearest_up for gadgets below the point
+0x52c210  ui_gadget__find_nearest_left func  vsdk\ui              O ; as ui_gadget__find_nearest_up for gadgets left of the point
+0x52c2a0  ui_gadget__find_nearest_right func  vsdk\ui              O ; as ui_gadget__find_nearest_up for gadgets right of the point
 0x52c330  ui_gadget__send_event    func  vsdk\ui              I ; vtable slot 1 (event, value; 0xfffe7961 = use +0x120): +0x244 callback, else parent (+0x268) or window (+0x25c) slot 1
+0x52c390  ui_gadget__process_children func  vsdk\ui              O ; (key) unless hidden, calls slot 5 on each child
 0x52c3d0  ui_gadget__dtor          func  vsdk\ui              I ; clears ui_current_gadget if it is this; window = 0; then 0x542cd0
 0x52c3f0  ui_gadget__ui_gadget     func  vsdk\ui              O ; base constructor (vtable 0x581e08), called by every widget constructor
 0x52c410  ui_gadget__dtor_base     func  vsdk\ui              I ; base destructor counterpart
 0x52c420  ui_gadget__get_screen_x  func  vsdk\ui              O ; (offset) x (+0xc) plus parents x, plus window x
 0x52c460  ui_gadget__get_screen_y  func  vsdk\ui              O ; (offset) y (+0x10) plus parents y, plus window y
+0x52c4a0  ui_gadget__is_owned      func  vsdk\ui              O ; byte +0x248, ui_window__destroy deletes owned gadgets with operator delete
 0x52c4b0  ui_gadget__is_hidden     func  vsdk\ui              I ; true without window, or when window flag +0x1c or any parent is hidden
 0x52c4f0  ui_gadget__is_shown      func  vsdk\ui              I ; inverse of ui_gadget__is_hidden
-0x52c530  ui_gadget__is_blocked    func  vsdk\ui              I ; vtable slot 4: true if the window or parent says so (their slot 4), else 0x543000; probably disabled/hidden
+0x52c530  ui_gadget__is_disabled   func  vsdk\ui              I ; vtable slot 4: true if the window or parent is disabled, else the byte at +0x1d (0x543000) (formerly ui_gadget__is_blocked)
 0x52c570  ui_gadget__set_parent    func  vsdk\ui              O ; ui_gadget__unlink then pushes onto parent child list or window gadget list
 0x52c5c0  ui_gadget__get_window    func  vsdk\ui              O ; returns +0x25c
 0x52c5d0  ui_gadget__get_parent    func  vsdk\ui              O ; returns +0x268 (after nop padding, not in Ghidra list)
+0x52c5e0  ui_gadget__get_first_child func  vsdk\ui              O ; returns +0x26c
+0x52c5f0  ui_gadget__get_next_sibling func  vsdk\ui              O ; returns +0x270
 0x52c600  ui_gadget__set_focus     func  vsdk\ui              O ; sends event 4 to ui_current_gadget, event 3 to this, sets ui_current_gadget
 0x52c630  ui_gadget__clear_focus   func  vsdk\ui              O ; if focused: ui_current_gadget = NULL, event 4
+0x52c660  ui_gadget__is_selected   func  vsdk\ui              O ; window +0x4cc == this (keyboard selection)
+0x52c670  ui_gadget__is_mouse_over func  vsdk\ui              O ; window +0x4c8 == this, ui_button__process fires on it with the mouse buttons
+0x52c680  ui_gadget__get_type      func  vsdk\ui              O ; returns +0x254 (1 container, 2 button, 3 static, 4 checkbox, 5 radio button, 6 inputbox, 8 listbox)
 0x52c690  ui_gadget__set_hotkey    func  vsdk\ui              O ; (key, slot) hotkeys[2] at +0x24c, called by ui_parse_*
+0x52c6b0  ui_gadget__clear_hotkeys func  vsdk\ui              O ; both hotkey slots at +0x24c = -1
 0x52c6c0  ui_gadget__has_hotkey    func  vsdk\ui              O ; key matches one of the two hotkey slots, used by *_process
 0x52c6f0  ui_gadget__vfunc6        func  vsdk\ui              I ; vtable slot 6 (a, b): forwarded to the parent's slot 6, else 0x52be90 on the window
+0x52c730  ui_gadget__hit_test      func  vsdk\ui              O ; (x, y) children first, then own rect and slot 6, returns the gadget under the point
+0x52c800  ui_gadget__set_hotspot   func  vsdk\ui              O ; +0x258 = max(arg, 0), used by ui_parse_button +Hotspot
+0x52c820  ui_gadget__clear_hotspot func  vsdk\ui              O ; +0x258 = 0, after padding
+0x52c830  ui_gadget__get_hotspot   func  vsdk\ui              O ; returns +0x258, after padding
 0x52c840  ui_gadget__draw_children func  vsdk\ui              I ; unless vfunc +0x10, calls child vfunc +0x1c for each child, then event 2
-0x52c880  ui_gadget__vfunc8        func  vsdk\ui              I ; vtable slot 8: returns false
-0x52c890  ui_gadget__vfunc2        func  vsdk\ui              I ; vtable slot 2 (x): 0x542f10(x), then 0x52c8f0 if slot 4
-0x52c8c0  ui_gadget__vfunc3        func  vsdk\ui              I ; vtable slot 3 (x): 0x542f70(x), then 0x52c8f0 if slot 4
+0x52c880  ui_gadget__is_selectable func  vsdk\ui              I ; vtable slot 8: false in the base class (formerly ui_gadget__vfunc8)
+0x52c890  ui_gadget__set_disabled  func  vsdk\ui              I ; vtable slot 2 (bool): 0x542f10 sets +0x1d, then 0x52c8f0 (formerly ui_gadget__vfunc2)
+0x52c8c0  ui_gadget__set_enabled   func  vsdk\ui              I ; vtable slot 3 (bool): 0x542f70 clears +0x1d, then 0x52c8f0 (formerly ui_gadget__vfunc3)
+0x52c8f0  ui_gadget__clear_window_refs func  vsdk\ui              O ; clears window +0x4c8/+0x4cc if they point at this gadget
+0x52c930  ui_state_bitmap__ui_state_bitmap func  vsdk\ui              O ; 0x18-byte state bitmap: +0 state, +4 bitmap -1, +0x14 ring link, button states Normal/Highlighted/Pressed/Disabled/Drag at +0x394..+0x3f4
+0x52c950  ui_state_bitmap__dtor    func  vsdk\ui              O ; jumps to ui_state_bitmap__clear
+0x52c960  ui_state_bitmap__link    func  vsdk\ui              O ; inserts into another state bitmap ring (+0x14), used by ui_button__ui_button
+0x52c970  ui_state_bitmap__clear   func  vsdk\ui              O ; state = 0
+0x52c980  ui_state_bitmap__set     func  vsdk\ui              O ; (bitmap) state 1, +4 = handle, used by ui_parse_button/ui_parse_static $State bitmap
+0x52c9a0  ui_state_bitmap__draw    func  vsdk\ui              O ; (x, y, ..., clip) gr__set_clip and bitmap, false when not set
+0x52ca60  ui_listbox_entry__wrap_text func  vsdk\ui              I ; (width, callback, ...) gr_font_fit_string over the entry text, counts lines (+0x2c) and height (+0x18)
+0x52cb70  ui_listbox_entry__line_top func  vsdk\ui              O ; (line) y + line * (font height + spacing +0x24)
+0x52cba0  ui_listbox_entry__line_bottom func  vsdk\ui              O ; (line) as line_top plus one font height
+0x52cbd0  ui_listbox_entry__line_at_y_rounded func  vsdk\ui              I ; (y) line index clamped to the line count, rounded with the spacing
+0x52cc20  ui_listbox_entry__line_at_y func  vsdk\ui              O ; (y) (y - top) / line height, clamped to 0..lines-1
+0x52cc60  ui_listbox__layout_entry func  vsdk\ui              O ; (entry, y) wraps the entry text to the view width (or 999999 without wrap)
+0x52cca0  ui_listbox__is_entry_visible func  vsdk\ui              O ; entry overlaps the view (scroll y +0x2c8, view height)
+0x52cce0  ui_listbox__is_entry_fully_visible func  vsdk\ui              O ; entry top and bottom are inside the view
+0x52cd20  ui_listbox__is_entry_bottom_visible func  vsdk\ui              O ; scroll y + view height >= entry bottom
+0x52cd50  ui_listbox__update_vscrollbar func  vsdk\ui              O ; sets the range of the scrollbar at +0x310 from the content height
+0x52cd70  ui_listbox__update_hscrollbar func  vsdk\ui              O ; sets the range of the scrollbar at +0x314 from the content width
+0x52cd90  ui_listbox__recalc_content_size func  vsdk\ui              O ; assigns entry y offsets with spacing +0x2cc, max width +0x2a8, total height +0x2ac
+0x52ce20  ui_listbox__entry_at     func  vsdk\ui              O ; (x, y, clamp) entry containing the content point
+0x52ced0  ui_listbox__entry_at_y   func  vsdk\ui              O ; (y) first entry whose bottom is below y
+0x52cf10  ui_listbox__relayout_dirty func  vsdk\ui              O ; re-wraps entries with the dirty flag (+4), then recalc size and both scrollbars
+0x52cf70  ui_listbox__sync_scrollbars func  vsdk\ui              O ; arrow buttons and positions of the scrollbars at +0x310/+0x314 into the scroll offsets
 0x52d080  ui_listbox__process      func  vsdk\ui              O ; vtable slot 5: keys (key_to_ascii) and mouse
-0x52d4a0  ui_set_text              func  vsdk\ui                I ; replaces over-long text with "text too long for pc version"
+0x52d420  ui_listbox__vfunc0       func  vsdk\ui              O ; vtable slot 0 of ui_listbox (0x581e34), the destructor: deletes all entries, then ui_gadget__dtor
+0x52d480  ui_listbox_text_entry__ui_listbox_text_entry func  vsdk\ui              O ; 0x13c-byte entry (vtable 0x581e2c), text buffer at +0x3c, text pointer +0x30
+0x52d4a0  ui_listbox_text_entry__set_text func vsdk\ui                I ; list-box text entry (vtable 0x581e2c) set_text; replaces over-long text with "text too long for pc version" (formerly ui_set_text)
+0x52d4f0  ui_listbox_entry__line_at_y_or_none func  vsdk\ui              O ; (y) line index, -1 outside the entry
+0x52d540  ui_listbox_entry__ui_listbox_entry func  vsdk\ui              O ; 0x3c-byte base entry (vtable 0x581e30), font +0x28 = -1, data +0x34 = -1
+0x52d560  ui_listbox_entry__dtor   func  vsdk\ui              O ; restores vtable 0x581e30
+0x52d570  ui_listbox_entry__set_indent func  vsdk\ui              I ; +0x1c (subtracted from the wrap width), marks dirty, after padding
+0x52d590  ui_listbox_entry__set_line_spacing func  vsdk\ui              O ; +0x24 (added to the font height per line), marks dirty, after padding
+0x52d5a0  ui_listbox_entry__set_font func  vsdk\ui              O ; +0x28, marks dirty
+0x52d5b0  ui_listbox_entry__set_text func  vsdk\ui              O ; vtable slot 0 of the base entry (0x581e30): stores the text pointer +0x30, the text entry (0x581e2c) overrides it with ui_listbox_text_entry__set_text (0x52d4a0), after padding
 0x52d5c0  ui_listbox__ui_listbox   func  vsdk\ui              O ; constructor (vtable 0x581e34); used by ui_parse_listbox
+0x52d650  ui_listbox__create       func  vsdk\ui              O ; ui_gadget__init with type 8, listbox fields (scroll +0x2c4/+0x2c8, entry list +0x2d4)
+0x52d7e0  ui_listbox__set_tooltip  func  vsdk\ui              O ; same tooltip node code as ui_button__set_tooltip, used by ui_parse_listbox
+0x52d8a0  ui_listbox__get_selected func  vsdk\ui              O ; returns +0x2b4
+0x52d8b0  ui_listbox__select_by_data func  vsdk\ui              O ; (data, scroll) finds the entry with +0x34 == data and selects it
+0x52d8f0  ui_listbox__select_by_text func  vsdk\ui              O ; (text, scroll) ui_listbox__find_by_text then select
+0x52d920  ui_listbox__select_entry func  vsdk\ui              O ; (entry, scroll_into_view) +0x2b4 = entry, scrolls it into view (bottom aligned with flag 0x80)
+0x52d9a0  ui_listbox__clear_selection func  vsdk\ui              O ; +0x2b4 = 0
+0x52d9b0  ui_listbox__find_by_text func  vsdk\ui              O ; strcmp of the entry text (+0x30)
+0x52da40  ui_listbox__add_entry    func  vsdk\ui              O ; allocates a base entry (flag 0x400) or a text entry and appends it
+0x52dc30  ui_listbox__clear        func  vsdk\ui              O ; removes and deletes all entries, resets selection, size and scroll
+0x52dd00  ui_listbox__remove_entry func  vsdk\ui              O ; (entry) unlinks and deletes it, fixes selection, size and scrollbars
+0x52dde0  ui_listbox__select_prev  func  vsdk\ui              O ; previous entry, or scroll a line up in no-selection mode (flag 0x8)
+0x52deb0  ui_listbox__select_next  func  vsdk\ui              O ; next entry, or scroll a line down in no-selection mode (flag 0x8)
+0x52df90  ui_listbox__scroll_left  func  vsdk\ui              O ; horizontal scroll -= step +0x2d0
+0x52dfb0  ui_listbox__scroll_right func  vsdk\ui              O ; horizontal scroll += step +0x2d0
+0x52dfd0  ui_listbox__select_page_up func  vsdk\ui              O ; scrolls a page up and selects the entry at the new top, event 0x18
+0x52e050  ui_listbox__select_page_down func  vsdk\ui              O ; scrolls a page down and selects the entry at the new bottom
+0x52e110  ui_listbox__scroll_line_up func  vsdk\ui              O ; scrolls so the line above the view becomes visible
+0x52e290  ui_listbox__scroll_line_down func  vsdk\ui              O ; scrolls so the line below the view becomes visible
+0x52e380  ui_listbox__scroll_page_up func  vsdk\ui              O ; scroll y -= view height, clamped
+0x52e590  ui_listbox__scroll_page_down func  vsdk\ui              O ; scroll y += view height, clamped
+0x52e870  ui_listbox__scroll_page_right func  vsdk\ui              O ; horizontal scroll += view width, clamped
+0x52e8c0  ui_listbox__scroll_page_left func  vsdk\ui              O ; horizontal scroll -= view width, clamped at 0
+0x52e8f0  ui_listbox__get_hscroll_fraction func  vsdk\ui              O ; float scroll x / (content width - view width), after padding
+0x52ea00  ui_listbox__set_hscroll  func  vsdk\ui              O ; (x) clamped into +0x2c4 and the scrollbar at +0x314
+0x52ea50  ui_listbox__set_vscroll  func  vsdk\ui              O ; (y, force) clamped, snapped to entry edges, into +0x2c8
+0x52eb20  ui_listbox__snap_scroll_top func  vsdk\ui              I ; (y) snaps a scroll position to an entry top, used by ui_listbox__set_vscroll
+0x52ebe0  ui_listbox__snap_scroll_bottom func  vsdk\ui              I ; (y) snaps so an entry bottom meets the view bottom (flag 0x80)
+0x52f020  ui_listbox__get_view_width func  vsdk\ui              O ; width minus 2 * border +0x2bc
+0x52f030  ui_listbox__get_view_height func  vsdk\ui              O ; height minus 2 * border +0x2c0
+0x52f040  ui_listbox__get_content_width func  vsdk\ui              O ; returns +0x2a8
+0x52f050  ui_listbox__get_content_height func  vsdk\ui              O ; returns +0x2ac
+0x52f060  ui_listbox__is_empty     func  vsdk\ui              O ; entry list empty, after padding
 0x52f080  ui_listbox__draw         func  vsdk\ui              O ; vtable slot 7: entries with gr_string/gr_bitmap inside a clip
+0x52f400  ui_listbox_entry__scalar_deleting_dtor func  vsdk\ui              O ; ui_listbox_entry__dtor then operator delete
+0x52f420  ui_listbox_text_entry__scalar_deleting_dtor func  vsdk\ui              O ; ui_listbox_text_entry__dtor then operator delete
+0x52f440  ui_listbox_text_entry__dtor func  vsdk\ui              O ; jumps to ui_listbox_entry__dtor
 0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
 0x52f540  build_stamp_get_name     func  vsdk\ui                I ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.")
+0x52f720  ui_play_sound            func  vsdk\ui              O ; (index) snd_play of the UI sound table at 0x2cbf684 (falls back to entry 1), used by button/listbox/radio processing
+0x52f760  ui_init                  func  vsdk\ui              I ; one-time UI setup (guard 0x2cbfcd0): empty window list (sentinel 0x2cbf718), sound table -1, default colours, called by LoadSettings and ui_window__init
+0x52ff30  ui_draw                  func  vsdk\ui              O ; ui_window__draw for every window in the list, optional callback, then the tooltip of the gadget under the mouse
+0x530330  ui_process               func  vsdk\ui              O ; reads mouse_was_pressed/released into the UI globals and processes the windows (ui_window__process)
+0x530910  ui_push_group            func  vsdk\ui              O ; ++0x2cbfcc8 (windows of other groups report disabled, ui_window__is_disabled)
+0x530920  ui_pop_group             func  vsdk\ui              O ; --0x2cbfcc8
+0x530930  ui_find_gadget_by_name   func  vsdk\ui              O ; ui_window__find_gadget_by_name over all windows, after padding
+0x530970  ui_get_top_modal_window  func  vsdk\ui              O ; first shown, enabled window with the modal flag 0x20
+0x530b80  ui_window__get_mask_data func  vsdk\ui              O ; returns +0x4d8
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530c00  os_get_main_wnd          func  vsdk\os                O ; returns main_wnd (0x2cbff10), as Dash Faction rf::main_wnd
 0x530c10  os_foreground            func  vsdk\os                O ; Dash Faction rf::os_foreground; returns 0x2cbff1c
@@ -2889,6 +3084,7 @@
 0x5355e0  gr_d3d_zbuffer_clear     func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535670  gr_d3d_set_viewport      func  vsdk\gr\directx\gr_direct3d.cpp I
 0x5356d0  gr_d3d_bitmap            func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535ce0  gr_d3d_set_bitmap        func  vsdk\gr\directx\gr_direct3d.cpp I ; (mode, bitmap) gr_d3d_tcache_set for bitmap >= 0, then the render mode (0x534a40), used by gr_d3d_bitmap/line/line_3d
 0x535d10  gr_d3d_set_color         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535da0  gr_d3d_line              func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535fd0  gr_d3d_line_3d           func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of gr_line_3d, uses gr_color, gr_tint_enabled, gr_calc_depth
@@ -2906,6 +3102,7 @@
 0x5386b0  init_cmdline_param_vertexfog func  -                    O ; static initialiser: CmdLineParam "-vertexfog"
 0x538700  init_cmdline_param_rz    func  -                    O ; static initialiser: CmdLineParam "-rz"
 0x538740  gr_d3d_set_render_state  func  vsdk\gr\directx\gr_direct3d.cpp O ; IDirect3DDevice7::SetRenderState (vtbl +0x50) on device 0x2dc6c40
+0x538850  d3d_enumerate_ddraw_devices func  vsdk\gr\directx\gr_direct3d.cpp O ; DirectDrawEnumerateA with callback 0x5389f0, collects the device list (count 0x2dc6cac), caller gr_d3d_init_device
 0x538c70  ddraw_error_string       func  -                    O ; DirectDraw HRESULT -> message text
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x539590  gr_d3d_begin_scene       func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::BeginScene
@@ -2949,8 +3146,12 @@
 0x53f410  gr_bitmap_3d_oriented    func  vsdk\gr              I ; same entry pattern as gr_bitmap_3d but draws through 0x53edd0 (quad with gr_check_normal_facing)
 0x540970  character_add_skeleton   func  vsdk\ca\character.cpp  O ; "No more room for skeletons in character %s -- see allender"; from the preload index or a File, then skeleton_read
 0x540b80  character_free_skeletons func  vsdk\ca\character.cpp O ; thiscall: unless flag 8 at +0x44, deletes the +0x48 skeletons at +0x54 (skeleton__scalar_deleting_dtor), count = 0
+0x540bd0  character_free_skeleton  func  vsdk\ca\character.cpp O ; thiscall (index): deletes skeleton +0x54[index] unless flag 8, shrinks the count +0x48 when it was the last, caller statscreen_unload_anim
 0x540c10  character_lock_skeleton_count func  vsdk\ca\character.cpp I ; thiscall: once (flag 0x10 at +0x44) saves the skeleton count +0x48 into +0x4c
+0x540c30  character_unlock_skeleton_count func  vsdk\ca\character.cpp O ; counterpart of character_lock_skeleton_count: frees skeletons above the saved count +0x4c, restores +0x48, clears flag 0x10
+0x540c80  character_add_skeleton_trigger func  vsdk\ca\character.cpp O ; thiscall (skeleton, name, time): first free of the 5 trigger slots at skeleton +0xa8 (name in the ca string pool, time scaled to ticks)
 0x540df0  character_load_shadow    func  vsdk\ca\character.cpp  O ; "ATTEMPTING TO LOAD", "SHADOW LOADED" / "SHADOW FAILED TO LOAD"; vim_load
+0x540f70  character_find_mesh_tag  func  vsdk\ca              I ; thiscall (name): _stricmp over the 0xa0-byte tags of the current mesh (+0x1e4), used by living_entity_setup_head
 0x541160  character_reload_mesh    func  vsdk\ca\character.cpp I ; saves texture handles (vim_save_bitmaps), resets the character mempool, character_load_shadow, restores them, caller 0x4628a0
 0x541240  character_replace_texture func  vsdk\ca\character.cpp O ; thiscall (index, file): bm_replace_file on texture[index] of the mesh at +0x1e4, caller character_set_underwear_textures
 0x541270  character_get_lod_index  func  vsdk\ca\character.cpp O ; thiscall: index of the current mesh +0x1e4 in the two LOD meshes at +0x1e8, -1 if none
@@ -2977,15 +3178,40 @@
 0x5424e0  GetFilePart              func  exceptionhandler       O ; text after the last backslash
 0x5426e0  frand                    func  -                    O ; rand() * (1/32768): uniform 0..1
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
+0x542cd0  ui_element__free_tooltips func  vsdk\ui              O ; deletes every node of the +0x124 tooltip list, valid byte +4 = 0, called by ui_gadget__dtor and ui_window__destroy
+0x542d20  ui_element__ui_element   func  vsdk\ui              O ; common base of ui_window and ui_gadget (vtable 0x581ea0), empty tooltip list at +0x124
+0x542d40  ui_element__dtor         func  vsdk\ui              O ; vtable 0x581ea0, ui_element__free_tooltips
+0x542da0  ui_element__init         func  vsdk\ui              O ; (kind, x, y, w, h, id): kind +8 (1 window, 0 gadget), rect +0xc..+0x18, id +0x120 (auto ids count down from 0x5ac8dc), name +0x1e, callback +0x244
+0x542e10  ui_element__get_kind     func  vsdk\ui              O ; returns +8 (1 = window), ui_parse_* use it on the parent
+0x542e20  ui_element__set_position func  vsdk\ui              O ; (x, y) into +0xc/+0x10, after padding
+0x542e40  ui_element__get_position func  vsdk\ui              O ; (&x, &y) from +0xc/+0x10
+0x542e60  ui_element__set_size     func  vsdk\ui              O ; (w, h) into +0x14/+0x18
+0x542e80  ui_element__get_size     func  vsdk\ui              O ; (&w, &h) from +0x14/+0x18
+0x542ea0  ui_element__set_hidden   func  vsdk\ui              O ; +0x1c = arg, hiding the focused gadget sends event 4 and clears ui_current_gadget
+0x542ed0  ui_element__set_visible  func  vsdk\ui              O ; +0x1c = !arg, same focus handling
+0x542f10  ui_element__set_disabled func  vsdk\ui              O ; +0x1d = arg, event 9 (disabled) or 0xa (enabled), vtable slot 2
+0x542f70  ui_element__set_enabled  func  vsdk\ui              O ; +0x1d = !arg, event 9 or 0xa, vtable slot 3
+0x542fe0  ui_element__is_hidden    func  vsdk\ui              O ; returns +0x1c
+0x542ff0  ui_element__is_shown     func  vsdk\ui              O ; !+0x1c
+0x543000  ui_element__is_disabled  func  vsdk\ui              O ; returns +0x1d
+0x543010  ui_tooltip__scalar_deleting_dtor func  vsdk\ui              O ; 0x120-byte tooltip node: empty dtor then operator delete
+0x543040  vim_alloc                func  vsdk\ca\skeleton.cpp O ; operator_new(0x68) vim, flag 8 at +0x2c when the mempool is active
+0x5430b0  vim_free                 func  vsdk\ca\skeleton.cpp O ; (vim*) deletes data +4 and the vim unless flag 8 (mempool), callers character_unload
+0x5430e0  vim_write_cache          func  vsdk\ca\skeleton.cpp I ; (name, ...) writes a ".vim" file through File (version 6 header via vim_write_header)
+0x543230  vim_write_header         func  vsdk\ca\skeleton.cpp O ; (vim*, File*) version 6, counts, uint16, bounding centre/radius
+0x5433d0  vim_read_header          func  vsdk\ca\skeleton.cpp O ; (FileReader*, hdr*) version (>= 6), counts, uint16, centre vector, radius float, int
 0x543430  vim_read                 func  vsdk\ca\skeleton.cpp   I ; mesh body: vertices, faces, materials; textures through bm_load
+0x5438b0  vim_load_file            func  vsdk\ca\skeleton.cpp I ; vim_alloc, vim_read_header (fails below version 6), then the body, used by vim_load
 0x543920  vim_load                 func  vsdk\ca\skeleton.cpp   O ; "VIF LOADING: %s", "Unable to load vim: %s"
 0x543a80  vim_reload_bitmaps       func  vsdk\ca\skeleton.cpp   I ; "RE-LOADING bitmaps for %s" (printed by character_load)
 0x543bd0  vim_save_bitmaps         func  vsdk\ca\skeleton.cpp I ; (vim*) copies its +0x28 texture handles (+0x10) into 0x2ee4524, count in 0x2ee4574
 0x543c00  vim_restore_bitmaps      func  vsdk\ca\skeleton.cpp I ; (vim*) copies the handles saved by vim_save_bitmaps back to +0x10
 0x543c20  vim_find_tag             func  vsdk\ca\skeleton.cpp I ; (vim*, name) index of the 0x60-byte entry (array +0x60, count +0x64) whose name matches (_stricmp), -1
+0x543c70  vim_get_tag_transform    func  vsdk\ca\skeleton.cpp O ; (vim*, index, &matrix43) position +0x54 and orientation +0x44 of the 0x60-byte tag (array +0x60, count +0x64)
 0x543cd0  vim_bitmaps_loaded       func  vsdk\ca\skeleton.cpp O ; (vim*) true when every texture handle (+0x10, count +0x28) is > 0, caller character_load
 0x543d50  skeleton_add             func  vsdk\ca\skeleton.cpp   O ; "Too many skeletons"
 0x543e10  skeleton__dtor           func  vsdk\ca\skeleton.cpp I ; frees skeleton arrays, only called by skeleton__scalar_deleting_dtor
+0x543fc0  skeleton__get_root_velocity func  vsdk\ca\skeleton.cpp I ; thiscall (&out): root displacement vector +0x68 divided by the duration (end +0x64 - start +0x60) in seconds
 0x544090  skeleton_read            func  vsdk\ca\skeleton.cpp   O ; "FILE ISN'T MVFREDUCED AND HAS MORPHING!!!", "Skeletons using too much memory"
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544ba0  StringPool__Allocate     func  vsdk\os\stringpool.cpp O ; thiscall (max_length): pool = operator_new(max_length), allocated = 1, length = count = 0
@@ -3017,21 +3243,26 @@
 0x547390  glide_unload_dll         func  vsdk\gr\glide\gr_glide.cpp O ; FreeLibrary(glide2x.dll handle 0x2f0e9b0), called by gr_glide_close
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
 0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
+0x547b60  gr_glide_tcache_close    func  vsdk\gr\glide\gr_glide.cpp O ; gr_glide_tcache_flush, frees each TMU block table (0x48-byte TMU records at 0x2f0eb70), deletes the texture table 0x2f0ec00, caller gr_glide_close
 0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
+0x547c00  gr_glide_round_texture_size func  vsdk\gr\glide\gr_glide.cpp O ; rounds a dimension up to 4/8/16/... (power of two), caller gr_glide_bitmap_size_check
 0x547cc0  gr_glide_bitmap_size_check func  vsdk\gr\glide\gr_glide.cpp I ; "Glide: Not drawing %dx%d bitmap '%s'"
 0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
 0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
+0x5497a0  glide_tmu_init           func  vsdk\gr\glide\gr_glide.cpp O ; (tmu) guTexMemQueryAvail and grTexMinAddress into the TMU record, then its block table, caller glide_report_texture_memory
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549cf0  glide_clip_cursor        func  vsdk\gr\glide\gr_glide.cpp O ; ClipCursor(&rect 0x2f0f1f8) or ClipCursor(NULL)
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
 0x54a0b0  gr_glide_is_mode_supported func  vsdk\gr\glide\gr_glide.cpp O ; true unless the mode is multitexture and flag 0x2f132cd is set (cleared when fewer than 2 TMUs)
 0x54a0d0  gr_glide_get_video_memory_mb func  vsdk\gr\glide\gr_glide.cpp O ; returns 0x2f0f208, set in gr_glide_init (>= 12 changes a texture option)
+0x54a100  gr_glide_set_mode        func  vsdk\gr\glide\gr_glide.cpp I ; (gr::Mode) returns early when equal to the current mode 0x2f0f1e4 (gr__Mode__operator_eq), else sets the Glide combine/blend/depth state
 0x54a5b0  gr_glide_set_viewport    func  vsdk\gr\glide\gr_glide.cpp I
 0x54a600  gr_glide_clear           func  vsdk\gr\glide\gr_glide.cpp I
 0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
 0x54a6b0  gr_glide_deactivate      func  vsdk\gr\glide\gr_glide.cpp O ; unless dual monitors (gr_screen +0x14): glide_grSstControl(2 = GR_CONTROL_DEACTIVATE), counter 0x2f132ac++
 0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
 0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
+0x54a7c0  gr_glide_set_bitmap      func  vsdk\gr\glide\gr_glide.cpp I ; (mode, bitmap) gr_glide_set_mode, then the texture when the mode has a texture source, used by gr_glide_bitmap/line/line_3d
 0x54a800  gr_glide_bitmap          func  vsdk\gr\glide\gr_glide.cpp I
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b110  gr_glide_line_3d         func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of gr_line_3d, calls glide_grDrawLine
@@ -3041,17 +3272,30 @@
 0x54ba90  gr_glide_set_antialias   func  vsdk\gr\glide\gr_glide.cpp O ; empty Glide target of gr_set_antialias
 0x54baa0  gr_glide_set_alpha_test  func  vsdk\gr\glide\gr_glide.cpp O ; grAlphaTestFunction(GREATER or ALWAYS), glide back end of 0x508110
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
+0x54bb60  gr_d3d_tcache_init       func  vsdk\gr\directx\gr_direct3d.cpp O ; allocates 0xaf0 texture entries of 0x10 bytes (0x2f13308, handle -1) and the texture slots, caller gr_d3d_init
+0x54bbb0  gr_d3d_tcache_close      func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_d3d_tcache_flush, frees every entry, deletes the table, caller gr_d3d_close
+0x54bbf0  gr_d3d_tcache_free_entry func  vsdk\gr\directx\gr_direct3d.cpp I ; (entry) releases the slots of one texture entry, callers gr_d3d_tcache_free, gr_d3d_bitmap_size_check
 0x54bc60  gr_d3d_tcache_flush      func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d050  gr_d3d_tcache_set        func  vsdk\gr\directx\gr_direct3d.cpp I ; (stage, bitmap, ..., &u_scale, &v_scale, fail_on_full) binds a bitmap, loading it into a texture slot when missing, FreeSpace-style gr_d3d_tcache_set
 0x54d120  gr_d3d_bitmap_size_check       func  vsdk\gr\directx\gr_direct3d.cpp I ; "D3D: Not drawing %dx%d bitmap '%s'"
+0x54d330  gr_d3d_round_texture_size func  vsdk\gr\directx\gr_direct3d.cpp O ; rounds a dimension up to 4/8/16/..., caller gr_d3d_bitmap_size_check
 0x54d3f0  gr_d3d_mark_texture_dirty func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54d430  gr_d3d_tcache_free       func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d5a0  tcache_slot__invalidate_bitmap func  vsdk\gr              I ; thiscall (bitmap): bitmap +8 = -1 when it matches, used by the Glide and Direct3D mark_texture_dirty/tcache_free
+0x54e640  gr_opengl_tcache_close   func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_opengl_tcache_flush then frees the texture tables 0x2f1331c/0x2f13334, caller gr_opengl_close
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
 0x54e740  gr_opengl_delete_texture func  vsdk\gr\opengl\gr_opengl.cpp O ; glDeleteTextures on a texture cache slot
 0x54e7a0  gr_opengl_tcache_flush   func  vsdk\gr\opengl\gr_opengl.cpp O ; glFinish, frees all; "WARNING: VRAM is at %d"
+0x54e800  gr_opengl_tcache_frame   func  vsdk\gr\opengl\gr_opengl.cpp I ; per-flip reset: bound textures -1, frame counter 0x2f13324++, clears the per-frame used flag of 0xaf0 entries, tail of gr_opengl_flip
+0x54ed90  gr_opengl_tcache_set     func  vsdk\gr\opengl\gr_opengl.cpp I ; (bitmap, ..., stage) binds a bitmap texture, uploading it (0x54e840) when missing, -1 bitmap unbinds the stage
 0x54eed0  gr_opengl_mark_texture_dirty func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54ef20  gr_opengl_tcache_free    func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54efd0  gr_opengl_get_current_mode func  vsdk\gr\opengl\gr_opengl.cpp O ; returns &0x2f1333c (the gr::Mode last set)
+0x54efe0  gr_opengl_set_mode       func  vsdk\gr\opengl\gr_opengl.cpp I ; (gr::Mode) returns early when equal to the current mode, else sets texture/blend/depth/fog GL state
 0x54f320  gr_opengl_page_in        func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54f350  gr_opengl_set_bitmap     func  vsdk\gr\opengl\gr_opengl.cpp I ; (mode, bitmap, ...) gr_opengl_page_in then gr_opengl_set_mode, used by gr_opengl_bitmap and gr_opengl_render_character_mesh
 0x54f370  gl_init_multitexture     func  -                    O ; "GL_ARB_multitexture", glActiveTextureARB, "does not support multitexturing"
+0x54f3f0  gl_extension_supported   func  vsdk\gr\opengl\gr_opengl.cpp O ; (name, extension string) strstr test, false for a NULL string, caller gl_init_multitexture
 0x54f410 gr_opengl_init_context   func  vsdk\gr\opengl\gr_opengl.cpp     O ; pixel format, context, ortho/viewport
 0x54f680  gr_opengl_set_pixel_format func  vsdk\gr\opengl\gr_opengl.cpp O ; ChoosePixelFormat + SetPixelFormat, called by gr_opengl_init_context
 0x54f6f0 gr_opengl_init           func  vsdk\gr\opengl\gr_opengl.cpp     O ; renderer 0x68
@@ -3064,26 +3308,49 @@
 0x54fe10  gr_opengl_set_color      func  vsdk\gr\opengl\gr_opengl.cpp O ; empty
 0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
 0x54ff00  gr_opengl_line_3d        func  vsdk\gr\opengl\gr_opengl.cpp I ; OpenGL target of gr_line_3d (mode 0x68)
+0x54ffa0  gl_setup_multitexture_state func  vsdk\gr\opengl\gr_opengl.cpp I ; two GL entry points with GL_TEXTURE1_ARB (0x84c1), glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST), then texture parameters, caller gl_init_multitexture
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5503c0  gr_opengl_set_fog        func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_set_fog back end: glEnable/glDisable, glFogi, glFogfv, glHint
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
 0x550630  gr_opengl_set_antialias  func  vsdk\gr\opengl\gr_opengl.cpp O ; empty OpenGL target of gr_set_antialias
+0x550640  clamp_ubyte              func  -                    O ; (unsigned char *v, min, max) clamps in place, used by 0x54f9a0 (gr_opengl_bitmap colour)
 0x5520d0  Crc32__init_table        func  -                    O ; builds the 256-entry CRC-32 table (polynomial 0xedb88320) at 0x2f136e8, sets 0x2f13ae8
 0x552120  Crc32__Crc32             func  -                    O ; thiscall value = 0, used by name_hash_nocase and the true/false parser
 0x552130  Crc32__update            func  -                    O ; thiscall (buf, len): table-driven CRC-32 over len bytes (builds the table on first use), returns the value
 0x552310  ui_inputbox__process     func  vsdk\ui              O ; vtable slot 5: typing, cursor
 0x5526a0  ui_inputbox__vfunc0      func  vsdk\ui              I ; ui_inputbox vtable slot 0 (destructor)
 0x5526b0  ui_inputbox__ui_inputbox func  vsdk\ui              O ; constructor (vtable 0x581f1c); used by ui_parse_inputbox
+0x552700  ui_inputbox__create      func  vsdk\ui              O ; ui_gadget__init with type 6, text +0x278, max length +0x580 = 80, password char '*' +0x584
+0x5527b0  ui_inputbox__set_tooltip func  vsdk\ui              O ; same tooltip node code as ui_button__set_tooltip, used by ui_parse_inputbox
+0x552870  ui_inputbox__set_valid_chars func  vsdk\ui              I ; parses a character set string (ranges) into a table, counterpart of ui_inputbox__set_invalid_chars
+0x552c50  ui_inputbox__set_invalid_chars func  vsdk\ui              O ; parses the +Invalid chars: string of ui_parse_inputbox into a character table
+0x553030  ui_inputbox__set_text    func  vsdk\ui              O ; copies into +0x278 if shorter than max length +0x580, NULL clears
+0x5530a0  ui_inputbox__get_text    func  vsdk\ui              O ; returns &+0x278
 0x5530b0  ui_inputbox__draw        func  vsdk\ui              O ; vtable slot 7: text, cursor bitmap, gr_line
+0x5534c0  ui_inputbox__is_selectable func  vsdk\ui              O ; vtable slot 8 of ui_inputbox (0x581f1c): shown and not disabled
 0x5534f0  ui_container__process    func  vsdk\ui\ui_container.cpp I ; vtable slot 5
+0x553530  ui_container__dtor       func  vsdk\ui\ui_container.cpp O ; vtable slot 0 (0x581f40): unlocks the mask bitmap +0x378, then ui_gadget__dtor
 0x553560  ui_container__ui_container func  vsdk\ui\ui_container.cpp O ; constructor (vtable 0x581f40); used by ui_parse_container
+0x553590  ui_container__create     func  vsdk\ui\ui_container.cpp O ; ui_gadget__init with type 1, mask bitmap +0x378 = -1
+0x5535f0  ui_container__set_tooltip func  vsdk\ui\ui_container.cpp O ; adds a tooltip node to +0x124, used by ui_parse_container
+0x553680  ui_container__set_label  func  vsdk\ui\ui_container.cpp O ; strcpy into +0x274, ui_parse_container $Label:
 0x5536b0  ui_container_load        func  vsdk\ui\ui_container.cpp I ; "Could not load in \"%s\"!"
+0x553710  ui_container__set_mask_bitmap func  vsdk\ui\ui_container.cpp O ; bm_get_dimensions and bm_lock of the mask, "bm_lock() failed on bitmap", used by ui_container_load
 0x5537a0  ui_container__vfunc6     func  vsdk\ui\ui_container.cpp I ; vtable slot 6 override; draws text and lines
 0x553800  ui_container__draw       func  vsdk\ui\ui_container.cpp O ; vtable slot 7
 0x553ba0  ui_checkbox__process     func  vsdk\ui              O ; vtable slot 5: mouse_is_down
+0x553cd0  ui_checkbox__dtor        func  vsdk\ui              O ; vtable slot 0 of ui_checkbox and the radio button: jumps to ui_gadget__dtor
 0x553ce0  ui_checkbox__ui_checkbox func  vsdk\ui              O ; constructor (vtable 0x581f68); used by ui_parse_checkbox (and radio buttons)
+0x553d00  ui_checkbox__create      func  vsdk\ui              O ; ui_gadget__init with type 4, size from the label text (gr_get_string_size), checked +0x274
+0x553e00  ui_checkbox__set_tooltip func  vsdk\ui              O ; same tooltip node code, used by ui_parse_checkbox and ui_parse_radio_button
+0x553ec0  ui_checkbox__toggle      func  vsdk\ui              O ; +0x274 = !+0x274
+0x553ee0  ui_checkbox__set_checked func  vsdk\ui              O ; +0x274 = arg
+0x553ef0  ui_checkbox__is_checked  func  vsdk\ui              O ; returns +0x274
 0x553f00  ui_checkbox__draw        func  vsdk\ui              O ; vtable slot 7: box, label, state bitmaps
+0x5546e0  ui_checkbox__is_selectable func  vsdk\ui              O ; vtable slot 8 of ui_checkbox (0x581f68) and the radio button (0x581c7c)
+0x554710  ui_radio_button__process func  vsdk\ui              O ; vtable slot 5 of 0x581c7c: hotkey/click toggles it and unchecks its siblings, ui_play_sound(2)
+0x5548a0  ui_radio_button__create  func  vsdk\ui              O ; ui_gadget__init with type 5 in a parent gadget, sized from the label
 0x554b60  m2v_read_header          func  vsdk\bmpman\targautils.cpp I ; (name, &w, &h); retries with ".m2v" appended; reads an 8-byte header
 0x554d00  m2v_read_bitmap          func  vsdk\bmpman\targautils.cpp I ; (name, &data): whole file into a new buffer
 0x554ea0  tga_rle_encode_row       func  vsdk\bmpman\targautils.cpp I ; used by gr_screenshot
@@ -3219,8 +3486,27 @@
 0x55df10  ds3d_release_listener    func  -                    O ; Release on listener 0x2f8f744
 0x55df30  ds3d_init                func  -                    I ; property-set QuerySupport, ds_init_primary_buffer
 0x55dfe0  ds_init_primary_buffer   func  -                    I ; "Fatal error calling pPrimaryBuffer->QueryInterface(): %s"
+0x55e040  ui_draw_bevel            func  vsdk\ui              O ; (x, y, w, h, light colour, dark colour, width, ...) frame lines, used by ui_window__draw and the gadget bevel helpers
+0x55e280  ui_gadget__fill_inset    func  vsdk\ui              O ; (colour, inset) gr_rect over the gadget rect shrunk by inset
+0x55e2e0  ui_gadget__draw_bevel    func  vsdk\ui              O ; ui_draw_bevel around the gadget rect, used by ui_container__draw
+0x55e320  ui_gadget__draw_raised   func  vsdk\ui              O ; (colours, width) face rect plus bevel (light, dark), ui_button__draw normal state
+0x55e3a0  ui_gadget__draw_sunken   func  vsdk\ui              O ; as ui_gadget__draw_raised with the bevel colours swapped, ui_button__draw pressed/latched state
+0x55e420  ui_slider__get_marker_rect func  vsdk\ui              O ; (&x, &y, &w, &h) marker from position +0x28c, range +0x288, horizontal flag +0x298
 0x55e4c0  ui_slider__process       func  vsdk\ui              O ; vtable slot 5 (also used by 0x582308): mouse_is_down
+0x55e780  ui_slider__ui_slider_base func  vsdk\ui              O ; base constructor (vtable 0x582308) called by ui_slider__ui_slider and ui_parse_slider: ui_gadget__ui_gadget, timer +0x274, arrow buttons +0x2a0/+0x2a4
+0x55e7e0  ui_slider__create        func  vsdk\ui              O ; (window, x, y, w, h, ..., flags) slider fields, optional arrow buttons, used by ui_parse_slider
+0x55ea50  ui_slider__set_tooltip   func  vsdk\ui              O ; same tooltip node code, used by ui_parse_slider
+0x55eb10  ui_slider__get_pos       func  vsdk\ui              O ; returns +0x28c
+0x55eb20  ui_slider__get_count     func  vsdk\ui              O ; returns +0x288, after padding
+0x55eb30  ui_slider__set_pos       func  vsdk\ui              O ; +0x28c = arg, listboxes sync their scroll offsets with it
+0x55eb40  ui_slider__set_count     func  vsdk\ui              O ; +0x288 = arg, after padding
+0x55eb50  ui_slider__set_marker_size func  vsdk\ui              I ; +0x290 = arg, used by ui_slider__update_marker
+0x55eb60  ui_slider__set_page_size func  vsdk\ui              I ; +0x294 = arg, set to the view size by ui_slider__create_scrollbar
 0x55eb70  ui_slider__draw          func  vsdk\ui              O ; vtable slot 7: gr_rect inside a clip
+0x55ed30  ui_slider__create_scrollbar func  vsdk\ui              O ; (listbox, horizontal, ...) slider attached to a listbox (+0x310 vertical or +0x314 horizontal) sized from its view and content
+0x55eeb0  ui_slider__set_range     func  vsdk\ui              O ; (content) count = content - visible +0x2a8 + 1, then ui_slider__update_marker
+0x55eed0  ui_slider__update_marker func  vsdk\ui              O ; marker size = track length * visible / (count + visible - 1), clamped
+0x55ef60  ui_tooltip__draw         func  vsdk\ui              O ; tooltip node: text +0xc at owner screen position + (+0x114, +0x118), gr_get_string_size box, called by ui_draw
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x562f60  mesh_check_materials     func  -                    I ; "Face is missing a material -- mesh %s"
