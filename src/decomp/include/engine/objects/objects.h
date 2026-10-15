@@ -162,6 +162,7 @@ int  party_inventory_find_first_in_category(int category, party_inventory_entry 
 int  shop_inventory_find_first_in_category(int category, shop_item *list, int count);  // 0x46b5d0
 int  item_type_shop_category(int type);              // 0x46b5f0 (0 weapons .. 4 misc, -1)
 void party_inventory_sort(party_inventory_entry *inv, int count);   // 0x46b640
+void party_inventory_reset();                        // 0x46b680 gold 30, count 0 (decomp51: state_title_enter)
 void party_inventory_add_item(item_info *item, int a, int b);       // 0x46b870 (called (item, 1, 1))
 void party_inventory_add_type(int type, int count, int a, int b);   // 0x46b980 (called (type, 1, -1, 1); return unused)
 void party_inventory_remove(int slot, int a, int b); // 0x46bb30 (called (slot, 1, 1) and (slot, 0, 1))

@@ -2410,3 +2410,73 @@ in vsdk/os/memory.h (D12), emitted by the /Ob0 objects that call them (localize:
 array[0] = socket; 0x5175f2, 0x518790): the WinSock 1.1 macro (no duplicate scan), matching WSAStartup(0x101).
 The RAS structures are written out in the .cpp (Windows 95 sizes: RASCONN 0x19c, RASCONNSTATUS 0xa0, RASPPPIP
 0x28) because the SDK's <ras.h> sizes depend on WINVER.
+
+## the editor dialogs, the boot / load-game states and the frame end (decomp51; game/unnamed_editor_dialogs_0x430bc0.cpp, unnamed_states_0x431870.cpp, unnamed_frame_0x4323e0.cpp, all three file names placeholders)
+
+**D3100 (vsdk/ui/ui_gadgets.h). ui_state_bitmap has an out-of-line constructor and destructor;
+ui_listbox_entry is a class and ui_listbox embeds one at +0x2d4.** The functions sum.symbols calls
+ui_static__dtor (0x431780), ui_button__dtor (0x4317e0) and ui_listbox__dtor (0x431950) are implicit
+destructors: each calls ui_state_bitmap__dtor (0x52c950) on exactly the members the constructor builds, in
+reverse order (ui_static +0x3a4, +0x38c; ui_button +0x3f4 .. +0x394), or ui_listbox_entry__dtor (0x52d560)
+on +0x2d4, then ~ui_gadget (0x52c410), with an EH frame and no vtable store; they are emitted right after
+their first use in the unit (editor_dialog_destroy's deletes; dtor_ui_listboxes_5faac0), which is where VC6
+puts a COMDAT it generates. So ~ui_state_bitmap() and ~ui_listbox_entry() are declared (with the
+constructors 0x52c930 / 0x52d540 that ui_button() / ui_listbox() call), and the three destructors are not
+declared members. ui_listbox_entry (0x3c bytes, vtable 0x581e30 with one slot, set_text 0x52d5b0) gets the
+fields add_entry writes (+0x1c indent, +0x20 wrap indent, +0x24 line spacing, +0x28 font, +0x30 text, +0x38
+colours; 0x52dacb-0x52daeb) and the ring links +0x8 / +0xc (the list box's +0x2dc / +0x2e0 point to its own
++0x2d4 after the constructor, 0x52d606-0x52d60c). ui_listbox's `_unk2d0[0x50]` becomes `_unk2d0[4]`,
+`entries`, `_unk310[0x10]` (LAYOUT_CHECK 0x320 unchanged). New members (decomp51): ui_listbox get_selected /
+select_by_text / select_entry / find_by_text / add_entry / clear, ui_button::press, ui_gadget::set_focus.
+No existing file defines a ui_button / ui_static / ui_listbox object, and all src/decomp files compile as
+before.
+
+**D3101 (ui_gadgets.h). ui_static +0x388 is `Color *colors`.** Was `_unk388[4]`. editor_dialog_show stores
+`&editor_dialog_colors[0]` there next to font = -1 (`mov [edi+0x388], 0x5fa280`, 0x430f65, 0x431029). No
+file used _unk388.
+
+**D3102 (summoner.h). The calls with an argument to the shared bare rets get functions of their own.** The
+load-game screen calls 0x40acc0 with the level name four times (`push; call 0x40acc0; add esp`, 0x432051,
+0x432176, 0x432224, 0x432311) and screenshot_save calls 0x4f13e0 with its message (0x43264f); both are
+declared without parameters (empty_frame_hook_40acc0, D57; empty_function). As in D1507, each is written as
+an empty function of the unit that calls it (loadgame_debug_hook, screenshot_debug_hook; names ours,
+confidence unsure); identical-code folding would merge them into one bare ret, so they get no address.
+
+**D3103 (vsdk/os/key.h). KEY_DEBUGGED is 0x8000 in PollInputEvents.** PollInputEvents masks the key with
+`and ah, 0x7f` before comparing it with KEY_LAPOSTRO (0x432789) and has a case 0x800e (0x4327d9, key_flush),
+but key_mark adds 0x800, not 0x8000, for a key pressed with the debug key held (`or ch, 0x8`, 0x509508), and
+no other modifier sets bit 15. The macro keeps the value the code tests (name ours); the debug Backspace
+flush is unreachable. KEY_LAPOSTRO (0x29), KEY_SYSRQ (0xb7, key_on_keydown 0x50968b), key_flush and
+key_get_press_count are new.
+
+**D3104 (summoner.h). gr_info counters, game_status_message.** FrameEnd prints six counters as percentages of
+gr_info_total_time (0x2396c90) and zeroes them, but nothing else writes gr_info_total_time (its seven
+references are all in FrameEnd), so `gr_info` shows nothing in v1.40. The counters are declared extern with
+names ours (owner unit not known; 0x24268f0 / 0x24268f4 may be the start of a levelrender vector array,
+since levelrender_draw_list_opengl stores `[esi + 0x24268f4]` beside `[esi + 0x24268f8]`, 0x492313). The status
+message (0x5fbf54) and its RealtimeTimer (0x5fbf48) have no writer either: FrameEnd only reads them, and
+screenshot_save formats "Screenshot written to ..." into a local buffer that it passes to the empty hook.
+
+**D3105 (summoner.h). game_change_level keeps `(const char *filename, void *arg)`.** The body copies the
+second argument into level_script_name as a string (0x431af3-0x431b11), so `const char *` is likely the
+original type, but new_mainmenu.cpp (184) and new_saveload.cpp (689) pass conversation_save_table elements
+(`void *`), which would no longer convert; the definition casts instead. Change it together with those two
+calls if the table gets a typed declaration.
+
+**D3106 (summoner.h, snd.h, multi.h, objects.h, ui.h). New declarations, no conflict.** The three units'
+functions and globals (summoner.h: editor_dialog, EDITOR_DIALOG_*, the state handlers, the frame-end
+globals, GF_PAUSED 0x4 / GF_SCREENSHOT 0x40 / GF_NO_FLIP 0x8000), snd_pause_all(int, int) (only the second
+argument reaches ds_pause_all, 0x5207a1) and snd_unpause_all, multi_set_netgame_state(bool send_now)
+(0x440fb5-0x440ff1: mp_broadcast_packet when set, else the buffered send), party_inventory_reset (0x46b680),
+ui_draw(void (*)()), ui_process(int, int), build_stamp_check / build_stamp_get_name(char *, int) (the caller
+pushes 0x200, 0x431cd8), debug_noop_frame_end(int, int, int), the UI_EVENT_PRESSED (0xc) /
+UI_EVENT_LIST_SELECT (0x18) / UI_EVENT_LIST_DBLCLICK (0x19) values the callbacks compare. editor_dialog_init
+moved from the "other units" list into the editor dialog section (declared once).
+
+**D3107 (source-map.md cuts). The three units' .data boundaries.** VC6 puts a unit's initialised data
+before its own literal pool. build_stamp_pending (0x5930b8, initialised 1) follows the editor dialogs'
+literals ("No" .. "OK", 0x59309c-0x5930b6), and Gamewide_show_net_stats (0x5931b0, initialised 1) follows
+the states' last literal ("Load", 0x5931a8), so 0x431870 and 0x4323e0 start new units. player.cpp's first
+object (hero_model_names, 0x5934d0) follows the frame-end pool, whose end holds the four ccmds' strings
+(0x5933c0-0x5934c9): the ccmds 0x432f80-0x433280 belong to the frame-end unit. The editor dialog unit has no
+initialised data, so its start (0x430bc0) rests on the initialiser run and .bss only.

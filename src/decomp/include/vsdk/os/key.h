@@ -70,4 +70,13 @@ extern char *key_names[256];          // 0x5a68c0
 
 int  key_inkey();                     // 0x509ce0 next queued key code, 0 none (decomp47: cd_prompt_disc2)
 
+// decomp51 (PollInputEvents, game/unnamed_frame_0x4323e0.cpp).
+#define KEY_LAPOSTRO  0x29            // ` / ~ (the debug key: key_mark adds 0x800 to keys pressed with it)
+#define KEY_SYSRQ     0xb7            // Print Screen (key_on_keydown maps VK 0x2c to it)
+// PollInputEvents masks and tests 0x8000 (`and ah, 0x7f` at 0x432789, case 0x800e at 0x4327d9), but
+// key_mark sets 0x800 for the debug key (0x509508), so no queued key carries 0x8000 (D3103). Name ours.
+#define KEY_DEBUGGED  0x8000
+void key_flush();                     // 0x509ab0 clears the queue and key states
+int  key_get_press_count(int key);    // 0x509e20 returns and clears key_press_counts[key]
+
 #endif

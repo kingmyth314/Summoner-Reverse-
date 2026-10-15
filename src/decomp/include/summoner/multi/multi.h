@@ -165,6 +165,9 @@ void mp_levelselect_start_if_ready();                   // 0x43ec40 (return type
 void mp_remove_player(mp_player *p, int reason);        // 0x471df0 (reason 1 = kicked)
 void mp_respawn_and_notify(int id);                     // 0x481130 (hud_confirm_quit)
 extern int mp_netgame_state;                            // 0x6513fc session state 0..5 (5 = playing)
+// decomp51 (game_pause / game_unpause): the host broadcasts the session state with the pause flag;
+// send_now picks mp_broadcast_packet over mp_broadcast_packet_buffered (sum.symbols name kept).
+void multi_set_netgame_state(bool send_now);            // 0x440f20
 // mp_player_disconnected (0x4814e0) is in multiendgame.h (decomp47: (reason, quit), D2601).
 void mp_send_character_skills(Character *c);            // 0x480ba0
 extern int mp_netgame_level;                            // 0x6513d8

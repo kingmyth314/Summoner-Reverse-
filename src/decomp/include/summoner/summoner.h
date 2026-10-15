@@ -1,7 +1,10 @@
 // summoner/summoner.h - the game's top level: state sequencing, game flags, pause, level changes, the
 // summoner.cfg options and the file path ids. Units: summoner.cpp (Summoner_options, summoner_cfg_save,
-// the path ids), the state sequencer (gameseq_set_state 0x401020), the frame-end / pause unit
-// (0x432660-0x432e60), the player input unit (0x4343a0) and the cutscene file (0x4349b0-0x437650);
+// the path ids), the state sequencer (gameseq_set_state 0x401020), the editor dialog unit
+// (0x430bc0-0x4317e0, game/unnamed_editor_dialogs_0x430bc0.cpp), the boot / title / load-game state unit
+// (0x431870-0x4323d0, game/unnamed_states_0x431870.cpp), the frame-end / pause / input unit
+// (0x4323e0-0x433280, game/unnamed_frame_0x4323e0.cpp; decomp51, all three file names placeholders),
+// the player input unit (0x4343a0) and the cutscene file (0x4349b0-0x437650);
 // gameplay.cpp has summoner/gameplay.h and gametarget.cpp summoner/gametarget.h (both included below).
 // One header for now; file name ours. Not original source.
 #ifndef SUMMONER_SUMMONER_H
@@ -24,6 +27,12 @@ extern int game_flags;                // 0x5fbfd8
 #define GF_PARTY_DEAD    0x40000      // party_check_all_dead: nobody alive (single player); cleared on enter / leave (name ours)
 #define GF_CUTSCENE      0x20         // a cutscene is running (sum.symbols game_flags; name ours, decomp34)
 #define GF_NO_INPUT      0x10000      // script_disable_player_input / script_enable_player_input (name ours, decomp43)
+// decomp51 (the frame-end unit; names ours): game_is_paused reads bit 2; PollInputEvents sets 0x40 on
+// Print Screen and FrameEnd saves the screenshot and clears it; FrameEnd skips gr_flip while 0x8000 is
+// set and clears it every frame.
+#define GF_PAUSED        0x4
+#define GF_SCREENSHOT    0x40
+#define GF_NO_FLIP       0x8000
 // Level-script input lock (unit not known, before player.cpp; decomp43): player_input = 0 and GF_NO_INPUT
 // set / cleared.
 void script_disable_player_input();   // 0x432f50
@@ -82,7 +91,7 @@ extern bool cheat_gold_5fbf19;        // 0x5fbf19 9999900 gold on a new game (st
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
 void empty_function();                // 0x4f13e0 (bare ret shared by identical-code folding)
 
-// ---- mouse cursor (gameplay_load_cursors / cursor_set_type 0x432e50; unit not known) ---------------------
+// ---- mouse cursor (gameplay_load_cursors / cursor_set_type 0x432e50; the frame-end unit below) ----------
 void gameplay_load_cursors();         // 0x432db0 (GameInit)
 void cursor_set_type(int bm);         // 0x432e50 cursor_type (0x5931b4) = bm
 extern int cursor_url_bm;             // 0x5fbf2c cursor-url.vbm
@@ -93,8 +102,109 @@ extern int cursor_spot_walkto_bm;     // 0x5fbf3c cursorspot-walkto.vbm (move_ta
 extern int cursor_target_bm;          // 0x5fbf50 cursor-target.vbm (decomp42)
 extern int cursor_hover_bm;           // 0x5fc018 cursor-hover.vbm (decomp42)
 
+// ---- the editor dialog unit (0x430bc0-0x4317e0, game/unnamed_editor_dialogs_0x430bc0.cpp, file name a
+// placeholder; decomp51). Modal message boxes of the script editor (script_save, script_write_objects).
+// Names ours except the sum.symbols function names.
+class ui_window;
+class ui_static;
+class ui_button;
+struct Color;
+// A button callback: (event, value) as ui_element::callback; the result is editor_dialog_handle_event's.
+typedef bool (*editor_dialog_callback)(int event, int value);
+// One dialog (0x30 bytes, operator new; no constructor). The list head is a whole object (0x5fa298, so
+// the unit's .bss runs to 0x5fa2c7).
+struct editor_dialog {
+    editor_dialog *next;              // +0x00 editor_dialog_list
+    editor_dialog *prev;              // +0x04
+    bool closed;                      // +0x08 set on a button press; editor_dialogs_free_closed frees it
+    ui_window *window;                // +0x0C
+    ui_static *title;                 // +0x10 NULL without a title
+    ui_static *text;                  // +0x14
+    ui_button *buttons[3];            // +0x18 left unset for a buttons value above 4 (latent bug, NOTES)
+    editor_dialog_callback callbacks[3];   // +0x24
+};
+// editor_dialog_show's buttons argument (the jump table 0x4315a0; names ours).
+#define EDITOR_DIALOG_OK            0  // OK
+#define EDITOR_DIALOG_OK_CANCEL     1  // OK, Cancel
+#define EDITOR_DIALOG_RETRY_CANCEL  2  // Retry, Cancel
+#define EDITOR_DIALOG_YES_NO        3  // Yes, No
+#define EDITOR_DIALOG_YES_NO_CANCEL 4  // Yes, No, Cancel
+extern int editor_dialog_count;               // 0x5fa278 the next button id (never reset after init)
+extern Color editor_dialog_colors[6];         // 0x5fa280 (editor_dialog_text_color in sum.symbols is [0])
+extern editor_dialog editor_dialog_list;      // 0x5fa298 head
+void editor_dialog_init();            // 0x430be0 empty dialog list and its six colours (GameInit)
+// (width, title or NULL, text (up to 10 lines of width - 10), buttons, three callbacks, window flags);
+// returns the window. The script editor passes (400, "Error!", text, 0, 0, 0, 0, 0xb).
+ui_window *editor_dialog_show(int width, const char *title, const char *text, int buttons,
+                              editor_dialog_callback cb0, editor_dialog_callback cb1,
+                              editor_dialog_callback cb2, int flags);   // 0x430c80
+bool editor_dialog_handle_event(int event, int value);   // 0x4315c0 every button's callback
+void editor_dialogs_free_closed();    // 0x431640 (GameTick, before FrameEnd)
+void editor_dialog_destroy(editor_dialog *d);   // 0x4316a0
+
+// ---- the boot / title / load-game state unit (0x431870-0x4323d0, game/unnamed_states_0x431870.cpp, file
+// name a placeholder; decomp51). gameseq_state_table (0x588a70) entries 1, 2 and 8, game_change_level and
+// the us_open_demo command. State 8 (the debug "Load" screen) is never entered in v1.40.
+extern int  build_stamp_pending;      // 0x5930b8 1 until build_stamp_show has run once (name ours)
+extern bool states_flag_5930bc;       // 0x5930bc initialised 1, no reader or writer (name ours)
+extern bool game_change_level_early;  // 0x5fbf18 set when game_change_level runs before the first state; never read (name ours)
+void state_boot_enter();              // 0x431c60 state 1
+void build_stamp_show();              // 0x431cb0
+void state_boot_leave();              // 0x431df0
+void state_boot_frame();              // 0x431e00
+void state_title_enter();             // 0x431e20 state 2
+void state_title_frame();             // 0x431e70
+void state_loadgame_enter();          // 0x431e80 state 8
+bool loadgame_level_list_cb(int event, int value);      // 0x432200
+bool loadgame_list_dblclick_cb(int event, int value);   // 0x4322c0
+bool loadgame_load_cb(int event, int value);            // 0x4322e0
+void state_loadgame_frame();          // 0x432370
+void state_loadgame_leave();          // 0x4323d0
+void cmd_us_open_demo();              // 0x431ba0
+// The load-game screen passes the level name to 0x40acc0 (a bare ret, empty_frame_hook_40acc0, declared
+// without parameters). Written as an empty function of this unit, as D1507 does (D3102). Name ours.
+void loadgame_debug_hook(const char *level);
+
+// ---- the frame-end / pause / input unit (0x4323e0-0x433280, game/unnamed_frame_0x4323e0.cpp, file name
+// a placeholder; decomp51). Its .bss holds game_flags, game_mouse_x / y and the cursor bitmaps above.
+void FrameEnd();                      // 0x4328b0 (GameTick)
+int  PollInputEvents();               // 0x432710 the next key (0 none; Shift+Esc and Print Screen eaten)
+void screenshot_save();               // 0x4324f0
+void draw_loading_icon();             // 0x432d60
+void cursor_draw(int x, int y);       // 0x432e60
+extern int cursor_type;               // 0x5931b4 -1 until cursor_set_type
+extern int hud_loading_bm;            // 0x5fbf44 hud-loading.tga
+extern bool frame_show_loading_icon;  // 0x5fc01d cutscene_play sets it; FrameEnd draws the icon in state 4
+extern char game_status_message[128]; // 0x5fbf54 nothing writes it in v1.40
+extern int  game_pause_count;         // 0x5fc024
+extern bool Gamewide_show_framerate;  // 0x5fc01f console "show_framerate"
+extern bool Gamewide_show_gr_info;    // 0x5fc020 console "gr_info"
+extern bool Gamewide_show_hud_info;   // 0x5fc021 console "show_hud_info" (no reader)
+extern bool Print_screen_as_targa;    // 0x5fc022 console "targa"
+extern bool Gamewide_show_net_stats;  // 0x5931b0 console "net_stats" (initialised 1, no reader)
+void cmd_show_framerate();            // 0x432410
+void cmd_show_hud_info();             // 0x432fb0
+void cmd_targa();                     // 0x4330a0
+void cmd_net_stats();                 // 0x433190
+void cmd_gr_info();                   // 0x433280
+// screenshot_save passes its message to 0x4f13e0 (empty_function, declared without parameters); an
+// empty function of this unit as in D1507 (D3102). Name ours.
+void screenshot_debug_hook(const char *message);
+void debug_noop_frame_end(int a, int b, int c);   // 0x531c70 bare ret (FrameEnd passes 0, 10, 10)
+// The gr_info render statistics (FrameEnd prints value * 100 / gr_info_total_time and zeroes them).
+// Nothing but FrameEnd writes gr_info_total_time, so the display never shows (D3104). 0x24268f0 / 0x24268f4
+// may instead be the first element of a levelrender vector array (levelrender_draw_list_opengl stores
+// [esi + 0x24268f4] next to [esi + 0x24268f8]; open question). Owner unit not known; names ours after the
+// printed labels except gr_info_total_time (sum.symbols).
+extern int gr_info_total_time;        // 0x2396c90
+extern int gr_info_backface_time;     // 0x2396c94 "Backface/FrustumCulling"
+extern int gr_info_point_rotation_time;   // 0x2396c98 "PointRotation"
+extern int gr_info_everything_else_time;  // 0x2396c9c "EverythingElse"
+extern int gr_info_polygon_time;      // 0x2396ca0 "PolygonRendering"
+extern int gr_info_smooth_lighting_time;  // 0x24268f0 "SmoothVertexLighting"
+extern int gr_info_zsort_time;        // 0x24268f4 "Z-SortingFaces"
+
 // ---- other units GameInit / game_cleanup call (module "-" in sum.symbols; units not known) ------------
-void editor_dialog_init();            // 0x430be0 empty dialog list and its six colours
 void cutscene_parse_table();          // 0x4355e0 cutscene.tbl
 void cutscene_shutdown_stub();        // 0x437120 empty (push ebp / pop ebp / ret)
 void alt_textures_parse_table();      // 0x4aac10 alt_textures.tbl

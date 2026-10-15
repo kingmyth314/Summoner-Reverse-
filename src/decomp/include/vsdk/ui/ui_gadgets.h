@@ -7,8 +7,15 @@
 
 #include "vsdk/ui/ui.h"
 
+// decomp51 (D3100): the constructor and the destructor are out of line. Because the destructor exists,
+// ui_button, ui_static and ui_listbox get implicit destructors; their COMDAT copies the linker kept are
+// 0x4317e0 (sum.symbols ui_button__dtor), 0x431780 (ui_static__dtor) and 0x431950 (ui_listbox__dtor),
+// emitted by the editor dialog and boot / load-game units (game/unnamed_editor_dialogs_0x430bc0.cpp,
+// game/unnamed_states_0x431870.cpp). They are compiler-generated, not declared members.
 class ui_state_bitmap {               // 0x18 bytes
 public:
+    ui_state_bitmap();                // 0x52c930
+    ~ui_state_bitmap();               // 0x52c950 (jumps to ui_state_bitmap__clear)
     void set(int bm);                 // 0x52c980
 private:
     ubyte _data[0x18];
@@ -22,6 +29,7 @@ public:
                           bool owned);                // 0x527100
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x5271c0
     void set_text(const char *text);  // 0x5272c0
+    void press();                     // 0x527420 programmatic click (state 1, 100 ms timer; decomp51)
     ubyte _unk274[0x38c - 0x274];
     int font;                         // +0x38C
     ubyte _unk390[4];
@@ -42,7 +50,7 @@ public:
     void set_text(const char *text);  // 0x528060
     ubyte _unk274[0x384 - 0x274];
     int font;                         // +0x384
-    ubyte _unk388[4];
+    Color *colors;                    // +0x388 text colours (editor_dialog_show stores editor_dialog_colors; D3101)
     ui_state_bitmap state_normal;     // +0x38C
     ui_state_bitmap state_disabled;   // +0x3A4
     int h_justify;                    // +0x3BC 0 left, 1 center, 2 right
@@ -106,19 +114,54 @@ public:
 };
 LAYOUT_CHECK(ui_inputbox, sizeof(ui_inputbox) == 0x5b0);
 
+// One list box line (0x3c bytes, vtable 0x581e30 with one slot; the text entry 0x13c bytes, vtable
+// 0x581e2c, is a subclass that ui_listbox::add_entry allocates unless the box has flag 0x400). The list
+// box embeds one as the head of its entry ring (+0x2d4). decomp51 (D3100): only what the load-game
+// screen and the implicit ui_listbox destructor need. Class name from sum.symbols (ui_listbox_entry__*).
+class ui_listbox_entry {
+public:
+    ui_listbox_entry();               // 0x52d540 font -1, data -1
+    ~ui_listbox_entry();              // 0x52d560 (restores the vtable; non-virtual)
+    virtual void set_text(const char *text);   // slot 0, 0x52d5b0 (the text entry: 0x52d4a0)
+    ubyte dirty;                      // +0x04
+    ubyte _unk05[3];
+    ui_listbox_entry *next;           // +0x08 entry ring (head: the list box's +0x2d4)
+    ui_listbox_entry *prev;           // +0x0C
+    ubyte _unk10[0x1c - 0x10];
+    int indent;                       // +0x1C
+    int wrap_indent;                  // +0x20
+    int line_spacing;                 // +0x24
+    int font;                         // +0x28
+    int num_lines;                    // +0x2C
+    char *text;                       // +0x30
+    int data;                         // +0x34
+    Color *colors;                    // +0x38 ui_listbox_entry_colors
+};
+LAYOUT_CHECK(ui_listbox_entry, sizeof(ui_listbox_entry) == 0x3c);
+
 class ui_listbox : public ui_gadget {   // 0x320, vtable 0x581e34
 public:
     ui_listbox();                     // 0x52d5c0
     void create(ui_element *window, int x, int y, int w, int h, int content_w, int content_h,
                 int id, int flags, bool owned);       // 0x52d650
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x52d7e0
+    // decomp51 (the load-game screen, game/unnamed_states_0x431870.cpp).
+    ui_listbox_entry *get_selected();                 // 0x52d8a0 +0x2b4
+    void select_by_text(const char *text, bool scroll_into_view);   // 0x52d8f0
+    void select_entry(ui_listbox_entry *e, bool scroll_into_view);  // 0x52d920
+    ui_listbox_entry *find_by_text(const char *text); // 0x52d9b0 strcmp of entry +0x30
+    ui_listbox_entry *add_entry(const char *text, int font, int indent, int wrap_indent,
+                                int line_spacing);    // 0x52da40 appends; returns the entry
+    void clear();                     // 0x52dc30
     ubyte _unk274[0x2b8 - 0x274];
     int bm_background;                // +0x2B8
     int margin;                       // +0x2BC
     int v_margin;                     // +0x2C0
     ubyte _unk2c4[8];
     int entry_spacing;                // +0x2CC
-    ubyte _unk2d0[0x320 - 0x2d0];
+    ubyte _unk2d0[4];
+    ui_listbox_entry entries;         // +0x2D4 entry ring head (constructed by ui_listbox(); D3100)
+    ubyte _unk310[0x320 - 0x310];
 };
 LAYOUT_CHECK(ui_listbox, sizeof(ui_listbox) == 0x320);
 

@@ -93,6 +93,7 @@ public:
     bool is_owned();                   // 0x52c4a0
     bool is_hidden();                  // 0x52c4b0
     void set_parent(ui_gadget *parent);                   // 0x52c570
+    void set_focus();                  // 0x52c600 event 4 to ui_current_gadget, event 3 to this (decomp51)
     void clear_focus();                // 0x52c630
     int  get_type();                   // 0x52c680
     void set_hotkey(int key, int slot);                   // 0x52c690
@@ -133,6 +134,11 @@ LAYOUT_CHECK(ui_gadget, sizeof(ui_gadget) == 0x274);
 #define UI_EVENT_MOUSE_LEFT 5
 #define UI_EVENT_SELECTED   7
 #define UI_EVENT_DESELECTED 8
+// decomp51 (the editor dialogs and the load-game screen; names ours): a button press (value = the
+// button's id), a list box selection change and a list box double click.
+#define UI_EVENT_PRESSED      0x0c
+#define UI_EVENT_LIST_SELECT  0x18
+#define UI_EVENT_LIST_DBLCLICK 0x19
 
 // ---- globals ---------------------------------------------------------------------------------------
 extern ui_window ui_window_sentinel;  // 0x2cbf718 (list head: next 0x2cbfbfc, prev 0x2cbfc00)
@@ -152,5 +158,13 @@ extern bool ui_left_released;         // 0x2cbfca4
 extern bool ui_right_double_clicked;  // 0x2cbfc04
 void ui_init();                       // 0x52f760 (guarded, once)
 void ui_draw_bevel(int x, int y, int w, int h, Color *light, Color *dark, int width, int inset); // 0x55e040
+// decomp51: every window's draw, then callback (NULL in the load-game state), then the tooltip.
+void ui_draw(void (*callback)());     // 0x52ff30
+// The mouse buttons into the UI globals, then the windows' process; returns the key left over. The
+// second argument is 1 at both callers (meaning not checked).
+int  ui_process(int key, int arg);    // 0x530330
+// The build stamp (vsdk\ui in sum.symbols): 3 unstamped (retail), 2 expired, 1 bad name checksum, 0 valid.
+int  build_stamp_check();             // 0x52f450
+void build_stamp_get_name(char *out, int size);   // 0x52f540 (build_stamp_show passes 512)
 
 #endif

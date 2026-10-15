@@ -46,6 +46,9 @@ void eax_load_props(const char *filename);                                 // 0x
 class matrix;
 void snd_change_listener(vector3 *pos, vector3 *vel, matrix *orient);   // 0x520710
 void snd_do_frame();                  // 0x520770
+// decomp51 (game_pause / game_unpause): two arguments, only the second reaches ds_pause_all (0x5207a1).
+void snd_pause_all(int a, int b);     // 0x520790
+void snd_unpause_all();               // 0x5207b0
 void snd_level_page_in();             // 0x520c70
 void snd_level_release();             // 0x520ce0
 void snd_stop_all();                  // 0x521600
