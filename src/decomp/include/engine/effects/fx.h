@@ -71,6 +71,12 @@ int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const v
 int  fx_create_world(const char *effect, bool flag);   // 0x48cea0
 // decomp38 (characterinfo.cpp):
 void fx_destroy(int handle);                          // 0x48cfc0
+// decomp52 (the cutscene file): an effect at the camera (kind 3, camera_view_pos / negated orientation;
+// handle or -1), and the pause / resume of the effects that are not cutscene effects (bit 0x40).
+int  fx_create_at_camera(const char *effect, bool flag); // 0x48c140
+void fx_pause_for_cutscene();                         // 0x48d6d0
+void fx_resume_after_cutscene();                      // 0x48d770
+void fx_destroy_spell_effects();                      // 0x48d720 (cutscene_play)
 // decomp41 (level_scripts_common.cpp): level_script_leave's reset while the level restarts.
 void fx_level_restart();                              // 0x48a200
 

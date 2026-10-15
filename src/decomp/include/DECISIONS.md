@@ -2480,3 +2480,75 @@ the states' last literal ("Load", 0x5931a8), so 0x431870 and 0x4323e0 start new 
 object (hero_model_names, 0x5934d0) follows the frame-end pool, whose end holds the four ccmds' strings
 (0x5933c0-0x5934c9): the ccmds 0x432f80-0x433280 belong to the frame-end unit. The editor dialog unit has no
 initialised data, so its start (0x430bc0) rests on the initialiser run and .bss only.
+
+## decomp52: the player input unit and the cutscene file (game/unnamed_input_0x4343a0.cpp, game/unnamed_cutscene_0x434900.cpp; both file names are placeholders)
+
+**D3200 (summoner/unnamed_cutscene_0x434900.h, levelscripts/level_scripts.h). The cutscene object 0x601e68 is
+one class; its field symbols are macros.** init_cutscene_601e68 is `mov ecx, 0x601e68; jmp 0x4350b0`, and
+cutscene__ctor (0x4350b0) is thiscall: the eh vector constructor of 50 cutscene_camera_sequence (0x70 bytes)
+at this + 0x18, then +0x1644, +0, +4, +0x14, +0x15f8, +0x15fc, +0x1600[2], +0x1608[10], +0x1630, +0x1634[4],
++8, +0xc through this; the destructor 0x4351c0 (atexit 0x434930) runs the eh vector destructor. The members
+load_files / bind_actors / load_sounds / unload / set_data_path / clear_data_path / load_data /
+get_fog_distances / apply_vis_overrides take ECX and read the same offsets through it. So `class cutscene`
+(0x1648 bytes, class, member and object names ours: the_cutscene) replaces the separate externs, and
+cutscene_data (0x601e68), cutscene_path_id (+4), cutscene_time_offset (+8), sequence_start_time (+0x10),
+cutscene_num_sequences (+0x14), cutscene_sequences (+0x18), cutscene_cur_sequence (+0x15f8),
+cutscene_cur_fade_event (+0x15fa), cutscene_sequence_started (+0x15fc) and cutscene_fx_handles (+0x1608)
+become macros onto it (as D2205 for game_camera): separate externs inside the object would have no
+definition. level_scripts.h's head-only `struct cutscene_entry` (const char *name, flags) becomes the full
+0x140-byte class with its constructor (0x4349b0) in the cutscene header, which level_scripts.h now includes;
+the string fields are `char *` (cutscene_parse_table strcpy's into them). script_internal.cpp and
+unnamed_interface_0x411270.cpp compile unchanged.
+
+**D3201 (units). The cutscene file starts at 0x434900, not 0x4349b0, and switches optimisation off.** The
+optimised static initialisers 0x434900-0x4349a5 (entries 111-113) construct the cutscene object 0x601e68,
+cutscene_entries 0x6034c8 and cutscene_alloc_pool 0x5fccc0. Those three lie inside one .bss block with
+variables that only the unoptimised code uses: cutscene_saved_actors 0x5fcce8 (cutscene_play / cleanup) sits
+between the pool and the object, ccmd_play_cutscene 0x6034b8 (initialised by the unoptimised 0x4374b0) between
+the object and the entries, and 0x609f08-0x609f38 after them. One object's .bss is contiguous in this link,
+so the three objects are the cutscene file's; an object with both optimised and unoptimised code is
+`#pragma optimize("", off)` part way (as D3007 for the os object): the three definitions come first, then the
+pragma. The padding follows the function (nop after 0x4349a5, int3 after 0x4349b0's body). The input unit
+keeps 0x4343a0-0x4348f6 (.bss 0x5fcca8-0x5fccb8, .data 0x593948-0x593999). Whether the input code is the same
+object as the cutscene file (adjacent in .text, .data and .bss, both optimised up to 0x4349a5) is open; it is
+written as its own placeholder file.
+
+**D3202 (summoner/summoner.h). The cutscene and input declarations moved to the two unit headers.**
+cutscene_play, cutscene_cleanup, cutscene_sequence_update, cutscene_events_frame, cutscene_play_escape,
+cutscene_parse_table and cutscene_shutdown_stub (summoner.h) went to unnamed_cutscene_0x434900.h,
+player_input_frame to unnamed_input_0x4343a0.h; summoner.h includes both. No signature changed.
+
+**D3203 (engine/camera/camera_sequence.h). The camera sequence classes.** The base vtable 0x581ae4 has the
+scalar deleting destructor 0x493f40 and _purecall (0x56e903) in slots 1 and 2; the shot's vtable 0x581af0 has
+0x493fa0, get_pos 0x4943d0 (this + 0x40) and get_orient 0x4943e0 (this + 0x4c). cutscene_camera_read_track
+(0x493fd0) takes (File *, float start): cutscene::load_files pushes the running start, then &f
+(0x434d65-0x434d8a), and the reader compares [esp + 0x28] with 0. The camera methods frame, set_input,
+start_sequence, end_sequence (bool: `mov al, [esp + 8]` at 0x4797f8) and set_sequence_transform (ret 8) are
+added to camera.h.
+
+**D3204 (cutscene file). cutscene_saved_fog_far / cutscene_saved_fog_near keep their sum.symbols names,
+which are swapped.** cutscene_play stores fog_get_far_current into 0x609f1c (`saved_fog_near`, 0x4362e1) and
+fog_get_near_current into 0x609f08 (`saved_fog_far`, 0x4362ec); cutscene_cleanup passes 0x609f08 first
+(0x4368db-0x4368e2) to fog_set_distances (near, far) (0x486b10: [esp + 4] goes to fog_near_distance 0x59bd80,
+per sum.symbols). The code is consistent; only the two labels are the wrong way round. The source uses the
+sum.symbols names with a comment; renaming them is for symbols/sum.symbols.
+
+**D3205 (input unit). combat_mode is defined in the input unit; player_input stays in player.cpp; 0x434650 is
+profile_label's destructor COMDAT.** combat_mode (0x5fccb4, declared in player.h, defined nowhere so far) lies
+between ccmd_slew (0x5fcca8) and player_mouse_held (0x5fccb6), so it is defined there; its users are other
+units (hud, gameplay.cpp, savegame). player_input (0x5fcc98) stays in player.cpp, where it is written (it
+lies before ccmd_slew). The bare RET 0x434650 (91 callers) between player_read_mouse_input and
+camera_process_input is the inline ~profile_label emitted in this unit after its first user (the unwind
+funclet 0x57c020 calls it), kept by identical-code folding; profile.h's out-of-line declaration is unchanged.
+
+**D3206 (summoner/summoner.h). config_invert_camera and config_camera_speed are macros onto
+Summoner_options** (+9 and +0x38; camera_process_input reads 0x60acd1 and 0x60ad00), as D604.
+
+**D3207 (headers). New declarations, no conflicts:** key_down_time (key.h),
+script_editor_no_window_open (summoner.h; PollInputEvents and frame_show_loading_icon are decomp51's), goals_mark_keep (ai_state),
+serpent_target_stage / tiger_target_stage / phoenix_target_stage / serpent_set_cutscene_walk_anim (boss_ai.h),
+fog_set_distances, level_vis_force_begin / reset / add / end, levelrender_fade_reset (levelrender.h),
+fx_create_at_camera, fx_pause_for_cutscene, fx_resume_after_cutscene, fx_destroy_spell_effects (fx.h),
+effects_release_cutscene_memory (effect_mem.h), snd_free (snd.h), file_remove_path (file.h),
+cutscene_script_load / cutscene_script_unload (level_scripts.h; the load's return is not used, declared
+void), movement_init (input unit header, unit not known), Snow_enabled (cutscene header, unit not known).

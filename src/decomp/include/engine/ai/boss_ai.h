@@ -341,6 +341,12 @@ extern GameTimer serpent_timer_attack;                // 0x2452298
 extern int serpent_stage;                             // 0x2451d98
 extern int tiger_stage;                               // 0x2452a90
 extern int phoenix_stage;                             // 0x2452420
+// The stage each boss switches to (cmd_*_stage, *_boss_load; cutscene_play_escape sets 3; decomp52).
+extern int serpent_target_stage;                      // 0x2451d9c
+extern int tiger_target_stage;                        // 0x2452a94
+extern int phoenix_target_stage;                      // 0x2452424
+// "ride_horse_walk" into the serpent rider's locomotion anims (cutscene_start_special_cases, decomp52).
+void  serpent_set_cutscene_walk_anim();                // 0x497840
 
 // After boss_ai.cpp (decomp42: gameplay.cpp's calls).
 void  level_page_in_characters();                      // 0x4a3580 (level_load_files)

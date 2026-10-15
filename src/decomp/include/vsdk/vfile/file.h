@@ -126,6 +126,7 @@ LAYOUT_CHECK(FileReader, sizeof(FileReader) == 0x14);
 void file_change_ext(char *out, const char *name, const char *ext);   // 0x5130a0
 void file_init(const char *install_path, bool use_packfiles);        // 0x512d60 (LoadSettings: NULL, true)
 int  file_add_path(const char *dir, const char *exts);               // 0x512e60 new path id
+void file_remove_path(int path_id);                                  // 0x513080 (decomp52)
 char *file_get_full_dir(int path_id, char *out);                     // 0x512a70 install path + dir
 void file_strip_ext(char *out, const char *name);                     // 0x513100
 int  file_make_path_dirs(int path_id);                                // 0x5131e0 nonzero = failure

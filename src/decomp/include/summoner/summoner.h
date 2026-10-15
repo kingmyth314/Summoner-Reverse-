@@ -4,8 +4,8 @@
 // (0x430bc0-0x4317e0, game/unnamed_editor_dialogs_0x430bc0.cpp), the boot / title / load-game state unit
 // (0x431870-0x4323d0, game/unnamed_states_0x431870.cpp), the frame-end / pause / input unit
 // (0x4323e0-0x433280, game/unnamed_frame_0x4323e0.cpp; decomp51, all three file names placeholders),
-// the player input unit (0x4343a0) and the cutscene file (0x4349b0-0x437650);
-// gameplay.cpp has summoner/gameplay.h and gametarget.cpp summoner/gametarget.h (both included below).
+// gameplay.cpp has summoner/gameplay.h, gametarget.cpp summoner/gametarget.h, the player input unit
+// (0x4343a0) and the cutscene file (0x434900) their placeholder headers (all included below; decomp52).
 // One header for now; file name ours. Not original source.
 #ifndef SUMMONER_SUMMONER_H
 #define SUMMONER_SUMMONER_H
@@ -74,17 +74,13 @@ extern bool level_entered_by_load;             // 0x25443a8 (level_scripts.cpp; 
 
 // ---- gametarget.cpp (0x43a330-0x43cd6d): world picking, in its unit header (decomp35) ---------------
 #include "summoner/gametarget.h"
-// The cutscene player (cutscene.tbl entries; unit not known) and the loaded cutscene script's name
-// (cutscene_script_name 0x257e974, "" when none).
-void cutscene_play(const char *name);              // 0x4361d0 (return unused)
+// The loaded cutscene script's name (cutscene_script_name 0x257e974, "" when none).
 char *cutscene_script_table();                     // 0x4ed760
 extern bool US_open_demo;                          // 0x5fbf1a console "us_open_demo" (no level exits)
-// ---- player input and cutscene playback (0x4343a0-0x437650; module "-"; decomp42) ------------------
-void player_input_frame();            // 0x434470 (state_game_frame)
-void cutscene_sequence_update();      // 0x436a90 (state_game_frame while GF_CUTSCENE)
-void cutscene_events_frame();         // 0x436c00
-void cutscene_play_escape();          // 0x437130 (state_game_enter with GF_ESCAPE_CUTSCENE)
-void cutscene_cleanup();              // 0x436620 ends the running cutscene (interface_frame on Esc; decomp48)
+// ---- player input (0x4343a0-0x4348f6) and cutscene playback (0x434900-0x437659), module "-": in their
+// placeholder unit headers (decomp52; cutscene_play, cutscene_cleanup, player_input_frame, ... moved there)
+#include "summoner/unnamed_input_0x4343a0.h"
+#include "summoner/unnamed_cutscene_0x434900.h"
 extern bool cheat_gold_5fbf19;        // 0x5fbf19 9999900 gold on a new game (state_game_enter), read by lsf_catacombs_boss_dead (name ours)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
@@ -205,8 +201,7 @@ extern int gr_info_smooth_lighting_time;  // 0x24268f0 "SmoothVertexLighting"
 extern int gr_info_zsort_time;        // 0x24268f4 "Z-SortingFaces"
 
 // ---- other units GameInit / game_cleanup call (module "-" in sum.symbols; units not known) ------------
-void cutscene_parse_table();          // 0x4355e0 cutscene.tbl
-void cutscene_shutdown_stub();        // 0x437120 empty (push ebp / pop ebp / ret)
+// (cutscene_parse_table 0x4355e0 and cutscene_shutdown_stub 0x437120: summoner/unnamed_cutscene_0x434900.h)
 void alt_textures_parse_table();      // 0x4aac10 alt_textures.tbl
 void alt_textures_free();             // 0x4aafb0
 // decomp38 (characterinfo_parse_table): the texture list of a base name and an entry of it.
@@ -216,6 +211,8 @@ void debug_noop_cleanup();            // 0x531c80 bare ret
 void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 records at 0x2d064e8
 void vif_reset_all();                 // 0x532ea0 (level_load; decomp42)
 void script_editor_frame();           // 0x4e01f0 (game_render_frame; decomp42)
+// True only when all five script editor windows are disabled (camera_process_input; decomp52).
+bool script_editor_no_window_open();  // 0x4e01a0
 
 // ---- summoner_cd.cpp (0x43e660-0x43eaff; .data 0x594f2c-0x594f87, .bss cd_root; decomp47) -----------
 extern char cd_root[64];              // 0x60ad7c "X:\" of the game disc, "" when none (size from sum.symbols)
@@ -343,6 +340,9 @@ extern SummonerOptions Summoner_options;                             // 0x60acc8
 // A field new_hud.cpp reads under its sum.symbols name. A macro now that summoner.cpp defines
 // Summoner_options: an extern bool at 0x60acd5 would have no definition (D604).
 #define config_solo_confirm (Summoner_options.solo_confirm)   // 0x60acd5
+// decomp52 (camera_process_input), the same way:
+#define config_invert_camera (Summoner_options.invert_camera) // 0x60acd1
+#define config_camera_speed (Summoner_options.camera_speed)   // 0x60ad00
 void summoner_cfg_save();                                            // 0x43e410
 
 // The combat option under its sum.symbols name (decomp23: living_combat_speed_share, combat_resolve_exchange).

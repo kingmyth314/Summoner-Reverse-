@@ -191,6 +191,15 @@ bool lobj_is_door(lobj *l);           // 0x477310 flag 0x100 and a door whose +4
 void hover_tint_set_object(obj *o, float r, float g, float b);     // 0x4820b0
 void hover_tint_set_character(lobj *l, float r, float g, float b); // 0x4820e0
 float fog_get_far_current();         // 0x486c20
+// decomp52 (the cutscene file): the fog distances (near, far: [esp+4] -> fog_near_distance 0x59bd80,
+// [esp+8] -> fog_far_distance 0x59bd7c, <= 0 takes the level default), the forced visibility list of a
+// cutscene $VisSet (0x22ea544, 16 max) and the level fade reset.
+void fog_set_distances(float near_dist, float far_dist);   // 0x486b10
+void level_vis_force_begin();         // 0x487150
+void level_vis_force_reset();         // 0x487190
+void level_vis_force_add(const char *name);   // 0x4871b0
+void level_vis_force_end();           // 0x4871e0
+void levelrender_fade_reset();        // 0x482070
 // Zeroes the six overhead label slots (0x22f9560; unit not known). interface_set_screen calls it before
 // the automap, spells and skills panels open (decomp48).
 void overhead_label_slots_clear();   // 0x4872b0

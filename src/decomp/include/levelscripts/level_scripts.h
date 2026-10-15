@@ -591,17 +591,16 @@ bool level_add_navpoint(s3d_navpoint *np);           // 0x4d5720 always true (mo
 
 // ---- the level hooks gameplay.cpp calls (decomp42) ---------------------------------------------------
 void cutscene_script_entries_frame();                 // 0x4ed680
+// The cutscene script of a cutscene (<name>_cscript.tbl; same unit as the frame hook, decomp52: the
+// cutscene file's calls). The load's return value is not used.
+void cutscene_script_load(const char *name);          // 0x4ed0f0
+void cutscene_script_unload();                        // 0x4ed390
 
-// ---- the cutscene unit's data that script_internal.cpp uses (unit not known; decomp44) ---------------
-// The loaded cutscene (symbols/types.h cutscene_entry, 0x140 bytes); only the head is declared here.
-struct cutscene_entry {
-    const char *name;                                 // +0x000 $Cutscene: ("game-intro", ...)
-    ushort flags;                                     // +0x004 1 +NoAbort (interface_frame: Esc does not end
-                                                      // the cutscene; decomp48), 2 +HideUnscripted
-};
-extern cutscene_entry *cutscene_data;                 // 0x601e68 NULL when no cutscene is loaded
-extern int cutscene_path_id;                          // 0x601e6c the cutscene's file path id
-extern short cutscene_cur_sequence;                   // 0x603460 the current sequence (synch actions)
+// ---- the cutscene file's data that script_internal.cpp uses -----------------------------------------
+// decomp52: cutscene_entry, cutscene_data (0x601e68), cutscene_path_id (0x601e6c) and
+// cutscene_cur_sequence (0x603460) are the cutscene file's (the entry class and the cutscene object's
+// fields as macros; D3200), declared in its unit header.
+#include "summoner/unnamed_cutscene_0x434900.h"
 #define MAX_CUTSCENE_NAVPOINTS 0x2d6                  // 0x8818 bytes / 0x30
 extern navpoint cutscene_navpoints[MAX_CUTSCENE_NAVPOINTS];   // 0x256b750 the second navpoint table
 extern int cutscene_navpoint_count;                   // 0x257e96c

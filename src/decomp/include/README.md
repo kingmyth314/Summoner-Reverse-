@@ -98,6 +98,7 @@ Summoner 2 and Dash Faction give names only.
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
+| `engine/camera/camera_sequence.h` | camera sequences 0x493f20-0x4946a0 (unit not known; file name ours, decomp52) | `camera_sequence`, `cutscene_camera_sequence` (the 0x70-byte cutscene shot) |
 | `engine/effects/effect_stream.h` | effect streamer (0x4404a0) | `effect_stream_*` |
 | `engine/effects/fx.h` | fx_* (0x48bd80-0x48d720, file not known; name ours) | `effect_object`, `fx_*`, `obj_from_handle_b` |
 | `engine/spells/spells.h` | spells.cpp (0x479b60-0x47f857, pilot decomp23) | `spell_info`, `spells`, groups, missiles, spell effects, the cast request, `spell_*` / `summon_*` |
@@ -107,6 +108,8 @@ Summoner 2 and Dash Faction give names only.
 
 | `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
 | `summoner/summoner.h` | summoner.cpp (decomp26), summoner_cd.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, MainLoop / LoadSettings / GameInit, path ids, fonts, command-line flags, `SummonerOptions` |
+| `summoner/unnamed_input_0x4343a0.h` | the player input unit 0x4343a0-0x4348f6 (`game/unnamed_input_0x4343a0.cpp`, file name a placeholder; decomp52; included by summoner.h) | slew ccmd, `player_input_frame`, the mouse input record bits, the camera keys |
+| `summoner/unnamed_cutscene_0x434900.h` | the cutscene file 0x434900-0x437659 (`game/unnamed_cutscene_0x434900.cpp`, file name a placeholder; decomp52; included by summoner.h and level_scripts.h) | `cutscene_entry` and its records, `class cutscene` (`the_cutscene`, field macros `cutscene_data` ...), every `cutscene_*` function, the cutscene ccmds (D3200) |
 | `summoner/gameplay.h` | gameplay.cpp (0x437660-0x43a32f, decomp42; included by summoner.h) | the cheat commands, level load / unload, state 4 and state 5 (help), party control, the level names and layer maps, the loading bar and help tables |
 | `summoner/gametarget.h` | gametarget.cpp (0x43a330-0x43cd6d, decomp35; included by summoner.h) | world picking and clicks, `WORLD_CLICK_*`, the tints, the unit's .bss / .data |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |

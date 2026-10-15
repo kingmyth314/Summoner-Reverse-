@@ -68,6 +68,7 @@ Rules:
 | `game/new_hud.cpp` | `new_hud.cpp` (`0x40cb60`-`0x41075a`) | 70 | 45 / 25 / 0 |
 | `game/unnamed_interface_0x411270.cpp` | interface manager `0x411270`-`0x414cb0` (**file name not known; placeholder**) | 122 | 98 / 23 / 1 |
 | `game/unnamed_editor_dialogs_0x430bc0.cpp`, `unnamed_states_0x431870.cpp`, `unnamed_frame_0x4323e0.cpp` | editor dialogs, boot/title/load-game states, frame end and input (**names not known**) | 79 | 66 / 13 / 0 (`NOTES-unnamed-states.md`) |
+| `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 46 / 8 / 0 (`NOTES-unnamed-input-cutscene.md`) |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |

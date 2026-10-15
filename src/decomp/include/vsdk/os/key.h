@@ -69,6 +69,8 @@ void key_init(int layout, int fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
 extern char *key_names[256];          // 0x5a68c0
 
 int  key_inkey();                     // 0x509ce0 next queued key code, 0 none (decomp47: cd_prompt_disc2)
+// decomp52 (camera_key_yaw / camera_key_zoom): seconds the key has been held (0 when up).
+float key_down_time(int key);         // 0x509bb0
 
 // decomp51 (PollInputEvents, game/unnamed_frame_0x4323e0.cpp).
 #define KEY_LAPOSTRO  0x29            // ` / ~ (the debug key: key_mark adds 0x800 to keys pressed with it)

@@ -52,5 +52,6 @@ void snd_unpause_all();               // 0x5207b0
 void snd_level_page_in();             // 0x520c70
 void snd_level_release();             // 0x520ce0
 void snd_stop_all();                  // 0x521600
+void snd_free(int handle);            // 0x520c10 snd_unload, then clears the name and level bits (decomp52)
 
 #endif

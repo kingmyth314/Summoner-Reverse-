@@ -9,6 +9,7 @@
 #include "vsdk/math/matrix.h"
 
 class Character;
+class camera_sequence;
 
 class camera {                        // 0x2a8 bytes
 public:
@@ -36,6 +37,13 @@ public:
     // (position, orientation, distance, two floats): an empty body (ret 0x14). The level scripts pass a
     // navpoint's position and matrix, 17.0 and 2.0, 2.0 (lsf_lenele_flag_cart_played). decomp46.
     void cut_to_view_stub(vector3 *pos, matrix3 *orient, float distance, float a, float b);   // 0x479430
+    // decomp52 (the player input unit 0x4343a0 and the cutscene file 0x434900):
+    void frame();                     // 0x478990 camera_frame (player_input_frame, every game frame)
+    void set_input(float yaw, float zoom, float elevation);   // 0x479170 -> +0x23c / +0x240 / +0x244
+    void start_sequence(camera_sequence *seq);                 // 0x4792c0 camera_start_sequence (a cutscene shot)
+    void end_sequence(bool restore);  // 0x4797f0 camera_end_sequence (bool: mov al, [esp + 8])
+    // (origin, rotation): applied to every cutscene shot while +0xc bit 0x80 is set; NULL clears.
+    void set_sequence_transform(vector3 *origin, matrix3 *orient);   // 0x479ad0
 
     int mode;            // +0x000 0 low, 1 high, 2 automatic, 3 forced high, 5 glide (camera_set_mode)
     int prev_mode;       // +0x004
