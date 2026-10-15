@@ -5287,7 +5287,7 @@
 0x5054f0  localize_string_or_invalid func  localize             O ; *p or "INVALID" (checked: returns *p when p and *p are non-null, else the "INVALID" string 0x5a6050, 84 callers)
 0x505510  localize_get_language_name func  localize               O
 0x505530  vector3__vector3_default func  vsdk\math            O ; trivial default constructor (returns this), 19 static initialisers (checked: body is mov eax, ecx, ret (returns this, initialises nothing), 323 callers incl. gr__Screen__Screen and gr__Vertex__Vertex)
-0x505540  Mempool__ResetOffset     func  vsdk\os\memory.cpp     V ; Summoner 2 inline ResetOffset: offset = 0
+0x505540  Mempool__ResetOffset     func  vsdk\os              V ; Summoner 2 inline ResetOffset: offset = 0 (module: header inline compiled into the file that uses it)
 0x505550  init_gr_mode_25d8df4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887ec): gr__Mode(3, 2, 3, 3, 0, 3) into 0x25d8df4 (text mode used by gr_string callers)
 0x505580  init_gr_mode_25d8cdc     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887f0): gr__Mode(3, 2, 3, 3, 0, 3) into 0x25d8cdc
 0x5055b0  init_gr_mode_25d8d08     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887f4): gr__Mode(1, 1, 0, 3, 0, 3) into 0x25d8d08
@@ -5977,8 +5977,8 @@
 0x51df60  fx_rec_2vec__ctor        func  vsdk\geom            O ; thiscall ctor with vectors at +8 and +0x14, shared by three record arrays
 0x51df80  fx_rec4c__ctor           func  vsdk\geom            O ; thiscall ctor of the 0x4c-byte record: vectors +0xc/+0x18/+0x28/+0x34
 0x51dfb0  fx_recb0__ctor           func  vsdk\geom            O ; thiscall ctor of the 0xb0-byte record: vectors +0x1c/+0x4c..+0x7c, matrix +0x28
-0x51dff0  Mempool__Mempool         func  memory.cpp           O ; thiscall (buffer, size, name) -> Mempool__Copy, returns this, used by init_effects_mempool
-0x51e010  Mempool__getPoolSpaceLeft func  memory.cpp           V ; Summoner 2 Mempool::getPoolSpaceLeft(): size (+4) - offset (+8)
+0x51dff0  Mempool__Mempool         func  vsdk\os              O ; thiscall (buffer, size, name) -> Mempool__Copy, returns this, used by init_effects_mempool (module: header inline compiled into the file that uses it)
+0x51e010  Mempool__getPoolSpaceLeft func  vsdk\os              V ; Summoner 2 Mempool::getPoolSpaceLeft(): size (+4) - offset (+8) (module: header inline compiled into the file that uses it)
 0x51e020  vfx_get_length_seconds   func  vsdk\geom            O ; thiscall: (+0x24 + 1) * +0x20 / 4800 (4800 ticks per second), caller 0x51d250 (checked: thiscall: (+0x24 + 1.0) * int +0x20 * constant 0x581ab4 (1/4800), caller vfx_instance_create)
 0x51e040  fixed8__set              func  vsdk\math            O ; thiscall (float): stores float_to_fixed8 as an int16
 0x51e060  float_to_fixed8          func  vsdk\math            O ; (f) ftol(f * 256)
@@ -6656,17 +6656,17 @@
 0x536360  gr_d3d_tmapper_multipass func  vsdk\gr\directx\gr_direct3d.cpp O ; D3D back end of gr_tmapper_multipass: per-vertex depth / fog alpha, gamma colours, two passes for multitexture modes with gr_d3d_set_state and gr_d3d_draw_primitive
 0x536790  gr_d3d_has_format_c      func  vsdk\gr\directx\gr_direct3d.cpp I ; hidden start, returns d3d_texture_format_c_found, no reference found (dead code?)
 0x5367a0  gr_d3d_set_stage0_states_16_17 func  vsdk\gr\directx\gr_direct3d.cpp I ; hidden start, when d3d_texture_format_c_found: d3d_device vtbl +0x94 for states 0x16 / 0x17 of stage 0 (0x536940 maps args), no reference found (dead code?)
-0x5368a0  gr__Mode__Mode_invalid   func  vsdk\gr\gr.cpp       O ; thiscall, value = -1 (no valid mode), returns this
-0x5368b0  gr__Mode__operator_eq    func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode::operator==, compares the packed dword
-0x5368c0  gr__Mode__get_texture_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 0) & 0x1f
-0x5368d0  gr__Mode__get_color_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 5) & 0x1f
-0x5368e0  gr__Mode__get_alpha_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 10) & 0x1f
-0x5368f0  gr__Mode__get_alpha_blend func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 15) & 0x1f
-0x536900  gr__Mode__get_zbuffer_type func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 20) & 0x1f
-0x536910  gr__Mode__get_fog_type   func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 25) & 0x1f
-0x536920  gr__Mode__invalidate     func  vsdk\gr\gr.cpp       O ; thiscall: value = -1 (forces the next state change), callers gr_glide_set_fog, gr_opengl_tcache_set, gr_opengl_init_context and the D3D frame setup
-0x536930  gr__Mode__is_multitexture func  vsdk\gr\gr.cpp       O ; texture_source >= 4 (TEXTURE_SOURCE_CLAMP_1_WRAP_0 and up are the two-texture sources in Dash Faction)
-0x536940  gr__Mode__identity       func  vsdk\gr\gr.cpp       I ; hidden start: returns its first argument (mov eax, [esp+4]), 6 calls from gr_d3d_set_stage0_states_16_17, probably an inlined gr__Mode accessor
+0x5368a0  gr__Mode__Mode_invalid   func  vsdk\gr              O ; thiscall, value = -1 (no valid mode), returns this (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x5368b0  gr__Mode__operator_eq    func  vsdk\gr              V ; Dash Faction gr::Mode::operator==, compares the packed dword (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x5368c0  gr__Mode__get_texture_source func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 0) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x5368d0  gr__Mode__get_color_source func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 5) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x5368e0  gr__Mode__get_alpha_source func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 10) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x5368f0  gr__Mode__get_alpha_blend func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 15) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x536900  gr__Mode__get_zbuffer_type func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 20) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x536910  gr__Mode__get_fog_type   func  vsdk\gr              V ; Dash Faction gr::Mode (value >> 25) & 0x1f (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x536920  gr__Mode__invalidate     func  vsdk\gr              O ; thiscall: value = -1 (forces the next state change), callers gr_glide_set_fog, gr_opengl_tcache_set, gr_opengl_init_context and the D3D frame setup (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x536930  gr__Mode__is_multitexture func  vsdk\gr              O ; texture_source >= 4 (TEXTURE_SOURCE_CLAMP_1_WRAP_0 and up are the two-texture sources in Dash Faction) (module: header inline compiled into the Direct3D code, so only the folder is known)
+0x536940  gr__Mode__identity       func  vsdk\gr              I ; hidden start: returns its first argument (mov eax, [esp+4]), 6 calls from gr_d3d_set_stage0_states_16_17, probably an inlined gr__Mode accessor (module: header inline compiled into the Direct3D code, so only the folder is known)
 0x536950  init_gr_d3d_vertex_buf   func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889d0): 4000 gr__Vertex (0x30 bytes) at 0x2d90f10
 0x536980  init_vfx_camera_pos      func  vsdk\geom            O ; hidden start, static initialiser (table 0x5889d4): vector 0x2d90ee8 copied out by vfx_get_camera (checked: static initialiser thunk then vector3__vector3_default(0x2d90ee8))
 0x5369a0  init_vfx_camera_orient   func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d8): quaternion 0x2d90ef8 copied out by vfx_get_camera
