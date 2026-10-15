@@ -3819,8 +3819,8 @@
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
 0x4ccf00  script_play_cutscene     func  -                    O ; (name, continuation): if a party member is alive and cutscenes are on, cutscene_play with script_cutscene_done hooked, else calls the continuation directly
-0x4ccf90  level_trigger_disable    func  -                    O ; (name, area or NULL): clears bit 1 of +0x54 on matching trigger records (0x64 bytes from 0x2490dd0, count 0x2490c74)
-0x4ccff0  level_trigger_enable     func  -                    O ; (name, area or NULL): sets bit 1 of matching trigger records, prints "Loadarea or table file trigger missing!" if none
+0x4ccf90  level_trigger_set_exit   func  -                    O ; (name, ...): clears bit 0x2 of the matching trigger +0x54, so level_check_triggers treats it as a level exit (the world map setup makes one exit per location live with it) (formerly level_trigger_disable)
+0x4ccff0  level_trigger_set_script_use func  -                    O ; (name, ...): sets bit 0x2 of the matching trigger +0x54, so level_check_triggers calls level_script_use for it instead of treating it as a level exit (formerly level_trigger_enable)
 0x4cd060  level_trigger_disable_by_target func  -                    O ; (name) matches the second trigger name +0x24, clears bit 1
 0x4cd0c0  level_trigger_enable_by_target func  -                    O ; (name) matches the second trigger name +0x24, sets bit 1
 0x4cd120  level_trigger_trip       func  -                    O ; "Tripped trigger: %s" (checked: distance_squared / segments_intersect_xz trigger tests, sprintf "Tripped trigger:  %s" under game_debug_flags, caller ls_catacombs_frame)
@@ -4731,7 +4731,7 @@
 0x4ee070  lsf_sewers_flag_smell_comment func  -                    O ; level-script helper keyed on story flag "sewers_flag_smell_comment", L"Ugh! And you thought pigs smelled bad." (checked: gated on savegame_get_flag("sewers_flag_smell_comment") and sets it with savegame_set_flag, script_player_near_navpoint, script_party_member_say, "$npc096" L554 "Ugh! And you thought pigs smelled ...)
 0x4ee0e0  ls_sewerboss_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4ee220  ls_sewerboss_golems_dead func  -                    O ; script_npc_is_dead "Broken Brass Golem#boss1", "#boss2" and "Iron Golem#boss"
-0x4ee260  lsf_sewer_found_tb       func  -                    O ; level-script helper keyed on story flag "sewer_found_tb" (checked: gated on savegame_get_flag("sewer_found_tb") and sets it with savegame_set_flag, script_player_near_navpoint, script_play_cutscene, level_trigger_enable, ai_go_idle, "$tbintro" "TB-Intro", caller ...)
+0x4ee260  lsf_sewer_found_tb       func  -                    O ; level-script helper keyed on story flag "sewer_found_tb" (checked: gated on savegame_get_flag("sewer_found_tb") and sets it with savegame_set_flag, script_player_near_navpoint, script_play_cutscene, level_trigger_set_script_use, ai_go_idle, "$tbintro" "TB-Intro", caller ...)
 0x4ee2d0  ls_sewer_tb_intro_cs_end func  -                    O ; hidden start, end callback of cutscene TB-Intro pushed by lsf_sewer_found_tb: tentacles flag and ai_go_idle, tentacles up 4, battle started, camera mode 3
 0x4ee3c0  ls_sewer_create_avoid_spline func  -                    O ; builds a fixed 4-point area (constant coordinates) and creates an avoid spline (0x4a7990) into 0x257e9a0, caller lsf_sewer_found_tb
 0x4ee4f0  ls_sewer_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_sewerboss_use
@@ -4933,7 +4933,7 @@
 0x4f66a0  static_init_empty_4f66b0 func  -                    O ; hidden start: initialiser table entry 490 (0x5887ac): jmp init_empty_4f66b0
 0x4f66b0  init_empty_4f66b0        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 490 (0x5887ac) via jmp 0x4f66a0
 0x4f66c0  ls_wolongcaverns_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
-0x4f6850  ls_wolongcaverns_update_triggers func  -                    O ; game_stage_get -> level_trigger_enable / _disable "wolong", "wolong2", "wolong2_v2"
+0x4f6850  ls_wolongcaverns_update_triggers func  -                    O ; game_stage_get -> level_trigger_set_script_use / _disable "wolong", "wolong2", "wolong2_v2"
 0x4f68f0  ls_wolongcaverns_frame   func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f6910  ls_wolongcaverns_trap1_frame func  -                    O ; runs ls_wolongcaverns_trap1_fire (checked: for live party members (type 7, not flag 0x400) near the trap point 0x257eab8 calls ls_wolongcaverns_trap1_fire, caller ls_wolongcaverns_frame)
 0x4f6990  ls_wolongcaverns_trap1_fire func  -                    O ; "wc-trap1.vfx", sound, character_add_hp and status_effect_add on the victim
@@ -5013,7 +5013,7 @@
 0x4f9fa0  ls_ikaemostopint_main_door func  -                    O ; "ikaemos_slot1".."4" set -> "ikaemos_main_door", opens "Door02-01"
 0x4fa050  lsf_ikaemos_found_boss   func  -                    O ; level-script helper keyed on story flag "ikaemos_found_boss" (checked: gated on savegame_get_flag("ikaemos_found_boss") and sets it with savegame_set_flag, music_find_by_name, music_play, script_player_near_navpoint, script_play_cutscene, "Boss" "$ipktrigger", caller...)
 0x4fa110  ls_ikaemos_pking_intro_cs_end func  -                    O ; hidden start, end callback of IkmsPKing-Intro (lsf_ikaemos_found_boss): sends Ikaemos Priest King, enables the ikaemosext trigger
-0x4fa140  lsf_ikaemos_boss_killed  func  -                    O ; level-script helper keyed on story flag "ikaemos_boss_killed", L"Joseph acquired Summon Golem!" (checked: gated on savegame_get_flag("ikaemos_boss_killed") and sets it with savegame_set_flag, music_play, script_npc_is_dead, party_count_item_by_name, level_trigger_disable, "ikaemos_found_boss" "Ikaemos...)
+0x4fa140  lsf_ikaemos_boss_killed  func  -                    O ; level-script helper keyed on story flag "ikaemos_boss_killed", L"Joseph acquired Summon Golem!" (checked: gated on savegame_get_flag("ikaemos_boss_killed") and sets it with savegame_set_flag, music_play, script_npc_is_dead, party_count_item_by_name, level_trigger_set_exit, "ikaemos_found_boss" "Ikaemos...)
 0x4fa230  ls_ikaemostopint_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fa400  ls_ikaemosbottomint_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fa420  ls_rand_hills01_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
