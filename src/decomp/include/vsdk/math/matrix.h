@@ -47,6 +47,7 @@ public:
     matrix43();                                       // folded with 0x505530 (empty)
     matrix43(const vector3 &r, const vector3 &u, const vector3 &f, const vector3 &p);  // 0x5113f0
     matrix43(const matrix &rot);                      // 0x5113a0 matrix43__matrix43_rot (zero position; decomp20)
+    matrix43(const vector3 &pos, const matrix &rot);  // 0x511450 matrix43__matrix43_pos_rot (decomp23)
     matrix43 operator*(const matrix43 &m) const;      // 0x5114b0 matrix43__multiply_4x4
     void operator=(const matrix43 &m);                // 0x51b6c0 matrix43__copy (COMDAT in character_instance.cpp, no result)
     void set(const quaternion &q, const vector3 &pos);// 0x511840 matrix43__set_quat
@@ -58,5 +59,9 @@ public:
     float m[4][3];
 };
 LAYOUT_CHECK(matrix43, sizeof(matrix43) == 0x30);
+
+// (orient_a, pos_a, orient_b, pos_b): orient_b = orient_a * orient_b, pos_b = pos_b unrotated by
+// orient_a + pos_a (spell_launch_missile; decomp23).
+void matrix43_compose(const matrix *orient_a, const vector3 *pos_a, matrix *orient_b, vector3 *pos_b);  // 0x50f3a0
 
 #endif

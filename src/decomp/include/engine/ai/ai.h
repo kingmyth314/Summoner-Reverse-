@@ -48,6 +48,13 @@ public:
     void add_skill_from_behind(Character *target, int priority);           // 0x4741d0 ai_goal_add_skill_from_behind
     void add_hide();                  // 0x474440 ai_goal_add_hide (toggles)
     void add_sneak();                 // 0x474480 ai_goal_add_sneak
+    // decomp23 (combat.cpp, spells.cpp):
+    bool is_combat_sub10();           // 0x473170 ai_is_combat_sub10 (ranged attack)
+    bool is_combat_sub11();           // 0x4731e0 ai_is_combat_sub11 (special attack)
+    void class_die();                 // 0x4739e0 ai_class_die
+    void knock_down(int ms);          // 0x474350 ai_knock_down
+    void disable_2f();                // 0x4743e0 ai_disable_2f
+    void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
 
     int mode;                // +0x00 enum ai_state_mode
     int submode;             // +0x04
@@ -132,5 +139,20 @@ struct ai_service_req {
     int _unk08;
 };
 void ai_service_request(ai_service_req *req);         // 0x4766f0 (handled locally or sent with multi_send_packet)
+
+// An avoidance-area primitive ("AA"; 0x30 bytes on the caller's stack, avoid_area_add copies it).
+// Layout from the three spells.cpp builders (decomp23); names ours, unit not known.
+struct avoid_area_desc {
+    int _unk00;                       // +0x00 0 at every caller
+    int shape;                        // +0x04 0 (box), 1 (spell_spawn_hit_fx)
+    float cx, cz;                     // +0x08 centre (x, z)
+    float ax, az;                     // +0x10 first axis
+    float bx, bz;                     // +0x18 second axis
+    float extent_a, extent_b;         // +0x20 half sizes along the axes
+    float _unk28;                     // +0x28 0.5 at every caller
+    int owner;                        // +0x2C caller's argument (handle or team)
+};
+LAYOUT_CHECK(avoid_area_desc, sizeof(avoid_area_desc) == 0x30);
+int avoid_area_add(avoid_area_desc *d);               // 0x4a9b40 index ("AA - primative not added!!")
 
 #endif

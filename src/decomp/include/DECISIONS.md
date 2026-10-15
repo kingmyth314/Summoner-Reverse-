@@ -681,3 +681,68 @@ container handlers compare +0xc with 0xb). savegame: hot_buttons_clear_member (t
 0x46d96f). matrix: matrix(r, u, f) (0x50fad0, thiscall, ret 0xc). net: net_get_reliable_socket_ping.
 mp_quantize_position(short*, short*, short*, vector3 by value: the vector is copied to the stack first,
 0x488fd3) and mp_dequantize_position (hidden result, 0x489202).
+
+## decomp23 (spells.cpp, combat.cpp)
+
+**D300 (combat.cpp). living_combat moves to engine/combat/combat.h with its fields named.** The class
+was an opaque 0x54-byte block in living_entity.h; combat.cpp's code gives every field (owner +0x00, target
+handle +0x04, opponent record +0x08, GameTimer +0x0c, state +0x14 ... backstab flag +0x50; layout check
+0x54 kept). living_entity.h now includes combat.h. The constructor 0x4681b0 is a real constructor
+(`GameTimer__GameTimer(this+0xc)`, `living_combat_reset`, `mov eax, esi`), but Character keeps the D1
+union (`combat` / `protection`, new_assess.cpp still uses the second name), and a union member cannot
+have a constructor. So the GameTimer at +0x0c is declared as `int timer` and the constructor is written
+as `living_combat *construct()` (placement-new of the GameTimer, then reset). To do with D1: drop the
+union, type +0x0c as GameTimer and turn construct() back into living_combat::living_combat().
+
+**D301 (combat.cpp). Character +0x6D0 is a move record pointer.** `cur_move` was `int`; combat.cpp
+dereferences it (`mov eax, [edx+0x6d0]; mov ecx, [eax+0x18]` at 0x465fca, 0x4637e0-0x4637ea), so it is
+`move_info *`. New partial `move_info` in characterinfo.h (category +0x10, id +0x14, variant +0x18,
+triggers +0x1c, next +0x40, hit tag +0x44; type name ours). No pilot read the field.
+
+**D302 (combat.cpp). character_instance::get_bone_transform takes (pos, orient, bone).** 0x51b460 reads
+the bone from `[esp+0xc]`, passes `[esp+8]` to matrix43::get_rotation and `[esp+4]` to get_position;
+combat_fire_weapon_missile pushes (bone, &orient, &pos) (0x46399c-0x4639a5). The pilot's declaration
+(bone, orient, pos) does not match, but character_instance.cpp defines it, so the correct order is
+declared beside it as an overload; combat.cpp calls that one. To do: swap the definition in
+character_instance.cpp and drop the old declaration.
+
+**D303 (combat.cpp). character_play_move's first argument is the move record.** Every combat.cpp call
+passes a character_find_move / find_move_alt result (0x463635, 0x463702). decomp20 declared it `int move`;
+the declaration is kept with the same text for the merge and combat.cpp casts. To do: make it `move_info *`.
+
+**D304 (spells.cpp). spell_info +0x44 is a sound_ref.** spells_reset_runtime sets the handles at +0x14,
++0x24, +0x38 and +0x48 to -1 (0x47a789-0x47a791), so +0x44 is a fourth sound_ref (`banish_sound`), but
+the parser never fills it: +Misc effect: and +Banish effect: both pass +0x34 to spells_parse_sound
+(0x47a39a). `_unk44[0xc]` becomes `banish_sound`.
+
+**D305 (spells.cpp). spell_groups[] holds (count, first record).** spells_parse_table stores the record
+pointer (`mov [8*ebx+0x22e9264], edi`, EDI = the record's +0x00) and spell_get_group reads
+`[first + 4 + 0x80*k]` (the record's index); `first` is `spell_info *`.
+
+**D306 (spells.cpp, combat.cpp). Output-argument order of the tag / node transforms.** The call sites
+push the node or tag last: vfx_instance::get_node_transform(pos, orient, node) (0x47e348-0x47e35c, the
+position is unrotated afterwards), vim_get_tag_transform(vim, tag, pos, orient) (0x463975-0x463987, the
+outputs feed matrix43(pos, rot)). sum.symbols' comments list the index first; the declarations follow
+the pushes.
+
+**D307 (combat.cpp). charinfo_collect_moves(out, category, info, a, exclude, class).** The only call
+(0x463eb4-0x463ec9) pushes class, exclude (+0x18), 0, info, 0xa, &out; sum.symbols lists
+"(out[], info, category, exclude, bit)". The declaration follows the pushes.
+
+**D308 (combat.cpp). Small signatures from the call sites.** mp_send_living_combat(attacker net,
+defender net, variant, defence move, state argument, skill, special) (0x4635b4-0x4635c7);
+boss_counter_hit_dispatch takes two arguments (the `add esp, 0xc` at 0x467e98 also pops
+character_break_paralysis_on_hit's); lighting_sample_stub's outputs are bytes (combat_spawn_blood reads
+them with `and eax, 0xff`); spell_fire_missile(spell, missile, caster, target, start, orient) and
+spell_place_ground_effect(spell, caster, pos, owner, orient) from their bodies (sum.symbols' argument
+lists differ).
+
+**D309 (spells.cpp). spell_effect records are bit fields.** The pool reset does `and ecx, -2; or ecx,
+0x7e` and spell_effect_alloc `or ecx, 0x7f`: bit 0 "used" and a 6-bit field set to all ones; declared as
+`unsigned used : 1, slot : 6`. Names ours.
+
+**D310 (spells.cpp, combat.cpp). Declarations shared with decomp20.** next_arg, ARG_STRING,
+normalize_safe, vector2::len, operator*(float, const vector3 &), size_radius, distance_between_edges,
+status_effect_cure, is_moving, play_move and move_finished are declared with decomp20's text (its copy of
+the headers is newer than this one), so the merge only has to drop duplicates. combat.cpp defines
+operator*(float, const vector3 &) (0x468a90 lies in its range).

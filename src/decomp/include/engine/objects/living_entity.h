@@ -12,20 +12,13 @@
 #include "engine/objects/items.h"
 #include "engine/ai/ai.h"
 #include "engine/characterinfo/characterinfo.h"
+#include "engine/combat/combat.h"
 
 class Character;
 class character_instance;
 
-// The living_combat sub-object at Character +0x558 (living_combat__ctor 0x4681b0, set_owner: [0] = the
-// character; 0x54 bytes). character_get_protection is thiscall on it (combat.cpp range).
-class living_combat {
-public:
-    float get_protection();           // 0x464de0 character_get_protection
-    void  set_38(int skill);          // 0x468750 living_combat_set_38 (queues a combat skill move)
-    Character *owner;                 // +0x00
-    ubyte _unk04[0x50];
-};
-LAYOUT_CHECK(living_combat, sizeof(living_combat) == 0x54);
+// The living_combat sub-object at Character +0x558 is declared in engine/combat/combat.h with its
+// fields (combat.cpp, decomp23; DECISIONS.md D300).
 
 #define NUM_LOCO_ANIMS 18             // locomotion_anim_names, Character +0x5ac..+0x5f0
 
@@ -84,12 +77,25 @@ public:
     void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
     void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed
     void *get_current_move();         // 0x461500 character_get_current_move (0 = none)
-    void *find_move(int category, int id);   // 0x461370 character_find_move (0 = none)
     int   spell_on_cooldown(int spell);// 0x44dd30 character_spell_on_cooldown
     void  add_ap(float delta);        // 0x450c70 character_add_ap (return unused)
     bool  is_in_view(float radius_scale); // 0x44f020 character_is_in_view
     void  move_frame();               // 0x45cd00 living_entity_move_frame
     void  update_footsteps();         // 0x45d690 character_update_footsteps
+    // decomp23 (combat.cpp, spells.cpp). Argument lists from the call sites. play_move, move_finished,
+    // size_radius, distance_between_edges, status_effect_cure and is_moving use the same text as
+    // decomp20's copy (merge).
+    bool  add_hp(float delta, int source, int a, int b);  // 0x450850 character_add_hp -> still alive (combat: handle / -1, 1, 0)
+    void  status_effect_add(int status, int ms, int a, int b, int source, int c);   // 0x454700 (combat: id, 15000, -1, 0, handle, 0)
+    float status_value(int status);                       // 0x455a30 character_status_value
+    void  get_hit_by_spell(int spell, int source, int a, int b, int source_type, int c, int d, int e);  // 0x45dea0 living_entity_get_hit_by_spell
+    // The first argument is the move record (character_find_move's result); decomp20 declared it int,
+    // kept for the merge (DECISIONS.md D303).
+    move_info *find_move(int category, int id);           // 0x461370 character_find_move
+    move_info *find_move_alt(int category, int id);       // 0x4613b0 character_find_move_alt
+    bool  move_playing(int anim, float *t);               // 0x461450 character_move_playing (t may be 0)
+    float move_trigger_time_left(int trigger);            // 0x461670 character_move_trigger_time_left
+    int   move_trigger_fired(int trigger, int latch);     // 0x461740 1 once when passed, 0 before, -1 no move/trigger
     // objects.cpp
     bool  anim_lod_skip();            // 0x46ad10 character_anim_lod_skip
     void  process_anim(float frametime);  // 0x46adf0 character_process_anim
@@ -174,7 +180,7 @@ public:
     float speed_scale;                // +0x6BC
     float _vec6c0[3];                 // +0x6C0
     int cur_anim;                     // +0x6CC
-    int cur_move;                     // +0x6D0
+    move_info *cur_move;              // +0x6D0 current move record (combat reads +0x18; D301)
     GameTimer timer6d4;               // +0x6D4
     int cutscene_object;              // +0x6D8
     int script_object;                // +0x6DC
@@ -240,6 +246,10 @@ struct spell_cooldown {
 LAYOUT_CHECK(spell_cooldown, sizeof(spell_cooldown) == 0xc);
 #define MAX_SPELL_COOLDOWNS 100
 extern spell_cooldown spell_cooldowns[MAX_SPELL_COOLDOWNS];   // 0x93ff78
+
+// Console toggles in living_entity.cpp's .bss (decomp23: spell_roll_amount reads No_resist).
+extern bool Players_immortal;         // 0x941704 "immortal"
+extern bool No_resist;                // 0x941705 "no_resist"
 
 void living_entity_reset_tables();    // 0x462d80
 

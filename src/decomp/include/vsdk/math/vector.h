@@ -29,6 +29,11 @@ public:
     // Inline in the original header (decomp20, DECISIONS.md C3): expanded in conversation_frame, called
     // as the COMDAT 0x4d9a80 vector3__len_sq from conversation_camera_compute_shot.
     float len_sq() const { return x * x + y * y + z * z; }
+    vector3 rotated(const matrix &m) const;           // 0x524370 vector3__rotated (dot with each row)
+    vector3 unrotated(const matrix &m) const;         // 0x5243d0 vector3__unrotated (M^T v)
+    void normalize();                                 // 0x524430 vector3__normalize (no zero check)
+    void zero();                                      // 0x524640 vector3__zero
+    void random_unit_vector();                        // 0x524650 vector3__random_unit_vector
 
     float x, y, z;
 };
@@ -38,16 +43,17 @@ LAYOUT_CHECK(vector3, sizeof(vector3) == 0xc);
 vector3 operator*(float s, const vector3 &v);         // 0x468a90
 float distance(const vector3 *a, const vector3 *b);   // 0x524810 |a - b|
 
-// A 2D vector, thiscall len (conversation_frame passes the x / z offset; decomp20).
-class vector2 {
-public:
-    float len() const;                                // 0x523f80 vector2__len
-    float x, y;
-};
-LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
-
 int imax(int a, int b);                               // 0x51b750 (COMDAT in character_instance.cpp)
 int imin(int a, int b);                               // 0x503dc0
 float frand();                                        // 0x5426e0 rand() * (1/32768) (unit not known)
+
+// A 2D vector (conversation_frame passes the x / z offset; decomp20), (x, z of a ground position in spell_place_ground_effect). len as in decomp20's copy.
+class vector2 {
+public:
+    float len() const;                                // 0x523f80 vector2__len
+    float normalize();                                // 0x523fc0 vector2__normalize: returns the length, (1, 0) at 0
+    float x, y;
+};
+LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
 
 #endif

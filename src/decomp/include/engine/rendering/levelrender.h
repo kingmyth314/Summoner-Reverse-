@@ -94,4 +94,7 @@ void levelrender_render_scene();      // 0x482200
 void options_apply_detail();          // 0x4872d0 (detail settings; name from sum.symbols)
 void levelrender_clear_draw_lists();  // 0x486b00
 
+// (lobj, face, point, out r, g, b): writes 0xff to the three output bytes (unit not known; decomp23).
+void lighting_sample_stub(int lobj, int face, const float *point, ubyte *r, ubyte *g, ubyte *b);  // 0x4af320
+
 #endif

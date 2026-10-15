@@ -86,7 +86,10 @@ Summoner 2 and Dash Faction give names only.
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` | `lobj`, level render calls |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
 | `engine/effects/effect_stream.h` | effect streamer (0x4404a0) | `effect_stream_*` |
-| `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
+| `engine/effects/fx.h` | fx_* (0x48bd80-0x48d720, file not known; name ours) | `effect_object`, `fx_*`, `obj_from_handle_b` |
+| `engine/spells/spells.h` | spells.cpp (0x479b60-0x47f857, pilot decomp23) | `spell_info`, `spells`, groups, missiles, spell effects, the cast request, `spell_*` / `summon_*` |
+| `engine/combat/combat.h` | combat.cpp (0x463540-0x468c77, pilot decomp23; directory guessed) | `living_combat` (Character +0x558) and the combat helpers |
+| `engine/ai/boss_ai.h` | boss_ai.cpp (0x4a04b0-0x4a3580) and the per-boss units | the boss hooks combat.cpp calls, `rand_int_range`, `ghost_stage` |
 | `summoner/summoner.h` | summoner.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, path ids, `SummonerOptions` |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |

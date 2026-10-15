@@ -129,4 +129,6 @@ LAYOUT_CHECK(gr_light_desc, sizeof(gr_light_desc) == 0x20);
 
 #include "vsdk/gr/gr_font.h"
 
+float rgb_to_lightened_grey(float r, float g, float b);  // 0x508090 (avg + (255 - avg) * 0.6) / 255 (decomp23)
+
 #endif

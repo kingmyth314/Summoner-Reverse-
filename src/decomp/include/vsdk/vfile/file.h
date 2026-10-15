@@ -86,4 +86,6 @@ typedef file_find_node file_entry;
 void file_find_files(file_find_list *list, int path_id, const char *pattern, int flags,
                      void *callback);                                 // 0x5133b0
 
+int  file_add_path(const char *dir, const char *ext);  // 0x512e60 path id (decomp23: spells_parse_table)
+
 #endif

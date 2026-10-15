@@ -40,4 +40,6 @@ void print_to_console(const char *text, int flags);   // 0x50a5a0 (empty in this
 // The shared sprintf buffer (0x257ed80, .bss next to frametime.cpp's; owner unit not known).
 extern char string_buffer[];             // 0x257ed80
 
+void console_printf(const char *fmt, ...);   // 0x50aef0 (vsprintf + print_to_console; decomp23: cmd_summon)
+
 #endif

@@ -101,7 +101,6 @@ void ClearFrameFlag5bd504();                                        // 0x414020 
 extern unsigned int ui_choice_popup_flags;                          // 0x5bd77c bit 31 shown
 extern const int ui_choice_popup_margin[3];                         // 0x57ef64 {5, 5, 5} per resolution_index (name ours)
 extern const int ui_choice_popup_margin_y[3];                       // 0x57ef70 {3, 3, 3} (sum.symbols module new_hud.cpp)
-void ui_draw_panel_frame(int x, int y, int w, int h);               // 0x4134b0 three nested gr_rect frames
 void ui_message_box_show(const char *title, const char *text, int x, int y, int num_buttons,
                          char **buttons, void (*callback)(int), int flags);   // 0x413e40 (last argument: 0 or 2)
 bool ui_message_box_is_active();                                    // 0x4144d0

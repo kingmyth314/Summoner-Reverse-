@@ -79,7 +79,8 @@ public:
     matrix43 compute_bone_matrix(int bone);           // 0x51b3b0
     void get_bone_world_transform(int bone, matrix *inst_orient, vector3 *inst_pos,
                                   matrix *out_orient, vector3 *out_pos);   // 0x51b3f0
-    void get_bone_transform(int bone, matrix *out_orient, vector3 *out_pos);   // 0x51b460
+    // Parameter order from the body (DECISIONS.md D302): bone [esp+0xc], rotation [esp+8], position [esp+4].
+    void get_bone_transform(vector3 *out_pos, matrix *out_orient, int bone);   // 0x51b460
     int report_memory();                              // 0x51b4a0
     void set_tint(ubyte r, ubyte g, ubyte b);         // 0x51b590
     // Not in this unit (vsdk\ca, file not known); thiscall, ret 0xc. Used by new_status.cpp.

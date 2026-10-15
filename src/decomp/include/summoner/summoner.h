@@ -37,7 +37,6 @@ extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of eac
 extern int  level_layer_automap_index[40];     // 0x60a36c
 
 // ---- gameplay.cpp: party control (0x439580-0x4396d0) -------------------------------------------------
-void combat_mode_set(bool on);                 // 0x439580
 void party_toggle_hold();                      // 0x439620
 void party_select_member(class Player *p);     // 0x4396d0
 
@@ -129,5 +128,8 @@ extern SummonerOptions Summoner_options;                             // 0x60acc8
 // A field new_hud.cpp reads under its sum.symbols name (as camera_fov in camera.h, DECISIONS.md D19).
 extern bool config_solo_confirm;                                     // 0x60acd5 (= Summoner_options.solo_confirm)
 void summoner_cfg_save();                                            // 0x43e410
+
+// The combat option under its sum.symbols name (decomp23: living_combat_speed_share, combat_resolve_exchange).
+extern bool config_combat_flag;                                      // 0x60acd4 (= Summoner_options.combat_flag)
 
 #endif

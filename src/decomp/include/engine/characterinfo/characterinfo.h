@@ -196,6 +196,7 @@ int   charinfo_find_by_species(int species);          // 0x446bd0 index or -1
 void *charinfo_get_multi_appearance(char_info *info); // 0x449b80
 int   species_is_hero(int species);                   // 0x449a20
 void  statscreen_unload_anim(Character *c);         // 0x449100
+extern const char *variation_names[194];             // 0x595cf8 "", "variation 1", ... (characterinfo.cpp .data; +Variation:)
 extern const char *skill_names[36];                   // 0x595b64 (characterinfo.cpp .data; 0x595bf4 ends it)
 int   charinfo_find_anim(char_info *info, const char *name);   // 0x448d90, anim index or -1
 
@@ -231,6 +232,30 @@ int  chain_config_find_skill(Player *p, int skill);   // 0x449910: slot 0..3, -1
 int  chain_skill_get_points(Player *p, int skill);    // 0x449960 (decomp24)
 void chain_skill_set_points(Player *p, int skill, int points);   // 0x4499c0 (decomp24; return unused)
 void chain_config_reset_defaults();                   // 0x449310 (decomp24)
+
+// A "+Move:" record of a char_info move list (char_info.moves[category], next at +0x40). Partial: the
+// fields combat.cpp reads (decomp23, D301). Type name ours (types.h comments call it move_info).
+struct move_info {
+    ubyte _unk00[0x08];
+    int anim;                         // +0x08 animation (types.h Character +0xa8 comment)
+    int anim_class;                   // +0x0C +Animation class (charinfo_find_move)
+    int category;                     // +0x10 move type (2 parry, 3 dodge, ...: living_combat_update_exchange)
+    int id;                           // +0x14 id within the category (charinfo_find_move compares it)
+    int variant;                      // +0x18 matched by the opponent's parry / flinch move
+    struct { int id; float time; } triggers[3];   // +0x1C {id, float} pairs (move_get_trigger_time)
+    ubyte _unk34[0x0c];
+    move_info *next;                  // +0x40
+    const char *hit_tag;              // +0x44 weapon tag name of the hit (combat_get_weapon_tag_position)
+};
+
+move_info *charinfo_find_move(char_info *info, int category, int id, int flag);     // 0x446cb0
+// (out, category, info, ?, exclude id, weapon class): the call in living_combat_pick_attack_move pushes them
+// in this order (sum.symbols lists info second).
+int   charinfo_collect_moves(move_info **out, int category, char_info *info, int a, int exclude, int anim_class);  // 0x446d70 count
+float move_get_trigger_time(move_info *move, int trigger);     // 0x446e20
+bool  skill_is_combat_special(int skill);                      // 0x4473f0 (0xc..0x11)
+int   character_get_chain_skill(Player *p, int slot);          // 0x449440 (SKILL_NONE none)
+void  character_learn_chain_skill(Player *p, int skill, int count);     // 0x449650 (count: chain length or 0)
 
 // experience.tbl (xp_level_table 0x2305420)
 int   xp_for_level(int level);                        // 0x489a60

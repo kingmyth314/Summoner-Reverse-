@@ -208,5 +208,12 @@ void mp_send_unequip_item(Character *c, int slot);           // 0x487a70 packet 
 #include "summoner/multi/multitrade.h"
 #include "summoner/multi/multichat.h"
 #include "summoner/multi/multicontainer.h"
+// decomp23 (combat.cpp, spells.cpp): multispell.cpp and the unnamed multiplayer units.
+struct spell_cast_request;
+// Packet 0x22 of a living_combat exchange, the arguments as living_combat_send_net pushes them:
+// (attacker net handle, defender net handle, move variant, defence move, state argument, skill, special).
+void mp_send_living_combat(int attacker, int defender, int variant, void *defence, int arg, int skill, int special);  // 0x4b11a0
+void mp_spell_cast_sync(spell_cast_request *req);  // 0x4b02a0
+void mp_summon_claim_release();       // 0x4b0940
 
 #endif

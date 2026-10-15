@@ -16,4 +16,18 @@ public:
 
 void ptr_relocate(void *p, char *base);       // 0x564d50 (*p += base unless NULL)
 
+// A vfx instance (the effect object +0xa0). Members spells.cpp calls (decomp23); argument order from
+// the call sites (sum.symbols lists the node index first for get_node_transform).
+class vector3;
+class matrix;
+class vfx_instance {
+public:
+    void process(int a, const vector3 *pos, const matrix *orient);   // 0x536fb0 vfx_instance_process (callers pass 0)
+    void get_node_transform(vector3 *pos, matrix *orient, int node); // 0x537840
+    // The world transform of a node, the vector and matrix passed by value (spell_probe_ground_point).
+    void get_node_world_transform(int node, vector3 pos, matrix orient, int a, int b, int c); // 0x537a10
+    int  find_tag(const char *name);                                 // 0x537f10, -1 (">>> FAILED TO GET TAG %s")
+    int  get_tag_transform(int tag, int a, int b);                   // 0x537f70 (result unused by spells.cpp)
+};
+
 #endif

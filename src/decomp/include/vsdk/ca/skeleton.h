@@ -54,6 +54,9 @@ typedef vim ca_vim;
 void vim_free(vim *mesh);                         // 0x5430b0
 vim *vim_load(const char *name, int arg);          // 0x543920
 int  vim_find_tag(vim *mesh, const char *name);    // 0x543c20, -1 if none
+// Tag position (+0x54) and orientation (+0x44) of a 0x60-byte tag record (decomp23; argument order from
+// combat_fire_weapon_missile, the outputs feed matrix43(pos, rot)).
+void vim_get_tag_transform(vim *mesh, int tag, vector3 *pos, matrix *orient);   // 0x543c70
 void ca_init_globals_2ee4598();                    // 0x544a10
 void ca_close_globals_544a40();                    // 0x544a40 (no name in sum.symbols; label ours)
 

@@ -881,8 +881,9 @@ void character_instance::get_bone_world_transform(int bone, matrix *inst_orient,
     *out_pos += *inst_pos;
 }
 
-// 0x51b460  Confidence: exact.
-void character_instance::get_bone_transform(int bone, matrix *out_orient, vector3 *out_pos)
+// 0x51b460  Confidence: exact. Parameter order (out_pos, out_orient, bone): the bone is read from
+// [esp+0xc], the rotation output from [esp+8], the position from [esp+4] (DECISIONS.md D302).
+void character_instance::get_bone_transform(vector3 *out_pos, matrix *out_orient, int bone)
 {
     matrix43 m = compute_bone_matrix(bone);
     m.get_rotation(out_orient);
