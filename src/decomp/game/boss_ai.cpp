@@ -1,14 +1,16 @@
-// boss_ai.cpp - Sum.exe v1.40, code 0x4a04b0-0x4a357f (module "boss_ai.cpp" in sum.symbols; path string
+// boss_ai.cpp - Sum.exe v1.40, code 0x4a04b0-0x4a363b (module "boss_ai.cpp" in sum.symbols; path string
 // 0x59cd54 "D:\projects\Summoner\pccode\Engine\ai\boss_ai.cpp", pushed at 0x4a1812, line 0x41f).
 // Written from the Sum.exe disassembly (tools/asm.mjs fn; the jump tables decoded from the raw bytes).
 // Target: VC++ 6.0 (cl 12.00.8966), /O2 like the other optimised units (no frame pointer, 0x90 padding).
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
 //
-// Unit range: static_init_boss_rider_sound_timer (0x4a04b0) to level_preload_effects (0x4a3570-0x4a3574).
+// Unit range: static_init_boss_rider_sound_timer (0x4a04b0) to level_page_in_characters (0x4a3580-0x4a363a;
+// decomp57: added at the end, D3712).
 // The previous function, pf_node_index (0x4a04a0), is pathfinding.cpp's last. sum.symbols also puts
-// level_page_in_characters (0x4a3580) in boss_ai.cpp; it starts the next block (the unit range of the
-// task ends at 0x4a3580) and is not written here.
+// level_page_in_characters (0x4a3580) in boss_ai.cpp; decomp57 writes it here: no initialiser, no data and
+// no other unit's code lies between it and level_preload_effects, and the next unit opens with its
+// initialiser at 0x4a3640 (the handle slots, game/unnamed_handleslots_0x4a3640.cpp).
 //
 // Almost everything is a species switch that forwards to the per-boss units (files not known, module "-";
 // docs/sum-exe/bosses.md has their code ranges). The case order below is the order of the case bodies in
@@ -44,6 +46,11 @@
 #include "summoner/summoner.h"
 #include "summoner/player/player.h"
 #include "summoner/multi/multi.h"
+#include "engine/rendering/levelrender.h"   // decomp57: lamp_glow_bitmap
+#include "engine/s3d/s3d.h"                 // decomp57: level_page_in_textures
+#include "vsdk/ca/character_instance.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/snd/snd.h"
 
 #define CHAR_TYPE_BOSS 9              // obj +0xc (script_parse_objects: +Boss)
 
@@ -1469,4 +1476,29 @@ void boss_rider_random_sound(vector3 *pos)
 void level_preload_effects()
 {
     effects_load_preload_rfx();
+}
+
+// 0x4a3580  Confidence: exact (decomp57). level_load_files: the level textures, then per living entity
+// its mesh textures, its alternate texture set's bitmaps (when the record has an alternate parent) and
+// its sounds; then the lamp glow bitmap and the two first sounds.
+void level_page_in_characters()
+{
+    Character *c;
+    char_info *info;
+    int i;
+
+    level_page_in_textures();
+    for (c = living_list.live_next; c != &living_list; c = c->live_next) {
+        c->instance->page_in_textures();
+        info = c->info;
+        if (info && info->alt_parent) {
+            for (i = 0; i < info->alt_textures->count; i++)
+                gr_page_in(info->alt_textures->bitmaps[i], 0);
+        }
+        charinfo_page_in_sounds(c->info);
+    }
+    if (lamp_glow_bitmap != -1)
+        gr_page_in(lamp_glow_bitmap, 0);
+    snd_load(0, 0);
+    snd_load(1, 0);
 }

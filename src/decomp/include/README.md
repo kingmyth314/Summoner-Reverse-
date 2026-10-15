@@ -91,13 +91,15 @@ Summoner 2 and Dash Faction give names only.
 | `engine/objects/item_paging.h` | `Engine\objects\item_paging.cpp` (pilot) | item mesh paging |
 | `engine/objects/living_entity.h` | `Engine\objects\living_entity.cpp` | `Character`, `living_combat`, `CF_*`, status ids |
 | `engine/characterinfo/characterinfo.h` | `Engine\characterinfo\characterinfo.cpp` | `char_info`, skills, chain attacks, experience |
-| `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state` (all ai.cpp members, decomp39), `ai_goal`, `ai_group`, the unit's name tables, console variables, profiler (`ai_profile`) and cast effect tracks; the avoidance records and calls pathfinding.cpp uses (decomp32, D1205) |
-| `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a6600 | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
+| `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state` (all ai.cpp members, decomp39), `ai_goal`, `ai_group`, the unit's name tables, console variables, profiler (`ai_profile`) and cast effect tracks; includes the avoidance header below (decomp57) |
+| `engine/ai/unnamed_avoidance_0x4a6710.h` | obstacle avoidance 0x4a6710-0x4aa77f (game/unnamed_avoidance_0x4a6710.cpp, file name a placeholder; decomp57) | `avoid_area_desc`, `avoid_obstacle` (= `avoid_prim`), `avoid_poly`, `avoid_seglist` with its segment refs, corners and link blocks, the areas and splines, every `avoid_*` (D3701-D3706) |
+| `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a670f (game/unnamed_pfgeom_0x4a4ee0.cpp, placeholder; decomp57) | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
 | `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` (decomp47) | the visibility sweep: `pathvis_edge`, the unit's .bss, `pathvis_*`, `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
 | `engine/rendering/unnamed_decals_0x4bbe80.h` | decal unit 0x4bbe80-0x4bce55 (source game/unnamed_decals_0x4bbe80.cpp, decomp56; file and directory names placeholders) | `decal_record`, `decal_node`, the decal rings and `decal_*` / `decals_*` |
-| `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a20 (not written; names placeholders, decomp56) | `projector_record`, `lobj_face_marks` |
+| `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a20 (not written; names placeholders, decomp56) | `projector_record`, `shadow_record` and `shadow_frame` (decomp57), `lobj_face_marks` |
+| `engine/rendering/unnamed_shadows_0x4a37d0.h` | obstacle debug drawing and blob shadows 0x4a37d0-0x4a4ed7 (game/unnamed_shadows_0x4a37d0.cpp, placeholder; decomp57) | `blob_shadow`, the debug switches, `shadow_*`, `cmd_obstacle_height_offset` |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
 | `engine/camera/camera_sequence.h` | camera sequences 0x493f20-0x4946a0 (unit not known; file name ours, decomp52) | `camera_sequence`, `cutscene_camera_sequence` (the 0x70-byte cutscene shot) |

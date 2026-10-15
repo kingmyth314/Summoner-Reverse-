@@ -39,13 +39,13 @@ struct rect2d {
 struct pf_edge : public seg2d {
     ushort flags;                     // +0x08 PF_EDGE_*
     ubyte door;                       // +0x0a door index (out of range counts as open)
-    ubyte _pad0b;                     // +0x0b 0
+    ubyte _pad0b;                     // +0x0b 0 on load; avoidance reference count (avoid_clip_segments raises it
+                                      //        with flag 0x20, avoid_age_segments / avoid_seglist_free lower it)
     int search_id;                    // +0x0c pf_next_search_id stamp (each wall is tested once)
 };
 // A layer-transition edge (0x14, pf_walls; sum.symbols name): pf_layer_links gets both directions.
-struct pf_wall {
-    vector2 *a;                       // +0x00
-    vector2 *b;                       // +0x04
+// decomp57 (D3700): derives from seg2d; pf_layer_from_edges passes the record as the segment.
+struct pf_wall : public seg2d {
     int layer_a;                      // +0x08
     int layer_b;                      // +0x0c
     pf_wall *next;                    // +0x10 next record of the array, NULL for the last
@@ -117,6 +117,8 @@ struct pf_grid_row {                  // 0x08
     pf_grid_cell *cells;              // +0x04
 };
 LAYOUT_CHECK(pf_grid_row, sizeof(pf_grid_row) == 0x8);
+// decomp57: bounds[0] / bounds[2] the grid origin x / z, bounds[4] / bounds[5] the cell sizes, _unk18 /
+// _unk1c the width / height in cells, num_rows the bucket count of the hash (pf_grid_hash_find).
 struct pf_grid {                      // 0x2c
     float bounds[6];                  // +0x00
     int _unk18;                       // +0x18
@@ -240,7 +242,9 @@ extern rect2d pf_bounds;                      // 0x245c998 (D1200)
 extern int pf_search_start_count;             // 0x245c9ac
 extern bool Precalc_vis_method;               // 0x245c9d8
 
-// ---- pathfinding geometry (0x4a4ee0-0x4a6600, file not known; .bss 0x245f3a0-0x2460cbb) ---------------
+// ---- pathfinding geometry (0x4a4ee0-0x4a670f, file not known; .bss 0x245f3a0-0x2460cbb) ---------------
+// decomp57: written as game/unnamed_pfgeom_0x4a4ee0.cpp (placeholder name); the declarations below are in
+// address order where decomp57 added them.
 void pf_select_graph(int size, int layer);                                 // 0x4a4f30
 // (seg, layer, out point, out layer): nearest crossing of seg with a pf_walls edge leaving `layer`.
 bool pf_first_edge_crossing(const seg2d *seg, int layer, vector2 *hit, int *hit_layer);   // 0x4a53d0
@@ -257,8 +261,10 @@ bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags);        //
 // decomp47 (pathfinding_visibility.cpp): y0 + (x - x0) * (y1 - y0) / (x1 - x0).
 float float_lerp_range(float x, float x0, float y0, float x1, float y1);      // 0x4a4f00
 bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c, const vector3 *d);   // 0x4a5570
-// (segment, line, out, 0): parameter in seg2d_param (denominator seg2d_denom).
-int  seg2d_line_intersect(const seg2d *seg, const seg2d *line, vector2 *out, int flags);   // 0x4a5bd0
+// (segment, line, out, bias): parameter along the segment + bias in seg2d_param (denominator seg2d_denom).
+// decomp57 (D3708): the fourth argument is a float added to the parameter (fadd [esp+0x10] at 0x4a5c28),
+// and nothing is returned (EAX only holds `out` for the stores).
+void seg2d_line_intersect(const seg2d *seg, const seg2d *line, vector2 *out, float bias);   // 0x4a5bd0
 pf_bsp *pf_bsp_find_cell(const vector3 *pos, int layer);                   // 0x4a5d40 layer -1 = current
 bool pf_point_is_navigable(const vector3 *pos, int size, int layer);       // 0x4a5dc0
 // (pos, layer, size class): the x/z point lies in a used obstacle of the avoidance table (unit after
@@ -269,6 +275,19 @@ bool seg2d_intersect_params(const vector2 *a, const vector2 *b, const vector2 *c
                             float *t, float *u);                           // 0x4a5eb0
 int  pf_cells_along_segment(int layer, int size, const vector2 *a, const vector2 *b);   // 0x4a64b0 count
 int  pf_layer_from_edges(int layer_a, int layer_b, const vector3 *pos);    // 0x4a6600
+// decomp57: the rest of the unit.
+// (a, b, layer or -1, flags): true when the 2D segment a-b crosses no nav wall of the selected graph
+// (flags 1) and no prohibit (flags 2) / avoid (flags 4) obstacle of the size and layer (D3707: the name
+// says the opposite of the result).
+bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int flags);   // 0x4a4fb0
+pf_bsp *pf_bsp_node_find(pf_bsp *node, const vector2 *pt);                 // 0x4a5c60
+int  grid_hash_bucket(int x, int y, int w, int n);                         // 0x4a5e00
+int  grid_linear_index(int x, int y, int w);                               // 0x4a5e20
+pf_grid_cell *pf_grid_hash_find(int x, int y, pf_grid *grid);              // 0x4a5e30
+int  pf_grid_cells_in_box(const vector2 *pt, float half, pf_grid *grid);   // 0x4a5f70 count
+int  pf_grid_cells_along_segment(const vector2 *a, const vector2 *b, pf_grid *grid);   // 0x4a6060 count
+int  pf_cells_in_box(int layer, int size, const vector2 *pt, float half);  // 0x4a64f0 count
+bool seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist);   // 0x4a6530
 
 extern int pf_cell_pool_remaining;            // 0x245f3a0
 extern float seg2d_denom;                     // 0x245f3a4

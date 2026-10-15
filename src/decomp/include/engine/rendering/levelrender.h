@@ -66,7 +66,11 @@ struct lobj_ray {
     unsigned int exclude_flags;       // +0x24 lobj flags that must be clear
     int _unk28;                       // +0x28
     int _unk2c;                       // +0x2C
-    int _unk30;                       // +0x30
+    union {                           // +0x30
+        int _unk30;
+        float min_radius;             //       decomp57: lobj_raycast_draw_lists skips objects whose mesh radius
+                                      //       (geometry +0x30) is below it (fcomp at 0x4a4c36)
+    };
     vector3 local_start;              // +0x34 written by lobj_raycast (ray in the object frame)
     vector3 local_dir;                // +0x40
 };
@@ -93,7 +97,27 @@ LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
 void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear);   // 0x4ae890
 void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit);                           // 0x4af2c0
 // decomp37 (living_entity.cpp):
-void lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *lobj_index, bool *blocked, int a);   // 0x4a4bb0
+// decomp57 (D3710): returns the hit count; `blocked` is the list stage byte (0 attachments, 1 opaque,
+// 2 sorted; written through a char pointer, it takes the value 2), the last argument a bool (when true
+// and no attachment entries exist, nothing is tested). Both pointers may be NULL.
+int  lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *lobj_index, bool *blocked, bool attach_only);   // 0x4a4bb0
+int  lobj_get_count();                // 0x477770 num_lobjs (decomp57)
+// The draw-list entries (levelrender_build_draw_lists / add_lobj / push_attachment; partial, decomp57).
+struct levelrender_entry {
+    char type;                        // +0x00 1 = a level object
+    char _unk01;
+    short lobj;                       // +0x02 level object index
+    int _unk04;
+    float dist;                       // +0x08 view distance
+};
+extern levelrender_entry *levelrender_attach_list[];   // 0x22ea584
+extern levelrender_entry *levelrender_sort_list[];     // 0x22f8d84
+extern levelrender_entry *levelrender_opaque_list[];   // 0x22fa6a8
+extern int levelrender_attach_count;  // 0x22fb6c4
+extern int levelrender_opaque_count;  // 0x22fb6c8
+extern int levelrender_sort_count;    // 0x22fb6cc
+extern bool shadows_enabled;           // 0x59c120 (1)
+extern int lamp_glow_bitmap;           // 0x59db70 (lamp_glow_load)
 int  lobj_get_layer(int lobj_index);                  // 0x4775c0 the first layer byte
 float char_fog_get_far();                             // 0x481e50 the +CharFog far distance, 0 when off (unit not known)
 void door_update(lobj *door);         // 0x477080 (unit not known)

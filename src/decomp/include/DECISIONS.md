@@ -2815,3 +2815,88 @@ without a strings/path source), behaviour stated at each declaration.
 **D3506 (vsdk/ui/ui_gadgets.h). ui_listbox::select_by_data returns bool.** It returns AL: false when no
 entry has the data (0x52d8d1 / 0x52d8e2); the editor tests it. No existing definition or caller used the
 old void result, so nothing else changed.
+
+## decomp57: boss_ai.cpp's last function, handle slots, blob shadows, pathfinding geometry, avoidance (0x4a3580-0x4aa77f)
+
+**D3700 (engine/ai/pathfinding.h). pf_wall derives from seg2d.** pf_layer_from_edges passes the wall
+record itself as the segment of seg2d_point_near_middle (`push esi` at 0x4a6651 / 0x4a6678, esi =
+&pf_walls[i]) and copies its first two words into a local seg2d for seg2d_point_left_of (0x4a669f). Same
+layout (+0x00 a, +0x04 b), so the base class only adds the conversion; pathfinding.cpp compiles unchanged.
+
+**D3701 (engine/ai/unnamed_avoidance_0x4a6710.h, new). avoid_prim is avoid_obstacle (0x88).**
+avoid_prim_from_segment builds its primitive in a 0x88-byte frame (avoid_segment_hits_prim `sub esp, 0x88`
+at 0x4a6f58) with the obstacle's offsets (+0x00 flags 0x21, +0x08 centre, +0x10 / +0x18 axes, +0x30 / +0x34
+half sizes, +0x38 / +0x40 the end points), and avoid_prim_overlap reads both arguments through the same
+offsets (+0x10, +0x18, +0x30, 0x4a6e2a-0x4a6f0a). decomp32's `struct avoid_prim { ubyte[0x78]; }` becomes
+`typedef avoid_obstacle avoid_prim`. The obstacle's full layout: +0x20 / +0x28 the two extra axes of a
+circle (avoid_add_primitive 0x4aa282-0x4aa299), +0x38 eight points (the static initialiser 0x4a6760
+constructs 8 x 8 bytes at +0x38 of each 0x88 record), +0x78 the bounds (rect2d, written at 0x4aa339-0x4aa346)
+- decomp32's points[10] overlapped the bounds.
+
+**D3702 (unnamed_avoidance_0x4a6710.h). avoid_area_desc::owner is the layer.** avoid_area_add passes
+desc +0x2c as avoid_add_primitive's sixth argument (0x4a9c75 / 0x4a9cc0), which stores it as the
+obstacle's layer (word +0x06, 0x4a9f09); the fifth argument, 1 or 2, is the size class (+0x04). The field
+keeps spells.cpp's name (comment only).
+
+**D3703 (unnamed_avoidance_0x4a6710.h). Segment list layout: 30 segment refs at +0x18, 30 corners at
++0x270.** The static initialiser 0x4a67a0 runs `vector constructor iterator` with (0x2461020 - 0x258, size
+0x14, count 30) and (0x2461020, size 0x44, count 30) per list (stride 0xa78 from 0x2460db0): segs at +0x18,
+corners at +0x270. A corner is {pos +0x00, pushed +0x08, offset +0x10, pf_vis_node +0x18, offset_state
++0x40}: avoid_seglist_add_segment compares and writes the point at corner +0x00 (0x4a86b9, 0x4a8754), the
+miter code writes +0x10 / +0x40 (0x4a8040-0x4a804c), avoid_clip_segments writes +0x08 and the node (+0x18
+pos, +0x1c flags 0x200, +0x1e layer, +0x24 the link block; 0x4a92d0-0x4a932b). decomp32's corners[29] at
++0x288 was the node of corner 0 onwards; the node addresses are unchanged, so pathfinding.cpp's
+`corners[k].node` still compiles to the same offsets. +0x08 is the polygon index (avoid_poly_get 0x4aa3e4),
++0x0c the segment count (short) and +0xa68 the bounds (0x4a8e53-0x4a8e8d). avoid_poly: +0x04 point count,
++0x06 segment-list index, +0x08 eight obstacle indices, +0x10 / +0x12 size / layer, +0x14 30 points
+(initialiser 0x4a6720), +0x104 bounds (avoid_poly_from_obstacle 0x4a7320). The polygon copies are rep movsd
+of 0x45 dwords (0x4a96d8, 0x4a9800): written as memcpy, since vector2 has a user operator= (D3706).
+
+**D3704 (unnamed_avoidance_0x4a6710.h). avoid_area_free takes void *.** It only clears the first word
+(0x4a7b84) and is called on area slots (avoid_area_remove) and on polygons (avoid_poly_release 0x4a7c9b,
+avoid_create_obstacle_polys' failure paths). Name kept (sum.symbols).
+
+**D3705 (unnamed_avoidance_0x4a6710.h). avoid_poly_points_in_box / _in_circle take (shape, other).** The
+outline walked is the second argument's (ebx = [esp+0xc] at 0x4a70e1, +0x38 points, +0x02 count), the box
+or circle the first (pushed last, 0x4a70f0). sum.symbols' "(polygon, box)" has them the other way round.
+
+**D3706 (vsdk/math/vector.h). vector2 gets an empty default constructor and inline operator= / operator+.**
+The three avoidance initialisers pass vector3's empty constructor 0x505530 to `vector constructor iterator`
+for vector2 arrays (avoid_poly +0x14, avoid_obstacle +0x38, the segment refs and corners), which a type
+without a constructor would not get; the folded empty function is vector3::vector3()'s, as for matrix43 /
+quaternion (D500). vector2__assign (0x4aa3a0: copies x, y, `ret 4`, EAX not set) and vector2__operator_add
+(0x4aa3c0: hidden result, `ret 8`) are called by avoid_add_primitive; they are inline members whose only
+out-of-line copies are this unit's COMDATs (the avoidance and shadow units are built without inline
+expansion: vector3's constructor 0x43b580 and operator= 0x413190 are called there too). No vector2 in the
+tree is brace-initialised; every src/decomp file compiles unchanged.
+
+**D3707 (engine/ai/pathfinding.h). pf_segment_hits_walls returns true when the segment is clear.** It
+returns 1 at the end (0x4a53a9) and 0 on a wall crossing (seg2d_segment_intersect 1 or 4, 0x4a5280) or an
+obstacle hit (0x4a538c); pf_straight_walk_clear returns false when it is false (0x4a5656). Name kept.
+
+**D3708 (engine/ai/pathfinding.h). seg2d_line_intersect(seg, line, out, float bias) returns nothing.** The
+fourth argument is added to the parameter as a float (`fadd dword [esp+0x10]` at 0x4a5c28; seg2d_closest_point
+pushes 0, the same bits); EAX only holds `out` for the stores. Was `int ... int flags`; the only caller
+(pathfinding.cpp) passes a literal 0 and ignores the result, so it compiles unchanged.
+
+**D3709 (source-map.md data ranges).** The avoidance unit's .data is 0x59ce88-0x59d34c (four switches, then
+its strings) and its .bss 0x2460cc0-0x2476bb7 (splines 0x2460cc0 .. the 500 link blocks 0x246c7a8, reset by
+avoid_reset 0x4a9d87); the source-map row gives .data 0x59ce88-0x59cea4 and .bss to 0x246b92c. The
+geometry unit has no .data. The shadow unit's .data starts at 0x59cd8c (see D3711).
+
+**D3710 (engine/rendering/levelrender.h). lobj_raycast_draw_lists returns the hit count; the fifth argument
+is a bool.** Every path ends with `mov eax, [edi]` (hit->num_hits) or `xor eax, eax`, and the fifth argument
+is tested as a byte (`mov al, [esp+0x30]; test al, al` at 0x4a4c06). The fourth (`bool *blocked` at the
+callers) is the draw-list stage byte (0, 1, 2; `mov byte [eax], 2` at 0x4a4d9c); the declaration keeps
+bool * so the callers compile, the definition writes it through a char pointer. lobj_ray +0x30 is a float
+(min_radius, compared with the mesh radius at 0x4a4c36): a union with the old _unk30.
+
+**D3711 (unnamed_shadows_0x4a37d0.cpp). pf_debug_mode (.data 0x59cd8c) and pf_debug_path (.bss 0x245cd8c)
+are defined in the shadow / obstacle-debug unit.** Both lie between the handle-slot unit's last items
+(0x59cd88, 0x245cd78) and this unit's first (0x59cd90 / 0x245cd90), next to its other debug switches
+(0x59cd90 and 0x59cd94 are also ints initialised to 1). Placement likely, not proven.
+
+**D3712 (game/boss_ai.cpp). level_page_in_characters (0x4a3580) is boss_ai.cpp's last function.** sum.symbols
+tags it boss_ai.cpp; it follows level_preload_effects with no gap, uses no data of its own, and the next
+unit begins with its static initialiser at 0x4a3640 (entry 291, the handle slots, whose .bss follows
+boss_ai.cpp's timer 0x245c9e0). decomp29 had left it out only because its task range ended at 0x4a3580.

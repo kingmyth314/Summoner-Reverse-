@@ -479,4 +479,15 @@ public:
 };
 LAYOUT_CHECK(tcache_slot, sizeof(tcache_slot) == 0x18);
 
+// decomp57 (the shadow / obstacle-debug unit): vsdk\gr calls not declared before.
+// (p0, p1, mode): both points through gr_rotate_vertex, then gr_line_3d.
+// (out, in): (in - view position) rotated into the view; returns the clip codes.
+// The buffered / immediate polygon calls (0x545150-0x5457b0).
+void gr_poly_begin(int buffered, int a, int b, int c, int d);                  // 0x545150
+void gr_poly_vertex(gr_vertex *v);                                             // 0x5452c0
+void gr_poly_set_texture(gr::Mode mode, int bm, int r, int g, int b, int a, int flags);   // 0x545340
+void gr_poly_uv(float u, float v);                                             // 0x5455a0
+void gr_poly_alpha(ubyte a);                                                   // 0x545760
+void gr_poly_end();                                                            // 0x5457b0
+
 #endif

@@ -102,12 +102,24 @@ void clamp_float(float *v, float lo, float hi);       // 0x50d980
 // A 2D vector (conversation_frame passes the x / z offset; decomp20), (x, z of a ground position in spell_place_ground_effect). len as in decomp20's copy.
 class vector2 {
 public:
+    // decomp57 (D3706): the default constructor is empty and folded with vector3s (0x505530): the
+    // avoidance tables static initialisers 0x4a6720 / 0x4a6760 / 0x4a67a0 pass 0x505530 to `vector
+    // constructor iterator` for their vector2 arrays (count 30 / 8, size 8).
+    vector2() {}
+    // decomp57: inline members like vector3s (D500); their only out-of-line copies are the COMDATs the
+    // avoidance unit (built without inline expansion) calls: operator= returns nothing (EAX not set,
+    // ret 4), operator+ returns through the hidden pointer (ret 8).
+    void operator=(const vector2 &v)                  // 0x4aa3a0 vector2__assign
+    { x = v.x; y = v.y; }
+    vector2 operator+(const vector2 &v) const         // 0x4aa3c0 vector2__operator_add
+    { vector2 r; r.x = x + v.x; r.y = y + v.y; return r; }
     float len() const;                                // 0x523f80 vector2__len
     float normalize();                                // 0x523fc0 vector2__normalize: returns the length, (1, 0) at 0
     float len_sq() const;                             // 0x523fa0 vector2__len_sq (in the vector unit, so out of line; decomp29)
     // decomp32 (pathfinding.cpp): out-of-line members, called with ECX = this.
     void negate();                                    // 0x524000 vector2__negate (x = -x, y = -y)
-    // The two below sit in the pathfinding geometry unit (0x4a4e60-0x4a4ef1, file not known).
+    // decomp57: nearly_equal and to_vector3 are COMDATs of the shadow / obstacle-debug unit
+    // (game/unnamed_shadows_0x4a37d0.cpp), from_xz one of the geometry unit (game/unnamed_pfgeom_0x4a4ee0.cpp).
     vector3 to_vector3() const;                       // 0x4a4ec0 vector2__to_vector3 (x, 0, y); hidden result
     void from_xz(const vector3 *v);                   // 0x4a4ee0 vector2__from_xz (x = v.x, y = v.z); ret 4, no this
     // cdecl (two pushed pointers, add esp 8): both components within 0.001 (0x581938 / 0x58193c).

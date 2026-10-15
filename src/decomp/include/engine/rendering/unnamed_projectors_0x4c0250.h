@@ -9,6 +9,7 @@
 #include "vsdk/vsdk.h"
 #include "vsdk/math/vector.h"
 #include "vsdk/math/ix.h"
+#include "vsdk/math/matrix.h"           // decomp57: shadow_frame
 
 struct lobj;
 
@@ -30,7 +31,9 @@ public:
     unsigned int num_planes : 3;              //       bits 1-3
     unsigned int inside : 1;                  //       bit 4
     unsigned int shadow : 1;                  //       bit 5
-    unsigned int _flags_hi : 26;
+    unsigned int lobj_count : 3;              //       bits 6-8 (decomp57): level objects in shadow_record::lobj_list
+                                              //       (shadow_list_clear clears them; num_lobjs is a macro of s3d.h)
+    unsigned int _flags_hi : 23;
     float radius;                             // +0x04
     vector3 pos;                              // +0x08
     plane planes[PROJECTOR_MAX_PLANES];       // +0x14 world space
@@ -42,6 +45,26 @@ LAYOUT_CHECK(projector_record, sizeof(projector_record) == 0xe0);
 // One bit per face of each level object with flags 0x440, set by projector_collect_lobj_faces and cleared
 // every frame (lobj_face_marks_clear); the per-object start offsets (bytes, -1 none) from
 // lobj_face_marks_init. sum.symbols types the offsets int16_t; one per level object.
+// decomp57: the shadow record (the blob shadows of game/unnamed_shadows_0x4a37d0.cpp embed one at +0x74).
+// The optional record shadow_record_add copies into it (0x64 bytes; the copy calls matrix::operator= and
+// vector3::operator= for its members, three floats are copied as they are). Names ours.
+struct shadow_frame {
+    matrix m0;                                // +0x00
+    vector3 v24;                              // +0x24
+    float f30, f34, f38;                      // +0x30
+    matrix m3c;                               // +0x3c
+    int i60;                                  // +0x60
+};
+LAYOUT_CHECK(shadow_frame, sizeof(shadow_frame) == 0x64);
+class shadow_record : public projector_record {
+public:
+    shadow_record();                          // 0x4c0690 shadow_record__ctor (projector_record(), then shadow = 1)
+    lobj *lobj_list[7];                       // +0xe0 the level objects it touches (shadows_render)
+    ubyte _unkfc[0x24];                       // +0xfc
+    shadow_frame frame;                       // +0x120
+};
+LAYOUT_CHECK(shadow_record, sizeof(shadow_record) == 0x184);
+
 extern ubyte lobj_face_marks[0x2000];         // 0x2483564
 extern short lobj_face_mark_offsets[];        // 0x2485564
 
