@@ -20,22 +20,49 @@ extern int game_mouse_y;              // 0x5fbfe0
 
 // ---- state sequencing, pause, levels ---------------------------------------------------------------
 void gameseq_set_state(int state);    // 0x401020
+int  gameseq_get_state();             // 0x401040 (4 = game play)
 void game_pause(int a, int b);        // 0x432660 (both 0 in the pilots)
 void game_unpause();                  // 0x4326c0
 bool game_is_paused();                // 0x432da0
 void game_change_level(const char *filename, void *arg);   // 0x431a40 (second argument type guessed)
-void world_pick_clear_filter();       // 0x43a390 (gametarget.cpp)
 extern bool play_intro_movies;        // 0x5930bd
+
+// The current level's names and layer maps (set by game_change_level / level_parse_table; module "-").
+extern char level_script_name[32];             // 0x60a2e8
+extern int  level_num_layers;                  // 0x60a340
+extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of each layer
+extern int  level_layer_automap_index[40];     // 0x60a36c
+
+// ---- gameplay.cpp: party control (0x439580-0x4396d0) -------------------------------------------------
+void combat_mode_set(bool on);                 // 0x439580
+void party_toggle_hold();                      // 0x439620
+void party_select_member(class Player *p);     // 0x4396d0
+
+// ---- gametarget.cpp: world picking (0x43a370..; .bss 0x60ab68-0x60ab90) -------------------------------
+class Character;
+void world_pick_set_skill_filter(int skill);   // 0x43a370
+void world_pick_clear_filter();                // 0x43a390
+extern bool  world_pick_portrait_clicked;      // 0x60ab68
+extern Character *world_hover_portrait_character;   // 0x60ab6c (formerly world_pick_target_mode; D47)
+extern int   world_interact_kind;              // 0x60ab88 1..4
+extern void *world_hover_object;               // 0x60ab8c
+extern void *world_interact_object;            // 0x60ab90
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
 void empty_function();                // 0x4f13e0 (bare ret shared by identical-code folding)
+
+// ---- mouse cursor (gameplay_load_cursors / cursor_set_type 0x432e50; unit not known) ---------------------
+void cursor_set_type(int bm);         // 0x432e50 cursor_type (0x5931b4) = bm
+extern int cursor_url_bm;             // 0x5fbf2c cursor-url.vbm
+extern int cursor_walk_bm;            // 0x5fbfd4 cursor-walk.vbm (the default)
 
 // ---- file path ids (file_add_path results, summoner.cpp .bss) -----------------------------------------
 extern int path_interface;            // 0x60ac10 data\interface\pc
 extern int path_tables;               // 0x60ac5c data\tables
 extern int path_players;              // 0x60ac80
 extern int path_savegame;             // 0x60ac88
+extern int path_multicache;           // 0x60ad48 multicache (downloaded .cfg / .pcx)
 extern int resolution_index;          // 0x60ad68 0 = 640, 1 = 800, 2 = 1024
 
 // ---- summoner.cfg ---------------------------------------------------------------------------------
@@ -94,6 +121,8 @@ struct SummonerOptions {
 };
 LAYOUT_CHECK(SummonerOptions, sizeof(SummonerOptions) == 0x40);
 extern SummonerOptions Summoner_options;                             // 0x60acc8 (config_sfx_volume ..)
+// A field new_hud.cpp reads under its sum.symbols name (as camera_fov in camera.h, DECISIONS.md D19).
+extern bool config_solo_confirm;                                     // 0x60acd5 (= Summoner_options.solo_confirm)
 void summoner_cfg_save();                                            // 0x43e410
 
 #endif

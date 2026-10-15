@@ -26,11 +26,15 @@ public:
 };
 LAYOUT_CHECK(living_combat, sizeof(living_combat) == 0x54);
 
+#define NUM_LOCO_ANIMS 18             // locomotion_anim_names, Character +0x5ac..+0x5f0
+
 // Character +0x320 flags
 #define CF_SUMMONLIKE    0x2          // cleared by party_add_member (party_cycle skips it)
 #define CF_HIDDEN        0x8
 #define CF_DEAD          0x80
 #define CF_LEFT_PARTY    0x800000
+#define CF_ANIM_LOD      0x8000000    // character_anim_lod_skip: low-LOD frame skipping this frame
+#define CF_ANIM_LOD_PREV 0x10000000   // ... and the previous frame
 
 // Status effect ids: Character.status_slots index (status_effect_add 0x454700). 7, 8 and 14-16 show no
 // text; the id must be <= 0x10.
@@ -51,12 +55,24 @@ public:
     bool  has_status(int status);     // 0x455950 character_has_status
     void  clear_all_effects();        // 0x455a90 character_clear_all_effects
     void  get_display_name(char *buf);// 0x462070 character_get_display_name
+    bool  skill_allowed(int skill);   // 0x462400 character_skill_allowed
     float get_skill(int skill);       // 0x462440 character_get_skill
     float resist_equip_bonus(int type);   // 0x462660 character_resist_equip_bonus
     float get_resistance(int type);   // 0x4626b0 character_get_resistance (3 = magic)
     int   equip_bonus(int stat);      // 0x4627c0 character_equip_bonus (0 HP, 1 AP)
     int   get_max_stat(int stat);     // 0x462840 character_get_max_stat (0 HP, 1 AP)
     const char *hero_model_prefix();  // 0x462ec0 character_hero_model_prefix
+    void  set_6ac(float v);           // 0x4570d0 character_set_6ac
+    void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
+    void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed
+    void *get_current_move();         // 0x461500 character_get_current_move (0 = none)
+    bool  is_in_view(float radius_scale); // 0x44f020 character_is_in_view
+    void  move_frame();               // 0x45cd00 living_entity_move_frame
+    void  update_footsteps();         // 0x45d690 character_update_footsteps
+    // objects.cpp
+    bool  anim_lod_skip();            // 0x46ad10 character_anim_lod_skip
+    void  process_anim(float frametime);  // 0x46adf0 character_process_anim
+    void  fill_locomotion_anims();    // 0x46af70 character_fill_locomotion_anims
 
     int team;                         // +0x098
     int move_start_time;              // +0x09C
@@ -79,24 +95,32 @@ public:
         living_combat combat;
         living_combat protection;
     };
-    int anim_stand;                   // +0x5AC locomotion animation ids (locomotion_anim_names, 18)
-    int anim_norm_walk;               // +0x5B0
-    int anim_norm_run;                // +0x5B4
-    int anim_ready;                   // +0x5B8
-    int anim_walk;                    // +0x5BC
-    int anim_run;                     // +0x5C0
-    int anim_stand_hurt;              // +0x5C4
-    int anim_norm_walk_hurt;          // +0x5C8
-    int anim_norm_run_hurt;           // +0x5CC
-    int anim_ready_hurt;              // +0x5D0
-    int anim_walk_hurt;               // +0x5D4
-    int anim_run_hurt;                // +0x5D8
-    int anim_sneak_ready;             // +0x5DC
-    int anim_hide_ready;              // +0x5E0
-    int anim_tripped_liedown;         // +0x5E4
-    int anim_cloaked_ready;           // +0x5E8
-    int anim_cloaked_sneak;           // +0x5EC
-    int anim_statscreen;              // +0x5F0
+    // +0x5AC: character_fill_locomotion_anims (0x46af70) fills them as one array indexed by the
+    // locomotion_anim_names index ([edx + 4*ecx + 0x5ac]); the other code uses the names
+    // (DECISIONS.md D60). Anonymous struct in a union: an MS extension VC6 accepts.
+    union {
+        int loco_anims[NUM_LOCO_ANIMS];
+        struct {
+            int anim_stand;               // +0x5AC locomotion animation ids (locomotion_anim_names, 18)
+            int anim_norm_walk;           // +0x5B0
+            int anim_norm_run;            // +0x5B4
+            int anim_ready;               // +0x5B8
+            int anim_walk;                // +0x5BC
+            int anim_run;                 // +0x5C0
+            int anim_stand_hurt;          // +0x5C4
+            int anim_norm_walk_hurt;      // +0x5C8
+            int anim_norm_run_hurt;       // +0x5CC
+            int anim_ready_hurt;          // +0x5D0
+            int anim_walk_hurt;           // +0x5D4
+            int anim_run_hurt;            // +0x5D8
+            int anim_sneak_ready;         // +0x5DC
+            int anim_hide_ready;          // +0x5E0
+            int anim_tripped_liedown;     // +0x5E4
+            int anim_cloaked_ready;       // +0x5E8
+            int anim_cloaked_sneak;       // +0x5EC
+            int anim_statscreen;          // +0x5F0
+        };
+    };
     float base_max_hp;                // +0x5F4
     float hp;                         // +0x5F8 current HP
     short base_max_ap;                // +0x5FC
@@ -163,8 +187,40 @@ LAYOUT_CHECK(Character, sizeof(Character) == 0x788);
 #define CHAR_M(c)   (c)
 #define COMBAT_M(c) (&(c)->combat)
 #define AI_M(c)     (&(c)->ai)
+// The same shims under the names of new_hud.cpp / new_inventory.cpp (DECISIONS.md D45).
+#define CHAR_HM(c)   (c)
+#define AI_HM(c)     (&(c)->ai)
+#define AI_GOAL_M(c) (&(c)->ai)
+#define INV_EQUIP(c, i) ((c)->equipment[i])
+
+bool character_is_locally_controlled(Character *c);   // 0x475780 (unit not known)
 
 extern Character living_list;         // 0x8eca60 sentinel (sum.symbols' living_list_first 0x8ecd78 = live_next)
+extern Character living_list_inactive; // 0x8ed1e8 second sentinel (live_next 0x8ed500), walked by
+                                      // living_entities_move_all
+extern char *locomotion_anim_names[NUM_LOCO_ANIMS];   // 0x599648 "stand", "norm_walk", ... "statscreen"
+
+// Speech bubbles (character_say 0x461dc0, counted down by objects_do_frame). Type name ours.
+struct character_speech_record {
+    char text[0x100];                 // +0x000
+    int speaker;                      // +0x100 character handle, -1 free
+    float time_left;                  // +0x104 seconds
+};
+LAYOUT_CHECK(character_speech_record, sizeof(character_speech_record) == 0x108);
+#define MAX_CHARACTER_SPEECH 16
+extern character_speech_record character_speech[MAX_CHARACTER_SPEECH];   // 0x940438
+
+// Per-character spell cooldowns (spell_cooldown_start 0x44dbd0, ticked by objects_do_frame). Type name ours.
+struct spell_cooldown {
+    int handle;                       // +0x0 character handle, -1 free
+    int spell;                        // +0x4
+    GameTimer timer;                  // +0x8
+};
+LAYOUT_CHECK(spell_cooldown, sizeof(spell_cooldown) == 0xc);
+#define MAX_SPELL_COOLDOWNS 100
+extern spell_cooldown spell_cooldowns[MAX_SPELL_COOLDOWNS];   // 0x93ff78
+
+void living_entity_reset_tables();    // 0x462d80
 
 Character *living_entity_create(int type, int char_info, const vector3 *pos, const matrix *orient,
                                 int a, int b, int c, int d, int e);   // 0x461b80 (last five: 1, 0, 0, 0, 0)

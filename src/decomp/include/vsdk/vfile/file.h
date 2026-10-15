@@ -52,6 +52,12 @@ LAYOUT_CHECK(File, sizeof(File) == 0x114);
 void file_change_ext(char *out, const char *name, const char *ext);   // 0x5130a0
 void file_strip_ext(char *out, const char *name);                     // 0x513100
 int  file_make_path_dirs(int path_id);                                // 0x5131e0 nonzero = failure
+// install path + directory of path_id + name into out (return value not used by the pilots).
+void file_make_path(int path_id, const char *name, char *out);       // 0x512b30
+bool file_exists_on_disk(const char *name, int path_id);             // 0x513710 _stat of file_make_path
+void file_delete(const char *name, int path_id);                     // 0x513770 (return unused)
+// Deletes every match of pattern in path_id smaller than 10 bytes (failed downloads).
+void file_delete_small_files(const char *pattern, int path_id);      // 0x5137e0 (return unused)
 
 // file_find_files fills a circular list of 0x38-byte nodes (operator new) that the caller frees. The list
 // head is either a bare {next, prev} pair (new_saveload.cpp) or a whole node (new_charselect.cpp), so the
@@ -66,6 +72,8 @@ struct file_find_node : file_find_list {
     time_t time;                       // +0x34 _finddata_t time_write (VC6 time_t is 32-bit)
 };
 typedef file_find_node file_find_entry;   // new_charselect.cpp's name
+typedef file_find_list file_list;         // new_hud.cpp's names (quicksave: a bare head)
+typedef file_find_node file_entry;
 // (list, path_id, pattern, flags, callback); flags 5 / 6 and callback 0 in the pilots. Return unused.
 void file_find_files(file_find_list *list, int path_id, const char *pattern, int flags,
                      void *callback);                                 // 0x5133b0

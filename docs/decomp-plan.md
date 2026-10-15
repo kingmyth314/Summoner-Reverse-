@@ -114,12 +114,18 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
 - engine: `frametime`, `timestamp`, `registry`, `cmdline`, `gr_font`, `ui_container`, `targautils`, `window`,
   `character_instance`, `effect_mem`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
-  level select, shop, item trade, options, save/load and status screens, plus `gamesound`, `item_paging` and
-  `player`.
+  level select, shop, item trade, options, save/load, status, automap, inventory, HUD, multiplayer game list and
+  PXO chat screens, plus `gamesound`, `item_paging`, `player`, `objects` and `items`.
 
-`node tools/decomp-progress.mjs` counts the result: 704 functions written (8.1%). Of these, 407 match the
-disassembly exactly as far as can be read, 261 likely, 12 unsure. The automap, inventory and HUD screens (194 more
-functions) are written and waiting for the shared headers.
+`node tools/decomp-progress.mjs` counts the result: 1,034 functions written (12.0%). Of these, 601 match the
+disassembly exactly as far as can be read, 386 likely, 14 unsure. All 34 files compile against one header tree
+(`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
+headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
+needed hand resolution.
+
+`objects.cpp` was compiled without optimisation, so its source can be read almost line by line from the code. It also
+expands small inline helpers, `vector3` operators and `profile_label`, which the optimised files call out of line.
+The real build may therefore have used different options per file.
 
 **Lessons so far.**
 - The per-batch stub headers conflict, for example `File` three times and `interface_set_screen`'s second

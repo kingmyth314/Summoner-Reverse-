@@ -1,0 +1,32 @@
+// vsdk/inetfile/inetgetfile.h - the HTTP / FTP file getter (InetGetFile__*, 0x51b760-0x51bb10, between
+// character_instance.cpp and effect_mem.cpp; class and member names as in sum.symbols, which follow the
+// FreeSpace 2 inetfile code; directory and file name guessed). Not original source.
+#ifndef VSDK_INETFILE_INETGETFILE_H
+#define VSDK_INETFILE_INETGETFILE_H
+
+#include "vsdk/vsdk.h"
+
+// 0x18 bytes (operator new(0x18) in pxo_load_chat_banners). Non-virtual destructor: "delete p" calls
+// InetGetFile__dtor and then operator delete.
+class InetGetFile {
+public:
+    InetGetFile(const char *url, const char *local_file);   // 0x51b780 "http:" / "ftp:" getter
+    ~InetGetFile();                                         // 0x51b960
+    void AbortGet();                                        // 0x51b760
+    int  IsConnecting();                                    // 0x51b980 getter state 3
+    int  IsReceiving();                                     // 0x51b9b0 getter state 0xb
+    int  IsFileReceived();                                  // 0x51b9e0 getter state 0xc
+    int  IsFileError();                                     // 0x51ba10
+    int  GetTotalBytes();                                   // 0x51baf0
+    int  GetBytesIn();                                      // 0x51bb10
+
+    void *ftp_get;                    // +0x00
+    void *http_get;                   // +0x04
+    int  use_http;                    // +0x08
+    int  _unk0c;                      // +0x0c
+    int  _unk10;                      // +0x10
+    int  error;                       // +0x14
+};
+LAYOUT_CHECK(InetGetFile, sizeof(InetGetFile) == 0x18);
+
+#endif

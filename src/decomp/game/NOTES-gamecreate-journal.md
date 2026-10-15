@@ -99,7 +99,7 @@ Facts:
   inventory (1, byte argument 0); 5..16 scroll arrows (flag 2: act on press, 500 ms delay, 100 ms repeat);
   17/18 close (interface_close_screen). Keys: Esc/Q screen 0, B buy/sell (only with a shopkeeper),
   I inventory, R status. The mouse wheel pages whichever pane is under the cursor.
-- journal_paused_game (0x5c1a9c) is really a leave-flags word: 1 unpause, 2 statscreen_refresh_anim(0),
+- journal_leave_flags (formerly journal_paused_game) (0x5c1a9c) is really a leave-flags word: 1 unpause, 2 statscreen_refresh_anim(0),
   4 shop_set_shopkeeper_from_char(0); init sets 6 (+1 when it paused), the screen-switch paths clear 6.
 - 0x5c1a96 is a third visibility byte (description scrollbar), written by journal_update_desc_scrollbar and
   never read; declared here as journal_desc_scrollbar_visible.

@@ -54,6 +54,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/movie.h` | movie (0x5172f0) | `movie_play` |
 | `vsdk/math/vector.h` | vsdk\math | `vector3`, `imax`, `imin`, `frand` |
 | `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `quaternion`, `matrix43` |
+| `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` | `TextFile` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` | `bitmap_entry`, `bm_*`, `progress_update` |
@@ -82,11 +83,16 @@ Summoner 2 and Dash Faction give names only.
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` | `lobj`, level render calls |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
 | `engine/effects/effect_stream.h` | effect streamer (0x4404a0) | `effect_stream_*` |
+| `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
 | `summoner/summoner.h` | summoner.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, path ids, `SummonerOptions` |
+| `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |
 | `summoner/multi/multi.h` | multi*.cpp | `mp_player`, session, trade, `.plr` records |
 | `summoner/interface/interface.h` | interface core, new_hud / new_inventory helpers | screen switch, button records, popups, colours, `new_icam` |
+| `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
+| `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |
+| `summoner/interface/new_skill.h`, `new_spell.h`, `new_tutorial.h` | new_skill.cpp, new_spell.cpp, new_tutorial.cpp (not pilots) | the functions and data the HUD and the inventory call |
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests |
 | `levelscripts/conversation.h` | `levelscripts\conversation.cpp` | dialogue boxes, conversation objects |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |

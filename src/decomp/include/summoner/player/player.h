@@ -77,6 +77,7 @@ extern Player *party_leader;          // 0x5fcc80
 extern Player *summon_player;         // 0x5fcc84
 extern Character *cur_character;      // 0x5fcc88
 extern Character *cur_summon;         // 0x5fcc8c
+extern bool combat_mode;              // 0x5fccb4 (combat_mode_set, hud_toggle_combat_mode)
 extern bool party_lists_initialized;  // 0x5fcc90 (label ours)
 extern bool Max_skills;               // 0x5fcc91
 extern unsigned int player_input[3];  // 0x5fcc98 {flags, mouse x, mouse y}

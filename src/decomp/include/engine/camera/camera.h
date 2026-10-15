@@ -13,6 +13,7 @@ class Character;
 class camera {                        // 0x2a8 bytes
 public:
     void set_target(Character *c);    // 0x478ff0 camera_set_target
+    void cycle_mode();                // 0x479a60 camera_cycle_mode (F12: 0 -> 1 -> 2 -> 0)
 
     int mode;            // +0x000 0 low, 1 high, 2 automatic, 3 forced high, 5 glide (camera_set_mode)
     int prev_mode;       // +0x004
@@ -71,5 +72,8 @@ extern camera game_camera;            // 0x60a018
 extern vector3 camera_view_pos;       // 0x60a290 (game_camera.view_pos)
 extern matrix camera_view_orient;     // 0x60a29c (game_camera.view_orient)
 extern float camera_fov;              // 0x60a1a4 (game_camera.fov; name ours)
+extern float game_camera_heading;     // 0x60a198 (game_camera.yaw; name ours, new_automap.cpp's camera icon)
+// new_hud.cpp's wrapper spelling (the old stubs could not name game_camera; D49).
+#define CAMERA_HM (&game_camera)
 
 #endif

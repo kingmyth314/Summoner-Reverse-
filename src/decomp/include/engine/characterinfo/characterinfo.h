@@ -196,6 +196,8 @@ int   charinfo_find_by_species(int species);          // 0x446bd0 index or -1
 void *charinfo_get_multi_appearance(char_info *info); // 0x449b80
 int   species_is_hero(int species);                   // 0x449a20
 void  statscreen_unload_anim(Character *c);         // 0x449100
+extern const char *skill_names[36];                   // 0x595b64 (characterinfo.cpp .data; 0x595bf4 ends it)
+int   charinfo_find_anim(char_info *info, const char *name);   // 0x448d90, anim index or -1
 
 // A skill record (0x34 bytes, skill_table 0x8b3f88, built by 0x442ba0 from strings.tbl).
 struct skill_info {

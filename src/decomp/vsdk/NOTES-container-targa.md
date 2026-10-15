@@ -34,8 +34,8 @@ Facts that shaped the source:
 - Slot 0 is not a C++ destructor (no flags argument, no delete). The real destructors ~ui_element
   (0x542d40) and ~ui_gadget (0x52c410) are non-virtual; the atexit handlers of the five static
   ui_containers (script editor) jump to ~ui_gadget, so ui_container has no user-declared destructor.
-- ui_gadget's slot 5 is 0x52c390 (`ui_gadget__process_children`) and slot 7 is 0x52c840
-  (`ui_gadget__draw_children`): these are the base-class `process`/`draw`, and the container calls them
+- ui_gadget's slot 5 is 0x52c390 (`ui_gadget__process` (formerly `ui_gadget__process_children`)) and slot 7 is 0x52c840
+  (`ui_gadget__draw` (formerly `ui_gadget__draw_children`)): these are the base-class `process`/`draw`, and the container calls them
   as `ui_gadget::process(key)` / `ui_gadget::draw()`. Likewise `ui_gadget::dtor()` -> 0x52c3d0, which
   tail-jumps to `ui_element::dtor()` 0x542cd0 (`ui_element__free_tooltips`).
 - gr_line takes float coordinates (x1, y1, x2, y2, mode); all frame arithmetic is float.
@@ -121,8 +121,8 @@ Facts that shaped the source:
 - `symbols/sum.symbols` ui_container__create: "mask bitmap +0x378 = -1" - create sets +0x380 (the label
   font) to -1; +0x378 is set to -1 by the constructor. It also stores flags +0x374 and the colour set
   +0x384.
-- `symbols/sum.symbols` ui_gadget__process_children / ui_gadget__draw_children are ui_gadget's slot 5
-  and slot 7 (the base-class process/draw); ui_gadget__dtor / ui_container__dtor are slot 0 functions,
+- `symbols/sum.symbols` ui_gadget__process (formerly ui_gadget__process_children) / ui_gadget__draw (formerly ui_gadget__draw_children) are ui_gadget's slot 5
+  and slot 7 (the base-class process/draw); ui_gadget__destroy (formerly ui_gadget__dtor) / ui_container__destroy (formerly ui_container__dtor) are slot 0 functions,
   not C++ destructors (the destructor is ui_gadget__dtor_base 0x52c410).
 - `src/decomp/include/stubs_sound_items_registry.h` File: only find(); it lacks open/close/size/seek/
   tell/error/read/read_int8/read_uint8/read_int16/write/write_uint8/write_uint16 and the public path id at

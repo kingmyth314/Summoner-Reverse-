@@ -36,6 +36,7 @@ LAYOUT_CHECK(bitmap_entry, sizeof(bitmap_entry) == 0x48);
 int  bm_find(const char *name);                       // 0x5025d0, -1 if none
 int  bm_load(const char *name, int path_id, int unk); // 0x5026e0 (the third argument is -1 at every pilot call)
 void bm_get_dimensions(int bm, int *w, int *h);       // 0x503500
+int  bm_get_num_frames(int bm, float *secs_per_frame);  // 0x502500 (0 here)
 // bm_lock returns the bitmap type (0 = failure), the pixel data through *data and the format through *format.
 int  bm_lock(int bm, ubyte **data, int *format);      // 0x503650
 void bm_unlock(int bm);                               // 0x503b50 bm_free_data(bm, 0)
@@ -43,6 +44,7 @@ void bm_unlock(int bm);                               // 0x503b50 bm_free_data(b
 int  bm_create(int format, int w, int h, void *data, void *palette, int a6);   // 0x503cf0
 void bm_set_preload_on_load(int on);                  // 0x503da0
 int  progress_update(int check_keys);                 // 0x503e80 (called with 0; return type guessed)
+void bm_release(int bm);                              // 0x503c80 (return unused)
 
 // The format out parameter ui_container::set_mask_bitmap passes to bm_lock: the first dword after
 // bm_bitmaps (0x2591c78 + n * 0x48), so a bmpman.cpp global. No name in sum.symbols.

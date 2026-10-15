@@ -51,6 +51,7 @@ struct vim {
 };
 typedef vim ca_vim;
 
+void vim_free(vim *mesh);                         // 0x5430b0
 vim *vim_load(const char *name, int arg);          // 0x543920
 int  vim_find_tag(vim *mesh, const char *name);    // 0x543c20, -1 if none
 void ca_init_globals_2ee4598();                    // 0x544a10

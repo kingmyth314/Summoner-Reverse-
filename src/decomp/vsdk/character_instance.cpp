@@ -854,8 +854,8 @@ void character_instance::ca_stub_ret30_51b380(matrix43 m)
 {
 }
 
-// 0x51b390  Confidence: exact (named get_pos in sum.symbols, but it assigns pos = *v; no caller).
-void character_instance::get_pos(const vector3 *v)
+// 0x51b390  Confidence: exact (sum.symbols set_pos, formerly get_pos: it assigns pos = *v; no caller).
+void character_instance::set_pos(const vector3 *v)
 {
     pos = *v;
 }

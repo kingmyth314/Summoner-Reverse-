@@ -75,7 +75,7 @@ public:
     bool anim_trigger_hit(const char *name);          // 0x51b290
     void page_in_textures();                          // 0x51b330
     void ca_stub_ret30_51b380(matrix43 m);            // 0x51b380 (ret 0x30)
-    void get_pos(const vector3 *v);                   // 0x51b390 (sets pos, see the function)
+    void set_pos(const vector3 *v);                   // 0x51b390 character_instance__set_pos (formerly get_pos)
     matrix43 compute_bone_matrix(int bone);           // 0x51b3b0
     void get_bone_world_transform(int bone, matrix *inst_orient, vector3 *inst_pos,
                                   matrix *out_orient, vector3 *out_pos);   // 0x51b3f0
@@ -129,5 +129,10 @@ void ca_system_close();               // 0x51b580
 extern bool ci_root_to_position;      // 0x5a8484
 extern bool High_lod;                 // 0x2722810
 void cmd_high_lod();                  // 0x51b5f0
+
+// new_inventory.cpp / new_hud.cpp wrote the instance calls through shims while Character was a C struct;
+// they are now plain member accesses (as CHAR_M, DECISIONS.md D1).
+#define CHARINST_M(c)  ((c)->instance)
+#define CHARINST_HM(c) ((c)->instance)
 
 #endif

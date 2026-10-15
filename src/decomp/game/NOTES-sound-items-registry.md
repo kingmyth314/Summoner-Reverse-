@@ -48,7 +48,7 @@ os_registry_app_key_set 0x2692ff8 (byte store, so `bool`), two 4-byte lpClass ob
 | 0x469180 | music_stop | exact |
 | 0x4691b0 | music_set_volume | exact |
 | 0x4691e0 | music_feedback_parse_tables | likely |
-| 0x469580 | music_feedback_reset_tables | unsure |
+| 0x469580 | surface_sound_table_reset | unsure |
 | 0x4696d0 | music_find_by_name | exact |
 | 0x469720 | feedback_play | likely |
 
@@ -96,7 +96,7 @@ Totals: 46 functions; 29 exact, 12 likely, 5 unsure (each initialiser pair count
   0x9a9870 (17 used), popup buffer 0x18000 at 0xa41870, 19 pools x 0x1c at 0xa59870.
 - symbols/sum.symbols corrections suggested: item_page_slots is 19 slots (int[76]), not 17;
   ip_general_mempool is Mempool[19]; music_tracks is {name, filename}[64];
-  music_feedback_reset_tables fills surface_sound_table only (name is misleading);
+  surface_sound_table_reset (formerly music_feedback_reset_tables) fills surface_sound_table only (the old name was misleading);
   num_feedback_sounds is compared unsigned.
 
 ## Open questions
@@ -116,7 +116,7 @@ Totals: 46 functions; 29 exact, 12 likely, 5 unsure (each initialiser pair count
 4. **.bss definition order vs. constructor argument**: feedback_string_pool (0x941740) precedes
    its buffer (0x9423d8); the source forward-declares the buffer. Same question as frametime.cpp
    open question 1.
-5. **music_feedback_reset_tables statement order**: the binary groups equal constants; I wrote
+5. **surface_sound_table_reset (formerly music_feedback_reset_tables) statement order**: the binary groups equal constants; I wrote
    lower-triangle row order, which matches the first-use order except where single immediates are
    hoisted. The loop bound `i <= 16` follows the JLE against row 16.
 6. **sound_ref_load argument order**: floats computed params[0], [1], [2] but passed as

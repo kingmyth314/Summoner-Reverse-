@@ -29,6 +29,8 @@ struct level_script_info {
 };
 LAYOUT_CHECK(level_script_info, sizeof(level_script_info) == 0x40);
 extern level_script_info level_script_table[51];     // 0x59f128
+int name_hash_nocase(const char *name);               // 0x4d5f50 (savegame name hashes)
+extern bool level_is_town;                           // 0x60a40c set by level_script_parse_table ("#Town")
 extern int cur_level_index;                          // 0x59f120 (4 = world map)
 int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none
 int  level_script_find_index(int level, const char *script_name);   // 0x4d6340, -1 = none
@@ -42,6 +44,8 @@ struct level_table_entry {
     int unk0c;                                       // +0xc
 };
 extern level_table_entry level_table[26];            // 0x59fde8
+// The level_table index of a level id, or -1 (the "endgame" string after the table is only its end).
+int  level_table_find_id(int level);                 // 0x4d6390 (formerly level_is_endgame)
 char *level_table_display_name(int level);           // 0x4d64c0 NULL when unknown
 
 // {level file name, localized display name slot} (type name ours).
@@ -82,6 +86,27 @@ LAYOUT_CHECK(quest_info, sizeof(quest_info) == 0x6c);
 extern quest_info quest_table[200];                  // 0x253ef40
 extern int quest_count;                              // 0x25443a4
 int quest_get_current_step(int quest);               // 0x4d6080, -1 = not active
+
+// ---- level containers and exits (level_scripts_common.cpp .bss 0x248ce40-0x2493a08) ------------------
+// lc_entries: 50 records of 0x10c bytes (lc_entry_add). sum.symbols tags them new_hud.cpp, but the
+// address is in the level scripts' .bss (see game/NOTES-hud.md). Type name ours.
+struct lobj;
+struct lc_entry {
+    lobj *object;                    // +0x000
+    char name[0x100];                // +0x004
+    unsigned int flags;              // +0x104 bit 0 gold container
+    int gold;                        // +0x108
+};
+LAYOUT_CHECK(lc_entry, sizeof(lc_entry) == 0x10c);
+extern lc_entry lc_entries[50];                      // 0x248ce40
+extern int lc_entry_count;                           // 0x2491a68
+// level_check_triggers' state. sum.symbols types level_exit_trigger void* (the trigger record); new_hud.cpp
+// passes it to level_script_find, so it is the record's leading name here.
+extern char *level_exit_trigger;                     // 0x24902c4
+extern unsigned int level_exit_block_flags;          // 0x2491a50 (1 party too far, 2 hostiles near)
+extern bool game_frozen;                             // 0x2491a5c (GameTick zeroes reported_frametime)
+class vector3;
+extern vector3 level_exit_return_pos;                // 0x2493a08
 
 void goto_credits();                                 // 0x4ef6a0 (level_script_templeint2.cpp range)
 

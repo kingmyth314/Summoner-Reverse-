@@ -6,7 +6,7 @@
 // Unit range: symbols/sum.symbols tags only the last nine functions (0x469080-0x469720) with
 // gamesound.cpp. The unit starts at the static initialiser 0x468c80 instead: its .bss
 // (0x941740-0x9438a0) interleaves the surface tables (surface_types 0x941bd8, num_surface_types
-// 0x9421d4) with the music/feedback tables, music_feedback_reset_tables fills
+// 0x9421d4) with the music/feedback tables, surface_sound_table_reset fills
 // surface_sound_table, and docs/sum-exe/sound.md already lists game_play_sound, sound_play_2d,
 // sound_play_3d_at and surface_play_sound as gamesound.cpp. So this file also holds
 // 0x468c80-0x469072 (11 more functions). The previous function (0x468c70) is combat code.
@@ -268,7 +268,7 @@ void music_feedback_parse_tables()
     }
     tf.Close();
 
-    music_feedback_reset_tables();
+    surface_sound_table_reset();
     memset(feedback_sound_count, 0, sizeof(feedback_sound_count));
 
     tf.Open("feedback.tbl", path_tables);
@@ -325,7 +325,7 @@ void music_feedback_parse_tables()
 // the compiler's: it groups equal constants in EAX). The row loop for 10-16 compares the row
 // pointer with JLE against row 16 (0x941ba8), hence <= 16.
 // Despite the name (symbols/sum.symbols), it resets the surface table, not music or feedback.
-void music_feedback_reset_tables()
+void surface_sound_table_reset()
 {
     memset(surface_sound_table, 0xff, sizeof(surface_sound_table));
 

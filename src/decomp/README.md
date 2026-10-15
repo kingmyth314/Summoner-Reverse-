@@ -43,6 +43,13 @@ Rules:
 | `game/new_status.cpp` | `new_status.cpp` (`0x42b1c0`-`0x42e62e`) | 57 | 33 / 22 / 2 |
 | `game/new_charselect.cpp` | `new_charselect.cpp` | 36 | 20 / 16 / 0 |
 | `game/new_levelselect.cpp` | `new_levelselect.cpp` | 29 | 15 / 13 / 1 |
+| `game/new_automap.cpp` | `new_automap.cpp` (`0x401e80`-`0x404871`) | 46 | 34 / 10 / 2 |
+| `game/new_inventory.cpp` | `new_inventory.cpp` (`0x414c80`-`0x418572`) | 78 | 49 / 27 / 2 |
+| `game/new_hud.cpp` | `new_hud.cpp` (`0x40cb60`-`0x41075a`) | 70 | 45 / 25 / 0 |
+| `game/new_gamelist.cpp` | `new_gamelist.cpp` | 29 + 2 initialiser pairs | 14 / 15 / 0 |
+| `game/new_pxochat.cpp` | `new_pxochat.cpp` | 57 + 14 initialiser pairs | 20 / 36 / 1 |
+| `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
+| `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
 
 **Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file.
 

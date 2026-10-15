@@ -297,5 +297,7 @@ void item_paging_find_player_slot(Character *character, int *slot1, int *slot2)
 // the dynamic initialiser of this definition. Confidence: unsure for the placement: only
 // mp_player_autosave_start/frame and mp_player_save_on_leave (next unit, 0x46da20-0x46da60) use
 // it, and an initialiser at the top of that unit lands at the same address as one at the bottom
-// of this one. Kept here because symbols/sum.symbols puts it in item_paging.cpp.
+// of this one. Kept here for now, but symbols/sum.symbols now puts 0x46cc60-0x46da80 in multisave.cpp
+// (strings.tbl id 237 in mp_player_file_write; see docs/sum-exe/source-map.md, Round 3), so this
+// definition most likely belongs at the top of multisave.cpp.
 RealtimeTimer mp_player_autosave_timer;                        // 0xa59a84

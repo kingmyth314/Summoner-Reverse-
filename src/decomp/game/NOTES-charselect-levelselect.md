@@ -35,7 +35,7 @@ the level helpers, chat_send_line, trim_whitespace, level_table).
 | 0x407410 | mp_charselect_page_down | likely |
 | 0x407460 | mp_charselect_save_choice | exact |
 | 0x4074b0 | mp_charselect_back | exact |
-| 0x4074d0 | mp_charselect_clear_text_input | exact |
+| 0x4074d0 | mp_charselect_close_info | exact |
 | 0x4074e0 | mp_charselect_button_action | exact |
 | 0x407650 | mp_charselect_scroll_up | exact |
 | 0x407680 | mp_charselect_scroll_down | exact |
@@ -58,11 +58,11 @@ the level helpers, chat_send_line, trim_whitespace, level_table).
 
 Facts:
 - Three lists share the per-list arrays: 0 characters, 1 the description typed for a new character,
-  2 the info panel. The sum.symbols names of the focus flags are misleading: `mp_charselect_name_editing`
-  (0x5b6830) = name box focus, `mp_charselect_name_input_active` (0x5bc3e4) = description box focus,
-  `mp_charselect_text_input_active` (0x5b6838) = info panel open (set by mp_char_format_info, cleared by
-  mp_charselect_clear_text_input = the panel's close button 20/21). Suggested renames: name_focus,
-  desc_focus, info_open, clear_text_input -> close_info.
+  2 the info panel. The focus flags (sum.symbols has since adopted the suggested names): `mp_charselect_name_focus` (formerly `mp_charselect_name_editing`)
+  (0x5b6830) = name box focus, `mp_charselect_desc_focus` (formerly `mp_charselect_name_input_active`) (0x5bc3e4) = description box focus,
+  `mp_charselect_info_open` (formerly `mp_charselect_text_input_active`) (0x5b6838) = info panel open (set by mp_char_format_info, cleared by
+  mp_charselect_close_info (formerly mp_charselect_clear_text_input) = the panel's close button 20/21). The suggested renames
+  (name_focus, desc_focus, info_open, clear_text_input -> close_info) are now the sum.symbols names and the code uses them.
 - Button table flag bits (0x589828, 34 x 0x40): 1 HiLite acting on release via the next entry, 2 arrow
   acting on press with repeat via the next entry, 4 check box acting itself on release, 8 info-panel entry
   (hit-tested only while the panel is open, drawn on top). Entries 0 and 19 (panel background) get the
@@ -163,8 +163,8 @@ Facts:
 - stubs_menus_dialogue.h `mp_player_disconnected(int id, int reason)`: the level select passes (2, 0) /
   (0, 0); the first argument looks like a reason or mode, not a player id.
 - sum.symbols: mp_player_file_read_summary is (out, filename), not "(path, out)"; mp_charselect_selected,
-  mp_levelselect_list_count and mp_levelselect_selected_row are arrays (see above); mp_charselect_name_box_x
-  / _y are one interleaved {x, y}[3] table (mp_charselect_name_box_pos here); mp_charselect_button_defs is
+  mp_levelselect_list_count and mp_levelselect_selected_row are arrays (see above); mp_charselect_name_box_pos (formerly mp_charselect_name_box_x)
+  and mp_charselect_name_box_y are one interleaved {x, y}[3] table (mp_charselect_name_box_pos); mp_charselect_button_defs is
   0x40 bytes before its symbol (0x589828, as gamecreate_button_defs).
 - XSTR is defined only in stubs_credits_help.h, File only in headers that clash with stubs_menus_dialogue.h
   (Color / TextFile / Character); both repeated in stubs_charselect_levelselect.h under guards / as a

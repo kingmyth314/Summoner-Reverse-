@@ -18,7 +18,7 @@ void mp_charselect_page_up(int list);               // 0x4073c0
 void mp_charselect_page_down(int list);             // 0x407410
 void mp_charselect_save_choice();                   // 0x407460
 void mp_charselect_back();                          // 0x4074b0
-void mp_charselect_clear_text_input();              // 0x4074d0
+void mp_charselect_close_info();                    // 0x4074d0
 void mp_charselect_button_action(int button);       // 0x4074e0
 void mp_charselect_scroll_up(int list);             // 0x407650
 void mp_charselect_scroll_down(int list);           // 0x407680

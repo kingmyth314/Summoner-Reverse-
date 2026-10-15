@@ -29,13 +29,31 @@ typedef unsigned int   uint;
 #endif
 
 // Circular doubly linked lists through next / prev (the head is an object of the element type).
-// Used by player.cpp; the free loops of other units look like these macros too.
-#define list_init(head)          { (head)->next = (head); (head)->prev = (head); }
-#define list_insert(head, elem)  { (elem)->next = (head)->next; (head)->next->prev = (elem); \
-                                   (elem)->prev = (head); (head)->next = (elem); }
-#define list_append(head, elem)  { (elem)->prev = (head)->prev; (elem)->next = (head); \
-                                   (head)->prev->next = (elem); (head)->prev = (elem); }
-#define list_remove(elem)        { (elem)->prev->next = (elem)->next; (elem)->next->prev = (elem)->prev; \
-                                   (elem)->next = NULL; (elem)->prev = NULL; }
+// Used by player.cpp; the free loops of other units look like these macros too. The bodies are
+// do { } while (0): the unoptimised objects.cpp keeps the `xor reg, reg / test / jne` of the while (0)
+// after each expansion (obj_link_new 0x469c12, obj__deinit 0x469e5d, objects_init 0x469918;
+// DECISIONS.md D59). Optimised units drop the test, so their code is unchanged.
+#define list_init(head)          do { (head)->next = (head); (head)->prev = (head); } while (0)
+#define list_insert(head, elem)  do { (elem)->next = (head)->next; (head)->next->prev = (elem); \
+                                      (elem)->prev = (head); (head)->next = (elem); } while (0)
+#define list_append(head, elem)  do { (elem)->prev = (head)->prev; (elem)->next = (head); \
+                                      (head)->prev->next = (elem); (head)->prev = (elem); } while (0)
+#define list_remove(elem)        do { (elem)->prev->next = (elem)->next; (elem)->next->prev = (elem)->prev; \
+                                      (elem)->next = NULL; (elem)->prev = NULL; } while (0)
+
+// The same lists with a pointer as the head (NULL = empty): objects.cpp's handle slot lists
+// (obj_free_list, obj_used_list). Names ours. plist_remove unlinks the last element with a `break`
+// out of the while (0) (obj_create 0x469cb1 jumps past the test).
+#define plist_init(head)         do { (head) = NULL; } while (0)
+#define plist_append(head, elem) do { if ((head) == NULL) { (elem)->next = (elem); (elem)->prev = (elem); \
+                                          (head) = (elem); } \
+                                      else { (elem)->prev = (head)->prev; (elem)->next = (head); \
+                                          (head)->prev->next = (elem); (head)->prev = (elem); } } while (0)
+#define plist_remove(head, elem) do { if ((head) == (elem)) { \
+                                          if ((elem)->next == (elem)) { (elem)->next = NULL; (elem)->prev = NULL; \
+                                              (head) = NULL; break; } \
+                                          (head) = (elem)->next; } \
+                                      (elem)->prev->next = (elem)->next; (elem)->next->prev = (elem)->prev; \
+                                      (elem)->next = NULL; (elem)->prev = NULL; } while (0)
 
 #endif

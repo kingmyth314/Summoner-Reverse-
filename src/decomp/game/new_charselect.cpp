@@ -8,10 +8,10 @@
 //
 // Three scrolled lists share the per-list arrays: 0 the character list (mp_char_profiles), 1 the
 // description the player types for a new character (mp_charselect_text_input, wrapped), 2 the character
-// info panel (mp_charselect_info_text, opened by the Profile button). The sum.symbols names of the three
-// focus flags do not say what they gate: mp_charselect_name_editing = the name box has the focus,
-// mp_charselect_name_input_active = the description box has the focus, mp_charselect_text_input_active =
-// the info panel is open (button table flag 8 = entry belongs to the panel).
+// info panel (mp_charselect_info_text, opened by the Profile button). The three focus flags:
+// mp_charselect_name_focus = the name box has the focus, mp_charselect_desc_focus = the description box
+// has the focus, mp_charselect_info_open = the info panel is open (button table flag 8 = entry belongs to
+// the panel).
 
 #include <ctype.h>
 #include <stdio.h>
@@ -95,7 +95,7 @@ ui_button_def mp_charselect_button_defs[CHARSELECT_NUM_BUTTONS] = {
 };
 // 0x58a0a8. The strings are pooled copies at 0x588b8c / 0x588b74 (see new_journal.cpp).
 char *mp_charselect_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
-// 0x58a0b0 x, y of the name box per resolution (sum.symbols: mp_charselect_name_box_x / _y). Not const,
+// 0x58a0b0 x, y of the name box per resolution (sum.symbols: mp_charselect_name_box_pos, y at mp_charselect_name_box_y). Not const,
 // so it is in .data, unlike its size table.
 int mp_charselect_name_box_pos[3][2] = { { 352, 89 }, { 440, 111 }, { 563, 142 } };
 // then "Multiplayer Char" (0x58a0c8), "*%s" (0x58a0dc), ".plr" (0x58a0e0).
@@ -105,9 +105,9 @@ bool mp_charselect_scrollbar_visible[3];                          // 0x5b6808
 int mp_charselect_scrollbar_size[3][2];                           // 0x5b680c thumb w, h
 int mp_charselect_selected[3];                                    // 0x5b6824 [0] selected character; [1] / [2]
                                                                   // only reset (sum.symbols types it int)
-bool mp_charselect_name_editing;                                  // 0x5b6830 name box has the focus
+bool mp_charselect_name_focus;                                    // 0x5b6830 name box has the focus
 int mp_charselect_drag_start_thumb;                               // 0x5b6834
-bool mp_charselect_text_input_active;                             // 0x5b6838 info panel open
+bool mp_charselect_info_open;                                     // 0x5b6838 info panel open
 char mp_charselect_text_input[260];                               // 0x5b683c description (max 255 + nul; the
                                                                   // 4 bytes up to 0x5b6940 are never used)
 ui_button_state mp_charselect_buttons[CHARSELECT_NUM_BUTTONS];   // 0x5b6940
@@ -125,7 +125,7 @@ char mp_charselect_name[32];                                      // 0x5bc3b8
 int mp_charselect_scrollbar_bm;                                   // 0x5bc3d8
 int mp_charselect_species;                                        // 0x5bc3dc char_infos index, -1 none
 int mp_charselect_drag_start_y;                                   // 0x5bc3e0
-bool mp_charselect_name_input_active;                             // 0x5bc3e4 description box has the focus
+bool mp_charselect_desc_focus;                                    // 0x5bc3e4 description box has the focus
 int mp_charselect_drag_scrollbar_index;                           // 0x5bc3e8 list under the mouse / dragged
 int mp_charselect_mouse_mode;                                     // 0x5bc3ec 0 idle, 1 button held, 2 dragging
 int mp_charselect_hover_row;                                      // 0x5bc3f0
@@ -217,13 +217,13 @@ void mp_charselect_init()
     }
 
     mp_charselect_name[0] = 0;
-    mp_charselect_name_editing = false;
+    mp_charselect_name_focus = false;
     mp_charselect_select_species(-1);
     mp_charselect_mouse_mode = 0;
     mp_charselect_pressed_button = -1;
     mp_charselect_text_input[0] = 0;
-    mp_charselect_name_input_active = false;
-    mp_charselect_text_input_active = false;
+    mp_charselect_desc_focus = false;
+    mp_charselect_info_open = false;
 }
 
 // 0x406710  Confidence: likely (the list free loop: the head's prev field is the temporary, read as the
@@ -349,14 +349,14 @@ int mp_charselect_frame(int key)
     }
 
     if (mouse_was_pressed(0)) {
-        if (mp_charselect_name_editing)
-            mp_charselect_name_editing = point_in_rect(game_mouse_x, game_mouse_y,
+        if (mp_charselect_name_focus)
+            mp_charselect_name_focus = point_in_rect(game_mouse_x, game_mouse_y,
                                                        mp_charselect_name_box_pos[resolution_index][0],
                                                        mp_charselect_name_box_pos[resolution_index][1],
                                                        mp_charselect_name_box_size[resolution_index][0],
                                                        mp_charselect_name_box_size[resolution_index][1]);
-        if (mp_charselect_name_input_active)
-            mp_charselect_name_input_active = point_in_rect(game_mouse_x, game_mouse_y,
+        if (mp_charselect_desc_focus)
+            mp_charselect_desc_focus = point_in_rect(game_mouse_x, game_mouse_y,
                                                             mp_charselect_list_pos[resolution_index][1][0],
                                                             mp_charselect_list_pos[resolution_index][1][1],
                                                             mp_charselect_list_width[resolution_index][1],
@@ -406,7 +406,7 @@ int mp_charselect_handle_click(int key)
 
     for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
         if (!(mp_charselect_buttons[i].flags & 4)
-            && ((mp_charselect_button_defs[i].flags >> 3) & 1) == mp_charselect_text_input_active
+            && ((mp_charselect_button_defs[i].flags >> 3) & 1) == mp_charselect_info_open
             && (mp_charselect_button_defs[i].flags & 7)
             && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_buttons[i].x, mp_charselect_buttons[i].y,
                              mp_charselect_buttons[i].w, mp_charselect_buttons[i].h)) {
@@ -432,7 +432,7 @@ int mp_charselect_handle_click(int key)
 
     // scrollbar thumbs: lists 0 and 1 while the info panel is closed, list 2 while it is open
     for (i = 0; i < 3; i++) {
-        if (mp_charselect_text_input_active == (i == 2)
+        if (mp_charselect_info_open == (i == 2)
             && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_scrollbar_pos[i][0],
                              mp_charselect_scrollbar_pos[i][1], mp_charselect_scrollbar_size[i][0],
                              mp_charselect_scrollbar_size[i][1])
@@ -446,7 +446,7 @@ int mp_charselect_handle_click(int key)
     }
 
     font_h = gr_get_font_height(-1);
-    if (mp_charselect_text_input_active) {
+    if (mp_charselect_info_open) {
         mp_charselect_drag_scrollbar_index = 2;
     } else {
         for (i = 0; i < 3; i++) {
@@ -485,7 +485,7 @@ int mp_charselect_handle_click(int key)
         }
     }
 
-    if (mp_charselect_name_editing) {
+    if (mp_charselect_name_focus) {
         if (key) {
             int c = key_to_ascii(key);
             if (c != 0xff) {
@@ -508,7 +508,7 @@ int mp_charselect_handle_click(int key)
                 switch (key) {
                 case KEY_ESC:
                     mp_charselect_name[0] = 0;
-                    mp_charselect_name_editing = false;
+                    mp_charselect_name_focus = false;
                     return 0;
                 case KEY_BACKSPACE: {
                     int len = strlen(mp_charselect_name);
@@ -521,14 +521,14 @@ int mp_charselect_handle_click(int key)
                     break;
                 }
                 case KEY_ENTER:
-                    mp_charselect_name_editing = false;
+                    mp_charselect_name_focus = false;
                     return 0;
                 }
             }
         }
-        if (!mp_charselect_name_editing)
+        if (!mp_charselect_name_focus)
             return 0;
-    } else if (mp_charselect_name_input_active) {
+    } else if (mp_charselect_desc_focus) {
         if (key) {
             int c = key_to_ascii(key);
             if (c != 0xff) {
@@ -545,7 +545,7 @@ int mp_charselect_handle_click(int key)
                 switch (key) {
                 case KEY_ESC:
                     mp_charselect_text_input[0] = 0;
-                    mp_charselect_name_input_active = false;
+                    mp_charselect_desc_focus = false;
                     mp_charselect_wrap_text_input();
                     return 0;
                 case KEY_BACKSPACE: {
@@ -560,35 +560,35 @@ int mp_charselect_handle_click(int key)
                     break;
                 }
                 case KEY_ENTER:
-                    mp_charselect_name_input_active = false;
+                    mp_charselect_desc_focus = false;
                     mp_charselect_wrap_text_input();
                     return 0;
                 }
             }
         }
-        if (!mp_charselect_name_input_active) {
+        if (!mp_charselect_desc_focus) {
             mp_charselect_wrap_text_input();
             return 0;
         }
     }
 
-    if (!mp_charselect_text_input_active && mouse_was_pressed(0)) {
-        if (!mp_charselect_name_editing
+    if (!mp_charselect_info_open && mouse_was_pressed(0)) {
+        if (!mp_charselect_name_focus
             && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_name_box_pos[resolution_index][0],
                              mp_charselect_name_box_pos[resolution_index][1],
                              mp_charselect_name_box_size[resolution_index][0],
                              mp_charselect_name_box_size[resolution_index][1])) {
-            mp_charselect_name_editing = true;
+            mp_charselect_name_focus = true;
             mp_charselect_cursor_timer.SetTimeout(500);
             mp_charselect_cursor_on = true;
             return key;
         }
-        if (!mp_charselect_name_input_active
+        if (!mp_charselect_desc_focus
             && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_list_pos[resolution_index][1][0],
                              mp_charselect_list_pos[resolution_index][1][1],
                              mp_charselect_list_width[resolution_index][1],
                              gr_get_font_height(-1) * mp_charselect_list_page[resolution_index][1])) {
-            mp_charselect_name_input_active = true;
+            mp_charselect_desc_focus = true;
             mp_charselect_wrap_text_input();
             mp_charselect_cursor_timer.SetTimeout(500);
             mp_charselect_cursor_on = true;
@@ -598,8 +598,8 @@ int mp_charselect_handle_click(int key)
 
     switch (key) {
     case KEY_ESC:
-        if (mp_charselect_text_input_active)
-            mp_charselect_clear_text_input();
+        if (mp_charselect_info_open)
+            mp_charselect_close_info();
         else
             mp_charselect_back();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
@@ -627,7 +627,7 @@ void mp_charselect_wrap_text_input()
     int first;
 
     strcpy(buf, mp_charselect_text_input);
-    if (mp_charselect_name_input_active)
+    if (mp_charselect_desc_focus)
         strcat(buf, "|");
     mp_charselect_row_counts[1] = gr_split_str(lengths, starts, buf, mp_charselect_list_width[resolution_index][1],
                                                32, 0, -1);
@@ -684,9 +684,9 @@ void mp_charselect_back()
 }
 
 // 0x4074d0  Confidence: exact. Closes the info panel.
-void mp_charselect_clear_text_input()
+void mp_charselect_close_info()
 {
-    mp_charselect_text_input_active = false;
+    mp_charselect_info_open = false;
 }
 
 // 0x4074e0  Confidence: exact (byte table 0x407630 over button-2, 0..31, into the jump table 0x4075f0;
@@ -732,7 +732,7 @@ void mp_charselect_button_action(int button)
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         break;
     case 21:
-        mp_charselect_clear_text_input();
+        mp_charselect_close_info();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         break;
     case 23:
@@ -939,9 +939,9 @@ void mp_char_format_info()
     mp_charselect_row_counts[2] += count;
     mp_charselect_update_scrollbar(2);
 
-    mp_charselect_name_editing = false;
-    mp_charselect_name_input_active = false;
-    mp_charselect_text_input_active = true;
+    mp_charselect_name_focus = false;
+    mp_charselect_desc_focus = false;
+    mp_charselect_info_open = true;
 }
 
 // 0x407d30  Confidence: exact. A flag-4 entry (class check box) is its own action, otherwise the entry
@@ -1011,7 +1011,7 @@ void mp_charselect_draw()
     mp_charselect_draw_name_input();
     mp_charselect_draw_text_input();
 
-    if (mp_charselect_text_input_active) {
+    if (mp_charselect_info_open) {
         gr_set_color(255, 255, 255, 255);
         for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
             if ((mp_charselect_button_defs[i].flags & 8) && (mp_charselect_buttons[i].flags & 3))
@@ -1089,7 +1089,7 @@ void mp_charselect_draw_name_input()
                  mp_charselect_name_box_size[resolution_index][0], mp_charselect_name_box_size[resolution_index][1]);
 
     strcpy(buf, mp_charselect_name);
-    if (mp_charselect_name_editing)
+    if (mp_charselect_name_focus)
         strcat(buf, "|");
     gr_get_string_size(&w, &h, buf, -1, -1);
 
@@ -1118,7 +1118,7 @@ void mp_charselect_draw_text_input()
     int rows, y, i;
 
     strcpy(buf, mp_charselect_text_input);
-    if (mp_charselect_name_input_active)
+    if (mp_charselect_desc_focus)
         strcat(buf, "|");
     count = gr_split_str(lengths, starts, buf, mp_charselect_list_width[resolution_index][1], 32, 0, -1);
     rows = count;
@@ -1131,7 +1131,7 @@ void mp_charselect_draw_text_input()
     for (i = 0; i < rows; i++) {
         int line = mp_charselect_scroll_pos[1] + i;
 
-        if (mp_charselect_name_input_active && !mp_charselect_cursor_on && line == count - 1) {
+        if (mp_charselect_desc_focus && !mp_charselect_cursor_on && line == count - 1) {
             strncpy(text, buf + starts[line], lengths[line] - 1);
             text[lengths[line] - 1] = 0;
         } else {

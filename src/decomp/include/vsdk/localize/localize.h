@@ -9,6 +9,7 @@ extern char *localize_strings[1000];                     // 0x25cd4dc
 // The id indexes localize_strings; the English text is the source comment (Volition's XSTR convention).
 #define XSTR(text, id) (localize_strings[id])
 
+char *localize_item_name(const char *name);              // 0x505040
 char *localize_quest_name(const char *name);             // 0x505070
 void  localize_remap_charset(char *text, int to_font);   // 0x5051a0
 char *localize_string_or_invalid(char **p);              // 0x5054f0: *p, or "INVALID"

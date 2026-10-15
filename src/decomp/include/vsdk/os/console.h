@@ -5,9 +5,10 @@
 
 #include "vsdk/vsdk.h"
 
-// The objects are 0x10 apart in .bss (ccmd_show_framerate 0x5fbfe8, ccmd_targa 0x5fbff8, ccmd_max_skills
-// 0x5fc1b8 .. player_free_list 0x5fc1c8), so 0x10 bytes; symbols/types.h lists only the first 0xc
-// (name, description, callback). The constructor links the command; there is no destructor.
+// 0xc bytes as in symbols/types.h (DECISIONS.md D40): the constructor writes only +0, +4, +8, and two
+// command objects are followed directly by another variable at +0xc (ccmd_map_grid 0x5b2a00 /
+// automap_centered 0x5b2a0c, ccmd_show_ui 0x5bd780 / ui_choice_popup_mouse_mode 0x5bd78c); the 0x10
+// spacing elsewhere in .bss is not the size. The constructor links the command; there is no destructor.
 class console_command {
 public:
     console_command(const char *name, const char *help, void (*func)());   // 0x50a180
@@ -15,9 +16,10 @@ public:
     const char *name;                    // +0x0
     const char *description;             // +0x4
     void (*callback)();                  // +0x8
-    int _unk0c;                          // +0xc
 };
-LAYOUT_CHECK(console_command, sizeof(console_command) == 0x10);
+LAYOUT_CHECK(console_command, sizeof(console_command) == 0xc);
+typedef console_command console_command_t;   // the pilots' wrapper names (D40)
+typedef console_command console_command_M;
 
 // Argument types (process_command / arg_type)
 #define ARG_NONE  0x01

@@ -125,7 +125,7 @@ Facts:
 43 functions: 25 exact, 18 likely, 0 unsure.
 
 Facts:
-- **`saveload_load_mode` (0x5f4a46) is true in save mode** (it shows SaveLoad-SG/-SF/-Save, adds the
+- **`saveload_save_mode` (formerly `saveload_load_mode`) (0x5f4a46) is true in save mode** (it shows SaveLoad-SG/-SF/-Save, adds the
   `<New Savegame>` row, makes the action button save). From the main menu (flags bit 1) saveload_refresh refuses
   the save list, and saveload_init(save, from menu) does nothing at all.
 - interface_set_screen(8, &byte) calls saveload_init(byte, prev != 14). in_game: capture the thumbnail first,
@@ -176,7 +176,7 @@ Facts:
 
 ## Shared declarations that are wrong or missing (not changed)
 
-- sum.symbols: `saveload_load_mode` means save mode (name inverted). `saveload_thumbnail_buf` is typed
+- sum.symbols: `saveload_save_mode` (formerly `saveload_load_mode`) means save mode (the old name was inverted; sum.symbols now says save_mode). `saveload_thumbnail_buf` is typed
   uint16[201*151] but is 201*151*4 bytes (0x5c5ba0-0x5e35db; format 7 reads 4 bytes per pixel).
   `options_buttons` comment says "bitmap +8, x/y +0x10/+0x14": the records are the usual ui_button_state
   (bitmap +4, x/y +8/+0xc, w/h +0x10/+0x14). `saveload_update_select_button` comment says "disabled (bit 2)",

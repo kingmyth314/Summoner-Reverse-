@@ -135,7 +135,8 @@ in `vsdk/gr/gr.h`: no constructor is called by the pilots (the colour objects ar
 **D27. String / StringPool / console_command.** String: the full class of stubs_cmdline_grfont.h (the other
 copy had only `operator=(const char*)`). StringPool: both constructors exist (0x544dc0 default, used with
 `Init` by effect_mem.cpp; 0x544de0 with arguments, used by gamesound.cpp's static object), so both are
-declared. console_command: 0x10 bytes (the objects are 0x10 apart in .bss) with types.h's three fields first.
+declared. console_command: 0x10 bytes (the objects are 0x10 apart in .bss) with types.h's three fields first
+(superseded by D40: 0xc bytes).
 
 **D28. character_instance** (stubs_status.h stub with `process(float, int, int)` and `render`; the pilot
 class with `process(float, bool, int)`). The pilot class (its definition wins; new_status passes 0, 0) plus
@@ -202,6 +203,145 @@ gr_font.cpp's `extern gr__Screen gr_screen` (`vsdk/gr/gr.h`), window.cpp's `KEY_
 (`unsigned int` sizes). `vsdk/vsdk.h` includes the CRT headers instead; `<stdint.h>` is included for the
 types.h integer names (VC6 has none: the real build needs a small shim header).
 
+## Pilot units new_automap / new_inventory / new_hud (stubs_automap.h, stubs_inventory.h, stubs_hud.h)
+
+The three units were written against the old stub headers and converted afterwards. Their `.cpp` code is
+unchanged except where a decision below says so.
+
+**D40. console_command is 0xc bytes** (D27 said 0x10; stubs_automap.h wrapped types.h's 0xc C struct as
+`console_command_t`, stubs_inventory.h used a 0x10-byte shim `console_command_M`). The constructor 0x50a180
+writes only +0, +4, +8 (0x50a1d7-0x50a1dc), and command objects are followed directly by other variables at
++0xc: ccmd_map_grid 0x5b2a00 / automap_centered 0x5b2a0c, ccmd_show_coordinates 0x5b2b60 /
+automap_mask_scale 0x5b2b6c, ccmd_show_ui 0x5bd780 / ui_choice_popup_mouse_mode 0x5bd78c. The 0x10 spacing
+of player.cpp's objects is not the size. `console_command_t` and `console_command_M` are typedefs of the
+class (`vsdk/os/console.h`).
+
+**D41. Color has constructors** (D25 kept a plain struct; stubs_automap.h / stubs_hud.h added
+`Color_ctor : Color`). The static colours are built by Color::Color(r, g, b, a) (0x5067f0, thiscall,
+`ret 0x10`; init_colors_5b29e0, init_color_5bd2ec, ...), and hud_portrait_get_color (0x40f880) returns its
+Color through a hidden pointer (the caller pushes `lea eax, [esp+0xc]` at 0x40f775, the callee stores
+`[eax]` and returns it): VC6 returns a 4-byte POD struct in EAX, so Color is not a POD, i.e. it has a
+user-declared constructor. `Color()` is declared inline and empty (uninitialised locals and the colour
+arrays emit no call); `Color_ctor` is a typedef.
+
+**D42. vector3 fields, not subscripts** (types.h had `float pos[3]`; the pilots wrote `c->pos[0]`,
+`*(vector3 *)c->pos`). Code change: `->pos[0/1/2]` became `->pos.x/.y/.z` (new_automap.cpp 4 calls,
+new_hud.cpp hud_interact_nearest) and the `*(vector3 *)` casts were dropped (new_inventory.cpp 0x416dc0 /
+0x416eb0, new_hud.cpp hud_level_exit_step_back). Same loads and stores. Open: those copies are inline
+3-dword moves in these /Ob1 units (0x416e2d, 0x40d855-0x40d89e, the second through `lea eax, [edx+0x10]`
+as an inlined `this`), while vector3.h declares operator= out of line (vector3__assign 0x413190, 159
+callers); the assignment may be an inline member that the /Ob0 units call as a COMDAT.
+
+**D43. Where the three units' declarations went.** Unit headers `summoner/interface/new_automap.h`,
+`new_inventory.h`, `new_hud.h` (old guards kept; new_inventory.h no longer includes types.h). New headers:
+`summoner/automap.h` (automap.cpp, 0x42ffe0-0x4302b0: `automap_label` 0x30, the label array, map corners,
+reveal grid), `engine/spells/spells.h` (spells.cpp: `spell_info` 0x80 from types.h, `spells`,
+`spell_display_names`), and declaration-only unit headers `summoner/interface/new_skill.h`, `new_spell.h`,
+`new_tutorial.h` (new_skill.cpp / new_spell.cpp / new_tutorial.cpp per sum.symbols). `hud_key_help`
+(0x40e260, new_hud.cpp) moved from interface.h to new_hud.h; new_mainmenu.cpp includes new_hud.h for it.
+The rest went to the header of its unit (as D36): key codes and `key_is_down` (key.h), gr_bitmap_float,
+gr_cull_bounding_box, the automap gr modes (gr.h), bm_get_num_frames, localize_item_name, the items.cpp and
+party-inventory functions (items.h / objects.h, with `equip_page_slots` 0x5819d4 next to objects.cpp's
+.rdata), level layers, gameseq_get_state, gameplay party control and gametarget world picking
+(summoner.h), lc_entries and the level-exit state (level_scripts.h), the pick overrides, popups, panel
+helpers and interface colours (interface.h), ai_service_request (ai.h), mp_send_(un)equip_item,
+mp_respawn_and_notify, mp_netgame_state (multi.h), combat_mode (player.h).
+
+**D44. Key modifiers: 0x1000 Shift, 0x2000 Alt, 0x4000 Ctrl.** key_mark ORs 0x10 / 0x20 / 0x40 into CH
+(0x5094c3 / 0x5094da / 0x5094f1) from the key_down_state bytes of scan codes 0x2a / 0x36, 0x38 / 0xb8 and
+0x1d / 0x9d (base 0x25da94c), as docs/sum-exe/controls.md now says. stubs_hud.h defined `KEY_ALTED` as 0x4000
+from the old controls page. key.h has `KEY_ALTED 0x2000` and `KEY_CTRLED 0x4000`; code change in hud_handle_keys:
+`KEY_S | KEY_ALTED` / `KEY_L | KEY_ALTED` became `KEY_CTRLED` (same value; quicksave / quickload are Ctrl+S /
+Ctrl+L).
+
+**D45. The thiscall shims of the two units are members** (as D1): `Character_HM` (get_display_name,
+get_current_move 0x461500, set_6ac 0x4570d0, set_locomotion_speed 0x45a6e0, update_locomotion_anim 0x45a120)
+on Character; `ai_state_HM` (is_mode 0x473200, get_mode 0x473600, is_combat_e_or_sneak_attack 0x473120,
+goals_clear 0x476380, go_idle) and `ai_goal_M` (add_cast_spell 0x4740c0, ai_goal_add_cast_spell, thiscall on
+Character +0x324) on ai_state; `character_instance_HM` / `_M` on character_instance. The macros
+`CHAR_HM`, `AI_HM`, `AI_GOAL_M`, `CHARINST_HM`, `CHARINST_M` and `INV_EQUIP(c, i)` (`(c)->equipment[i]`) stay
+as identities. Two code changes in hud_interact_nearest, where the old stub's Character stood for any object:
+`CHAR_HM(obj)->is_in_view()` became `((item_obj *)obj)->is_in_view()` (0x46a7e0 is item_obj_is_in_view,
+declared on item_obj), and the walk uses `obj::next` (`(Character *)obj_active_list.next`, `obj->next`)
+instead of types.h's `_link04`.
+
+**D46. savegame members** (stubs_automap.h `savegame_automap`, stubs_hud.h `savegame_HM`). On `class
+savegame`: automap_label_add / remove / labels_reset_level / label_count (0x4d12b0-0x4d1620) and the hot
+buttons with the callee's argument order (sum.symbols CORRECTION notes, all call sites): hot_button_get
+(int *kind, int *id, member, slot) 0x4d1770 returns `setne al` (bool), hot_button_set (kind, id, member,
+slot) 0x4d16a0, hot_button_clear (member, slot) 0x4d1660. `SAVEGAME_AUTOMAP` is `(savegame_state)`,
+`SAVEGAME_HM` is `(&savegame_state)`. write / read_info / set_pending_load: see D52.
+
+**D47. world_hover_portrait_character is a Character*** (sum.symbols type; stubs_hud.h `int
+world_pick_target_mode`). hud_frame stores `hud_portrait_slots[n].character` into it; code change: the
+five `(int)` casts were dropped.
+
+**D48. skill_is_available / character_use_skill** (stubs_inventory.h `(skill, Character *)` and
+`(skill, void *target, Character *user)`; stubs_hud.h `(skill, int)` and `(skill, Character *, int)`).
+skill_is_available 0x4291d0 uses arg 2 as the character (`mov ebp, [esp+0x10]`, 0 -> cur_character, then
+`mov ecx, ebp` for character_get_skill): `(int, Character *)`. character_use_skill 0x429410 takes the user
+from arg 3 (0x429412 `mov esi, [esp+0x14]`, 0 -> cur_character) and the skill from arg 1: `(int skill, void
+*target, Character *user)`; the HUD's Banish call pushes (0x34, cur_summon, 0) (0x40ea5e-0x40ea93), so the
+summon is the target. The HUD's calls compile unchanged against the inventory's signatures.
+
+**D49. The camera object** (stubs_hud.h `game_camera_obj` + `camera_HM`, because types.h's typedef took the
+name). The code now uses `game_camera` (D19; renamed in new_hud.cpp), `camera::cycle_mode` (0x479a60) is a
+member and `CAMERA_HM` is `(&game_camera)`. Aliases kept like camera_fov (D19): `game_camera_heading`
+(0x60a198 = game_camera.yaw, new_automap.cpp) and `config_solo_confirm` (0x60acd5 =
+Summoner_options.solo_confirm, sum.symbols name, new_hud.cpp).
+
+**D50. mp_player +0x14 / +0x1c** (stubs_hud.h macros `MP_PLAYER_STATE`, `MP_PLAYER_ID`; D10's record has
+`type` at +0x14). One field: +0x14 is a state (3 listed on the level select screen, 4..9 the loading steps
+mp_draw_loading_status shows); it keeps the name `type` and `MP_PLAYER_STATE(p)` expands to it. +0x1c is
+`id` (hud_confirm_quit passes it to mp_respawn_and_notify).
+
+**D51. lobj** (levelrender.h: faces +0xc only; stubs_hud.h: name +0, mesh +4, flags +8, pos +0x14, centre
++0x44, bbox +0x50 / +0x5c). One 0x70-byte struct with all of them (no overlap). num_lobjs (0xa5a2c8),
+lobj_get_bbox (0x4776c0) and door_in_use_range (0x476a30, unit not known) are declared next to it.
+
+**D52. savegame::read_info's fifth argument is float*** (new_saveload.cpp: `float *level_time`; stubs_hud.h:
+`int *b`). The callee only copies dwords (savegame_read_header 0x4d2ac6-0x4d2aea), new_saveload.cpp reads the
+value as seconds (`level_time / 3600.0f`), quickload ignores it. Code change in quickload: the local `int b`
+became `float b` (same stack slot, passed by address). write is (filename, int, description) as before.
+
+**D53. file_find_files list** (stubs_hud.h `file_list {next, prev}` / `file_entry` 0x38): the D15 types;
+`file_list` and `file_entry` are typedefs of `file_find_list` / `file_find_node`. quicksave's fifth argument 0
+converts to the callback pointer.
+
+**D54. gr_light_desc +0x14** (stubs_inventory.h used stubs_status.h's `_unk14`): D23's `f14`. Code change:
+`light._unk14` became `light.f14` (new_inventory.cpp, two stores).
+
+**D55. item_charge_effect +0x10** (stubs_inventory.h `bool self_only`, items.h `ubyte self_only`): ubyte
+kept; the inventory only tests it (`!charge->self_only`).
+
+**D56. Names renamed in sum.symbols since the pilots** (entries with "(formerly OLD)"): every old name in
+src/decomp code and headers now uses the current name; NOTES keep the old one as `NEW (formerly OLD)` (table
+rows: the new name only). Not renamed: `level_display_name` (level_scripts.h) is our struct type name, not
+the old name of 0x43cd50; the shared virtual slot 0 `dtor()` of the ui classes keeps its name although
+0x52c3d0 / 0x553530 are now ui_gadget__destroy / ui_container__destroy (ui_element__dtor 0x542d40 and
+ui_checkbox__dtor 0x553cd0 are the same slot). `automap_label_colors` (a pilot name) became the sum.symbols
+name `automap_label_type_colors`; character_instance::get_pos became set_pos (0x51b390).
+
+**D57. new_gamelist / new_pxochat: empty_frame_hook_40acc0** (declared in summoner/summoner.h as a shared
+empty function; its body, a bare RET at 0x40acc0, lies inside new_gamelist.cpp's code range and is its mouse
+mode 3 handler). Kept declared in summoner.h only, defined in new_gamelist.cpp: `node tools/asm.mjs callers
+0x40acc0` lists 13 call sites in 11 functions of other units (automap_draw, mainmenu_frame, pxochat_frame,
+state_loadgame_enter, game_render_frame, two level scripts, ...), i.e. identical-code folding made the
+gamelist copy the one RET they all reach. new_gamelist.h includes summoner.h instead of declaring it again.
+
+**D58. new_gamelist / new_pxochat: the declarations they need from other units** went into the headers of
+those units: mp_gamelist_entry, the game-list and join functions, mp_player_level_available and the PXO lobby
+(lobby_channel, lobby_* globals and functions, pxo_login_*) into summoner/multi/multi.h (the gathering header;
+the lobby units are not known); file_make_path / file_exists_on_disk / file_delete / file_delete_small_files
+into vsdk/vfile/file.h; bm_release into bmpman.h; trim_trailing_whitespace into plainstring.h; path_multicache
+and cursor_set_type / cursor_url_bm / cursor_walk_bm into summoner/summoner.h; ui_choice_popup_margin_y and
+ui_draw_panel_frame into interface.h. New unit headers: vsdk/inetfile/inetgetfile.h (InetGetFile, 0x18 bytes:
+operator new(0x18) at 0x422038; directory guessed), summoner/interface/new_pxo_banner.h (open_url, strings.tbl
+section new_pxo_banner.cpp id 834), summoner/interface/new_int_multi_update.h (version_check_run, strings.tbl
+ids 932 / 933). mp_gamelist_used is declared as a whole mp_gamelist_entry, not void*[2]: the next symbol
+(mp_join_retry_timer 0x22e45c0) is exactly 0x50 bytes later, and mp_gamelist_free_list (0x22e45c8) is followed
+0x50 bytes later by mp_gamelist_count (0x22e4618), the same head-is-a-record layout as mp_player_list (D10).
+
 ## Checked
 
 - Every header compiles on its own, and all headers compile together in one translation unit (no
@@ -209,3 +349,68 @@ types.h integer names (VC6 has none: the real build needs a small shim header).
 - Every pilot .cpp passes `-fsyntax-only -Wall` with only the warnings it had before (new_status.cpp 1,
   character_instance.cpp 4, window.cpp 1), and `-Wmissing-prototypes` finds no definition without a
   matching header declaration except the unreferenced `ui_stub_ret_52afe0` (now declared in window.h).
+- 2026-10-15, after D40-D56: the 77 headers compile on their own and together; all 32 .cpp files (with
+  new_automap.cpp, new_inventory.cpp, new_hud.cpp) pass with the same three warnings and no
+  `-Wmissing-prototypes` warning.
+
+
+## objects.cpp / items.cpp pilot (decomp19)
+
+**D59 (objects.cpp). List macros are `do { } while (0)`.** vsdk.h's `list_init` / `list_insert` /
+`list_append` / `list_remove` had `{ }` bodies. The unoptimised objects.cpp keeps a `xor reg, reg / test
+reg, reg / jne <start>` after every expansion (obj_link_new 0x469c12, obj__deinit 0x469e5d, objects_init
+0x469918 / 0x469932 / 0x46994c), which is a `while (0)` test. Optimised units (player.cpp) drop it, so
+their code is unchanged; the do-while form also accepts `if (x) list_init(a); else ...`. New in vsdk.h:
+`plist_init` / `plist_append` / `plist_remove` for lists whose head is a pointer (NULL = empty; the
+obj_slot free / used lists). `plist_remove` leaves the do-while with `break` when it unlinks the last
+element: obj_create 0x469cb1 jumps past the while (0) test (0x469cf2), which an if / else could not do.
+
+**D60 (objects.cpp). Character +0x5ac locomotion animations are also an array.**
+character_fill_locomotion_anims (0x46af70) stores `[edx + 4*ecx + 0x5ac]` in a loop over the 18
+locomotion_anim_names; the rest of the code uses the field names. `union { int loco_anims[18]; struct {
+anim_stand ... anim_statscreen }; }` (anonymous struct: an MS extension VC6 accepts); offsets and
+LAYOUT_CHECK unchanged.
+
+**D61 (objects.cpp). obj slot 0 is `virtual void deinit()`; obj has a non-virtual destructor.** The three
+vtables 0x5819c4 / 0x5819c8 / 0x5819cc have one slot each (0x469e10 obj__deinit, 0x46a710
+item_obj__deinit, 0x46a920 container_deinit; the dword after 0x5819cc is the float 225.0). The header's
+`vfunc0` is renamed `deinit`, so **player.cpp:191 `o->vfunc0()` must become `o->deinit()`** (its only
+use). `~obj()` (0x469b40) is declared because obj_active_list's atexit destructor and objects_free_all's
+expanded `delete` call it directly. mingw warns -Wdelete-non-abstract-non-virtual-dtor at those two
+deletes; VC6 does not. item_obj gets +0xa0 level_item, +0xa4 in_container, +0xa8 ground_face
+(LAYOUT_CHECK 0xac); constructors, destructors and deinit overrides of obj / item_obj / container are
+declared.
+
+**D62 (items.cpp). item_info is 16 bytes and +0 is the free-list link.** items_init_pool links the
+records 0x8b50c8..0x8b9d48 with stride 0x10 through +0, item_alloc clears +0 and sets +0xc = -1,
+item_free pushes through +0. `_unk00` (unused by the pilots) becomes `item_info *next`, `_unk0c` is added,
+LAYOUT_CHECK 0x10.
+
+**D63 (items.cpp). ItemType: typed mod pointers, render masks, the +0x68 union.** items_parse_table
+allocates 8-byte {int, float} +Skill Mod: / +Resist Mod: records, 8-byte {int, int} +Stat Mod: records
+and 0xc-byte {spell, float chance, int} +Triggered Effect: records, so the `void *` arrays become
+`item_mod *` / `item_stat_mod *` / `item_triggered_effect *`. `_unk60[7]` is `render_mask[7]`
+(+RenderMask:, indexed by hero_model_index). +0x68..+0xe7 is a union of the flat weapon fields (names
+unchanged), `weapon_info weapon` (weapon_is_ranged and character_get_attack_range 0x45d947 pass
+`type + 0x68`) and `char *armour_textures[2][4][4]` ([heavy][hero][part], from `(hero + 4*heavy) << 4`
+at 0x44ab5d-0x44ab96). The old flags comment was wrong: bit 0 means NOT identified (item_is_identified
+returns `!(flags & 1)`; item_flag_names[0] = "not identified").
+
+**D64 (objects.cpp). lobj +0x08 is the flags word.** objects_update_frame tests `[lobj + 8] & 0x100`
+(doors) and lobj_raycast ANDs it with the ray's +0x20 / +0x24 masks. `_pad0[0xc]` becomes `_pad0[8]` +
+`flags`; lobj_pick_layer is a thiscall member. New in levelrender.h: `lobj_ray` (0x4c bytes, with an
+inline constructor that clears +0x30: item_obj_spawn's only store before its first statement),
+`lobj_hit` (0x2c), `lobj_raycast`, `lobj_raycast_all`, `door_update`, `num_lobjs`.
+
+**D65 (objects.cpp). gr_cull_sphere returns bool.** item_obj_is_in_view returns its result with no
+conversion after the call, while container_is_in_view's other path is `mov al, 1`.
+
+**D66 (objects.cpp). profile_label is expanded inline in objects.cpp.** character_process_anim has an EH
+frame whose only unwind action (funclet 0x57c3f0) calls 0x434650 (~profile_label) on ebp-0x10, but the
+normal path calls neither constructor nor destructor. profile.h keeps them out of line (the optimised
+units call them); objects.cpp's build expanded inline functions, as it also expanded vector3's operators.
+Header not changed; noted for the real build.
+
+**D67 (items.cpp). New headers.** `vsdk/os/norlsallocpool.h` (NoRlsAllocPool, 0x1c bytes; file name from
+sum.symbols) and `engine/spells/spells.h` (spell_find_by_name, damage_type_to_status,
+spell_display_names; directory guessed).

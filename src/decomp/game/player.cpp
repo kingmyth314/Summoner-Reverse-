@@ -188,7 +188,7 @@ void party_remove_player(Player *p, bool delete_obj)
             o = obj_from_handle(p->handle);
         }
         if (delete_obj == true) {
-            o->vfunc0();
+            o->deinit();
             if (p == summon_player)
                 cur_summon = NULL;
         }

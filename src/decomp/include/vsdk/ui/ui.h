@@ -73,14 +73,14 @@ class ui_gadget : public ui_element {  // vtable 0x581e08 (9 slots)
 public:
     ui_gadget();                       // 0x52c3f0
     ~ui_gadget();                      // 0x52c410 ui_gadget__dtor_base (non-virtual)
-    virtual void dtor();                                  // slot 0, 0x52c3d0 ui_gadget__dtor
+    virtual void dtor();                                  // slot 0, 0x52c3d0 ui_gadget__destroy
     virtual bool send_event(int event, int value);        // slot 1, 0x52c330
     virtual void set_disabled(bool disabled);             // slot 2, 0x52c890
     virtual void set_enabled(bool enabled);               // slot 3, 0x52c8c0
     virtual bool is_disabled();                           // slot 4, 0x52c530
-    virtual int  process(int key);     // slot 5, 0x52c390 ui_gadget__process_children (returns key)
+    virtual int  process(int key);     // slot 5, 0x52c390 ui_gadget__process (returns key)
     virtual int  get_mask_pixel(int x, int y);            // slot 6, 0x52c6f0
-    virtual void draw();               // slot 7, 0x52c840 ui_gadget__draw_children
+    virtual void draw();               // slot 7, 0x52c840 ui_gadget__draw
     virtual bool is_selectable();      // slot 8, 0x52c880
 
     void init(ui_element *window, int type, int x, int y, int w, int h, int id, bool owned); // 0x52c040

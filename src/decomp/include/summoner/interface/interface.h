@@ -47,9 +47,26 @@ typedef ui_button_state screen_button;   // new_assess.cpp / new_pickup.cpp's na
 // (0x41281a-0x412997); the call sites pass 0 or an address (DECISIONS.md D6).
 void interface_set_screen(int id, void *arg);                       // 0x412620
 void interface_refresh_cur_screen();                                // 0x412db0
+int  interface_get_screen();                                        // 0x412610
 void interface_close_screen();                                      // 0x416a10 interface_set_screen(0, 0)
 bool interface_input_ready();                                       // 0x4148e0
 extern Character *status_character;                                 // 0x5bd810 (new_status.cpp)
+extern bool  ui_input_locked;                                       // 0x5bd962 (the HUD is hidden)
+extern float interface_pulse_time;                                  // 0x58bdc4 (1.0 + frame time, for blinking)
+void  party_cycle(int forward);                                     // 0x413360 Tab (1) / Shift+Tab (0)
+
+// ---- world picking overrides (set by the inventory's use-item and by skills / spells) -----------------
+extern float ui_pick_override_x;                                    // 0x58bdbc
+extern float ui_pick_override_y;                                    // 0x58bdc0
+extern bool  ui_pick_screen_override_on;                            // 0x5bd960
+extern bool  ui_pick_world_override_on;                             // 0x5bd961
+extern vector3 ui_pick_world_override_pos;                          // 0x5bd2f8
+extern int   ui_pending_use_skill;                                  // 0x5bd8ec
+extern bool  ui_using_list_item;                                    // 0x5bd7b0
+extern bool  ui_using_equipped_item;                                // 0x5bd50c
+extern int   ui_using_equipped_slot;                                // 0x5bd93c
+struct party_inventory_entry;
+extern party_inventory_entry *ui_using_list_item_entry;             // 0x5bd514 (sum.symbols types it int)
 
 // ---- scaling and drawing helpers ----------------------------------------------------------------------
 extern int   ui_hires;                                              // 0x5bd318, 0 = 640 layout, 1 = 1024
@@ -61,6 +78,10 @@ void  ui_apply_pulse_rgb(float *r, float *g, float *b, float offset);   // 0x414
 void  options_draw_version();                                       // 0x4146c0
 void  ui_screen_stop_player();                                      // 0x41e380
 void  ui_clear_pick_overrides();                                    // 0x414560
+void  ui_draw_panel_frame(int x, int y, int w, int h);              // 0x4134b0 three nested gr_rect frames
+void  ui_draw_text_box(int x, int y, int w, int h);                 // 0x4135a0 filled box with a border
+void  color_pulse_scale(float *r, float *g, float *b, float bias);  // 0x414ae0
+extern Color ui_color_text_box_bg;                                  // 0x5bd938 (0, 0, 0, 196)
 
 // ---- message box, choice popup, tooltip ---------------------------------------------------------------
 void ui_choice_popup_show(const char *title, int x, int y, int num, char **items,
@@ -68,17 +89,20 @@ void ui_choice_popup_show(const char *title, int x, int y, int num, char **items
 int  ui_choice_popup_frame(int key);                                // 0x4138b0: choice, -1 none yet, -2 cancelled
 void ui_choice_popup_draw();                                        // 0x413c70
 bool ui_choice_popup_is_active();                                   // 0x413e20
+void ClearFrameFlag5bd77c();                                        // 0x4138a0 (ui_choice_popup_flags)
+void ClearFrameFlag5bd504();                                        // 0x414020 (the message box's flag)
 extern unsigned int ui_choice_popup_flags;                          // 0x5bd77c bit 31 shown
 extern const int ui_choice_popup_margin[3];                         // 0x57ef64 {5, 5, 5} per resolution_index (name ours)
+extern const int ui_choice_popup_margin_y[3];                       // 0x57ef70 {3, 3, 3} (sum.symbols module new_hud.cpp)
+void ui_draw_panel_frame(int x, int y, int w, int h);               // 0x4134b0 three nested gr_rect frames
 void ui_message_box_show(const char *title, const char *text, int x, int y, int num_buttons,
                          char **buttons, void (*callback)(int), int flags);   // 0x413e40 (last argument: 0 or 2)
 bool ui_message_box_is_active();                                    // 0x4144d0
 void ui_tooltip_set(int x, int y, int w, int h, const char *text);  // 0x414750 (sum.symbols says (x, y, text))
 
-// ---- HUD ------------------------------------------------------------------------------------------
-void hud_key_help();                                                // 0x40e260
+// ---- HUD (the new_hud.cpp functions are in summoner/interface/new_hud.h) ---------------------------
 void hud_show_message(const char *text);                            // 0x414a20
-extern int hud_target_mode;                                         // 0x58bdb8 (-1 none)
+extern int hud_target_mode;                                         // 0x58bdb8 (-1 none, 0, 2; in this unit's .data)
 
 // ---- 3D model views ---------------------------------------------------------------------------------
 void ui_3d_begin(vector3 *pos);                                     // 0x412400 (argument type guessed)
@@ -100,7 +124,9 @@ void statscreen_refresh_anim(Character *c);                         // 0x412e50 
 void statscreen_show_next_member(int a);                            // 0x413320 (1 here)
 void statscreen_show_prev_member(int a);                            // 0x413340 (1 here)
 
-// ---- item info popup (new_inventory.cpp) ----------------------------------------------------------------
+// ---- item info popup (new_inventory.cpp, after the pilot's range) ---------------------------------------
+struct item_info;
+void item_info_popup_open_item(item_info *item);                    // 0x418760
 void item_info_popup_open_type(int type);                           // 0x418920
 int  item_info_popup_frame(int key);                                // 0x418960
 void item_info_popup_render();                                      // 0x418e40

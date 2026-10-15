@@ -21,6 +21,7 @@
 #include "levelscripts/conversation.h"
 #include "summoner/interface/new_mainmenu.h"
 #include "summoner/interface/new_playmenu.h"
+#include "summoner/interface/new_hud.h"         // hud_key_help
 
 #define MAINMENU_NUM_BUTTONS 13
 

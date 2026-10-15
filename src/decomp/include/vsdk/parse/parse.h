@@ -30,6 +30,9 @@ public:
     int  ParseInt();                                      // 0x516290
     void ParseString(char *dest, int size, char open_quote, char close_quote);  // 0x5166b0
     int  ParseTypeString(const char **types, int count);  // 0x516bd0
+    float ParseFloat();                                   // 0x516460
+    int  ParseIntList(int *list, int max_count, int unk); // 0x516940, the count read (callers pass 0)
+    unsigned int Checksum();                              // 0x516c70 Crc32 of the buffer
 
     char *buffer;                     // +0x00 file contents (freed by Close unless a static buffer is used)
     char *cursor;                     // +0x04 current parse position

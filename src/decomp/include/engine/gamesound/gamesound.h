@@ -44,7 +44,7 @@ int music_get_current();
 void music_stop(int fade_ms);
 void music_set_volume(float volume);
 void music_feedback_parse_tables();
-void music_feedback_reset_tables();
+void surface_sound_table_reset();
 int music_find_by_name(const char *name);
 void feedback_play(int species, int event, const vector3 *pos);
 

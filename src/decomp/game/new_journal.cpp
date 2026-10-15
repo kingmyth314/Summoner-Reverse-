@@ -100,7 +100,7 @@ int journal_desc_scrollbar_h;                                 // 0x5c1a90 thumb 
 bool journal_list_scrollbar_visible[2];                       // 0x5c1a94
 bool journal_desc_scrollbar_visible;                          // 0x5c1a96 (unnamed in sum.symbols; set, never read)
 int journal_drag_scrollbar_index;                             // 0x5c1a98 0/1 list, 3 description, -1 none
-int journal_paused_game;                                      // 0x5c1a9c 1 unpause, 2 refresh statscreen, 4 clear shopkeeper (on leave)
+int journal_leave_flags;                                      // 0x5c1a9c 1 unpause, 2 refresh statscreen, 4 clear shopkeeper (on leave)
 int journal_list_scroll_pos[2];                               // 0x5c1aa0
 int journal_scrollbar_bm_w;                                   // 0x5c1aa8
 int journal_scrollbar_bm_h;                                   // 0x5c1aac
@@ -157,9 +157,9 @@ void journal_init()
 {
     int i;
 
-    journal_paused_game = 6;
+    journal_leave_flags = 6;
     if (!game_is_paused() && (game_flags & 1)) {
-        journal_paused_game |= 1;
+        journal_leave_flags |= 1;
         game_pause(0, 0);
     }
 
@@ -278,11 +278,11 @@ void journal_update_desc_scrollbar()
 // screen keeps the status model and the shopkeeper.
 void journal_leave()
 {
-    if (journal_paused_game & 1)
+    if (journal_leave_flags & 1)
         game_unpause();
-    if (journal_paused_game & 2)
+    if (journal_leave_flags & 2)
         statscreen_refresh_anim(0);
-    if (journal_paused_game & 4)
+    if (journal_leave_flags & 4)
         shop_set_shopkeeper_from_char(0);
 }
 
@@ -412,19 +412,19 @@ int journal_handle_click(int key)
     case KEY_B:
         if (!ui_has_owner_character())
             break;
-        journal_paused_game &= ~6;
+        journal_leave_flags &= ~6;
         interface_set_screen(7, 0);
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     case KEY_I: {
         char page = 0;
-        journal_paused_game &= ~6;
+        journal_leave_flags &= ~6;
         interface_set_screen(1, &page);
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     }
     case KEY_R:
-        journal_paused_game &= ~6;
+        journal_leave_flags &= ~6;
         interface_set_screen(2, 0);
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
@@ -557,7 +557,7 @@ void journal_button_action(int button)
 // 0x41b6f0  Confidence: exact. Buy/sell (7) while a shopkeeper is set, else status (2).
 void journal_goto_shop_or_status()
 {
-    journal_paused_game &= ~6;
+    journal_leave_flags &= ~6;
     if (ui_has_owner_character())
         interface_set_screen(7, 0);
     else
@@ -569,7 +569,7 @@ void journal_goto_inventory()
 {
     char page = 0;
 
-    journal_paused_game &= ~6;
+    journal_leave_flags &= ~6;
     interface_set_screen(1, &page);
 }
 

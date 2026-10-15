@@ -111,7 +111,7 @@ docs/sum-exe/vsdk-ca.md gives 0x51a230-0x51b4a0 (first to last tagged function).
 | 0x51b290 | anim_trigger_hit | exact |
 | 0x51b330 | page_in_textures | exact |
 | 0x51b380 | ca_stub_ret30_51b380 (empty, ret 0x30) | unsure |
-| 0x51b390 | get_pos (assigns pos = *v) | exact |
+| 0x51b390 | set_pos (formerly get_pos; assigns pos = *v) | exact |
 | 0x51b3b0 | compute_bone_matrix | exact |
 | 0x51b3f0 | get_bone_world_transform | exact |
 | 0x51b460 | get_bone_transform | exact |
@@ -180,7 +180,7 @@ labels ours), `High_lod` 0x2722810, and the "" literal 0x2722818.
 8. `character_instance__start_anim` with a speed != 1 writes the speed into every free slot (no break).
 9. `character_instance__get_anim_root_velocity` zeroes the output for action anims and then overwrites it.
 10. `character_instance__get_bone_bind_inverse` computes the inverse into a temporary and drops it.
-11. `character_instance__get_pos` (sum.symbols name) is a setter: pos = *v.
+11. `character_instance__set_pos` (formerly `character_instance__get_pos`) (sum.symbols name) is a setter: pos = *v.
 12. In build_bone_matrices, while an action anim fades, the computed fade factor is kept only for state
     anims; for other action anims it is replaced by their own blend weight (or 10 for the held anim).
 
@@ -198,7 +198,7 @@ labels ours), `High_lod` 0x2722810, and the "" literal 0x2722818.
    SkipWhitespace, CopyUntil, ParseInt, ParseString; `SkipTo` returns a bool that parse_slider tests.
 4. `stubs_player_effectmem.h` vector3 / matrix have no operators; this unit needs the full math interface.
 5. sum.symbols: `ui_window__init` comment says (x, y, w, h, flags, id); the call is (x, y, w, h, id, flags).
-   `ui_gadget__dtor` (0x52c3d0) is slot 0 (no flags, never frees), not a destructor.
+   `ui_gadget__destroy` (formerly `ui_gadget__dtor`) (0x52c3d0) is slot 0 (no flags, never frees), not a destructor.
    `character_instance__alloc_buffers` "vertex buffers" are the bone cache (0x34) and skin matrices (0x30).
    `ui_slider__ui_slider` (0x52bfa0) is the implicit constructor of the derived scroll-bar class.
 6. symbols/types.h ui_element: +0x248 is `owned` for gadgets but the window's flags; +0x24c is the window's

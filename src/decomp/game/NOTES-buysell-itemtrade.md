@@ -165,7 +165,7 @@ Facts:
   `party_inventory_entry {count, inv_item *}` with `inv_item {?, ItemType *type, int charges}`. Merge needed.
 - sum.symbols comments to fix: `ui_tooltip_set` is (x, y, w, h, text), not (x, y, text);
   `itemtrade_submit_gold` / `itemtrade_draw_gold_input` describe 0x5c1838 / 0x5c1878 as "gold text, length",
-  but they are the gold pseudo item and the typed amount; `buysell_info_item` (0x5b6800) is the pressed
+  but they are the gold pseudo item and the typed amount; `buysell_pressed_button` (formerly `buysell_info_item`) (0x5b6800) is the pressed
   button index (button_action(id + 1), update_buttons); `buysell_list_entries` is a `shop_item*` and
   `buysell_shop` a `shopkeeper*`; `living_list_first` is `living_list.live_next`; `itemtrade_gold_item` is not
   int[2] (above).

@@ -25,12 +25,17 @@ LAYOUT_CHECK(ai_group, sizeof(ai_group) == 0x54);
 class ai_state {
 public:
     void reset();                     // 0x472450 ai_reset
+    bool is_combat_e_or_sneak_attack(); // 0x473120 ai_is_combat_e_or_sneak_attack
+    bool is_mode(int mode, int sub);  // 0x473200 ai_is_mode (sub -1 = any)
+    int  get_mode();                  // 0x473600 ai_get_mode
     void set_18(int style);           // 0x473610 ai_set_18 (combat style, +0x18)
     int  get_combat_style();          // 0x473620 ai_get_combat_style
     bool is_casting();                // 0x4731d0 ai_is_casting
     void go_idle();                   // 0x4738c0 ai_go_idle
     bool is_disabled_any();           // 0x475000 ai_is_disabled_any
     void goals_remove_type1();        // 0x475e00 ai_goals_remove_type1
+    void goals_clear();               // 0x476380 ai_goals_clear
+    void add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell (return unused)
 
     int mode;                // +0x00 enum ai_state_mode
     int submode;             // +0x04
@@ -103,6 +108,17 @@ void ai_group_create(Character *c);                   // 0x492ba0 (return value 
 void ai_group_add_member(ai_group *group, Character *c); // 0x492c50
 void ai_group_remove_member(Character *c);            // 0x492ca0
 
+void ai_do_frame();                                   // 0x474950 (objects_do_frame)
+void cast_effect_tracks_reset();                      // 0x475090 (unit not known; follows ai_do_frame)
+
 extern char **ai_combat_style_names[6];               // 0x22e49a0 localize_strings slots (init_strptrs_22e49a0)
+
+// A service request (0xc bytes on the caller's stack; hud_key_pause sets only the type). Type name ours.
+struct ai_service_req {
+    int type;                         // 0 pause, 1 unpause
+    int _unk04;
+    int _unk08;
+};
+void ai_service_request(ai_service_req *req);         // 0x4766f0 (handled locally or sent with multi_send_packet)
 
 #endif

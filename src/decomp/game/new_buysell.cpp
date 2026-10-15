@@ -119,7 +119,7 @@ int buysell_drag_start_y;                                     // 0x5b67f0
 shopkeeper *buysell_shop;                                     // 0x5b67f4
 int buysell_scrollbar_bm;                                     // 0x5b67f8
 bool buysell_scrollbar_visible;                               // 0x5b67fc
-int buysell_info_item;                                        // 0x5b6800 pressed button (sum.symbols name; see NOTES)
+int buysell_pressed_button;                                   // 0x5b6800 pressed button (sum.symbols name; see NOTES)
 
 // init_realtimetimer_5b640c_thunk (0x4048b0, "jmp 0x4048c0", static_initializers entry 8) and
 // init_realtimetimer_5b640c (0x4048c0, "mov ecx, 0x5b640c / jmp RealtimeTimer__RealtimeTimer") are the
@@ -243,7 +243,7 @@ void buysell_init()
     }
 
     buysell_mouse_mode = 0;
-    buysell_info_item = -1;
+    buysell_pressed_button = -1;
     buysell_hover_row = -1;
 
     if (!status_character || (status_character->flags & 0x100)) {
@@ -462,7 +462,7 @@ int buysell_handle_click(int key)
 {
     int i;
 
-    buysell_info_item = -1;
+    buysell_pressed_button = -1;
     buysell_hover_row = -1;
 
     for (i = 0; i < BUYSELL_NUM_BUTTONS; i++) {
@@ -473,7 +473,7 @@ int buysell_handle_click(int key)
                 buysell_category_tooltip(i);
             if (!(buysell_buttons[i].flags & 4)) {
                 buysell_buttons[i].flags |= 2;
-                buysell_info_item = i;
+                buysell_pressed_button = i;
                 if (buysell_button_defs[i].flags & 1) {
                     if (mouse_was_pressed(0)) {
                         buysell_mouse_mode = 1;
@@ -483,7 +483,7 @@ int buysell_handle_click(int key)
                 } else if (buysell_button_defs[i].flags & 2) {
                     if (mouse_was_pressed(0)) {
                         buysell_mouse_mode = 1;
-                        buysell_button_action(buysell_info_item + 1);
+                        buysell_button_action(buysell_pressed_button + 1);
                         buysell_repeat_timer.SetTimeout(500);
                         return key;
                     }
@@ -785,38 +785,44 @@ void buysell_scroll_down()
 }
 
 // 0x405c50 .. 0x405d50: scroll to the first entry of a category (0 weapons .. 4 misc), kept a page from
-// the end. Five copies of the same code. Confidence: exact.
+// the end. Five copies of the same code. Confidence: exact (one call, 0x405c53: the result is kept in a
+// local before min(), which would otherwise expand the call twice).
 void buysell_goto_weapons()
 {
-    int pos = min(buysell_category_first_index(0), buysell_row_count - buysell_page_size[resolution_index]);
+    int first = buysell_category_first_index(0);
+    int pos = min(first, buysell_row_count - buysell_page_size[resolution_index]);
     buysell_scroll_pos = max(pos, 0);
     buysell_update_scrollbar();
 }
 
 void buysell_goto_armor()
 {
-    int pos = min(buysell_category_first_index(1), buysell_row_count - buysell_page_size[resolution_index]);
+    int first = buysell_category_first_index(1);
+    int pos = min(first, buysell_row_count - buysell_page_size[resolution_index]);
     buysell_scroll_pos = max(pos, 0);
     buysell_update_scrollbar();
 }
 
 void buysell_goto_magic_items()
 {
-    int pos = min(buysell_category_first_index(2), buysell_row_count - buysell_page_size[resolution_index]);
+    int first = buysell_category_first_index(2);
+    int pos = min(first, buysell_row_count - buysell_page_size[resolution_index]);
     buysell_scroll_pos = max(pos, 0);
     buysell_update_scrollbar();
 }
 
 void buysell_goto_jewelry()
 {
-    int pos = min(buysell_category_first_index(3), buysell_row_count - buysell_page_size[resolution_index]);
+    int first = buysell_category_first_index(3);
+    int pos = min(first, buysell_row_count - buysell_page_size[resolution_index]);
     buysell_scroll_pos = max(pos, 0);
     buysell_update_scrollbar();
 }
 
 void buysell_goto_misc()
 {
-    int pos = min(buysell_category_first_index(4), buysell_row_count - buysell_page_size[resolution_index]);
+    int first = buysell_category_first_index(4);
+    int pos = min(first, buysell_row_count - buysell_page_size[resolution_index]);
     buysell_scroll_pos = max(pos, 0);
     buysell_update_scrollbar();
 }
@@ -835,9 +841,9 @@ void buysell_show_item_info()
 // on release over the button unless the repeat timer runs, and repeats every 100 ms while held.
 void buysell_update_buttons()
 {
-    int id = buysell_info_item + 1;
+    int id = buysell_pressed_button + 1;
 
-    if (buysell_info_item >= 0 && buysell_info_item < BUYSELL_NUM_BUTTONS) {
+    if (buysell_pressed_button >= 0 && buysell_pressed_button < BUYSELL_NUM_BUTTONS) {
         ui_button_state *b = &buysell_buttons[id];
 
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
