@@ -111,10 +111,10 @@ The size table is written by `savegame_report_sizes`, which also prints each val
 sum of the 357 conversation sizes.
 
 {: .note }
-`savegame_read_header` copies field `0xa8` into the caller's third argument, which `savegame_read` passes as
-`&level_time`. Field `0xac` (the saved time) goes into a local variable and is not used. A load therefore
-sets `level_time` to 0. This has no effect, because `state_game_enter` zeroes `level_time` anyway
-(*observed*; the swap looks like a harmless bug).
+`savegame_read` passes `&level_time` as the **fourth** argument of `savegame_read_header` (`push 0x60a654` at
+`0x4d2627`). The header reader copies field `0xa8` into the third argument (a local) and field `0xac`, the saved
+time, into `&level_time` (`0x4d2ad7`, `0x4d2aea`). A load therefore restores the level time (*observed*). An
+earlier version of this note said the two fields were swapped; that was a misreading of the argument order.
 
 ## Thumbnail (observed)
 

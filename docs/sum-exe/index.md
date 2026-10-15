@@ -91,3 +91,4 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Multiplayer packets](multiplayer.md)
 - [Effects and lights](effects.md)
 - [Sound and music](sound.md)
+- [Bugs in the original game](game-bugs.md)
