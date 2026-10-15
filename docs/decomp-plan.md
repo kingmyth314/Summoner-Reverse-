@@ -276,15 +276,27 @@ addresses are string literals and were left as they are. Corrections that came o
 - `multitrade_load_bitmaps` is `itemtrade_load_bitmaps`;
 - the difficulty selection, formerly "game type", is `gamecreate_set_difficulty` / `mp_game_difficulty`.
 
-**C runtime:** the Ghidra function-ID matches added 38 CRT functions (`_ftol`, `strncpy`, `rand`, ...) and 352
-compiler exception-unwind funclets (`eh_unwind_*`) at the end of `.text`.
+**C runtime:** the code is the static multithreaded **LIBCMT** of Visual C++ 6. It has TLS per-thread data
+(`_getptd`), `_lock`/`_unlock`, `_beginthread`, and both the V6 (`__sbh_*`) and V5 (`__old_sbh_*`) small-block
+heaps. Ghidra's function-ID matches added 38 functions (`_ftol`, `strncpy`, `rand`, ...) and 352 compiler
+exception-unwind funclets (`eh_unwind_*`) at the end of `.text`. An agent named 317 more from the CRT sources (heap,
+stdio, locale, mbcs, x87 libm and EH helpers). Corrections:
+- `GetOEMCP` / `GetACP` at `0x578ea5` / `0x578eba` were tail jumps inside `getSystemCP`, not import thunks;
+- `0x404880` is the plain `vector_constructor_iterator` (no SEH); the eh version is at `0x56db8c`.
 
-**State (2026-10-14 night):** about 10,860 symbols.
-- 8,019 functions: 7,767 **O**, 162 **V**, 90 **I**.
+**Hidden function starts:** a scan for 16-byte-aligned code after `ret`/`jmp` plus padding found 291 starts that
+Ghidra had merged into the function before them, and a scan of direct call targets found 7 more. Examples:
+`mp_forward_cur_packet` (24 callers, hidden inside `multi_send_packet`), 40 script-editor gadget callbacks, about 50
+cutscene end callbacks, the worldmap encounter pickers, and `ix_ray_plane` (`0x53ce30`). The real
+`ix_linesegment_box_oriented` is `0x53ced0`, which holds that profile label. 119 of the starts have no reference
+(dead code). Game and engine code now has no unnamed direct call target.
+
+**State (2026-10-14 night):** about 11,470 symbols.
+- 8,632 functions: 8,232 **O**, 162 **V**, 238 **I**.
 - 2,836 data: 2,331 **O**, 37 **V**, 468 **I**.
 
 **Next for the decompilation:**
-1. Name the remaining C runtime functions and about 290 newly found hidden function starts (agents running).
+1. Raise the **I** names, mostly the newly found starts, the CRT libm helpers and data.
 2. Split the binary into translation units. `tools/tu-split.mjs` proposes 119 units (see the
    [source-file map](sum-exe/source-map.md#translation-units-from-data-locality)). First fix the stray module tags that
    `--score` lists.
