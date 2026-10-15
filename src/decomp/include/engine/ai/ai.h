@@ -87,7 +87,7 @@ public:
     int  count_attackers();           // 0x473750 ai_count_attackers
     void go_inactive();               // 0x473880 ai_go_inactive
     void go_mount_idle();             // 0x473940 ai_go_mount_idle
-    void travel_to_xyz(float x, float y, float z);        // 0x473a40 ai_travel_to_xyz
+    void travel_to_xyz(vector3 dest);                      // 0x473a40 ai_travel_to_xyz
     void travel_to_point(vector3 *pos, int priority);     // 0x473a90 ai_travel_to_point
     void path_begin();                // 0x473ac0 ai_path_begin
     ai_path *set_path(vector3 *start, ai_path *p);        // 0x473bc0 ai_set_path
@@ -134,6 +134,9 @@ public:
                     int spell);                           // 0x476020 ai_goal_alloc
     void goal_remove(int slot);       // 0x476300 ai_goal_remove
 
+    ~ai_state();                      // 0x4f13e0 (folded)
+    bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1
+    void formation_slot_position(vector3 *out, const vector3 *base, const vector3 *dir, int slot);   // 0x4b52e0 (unit not known)
     void reset();                     // 0x472450 ai_reset
     bool is_combat_e_or_sneak_attack(); // 0x473120 ai_is_combat_e_or_sneak_attack
     bool is_mode(int mode, int sub);  // 0x473200 ai_is_mode (sub -1 = any)
@@ -143,7 +146,6 @@ public:
     bool is_casting();                // 0x4731d0 ai_is_casting
     void go_idle();                   // 0x4738c0 ai_go_idle
     // decomp35 (gametarget.cpp):
-    bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1 (mode 2, submode 1)
     bool can_backstab_target(Character *target);   // 0x4737a0 ai_can_backstab_target
     int  add_attack(Character *target, int priority);   // 0x473f70 ai_goal_add_attack (-1 when refused)
     bool is_disabled_any();           // 0x475000 ai_is_disabled_any
@@ -330,8 +332,10 @@ void ai_group_add_member(ai_group *group, Character *c); // 0x492c50
 void ai_group_remove_member(Character *c);            // 0x492ca0
 
 void ai_do_frame();                                   // 0x474950 (objects_do_frame)
-void cast_effect_tracks_reset();                      // 0x475090 (decomp39: ai.cpp, D1905)
+void cast_effect_tracks_reset();                      // 0x475090 (unit not known; follows ai_do_frame)
+void cast_effect_track_add(int spell, int fx);        // 0x4750b0 (decomp37: character_perform_spell_cast)
 
+extern bool Ai_paused;                                // 0x22e499c
 extern char **ai_combat_style_names[6];               // 0x22e49a0 localize_strings slots (init_strptrs_22e49a0)
 
 // ---- ai.cpp (decomp39) ---------------------------------------------------------------------------
@@ -401,7 +405,6 @@ struct cast_effect_track {
 LAYOUT_CHECK(cast_effect_track, sizeof(cast_effect_track) == 0xc);
 #define MAX_CAST_EFFECT_TRACKS 5
 extern cast_effect_track cast_effect_tracks[MAX_CAST_EFFECT_TRACKS];   // 0x22e4950
-void cast_effect_track_add(int spell, int handle);    // 0x4750b0 (spells below 0x26 with an effect)
 int  cast_effect_track_count();                       // 0x475160
 
 void ai_frame(Character *c);                          // 0x472a90 cdecl (sum.symbols: thiscall; D1901)
@@ -470,7 +473,6 @@ LAYOUT_CHECK(avoid_spline_def, sizeof(avoid_spline_def) == 0xc4);
 int  avoid_spline_create(avoid_spline_def *def);      // 0x4a7990 spline index (< 20) or -1
 void avoid_spline_free(int index);                    // 0x4a78b0
 // Console toggle "pause_ai" (unit not known; decomp34).
-extern bool Ai_paused;                                // 0x22e499c
 
 // ---- Obstacle avoidance tables (0x4a6710-0x4aa760, file not known; decomp32, pathfinding.cpp) ----
 // Only the fields pathfinding.cpp reads; names ours. A segment-list corner starts like a pf_vis_node

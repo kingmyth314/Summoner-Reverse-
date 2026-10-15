@@ -31,6 +31,12 @@ public:
     { return vector3(x - v.x, y - v.y, z - v.z); }
     vector3 operator*(float s) const                  // 0x50f790 vector3__scaled
     { return vector3(x * s, y * s, z * s); }
+    // decomp37 (living_entity.cpp): only seen expanded, in character_ai_move_frame (v = move / dt, the
+    // divisor copied to a temporary) and monster_drop_loot (rvec + 0.5 per component). Names ours.
+    vector3 operator/(float s) const
+    { return vector3(x / s, y / s, z / s); }
+    vector3 operator+(float s) const
+    { return vector3(x + s, y + s, z + s); }
     vector3 operator-() const                         // 0x51b700 vector3__negated (COMDAT in character_instance.cpp)
     { return vector3(-x, -y, -z); }
     void operator+=(const vector3 &v)                 // 0x48e440 vector3__add_assign
@@ -55,6 +61,7 @@ public:
 
     // Out of line, in the vector unit (0x523f80-0x524930; not written yet).
     int  is_valid() const;                            // 0x524220
+    int  is_zero() const;                             // 0x5241e0 vector3__is_zero (decomp37)
     void unrotate(const matrix &m);                   // 0x5245f0
     void normalize_safe();                            // 0x5244b0 vector3__normalize_safe ((1,0,0) at length 0)
     vector3 rotated(const matrix &m) const;           // 0x524370 vector3__rotated (dot with each row)

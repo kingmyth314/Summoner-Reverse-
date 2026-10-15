@@ -10,6 +10,7 @@
 
 class Player;
 class Character;
+class character_instance;
 
 #define MAX_SKILLS 0x54               // 84 skill ids
 
@@ -142,6 +143,14 @@ struct resistance_set {
 #define MOVE_TYPE_CAST         7        // "cast" moves (characterinfo_load_party collects their spells)
 #define MOVE_TYPE_STATE        14       // "state" moves (named anims: charinfo_find_anim)
 #define MOVE_TYPE_SCRIPT       15       // script anims (charinfo_load_script_anim, no table name)
+// An alternate texture set (alt_textures.tbl; char_info +0x268). Only the fields living_entity_init
+// reads (decomp37); names ours.
+struct alt_texture_set {
+    ubyte _unk00[0x2c];
+    int bitmaps[15];                  // +0x2C bm_load handles
+    ushort count;                     // +0x68
+    char names[15][0x29];             // +0x6A
+};
 
 // A "$Character:" record (characterinfo_parse_table 0x4452f0; char_infos 0x6d7e50, 0x3d0 bytes each).
 struct char_info {
@@ -182,7 +191,10 @@ struct char_info {
     int default_weapon_materials[2]; // +0x11C
     int prop_tag;            // +0x124 $Default Prop Tag:
     const char *prop_tags[0x10]; // +0x128
-    short _unk168[0x10];     // +0x168
+    union {                  // +0x168 bone of each prop tag (monster_drop_loot drops the weapon there; decomp37)
+        short _unk168[0x10];
+        short prop_tag_bones[0x10];
+    };
     short num_target_points; // +0x188 attack points (character_target_point_count, boss_ai.cpp; D901)
     short target_points[8];  // +0x18A mesh tags of "$Attack01".."$Attack08" (living_entity_setup_head; decomp38)
     short num_footstep_sets; // +0x19A
@@ -209,7 +221,7 @@ struct char_info {
     int head_bone;           // +0x25C "$head" mesh tag, -1 none (CIF_ELONGATED records; decomp38)
     float head_height;       // +0x260 distance of the head bone from the origin + 0.1 (decomp38)
     float icon_height;       // +0x264
-    void *alt_textures;      // +0x268
+    alt_texture_set *alt_textures; // +0x268 (living_entity_init loads its bitmaps; decomp37)
     int alt_index;           // +0x26C
     char_info *alt_parent;   // +0x270
     int num_drops;           // +0x274
@@ -303,7 +315,22 @@ int   character_get_chain_skill(Player *p, int slot);          // 0x449440 (SKIL
 void  character_cycle_default_chain(Player *p);                // 0x449510 +0x184: 0 -> 3 -> 1 -> 2 -> 0 (decomp35)
 void  character_learn_chain_skill(Player *p, int skill, int count);     // 0x449650 (count: chain length or 0)
 
+// decomp37 (living_entity.cpp): the character info calls of living_entity_init / __vfunc0.
+char_info *characterinfo_find_multi_slot(int index);  // 0x449a30 the char_infos record, or a multiplayer copy
+void  multi_charinfo_slot_release(char_info *info);  // 0x449b00
+void  living_entity_setup_head(char_info *info, character_instance *ci);   // 0x4469c0
+void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, bool summon);   // 0x447410
+void  charinfo_unload_anims(char_info *info);        // 0x448710
+float resistance_level_damage_mult(int level);      // 0x448c80
+int   summon_skill_from_creature_name(const char *name);   // 0x448d00 -1 none
+character_instance *charinfo_create_character_instance(char_info *info, bool summon);   // 0x448de0
+
 // experience.tbl (xp_level_table 0x2305420)
+bool  xp_level_reached(int level, int xp);           // 0x489aa0 xp >= xp_for_level(level + 1)
+int   xp_max_level();                               // 0x489c20 50 (75 with game_flags 2)
+// (species, &level, &base max HP, &base max AP, &skill points, &skill cap): the push order of
+// character_add_xp (0x44fc77-0x44fca8); sum.symbols lists the pointers in another order (D1708).
+void  xp_level_up_gains(int species, short *level, float *max_hp, short *max_ap, int *points, int *cap);   // 0x489ac0
 int   xp_for_level(int level);                        // 0x489a60
 float xp_level_skill_cap(int level);                  // 0x489bf0
 void  experience_parse_table();                      // 0x489930 experience.tbl (GameInit)
@@ -411,11 +438,9 @@ void  move_info_free(move_info *move);                // 0x446770
 void  sound_ref_parse(TextFile *tf, char_info *info, sound_ref *ref, const char *folder);  // 0x446790
 void  characterinfo_parse_name(TextFile *tf, char_info *info);          // 0x446890 name + species
 void  characterinfo_parse_resistances(TextFile *tf, char_info *info);   // 0x446930
-void  living_entity_setup_head(char_info *info, character_instance *ci); // 0x4469c0 prop tags, attack points, head
 int   summon_find_charinfo(int spell);                // 0x446c00 char_infos index of the summon cast by the spell, -1
 const char *summon_skill_creature_name(int skill);    // 0x446c40 "" for other skills
 multi_charinfo_slot_t *multi_charinfo_slot(char_info *info);   // 0x446de0 the slot holding the copy, NULL
-void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, bool summon);   // 0x447410
 void  charinfo_load_move_anim(char_info *info, struct ca_character *ca, move_info *move, bool load_sounds,
                               int anim_folder, bool full_set);  // 0x447780
 void  charinfo_remap_town_moves(char_info *info, bool full_set); // 0x447850
@@ -428,22 +453,16 @@ int   charinfo_load_script_anim(char_info *info, const char *name, int path_id);
 void  charinfo_free_moves(char_info *info);           // 0x4484a0 the script anims
 void  summon_restore_after_cutscene();                // 0x448500
 void  charinfo_mark_anims_unloaded(char_info *info);  // 0x4486b0 anim_class = 0 (and the copies)
-void  charinfo_unload_anims(char_info *info);         // 0x448710
 void  charinfo_page_in_sounds(char_info *info);       // 0x448790 footsteps
 const char *offense_point_name(int i);                // 0x4487f0
 void  characterinfo_alloc_level_buffers();            // 0x448800
 void  characterinfo_level_unload(bool reset_player_pool);   // 0x448c10
-float resistance_level_damage_mult(int level);        // 0x448c80 1 - damage multiplier (weak -1 .. strengthen 1.5)
-int   summon_skill_from_creature_name(const char *name);    // 0x448d00 -1
-character_instance *charinfo_create_character_instance(char_info *info, bool summon);   // 0x448de0
 Mempool *charinfo_select_mempool(int species, bool summon); // 0x448f20
 void  statscreen_load_anim(Character *c, bool heavy); // 0x448f60
 void  chain_config_set(int species, int slot, int skill);   // 0x449200 savegame "chainconfig%d%d"
 int   chain_config_get(int species, int slot);        // 0x449240 (resets the defaults when 0)
 void  chain_points_set(int species, int slot, int points);  // 0x449290 savegame "chainpts%d%d"
 int   chain_points_get(int species, int slot);        // 0x4492d0
-char_info *characterinfo_find_multi_slot(int index);  // 0x449a30 multiplayer heroes get a slot copy
-void  multi_charinfo_slot_release(char_info *info);   // 0x449b00
 void  multi_charinfo_slots_clear();                   // 0x449b60
 
 #endif

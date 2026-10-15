@@ -31,11 +31,16 @@ public:
     int  find_tag(const char *name);                                 // 0x537f10, -1 (">>> FAILED TO GET TAG %s")
     int  get_tag_transform(int tag, int a, int b);                   // 0x537f70 (result unused by spells.cpp)
     unsigned int id_bits;                                            // +0x00 effect id << 9 (cast_effect_track_add; decomp39)
+    float get_time_left();                                           // 0x538510 (decomp37)
 };
 
 // A light attached to an object (0x98 bytes; slots at 0x2cb45d0, attached_light_create / _free). The
 // constructor is inline (decomp28, D805): levelrender.cpp's array initialiser loops over reset() with
 // no constructor call, while init_attached_lights calls the out-of-line copy attached_light__ctor.
+// (pos, 1.0, 0, attenuation, r, g, b): the push order of living_entity_init (decomp37). Index or -1.
+int  attached_light_create(const vector3 *pos, float a, int b, float atten, float r, float g, float bl);   // 0x520160
+void attached_light_free(int index);                 // 0x5201f0
+
 class attached_light {
 public:
     attached_light() { reset(); }

@@ -75,17 +75,26 @@ LAYOUT_CHECK(lobj_ray, sizeof(lobj_ray) == 0x4c);
 struct lobj_hit {
     int num_hits;                     // +0x00
     float t;                          // +0x04 hit distance as a fraction of ray.dir
-    int _unk08[6];                    // +0x08
+    vector3 pos;                      // +0x08 the hit point (character_probe_lobj_ground; decomp37, was _unk08[6])
+    int _unk14[3];                    // +0x14
     int _unk20;                       // +0x20
     int face;                         // +0x24 the level object index (world_pick_lobj, level_scripts.cpp's
-                                      //        lobj_from_index(hit.face)); copied to item_obj +0xa8
-    int _unk28;                       // +0x28 the s3d_face hit (world_pick_lobj: minus mesh->faces = face index)
+                                      //        lobj_from_index(hit.face); character_probe_lobj_ground reads it
+                                      //        as a word); copied to item_obj +0xa8
+    union {
+        int _unk28;                   // +0x28 the s3d_face hit (world_pick_lobj: minus mesh->faces = face index)
+        s3d_face *face_ptr;           //       the same as a pointer (geometry face record, 0x14 bytes; decomp37)
+    };
 };
 LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
 
 // Level object ray tests (unit 0x4ae330-0x4b0210, file not known).
 void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear);   // 0x4ae890
 void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit);                           // 0x4af2c0
+// decomp37 (living_entity.cpp):
+void lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *lobj_index, bool *blocked, int a);   // 0x4a4bb0
+int  lobj_get_layer(int lobj_index);                  // 0x4775c0 the first layer byte
+float char_fog_get_far();                             // 0x481e50 the +CharFog far distance, 0 when off (unit not known)
 void door_update(lobj *door);         // 0x477080 (unit not known)
 // A door record (0x8c bytes, sorted by lobj index at 0xa5a304; door_update reads both poses). Type and
 // field names ours (D100). s3d_read_door reads +0x00..+0x43 and resets the rest (decomp28, D802).
@@ -154,7 +163,6 @@ void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   //
 // (ray, hit, iterator (NULL: from 0), flag (NULL), skip lists): ray against the level objects of the draw
 // lists; continues from *iter, returns hit->num_hits. hit->face is the level object index, hit->_unk28
 // the s3d_face hit (world_pick_lobj).
-int  lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *iter, bool *flag, bool b);   // 0x4a4bb0
 // Per level object render records (12 bytes; type name ours): +4 bits 4-11 all set = drawn opaque
 // (world_pick_lobj).
 struct lobj_render_state {

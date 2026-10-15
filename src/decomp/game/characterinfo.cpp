@@ -1269,7 +1269,7 @@ char_info *characterinfo_parse_table(const char *filename)
             tf.Expect("+LightAtten:");
             info->light_atten = tf.ParseFloat();
         }
-        info->alt_textures = alt_textures_find(info->name, &info->alt_index);
+        info->alt_textures = (alt_texture_set *)alt_textures_find(info->name, &info->alt_index);
         info->alt_parent = NULL;
         while (tf.Accept("+Alternate character:")) {
             if (num_char_infos == MAX_CHARACTER_INFO)
@@ -1279,7 +1279,7 @@ char_info *characterinfo_parse_table(const char *filename)
             characterinfo_parse_name(&tf, alt);
             characterinfo_parse_resistances(&tf, alt);
             alt->alt_index = 1;
-            alt->alt_textures = alt_textures_find_entry(info->name, alt->name);
+            alt->alt_textures = (alt_texture_set *)alt_textures_find_entry(info->name, alt->name);
             alt->alt_parent = info;
         }
     }

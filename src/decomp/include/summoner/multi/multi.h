@@ -146,6 +146,13 @@ void mp_player_disconnected(int id, int reason);        // 0x4814e0
 void mp_send_character_skills(Character *c);            // 0x480ba0
 extern int mp_netgame_level;                            // 0x6513d8
 extern int mp_game_difficulty;                          // 0x6513ec
+extern int mp_netgame_num_players;                      // 0x6513e4 (decomp37: the HP / gold / xp multiplier)
+// The host's broadcasts of living_entity.cpp (decomp37; argument lists from its calls).
+void mp_broadcast_hp(Character *c, int source);         // 0x480920
+void mp_broadcast_ap(Character *c, short ap);           // 0x480a10
+void mp_broadcast_xp(Character *c, int xp);             // 0x480af0
+void mp_broadcast_status_add(Character *c, int status, int ms, int spell, float value, int source);   // 0x480cc0
+void mp_broadcast_status_cure(Character *c, int status, bool restore_fx);   // 0x480de0
 extern bool All_multi_levels;                           // 0x60ae64
 void pxo_read_config_thunk();                           // 0x441560 jmp pxo_read_config (GameInit)
 extern unsigned short mp_net_port;                      // 0x651594 UDP port, 10234 unless -port (cmdline_read_params)

@@ -1688,3 +1688,69 @@ gr_finish, gr_tcache_flush, gr_set_antialias, gr_flush_pipeline, the four stubs,
 0x545d70; Gr_alpha_fog_ratio, Gr_level_fog_multiplier, gr_fade_level, gr_gamma, gr_gamma_percent,
 gr_fullscreen_rect, gr_fade_duration, gr_fade_time, gr_initialized, Gr_show_stats, cmd_antialiasing_on,
 gr_fade_state, gr_zbuffer_enabled). None of these was declared before (searched by address).
+
+**D1700 (living_entity.cpp). living_entity.h rewritten from the unit.** The class keeps every offset the
+pilots use; members the unit reads are named and typed (velocity / +0x6c0 as vector3, move_start_time
+float, death_move move_info *, CF_* flag names from the tests in the unit: 1 combat ready, 0x4000 hurt,
+0x100000 on ground, 0x4000000 head look done, 0x80000000 no ground). The status ids 7, 8 and 14-17 are
+used (status_effect_add 0x454700 cases; Light, Invisible, Firewall, Blizzard, Ice coffin, Dark wall),
+so NUM_STATUS_EFFECTS is 18 with names for all of them.
+
+**D1701 (living_entity.cpp). XSTR is redefined in the unit.** The /Od code tests the constant 0 of
+`(0 ? text : localize_strings[id])` before every lookup (`xor ecx, ecx; test ecx, ecx; je`, status_effect_add
+0x454c79). localize.h's XSTR stays an lvalue (other units take its address), so living_entity.cpp
+`#undef`s it and defines the conditional form locally.
+
+**D1702 (living_entity.cpp). combat stays a union.** Character::Character (0x44e060) constructs members in
+declaration order (status slots, timer2ec, ai, combat, timer6d4, net_update_timer). combat (+0x558) is the
+D1 union with `protection` (new_assess.cpp), and a union member with a constructor is not allowed, so the
+source calls combat.construct() in the body; the order differs from the binary by that one call.
+
+**D1703 (living_entity.cpp). status_effect replaces status_slots.** `ubyte status_slots[18][0x20]` becomes
+`status_effect status_effects[18]`: kind +0, GameTimer +4, fx +8, source +0xc, spell / item_info * +0x10,
+tick GameTimer +0x14, tick_ms +0x18, value +0x1c (float: fld / fstp at +0x1c in character_status_value).
+The constructor's loop builds the timers at +4 and +0x14, stride 0x20 (0x44e0a6).
+
+**D1704 (living_entity.cpp). skill is 0x5c bytes; +0x670 is the light.** `skill[0x60]` overlapped an int
+the unit uses as an attached light handle: set to -1 in init (`mov dword ptr [edx + 0x670], -1` 0x44e23a),
+stored from attached_light_create (0x44ed04), tested against -1 and freed (0x44ee2d / 0x44ee39). skill ids
+stop below 0x5c.
+
+**D1705 (living_entity.cpp). get_hit_by_spell arguments.** (int spell, int source, vector3 *pos, matrix
+*orient, int source_type, ItemType *item, float power, bool preloaded) from the uses in 0x45dea0 (pos
+and orient passed to the effect creators, item read for its effect values in cases 3-5, power fld'd as
+the chain-hit multiplier). The header had eight ints.
+
+**D1706 (living_entity.cpp). add_hp / status_effect_add parameter types.** add_hp(float delta, int
+source, int a, bool from_net) -> bool (the last is a byte test, it suppresses mp_broadcast_hp);
+status_effect_add(int status, int ms, int spell, float value, int source, bool permanent): +0x10 gets
+the spell, +0x1c the float value, the last byte picks kind 2. Callers in combat.cpp keep compiling
+(int arguments convert).
+
+**D1707 (living_entity.cpp). move_info fields.** name +0 (stricmp in charinfo_find_move_alt callers),
+sound +0x38 (passed to the sound start in play_move), effect +0x48 (fx name). prop_tag_bones (+0x168,
+monster_drop_loot) shares a union with combat.cpp's `_unk168`.
+
+**D1708 (living_entity.cpp). xp_level_up_gains argument order.** character_add_xp pushes (species,
+&level, &max_hp, &max_ap, &points, &cap) (0x44fc77-0x44fca8); sum.symbols names the pointer
+parameters in another order. The push order is used.
+
+**D1709 (living_entity.cpp). container lock is a float.** container_obj_create / container_spawn_loot
+get the lock value pushed from a float local (monster_drop_loot, `push ecx` of ebp-8 at 0x452eaf, stored
+with fstp before), matching container +0xe4 `float lock`.
+
+**D1710 (living_entity.cpp). lobj_hit fields.** pos (vector3) at +8, was _unk08[6] (the hit point character_probe_lobj_ground copies); +0x24 is
+face (copied to item_obj +0xa8) or lobj (read as a word by character_probe_lobj_ground), a union with both
+names; +0x28 is a union of _unk28 and s3d_face *face_ptr (the face record find_ground reads).
+
+**D1711 (living_entity.cpp). hero_model_prefix returns the render mask.** 0x462ec0 returns an int mask
+(the defaults {6, 6, 2, 2} at 0x5996a4, or the helmet's +RenderMask byte) in eax; new_status.cpp and
+new_inventory.cpp call it as const char *, so the declaration keeps that type and the body casts.
+
+**D1712 (living_entity.cpp). 0x461dc0-0x46353f is optimised.** character_say ... cmd_death have no ebp
+frames and 0x90 padding, unlike the rest of the unit. They stay in living_entity.cpp: strings.tbl ids
+314-352 (living_entity.cpp's block) are used there (character_get_display_name 0x462070 reads 351 / 352)
+and the .data / .bss of both parts interleave (Debug_death 0x59a16c between the unit's other globals).
+Either `#pragma optimize` or a second object; recorded, not resolved.
+
+**D1713 (merge of ai.cpp and living_entity.cpp). ai_state::travel_to_xyz takes one vector3 by value.** ai.cpp (decomp39) declared three floats, living_entity.cpp (decomp37) a vector3. The stack layout is the same; Character::ai_travel_offset (0x455e00) builds the sum in the argument slot with the inline copy constructor, which is how a vector3 argument is passed, so the vector3 form is kept. The merge also mapped living_entity.cpp onto the names other units had fixed: move_info::action (+0x00) and sound.handle (+0x38), char_info::target_points (+0x18a) and head_bone (+0x25c, the bone kept on the navigation mesh for CIF_ELONGATED records), lobj_hit::face (+0x24), vfx_instance::id_bits >> 9 and vfx_base::num_frames, ai_state::add_travel.

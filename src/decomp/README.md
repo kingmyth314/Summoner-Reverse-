@@ -71,6 +71,7 @@ Rules:
 | `game/multi_chattracker.cpp` | `multi_chattracker.cpp` | 20 | 11 / 9 / 0 |
 | `game/multispell.cpp` | `multispell.cpp` | 22 | 16 / 6 / 0 |
 | `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
+| `game/living_entity.cpp` | `living_entity.cpp` (unoptimised) | 166 | 97 / 69 / 0 |
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
 | `game/characterinfo.cpp` | `characterinfo.cpp` | 122 | 81 / 26 / 15 (the 15 are empty Mempool initialisers) |
 | `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |

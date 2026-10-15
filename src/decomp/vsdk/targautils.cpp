@@ -138,7 +138,7 @@ int m2v_skip_macroblock_stuffing(m2v_bitstream *bs)
 // 0x554b60  Confidence: likely (the byte swap: a 16-bit half swap then a byte swap inside each half
 // gives exactly the register use of 0x554c72-0x554c9c). Reads the sequence header code and the
 // size word (big endian: 12 bits width, 12 bits height, aspect and frame rate). Returns the file size.
-int m2v_read_header(const char *name, int *w, int *h)
+int m2v_read_header(const char *name, int *w, int *h, int unused)
 {
     unsigned int header[2];
     File f;
@@ -177,7 +177,7 @@ int m2v_read_header(const char *name, int *w, int *h)
 
 // 0x554d00  Confidence: exact. Loads the whole file into a new buffer; returns its size, 0 on failure.
 // *data keeps the freed pointer after a read error.
-int m2v_read_bitmap(const char *name, ubyte **data)
+int m2v_read_bitmap(const char *name, ubyte **data, int unused)
 {
     File f;
     char filename[256];

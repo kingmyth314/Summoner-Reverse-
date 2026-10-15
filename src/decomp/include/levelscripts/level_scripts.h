@@ -230,6 +230,7 @@ struct navpoint {
 LAYOUT_CHECK(navpoint, sizeof(navpoint) == 0x30);
 #define MAX_NAVPOINTS 750
 extern navpoint navpoints[MAX_NAVPOINTS];            // 0x24e4950
+extern navpoint *level_player_starts[4];             // 0x60a32c (level_find_player_starts; decomp37)
 extern int navpoint_count;                           // 0x2539f2c
 // conversation_save_table (levelscripts/conversation.h) as records: one per (level, slot).
 struct conversation_save_info {

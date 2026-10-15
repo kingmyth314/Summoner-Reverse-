@@ -140,7 +140,10 @@ public:
 };
 LAYOUT_CHECK(container, sizeof(container) == 0xe8);
 
-container *container_obj_create(const vector3 *pos, int arg);   // 0x4897f0 (second argument: callers pass 0)
+// The second argument is the lock value (monster_drop_loot pushes a float; decomp37, D1709).
+container *container_obj_create(const vector3 *pos, float lock);   // 0x4897f0
+void equipment_clear(item_info **equipment);          // 0x46bda0 zeroes the 10 slots
+void equipment_free(item_info **equipment);           // 0x46bdc0 item_free on the 10 slots
 
 // ---- the party inventory ---------------------------------------------------------------------------
 // One party_inventory entry (8 bytes). The stubs disagreed (int[521][2] vs this struct): DECISIONS.md D16.

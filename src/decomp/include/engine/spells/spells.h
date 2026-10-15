@@ -134,6 +134,40 @@ LAYOUT_CHECK(spell_cast_params, sizeof(spell_cast_params) == 0x34);
 // result goes to +0x28, then mp_spell_cast_sync and spell_cast_launch_effects read it. The inline
 // constructor is the store group 0x46564f-0x465667 (target -1, no position, layer -1, 0, 0). Type and
 // field names ours.
+// A resolved spell hit (0x50 bytes on the callers' stacks: spell_cast_launch_effects copies
+// spell_prepare_cast's 0x34-byte result to +0x1c, 0x47d878-0x47d894) as character_spell_apply_hit_effects
+// 0x460190 reads it (decomp37). The result's first dword is a bit field (shl / sar 0x19 / 0x1a for the
+// kind, shr 7 for the 22-bit mask, shr 0x1d for the flinch); the rest depends on the spell. Names ours.
+struct spell_hit {
+    int spell;                       // +0x00
+    int source;                      // +0x04 caster handle
+    vector3 *pos;                    // +0x08 effect position (missiles), or NULL
+    matrix *orient;                  // +0x0C
+    int _unk10[3];                   // +0x10
+    unsigned int _bit0 : 1;          // +0x1C
+    int kind : 6;                    //   1 HP, 2 AP, 3 / 5 flinch only, 4 chain HP, 6 AP + sleep, 7 drain, 8 level, 9 AP drain
+    unsigned int hit_mask : 22;      //   bit n: target n was hit (bit 0 the target itself)
+    unsigned int flinch : 3;         //   flinch variant, 0 none
+    union {                          // +0x20
+        struct {
+            union { float amount; int iamount; int ms; };   // +0x20
+            union { float value; int duration; };           // +0x24
+        };
+        struct {
+            int handles[6];          // +0x20 the targets of a chain (curse 0x17, kind 4)
+            union {
+                struct { int curse_ms; float curse_value; };   // +0x38
+                float amounts[6];    // +0x38 per target (kind 4)
+            };
+        };
+        struct {
+            int durations[5];        // +0x20 spell 0x67's five statuses
+            float values[5];         // +0x34
+        };
+    };
+};
+LAYOUT_CHECK(spell_hit, sizeof(spell_hit) == 0x50);
+
 struct spell_cast_request {
     spell_cast_request() { target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
     Character *caster;               // +0x00

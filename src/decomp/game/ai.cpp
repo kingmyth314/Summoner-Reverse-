@@ -289,7 +289,7 @@ void ai_state::reset()
     owner->last_pos = owner->pos;
     owner->last_orient = owner->orient;
     owner->forward_speed = 0.0f;
-    ((vector3 *)owner->velocity)->zero();
+    owner->velocity.zero();
     owner->frametime = 0.0f;
     owner->cur_move = NULL;
     owner->cur_anim = -1;
@@ -985,11 +985,12 @@ void ai_state::class_die()
 }
 
 // 0x473a40  Confidence: likely (the three stores are scheduled y, x, z).
-void ai_state::travel_to_xyz(float x, float y, float z)
+// The point is passed by value as one vector3 (D1713: living_entity.cpp builds it in the argument slot).
+void ai_state::travel_to_xyz(vector3 dest)
 {
-    travel_dest.x = x;
-    travel_dest.y = y;
-    travel_dest.z = z;
+    travel_dest.x = dest.x;
+    travel_dest.y = dest.y;
+    travel_dest.z = dest.z;
     priority = AI_DIRECT_PRIORITY;
     if (!is_traveling_sub1()) {
         set_mode(AI_STATE_TRAVELING, 1);

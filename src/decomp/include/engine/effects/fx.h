@@ -23,7 +23,13 @@ public:
     int caster;                       // +0xB0 casting character's handle
     int owner;                        // +0xB4
     int trail_bitmap;                 // +0xB8
-    unsigned int bits;                // +0xBC
+    union {                           // +0xBC
+        unsigned int bits;
+        struct {                      // a signed 17-bit field (shl 15 / sar 15 at 0x45dbfd; decomp37)
+            int fx_flags : 17;        //   0x100 set by character_perform_spell_cast
+            int _bits_hi : 15;
+        };
+    };
     int target;                       // +0xC0
     int hit_handles[6];               // +0xC4
     GameTimer timer;                  // +0xDC
@@ -38,6 +44,20 @@ public:
 LAYOUT_CHECK(effect_object, sizeof(effect_object) == 0x10c);
 
 obj *obj_from_handle_b(int handle);                    // 0x489f00 (thin obj_from_handle wrapper)
+extern effect_object fx_active_list;                   // 0x2305920 sentinel (fx_next = 0x23059b8)
+// decomp37 (living_entity.cpp): the status / ownership calls, argument lists from its call sites.
+int  fx_create_status_effect(int handle);              // 0x48c5c0 effect handle
+// (spell, caster handle, target handle): the spell's hit effect at the target, facing the caster
+// (the push order of 0x460806; sum.symbols lists the caster first).
+int  fx_create_spell_effect_facing(int spell, int caster, int target);   // 0x48c8a0
+int  fx_get_status_holder(int handle);                 // 0x48cc60
+void status_stone_fx(int handle);                      // 0x48cd20 "stone-loop.vfx"
+void fx_stop_status_effects(int handle);               // 0x48cdf0
+void fx_stop_status_aura(int handle);                  // 0x48ce50
+void fx_stop(int fx);                                  // 0x48cf80
+bool fx_is_finished(int fx, float *progress);          // 0x48d000 (progress may be NULL)
+void fx_remove_missiles_from(int handle);              // 0x48d0a0
+void fx_end_owned(int handle, bool destroy);           // 0x48d100
 int  fx_add_effect(const char *effect, const vector3 *pos, const matrix *orient, int a);   // 0x48bd80 handle or -1
 int  fx_attach_to_character(const char *effect, int handle, int tag, int source, int a, int b);  // 0x48c080 handle or -1
 int  fx_create_missile(int spell, const vector3 *start, const matrix *orient, int caster, int target);  // 0x48c220
@@ -50,8 +70,6 @@ int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const v
 // "sky" go to the sky list. Handle or -1 (level_create_world_effects; decomp27).
 int  fx_create_world(const char *effect, bool flag);   // 0x48cea0
 // decomp38 (characterinfo.cpp):
-extern effect_object fx_active_list;                  // 0x2305920 sentinel (fx_next 0x23059b8)
 void fx_destroy(int handle);                          // 0x48cfc0
-void fx_end_owned(int owner, bool destroy);           // 0x48d100 every effect owned (+0xb4) by the handle
 
 #endif

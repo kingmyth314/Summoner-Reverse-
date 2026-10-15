@@ -22,7 +22,7 @@ void mp_send_container_close(int handle, int num_taken, int num_items,
 void mp_handle_container_close(ubyte *data, void *from);   // 0x488eb0
 // Host (monster_drop_loot): broadcasts ITM_DRP for the dropped items; handle is the gold item or the
 // loot container the host made, arg is passed on to container_obj_create.
-void container_spawn_loot(int count, item_obj **items, int handle, int arg, const vector3 *pos);   // 0x488fc0
+void container_spawn_loot(int count, item_obj **items, int handle, float lock, const vector3 *pos);   // 0x488fc0 (decomp37: the lock, a float)
 void mp_handle_item_drop(ubyte *data, void *from);      // 0x489120
 // (player id, item handle): mp_handle_srv_req. sum.symbols' "(handle, player)" has the order reversed.
 void container_take_gold_server(int player_id, int handle);   // 0x489430

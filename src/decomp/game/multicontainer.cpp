@@ -169,7 +169,7 @@ void mp_handle_container_close(ubyte *data, void *from)
 // item its type and, for gold, the amount, then the mesh type of the container when the handle is set).
 // The type is looked up by name again. For a single gold drop the handle is the gold item, whose +0xe0
 // (container::mesh_item_type) is past the end of an item_obj; the receiver does not read it then.
-void container_spawn_loot(int count, item_obj **items, int handle, int arg, const vector3 *pos)
+void container_spawn_loot(int count, item_obj **items, int handle, float lock, const vector3 *pos)
 {
     ubyte data[MP_MAX_PACKET];
     ushort packet_size;
@@ -179,7 +179,7 @@ void container_spawn_loot(int count, item_obj **items, int handle, int arg, cons
     mp_quantize_position(&x, &y, &z, *pos);
     MP_BUILD_HEADER(MP_ITM_DRP);
     MP_ADD_DATA(count);
-    MP_ADD_DATA(arg);
+    MP_ADD_DATA(lock);
     MP_ADD_DATA(handle);
     MP_ADD_DATA(x);
     MP_ADD_DATA(y);

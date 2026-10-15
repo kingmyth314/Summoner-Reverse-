@@ -17,6 +17,8 @@ int  snd_play_3d(int handle, const vector3 *pos, float a, float b, int c);  // 0
 void snd_stop(int sig);                                                    // 0x5215d0
 void snd_stop_fade(int sig, int ms);                                       // 0x521620
 bool snd_is_playing(int sig);                                              // 0x521650
+void snd_set_frequency(int sig, int freq);                                 // 0x5217c0 (decomp37)
+void snd_get_frequency(int sig, unsigned int *freq);                       // 0x521800 (decomp37)
 void snd_set_volume(int sig, float volume);                                // 0x521680
 void snd_set_group_volume(int group, float volume);                        // 0x5218e0 (0 = effects)
 bool snd_is_eax_enabled();                                                 // 0x521ba0

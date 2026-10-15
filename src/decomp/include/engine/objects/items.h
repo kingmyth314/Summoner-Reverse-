@@ -22,6 +22,11 @@ class Character;
 #define ITF_NO_DESTROY      0x04      // "no destroy"
 #define ITF_UNIDENTIFIED_TBL 0x08     // copy of bit 0 as read from the table (item_types_reset_identified)
 #define ITF_STEALTH         0x10      // "+Stealth"
+// Bits 5-7: the item drops only at that multiplayer difficulty (mp_game_difficulty 0 / 1 / 2;
+// monster_drop_loot, decomp37). Names ours.
+#define ITF_DIFFICULTY_EASY   0x20
+#define ITF_DIFFICULTY_NORMAL 0x40
+#define ITF_DIFFICULTY_HARD   0x80
 
 // One +Skill Mod: / +Resist Mod: entry (8 bytes in items_alloc_pool; names ours).
 struct item_mod {

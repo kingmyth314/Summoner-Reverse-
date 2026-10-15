@@ -132,6 +132,8 @@ int   boss_target_list_pick(boss_target *list, int count, boss_threat *table, in
                             bool exclude_cur, unsigned int mask);   // 0x4a31c0 handle or -1
 void  rider_unlink_mount(Character *rider);            // 0x4a33b0
 int   rand_int_range(int lo, int hi);                  // 0x4a3410 lo + (int)(frand() * (hi - lo))
+extern int pyrul_missile_bone;                         // 0x247fd34 (character_perform_spell_cast; decomp37)
+int   random_stun_duration();                         // 0x4b9e50 rand_int_range(3000, 7000) (unit not known)
 int   rand_weighted_index(float *weights, int n);      // 0x4a3440 index or -1 (n <= 10)
 void  boss_rider_sound_timer_reset();                  // 0x4a34d0 (state_game_enter)
 void  boss_rider_random_sound(vector3 *pos);           // 0x4a34e0
