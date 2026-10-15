@@ -7541,8 +7541,8 @@
 0x55dac0  ds_get_frequency         func  -                    O ; IDirectSoundBuffer::GetFrequency
 0x55db00  ds_get_channel           func  -                    O ; signature -> channel index, RF snd_ds_get_channel
 0x55db50  ds_get_primary_buffer    func  -                    O ; returns 0x2f79e38 (checked: returns the primary buffer pointer 0x2f79e38, caller ds3d_init_listener (0x55dfe0))
-0x55db60  ds_get_direct_sound_2f79e3c func  -                    O ; hidden start, returns ds_direct_sound, no reference found (dead code?) (checked: returns ds_direct_sound (0x2f79e3c), no dword pointer found in the image)
-0x55db70  ds_get_direct_sound      func  -                    O ; returns IDirectSound* 0x2f8f730 (checked: returns the IDirectSound pointer 0x2f8f730, callers ds3d_init, eax_init)
+0x55db60  ds_get_direct_sound      func  -                    O ; hidden start, returns ds_direct_sound (0x2f79e3c), the IDirectSound object, no reference found (dead code?) (formerly ds_get_direct_sound_2f79e3c)
+0x55db70  ds_get_eax_property_set  func  -                    O ; returns ds_eax_property_set (0x2f8f730), not the IDirectSound object (formerly ds_get_direct_sound)
 0x55db80  ds_error_string          func  -                    O ; DSERR_* HRESULT -> name
 0x55dc70  ds_is_ds3d_enabled       func  -                    O ; returns byte 0x2f8f72c
 0x55dc80  ds_is_eax_enabled        func  -                    O ; returns byte 0x2f798b4 (checked: returns the byte 0x2f798b4, callers snd_is_eax_enabled, snd_mute_reverb, snd_restore_reverb)
@@ -8749,7 +8749,8 @@
 0x599694  Use_spell_ap             data:bool -                      O ; set by console command "Spell_ap" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59a16c  Debug_death              data:bool -                      O ; set by console command "death" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59a330  surface_default          data:int -                    O ; set to 2 by surfaces_parse_table, returned by lobj_face_get_surface when no face entry matches (checked: dword init 1, written by surfaces_parse_table, returned by lobj_face_get_surface on no match)
-0x59a334  music_handle             data:int32_t gamesound.cpp        O ; playing music sound handle, -1 none (music_play/music_stop)
+0x59a334  music_play_signature     data:int32_t gamesound.cpp        O ; play signature of the current track (snd_play_streamed / _looping result), -1 none, stopped by snd_stop in music_play (formerly music_handle)
+0x59a338  music_sound_handle       data:int gamesound.cpp        O ; sound handle of the current track from snd_get_handle in music_play (-1 when the file is missing)
 0x59a33c  music_index              data:int32_t gamesound.cpp        O ; index of the playing music.tbl entry (music_play)
 0x59a340  music_looping            data:bool gamesound.cpp        O ; loop flag of the playing music (music_play)
 0x59a5a0  obj_handle_next          data:int objects.cpp          O ; next object handle, read and advanced by obj_handle_base_next, saved/restored by savegame_write_living/savegame_read_living

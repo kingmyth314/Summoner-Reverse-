@@ -620,15 +620,19 @@ typedef struct ds_channel {
     int32_t _unk1c;
     float   fade_out_time;   // +0x20
     int32_t timer;           // +0x24 RealtimeTimer
-    uint32_t flags;          // +0x28 1 looping, 2 paused, 4 music, 8 (release skips the channel)
+    uint32_t flags;          // +0x28 1 looping, 2 paused, 4 streamed (ds_play_streamed), 8 fading (ds_stop_fade; release skips it)
 } ds_channel;
 
 // A streamed-sound slot (16 x 0x1c bytes at 0x2fbd9b0; reset by snd_stream_init, guarded by the lock 0x2fbd998).
-// Partial: ds_sound_release stops every active slot whose +0x00 is the released buffer.
+// Fields from snd_stream_start and snd_stream_init; ds_sound_release stops every active slot on the released buffer.
 typedef struct snd_stream_slot {
     int32_t buffer;          // +0x00 ds_buffers index, -1 free
-    uint8_t _unk04[0x14];
-    uint32_t flags;          // +0x18 bit 0 active
+    int32_t channel;         // +0x04 ds_channels index
+    int32_t ring_size;       // +0x08 ring buffer bytes (2 x nAvgBytesPerSec)
+    int32_t write_pos;       // +0x0C
+    int32_t timer_id;        // +0x10 timeSetEvent id (250 ms)
+    int32_t _unk14;
+    uint32_t flags;          // +0x18 1 active, 2 looping
 } snd_stream_slot;
 
 // A level-script object (0x550 bytes; table at 0x24f6748, indexed by Character +0x6dc). Partial.
