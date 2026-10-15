@@ -351,6 +351,8 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
    `--score` lists.
 3. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
 
+**The analysed Sum.exe is not byte-clean (2026-10-15).** The copy in `Summoner/` carries a no-CD edit in `cd_find_drive` / `cd_set_root` that no compiler emits: `jne +0` (`0f 85 00 00 00 00`) at `0x43e6b0` and `0x43e6e3`, `75 00` at `0x43e872`, a forced `.` drive letter at `0x43e695` and `0x43e914`, and the strings at `0x594f50` / `0x594f70` changed from `A:\` / `%c:\` to `.\\` and `.\` (bytes `2e 5c 5c 00`, `2e 5c 00 00`). This is separate from Timeslip's patch (`0x43e9cb`, [Timeslip](patches/timeslip.md)). `src/decomp/game/summoner_cd.cpp` is written as the unpatched code (D2600), so a byte-matching build will differ at these bytes unless it is compared against an unmodified v1.40 executable.
+
 **Toolchain (2026-10-15).** Sum.exe's PE header gives linker 6.0 and the link date 2001-11-21. Its Rich header
 (decoded with a small script, **observed**) lists:
 
