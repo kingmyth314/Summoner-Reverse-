@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 117 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 121 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -28,8 +28,8 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 3 | 21 | 2 |
 | Gameplay | 21 | 10 | 3 |
-| Cosmetic | 24 | 6 | 2 |
-| Invisible | 10 | 22 | 0 |
+| Cosmetic | 25 | 6 | 2 |
+| Invisible | 11 | 24 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -542,6 +542,7 @@ creates one item per counted weapon (`0x44e8e9`..`0x44e911`). No retail record h
 | K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
 | K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
+| K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -753,6 +754,18 @@ to 0 when `gr_get_video_memory_mb() <= 8` (`0x43e36c`..`0x43e376`). For OpenGL t
 the saved file then keeps 0. Glide stores the small value it tests
 against 4 and 12, probably MB (`gr_glide_init` `0x549e5d`..`0x549ea2`). Direct3D: see V60. Found while checking V60. SummonerFix now patches the constant to 64 (`bugfix.c`, 2026-10-15; the patch applies, checked in the log; the texture choice itself was not tested because that needs a missing `summoner.cfg`).
 
+**K80. The message does not check the result.** `ai_can_be_knocked_down` (`0x475030`) refuses sub-modes `0xe`,
+`0xc` and `0xd` (`0x475047`), but not casting. `ai_knock_down_local` then stores the duration, invalidates the
+disable timer and calls `ai_set_mode(8, 0x2c)` (`0x4742fb`..`0x474316`). `ai_set_mode` refuses `AI_STATE_DISABLED`
+while `ai_is_casting` (`0x47333e`..`0x47335e`) and returns 0. `ai_knock_down_local` ignores that result and still
+shows "Knocked Down!" for `cur_character` (`0x47431b`..`0x47432f`). It also returns 1, so `ai_knock_down` sends
+`mp_broadcast_ai_disable` in multiplayer (`0x47435d`..`0x474377`). The other machines run the same test on their own
+copy (`mp_handle_ai_disable` `0x480f9f`), so a copy that is not casting there would fall (*inferred*, not traced).
+Melee knock-downs come from `combat_apply_melee_hit` (3000-7000 ms, `0x466286`..`0x4662a4`), spells and the
+Titus and Machival party knock-downs. Pushes (`ai_disable_2f_local`) and stuns (`ai_disable_31`) are dropped the
+same way, without a message. Whether the game means casting to be uninterruptible is *unknown*; the message is the
+slip.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -789,6 +802,9 @@ against 4 and 12, probably MB (`gr_glide_init` `0x549e5d`..`0x549ea2`). Direct3D
 | V61 | Latent: the DirectDraw driver list stops after the first driver, so only the primary display driver's Direct3D devices are ever listed | `d3d_ddraw_enum_callback` `0x5389f0` | **Observed** code |
 | V70 | Five hero moves inherit weapon-class bits from a dropped hurt move, so their anims also load for those weapon classes | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data |
 | V71 | On masad (not masad_v2), Liangshan and JadeTemple, the rider moves that are skipped keep skeleton index 1 instead of -1 | `move_used_on_level` `0x444bb0` | **Observed** code, *inferred* effect |
+| V80 | Latent: the `ai_state` console command rejects every state name ("Error: Invalid state name") | `cmd_ai_state` `0x474d10` | **Observed** code |
+| V81 | Latent: the `ai_frame_update_rate`, `attack_point` and `offense_point` console variables are stored and never read; `attack_point` also accepts an index one past the target's last attack point | `cmd_ai_frame_update_rate` `0x4720e0`, `cmd_attack_point` `0x473260`, `cmd_offense_point` `0x473300` | **Observed** code |
+| V82 | The branch of `ai_knock_down_local` for a character that is already down can never run; if it did, it would restart the lying phase with the first knock-down's duration | `ai_knock_down_local` `0x4742b0`, `ai_can_be_knocked_down` `0x475030` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -989,6 +1005,31 @@ before the store and keep -1. *Inferred:* the rider records are not heroes, so t
 `anim` for them. A lookup by skeleton index (`charinfo_find_move_any`, used by the level script actions) could
 return a skipped move for skeleton 1; this was not traced.
 
+**V80. Pointer compare instead of a string compare.** After `process_command(2)` the loop compares each
+entry of `ai_state_names` (`0x59ad60`, 13 pointers into .data, `0x59b404`..`0x59b4e8`) with the address of the
+`next_arg` buffer: `cmp dword ptr [eax], 0x25dacec` (`0x474d4f`). Other commands pass the same address to string
+functions (`push 0x25dacec` in `cmd_play_cutscene` `0x437513`), so `next_arg` is a char array, and no table
+pointer can equal it. The loop always ends with 13, and the command prints "Error: Invalid state name" and returns
+(`0x474d62`..`0x474d77`). The help text lists the names correctly. A developer console command, so no retail path
+reaches it.
+
+**V81. Variables without a reader.** `tools/asm.mjs grep` finds `ai_frame_update_rate` (`0x59af5c`) only in
+`cmd_ai_frame_update_rate` (`0x472102`, `0x472121`), `Ai_attack_point` (`0x59af60`) only in `cmd_attack_point`
+(`0x4732b0`, `0x4732b7`) and `Ai_offense_point` (`0x59af64`) only in `cmd_offense_point` (`0x473318`). The help text
+of `ai_frame_update_rate` says it sets the update rate for off-screen creatures, but the throttle in
+`ai_update_perception` uses a 500-750 ms timer (`0x47301d`). `cmd_attack_point` stores the index and resets it to
+-1 only when it is greater than the target's point count (`cmp eax, edx; ... jle` at `0x4732ae`..`0x4732b5`), so
+an index equal to the count is kept. Nothing reads it, so this has no effect. Developer console commands only.
+
+**V82. A test made twice.** `ai_can_be_knocked_down` returns false when `ai_is_knocked_down` (sub `0x2d`) is true
+(`0x47506a`..`0x475073`). `ai_knock_down_local` returns 0 on that result (`0x4742b3`..`0x4742bf`) and only then
+tests `ai_is_knocked_down` again (`0x4742c5`). Nothing in between changes the mode, so the branch at
+`0x4742ce`..`0x4742f8` never runs. A second knock-down on a lying character is simply ignored, and is not sent in
+multiplayer. If the branch ran, it would compare the new duration with the time left (`disable_ms` `+0x1a4` minus
+the mode timer) and on a longer one restart the mode timer (`SetTimeout(0)` at `0x4742ec`) without storing the
+new duration, so the character would lie for the first duration again. The note in `NOTES-ai.md` described that
+second half; it has no effect in the game.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1081,6 +1122,27 @@ the tables above; the rest are below.
 - The hurt-move drop itself (`0x44631a`..`0x446372`): an explicit list of ten names, applied to every non-boss record. It drops 354 of 3302 retail moves, but it reads as a design choice, not a slip. Not counted; documented in game-tables.md.
 - B2 for heroes in multiplayer (move_used_on_level skips their "stand" move there, so the loaded-only lookup would fail): *inferred* unreachable, since `level_is_town` is forced to 0 with flag 2 and multiplayer loads the full set, so the templeint branch does not run either.
 
+- `ai_pick_attack_slot` (`0x472780`) returns the best direction whether or not the slot is taken. Its only caller,
+  `ai_approach_attack_slot`, first lists the slots that are free or its own (`obj_from_handle` and the handle
+  compare at `0x4bd44a`..`0x4bd4f7`), takes the nearest of those (`0x4bd51b`..`0x4bd575`), and uses the picked slot
+  only to route around the target when the two are two slots apart (`0x4bd5a3`..`0x4bd5d3`). `ai_claim_attack_slot`
+  does take a slot over only when the occupant has more time left (`0x472966`..`0x47297a`). By design.
+- Goal targets after a load: `ai_state_load` gives a goal the handle of the first living entity whose name hash
+  matches (`0x47486d`..`0x4748e5`). `savegame_read_character` matches the whole character record the same way
+  (`0x4cf7ac`..`0x4cf7e2`), and the script editor flags duplicate names ("*** DUPLICATE NAME ***",
+  `script_write_level_script`). With duplicate names the record load would already go wrong; the goal target adds
+  nothing. Not counted.
+- `ai_set_mode` not freeing the path: no leak. Every new path frees the old one first (`ai_set_path` `0x473bca`,
+  `ai_path_find_new`, `ai_path_to` with a bad layer), and `ai_state_shutdown`, `ai_reset` and
+  `ai_reset_party_member` free it.
+- `ai_do_frame` has no time budget: a documentation error, not a game bug. Off-screen characters are throttled in
+  `ai_update_perception`.
+- `slowdown_scaler` (`0x59af54`) is read by `ai_frame` (`0x472ce9`), `Ai_path_wandering_enabled` (`0x59af58`) by
+  `ai_follow_path` (`0x4b355b`) and `Ai_paused` (`0x22e499c`) by `character_ai_suspended` (`0x462de0`) and two
+  others. They are not dead.
+- `ai_goal_next_id` (`0x59b7c8`) is saved and loaded (`savegame_write_living` `0x4d218d`,
+  `savegame_read_living` `0x4d2e16`), so loaded goal ids do not collide with new ones.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1120,6 +1182,23 @@ the tables above; the rest are below.
 - `statscreen_unload_anim` leaves the freed light move's `anim` set (no store to `+0x8` after `character_free_skeleton`, `0x449194`). After light, then heavy, the next unload finds the stale light move first and frees its index. `character_free_skeleton` lowers the skeleton count when it frees the last slot (`0x540bf5`..`0x540bfd`), so the heavy anim normally gets the same index and the right skeleton is freed. Whether anything adds a skeleton to a hero between two Character screen visits without a full anim reload was not traced.
 - `character_fill_locomotion_anims` fills walk_hurt from norm_walk and norm_walk_hurt from walk (also run_hurt from norm_run, norm_run_hurt from run; `0x46b0b6`..`0x46b125`), while stand_hurt takes stand and ready_hurt takes ready. Non-boss characters always use these fallbacks. Whether the crossing is intended depends on which slot a hurt character uses; not traced.
 - V71: whether any script action or boss stage ever plays skeleton 1 through a skipped rider move.
+- A goal without a target is saved with `name_hash_nocase("")` (`ai_state_save`). On load the search takes the
+  first living entity whose name has the same hash. `living_entity_init` clears the name (`mov byte [eax+0x2f4], 0`
+  at `0x44e6dd`), so an entity left without a name would become the target of every such goal, instead of -1.
+  Whether any living entity in retail play has an empty name was not checked.
+- `ai_state_load` neither saves nor clears a goal's path pointer (goal `+0x30`; the loop writes `+0x00`..`+0x2c`).
+  If a level gives a monster goals with paths before the save is applied, a loaded goal keeps the old goal's path.
+  Not traced.
+- A knock-down during the fall (sub `0x2c`) passes `ai_can_be_knocked_down`, overwrites `disable_ms` with the new
+  duration (which can be shorter), shows "Knocked Down!" again and is sent again in multiplayer. Whether that is
+  intended was not decided.
+- `ai_do_frame` runs `ai_frame` for type 4 (NPCs) even when their dead flag is set (`cmp ecx, 4; je` at
+  `0x474bdd`). Whether NPCs can be dead there was not traced.
+- `ai_state_init` calls `ai_set_mode(-1, -1)` (`0x47238f`) before it sets the handle slot `+0x80` to -1
+  (`0x4723e5`), so `handle_slot_release` gets whatever `+0x80` held. Whether `living_entity_init` (its only
+  caller, `0x44e22f`) clears that memory first was not checked.
+- The `0x30` sub-mode (`AIS_PUSH_STUNNED`, `ai_mode_disabled_frame` `0x4b4ca6`) has no setter in `ai.cpp`. Who sets
+  it was not traced.
 
 ## Evidence
 
@@ -1247,3 +1326,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | B7 species ids | `species_is_hero` `0x449a20`; `species_table` `0x580e60`..`0x5818d4` |
 | B8 empty command | `init_ccmd_charinfo` `0x449bb0` |
 | B3 unload guard | `statscreen_refresh_anim` `0x412e76`; `statscreen_unload_anim` `0x449149`..`0x44917d` |
+| K80 cast knock-down | `ai_can_be_knocked_down` `0x475030`..`0x475087`; `ai_knock_down_local` `0x4742fb`..`0x47433e`; `ai_set_mode` `0x47333e`..`0x47335e`; `ai_knock_down` `0x47435d`..`0x474377`; `mp_handle_ai_disable` `0x480f8e`..`0x480f9f`; `combat_apply_melee_hit` `0x466286`..`0x4662a4` |
+| V80 ai_state compare | `cmd_ai_state` `0x474d48`..`0x474d77`; .data `0x59ad60`..`0x59ad94`; `next_arg` as a buffer `0x437513`, `0x43995e` |
+| V81 dead variables | `cmd_ai_frame_update_rate` `0x472102`, `0x472121`; `cmd_attack_point` `0x47329d`..`0x4732b7`; `cmd_offense_point` `0x473318`; `ai_update_perception` `0x47301d` |
+| V82 unreachable branch | `ai_can_be_knocked_down` `0x47506a`..`0x475073`; `ai_knock_down_local` `0x4742b3`..`0x4742f8`; `ai_mode_disabled_frame` `0x4b4b6e`..`0x4b4b88` |
