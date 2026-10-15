@@ -103,3 +103,22 @@ renders).
 | Registry key builder | `ev_eebcc982b1993c452fefd10a0ea00ef3d194282709fc6a43807adcb9d85c9f5c` |
 | `RegReadDword` | `ev_511654e29688143f5c66a35bbd33458167ccd6a09086d35c56c20931ec9cb713` |
 | `0x549d10` call graph (Glide) | `ev_980f22ba14e83c8c13295032c9d75584a650d65dc42a8d397525c332d6c22dcc` |
+
+## `summoner.cfg` (game options file)
+
+`summoner.cfg` in the game folder is a 64-byte binary copy of the options block at `0x60acc8`, whose defaults are set by
+the static initialiser `init_game_config_defaults` (`0x43d190`). The field meanings below come from the Options screen
+setters (agent naming pass, 2026-10-14) and are *inferred*. The layout matches the file in the game folder.
+
+| Offset | Type | Meaning (*inferred*) | Value in the file |
+|---|---|---|---|
+| `+0x00`, `+0x04` | float | volumes (two sliders) | 0.5, 0.5 |
+| `+0x09` | byte | invert camera | 0 |
+| `+0x0c` | byte | combat flag | 0 |
+| `+0x0d` | byte | solo confirmation | 0 |
+| `+0x10` | int | dialogue camera | 0 |
+| `+0x1c` | int | texture quality | 2 |
+| `+0x20` | byte | lightmaps off | 1 |
+| `+0x28` | int | fog | 0 |
+| `+0x2c` | int | antialias | 0 |
+| `+0x38` | float | camera speed | 1.0 |
