@@ -1714,28 +1714,55 @@
 0x500cd0  mouse_di_read            func  vsdk\os\mouse          I ; IDirectInputDevice::GetDeviceState; on INPUTLOST/NOTACQUIRED Sleep(500) and Acquire; clamps x/y to the screen
 0x500de0  mouse_init               func  vsdk\os\mouse          I ; (w, h): critical section, centre, mouse_di_init (failure -> cursor mode), os_add_msg_handler, atexit
 0x500e90  mouse_di_init            func  vsdk\os\mouse          I ; DirectInputCreateA version 0x700, then 0x300; SysMouse, c_dfDIMouse, cooperative level 6 (non-exclusive | foreground), Acquire
+0x501050  mouse_di_close           func  vsdk\os\mouse        O ; Unacquire (vtbl+0x20) and Release the DirectInput mouse device, Release mouse_dinput, clears mouse_di_active
 0x501090  mouse_flush              func  vsdk\os\mouse          I ; clears deltas and button state
 0x501100  mouse_mark_button        func  vsdk\os\mouse          I ; (button 0-2, down): live state, press/release counts, double-click flag
+0x5011a0  mouse_clear_clicks       func  vsdk\os\mouse        O ; under mouse_lock zeroes double-click flag and press/release counts of the 3 mouse_buttons entries
+0x5011e0  mouse_get_pos            func  vsdk\os\mouse        O ; (int*x,int*y,int*z) from mouse_x/y/z, -1 and zeros when not inited, Dash Faction rf::mouse_get_pos same signature
+0x501240  mouse_move_to            func  vsdk\os\mouse        O ; (x,y): DirectInput mode writes mouse_x/y, cursor mode calls mouse_set_pos when changed, LoadSettings caller
+0x501280  mouse_set_pos_xyz        func  vsdk\os\mouse        O ; (x,y,z) under mouse_lock: mouse_move_to then mouse_z and mouse_wheel = z
 0x5012c0  mouse_is_down            func  vsdk\os\mouse          I
+0x5012e0  mouse_was_double_clicked func  vsdk\os\mouse        O ; (button) byte +1 of the 0x10-byte button entry, set by mouse_mark_button when pressed again before its RealtimeTimer elapsed
+0x501300  mouse_time_since_press   func  vsdk\os\mouse        O ; (button) double-click interval (0x5a5738) minus the button timer remaining time
+0x501320  mouse_get_press_count    func  vsdk\os\mouse        O ; (button) dword +4 of the button entry, the count mouse_was_pressed tests
+0x501340  mouse_get_release_count  func  vsdk\os\mouse        O ; (button) dword +8 of the button entry, the count mouse_was_released tests
 0x501360  mouse_was_pressed        func  vsdk\os\mouse          I ; press count of button > 0
 0x501390  mouse_was_released       func  vsdk\os\mouse          I ; release count of button > 0
+0x5013c0  mouse_get_delta          func  vsdk\os\mouse        O ; (int*dx,int*dy,int*dz) from mouse_dx/dy/dz
+0x5013f0  mouse_is_hidden          func  vsdk\os\mouse        I ; returns byte 0x257f030, mouse_update re-centres only when this and keep_mouse_centered are set
+0x501400  mouse_set_hidden         func  vsdk\os\mouse        I ; byte 0x257f030 = arg
+0x501410  mouse_set_visible        func  vsdk\os\mouse        O ; byte 0x257f030 = !visible, Dash Faction mouse_set_visible sits right before keep_centered_enable/disable as here
+0x501420  mouse_keep_centered_enable func  vsdk\os\mouse        V ; keep_mouse_centered = 1, Dash Faction mouse_keep_centered_enable, same order and global offset (mouse_inited+0x10)
+0x501430  mouse_keep_centered_disable func  vsdk\os\mouse        V ; keep_mouse_centered = 0, Dash Faction mouse_keep_centered_disable
+0x501440  mouse_button__mouse_button func  vsdk\os\mouse        O ; constructor of the 0x10-byte mouse_buttons entry (RealtimeTimer at +0xc), passed to eh_vector_constructor_iterator for mouse_buttons[3]
 0x501450  clamp_int                func  -                      I ; (int*, lo, hi)
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
+0x501780  frametime_restore_limits func  frametime.cpp        I ; frametime_set_limits(saved 0x257f084, 0x257f080), caller effects_kill_all
+0x5017a0  increase_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused++
+0x5017b0  decrease_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused--, previous_done_time = timer_get(1000000)
+0x5017d0  increase_animation_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Animation_timer_paused++, caller game_pause
+0x5017e0  decrease_animation_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Animation_timer_paused--, caller game_unpause
 0x5017f0  UpdateTicker             func  timestamp.cpp          V ; Summoner 2 decomp; advances Timestamp_ticker / Timestamp_realtime_ticker (wrap at MAX_TIME 0x3ff1a100)
 0x501840  IncrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
 0x501850  DecrementPauseCounter    func  timestamp.cpp          V ; Summoner 2 decomp
 0x501860  GameTimer__GameTimer     func  timestamp.cpp        O ; sets the timer to -1 (invalid); 45 static initialisers construct global timers
+0x501870  GameTimer__reset         func  timestamp.cpp        I ; value = -1 (same body as the constructor), 3 game callers
 0x501880  GameTimer__SetTimeout    func  timestamp.cpp          V ; Summoner 2 decomp; this in ECX
 0x5018d0  GameTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp; rand()
+0x501900  GameTimer__invalidate    func  timestamp.cpp        I ; value = -1, 75+ callers on existing timers (hud, interface)
 0x501910  GameTimer__elapsed       func  timestamp.cpp          V ; Summoner 2 decomp
 0x501940  GameTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501980  GameTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501990  GameTimer__valid         func  timestamp.cpp          V ; Summoner 2 decomp
+0x5019a0  GameTimer__read          func  timestamp.cpp        O ; (File*) SetTimeout(File__read_int) for savegames
+0x5019c0  GameTimer__write         func  timestamp.cpp        O ; (File*) File__write_int(GetRemainingTime)
 0x5019e0  RealtimeTimer__RealtimeTimer func  timestamp.cpp        O ; sets the timer to -1 (invalid); 37 static initialisers
+0x5019f0  RealtimeTimer__reset     func  timestamp.cpp        I ; value = -1, mirror of GameTimer__reset
 0x501a00  RealtimeTimer__SetTimeout func  timestamp.cpp          V ; Summoner 2 decomp
 0x501a50  RealtimeTimer__SetRandomTimeout func  timestamp.cpp          V ; Summoner 2 decomp
+0x501a80  RealtimeTimer__invalidate func  timestamp.cpp        I ; value = -1, 24+ UI callers
 0x501a90  RealtimeTimer__elapsed   func  timestamp.cpp          V ; Summoner 2 decomp
 0x501ac0  RealtimeTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b00  RealtimeTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
@@ -1828,6 +1855,7 @@
 0x506110  gr_check_dual_monitors   func  vsdk\gr\gr.cpp         O ; fullscreen only: SST_DUALHEAD environment variable (3dfx)
 0x506170  gr_screen_width          func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_width
 0x506180  gr_screen_height         func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_height
+0x506190  gr_deactivate            func  vsdk\gr\gr.cpp       I ; Glide only (flag 0x25d921e): gr_glide_deactivate, reached from DebugError through 0x531ca0
 0x5061f0  gr_screenshot            func  vsdk\gr\gr.cpp         O ; (name, format, path_id): read_backbuffer, then TGA or the 0x5565e0 writer
 0x5065e0  gr_fade_out              func  vsdk\gr\gr.cpp         I ; (ms): black overlay alpha 0 -> 1; ms < 1 = instantly black
 0x506630  gr_fade_in               func  vsdk\gr\gr.cpp         I ; (ms): alpha 1 -> 0, then off; ms < 1 = instantly clear
@@ -1856,6 +1884,8 @@
 0x507100  gr_bitmap_float          func  vsdk\gr\gr.cpp         I ; float rectangle through gr_tmapper
 0x507310  gr_line                  func  vsdk\gr\gr.cpp         O ; (x1, y1, x2, y2, mode)
 0x5077d0  gr_rect                  func  vsdk\gr\gr.cpp         I ; (x, y, w, h, mode) through gr_tmapper
+0x5079b0  gr_is_mode_supported     func  vsdk\gr\gr.cpp       O ; (Mode) dispatch: D3D 0x53aad0, Glide 0x54a0b0, OpenGL always true, false for multitexture modes without multitexture support
+0x5079f0  gr_get_video_memory_mb   func  vsdk\gr\gr.cpp       O ; dispatch: D3D 0x2dc6c98, Glide 0x2f0f208, OpenGL constant 8, 0x43e250 compares it with 8 to pick defaults
 0x507a20  gr_tmapper               func  vsdk\gr\gr.cpp         O ; (nv, verts, mode); Dash Faction gr::tmapper
 0x507a80  gr_tmapper_multipass     func  vsdk\gr\gr.cpp         I ; per-pass uv/colour/alpha, then gr_tmapper
 0x507d30  gr_read_backbuffer       func  vsdk\gr\gr.cpp         O ; Dash Faction gr::read_backbuffer(x, y, w, h, buf) -> format
@@ -1863,7 +1893,10 @@
 0x507f70  gr_set_tint              func  vsdk\gr\gr.cpp         I ; (enable, r, g, b): back ends modulate vertex colours
 0x507fd0  gr_tcache_flush          func  vsdk\gr\gr.cpp         I
 0x508020  gr_tcache_free           func  vsdk\gr\gr.cpp         I ; (bm); bm_release calls it per frame
+0x5080c0  gr_set_antialias         func  vsdk\gr\gr.cpp       O ; (enable) when 0x25d921c: dispatch to gr_d3d_set_antialias, Glide 0x54ba90 and OpenGL 0x550630 are empty
+0x508110  gr_set_alpha_test        func  vsdk\gr\gr.cpp       O ; (enable) dispatch to gr_d3d_set_alpha_test / gr_glide_set_alpha_test
 0x508160  gr__Mode__Mode           func  vsdk\gr\gr.cpp         O ; packs six 5-bit fields, as Dash Faction gr::Mode
+0x5081c0  gr__Vertex__Vertex       func  vsdk\gr              I ; default ctor (vector3 at +0 default-constructed), 0x30-byte vertex locals in gr_line_3d_world / gr_bitmap_3d, also the Plane in Plane__transform and gr_clip_plane +4
 0x5081d0  gr_close_fonts           func  vsdk\gr\gr_font.cpp    I ; frees every font's tables
 0x508290  gr_font_is_whitespace    func  vsdk\gr\gr_font.cpp    I ; space, tab, newline
 0x5082b0  gr_font_is_space         func  vsdk\gr\gr_font.cpp    I ; space, tab
@@ -1911,7 +1944,19 @@
 0x50ac40  init_ccmd_script         func  -                    O ; static initialiser: registers console command object ccmd_script
 0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
 0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
+0x50b4c0  gr_glide_render_character_mesh func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of ca_render_mesh (mode 0x67), calls glide_grDrawPlanarPolygonVertexList
+0x50c130  gr_d3d_render_character_mesh func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of ca_render_mesh (mode 0x66), skinning + gr_d3d set_render_state
+0x50cd00  gr_opengl_render_character_mesh func  vsdk\gr\opengl\gr_opengl.cpp I ; OpenGL target of ca_render_mesh (mode 0x68)
+0x50d6c0  ca_render_set_instance   func  vsdk\ca              I ; (character, instance) stores the globals 0x268298c/0x2682990, character_instance__render sets them, then clears with (0,0)
+0x50d6e0  ca_render_set_mesh       func  vsdk\ca              I ; (mesh) stores 0x2682988, character_instance__render passes the LOD mesh from character +0x1e4
+0x50d6f0  ca_render_mesh           func  vsdk\ca              O ; draws mesh 0x2682988 through the back end for gr_screen.mode: 0x50c130 D3D, 0x50b4c0 Glide, 0x50cd00 OpenGL
 0x50d7e0  vector3__cross           func  vsdk\math              I
+0x50d830  gr_get_fog_alpha         func  vsdk\gr              I ; (z): 255 when fog off (gr_screen +0x60) or z below fog start, else 255 * max(0, (end - z) * scale) from gr_screen +0x70..0x78
+0x50d880  gr_calc_depth            func  vsdk\gr              I ; (w) w * 1/far (0x5a729c) * Gr_3d_zmult, clamped to Gr_3d_zmax, used by D3D tmapper and fog
+0x50d8b0  gr_vertex_depth          func  vsdk\gr              I ; (vertex*) gr_calc_depth(1 / z)
+0x50d8d0  gr_get_point_fog_value   func  vsdk\gr              I ; (value, world pos): rotates pos into view space, then gr_get_fog_value with its z
+0x50d910  gr_get_fog_value         func  vsdk\gr              I ; (value, z): as gr_get_fog_alpha with the second fog range (gr_screen +0x7c..0x84), scales value
+0x50d960  float_max                func  vsdk\math            O ; (a, b) returns the larger float, 23 callers (fog, effects, lighting)
 0x50daa0  init_ccmd_far_min        func  -                    O ; static initialiser: registers console command object ccmd_far_min
 0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
 0x50db60  init_ccmd_far_max        func  -                    O ; static initialiser: registers console command object ccmd_far_max
@@ -1920,15 +1965,46 @@
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
 0x50dd10  init_ccmd_zmax           func  -                    O ; static initialiser: registers console command object ccmd_zmax
 0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
+0x50dec0  gr_setup_3d              func  vsdk\gr              O ; (viewer_orient, viewer_pos, fov, zbuffer_flag): copies to view/eye pos+matrix, projection from clip rect, far plane from Gr_far_min/max, D3D z range, then gr_setup_frustum, Dash Faction gr_setup_3d has the same leading args
+0x50e150  gr_setup_frustum         func  vsdk\gr              O ; far_clip_z = far * matrix_scale.z, builds the view frustum planes from view_pos/eye fvec, called by gr_setup_3d and gr_set_far_clip
+0x50e5a0  gr_get_view_fov          func  vsdk\gr              O ; (float*h, float*v) 2*atan(scale.z/scale.x) and 2*atan(scale.z/scale.y) times rad-to-deg
+0x50e640  gr_start_instance        func  vsdk\gr              O ; (pos, orient, light flag) pushes view_pos/view_matrix (and light base/matrix) on the instance stack then transforms them, Dash Faction gr::start_instance(pos, orient)
+0x50e750  gr_stop_instance         func  vsdk\gr              O ; pops the instance stack entry pushed by gr_start_instance, Dash Faction gr::stop_instance
+0x50e7c0  gr_set_far_clip          func  vsdk\gr              O ; (dist): dist > 1 enables far clipping at dist * Gr_level_fog_multiplier (0x5a729c = 1/far), else disables, then gr_setup_frustum
+0x50e810  gr_code_point            func  vsdk\gr              O ; (vector3*) returns clip codes: 4 right, 0x10 top, 2 left, 8 bottom, 0x20 behind, 1 beyond far clip
+0x50e890  gr_code_vertex           func  vsdk\gr              O ; as gr_code_point but stores the codes in vertex +0x18
+0x50e910  gr_rotate_vertex         func  vsdk\gr              O ; (Vertex* out, vector3* in): (in - view_pos) rotated by view_matrix, clears flags +0x19, returns gr_code_vertex, Dash Faction gr::rotate_vertex(Vertex*, const Vector3&)
+0x50e960  gr_rotate_delta_vec      func  vsdk\gr              O ; (out, in): rotation only by view_matrix, no translation
+0x50ea50  gr_project_vertex        func  vsdk\gr              O ; (Vertex*) if not projected: sw = 1/z, sx/sy from projection half sizes + clip offset, clamped, sets flag 1 (2 when z <= 0), Dash Faction gr::project_vertex
+0x50eb30  gr_check_normal_facing   func  vsdk\gr              O ; (pos, normal): dot(view_pos - pos, normal) > 0 (backface test)
+0x50ec90  gr_project_size          func  vsdk\gr              I ; (Vertex*, float*size) size * projection x half-width * matrix_scale.x / z
+0x50f2e0  sort_by_float_key        func  -                    O ; (pairs, n) shell sort of 8-byte {float key, value} entries with float_key_less, caller mesh_check_materials
+0x50f380  float_key_less           func  -                    O ; (a*, b*) *(float*)a < *(float*)b
+0x50f590  gr_clip_plane__gr_clip_plane func  vsdk\gr              O ; ctor: Plane at +4 (0x1c-byte entry, 8 frustum planes built by gr_3d_state ctor)
+0x50f5a0  gr_instance_entry__gr_instance_entry func  vsdk\gr              O ; ctor of the 0x64-byte instance stack entry (vectors +4/+0x34, matrices +0x10/+0x40)
+0x50f5d0  gr_3d_state__gr_3d_state func  vsdk\gr              I ; static ctor of the 3D globals: matrices/vectors, two arrays of 8 gr_clip_plane, gr_instance_entry[5] at +0x1b8
 0x50f660  matrix__matrix_default   func  vsdk\math            I ; default constructor: three 0xc-byte rows via vector3__vector3_default
+0x50f690  gr_clip_free_temp_verts  func  vsdk\gr              I ; zeroes the temporary clip vertex count 0x2f54700 after clipped drawing (gr_line_3d, gr_poly) and at gr_setup_3d
 0x50f6a0  vector3__scale           func  vsdk\math              I ; *= s
+0x50f6c0  gr_clip_plane__set_from_points func  vsdk\gr              I ; thiscall (flag, p0, p1, p2): byte +0 flag, Plane at +4 from points, +0x14/+0x18 from 0x559a80, used by gr_setup_frustum
+0x50f710  gr_clip_plane__set_from_normal func  vsdk\gr              I ; thiscall (flag, normal, point): as gr_clip_plane__set_from_points with a normal/point plane, used by gr_setup_frustum
+0x50f760  Plane__assign            func  vsdk\math            O ; copies normal and offset (+0xc), returns this
 0x50f790  vector3__scaled          func  vsdk\math              I ; returns v * s
+0x50f7d0  Plane__Plane_points      func  vsdk\math            O ; ctor from three points through Plane__set_from_points
+0x50f800  Plane__set_from_points   func  vsdk\math            O ; (p0,p1,p2): normal = normalized vector3_perp, offset = dot(normal, p0) * 0x580e1c (-1)
 0x50f840  vector3__sub_assign      func  vsdk\math              I ; -= v
+0x50f860  Plane__distance_to_point func  vsdk\math            V ; dot(pt, normal) + offset, Dash Faction rf::Plane::distance_to_point identical
+0x50f880  Plane__transform         func  vsdk\math            I ; (out, pos, matrix): rebuilds the plane in another frame (scaled normal + pos, rotated)
+0x50f990  quaternion__quaternion   func  vsdk\math            O ; thiscall (x, y, z, w), returns this
+0x50f9b0  quaternion__assign       func  vsdk\math            O ; copies 4 floats, returns this
 0x50faa0  matrix3__matrix3_copy    func  vsdk\math\matrix.cpp   I
 0x50fad0  matrix3__matrix3_ruf     func  vsdk\math\matrix.cpp   I ; (r, u, f)
+0x50fb30  matrix3__matrix3_sincos  func  vsdk\math            O ; ctor: default rows then matrix3__set_from_sincos(6 args)
+0x50fb80  matrix3__matrix3_angles  func  vsdk\math            O ; ctor: default rows then matrix3__set_from_angles(p, b, h)
 0x50fbc0  matrix3__multiply        func  vsdk\math\matrix.cpp   I ; this * m
 0x50fe20  matrix3__multiply_transposed func  vsdk\math\matrix.cpp   I ; this^T * m
 0x50ff50  matrix3__is_normalized   func  vsdk\math\matrix.cpp   I ; each row length within 5e-7 of 1
+0x50fff0  matrix3__matrix3_axis_angle func  vsdk\math            O ; ctor: default rows then matrix3__set_from_axis_angle(axis, angle)
 0x510020  matrix3__set_from_sincos func  vsdk\math\matrix.cpp   I ; (sin p, cos p, sin b, cos b, sin h, cos h)
 0x5100c0  matrix3__set_from_angles func  vsdk\math\matrix.cpp   I ; (p, b, h)
 0x510110  matrix3__set_from_axis_angle func  vsdk\math\matrix.cpp   I ; (axis, angle) via a half-angle quaternion
@@ -1979,10 +2055,28 @@
 0x512820  allocate_in_commonblock  func  memory.cpp             V ; Summoner 2 text "Common block is already locked."; PC heap-allocates (new at line 600)
 0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
+0x512930  file_get_path_string     func  vsdk\vfile           O ; (String* out, path_id): String(install_path) + file_path_table[id].dir, or install_path without its trailing separator for id 0
+0x5129e0  file_get_dir_string      func  vsdk\vfile           I ; (String* out, path_id): String of file_path_table[id].dir only (empty string 0x26b6388 for id 0)
+0x512a70  file_get_full_dir        func  vsdk\vfile           O ; (path_id, char* out): strcpy install_path, strcat the path's dir (or strip the trailing backslash for id 0), returns out
+0x512b30  file_make_path           func  vsdk\vfile           O ; (path_id, filename, char* out): install_path + dir + separator + filename after file_path_id_valid, 15 callers (screenshots, settings, eax props)
+0x512c00  file_make_cd_path        func  vsdk\vfile           O ; (path_id, filename, char* out): same as file_make_path from cd_root_path
+0x512cd0  file_path_id_valid       func  vsdk\vfile           O ; (id) true for 9999999 (default path id) or 0..0x1ff with a registered dir
+0x512d00  file_shutdown            func  vsdk\vfile           O ; atexit handler of file_init: closes the 0x8040-byte open-file slots, clears file_path_table, 0x533ef0, clears install_path/cd_root_path/file_inited
+0x512d60  file_init                func  vsdk\vfile           O ; (path, use_packfiles): install_path from arg or GetModuleFileNameA with trailing backslash, default zero vector/identity quaternion/identity matrix, packfile_init when arg2, atexit
+0x512e60  file_add_path            func  vsdk\vfile           O ; (dir, exts) returns the new path id, setup_data_paths registers "data", "data\ca"... with extension lists, Dash Faction rf::file_add_path(path, exts, search_on_cd)
+0x513080  file_remove_path         func  vsdk\vfile           O ; (id) clears file_path_table[id]
 0x5130a0  file_change_ext          func  vsdk\vfile             I ; (out, name, ext)
 0x513100  file_strip_ext           func  vsdk\vfile             I ; (out, name)
+0x513160  file_get_filename        func  vsdk\vfile           O ; (char* out, path): copies the part after the last backslash (strrchr 0x5c), or the whole path
+0x5131c0  file_get_ext             func  vsdk\vfile           V ; (name) strrchr '.', or empty string 0x26b638c, Dash Faction rf::file_get_ext(path)
+0x5131e0  file_make_path_dirs      func  vsdk\vfile           O ; (path_id): file_get_full_dir then file_make_dirs, used before writing savegames/player files
+0x513210  file_make_dirs           func  vsdk\vfile           O ; (path) recursive: strips the last component and recurses, then creates the directory (0x56f2d6)
+0x513280  file_delete_all          func  vsdk\vfile           I ; (path_id): _findfirst/_findnext over file_make_path(id, 0x5a77b8 pattern), File__delete of every non-directory, non-read-only file, returns count
 0x513370  vfile_raise_access_level func  -                    I ; "Group file access raised to level %d."
 0x513390  vfile_lower_access_level func  -                    I ; "Group file access lowered to level %d."
+0x5133b0  file_find_files          func  vsdk\vfile           I ; recursive directory scan with _findfirst/_findnext, file_strip_ext and a callback, allocating 0x38-byte entries, callers saveload_scan_saves, mp_char_scan_files, quicksave
+0x513710  file_exists_on_disk      func  vsdk\vfile           O ; (name, path_id): _stat of file_make_path == 0, false for path ids 9999999/9999998
+0x513770  file_delete              func  vsdk\vfile           O ; (name, path_id): if file_exists_on_disk, SetFileAttributesA(FILE_ATTRIBUTE_NORMAL) then remove
 0x513a20  FileReader__FileReader   func  vsdk\vfile             I ; {mode +0 (0 File, 1 memory, -1 none), File* +4, buffer +8, pos +0xC, size +0x10}
 0x513a30  FileReader__attach_memory func  vsdk\vfile             I ; (buffer, size)
 0x513a50  FileReader__attach_file  func  vsdk\vfile             I ; (File*)
@@ -2000,8 +2094,15 @@
 0x513d40  FileReader__read_vector  func  vsdk\vfile             I ; 12 bytes
 0x513da0  FileReader__read_quaternion func  vsdk\vfile             I ; 16 bytes
 0x513e00  FileReader__read_string  func  vsdk\vfile             I ; (buf, max): NUL-terminated
+0x513e60  file_set_cd_root         func  vsdk\vfile           O ; (path) strcpy into cd_root_path
+0x513fb0  file_is_absolute_path    func  vsdk\vfile           O ; (name) true for "X:..." or a leading / or backslash
+0x5140b0  file_find_free_slot      func  vsdk\vfile           O ; index of the first free 0x8040-byte open-file slot at 0x2694068, -1 if none
 0x5140d0  File__File               func  vsdk\vfile             O ; Dash Faction rf::File (0x114-byte object)
 0x5140f0  File__dtor               func  vsdk\vfile             O ; closes if open
+0x514100  File__check_flags        func  vsdk\vfile           O ; thiscall (mask): slot[this+0x110].flags & mask
+0x514120  File__check_version      func  vsdk\vfile           V ; thiscall (min_ver): slot version (+8) >= min_ver, Dash Faction File::check_version, called by every File__read_*
+0x514150  File__get_version        func  vsdk\vfile           O ; thiscall: slot version (+8)
+0x514170  File__set_version        func  vsdk\vfile           O ; thiscall (ver): slot version (+8) = ver, callers monster_layout_load, pathfinding_load_graph
 0x5141c0  File__find               func  vsdk\vfile             O ; (name, path_id); Dash Faction
 0x514630  File__open               func  vsdk\vfile             O ; (name, mode, path_id); Dash Faction
 0x514740  File__close              func  vsdk\vfile             O ; fclose or packfile_fclose
@@ -2010,6 +2111,8 @@
 0x5149f0  File__tell               func  vsdk\vfile             O ; Dash Faction File::tell
 0x514a10  File__eof                func  vsdk\vfile             I
 0x514a40  File__error              func  vsdk\vfile             O ; Dash Faction File::error
+0x514a70  File__is_open            func  vsdk\vfile           O ; thiscall: slot index (+0x110) >= 0
+0x514a80  File__delete             func  vsdk\vfile           O ; thiscall (name, path_id): File__find, -4 if not found, -3 if open, else remove(full name at +5), callers saveload_delete_save, script writers
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
@@ -2084,7 +2187,9 @@
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
 0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
 0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x520420  character_instance__render func  vsdk\ca\character_instance.cpp I ; thiscall (?, ?, params): setup_matrices_b, copies tint bytes +0xc9..cb, ca_render_set_instance, picks LOD mesh, ca_render_mesh
 0x5204d0  init_cmdline_param_nosound func  -                    O ; static initialiser: CmdLineParam__CmdLineParam(cmdline_param_nosound, "-nosound")
+0x520570  Sound__params_equal      func  -                    O ; (Sound*, a, b, c) floats +0x28/+0x34/+0x2c equal, used by sound_check_filename
 0x5205b0  snd_init                 func  -                    O ; checks cmdline_param_nosound, GetVersionEx, calls ds_init, inits group volumes and sound table, atexit(snd_close), RF snd_pc_init
 0x520680  snd_init_sounds          func  -                    O ; clears sounds[0x280] (0x40-byte Sound records at 0x2cb5458): sid=-1, name[0]=0
 0x5206c0  snd_init_group_volumes   func  -                    O ; sets 4 group volume floats at 0x2cb542c to 1.0 (RF snd_group_volume)
@@ -2118,8 +2223,12 @@
 0x521800  snd_get_frequency        func  -                    I ; forwards to ds_get_frequency
 0x521830  snd_get_format           func  -                    I ; snd_load then ds_get_format (rate, bits, channels)
 0x5218e0  snd_set_group_volume     func  -                    I ; forwards to ds_set_group_volume, called from options_leave
+0x521980  snd_get_sound            func  -                    O ; (handle) &sounds[handle] for 0..0x27f, else NULL
+0x5219a0  snd_file_exists          func  -                    O ; (path) File__find of the part after the last backslash with the default path id
 0x521a30  snd_get_sound_info       func  -                    O ; (handle, out) copies the 0x40-byte Sound record, RF snd_pc_get_by_id analogue
 0x521a60  sounds_parse_table       func  -                    O ; "sounds.tbl", "#Sounds Start" / "#Sounds End"
+0x521b10  sounds_parse_entry       func  -                    O ; (TextFile*, handle) quoted name (0x28 bytes), three floats (+0x2c, +0x28, +0x34), rolloff +0x30 = snd_calc_rolloff
+0x521b70  snd_get_rolloff          func  -                    O ; (handle) sounds[handle] +0x30 (snd_calc_rolloff result), 0.0 when invalid
 0x521b90  snd_is_ds3d_enabled      func  -                    O ; jmp ds_is_ds3d_enabled, RF snd_pc_is_ds3d_enabled
 0x521dd0  snd_calc_rolloff         func  -                    I ; float formula on (dist, min, max) used by sounds_parse_table
 0x521e00  snd_set_eax_environment  func  -                    O ; forwards name to ds_set_eax_environment
@@ -2139,10 +2248,25 @@
 0x522420  eax_load_props           func  -                    I ; fopen/fscanf-like/fclose counterpart of eax_save_props
 0x522580  eax_set_listener_props   func  -                    O ; IKsPropertySet::Set listener property 1 (ALLPARAMETERS, 0x38 bytes), called by eax_load_props
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
+0x523500  quaternion__make_identity func  vsdk\math            O ; (0, 0, 0, 1)
+0x523f80  vector2__len             func  vsdk\math            O ; sqrt(x*x + y*y), thiscall
+0x523fa0  vector2__len_sq          func  vsdk\math            O ; x*x + y*y, thiscall
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
 0x524270  vector3__normalized      func  vsdk\math              I
+0x524370  vector3__rotated         func  vsdk\math            O ; (out, matrix3*) returns new vector (dot rvec, dot uvec, dot fvec)
+0x5243d0  vector3__unrotated       func  vsdk\math            O ; (out, matrix3*) returns M^T v as a new vector
 0x524430  vector3__normalize       func  vsdk\math              I
 0x524470  vector3__normalize_length func  vsdk\math              I ; same body; callers use the returned length
+0x5244b0  vector3__normalize_safe  func  vsdk\math            O ; normalize, when length <= 0x57eb84 sets (1,0,0)
+0x524510  vector3__normalize_safe_length func  vsdk\math            O ; as vector3__normalize_safe but returns the original length (1.0 for the zero vector)
+0x524580  vector3__negate          func  vsdk\math            O ; x = -x, y = -y, z = -z
+0x5245a0  vector3__rotate          func  vsdk\math            O ; in place v = (v.rvec, v.uvec, v.fvec) with matrix3* arg (world to local)
+0x5245f0  vector3__unrotate        func  vsdk\math            O ; in place v = M^T v (x*rvec + y*uvec + z*fvec), local to world
+0x524640  vector3__zero            func  vsdk\math            O ; x = y = z = 0
+0x5248d0  vector3_normalized_dir   func  vsdk\math            O ; (out, a, b): out = a - b, then vector3__normalize_length, returns length (Volition vm_vec_normalized_dir)
+0x524910  vector3_near_equal       func  vsdk\math            O ; (a*, b*) each abs(a-b) component below epsilon 0x581930
+0x524960  vector3_normal           func  vsdk\math            O ; (out, p0, p1, p2): vector3_perp then vector3__normalize (Volition vm_vec_normal)
+0x524990  vector3_perp             func  vsdk\math            O ; (out, p0, p1, p2): cross product of two edge differences, unnormalized (Volition vm_vec_perp)
 0x5257a0  File__read_String_raw    func  vsdk\vfile           O ; uint16 length then bytes into a String object (String__free, String__alloc)
 0x525800  File__read_bool          func  vsdk\vfile           O ; version check, File__read 1 byte, returns value != 0 or default on error
 0x525850  File__read_int8          func  vsdk\vfile             I
@@ -2288,7 +2412,17 @@
 0x5356d0  gr_d3d_bitmap            func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535d10  gr_d3d_set_color         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535da0  gr_d3d_line              func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535fd0  gr_d3d_line_3d           func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of gr_line_3d, uses gr_color, gr_tint_enabled, gr_calc_depth
 0x5361a0  gr_d3d_tmapper           func  vsdk\gr\directx\gr_direct3d.cpp I
+0x5368a0  gr__Mode__Mode_invalid   func  vsdk\gr\gr.cpp       O ; thiscall, value = -1 (no valid mode), returns this
+0x5368b0  gr__Mode__operator_eq    func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode::operator==, compares the packed dword
+0x5368c0  gr__Mode__get_texture_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 0) & 0x1f
+0x5368d0  gr__Mode__get_color_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 5) & 0x1f
+0x5368e0  gr__Mode__get_alpha_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 10) & 0x1f
+0x5368f0  gr__Mode__get_alpha_blend func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 15) & 0x1f
+0x536900  gr__Mode__get_zbuffer_type func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 20) & 0x1f
+0x536910  gr__Mode__get_fog_type   func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 25) & 0x1f
+0x536930  gr__Mode__is_multitexture func  vsdk\gr\gr.cpp       O ; texture_source >= 4 (TEXTURE_SOURCE_CLAMP_1_WRAP_0 and up are the two-texture sources in Dash Faction)
 0x538660  init_cmdline_param_fb2   func  -                    O ; static initialiser: CmdLineParam "-fb2"
 0x5386b0  init_cmdline_param_vertexfog func  -                    O ; static initialiser: CmdLineParam "-vertexfog"
 0x538700  init_cmdline_param_rz    func  -                    O ; static initialiser: CmdLineParam "-rz"
@@ -2297,12 +2431,16 @@
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x539590  gr_d3d_begin_scene       func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::BeginScene
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
+0x53a170  d3d_pixel_format_masks_valid func  vsdk\gr\directx\gr_direct3d.cpp I ; (DDPIXELFORMAT*) walks the R/G/B (and alpha when DDPF_ALPHAPIXELS) masks bit by bit, caller gr_d3d_init_device
+0x53a4c0  d3d_enum_zbuffer_callback func  vsdk\gr\directx\gr_direct3d.cpp O ; EnumZBufferFormats callback: copies the 0x20-byte DDPIXELFORMAT when flags == DDPF_ZBUFFER (0x400) and stops
 0x53a4f0  gr_d3d_close             func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a5f0  gr_d3d_flip_surface      func  vsdk\gr\directx\gr_direct3d.cpp I ; gr_d3d_end_scene then primary surface Flip(NULL, DDFLIP_WAIT)
 0x53a610  gr_d3d_end_scene         func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::EndScene
 0x53a660  gr_d3d_flip              func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a7f0  gr_d3d_read_backbuffer   func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53a8c0  gr_d3d_set_fog           func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_set_fog back end: render states FOGENABLE (0x1c), fog mode/colour
+0x53aad0  gr_d3d_is_mode_supported func  vsdk\gr\directx\gr_direct3d.cpp O ; true if D3D multitexture flag 0x2dc6c90, else !gr__Mode__is_multitexture
+0x53aaf0  gr_d3d_get_video_memory_mb func  vsdk\gr\directx\gr_direct3d.cpp O ; returns 0x2dc6c98, set in gr_d3d_init_device next to "At least 8 MB of available video memory required."
 0x53ab00  gr_d3d_set_antialias     func  vsdk\gr\directx\gr_direct3d.cpp I ; render state 2 (ANTIALIAS) = bool ? 2 : 0, d3d back end of 0x5080c0
 0x53ab20  gr_d3d_set_gamma         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53ab80  gr_d3d_set_alpha_test    func  vsdk\gr\directx\gr_direct3d.cpp O ; render state ALPHAFUNC (0x19) = GREATER or ALWAYS, d3d back end of 0x508110
@@ -2322,17 +2460,31 @@
 0x53e480  CmdLineParam__free_arg   func  vsdk\os\cmdline.cpp    O
 0x53e4a0  CmdLineParam__found      func  vsdk\os\cmdline.cpp    O ; returns name_found (+0x14), as Dash Faction
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
+0x53e520  gr_line_3d               func  vsdk\gr              O ; (Vertex* a, Vertex* b, mode): rejects when codes AND, clips with 0x559350, projects, then the back end for gr_screen.mode (0x535fd0 D3D, 0x54b110 Glide, 0x54ff00 OpenGL)
+0x53e610  gr_line_3d_world         func  vsdk\gr              O ; (p0, p1, mode): gr_rotate_vertex both points into local vertices, then gr_line_3d
 0x53e680  init_ccmd_use_buffered_alpha_polys func  -                    O ; static initialiser: registers console command object ccmd_use_buffered_alpha_polys
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
+0x53e770  gr_poly                  func  vsdk\gr              O ; (n, verts, ...): clips with 0x559490, projects with gr_project_vertex, defers alpha-blended polys to the 0x545150.. buffer when Use_buffered_alpha_polys, Dash Faction gr::poly has the same role
+0x53eae0  gr_bitmap_3d_projected   func  vsdk\gr              I ; builds a screen-aligned quad around a projected vertex from bm_get_dimensions and matrix_scale, then gr_poly
+0x53f3b0  gr_bitmap_3d             func  vsdk\gr              I ; (pos, a, b, c): rotate + project a point, then 0x53eae0 when projected (camera-facing sprite)
+0x53f410  gr_bitmap_3d_oriented    func  vsdk\gr              I ; same entry pattern as gr_bitmap_3d but draws through 0x53edd0 (quad with gr_check_normal_facing)
 0x540970  character_add_skeleton   func  vsdk\ca\character.cpp  O ; "No more room for skeletons in character %s -- see allender"; from the preload index or a File, then skeleton_read
+0x540b80  character_free_skeletons func  vsdk\ca\character.cpp O ; thiscall: unless flag 8 at +0x44, deletes the +0x48 skeletons at +0x54 (skeleton__scalar_deleting_dtor), count = 0
+0x540c10  character_lock_skeleton_count func  vsdk\ca\character.cpp I ; thiscall: once (flag 0x10 at +0x44) saves the skeleton count +0x48 into +0x4c
 0x540df0  character_load_shadow    func  vsdk\ca\character.cpp  O ; "ATTEMPTING TO LOAD", "SHADOW LOADED" / "SHADOW FAILED TO LOAD"; vim_load
+0x541160  character_reload_mesh    func  vsdk\ca\character.cpp I ; saves texture handles (vim_save_bitmaps), resets the character mempool, character_load_shadow, restores them, caller 0x4628a0
+0x541240  character_replace_texture func  vsdk\ca\character.cpp O ; thiscall (index, file): bm_replace_file on texture[index] of the mesh at +0x1e4, caller character_set_underwear_textures
+0x541270  character_get_lod_index  func  vsdk\ca\character.cpp O ; thiscall: index of the current mesh +0x1e4 in the two LOD meshes at +0x1e8, -1 if none
 0x541290  ca_init                  func  vsdk\ca\character.cpp O ; resets counters, StringPool 0x2dc7070 (0x1400 default), clears ca_preload table and 200 character slots (0x1f8 bytes at 0x2dc7088)
+0x541300  character_clear          func  vsdk\ca\character.cpp O ; (Character*) zeroes name, skeleton count, mesh slots +0x1e8..0x1f0 and flags +0x44, callers ca_init, character_unload, character_create_base
 0x541330  ca_close                 func  vsdk\ca\character.cpp O ; character_unload on loaded slots (flag +0x44 bit 0), frees string pool
 0x541360  character_unload         func  vsdk\ca\character.cpp O ; decrements loaded count, deletes skeletons (+0x48 count, +0x54 array), frees +0x1e8 items
 0x541400  ca_find_character        func  vsdk\ca\character.cpp O ; _stricmp name over 200 character slots, returns pointer or NULL
 0x541450  character_load           func  vsdk\ca\character.cpp  O ; "Couldn't load character %s in charanim.tbl file."; reloads bitmaps if needed
 0x541500  character_create_base    func  vsdk\ca\character.cpp  O ; "No more base character room. Please up the MAX_BASE_CHARACTERS constant."
+0x541700  ca_preload_alloc_slot    func  vsdk\ca\character.cpp O ; first free 0x30-byte entry of the table 0x2ddfa48..ca_preload_loaded, NULL when full, caller character_create_base
 0x541740  character_release        func  vsdk\ca\character.cpp O ; character_unload then clears loaded flag bit 0
+0x541760  character_release_all    func  vsdk\ca\character.cpp O ; character_release on every used character (flag 1) that is not locked (flag 2) in the 200-entry table
 0x541790  ca_load_preload_index    func  vsdk\ca\character.cpp  I ; reads count, size, 0x48-byte name entries and one data blob into 0x2de20c4
 0x5418f0  ca_preload_find          func  vsdk\ca\character.cpp  I ; (name, &offset, &size) in the preload index
 0x541980  skeleton__scalar_deleting_dtor func  vsdk\ca\skeleton.cpp O ; skeleton__dtor then operator_delete if flag 1
@@ -2349,16 +2501,40 @@
 0x543430  vim_read                 func  vsdk\ca\skeleton.cpp   I ; mesh body: vertices, faces, materials; textures through bm_load
 0x543920  vim_load                 func  vsdk\ca\skeleton.cpp   O ; "VIF LOADING: %s", "Unable to load vim: %s"
 0x543a80  vim_reload_bitmaps       func  vsdk\ca\skeleton.cpp   I ; "RE-LOADING bitmaps for %s" (printed by character_load)
+0x543bd0  vim_save_bitmaps         func  vsdk\ca\skeleton.cpp I ; (vim*) copies its +0x28 texture handles (+0x10) into 0x2ee4524, count in 0x2ee4574
+0x543c00  vim_restore_bitmaps      func  vsdk\ca\skeleton.cpp I ; (vim*) copies the handles saved by vim_save_bitmaps back to +0x10
+0x543c20  vim_find_tag             func  vsdk\ca\skeleton.cpp I ; (vim*, name) index of the 0x60-byte entry (array +0x60, count +0x64) whose name matches (_stricmp), -1
+0x543cd0  vim_bitmaps_loaded       func  vsdk\ca\skeleton.cpp O ; (vim*) true when every texture handle (+0x10, count +0x28) is > 0, caller character_load
 0x543d50  skeleton_add             func  vsdk\ca\skeleton.cpp   O ; "Too many skeletons"
 0x543e10  skeleton__dtor           func  vsdk\ca\skeleton.cpp I ; frees skeleton arrays, only called by skeleton__scalar_deleting_dtor
 0x544090  skeleton_read            func  vsdk\ca\skeleton.cpp   O ; "FILE ISN'T MVFREDUCED AND HAS MORPHING!!!", "Skeletons using too much memory"
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
+0x544ba0  StringPool__Allocate     func  vsdk\os\stringpool.cpp O ; thiscall (max_length): pool = operator_new(max_length), allocated = 1, length = count = 0
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
+0x544be0  StringPool__Release      func  vsdk\os\stringpool.cpp V ; Summoner 2 StringPool::Release: delete pool if allocated, zero pool/allocated/max_length/length/count
 0x544c10  StringPool__GetLength    func  vsdk\os\stringpool.cpp O
 0x544c40  StringPool__Add          func  vsdk\os\stringpool.cpp V ; Summoner 2; "Length of string pool exceeded"
+0x544cd0  StringPool__AddUnique    func  vsdk\os\stringpool.cpp V ; Summoner 2 StringPool::AddUnique: _stricmp over the count strings, returns the match, else StringPool__Add
+0x544d40  StringPool__AddQuoted    func  vsdk\os\stringpool.cpp V ; Summoner 2 StringPool::AddQuoted(parser): TextFile__ParseString between quotes (0x100 max) then StringPool__Add, caller spells_parse_table
+0x544d80  StringPool__AddUniqueQuoted func  vsdk\os\stringpool.cpp O ; TextFile__ParseString between quotes then StringPool__AddUnique, callers characterinfo_parse_table/_name
+0x544dc0  StringPool__StringPool_default func  vsdk\os\stringpool.cpp V ; Summoner 2 StringPool(): zeroes all five fields
 0x544de0  StringPool__StringPool   func  vsdk\os\stringpool.cpp I ; inline ctor (pool, max_length, allocated) -> Init
+0x544e00  StringPool__StringPool_size func  vsdk\os\stringpool.cpp O ; ctor (max_length) -> StringPool__Allocate, localize_init_string_pool
+0x544e20  StringPool__dtor         func  vsdk\os\stringpool.cpp V ; Summoner 2 ~StringPool() { Release(), }: jmp StringPool__Release, atexit handlers of the global pools jump here
 0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
+0x5461f0  sound_emitter_reset      func  -                    O ; (idx) clears flags +0x50, handles +8/+0xc = -1, zeroes vectors +0x24/+0x3c of the 0x74-byte entry at 0x2f07768
+0x546230  sound_emitter_find_free  func  -                    O ; index of the first emitter without flag 1 (128 entries), -1 if none, caller sound_create_emitter
+0x5462b0  sound_emitter_stop       func  -                    O ; (idx, fade_ms) clears playing flag 8, snd_stop_fade or snd_stop on handle +0xc, num playing (0x2f0b168)--
+0x546320  sound_emitter_play       func  -                    I ; (idx) starts the emitter sound with snd_play_3d, snd_play or snd_play_looping from snd_get_sound_info
+0x546440  sound_emitter_update_volume func  -                    I ; (idx) snd_calc_volume_3d, stops when inaudible, else snd_set_volume (or starts it)
+0x546500  sound_emitter_update_pan func  -                    I ; (idx) snd_calc_pan then snd_set_pan
+0x546580  sound_emitter_update_frequency func  -                    I ; (idx) Doppler-style factor from 0x5213b0/0x521310, snd_set_frequency
+0x546600  sound_emitters_init      func  -                    O ; called by snd_init: resets all 128 emitters, enabled flag 0x2f0b16c, empty list
 0x5466f0  sound_create_emitter     func  -                    I ; "Failed to create sound emitter since sound file missing: %s"
+0x5467c0  sound_emitter_delete     func  -                    O ; (idx, fade) sound_emitter_stop, unlinks it from the emitter list, clears flags, sound_emitter_reset
+0x546b20  sound_emitter_pause      func  -                    O ; (idx) when used: flag 2 set, +0x10 = 0, sound_emitter_stop(idx, 0)
+0x546b80  sound_emitter_unpause    func  -                    O ; (idx) clears flag 2
+0x546c20  sound_emitter_get_sound  func  -                    I ; (idx) +8 of the emitter (sound handle passed at creation), -1 when out of range
 0x547390  glide_unload_dll         func  vsdk\gr\glide\gr_glide.cpp O ; FreeLibrary(glide2x.dll handle 0x2f0e9b0), called by gr_glide_close
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
 0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
@@ -2369,16 +2545,21 @@
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549cf0  glide_clip_cursor        func  vsdk\gr\glide\gr_glide.cpp O ; ClipCursor(&rect 0x2f0f1f8) or ClipCursor(NULL)
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
+0x54a0b0  gr_glide_is_mode_supported func  vsdk\gr\glide\gr_glide.cpp O ; true unless the mode is multitexture and flag 0x2f132cd is set (cleared when fewer than 2 TMUs)
+0x54a0d0  gr_glide_get_video_memory_mb func  vsdk\gr\glide\gr_glide.cpp O ; returns 0x2f0f208, set in gr_glide_init (>= 12 changes a texture option)
 0x54a5b0  gr_glide_set_viewport    func  vsdk\gr\glide\gr_glide.cpp I
 0x54a600  gr_glide_clear           func  vsdk\gr\glide\gr_glide.cpp I
 0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
+0x54a6b0  gr_glide_deactivate      func  vsdk\gr\glide\gr_glide.cpp O ; unless dual monitors (gr_screen +0x14): glide_grSstControl(2 = GR_CONTROL_DEACTIVATE), counter 0x2f132ac++
 0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
 0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
 0x54a800  gr_glide_bitmap          func  vsdk\gr\glide\gr_glide.cpp I
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
+0x54b110  gr_glide_line_3d         func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of gr_line_3d, calls glide_grDrawLine
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
 0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
 0x54b9b0  gr_glide_set_fog         func  vsdk\gr\glide\gr_glide.cpp O ; gr_set_fog back end: grFogTable / grFogColorValue / grFogMode pointers
+0x54ba90  gr_glide_set_antialias   func  vsdk\gr\glide\gr_glide.cpp O ; empty Glide target of gr_set_antialias
 0x54baa0  gr_glide_set_alpha_test  func  vsdk\gr\glide\gr_glide.cpp O ; grAlphaTestFunction(GREATER or ALWAYS), glide back end of 0x508110
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
 0x54bc60  gr_d3d_tcache_flush      func  vsdk\gr\directx\gr_direct3d.cpp I
@@ -2403,10 +2584,15 @@
 0x54fa30  gr_opengl_bitmap         func  vsdk\gr\opengl\gr_opengl.cpp O ; textured quad with glDrawArrays
 0x54fe10  gr_opengl_set_color      func  vsdk\gr\opengl\gr_opengl.cpp O ; empty
 0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
+0x54ff00  gr_opengl_line_3d        func  vsdk\gr\opengl\gr_opengl.cpp I ; OpenGL target of gr_line_3d (mode 0x68)
 0x550080  gr_opengl_tmapper        func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5503c0  gr_opengl_set_fog        func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_set_fog back end: glEnable/glDisable, glFogi, glFogfv, glHint
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
+0x550630  gr_opengl_set_antialias  func  vsdk\gr\opengl\gr_opengl.cpp O ; empty OpenGL target of gr_set_antialias
+0x5520d0  Crc32__init_table        func  -                    O ; builds the 256-entry CRC-32 table (polynomial 0xedb88320) at 0x2f136e8, sets 0x2f13ae8
+0x552120  Crc32__Crc32             func  -                    O ; thiscall value = 0, used by name_hash_nocase and the true/false parser
+0x552130  Crc32__update            func  -                    O ; thiscall (buf, len): table-driven CRC-32 over len bytes (builds the table on first use), returns the value
 0x552310  ui_inputbox__process     func  vsdk\ui              O ; vtable slot 5: typing, cursor
 0x5526a0  ui_inputbox__vfunc0      func  vsdk\ui              I ; ui_inputbox vtable slot 0 (destructor)
 0x5526b0  ui_inputbox__ui_inputbox func  vsdk\ui              O ; constructor (vtable 0x581f1c); used by ui_parse_inputbox
@@ -2469,6 +2655,11 @@
 0x557b70  String__from_hex         func  -                    O ; sprintf "0x%x" into a String
 0x557c00  String__from_float       func  -                    O ; sprintf "%.*f" into a String
 0x557c90  String__format_bytes     func  -                    O ; " bytes" / " KB" / " MB" size formatting
+0x5590e0  gr_clip_edge             func  vsdk\gr              I ; creates the intersection vertex of an edge with one clip plane (uses gr_clip_alloc_temp_vertex), callers gr_clip_line, gr_clip_plane
+0x559330  gr_clip_alloc_temp_vertex func  vsdk\gr              O ; returns the next 0x30-byte vertex of the pool 0x2f53b00 (count 0x2f54700), marks flags +0x19 = 4 (temporary)
+0x559350  gr_clip_line             func  vsdk\gr              I ; (Vertex** a, Vertex** b, codes) clips a line against each set plane bit with gr_clip_edge, caller gr_line_3d
+0x5593a0  gr_clip_plane            func  vsdk\gr              I ; (plane bit, src list, dst list, n, codes) Sutherland-Hodgman pass for one plane, caller gr_clip_polygon
+0x559490  gr_clip_polygon          func  vsdk\gr              I ; loops plane bits 1..0x10 that are set in the or-codes, calls gr_clip_plane and swaps lists, caller gr_poly
 0x559ed0  ftp_get_create           func  -                    O ; FTP getter ctor: fopen local file, socket/bind/listen, "anonymous" / "pxouser@pxo.net", parses "ftp:" URL (FreeSpace 2 inetfile CFtpGet layout)
 0x55a150  ftp_get_destroy          func  -                    O ; shutdown + closesocket of control/data sockets
 0x55a1c0  ftp_get_status           func  -                    I ; returns state field +8 (getter group at 55a1c0/55a1d0/55a1e0)
@@ -2554,6 +2745,28 @@
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x562f60  mesh_check_materials     func  -                    I ; "Face is missing a material -- mesh %s"
+0x565660  jpeg_CreateCompress      func  -                    O ; IJG jcapimin.c: called as (cinfo, 62 = JPEG_LIB_VERSION, 0x178 = sizeof) by jpeg_write_file, calls jinit_memory_mgr
+0x565720  jpeg_destroy_compress    func  -                    O ; IJG: jpeg_destroy(cinfo), last call of jpeg_write_file
+0x565730  jpeg_abort_compress      func  -                    O ; IJG: jpeg_abort(cinfo), follows jpeg_destroy_compress without padding
+0x565740  jpeg_suppress_tables     func  -                    O ; IJG: sets sent_table on every quant and huffman table, caller jpeg_start_compress
+0x565790  jpeg_finish_compress     func  -                    O ; IJG: last call before fclose in jpeg_write_file
+0x5659c0  jpeg_start_compress      func  -                    O ; IJG jcapistd.c: (cinfo, TRUE) from jpeg_write_file, jpeg_suppress_tables(FALSE) then jinit_compress_master
+0x565a30  jpeg_write_scanlines     func  -                    O ; IJG: called after jpeg_start_compress in jpeg_write_file
+0x565bb0  jpeg_add_quant_table     func  -                    O ; IJG: allocates through jpeg_alloc_quant_table, scales and clamps each entry
+0x565c90  jpeg_set_linear_quality  func  -                    O ; IJG: jpeg_add_quant_table with the standard luminance/chrominance tables 0x582348/0x582448
+0x565cd0  jpeg_quality_scaling     func  -                    O ; IJG: q <= 0 -> 1, > 100 -> 100, q < 50 ? 5000/q : 200 - 2q
+0x565d10  jpeg_set_quality         func  -                    O ; IJG: jpeg_quality_scaling then jpeg_set_linear_quality
+0x565d30  jpeg_set_defaults        func  -                    O ; IJG jcparam.c: calls jpeg_set_quality, std_huff_tables, jpeg_default_colorspace
+0x565e30  std_huff_tables          func  -                    O ; IJG jcparam.c: four add_huff_table calls with the standard bits/val tables 0x582548..0x582654
+0x565e90  add_huff_table           func  -                    O ; IJG: jpeg_alloc_huff_table then copies bits and huffval
+0x565f30  jpeg_default_colorspace  func  -                    O ; IJG: switch on in_color_space, then jpeg_set_colorspace (0x565fb0)
+0x5662a0  jpeg_stdio_dest          func  -                    O ; IJG jdatadst.c: (cinfo, FILE*) right after jpeg_CreateCompress in jpeg_write_file, its term method uses fwrite
+0x5663b0  jpeg_std_error           func  -                    O ; IJG libjpeg jerror.c: installs error_exit/emit_message/output_message/format_message/reset_error_mgr, message table 0x5826f8, last code 0x7b, first call in jpeg_write_file
+0x566400  jpeg_error_exit          func  -                    O ; IJG error_exit method stored at err+0 by jpeg_std_error
+0x566420  jpeg_output_message      func  -                    O ; IJG output_message method stored at err+8 by jpeg_std_error
+0x566460  jpeg_emit_message        func  -                    O ; IJG emit_message method stored at err+4 by jpeg_std_error
+0x5664a0  jpeg_format_message      func  -                    O ; IJG format_message method stored at err+0xc by jpeg_std_error
+0x566550  jpeg_reset_error_mgr     func  -                    O ; IJG reset_error_mgr method stored at err+0x10 by jpeg_std_error
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
 0x566ab0  snd_stream_stop          func  -                    O ; Stop buffer of a stream slot, kill its timer
 0x566b60  snd_stream_service       func  -                    I ; per-stream refill: 5665d0 position, 566630 read, 566820, 566970
@@ -2574,6 +2787,11 @@
 0x567350  wav_read                 func  -                    O ; mmioGetInfo/mmioSetInfo buffered read
 0x567410  wav_close                func  -                    O ; mmioClose
 0x567430  jinit_memory_mgr         func  -                    I ; IJG libjpeg memory manager init: "JPEGMEM" env var, "%ld%c" parse
+0x568040  jpeg_abort               func  -                    O ; IJG jcomapi.c: mem->free_pool (vtbl +0x24) then global_state = 200 (DSTATE_START) or 100 (CSTATE_START)
+0x568080  jpeg_destroy             func  -                    O ; IJG jcomapi.c: mem->self_destruct (vtbl +0x28), mem = NULL, global_state = 0
+0x5680a0  jpeg_alloc_quant_table   func  -                    O ; IJG jcomapi.c: alloc_small through cinfo->mem, caller jpeg_add_quant_table
+0x5680c0  jpeg_alloc_huff_table    func  -                    O ; IJG jcomapi.c: alloc_small through cinfo->mem, caller add_huff_table
+0x5689d0  jinit_compress_master    func  -                    O ; IJG jcinit.c: chains the compressor module initialisers, caller jpeg_start_compress
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56cebe  tolower                  func  crt                    O ; C runtime
 0x56d02c  fclose                   func  crt                    O ; C runtime
@@ -2699,6 +2917,7 @@
 0x59f128  level_script_table       data:level_script_info[51] -                    O ; 0x40-byte records: name, init, frame, leave, use, +0x14 (unused), action, load steps, music name
 0x5a4c4c  Random_encounters_enabled data:bool -                      I ; set by console command "random_encounters" (toggles); type inferred
 0x5a5734  mouse_use_cursor         data:int vsdk\os\mouse          I ; 1 when DirectInput is unavailable
+0x5a5738  mouse_double_click_time  data:int vsdk\os\mouse        I ; ms timeout passed to RealtimeTimer__SetTimeout by mouse_mark_button for double-click detection
 0x5a573c actual_frametime         data:float           frametime.cpp     V
 0x5a5740 reported_frametime       data:float           frametime.cpp     V
 0x5a5744 fps                      data:float           frametime.cpp     V
@@ -2954,6 +3173,7 @@
 0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
 0x257f028 mouse_dy                 data:int vsdk\os\mouse          I
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
+0x257f031  keep_mouse_centered      data:bool vsdk\os\mouse        V ; Dash Faction rf::keep_mouse_centered is mouse_initialized+0x10, same as here (mouse_inited 0x257f021)
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
 0x257f088 frames_rendered         data:int             frametime.cpp     V
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
@@ -3026,10 +3246,27 @@
 0x25db3e4 Console_commands         data:console_command*[300] console.cpp            V ; Summoner 2 name; kept sorted by name
 0x25db894 token                    data:char[128] console.cpp            O
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
+0x2682a80  gr_eye_pos               data:vector3 vsdk\gr              O ; untransformed camera position copied by gr_setup_3d, Dash Faction gr::eye_pos
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
+0x26924a8  gr_view_pos              data:vector3 vsdk\gr              O ; viewer position (instance-relative), set by gr_setup_3d, saved/transformed by gr_start_instance, Dash Faction gr::view_pos
+0x26924d8  gr_view_matrix           data:matrix3 vsdk\gr              O ; viewer orientation (instance-relative), Dash Faction gr::view_matrix
+0x2692500  gr_instance_stack        data:gr_instance_entry[] vsdk\gr              O ; 0x64-byte entries: +0 lighting flag, +4 view_pos, +0x10 view_matrix, +0x34 light_base, +0x40 light_matrix
+0x26927c0  gr_eye_matrix            data:matrix3 vsdk\gr              O ; untransformed camera orientation copied by gr_setup_3d, Dash Faction gr::eye_matrix
+0x26927e8  gr_projection_ymul       data:float vsdk\gr              I ; clip_height / 2, sy = ymul * (1 - y/z) + offset_y
+0x26927f0  gr_light_base            data:vector3 vsdk\gr              O ; zeroed by gr_setup_3d, transformed by gr_start_instance when lighting, Dash Faction gr::light_base
+0x2692800  gr_light_matrix          data:matrix3 vsdk\gr              O ; identity in gr_setup_3d, multiplied by instance orient, Dash Faction gr::light_matrix
+0x2692824  gr_projection_xmul       data:float vsdk\gr              I ; clip_width / 2, sx = xmul * (1 + x/z) + offset_x in gr_project_vertex
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
+0x2692d34  gr_one_over_matrix_scale_z data:float vsdk\gr              O ; 1 / matrix_scale.z set by gr_setup_3d, Dash Faction gr::one_over_matrix_scale_z
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
+0x2692e78  gr_matrix_scale          data:vector3 vsdk\gr              O ; projection scale (x,y,z) computed by gr_setup_3d from fov and aspect, Dash Faction gr::matrix_scale
+0x2692e84  gr_far_clip_enabled      data:bool vsdk\gr              O ; set by gr_set_far_clip, enables clip code 1 in gr_code_point
+0x2692e88  gr_far_clip_dist         data:float vsdk\gr              O ; dist * Gr_level_fog_multiplier from gr_set_far_clip, also clamps the D3D far plane in gr_setup_3d
+0x2692e8c  gr_far_clip_z            data:float vsdk\gr              O ; gr_far_clip_dist * matrix_scale.z (gr_setup_frustum), vertices with z beyond get clip code 1
+0x2692e94  gr_instance_depth        data:int vsdk\gr              O ; zeroed by gr_setup_3d, ++ in gr_start_instance, -- in gr_stop_instance
+0x2692ea0  identity_matrix          data:matrix3 vsdk\math            O ; built from rows (1,0,0),(0,1,0),(0,0,1) by the static init at 0x50f9e0, Dash Faction rf::identity_matrix
+0x2692ec8  identity_matrix43        data:matrix43 vsdk\math            I ; static init at 0x50fa40: identity rotation, zero position
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
@@ -3039,13 +3276,19 @@
 0x2693050 Common_block_index       data:int memory.cpp             V ; Summoner 2 name
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 
+0x2693068  file_path_table          data:file_path_entry[0x200] vsdk\vfile           O ; 8-byte entries {dir, exts} indexed by path id (file_path_id_valid bound 0x200)
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
+0x26b637c  file_inited              data:bool vsdk\vfile           I ; set to 1 at the end of file_init
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
+0x2cb5458  sounds                   data:Sound[0x280] -                    O ; 0x40-byte sound table filled by sounds_parse_table, Dash Faction rf::sounds (same 0x40 size)
+0x2cbf4c8  file_identity_quaternion data:quaternion vsdk\vfile           I ; identity set by file_init, default argument of File__read_quaternion
+0x2cbf4d8  file_zero_vector         data:vector3 vsdk\vfile           I ; zeroed by file_init, default argument of File__read_vector
+0x2cbf518  file_default_matrix      data:matrix3 vsdk\vfile           V ; matrix3__make_identity in file_init, Dash Faction rf::file_default_matrix (default of read_matrix)
 0x2cbfcc4  ui_current_gadget        data:void* vsdk\ui              I ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture)
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
@@ -3065,6 +3308,8 @@
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
+0x2dc6c40  d3d_device               data:IDirect3DDevice7* vsdk\gr\directx\gr_direct3d.cpp O ; SetRenderState vtbl +0x50 in gr_d3d_set_render_state, BeginScene/EndScene in gr_d3d_begin_scene/end_scene
+0x2dc6c98  gr_d3d_video_memory_mb   data:int vsdk\gr\directx\gr_direct3d.cpp O ; video memory in MB, checked against 8 in gr_d3d_init_device
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
@@ -3072,12 +3317,134 @@
 0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
+0x2dc7088  ca_characters            data:Character[200] vsdk\ca\character.cpp O ; 0x1f8-byte entries: +0 name, +0x44 flags, +0x48 skeleton count, +0x54 skeletons, +0x1e4 mesh, +0x1e8 LOD meshes
 0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
 
 0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
 0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
 0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
 
+0x2f07768  sound_emitters           data:sound_emitter[128] -                    O ; 0x74-byte entries: +0 next, +4 prev, +8 sound, +0xc playing handle, +0x24/+0x3c vectors, +0x50 flags (1 used, 2 paused, 8 playing)
+0x2f0b168  sound_emitters_num_playing data:int -                    O ; ++/-- by sound_emitter_play / sound_emitter_stop
+0x2f0b16c  sound_emitters_enabled   data:bool -                    I ; tested first by sound_emitter_pause/unpause/delete
+0x2f0e9a8  glide_grCheckForRoom     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grCheckForRoom" stored by glide_load_dll (GetProcAddress)
+0x2f0e9ac  glide_guTexGetMipMapInfo data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexGetMipMapInfo" stored by glide_load_dll (GetProcAddress)
+0x2f0e9b0  glide_dll_handle         data:HMODULE vsdk\gr\glide\gr_glide.cpp O ; LoadLibraryA("glide2x.dll") result in glide_load_dll
+0x2f0e9b4  glide_grDrawLine         data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawLine" stored by glide_load_dll (GetProcAddress)
+0x2f0e9b8  glide_grDrawPlanarPolygon data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawPlanarPolygon" stored by glide_load_dll (GetProcAddress)
+0x2f0e9bc  glide_grDrawPlanarPolygonVertexList data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawPlanarPolygonVertexList" stored by glide_load_dll (GetProcAddress)
+0x2f0e9c0  glide_grDrawPoint        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawPoint" stored by glide_load_dll (GetProcAddress)
+0x2f0e9c4  glide_grDrawPolygon      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawPolygon" stored by glide_load_dll (GetProcAddress)
+0x2f0e9c8  glide_grDrawPolygonVertexList data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawPolygonVertexList" stored by glide_load_dll (GetProcAddress)
+0x2f0e9cc  glide_grDrawTriangle     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDrawTriangle" stored by glide_load_dll (GetProcAddress)
+0x2f0e9d0  glide_guDrawTriangleWithClip data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guDrawTriangleWithClip" stored by glide_load_dll (GetProcAddress)
+0x2f0e9d4  glide_grBufferClear      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grBufferClear" stored by glide_load_dll (GetProcAddress)
+0x2f0e9d8  glide_grBufferNumPending data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grBufferNumPending" stored by glide_load_dll (GetProcAddress)
+0x2f0e9dc  glide_grBufferSwap       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grBufferSwap" stored by glide_load_dll (GetProcAddress)
+0x2f0e9e0  glide_grRenderBuffer     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grRenderBuffer" stored by glide_load_dll (GetProcAddress)
+0x2f0e9e4  glide_grErrorSetCallback data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grErrorSetCallback" stored by glide_load_dll (GetProcAddress)
+0x2f0e9e8  glide_grSstIdle          data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstIdle" stored by glide_load_dll (GetProcAddress)
+0x2f0e9ec  glide_grSstVideoLine     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstVideoLine" stored by glide_load_dll (GetProcAddress)
+0x2f0e9f0  glide_grSstVRetraceOn    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstVRetraceOn" stored by glide_load_dll (GetProcAddress)
+0x2f0e9f4  glide_grSstIsBusy        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstIsBusy" stored by glide_load_dll (GetProcAddress)
+0x2f0e9f8  glide_grSstWinOpen       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstWinOpen" stored by glide_load_dll (GetProcAddress)
+0x2f0e9fc  glide_grSstWinClose      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstWinClose" stored by glide_load_dll (GetProcAddress)
+0x2f0ea00  glide_grSstControl       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstControl" stored by glide_load_dll (GetProcAddress)
+0x2f0ea04  glide_grSstQueryHardware data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstQueryHardware" stored by glide_load_dll (GetProcAddress)
+0x2f0ea08  glide_grSstQueryBoards   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstQueryBoards" stored by glide_load_dll (GetProcAddress)
+0x2f0ea0c  glide_grSstOrigin        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstOrigin" stored by glide_load_dll (GetProcAddress)
+0x2f0ea10  glide_grSstSelect        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstSelect" stored by glide_load_dll (GetProcAddress)
+0x2f0ea14  glide_grSstScreenHeight  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstScreenHeight" stored by glide_load_dll (GetProcAddress)
+0x2f0ea18  glide_grSstScreenWidth   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstScreenWidth" stored by glide_load_dll (GetProcAddress)
+0x2f0ea1c  glide_grSstStatus        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstStatus" stored by glide_load_dll (GetProcAddress)
+0x2f0ea20  glide_grSstPerfStats     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstPerfStats" stored by glide_load_dll (GetProcAddress)
+0x2f0ea24  glide_grSstResetPerfStats data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSstResetPerfStats" stored by glide_load_dll (GetProcAddress)
+0x2f0ea28  glide_grResetTriStats    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grResetTriStats" stored by glide_load_dll (GetProcAddress)
+0x2f0ea2c  glide_grTriStats         data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTriStats" stored by glide_load_dll (GetProcAddress)
+0x2f0ea30  glide_grAlphaBlendFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAlphaBlendFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0ea34  glide_grAlphaCombine     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAlphaCombine" stored by glide_load_dll (GetProcAddress)
+0x2f0ea38  glide_grAlphaControlsITRGBLighting data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAlphaControlsITRGBLighting" stored by glide_load_dll (GetProcAddress)
+0x2f0ea3c  glide_grAlphaTestFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAlphaTestFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0ea40  glide_grAlphaTestReferenceValue data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAlphaTestReferenceValue" stored by glide_load_dll (GetProcAddress)
+0x2f0ea44  glide_grChromakeyMode    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grChromakeyMode" stored by glide_load_dll (GetProcAddress)
+0x2f0ea48  glide_grChromakeyValue   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grChromakeyValue" stored by glide_load_dll (GetProcAddress)
+0x2f0ea4c  glide_grClipWindow       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grClipWindow" stored by glide_load_dll (GetProcAddress)
+0x2f0ea50  glide_grColorCombine     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grColorCombine" stored by glide_load_dll (GetProcAddress)
+0x2f0ea54  glide_grColorMask        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grColorMask" stored by glide_load_dll (GetProcAddress)
+0x2f0ea58  glide_grCullMode         data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grCullMode" stored by glide_load_dll (GetProcAddress)
+0x2f0ea5c  glide_grConstantColorValue data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grConstantColorValue" stored by glide_load_dll (GetProcAddress)
+0x2f0ea60  glide_grConstantColorValue4 data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grConstantColorValue4" stored by glide_load_dll (GetProcAddress)
+0x2f0ea64  glide_grDepthBiasLevel   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDepthBiasLevel" stored by glide_load_dll (GetProcAddress)
+0x2f0ea68  glide_grDepthBufferFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDepthBufferFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0ea6c  glide_grDepthBufferMode  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDepthBufferMode" stored by glide_load_dll (GetProcAddress)
+0x2f0ea70  glide_grDepthMask        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDepthMask" stored by glide_load_dll (GetProcAddress)
+0x2f0ea74  glide_grDisableAllEffects data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDisableAllEffects" stored by glide_load_dll (GetProcAddress)
+0x2f0ea78  glide_grDitherMode       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grDitherMode" stored by glide_load_dll (GetProcAddress)
+0x2f0ea7c  glide_grFogColorValue    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grFogColorValue" stored by glide_load_dll (GetProcAddress)
+0x2f0ea80  glide_grFogMode          data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grFogMode" stored by glide_load_dll (GetProcAddress)
+0x2f0ea84  glide_grFogTable         data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grFogTable" stored by glide_load_dll (GetProcAddress)
+0x2f0ea88  glide_grGammaCorrectionValue data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGammaCorrectionValue" stored by glide_load_dll (GetProcAddress)
+0x2f0ea8c  glide_grSplash           data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grSplash" stored by glide_load_dll (GetProcAddress)
+0x2f0ea90  glide_grTexCalcMemRequired data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexCalcMemRequired" stored by glide_load_dll (GetProcAddress)
+0x2f0ea94  glide_grTexTextureMemRequired data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexTextureMemRequired" stored by glide_load_dll (GetProcAddress)
+0x2f0ea98  glide_grTexMinAddress    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexMinAddress" stored by glide_load_dll (GetProcAddress)
+0x2f0ea9c  glide_grTexMaxAddress    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexMaxAddress" stored by glide_load_dll (GetProcAddress)
+0x2f0eaa0  glide_grTexNCCTable      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexNCCTable" stored by glide_load_dll (GetProcAddress)
+0x2f0eaa4  glide_grTexSource        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexSource" stored by glide_load_dll (GetProcAddress)
+0x2f0eaa8  glide_grTexClampMode     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexClampMode" stored by glide_load_dll (GetProcAddress)
+0x2f0eaac  glide_grTexCombine       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexCombine" stored by glide_load_dll (GetProcAddress)
+0x2f0eab0  glide_grTexCombineFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexCombineFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0eab4  glide_grTexDetailControl data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDetailControl" stored by glide_load_dll (GetProcAddress)
+0x2f0eab8  glide_grTexFilterMode    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexFilterMode" stored by glide_load_dll (GetProcAddress)
+0x2f0eabc  glide_grTexLodBiasValue  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexLodBiasValue" stored by glide_load_dll (GetProcAddress)
+0x2f0eac0  glide_grTexDownloadMipMap data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDownloadMipMap" stored by glide_load_dll (GetProcAddress)
+0x2f0eac4  glide_grTexDownloadMipMapLevel data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDownloadMipMapLevel" stored by glide_load_dll (GetProcAddress)
+0x2f0eac8  glide_grTexDownloadMipMapLevelPartial data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDownloadMipMapLevelPartial" stored by glide_load_dll (GetProcAddress)
+0x2f0eacc  glide_ConvertAndDownloadRle data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_ConvertAndDownloadRle" stored by glide_load_dll (GetProcAddress)
+0x2f0ead0  glide_grTexDownloadTable data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDownloadTable" stored by glide_load_dll (GetProcAddress)
+0x2f0ead4  glide_grTexDownloadTablePartial data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexDownloadTablePartial" stored by glide_load_dll (GetProcAddress)
+0x2f0ead8  glide_grTexMipMapMode    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexMipMapMode" stored by glide_load_dll (GetProcAddress)
+0x2f0eadc  glide_grTexMultibase     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexMultibase" stored by glide_load_dll (GetProcAddress)
+0x2f0eae0  glide_grTexMultibaseAddress data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grTexMultibaseAddress" stored by glide_load_dll (GetProcAddress)
+0x2f0eae4  glide_guTexAllocateMemory data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexAllocateMemory" stored by glide_load_dll (GetProcAddress)
+0x2f0eae8  glide_guTexChangeAttributes data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexChangeAttributes" stored by glide_load_dll (GetProcAddress)
+0x2f0eaec  glide_guTexCombineFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexCombineFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0eaf0  glide_guTexGetCurrentMipMap data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexGetCurrentMipMap" stored by glide_load_dll (GetProcAddress)
+0x2f0eaf4  glide_guTexMemQueryAvail data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexMemQueryAvail" stored by glide_load_dll (GetProcAddress)
+0x2f0eaf8  glide_guTexMemReset      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexMemReset" stored by glide_load_dll (GetProcAddress)
+0x2f0eafc  glide_guTexDownloadMipMap data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexDownloadMipMap" stored by glide_load_dll (GetProcAddress)
+0x2f0eb00  glide_guTexDownloadMipMapLevel data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexDownloadMipMapLevel" stored by glide_load_dll (GetProcAddress)
+0x2f0eb04  glide_guTexSource        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexSource" stored by glide_load_dll (GetProcAddress)
+0x2f0eb08  glide_guColorCombineFunction data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guColorCombineFunction" stored by glide_load_dll (GetProcAddress)
+0x2f0eb0c  glide_grLfbLock          data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbLock" stored by glide_load_dll (GetProcAddress)
+0x2f0eb10  glide_grLfbUnlock        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbUnlock" stored by glide_load_dll (GetProcAddress)
+0x2f0eb14  glide_grLfbConstantAlpha data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbConstantAlpha" stored by glide_load_dll (GetProcAddress)
+0x2f0eb18  glide_grLfbConstantDepth data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbConstantDepth" stored by glide_load_dll (GetProcAddress)
+0x2f0eb1c  glide_grLfbWriteColorSwizzle data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbWriteColorSwizzle" stored by glide_load_dll (GetProcAddress)
+0x2f0eb20  glide_grLfbWriteColorFormat data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbWriteColorFormat" stored by glide_load_dll (GetProcAddress)
+0x2f0eb24  glide_grLfbWriteRegion   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbWriteRegion" stored by glide_load_dll (GetProcAddress)
+0x2f0eb28  glide_grLfbReadRegion    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grLfbReadRegion" stored by glide_load_dll (GetProcAddress)
+0x2f0eb2c  glide_grAADrawLine       data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAADrawLine" stored by glide_load_dll (GetProcAddress)
+0x2f0eb30  glide_grAADrawPoint      data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAADrawPoint" stored by glide_load_dll (GetProcAddress)
+0x2f0eb34  glide_grAADrawPolygon    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAADrawPolygon" stored by glide_load_dll (GetProcAddress)
+0x2f0eb38  glide_grAADrawPolygonVertexList data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAADrawPolygonVertexList" stored by glide_load_dll (GetProcAddress)
+0x2f0eb3c  glide_grAADrawTriangle   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grAADrawTriangle" stored by glide_load_dll (GetProcAddress)
+0x2f0eb40  glide_grGlideInit        data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideInit" stored by glide_load_dll (GetProcAddress)
+0x2f0eb44  glide_grGlideShutdown    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideShutdown" stored by glide_load_dll (GetProcAddress)
+0x2f0eb48  glide_grGlideGetVersion  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideGetVersion" stored by glide_load_dll (GetProcAddress)
+0x2f0eb4c  glide_grGlideGetState    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideGetState" stored by glide_load_dll (GetProcAddress)
+0x2f0eb50  glide_grGlideSetState    data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideSetState" stored by glide_load_dll (GetProcAddress)
+0x2f0eb54  glide_grGlideShamelessPlug data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grGlideShamelessPlug" stored by glide_load_dll (GetProcAddress)
+0x2f0eb58  glide_grHints            data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grHints" stored by glide_load_dll (GetProcAddress)
+0x2f0eb5c  glide_guFogTableIndexToW data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogTableIndexToW" stored by glide_load_dll (GetProcAddress)
+0x2f0eb60  glide_guFogGenerateExp   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateExp" stored by glide_load_dll (GetProcAddress)
+0x2f0eb64  glide_guFogGenerateExp2  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateExp2" stored by glide_load_dll (GetProcAddress)
+0x2f0eb68  glide_guFogGenerateLinear data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateLinear" stored by glide_load_dll (GetProcAddress)
+0x2f0f208  gr_glide_video_memory_mb data:int vsdk\gr\glide\gr_glide.cpp O ; texture memory in MB from gr_glide_init
+0x2f136e8  crc32_table              data:uint32[256] -                    O ; filled by Crc32__init_table
+0x2f13ae8  crc32_table_inited       data:bool -                    O ; set by Crc32__init_table, tested by Crc32__update
+0x2f53b00  gr_clip_temp_verts       data:Vertex[] vsdk\gr              O ; temporary vertices created while clipping, allocated by gr_clip_alloc_temp_vertex
+0x2f54700  gr_clip_num_temp_verts   data:int vsdk\gr              O ; count of gr_clip_temp_verts, reset by gr_clip_free_temp_verts
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 
 0x2f91a6c Dump_mesh_frames         data:bool -                      I ; set by console command "dump_mesh_frames" (toggles); type inferred

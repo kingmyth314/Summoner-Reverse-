@@ -125,7 +125,7 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **1,740 / 5,548** game/engine functions named (31.4%), plus 444
+Phase 0 is complete. Progress (2026-10-14): **2,306 / 5,548** game/engine functions named (41.6%), plus 472
 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
@@ -169,3 +169,17 @@ The pass found these layouts: sound records (0x40 bytes, 640 at `0x2cb5458`); Di
 (200 x 0x1f8 bytes at `0x2dc7088`). It also found the ui_gadget tree links: x/y `+0xc`/`+0x10`, window `+0x25c`,
 parent `+0x268`, first child `+0x26c`, next sibling `+0x270`. Three earlier names were corrected:
 `item_info_popup_load_bitmaps`, `multitrade_load_bitmaps` and `saveload_reset_lists`.
+
+**2026-10-14, second parallel pass:** another 1,100 symbols were merged after the same checks:
+- the savegame format ([Savegame format](sum-exe/savegame.md), checked against eight real saves);
+- 336 game names: AI states and goals, boss dispatch and stages, the level-script NPC API, multiplayer sync;
+- 367 engine names: the 3D pipeline, Glide function pointers, math, mouse, vfile, sound emitters, ca.
+
+New layouts in `types.h`:
+- the 3D vertex (`gr_Vertex`), mouse buttons and sound emitters;
+- the AI state names (`AI_STATE_*`, from the game's own string table) and the species table;
+- many more `Character` fields.
+
+Two earlier inferences were corrected: `Character +0x5ac` holds the locomotion animations, not textures, and
+`0x471f40` is a packet send, not `ai_mode_name`. File names were only kept where an assert string or a reference
+project confirms them; `gr_3d.cpp` was replaced by the folder `vsdkgr`.

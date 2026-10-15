@@ -550,3 +550,33 @@ typedef struct species_info {
     int32_t species;
     int32_t _unk08;
 } species_info;
+
+// A 3D pipeline vertex (0x30 bytes; gr_rotate_vertex / gr_project_vertex / gr_clip_*).
+typedef struct gr_Vertex {
+    float x, y, z;           // +0x00 view space (after gr_rotate_vertex)
+    float sx, sy, sw;        // +0x0C screen x/y and 1/z (gr_project_vertex)
+    uint8_t codes;           // +0x18 clip codes (gr_code_vertex)
+    uint8_t flags;           // +0x19 1 projected, 2 behind the viewer, 4 temporary
+    uint8_t _unk1a[0x16];
+} gr_Vertex;
+
+// One mouse button state (mouse_buttons, 0x10 bytes each).
+typedef struct mouse_button {
+    uint8_t down;            // +0x00
+    uint8_t double_click;    // +0x01
+    uint8_t _pad[2];
+    int32_t presses;         // +0x04
+    int32_t releases;        // +0x08
+    int32_t timer;           // +0x0C RealtimeTimer
+} mouse_button;
+
+// A positional sound emitter (128 x 0x74 bytes at 0x2f07768).
+typedef struct sound_emitter {
+    struct sound_emitter* next; // +0x00
+    struct sound_emitter* prev; // +0x04
+    int32_t sound;           // +0x08
+    int32_t playing;         // +0x0C playing handle
+    uint8_t _unk10[0x40];
+    uint32_t flags;          // +0x50 1 used, 2 paused, 8 playing
+    uint8_t _unk54[0x20];
+} sound_emitter;
