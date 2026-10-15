@@ -25,6 +25,10 @@ Rules:
 | `vsdk/character_instance.cpp` | `vsdk\ca\character_instance.cpp` (`0x5194b0`-`0x51b6a1`) | 52 | 33 / 15 / 4 |
 | `vsdk/ui_container.cpp` | `vsdk\ui\ui_container.cpp` (`0x5534f0`-`0x553b9b`) | 10 | 5 / 5 / 0 (vtable `0x581f40` slot order) |
 | `vsdk/targautils.cpp` | `vsdk\bmpman\targautils.cpp` (`0x5549c0`-`0x5565d6`) | 21 | 8 / 13 / 0 |
+| `vsdk/memory.cpp` | `vsdk\os\memory.cpp` | 19 | 18 / 1 / 0 |
+| `vsdk/stringpool.cpp` | `vsdk\os\stringpool.cpp` | 16 | 14 / 2 / 0 |
+| `vsdk/plainstring.cpp` | `plainstring.cpp` (folder not known; Summoner 2 name) | 20 | 12 / 8 / 0 |
+| `vsdk/parse.cpp` | `vsdk\parse\parse.cpp` (TextFile) | 51 | 32 / 18 / 1 |
 | `game/new_credits.cpp` | `new_credits.cpp` (`0x408590`-`0x408d72`) | 11 | 7 / 4 / 0 |
 | `game/new_help.cpp` | `new_help.cpp` (`0x40bf30`-`0x40cb55`) | 16 + 5 initialiser pairs | 5 / 11 / 0 |
 | `game/gamesound.cpp` | `gamesound.cpp` (`0x468c80`-`0x469720`..) | 20 | 14 / 5 / 1 |

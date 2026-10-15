@@ -492,3 +492,61 @@ vector2::len. savegame: the conversation bit accessors. console: next_arg, comma
 (2) / ARG_INT (8) as the commands pass them. level_scripts: script_object_suspend / resume_index,
 conversation_execute_action, quest_find_by_name, quest_journal_set_entry. plainstring: stristr. summoner:
 combat_mode_set. living_entity: status_effect_update_fx (handle, status).
+
+## memory.cpp / stringpool.cpp / plainstring.cpp / parse.cpp pilot (decomp22)
+
+**D200 (memory.cpp). The global operators are defined, not declared.** memory.cpp defines
+`operator new(size, file, line)` (0x5124c0), `operator new[](size, file, line)` (0x512530), `operator
+new(size)` (0x512550), `operator delete` (0x512570) and `operator delete[]` (0x512580). memory.h keeps
+only the existing `operator_new` alias. The array forms stay out of the header: the only caller of
+0x512530 is allocate_in_commonblock (same unit) and 0x512580 has no caller, while other units' `delete[]`
+(targautils.cpp, stringpool.cpp Release) call 0x512570, so a declared `operator delete[]` would change
+their code. The two deletes are written `throw()` so that the C++11 checker accepts them.
+
+**D201 (memory.cpp). allocate_in_mempool is a Mempool member.** It is thiscall (`mov esi, [ecx+4]` at
+0x5127c5, `ret 4`), so it cannot be Summoner 2's free function; it is declared
+`void *Mempool::allocate_in_mempool(unsigned int)` keeping the sum.symbols name. operator new calls it on
+`Pool` (0x5124d8).
+
+**D202 (memory.cpp). Level counters placed in memory.cpp.** 0x2693004-0x2693020 (eight ints zeroed by
+level_load 0x43859f-0x4385c9; level_texture_mem and level_s3d_mem named in sum.symbols) and
+mem_bytes_allocated 0x2693034 lie between registry.cpp's last .bss object (0x2693000) and memory.cpp's
+report globals (0x269303c), so they are defined in memory.cpp; the six unnamed ones get names of ours
+(`level_mem_<addr>`), only the two named and mem_bytes_allocated are declared in memory.h.
+
+**D203 (stringpool.cpp). StringPool members completed.** Allocate, Release, GetLength, GetRemaining,
+GetBuffer, Add, AddQuoted, AddUniqueQuoted, SetLength and the size constructor 0x544e00 are added.
+Add returns `char *` (the pointer into the pool), AddQuoted / AddUniqueQuoted take the TextFile (ecx of
+the ParseString call is the argument, 0x544d51). SetLength's compare is unsigned (`ja` at 0x544e39), so
+its argument is `unsigned int`. The constructors / destructor / SetLength follow the other members
+(0x544dc0-0x544e30) and may be inline functions emitted last; they stay out of line.
+
+**D204 (plainstring.cpp). Signatures.** gr_string_truncate_ellipsis and int_to_string_with_commas return
+`char *` (EAX = dest on every return path, NULL for the too-small case of the latter); format_indented_column
+takes (dest, indent, width, label, fmt, ...) for both variants (0x5150c9 strcats arg 3, 0x5150fc compares
+arg 2 with the length; the sum.symbols comment of 0x515030 lists label before width). The 4th argument of
+gr_string_truncate_ellipsis lands in gr_get_string_size's length slot (0x5153e5 pushes it after -1);
+every caller passes -1, the header keeps the name `font`.
+
+**D205 (parse.cpp). TextFile +0x08 is the file name.** TextFile::Open copies the name to this + 8
+(0x515d5e-0x515d81), Error prints this + 8 as the file (0x515f56), packfile_find_in_packfile gets it
+(0x515d96). `flag08` / `_unmapped[0x3f]` (no users) become `char filename[0x40]`. Open returns 1 when a
+blasted packfile lacks the file, File::open's negative error, else 0; ParseString, CopyUntil and
+ParseDelimitedString return the length; ParseIntList's third argument is a lookup function
+`bool (*)(int *, int, const char *)` (called at 0x5169c4; the callers' 0 still converts).
+
+**D206 (parse.cpp). file_blast_into_buffer is in parse.cpp.** Its code (0x517220) follows TextFile::AtEnd
+and precedes the movie code, its literal 0x5a7d78 closes parse.cpp's .data run that starts with the -1
+at 0x5a7950 (written only by it: `file_blast_size`, name ours), and its "" literals 0x26b63dc / 0x26b63e0
+follow SkipLine's 0x26b63d4 in .bss. file_blast_filename is taken as 0x30 bytes (0x26b63a4-0x26b63d3)
+because 0x26b63d4 is a separate literal. New header `vsdk/vfile/packfile/file_packfile.h` declares
+packfile_read_whole_file and packfile_find_in_packfile(vpp, name, &size, &offset): Open stores the third
+into TextFile::size and adds the fourth to the buffer (sum.symbols says &offset, &size).
+
+**D207 (parse.cpp). Crc32 and the String additions.** New header `vsdk/os/crc32.h`: Checksum calls
+0x514eb0 (value = 0, vfile's COMDAT) and then 0x552120 (value = 0 again, sum.symbols Crc32__Crc32), and
+name_hash_nocase stores 0 inline before calling 0x552120, so the constructor is an inline `value = 0` and
+0x552120 is a reset (`init`, name ours). String gains assign_n (0x5566e0), static from_float (0x557c00,
+cdecl with the hidden result) and the three cdecl `operator+` (0x556f70 String + String, 0x557070
+String + char*, 0x557180 char* + String), used by vector3_to_string / matrix3_to_string. File gains
+write_line (0x5264e0).

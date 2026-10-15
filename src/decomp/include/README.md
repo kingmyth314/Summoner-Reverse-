@@ -38,25 +38,27 @@ Summoner 2 and Dash Faction give names only.
 |---|---|---|
 | `vsdk/vsdk.h` | (ours) | basic typedefs, `LAYOUT_CHECK`, min/max, list macros, CRT headers |
 | `vsdk/os/debug.h` | debug (0x531cb0) | `DebugError`, `VSDK_ERROR` loop macro |
-| `vsdk/os/memory.h` | `vsdk\os\memory.cpp` | `Mempool`, pools, memory report |
+| `vsdk/os/memory.h` | `vsdk\os\memory.cpp` (decomp22) | `Mempool`, `Pool`, common block, level memory counters, memory report |
+| `vsdk/os/crc32.h` | Crc32 (0x5520d0-0x552190) | `Crc32` (directory and file name guessed) |
 | `vsdk/os/timestamp.h` | timestamp.cpp (pilot) | `GameTimer`, `RealtimeTimer`, tickers |
 | `vsdk/os/frametime.h` | frametime.cpp (pilot) | frame time globals and functions |
 | `vsdk/os/timer.h` | timer.cpp | `timer_get`, `timer_wait` |
 | `vsdk/os/registry.h` | `vsdk\os\registry.cpp` (pilot) | `os_registry_*` |
 | `vsdk/os/cmdline.h` | `vsdk\os\cmdline.cpp` (pilot) | `CmdLineParam`, `cmdline_*` |
 | `vsdk/os/console.h` | console.cpp | `console_command`, console globals, `string_buffer` |
-| `vsdk/os/stringpool.h` | `vsdk\os\stringpool.cpp` | `StringPool` |
+| `vsdk/os/stringpool.h` | `vsdk\os\stringpool.cpp` (decomp22) | `StringPool` |
 | `vsdk/os/mouse.h` | vsdk\os\mouse | `mouse_*` |
 | `vsdk/os/key.h` | key (0x509ca0) | `KEY_*` scan codes, `key_to_ascii`, `key_names` |
-| `vsdk/os/vstring.h` | String (0x5567f0) | `String` |
-| `vsdk/os/plainstring.h` | plainstring (0x514fb0) | `trim_whitespace`, `int_to_string_with_commas`, `gr_string_truncate_ellipsis` |
+| `vsdk/os/vstring.h` | String (0x5567f0) | `String`, the String `operator+` |
+| `vsdk/os/plainstring.h` | plainstring.cpp (0x514ec0-0x515955, decomp22; directory guessed) | `is_blank`, `trim_*`, `stristr`, `int_to_string*`, `wide_charmap_*`, ... |
 | `vsdk/os/profile.h` | (ours) | `profile_label` |
 | `vsdk/os/movie.h` | movie (0x5172f0) | `movie_play` |
 | `vsdk/math/vector.h` | vsdk\math | `vector3`, `imax`, `imin`, `frand` |
 | `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `quaternion`, `matrix43` |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
-| `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` | `TextFile` |
+| `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` | `packfile_read_whole_file`, `packfile_find_in_packfile` |
+| `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` | `bitmap_entry`, `bm_*`, `progress_update` |
 | `vsdk/bmpman/targautils.h` | `vsdk\bmpman\targautils.cpp` (pilot) | TGA / PCX / m2v, `m2v_bitstream` |
 | `vsdk/gr/gr.h` | `vsdk\gr\gr.cpp` + vsdk\gr | `Color`, `gr_mode`, `gr__Screen`, `gr_*`, `gr::` clip, `gr_light_desc`; includes gr_font.h |

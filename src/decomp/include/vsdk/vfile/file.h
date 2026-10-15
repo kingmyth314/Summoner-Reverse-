@@ -38,6 +38,8 @@ public:
     void write_uint8(ubyte v);                           // 0x526220
     void write_uint16(ushort v);                         // 0x526240
     void write_int(int v);                               // 0x526250
+    // text (strlen when len < 0; NULL writes only the newline) then "\n"; < 0 failure (decomp22).
+    int  write_line(const char *text, int len);          // 0x5264e0
     int  write(const void *buf, int len);                // 0x526410
 
     int path_id;                       // +0x000 path id of the found file (File__find_in_path, File__get_path_id)
