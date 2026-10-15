@@ -43,10 +43,24 @@ extern bool level_is_town;                           // 0x60a40c set by level_sc
 extern int cur_level_index;                          // 0x59f120 (4 = world map)
 int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none
 // Script objects (level_scripts_common.cpp code; the 200 records are in level_scripts.cpp's .bss).
-// 0x550 bytes (types.h script_object); the actions are kept as bytes here (types.h script_action).
+// 0x550 bytes (types.h script_object). One action (0x18 bytes, types.h script_action; decomp41, D2101):
+// level_script_restart and script_object_receive_go read the type and write arg0c.
+#define SCRIPT_ACTION_WAIT_GO   0x0b     // arg0c set by script_object_receive_go, cleared by the restart
+#define SCRIPT_ACTION_LOOP      0x0d     // makes level_script_restart set end_mode 1
+#define SCRIPT_ACTION_GOTO      0x0f     // script_action_goto (script_object_goto_label builds one)
+struct script_action {
+    int type;                            // +0x00
+    const char *name;                    // +0x04 navpoint / file name argument
+    int _unk08;                          // +0x08
+    unsigned int arg0c;                  // +0x0C (the goto label; the "go" flag of type 0xb)
+    unsigned int arg10;                  // +0x10
+    ubyte flag14;                        // +0x14
+    ubyte _pad15[3];
+};
+LAYOUT_CHECK(script_action, sizeof(script_action) == 0x18);
 struct script_object {
-    int end_mode;                        // +0x000
-    ubyte actions[54][0x18];             // +0x004 script_action records
+    int end_mode;                        // +0x000 -1 = free (level_script_entries_frame)
+    script_action actions[54];           // +0x004
     void *path;                          // +0x514
     GameTimer timer;                     // +0x518 (init_script_object_timers constructs the 200)
     int num_actions;                     // +0x51C
@@ -151,9 +165,11 @@ struct lobj;
 struct lc_entry {
     lobj *object;                    // +0x000
     char name[0x100];                // +0x004
-    unsigned int flags;              // +0x104 bit 0 used (lc_entry_mark_used; savegame_read_two_stage
-                                     //        sets it from the saved bit 0, "disabled")
-    int gold;                        // +0x108
+    ubyte flags;                     // +0x104 bit 0 used (lc_entry_mark_used; savegame_read_two_stage
+                                     //        sets it from the saved bit 0, "disabled"). A byte: every
+                                     //        access is a byte op (D2100)
+    ubyte _pad105[3];
+    int gold;                        // +0x108 +Give:
 };
 LAYOUT_CHECK(lc_entry, sizeof(lc_entry) == 0x10c);
 extern lc_entry lc_entries[50];                      // 0x248ce40
@@ -187,7 +203,8 @@ struct level_effect {
     ubyte _pad25[3];
 };
 LAYOUT_CHECK(level_effect, sizeof(level_effect) == 0x28);
-extern level_effect level_effects[];                 // 0x24902c8
+#define MAX_LEVEL_EFFECTS 10
+extern level_effect level_effects[MAX_LEVEL_EFFECTS];// 0x24902c8 (to 0x2490458)
 extern int level_effect_count;                       // 0x2490dcc
 // Ambient sound emitters (0x10 bytes {emitter, vector3 pos}; level_ambient_add). Type name ours.
 struct level_ambient {
@@ -201,6 +218,137 @@ void party_set_level(int level);                     // 0x4cec00
 void script_party_acquire_item(const char *name, int count);   // 0x4ceab0
 int  party_count_item_by_name(const char *name);     // 0x4ce9a0
 
+// ---- level_scripts_common.cpp (0x4ca700-0x4ceebf, decomp41) ---------------------------------------------
+// A level trigger (0x64 bytes, level_triggers 0x2490dd0, 32; level_parse_trigger). Type and field names
+// ours. sum.symbols calls +0x50 level_exit_trigger_flags when copied; it is the +Index: value (the entry
+// point of the next level, D2104).
+#define LEVEL_TRIGGER_ON         0x1     // set by level_parse_trigger; radius triggers trip only while set
+#define LEVEL_TRIGGER_SCRIPT_USE 0x2     // level_script_use(ref_name) instead of a level exit
+#define LEVEL_TRIGGER_MULTI      0x4     // +Multi: multiplayer only (single player skips it)
+#define LEVEL_TRIGGER_TRIPPED    0x80000000   // level_trigger_trip: an +ON radius trigger fired once
+struct s3d_named_path;
+struct navpoint;
+struct level_trigger {
+    char name[0x20];                 // +0x00 $Trigger: the level file it leads to
+    const char *script;              // +0x20 the script name of +Script: (conversation_save_table), "" none
+    char ref_name[0x20];             // +0x24 +RefName: (default the name), level_script_use argument
+    int _unk44;                      // +0x44
+    int id;                          // +0x48 +Id: 0 load level, 1 boss, 2 sound (level_trigger_id_names)
+    int type;                        // +0x4c +Type: 0 spline (a named path), 1 location (a radius)
+    int index;                       // +0x50 +Index: (0) -> level_entry_point of the next level
+    unsigned int flags;              // +0x54 LEVEL_TRIGGER_*
+    int plane;                       // +0x58 +Plane: layer, -1 any
+    union {                          // +0x5c
+        s3d_named_path *path;        //   type 0: level_trigger_record_find (+Spline name:)
+        navpoint *nav;               //   type 1: navpoint_find (+Location:)
+    };
+    float radius;                    // +0x60 +Radius:
+};
+LAYOUT_CHECK(level_trigger, sizeof(level_trigger) == 0x64);
+#define MAX_LEVEL_TRIGGERS 32
+extern level_trigger level_triggers[MAX_LEVEL_TRIGGERS];   // 0x2490dd0
+extern int level_trigger_count;                      // 0x2490c74
+extern const char *level_trigger_type_names[2];      // 0x59e0e8 "spline", "location" (name ours)
+extern const char *level_trigger_id_names[3];        // 0x59e0f0 "load level", "boss", "sound" (name ours)
+extern const char *level_pending_exit_name;          // 0x24902a4 trigger +0x20 (the next script name)
+extern int level_exit_trigger_flags;                 // 0x2490c60 trigger +0x50 (+Index:)
+extern int level_unk_2490c78;                        // 0x2490c78 zeroed by level_script_reparse, never read (name ours)
+// Shops.
+#define MAX_LEVEL_SHOPKEEPERS 15
+#define MAX_LEVEL_SHOP_ITEMS 1000
+extern shopkeeper level_shopkeepers[MAX_LEVEL_SHOPKEEPERS];  // 0x2490ca0
+extern int level_shopkeeper_count;                   // 0x24902a0
+extern shop_item level_shop_items[MAX_LEVEL_SHOP_ITEMS];     // 0x2491ac0
+extern int level_shop_item_count;                    // 0x2493a00
+// The fog distances of "+Fog Near:" / "+Fog Far:".
+extern float level_fog_near;                         // 0x2490298
+extern float level_fog_far;                          // 0x2490c58
+// Music restart timer, cutscene hook.
+extern GameTimer level_music_stop_timer;             // 0x24902a8 (900 ms after level_script_reparse)
+extern void (*cutscene_done_callback)();             // 0x24902b0
+extern void (*cutscene_saved_frame_fn)();            // 0x2493a04
+// Avoid splines of the scripts: {character handle, spline} pairs, key -1 = free. Type name ours.
+struct script_avoid_spline {
+    int key;                         // +0x0 handle of the character the spline belongs to
+    int spline;                      // +0x4 avoid_spline index (script_build_avoid_spline)
+};
+#define MAX_SCRIPT_AVOID_SPLINES 10
+extern script_avoid_spline script_avoid_splines[MAX_SCRIPT_AVOID_SPLINES];   // 0x2491a70
+// Console toggles and state flags.
+extern bool level_script_restarting;                 // 0x2493a14
+extern bool Dont_load_fx;                            // 0x2493a15 console "dont_load_fx"
+extern bool No_cutscenes;                            // 0x2493a16 console "No_cutscenes"
+extern bool Do_frame_callback;                       // 0x59e0fc console "do_frame_callback" (1)
+
+class TextFile;
+class Character;
+class obj;
+void cmd_dont_load_fx();                             // 0x4ca790
+void cmd_do_frame_callback();                        // 0x4ca880
+void cmd_eax_save_props();                           // 0x4ca970 saves <level>.eax
+void cmd_No_cutscenes();                             // 0x4cce40
+void level_check_triggers();                         // 0x4caa00 (level_script_frame)
+// (trigger, previous position, position): the position on the left of the trigger's path (x / z); the
+// previous position is not read.
+int  level_trigger_point_left_of_line(level_trigger *t, const vector3 *prev, const vector3 *cur);   // 0x4caed0
+void script_place_party_at_starts();                 // 0x4cb010
+void level_script_restart();                         // 0x4cb060
+void level_script_reload();                          // 0x4cb350 (script editor)
+void level_items_parse_table();                      // 0x4cb430 level_items.tbl
+void level_parse_table();                            // 0x4cb7b0 <level>.tbl
+void level_parse_ambient(TextFile *tf);              // 0x4cc010 #Ambient Sounds
+void level_parse_trigger(TextFile *tf);              // 0x4cc190 #Triggers
+void level_parse_shopkeeper(TextFile *tf);           // 0x4cc4d0 #Shopkeepers
+// state_game_enter passes !loaded: set the monster levels from the party (single player) or the host
+// level (multiplayer) only on a fresh entry (D2105).
+void level_script_init(bool scale_levels);           // 0x4cc7e0
+void level_script_frame();                           // 0x4ccab0 (state_game_frame)
+void level_ambient_sounds_frame();                   // 0x4ccb40
+void level_script_entries_frame();                   // 0x4ccba0
+bool script_character_has_pending_goal(Character *c);// 0x4ccc50
+void level_script_leave();                           // 0x4ccc70 (state_game_leave)
+void level_apply_pending_change();                   // 0x4ccd10
+void script_cutscene_done();                         // 0x4ccdf0 the frame hook while a cutscene plays
+void level_trigger_disable_by_target(const char *ref_name);   // 0x4cd060 clears LEVEL_TRIGGER_SCRIPT_USE
+void level_trigger_enable_by_target(const char *ref_name);    // 0x4cd0c0 sets it
+// (object, out id, out index): the first non-script trigger of the object's move (-1, -1 when none);
+// "Tripped trigger:  %s" goes only to string_buffer. ls_catacombs_frame passes cur_character.
+void level_trigger_trip(obj *o, int *out_id, int *out_index);  // 0x4cd120
+void level_ambient_add(int sound, const vector3 *pos, int delay_ms);   // 0x4cd250
+void level_ambient_remove(int index);                // 0x4cd2c0 (compacts the table)
+int  level_ambient_find_at(const vector3 *pos);      // 0x4cd330 exact compare, -1 none
+// lc entries are keyed by their level object (sum.symbols says hash; D2106).
+void lc_entry_add(lobj *object);                     // 0x4cd390
+void lc_entry_clear(lobj *object);                   // 0x4cd470
+bool lc_entry_exists(lobj *object);                  // 0x4cd4b0
+int  level_script_parse_table();                     // 0x4cd5f0 <script>_script.tbl, TextFile::Open's error
+Character *script_object_find_character(const char *name);   // 0x4cde70 NULL when not found
+void script_party_member_say(const char *name, const char *text, float time);   // 0x4cdf30
+void script_party_remove_item(const char *name);     // 0x4cdfa0 one off the stack
+void script_eleh_strip_party_gear(bool strip);       // 0x4cdff0
+void script_object_set_disabled(int index, bool disabled);   // 0x4ce140
+void script_object_receive_go(int index);            // 0x4ce220
+void script_object_goto_label(int index, int label); // 0x4ce340
+void script_npc_goto_label(const char *name, int label);     // 0x4ce3a0
+bool script_check_navpoint(int index, const char *navpoint, float dist);   // 0x4ce3c0
+bool script_object_near_player(int index, float dist);       // 0x4ce460
+bool script_object_is_dead(int index);               // 0x4ce570 true without an object
+void script_object_drop_loot(int index);             // 0x4ce5d0
+void script_npc_drop_loot(const char *name);         // 0x4ce620
+void script_object_talk(int index);                  // 0x4ce640
+void script_npc_talk(const char *name);              // 0x4ce6d0
+// (guard, minimum cosine of the view cone): cur_character in range, in the cone and not hidden from it.
+bool script_guard_sees_player(Character *guard, float cone);   // 0x4ce6f0
+bool script_player_has_equipped(const char *item);   // 0x4cea70
+// (item, speaker, topic): the topic is available when the party lacks the item (_inv: when it has it).
+void script_topic_toggle_by_item(const char *item, const char *speaker, const char *topic);       // 0x4ceb80
+void script_topic_toggle_by_item_inv(const char *item, const char *speaker, const char *topic);   // 0x4cebc0
+int  script_avoid_spline_find_free();                // 0x4ced90 -1 none
+void script_avoid_splines_reset();                   // 0x4cedb0
+bool script_avoid_spline_in_use(int key);            // 0x4cedd0
+void script_alloc_avoid_spline(int handle, int target);      // 0x4cedf0 (target -1 = cur_character)
+void script_free_avoid_spline(int handle);           // 0x4cee90
+
 // ---- level_scripts.cpp (0x4ceec0-0x4d6651, decomp27) ---------------------------------------------------
 // A level item record (0x70 bytes; level_items_parse_table 0x4cb430). Type and field names ours.
 struct ItemType;
@@ -209,7 +357,7 @@ struct level_item_rec {
     char script[0x20];               // +0x20 $Script: the level
     ItemType *type;                  // +0x40 $Item:
     int count;                       // +0x44 +Count: (1)
-    int navpoint;                    // +0x48 $Navpoint: navpoint_find
+    struct navpoint *navpoint;       // +0x48 $Navpoint: navpoint_find (a record pointer, D2102)
     int flag_level;                  // +0x4C +Event: level, -1 none
     char flag[0x20];                 // +0x50 +Event: flag name
 };
@@ -225,7 +373,9 @@ struct navpoint {
     vector3 pos;                     // +0x14 dropped onto the geometry below
     int layer;                       // +0x20 lobj_get_layer_n of the floor, 0 when invalid
     int _unk24;                      // +0x24 zeroed
-    ubyte _unk28[8];
+    int _unk28;                      // +0x28 level_script_restart only moves characters whose start
+                                     //        navpoint has 0 here (decomp41)
+    int level_item;                  // +0x2c level_items index placed here (level_items_parse_table; D2102)
 };
 LAYOUT_CHECK(navpoint, sizeof(navpoint) == 0x30);
 #define MAX_NAVPOINTS 750

@@ -71,5 +71,7 @@ int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const v
 int  fx_create_world(const char *effect, bool flag);   // 0x48cea0
 // decomp38 (characterinfo.cpp):
 void fx_destroy(int handle);                          // 0x48cfc0
+// decomp41 (level_scripts_common.cpp): level_script_leave's reset while the level restarts.
+void fx_level_restart();                              // 0x48a200
 
 #endif

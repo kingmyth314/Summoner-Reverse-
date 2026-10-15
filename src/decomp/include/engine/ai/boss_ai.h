@@ -267,6 +267,11 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 
 // Per-boss data the dispatchers read (the .bss of the per-boss units).
 extern boss_threat giant_salamanka_threat_table[BOSS_MAX_THREATS];   // 0x248c7ec
+// The bosses' "combat enabled" bytes (their console commands set them; level_script_init sets them for
+// the multiplayer levels 0x15 / 0x13 / 0x19; decomp41). The last two names are ours.
+extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
+extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
+extern bool machival_combat_enabled;                  // 0x248b034 cmd_machival_combat, machival_ai_idle
 // The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407).
 extern bool giant_salamanka_combat_enabled;           // 0x248c7d0 gates giant_salamanka_ai_frame
 extern bool giant_salamanka_stage2_reached;           // 0x248c7dc set by giant_salamanka_check_stage

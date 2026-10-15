@@ -246,6 +246,11 @@ int  pf_trace_edge_crossings(const vector3 *pos, int layer, vector3 dest);  // 0
 // (a, a layer, b, b layer, flags): ai_path_smooth passes the layers of the two points (D1201).
 bool pf_straight_walk_clear(const vector2 *a, int a_layer, const vector2 *b, int b_layer, int flags);   // 0x4a55f0
 int  seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out);   // 0x4a5750 class, > 0 hit
+// decomp41 (level_scripts_common.cpp): (point, segment, 0) the 2D cross product of (b - a) and
+// (point - a) above the epsilon 0x57eb84; (a, b, c, d) the x / z segments a-b and c-d cross
+// (seg2d_segment_intersect == 1).
+bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags);        // 0x4a4f60
+bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c, const vector3 *d);   // 0x4a5570
 // (segment, line, out, 0): parameter in seg2d_param (denominator seg2d_denom).
 int  seg2d_line_intersect(const seg2d *seg, const seg2d *line, vector2 *out, int flags);   // 0x4a5bd0
 pf_bsp *pf_bsp_find_cell(const vector3 *pos, int layer);                   // 0x4a5d40 layer -1 = current

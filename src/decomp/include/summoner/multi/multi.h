@@ -146,6 +146,11 @@ void mp_player_disconnected(int id, int reason);        // 0x4814e0
 void mp_send_character_skills(Character *c);            // 0x480ba0
 extern int mp_netgame_level;                            // 0x6513d8
 extern int mp_game_difficulty;                          // 0x6513ec
+// decomp41 (level_script_init, level_apply_pending_change): the host's character level and the level
+// scale picked by mp_host_game (frand_range(0.8, 1.2)); the host's level change ("%s_m1").
+extern int mp_netgame_host_level;                       // 0x6513f0
+extern float mp_netgame_level_scale;                    // 0x651410
+void mp_change_level(int entry_point);                  // 0x4ab780 (return unused)
 extern int mp_netgame_num_players;                      // 0x6513e4 (decomp37: the HP / gold / xp multiplier)
 // The host's broadcasts of living_entity.cpp (decomp37; argument lists from its calls).
 void mp_broadcast_hp(Character *c, int source);         // 0x480920

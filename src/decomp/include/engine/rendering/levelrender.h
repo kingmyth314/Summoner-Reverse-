@@ -9,6 +9,7 @@
 #include "vsdk/math/matrix.h"
 #include "vsdk/os/timestamp.h"
 #include "engine/s3d/s3d.h"
+#include "engine/gamesound/gamesound.h"   // sound_ref (door_info, decomp41)
 
 class Character;
 struct ItemType;
@@ -116,12 +117,23 @@ struct door_info {
         int _unk5c;                   //        decomp35, D1505). s3d_read_door clears _unk5c.
         ItemType *key;
     };
-    int _unk60;                       // +0x60
-    int _unk64;                       // +0x64 -1 on load
-    ubyte _unk68[4];                  // +0x68 three bytes cleared on load
-    int _unk6c;                       // +0x6c
-    int _unk70;                       // +0x70 -1 on load
-    ubyte _unk74[4];                  // +0x74 three bytes cleared on load
+    // +0x60 / +0x6c: the "+Open sound:" / "+Close sound:" sound_refs of level_script_parse_table (name
+    // from the level script string pool, handle -1, three parameter bytes; decomp41, D2103). s3d.cpp
+    // resets them through the old names.
+    union {
+        struct {
+            int _unk60;               // +0x60
+            int _unk64;               // +0x64 -1 on load
+            ubyte _unk68[4];          // +0x68 three bytes cleared on load
+            int _unk6c;               // +0x6c
+            int _unk70;               // +0x70 -1 on load
+            ubyte _unk74[4];          // +0x74 three bytes cleared on load
+        };
+        struct {
+            sound_ref open_sound;     // +0x60
+            sound_ref close_sound;    // +0x6c
+        };
+    };
     ubyte _unk78[0x14];               // +0x78
 };
 LAYOUT_CHECK(door_info, sizeof(door_info) == 0x8c);
@@ -147,6 +159,23 @@ void lobjs_show_by_prefix(const char *prefix);   // 0x477850 clears it
 int  lobj_find_by_name(const char *name);           // 0x4777a0 -1 if none
 void fx_disable_by_effect_name(const char *name);   // 0x48d660 (unit not known; effect objects)
 void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs);   // 0x4776c0
+// decomp41 (level_scripts_common.cpp). level_marker_find: a level-file navpoint (level_navpoints, _stricmp)
+// with its position and orientation, false when none; level_trigger_record_find: a named path
+// (level +0x44) or NULL.
+bool level_marker_find(const char *name, vector3 *pos, matrix *orient);   // 0x4774a0
+s3d_named_path *level_trigger_record_find(const char *name);              // 0x477580
+// Fog (unit not known): the level colour, the per-layer distances and colours (20 layers), the snow flag,
+// the level default distances (set once per level) and the character fog of "+CharFog:". Which distance
+// is near and which far is not settled: fog_set_level_default stores its first argument at 0x59bd88
+// (sum.symbols fog_level_near_distance since f7229e0) and level_parse_table passes "+Fog Far:" first.
+// fog_set_layer stores a into level_layer_fog_far, b into level_layer_fog_near (sum.symbols names).
+void fog_set_color(int r, int g, int b);              // 0x4870e0
+void fog_set_layer(int layer, float a, float b, int r, int g, int bl);   // 0x487100 (bytes stored)
+void fog_layer_set_snow(int layer, bool snow);        // 0x4871f0
+void fog_set_level_default(float a, float b);         // 0x486b90 a -> 0x59bd88, b -> 0x59bd84
+void fog_restore_level_default();                     // 0x486bc0
+void char_fog_set(float near_dist, float far_dist);   // 0x481e00
+void char_fog_disable();                              // 0x481e40
 // Door objects within reach of the character (unit not known; next to the AI code).
 bool door_in_use_range(Character *c, lobj *door);             // 0x476a30
 // decomp35 (gametarget.cpp). (lobj, fraction) door_is_open of the door of a door object.

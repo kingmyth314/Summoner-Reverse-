@@ -133,6 +133,7 @@ public:
     int  goal_alloc(int type, int priority, unsigned int flags, int target, vector3 *pos, int layer,
                     int spell);                           // 0x476020 ai_goal_alloc
     void goal_remove(int slot);       // 0x476300 ai_goal_remove
+    bool has_goal_without_flag20();   // 0x476670 ai_has_goal_without_flag20 (decomp41: script_character_has_pending_goal)
 
     ~ai_state();                      // 0x4f13e0 (folded)
     bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1

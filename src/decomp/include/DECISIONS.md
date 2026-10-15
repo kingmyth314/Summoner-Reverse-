@@ -1754,3 +1754,76 @@ and the .data / .bss of both parts interleave (Debug_death 0x59a16c between the 
 Either `#pragma optimize` or a second object; recorded, not resolved.
 
 **D1713 (merge of ai.cpp and living_entity.cpp). ai_state::travel_to_xyz takes one vector3 by value.** ai.cpp (decomp39) declared three floats, living_entity.cpp (decomp37) a vector3. The stack layout is the same; Character::ai_travel_offset (0x455e00) builds the sum in the argument slot with the inline copy constructor, which is how a vector3 argument is passed, so the vector3 form is kept. The merge also mapped living_entity.cpp onto the names other units had fixed: move_info::action (+0x00) and sound.handle (+0x38), char_info::target_points (+0x18a) and head_bone (+0x25c, the bone kept on the navigation mesh for CIF_ELONGATED records), lobj_hit::face (+0x24), vfx_instance::id_bits >> 9 and vfx_base::num_frames, ai_state::add_travel.
+
+## level_scripts_common.cpp (decomp41)
+
+**D2100 (levelscripts/level_scripts.h). lc_entry::flags is a byte.** Every access to +0x104 is a byte
+operation: `mov byte ptr [edx + 0x248cf44], bl` (lc_entry_add 0x4cd3f3 / 0x4cd447), `mov byte ptr
+[esi + 0x248cf44], 0x0` (level_script_parse_table 0x4cdbec), `mov dl, byte ptr ...; or dl, 1; mov byte ptr
+...` (lc_entry_mark_used 0x4cd4f1), `test byte ptr [esi + 0x248cf44], 0x1` (container_examine 0x43c468) and the
+byte read-modify-write of savegame_read_two_stage (0x4d3670 / 0x4d367b). An `unsigned int` would give dword
+stores for `= 0`. Now `ubyte flags` plus `_pad105[3]`; the existing `& 1` / `|= 1` uses compile unchanged.
+
+**D2101 (levelscripts/level_scripts.h). script_object::actions is typed.** The 54 actions were raw
+`ubyte[54][0x18]`. level_script_restart reads `type` (+0x00) and clears +0x0c of type 0xb actions
+(`mov dword ptr [ecx + eax + 0x10], ebx` with the action base at +4, 0x4cb193) and script_object_receive_go
+sets the same field (`mov dword ptr [ebp + 0xc], 0x1`, 0x4ce2c9); script_object_goto_label builds a type 15
+action with the label at +0x0c (0x4ce350 / 0x4ce358). New `struct script_action` (0x18 bytes, the fields of
+types.h script_action) and SCRIPT_ACTION_WAIT_GO / LOOP / GOTO. No other unit used `actions`.
+
+**D2102 (levelscripts/level_scripts.h). level_item_rec::navpoint is a navpoint pointer; navpoint +0x2c.**
+level_items_parse_table stores navpoint_find's result (a record of navpoints / cutscene_navpoints, or 0;
+0x4dc5d3 / 0x4dc5e2) at +0x48, then writes the item index to `[navpoint + 0x2c]` (0x4cb6b6), reads the layer
+at +0x20 (0x4cb6d8) and passes the pointer itself as the name to navpoint_get_position (0x4cb6c2; the name
+is at +0). Was `int navpoint`; now `struct navpoint *navpoint`. navpoint's `ubyte _unk28[8]` became
+`int _unk28` (level_script_restart skips characters whose start navpoint has it nonzero, 0x4cb0d6) and
+`int level_item`. No other unit used either field.
+
+**D2103 (engine/rendering/levelrender.h). door_info +0x60 / +0x6c are sound_refs.** level_script_parse_table
+stores a level_script_stringpool name at +0x60 / +0x6c, or 0 with -1 at +0x64 / +0x70 (0x4cdad2 / 0x4cdb2f),
+and three parameter bytes at +0x68..+0x6a / +0x74..+0x76 (0x4cdab9-0x4cdacd), then calls
+sound_ref_load(&door+0x60, 1) / (&door+0x6c, 1) (0x4cdd2d / 0x4cdd42): the 12-byte sound_ref layout of
+gamesound.h. s3d.cpp resets the same bytes through `_unk60`..`_unk74`, so the old fields stay in an
+anonymous struct of a union with `sound_ref open_sound, close_sound` (levelrender.h now includes
+gamesound.h).
+
+**D2104 (levelscripts/level_scripts.h). level_trigger, and +0x50 is +Index:.** The 0x64-byte record of
+level_triggers (0x2490dd0) is laid out from level_parse_trigger (name +0x00, script name +0x20, +RefName:
++0x24, +Id: +0x48 via ParseTypeString over {"load level", "boss", "sound"} at 0x59e0f0, +Type: +0x4c over
+{"spline", "location"} at 0x59e0e8, +Index: +0x50, flags +0x54 = 1 then |= 4 for +Multi, +Plane: +0x58,
+the path or navpoint +0x5c, +Radius: +0x60). sum.symbols names the copy of +0x50 `level_exit_trigger_flags`
+(0x2490c60) and level_apply_pending_change "tests bit 2" of it; the code stores it into level_entry_point
+(`mov dword ptr [0x60a33c], ecx`, 0x4ccda6), so it is the entry point of the next level. The global keeps
+its sum.symbols name; the field is `index`. The flag bit 0x80000000 is level_trigger_trip's "fired once".
+
+**D2105 (levelscripts/level_scripts.h). level_script_init takes a bool.** It reads a byte argument (`mov cl,
+byte ptr [esp + 0x24]; test cl, cl`, 0x4cc854) that gates the monster level scaling; state_game_enter pushes
+`sete cl` of its "loaded from a save" byte (0x43823c). Declared `level_script_init(bool scale_levels)`.
+
+**D2106 (levelscripts/level_scripts.h). lc_entry_add / lc_entry_clear / lc_entry_exists take the level
+object.** sum.symbols calls the argument a hash; the functions store it at lc_entry +0x00 (0x4cd3d0) and
+compare it with +0x00, the `lobj *object` that lc_find_by_name dereferences for the name (0x4cd53d). Declared
+with `lobj *`.
+
+**D2107 (none). Character::set_armour_alt_texture keeps (int, int).** living_entity.cpp (decomp37) declares
+`set_armour_alt_texture(int on, int force)`; the body reads both arguments as bytes (`mov al, byte ptr
+[esp + 0x4]` 0x462c91, `mov al, byte ptr [esp + 0x8]` 0x462cc7), so bool fits better, but changing it means
+changing living_entity.cpp's definition; script_eleh_strip_party_gear passes (strip, false) through the int
+form. Left for the merge.
+
+**D2108 (several headers). New declarations, no conflict:** level_scripts.h the unit's functions, globals
+and types (level_trigger, script_avoid_spline, LEVEL_TRIGGER_*, the shop arrays); script_internal.h
+navpoint_find, script_parse_navpoints / _objects, script_action_goto, script_entry_start / _advance /
+_check_done, script_build_avoid_spline, str_copy_append_32, script_ambients_dirty / script_level_items_dirty;
+levelrender.h level_marker_find, level_trigger_record_find (returns the s3d_named_path record of
+level_s3d.named_paths, 0x477580) and the fog calls, with neutral parameter names (fog_set_level_default
+stores its first argument at 0x59bd88, `mov dword ptr [0x59bd88], eax` 0x486ba1, which sum.symbols now
+calls fog_level_near_distance, while level_parse_table passes "+Fog Far:" first, 0x4cbf02-0x4cbf09; open in
+NOTES); snd.h the three emitter calls and the EAX file calls; pathfinding.h
+seg2d_point_left_of and segments_intersect_xz; vector.h distance_squared; ai.h has_goal_without_flag20;
+objects.h shop_inventory_sort, character_has_equipped_type, containers_reset / _free_all; fx.h
+fx_level_restart; summoner.h camera_reset_to_player, cutscene_play, cutscene_script_table, US_open_demo;
+multi.h mp_netgame_host_level, mp_netgame_level_scale, mp_change_level (one pushed argument, 0x4ccdd9);
+boss_ai.h titus_combat_enabled and pyrul_combat_enabled / machival_combat_enabled (names ours: the bytes
+0x247fd38 / 0x248b034 that cmd_pyrul_combat / cmd_machival_combat set). level_pending_exit_name became
+`const char *` (it holds trigger +0x20, a pooled name or "").

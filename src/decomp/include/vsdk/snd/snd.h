@@ -32,5 +32,14 @@ void sounds_parse_table();                                                 // 0x
 // Sound emitters (level ambients; unit not known, decomp27).
 void sound_emitter_pause(int emitter);                                     // 0x546b20 (return unused)
 void sound_emitter_unpause(int emitter);                                   // 0x546b80 (return unused)
+// decomp41 (level_scripts_common.cpp, the level ambients): (sound handle, volume 100, repeat delay ms),
+// -1 when emitters are off or the sound is missing; (emitter, fade); (emitter, pos, velocity, 1.75f).
+int  sound_create_emitter(int sound, int volume, int delay_ms);            // 0x5466f0
+void sound_emitter_delete(int emitter, int fade);                          // 0x5467c0 (return unused)
+void sound_emitter_update_position(int emitter, const vector3 *pos, const vector3 *vel, float f);   // 0x5468c0
+// The EAX environment and the per-level EAX properties file (<level>.eax in data\internal).
+void snd_set_eax_environment(const char *name);                            // 0x521e00 (return unused)
+int  eax_save_props(const char *filename);                                 // 0x5220e0 nonzero = saved
+void eax_load_props(const char *filename);                                 // 0x522420 (return unused)
 
 #endif

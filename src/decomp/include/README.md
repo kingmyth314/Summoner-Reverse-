@@ -119,7 +119,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |
 | `summoner/interface/new_skill.h`, `new_spell.h`, `new_tutorial.h` | new_skill.cpp, new_spell.cpp, new_tutorial.cpp (not pilots) | the functions and data the HUD and the inventory call |
-| `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests |
+| `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests, `level_trigger`, `script_action` (decomp41) |
 | `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp | dialogue boxes; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |
-| `levelscripts/script_internal.h` | script_internal.cpp (0x4dc600; directory guessed, decomp34) | `navpoint_get_position` |
+| `levelscripts/script_internal.h` | script_internal.cpp (0x4dc600; directory guessed, decomp34) | `navpoint_get_position`, `navpoint_find`, the script entry calls (decomp41) |

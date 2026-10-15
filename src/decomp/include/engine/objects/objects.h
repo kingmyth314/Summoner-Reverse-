@@ -171,6 +171,12 @@ void party_inventory_add_by_name(const char *name, int count, int a, int b);   /
 int  character_find_equipped_type(Character *c, ItemType *type);    // 0x46c3b0 slot or -1
 void party_inventory_clear();                        // 0x46bbb0 item_free on every entry (decomp24)
 int  party_inventory_find_type_index(int type);      // 0x46bd60 by item type index, -1 none (decomp24)
+// decomp41 (level_scripts_common.cpp): qsort of shop entries; any of the ten slots holds that type.
+void shop_inventory_sort(shop_item *list, int count);              // 0x46b660
+bool character_has_equipped_type(Character *c, ItemType *type);    // 0x46bd30
+// The container pool (unit not known; state_game_enter / state_game_leave / level_script_restart).
+void containers_reset();                             // 0x489790
+void containers_free_all();                          // 0x4897c0
 
 // Using and equipping items (the party-inventory block after objects.cpp, 0x46bc00-0x46c4e0).
 bool character_use_inventory_item(Character *c, party_inventory_entry *entry, int target_handle,

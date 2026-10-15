@@ -61,6 +61,14 @@ void party_member_join(const char *name, int a, int b, int c, int d);   // 0x439
 #include "summoner/gametarget.h"
 // (pos, layer): moves cur_character and the party there (world_mouse_frame's debug click, lobj flag 0x40).
 void party_teleport_to(vector3 *pos, int layer);   // 0x439750 (gameplay.cpp)
+// decomp41 (level_scripts_common.cpp): the game camera follows cur_character (snap 0 from
+// script_place_party_at_starts).
+void camera_reset_to_player(int snap);             // 0x439510 (gameplay.cpp)
+// The cutscene player (cutscene.tbl entries; unit not known) and the loaded cutscene script's name
+// (cutscene_script_name 0x257e974, "" when none).
+void cutscene_play(const char *name);              // 0x4361d0 (return unused)
+char *cutscene_script_table();                     // 0x4ed760
+extern bool US_open_demo;                          // 0x5fbf1a console "us_open_demo" (no level exits)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
