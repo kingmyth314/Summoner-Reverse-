@@ -135,5 +135,6 @@ first), structured so it can become a byte-matching decompilation later.
   Console-command keys were done the same day (`[ConsoleKeys]`, also editable in the config app). The save-image problem showed up as black thumbnails under SummonerFix's scaling and is fixed
   (`glReadPixels` hook). Still open: Timeslip's Bink 32-bit fix (no movie corruption seen with OpenGL).
 - ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
+- **Brightness under OpenGL (needs a decision).** The in-game gamma slider (0.7-2.2) does nothing with the OpenGL renderer that SummonerFix uses: the vertex-colour table `gr_color_gamma_lut` (`0x25d88d0`) is an identity table, and only Direct3D (hardware gamma ramp) and Glide (`grGammaCorrectionValue`) apply `gr_gamma_ramp`. Two ways to fix it from SummonerFix's SwapBuffers hook: `SetDeviceGammaRamp` built from `gr_gamma_ramp` (simple, but changes the whole monitor while the game runs), or drawing the frame back through the curve (cleanest in a window). See [Bugs](sum-exe/game-bugs.md) K90.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

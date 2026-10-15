@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 121 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 128 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 21 | 2 |
+| Crash or hang | 3 | 23 | 2 |
 | Gameplay | 21 | 10 | 3 |
-| Cosmetic | 25 | 6 | 2 |
-| Invisible | 11 | 24 | 0 |
+| Cosmetic | 27 | 8 | 2 |
+| Invisible | 12 | 24 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -62,6 +62,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C71 | Latent: in a town, a character type with a hide or cloaked state move but no "stand" state move crashes while its animations load | `charinfo_remap_town_moves` `0x447850` | **Observed** code and retail data, *inferred* crash | No |
 | C72 | Latent: a move with more than three `$Trigger:` lines overwrites its sound reference, and from the fifth trigger on its move list link | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
 | C73 | Latent: a translated chain skill name of more than about 60 characters overflows the "%s learned %s!" message on the stack | `character_learn_chain_skill` `0x449650` | **Observed** code and retail data, *inferred* effect | No |
+| C90 | Latent: with the OpenGL renderer, a multi-pass polygon of more than 32 vertices after clipping overwrites the stack | `gr_tmapper_multipass` `0x507a80` | **Observed** code, *inferred* effect | No |
+| C91 | Latent: Print Screen with the Direct3D renderer quits the game with "see your graphics guy" when the back buffer cannot be locked | `gr_screenshot` `0x5061f0`, `gr_d3d_read_backbuffer` `0x53a7f0` | **Observed** code, *inferred* trigger | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -213,6 +215,25 @@ return address. The name comes from
 `character_get_display_name` (at most 8 characters for the heroes), the skill name from
 `localize_string_or_invalid`. The longest retail chain skill names are 19 (English, "Chain Stamina
 Burst"), 13 (German) and 17 (French) characters. It needs a modded `strings.tbl`.
+
+**C90. No bound on the pass vertex list.** For every renderer other than Direct3D and Glide (in practice
+OpenGL), `gr_tmapper_multipass` copies the `nv` vertex pointers into a 32-entry stack array (`sub esp, 0x8c`
+at `0x507a85`, array at `[esp+0x18]`, copy loop `0x507aab`-`0x507aca`) without testing `nv`. Its callers are
+`gr_poly_clip_and_draw` (`0x54595c`) and `gr_poly_split_sections_draw` (`0x55f556`). `gr_poly_vertex`
+(`0x5452f0`-`0x54530c`) appends to a 32-record pool (`gr_poly_vertices`, 0x680 bytes of 0x34-byte records) with
+no check either, and the clipper (`gr_poly_clip_planes` `0x545970`) can add one vertex per clip plane, up to
+six. So a polygon of 27 or more vertices that is clipped can pass 33 or more vertices. *Inferred:* retail
+geometry uses far smaller polygons, so this is latent. Direct3D and Glide take their own path
+(`0x507ce3`, `0x507cb1`).
+
+**C91. A failed read-back is fatal.** `gr_screenshot` switches on the format `gr_read_backbuffer` returns: 3,
+6 and 7 (565, 888, 8888) are handled, and anything else calls `DebugError` with "The current screen mode
+doesn't support print screen... see your graphics guy." (`0x50625d`-`0x506279`). `DebugError` shows a message
+box and calls `exit(1)` (`0x531d08`, `0x531d10`). `gr_d3d_read_backbuffer` returns 0 when the back buffer's
+`Lock` fails (`test eax, eax; je` at `0x53a827`, `xor eax, eax` at `0x53a82b`), so a screenshot taken while the
+surface cannot be locked ends the game. Glide and OpenGL always return 3 and 7. *Inferred:* a lock should fail
+only while the surface is lost (for example around a task switch), so this is latent. SummonerFix's OpenGL
+renderer is not affected. The failed-lock path also skips `gr_d3d_begin_scene` (`0x53a8ae`); see Still unclear.
 
 ## Gameplay
 
@@ -543,6 +564,10 @@ creates one item per counted weapon (`0x44e8e9`..`0x44e911`). No retail record h
 | K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 | K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code, *inferred* effect | No |
+| K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | No |
+| K91 | With the Direct3D renderer and a hardware gamma ramp, lit polygons get the gamma curve twice | `gr_d3d_tmapper` `0x5361a0`, `gr_d3d_tmapper_multipass` `0x536360`, `gr_d3d_set_gamma` `0x53ab20` | **Observed** code, *inferred* effect | No |
+| K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
+| K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -766,6 +791,69 @@ Titus and Machival party knock-downs. Pushes (`ai_disable_2f_local`) and stuns (
 same way, without a message. Whether the game means casting to be uninterruptible is *unknown*; the message is the
 slip.
 
+**K90. No gamma under OpenGL.** `gr_set_gamma` builds `gr_gamma_ramp` with the curve
+`255 * (i/255)^(1/gamma)` (`0x506ac1`-`0x506b10`). The second table, `gr_color_gamma_lut`, gets only `i` clamped
+to 0..255 (`0x506b12`-`0x506b63`): an identity table. The back-end call has cases for Direct3D and Glide only
+(`0x506b65`-`0x506b7a`). Direct3D uploads the ramp with `IDirectDrawGammaControl::SetGammaRamp` (`0x53ab6d`) and
+Glide calls `grGammaCorrectionValue` (`0x54bac6`). The OpenGL back end has neither, and Sum.exe imports no gamma
+ramp function (the only gamma string in the file is `grGammaCorrectionValue`). `gr_opengl_tmapper` maps
+vertex colours through the identity table (`0x550150`-`0x550182`). The ramp reaches OpenGL only in
+`gl_convert_a8_to_rgba8888` (`0x54d5f3`): the alpha of 8-bit-alpha bitmaps, at upload time. The option slider
+(0.7 to 2.2, `options_apply_gamma` `0x41f380`) therefore changes only how opaque those textures are, and only for
+textures uploaded after the change: nothing flushes the texture cache. Fonts are built in `GameInit`
+(`0x43df76`-`0x43df9e`) before the saved gamma is applied (`0x43e110`), so they use gamma 1.0. The identity table
+is right for Glide, where the hardware applies the curve; the OpenGL renderer never got a replacement.
+
+Live with SummonerFix, which runs the game on OpenGL. **How a fix could work** (not written):
+
+1. *Hardware ramp, smallest change.* Build a `WORD[3][256]` ramp from `gr_gamma_ramp` (`0x25d8e0c`, 256 ints,
+   shifted left by 8 as `gr_d3d_set_gamma` does at `0x53ab3d`-`0x53ab61`) and pass it to GDI
+   `SetDeviceGammaRamp` on the window's DC. SummonerFix already hooks `SwapBuffers` (`display.c`), so it can
+   compare `gr_gamma` (`0x5a6064`) with the last value each frame without patching game code. Alternatively
+   patch the OpenGL fall-through of `gr_set_gamma` (`0x506b71`, `jne 0x506b7f`) into a call to a stub. It needs
+   the original ramp saved with `GetDeviceGammaRamp` and restored on exit, on focus loss and in the crash path.
+   It changes the whole monitor, like the Direct3D and Glide renderers do. Windows refuses ramps that differ
+   too much from identity, so the 2.2 end of the slider may fail; HDR displays and some drivers ignore it.
+2. *Post-process in the window.* In the `SwapBuffers` hook, before the real call, copy the scaled back buffer
+   to a texture (`glCopyTexSubImage2D`) and draw it back over the game area through the same curve: a fragment
+   program with a 256-entry lookup texture (through `wglGetProcAddress`), or, with only OpenGL 1.1, `glPixelMapfv`
+   with `GL_MAP_COLOR` and `glCopyPixels`. Skip it when `gr_gamma` is 1.0. This touches only the game window and
+   needs no restore. It is more code, and the `glCopyPixels` path is slow on modern drivers. Savegame thumbnails
+   are read earlier in the frame (`saveload_capture_thumbnail`), so they stay uncorrected, as with a hardware
+   ramp.
+3. *Vertex colours only.* Fill `gr_color_gamma_lut` with the ramp values (patch the second loop or write the
+   table after each `gr_set_gamma`). That matches what the Direct3D software path does to vertex colours, but it
+   leaves textures, the UI and bitmaps unchanged, and it would double the curve under Glide. Only a partial fix.
+
+Option 1 matches the other two renderers. Option 2 is the cleanest for a windowed or borderless game.
+
+**K91. Gamma twice on Direct3D.** `gr_d3d_tmapper` passes a vertex's own colour through `gr_gamma_ramp`
+(`0x536247`-`0x536265`), and `gr_d3d_tmapper_multipass` does the same for the pass colours (`0x5366b6`-`0x5366fa`).
+`gr_d3d_set_gamma` also loads the ramp into the display hardware when the gamma-control interface exists
+(`0x53ab27`-`0x53ab6d`). `gr_d3d_init_device` gets that interface only when DirectDraw reports caps bit `0x20000`
+(DDCAPS2_PRIMARYGAMMA, `test [0x2dc0610], 0x20000` at `0x539d8a`). On such a device lit polygons get the curve
+in software and again on the screen, while textures and the UI get it once. Without the cap only those lit
+polygons get any gamma. Glide avoids this by using the identity table for vertex colours (`0x54b2bf`).
+*Inferred:* the visual effect was not tested. Live with the retail Direct3D renderer at any gamma other than 1.0.
+
+**K92. Stale fog distances.** `gr_set_fog` stores the fog colour and the flag first (`0x507dc9`, `0x507dd4`). With
+fog on it limits `near` to half of `far` (a quarter on Glide), then jumps to the back-end call when `near < 0`
+(`0x507e1c`) or `far < near` (`0x507e2f`). The fog stays on with the previous call's distances and ranges, and
+the back end is told to apply them (`push 1` at `0x507f4f`, `0x507f5a`, `0x507f65`). The game's callers are
+`levelrender_fog_enable` and `levelrender_fog_disable` (fog off). `fog_set_distances` replaces values `<= 0` and
+keeps far above near (`0x486b10`-`0x486b7a`), but `level_set_current_layer` copies a layer's two fog values
+straight into the globals (`0x48218a`-`0x4821b6`), and only the first is tested `> 0`. So a level whose layer fog
+has a negative distance would trigger it. *Inferred:* no retail level is known to do so (latent). A far distance
+of exactly 0 with a positive near one is the related case in Still unclear.
+
+**K93. Console anti-aliasing flag.** `cmd_antialiasing` toggles its own flag `cmd_antialiasing_on`
+(`0x25d9224`, 0 at start) and passes the new value to `gr_set_antialias` (`0x505db9`-`0x505dda`). The options
+setting goes through `config_antialias` (`0x60acf4`) and `options_apply_detail` (`0x487330`-`0x48733c`) and never
+touches that flag. With anti-aliasing on in the options, the first command calls `gr_set_antialias(1)` again and
+prints "antialiasing toggled!", and the options screen keeps showing the old setting after a real toggle. Only
+reachable with the Direct3D renderer on a device that sets `gr_antialias_enabled` (`0x539dd5`); elsewhere the
+command prints "not supported". A developer console command, so latent.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -805,6 +893,7 @@ slip.
 | V80 | Latent: the `ai_state` console command rejects every state name ("Error: Invalid state name") | `cmd_ai_state` `0x474d10` | **Observed** code |
 | V81 | Latent: the `ai_frame_update_rate`, `attack_point` and `offense_point` console variables are stored and never read; `attack_point` also accepts an index one past the target's last attack point | `cmd_ai_frame_update_rate` `0x4720e0`, `cmd_attack_point` `0x473260`, `cmd_offense_point` `0x473300` | **Observed** code |
 | V82 | The branch of `ai_knock_down_local` for a character that is already down can never run; if it did, it would restart the lying phase with the first knock-down's duration | `ai_knock_down_local` `0x4742b0`, `ai_can_be_knocked_down` `0x475030` | **Observed** code |
+| V90 | `LoadSettings` passes the vsync option as `gr_init`'s far-z argument (0.0 or 1.0) and a constant 0 as its vsync argument | `LoadSettings` `0x43d7f0`, `gr_init` `0x505e00` | **Observed** code, *inferred* intent |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1030,6 +1119,15 @@ the mode timer) and on a longer one restart the mode timer (`SetTimeout(0)` at `
 new duration, so the character would lie for the first duration again. The note in `NOTES-ai.md` described that
 second half; it has no effect in the game.
 
+**V90. vsync in the wrong argument.** `LoadSettings` pushes 0 as `gr_init`'s seventh argument (`push 0x0` at
+`0x43db1e`), and builds the sixth from `config_cfg_34 != 0` converted to a float (`0x43db08`-`0x43db30`).
+`gr_init` stores the seventh argument to `gr_screen.vsync` (`0x25d8dd0`, `0x505eaa`) and the sixth to
+`gr_screen.far_zvalue` (`0x505e87`). `config_cfg_34` is the vsync option: `options_apply_detail` copies it to
+`0x25d8dd0` (`0x48734d`-`0x48735a`), which `gr_d3d_flip` (`0x53a718`) and `gr_glide_flip` (`0x54a762`) read. The
+two arguments look swapped. Nothing shows: `far_zvalue` has no reader, and `GameInit` calls
+`options_apply_detail` (`0x43e141`), which sets the real vsync value before play. Only the clear and flip
+inside `gr_init` run with vsync 0.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1143,6 +1241,13 @@ the tables above; the rest are below.
 - `ai_goal_next_id` (`0x59b7c8`) is saved and loaded (`savegame_write_living` `0x4d218d`,
   `savegame_read_living` `0x4d2e16`), so loaded goal ids do not collide with new ones.
 
+- NOTES item 7: `gr_draw_fade` calls `gr_set_color` twice with the same value (`0x5066b0`); the second call returns early because the colour did not change (`0x506b90`). Harmless.
+- NOTES item 8, first part: `gr::set_clip` tests the right edge with `>=` and the bottom edge with `>` (`0x506840`); when the values are equal the assignment gives the same number, so the result is identical.
+- NOTES item 1, second part: the windowed `gr_init` window is centred horizontally but placed at the top of the work area (`0x505f9f` branch). A layout choice, retail runs fullscreen, and SummonerFix replaces the window position (`display.c` `Hook_SetWindowPos`).
+- `gr_is_mode_supported` under Glide: `glide_multitexture_supported` (`0x2f132cd`) looks inverted, but the flag is set to 1 when there are fewer than 2 TMUs (`0x549e8d`, `ebx = 1`), so the test is right. Only the name is wrong (symfix.txt).
+- Gamma applied to the alpha of 8-bit-alpha textures on all renderers (`0x54c233`, `0x5486bd`, `0x54d5f3`): for the white additive textures this changes their brightness, which is probably the intent.
+- `cmd_gamma` (`0x43d520`) only stores `config_gamma`, so `gamma <x>` in the console shows no change until the options are accepted or a level loads. The help text says only that it "Sets" the value; working as written.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1199,6 +1304,11 @@ the tables above; the rest are below.
   caller, `0x44e22f`) clears that memory first was not checked.
 - The `0x30` sub-mode (`AIS_PUSH_STUNNED`, `ai_mode_disabled_frame` `0x4b4ca6`) has no setter in `ai.cpp`. Who sets
   it was not traced.
+- `gr_set_fog` with `far = 0` and `near > 0` (possible through `level_set_current_layer`, `0x4821b6`): `near` is clamped to 0, both checks pass, and the ranges become `1 / 0` (`gr_fog_alpha_inv_range` `0x507ead`, `gr_fog_z_inv_range` `0x507ee6`). With x87 exceptions masked that is +infinity; what the back ends draw then was not traced.
+- `gr_d3d_read_backbuffer` calls `gr_d3d_end_scene` (`0x53a7f7`) and on a failed lock returns without `gr_d3d_begin_scene` (`0x53a82b`). The thumbnail caller `saveload_capture_thumbnail` (`0x42718a`) would then draw the rest of the frame outside a scene. Whether it checks the returned 0 was not traced.
+- `gr_d3d_read_backbuffer` always reports 565 and copies `2 * w` bytes per row (`0x53a850`, `0x53a8b3`). If the Direct3D renderer can run with a 32-bit back buffer, screenshots and thumbnails would be garbled. Whether it ever picks one was not checked.
+- `gr::set_clip` with an origin right of or below the screen sets `clip_left` / `clip_top` to `max - origin - 1`, a negative value, and the clip becomes one pixel wide at the screen edge instead of empty (`0x506840`-`0x50689f`). No caller with such an origin was found.
+- The per-layer fog arrays (`0x22ea4f4`, `0x22fae78`) may be named the wrong way round, like `0x59bd7c` / `0x59bd80`; depends on the "+Distance:" order in `level_parse_table` (`0x4cbddc`).
 
 ## Evidence
 
@@ -1330,3 +1440,10 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V80 ai_state compare | `cmd_ai_state` `0x474d48`..`0x474d77`; .data `0x59ad60`..`0x59ad94`; `next_arg` as a buffer `0x437513`, `0x43995e` |
 | V81 dead variables | `cmd_ai_frame_update_rate` `0x472102`, `0x472121`; `cmd_attack_point` `0x47329d`..`0x4732b7`; `cmd_offense_point` `0x473318`; `ai_update_perception` `0x47301d` |
 | V82 unreachable branch | `ai_can_be_knocked_down` `0x47506a`..`0x475073`; `ai_knock_down_local` `0x4742b3`..`0x4742f8`; `ai_mode_disabled_frame` `0x4b4b6e`..`0x4b4b88` |
+| C90 multipass bound | `gr_tmapper_multipass` `0x507a85`, `0x507aab`-`0x507aca`; `gr_poly_vertex` `0x5452f0`-`0x54530c`; `gr_poly_clip_and_draw` `0x5458a7`, `0x54593b`; callers `0x54595c`, `0x55f556` |
+| C91 screenshot fatal | `gr_screenshot` `0x506255`-`0x506279`; `gr_d3d_read_backbuffer` `0x53a824`-`0x53a834`, `0x53a8b3`; `DebugError` `0x531d08`-`0x531d10`; `screenshot_save` `0x43263f` |
+| K90 OpenGL gamma | `gr_set_gamma` `0x506ac1`-`0x506b7f`; `gr_opengl_tmapper` `0x550127`-`0x550182`; `gl_convert_a8_to_rgba8888` `0x54d5f3`; `options_apply_gamma` `0x41f380`-`0x41f3c1`; `GameInit` `0x43df76`, `0x43e110`; `gr_font_create` `0x5088c1` |
+| K91 D3D double gamma | `gr_d3d_tmapper` `0x53622f`-`0x536265`; `gr_d3d_tmapper_multipass` `0x5366b6`-`0x5366fa`; `gr_d3d_set_gamma` `0x53ab27`-`0x53ab6d`; `gr_d3d_init_device` `0x539d8a`-`0x539dc4`; `gr_glide_tmapper` `0x54b2bf` |
+| K92 stale fog | `gr_set_fog` `0x507dc9`-`0x507e2f`, `0x507f3f`-`0x507f6d`; `levelrender_fog_enable` `0x482850`-`0x4829c6`; `fog_set_distances` `0x486b10`-`0x486b7a`; `level_set_current_layer` `0x482176`-`0x4821b6` |
+| K93 antialias flag | `cmd_antialiasing` `0x505db0`-`0x505dda`; `options_apply_detail` `0x487330`-`0x48733c`; `gr_set_antialias` `0x5080c0`; `gr_d3d_init_device` `0x539dd5` |
+| V90 vsync argument | `LoadSettings` `0x43db08`-`0x43db4d`; `gr_init` `0x505e52`, `0x505e87`, `0x505eaa`; `options_apply_detail` `0x48734d`-`0x48735a`; `gr_d3d_flip` `0x53a718`; `gr_glide_flip` `0x54a762` |

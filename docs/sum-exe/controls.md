@@ -35,7 +35,7 @@ corrected 2026-10-15: this page said `0x4000` was Alt).
 Held keys are polled separately with `key_is_down` / `key_down_time`. Examples: the camera
 arrows, and the modifier keys in the mouse input.
 
-The keyboard does **not** use DirectInput; only the [mouse](vsdk-gr.md#mouse-0x500a90-0x501090)
+The keyboard does **not** use DirectInput; only the [mouse](vsdk-gr.md#mouse-0x500a30-0x50144f)
 does.
 
 ## Default keyboard map (`hud_handle_keys`)
