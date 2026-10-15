@@ -6131,6 +6131,10 @@
 0x543e10  skeleton__dtor           func  vsdk\ca\skeleton.cpp I ; frees skeleton arrays, only called by skeleton__scalar_deleting_dtor
 0x543fc0  skeleton__get_root_velocity func  vsdk\ca\skeleton.cpp I ; thiscall (&out): root displacement vector +0x68 divided by the duration (end +0x64 - start +0x60) in seconds
 0x544090  skeleton_read            func  vsdk\ca\skeleton.cpp   O ; "FILE ISN'T MVFREDUCED AND HAS MORPHING!!!", "Skeletons using too much memory"
+0x544b20  anim_key__ctor           func  vsdk\ca              I ; thiscall (time): +0 = time, returns this, base of the skeleton key records, callers the 0x28-byte position key ctor 0x544ad0 and anim_rot_key__ctor
+0x544b30  anim_pos_key__get_size   func  vsdk\ca              I ; thiscall: returns 0x28, the stride of the position key array that skeleton_read allocates with ctor 0x544b60
+0x544b40  anim_rot_key__ctor       func  vsdk\ca              I ; eh_vector_constructor_iterator ctor of the 0x14-byte key array in skeleton_read: anim_key__ctor(0) plus the 12-byte member at +4
+0x544b70  anim_vec_key__ctor       func  vsdk\ca              I ; eh_vector_constructor_iterator ctor of a 0x10-byte key array (time + vector3 at +4) in skeleton_read
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544ba0  StringPool__Allocate     func  vsdk\os\stringpool.cpp O ; thiscall (max_length): pool = operator_new(max_length), allocated = 1, length = count = 0
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
@@ -6155,35 +6159,90 @@
 0x545080  file_sync_int16_array    func  vsdk\vfile           O ; File__check_flags(1) picks file_read_int16_array or file_write_int16_array
 0x5450c0  init_gr_vertex_buf_2ee6338 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5889fc): 64 gr__Vertex (0x30 bytes) at 0x2ee6338
 0x5450f0  init_gr_mode_slots_2ee45d8 func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a00): 4 records of 0x14 bytes at 0x2ee45d8 (gr_mode_slot__ctor)
+0x545120  gr_poly_reset_clip_verts func  vsdk\gr              O ; resets the temp clip vertex pool: count 0x2f076c0 = 0, 0x2f075bc[] pointers to the 0x34-byte slots at 0x2ee4630 each pointing at a 0x30-byte vertex at 0x2ee6338, callers gr_setup_3d, gr_poly_flush
+0x545150  gr_poly_begin            func  vsdk\gr              O ; (buffered, z, ...): buffered = record a sorted alpha poly into the command buffer (write ptr 0x5aca40, opcode 1 or 2, z index 0x2ee5330, flushes when full via gr_poly_buffer_flush), else starts an immediate poly (vertex list 0x2ee6f38), callers gr_poly, mesh_check_materials
+0x545260  gr_poly_buffer_skip      func  vsdk\gr              O ; (n): advances the command-buffer write pointer 0x5aca40 by n bytes (alignment padding)
+0x545280  gr_poly_buffer_put_byte  func  vsdk\gr              O ; (b): writes one byte to the command buffer 0x5aca40
+0x5452a0  gr_poly_buffer_put_float func  vsdk\gr              O ; (f): writes a float to the command buffer 0x5aca40
+0x5452c0  gr_poly_vertex           func  vsdk\gr              O ; (vertex*): buffered = opcode 3 + flags + position, else appends to the immediate vertex list 0x2ee6f38 (count 0x2f076c8), callers gr_poly, mesh_check_materials
+0x545310  gr_poly_buffer_put_vector func  vsdk\gr              O ; (vector3*): writes 12 bytes to the command buffer 0x5aca40
+0x545340  gr_poly_set_texture      func  vsdk\gr              O ; (bitmap, r, g, b, a, mode...): applies gr_tint, buffered = opcode 4 + gr__Mode block + bitmap + colour, else sets the current poly state, callers gr_poly, mesh_check_materials
+0x545550  gr_poly_buffer_put_int   func  vsdk\gr              O ; (i): writes a dword to the command buffer 0x5aca40
+0x545570  gr_poly_buffer_put_data  func  vsdk\gr              O ; (src, n): memcpy into the command buffer 0x5aca40
+0x5455a0  gr_poly_uv               func  vsdk\gr              O ; (u, v): buffered = opcode 5 + two floats, else stores u/v of the current vertex (+4/+8 of the 0x34-byte slot)
+0x545610  gr_poly_rgb              func  vsdk\gr              O ; (r, g, b): gr_tint applied, buffered = opcode 6 + 3 bytes, else vertex colour of the current vertex
+0x545760  gr_poly_alpha            func  vsdk\gr              O ; (a): buffered = opcode 7 + byte, else vertex alpha (+0xf)
+0x5457b0  gr_poly_end              func  vsdk\gr              O ; buffered = opcode 8 and leaves record mode, else and-combines the vertex clip codes (+0x18) and rejects or clips and draws the poly through gr_poly_clip_and_draw
+0x545870  gr_poly_clip_and_draw    func  vsdk\gr              O ; (codes, verts, out): gr_poly_clip_planes when any code is set, gr_project_vertex on each vertex, fog z, then draws through 0x55f110 and resets the clip vertex pool
+0x545970  gr_poly_clip_planes      func  vsdk\gr              O ; (verts, tmp, &count, codes): clips against each plane bit 1..0x20 set in the or-code with gr_poly_clip_plane, ping-ponging the two lists
+0x5459d0  gr_poly_clip_plane       func  vsdk\gr              O ; (plane_bit, in, out, &count, codes): Sutherland-Hodgman pass over one clip plane, new vertices from gr_poly_clip_edge, updates the or/and codes
+0x545ac0  gr_poly_clip_edge        func  vsdk\gr              O ; (plane_bit, v0, v1): allocates a temp vertex (gr_poly_alloc_clip_vertex) and interpolates the edge at the far plane (bit 1, gr_far_clip_z) or a side plane
+0x545d70  gr_poly_buffer_flush     func  vsdk\gr              O ; shell-sorts the recorded alpha polys by z (0x2ee5330, count 0x2f076e8) and replays the command buffer opcodes 1..8 through gr_poly_begin/vertex/set_texture/uv/rgb/alpha/end with tint disabled, callers levelrender_render_scene, gr_flip, gr_init_context
+0x546070  gr_poly_buffer_get_byte  func  vsdk\gr              O ; reads one byte from the command buffer cursor 0x5aca40 (llvm-objdump listing starts one byte late)
+0x546080  gr_poly_buffer_get_float func  vsdk\gr              O ; reads a float (st0) from the command buffer cursor 0x5aca40
+0x546090  gr_poly_buffer_get_int   func  vsdk\gr              O ; reads a dword from the command buffer cursor 0x5aca40
+0x5460b0  gr_poly_buffer_get_vector func  vsdk\gr              O ; (vector3* out): reads 12 bytes from the command buffer cursor 0x5aca40
+0x5460e0  gr_poly_buffer_get_data  func  vsdk\gr              O ; (dst, n): memcpy out of the command buffer cursor 0x5aca40
 0x546110  gr_mode_slot__ctor       func  vsdk\gr              I ; thiscall ctor: gr__Mode__Mode_invalid on +0, returns this
+0x546120  gr_poly_free_clip_verts  func  vsdk\gr              O ; clip vertex pool count 0x2f076c0 = 0, called after drawing in gr_poly_clip_and_draw
+0x546130  gr_poly_alloc_clip_vertex func  vsdk\gr              O ; returns the next temp vertex slot of the pool 0x2f075bc (count 0x2f076c0) with its flags +0x19 cleared
 0x546150  init_sound_emitters      func  -                    O ; hidden start, static initialiser (table 0x588a04): 0x80 sound_emitters of 0x74 bytes (sound_emitter__sound_emitter)
 0x546180  init_sound_emitter_list_head func  -                    O ; hidden start, static initialiser (table 0x588a08): sound_emitter__sound_emitter(0x2f076f0), the list head used by sound_emitters_init
 0x5461f0  sound_emitter_reset      func  -                    O ; (idx) clears flags +0x50, handles +8/+0xc = -1, zeroes vectors +0x24/+0x3c of the 0x74-byte entry at 0x2f07768
 0x546230  sound_emitter_find_free  func  -                    O ; index of the first emitter without flag 1 (128 entries), -1 if none, caller sound_create_emitter
+0x546250  sound_emitter_find_quietest func  -                    O ; walks the emitter list 0x2f076f0 and returns the index of the playing emitter (+0xc >= 0) with the lowest volume +0x10, -1 if none, caller sound_emitter_play (voice stealing)
 0x5462b0  sound_emitter_stop       func  -                    O ; (idx, fade_ms) clears playing flag 8, snd_stop_fade or snd_stop on handle +0xc, num playing (0x2f0b168)--
 0x546320  sound_emitter_play       func  -                    I ; (idx) starts the emitter sound with snd_play_3d, snd_play or snd_play_looping from snd_get_sound_info
+0x546430  sound_emitter_stub_false func  -                    O ; returns false, called by sound_emitter_play and sound_emitter_update_position, which only act when it returns 1
 0x546440  sound_emitter_update_volume func  -                    I ; (idx) snd_calc_volume_3d, stops when inaudible, else snd_set_volume (or starts it)
 0x546500  sound_emitter_update_pan func  -                    I ; (idx) snd_calc_pan then snd_set_pan
 0x546580  sound_emitter_update_frequency func  -                    I ; (idx) Doppler-style factor from 0x5213b0/0x521310, snd_set_frequency
 0x546600  sound_emitters_init      func  -                    O ; called by snd_init: resets all 128 emitters, enabled flag 0x2f0b16c, empty list
 0x5466f0  sound_create_emitter     func  -                    I ; "Failed to create sound emitter since sound file missing: %s"
 0x5467c0  sound_emitter_delete     func  -                    O ; (idx, fade) sound_emitter_stop, unlinks it from the emitter list, clears flags, sound_emitter_reset
+0x5468c0  sound_emitter_update_position func  -                    O ; (idx, pos, vel): when the RealtimeTimer +0x4c of the emitter expires stores position +0x24 and velocity +0x3c, handles the repeat delay +0x54 with the GameTimer +0x58 and restarts or updates volume/pan/frequency, callers fx_frame, level_ambient_sounds_frame, script_editor_handle_input
 0x546b20  sound_emitter_pause      func  -                    O ; (idx) when used: flag 2 set, +0x10 = 0, sound_emitter_stop(idx, 0)
 0x546b80  sound_emitter_unpause    func  -                    O ; (idx) clears flag 2
 0x546c20  sound_emitter_get_sound  func  -                    I ; (idx) +8 of the emitter (sound handle passed at creation), -1 when out of range
+0x546c50  sound_emitter_get_repeat_delay func  -                    I ; (idx) +0x54 of the 0x74-byte emitter (the repeat delay used with the GameTimer +0x58 in sound_emitter_update_position), 0 when out of range, callers script_editor_list_ambient_sounds, script_write_level_table
 0x546c80  sound_emitter__sound_emitter func  -                    O ; thiscall ctor of the 0x74-byte emitter: vectors +0x24/+0x30/+0x3c, RealtimeTimer +0x4c, GameTimer +0x58
+0x546cc0  vector3__ne              func  vsdk\math            O ; thiscall (other): true when any of x, y, z differs (ret 4), caller sound_emitter_update_position
+0x546d00  perlin_noise1            func  -                    O ; hidden start, Ken Perlin reference noise1(arg): lazy perlin_init on the start flag 0x5aca88, permutation 0x2f0b170, gradients 0x2f0b978, s-curve t*t*(3-2t)
+0x546d80  perlin_init              func  -                    O ; Ken Perlin reference init(): random()%512-256 /256 gradients for g1 0x2f0b978, g2 0x2f0c180 (perlin_normalize2), g3 0x2f0d190 (perlin_normalize3), shuffled permutation p 0x2f0b170 (B = 0x100)
+0x546f00  perlin_normalize2        func  -                    O ; Ken Perlin reference normalize2(float v[2]): divides by sqrt(x*x + y*y)
+0x546f30  perlin_normalize3        func  -                    O ; Ken Perlin reference normalize3(float v[3]): divides by the length
+0x546f70  perlin_noise2            func  -                    O ; hidden start, Ken Perlin reference noise2(vec[2]) over g2 0x2f0c180
+0x5470e0  perlin_noise3            func  -                    O ; Ken Perlin reference noise3(vec[3]) over g3 0x2f0d190, callers 0x48de60 and the vfx code 0x5605f0
 0x547390  glide_unload_dll         func  vsdk\gr\glide\gr_glide.cpp O ; FreeLibrary(glide2x.dll handle 0x2f0e9b0), called by gr_glide_close
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
 0x547990  init_glide_records_2f0eb70 func  vsdk\gr\glide        I ; hidden start, static initialiser (table 0x588a0c): 2 records of 0x48 bytes at 0x2f0eb70 (glide_record__ctor)
 0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
+0x547a90  gr_glide_tcache_free_entry func  vsdk\gr\glide\gr_glide.cpp I ; (entry, release_tmus, free_sections): frees the texture memory of a 0x10-byte texture entry in both TMU records (glide_record__free_texture_thunk) and/or deletes its 0x38-byte section data, counterpart of gr_d3d_tcache_free_entry, callers gr_glide_tcache_flush, gr_glide_tcache_free, gr_glide_create_texture
 0x547b60  gr_glide_tcache_close    func  vsdk\gr\glide\gr_glide.cpp O ; gr_glide_tcache_flush, frees each TMU block table (0x48-byte TMU records at 0x2f0eb70), deletes the texture table 0x2f0ec00, caller gr_glide_close
 0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
 0x547c00  gr_glide_round_texture_size func  vsdk\gr\glide\gr_glide.cpp O ; rounds a dimension up to 4/8/16/... (power of two), caller gr_glide_bitmap_size_check
 0x547cc0  gr_glide_bitmap_size_check func  vsdk\gr\glide\gr_glide.cpp I ; "Glide: Not drawing %dx%d bitmap '%s'"
+0x5484f0  gr_glide_create_texture_section func  vsdk\gr\glide\gr_glide.cpp I ; (entry, section, bitmap...): rounds the section size to 4..256 and converts its pixels into the Glide texture formats (operator_new buffers by bm_bits_per_pixel), caller gr_glide_create_texture, llvm-objdump starts the listing one byte late
+0x5492f0  gr_glide_create_texture  func  vsdk\gr\glide\gr_glide.cpp I ; (bitmap, entry): bm_get_mipmap_info, splits into 256x256 sections (0x38 bytes each at +0xc), gr_glide_bitmap_size_check for mipmapped bitmaps, else bm_lock and gr_glide_create_texture_section per section, callers gr_glide_tcache_set, gr_glide_mark_texture_dirty
+0x5494e0  gr_glide_get_section_count func  vsdk\gr\glide\gr_glide.cpp O ; (bitmap) +4 of its texture entry in the table 0x2f0ec00 (bm_get_current_frame), caller gr_glide_bitmap, same as gr_d3d_get_section_count
+0x549500  gr_glide_get_section_rect func  vsdk\gr\glide\gr_glide.cpp O ; (bitmap, section, &x, &y, &w, &h) from the 16-bit fields +0x30..+0x36 of the 0x38-byte section, caller gr_glide_bitmap
+0x549560  gr_glide_tcache_set      func  vsdk\gr\glide\gr_glide.cpp I ; (tmu, bitmap, section, &u_scale, &v_scale, fail_on_full): tcache_slot__is_bound shortcut, gr_glide_create_texture when missing, reconverts dirty sections, then glide_record__load_section, counterpart of gr_d3d_tcache_set, callers gr_glide_set_bitmap, gr_glide_bitmap, levelrender_draw_list_glide
 0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
 0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
 0x549780  glide_record__ctor       func  vsdk\gr\glide        I ; hidden start, thiscall ctor: byte +0 = 0, +8/+0xc = -1, +0x10..+0x1c = 0 and more fields
 0x5497a0  glide_tmu_init           func  vsdk\gr\glide\gr_glide.cpp O ; (tmu) guTexMemQueryAvail and grTexMinAddress into the TMU record, then its block table, caller glide_report_texture_memory
+0x549840  glide_record__init_blocks func  vsdk\gr\glide        O ; thiscall (mem_start, mem_end, num_blocks): +0x2c/+0x30 texture memory range, +0x18 array of num_blocks 0x14-byte blocks (+0x1c), then glide_record__reset_blocks, caller glide_tmu_init
+0x549880  glide_record__reset_blocks func  vsdk\gr\glide        O ; thiscall: zeroes the block array, chains it as the free list (+0x20 head, +0x24/+0x28 used list = -1), owners -1, used bytes +0x44 = 0
+0x549900  glide_record__free_texture_thunk func  vsdk\gr\glide        O ; thiscall (entry): forwards to glide_record__free_texture, caller gr_glide_tcache_free_entry
+0x549910  glide_record__free_texture func  vsdk\gr\glide        O ; thiscall (entry): glide_record__evict_block on every block whose owner +0xc is that texture entry
+0x549950  glide_record__evict_block func  vsdk\gr\glide        O ; thiscall (block): clears the owner section TMU address/size, owner/section = -1, subtracts its size from the used bytes +0x44
+0x5499d0  glide_record__close_thunk func  vsdk\gr\glide        O ; jmp glide_record__close, caller gr_glide_tcache_close
+0x5499e0  glide_record__close      func  vsdk\gr\glide        O ; thiscall: deletes the block array +0x18, count +0x1c = 0
+0x549a10  glide_record__reset_blocks_thunk func  vsdk\gr\glide        O ; jmp glide_record__reset_blocks, caller gr_glide_tcache_flush
+0x549a20  glide_record__load_section func  vsdk\gr\glide        I ; thiscall (entry, section, ...): grTexTextureMemRequired and glide_record__alloc when the section is not resident, grTexDownloadMipMap (also when dirty), then grTexSource and the u/v scales, caller gr_glide_tcache_set
+0x549b50  glide_record__alloc      func  vsdk\gr\glide        I ; thiscall (size, entry, section): places a block after the last used one (avoiding 2 MB boundary crossings), evicting LRU blocks (glide_record__release_block) until it fits, returns the block index
+0x549c50  glide_record__release_block func  vsdk\gr\glide        O ; thiscall (block): glide_record__evict_block then pushes it on the free list +0x20
+0x549c80  glide_record__new_block  func  vsdk\gr\glide        O ; thiscall: pops a block from the free list +0x20 and appends it to the used list (+0x24 first, +0x28 last)
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549cf0  glide_clip_cursor        func  vsdk\gr\glide\gr_glide.cpp O ; ClipCursor(&rect 0x2f0f1f8) or ClipCursor(NULL)
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
@@ -6206,6 +6265,7 @@
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b110  gr_glide_line_3d         func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of gr_line_3d, calls glide_grDrawLine
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
+0x54b3a0  gr_glide_tmapper_multitexture func  vsdk\gr\glide\gr_glide.cpp I ; (nv, verts, mode...): Glide two-TMU path of gr_tmapper_multipass (vertices into 0x2f0ec28, splits the gr__Mode, gr_glide_set_mode, draws via 0x55fb00), the D3D twin is 0x536360
 0x54b930  init_ccmd_whee_thunk     func  -                    O ; hidden start, initialiser table entry 0x588a14: jmp init_ccmd_whee
 0x54b940  init_ccmd_whee           func  -                    O ; static initialiser of the console command "whee"
 0x54b960  cmd_whee                 func  -                    O ; console command "whee": process_command(0x10) then copies the parsed int into 0x5ad544
@@ -6220,18 +6280,40 @@
 0x54bbb0  gr_d3d_tcache_close      func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_d3d_tcache_flush, frees every entry, deletes the table, caller gr_d3d_close
 0x54bbf0  gr_d3d_tcache_free_entry func  vsdk\gr\directx\gr_direct3d.cpp I ; (entry) releases the slots of one texture entry, callers gr_d3d_tcache_free, gr_d3d_bitmap_size_check
 0x54bc60  gr_d3d_tcache_flush      func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54bc90  gr_d3d_tcache_frame      func  vsdk\gr\directx\gr_direct3d.cpp I ; empty, called from gr_d3d_flip where gr_opengl_flip jumps to gr_opengl_tcache_frame
+0x54bca0  gr_d3d_create_texture_section func  vsdk\gr\directx\gr_direct3d.cpp I ; (entry, section, bitmap): power-of-two and min/max texture size clamping, IDirectDraw7 CreateSurface, Lock, gr_d3d_copy_bitmap_to_surface, Unlock and the texture interface, caller gr_d3d_bitmap_size_check
+0x54c0a0  gr_d3d_copy_bitmap_to_surface func  vsdk\gr\directx\gr_direct3d.cpp I ; (DDPIXELFORMAT*, ...): shift/scale per RGBA mask (+0x10..+0x1c, alpha when flags & 1) and per-format pixel loops with gr_gamma_ramp, caller gr_d3d_create_texture_section
+0x54cfe0  gr_d3d_get_section_count func  vsdk\gr\directx\gr_direct3d.cpp O ; (bitmap) +4 of its 0x10-byte texture entry in 0x2f13308 (bm_get_current_frame), caller gr_d3d_bitmap
+0x54d000  gr_d3d_get_section_rect  func  vsdk\gr\directx\gr_direct3d.cpp O ; (bitmap, section, &x, &y, &w, &h) from +0x10..+0x1c of the 0x20-byte section, caller gr_d3d_bitmap
 0x54d050  gr_d3d_tcache_set        func  vsdk\gr\directx\gr_direct3d.cpp I ; (stage, bitmap, ..., &u_scale, &v_scale, fail_on_full) binds a bitmap, loading it into a texture slot when missing, FreeSpace-style gr_d3d_tcache_set
 0x54d120  gr_d3d_bitmap_size_check       func  vsdk\gr\directx\gr_direct3d.cpp I ; "D3D: Not drawing %dx%d bitmap '%s'"
 0x54d330  gr_d3d_round_texture_size func  vsdk\gr\directx\gr_direct3d.cpp O ; rounds a dimension up to 4/8/16/..., caller gr_d3d_bitmap_size_check
 0x54d3f0  gr_d3d_mark_texture_dirty func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54d430  gr_d3d_tcache_free       func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54d470  opengl_record__ctor      func  vsdk\gr\opengl       I ; hidden start, thiscall ctor: byte +0 = 0, +8/+0xc = -1, +0x10/+0x14 = 0
+0x54d490  tcache_slot__init_stage  func  vsdk\gr              O ; thiscall (stage): +0 = 1, +4 stage, bound bitmap +8 and section +0xc = -1, caller gr_d3d_tcache_init (two stages)
+0x54d4b0  tcache_slot__reset       func  vsdk\gr              O ; thiscall: bound bitmap +8 and section +0xc = -1, caller gr_d3d_tcache_flush
+0x54d4c0  tcache_slot__d3d_unbind  func  vsdk\gr\directx\gr_direct3d.cpp O ; thiscall: IDirect3DDevice7::SetTexture(stage +4, NULL) (vtbl +0x8c) unless 0x2dc6c30, bitmap +8 = -1, callers gr_d3d_tcache_flush, gr_d3d_tcache_set
+0x54d4f0  tcache_slot__is_bound    func  vsdk\gr              O ; thiscall (bitmap, section, &u_scale, &v_scale): true and the cached scales +0x10/+0x14 when that bitmap section is the one bound, callers gr_d3d_tcache_set, gr_glide_tcache_set
+0x54d530  tcache_slot__d3d_bind    func  vsdk\gr\directx\gr_direct3d.cpp O ; thiscall (entry, section, u_scale, v_scale): SetTexture(stage, section surface) and records bitmap index/section/scales, clears the entry dirty flag +8, caller gr_d3d_tcache_set
 0x54d5a0  tcache_slot__invalidate_bitmap func  vsdk\gr              I ; thiscall (bitmap): bitmap +8 = -1 when it matches, used by the Glide and Direct3D mark_texture_dirty/tcache_free
+0x54d5c0  gl_convert_a8_to_rgba8888 func  vsdk\gr\opengl\gr_opengl.cpp I ; bitmap format 2 case of gr_opengl_create_texture (Dash Faction FORMAT_8_ALPHA), output GL_RGBA/GL_UNSIGNED_BYTE through gr_gamma_ramp
+0x54d780  gl_convert_565_to_rgb888 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 3 (565) case of gr_opengl_create_texture: 5/6/5 bit fields expanded to bytes, GL_RGB/GL_UNSIGNED_BYTE
+0x54d860  gl_convert_888_to_rgb888 func  vsdk\gr\opengl\gr_opengl.cpp I ; format 6 (888) case of gr_opengl_create_texture without packed-pixel support, GL_RGB/GL_UNSIGNED_BYTE
+0x54d8d0  gl_convert_4444_to_rgba8888 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 4 (4444) case without packed pixels: nibbles expanded to bytes, GL_RGBA/GL_UNSIGNED_BYTE
+0x54da80  gl_convert_1555_to_rgba8888 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 5 (1555) case without packed pixels: alpha bit 0x8000 and 5-bit fields, GL_RGBA/GL_UNSIGNED_BYTE
+0x54dda0  gl_convert_8888_to_rgba8888 func  vsdk\gr\opengl\gr_opengl.cpp I ; format 7 (8888) case without packed pixels, byte swizzle to GL_RGBA/GL_UNSIGNED_BYTE
+0x54deb0  gl_convert_4444_to_rgba4444 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 4 case with packed pixels (0x2f1335c and 0x5ad7e4): ARGB4444 rotated to RGBA, GL_UNSIGNED_SHORT_4_4_4_4 / GL_RGBA4
+0x54df20  gl_convert_1555_to_rgba5551 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 5 case with packed pixels: alpha bit moved to bit 0, GL_UNSIGNED_SHORT_5_5_5_1 / GL_RGB5_A1
+0x54df90  gl_convert_888_to_rgba5551 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 6 case with packed pixels: bytes >> 3 packed as 5551, GL_UNSIGNED_SHORT_5_5_5_1 / GL_RGB5_A1
+0x54e050  gl_convert_8888_to_rgba4444 func  vsdk\gr\opengl\gr_opengl.cpp O ; format 7 case with packed pixels: bytes >> 4 packed, GL_UNSIGNED_SHORT_4_4_4_4 / GL_RGBA4
+0x54e0e0  gl_build_mipmaps         func  vsdk\gr\opengl\gr_opengl.cpp I ; (format, levels, w, h, src, dst): copies the stored mip levels then box-filters further halved levels per format (3, 6, 7), caller gr_opengl_create_texture when the bitmap has mipmaps
 0x54e640  gr_opengl_tcache_close   func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_opengl_tcache_flush then frees the texture tables 0x2f1331c/0x2f13334, caller gr_opengl_close
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
 0x54e740  gr_opengl_delete_texture func  vsdk\gr\opengl\gr_opengl.cpp O ; glDeleteTextures on a texture cache slot
 0x54e7a0  gr_opengl_tcache_flush   func  vsdk\gr\opengl\gr_opengl.cpp O ; glFinish, frees all; "WARNING: VRAM is at %d"
 0x54e800  gr_opengl_tcache_frame   func  vsdk\gr\opengl\gr_opengl.cpp I ; per-flip reset: bound textures -1, frame counter 0x2f13324++, clears the per-frame used flag of 0xaf0 entries, tail of gr_opengl_flip
+0x54e840  gr_opengl_create_texture func  vsdk\gr\opengl\gr_opengl.cpp O ; (bitmap, entry...): gr_opengl_delete_texture, bm_get_mipmap_info, bm_lock (Couldn't lock bitmap %d), power-of-two size, u/v scale, jump table on the bitmap format (2..7) to the gl_convert_* helpers, then glTexImage2D, caller gr_opengl_tcache_set
 0x54ed90  gr_opengl_tcache_set     func  vsdk\gr\opengl\gr_opengl.cpp I ; (bitmap, ..., stage) binds a bitmap texture, uploading it (0x54e840) when missing, -1 bitmap unbinds the stage
 0x54eed0  gr_opengl_mark_texture_dirty func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54ef20  gr_opengl_tcache_free    func  vsdk\gr\opengl\gr_opengl.cpp O
@@ -6260,12 +6342,54 @@
 0x5502c0  gr_opengl_read_backbuffer func  vsdk\gr\opengl\gr_opengl.cpp I
 0x5503c0  gr_opengl_set_fog        func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_set_fog back end: glEnable/glDisable, glFogi, glFogfv, glHint
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
+0x550500  gr_opengl_setup_view     func  vsdk\gr\opengl\gr_opengl.cpp I ; no direct callers, glMatrixMode(GL_PROJECTION), glPushMatrix, gluLookAt from gr_eye_pos and the view vectors, gluPerspective(gr_get_view_fov, gr_get_aspect, ..., gr_far_clip_dist)
+0x5505d0  gl_set_vertex_arrays     func  vsdk\gr\opengl\gr_opengl.cpp I ; hidden start, glEnableClientState(GL_VERTEX_ARRAY, GL_COLOR_ARRAY) and glVertexPointer(3, GL_FLOAT, ...) on its arguments
 0x550630  gr_opengl_set_antialias  func  vsdk\gr\opengl\gr_opengl.cpp O ; empty OpenGL target of gr_set_antialias
 0x550640  clamp_ubyte              func  -                    O ; (unsigned char *v, min, max) clamps in place, used by 0x54f9a0 (gr_opengl_bitmap colour)
+0x550660  anim_track__calc_pos_controls func  vsdk\ca              I ; thiscall (key): Bezier control points of position key i: +0x18[i] = value + out tangent (+0x1c), +0x14[i] = in tangent (+0x10) + value, caller anim_track__init_tangents
+0x5506e0  anim_track__calc_rot_tangents func  vsdk\ca              I ; thiscall (key, loop): squad inner quaternions of rotation key i from its neighbours (cquat_dot sign flip, cquat_log_of_delta) weighted by the key tension/continuity/bias bytes, into +0x1c/+0x20, caller anim_track__init_tangents
+0x550d10  anim_track__calc_scale_controls func  vsdk\ca              I ; thiscall (key): as anim_track__calc_pos_controls for the third (scale) key array +0x10 into +0x24/+0x28
+0x550d90  anim_track__eval_scale_bezier func  vsdk\ca              I ; thiscall (key, t, out...): cubic Bezier (3.0 weights) between scale key i and i+1 using the +0x24/+0x28 control points, plain value when key < 0, caller anim_track__get_scale
+0x550f60  anim_track__get_rot_time_range func  vsdk\ca              O ; thiscall (&first, &last): times of the first and last rotation key (+0xc array, count +2), caller anim_track__calc_rot_tangents
+0x550f90  anim_track__init_tangents func  vsdk\ca              I ; thiscall (loop): computes the control points of all position (+0 count), rotation (+2 count) and scale (+4 count) keys
+0x551090  anim_track__get_position func  vsdk\ca              O ; thiscall (out, time): zero without keys, clamps to the first/last 0x28-byte key, else finds the segment and calls anim_track_eval_pos_bezier, callers character_instance__build_bone_matrices, SequenceTimer3, 0x563a40
+0x551190  anim_track_eval_pos_bezier func  vsdk\ca              I ; (track, out, key, t): cubic Bezier between position key i and i+1 with the +0x14/+0x18 control points, plain value when key < 0, caller anim_track__get_position
+0x551350  anim_track__get_rotation func  vsdk\ca              O ; thiscall (out quat, time, flag): identity without keys, clamps to the first/last 0x14-byte key, else segment t and anim_track_interp_rotation, callers character_instance__build_bone_matrices, SequenceTimer3, 0x563a40
+0x551430  anim_track_interp_rotation func  vsdk\ca              I ; (track, out, key_a, key_b, t, squad): unpacks the keys (quaternion__unpack_short4), applies tcb_ease with the ease-out of key a and ease-in of key b, then cquat_squad with the inner quaternions or a plain slerp, caller anim_track__get_rotation
+0x551520  anim_track__get_scale    func  vsdk\ca              O ; thiscall (out, time): as anim_track__get_position over the third key array +0x10 (count +4) with anim_track__eval_scale_bezier, caller 0x563a40
+0x551610  tcb_ease                 func  vsdk\ca              I ; (t, ease_from, ease_to): 3D Studio style ease curve of a key interval (returns t unchanged for 0, 1 or no easing), callers anim_track_interp_rotation, cutscene_camera_sequence_advance
+0x551700  anim_track__relocate     func  vsdk\ca              O ; thiscall (base): ptr_relocate on the nine array pointers +0x8..+0x28, caller 0x5645b0
+0x551770  anim_track__pos_key_value func  vsdk\ca              O ; thiscall (i): &pos_keys[i].value (+8 array, 0x28-byte keys, +4)
+0x551790  anim_track__pos_key_in   func  vsdk\ca              O ; thiscall (i): &pos_keys[i] + 0x10 (in tangent)
+0x5517b0  anim_track__pos_key_out  func  vsdk\ca              O ; thiscall (i): &pos_keys[i] + 0x1c (out tangent)
+0x5517d0  anim_track__pos_control_a func  vsdk\ca              O ; thiscall (i): &(+0x14 array)[i], 12-byte control point
+0x5517e0  anim_track__pos_control_b func  vsdk\ca              O ; thiscall (i): &(+0x18 array)[i], 12-byte control point
+0x5517f0  anim_track__rot_key_time func  vsdk\ca              O ; thiscall (i): time +0 of rotation key i (+0xc array, 0x14-byte keys)
+0x551800  anim_track__rot_key_quat func  vsdk\ca              O ; thiscall (i): &rot_keys[i] + 4 (packed quaternion, 4 int16)
+0x551820  anim_track__rot_key_continuity func  vsdk\ca              I ; thiscall (i): (float) signed byte +0xd of rotation key i
+0x551840  anim_track__rot_key_tension func  vsdk\ca              I ; thiscall (i): (float) signed byte +0xc of rotation key i
+0x551860  anim_track__rot_key_bias func  vsdk\ca              I ; thiscall (i): (float) signed byte +0xe of rotation key i
+0x551880  anim_track__rot_inner_a  func  vsdk\ca              O ; thiscall (i): &(+0x1c array)[i], 8-byte packed inner quaternion used by cquat_squad
+0x551890  anim_track__rot_inner_b  func  vsdk\ca              O ; thiscall (i): &(+0x20 array)[i], 8-byte packed inner quaternion used by cquat_squad
+0x5518a0  anim_track__scale_key_value func  vsdk\ca              O ; thiscall (i): &keys3[i] + 4 (+0x10 array of 0x28-byte keys)
+0x5518c0  anim_track__scale_key_in func  vsdk\ca              O ; thiscall (i): &keys3[i] + 0x10
+0x5518e0  anim_track__scale_key_out func  vsdk\ca              O ; thiscall (i): &keys3[i] + 0x1c
+0x551900  anim_track__scale_control_a func  vsdk\ca              O ; thiscall (i): &(+0x24 array)[i]
+0x551910  anim_track__scale_control_b func  vsdk\ca              O ; thiscall (i): &(+0x28 array)[i]
+0x551920  anim_track__rot_key_ease_to func  vsdk\ca              I ; thiscall (i): (float) signed byte +0xf of rotation key i, passed to tcb_ease for the end key
+0x551940  anim_track__rot_key_ease_from func  vsdk\ca              I ; thiscall (i): (float) signed byte +0x10 of rotation key i, passed to tcb_ease for the start key
+0x551960  quaternion__unpack_short4 func  vsdk\math            I ; thiscall (const int16[4]): quaternion from four scaled int16 components, callers anim_track_interp_rotation and the vfx key readers 0x55b460, 0x55fc90, 0x5612b0
 0x5519c0  init_vector_buf_2f13368  func  vsdk\geom            O ; hidden start, static initialiser (table 0x588a20): 64 elements of 8 bytes at 0x2f13368
+0x551ca0  polygon_clip_to_plane    func  vsdk\geom            O ; (n, in, out, plane, ...): Sutherland-Hodgman pass of a vector3 polygon against one 0x10-byte plane using plane_classify_point and the edge intersection, returns the new count, caller polygon_clip_to_planes
+0x551e00  plane_classify_point     func  vsdk\geom            O ; (plane, point, offset): Plane__distance_to_point compared with offset +/- epsilon: 1 in front, 2 behind, 3 on the plane
+0x551e50  polygon_any_point_in_front func  vsdk\geom            O ; hidden start, (n, points, plane): true when plane_classify_point returns 1 for any point
+0x551e90  polygon_clip_to_planes   func  vsdk\geom            O ; (n < 32, verts, planes, num_planes): clips with polygon_clip_to_plane against every plane, fails when fewer than 3 vertices remain, callers 0x4a46a0, 0x4bc6b0
+0x551f90  polygon_touches_planes   func  vsdk\geom            O ; (n, points, planes, num_planes, offset): false when for some plane no point is classified behind it (2), else true, callers 0x4a44b0, 0x4bc6b0, 0x4c0250
 0x5520d0  Crc32__init_table        func  -                    O ; builds the 256-entry CRC-32 table (polynomial 0xedb88320) at 0x2f136e8, sets 0x2f13ae8
 0x552120  Crc32__Crc32             func  -                    O ; thiscall value = 0, used by name_hash_nocase and the true/false parser
 0x552130  Crc32__update            func  -                    O ; thiscall (buf, len): table-driven CRC-32 over len bytes (builds the table on first use), returns the value
+0x5521a0  ui_inputbox_numpad_to_ascii func  vsdk\ui              O ; (key): numeric keypad scancodes 0x47..0x52 mapped to the digit keys (0x2..0xb) before key_to_ascii, other keys straight to key_to_ascii, caller ui_inputbox__process
+0x552280  ui_inputbox__is_char_allowed func  vsdk\ui              O ; thiscall (ch): false when in the invalid set +0x478 or (when set) not in the valid set +0x378, then the validator callback +0x5ac on the text +0x278, caller ui_inputbox__process
 0x552310  ui_inputbox__process     func  vsdk\ui              O ; vtable slot 5: typing, cursor
 0x5526a0  ui_inputbox__vfunc0      func  vsdk\ui              I ; ui_inputbox vtable slot 0 (destructor)
 0x5526b0  ui_inputbox__ui_inputbox func  vsdk\ui              O ; constructor (vtable 0x581f1c); used by ui_parse_inputbox
@@ -6334,6 +6458,9 @@
 0x556950  String__to_lower         func  -                    O ; tolower over the buffer (+4) for length (+0)
 0x556990  String__to_upper         func  -                    O ; toupper (0x56fa60) over the buffer (+4) for length (+0)
 0x5569d0  String__substr           func  -                    V ; (out, begin, end) copies range into a new String, RF substr
+0x556a80  String__left             func  -                    O ; thiscall (out, n): first n characters (String__substr(0, n - 1)), whole string when n >= length, caller gr_fit_string_String
+0x556b40  String__right            func  -                    O ; thiscall (out, n): last n characters, whole string when n >= length
+0x556c00  String__mid              func  -                    O ; thiscall (out, start, len): substring of len characters from start, clipped to the length
 0x556cb0  String__find_nocase      func  -                    I ; thiscall (substring, from_end): _strnicmp search, scanning backwards from the end when the flag is set
 0x556d50  String__trim_left        func  -                    O ; removes leading space/tab/newline in place
 0x556db0  String__trim_right       func  -                    O ; removes trailing space/tab/newline in place
@@ -6346,6 +6473,7 @@
 0x557070  String__concat_cstr      func  -                    I ; concat with a C string operand (NULL -> copy)
 0x557180  String__concat_cstr_b    func  -                    I ; concat variant with the C string operand on the other side
 0x557290  String_plus_char         func  -                    O ; (String* out, const String&, char): copy with one char appended
+0x557360  char_plus_String         func  -                    O ; (out, char, String): new String of the character followed by the text, counterpart of String_plus_char
 0x557420  String__append           func  -                    O ; String__concat then String__assign (operator+=)
 0x557490  String__append_cstr      func  -                    O ; String__concat_cstr then String__assign
 0x557500  String__append_char      func  -                    O ; thiscall (char): String_plus_char then String__assign
@@ -6372,14 +6500,53 @@
 0x557b70  String__from_hex         func  -                    O ; sprintf "0x%x" into a String
 0x557c00  String__from_float       func  -                    O ; sprintf "%.*f" into a String
 0x557c90  String__format_bytes     func  -                    O ; " bytes" / " KB" / " MB" size formatting
+0x557e10  String_from_vector3      func  -                    O ; (out, vector3*, decimals): "< x, y, z >" built with String__from_float and String__concat
+0x558080  String__from_hex_b       func  -                    O ; second copy of String__from_hex: sprintf "0x%x" into a String
+0x558110  TextBuffer__TextBuffer   func  -                    O ; thiscall (buffer, size, max_lines): uses the caller buffer (+4 = 1) or allocates size bytes (at least the default 0x5adb98), +8 size, +0x10 line limit, then TextBuffer__clear, caller cmd_sysinfo
+0x558180  TextBuffer__dtor         func  -                    O ; thiscall: frees +0 unless it is a caller buffer (+4), callers cmd_sysinfo, an unwind funclet
+0x5581a0  TextBuffer__clear        func  -                    O ; thiscall: length +0xc = 0, line count +0x14 = 1, empty text
+0x5581c0  TextBuffer__get_text     func  -                    O ; thiscall: returns +0 (text), caller cmd_sysinfo
+0x5581d0  TextBuffer__get_length   func  -                    O ; hidden start, thiscall: returns +0xc
+0x5581e0  TextBuffer__append       func  -                    O ; thiscall (text): counts new lines, drops the oldest lines past the line limit +0x10, appends when it fits in +8, caller TextBuffer_printf
+0x558300  TextBuffer_printf        func  -                    O ; (TextBuffer*, fmt, ...): vsprintf into 1 KB then TextBuffer__append, caller PrintSystemInfo
+0x558340  LineFile__open_read      func  -                    O ; thiscall (name, buffer_size): closes, fopen rb, buffer from allocate_in_commonblock, LineFile__detect_eol, returns 1 on failure, caller LineFile_open
+0x5583d0  LineFile__open_write     func  -                    O ; thiscall (name, append, origin): closes, fopen ab or wb, fseek, clears the read flag, caller LineFile_create
+0x558430  LineFile__detect_eol     func  -                    O ; thiscall: LineFile__fill_buffer then memchr for LF and CR to set the line-ending mode bits 2/3 of the flags +0x18 (CR, LF or CRLF)
+0x5584f0  LineFile__fill_buffer    func  -                    O ; thiscall: moves the unread bytes to the buffer start and freads the rest, flag 1 at end of file
+0x558580  LineFile__LineFile       func  -                    O ; thiscall ctor: FILE* +0 and buffer +4 = 0 (0x1c-byte object)
+0x558590  LineFile__dtor           func  -                    O ; thiscall: fclose and deallocate_from_commonblock, called by the scalar deleting dtor 0x50af60
+0x5585c0  LineFile__close          func  -                    O ; thiscall: fclose +0 and frees the buffer +4, both cleared, callers load_script, LineFile__open_read, LineFile__open_write
+0x558600  LineFile__read_line      func  -                    O ; thiscall (buf, size): copies one line using the detected line ending (jump table on flags bits 2-3, memchr CR/LF), refilling the buffer, false at end, caller load_script
+0x5587c0  LineFile__write          func  -                    O ; thiscall (text): fwrite of each line with CR/LF translated to the platform line end string 0x5adbe8, caller LineFile_printf
+0x5588d0  LineFile_printf          func  -                    O ; hidden start, (LineFile*, fmt, ...): vsprintf into 1 KB then LineFile__write
+0x558910  LineFile_open            func  -                    O ; (name, buffer_size): new 0x1c-byte LineFile, LineFile__open_read, deletes it and returns NULL on failure, caller load_script
+0x558960  LineFile_create          func  -                    O ; hidden start, (name, append, origin): new LineFile and LineFile__open_write, NULL on failure
+0x558ab0  bezier4__ctor            func  vsdk\math            I ; thiscall: four vector3 control points +0..+0x24 and a pointer table to them at +0x30..+0x3c
+0x558af0  bezier4__ctor_points     func  vsdk\math            I ; hidden start, thiscall (p0, p1, p2, p3): bezier4__ctor layout with the points assigned
+0x558be0  factorial                func  vsdk\math            O ; (n): n! by a product loop, 1 for n < 1, caller bezier__blend
+0x558c00  bezier__ctor             func  vsdk\math            O ; hidden start, thiscall: 20 vector3 control points zeroed, count +0xf0 = 0
+0x558c50  bezier__ctor_points      func  vsdk\math            O ; hidden start, thiscall (points, n): 20 vector3 then sets the points (0x558c80)
+0x558d10  bezier__blend            func  vsdk\math            O ; thiscall (i, n, t): Bernstein basis n!/(i!(n-i)!) * t^i * (1-t)^(n-i) with pow, caller bezier__eval
+0x558d90  bezier__eval             func  vsdk\math            O ; thiscall (out, t): sum of the +0xf0 control points weighted by bezier__blend
+0x558e00  spline__ctor             func  vsdk\math            O ; hidden start, thiscall: 22 vector3 points
+0x558e20  spline__ctor_points      func  vsdk\math            O ; thiscall (points, n): 22 vector3 then spline__set_points, caller 0x532cb0
+0x558e50  spline__set_points       func  vsdk\math            I ; thiscall (points, n): copies the points into +1.. and extrapolates the end points (2p0 - p1 style), count +0x108
+0x558f40  spline__eval             func  vsdk\math            I ; thiscall (out, t): uniform cubic spline through the points (four-point blend weights from frac(t)), clamps t to the last point, caller 0x532cb0
 0x5590b0  init_gr_clip_temp_verts  func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a24): 64 gr__Vertex in gr_clip_temp_verts
 0x5590e0  gr_clip_edge             func  vsdk\gr              I ; creates the intersection vertex of an edge with one clip plane (uses gr_clip_alloc_temp_vertex), callers gr_clip_line, gr_clip_plane
 0x559330  gr_clip_alloc_temp_vertex func  vsdk\gr              O ; returns the next 0x30-byte vertex of the pool 0x2f53b00 (count 0x2f54700), marks flags +0x19 = 4 (temporary)
 0x559350  gr_clip_line             func  vsdk\gr              I ; (Vertex** a, Vertex** b, codes) clips a line against each set plane bit with gr_clip_edge, caller gr_line_3d
 0x5593a0  gr_clip_plane            func  vsdk\gr              I ; (plane bit, src list, dst list, n, codes) Sutherland-Hodgman pass for one plane, caller gr_clip_polygon
 0x559490  gr_clip_polygon          func  vsdk\gr              I ; loops plane bits 1..0x10 that are set in the or-codes, calls gr_clip_plane and swaps lists, caller gr_poly
+0x5595e0  bbox_from_points         func  vsdk\gr              O ; (mins, maxs, a, b): per-axis min and max of two points, callers 0x53bf60 and bbox_from_segment
+0x559660  bbox_from_segment        func  vsdk\gr              O ; hidden start, (mins, maxs, start, dir, t): bbox_from_points of start and start + dir * t
+0x559810  bbox_expand_by_vector    func  vsdk\gr              O ; (mins, maxs, delta): adds each negative component of delta to mins and each positive one to maxs (swept box), caller 0x53bf60
 0x559960  bbox_get_corner          func  vsdk\gr              O ; (vector3* out, int index 0-7, mins, maxs): jump table picks min/max per axis
 0x559a80  bbox_corner_indices_from_normal func  vsdk\gr              O ; (normal, int* near_index, int* far_index) from the signs of the normal components, used by gr_clip_plane__set_from_points/_normal
+0x559db0  lfsr_cipher__set_key     func  vsdk\vfile           O ; thiscall (const uint32 key[3]): copies the three LFSR registers, zero words replaced by 0x891e7682 / 0x6c485f72 / 0x5bd48e3a, callers File__find, File__write
+0x559df0  lfsr_cipher__get_key     func  vsdk\vfile           O ; thiscall (uint32 out[3]): copies the three LFSR registers out, caller File__write
+0x559e10  lfsr_cipher__crypt       func  vsdk\vfile           O ; thiscall (buf, len): xors each byte with 8 key-stream bits from three Galois LFSRs (taps 0xc0000031, 0x20000010, 0x08000001, register A selects B or C), callers File__read, File__write
+0x559eb0  ftp_abort_get            func  -                    O ; thiscall: abort flag +0xc = 1, spins until the worker sets +0xd, then fcloses the local file +0x6c0, reached by jmp from InetGetFile__AbortGet (FreeSpace 2 CFtpGet::AbortGet)
 0x559ed0  ftp_get_create           func  -                    O ; FTP getter ctor: fopen local file, socket/bind/listen, "anonymous" / "pxouser@pxo.net", parses "ftp:" URL (FreeSpace 2 inetfile CFtpGet layout)
 0x55a150  ftp_get_destroy          func  -                    O ; shutdown + closesocket of control/data sockets
 0x55a1c0  ftp_get_status           func  -                    I ; returns state field +8 (getter group at 55a1c0/55a1d0/55a1e0)
@@ -6407,16 +6574,47 @@
 0x55ae20  http_connect_socket      func  -                    O ; inet_addr or resolve, getservbyname("http"), connect, select
 0x55b0d0  http_get_line            func  -                    O ; recv one header line, WSAGetLastError
 0x55b1c0  http_read_data_channel   func  -                    O ; select/recv loop, fwrite, fclose
+0x55b310  http_async_gethostbyname func  -                    O ; (&ip, command, host): 2 = start a lookup thread (http_resolve_host) on a 0xc-byte request, 1 = cancel, 3 = poll (1 resolved, -1 failed, 0 pending), FreeSpace 2 http_Asyncgethostbyname, caller http_connect_socket
 0x55b3e0  http_resolve_host        func  -                    I ; gethostbyname thread: stores address or failure flag
-0x55bf90  init_timed_records_2f798b8 func  vsdk\geom            I ; hidden start, static initialiser (table 0x588a28): 0x20 records of 0x2c bytes at 0x2f798b8 (RealtimeTimer at +0x24, ctor 0x55dda0)
+0x55b440  vfx_node_state__clear    func  vsdk\geom            O ; thiscall: +8 = 0 and the top three flag bits of +4 cleared, caller 0x51d250
+0x55b460  vfx_force_state__update  func  vsdk\geom            I ; thiscall (record, time): keeps the previous transform (+0x28/+0x34 from +0xc/+0x18) and interpolates position (vfx_node__get_pos) and orientation (vfx_node__get_orient, quaternion__unpack_short4) of an 0xa0-byte record between the floor frames, caller vfx_emitter_instance__update
+0x55b730  vfx_force__get_transform func  vsdk\geom            I ; thiscall (record, time, ...): frame-interpolated position and slerped orientation (quaternion_slerp, to_matrix_b) of an 0xa0-byte record plus its scalar channels (vfx_force__get_channel64..94), caller vfx_emitter_instance__move_particles
+0x55b960  vfx_force__relocate      func  vsdk\geom            O ; thiscall (header_base, base): relocates an 0xa0-byte effect record (effect base +0x34, count +0xc): header, vec channel +0x10, quat channel +0x34, scalar channels +0x64..+0x94, caller of the effect-base relocation 0x536bc0
+0x55b9c0  vfx_node__get_pos        func  vsdk\geom            O ; thiscall (out, frame): vfx_vec_channel__eval of the channel at +0x10 of an effect record, callers vfx_force_state__update and others
+0x55b9e0  vfx_vec_channel__eval    func  vsdk\geom            O ; thiscall (out, frame): vector3 from three vfx channels (+0, +0xc, +0x18) through vfx_channel__eval and fixed8_to_float
+0x55ba30  vfx_node__get_orient     func  vsdk\geom            O ; thiscall (out, frame): vfx_quat_channel__eval of the channel at +0x34, callers vfx_force_state__update, vfx_dummy_state__update, vfx_camera__get_transform
+0x55ba50  vfx_quat_channel__eval   func  vsdk\geom            O ; thiscall (out, frame): packed quaternion (cquat__cquat) from four vfx channels (+0..+0x24)
+0x55baa0  vfx_force__get_channel64 func  vsdk\geom            O ; thiscall (frame): channel +0x64 as int16 * 2000.0, caller vfx_force__get_transform
+0x55bad0  vfx_force__get_channel70 func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0x70, caller vfx_force__get_transform
+0x55baf0  vfx_force__get_channel7c func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0x7c, caller vfx_force__get_transform
+0x55bb10  vfx_force__get_channel88 func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0x88, caller vfx_force__get_transform
+0x55bb30  vfx_force__get_channel94 func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0x94, caller vfx_force__get_transform
+0x55bb50  vfx_vec_channel__relocate func  vsdk\geom            O ; thiscall (base): vfx_channel__relocate (0x5202b0) on the three channels +0, +0xc, +0x18
+0x55bb80  vfx_quat_channel__relocate func  vsdk\geom            O ; thiscall (base): vfx_channel__relocate on the four channels +0..+0x24
+0x55bbb0  vfx_channel__clear       func  vsdk\geom            O ; thiscall: zeroes the 0xc-byte channel (data pointer, count, cursor, flags)
+0x55bbc0  vfx_channel__ctor        func  vsdk\geom            O ; thiscall ctor: vfx_channel__clear, returns this
+0x55bbd0  vfx_node_header__relocate func  vsdk\geom            O ; thiscall (header_base, base): relocates the two name/link fields +0/+4 (0x533d90, -1 = base) and the pointer +8 (ptr_relocate) of an effect record header
+0x55bc00  vfx_channel__eval        func  vsdk\geom            O ; thiscall (frame): int16 value of a run-length coded key channel (data +0, size +4, base value +6, cursor +8, frame/flags +0xa), cached cursor reset when going back, 0xfa0 (4000) when flagged constant (0x4000)
+0x55bd80  BitArray__ctor           func  vsdk\geom            O ; hidden start, thiscall: data pointer +0 = NULL
+0x55bda0  BitArray__alloc          func  vsdk\geom            O ; hidden start, thiscall (bits, owned): operator_new of (bits+7)/8 bytes, byte size +4, owned flag +8, -1 on failure
+0x55be40  BitArray__fill           func  vsdk\geom            O ; hidden start, thiscall (bool): memset of all bytes to 0 or 0xff
+0x55be80  BitArray__get            func  vsdk\geom            O ; thiscall (bit): 1 when bit is set in the byte array +0, callers vfx_mesh__frame_bit, 0x51fdc0, BitArray__all_equal
+0x55beb0  BitArray__set            func  vsdk\geom            O ; hidden start, thiscall (bit, value): sets or clears one bit
+0x55bef0  BitArray__free           func  vsdk\geom            O ; thiscall: operator_delete of the data when owned (+8), data = NULL, reached by jmp from the dtor thunk 0x55bd90
+0x55bf20  BitArray__all_equal      func  vsdk\geom            O ; hidden start, thiscall (n, value): true when the first n bits all equal value
+0x55bf90  init_ds_channels         func  -                    I ; hidden start, static initialiser (table 0x588a28): builds the 32 DirectSound channel records (0x2c bytes) at 0x2f798b8 (RealtimeTimer at +0x24, ctor 0x55dda0) (formerly init_timed_records_2f798b8)
+0x55bfc0  ds_is_3d_buffer          func  -                    O ; (IDirectSoundBuffer*): GetCaps (vtbl +0xc, DSBCAPS size 0x14) and returns the DSBCAPS_CTRL3D bit (0x10), callers ds_play_3d, ds_play, FreeSpace 2 ds_is_3d_buffer
 0x55c000  ds_duplicate_buffer      func  -                    I ; "DuplicateSoundBuffer failed because: %s"
+0x55c080  ds_eax_init              func  -                    O ; creates a dummy 22050 Hz 3D buffer, QueryInterface for IDirectSound3DBuffer and IKsPropertySet (0x2f8f730), "Failed to get sound card property set: %s", caller ds_init, FreeSpace 2 ds_eax_init
 0x55c1a0  ds_init                  func  -                    O ; "dsound.dll", DirectSoundCreate, SetCooperativeLevel
 0x55c3f0  ds_init_buffers          func  -                    O ; clears ds_buffers[0x100] (0x250 bytes each at 0x2f54720, same size as RF DsBuffer)
 0x55c430  ds_init_channels         func  -                    O ; ds_channel_init for 32 channels
 0x55c450  ds_channel_init          func  -                    O ; clears DsChannel (0x2c bytes at 0x2f798b8, as RF DsChannel)
 0x55c480  ds_init_volume_table     func  -                    O ; builds 101-entry log volume table at 0x2f79720 (entry 0 = -10000)
 0x55c4e0  ds_close                 func  -                    O ; releases channels and buffers, closes streams/ACM, CoUninitialize
+0x55c590  ds_close_channels        func  -                    O ; ds_channel_release on all 32 channels, caller ds_close, FreeSpace 2 ds_close_channels
 0x55c5b0  ds_channel_release       func  -                    I ; "c->pdsb->Stop() failed", "c->pds3db->Release() failed"
+0x55c6c0  ds_close_buffers         func  -                    O ; ds_sound_release on all 256 sound buffers, caller ds_close, FreeSpace 2 ds_close_buffers
 0x55c6e0  ds_sound_release         func  -                    I ; "s->pdsb->Stop() failed", "s->pds3db->Release() failed"
 0x55c890  ds_load_buffer           func  -                    O ; (sound, file, ...) reuses ds_find_buffer, else ds_find_free_buffer + ds_load_buffer_data, returns sid
 0x55c990  ds_load_buffer_data      func  -                    I ; parses wav (ds_wav_open), decompresses via ACM if needed, ds_create_buffer, closes mmio
@@ -6433,6 +6631,8 @@
 0x55d0a0  ds_find_free_channel     func  -                    O ; first channel with no buffer, or a stopped non-looping one (GetStatus)
 0x55d110  ds_play                  func  -                    O ; (sid, vol, pan, looping, ..) duplicate buffer, SetVolume/SetPan/Play, returns channel signature
 0x55d2b0  ds_play_streamed         func  -                    O ; channel play through streaming buffer (55d400) and snd_stream_start
+0x55d400  ds_stream_open           func  -                    I ; (channel, ...): sets up the streaming buffer of a channel: wav_descend_data, acm_stream_open for compressed data, first refill (ds_stream_read_chunk) or ds_fill_buffer, caller ds_play_streamed
+0x55d530  ds_stream_read_chunk     func  -                    I ; Lock (vtbl +0x2c) the streaming buffer, wav_read into 0x2f79e40 and acm_convert by acm_stream_size, then Unlock (+0x4c), caller ds_stream_open
 0x55d620  ds_stop                  func  -                    O ; (sig) ds_get_channel + ds_channel_release
 0x55d640  ds_stop_fade             func  -                    O ; (sig, ms) below 75 ms stops, else sets fade flag 8 and per-tick volume step
 0x55d6c0  ds_do_frame              func  -                    O ; ds_channel_update_fade for channels with flag 8
@@ -6459,6 +6659,7 @@
 0x55dcb0  ds_set_group_volume      func  -                    O ; (vol, group) SetVolume on channels of group (-1 = all)
 0x55dd10  ds_estimate_duration     func  -                    O ; data bytes / (bits*rate*channels), RF snd_ds_estimate_duration (after nop padding, not in Ghidra list)
 0x55dd80  ds_set_eax_environment   func  -                    O ; eax_set_environment_by_name when EAX enabled
+0x55dda0  ds_channel__ctor         func  -                    O ; thiscall ctor of the 0x2c-byte channel record (32 at 0x2f798b8): RealtimeTimer +0x24, used by init_timed_records_2f798b8
 0x55ddb0  ds3d_update_buffer       func  -                    O ; IDirectSound3DBuffer SetPosition/SetVelocity/SetMinDistance/SetMaxDistance, RF snd_ds3d_update_buffer
 0x55de30  ds3d_update_listener     func  -                    O ; IDirectSound3DListener SetPosition/SetVelocity/SetOrientation/rolloff/doppler/Commit
 0x55def0  ds3d_close               func  -                    I ; ds3d_release_listener if 3D initialised
@@ -6466,6 +6667,8 @@
 0x55df30  ds3d_init                func  -                    I ; property-set QuerySupport, ds_init_primary_buffer
 0x55dfe0  ds_init_primary_buffer   func  -                    I ; "Fatal error calling pPrimaryBuffer->QueryInterface(): %s"
 0x55e040  ui_draw_bevel            func  vsdk\ui              O ; (x, y, w, h, light colour, dark colour, width, ...) frame lines, used by ui_window__draw and the gadget bevel helpers
+0x55e1a0  ui_draw_raised           func  vsdk\ui              O ; (x, y, w, h, colours, width): face gr_rect inset by width then ui_draw_bevel with the light/dark colours in normal order, caller ui_slider__draw, free-function twin of ui_gadget__draw_raised
+0x55e210  ui_draw_sunken           func  vsdk\ui              O ; (x, y, w, h, colours, width): as ui_draw_raised with the bevel colours swapped, twin of ui_gadget__draw_sunken
 0x55e280  ui_gadget__fill_inset    func  vsdk\ui              O ; (colour, inset) gr_rect over the gadget rect shrunk by inset
 0x55e2e0  ui_gadget__draw_bevel    func  vsdk\ui              O ; ui_draw_bevel around the gadget rect, used by ui_container__draw
 0x55e320  ui_gadget__draw_raised   func  vsdk\ui              O ; (colours, width) face rect plus bevel (light, dark), ui_button__draw normal state
@@ -6485,12 +6688,120 @@
 0x55ed30  ui_slider__create_scrollbar func  vsdk\ui              O ; (listbox, horizontal, ...) slider attached to a listbox (+0x310 vertical or +0x314 horizontal) sized from its view and content
 0x55eeb0  ui_slider__set_range     func  vsdk\ui              O ; (content) count = content - visible +0x2a8 + 1, then ui_slider__update_marker
 0x55eed0  ui_slider__update_marker func  vsdk\ui              O ; marker size = track length * visible / (count + visible - 1), clamped
+0x55ef50  ui_tooltip__dtor         func  vsdk\ui              I ; empty, called by ui_tooltip__scalar_deleting_dtor, ui_element__dtor (member tooltip) and an unwind funclet
 0x55ef60  ui_tooltip__draw         func  vsdk\ui              O ; tooltip node: text +0xc at owner screen position + (+0x114, +0x118), gr_get_string_size box, called by ui_draw
+0x55f110  gr_poly_split_sections_draw func  vsdk\gr              I ; (n, verts, mode, bitmap): for bitmaps split into texture sections, cuts the polygon along the section u/v lines (gr_poly_split_at_tex_line, bm_get_dimensions, floor) into the vertex pool 0x2f8f758 and draws each piece with gr_tmapper_multipass, caller gr_poly_clip_and_draw
+0x55f580  gr_poly_split_at_tex_line func  vsdk\gr              I ; (poly, stage, use_v, line, out...): splits a polygon where texture coordinate u (+4) or v (+8) crosses line, new vertices from gr_poly_split_edge_vertex, caller gr_poly_split_sections_draw
+0x55f8b0  float_strictly_between   func  vsdk\math            O ; (a, b, x): true when min(a, b) < x < max(a, b) (float_min/float_max), caller gr_poly_split_at_tex_line
+0x55f900  gr_poly_split_edge_vertex func  vsdk\gr              O ; (v0, v1, t, ...): gr_poly_alloc_clip_vertex, interpolated position, gr_project_vertex, then interpolated uv, rgb and alpha per stage, caller gr_poly_split_at_tex_line
+0x55fb00  gr_poly_get_section      func  vsdk\gr              I ; (bitmap, u, v, ...): bm_get_dimensions against the maximum texture size (0x25d8d6c/0x25d8d70) and the uv to pick the texture section index of a polygon, callers 0x536360 (D3D multitexture) and gr_glide_tmapper_multitexture
+0x55fc70  vfx_dummy_state__reset   func  vsdk\geom            O ; thiscall: clears the top three flag bits of +4, zero vector +8, identity quaternion +0x14, caller 0x536a70
+0x55fc90  vfx_dummy_state__update  func  vsdk\geom            I ; thiscall (record, time): position (0x5202f0 pair, frame-interpolated) and orientation (vfx_node__get_orient) of a 0x64-byte record (effect base +0x30, count +0xa) into the state, caller 0x536fb0
+0x55fed0  vfx_dummy__relocate      func  vsdk\geom            O ; thiscall (header_base, base): relocates a 0x64-byte effect record (base +0x30): header, vec channel +0x10, quat channel +0x34, caller 0x536bc0
 0x55ff00  init_gr_mode_2f91a5c     func  vsdk\geom            O ; hidden start, static initialiser (table 0x588a2c): gr__Mode(0, 0, 0, 3, 1, 0) into 0x2f91a5c
+0x55ff30  vfx_emitter_instance__spawn func  vsdk\geom            I ; thiscall (record, time, ...): emission rate from vfx_emitter__get_rate over the elapsed frames (floor), then vfx_emitter_instance__init_particle for each new particle, caller vfx_emitter_instance__update
+0x5601f0  vfx_emitter_instance__init_particle func  vsdk\geom            I ; thiscall (record, particle, ...): random position/direction (frand_range, vector3__random_unit_vector) inside the emitter shape, velocity, lifetime (vfx_particle__set_lifetime) and size, caller vfx_emitter_instance__spawn
+0x5605f0  vfx_particle_apply_forces func  vsdk\geom            I ; (particle, forces, dt, ...): integrates velocity with gravity/force records, perlin_noise3 turbulence and plane collision (plane__set_normal_point_b, Plane__distance_to_point), caller vfx_emitter_instance__move_particles
+0x560a00  vfx_emitter_instance__move_particles func  vsdk\geom            I ; thiscall (record, time, ...): evaluates the force records (vfx_force__get_transform) and runs vfx_particle_apply_forces on every live particle, caller vfx_emitter_instance__update
+0x561190  vfx_emitter__relocate    func  vsdk\geom            O ; thiscall (header_base, base): relocates a 0xe8-byte emitter record (effect base +0x28, count +8): header, vec/quat channels and six scalar channels, caller 0x536bc0
+0x561220  vfx_emitter_instance__init func  vsdk\geom            I ; thiscall (record): clears the state flags, zero position, identity orientation, start time from the record (+0x1c >> 16) into +0xa0, initial offset from the fixed4 vec channel +0x4c, caller 0x536a70
+0x5612b0  vfx_emitter_instance__get_transform func  vsdk\geom            I ; thiscall (record, time, ...): emitter matrix from its position/orientation channels, optionally attached to a character bone (character_instance__compute_bone_matrix), slerped between frames, caller vfx_emitter_instance__update
+0x561670  vfx_emitter_instance__update func  vsdk\geom            I ; thiscall (record, time, pos, orient, ...): skips repeated times (+0xa0), transforms (vfx_emitter_instance__get_transform), spawns, moves and ages the particles, builds their colours/fades, callers 0x536fb0 and 0x538260
+0x561ec0  vfx_emitter_instance__render func  vsdk\geom            I ; thiscall (record, ...): draws the live particles as gr_bitmap_3d sprites or gr_poly quads (vfx_particle_get_billboard_axes) with their colour, fade and bitmap frame inside gr_start_instance/gr_stop_instance, caller 0x538260
+0x5622b0  vfx_emitter__get_rate    func  vsdk\geom            O ; thiscall (frame): fixed12 value of the channel +0xdc, caller vfx_emitter_instance__spawn
+0x5622d0  fixed12_to_float         func  vsdk\math            O ; (int16) value / 4096 (* 0.000244140625), counterpart of fixed8_to_float
+0x5622f0  vfx_particle__set_lifetime func  vsdk\geom            I ; thiscall (float): +2 = float_to_fixed8(value), caller vfx_emitter_instance__init_particle
+0x562310  vfx_particle__set_size   func  vsdk\geom            I ; thiscall (float): +4 = float_to_fixed12(value), caller vfx_emitter_instance__init_particle
+0x562330  float_to_fixed12         func  vsdk\math            O ; (f) ftol(f * 4096)
+0x562340  vfx_particle__set_velocity func  vsdk\geom            I ; thiscall (vector3*): copies into +0x14
+0x562360  vfx_particle__set_pos    func  vsdk\geom            I ; thiscall (vector3*): copies into +8
+0x562380  vfx_emitter__get_fixed12_8c func  vsdk\geom            O ; thiscall: fixed12_to_float of the int16 +0x8c, caller vfx_emitter_instance__init_particle
+0x562390  vfx_emitter__get_fixed12_8e func  vsdk\geom            O ; thiscall: fixed12_to_float of the int16 +0x8e
+0x5623a0  vfx_emitter__get_fixed12_92 func  vsdk\geom            O ; thiscall: fixed12_to_float of the int16 +0x92
+0x5623b0  vfx_emitter__get_fixed12_94 func  vsdk\geom            O ; thiscall: fixed12_to_float of the int16 +0x94
+0x5623c0  vector3__divided         func  vsdk\math            O ; thiscall (out, s): out = this / s componentwise
+0x562400  vfx_particle__get_velocity func  vsdk\geom            I ; thiscall (out): copy of +0x14
+0x562420  vfx_particle__get_pos    func  vsdk\geom            I ; thiscall (out): copy of +8
+0x562440  vfx_vec_pair__ctor       func  vsdk\geom            O ; thiscall ctor: vector3 members at +0 and +0xc, no direct callers
+0x562460  vfx_emitter__get_offset  func  vsdk\geom            I ; thiscall (out, frame): fixed4 vec channel +0x4c (0x520310), caller vfx_emitter_instance__get_transform
+0x562480  vfx_emitter__get_orient  func  vsdk\geom            I ; thiscall (out, frame): vfx_quat_channel__eval of +0x70, caller vfx_emitter_instance__get_transform
+0x5624a0  vfx_emitter__eval_channel_a0 func  vsdk\geom            O ; thiscall (frame): raw vfx_channel__eval of +0xa0
+0x5624c0  vfx_emitter__eval_channel_ac func  vsdk\geom            O ; thiscall (frame): raw vfx_channel__eval of +0xac
+0x5624e0  vfx_emitter__eval_channel_b8 func  vsdk\geom            O ; thiscall (frame): raw vfx_channel__eval of +0xb8
+0x562500  vfx_emitter__eval_channel_c4 func  vsdk\geom            O ; thiscall (frame): raw vfx_channel__eval of +0xc4
+0x562520  vfx_emitter__eval_channel_d0 func  vsdk\geom            O ; thiscall (frame): raw vfx_channel__eval of +0xd0
+0x562540  vfx_particle__get_size   func  vsdk\geom            I ; thiscall: fixed12_to_float of +4 (set by vfx_particle__set_size)
+0x562550  vfx_particle_get_bitmaps func  vsdk\geom            I ; (emitter, out[2], particle): material of the emitter (+0x28 index into the base materials +0x44), bitmap frames of its two texture layers by age/lifetime (vfx_tex_layer__get_frame_bitmap_frac) or by time, callers vfx_emitter_instance__update/render
+0x562600  vfx_particle_get_color   func  vsdk\geom            I ; (emitter, material, time, &r, &g, &b): 255 for full-bright emitters (flag 0x10000), else vfx_material__eval_curve44 against the ambient light 0x5a8904..0x5a890c
+0x5626b0  vfx_particle_get_fade    func  vsdk\geom            I ; thiscall (params, age, life, &scale, &alpha, &size): fade-in/fade-out fractions (vfx_emitter__get_fade_in/out) and the grow/shrink limits +0x2e/+0x30 applied over the life fraction
+0x5627d0  vfx_emitter__get_fade_in func  vsdk\geom            I ; thiscall: byte +0x2c / 255
+0x5627f0  vfx_emitter__get_fade_out func  vsdk\geom            I ; thiscall: byte +0x2d / 255
+0x562810  vfx_emitter__get_fixed8_2e func  vsdk\geom            O ; thiscall: fixed8_to_float of +0x2e
+0x562820  vfx_emitter__get_fixed8_30 func  vsdk\geom            O ; thiscall: fixed8_to_float of +0x30
+0x562830  vfx_emitter__get_fixed12_90 func  vsdk\geom            O ; thiscall: fixed12_to_float of +0x90
+0x562840  vfx_particle_get_billboard_axes func  vsdk\geom            I ; (...): right/up vectors of a particle quad from the eye (gr_get_eye, vector3__cross) or its velocity (streaks, vfx_emitter__get_fixed8_32), caller vfx_emitter_instance__render
+0x562a20  vfx_emitter__get_fixed8_32 func  vsdk\geom            O ; thiscall: fixed8_to_float of +0x32, caller vfx_particle_get_billboard_axes
 0x562a30  init_ccmd_dump_mesh_frames_thunk func  -                    O ; hidden start, initialiser table entry 0x588a30: jmp init_ccmd_dump_mesh_frames
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
-0x562f60  mesh_check_materials     func  -                    I ; "Face is missing a material -- mesh %s"
+0x562b20  vfx_mesh_instance__init  func  vsdk\geom            I ; thiscall (record): position from record +0x1c, flag bit 31 of +0x1c, identity matrices +0x5c/+0x2c, +0x8c = 0, caller 0x536a70
+0x562b90  vfx_stub_ret10           func  vsdk\geom            O ; hidden start, empty (ret 0x10)
+0x562ba0  vfx_mesh_instance__render func  vsdk\geom            I ; thiscall (record, time, pos, orient): vfx_mesh_instance__update_frame when another instance was last (0x2c9f968), then vfx_mesh_instance__render_billboards or the polygon renderer 0x562f60, plus the optional glow sprite (+0x94/+0x98, gr_bitmap_3d), caller 0x538260
+0x562ca0  vfx_mesh_instance__render_billboards func  vsdk\geom            I ; thiscall (record, ...): billboard meshes (record flags 0x801): per vertex gr_bitmap_3d_oriented sprites with material alpha (vfx_material__eval_curve34) and fog, caller vfx_mesh_instance__render
+0x562f60  vfx_mesh_render          func  -                    I ; renders a VFX mesh: gr_start_instance, gr_rotate_vertices, fog, gr_check_normal_facing, polygons; reports "Face is missing a material -- mesh %s" (formerly mesh_check_materials)
+0x563a40  vfx_mesh_instance__update_frame func  vsdk\geom            I ; thiscall (record, time): frame = time * 15 fps, transforms the vertices (morph frames, anim_track__get_position/rotation/scale, bone attachment), uv animation and normals into the instance buffers, caller vfx_mesh_instance__render
+0x5645b0  vfx_mesh__relocate       func  vsdk\geom            O ; thiscall (header_base, base): relocates an 0xa8-byte mesh record (effect base +0x20, count +4): header, vertex/face/morph arrays +0x38..+0x6c, faces (vfx_face_uv_anim__relocate), anim tracks, bitmap name +0x94 (bitmap +0x98 = -1), caller 0x536bc0
+0x564720  vfx_mesh__load_bitmap    func  vsdk\geom            O ; thiscall (flags): bm_load (0x5026e0) of the name +0x94 into +0x98, retried without flags, caller 0x536e50
+0x564770  vfx_mesh_xform__relocate func  vsdk\geom            O ; thiscall (base): vec channels +0xc and +0x30 and quat channel +0x54, caller vfx_mesh__relocate
+0x5647a0  vfx_mesh_morph__relocate func  vsdk\geom            O ; thiscall (base, count): ptr_relocate of the array then vfx_vec_channel__relocate on each 0x24-byte entry, caller vfx_mesh__relocate
+0x5647e0  vfx_mesh_anim__relocate  func  vsdk\geom            O ; thiscall (base): two scalar channels +0/+0xc and the vec channel +0x18, caller vfx_mesh__relocate
+0x564810  vfx_face_uv_anim__relocate func  vsdk\geom            O ; thiscall (base): six scalar channels (u at +0/+0xc/+0x18, v at +0x24/+0x30/+0x3c) of a 0x48-byte face entry, caller vfx_mesh__relocate
+0x564840  vfx_ptr0_relocate        func  vsdk\geom            O ; thiscall (base): ptr_relocate of the pointer at +0, caller vfx_mesh__relocate
+0x564860  vfx_mesh__is_billboard   func  vsdk\geom            I ; thiscall: flags +0x18 & 0x801, selects vfx_mesh_instance__render_billboards
+0x564870  vfx_face__get_u          func  vsdk\geom            O ; thiscall (i): fixed12_to_float of the int16 +2*i, callers 0x562f60, vfx_mesh_instance__update_frame
+0x564890  vfx_face__get_v          func  vsdk\geom            O ; thiscall (i): fixed12_to_float of the int16 +6+2*i
+0x5648b0  float_round_to_int       func  vsdk\math            O ; (f): ftol(f + 0.5)
+0x5648c0  vfx_unpack_normal        func  vsdk\geom            O ; thiscall (out): normal from the 8-bit fields at bits 20..27 and 12..19 of +0 and byte +0xb (b * 2/255 - 1), caller 0x562f60
+0x564950  vfx_pack_normal          func  vsdk\geom            O ; thiscall (vector3*): inverse of vfx_unpack_normal ((x + 1) * 127.5 clamped to 0..255)
+0x564a20  vfx_unpack_vector_s8     func  vsdk\geom            O ; thiscall (out): vector from the three high signed bytes of +0 (* 2/255 - 1), caller 0x562f60
+0x564aa0  vfx_face__set_u          func  vsdk\geom            O ; thiscall (i, float): int16 +2*i = float_to_fixed12, caller vfx_mesh_instance__update_frame
+0x564ac0  vfx_face__set_v          func  vsdk\geom            O ; thiscall (i, float): int16 +6+2*i = float_to_fixed12
+0x564ae0  vfx_mesh_xform__get_pos  func  vsdk\geom            I ; thiscall (out, frame, scaled, base): vec channel +0xc (optionally * 1/16) plus base, caller vfx_mesh_instance__update_frame
+0x564b40  vfx_mesh_xform__get_scale func  vsdk\geom            I ; thiscall (out, frame): vec channel +0x30
+0x564b60  vfx_mesh_xform__get_rot  func  vsdk\geom            O ; thiscall (out, frame): quat channel +0x54
+0x564b80  vfx_mesh_morph__get_pos  func  vsdk\geom            O ; thiscall (out, vertex, frame): vfx_vec_channel__eval of entry vertex of the 0x24-byte array +0
+0x564bb0  vfx_mesh__get_vertex     func  vsdk\geom            O ; thiscall (out, i): static vertex i from three fixed8 int16 (6-byte entries of the array +0)
+0x564c00  vfx_mesh_anim__get_a     func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0
+0x564c20  vfx_mesh_anim__get_b     func  vsdk\geom            O ; thiscall (frame): fixed8 channel +0xc
+0x564c40  vfx_mesh_anim__get_vec   func  vsdk\geom            O ; thiscall (out, frame): vec channel +0x18
+0x564c60  vfx_particle__get_age    func  vsdk\geom            I ; thiscall: fixed8_to_float of +0 (divided by vfx_particle__get_lifetime for the life fraction in vfx_particle_get_bitmaps)
+0x564c70  vfx_particle__get_lifetime func  vsdk\geom            I ; thiscall: fixed8_to_float of +2 (written by vfx_particle__set_lifetime)
+0x564c80  vfx_get_fixed8_vector_4  func  vsdk\geom            O ; thiscall (out): vector from the fixed8 int16 +4/+6/+8, caller vfx_mesh_instance__update_frame
+0x564cc0  vfx_face_uv_anim__get_u  func  vsdk\geom            O ; thiscall (i, frame): fixed12 channel +0xc*i
+0x564ce0  vfx_face_uv_anim__get_v  func  vsdk\geom            O ; thiscall (i, frame): fixed12 channel +0x24+0xc*i
+0x564d00  vfx_mesh__frame_bit      func  vsdk\geom            O ; thiscall (i): BitArray__get on the bit array +0x44, caller vfx_mesh_instance__update_frame
+0x564d20  vfx_mesh__has_flag4      func  vsdk\geom            O ; thiscall: bit 2 of byte +0x18
+0x564d30  vfx_ptr4_relocate        func  vsdk\geom            O ; thiscall (base): ptr_relocate of the pointer +4 (0xc-byte entries of the mesh array +0x40)
+0x564d50  ptr_relocate             func  vsdk\geom            O ; (void** p, base): *p += base unless NULL, used by vfx_relocate_entry, anim_track__relocate and the vfx loaders
+0x564d90  vfx_tex_layer__get_frame_bitmap func  vsdk\geom            I ; thiscall (time): animated texture layer: bitmap +0 plus the frame from time, fps +0xc, start +8 and play mode +0x10 (loop, once, ping-pong) over the bm frame count (0x502500)
+0x564e40  vfx_tex_layer__get_frame_bitmap_frac func  vsdk\geom            I ; thiscall (fraction): as vfx_tex_layer__get_frame_bitmap with the frame chosen by a 0..1 life fraction
+0x564ef0  vfx_tex_layer__ctor      func  vsdk\geom            O ; hidden start, thiscall: zeroes the six dwords of the 0x14-byte layer
+0x564f20  vfx_material__ctor       func  vsdk\geom            O ; thiscall ctor: two 0x14-byte texture layers at +0xc (eh vector ctor) then vfx_material__reset
+0x564f80  vfx_material__reset      func  vsdk\geom            O ; thiscall: default flags, colours +8..+0xa = 255, layer bitmaps -1, curve pointers/counts zero, +0x38 default name 0x2f91a70, +0x3c = -1, +0x40 = 0.6
+0x564ff0  vfx_material__eval_curve34 func  vsdk\geom            I ; thiscall (time): 0..1 value of the byte key curve +0x34 (count +2, 15 fps scaled by the rate in flag bits 7..15, constant for mode 0/2), callers 0x538430, vfx_mesh_instance__render_billboards, 0x562f60
+0x5650e0  vfx_material__eval_curve44 func  vsdk\geom            I ; thiscall (time): 0..1 value of the byte key curve +0x44 (count +4), callers vfx_particle_get_color, 0x538430, 0x562f60
+0x5651b0  vfx_material__eval_curve48 func  vsdk\geom            I ; thiscall (time): 0..1 value of the byte key curve +0x48 (count +6), callers vfx_emitter_instance__get_transform, vfx_mesh_instance__render_billboards, 0x562f60
+0x565280  vfx_material__relocate   func  vsdk\geom            O ; thiscall (header_base, base): both texture layers (vfx_tex_layer__relocate), name +0x38, curve pointers +0x34/+0x44/+0x48, bitmap +0x3c = 0, caller 0x536bc0
+0x5652e0  vfx_material__load_bitmaps func  vsdk\geom            O ; thiscall (flags): vfx_tex_layer__load_bitmap on both layers and bm_load of the name +0x38 into +0x3c unless empty or starting with $, caller 0x536e50
+0x565360  vfx_tex_layer__relocate  func  vsdk\geom            O ; thiscall (base): relocates the name +4 (0x533d90) and clears the bitmap +0
+0x565380  vfx_tex_layer__load_bitmap func  vsdk\geom            O ; thiscall (flags): bm_load of the name +4 into +0 (retry without flags), 0 for empty names or names starting with $
+0x5653e0  vfx_ptr_pair__ctor       func  vsdk\geom            O ; hidden start, thiscall: +0 and +4 = 0
+0x565400  vfx_group__relocate      func  vsdk\geom            I ; thiscall (header_base, base): relocates a 0x14-byte record (effect base +0x3c, count +0x10): header and the +0xc entries of 8 bytes at +0x10 (vfx_group_entry__relocate)
+0x565450  vfx_group_entry__relocate func  vsdk\geom            O ; thiscall (base): ptr_relocate of +4
+0x565470  vfx_camera__get_transform func  vsdk\geom            O ; thiscall (time, out pos, out quat): false outside the frame range +0xc..+0xe, else lerped vfx_camera__get_pos and slerped orientation, caller 0x536fb0, which stores them in the vfx camera 0x2d90ee8/0x2d90ef8 read by vfx_get_camera
+0x5655c0  vfx_camera__relocate     func  vsdk\geom            O ; thiscall (header_base, base): relocates a 0x64-byte camera record (effect base +0x38, count +0xe): header, vec channel +0x10, quat channel +0x34
+0x5655f0  vfx_camera__get_pos      func  vsdk\geom            O ; thiscall (out, frame): vfx_vec_channel__eval_fixed12 of +0x10
+0x565610  vfx_vec_channel__eval_fixed12 func  vsdk\geom            O ; thiscall (out, frame): vector3 from three vfx channels decoded with fixed12_to_float
 0x565660  jpeg_CreateCompress      func  -                    O ; IJG jcapimin.c: called as (cinfo, 62 = JPEG_LIB_VERSION, 0x178 = sizeof) by jpeg_write_file, calls jinit_memory_mgr
 0x565720  jpeg_destroy_compress    func  -                    O ; IJG: jpeg_destroy(cinfo), last call of jpeg_write_file
 0x565730  jpeg_abort_compress      func  -                    O ; IJG: jpeg_abort(cinfo), follows jpeg_destroy_compress without padding
@@ -6523,7 +6834,13 @@
 0x5664a0  jpeg_format_message      func  -                    O ; IJG format_message method stored at err+0xc by jpeg_std_error
 0x566550  jpeg_reset_error_mgr     func  -                    O ; IJG reset_error_mgr method stored at err+0x10 by jpeg_std_error
 0x566560 snd_start_timer          func  -                        I ; timeSetEvent user (audio)
+0x5665b0  snd_stream_kill_timer    func  -                    O ; (stream*): timeKillEvent on the timer id +0x10 and clears it, caller snd_stream_stop
+0x5665d0  snd_stream_get_writable  func  -                    O ; (stream): GetCurrentPosition (vtbl +0x10) of the channel buffer, bytes between the write cursor +0xc and the play position (wrapping at the size +8), caller snd_stream_service
+0x566630  snd_stream_fill_acm      func  -                    O ; (stream, bytes, &written): Lock, wav_read and acm_convert of ADPCM (format tag 2) data into the ring buffer, Unlock, caller snd_stream_service
+0x566820  snd_stream_fill_pcm      func  -                    O ; (stream, bytes, &written): Lock and wav_read of PCM data straight into the ring buffer (both lock regions), Unlock, caller snd_stream_service
+0x566970  snd_stream_fill_silence  func  -                    O ; (stream, bytes): Lock and fills with silence (0 for 16-bit, 0x80 for 8-bit), returns 0 once the stream has played out, caller snd_stream_service
 0x566ab0  snd_stream_stop          func  -                    O ; Stop buffer of a stream slot, kill its timer
+0x566b10  snd_stream_rewind        func  -                    O ; (stream): wav_descend_data back to the start of the data chunk for looping streams (flag 2), caller snd_stream_service
 0x566b60  snd_stream_service       func  -                    I ; per-stream refill: 5665d0 position, 566630 read, 566820, 566970
 0x566c30  snd_stream_find_free     func  -                    O ; scans stream slots 0x2fbd9c8..0x2fbdb88
 0x566c60  snd_stream_start         func  -                    O ; finds free stream slot (566c30) then snd_start_timer
