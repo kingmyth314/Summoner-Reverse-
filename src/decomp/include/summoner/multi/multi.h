@@ -77,6 +77,9 @@ void mp_send_character_walk(Character *c, int a);    // 0x488230
 void mp_send_swi_2dir();                              // 0x4884f0 SWI2DIR (cur_character)
 void mp_send_swi_ndir();                              // 0x488700 SWI!DIR
 void mp_send_swi_hide(Character *c);                  // 0x488b00 SWI_HID
+// decomp68 (the AI goal handlers): the attack and sneak senders (one argument each, add esp 4).
+void mp_send_character_attack(Character *c);          // 0x488390 (ai_goal_do_attack)
+void mp_send_swi_sneak(Character *c);                 // 0x488a20 SWI_SNK (ai_goal_do_sneak)
 
 // The pilots read these fields through macros while the stub record was short (kept, DECISIONS.md D10).
 #define MP_PLAYER_NAME(p) ((p)->name)
@@ -237,9 +240,6 @@ struct gtrack_channel_query {
 };
 LAYOUT_CHECK(gtrack_channel_query, sizeof(gtrack_channel_query) == 0x28);
 void gtrack_send_channel_query(gtrack_channel_query *q);   // 0x4ae830
-// multispell's neighbour 0x4b0b50-0x4b11a0 (level completion).
-void mp_level_find_boss();                              // 0x4b0b50 (mp_level_start, host)
-void mp_level_complete_check();                         // 0x4b1150 (mp_game_frame, host)
 
 // The packet handlers of mp_packet_table that no written unit declares yet (decomp53; all (data, sender)).
 void mp_handle_game_query(ubyte *data, void *from);           // 0x4ab1c0 GM_QURY
@@ -270,11 +270,8 @@ void mp_handle_swi_boss(ubyte *data, void *from);             // 0x4889c0 SWI_BS
 void mp_send_swi_boss(Character *boss, int mode, int submode);   // 0x4888d0
 void mp_handle_swi_sneak(ubyte *data, void *from);            // 0x488ab0 SWI_SNK
 void mp_handle_swi_hide(ubyte *data, void *from);             // 0x488ba0 SWI_HID
-void mp_handle_combat_sequence(ubyte *data, void *from);      // 0x4b1280 COM_SEQ
 void mp_handle_equip_item(ubyte *data, void *from);           // 0x487950 INV_EQP
 void mp_handle_kick_pl(ubyte *data, void *from);              // 0x471f90 KICK_PL
-void mp_handle_level_complete(ubyte *data, void *from);       // 0x4b09c0 L_CMPLT
-void mp_handle_difficulty_complete(ubyte *data, void *from);  // 0x4b0ab0 D_CMPLT
 void mp_handle_new_mon(ubyte *data, void *from);              // 0x475610 NEW_MON
 void mp_handle_srv_req(ubyte *data, void *from);              // 0x4767a0 SRV_REQ
 void mp_handle_unequip_item(ubyte *data, void *from);         // 0x487b10 INV_UQP
@@ -371,10 +368,10 @@ void mp_send_door_lockpick(mp_player *p, int lobj_index, int result);   // 0x4aa
 #include "summoner/multi/multicontainer.h"
 #include "summoner/multi/multispell.h"
 #include "summoner/multi/multi_chattracker.h"
+// decomp68: the level completion / COM_SEQ unit after multispell.cpp (placeholder header; it now declares
+// mp_level_find_boss, mp_level_complete_check, the L_CMPLT / D_CMPLT / COM_SEQ handlers and mp_send_living_combat).
+#include "summoner/multi/unnamed_level_complete_0x4b0960.h"
 // decomp23 (combat.cpp, spells.cpp): the unnamed multiplayer units (mp_spell_cast_sync and
 // mp_summon_claim_release moved to multispell.h, decomp35).
-// Packet 0x22 of a living_combat exchange, the arguments as living_combat_send_net pushes them:
-// (attacker net handle, defender net handle, move variant, defence move, state argument, skill, special).
-void mp_send_living_combat(int attacker, int defender, int variant, void *defence, int arg, int skill, int special);  // 0x4b11a0
 
 #endif

@@ -149,16 +149,18 @@ public:
     // decomp58 (the goal unit 0x475180, game/unnamed_goals_doors_0x475180.cpp):
     void goals_remove_type9();        // 0x475dd0 ai_goals_remove_type9
     void goals_remove_types_3_5();    // 0x475e30 ai_goals_remove_types_3_5
-    // The goal handlers (0x4b6000-0x4b68c0, unit not known; argument lists from ai_process_goals).
-    void goal_do_attack(int target, unsigned int flags);                  // 0x4b6000 ai_goal_do_attack
-    void goal_do_follow(int target);                                      // 0x4b6240 ai_goal_do_follow
-    void goal_do_travel(vector3 *pos, int layer, int priority, unsigned int flags);   // 0x4b62a0 ai_goal_do_travel
-    void goal_do_nothing();                                               // 0x4b63e0 ai_goal_do_nothing
-    void goal_do_approach_party(int target);                              // 0x4b63f0 ai_goal_do_approach_party
-    void goal_do_combat_mode();                                           // 0x4b6430 ai_goal_do_combat_mode
-    void goal_do_cast_spell(int spell);                                   // 0x4b64c0 ai_goal_do_cast_spell
-    void goal_do_cast_at_point(int spell, vector3 *pos, int layer);       // 0x4b6560 ai_goal_do_cast_at_point
-    void goal_do_move_to(vector3 *pos, int layer, bool walk, ai_path *path);    // 0x4b65c0 ai_goal_do_move_to
+    // The goal handlers (0x4b6000-0x4b68c0; argument lists from ai_process_goals). decomp68 (D4803): the
+    // ones that set EAX return int (-1 no target, 0 started, 1 nothing to do; ai_process_goals ignores it).
+    // Unit game/unnamed_ai_think_0x4b5140.cpp (file name a placeholder).
+    int  goal_do_attack(int target, unsigned int flags);                  // 0x4b6000 ai_goal_do_attack
+    int  goal_do_follow(int target);                                      // 0x4b6240 ai_goal_do_follow
+    int  goal_do_travel(vector3 *pos, int layer, int priority, unsigned int flags);   // 0x4b62a0 ai_goal_do_travel (path_to's result)
+    int  goal_do_nothing();                                               // 0x4b63e0 ai_goal_do_nothing (-1)
+    int  goal_do_approach_party(int target);                              // 0x4b63f0 ai_goal_do_approach_party
+    int  goal_do_combat_mode();                                           // 0x4b6430 ai_goal_do_combat_mode
+    int  goal_do_cast_spell(int spell);                                   // 0x4b64c0 ai_goal_do_cast_spell (0)
+    int  goal_do_cast_at_point(int spell, vector3 *pos, int layer);       // 0x4b6560 ai_goal_do_cast_at_point (0)
+    int  goal_do_move_to(vector3 *pos, int layer, bool walk, ai_path *path);    // 0x4b65c0 ai_goal_do_move_to (0)
     void goal_do_move_to_timed(vector3 *pos, int layer, float arg, bool walk);  // 0x4b6690 ai_goal_do_move_to_timed
     void goal_do_hide();                                                  // 0x4b6710 ai_goal_do_hide
     void goal_do_sneak();                                                 // 0x4b6790 ai_goal_do_sneak
@@ -167,7 +169,8 @@ public:
 
     ~ai_state();                      // 0x4f13e0 (folded)
     bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1
-    void formation_slot_position(vector3 *out, const vector3 *base, const vector3 *dir, int slot);   // 0x4b52e0 (unit not known)
+    // (out, base, dir, slot 1..5, -1 = this AI's formation_slot): base + the slot offset turned to dir.
+    void formation_slot_position(vector3 *out, const vector3 *base, const vector3 *dir, int slot);   // 0x4b52e0 (unnamed_ai_think_0x4b5140.cpp)
     void reset();                     // 0x472450 ai_reset
     void process_goals();             // 0x4763a0 ai_process_goals (combat_mode_set; decomp42)
     bool is_combat_e_or_sneak_attack(); // 0x473120 ai_is_combat_e_or_sneak_attack
@@ -210,8 +213,8 @@ public:
     void disable_2f();                // 0x4743e0 ai_disable_2f
     // decomp38 (characterinfo.cpp, summon_stash_for_cutscene):
     void begin_emerge();              // 0x473970 ai_begin_emerge
-    void summon_emerge_update();      // 0x4b4660 summon_emerge_update (unit not known)
-    void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
+    void summon_emerge_update();      // 0x4b4660 summon_emerge_update (unnamed_ai_move_0x4b1410.cpp)
+    void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unnamed_ai_think_0x4b5140.cpp)
     // decomp54 (ai_group_think_caster): (candidates, count, out chosen candidate or NULL) -> spell or -1.
     // The candidates are boss_target records (engine/ai/boss_ai.h). Unit not known.
     int  choose_support_spell(struct boss_target *list, int count, struct boss_target **out);   // 0x4bea80 ai_choose_support_spell
@@ -314,16 +317,44 @@ public:
     int  phoenix_choose_attack();     // 0x498a20 0 no fight, 1 pending sub-mode, 3 attack, 5 busy
     void phoenix_stage_transition_move(); // 0x4995b0
     // The AI mode units' combat helpers the bosses call (units not known; decomp54).
-    bool follow_path(int a);          // 0x4b3010 ai_follow_path (the bosses pass 0)
+    // decomp68 (D4802): the argument is the wanted speed, a float (0 = the stopping distance decides);
+    // was int a.
+    bool follow_path(float speed);    // 0x4b3010 ai_follow_path (the bosses pass 0)
     bool combat_approach(Character *t);       // 0x4bda50 ai_combat_approach (tiger_wander_update tests al)
-    bool turn_towards(vector3 *point, int a); // 0x4b2af0 ai_turn_towards (the tiger passes 1)
+    // decomp68 (D4802): the second argument is a bool (`mov al, [esp+0xb8]`): use boss_turn_rate_override.
+    bool turn_towards(vector3 *point, bool boss_rate); // 0x4b2af0 ai_turn_towards (the tiger passes 1)
     void alert_guards_of_target(Character *attacker);   // 0x4bfed0 ai_alert_guards_of_target
     // decomp56 (the Pyrul and Ghost Rider units): their think helpers.
     int  pyrul_choose_attack();       // 0x4b8da0 0 none, 3 approach with a new move, 5 keep the current move
     int  ghost_choose_attack();       // 0x4bac20 0 none, 1 wander (ghost_pending_submode), 3 new move, 5 keep
     void ghost_wander_update();       // 0x4baaa0 (sub-mode AIS_SAFETY)
     bool ghost_wander_start();        // 0x4baae0
-    int  goal_do_cast_at_target(int spell, int target);   // 0x4b6500 ai_goal_do_cast_at_target: 0, or -1 without the target (unit not known)
+    int  goal_do_cast_at_target(int spell, int target);   // 0x4b6500 ai_goal_do_cast_at_target: 0, or -1 without the target
+
+    // decomp68: the AI movement unit 0x4b1410-0x4b513f (game/unnamed_ai_move_0x4b1410.cpp) and the AI think
+    // unit 0x4b5140-0x4b77ef (game/unnamed_ai_think_0x4b5140.cpp); file names placeholders. Names from
+    // sum.symbols; the four empty think hooks are ours.
+    bool avoid_characters();          // 0x4b1aa0 ai_avoid_characters: true = steering around someone
+    void steer_jitter(float dt);      // 0x4b2510 ai_steer_jitter (travel_dest = ahead + the random offset)
+    void path_closest_point(float max_dist);  // 0x4b2670 ai_path_closest_point
+    void wall_avoid_steer();          // 0x4b2890 ai_wall_avoid_steer
+    void travel_steer_update();       // 0x4b3c80 ai_travel_steer_update (sub-mode 1)
+    void cast_spell_update();         // 0x4b4920 ai_cast_spell_update
+    void group_assign_formation();    // 0x4b5160 ai_group_assign_formation (the leader)
+    void pick_attack_target(int max_attackers);   // 0x4b5900 ai_pick_attack_target
+    // (self = the owner, target): 0 re-pathed or still on the way, -1 no path.
+    int  follow_repath(Character *self, Character *target);   // 0x4b5a80 ai_follow_repath
+    // -1 no target, 0 moving / in place, 1 close enough or no path.
+    int  follow_character(Character *target);  // 0x4b5bd0 ai_follow_character
+    void party_follow_think();        // 0x4b6940 ai_party_follow_think
+    void clear_target_and_idle();     // 0x4b6a30 ai_clear_target_and_idle (priority -1, then go_idle)
+    void party_spread_attackers();    // 0x4b6c10 ai_party_spread_attackers (this not read)
+    void think_party_update();        // 0x4b71c0 ai_think_party_update
+    // ai_think's per-mode hooks: empty bodies, folded into empty_function 0x4f13e0 (names ours).
+    void think_idle();                // folded (AI_STATE_IDLE)
+    void think_travel_wait();         // folded (AI_STATE_TRAVELING sub-mode 0)
+    void think_travel_escort();       // folded (AI_STATE_TRAVELING sub-modes 6 / 7)
+    void think_combat();              // folded (AI_STATE_COMBAT)
     // decomp56 (the AI combat unit 0x4bce60-0x4c0245, game/unnamed_ai_combat_0x4bce60.cpp; file not known).
     // combat_approach, alert_guards_of_target, combat_close_in / _melee_attack / _ranged_attack and
     // choose_support_spell are declared with the decomp54 declarations.
@@ -433,7 +464,7 @@ public:
     GameTimer timer3c;       // +0x3C
     GameTimer timer40;       // +0x40
     GameTimer timer44;       // +0x44
-    int _unk48;
+    int _unk48;              // +0x48 the stun time of sub-mode 0x30 (status 10 when the move ends; decomp68)
     Character *owner;        // +0x4C
     unsigned int flags;      // +0x50 AI_FLAG_*; 0x10000000 path started (ai_path_begin)
     vector3 travel_dest;     // +0x54 (was float[3]; decomp39)
@@ -442,7 +473,7 @@ public:
     vector3 cast_point;      // +0x68 point of a cast at a location (decomp54: phoenix_cast_special sets it,
                              //       phoenix_special_strike places the ground effect there; was _unk68[0x14])
     int cast_arg;            // +0x74 passed with it to spell_place_ground_effect (its owner argument)
-    ubyte _unk78[4];
+    float wander_radius;     // +0x78 sub-mode 8 wander distance (goal_do_move_to_timed's arg; decomp68, was ubyte[4])
     int _unk7c;              // +0x7C attack point index at the target (its attack_point_users), -1 none
     int handle_slot;         // +0x80 released by ai_set_mode (handle_slot_release)
     int mode_target;         // +0x84 -1 when a cast mode ends
@@ -450,26 +481,44 @@ public:
     ai_goal goals[5];        // +0x8C goal slots (was ubyte[5][0x34]; decomp39)
     int cur_goal;            // +0x190
     int emerge_move;         // +0x194
-    int _unk198;
+    union {
+        int _unk198;
+        int turn_move;       // +0x198 the turn-in-place move (ai_turn_towards; decomp68)
+    };
     GameTimer timer19c;      // +0x19C
     GameTimer disable_timer; // +0x1A0
     int disable_ms;          // +0x1A4
     ai_group *group;         // +0x1A8 (Character +0x4cc; types.h _unk1a8, zeroed by ai_state_init)
-    int _unk1ac;             // +0x1AC
+    union {
+        int _unk1ac;         // +0x1AC
+        int formation_slot;  //   1..5, 0 none (ai_group_assign_formation; decomp68)
+    };
     struct {                 // +0x1B0 attacker slots
         int handle;          //   -1 free
         GameTimer timer;
     } attackers[5];
     int attack_point_users[8]; // +0x1D8 per char_info attack point, -1 free (was _unk1d8; decomp39)
     int path_started;        // +0x1F8
-    int _unk1fc;
+    union {
+        int _unk1fc;
+        int prev_path_started;   // +0x1FC path_started of the last ai_follow_path (decomp68)
+    };
     int path_step;           // +0x200
-    int _unk204;             // +0x204
+    union {
+        int _unk204;         // +0x204
+        float steer_offset;  //   ai_steer_jitter's random side offset (decomp68)
+    };
     GameTimer perception_timer; // +0x208
-    int _unk20c;
+    union {
+        int _unk20c;
+        float steer_side;    // +0x20C turn rate of the avoidance steering (path_started 2; decomp68)
+    };
     ai_path *path;           // +0x210 (was void *; decomp39)
     vector3 path_start;      // +0x214 the from point of the search (was path_dest float[3]; D1904)
-    int _unk220;             // +0x220
+    union {
+        int _unk220;         // +0x220
+        int avoid_handle;    //   the character ai_avoid_characters steers around (decomp68)
+    };
     GameTimer timer224;      // +0x224
     GameTimer path_timer_a;  // +0x228
     GameTimer path_timer_b;  // +0x22C
@@ -575,9 +624,11 @@ int  cast_effect_track_count();                       // 0x475160
 // fraction), flag 2 a curable status (+10); returns the sum of the scores.
 float ai_score_support_targets(boss_target *list, int count, bool heal, bool cure);   // 0x4be940
 extern vector3 ai_combat_aim_point;                   // 0x2483558 the target's attack point or position (name ours)
-// The AI movement unit before it (0x4b0210-0x4b77f0, file not known). Names ours.
-extern Character *ai_follow_target;                   // 0x247e878 set before ai_follow_path by the combat code
-extern int ai_combat_frames_watched;                  // 0x247e84c counts combat frames of the object under the mouse
+// The AI movement unit (0x4b1410-0x4b513f, game/unnamed_ai_move_0x4b1410.cpp; decomp68). Names ours.
+extern Character *ai_follow_target;                   // 0x247e878 set before ai_follow_path by the combat code (never read)
+// decomp68 (D4805): 0x247e84c is ai_mode_frame_counts[AI_STATE_COMBAT] (the array 0x247e840 has 13 ints);
+// the name stays as a macro for the AI combat unit.
+#define ai_combat_frames_watched (ai_mode_frame_counts[AI_STATE_COMBAT])
 
 void ai_frame(Character *c);                          // 0x472a90 cdecl (sum.symbols: thiscall; D1901)
 bool ai_update_perception(Character *c);              // 0x472e80 cdecl: true = skip this frame's AI
@@ -590,7 +641,8 @@ void cmd_pause_ai();                                  // 0x474e10
 void cmd_ai_wander();                                 // 0x474f00
 
 // The AI mode units (0x4b4100-..): per-mode frame counters zeroed by ai_do_frame (13 ints at 0x247e840;
-// ai_mode_traveling_frame increments [2], ai_mode_combat_frame [3], ai_mode_cast_spell_frame [4]). Name ours.
+// ai_mode_traveling_frame increments [2], ai_mode_combat_frame [3], ai_mode_cast_spell_frame [4], each
+// only for the object under the mouse). Name ours; defined in unnamed_ai_move_0x4b1410.cpp (decomp68).
 extern int ai_mode_frame_counts[NUM_AI_STATES];       // 0x247e840
 void ai_groups_frame();                               // 0x492d30 (unit not known)
 
@@ -625,18 +677,25 @@ unsigned int ai_goal_type_fields(int type);           // 0x475fb0 AI_GF_* of the
 void ai_goals_validate(ai_state *ai);                 // 0x476610 cdecl
 void ai_global_init();                                // 0x474900 pathfinding_init, direction table (GameInit)
 
-// The query record of ai_score_target (0x14 bytes on the caller's stack; boss_target_list_build fills
-// it). Type and field names ours; ai_score_target lowers `best` (compared and replaced at 0x4b5761) and
-// writes `result`; +0x08 is 10 at boss_target_list_build. Unit not known.
+// The query record of ai_score_target (boss_target_list_build fills it). Type and field names ours;
+// ai_score_target lowers `best` (compared and replaced at 0x4b5761) and writes `result`. decomp68 (D4804):
+// 0x18 bytes: ai_score_target also writes +0x14 (the chosen candidate's attack rating, read back to scale
+// the next score); +0x08 is the attacker limit (ai_count_engaged_attackers must stay below it); `result`
+// is the chosen Character (was int). Unit game/unnamed_ai_think_0x4b5140.cpp.
 struct ai_target_query {
     Character *self;                  // +0x00
     Character *candidate;             // +0x04
-    int _unk08;                       // +0x08 10 at boss_target_list_build
-    int result;                       // +0x0C
+    union {
+        int _unk08;                   // +0x08 10 at boss_target_list_build, 2 at the tiger
+        int max_attackers;
+    };
+    Character *result;                // +0x0C NULL until a candidate passes
     float best;                       // +0x10 starts at the char_info fov range (+0x220)
+    float rating;                     // +0x14 combat_attack_rating of `result`
 };
-LAYOUT_CHECK(ai_target_query, sizeof(ai_target_query) == 0x14);
-void ai_score_target(ai_target_query *q, int a);      // 0x4b53c0 (boss_target_list_build passes 1; return unused)
+LAYOUT_CHECK(ai_target_query, sizeof(ai_target_query) == 0x18);
+// (query, boss list): a boss scoring its own list skips the boss test of a type-9 self.
+void ai_score_target(ai_target_query *q, bool boss_list);   // 0x4b53c0 (boss_target_list_build passes 1; return unused)
 
 // The avoidance records and calls (avoid_area_desc, avoid_obstacle, avoid_poly, avoid_seglist, the splines,
 // avoid_*) moved to engine/ai/unnamed_avoidance_0x4a6710.h (decomp57).
@@ -644,6 +703,10 @@ void ai_score_target(ai_target_query *q, int a);      // 0x4b53c0 (boss_target_l
 // Console toggle "pause_ai" (unit not known; decomp34).
 
 void ai_groups_restart_timers();                      // 0x492b60 (state_game_enter; decomp42)
+
+// decomp68: the AI movement and think units (placeholder headers).
+#include "engine/ai/unnamed_ai_move_0x4b1410.h"
+#include "engine/ai/unnamed_ai_think_0x4b5140.h"
 
 // ---- the AI group unit (0x492b00-0x493e41, file not known; game/unnamed_ai_groups_0x492b00.cpp, decomp54) ----
 // ai_group::flags bits (names ours).

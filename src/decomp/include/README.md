@@ -101,6 +101,8 @@ Summoner 2 and Dash Faction give names only.
 | `engine/characterinfo/characterinfo.h` | `Engine\characterinfo\characterinfo.cpp` | `char_info`, skills, chain attacks, experience |
 | `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state` (all ai.cpp members, decomp39), `ai_goal`, `ai_group`, the unit's name tables, console variables, profiler (`ai_profile`) and cast effect tracks; includes the avoidance header below (decomp57) |
 | `engine/ai/unnamed_avoidance_0x4a6710.h` | obstacle avoidance 0x4a6710-0x4aa77f (game/unnamed_avoidance_0x4a6710.cpp, file name a placeholder; decomp57) | `avoid_area_desc`, `avoid_obstacle` (= `avoid_prim`), `avoid_poly`, `avoid_seglist` with its segment refs, corners and link blocks, the areas and splines, every `avoid_*` (D3701-D3706) |
+| `engine/ai/unnamed_ai_move_0x4b1410.h` | the AI movement unit 0x4b1410-0x4b513f (game/unnamed_ai_move_0x4b1410.cpp, placeholder; decomp68; included by ai.h) | turn_scaler, the turn speed factors, ai_path_remaining, the wall-hit globals, Use_turn_anims and the two ccmds, ai_find_nearest_wall_hit, ai_probe_move_for_walls, closest_approach_time (the ai_state members are in ai.h) |
+| `engine/ai/unnamed_ai_think_0x4b5140.h` | the AI think unit 0x4b5140-0x4b77ef (game/unnamed_ai_think_0x4b5140.cpp, placeholder; decomp68; included by ai.h) | the formation debug globals, ai_choose_attack_slot (ai_target_query, ai_score_target and the members are in ai.h) |
 | `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a670f (game/unnamed_pfgeom_0x4a4ee0.cpp, placeholder; decomp57) | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
 | `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` (decomp47) | the visibility sweep: `pathvis_edge`, the unit's .bss, `pathvis_*`, `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
@@ -143,6 +145,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/multi/multichat.h` | multichat.cpp (0x487b90-0x488223) | `chat_entry` ring, slash commands, CHAT_LN |
 | `summoner/multi/multicontainer.h` | multicontainer.cpp (0x488c00-0x48972a) | loot drops, container open / close, lock picking |
 | `summoner/multi/multispell.h` | multispell.cpp (0x4afca0-0x4b0957, decomp35) | RLS_SPL / CST_ANM casts, the one-summon claim (SMN_*) |
+| `summoner/multi/unnamed_level_complete_0x4b0960.h` | level / difficulty completion and COM_SEQ 0x4b0960-0x4b140f (game/unnamed_level_complete_0x4b0960.cpp, placeholder; decomp68; included by multi.h) | MP_L_CMPLT / MP_D_CMPLT / MP_COM_SEQ, the boss watch globals, mp_send/handle/mark_level_complete and _difficulty_complete, mp_level_find_boss, mp_level_complete_check, mp_send_living_combat, mp_handle_combat_sequence (D4801) |
 | `summoner/multi/multi_chattracker.h` | multi_chattracker.cpp (0x4abb80-0x4ae32d, decomp35) | the PXO lobby's IRC client: `irc_command`, `irc_user`, `irc_channel`, `irc_*` |
 | `summoner/multi/multiplayerdata.h` | multiplayerdata.cpp (0x4af340-0x4afc9f, decomp47) | NET_INF / NEW_INF / PLY_DAT, the player record packing |
 | `summoner/multi/multiendgame.h` | multiendgame.cpp (0x4811a0-0x481673, decomp47) | leaving a game, GM_OVER / LV_GAME, the Game Over box, `MP_LEAVE_*`, Multi_path_type |
@@ -153,7 +156,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |
 | `summoner/interface/new_skill.h`, `new_spell.h`, `new_tutorial.h` | new_skill.cpp, new_spell.cpp, new_tutorial.cpp (not pilots) | the functions and data the HUD and the inventory call |
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests, `level_trigger`, `script_action` (decomp41) |
-| `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp | dialogue boxes; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
+| `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp, the dialogue box unit 0x4d6660-0x4d7b2f (game/unnamed_dialogue_box_0x4d6660.cpp, placeholder; decomp68) | dialogue boxes (polymorphic, D4800), the box colours and button texts; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |
 | `levelscripts/script_internal.h` | `levelscripts\script_internal.cpp` (0x4db340-0x4de0a3, assert path; decomp44) | `SCRIPT_ACTION_*`, `NAVPOINT_TYPE_*`, the action / navpoint type names, `cutscene_saved_item`, every function of the unit |
 | `summoner/interface/new_multichat.h` | new_multichat.cpp (0x41e3d0-0x41ee8f, decomp44; included by interface.h) | `chat_line`, the chat overlay's globals, layout tables and functions |

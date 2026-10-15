@@ -3639,3 +3639,80 @@ ret, no reference) is left unattributed.
 **D4713 (ix.h). bbox_from_points and bbox_expand_by_vector.** ix_sphere_polygon calls 0x5595e0 (mins, maxs, a,
 b) and 0x559810 (mins, maxs, delta) (0x53c0db, 0x53c0eb); declared in ix.h (unnamed_gr_3d_0x50d9b0.h, where the
 other bbox helpers are, includes ix.h).
+
+## decomp68 (the level completion unit 0x4b0960-0x4b140f, the AI movement unit 0x4b1410-0x4b513f, the AI think unit 0x4b5140-0x4b77ef, the dialogue box unit 0x4d6660-0x4d7b2f; all placeholders)
+
+**D4800 (levelscripts/conversation.h). The dialogue boxes are polymorphic classes.** dialogue_box_base__ctor
+stores vtable 0x581c6c and dialogue_box_base__dtor (0x4d7130) restores it: a user-declared destructor of a
+class with virtuals. The base vtable has two slots, [0] 0x4d7140 (sum.symbols conversation_reset) and [1]
+_purecall 0x56e903 (the next dword 0x581c74 is the float 1/7); the text box vtable 0x581c4c is {0x4d7650,
+0x4d7680, 0x4d69d0}, the topic list's 0x581c5c {0x4d7920, 0x4d7930, 0x4d6a90}: slot 0 reset (set_rect calls it
+through `call [eax]`, 0x4d717e), slot 1 draw, slot 2 layout (add_text / add call `[edx+8]`, 0x4d7340,
+0x4d785e), new in each derived class. The line (0x581c58) and topic entry (0x581c68) records have one slot,
+draw(int scroll), called by the box draws with (int)scroll (`call [ebp]`, 0x4d77cf). So the plain `void
+*vtable` members go, the classes declare the virtuals, and: base reset is 0x4d7140 (was declared at 0x4d7920,
+which is dialogue_topic_list::reset, `jmp 0x4d7140`); 0x4d7650 (conversation_start) is dialogue_box::reset
+(the base reset, then the 32 labels cleared); `start()` stays as an inline alias of it for new_dialogue.cpp
+(a direct call on the object, same code). item_visible / item_y index the 0x18-byte entries (`lea eax,
+[eax+2*eax]` then `*8 + 0x2c`, 0x4d78b9 / 0x4d7908): members of dialogue_topic_list, where their callers are.
+add returns the entry (EAX = edi at 0x4d7861 / 0x4d78a3). Fields: dialogue_line +0x08 and dialogue_topic_entry
++0x08 are the wrap width (gr_split_str's max width, 0x4d6b2c / 0x4d6e16), dialogue_line +0x14 is the text
+(NULL for the spacer line add_text inserts; _unk14 kept in a union), base +0x28 is a GameTimer (constructed at
+0x4d70f9), the 32 labels are {char used; char text[0x80]} records (alloc returns the record, free compares
+`label + 1`, 0x4d6a57) whose inline constructor clears both bytes (the loop 0x4d66c9).
+
+**D4801 (summoner/multi). The level completion unit has its own header; mp_send_living_combat's types.**
+mp_level_find_boss, mp_level_complete_check, the L_CMPLT / D_CMPLT / COM_SEQ handlers and
+mp_send_living_combat move from multi.h to summoner/multi/unnamed_level_complete_0x4b0960.h (included by
+multi.h), with the unit's other functions. mp_send_living_combat stores the variant, hit flag, skill and
+special as single bytes (`mov byte ptr [esp+4], al` etc., 0x4b11c6-0x4b11e7) and reads one byte at +0x10 of the
+defence move (`mov al, [eax+0x10]`, 0x4b120c: move_info::category), so the parameters are (int, int, ubyte,
+move_info *, ubyte, ubyte, bool); were int / void *. combat.cpp's only call compiles unchanged.
+
+**D4802 (engine/ai/ai.h). follow_path takes a float, turn_towards a bool.** ai_follow_path compares its
+argument with 0.001f / 0.0001f (`fld dword ptr [esp+0x70]; fcomp [0x581938]`, 0x4b3a2f) and passes it to
+character_distance_to_reach_speed: a float speed (the traveling frame passes the leader's speed). ai_turn_towards
+reads its second argument as a byte (`mov al, [esp+0xb8]; test al, al`, 0x4b2c15). The existing calls (0, 1,
+true) compile unchanged.
+
+**D4803 (engine/ai/ai.h). The goal handlers return int.** goal_do_attack, _follow, _travel, _nothing,
+_approach_party, _combat_mode, _cast_spell, _cast_at_point and _move_to set EAX on every path (`or eax, -1`,
+`xor eax, eax`, `mov eax, 1`, path_to's result); goal_do_hide, _sneak, _special_attack, _pickup and
+_move_to_timed leave EAX as a callee left it and stay void. ai_process_goals ignores the value.
+
+**D4804 (engine/ai/ai.h). ai_target_query is 0x18 bytes.** ai_score_target writes +0x14 with the chosen
+candidate's combat_attack_rating (`mov [esi+0x14], eax`, 0x4b5778) and reads it back to scale the next score
+(`fmul dword ptr [esi+0x14]`, 0x4b5737); boss_target_list_build's record at esp+0x1c has room for it (+0x14 is esp+0x30,
+the last slot of its frame below the saved registers). +0x0c holds the chosen Character (stored from [esi+4]), +0x08 is the attacker limit
+(compared with ai_count_engaged_attackers, 0x4b56b7). The second argument is a byte (`mov cl, [esp+0x28];
+test cl, cl`, 0x4b53e5): bool.
+
+**D4805 (engine/ai/ai.h). ai_combat_frames_watched is ai_mode_frame_counts[3].** 0x247e84c lies inside the
+13-int array at 0x247e840 that ai_do_frame clears; the traveling and cast frames increment [2] (0x247e848) and
+[4] (0x247e850) the same way. One object: the name becomes a macro on the array element; the array is defined
+in the AI movement unit.
+
+**D4806 (game/unnamed_ai_think_0x4b5140.cpp). A GameTimer with an empty destructor.** ai_party_spread_attackers'
+function-static timer 0x247e91c is constructed under a guard bit (0x247e95c) and registers atexit(0x4b71b0), a
+bare RET: its type has a destructor that expands to nothing, which GameTimer has not (no GameTimer global
+registers one). Written as a local class spread_timer : GameTimer with ~spread_timer() {}, as D3805's cam_vec.
+
+**D4807 (engine/ai/ai.h). ai_state fields.** +0x78 is a float (the wander radius: `fmul dword ptr [esi+0x78]`,
+0x4b43b4; goal_do_move_to_timed stores its float argument there), was ubyte[4]. +0x204 and +0x20c are floats
+(`fmul dword ptr [esi+0x204]`, 0x4b255d; `fmul dword ptr [esi+0x20c]`, 0x4b2b70): steer_offset and steer_side
+in unions with the old int names (ai.cpp clears _unk204). Named in unions: +0x198 turn_move (the turn-in-place
+move, 0x4b2de6), +0x1ac formation_slot (0x4b516e, 0x4b5261), +0x1fc prev_path_started (0x4b352f), +0x220
+avoid_handle (0x4b1ffa).
+
+**D4808 (unit boundaries). 0x4b0960-0x4b77ef is three objects.** The level completion and COM_SEQ code
+0x4b0960-0x4b140f has no initialiser; its .data 0x59d694-0x59d6e3 is one block (the boss names unique to it,
+in reverse order of use, then "resetting %s to attack %s\n"), so COM_SEQ belongs with the level code; it follows
+multispell.cpp (tagged by strings.tbl id 238, no .data), whose .bss it continues (0x247e830 after 0x247e82f) -
+only adjacency, so a placeholder unit, not multispell.cpp. The initialiser runs 0x4b1410 (entries 303 / 304)
+and 0x4b5140 (entry 305) open the movement and think units; the .data 0x59d6e4-0x59d7c3 (turn_scaler, the
+speed factors, the movement unit's literals) and the .bss blocks 0x247e840-0x247e8c3 / 0x247e8c8-0x247e963 split
+the same way, and the .rdata constants of the think unit (the team table 0x581bb0, then -4, 0.0005, 7) follow
+the movement unit's (-1.5 0x581ba8, 120 0x581bac). pathfinding_visibility.cpp starts at 0x4b77f0.
+
+**D4809 (summoner/multi/multi.h). Two AI senders.** mp_send_character_attack (0x488390) and mp_send_swi_sneak
+(0x488a20) are declared next to mp_send_swi_hide: one pushed Character, `add esp, 4` (0x4b621c, 0x4b680a).

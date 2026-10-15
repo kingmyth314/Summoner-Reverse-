@@ -83,6 +83,7 @@ Rules:
 | `game/unnamed_pyrul_0x4b87c0.cpp`, `unnamed_ghost_rider_0x4b9e70.cpp`, `unnamed_decals_0x4bbe80.cpp`, `unnamed_ai_combat_0x4bce60.cpp` | Pyrul and Ghost Rider bosses, decals and s3d geometry blocks, AI combat modes (**names not known**) | 131 | 65 / 60 / 6 (`NOTES-unnamed-pyrul-ghost-ai.md`) |
 | eleven `game/unnamed_*` units 0x4c0250-0x4ca6ff: projectors, lamp glows, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar (**names not known**) | 256 (12 folded empty bodies) | 154 / 100 / 2 (`NOTES-unnamed-bosses-2.md`) |
 | `game/unnamed_handleslots_0x4a3640.cpp`, `unnamed_shadows_0x4a37d0.cpp`, `unnamed_pfgeom_0x4a4ee0.cpp`, `unnamed_avoidance_0x4a6710.cpp` | handle slots, blob shadows, pathfinding geometry, obstacle avoidance (**names not known**); also `level_page_in_characters` added to `boss_ai.cpp` | 135 | 88 / 45 / 2 (`NOTES-unnamed-shadows-pf-avoid.md`) |
+| `game/unnamed_level_complete_0x4b0960.cpp`, `unnamed_ai_move_0x4b1410.cpp`, `unnamed_ai_think_0x4b5140.cpp`, `unnamed_dialogue_box_0x4d6660.cpp` | multiplayer level completion, AI movement and goal handlers, AI think and target scoring, dialogue boxes (**names not known**) | 123 | 72 / 46 / 5 (`NOTES-unnamed-ai-move-think-dialogue.md`) |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |

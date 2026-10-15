@@ -1,9 +1,9 @@
 // levelscripts/conversation.h - the conversation objects and dialogue boxes (levelscripts\conversation.cpp,
 // path reference 0x4d7c43; conversationctl.cpp 0x4d87d0-0x4db249 by string ids). The two boxes are built by
 // static initialisers at 0x4d6660 / 0x4d66e0 and live in .bss at 0x2544408 / 0x2545b68. Class and field
-// names are ours unless sum.symbols names the method. The real box classes have virtual functions (vtables
-// 0x581c4c / 0x581c5c / 0x581c68 / 0x581c6c); the vtable pointer is a plain member here so this header
-// defines nothing. Not original source.
+// names are ours unless sum.symbols names the method. decomp68: the box classes are real polymorphic classes
+// (vtables 0x581c4c / 0x581c58 / 0x581c5c / 0x581c68 / 0x581c6c, D4800; they were plain vtable members).
+// Not original source.
 //
 // decomp20 (conversation.cpp / conversationctl.cpp): the conversation records (speakers, topics, lines),
 // the conversation object 0x25461a0 (class conversation, 0x310 bytes) and the controller 0x25464b0 (class
@@ -19,70 +19,118 @@
 class Character;
 class conversation_slot;
 struct conversation_topic;
+struct Color;                          // vsdk/gr/gr.h
+
+// ---- the dialogue box unit (0x4d6660-0x4d7b2f; game/unnamed_dialogue_box_0x4d6660.cpp, file name a
+// placeholder; decomp68). The box classes are polymorphic (D4800): dialogue_box_base's vtable 0x581c6c has
+// two slots ([0] reset 0x4d7140, [1] draw = _purecall 0x56e903); the two boxes add a third, layout
+// (dialogue_box 0x581c4c, dialogue_topic_list 0x581c5c). The line and topic entry records have one slot,
+// draw (0x581c58 / 0x581c68). set_rect calls slot 0 (reset), add / add_text slot 2 (layout), the box draws
+// call each record's slot 0 with the box's scroll offset.
 
 // Common part (dialogue_box_base__ctor 0x4d70f0), 0x2c bytes.
 class dialogue_box_base {
 public:
+    dialogue_box_base();                             // 0x4d70f0 dialogue_box_base__ctor
+    ~dialogue_box_base();                            // 0x4d7130 dialogue_box_base__dtor (restores the vtable)
+    virtual void reset();                            // 0x4d7140 conversation_reset (slot 0)
+    virtual void draw() = 0;                         // slot 1 (_purecall in the base vtable)
     void set_rect(int x, int y, int w, int lines);   // 0x4d7160 dialogue_box__set_rect
-    bool item_visible(int item);                     // 0x4d78b0 dialogue_box__item_visible
-    int  item_y(int item);                           // 0x4d7900 dialogue_box__item_y
-    void reset();                                    // 0x4d7920 dialogue_box_reset_thunk (jmp 0x4d7140)
 
-    void *vtable;         // +0x00
+    // +0x00 vtable
     int   x;              // +0x04
     int   y;              // +0x08
     float scroll;         // +0x0c current scroll offset (animated towards scroll_target)
     int   scroll_target;  // +0x10
     int   w;              // +0x14
-    int   text_height;    // +0x18
+    int   text_height;    // +0x18 sum of the record heights (layout)
     int   lines;          // +0x1c visible lines
     int   first;          // +0x20 ring start (64 entries)
     int   count;          // +0x24
-    int   timer;          // +0x28 GameTimer
+    GameTimer timer;      // +0x28 the scroll animation (decomp68: was int)
 };
 
-// A wrapped text line of the text box (0x1c bytes, vtable 0x581c58). Fields from conversationctl.cpp
-// (decomp20): the same top / height slots as dialogue_topic_entry.
-struct dialogue_line {
-    void *vtable;                 // +0x00
+// A wrapped text line of the text box (0x1c bytes, vtable 0x581c58). decomp68: +0x08 is the wrap width,
+// +0x14 the text (NULL for the spacer line add_text puts between two texts; was only _unk14).
+class dialogue_line {
+public:
+    virtual void draw(int scroll);                   // 0x4d6b80 dialogue_line__draw (slot 0)
+    // The text as given (kind 2: localize_topic_name of it); the talker is kept for kinds 0 and 2 only.
+    void init(const char *text, int width, int kind, conversation_slot *talker);   // 0x4d6ad0 dialogue_line__init
+    // (out count, out lengths, out starts, text, max (32, not read), continues a quote): the segments of
+    // one wrapped line in and out of double quotes; returns whether the line ends inside a quote. A member
+    // (dialogue_line__draw loads ECX with this; it is not read).
+    bool split_quotes(int *count, int *lengths, int *starts, const char *text, int max, bool in_quote);   // 0x4d68c0 dialogue_split_quotes
+
+    // +0x00 vtable
     int   top;                    // +0x04 y offset inside the box
-    int   _unk08;
+    int   width;                  // +0x08 wrap width (the box's w)
     int   height;                 // +0x0c
-    int   kind;                   // +0x10 dialogue_show_line kind: 0 a spoken line, 1 a notice, 2 the topic
-    int   _unk14;                 // +0x14 nonzero: conversation_select_topic keeps the scroll on this line
+    int   kind;                   // +0x10 0 a spoken line (quotes blue, the rest green), 1 a notice (red,
+                                  //       the text copied into a label), 2 a topic name (grey)
+    union {
+        int _unk14;               // +0x14 conversation_select_topic's view: 0 = a spacer line
+        const char *text;
+    };
     conversation_slot *talker;    // +0x18 who speaks it (conversation_update_talk_anims)
+};
+
+// One of the text box's 32 label buffers (0x81 bytes; the notice texts are copied here). Name ours.
+struct dialogue_label {
+    dialogue_label() { clear(); }
+    void clear() { used = 0; text[0] = 0; }
+
+    char used;            // +0x00
+    char text[0x80];      // +0x01
 };
 
 // The conversation text box at 0x2544408 (0x1750 bytes).
 class dialogue_box : public dialogue_box_base {
 public:
-    void start();                                    // 0x4d7650 conversation_start
-    bool line_fits(int line);                        // 0x4d7600 dialogue_box__line_fits
+    dialogue_box();                                  // 0x4d66a0 dialogue_box__ctor
+    virtual void reset();                            // 0x4d7650 conversation_start (slot 0: base reset + labels)
+    void start() { reset(); }                        // the decomp20 name of the same call (D4800)
+    virtual void draw();                             // 0x4d7680 dialogue_text_box_draw (slot 1)
+    virtual void layout();                           // 0x4d69d0 dialogue_box__layout_lines (slot 2)
+    dialogue_label *alloc_label();                   // 0x4d6a20 dialogue_box__alloc_label, NULL when full
+    void free_label(char *text);                     // 0x4d6a50 dialogue_box__free_label
+    // (text, kind, spacer first, talker): the new line, NULL when no label was free (kind 1).
+    dialogue_line *add_text(const char *text, int kind, bool spacer, conversation_slot *talker);   // 0x4d7190
+    int  first_visible_line();                       // 0x4d7410 dialogue_box__first_visible_line: count index, -1 none
+    int  last_visible_line();                        // 0x4d7480 dialogue_box__last_visible_line: ring index, -1 none
     void scroll_next_page();                         // 0x4d74f0 dialogue_box__scroll_next_page
-    void draw();                                     // 0x4d7680 dialogue_text_box_draw
-    int  first_visible_line();                       // 0x4d7410 dialogue_box__first_visible_line, -1 none
-    int  last_visible_line();                        // 0x4d7480 dialogue_box__last_visible_line, -1 none
+    bool line_fits(int line);                        // 0x4d7600 dialogue_box__line_fits
 
     dialogue_line line[64];                          // +0x02c
-    char label[32][0x81];                            // +0x72c
+    dialogue_label label[32];                        // +0x72c
     unsigned char _unk174c[4];
 };
 
 // One topic entry of the topic box (0x18 bytes, vtable 0x581c68).
-struct dialogue_topic_entry {
-    void *vtable;         // +0x00
+class dialogue_topic_entry {
+public:
+    virtual void draw(int scroll);                   // 0x4d6e70 dialogue_topic_entry__draw (slot 0)
+    void init(conversation_topic *topic, int width, int state);   // 0x4d6de0 dialogue_topic_entry__init
+
+    // +0x00 vtable
     int   top;            // +0x04 y offset inside the box
-    int   _unk08;
+    int   width;          // +0x08 wrap width (decomp68; was _unk08)
     int   height;         // +0x0c
-    int   state;          // +0x10 3 normal, 4 under the mouse (set by dialogue_draw)
+    int   state;          // +0x10 3 normal, 4 under the mouse (set by dialogue_draw), 5 "more", 6 "end"
     conversation_topic *topic;   // +0x14 (an int "topic id" before decomp20: DECISIONS.md C5)
 };
 
 // The topic list at 0x2545b68 (0x62c bytes).
 class dialogue_topic_list : public dialogue_box_base {
 public:
-    void add(conversation_topic *topic, int kind);   // 0x4d7800 dialogue_topic_box_add
-    void draw();                                     // 0x4d7930 dialogue_topic_box_draw
+    dialogue_topic_list();                           // 0x4d6730 dialogue_topic_box__ctor
+    virtual void reset();                            // 0x4d7920 dialogue_box_reset_thunk (slot 0: jmp base reset)
+    virtual void draw();                             // 0x4d7930 dialogue_topic_box_draw (slot 1)
+    virtual void layout();                           // 0x4d6a90 dialogue_topic_box__layout_entries (slot 2)
+    dialogue_topic_entry *add(conversation_topic *topic, int kind);   // 0x4d7800 dialogue_topic_box_add (decomp68: returns the entry)
+    // decomp68: these two index the 0x18-byte entries, so they are the topic list's (declared on the base before).
+    bool item_visible(int item);                     // 0x4d78b0 dialogue_box__item_visible
+    int  item_y(int item);                           // 0x4d7900 dialogue_box__item_y
 
     dialogue_topic_entry entry[64];                  // +0x02c
 };
@@ -90,13 +138,23 @@ public:
 extern dialogue_box dialogue_text_box;               // 0x2544408
 extern dialogue_topic_list dialogue_topic_box;        // 0x2545b68
 extern int dialogue_selected_topic;                  // 0x25443b4
+// The record colours and the topic list's two buttons (decomp68). The two texts are localize_strings slots
+// (localize_string_or_invalid takes the slot).
+extern Color dialogue_color_blue;                    // 0x2544400 (107, 154, 184) quoted text
+extern Color dialogue_color_green;                   // 0x2545b64 (95, 197, 88) the rest of a spoken line
+extern Color dialogue_color_red;                     // 0x25443b0 (150, 80, 80) notices
+extern Color dialogue_color_gray;                    // 0x2545b5c (180, 180, 180) topic names, buttons
+extern Color dialogue_color_yellow;                  // 0x25443b8 (255, 255, 158) the topic under the mouse
+extern Color dialogue_color_highlight;               // 0x2546194 (255, 255, 158) a button under the mouse
+extern char **dialogue_more_text;                    // 0x2545b58 &localize_strings[949] "more"
+extern char **dialogue_end_text;                     // 0x25443fc &localize_strings[950] "end"
 
-// Free helpers of the dialogue box unit (0x4d7ab0-0x4d7b10, untagged; decomp20).
+// Free helpers of the dialogue box unit (0x4d7ab0-0x4d7b10).
 void dialogue_topic_box_reset();                     // 0x4d7ab0
 int  dialogue_topic_box_add_kind3(conversation_topic *topic);   // 0x4d7ac0 add(topic, 3), returns 0
 void dialogue_screen_open(const char *name);         // 0x4d7ae0 interface_set_screen(13, name)
 void dialogue_screen_close();                        // 0x4d7b00 interface_set_screen(0, 0)
-// Adds a line to the text box (kind 0 a spoken line, 1 a notice, 2 the topic text).
+// Adds a line to the text box (add_text with a spacer before it).
 void dialogue_show_line(const char *text, int kind, conversation_slot *talker);   // 0x4d7b10
 
 // The view new_dialogue.cpp has of conversation +0x204 / +0x208 (one flag word, read as bitfields). Kept
@@ -424,6 +482,9 @@ void cmd_dialogue_make_topic_unavailable();          // 0x4db100
 void cmd_dcamera();                                  // 0x4db1f0
 
 LAYOUT_CHECK(dialogue_box_base, sizeof(dialogue_box_base) == 0x2c);
+LAYOUT_CHECK(dialogue_line, sizeof(dialogue_line) == 0x1c);
+LAYOUT_CHECK(dialogue_label, sizeof(dialogue_label) == 0x81);
+LAYOUT_CHECK(dialogue_topic_entry, sizeof(dialogue_topic_entry) == 0x18);
 LAYOUT_CHECK(dialogue_box, sizeof(dialogue_box) == 0x1750);
 LAYOUT_CHECK(dialogue_topic_list, sizeof(dialogue_topic_list) == 0x62c);
 LAYOUT_CHECK(conversation, sizeof(conversation) == 0x310);
