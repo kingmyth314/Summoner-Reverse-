@@ -139,8 +139,13 @@ The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 m
 
 **Game options** (right-hand column, added 2026-10-14) edit the optional `[Game]` settings: **Skip intro movies**,
 **Speed key toggles**, the zoom-out limit, the talk/use range and the container range (each shows the standard game's value). Leave a field empty for the game's own value.
-**Save options** writes them; they take effect the next time the game starts. `[ConsoleKeys]` is still edited in the
-ini file.
+**Save options** writes them; they take effect the next time the game starts.
+
+**Console keys** (added 2026-10-14): type a console command (for example `add_gold 1000`) in the box under the
+options and click **Bind key...**, then press the key. The binding is written to `[ConsoleKeys]` and shows as a
+"Console: ..." row in the list, where **Change key...** and **Clear** work on it. Checked with a real key press. The same
+change fixed a bug: rebinding the speed or config hotkey in the app saved a garbled key name, because the key name was
+taken from an unused buffer.
 
 A binding adds a key; the default key keeps working. If the new key already belonged to another action, that action loses it, and the app says so. The list shows "(moved)" next to a default key that now does something else.
 

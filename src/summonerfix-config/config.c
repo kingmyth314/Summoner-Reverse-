@@ -44,7 +44,17 @@ static const Hotkey k_hotkeys[] = {
 #define HOTKEY_COUNT (int)(sizeof k_hotkeys / sizeof k_hotkeys[0])
 #define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
 
-enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE };
+enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
+       ID_CONSOLE_CMD, ID_CONSOLE_BIND };
+
+// [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
+// hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
+#define MAX_CONSOLE_KEYS 64
+#define NEW_CONSOLE_ROW 100000 // g_capturing value while waiting for the key of a new console binding
+typedef struct { char key[32]; char cmd[96]; } ConsoleKey;
+static ConsoleKey g_ck[MAX_CONSOLE_KEYS];
+static int g_ckCount;
+static char g_pendingCmd[96];
 
 // Optional [Game] settings (src/summonerfix/gameopts.c), read once at game start. Empty = the game's own value.
 typedef struct { int id; const char *iniKey, *label, *hint; } NumOption;
@@ -100,6 +110,34 @@ static void Save(void)
         SetStatus("Could not write %s (error %lu)", g_ini, GetLastError());
 }
 
+static void LoadConsoleKeys(void)
+{
+    static char section[8192];
+    DWORD len = GetPrivateProfileSectionA("ConsoleKeys", section, sizeof section, g_ini);
+    g_ckCount = 0;
+    for (char *line = section; len && *line && g_ckCount < MAX_CONSOLE_KEYS; line += strlen(line) + 1) {
+        char *eq = strchr(line, '=');
+        if (!eq || *line == ';' || eq == line || !eq[1] || (size_t)(eq - line) >= sizeof g_ck[0].key)
+            continue;
+        memcpy(g_ck[g_ckCount].key, line, (size_t)(eq - line));
+        g_ck[g_ckCount].key[eq - line] = 0;
+        lstrcpynA(g_ck[g_ckCount].cmd, eq + 1, sizeof g_ck[0].cmd);
+        g_ckCount++;
+    }
+}
+
+static void SaveConsoleKeys(void)
+{
+    static char buf[8192];
+    char *p = buf;
+    p += sprintf(p, "; Key=command, written by SummonerFixConfig (commands: docs/sum-exe/console.md)") + 1;
+    for (int i = 0; i < g_ckCount; i++)
+        p += sprintf(p, "%s=%s", g_ck[i].key, g_ck[i].cmd) + 1;
+    *p = 0;
+    if (!WritePrivateProfileSectionA("ConsoleKeys", buf, g_ini))
+        SetStatus("Could not write %s (error %lu)", g_ini, GetLastError());
+}
+
 // What a physical key or mouse button does now (a game key/button code), or -1 if nothing.
 static int TargetOf(int physical)
 {
@@ -144,6 +182,15 @@ static void Unbind(int physical)
 
 static const char *RowLabel(int row)
 {
+    static char label[128];
+    if (row == NEW_CONSOLE_ROW) {
+        snprintf(label, sizeof label, "console command \"%s\"", g_pendingCmd);
+        return label;
+    }
+    if (row >= ROW_COUNT) {
+        snprintf(label, sizeof label, "Console: %s", g_ck[row - ROW_COUNT].cmd);
+        return label;
+    }
     return row < ACTION_COUNT ? k_actions[row].action : k_hotkeys[row - ACTION_COUNT].action;
 }
 
@@ -182,6 +229,66 @@ static void Refresh(void)
         ListView_SetItemText(g_list, ACTION_COUNT + h, 1, v);
         ListView_SetItemText(g_list, ACTION_COUNT + h, 2, "");
     }
+    // Console-key rows: rebuilt each time (their number changes).
+    while (ListView_GetItemCount(g_list) > ROW_COUNT)
+        ListView_DeleteItem(g_list, ROW_COUNT);
+    for (int i = 0; i < g_ckCount; i++) {
+        LVITEMA it;
+        ZeroMemory(&it, sizeof it);
+        it.mask = LVIF_TEXT;
+        it.iItem = ROW_COUNT + i;
+        it.pszText = (char *)RowLabel(ROW_COUNT + i);
+        ListView_InsertItem(g_list, &it);
+        ListView_SetItemText(g_list, ROW_COUNT + i, 1, g_ck[i].key);
+        ListView_SetItemText(g_list, ROW_COUNT + i, 2, "[ConsoleKeys]");
+    }
+}
+
+static int ConsoleKeyIndex(const char *key)
+{
+    for (int i = 0; i < g_ckCount; i++)
+        if (!_stricmp(g_ck[i].key, key))
+            return i;
+    return -1;
+}
+
+// A console binding gets its key: a new entry (NEW_CONSOLE_ROW) or a changed key for an existing row.
+static void AssignConsole(int row, int physical)
+{
+    char name[8];
+    if (physical >= KEY_MOUSE_BASE) {
+        SetStatus("Console-command keys must be keyboard keys.");
+        return;
+    }
+    { char tmp[8]; lstrcpynA(name, KeyNameOf(physical, tmp, sizeof tmp), sizeof name); } // KeyNameOf returns a table string for named keys
+    int other = ConsoleKeyIndex(name);
+    if (row == NEW_CONSOLE_ROW) {
+        if (other >= 0) {
+            lstrcpynA(g_ck[other].cmd, g_pendingCmd, sizeof g_ck[0].cmd);
+        } else if (g_ckCount < MAX_CONSOLE_KEYS) {
+            lstrcpynA(g_ck[g_ckCount].key, name, sizeof g_ck[0].key);
+            lstrcpynA(g_ck[g_ckCount].cmd, g_pendingCmd, sizeof g_ck[0].cmd);
+            g_ckCount++;
+        } else {
+            SetStatus("Too many console keys (at most %d).", MAX_CONSOLE_KEYS);
+            return;
+        }
+    } else {
+        int i = row - ROW_COUNT;
+        if (other >= 0 && other != i) { // the key already ran another command: that binding moves to this key
+            g_ck[other] = g_ck[--g_ckCount];
+            if (i == g_ckCount)
+                i = other;
+        }
+        lstrcpynA(g_ck[i].key, name, sizeof g_ck[0].key);
+    }
+    SaveConsoleKeys();
+    Refresh();
+    const char *game = ActionUsing(TargetOf(physical));
+    if (game)
+        SetStatus("%s now runs the console command (it still also does \"%s\" in the game). Saved.", name, game);
+    else
+        SetStatus("%s now runs the console command. Saved.", name);
 }
 
 static void StopCapture(void)
@@ -198,7 +305,11 @@ static void StopCapture(void)
 static void Assign(int row, int physical)
 {
     char name[8];
-    KeyNameOf(physical, name, sizeof name);
+    { char tmp[8]; lstrcpynA(name, KeyNameOf(physical, tmp, sizeof tmp), sizeof name); } // KeyNameOf returns a table string for named keys
+    if (row >= ROW_COUNT) {
+        AssignConsole(row, physical);
+        return;
+    }
     if (row >= ACTION_COUNT) {
         int h = row - ACTION_COUNT;
         if (physical >= KEY_MOUSE_BASE) {
@@ -295,11 +406,42 @@ static void StartCapture(void)
     SetStatus("Press the key or mouse button you want for \"%s\"...", RowLabel(row));
 }
 
+// "Bind key...": waits for the key that should run the command typed in the console-command box.
+static void StartConsoleBind(void)
+{
+    if (g_capturing >= 0) {
+        StopCapture();
+        SetStatus("Cancelled.");
+        return;
+    }
+    GetDlgItemTextA(g_wnd, ID_CONSOLE_CMD, g_pendingCmd, sizeof g_pendingCmd);
+    if (!g_pendingCmd[0]) {
+        SetStatus("Type a console command first (for example: add_gold 1000).");
+        return;
+    }
+    g_capturing = NEW_CONSOLE_ROW;
+    g_hook = SetWindowsHookExA(WH_KEYBOARD, KeyHook, NULL, GetCurrentThreadId());
+    SetWindowTextA(GetDlgItem(g_wnd, ID_CHANGE), "&Cancel");
+    SetStatus("Press the key that should run %s...", RowLabel(NEW_CONSOLE_ROW));
+}
+
 static void ClearRow(void)
 {
     int row = SelectedRow();
     if (row < 0) {
         SetStatus("Select an action first.");
+        return;
+    }
+    if (row >= ROW_COUNT) {
+        int i = row - ROW_COUNT;
+        char cmd[96];
+        lstrcpynA(cmd, g_ck[i].cmd, sizeof cmd);
+        for (int j = i; j + 1 < g_ckCount; j++)
+            g_ck[j] = g_ck[j + 1];
+        g_ckCount--;
+        SaveConsoleKeys();
+        Refresh();
+        SetStatus("Removed the console key for \"%s\". Saved.", cmd);
         return;
     }
     if (row >= ACTION_COUNT) {
@@ -382,7 +524,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     case WM_CREATE: {
         g_list = CreateWindowExA(WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
                                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
-                                 10, 10, 520, 420, w, (HMENU)ID_LIST, NULL, NULL);
+                                 10, 10, 520, 490, w, (HMENU)ID_LIST, NULL, NULL);
         ListView_SetExtendedListViewStyle(g_list, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
         LVCOLUMNA col;
         ZeroMemory(&col, sizeof col);
@@ -425,10 +567,16 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             Label(w, k_numOptions[i].hint, 606, y + 19, 140);
         }
         Button(w, ID_APPLY, "Save &options", 540, 320, 120);
-        Button(w, ID_CLOSE, "Close", 540, 402, 120);
-        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 440, 740, 20, w, (HMENU)ID_STATUS, NULL, NULL);
+        Label(w, "Console command for a key:", 540, 372, 200);
+        HWND ce = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, 390, 200, 22,
+                                  w, (HMENU)(INT_PTR)ID_CONSOLE_CMD, NULL, NULL);
+        SendMessageA(ce, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
+        Button(w, ID_CLOSE, "Close", 540, 472, 120);
+        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 740, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
+        LoadConsoleKeys();
         Refresh();
         g_wnd = w;
         LoadOptions();
@@ -448,6 +596,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_CLEAR: ClearRow(); break;
         case ID_RESET: ResetAll(); break;
         case ID_APPLY: ApplyOptions(); break;
+        case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
         }
         return 0;
@@ -476,7 +625,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpszClassName = "SummonerFixConfig";
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     RegisterClassA(&wc);
-    RECT r = {0, 0, 760, 470};
+    RECT r = {0, 0, 760, 540};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings and options", style, CW_USEDEFAULT, CW_USEDEFAULT,
