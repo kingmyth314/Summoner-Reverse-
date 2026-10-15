@@ -3818,7 +3818,7 @@
 0x4cce10  static_init_ccmd_No_cutscenes func  -                    O ; hidden start: initialiser table entry 344 (0x588564): jmp init_ccmd_No_cutscenes
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
-0x4ccf00  script_play_cutscene     func  -                    O ; (name, continuation): if a party member is alive and cutscenes are on, cutscene_play with script_cutscene_done hooked, else calls the continuation directly
+0x4ccf00  script_play_cutscene     func  -                    O ; (name, continuation): with no party member alive does nothing; with No_cutscenes or in multiplayer calls the continuation at once; else saves the level frame function, hooks script_cutscene_done and calls cutscene_play
 0x4ccf90  level_trigger_set_exit   func  -                    O ; (name, ...): clears bit 0x2 of the matching trigger +0x54, so level_check_triggers treats it as a level exit (the world map setup makes one exit per location live with it) (formerly level_trigger_disable)
 0x4ccff0  level_trigger_set_script_use func  -                    O ; (name, ...): sets bit 0x2 of the matching trigger +0x54, so level_check_triggers calls level_script_use for it instead of treating it as a level exit (formerly level_trigger_enable)
 0x4cd060  level_trigger_disable_by_target func  -                    O ; (name) matches the second trigger name +0x24, clears bit 1
@@ -9574,7 +9574,7 @@
 0x5fccb4  combat_mode              data:bool -                    O ; toggled by hud_toggle_combat_mode, LENT party bit 4 (checked: byte toggled by hud_toggle_combat_mode, set by combat_mode_set/level_spawn_party, saved by savegame_write_party_state)
 0x5fccb6  player_mouse_held        data:bool gameplay.cpp         O ; set when mouse button 0 is pressed and cleared when it is released in player_read_mouse_input
 0x5fccc0  cutscene_alloc_pool      data:uint8[0x28] -                    O ; NoRlsAllocPool object (init_norlsallocpool_5fccc0), NoRlsAllocPool__Init over buffer 0x5fd260 size 0x4c00 in cutscene_parse_table, allocations in cutscene_parse_visset
-0x5fcce8  cutscene_saved_actors    data:int[175][2] -                    O ; pairs (name_hash_nocase of the actor, flags bit 1/2 from Character +0x320) recorded by cutscene_play, restored by cutscene_cleanup, up to the pool buffer 0x5fd260 (checked: pairs [8*i] (name hash, flags) stored by cutscene_play and restored by cutscene_cleanup up to cutscene_num_saved_actors, 175 entries to 0x5fd260)
+0x5fcce8  cutscene_saved_actors    data:int[175][2] -                    O ; pairs (name_hash_nocase of the actor, four saved flags: Character +0x320 bits 0x2 / 0x20 / 0x2000000 and +0x84 bit 0) recorded by cutscene_play, restored by cutscene_cleanup; 175 slots, no bound check
 0x601e60  cutscene_saved_fog_multiplier data:float -                    O ; cutscene_play saves Gr_level_fog_multiplier here and sets it to 1, cutscene_cleanup restores it
 0x601e68  cutscene_data            data:void* -                    O ; first field of the cutscene object built by cutscene__ctor (init_cutscene_601e68), loaded cutscene data whose +4 flags interface_frame tests before cutscene_cleanup
 0x601e6c  cutscene_path_id         data:int -                    O ; cutscene object +4 (ctor sets -1): file path id removed by cutscene_clear_data_path (file_remove_path), passed to File__open in cutscene_load_files and the script editor *.mvf listings
@@ -9583,7 +9583,7 @@
 0x601e7c  cutscene_num_sequences   data:int16 -                    O ; cutscene object +0x14 (ctor sets -1), cutscene_sequence_update calls cutscene_cleanup when the current sequence reaches it
 0x601e80  cutscene_sequences       data:uint8[50*0x70] -                    O ; cutscene object +0x18: 50 camera sequences of 0x70 bytes (vector ctor with cutscene_camera_sequence__ctor), passed to camera_start_sequence
 0x603460  cutscene_cur_sequence    data:int16 -                    O ; cutscene object +0x15f8 (ctor sets -1), current sequence index advanced by cutscene_sequence_update, used by cutscene_events_frame and script_entry_jump_to_sequence
-0x603462  cutscene_cur_fade_event  data:int16 -                    O ; cutscene object +0x15fa, index into cutscene_data +0x100 (count +0xfc) advanced after gr_fade_in by SequenceTimer2 (checked: word: movsx/inc in cutscene_events_frame as the fade event index)
+0x603462  cutscene_cur_fade_event  data:int16 -                    O ; cutscene object +0x15fa, index into cutscene_data +0x100 (count +0xfc) advanced after gr_fade_in by cutscene_events_frame (checked: word: movsx/inc in cutscene_events_frame as the fade event index)
 0x603464  cutscene_sequence_started data:bool -                    O ; cutscene object +0x15fc, cleared then set 1 by cutscene_sequence_update after camera_start_sequence, tested by cutscene_events_frame and cutscene_script_entries_frame
 0x603470  cutscene_fx_handles      data:int[16] -                    O ; effects attached by cutscene_events_frame (fx_attach_to_character), fx_destroy and reset to -1 by cutscene_cleanup
 0x6034b0  cutscene_num_saved_actors data:int -                    O ; count of cutscene_saved_actors, zeroed and filled by cutscene_play, looped by cutscene_cleanup
@@ -9593,9 +9593,9 @@
 0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
 0x609f1c  cutscene_saved_fog_near  data:float -                    O ; fog_get_near_current saved by cutscene_play, passed back to fog_set_distances by cutscene_cleanup
 0x609f20  ccmd_stop_cutscene       data:console_command -                      O ; console command object "stop_cutscene"
-0x609f2c  cutscene_last_time       data:float -                    O ; previous sequence time in SequenceTimer, difference stored in 0x257f094, zeroed when a sequence starts (checked: float: fsub and store in cutscene_sequence_update, zeroed there)
+0x609f2c  cutscene_last_time       data:float -                    O ; previous sequence time in cutscene_sequence_update, difference stored in 0x257f094, zeroed when a sequence starts (checked: float: fsub and store in cutscene_sequence_update, zeroed there)
 0x609f30  cutscene_num_entries     data:int -                    O ; count of cutscene_entries, zeroed by cutscene_parse_table, bound of the searches in cutscene_play/cutscene_change_level_for
-0x609f34  cutscene_playing         data:bool -                    O ; set by cutscene_play when the cutscene starts, cleared by cutscene_cleanup next to gr_set_cfg_34_flag(0) (checked: byte set 1 by cutscene_play, cleared by cutscene_cleanup)
+0x609f34  cutscene_playing         data:bool -                    O ; byte set to 1 by cutscene_play only when the matched entry's level is "Placeholder" (no retail entry), cleared by cutscene_cleanup; nothing reads it
 0x609f38  cutscene_pending_name    data:char* -                    O ; entry name stored by cutscene_change_level_for, compared with Tiger-Escape/Serpent-Escape in cutscene_play_escape
 0x609f4c  loading_screen_start_time data:int -                    O ; timer_get(1000) when loading_screen_load_bitmap shows the screen, elapsed time reported by level_load_report
 0x609f58  state_game_level_ready   data:bool -                    O ; cleared at the start of state_game_enter and set once the level is loaded, state_game_leave skips saving/pausing work when 0

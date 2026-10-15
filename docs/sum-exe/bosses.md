@@ -153,7 +153,8 @@ Notes, all **observed** unless marked:
 - **All four riders** start at forced stage 3 (on foot) in `Liangshan` and `Jadetemple`, and elsewhere at
   stage 1 mounted (`serpent_boss_load` `0x495960`, `phoenix_boss_load` `0x498420`, `tiger_boss_load`
   `0x49ad20`, `ghost_rider_boss_load` `0x4ba260`).
-  `cutscene_play_escape` (`0x437130`) also forces stage 3 for Tiger-Escape, Serpent-Escape and PHNX-Escape.
+  `cutscene_play_escape` (`0x437130`) also forces stage 3 for Tiger-Escape, Serpent-Escape and PHNX-Escape, but only for
+  a cutscene started from the console (`play_and_load_cutscene`); see [Cutscenes](cutscenes.md#console-cutscenes-and-pending-playback).
 - **Giant Salamanka** only moves 1 to 2 and 2 to 3, never skips. Each stage also has an 8-byte attack enable
   table (`giant_salamanka_stage1_attacks` `0x248cd98` and following) read by
   `boss_stage_attack_enabled_dispatch` (`0x4a1ac0`).
@@ -161,7 +162,8 @@ Notes, all **observed** unless marked:
   dispatcher. The same HP fraction is written to `level_light_scale` (`0x59c358`), so the level gets darker
   as Luminar loses HP. *Inferred* for the visible effect.
 - Giant Salamanka, Pyrul and Titus at HP 0 go idle and set owner flag 8, but only when
-  `game_debug_flags` bit `0x20` is set. What bit `0x20` means is *unknown*.
+  `game_debug_flags` bit `0x20` is set. Bit `0x20` means "cutscene running" ([Cutscenes](cutscenes.md)), so
+  this is the death pose kept while the boss's Death cutscene plays. *Inferred* for the purpose.
 - Bosses without HP stages: Machival, Evil Urath and Murod only clear their "casting" state when the cast
   move has finished. Murod Oni has no stage check. Evil Joseph's check revives helpers (below).
 - Stage variables: `serpent_stage` `0x2451d98`, `phoenix_stage` `0x2452420`, `tiger_stage` `0x2452a90`,
@@ -262,7 +264,6 @@ range ends.
 
 - The meaning of each `*_boss.tbl` field and the stage numbers in the tables (the `.tbl` files were not read).
 - How the per-stage rider flinch tables (`0x24523c0`.. for the serpent) are used.
-- What `game_debug_flags` bit `0x20` does in the HP-0 branch of Pyrul, Titus and Giant Salamanka.
 - The names of the ghost minion species `0x43`, `0x45`, `0x9c` and the Evil Joseph helpers.
 - Whether the Phoenix second life and the PHNX-Escape cutscene both happen at HP 0, and in which order.
 
@@ -286,7 +287,7 @@ This page lists function addresses instead of REA evidence ids. All were read wi
 | salamanka thresholds 0.6667 / 0.3333 and acks | `giant_salamanka_check_stage` `0x4c8560`, floats `0x581c30`, `0x581c34` |
 | Luminar stage, grab cooldown 30 s, teleport in stage 3 | `luminar_ai_select_action` `0x4c9410` |
 | console ranges | `cmd_serpent_stage` `0x495340`, `cmd_tiger_stage` `0x499ec0`, `cmd_ghost_stage` `0x4b9ea0`, `cmd_gs_stage` `0x4c80a0`, `cmd_stage` `0x4c8d90` |
-| Escape forces stage 3 | `cutscene_play_escape` `0x437130` |
+| Escape forces stage 3 (console path only) | `cutscene_play_escape` `0x437130` |
 | `+Boss` gives type 9 | `script_parse_objects` `0x4dbc8d`..`0x4dbd4b` |
 | bosses skip the flinch move | `character_play_flinch` `0x45de20` |
 | minion and helper revive | `ghost_revive_minions` `0x4bbc70`, `ghost_fire_attack` `0x4bb9a0`, `evil_joseph_check_stage` `0x4c3f20` |

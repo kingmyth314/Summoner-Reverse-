@@ -83,8 +83,9 @@ can quietly build up for weeks.
 ### Effect
 
 `start` is read as about -2.1 billion, so `elapsed` comes out at about 4.3 million seconds.
-Every sequence event (`0x601e90 + i*0x70`) then looks overdue. `cutscene_sequence_update` fires one
-event per frame until the sequence ends, so the cutscene appears to run at "mach speed".
+Every camera shot's end time (`0x601e90 + i*0x70`, see [Cutscenes](cutscenes.md#shots-timing-and-events))
+then looks overdue. `cutscene_sequence_update` moves on one shot per frame until the last one, so the
+cutscene appears to run at "mach speed".
 
 ### How this matches user reports
 

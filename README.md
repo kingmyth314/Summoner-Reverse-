@@ -21,6 +21,8 @@ GitHub Pages site.
 | World map | Exits per game stage; a 50% encounter roll every 10 s while moving; the full encounter table | [World map and encounters](docs/sum-exe/worldmap.md) |
 | Script editor | Volition's level script editor is still in the retail game; it opens when one debug flag bit is set (tested) | [Script editor](docs/sum-exe/script-editor.md) |
 | Sound | DirectSound/EAX layers, channels and streams, music selection; why a missing audio device crashes a new game | [Sound and music](docs/sum-exe/sound.md) |
+| Cutscenes | All story scenes run in the engine (Bink only plays the logos and credits): `cutscene.tbl`, `.csc` camera shots, what is saved and restored, Esc skip and `+NoAbort` | [Cutscenes](docs/sum-exe/cutscenes.md) |
+| Effects and lights | Effect objects, `.vfx` files and key tracks, vif particles, decals, lamp glows, the 400-entry light table | [Effects and lights](docs/sum-exe/effects.md) |
 | Savegame | File format, read-only inspector and an editor that writes new files | [Savegame format](docs/sum-exe/savegame.md) |
 | Multiplayer | All 66 packet types and their handlers | [Multiplayer packets](docs/sum-exe/multiplayer.md) |
 | Combat | Melee and spell damage formulas | [Combat](docs/sum-exe/combat.md) |
