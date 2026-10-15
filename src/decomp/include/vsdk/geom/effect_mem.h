@@ -68,12 +68,21 @@ typedef vfx_instance fx_rec48;        // free list vfx_instance_free_list
 typedef vfx_light_desc fx_rec30;      // free list fx_rec30_free_list
 // A node record of an instance (0x98; vfx_mesh_render's mesh instance, the pointer at 0x2c9f968 is the
 // last one rendered).
+// decomp67: the mesh instance (vfx_mesh_instance__* in sum.symbols); the +0x14 / +0x18 / +0x1c fields and
+// v20 / m2c (world, set by get_node_world_transform), v50 / m5c (local, get_node_transform) from the vfx object.
 struct fx_rec98 {
+    void init(vfx_node_desc *desc);   // 0x562b20 vfx_mesh_instance__init (another unit; decomp67)
+    // (descriptor, frame, position, orientation).
+    void render(vfx_node_desc *desc, float t, const vector3 *pos, const matrix *orient);   // 0x562ba0
     vector3 v00;                      // +0x00
-    char _unk0c[0x1c - 0x0c];
-    unsigned int _bits1c : 28;        // +0x1c
+    char _unk0c[0x14 - 0x0c];
+    float alpha;                      // +0x14 the instance's alpha byte (vfx_instance::render; decomp67)
+    character_instance *ci;           // +0x18 bound model (bind_node; decomp67)
+    unsigned int tag : 28;            // +0x1c the model's mesh tag (decomp67; was _bits1c)
     unsigned int level : 1;           //       bit 28: vfx_instance_create's flag argument
-    unsigned int _bits1c_29 : 3;
+    unsigned int bound : 1;           //       bit 29 (decomp67)
+    unsigned int placed : 1;          //       bit 30 set by get_node_world_transform (decomp67)
+    unsigned int hidden : 1;          //       bit 31 (get_tag_transform; decomp67)
     vector3 v20;                      // +0x20
     matrix m2c;                       // +0x2c
     vector3 v50;                      // +0x50
@@ -83,10 +92,17 @@ struct fx_rec98 {
     fx_rec98 *next;                   // +0x90
     fx_rec98 *prev;                   // +0x94
 };
+// decomp67: the dummy state of an instance (vfx_dummy_state__*; the base's dummies at +0x30).
 struct fx_rec2c {
-    char _unk00[0x08];
-    vector3 v08, v14;
-    char _unk20[0x24 - 0x20];
+    void reset();                     // 0x55fc70 vfx_dummy_state__reset (another unit; decomp67)
+    void update(vfx_dummy_desc *desc, float t);   // 0x55fc90 vfx_dummy_state__update
+    character_instance *ci;           // +0x00 bound model (decomp67)
+    unsigned int tag : 29;            // +0x04 (decomp67)
+    unsigned int bound : 1;           //       bit 29
+    unsigned int placed : 1;          //       bit 30
+    unsigned int hidden : 1;          //       bit 31
+    vector3 v08;                      // +0x08 position
+    quaternion q14;                   // +0x14 orientation (decomp67; was vector3 v14 and _unk20)
     fx_rec2c *next;                   // +0x24
     fx_rec2c *prev;                   // +0x28
 };
@@ -109,13 +125,26 @@ struct fx_rec4c {
     fx_rec4c *prev;                   // +0x48
 };
 // An emitter of an instance (0xb0; 128 at 0x27229d8 on fx_recb0_list).
+// decomp67: vfx_emitter_instance__* in sum.symbols; +0x0c..+0x18 and +0x70 / +0x7c from the vfx object.
 struct fx_recb0 {
+    void init(vfx_emitter_desc *desc);   // 0x561220 vfx_emitter_instance__init (another unit; decomp67)
+    // (descriptor, frame, position, orientation, wrapped this frame).
+    void update(vfx_emitter_desc *desc, float t, const vector3 *pos, const matrix *orient, bool wrapped);   // 0x561670
+    void render(vfx_emitter_desc *desc, float t);   // 0x561ec0 vfx_emitter_instance__render
     fx_rec4c *links[3];               // +0x00 the instance's fx_rec4c records the emitter's links name
-    char _unk0c[0x1c - 0x0c];
+    unsigned int flags;               // +0x0c bit 0: stopped (vfx_instance::stop; decomp67)
+    unsigned int tag : 28;            // +0x10 (decomp67)
+    unsigned int bound : 1;           //       bit 28
+    unsigned int placed : 1;          //       bit 29
+    unsigned int hidden : 1;          //       bit 30
+    unsigned int _bit31 : 1;
+    character_instance *ci;           // +0x14
+    char _unk18[0x1c - 0x18];
     vector3 v1c;                      // +0x1c
     matrix m28;                       // +0x28
-    vector3 v4c, v58, v64, v70, v7c;  // +0x4c..+0x7c
-    char _unk88[0x96 - 0x88];
+    vector3 v4c, v58, v64, v70;       // +0x4c..+0x70 (v70: the position get_node_world_transform sets)
+    quaternion q7c;                   // +0x7c orientation (decomp67; was vector3 v7c)
+    char _unk8c[0x96 - 0x8c];
     ushort num_live;                  // +0x96 live particles (fx_missile_hit waits for none; decomp64)
     char _unk98[0x9c - 0x98];
     fx_rec28 *particles;              // +0x9c
@@ -197,5 +226,21 @@ vfx_instance *vfx_instance_create(vfx_base *base, int a, bool flag);   // 0x51d2
 // its release. vfx_load's second argument is 1 at that call (meaning not known).
 void vfx_instance_free(vfx_instance *vi);                // 0x51d7b0
 vfx_instance *vfx_load(const char *name, int a);        // 0x51dd00
+
+// decomp67: the vfx object's inline members (vfx.h). Out-of-line COMDATs at the end of that object
+// (0x538590-0x538647), which is built without inline expansion; no other unit calls them.
+inline vfx_base *vfx_instance::get_base()               // 0x538590 vfx_instance__get_base
+{ return effect_get_base(id_bits >> 9); }
+inline fx_rec98 *vfx_instance::list18_item(int n)       // 0x5385b0
+{ fx_rec98 *p = nodes; while (p != NULL && n > 0) { p = p->next; n--; } return p; }
+// Steps n by 2 (sic): light tag n finds light (n + 1) / 2 (NOTES decomp67, game bug).
+inline vfx_light_desc *vfx_instance::list1c_item(int n) // 0x5385d0
+{ vfx_light_desc *p = lights; while (p != NULL && n > 0) { p = p->next; n -= 2; } return p; }
+inline fx_recb0 *vfx_instance::list20_item(int n)       // 0x5385f0
+{ fx_recb0 *p = emitters; while (p != NULL && n > 0) { p = p->next; n--; } return p; }
+inline vfx_inst21c *vfx_instance::list24_item(int n)    // 0x538610
+{ vfx_inst21c *p = insts21c; while (p != NULL && n > 0) { p = p->next; n--; } return p; }
+inline fx_rec2c *vfx_instance::list28_item(int n)       // 0x538630
+{ fx_rec2c *p = rec2c_list; while (p != NULL && n > 0) { p = p->next; n--; } return p; }
 
 #endif

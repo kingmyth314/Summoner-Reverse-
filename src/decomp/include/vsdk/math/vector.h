@@ -35,8 +35,17 @@ public:
     // divisor copied to a temporary) and monster_drop_loot (rvec + 0.5 per component). Names ours.
     vector3 operator/(float s) const
     { return vector3(x / s, y / s, z / s); }
-    vector3 operator+(float s) const
+    // decomp67: the out-of-line copies of the scalar operators are COMDATs at the end of the ix unit
+    // (0x53de00-0x53debc; sum.symbols vector3__plus_scalar / minus_scalar / add_scalar_assign /
+    // sub_scalar_assign), which was built without inline expansion.
+    vector3 operator+(float s) const                  // 0x53de00 vector3__plus_scalar
     { return vector3(x + s, y + s, z + s); }
+    vector3 operator-(float s) const                  // 0x53de40 vector3__minus_scalar (decomp67)
+    { return vector3(x - s, y - s, z - s); }
+    void operator+=(float s)                          // 0x53de80 vector3__add_scalar_assign (decomp67)
+    { x += s; y += s; z += s; }
+    void operator-=(float s)                          // 0x53dea0 vector3__sub_scalar_assign (decomp67)
+    { x -= s; y -= s; z -= s; }
     vector3 operator-() const                         // 0x51b700 vector3__negated (COMDAT in character_instance.cpp)
     { return vector3(-x, -y, -z); }
     void operator+=(const vector3 &v)                 // 0x48e440 vector3__add_assign

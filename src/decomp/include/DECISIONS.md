@@ -3542,3 +3542,100 @@ _unk0c / appearance / f14); both left as they are, noted. gr_light_desc::reset (
 macro, D3DPT_TRIANGLELIST 4; gl_min.h gets GL_UNSIGNED_SHORT 0x1403; vfx.h declares vfx_render_alpha (0x2dbfd14)
 and vfx_render_bitmap (0x5a9cfc, name ours), the second pass the vfx render state asks for; bezier.h (file name
 ours) declares the 0xf4-byte bezier with the three members ca_ramp_curve_eval calls.
+
+## decomp67 (the vfx object 0x536950-0x538647, the ix unit 0x53ac20-0x53debc, the float helpers 0x542500-0x542cc2, ui_element 0x542cd0-0x54302c)
+
+**D4700 (vsdk/geom/vfx.h). vfx_instance signatures.** process returns AL (`xor al, al` 0x537152 for no base,
+base flag 0x4000 or done; `mov al, 1` 0x537136, 0x53720c, 0x53721b): bool, was void. reset_flags reads both
+arguments as bytes (`mov al, [esp+0xc]; and eax, 1`, 0x53780a): bool, bool. get_node_world_transform compares
+its last argument as a byte with 1 (`cmp byte ptr [esp+0x1ac], 1`, 0x537db3) and passes push 1 to its own
+recursion: bool c (a and b are only passed down). get_tag_transform (sum.symbols' name kept) hides or shows tags:
+the second and third arguments are bytes (`and ecx, 0xff; shl ecx, 0x1f` 0x538003, `cmp byte ptr [esp+0x70], 1`
+0x5381d0) and EAX is not set before `ret 0xc`: void (tag, bool, bool), was int (tag, int, int); spells.cpp ignores
+the result. init_nodes ends with `xor eax, eax` (0x536bb3): int; its second argument goes as a raw dword to
+vfx_node_create_light's bool (0x536acd) and vfx_instance_create pushes its own dword unchanged (0x51d787): bool
+no_light (was int a), which suggests vfx_instance_create's `int a` is a bool too. All existing calls compile
+unchanged (same functions, argument conversions only).
+
+**D4701 (vfx.h). vfx_instance__ctor 0x538570 and vfx_instance__clear 0x5369c0 are vfx_base's.** The constructor
+constructs a vector3 at +0x48 and calls clear, which zeroes the words +0x04..+0x16 except +0x14, keeps the top
+three bits of +0x18 and zeroes +0x40: vfx_base's counts, flags, _unk40 and pos (+0x48). vfx_instance is 0x48
+bytes, so +0x48 is outside it. Declared as vfx_base::vfx_base() / clear(); the constructor is defined out of
+line in the vfx object (it is in the binary with no caller).
+
+**D4702 (vfx.h). vfx_emitter_desc +0x1c is a signed 16-bit bit field.** vfx_instance_create (0x51d5ae),
+decode_tag (0x5372d8) and get_num_tags (0x538357) all read it as `mov reg, dword [+0x1c]; shl reg, 0x10;
+sar reg, 0x10`, the bit-field extraction; a short would be `movsx`. `int num_particles : 16; int _bits1c_16 :
+16` replaces `short num_particles; short _pad1e`. The same field is the emitter's tag count (decode_tag).
+
+**D4703 (unnamed_vfx_0x536950.cpp). gr_vertex_pool has no initialiser here.** The binary's initialiser 0x536950
+runs `vector constructor iterator` with gr__Vertex__Vertex (0x5081c0) over 4000 x 0x30 bytes; gr.h's gr_vertex
+has no constructor (D1605, open). The definition is plain until D1605 is settled. The pool is defined first:
+the initialiser table (0x5889d0, 0x5889d4, 0x5889d8) runs pool, camera position, camera orientation.
+
+**D4704 (vfx.h). vfx_instance +0x0c is a float (elapsed seconds).** process adds the frame time to it and
+stores time = +0x0c * 15 (0x536fe4-0x536ffe), init_nodes stores num_frames / 15 there (0x536a8c), reset_flags
+zeroes it. It becomes `union { int _unk0c; float elapsed; }` so that unnamed_render_scene_0x481680.cpp's
+`vi->_unk0c` still compiles. vif_emitter_update's last argument is this value pushed as its dword (0x5370f9);
+its declaration keeps `int unk0c` (decomp63), and the vfx object passes `_unk0c`. Changing the parameter to
+float needs render_scene's call changed to `vi->elapsed` (not done here: read-only repo).
+
+**D4705 (unnamed_ix_0x53ac20.cpp). The ix statics and their atexit handlers.** 37 function-local `static
+vector3`s are built behind guard bytes and registered with atexit; each handler is a bare `ret`
+(0x53ad30-0x53da70). VC6 registers a destructor only for a class with a destructor, but vector.h's vector3 has
+none (and vector3 globals elsewhere, e.g. vector3_zero 0x523f30, register nothing). Open: the ix unit may see a
+vector3 with an empty inline destructor (another header version). The source writes plain `static vector3`; the
+handlers carry their address comments.
+
+**D4706 (unnamed_floatmath_0x542500.cpp). Empty string literals in .bss.** float_format_buf copies one byte from
+.bss 0x2ee451c into a two-byte local and zeroes the second (0x54283c-0x54284c), the code VC6 makes for
+`char digit[2] = ""`, and strcpy's buf from .bss 0x2ee4520 (0x54285b), i.e. `strcpy(buf, "")`. Both are written
+as literals; this disagrees with the cmdline.cpp comment that VC6 puts "" in .data (cmdline_no_options
+0x2dc7058 may be such a literal too).
+
+**D4707 (vsdk/ui/ui.h). ui_element::tooltips is a ui_tooltip.** ~ui_element (0x542d40) calls ui_tooltip's
+destructor (0x55ef50) on this + 0x124 under its EH frame (state 0 -> -1), so the sentinel at +0x124 is a member
+of type ui_tooltip (0x120 bytes, to +0x244 = callback). `ui_tooltip tooltips` replaces `ui_tooltip_head tooltips;
+ubyte _unk12c[0x118]`; every existing use (`tooltips.next`, `tooltips.prev`, `(ui_tooltip *)&tooltips`) still
+compiles. ui_tooltip_head is unused now.
+
+**D4708 (vfx.h, effect_mem.h). The vfx base and record layouts the vfx object reads.** vfx_base: +0x0e
+num_cameras (records at +0x38, 0x64 bytes), +0x14 num_materials (+0x44, 0x4c bytes), +0x30 dummies (count +0x0a,
+0x64 bytes), +0x40 a pointer whose byte +0x0c indexes the materials (setup_render_state 0x53844c), the counts
+relocate_node caps (0x536dfa-0x536e41). Every descriptor starts with name +0 and parent name +4 (get_tag_name /
+get_node_name, jump tables 0x537470 / 0x53755c), relocated by reloc_ptr. Bind flags: mesh byte +0x0c bit 0,
+emitter +0x18 bit 31, light track +0x0c bit 0, vif +0x6a bit 9, dummy +0x0c bit 15 (0x53773a-0x5377cc). Instance
+records: fx_rec98 +0x14 alpha (float from the instance's byte +4), +0x18 ci, +0x1c tag:28 / level / bound /
+placed / hidden; fx_recb0 +0x0c flags (stop sets bit 0), +0x10 tag:28 / bound / placed / hidden, +0x14 ci, +0x7c a
+quaternion (was vector3 v7c); fx_rec2c +0 ci, +4 tag:29 / bound / placed / hidden, +0x14 a quaternion (was vector3
+v14 and _unk20); vfx_inst21c +0 pos, +0xc matrix, +0x6a tag, +0x6c ci, +0x72 live count, +0xe4 prev. The kinds
+follow decode_tag (VFX_TAG_*, names ours). Upstream names (decomp63/65: num_tags, tags, vfx_base_tag, vfx_tag_ref,
+vis_flags, vfx_inst21c, insts21c, render_alpha, vfx_node_ref, render_node) are kept.
+
+**D4709 (vfx.h, effect_mem.h). The vfx object's inline helpers.** get_base, the five list walkers and
+vif_record_num_live (sum.symbols vfx_get_word_72) are COMDATs after the last regular function (0x538590-
+0x538647) and are only called from the object, which is built without inline expansion: header inlines,
+defined in effect_mem.h after effect_get_base and the record types. list1c_item steps its count by 2 (`sub ecx,
+2`, 0x5385e2), kept as in the binary.
+
+**D4710 (vsdk/math/ix.h). The ix signatures.** From the bodies: ix_sphere_boundingbox is (point, radius, min,
+max) (the radius at [esp+8], 0x53c41c; sum.symbols reads "(center, min, max, radius)"); ix_point_linesegment
+returns the clamped distance along the segment (0x53db4b-0x53db6c), not the distance from the point;
+ix_ray_sphere does not read its length argument; ix_box_oriented_box_oriented takes the rotation as rows 16
+bytes apart (B[1][0] at +0x10, 0x53c652); the polygon tests take vertex pointer arrays (ix_ray_quad builds one,
+0x53b1ab). sum.symbols' names are kept for ix_ray_polygon (a segment / point-normal plane test), ix_line_line
+(two planes) and ix_slab_clip (an outcode).
+
+**D4711 (vsdk/math/vector.h). The scalar vector3 operators.** vector3__plus_scalar / minus_scalar /
+add_scalar_assign / sub_scalar_assign (0x53de00-0x53debc) close the ix unit as COMDATs: operator+(float) (it was
+declared inline without an address), operator-(float), operator+=(float), operator-=(float).
+
+**D4712 (unit boundaries). 0x542500-0x54302c is two objects.** The float helpers end with two unreferenced
+thiscall members (0x542cb0 / 0x542cc0) and the UI element code ends with ui_tooltip's scalar deleting destructor
+(0x543010), each the closing COMDATs of an object (as D1601); the functions have nothing in common, and the .data
+0x5ac8c8-0x5ac8d9 (formatter strings) / 0x5ac8dc (the UI id counter) are adjacent but separate. 0x543030 (a bare
+ret, no reference) is left unattributed.
+
+**D4713 (ix.h). bbox_from_points and bbox_expand_by_vector.** ix_sphere_polygon calls 0x5595e0 (mins, maxs, a,
+b) and 0x559810 (mins, maxs, delta) (0x53c0db, 0x53c0eb); declared in ix.h (unnamed_gr_3d_0x50d9b0.h, where the
+other bbox helpers are, includes ix.h).

@@ -16,8 +16,22 @@ struct fx_rec98;                              // effect_mem.h (the node / mesh-i
 struct fx_rec2c;
 struct fx_rec4c;
 struct fx_recb0;
+struct vfx_node_ref;                          // below
 
 void ptr_relocate(void *p, char *base);       // 0x564d50 (*p += base unless NULL)
+// decomp67: (ptr*, base): 0 stays, -1 becomes base, else base is added (the record names; another unit).
+void reloc_ptr(void *p, char *base);          // 0x533d90
+
+// decomp67 (the vfx object 0x536950-0x538630, src/decomp/vsdk/unnamed_vfx_0x536950.cpp): every record kind
+// of a base starts with its name (+0x00) and its parent's name (+0x04), relocated by reloc_ptr against the
+// header base; vfx_instance's tag functions read them (get_tag_name +0, get_node_name +4). The tag kinds
+// of vfx_base::decode_tag (names ours); vfx_node_ref::kind uses the same numbers (0 node, 4 emitter).
+#define VFX_TAG_MESH          0               // node_descs / vfx_instance::nodes
+#define VFX_TAG_EMITTER_PART  1               // a sub-tag of an emitter (count: the emitter's num_particles)
+#define VFX_TAG_LIGHT         2               // light_tracks / lights
+#define VFX_TAG_DUMMY         3               // dummies / rec2c_list
+#define VFX_TAG_EMITTER       4               // emitters / vfx_instance::emitters
+#define VFX_TAG_VIF           5               // descs21c / insts21c
 
 // One emitter record of a base (0xe8 bytes, the array at vfx_base +0x28; name ours). Only what
 // vfx_instance_create reads.
@@ -26,12 +40,17 @@ public:
     // (rate + 1) * frames / 4800 (thiscall; a COMDAT after effect_mem.cpp's record constructors).
     float get_length_seconds()                // 0x51e020 vfx_get_length_seconds
     { return (rate + 1.0f) * frames * (1.0f / 4800.0f); }
-    char _unk00[0x0c];
+    void relocate(char *header_base, char *base);   // 0x561190 vfx_emitter__relocate (another unit; decomp67)
+    const char *name;                         // +0x00 (decomp67; was char _unk00[0x0c])
+    const char *parent;                       // +0x04
+    char _unk08[0x04];
     char *links[3];                           // +0x0c records of the base's 0xa0-byte table (+0x34), or NULL
     unsigned int num_links : 31;              // +0x18
-    unsigned int _bit31 : 1;
-    short num_particles;                      // +0x1c particle records (fx_rec28) per instance
-    short _pad1e;
+    unsigned int _bit31 : 1;                  //       decomp67: the emitter can be bound to a mesh tag
+    // decomp67 (D4702): a signed 16-bit bit field (shl / sar 16 in vfx_instance_create, decode_tag and
+    // get_num_tags; was short num_particles, short _pad1e); also the emitter's sub-tag count.
+    int num_particles : 16;                   // +0x1c particle records (fx_rec28) per instance
+    int _bits1c_16 : 16;
     int frames;                               // +0x20
     float rate;                               // +0x24
     // decomp63 (levelrender_add_effects / levelrender_effect_apply_vis; names ours).
@@ -45,8 +64,15 @@ LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 
 // decomp64 (the fx unit): the node descriptors (vfx_base +0x20, 0xa8 bytes each) and the +0x2c records (0x21c)
 // as fx_create_instance and fx_frame read them. Names ours.
+// decomp67: the node descriptors are the meshes (vfx_mesh__* in sum.symbols).
 struct vfx_node_desc {
-    ubyte _unk00[0x18];
+    void relocate(char *header_base, char *base);   // 0x5645b0 vfx_mesh__relocate (another unit; decomp67)
+    void load_bitmap(int flags);              // 0x564720 vfx_mesh__load_bitmap (decomp67)
+    const char *name;                         // +0x00 (decomp67; was ubyte _unk00[0x18])
+    const char *parent;                       // +0x04
+    ubyte _unk08[0x04];
+    ubyte bind_flags;                         // +0x0c bit 0: can be bound to a mesh tag (decomp67)
+    ubyte _unk0d[0x0b];
     // decomp63 (D4309): levelrender_effect_apply_vis rewrites the low word only (0x483ff0-0x484003):
     // 0x200 shown by a $vis tag, 0x400 always shown (0x600 = drawn).
     union {
@@ -61,14 +87,21 @@ struct vfx_node_desc {
     ubyte _unk54[0xa8 - 0x54];
 };
 LAYOUT_CHECK(vfx_node_desc, sizeof(vfx_node_desc) == 0xa8);
+// decomp67: the vif emitter descriptors (vif_desc__* in sum.symbols).
 struct vfx_desc21c {
-    ubyte _unk00[0x4c];
+    void relocate(char *header_base);         // 0x533be0 vif_desc__relocate (another unit; decomp67)
+    void load_bitmap(int flag);               // 0x533c20 vif_desc__load_bitmap
+    const char *name;                         // +0x00 (decomp67; was ubyte _unk00[0x4c])
+    const char *parent;                       // +0x04
+    vector3 pos;                              // +0x08 (get_node_world_transform measures from it)
+    ubyte _unk14[0x4c - 0x14];
     float time_a;                             // +0x4c
     float time_b;                             // +0x50 (time_a + time_b) s (fx_frame kind 16)
     ubyte _unk54[0x6a - 0x54];
     ushort vis_flags;                         // +0x6a decomp63: 0x80 always shown, 0x100 shown by a $vis tag
                                               //       (0x180 = drawn; the vif_* particle functions take these)
-    ubyte _unk6c[0x21c - 0x6c];
+                                              //       decomp67: 0x200 can be bound to a mesh tag
+    ubyte _unk6c[0x21c - 0x6c];               // +0x6c the bitmap, +0x70 its name
 };
 LAYOUT_CHECK(vfx_desc21c, sizeof(vfx_desc21c) == 0x21c);
 
@@ -80,16 +113,77 @@ struct vfx_tag_ref {                          // 8 bytes
     void *rec;                                // +4 the vfx_node_desc / vfx_emitter_desc / vfx_desc21c
 };
 struct vfx_base_tag {                         // 0x14 bytes ("$vis..." names)
+    void relocate(char *header_base, char *base);   // 0x565400 vfx_group__relocate (another unit; decomp67)
     char *name;                               // +0x00
     ubyte _unk04[0x08];
     int count;                                // +0x0c
     vfx_tag_ref *refs;                        // +0x10
 };
+// decomp67: vif_instantiate_level makes them, vif_record_release frees them; the fields from the vfx object.
 struct vfx_inst21c {                          // the instance record of a vfx_desc21c
-    ubyte _unk00[0x68];
+    vector3 pos;                              // +0x00 (decomp67)
+    matrix orient;                            // +0x0c
+    ubyte _unk30[0x68 - 0x30];
     ushort flags;                             // +0x68 0x10 updated this frame (fx_draw_flagged_particles)
-    ubyte _unk6a[0xe0 - 0x6a];
+                                              //       decomp67: 2 placed by get_node_world_transform, 4 bound,
+                                              //       8 hidden (get_tag_transform)
+    short tag;                                // +0x6a the mesh tag it is bound to (decomp67)
+    character_instance *ci;                   // +0x6c
+    ubyte _unk70[0x02];
+    ushort num_live;                          // +0x72 live particles (decomp67)
+    ubyte _unk74[0xe0 - 0x74];
     vfx_inst21c *next;                        // +0xe0
+    vfx_inst21c *prev;                        // +0xe4 (decomp67)
+};
+// decomp67: the vfx object's calls into the vif unit (cdecl).
+vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level);   // 0x5337a0
+void vif_record_release(vfx_inst21c *em, vfx_desc21c *desc);       // 0x5339b0
+// Inline: the out-of-line copy is 0x5385a0 (sum.symbols vfx_get_word_72), a COMDAT at the end of the vfx
+// object (decomp67).
+inline int vif_record_num_live(vfx_inst21c *em)   // 0x5385a0
+{ return em->num_live; }
+
+// decomp67: the other record kinds of a base (names ours; their methods are in other vsdk\geom units).
+struct vfx_dummy_desc {                       // 0x64 bytes, vfx_base +0x30 (count +0x0a)
+    void relocate(char *header_base, char *base);   // 0x55fed0 vfx_dummy__relocate
+    const char *name;                         // +0x00
+    const char *parent;                       // +0x04
+    ubyte _unk08[0x04];
+    ushort flags;                             // +0x0c 0x8000: can be bound
+    ubyte _unk0e[0x64 - 0x0e];                // +0x10 position channel, +0x34 rotation channel
+};
+LAYOUT_CHECK(vfx_dummy_desc, sizeof(vfx_dummy_desc) == 0x64);
+struct vfx_force_desc {                       // 0xa0 bytes, vfx_base +0x34 (count +0x0c)
+    void relocate(char *header_base, char *base);   // 0x55b960 vfx_force__relocate
+    ubyte _unk00[0xa0];
+};
+LAYOUT_CHECK(vfx_force_desc, sizeof(vfx_force_desc) == 0xa0);
+struct vfx_camera_desc {                      // 0x64 bytes, vfx_base +0x38 (count +0x0e)
+    void relocate(char *header_base, char *base);   // 0x5655c0 vfx_camera__relocate
+    // false outside its frame range, else the camera at frame t.
+    bool get_transform(float t, vector3 *pos, quaternion *rot);   // 0x565470 vfx_camera__get_transform
+    ubyte _unk00[0x64];
+};
+LAYOUT_CHECK(vfx_camera_desc, sizeof(vfx_camera_desc) == 0x64);
+struct vfx_tex_layer {                        // 0x14 bytes, two at vfx_material +0x0c
+    int bitmap;                               // +0x00 -1 none
+    ubyte _unk04[0x10];
+};
+struct vfx_material {                         // 0x4c bytes, vfx_base +0x44 (count +0x14)
+    void relocate(char *header_base, char *base);   // 0x565280 vfx_material__relocate
+    void load_bitmaps(int flags);             // 0x5652e0 vfx_material__load_bitmaps
+    float eval_curve34(float t);              // 0x564ff0 0..1
+    float eval_curve48(float t);              // 0x5651b0 0..1
+    float eval_curve44(float t);              // 0x5650e0 0..1
+    ushort flags;                             // +0x00 bits 3-5 blend mode, bit 6 (setup_render_state)
+    ubyte _unk02[0x0a];
+    vfx_tex_layer layers[2];                  // +0x0c
+    ubyte _unk34[0x4c - 0x34];                // +0x34 curve pointers, the name +0x38, its bitmap +0x3c
+};
+LAYOUT_CHECK(vfx_material, sizeof(vfx_material) == 0x4c);
+struct vfx_material_link {                    // what vfx_base +0x40 points to (setup_render_state)
+    ubyte _unk00[0x0c];
+    ubyte material;                           // +0x0c index into vfx_base::materials
 };
 // What vfx_instance::render_node draws (8 bytes; the effect draw entries carry one at +0x14).
 struct vfx_node_ref {
@@ -104,19 +198,31 @@ LAYOUT_CHECK(vfx_node_ref, sizeof(vfx_node_ref) == 8);
 // decomp60: the record counts and fields vfx_instance_create / vfx_load read (names ours).
 class vfx_base {
 public:
+    // decomp67: sum.symbols calls these vfx_instance__ctor (0x538570) and vfx_instance__clear, but the
+    // fields are vfx_base's (the counts +0x04..+0x16, flags +0x18, +0x40, pos +0x48; D4701). No caller:
+    // bases are loaded from the effect files and relocated.
+    vfx_base();                               // 0x538570 (constructs pos, then clear)
+    void clear();                             // 0x5369c0 the counts except num_materials, the low 13 flag bits, +0x40
     void load_bitmaps(int flag);              // 0x536e50 vfx_base__load_bitmaps
-    void relocate_node(char *a, char *b);     // 0x536bc0 vfx_node_relocate (argument meaning unsure)
+    // decomp67: reloc_ptr of the name against header_base, ptr_relocate of the table pointers against
+    // base, then every record; the record counts are capped (300 meshes, 15 lights, 90 emitters, 50
+    // dummies, 100 forces). effect_mem.cpp passes (end of the table, base address).
+    void relocate_node(char *header_base, char *base);   // 0x536bc0 vfx_node_relocate
     int  get_num_tags();                      // 0x538340 vfx_base__get_num_tags (+4 + +6 + +0xa + +0x16 + vif tags; decomp64)
+    // decomp67 (the vfx object).
+    void init_vis_flags();                    // 0x536ed0 vfx_base__init_vis_flags
+    void decode_tag(int index, int *kind, int *list, int *sub);   // 0x5372a0 vfx_base__decode_tag (VFX_TAG_*)
+    void page_in_particle_bitmaps();          // 0x538390 vfx_base__page_in_particle_bitmaps
     const char *name;                         // +0x00 the effect file name (fx_disable_by_effect_name; decomp64)
     short num_nodes;                          // +0x04 fx_rec98 records per instance
     short num_lights;                         // +0x06 vfx_light_desc records per instance (light_tracks)
     short num_emitters;                       // +0x08 fx_recb0 records (emitters)
-    short num_rec2c;                          // +0x0a fx_rec2c records
+    short num_rec2c;                          // +0x0a fx_rec2c records (decomp67: the dummies at +0x30)
     short num_rec4c;                          // +0x0c fx_rec4c records (the 0xa0-byte table at +0x34)
-    char _unk0e[0x02];
+    short num_cameras;                        // +0x0e records at +0x38 (decomp67; was char _unk0e[2])
     short num_tags;                           // +0x10 decomp63 (levelrender_effect_apply_vis)
     short num_frames;                         // +0x12 (cast_effect_track_add: frames / 15 * 1.5 s; decomp39)
-    short _unk14;                             // +0x14
+    short num_materials;                      // +0x14 records at +0x44 (decomp67; was _unk14)
     short num_desc21c;                        // +0x16 records at +0x2c (decomp64)
     short flags;                              // +0x18 bits 1 and 2 are copied into the instance's bits 7 / 8
                                               //       (vfx_load; meaning not known); bit 0: random yaw at
@@ -128,13 +234,15 @@ public:
     char *light_tracks;                       // +0x24 0x70 bytes per light of an instance (ui_3d_begin; decomp48)
     vfx_emitter_desc *emitters;               // +0x28 num_emitters records
     vfx_desc21c *descs21c;                    // +0x2c num_desc21c records (decomp64)
-    char _unk30[0x04];
-    char *rec4c_table;                        // +0x34 0xa0 bytes per fx_rec4c record
-    char _unk38[0x04];
+    vfx_dummy_desc *dummies;                  // +0x30 num_rec2c records (decomp67; was char _unk30[4])
+    char *rec4c_table;                        // +0x34 0xa0 bytes per fx_rec4c record (vfx_force_desc)
+    vfx_camera_desc *cameras;                 // +0x38 num_cameras records (decomp67)
     vfx_base_tag *tags;                       // +0x3c decomp63: num_tags records
-    int _unk40;                               // +0x40 nonzero: the effect can be linked to a character
-                                              //       (fx_link_character_obj; decomp64)
-    char _unk44[0x04];
+    vfx_material_link *_unk40;                // +0x40 nonzero: the effect can be linked to a character
+                                              //       (fx_link_character_obj; decomp64); decomp67: a record
+                                              //       whose +0x0c names the material setup_render_state uses
+                                              //       (was int)
+    vfx_material *materials;                  // +0x44 num_materials records (decomp67)
     vector3 pos;                              // +0x48 copied into the instance by vfx_load
     float _unk54;                             // +0x54 copied to the instance's +0x3c
 };
@@ -257,33 +365,54 @@ class vfx_instance {
 public:
     // decomp64: the first argument is the frame time (a float: fx_update_instance passes its float
     // argument, the creators 0.001f); it was declared int (D4402).
-    void process(float frametime, const vector3 *pos, const matrix *orient);   // 0x536fb0 vfx_instance_process
+    // decomp67: returns AL (false: no base, disabled base or done; D4700).
+    bool process(float frametime, const vector3 *pos, const matrix *orient);   // 0x536fb0 vfx_instance_process
     void stop();                                                     // 0x537230 vfx_instance__stop (decomp64)
     bool is_stopped();                                               // 0x537270 vfx_instance__is_stopped (decomp64)
-    const char *get_node_name(int node);                             // 0x5373a0 (decomp64)
+    void set_stopped(bool stopped);                                  // 0x537280 vfx_instance__set_stopped (decomp67)
+    const char *get_node_name(int node);                             // 0x5373a0 (decomp64) decomp67: the node's parent name
+    const char *get_tag_name(int tag);                               // 0x537490 (decomp67)
     void bind_node(int node, character_instance *ci, int tag);       // 0x537580 (decomp64)
     bool node_can_bind(int node);                                    // 0x537700 (decomp64)
-    void reset_flags(int a, int b);                                  // 0x537800 (decomp64)
+    // decomp67: (loop, b): clears the stopped and done bits, bit 1 = loop, bit 3 = b, time 0 (bool, D4700).
+    void reset_flags(bool a, bool b);                                // 0x537800 (decomp64)
     void get_node_transform(vector3 *pos, matrix *orient, int node); // 0x537840
     // The world transform of a node, the vector and matrix passed by value (spell_probe_ground_point).
-    void get_node_world_transform(int node, vector3 pos, matrix orient, int a, int b, int c); // 0x537a10
+    // decomp67: c is a bool (the tags whose parent it is follow; D4700); a and b are only passed down.
+    void get_node_world_transform(int node, vector3 pos, matrix orient, int a, int b, bool c); // 0x537a10
     int  find_tag(const char *name);                                 // 0x537f10, -1 (">>> FAILED TO GET TAG %s")
-    int  get_tag_transform(int tag, int a, int b);                   // 0x537f70 (result unused by spells.cpp)
+    // decomp67: hides (a) or shows the tag, with b also every tag whose parent it is; no result (D4700).
+    void get_tag_transform(int tag, bool a, bool b);                 // 0x537f70 (result unused by spells.cpp)
     float get_time_left();                                           // 0x538510 (decomp37)
     // decomp60 (vfx_instance_create / vfx_instance_free; both in another vsdk\geom unit).
-    void init_nodes(vfx_base *base, int a, bool level);             // 0x536a70 vfx_instance_init_nodes
+    // decomp67: returns 0 (EAX); the second argument goes to vfx_node_create_light's bool (D4700).
+    int  init_nodes(vfx_base *base, bool no_light, bool level);      // 0x536a70 vfx_instance_init_nodes
     void release_nodes();                                            // 0x5369f0 vfx_instance_release_nodes
+    // decomp67: inline; their out-of-line copies are COMDATs at the end of the vfx object (built without
+    // inline expansion). Defined in effect_mem.h, after effect_get_base and the record types.
+    vfx_base *get_base();                                            // 0x538590 vfx_instance__get_base
+    fx_rec98 *list18_item(int n);                                    // 0x5385b0 vfx_instance__list18_item
+    vfx_light_desc *list1c_item(int n);                              // 0x5385d0 vfx_instance__list1c_item (steps by 2, sic)
+    fx_recb0 *list20_item(int n);                                    // 0x5385f0 vfx_instance__list20_item
+    vfx_inst21c *list24_item(int n);                                 // 0x538610 vfx_instance__list24_item
+    fx_rec2c *list28_item(int n);                                    // 0x538630 vfx_instance__list28_item
     unsigned int id_bits;                                            // +0x00 effect name index << 9 (cast_effect_track_add; decomp39);
                                                                      // bits 0-8 flags: 0x40 in use, 0x80 / 0x100 the base's flag_a / flag_b,
                                                                      // interface_frame clears bit 2 of the UI lights' instance (decomp48)
+                                                                     // decomp67: 1 stopped, 2 loop, 4 done, 8 drawn when done,
+                                                                     // 0x10 wrapped this frame, 0x20 lights on
     union {
         int _unk04;                                                  // +0x04
         ubyte render_alpha;                                          //       decomp63: the effect object's bits >> 24
                                                                      //       before each draw, 0xff for the sky effects
     };
     int category;                                                    // +0x08 the base record's category (vfx_load)
-    int _unk0c;
+    union {
+        int _unk0c;                                                  // +0x0c
+        float elapsed;                                               //       decomp67: seconds; time = elapsed * 15
+    };
     float time;                                                      // +0x10 elapsed (fx_frame compares it with 14 / 55.25; decomp64)
+                                                                     //       decomp67: the frame
     float length;                                                    // +0x14 longest emitter, seconds
     fx_rec98 *nodes;                                                 // +0x18 list heads, NULL empty
     vfx_light_desc *lights;                                          // +0x1c first light, NULL none (ui_3d_begin; decomp48)
@@ -310,6 +439,7 @@ void vfx_render_state_reset();                                          // 0x538
 // radius) the bounds of the live particles, (instance record, record, flag, pos, orient, vfx_instance
 // +0x0c) one update, (instance record, record) the draw.
 void vif_record_get_bounds(vfx_desc21c *rec, vector3 *centre, float *radius);   // 0x533aa0
+// decomp67: the last argument is the float vfx_instance::elapsed, passed as its raw dword (D4704).
 void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vector3 *pos,
                         const matrix *orient, int unk0c);                   // 0x532f40
 void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec);               // 0x533620
@@ -367,6 +497,15 @@ inline int attached_light_create_from_vfx(const vector3 *pos, float intensity, f
 
 // The camera shake of the running effects (state_game_frame adds it to the view; decomp42).
 void vfx_get_camera(vector3 *pos, quaternion *rot);   // 0x5383e0
+
+// ---- decomp67: the rest of the vfx object's data (0x536950-0x538630, src/decomp/vsdk/unnamed_vfx_0x536950.cpp) ----
+struct gr_vertex;
+extern gr_vertex gr_vertex_pool[4000];                // 0x2d90f10 (the mesh renderer's output)
+extern vector3 vfx_camera_pos;                        // 0x2d90ee8
+extern quaternion vfx_camera_orient;                  // 0x2d90ef8
+extern ubyte vfx_render_value_b;                      // 0x2dbfd15 the material's curve 44 * 255 (label ours)
+extern int vfx_render_blend;                          // 0x2d90f08 the material's flag bits 3-5 (label ours)
+extern int vfx_render_flag;                           // 0x2dbfd18 the material's flag bit 6 (label ours)
 
 // decomp65: the render state vfx_instance__setup_render_state sets for the next mesh and
 // vfx_render_state_reset clears (vfx object, not written); the character mesh renderers read both.

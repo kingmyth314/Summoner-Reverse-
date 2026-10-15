@@ -66,6 +66,7 @@ public:
     void set_hidden(bool hide);        // 0x542ea0 ui_element__set_hidden
     void set_visible(bool show);       // 0x542ed0 ui_element__set_visible
     void set_size(int w, int h);       // 0x542e60 (decomp53, state 6)
+    void set_position(int x, int y);   // 0x542e20 (decomp67; no caller found)
 
     ubyte initialized;                 // +0x004 0 from the constructor, 1 from init
     int kind;                          // +0x008 1 window, 0 gadget
@@ -74,8 +75,10 @@ public:
     ubyte disabled;                    // +0x01D
     char name[0x102];                  // +0x01E
     int id;                            // +0x120 default event value
-    ui_tooltip_head tooltips;          // +0x124
-    ubyte _unk12c[0x118];              // +0x12C
+    // decomp67 (D4707): the list sentinel is a whole ui_tooltip (0x120 bytes up to +0x244): ~ui_element
+    // destroys it (ui_tooltip::~ui_tooltip on this + 0x124, 0x542d7e). Was ui_tooltip_head tooltips and
+    // ubyte _unk12c[0x118].
+    ui_tooltip tooltips;               // +0x124
     bool (*callback)(int event, int value);   // +0x244 cdecl (ui_window::send_event returns its result)
 };
 LAYOUT_CHECK(ui_element, sizeof(ui_element) == 0x248);
