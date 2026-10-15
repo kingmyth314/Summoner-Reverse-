@@ -28,7 +28,7 @@ unwritten.
   ray_hit_object, draw_navpoints, draw_marker, handle_input, script_action_format, list_ambient_sounds,
   list_door_sounds, place_creature, add_navpoint, update_buttons, fill_action_lists, on_delete,
   select_prev / focus_selection / select_first / select_next, refresh_action_editor, action_up_cb /
-  action_down_cb, edit_button_cb, apply_action_params, script_create, script_make_filename,
+  action_down_cb, edit_button_cb, apply_action_params, script_create, script_editor_default_action_navpoint,
   script_write_level_script, script_write_objects, script_write_level_table, level_items_write_table,
   script_save, script_name_cb, ambient_name_cb, params_window_cb, params_ok_cb, choice_ok_cb,
   choice_listbox_cb, door_sound_radio_cb, door_sound_inputbox_cb, door_key_cb, door_item_cb, door_ok,
@@ -69,7 +69,7 @@ button), 0x256b73d (camera key held), 0x256b748 (script_editor_insert_action), C
 - level_item_ok removal leaves stale indices (possible endless name loop).
 - replace_navpoint_references updates only the first character.
 Crashes:
-- script_make_filename dereferences NULL (+0x28) / uses &navpoints[-1] with no navpoints.
+- script_editor_default_action_navpoint dereferences NULL (+0x28) / uses &navpoints[-1] with no navpoints.
 - apply_action_params kind 9 dereferences NULL; show_door_lock with no record; show_script_dialog strstr(NULL).
 - delete_navpoint (adds a camera navpoint) has no 750-navpoint limit check.
 Wrong values:

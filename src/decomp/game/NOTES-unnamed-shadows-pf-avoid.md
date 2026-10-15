@@ -194,7 +194,7 @@ slot constructor.
   steer A* through extra corners and edge costs; prohibit areas block walks and clicks).
 - sum.symbols: avoid_area_desc +0x2c (spells.cpp's `owner`) is the layer (D3702); avoid_poly_points_in_box
   / _in_circle take (shape, polygon) (D3705); pf_segment_hits_walls returns true when clear (D3707);
-  seg2d_line_intersect's fourth argument is a float bias (D3708); avoid_seg_alloc / avoid_seg_free handle
+  seg2d_line_intersect's fourth argument is a float bias (D3708); avoid_link_block_alloc / avoid_link_block_free handle
   20-link blocks (0x54) for the corners' nodes, not segments; avoid_record_axis_at returns the corner's
   miter offset (corner +0x10); the shadow record table is 0x245ce18 (records) / 0x245ce8c (their
   shadow_record); avoidance_area_type is only printed ("type: prohibit rect/circle"); 0x59ce94 (set by

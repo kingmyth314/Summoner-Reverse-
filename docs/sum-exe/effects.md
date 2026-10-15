@@ -251,7 +251,9 @@ Until 2026-10-14 this family was named `shadow_*` (`shadow_slots`, `shadow_creat
 - Each frame `levelrender_setup_level_lights` (`0x482d70`) turns every used slot (`level_light_get`
   `0x48d180`) into a dynamic `light_create_point`. `levelrender_rank_light` (`0x4863b0`) ranks the same
   records for level objects.
-- The blob shadows (`Shadow01.tga`, `shadow_collect_for_lobj`, table `0x245ce8c`) are a separate system.
+- The blob shadows (`Shadow01.tga`, `shadow_collect_for_lobj`) are a separate system: 16 records of 0x1f8 bytes
+  from `0x245ce18` (count `0x245f398`, filled by `shadow_record_add` `0x4a3ef0`); `0x245ce8c` is the projection record
+  inside the first one (`+0x74`, built by `init_shadow_records` `0x4a3e90`).
 
 ## Other
 

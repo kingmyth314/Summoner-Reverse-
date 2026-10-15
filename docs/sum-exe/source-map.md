@@ -488,10 +488,10 @@ The current tu-split2 cut at 0x4950b0 puts the snow ccmds into the serpent unit;
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x4a3640 | 0x4a3700 | handle slots | init 0x4a3640; .bss 0x245c9e8-0x245cd78 (after boss_ai.cpp's 0x245c9e0), .data 0x59cd88 |
-| 0x4a37d0 | 0x4a4ec0 | obstacle debug draw, obstacle_height_offset ccmd, blob shadows | init run 0x4a37d0; .bss 0x245cd90-0x245f398, .data 0x59cd90-0x59ce54 |
+| 0x4a3640 | 0x4a3700 | handle slots | init 0x4a3640; .bss 0x245c9e8-0x245cd78 (after boss_ai.cpp's 0x245c9e0), .data 0x59cd88; boss_ai.cpp ends just before with level_page_in_characters 0x4a3580 (sum.symbols module) |
+| 0x4a37d0 | 0x4a4ec0 | obstacle debug draw, obstacle_height_offset ccmd, blob shadows | init run 0x4a37d0; .bss 0x245cd90-0x245f398, .data 0x59cd90-0x59ce85 (the last item is the obstacle_height_offset message at 0x59ce54) |
 | 0x4a4ee0 | 0x4a6600 | pathfinding geometry: graph globals, BSP cell lookup, grid hash, seg2d tests | .bss 0x245f3a0-0x2460cb8: the graph data that pathfinding.cpp (0x49c840) uses as externs sits after the shadow block, so it is defined here; private 0x245f3a8, 0x2460c94 |
-| 0x4a6710 | 0x4aa760 | obstacle avoidance (avoid_*), avoidance ccmd | init run 0x4a6710; .bss 0x2460cc0-0x246b92c, .data 0x59ce88-0x59cea4; multi_door.cpp starts 0x4aa780 |
+| 0x4a6710 | 0x4aa760 | obstacle avoidance (avoid_*), avoidance ccmd | init run 0x4a6710; .bss 0x2460cc0-0x2476bb7 (the last block is 500 link records of 0x54 bytes from 0x246c7a8, avoid_link_block_alloc 0x4a7724..0x4a7732; the next unit's alt_textures start at 0x2476bb8), .data 0x59ce88-0x59d34c (with the avoidance messages 0x59d200..0x59d32c); multi_door.cpp starts 0x4aa780 |
 
 #### 0x4ae330-0x4af320 (table rows 0x4ae330-0x4aea00 and 0x4aea50-0x4b0210)
 
@@ -500,11 +500,12 @@ The current tu-split2 cut at 0x4950b0 puts the snow ccmds into the serpent unit;
 | 0x4ae330 | 0x4ae830 | game tracker client (gtrack_*) | .bss 0x247b0a0-0x247e23d, after multi_chattracker.cpp's 0x2479c3c-0x247ae38; may be the tail of that file (no evidence either way) |
 | 0x4ae890 | 0x4af320 | level-object ray and sphere tests (lobj_ray*) | .bss 0x247e81c-0x247e820; multiplayerdata.cpp starts 0x4af340 (id 236), multispell.cpp at 0x4afca0 |
 
-#### 0x4bbe80-0x4c6460 (table rows 0x4b9e80-0x4bff60 and 0x4c0250-0x4c6480)
+#### 0x4b87c0-0x4c6460 (table rows 0x4b9e80-0x4bff60 and 0x4c0250-0x4c6480)
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x4b9e70 | 0x4bbdd0 | ghost rider boss | init run 0x4b9e70; .bss 0x2480300-0x2480944; .data 0x59d9ec-0x59dad8 |
+| 0x4b87c0 | 0x4b9e50 | Pyrul boss | init run 0x4b87c0 (entries 306-308); .bss 0x247fcf0-0x24802df (ccmd_pyrul_stage first, Pyrul's move pointers 0x24802d0-0x24802dc last), .data 0x59d934-0x59d9eb; follows pathfinding_visibility.cpp (last function 0x4b86e0); not in the units table, whose unnamed row starts at 0x4b9e80 |
+| 0x4b9e70 | 0x4bbdd0 | ghost rider boss | init run 0x4b9e70; .bss 0x24802e0-0x2480944 (starts with the move pointers that ghost_init_move_ptrs writes, 0x24802e0-0x24802f8), .data 0x59d9ec-0x59dad8 |
 | 0x4bbe80 | 0x4bcdc0 | decals (decal_*), s3d_geom_block helpers | init run 0x4bbe80; .bss 0x2480948-0x2483554, .data 0x59daf0 |
 | 0x4bce60 | 0x4bff60 | AI combat modes (approach, melee/ranged, spell choice) | init 0x4bce60; own .bss 0x2483558-0x2483560 after the decal block |
 | 0x4c0250 | 0x4c0a20 | projectors (shadow/decal projection records, lobj face marks) | .bss 0x2483564-0x24893e4 |

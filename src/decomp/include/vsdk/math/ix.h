@@ -14,10 +14,10 @@
 class plane {
 public:
     // decomp56 (D3601): the constructor from a normal and a point is the COMDAT 0x4a42e0 (sum.symbols
-    // plane__set_normal_point_b: the same body, returns this); the shadow and decal code build temporary
+    // plane__plane: the same body, returns this); the shadow and decal code build temporary
     // planes with it for projector_record::add_plane. The default constructor is empty.
     plane() {}
-    plane(const vector3 *n, const vector3 *p)         // 0x4a42e0 plane__set_normal_point_b
+    plane(const vector3 *n, const vector3 *p)         // 0x4a42e0 plane__plane
     { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }
     void set_normal_point(const vector3 *n, const vector3 *p)   // 0x43b5a0 plane__set_normal_point
     { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }

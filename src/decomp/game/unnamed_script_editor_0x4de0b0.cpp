@@ -3105,7 +3105,7 @@ bool script_editor_on_new(int event, int value)
         script_editor_new_button.toggle_latched();
         return true;
     case SE_MODE_CAMERA:
-        script_editor_delete_navpoint();
+        script_editor_add_camera_navpoint();
         return true;
     }
     return true;
@@ -3114,7 +3114,7 @@ bool script_editor_on_new(int event, int value)
 // 0x4e6a30  Confidence: exact. MISNAMED in sum.symbols (D3505): it ADDS a camera navpoint ("$camera%.3d",
 // the first free number) at the camera eye, heading 0, no layer. Game bug: there is no check against the
 // 750 records, so a 751st navpoint is written past navpoints[] over the next .bss variables.
-void script_editor_delete_navpoint()
+void script_editor_add_camera_navpoint()
 {
     char name[0x20];
     navpoint *np;
@@ -3626,7 +3626,7 @@ bool script_editor_add_action_cb(int event, int value)
     script_editor_action_window.set_enabled(true);
     script_editor_action_type_listbox.clear();
     for (i = 0; i < NUM_SCRIPT_ACTIONS; i++) {
-        if (script_editor_refresh_action_editor(i, (Character *)script_editor_sel.object)) {
+        if (script_editor_action_type_allowed(i, (Character *)script_editor_sel.object)) {
             e = script_editor_action_type_listbox.add_entry(script_action_names[i], -1, 0, 0, 0);
             e->data = i;
             e->set_font(font_small);
@@ -3642,7 +3642,7 @@ bool script_editor_add_action_cb(int event, int value)
 // category 8 move, .mvf / .vfx a file of that kind in the cutscene's folder; synch, synch teleport and
 // replace weapon / armor only in cutscene scripts, guard spline only in level scripts; mount / dismount
 // for species 0x57-0x5a and one hand for Joseph (species 0), both in cutscene scripts only.
-bool script_editor_refresh_action_editor(int type, Character *c)
+bool script_editor_action_type_allowed(int type, Character *c)
 {
     file_find_list list;
     bool found;
@@ -3698,7 +3698,7 @@ bool script_editor_refresh_action_editor(int type, Character *c)
 }
 
 // 0x4e7c70  Confidence: exact. Del under the action list: removes the selected action
-// (script_editor_show_action_params) and rebuilds the list at the same scroll position.
+// (script_editor_delete_selected_action) and rebuilds the list at the same scroll position.
 bool script_editor_delete_action_cb(int event, int value)
 {
     int hscroll, vscroll;
@@ -3707,7 +3707,7 @@ bool script_editor_delete_action_cb(int event, int value)
         return false;
     hscroll = script_editor_action_listbox.hscroll;
     vscroll = script_editor_action_listbox.vscroll;
-    script_editor_show_action_params();
+    script_editor_delete_selected_action();
     script_editor_sel_action_index = 0;
     script_editor_fill_action_list();
     script_editor_action_listbox.set_hscroll(hscroll);
@@ -3720,7 +3720,7 @@ bool script_editor_delete_action_cb(int event, int value)
 // cutscene_script_objects record, but the removal always works on the level table: the index computed
 // from the wrong base is out of range (no move) and script_object_count still drops by one, so the last
 // level script is lost (and the emptied cutscene record stays counted).
-void script_editor_show_action_params()
+void script_editor_delete_selected_action()
 {
     int i;
 
@@ -4076,7 +4076,7 @@ void script_editor_apply_action_params()
 // 0x4e88a0  Confidence: likely (jump tables 0x4e8cb0 / 0x4e8cd0 over type - 7). Adds an action of the type
 // picked in the action window to the selected character's script, creating the script first (32 cutscene
 // / 200 level scripts, 54 actions each). The defaults come from script_action_default_table; an action
-// that takes a navpoint gets the last one (script_make_filename), some get a first argument (the first
+// that takes a navpoint gets the last one (script_editor_default_action_navpoint), some get a first argument (the first
 // move, the first .vfx, "New Dialogue Text", the character's own name). With I (insert) the action moves
 // up to the selected line.
 void script_create()
@@ -4126,7 +4126,7 @@ void script_create()
     a->arg10 = script_action_default_table[type].arg10;
     a->flag14 = script_action_default_table[type].flag14;
     if (script_action_default_table[type].needs_nav) {
-        a->nav = script_make_filename();
+        a->nav = script_editor_default_action_navpoint();
         script_editor_lists_dirty = true;
     } else {
         a->nav = NULL;
@@ -4203,7 +4203,7 @@ void script_create()
 // bugs: without cutscene navpoints the search over the level table tests the type through a pointer that
 // is still NULL (the binary reads address 0x28: an access violation whenever there is a level navpoint),
 // and with no level navpoint at all the level case returns &navpoints[-1].
-navpoint *script_make_filename()
+navpoint *script_editor_default_action_navpoint()
 {
     navpoint *np = NULL;
     int i;

@@ -147,7 +147,7 @@ Total: 131 (65 / 60 / 6)
 |---|---|---|
 | `0x4bce60` | static_init_empty_4bce70 | exact |
 | `0x4bce70` | init_empty_4bce70 | likely |
-| `0x4bce80` | charinfo_within_attack_radius | exact |
+| `0x4bce80` | ai_state__within_attack_radius | exact |
 | `0x4bcea0` | ai_approach_random_offset | likely |
 | `0x4bcff0` | ai_approach_target_point | likely |
 | `0x4bd2a0` | ai_approach_attack_slot | unsure |
@@ -216,8 +216,8 @@ Total: 131 (65 / 60 / 6)
 - bosses.md says the riders are "at stage 3 but still mounted" in the first Jade Temple visit; for the
   Ghost Rider the Liangshan / Jadetemple branch of ghost_rider_boss_load runs ghost_setup_anims_unmounted,
   which calls boss_release_mount and clears ghost_mounted.
-- sum.symbols: charinfo_within_attack_radius (0x4bce80) is an ai_state member (D3603); the ai_combat_* and
-  ai_consider_* functions are thiscall on ai_state; plane__set_normal_point_b is plane's (n, p) constructor
+- sum.symbols: ai_state__within_attack_radius (0x4bce80) is an ai_state member (D3603); the ai_combat_* and
+  ai_consider_* functions are thiscall on ai_state; plane__plane is plane's (n, p) constructor
   (D3601); ghost_find_floor_below takes (target, layer, pos).
 - ai.md / effects.md: nothing contradicted in the parts this code covers.
 

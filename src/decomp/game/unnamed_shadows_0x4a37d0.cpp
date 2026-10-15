@@ -292,7 +292,7 @@ void shadow_record_add(const vector3 *pos, const matrix *orient, float fov, floa
     s->proj.add_plane(plane(&n_up, &far_pt));
 }
 
-// 0x4a42e0 plane::plane(normal, point) (sum.symbols plane__set_normal_point_b, D3601). Confidence: exact.
+// 0x4a42e0 plane::plane(normal, point) (sum.symbols plane__plane, D3601). Confidence: exact.
 // 0x4a4320 matrix::operator= (matrix3__copy). Confidence: exact.
 // Both are COMDATs of inline members (vsdk/math/ix.h, vsdk/math/matrix.h) emitted with this unit.
 

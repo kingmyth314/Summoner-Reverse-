@@ -2747,7 +2747,7 @@ Snow_enabled moved there from the cutscene header (which includes it).
 only caller, boss_ai_check_stage, ignores the value, so no call changes.
 
 **D3601 (vsdk/math/ix.h). plane gets plane(const vector3 *n, const vector3 *p) and an empty plane().**
-0x4a42e0 (sum.symbols plane__set_normal_point_b) has set_normal_point's body but returns this (`mov eax,
+0x4a42e0 (sum.symbols plane__plane) has set_normal_point's body but returns this (`mov eax,
 ecx`), and its callers pass EAX straight on to projector_record::add_plane / set (0x4bc157-0x4bc15c,
 0x4bc1a6-0x4bc1b1): a constructor of a temporary. The empty default constructor keeps `plane p;`
 (gametarget.cpp) compiling.
@@ -2757,7 +2757,7 @@ ecx`), and its callers pass EAX straight on to projector_record::add_plane / set
 ai_chase_target_until_in_range (0x4be109-0x4be134) store the target's position and layer there. No other
 src/decomp file uses the old names.
 
-**D3603 (engine/ai/ai.h). 0x4bce80 is an ai_state member.** sum.symbols calls it charinfo_within_attack_radius,
+**D3603 (engine/ai/ai.h). 0x4bce80 is an ai_state member.** sum.symbols calls it ai_state__within_attack_radius,
 but every caller passes the AI record in ECX (0x4bd2cb, 0x4bdc1f, 0x4be6c7, 0x4be7dd) and +0x34 is
 ai_state::attack_range; it is declared ai_state::within_attack_radius (dist < attack_range + 0.2).
 
@@ -2791,7 +2791,7 @@ script_editor_hover / script_editor_sel (type script_editor_pick, names ours). T
 is an ix_ray filled by gr_screen_to_world_ray.
 
 **D3501 (same header). script_action_defaults.** The 33-entry 0xc-byte table built by the inline
-constructor 0x4de410 holds arg0c, arg10, flag14, needs_nav (script_make_filename picks a default navpoint)
+constructor 0x4de410 holds arg0c, arg10, flag14, needs_nav (script_editor_default_action_navpoint picks a default navpoint)
 and has_params (opens the parameter window). Field names ours.
 
 **D3502. 0x254a8b0 is a matrix, not a position.** It is copied as 9 floats with the selection's orient and
@@ -2806,10 +2806,10 @@ script_editor_save_name_inputbox (0x254daa0) +0x580, its max_length; script_edit
 script_editor_decimal_filter_cb there and the inputbox key handler calls it before inserting a character;
 the field (char_filter, name ours) replaces padding.
 
-**D3505. sum.symbols names that describe other functions.** script_editor_delete_navpoint (0x4e6a30) adds a
-"$camera%.3d" navpoint; script_editor_refresh_action_editor (0x4e7a40) returns whether action type is
-offered for a character; script_editor_show_action_params (0x4e7cd0) deletes the selected action;
-script_make_filename (0x4e8cf0) returns the default navpoint of a new action. Names kept (no rename
+**D3505. sum.symbols names that describe other functions.** script_editor_add_camera_navpoint (0x4e6a30) adds a
+"$camera%.3d" navpoint; script_editor_action_type_allowed (0x4e7a40) returns whether action type is
+offered for a character; script_editor_delete_selected_action (0x4e7cd0) deletes the selected action;
+script_editor_default_action_navpoint (0x4e8cf0) returns the default navpoint of a new action. Names kept (no rename
 without a strings/path source), behaviour stated at each declaration.
 
 **D3506 (vsdk/ui/ui_gadgets.h). ui_listbox::select_by_data returns bool.** It returns AL: false when no

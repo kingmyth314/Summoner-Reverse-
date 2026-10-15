@@ -91,7 +91,7 @@ struct avoid_seg_ref {                // 0x14, segment list +0x18
     vector2 normal;                   // +0x0c set by the corner offset code
 };
 LAYOUT_CHECK(avoid_seg_ref, sizeof(avoid_seg_ref) == 0x14);
-// A block of 20 visibility links (0x54, 500 at 0x246c7a8; sum.symbols avoid_seg_alloc / _free).
+// A block of 20 visibility links (0x54, 500 at 0x246c7a8; sum.symbols avoid_link_block_alloc / _free).
 struct avoid_link_block {
     pf_vis_node *links[20];           // +0x00
     uint flags;                       // +0x50 bit 0 used
@@ -209,8 +209,8 @@ bool avoid_poly_nearest_edge_hit(const vector2 *p, const vector2 *q, const avoid
 bool avoid_poly_from_obstacle(avoid_poly *out, const avoid_obstacle *ob); // 0x4a7320
 bool avoid_prim_test_exact(const vector2 *p, const avoid_obstacle *ob);   // 0x4a73d0
 bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob);   // 0x4a73f0
-avoid_link_block *avoid_seg_alloc();                                       // 0x4a7720
-void avoid_seg_free(avoid_link_block *b);                                  // 0x4a7760
+avoid_link_block *avoid_link_block_alloc();                                       // 0x4a7720
+void avoid_link_block_free(avoid_link_block *b);                                  // 0x4a7760
 avoid_spline_point *avoid_spline_point_alloc();                            // 0x4a77a0
 avoid_spline_point *avoid_spline_point_get(int i);     // 0x4a77d0 NULL unless used
 avoid_spline *avoid_spline_alloc();                                        // 0x4a7800

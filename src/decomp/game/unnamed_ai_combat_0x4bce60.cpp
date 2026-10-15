@@ -91,7 +91,7 @@ vector3 ai_combat_aim_point;          // 0x2483558
 // 0x4bce70  Confidence: likely. init_empty_4bce70: a bare ret, the compiler's initialiser for
 // ai_combat_aim_point (vector3() is empty; the call to it is gone, the registration stays).
 
-// 0x4bce80  Confidence: exact. sum.symbols calls it charinfo_within_attack_radius, but ECX is the AI
+// 0x4bce80  Confidence: exact. sum.symbols calls it ai_state__within_attack_radius, but ECX is the AI
 // record: +0x34 is ai_state::attack_range (D3603).
 bool ai_state::within_attack_radius(float dist)
 {

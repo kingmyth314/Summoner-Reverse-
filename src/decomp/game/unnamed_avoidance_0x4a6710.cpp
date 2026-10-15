@@ -499,7 +499,7 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
 }
 
 // 0x4a7720  Confidence: exact.
-avoid_link_block *avoid_seg_alloc()
+avoid_link_block *avoid_link_block_alloc()
 {
     int i;
 
@@ -513,7 +513,7 @@ avoid_link_block *avoid_seg_alloc()
 }
 
 // 0x4a7760  Confidence: exact.
-void avoid_seg_free(avoid_link_block *b)
+void avoid_link_block_free(avoid_link_block *b)
 {
     if (b)
         avoid_link_blocks[b - avoid_link_blocks].flags = 0;
@@ -748,7 +748,7 @@ void avoid_seglist_free(avoid_seglist *sl)
     if (index < 0 || index >= AVOID_NUM_SEGLISTS || !(sl->flags & AVOID_SEGLIST_USED))
         return;
     for (i = 0; i < sl->num_corners; i++)
-        avoid_seg_free((avoid_link_block *)sl->corners[i].node.links);
+        avoid_link_block_free((avoid_link_block *)sl->corners[i].node.links);
     for (i = 0; i < sl->num_segs; i++) {
         w = sl->segs[i].wall;
         if (w) {
@@ -1424,7 +1424,7 @@ fail:
         c->node.num_links = 0;
         c->node.layer = (short)layer;
         c->node.flags = PFN_SKIP_DOOR_LISTS;
-        c->node.links = (pf_vis_node **)avoid_seg_alloc();
+        c->node.links = (pf_vis_node **)avoid_link_block_alloc();
     }
     if (link) {
         timer_get(1000);

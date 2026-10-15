@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 244 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 270 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 5 | 54 | 2 |
-| Gameplay | 33 | 18 | 3 |
-| Cosmetic | 41 | 19 | 2 |
-| Invisible | 31 | 43 | 0 |
+| Crash or hang | 5 | 57 | 2 |
+| Gameplay | 45 | 20 | 3 |
+| Cosmetic | 44 | 20 | 2 |
+| Invisible | 34 | 45 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -97,6 +97,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C230 | Latent: a monster or party member that has a cast-at-target order waiting behind another order crashes the game when that order's target no longer exists while a level cutscene script runs | `ai_goal_evaluate` `0x475830` | **Observed** code, *inferred* crash | No |
 | C231 | Latent: a door with five or more navigation edges loses its fifth edge when the level's door floor points are restored, and one with 36 or more overwrites the return address of `door_find_floor_point` (a crash) | `door_find_floor_point` `0x476ab0` | **Observed** code, *inferred* effect; retail navigation data not counted | No |
 | C232 | Latent: the game camera crashes if it is ever left without a target, or if its target is set to none while it has one | `camera_frame` `0x478990`, `camera_set_target` `0x478ff0` | **Observed** code, *inferred* crash; no retail path found | No |
+| C220 | Latent: three script editor actions crash the game: adding an action that takes a navpoint while the Cutscene Script button is latched and the cutscene script has no navpoints; choosing the Die action for a character type without a death move; and Save while the Cutscene Script button is still latched after the cutscene script was unloaded | `script_make_filename` `0x4e8cf0`, `script_editor_apply_action_params` `0x4e84b0`, `script_editor_show_script_dialog` `0x4e6fe0` | **Observed** code, *inferred* crash | No |
+| C221 | Latent: the script editor's Save hangs (and fills the disk with one repeated line) when the level table has no line that is exactly `#Ambient Sounds`, or when `level_items.tbl` has neither the level's own `#Level:` line nor `#End` | `script_write_level_table` `0x4ea1e0`, `level_items_write_table` `0x4ea500` | **Observed** code and retail data, *inferred* hang | No |
+| C222 | Latent: in the script editor's Camera mode, New adds a `$camera` navpoint with no check against the 750-entry navpoint table; the 751st overwrites the memory after it | `script_editor_delete_navpoint` `0x4e6a30` (adds, despite the name) | **Observed** code, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -610,6 +613,35 @@ passes `NULL + 0x10` to `distance` (`0x479013`..`0x47901d`). All 21 callers pass
 from a release path, or a saved target, and `camera_frame` runs only in the game state (`player_input_frame`
 `0x4344a6`). So we know no case with no target. *Inferred:* a crash if one happens.
 
+**C220. Three unchecked pointers in the editor.** `script_make_filename` picks the navpoint a new action starts
+with. With the Cutscene Script button latched and no cutscene navpoints it falls back to a loop over the level
+navpoints that tests `[0x28]`, a field read through a pointer that is still NULL (`mov ecx, dword ptr [0x28]` at
+`0x4e8d34`): an access violation whenever the level has any navpoint. (In level-script mode with no level navpoint at
+all it returns `&navpoints[-1]`, `0x4e8d43`..`0x4e8d4f`; every retail level has navpoints.) For the Die action
+(`script_editor_action_list_kind` 9) `script_editor_apply_action_params` ignores the list choice and calls
+`charinfo_find_move(info, 6, 0x22)` again, then reads `+0x8` of the result with no NULL test (`0x4e87ad`..`0x4e87b2`);
+the action window offers the category-8 moves exactly when that move is missing (`script_editor_fill_action_lists`).
+`script_editor_show_script_dialog` copies `cutscene_script_name` and writes 0 through `strstr(name,
+"_cscript.tbl")` (`0x4e7025`..`0x4e7032`). The name is empty after `cutscene_script_unload` (`0x4ed51d`), and the
+Cutscene Script button's second action (event `0xf`) unloads the script and only hides the button
+(`script_editor_cutscene_button_cb` `0x4e7931`..`0x4e7936`, `script_editor_sync_cutscene_button` `0x4e28f0`); it
+stays latched, so Save writes through NULL. Retail cutscene script names all end in lower-case `_cscript.tbl`.
+
+**C221. Copy loops that ignore end of file.** `script_write_level_table` copies the old level table line by line
+until a line equals `#Ambient Sounds` (`0x4ea269`..`0x4ea2c9`) and never looks at `TextFile__ReadLine`'s result.
+At the end of the file `ReadLine` returns 0 without touching the buffer (`0x516017`..`0x516020`), so the last line
+is written to the temp file again and again. `level_items_write_table` does the same until a line starts with
+`#End` or equals `#Level: "<level>"` (`0x4ea5b2`..`0x4ea63a`). `ReadLine` also fails without advancing on a line of
+0x200 characters or more (`0x51603d`..`0x516047`), and it ends a line only at CR, so a table saved with bare LF
+line ends reads as one line. All 49 retail level tables have the exact line and CRLF ends, and `level_items.tbl`
+ends with `#End`; a hand-edited table can trigger it.
+
+**C222. No limit for camera navpoints.** The function that sum.symbols calls `script_editor_delete_navpoint` is what
+New runs in Camera mode (`script_editor_on_new` `0x4e6a14`). It takes `&navpoints[navpoint_count++]` and fills it
+from `camera_view_pos` (`0x4e6a30`..`0x4e6a76`) without the `MAX_NAVPOINTS` compare that
+`script_editor_add_navpoint` makes for level and ambient navpoints ("Limit reached - can't add any more level
+navpoints").
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -665,6 +697,20 @@ from a release path, or a saved target, and `camera_frame` runs only in the game
 | G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code and retail data, *inferred* effect | No |
 | G216 | The Tiger Rider's choice among several heroes it sees uses only the last hero's threat as the common base of the weights, not the sum, so it leans harder toward the heroes that hurt it than the other boss pickers do | `tiger_pick_target` `0x49b0a0` | **Observed** code, *inferred* effect | No |
 | G230 | Latent: when all five goal slots of a character are in use, a new order whose priority is not above the lowest one is not stored but overwrites that order's target, point, spell or radius, so the character can attack, follow or walk to the wrong place | `ai_goal_alloc` `0x476020`, `ai_goal_add` `0x476190` | **Observed** code, *inferred* effect | No |
+| G220 | Latent: the script editor's Save writes a character's actions without its `$Name:` record when the character starts on a navpoint of the other kind (a camera, ambient or cutscene navpoint in a level script; a camera or ambient one in a cutscene script); on the next load those actions belong to the character before it in the file | `script_write_objects` `0x4e9ce0` | **Observed** code, *inferred* effect | No |
+| G221 | After an ambient sound edit, the script editor's Save rewrites the level table, which all script variants of the level share, with only the ambients whose navpoints are in the script being edited: saved from a variant such as `sewer_v2`, `masad_v2`, `Wolong2_v2`, `LPalaceInt_v2` or `TempleInt_v2` it deletes every ambient sound of the level, and from a base script it drops the 8 retail `$Ambient:` lines that no script defines | `script_write_level_table` `0x4ea1e0` | **Observed** code and retail data | No |
+| G222 | In a level whose `level_items.tbl` section serves more than one script (`sewer`, `IonaExt02`, `LPalaceInt`, `Wolong2`, `Rand-Iceland01`, `Rand-OreniaNite01`), the script editor's Save can write the other scripts' level items a second time, under a navpoint of the current level | `level_items_write_table` `0x4ea500`, `level_items_parse_table` `0x4cb430` | **Observed** code and retail data, *inferred* trigger | No |
+| G223 | Deleting a navpoint in the script editor shifts the later navpoints down but leaves level items, cutscene script actions and dead characters pointing at the old slots, so Save names the neighbouring navpoint for them; the "in use" check does not look at any of the three | `script_editor_on_delete` `0x4e6ad0`, `script_replace_navpoint_references` `0x4e6f10`, `script_editor_navpoint_in_use` `0x4e6d90` | **Observed** code, *inferred* effect | No |
+| G224 | In the script editor, deleting the last action of a character's cutscene script drops the last level script record instead, so Save writes that character without its level-script actions | `script_editor_show_action_params` `0x4e7cd0` (deletes the action, despite the name) | **Observed** code, *inferred* effect | No |
+| G225 | In the script editor, removing a level item leaves the indices of the later level items stale, so editing another navpoint's item afterwards changes the wrong record (or reads past the list) | `script_editor_level_item_ok` `0x4ecbe0` | **Observed** code, *inferred* effect | No |
+| G226 | The script editor's creature window sets every skill except skill 2 to 100 on OK, whatever the level, and with level 0 ("party leader's level") sets the creature's base HP and AP to 0 | `script_editor_creature_ok` `0x4ec730` | **Observed** code, *inferred* effect | No |
+| G227 | The script editor's Save drops every `+Prop:` line (the item a scripted character holds): 18 lines in 7 retail scripts (`sewer`, `IonaEXT`, `lenele2aa`, `lenele2aa_m1`, `Rand-grassland01_v3`, `_v4`, `_v5`) | `script_write_objects` `0x4e9ce0`, `script_parse_objects` `0x4dba30` | **Observed** code and retail data | No |
+| G228 | In multiplayer, Pyrul's wall of fire is always followed by a meteor storm | `pyrul_fire_attack` `0x4b9670` | **Observed** code and data, *inferred* effect | No |
+| G229 | An AI healer (party Healer / Healer-Caster members and enemy healers) casts a support spell only with a chance equal to the largest single share of the scores, and prefers the first candidates in its list | `ai_choose_support_spell` `0x4bea80` | **Observed** code, *inferred* effect | No |
+| G240 | Wraiths choose the target of Life Drain from scores that still hold the previous spell test's values, which pushes the choice towards the first candidates | `ai_consider_life_drain` `0x4bf5a0` | **Observed** code, *inferred* effect | No |
+| G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code, *inferred* effect | No |
+| G242 | When a straight move crosses more than one layer-transition edge, the game takes the crossing nearest in x only, which can put a path, a walk test or a scripted avoid spline on the wrong floor layer | `pf_first_edge_crossing` `0x4a53d0` | **Observed** code, *inferred* effect | No |
+| G243 | Latent: when a new avoidance obstacle that merges two or three avoidance polygons cannot be clipped against the walls, all but the first merged polygon keep their corners switched off, so paths no longer go around those areas until they are rebuilt | `avoid_create_obstacle_polys` `0x4a9440` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1110,6 +1156,116 @@ Attack, travel and cast orders first remove the old goals of their own kind (`0x
 slot. So the five slots must hold other kinds: follow, combat mode, move-to, wander, backstab, sneak or hide. *Inferred:*
 the effect; no retail sequence was confirmed.
 
+**G220. A header that depends on the navpoint type.** In a level script `script_write_objects` writes `$Name:` ...
+`$Start position:` only when the start navpoint has type 0 (`cmp [eax+0x28]; je` at `0x4e9e00`..`0x4e9e05`); in a
+cutscene script only for type 1, and type 0 gives the `+No create` header (`0x4e9e3d`..`0x4e9e47`,
+`0x4e9ff5`..`0x4ea075`). Any other type jumps straight to the action loop (`0x4e9e07`, `0x4e9ff7`), which writes the
+`+Action:` lines when the character has a script object. `script_parse_objects` reads `+Action:` lines with
+`TextFile__Accept` after a record (`0x4dbf8c`), so they join the record before. Creature mode places a character on
+any hovered navpoint (`script_editor_place_creature` `0x4e58a0` tests only "already the start" and "same point"), so
+the trigger is a deliberate placement plus an action.
+
+**G221. Only the current script's ambient navpoints are written back.** The new `#Ambient Sounds` section has one
+`$Ambient:` per navpoint of type 3 in the loaded script that has an emitter at exactly its position
+(`0x4ea2ff`..`0x4ea344`); an emitter of -1 is skipped (`0x4ea359`). Everything else in the old section is replaced.
+`level_parse_ambient` looks a name up in the current script's navpoints and then among the level-file markers
+(`level_marker_find`, `0x4cc0ea`..`0x4cc105`); marker positions are not in the navpoint table. The level table is one
+file per level, but the ambient navpoints are defined per script, and many variant scripts define none of them
+(retail `tables.vpp`: `sewer_v2`/`_v3`/`_m1`/`_m2` 37 of 37 missing, `masad_v2` 37/37, `Wolong2_v2` 38/38,
+`LPalaceInt_v2` 24/24, `TempleInt_v2`/`_v3`/`_m1` 9/9, `lenele1d_v2`/`_v3` 8/8, `lenele1e_v2` and `tancredhouse_v2`/`_v3`
+4/4, `Rand-HillsNite01_v3` 19/36, `lenele1ab_v2`/`_v3` 7/26, `lenele1b_v2`/`_v3` 2/41). Eight names are in no script
+at all (`IkaemosExt` `$torch_15`, `IkaemosBottomInt2` `$ambient015`, `IonaExt` `$ambient001`, `Rand-HillsNite01`
+`$ambient034`..`036`, `TempleInt` `$ambient007`, `$ambient008`): level markers, or names that never resolve. The
+editor writes the table only when an ambient was changed (`script_ambients_dirty`, `script_save_files` `0x4e8e80`).
+If the table has no `#Triggers` text, `TextFile__SkipTo` leaves the cursor after the ambient header (`0x515bcf`),
+and the old `$Ambient:` lines are copied again after the new ones.
+
+**G222. Navpoint pointers that only the current script fills.** `level_items_parse_table` reads the whole level
+section but sets `+0x48` (the navpoint) only for records of the current script (`_stricmp` and `mov [esi+0x48], eax`
+at `0x4cb5dc`..`0x4cb5f8`). `level_items_write_table` first copies the records of the other scripts as they are
+(`0x4ea6ae`), then writes every `level_items` record with a non-NULL `+0x48` (`0x4ea9cd`..`0x4ea9d7`). A record of
+another script keeps the pointer its slot held in an earlier level (an address inside the shared `navpoints` table,
+now a navpoint of this level); `level_items` is never cleared (no other writer of `0x24e3b98`). *Inferred:* after
+playing a level with more level items in the same session, each such record appears twice, the second time on a
+wrong navpoint, and that script variant then spawns the item twice. The retail sections named hold records of two or
+three scripts (`sewer`, `sewer_v2`, `sewer_v3`; `LPalaceInt`, `LPalaceInt_v2`; ...).
+
+**G223. References that the shift does not visit.** Del moves every later record of the table down one slot
+(`0x4e6b63`..`0x4e6bcc` cutscene, `0x4e6c2b`..`0x4e6c96` level) and calls
+`script_replace_navpoint_references(&np[i + 1], &np[i])` for each. That function updates the first live character
+that starts there, the level script actions (`script_objects` only) and the location triggers
+(`0x4e6f10`..`0x4e6f9c`). It does not visit `living_list_inactive` (dead characters), `cutscene_script_objects`
+or `level_items[].navpoint`, and `script_editor_navpoint_in_use` checks the same three things only
+(`0x4e6d93`..`0x4e6ede`). Save writes dead characters (`script_write_level_script` walks the inactive list,
+`0x4e9592`), cutscene actions and level items by navpoint name, so they come out under the next navpoint's name; a
+reference to the deleted navpoint itself moves onto its successor.
+
+**G224. The cutscene record is removed from the level table.** When the deleted action was the last one,
+`script_editor_show_action_params` computes the record's index from `script_objects` (`sub eax, 0x24f6230` at
+`0x4e7d4c`) even when `script_editor_cur_script` is a `cutscene_script_objects` record (`0x2573f68`). That index is
+379 or more, so no record moves, but `script_object_count` still drops by one (`0x4e7d9d`..`0x4e7da8`). The last
+level script record falls out of the table: `script_write_objects` no longer finds it by handle and writes that
+character without actions; the emptied cutscene record stays counted.
+
+**G225. A removal without renumbering.** "No item" or count 0 removes the record with `memmove` and decrements
+`level_item_count` (`0x4eceb8`..`0x4ecee4`); only the selected navpoint's `+0x2c` is set to -1 (`0x4eceee`). Every
+other navpoint's `+0x2c` and every spawned item object's `+0xa0` (set by `level_items_parse_table` `0x4cb6b6` and
+`level_item_spawn`) still hold the old indices. Save itself writes from the records and is right until such a
+later edit. (The "<level>-%.3d" name search in the add path always ends: a clash at index i gives the name for
+i + 1, and that name can only clash again at a different index.)
+
+**G226. A clamp that always fires.** The skill loop multiplies each skill by `level / char_info level` and then
+replaces it with 100 when `v > 0` (`fcomp [0x57eb84]` = 0.0, `test ah, 1; jne` at `0x4ec983`..`0x4ec990`) or when
+`100 > v` (`0x4ec992`..`0x4ec99f`), so every value becomes 100; only index 2 is skipped (`0x4ec963`). The scale uses
+the typed level (`fild [esp+8]` at `0x4ec893`) even when level 0 has just set the creature's level to the leader's,
+so base HP (`+0x5f4`) and base AP (`+0x5fc`) become 0 (`0x4ec8ab`..`0x4ec922`). Save writes only `+Level:` (and
+only for a level above 0), so the reloaded table is not affected; the creature in the running session is.
+
+**G227. A parsed field the writer does not know.** `script_parse_objects` accepts `+Prop:` and equips the named
+item (`0x4dbdbd`..`0x4dbf84`, "Unable to find prop %s for character %s"). `script_write_objects` writes `$Name`,
+`$Character`, `+Monster`/`+Boss`, `+Miniboss`, `+Hidden`, `+Trigger`, `+Team`, `+Level`, `$Start position` and the
+actions, but no `+Prop:` (the whole function, `0x4e9ce0`..`0x4ea1c0`).
+
+**G228. A missing break.** In `pyrul_fire_attack` the wall-of-fire case (move spell `0x1d`, jump table `0x4b99b0`
+slot 0) computes a point 7 ahead and, in multiplayer (`test byte [0x5fbfd8], 2` at `0x4b98b5`), casts spell `0x1d`
+there (`0x4b98be`..`0x4b98da`) and runs on into the next case body, which casts spell `0x1c` ("meteor storm") with no
+position and the boss's layer (`0x4b98dd`..`0x4b98f6`; that body is the case of spell `0x4f`, "Pyrul meteor storm"). The
+single-player branch places the ground effect and returns (`0x4b9902`). Pyrul's level `KhosaniLab2` is in the
+multiplayer level list (`level_table` entry `0x59ff18`, flags `0x801`, bit 0 = multiplayer, `init_level_table`).
+
+**G229. A pick against single shares.** `ai_score_support_targets` stores each candidate's own score and returns the
+sum (`0x4bea45`..`0x4bea58`). `ai_choose_support_spell` divides each score by the sum (`0x4beb0d`..`0x4beb26`) and
+then takes the first candidate whose share is at least one random number (`frand`, `test ah, 0x41; jne` at
+`0x4beb3d`..`0x4beb62`), instead of comparing with the running sum. With two equal candidates it casts half of the
+time, with three a third, and a lone candidate always. `ai_consider_blind_or_silence` in the same unit builds the
+running sum correctly. Callers: `ai_group_think_caster` (`0x4937f7`) and `ai_combat_cast_frame` (`0x4bfce2`).
+
+**G240. Scores that are added to, not set.** `ai_consider_life_drain` (Wraith, species `0xb9`) adds the running
+total to each record's `+0x08` (`fld st(0); fadd [eax+8]; fstp [eax+8]` at `0x4bf66f`..`0x4bf674`) where the other
+tests first store 0 (`ai_consider_blind_or_silence` `0x4beee9`). `ai_choose_offensive_spell` runs it on the same list
+after blind/silence, the two area spells, power leech and death (`0x4bf854`..`0x4bf916`), whose normalised values are
+still in `+0x08`.
+
+**G241. Distances that are never written.** For a caster that is not a party member, `ai_combat_cast_frame` builds
+the offensive candidates from `cur_character`'s group and stores only the character (`mov [ebp], eax`,
+`0x4bfda4`..`0x4bfdde`); the healer branch above stores a distance at `+0x04` as well (`0x4bfc6d`..`0x4bfc7d`).
+`ai_consider_area_spell` counts the candidates whose `+0x04` is below the spell's range and needs two
+(`0x4bf019`..`0x4bf040`); it is called for spells `0x1c` (meteor storm) and `0x1e` (inferno) (`0x4bf862`..`0x4bf87c`)
+and only for non-party casters (`0x4befe6`). The values are whatever the stack frame held, or an enemy healer's
+distances to its own allies.
+
+**G242. x twice.** `pf_first_edge_crossing` keeps the crossing with the smallest "squared distance" from the
+segment start, computed as `dx * dx + dx * dx` (`fsub [esp+0x14]; fst [esp+0x38]; fld st(0); fmulp; fld [esp+0x38];
+fmul [esp+0x38]; faddp` at `0x4a5447`..`0x4a5462`): the z term is the x term again. Callers: `pf_trace_edge_crossings`,
+`pf_straight_walk_clear`, `pf_mark_nodes_visible_from_point`, `ai_probe_move_for_walls`, `script_build_avoid_spline`.
+Only crossings out of the given layer count (`0x4a5441`), so it matters where a move leaves a layer over two edges.
+
+**G243. Flags set for all, cleared for one.** Before clipping the merged polygon, `avoid_create_obstacle_polys` sets
+flag 8 (`AVOID_SEGLIST_OFF`) on the segment list of every merged polygon (`or ecx, edi` with `edi` = 8,
+`0x4a9a29`..`0x4a9a6c`). When `avoid_clip_segments` fails it prints "create_obstacle_poly_from_avoid_poly failed" and
+clears the flag only on the first one (`and dword ptr [8*eax + 0x2460db4], -9` at `0x4a9b16`). We know of no
+retail geometry that makes the clip fail.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1174,6 +1330,10 @@ the effect; no retail sequence was confirmed.
 | K213 | Latent: the Serpent's illusion, if it ever ran, would leave the second copy visible and active while the first one vanishes; in v1.40 nothing starts the illusion | `serpent_illusion_start` `0x496ba0`, `serpent_ai_frame` `0x4973e0` | **Observed** code, *inferred* effect | No |
 | K230 | Latent: in multiplayer, monsters that a `load_mlayout` monster layout creates on the other machines get a broken orientation (their up row is a copy of their right row), until the first position update turns them by heading. No console in v1.40: only a patch or a `.vcs` script can run it | `matrix3_pack_orientation` `0x475380` | **Observed** code, *inferred* effect | No |
 | K231 | Latent: an overshooting step of the camera's height smoothing moves the camera away from the floor height instead of onto it; it cannot happen because the frame time is capped at 0.25 s | `camera_smooth_height` `0x478700` | **Observed** code and constants | No |
+| K220 | The script editor's door window shows the door sounds' range, volume and roll-off as 0.0 (or garbage), and OK writes those values back, so editing any door with sounds silences them, also in the saved `_script.tbl` | `script_editor_list_door_sounds` `0x4e53a0`, `script_editor_door_ok` `0x4ec270` | **Observed** code, *inferred* values | No |
+| K221 | In the script editor, while a level object is selected, the white hover marker of a character or navpoint is drawn as a box from the wrong fields | `script_editor_frame` `0x4e01f0` | **Observed** code, *inferred* effect | No |
+| K222 | In the script editor's door window, Enter in the sound name box takes the focus from the key item box instead of leaving the sound box | `script_editor_door_sound_inputbox_cb` `0x4ebb20` | **Observed** code | No |
+| K223 | Latent: a Pyrul model without a `$missile01` tag would fire his missiles from bone -1 (memory before the bone array) instead of from his own frame | `pyrul_get_missile_origin` `0x4b95f0` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1684,6 +1844,25 @@ the wanted height as before. It snaps only once within 0.001 (`0x581938`). The o
 The only writer that raises it, `frametime_unlimit` (`0x501750`, 10 s), has no caller. At exactly 0.25 the step equals
 the difference and is not replaced. So retail never runs the `fchs`.
 
+**K220. Bytes printed as doubles.** The six sound parameters are bytes (`+0x68`..`+0x6a`, `+0x74`..`+0x76`); the
+function pushes each as one dword and formats it with `"%.1f"` (`mov dl, [esi+0x69]; push edx; push 0x5a0c48` at
+`0x4e5539`..`0x4e5543`, and five more to `0x4e565e`). `sprintf` reads 8 bytes, the byte and the caller's saved `edi`
+above it, which as a double is almost always a tiny number shown as "0.0". `script_editor_door_ok` stores
+`(int)atof(min)`, `(int)(atof(volume) * 255)` and `(int)atof(rolloff)` back into the bytes
+(`0x4ec33c`..`0x4ec384`, `0x4ec42a`..`0x4ec472`), and Save writes them into `+Open sound:` / `+Close sound:`.
+(Volume is kept as 0-255, so even a correct "%d" would need the /255 that the script writer applies.)
+
+**K221. The selection's kind decides the hover's shape.** The hover block tests `script_editor_sel_kind == 4`
+(`0x4e035d`..`0x4e0367`) and then reads the HOVER object as a level object (`+0x50`..`+0x60` bounds, `0x4e0372`..);
+for a hovered character or navpoint those offsets hold other fields.
+
+**K222. The wrong gadget.** On Enter (`cmp eax, 0x1c` at `0x4ebc60`) the handler calls `ui_gadget__clear_focus` on
+`script_editor_door_key_inputbox` (`0x2559688`, `0x4ebc65`..`0x4ebc6a`), not on its own box `0x25490d8`.
+
+**K223. A missing else.** With `pyrul_missile_bone` (`0x247fd34`) at -1 the function copies the boss's frame into
+the outputs and then still calls `character_instance__get_bone_world_transform` with bone -1, which overwrites them
+(`0x4b95fd`..`0x4b9665`). `pyrul_boss_load` looks the tag up once; the retail `Pyrul.vim` has it.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1762,6 +1941,11 @@ the difference and is not replaced. So retail never runs the `fchs`.
 | V213 | Nothing known: unloading the Tiger Rider frees its axe without clearing `tiger_axe`, and every Tiger load makes a new axe without freeing the one not yet handed over | `tiger_unload` `0x49ae90`, `tiger_equip_weapon` `0x49a2c0` | **Observed** code, *inferred* effect | No |
 | V214 | Nothing: the Serpent's first load clears its "rider seated" flag right after setting it; the nested loads of its two copies set it again | `serpent_boss_load` `0x495960` | **Observed** code | No |
 | V230 | Latent: with all five goal slots kept (flag `0x1`), a new goal of the party leader sets bit `0x100` in `ai_state +0x5c`, the z of the travel point (`goals[-1].flags`) | `ai_goal_alloc` `0x476020` | **Observed** code |
+| V220 | When every attack point of a target is taken, an approaching AI character stores its handle into the target's fifth attacker-slot timer (`attack_point_users[-1]`) | `ai_approach_target_point` `0x4bcff0` | **Observed** code | No |
+| V221 | Deleting a navpoint in the script editor copies the record after the last one into the last slot before the count drops; with a full table that reads past `navpoints[]` | `script_editor_on_delete` `0x4e6ad0` | **Observed** code | No |
+| V222 | Each OK in the script editor's ambient window with a new sound or new parameters takes a further `sounds[]` slot (640 in all) and never releases the old one | `script_editor_ambient_ok` `0x4eb3d0` | **Observed** code, *inferred* effect | No |
+| V223 | Latent: for two segments that share an end point (the first segment's end equal to the second's start), the segment test reports the far end of the second segment as the meeting point; only the cell-crossing search uses that point | `seg2d_segment_intersect` `0x4a5750` | **Observed** code | No |
+| V224 | Latent: two avoidance helpers read the segment before a list's first segment (the list header) when a corner is on no segment, or when the previous segment does not end at the corner | `avoid_seglist_ensure_corner_offset` `0x4a82a0`, `avoid_merge_shared_segments` `0x4a8b80` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2272,6 +2456,35 @@ flag again (1 outside `Liangshan` / `Jadetemple`). So the flag is right by the t
 (`ai_think_party_update` flags 1, `script_action_follow` flags `0x21`) and caller-chosen travel and move-to flags set
 `0x1`. Five kept goals at once are not known to happen.
 
+**V220. Index -1 used as a slot.** `ai_approach_target_point` starts with index -1 (`0x4bd008`) and keeps it when no
+attack point is free (or the boss stage disables them, `0x4bd054`..`0x4bd150`). It stores the index at
+`ai_state +0x7c` (`0x4bd162`), paths to the target's own position, and on success writes the handle to
+`[target + 4*index + 0x4fc]` (`0x4bd279`..`0x4bd285`): with -1 that is target `+0x4f8` = `ai_state +0x1d4`, the
+GameTimer of `attackers[4]` (`ai_state +0x1b0`, 8 bytes each). *Inferred:* that slot's remaining time is garbage until
+it is claimed again; `ai_claim_attack_slot` compares remaining times when it takes a slot over.
+
+**V221. One past the end.** The move loops run while `i < count` and copy `[i + 1]` into `[i]`
+(`cmp ebp, eax; jl` at `0x4e6bca`, `0x4e6c27`..`0x4e6c96`), so the last pass copies `navpoints[count]` and calls
+`script_replace_navpoint_references` for it; the slot is dropped by the decrement. With 750 level navpoints the
+read is the 0x30 bytes after the table.
+
+**V222. Emitters freed, sounds kept.** OK removes the old ambient (`level_ambient_remove`, which only deletes the
+emitter, `0x4cd2d8`) and calls `snd_get_handle` for the new one (`0x4eb4ad`). `snd_get_handle` reuses a slot only for
+the same name and parameters (`0x52082d`..`0x52086b`) and otherwise takes the first free one of 640
+(`0x520818`..`0x520884`); nothing releases the old slot. *Inferred:* only many edits in one level matter.
+
+**V223. The wrong end.** For `a->b == b->a` the function writes `b->b` (`mov edx, [edi]` with `edi` = `b->b`,
+`0x4a57b0`..`0x4a57dd`) and returns 3. `pf_first_edge_crossing`, `pf_segment_hits_walls`, `segments_intersect_xz`,
+`ai_find_nearest_wall_hit` and `do_single_vis_check` only use results 1 or 4 or none; `pf_find_cell_crossing` uses the
+point for any positive result (`test eax, eax; jle` at `0x49edb5`). It needs two exactly equal floats.
+
+**V224. Unguarded lookups.** `avoid_seglist_ensure_corner_offset` searches the list's segments for the corner and,
+with no second segment, reads `segs[first].wall` (`lea ecx, [ecx + 4*ecx]; mov edx, [edx + 4*ecx + 0x1c]` at
+`0x4a8306`..`0x4a8309`) also when `first` is still -1 (`or ecx, -1` at `0x4a82cb`). `avoid_merge_shared_segments`
+takes `segs[index - 1]` as the segment before a reference and falls back to `segs[index - 2]` when that one does not
+end at the corner (left branch from `0x4a8c5c`); for index 1 that is `segs[-1]`. The lists are built so that every
+corner lies on a segment; we found no path that breaks it.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2549,6 +2762,15 @@ the tables above; the rest are below.
 - The SRV_REQ "unknown service request type" warning is only formatted into a buffer; `geom_avoid` / `Camera_geometry_avoidance`, `camera_occluders_unk` (`0x22e4acc`) and `camera_set_default_view_params`' values are never used; `zoom_limit`'s texts lack a newline. Dead or debug code, like the entries under "Not counted" on game-bugs.md.
 - `ai_service_request` having no single-player branch (`0x4766fb`..`0x47670e` skips everything outside a multiplayer client): `hud_key_pause`'s request only matters to a multiplayer client; a symbol correction, not counted.
 
+- `script_write_objects` writes `+Trigger:` with its own `"\n"` (format `0x5a1290`, `0x4e9f2f`): an extra empty line in the record; the parser skips blank lines. Not counted.
+- `script_editor_level_item_ok`'s name loop (notes: "possible endless name loop"): a clash at index i always gives the name for i + 1, and only one index can produce a given name, so the search ends after at most `level_item_count` restarts (`0x4ecd47`..`0x4ecdbe`).
+- `script_editor_show_door_lock` reading a NULL record: its only caller adds an `lc_entries` record first when none exists (`lc_entry_exists` / `lc_entry_add`, `script_editor_handle_input`), and `lc_entry_add` has no limit and always returns a record (`0x4cd390`..; its overflow is C113). Not reachable.
+- `script_replace_navpoint_references` updating only the first character that starts at a navpoint: the editor refuses a second start on the same navpoint (`script_editor_place_creature`) and no retail `_script.tbl` gives two objects the same `$Start position`. The real gap is the dead characters (G223).
+- `cmd_ghost_unlink` (first Ghost Rider of the live list, `0x4b9f00`..`0x4b9f2f`) against `ghost_find_rider` (last, `0x4b9fe0`..`0x4ba011`): every retail script that has a Ghost Rider has one (masad, jadetemple, jadetemple_v2, Rand-Forestnite1_v2), only "Ghost Rider" has species `0x5a`, and the console commands cannot be typed in v1.40.
+- `obstacles_debug_render`'s offset-line mode draws the second corner's offset from the first corner (`fadd [esi + 0x270]` at `0x4a3c7c`): true, but the mode switch `0x245ce08` has no writer (`asm.mjs grep`), so the branch never runs.
+- `ai_consider_blind_or_silence` "inflating every later record" (notes bug 5): the scores there are a running sum (`0x4bef2a`..`0x4bef2f`), so multiplying the total by 1.5 at `cur_character` (`0x4bef16`..`0x4bef24`) widens only that character's own band (by half the total before it); the later bands keep their width of 10. See the unclear list for the intent.
+- `pf_bsp_node_find` looping on a node type other than 1-3 (notes bug 7): already C161.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2678,6 +2900,13 @@ the tables above; the rest are below.
 - C231: the largest number of door edges (`pf_edges` flag `0x2`) per door in the retail levels.
 - G230: how often five goal slots are full in play (move-to and wander orders with different points each add a new goal, since `ai_goal_find` compares the point).
 - K230: whether the host sends an OBJ_UPD for an idle layout monster soon, so how long the broken orientation lasts.
+- `script_write_level_script` counts the inactive characters for the duplicate-name list without the serpent-part test that the fill applies (`0x4e9904`..`0x4e993a` against `0x4e99cf`..`0x4e9a24`), so a dead serpent part with a level start navpoint would leave an unset pointer for `qsort`. The extra parts are made by `serpent_spawn_rider` through `living_entity_create` without a start navpoint (no `+0x34` store in `0x4955e0`..`0x49580b`); whether the constructor leaves `+0x34` at 0 was not traced. Probably unreachable.
+- `ai_combat_cast_frame` reads the target's (`0x4bfc36`) and the own (`0x4bfd43`) AI group pointer of a party member without a NULL test, while the `cur_character` branch tests it (`0x4bfd9b`). Whether a type-7 character can be without a group there (after `party_remove_member` or `ai_group_remove_member`) was not settled.
+- `ai_consider_blind_or_silence`: whether the 1.5 on the running total (`fmul [0x580210]` = 1.5 at `0x4bef24`, weight 10 at `0x57eb7c`) was meant as "the selected character counts 1.5 times". As built, that character's chance grows with its position in the list.
+- `ghost_revive_minions` (called every frame from `boss_ai_check_stage` `0x4a079f`) resurrects every dead, inactive minion and decrements the summon counter `0x24808c8` without testing it (`0x4bbc80`..`0x4bbd45`); the summon gate `< 2` is in `ghost_choose_attack` (`0x4bad95`, `0x4baec1`). If dead minions keep flag `0x80` with `+0x84` bit 0 clear, they come back at once whether or not the Ghost cast a summon, and the counter goes negative. Not checked in game.
+- `avoid_area_remove` returns before `avoid_area_free` when one of the area's obstacles is no longer used (`test cl, 1; je 0x4a9e5c` at `0x4a9e3c`), keeping its slot (14 in all) until `avoid_reset`. `avoid_area_rebuild` frees the rebuilt obstacle itself (`0x4a7d99`) and recreates the others of its polygon; whether a failed rebuild can free another area's obstacle was not traced.
+- Retail play in the variant scripts of G221 (`sewer_v2`, `masad_v2`, `Wolong2_v2`, ...): `level_parse_ambient` finds their level's `$ambientNNN` names in neither the script's navpoints nor (unless the level file has markers of those names) `level_marker_find`, and then skips the line (`0x4cc116`..`0x4cc125`, the "Ambient sound navpoint not found" text is only formatted). If the level files have no such markers, those variants play without ambient sounds. The level `.s3d` marker names were not checked.
+- Save on an install whose tables are only in `tables.vpp` (the retail layout): `File__find` falls back to the packfile when the loose file is missing (`0x51434c`..`0x51435a`), `File__delete` then returns -3 (`0x514aa5`..`0x514ab4`), and the table writers return that error before closing and renaming the temp file (`0x4ea47c`..`0x4ea485`, same in `level_items_write_table`). *Inferred:* Save reports an error for the level table or `level_items.tbl` and leaves `<n>.int` behind (if the folder exists), after the script file was already written.
 
 ## Evidence
 
@@ -2932,3 +3161,29 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K230 orientation packing | `matrix3_pack_orientation` `0x4753f3`..`0x475425`; `matrix3_unpack_orientation` `0x475437`..`0x475517`; `mp_send_new_lep` `0x47fe7f`; `monster_layout_load` `0x44012b`; `mp_handle_new_lep` `0x47ff6d`..`0x47ff88`; `mp_handle_obj_update` `0x480805`..`0x480849` |
 | K231 height sign | `camera_smooth_height` `0x478736`..`0x47879c`; constants `0x580e18` 4.0, `0x581938` 0.001; `frametime_initialize` `0x5014ee`; `frametime_unlimit` `0x501750` (no caller) |
 | V230 goals[-1] | `ai_goal_alloc` `0x47606b`..`0x47606d`, `0x47615f`..`0x476176` |
+| C220 editor NULL pointers | `script_make_filename` `0x4e8d18`..`0x4e8d3c` (`[0x28]` at `0x4e8d34`), `0x4e8d43`..`0x4e8d4f`; `script_editor_apply_action_params` `0x4e878d`..`0x4e87c0`; `script_editor_show_script_dialog` `0x4e6ff3`..`0x4e7032`; `cutscene_script_unload` `0x4ed51d`; `script_editor_cutscene_button_cb` `0x4e7929`..`0x4e7945`; caller `script_create` `0x4e8a38` |
+| C221 copy loops | `script_write_level_table` `0x4ea269`..`0x4ea2c9`; `level_items_write_table` `0x4ea5b2`..`0x4ea63a`; `TextFile__ReadLine` `0x516017`..`0x516047`; retail `tables.vpp`: 49 level tables with `#Ambient Sounds` and CRLF, `level_items.tbl` ends with `#End` |
+| C222 camera navpoints | `script_editor_delete_navpoint` `0x4e6a30`..`0x4e6a76`; only caller `script_editor_on_new` `0x4e6a14` (jump table `0x4e6a20`, mode 2) |
+| G220 orphan actions | `script_write_objects` `0x4e9df4`..`0x4e9e07`, `0x4e9e3d`..`0x4e9e47`, `0x4e9ff5`..`0x4ea075`, `0x4ea0e0`..`0x4ea1b9`; `script_parse_objects` `0x4dbf8c` |
+| G221 shared level table | `script_write_level_table` `0x4ea2ff`..`0x4ea359`, `0x4ea40e`..`0x4ea462`; `level_parse_ambient` `0x4cc0ea`..`0x4cc10f`; `TextFile__SkipTo` `0x515bc1`..`0x515bd3`; retail `tables.vpp`: each level `.tbl`'s `$Ambient:` names against the `$Name:` records of every `<level>_*script.tbl` |
+| G222 stale level item navpoints | `level_items_parse_table` `0x4cb5dc`..`0x4cb5f8`; `level_items_write_table` `0x4ea6ae`, `0x4ea9cd`..`0x4ea9d7`; references to `level_items` (`asm.mjs grep 0x24e3b50`); retail `level_items.tbl` sections with several `$Script:` values |
+| G223 navpoint delete | `script_editor_on_delete` `0x4e6b63`..`0x4e6bcc`, `0x4e6c2b`..`0x4e6c96`; `script_replace_navpoint_references` `0x4e6f10`..`0x4e6f9c`; `script_editor_navpoint_in_use` `0x4e6d93`..`0x4e6ede`; `script_write_level_script` `0x4e9592`..`0x4e95c0` |
+| G224 wrong table | `script_editor_show_action_params` `0x4e7d42`..`0x4e7da8` |
+| G225 stale indices | `script_editor_level_item_ok` `0x4ece78`..`0x4eceee`; `level_items_parse_table` `0x4cb6b6` |
+| G226 creature OK | `script_editor_creature_ok` `0x4ec801`..`0x4ec922`, `0x4ec961`..`0x4ec9b9`; constants `0x57eb84` = 0.0, `0x57e6b4` = 100.0 |
+| G227 `+Prop:` | `script_parse_objects` `0x4dbdbd`..`0x4dbf84`; `script_write_objects` `0x4e9ce0`..`0x4ea1c0` (no `+Prop` string); retail `*_script.tbl` `+Prop:` counts |
+| G228 Pyrul fall-through | `pyrul_fire_attack` jump table `0x4b99b0` / index bytes `0x4b99c4`; `0x4b98b5`..`0x4b98f6`, `0x4b9902`; spells.tbl ids `0x1c` meteor storm, `0x1d` wall of fire, `0x4f` Pyrul meteor storm; `init_level_table` store `0x59ff18` = 27 (KhosaniLab2), flags `0x801` |
+| G229 support pick | `ai_score_support_targets` `0x4bea45`..`0x4bea58`; `ai_choose_support_spell` `0x4beb0d`..`0x4beb62`; callers `0x4937f7`, `0x4bfce2` |
+| G240 life drain scores | `ai_consider_life_drain` `0x4bf631`..`0x4bf684`; `ai_choose_offensive_spell` `0x4bf854`..`0x4bf916`; species `0xb9` Wraith (`species_table` entry 181) |
+| G241 area spell distances | `ai_combat_cast_frame` `0x4bfc6d`..`0x4bfc7d`, `0x4bfd8c`..`0x4bfdde`; `ai_consider_area_spell` `0x4befe6`, `0x4bf019`..`0x4bf040`; calls `0x4bf862`..`0x4bf87c` |
+| G242 x twice | `pf_first_edge_crossing` `0x4a5441`..`0x4a5462`; callers `0x49f0a6`, `0x4a5516`, `0x4a562c`, `0x4b1964`, `0x4dde71` |
+| G243 seglist flags | `avoid_create_obstacle_polys` `0x4a9a29`..`0x4a9a6c`, `0x4a9ae5`..`0x4a9b16` |
+| K220 door parameters | `script_editor_list_door_sounds` `0x4e5539`..`0x4e565e`; `script_editor_door_ok` `0x4ec33c`..`0x4ec384`, `0x4ec42a`..`0x4ec472` |
+| K221 hover marker | `script_editor_frame` `0x4e035d`..`0x4e0383` |
+| K222 door Enter | `script_editor_door_sound_inputbox_cb` `0x4ebc60`..`0x4ebc6a` |
+| K223 missile bone | `pyrul_get_missile_origin` `0x4b95f0`..`0x4b9665`; `$missile01` in retail `Pyrul.vim` |
+| V220 attack point -1 | `ai_approach_target_point` `0x4bd008`, `0x4bd054`..`0x4bd162`, `0x4bd279`..`0x4bd285` |
+| V221 one past | `script_editor_on_delete` `0x4e6b5f`..`0x4e6bcc`, `0x4e6c27`..`0x4e6c96` |
+| V222 sound slots | `script_editor_ambient_ok` `0x4eb480`..`0x4eb4c5`; `level_ambient_remove` `0x4cd2d8`; `snd_get_handle` `0x520818`..`0x520884` |
+| V223 shared end point | `seg2d_segment_intersect` `0x4a57b0`..`0x4a57e6`; `pf_find_cell_crossing` `0x49edb5`; other callers `0x4a527d`, `0x4a55dc`, `0x4b16fe`, `0x4b182c`, `0x4b8328` |
+| V224 segs[-1] | `avoid_seglist_ensure_corner_offset` `0x4a82c7`..`0x4a8309`; `avoid_merge_shared_segments` `0x4a8c5c`..`0x4a8cef` |

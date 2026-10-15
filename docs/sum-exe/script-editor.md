@@ -84,7 +84,8 @@ likely removed from the shipping build or never compiled in (*inferred*).
 - **SummonerFix key (tested).** Set `[Debug] ScriptEditorKey=F12` (any key name) in
   `summonerfix.ini`. During gameplay the key toggles bit `0x80` on the game thread
   (`src/summonerfix/keys.c`). **Back up the game first:** the editor's Save button writes loose
-  `.tbl` files into `data\scripts` and `data\tables`.
+  `.tbl` files into `data\scripts` and `data\tables`, and several editor actions write wrong data into them; see
+  [What Save can break](#what-save-can-break).
 - **Memory edit after reaching the game (tested).** Set bit `0x80` of the byte at `0x5fbfd8` with a
   debugger or a memory editor while a level is loaded. `state_game_enter` (mask `0xfffbffff`),
   `state_game_leave` (mask `0xfffbfcff`) and `state_game_frame` keep the bit, so it survives
@@ -115,7 +116,7 @@ from the file):
 |---|---|---|
 | 0 | Creature | select or place a creature on a navpoint (`script_editor_place_creature`) |
 | 1 | Navpoint | add `$npc%.3d` level or `$cut%.3d` cutscene navpoints (`script_editor_add_navpoint`) |
-| 2 | Camera | *unknown* |
+| 2 | Camera | New adds a `$camera%.3d` navpoint at the camera's eye, heading 0, no layer (`0x4e6a30`, the function sum.symbols calls `script_editor_add_camera_navpoint`; no limit check, see [Bugs](game-bugs.md)) |
 | 3 | Ambient sound | add or edit an emitter (`$ambient%.3d`, ambient window) |
 | 4 | Door | open the door window for the picked door (`door_from_lobj`) |
 | 5 | Click object | mark an object clickable (`lc_entry_add`); arrows drawn for every `lc_entries` record (**observed** in `script_editor_frame`) |
@@ -129,8 +130,8 @@ Hotkeys are DirectInput scan codes passed to `ui_gadget__set_hotkey` (**observed
 |---|---|---|---|
 | mode name | `0x4e68e0` | | opens the mode list |
 | Pos / Ori / Y | `script_editor_on_pos_ori` (`0x4e6930`) | Q / W / E | latches one drag mode: move, rotate, height (*inferred*) |
-| New | `script_editor_on_new` (`0x4e69a0`) | Insert, C | opens `script_editor_new_window` (creature or object list) |
-| Del | `script_editor_on_delete` (`0x4e6ad0`) | Delete, D | deletes the selection; refuses players and navpoints in use |
+| New | `script_editor_on_new` (`0x4e69a0`) | Insert, C | Creature mode: opens `script_editor_new_window` (the character list), then latches New for a click on a navpoint; Navpoint and Ambient sound modes: latches New; Camera mode: adds a `$camera` navpoint at once |
+| Del | `script_editor_on_delete` (`0x4e6ad0`) | Delete, D | deletes the selection; refuses players and navpoints in use (live characters' starts, level script actions, location triggers only) |
 | Save | `0x4e6fa0` | Ctrl+S | pauses, `script_editor_show_script_dialog`, opens the save window |
 | Load | `script_editor_on_load` (`0x4e70e0`) | Ctrl+L | pauses, lists scripts, opens the load window |
 | Pause | `script_editor_on_pause` (`0x4e7340`) | Space | toggles `game_pause` |
@@ -161,7 +162,7 @@ and Shift+Down), Change (`0x4e8000`) and Edit (`script_editor_edit_button_cb`, `
 | load | `0x254f208` | name box, script list, Level scripts / Cutscene scripts radios, Load |
 | ambient sound | `0x254a8d8` | `.wav` list from `data\sounds\ambient`, Min range, Volume, Roll-off, Loop Delay; OK `script_editor_ambient_ok` (`0x4eb3d0`) |
 | door | `0x25629c8` | Opening / Closing sound lists from `data\sounds\Doors`, ranges, "Originally locked", "Pick skill modifier:", key item; OK `script_editor_door_ok` (`0x4ec270`) |
-| door lock | `0x254b1f0` | item box and list, "Give item", count, OK / Remove |
+| door lock | `0x254b1f0` | clickable object (Click object mode): message text box, a "Give item" check box with a list and a count box, OK / Remove; OK (`script_editor_door_lock_ok_cb`, `0x4ec570`) stores the text (`+Messagebox:`) and the count as gold (`+Give:`), not an item (the list choice is not stored) |
 | creature | `0x256b250` | Team radios (Friendly, Neutral, Hostile, Evil), Level; OK `script_editor_creature_ok` (`0x4ec730`) |
 | level item | `0x2564540` | item name, list, Count; OK `script_editor_level_item_ok` (`0x4ecbe0`) |
 
@@ -169,7 +170,7 @@ and Shift+Down), Change (`0x4e8000`) and Edit (`script_editor_edit_button_cb`, `
 
 | Data | Address | Editor functions |
 |---|---|---|
-| level navpoints (750 x 0x30) | `navpoints` `0x24e4950`, count `0x2539f2c` | `script_editor_add_navpoint`, `script_editor_delete_navpoint`, `script_replace_navpoint_references` |
+| level navpoints (750 x 0x30) | `navpoints` `0x24e4950`, count `0x2539f2c` | `script_editor_add_navpoint`, `script_editor_add_camera_navpoint`, `script_replace_navpoint_references` |
 | cutscene navpoints | `cutscene_navpoints` `0x256b750` | same, with `$cut` names |
 | script objects and their actions | `script_objects` `0x24f6230` (0x550 bytes each) | `script_create` (`0x4e88a0`), `script_editor_apply_action_params` (`0x4e84b0`) |
 | script strings | `level_script_stringpool` `0x2539f18`, `cutscene_script_stringpool` `0x2571750` | `script_editor_store_string` (`0x4e4890`) |
@@ -179,7 +180,7 @@ and Shift+Down), Change (`0x4e8000`) and Edit (`script_editor_edit_button_cb`, `
 
 The action types and their per-type parameter labels ("Time:", "dist from nav:", "Walk?",
 "Label id", "Goto id", "NPC to follow", "synch_point") come from
-`script_editor_show_action_params` (`0x4e7cd0`). They match the runtime actions run by
+`script_editor_delete_selected_action` (`0x4e7cd0`). They match the runtime actions run by
 `script_entry_check_done` (`0x4dd780`); see [Level scripts](level-scripts.md) (*inferred*).
 
 ## Saving and loading
@@ -189,11 +190,14 @@ Save Ok (`script_editor_save_ok_cb`, `0x4eaf00`) calls `script_save_files` (`0x4
 
 | File | Folder | Written by | Sections |
 |---|---|---|---|
-| `<level>_script.tbl`, or `<name>_cscript.tbl` for a cutscene script | `data\scripts` (*inferred* from `path_scripts`) | `script_write_level_script` (`0x4e9310`) with `script_write_navpoint` and `script_write_objects` | `$Level:`, `#Town`, `#Navpoints`, `#Objects`, `#Doors`, `#Clicks`, `#End` |
-| `<level>.tbl` | `data\tables\levels` | `script_write_level_table` (`0x4ea1e0`), which reads the old file and replaces two sections | `#Ambient Sounds`, `#Triggers` |
-| `level_items.tbl` | `data\tables` | `level_items_write_table` (`0x4ea500`) | `#Level:`, `$Item:`, `$Navpoint:`, `+Count:`, `+Event:` |
+| `<level>_script.tbl`, or `<name>_cscript.tbl` for a cutscene script | `data\scripts` (*inferred* from `path_scripts`) | `script_write_level_script` (`0x4e9310`) with `script_write_navpoint` and `script_write_objects` | `$Level:` (cutscene scripts only), `#Town` (towns only), `#Navpoints`, `#Objects`, then for level scripts `#Doors`, `#Clicks` and a comment listing the level script creatures; `#End` |
+| `<level>.tbl` (only after an ambient sound was changed) | `data\tables\levels` | `script_write_level_table` (`0x4ea1e0`), which copies the old file up to the `#Ambient Sounds` line, writes the ambient sounds of the current script's ambient navpoints and copies the rest from `#Triggers` on | `#Ambient Sounds` |
+| `level_items.tbl` (only after a level item was changed) | `data\tables` | `level_items_write_table` (`0x4ea500`), which copies the other levels' sections and the other scripts' records of this level and writes this level's records again | `#Level:`, `$Name:`, `$Script:`, `$Item:`, `$Navpoint:`, `+Count:`, `+Event:` |
 
-Each writer first makes a `.bak` copy (`File__make_backup`) (**observed**). `script_save` shows
+Only the script file gets a backup: `script_write_level_script` deletes an old `<file>.bak` and renames the
+current file to it (`File__make_backup`, `0x514ae0`, is a `rename`) before it writes the new one. The two table
+writers write a temporary file, delete the old table (`File__delete`) and rename the temporary file over it, so
+the old level table and `level_items.tbl` are not kept (**observed**). `script_save` shows
 "Script \"%s\" saved." on the editor's status line (`script_editor_set_status`, `0x4eacf1`). A read-only
 file, a write error or "Unknown error occurred... Don't panic -- get Niq!" opens an "Error!" box with
 `editor_dialog_show` (`0x4eadad`, `0x4eade4`), and `script_write_objects` opens a "Warning!" box for walk or
@@ -202,13 +206,43 @@ callbacks and window flags `0xb`. The box is a modal `ui_window` (flag `0x20` ad
 10 lines of text; the other button sets (OK/Cancel, Retry/Cancel, Yes/No, Yes/No/Cancel) are never asked
 for. `GameTick` frees closed boxes each frame (`editor_dialogs_free_closed`, `0x431640`) (**observed**).
 `script_write_level_script` also counts names that occur twice ("*** DUPLICATE NAME ***")
-(**observed**). `script_save_files` also formats `"%d.int"` names in the levels and tables
-folders; their purpose is *unknown*. Whether a cutscene script is saved in the same layout that
+(**observed**). The `"%d.int"` names that `script_save_files` formats (the first number not yet used in the
+levels or tables folder) are those temporary files (**observed**). Whether a cutscene script is saved in the same layout that
 `cutscene_script_load` (`0x4ed0f0`) reads (`$Num navpoints:`) is *unknown*.
 
 Load (`script_editor_load_selected_script`, `0x4eb080`) calls `level_script_reload`, or
-`cutscene_set_data_path` and `cutscene_script_load` when the cutscene radio is checked
+`cutscene_set_data_path` and `cutscene_script_load` when the Cutscene scripts radio is checked
 (**observed**).
+
+### What Save can break
+
+{: .warning }
+Save writes what the editor holds in memory, and several slips make that wrong. Keep a copy of `data\scripts` and
+`data\tables` (the tables are not backed up at all). From the disassembly (**observed** code; the in-game effect
+*inferred*); details and addresses in [Bugs](game-bugs.md) (C220-C222, G220-G227, K220):
+
+- **Ambient sounds of the whole level.** The level table is shared by all script variants of a level, but Save
+  writes back only the ambients of the navpoints in the script being edited. Many variant scripts have none
+  (`sewer_v2`, `masad_v2`, `Wolong2_v2`, `LPalaceInt_v2`, `TempleInt_v2` and others), so one ambient edit there
+  deletes every ambient sound of the level; from a base script it still drops names no script defines.
+- **`level_items.tbl`.** In a level whose section serves several scripts (`sewer`, `LPalaceInt`, `Wolong2`,
+  `IonaExt02`, `Rand-Iceland01`, `Rand-OreniaNite01`), items of the other scripts can be written a second time
+  under a navpoint of the current level.
+- **Deleting a navpoint** moves the later navpoints down, but level items, cutscene script actions and dead
+  characters keep pointing at the old slots and are saved under the neighbouring navpoint's name. The "in use"
+  check does not look at them either.
+- **Deleting the last action of a cutscene script** removes the last level script record instead; that character
+  is saved without its level-script actions.
+- **`+Prop:` lines** (a character's held item) are never written, so they disappear from the script.
+- **The door window's OK** stores the sound range, volume and roll-off shown in the window, which the window fills
+  wrongly (usually 0.0): the door's sounds go silent, also in the saved script.
+- **A character on a navpoint of the other kind** (a camera or ambient navpoint, or a cutscene navpoint in a level
+  script) is saved as bare `+Action:` lines, which the next load gives to the character before it.
+- **A hang:** a level table without a line that is exactly `#Ambient Sounds`, or a `level_items.tbl` with neither
+  this level's `#Level:` line nor `#End`, makes Save loop forever while the temporary file grows.
+- **A crash:** Save while the Cutscene Script button is still latched after the cutscene script was unloaded.
+- On an install whose tables exist only in `tables.vpp`, `File__delete` refuses the packed file (-3), so Save stops
+  with an error after the script file is written and leaves the `<n>.int` file behind (*inferred*).
 
 ## How gadget callbacks are wired
 

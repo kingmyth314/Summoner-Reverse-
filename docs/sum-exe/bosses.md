@@ -274,8 +274,10 @@ Notes, all **observed** unless marked:
   `0x49ad20`, `ghost_rider_boss_load` `0x4ba260`). The level scripts take them off their mounts
   (`*_set_solo`): `ls_liangshan_init` for the Serpent and Phoenix Riders, `ls_jadetemple_init` for all four
   in `jadetemple_v2`, and in the first Jade Temple visit only the end of Tiger-Ghost-Intro
-  (`ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0320`). Until that cutscene ends, the Tiger and Ghost Riders
-  are at stage 3 but still mounted.
+  (`ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0320`). Until that cutscene ends, the Tiger Rider is at stage 3
+  but still mounted. The Ghost Rider is not: in `Liangshan` and `Jadetemple` `ghost_rider_boss_load` calls
+  `ghost_setup_anims_unmounted` (`0x4ba2f2`), whose `ghost_setup_anims` releases the mount (`boss_release_mount`,
+  `0x4ba850`), and clears the mounted flag `0x248031b` (`0x4ba2fa`) (**observed**).
   `cutscene_play_escape` (`0x437130`) also forces stage 3 for Tiger-Escape, Serpent-Escape and PHNX-Escape, but only for
   a cutscene started from the console (`play_and_load_cutscene`); see [Cutscenes](cutscenes.md#console-cutscenes-and-pending-playback).
 - **Giant Salamanka** only moves 1 to 2 and 2 to 3, never skips. Each stage also has an 8-byte attack enable
@@ -284,8 +286,10 @@ Notes, all **observed** unless marked:
 - **Luminar** computes its stage inside `luminar_ai_select_action` (`0x4c9410`), not in the check-stage
   dispatcher. The same HP fraction is written to `level_light_scale` (`0x59c358`), so the level gets darker
   as Luminar loses HP. *Inferred* for the visible effect.
-- Giant Salamanka, Pyrul and Titus at HP 0 go idle and set owner flag 8, but only when
-  `game_flags` bit `0x20` is set. Bit `0x20` means "cutscene running" ([Cutscenes](cutscenes.md)), so
+- Giant Salamanka, Pyrul and Titus at HP 0 or below (`fcomp` with 0.0, `test ah, 0x41`) go idle and set owner
+  flag 8, once (the test skips a boss that already has flag 8), but only when
+  `game_flags` bit `0x20` is set (`pyrul_check_stage` `0x4b8c9b`..`0x4b8cd5`, `titus_check_stage` `0x4c25d4`..,
+  `giant_salamanka_check_stage` `0x4c8670`..`0x4c869f`). Bit `0x20` means "cutscene running" ([Cutscenes](cutscenes.md)), so
   this is the death pose kept while the boss's Death cutscene plays. *Inferred* for the purpose.
 - Bosses without HP stages: Machival, Evil Urath and Murod only clear their "casting" state when the cast
   move has finished. Murod Oni has no stage check. Evil Joseph's check revives helpers (below).
@@ -301,7 +305,7 @@ Notes, all **observed** unless marked:
 | Illusion copies | Serpent | `serpent_spawn_rider` `0x4955e0`, `serpent_illusion_start` `0x496ba0`, `serpent_part_on_hit` `0x4a28b0` | two extra species-`0x59` type-9 copies, made hidden and inactive. The illusion (sub-modes `0x38` / `0x39`: `Serp-illusion.vfx`, the serpent fades out, all three reappear at points 4 m around it, the copies vanish 8 s later or when hit) never runs in v1.40: `serpent_ai_frame` enters `0x38` only when the pending sub-mode word `0x24523a8` is `0x38`, and the only write stores `0x20` (`0x4965ec`). `serp_boss.tbl` still lists "stage2 illusion" **observed**; see game bug K213 |
 | Whip | Serpent | `serpent_whip_test` `0x497890`, `serpent_whip_resolve_hit` `0x4979b0` | hits a party member in whip reach **observed** |
 | `+Plus Spell:` hit | Serpent parts, Ghost | `boss_counter_hit_dispatch` `0x4a2230` | a boss melee move with flag `0x10` also hits its target with the move's spell, before the range test (see above) **observed** |
-| Minion revive | Ghost Rider | `ghost_revive_minions` `0x4bbc70`, `ghost_fire_attack` `0x4bb9a0` | spells `0x51`-`0x53` raise a counter (`0x24808c8`, max 2); dead minions are brought back with `boss_resurrect_full` `0x4c3fb0` while it is positive **observed** |
+| Minion revive | Ghost Rider | `ghost_revive_minions` `0x4bbc70`, `ghost_fire_attack` `0x4bb9a0`, `ghost_choose_attack` `0x4bac20` | spells `0x51`-`0x53` raise a counter (`0x24808c8`); the Ghost chooses a summon only while it is below 2 (`ghost_choose_attack` `0x4bad95`, `0x4baec1`). Every check-stage call (each frame) brings back every dead minion that is no longer active with `boss_resurrect_full` `0x4c3fb0` and decrements the counter for each, without testing that it is positive; when it falls from non-zero to exactly 0 the two summon timers are reset **observed** |
 | Ghost minions | Ghost Rider | `ghost_rider_boss_load` `0x4ba260` | six handles `0x24808b0`-`0x24808c4`: two species `0x43` (not in `masad`), two `0x45` and two `0x9c`; none extra in `jadetemple` **observed** |
 | Helper revive | Evil Joseph | `evil_joseph_spawn_helpers` `0x4c3500`, `evil_joseph_check_stage` `0x4c3f20` | four helpers (species `0xc0`, `0xca`, `0xcb`, `0xb0`); a dead helper is revived once its death effect ends, with no count limit **observed** |
 | Teleport | Machival | `machival_teleport` `0x4c1e20` | random `$tele_0N` navpoint, 70 s timer (2 s retry), synced with packet `0x1F` **observed** |

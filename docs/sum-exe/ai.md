@@ -191,7 +191,28 @@ current order is `+0x38` (999999 for direct orders).
 - `ai_path_find_append` (`0x473d80`) extends the path from its last node.
 - `ai_path_begin` (`0x473ac0`) drops a one-node path that ends within 5 cm of its start (not in traveling sub 8).
 - `ai_path_free` (`0x4a0480`) releases the nodes. It is called from 17 functions (20 call sites). Mode changes are
-  not among them; a new path frees the old one (`ai_set_path`, `ai_path_find_new`).
+  not among them; a new path frees the old one (`ai_set_path`, `ai_path_find_new`), and `ai_state_shutdown`,
+  `ai_reset` and `ai_reset_party_member` free it as well.
+- The path search also steers around obstacle-avoidance areas (next section).
+
+## Obstacle avoidance
+
+Ground effects and summons mark areas that paths should go around (`avoid_area_add` `0x4a9b40`, callers
+`spell_place_ground_effect`, `spell_effect_obj_set_timer`, `spell_spawn_hit_fx`, `summon_spawn_effect`). The code
+is the unnamed unit `0x4a6710`-`0x4aa77f` (`src/decomp/game/unnamed_avoidance_0x4a6710.cpp`) (**observed**):
+
+- An area (14 slots, `0x246b928`) holds up to two obstacles, a box or an octagon, one per size class. The area
+  description's first word picks the kind: 0 makes an "avoid" obstacle (it only adds cost), non-zero a "prohibit"
+  one (it blocks). `avoidance enable` / `disable` switches the whole system (`avoidance_enabled` `0x59ce88`, tested by
+  `avoid_add_primitive` `0x4a9eb0`).
+- Overlapping obstacles of the same kind, size class and layer are merged into one polygon (at most three), which
+  is clipped against the navigation walls into a segment list. Its corners become extra search nodes with up to 20
+  links (`avoid_do_poly_seg_list_links` `0x4a8390`).
+- `pf_add_avoidance_nodes` (`0x49f810`, called by `pf_graph_search`) blocks search edges through prohibit polygons and
+  adds the length inside an avoid polygon as cost (`avoid_poly_add_search_nodes` `0x4aa400`).
+  `world_click_move` refuses a click inside a prohibit obstacle (`avoid_point_blocked` `0x4aa630`).
+- `fx_obj_destroy` and `summon_emerge_update` remove an area (`avoid_area_remove` `0x4a9df0`); the polygons are then
+  rebuilt without its obstacles, unless `avoidance no_remove` is set (`avoidance_no_remove` `0x59ce8c`).
 
 ## Saving
 

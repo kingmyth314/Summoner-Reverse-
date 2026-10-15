@@ -60,7 +60,7 @@ LAYOUT_CHECK(script_editor_pick, sizeof(script_editor_pick) == 0x44);
 // Per action type defaults (12 bytes; script_action_names order, 33 records at 0x2556ab0). The type name
 // is from sum.symbols' script_action_defaults__init (0x4de410), the out-of-line copy of the inline
 // constructor; field names ours (script_create copies arg0c / arg10 into a new action, needs_file picks
-// script_make_filename, has_params opens the parameter window; D3501).
+// script_editor_default_action_navpoint, has_params opens the parameter window; D3501).
 struct script_action_defaults {
     script_action_defaults(int arg0c, int arg10, bool flag14, bool needs_nav, bool has_params)   // 0x4de410
     {
@@ -255,9 +255,9 @@ extern ui_button script_editor_params_ok_button;     // 0x2556688
 extern ui_button script_editor_params_cancel_button; // 0x2568580
 
 // ---- functions (address order) ---------------------------------------------------------------------
-// Several sum.symbols names describe something else (D3505): script_editor_delete_navpoint adds a camera
-// navpoint, script_editor_refresh_action_editor tests whether an action type is offered,
-// script_editor_show_action_params deletes the selected action, script_make_filename returns a navpoint.
+// Several sum.symbols names describe something else (D3505): script_editor_add_camera_navpoint adds a camera
+// navpoint, script_editor_action_type_allowed tests whether an action type is offered,
+// script_editor_delete_selected_action deletes the selected action, script_editor_default_action_navpoint returns a navpoint.
 // The names are kept.
 struct file_find_node;
 int  qsort_cmp_strptr(const void *a, const void *b);                 // 0x4dff50 strcmp of two char * (qsort)
@@ -292,7 +292,7 @@ void script_editor_fill_action_lists();                              // 0x4e62e0
 bool script_editor_mode_button_cb(int event, int value);             // 0x4e68e0
 bool script_editor_on_pos_ori(int event, int value);                 // 0x4e6930
 bool script_editor_on_new(int event, int value);                     // 0x4e69a0
-void script_editor_delete_navpoint();                                // 0x4e6a30 adds a $camera navpoint (D3505)
+void script_editor_add_camera_navpoint();                                // 0x4e6a30 adds a $camera navpoint (D3505)
 bool script_editor_on_delete(int event, int value);                  // 0x4e6ad0
 bool script_editor_navpoint_in_use();                                // 0x4e6d90 the selected navpoint
 void script_replace_navpoint_references(navpoint *from, navpoint *to);   // 0x4e6f10
@@ -311,9 +311,9 @@ void script_editor_select_first();                                   // 0x4e7740
 void script_editor_select_next();                                    // 0x4e7800
 bool script_editor_cutscene_button_cb(int event, int value);         // 0x4e7920
 bool script_editor_add_action_cb(int event, int value);              // 0x4e7970
-bool script_editor_refresh_action_editor(int type, Character *c);    // 0x4e7a40 action type offered for c (D3505)
+bool script_editor_action_type_allowed(int type, Character *c);    // 0x4e7a40 action type offered for c (D3505)
 bool script_editor_delete_action_cb(int event, int value);           // 0x4e7c70
-void script_editor_show_action_params();                             // 0x4e7cd0 deletes the selected action (D3505)
+void script_editor_delete_selected_action();                             // 0x4e7cd0 deletes the selected action (D3505)
 bool script_editor_action_up_cb(int event, int value);               // 0x4e7dc0
 bool script_editor_action_down_cb(int event, int value);             // 0x4e7ee0
 bool script_editor_change_cb(int event, int value);                  // 0x4e8000
@@ -324,7 +324,7 @@ bool script_editor_new_listbox_cb(int event, int value);             // 0x4e8400
 bool script_editor_action_window_cb(int event, int value);           // 0x4e8440
 void script_editor_apply_action_params();                            // 0x4e84b0
 void script_create();                                                // 0x4e88a0
-navpoint *script_make_filename();                                    // 0x4e8cf0 the default navpoint of a new action (D3505)
+navpoint *script_editor_default_action_navpoint();                                    // 0x4e8cf0 the default navpoint of a new action (D3505)
 bool script_editor_save_name_cb(int event, int value);               // 0x4e8d60
 int  script_save_files();                                            // 0x4e8e80 0, or 1-6 (script_save)
 int  script_write_level_script(const char *filename, bool level);    // 0x4e9310 File::open / close result

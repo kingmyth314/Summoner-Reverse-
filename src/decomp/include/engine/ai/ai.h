@@ -327,7 +327,7 @@ public:
     // decomp56 (the AI combat unit 0x4bce60-0x4c0245, game/unnamed_ai_combat_0x4bce60.cpp; file not known).
     // combat_approach, alert_guards_of_target, combat_close_in / _melee_attack / _ranged_attack and
     // choose_support_spell are declared with the decomp54 declarations.
-    bool within_attack_radius(float dist);   // 0x4bce80 charinfo_within_attack_radius: dist < attack_range + 0.2 (D3603)
+    bool within_attack_radius(float dist);   // 0x4bce80 ai_state__within_attack_radius: dist < attack_range + 0.2 (D3603)
     bool approach_random_offset(Character *target);   // 0x4bcea0 ai_approach_random_offset
     bool approach_target_point(Character *target);    // 0x4bcff0 ai_approach_target_point
     bool approach_attack_slot(Character *target);     // 0x4bd2a0 ai_approach_attack_slot
