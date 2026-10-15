@@ -14,7 +14,7 @@ GitHub Pages site.
 |---|---|---|
 | SummonerFix | Our own `dinput.dll` patch: runs on Windows 11 without the launcher (hidden OpenGL renderer), fixes 2x game speed, the >4 GHz timer and the 24.9-day cutscene skip, black save thumbnails; widescreen; key and mouse rebinding with a config app; fast-mode key with an on-screen badge; console-command keys; optional zoom, interaction-range and intro-skip settings; fixes the crash on Start New Game without an audio device and the low textures on a fresh OpenGL install; a key for the hidden script editor | [SummonerFix](docs/summonerfix/index.md) |
 | Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a 15-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
-| Game bugs | 167 defects in v1.40 checked in the code: crashes and hangs (most latent), gameplay slips such as a save overwrite without a prompt, cosmetic UI errors; which ones SummonerFix fixes | [Bugs in the original game](docs/sum-exe/game-bugs.md) |
+| Game bugs | 175 defects in v1.40 checked in the code: crashes and hangs (most latent), gameplay slips such as a save overwrite without a prompt, cosmetic UI errors; which ones SummonerFix fixes | [Bugs in the original game](docs/sum-exe/game-bugs.md) |
 | Timing bugs | QPC frequency truncated to 32 bits (>4 GHz); frame limiter double-counts its sleep (2x speed); cutscene timer breaks after ~24.9 days of uptime (reproduced and fixed) | [Timing bugs](docs/sum-exe/timing-bugs.md) |
 | Characters | Character object, player record, 84 skills, status effects, experience table, resistances | [Characters](docs/sum-exe/characters.md) |
 | AI | 13 AI states, goals, attacker slots, paths | [AI](docs/sum-exe/ai.md) |

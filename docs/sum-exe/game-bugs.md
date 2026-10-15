@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 167 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 175 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 35 | 2 |
+| Crash or hang | 3 | 37 | 2 |
 | Gameplay | 25 | 13 | 3 |
-| Cosmetic | 31 | 9 | 2 |
-| Invisible | 19 | 32 | 0 |
+| Cosmetic | 32 | 10 | 2 |
+| Invisible | 22 | 33 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -76,6 +76,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C142 | Latent: a cutscene that takes off more than 16 pieces of equipment overwrites the record count and then memory after it | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
 | C143 | Latent: a script object with more than 54 actions, a level script with more than 200 scripted objects or a cutscene with more than 32 overwrites memory | `script_parse_objects` `0x4dba30` | **Observed** code and retail data, *inferred* effect | No |
 | C144 | Latent: in multiplayer, a chat or system message that wraps into more than six lines crashes the game | `chat_add_line` `0x41ed60` | **Observed** code, *inferred* crash | No |
+| C150 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), a polygon of more than 25 vertices overwrites the renderer's mode, the `whee` console command object, the cursor clip rectangle and the hardware configuration | `gr_glide_tmapper` `0x54b240`, `gr_glide_tmapper_multitexture` `0x54b3a0` | **Observed** code, *inferred* effect | No |
+| C151 | Latent: in the Temple of Urath (`templeint_v2`) a missing Tiger Rider, in the Lenele courtyard a Flece who cannot join (a load pending, or no Flece character), and in Eleh and Wolong a Joseph or Rosalind who is not in the reserve party dereference NULL and crash | `ls_templeint_frame` `0x4f5f80`, `lsf_lenele1c_flag_found_flece` `0x4fab90`, `ls_eleh_frame` `0x4f1560`, `ls_wolong_frame` `0x4fe9a0` | **Observed** code and retail data, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -357,6 +359,31 @@ and then makes room among the six lines: `excess = chat_num_lines + n - 6`, then
 `n > 6` the size is negative, so `memmove` gets a size near 4 GB, and the loop after it writes past the six
 lines. The local input is limited to 63 characters, which gives two or three pieces with a name in front;
 only a longer remote or system text (up to 255 characters, as received) could reach seven. Needs a modified peer.
+
+**C150. No bound on the Glide vertex buffer.** `gr_glide_tmapper` builds one Glide 2 `GrVertex` (0x3c bytes) per
+input vertex in the static buffer at `0x2f0ec08` (`esi = 0x2f0ec14`, `add esi, 0x3c` at `0x54b37f`, loop on `nv`
+from `0x54b289` to `0x54b383`) and passes it to `grDrawPolygonVertexList(nv, ...)` (`0x54b390`..`0x54b396`) without
+testing `nv`. The buffer holds 25 vertices: the next variable, `gr_glide_current_mode`, is at `0x2f0f1e4`, 0x5dc =
+25 x 0x3c bytes on. Behind it lie `ccmd_whee` (`0x2f0f1e8`, a console command object), `glide_cursor_clip_rect`
+(`0x2f0f1f8`), `gr_glide_video_memory_mb` (`0x2f0f208`) and the `grSstQueryHardware` result (`0x2f0f210`).
+`gr_glide_tmapper_multitexture` writes into the same buffer (`0x2f0ec18`.., `0x2f0ec24`.., `0x2f0ec28`) with no test
+either; its own stack vertex list has 32 entries. Callers: `gr_tmapper` (`0x507a57`) and `gr_tmapper_multipass`
+(`0x507c75`, `0x507cd1`), fed by the 32-record `gr_poly_vertices` pool and the clipper of C90. *Inferred:* retail
+geometry uses far smaller polygons, so this is latent, like C90 for OpenGL. It needs the Glide renderer: a 3dfx
+card or a Glide wrapper.
+
+**C151. More lookups used without a NULL test** (the same kind as C130). In `templeint_v2`, while `tiger_killed` is
+not set, `ls_templeint_frame` reads `[eax + 0x5f8]` (the rider's HP) from `tiger_find_rider()` (`0x4f6244`..`0x4f6249`)
+on every frame; `tiger_find_rider` (`0x49a010`) returns 0 when no living entity of the rider species is in the
+level. Retail `TempleInt_v2_script.tbl` places "Tiger Rider#1". `lsf_lenele1c_flag_found_flece` passes the result of
+`party_member_join("Flece", ...)` (`0x4fabf9`..`0x4fac08`) to `character_equip_item` (`0x4fac1d`), which reads
+`[esi + 0xc]` from it at once (`0x46be19`); `party_member_join` returns 0 while a save is being loaded
+(`savegame_pending_load_length`, `0x439bb1`..`0x439bbd`) or when the name is not a character type (`0x439bd2`..`0x439beb`).
+`ls_eleh_frame` reads `[eax + 0xc]` from `party_add_member("Joseph")` (`0x4f1684`..`0x4f1689`, on the "JoinJoseph"
+trigger) and `ls_wolong_frame` from `party_add_member` for Rosalind (`0x4fea05`..`0x4fea0a`); `party_add_member`
+returns 0 when the name is not in the reserve party (`0x43411b`..`0x434126`, `0x43412f`..`0x43413a`). *Inferred:* in
+retail play the rider is there, the Flece trigger runs on a level frame (no load pending) and Joseph and Rosalind are
+in the reserve party when those dialogues run, so all four are latent.
 
 ## Gameplay
 
@@ -721,6 +748,8 @@ the record's slot as it was: 0 (neck) for an unused record, or the slot of an ea
 data the items taken off always have the usual slots: every "replace weapon" is "(none)", and the armour
 actions use "Tunic", "Leather Jerkin" (torso) and "Bougu-Dou" (heavy) from `items.tbl`.
 
+(none)
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -765,6 +794,8 @@ actions use "Tunic", "Leather Jerkin" (torso) and "Bougu-Dou" (heavy) from `item
 | K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code and retail data, *inferred* effect | No |
 | K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
 | K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
+| K150 | In the Ikaemos palace's upper hall the Priest King fight keeps the level's "IkaemosPalace" music; the "Boss" track never plays | `ls_ikaemostopint_init` `0x4f9ec0`, `lsf_ikaemos_found_boss` `0x4fa050`, `lsf_ikaemos_boss_killed` `0x4fa140` | **Observed** code and retail data, *inferred* effect | No |
+| K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1102,6 +1133,29 @@ name. With body armour in slot 7, `script_action_replace_armor` first reads
 `item_types`. If the value there is 8 (heavy armour worn) or 6, the action returns at once and the armour stays
 on. The retail cutscenes use "replace armor" only with real item names.
 
+**K150. Both "done" bytes preset to 1.** `ls_ikaemostopint_init` loads `ebx = 1` (`0x4f9ef1`) and stores it into
+`ls_ikaemostopint_found_boss_done` and `ls_ikaemostopint_boss_killed_done` on every entry, whatever the saved flags
+(`0x4f9f2e`, `0x4f9f34`). `lsf_ikaemos_found_boss` starts the "Boss" music only while the first byte is 0
+(`0x4fa050`..`0x4fa094`), and `lsf_ikaemos_boss_killed` restores `level_music` only while the second is 0
+(`0x4fa140`..`0x4fa180`). Both branches are dead. The fight itself still works: IkmsPKing-Intro plays at
+`$ipktrigger` once the four dagger slots have opened Door02-01 (`0x4fa0b1`..`0x4fa102`), and the Priest King's death
+with the Ring of Stone in the party gives "Joseph acquired Summon Golem!" (`0x4fa1ba`..`0x4fa225`). Retail
+`cutscene.tbl` gives IkmsPKing-Intro only its own soundtrack (`ikpk-intro.wav`), no music. The level music is
+"IkaemosPalace" (`0x4f9ec1`). Same pattern as K130 (Liangshan), where only one byte is preset; LPalaceInt02 presets
+its two bytes from the saved `bothdead` flag instead (`ls_lpalaceint02_init` `0x4f2519`..`0x4f2543`). *Inferred:* the
+player hears the level track through the Priest King fight.
+
+**K151. The alpha path ignores the section position.** `gr_glide_create_texture` cuts a bitmap into 256 x 256
+sections and passes each one's rectangle in the section record (`+0x30` x, `+0x32` y, `+0x34` w, `+0x36` h,
+`0x549424`..`0x549455`) to `gr_glide_create_texture_section`. The paths for the other formats start their 16.16
+source position from `+0x30` / `+0x32` (for example format 6 at `0x54893b`..`0x5489c9`). The format 2 path (8-bit alpha
+through `gr_gamma_ramp`, `0x548666`..`0x5486ee`) starts at the bitmap's first byte and steps by the full width
+(`add ecx, edx` at `0x5486e0`), bounded by the full width and height (`0x5486aa`..`0x5486b5`), so every section gets
+the top-left corner. No loader makes format 2: `bm_read_header` maps TGA depths 8, 16, 24, 32 to formats 1, 5, 6, 7
+(byte table `0x502e08`, jump table `0x502df4`), PCX is 1 (`0x502add`), M2V 5 (`0x502d9b`), and `bm_read_vbm_header`
+gives 5, 4 or 3 (`0x501df8`..`0x501e1b`); the `bm_create` callers pass formats 3, 4, 5, 6 and 1. So this is latent
+even with modded data. It needs the Glide renderer: a 3dfx card or a Glide wrapper.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1157,6 +1211,10 @@ on. The retail cutscenes use "replace armor" only with real item names.
 | V141 | Latent: a `.vcs` console script path is cut at the first `.` of the whole path, so a `.` in the install directory breaks every script; a `/* ... */` comment on one line comments out the lines after it | `load_script` `0x50acd0` | **Observed** code |
 | V142 | Latent: the console's `debug` trace prints an integer argument with `%f` | `process_command` `0x50a5b0` | **Observed** code |
 | V143 | Latent: a console command whose name is already registered, or the 301st, is dropped without a message and its object keeps NULL fields | `console_command__console_command` `0x50a180` | **Observed** code and retail data |
+| V150 | Latent: the Glide texture cache's in-place reload never runs (no code sets its per-TMU dirty bytes); it would also copy unconverted texels from the start of the bitmap | `gr_glide_tcache_set` `0x549560` | **Observed** code |
+| V151 | Joseph's "We're not ready to confront Machival yet." in Lenele (lenele3a) can never be said: the use hook tests the name "templeint", the trigger is "templeint2", and in single player the palace exit on the same spline fires first anyway | `ls_lenele3a_use` `0x4f1030`, `ls_lenele3a_init` `0x4f0f70` | **Observed** code and retail data |
+| V152 | In the Lenele slums every level-script dialogue action other than Gorbus's own "CheckReleaseOrder" sets his "Give him the release order." topic to the opposite of the party holding the Forged Document; his Hail resets it, so the player sees no difference | `ls_lenele1b_action` `0x4fb160` | **Observed** code and retail data, *inferred* effect |
+| V153 | With the Glide renderer (a 3dfx card or a Glide wrapper), a texture marked dirty (texture quality change, save thumbnail) of an animated bitmap is built twice: the rebuild stores the frame number as the owner, so the next use rebuilds it again | `gr_glide_mark_texture_dirty` `0x5496e0`, `gr_glide_tcache_set` `0x549560` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1493,6 +1551,46 @@ integer `command_argument_int` (`0x50a7d7`..`0x50a7e8`). The text goes to the em
 `0x50a188`) or `_stricmp` finds the name (`je 0x50a1df` at `0x50a1b1`), before it stores the name, description
 and callback (`0x50a1d7`..`0x50a1dc`). The 149 retail names are all different.
 
+**V150. A reload switch nothing reaches.** `gr_glide_tcache_set` reloads the sections of an existing texture
+entry only when the entry's byte `[entry + 8 + tmu]` is set (`0x5495e2`..`0x5495e8`). The only stores to those bytes
+in the unit write 0: `gr_glide_create_texture` (`mov word [edi+8], 0` at `0x549390`) and `gr_glide_tcache_set` itself
+(`0x5495dd`); `glide_record::load_section` clears the section bytes of the same layout (`0x549acb`, `0x549aec`). All
+references to the entry table `0x2f0ec00` are in this unit (asm grep), and none writes a non-zero value.
+`gr_glide_mark_texture_dirty` rebuilds the texture instead (`0x549718`). If it did run, the reload switch
+(`0x549612`..`0x549686`) copies from the start of the locked bitmap for every section and only flips the 1555 alpha bit
+or copies raw bytes, without the paletted / 888 / 8888 conversions of `gr_glide_create_texture_section`.
+
+**V151. Name mismatch on a shared spline.** `ls_lenele3a_use` speaks L503 only when the used name is "templeint"
+(`_stricmp` at `0x4f1034`..`0x4f1044`). A trigger reaches the use hook with its `+RefName:`, which defaults to the
+trigger name (`level_parse_trigger` `0x4cc310`..`0x4cc32f`; `level_check_triggers` passes `+0x24`, `0x4cac75`..`0x4cac79`).
+Retail `lenele3a.tbl` has no `+RefName:`, and its temple trigger is "templeint2". Its "lpalaceint02" (trigger 1) and
+"templeint2" (trigger 2) both use `$loadarea06`. Before game stage 21 `ls_lenele3a_init` makes "templeint2" a
+script-use trigger and "lpalaceint02" an exit (`0x4f0fb7`..`0x4f0fca`, `0x4f0fd3`..`0x4f0fed`); from stage 21 the other way
+round (`0x4f0f91`..`0x4f0fa4`). `level_check_triggers` stops at the first exit it crosses (`0x4cac9a`..`0x4cad2c`), and
+trigger 1 comes first, so in single player the doorway leads to the palace before stage 21 and to the temple after;
+the temple trigger's use call never comes before the exit. With the right name the line would still only be reached
+where no exit shares the spline (see "Still unclear" for the `+Multi` copies).
+
+**V152. An else that toggles the wrong way.** `ls_lenele1b_action` handles "CheckReleaseOrder" with
+`script_topic_toggle_by_item` for "The Keep?" and `script_topic_toggle_by_item_inv` for "Give him the release order."
+(`0x4fb1fa`..`0x4fb222`). Every other action name takes the `else` (`jne 0x4fb227` at `0x4fb1f8`), which calls the
+non-inverted `script_topic_toggle_by_item` for "Give him the release order." (`0x4fb227`..`0x4fb236`): the topic becomes
+available when the party lacks the Forged Document and hidden when it has it (`0x4ceb80`..`0x4cebbe`). The other
+actions of `lenele1b_dlg.tbl` (CheckEyes, CheckTongue, CheckGold, CheckGold2, CheckShards, CheckCrate, CheckSalt,
+CheckDoll, SalamankaActive, TradeBacite) all pass through it. *Inferred:* no visible effect. Every conversation
+with Gorbus starts with Hail, whose `+Trigger: "CheckReleaseOrder"` sets the topic right again. Inside his
+conversation the only other trigger is CheckGold, run by "Give him the release order." itself. It hides that topic
+while the document is held, after the guard has examined it. The three answers ("Give him 20 gold.", "From the
+palace.", "From the forger.") stay. The `else` was probably meant to be absent.
+
+**V153. The frame number stored as the owner.** `gr_glide_mark_texture_dirty` maps the handle to the current frame
+(`bm_get_current_frame`, `0x5496e8`) and calls `gr_glide_create_texture(frame, entry)` (`0x549716`..`0x549718`), which
+stores its first argument as the entry's bitmap (`mov [edi], ebp` at `0x549337`). `gr_glide_tcache_set` rebuilds the
+entry whenever that differs from the handle it is given (`0x5495bc`..`0x5495c9`). For a single bitmap the frame is the
+handle; for an animation it is not, so the next draw builds the texture a second time. Callers of
+`gr_mark_texture_dirty`: `bm_set_reduced` (`0x5022f3`, texture quality), `bm_replace_file` (`0x50339c`) and the two
+thumbnail functions (`0x427215`, `0x4d2997`). Only time is lost.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1686,6 +1784,16 @@ the tables above; the rest are below.
 - `make_lowercase_token` lower-cases one byte before it tests for the end (a do-while), so an empty token also lower-cases stale bytes after its NUL; they are past the terminator and never read.
 - `chat_format_entry` ignores its size argument (D2301): its output is a name plus at most 255 characters, inside the 512-byte buffer of `chat_update_lines`.
 
+- The Glide "At least 8 MB of available video memory required." test: `gr_glide_init` quits when `fbRam`, the frame buffer memory in MB of SST 0 (`GrHwConfiguration` +8, `0x2f0f218`, filled by `grSstQueryHardware` at `0x549dd8`), is below 4 (`0x549e58`..`0x549e7d`). That is the frame buffer alone, not the whole card. *Inferred:* a 3dfx card with a 4 MB frame buffer has 8 MB or more in all, except boards with less texture memory such as a 6 MB Voodoo 1. Only the wording is loose, as for Direct3D. The value is the same `gr_glide_video_memory_mb` that K64 calls "probably MB": it is MB (`0x549ea2`). The Glide renderer needs a 3dfx card or a Glide wrapper.
+- `gr_glide_init`'s `glide_clip_cursor(1)` when the close-on-deactivate byte `0x2f132b8` is set (`0x549d9a`..`0x549da3`), before it sets that byte (`0x549e9c`) and the clip rectangle (`0x549ee2`..`0x549f01`): on the first init the byte is 0, so nothing happens; on a later init it uses the previous rectangle of the same mode. Not counted. The byte needs 2 or more TMUs and `fbRam >= 12` (`0x549e93`..`0x549e9c`). *Inferred:* no Voodoo 2 reports a 12 MB frame buffer, so this is not "Voodoo2 only" as the gr_glide notes say. Which cards and wrappers set it was not checked.
+- `gr_glide_deactivate` calls `grSstControl(2)` and then increments the pending-activation counter `0x2f132ac` (`0x54a6b9`..`0x54a6c7`), which the next `gr_glide_flip` would turn into `grSstControl(1)`. Its only caller is the fatal error path (`gr_deactivate` `0x5061a2` from `debug_error_deactivate_gr` `0x531ca0`), which does not flip again. Not counted.
+- Titus and Luminar intros replay on re-entry: `ls_ikaemosbottomint2_init` clears `titus_intro`, `titus_combat_enabled` and both done bytes on every entry until `trapped_titus` (`0x4eeea2`..`0x4eeec7`), and `ls_ionaext02_init` on `Ionaext02_v2` clears `luminar_intro` until `trapped_luminar` (`0x4f45cb`..`0x4f45dd`). `titus_combat_enabled` is only set when Titus-Intro ends (`0x4ef0a2`), so the replay is how the fight is re-armed. A deliberate restart of the boss sequence; the intro on the first frame (no navpoint, `0x4eeef0`..`0x4eef2e`) is how the level is built.
+- LPalaceInt02 world map exit after a reload: `ls_lpalaceint02_init` leaves `worldmap1` an exit when `sornehan_dead` and `galienne_dead` are both set, even without `got_scrolls` (`0x4f2499`..`0x4f2511`). But no such save can exist. Saving is refused while `level_script_event_active` is set (`savegame_location_allowed` `0x4d4a50`..`0x4d4a5a`). The frame sets the byte when SG-Intro has played (`0x4f2587`) and clears it only at `bothdead` (`0x4f25d3`), which needs the scrolls (`0x4f275b`..`0x4f2773`). The two death flags are set only after SG-Intro (`0x4f25e9`..`0x4f26c7`), and `worldmap1` is the level's only exit (retail `LPalaceInt02.tbl`). Not reachable.
+- IkaemosTopInt dagger slots: `ls_ikaemostopint_use` sets `ikaemos_slotN` on any use of Puzzle-SlotN (`0x4fa230`..`0x4fa36d`), but the slots are doors with `+Locked: 0.00` and `+Key:` Brazen / Cupric / Argent / Auric Dagger (retail `IkaemosTopInt_script.tbl`). `object_try_unlock_or_open` unlocks such a door only with its key in the party (`0x43c0a3`..`0x43c105`) and says "Locked, Cannot Pick" for a zero lock value with a key (`0x43c1a1`..`0x43c1be`). "We've unlocked it already." on a second use is right.
+- `ls_templeint_act2_outro_cs_end`'s "Switching char." / "No character!" `printf` lines: debug output with no console in retail; harmless.
+- lenele3d's 1 s `ls_lenele3d_timer` (set by `ls_lenele3d_init`, never read) and the dword `0x257e9dc` (written 0, never read): remains of a removed sequence, no effect.
+- The Eleh choice bytes `0x257e9ec`..`0x257e9ef`: the code is right (TopFloor to entry 5, GroundFloor to entry 3, BottomFloor to entry 4, `0x4f176a`..`0x4f178a`; JoinJoseph handled in `ls_eleh_frame`); only the sum.symbols names are shifted (symfix.txt).
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1783,6 +1891,9 @@ the tables above; the rest are below.
 - `script_parse_navpoints` has no ray-miss test (the cutscene parser has a DebugError at `0x4db5e5`): a level navpoint with no `$layer` floor under it reads the zeroed hit, so it is raised by 2 units and gets level object 0's pick layer. Whether any retail level navpoint misses the floor needs the level geometry.
 - The `cmd_character` line in the existing list ("depends on the console input limit, which was not read") is answered by C140: the limit is 254 characters (`0x50a23e`), so the overflow is possible from a `.vcs` script; that line can be removed.
 - Timeslip's `[console]` binding length (its `dinput.dll` holds `0x50a210`; its line buffer was not read).
+- lenele3a in multiplayer: `ls_lenele3a_init` changes every trigger of a name, including the `+Multi` copies of "templeint2" (`level_trigger_set_script_use` loops over all records, `0x4cd00a`..`0x4cd047`). Retail `lenele3a.tbl` has a `+Multi` "templeint2" on `$loadarea06` with no `+Multi` palace exit there. If this level script runs in multiplayer before stage 21, that doorway would do nothing silently, which is where the "templeint" refusal (V151) would have been heard. Whether multiplayer runs `ls_lenele3a_init` with those stages was not checked.
+- Glide animated textures after a texture quality change: `gr_glide_mark_texture_dirty` rebuilds and invalidates only the current frame (`0x5496e8`..`0x549718`). The other frames' entries keep their old size, and their owner still matches, so `gr_glide_tcache_set` will not rebuild them. Whether that shows (UVs from the reduced bitmap size against a full-size texture) was not traced.
+- What a Glide wrapper reports in `fbRam` and the TMU count (`0x2f0f218`, `0x2f0f220`) decides whether the 8 MB test passes and whether the focus code closes the Glide window. Not checked for any wrapper.
 
 ## Evidence
 
@@ -1960,3 +2071,11 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V141 .vcs path | `load_script` `0x50ad05`..`0x50ad49`, `0x50ae24`..`0x50aeac` |
 | V142 %f | `process_command` `0x50a7d7`..`0x50a7e8` |
 | V143 duplicates | `console_command__console_command` `0x50a188`, `0x50a1b1`, `0x50a1d7`..`0x50a1dc` |
+| C150 Glide vertex buffer | `gr_glide_tmapper` `0x54b284`..`0x54b383`, `0x54b390`..`0x54b396`; `gr_glide_tmapper_multitexture` `0x54b3d9`, `0x54b496`, `0x54b520`; next symbols `0x2f0f1e4`, `0x2f0f1e8`, `0x2f0f1f8`, `0x2f0f208`, `0x2f0f210`; callers `gr_tmapper` `0x507a57`, `gr_tmapper_multipass` `0x507c75`, `0x507cd1` |
+| C151 unchecked lookups | `ls_templeint_frame` `0x4f622b`..`0x4f6249`; `tiger_find_rider` `0x49a010`; `lsf_lenele1c_flag_found_flece` `0x4fabf1`..`0x4fac1d`; `character_equip_item` `0x46be19`; `party_member_join` `0x439bb1`..`0x439beb`; `ls_eleh_frame` `0x4f1684`..`0x4f1689`; `ls_wolong_frame` `0x4fea05`..`0x4fea0a`; `party_add_member` `0x43411b`..`0x43413a`; retail `TempleInt_v2_script.tbl` "Tiger Rider#1" |
+| K150 Priest King music | `ls_ikaemostopint_init` `0x4f9ef1`, `0x4f9f2e`..`0x4f9f34`; `lsf_ikaemos_found_boss` `0x4fa050`..`0x4fa094`, `0x4fa0b1`..`0x4fa102`; `lsf_ikaemos_boss_killed` `0x4fa140`..`0x4fa180`, `0x4fa1ba`..`0x4fa225`; retail `cutscene.tbl` IkmsPKing-Intro, `music.tbl` IkaemosPalace |
+| K151 alpha sections | `gr_glide_create_texture_section` `0x548666`..`0x5486ee` (format 2), `0x54893b`..`0x5489c9` (format 6 with section origin); `gr_glide_create_texture` `0x549424`..`0x54947b`; `bm_read_header` `0x502b4a`..`0x502ba8`, tables `0x502df4`, `0x502e08`; `bm_read_vbm_header` `0x501df8`..`0x501e1b`; `bm_create` callers `0x42567f`, `0x46f1a4`, `0x48a02c`, `0x4d3993`, `0x5030c2`, `0x508934` |
+| V150 dead reload | `gr_glide_tcache_set` `0x5495bc`..`0x5495e8`, `0x549612`..`0x549686`; stores `0x549390`, `0x5495dd`, `0x549acb`, `0x549aec`; `gr_glide_tcache_init` `0x547a57`..`0x547a7c`; references to `0x2f0ec00` |
+| V151 temple refusal | `ls_lenele3a_use` `0x4f1034`..`0x4f105c`; `ls_lenele3a_init` `0x4f0f87`..`0x4f0fed`; `level_parse_trigger` `0x4cc2ec`..`0x4cc32f`; `level_check_triggers` `0x4cac75`..`0x4cac79`, `0x4cac9a`..`0x4cad2c`; retail `lenele3a.tbl` `#Triggers` |
+| V152 release order topic | `ls_lenele1b_action` `0x4fb1e6`..`0x4fb23b`; `script_topic_toggle_by_item` `0x4ceb80`..`0x4cebbe`; `script_topic_toggle_by_item_inv` `0x4cebc0`; retail `lenele1b_dlg.tbl` Gorbus the Guard |
+| V153 animated rebuild | `gr_glide_mark_texture_dirty` `0x5496e8`..`0x549718`; `gr_glide_create_texture` `0x549337`; `gr_glide_tcache_set` `0x5495bc`..`0x5495c9`; `gr_mark_texture_dirty` callers `0x427215`, `0x4d2997`, `0x5022f3`, `0x50339c` |

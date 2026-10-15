@@ -40,10 +40,10 @@ void ls_eleh_fade_place_party_frame();
 
 // ---- .bss (0x257e9e4-0x257e9f0) ------------------------------------------------------------------------
 // (0x257e9e4 / 0x257e9e8: the guard and the static GameTimer of ls_eleh_fade_place_party_frame.)
-bool ls_eleh_go_ground;                              // 0x257e9ec "TopFloor" (entry point 5)
-bool ls_eleh_go_bottom;                              // 0x257e9ed "GroundFloor" (entry point 3)
-bool ls_eleh_go_other;                               // 0x257e9ee "BottomFloor" (entry point 4)
-bool ls_eleh_go_top;                                 // 0x257e9ef "JoinJoseph" (ls_eleh_frame)
+bool ls_eleh_go_top;                              // 0x257e9ec "TopFloor" (entry point 5)
+bool ls_eleh_go_ground;                              // 0x257e9ed "GroundFloor" (entry point 3)
+bool ls_eleh_go_bottom;                               // 0x257e9ee "BottomFloor" (entry point 4)
+bool ls_eleh_join_joseph;                                 // 0x257e9ef "JoinJoseph" (ls_eleh_frame)
 int ls_eleh_cutscene_state;                          // 0x257e9f0
 
 // 0x4f1490  Confidence: exact. level_script_table init (stage 9). A fresh entry strips Flece's gear and
@@ -99,7 +99,7 @@ void ls_eleh_frame()
         door_apply_saved_state("Portcullis", false);
     }
     ls_eleh_fade_place_party_frame();
-    if (ls_eleh_go_top && !(game_flags & GF_CONVERSATION)) {
+    if (ls_eleh_join_joseph && !(game_flags & GF_CONVERSATION)) {
         script_npc_set_disabled("Joseph#$npc", true);
         p = party_add_member("Joseph");
         c = living_from_handle(p->handle);
@@ -108,7 +108,7 @@ void ls_eleh_frame()
         script_npc_send_go("Slave Driver#$npc057");
         level_entry_point = 2;
         c->place_at_marker(navpoint_find("$npc094"));
-        ls_eleh_go_top = false;
+        ls_eleh_join_joseph = false;
     }
 }
 
@@ -122,7 +122,7 @@ void ls_eleh_fade_place_party_frame()
     static GameTimer timer;                          // 0x257e9e8 ls_eleh_cutscene_timer (guard 0x257e9e4)
     switch (ls_eleh_cutscene_state) {
     case 0:
-        if (ls_eleh_go_ground || ls_eleh_go_bottom || ls_eleh_go_other) {
+        if (ls_eleh_go_top || ls_eleh_go_ground || ls_eleh_go_bottom) {
             script_disable_player_input();
             timer.invalidate();
             ls_eleh_cutscene_state = 1;
@@ -142,10 +142,10 @@ void ls_eleh_fade_place_party_frame()
             break;
         if (!timer.valid()) {
             timer.SetTimeout(500);
-            if (ls_eleh_go_ground)
+            if (ls_eleh_go_top)
                 level_entry_point = 5;
             else
-                level_entry_point = ls_eleh_go_bottom ? 3 : 4;
+                level_entry_point = ls_eleh_go_ground ? 3 : 4;
             script_place_party_at_starts();
             game_camera.set_target(cur_character);
             game_camera.snap_to_target(1, 1);
@@ -153,9 +153,9 @@ void ls_eleh_fade_place_party_frame()
         if (timer.elapsed()) {
             script_enable_player_input();
             gr_fade_in(1000);
+            ls_eleh_go_top = false;
             ls_eleh_go_ground = false;
             ls_eleh_go_bottom = false;
-            ls_eleh_go_other = false;
             ls_eleh_cutscene_state = 0;
         }
         break;
@@ -167,13 +167,13 @@ void ls_eleh_fade_place_party_frame()
 void ls_eleh_action(dialogue_action *action)
 {
     if (!_stricmp(action->name, "JoinJoseph"))
-        ls_eleh_go_top = true;
+        ls_eleh_join_joseph = true;
     if (!_stricmp(action->name, "TopFloor"))
-        ls_eleh_go_ground = true;
+        ls_eleh_go_top = true;
     if (!_stricmp(action->name, "GroundFloor"))
-        ls_eleh_go_bottom = true;
+        ls_eleh_go_ground = true;
     if (!_stricmp(action->name, "BottomFloor"))
-        ls_eleh_go_other = true;
+        ls_eleh_go_bottom = true;
 }
 
 // 0x4f1910  Confidence: exact. level_script_table use.

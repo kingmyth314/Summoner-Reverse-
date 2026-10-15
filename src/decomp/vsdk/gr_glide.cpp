@@ -172,7 +172,7 @@ guFogGenerateLinear_t glide_guFogGenerateLinear;                       // 0x2f0e
 // glide_tmus (0x2f0eb70) is defined below with its initialiser.
 glide_tcache_entry *glide_tcache_entries;             // 0x2f0ec00
 int glide_texture_mem_used;                           // 0x2f0ec04
-GrVertex glide_poly_vertex_ptrs[GLIDE_MAX_POLY_VERTS];   // 0x2f0ec08 (D2501)
+GrVertex glide_poly_vertices[GLIDE_MAX_POLY_VERTS];   // 0x2f0ec08 (D2501)
 // gr_glide_current_mode (0x2f0f1e4) and ccmd_whee (0x2f0f1e8, 0xc bytes) are defined below with their
 // initialisers; 0x2f0f1f4 has no reference.
 RECT glide_cursor_clip_rect;                          // 0x2f0f1f8
@@ -182,7 +182,7 @@ GrHwConfiguration glide_hwconfig;                     // 0x2f0f210 (0x94 bytes)
 ubyte glide_unused_2f0f2a4[0x4000];                   // 0x2f0f2a4 no reference (16 KB up to 0x2f132a3; name ours, D2504)
 int glide_initialized;                                // 0x2f132a4
 int glide_init_done;                                  // 0x2f132a8 (name ours)
-int glide_deactivation_count;                         // 0x2f132ac
+int glide_pending_activations;                         // 0x2f132ac
 int glide_pending_deactivations;                      // 0x2f132b0 (name ours)
 int glide_swap_enabled;                               // 0x2f132b4 (name ours)
 bool glide_close_on_deactivate;                       // 0x2f132b8 (name ours)
@@ -1347,7 +1347,7 @@ void glide_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
         glide_app_active = active;
         if (old_active != active) {
             if (active)
-                glide_deactivation_count++;
+                glide_pending_activations++;
             else
                 glide_pending_deactivations++;
             if (glide_close_on_deactivate)
@@ -1641,7 +1641,7 @@ void gr_glide_deactivate()
 {
     if (!gr_screen.dual_monitors) {
         glide_grSstControl(GR_CONTROL_DEACTIVATE);
-        glide_deactivation_count++;
+        glide_pending_activations++;
     }
 }
 
@@ -1658,9 +1658,9 @@ void gr_glide_flip()
     if (GLIDE_WINDOW_CLOSED)
         return;
     if (!glide_close_on_deactivate) {
-        int n = glide_deactivation_count;
+        int n = glide_pending_activations;
         if (n) {
-            glide_deactivation_count -= n;
+            glide_pending_activations -= n;
             if (!gr_screen.dual_monitors)
                 glide_grSstControl(GR_CONTROL_ACTIVATE);
             glide_swap_enabled++;
@@ -1942,7 +1942,7 @@ void gr_glide_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
         return;
     gr_glide_set_bitmap(mode, gr_texture);
     for (int i = 0; i < nv; i++) {
-        GrVertex *gv = &glide_poly_vertex_ptrs[i];
+        GrVertex *gv = &glide_poly_vertices[i];
         ubyte flags = verts[i]->_unk1a;
         if (flags & 8)
             gv->a = (float)verts[i]->a;
@@ -1967,7 +1967,7 @@ void gr_glide_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
             gv->tmuvtx[0].tow = gr_glide_texture_scale_v * verts[i]->v * gv->oow;
         }
     }
-    glide_grDrawPolygonVertexList(nv, glide_poly_vertex_ptrs);
+    glide_grDrawPolygonVertexList(nv, glide_poly_vertices);
 }
 
 // 0x54b3a0  Confidence: likely (the loops over the vertices strength-reduced to running offsets;
@@ -1983,9 +1983,9 @@ void gr_glide_tmapper_multitexture(int nv, gr_multipass_vertex **verts, int npas
         return;
     for (i = 0; i < nv; i++) {
         vlist[i] = verts[i]->v;
-        glide_poly_vertex_ptrs[i].x = vlist[i]->sx + GLIDE_SNAP;
-        glide_poly_vertex_ptrs[i].y = vlist[i]->sy + GLIDE_SNAP;
-        glide_poly_vertex_ptrs[i].oow = vlist[i]->sw;
+        glide_poly_vertices[i].x = vlist[i]->sx + GLIDE_SNAP;
+        glide_poly_vertices[i].y = vlist[i]->sy + GLIDE_SNAP;
+        glide_poly_vertices[i].oow = vlist[i]->sw;
     }
     gr_tmapper_pass *pass = passes;
     for (k = 0; k < npasses; k++, pass++) {
@@ -1994,25 +1994,25 @@ void gr_glide_tmapper_multitexture(int nv, gr_multipass_vertex **verts, int npas
         if (!pass->vertex_alpha) {
             float a = (float)pass->a;
             for (i = 0; i < nv; i++)
-                glide_poly_vertex_ptrs[i].a = a;
+                glide_poly_vertices[i].a = a;
         } else {
             for (i = 0; i < nv; i++)
-                glide_poly_vertex_ptrs[i].a = (float)verts[i]->pass[k].a;
+                glide_poly_vertices[i].a = (float)verts[i]->pass[k].a;
         }
         if (!pass->vertex_color) {
             float r = (float)pass->r;
             float g = (float)pass->g;
             float b = (float)pass->b;
             for (i = 0; i < nv; i++) {
-                glide_poly_vertex_ptrs[i].r = r;
-                glide_poly_vertex_ptrs[i].g = g;
-                glide_poly_vertex_ptrs[i].b = b;
+                glide_poly_vertices[i].r = r;
+                glide_poly_vertices[i].g = g;
+                glide_poly_vertices[i].b = b;
             }
         } else {
             for (i = 0; i < nv; i++) {
-                glide_poly_vertex_ptrs[i].r = gr_color_gamma_lut[verts[i]->pass[k].r];
-                glide_poly_vertex_ptrs[i].g = gr_color_gamma_lut[verts[i]->pass[k].g];
-                glide_poly_vertex_ptrs[i].b = gr_color_gamma_lut[verts[i]->pass[k].b];
+                glide_poly_vertices[i].r = gr_color_gamma_lut[verts[i]->pass[k].r];
+                glide_poly_vertices[i].g = gr_color_gamma_lut[verts[i]->pass[k].g];
+                glide_poly_vertices[i].b = gr_color_gamma_lut[verts[i]->pass[k].b];
             }
         }
 
@@ -2030,36 +2030,36 @@ void gr_glide_tmapper_multitexture(int nv, gr_multipass_vertex **verts, int npas
                 u_scale = gr_glide_texture_scale_u * u_scale;
                 v_scale = gr_glide_texture_scale_v * v_scale;
                 for (i = 0; i < nv; i++) {
-                    glide_poly_vertex_ptrs[i].tmuvtx[0].sow =
-                        (verts[i]->pass[k].u - u_offset) * u_scale * glide_poly_vertex_ptrs[i].oow;
-                    glide_poly_vertex_ptrs[i].tmuvtx[0].tow =
-                        (verts[i]->pass[k].v - v_offset) * v_scale * glide_poly_vertex_ptrs[i].oow;
+                    glide_poly_vertices[i].tmuvtx[0].sow =
+                        (verts[i]->pass[k].u - u_offset) * u_scale * glide_poly_vertices[i].oow;
+                    glide_poly_vertices[i].tmuvtx[0].tow =
+                        (verts[i]->pass[k].v - v_offset) * v_scale * glide_poly_vertices[i].oow;
                 }
             } else {
                 gr_glide_set_mode(pass->mode);
                 gr_glide_tcache_set(pass->stage, pass->bitmap, 0, &gr_glide_texture_scale_u,
                                     &gr_glide_texture_scale_v, true);
                 for (i = 0; i < nv; i++) {
-                    glide_poly_vertex_ptrs[i].tmuvtx[pass->stage].sow =
-                        verts[i]->pass[k].u * glide_poly_vertex_ptrs[i].oow * gr_glide_texture_scale_u;
-                    glide_poly_vertex_ptrs[i].tmuvtx[pass->stage].tow =
-                        verts[i]->pass[k].v * glide_poly_vertex_ptrs[i].oow * gr_glide_texture_scale_v;
+                    glide_poly_vertices[i].tmuvtx[pass->stage].sow =
+                        verts[i]->pass[k].u * glide_poly_vertices[i].oow * gr_glide_texture_scale_u;
+                    glide_poly_vertices[i].tmuvtx[pass->stage].tow =
+                        verts[i]->pass[k].v * glide_poly_vertices[i].oow * gr_glide_texture_scale_v;
                 }
                 if (next) {
                     gr_glide_tcache_set(next->stage, next->bitmap, 0, &glide_texture_scale2_u,
                                         &glide_texture_scale2_v, true);
                     for (i = 0; i < nv; i++) {
-                        glide_poly_vertex_ptrs[i].tmuvtx[next->stage].sow =
-                            verts[i]->pass[k + 1].u * glide_poly_vertex_ptrs[i].oow * glide_texture_scale2_u;
-                        glide_poly_vertex_ptrs[i].tmuvtx[next->stage].tow =
-                            verts[i]->pass[k + 1].v * glide_poly_vertex_ptrs[i].oow * glide_texture_scale2_v;
+                        glide_poly_vertices[i].tmuvtx[next->stage].sow =
+                            verts[i]->pass[k + 1].u * glide_poly_vertices[i].oow * glide_texture_scale2_u;
+                        glide_poly_vertices[i].tmuvtx[next->stage].tow =
+                            verts[i]->pass[k + 1].v * glide_poly_vertices[i].oow * glide_texture_scale2_v;
                     }
                 }
             }
         } else {
             gr_glide_set_mode(pass->mode);
         }
-        glide_grDrawPolygonVertexList(nv, glide_poly_vertex_ptrs);
+        glide_grDrawPolygonVertexList(nv, glide_poly_vertices);
         if (next) {
             k++;
             pass++;

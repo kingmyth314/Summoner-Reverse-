@@ -206,7 +206,7 @@ extern int glide_texture_mem_used;                    // 0x2f0ec04 bytes of conv
 // The vertex buffer of gr_glide_tmapper / gr_glide_tmapper_multitexture (D2501: GrVertex[25], not the
 // void*[32] of sum.symbols; the name is kept).
 #define GLIDE_MAX_POLY_VERTS 25
-extern GrVertex glide_poly_vertex_ptrs[GLIDE_MAX_POLY_VERTS];   // 0x2f0ec08
+extern GrVertex glide_poly_vertices[GLIDE_MAX_POLY_VERTS];   // 0x2f0ec08
 extern gr::Mode gr_glide_current_mode;                // 0x2f0f1e4 the mode last applied (invalid at start)
 extern RECT glide_cursor_clip_rect;                   // 0x2f0f1f8 {0, 0, w - 1, h - 1}
 extern int gr_glide_video_memory_mb;                  // 0x2f0f208 frame buffer MB of SST 0 (fbRam)
@@ -215,7 +215,7 @@ extern int glide_initialized;                         // 0x2f132a4
 extern int glide_init_done;                           // 0x2f132a8 (name ours) 1 at the end of gr_glide_init, no reader
 // Activations still to pass to grSstControl by gr_glide_flip (the msg handler and gr_glide_deactivate add
 // one). sum.symbols' name says the opposite; kept.
-extern int glide_deactivation_count;                  // 0x2f132ac
+extern int glide_pending_activations;                  // 0x2f132ac
 // Deactivations still to pass to grSstControl; with glide_close_on_deactivate, -1 = the Glide window is
 // closed (glide_set_active) and every draw call returns at once. Name ours.
 extern int glide_pending_deactivations;               // 0x2f132b0
