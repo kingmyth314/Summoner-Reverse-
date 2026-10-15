@@ -183,7 +183,9 @@ typedef struct Character {
     int32_t _unk08;
     int32_t type;            // +0x00C 7 for player party members (level-up message, skill copy)
     float   pos[3];          // +0x010 world position
-    int32_t _unmapped1c[0x19];
+    int32_t _unmapped1c[3];
+    float   centre_offset[3];// +0x028 offset from pos to the body centre (inferred)
+    int32_t _unmapped34[0x13];
     int32_t handle;          // +0x080 object handle (obj_create); player_from_handle(handle) gives the Player record
     uint32_t obj_flags;      // +0x084 bit 0 active
     uint8_t _unmapped88[0x10];
@@ -193,7 +195,10 @@ typedef struct Character {
     uint8_t status_slots[18][0x20]; // +0x0AC status effects by status_effect_id: +0 state (-1..2), +4 and +0x14 GameTimers
     int32_t timer2ec;        // +0x2EC GameTimer
     uint32_t enemy_team_mask;// +0x2F0 teams this character fights (defaults at 0x581904)
-    char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
+    char    name[0x20];      // +0x2F4
+    void*   instance;        // +0x314 character instance (vsdk ca)
+    struct Character* live_next; // +0x318 living-entity list
+    struct Character* live_prev; // +0x31C used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
     uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC..+0x5E4 locomotion animation ids (ready, ready_hurt, walk, run, tripped_liedown, ...; set with charinfo_find_anim)
     float   base_max_hp;     // +0x5F4 max HP without equipment; written by the level table
@@ -402,7 +407,7 @@ typedef struct char_info {
     float   intelligence;    // +0x23C +Intelligence: (AI)
     uint8_t _unk240[0x14];
     float   light_atten;     // +0x254 +LightAtten:
-    uint32_t flags;          // +0x258 0 by default; 0x80 / 0x100 make status_effect_add skip some effects
+    uint32_t flags;          // +0x258 0x8 cannot be tripped, 0x10 cannot be pushed, 0x20 cannot be backstabbed; 0x80 / 0x100 make status_effect_add skip some effects
     uint8_t _unk25c[0x08];
     float   icon_height;     // +0x264 $Icon Height:
     uint8_t _unk268[0x98];
@@ -530,11 +535,11 @@ typedef struct ai_state {
     uint32_t flags;          // +0x50
     float   travel_dest[3];  // +0x54 travel destination
     int32_t target;          // +0x60 target handle
-    uint8_t _unk64[0x1c];
-    void*   path;            // +0x80 current path (ai_path_free)
-    uint8_t _unk84[0x08];
+    uint8_t _unk64[0x28];
     uint8_t goals[5][0x34];  // +0x8C goal slots
     int32_t cur_goal;        // +0x190 current goal index
+    uint8_t _unk194[0x7c];
+    void*   path;            // +0x210 current path (ai_path_free; an earlier note said +0x80, which was wrong)
 } ai_state;
 
 // AI states (ai_state.mode); names from the game's own string table at 0x59ad60.

@@ -27,7 +27,7 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | `+0x00c` | int | type: 7 for player party members; 6, 8 and 10 are the dead forms of 5, 7 and 9 | `character_add_xp` (type 7), `character_resurrect` (`0x454070`) |
 | `+0x010` | float[3] | world position | |
 | `+0x098` / `+0x2f0` | int / mask | team, and the mask of teams it fights (defaults at `0x581904`) | |
-| `+0x324` | ai_state | AI sub-object: mode (`AI_STATE_*`, names from the game's table at `0x59ad60`: inactive, idle, traveling, combat, cast spell, patrol, summoning, banishing, disabled, hiding, sneaking, mount travel, mount idle), previous mode, timer, owner, travel destination `+0x54`, target handle `+0x60`, path `+0x80`, five goal slots `+0x8c`, current goal `+0x190` | `ai_set_mode` (`0x473320`) |
+| `+0x324` | ai_state | AI sub-object: mode (`AI_STATE_*`, names from the game's table at `0x59ad60`: inactive, idle, traveling, combat, cast spell, patrol, summoning, banishing, disabled, hiding, sneaking, mount travel, mount idle), previous mode, timer, owner, travel destination `+0x54`, target handle `+0x60`, five goal slots `+0x8c`, current goal `+0x190`, path `+0x210` | `ai_set_mode` (`0x473320`) |
 | `+0x69c` / `+0x6bc` | float[3] / float | velocity, speed scale | |
 | `+0x6cc` / `+0x6d0` | int | current animation and move | |
 | `+0x6e0` / `+0x6e4` | handle / flags | linked mount or rider; flags bit 0 rider, bit 1 mount | `character_get_mount`, `rider_unlink_mount` |

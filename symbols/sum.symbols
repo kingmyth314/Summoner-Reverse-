@@ -301,7 +301,7 @@
 0x414580  ui_get_pick_screen_override func  -                    O ; if 0x5bd960: out x/y = 0x58bdbc/0x58bdc0, returns 1
 0x4145b0  ui_get_pick_world_override func  -                    O ; if 0x5bd961: out = vector 0x5bd2f8, returns 1
 0x4146a0  ui_input_lock            func  -                    I ; 0x5bd962 = 1 (tested by interface_mouse_over_panel), from cutscene play and container_open
-0x4146b0  ui_input_unlock          func  -                    I ; 0x5bd962 = 0, from effects_kill_all
+0x4146b0  ui_input_unlock          func  -                    I ; 0x5bd962 = 0, from cutscene_cleanup
 0x4146c0  options_draw_version     func  new_options.cpp      O ; sprintf "v%d.%02d" (1.40) bottom-right in grey
 0x414750  ui_tooltip_set           func  -                    I ; (x, y, text) measures text into 0x5bd800/0x5bd804, clamps to screen, copies text, inventory/skills/spells/status tooltips
 0x4148c0  interface_start_input_delay func  -                    O ; RealtimeTimer 600 ms, called by interface_set_screen
@@ -637,7 +637,7 @@
 0x42ada0  spells_get_panel_width   func  new_spell.cpp        I ; returns 0x5f5388 for interface_set_view_clip
 0x42adb0  spells_mouse_in_panel    func  new_spell.cpp        O ; point_in_rect, case 5 of interface_mouse_over_panel
 0x42ade0  character_can_cast_now   func  -                    O ; (character or NULL = cur_character) false while 0x60a40c, silenced (status 1) or ai_is_casting
-0x42ae20  spell_is_usable          func  -                    I ; (spell, ...) spell_get_group, AP vs spell_info, character_spell_ready, move lookup, skill level check
+0x42ae20  spell_is_usable          func  -                    I ; (spell, ...) spell_get_group, AP vs spell_info, character_spell_on_cooldown, move lookup, skill level check
 0x42aee0  spells_count_in_group    func  -                    I ; (group) counts usable spells of cur_character in the group
 0x42af30  character_cast_spell     func  -                    I ; (spell) character_can_cast_now, spell_is_usable, AP check, ai goal 0x4740c0 with spell target mode (0x43a370)
 0x42b050  character_use_skill_on   func  -                    I ; (skill, target) AP cost, skill 0x13 path opens screen 20 (assess), skill cooldown, ai goal
@@ -775,7 +775,7 @@
 0x435ff0  cutscene_parse_visset    func  -                    O ; "$VisSet:" "$vis" entries of cutscene.tbl
 0x4361d0  cutscene_play            func  -                    O ; callers cmd_play_cutscene etc., stops effects, ui_input_lock, "Placeholder"
 0x4365e0  cutscene_start_special_cases func  -                    O ; "serpent-dismount" -> 0x497840, "Nar-LeneleAct4" -> Snow_enabled = 0
-0x436620  effects_kill_all         func  -                    I ; "killing off %d effects", "killing effect %d"
+0x436620  cutscene_cleanup         func  -                    I ; after a cutscene: releases level sounds, restarts music, cutscene_end_special_cases, restores characters' speed and AI, prints "killing off %d effects" (formerly effects_kill_all)
 0x436a60  cutscene_end_special_cases func  -                    O ; "Nar-LeneleAct4" -> Snow_enabled = 1
 0x436a90 SequenceTimer            func  -                        I ; timeGetTime-based sequence (cutscene) timer; 24.9-day sign bug
 0x436c00 SequenceTimer2           func  -                        I ; another timeGetTime user of sequence_start_time
@@ -900,11 +900,24 @@
 0x4402d0  init_ccmd_save_mlayout   func  -                    O ; static initialiser: registers console command object ccmd_save_mlayout
 0x4402f0  cmd_save_mlayout         func  -                      O ; console command "save_mlayout": Save a monster layout file
 0x440650  file_type_from_ext       func  -                    O ; ".peg" 0, ".rfx" 1, ".mvf" 2, ".vim" 3, else -1 (stricmp on file extension)
+0x440c00  mp_client_check_connection func  -                    O ; when the local player's reliable socket (+0x18) reports closed/error, mp_player_disconnected(0, reason 6)
+0x440c40  mp_server_check_clients  func  -                    I ; host: checks each remote player's reliable socket and RealtimeTimer, dropping dead ones with mp_remove_player (debug flag gated)
+0x440d20  mp_server_accept_connections func  -                    O ; host: nw_accept_reliable, matches the address with mp_player_find_by_addr and hands it to 0x4af670
+0x440d70  mp_host_update_session   func  -                    O ; host session state machine (0x6513fc 1-4): waits until mp_all_players_have_status 5 / 7 / 9, then advances the local status (6, 8) and mp_set_session_state (3, 4), sending the monster list (mp_send_monster_list)
+0x440e90  mp_server_frame          func  -                    O ; host frame: client timeouts (mp_server_check_clients), accepts connections in state 1, mp_host_update_session, and every 500 ms multi_set_netgame_state(0)
+0x440ee0  mp_client_frame          func  -                    O ; client frame: mp_client_check_connection, then every 500 ms multi_process_client_status once the local status (+0x14) is 4 or more
 0x440f20  multi_set_netgame_state  func  -                    O ; "Changing netgame state to %d"
 0x441150  multi_process_client_status func  -                    O ; "Unable to process client status packet -- unknown netid %d"
+0x4412a0  mp_game_frame            func  -                    I ; state_game_frame hook: nw_receive_all, packet handling, periodic player-file save (0x46da30), position/state broadcasts
+0x4413d0  multi_do_frame           func  -                    O ; per-frame multiplayer pump: IRC/PXO (0x4abb50), multi_process_incoming, local status 7/9 by session phase, then the host (mp_server_frame) or client (mp_client_frame) frame, callers GameTick, LoadingScreenDraw
+0x441490  mp_session_reset         func  -                    I ; resets the multiplayer session: timers, net handle map, player lists 0x651418, net stats (mp_reset_net_stats) and objects_reset, caller mp_charselect_init
+0x441530  mp_level_start           func  -                    O ; state_game_enter hook: resets trade state (0x470e70), the player-file timer (0x46da20), summon claims (0x4b0730) and on the host level_boss_init
+0x441570  mp_set_session_state     func  -                    O ; (state): stores 0x6513fc, on the host broadcasts it (multi_set_netgame_state(1)), state 1 also reads the level number (+0x150) of profile 0x408540(1) into 0x6513f0
 0x4415d0  mp_set_local_status      func  -                    O ; (status): local net player +0x14 = status, reports it with multi_process_client_status
 0x441610  mp_player_alloc          func  -                    I ; unlinks first node of free list 0x6514d8 and appends it to the player list 0x651418
+0x441660  mp_player_disconnect     func  -                    O ; (player): if in the player list 0x651418: party_remove_player for its character (+0x28), nw_NewCloseSocket on +0x18, unlinks and frees it
 0x441710  character_xp_death_penalty func  -                    I ; xp -= 10% of (xp - xp_for_level(level)), floored at xp_for_level(level), reads +0x600/+0x604
+0x441760  mp_local_player_create   func  -                    O ; sets game_debug_flags = 2 (multiplayer), mp_player_alloc into 0x651598 and fills it from profile 0x408540(1) (name +0x28 -> +0x34), falls back to state 10 on failure, callers state_mp_gamelist_enter, state_mp_lobby_enter
 0x441820  multi_process_packet     func  -                      I ; (data, len, from, reliable)
 0x4419d0  mp_reset_net_stats       func  -                    I ; zeroes the net rate/statistics arrays 0x65e0cc/0x65e93c/0x65e910 and counters, only caller 0x441490 (mp_charselect_init path)
 0x441a90  mp_broadcast_packet      func  -                    O ; (data, len, flag) walks player list 0x651418 and multi_send_packet to every connected player (+0x18 != -1), host only (0x651598 +0x10 bit 0)
@@ -940,13 +953,28 @@
 0x4473d0  skill_has_flag8          func  characterinfo.cpp    O ; skill_table[id] +0x20 bit 3
 0x4473f0  skill_is_combat_special  func  -                    I ; returns skill id in 0xc..0x11 (critical hit .. aimed attack), used by combat move choice 0x463d00
 0x447410  characterinfo_load_party_anims func  characterinfo.cpp    I ; "Joseph Anims", "Jekhar Anims" ...; masad allows only Joseph
+0x447780  charinfo_load_move_anim  func  characterinfo.cpp    O ; (char_instance, move, flag): unless move_used_on_level says skip, character_add_skeleton for the move's anim (+8 = result), loads its sound_ref (+0x34) except moves 0x92-0x95, and for "state" moves (type 0xE, +0x10) three extra triggers
+0x447850  charinfo_remap_town_moves func  characterinfo.cpp    O ; (char_info, flag): in towns (level_is_town), or templeint without flag, points every move in the lists +0x4C..+0x60 at the anim of charinfo_find_move(8,1,1), elsewhere copies the anims and sounds of alt moves (4,3,1) and (2,2,1) into matching moves
 0x447b10  level_load_preload       func  -                      I ; loads the level's character preload index (ca_load_preload_index) and per-level effects
 0x447e80  str_hash_nocase_rol6     func  -                    O ; hash = rol(hash,6) ^ tolower(c), -1 for NULL
+0x447ec0  charinfo_mark_anims_loaded func  characterinfo.cpp    O ; (char_info): sets the loaded animation-class mask +0x1C = -1 on it and every char_info whose +0x270 (anim source) is it, and on matching multiplayer slots with debug flag 2
+0x447f20  character_reinit_anims   func  characterinfo.cpp    I ; (character, n): resets the character instance, character_fill_locomotion_anims, cur_anim (+0x6CC) = -1, then +0x724 = {10,2,4,3,5,6,7,8,9}[n], called by characterinfo_load_party_anims
+0x448000  summon_stash_for_cutscene func  characterinfo.cpp    O ; thiscall (cur_summon): finishes the emerge, unloads its anims, character_release, removes it from the party or unlinks it from the living list (+0x318/+0x31C) and object list, sets flag 0x8, saves it in stashed_summon, called by cutscene_play
+0x4482a0  charinfo_load_script_anim func  characterinfo.cpp    O ; (char_info, anim_file, ...): loads an extra anim at run time (pool chosen from File__size), character_add_skeleton, and pushes a move_info of type 0xF onto the +0x88 list, refreshes living characters using that CA character, callers script_parse_objects, 0x4e84b0
+0x4484a0  charinfo_free_moves      func  characterinfo.cpp    O ; (char_info): move_info_free on the list at +0x88 (linked by +0x40), clears it, then releases the CA character found by name (+0x270 source or own +0)
+0x448500  summon_restore_after_cutscene func  characterinfo.cpp    O ; charinfo_free_moves on every char_info, resets the name StringPool, then puts the summon saved by summon_stash_for_cutscene back (party_add_member or living list), clears flag 0x8, rebuilds its character instance and anims
+0x4486b0  charinfo_mark_anims_unloaded func  characterinfo.cpp    O ; (char_info): as charinfo_mark_anims_loaded but writes 0
+0x448710  charinfo_unload_anims    func  characterinfo.cpp    O ; (char_info): character_free_skeletons on its CA character, resets the 16 move lists at +0x4C (anim handle +8 and +0x38 = -1), then charinfo_mark_anims_unloaded
+0x448790  charinfo_page_in_sounds  func  characterinfo.cpp    O ; (char_info): snd_load on the sound ids at +0x1A0 / +0x1DC for each of the +0x19A (int16) sound sets, called by level_page_in_characters
 0x4487f0  offense_point_name       func  -                    O ; returns table 0x59614c[i] = "$offense01".. , used by every boss loader for offense points
 0x448800  characterinfo_alloc_level_buffers func  characterinfo.cpp    I ; chooses buffer sizes by level ("templeint", "masad"/"masad_v2", multiplayer) and allocates them with operator_new
+0x448c10  characterinfo_level_unload func  characterinfo.cpp    O ; (reset_pool): character_release_all, clears every char_info +0x1C loaded flag (and multiplayer slots), optionally resets the "Player instance" mempool 0x744680, called by state_game_leave
+0x448c80  resistance_level_damage_mult func  -                    O ; (level) -> float: 0 -1, 1 -0.5, 2 0.5, 3 1, 4 1.5, other 0 (1 - table), only caller character_get_resistance
 0x448d00  summon_skill_from_creature_name func  characterinfo.cpp    O ; inverse of summon_skill_creature_name: skill id whose creature name matches, among skill_table flag-4 entries, -1 if none
 0x448d40  skill_find_by_display_name func  characterinfo.cpp    O ; stricmp(localized skill_table[i] name +0x1c) over 0x54 records with +0x20 bit 2, returns index or -1
 0x448d90  charinfo_find_anim       func  characterinfo.cpp    O ; (info, name) walks anim list info+0x84 (next +0x40) for stricmp(name) with mask +0xc & info+0x1c, returns anim index +0x8 or -1 ("ready", "walk", "run" lookups by the boss code)
+0x448de0  charinfo_create_character_instance func  characterinfo.cpp    O ; (char_info, persistent): picks a mempool (0x448f20), character_load (from +0x270 source if set), new 0xCC-byte character instance (0x519700), stored in Character +0x314, tracks non-hero pool use in 0x8b3c44
+0x448f20  charinfo_select_mempool  func  characterinfo.cpp    O ; (species, persistent): heroes (0-3) use the "Player instance" pool 0x744680, persistent others 0x7592c0 (offset reset), else 0x22e43c0
 0x448f60  statscreen_load_anim     func  characterinfo.cpp    O ; "statscreen", "Loading light/heavy armor version for %s"
 0x449100  statscreen_unload_anim   func  characterinfo.cpp    O ; "Unloading stat screen animation for %s"
 0x449200  chain_config_set         func  characterinfo.cpp    O ; persistent var "chainconfig%d%d" = value (0x4d00b0 on 0x2493a38)
@@ -960,9 +988,15 @@
 0x449570  init_ccmd_Quick_combo    func  -                    O ; static initialiser: registers console command object ccmd_Quick_combo
 0x449590  cmd_Quick_combo          func  -                      O ; console command "Quick_combo": Toggles Quick_combo
 0x449650  character_learn_chain_skill func  characterinfo.cpp    I ; L"%s learned %s!", L"Chain skill"
+0x449830  chain_count_unlocked_skills func  characterinfo.cpp    O ; (rec): counts chain_skill_table (0x8b3c6c, 0x14-byte {species, skill, chain, threshold}) entries of rec's species whose chain_points_get >= threshold, rec+8 = char_info index
+0x449890  chain_get_unlocked_skill func  characterinfo.cpp    O ; (rec, n): nth unlocked chain skill of rec's species, 0x55 (SKILL_NONE) if none
 0x449910  chain_config_find_skill  func  characterinfo.cpp    O ; (chain record, skill): slot 0-3 whose chain_config_get(species, slot) == skill, -1 otherwise, heroes only (species < 4)
+0x449960  chain_skill_get_points   func  characterinfo.cpp    O ; (rec, skill): chain_points_get for the chain_skill_table entry matching species and skill, 0 if none
+0x4499c0  chain_skill_set_points   func  characterinfo.cpp    O ; (rec, skill, value): chain_points_set for the matching chain_skill_table entry
 0x449a20  species_is_hero          func  characterinfo.cpp    O ; species <= 3 (Joseph, Jekhar, Flece, Rosalind groups), 16 callers
 0x449a30  characterinfo_find_multi_slot func  characterinfo.cpp    O ; "Unable to find multiplayer character info slot"
+0x449b00  multi_charinfo_slot_release func  characterinfo.cpp    O ; (char_info): clears the 0x3ec-byte multiplayer slot (0x7def08) whose +4 is this char_info, heroes only, skipped with debug flag 1, called from living_entity__vfunc0
+0x449b60  multi_charinfo_slots_clear func  characterinfo.cpp    O ; zeroes +0 of every 0x3ec-byte multiplayer char info slot 0x7def08..0x7dfeb8, called by the multiplayer reset 0x441490
 0x449b80  charinfo_get_multi_appearance func  characterinfo.cpp    I ; multi_charinfo_slot(info) + 0x3d4 or 0, used by texture setup (character_set_underwear_textures)
 0x449bb0  init_ccmd_charinfo       func  -                    O ; static initialiser: registers console command object ccmd_charinfo
 0x449be0  init_ccmd_levelchars     func  -                    O ; static initialiser: registers console command object ccmd_levelchars
@@ -982,8 +1016,10 @@
 0x44b430  item_create_misc_by_name func  items.cpp            O ; item_type_find(name) then item_create_misc (monster_drop_loot)
 0x44b450  item_type_find           func  items.cpp            O ; stricmp over item_types (0x8cbec0, 0x100 bytes each, count 0x8ec7c0), index or -1
 0x44b4a0  item_type_find_by_hash   func  items.cpp            I ; name hash -> item_types index or -1, used by savegame_read_items and savegame_read_inventory
+0x44b4f0  weapon_is_ranged         func  items.cpp            O ; (&ItemType +0x68): bit 0 of the byte at +0x6A (ranged weapon flag)
 0x44b500  item_type_is_stackable   func  items.cpp            O ; false when ItemType+0x58 magic info has charges > 1 or +0x14 >= 1.0, party_inventory_add_item merges counts when true
 0x44b530  character_can_equip_item func  items.cpp            O ; (character, item) -> 0x44b550(character, item->type)
+0x44b550  character_meets_item_requirements func  items.cpp            O ; (character, ItemType): identified, slot != -1, party members (type 7, flag 0x100 clear) also need species use, weapon class bit in char_info +0x20, weapon skill > 0 and Heavy Arms (skill 8) >= weight (+0x78 weapon, +0xEC armour)
 0x44b670  item_can_destroy         func  items.cpp            I ; !(item->type->flags(+0x5c) & 4), used by inventory_confirm_destroy
 0x44b690  item_is_identified       func  items.cpp            O ; debug mode -> true, else !(item->type +0x5c & 1)
 0x44b6b0  item_type_is_identified  func  items.cpp            O ; ItemType version of item_is_identified (+0x5c bit 0 clear)
@@ -997,13 +1033,19 @@
 0x44d940  hero_model_index         func  items.cpp            O ; "joseph" 0, "heavy joseph" 1, "jekhar" 2, "heavy jekhar" 3, "flece" ... "rosalind"
 0x44dbd0  spell_cooldown_start     func  living_entity.cpp    O ; (spell, character, seconds) records {handle, spell, GameTimer} in a 100-entry table 0x93ff78 and sets the per-spell timer 0x941514[spell]
 0x44dc70  character_start_spell_recovery func  living_entity.cpp    O ; thiscall (spell, extra): AI recovery time spells[spell].ai_recovery_time (+0x68), type 5 casting 0x11/0x1c/0x1e locks all three
-0x44dd30  character_spell_ready    func  living_entity.cpp    O ; thiscall (spell): 0 while a cooldown entry for this handle/spell has not elapsed
+0x44dd30  character_spell_on_cooldown func  living_entity.cpp    O ; thiscall (spell): 1 while this character's cooldown entry for the spell (100 x 12 bytes at 0x93ff78) has not elapsed, else 0 (formerly character_spell_ready)
 0x44ddb0  character_scale_stats_to_level func  living_entity.cpp    I ; ratio = level / char_info level (+0x30), scales char_info max_hp +0x24 / hp +0x26 ... into +0x5F4 base max HP etc.
 0x44e060  living_entity__living_entity func  living_entity.cpp    I ; constructor (vtable 0x581914): obj__obj, 18 x 0x20-byte records at +0xac (two GameTimers each), timer +0x2ec, AI +0x324 (0x4722f0), combat +0x558 (0x4681b0)
 0x44e150  living_entity__dtor      func  living_entity.cpp    I ; destructor; also the target of exception-unwind funclets at 0x57c560
+0x44e1c0  living_entity_init       func  living_entity.cpp    O ; only caller living_entity_create: obj_link_new, ai state init, char instance (charinfo_create_character_instance), anims, equipment, timers, head setup, xp/level scaling, team, starting items, foot bones
 0x44ed90  character_get_name       func  living_entity.cpp    O ; returns this + 0x2F4 (43 callers)
 0x44edb0  character_set_name       func  living_entity.cpp    O ; thiscall strcpy into +0x2f4 (name)
 0x44edf0  living_entity__vfunc0    func  living_entity.cpp    I ; only virtual of living_entity__vtable: frees the AI state, equipment (+0x754) and other resources
+0x44f020  character_is_in_view     func  living_entity.cpp    O ; thiscall (radius_scale): bounding-sphere centre from the character instance rotated by +0x38 plus pos, false beyond char_fog_get_far from the camera (0x60a290), else sphere-in-frustum test 0x50ecd0 (radius x1.5 for species 0x58)
+0x44f1a0  character_place_at_party_start func  living_entity.cpp    O ; thiscall (slot): slot < 4 takes pos/heading/layer from party start record 0x60a32c[slot] (+0x14 pos, +0x10 heading, +0x20 -> +0x68C), otherwise a formation spot behind cur_character (0x4b52e0) with its orientation, then character_find_ground and the idle move
+0x44f5f0  character_place_at_marker func  living_entity.cpp    O ; thiscall (marker): pos = marker +0x14, heading +0x10, layer +0x20 -> +0x68C, character_find_ground, copies pos/orientation into the previous-frame fields +0x1C/+0x5C, idle move, callers ls_eleh_frame, ls_wolong_frame, ls_wolong2_frame
+0x44f880  character_has_line_of_sight_to_point func  living_entity.cpp    O ; thiscall (point): ray from pos + character_size_height to point via 0x4a4bb0 (flags 0x440, radius 0.3), 1 if clear or the 0x599644 check is off
+0x44fa20  character_has_line_of_sight_to func  living_entity.cpp    O ; thiscall (obj): target point = obj pos (+ height when living_from_handle succeeds), then character_has_line_of_sight_to_point
 0x44fab0  character_add_xp         func  -                    O ; thiscall (xp, ?, ?): +0x604 += xp, shares xp with equipment slots 1-2 (0x44ffc0), on level-up applies xp_level_table and refills HP/AP; "%s gained level %d!", "+Level!"
 0x44ffc0  ring_add_xp              func  -                    I ; (ring name, ...): "<ring>_xp" counters for Ring of Darkness/Light/Fire/...; character_add_xp calls it for equipment slots 1-2
 0x450220  ring_check_summon_unlock func  -                    I ; "Joseph acquired Summon Wraith!" etc. per ring
@@ -1013,15 +1055,18 @@
 0x450d90  character_check_death    func  living_entity.cpp    I ; thiscall (0x22) called by character_add_hp when HP <= 0; returns whether the character survives
 0x450e30  monster_drop_loot        func  -                    O ; "No drop for Medevan Knights", "Rolling %d %d", "Dropping", per-boss key items
 0x4530d0  character_update_head_look func  living_entity.cpp    I ; per-frame head turning: "BDBN-Head"/"BDBN-Head01"/"BDBN-Foot-L" bones, atan2_fast, caller 0x45cd00
+0x4536c0  summon_return_lent_max_hp func  living_entity.cpp    O ; for each party member (and other players with debug flag 1) of species 0: base_max_hp (+0x5F4) += Player +0x178 (max HP lent to the summon by summon_create), then 0, clears hot-button member 4
 0x4537f0  summon_turn_hostile      func  -                    I ; "Summoned creature has turned against you!"
 0x454070  character_resurrect      func  living_entity.cpp    O ; type 6->5, 8->7, 10->9, HP = max, flags +0x320 &= ~0x88, +0x84 bit 0 set, re-inits instance (party_level_reset, party_add_member)
 0x4542b0  character_size_radius    func  living_entity.cpp    I ; float table 0x59d7c8[char_info size +0x90] = 0.15/0.47/1.0/99.9, bosses (type 9) via 0x4a16a0
 0x4542f0  character_size_height    func  living_entity.cpp    I ; float table 0x5818d8[size] = 0.9/1.8/2.5/99.9, bosses via 0x4a15a0
+0x454330  character_distance_between_edges func  living_entity.cpp    O ; thiscall (other, ignore_height, ...): distance between the centres (+0x10 pos + +0x28 centre offset) minus both size radii (0x59d7c8[char_info size], bosses via 0x4a16a0), 0x581934 when other is null, 33 callers
 0x454610  character_set_team       func  living_entity.cpp    O ; thiscall (team): character_set_team_mask(team, team_enemy_masks 0x581904[team])
 0x454640  character_set_team_mask  func  living_entity.cpp    O ; thiscall (team, mask): +0x98 = team, +0x2f0 = enemy team mask
 0x454670  character_set_flag_2_4   func  living_entity.cpp    O ; thiscall (n): flags +0x320 or= 2, and or= 4 when n >= 0
 0x4546b0  character_clear_flag_2_4 func  living_entity.cpp    O ; thiscall: clears flags +0x320 bits 4 and 2
 0x454700  status_effect_add        func  -                    O ; thiscall (id, ...): Character +0xac + id*0x20; immunity checks; "BOGUS STATUS EFFECT HANDLE"; floating text "+Silence" ... "+Slow"
+0x454ff0  status_effect_add_from_item func  living_entity.cpp    O ; thiscall (status, item, level): puts a status (id <= 0x10) in item state 1 with source item at slot +0x10 (+0xBC), timer invalidated, plus the per-status side effects (sleep/paralyze ai_go_inactive, slow speed scale), callers character_refresh_item_status_effects and the equip routine 0x46bdf0
 0x4553a0  status_effect_cure       func  -                    O ; thiscall (id): clears Character +0xac + id*0x20; "Cant cure!"; floating text "-Silence" ... "-Slow"
 0x455950  character_has_status     func  living_entity.cpp    O ; thiscall (status id): GameTimer__valid on status slot +0xb0 + id*0x20
 0x455990  character_status_active  func  living_entity.cpp    O ; thiscall (id): status slot timer (+0x4) valid and state != 2
@@ -1030,21 +1075,41 @@
 0x455a50  character_status_set_1c  func  living_entity.cpp    O ; thiscall (id, v): status_slots[id] +0x1c = v (called from character_add_hp)
 0x455a70  character_status_set_8   func  living_entity.cpp    O ; thiscall (id, v): status_slots[id] +0x8 = v
 0x455a90  character_clear_all_effects func  living_entity.cpp    O ; thiscall: status_effect_cure on all 18 slots, removes attached effects (0x48cdf0/0x48ce50 by handle), resets tint to 255, float_text_scale = 0
+0x455b20  character_refresh_item_status_effects func  living_entity.cpp    O ; thiscall: for statuses 0-8 held in item state (slot +0 = 1) recomputes the strength from the strongest equipped item (ItemType +0x48[status], 0 = wearer level) or cures it, free slots (-1) get an item status via status_effect_add_from_item (not in level 4)
 0x455e00  character_ai_travel_offset func  living_entity.cpp    O ; thiscall (dx, dy, dz): ai_travel_to_xyz(position +0x10 + d)
+0x455e70  character_walk_to_point  func  living_entity.cpp    I ; thiscall (x, y, z, arg): direction to the point vs the forward vector +0x50, unless exactly facing, ai_travel_to_point on the AI state +0x324, called from conversation code
 0x455f50  character_ai_add_goal9   func  living_entity.cpp    O ; thiscall: if AI traveling sub 0 go idle, then 0x473f40 (ai goal type 9)
+0x455fb0  character_find_ground    func  living_entity.cpp    I ; thiscall: searches the level objects of the character's layer (lists 0x9414b8[layer], num_lobjs) with character_probe_lobj_ground and stores the object index +0x688 and face +0x68A, 20 callers incl. living_entity_create and cmd_character
+0x456750  character_probe_lobj_ground func  living_entity.cpp    I ; (flags, lobj, ..., pos, face, ...): downward ray (20 m, 4 m with flag 0x100000) against one level object via lobj_raycast
+0x4568e0  character_update_layer   func  living_entity.cpp    O ; thiscall: +0x68C = layer of the level object under the character (+0x688, lobj_get_layer), DebugError "Invalid layer for mesh %s" when it has none
+0x456ed0  character_anim_speed_at_blend func  living_entity.cpp    O ; thiscall (blend): temporarily sets +0x6A8, refreshes the locomotion anim and returns the magnitude of the anim's root velocity (character_instance__check_anims)
 0x456f80  character_get_698        func  living_entity.cpp    O ; thiscall: 1.0 if 0x462de0() else float +0x698
+0x456fb0  character_get_forward_velocity func  living_entity.cpp    O ; thiscall (vector3* out): forward speed +0x698 times the forward vector +0x50, zero while character_ai_suspended
+0x457060  character_get_speed      func  living_entity.cpp    O ; thiscall: length of velocity +0x69C, 0 while character_ai_suspended
 0x4570d0  character_set_6ac        func  living_entity.cpp    O ; thiscall (v): +0x6ac = v, ai_go_idle passes 0
 0x4570f0  character_boss_hook_a    func  living_entity.cpp    I ; thiscall: if type (+0xc) == 9 (boss) calls 0x4a1b70(this, arg)
 0x457120  character_boss_hook_b    func  living_entity.cpp    I ; thiscall: if type (+0xc) == 9 (boss) calls 0x4a1be0(this, arg)
 0x457150  character_save_state     func  living_entity.cpp    O ; (buf) serializes a living entity by type: pos, heading, flags, effect slots, equipment, timers, skills, level, xp, HP, AP, AI state, returns bytes used
 0x4587f0  character_save_state_size func  living_entity.cpp    O ; returns 0x17c, the fixed record size
 0x458800  character_load_state     func  living_entity.cpp    I ; reader of character_save_state, called from savegame_read_character
+0x45a120  character_update_locomotion_anim func  living_entity.cpp    I ; thiscall: picks the locomotion anim (knocked down sub 0x2d/0x2e, +0x5E4, badly hurt, sneaking, mounted rider, boss hooks) and blends it from +0x6A8 through the character instance (0x51ae90 / 0x51b250), 32 callers
+0x45a6e0  character_set_locomotion_speed func  living_entity.cpp    I ; thiscall (speed): clamps to +0x6B4 and converts it to the locomotion blend +0x6A8 (0..0.5 up to the walk speed +0x6B8, 0.5..1 up to +0x6B4)
+0x45a840  character_stopping_distance func  living_entity.cpp    O ; thiscall (vector3* out_vel): v^2 / (2 * +0x6B0 * speed_scale +0x6BC) from the character instance velocity (0x51a950), 0 when speed_scale is 0
+0x45a930  character_distance_to_reach_blend func  living_entity.cpp    O ; thiscall (blend): distance covered while accelerating (char_info +0x228 speedup rate) or braking (+0x6B0) from the current speed to the anim speed of that blend
+0x45aa20  character_distance_to_reach_speed func  living_entity.cpp    O ; thiscall (speed): as character_distance_to_reach_blend with a target speed
 0x45b680  vector3__operator_add    func  vsdk\math            O ; returns *this + v (hidden return pointer)
 0x45b6b0  vector3__operator_sub    func  vsdk\math            O ; returns *this - v (hidden return pointer)
+0x45ccb0  character_update_render_flag func  living_entity.cpp    I ; (character): clears obj_flags bit 0 when flag 0x40000 is set or +0x34 is non-zero, otherwise sets obj_flags bit 2, only caller 0x45cd00
 0x45d4c0  character_find_foot_bones func  living_entity.cpp    O ; thiscall: skeleton bone lookup "BDBN-Foot-L"/"BDBN-Foot-R" into +0x678/+0x67a
 0x45d540  character_play_footstep  func  living_entity.cpp    I ; thiscall: picks the surface footstep sound, randomises frequency (snd_get/set_frequency), sound_play_3d
 0x45d690  character_update_footsteps func  living_entity.cpp    I ; thiscall: "left-foot"/"right-foot" anim triggers using foot bones +0x678/+0x67a, calls character_play_footstep
+0x45d830  character_get_attack_range func  living_entity.cpp    O ; thiscall (float* out): bosses via boss_get_attack_range, AI combat style 4/5 with enough AP (no Silence) gives 8.0, else a ranged weapon (weapon_is_ranged) gives its attack radius ItemType +0x74, false otherwise
+0x45d980  character_can_cast_spell func  living_entity.cpp    O ; thiscall (spell): needs a spell group, no Silence (status 1), a cast move (character_find_move(7, spells[spell] +0x50)), AP >= cost (+0x54), no cooldown (character_spell_ready == 0) and the group's skill (0x59b988[group]) >= spell skill (+0x58)
+0x45da60  character_perform_spell_cast func  living_entity.cpp    I ; plays the cast move (spells +0x50), move fade, cast effect and sound, launches the missile at the target, starts the recovery and deducts AP (Use_spell_ap), callers are AI and boss spell routines
+0x45dd80  character_start_move_fade func  living_entity.cpp    O ; (character, move): takes a free entry of move_fades (handle, move, 0.5 / anim length), used by the spell cast routine 0x45da60
+0x45de20  character_play_flinch    func  living_entity.cpp    O ; thiscall (sub): non-bosses play a flinch move (type 4) (character_find_move(4, sub)) with character_play_move, then character_set_flag_2_4(-1), flag 0x4, +0x56C = 0, callers living_entity_get_hit_by_spell and two level scripts
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
+0x460f20  character_play_move      func  living_entity.cpp    O ; thiscall (move, speed, ..., 5 args): sets cur_move +0x6D0 and cur_anim +0x6CC, blends the anim in the character instance, plays the move sound (handle +0x674) and effect (handle +0x60C), returns the anim or -1, 45 callers
 0x461370  character_find_move      func  living_entity.cpp    O ; charinfo_find_move(info, category, id, 1), category 4 refused for type 9
 0x4613b0  character_find_move_alt  func  living_entity.cpp    O ; charinfo_find_move_alt(info, category, id, 1), category 4 refused for type 9
 0x4613f0  character_move_progress  func  living_entity.cpp    O ; thiscall (anim): fraction of the current move anim still to play, 1.0 when not playing
@@ -1057,6 +1122,7 @@
 0x4616f0  character_move_trigger_mark func  living_entity.cpp    O ; thiscall (id): sets trigger-fired byte +0xa0[i]
 0x461740  character_move_trigger_fired func  living_entity.cpp    O ; thiscall (id, ...): returns 1 once when the trigger time has passed (+0xa0[i] latch), 0 before, -1 if no move or trigger
 0x4617f0  character_is_badly_hurt  func  living_entity.cpp    O ; HP < 0.3 x max HP, or status 13 (slow) active
+0x461840  character_get_move_effect func  living_entity.cpp    O ; thiscall: returns +0x60C (effect handle started by character_play_move), caller evil_joseph_check_stage
 0x461870  init_ccmd_immortal       func  -                    O ; static initialiser: registers console command object ccmd_immortal
 0x461890  cmd_immortal             func  -                      O ; console command "immortal": Toggles Players_immortal
 0x461990  init_ccmd_health         func  -                    O ; static initialiser: registers console command object ccmd_health
@@ -1069,6 +1135,7 @@
 0x462070  character_get_display_name func  living_entity.cpp    O ; name +0x2F4 with "#$0123..." suffix cut, "onif" -> L"Oni Female", L"Unknown" fallback
 0x462200  character_set_ai_active  func  living_entity.cpp    O ; thiscall (on): +0x84 bit 0 and flags +0x320 bit 0x20 (inactive), on -> ai_go_idle, off -> ai_go_inactive
 0x462260  character_set_speed_scale func  living_entity.cpp    I ; thiscall (scale, flag): +0x6bc = scale (negative -> base +0x6b4), flag sets flags bit 0x200, used by status_effect_add/cure (slow)
+0x4622b0  character_get_move_fade_alpha func  living_entity.cpp    O ; thiscall: instance alpha (+0xB4) faded in/out over the fade fraction at the start/end of the registered move (character_move_progress), frees the entry when the move ends
 0x462380  character_is_main_hero   func  living_entity.cpp    O ; char_info name is Joseph, Rosalind, Flece or Jekhar
 0x462400  character_skill_allowed  func  -                    I ; thiscall (skill): player_skill_unlocked on the player record unless flags +0x320 & 0x100; false makes character_get_skill return -999999
 0x462440  character_get_skill      func  -                    O ; thiscall (skill id) -> float: skill_byte[id] * 0.01 with equipment modifiers (0x462540); id 2 = speed (byte 11 = 0.11, shown x1000 = 110%), id 1 = base protection
@@ -1078,7 +1145,9 @@
 0x4627c0  character_equip_bonus    func  -                    O ; thiscall (stat): sum of {stat, value} modifiers (item type +0x40, 2 entries) over the 10 equipment slots at +0x754
 0x462810  character_ap_regen_mult  func  living_entity.cpp    O ; thiscall: product of ap_regen (+0x54) of every equipped item type
 0x462840  character_get_max_stat   func  -                    O ; thiscall (0 = HP: base +0x5f4 + bonus, min 1; 1 = AP: base +0x5fc + bonus, min 0)
+0x4628a0  character_apply_hero_model func  living_entity.cpp    I ; thiscall (variant): heroes (species 0-3) only, character_reload_mesh(variant) and applies the armour textures of slots +0x760/+0x764/+0x770/+0x774 from ItemType +0x68 + (species*4 + variant)*0x10 (alt texture +0x6C with flag 0x2000000)
 0x462a20  character_set_underwear_textures func  -                    I ; per party member six body-part textures (head, torso, cape, thigh, leg, arms: "Joseph05.tga", "Torso_Uwear_Josp.tga" ...), bm_replace_file
+0x462c80  character_set_armour_alt_texture func  living_entity.cpp    I ; thiscall (on, force): species 0 only, toggles flag 0x2000000 and sets underwear region 5 to the +0x760 item's normal or alternate texture
 0x462d20  character_get_mount      func  living_entity.cpp    O ; living_from_handle(+0x6E0) if that entity has +0x6E4 bit 1, cmd_*_unlink use it to find a boss rider's horse
 0x462d40  character_get_rider      func  living_entity.cpp    O ; living_from_handle(+0x6E0) if that entity has +0x6E4 bit 0
 0x462d60  character_is_mount       func  living_entity.cpp    O ; +0x6E4 bit 1
@@ -1099,34 +1168,74 @@
 0x463390  cmd_bloodspots           func  -                      O ; console command "bloodspots": Toggles Bloodspots
 0x463460  init_ccmd_death          func  -                    O ; static initialiser: registers console command object ccmd_death
 0x463480  cmd_death                func  -                      O ; console command "death": Toggles Debug_death
+0x463540  living_combat_send_net   func  -                    O ; thiscall living_combat (state, arg): picks attacker/defender handles, move and anim by state (+0x14) and sends them through mp_combat_reset_target with mp_handle_to_net
 0x4635e0  living_combat_reset      func  -                    O ; thiscall: clears state +0x14, move +0x30, anim +0x34, target +0x4 = -1, chain skills +0x38/+0x3c/+0x28 = 0x55 (SKILL_NONE)
 0x463620  living_combat_play_attack func  -                    O ; thiscall (move): +0x34 = character_start_move(owner, move, 1.0), state +0x14 = 1, or 0 on failure
 0x463660  living_combat_play_special func  -                    O ; thiscall (move): same as living_combat_play_attack with state 5
+0x4636a0  living_combat_play_flinch_secondary func  -                    O ; thiscall living_combat (sub): unless knocked down (AI 8/0x2E) plays a flinch move (type 4, or 5 non-combat flinch for a party member outside combat mode) via character_find_move_alt, anim in +0x44, state +0x14 = 4
+0x463730  living_combat_play_flinch func  -                    O ; thiscall living_combat (sub): as living_combat_play_flinch_secondary for non-boss defenders, anim in +0x34, callers combat_apply_melee_hit, luminar_beam_hit
+0x4637d0  living_combat_pick_parry func  -                    O ; thiscall living_combat: parry move (type 2) matching the opponent's current move variant (+0x18) into +0x30, state 3, else state 0
+0x463830  living_combat_pick_dodge func  -                    O ; thiscall living_combat: dodge move (type 3, sub 0) into +0x30, state 3
 0x463860  combat_queue_counter_attack func  -                    O ; "Queueing counter attack for %s"
+0x4638c0  living_combat_play_defense func  -                    O ; thiscall living_combat: unless knocked down plays the chosen move +0x30 (anim +0x34), state 4
+0x463910  combat_fire_weapon_missile func  -                    I ; finds the "$missile" tag on the equipped weapon's mesh (+0x768), builds its world transform from the character instance bone and launches the projectile (0x47e830), caller 0x467020
 0x463b40  combat_attack_rating     func  -                    I ; attack record: weapon damage (+0x68) or char_info damage (+0x38), plus 3 x level
 0x463b90  combat_weapon_skill      func  -                    O ; attack record: character_get_skill(weapon +0x6C skill, 0 without weapon) clamped to [0,1]
 0x463be0  combat_has_weapon_skill  func  -                    O ; combat_weapon_skill > 0
+0x463c00  living_combat_speed_share func  -                    O ; thiscall living_combat (opponent combat): own speed (skill 2) / (own + opponent's), each scaled by 1 + double attack (skill 0xD), cur_character scaled by 0x57e994 when 0x60acd4 is set, 0.5 when both are 0, caller combat_resolve_exchange
+0x463d00  living_combat_ai_choose_special func  -                    O ; thiscall living_combat: non-player attackers, with chance 0x57ef10: party members use double attack (0xD), monsters pick a random known combat special skill below 0x24 (kick only on their own target, trip not on knocked-down or char_info flag 0x8 targets, push not on flag 0x10 targets) into +0x38
+0x463e20  living_combat_pick_attack_move func  -                    O ; thiscall living_combat (arg): fails unless the opponent is in front (dot with forward > 0x581980), random attack move from charinfo_collect_moves(type 0xA list, weapon class ItemType +0x88), move id into +0x18
+0x463f30  living_combat_begin_attack func  -                    O ; thiscall living_combat: +0x3C = SKILL_NONE, chain-skill choice (0x463d00), a chosen chain skill (+0x38) plays through 0x4645f0, otherwise a normal attack move (0x463e20) via living_combat_play_attack
+0x463f70  living_combat_begin_attack_thunk func  -                    O ; jmp living_combat_begin_attack, caller combat_resolve_exchange
+0x463f80  living_combat_ranged_attack func  -                    O ; thiscall living_combat: ranged-attack move (type 0xB, id 0x20) or phoenix_find_special_move for species 0x58, played with living_combat_play_special
+0x463fc0  living_combat_test_defense func  -                    O ; (combat, opponent): temporarily sets the opponent (+8), living_combat_roll_defense(simulate = 1), true when +0x40 > 0, 9 boss/AI callers
+0x463ff0  living_combat_resolve_hit_vs func  -                    O ; (combat, opponent): temporarily sets the opponent (+8) and runs the hit resolution 0x467df0
 0x464020  init_ccmd_Super_power    func  -                    O ; static initialiser: registers console command object ccmd_Super_power
 0x464040  cmd_Super_power          func  -                      O ; console command "Super_power": Toggles Super_power
+0x464100  living_combat_roll_defense func  -                    I ; (defender combat, simulate): parry (skill 9) and dodge (skill 0xB) chances against the attacker's weapon skill, reduced by blind/sleep/paralyze/cripple/slow and disabled AI, frand picks living_combat_pick_parry or _pick_dodge (state 2), counts successes in +0x40
+0x4645f0  living_combat_play_skill_attack func  -                    O ; thiscall living_combat: switch on the chosen combat skill +0x38 (0xD..0x45) to its special (type 1, ids 0x66-0x69) or attack (type 0, ids 0x77-0x79) move, else living_combat_pick_attack_move, plays it with living_combat_play_attack
 0x464700  combat_resolve_exchange  func  -                    I ; melee exchange between two combatants: "Local combat sith %s and %s", chain skill learning, L"Chain " and L"Counterattack!" messages
+0x464cb0  living_combat_defense_in_time func  -                    O ; thiscall living_combat: true when the hit trigger (7) of the chosen defence move +0x30 comes no later than the opponent's remaining time to its hit trigger
+0x464d00  combat_position_modifier func  -                    O ; (attacker, defender): +0.25 when the attacker is higher by more than 0x580e00 (-0.25 when lower), +0.5 against a knocked-down defender (AI 8/0x2D), + 0x581968 when hitting from behind, caller combat_melee_damage
 0x464de0  character_get_protection func  -                    O ; thiscall on character +0x558 ([0] = character): no armour = get_skill(1) + level*0.01, else sum of materials[type +8].protection_mult * type +0xf0 over armour slots; Character screen shows x100
 0x464f50  combat_melee_damage      func  -                    O ; thiscall on an attack record ([+0] attacker, [+8] -> target, +0x3c attack/skill id): melee damage formula (docs/sum-exe/combat.md); the mug branch shows L"Stole %d gold!"
 0x465df0  combat_apply_melee_hit   func  -                    I ; combat_melee_damage, character_add_hp, knock-down/disable, status effects and hit vfx ("generichit01.vfx", "spell-icicle-target.vfx", ...)
+0x4665f0  combat_get_weapon_tag_position func  -                    I ; world position of a tag on the attacker's weapon mesh (+0x768, vim_find_tag) through the hand bone transform (0x466920), used by combat_apply_melee_hit, combat_spawn_hit_vfx and combat_spawn_spark_vfx
+0x466920  character_get_bone_world_matrix func  -                    I ; (character, bone, out): bone transform from the character instance (0x51b460) rotated by the orientation +0x38 and offset by pos, only caller combat_get_weapon_tag_position
 0x4669c0  combat_spawn_hit_vfx     func  -                    O ; "blood.vfx" or "sparkhit.vfx"/"sparkhit01.vfx" at the hit point (fx through 0x48c080), caller combat_apply_melee_hit
+0x466a80  combat_play_weapon_hit_sound func  -                    O ; (attacker, defender): surface_play_sound at the defender's position with the weapon material (ItemType +8, or char_info +0x218 when unarmed) against the armour in slot 7 (+0x770) or the defender's char_info +0x218 material
+0x466ae0  chain_attack_check_window func  -                    I ; thiscall chain state (skill): by state +0x14 (0-5) checks speed-scaled timing (skill 2, chain count +0x20/+0x24), double attack (skill 0xD) moves 0x77/0x78 and the trigger 6/7 windows, caller chain_attack_select
+0x466d20  living_combat_update_exchange func  -                    I ; both sides attacking each other: combat_resolve_exchange at the hit trigger, sparks, defence timing (living_combat_defense_in_time), reflex abilities, combat_apply_melee_hit, combat_queue_counter_attack
 0x466e90  combat_spawn_spark_vfx   func  -                    O ; "sparkhit01.vfx" at a random offset of the weapon, caller 0x466d20
+0x466f00  living_combat_update_attack func  -                    I ; one-sided attack: combat_resolve_exchange when the attack's hit trigger fires, then the hit resolution 0x467df0
+0x467020  living_combat_update_ranged func  -                    I ; combat sub 0x10: fires the weapon missile (combat_fire_weapon_missile) at the trigger and resolves when the move ends
+0x4670a0  combat_trigger_special_ability func  -                    O ; thiscall living_combat: with chance char_info +0x40 (frand) the attacker casts its special ability spell (char_info +0x3C, int16) at the defender (missile or living_entity_get_hit_by_spell, spells +0x74 bit 0x20 = missile), caller combat_apply_melee_hit
+0x467670  combat_trigger_reflex_ability func  -                    O ; as combat_trigger_special_ability for the defender's reflex ability (char_info +0x44, chance +0x48), callers combat_apply_melee_hit, living_combat_update_exchange
+0x467cb0  living_combat_update_special func  -                    I ; combat sub 0x11 special attack started by ai_goal_do_special_attack: plays the move, defence roll, hit resolution 0x467df0, network update living_combat_send_net
+0x467db0  character_break_paralysis_on_hit func  -                    O ; (character): cures STATUS_PARALYZE (10) when it is active and flag 0x80000 is set, called from the hit resolution 0x467df0
+0x467df0  living_combat_resolve_hit func  -                    I ; hit resolution: status effects (status_effect_add), paralysis break, boss hooks, knock-down / trip / push (ai_knock_down, ai_disable_2f, rand_int_range), weapon hit sound, combat_apply_melee_hit
+0x468160  living_combat_flinch_if_idle func  -                    O ; thiscall living_combat (sub): non-bosses that are not attacking, not in combat sub 0x10 and not disabled play living_combat_play_flinch, callers living_entity_get_hit_by_spell, 0x460190
 0x4681b0  living_combat__ctor      func  -                    I ; constructor of the sub-object at living entity +0x558 (character_get_protection's this)
 0x4681d0  living_combat_set_owner  func  -                    O ; thiscall (character): +0x0 = owner (living_combat at Character +0x558)
 0x4681e0  living_combat_get_target func  -                    O ; thiscall: living_from_handle(+0x4)
 0x4681f0  living_combat_set_target func  -                    O ; thiscall (?, character): 0x4635e0 reset, then +0x4 = character handle
+0x468210  living_combat_update     func  -                    O ; thiscall living_combat (dt): resets when the target is gone, dispatches to the boss (0x468360), exchange (0x466d20, both attacking and facing), one-sided (0x466f00), ranged (0x467020, combat sub 0x10) or special (0x467cb0, sub 0x11) updates, true when the state +0x14 is back to 0
+0x468360  living_combat_update_boss_attack func  -                    I ; boss attacker branch of living_combat_update: boss move triggers (0x4a2590, 0x4a2920, ...), defence rolls and hit resolution 0x467df0
+0x4685c0  living_combat_apply_net_exchange func  -                    I ; multiplayer: replays a remote combat exchange (attack, special or chain move, parry/dodge) for living_from_handle, caller mp_combat_reset_target
+0x468740  living_combat_is_busy    func  -                    O ; thiscall living_combat: state +0x14 != 0, 15 boss/AI callers
 0x468760  blood_splot_place        func  -                    O ; picks "BloodSplot-large02/med02/small02.tga" by size and projects it on the ground under the character
 0x468a90  vector3_scale_to         func  -                    O ; (out, s, v): out = v * s
 0x468ac0  combat_spawn_blood       func  -                    I ; caller combat_apply_melee_hit, checks the species/material, then blood_splot_place
+0x468c40  living_combat_set_special_skill_species89 func  -                    O ; thiscall living_combat (skill): sets +0x3C only for bosses (type 9) of species 0x59
+0x468c60  living_combat_get_special_skill func  -                    O ; thiscall living_combat: returns +0x3C (SKILL_NONE 0x55 when unset, see living_combat_begin_attack)
+0x468c70  living_combat_set_40     func  -                    O ; thiscall living_combat (value): +0x40 = value (the defence counter of living_combat_roll_defense)
 0x468cd0  sound_ref_load           func  -                    O ; loads the sound named by a sound_ref (sound_check_filename), "FAILED TO CREATE SOUND BUFFER FOR FILE %s"
 0x468d90  game_play_sound          func  -                    I ; if handle > 0 call 0x520d50(handle, ...), returns 1, 75 callers (interface clicks etc.)
 0x468dc0  sound_play_2d            func  -                    O ; (sound, volume): snd_play(sound, volume, 0, 0, 1)
 0x468de0  sound_play_3d_at         func  -                    O ; (sound, pos): snd_play_3d(sound, pos, 0, 0, 0) if sound > 0, else -1
 0x468e00  surface_play_sound       func  -                    I ; (surface, kind, pos): sound table 0x941754[surface * 17 + kind] (from surfaces_parse_table) through sound_play_3d_at
 0x468e30  surfaces_parse_table     func  -                    O ; "_surfaces.tbl", "$Default:"
+0x469010  lobj_face_get_surface    func  objects.cpp          O ; (lobj, face): face material -> surface via table 0x941bd8 ({material, surface}, count 0x9421d4), default 0x59a330, callers character_play_footstep and 0x43bba0
 0x469080  music_play               func  gamesound.cpp        O ; (index, loop): fades out other music (200 ms), sound_check_filename(music file 0x9421dc[index]) and snd_play_streamed(_looping), handle 0x59a334, index 0x59a33c
 0x469140  music_is_playing         func  gamesound.cpp        O ; music handle 0x59a334 != -1 and snd_is_playing
 0x469160  music_get_current        func  gamesound.cpp        O ; current music index 0x59a33c while playing, else -1
@@ -1134,18 +1243,36 @@
 0x4691b0  music_set_volume         func  gamesound.cpp        O ; (volume): snd_set_group_volume(1, v) and snd_set_volume on the current music
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
 0x4696d0  music_find_by_name       func  gamesound.cpp        O ; stricmp over music.tbl names 0x9421d8 (8-byte records, count 0x94389c, filled by music_feedback_parse_tables), -1 if none
+0x4698c0  living_entities_update_footsteps func  objects.cpp          O ; character_update_footsteps on every entity of the living list 0x8ecd78 (next +0x318), called by objects_do_frame
+0x469900  objects_init             func  objects.cpp          O ; empties the object list 0x970770, living list 0x8eca60 and list 0x8ed1e8, zeroes the object count 0x9438a0, links the 1000 12-byte obj_slots into obj_free_list, callers GameInit and 0x46b330
 0x469a70  obj__obj                 func  objects.cpp          I ; base object constructor (vtable 0x5819c4)
+0x469b10  obj__ctor_link           func  objects.cpp          O ; thiscall (link): vtable obj__vtable, obj_link_new when link is non-zero, used for the object list head 0x970770
 0x469b40  obj__dtor                func  objects.cpp          O ; thiscall: vtable = obj__vtable 0x5819c4 (base destructor body, called by living_entity__dtor)
 0x469b60  obj_link_new             func  objects.cpp          I ; thiscall (type): +0xc = type, clears handle +0x80 / +0x84 / +0x34 and position, links into object list 0x970770 and calls obj_create
 0x469c40  obj_create               func  objects.cpp          O ; (obj): takes a slot from obj_free_list, links it into obj_used_list, sets obj +0x80 = slot index + 0x469dd0() (handle) and +0x8c (net handle, -1 unless multiplayer); "No more free objects"
 0x469dd0  obj_handle_base_next     func  objects.cpp          I ; returns and increments the counter at 0x59a5a0 (handle base), wraps at 0x59a5a4
+0x469e10  obj__deinit              func  objects.cpp          O ; first obj__vtable entry: unlinks from the object list (+4/+8), object count 0x9438a0--, and returns the handle slot from obj_used_list to obj_free_list
+0x469fb0  objects_free_all_thunk   func  objects.cpp          O ; calls objects_free_all, callers objects_reset and 0x43e1f0
+0x469fc0  objects_free_all         func  objects.cpp          O ; deletes every object of the list 0x970770 (obj__dtor + operator_delete), then the objects of the other players (player_list_other, handle +0xC = -1)
 0x46a0b0  obj_is_living            func  objects.cpp          I ; thiscall: type test used by living_from_handle
 0x46a100  character_is_dead_type   func  objects.cpp          O ; object type is 6, 8 or 10 (dead forms of 5, 7, 9, see character_resurrect)
 0x46a130  item_obj__dtor           func  objects.cpp          I ; vtable 0x5819c8 then obj__dtor
 0x46a150  item_obj__ctor           func  objects.cpp          I ; obj__obj then vtable 0x5819c8, clears +0x98..+0xa4 (item/gold fields read by obj_is_gold)
+0x46a1b0  item_obj_spawn           func  objects.cpp          I ; creates and links an item object (+0x98 item, +0x9C amount) at a position, picking its layer and floor (lobj_pick_layer, lobj_raycast), callers monster_drop_loot, container_spawn_loot, savegame_read_item_objects, level_item_spawn
+0x46a640  level_item_spawn         func  objects.cpp          O ; container_obj_create, item_obj_spawn with the same arguments, container_add_item, then moves the container to its first item's position, callers level_items_parse_table, level_script_restart
+0x46a710  item_obj__deinit         func  objects.cpp          O ; item_obj vtable entry (0x5819c8): removes it from its container (+0xA4, container_remove_item), item_free(+0x98), clears +0x98/+0x9C/+0xC, obj__deinit
 0x46a790  obj_is_gold              func  objects.cpp          O ; object +0x98 item, item->type name == "gold"
+0x46a7e0  item_obj_is_in_view      func  objects.cpp          O ; thiscall: bounding sphere of the item type's mesh (ItemType +0x10: centre +0x50, radius +0x5C) rotated by +0x38 plus pos, frustum test 0x50ecd0, callers hud_interact_nearest, 0x483570
+0x46a890  container__ctor          func  objects.cpp          O ; obj__obj, vtable 0x5819cc, +0xE0 (item type index of the container mesh) = -1, item count +0xD8 = 0
+0x46a8e0  container__dtor          func  objects.cpp          O ; vtable 0x5819cc, clears +0xC and +0xD8, obj__dtor
 0x46a920  container_deinit         func  -                    O ; "deinit for container with handle %d"
+0x46a960  container_is_in_view     func  objects.cpp          O ; thiscall: true without a mesh (+0xE0 < 0), else bounding sphere of item_types[+0xE0] mesh, frustum test 0x50ecd0
+0x46aa30  container_add_item       func  objects.cpp          O ; thiscall (item_obj): up to 16 items at +0x98, gold merges into a gold item already first (+0x9C amount) and the new object is destroyed, other gold goes first, sets item +0xA4 = container
+0x46ab60  container_remove_item    func  objects.cpp          O ; thiscall (item_obj): clears its +0xA4 and closes the gap in +0x98[], count +0xD8--
+0x46ac20  container_clear          func  objects.cpp          O ; thiscall: detaches every item (+0xA4 = 0) and sets the count to 0 (zeroes the array when the count is invalid)
 0x46acd0  container_get_item       func  objects.cpp          O ; (i): items[i] at +0x98 if 0 <= i < count +0xD8
+0x46ad10  character_anim_lod_skip  func  objects.cpp          I ; thiscall: flag 0x8000000 -> 0x10000000, when the locomotion blend +0x6A8 is below 0x581940 and the instance has no anim (+0x58 = -1) sets 0x8000000 and skips 4 of every 5 frames (counter +0x77C)
+0x46adf0  character_process_anim   func  objects.cpp          I ; thiscall (frametime): visibility (character_is_in_view) into obj_flags, LOD skip (character_anim_lod_skip), then character_instance__process, caller objects_update_frame and boss/party code
 0x46af70  character_fill_locomotion_anims func  -               I ; fills empty entries of the locomotion animation table (+0x5ac..+0x5e4: ready, walk, run, ...) from their fallbacks
 0x46b130  obj_from_handle          func  objects.cpp          I ; (handle) -> object or 0
 0x46b1a0  living_from_handle       func  objects.cpp          O ; (handle) -> obj_from_handle if obj_is_living, else 0; used throughout character code
@@ -1153,20 +1280,33 @@
 0x46b200  objects_reset            func  objects.cpp          O ; state_title_enter: 0x469fb0 (free objects) then items_init_pool
 0x46b210  living_entity_level_start func  living_entity.cpp    O ; state_game_enter: living_entity_reset_tables and 0x475090
 0x46b220  objects_do_frame         func  objects.cpp          O ; state_game_frame: object updates (0x46b330, 0x474950, 0x4698c0, 0x46b390, 0x46b3d0), counts down the 16 speech bubbles 0x940538 and spell cooldowns
+0x46b330  objects_delete_marked    func  objects.cpp          O ; calls vtable[0] (deinit) on every object with obj_flags bit 2, runs objects_init first when 0x970809 is clear, called by objects_do_frame
 0x46b390  living_entities_move_all func  living_entity.cpp    I ; walks the living entity list 0x8ed500 (next +0x318, head 0x8ed1e8) calling 0x45cd00 on each
+0x46b3d0  objects_update_frame     func  objects.cpp          O ; character_process_anim(reported_frametime) for every type-1 object, then 0x477080 for each level object with flag 0x100 (doors), called by objects_do_frame
+0x46b460  party_inventory_find_next_in_category func  items.cpp            O ; (start, category, entries, count): next 8-byte inventory entry after start whose item's item_type_shop_category matches, -1 if none
+0x46b4b0  shop_inventory_find_next_in_category func  items.cpp            O ; (start, category, entries, count): same over shop entries {type index, ...}
+0x46b500  party_inventory_compare  func  items.cpp            O ; qsort comparator for party_inventory_sort: by shop category, then item type index
+0x46b560  shop_inventory_compare   func  items.cpp            O ; qsort comparator for shop entries: by shop category, then type index
+0x46b5b0  party_inventory_find_first_in_category func  items.cpp            O ; party_inventory_find_next_in_category from -1
+0x46b5d0  shop_inventory_find_first_in_category func  items.cpp            O ; shop_inventory_find_next_in_category from -1, caller buysell_category_first_index
 0x46b5f0  item_type_shop_category  func  items.cpp            O ; (index): kind 0 -> 0, 1 -> 1, +0x58 set -> 2, slot -1 -> 4 else 3, -1 if out of range
 0x46b640  party_inventory_sort     func  -                    O ; qsort of the 8-byte inventory entries with comparator 0x46b500
+0x46b660  shop_inventory_sort      func  items.cpp            O ; qsort of 8-byte shop entries with shop_inventory_compare, caller level_parse_shopkeeper
 0x46b680  party_inventory_reset    func  -                    O ; max 0x971868 = 30, count 0x97186c = 0 (state_title_enter)
+0x46b6b0  item_obj_pickup          func  items.cpp            I ; (item_obj, flag): removes it from the level save (savegame_level_item_remove), adds gold or merges stackable items into the party inventory (items_same_type), frees or deletes the object via its vtable, callers pickup_report_count, container_open, object_use_container, ai_goal_do_pickup
 0x46b870  party_inventory_add_item func  -                    O ; (item, count): merges into an entry of the same type when item_type_is_stackable, else appends, frees merged item
 0x46b980  party_inventory_add_type func  -                    O ; (item type index, count, ...): stacks, or creates the item with item_create, in the inventory (0x970820 {count, item*}, max 0x209)
 0x46bb00  party_inventory_add_by_name func  -                    O ; item_type_find(name) then party_inventory_add_type (state_game_enter, script_party_acquire_item)
 0x46bb30  party_inventory_remove   func  -                    O ; (slot, free): optionally item_free, memmove the 8-byte entries down, count--
 0x46bbb0  party_inventory_clear    func  -                    O ; item_free on every entry, count = 0
+0x46bc00  character_use_inventory_item func  items.cpp            I ; species check, applies the item's effect (0x47c5d0), stackable charges and a random roll (frand), then party_inventory_remove, called by the inventory screens 0x416c10/0x4184c0/0x418540
 0x46bd00  party_inventory_find_type func  -                    O ; index of the entry whose item->type == ItemType*, -1 otherwise
 0x46bd30  character_has_equipped_type func  -                    O ; (character, ItemType*) any equipment slot +0x754 (10) holds an item of that type
 0x46bd60  party_inventory_find_type_index func  -                    O ; (item type index) inventory entry (0x970824, count 0x97186c) whose item type matches, -1
 0x46bda0  equipment_clear          func  -                    O ; zeroes a 10-slot equipment array
 0x46bdc0  equipment_free           func  -                    O ; item_free on each of 10 equipment slots and clears them
+0x46bdf0  character_equip_item     func  items.cpp            I ; (out_old1, out_old2, character, item, ...): identified items only for party members, unequips conflicting slots (two-handed, rings 6/7, slot 8) with character_unequip_slot, stores the item, refreshes model textures (character_apply_hero_model) and item status effects (status_effect_add_from_item)
+0x46c240  character_unequip_slot   func  items.cpp            O ; (character, slot, update_model): clears equipment[slot] (+0x754), restores underwear textures by ItemType slot (+0x1C 2..8) for the main hero, re-applies the model, clamps HP/AP to the new maxima (stat mods +0x40), returns the item
 0x46c3b0  character_find_equipped_type func  -                    O ; equipment slot (0-9, +0x754) holding an item of the given ItemType, or -1
 0x46c3e0  items_same_type          func  -                    O ; both non-null and a->type == b->type
 0x46c4e0  character_wearing_servant_disguise func  -                    O ; equipment slots 3/4/7/8 hold "Servant's Gloves"/"Boots"/"Blouse"/"Leggings" (name list 0x59a63c)
@@ -1188,12 +1328,25 @@
 0x46dfd0  cmd_p3d_files            func  -                      O ; console command "p3d_files": Toggles P3D_files
 0x46f100  s3d_load_lightmap        func  s3d.cpp              I ; "Lightmap too big to be loaded!"
 0x470f80  mp_trade_error           func  -                    I ; L"Player can't trade right now", L"Player is busy"
+0x471df0  mp_remove_player         func  multiendgame.cpp     O ; (player, reason): host only, sends packet 0x3B, mp_player_disconnect, decrements the player count 0x6513e4, broadcasts mp_send_player_removed and shows "%s was dropped/kicked from the game." (reason 2 / 1), callers hud_frame, chat_cmd_kick
 0x471f40  mp_send_packet_3b        func  -                    I ; builds a multiplayer packet (type byte 0x3b, counter 0x595838) and sends it; earlier misnamed ai_mode_name (the AI-mode strings belong to code after it at 0x471f90)
 0x4720c0  init_ccmd_ai_frame_update_rate func  -                    O ; static initialiser: registers console command object ccmd_ai_frame_update_rate
 0x4720e0  cmd_ai_frame_update_rate func  -                      O ; console command "ai_frame_update_rate": Set the rate at which AI is updated in frames for offscreen creatures
 0x472170  init_ccmd_slowdown_scaler func  -                    O ; static initialiser: registers console command object ccmd_slowdown_scaler
 0x472190  cmd_slowdown_scaler      func  -                      O ; console command "slowdown_scaler": Set the slowdown scaler
+0x472200  ai_call_for_help         func  -                    O ; thiscall ai_state: plays the char_info +0xF0 alert sound, for type-5 owners sends every other type-5 entity of the same team that is not fighting and has no target (+0x384 = -1), within its detection range (char_info +0x224), towards the owner (character_ai_add_goal9, 1000 ms), caller ai_goal_do_attack
 0x4722f0  ai_state__ctor           func  -                    I ; constructor of the AI sub-object at living entity +0x324
+0x472380  ai_state_init            func  -                    O ; thiscall ai_state: owner +0x4C = 0, ai_set_mode(-1,-1), timers +0x3C/+0x208/+0x224, path +0x210 = 0, 5 goal slots (+0x8C, 0x34 each) cleared, +0x80/+0x7C = -1, called by living_entity_init
+0x472420  ai_state_shutdown        func  -                    O ; thiscall ai_state: ai_path_free(+0x210), boss_ai_unload when an owner is set, called by living_entity__vfunc0
+0x472450  ai_reset                 func  -                    O ; thiscall ai_state: boss_ai_load for bosses (type 9 or species 0x51), ai_go_idle, ai_goals_clear, +0x18 from species table 0x59aee0, frees the path, copies owner pos/orientation into +0x1C/+0x5C, zeroes velocity +0x69C, cur_move, cur_anim = -1, +0x694 = 1.0
+0x4725e0  ai_reset_party_member    func  -                    O ; thiscall ai_state, party members (type 7) only: frees path and goals, ai_reset, +0x720 = +0x724, clears flags 0x1, 0x400, 0x100000 and +0x688/+0x68A = -1, called by party_level_reset
+0x4726a0  ai_count_attack_slots_used func  -                    O ; thiscall ai_state: number of the 5 attacker slots (+0x1B0, 8 bytes each: handle, GameTimer) holding a living entity
+0x4726d0  ai_attack_slot_direction func  -                    O ; (vector3* out, slot 0-4): unit vectors 72 degrees apart around the target (1,0,0), (0.309,0,0.951), (-0.809,0,0.588), (-0.809,0,-0.588), (0.309,0,-0.951)
+0x472780  ai_pick_attack_slot      func  -                    O ; thiscall ai_state (attacker): the free attacker slot whose direction best matches the attacker's bearing from the owner (centres pos + +0x28)
+0x472840  ai_claim_attack_slot     func  -                    O ; thiscall ai_state (attacker, time, slot): releases the attacker's old slot, picks the best free slot (or the given one) and stores the handle with a GameTimer, riders are skipped
+0x4729b0  ai_offset_point_sideways func  -                    I ; thiscall ai_state (pos, dist): point offset perpendicular to the owner-to-pos direction (horizontal), for flanking moves, caller 0x4c9a40
+0x472a90  ai_frame                 func  -                    O ; thiscall ai_state: per-entity AI update: suspension and perception (0x472e80), goals, boss stage checks, then dispatch on the mode (jump table 0x472e40) to the per-mode handlers, movement (0x45c340) and multiplayer sync, only caller ai_do_frame
+0x472e80  ai_update_perception     func  -                    I ; thiscall ai_state: periodic (random timeout) look-around: mount, sneak and combat checks, view-frustum test of candidates (0x50ecd0), only caller ai_frame
 0x4730c0  ai_is_traveling_sub0     func  -                    O ; mode == 2 (AI_STATE_TRAVELING) && submode == 0
 0x4730e0  ai_is_traveling_sub1     func  -                    O ; mode == 2 && submode == 1
 0x473120  ai_is_combat_e_or_sneak_attack func  -                    O ; mode 3 sub 0xe, or mode 10 (AI_STATE_SNEAKING) sub 0xc/0xd
@@ -1211,20 +1364,48 @@
 0x473320  ai_set_mode              func  -                    O ; (mode, submode): no-op if unchanged, saves previous mode at +8/+0xC, frees path +0x80, restarts timer +0x1C, 89 callers
 0x473600  ai_get_mode              func  -                    O ; returns +0x0
 0x473610  ai_set_18                func  -                    O ; +0x18 = arg
+0x473620  ai_get_combat_style      func  -                    O ; thiscall ai_state: +0x18 (set from species table 0x59aee0 by ai_reset), 2 when it is 0 and the target is a mounted boss
 0x473660  ai_path_get_destination  func  -                    O ; (vector3* out) follows path +0x210 to the last node (next +0x24) and copies its position, false without a path
+0x4736a0  ai_count_engaged_attackers func  -                    O ; thiscall ai_state (ignore_goals): living entities whose AI target (+0x384) is the owner and that attack (ai_is_attacking / sub 0x10 / 0x16-0x17) or, unless ignore_goals, have an attack goal (type 4) on it
 0x473750  ai_count_attackers       func  -                    I ; counts living entities (list 0x8ecd78, next +0x318) whose ai target handle (+0x384) is this owner and ai mode 3 sub 0x0f/0x1f/0x3f
+0x4737a0  ai_can_backstab_target   func  -                    O ; thiscall ai_state (target): an enemy without char_info flag 0x20, within 2 m (character_distance_between_edges) and with the owner behind it (direction against its forward vector beyond 0x5819fc), callers 0x43b5e0, ai_goal_evaluate
 0x473880  ai_go_inactive           func  -                    O ; clears flags +0x50 bit 28, ai_set_mode(0 AI_STATE_INACTIVE), then idles the mount chain
 0x4738c0  ai_go_idle               func  -                    O ; character_set_6ac(0), ai_set_mode(1 AI_STATE_IDLE), +0x38 = 0, clears flags 0x10000010, repeats for each mount (character_get_mount), 79 callers (cutscenes, containers, menus)
 0x473940  ai_go_mount_idle         func  -                    O ; ai_set_mode(12 AI_STATE_MOUNT_IDLE), +0x38 = 0, clears flags bit 28
+0x473970  ai_begin_emerge          func  -                    O ; thiscall ai_state: ai_set_mode(SUMMONING, -1), processes the anim, sets obj_flags bit 0 and plays the emerge move (type 0xC) into +0x194, callers summon_stash_for_cutscene, ai_frame, 0x48a230
 0x4739e0  ai_class_die             func  -                    I ; "AI_CLASS : DIE", "AI_CLASS : OF_SHOULD_BE_DEAD"
 0x473a40  ai_travel_to_xyz         func  -                    O ; (x, y, z): destination +0x54..+0x5c, +0x38 = 999999, ai_set_mode(2 TRAVELING, 1) unless already, clears goals
 0x473a90  ai_travel_to_point       func  -                    O ; (vector3*, n): destination +0x54..+0x5c, +0x38 = n, ai_set_mode(2 TRAVELING, 2)
+0x473ac0  ai_path_begin            func  -                    O ; thiscall ai_state: drops a single-node path closer than 0x581a00 (except traveling sub 8), else resets +0x200, +0x1F8 = 1, computes the first step direction (0x22e4940) and sets flag 0x10000000
+0x473bc0  ai_set_path              func  -                    O ; thiscall ai_state (dest, path): frees the old path, stores path +0x210 and destination +0x214, ai_path_begin, multiplayer path sync 0x480070, callers 0x488700, ai_goal_do_move_to
+0x473c40  ai_path_find_new         func  -                    O ; thiscall ai_state (pos, layer, dest, ...): pathfinding from the bottom of the mount chain (character_get_mount, size char_info +0x90) with ai_path_find, timeout, ai_path_begin and multiplayer sync
+0x473d80  ai_path_find_append      func  -                    I ; thiscall ai_state: ai_path_find from the end of the current path, stores the path +0x210 and destination +0x214 (multiplayer sync 0x480070)
+0x473e50  ai_path_to               func  -                    O ; thiscall ai_state (pos, layer, dest, ..., append): frees the path for layer < 0, else ai_path_find_append or ai_path_find_new and adds the elapsed time to 0x22e490c (unless 0x22e499d), returns the path
+0x473f40  ai_goal_add_travel       func  -                    O ; (pos, ..., walk): ai_goal_add type 9 (flag 0x200 unless walking), priority 0x6c, used by character_ai_add_goal9
+0x473f70  ai_goal_add_attack       func  -                    O ; thiscall ai_state (target, priority): goal type 1 on an enemy (character_is_enemy) that is not flag 0x8, drops older type-1 goals when +0x50 bit 0, -1 otherwise
+0x473fd0  ai_set_combat_mode_goal  func  -                    O ; thiscall ai_state (on, priority): adds (ai_goal_alloc) or removes the type-6 combat-mode goal, party members (owner flag 1) invert the request
+0x4740c0  ai_goal_add_cast_spell   func  -                    O ; (spell, priority): goal type 3, handled by 0x4b64c0 (AI_STATE_CAST_SPELL sub 0x27, spell at +0x84)
+0x4740e0  ai_goal_add_cast_at_target func  -                    O ; (spell, target, priority): goal type 4 on the target's handle (flag-8 targets only for spells 3/5), handled by 0x4b6500 (cast sub 0x28)
+0x474130  ai_goal_add_cast_at_point func  -                    O ; (spell, pos, ..., priority): goal type 5, handled by 0x4b6560 (cast sub 0x29, point +0x68)
+0x474160  ai_goal_add_move_to      func  -                    O ; (pos, ..., walk): goal type 0xC (flag 0x10 when walking), handled by 0x4b65c0 (AI_STATE_TRAVELING sub 6)
+0x474190  ai_goal_add_move_to_timed func  -                    O ; (pos, ..., walk, time): goal type 0xD, handled by 0x4b6690 (traveling sub 8), boss_release_mount uses it for 5 s
 0x4742b0  ai_knock_down_local      func  -                    O ; (ms): ai_set_mode(8 AI_STATE_DISABLED, 0x2d), duration +0x1a4, hud_show_message L"Knocked Down!" for cur_character
 0x474350  ai_knock_down            func  -                    O ; ai_knock_down_local, then in multiplayer 0x480eb0(owner, 0, ms)
 0x474390  ai_disable_2f_local      func  -                    I ; ai_set_mode(8 DISABLED, 0x2f) unless char_info flags 0x10 or mounted
 0x4743e0  ai_disable_2f            func  -                    I ; ai_disable_2f_local, then in multiplayer 0x480eb0(owner, 1, 0)
 0x474410  ai_disable_31            func  -                    I ; character_set_flag_2_4(-1), ai_set_mode(8 DISABLED, 0x31)
+0x474440  ai_goal_add_hide         func  -                    O ; thiscall ai_state: leaves hiding (ai_go_idle) if already AI_STATE_HIDING, else goal type 0x10 with priority 999999, caller lockpick_attempt
+0x474480  ai_goal_add_sneak        func  -                    O ; thiscall ai_state: goal type 0xF, priority 999999, handled by 0x4b6790 (AI_STATE_SNEAKING)
+0x4744a0  ai_attack_target         func  -                    O ; thiscall ai_state (target): ai_set_mode(COMBAT, 0xF), +0x38 = 999999, living_combat_set_target on Character +0x558, target handle +0x60
+0x4744e0  ai_attack_target_sub10   func  -                    O ; as ai_attack_target with combat sub 0x10
+0x474580  ai_start_travel          func  -                    O ; thiscall ai_state (walk): ai_set_mode(TRAVELING, 0), +0x200 = 0, speed scale = walk (+0x6B8) or run (+0x6B4), called by mp_remote_walk
+0x4745d0  ai_charge_target         func  -                    O ; thiscall ai_state (target): destination +0x54 = target pos, target +0x60, combat target, ai_set_mode(COMBAT, 0x3F)
+0x474620  ai_travel_to_current_dest func  -                    O ; thiscall ai_state: +0x38 = 999999, ai_set_mode(TRAVELING, 1), clears flag 0x10000000 and all goals, multiplayer caller 0x4884f0
+0x474650  ai_enter_sneaking        func  -                    O ; thiscall ai_state: ai_set_mode(SNEAKING, 0xD if owner flag 0x400 else 0xC), multiplayer caller 0x488a20
+0x474690  ai_enter_hiding          func  -                    O ; thiscall ai_state (flag): ai_set_mode(HIDING, 9 or 0xB), multiplayer caller 0x488b00
 0x4746d0  ai_state_save            func  -                    I ; (buf) on the ai_state at +0x324, called by character_save_state, returns bytes written
+0x4747e0  ai_state_load            func  -                    O ; thiscall ai_state (record): counterpart of ai_state_save: reads +0x18 and, for owner types 4/5, the five goal slots, resolving goal targets by name hash (name_hash_nocase of character_get_name), caller character_load_state
+0x474950  ai_do_frame              func  -                    O ; rate-limited AI pass over the living entities (RealtimeTimer, 500 ms, timer_get budget) calling ai_frame, called by objects_do_frame
 0x474cf0  init_ccmd_ai_state       func  -                    O ; static initialiser: registers console command object ccmd_ai_state
 0x474d10  cmd_ai_state             func  -                      O ; console command "ai_state": Change the AI state of the study object
 0x474df0  init_ccmd_pause_ai       func  -                    O ; static initialiser: registers console command object ccmd_pause_ai
@@ -1237,6 +1418,9 @@
 0x474ff0  ai_is_disabled_2e        func  -                    O ; ai_is_mode(8, 0x2e)
 0x475000  ai_is_disabled_any       func  -                    O ; any of ai_is_disabled_2c / ai_is_knocked_down / ai_is_disabled_2e
 0x475030  ai_can_be_knocked_down   func  -                    I ; checks combat state, character_has_status, mount and char_info flags 0x258 before ai_knock_down_local
+0x475090  cast_effect_tracks_reset func  -                    I ; marks the five 12-byte entries at 0x22e4950 free (-1), caller living_entity_level_start
+0x4750b0  cast_effect_track_add    func  -                    I ; (spell, effect obj handle): for spells below 0x26 whose object has an effect (obj +0xA0, effect_get_base) stores {spell, handle} in a free entry of 0x22e4950, caller character_cast_spell
+0x475160  cast_effect_track_count  func  -                    I ; number of used entries at 0x22e4950, caller 0x4bfaa0
 0x475180  mp_player_find_by_addr   func  -                    O ; (addr) player list 0x651418 entry whose address +0x8 matches (nw_addr_equal)
 0x4751d0  mp_player_find_by_id     func  -                    O ; (id) player list entry with +0x1c == id, 0 if none
 0x475200  mp_player_find_by_name   func  -                    O ; (name) player list entry with stricmp(+0x34, name) == 0
@@ -1245,7 +1429,14 @@
 0x4752c0  mp_handle_to_net         func  -                    I ; host in multiplayer: returns handle, otherwise obj_from_handle(handle)->+0x8c or -1
 0x475300  mp_map_net_handle        func  -                    O ; (net, local): 0x22e94f4[index(net)] = local and object +0x8c = net
 0x475350  mp_all_players_have_status func  -                    O ; (status) every player list entry has +0x14 == status
+0x4755d0  mp_broadcast_packet_3e   func  -                    O ; bumps the sequence 0x59588c and broadcasts a 3-byte packet type 0x3E (mp_broadcast_packet), caller monster_layout_load
+0x475610  living_entities_delete_npcs func  -                    O ; deletes (living_entity__dtor + operator_delete) every living entity of type 4, 5 or 9
+0x475660  mp_quantize_position     func  -                    O ; (out_x, out_y, out_z, pos): packs a position into three 16-bit values scaled to the level bounds at 0x245c998..0x245c9a4, callers 0x480530, 0x4884f0, container_spawn_loot
+0x4756e0  mp_dequantize_position   func  -                    I ; inverse of mp_quantize_position from three 16-bit values
 0x475780  character_is_locally_controlled func  -                    O ; cur_character, or a type 7 player whose Player +0x14 is the local net player, multiplayer host also owns types 4/5/9
+0x475830  ai_goal_evaluate         func  -                    I ; (ai_state, goal): checks a goal's target/conditions (living_from_handle, team, statuses, dead, rider, casting) and returns 0 keep, 1/2 drop, 3 suspend
+0x475d20  ai_goal_compare          func  -                    O ; qsort comparator: flag 0x40, then flag 0x8 (suspended last), goal types 6 and 0xF, then priority
+0x475db0  ai_goals_sort            func  -                    O ; (goal slots): qsort of the 5 0x34-byte goals with ai_goal_compare
 0x475dd0  ai_goals_remove_type9    func  -                    O ; removes every goal of type 9 (ai_goal_find + ai_goal_remove)
 0x475e00  ai_goals_remove_type1    func  -                    O ; removes every goal of type 1
 0x475e30  ai_goals_remove_types_3_5 func  -                    O ; removes every goal of types 3, 4 and 5
@@ -1255,13 +1446,41 @@
 0x476190  ai_goal_add              func  -                    O ; (type, ...) removes conflicting goals, finds or allocates a slot and fills its fields per ai_goal_type_fields, hub of 0x473f40/0x4740c0/...
 0x476300  ai_goal_remove           func  -                    O ; (index 0..4): clears slot type/+0x90, frees its path (+0xbc, ai_path_free), resets current goal +0x190 if it was this one
 0x476380  ai_goals_clear           func  -                    O ; ai_goal_remove(0..4)
+0x4763a0  ai_process_goals         func  -                    O ; thiscall ai_state: unless summoning, sorts/updates the goal slots (0x476610, 0x475db0), makes the top goal current (+0x190) and dispatches its type 1-17 to the per-goal handlers 0x4b6000..0x4b68c0
+0x476610  ai_goals_validate        func  -                    O ; (ai_state): runs ai_goal_evaluate on each used goal slot: 1/2 remove it, 0 clears its suspended flag 0x8, 3 sets it, called first by ai_process_goals
+0x476670  ai_has_goal_without_flag20 func  -                    O ; thiscall ai_state: true when a used goal slot lacks flag 0x20 (+0x90), caller 0x4ccc50
+0x4766a0  ai_goals_mark_keep       func  -                    O ; thiscall ai_state: sets flag 0x40 on every used goal, callers cutscene_play, effects_kill_all
+0x4766c0  ai_goals_remove_unmarked func  -                    O ; thiscall ai_state: ai_goal_remove on every used goal without flag 0x40, caller 0x4ddb10
 0x4766f0  ai_service_request       func  -                    I ; "WARNING: unknown service request type -- %d"
+0x4768c0  door_from_lobj           func  -                    O ; (lobj): for level objects with flag 0x100, bsearch of the 0x8C-byte door records (0xa5a304, count 0xa5a300) by lobj index, 0 otherwise, 21 callers
+0x476940  door_is_open             func  -                    O ; (door, fraction): saved two-stage state (savegame_two_stage_get), while moving (+0x54 bit 0) compares the eased progress of timer +0x44 over duration +0x8 (bit 1 = opening) with fraction
+0x4769f0  lobj_door_is_open        func  -                    O ; (lobj, fraction): lobj_is_door, door_from_lobj, door_is_open, caller object_use_result
+0x476a30  door_in_use_range        func  -                    I ; (character, lobj): door objects within 0x581a20 (squared, horizontal) of the character, and either door +4 < 0 or the character's height within 0.5 of door +0x4C, callers hud_interact_nearest, container_open
 0x476e00  door_set_open            func  -                    O ; called by cmd_door_open after door_find_by_name
 0x476e80  door_set_closed          func  -                    O ; called by cmd_door_close after door_find_by_name
 0x476ee0  door_toggle_state        func  -                    O ; cmd_door_toggle and object_use_result, needs door flag +8 bit 0x100
+0x476f30  door_start_move          func  -                    I ; (door, ...): flips the saved two-stage state, starts the move timer (+0x44) and plays the door sound, callers door_set_open, door_set_closed, door_toggle_state, door_apply_saved_state, door_update
+0x477080  door_update              func  -                    I ; (lobj): per-frame door motion from the move timer and saved state (rotation/translation of the level object), called by objects_update_frame for flag-0x100 objects
 0x477280  door_find_by_name        func  -                    O ; bsearch over door list 0xa5a308/0xa5a300, used by cmd_door_open/close/toggle
+0x477310  lobj_is_door             func  -                    O ; (lobj): flag 0x100 and a door record whose +4 (int16) is >= 0
 0x477340  door_apply_saved_state   func  -                    I ; (name): for each door (index list 0xa5a304, count 0xa5a300) with that name whose saved state (0x4d1110) differs, 0x476f30(door, -1.0, 1, 1), 58 callers in level scripts
+0x4773d0  door_is_open_by_name     func  -                    O ; (name, fraction): first door whose level object name matches (_stricmp), door_is_open, level-script callers (ls_khosanilab_use, ...)
+0x4774a0  level_marker_find        func  -                    O ; (name, out_pos, ...): _stricmp over the 0x34-byte marker records (0xa5a2dc, count 0xa5a2d8, +0 name, +4, +0x28 position), callers automap_find_map_corners, level_parse_ambient
+0x477540  level_vis_record_find    func  -                    I ; (name): _stricmp over 0xC-byte records (0xa5a2f4, count 0xa5a2f0), pointer or 0, callers level_vis_parse, 0x4871b0
+0x477580  level_trigger_record_find func  -                    I ; (name): _stricmp over 0x10-byte records (0xa5a2e4, count 0xa5a2e0), pointer or 0, caller level_parse_trigger
+0x4775c0  lobj_get_layer           func  -                    O ; (index): first layer byte (+0x6C) of level object index
+0x4775e0  lobj_clear_layers        func  -                    O ; thiscall lobj: +0x6C = -1 (both layer bytes and the following two)
+0x4775f0  lobj_get_layer_n         func  -                    O ; thiscall lobj (n): signed layer byte +0x6C + n
+0x477600  lobj_pick_layer          func  -                    O ; thiscall lobj (pos, r): single-layer objects return +0x6C, for two layers (+0x6D != -1) tests which layer contains the point (0x4a5dc0) and resolves ties with 0x4a6600
+0x4776a0  lobj_set_layer_n         func  -                    O ; thiscall lobj (n, layer): layer byte +0x6C + n = layer, callers level_load_layers, 0x46ebe0
+0x4776b0  lobj_index_out_of_range  func  -                    O ; (index): index >= num_lobjs
+0x4776c0  lobj_get_bbox            func  -                    O ; (index, out_min, out_max): copies the level object's +0x50 and +0x5C vectors, caller hud_interact_nearest
+0x477720  lobj_get_bounding_sphere func  -                    O ; (index, out_centre, out_radius): centre +0x44, radius from its mesh (+4 -> +0x30)
+0x477770  lobj_get_count           func  -                    O ; returns num_lobjs, caller the line-of-sight ray 0x4a4bb0
 0x477780  lobj_from_index          func  -                    O ; returns 0xa5a2cc + index * 0x70 (level object array, used for doors/containers)
+0x4777a0  lobj_find_by_name        func  -                    O ; (name): index of the level object with that name (_stricmp), -1 if none, callers cmd_Ignore_tutorial, level_script_parse_table, level script inits
+0x4777f0  lobjs_hide_by_prefix     func  -                    I ; (prefix): sets flag 0x80 (+8) on every level object whose name starts with prefix (_strnicmp), level-script callers (ls_wolongcaverns_use, lsf_sal_killed, ...)
+0x477850  lobjs_show_by_prefix     func  -                    I ; (prefix): clears flag 0x80 on matching level objects, caller lsf_sal_killed
 0x4778c0  init_ccmd_zoom_limit     func  -                    O ; static initialiser: registers console command object ccmd_zoom_limit
 0x4778e0  cmd_zoom_limit           func  -                      O ; console command "zoom_limit": Toggle camera zoom limiting.
 0x477970  init_ccmd_geom_avoid     func  -                    O ; static initialiser: registers console command object ccmd_geom_avoid
@@ -1274,21 +1493,38 @@
 0x479ad0  spell_description        func  -                    I ; L"Restore HPs to target.", L"Remove target's status effects." ...
 0x47a190  spells_parse_table       func  -                    O ; spells.tbl: "$Spell:", "+Name:", "+Class:", "+Damage type:", "+Hit Chance:" ...
 0x47a6c0  spells_parse_sound       func  -                    O ; spells_parse_table helper: "$Sound:" string (spell_string_pool) and its float parameters
+0x47a760  spells_free_strings      func  -                    O ; StringPool__Release on spell_string_pool, caller 0x43e1f0
 0x47a770  spells_reset_runtime     func  -                    O ; state_game_enter: clears 20 missile slots 0x22e4b18 (0x34 bytes), per-spell sound handles (-1) and the spell effect pool 0x22e8528
 0x47a7c0  spell_find_by_name       func  -                    O ; stricmp over spells[108] name +0x8, index or -1 (characterinfo, items and boss_ai tables)
+0x47a800  spell_find_by_cast_id    func  -                    O ; (id): index of the first spell whose +0x50 (cast move variant, see character_can_cast_spell) equals id, -1 if none, caller characterinfo_load_party
 0x47a830  spell_get_group          func  -                    I ; (spell index) which of the 8 spell groups 0x22e9260 ({count, spell*}) holds a spell with +0x4 == index, -1
 0x47a870  spell_get_cast_effect    func  -                    O ; spells[i].cast_effect (0x22e4f28 + 0x80*i + 0xC)
+0x47a880  spell_get_effect_1c      func  -                    O ; (spell): spells[spell] +0x1C (effect name slot in the +0x10..+0x50 effect block), caller summon_create
+0x47a890  spell_get_hit_effect     func  -                    I ; (spell): spells +0x2C if set, else the default 0x59b9e8 when +0x1C is set, else 0, caller living_entity_get_hit_by_spell
 0x47a8c0  damage_type_to_status    func  -                    I ; (type 2..0x5a) -> status_effect_id (5, 1, 0, 4, 3, 2, 6, 0xa, 9, 0xb, 0x10, 7, 8) or -1, used by items_parse_table and spell hits
 0x47a9c0  status_effect_modifier   func  -                    I ; (status, value) float modifier for a status effect value (x2, -x2, scaled, or 1.0 when value >= 50)
+0x47aa80  spell_get_duration_ms    func  -                    O ; (spell, level): per-spell effect duration in ms through a byte-indexed switch (120000, 60000, 20000, 3000, 30000, 180000 or level-scaled), 0 otherwise, callers living_entity_get_hit_by_spell, spell_prepare_cast
 0x47ab60  status_effect_duration   func  -                    I ; (status) default duration in ms (20000, 10000, 2000, 5000, or spell 0x22e5512 duration * 1000), used by status_effect_add
+0x47abe0  spell_prepare_cast       func  -                    I ; (out request, caster, spell, target handle, source, ...): range check against spells +0x70, target-required flag (+0x74 bit 1), source-type switch (0-8) and amounts (caster level, skills), fills a 0x34-byte cast request, used by combat_melee_damage (elemental hits), combat_trigger_special_ability and spell_cast_execute
+0x47bd30  spell_spawn_creature     func  -                    I ; creates a living entity for a spell (living_entity__living_entity, caster team, line-of-sight placement character_has_line_of_sight_to, random choice) and links it into the living list, callers spell_prepare_cast, spell_cast_execute
+0x47c510  spell_compute_resist     func  -                    O ; (out_magic_resist, out_resist, spell, target, power, source): hit chance (spells +0x5C, species 0xB6 uses level x 2 x k, spell 0x50 on difficulty 3 uses 0.5, source 8 uses 0.3), magic resist = character_get_resistance(3), resist = 1 - (1 - (0.5 + mr - power x 0.04)) x hit chance
+0x47c5d0  spell_cast_execute       func  -                    I ; full spell cast: spell_prepare_cast, then by spell launches missiles (spell_fire_missile), summons (summon_create, spell_spawn_creature), area effects or direct hits (living_entity_get_hit_by_spell), effects and sounds, callers status update 0x45b6e0, combat_melee_damage, ability triggers
+0x47d420  spell_cast_launch_effects func  -                    I ; (cast request): 108-way switch on the spell (+4) that spawns the cast / travel / hit effects, missiles (spell_fire_missile) and spell_effect_add entries, paired with spell_prepare_cast in combat_melee_damage
 0x47dfc0  spell_effect_pool_full   func  -                    O ; false when any of the 64 spell effect records 0x22e8528 (0x34 bytes) has bit 0 clear
 0x47dfe0  spell_play_cast_sound    func  -                    O ; (spell, character): sound_ref_load(spells[i] +0x10) and sound_play_3d_at(character position)
 0x47e020  spell_play_hit_sound     func  -                    O ; (spell, pos): sound_ref_load(spells[i] +0x20), spells 0x32..0x35 play once as 2D (game_play_sound)
 0x47e090  spell_play_sound_34      func  -                    O ; (spell, pos): sound_ref_load(spells[i] +0x34) and sound_play_3d_at, called from 0x47e830
+0x47e100  spell_place_ground_effect func  -                    I ; places a spell effect object on the ground (spell_find_ground_points) and registers it (0x4a9b40), callers spell_cast_execute, spell_cast_launch_effects, 0x499890, 0x4b9670
 0x47e280  spell_find_ground_points func  -                    I ; "$ground%02d" bone/point lookup for ground effects, caller 0x47e100
+0x47e330  spell_probe_ground_point func  -                    I ; helper of spell_find_ground_points: transforms a candidate into the effect frame and probes the floor (0x537840 / 0x537a10)
+0x47e4d0  spell_effect_obj_set_timer func  -                    I ; (effect obj handle, ...): starts the object's GameTimer and registers it (0x4a9b40), callers living_entity_get_hit_by_spell, 0x460190
+0x47e590  spell_spawn_hit_fx       func  -                    I ; (handle, ...): fx_add_effect for a spell effect at an object (obj_from_handle_b, +0xA0) and registers it, callers spell_cast_execute, spell_cast_launch_effects
 0x47e680  spell_missile_remove     func  -                    I ; (handle) frees the missile slot (20 x 0x34 at 0x22e4b18) with that handle, -1 if none
 0x47e6c0  spell_launch_missile     func  -                    I ; "$missile" bone of the caster, fills a missile slot 0x22e4b18, caller 0x45da60
+0x47e830  spell_fire_missile       func  -                    O ; (spell, caster, missile slot, start, dir, target): creates the projectile (0x48c220) from an explicit start/direction, or from a pending slot of spell_launch_missile (spell_missile_remove, slot +4 / +0x28 at 0x22e4b1c) and plays spell_play_sound_34, returns its handle
 0x47e900  summon_create            func  -                    I ; creates a summoned creature (summon_find_charinfo, living_entity_create), ring xp vars "dark_ring_xp".., "no room for summon target", callers spell casting and cmd_summon
+0x47f270  summon_dismiss           func  -                    O ; ai_class_die on cur_summon's AI, then the multiplayer notice 0x4b0940 with debug flag 2
+0x47f2a0  spell_target_value       func  -                    I ; (target, spell): 68-way switch rating how useful a spell is on the target (e.g. 1.0 for heals when HP < max, statuses already present, resistances), callers living_entity_get_hit_by_spell, spell_prepare_cast, AI 0x4beba0
 0x47f4d0  spell_roll_amount        func  -                    O ; (target, spell, dice count, die size, resist): sums count x floor(frand x die + 1), damage x (1 - resistance(spell damage type)) x (1 - resist), party-size factor 0.15/0.3/0.45
 0x47f660  spell_effect_add         func  -                    O ; (record) spell_effect_alloc and copies 0x34 bytes, keeps bit 0 set
 0x47f690  spell_effect_alloc       func  -                    O ; first free (bit 0 clear) record of the spell effect pool 0x22e8528, marks it used
@@ -1296,15 +1532,25 @@
 0x47f710  init_ccmd_summon         func  -                    O ; static initialiser: registers console command object ccmd_summon
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x47f9a0  mp_net_handle_map_reset  func  -                    O ; fills the 1000-entry net handle map 0x22e94f4 with -1
+0x47fb20  mp_send_monster_list     func  -                    I ; host: packet 0xD listing every type 4/5/9 object (type, name, net handle via mp_map_net_handle), caller mp_host_update_session
 0x480920  mp_broadcast_hp          func  -                    O ; called by character_add_hp: host broadcasts packet 0x12 with net handle +0x8c, hp +0x5f8 and hp_overflow +0x6e8
 0x480a10  mp_broadcast_ap          func  -                    O ; called by character_add_ap: host broadcasts AP +0x5fe
 0x480af0  mp_broadcast_xp          func  -                    O ; called by character_add_xp: host broadcasts the xp change
+0x480ba0  mp_send_character_skills func  -                    O ; (character): for party members (type 7) packet 0x15 with the net handle (+0x8C) and the 0x24 skill bytes (+0x614)
 0x480cc0  mp_broadcast_status_add  func  -                    O ; called by status_effect_add: host broadcasts the status effect
 0x480de0  mp_broadcast_status_cure func  -                    O ; called by status_effect_cure: host broadcasts the cure
 0x480eb0  mp_broadcast_ai_disable  func  -                    O ; (character, kind, ms) from ai_knock_down / ai_disable_2f, receivers call ai_knock_down_local (kind 0) or ai_disable_2f_local
+0x480fd0  mp_send_respawn          func  -                    O ; (id): packet 0x19 (4 bytes), broadcast on the host or sent to it
+0x481050  mp_handle_respawn        func  -                    O ; packet 0x19 handler: mp_respawn_player(id), the host re-broadcasts it
+0x481090  mp_respawn_player        func  -                    O ; (id): character_resurrect, full AP, character_place_at_party_start(id), ai_goals_clear, character_xp_death_penalty, resets the camera for the local player
+0x481130  mp_respawn_and_notify    func  -                    O ; (id): mp_respawn_player then mp_send_respawn, caller hud_confirm_quit
 0x4811b0  init_ccmd_Multi_path_type func  -                    O ; static initialiser: registers console command object ccmd_Multi_path_type
 0x4811d0  cmd_Multi_path_type      func  -                      O ; console command "Multi_path_type": Sets the method used to generate paths on multiplayer machiens
+0x481260  mp_send_player_left      func  -                    O ; (id): broadcasts packet 8 (4 bytes: id), caller mp_player_disconnected
+0x4812a0  mp_leave_game            func  -                    O ; (to_menu): saves the player file (0x46da60), closes every player connection, clears 0x651598, party_remove_all, then gameseq_set_state(3 quit) or 0xB
 0x481340  mp_disconnect_reason_string func  -                    I ; L"You were kicked out of the game.", L"The server has ended the game." ...
+0x481460  mp_send_player_removed   func  multiendgame.cpp     O ; (id, reason): packet 9 (8 bytes: id, reason), broadcast on the host or sent to it
+0x4814e0  mp_player_disconnected   func  multiendgame.cpp     O ; (id, reason): "%s has left / was dropped / was kicked from the game." chat line (mp_disconnect_reason_string), closes the socket, for the local player leaves the game (mp_leave_game)
 0x4816f0  init_ccmd_lod_dist       func  -                    O ; static initialiser: registers console command object ccmd_lod_dist
 0x481710  cmd_lod_dist             func  -                      O ; console command "lod_dist": Sets Character_lod_dist
 0x4817b0  init_ccmd_main_lod_dist  func  -                    O ; static initialiser: registers console command object ccmd_main_lod_dist
@@ -1318,11 +1564,15 @@
 0x481b40  init_ccmd_set_fog        func  -                    O ; static initialiser: registers console command object ccmd_set_fog
 0x481b60  cmd_set_fog              func  -                      O ; console command "set_fog": Set the fogging clip plane.
 0x481c40  character_draw_overhead_bitmap func  -                    I ; projects the "BDBN-Head"/"Head" bone to screen and gr_bitmap above it ("Ulsadana" special case)
+0x481e00  char_fog_set             func  -                    O ; (a, b): enables character fog (0x22fb6f4 = 1) storing both distances and their squares, called by level_parse_table for "+CharFog:"
+0x481e40  char_fog_disable         func  -                    O ; clears 0x22fb6f4, level_parse_table when "+CharFog:" is absent
+0x481e50  char_fog_get_far         func  -                    O ; returns the second +CharFog distance (0x22fb6e8), 0 when disabled, used by character_is_in_view
 0x481e80  init_ccmd_Cull_ground    func  -                    O ; static initialiser: registers console command object ccmd_Cull_ground
 0x481ea0  cmd_Cull_ground          func  -                      O ; console command "Cull_ground": Toggles Cull_ground
 0x481f70  init_ccmd_Cull_ground_too func  -                    O ; static initialiser: registers console command object ccmd_Cull_ground_too
 0x481f90  cmd_Cull_ground_too      func  -                      O ; console command "Cull_ground_too": Toggles Cull_ground_too
 0x4868f0  detail_levels_parse_table func  -                    O ; detail_levels.tbl: "+UnlockMedium", "+UnlockHigh", "+NoSmallMeshCulling"
+0x486b10  fog_set_distances        func  -                    O ; (far, near): sets fog_far 0x59bd80 / fog_near 0x59bd7c (defaults 0x59bd88 / 0x59bd84 when <= 0), near clamped below far, called by cmd_set_fog
 0x486c60  level_vis_load           func  -                    O ; opens the level ".vis" text file and parses it (level_vis_parse)
 0x486d40  level_vis_parse          func  -                    O ; "$vis_set", "$layer", "$high_camera", "$low_camera", "$end", "could not find visibility selset %s, ignoring!"
 0x4874c0  shadows_parse_table      func  -                    O ; shadows.tbl: "#Object Shadow info", "$Object:", "$Radius:", "$Scale:"
@@ -1460,6 +1710,7 @@
 0x4a2300  boss_set_ride_anims      func  -                    O ; type 9 dispatch by species: tiger 0x49a5e0 / phoenix 0x499ce0 / serpent 0x497750 / ghost 0x4bb870 (mounted locomotion anims), called by script_entry_start
 0x4a23c0  boss_set_foot_anims      func  -                    O ; type 9 dispatch by species: serpent 0x497650 / tiger 0x49c4a0 / phoenix 0x499be0 / ghost 0x4bb720 (on-foot "ready"/"walk" anims)
 0x4a2480  boss_species_mounted_stage func  -                    I ; (species) tiger (0x57): stage var 0x2452a90 is 1 or 2, phoenix/serpent (0x58/0x59): 0x2451d98 == 1, used by 0x473620
+0x4a2870  boss_get_attack_range    func  -                    O ; (character, float* out): species 0x57 -> 0x49c720, 0x58 -> 0x499810, else false
 0x4a28f0  character_is_serpent_part func  -                    O ; species 0x59 and its handle is in the serpent part list 0x24522ac (serpent_part_index)
 0x4a2d40  character_is_not_boss    func  -                    O ; type (+0xc) != 9
 0x4a33b0  rider_unlink_mount       func  -                    O ; clears +0x6E0/+0x6E4 on rider and mount, mount ai target +0x384 = -1, flags, called by every *_set_solo
@@ -1472,6 +1723,7 @@
 0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
 0x4a8390  avoid_do_poly_seg_list_links func  -                    O ; "do_poly_seg_list_links -- out of memory"
 0x4a9440  avoid_create_obstacle_polys func  -                    I ; "create_obstacle_poly_from_avoid_poly failed", "add_primative_to_avoid_poly failed"
+0x4aa760  mp_door_apply_remote     func  multi_door.cpp       I ; multiplayer door packet: door_set_open / door_set_closed, or an unlock that updates the saved two-stage state, plays sound 6 and 0x469720 ("This door already unlocked." when it was), caller the packet dispatcher 0x4a3890
 0x4aa8e0  door_find_by_mesh        func  -                    O ; "Unable to find door for mesh id %d"
 0x4aaa10  door_pick_by_mesh        func  -                    I ; "Unable to find door to pick for mesh id %d"
 0x4aac10  alt_textures_parse_table func  -                    O ; GameInit: "alt_textures.tbl", "$Base:", "+Textures:", "#End"
@@ -1484,8 +1736,10 @@
 0x4adcd0  irc_process_input        func  -                    I ; chat line parser: "msg"/"/msg" -> "PRIVMSG %s :%s", "list", L"Unrecognized command", 6 callers
 0x4ae010  irc_join_channel         func  -                    O ; "/PART %s" for the old channel then "/JOIN %s"
 0x4ae410  mp_send_update           func  -                    I ; "Sending update", "Sending update because no ack"
+0x4ae890  lobj_raycast             func  -                    I ; (lobj index, ray, out hit, flag): rotates the ray into the object's frame and tests its geometry (0x4aea00 / 0x4aeef0), used by ground probes, line of sight 0x4a4bb0 and item drop placement
 0x4af3c0  mp_announce_player_joined func  -                    O ; L236 "%s has entered the game." via chat_process_command
 0x4af400  mp_process_new_player    func  -                    I ; "Received new player packet but player %s is already connected"
+0x4b02a0  mp_spell_cast_sync       func  multispell.cpp       I ; multiplayer side of a spell cast (net handles via mp_handle_to_net, packets 0x4afca0 / 0x4afd60, "Another summon already active"), called between spell_prepare_cast and spell_cast_launch_effects in combat_melee_damage and the ability triggers
 0x4b0750  mp_summon_try_claim      func  -                    I ; multiplayer: one active summon per game (owner id 0x247e824), otherwise L"Another summon already active" and ai_go_idle
 0x4b0b50  level_boss_init          func  -                    I ; cur_level_index lookup in 0x59fde8 (0x10-byte records up to "endgame"), switch per level finding the boss by name ("Barbarian Fighter#boss", "Galienne#$kingroom", "Carados", ...)
 0x4b11a0  mp_combat_reset_target   func  -                    I ; "resetting %s to attack %s": resynchronises a combat target in multiplayer, caller 0x463540
@@ -1494,7 +1748,27 @@
 0x4b1510  init_ccmd_turn_scaler    func  -                    O ; static initialiser: registers console command object ccmd_turn_scaler
 0x4b1530  cmd_turn_scaler          func  -                      O ; console command "turn_scaler": Set the turn scaler
 0x4b24f0  vector3__dot             func  vsdk\math            O ; returns x*x' + y*y' + z*z'
+0x4b4100  ai_mode_traveling_frame  func  -                    O ; AI_STATE_TRAVELING (2) handler of ai_frame
+0x4b4590  ai_mode_cast_spell_frame func  -                    O ; AI_STATE_CAST_SPELL (4) handler of ai_frame
 0x4b4660  summon_emerge_update     func  -                    I ; summon emerge anim handling, "Destroying AA after emerge anim is over"
+0x4b4ad0  ai_mode_disabled_frame   func  -                    O ; AI_STATE_DISABLED (8) handler of ai_frame
+0x4b4d80  ai_mode_hiding_frame     func  -                    O ; AI_STATE_HIDING (9) handler of ai_frame
+0x4b4eb0  ai_mode_sneaking_frame   func  -                    O ; AI_STATE_SNEAKING (10) handler of ai_frame (also run while owner flag 0x400 is set)
+0x4b6000  ai_goal_do_attack        func  -                    I ; goal type 1 handler (target, flags): range check (character_distance_between_edges), weapon skill, removes travel goals, sets the combat target and attacks (0x472200)
+0x4b6240  ai_goal_do_follow        func  -                    I ; goal type 2 handler (handle): party members following cur_character stay put, else approach via 0x4b5bd0
+0x4b62a0  ai_goal_do_travel        func  -                    O ; goal type 9 handler: path to the goal point (0x473e50), through the mount's AI when mounted, then ai_set_mode(TRAVELING, 2)
+0x4b63e0  ai_goal_do_nothing       func  -                    O ; goal type 11 handler: returns -1
+0x4b63f0  ai_goal_do_approach_party func  -                    I ; goal type 8 handler (handle): party members (flag 1) approach the target via 0x4b5bd0
+0x4b6430  ai_goal_do_combat_mode   func  -                    O ; goal types 6/7 handler: ai_set_mode(COMBAT, 0xE) (or sneak when owner flag 0x400) unless already in it
+0x4b64c0  ai_goal_do_cast_spell    func  -                    O ; goal type 3 handler (spell): ai_set_mode(CAST_SPELL, 0x27), spell +0x84
+0x4b6500  ai_goal_do_cast_at_target func  -                    O ; goal type 4 handler (target, spell): target +0x60, ai_set_mode(CAST_SPELL, 0x28)
+0x4b6560  ai_goal_do_cast_at_point func  -                    O ; goal type 5 handler (spell, pos, arg): point +0x68, +0x74, ai_set_mode(CAST_SPELL, 0x29)
+0x4b65c0  ai_goal_do_move_to       func  -                    O ; goal type 0xC handler: path (0x473e50 or 0x473bc0), timers +0x228/+0x22C 1 s, ai_set_mode(TRAVELING, 6), walk/run speed
+0x4b6690  ai_goal_do_move_to_timed func  -                    O ; goal type 0xD handler: point +0x68, +0x74/+0x78, ai_set_mode(TRAVELING, 8), walk/run speed
+0x4b6710  ai_goal_do_hide          func  -                    O ; goal type 0x10 handler: party leader toggles combat mode (0x439580), others ai_set_combat_mode_goal, else ai_set_mode(HIDING, 9)
+0x4b6790  ai_goal_do_sneak         func  -                    O ; goal type 0xF handler: ai_set_mode(SNEAKING, 0xC/0xD), multiplayer broadcast 0x488a20
+0x4b6810  ai_goal_do_special_attack func  -                    I ; goal type 0xE handler (target): within 2 m (character_distance_between_edges) sets combat target with attack 0x12 and ai_set_mode(COMBAT, 0x11)
+0x4b68c0  ai_goal_do_pickup        func  -                    I ; goal type 0x11 handler (obj): removes goal 0, when the object is an item/gold (type 3 or 0xB) within 0x5819b4 calls the pickup routine 0x46b6b0
 0x4b7d30  pathvis_add_edge_node    func  -                    I ; "Edge tree node limit of %d reached" (pathfinding_visibility.cpp)
 0x4b8350  determine_point_visibility func  engine\ai\pathfinding_visibility.cpp I ; prints "determine_point_visibility() took %d ms."
 0x4b8830  init_ccmd_pyrul_stage    func  -                    O ; static initialiser: registers console command object ccmd_pyrul_stage
@@ -1524,6 +1798,7 @@
 0x4bb870  ghost_set_ride_anims     func  -                    O ; "stage1_stand", "stage1_walk", "stage1_run" (boss_set_ride_anims case 0x5a)
 0x4bbc70  ghost_check_stage        func  -                    I ; boss_ai_check_stage case 0x5a
 0x4bbd80  ghost_set_solo           func  -                    O ; rider_unlink_mount, combat flag 0x248031a = 1 (cmd_ghost_solo)
+0x4bff60  ai_mode_combat_frame     func  -                    O ; AI_STATE_COMBAT (3) handler of ai_frame
 0x4c0a60  lamp_glow_load           func  -                    O ; bm_load("WolongLampGlow01.tga") into 0x248b008, callers shadows_init, 0x48a190
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
@@ -2218,7 +2493,7 @@
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
-0x501780  frametime_restore_limits func  frametime.cpp        I ; frametime_set_limits(saved 0x257f084, 0x257f080), caller effects_kill_all
+0x501780  frametime_restore_limits func  frametime.cpp        I ; frametime_set_limits(saved 0x257f084, 0x257f080), caller cutscene_cleanup
 0x5017a0  increase_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused++
 0x5017b0  decrease_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused--, previous_done_time = timer_get(1000000)
 0x5017d0  increase_animation_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Animation_timer_paused++, caller game_pause
@@ -2731,7 +3006,7 @@
 0x520c10  snd_free                 func  -                    O ; snd_unload then clears the sound name and level bits
 0x520c50  snd_unload_all           func  -                    O ; snd_unload for all 0x280 sounds (function after nop padding, not in Ghidra list)
 0x520c70  snd_level_page_in        func  -                    I ; for each used sound: snd_load if not loaded, increments level refcount in flags bits 28-30
-0x520ce0  snd_level_release        func  -                    I ; for each sound: decrements level refcount, frees sounds whose count reaches 0, called from effects_kill_all
+0x520ce0  snd_level_release        func  -                    I ; for each sound: decrements level refcount, frees sounds whose count reaches 0, called from cutscene_cleanup
 0x520d50  snd_play                 func  -                    O ; (handle, vol, pan, ..) snd_load, volume via snd_get_volume, ds_play(.., looping=0), RF snd_pc_play
 0x520de0  snd_get_volume           func  -                    O ; group_volume[flags&0x7ffffff] * sound.volume(+0x28) * scale
 0x520e10  snd_play_looping         func  -                    O ; as snd_play but ds_play looping=1, RF snd_pc_play_looping
@@ -3653,6 +3928,8 @@
 0x5930bd  play_intro_movies        data:bool -                    O ; 1 until the first mainmenu_init plays vlogo.bik and (with EAX) eaxlogo.bik; SummonerFix SkipIntroMovies clears it
 0x5931b0  Gamewide_show_net_stats  data:bool -                      I ; set by console command "net_stats" (toggles); type inferred
 0x593508  joseph_skill_progression data:skill_progression[17] characterinfo.cpp    I ; player record +0x24 for Joseph: {skill, level, value}; character_add_xp copies value into Character.skill[skill] at that level
+0x596064  move_type_names          data:char*[16] -                    O ; "+Move:" type names, index = move_info +0x10: attack, special attack, parry, dodge, flinch, non-combat flinch, death, cast, movement, misc, transition, ranged attack, emerge, banish, state
+0x598fa0  anim_class_names         data:char*[9] -                    O ; "+Animation class:" names (bit n of move_info +0xC): none, swords, large swords, maces, staves, pole arms, bows, crossbows, daggers
 0x599690  Chance_to_drop_gold      data:int -                      I ; set by console command "chance_gold" (sets); type inferred
 0x599694  Use_spell_ap             data:bool -                      I ; set by console command "Spell_ap" (toggles); type inferred
 0x59a16c  Debug_death              data:bool -                      I ; set by console command "death" (toggles); type inferred
@@ -3665,6 +3942,8 @@
 0x59bd79  Render_level             data:bool -                      I ; set by console command "render_level" (toggles); type inferred
 0x59bd7a  Render_characters        data:bool -                      I ; set by console command "render_characters" (toggles); type inferred
 0x59bd7b  Render_effects           data:bool -                      I ; set by console command "render_effects" (toggles); type inferred
+0x59bd7c  fog_near                 data:float -                    O ; printed by set_fog as "near: %.3f meters"
+0x59bd80  fog_far                  data:float -                    O ; printed by set_fog as "far: %.3f meters"
 0x59bd9c  Main_character_lod_dist  data:int -                      I ; set by console command "main_lod_dist" (sets); type inferred
 0x59bda0  Character_lod_dist       data:int -                      I ; set by console command "lod_dist" (sets); type inferred
 0x59bda8  Cull_ground_too          data:bool -                      I ; set by console command "Cull_ground_too" (toggles); type inferred
@@ -3763,6 +4042,7 @@
 0x60a018  game_camera              data:camera -                    I ; the camera object, CMRA chunk via camera_get_state/camera_set_state
 0x60a2c8  level_filename           data:char[] -                    I ; current level name (compared with _stricmp throughout level scripts)
 0x60a2e8  level_script_name        data:char[32] -                    I ; set by game_change_level, header +0x88, prefix of two-stage and lc hashes
+0x60a40c  level_is_town            data:uint8_t -                    O ; set by level_script_parse_table when the level's record has "#Town" (forced 0 with debug flag 2), read by move_used_on_level and random_encounter_check
 0x60a410  ccmd_flece               data:console_command -                      O ; console command object "flece"
 0x60a420  ccmd_character           data:console_command -                      O ; console command object "character"
 0x60a638  ccmd_jekhar              data:console_command -                      O ; console command object "jekhar"
@@ -3796,6 +4076,9 @@
 0x68e200  ccmd_All_summons         data:console_command -                      O ; console command object "All_summons"
 0x6d7e50  char_infos               data:char_info[256] characterinfo.cpp    O ; "$Character:" records (0x3d0 bytes); Character +0x71c points at one
 0x714e54  num_char_infos           data:int characterinfo.cpp    O ; record count, incremented by characterinfo_parse_table
+0x744680  player_instance_mempool  data:Mempool -                    O ; "Player instance" pool (0xa000 bytes at 0x848004), reset by characterinfo_level_unload
+0x7916dc  move_info_free_list      data:void* -                    O ; free list of move_info records (link +0x40) popped by characterinfo_add_move ("Move_info array is full")
+0x8b3c34  stashed_summon           data:void* -                    O ; Character saved by summon_stash_for_cutscene, restored by summon_restore_after_cutscene
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
 0x8b3f88  skill_table              data:uint8[85*0x34] characterinfo.cpp    O ; 85 skills x 0x34 bytes: +0 name (localize_strings pointer), +0x2c description; index = skill_id
 0x8b50b0  All_summons              data:bool -                      I ; set by console command "All_summons" (toggles); type inferred
@@ -3807,6 +4090,7 @@
 0x8ed970  ccmd_immortal            data:console_command -                      O ; console command object "immortal"
 0x940428  ccmd_no_resist           data:console_command -                      O ; console command object "no_resist"
 0x941508  ccmd_health              data:console_command -                      O ; console command object "health"
+0x9416c8  move_fades               data:int[15] -                    O ; 5 x {character handle, move, fade fraction}, handle -1 = free
 0x941704  Players_immortal         data:bool -                      I ; set by console command "immortal" (toggles); type inferred
 0x941705  No_resist                data:bool -                      I ; set by console command "no_resist" (toggles); type inferred
 0x941710  ccmd_death               data:console_command -                      O ; console command object "death"
@@ -3819,6 +4103,10 @@
 0x9438b0  obj_slots                data:uint8[] objects.cpp          O ; 12-byte slots {next, prev, object}; slot index + handle base = object handle
 0x970810  ccmd_add_gold            data:console_command -                      O ; console command object "add_gold"
 0x971868  party_gold               data:int -                    I ; INVT +0x04, buysell_recharge_item subtracts from it, party_inventory_reset sets 30
+0xa5a2c8  num_lobjs                data:int -                    O ; level object count (compared with the indices in character_find_ground)
+0xa5a2cc  lobjs                    data:void* -                    O ; level object array, 0x70 bytes each (+0 name, +4 mesh, +0x6C two layer bytes), lobj_from_index
+0xa5a300  num_doors                data:int -                    O ; door record count (door_from_lobj, door_find_by_name)
+0xa5a304  doors                    data:void* -                    O ; door records, 0x8C bytes, sorted by level object index
 0x22c4388 ccmd_load_lightmaps      data:console_command -                      O ; console command object "load_lightmaps"
 0x22e43a8 ccmd_p3d_files           data:console_command -                      O ; console command object "p3d_files"
 0x22e43e8 ccmd_test_meshes_on_load data:console_command -                      O ; console command object "test_meshes_on_load"
