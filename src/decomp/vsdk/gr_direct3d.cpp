@@ -53,8 +53,8 @@ bool gr_d3d_vertex_color = true;                      // 0x5a9cf8
 bool gr_d3d_vertex_alpha = true;                      // 0x5a9cf9
 
 // ---- .bss (0x2d90ed4-0x2d90ee7) -----------------------------------------------------------------------
-float gr_d3d_texture_scale_u[2];                      // 0x2d90ed4 (names swapped, D1602)
-float gr_d3d_texture_scale_v[2];                      // 0x2d90edc
+float gr_d3d_texture_scale_v[2];                      // 0x2d90ed4 (sum.symbols had the pair swapped, D1602)
+float gr_d3d_texture_scale_u[2];                      // 0x2d90edc
 
 // 0x534a20 init_gr_d3d_current_mode (thunk `jmp 0x534a30`, initialiser table 0x5889cc; the body at
 // 0x534a30 is `mov ecx, 0x2d90ee4; jmp gr::Mode::Mode`): compiler-generated.  Confidence: exact.
@@ -355,7 +355,7 @@ void gr_d3d_set_zbias(int bias)
 void gr_d3d_page_in(int bm)
 {
     if (bm > -1)
-        gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_v[0], &gr_d3d_texture_scale_u[0], 0);
+        gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_u[0], &gr_d3d_texture_scale_v[0], 0);
 }
 
 // 0x535550  Confidence: exact.
@@ -442,10 +442,10 @@ void gr_d3d_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw, i
     if (num_sections == 1) {
         float fw = (float)bw;
         float fh = (float)bh;
-        float u0 = ((float)sx + d3d_bitmap_u_offset) * gr_d3d_texture_scale_v[0] / fw;
-        float v0 = ((float)sy + d3d_bitmap_u_offset) * gr_d3d_texture_scale_u[0] / fh;
-        float u1 = ((float)(sx + sw) + d3d_bitmap_v_offset) * gr_d3d_texture_scale_v[0] / fw;
-        float v1 = ((float)(sy + sh) + d3d_bitmap_v_offset) * gr_d3d_texture_scale_u[0] / fh;
+        float u0 = ((float)sx + d3d_bitmap_u_offset) * gr_d3d_texture_scale_u[0] / fw;
+        float v0 = ((float)sy + d3d_bitmap_u_offset) * gr_d3d_texture_scale_v[0] / fh;
+        float u1 = ((float)(sx + sw) + d3d_bitmap_v_offset) * gr_d3d_texture_scale_u[0] / fw;
+        float v1 = ((float)(sy + sh) + d3d_bitmap_v_offset) * gr_d3d_texture_scale_v[0] / fh;
         float x0 = (float)(gr_screen.offset_x + x) - 0.5f;
         float y0 = (float)(gr_screen.offset_y + y) - 0.5f;
         float x1 = (float)(gr_screen.offset_x + x + w) - 0.5f;
@@ -465,7 +465,7 @@ void gr_d3d_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw, i
 
     for (int i = 0; i < num_sections; i++) {
         int sec_x, sec_y, sec_w, sec_h;
-        gr_d3d_tcache_set(0, bm, i, &gr_d3d_texture_scale_v[0], &gr_d3d_texture_scale_u[0], 1);
+        gr_d3d_tcache_set(0, bm, i, &gr_d3d_texture_scale_u[0], &gr_d3d_texture_scale_v[0], 1);
         gr_d3d_get_section_rect(bm, i, &sec_x, &sec_y, &sec_w, &sec_h);
         float fw = (float)sec_w;
         float fh = (float)sec_h;
@@ -495,7 +495,7 @@ void gr_d3d_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw, i
 void gr_d3d_set_bitmap(gr::Mode mode, int bm, int stage)
 {
     if (bm > -1)
-        gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_v[0], &gr_d3d_texture_scale_u[0], 1);
+        gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_u[0], &gr_d3d_texture_scale_v[0], 1);
     gr_d3d_set_state(mode);
 }
 
@@ -655,8 +655,8 @@ void gr_d3d_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
         d->sx = v->sx;
         d->sy = v->sy;
         if (verts[i]->_unk1a & 1) {
-            d->tu = gr_d3d_texture_scale_v[0] * v->u;
-            d->tv = gr_d3d_texture_scale_u[0] * v->v;
+            d->tu = gr_d3d_texture_scale_u[0] * v->u;
+            d->tv = gr_d3d_texture_scale_v[0] * v->v;
         }
     }
     gr_d3d_draw_primitive(D3DPT_TRIANGLEFAN, D3DFVF_TLVERTEX2, dv, nv, 0);
@@ -700,30 +700,30 @@ void gr_d3d_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses, 
                 float u_off, v_off, u_scale, v_scale;
                 int section = gr_poly_get_section(nv, verts, i, pass->bitmap, &u_off, &v_off, &u_scale,
                                                   &v_scale);
-                gr_d3d_tcache_set(0, pass->bitmap, section, &gr_d3d_texture_scale_v[0],
-                                  &gr_d3d_texture_scale_u[0], 1);
-                u_scale = gr_d3d_texture_scale_v[0] * u_scale;
-                v_scale = gr_d3d_texture_scale_u[0] * v_scale;
+                gr_d3d_tcache_set(0, pass->bitmap, section, &gr_d3d_texture_scale_u[0],
+                                  &gr_d3d_texture_scale_v[0], 1);
+                u_scale = gr_d3d_texture_scale_u[0] * u_scale;
+                v_scale = gr_d3d_texture_scale_v[0] * v_scale;
                 for (j = 0; j < nv; j++) {
                     dv[j].tu = (verts[j]->pass[i].u - u_off) * u_scale;
                     dv[j].tv = (verts[j]->pass[i].v - v_off) * v_scale;
                 }
             } else {
                 gr_d3d_set_state(pass->mode);
-                gr_d3d_tcache_set(pass->stage, pass->bitmap, 0, &gr_d3d_texture_scale_v[0],
-                                  &gr_d3d_texture_scale_u[0], 1);
+                gr_d3d_tcache_set(pass->stage, pass->bitmap, 0, &gr_d3d_texture_scale_u[0],
+                                  &gr_d3d_texture_scale_v[0], 1);
                 for (j = 0; j < nv; j++) {
                     float *uv = &dv[j].tu + 2 * pass->stage;
-                    uv[0] = gr_d3d_texture_scale_v[0] * verts[j]->pass[i].u;
-                    uv[1] = gr_d3d_texture_scale_u[0] * verts[j]->pass[i].v;
+                    uv[0] = gr_d3d_texture_scale_u[0] * verts[j]->pass[i].u;
+                    uv[1] = gr_d3d_texture_scale_v[0] * verts[j]->pass[i].v;
                 }
                 if (pass2) {
-                    gr_d3d_tcache_set(pass2->stage, pass2->bitmap, 0, &gr_d3d_texture_scale_v[1],
-                                      &gr_d3d_texture_scale_u[1], 1);
+                    gr_d3d_tcache_set(pass2->stage, pass2->bitmap, 0, &gr_d3d_texture_scale_u[1],
+                                      &gr_d3d_texture_scale_v[1], 1);
                     for (j = 0; j < nv; j++) {
                         float *uv = &dv[j].tu + 2 * pass2->stage;
-                        uv[0] = gr_d3d_texture_scale_v[1] * verts[j]->pass[i + 1].u;
-                        uv[1] = gr_d3d_texture_scale_u[1] * verts[j]->pass[i + 1].v;
+                        uv[0] = gr_d3d_texture_scale_u[1] * verts[j]->pass[i + 1].u;
+                        uv[1] = gr_d3d_texture_scale_v[1] * verts[j]->pass[i + 1].v;
                     }
                 }
             }
@@ -836,8 +836,8 @@ LPDIRECTDRAWCREATEEX d3d_ddraw_enumerate_ex;          // 0x2dc6c34
 IDirectDraw7 *d3d_ddraw;                              // 0x2dc6c38
 void *d3d_direct3d;                                   // 0x2dc6c3c IDirect3D7 * (D1604)
 IDirect3DDevice7 *d3d_device;                         // 0x2dc6c40
-IDirectDrawSurface7 *d3d_primary_surface;             // 0x2dc6c44 the render target (D1603)
-IDirectDrawSurface7 *d3d_back_surface;                // 0x2dc6c48 the primary surface (D1603)
+IDirectDrawSurface7 *d3d_back_surface;             // 0x2dc6c44 the render target (D1603)
+IDirectDrawSurface7 *d3d_primary_surface;                // 0x2dc6c48 the primary surface (D1603)
 IDirectDrawSurface7 *d3d_zbuffer_surface;             // 0x2dc6c4c
 IDirectDrawGammaControl *d3d_gamma_control;           // 0x2dc6c50
 int d3d_texture_format_b_bits;                        // 0x2dc6c54
@@ -1041,7 +1041,7 @@ void gr_d3d_set_window(HWND hwnd)
         IDirectDrawClipper *clipper;
         IDirectDraw7_CreateClipper(d3d_ddraw, 0, &clipper, NULL);
         IDirectDrawClipper_SetHWnd(clipper, 0, d3d_hwnd);
-        IDirectDrawSurface7_SetClipper(d3d_back_surface, clipper);
+        IDirectDrawSurface7_SetClipper(d3d_primary_surface, clipper);
         IDirectDrawClipper_Release(clipper);
     }
 }
@@ -1397,7 +1397,7 @@ void gr_d3d_init_device()
         desc.dwSize = sizeof(desc);
         desc.dwFlags = DDSD_CAPS;
         desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_back_surface, NULL) != DD_OK)
+        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_primary_surface, NULL) != DD_OK)
             goto failed;
         memset(&desc, 0, sizeof(desc));
         desc.dwWidth = gr_screen.max_w;
@@ -1405,12 +1405,12 @@ void gr_d3d_init_device()
         desc.dwSize = sizeof(desc);
         desc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
         desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_3DDEVICE;
-        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_primary_surface, NULL) != DD_OK)
+        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_back_surface, NULL) != DD_OK)
             goto failed;
         if (IDirectDraw7_CreateClipper(d3d_ddraw, 0, &clipper, NULL) != DD_OK)
             goto failed;
         IDirectDrawClipper_SetHWnd(clipper, 0, hwnd);
-        IDirectDrawSurface7_SetClipper(d3d_back_surface, clipper);
+        IDirectDrawSurface7_SetClipper(d3d_primary_surface, clipper);
         IDirectDrawClipper_Release(clipper);
     } else {
         if (IDirectDraw7_SetCooperativeLevel(d3d_ddraw, hwnd,
@@ -1423,11 +1423,11 @@ void gr_d3d_init_device()
         desc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
         desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX | DDSCAPS_3DDEVICE;
         desc.dwBackBufferCount = 1;
-        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_back_surface, NULL) != DD_OK)
+        if (IDirectDraw7_CreateSurface(d3d_ddraw, &desc, &d3d_primary_surface, NULL) != DD_OK)
             goto failed;
         memset(&caps, 0, sizeof(caps));
         caps.dwCaps = DDSCAPS_BACKBUFFER;
-        if (IDirectDrawSurface7_GetAttachedSurface(d3d_back_surface, &caps, &d3d_primary_surface) != DD_OK)
+        if (IDirectDrawSurface7_GetAttachedSurface(d3d_primary_surface, &caps, &d3d_back_surface) != DD_OK)
             goto failed;
         gr_d3d_noop_hook(1);
     }
@@ -1447,9 +1447,9 @@ void gr_d3d_init_device()
         zdesc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
     if (IDirectDraw7_CreateSurface(d3d_ddraw, &zdesc, &d3d_zbuffer_surface, NULL) != DD_OK)
         goto failed;
-    if (IDirectDrawSurface7_AddAttachedSurface(d3d_primary_surface, d3d_zbuffer_surface) != DD_OK)
+    if (IDirectDrawSurface7_AddAttachedSurface(d3d_back_surface, d3d_zbuffer_surface) != DD_OK)
         goto failed;
-    if (IDirect3D7_CreateDevice(D3D_DIRECT3D, &dev->d3d_guid, d3d_primary_surface, &d3d_device) != DD_OK)
+    if (IDirect3D7_CreateDevice(D3D_DIRECT3D, &dev->d3d_guid, d3d_back_surface, &d3d_device) != DD_OK)
         goto failed;
 
     vp.dwX = 0;
@@ -1464,7 +1464,7 @@ void gr_d3d_init_device()
 
     memset(&zdesc, 0, sizeof(zdesc));
     zdesc.dwSize = sizeof(zdesc);
-    IDirectDrawSurface7_GetSurfaceDesc(d3d_primary_surface, &zdesc);
+    IDirectDrawSurface7_GetSurfaceDesc(d3d_back_surface, &zdesc);
     d3d_compute_pixel_format_shifts(&zdesc);
     d3d_screen_pixel_format = zdesc.ddpfPixelFormat;
 
@@ -1547,7 +1547,7 @@ void gr_d3d_init_device()
     }
 
     if (d3d_driver_caps.dwCaps2 & DDCAPS2_PRIMARYGAMMA) {
-        if (IDirectDrawSurface7_QueryInterface(d3d_back_surface, &IID_IDirectDrawGammaControl,
+        if (IDirectDrawSurface7_QueryInterface(d3d_primary_surface, &IID_IDirectDrawGammaControl,
                                                (void **)&d3d_gamma_control) < 0)
             d3d_gamma_control = NULL;
         else
@@ -1806,13 +1806,13 @@ void gr_d3d_close()
             IDirectDrawSurface7_Release(d3d_zbuffer_surface);
             d3d_zbuffer_surface = NULL;
         }
-        if (d3d_primary_surface) {
-            IDirectDrawSurface7_Release(d3d_primary_surface);
-            d3d_primary_surface = NULL;
-        }
         if (d3d_back_surface) {
             IDirectDrawSurface7_Release(d3d_back_surface);
             d3d_back_surface = NULL;
+        }
+        if (d3d_primary_surface) {
+            IDirectDrawSurface7_Release(d3d_primary_surface);
+            d3d_primary_surface = NULL;
         }
         if (d3d_direct3d) {
             IDirect3D7_Release(D3D_DIRECT3D);
@@ -1834,7 +1834,7 @@ void gr_d3d_close()
 void gr_d3d_flip_surface()
 {
     gr_d3d_end_scene();
-    IDirectDrawSurface7_Flip(d3d_back_surface, NULL, DDFLIP_WAIT);
+    IDirectDrawSurface7_Flip(d3d_primary_surface, NULL, DDFLIP_WAIT);
 }
 
 // 0x53a610  Confidence: likely (empty case 0, as in gr_d3d_begin_scene).
@@ -1872,26 +1872,26 @@ void gr_d3d_flip()
     gr::reset_clip();
     gr_d3d_end_scene();
     if (d3d_windowed) {
-        IDirectDrawSurface7_Blt(d3d_back_surface, &d3d_screen_rect, d3d_primary_surface, &d3d_window_rect,
+        IDirectDrawSurface7_Blt(d3d_primary_surface, &d3d_screen_rect, d3d_back_surface, &d3d_window_rect,
                                 DDBLT_WAIT, NULL);
-        while (IDirectDrawSurface7_GetBltStatus(d3d_back_surface, DDGBS_ISBLTDONE) != DD_OK)
+        while (IDirectDrawSurface7_GetBltStatus(d3d_primary_surface, DDGBS_ISBLTDONE) != DD_OK)
             ;
     } else {
         for (;;) {
-            if (IDirectDrawSurface7_IsLost(d3d_back_surface) == DDERR_SURFACELOST)
-                IDirectDrawSurface7_Restore(d3d_back_surface);
             if (IDirectDrawSurface7_IsLost(d3d_primary_surface) == DDERR_SURFACELOST)
                 IDirectDrawSurface7_Restore(d3d_primary_surface);
+            if (IDirectDrawSurface7_IsLost(d3d_back_surface) == DDERR_SURFACELOST)
+                IDirectDrawSurface7_Restore(d3d_back_surface);
             if (IDirectDrawSurface7_IsLost(d3d_zbuffer_surface) == DDERR_SURFACELOST)
                 IDirectDrawSurface7_Restore(d3d_zbuffer_surface);
-            HRESULT hr = IDirectDrawSurface7_Flip(d3d_back_surface, NULL,
+            HRESULT hr = IDirectDrawSurface7_Flip(d3d_primary_surface, NULL,
                                                   gr_vsync ? DDFLIP_WAIT : DDFLIP_WAIT | DDFLIP_NOVSYNC);
             if (hr == DDERR_SURFACELOST) {
                 timer_wait(1000);
                 continue;
             }
             if (hr == DD_OK) {
-                while (IDirectDrawSurface7_GetFlipStatus(d3d_back_surface, DDGFS_ISFLIPDONE) != DD_OK)
+                while (IDirectDrawSurface7_GetFlipStatus(d3d_primary_surface, DDGFS_ISFLIPDONE) != DD_OK)
                     ;
             }
             break;
@@ -1925,7 +1925,7 @@ int gr_d3d_read_backbuffer(int x, int y, int w, int h, void *buf)
     gr_d3d_end_scene();
     memset(&desc, 0, sizeof(desc));
     desc.dwSize = sizeof(desc);
-    if (IDirectDrawSurface7_Lock(d3d_primary_surface, NULL, &desc, DDLOCK_WAIT | DDLOCK_READONLY, NULL) != DD_OK)
+    if (IDirectDrawSurface7_Lock(d3d_back_surface, NULL, &desc, DDLOCK_WAIT | DDLOCK_READONLY, NULL) != DD_OK)
         return 0;
     ubyte *dst = (ubyte *)buf;
     ubyte *src = (ubyte *)desc.lpSurface + desc.lPitch * y + x * 2;
@@ -1934,7 +1934,7 @@ int gr_d3d_read_backbuffer(int x, int y, int w, int h, void *buf)
         dst += w * 2;
         src += desc.lPitch;
     }
-    IDirectDrawSurface7_Unlock(d3d_primary_surface, NULL);
+    IDirectDrawSurface7_Unlock(d3d_back_surface, NULL);
     gr_d3d_begin_scene();
     return 3;
 }
@@ -2031,8 +2031,8 @@ void gr_d3d_set_alpha_test(bool on)
 void gr_d3d_flush_pipeline()
 {
     if (!d3d_windowed) {
-        IDirectDrawSurface7_Blt(d3d_primary_surface, NULL, d3d_back_surface, NULL, DDBLT_WAIT, NULL);
-        while (IDirectDrawSurface7_GetBltStatus(d3d_primary_surface, DDGBS_ISBLTDONE) != DD_OK)
+        IDirectDrawSurface7_Blt(d3d_back_surface, NULL, d3d_primary_surface, NULL, DDBLT_WAIT, NULL);
+        while (IDirectDrawSurface7_GetBltStatus(d3d_back_surface, DDGBS_ISBLTDONE) != DD_OK)
             ;
     }
 }

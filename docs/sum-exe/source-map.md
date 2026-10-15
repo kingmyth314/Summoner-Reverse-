@@ -581,6 +581,31 @@ head/tail of a neighbour cannot be decided: none reads an id of its own, and .bs
 | 0x566560 | 0x567410 | sound streams (snd_stream_*), ACM decoding, wav reader | .bss 0x2f54934-0x2fbdb88, .data 0x5af494-0x5af4a8; sits inside the libjpeg run |
 | 0x567430 | 0x569ff0 | libjpeg compressor (IJG objects) | IJG function names; file names could be matched to the IJG distribution, not done here |
 
+### `gr_direct3d.cpp` is two objects (2026-10-15)
+
+The code tagged `vsdk\gr\directx\gr_direct3d.cpp` is two objects. `0x534a20`-`0x536944` (render state, clears,
+bitmaps, lines, tmappers, bump setup, then the out-of-line `gr::Mode` inlines `0x5368a0`-`0x536930` and `d3d_f2dw`
+`0x536940`) is a separate file of `vsdk\gr\directx` whose name is not known. The `vsdk\geom` vfx object
+(`0x536950`-`0x538630`) follows it, and `gr_direct3d.cpp` proper starts at `0x538650`. Evidence, all **observed**:
+(1) the static initialiser table at `0x588004` runs `0x5889cc` = `0x534a20` (this file, `gr_d3d_current_mode`),
+`0x5889d0`-`0x5889d8` = `0x536950`, `0x536980`, `0x5369a0` (vfx), then `0x5889dc`-`0x5889e4` = `0x538650`,
+`0x5386a0`, `0x5386f0` (the `-fb2`, `-vertexfog`, `-rz` params of `gr_direct3d.cpp`), so the vfx object lies between
+the two; (2) `.data`: this file `0x5a9cf8`-`0x5a9cf9` (`gr_d3d_vertex_color` / `_alpha`), vfx `0x5a9cfc`-`0x5a9d23`
+(the dword `0x5a9cfc` that `vfx_instance__setup_render_state` writes, "$vis" `0x5a9d00`, ">>> FAILED TO GET TAG" `0x5a9d08`), `gr_direct3d.cpp`
+from `0x5a9d24` (lock flags, then its literals `0x5a9d40`-`0x5abdf3`); (3) `.bss`: this file `0x2d90ed4`-`0x2d90ee7`
+(the two texture-scale pairs and `gr_d3d_current_mode`), right after `file_packfile.cpp`'s `0x2d90ec8`-`0x2d90ed3`,
+vfx `0x2d90ee8`-`0x2dbfd14` (camera, the 4000-vertex pool `0x2d90f10`-`0x2dbfd0f`, `vfx_active_instance`, `vfx_render_alpha`), `gr_direct3d.cpp`
+`0x2dbfd20`-`0x2dc6cbb`; (4) path strings: this file references no string at all (`asm.mjs strings 0x534a20
+0x536944` is empty), while `gr_direct3d.cpp`'s `__FILE__` is pushed at `0x53956c` and `0x53967b`. Everything else
+the first file uses (device, surfaces, caps, fog state) is `gr_direct3d.cpp`'s `.bss`, so it is a sibling file of the
+same back end. The sum.symbols tags of `0x534a20`-`0x536940` and of `init_gr_d3d_vertex_buf` (`0x536950`, which
+initialises the vfx object's pool) say `gr_direct3d.cpp`; they now have a folder-only tag (`vsdk\gr\directx`) and `vsdk\geom`
+respectively (2026-10-15).
+
+Table row (Engine ranges format: Start | End = start of the last function | Label | Evidence):
+
+| 0x534a20 | 0x536940 | Direct3D render state and drawing (vsdk\gr\directx, file name not known; separate from gr_direct3d.cpp) | init entry 0x5889cc only, before the vfx entries 0x5889d0-0x5889d8 and gr_direct3d.cpp's 0x5889dc-0x5889e4; .data 0x5a9cf8-0x5a9cf9; .bss 0x2d90ed4-0x2d90ee7 (after file_packfile.cpp, before vfx 0x2d90ee8); no string references (gr_direct3d.cpp's path string is used at 0x53956c, 0x53967b); ends with the gr::Mode inlines 0x5368a0-0x536930 and d3d_f2dw 0x536940 |
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`

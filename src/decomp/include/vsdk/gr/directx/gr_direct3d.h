@@ -58,11 +58,11 @@ struct d3d_color_channel {
 // ---- the state / drawing object (0x534a20-0x536944, file name unknown, D1601) ----------------------
 extern bool gr_d3d_vertex_color;                      // 0x5a9cf8 (1) colour source uses vertex colours
 extern bool gr_d3d_vertex_alpha;                      // 0x5a9cf9 (1) alpha source uses vertex alpha
-// Texture coordinate scales of the bitmap bound on stage 0 / 1. The names are sum.symbols' but swapped
-// (D1602): gr_d3d_tcache_set gets &gr_d3d_texture_scale_v[s] as its u scale and the code multiplies tu
+// Texture coordinate scales of the bitmap bound on stage 0 / 1. sum.symbols had the pair swapped
+// (D1602): gr_d3d_tcache_set gets &gr_d3d_texture_scale_u[s] as its u scale and the code multiplies tu
 // by it.
-extern float gr_d3d_texture_scale_u[2];               // 0x2d90ed4
-extern float gr_d3d_texture_scale_v[2];               // 0x2d90edc
+extern float gr_d3d_texture_scale_v[2];               // 0x2d90ed4
+extern float gr_d3d_texture_scale_u[2];               // 0x2d90edc
 extern gr::Mode gr_d3d_current_mode;                  // 0x2d90ee4
 
 void gr_d3d_set_state(gr::Mode mode);                 // 0x534a40
@@ -133,10 +133,10 @@ extern IDirectDraw7 *d3d_ddraw;                       // 0x2dc6c38
 // IDirect3D7, D1604); this unit reads it through D3D_DIRECT3D.
 #define D3D_DIRECT3D ((IDirect3D7 *)d3d_direct3d)
 extern IDirect3DDevice7 *d3d_device;                  // 0x2dc6c40
-// sum.symbols' names; the roles are the other way round (D1603): d3d_primary_surface is the render
-// target (back buffer / offscreen plain surface), d3d_back_surface the primary (front) surface.
-extern IDirectDrawSurface7 *d3d_primary_surface;      // 0x2dc6c44
-extern IDirectDrawSurface7 *d3d_back_surface;         // 0x2dc6c48
+// Names as corrected in sum.symbols (D1603; the pair used to be swapped): d3d_back_surface is the render
+// target (back buffer / offscreen plain surface), d3d_primary_surface the primary (front) surface.
+extern IDirectDrawSurface7 *d3d_back_surface;      // 0x2dc6c44
+extern IDirectDrawSurface7 *d3d_primary_surface;         // 0x2dc6c48
 extern IDirectDrawSurface7 *d3d_zbuffer_surface;      // 0x2dc6c4c
 extern IDirectDrawGammaControl *d3d_gamma_control;    // 0x2dc6c50
 extern int d3d_texture_format_b_bits;                 // 0x2dc6c54

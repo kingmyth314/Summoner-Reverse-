@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 100 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 108 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,9 +27,9 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 3 | 17 | 2 |
-| Gameplay | 20 | 7 | 3 |
-| Cosmetic | 19 | 6 | 1 |
-| Invisible | 8 | 20 | 0 |
+| Gameplay | 20 | 8 | 3 |
+| Cosmetic | 24 | 6 | 2 |
+| Invisible | 8 | 22 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -181,6 +181,8 @@ and reports distance 10000 (`0x461c4000`, `0x4fc2ad`). The picker switches to th
 is strictly nearer (`0x4fc685`..`0x4fc6c2`). With no terrain navpoint nearer than 10000 units it keeps the NULL and calls
 `_stricmp(NULL, "$hills001")` (`0x4fc6e2`..`0x4fc6e8`). The retail world map has these navpoints.
 
+None.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -212,6 +214,7 @@ is strictly nearer (`0x4fc685`..`0x4fc6c2`). With no terrain navpoint nearer tha
 | G50 | After a reload or a second visit to the Khosani lab, the flipper puzzle's board no longer matches the flippers: raised flippers show no lava platform, and the next presses move the wrong flippers | `ls_khosanilab_init` `0x4f8920`, `ls_khosanilab_set_flippers` `0x4f9ca0` | **Observed** code, *inferred* effect | No |
 | G51 | Latent: once the 1000 path nodes run out, every failed path search keeps its nodes until the next level load | `pf_graph_search` `0x49fa70` | **Observed** code, *inferred* effect | No |
 | G52 | Latent: a path to a goal outside the walkable area usually fails instead of ending at the area's edge | `pf_find_cell_crossing` `0x49ecb0` | **Observed** code, *inferred* effect | No |
+| G60 | Latent: when the chat server connection fails at once (any error except "would block"), the multiplayer lobby never reports it, retries every frame and opens a new socket each time | `irc_connect` `0x4abc10` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -430,6 +433,18 @@ extent lies inside the segment's are examined. A segment that runs mostly along 
 no path. Clicked destinations are pulled onto the mesh first (`world_click_move` calls `pf_find_nearest_navigable_point`,
 `0x43bf26`), as are most AI targets, so *inferred:* this needs a goal that no caller clamps (see "Still unclear").
 
+**G60. An error returned as "in progress".** `irc_connect` makes a non-blocking socket and calls `connect`
+(`0x4abdb6`). When that returns -1 it sets `irc_connecting` (`0x247a4dc`) only for `WSAEWOULDBLOCK` (10035,
+`cmp eax, 0x2733` at `0x4abdc5`), but returns 0 for every error (`xor eax, eax` at `0x4abdd3`). Its only caller,
+the lobby connect step that `state_mp_lobby_frame` jumps to every frame until lobby flag 1 is set (`jmp 0x43f110`
+at `0x43f0bb`), treats 0 as "still connecting" and returns (`test eax, eax; je` at `0x43f181`). Only -1 sets
+`lobby_connect_state` to the error state (`0x43f18e`). With `irc_connecting` still 0, the next frame runs the whole
+connect again: a new `socket` (`0x4abce5`) whose handle overwrites `0x2479740`, and the old socket is never closed.
+The usual failures still get through: a refused or timed-out connection shows up later in `select` on the
+connecting socket (`0x4abea7`..`0x4abed4`). Only an immediate error (no route to the host, an address that cannot
+be used, a firewall that rejects the call) takes this path. PXO's chat servers are gone, so this needs a
+replacement server. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -459,6 +474,11 @@ no path. Clicked destinations are pulled onto the mesh first (`world_click_move`
 | K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
 | K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
 | K52 | Latent: `help change_texture_res` (or `? change_texture_res`) switches the low-resolution textures on or off | `cmd_change_texture_res` `0x501c90` | **Observed** code | No |
+| K60 | With the Direct3D renderer, the depth clear misses the last column and the last row of the clip area, so those pixels keep the previous frame's depth | `gr_d3d_zbuffer_clear` `0x5355e0` | **Observed** code, *inferred* effect | No |
+| K61 | A dropped item's 5-second highlight gets no blue at all: it is yellow instead of the pale gold in the data | `world_tint_gold_object` `0x43a600` | **Observed** code, *inferred* effect | No |
+| K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
+| K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
+| K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -618,6 +638,58 @@ function with a tint set.
 `bm_set_reduce_textures(!bm_reduce_textures)` and prints "Low resolution textures are now %s!" every time
 (`0x501c90`..`0x501cd3`), and it has no help text. A developer console command, so no retail path reaches it.
 
+**K60. No + 1 on the depth clear.** The clip rectangle keeps its right and bottom edges inclusive: `gr__set_clip`
+stores `w - 1` and `h - 1` (`lea edx, [ecx - 1]` at `0x50684f`, `dec ecx` at `0x50685b`, stored at `0x50686f` and
+`0x50687b`). `gr_d3d_clear` turns them into an exclusive `D3DRECT` with `+ 1` (`lea eax, [edx + eax + 1]` at
+`0x5355a3`, `lea eax, [edx + ecx + 1]` at `0x5355b3`), and so does `gr_opengl_clear` (`0x54f828`, `0x54f839`).
+`gr_d3d_zbuffer_clear` builds the same rectangle without it (`add edx, eax` at `0x53562f`, `add eax, ecx` at
+`0x535640`) and clears only the z buffer (`push 2`, `D3DCLEAR_ZBUFFER`, at `0x535654`). So column `x2` and row `y2`
+of the clip area are never cleared. `gr_zbuffer_clear` runs once per scene, from `levelrender_render_scene`
+(`0x482545`) and `gr_setup_3d` (`0x50df38`). `gr_opengl_zbuffer_clear` clears the whole buffer with `glClear` and has
+no rectangle (`0x54f8af`). *Inferred:* with the reversed depth test (`D3DCMP_GREATEREQUAL` against a clear value of
+0.0 on every card except S3, `0x539f04`..`0x539f0e`), a new pixel in that column or row is drawn only when it is at
+least as near as last frame's, so the right and bottom edge of the 3D view can show a one-pixel line of the clear
+colour while the camera moves. Not tested. Direct3D only. Found in the `NOTES-gr-direct3d.md` notes.
+
+**K61. Index 3 of a three-float colour.** `world_tint_gold_object` passes red `[0x594424]` (0.98), green
+`[0x594428]` (1.0) and blue `[0x594430]` (`0x43a62e`..`0x43a63b`). The colour's third float, 0.51, is at `0x59442c`,
+and nothing reads that address. `0x594430` is the string "gold" (`646c6f67`, about 1.7e22 as a float; `obj_is_gold`
+pushes it as a string at `0x46a7b2`). `world_hover_tint_object` scales each channel by `(pulse + 1) x 0.5`
+(`0x43a681`..`0x43a6cc`), and `levelrender_draw_list` hands the result to `gr_set_tint` for the tinted object
+(`0x48628c`..`0x4862a2`). The mesh renderers multiply the vertex brightness by the tint and convert with `_ftol`
+without a clamp (Direct3D `0x50c8f2`..`0x50c90c`, OpenGL `0x50d3f3`..`0x50d40e`). `_ftol` uses `fistp qword`
+(`0x56c7fd`), so a product of about 1e22 gives the 64-bit "integer indefinite" `0x8000000000000000`, whose low byte
+is 0. The highlight is started for 5 s by `hud_set_timed_highlight`, whose only caller is `monster_drop_loot`
+(`0x45306f`). *Inferred:* every loot drop flashes yellow (red and green only) instead of a pale gold. Any renderer
+that goes through these mesh paths. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**K62. The reason pointer is a shared buffer.** For `KICK <channel> <nick> :<reason>`, the parser copies word 0
+(channel) and word 1 (nick) into stack buffers (`0x4ace72`..`0x4ace9b`, `0x4acea4`..`0x4acecd`) but keeps word 2
+as the pointer `irc_get_word` returns (`mov esi, eax` at `0x4acedf`). That pointer is always `irc_word_buf`
+(`0x247999c`, `mov eax, 0x247999c` at `0x4ad982`). The next call, `irc_get_word(1)` for the "were we kicked" test
+(`0x4acee4`), overwrites that buffer with the nick. `sprintf` then gets `esi` as the last `%s` of
+"*** %s has kicked %s from channel %s (%s)" (string 241, `push esi` at `0x4acf18`). This needs a working chat
+server (PXO is offline). Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**K63. Squared distance against a plain radius.** For a character, the pick radius is `2 x character_size_radius`
+(`fadd st(0), st` at `0x43c6eb`). After the sphere test against the closest point on the camera ray (`r^2 > d^2`,
+`0x43c78c`..`0x43c79d`), the radius is halved (`0x43c79f`..`0x43c7a9`) and compared with `dz^2 + dx^2`, which is not
+square-rooted (`fld [esp+0x14]; fadd st, st(1); fcomp [esp+0x48]` at `0x43c7ad`..`0x43c7b3`). So the horizontal limit
+is `sqrt(R)` instead of `R`. The size radii are 0.15, 0.47, 1.0 and 99.9 (`character_size_radii` `0x59d7c8`):
+for 0.47 the limit is 0.69, and for 0.15 the sphere test (0.30) is what stops it. Bosses take their radius from
+`charinfo_boss_radius` (`0x4542ca`), so a boss radius above 1 gets a narrower test than intended. Type 3 objects
+and type 11 (`0x43c6c2`, r = 2.0, limit 1.0) go through the same code. *Inferred:* the effect on clicks was not
+tested. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**K64. OpenGL reports a constant 8 MB.** `summoner_cfg_load` sets texture quality 2 (`0x43e2e0`) and, when
+`summoner.cfg` is missing (`jne 0x43e36c` at `0x43e32e`) or shorter than 64 bytes (`0x43e366`..`0x43e36a`), lowers it
+to 0 when `gr_get_video_memory_mb() <= 8` (`0x43e36c`..`0x43e376`). For OpenGL that function returns the constant 8
+(`mov eax, 8` at `0x507a03`), so the test is always true. Texture quality 0 is `bm_set_reduce_textures(1)`
+(`sete al` at `0x4872d8`, `0x4872dc`). `summoner.cfg` is written only by `summoner_cfg_save` from
+`options_apply_and_save` (`0x41faa3`), so this happens on a fresh install until the player saves the options, and
+the saved file then keeps 0. Glide stores the small value it tests
+against 4 and 12, probably MB (`gr_glide_init` `0x549e5d`..`0x549ea2`). Direct3D: see V60. Found while checking V60. SummonerFix now patches the constant to 64 (`bugfix.c`, 2026-10-15; the patch applies, checked in the log; the texture choice itself was not tested because that needs a missing `summoner.cfg`).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -650,6 +722,8 @@ function with a tint set.
 | V41 | Latent: the automap bit functions accept an index up to 8 times too large | `savegame_get_bit` `0x4cff20`, `savegame_set_bit` `0x4cff80` | **Observed** code |
 | V50 | The OpenGL texture memory count is wrong, and an updated texture is uploaded twice | `gr_opengl_create_texture` `0x54e840` | **Observed** code |
 | V51 | `gr_opengl_setup_view` looks at the forward vector instead of eye + forward and uses a near plane of 0 | `gr_opengl_setup_view` `0x550500` | **Observed**; no caller |
+| V60 | Latent: Direct3D reports its video memory in bytes, so the start-up check that lowers texture quality on cards with 8 MB or less never fires | `gr_d3d_init_device` `0x5395c0`, `gr_d3d_get_video_memory_mb` `0x53aaf0` | **Observed** code |
+| V61 | Latent: the DirectDraw driver list stops after the first driver, so only the primary display driver's Direct3D devices are ever listed | `d3d_ddraw_enum_callback` `0x5389f0` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -805,6 +879,27 @@ with `glTexImage2D` (`call [0x57e31c]` at `0x54ec2b`), because the sub-image bra
 eye + fvec (`0x55051a`..`0x550586`), and `gluPerspective` gets near 0 (`push 0; push 0` at `0x5505a8`). Neither the address
 nor a call to it occurs in the image.
 
+**V60. Bytes, not MB.** `gr_d3d_init_device` asks `IDirectDraw7::GetAvailableVidMem` (vtable `+0x5c`, `0x539fa6`) for
+texture memory (`DDSCAPS_TEXTURE`, `0x1000` at `0x539f75`) and stores the free amount, in bytes, into
+`gr_d3d_video_memory_mb` (`0x53a04d`). `gr_d3d_get_video_memory_mb` returns it unchanged (`0x53aaf0`), and so does
+`gr_get_video_memory_mb` (`jmp 0x53aaf0` at `0x507a0e`). `summoner_cfg_load` compares the result with 8
+(`cmp eax, 8; jg` at `0x43e371`) when `summoner.cfg` is missing or short (K64), so with Direct3D the test that is
+meant for 8 MB cards is false on any card the game accepts (it needs 5 MB free, see "Checked, not bugs"). Glide
+returns its small value (probably MB). On any card of more than 8 MB the MB test is false too, so this only matters on 1999 hardware.
+Direct3D only. Found in the `NOTES-gr-direct3d.md` notes.
+
+**V61. `DDENUMRET_CANCEL` after the first driver.** `d3d_ddraw_enum_callback` copies the GUID and names into the
+next of up to several driver entries and increments `d3d_num_ddraw_devices` (`0x538a02`), but returns 0
+(`xor eax, eax` at `0x538a58`, `ret 0x10` at `0x538a61`), which is `DDENUMRET_CANCEL`. `DirectDrawEnumerateA`
+(`0x538867`) calls it first for the primary display driver, so the loop in `d3d_enumerate_ddraw_devices`
+(`0x538884`..`0x5388f6`) always sees one driver. Of its devices, those with hardware transform and lighting are
+skipped (`test [ecx], 0x10000` at `0x53892c`, `D3DDEVCAPS_HWTRANSFORMANDLIGHT`), and the last one listed is used
+(`lea eax, [8*edx + 0x2dc2568]` at `0x538914`, the entry before `d3d_num_3d_devices`). `DirectDrawEnumerate`
+without `Ex` lists only the primary driver and 3D-only add-in cards, and the 3dfx ones among those are refused in
+Direct3D mode anyway (`0x539e73`..`0x539ec4`). With the enumeration continuing, a Voodoo 1 or 2 would be the last
+device and the game would quit with message 943, so the early stop has no bad effect we know of. Direct3D only.
+Found in the `NOTES-gr-direct3d.md` notes.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -885,6 +980,10 @@ the tables above; the rest are below.
 - Red and blue in OpenGL screenshots and thumbnails: no swap. `gr_opengl_read_backbuffer` reads `GL_RGBA` / `GL_UNSIGNED_BYTE` (`push 0x1908` at `0x5502f0`), keeps the byte order in its row flip (`0x550340`..`0x550363`) and returns 7 (`0x55039a`). Only OpenGL returns 7 (`gr_d3d_read_backbuffer` 3 at `0x53a8b3`, Glide 3). The JPEG path copies bytes 0, 1, 2 as R, G, B (`0x506492`..`0x5064a5`; the 24-bit case swaps bytes 0 and 2 at `0x5064ec`..`0x5064f3`, so `jpeg_write_file` wants RGB), and the thumbnail writer puts byte 0 into the 565 red bits (`0x4271c6`..`0x4271eb`). SummonerFix's `glReadPixels` hook keeps RGBA order (`display.c`, `Hook_glReadPixels`). Format 7 means R, G, B, A for a read-back buffer, while 8888 *bitmaps* are B, G, R, A in the texture converters; the two never meet. The exception is the console `targa` path (K15): TGA wants B, G, R, so under OpenGL its colours are also red/blue swapped on top of K15's channel shift, and OpenGL is the renderer that "reports 32 bits" there (SummonerFix makes that the normal renderer).
 - `gr_opengl_init`'s error text naming `gr_direct3d_init` (`0x54f702`): a copied message; part of C50.
 
+- The "At least 8 MB of available video memory required." check tests 5 MB (`cmp eax, 0x500000` at `0x53a01f`): `GetAvailableVidMem` runs after the primary, back and z-buffer surfaces are created (`CreateSurface` `0x539771`, `0x5397c5`, `0x539898`, `0x539998`), so it measures free texture memory. An 8 MB card at 800x600 in 16 bits keeps about 5.1 MB after three 0.96 MB buffers. Glide shows the same message when its memory value at `0x2f0f218` is below 4 (`0x549e58`..`0x549e76`, unit not traced). The threshold matches an 8 MB card; only the wording is loose. Not counted.
+- Direct3D device choice: skipping hardware T&L devices and taking the last remaining one (the HAL when there is one, else the software device) is deliberate (see V61). Not counted.
+- `gr_d3d_read_backbuffer` returning format 3 and the reversed depth test on non-S3 cards: already noted on the page or design choices (the depth test is set on purpose per vendor, `0x539ed6`..`0x53a016`).
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -916,6 +1015,11 @@ the tables above; the rest are below.
 - G52: which retail callers pass `ai_path_find` a goal outside every cell. `world_click_move`, `ai_follow_character`, `conversation_frame` and `ai_approach_attack_slot` clamp with `pf_find_nearest_navigable_point` first; `script_action_walk_to` (`0x4dc760`, `0x4dc7b3`), `ai_path_find_new` / `_append` (`0x473cc6`, `0x473dbe`, `0x473e40`) and `mp_handle_swi_ndir` (`0x48885a`) were not traced.
 - K51: whether any 2D bitmap, line or `gr_tmapper` draw runs while `gr_set_tint(1)` is in effect under OpenGL (none found; the tints we traced go through clamped mesh and level paths).
 - G50: the in-game effect (whether the hidden platforms or the out-of-step board block the crossing) needs agent mode.
+- V60: `cmp eax, 8; jg` at `0x43e374` is a signed compare. With Direct3D, a driver that reports 2 GiB or more of free texture memory (`0x80000000` or above) would read as negative, and a first start would switch on the low-resolution textures as in K64. What modern Windows reports through DirectDraw's `GetAvailableVidMem` for large cards was not measured.
+- K60: whether the one-pixel edge is visible depends on what the colour buffer holds there (the frame's `gr_clear`, `state_game_frame` `0x43905a`) and on the clip area that `gr_setup_3d` sets; needs a Direct3D run.
+- K61: that dropped items reach `gr_d3d_render_character_mesh` / `gr_opengl_render_character_mesh` through `ca_render_set_mesh` (`0x4862b7`) was read from `levelrender_draw_list`, not traced per object type. The Glide mesh path (`0x50bba3`) and level geometry (`levelrender_face_vertex_colors` `0x48fa11`) were not checked for the same conversion.
+- K63: the intended shape (a cylinder of radius R inside a sphere of radius 2R) is a guess from the two tests.
+- `mp_write_spell_targets` sending `target[0..1]` of modes other than 4 and 5 as local handles (notes, last bullet): not checked in this batch.
 
 ## Evidence
 
@@ -1023,3 +1127,11 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K52 change_texture_res | `cmd_change_texture_res` `0x501c90`..`0x501cd3`; `cmd_load_mipmaps` `0x501b50`..`0x501b57`; `execute_command_line` `0x50a2ed`..`0x50a389`, `0x50a4af`..`0x50a50a` |
 | V50 texture count | `gr_opengl_create_texture` `0x54ece0`..`0x54ed08`, `0x54ebb4`..`0x54ebd6`, `0x54ec11`..`0x54ec2b`; imports `0x57e30c` (`glTexSubImage2D`), `0x57e31c` (`glTexImage2D`) |
 | V51 setup_view | `gr_opengl_setup_view` `0x55051a`..`0x5505bc`; `gr_eye_matrix` `0x26927c0` |
+| G60 connect error | `irc_connect` `0x4abdb6`..`0x4abddc`, `0x4abce5`..`0x4abcee`, `0x4abea7`..`0x4abed4`; lobby connect step `0x43f173`..`0x43f19a`; `state_mp_lobby_frame` `0x43f0b2`..`0x43f0bb` |
+| K60 z clear | `gr_d3d_zbuffer_clear` `0x535600`..`0x53565a`; `gr_d3d_clear` `0x535570`..`0x5355ca`; `gr__set_clip` `0x50684f`..`0x50687b`; `gr_opengl_clear` `0x54f81d`..`0x54f84f`; `gr_opengl_zbuffer_clear` `0x54f8af`; callers `0x482545`, `0x50df38` |
+| K61 gold tint | `world_tint_gold_object` `0x43a62e`..`0x43a644`; .data `0x594424`..`0x594430`; `world_hover_tint_object` `0x43a681`..`0x43a6d0`; `levelrender_draw_list` `0x48628c`..`0x4862a2`; `gr_d3d_render_character_mesh` `0x50c8f2`..`0x50c90c`; `gr_opengl_render_character_mesh` `0x50d3f3`..`0x50d40e`; `_ftol` `0x56c7fd`; `monster_drop_loot` `0x45306f` |
+| K62 kick reason | `chat_process_irc_message` `0x4ace6c`..`0x4acf35`; `irc_get_word` `0x4ad940`, `0x4ad982` |
+| K63 pick radius | `pick_test_character` `0x43c6e4`..`0x43c6ef`, `0x43c74d`..`0x43c7be`; `character_size_radius` `0x4542ca`, `0x4542e3` (`0x59d7c8`) |
+| K64 OpenGL 8 MB | `summoner_cfg_load` `0x43e2e0`, `0x43e32e`, `0x43e366`..`0x43e376`; `gr_get_video_memory_mb` `0x507a03`; `options_apply_detail` `0x4872d0`..`0x4872dc`; `options_apply_and_save` `0x41faa3` |
+| V60 bytes | `gr_d3d_init_device` `0x539f6a`..`0x539fab`, `0x53a01b`..`0x53a04d`; `gr_d3d_get_video_memory_mb` `0x53aaf0`; `gr_get_video_memory_mb` `0x507a0e`; `summoner_cfg_load` `0x43e36c`..`0x43e376`; `gr_glide_init` `0x549ea2` |
+| V61 enumeration | `d3d_ddraw_enum_callback` `0x538a02`, `0x538a58`..`0x538a61`; `d3d_enumerate_ddraw_devices` `0x538867`, `0x538884`..`0x5388f6`, `0x538907`..`0x538914`; `d3d_enum_devices_callback` `0x53892c`; `gr_d3d_init_device` `0x539e73`..`0x539ec4` |
