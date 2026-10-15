@@ -4932,7 +4932,7 @@
 0x50ef30  gr_get_eye               func  vsdk\gr              O ; (vector3* pos, matrix3* orient): copies gr_eye_pos and gr_eye_matrix
 0x50ef60  gr_save_3d_state         func  vsdk\gr              O ; copies view/light/eye matrices and positions, matrix scale, projection values and the frustum planes into the backup block at 0x2692890 (no direct callers)
 0x50f120  gr_restore_3d_state      func  vsdk\gr              O ; inverse of gr_save_3d_state, copies the 0x2692890 block back into the gr 3D globals (no direct callers)
-0x50f2e0  sort_by_float_key        func  -                    O ; (pairs, n) shell sort of 8-byte {float key, value} entries with float_key_less, caller mesh_check_materials
+0x50f2e0  sort_by_float_key        func  -                    O ; (pairs, n) shell sort of 8-byte {float key, value} entries with float_key_less, caller vfx_mesh_render
 0x50f380  float_key_less           func  -                    O ; (a*, b*) *(float*)a < *(float*)b
 0x50f3a0  matrix43_compose         func  vsdk\math            I ; (orient_a, pos_a, orient_b, pos_b): orient_b = orient_a * orient_b, pos_b = unrotate(pos_b, orient_a) + pos_a, caller spell_launch_missile
 0x50f3e0  gr_light_desc__gr_light_desc func  vsdk\gr              I ; thiscall ctor: vector3 at +0xc then gr_light_desc__reset, callers the model view renderers (buysell, inventory, status, levelrender)
@@ -5384,8 +5384,8 @@
 0x51e800  light_get_spot_dir       func  vsdk\gr              O ; hidden start, (index, out): +0x18 for spot lights, else (1, 0, 0)
 0x51e850  light_set_spot_angles    func  vsdk\gr              O ; (index, a, b) degrees into +0x24/+0x28 and -cos(angle * k) into +0x60/+0x64 for spot lights, caller light_create_spot
 0x51e8c0  light_get_spot_angles    func  vsdk\gr              O ; hidden start, (index, &a, &b) +0x24/+0x28 for spot lights
-0x51e910  lights_collect_enabled   func  vsdk\gr              O ; walks the light list 0x2cb4520 into the array 0x2c9f9e0 (count 0x2c9f9a0) for lights with a type and bit 14, resets the selection depth 0x2cb45bc to 1, callers light_reset_all, lights_select_nearest, mesh_check_materials
-0x51e970  lights_select_nearest    func  vsdk\gr              I ; (pos, radius, ...): pushes a selection level with the lights in range sorted by distance (qsort light_compare_dist), callers the character mesh renderers, mesh_check_materials, 0x4bc6b0
+0x51e910  lights_collect_enabled   func  vsdk\gr              O ; walks the light list 0x2cb4520 into the array 0x2c9f9e0 (count 0x2c9f9a0) for lights with a type and bit 14, resets the selection depth 0x2cb45bc to 1, callers light_reset_all, lights_select_nearest, vfx_mesh_render
+0x51e970  lights_select_nearest    func  vsdk\gr              I ; (pos, radius, ...): pushes a selection level with the lights in range sorted by distance (qsort light_compare_dist), callers the character mesh renderers, vfx_mesh_render, 0x4bc6b0
 0x51eb10  light_compare_dist       func  vsdk\gr              O ; hidden start, qsort callback comparing the float +0x90 of two light pointers
 0x51eb50  lights_pop_selection     func  vsdk\gr              O ; selection depth 0x2cb45bc -= 1, callers the character mesh renderers
 0x51eb60  lights_transform_selection func  vsdk\gr              O ; inside an instance (gr_instance_depth) applies light_transform_to_instance to every light of the current selection
@@ -5394,7 +5394,7 @@
 0x51ec50  lights_get_selected      func  vsdk\gr              O ; hidden start, (i) light pointer i of the current selection level
 0x51ec70  lights_shade_point       func  vsdk\gr              I ; (pos, normal, out colour): accumulates the selected lights (distance falloff, spot cone, projected bitmaps), callers lights_select_nearest, lights_shade_vertices
 0x51f0d0  light_sample_projected_bitmap func  vsdk\gr              I ; bm_lock/bm_get_data of a type 4 light's bitmap and samples the texel for a point, caller lights_shade_point
-0x51f3b0  lights_shade_vertices    func  vsdk\gr              I ; per-vertex colours from ambient plus lights_shade_point, clamped and converted to bytes, callers the character mesh renderers, mesh_check_materials
+0x51f3b0  lights_shade_vertices    func  vsdk\gr              I ; per-vertex colours from ambient plus lights_shade_point, clamped and converted to bytes, callers the character mesh renderers, vfx_mesh_render
 0x51f530  lights_set_max_per_object func  vsdk\gr              I ; 0x5a8900 = n, options_apply_detail passes 2/4/6 by detail level, ui_3d_begin/end change it
 0x51fa20  light_set_dynamic        func  vsdk\gr              I ; hidden start, (index, bool) bit 15 of the flags +8 (dynamic lights do not bump the change counter)
 0x51fa50  light_is_dynamic         func  vsdk\gr              I ; hidden start, (index) bit 15 of the flags +8
@@ -6160,13 +6160,13 @@
 0x5450c0  init_gr_vertex_buf_2ee6338 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5889fc): 64 gr__Vertex (0x30 bytes) at 0x2ee6338
 0x5450f0  init_gr_mode_slots_2ee45d8 func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a00): 4 records of 0x14 bytes at 0x2ee45d8 (gr_mode_slot__ctor)
 0x545120  gr_poly_reset_clip_verts func  vsdk\gr              O ; resets the temp clip vertex pool: count 0x2f076c0 = 0, 0x2f075bc[] pointers to the 0x34-byte slots at 0x2ee4630 each pointing at a 0x30-byte vertex at 0x2ee6338, callers gr_setup_3d, gr_poly_flush
-0x545150  gr_poly_begin            func  vsdk\gr              O ; (buffered, z, ...): buffered = record a sorted alpha poly into the command buffer (write ptr 0x5aca40, opcode 1 or 2, z index 0x2ee5330, flushes when full via gr_poly_buffer_flush), else starts an immediate poly (vertex list 0x2ee6f38), callers gr_poly, mesh_check_materials
+0x545150  gr_poly_begin            func  vsdk\gr              O ; (buffered, z, ...): buffered = record a sorted alpha poly into the command buffer (write ptr 0x5aca40, opcode 1 or 2, z index 0x2ee5330, flushes when full via gr_poly_buffer_flush), else starts an immediate poly (vertex list 0x2ee6f38), callers gr_poly, vfx_mesh_render
 0x545260  gr_poly_buffer_skip      func  vsdk\gr              O ; (n): advances the command-buffer write pointer 0x5aca40 by n bytes (alignment padding)
 0x545280  gr_poly_buffer_put_byte  func  vsdk\gr              O ; (b): writes one byte to the command buffer 0x5aca40
 0x5452a0  gr_poly_buffer_put_float func  vsdk\gr              O ; (f): writes a float to the command buffer 0x5aca40
-0x5452c0  gr_poly_vertex           func  vsdk\gr              O ; (vertex*): buffered = opcode 3 + flags + position, else appends to the immediate vertex list 0x2ee6f38 (count 0x2f076c8), callers gr_poly, mesh_check_materials
+0x5452c0  gr_poly_vertex           func  vsdk\gr              O ; (vertex*): buffered = opcode 3 + flags + position, else appends to the immediate vertex list 0x2ee6f38 (count 0x2f076c8), callers gr_poly, vfx_mesh_render
 0x545310  gr_poly_buffer_put_vector func  vsdk\gr              O ; (vector3*): writes 12 bytes to the command buffer 0x5aca40
-0x545340  gr_poly_set_texture      func  vsdk\gr              O ; (bitmap, r, g, b, a, mode...): applies gr_tint, buffered = opcode 4 + gr__Mode block + bitmap + colour, else sets the current poly state, callers gr_poly, mesh_check_materials
+0x545340  gr_poly_set_texture      func  vsdk\gr              O ; (bitmap, r, g, b, a, mode...): applies gr_tint, buffered = opcode 4 + gr__Mode block + bitmap + colour, else sets the current poly state, callers gr_poly, vfx_mesh_render
 0x545550  gr_poly_buffer_put_int   func  vsdk\gr              O ; (i): writes a dword to the command buffer 0x5aca40
 0x545570  gr_poly_buffer_put_data  func  vsdk\gr              O ; (src, n): memcpy into the command buffer 0x5aca40
 0x5455a0  gr_poly_uv               func  vsdk\gr              O ; (u, v): buffered = opcode 5 + two floats, else stores u/v of the current vertex (+4/+8 of the 0x34-byte slot)
@@ -6659,7 +6659,7 @@
 0x55dcb0  ds_set_group_volume      func  -                    O ; (vol, group) SetVolume on channels of group (-1 = all)
 0x55dd10  ds_estimate_duration     func  -                    O ; data bytes / (bits*rate*channels), RF snd_ds_estimate_duration (after nop padding, not in Ghidra list)
 0x55dd80  ds_set_eax_environment   func  -                    O ; eax_set_environment_by_name when EAX enabled
-0x55dda0  ds_channel__ctor         func  -                    O ; thiscall ctor of the 0x2c-byte channel record (32 at 0x2f798b8): RealtimeTimer +0x24, used by init_timed_records_2f798b8
+0x55dda0  ds_channel__ctor         func  -                    O ; thiscall ctor of the 0x2c-byte channel record (32 at 0x2f798b8): RealtimeTimer +0x24, used by init_ds_channels
 0x55ddb0  ds3d_update_buffer       func  -                    O ; IDirectSound3DBuffer SetPosition/SetVelocity/SetMinDistance/SetMaxDistance, RF snd_ds3d_update_buffer
 0x55de30  ds3d_update_listener     func  -                    O ; IDirectSound3DListener SetPosition/SetVelocity/SetOrientation/rolloff/doppler/Commit
 0x55def0  ds3d_close               func  -                    I ; ds3d_release_listener if 3D initialised
