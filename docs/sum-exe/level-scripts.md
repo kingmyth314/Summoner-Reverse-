@@ -128,7 +128,7 @@ The `script_*` functions are what the `ls_*` handlers call. Some rules differ fr
 | `party_count_item_by_name` (`0x4ce9a0`) | identified items only: the party inventory stack plus equipment slots 0..8 of every party member |
 | `party_set_level` (`0x4cec00`) | called by `game_stage_set`. Every party member not above the level restarts at level 1 from its `char_info` stats and skills (`+0x94`, 84 bytes, into `Character +0x614`), then gains the experience of that level. `character_add_xp` spends the skill points itself (+10 per point over the progression table), so the function's own spend loop never has points left |
 | `script_guard_sees_player` (`0x4ce6f0`) | view range, view cone, blindness, invisibility and a line-of-sight ray; used by the Lenele palace sneak section |
-| `level_trigger_set_exit` / `level_trigger_set_script_use` (`0x4ccf90` / `0x4ccff0`) | clear / set bit `0x2` of every trigger with that name (and script). `level_trigger_disable_by_target` / `level_trigger_enable_by_target` (`0x4cd060` / `0x4cd0c0`) do the same for the first trigger with that `+RefName:` only, so "disable" makes the trigger a live exit |
+| `level_trigger_set_exit` / `level_trigger_set_script_use` (`0x4ccf90` / `0x4ccff0`) | clear / set bit `0x2` of every trigger with that name (and script). `level_trigger_set_exit_by_refname` / `level_trigger_set_script_use_by_refname` (`0x4cd060` / `0x4cd0c0`) do the same for the first trigger with that `+RefName:` only, so "disable" makes the trigger a live exit |
 
 ## Evidence
 
@@ -146,7 +146,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | solo-mode speech | `script_party_member_say` `0x4cdf55`..`0x4cdf69` |
 | cutscene parking | `script_play_cutscene` `0x4ccf42`..`0x4ccf79`; `script_cutscene_done` `0x4ccdf0`..`0x4cce0c` |
 | `party_set_level` skills and spend | `party_set_level` `0x4ceca8`..`0x4cecc2`, `0x4cecd8`..`0x4ced47`; `character_add_xp` `0x44fecb`..`0x44ffa6` |
-| refname helpers, first match only | `level_trigger_disable_by_target` `0x4cd077`..`0x4cd0ac` |
+| refname helpers, first match only | `level_trigger_set_exit_by_refname` `0x4cd077`..`0x4cd0ac` |
 
 ## Changes (2026-10-15, level_scripts_common.cpp)
 
