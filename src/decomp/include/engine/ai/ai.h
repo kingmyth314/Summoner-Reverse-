@@ -147,6 +147,9 @@ public:
     int  get_combat_style();          // 0x473620 ai_get_combat_style
     bool is_casting();                // 0x4731d0 ai_is_casting
     void go_idle();                   // 0x4738c0 ai_go_idle
+    // decomp43 (level_script_lpalaceint.cpp): (out, seconds) the owner's position + direction * speed *
+    // seconds (pushes &out, 0.5f at 0x4f3447-0x4f345f).
+    void predict_owner_position(vector3 *out, float seconds);   // 0x4ca650 ai_predict_owner_position
     // decomp35 (gametarget.cpp):
     bool can_backstab_target(Character *target);   // 0x4737a0 ai_can_backstab_target
     int  add_attack(Character *target, int priority);   // 0x473f70 ai_goal_add_attack (-1 when refused)

@@ -88,6 +88,14 @@ Rules:
 | `game/level_scripts_common.cpp` | `levelscripts\Scripts\level_scripts_common.cpp` (`0x4ca700`-`0x4ceebf`) | 92 | 71 / 17 / 4 |
 | `game/level_script_khosani_lab.cpp` | `level_script_khosani_lab.cpp` | 48 | 33 / 15 / 0 |
 | `game/level_script_worldmap.cpp` | `level_script_worldmap.cpp` | 31 | 18 / 13 / 0 |
+| `game/level_script_sewers.cpp` | `level_script_sewers.cpp` | 21 | 18 / 3 / 0 |
+| `game/level_script_templeint2.cpp` | `level_script_templeint2.cpp` | 16 | 14 / 2 / 0 |
+| `game/level_script_jadetemple.cpp` | `level_script_jadetemple.cpp` | 13 | 8 / 5 / 0 |
+| `game/level_script_wolong2.cpp` | `level_script_wolong2.cpp` | 15 | 14 / 1 / 0 |
+| `game/level_script_lpalaceint.cpp` | `level_script_lpalaceint.cpp` | 21 | 12 / 9 / 0 |
+| `game/level_script_liangshan.cpp` | `level_script_liangshan.cpp` | 20 | 19 / 1 / 0 |
+| `game/level_script_wolong_caverns.cpp` | `level_script_wolong_caverns.cpp` | 24 | 15 / 5 / 4 |
+| `game/level_script_catacombs.cpp` | `level_script_catacombs.cpp` | 15 | 13 / 2 / 0 |
 
 **Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file.
 

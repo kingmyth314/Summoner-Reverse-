@@ -23,6 +23,14 @@ extern int game_flags;                // 0x5fbfd8
 #define GF_NO_CLEAR      0x4000       // state_game_frame skips gr_clear (name ours, decomp42)
 #define GF_PARTY_DEAD    0x40000      // party_check_all_dead: nobody alive (single player); cleared on enter / leave (name ours)
 #define GF_CUTSCENE      0x20         // a cutscene is running (sum.symbols game_flags; name ours, decomp34)
+#define GF_NO_INPUT      0x10000      // script_disable_player_input / script_enable_player_input (name ours, decomp43)
+// Level-script input lock (unit not known, before player.cpp; decomp43): player_input = 0 and GF_NO_INPUT
+// set / cleared.
+void script_disable_player_input();   // 0x432f50
+void script_enable_player_input();    // 0x432f70
+// A byte next to the console variables 0x5fc008.. that no code writes (.bss, zero): ls_catacombs_frame
+// plays cryptintro only while it is set (0x4fe1e6). Name ours (decomp43).
+extern bool game_debug_5fc014;        // 0x5fc014
 
 extern int game_mouse_x;              // 0x5fbfdc
 extern int game_mouse_y;              // 0x5fbfe0

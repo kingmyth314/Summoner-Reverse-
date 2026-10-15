@@ -1906,3 +1906,65 @@ level_load_layers' "$layer%02d" (0x593f44) and game_render_frame's "Fog_near" li
 static initialiser entry 123 (0x438da0 / 0x438db0, a bare ret) sits between game_camera's (122) and
 ccmd_render_3d_obstacles' (124); a vector3 global (empty inline constructor, D500) is the only class object
 of the unit's .bss without a constructor call, so it is assigned to world_last_click_pos.
+
+## level_script_sewers / templeint2 / jadetemple / wolong2 / lpalaceint / liangshan / wolong_caverns / catacombs (decomp43)
+
+**D2400 (level_script_lpalaceint.cpp). The guard line tables hold string-table slots; the single servant
+line is a one-entry table.** sum.symbols types ls_lpalaceint_guard_halt_lines / _servant_lines char*[7] /
+char*[5] and ls_lpalaceint_guard_servant_line char*. The initialisers store slot addresses
+(`mov dword ptr [0x257ea20], 0x25cdcf4` = &localize_strings[518], 0x4f2a00; 0x25cdd24 = slot 530 at
+0x4f2ab0) and every reader passes the table entry to localize_string_or_invalid(char **) (0x4f32fc /
+0x4f336a / 0x4f3412), so the tables are `char **[n]` with XSTR_SLOT initialisers (as ai.cpp's
+ai_combat_style_names). The single line is read after a `call rand` whose result is dropped (0x4f3365): an
+index `rand() % 1` folds to 0 and leaves the call, so it is written as `char **[1]` read with
+`[rand() % 1]`.
+
+**D2401 (engine/ai/boss_ai.h). The tentacle records and the level scripts' boss calls.** New, no
+conflict: tentacle_info (0x110 bytes, Character * at +0x80: `mov eax, [esi]` with esi = 0x248c3a8 =
+0x248c328 + 0x80, stride 0x110, end 0x248c7e8, 0x4ee2d2-0x4ee303; +0xbc compared with -1 in
+tentacle_begin_sink 0x4c6c56) and tentacle_beast_tentacles[4] (sum.symbols uint8[0x440]); the loop in
+ls_sewerboss_frame ends at 0x248c768 = the array's end (sum.symbols names that address
+tentacle_beast_grab_timer, the next object). tiger/serpent/phoenix/ghost_set_solo take the rider
+(`mov esi, [esp + 8]` then `[esi + 0x320]`, tiger_set_solo 0x49c7c1); tentacle_begin_sink(record, ms)
+(0x4ee1fb pushes 7000 and the record); ghost_minions_deactivate, evil_joseph_destroy_effects and
+tentacle_beast_battle_update take nothing (no pushes at 0x4f03dc / 0x4ef38a / 0x4ee0e5);
+evil_joseph_combat_enabled (0x248b9b4) / evil_urath_combat_enabled (0x248bd0c) are byte stores of 1.
+machival_combat_enabled was already declared (decomp41).
+
+**D2402 (engine/ai/ai.h). ai_state::predict_owner_position.** 0x4ca650 is thiscall on cur_character + 0x324
+(`lea ecx, [edx + 0x324]`, 0x4f3454) with (vector3 *out, float seconds) (`push 0x3f000000 / push ecx` =
+&local, 0x4f3447-0x4f3453); sum.symbols "(out, seconds)". The result is the position the guard walks to
+(character_ai_add_goal9 gets &out, 0x4f3470).
+
+**D2403 (summoner/summoner.h). GF_NO_INPUT, the script input lock, 0x5fc014.** script_disable_player_input
+(0x432f50) / script_enable_player_input (0x432f70) take no arguments (no pushes before the calls at
+0x4f3483 / 0x4f307b); sum.symbols: game_flags |= / &= ~0x10000, named GF_NO_INPUT here. 0x5fc014 is a
+byte that no instruction writes (`tools/asm.mjs grep 0x5fc014`: one reader, ls_catacombs_frame 0x4fe1e6)
+in .bss (zero at load), next to the console command objects 0x5fbfe8-0x5fc018: game_debug_5fc014, name
+ours. 0x5fbf19 is decomp42's cheat_gold_5fbf19 (lsf_catacombs_boss_dead reads it at 0x4fe0a0).
+
+**D2404 (level_script_catacombs.cpp). ls_catacombs_ball1_lobj / _ball2_lobj are lobj *.** sum.symbols:
+void*. They are `lobjs + index * 0x70` (`lea ecx, [8*eax] / sub ecx, eax / shl ecx, 4 / add ecx, edx`,
+0x4fdeb8) and the code reads their +0x14 position (0x4fe018), lobj's pos.
+
+**D2405 (level_script_wolong_caverns.cpp, level_script_lpalaceint.cpp). Two timers are function-local
+statics; the spike positions.** sum.symbols names ls_wolongcaverns_demilich_timer (0x257ea7c) and
+ls_lpalaceint_sneak_frame_timer (0x257ea08) as globals; both are constructed under a guard bit
+(0x257ea9c / 0x257ea0c, `test al, 1 / or dl, 1`) on the first pass with an atexit of an empty handler
+(0x4f6de0 / 0x4f3510), which is VC6's function-local static: written as `static GameTimer timer;` inside
+ls_wolongcaverns_demilich_sequence (after its early return: the guard test follows the step test,
+0x4f6c4b) and at the top of ls_lpalaceint_sneak_frame (the guard test is its first instruction). The
+unnamed .bss 0x257eab0-0x257eaf7 is six vector3 positions ($spike1a-c, $spike2a-c; navpoint_get_position
+writes 0x257eab0 + 0xc * i, 0x4f670f-0x4f6773; trap 1 walks the first three, trap 2 the last three):
+ls_wolongcaverns_spike_pos[6], name ours. Its empty initialiser and ls_wolongcaverns_ptrap_pos's are the two
+init_empty functions; which is which is not visible (unsure).
+
+**D2406 (level_script_jadetemple.cpp). One initialiser for two timers.** init_ls_jadetemple_timers
+(0x4effc0) constructs 0x257e9c8 and then 0x257e9c0 in one function (no second initialiser entry), so the
+two are one declaration with two declarators, fade timer first (likely).
+
+**D2407 (the eight units). Fixed level indices.** Several helpers read other levels' flags with a
+constant level (`push 0x9 / push "tb_killed"`, ...). Each unit #defines the ones it uses after the
+level_script_table record at that index (read from 0x59f128 + 0x40 * i): 0 Wolong, 5 lenele1b, 9 sewer,
+0xc IkaemosTopInt, 0xe KhosaniLab, 0x10 WolongCaverns, 0x18 LPalaceInt, 0x23 lenele1aa. No shared header
+constant exists yet; when one is added these should move there.

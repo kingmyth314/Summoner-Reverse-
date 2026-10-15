@@ -167,6 +167,34 @@ void  evil_urath_unload();                             // folded (case 0xb1)
 void  machival_unload();                               // folded (case 0xc5)
 void  ghost_revive_minions();                          // 0x4bbc70
 
+// decomp43: the boss calls of the level scripts (jadetemple, liangshan, templeint2, sewers). The set_solo
+// functions take the rider (script_object_find_character's result, pushed unchecked): rider_unlink_mount,
+// combat flag on (the cmd_*_solo console commands do the same).
+void  tiger_set_solo(Character *rider);                // 0x49c7c0
+void  serpent_set_solo(Character *rider);              // 0x497a40
+void  phoenix_set_solo(Character *rider);              // 0x499dd0
+void  ghost_set_solo(Character *rider);                // 0x4bbd80
+void  ghost_minions_deactivate();                      // 0x4bbdd0
+void  evil_joseph_destroy_effects();                   // 0x4c40d0
+void  tentacle_beast_battle_update();                  // 0x4c7640
+// One tentacle of the sewer boss (0x110 bytes, 4 at 0x248c328; sum.symbols types the array
+// uint8[0x440]). Only the fields the level scripts and tentacle_begin_sink touch are named. Type name ours.
+struct tentacle_info {
+    ubyte _unk000[0x80];
+    Character *character;                              // +0x080 (ls_sewer_tb_intro_cs_end, 0x4ee2dc)
+    ubyte _unk084[0x38];
+    int victim;                                        // +0x0bc held victim, -1 none (tentacle_begin_sink)
+    ubyte _unk0c0[0x50];
+};
+LAYOUT_CHECK(tentacle_info, sizeof(tentacle_info) == 0x110);
+#define NUM_TENTACLES 4
+extern tentacle_info tentacle_beast_tentacles[NUM_TENTACLES];   // 0x248c328
+void  tentacle_begin_sink(tentacle_info *t, int ms);   // 0x4c6c50
+extern bool tentacle_beast_battle_started;             // 0x248c76c
+extern int  tentacle_beast_tentacles_up;               // 0x248c798
+extern bool evil_joseph_combat_enabled;                // 0x248b9b4 evil_joseph_ai_idle engages when set
+extern bool evil_urath_combat_enabled;                 // 0x248bd0c evil_urath_ai_idle engages when set
+
 bool  titus_cast_special(Character *c, int anim);      // 0x4c32e0
 bool  pyrul_cast_special(Character *c, int anim);      // 0x4b94a0
 bool  phoenix_cast_special(Character *c, int anim);    // 0x499840
