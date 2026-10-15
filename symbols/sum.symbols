@@ -9366,7 +9366,7 @@
 0x5c3b60  pickup_drag_start_mouse_y data:int new_pickup.cpp       O ; mouse y saved when a thumb drag starts, subtracted from game_mouse_y in pickup_drag_scrollbar
 0x5c3b64  pickup_scroll_pos        data:int new_pickup.cpp       O ; first visible item, zeroed in pickup_init, used by pickup_update_scrollbar and page_up/page_down
 0x5c3b68  pickup_scrollbar_bm      data:int new_pickup.cpp       O ; bm_load handle of the scrollbar thumb (sized by bm_get_dimensions), drawn by pickup_draw_scrollbar
-0x5c3b6c  pickup_container         data:void* new_pickup.cpp       O ; object passed to pickup_init (screen argument), its +0x80/+0xd8 read in pickup_leave/pickup_handle_click for the item list
+0x5c3b6c  pickup_container         data:container* new_pickup.cpp       O ; object passed to pickup_init (screen argument), its +0x80/+0xd8 read in pickup_leave/pickup_handle_click for the item list (type was void*: pickup_*: [p+0xd8] num_items (11 uses), [p+0x80] handle, passed to obj_mark_for_deletion)
 0x5c3b70  pickup_scrollbar_visible data:bool new_pickup.cpp       O ; set 0/1 by pickup_update_scrollbar, tested first in pickup_draw_scrollbar
 0x5c3b78  playmenu_mouse_mode      data:int new_playmenu.cpp     O ; 0 idle, 1 button held (set in playmenu_handle_click, cleared in playmenu_update_buttons), switched in playmenu_frame
 0x5c3b7c  playmenu_pressed_button  data:int new_playmenu.cpp     O ; -1 at playmenu_handle_click start, pressed button index, read by playmenu_update_buttons
@@ -9522,7 +9522,7 @@
 0x5f9691  pxo_login_password       data:char[27] -                    O ; os_registry_read_string THQMultiplay\Password in pxo_read_login
 0x5f96ac  pxo_login_reply          data:char[12] -                    O ; zeroed and passed as second argument to pxo_login_request by pxo_read_login, printed with %s %s in state_mp_lobby_frame (checked: zeroed (dword, dword, word) and pushed to pxo_login_request by pxo_read_login, pushed in state_mp_lobby_frame)
 0x5f96b8  pxo_login_state          data:int -                    O ; 0 reset (pxo_login_reset), 1 no login stored, 2/3 from pxo_login_request in pxo_read_login, switch in pxo_login_step
-0x5f96c8  worldmap_locations       data:uint8[8*0x2c] -                    O ; 8 location records of 0x2c bytes (flags +0, navpoint_find result +4) set by worldmap_init_locations, drawn by worldmap_draw_locations
+0x5f96c8  worldmap_locations       data:worldmap_location[8] -                    O ; 8 location records of 0x2c bytes (flags +0, navpoint_find result +4) set by worldmap_init_locations, drawn by worldmap_draw_locations (type was uint8[8*0x2c]: worldmap_init_locations: lea [4*(11*i)+0x5f96c8] = stride 0x2c, flags +0, 8 records, worldmap_frame / draw_locations walk it)
 0x5f9828  worldmap_center_x        data:float -                    O ; map x argument stored by worldmap_frame, subtracted in worldmap_marker_screen_angle/place_on_edge/clamp_to_edge
 0x5f982c  worldmap_center_y        data:float -                    O ; map y argument stored by worldmap_frame, used by the worldmap_marker_* edge functions
 0x5f9830  worldmap_overlay_bm      data:int -                    O ; bitmap loaded by worldmap_load_overlay (dimensions 0x5f96c0/0x5f96c4), drawn per location in worldmap_draw_location
@@ -9586,19 +9586,19 @@
 0x5fccc0  cutscene_alloc_pool      data:uint8[0x28] -                    O ; NoRlsAllocPool object (init_norlsallocpool_5fccc0), NoRlsAllocPool__Init over buffer 0x5fd260 size 0x4c00 in cutscene_parse_table, allocations in cutscene_parse_visset
 0x5fcce8  cutscene_saved_actors    data:int[175][2] -                    O ; pairs (name_hash_nocase of the actor, four saved flags: Character +0x320 bits 0x2 / 0x20 / 0x2000000 and +0x84 bit 0) recorded by cutscene_play, restored by cutscene_cleanup; 175 slots, no bound check
 0x601e60  cutscene_saved_fog_multiplier data:float -                    O ; cutscene_play saves Gr_level_fog_multiplier here and sets it to 1, cutscene_cleanup restores it
-0x601e68  cutscene_data            data:void* -                    O ; first field of the cutscene object built by cutscene__ctor (init_cutscene_601e68), loaded cutscene data whose +4 flags interface_frame tests before cutscene_cleanup
+0x601e68  cutscene_data            data:cutscene_entry* -                    O ; first field of the cutscene object built by cutscene__ctor (init_cutscene_601e68), loaded cutscene data whose +4 flags interface_frame tests before cutscene_cleanup (type was void*: cutscene_load_data(this=0x601e68, cutscene_entries+0x140*i), reads word +0xb8 num_vissets, +0x30, +0x60, +0xfc, +0x100, flags +4)
 0x601e6c  cutscene_path_id         data:int -                    O ; cutscene object +4 (ctor sets -1): file path id removed by cutscene_clear_data_path (file_remove_path), passed to File__open in cutscene_load_files and the script editor *.mvf listings
 0x601e70  cutscene_time_offset     data:float -                    O ; cutscene object +8, subtracted from the sequence start in cutscene_sequence_update and added in cutscene_events_frame/cutscene_camera_sequence_sample (checked: float: fsub in cutscene_sequence_update, fld in cutscene_events_frame, fadd in cutscene_camera_sequence_sample)
 0x601e78 sequence_start_time      data:int             -                 O ; timeGetTime at sequence start
 0x601e7c  cutscene_num_sequences   data:int16 -                    O ; cutscene object +0x14 (ctor sets -1), cutscene_sequence_update calls cutscene_cleanup when the current sequence reaches it
-0x601e80  cutscene_sequences       data:uint8[50*0x70] -                    O ; cutscene object +0x18: 50 camera sequences of 0x70 bytes (vector ctor with cutscene_camera_sequence__ctor), passed to camera_start_sequence
+0x601e80  cutscene_sequences       data:cutscene_camera_shot[50] -                    O ; cutscene object +0x18: 50 camera sequences of 0x70 bytes (vector ctor with cutscene_camera_sequence__ctor), passed to camera_start_sequence (type was uint8[50*0x70]: cutscene_sequence_update / events_frame: imul 0x70 + 0x601e80, 50*0x70 = blob size)
 0x603460  cutscene_cur_sequence    data:int16 -                    O ; cutscene object +0x15f8 (ctor sets -1), current sequence index advanced by cutscene_sequence_update, used by cutscene_events_frame and script_entry_jump_to_sequence
 0x603462  cutscene_cur_fade_event  data:int16 -                    O ; cutscene object +0x15fa, index into cutscene_data +0x100 (count +0xfc) advanced after gr_fade_in by cutscene_events_frame (checked: word: movsx/inc in cutscene_events_frame as the fade event index)
 0x603464  cutscene_sequence_started data:bool -                    O ; cutscene object +0x15fc, cleared then set 1 by cutscene_sequence_update after camera_start_sequence, tested by cutscene_events_frame and cutscene_script_entries_frame
 0x603470  cutscene_fx_handles      data:int[16] -                    O ; effects attached by cutscene_events_frame (fx_attach_to_character), fx_destroy and reset to -1 by cutscene_cleanup
 0x6034b0  cutscene_num_saved_actors data:int -                    O ; count of cutscene_saved_actors, zeroed and filled by cutscene_play, looped by cutscene_cleanup
 0x6034b8  ccmd_play_cutscene       data:console_command -                      O ; console command object "play_cutscene"
-0x6034c8  cutscene_entries         data:uint8[85*0x140] -                    O ; 85 cutscene.tbl entries of 0x140 bytes (name +0, level +8) constructed by init_cutscene_entries_6034c8, filled by cutscene_parse_table, searched by cutscene_play
+0x6034c8  cutscene_entries         data:cutscene_entry[85] -                    O ; 85 cutscene.tbl entries of 0x140 bytes (name +0, level +8) constructed by init_cutscene_entries_6034c8, filled by cutscene_parse_table, searched by cutscene_play (type was uint8[85*0x140]: cutscene_play: imul idx, 0x140 + 0x6034c8 passed to cutscene_load_data, 85*0x140 = blob size)
 0x609f08  cutscene_saved_fog_far   data:float -                    O ; fog_get_far_current saved by cutscene_play, passed back to fog_set_distances by cutscene_cleanup
 0x609f10  ccmd_play_and_load_cutscene data:console_command -                      O ; console command object "play_and_load_cutscene"
 0x609f1c  cutscene_saved_fog_near  data:float -                    O ; fog_get_near_current saved by cutscene_play, passed back to fog_set_distances by cutscene_cleanup
@@ -9729,7 +9729,7 @@
 0x60f938  state6_window            data:ui_element -                    O ; ui_window (init_ui_window_60f938) parent of the state 6 gadgets, resized by state6_button_cb/state6_listbox_cb
 0x60fe24  state6_selection         data:int -                    O ; data (+0x34) of the selected listbox entry stored by state6_listbox_cb, char_infos index used by state6_enter/state6_button_cb
 0x60fe30  effect_stream_buffer     data:uint8[0x40000] -                    O ; read buffer of the streamed effect files, FileReader__attach_memory in effect_stream_finish_entry, filled by effect_stream_open_current (up to 0x64fe30)
-0x64fe30  effect_stream_saved_mempool data:void* -                    O ; get_current_mempool saved by effect_stream_push_mempool, restored and cleared by effect_stream_pop_mempool
+0x64fe30  effect_stream_saved_mempool data:Mempool* -                    O ; get_current_mempool saved by effect_stream_push_mempool, restored and cleared by effect_stream_pop_mempool (type was void*: effect_stream_push_mempool saves get_current_mempool (returns Pool, Mempool*), effect_stream_pop_mempool passes it to set_current_mempool)
 0x64fe38  effect_stream_queue      data:uint8[100*0x34] -                    O ; queue of 100 stream entries of 0x34 bytes (file name +0, target +0x2c, mempool +0x30) filled by effect_stream_queue_add, opened by effect_stream_open_current
 0x651288  effect_stream_file       data:uint8[0x114] -                    O ; File object (init_file_651288) opened asynchronously by effect_stream_open_current, polled with File__get_async_status in effect_stream_update
 0x65139c  effect_stream_state      data:int -                    O ; 0 idle, 1 streaming (GameTick calls effect_stream_update), 2/3 done, set by effect_stream_init/start/update
@@ -9804,7 +9804,7 @@
 0x889008  joseph_model_mempool     data:Mempool characterinfo.cpp    O ; Mempool made current in GameInit around character_load, Mempool__Copy of the Joseph model buffer (0x7592dc, 0x38400) in characterinfo_load_party
 0x889044  summon_stash_level_offset data:uint32 characterinfo.cpp    O ; offset of the level mempool (0x22e43c8 = Mempool +8) saved by summon_stash_for_cutscene and restored by summon_restore_after_cutscene
 0x889048  rosalind_anim_buffer     data:void* characterinfo.cpp    O ; operator_new block of characterinfo_alloc_level_buffers (size rosalind_anim_buffer_size), used for Rosalind Anims in characterinfo_load_party_anims
-0x8b3c34  stashed_summon           data:void* -                    O ; Character saved by summon_stash_for_cutscene, restored by summon_restore_after_cutscene
+0x8b3c34  stashed_summon           data:Character* -                    O ; Character saved by summon_stash_for_cutscene, restored by summon_restore_after_cutscene (type was void*: summon_stash_for_cutscene stores cur_summon (0x5fcc8c, Character*), summon_restore_after_cutscene writes it back to cur_summon)
 0x8b3c38  ccmd_levelchars          data:console_command -                      O ; console command object "levelchars"
 0x8b3c44  charinfo_level_mem_used  data:int characterinfo.cpp    O ; zeroed by characterinfo_alloc_level_buffers, grows by the level mempool bytes consumed in level_load_preload and charinfo_create_character_instance
 0x8b3c48  jekhar_model_mempool     data:Mempool characterinfo.cpp    O ; Mempool made current in GameInit around character_load, Mempool__Copy of the Jekhar model buffer (0x68e20c, 0x49c00) in characterinfo_load_party
@@ -10011,7 +10011,7 @@
 0x22fb6c4  levelrender_attach_count data:int -                    O ; entries in levelrender_attach_list, zeroed per frame by levelrender_render_scene and on levelrender_level_unload, incremented by push_attachment/add_items/add_containers
 0x22fb6c8  levelrender_opaque_count data:int -                    O ; entries in levelrender_opaque_list, zeroed per frame by levelrender_render_scene, incremented by build_draw_lists/add_lobj/add_effect_entry
 0x22fb6cc  levelrender_sort_count   data:int -                    O ; entries in levelrender_sort_list, zeroed per frame by levelrender_render_scene, passed to levelrender_sort_back_to_front
-0x22fb6d0  levelrender_fx_char      data:void* -                    O ; object (+0x4c of the caster) whose tint is overridden, set by murod_ai_leap/luminar_teleport_in, compared and cleared in levelrender_draw_list (checked: pointer set by murod_ai_leap/luminar_teleport_in, cmp with each drawn object and reset in levelrender_draw_list)
+0x22fb6d0  levelrender_fx_char      data:Character* -                    O ; object (+0x4c of the caster) whose tint is overridden, set by murod_ai_leap/luminar_teleport_in, compared and cleared in levelrender_draw_list (checked: pointer set by murod_ai_leap/luminar_teleport_in, cmp with each drawn object and reset in levelrender_draw_list) (type was void*: murod_ai_leap / luminar_teleport_in store [ai_state+0x4c] (ai owner Character), compared with drawn objects in levelrender_draw_list)
 0x22fb6d4  levelrender_draw_chain_marker data:bool -                    O ; set by chain_attack_select, levelrender_render_scene then draws character_draw_overhead_bitmap and clears it (checked: byte set 1 by chain_attack_select, read and cleared by levelrender_render_scene)
 0x22fb6d8  fog_color_r              data:int -                    O ; first argument of fog_set_color, passed to the fog call by levelrender_fog_enable, reset by levelrender_level_load
 0x22fb6dc  fog_color_g              data:int -                    O ; second argument of fog_set_color, used by levelrender_fog_enable
@@ -10036,7 +10036,7 @@
 0x22fedd8  chat_history_read        data:int -                    O ; read index of the 64-entry chat_history ring, advanced by chat_history_pop, zeroed by chat_history_clear
 0x22feddc  chat_history_write       data:int -                    O ; write index of the 64-entry chat_history ring, advanced by chat_history_push, zeroed by chat_history_clear
 0x22fede0  chat_history             data:uint8[64*0x108] -                    O ; ring of 64 chat entries of 0x108 bytes written by chat_history_push, read by chat_history_pop
-0x2302fe0  containers               data:uint8[40*0xe8] -                    O ; 40 containers of 0xe8 bytes built by containers_construct (container__ctor), reset by containers_reset, slots taken by container_obj_create, freed by containers_free_all
+0x2302fe0  containers               data:container[40] -                    O ; 40 containers of 0xe8 bytes built by containers_construct (container__ctor), reset by containers_reset, slots taken by container_obj_create, freed by containers_free_all (type was uint8[40*0xe8]: containers_construct: vector ctor (0x2302fe0, size 0xe8, count 0x28, container__ctor), container_obj_create lea 8*(29*i))
 0x2305420  xp_level_table           data:xp_level[21] -                    O ; experience.tbl: per level xp needed, skill points, HP/AP gain per species (xp_level in types.h)
 0x2305618  fx_num_sky               data:int -                    O ; count of fx_sky_list entries, zeroed by fx_sky_list_clear, appended by fx_create_world, looped by levelrender_render_scene
 0x2305920  fx_active_list           data:effect_object -                    O ; sentinel effect object of the active effect list (next +0x98 = 0x23059b8, prev +0x9c = 0x23059bc) set up by fx_lists_init, linked by fx_create_instance/fx_new, walked by spell and cutscene code
@@ -10044,7 +10044,7 @@
 0x2305bc0  fx_pool                  data:effect_object[48] -                    O ; 0x30 effect objects of 0x10c bytes built by fx_pool_construct (fx_obj__ctor), handed out by fx_alloc
 0x2308e00  fx_char_link_free        data:void*[2] -                    O ; free list head (next, prev) of fx_char_link_nodes built by fx_lists_init, nodes returned by fx_obj_destroy/fx_destroy_all
 0x2308e18  fx_char_link_used        data:void*[2] -                    O ; list head (next, prev) of effects linked to characters (fx_link_character_obj), scanned by levelrender_draw_list and fx_obj_destroy
-0x2318e2c  fx_sky_list              data:void*[5] -                    O ; world effects drawn first (count fx_num_sky), zeroed by fx_sky_list_clear, appended by fx_create_world, drawn by levelrender_render_scene
+0x2318e2c  fx_sky_list              data:effect_object*[5] -                    O ; world effects drawn first (count fx_num_sky), zeroed by fx_sky_list_clear, appended by fx_create_world, drawn by levelrender_render_scene (type was void*[5]: fx_create_world stores [4*i] the fx_create_instance result and edits its +0xbc bits (effect_object.bits))
 0x2318e40  fx_count                 data:int -                    O ; live effect count, incremented by fx_alloc, decremented by fx_obj_destroy
 0x2318e50  pxo_login_packet         data:uint8[0x208] -                    O ; user tracker login packet (type 0xd +0, size word +1, data from 0x2318e61) built by pxo_login_request, sent with nw_send_packet by pxo_login_poll
 0x2319058  utrack_addr              data:uint32[2] -                    O ; user tracker address: ntohl(inet_addr) and port 0x293c set by utrack_init, destination of pxo_login_send/pxo_login_poll
@@ -10083,9 +10083,9 @@
 0x243e03c  levelrender_d3d_vertex_buffer data:void* levelrender.cpp      O ; Direct3D vertex buffer created through the device (vtable +0x14) by levelrender_create_vertex_buffer, used by levelrender_draw_list_d3d, released by levelrender_free_d3d_vertex_buffer
 0x243e040  ai_groups                data:ai_group[10] -                    O ; 10 AI groups of 0x54 bytes (types.h ai_group), slot found by ai_group_create, reset by ai_groups_reset, timers ticked by ai_groups_frame, saved by savegame_write_groups
 0x243e388 ccmd_party_controller_check data:console_command -                      O ; console command object "party_controller_check"
-0x243e394  ai_think_members         data:void*[10] -                    O ; members of the group being thought about, scanned by ai_group_count_helpless, first entry passed by the ai_group_think_style0/1/2 functions (checked: pointers stored [4*i] by ai_group_collect_enemies area, scanned by ai_group_count_helpless/think_style0..2, next symbol at +0x28) (type was void*[])
+0x243e394  ai_think_members         data:Character*[10] -                    O ; members of the group being thought about, scanned by ai_group_count_helpless, first entry passed by the ai_group_think_style0/1/2 functions (checked: pointers stored [4*i] by ai_group_collect_enemies area, scanned by ai_group_count_helpless/think_style0..2, next symbol at +0x28) (type was void*[]) (type was void*[10]: ai_group_collect_enemies stores [4*i] the living-list walker (0x8ecd78 list, +0x318 next, +0x320 flags, +0x80 handle), count cap 0xa)
 0x243e3bc  ai_think_num_enemies     data:int -                    O ; count of ai_think_enemies set by ai_group_collect_enemies, looped by ai_group_combat_think, ai_group_think_style1, ai_group_think_caster
-0x243e3c0  ai_think_enemies         data:void*[5] -                    O ; enemies gathered by ai_group_collect_enemies, examined by ai_group_combat_think, ai_group_think_style1, ai_group_think_caster (checked: pointers stored [4*i] by ai_group_collect_enemies, scanned by ai_group_combat_think and think_caster)
+0x243e3c0  ai_think_enemies         data:Character*[5] -                    O ; enemies gathered by ai_group_collect_enemies, examined by ai_group_combat_think, ai_group_think_style1, ai_group_think_caster (checked: pointers stored [4*i] by ai_group_collect_enemies, scanned by ai_group_combat_think and think_caster) (type was void*[5]: ai_group_collect_enemies stores living_from_handle(group member) [4*i], think_caster passes entries as targets to ai_goal_add_cast_at_target)
 0x243e3d8  cutscene_cam_keys8_count data:int -                    O ; used entries of cutscene_cam_keys8, advanced by cutscene_camera_read_track, zeroed by cutscene_camera_tracks_clear
 0x243e3dc  cutscene_cam_keys40_count data:int -                    O ; used entries of the 0x28-byte key pool 0x243e3e8 (track +0x1c), advanced by cutscene_camera_read_track, zeroed by cutscene_camera_tracks_clear
 0x243e3e0  cutscene_cam_keys20_count data:int -                    O ; used entries of cutscene_cam_keys20 (track +0x20), advanced by cutscene_camera_read_track, zeroed by cutscene_camera_tracks_clear
@@ -10127,7 +10127,7 @@
 0x24522ac  serpent_handle           data:int -                    O ; handle of the serpent (+0x80) stored by serpent_boss_load, resolved with living_from_handle by serpent_get_rider, cmd_serpent_unlink, cutscene_play_escape
 0x24522b0  serpent_part_handles     data:int[2] -                    O ; handles of the extra serpent parts appended by serpent_spawn_rider, walked by serpent_deactivate_parts, serpent_illusion_start, serpent_set_solo
 0x24522dc  serpent_illusion_active_timer data:GameTimer -                    O ; GameTimer (init_serpent_timers) checked by serpent_illusion_start/update, invalidated by serpent_spawn_rider and serpent_place_parts (checked: GameTimer: ctor in init_serpent_timers, methods in serpent_illusion_start/update, serpent_spawn_rider)
-0x24522e8  serpent_threat_table     data:uint8[5*0x18] -                    O ; 5 threat records of 0x18 bytes reset to -1 by serpent_boss_load, filled by boss_target_list_build in serpent_choose_attack, returned by boss_get_threat_table
+0x24522e8  serpent_threat_table     data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes reset to -1 by serpent_boss_load, filled by boss_target_list_build in serpent_choose_attack, returned by boss_get_threat_table (type was uint8[5*0x18]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x2452360  serpent_whip_hit_count   data:int -                    O ; number of targets in serpent_whip_hits, zeroed and filled by serpent_whip_test, looped by serpent_whip_resolve_hit
 0x2452364  serpent_whip_hits        data:int[5] -                    O ; handles of the targets hit by the whip (serpent_whip_test), damaged by serpent_whip_resolve_hit
 0x2452378  serpent_part_target      data:int[3] -                    O ; target handle per serpent part (serpent_part_index) set by serpent_choose_attack, compared in serpent_ai_frame
@@ -10155,7 +10155,7 @@
 0x2452920  phoenix_cur_attack       data:void* -                    O ; current attack entry chosen by phoenix_choose_attack/phoenix_ai_idle, cleared by phoenix_end_move_a/b, read by phoenix_cast_special and phoenix_get_attack_range
 0x2452928  phoenix_dive_point       data:vector3 -                    O ; point set by phoenix_set_dive_point/phoenix_reposition_update/phoenix_choose_attack, copied to Character +0x38c.. by phoenix_cast_special
 0x2452934  phoenix_flags            data:uint32 -                    O ; phoenix state bits (1, 2, 8, 0x10) zeroed by phoenix_boss_load, changed by phoenix_choose_attack and phoenix_stage_transition_move, tested by phoenix_ai_frame/phoenix_reposition_update
-0x2452938  phoenix_threat_table     data:uint8[5*0x18] -                    O ; 5 threat records of 0x18 bytes reset by phoenix_boss_load, filled in phoenix_choose_attack, searched by phoenix_threat_find, returned by boss_get_threat_table
+0x2452938  phoenix_threat_table     data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes reset by phoenix_boss_load, filled in phoenix_choose_attack, searched by phoenix_threat_find, returned by boss_get_threat_table (type was uint8[5*0x18]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x24529b0  phoenix_target_handle    data:int -                    O ; target stored by phoenix_choose_attack, compared with the AI target (+0x60) in phoenix_ai_frame (checked: dword stored by phoenix_choose_attack, compared with the AI target +0x60 in phoenix_ai_frame)
 0x24529bc  phoenix_ground_effect    data:int -                    O ; spell_place_ground_effect handle from phoenix_special_strike, -1 when none (phoenix_boss_load/phoenix_choose_attack)
 0x24529c0  phoenix_timer_c0         data:GameTimer -                    O ; GameTimer (init_phoenix_timers) restarted by phoenix_end_move_a/b, invalidated by phoenix_boss_load, checked by phoenix_choose_attack
@@ -10183,7 +10183,7 @@
 0x2452ab0  tiger_weapon             data:void* -                    O ; first weapon item created by tiger_equip_weapon (item_create_weapon), its range used by tiger_get_attack_range
 0x2452ab4  tiger_axe                data:void* -                    O ; TigerAxe item created by tiger_equip_weapon, swapped in by tiger_swap_weapon/tiger_setup_anims, freed by tiger_unload
 0x2452ab8  tiger_spear_uses_left    data:int -                    O ; countdown: tiger_equip_weapon sets 4, tiger_move_done_hook decrements it after each move 0; at 0 (HP still above 50%) tiger_check_stage swaps the spear for the axe (stage 2) (formerly tiger_weapon_equipped)
-0x2452ac0  tiger_threat_table       data:uint8[5*0x18] -                    O ; 5 threat records of 0x18 bytes (GameTimer at +0x14) reset by tiger_boss_load, searched by tiger_threat_find, returned by boss_get_threat_table
+0x2452ac0  tiger_threat_table       data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes (GameTimer at +0x14) reset by tiger_boss_load, searched by tiger_threat_find, returned by boss_get_threat_table (type was uint8[5*0x18]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x2452b38  tiger_wander_point       data:vector3 -                    O ; destination picked by tiger_pick_wander_point, passed by tiger_wander_start, distance checked in tiger_wander_update
 0x2452b5c  tiger_reposition_timer   data:GameTimer -                    O ; GameTimer (init_tiger_timers) set by tiger_wander_update, tiger_reposition_update and tiger_ai_frame
 0x2452b72  tiger_move_trigger_pending data:bool -                    O ; set by tiger_combat_update, consumed by tiger_move_trigger (character_move_trigger_mark 7), cleared by tiger_reset_move_state (checked: byte set by tiger_combat_update, cmp 1 and cleared in tiger_move_trigger)
@@ -10250,13 +10250,15 @@
 0x247fcb8  pathvis_segment_cycles   data:int engine\ai\pathfinding_visibility.cpp O ; read_tsc cycles accumulated around pathvis_segment_visible in determine_point_visibility
 0x247fcf0 ccmd_pyrul_stage         data:console_command -                      O ; console command object "pyrul_stage"
 0x247fd18 ccmd_pyrul_combat        data:console_command -                      O ; console command object "pyrul_combat"
+0x247fd3c  pyrul_threat_table       data:boss_threat[5] -                    O ; returned by boss_get_threat_table for Pyrul, next to pyrul_stage 0x247fd28
 0x2480300 ccmd_ghost_combat        data:console_command -                      O ; console command object "ghost_combat"
+0x248081c  ghost_rider_threat_table data:boss_threat[5] -                    O ; returned by boss_get_threat_table for the Ghost Rider, inside the ghost rider data (minion handles 0x24808b0)
 0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
 0x2480928 ccmd_ghost_stage         data:console_command -                      O ; console command object "ghost_stage"
 0x2480938 ccmd_ghost_solo          data:console_command -                      O ; console command object "ghost_solo"
 0x2483564  lobj_face_marks          data:uint8_t[0x2000] -                    O ; face mark bitmap cleared each frame by lobj_face_marks_clear, set by projector_collect_lobj_faces
 0x2485564  lobj_face_mark_offsets   data:int16_t -                    O ; per level object start offset into lobj_face_marks (-1 when not flagged 0x440), built by lobj_face_marks_init
-0x24893e8  lamp_glows               data:void* -                    O ; lamp glow records 0x18 bytes {pos, size, alpha, ?}, lamp_glow_add / set / draw / fade
+0x24893e8  lamp_glows               data:lamp_glow[300] -                    O ; lamp glow records 0x18 bytes {pos, size, alpha, ?}, lamp_glow_add / set / draw / fade (type was void*: lamp_glow_add: lea [8*(3*count)+0x24893e8] stride 0x18, pos +0/+4/+8, size +0xc, alpha +0x10, 300*0x18 ends at lamp_glow_count 0x248b008)
 0x248b008  lamp_glow_count          data:int -                    O ; number of lamp glow records (0x24893e8, 0x18 bytes), reset by lamp_glow_load / lamp_glow_forget, bumped by lamp_glow_add
 0x248b010 ccmd_machival_combat     data:console_command -                      O ; console command object "machival_combat"
 0x248b30c  machival_current_move    data:void* -                    O ; boss move record chosen by machival_ai_select_action (one of the move pointers), cleared by boss_clear_current_move, +0x18 read by boss_get_attack_move_id
@@ -10288,7 +10290,7 @@
 0x248b3a8  titus_stage              data:int -                    O ; boss fight stage 1..3, 1 at titus_boss_load, advanced by titus_check_stage
 0x248b3ac  titus_forced_stage       data:int -                    O ; stage requested by console command titus_stage (0..3), consumed and reset by titus_check_stage
 0x248b3b4  titus_combat_enabled     data:bool -                    O ; set by cmd_titus_combat and the Ikaemos bottom level script, titus_ai_idle only engages when 1
-0x248b3b8  titus_threat_table       data:int[30] -                    O ; 5 records of 0x18 bytes (to 0x248b430), cleared to -1 by titus_boss_load, returned by boss_get_threat_table
+0x248b3b8  titus_threat_table       data:boss_threat[5] -                    O ; 5 records of 0x18 bytes (to 0x248b430), cleared to -1 by titus_boss_load, returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248b430  titus_offense_point_count data:int -                    O ; number of offense points found by titus_boss_load (offense_point_name, max 10), records of 0x1c at 0x248b434
 0x248b54c  titus_moves              data:uint8[0x3c0] -                    O ; move records of 0x20 bytes parsed from titus_boss.tbl by boss_ai_parse_table, indexed by titus_init_move_tables
 0x248b90c  titus_current_move       data:void* -                    O ; boss move record chosen by titus_ai_select_action, cleared by titus_end_attack and boss_clear_current_move
@@ -10310,7 +10312,7 @@
 0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
 0x248b9b4  evil_joseph_combat_enabled data:bool -                    O ; set by cmd_darkjo_combat and lsf_urath_killed, evil_joseph_ai_idle only engages when 1
-0x248b9b8  evil_joseph_threat_table data:int[30] -                    O ; 5 threat records of 0x18 bytes, cleared by evil_joseph_boss_load, returned by boss_get_threat_table
+0x248b9b8  evil_joseph_threat_table data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes, cleared by evil_joseph_boss_load, returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248ba30  evil_joseph_mesh_tag_count data:int -                    O ; count of the 0x1c-byte entries at 0x248ba34 filled by evil_joseph_boss_load from character_find_mesh_tag results
 0x248bb4c  evil_joseph_moves        data:uint8[0x140] -                    O ; move records of 0x20 bytes from darkjo_boss.tbl (boss_ai_parse_table), indexed by evil_joseph_init_move_tables
 0x248bc8c  evil_joseph_current_move data:void* -                    O ; boss move record chosen by the Evil Joseph AI, cleared by boss_clear_current_move
@@ -10328,7 +10330,7 @@
 0x248bcfc  evil_joseph_loaded       data:bool -                    O ; set by evil_joseph_boss_load (skips reload when 1), cleared by evil_joseph_unload
 0x248bd08  evil_urath_leap_flags    data:uint32 -                    O ; leap state bits (1, 2, 4, 8) of the evil Urath leap AI, 1 at evil_urath_boss_load
 0x248bd0c  evil_urath_combat_enabled data:bool -                    O ; set by cmd_urath_combat and ls_templeint2_frame, evil_urath_ai_idle only engages when 1
-0x248bd10  evil_urath_threat_table  data:int[30] -                    O ; 5 threat records of 0x18 bytes, returned by boss_get_threat_table
+0x248bd10  evil_urath_threat_table  data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes, returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248bec8  evil_urath_current_move  data:void* -                    O ; boss move record set by evil_urath_ai_idle / select_action, cleared by boss_clear_current_move
 0x248becc  evil_urath_pending_mode  data:int -                    O ; 0x23 set by evil_urath_ai_select_action, evil_urath_ai_frame enters ai mode 0x23 and resets it to -1
 0x248bed0  evil_urath_target_handle data:int -                    O ; living handle of the current target, -1 at boss_load
@@ -10346,7 +10348,7 @@
 0x248bf20  evil_urath_cast_anim     data:int -                    O ; character +0x6cc anim of the cast, polled by evil_urath_check_stage
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
 0x248bf38  murod_engaged            data:bool -                    O ; set to 1 by murod_boss_load, murod_ai_idle engages when 1 (checked: byte set by murod_boss_load, cmp 1 in murod_ai_idle)
-0x248bf3c  murod_threat_table       data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248bfb4), returned by boss_get_threat_table
+0x248bf3c  murod_threat_table       data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes (to 0x248bfb4), returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248bfb4  murod_target_handle      data:int -                    O ; living handle of the current target, -1 at murod_boss_load
 0x248bfb8  murod_casting_spell      data:int -                    O ; spell id being cast (murod_cast_spell), -1 when none, murod_check_stage
 0x248bfbc  murod_action22_count     data:int -                    O ; times action 0x22 was chosen in a row by murod_ai_select_action (allowed while < 2)
@@ -10361,7 +10363,7 @@
 0x248bff0  murod_oni_move_0         data:void* -                    O ; murod_oni_moves[0] (0x248c19c), set by murod_oni_init_move_tables
 0x248bff4  murod_oni_move_3         data:void* -                    O ; murod_oni_moves[3] (0x248c1fc), checked by murod_oni_move_is_first
 0x248c004  murod_oni_engaged        data:bool -                    O ; set to 1 by murod_oni_boss_load, murod_oni_ai_idle engages when 1 (checked: byte set 1 by murod_oni_boss_load, cmp 1 in murod_oni_ai_idle)
-0x248c008  murod_oni_threat_table   data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248c080), returned by boss_get_threat_table
+0x248c008  murod_oni_threat_table   data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes (to 0x248c080), returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248c080  murod_oni_offense_point_count data:int -                    O ; number of offense points found by murod_oni_boss_load (offense_point_name, max 10)
 0x248c084  murod_oni_offense_points data:uint8[0x118] -                    O ; offense point records of 0x1c bytes (handle, ..., pos at +0x10), read by murod_oni_offense_point_reaches
 0x248c19c  murod_oni_moves          data:uint8[0x140] -                    O ; move records of 0x20 bytes parsed from murod_oni_boss.tbl by boss_ai_parse_table
@@ -10400,7 +10402,7 @@
 0x248c7de  giant_salamanka_stage3_reached data:bool -                    O ; set by giant_salamanka_check_stage at the stage 3 threshold, polled by the level script
 0x248c7df  giant_salamanka_stage3_ack data:bool -                    O ; set by the level script, giant_salamanka_check_stage then enters stage 3
 0x248c7e4  giant_salamanka_missile_tag data:int -                    O ; character_find_mesh_tag result stored by boss_load, used by giant_salamanka_get_missile_bone
-0x248c7ec  giant_salamanka_threat_table data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248c864), returned by boss_get_threat_table
+0x248c7ec  giant_salamanka_threat_table data:boss_threat[5] -                    O ; 5 threat records of 0x18 bytes (to 0x248c864), returned by boss_get_threat_table (type was int[30]: returned by boss_get_threat_table, boss_threat_add walks 5 records of 0x18 (cmp [ecx] handle, add ecx 0x18))
 0x248c864  giant_salamanka_attack_timer data:GameTimer -                    O ; GameTimer of the Giant Salamanka AI (init_giant_salamanka_timers), checked in select_action
 0x248c868  giant_salamanka_offense_point_count data:int -                    O ; number of offense points found by giant_salamanka_boss_load (max 10), records at 0x248c86c
 0x248cd50  giant_salamanka_current_move data:void* -                    O ; boss move record (0x20 bytes from 0x248c844) chosen by giant_salamanka_ai_select_action
@@ -10451,7 +10453,7 @@
 0x2490c74  level_trigger_count      data:int -                    O ; number of records in level_triggers (level_parse_trigger, level_trigger_trip, level_check_triggers)
 0x2490c80 ccmd_dont_load_fx        data:console_command -                      O ; console command object "dont_load_fx"
 0x2490c90 ccmd_No_cutscenes        data:console_command -                      O ; console command object "No_cutscenes"
-0x2490ca0  level_shopkeepers        data:uint8[0x12c] -                    O ; 0x14-byte shopkeeper records filled by level_parse_shopkeeper, searched by level_shopkeeper_find
+0x2490ca0  level_shopkeepers        data:shopkeeper[15] -                    O ; 0x14-byte shopkeeper records filled by level_parse_shopkeeper, searched by level_shopkeeper_find (type was uint8[0x12c]: level_parse_shopkeeper / level_shopkeeper_find: lea [4*(5*i)+0x2490ca0] stride 0x14, 0x12c / 0x14 = 15)
 0x2490dcc  level_effect_count       data:int -                    O ; count of level_effects
 0x2490dd0  level_triggers           data:uint8[0xc80] -                    O ; 32 trigger records of 0x64 bytes ($Trigger:, flags +0x54, navpoint +0x5c), level_parse_trigger / level_trigger_trip
 0x2491a50  level_exit_block_flags   data:int -                    O ; level_check_triggers: bit 0x1 a party member is more than 10 units away, bit 0x2 a hostile in combat is within 20 units; hud_confirm_level_exit refuses to leave; skipped on the world map, in towns and rand- levels (formerly random_encounter_flags)
@@ -10461,7 +10463,7 @@
 0x2491a60  level_script_use_fn      data:void* -                    O ; level_script_info +0x10 of the current level (use handler), set by level_script_select
 0x2491a68  lc_entry_count           data:int new_hud.cpp          O ; number of lc_entries (lc_entry_add, hud_interact_nearest, world_mouse_frame)
 0x2491a70  script_avoid_splines     data:int[20] -                    O ; 10 pairs {handle, spline} (-1 = free), script_alloc_avoid_spline / script_free_avoid_spline
-0x2491ac0  level_shop_items         data:uint8[0x1f40] -                    O ; 1000 records of 8 bytes {item, price} filled by level_parse_shopkeeper, count level_shop_item_count
+0x2491ac0  level_shop_items         data:shop_item[1000] -                    O ; 1000 records of 8 bytes {item, price} filled by level_parse_shopkeeper, count level_shop_item_count (type was uint8[0x1f40]: level_parse_shopkeeper: [8*i+0x2491ac0] {item, price} records, 0x1f40 / 8 = 1000)
 0x2493a00  level_shop_item_count    data:int -                    O ; number of records in level_shop_items, reset by level_script_reparse
 0x2493a04  cutscene_saved_frame_fn  data:void* -                    O ; level_script_frame_fn saved by script_play_cutscene, restored by script_cutscene_done
 0x2493a08  level_exit_return_pos    data:vector3 -                    O ; position stored by level_check_triggers, put back on cur_character by hud_level_exit_step_back
@@ -10669,7 +10671,7 @@
 0x256ae28  script_editor_save_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Save of script_editor_save_window
 0x256b250  script_editor_creature_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): creature dialog: Team radios, Level, OK (script_editor_creature_ok)
 0x256b73c  script_editor_ui_created data:bool -                    O ; set at the end of script_editor_create_ui, script_editor_frame creates the UI when 0, cleared by script_editor_close
-0x256b740  script_editor_cur_script data:void* -                    O ; script object (script_objects or cutscene_script_objects record) being edited, 58 uses
+0x256b740  script_editor_cur_script data:script_object* -                    O ; script object (script_objects or cutscene_script_objects record) being edited, 58 uses (type was void*: set to script_objects/cutscene_script_objects + 0x50*(17*i) (=0x550 stride), reads +0x51c num_actions, +0x520 cur_action, +0x524, +0x52c)
 0x256b744  script_editor_cur_action data:void* -                    O ; selected entry of the current script (+0x34 navpoint index), 40 uses
 0x256b749  script_editor_lists_dirty data:bool -                    O ; set by script_create, script_editor_update_buttons then calls script_editor_fill_action_lists and clears it
 0x256b74a Render_s3d_navpoints     data:bool -                      O ; set by console command "render_s3d_navpoints" (toggles); type from the TOGGLE callback (xor byte 1)
@@ -10796,12 +10798,12 @@
 0x257ef84 mouse_screen_w           data:int vsdk\os\mouse          I
 0x257ef88  mouse_wheel              data:int vsdk\os\mouse        O ; z axis (checked: dword zeroed by mouse_init, accumulated by mouse_msg_handler, set by mouse_set_pos_xyz, read by mouse_update)
 0x257ef8c mouse_screen_h           data:int vsdk\os\mouse          I
-0x257ef90  mouse_buttons            data:uint8[3][16] vsdk\os\mouse        O ; latched copy for this frame (checked: 3 x 16-byte button records (+0 down, +1 double, +4 presses, +8 releases, +0xc timer) read by mouse_is_down, mouse_get_press_count)
+0x257ef90  mouse_buttons            data:mouse_button[3] vsdk\os\mouse        O ; latched copy for this frame (checked: 3 x 16-byte button records (+0 down, +1 double, +4 presses, +8 releases, +0xc timer) read by mouse_is_down, mouse_get_press_count) (type was uint8[3][16]: init_mouse_buttons: vector ctor (0x257ef90, 0x10, 3, mouse_button__mouse_button), mouse_update steps 0x10)
 0x257efc0 mouse_lock               data:CRITICAL_SECTION vsdk\os\mouse          I
 0x257efd8 mouse_z                  data:int vsdk\os\mouse          I
 0x257efdc mouse_y                  data:int vsdk\os\mouse          I
 0x257efe0 mouse_x                  data:int vsdk\os\mouse          I
-0x257efe8  mouse_buttons_live       data:uint8[3][16] vsdk\os\mouse        O ; written by the message handler (checked: 3 x 16-byte button records written by mouse_mark_button and copied to mouse_buttons in mouse_update)
+0x257efe8  mouse_buttons_live       data:mouse_button[3] vsdk\os\mouse        O ; written by the message handler (checked: 3 x 16-byte button records written by mouse_mark_button and copied to mouse_buttons in mouse_update) (type was uint8[3][16]: init_mouse_buttons_live: vector ctor (0x257efe8, 0x10, 3, mouse_button__mouse_button), mouse_update steps 0x10)
 
 0x257f018 mouse_dinput             data:IDirectInput* vsdk\os\mouse          I
 0x257f01c mouse_di_device          data:IDirectInputDevice* vsdk\os\mouse          I
@@ -10829,13 +10831,13 @@
 0x257f0a4 Frametime_paused        data:int             frametime.cpp     V
 0x257f0a8 Animation_timer_paused  data:int             frametime.cpp     V
 0x257f0ac Timestamp_paused        data:int             timestamp.cpp     V ; Summoner 2 decomp; while set, UpdateTicker skips Timestamp_ticker
-0x257f0b0 bm_hash_table            data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O
+0x257f0b0  bm_hash_table            data:bitmap_entry*[0xaf1] vsdk\bmpman\bmpman.cpp O ;  (type was void*[0xaf1]: bm_find: slot ptr +0 name (_stricmp), +4 name_checksum, then (p - bm_bitmaps)/0x48 = handle, bm_hash_insert stores entry ptrs)
 
 0x2581c74 bm_name_pool             data:StringPool vsdk\bmpman\bmpman.cpp O ; 64 KB
 0x2591c78 bm_bitmaps               data:bitmap_entry[0xaf0] vsdk\bmpman\bmpman.cpp O ; 0x48-byte entries, handle = index
 0x25c3000 bm_used_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel (next +0x2c, prev +0x30)
 0x25c3048 ccmd_load_mipmaps        data:console_command -                      O ; console command object "load_mipmaps"
-0x25c3054 bm_hash_table_mark       data:void*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark
+0x25c3054  bm_hash_table_mark       data:bitmap_entry*[0xaf1] vsdk\bmpman\bmpman.cpp O ; copy taken by bm_set_mark (type was void*[0xaf1]: copy of bm_hash_table taken by bm_set_mark and copied back by bm_release_from_mark (same 0xaf1 slots))
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
@@ -11079,7 +11081,7 @@
 0x2c9f998  effects_num_bases        data:int vsdk\geom            O ; number of effect bases, returned by effects_get_num_bases, bound of effects_find_base / effect_base_queue_stream
 0x2c9f99c  effects_num_names        data:int -                    O ; number of effect_base_names, loop bound of vfx_find_name and effect_base_release (checked: dword set by effects_load_bases (cmp 0x1b8), loop bound in vfx_find_name and effect_base_release)
 0x2c9f9a0  lights_selection_counts  data:int[16] vsdk\gr              O ; number of lights selected at each selection level (lights_collect_enabled, lights_select_nearest) (checked: int[16] [4*level] counts set/incremented by lights_collect_enabled and lights_select_nearest)
-0x2c9f9e0  lights_selection         data:void*[16][400] vsdk\gr              O ; 16 selection levels of 400 light pointers (stride 0x640), pushed by lights_select_nearest and read by lights_shade_vertices; 16 x 0x640 ends exactly at lights (0x2ca5de0)
+0x2c9f9e0  lights_selection         data:light*[16][400] vsdk\gr              O ; 16 selection levels of 400 light pointers (stride 0x640), pushed by lights_select_nearest and read by lights_shade_vertices, 16 x 0x640 ends exactly at lights (0x2ca5de0) (type was void*[16][400]: lights_select_nearest stores light ptrs: +0xc pos, +0x5c radius_outer_sq, +0x90 sort_dist (qsort light_compare_dist), passed to lights_shade_point)
 0x2ca5de0  lights                   data:light[400] vsdk\gr              O ; light records of 0x94 bytes (init_lights), light_get / light_alloc, cleared by light_reset_all
 0x2cb4520  light_list_head          data:light vsdk\gr              O ; sentinel of the active light list (init_light_list_head), walked by light_set_all_enabled and lights_collect_enabled
 0x2cb45b4  light_change_count       data:int vsdk\gr              O ; incremented by light_reset_all, light_set_ambient, light_create_point / spot and light_delete
@@ -11106,7 +11108,7 @@
 0x2cbf4c8  file_identity_quaternion data:quaternion vsdk\vfile           O ; identity set by file_init, default argument of File__read_quaternion (checked: quaternion set by file_init, pushed as the default to FileReader__read_quaternion, s3d_read_door/light)
 0x2cbf4d8  file_zero_vector         data:vector3 vsdk\vfile           O ; zeroed by file_init, default argument of File__read_vector (checked: vector3 zeroed by file_init, pushed as the default to FileReader__read_vector, File__read_matrix, s3d readers)
 0x2cbf518  file_default_matrix      data:matrix3 vsdk\vfile           V ; matrix3__make_identity in file_init, Dash Faction rf::file_default_matrix (default of read_matrix)
-0x2cbf554  ui_nav_best_gadget       data:void* vsdk\ui              O ; nearest gadget found by ui_window__handle_arrow_key and the ui_gadget__find_nearest_* helpers
+0x2cbf554  ui_nav_best_gadget       data:ui_element* vsdk\ui              O ; nearest gadget found by ui_window__handle_arrow_key and the ui_gadget__find_nearest_* helpers (type was void*: ui_gadget__find_nearest_*: stores the candidate gadget (edi, +0x18 rect y, +0x26c first_child walked), read by ui_window__nav_*)
 0x2cbf558  ui_nav_best_distance     data:int vsdk\ui              O ; distance of ui_nav_best_gadget, reset to 999999999 by ui_window__handle_arrow_key
 0x2cbf55c  ui_window_processing     data:bool vsdk\ui              O ; 1 while ui_window__process runs, ui_window__destroy defers when set
 0x2cbf584  ui_listbox_line_starts   data:int[20] vsdk\ui              O ; start offset of each wrapped line written by ui_listbox_entry__wrap_text, read by ui_listbox__draw
@@ -11137,13 +11139,13 @@
 0x2cbfca4  ui_left_released         data:bool vsdk\ui              O ; mouse_was_released(0) stored by ui_process
 0x2cbfca8  ui_mouse_x               data:int vsdk\ui              O ; mouse x read by ui_process, used by the gadget process and draw functions (checked: dword out parameter of the mouse position call in ui_process, read by the gadget process and draw functions)
 0x2cbfcac  ui_mouse_y               data:int vsdk\ui              O ; mouse y read by ui_process, used by the gadget process and draw functions (checked: dword out parameter of the mouse position call in ui_process, read by the gadget process and draw functions)
-0x2cbfcb8  ui_drag_gadget           data:void* vsdk\ui              O ; button being dragged (ui_button__process), ui_button__can_accept_drop, cleared by ui_process
-0x2cbfcbc  ui_drop_target           data:void* vsdk\ui              O ; gadget under a drag set by ui_button__process / ui_process (checked: pointer stored by ui_button__process and ui_process)
+0x2cbfcb8  ui_drag_gadget           data:ui_element* vsdk\ui              O ; button being dragged (ui_button__process), ui_button__can_accept_drop, cleared by ui_process (type was void*: ui_button__process stores this (a ui_button, which extends ui_element, fields +0x38c..+0x424 are button-only), used by ui_draw / ui_process)
+0x2cbfcbc  ui_drop_target           data:ui_element* vsdk\ui              O ; gadget under a drag set by ui_button__process / ui_process (checked: pointer stored by ui_button__process and ui_process) (type was void*: ui_button__process stores this (esi), ui_process stores the gadget under the mouse, base gadget pointer)
 0x2cbfcc0  ui_drag_dropped          data:bool vsdk\ui              O ; set by ui_button__process after a drop, ui_process then ends the drag (checked: byte set 1 by ui_button__process, read and cleared by ui_process)
-0x2cbfcc4  ui_current_gadget        data:void* vsdk\ui              O ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture) (checked: pointer set by ui_gadget__set_focus/ui_process, cleared by ui_gadget__clear_focus, ui_gadget__dtor, ui_element__set_hidden)
+0x2cbfcc4  ui_current_gadget        data:ui_element* vsdk\ui              O ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture) (checked: pointer set by ui_gadget__set_focus/ui_process, cleared by ui_gadget__clear_focus, ui_gadget__dtor, ui_element__set_hidden) (type was void*: set to this by ui_gadget__set_focus, cleared by ui_gadget__destroy / ui_element__set_hidden / set_disabled when it is the gadget)
 0x2cbfcc8  ui_group_depth           data:int vsdk\ui              O ; incremented by ui_push_group, decremented by ui_pop_group, windows of a lower group are disabled (ui_window__is_disabled)
-0x2cbfccc  ui_tooltip_gadget        data:void* vsdk\ui              O ; gadget under the mouse whose tooltip ui_draw shows, set by ui_process
-0x2cbfcd4  ui_last_gadget           data:void* vsdk\ui              O ; gadget compared and stored each pass by ui_process, clears the pressed flags 0x2cbf700/0x2cbfc04 when it changes (checked: pointer compared and stored each pass in ui_process)
+0x2cbfccc  ui_tooltip_gadget        data:ui_element* vsdk\ui              O ; gadget under the mouse whose tooltip ui_draw shows, set by ui_process (type was void*: ui_process stores the hovered gadget, ui_draw reads its +0x124 tooltip list (ui_element.tooltips))
+0x2cbfcd4  ui_last_gadget           data:ui_element* vsdk\ui              O ; gadget compared and stored each pass by ui_process, clears the pressed flags 0x2cbf700/0x2cbfc04 when it changes (checked: pointer compared and stored each pass in ui_process) (type was void*: ui_process stores the result of ui_window__gadget_at (gadget under the cursor))
 0x2cbfce0  os_mutex_name            data:char[] vsdk\os              O ; name copied by os_init and passed to CreateMutexA, also used before SetForegroundWindow of the running instance
 0x2cbfd60  os_msg_handlers          data:void*[32] vsdk\os              O ; window message handlers added by os_add_msg_handler, called by os_wndproc (Dash Faction os msg_handlers)
 0x2cbfde0  os_window_title          data:char[0x98] vsdk\os              O ; title copied by os_init / os_set_window_title, used for CreateWindow by os_create_window
@@ -11465,11 +11467,11 @@
 0x2f54700  gr_clip_num_temp_verts   data:int vsdk\gr              O ; count of gr_clip_temp_verts, reset by gr_clip_free_temp_verts
 0x2f54708  http_host_addr           data:uint32 -                    O ; address copied from the hostent by http_resolve_host, returned by http_async_gethostbyname (checked: dword stored by http_resolve_host, returned by http_async_gethostbyname)
 0x2f54714  http_async_lookup        data:void* -                    O ; request record (+4, flags +8..+0xa) of http_async_gethostbyname, set when a lookup starts, +0xa set on completion
-0x2f54720  ds_buffers               data:uint8[0x25000] -                    O ; DirectSound buffer records (+0x204 handle, +0x218 format, +0x24c ref count) used by ds_load_buffer / ds_create_buffer / ds_sound_release (Dash Faction ds_buffers) (checked: buffer records indexed (add base) by ds_load_buffer, ds_play, ds_stream_open, snd_stream_fill_*)
+0x2f54720  ds_buffers               data:ds_buffer[256] -                    O ; DirectSound buffer records (+0x204 handle, +0x218 format, +0x24c ref count) used by ds_load_buffer / ds_create_buffer / ds_sound_release (Dash Faction ds_buffers) (checked: buffer records indexed (add base) by ds_load_buffer, ds_play, ds_stream_open, snd_stream_fill_*) (type was uint8[0x25000]: ds_sound_release / ds_load_buffer: ((i + 4*(9*i)) << 4) = 0x250*i + 0x2f54720, 0x25000 / 0x250 = 256)
 0x2f79720  ds_volume_table          data:int[101] -                    O ; attenuation per volume percent (first entry -10000) built by ds_init_volume_table, read by ds_volume_to_attenuation
 0x2f798b4  ds_eax_enabled           data:bool -                    O ; EAX requested in ds_init (cleared when unavailable), ds_init calls eax_init when set, returned by ds_is_eax_enabled
 0x2f798b5  ds_com_initialized       data:bool -                    O ; 0 at ds_init start, ds_close calls the COM uninitialise import when 1 (checked: byte cleared in ds_init, cmp 1 in ds_close)
-0x2f798b8  ds_channels              data:uint8[0x580] -                    O ; 32 channel records of 0x2c bytes (init_ds_channels): buffer, 3D buffer, signature +0x10, volume +0x14, flags +0x28 (Dash Faction ds_channels)
+0x2f798b8  ds_channels              data:ds_channel[32] -                    O ; 32 channel records of 0x2c bytes (init_ds_channels): buffer, 3D buffer, signature +0x10, volume +0x14, flags +0x28 (Dash Faction ds_channels) (type was uint8[0x580]: init_ds_channels: vector ctor (0x2f798b8, 0x2c, 0x20), ds_channel_init / release lea [4*(11*i)+0x2f798b8])
 0x2f79e38  ds_primary_buffer        data:void* -                    O ; primary sound buffer created in ds_init, returned by ds_get_primary_buffer, released by ds_close
 0x2f79e3c  ds_direct_sound          data:void* -                    O ; DirectSound object created by ds_init, used by ds_create_buffer / ds_duplicate_buffer, released by ds_close (Dash Faction direct_sound)
 0x2f8f72c  ds3d_enabled             data:bool -                    O ; 3D sound flag set by ds_init, returned by ds_is_ds3d_enabled, used by ds_create_buffer (Dash Faction ds3d_enabled)
@@ -11488,7 +11490,7 @@
 0x2f91a6c Dump_mesh_frames         data:bool -                      O ; set by console command "dump_mesh_frames" (toggles); type from the TOGGLE callback (xor byte 1)
 0x2f91a78  snd_acm_out_buf          data:uint8[0x2bf20] -                    O ; destination buffer (0x2bf20 bytes) of the ACM conversion in snd_stream_fill_acm, copied into the ring buffer (checked: ACM conversion output pushed and copied from in snd_stream_fill_acm, 0x2bf20 bytes to the next symbol) (type was uint8[])
 0x2fbd998  snd_stream_lock          data:CRITICAL_SECTION -                    O ; critical section entered and left around stream changes by ds_channel_release, ds_sound_release, snd_start_timer and snd_stream_close_all
-0x2fbd9b0  snd_streams              data:uint8[0x1c0] -                    O ; 16 stream records of 0x1c bytes (+0 buffer, +4 handle, +0x18 flags bit 1 in use): snd_stream_service / find_free / fill_acm / fill_pcm / close_all
+0x2fbd9b0  snd_streams              data:snd_stream_slot[16] -                    O ; 16 stream records of 0x1c bytes (+0 buffer, +4 handle, +0x18 flags bit 1 in use): snd_stream_service / find_free / fill_acm / fill_pcm / close_all (type was uint8[0x1c0]: snd_stream_get_writable / fill_acm: lea [4*(7*i)+0x2fbd9b0] stride 0x1c, 0x1c0 / 0x1c = 16)
 0x2fbdb70  acm_driver_handle        data:void* -                    O ; driver opened by acmDriverOpen in acm_init, used by acm_stream_open, closed by acm_close
 0x2fbdb78  acm_driver_id            data:void* -                    O ; driver id found by acm_driver_enum_callback, opened by acm_init
 0x2fbdb7c  acm_initialized          data:bool -                    O ; set at the end of acm_init (msacm32.dll loaded), tested by acm_stream_open / acm_convert / acm_close
