@@ -125,7 +125,7 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **3,316 / 5,548** game/engine functions named (59.8%), plus about 480
+Phase 0 is complete. Progress (2026-10-14): **3,792 / 5,548** game/engine functions named (68.3%), plus about 500
 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
