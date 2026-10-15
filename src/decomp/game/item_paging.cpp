@@ -144,7 +144,7 @@ void items_reset_paging()
 
 // 0x46c940  Confidence: likely (the stub test: when item_page_in_stub returns non-zero the code
 // skips straight to the success tail; the pool rewind stores the stub's 0 from EAX).
-int item_page_in(int slot, int type)
+int item_page_in(int type, int slot, int unused)
 {
     if (slot == ITEM_PAGE_SLOT_TYPE)
         return item_type_page_in(type);

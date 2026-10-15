@@ -29,7 +29,7 @@ int item_page_in_stub(ItemType *type, item_page_slot *slot);
 int item_page_in_mesh(ItemType *type, item_page_slot *slot);
 int item_type_page_in(int type);
 void items_reset_paging();
-int item_page_in(int slot, int type);
+int item_page_in(int type, int slot, int unused); // callers push (type, slot, 0); the third argument is never read
 void item_page_out_all(int slot);
 int item_type_is_paged_in(int type);
 void item_paging_find_player_slot(Character *character, int *slot1, int *slot2);
