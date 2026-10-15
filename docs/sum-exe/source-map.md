@@ -240,15 +240,19 @@ The tool:
    unit's. The gap lets a file whose statics are declared in function order (`ui_parse_button`,
    `ui_parse_checkbox`, ...) stay in one unit.
 
-**Result:** 119 units over `0x401000`-`0x56a000` (after moving the three `*_render_character_mesh` tags to `vsdk\ca`). None mixes two `.cpp` tags; 14 of the 66 tagged files are split
-over several units. *Inferred:* the split files mostly point at tag errors, not at real boundaries:
-- **Inline functions from headers** (`Mempool__ResetOffset`, `vector3__*`) are compiled into every file that uses
-  them, but carry their class's file tag. The tool then forces a false cut.
-- **Names that suggest a file** but sit elsewhere (`gr_d3d_render_character_mesh` at `0x50c130`, far from the
-  Direct3D code).
+**Result (2026-10-15):** 99 units over `0x401000`-`0x56a000`. None mixes two `.cpp` tags, and only 1 of the 65
+tagged files is split. Getting there took 66 module-tag corrections, each checked against the neighbouring functions
+and the data they use:
+- the three `*_render_character_mesh` functions go to `vsdk\ca`;
+- header inlines (`gr__Mode` accessors, `Mempool` methods) get folder-level tags (`vsdk\gr`, `vsdk\os`);
+- 14 tags spelled `memory.cpp` are `vsdk\os\memory.cpp`;
+- the 16 Direct3D texture-cache functions after the Glide code get `vsdk\gr\directx`;
+- stray game tags that sat in another file's code were cleared (`-`).
 
-`--score` lists these as "stray?" lines. Fixing the tags is the next step before the units can be used to lay out
-source files.
+The one split file is `vsdk\gr\gr.cpp`. It is a single file that the `.bss` rule cuts in the middle of its
+`gr__Mode` initialisers. *Known limit:* with fewer forced cuts, two untagged blocks merge into their neighbours: the
+interface code between `new_hud.cpp` and `new_inventory.cpp`, and the party-inventory block after `objects.cpp`.
+`--score` lists any remaining "stray?" tags for review.
 
 ## Notes for later
 
