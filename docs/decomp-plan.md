@@ -125,7 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): see the sixth pass below (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14): **5,249 / 5,548** game/engine functions named (94.6%), plus 2,002
+functions that Ghidra's analysis missed (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
