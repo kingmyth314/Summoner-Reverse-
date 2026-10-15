@@ -1625,7 +1625,7 @@
 0x446b80  charinfo_find_by_name    func  characterinfo.cpp    O ; stricmp over char_infos[num_char_infos] names (+0x0), returns index or -1
 0x446bd0  charinfo_find_by_species func  characterinfo.cpp    O ; index of the char_info whose +0x10 species equals arg, or -1
 0x446c00  summon_find_charinfo     func  characterinfo.cpp    O ; finds the summon skill (skill_table flag 4) whose +0x18 equals arg, then charinfo_find_by_name(creature name) (checked: All_summons scan, summon_skill_creature_name, charinfo_find_by_name, callers summon_create, ai_cast_spell_update)
-0x446c40  summon_skill_creature_name func  characterinfo.cpp    O ; skill 0x24-0x33 -> table 0x595a94 ("Golem", "Red Minotaur", ... "Forest Dragon"), else empty string
+0x446c40  summon_skill_creature_name func  characterinfo.cpp    O ; skill 0x24-0x33 -> [0x595a94 + 4*skill], so the table starts at 0x595b24 ("Golem", "Red Minotaur", ... "Forest Dragon"), else empty string
 0x446c60  charinfo_find_move_any   func  characterinfo.cpp    O ; (info, anim) walks all 16 move lists info+0x4c (next +0x40) for move +0x8 == anim
 0x446cb0  charinfo_find_move       func  characterinfo.cpp    O ; (info, category, id, flag): walks move list info+0x4c+4*category (next +0x40) for move +0x14 == id
 0x446d10  charinfo_find_move_alt   func  characterinfo.cpp    O ; same walk as charinfo_find_move but matches move +0x18
@@ -1633,7 +1633,7 @@
 0x446de0  multi_charinfo_slot      func  characterinfo.cpp    O ; finds the 0x3ec-byte multiplayer char info slot (0x7def08) whose +4 is the given char_info, returns slot (checked: returns the 0x3ec-byte slot of 0x7def08 whose +4 == info, callers charinfo_get_multi_appearance and 2 others)
 0x446e20  move_get_trigger_time    func  characterinfo.cpp    O ; (move, id) returns float of the {id, float} pair (3 at +0x1c) matching id, DebugError "Trigger not found." (characterinfo.cpp line 0xd61)
 0x446e70  skill_is_summon          func  characterinfo.cpp    O ; skill_table[id] flags (+0x20) bit 2, set for the summon skills (see summon_skill_from_creature_name)
-0x446e90  character_can_use_summon func  characterinfo.cpp    O ; (character, skill): All_summons cheat, else level thresholds 1/4/8/12... per summon skill and ring ownership ("Ring of Darkness" ...)
+0x446e90  character_can_use_summon func  characterinfo.cpp    O ; (character, skill): All_summons cheat; single player: ring ownership (party_count_item_by_name, e.g. Ring of Darkness) or got_ring flags, second-tier and dragons need the ring xp > 60000, templeint2 refuses four; multiplayer: caster level thresholds 1/4/8/.../44 per skill, no dragons
 0x4473d0  skill_has_flag8          func  characterinfo.cpp    O ; skill_table[id] +0x20 bit 3
 0x4473f0  skill_is_combat_special  func  -                    O ; returns skill id in 0xc..0x11 (critical hit .. aimed attack), used by combat move choice 0x463d00 (checked: returns arg in [0xc, 0x11], only caller living_combat_ai_choose_special)
 0x447410  characterinfo_load_party_anims func  characterinfo.cpp    O ; "Joseph Anims", "Jekhar Anims" ..., masad allows only Joseph (checked: Mempool__Copy Joseph/Jekhar/Rosalind/Flece Anims, masad Joseph-only printf, charinfo_load_move_anim, character_reinit_anims)
