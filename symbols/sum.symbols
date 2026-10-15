@@ -9151,27 +9151,207 @@
 0x24893e8  lamp_glows               data:void* -                    O ; lamp glow records 0x18 bytes {pos, size, alpha, ?}, lamp_glow_add / set / draw / fade
 0x248b008  lamp_glow_count          data:int -                    O ; number of lamp glow records (0x24893e8, 0x18 bytes), reset by lamp_glow_load / lamp_glow_forget, bumped by lamp_glow_add
 0x248b010 ccmd_machival_combat     data:console_command -                      O ; console command object "machival_combat"
+0x248b30c  machival_current_move    data:void* -                    O ; boss move record chosen by machival_ai_select_action (one of the move pointers), cleared by boss_clear_current_move, +0x18 read by boss_current_move_param
+0x248b314  machival_target_handle   data:int -                    O ; living handle of the current target (living_from_handle), -1 at machival_boss_load, set from boss_target_list_pick
+0x248b318  machival_attack_timer    data:GameTimer -                    O ; GameTimer set by machival_set_attack_timer, elapsed check forces a retarget
+0x248b31c  machival_teleport_timer  data:GameTimer -                    O ; on expiry machival_teleport is tried, then rearmed 70 s (2 s on failure)
+0x248b320  machival_spell100_timer  data:GameTimer -                    O ; random 56-104 s, on expiry machival_cast_spell_at spell 0x64 at the boss position
+0x248b324  machival_spell101_timer  data:GameTimer -                    O ; random 56-104 s, on expiry machival_cast_spell spell 0x65 at the target
+0x248b328  machival_spell102_timer  data:GameTimer -                    O ; random 56-104 s, on expiry machival_cast_spell_at spell 0x66
+0x248b32c  machival_cast_anim       data:int -                    O ; character +0x6cc anim id of the spell being cast, polled with character_move_finished by machival_check_stage
+0x248b330  machival_casting_spell   data:int -                    O ; spell id being cast (machival_cast_spell / _at), -1 when none, select_action waits while not -1
+0x248b334  machival_party_spell_timer data:GameTimer -                    O ; random 3-5 s, then spell 0x5b at machival_pick_random_party_member
+0x248b338  machival_area_hit_count  data:int -                    O ; number of handles in machival_area_hits, filled by machival_attack_test / collect_area_hits
+0x248b33c  machival_area_hits       data:int[5] -                    O ; living handles hit by the area attack, consumed by machival_apply_area_hits
+0x248b350  machival_teleports       data:void*[6] -                    O ; six navpoints found by machival_find_teleports (loop to 0x248b368), machival_teleport picks one at random
+0x248b368  machival_teleport_navpoint data:void* -                    O ; navpoint machival_teleport moved to, sent in the swi_boss packet by mp_send_swi_boss
+0x248b36c  machival_teleport_pos    data:vector3 -                    O ; teleport destination, written by machival_teleport and mp_handle_swi_boss, pushed by machival_ai_special_move
+0x248b378  machival_move_melee      data:void* -                    I ; move record pointer (0x248b1cc) set by machival_init_move_tables, one of the three random melee choices in select_action
+0x248b380  titus_move_0             data:void* -                    O ; titus_moves[0] (0x248b54c), set by titus_init_move_tables, compared by titus_get_attack_kind
+0x248b384  titus_move_12            data:void* -                    O ; titus_moves[12] (0x248b6cc), set by titus_init_move_tables
+0x248b388  titus_move_21            data:void* -                    O ; titus_moves[21] (0x248b7ec), set by titus_init_move_tables, checked by titus_ai_frame
+0x248b38c  titus_move_2             data:void* -                    O ; titus_moves[2] (0x248b58c), set by titus_init_move_tables
+0x248b390  titus_move_1             data:void* -                    O ; titus_moves[1] (0x248b56c), set by titus_init_move_tables
+0x248b394  titus_move_13            data:void* -                    O ; titus_moves[13] (0x248b6ec), set by titus_init_move_tables
+0x248b398  titus_move_11            data:void* -                    O ; titus_moves[11] (0x248b6ac), turn-lock move in titus_update_turn_lock, knockdown in titus_knock_down_party
+0x248b39c  titus_move_23            data:void* -                    O ; titus_moves[23] (0x248b82c), turn-lock move in titus_update_turn_lock, knockdown in titus_knock_down_party
+0x248b3a0  titus_move_10            data:void* -                    O ; titus_moves[10] (0x248b68c), set by titus_init_move_tables
+0x248b3a4  titus_move_22            data:void* -                    O ; titus_moves[22] (0x248b80c), set by titus_init_move_tables
+0x248b3a8  titus_stage              data:int -                    O ; boss fight stage 1..3, 1 at titus_boss_load, advanced by titus_check_stage
+0x248b3ac  titus_forced_stage       data:int -                    O ; stage requested by console command titus_stage (0..3), consumed and reset by titus_check_stage
+0x248b3b4  titus_combat_enabled     data:bool -                    O ; set by cmd_titus_combat and the Ikaemos bottom level script, titus_ai_idle only engages when 1
+0x248b3b8  titus_threat_table       data:int[30] -                    O ; 5 records of 0x18 bytes (to 0x248b430), cleared to -1 by titus_boss_load, returned by boss_get_threat_table
+0x248b430  titus_offense_point_count data:int -                    O ; number of offense points found by titus_boss_load (offense_point_name, max 10), records of 0x1c at 0x248b434
+0x248b54c  titus_moves              data:uint8[0x3c0] -                    O ; move records of 0x20 bytes parsed from titus_boss.tbl by boss_ai_parse_table, indexed by titus_init_move_tables
+0x248b90c  titus_current_move       data:void* -                    O ; boss move record chosen by titus_ai_select_action, cleared by titus_end_attack and boss_clear_current_move
+0x248b910  titus_action_timer       data:GameTimer -                    O ; rearmed at the end of every titus_ai_select_action, GetElapsedTime compared with 8000 ms
 0x248b914  titus_turn_lock          data:bool -                    I ; set by titus_update_turn_lock, read by ai_combat_face_target and titus_get_attack_reach
+0x248b918  titus_target_handle      data:int -                    O ; living handle of the current target, -1 at titus_boss_load
+0x248b91c  titus_attack_timer       data:GameTimer -                    O ; set by titus_set_attack_timer and titus_reset_attack_timers (10 s), elapsed forces a retarget
+0x248b920  titus_move10_timer       data:GameTimer -                    I ; 20 s, titus_ai_select_action plays titus_move_10 when it runs out
+0x248b924  titus_move13_timer       data:GameTimer -                    I ; 20 s, invalidated by titus_reset_attack_timers, used before titus_move_13 in select_action
+0x248b928  titus_stage_timer_a      data:GameTimer -                    I ; set by titus_reset_stage_timers, 50 s / 15 s rearm, gates titus_move_20
+0x248b92c  titus_stage_timer_b      data:GameTimer -                    I ; set by titus_reset_stage_timers (25 s), 50 s rearm, gates titus_move_21
+0x248b930  titus_pending_mode       data:int -                    O ; set to 0x3c by titus_ai_select_action, titus_ai_frame switches ai mode when it is 0x3c
+0x248b934  titus_area_hit_count     data:int -                    O ; number of handles in titus_area_hits (titus_collect_area_hits)
+0x248b938  titus_area_hits          data:int[5] -                    O ; living handles hit by the area attack, consumed by titus_apply_area_hits
+0x248b94c  titus_rock_erupt_move    data:void* -                    O ; character_find_move result stored by titus_boss_load, played by titus_ai_rock_erupt
+0x248b954  titus_rock_erupt_fx_handle data:int -                    O ; effect handle created by titus_ai_rock_erupt (-1 when none), waited on by titus_ai_wait_rock_erupt_fx
 0x248b958 ccmd_titus_combat        data:console_command -                      O ; console command object "titus_combat"
+0x248b964  titus_move_20            data:void* -                    O ; titus_moves[20] (0x248b7cc), set by titus_init_move_tables, special reach in titus_get_attack_reach
 0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
+0x248b9b4  evil_joseph_combat_enabled data:bool -                    O ; set by cmd_darkjo_combat and lsf_urath_killed, evil_joseph_ai_idle only engages when 1
+0x248b9b8  evil_joseph_threat_table data:int[30] -                    O ; 5 threat records of 0x18 bytes, cleared by evil_joseph_boss_load, returned by boss_get_threat_table
+0x248bb4c  evil_joseph_moves        data:uint8[0x140] -                    O ; move records of 0x20 bytes from darkjo_boss.tbl (boss_ai_parse_table), indexed by evil_joseph_init_move_tables
+0x248bc8c  evil_joseph_current_move data:void* -                    O ; boss move record chosen by the Evil Joseph AI, cleared by boss_clear_current_move
+0x248bc94  evil_joseph_target_handle data:int -                    O ; living handle of the current target (living_from_handle)
+0x248bc98  evil_joseph_attack_timer data:GameTimer -                    O ; set by evil_joseph_set_attack_timer, elapsed forces a retarget
+0x248bc9c  evil_joseph_attack_move_id data:int -                    O ; move id chosen by evil_joseph_ai_select_action, returned by evil_joseph_get_attack_move_id
+0x248bca0  evil_joseph_summon_handle data:int -                    O ; helper handle picked by evil_joseph_pick_helper_summon (-1 none), used by evil_joseph_fire_attack
+0x248bca4  evil_joseph_helpers      data:int[4] -                    O ; living handles of the helpers spawned by evil_joseph_spawn_helpers
+0x248bcb4  evil_joseph_summon_pos   data:vector3 -                    O ; position computed by evil_joseph_pick_helper_summon, pushed by evil_joseph_fire_attack
+0x248bcc0  evil_joseph_resurrect_count data:int -                    O ; 0 at boss_load, decremented by evil_joseph_check_stage before boss_resurrect_full, raised by evil_joseph_fire_attack
+0x248bcc4  evil_joseph_helper_index data:int -                    O ; rotating index into evil_joseph_helpers (evil_joseph_pick_helper_summon)
+0x248bcc8  evil_joseph_teleport_index data:int -                    I ; index into evil_joseph_teleports used by evil_joseph_ai_frame, set by select_action
+0x248bcd8  evil_joseph_teleports    data:void*[5] -                    O ; navpoints found by evil_joseph_find_teleports (navpoint_find)
+0x248bcf4  evil_joseph_move_8       data:void* -                    O ; evil_joseph_moves[8] (0x248bc4c), set by evil_joseph_init_move_tables, checked by evil_joseph_get_attack_move_id
+0x248bcfc  evil_joseph_loaded       data:bool -                    O ; set by evil_joseph_boss_load (skips reload when 1), cleared by evil_joseph_unload
+0x248bd08  evil_urath_leap_flags    data:uint32 -                    O ; leap state bits (1, 2, 4, 8) of the evil Urath leap AI, 1 at evil_urath_boss_load
+0x248bd0c  evil_urath_combat_enabled data:bool -                    O ; set by cmd_urath_combat and ls_templeint2_frame, evil_urath_ai_idle only engages when 1
+0x248bd10  evil_urath_threat_table  data:int[30] -                    O ; 5 threat records of 0x18 bytes, returned by boss_get_threat_table
+0x248bec8  evil_urath_current_move  data:void* -                    O ; boss move record set by evil_urath_ai_idle / select_action, cleared by boss_clear_current_move
+0x248becc  evil_urath_pending_mode  data:int -                    O ; 0x23 set by evil_urath_ai_select_action, evil_urath_ai_frame enters ai mode 0x23 and resets it to -1
+0x248bed0  evil_urath_target_handle data:int -                    O ; living handle of the current target, -1 at boss_load
+0x248bed4  evil_urath_attack_timer  data:GameTimer -                    O ; set by evil_urath_set_attack_timer
 0x248bed8  evil_urath_leap_target   data:void* -                    O ; navpoint the evil Urath leap goes to (evil_urath_pick_teleport_point)
+0x248bedc  evil_urath_teleports_a   data:void*[3] -                    O ; first group of 3 navpoints (evil_urath_find_teleports), picked by evil_urath_pick_teleport_point
+0x248bee8  evil_urath_teleports_b   data:void*[3] -                    O ; second group of 3 navpoints (evil_urath_find_teleports)
+0x248bef4  evil_urath_teleports_c   data:void*[3] -                    O ; third group of 3 navpoints (evil_urath_find_teleports)
+0x248bf08  evil_urath_leap_rise_speed data:float -                    I ; set to 3.0 or 1.5 by evil_urath_ai_leap_rise, used by leap_travel
+0x248bf0c  evil_urath_leap_fall_speed data:float -                    O ; 2.0 or 1.0, times reported_frametime subtracted from evil_urath_leap_height in leap_travel
 0x248bf10  evil_urath_leap_height   data:float -                    O ; height offset held during the leap (evil_urath_hold_height)
+0x248bf14  evil_urath_leap_start_y  data:float -                    O ; boss pos.y saved by evil_urath_ai_leap_start
+0x248bf18  evil_urath_leap_peak_y   data:float -                    O ; peak height computed by evil_urath_ai_leap_rise, compared in leap_travel
+0x248bf1c  evil_urath_casting_spell data:int -                    O ; spell id being cast (evil_urath_cast_spell), -1 when none
+0x248bf20  evil_urath_cast_anim     data:int -                    O ; character +0x6cc anim of the cast, polled by evil_urath_check_stage
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
+0x248bf38  murod_engaged            data:bool -                    I ; set to 1 by murod_boss_load, murod_ai_idle engages when 1
+0x248bf3c  murod_threat_table       data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248bfb4), returned by boss_get_threat_table
+0x248bfb4  murod_target_handle      data:int -                    O ; living handle of the current target, -1 at murod_boss_load
+0x248bfb8  murod_casting_spell      data:int -                    O ; spell id being cast (murod_cast_spell), -1 when none, murod_check_stage
+0x248bfbc  murod_action22_count     data:int -                    O ; times action 0x22 was chosen in a row by murod_ai_select_action (allowed while < 2)
+0x248bfc0  murod_last_health        data:float -                    O ; character +0x5f8 health saved by boss_load / try_self_heal, compared by murod_check_stage
+0x248bfc4  murod_move_anim          data:int -                    O ; character +0x6cc anim of the current cast or leap (murod_cast_spell, murod_start_leap, murod_end_move)
+0x248bfc8  murod_leap_dest          data:vector3 -                    O ; leap destination saved by murod_start_leap, copied to the position by murod_ai_leap
+0x248bfd4  murod_leap_dir           data:vector3 -                    O ; leap direction from murod_start_leap, passed to matrix3__set_from_forward in murod_ai_leap
+0x248bfe0  murod_attack_timer       data:GameTimer -                    O ; set by murod_set_attack_timer
+0x248bfe4  murod_leap_timer         data:GameTimer -                    O ; 20 s / 5 s by murod_start_leap and boss_load, GetRemainingTime check in select_action
+0x248bfe8  murod_heal_timer         data:GameTimer -                    O ; 20 s, rearmed by murod_try_self_heal
+0x248bfec  murod_spell_timer        data:GameTimer -                    I ; 15 s, rearmed in murod_ai_select_action
+0x248bff0  murod_oni_move_0         data:void* -                    O ; murod_oni_moves[0] (0x248c19c), set by murod_oni_init_move_tables
+0x248bff4  murod_oni_move_3         data:void* -                    O ; murod_oni_moves[3] (0x248c1fc), checked by murod_oni_move_is_first
+0x248c004  murod_oni_engaged        data:bool -                    I ; set to 1 by murod_oni_boss_load, murod_oni_ai_idle engages when 1
+0x248c008  murod_oni_threat_table   data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248c080), returned by boss_get_threat_table
+0x248c080  murod_oni_offense_point_count data:int -                    O ; number of offense points found by murod_oni_boss_load (offense_point_name, max 10)
+0x248c084  murod_oni_offense_points data:uint8[0x118] -                    O ; offense point records of 0x1c bytes (handle, ..., pos at +0x10), read by murod_oni_offense_point_reaches
+0x248c19c  murod_oni_moves          data:uint8[0x140] -                    O ; move records of 0x20 bytes parsed from murod_oni_boss.tbl by boss_ai_parse_table
+0x248c2dc  murod_oni_current_move   data:void* -                    O ; boss move record chosen by murod_oni_ai_select_action, cleared by boss_clear_current_move
+0x248c2e0  murod_oni_target_handle  data:int -                    O ; living handle of the current target, -1 at murod_oni_boss_load
+0x248c2e4  murod_oni_saved_target_handle data:int -                    O ; previous target kept by murod_oni_ai_select_action and restored into murod_oni_target_handle, -1 when none
+0x248c2e8  murod_oni_attack_timer   data:GameTimer -                    O ; set by murod_oni_set_attack_timer
+0x248c2ec  murod_oni_crowd_timer    data:GameTimer -                    I ; 20 s (murod_oni_init_timers), checked after ai_count_attackers, then murod_oni_move_4 is played
+0x248c2f4  murod_oni_timer_b        data:GameTimer -                    I ; 5 s (murod_oni_init_timers), checked in murod_oni_ai_select_action
+0x248c2f8  murod_oni_area_hit_count data:int -                    O ; number of handles in murod_oni_area_hits
+0x248c2fc  murod_oni_area_hits      data:int[5] -                    O ; living handles hit by the area attack, consumed by murod_oni_apply_area_hits
+0x248c310  murod_oni_move_1         data:void* -                    O ; murod_oni_moves[1] (0x248c1bc), set by murod_oni_init_move_tables
+0x248c314  murod_oni_move_4         data:void* -                    O ; murod_oni_moves[4] (0x248c21c), set by murod_oni_init_move_tables
+0x248c318  murod_oni_move_2         data:void* -                    O ; murod_oni_moves[2] (0x248c1dc), set by murod_oni_init_move_tables, used by murod_oni_evaluate_target
+0x248c320  tentacle_move_2          data:void* -                    O ; character_find_move(type, 2) stored by tentacle_beast_boss_load, attack kind 1 in tentacle_get_attack_kind
+0x248c328  tentacle_beast_tentacles data:uint8[0x440] -                    O ; 4 tentacle records of 0x110 bytes (character at +0x80, move +0x7c, GameTimer +0xa8), tentacle_find / cycle_tentacles
+0x248c768  tentacle_beast_grab_timer data:GameTimer -                    O ; 10 s (tentacle_beast_frame_hook), invalidated by tentacle_beast_start_grab, polled by battle_update
+0x248c76c  tentacle_beast_battle_started data:bool -                    O ; cleared by tentacle_beast_boss_load, set by cmd_tentacles, gates tentacle_beast_ai_frame / battle_update
+0x248c770  tentacle_beast_grab_ready data:int -                    O ; 1 at boss_load, 0 after tentacle_beast_start_grab, set again by battle_update when the timer runs out
+0x248c774  tentacle_beast_tentacles_lost data:int -                    I ; counter raised by tentacle_beast_check_stage while tentacle_beast_tentacles_up is lowered
 0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
 0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
+0x248c794  tentacle_move_1          data:void* -                    O ; character_find_move(type, 1) stored by tentacle_beast_boss_load, attack kind 0
+0x248c798  tentacle_beast_tentacles_up data:int -                    O ; number of raised tentacles: 4 from cmd_tentacles, +1 in tentacle_beast_ai_frame, -1 in check_stage
+0x248c7a4  tentacle_move_86         data:void* -                    O ; character_find_move(type, 0x86) stored by tentacle_beast_boss_load, attack kind 2
+0x248c7a8  tentacle_beast_active_tentacle data:void* -                    O ; pointer into tentacle_beast_tentacles of the tentacle being driven (60 uses in the tentacle AI)
+0x248c7ac  tentacle_beast_loaded    data:bool -                    O ; set by tentacle_beast_boss_load (skips reinit), cleared by tentacle_beast_unload
+0x248c7ad  tentacle_test_mode       data:bool -                    O ; set by console command tentacle_test, read by tentacle_beast_battle_update
 0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
 0x248c7c0 ccmd_gs_stage            data:console_command -                      O ; console command object "gs_stage"
+0x248c7d0  giant_salamanka_combat_enabled data:bool -                    O ; set by cmd_gsal_combat and the Khosani lab level script, gates giant_salamanka_ai_frame
+0x248c7d4  giant_salamanka_stage    data:int -                    O ; boss stage 1..3 set by giant_salamanka_check_stage, selects the stage attack table
+0x248c7d8  giant_salamanka_forced_stage data:int -                    O ; stage requested by console command gs_stage (< 4), consumed by giant_salamanka_check_stage
+0x248c7dc  giant_salamanka_stage2_reached data:bool -                    O ; set by giant_salamanka_check_stage at the stage 2 threshold, polled by the Khosani lab script
+0x248c7dd  giant_salamanka_stage2_ack data:bool -                    O ; set by the level script, giant_salamanka_check_stage then enters stage 2
+0x248c7de  giant_salamanka_stage3_reached data:bool -                    O ; set by giant_salamanka_check_stage at the stage 3 threshold, polled by the level script
+0x248c7df  giant_salamanka_stage3_ack data:bool -                    O ; set by the level script, giant_salamanka_check_stage then enters stage 3
+0x248c7e4  giant_salamanka_missile_tag data:int -                    O ; character_find_mesh_tag result stored by boss_load, used by giant_salamanka_get_missile_bone
+0x248c7ec  giant_salamanka_threat_table data:int[30] -                    O ; 5 threat records of 0x18 bytes (to 0x248c864), returned by boss_get_threat_table
+0x248c864  giant_salamanka_attack_timer data:GameTimer -                    O ; GameTimer of the Giant Salamanka AI (init_giant_salamanka_timers), checked in select_action
+0x248c868  giant_salamanka_offense_point_count data:int -                    O ; number of offense points found by giant_salamanka_boss_load (max 10), records at 0x248c86c
+0x248cd50  giant_salamanka_current_move data:void* -                    O ; boss move record (0x20 bytes from 0x248c844) chosen by giant_salamanka_ai_select_action
+0x248cd54  giant_salamanka_target_handle data:int -                    I ; stored by giant_salamanka_ai_select_action, compared with ai +0x60 in giant_salamanka_ai_frame
+0x248cd98  giant_salamanka_stage1_attacks data:bool[8] -                    O ; per-move enable flags for stage 1 (giant_salamanka_stage_attack_enabled)
+0x248cda0  giant_salamanka_stage2_attacks data:bool[8] -                    O ; per-move enable flags for stage 2 (giant_salamanka_stage_attack_enabled)
+0x248cda8  giant_salamanka_stage3_attacks data:bool[8] -                    O ; per-move enable flags for stage 3 (giant_salamanka_stage_attack_enabled)
+0x248cdb0  luminar_move_anim        data:int -                    O ; anim handle from character_play_move during grab, release and teleport (luminar_ai_grab, luminar_teleport_out)
+0x248cdb8  luminar_stage            data:int -                    O ; boss stage 1..3 chosen from the health fraction in luminar_ai_select_action, 1 at luminar_boss_load
+0x248cdbc  luminar_forced_stage     data:int -                    O ; stage requested by console command stage (< 4), read by luminar_ai_select_action
+0x248cdc0  luminar_bite_tag_pos     data:vector3 -                    O ; bone position of $tag-30-bite (luminar_boss_load), reach of luminar_choose_melee_move
+0x248cdcc  luminar_pickup_tag_pos   data:vector3 -                    O ; bone position of $tag-22-pickup (luminar_boss_load), used by luminar_ai_grab_approach
+0x248cdd8  luminar_melee_reach      data:float -                    O ; computed by luminar_boss_load from the swing tag bones, subtracted from the target distance in luminar_choose_melee_move and luminar_ai_frame
+0x248cddc  luminar_pickup_reach     data:float -                    O ; length of luminar_pickup_tag_pos plus a constant (luminar_boss_load), passed by luminar_ai_grab_approach
+0x248cde0  luminar_target_handle    data:int -                    O ; living handle of the current target (living_from_handle), -1 at luminar_boss_load and after a release
+0x248cde4  luminar_held_handle      data:int -                    O ; living handle of the grabbed character carried by luminar_frame_hook, -1 when nothing is held, set by luminar_ai_release
+0x248cde8  luminar_release_timer    data:GameTimer -                    I ; 10 s set by luminar_ai_release, 0 at boss_load
+0x248cdec  luminar_teleport_timer   data:GameTimer -                    O ; 20 s / 0.5 s set by luminar_teleport_out, checked in stage 3 by luminar_ai_select_action
+0x248cdf0  luminar_beam_timer       data:GameTimer -                    O ; reset by luminar_beam_start, 20 s after luminar_beam_hit, 6 s in luminar_ai_frame
+0x248ce00  luminar_grab_release_health data:float -                    O ; health (+0x5f8) minus a constant saved by luminar_ai_grab, select_action compares the health with it
+0x248ce0c  luminar_beam_hit_done    data:bool -                    O ; cleared by luminar_beam_start, set by luminar_beam_hit after the first hit
+0x248ce0d  luminar_beam_fx_variant  data:bool -                    I ; 1 or 0 depending on the fx_attach_to_character branch in luminar_beam_start, read by luminar_beam_hit
+0x248ce10  luminar_teleport_dest    data:vector3 -                    O ; destination saved by luminar_teleport_out, applied to the position by luminar_teleport_in
+0x248ce1c  luminar_teleport_dir     data:vector3 -                    O ; facing saved by luminar_teleport_out, passed to matrix3__set_from_forward by luminar_teleport_in
 0x248ce28  luminar_retarget_timer   data:GameTimer -                    O ; luminar_can_switch_target (5 s)
 0x248ce2c  luminar_attack_timer     data:GameTimer -                    O ; luminar_hold_attack / luminar_delay_next_attack
 0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
+0x248ce40  lc_entries               data:uint8[0x3458] new_hud.cpp          O ; 50 records of 0x10c bytes: +0 object/hash, +4 name[0x100], +0x104 flags, +0x108 gold (lc_entry_add, container_examine), count lc_entry_count
+0x249029c  level_script_init_fn     data:void* -                    O ; level_script_info +0x04 of the current level, copied by level_script_select, called by level_script_init / restart
+0x24902a0  level_shopkeeper_count   data:int -                    O ; number of 0x14-byte records in level_shopkeepers (level_parse_shopkeeper, level_shopkeeper_find)
+0x24902a4  level_pending_exit_name  data:char* -                    I ; string stored by random_encounter_check from the tripped trigger, copied by level_apply_pending_change
+0x24902a8  level_music_stop_timer   data:GameTimer -                    I ; 900 ms set by level_script_reparse, level_script_frame stops the music when it elapses
+0x24902ac  level_script_frame_fn    data:void* -                    O ; level_script_info +0x08, swapped for script_cutscene_done by script_play_cutscene, called by level_script_frame
+0x24902b0  cutscene_done_callback   data:void* -                    O ; callback passed to script_play_cutscene, called by script_cutscene_done
+0x24902b4  level_music              data:int -                    O ; music index of the level (music_find_by_name), set by the ls_*_init scripts, -1 by level_script_reparse
 0x24902b8 ccmd_eax_save_props      data:console_command -                      O ; console command object "eax_save_props"
+0x24902c4  level_exit_trigger       data:void* -                    O ; trigger record (level_triggers entry) that started a level exit, used by hud_confirm_level_exit, cleared by hud_level_exit_step_back
 0x24902c8  level_effects            data:void* -                    O ; level effect records (0x28 bytes: name, fx handle +0x20, flag +0x24), level_create_world_effects
+0x2490458  level_ambients           data:uint8[0x800] -                    O ; ambient sound records of 0x10 bytes {emitter, vector3 pos} (level_ambient_add / remove / find_at), count level_ambient_count
+0x2490c5c  level_script_action_fn   data:void* -                    O ; level_script_info +0x18 of the current level, used by conversation_execute_action
+0x2490c60  level_exit_trigger_flags data:int -                    I ; trigger +0x50 copied by random_encounter_check, tested (bit 2) by level_apply_pending_change
 0x2490c68 ccmd_do_frame_callback   data:console_command -                      O ; console command object "do_frame_callback"
+0x2490c74  level_trigger_count      data:int -                    O ; number of records in level_triggers (level_parse_trigger, level_trigger_trip, random_encounter_check)
 0x2490c80 ccmd_dont_load_fx        data:console_command -                      O ; console command object "dont_load_fx"
 0x2490c90 ccmd_No_cutscenes        data:console_command -                      O ; console command object "No_cutscenes"
+0x2490ca0  level_shopkeepers        data:uint8[0x12c] -                    O ; 0x14-byte shopkeeper records filled by level_parse_shopkeeper, searched by level_shopkeeper_find
 0x2490dcc  level_effect_count       data:int -                    O ; count of level_effects
+0x2490dd0  level_triggers           data:uint8[0xc80] -                    O ; 32 trigger records of 0x64 bytes ($Trigger:, flags +0x54, navpoint +0x5c), level_parse_trigger / level_trigger_trip
+0x2491a50  random_encounter_flags   data:int -                    I ; bits 1 and 2 set by random_encounter_check, bit 2 tested by hud_confirm_level_exit
+0x2491a54  level_script_leave_fn    data:void* -                    O ; level_script_info +0x0c of the current level, called by level_script_leave / restart
+0x2491a58  level_ambient_count      data:int -                    O ; number of records in level_ambients
 0x2491a5c game_frozen             data:bool            -                 I ; GameTick sets reported_frametime = 0 when 1
+0x2491a60  level_script_use_fn      data:void* -                    O ; level_script_info +0x10 of the current level (use handler), set by level_script_select
+0x2491a68  lc_entry_count           data:int new_hud.cpp          O ; number of lc_entries (lc_entry_add, hud_interact_nearest, world_mouse_frame)
+0x2491a70  script_avoid_splines     data:int[20] -                    O ; 10 pairs {handle, spline} (-1 = free), script_alloc_avoid_spline / script_free_avoid_spline
+0x2491ac0  level_shop_items         data:uint8[0x1f40] -                    O ; 1000 records of 8 bytes {item, price} filled by level_parse_shopkeeper, count level_shop_item_count
+0x2493a00  level_shop_item_count    data:int -                    O ; number of records in level_shop_items, reset by level_script_reparse
+0x2493a04  cutscene_saved_frame_fn  data:void* -                    O ; level_script_frame_fn saved by script_play_cutscene, restored by script_cutscene_done
+0x2493a08  level_exit_return_pos    data:vector3 -                    O ; position stored by random_encounter_check, put back on cur_character by hud_level_exit_step_back
+0x2493a14  level_script_restarting  data:bool -                    O ; 1 during level_script_restart and level_script_reload, read by level_script_reparse
 0x2493a15 Dont_load_fx             data:bool -                      O ; set by console command "dont_load_fx" (toggles); type from the TOGGLE callback (xor byte 1)
 0x2493a16 No_cutscenes             data:bool -                      O ; set by console command "No_cutscenes" (toggles); type from the TOGGLE callback (xor byte 1)
 0x2493a18 ccmd_loadgame            data:console_command -                      O ; console command object "loadgame"
@@ -9181,27 +9361,316 @@
 0x2494b2c  savegame_buffer          data:uint8_t[0x4b000] -                    O ; the save buffer, a .sav file is its first +0x08 bytes (270755 in v1.40)
 0x24dfb30 ccmd_gamestage           data:console_command -                      O ; console command object "gamestage"
 0x24e3b3c  savegame_file_version    data:int -                    O ; version read from the last header (must be 0x27)
+0x24e3b40  flece_joined             data:bool -                    O ; set when game_stage_set adds Flece with party_member_join, or by ls_lenele1c_frame, cleared by party_level_reset
+0x24e3b41  jekhar_joined            data:bool -                    O ; set when game_stage_set adds Jekhar, or by ls_lpalaceint_frame, cleared by party_level_reset
+0x24e3b42  rosalind_joined          data:bool -                    O ; set when game_stage_set adds Rosalind, or by lsf_iona_ext_found_rosalind, cleared by party_level_reset
+0x24e3b43  level_script_event_active data:bool -                    O ; set by level-script event helpers, cleared by level_script_event_flag_clear, savegame_location_allowed refuses saving when 1
 0x24e3b48 Preparse_scripts         data:bool -                      O ; set by console command "Preparse_scripts" (toggles); type from the TOGGLE callback (xor byte 1)
+0x24e3b50  level_items              data:uint8[0xe00] items.cpp            O ; 32 level item records of 0x70 bytes (level_items_parse_table, item_obj_pickup, savegame_read_level_items), count level_item_count
+0x24e4950  navpoints                data:uint8[0x8ca0] -                    O ; 750 navpoint records of 0x30 bytes (name, +0x10 handle, +0x14 pos), navpoint_find / level_add_navpoint, count navpoint_count
 0x24ed5f0 ccmd_door_toggle         data:console_command -                      O ; console command object "door_toggle"
+0x24ed600  script_filenames_string_pool data:StringPool -                    O ; StringPool over 0x24ed614 (0x800), reset and filled by script_filenames_parse_table
+0x24f6218  events_string_pool       data:StringPool -                    O ; StringPool over 0x24ede14 (0x8400), filled by events_parse_table
+0x24f6230  script_objects           data:script_object[200] -                    O ; 0x550-byte script object records (script_object_find, level_script_entries_frame), count script_object_count
 0x25388b0 ccmd_door_open           data:console_command -                      O ; console command object "door_open"
 0x25388c0  conversation_save_table  data:void*[357*4] -                    I ; 51 x 7 entries of 0x10: {conversation name, speaker count, topic count, ?}, sizes the conversation section
+0x2539f10  level_item_count         data:int -                    O ; number of level_items, reset by navpoints_reset and level_items_parse_table
 0x2539f18  level_script_stringpool  data:StringPool -                    O ; level script string pool (init_stringpool_2539f18), used by script_editor_store_string
+0x2539f2c  navpoint_count           data:int -                    O ; number of navpoints (level_add_navpoint, navpoint_find, navpoints_reset)
 0x253ef30 ccmd_door_close          data:console_command -                      O ; console command object "door_close"
+0x253ef40  quest_table              data:quest_info[200] new_journal.cpp      O ; 0x6c-byte quest records from events.tbl ($Quest:), journal_get_quest / journal_draw_quest_list, count quest_count
+0x25443a0  script_object_count      data:int -                    O ; number of script_objects, reset by level_script_reparse and level_script_parse_table
+0x25443a4  quest_count              data:int new_journal.cpp      O ; number of quest_table records (events_parse_table, journal_init, quest_evaluate)
+0x25443a8  level_entered_by_load    data:bool -                    I ; set by game_change_level when a save is pending or a mode-3 change goes to a level other than masad, blocks the party joins in game_stage_set and the tutorial
 0x25443ac  Script_filenames_tbl_checksum data:uint32_t -                    O ; name from the printf string, written to header +0x1e4, not checked on load
+0x25443b0  dialogue_color_red       data:Color -                    O ; (150, 80, 80) from init_color_25443b0, dialogue_line__init line colour
+0x25443b4  dialogue_selected_topic  data:int -                    O ; topic index under the mouse in dialogue_frame (indexes the 0x18-byte records at 0x2545ba0), drawn by dialogue_draw, reset by conversation_end
+0x25443b8  dialogue_color_yellow    data:Color -                    O ; (255, 255, 158) from init_color_25443b8, dialogue_topic_entry__init topic colour
+0x25443fc  dialogue_end_text        data:char* -                    O ; localize_strings entry 950 "end", drawn by dialogue_topic_entry__init
+0x2544400  dialogue_color_blue      data:Color -                    O ; (107, 154, 184) from init_color_2544400, dialogue_line__init line colour
+0x2544408  dialogue_text_box        data:uint8[0x1750] new_dialogue.cpp     O ; dialogue line box object (init_dialogue_box_2544408): dialogue_box__set_rect, conversation_start, dialogue_text_box_draw, 64-line ring at +0x20/+0x24
+0x2545b58  dialogue_more_text       data:char* -                    O ; localize_strings entry 949 "more", drawn by dialogue_topic_entry__init
+0x2545b5c  dialogue_color_gray      data:Color -                    O ; (180, 180, 180) from init_color_2545b5c, dialogue line and topic colour
+0x2545b64  dialogue_color_green     data:Color -                    O ; (95, 197, 88) from init_color_2545b64, dialogue_line__init line colour
+0x2545b68  dialogue_topic_box       data:uint8[0x38] new_dialogue.cpp     O ; dialogue topic box object (init_dialogue_topic_box_2545b68): dialogue_box__item_visible, dialogue_topic_box_draw
+0x2546194  dialogue_color_highlight data:Color -                    O ; (255, 255, 158) from init_color_2546194, dialogue_topic_entry__init colour of the topic under the mouse
+0x25461a0  conversation_db          data:uint8[0x310] new_saveload.cpp     I ; conversation storage object (thiscall): conversation_alloc_storage at GameInit, conversation_has_speaker (+0x20c list), conversation_save_state, 36 users
+0x25464b0  conversation_active      data:uint8[0x280] living_entity.cpp    I ; the running conversation object: conversation_reset_state, conversation_request_end, conversation_end_cleanup (thiscall)
 0x2546730 ccmd_dialogue_make_topic_unavailable data:console_command -                      O ; console command object "dialogue_make_topic_unavailable"
 0x2546740 ccmd_dialogue_make_topic_available data:console_command -                      O ; console command object "dialogue_make_topic_available"
 0x2546750 ccmd_dcamera             data:console_command -                      O ; console command object "dcamera"
+0x2546760  cutscene_saved_equipment data:int[48] -                    O ; 16 records {character handle, item, slot} saved by script_action_replace_weapon / _armor, restored by cutscene_script_rewind_actors
+0x2546820  cutscene_saved_equipment_count data:int -                    O ; number of cutscene_saved_equipment records
+0x2546828  script_editor_door_locked_checkbox data:uint8[0x3a8] -                    O ; ui_checkbox (script_editor_create_ui): Originally locked of the door window
 0x2546bd0  script_editor_hover_kind data:int -                    O ; kind of the object under the mouse, set by script_editor_pick_hover
+0x2546bd4  script_editor_hover_size data:vector3 -                    O ; size of the object under the mouse (script_editor_ray_hit_object), copied to the selection by script_editor_handle_input
+0x2546be0  script_editor_hover_pos  data:vector3 -                    O ; position of the object under the mouse (script_editor_ray_hit_object), drawn by script_editor_frame
+0x2546bec  script_editor_hover_orient data:matrix3 -                    O ; orientation of the object under the mouse, gr_draw_arrow_3d in script_editor_frame, matrix3__copy to the selection
 0x2546c10  script_editor_hover_object data:void* -                    O ; object under the mouse, set by script_editor_pick_hover
+0x2546c18  script_editor_delete_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Del (script_editor_on_delete)
+0x2547040  script_editor_action_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_action_window
+0x2547468  script_editor_param_inputboxes data:uint8[0x1c70] -                    O ; 5 ui_inputbox objects of 0x5b0 bytes (init_ui_array_2547468), action parameter fields in script_editor_show_action_params
+0x25490d8  script_editor_door_sound_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): sound name of the door window (script_editor_list_door_sounds)
+0x2549688  script_editor_level_item_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): item list of the level item window
+0x25499a8  script_editor_selection_panel data:uint8[0x388] -                    O ; ui_container (script_editor_create_ui): full-screen container of the selection panel (script_editor_show_selection_panel)
 0x2549d30 ccmd_render_s3d_navpoints data:console_command -                      O ; console command object "render_s3d_navpoints"
+0x2549d40  script_editor_door_lock_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): first field (10,25) of the door lock window, script_editor_show_door_lock
+0x254a2f0  script_editor_door_close_volume_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): second Volume field at the same place (closing sound)
 0x254a8a0 ccmd_remove_nav          data:console_command -                      O ; console command object "remove_nav"
+0x254a8d8  script_editor_ambient_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): ambient sound dialog: name, list, Min range, Volume, Roll-off, Loop Delay, OK (script_editor_ambient_ok)
+0x254adc8  script_editor_load_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_load_window
+0x254b1f0  script_editor_door_lock_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): door lock dialog: item inputbox and list, Give item, OK / Remove (script_editor_show_door_lock)
+0x254b6e0  script_editor_y_button   data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Y (script_editor_on_pos_ori)
+0x254bb08  script_editor_edit_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Edit
+0x254bf30  script_editor_load_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): name field of script_editor_load_window (script_editor_script_name_cb)
+0x254c4e0  script_editor_window     data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): main editor bar (640x60 at y 420)
+0x254c9d0  script_editor_action_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): main bar list of script entries (111,3 200x55)
+0x254ccf0  script_editor_action_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Ok of script_editor_action_window
+0x254d118  script_editor_level_item_count_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Count: of the level item window
+0x254d4e8  script_editor_creature_level_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Level of the creature window (script_editor_show_creature_info)
+0x254da98  script_editor_action_list_kind data:int -                    I ; which list the action window shows (1..9), set by script_editor_fill_action_lists / select_next
+0x254daa0  script_editor_save_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): script name of script_editor_save_window (set to level_filename)
+0x254e020  script_editor_name_room  data:int -                    I ; 0x20 minus a string length, computed by script_editor_create_ui and script_save before the script file name
+0x254e050  script_editor_new_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_new_window
+0x254e478  script_editor_door_lock_remove_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Remove of the door lock window
+0x254e8a0  script_editor_creature_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of the creature window
+0x254ecc8  script_editor_status_text data:char[256] -                    O ; status message copied by script_editor_set_status, drawn by script_editor_frame for 2 s
+0x254edc8  script_editor_ori_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Ori (script_editor_on_pos_ori)
+0x254f208  script_editor_load_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): script name, script list, Level/Cutscene scripts radios, Load / Cancel
+0x254f710  script_editor_new_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar New (script_editor_on_new)
+0x254fb38  script_editor_creature_team_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Team: of the creature window
+0x254ff08  script_editor_door_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of the door window
+0x2550330  script_editor_door_skill_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): pick skill modifier (digits) of the door window
+0x25508e0  script_editor_new_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): creature/object list for New (listbox 0x2563a68, Ok/Cancel)
+0x2550dd0  script_editor_choice_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): small list window (listbox 0x255ff78) filled by script_editor_fill_action_lists
+0x25512c0  script_editor_door_volume_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Volume: of the door window
+0x2551690  script_editor_save_filename_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Filename: label of the save window
+0x2551e88  script_editor_level_item_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): item name of the level item window (script_editor_level_item_cb)
+0x2552438  script_editor_load_cutscene_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Cutscene scripts of the load window
+0x25527e0  script_editor_cutscene_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Cutscene Script (script_editor_sync_cutscene_button)
+0x2552c08  script_editor_mouse_ray_origin data:vector3 -                    O ; filled by gr_screen_to_world_ray in script_editor_frame, used by the editor picking and placement
+0x2552c14  script_editor_mouse_ray_dir data:vector3 -                    O ; direction half of the gr_screen_to_world_ray output, world_pick_lobj in script_editor_pick_hover
+0x2552c20  script_editor_save_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): Script name / Filename / Level or Cutscene script / Save / Cancel
+0x2553110  script_editor_params_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): Edit Script Parameters, Ok / Cancel
+0x2553600  script_editor_save_name_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Script name: label of the save window
+0x25539d0  script_editor_ambient_volume_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Volume of the ambient window
+0x2553f80  script_editor_door_skill_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Pick skill modifier: of the door window
+0x255434c  script_editor_status_timer data:int -                    O ; RealtimeTimer (init_script_editor_status_timer), 2 s set by script_editor_set_status, elapsed hides the status text
+0x2554350  script_editor_ambient_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): sound name of the ambient window (script_editor_ambient_name_cb)
+0x2554900  script_editor_load_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Load of script_editor_load_window
+0x2554d28  script_editor_action_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): action type list (listbox 0x2564d50, Ok/Cancel), script_editor_fill_action_lists
+0x2555218  script_editor_door_lock_item_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): item list of the door lock window
+0x2555538  script_editor_creature_info_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): text after the level field, set by script_editor_show_creature_info
+0x2555908  script_editor_name_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): main bar name field (3,3), navpoint_set_name
+0x2555eb8  script_editor_save_level_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Level script of the save window
+0x2556260  script_editor_mode_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar (500,3), text = mode name from the table at 0x5a08a8
+0x2556688  script_editor_params_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Ok of script_editor_params_window
+0x2556c40  script_editor_ambient_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of the ambient window
+0x2557068  script_editor_load_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): script list of script_editor_load_window (script_editor_list_scripts)
+0x2557388  script_editor_load_kind_container data:uint8[0x388] -                    O ; ui_container (script_editor_create_ui): holds the Level / Cutscene scripts radios of the load window
+0x2557710  script_editor_creature_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): OK of the creature window (script_editor_creature_ok)
+0x2557b38  script_editor_prev_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar < Prev
+0x2557f60  script_editor_delete_action_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Del under A / I
+0x2558388  script_editor_param_labels data:uint8[0x12fc] -                    O ; 5 ui_static objects of 0x3cc bytes (init_ui_static_array_2558388), labels of the action parameter fields
+0x2559688  script_editor_door_key_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): key item name of the door window (script_editor_door_key_cb)
+0x2559c38  script_editor_creature_level_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Level: of the creature window
 0x255a008  script_editor_sel_kind   data:int -                    O ; editor selection kind (1 character, 2 navpoint, 3, 4), script_editor_show_selection_panel switch
+0x255a00c  script_editor_sel_size   data:vector3 -                    O ; size of the selected object (character_size_radius / height or navpoint 0.8, 0.4, 0.8), script_editor_focus_selection
+0x255a018  script_editor_sel_pos    data:vector3 -                    O ; position of the selected object, set by script_editor_focus_selection
+0x255a024  script_editor_sel_orient data:matrix3 -                    O ; orientation of the selected object (matrix3__set_from_angles for navpoints), script_editor_focus_selection
 0x255a048  script_editor_sel_object data:void* -                    O ; selected character / navpoint / object of the script editor
+0x255a050  script_editor_ambient_rolloff_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Roll-off: of the ambient window
+0x255a420  script_editor_save_cutscene_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Cutscene script of the save window
+0x255a7d8  script_editor_door_opening_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Opening sound of the door window
+0x255ab80  script_editor_creature_neutral_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Neutral team
+0x255af28  script_editor_ambient_loop_delay_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Loop Delay of the ambient window
+0x255b4d8  script_ambients_dirty    data:bool -                    O ; set when the ambient window is accepted, script_save_files writes the ambient table and clears it, reset by level_script_reparse
+0x255b4e0  script_editor_insert_action_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar I next to the action list
+0x255b908  script_editor_door_lock_give_checkbox data:uint8[0x3a8] -                    O ; ui_checkbox (script_editor_create_ui): Give item of the door lock window
+0x255bcb0  script_editor_save_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_save_window
+0x255c0d8  script_editor_door_lock_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): OK of the door lock window
+0x255c500  script_editor_door_lock_item_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): item field of the door lock window (script_editor_door_item_cb)
+0x255ced8  script_editor_pause_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Pause (script_editor_on_pause)
+0x255d300  script_editor_creature_evil_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Evil team
+0x255d6a8  script_editor_door_open_rolloff_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): first Roll-off field of the door window (opening sound)
+0x255dc58  script_editor_pick_distance data:float -                    O ; nearest hit distance (starts at 1e11) in script_editor_pick_hover / script_editor_ray_hit_object
+0x255dc60  script_editor_alloc_pool data:uint8[0x20] -                    I ; NoRlsAllocPool over script_editor_alloc_pool_buffer (init_alloc_pool_255dc60), reset by script_write_level_script
+0x255dc80  script_editor_door_lock_value_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): numeric field (310,147) of the door lock window
+0x255e230  script_editor_ambient_min_range_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Min range: of the ambient window
+0x255e600  script_editor_door_closing_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Closing sound of the door window
+0x255e9d8  script_editor_ambient_loop_delay_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Loop Delay: of the ambient window
+0x255eda8  script_editor_door_rolloff_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Roll-off: of the door window
+0x255f178  script_editor_change_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Change
+0x255f5a0  script_editor_new_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Ok of script_editor_new_window
+0x255f9c8  script_editor_door_open_min_range_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): first Min range field of the door window (opening sound)
+0x255ff78  script_editor_choice_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): list of script_editor_choice_window
+0x2560298  script_editor_params_title data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Edit Script Parameters title
+0x2560668  script_editor_load_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Load (script_editor_on_load)
+0x2560a90  script_editor_append_action_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar A next to the action list
+0x2560eb8  script_editor_save_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Save
+0x25612e0  script_editor_door_min_range_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Min range: of the door window
+0x25616b0  script_editor_door_close_rolloff_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): second Roll-off field at the same place (closing sound)
+0x2561c60  script_editor_level_item_count_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Count of the level item window
+0x2562210  script_editor_level_item_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of the level item window
+0x2562638  script_editor_save_kind_container data:uint8[0x388] -                    O ; ui_container (script_editor_create_ui): holds the Level / Cutscene script radios of the save window
+0x25629c0  script_editor_mode       data:int -                    O ; editor mode 0..5, mode names table 0x5a08a8 (Click object ...), tested by script_editor_frame / draw_navpoints
+0x25629c8  script_editor_door_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): door dialog: opening/closing sounds, Originally locked, skill modifier, key item, OK (script_editor_door_ok)
+0x2562eb8  script_editor_creature_hostile_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Hostile team
+0x256325c  script_editor_param_field_count data:int -                    I ; number of active parameter fields set by script_editor_show_action_params, used as a modulo when tabbing
+0x2563260  script_editor_ambient_volume_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): Volume: of the ambient window
+0x256362c  script_editor_new_selection data:int -                    O ; entry data (+0x34) of the item chosen in script_editor_new_listbox, used by script_editor_place_creature
+0x2563a68  script_editor_new_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): list of script_editor_new_window, script_editor_on_new
+0x2563d88  script_level_items_dirty data:bool -                    O ; set by script_editor_level_item_ok, script_save_files writes the level items and clears it
+0x2563d90  script_editor_creature_team_container data:uint8[0x388] -                    O ; ui_container (script_editor_create_ui): holds the four team radios
+0x2564118  script_editor_door_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): OK of the door window (script_editor_door_ok)
+0x2564540  script_editor_level_item_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): level item dialog: name, list, Count, OK (script_editor_level_item_ok)
+0x2564a30  script_editor_ambient_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): sound list of the ambient window (script_editor_list_ambient_sounds)
+0x2564d04  script_editor_ambient_file_list data:uint8[0x10] -                    I ; list head sentinel of the ambient sound file list walked by script_editor_list_ambient_sounds (next at +8)
+0x2564d50  script_editor_action_type_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): list of script_editor_action_window (52 uses)
+0x2565070  script_editor_next_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Next >
+0x2565498  script_editor_load_level_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Level scripts of the load window
+0x2565840  script_editor_door_sound_container data:uint8[0x388] -                    O ; ui_container (script_editor_create_ui): holds the Opening / Closing sound radios of the door window
+0x2565bc8  script_editor_pos_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar Pos (script_editor_on_pos_ori)
+0x2565ff0  script_editor_creature_friendly_radio data:uint8[0x3a8] -                    O ; ui_radio_button (script_editor_create_ui): Friendly team
+0x2566398  script_editor_door_open_sound_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): first of the two sound lists at the same place in the door window (opening sound)
+0x25666b8  script_editor_door_percent_label data:uint8[0x3cc] -                    O ; ui_static (script_editor_create_ui): % after the skill modifier
+0x2566a84  script_editor_pick_filter data:int -                    O ; which object kinds script_editor_pick_hover tries (1..4), set from the mode by script_editor_update_buttons
+0x2566a88  script_editor_time_back_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): main bar < Time (script_editor_on_time_back)
+0x2566eb0  script_editor_choice_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Ok of script_editor_choice_window
+0x25672d8  script_editor_choice_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_choice_window
+0x2567700  script_editor_door_close_sound_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): second of the two sound lists at the same place in the door window (closing sound)
+0x2567a20  script_editor_door_close_min_range_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): second Min range field at the same place (closing sound)
+0x2567fd0  script_editor_save_filename_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): file name of script_editor_save_window
+0x2568580  script_editor_params_cancel_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Cancel of script_editor_params_window
+0x25689a8  script_editor_door_open_volume_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): first Volume field of the door window (opening sound)
+0x2568f58  script_editor_alloc_pool_buffer data:uint8[0x800] -                    O ; 0x800-byte buffer given to NoRlsAllocPool__Init (script_editor_create_ui, script_write_level_script)
+0x2569758  script_editor_door_key_listbox data:uint8[0x320] -                    O ; ui_listbox (script_editor_create_ui): key item list of the door window (item types except gold)
+0x2569a78  script_editor_level_item_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): OK of the level item window (script_editor_level_item_ok)
+0x2569ea0  script_editor_ambient_rolloff_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Roll-off of the ambient window
+0x256a450  script_editor_ambient_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): OK of the ambient window (script_editor_ambient_ok)
+0x256a878  script_editor_ambient_min_range_inputbox data:uint8[0x5b0] -                    O ; ui_inputbox (script_editor_create_ui): Min range of the ambient window
+0x256ae28  script_editor_save_ok_button data:uint8[0x428] -                    O ; ui_button (script_editor_create_ui): Save of script_editor_save_window
+0x256b250  script_editor_creature_window data:uint8[0x4f0] -                    O ; ui_window (script_editor_create_ui): creature dialog: Team radios, Level, OK (script_editor_creature_ok)
+0x256b73c  script_editor_ui_created data:bool -                    O ; set at the end of script_editor_create_ui, script_editor_frame creates the UI when 0, cleared by script_editor_close
+0x256b740  script_editor_cur_script data:void* -                    O ; script object (script_objects or cutscene_script_objects record) being edited, 58 uses
+0x256b744  script_editor_cur_action data:void* -                    O ; selected entry of the current script (+0x34 navpoint index), 40 uses
+0x256b749  script_editor_lists_dirty data:bool -                    O ; set by script_create, script_editor_update_buttons then calls script_editor_fill_action_lists and clears it
 0x256b74a Render_s3d_navpoints     data:bool -                      O ; set by console command "render_s3d_navpoints" (toggles); type from the TOGGLE callback (xor byte 1)
+0x256b74c  script_editor_sel_action_index data:int -                    O ; selected entry index in the current script, script_editor_fill_action_list / script_create
+0x256b750  cutscene_navpoints       data:uint8[0x8818] -                    O ; cutscene navpoint records of 0x30 bytes (second table of navpoint_find), count cutscene_navpoint_count
 0x2571750  cutscene_script_stringpool data:StringPool -                    O ; cutscene script string pool (init_stringpool_2571750), reset by cutscene_script_unload
+0x2573f68  cutscene_script_objects  data:script_object[32] -                    O ; 0x550-byte cutscene script objects (init_cutscene_object_timers loops 32), count cutscene_script_object_count
+0x257e968  cutscene_script_object_count data:int -                    O ; number of cutscene_script_objects (script_parse_objects, cutscene_script_unload)
+0x257e96c  cutscene_navpoint_count  data:int -                    O ; number of cutscene_navpoints (navpoint_find, script_editor_add_navpoint)
+0x257e970  cutscene_time            data:float -                    O ; cutscene clock advanced by reported_frametime in cutscene_script_entries_frame, shown as Cutscene time: %.1f
+0x257e974  cutscene_script_name     data:char[0x24] -                    O ; name of the loaded cutscene script (cutscene_script_load), compared by cutscene_script_is_active, returned by cutscene_script_table
+0x257e998  ls_sewerboss_golems_done data:bool -                    O ; set by ls_sewerboss_frame once ls_sewerboss_golems_dead (camera mode, Sewer music), cleared by lsf_sewer_found_tb
+0x257e99c  ls_sewerboss_music_timer data:GameTimer -                    O ; GameTimer (init_ls_sewerboss_timer) set by lsf_sewer_found_tb, on expiry ls_sewerboss_frame plays the Sewer Boss music
+0x257e9a0  ls_sewerboss_avoid_spline data:int -                    O ; avoid spline handle of the sewer boss room (ls_sewer_create_avoid_spline), freed by ls_sewerboss_frame / ls_sewerboss_leave, -1 when none
+0x257e9a4  ls_sewer_arrival         data:int -                    I ; 1, 2 or 3 set by ls_sewer_init from the game stage and the previous level (lenele1d), ls_sewer_frame runs the comments in case 1
+0x257e9a8  ls_ikaemosbottomint2_trapped_titus_done data:bool -                    O ; set when the trapped_titus flag starts the IkaemosPalace music (ls_ikaemosbottomint2_frame)
+0x257e9ac  ls_ikaemosbottomint2_timer data:GameTimer -                    O ; GameTimer (init_ls_ikaemosbottomint2_timer) 20 s / 30 s, gates ls_ikaemosbottomint2_jekhar_remark
+0x257e9b0  ls_ikaemosbottomint2_titus_intro_done data:bool -                    O ; set when the titus_intro flag starts the Titus music (ls_ikaemosbottomint2_frame)
+0x257e9b4  ls_templeint2_mach_killed_done data:bool -                    O ; set by lsf_mach_killed when mach_killed starts the Questions music, cleared by ls_templeint2_init
+0x257e9b6  ls_templeint2_forge_entered data:bool -                    O ; set by ls_templeint2_enter_forge before the End1-EnterForge / End1-Montage cutscenes
+0x257e9b7  ls_templeint2_act4_played data:bool -                    O ; set by ls_templeint2_frame after the Nar-TempleAct4 cutscene, cleared by ls_templeint2_init
+0x257e9b8  ls_templeint2_end2_ready data:bool -                    I ; set by lsf_mach_killed after placing the party at entry 2, ls_templeint2_enter_forge then checks $end2trig
+0x257e9bc  ls_jadetemple_murod_intro_done data:bool -                    O ; set by lsf_murod_intro when murod_intro starts the Boss music, preset from the saved flags by ls_jadetemple_init
+0x257e9bd  ls_jadetemple_tiger_dead_done data:bool -                    O ; set by lsf_tg_intro once tiger_dead restores the level music, preset by ls_jadetemple_init
+0x257e9c0  ls_jadetemple_tiger2_timer data:GameTimer -                    O ; GameTimer (init_ls_jadetemple_timers) 8 s after the second tiger dies (lsf_tiger2_dead)
+0x257e9c4  ls_jadetemple_murod_dead_done data:bool -                    O ; set by lsf_murod_intro once murod_dead restores the level music
+0x257e9c5  ls_jadetemple_tg_intro_done data:bool -                    O ; set by lsf_tg_intro when tg_intro starts the Boss music
+0x257e9c8  ls_jadetemple_fade_timer data:GameTimer -                    O ; GameTimer (init_ls_jadetemple_timers) 5 s with gr_fade_out in lsf_tiger2_dead
+0x257e9cc  ls_jadetemple_place_pending data:bool -                    I ; set by ls_jadetemple_action, ls_jadetemple_frame then moves the party
+0x257e9d0  ls_lenele3d_timer        data:GameTimer -                    O ; GameTimer built by init_ls_jadetemple_timer_b, 1 s set by ls_lenele3d_init
+0x257e9ec  ls_eleh_go_ground        data:bool -                    O ; elevator choice GroundFloor set by ls_eleh_action, read by ls_eleh_cutscene_frame (entry point 5)
+0x257e9ed  ls_eleh_go_bottom        data:bool -                    O ; elevator choice BottomFloor set by ls_eleh_action, read by ls_eleh_cutscene_frame
+0x257e9ee  ls_eleh_go_other         data:bool -                    I ; third elevator choice set by ls_eleh_action, read by ls_eleh_cutscene_frame
+0x257e9ef  ls_eleh_go_top           data:bool -                    O ; elevator choice TopFloor set by ls_eleh_action, ls_eleh_frame moves the party and clears it
+0x257e9f4  ls_wolong2_alert_pending data:bool -                    I ; set by ls_wolong2_force_alert, ls_wolong2_frame moves the party (character_place_at_marker) and clears it
+0x257e9f8  ls_khosanilab2_pyrulstart_done data:bool -                    O ; set when pyrulstart starts the Pyrul music (ls_khosanilab2_frame)
+0x257e9f9  ls_khosanilab2_trapped_pyrul_done data:bool -                    O ; set when trapped_pyrul starts the KhosaniLab music (ls_khosanilab2_frame)
+0x257e9fc  ls_lpalaceint02_sgintro_done data:bool -                    O ; set when sgintro starts the Boss music (ls_lpalaceint02_frame), preset by ls_lpalaceint02_init
+0x257e9fd  ls_lpalaceint02_bothdead_done data:bool -                    O ; set when bothdead restores the level music (ls_lpalaceint02_frame)
+0x257ea00  ls_lpalaceint_sneak_timer data:GameTimer -                    O ; GameTimer (init_ls_lpalaceint_timer) of the sneak sequence, gates ls_lpalaceint_sneak_remark
+0x257ea05  ls_lpalaceint_got_suit_done data:bool -                    O ; cleared by ls_lpalaceint_init, set once got_suit moves the palace guards (ls_lpalaceint_sneak_frame)
+0x257ea10  ls_lpalaceint_sneak_state data:int -                    O ; 0, 1 or 2 state of ls_lpalaceint_sneak_frame (caught fade sequence), 0 at ls_lpalaceint_init
+0x257ea14  ls_lpalaceint_yago_meeting_pending data:bool -                    O ; set by ls_lpalaceint_action, ls_lpalaceint_frame plays Meeting-With-Yago and clears it
+0x257ea18  ls_lpalaceint_remark_stage data:int -                    O ; 0, 1, 2 stage of ls_lpalaceint_sneak_remark (party remarks after being caught)
+0x257ea1c  ls_lpalaceint_caught_remark_pending data:bool -                    I ; set with the sneak attempt counter in ls_lpalaceint_sneak_frame, cleared after Flece speaks in ls_lpalaceint_sneak_remark
+0x257ea20  ls_lpalaceint_guard_halt_lines data:char*[7] -                    O ; 7 localize_strings entries (init_lpalaceint_guard_halt_lines), one picked at random by ls_lpalaceint_sneak_frame
+0x257ea3c  ls_lpalaceint_guard_servant_lines data:char*[5] -                    O ; 5 localize_strings entries (init_lpalaceint_guard_servant_lines), picked at random by ls_lpalaceint_sneak_frame
+0x257ea50  ls_lpalaceint_guard_servant_line data:char* -                    O ; localize_strings entry set by init_lpalaceint_guard_servant_line, said by ls_lpalaceint_sneak_frame
+0x257ea54  ls_lpalaceint_king_audience_pending data:bool -                    O ; set by ls_lpalaceint_action, ls_lpalaceint_frame then adds Jekhar and plays King-Audience-B
+0x257ea55  ls_lpalaceint_talked_to_joe data:bool -                    O ; set by lsf_lpalaceint_talked_to_joe, ls_lpalaceint_frame then makes Yago talk and disables Joseph
+0x257ea58  ls_ionaext02_timer       data:GameTimer -                    O ; GameTimer (init_ls_ionaext02_timer) 20 s / 30 s, gates ls_ionaext02_rosalind_remark
+0x257ea5c  ls_ionaext02_trapped_luminar_done data:bool -                    O ; set when trapped_luminar starts the IonaExt2 music (ls_ionaext02_frame)
+0x257ea5d  ls_ionaext02_luminar_intro_done data:bool -                    O ; set when luminar_intro starts the Luminar music (ls_ionaext02_frame)
+0x257ea60  ls_liangshan_phoenix_serpent_done data:bool -                    O ; set when phoenix_serpent starts the Boss music (ls_liangshan_frame)
+0x257ea61  ls_liangshan_phoenix_dead_done data:bool -                    O ; set when phoenix_dead restores the level music (ls_liangshan_frame)
+0x257ea64  ls_rand_forestnite1_ghost_intro_done data:bool -                    O ; set when ghost_intro_played starts the Boss music (ls_rand_forestnite1_frame)
+0x257ea65  ls_rand_forestnite1_ghost_killed_done data:bool -                    O ; set when ghost_killed restores the level music (ls_rand_forestnite1_frame)
+0x257ea68  ls_rand_forest01_serpent_intro_done data:bool -                    O ; set when serpent_intro_played starts the Boss music (ls_rand_forest01_frame)
+0x257ea69  ls_rand_forest01_serpent_killed_done data:bool -                    O ; set when serpent_killed restores the level music (ls_rand_forest01_frame)
+0x257ea6a  ls_rand_forest01_exit_pending data:bool -                    I ; set by ls_rand_forest01_action, ls_rand_forest01_frame then changes level (entry point 1)
+0x257ea6c  ls_templeint_tiger_intro_done data:bool -                    O ; set when tiger_intro_played starts the Boss music (ls_templeint_frame)
+0x257ea6d  ls_templeint_tiger_killed_done data:bool -                    O ; set when tiger_killed restores the level music (ls_templeint_frame)
+0x257ea6e  ls_templeint_play_urathmyth1a data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth1a and clears it
+0x257ea6f  ls_templeint_play_urathmyth1b data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth1b and clears it
+0x257ea70  ls_templeint_play_urathmyth1c data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth1c and clears it
+0x257ea71  ls_templeint_play_urathmyth1d data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth1d and clears it
+0x257ea72  ls_templeint_play_urathmyth2a data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth2a and clears it
+0x257ea73  ls_templeint_play_urathmyth2b data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth2b and clears it
+0x257ea74  ls_templeint_play_urathmyth2c data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth2c and clears it
+0x257ea75  ls_templeint_play_urathmyth2d data:bool -                    O ; set by ls_templeint_action, ls_templeint_frame plays UrathMyth2d and clears it
+0x257ea76  ls_templeint_eavesdrop_pending data:bool -                    O ; set by ls_templeint_init, ls_templeint_frame plays Eavesdropping and sets sornehan_played
+0x257ea78  ls_wolongcaverns_ptrap_timer data:GameTimer -                    O ; poison trap GameTimer (init_ls_wolongcaverns_ptrap_timer), ls_wolongcaverns_ptrap_fire
+0x257ea80  ls_wolongcaverns_poisonmist_sound data:int -                    O ; snd_get_handle of wolong_caverns_poisonmist.wav (ls_wolongcaverns_init), played by ls_wolongcaverns_ptrap_fire
+0x257ea84  ls_wolongcaverns_trap1_timer data:GameTimer -                    O ; spear trap 1 GameTimer (init_ls_wolongcaverns_trap1_timer), ls_wolongcaverns_trap1_fire
+0x257ea88  ls_wolongcaverns_ptrap_pos data:vector3 -                    O ; position of navpoint $poisontrap (ls_wolongcaverns_init), distance test in ls_wolongcaverns_ptrap_frame / fire
+0x257ea94  ls_wolongcaverns_speartrap_sound data:int -                    O ; snd_get_handle of wolong_caverns_speartrap_up.wav, played by ls_wolongcaverns_trap1_fire / trap2_fire
+0x257ea98  ls_wolongcaverns_ptrap_fx data:int -                    O ; fx_create_world handle of wc-ptrap.vfx (ls_wolongcaverns_ptrap_fire), -1 at init
+0x257eaa0  ls_wolongcaverns_trap2_fx data:int -                    O ; fx_create_world handle of wc-trap2.vfx (ls_wolongcaverns_trap2_fire), -1 at init
+0x257eaa4  ls_wolongcaverns_trap1_fx data:int -                    O ; fx_create_world handle of wc-trap1.vfx (ls_wolongcaverns_trap1_fire), -1 at init
+0x257eaa8  ls_wolongcaverns_trap2_timer data:GameTimer -                    O ; spear trap 2 GameTimer (init_ls_wolongcaverns_trap2_timer), ls_wolongcaverns_trap2_fire
+0x257eaf8  ls_wolongcaverns_demilich_step data:int -                    O ; step of ls_wolongcaverns_demilich_sequence (Balis the Demilich), set by ls_wolongcaverns_action, 0 at init
+0x257eb00  ls_ionaext_elevator_timer data:GameTimer -                    O ; function-static GameTimer of ls_ionaext_cutscene_frame (guard bit in 0x257eb04, atexit), 0.5 s steps
+0x257eb08  ls_ionaext_cutscene_state data:int -                    O ; 0, 1, 2 state of ls_ionaext_cutscene_frame, 0 at ls_ionaext_init
+0x257eb0c  ls_ionaext_go_up         data:bool -                    I ; first choice set by ls_ionaext_action (before GoDown), read by ls_ionaext_cutscene_frame
+0x257eb0d  ls_ionaext_go_down       data:bool -                    O ; GoDown choice set by ls_ionaext_action, read by ls_ionaext_cutscene_frame
+0x257eb0e  ls_ionaext_go_home       data:bool -                    I ; choice set by ls_ionaext_action after GoHome, cleared by ls_ionaext_frame
+0x257eb10  ls_khosanilab_ring_of_fire_done data:bool -                    O ; set by ls_khosanilab_salamanka_fight once got_ring_of_fire restores the level music, 0 at ls_khosanilab_init
+0x257eb14  ls_khosanilab_puzzle_grid data:int[40] -                    I ; 5-wide grid of puzzle cell flags (bits 1, 2, 4, 0x20) used by the ls_khosanilab_puzzle_* functions, loop end 0x257ebb4
+0x257ebb4  ls_khosanilab_timer      data:GameTimer -                    O ; GameTimer (init_ls_khosanilab_timer), on expiry ls_khosanilab_frame calls ls_khosanilab_reset_runes
+0x257ebb8  ls_khosanilab_path_len   data:int -                    O ; points in the pending puzzle path (ls_khosanilab_puzzle_add_point), flushed into an avoid spline by ls_khosanilab_puzzle_flush_path
+0x257ebc0  ls_khosanilab_path       data:uint8[0xc4] -                    I ; spline description passed to avoid_spline_create by ls_khosanilab_puzzle_flush_path (count, kinds, points at +0x7c)
+0x257ec84  ls_khosanilab_path_splines data:int[10] -                    O ; avoid spline handles made by ls_khosanilab_puzzle_flush_path, freed by ls_khosanilab_puzzle_clear_paths
+0x257ecac  ls_khosanilab_path_spline_count data:int -                    O ; number of ls_khosanilab_path_splines, 0 at ls_khosanilab_init and after clear_paths
+0x257ecb0  ls_khosanilab_salstart_done data:bool -                    O ; set when salstart starts the Salamanka music (ls_khosanilab_salamanka_fight)
+0x257ecb4  ls_khosanilab_flippers   data:uint8[0x46] -                    I ; platform / flipper states cleared by ls_khosanilab_init, toggled by ls_khosanilab_puzzle_use, applied by ls_khosanilab_set_flippers
+0x257ecfc  ls_ikaemostopint_found_boss_done data:bool -                    O ; set when ikaemos_found_boss starts the Boss music (lsf_ikaemos_found_boss)
+0x257ecfd  ls_ikaemostopint_boss_killed_done data:bool -                    O ; set when ikaemos_boss_killed restores the level music (lsf_ikaemos_boss_killed)
+0x257ecfe  ls_ikaemostopint_joseph_spoke data:bool -                    O ; set by ls_ikaemostopint_frame when Joseph speaks at $ipktrigger
+0x257ed00  ls_rand_hills01_phoenix_intro_done data:bool -                    O ; set when phoenix_intro_played starts the Boss music (ls_rand_hills01_frame)
+0x257ed01  ls_rand_hills01_phoenix_killed_done data:bool -                    O ; set when phoenix_killed restores the level music (ls_rand_hills01_frame)
+0x257ed02  ls_rand_hills01_found_khosani data:bool -                    O ; set by ls_rand_hills01_action with found_khosani, ls_rand_hills01_frame then leaves the level
+0x257ed08  ls_worldmap1_encounter_timer data:GameTimer -                    O ; GameTimer (init_ls_worldmap1_timer) 20 s / 10 s between random encounter checks in ls_worldmap1_frame
 0x257ed10 ccmd_random_encounters   data:console_command -                      O ; console command object "random_encounters"
+0x257ed30  ls_worldmap1_heading     data:float -                    I ; player angle saved by ls_worldmap1_frame (matrix3__extract_angles), restored from the saved float by ls_worldmap1_init
 0x257ed50 ccmd_iw                  data:console_command -                      O ; console command object "iw"
+0x257ed5c  ls_masad_barb_done       data:bool -                    O ; set by lsf_masad_barb when Barbarian Fighter#$npc037 is dead (masad_barb), set by ls_masad_reset_fire
+0x257ed5d  ls_masad_barb_music_done data:bool -                    O ; set by lsf_masad_barb when it starts the Boss music, set by ls_masad_reset_fire
+0x257ed60  ls_test_saved_max_skills data:bool -                    O ; Max_skills saved by ls_test_init, restored by ls_test_leave
+0x257ed61  ls_test_saved_all_summons data:bool -                    O ; All_summons saved by ls_test_init, restored by ls_test_leave
+0x257ed64  ls_catacombs_carados_cutscene_done data:bool -                    O ; set by lsf_carados_cutscene when carados_cutscene starts the Boss music
+0x257ed68  ls_catacombs_ball1_fx    data:int -                    O ; CatacombsEffect.vfx handle of Puzzle-Ball01 (lsf_ball1_used), -1 at init, moved by ls_catacombs_sync_object_positions
+0x257ed6c  ls_catacombs_ball2_fx    data:int -                    O ; CatacombsEffect.vfx handle of Puzzle-Ball02 (lsf_ball2_used), -1 at init
+0x257ed70  ls_catacombs_boss_dead_done data:bool -                    O ; set by lsf_catacombs_boss_dead once catacombs_boss_dead restores the level music
+0x257ed74  ls_catacombs_ball1_lobj  data:void* -                    O ; lobjs record of Puzzle-Ball01 (lobj_find_by_name in ls_catacombs_init), its position is given to ls_catacombs_ball1_fx
+0x257ed78  ls_catacombs_ball2_lobj  data:void* -                    O ; lobjs record of Puzzle-Ball02 (ls_catacombs_init), its position is given to ls_catacombs_ball2_fx
+0x257ed7c  ls_wolong_place_pending  data:bool -                    I ; set by ls_wolong_action, ls_wolong_frame moves the party (character_place_at_marker) and clears it
 0x257ed80  string_buffer            data:char[] -                    V ; Summoner 2 name (debug.h), shared sprintf buffer: every ccmd usage/status message is formatted here then print_to_console
+0x257ef80  game_mouse_z             data:int vsdk\ui              O ; third output of mouse_get_pos called by GameTick after game_mouse_x / game_mouse_y, read by ui_window__process and the script editor
 0x257ef84 mouse_screen_w           data:int vsdk\os\mouse          I
 0x257ef88 mouse_wheel              data:int vsdk\os\mouse          I ; z axis
 0x257ef8c mouse_screen_h           data:int vsdk\os\mouse          I
@@ -9219,10 +9688,16 @@
 0x257f024 mouse_dx                 data:int vsdk\os\mouse          I
 0x257f028 mouse_dy                 data:int vsdk\os\mouse          I
 0x257f02c mouse_dz                 data:int vsdk\os\mouse          I
+0x257f030  mouse_hidden             data:bool vsdk\os\mouse        O ; returned by mouse_is_hidden, set by mouse_set_hidden / mouse_set_visible, mouse_update skips recentring when set
 0x257f031  keep_mouse_centered      data:bool vsdk\os\mouse        V ; Dash Faction rf::keep_mouse_centered is mouse_initialized+0x10, same as here (mouse_inited 0x257f021)
+0x257f03c  mouse_last_z             data:int -                    I ; previous wheel/z reading kept by mouse_update to compute mouse_dz (after the x/y pair at 0x257f034)
 0x257f040 frametime_history       data:float[16]       frametime.cpp     V
+0x257f080  frametime_saved_max      data:float frametime.cpp        O ; max_reported_frametime saved at start (init_frametime_saved_max) and by frametime_unlimit, restored by frametime_restore_limits
+0x257f084  frametime_saved_min      data:float frametime.cpp        O ; min_reported_frametime saved at start and by frametime_unlimit, restored by frametime_restore_limits
 0x257f088 frames_rendered         data:int             frametime.cpp     V
 0x257f08c milliseconds_unpaused   data:int             frametime.cpp     V
+0x257f090  cutscene_active_count    data:int -                    O ; incremented by cutscene_load_sounds, decremented by cutscene_cleanup, state_game_frame and ai_frame use cutscene_frametime while non-zero
+0x257f094  cutscene_frametime       data:float -                    O ; delta written by SequenceTimer, used as the frame time by state_game_frame / ai_frame during cutscenes, 0 at cutscene_cleanup
 0x257f098 previous_done_time      data:int             frametime.cpp     V
 0x257f09c total_history_frametime data:float           frametime.cpp     V
 
@@ -9240,6 +9715,7 @@
 0x25c5c18 bm_free_list             data:bitmap_entry vsdk\bmpman\bmpman.cpp O ; list sentinel
 
 0x25c5c60 bm_mark_name_pool_length data:int vsdk\bmpman\bmpman.cpp O
+0x25c5c68  bm_name_string_pool      data:StringPool vsdk\bmpman\bmpman.cpp O ; StringPool over the 64 KB bm_name_pool buffer (bm_init_name_pool), length saved and restored by bm_set_mark / bm_release_from_mark
 0x25c5c80 ccmd_change_texture_res  data:console_command -                      O ; console command object "change_texture_res"
 
 0x25c5c8c bm_missing_bitmap_pixels data:uint8[32*32*3] vsdk\bmpman\bmpman.cpp O ; checker with grey grid lines
@@ -9248,6 +9724,12 @@
 0x25c688e bm_inited                data:bool vsdk\bmpman\bmpman.cpp O
 0x25c6890 bm_mark_active           data:int vsdk\bmpman\bmpman.cpp O
 0x25c6894 bm_preload_on_load       data:int vsdk\bmpman\bmpman.cpp I
+0x25c6898  progress_abortable       data:bool -                    I ; flag passed to progress_set_callback, progress_update then polls key_queue_not_empty
+0x25c6899  progress_aborted         data:bool -                    I ; set by progress_update when a key was pressed while abortable, returned by progress_update
+0x25c689c  progress_callback        data:void* -                    O ; callback installed by progress_set_callback and called by progress_update
+0x25c68a0  progress_current         data:int -                    O ; current progress value passed to progress_callback, advanced by progress_update
+0x25c68a4  progress_update_count    data:int -                    O ; calls to progress_update since progress_set_callback
+0x25c68a8  progress_last_draw       data:int -                    I ; progress_update_count when the callback last ran (redraw every 0x9b updates or on the timer)
 0x25c68b0 localize_pool_non_level  data:Mempool localize               O ; "loc  non level", buffer 0x25c9cdc
 0x25c68d0 localize_string_pool     data:StringPool localize               I ; used while the non-level pool is current
 0x25c68e4 localize_topic_table     data:void*[0xfd] localize               O
@@ -9256,23 +9738,63 @@
 0x25c74c0 localize_pool_level      data:Mempool localize               O ; "loc  level", buffer 0x25c74dc
 0x25cd4dc localize_strings         data:char*[1000] localize               O ; as Red Faction's rf::strings::array
 0x25d847c localize_item_table      data:void*[0xfd] localize               O
+0x25d8870  localize_french_punct    data:int -                    I ; set by localize_set_language for the French table, gr_font_french_punct tests it
 0x25d8878 localize_language        data:int localize               O
+0x25d8880  localize_strings_loaded  data:int localize             O ; 1 after localize_load_strings in localize_load_non_level, 0 in localize_init
+0x25d8884  localize_level_loading   data:int localize             I ; 1 while localize_level_init loads the level table, 0 in localize_clear_level
+0x25d8888  localize_names1_loaded   data:int localize             O ; 1 after localize_load_names(1) in localize_load_non_level
+0x25d888c  localize_names2_loaded   data:int localize             O ; 1 after localize_load_names(2) in localize_load_non_level
+0x25d8890  localize_level_loaded    data:int localize             O ; 1 after localize_load_level_table in localize_level_init, 0 in localize_clear_level
+0x25d8894  localize_max_string_id   data:int localize             I ; highest string id stored by localize_set_string, NULL Format String added after it
 0x25d8898 localize_current_pool    data:Mempool* localize               O
+0x25d88a8  gr_mode_level_alpha_add  data:uint32 vsdk\gr\gr.cpp       I ; gr__Mode(wrap, vertex*texture, vertex*texture alpha, alpha additive, zbuffer read, fog) set by the levelrender_draw_list_* backends and vfx_mesh_render
 0x25d88ac  gr_rect_mode             data:uint32 vsdk\gr\gr.cpp       O ; gr__Mode(NONE, VERTEX, VERTEX, ALPHA, ZBUFFER_NONE, FOG_NOT_ALLOWED) passed to gr_rect (34 calls), as Dash Faction gr::rect_mode
 0x25d88c0  gr_line_3d_mode          data:uint32 vsdk\gr\gr.cpp       I ; gr__Mode(NONE, VERTEX, VERTEX, ALPHA, ZBUFFER_FULL, FOG_ALLOWED) passed to gr_line_3d and gr_line_3d_world
 0x25d88c4  gr_bitmap_wrap_mode      data:uint32 vsdk\gr\gr.cpp       I ; gr__Mode(WRAP, VERTEX_TIMES_TEXTURE, VERTEX_TIMES_TEXTURE, ALPHA, NONE, FOG_NOT_ALLOWED), passed to ui_bitmap_scaled and gr_bitmap
+0x25d88d0  gr_color_gamma_lut       data:uint32[256] -                    O ; second table filled by gr_set_gamma (loop to 0x25d8cd0, gr_gamma_ramp is the other), indexed by colour byte in gr_glide_tmapper and gr_opengl_tmapper
+0x25d8cd4  gr_mode_vfx_mesh_opaque  data:uint32 vsdk\gr\gr.cpp       I ; gr__Mode(wrap, vertex*texture, vertex alpha, no blend, zbuffer full, fog) used by vfx_mesh_render
+0x25d8ce0  gr_mode_line_quad        data:uint32 vsdk\gr\gr.cpp       I ; gr__Mode(wrap, texture, texture alpha, alpha, no zbuffer, fog) passed to gr_line_quad_3d by levelrender_draw_list
 0x25d8ce4  gr_line_mode             data:uint32 vsdk\gr\gr.cpp       O ; gr__Mode(NONE, VERTEX, VERTEX, ALPHA, ZBUFFER_NONE, FOG_NOT_ALLOWED) passed to gr_line and the debug-shape helpers, as Dash Faction gr::line_mode
 0x25d8cf0 ccmd_level_fog           data:console_command -                      O ; console command object "level_fog"
 
+0x25d8cfc  gr_mode_lamp_glow        data:uint32 vsdk\gr\gr.cpp       O ; gr__Mode(wrap, vertex*texture, vertex*texture alpha, alpha additive, no zbuffer, fog) used by lamp_glow_draw
+0x25d8d04  gr_mode_vfx_flat_additive data:uint32 -                    I ; gr__Mode(no texture, vertex, vertex alpha, alpha additive, zbuffer read, fog) picked by vfx_emitter_instance__render
+0x25d8d08  gr_mode_ui_bitmap        data:uint32 -                    I ; gr__Mode(wrap, texture, vertex alpha, alpha, no zbuffer, no fog) used by automap_draw_map and draw_loading_icon
+0x25d8d0c  gr_mode_shadow           data:uint32 vsdk\gr\gr.cpp       O ; gr__Mode(wrap, vertex*texture, vertex*texture alpha, alpha, zbuffer read, fog) used by shadow_render_on_face
+0x25d8d10  gr_mode_automap_additive data:uint32 -                    I ; gr__Mode(wrap, texture, vertex alpha, alpha additive, no zbuffer, no fog) used by automap_draw_map
+0x25d8d1c  gr_mode_lightmap_multitexture data:uint32 new_options.cpp      O ; gr__Mode(clamp1 wrap0, texture, vertex*texture alpha, alpha, zbuffer full) tested with gr_is_mode_supported by GameInit / options_set_lightmaps_off, levelrender backends
+0x25d8d20  gr_fade_duration         data:float vsdk\gr\gr.cpp       O ; set by gr_fade_out / gr_fade_in, gr_draw_fade divides gr_fade_time by it
+0x25d8d24  gr_mode_particle_additive data:uint32 vsdk\ca              O ; gr__Mode(clamp, vertex*texture, vertex*texture alpha, alpha additive, zbuffer read, no fog) used by snow_render, vif_draw_particles and the character mesh renderers
+0x25d8d28  gr_mode_flat_alpha       data:uint32 -                    I ; gr__Mode(no texture, vertex, vertex alpha, alpha, zbuffer full, fog) used by status_draw_model (gr_rect) and the levelrender backends
 0x25d8d30 gr_screen               data:gr__Screen      vsdk\gr\gr.cpp V ; Dash Faction rf::gr::Screen layout
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
+0x25d8d8c  gr_texture_2             data:int vsdk\gr\gr.cpp       O ; second texture handle of gr_set_texture (after gr_texture), -1 after gr_tcache_flush
+0x25d8d90  gr_fog_enabled           data:bool -                    O ; first argument of gr_set_fog, tested by levelrender_draw_list_d3d and gr_get_fog_alpha
+0x25d8d91  gr_fog_color             data:Color -                    O ; Color__set in gr_set_fog, read byte by byte by gr_d3d_set_fog / gr_glide_set_fog / gr_opengl_set_fog
+0x25d8d98  gr_fog_near              data:float -                    O ; fog start distance stored by gr_set_fog, used by gr_d3d_set_fog
+0x25d8d9c  gr_fog_far               data:float -                    O ; fog end distance (times Gr_level_fog_multiplier) stored by gr_set_fog, levelrender_draw_list compares objects with it
+0x25d8da0  gr_fog_z_near            data:float -                    O ; gr_scale_by_far_clip of the near distance (d3d fog mode 3), compared per vertex by levelrender_draw_list_d3d
+0x25d8da4  gr_fog_z_far             data:float -                    O ; gr_scale_by_far_clip of the far distance, levelrender_draw_list_d3d computes (far - z) * gr_fog_z_inv_range
+0x25d8da8  gr_fog_z_inv_range       data:float -                    O ; 1 / (gr_fog_z_far - gr_fog_z_near) from gr_set_fog (1.0 outside mode 3)
+0x25d8dac  gr_fog_alpha_near        data:float -                    O ; scaled near distance mixed with Gr_alpha_fog_ratio (gr_set_fog), copied by the levelrender_draw_list_* backends
+0x25d8db0  gr_fog_alpha_far         data:float -                    O ; scaled far distance (gr_scale_by_far_clip) from gr_set_fog
+0x25d8db4  gr_fog_alpha_inv_range   data:float vsdk\gr\gr.cpp       O ; 1 / (gr_fog_alpha_far - gr_fog_alpha_near) from gr_set_fog
+0x25d8db8  gr_fog_vertex_near       data:float vsdk\gr\gr.cpp       I ; far minus range from gr_set_fog, overridden per object and restored by levelrender_draw_list
+0x25d8dbc  gr_fog_vertex_far        data:float vsdk\gr\gr.cpp       I ; scaled level fog far distance from gr_set_fog, overridden per object and restored by levelrender_draw_list
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
 0x25d8dc4  gr_tint_r                data:float vsdk\gr\gr.cpp       O ; red tint factor applied by the gr_*_apply_tint back-end helpers when gr_tint_enabled (g at 0x25d8dc8, b at 0x25d8dcc)
+0x25d8dc8  gr_tint_g                data:float vsdk\gr\gr.cpp       O ; green tint factor after gr_tint_r, set by gr_set_tint, multiplied into vertex colours by the levelrender backends
+0x25d8dcc  gr_tint_b                data:float vsdk\gr\gr.cpp       O ; blue tint factor after gr_tint_g, set by gr_set_tint
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
+0x25d8dec  gr_fade_time             data:float vsdk\gr\gr.cpp       O ; elapsed fade time, 0 at gr_fade_out / gr_fade_in, advanced by reported_frametime in gr_draw_fade
+0x25d8df0  gr_mode_particle_alpha   data:uint32 vsdk\geom            O ; gr__Mode(clamp, vertex*texture, vertex*texture alpha, alpha, zbuffer read, fog) used by vif_draw_particles, shadow_render_on_face and vfx emitters
 0x25d8df4  gr_string_mode           data:uint32 vsdk\gr\gr.cpp       O ; gr__Mode(CLAMP_NO_FILTERING, VERTEX_TIMES_TEXTURE, VERTEX_TIMES_TEXTURE, ALPHA, ZBUFFER_NONE, FOG_NOT_ALLOWED) passed to gr_string by 199 callers, as Dash Faction gr::string_mode
+0x25d8df8  gr_mode_mesh_alpha       data:uint32 -                    O ; gr__Mode(wrap, vertex*texture, vertex*texture alpha, alpha, zbuffer full, fog) used by the character mesh renderers and levelrender backends
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
+0x25d921c  gr_antialias_enabled     data:bool -                    O ; read by options_set_antialias, options_draw and cmd_antialiasing, set by gr_set_antialias
+0x25d921e  gr_initialized           data:bool vsdk\gr\gr.cpp       O ; set at the end of gr_init, gr_deactivate does nothing until set
 0x25d9220 Gr_show_stats            data:bool -                      I ; set by console command "gr_show_stats" (toggles); type inferred
 0x25d9228 gr_fade_state            data:int vsdk\gr\gr.cpp         I ; 0 none, 1 fading in, 2 fading out
 0x25d9238 gr_fonts                 data:Font[6] vsdk\gr\gr_font.cpp    O ; 0x6c bytes each, same layout as Dash Faction gr::Font
@@ -9280,7 +9802,13 @@
 0x25d94c4 gr_current_font          data:Font* vsdk\gr\gr_font.cpp    O
 0x25d94c8 gr_default_font          data:Font* vsdk\gr\gr_font.cpp    O
 
+0x25d94cc  gr_text_pos_x            data:int vsdk\gr\gr_font.cpp  O ; x where the last gr_string ended, used by gr_string_at_text_pos
+0x25d94d0  gr_text_pos_y            data:int vsdk\gr\gr_font.cpp  O ; y where the last gr_string ended, used by gr_string_at_text_pos
 0x25d94e0 key_queue                data:uint16[] -                      I
+0x25d9500  key_queue_times          data:int[16] -                    O ; timer_get value stored with each key_queue entry by key_mark
+0x25d9540  key_down_timestamps      data:int[256] -                    O ; time a key went down (key_mark) or was last measured (key_down_time), reset by key_clear
+0x25d9940  key_down_time_total      data:int[256] -                    O ; down time accumulated on key release by key_mark, returned and cleared by key_down_time
+0x25d9d40  key_down_time_checked    data:int[256] -                    O ; timer value of the last key_down_time call per key, reset by key_clear
 0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
 0x25da540  key_release_counts       data:int[256] -                    O ; key_mark increments on key up, key_clear and key_get_release_count reset
 0x25da940 key_queue_head           data:int -                      I
@@ -9288,7 +9816,11 @@
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
 0x25daa50 key_layout               data:int -                      I ; set by key_init
 0x25daa58 key_lock                 data:CRITICAL_SECTION -                      I
+0x25daa70  key_last_event_time      data:int -                    O ; timer_get value of the last key_mark, set by key_init
 0x25daa74 key_inited               data:bool -                      I
+0x25daa75  key_numlock_restore      data:bool -                    O ; set by key_numlock_fix when it turned NumLock off, key_close turns it back on
+0x25daa76  key_numlock_fix_enabled  data:bool -                    O ; key_init argument, key_mark calls key_numlock_off on 0xc5 when 1
+0x25daa77  key_debug_modifier       data:bool -                    O ; set by key_enable_debug_modifier, cleared by key_disable_debug_modifier, read by key_mark and key_get_shift_status
 0x25dace8  command_argument_float   data:float console.cpp          V ; Summoner 2 name, atof result of process_command (fstp), SET_FLOAT callbacks copy it
 0x25dacec  next_arg                 data:char[256] console.cpp          V ; Summoner 2 name, lowercase copy of the argument parsed by process_command
 0x25dadec token_type               data:int console.cpp            O ; 1 word, 3 quoted string, 0 end
@@ -9309,17 +9841,29 @@
 0x25db914  rest_of_command_line     data:char* console.cpp          V ; Summoner 2 name, copy of command_line_cursor after the token in process_command
 0x25db918 current_command_count    data:int console.cpp            V ; Summoner 2 name
 0x25db920  debug_command_prefixed   data:int console.cpp          V ; Summoner 2 name, process_command prints next arg is ..., Found float number! ... when set
+0x25e74b0  ca_skin_positions        data:vector3[2000] vsdk\ca              O ; skinned vertex positions accumulated per bone weight by gr_glide/d3d/opengl_render_character_mesh (init_ca_vertex_buf_25e74b0)
+0x2622e48  ca_skin_normals          data:vector3[2000] vsdk\ca              I ; second 2000-entry vector3 buffer accumulated with the positions in the character mesh renderers (init_ca_vertex_buf_2622e48)
+0x266f108  ca_morph_vertices        data:vector3[2000] vsdk\ca              O ; morph target blend output of ca_render_morph_vertices, read by the character mesh renderers
+0x2674ec8  ca_vertex_done           data:uint8[2000] vsdk\ca              I ; per-vertex flag set once a vertex is transformed in the character mesh renderers (27 uses)
+0x2682988  ca_render_current_mesh   data:void* vsdk\ca              O ; mesh set by ca_render_set_mesh, drawn by ca_render_mesh, tested by ca_render_has_mesh
+0x26829a0  gr_user_clip_planes      data:gr_clip_plane[8] vsdk\gr              O ; 8 clip planes of 0x1c bytes (init_gr_user_clip_planes), saved and restored by gr_save_3d_state / gr_restore_3d_state
 0x2682a80  gr_eye_pos               data:vector3 vsdk\gr              O ; untransformed camera position copied by gr_setup_3d, Dash Faction gr::eye_pos
 0x2682a90 ccmd_zmult               data:console_command -                      O ; console command object "zmult"
+0x26924a0  gr_num_user_clip_planes  data:int vsdk\gr              O ; number of gr_user_clip_planes in use, loop count of gr_save_3d_state / gr_restore_3d_state
+0x26924a4  gr_projection_xadd       data:float vsdk\gr              O ; clip left plus gr_projection_xmul (gr_setup_3d), Dash Faction gr::projection_xadd
 0x26924a8  gr_view_pos              data:vector3 vsdk\gr              O ; viewer position (instance-relative), set by gr_setup_3d, saved/transformed by gr_start_instance, Dash Faction gr::view_pos
+0x26924b8  gr_frustum_near_plane    data:gr_clip_plane vsdk\gr              I ; clip plane object (init_gr_clip_plane_26924b8) set from the view normal by gr_setup_frustum
 0x26924d8  gr_view_matrix           data:matrix3 vsdk\gr              O ; viewer orientation (instance-relative), Dash Faction gr::view_matrix
+0x26924fc  gr_projection_yadd       data:float vsdk\gr              O ; clip top plus gr_projection_ymul (gr_setup_3d), Dash Faction gr::projection_yadd
 0x2692500  gr_instance_stack        data:gr_instance_entry[] vsdk\gr              O ; 0x64-byte entries: +0 lighting flag, +4 view_pos, +0x10 view_matrix, +0x34 light_base, +0x40 light_matrix
 0x26927c0  gr_eye_matrix            data:matrix3 vsdk\gr              O ; untransformed camera orientation copied by gr_setup_3d, Dash Faction gr::eye_matrix
 0x26927e8  gr_projection_ymul       data:float vsdk\gr              I ; clip_height / 2, sy = ymul * (1 - y/z) + offset_y
 0x26927f0  gr_light_base            data:vector3 vsdk\gr              O ; zeroed by gr_setup_3d, transformed by gr_start_instance when lighting, Dash Faction gr::light_base
 0x2692800  gr_light_matrix          data:matrix3 vsdk\gr              O ; identity in gr_setup_3d, multiplied by instance orient, Dash Faction gr::light_matrix
 0x2692824  gr_projection_xmul       data:float vsdk\gr              I ; clip_width / 2, sx = xmul * (1 + x/z) + offset_x in gr_project_vertex
+0x2692828  gr_projection_ymul_neg   data:float vsdk\gr              O ; negated gr_projection_ymul stored by gr_setup_3d, saved by gr_save_3d_state
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
+0x2692890  gr_saved_3d_state        data:uint8[0x494] vsdk\gr              O ; gr_3d_state object (init_gr_3d_state_saved): copy of the view/eye/light matrices, projection, clip planes and instance stack made by gr_save_3d_state
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692d34  gr_one_over_matrix_scale_z data:float vsdk\gr              O ; 1 / matrix_scale.z set by gr_setup_3d, Dash Faction gr::one_over_matrix_scale_z
 0x2692d38  gr_frustum_planes        data:gr_clip_plane[] vsdk\gr              O ; 0x1c-byte gr_clip_plane entries (flag byte +0, Plane +4 read at 0x2692d3c) filled by gr_setup_frustum, used by gr_cull_sphere/gr_cull_bounding_box
@@ -9328,12 +9872,16 @@
 0x2692e84  gr_far_clip_enabled      data:bool vsdk\gr              O ; set by gr_set_far_clip, enables clip code 1 in gr_code_point
 0x2692e88  gr_far_clip_dist         data:float vsdk\gr              O ; dist * Gr_level_fog_multiplier from gr_set_far_clip, also clamps the D3D far plane in gr_setup_3d
 0x2692e8c  gr_far_clip_z            data:float vsdk\gr              O ; gr_far_clip_dist * matrix_scale.z (gr_setup_frustum), vertices with z beyond get clip code 1
+0x2692e90  gr_view_depth_scale      data:float vsdk\gr              I ; 0.98 or 65536 (renderer 0x67) set by gr_setup_3d, divided by gr_view_zfar
 0x2692e94  gr_instance_depth        data:int vsdk\gr              O ; zeroed by gr_setup_3d, ++ in gr_start_instance, -- in gr_stop_instance
 0x2692e98  gr_num_frustum_planes    data:int vsdk\gr              O ; count of gr_frustum_planes, set by gr_setup_frustum (last plane is the far plane when gr_far_clip_enabled)
 0x2692ea0  identity_matrix          data:matrix3 vsdk\math            O ; built from rows (1,0,0),(0,1,0),(0,0,1) by the static init at 0x50f9e0, Dash Faction rf::identity_matrix
 0x2692ec8  identity_matrix43        data:matrix43 vsdk\math            I ; static init at 0x50fa40: identity rotation, zero position
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
 0x2692ff8 os_registry_app_key_set  data:int vsdk\os\registry.cpp   O
+0x2693004  level_texture_mem        data:int -                    I ; 0 at level_load, level_page_in_textures adds the growth of mem_bytes_allocated
+0x269300c  level_s3d_mem            data:int -                    I ; 0 at level_load, level_load_s3d adds the growth of mem_bytes_allocated
+0x2693034  mem_bytes_allocated      data:int -                    I ; running allocation counter sampled before and after loads by level_load_s3d and level_page_in_textures
 0x269303c mem_report_file          data:FILE* memory.cpp             I ; never written: report disabled
 0x2693040 mem_report_depth         data:int memory.cpp             I
 0x2693044 mem_report_verbose       data:int memory.cpp             I ; never written
@@ -9342,17 +9890,79 @@
 0x2693054 Common_block_allocations data:void*[2] memory.cpp             I ; PC replaces Summoner 2's Common_block_allocation_size[2]
 
 0x2693068  file_path_table          data:file_path_entry[0x200] vsdk\vfile           O ; 8-byte entries {dir, exts} indexed by path id (file_path_id_valid bound 0x200)
+0x2694068  file_slots               data:uint8[0x20100] vsdk\vfile           O ; 4 open-file slots of 0x8040 bytes (init_file_slots): flags +0, version +8, error +0xc, position +0x10, size +0x1c (File__check_flags, File__tell, File__eof)
 0x26b4168 install_path             data:char[] -                      I ; HDD packfile root (registry InstallPath)
 
 0x26b627c cd_root_path             data:char[] -                      I ; CD packfile root
 0x26b637c  file_inited              data:bool vsdk\vfile           I ; set to 1 at the end of file_init
+0x26b6380  vfile_access_level       data:int -                    O ; raised by vfile_raise_access_level and lowered by vfile_lower_access_level (printed through string_buffer)
+0x26b63a0  file_blast_buffer        data:char* vsdk\parse\parse.cpp I ; in-memory file data set by file_blast_into_buffer, TextFile__Open reads from it when set, TextFile__Close clears it
+0x26b63a4  file_blast_filename      data:char[0x4c] -                    I ; file name copied by file_blast_into_buffer, passed to packfile_find_in_packfile by TextFile__Open
+0x26b63f0  nw_recv_buffers          data:uint8[0x10000] vsdk\net             I ; per-socket receive ring buffers (nw_buffer_init / push / pop), nw_receive_all and nw_buffer_receive
+0x270812c  nw_network_status        data:int -                    I ; result stored by nw_init_networking, mainmenu_check_network shows an error for 1 / 2, sent by mp_build_game_info
+0x2708ad0  nw_reliable_sockets      data:uint8[0x83c2] vsdk\net             O ; reliable connection records of 0xd2d bytes, cleared by nw_reliable_reset, used by nw_work_reliable / nw_accept_reliable / nw_ConnectToServer
+0x2710e94  nw_reliable_resend_time  data:int vsdk\net             I ; timer_get value compared and updated by nw_work_reliable, set by nw_ConnectToServer
+0x2710e98  nw_last_heartbeat_time   data:int vsdk\net             O ; timer_get value set by nw_send_heartbeat, nw_work_reliable sends again after 750 ms
+0x2710e9c  nw_networking_ok         data:int vsdk\net             I ; flag computed by nw_init_networking, mainmenu_check_network complains when it is 0
+0x2710ea0  nw_socket                data:int vsdk\net             O ; UDP socket set by nw_init_socket, 0 after nw_close, checked by nw_send / nw_NewSendReliable
+0x2710ea4  nw_winsock_started       data:int vsdk\net             O ; set by nw_init_networking (nw_close registered with atexit), nw_close calls closesocket / WSACleanup when set
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      O ; set by console command "high_lod" (toggles); type from the TOGGLE callback (xor byte 1)
+0x2722820  effect_base_slot         data:uint8[440] -                    I ; per effect name: cached base index (-1 none), set to -1 by effects_load_bases, filled by effect_get_base
+0x27229d8  fx_recb0_array           data:uint8[0x5800] vsdk\geom            O ; 128 effect records of 0xb0 bytes (init_fx_recb0_array), linked into fx_recb0_list by effects_init_pools
+0x27281d8  effect_base_names        data:char*[440] vsdk\geom            O ; name pointers of the effect bases (0x1b8 dwords cleared by effects_load_bases), searched by vfx_find_name, hashed by effect_get_base
+0x27288b8  effects_stream_slots     data:int[8] vsdk\geom\effect_mem.cpp O ; base indices of the 8 streaming slots (-1 free), effects_find_stream_slot, reset by rfx_preload / effects_reset_level
+0x272b8dc  effects_stream_slots_saved data:int[8] -                    I ; copy of effects_stream_slots taken by rfx_preload, walked by effect_base_release
+0x272b900  vfx_mesh_verts           data:vector3[1820] vsdk\geom            I ; 0x71c vectors of 12 bytes (init_vertex_buf_272b900), output of gr_rotate_vertices in vfx_mesh_render
+0x2730e50  fx_rec30_array           data:uint8[0x600] vsdk\geom            O ; 32 effect records of 0x30 bytes (init_fx_rec30_array_2730e50), linked into fx_rec30_free_list
+0x2731450  effects_mem_buffer       data:uint8[0x4c4c0] -                    O ; backing store of effects_mempool (init_effects_mempool), rfx_preload checks sizes against 0x4c4c0
+0x277d910  effects_stream_buffer    data:uint8[0x4c4d80] vsdk\geom            O ; streaming/cutscene effect memory (effects_stream_slot_ptr), released by effects_release_cutscene_memory
+0x2c42690  fx_rec28_array           data:uint8[0x3a980] vsdk\geom            O ; 6000 effect records of 0x28 bytes (init_fx_rec28_array_2c42690), circular list fx_rec28_list
+0x2c7d010  fx_rec48_array           data:uint8[0xd80] vsdk\geom            O ; 48 effect records of 0x48 bytes (init_fx_rec48_array), linked by effects_init_pools
+0x2c7dd90  effects_level_mem_mark   data:int vsdk\geom            I ; effects_mempool offset saved by effects_load_preload_rfx, effects_release_level_memory releases back to it
+0x2c7dd98  effects_string_pool      data:StringPool vsdk\geom            O ; StringPool over 0x27288d8 (0x3000 bytes) initialised by effects_load_bases for the base names
+0x2c7ddb0  fx_rec98_array           data:uint8[0xe400] vsdk\geom            O ; 384 effect records of 0x98 bytes (init_fx_rec98_array), linked into fx_rec98_free_list
+0x2c8c1b0  fx_rec4c_array           data:uint8[0x2600] vsdk\geom            O ; 128 effect records of 0x4c bytes (init_fx_rec4c_array), linked into fx_rec4c_free_list
+0x2c8e7b0  effects_stream_slots_b_saved data:int[6] vsdk\geom            I ; copy of effects_stream_slots_b taken by rfx_preload, walked by effect_base_release
+0x2c8e7c8  effect_base_record_index data:uint8[440] vsdk\geom            I ; per base: index into effect_bases, used by vfx_preload_by_name, effect_get_base, effect_base_release
+0x2c8f060  effect_bases             data:uint8[0xf00] vsdk\geom\effect_mem.cpp O ; 192 effect base records of 20 bytes (+8 flags 0x80000000 / 0x40000000, +0xc data, +0x10 name), effect_base_alloc_stream_buffer, effects_load_bases
+0x2c8ff60  fx_rec2c_array           data:uint8[0xb00] vsdk\geom            O ; 64 effect records of 0x2c bytes (init_fx_rec2c_array_2c8ff60), linked into fx_rec2c_free_list
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+0x2c98a70  effects_mempool          data:Mempool vsdk\geom\effect_mem.cpp O ; Mempool Effects over effects_mem_buffer (init_effects_mempool), getPoolSpaceLeft in effect_base_finish_stream
+0x2c9f1b0  effect_base_stream_users data:uint8[192] vsdk\geom\effect_mem.cpp I ; per effect base use counter incremented by rfx_preload and decremented by effect_base_alloc_stream_buffer
+0x2c9f270  effects_stream_slots_b   data:int[6] -                    O ; second set of streaming slots (-1 free) used by effects_alloc_stream_slot, reset by rfx_preload / effects_reset_level
+0x2c9f96c  effects_preload_count    data:int vsdk\geom            I ; incremented by rfx_preload, decremented by effect_base_release (releases when it reaches 0)
 0x2c9f978  vfx_instance_free_list   data:void* vsdk\geom            I ; free list of vfx instances (next +0x40, prev +0x44), vfx_instance_create
+0x2c9f97c  fx_rec98_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec98_array built by effects_init_pools, popped by vfx_instance_create, pushed by vfx_instance_free
+0x2c9f980  fx_rec30_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec30_array (effects_init_pools, vfx_instance_create / free)
+0x2c9f984  fx_rec2c_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec2c_array (effects_init_pools, vfx_instance_create / free)
+0x2c9f988  fx_rec4c_free_list       data:void* vsdk\geom            O ; head of the free list of fx_rec4c_array (effects_init_pools, vfx_instance_create / free)
+0x2c9f98c  fx_rec28_list            data:void* vsdk\geom            O ; circular list head over fx_rec28_array (effects_init_pools, vfx_instance_create / free)
+0x2c9f990  fx_recb0_list            data:void* vsdk\geom            O ; circular list head over fx_recb0_array (effects_init_pools, vfx_instance_create / free)
+0x2c9f994  effects_preload_done     data:bool vsdk\geom            O ; set by effects_load_preload_rfx (records effects_level_mem_mark), tested by effects_release_level_memory
+0x2c9f998  effects_num_bases        data:int vsdk\geom            O ; number of effect bases, returned by effects_get_num_bases, bound of effects_find_base / effect_base_queue_stream
+0x2c9f99c  effects_num_names        data:int -                    I ; number of effect_base_names, loop bound of vfx_find_name and effect_base_release
+0x2c9f9a0  lights_selection_counts  data:int[16] vsdk\gr              I ; number of lights selected at each selection level (lights_collect_enabled, lights_select_nearest)
+0x2c9f9e0  lights_selection         data:uint8[0x1400] vsdk\gr              I ; per selection level 0x140 bytes of light pointers (lights_select_nearest, lights_shade_vertices)
+0x2ca5de0  lights                   data:light[400] vsdk\gr              O ; light records of 0x94 bytes (init_lights), light_get / light_alloc, cleared by light_reset_all
+0x2cb4520  light_list_head          data:light vsdk\gr              O ; sentinel of the active light list (init_light_list_head), walked by light_set_all_enabled and lights_collect_enabled
+0x2cb45b4  light_change_count       data:int vsdk\gr              O ; incremented by light_reset_all, light_set_ambient, light_create_point / spot and light_delete
+0x2cb45b8  light_count              data:int vsdk\gr              O ; number of allocated lights (light_alloc / light_delete), 0 after light_reset_all
+0x2cb45bc  lights_selection_depth   data:int vsdk\gr              O ; current light selection level, pushed by lights_select_nearest, popped by lights_pop_selection
 0x2cb45c1  lights_dynamic_enabled   data:bool vsdk\gr              O ; lights_set_dynamic_enabled, lights_select_nearest skips dynamic lights (flag bit 15) when 0
+0x2cb45d0  shadow_slots             data:uint8[0xe40] vsdk\geom            O ; 24 shadow records of 0x98 bytes (init_shadows), first byte -1 when free (shadows_init_slots, shadow_create)
+0x2cb5410  snd_listener_vel         data:vector3 vsdk\geom            O ; vector3 constructed by init_snd_listener_vel, right after shadow_slots (its address is their loop bound)
+0x2cb5420  snd_listener_pos         data:vector3 -                    O ; listener position (init_snd_listener_pos), set by snd_change_listener, used by snd_calc_volume_3d / snd_calc_pan (Dash Faction sound_listener_pos)
+0x2cb542c  snd_group_volumes        data:float[4] -                    I ; per sound group volume, 1.0 at snd_init_group_volumes, indexed by the sound group bits in snd_get_volume / snd_calc_volume_3d (Dash Faction snd_group_volume)
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cb5458  sounds                   data:Sound[0x280] -                    O ; 0x40-byte sound table filled by sounds_parse_table, Dash Faction rf::sounds (same 0x40 size)
+0x2cbf458  snd_listener_orient      data:matrix3 -                    O ; listener orientation (init_snd_listener_orient) copied by snd_change_listener, used by snd_calc_pan, right after sounds[0x280]
+0x2cbf47c  snd_backend              data:int -                    I ; 1 once snd_init calls ds_init, compared with 1 by snd_close, snd_change_listener, snd_do_frame and 20 more sound functions
+0x2cbf480  snd_disabled             data:bool -                    O ; set by snd_init on failure, every snd_* entry point returns early when set
+0x2cbf488  eax_reverb_muted         data:int -                    O ; set by eax_mute_reverb, cleared by eax_init, tested by eax_restore_reverb / eax_is_reverb_muted
+0x2cbf48c  eax_saved_reverb         data:int -                    I ; 4-byte property buffer passed to the property set Get/Set by eax_mute_reverb and eax_restore_reverb
+0x2cbf490  eax_property_set         data:void* -                    I ; interface stored by eax_init (from ds_get_direct_sound), its vtable is called by eax_set_environment / eax_set_decay_time
+0x2cbf494  eax_enabled              data:bool -                    O ; set by eax_init, cleared by eax_close, tested by the eax_* functions
 0x2cbf498  cquat_identity           data:cquat vsdk\math            O ; (0, 0, 0, 0x3fff) built by a static initializer
 0x2cbf4a0  quaternion_identity      data:quaternion vsdk\math            O ; (0, 0, 0, 1.0) built by a static initializer
 0x2cbf4b0  vector2_zero             data:vector2 vsdk\math            O ; (0, 0) built by a static initializer
@@ -9360,27 +9970,117 @@
 0x2cbf4c8  file_identity_quaternion data:quaternion vsdk\vfile           I ; identity set by file_init, default argument of File__read_quaternion
 0x2cbf4d8  file_zero_vector         data:vector3 vsdk\vfile           I ; zeroed by file_init, default argument of File__read_vector
 0x2cbf518  file_default_matrix      data:matrix3 vsdk\vfile           V ; matrix3__make_identity in file_init, Dash Faction rf::file_default_matrix (default of read_matrix)
+0x2cbf554  ui_nav_best_gadget       data:void* vsdk\ui              O ; nearest gadget found by ui_window__handle_arrow_key and the ui_gadget__find_nearest_* helpers
+0x2cbf558  ui_nav_best_distance     data:int vsdk\ui              O ; distance of ui_nav_best_gadget, reset to 999999999 by ui_window__handle_arrow_key
+0x2cbf55c  ui_window_processing     data:bool vsdk\ui              O ; 1 while ui_window__process runs, ui_window__destroy defers when set
+0x2cbf584  ui_listbox_line_starts   data:int[20] vsdk\ui              O ; start offset of each wrapped line written by ui_listbox_entry__wrap_text, read by ui_listbox__draw
+0x2cbf5d4  ui_listbox_line_lengths  data:int[20] vsdk\ui              O ; length of each wrapped line written by ui_listbox_entry__wrap_text, read by ui_listbox__draw
+0x2cbf628  ui_left_pressed          data:bool vsdk\ui              O ; mouse_was_pressed(0) stored by ui_process, tested by the gadget process functions
+0x2cbf629  ui_right_released        data:bool vsdk\ui              O ; mouse_was_released(1) stored by ui_process
+0x2cbf62a  ui_right_pressed         data:bool vsdk\ui              O ; mouse_was_pressed(1) stored by ui_process
+0x2cbf630  ui_checkbox_colors       data:Color[16] vsdk\ui              I ; colour set (init_ui_global_2cbf630, ui_colors4_x4) referenced by ui_checkbox__create and ui_radio_button__create (+0x390)
+0x2cbf670  ui_window_colors         data:Color[4] vsdk\ui              O ; window colours (init_ui_window_defaults) set by ui_init and LoadSettings, referenced by ui_window__init (+0x4e0)
+0x2cbf680  ui_tooltip_timer         data:int vsdk\ui              O ; RealtimeTimer (init_ui_repeat_timer): 1 s set by ui_process when the hovered gadget changes, elapsed shows the tooltip
+0x2cbf684  ui_sounds                data:int[8] vsdk\ui              O ; sound handles of the UI (-1 at ui_init), played by ui_play_sound
+0x2cbf6a8  ui_button_colors         data:Color[15] vsdk\ui              I ; colour set (init_ui_global_2cbf6a8, ui_colors5_x3) referenced by ui_button__create (+0x390), set by ui_init / LoadSettings
+0x2cbf6e4  ui_tooltip_ready         data:bool vsdk\ui              O ; set when ui_tooltip_timer elapses, cleared when the hovered gadget changes, ui_draw then draws ui_tooltip_gadget
+0x2cbf6e8  ui_static_colors         data:Color[6] vsdk\ui              I ; colour set (init_ui_global_2cbf6e8, ui_colors3_x2) referenced by ui_static__create (+0x388)
+0x2cbf700  ui_left_double_clicked   data:bool vsdk\ui              O ; mouse_was_double_clicked(0) stored by ui_process when double clicks are enabled
+0x2cbf708  ui_tooltip_colors        data:Color[4] vsdk\ui              I ; tooltip colour set (init_ui_tooltip_state) stored at +0x110 by the ui_*__set_tooltip functions
+0x2cbf718  ui_window_sentinel       data:uint8[0x4e4] vsdk\ui              O ; sentinel window of the window list (ui_window_sentinel_ctor), next at +0x4e4, compared by ui_window__init / ui_draw / ui_process
+0x2cbfbfc  ui_window_list_first     data:void* vsdk\ui              O ; first window of the list (ui_init sets the sentinel), walked by ui_draw and ui_destroy_all_windows
+0x2cbfc00  ui_window_list_last      data:void* vsdk\ui              O ; last window, ui_window__init appends after it, ui_process walks back from it
+0x2cbfc04  ui_right_double_clicked  data:bool vsdk\ui              O ; mouse_was_double_clicked(1) stored by ui_process
+0x2cbfc08  ui_slider_colors         data:Color[5] vsdk\ui              I ; colour set (init_ui_global_2cbfc08, ui_colors5) referenced by ui_slider__create (+0x29c)
+0x2cbfc20  ui_container_colors      data:Color[4] vsdk\ui              I ; colour set (init_ui_container_state, ui_colors4) referenced by ui_container__create (+0x384)
+0x2cbfc30  ui_listbox_colors        data:Color[8] vsdk\ui              I ; colour set (init_ui_global_2cbfc30, ui_colors8) referenced by ui_listbox__create (+0x318)
+0x2cbfc50  ui_listbox_entry_colors  data:Color[6] vsdk\ui              I ; colour set (init_ui_global_2cbfc50, ui_colors2_x3) stored in each entry by ui_listbox__add_entry (+0x38)
+0x2cbfc68  ui_key                   data:int -                    O ; key code passed to ui_process, tested by the script editor callbacks (0x1c Enter, 0xf Tab, 0x14)
+0x2cbfc70  ui_inputbox_colors       data:Color[12] vsdk\ui              I ; colour set (init_ui_global_2cbfc70, ui_colors6_x2) referenced by ui_inputbox__create (+0x57c)
+0x2cbfca0  ui_mouse_wheel           data:int vsdk\ui              I ; filled through a pointer by ui_process after mouse_get_pos, ui_listbox__process scrolls when it is non-zero
+0x2cbfca4  ui_left_released         data:bool vsdk\ui              O ; mouse_was_released(0) stored by ui_process
+0x2cbfca8  ui_mouse_x               data:int vsdk\ui              I ; mouse x read by ui_process, used by the gadget process and draw functions
+0x2cbfcac  ui_mouse_y               data:int vsdk\ui              I ; mouse y read by ui_process, used by the gadget process and draw functions
+0x2cbfcb8  ui_drag_gadget           data:void* vsdk\ui              O ; button being dragged (ui_button__process), ui_button__can_accept_drop, cleared by ui_process
+0x2cbfcbc  ui_drop_target           data:void* vsdk\ui              I ; gadget under a drag set by ui_button__process / ui_process
+0x2cbfcc0  ui_drag_dropped          data:bool vsdk\ui              I ; set by ui_button__process after a drop, ui_process then ends the drag
 0x2cbfcc4  ui_current_gadget        data:void* vsdk\ui              I ; cleared by ui_gadget__dtor when it points at the gadget (focus/capture)
+0x2cbfcc8  ui_group_depth           data:int vsdk\ui              O ; incremented by ui_push_group, decremented by ui_pop_group, windows of a lower group are disabled (ui_window__is_disabled)
+0x2cbfccc  ui_tooltip_gadget        data:void* vsdk\ui              O ; gadget under the mouse whose tooltip ui_draw shows, set by ui_process
+0x2cbfd60  os_msg_handlers          data:void*[32] vsdk\os              O ; window message handlers added by os_add_msg_handler, called by os_wndproc (Dash Faction os msg_handlers)
+0x2cbfde0  os_window_title          data:char[0x98] vsdk\os              O ; title copied by os_init / os_set_window_title, used for CreateWindow by os_create_window
+0x2cbfe78  os_window_class          data:char[0x98] vsdk\os              I ; class name copied by os_init, lpszClassName in os_create_window, passed with the title to FindWindow
 0x2cbff00 ccmd_sysinfo             data:console_command -                      O ; console command object "sysinfo"
+0x2cbff0c  os_prev_instance_found   data:int vsdk\os              O ; cleared by os_find_previous_instance, set to 1 by os_find_window_callback when another game window exists
 0x2cbff10 main_wnd                 data:HWND vsdk\os                O ; Dash Faction name
+0x2cbff18  os_instance_mutex        data:void* vsdk\os              O ; handle created in os_init (GetLastError compared with 0xb7 already exists), closed by os_close_main_window
 0x2cbff1c is_main_wnd_active       data:bool vsdk\os                O ; Dash Faction name
+0x2cbff24  os_num_msg_handlers      data:int vsdk\os              O ; number of os_msg_handlers, incremented by os_add_msg_handler, loop count of os_wndproc (Dash Faction num_msg_handlers)
+0x2cbff58  movement_max_vel         data:vector3 -                    O ; vector3 (init_movement_vec_2cbff58) set to the movement_init argument on all three axes, copied by movement_read_controls
+0x2cbff68  movement_velocity        data:vector3 -                    I ; vector3 (init_movement_vec_2cbff68) zeroed by movement_init, accumulated by vector3__add_assign in movement_read_controls
 0x2cbff78 ccmd_movement_vel_change data:console_command -                      O ; console command object "movement_vel_change"
+0x2cbff88  movement_max_rotvel      data:vector3 -                    I ; vector3 (init_movement_vec_2cbff88) set from a movement_init argument, copied by movement_read_controls
+0x2cbff98  movement_rotvel          data:vector3 -                    I ; vector3 (init_movement_vec_2cbff98) zeroed by movement_init, passed with movement_max_rotvel in movement_read_controls
 0x2cbffa8 timer_qpc_last          data:int64           timer.cpp         O
 0x2cbffb0 timer_tsc_ticks         data:int             timer.cpp         O ; written, never read
 0x2cbffb8 timer_lock              data:CRITICAL_SECTION timer.cpp        O
 0x2cbffd0 timer_qpc_base          data:int64           timer.cpp         O
 0x2cbffd8 timer_initialized       data:bool            timer.cpp         O
 0x2cbffdc timer_qpc_freq_low32    data:uint32          timer.cpp         O ; truncated QPF result (">4 GHz" bug)
+0x2cbffe0  vif_particles            data:uint8[0x23280] -                    I ; particle blocks of 0x480 bytes compacted by vif_compact_particles, vif_particle_top reset to here by vif_reset_all
+0x2d064e0  vif_data_top             data:int -                    I ; allocation pointer advanced by (count << 4) in vif_instantiate_level, rewound by vif_record_release and vif_reset_all
+0x2d064e4  vif_record_list          data:void* -                    I ; first used vif record, set by vif_reset_all, walked by vif_instantiate_level and vif_record_release
+0x2d064e8  vif_records              data:uint8[0x5aa0] -                    O ; 100 vif records of 0xe8 bytes (init_vif_records), linked by vif_reset_all, freed by vif_record_release
+0x2d0bf8c  vif_particle_count       data:int -                    I ; number of live particle blocks, recomputed by vif_compact_particles, 0 after vif_reset_all
+0x2d0bf90  vif_particle_used        data:int -                    I ; bytes used in vif_particles, recomputed by vif_compact_particles, 0 after vif_reset_all
+0x2d0bf98  packfile_string_pool     data:StringPool vsdk\vfile\packfile\file_packfile.cpp O ; StringPool of the packfile entry names (packfile_string_pool_ctor), 0x40000 allocated by packfile_init, released by packfile_release_string_pool
 0x2d68440 Packfiles                data:Packfile[] vsdk\vfile\packfile\file_packfile.cpp O ; 0x34-byte records
 0x2d68780 Packfile_lookup          data:PackfileLookup[0x50e9] vsdk\vfile\packfile\file_packfile.cpp O ; {hash, entry}, -1 = empty
+0x2d90ec8  packfile_num_entries     data:int vsdk\vfile\packfile\file_packfile.cpp O ; total directory entries, 0 at packfile_init, advanced by packfile_alloc_directory, printed by packfile_init
 0x2d90ecc Num_packfiles            data:int vsdk\vfile\packfile\file_packfile.cpp O
+0x2d90ed0  packfile_initialized     data:int vsdk\vfile\packfile\file_packfile.cpp O ; 1 at the end of packfile_init, packfile_release_string_pool only releases when set
+0x2d90ed4  gr_d3d_texture_scale_u   data:float vsdk\gr\directx\gr_direct3d.cpp I ; texture coordinate scale returned through a pointer by gr_d3d_page_in, multiplied into the bitmap and tmapper coordinates
+0x2d90edc  gr_d3d_texture_scale_v   data:float vsdk\gr\directx\gr_direct3d.cpp I ; second texture coordinate scale filled with gr_d3d_texture_scale_u by gr_d3d_page_in
+0x2d90ee4  gr_d3d_current_mode      data:int vsdk\gr\directx\gr_direct3d.cpp O ; gr__Mode last applied by gr_d3d_set_state (init_gr_d3d_current_mode, invalid), invalidated by gr_d3d_invert / restore_depth_test
+0x2d90ee8  vfx_camera_pos           data:vector3 vsdk\geom            O ; camera position (init_vfx_camera_pos) passed by vfx_instance_process, returned by vfx_get_camera
+0x2d90ef8  vfx_camera_orient        data:quaternion vsdk\geom            O ; camera orientation (init_vfx_camera_orient) passed by vfx_instance_process, copied by quaternion__assign in vfx_get_camera
+0x2d90f10  gr_vertex_pool           data:gr_Vertex[4000] vsdk\gr\directx\gr_direct3d.cpp I ; 4000 vertices of 0x30 bytes (init_gr_d3d_vertex_buf), output of gr_rotate_vertices in vfx_mesh_render
+0x2dbfd10  vfx_active_instance      data:void* vsdk\geom            I ; instance set during vfx_instance_process / vfx_get_camera, cleared by vfx_instance_release_nodes and fx_destroy_all
+0x2dbfd14  vfx_render_alpha         data:uint8 vsdk\ca              I ; alpha byte set by vfx_instance__setup_render_state, used as vertex alpha by the character mesh renderers, reset by vfx_render_state_reset
+0x2dbfe10  d3d_saved_gamma_ramp     data:uint8[0x600] vsdk\gr\directx\gr_direct3d.cpp O ; gamma ramp read through d3d_gamma_control in gr_d3d_init_device, written back by gr_d3d_close
+0x2dc05b0  d3d_window_rect          data:int[4] vsdk\gr\directx\gr_direct3d.cpp O ; RECT set by gr_d3d_set_window, filled by gr_d3d_init_device, destination of the Blt in gr_d3d_flip
+0x2dc05c0  d3d_zfunc                data:int vsdk\gr\directx\gr_direct3d.cpp O ; depth compare function (4 normal, 7 inverted) set by gr_d3d_invert_depth_test / restore_depth_test, render state 0x17 in gr_d3d_set_state
 0x2dc05e0 cmdline_param_vertexfog  data:CmdLineParam -                      O ; "-vertexfog"
 
+0x2dc0798  d3d_texture_format_a     data:uint8[0x20] vsdk\gr\directx\gr_direct3d.cpp I ; DDPIXELFORMAT kept by d3d_enum_texture_format_callback, checked by d3d_pixel_format_masks_valid, used by gr_d3d_create_texture_section
 0x2dc2908 cmdline_param_rz         data:CmdLineParam -                      O ; "-rz" (takes an argument)
 
+0x2dc2920  d3d_texture_format_b     data:uint8[0x20] vsdk\gr\directx\gr_direct3d.cpp I ; second DDPIXELFORMAT kept by d3d_enum_texture_format_callback for gr_d3d_create_texture_section
+0x2dc2940  d3d_texture_format_c     data:uint8[0x20] vsdk\gr\directx\gr_direct3d.cpp I ; third DDPIXELFORMAT kept by d3d_enum_texture_format_callback, sets d3d_texture_format_c_found
+0x2dc2968  d3d_screen_rect          data:int[4] vsdk\gr\directx\gr_direct3d.cpp O ; RECT set by gr_d3d_set_window, source of the Blt in gr_d3d_flip
+0x2dc2988  d3d_zclear_value         data:float vsdk\gr\directx\gr_direct3d.cpp O ; depth clear value (0.0 inverted, 1.0 normal) used by gr_d3d_zbuffer_clear
 0x2dc6c10 cmdline_param_fb2        data:CmdLineParam -                      O ; "-fb2"
+0x2dc6c28  d3d_vertex_buffer        data:void* -                    I ; vertex buffer locked by gr_d3d_render_character_mesh and gr_d3d_draw_primitive, created by gr_d3d_init
+0x2dc6c2c  d3d_vertex_buffer_pos    data:int vsdk\gr\directx\gr_direct3d.cpp I ; next free vertex in d3d_vertex_buffer, reset each frame by state_game_frame
+0x2dc6c31  d3d_use_vertex_buffer    data:bool vsdk\gr\directx\gr_direct3d.cpp I ; tested by gr_d3d_draw_primitive, gr_d3d_init, levelrender_create_vertex_buffer and state_game_frame
+0x2dc6c34  d3d_ddraw_enumerate_ex   data:void* vsdk\gr\directx\gr_direct3d.cpp O ; address from GetProcAddress in gr_d3d_init_device, called with the device callback by d3d_enumerate_ddraw_devices
+0x2dc6c38  d3d_ddraw                data:void* vsdk\gr\directx\gr_direct3d.cpp I ; DirectDraw object created per device by d3d_enumerate_ddraw_devices and gr_d3d_init_device, released by gr_d3d_close
+0x2dc6c3c  d3d_direct3d             data:void* vsdk\gr\directx\gr_direct3d.cpp I ; Direct3D interface queried from d3d_ddraw, used by levelrender_create_vertex_buffer and gr_d3d_init
 0x2dc6c40  d3d_device               data:IDirect3DDevice7* vsdk\gr\directx\gr_direct3d.cpp O ; SetRenderState vtbl +0x50 in gr_d3d_set_render_state, BeginScene/EndScene in gr_d3d_begin_scene/end_scene
+0x2dc6c44  d3d_primary_surface      data:void* vsdk\gr\directx\gr_direct3d.cpp I ; primary surface (restored after DDERR_SURFACELOST in movie_blit_frame), flipped by gr_d3d_flip
+0x2dc6c48  d3d_back_surface         data:void* vsdk\gr\directx\gr_direct3d.cpp I ; back buffer surface of gr_d3d_init_device, used by gr_d3d_set_window, gr_d3d_flip_surface and gr_d3d_flip
+0x2dc6c4c  d3d_zbuffer_surface      data:void* vsdk\gr\directx\gr_direct3d.cpp I ; depth surface created and attached by gr_d3d_init_device, released by gr_d3d_close
+0x2dc6c50  d3d_gamma_control        data:void* vsdk\gr\directx\gr_direct3d.cpp O ; gamma control interface queried in gr_d3d_init_device, used by gr_d3d_set_gamma, released by gr_d3d_close
+0x2dc6c54  d3d_texture_format_b_bits data:int vsdk\gr\directx\gr_direct3d.cpp I ; best bit count seen for d3d_texture_format_b by d3d_enum_texture_format_callback
+0x2dc6c58  d3d_texture_format_a_bits data:int vsdk\gr\directx\gr_direct3d.cpp I ; best bit count seen for d3d_texture_format_a by d3d_enum_texture_format_callback
+0x2dc6c5c  d3d_texture_format_c_found data:bool vsdk\gr\directx\gr_direct3d.cpp I ; set by d3d_enum_texture_format_callback, returned by the gr_d3d_tmapper_multipass helpers
+0x2dc6c60  d3d_device_desc          data:void* vsdk\gr\directx\gr_direct3d.cpp I ; device description pointer whose caps (+0x4c, +0x64) gr_d3d_set_state and gr_d3d_bitmap test
+0x2dc6c64  d3d_scene_depth          data:int vsdk\gr\directx\gr_direct3d.cpp O ; BeginScene nesting counter of gr_d3d_begin_scene / gr_d3d_end_scene
+0x2dc6c68  d3d_device_ready         data:int vsdk\gr\directx\gr_direct3d.cpp I ; set at the end of gr_d3d_init_device, cleared by gr_d3d_close, gr_d3d_begin_scene / end_scene do nothing when 0
+0x2dc6c90  d3d_multitexture_supported data:bool vsdk\gr\directx\gr_direct3d.cpp I ; set from the device caps (+0xba simultaneous textures) in gr_d3d_init_device, read by gr_d3d_is_mode_supported
+0x2dc6c94  d3d_hwnd                 data:HWND vsdk\gr\directx\gr_direct3d.cpp O ; window passed to gr_d3d_init, used by gr_d3d_set_window and gr_d3d_init_device
 0x2dc6c98  gr_d3d_video_memory_mb   data:int vsdk\gr\directx\gr_direct3d.cpp O ; video memory in MB, checked against 8 in gr_d3d_init_device
+0x2dc6c9c  d3d_fog_mode             data:int vsdk\gr\directx\gr_direct3d.cpp O ; fog method chosen from the caps by gr_d3d_init_device (1, 2 or 3), gr_set_fog computes the z fog values in mode 3
 0x2dc6ea8 cmdline_args             data:CmdArg[50] vsdk\os\cmdline.cpp    O ; {char* arg; bool is_done}, as Dash Faction
 0x2dc7038 cmdline_params           data:CmdLineParam vsdk\os\cmdline.cpp    O ; list sentinel (static, name NULL)
 0x2dc7050 cmdline_params_initialized data:bool vsdk\os\cmdline.cpp    O
@@ -9388,16 +10088,51 @@
 0x2dc7054 cmdline_num_args         data:int vsdk\os\cmdline.cpp    O
 0x2dc7060 ccmd_use_buffered_alpha_polys data:console_command -                      O ; console command object "use_buffered_alpha_polys"
 0x2dc706c Use_buffered_alpha_polys data:bool -                      I ; set by console command "use_buffered_alpha_polys" (toggles); type inferred
+0x2dc7070  ca_string_pool           data:StringPool vsdk\ca\character.cpp O ; StringPool of the character animation names (ca_string_pool_ctor), 0x1400 allocated by ca_init, used by character_add_skeleton_trigger
 0x2dc7088  ca_characters            data:Character[200] vsdk\ca\character.cpp O ; 0x1f8-byte entries: +0 name, +0x44 flags, +0x48 skeleton count, +0x54 skeletons, +0x1e4 mesh, +0x1e8 LOD meshes
+0x2ddfa48  ca_preload_slots         data:uint8[0x300] vsdk\ca\character.cpp I ; records of 0x30 bytes right after ca_characters, cleared by ca_init, used by ca_preload_alloc_slot and ca_find_character
 0x2de20b8 ca_preload_loaded        data:int vsdk\ca\character.cpp  I
 
 0x2de20bc ca_preload_count         data:int vsdk\ca\character.cpp  I
 0x2de20c0 ca_preload_size          data:int vsdk\ca\character.cpp  I
 0x2de20c4 ca_preload_data          data:uint8[] vsdk\ca\character.cpp  I
 
+0x2ee24f0  ca_num_characters        data:int vsdk\ca\character.cpp O ; number of loaded characters, 0 at ca_init, decremented by character_unload, used by character_create_base
+0x2ee2518  fast_inv_sqrt_table      data:uint32[1024] vsdk\math            O ; mantissa table indexed by 10 bits in fast_inv_sqrt, filled by float_to_int_round (math table init)
+0x2ee3518  fast_sqrt_table          data:uint32[1024] vsdk\math            O ; mantissa table indexed by 10 bits in fast_sqrt and fast_sqrt_refined, filled by float_to_int_round
+0x2ee4524  vim_saved_bitmaps        data:uint8[0x50] vsdk\ca\skeleton.cpp O ; bitmap handles copied out by vim_save_bitmaps and back by vim_restore_bitmaps
+0x2ee4574  vim_saved_bitmap_count   data:int vsdk\ca\skeleton.cpp O ; number of dwords in vim_saved_bitmaps (vim_save_bitmaps / vim_restore_bitmaps)
+0x2ee4598  skeleton_count           data:int vsdk\ca\skeleton.cpp O ; number of loaded skeletons, incremented by skeleton_add, decremented by skeleton__dtor
+0x2ee459c  skeleton_count_limit     data:int -                    I ; -1 at ca_init_globals_2ee4598, compared by skeleton_add
+0x2ee45a0  skeleton_mem_used        data:int vsdk\ca\skeleton.cpp O ; bytes of skeleton data, raised by skeleton_read, lowered by skeleton__dtor (27 uses)
+0x2ee45a4  skeleton_mem_peak        data:int -                    O ; highest skeleton_mem_used seen by skeleton_read
+0x2ee45a8  skeleton_mem_limit       data:int -                    I ; -1 at ca_init_globals_2ee4598, tested by skeleton_read
+0x2ee45d8  gr_poly_texture_slots    data:uint8[0x50] vsdk\gr              O ; 4 texture slots of 0x14 bytes (init_gr_mode_slots_2ee45d8) filled by gr_poly_set_texture, passed by gr_poly_clip_and_draw
+0x2ee4628  gr_poly_active           data:bool vsdk\gr              I ; cleared by gr_poly_begin, tested by gr_poly_vertex / uv / rgb / set_texture
+0x2ee5330  gr_poly_buffer_polys     data:void*[1024] vsdk\gr              O ; buffer position of each buffered poly stored by gr_poly_begin (at most 0x3ff), replayed by gr_poly_buffer_flush
+0x2ee6330  gr_poly_depth            data:float vsdk\gr              I ; depth argument of gr_poly_begin, gr_poly_clip_and_draw stores it and its reciprocal into the vertices
+0x2ee6338  gr_poly_clip_vertices    data:gr_Vertex[64] vsdk\gr              O ; 64 vertices of 0x30 bytes (init_gr_vertex_buf_2ee6338) handed out by gr_poly_alloc_clip_vertex
+0x2ee6f38  gr_poly_vertices         data:uint8[0x680] vsdk\gr              I ; vertex records of 0x34 bytes written by gr_poly_vertex / uv / rgb / alpha
+0x2f075b8  gr_poly_multitexture     data:bool vsdk\gr              I ; set by gr_poly_set_texture for a second texture, tested by gr_poly_clip_and_draw
+0x2f075bc  gr_poly_clip_vertex_ptrs data:void*[64] vsdk\gr              O ; pointers into gr_poly_clip_vertices set by gr_poly_reset_clip_verts, popped by gr_poly_alloc_clip_vertex
+0x2f076c0  gr_poly_clip_vertex_count data:int vsdk\gr              O ; next free entry of gr_poly_clip_vertex_ptrs, reset by gr_poly_reset_clip_verts / gr_poly_free_clip_verts
+0x2f076c5  gr_poly_in_progress      data:bool vsdk\gr              O ; set by gr_poly_begin, cleared by gr_poly_end
+0x2f076c8  gr_poly_num_vertices     data:int vsdk\gr              O ; vertices added by gr_poly_vertex since gr_poly_begin, used by gr_poly_end
+0x2f076cc  gr_poly_num_textures     data:int vsdk\gr              O ; texture slots used, advanced by gr_poly_set_texture, read by gr_poly_clip_and_draw / clip_edge
+0x2f076d0  gr_poly_cur_texture      data:void* vsdk\gr              O ; current entry of gr_poly_texture_slots (gr_poly_set_texture), flagged by gr_poly_uv / rgb / alpha
+0x2f076d4  gr_poly_cur_texture_index data:int vsdk\gr              O ; index of gr_poly_cur_texture used by gr_poly_uv / rgb / alpha
+0x2f076d8  gr_poly_uv_cursor        data:void* vsdk\gr              O ; next vertex record gr_poly_uv writes (steps 0x34), reset by gr_poly_begin / set_texture
+0x2f076dc  gr_poly_rgb_cursor       data:void* vsdk\gr              O ; next vertex record gr_poly_rgb writes (steps 0x34), reset by gr_poly_begin / set_texture
+0x2f076e0  gr_poly_alpha_cursor     data:void* vsdk\gr              O ; next vertex record gr_poly_alpha writes (steps 0x34), reset by gr_poly_begin / set_texture
+0x2f076e8  gr_poly_buffer_count     data:int vsdk\gr              O ; number of entries in gr_poly_buffer_polys, gr_poly_begin flushes at 0x3ff
+0x2f076f0  sound_emitter_list_head  data:sound_emitter -                    O ; sentinel of the sound emitter list (init_sound_emitter_list_head), sound_emitters_init, sound_create_emitter, sound_emitter_find_quietest
 0x2f07768  sound_emitters           data:sound_emitter[128] -                    O ; 0x74-byte entries: +0 next, +4 prev, +8 sound, +0xc playing handle, +0x24/+0x3c vectors, +0x50 flags (1 used, 2 paused, 8 playing)
 0x2f0b168  sound_emitters_num_playing data:int -                    O ; ++/-- by sound_emitter_play / sound_emitter_stop
 0x2f0b16c  sound_emitters_enabled   data:bool -                    I ; tested first by sound_emitter_pause/unpause/delete
+0x2f0b170  perlin_perm              data:int[514] -                    O ; permutation table filled by perlin_init, indexed by perlin_noise1 / 2 / 3
+0x2f0b978  perlin_g1                data:float[514] -                    O ; 1D gradients filled by perlin_init, used by perlin_noise1
+0x2f0c180  perlin_g2                data:float[1028] -                    O ; 2D gradients (8 bytes each) filled by perlin_init, used by perlin_noise2
+0x2f0d190  perlin_g3                data:float[1542] -                    O ; 3D gradients (12 bytes each) filled by perlin_init, used by perlin_noise3
 0x2f0e9a8  glide_grCheckForRoom     data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_grCheckForRoom" stored by glide_load_dll (GetProcAddress)
 0x2f0e9ac  glide_guTexGetMipMapInfo data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guTexGetMipMapInfo" stored by glide_load_dll (GetProcAddress)
 0x2f0e9b0  glide_dll_handle         data:HMODULE vsdk\gr\glide\gr_glide.cpp O ; LoadLibraryA("glide2x.dll") result in glide_load_dll
@@ -9511,11 +10246,82 @@
 0x2f0eb60  glide_guFogGenerateExp   data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateExp" stored by glide_load_dll (GetProcAddress)
 0x2f0eb64  glide_guFogGenerateExp2  data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateExp2" stored by glide_load_dll (GetProcAddress)
 0x2f0eb68  glide_guFogGenerateLinear data:void* vsdk\gr\glide\gr_glide.cpp O ; glide2x.dll export "_guFogGenerateLinear" stored by glide_load_dll (GetProcAddress)
+0x2f0eb70  glide_tmus               data:uint8[0x90] vsdk\gr\glide\gr_glide.cpp I ; 2 texture unit records of 0x48 bytes (init_glide_records_2f0eb70), gr_glide_tcache_init / free_entry / close
+0x2f0ec00  glide_tcache_entries     data:void* vsdk\gr\glide\gr_glide.cpp O ; operator_new block of the texture cache (0xaf0 entries) made by gr_glide_tcache_init, 20 uses
+0x2f0ec04  glide_texture_mem_used   data:int vsdk\gr\glide\gr_glide.cpp O ; texture memory in use, 0 at gr_glide_tcache_init, raised by gr_glide_create_texture_section, lowered by gr_glide_tcache_free_entry
+0x2f0ec08  glide_poly_vertex_ptrs   data:void*[32] vsdk\gr\glide\gr_glide.cpp I ; vertex pointer list passed to grDrawPolygonVertexList by gr_glide_tmapper / tmapper_multitexture
+0x2f0f1e4  gr_glide_current_mode    data:int vsdk\gr\glide\gr_glide.cpp O ; gr__Mode last applied by gr_glide_set_mode (init_gr_glide_current_mode, invalid), read by gr_glide_set_fog
+0x2f0f1f8  glide_cursor_clip_rect   data:int[4] vsdk\gr\glide\gr_glide.cpp O ; RECT set by gr_glide_init, passed to ClipCursor by glide_clip_cursor
 0x2f0f208  gr_glide_video_memory_mb data:int vsdk\gr\glide\gr_glide.cpp O ; texture memory in MB from gr_glide_init
+0x2f132a4  glide_initialized        data:int vsdk\gr\glide\gr_glide.cpp O ; set by gr_glide_init before glide_load_dll, gr_glide_close shuts Glide down and clears it
+0x2f132ac  glide_deactivation_count data:int vsdk\gr\glide\gr_glide.cpp I ; incremented by glide_msg_handler and gr_glide_deactivate, checked by gr_glide_flip
+0x2f132bc  gr_glide_texture_scale_u data:float vsdk\gr\glide\gr_glide.cpp I ; texture coordinate scale returned through a pointer by gr_glide_page_in / set_bitmap, multiplied in gr_glide_bitmap and the tmappers
+0x2f132c0  gr_glide_texture_scale_v data:float vsdk\gr\glide\gr_glide.cpp I ; second scale filled with gr_glide_texture_scale_u by gr_glide_page_in / set_bitmap
+0x2f132cd  glide_multitexture_supported data:bool vsdk\gr\glide\gr_glide.cpp O ; cleared by gr_glide_init when fewer than 2 TMUs, returned by gr_glide_is_mode_supported
+0x2f132d8  d3d_tcache_slots         data:uint8[0x30] vsdk\gr\directx\gr_direct3d.cpp O ; 2 texture stage records of 0x18 bytes (init_opengl_records_2f132d8), tcache_slot__init_stage / reset / d3d_unbind
+0x2f13308  d3d_tcache_entries       data:void* vsdk\gr\directx\gr_direct3d.cpp O ; 0xaf00-byte block from operator_new in gr_d3d_tcache_init, freed by gr_d3d_tcache_close
+0x2f13314  d3d_texture_mem_used     data:int vsdk\gr\directx\gr_direct3d.cpp O ; texture bytes in use, raised by gr_d3d_create_texture_section, lowered by gr_d3d_tcache_free_entry
+0x2f1331c  gl_tcache_entries        data:void* vsdk\gr\opengl\gr_opengl.cpp O ; texture cache block allocated by gr_opengl_texture_init, freed by gr_opengl_tcache_close
+0x2f13328  gl_texture_mem_used      data:int vsdk\gr\opengl\gr_opengl.cpp O ; texture bytes in use, raised by gr_opengl_create_texture, lowered by gr_opengl_delete_texture
+0x2f1332c  gl_texture_mem_frame     data:int vsdk\gr\opengl\gr_opengl.cpp I ; texture bytes uploaded this frame, reset by gr_opengl_tcache_frame, added by gr_opengl_create_texture
+0x2f13334  gl_convert_buffer        data:void* vsdk\gr\opengl\gr_opengl.cpp I ; scratch buffer from operator_new in gr_opengl_texture_init, used by gr_opengl_create_texture for mipmaps
+0x2f13338  gl_context_initialized   data:bool vsdk\gr\opengl\gr_opengl.cpp O ; set at the end of gr_opengl_init_context (then gr_opengl_texture_init), tested by gr_opengl_flip
+0x2f1333c  gr_opengl_current_mode   data:int vsdk\gr\opengl\gr_opengl.cpp O ; gr__Mode last applied (init_gr_opengl_current_mode), returned by gr_opengl_get_current_mode, invalidated by init_context / read_backbuffer
+0x2f13340  gl_hglrc                 data:void* vsdk\gr\opengl\gr_opengl.cpp O ; rendering context created in gr_opengl_init_context, deleted by gr_opengl_close
+0x2f13344  gl_active_texture_arb    data:void* vsdk\gr\opengl\gr_opengl.cpp I ; extension function called with GL_TEXTURE0/1_ARB (0x84c0 / 0x84c1), loaded by gl_init_multitexture
+0x2f13348  gl_client_active_texture_arb data:void* vsdk\gr\opengl\gr_opengl.cpp I ; second extension function called with GL_TEXTURE0/1_ARB after gl_active_texture_arb, loaded by gl_init_multitexture
+0x2f13350  gl_hwnd                  data:HWND vsdk\gr\opengl\gr_opengl.cpp O ; window stored by gr_opengl_init_context (GetDC), ReleaseDC in gr_opengl_close
+0x2f13354  gl_hdc                   data:void* vsdk\gr\opengl\gr_opengl.cpp O ; device context from GetDC in gr_opengl_init_context, used by gr_opengl_set_pixel_format and SwapBuffers in gr_opengl_flip
+0x2f13358  gl_pixel_format          data:int vsdk\gr\opengl\gr_opengl.cpp O ; pixel format index chosen by gr_opengl_set_pixel_format, used by gr_opengl_init_context
 0x2f136e8  crc32_table              data:uint32[256] -                    O ; filled by Crc32__init_table
 0x2f13ae8  crc32_table_inited       data:bool -                    O ; set by Crc32__init_table, tested by Crc32__update
 0x2f53b00  gr_clip_temp_verts       data:Vertex[] vsdk\gr              O ; temporary vertices created while clipping, allocated by gr_clip_alloc_temp_vertex
 0x2f54700  gr_clip_num_temp_verts   data:int vsdk\gr              O ; count of gr_clip_temp_verts, reset by gr_clip_free_temp_verts
+0x2f54708  http_host_addr           data:uint32 -                    I ; address copied from the hostent by http_resolve_host, returned by http_async_gethostbyname
+0x2f54720  ds_buffers               data:uint8[0x25000] -                    I ; DirectSound buffer records (+0x204 handle, +0x218 format, +0x24c ref count) used by ds_load_buffer / ds_create_buffer / ds_sound_release (Dash Faction ds_buffers)
+0x2f79720  ds_volume_table          data:int[101] -                    O ; attenuation per volume percent (first entry -10000) built by ds_init_volume_table, read by ds_volume_to_attenuation
+0x2f798b4  ds_eax_enabled           data:bool -                    O ; EAX requested in ds_init (cleared when unavailable), ds_init calls eax_init when set, returned by ds_is_eax_enabled
+0x2f798b5  ds_com_initialized       data:bool -                    I ; 0 at ds_init start, ds_close calls the COM uninitialise import when 1
+0x2f798b8  ds_channels              data:uint8[0x580] -                    O ; 32 channel records of 0x2c bytes (init_ds_channels): buffer, 3D buffer, signature +0x10, volume +0x14, flags +0x28 (Dash Faction ds_channels)
+0x2f79e38  ds_primary_buffer        data:void* -                    O ; primary sound buffer created in ds_init, returned by ds_get_primary_buffer, released by ds_close
+0x2f79e3c  ds_direct_sound          data:void* -                    O ; DirectSound object created by ds_init, used by ds_create_buffer / ds_duplicate_buffer, released by ds_close (Dash Faction direct_sound)
+0x2f8f72c  ds3d_enabled             data:bool -                    O ; 3D sound flag set by ds_init, returned by ds_is_ds3d_enabled, used by ds_create_buffer (Dash Faction ds3d_enabled)
+0x2f8f730  ds_eax_property_set      data:void* -                    I ; property set queried from ds_eax_buffer3d by ds_eax_init, released by ds_close
+0x2f8f734  ds_eax_buffer            data:void* -                    I ; helper sound buffer created by ds_eax_init, released by ds_close
+0x2f8f738  ds_eax_buffer3d          data:void* -                    I ; 3D buffer interface queried from ds_eax_buffer by ds_eax_init, released by ds_close
+0x2f8f73c  ds_initialized           data:bool -                    O ; set at the end of ds_init, ds_init returns early when 1, cleared by ds_close
+0x2f8f740  ds_next_signature        data:int -                    O ; signature given to each started sound by ds_play / ds_play_3d / ds_play_streamed, wraps to 0 when negative
+0x2f8f744  ds3d_listener            data:void* -                    O ; 3D listener interface of ds_init_primary_buffer, updated by ds3d_update_listener, released by ds3d_release_listener
+0x2f8f748  ds3d_initialized         data:bool -                    O ; tested by ds3d_update_listener, cleared by ds3d_close
+0x2f91a5c  gr_mode_vfx_flat_alpha   data:uint32 vsdk\geom            I ; gr__Mode(no texture, vertex, vertex alpha, alpha, zbuffer read, fog) picked by vfx_emitter_instance__render
 0x2f91a60 ccmd_dump_mesh_frames    data:console_command -                      O ; console command object "dump_mesh_frames"
 
 0x2f91a6c Dump_mesh_frames         data:bool -                      O ; set by console command "dump_mesh_frames" (toggles); type from the TOGGLE callback (xor byte 1)
+0x2fbd998  snd_stream_lock          data:CRITICAL_SECTION -                    O ; critical section entered and left around stream changes by ds_channel_release, ds_sound_release, snd_start_timer and snd_stream_close_all
+0x2fbd9b0  snd_streams              data:uint8[0x1c0] -                    O ; 16 stream records of 0x1c bytes (+0 buffer, +4 handle, +0x18 flags bit 1 in use): snd_stream_service / find_free / fill_acm / fill_pcm / close_all
+0x2fbdb70  acm_driver_handle        data:void* -                    O ; driver opened by acmDriverOpen in acm_init, used by acm_stream_open, closed by acm_close
+0x2fbdb78  acm_driver_id            data:void* -                    O ; driver id found by acm_driver_enum_callback, opened by acm_init
+0x2fbdb7c  acm_initialized          data:bool -                    O ; set at the end of acm_init (msacm32.dll loaded), tested by acm_stream_open / acm_convert / acm_close
+0x2fbdbc0  _environ                 data:void* crt                  O ; environment table built by _setenvp (FUN_5742a5) from _aenvptr, read by getenv (FUN_5703c2, FUN_57a638)
+0x2fbdbd8  _exitflag                data:uint8 crt                  O ; C runtime exit flag set by doexit (FUN_56dabb), tested by the lock helper used by _strnicmp
+0x2fbdbe4  _aenvptr                 data:char* crt                  O ; GetEnvironmentStrings copy stored by WinMainCRTStartup, parsed by _setenvp (FUN_5742a5) then freed
+0x2fbdc0c  _cflush                  data:int crt                  I ; incremented when a stream gets a buffer (_getbuf and the stdio helpers)
+0x2fbdc7c  __lc_handle              data:uint32[6] crt                  I ; locale handles, the LC_CTYPE entry (+8) is tested by tolower, _strnicmp and _stricmp
+0x2fbdc94  __lc_codepage            data:uint32 crt                  I ; code page passed to the multibyte conversion calls (FUN_571da0, FUN_577c16)
+0x2fbde9c  _newmode                 data:int crt                  I ; passed with the size by malloc (FUN_56eb84) to the new-handler allocator
+0x2fbdf58  __mbcodepage             data:int crt                  I ; multibyte code page set by _setmbcp (FUN_578cde), compared with the requested one and passed to the mbcs conversions
+0x2fbdf6c  __ismbcodepage           data:int crt                  I ; 1 for a multibyte code page, set and cleared by _setmbcp (FUN_578cde / FUN_578f08)
+0x2fbe080  _mbctype                 data:uint8[257] crt                  O ; multibyte character type table (index c + 1) cleared and filled by _setmbcp (FUN_578cde), tested with bit 4 by the mbcs parsers
+0x2fbe184  __mblcid                 data:int crt                  I ; locale id of the multibyte code page set by _setmbcp, passed to the string compare helpers
+0x2fbe1a0  __sbh_threshold          data:uint32 crt                  O ; small-block heap threshold set by the heap init (FUN_57549b), compared by the malloc / realloc paths
+0x2fbe1a4  _crtheap                 data:void* crt                  O ; CRT heap handle passed to HeapAlloc / HeapFree / HeapReAlloc (19 uses)
+0x2fbe1a8  __active_heap            data:int crt                  O ; heap kind compared with 3 (V6 small-block heap) by free, malloc and realloc
+0x2fbe1c0  __pioinfo                data:void*[64] crt                  O ; low-io handle info blocks (32 entries of 0x24 each), indexed by handle >> 5 in the read / write / lseek helpers
+0x2fbe2c0  _nhandle                 data:int crt                  O ; number of low-io handles (0x20 per block), bound checked before indexing __pioinfo
+0x2fbe2c4  __setlc_active           data:int crt                  O ; locale change in progress counter tested by tolower, _strnicmp and the ctype helpers
+0x2fbe2c8  __unguarded_readlc_active data:int crt                  O ; InterlockedIncrement / Decrement around unlocked locale reads in tolower, _strnicmp and _stricmp
+0x2fbe2cc  __piob                   data:void* crt                  O ; array of FILE pointers allocated by the stdio init, walked by _flushall-style loops (FUN_56f8d5)
+0x2fbf2e0  _nstream                 data:int crt                  O ; number of stdio stream slots, loop bound with __piob
+0x2fbf2e4  _acmdln                  data:char* crt                  O ; GetCommandLineA result stored by WinMainCRTStartup, parsed by _setargv (FUN_57435e)
+0x2fbf2f0  __onexitend              data:void* crt                  O ; end of the atexit table, grown and appended by _onexit (FUN_56d14f)
+0x2fbf2f4  __onexitbegin            data:void* crt                  O ; start of the atexit table, reallocated by _onexit and walked by exit
