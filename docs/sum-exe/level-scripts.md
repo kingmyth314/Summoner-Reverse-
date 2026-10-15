@@ -22,7 +22,7 @@ symbol file (138 functions). The record layout is `level_script_info` in `symbol
 | `+0x0c` | `leave` | `level_script_leave` (`0x4ccc70`), from `state_game_leave`; also on restart |
 | `+0x10` | `use (name)` | an object or exit was used. The handler compares the name with `_stricmp`, then opens a gate or has a character speak a refusal ("The lift doesn't work."). It returns 0 |
 | `+0x14` | unused | 0 in every record |
-| `+0x18` | `action` | script and dialogue actions such as `CheckItems` or `AddRosalind`; also used by `journal_format_event` |
+| `+0x18` | `action` | script and dialogue actions such as `CheckItems` or `AddRosalind`; also used by `conversation_execute_action` |
 | `+0x1c` | loading steps | the loading-screen progress total, read by `LoadingScreenDraw` (default 10000) |
 | `+0x20` | music name | looked up with `0x4696d0` (debug mode only) |
 

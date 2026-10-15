@@ -28,7 +28,7 @@ gold and skill points (2026-10-14).
 - Disassembly (`node tools/asm.mjs fn`) of `savegame_write` (`0x4d1c40`), `savegame_read` (`0x4d25b0`),
   `savegame_write_header` (`0x4d1df0`), `savegame_read_header` (`0x4d29f0`), `savegame_report_sizes`
   (`0x4ceff0`), `savegame_report_read_sizes` (`0x4cf260`), every chunk writer and reader, the 14 layout
-  functions `0x4d1800`..`0x4d1c10` (called in order from `level_items_load_names`, `0x4d4160`), and the
+  functions `0x4d1800`..`0x4d1c10` (called in order from `savegame_build_layout`, `0x4d4160`), and the
   character serializer `character_save_state` (`0x457150`, proposed name).
 - Hex dumps of the eight saves in `Summoner/savegame/` (`summoner0.sav`..`summoner7.sav`; six in `masad`,
   two in `lenele1d`). They were read with `node`, and no file was written. All eight are 270,755 bytes, have
@@ -39,7 +39,7 @@ gold and skill points (2026-10-14).
 ## How the buffer is built (observed)
 
 `savegame_alloc` (`0x4d3920`) calls `savegame_init_buffer` (`0x4cfbb0`) with buffer `0x2494b2c` and size
-0x4b000. That zeroes the buffer. `level_items_load_names` then runs the layout functions. Each one stores a
+0x4b000. That zeroes the buffer. `savegame_build_layout` then runs the layout functions. Each one stores a
 section pointer and size in the savegame object and advances the running total at `+0x08`. The total
 becomes the file size.
 
@@ -279,7 +279,7 @@ All eight saves have no containers (count 0).
 ## Quest bits (observed)
 
 200 bits (`savegame_get_quest_bit` / `savegame_set_quest_bit`, `+0x103c`). Bit n is quest n of the journal
-(`journal_init`, `journal_draw_quest_list`). The layout function calls `journal_notify_updated(n, 0)` for
+(`journal_init`, `journal_draw_quest_list`). The layout function calls `quest_journal_set_entry(n, 0)` for
 n = 0..199.
 
 ## Level items (observed / inferred)
