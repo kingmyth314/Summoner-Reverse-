@@ -84,7 +84,7 @@ os_clipboard_get_text.
 | 0x517c10 | nw_init_socket | likely |
 | 0x517d20 | nw_send_reliable_reply | exact |
 | 0x517d70 | nw_send_heartbeat | exact |
-| 0x517e00 | nw_work_reliable | likely |
+| 0x517e00 | nw_WorkReliable | likely |
 | 0x518770 | nw_receive_all | likely |
 | 0x518880 | nw_close | exact |
 | 0x5188d0 | nw_init_networking | likely |
@@ -97,7 +97,7 @@ os_clipboard_get_text.
 | 0x519370 | nw_addr_equal | exact |
 | 0x519440 | nw_flush_receive | exact |
 
-Same object, module -, not written: float_compare 0x517dc0 (declared in net.h, nw_work_reliable's qsort
+Same object, module -, not written: float_compare 0x517dc0 (declared in net.h, nw_WorkReliable's qsort
 callback), nw_NewReceiveReliable 0x518bb0, nw_NewSendReliable 0x518d70, nw_NewCloseSocket 0x5191c0,
 net_get_reliable_socket_status 0x5193a0, net_get_reliable_socket_ping 0x5193f0.
 
@@ -151,7 +151,7 @@ cmd_sysinfo 0x531aa8.
 
 - The localize file may be game code linked into the vsdk range (it hard-codes Summoner names); its directory
   is unknown either way.
-- nw_can_write's `or eax, eax` after `cmp eax, -1` and nw_work_reliable's unused `cmp eax, 0x258` look like
+- nw_can_write's `or eax, eax` after `cmp eax, -1` and nw_WorkReliable's unused `cmp eax, 0x258` look like
   expression-only debug macros (written as NW_DEBUG_CHECK); VC6 may drop the written form.
 - nw_init_networking: the "none" / unknown-speed exits share one block; written as two returns, an if chain
   with a goto for "fast". A switch on nw_network_status after the chain would also fit.
@@ -178,14 +178,14 @@ cmd_sysinfo 0x531aa8.
 - docs/sum-exe/vsdk-os.md says nothing about the os window code; controls.md's os_wndproc description matches.
 - sum.symbols comments: nw_reliable_slot_status ("connected socket": it tests a packet buffer), nw_send_reliable_reply
   args ("(socket, seq, addr)": (addr, seq, send_time)), nw_send_heartbeat (it sends IAMHERE; the type-5 heartbeat
-  is inline in nw_work_reliable), nw_addr_to_string format ("IP: %s:%d": "IP: %s %d"), nw_recv_buffers
+  is inline in nw_WorkReliable), nw_addr_to_string format ("IP: %s:%d": "IP: %s %d"), nw_recv_buffers
   (uint8[0x10000]: nw_packet_buffer[5], 0x5193c bytes), nw_connect_request (uint8[10]: a full reliable_header of
   which 10 bytes are sent), localize_pool_used (int: char *), os_window_title (char[0x98]: 0x80), the
   localize_pool_* comments ("loc  non level"). docs/sum-exe/multiplayer.md has nothing on this layer.
 
 ## Game bugs (all latent; multiplayer is unreachable in retail, the rest needs modded tables or odd setups)
 
-1. nw_work_reliable keeps `rsocket` from the previous packet: a reliable packet from an unknown address that
+1. nw_WorkReliable keeps `rsocket` from the previous packet: a reliable packet from an unknown address that
    follows one from a known peer is processed as that peer's (0x517e14 sets it once, 0x518088 tests it).
 2. A duplicate connection request is acknowledged and marked RNT_IGNORE, but the code then still opens a new
    LIMBO link for the same peer (no type test before the free-slot loop, 0x517fa7).

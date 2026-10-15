@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 187 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 199 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 41 | 2 |
-| Gameplay | 26 | 14 | 3 |
-| Cosmetic | 36 | 10 | 2 |
-| Invisible | 23 | 34 | 0 |
+| Crash or hang | 3 | 43 | 2 |
+| Gameplay | 26 | 17 | 3 |
+| Cosmetic | 36 | 12 | 2 |
+| Invisible | 24 | 38 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -82,6 +82,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C161 | Latent: a navigation BSP node with a type other than 1, 2 or 3 in a level's `.pfg` path graph hangs the game at the next path or position test | `pf_bsp_node_find` `0x4a5c60`, `pathvis_bsp_contains` `0x4b86e0`, `pf_read_typed_refs` `0x49ca20` | **Observed** code, *inferred* hang | No |
 | C170 | Latent: a message box line of 64 or more characters overflows a stack buffer, and from about 69 characters on it corrupts the lengths of the lines after it | `ui_message_box_draw` `0x414270` | **Observed** code, *inferred* effect | No |
 | C171 | Latent: in multiplayer, Tab or Shift+Tab hangs the game when the leader's character and every other party record's character are gone | `party_cycle` `0x413360` | **Observed** code, *inferred* hang | No |
+| C180 | Latent: a modded name table overflows the stack or a buffer: an `item_names.tbl` / `quest_names.tbl` id of 1000 or more, a level section of `topic_names.tbl` / `script_names.tbl` with more than 500 English lines, or a `strings.tbl` id of 1000 or more; a level whose topic and script names need more than the 10 KB level pool crashes | `localize_load_names` `0x504520`, `localize_load_level_table` `0x504870`, `localize_set_string` `0x504400`, `localize_strdup` `0x504070` | **Observed** code and retail data, *inferred* effect | No |
+| C181 | Latent: in multiplayer, a reliable data packet whose length field says more than 600 bytes overwrites the heap after its 600-byte receive buffer (only a malformed or hostile packet; the game's own senders stay below the limit) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -430,6 +432,30 @@ record (`cmp esi, edi` at `0x413396`). So when the leader's own record and every
 character, the loop never ends. The single-player branch tests for the start record first (`0x4133fa`) and always
 ends. We know of no retail sequence that leaves the leader's character gone while the Tab keys still work.
 
+**C180. Ids and counts taken on trust.** `localize_load_names` fills a 1000-entry hash table on the stack
+(`[esp+0x39c]`, `rep stosd` of 0x3e8 dwords at `0x504594`) and stores `hashes[id]` with the parsed id and no compare
+(`mov [esp+4*esi+0x39c], eax` at `0x50464c`). The table ends at the saved registers and return address, so an id of
+1000 to about 1004 or a negative one overwrites the frame. `localize_load_level_table` writes one hash per English
+line of the level section into a 500-entry table (`[esp+0x360]`, 0x1f4 dwords at `0x5049c9`) with a moving pointer and
+no count (`mov [esi], eax; add esi, 4` at `0x504acd`..`0x504ad3`); line 501 reaches the frame. `localize_set_string`
+only tests `id >= 0` before `localize_strings[id] = dest` (`0x50440f`..`0x504417`); `localize_strings` has 1000 slots
+and slot 1000 is the start of the text buffer `0x25ce47c`, so a higher id overwrites the first strings' text (and
+`localize_load_strings` puts "NULL Format String" at the last id + 1, `0x504389`..`0x504396`). In the level pool
+`localize_strdup` copies into the result of `allocate_in_mempool` without a NULL test (`0x5040ac`..`0x5040d2`;
+`allocate_in_mempool` returns 0 when the 16-byte-rounded size does not fit, `0x5127d3`..`0x5127da`). Retail data:
+the highest ids are 520 (items) and 81 (quests), the longest level sections have 127 topics (`khosanistrng_v6_dlg.tbl`)
+and 77 script names (`lenele1b_v2_script.tbl`), `strings.tbl` ends at id 981, and the largest level needs about 7 KB
+of the 0x2800-byte level pool. Needs a modded table.
+
+**C181. The length field decides the copy.** For a data packet `nw_work_reliable` takes the length from the
+packet's own header (`mov eax, [0x270839c]; and eax, 0xffff` at `0x518391`..`0x518396`), compares it with 0x258 and
+ignores the result (`cmp eax, 0x258` at `0x51839b`, no branch), allocates 0x258 bytes (`0x5183b5`..`0x5183ba`) and copies
+that many bytes from the receive buffer into it (`rep movsd` / `movsb` at `0x5183e4`..`0x5183ee`). Neither the size
+that `nw_buffer_receive` returned (`0x517f1f`) nor the 0x262-byte receive buffer limits it. `nw_NewReceiveReliable`
+later copies the same length into the caller's buffer (`0x518c6d`..`0x518c8f`). The game's senders put at most 0x200
+bytes into a reliable buffer before sending it (`multi_send_packet`), so only a corrupt or forged datagram on the
+game port does this.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -474,6 +500,9 @@ ends. We know of no retail sequence that leaves the leader's character gone whil
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 | G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
 | G170 | A "Cannot save..." warning shown while the player has paused the game resumes the game when it is closed | `ui_message_box_show` `0x413e40`, `ClearFrameFlag5bd504` `0x414020` | **Observed** code, *inferred* trigger | No |
+| G180 | Latent: in multiplayer, a reliable packet from an address with no link (for example a machine whose link has timed out) that comes after a connected machine's packet in the same update is handled as that machine's: an ACK can free its unacknowledged packets, and data enters its stream | `nw_work_reliable` `0x517e00` | **Observed** code, *inferred* effect | No |
+| G181 | Latent: in multiplayer, once a link's receive sequence number reaches 0xffb6, a resent copy of a packet already delivered is stored again, and it is delivered in place of the real packet with that number when the sequence comes round (about 65,536 packets later) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
+| G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -815,6 +844,35 @@ summon.", "Cannot save now.", "No more savegame slots." and the other quick-save
 `0x40e1af`, `0x40e862`, `0x40e910`, `0x40e92b`). So a player who pauses a fight and presses the save key gets the
 warning, and the fight goes on as soon as it is closed.
 
+**G180. A peer pointer kept from the last packet.** `nw_work_reliable` clears its link pointer (`ebx`) once, before
+the packet loop (`xor ebx, ebx` at `0x517e14`). For each packet that is not a connection request it searches the nine
+links for the sender's address and sets `ebx` only on a match (`0x518044`..`0x518081`). The "unknown sender" test
+then only checks `ebx` (`test ebx, ebx` at `0x518088`), and the loop goes back to `0x517f0d` without clearing it. So the
+first stray packet of an update is only logged ("Received from %s", `0x5180b2`), but a stray packet after a known one
+runs the known link's code: it refreshes its time-out (`0x5180cc`), an ACK frees the link's sent buffer with that
+sequence number (`0x518232`..`0x518283`) and adds a ping sample, and data is stored in the link's receive buffers and
+ACKed to the known machine's address (`0x518391`..`0x518413`). Stray packets come from a machine whose link this side
+has dropped (time-out, `0x518734`) but which still sends.
+
+**G181. The wrap test lets old packets in.** The receive test for data (`0x5182f8`..`0x51834a`) first drops packets
+more than 148 away from the expected number (`cmp ecx, 0x95; jge` at `0x518319`). Below 0xff6a it rejects numbers
+below the expected one. From 0xff6a on it computes `expected + seq + 0x96` in 16 bits (`add ax, di; add eax, 0x96`
+at `0x51833c`..`0x51833f`) and accepts the packet when that is at most 0x95. That sum needs `0x10000 - expected`
+instead: as written it accepts an old number when `expected + seq >= 0x1ff6a`, which happens from expected 0xffb6 on.
+The duplicate test only looks at packets still buffered (`0x51835f`..`0x518372`), so a resend of a packet already
+read (its ACK was lost) is stored with its old number and ACKed. `nw_NewReceiveReliable` delivers the buffer whose
+number equals the expected one (`0x518c33`..`0x518c50`) and then increments it (`0x518cc5`), so the stale copy waits
+until the number comes round again and is delivered then; the real packet with that number is refused as a
+duplicate but still ACKed (`0x518364`..`0x518369`, `0x5183ff`..`0x518413`), so its data is lost.
+
+**G182. The indices survive the clean-up.** `nw_ConnectToServer` takes a free slot, puts it in limbo (status 5), and
+stores the slot in `nw_server_socket` and in the caller's `*socket` (`0x519118`..`0x519128`) before it sends IAMHERE.
+When `nw_send_heartbeat` returns -1 it clears the whole slot (`0x519137`..`0x519150`) but not the two indices.
+`mp_handle_acpt_jn` ignores the return value and tests only `mp_local_player +0x18 != -1` (`0x470ab9`), so it sets the
+join result 2 and goes on (`0x470ac4`..`0x470ad3`). Every later `nw_NewSendReliable` on that slot fails ("Can't send packet
+because of status 0", `0x518dd7`..`0x518df3`). *Inferred:* the join never completes. It needs `sendto` to fail
+right after the connect request to the same address succeeded.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -865,6 +923,8 @@ warning, and the fight goes on as soon as it is closed.
 | K161 | The "Insert Summoner CD #2" box is centred across the screen but starts at the middle, so it sits in the lower half | `cd_prompt_disc2` `0x43ea20` | **Observed** code | No |
 | K170 | In the "You have died." popup (and the other titled choice popups), the highlight and the click area of each entry sit 5 pixels above its text: the bottom of "Restart" selects "Quit" | `ui_choice_popup_hit_test` `0x413970` | **Observed** code, *inferred* effect | No |
 | K171 | A lock that was already picked can be picked again: the skill rolls again, plays the unlock or the failure sound, and "This door already unlocked." is never shown for it | `character_use_skill` `0x429410`, `door_pick_by_mesh` `0x4aaa10` | **Observed** code, *inferred* trigger | No |
+| K180 | Latent: when a `strings.tbl` language section has more than 40 KB of text, each string that does not fit shows the text of the next string that does (or nothing) | `localize_set_string` `0x504400` | **Observed** code and retail data, *inferred* effect | No |
+| K181 | Latent: French text would show `Ä` as `É`; v1.40 never selects French | `localize_remap_charset` `0x5051a0` | **Observed** code and retail data | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1262,6 +1322,20 @@ only ever sent for doors that never had a lock. Inferred trigger: the skill take
 `world_interact_object` without a locked test (`0x4295d3`..`0x4295e8`); the world pick filter was not traced. The
 use hook is harmless twice: `door_toggle_state` runs it on every open too (`0x476f21`).
 
+**K180. The slot is set before the room test.** `localize_set_string` stores the current write pointer in
+`localize_strings[id]` (`0x504417`) and the id in `localize_max_string_id` (`0x504439`), and only then tests whether the
+text fits before the end of the 0xa000-byte buffer (`mov eax, 0x25d847d; sub eax, edx; cmp ebp, eax` at
+`0x50442e`..`0x504437`). A string that does not fit returns NULL without advancing the pointer (`0x50443f`..`0x504448`),
+so its id points at unwritten (zero) bytes until the next string that fits is copied to the same place
+(`0x504477`..`0x5044a7`), and then shows that string. The retail sections need 24,673 (English), 27,668 (German) and
+28,389 (French) bytes.
+
+**K181. A capital A for a capital E.** The French table maps 0xC4 (`Ä`) to 0x90 (`mov byte [ecx], 0x90` at `0x505210`,
+jump table `0x50531c` / `0x505384`), which is `É` in CP437, while `É` (0xC9) itself goes to 0x82 like `é` (`0x505206`).
+0xC4 was probably meant to be 0xC9. The retail French text has no `Ä` (counted in `strings.tbl` and the four name
+tables), and v1.40 never selects French: the only call of `localize_set_language` passes 0 (`0x504f64`), and nothing
+else writes `localize_language`.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1323,6 +1397,11 @@ use hook is harmless twice: `door_toggle_state` runs it on every open too (`0x47
 | V153 | With the Glide renderer (a 3dfx card or a Glide wrapper), a texture marked dirty (texture quality change, save thumbnail) of an animated bitmap is built twice: the rebuild stores the frame number as the owner, so the next use rebuilds it again | `gr_glide_mark_texture_dirty` `0x5496e0`, `gr_glide_tcache_set` `0x549560` | **Observed** code |
 | V170 | Opening a full-screen screen from a side panel with no character to show runs the side panel's leave function twice | `interface_set_screen` `0x412620` | **Observed** code, *inferred* trigger |
 | V171 | `packfile_read_whole_file` opens the `.vpp` by its bare name (not under the install path) and reports success for a CD packfile without reading it | `packfile_read_whole_file` `0x534900` | **Observed**; no caller |
+| V180 | The main window's thread priority is never changed on activation: `SetThreadPriority` gets a thread handle that nothing sets; the previous-instance window search runs at every start and its result is never read | `os_wndproc` `0x530ff0`, `os_find_previous_instance` `0x530e40` | **Observed** code |
+| V181 | Latent: in multiplayer, a repeated connection request opens a second link for the same machine, which holds a slot for 100 s | `nw_work_reliable` `0x517e00` | **Observed** code, *inferred* effect |
+| V182 | Latent: in multiplayer, IAMHERE packets send four uninitialised stack bytes as their send time and ACKs two as their sequence number | `nw_send_heartbeat` `0x517d70`, `nw_send_reliable_reply` `0x517d20` | **Observed** code |
+| V183 | Latent: the level section name is lowered only while the index is below the character's code, and a duplicate name leaks its node and its copy in the pool | `localize_load_level_table` `0x504870`, `localize_table_add` `0x5040e0` | **Observed** code and retail data |
+| V184 | The clipboard reader leaves the clipboard open when there is no text on it, and needs one byte more than its size argument | `os_clipboard_get_text` `0x531b44` | **Observed**; no caller |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1714,6 +1793,41 @@ name, refuses a buffer smaller than its size (`"B : (%d %d)"`, `0x53492e`), then
 For a CD packfile (`+0x20` bit 0) it returns 1 without reading anything (`0x534946`..`0x53498c`). Its only caller,
 `file_blast_into_buffer` (`0x517220`), has no caller and no pointer reference in v1.40.
 
+**V180. A NULL thread and an unread flag.** On activation `os_wndproc` calls `SetWindowPos` and then
+`SetThreadPriority([0x2cbff14], 2)`, on deactivation `SetThreadPriority([0x2cbff14], 0)` (`0x5310b7`..`0x5310bf`,
+`0x5310ef`..`0x5310f8`). `0x2cbff14` is read only there and never written (no other reference in the image), so the
+call gets a NULL handle and fails. `os_init` runs `os_find_previous_instance` after the single-instance mutex test
+(`0x530e25`); its callback sets `0x2cbff0c` (`0x530bc5`), which is only ever cleared (`0x530e46`) and never read. The
+mutex test is what actually stops a second copy.
+
+**V181. The ignore mark is never tested.** For a connection request (type 3) the first loop finds a link in status 1
+or 5 with the same address, logs "Received duplicate connection request", ACKs it and sets the packet type to 7
+(`0x517f49`..`0x517f91`). The free-slot loop that follows does not test the type (`0x517fa7`..`0x517fbe`), so it takes
+another slot for the same address, puts it in limbo (status 5) and replies (`0x517fc2`..`0x518013`, `0x518028`..`0x518413`).
+The client resends its request every 2 s until it gets the reply (`nw_ConnectToServer` `0x519034`..`0x51904c`). Later
+packets from that address match the first slot (`0x518044`..`0x518081`), so the extra one only waits for the limbo
+time-out of 100 s (`0x518461`..`0x5184b0`). There are nine slots.
+
+**V182. Stack bytes on the wire.** `nw_send_heartbeat` fills type 6, sequence field 0xfebd and length 0 of a local
+packet (`0x517d7b`..`0x517d87`) and sends 10 bytes (`push 0xa` at `0x517da8`); bytes 6 to 9, the send time, are never
+written. `nw_send_reliable_reply` fills type, length 4, send time and the acknowledged number at +0xa
+(`0x517d3d`..`0x517d57`) but not the header sequence at +2. The receivers use only the data field of an ACK and echo
+the IAMHERE time (`0x51812a`..`0x51814c`). *Inferred:* one exception is an ACK for a second IAMHERE (sent every 750 ms
+while the link is in limbo, `0x517e60`..`0x517e8a`) that arrives after the link is up: it goes through the normal ACK
+path and its echoed garbage time becomes one ping sample (`0x5181a6`..`0x5181c9`); the median of ten hides it.
+
+**V183. Two localize slips.** The lowering loop of the section name compares the index with the current character
+(`movsx eax, byte [esp+edi+0x60]; cmp edi, eax; jl` at `0x5049bc`..`0x5049c7`), so it stops once the index reaches the
+character's code: the smallest code in a level name is `-` (45), so only names of more than 45 characters can keep
+upper-case letters (the retail section names have at most 32 characters, and the file's section lines are lower case). `localize_table_add` allocates the 12-byte node and copies the text
+(`0x5040f4`, `0x504119`) before it walks the bucket for the same hash and text (`_stricmp` at `0x50414f`, `0x50416d`),
+so a duplicate returns with both allocated and unused. The retail item, quest and level tables have no duplicates.
+
+**V184. Early returns.** `os_clipboard_get_text` calls `OpenClipboard(0)` without testing it, returns without
+`CloseClipboard` when `GetClipboardData(CF_TEXT)` or `GlobalLock` returns 0 (`jmp 0x531be6` at `0x531b6a`, `0x531b7f`),
+copies at most `max` characters and writes the terminator at `buf[n]` (`0x531bcd`..`0x531bd3`). There is no call to it
+and no pointer to `0x531b44` in the image. Its code is unoptimised, unlike the rest of the object before `0x5312c0`.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1937,6 +2051,27 @@ the tables above; the rest are below.
 - The message box's 1024 background `MessagePopupBckgrnd21024.tga` against the 640 `MessagePopupBkgrnd2640.tga`: both names exist in `summoner.vpp`.
 - `0x58be28` (screen width / 640) written by `interface_init_global` (`0x41173b`) and read nowhere: a dead store. Not counted.
 
+- Notes item 5, pings sorted with a float compare: the samples are `last_packet_received - echoed send time` in ms
+  (`0x5181b9`..`0x5181c9`), non-negative unless a peer echoes garbage, and non-negative ints compare the same as the
+  floats with their bit patterns, so `float_compare` (`0x517dc0`) sorts them correctly.
+- Notes item 9, French without a font-to-Windows direction: all 11 callers of `localize_remap_charset` pass 1
+  (`push 0x1` before `0x408787`, `0x44b0a6`, `0x4cdc8d`, `0x4d3ef8`, `0x4dc32c`, `0x4ff481`, `0x50446f`, `0x504633`,
+  `0x50476a`, `0x504ab8`, `0x504c61`), so the German reverse table is unused as well.
+- Notes item 11, no bound on the 32 handler slots: `os_add_msg_handler` (`0x530c20`) has three callers, `mouse_init`
+  (`0x500e68`) and `key_init` (`0x5097e8`) from `LoadSettings`, and `gr_glide_init` (`0x549ecd`) from `gr_init`, itself
+  called once from `LoadSettings` (`0x43db4d`).
+- Notes item 11, `ReleaseMutex` on the `OpenMutexA` handle and no `CloseHandle`: the path ends in `exit(1)`
+  (`0x530d95`..`0x530db9`), so nothing is left behind.
+- Notes item 12, "Spirit Of Laharah": the summon's character table is `Spirit Of Laharah.tbl` with
+  `$Character: "Spirit Of Laharah"` (tables.vpp). `living_entity_create` names characters `"%s#%d"` from the character
+  info name (`0x461c94`), and `character_get_display_name` cuts at `#` / digits before `localize_script_name`
+  (`0x4620d0`..`0x4621a5`). So the capital O key is the one that matches; "Spirit of Laharah" is only the display text
+  (string 134).
+- `localize_table_lookup` compares the hash only (`0x5041b0`): no two different names in the retail item, quest or
+  any level's topic or script section share a hash.
+- `nw_init_networking` with "fast": skipping RAS leaves `nw_networking_ok` at 0, but `mainmenu_check_network` only
+  tests it for status 1 and 2 (`0x41dae8`..`0x41dafa`).
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2040,6 +2175,12 @@ the tables above; the rest are below.
 - On the edited `Sum.exe` only (not v1.40 as shipped): `cd_prompt_disc2` calls `cd_find_drive("SUMMONER_2")`. That needs the volume label of `.\` to read SUMMONER_2 (`0x43e825`..`0x43e839`), so it may never return a drive and the "Insert CD #2" box may loop when `levelm.vpp` is missing. Not tested. It depends on what `GetVolumeInformationA(".\\")` returns.
 - `party_cycle` ignores its direction in multiplayer and always walks forward (`0x413370`..`0x4133ac`), so Shift+Tab acts like Tab. It only matters when the local player owns three or more members that the walk accepts; we did not establish whether a multiplayer player can (summons are not excluded by the `0x8a` test).
 - `door_find_by_mesh` for the host's own click calls `door_set_open(l, -1, 0, 1)` / `door_set_closed(l)` on a door that `door_toggle_state` has already set moving; whether the third argument (0 here, 1 in the DOOR_TG handler `0x4aa7ab`) restarts the host's door movement was not traced.
+- Whether multiplayer can be started in retail v1.40: `mainmenu_button_action` (`0x41dca0`) has a multiplayer case
+  through `mainmenu_check_network`, while source-map.md says the mode was not offered. If it is reachable, C181,
+  G180-G182, V181 and V182 are live in multiplayer (as G14 / K160 are counted) rather than latent.
+- G182's visible effect after the failed IAMHERE (what the join screen shows while every send fails) was not traced.
+- German `ß` goes to 0xBC (`0x50530b`) while the reverse table takes 0xE1 (CP437 `ß`, `0x5052be`) back to `ß`: right
+  or wrong depends on the font's glyph order, which was not checked; v1.40 never selects German.
 
 ## Evidence
 
@@ -2237,3 +2378,15 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K171 lock value kept | `character_use_skill` `0x4295d3`..`0x429693`; `door_pick_by_mesh` `0x4aaa81`..`0x4aab57`; `mp_handle_door_lockpick` `0x4aa838`..`0x4aa8c3`; `door_toggle_state` `0x476f21` |
 | V170 double leave | `interface_set_screen` `0x41262c`..`0x4126ee` (leave switch, table `0x4129d8`), `0x4126ee`..`0x41270f` (case bytes `0x412a3c`), restarts `0x412770`, `0x4127b9`, `0x4127d3`, store `0x4127f8`; `pickup_leave` `0x420960`..`0x420999` |
 | V171 whole-file reader | `packfile_read_whole_file` `0x534900`..`0x534993`; caller `file_blast_into_buffer` `0x517299`; no reference to `0x517220` |
+| C180 name tables | `localize_load_names` `0x504588`..`0x504594`, `0x50464c`; `localize_load_level_table` `0x5049c9`..`0x5049d8`, `0x504a52`, `0x504acd`..`0x504ad3`; `localize_set_string` `0x50440f`..`0x504417`; `localize_load_strings` `0x504389`..`0x5043c6`; `localize_strdup` `0x5040a9`..`0x5040d2`; `allocate_in_mempool` `0x5127c8`..`0x5127da`; retail `item_names.tbl`, `quest_names.tbl`, `topic_names.tbl`, `script_names.tbl`, `strings.tbl` |
+| C181 reliable length | `nw_work_reliable` `0x518391`..`0x5183ee`, `0x517f0d`..`0x517f2f`; `nw_NewReceiveReliable` `0x518c6d`..`0x518c8f` |
+| G180 kept peer | `nw_work_reliable` `0x517e14`, `0x518044`..`0x518088`, `0x5180b2`, `0x5180cc`, `0x518232`..`0x518283`, `0x518391`..`0x518413`, loop `0x51841b`..`0x518437` |
+| G181 sequence wrap | `nw_work_reliable` `0x5182f8`..`0x51834a`, `0x51835f`..`0x518372`, `0x5183ff`..`0x518413`; `nw_NewReceiveReliable` `0x518c33`..`0x518c50`, `0x518cc5` |
+| G182 kept indices | `nw_ConnectToServer` `0x519118`..`0x519150`; `mp_handle_acpt_jn` `0x470aac`..`0x470ad3`; `nw_NewSendReliable` `0x518dd0`..`0x518df3` |
+| K180 text buffer | `localize_set_string` `0x504401`..`0x504448`, `0x504477`..`0x5044a7`; `localize_pool_used` `.data 0x5a5c30` = `0x25ce47c` |
+| K181 French Ä | `localize_remap_charset` `0x5051b6`..`0x5051dc`, `0x505206`, `0x505210`, tables `0x50531c`, `0x505384`; `localize_init` `0x504f61`..`0x504f65`; writes of `0x25d8878` only at `0x5050b7` |
+| V180 thread priority | `os_wndproc` `0x5310b7`..`0x5310bf`, `0x5310ef`..`0x5310f8`; imports `0x57e1dc` (`SetThreadPriority`), `0x57e3bc` (`SetWindowPos`); `os_init` `0x530e25`; `0x2cbff0c` at `0x530bc5`, `0x530e46` |
+| V181 duplicate request | `nw_work_reliable` `0x517f35`..`0x517f91`, `0x517fa7`..`0x518013`, `0x518028`..`0x51803f`, `0x518461`..`0x5184b0`; `nw_ConnectToServer` `0x519034`..`0x51904c` |
+| V182 stack bytes | `nw_send_heartbeat` `0x517d70`..`0x517dab`; `nw_send_reliable_reply` `0x517d20`..`0x517d5b`; `nw_work_reliable` `0x517e60`..`0x517e8a`, `0x51812a`..`0x51814c`, `0x5181a6`..`0x5181c9` |
+| V183 localize slips | `localize_load_level_table` `0x5049a1`..`0x5049c7`; `localize_table_add` `0x5040f2`..`0x504119`, `0x50414f`, `0x50416d` |
+| V184 clipboard | `os_clipboard_get_text` `0x531b51`..`0x531be0`; imports `0x57e384` (`OpenClipboard`), `0x57e388` (`GetClipboardData`), `0x57e1bc` (`GlobalLock`), `0x57e1c0` (`GlobalUnlock`), `0x57e3b8` (`CloseClipboard`) |

@@ -2378,7 +2378,7 @@ SOCKET, the same type.
 **D3005 (net.h). Kept names whose sum.symbols comments are off.** nw_reliable_slot_status(type) returns 1
 when the packet buffer of that type holds a packet (first_seq != -1 and <= last_seq, 0x51765b-0x51766d), not
 "a connected socket". nw_send_heartbeat sends the IAMHERE packet (type 6, seq 0xfebd, 0x517d7b); the real
-heartbeat (type 5) is built inline in nw_work_reliable (0x5186e6). nw_send_reliable_reply's arguments are
+heartbeat (type 5) is built inline in nw_WorkReliable (0x5186e6). nw_send_reliable_reply's arguments are
 (addr, seq, send_time) (0x517d2d-0x517d57), not (socket, seq, addr). nw_reliable_resend_time is, on the client,
 the connect time that the LIMBO time-out counts from (set at 0x51916b). nw_addr_equal keeps its decomp47
 `const void *` parameters (the callers pass mp_player::addr, a ubyte[8]).

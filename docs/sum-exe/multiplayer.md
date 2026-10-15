@@ -11,7 +11,8 @@ nav_order: 6.8
 increment, and an eight-letter name. Ghidra had merged 48 of the handlers into the functions before them. The table
 gave their real starts. All handlers are named in `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the
 table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`,
-`utrack_*`).
+`utrack_*`). The packets themselves travel over the engine's UDP "reliable sockets" (`nw_NewSendReliable`,
+`nw_NewReceiveReliable`; see [vsdk: OS layer](vsdk-os.md#networking-0x517590-0x5194ab)).
 
 | Type | Name | Handler | Flag |
 |---|---|---|---|

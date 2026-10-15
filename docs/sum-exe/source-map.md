@@ -107,7 +107,7 @@ them. This adds many files that have no assert path in the executable:
   worldmap).
 - **Engine:** `gr_direct3d.cpp`.
 
-The multiplayer files explain the [network layer](vsdk-os.md#networking-0x5175e0-0x519370):
+The multiplayer files explain the [network layer](vsdk-os.md#networking-0x517590-0x5194ab):
 PC Summoner was built with a multiplayer mode (chat, trading, saved multiplayer games,
 PXO lobby). It was not offered in the retail game, but much of its code is still in
 Sum.exe.

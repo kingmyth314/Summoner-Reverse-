@@ -59,7 +59,7 @@ typedef DWORD (WINAPI *nw_RasEnumConnections_t)(nw_rasconn *, DWORD *, DWORD *);
 typedef DWORD (WINAPI *nw_RasGetConnectStatus_t)(HANDLE, nw_rasconnstatus *);
 typedef DWORD (WINAPI *nw_RasGetProjectionInfo_t)(HANDLE, int, void *, DWORD *);
 
-// A compare left in the code with no use of its result (nw_can_write `or eax, eax`, nw_work_reliable
+// A compare left in the code with no use of its result (nw_can_write `or eax, eax`, nw_WorkReliable
 // `cmp eax, 0x258`): an expression-only debug macro. Name ours.
 #define NW_DEBUG_CHECK(expr) ((void)(expr))
 
@@ -72,7 +72,7 @@ nw_packet_buffer nw_recv_buffers[NW_NUM_BUFFERS];        // 0x26b63f0
 char nw_connection_speed[0x400];                         // 0x2707d2c "ConnectionSpeed"
 int nw_network_status;                                   // 0x270812c 0 none, 1 slow, 2 56k, 3 fast (module -)
 static reliable_header nw_flush_buf;                     // 0x2708130 (name ours) nw_flush_receive's sink
-static reliable_header nw_reliable_recv_buf;             // 0x2708398 nw_work_reliable
+static reliable_header nw_reliable_recv_buf;             // 0x2708398 nw_WorkReliable
 static reliable_header nw_connect_reply_buf;             // 0x2708600 nw_ConnectToServer
 static reliable_header nw_connect_request;               // 0x2708868 nw_ConnectToServer (10 bytes sent)
 reliable_socket nw_reliable_sockets[NW_MAX_RELIABLE_SOCKETS];   // 0x2708ad0
@@ -369,7 +369,7 @@ int nw_send_heartbeat(net_addr *to)
 // is handled as the earlier peer's; a duplicate connection request still opens a second LIMBO link; the
 // pings are int milliseconds sorted with float_compare (fine for non-negative values); the sequence wrap
 // test adds theirsequence where the distance needs 0x10000 - theirsequence.
-void nw_work_reliable()
+void nw_WorkReliable()
 {
     char msg[256];
     char addr_text[256];
@@ -778,7 +778,7 @@ int nw_accept_reliable(net_addr *from)
     char addr_text[64];
     int i;
 
-    nw_work_reliable();
+    nw_WorkReliable();
     for (i = 1; i < NW_MAX_RELIABLE_SOCKETS; i++) {
         if (nw_reliable_sockets[i].status == RNF_CONNECTING)
             break;
@@ -796,7 +796,7 @@ int nw_accept_reliable(net_addr *from)
 
 // 0x518f30  Confidence: likely (the loop: the reply path skips the start-time wrap update).
 // Sends the connection request every 2 s until an ACK with NW_CONNECT_SEQ arrives or 100 s pass, then
-// opens a LIMBO link, sends IAMHERE and runs nw_work_reliable for up to 2 s waiting for the ACK.
+// opens a LIMBO link, sends IAMHERE and runs nw_WorkReliable for up to 2 s waiting for the ACK.
 // Defect: when the IAMHERE send fails the slot is cleared but nw_server_socket and *socket keep its index.
 void nw_ConnectToServer(int *socket, net_addr *server)
 {
@@ -872,7 +872,7 @@ void nw_ConnectToServer(int *socket, net_addr *server)
     rsocket->last_packet_sent = timer_get(1000);
     int wait_start = timer_get(1000);
     do {
-        nw_work_reliable();
+        nw_WorkReliable();
         now = timer_get(1000);
         if (now < wait_start)
             wait_start = now;

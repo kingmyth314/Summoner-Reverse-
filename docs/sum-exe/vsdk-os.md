@@ -217,23 +217,41 @@ Parameters registered in Sum.exe (found by scanning for constructor calls):
 What each parameter does is not yet traced (*unknown*); `-glide`/`-direct3d` and
 `-800`/`-1024` probably override the [video settings](video-settings.md) (*inferred*).
 
-## Networking (`0x5175e0`-`0x519370`)
+## Networking (`0x517590`-`0x5194ab`)
 
 Summoner shipped without multiplayer, but its engine has a complete UDP layer with
-"reliable sockets", and the game code uses it. Names are by behaviour (**I**), apart from
-four functions that name themselves in their asserts (`nw_NewReceiveReliable`,
-`nw_NewSendReliable`, `nw_NewCloseSocket`, `net_get_reliable_socket_status`).
+"reliable sockets", and the game code uses it. Names are by behaviour (**O**), apart from
+five functions that name themselves in their messages (`nw_NewReceiveReliable`,
+`nw_NewSendReliable`, `nw_NewCloseSocket`, `net_get_reliable_socket_status`,
+`net_get_reliable_socket_ping`) and `nw_ConnectToServer`. The reliable layer's messages also use the
+older names `nw_WorkReliable`, `nw_SendReliable` and `nw_ReceiveReliable`, and `nw_send` reports errors
+as `psnet_send` (the Descent 3 / FreeSpace psnet names). The decompiled unit is
+`src/decomp/vsdk/unnamed_net_0x517590.cpp` (placeholder name).
+
+{: .important }
+Corrected 2026-10-15: the unit spans `0x517590`-`0x5194ab` (it was given as `0x5175e0`-`0x519370`), and
+only the "slow" and "56k" settings load RAS.
 
 - **Start-up:** `nw_init_networking` (`0x5188d0`) is called by `LoadSettings` at start-up.
-  - It reads `ConnectionSpeed` from the registry.
-  - It loads the RAS (dial-up) API (`nw_ras_init`) and calls `WSAStartup(1.1)`.
-  - It opens one UDP socket on the [`-port`](#cmdlinecpp-command-line-parameters) port
-    (`nw_init_socket`, `0x517c10`).
+  - It reads `ConnectionSpeed` from the registry (default "None"). "none", "slow", "56k" and "fast"
+    (case-insensitive) set `nw_network_status` (`0x270812c`) to 0, 1, 2 and 3; any other value counts
+    as "none". With 0 it stops there: no WinSock and no socket.
+  - Only "slow" and "56k" load the RAS (dial-up) API (`nw_ras_init`, `0x5178c0`), which returns the
+    dial-up connection's IP address, or 0 when there is none, into `nw_networking_ok` (`0x2710e9c`).
+    With 1 or 2 and no dial-up connection, the multiplayer button shows L948 "Internet connection not
+    detected" (`mainmenu_check_network` `0x41dae0`). "fast" skips RAS.
+  - It calls `WSAStartup(1.1)` and opens one UDP socket on the [`-port`](#cmdlinecpp-command-line-parameters) port
+    (`nw_init_socket`, `0x517c10`; port 4200 when the value is 1023 or less, or 65535). The messages say
+    "TCP", but the socket is `SOCK_DGRAM` / `IPPROTO_UDP`.
 - **Traffic:** `nw_receive_all` (`0x518770`) sorts incoming datagrams into per-type buffers
-  by their first byte.
-- **Reliable sockets:** `nw_work_reliable` (`0x517e00`) runs the reliable protocol:
-  - connection requests and the "IAMHERE"/ACK handshake;
-  - resends and time-outs.
+  by their first byte. There are five buffers of 0x60 packets (`nw_recv_buffers`, `0x26b63f0`,
+  0x1050c bytes each).
+- **Reliable sockets:** `nw_WorkReliable` (`0x517e00`) runs the reliable protocol:
+  - connection requests (type 3, version 0x142) and the "IAMHERE" (type 6) / ACK (type 0) handshake;
+  - data (types 1 and 2) with 16-bit sequence numbers, 150 buffers of 600 bytes per link, ACKs that
+    carry the acknowledged sequence number and the sender's time (pings are the median of the last 10);
+  - heartbeats (type 5) and resends, and time-outs after 100 s without a packet.
+  - The table `nw_reliable_sockets` (`0x2708ad0`) has 10 records of 0xd2d bytes; slots 1 to 9 are used.
 - **Game side:** `multi_process_incoming` (`0x441b10`) and `multi_send_packet` (`0x442060`,
   which keeps per-type "net rate info") sit on top. `multi_send_packet` always sends reliably:
   it appends the packet to the receiver's buffer (`multi_reliable_send_bufs`, `0x65d8b0`) and
@@ -249,6 +267,29 @@ This is the remains of a **multiplayer mode**. `strings.tbl` names multiplayer s
 (`multichat.cpp`, `multitrade.cpp`, `new_gamelist.cpp`, `new_pxochat.cpp`, …); see the
 [source map](source-map.md#more-file-names-from-stringstbl). Whether any of it can still be
 reached in the retail build is *unknown*; testing it would need a live run with `-port`.
+
+## OS window and single instance (`0x530b90`-`0x531c0f`)
+
+The decompiled units are `src/decomp/vsdk/unnamed_os_0x530b90.cpp` and `unnamed_os_0x531bf0.cpp`
+(placeholder names; no file-name evidence). Names follow Dash Faction where it has one (`main_wnd`,
+`os_foreground`, `os_add_msg_handler`, `os_poll`), otherwise they are ours (**O**). **Observed:**
+
+- `os_init` (`0x530d10`, from `LoadSettings`) copies its first argument as the mutex name and the window
+  class name, and its second as the window title (128-byte buffers). If `OpenMutexA` finds the mutex, or
+  `CreateMutexA` reports `ERROR_ALREADY_EXISTS`, it brings the running copy's window to the front with
+  `FindWindowA` / `SetForegroundWindow` and calls `exit(1)`. Otherwise it calls `CoInitialize`, creates
+  the window (`os_create_window`, `0x530ef0`: a 32x32 popup with `os_wndproc`, icon "APP_ICON") and runs
+  `os_find_previous_instance` (`0x530e40`, an `EnumWindows` search for "[run] - <exe name> -"), whose
+  result `0x2cbff0c` nothing reads.
+- `os_wndproc` (`0x530ff0`) calls the registered message handlers first (mouse, keyboard and Glide
+  register one each through `os_add_msg_handler`, 32 slots). On activation it sets `is_main_wnd_active`
+  and calls `SetWindowPos` (see [Controls](controls.md)) and `SetThreadPriority` (highest when active,
+  normal when not) on a thread handle `0x2cbff14` that nothing sets, so the priority call always fails.
+- `os_close_main_window` (`0x531260`) releases the instance mutex and posts `WM_DESTROY`;
+  `os_seed_random` (`0x531280`) seeds `rand` from `time(0)` for -1.
+- `timer_wait` (`0x530bf0`, a `Sleep` wrapper) sits inside this object. Its last part (CPU detection,
+  the `sysinfo` console command, `os_clipboard_get_text` `0x531b44`) is compiled without optimisation;
+  `os_clipboard_get_text` has no caller.
 
 ## C runtime functions identified
 

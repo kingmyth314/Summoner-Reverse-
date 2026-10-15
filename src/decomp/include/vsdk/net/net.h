@@ -132,7 +132,7 @@ void nw_init_socket(unsigned short port);                           // 0x517c10
 int  nw_send_reliable_reply(net_addr *to, int seq, int send_time);  // 0x517d20 RNT_ACK
 int  nw_send_heartbeat(net_addr *to);                               // 0x517d70 RNT_I_AM_HERE
 int  float_compare(const void *a, const void *b);                   // 0x517dc0 qsort callback (module -)
-void nw_work_reliable();                                            // 0x517e00
+void nw_WorkReliable();                                            // 0x517e00
 void nw_receive_all();                                              // 0x518770
 void nw_close();                                                    // 0x518880 atexit handler
 void nw_init_networking(unsigned short port);                        // 0x5188d0 (LoadSettings: mp_net_port)
