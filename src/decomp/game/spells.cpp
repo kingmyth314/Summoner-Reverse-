@@ -801,7 +801,7 @@ int spell_fire_missile(int spell, int missile, Character *caster, Character *tar
 // 0x47e900 summon_create: not written yet.
 
 // 0x47f270  Confidence: exact (tail jump to mp_summon_claim_release).
-void summon_dismiss()
+void summon_dismiss(int handle)
 {
     if (cur_summon) {
         cur_summon->ai.class_die();

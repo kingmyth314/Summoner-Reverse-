@@ -41,6 +41,12 @@
 #define KEY_PAD2      0x50
 #define KEY_F12       0x58
 #define KEY_RCONTROL  0x9d
+// decomp35 (chain_attack_select):
+#define KEY_LSHIFT    0x2a
+#define KEY_RSHIFT    0x36
+#define KEY_LALT      0x38
+#define KEY_CAPSLOCK  0x3a
+#define KEY_RALT      0xb8
 #define KEY_UP        0xc8
 #define KEY_PAGEUP    0xc9
 #define KEY_LEFT      0xcb

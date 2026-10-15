@@ -158,6 +158,8 @@ LAYOUT_CHECK(lc_entry, sizeof(lc_entry) == 0x10c);
 extern lc_entry lc_entries[50];                      // 0x248ce40
 extern int lc_entry_count;                           // 0x2491a68
 int  lc_find_by_hash(unsigned int hash);             // 0x4cd570 (level_script_name + name), -1 = none
+void lc_entry_mark_used(int index);                  // 0x4cd4e0 (decomp35)
+int  lc_find_by_name(const char *name);              // 0x4cd520 -1 = none
 // level_check_triggers' state. sum.symbols types level_exit_trigger void* (the trigger record); new_hud.cpp
 // passes it to level_script_find, so it is the record's leading name here.
 extern char *level_exit_trigger;                     // 0x24902c4

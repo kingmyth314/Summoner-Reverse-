@@ -12,5 +12,6 @@ void mouse_get_delta(int *dx, int *dy, int *dz);  // 0x5013c0
 extern int game_mouse_z;                          // 0x257ef80 (wheel)
 void mouse_init(int w, int h);                    // 0x500de0
 void mouse_move_to(int x, int y);                 // 0x501240
+int  mouse_time_since_press(int button);           // 0x501300 (decomp35)
 
 #endif

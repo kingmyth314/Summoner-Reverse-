@@ -11,6 +11,8 @@
 #include "engine/s3d/s3d.h"
 
 class Character;
+struct ItemType;
+class obj;
 
 // One face reference of a level object (8 bytes, lobj +0x0c, one per geometry face; s3d_read_mesh_ref):
 // a 1-based index into level_texture_bms (0 untextured), and a 24-bit lightmap index into
@@ -75,8 +77,9 @@ struct lobj_hit {
     float t;                          // +0x04 hit distance as a fraction of ray.dir
     int _unk08[6];                    // +0x08
     int _unk20;                       // +0x20
-    int face;                         // +0x24 copied to item_obj +0xa8 (meaning unsure)
-    int _unk28;                       // +0x28
+    int face;                         // +0x24 the level object index (world_pick_lobj, level_scripts.cpp's
+                                      //        lobj_from_index(hit.face)); copied to item_obj +0xa8
+    int _unk28;                       // +0x28 the s3d_face hit (world_pick_lobj: minus mesh->faces = face index)
 };
 LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
 
@@ -100,7 +103,10 @@ struct door_info {
     unsigned int state;               // +0x54 bits 0, 1 and 3 cleared on load; bit 3 the default locked
                                       //        state (savegame_two_stage_get, decomp27)
     float lock;                       // +0x58 lock value, 0 unlocked (character_use_skill pick lock; D100)
-    int _unk5c;                       // +0x5c
+    union {                           // +0x5c the key item type, NULL none (object_try_unlock_or_open;
+        int _unk5c;                   //        decomp35, D1505). s3d_read_door clears _unk5c.
+        ItemType *key;
+    };
     int _unk60;                       // +0x60
     int _unk64;                       // +0x64 -1 on load
     ubyte _unk68[4];                  // +0x68 three bytes cleared on load
@@ -119,7 +125,8 @@ bool door_is_open(door_info *d, float fraction);   // 0x476940
 int  door_find_by_name(const char *name, lobj **out_lobj, door_info **out_door);   // 0x477280
 bool door_set_open(lobj *l, float speed, int a, int b);   // 0x476e00 (cmd_door_open: -1.0, 1, 1)
 void door_set_closed(lobj *l);        // 0x476e80 (return unused)
-void door_toggle_state(lobj *l, int a);   // 0x476ee0 (return unused; cmd_door_toggle passes 1)
+// false when the door does not move (locked); object_try_unlock_or_open tests AL (D1504).
+bool door_toggle_state(lobj *l, int a);   // 0x476ee0 (cmd_door_toggle passes 1, gametarget 0)
 lobj *lobj_from_index(int index);     // 0x477780
 // Level-script door and object helpers (unit not known, after lobj_from_index; decomp34, D1403).
 // door_apply_saved_state: every door with that name whose saved two-stage state differs from `open` starts
@@ -133,6 +140,30 @@ void fx_disable_by_effect_name(const char *name);   // 0x48d660 (unit not known;
 void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs);   // 0x4776c0
 // Door objects within reach of the character (unit not known; next to the AI code).
 bool door_in_use_range(Character *c, lobj *door);             // 0x476a30
+// decomp35 (gametarget.cpp). (lobj, fraction) door_is_open of the door of a door object.
+bool lobj_door_is_open(lobj *l, float fraction);              // 0x4769f0
+bool lobj_is_door(lobj *l);           // 0x477310 flag 0x100 and a door whose +4 is >= 0
+// The hover tints of levelrender_draw_list (unit not known): one object (hover_tint_obj 0x22fa6a4) and
+// one level object (hover_tint_char 0x22f8d0c: the sum.symbols name says character, but the draw list
+// compares it with level objects, D1503). (target, r, g, b).
+void hover_tint_set_object(obj *o, float r, float g, float b);     // 0x4820b0
+void hover_tint_set_character(lobj *l, float r, float g, float b); // 0x4820e0
+float fog_get_near_current();         // 0x486c20
+// (bitmap, pos, yaw degrees, width, height): the target decal (unit not known).
+void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   // 0x487800
+// (ray, hit, iterator (NULL: from 0), flag (NULL), skip lists): ray against the level objects of the draw
+// lists; continues from *iter, returns hit->num_hits. hit->face is the level object index, hit->_unk28
+// the s3d_face hit (world_pick_lobj).
+int  lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *iter, bool *flag, bool b);   // 0x4a4bb0
+// Per level object render records (12 bytes; type name ours): +4 bits 4-11 all set = drawn opaque
+// (world_pick_lobj).
+struct lobj_render_state {
+    int _unk00;
+    unsigned int flags;
+    int _unk08;
+};
+extern lobj_render_state *levelrender_lobj_states;   // 0x22f9d7c
+extern bool levelrender_draw_chain_marker;   // 0x22fb6d4 set by chain_attack_select
 
 void levelrender_render_scene();      // 0x482200
 void options_apply_detail();          // 0x4872d0 (detail settings; name from sum.symbols)

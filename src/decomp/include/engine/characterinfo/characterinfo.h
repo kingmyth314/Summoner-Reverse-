@@ -258,6 +258,7 @@ int   charinfo_collect_moves(move_info **out, int category, char_info *info, int
 float move_get_trigger_time(move_info *move, int trigger);     // 0x446e20
 bool  skill_is_combat_special(int skill);                      // 0x4473f0 (0xc..0x11)
 int   character_get_chain_skill(Player *p, int slot);          // 0x449440 (SKILL_NONE none)
+void  character_cycle_default_chain(Player *p);                // 0x449510 +0x184: 0 -> 3 -> 1 -> 2 -> 0 (decomp35)
 void  character_learn_chain_skill(Player *p, int skill, int count);     // 0x449650 (count: chain length or 0)
 
 // experience.tbl (xp_level_table 0x2305420)

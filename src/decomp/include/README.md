@@ -57,6 +57,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/movie.h` | movie (0x5172f0) | `movie_play` |
 | `vsdk/math/vector.h` | vsdk\math | `vector3`, `imax`, `imin`, `frand` |
 | `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `quaternion`, `matrix43` |
+| `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point), `ix_ray`, `ix_*` |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
 | `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` | `packfile_read_whole_file`, `packfile_find_in_packfile` |
@@ -100,6 +101,7 @@ Summoner 2 and Dash Faction give names only.
 
 | `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
 | `summoner/summoner.h` | summoner.cpp (decomp26), summoner_cd.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, MainLoop / LoadSettings / GameInit, path ids, fonts, command-line flags, `SummonerOptions` |
+| `summoner/gametarget.h` | gametarget.cpp (0x43a330-0x43cd6d, decomp35; included by summoner.h) | world picking and clicks, `WORLD_CLICK_*`, the tints, the unit's .bss / .data |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |
 | `summoner/multi/multi.h` | multi*.cpp (gathering header) | `mp_player`, packets (`mp_packet_table`, `MP_IS_HOST`, build macros), session, game list, lobby, character select records; includes the four unit headers below |
@@ -107,6 +109,8 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/multi/multitrade.h` | multitrade.cpp (0x470e30-0x471def) | trade state, `mp_trade_item`, IT_* senders and handlers |
 | `summoner/multi/multichat.h` | multichat.cpp (0x487b90-0x488223) | `chat_entry` ring, slash commands, CHAT_LN |
 | `summoner/multi/multicontainer.h` | multicontainer.cpp (0x488c00-0x48972a) | loot drops, container open / close, lock picking |
+| `summoner/multi/multispell.h` | multispell.cpp (0x4afca0-0x4b0957, decomp35) | RLS_SPL / CST_ANM casts, the one-summon claim (SMN_*) |
+| `summoner/multi/multi_chattracker.h` | multi_chattracker.cpp (0x4abb80-0x4ae32d, decomp35) | the PXO lobby's IRC client: `irc_command`, `irc_user`, `irc_channel`, `irc_*` |
 | `summoner/interface/interface.h` | interface core, new_hud / new_inventory helpers | screen switch, button records, popups, colours, `new_icam` |
 | `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
 | `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |

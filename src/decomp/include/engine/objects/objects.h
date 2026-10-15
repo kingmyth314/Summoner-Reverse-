@@ -162,6 +162,9 @@ void party_inventory_add_item(item_info *item, int a, int b);       // 0x46b870 
 void party_inventory_add_type(int type, int count, int a, int b);   // 0x46b980 (called (type, 1, -1, 1); return unused)
 void party_inventory_remove(int slot, int a, int b); // 0x46bb30 (called (slot, 1, 1) and (slot, 0, 1))
 int  party_inventory_find_type(ItemType *type);      // 0x46bd00, index or -1
+// decomp35: (name, count, -1, 1) from container_examine; return unused. The last two not known.
+void party_inventory_add_by_name(const char *name, int count, int a, int b);   // 0x46bb00
+int  character_find_equipped_type(Character *c, ItemType *type);    // 0x46c3b0 slot or -1
 void party_inventory_clear();                        // 0x46bbb0 item_free on every entry (decomp24)
 int  party_inventory_find_type_index(int type);      // 0x46bd60 by item type index, -1 none (decomp24)
 

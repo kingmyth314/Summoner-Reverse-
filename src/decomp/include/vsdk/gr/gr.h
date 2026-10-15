@@ -246,6 +246,10 @@ extern float gr_far_clip_dist;                        // 0x2692e88
 // gr_calc_depth(1 / v->z); only x, y, z are read, so the fog code passes a vector3 cast to a vertex.
 float gr_vertex_depth(const gr_vertex *v);            // 0x50d8b0
 void gr_get_view_fov(float *h_fov, float *v_fov);     // 0x50e5a0 degrees
+// decomp35 (gametarget.cpp): the mouse ray {eye position, direction} through screen point (sx, sy).
+struct ix_ray;
+void gr_screen_to_world_ray(ix_ray *out, float sx, float sy);   // 0x50ebe0
+void gr_get_eye(vector3 *pos, matrix *orient);         // 0x50ef30
 float gr_scale_by_far_clip(float f);                  // 0x50ecb0 f * the far clip scale
 
 // Direct3D back end (vsdk\gr\directx\gr_direct3d.cpp).

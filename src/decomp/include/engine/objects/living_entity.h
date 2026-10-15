@@ -97,6 +97,9 @@ public:
     // The first argument is the move record (character_find_move's result); decomp20 declared it int,
     // kept for the merge (DECISIONS.md D303).
     move_info *find_move(int category, int id);           // 0x461370 character_find_move
+    // (spell, flag): the cast move, effect, missile, recovery and AP cost; -1 when the move is missing.
+    // mp_handle_cast_anim passes the CST_ANM byte as the flag (decomp35).
+    int   perform_spell_cast(int spell, bool flag);       // 0x45da60 character_perform_spell_cast
     move_info *find_move_alt(int category, int id);       // 0x4613b0 character_find_move_alt
     bool  move_playing(int anim, float *t);               // 0x461450 character_move_playing (t may be 0)
     float move_trigger_time_left(int trigger);            // 0x461670 character_move_trigger_time_left
@@ -109,6 +112,14 @@ public:
     Character *get_mount();           // 0x462d20 character_get_mount (+0x6e0 when that entity has +0x6e4 bit 1)
     Character *get_rider();           // 0x462d40 character_get_rider (+0x6e0 when that entity has +0x6e4 bit 0)
     float get_698();                  // 0x456f80 character_get_698 (1.0 or forward_speed)
+    // decomp35 (gametarget.cpp):
+    bool  is_enemy(Character *other);         // 0x461ad0 character_is_enemy
+    int   get_team();                         // 0x461b60 character_get_team (+0x98)
+    bool  is_mount();                         // 0x462d60 character_is_mount (+0x6e4 bit 1)
+    bool  has_line_of_sight_to_point(vector3 *p);         // 0x44f880 character_has_line_of_sight_to_point
+    void  ai_travel_offset(vector3 d);        // 0x455e00 character_ai_travel_offset (three floats pushed)
+    // (pos, out push-out direction, relative): true when another living entity's cylinder overlaps pos.
+    bool  find_overlap(vector3 *pos, vector3 *out, int relative);   // 0x4569c0 character_find_overlap
     // decomp34 (level_script_khosani_lab.cpp, level_script_worldmap.cpp; D1404)
     void  place_at_party_start(int slot);         // 0x44f1a0 character_place_at_party_start (level_player_starts[slot])
     void  set_speed_scale(float scale, bool flag);// 0x462260 character_set_speed_scale (+0x6bc; flag: +0x320 bit 0x200)

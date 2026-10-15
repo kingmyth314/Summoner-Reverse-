@@ -1,9 +1,10 @@
 // summoner/multi/multi.h - the multiplayer game: players, session, packets, game list, PXO lobby, character
 // select records; gathering header of the multi*.cpp units. Units (strings.tbl / sum.symbols):
-// multiplayerdata.cpp, multiendgame.cpp (0x471df0, 0x4814e0), multispell.cpp, and the four units with
-// headers of their own, included at the end: multisave.cpp (0x46cc60-0x46dd2f, multisave.h), multitrade.cpp
-// (0x470e30-0x471def, multitrade.h), multichat.cpp (0x487b90-0x488223, multichat.h), multicontainer.cpp
-// (0x488c00-0x48972a, multicontainer.h). Directory and file name are ours. Not original source.
+// multiplayerdata.cpp, multiendgame.cpp (0x471df0, 0x4814e0), and the units with headers of their own,
+// included at the end: multisave.cpp (0x46cc60-0x46dd2f, multisave.h), multitrade.cpp (0x470e30-0x471def,
+// multitrade.h), multichat.cpp (0x487b90-0x488223, multichat.h), multicontainer.cpp (0x488c00-0x48972a,
+// multicontainer.h), multispell.cpp (0x4afca0-0x4b0957, multispell.h), multi_chattracker.cpp
+// (0x4abb80-0x4ae32d, multi_chattracker.h; decomp35). Directory and file name are ours. Not original source.
 #ifndef SUMMONER_MULTI_MULTI_H
 #define SUMMONER_MULTI_MULTI_H
 
@@ -73,6 +74,13 @@ extern mp_player *mp_local_player;    // 0x651598
 #define MP_IT_CNCL 0x30
 #define MP_IT_QURY 0x31
 #define MP_IT_STAT 0x32
+#define MP_CST_ANM 0x34
+#define MP_RLS_SPL 0x35
+#define MP_SMN_RQS 0x36
+#define MP_SMN_DNY 0x37
+#define MP_SMN_ALD 0x38
+#define MP_SMN_HND 0x39
+#define MP_SMN_QCK 0x3a
 
 // One packet type (0x1c bytes, symbols/types.h mp_packet_info). multi_process_packet reads +0x08 as a
 // byte (handled even before the session is up) and the two bytes +0x18 / +0x19 of the net-rate display.
@@ -97,6 +105,8 @@ void multi_send_packet(ubyte *data, int len, mp_player *to, int reliable);   // 
 void mp_broadcast_packet(ubyte *data, int len, int reliable);              // 0x441a90
 // Host: resends mp_cur_packet to every other player except the sender (the handler's second argument).
 void mp_forward_cur_packet(void *from);                                    // 0x4422c0
+// The same through multi_send_packet_buffered (the object update and switch handlers, SMN_QCK).
+void mp_forward_cur_packet_buffered(void *from);                           // 0x442230
 int  mp_handle_to_net(int handle);                                         // 0x4752c0
 int  mp_local_handle_from_net(int net_handle);                             // 0x475280
 obj *mp_obj_from_net_handle(int net_handle);                               // 0x475240
@@ -205,17 +215,19 @@ typedef mp_char_record mp_char_profile;
 
 void mp_send_equip_item(Character *c, int slot, int type);   // 0x4878a0 packet 0x33 (return unused)
 void mp_send_unequip_item(Character *c, int slot);           // 0x487a70 packet 0x41 (return unused)
+// multi_door.cpp: (player id, level object index, open) the host's door toggle (object_try_unlock_or_open).
+void door_find_by_mesh(int player_id, int lobj_index, int open);   // 0x4aa8e0 (return unused)
 
 #include "summoner/multi/multisave.h"
 #include "summoner/multi/multitrade.h"
 #include "summoner/multi/multichat.h"
 #include "summoner/multi/multicontainer.h"
-// decomp23 (combat.cpp, spells.cpp): multispell.cpp and the unnamed multiplayer units.
-struct spell_cast_request;
+#include "summoner/multi/multispell.h"
+#include "summoner/multi/multi_chattracker.h"
+// decomp23 (combat.cpp, spells.cpp): the unnamed multiplayer units (mp_spell_cast_sync and
+// mp_summon_claim_release moved to multispell.h, decomp35).
 // Packet 0x22 of a living_combat exchange, the arguments as living_combat_send_net pushes them:
 // (attacker net handle, defender net handle, move variant, defence move, state argument, skill, special).
 void mp_send_living_combat(int attacker, int defender, int variant, void *defence, int arg, int skill, int special);  // 0x4b11a0
-void mp_spell_cast_sync(spell_cast_request *req);  // 0x4b02a0
-void mp_summon_claim_release();       // 0x4b0940
 
 #endif

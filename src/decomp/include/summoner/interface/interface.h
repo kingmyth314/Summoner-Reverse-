@@ -54,6 +54,12 @@ void interface_close_screen();                                      // 0x416a10 
 bool interface_input_ready();                                       // 0x4148e0
 extern Character *status_character;                                 // 0x5bd810 (new_status.cpp)
 extern bool  ui_input_locked;                                       // 0x5bd962 (the HUD is hidden)
+void  ui_input_lock();                                              // 0x4146a0 ui_input_locked = 1 (decomp35)
+bool  interface_mouse_over_panel();                                 // 0x412af0 the open screen's panel is under the mouse
+// The script editor's pick overrides (decomp35, world_pick_ground_point): the decal scale and the point
+// the decal is turned towards. Both return false when not set.
+bool  ui_get_pick_screen_override(float *x, float *y);              // 0x414580
+bool  ui_get_pick_world_override(vector3 *pos);                     // 0x4145b0
 extern float interface_pulse_time;                                  // 0x58bdc4 (1.0 + frame time, for blinking)
 void  party_cycle(int forward);                                     // 0x413360 Tab (1) / Shift+Tab (0)
 
@@ -110,6 +116,8 @@ void ui_tooltip_set(int x, int y, int w, int h, const char *text);  // 0x414750 
 
 // ---- HUD (the new_hud.cpp functions are in summoner/interface/new_hud.h) ---------------------------
 void hud_show_message(const char *text);                            // 0x414a20
+// The chain attack line (15 characters, 4000 ms; only caller chain_attack_select). decomp35.
+void hud_show_chain_message(const char *text);                      // 0x414a80
 extern int hud_target_mode;                                         // 0x58bdb8 (-1 none, 0, 2; in this unit's .data)
 
 // ---- 3D model views ---------------------------------------------------------------------------------

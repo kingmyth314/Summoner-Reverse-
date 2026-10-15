@@ -14,6 +14,7 @@ class Character;
 class TextFile;
 class console_command;
 class effect_object;
+struct ItemType;
 
 // spell_info::spell_class (+Class:, spell_class_parse_names)
 #define SPELL_CLASS_HEAL   0
@@ -113,10 +114,21 @@ struct spell_effect {
 };
 #define MAX_SPELL_EFFECTS 64
 
-// The result of spell_prepare_cast (0x34 bytes, returned by value). Not decoded yet.
+// The result of spell_prepare_cast (0x34 bytes, returned by value). The first word's fields as
+// mp_spell_cast_sync / mp_handle_release_spell (multispell.cpp) send them: bits 1-6 the target mode
+// (sign-extended: shl 0x19 / sar 0x1a), bits 7-28 and 29-31 two unsigned values; bit 0 is kept by the
+// reader (not sent). target[] by mode (mp_write_spell_targets 0x4afd60): 1, 2, 9 target[0]; 3, 6, 7
+// target[0..1]; 4 net-converted handles target[0..5] + values target[6..11]; 5 handles target[0..5] +
+// target[6..7]; 10 target[0..4] + target[5..9]; 8 nothing. Same size and first-word split as spell_effect
+// (bits 1-6). Field names ours (decomp35, D1501).
 struct spell_cast_params {
-    int data[13];
+    unsigned int flag0 : 1;          // bit 0
+    int mode : 6;                    // bits 1-6 target mode 1..10
+    unsigned int value : 22;         // bits 7-28
+    unsigned int kind : 3;           // bits 29-31
+    int target[12];                  // +0x04 (request +0x2c)
 };
+LAYOUT_CHECK(spell_cast_params, sizeof(spell_cast_params) == 0x34);
 
 // The request combat_melee_damage builds for its self-casts (0x5c bytes on its stack): spell_prepare_cast's
 // result goes to +0x28, then mp_spell_cast_sync and spell_cast_launch_effects read it. The inline
@@ -129,9 +141,12 @@ struct spell_cast_request {
     int target;                      // +0x08 target handle
     vector3 *target_pos;             // +0x0C
     int layer;                       // +0x10
-    int _unk14;                      // +0x14
+    union {                          // +0x14 the item that casts: mp_spell_cast_sync sends its item_types
+        int _unk14;                  //       index (-1 none; decomp35, D1500). combat.cpp clears _unk14.
+        ItemType *item;
+    };
     int source_type;                 // +0x18 6 for a combat skill
-    int _unk1c[3];                   // +0x1C
+    int _unk1c[3];                   // +0x1C sent for spells 0x1d and 0x1f only (mp_write_spell_target_point)
     spell_cast_params params;        // +0x28
 };
 
@@ -187,7 +202,9 @@ void  spell_launch_missile(Character *caster, int handle);  // 0x47e6c0
 int   spell_fire_missile(int spell, int missile, Character *caster, Character *target,
                          const vector3 *start, const matrix *orient);   // 0x47e830 effect handle or -1
 Character *summon_create(Character *caster, vector3 *pos, int a, int spell, int b);   // 0x47e900 (not written)
-void  summon_dismiss();                              // 0x47f270
+// Every caller pushes a handle (mp_game_frame, spell_cast_execute, spell_cast_launch_effects,
+// mp_handle_summon_quick, ai_think_party_update); the body never reads it (D1502).
+void  summon_dismiss(int handle);                    // 0x47f270
 float spell_target_value(Character *target, int spell);     // 0x47f2a0
 float spell_roll_amount(Character *target, int spell, int count, int die, float resist);   // 0x47f4d0
 spell_effect *spell_effect_add(const spell_effect *rec);    // 0x47f660

@@ -35,6 +35,10 @@ public:
     int  get_combat_style();          // 0x473620 ai_get_combat_style
     bool is_casting();                // 0x4731d0 ai_is_casting
     void go_idle();                   // 0x4738c0 ai_go_idle
+    // decomp35 (gametarget.cpp):
+    bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1 (mode 2, submode 1)
+    bool can_backstab_target(Character *target);   // 0x4737a0 ai_can_backstab_target
+    int  add_attack(Character *target, int priority);   // 0x473f70 ai_goal_add_attack (-1 when refused)
     bool is_disabled_any();           // 0x475000 ai_is_disabled_any
     void goals_remove_type1();        // 0x475e00 ai_goals_remove_type1
     // decomp20 (conversationctl.cpp):

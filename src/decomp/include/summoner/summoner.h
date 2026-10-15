@@ -1,8 +1,8 @@
 // summoner/summoner.h - the game's top level: state sequencing, game flags, pause, level changes, the
 // summoner.cfg options and the file path ids. Units: summoner.cpp (Summoner_options, summoner_cfg_save,
-// the path ids), gameplay.cpp (0x4340d0-0x439ba0 by string ids; game_pause 0x432660), gametarget.cpp
-// (0x43a390-0x43cb60) and the state sequencer (gameseq_set_state 0x401020). One header for now; file name
-// ours. Not original source.
+// the path ids), gameplay.cpp (0x4340d0-0x439ba0 by string ids; game_pause 0x432660), the state sequencer
+// (gameseq_set_state 0x401020); gametarget.cpp has summoner/gametarget.h (included below). One header for
+// now; file name ours. Not original source.
 #ifndef SUMMONER_SUMMONER_H
 #define SUMMONER_SUMMONER_H
 
@@ -55,17 +55,10 @@ void party_select_member(class Player *p);     // 0x4396d0
 // (name, 1, 0, 1, -1) from game_stage_set; meaning of the four ints not checked (decomp27).
 void party_member_join(const char *name, int a, int b, int c, int d);   // 0x439ba0
 
-// ---- gametarget.cpp: world picking (0x43a370..; .bss 0x60ab68-0x60ab90) -------------------------------
-class Character;
-void world_pick_set_skill_filter(int skill);   // 0x43a370
-void world_pick_clear_filter();                // 0x43a390
-extern bool  world_pick_portrait_clicked;      // 0x60ab68
-extern Character *world_hover_portrait_character;   // 0x60ab6c (formerly world_pick_target_mode; D47)
-extern int   world_interact_kind;              // 0x60ab88 1..4
-extern void *world_hover_object;               // 0x60ab8c
-extern void *world_interact_object;            // 0x60ab90
-class obj;
-void object_open_pickup(obj *o);               // 0x43a6e0 the pickup screen on a container (return unused)
+// ---- gametarget.cpp (0x43a330-0x43cd6d): world picking, in its unit header (decomp35) ---------------
+#include "summoner/gametarget.h"
+// (pos, layer): moves cur_character and the party there (world_mouse_frame's debug click, lobj flag 0x40).
+void party_teleport_to(vector3 *pos, int layer);   // 0x439750 (gameplay.cpp)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
@@ -76,6 +69,8 @@ void gameplay_load_cursors();         // 0x432db0 (GameInit)
 void cursor_set_type(int bm);         // 0x432e50 cursor_type (0x5931b4) = bm
 extern int cursor_url_bm;             // 0x5fbf2c cursor-url.vbm
 extern int cursor_walk_bm;            // 0x5fbfd4 cursor-walk.vbm (the default)
+extern int cursor_spot_target_bm;     // 0x5fbf40 cursorspot-target.vbm (world_pick_ground_point's decal; decomp35)
+extern int cursor_spot_invalid_bm;    // 0x5fbf4c cursorspot-invalid.vbm
 
 // ---- other units GameInit / game_cleanup call (module "-" in sum.symbols; units not known) ------------
 void editor_dialog_init();            // 0x430be0 empty dialog list and its six colours

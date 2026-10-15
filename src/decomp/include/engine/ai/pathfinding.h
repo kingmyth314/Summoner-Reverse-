@@ -250,6 +250,9 @@ int  seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out);   //
 int  seg2d_line_intersect(const seg2d *seg, const seg2d *line, vector2 *out, int flags);   // 0x4a5bd0
 pf_bsp *pf_bsp_find_cell(const vector3 *pos, int layer);                   // 0x4a5d40 layer -1 = current
 bool pf_point_is_navigable(const vector3 *pos, int size, int layer);       // 0x4a5dc0
+// (pos, layer, size class): the x/z point lies in a used obstacle of the avoidance table (unit after
+// pathfinding; decomp35, world_click_move).
+bool avoid_point_blocked(const vector3 *pos, int layer, int size);  // 0x4aa630
 // (a, b, c, d, out t on a-b, out u on c-d).
 bool seg2d_intersect_params(const vector2 *a, const vector2 *b, const vector2 *c, const vector2 *d,
                             float *t, float *u);                           // 0x4a5eb0

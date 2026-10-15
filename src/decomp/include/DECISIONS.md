@@ -1321,3 +1321,75 @@ script_object_is_dead, `xor al, al` at 0x4ce61b), script_party_gain_xp.
 0x248c7d0 / 0x248c7dc-0x248c7df (sum.symbols names and bool types; read with `mov al, byte ptr` at 0x4f9328
 / 0x4f9374, written with `mov byte ptr` at 0x4f952b / 0x4f9560 / 0x4f9570) and Ai_paused (0x22e499c, a
 console toggle; `mov al, byte ptr [0x22e499c]` at 0x4fbf1b). Declarations only.
+
+## gametarget.cpp / multi_chattracker.cpp / multispell.cpp (decomp35)
+
+**D1500 (spells.h). spell_cast_request +0x14 is the casting item.** mp_spell_cast_sync sends
+`(+0x14 - item_types) >> 8` or -1 (0x4b0391-0x4b03ae: `sub eax, 0x8cbec0 / sar eax, 8`), and
+mp_handle_release_spell rebuilds `item_types + (index << 8)` (0x4b057c-0x4b0585). The field is now an
+anonymous union {int _unk14; ItemType *item;}: combat.cpp and the inline constructor keep clearing _unk14.
+
+**D1501 (spells.h). spell_cast_params decoded (was int data[13]).** The first word is sent as three
+values: bits 1-6 sign-extended (`shl 0x19 / sar 0x1a`, 0x4b03e3 / 0x4afd6b), bits 7-28 (`shr 7 / and
+0x3fffff`) and bits 29-31 (`shr 0x1d`); the reader packs them back over the old bit 0 (0x4b05b7-0x4b05ed:
+`and edx, 1 / or eax, edx`). The target mode (bits 1-6) selects the words +0x2c.. through the jump tables
+0x4aff80 / 0x4b0100 (modes 1..10). Fields: flag0 : 1, int mode : 6, value : 22, kind : 3, int target[12];
+LAYOUT_CHECK 0x34. Nothing used data[]. The same first-word split as spell_effect (bits 1-6) suggests one
+type; not merged.
+
+**D1502 (spells.h). summon_dismiss takes a handle.** All five callers push one dword and clean it
+(mp_game_frame 0x441365, spell_cast_execute 0x47cddc, spell_cast_launch_effects 0x47de9a,
+mp_handle_summon_quick 0x4b090f, ai_think_party_update 0x4b75d2); the body (0x47f270) never reads it.
+Declared `summon_dismiss(int handle)`; spells.cpp's definition now takes the (unused)
+parameter too (merge, 2026-10-15).
+
+**D1503 (levelrender.h). hover_tint_set_character tints a level object.** levelrender_draw_list compares
+hover_tint_char (0x22f8d0c) with the record it draws, whose orientation is at +0x20 (0x485b5c-0x485b87:
+`lea eax, [esi + 0x20]` ... `cmp esi, ecx`), a lobj; world_mouse_frame (0x43ae07) and
+world_mouse_hover_target (0x43ba87) pass level objects. Declared with `lobj *`; the sum.symbols names
+(hover_tint_set_character, world_hover_tint_character) are kept.
+
+**D1504 (levelrender.h). door_toggle_state returns bool.** object_try_unlock_or_open tests AL after the
+call (0x43c27b-0x43c285, `test al, al / jne`); level_scripts.cpp ignores the result.
+
+**D1505 (levelrender.h). door_info +0x5c is the key item type.** object_try_unlock_or_open passes it to
+party_inventory_find_type (0x43c0aa) and character_find_equipped_type (0x43c0d1), both ItemType *.
+Anonymous union {int _unk5c; ItemType *key;} so s3d.cpp's `door->_unk5c = 0` stays.
+
+**D1506 (summoner.h, summoner/gametarget.h). gametarget.cpp gets its unit header.** The gametarget block
+of summoner.h (world_pick_set_skill_filter, world_pick_clear_filter, the five .bss externs,
+object_open_pickup) moved unchanged to summoner/gametarget.h, which summoner.h includes, so every unit
+that used them keeps its include. Added there: the unit's functions and data, WORLD_CLICK_* (the switch of
+world_mouse_frame, jump table 0x43b194), and two outside variables the unit writes: world_mouse_target_handle
+(0x593f50, sum.symbols) and world_last_click_pos (0x609ff8, name ours; world_click_move 0x43c03b).
+
+**D1507 (gametarget.h). world_pick_debug_hook.** world_mouse_frame calls 0x40acc0 with two arguments
+(0x43ad69-0x43ad7d: `push ecx / push edx / call 0x40acc0 / add esp, 8`), the level object and the face.
+0x40acc0 is a bare ret shared by identical-code folding and declared without parameters
+(empty_frame_hook_40acc0, D57), so the call is written to an empty function of its own (name ours),
+defined in gametarget.cpp; the linker would fold it into 0x40acc0.
+
+**D1508 (multi.h, summoner/multi/multispell.h). multispell.cpp's unit header.** mp_spell_cast_sync and
+mp_summon_claim_release moved from the tail of multi.h to multispell.h (included by multi.h like the other
+unit headers); the packet ids MP_CST_ANM .. MP_SMN_QCK (0x34-0x3a, names from mp_packet_table) and
+mp_forward_cur_packet_buffered (0x442230, mp_handle_summon_quick) were added to multi.h.
+
+**D1509 (summoner/multi/multi_chattracker.h).** New unit header for the IRC client; included by multi.h.
+The record types are from the malloc sizes and the list links: irc_command 0x6c (next +0x68, 0x4ac032),
+irc_user 0x28 (next +0x24, 0x4adb82), irc_channel 0x8c (users int16 +0x22, topic +0x24, next +0x88,
+0x4ad9f4). irc_add_channel's second parameter is stored with `mov word ptr [ecx + 0x22], dx` (short).
+
+**D1510 (vsdk/math/ix.h).** New header: plane {normal, d} with the inline set_normal_point (its COMDAT
+0x43b5a0 lies in gametarget.cpp's range and its -1.0f, 0x580e1c, in gametarget.cpp's .rdata; d =
+dot(p, n) * -1.0f, `fmul dword ptr [0x580e1c]` rather than fchs), ix_ray {origin, dir} (the ray that
+world_pick_under_mouse builds at its +0x18 and passes to ix_ray_plane; gr_screen_to_world_ray writes the
+same layout), ix_ray_plane, ix_point_linesegment. world_pick_under_mouse's `ground = facing` is the
+implicit plane assignment (vector3::operator= call 0x413190 for the normal, then d).
+
+**D1511 (gametarget.h). character_can_talk_to returns int.** `mov eax, 1` / `xor eax, eax` (0x43a5c8,
+0x43a5ed) and world_mouse_hover_target tests EAX (0x43b735).
+
+**D1512 (levelrender.h, comments only). lobj_hit +0x24 / +0x28.** +0x24 is the level object index
+(world_pick_lobj indexes lobjs and levelrender_lobj_states with it, 0x43a85d-0x43a887; level_scripts.cpp
+already calls lobj_from_index(hit.face)); +0x28 is the s3d_face pointer (minus mesh->faces, divided by 20,
+0x43a8b0-0x43a8f3). The member names stay.
