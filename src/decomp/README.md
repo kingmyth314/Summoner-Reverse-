@@ -28,6 +28,7 @@ Rules:
 | `vsdk/targautils.cpp` | `vsdk\bmpman\targautils.cpp` (`0x5549c0`-`0x5565d6`) | 21 | 8 / 13 / 0 |
 | `vsdk/bmpman.cpp` | `vsdk\bmpman\bmpman.cpp` | 64 | 42 / 21 / 1 |
 | `vsdk/gr_opengl.cpp` | `vsdk\gr\opengl\gr_opengl.cpp` (the renderer SummonerFix enables) | 56 | 41 / 15 / 0 |
+| `vsdk/gr_direct3d.cpp` | `vsdk\gr\directx\gr_direct3d.cpp` (`0x534a20`-`0x536944` may be a second file, D1601) | 65 of 66 | 37 / 25 / 3 |
 | `vsdk/memory.cpp` | `vsdk\os\memory.cpp` | 19 | 18 / 1 / 0 |
 | `vsdk/stringpool.cpp` | `vsdk\os\stringpool.cpp` | 16 | 14 / 2 / 0 |
 | `vsdk/plainstring.cpp` | `plainstring.cpp` (folder not known; Summoner 2 name) | 20 | 12 / 8 / 0 |

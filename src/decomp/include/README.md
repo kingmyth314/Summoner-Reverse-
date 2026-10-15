@@ -68,6 +68,8 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/gr/gr_font.h` | `vsdk\gr\gr_font.cpp` (pilot) | `Font`, `FontCharInfo`, `gr_string`, `gr_split_str`, ... |
 | `vsdk/gr/opengl/gl_min.h` | (ours; stands in for `<GL/gl.h>` / `<GL/glu.h>`, D1305) | the GL 1.1 / GLU functions and constants Sum.exe imports, the multitexture pointer type |
 | `vsdk/gr/opengl/gr_opengl.h` | `vsdk\gr\opengl\gr_opengl.cpp` (decomp33) | `gl_tcache_entry`, the OpenGL back end and its globals |
+| `vsdk/gr/directx/d3d_min.h` | (ours; stands in for `<ddraw.h>` / `<d3d.h>`, D1600) | the DirectDraw 7 / Direct3D 7 structures, C-style interfaces and the SDK call macros, IIDs and constants the Direct3D back end uses; not combinable with the system DirectX headers |
+| `vsdk/gr/directx/gr_direct3d.h` | `vsdk\gr\directx\gr_direct3d.cpp` and the state / drawing object before it (decomp36, D1601) | `d3d_tlvertex`, `d3d_device_record`, `d3d_color_channel`, the Direct3D back end and its globals, the D3D texture cache calls |
 | `vsdk/localize/localize.h` | localize | `localize_strings`, `XSTR`, `localize_*` |
 | `vsdk/snd/snd.h` | snd (0x5207d0) | `snd_*`, `eax_*` |
 | `vsdk/net/net.h` | vsdk\net | `nw_*` globals |

@@ -186,6 +186,7 @@ extern float Small_mesh_threshold;    // 0x59c47c console "small_mesh_threshold"
 extern float Time_mult;               // 0x59c480 console "time_mult" (wave speed)
 extern float Space_mult;              // 0x59c484 console "space_mult" (wave noise scale)
 extern void *levelrender_d3d_vertex_buffer;   // 0x243e03c IDirect3DVertexBuffer7*
+extern int levelrender_d3d_vertex_buffer_pos; // 0x240d9e8 next free vertex; reset by gr_d3d_init_device / gr_d3d_flip (name ours, decomp36)
 void levelrender_wave_lobj(lobj *l, vector3 *out);              // 0x48de60
 void levelrender_create_vertex_buffer();                        // 0x48e470
 void levelrender_free_d3d_vertex_buffer();                      // 0x48e4f0

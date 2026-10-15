@@ -256,4 +256,41 @@ float gr_scale_by_far_clip(float f);                  // 0x50ecb0 f * the far cl
 extern bool d3d_use_vertex_buffer;                    // 0x2dc6c31
 extern void *d3d_direct3d;                            // 0x2dc6c3c IDirect3D7*
 
+// ---- gr_direct3d.cpp (decomp36) ---------------------------------------------------------------------
+// The rest of the Direct3D interface is in vsdk/gr/directx/gr_direct3d.h (it needs d3d_min.h).
+extern bool gr_vsync;                                 // 0x25d8dd0 gr_set_vsync; 0 = flip with DDFLIP_NOVSYNC (name ours)
+extern float Gr_far_min;                              // 0x5a7294 console "far_min"
+extern float Gr_far_max;                              // 0x5a7298 console "far_max"
+// (w): w / far * Gr_3d_zmult, clamped to Gr_3d_zmax: the z the back ends send (vsdk\gr).
+float gr_calc_depth(float w);                         // 0x50d880
+// (z): 255 with fog off or before the fog start, else 255 * the fog factor (vsdk\gr).
+int   gr_get_fog_alpha(float z);                      // 0x50d830
+// One pass of gr_tmapper_multipass (0x14 bytes; layout from gr_d3d_tmapper_multipass, names ours).
+struct gr_tmapper_pass {
+    gr::Mode mode;                    // +0x00
+    int bitmap;                       // +0x04 -1 = untextured
+    bool enabled;                     // +0x08 texture this pass
+    bool vertex_color;                // +0x09 per-vertex colours (else r, g, b below)
+    bool vertex_alpha;                // +0x0A per-vertex alpha (else a)
+    ubyte stage;                      // +0x0B texture stage of the bitmap
+    bool sectioned;                   // +0x0C the bitmap is split in sections (gr_poly_get_section)
+    ubyte r, g, b;                    // +0x0D
+    ubyte a;                          // +0x10
+    ubyte _pad11[3];
+};
+LAYOUT_CHECK(gr_tmapper_pass, sizeof(gr_tmapper_pass) == 0x14);
+// A gr_tmapper_multipass vertex: the projected vertex and, per pass, uv and colour (12 bytes each).
+struct gr_pass_vertex_data {
+    float u, v;                       // +0x00
+    ubyte r, g, b, a;                 // +0x08
+};
+struct gr_multipass_vertex {
+    gr_vertex *v;                     // +0x00
+    gr_pass_vertex_data pass[1];      // +0x04, one per pass (as many as the caller has)
+};
+// (nv, verts, pass, bm, &u_offset, &v_offset, &u_scale, &v_scale): the section of bm the polygon's uvs
+// fall in and the uv transform into it (vsdk\gr; sum.symbols' "(bitmap, u, v, ...)" is the inner part).
+int gr_poly_get_section(int nv, gr_multipass_vertex **verts, int pass, int bm, float *u_offset,
+                        float *v_offset, float *u_scale, float *v_scale);   // 0x55fb00
+
 #endif

@@ -1393,3 +1393,89 @@ implicit plane assignment (vector3::operator= call 0x413190 for the normal, then
 (world_pick_lobj indexes lobjs and levelrender_lobj_states with it, 0x43a85d-0x43a887; level_scripts.cpp
 already calls lobj_from_index(hit.face)); +0x28 is the s3d_face pointer (minus mesh->faces, divided by 20,
 0x43a8b0-0x43a8f3). The member names stay.
+
+## gr_direct3d.cpp (decomp36)
+
+**D1600 (vsdk/gr/directx/d3d_min.h). DirectX 7 without the system headers, as C-style COM.** The header
+declares the DirectDraw 7 / Direct3D 7 structures, the seven interfaces as `{ Vtbl *lpVtbl; }` with
+`__stdcall` function-pointer tables, the SDK's C call macros (`IDirect3DDevice7_SetRenderState(p, a, b)` =
+`(p)->lpVtbl->SetRenderState(p, a, b)`), the IIDs and the constants. C style, not C++ virtuals: in
+gr_d3d_set_bump_env the vtable of d3d_device is loaded before the d3d_f2dw call and the global is loaded
+again afterwards for `this` (`mov esi, [eax]` at 0x5367b7, `mov edx, [0x2dc6c40]; push edx` at 0x5367be /
+0x5367cc), which is the macro's double evaluation; a C++ call evaluates the object once. Slots from the
+calls: device GetCaps +0xc, EnumTextureFormats +0x10, BeginScene +0x14, EndScene +0x18, Clear +0x28,
+SetTransform +0x2c, SetViewport +0x34, SetRenderState +0x50, DrawPrimitive +0x64, DrawPrimitiveVB +0x7c,
+SetTexture +0x8c, SetTextureStageState +0x94; IDirect3D7 EnumDevices +0xc, CreateDevice +0x10,
+CreateVertexBuffer +0x14, EnumZBufferFormats +0x18, EvictManagedTextures +0x1c; IDirectDraw7 CreateClipper
++0x10, CreateSurface +0x18, GetCaps +0x2c, RestoreDisplayMode +0x4c, SetCooperativeLevel +0x50,
+SetDisplayMode +0x54, GetAvailableVidMem +0x5c, GetDeviceIdentifier +0x6c; surface AddAttachedSurface +0xc,
+Blt +0x14, Flip +0x2c, GetAttachedSurface +0x30, GetBltStatus +0x34, GetFlipStatus +0x48, GetSurfaceDesc
++0x58, IsLost +0x60, Lock +0x64, Restore +0x6c, SetClipper +0x70, Unlock +0x80; clipper SetHWnd +0x20; gamma
+Get / SetGammaRamp +0xc / +0x10; vertex buffer Lock / Unlock +0xc / +0x10. The IIDs (0x583350 HAL device,
+0x583360 IDirect3D7, 0x583370 gamma control, 0x583380 IDirectDraw7, checked against their bytes) come from
+dxguid.lib and are extern. DirectDrawEnumerateA is called through the import-library thunk (`call
+0x57b564`), so it has no dllimport. The type names are the SDK's, so the header cannot be included with
+<ddraw.h> / <d3d.h> (levelrender.cpp includes <d3d.h>; it does not include this header).
+
+**D1601 (gr_direct3d.h, gr_direct3d.cpp). The tagged code is two objects; the vertex pool is the vfx
+object's.** sum.symbols tags 0x534a20-0x536944 and 0x538650-0x53ac18 gr_direct3d.cpp; the vfx code
+0x536980-0x538630 (vsdk\geom) lies between. Three things put the boundaries at 0x536950 and 0x538650:
+(1) the initialiser table runs 0x5889cc (gr_d3d_current_mode), 0x5889d0 (init_gr_d3d_vertex_buf),
+0x5889d4 / 0x5889d8 (vfx camera position / orientation), 0x5889dc-0x5889e4 (the three CmdLineParams);
+(2) the .bss blocks are 0x2d90ed4-0x2d90ee7 (texture scales, current mode), 0x2d90ee8-0x2dbfd1b
+(vfx_camera_pos 0x2d90ee8, vfx_camera_orient 0x2d90ef8, gr_vertex_pool 0x2d90f10, vfx_active_instance
+0x2dbfd10, vfx_render_alpha 0x2dbfd14) and 0x2dbfd20-0x2dc6cbb, and the .data blocks 0x5a9cf8-0x5a9cf9,
+0x5a9cfc-0x5a9d23 (the vfx -1 and "$vis", ">>> FAILED TO GET TAG %s\n") and 0x5a9d24-; (3) the first block
+ends with out-of-line header inlines (gr::Mode 0x5368a0-0x536930, then d3d_f2dw 0x536940, the SDK's F2DW),
+which is where a vsdk object's COMDAT inlines go (imin at the end of bmpman.cpp; IsEqualGUID, sum.symbols
+guid_equal 0x53ac00, at the end of the second block). The pool is used by the vfx mesh renderer. So the
+first block is a separate file of vsdk\gr\directx (name not known), the second is gr_direct3d.cpp (its
+__FILE__ is pushed at 0x53956c), and init_gr_d3d_vertex_buf / gr_vertex_pool are left to the vfx unit.
+Both blocks are in one .cpp for now, split at the "PART 2" line.
+
+**D1602 (gr_direct3d.h). gr_d3d_texture_scale_u / _v are float[2] and the names are swapped.** sum.symbols
+has two floats 0x2d90ed4 (_u) and 0x2d90edc (_v). gr_d3d_tmapper_multipass passes 0x2d90ee0 and 0x2d90ed8
+for the second stage (0x5365d0 / 0x5365da), so each is a pair indexed by stage. gr_d3d_tcache_set's fourth
+argument is its u scale (sum.symbols' own signature) and receives 0x2d90edc (`push 0x2d90edc` is the
+fourth argument at 0x535530); gr_d3d_bitmap multiplies the source x by [0x2d90edc] and divides by the
+bitmap width (0x5358d1-0x5358f6), the source y by [0x2d90ed4] over the height (0x535916-0x53591c). The
+symbol names are kept; the code passes &gr_d3d_texture_scale_v[s] as the u scale (fixing sum.symbols is
+left open).
+
+**D1603 (gr_direct3d.h). d3d_primary_surface is the render target, d3d_back_surface the primary.**
+Windowed, gr_d3d_init_device creates the DDSCAPS_PRIMARYSURFACE (0x200) surface into 0x2dc6c48
+(0x53975d-0x53976a) and the DDSCAPS_OFFSCREENPLAIN | DDSCAPS_3DDEVICE (0x2040) surface into 0x2dc6c44
+(0x5397b1-0x5397be); fullscreen, the 0x2218 flipping chain goes into 0x2dc6c48 and GetAttachedSurface(
+DDSCAPS_BACKBUFFER) into 0x2dc6c44 (0x5398af-0x5398cd). The device renders into 0x2dc6c44 (CreateDevice
+at 0x5399c2), gr_d3d_flip flips / blits into 0x2dc6c48. sum.symbols' names are kept with a comment.
+
+**D1604 (gr.h). d3d_direct3d stays void \*.** gr.h declares it `void *` and levelrender.cpp casts it to the
+system IDirect3D7 (it includes <d3d.h>), so gr.h cannot use d3d_min.h's type. gr_direct3d.cpp defines it
+`void *` and reads it through `#define D3D_DIRECT3D ((IDirect3D7 *)d3d_direct3d)` (same code). The other
+interface pointers are typed in gr_direct3d.h. d3d_use_vertex_buffer (gr.h) is defined in gr_direct3d.cpp.
+
+**D1605 (gr.h, levelrender.h). gr state and helpers the back end reads.** Added under "gr_direct3d.cpp"
+in gr.h: gr_vsync (0x25d8dd0, name ours; gr_d3d_flip turns it into Flip flags 1 / 9 with `neg dl; sbb edx,
+edx; and edx, -8; add edx, 9` at 0x53a718), Gr_far_min / Gr_far_max (0x5a7294 / 0x5a7298, scaled by 0.1 for
+S3), gr_calc_depth (0x50d880, float(float)), gr_get_fog_alpha (0x50d830; the result's AL is stored, int
+kept), gr_poly_get_section (0x55fb00) with eight arguments (nv, verts, pass, bm, &u_offset, &v_offset,
+&u_scale, &v_scale): the pushes at 0x5364b6-0x5364c9, and the body walks arg1[i] + arg2 * 12 + 4 / + 8
+(0x55fb64-0x55fb7f); sum.symbols' "(bitmap, u, v, ...)" describes the inner part. gr_tmapper_pass (0x14) and
+gr_multipass_vertex (a gr_vertex pointer, then 12 bytes of u, v, r, g, b, a per pass) are read from
+gr_d3d_tmapper_multipass (0x5363f5-0x536742; names ours). levelrender.h: levelrender_d3d_vertex_buffer_pos
+(0x240d9e8, name ours; reset by gr_d3d_init_device 0x53a0d7 and gr_d3d_flip 0x53a7d4, used by
+levelrender_draw_list_d3d). gr_vertex is not given a constructor although the original has one
+(gr__Vertex__Vertex 0x5081c0 constructs a vector3 at +0; `vector constructor iterator` in 0x536950, gr_rect,
+gr_bitmap_float): adding it would construct levelrender.cpp's levelrender_face_verts, which has no
+initialiser in the binary to check against. Left open.
+
+**D1606 (gr_direct3d.h). Signatures from the call sites.** gr_d3d_set_bitmap(mode, bm, stage): three
+arguments pushed (`push -1` at 0x535706, 0x535da8, 0x5361af), the third unused (as gr_opengl_set_bitmap's
+stage). gr_d3d_is_mode_supported takes the gr::Mode by pointer (`mov ecx, [esp + 4]` is `this`,
+0x53aadc), like gr_is_mode_supported. gr_d3d_set_default_transforms(dev, float zfar) returns the HRESULT
+(the failures return EAX at 0x538b03 / 0x538b17); zfar is read twice as the second argument
+(0x538b19 / 0x538b2f; gr_d3d_init_device pushes 250.0, 0x5399f6). gr_d3d_set_fog(int set_range): the
+range is recomputed only when its argument is set (`mov eax, [esp + 0xc]; test eax, eax` at 0x53a903).
+gr_d3d_read_backbuffer(x, y, w, h, buf) returns 3 (565) or 0. The DirectDraw enumeration records are 0x428
+bytes (d3d_device_record: GUID, GUID *, GUID, GUID *, name[0x400]; arrays of 8 at 0x2dc07c8 and 16 at
+0x2dc2990, from the strides and the neighbouring globals).
