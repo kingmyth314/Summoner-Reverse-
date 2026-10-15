@@ -300,7 +300,7 @@ typedef struct ItemType {
     int32_t kind;            // +0x04 $Type: 0 Weapon, 1 Armor, 2 Misc
     int32_t material;        // +0x08 $Default Material: index into materials (0x8b9d4c, 17 entries)
     const char* model;       // +0x0C $Model: "prop-sword-short.v3d"
-    int32_t _unk10;          // +0x10 zeroed by the parser
+    void*   mesh;            // +0x10 paged-in mesh: vim_load by item_page_in_mesh, 0 when paged out (items_reset_paging, item_page_out_all, item_type_is_paged_in)
     const char* animation;   // +0x14 +Animation: (kept for weapons and slot-5 armour, else 0)
     int32_t value;           // +0x18 $Value: (100 sword, 20 tunic)
     int32_t slot;            // +0x1C +Slot: equipment slot (default 4; sword 4, tunic 6)
@@ -316,7 +316,7 @@ typedef struct ItemType {
     uint8_t _unk60[0x07];
     uint8_t restricted;      // +0x67 +Restricted: 1 Joseph, 2 Rosalind, 4 Flece, 8 Jekhar (0xf when absent)
     // weapon fields (armour reuses +0x68..+0xE7 for per-character data: zeroed, then +Joseph/+Flece/+Jekhar/+Rosalind blocks)
-    int16_t damage;          // +0x68 $Damage: (35 for the short sword)
+    uint16_t damage;         // +0x68 $Damage: (35 for the short sword); every read is zero-extended
     uint16_t weapon_flags;   // +0x6A weapon +Flags: one bit per name (table 0x599010); 2 for the short sword; bit 0x4 skips $Skill
     int32_t weapon_skill;    // +0x6C $Skill: skill id (3 = sword weapons for the short sword)
     float   speed;           // +0x70 $Speed:
@@ -472,7 +472,7 @@ typedef struct char_info {
     int32_t xp_gained;       // +0x02C $Experience Gained: (awarded for a kill)
     int32_t level;           // +0x030 $Level:
     float   attack_radius;   // +0x034 $Attack Radius:
-    int16_t damage;          // +0x038 $Damage:
+    uint16_t damage;         // +0x038 $Damage: read zero-extended by assess_format_info, combat_attack_rating, combat_melee_damage
     uint8_t _unk3a[0x02];
     int16_t special_ability; // +0x03C +Special ability: spell (spell_find_by_name)
     int16_t special_arg;     // +0x03E +Special ability: optional number after the chance (atoi of the rest of the line, default 0)

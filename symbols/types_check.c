@@ -204,3 +204,13 @@ _Static_assert(sizeof(snd_stream_slot)==0x1c,"s");
 _Static_assert(offsetof(ai_state,owner)==0x4c,"o");
 _Static_assert(offsetof(ai_state,travel_dest)==0x54,"t");
 _Static_assert(sizeof(Player)==0x188,"p");
+
+/* 2026-10-15 notes sweep */
+_Static_assert(sizeof(console_command) == 0x0C, "console_command is 0xC on PC");
+_Static_assert(offsetof(ItemType, mesh) == 0x10, "ItemType.mesh");
+_Static_assert(offsetof(ItemType, damage) == 0x68, "ItemType.damage");
+_Static_assert(sizeof(char_info) == 0x3D0, "char_info size");
+_Static_assert(offsetof(char_info, damage) == 0x38, "char_info.damage");
+_Static_assert(sizeof(shop_item) == 0x08, "shop_item size");
+_Static_assert(sizeof(shopkeeper) == 0x14, "shopkeeper size");
+_Static_assert(offsetof(ui_element, callback) == 0x244, "ui_element.callback");
