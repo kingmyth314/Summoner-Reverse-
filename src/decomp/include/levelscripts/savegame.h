@@ -54,5 +54,6 @@ extern savegame savegame_state;                                      // 0x2493a3
 #define SAVEGAME_HM      (&savegame_state)
 extern int savegame_thumbnail_bm;                                    // 0x59e794 (201x151, 32-bit)
 int savegame_location_allowed();     // 0x4d4a50 (0 allowed, 1 combat, 2 level, 3 summon)
+void savegame_alloc();               // 0x4d3920 "SAVE GAME ALLOCATED : %d" (GameInit)
 
 #endif

@@ -11,5 +11,6 @@ int  effect_stream_queue_contains(const char *name);                    // 0x440
 void effect_stream_start();                                             // 0x440560
 int  effect_stream_update();                                            // 0x4408a0 (1 = still reading)
 void effect_stream_reset();                                             // 0x440b20
+void effect_stream_init();                                              // 0x440480 (GameInit)
 
 #endif

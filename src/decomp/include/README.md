@@ -42,7 +42,9 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/crc32.h` | Crc32 (0x5520d0-0x552190) | `Crc32` (directory and file name guessed) |
 | `vsdk/os/timestamp.h` | timestamp.cpp (pilot) | `GameTimer`, `RealtimeTimer`, tickers |
 | `vsdk/os/frametime.h` | frametime.cpp (pilot) | frame time globals and functions |
-| `vsdk/os/timer.h` | timer.cpp | `timer_get`, `timer_wait` |
+| `vsdk/os/timer.h` | timer.cpp | `timer_init`, `timer_get`, `timer_wait` |
+| `vsdk/os/os.h` | vsdk\os (0x530c00-0x531280; file name guessed, decomp26) | `os_init`, `os_poll`, `os_get_main_wnd`, `os_close_main_window`, `os_seed_random` |
+| `vsdk/os/exceptionhandler.h` | exceptionhandler (0x5419a0; directory and file name guessed, decomp26) | `RecordExceptionInfo` |
 | `vsdk/os/registry.h` | `vsdk\os\registry.cpp` (pilot) | `os_registry_*` |
 | `vsdk/os/cmdline.h` | `vsdk\os\cmdline.cpp` (pilot) | `CmdLineParam`, `cmdline_*` |
 | `vsdk/os/console.h` | console.cpp | `console_command`, console globals, `string_buffer` |
@@ -91,6 +93,9 @@ Summoner 2 and Dash Faction give names only.
 | `engine/combat/combat.h` | combat.cpp (0x463540-0x468c77, pilot decomp23; directory guessed) | `living_combat` (Character +0x558) and the combat helpers |
 | `engine/ai/boss_ai.h` | boss_ai.cpp (0x4a04b0-0x4a3580) and the per-boss units | the boss hooks combat.cpp calls, `rand_int_range`, `ghost_stage` |
 | `summoner/summoner.h` | summoner.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, path ids, `SummonerOptions` |
+
+| `engine/spells/spells.h` | spells.cpp (0x47a190..) | `spell_info`, `spells`, `spell_display_names` |
+| `summoner/summoner.h` | summoner.cpp (decomp26), summoner_cd.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, MainLoop / LoadSettings / GameInit, path ids, fonts, command-line flags, `SummonerOptions` |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |
 | `summoner/multi/multi.h` | multi*.cpp (gathering header) | `mp_player`, packets (`mp_packet_table`, `MP_IS_HOST`, build macros), session, game list, lobby, character select records; includes the four unit headers below |

@@ -45,6 +45,8 @@ int  bm_create(int format, int w, int h, void *data, void *palette, int a6);   /
 void bm_set_preload_on_load(int on);                  // 0x503da0
 int  progress_update(int check_keys);                 // 0x503e80 (called with 0; return type guessed)
 void bm_release(int bm);                              // 0x503c80 (return unused)
+void bm_init();                                      // 0x502320
+void bm_close();                                     // 0x502090
 
 // The format out parameter ui_container::set_mask_bitmap passes to bm_lock: the first dword after
 // bm_bitmaps (0x2591c78 + n * 0x48), so a bmpman.cpp global. No name in sum.symbols.

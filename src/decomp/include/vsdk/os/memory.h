@@ -34,6 +34,7 @@ LAYOUT_CHECK(Mempool, sizeof(Mempool) == 0x1c);
 
 void set_current_mempool(Mempool *pool);   // 0x5127f0
 Mempool *get_current_mempool();            // 0x512800
+void atexit_nop_512590();                  // 0x512590 bare ret; MainLoop registers it with atexit
 bool is_mempool_active();                  // 0x512810
 extern Mempool level_mempool;              // 0x22e43c0
 extern Mempool summon_mempool;             // 0x7592c0

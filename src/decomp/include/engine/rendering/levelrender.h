@@ -96,5 +96,11 @@ void levelrender_clear_draw_lists();  // 0x486b00
 
 // (lobj, face, point, out r, g, b): writes 0xff to the three output bytes (unit not known; decomp23).
 void lighting_sample_stub(int lobj, int face, const float *point, ubyte *r, ubyte *g, ubyte *b);  // 0x4af320
+// Shadows and level effects (0x4874c0 / 0x48a060 / 0x48a0e0, between options_apply_detail and the
+// experience table; unit not known). Called by summoner.cpp's GameInit / game_cleanup.
+void shadows_parse_table();           // 0x4874c0 shadows.tbl
+void shadows_init();                  // 0x48a060 lamp glow, Shadow01.tga
+void fx_shutdown();                   // 0x48a0e0
+extern bool S3d_load_lightmaps;       // 0x59aa58 console "load_lightmaps"; GameInit clears it without multitexture
 
 #endif

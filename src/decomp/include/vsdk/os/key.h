@@ -56,6 +56,7 @@
 
 int  key_to_ascii(int key);           // 0x509ca0, 0xff = no character
 bool key_is_down(int key);            // 0x509f00 (returns the state byte key_down_state[key])
+void key_init(int layout, int fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
 
 // The DirectInput key names, indexed by scan code (256 pointers, 0x5a68c0-0x5a6cbf; [1] is "Esc").
 // No name in sum.symbols; label ours.

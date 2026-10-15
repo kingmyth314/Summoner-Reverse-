@@ -260,5 +260,18 @@ void  character_learn_chain_skill(Player *p, int skill, int count);     // 0x449
 // experience.tbl (xp_level_table 0x2305420)
 int   xp_for_level(int level);                        // 0x489a60
 float xp_level_skill_cap(int level);                  // 0x489bf0
+void  experience_parse_table();                      // 0x489930 experience.tbl (GameInit)
+
+// The hero character pools (characterinfo.cpp .bss; GameInit makes each current around character_load).
+class Mempool;
+extern Mempool joseph_char_mempool;                   // 0x7e12c0
+extern Mempool joseph_model_mempool;                  // 0x889008
+extern Mempool jekhar_char_mempool;                   // 0x65e978
+extern Mempool jekhar_model_mempool;                  // 0x8b3c48
+extern Mempool flece_char_mempool;                    // 0x7deee8
+extern Mempool flece_model_mempool;                   // 0x847fc0
+extern Mempool rosalind_char_mempool;                 // 0x714e60
+extern Mempool rosalind_model_mempool;                // 0x68e1d8
+void characterinfo_load_party(int path_id);           // 0x4450c0 (GameInit passes path_tables_characterinfo)
 
 #endif

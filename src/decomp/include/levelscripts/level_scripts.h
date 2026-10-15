@@ -60,13 +60,14 @@ extern level_table_entry level_table[26];            // 0x59fde8
 // The level_table index of a level id, or -1 (the "endgame" string after the table is only its end).
 int  level_table_find_id(int level);                 // 0x4d6390 (formerly level_is_endgame)
 char *level_table_display_name(int level);           // 0x4d64c0 NULL when unknown
+void script_filenames_parse_table();                 // 0x4d6100 script_filenames.tbl (GameInit)
 
 // {level file name, localized display name slot} (type name ours).
 struct level_display_name {
     const char *name;
     char **text;
 };
-extern level_display_name level_display_names[52];   // 0x594440 (51 used, cmp 0x33)
+extern level_display_name level_display_names[51];   // 0x594440-0x5945d7 (D603)
 
 // ---- shops (level_parse_shopkeeper 0x4cc4d0) ---------------------------------------------------------
 struct shop_item {                   // 8 bytes, level_shop_items 0x2491ac0

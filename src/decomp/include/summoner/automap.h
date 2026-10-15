@@ -36,5 +36,6 @@ int  automap_layer_map_index(int layer);                   // 0x430220
 int  automap_label_alloc();                                // 0x430230 index, 0 when full (sic)
 void automap_label_delete(int index);                      // 0x430250
 int  automap_labels_reset_default();                       // 0x4302b0 nonzero = failure (type guessed)
+void automap_reveal_all();                                 // 0x42fc00 (GameInit)
 
 #endif

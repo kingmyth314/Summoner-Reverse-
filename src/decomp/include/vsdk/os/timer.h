@@ -5,5 +5,6 @@
 
 void timer_wait(int ms);              // 0x530bf0 Sleep wrapper
 int  timer_get(int scale);            // 0x5328d0 elapsed QPC ticks * scale / frequency (32-bit result)
+void timer_init();                    // 0x532840 once: QPC frequency (low 32 bits), base
 
 #endif

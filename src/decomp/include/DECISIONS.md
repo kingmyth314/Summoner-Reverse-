@@ -746,3 +746,41 @@ normalize_safe, vector2::len, operator*(float, const vector3 &), size_radius, di
 status_effect_cure, is_moving, play_move and move_finished are declared with decomp20's text (its copy of
 the headers is newer than this one), so the merge only has to drop duplicates. combat.cpp defines
 operator*(float, const vector3 &) (0x468a90 lies in its range).
+
+## summoner.cpp (decomp26)
+
+**D600 (summoner.h). console_sound_buffer is an int.** sum.symbols types 0x60ad78 `void*`, but cmd_play_sound
+stores snd_get_handle's EAX there (0x43d6b0) and pushes the same value as the handle argument of
+snd_play_streamed (0x43d6af); console_sound_stop only tests it and writes 0 (0x43d731-0x43d73a). Declared
+`int` like the other sound handles.
+
+**D601 (summoner.cpp). WinMain's __try / __except.** The SEH frame (push 0x580e50 scope table, push
+0x56de44 _except_handler3, the filter at 0x43e625 calling RecordExceptionInfo(GetExceptionInformation(),
+"Summoner Main Thread")) is written as `__try { } __except (...) { }` under `#ifdef _MSC_VER`; mingw has
+no __try, so the syntax check sees only the plain MainLoop call in the `#else` branch.
+
+**D602 (localize.h). XSTR_SLOT.** level_display_names holds the localize_strings slot, not the string:
+init_level_display_names stores immediates 0x25cddc8.. = &localize_strings[571].. (0x43cd80). The image
+holds only entry 0's name ("test" at 0x594440 -> 0x5945d8); everything from entry 0's slot on is
+written by the initialiser, so to VC6 the slot address was not a constant expression. The macro
+`XSTR_SLOT(text, id)` (name ours) gives `&localize_strings[id]`; how the original spelled it is open.
+
+**D603 (level_scripts.h). level_display_names has 51 entries.** It was `[52]` ("51 used"). The table is
+0x594440-0x5945d7: the "test" literal starts right after it at 0x5945d8, both search loops stop at
+`cmp esi, 0x5945d8` (saveload_format_level_name 0x426c48, level_format_display_name 0x4d63e2), and the
+initialiser's last store is 0x5945d4. sum.symbols' `char*[104]` is one pair too long.
+
+**D604 (summoner.h). config_solo_confirm is a macro.** It was `extern bool config_solo_confirm` at
+0x60acd5, which is Summoner_options.solo_confirm (+0xd). With summoner.cpp defining Summoner_options a
+separate extern would have no definition; `#define config_solo_confirm (Summoner_options.solo_confirm)`
+keeps new_hud.cpp's spelling.
+
+**D605 (summoner.h). SummonerOptions::set_defaults.** summoner_cfg_load writes the 21 default values
+(0x43e295-0x43e320) in the same order and with the same values as the inline constructor
+(init_game_config_defaults 0x43d190). Both are now one inline member, set_defaults(), that the
+constructor calls; code unchanged for new_options.cpp's options_edit.
+
+**D606 (summoner.h). resolution_table is unsigned.** sum.symbols types 0x580e38 `int[3][2]`; LoadSettings
+halves the entries for mouse_move_to with SHR (0x43db6f / 0x43db71), which VC6 emits for an unsigned
+`/ 2` (a signed one adds the sign bit first). Declared `const uint resolution_table[3][2]` and defined
+in summoner.cpp (.rdata, next to WinMain's scope table 0x580e50).

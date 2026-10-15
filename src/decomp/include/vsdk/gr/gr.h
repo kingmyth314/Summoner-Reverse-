@@ -6,6 +6,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/math/matrix.h"
+#include <windows.h>                                  // HWND (gr_init)
 
 // gr::Mode (gr__Mode__Mode packs six 5-bit fields) is a 4-byte class passed by value. Until it is
 // declared, it is a dword typedef (DECISIONS.md D7); gr_font.cpp's own definitions take int.
@@ -20,6 +21,7 @@ struct Color {
     Color() {}
     Color(int r, int g, int b, int a);                // 0x5067f0 Color__Color
     ubyte r, g, b, a;
+    void set(int r, int g, int b, int a);             // 0x506820 Color__set
 };
 typedef Color Color_ctor;                             // the pilots' wrapper name (D41)
 LAYOUT_CHECK(Color, sizeof(Color) == 4);
@@ -105,6 +107,18 @@ void gr_rect(int x, int y, int w, int h, gr_mode mode, float z);       // 0x5077
 bool gr_is_mode_supported(const gr_mode *mode);       // 0x5079b0 (by address; type guessed)
 int  gr_read_backbuffer(int x, int y, int w, int h, void *buf);   // 0x507d30 -> pixel format (3 565, 7 32-bit)
 void gr_set_alpha_test(int enable);                   // 0x508110 (type guessed)
+
+// ---- init / close (gr.cpp) ---------------------------------------------------------------------------
+#define GR_DIRECT3D 0x66                              // gr__Screen.mode values (names ours)
+#define GR_GLIDE    0x67
+#define GR_OPENGL   0x68
+// (w, h, mode, window_mode, hwnd, far_z, dual): far_z goes to gr_screen +0x28, dual (byte) to +0xa0.
+// LoadSettings passes 201 (fullscreen) and Summoner_options.cfg_34 as the float.
+void gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, bool dual);   // 0x505e00
+void gr_close();                                      // 0x5067c0
+int  gr_get_video_memory_mb();                        // 0x5079f0
+void gr_load_reflection_map();                        // 0x50b130 refmap01.tga (vsdk\gr)
+void gr_set_use_buffered_alpha_polys(bool on);        // 0x53e760 (vsdk\gr)
 
 // ---- 3D -------------------------------------------------------------------------------------------
 void gr_setup_3d(matrix *orient, vector3 *pos, float fov, int zbuffer, int a5);   // 0x50dec0 (1, 1 in the pilots)

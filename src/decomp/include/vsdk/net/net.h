@@ -6,6 +6,7 @@
 extern int nw_network_status;                                       // 0x270812c
 extern int nw_networking_ok;                                        // 0x2710e9c
 extern int nw_winsock_started;                                      // 0x2710ea4
+void nw_init_networking(unsigned short port);                        // 0x5188d0 (LoadSettings: mp_net_port)
 
 // The ping field of a reliable socket record (index below 10; own assert). decomp24 (chat_cmd_ping).
 int net_get_reliable_socket_ping(int socket);                       // 0x5193f0

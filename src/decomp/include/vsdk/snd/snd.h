@@ -4,6 +4,7 @@
 #define VSDK_SND_SND_H
 
 #include "vsdk/math/vector.h"
+#include <windows.h>                  // HWND (snd_init)
 
 // The three floats of snd_get_handle are the three table parameters of a sound (sounds.tbl); their
 // meaning is not settled. group: 0 effects, 1 music. from_start: search from slot 0, not 8.
@@ -21,5 +22,10 @@ void snd_set_group_volume(int group, float volume);                        // 0x
 bool snd_is_eax_enabled();                                                 // 0x521ba0
 void eax_mute_reverb();                                                    // 0x522020
 void eax_restore_reverb();                                                 // 0x522090
+// (hwnd, 44100, 16, 2, directsound3d, eax, no_sound, dsinit) from LoadSettings; atexit(snd_close).
+void snd_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use_eax, bool no_sound,
+              bool dsinit);                                                // 0x5205b0
+void snd_close();                                                          // 0x5206e0
+void sounds_parse_table();                                                 // 0x521a60 sounds.tbl
 
 #endif

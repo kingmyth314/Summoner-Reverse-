@@ -48,6 +48,8 @@ typedef ui_button_state screen_button;   // new_assess.cpp / new_pickup.cpp's na
 void interface_set_screen(int id, void *arg);                       // 0x412620
 void interface_refresh_cur_screen();                                // 0x412db0
 int  interface_get_screen();                                        // 0x412610
+void interface_init_global();                                       // 0x4116c0 GameInit: screen tables and bitmaps
+void interface_reset_state();                                       // 0x4118c0 game_cleanup
 void interface_close_screen();                                      // 0x416a10 interface_set_screen(0, 0)
 bool interface_input_ready();                                       // 0x4148e0
 extern Character *status_character;                                 // 0x5bd810 (new_status.cpp)

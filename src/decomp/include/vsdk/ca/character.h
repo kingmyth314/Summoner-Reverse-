@@ -53,6 +53,12 @@ LAYOUT_CHECK(ca_character, sizeof(ca_character) == 0x1e8);
 void ca_init(int arg);                // 0x541290
 void ca_close();                      // 0x541330
 
+// (names, num_names, a3, a4, model pool, char pool): finds or creates the base character named
+// names[0]. GameInit passes (&hero_model_names[2k], 2 (Rosalind 1), 1, 0, pools). a3 / a4 unnamed.
+class Mempool;
+ca_character *character_load(char **names, int num_names, int a3, int a4, Mempool *model_pool,
+                             Mempool *char_pool);     // 0x541450 (return unused by GameInit)
+
 // Mesh rendering used by the 3D views of the screens.
 void ca_render_set_mesh(void *mesh);                                       // 0x50d6e0
 void ca_render_mesh(vector3 *pos, matrix *orient, gr_light_desc *light);   // 0x50d6f0 (return unused)

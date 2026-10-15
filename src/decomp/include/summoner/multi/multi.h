@@ -123,6 +123,8 @@ void mp_send_character_skills(Character *c);            // 0x480ba0
 extern int mp_netgame_level;                            // 0x6513d8
 extern int mp_game_difficulty;                          // 0x6513ec
 extern bool All_multi_levels;                           // 0x60ae64
+void pxo_read_config_thunk();                           // 0x441560 jmp pxo_read_config (GameInit)
+extern unsigned short mp_net_port;                      // 0x651594 UDP port, 10234 unless -port (cmdline_read_params)
 // (completed-level mask, level, difficulty): every prerequisite of the level is in the mask.
 bool mp_player_level_available(unsigned int mask, int level, int difficulty);   // 0x43eb70
 

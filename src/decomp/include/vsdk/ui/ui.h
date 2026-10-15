@@ -139,6 +139,7 @@ extern ui_window ui_window_sentinel;  // 0x2cbf718 (list head: next 0x2cbfbfc, p
 extern Color ui_window_colors[4];     // 0x2cbf670
 extern Color ui_tooltip_colors[4];    // 0x2cbf708 (init_ui_tooltip_state)
 extern Color ui_container_colors[4];  // 0x2cbfc20 (init_ui_container_state)
+extern Color ui_button_colors[15];    // 0x2cbf6a8 (LoadSettings sets [7])
 extern ui_gadget *ui_current_gadget;  // 0x2cbfcc4
 extern int ui_group_depth;            // 0x2cbfcc8
 extern int ui_mouse_x;                // 0x2cbfca8

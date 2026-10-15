@@ -58,6 +58,9 @@ public:
 LAYOUT_CHECK(File, sizeof(File) == 0x114);
 
 void file_change_ext(char *out, const char *name, const char *ext);   // 0x5130a0
+void file_init(const char *install_path, bool use_packfiles);        // 0x512d60 (LoadSettings: NULL, true)
+int  file_add_path(const char *dir, const char *exts);               // 0x512e60 new path id
+char *file_get_full_dir(int path_id, char *out);                     // 0x512a70 install path + dir
 void file_strip_ext(char *out, const char *name);                     // 0x513100
 int  file_make_path_dirs(int path_id);                                // 0x5131e0 nonzero = failure
 // install path + directory of path_id + name into out (return value not used by the pilots).
@@ -86,6 +89,5 @@ typedef file_find_node file_entry;
 void file_find_files(file_find_list *list, int path_id, const char *pattern, int flags,
                      void *callback);                                 // 0x5133b0
 
-int  file_add_path(const char *dir, const char *ext);  // 0x512e60 path id (decomp23: spells_parse_table)
 
 #endif

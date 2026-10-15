@@ -139,6 +139,7 @@ struct ai_service_req {
     int _unk08;
 };
 void ai_service_request(ai_service_req *req);         // 0x4766f0 (handled locally or sent with multi_send_packet)
+void ai_global_init();                                // 0x474900 pathfinding_init, direction table (GameInit)
 
 // An avoidance-area primitive ("AA"; 0x30 bytes on the caller's stack, avoid_area_add copies it).
 // Layout from the three spells.cpp builders (decomp23); names ours, unit not known.

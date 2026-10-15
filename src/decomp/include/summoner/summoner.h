@@ -19,9 +19,12 @@ extern int game_mouse_x;              // 0x5fbfdc
 extern int game_mouse_y;              // 0x5fbfe0
 
 // ---- state sequencing, pause, levels ---------------------------------------------------------------
+void gameseq_init();                  // 0x401000 cur = prev = next = 0
 void gameseq_set_state(int state);    // 0x401020
 int  gameseq_get_state();             // 0x401040 (4 = game play)
+int  GameTick();                      // 0x401070 one frame; returns the current state (3 = quit)
 void game_pause(int a, int b);        // 0x432660 (both 0 in the pilots)
+void game_pause_count_inc();          // 0x432d90 (GameInit)
 void game_unpause();                  // 0x4326c0
 bool game_is_paused();                // 0x432da0
 void game_change_level(const char *filename, void *arg);   // 0x431a40 (second argument type guessed)
@@ -29,7 +32,9 @@ extern bool play_intro_movies;        // 0x5930bd
 void combat_mode_set(int on);         // 0x439580 (gameplay.cpp range; decomp20: conversation_frame passes 0)
 
 // The current level's names and layer maps (set by game_change_level / level_parse_table; module "-").
+extern char level_filename[32];                // 0x60a2c8 (game_cleanup clears all three)
 extern char level_script_name[32];             // 0x60a2e8
+extern char level_prev_filename[32];           // 0x60a308
 extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
 extern bool level_entered_by_load;             // 0x25443a8 (tutorial_frame / tutorial_draw run only while set; D101)
 extern int  level_num_layers;                  // 0x60a340
@@ -57,17 +62,75 @@ void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)
 void empty_function();                // 0x4f13e0 (bare ret shared by identical-code folding)
 
 // ---- mouse cursor (gameplay_load_cursors / cursor_set_type 0x432e50; unit not known) ---------------------
+void gameplay_load_cursors();         // 0x432db0 (GameInit)
 void cursor_set_type(int bm);         // 0x432e50 cursor_type (0x5931b4) = bm
 extern int cursor_url_bm;             // 0x5fbf2c cursor-url.vbm
 extern int cursor_walk_bm;            // 0x5fbfd4 cursor-walk.vbm (the default)
 
-// ---- file path ids (file_add_path results, summoner.cpp .bss) -----------------------------------------
+// ---- other units GameInit / game_cleanup call (module "-" in sum.symbols; units not known) ------------
+void editor_dialog_init();            // 0x430be0 empty dialog list and its six colours
+void cutscene_parse_table();          // 0x4355e0 cutscene.tbl
+void cutscene_shutdown_stub();        // 0x437120 empty (push ebp / pop ebp / ret)
+void alt_textures_parse_table();      // 0x4aac10 alt_textures.tbl
+void alt_textures_free();             // 0x4aafb0
+void debug_noop_cleanup();            // 0x531c80 bare ret
+void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 records at 0x2d064e8
+
+// ---- summoner_cd.cpp (0x43e660-0x43eaff) ----------------------------------------------------------
+void cd_select_drive();               // 0x43e8a0 (WinMain, before MainLoop)
+void CdCheck();                       // 0x43e9b0 (LoadSettings; return unused)
+
+// ---- summoner.cpp (0x43cd70-0x43e654): init, main loop, summoner.cfg (decomp26) ---------------------------
+int  MainLoop();                      // 0x43d7b0 0 when the state machine reaches 3
+void LoadSettings();                  // 0x43d7f0 registry, command line, subsystems, gr_init
+void cmdline_read_params();           // 0x43dc30
+void setup_data_paths();              // 0x43dca0
+void game_shutdown_systems();         // 0x43df20
+void GameInit();                      // 0x43df40
+void game_cleanup();                  // 0x43e1f0
+void summoner_cfg_load();             // 0x43e250
+void launch_updater();                // 0x43e4a0 Summoner.exe -straight_to_update
+
+// The screen resolutions, {w, h} per resolution_index (.rdata 0x580e38).
+extern const uint resolution_table[3][2];      // unsigned (SHR at 0x43db6f; D606)
+extern int resolution_index;          // 0x60ad68 0 = 640, 1 = 800, 2 = 1024
+
+// Fonts loaded by GameInit.
+extern int font_small;                // 0x60abe0 font-small.vf (also the console font)
+extern int font_main;                 // 0x60ad0c sumbones640/800/1024.vf by resolution_index
+extern int font_bones_small;          // 0x60ad10 SumBones-small.vf
+
+// Command-line flags (cmdline_read_params). 0x60ad6d / 0x60ad6e are never written (labels ours).
+extern bool cmdline_directsound3d;    // 0x60ad6c
+extern bool cmdline_flag_60ad6d;      // 0x60ad6d
+extern bool cmdline_flag_60ad6e;      // 0x60ad6e
+extern bool cmdline_eax;              // 0x60ad6f
+extern bool cmdline_pack;             // 0x60ad70 never read (label ours)
+
+// ---- file path ids (file_add_path results, summoner.cpp .bss; setup_data_paths) ---------------------
+extern int path_root;                 // 0x60ac54 "" (.cfg .vpp ...), summoner.cfg
+extern int path_data;                 // 0x60ac60 data
+extern int path_multicache;           // 0x60ad48 multicache (downloaded .cfg / .pcx)
 extern int path_interface;            // 0x60ac10 data\interface\pc
+extern int path_maps_characters;      // 0x60ac2c
+extern int path_maps_effects;         // 0x60abb0
+extern int path_maps_items;           // 0x60ac58
+extern int path_maps_levels;          // 0x60ac14
 extern int path_tables;               // 0x60ac5c data\tables
+extern int path_models_levels_copy;   // 0x60ac18 (also stored in path_models_levels 0x59aa54)
+extern int path_scripts;              // 0x60ac84
+extern int path_tables_characterinfo; // 0x60acc0
+extern int path_internal_copy;        // 0x60ac30 (also stored in path_internal 0x59bd74)
 extern int path_players;              // 0x60ac80
 extern int path_savegame;             // 0x60ac88
-extern int path_multicache;           // 0x60ad48 multicache (downloaded .cfg / .pcx)
-extern int resolution_index;          // 0x60ad68 0 = 640, 1 = 800, 2 = 1024
+extern int path_tables_levels;        // 0x60abe4
+extern int path_movies;               // 0x60ad08
+extern int path_internal;             // 0x59bd74 (.data of another unit; label from sum.symbols)
+extern int path_models_levels;        // 0x59aa54 (.data of another unit; label from sum.symbols)
+
+// The console test sound (cmd_play_sound / cmd_stop_sound).
+extern int console_sound_handle;      // 0x60ad74 snd_play_streamed result
+extern int console_sound_buffer;      // 0x60ad78 snd_get_handle result (sum.symbols: void*; D600)
 
 // ---- summoner.cfg ---------------------------------------------------------------------------------
 // The 0x40-byte options block. Summoner_options (0x60acc8; sum.symbols names its fields config_*, the
@@ -98,7 +161,10 @@ struct SummonerOptions {
     float camera_speed;        // +0x38 1.0, 1.0..2.0
     bool  cfg_3c;              // +0x3c 1
 
-    SummonerOptions()
+    SummonerOptions() { set_defaults(); }
+
+    // summoner_cfg_load (0x43e295-0x43e320) writes the same values in the same order (D605).
+    void set_defaults()
     {
         sfx_volume = 1.0f;
         music_volume = 1.0f;
@@ -125,8 +191,9 @@ struct SummonerOptions {
 };
 LAYOUT_CHECK(SummonerOptions, sizeof(SummonerOptions) == 0x40);
 extern SummonerOptions Summoner_options;                             // 0x60acc8 (config_sfx_volume ..)
-// A field new_hud.cpp reads under its sum.symbols name (as camera_fov in camera.h, DECISIONS.md D19).
-extern bool config_solo_confirm;                                     // 0x60acd5 (= Summoner_options.solo_confirm)
+// A field new_hud.cpp reads under its sum.symbols name. A macro now that summoner.cpp defines
+// Summoner_options: an extern bool at 0x60acd5 would have no definition (D604).
+#define config_solo_confirm (Summoner_options.solo_confirm)   // 0x60acd5
 void summoner_cfg_save();                                            // 0x43e410
 
 // The combat option under its sum.symbols name (decomp23: living_combat_speed_share, combat_resolve_exchange).

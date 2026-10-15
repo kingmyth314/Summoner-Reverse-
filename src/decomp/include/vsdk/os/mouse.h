@@ -10,5 +10,7 @@ bool mouse_was_double_clicked(int button);        // 0x5012e0
 bool mouse_was_pressed(int button);               // 0x501360
 void mouse_get_delta(int *dx, int *dy, int *dz);  // 0x5013c0
 extern int game_mouse_z;                          // 0x257ef80 (wheel)
+void mouse_init(int w, int h);                    // 0x500de0
+void mouse_move_to(int x, int y);                 // 0x501240
 
 #endif
