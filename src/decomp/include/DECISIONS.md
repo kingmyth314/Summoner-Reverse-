@@ -2670,3 +2670,72 @@ path, a strings.tbl block (no localize_strings read in 0x43eb00-0x4425a6) or a S
 module "-" in sum.symbols. Written as game/unnamed_mpmenus_0x43eb00.cpp, unnamed_lobby_0x43ef30.cpp,
 unnamed_mlayout_0x43f9d0.cpp, unnamed_effectstream_0x440400.cpp, unnamed_netsession_0x440b40.cpp and
 unnamed_netpackets_0x441820.cpp; effect_stream.h keeps its name (engine/effects/, directory ours).
+
+**D3400 (engine/ai/ai.h). ai_group +0x1c / +0x20, and ai_think_members / ai_think_enemies hold the other
+side.** ai_group_collect_enemies (0x493ac0) writes the enemies it finds to group +0x20[n] (handles) and
+counts them in +0x1c (`mov [ecx + 4*eax + 0x20], edx` / `inc [ecx + 0x1c]`, 0x493c97-0x493caf, 10 max): the
+old `_unk1c[0x2c]` becomes num_enemies / enemies[10]. The same loop puts the enemy pointers into
+ai_think_members (0x243e394) and the group's own members into ai_think_enemies (0x243e3c0,
+`mov [4*edx + 0x243e3c0], eax` with living_from_handle(group members[i]), 0x493af4-0x493b13); the
+sum.symbols names are kept and the swap is documented. ai_think_enemies is declared [6] (sum.symbols [5]):
+a group holds six members and the unit's .bss ends at 0x243e3d8, where the camera key counts start.
+ai_group_remove_member writes its -1 to members[j] after the shift loop with j == 6, i.e. to +0x1c
+(`mov [eax + 4*edx + 4], -1` after the loop leaves edx = 6, 0x492d07): a game bug, kept.
+
+**D3401 (engine/camera/camera_sequence.h). time_left and advance belong to a second sequence class.**
+cutscene_camera_sequence_time_left (0x4943f0) returns [+0x14] + [+0x10] + [+0xc] - [+8] and _advance
+(0x494400) blends between [+0x48]->eye_pos / view_orient (camera +0x1a4 / +0x284) and +0x4c / +0x58,
+writing +0x18 / +0x24; in a cutscene shot +0x14 is the anim_track's key counts. camera_frame calls
+time_left and camera_update_sequence calls advance only for state 1 (camera_sequence_get_state == 1,
+0x478c3b, 0x4794bb); cutscene shots are state 0 (cutscene_camera_sequence__ctor pushes 0). The two
+methods move to `camera_blend_sequence : camera_sequence` (0x7c bytes, names ours). Nothing in Sum.exe
+constructs a state-1 sequence (camera_sequence__ctor has one caller), so it has no vtable in the binary.
+No existing caller in src/decomp.
+
+**D3402 (vsdk/ca/skeleton.h). anim_track +0x14..+0x20.** cutscene_camera_read_track hands each track two
+0xc-byte arrays per position key (+0x14, +0x18, from cutscene_cam_keys12) and two 8-byte arrays per
+rotation key (+0x1c, +0x20, from cutscene_cam_keys8) before anim_track__init_tangents (0x4940a4-0x4941b0).
+`_unk10[0x1c]` becomes _unk10, pos_aux_a / _b (vector3 *), rot_aux_a / _b (cquat *), _unk24[8]; same size.
+cutscene_camera_sequence::track is now an anim_track (was ubyte[0x2c]; the cutscene file does not touch it).
+
+**D3403 (engine/ai/unnamed_serpent_0x495290.h, unnamed_phoenix_0x497ac0.h, unnamed_tiger_0x499e50.h,
+boss_ai.h). Each rider boss's state is one object; the sum.symbols names are macros.** One static
+initialiser per boss constructs all of its GameTimers (init_serpent_timers 0x4952a0: 13, init_phoenix_timers
+0x497cd0: 11, init_tiger_timers 0x499e60: 7), the rule of D1900. serpent_boss_load clears 0x190 dwords from
+0x2451d98 (`rep stosd`, 0x4959cc), which ends exactly at ccmd_serpent_solo (0x24523d8): serpent_boss
+0x2451d98-0x24523d7. The phoenix (0x2452420-0x24529f7) and tiger (0x2452a90-0x2452c97) objects are cut the
+same way (stage first, up to the next console object); their first 0x140 / 0x30 bytes repeat the serpent's
+field order (stage, target stage, four flags, the anim remap, offense points). The externs of boss_ai.h
+(serpent_stage, serpent_target_stage, serpent_handle, serpent_timer_attack, serpent_part_busy,
+serpent_part_move, serpent_threat_table, phoenix_stage, phoenix_target_stage, phoenix_cur_attack,
+phoenix_threat_table, tiger_stage, tiger_target_stage, tiger_dismount_stage_reached, tiger_stage_trigger,
+tiger_combat, tiger_threat_table, tiger_cur_move) became macros in the unit headers, which boss_ai.h now
+includes after its guard; boss_ai.cpp, the cutscene file and the level scripts compile unchanged.
+serpent_handle is handles[0] of a three-handle array (the loops run from 0x24522ac over num_extra_parts + 1
+entries, serpent_part_index 0x4975ba); serpent_whip_reach (0x2452160) is attacks[2][0].range_max. The
+record of "$OffenseNN" tags (0x1c bytes) is shared by serpent and phoenix: serpent_offense_point in
+boss_ai.h.
+
+**D3404 (engine/combat/combat.h; applied at merge). living_combat::update takes a move id, not a frame
+time.** Every caller passes an int: boss_get_attack_move_id's result (ai_combat_ranged_attack,
+`push eax`, 0x4be82b) or 0xb8 (tiger_combat_update, `push 0xb8`, 0x49b78b), and update_boss_attack
+compares it with +0x18 (move_variant, 0x46837c). The declaration (float frametime, combat.cpp's
+definition) is left as it is because changing it means changing combat.cpp; tiger_combat_update passes
+the int through the float parameter (*(float *)&id). To do when combat.cpp is touched: `bool update(int
+move_id)` and `update_boss_attack(int move_id)`.
+
+**D3405 (ai.h, boss_ai.h). Return types from the binary.** ai_state::serpent_seat_rider, phoenix_seat_rider
+and tiger_seat_rider return bool (`mov al, 1` / `xor al, al`, 0x495f1d, 0x4983aa, 0x49afbd; were void);
+tiger_move_in_range returns int (`mov eax, 1` / `xor eax, eax`, 0x49c6f2; was bool). ai_state::combat_approach
+(0x4bda50) returns bool (tiger_wander_update tests al, 0x49bcb0). The callers (boss_ai.cpp) ignore or
+convert the results; no definition existed. ai_state +0x68 is the cast point (phoenix_cast_special writes
+Character +0x38c..+0x394; phoenix_special_strike passes +0x398 to spell_place_ground_effect): `_unk68[0x14]`
+becomes cast_point, cast_arg, _unk78[4].
+
+**D3406 (units). The six cuts of 0x492b00-0x49c83a hold.** Each starts with its static initialisers and
+owns one .bss / .data block: AI groups 0x492b00 (entries 263-264), camera sequences 0x493e50 (265-268,
+.bss 0x243e3d8-0x2444597), snow 0x4946a0 (269-272: the console commands end the snow unit, as
+source-map.md says), serpent 0x495290 (273-277), phoenix 0x497ac0 (278-282), tiger 0x499e50 (283-287;
+pathfinding.cpp starts at 0x49c840). No assert path, no strings.tbl read: all six are placeholder files.
+snow_start / snow_stop moved from levelrender.h to the snow unit header (levelrender.h includes it);
+Snow_enabled moved there from the cutscene header (which includes it).

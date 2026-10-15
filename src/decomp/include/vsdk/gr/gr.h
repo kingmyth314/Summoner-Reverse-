@@ -241,6 +241,8 @@ void gr_set_use_buffered_alpha_polys(bool on);        // 0x53e760 (vsdk\gr)
 // ---- 3D -------------------------------------------------------------------------------------------
 void gr_setup_3d(matrix *orient, vector3 *pos, float fov, int zbuffer, int a5);   // 0x50dec0 (1, 1 in the pilots)
 bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs);   // 0x50edc0 (true = outside the view)
+// decomp54 (snow_render): (position, a, size, mode) a camera-facing sprite of the current texture.
+void gr_bitmap_3d(vector3 *pos, int a, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
 
 // The lighting record a model is rendered with (0x20 bytes on the callers' stacks; thiscall constructor,
 // no destructor). The constructor builds a vector3 at +0xc and resets +0..+0x1c. status_draw_model

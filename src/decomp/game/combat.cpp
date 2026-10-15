@@ -1726,7 +1726,7 @@ void living_combat::set_target(int unused, Character *c)
 
 // 0x468210  Confidence: likely. Per-frame dispatch; true when the record is idle. A melee exchange needs
 // both sides attacking each other and facing (dot of the forward vectors below -0.95).
-bool living_combat::update(float frametime)
+bool living_combat::update(int move_id)
 {
     Character *t = living_from_handle(target);
     float facing;
@@ -1740,7 +1740,7 @@ bool living_combat::update(float frametime)
              t->orient.fvec.x * owner->orient.fvec.x;
     if (owner->ai.is_attacking() == true) {
         if (owner->type == 9)
-            update_boss_attack(frametime);
+            update_boss_attack(move_id);
         else if (opponent->owner->type == 9)
             update_attack();
         else if (!opponent->owner->ai.is_attacking() || opponent->target != owner->handle ||

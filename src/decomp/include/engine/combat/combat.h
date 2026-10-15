@@ -32,8 +32,8 @@ public:
     void  set_owner(Character *c);                  // 0x4681d0
     Character *get_target();                        // 0x4681e0
     void  set_target(int unused, Character *c);     // 0x4681f0 (first argument not read)
-    bool  update(float frametime);                  // 0x468210 (the argument goes to the boss branch)
-    void  update_boss_attack(float frametime);      // 0x468360 (not written yet)
+    bool  update(int move_id);                      // 0x468210 (the move id goes to the boss branch; D3404)
+    void  update_boss_attack(int move_id);          // 0x468360 (not written yet; compares it with +0x18)
     void  apply_net_exchange(int hit, int move, int defence, int skill, bool special);   // 0x4685c0
     bool  is_busy();                                // 0x468740
     void  set_38(int skill);                        // 0x468750 living_combat_set_38 (chain skill)

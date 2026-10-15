@@ -11,6 +11,7 @@
 #include "vsdk/os/norlsallocpool.h"
 #include "vsdk/os/console.h"
 #include "engine/camera/camera_sequence.h"
+#include "engine/rendering/unnamed_snow_0x4946a0.h"
 
 class TextFile;
 
@@ -182,6 +183,6 @@ void cmd_play_and_load_cutscene();    // 0x437590
 void cmd_stop_cutscene();             // 0x437650
 
 // ---- other units' data the file uses (units not known) ----------------------------------------------
-extern bool Snow_enabled;             // 0x59c5e8 console "snow" (the snow unit 0x4946e0..)
+// Snow_enabled (0x59c5e8): declared with the snow unit (decomp54).
 
 #endif

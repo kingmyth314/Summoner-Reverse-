@@ -9,6 +9,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/os/timestamp.h"
+#include "vsdk/math/vector.h"
 
 class Character;
 class living_combat;
@@ -75,6 +76,14 @@ struct boss_target {
 };
 LAYOUT_CHECK(boss_target, sizeof(boss_target) == 0x10);
 
+// One "$OffenseNN" mesh tag of a rider boss (0x1c bytes; serpent_boss_load / serpent_choose_attack and the
+// phoenix's copies; decomp54). Names ours.
+struct serpent_offense_point {
+    int tag;                          // +0x00 character_find_mesh_tag
+    vector3 up;                       // +0x04 the tag's up vector this frame
+    vector3 pos;                      // +0x10 the tag's position + the boss's centre offset
+};
+
 // ---- boss_ai.cpp -----------------------------------------------------------------------------------
 extern GameTimer boss_rider_sound_timer;              // 0x245c9e0 (name from static_init_boss_rider_sound_timer)
 
@@ -124,6 +133,10 @@ bool  boss_move_trigger_dispatch(Character *c);        // 0x4a2d50
 bool  character_uses_pathfinding(Character *c);        // 0x4a2d70
 bool  boss_hook_dispatch_51_c1(Character *boss, Character *target);  // 0x4a2da0
 int   boss_threat_find(int handle, boss_threat *table);  // 0x4a2de0 index or -1
+// decomp54: the copy of boss_target_list_find after the evil_urath unit (the serpent's calls; unit not
+// known): (list, count, handle) -> index or -1.
+int   boss_target_list_find_b(boss_target *list, int count, int handle);   // 0x4c4580
+int   boss_target_list_find(boss_target *list, int count, int handle);     // 0x4c3c70 (the phoenix's calls)
 void  boss_target_filter_dispatch(Character *boss, boss_target *t);  // 0x4a2e00
 int   boss_target_list_build(Character *boss, boss_target *list, boss_threat *table);   // 0x4a2f60 count
 // mask 0x80000000: the nearest candidate; otherwise a weighted random pick among the candidates whose
@@ -181,9 +194,9 @@ void  tentacle_beast_battle_update();                  // 0x4c7640
 // rider is the last living entity of species 0x57 (char_info +0x10), NULL when none; ls_templeint_frame
 // reads its HP through the result unchecked.
 Character *tiger_find_rider();                         // 0x49a010
-extern bool tiger_dismount_stage_reached;              // 0x2452a98 set by tiger_check_stage (stage 3)
-extern bool tiger_stage_trigger;                       // 0x2452a99 set by the script, read by tiger_check_stage
-extern bool tiger_combat;                              // 0x2452a9a tiger_ai_idle engages when set
+// decomp54 (D3403): tiger_dismount_stage_reached (0x2452a98, set by tiger_check_stage), tiger_stage_trigger
+// (0x2452a99, set by the script) and tiger_combat (0x2452a9a) are fields of the tiger's state object,
+// macros in engine/ai/unnamed_tiger_0x499e50.h (included at the end of this header).
 // One tentacle of the sewer boss (0x110 bytes, 4 at 0x248c328; sum.symbols types the array
 // uint8[0x440]). Only the fields the level scripts and tentacle_begin_sink touch are named. Type name ours.
 struct tentacle_info {
@@ -219,7 +232,7 @@ void  giant_salamanka_fire_attack(Character *boss, Character *target); // 0x4c8b
 void  murod_oni_fire_attack(Character *boss, Character *target);       // folded (trigger case 0xb8)
 void  machival_knock_down_party(Character *boss, Character *target);   // 0x4c1a80
 
-bool  tiger_move_in_range(Character *boss, Character *target);         // 0x49c690
+int   tiger_move_in_range(Character *boss, Character *target);         // 0x49c690 (decomp54: mov eax, 1 / xor eax; was bool)
 bool  serpent_move_in_range(Character *boss, Character *target);       // 0x497a00
 bool  giant_salamanka_target_in_reach(Character *boss, Character *target);   // 0x4c8c40
 bool  tentacle_target_in_reach(Character *boss, Character *target);    // 0x4c7910
@@ -313,9 +326,9 @@ extern bool giant_salamanka_stage2_reached;           // 0x248c7dc set by giant_
 extern bool giant_salamanka_stage2_ack;               // 0x248c7dd set by the level script (cutscene end)
 extern bool giant_salamanka_stage3_reached;           // 0x248c7de
 extern bool giant_salamanka_stage3_ack;               // 0x248c7df
-extern boss_threat tiger_threat_table[BOSS_MAX_THREATS];             // 0x2452ac0
-extern boss_threat serpent_threat_table[BOSS_MAX_THREATS];           // 0x24522e8
-extern boss_threat phoenix_threat_table[BOSS_MAX_THREATS];           // 0x2452938
+// tiger_threat_table (0x2452ac0): a field of the tiger's state object (D3403).
+// serpent_threat_table (0x24522e8): a field of the serpent's state object (D3403, unnamed_serpent_0x495290.h).
+// phoenix_threat_table (0x2452938): a field of the phoenix's state object (D3403, unnamed_phoenix_0x497ac0.h).
 extern boss_threat ghost_rider_threat_table[BOSS_MAX_THREATS];       // 0x248081c
 extern boss_threat titus_threat_table[BOSS_MAX_THREATS];             // 0x248b3b8
 extern boss_threat pyrul_threat_table[BOSS_MAX_THREATS];             // 0x247fd3c
@@ -323,8 +336,8 @@ extern boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];         // 0x248c00
 extern boss_threat murod_threat_table[BOSS_MAX_THREATS];             // 0x248bf3c
 extern boss_threat evil_urath_threat_table[BOSS_MAX_THREATS];        // 0x248bd10
 extern boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];       // 0x248b9b8
-extern boss_attack *tiger_cur_move;                   // 0x2452c40
-extern boss_attack *phoenix_cur_attack;               // 0x2452920
+// tiger_cur_move (0x2452c40): a field of the tiger's state object (D3403).
+// phoenix_cur_attack (0x2452920): a field of the phoenix's state object (D3403).
 extern boss_attack *ghost_cur_move;                   // 0x2480810 (name ours)
 extern boss_attack *titus_current_move;               // 0x248b90c
 extern boss_attack *pyrul_cur_move;                   // 0x2480290 (name ours)
@@ -333,18 +346,17 @@ extern boss_attack *evil_urath_current_move;          // 0x248bec8
 extern boss_attack *evil_joseph_current_move;         // 0x248bc8c
 extern boss_attack *machival_current_move;            // 0x248b30c
 // The serpent and its two copies (index serpent_part_index): the attack each one is playing (sum.symbols
-// types it int[3]; the dispatchers read +0x14 / +0x1c through it) and its move id.
-extern boss_attack *serpent_part_busy[3];             // 0x2452384
-extern int serpent_part_move[3];                      // 0x2452390
-extern int serpent_handle;                            // 0x24522ac
-extern GameTimer serpent_timer_attack;                // 0x2452298
-extern int serpent_stage;                             // 0x2451d98
-extern int tiger_stage;                               // 0x2452a90
-extern int phoenix_stage;                             // 0x2452420
+// types it int[3]; the dispatchers read +0x14 / +0x1c through it) and its move id. decomp54 (D3403):
+// serpent_part_busy, serpent_part_move, serpent_handle, serpent_timer_attack, serpent_stage and
+// serpent_target_stage are fields of the serpent's state object, macros in
+// engine/ai/unnamed_serpent_0x495290.h (included at the end of this header).
+// tiger_stage (0x2452a90) and tiger_target_stage (0x2452a94): fields of the tiger's state object (D3403).
+// phoenix_stage (0x2452420) and phoenix_target_stage (0x2452424): fields of the phoenix's state object
+// (D3403, macros in engine/ai/unnamed_phoenix_0x497ac0.h).
 // The stage each boss switches to (cmd_*_stage, *_boss_load; cutscene_play_escape sets 3; decomp52).
-extern int serpent_target_stage;                      // 0x2451d9c
-extern int tiger_target_stage;                        // 0x2452a94
-extern int phoenix_target_stage;                      // 0x2452424
+
+
+
 // "ride_horse_walk" into the serpent rider's locomotion anims (cutscene_start_special_cases, decomp52).
 void  serpent_set_cutscene_walk_anim();                // 0x497840
 
@@ -355,3 +367,9 @@ void  obstacles_debug_render();                        // 0x4a3890 (Render_3d_ob
 void  shadow_list_clear();                             // 0x4a3eb0
 
 #endif
+
+// decomp54: the per-boss state objects (their fields keep the sum.symbols names as macros). Outside the
+// guard so that the unit headers, which include this one first, see its types.
+#include "engine/ai/unnamed_serpent_0x495290.h"
+#include "engine/ai/unnamed_phoenix_0x497ac0.h"
+#include "engine/ai/unnamed_tiger_0x499e50.h"

@@ -70,6 +70,7 @@ Rules:
 | `game/unnamed_editor_dialogs_0x430bc0.cpp`, `unnamed_states_0x431870.cpp`, `unnamed_frame_0x4323e0.cpp` | editor dialogs, boot/title/load-game states, frame end and input (**names not known**) | 79 | 66 / 13 / 0 (`NOTES-unnamed-states.md`) |
 | `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 46 / 8 / 0 (`NOTES-unnamed-input-cutscene.md`) |
 | `game/unnamed_mpmenus_0x43eb00.cpp`, `unnamed_lobby_0x43ef30.cpp`, `unnamed_mlayout_0x43f9d0.cpp`, `unnamed_effectstream_0x440400.cpp`, `unnamed_netsession_0x440b40.cpp`, `unnamed_netpackets_0x441820.cpp` | multiplayer menus, IRC lobby, monster layouts, effect streaming, net session and packets (**names not known**) | 129 | 94 / 35 / 0 (`NOTES-unnamed-multi-net.md`) |
+| `game/unnamed_ai_groups_0x492b00.cpp`, `unnamed_cutscene_camera_0x493e50.cpp`, `unnamed_snow_0x4946a0.cpp`, `unnamed_serpent_0x495290.cpp`, `unnamed_phoenix_0x497ac0.cpp`, `unnamed_tiger_0x499e50.cpp` | AI groups, cutscene camera sequences, snow, and the Serpent, Phoenix and Tiger bosses (**names not known**) | 220 | 146 / 69 / 6 (`NOTES-unnamed-aigroups-bosses.md`) |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |

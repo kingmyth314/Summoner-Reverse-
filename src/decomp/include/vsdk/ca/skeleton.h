@@ -70,9 +70,19 @@ public:
     int _unk04;
     anim_pos_key *pos_keys;           // +0x08
     anim_rot_key *rot_keys;           // +0x0c
-    ubyte _unk10[0x1c];
+    // decomp54 (cutscene_camera_read_track hands these out from its pools, one entry per key; D3402):
+    // two 0xc-byte arrays per position key and two 8-byte arrays per rotation key (was _unk10[0x1c]).
+    // Names ours.
+    int _unk10;                       // +0x10
+    vector3 *pos_aux_a;               // +0x14
+    vector3 *pos_aux_b;               // +0x18
+    cquat *rot_aux_a;                 // +0x1c
+    cquat *rot_aux_b;                 // +0x20
+    ubyte _unk24[8];                  // +0x24
 };
 LAYOUT_CHECK(anim_track, sizeof(anim_track) == 0x2c);
+// (t, ease_from, ease_to): the 3D Studio style ease of a key interval (cdecl; decomp54, the camera blend).
+float tcb_ease(float t, float ease_from, float ease_to);   // 0x551610
 
 // One morph target track (0x0c bytes, skeleton +0x9c; name ours).
 struct skeleton_morph {

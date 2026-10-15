@@ -18,9 +18,12 @@ class vector3;
 struct ai_group {
     int count;               // +0x00
     int members[6];          // +0x04 handles
-    ubyte _unk1c[0x2c];
+    // decomp54 (D3400): ai_group_collect_enemies fills +0x1c / +0x20 with the enemies the members see
+    // (was _unk1c[0x2c]).
+    int num_enemies;         // +0x1C
+    int enemies[10];         // +0x20 handles
     int leader;              // +0x48 leader's object handle
-    unsigned int flags;      // +0x4C
+    unsigned int flags;      // +0x4C AI_GROUP_* (decomp54)
     GameTimer timer;         // +0x50
 };
 LAYOUT_CHECK(ai_group, sizeof(ai_group) == 0x54);
@@ -182,6 +185,9 @@ public:
     void begin_emerge();              // 0x473970 ai_begin_emerge
     void summon_emerge_update();      // 0x4b4660 summon_emerge_update (unit not known)
     void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
+    // decomp54 (ai_group_think_caster): (candidates, count, out chosen candidate or NULL) -> spell or -1.
+    // The candidates are boss_target records (engine/ai/boss_ai.h). Unit not known.
+    int  choose_support_spell(struct boss_target *list, int count, struct boss_target **out);   // 0x4bea80 ai_choose_support_spell
     // decomp29 (boss_ai.cpp). (pos, layer, 30.0f, 0, 5000) at boss_release_mount; return unused.
     // decomp39 (D1903): f is goal_add's float argument, walk a byte (`cmp dl, 1`), the last the priority.
     int  add_move_to_timed(vector3 *pos, int layer, float f, bool walk, int ms);   // 0x474190 ai_goal_add_move_to_timed
@@ -218,13 +224,13 @@ public:
     void evil_joseph_boss_load();     // 0x4c35e0
     void machival_boss_load();        // 0x4c0f60
     void tiger_check_stage();         // 0x49a6c0
-    void tiger_seat_rider();          // 0x49aeb0
+    bool tiger_seat_rider();          // 0x49aeb0 (decomp54: returns al; was void)
     void giant_salamanka_check_stage(); // 0x4c8560
     void serpent_check_stage();       // 0x495b90
-    void serpent_seat_rider();        // 0x495e10
+    bool serpent_seat_rider();        // 0x495e10 (decomp54: returns al, true when seated; was void)
     void serpent_part_check_timeout();// 0x497610
     void phoenix_check_stage();       // 0x499690
-    void phoenix_seat_rider();        // 0x4982a0
+    bool phoenix_seat_rider();        // 0x4982a0 (decomp54: returns al; was void)
     void ghost_update_stage();        // 0x4bb4c0
     void ghost_seat_rider();          // 0x4ba8e0
     void tentacle_beast_check_stage();// 0x4c7360
@@ -265,6 +271,37 @@ public:
     void evil_urath_ai_frame();       // 0x4c4760
     void evil_joseph_ai_frame();      // 0x4c3860
     void machival_ai_frame();         // 0x4c1070
+    // decomp54: the serpent unit's thiscall functions (game/unnamed_serpent_0x495290.cpp).
+    int  serpent_choose_attack();     // 0x496330 0 no fight, 1 wander / place, 3 attack, 5 busy
+    void serpent_wander_update();     // 0x496b00
+    void serpent_illusion_start();    // 0x496ba0
+    void serpent_illusion_update();   // 0x496d60
+    bool serpent_place_parts();       // 0x4970a0
+    bool serpent_wander_start();      // 0x497230
+    // decomp54: the phoenix unit's thiscall functions (game/unnamed_phoenix_0x497ac0.cpp).
+    void phoenix_set_dive_point();    // 0x497d30
+    bool phoenix_reposition_update(); // 0x497da0
+    void phoenix_wander_update();     // 0x4981a0
+    void phoenix_end_move_3a();       // 0x498210
+    void phoenix_end_move_3b();       // 0x498250
+    int  phoenix_choose_attack();     // 0x498a20 0 no fight, 1 pending sub-mode, 3 attack, 5 busy
+    void phoenix_stage_transition_move(); // 0x4995b0
+    // The AI mode units' combat helpers the bosses call (units not known; decomp54).
+    bool follow_path(int a);          // 0x4b3010 ai_follow_path (the bosses pass 0)
+    bool combat_approach(Character *t);       // 0x4bda50 ai_combat_approach (tiger_wander_update tests al)
+    bool turn_towards(vector3 *point, int a); // 0x4b2af0 ai_turn_towards (the tiger passes 1)
+    void alert_guards_of_target(Character *attacker);   // 0x4bfed0 ai_alert_guards_of_target
+    // decomp54: the tiger unit's thiscall functions (game/unnamed_tiger_0x499e50.cpp).
+    bool tiger_wander_start(int target);      // 0x49a9b0 (ret 4)
+    int  tiger_choose_attack();               // 0x49b350 0 none, 3 move chosen, 5 busy
+    void tiger_combat_update(Character *t);   // 0x49b6e0 sub-mode 0x1f (ret 4)
+    void tiger_approach_target(Character *t); // 0x49b9e0 sub-mode 0x1e (ret 4)
+    void tiger_wander_update();               // 0x49ba70 sub-mode 0x21
+    void tiger_reposition_update(Character *t); // 0x49bce0 sub-mode 0x20 (ret 4)
+    bool tiger_stage_move_update();           // 0x49c240 sub-mode 0xe: true when the weapon move ended
+    void combat_close_in(Character *t);       // 0x4be280 ai_combat_close_in (sub-modes 0x16 / 0x17)
+    void combat_melee_attack(Character *t);   // 0x4be5f0 ai_combat_melee_attack (sub-mode 0xf)
+    void combat_ranged_attack(Character *t);  // 0x4be760 ai_combat_ranged_attack (sub-mode 0x10)
 
     int mode;               // +0x00 enum ai_state_mode
     int submode;             // +0x04
@@ -288,7 +325,10 @@ public:
     vector3 travel_dest;     // +0x54 (was float[3]; decomp39)
     int target;              // +0x60 target handle
     int prev_target;         // +0x64
-    ubyte _unk68[0x14];
+    vector3 cast_point;      // +0x68 point of a cast at a location (decomp54: phoenix_cast_special sets it,
+                             //       phoenix_special_strike places the ground effect there; was _unk68[0x14])
+    int cast_arg;            // +0x74 passed with it to spell_place_ground_effect (its owner argument)
+    ubyte _unk78[4];
     int _unk7c;              // +0x7C attack point index at the target (its attack_point_users), -1 none
     int handle_slot;         // +0x80 released by ai_set_mode (handle_slot_release)
     int mode_target;         // +0x84 -1 when a cast mode ends
@@ -565,5 +605,31 @@ avoid_spline *avoid_spline_get(int i);                 // 0x4a7830 NULL unless u
 avoid_spline_point *avoid_spline_point_get(int i);     // 0x4a77d0 NULL unless used
 
 void ai_groups_restart_timers();                      // 0x492b60 (state_game_enter; decomp42)
+
+// ---- the AI group unit (0x492b00-0x493e41, file not known; game/unnamed_ai_groups_0x492b00.cpp, decomp54) ----
+// ai_group::flags bits (names ours).
+#define AI_GROUP_PARTY       0x01     // the leader was a party member (type 7) at ai_group_create
+#define AI_GROUP_FIGHTING    0x04     // cleared by ai_group_combat_think when no enemy is seen; 1 s think rate
+#define AI_GROUP_COMBAT_SET  0x08     // combat_mode_set(1) done this think (cleared by ai_groups_frame)
+#define AI_GROUP_LOCAL       0x10     // multiplayer: this machine thinks for the group
+// sum.symbols' names, but the contents are the other way round (D3400): ai_think_enemies holds the
+// group's own members (ai_think_num_enemies of them), ai_think_members the enemies they see (the
+// group's num_enemies of them). Names kept.
+extern Character *ai_think_members[10];               // 0x243e394
+extern int ai_think_num_enemies;                      // 0x243e3bc
+extern Character *ai_think_enemies[6];                // 0x243e3c0 (sum.symbols [5]; 0x18 bytes to 0x243e3d8, D3400)
+extern bool Party_controller_check;                   // 0x59c594 (init 1; no reader)
+void ai_group_combat_think(ai_group *g);              // 0x492db0
+int  ai_group_count_helpless(ai_group *g);            // 0x493000
+int  character_is_helpless(Character *c);             // 0x493040 asleep, paralysed or in an ice coffin
+bool ai_member_skips_group_orders(Character *c);      // 0x493080
+void ai_group_think_style0(Character *c, ai_group *g);   // 0x4930d0
+void ai_group_order_attack(Character *c, Character *target, ai_group *g, bool mark);   // 0x493220
+void ai_group_think_style1(Character *c, ai_group *g);   // 0x493290
+void ai_group_think_style2(Character *c, ai_group *g);   // 0x493570
+void ai_group_think_caster(Character *c, ai_group *g, int first_pass);   // 0x4936c0
+void ai_group_collect_enemies(ai_group *g);           // 0x493ac0
+void ai_group_shuffle_enemies(ai_group *g);           // 0x493ce0
+void cmd_party_controller_check();                    // 0x493d90
 
 #endif

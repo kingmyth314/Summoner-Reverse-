@@ -74,6 +74,7 @@ public:
     vector3 normalized() const;                       // 0x524270 1/sqrt, no zero check
     vector3 negated_b() const;                        // 0x524340 vector3__negated_b (operator-'s body; name ours)
     float normalize_length();                         // 0x524470 normalize, returns the length
+    float normalize_safe_length();                    // 0x524510 as normalize_safe, returns the old length (decomp54)
     void random_direction();                          // 0x5246a0 vector3__random_direction (twin of 0x524650)
     void rotate(const matrix &m);                     // 0x5245a0 vector3__rotate (in place, dot with each row; decomp28)
     float length_quick() const;                       // 0x5240e0 vector3__length_quick (sorted |components|, weighted; decomp32)
