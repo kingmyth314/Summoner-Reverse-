@@ -284,6 +284,15 @@ Strings, COMDAT filtering and code alignment added nothing. With the current tag
 file. **Remaining failures:** `skeleton.cpp` / `stringpool.cpp` is not separated, a file's console-command tail can
 merge into the next file's initialisers, and the party-inventory block merges into `item_paging.cpp`.
 
+**Tagging from the units (2026-10-15).** Each `tu-split2` unit that holds exactly one file's tags passed that file
+to its untagged functions (an agent proposed, I validated). Units with no tag got a file name only from evidence.
+The game's `strings.tbl` groups its strings under comments like `// level_script_courtyard.cpp`, so a function that
+uses a string id from that block belongs to that file. This added 35 more file names: `ai.cpp`, `combat.cpp`,
+`summoner.cpp`, `spells.cpp`, `multitrade.cpp`, `new_tutorial.cpp`, `new_multichat.cpp` and 19
+`level_script_*.cpp` files, among others. **State:** 102 files are tagged and none is split. About 3,100 functions
+have a file, 1,760 only a folder, and 3,780 neither (mostly the C runtime, unwind funclets, header inlines and the
+engine units no evidence names). Against the 101 transitions of this larger tag set, the blind splitter finds 91.
+
 ### Units without a file name (2026-10-15)
 
 For 40 units no source path or reference names the file. They are labelled by what their functions do (from the
