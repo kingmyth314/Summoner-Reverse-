@@ -57,6 +57,9 @@ void TimingFixInstall(void);
 // gameopts.c
 void GameOptionsInstall(void);
 
+// bugfix.c
+void BugFixesInstall(void);
+
 // keys.c
 void KeyBindInstall(void);
 

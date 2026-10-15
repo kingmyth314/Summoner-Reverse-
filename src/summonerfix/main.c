@@ -129,6 +129,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     ApplyDisplayPatches();
     TimingFixInstall();
     GameOptionsInstall();
+    BugFixesInstall();
     KeyBindInstall();
     if (g_cfg.renderer == RENDERER_OPENGL)
         WidescreenInstall();
