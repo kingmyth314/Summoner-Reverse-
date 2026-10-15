@@ -9,27 +9,27 @@ nav_order: 6.8
 **Summary:** `mp_packet_table` (`0x5951b8`) lists all 66 multiplayer packet types. Each 0x1c-byte record
 (`mp_packet_info` in `symbols/types.h`) holds the type, the receive handler, a flag, a send counter that the senders
 increment, and an eight-letter name. Ghidra had merged 48 of the handlers into the functions before them. The table
-gave their real starts, and they are named in `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the
+gave their real starts. All handlers are named in `symbols/sum.symbols` (2026-10-14, agent naming pass, checked against the
 table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses separate code (`irc_*`, `gtrack_*`,
 `utrack_*`).
 
 | Type | Name | Handler | Flag |
 |---|---|---|---|
 | `0x0` | GM_QURY | `0x4ab1c0` `mp_handle_game_query` | 1 |
-| `0x1` | ACTV_GM | `0x470860`  | 1 |
+| `0x1` | ACTV_GM | `0x470860` `mp_handle_actv_gm` | 1 |
 | `0x2` | JN_RQST | `0x4ab350` `mp_handle_join_request` | 1 |
-| `0x3` | ACPT_JN | `0x470a80`  | 1 |
-| `0x4` | DENY_JN | `0x470b60`  | 1 |
+| `0x3` | ACPT_JN | `0x470a80` `mp_handle_acpt_jn` | 1 |
+| `0x4` | DENY_JN | `0x470b60` `mp_handle_deny_jn` | 1 |
 | `0x5` | NET_INF | `0x4af760` `mp_handle_net_info` | 1 |
 | `0x6` | NEW_INF | `0x4af4b0` `mp_handle_new_info` | 0 |
 | `0x7` | PLY_DAT | `0x4af990` `mp_handle_player_data` | 0 |
 | `0x8` | GM_OVER | `0x481590` `mp_handle_game_over` | 0 |
 | `0x9` | LV_GAME | `0x4815c0` `mp_handle_leave_game` | 0 |
-| `0xa` | GM_STAT | `0x441000`  | 0 |
-| `0xb` | CT_STAT | `0x441210`  | 0 |
+| `0xa` | GM_STAT | `0x441000` `mp_handle_gm_stat` | 0 |
+| `0xb` | CT_STAT | `0x441210` `mp_handle_ct_stat` | 0 |
 | `0xc` | CHAT_LN | `0x4881a0` `mp_handle_chat_line` | 1 |
-| `0xd` | OBJ_HND | `0x47fcc0`  | 0 |
-| `0xe` | NEW_LEP | `0x47ff10`  | 0 |
+| `0xd` | OBJ_HND | `0x47fcc0` `mp_handle_obj_hnd` | 0 |
+| `0xe` | NEW_LEP | `0x47ff10` `mp_handle_new_lep` | 0 |
 | `0xf` | DEL_LEP | `0x480000` `mp_handle_delete_entity` | 0 |
 | `0x10` | NEW_PTH | `0x4801f0` `mp_handle_new_path` | 0 |
 | `0x11` | OBJ_UPD | `0x4806a0` `mp_handle_obj_update` | 0 |
@@ -57,15 +57,15 @@ table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses 
 | `0x27` | CNT_PCK | `0x489660` `mp_handle_container_lockpick` | 0 |
 | `0x28` | DOOR_TG | `0x4aa780` `mp_handle_door_toggle` | 0 |
 | `0x29` | DOR_PCK | `0x4aa7d0` `mp_handle_door_lockpick` | 0 |
-| `0x2a` | IT_RQST | `0x471040`  | 0 |
-| `0x2b` | IT_DENY | `0x4711c0`  | 0 |
-| `0x2c` | IT_ACPT | `0x4712f0`  | 0 |
-| `0x2d` | IT_ADDI | `0x4714a0`  | 0 |
-| `0x2e` | IT_RMVI | `0x4716f0`  | 0 |
-| `0x2f` | IT_OKAY | `0x4719e0`  | 0 |
-| `0x30` | IT_CNCL | `0x471b30`  | 0 |
-| `0x31` | IT_QURY | `0x471c50`  | 0 |
-| `0x32` | IT_STAT | `0x471d70`  | 0 |
+| `0x2a` | IT_RQST | `0x471040` `mp_handle_it_rqst` | 0 |
+| `0x2b` | IT_DENY | `0x4711c0` `mp_handle_it_deny` | 0 |
+| `0x2c` | IT_ACPT | `0x4712f0` `mp_handle_it_acpt` | 0 |
+| `0x2d` | IT_ADDI | `0x4714a0` `mp_handle_it_addi` | 0 |
+| `0x2e` | IT_RMVI | `0x4716f0` `mp_handle_it_rmvi` | 0 |
+| `0x2f` | IT_OKAY | `0x4719e0` `mp_handle_it_okay` | 0 |
+| `0x30` | IT_CNCL | `0x471b30` `mp_handle_it_cncl` | 0 |
+| `0x31` | IT_QURY | `0x471c50` `mp_handle_it_qury` | 0 |
+| `0x32` | IT_STAT | `0x471d70` `mp_handle_it_stat` | 0 |
 | `0x33` | INV_EQP | `0x487950` `mp_handle_equip_item` | 0 |
 | `0x34` | CST_ANM | `0x4b0210` `mp_handle_cast_anim` | 0 |
 | `0x35` | RLS_SPL | `0x4b04a0` `mp_handle_release_spell` | 0 |
@@ -74,10 +74,10 @@ table). Lobby, chat and tracker traffic (PXO: IRC, game and user trackers) uses 
 | `0x38` | SMN_ALD | `0x4b06a0` `mp_handle_summon_allowed` | 0 |
 | `0x39` | SMN_HND | `0x4b0820` `mp_handle_summon_handle` | 0 |
 | `0x3a` | SMN_QCK | `0x4b08f0` `mp_handle_summon_quick` | 0 |
-| `0x3b` | KICK_PL | `0x471f90`  | 0 |
+| `0x3b` | KICK_PL | `0x471f90` `mp_handle_kick_pl` | 0 |
 | `0x3c` | L_CMPLT | `0x4b09c0` `mp_handle_level_complete` | 0 |
 | `0x3d` | D_CMPLT | `0x4b0ab0` `mp_handle_difficulty_complete` | 0 |
 | `0x3e` | NEW_MON | `0x475610` `mp_handle_new_mon` | 0 |
-| `0x3f` | SRV_REQ | `0x4767a0`  | 0 |
+| `0x3f` | SRV_REQ | `0x4767a0` `mp_handle_srv_req` | 0 |
 | `0x40` | DMY_PCK | `0x0`  | 0 |
 | `0x41` | INV_UQP | `0x487b10` `mp_handle_unequip_item` | 0 |

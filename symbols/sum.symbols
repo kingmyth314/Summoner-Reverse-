@@ -1037,7 +1037,9 @@
 0x440e90  mp_server_frame          func  -                    O ; host frame: client timeouts (mp_server_check_clients), accepts connections in state 1, mp_host_update_session, and every 500 ms multi_set_netgame_state(0)
 0x440ee0  mp_client_frame          func  -                    O ; client frame: mp_client_check_connection, then every 500 ms multi_process_client_status once the local status (+0x14) is 4 or more
 0x440f20  multi_set_netgame_state  func  -                    O ; "Changing netgame state to %d"
+0x441000  mp_handle_gm_stat        func  -                    O ; receive handler of multiplayer packet 0xa GM_STAT (mp_packet_table 0x5951b8)
 0x441150  multi_process_client_status func  -                    O ; "Unable to process client status packet -- unknown netid %d"
+0x441210  mp_handle_ct_stat        func  -                    O ; receive handler of multiplayer packet 0xb CT_STAT (mp_packet_table 0x5951b8)
 0x4412a0  mp_game_frame            func  -                    I ; state_game_frame hook: nw_receive_all, packet handling, periodic player-file save (0x46da30), position/state broadcasts
 0x4413d0  multi_do_frame           func  -                    O ; per-frame multiplayer pump: IRC/PXO (0x4abb50), multi_process_incoming, local status 7/9 by session phase, then the host (mp_server_frame) or client (mp_client_frame) frame, callers GameTick, LoadingScreenDraw
 0x441490  mp_session_reset         func  -                    I ; resets the multiplayer session: timers, net handle map, player lists 0x651418, net stats (mp_reset_net_stats) and objects_reset, caller mp_charselect_init
@@ -1476,13 +1478,26 @@
 0x46dfb0  init_ccmd_p3d_files      func  -                    O ; static initialiser: registers console command object ccmd_p3d_files
 0x46dfd0  cmd_p3d_files            func  -                      O ; console command "p3d_files": Toggles P3D_files
 0x46f100  s3d_load_lightmap        func  s3d.cpp              I ; "Lightmap too big to be loaded!"
+0x470860  mp_handle_actv_gm        func  -                    O ; receive handler of multiplayer packet 0x1 ACTV_GM (mp_packet_table 0x5951b8)
+0x470a80  mp_handle_acpt_jn        func  -                    O ; receive handler of multiplayer packet 0x3 ACPT_JN (mp_packet_table 0x5951b8)
+0x470b60  mp_handle_deny_jn        func  -                    O ; receive handler of multiplayer packet 0x4 DENY_JN (mp_packet_table 0x5951b8)
 0x470e70  mp_trade_reset           func  -                    O ; mp_trade_set_state(0, 0) and invalidates RealtimeTimers 0x22e47c4 and 0x22e47c0, caller mp_level_start
 0x470e90  mp_trade_set_state       func  -                    I ; (state, partner) trade state 0x22e46f0 = state, 1 and 2 store the partner 0x22e47bc, 0 clears partner and the two offer counts 0x22e47b8 / 0x22e47c8 (itemtrade lists)
 0x470f80  mp_trade_error           func  -                    I ; L"Player can't trade right now", L"Player is busy"
+0x471040  mp_handle_it_rqst        func  -                    O ; receive handler of multiplayer packet 0x2a IT_RQST (mp_packet_table 0x5951b8)
+0x4711c0  mp_handle_it_deny        func  -                    O ; receive handler of multiplayer packet 0x2b IT_DENY (mp_packet_table 0x5951b8)
+0x4712f0  mp_handle_it_acpt        func  -                    O ; receive handler of multiplayer packet 0x2c IT_ACPT (mp_packet_table 0x5951b8)
+0x4714a0  mp_handle_it_addi        func  -                    O ; receive handler of multiplayer packet 0x2d IT_ADDI (mp_packet_table 0x5951b8)
+0x4716f0  mp_handle_it_rmvi        func  -                    O ; receive handler of multiplayer packet 0x2e IT_RMVI (mp_packet_table 0x5951b8)
 0x4718d0  mp_trade_complete        func  -                    I ; swaps the offered items: party_inventory_remove / item_create / party_inventory_add_item, "Gold" moves party_gold, mp_trade_set_state, interface_set_screen
+0x4719e0  mp_handle_it_okay        func  -                    O ; receive handler of multiplayer packet 0x2f IT_OKAY (mp_packet_table 0x5951b8)
 0x471a70  mp_trade_cancel          func  -                    I ; sends the trade cancel packet to the partner (mp_handle_to_net, multi_send_packet / mp_broadcast_packet), mp_trade_set_state, interface_set_screen, callers itemtrade_leave, itemtrade cancel button, 0x470ed0
+0x471b30  mp_handle_it_cncl        func  -                    O ; receive handler of multiplayer packet 0x30 IT_CNCL (mp_packet_table 0x5951b8)
+0x471c50  mp_handle_it_qury        func  -                    O ; receive handler of multiplayer packet 0x31 IT_QURY (mp_packet_table 0x5951b8)
+0x471d70  mp_handle_it_stat        func  -                    O ; receive handler of multiplayer packet 0x32 IT_STAT (mp_packet_table 0x5951b8)
 0x471df0  mp_remove_player         func  multiendgame.cpp     O ; (player, reason): host only, sends packet 0x3B, mp_player_disconnect, decrements the player count 0x6513e4, broadcasts mp_send_player_removed and shows "%s was dropped/kicked from the game." (reason 2 / 1), callers hud_frame, chat_cmd_kick
 0x471f40  mp_send_packet_3b        func  -                    I ; builds a multiplayer packet (type byte 0x3b, counter 0x595838) and sends it; earlier misnamed ai_mode_name (the AI-mode strings belong to code after it at 0x471f90)
+0x471f90  mp_handle_kick_pl        func  -                    O ; receive handler of multiplayer packet 0x3b KICK_PL (mp_packet_table 0x5951b8)
 0x4720c0  init_ccmd_ai_frame_update_rate func  -                    O ; static initialiser: registers console command object ccmd_ai_frame_update_rate
 0x4720e0  cmd_ai_frame_update_rate func  -                      O ; console command "ai_frame_update_rate": Set the rate at which AI is updated in frames for offscreen creatures
 0x472170  init_ccmd_slowdown_scaler func  -                    O ; static initialiser: registers console command object ccmd_slowdown_scaler
@@ -1605,6 +1620,7 @@
 0x4766a0  ai_goals_mark_keep       func  -                    O ; thiscall ai_state: sets flag 0x40 on every used goal, callers cutscene_play, effects_kill_all
 0x4766c0  ai_goals_remove_unmarked func  -                    O ; thiscall ai_state: ai_goal_remove on every used goal without flag 0x40, caller 0x4ddb10
 0x4766f0  ai_service_request       func  -                    I ; "WARNING: unknown service request type -- %d"
+0x4767a0  mp_handle_srv_req        func  -                    O ; receive handler of multiplayer packet 0x3f SRV_REQ (mp_packet_table 0x5951b8)
 0x4768c0  door_from_lobj           func  -                    O ; (lobj): for level objects with flag 0x100, bsearch of the 0x8C-byte door records (0xa5a304, count 0xa5a300) by lobj index, 0 otherwise, 21 callers
 0x476940  door_is_open             func  -                    O ; (door, fraction): saved two-stage state (savegame_two_stage_get), while moving (+0x54 bit 0) compares the eased progress of timer +0x44 over duration +0x8 (bit 1 = opening) with fraction
 0x4769f0  lobj_door_is_open        func  -                    O ; (lobj, fraction): lobj_is_door, door_from_lobj, door_is_open, caller object_use_result
@@ -1708,6 +1724,8 @@
 0x47f730  cmd_summon               func  -                      O ; console command "summon": Summon a creature
 0x47f9a0  mp_net_handle_map_reset  func  -                    O ; fills the 1000-entry net handle map 0x22e94f4 with -1
 0x47fb20  mp_send_monster_list     func  -                    I ; host: packet 0xD listing every type 4/5/9 object (type, name, net handle via mp_map_net_handle), caller mp_host_update_session
+0x47fcc0  mp_handle_obj_hnd        func  -                    O ; receive handler of multiplayer packet 0xd OBJ_HND (mp_packet_table 0x5951b8)
+0x47ff10  mp_handle_new_lep        func  -                    O ; receive handler of multiplayer packet 0xe NEW_LEP (mp_packet_table 0x5951b8)
 0x480000  mp_handle_delete_entity  func  -                    O ; packet 0x0F DEL_LEP handler (mp_packet_table): living_from_handle of the net handle, living_entity__dtor + operator_delete, host forwards it (0x4422c0)
 0x480070  mp_send_new_path         func  -                    O ; packet 0x10 NEW_PTH sender (counter 0x595384): locally controlled character's path nodes from ai_state path (+0x534 = ai +0x210) and target (+0x384), callers ai_set_path, ai_path_find_new, ai_path_find_append
 0x4801f0  mp_handle_new_path       func  -                    O ; packet 0x10 NEW_PTH handler: frees the remote character's path and rebuilds it node by node (0x4a03c0 or ai_path_find_new/append depending on Multi_path_type 0x59bca8)
