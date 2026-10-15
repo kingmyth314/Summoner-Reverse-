@@ -2964,3 +2964,53 @@ mp_net_handle_map_reset fills it) is open. MP_NEW_MON 0x3e and MP_SRV_REQ 0x3f a
 `*a - *b` over ints**, the bsearch comparator of door_from_lobj and lobj_find_textured_record (`push
 0x476890` at 0x476900 / 0x477485). It sits in the padding gap sum.symbols leaves before
 name_ptr_stricmp_compare.
+
+
+
+## decomp61: the vfile units, ui_button and ui_static (D4100-D4107)
+
+**D4100 (vsdk/vfile/file.h). File::write and File::write_line return void (were int).** Neither sets EAX
+on every path: write leaves the slot error (early out), 0 (len 0 or a failed fwrite) or the new byte count
+(an `add` that happens to end in EAX); write_line leaves the error, 0 or fwrite's result. No caller in
+Sum.exe reads EAX after `call 0x526410` / `call 0x5264e0` (grep of build/sum.asm), and every src/decomp
+call discards the result. Calls are unchanged; the definitions are new (unnamed_vfile_rw_0x525720.cpp).
+
+**D4101 (vsdk/vfile/file.h). file_find_node is name[0x28], attributes (+0x30), time (+0x34)** (was
+name[0x2c], time). file_find_files writes the stack node's +0x30 (0 / 2 read-only / | 4 archive from
+_finddata_t.attrib, 0x513494-0x5134b8) and +0x34 (time_write), and copies the node with 14 dwords (0x38
+bytes). No src/decomp code uses sizeof(name) or +0x30.
+
+**D4102 (vsdk/vfile/file.h). file_make_path returns char * (out, or NULL)** (was void). 0x512b30 returns
+EAX = 0 for an invalid id and for an install path of 256 chars or more, and EAX = out (mov eax, edx) at the
+end; file_make_cd_path is the same. The callers that ignore it compile unchanged.
+
+**D4103 (vsdk/vfile/file.h). file_delete returns bool** (was void): AL = 0 when the file does not exist,
+else `_unlink(path) == 0` (neg / sbb / inc, 0x5137c9). The callers ignore it.
+
+**D4104 (vsdk/vfile/file.h). file_init(const char *, int) (was bool).** The packfile switch is tested as
+a dword (`mov eax, [esp+0x110]; test eax, eax`, 0x512e29); the bool parameters of this unit are tested as
+bytes (File::find_at `mov al, [esp+0x3c]; test al, al`). summoner.cpp's file_init(NULL, true) compiles
+unchanged.
+
+**D4105 (vsdk/vfile/file.h). file_is_absolute_path (0x513fb0) and file_find_free_slot (0x5140b0) are File
+members (File::is_absolute_path, File::find_free_slot), keeping the sum.symbols address comments.** 0x513fb0
+ends with `ret 4` and File::find calls it with ECX = this and no stack cleanup (0x5141de); File::open_found
+loads ECX = this before calling 0x5140b0 (0x51453a `mov ecx, edi`). Both are thiscall functions that do not
+use this. They were declared as free functions only in sum.symbols (no header had them).
+
+**D4106 (File::read, open). packfile_fread is called with a fifth argument 0 (applied at merge: the prototype has a fifth `int unused`)** (0x5260b2 `push edx` with
+edx = 0 before the four arguments, `add esp, 0x14`; again at 0x526145) although packfile_fread (0x5348a0)
+reads only four. The original prototype probably had a fifth parameter (with a default); file_packfile.cpp's
+definition has four. Not changed here (it would turn the existing definition into an overload); the call in
+unnamed_vfile_rw_0x525720.cpp passes four, so its code will differ by the push until the prototype gets the
+parameter (definition and declaration together).
+
+**D4107 (vsdk/ui/ui_gadgets.h). ui_static +0x374..+0x380 are the state bitmap's clip size and offset
+(bm_w, bm_h, bm_u, bm_v; ours), not the justification.** create stores w / h there and 0 / 0
+(0x527f46-0x527f64); ui_static::draw passes them as the last four arguments of ui_state_bitmap::draw
+(0x528125-0x528150), whose fifth and sixth go to gr::set_clip(x + u, y + v, w, h). The justification
+stays at +0x3bc / +0x3c0 (window.cpp's parse_static, draw's switches at 0x5281e6 / 0x52822b). The
+sum.symbols names set_justification (0x5280a0) and set_text_offset (0x5280c0) are kept on the two no-caller
+setters of these fields, and the sum.symbols comments of ui_static__create / __set_justification /
+__set_text_offset (+0x374 justification, +0x378 font, +0x37c / +0x380 text offset) are wrong. The text is
+the char[0x100] at +0x274 (set_text), so ui_static's _unk274 is now text + the four ints.

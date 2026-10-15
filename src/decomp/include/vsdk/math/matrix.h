@@ -81,6 +81,7 @@ public:
     void to_matrix(matrix *out) const;                // 0x522bf0 quaternion__to_matrix
     void to_matrix_b(matrix *out) const;              // 0x522cc0 quaternion__to_matrix_b (doors; decomp24)
     void normalize();                                 // 0x522f20 quaternion__normalize (decomp25)
+    void make_identity();                             // 0x523500 quaternion__make_identity (0, 0, 0, 1; decomp61)
     float x, y, z, w;
 };
 LAYOUT_CHECK(quaternion, sizeof(quaternion) == 0x10);

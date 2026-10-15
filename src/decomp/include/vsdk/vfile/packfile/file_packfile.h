@@ -84,7 +84,7 @@ PackfileEntry *packfile_find(const char *name);                  // 0x5345f0 by 
 int  packfile_fopen(PackfileEntry *entry);                       // 0x534690 1 = opened (and seeked to the entry)
 void packfile_fclose(PackfileEntry *entry);                      // 0x5347e0
 int  packfile_fseek(PackfileEntry *entry, int offset, int origin);   // 0x534830 1 = fseek returned 0
-int  packfile_fread(void *buf, int size, int count, PackfileEntry *entry);   // 0x5348a0 fread's result
+int  packfile_fread(void *buf, int size, int count, PackfileEntry *entry, int unused);   // 0x5348a0 fread's result; the fifth argument is pushed by File::read and never read (D4106)
 int  packfile_fstatus(PackfileEntry *entry);                     // 0x5348f0 always 1
 
 // Reads the whole packfile `name` into buf (size bytes); 0 = failure (it printf's the error).

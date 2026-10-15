@@ -1,29 +1,57 @@
 // vsdk/ui/ui_gadgets.h - the widget classes: button, static, checkbox, radio button, input box, list box,
-// slider (vsdk\ui, 0x526f70-0x55ed30; file names not in the binary). Only the members the pilots use.
+// slider (vsdk\ui, 0x526940-0x55ed30; file names not in the binary). Only the members the pilots use.
 // Not original source. Sizes are the operator new sizes in the ui_parse_* functions; fields at the
-// offsets the parsers write. ui_container has its own header (vsdk/ui/ui_container.h).
+// offsets the parsers write. ui_container has its own header (vsdk/ui/ui_container.h). decomp61 wrote
+// ui_button (vsdk/unnamed_ui_button_0x526940.cpp) and ui_static (vsdk/unnamed_ui_static_0x527e20.cpp).
 #ifndef VSDK_UI_UI_GADGETS_H
 #define VSDK_UI_UI_GADGETS_H
 
 #include "vsdk/ui/ui.h"
+#include "vsdk/os/timestamp.h"
 
 // decomp51 (D3100): the constructor and the destructor are out of line. Because the destructor exists,
 // ui_button, ui_static and ui_listbox get implicit destructors; their COMDAT copies the linker kept are
 // 0x4317e0 (sum.symbols ui_button__dtor), 0x431780 (ui_static__dtor) and 0x431950 (ui_listbox__dtor),
 // emitted by the editor dialog and boot / load-game units (game/unnamed_editor_dialogs_0x430bc0.cpp,
 // game/unnamed_states_0x431870.cpp). They are compiler-generated, not declared members.
+// decomp61: the bitmaps of one gadget form a ring through +0x14 (link); +0 is the state (0 none, 1 set,
+// 2 = draw without the clip rectangle), +4 the bitmap.
 class ui_state_bitmap {               // 0x18 bytes
 public:
     ui_state_bitmap();                // 0x52c930
     ~ui_state_bitmap();               // 0x52c950 (jumps to ui_state_bitmap__clear)
     void set(int bm);                 // 0x52c980
+    // decomp61 (ui_button, ui_static).
+    void link(ui_state_bitmap *other);   // 0x52c960 into other's ring
+    void clear();                     // 0x52c970 state = 0
+    // (x, y, w, h, u, v): the bitmap at (x, y); with u >= 0 (and state != 2) only its w x h part at
+    // (u, v) shows (gr::set_clip(x + u, y + v, w, h)). False when no bitmap is set.
+    bool draw(int x, int y, int w, int h, int u, int v);   // 0x52c9a0
 private:
     ubyte _data[0x18];
 };
 
+// ui_button::flags (+0x274; names ours, from ui_button::process / draw).
+#define UI_BUTTON_FLAT        0x001   // filled face, no bevel
+#define UI_BUTTON_REPEATS     0x002   // auto-repeat while held (set_repeats; create_in_parent forces it)
+#define UI_BUTTON_NO_BEVEL    0x004   // filled face, no bevel, in every state
+#define UI_BUTTON_BITMAP_FACE 0x008   // with a state bitmap: fill the face over it
+#define UI_BUTTON_DRAGGABLE   0x010   // drag and drop (drag_type / drop_types / count / capacity)
+#define UI_BUTTON_LATCHED     0x020   // drawn sunken (set_latched)
+#define UI_BUTTON_ARROW_V1    0x040   // draw_arrow: vertical lines from the bottom edge
+#define UI_BUTTON_ARROW_V2    0x080   // draw_arrow: vertical lines from the top edge (0x40 wins)
+#define UI_BUTTON_ARROW_H1    0x100   // draw_arrow: horizontal lines from the right edge
+#define UI_BUTTON_ARROW_H2    0x200   // draw_arrow: horizontal lines from the left edge
+#define UI_BUTTON_RIGHT_CLICK 0x400   // also reacts to the right mouse button
+
 class ui_button : public ui_gadget {  // 0x428, vtable 0x581d88
 public:
     ui_button();                      // 0x526f70
+    // decomp61: slots 0, 5, 7, 8 of 0x581d88 (the others are ui_gadget's).
+    virtual void dtor();              // slot 0, 0x526f30 ui_button__vfunc0 (clears four state bitmaps)
+    virtual int  process(int key);    // slot 5, 0x526a50
+    virtual void draw();              // slot 7, 0x527690
+    virtual bool is_selectable();     // slot 8, 0x527df0
     void create(ui_element *window, int x, int y, int w, int h, int id, int flags, bool owned); // 0x527050
     void create_in_parent(ui_gadget *parent, int x, int y, int w, int h, int id, int flags,
                           bool owned);                // 0x527100
@@ -34,33 +62,76 @@ public:
     void set_latched(bool latched);   // 0x526990
     void toggle_latched();            // 0x5269c0
     bool is_latched();                // 0x5269e0
-    ubyte _unk274[0x38c - 0x274];
+    // decomp61.
+    void fire_click(int right);       // 0x526940 event 0xc / 0xd, state 6 / 7
+    bool can_accept_drop();           // 0x526a00 the dragged button fits this one
+    void set_repeats(bool repeats);   // 0x527280 (no caller)
+    bool was_clicked();               // 0x5272f0 state 6 or 8
+    bool was_left_clicked();          // 0x527330 state 6 (no caller)
+    bool was_double_clicked();        // 0x527360 state 8 (no caller)
+    bool is_pressed();                // 0x527370
+    int  get_flags();                 // 0x5273c0
+    char *get_text();                 // 0x5273d0
+    void get_drag_origin(int *x, int *y);   // 0x5273e0 screen position minus the press point (ui_draw)
+    void draw_arrow();                // 0x527440
+
+    int flags;                        // +0x274 UI_BUTTON_*
+    // +0x278 0 idle, 1 pressed by key / press() (press_timer), 2 / 3 held left / right, 4 dragged,
+    // 5 drop target under a drag, 6 / 7 left / right click, 8 / 9 left / right double click.
+    int state;
+    char text[0x100];                 // +0x27C
+    RealtimeTimer repeat_timer;       // +0x37C 450 ms to the first repeat, then 150 ms
+    RealtimeTimer press_timer;        // +0x380 100 ms of state 1
+    int press_x;                      // +0x384 ui_mouse_x / _y at the press (get_drag_origin)
+    int press_y;                      // +0x388
     int font;                         // +0x38C
-    ubyte _unk390[4];
+    Color *colors;                    // +0x390 ui_button_colors: three sets of five
     ui_state_bitmap state_normal;     // +0x394
     ui_state_bitmap state_highlighted;// +0x3AC
     ui_state_bitmap state_pressed;    // +0x3C4
     ui_state_bitmap state_disabled;   // +0x3DC
     ui_state_bitmap state_drag;       // +0x3F4
-    ubyte _unk40c[0x428 - 0x40c];
+    int drag_type;                    // +0x40C type bits as a drag source (0 = cannot be dragged)
+    int drop_types;                   // +0x410 the types it accepts
+    int count;                        // +0x414 items held
+    int capacity;                     // +0x418 < 0 unlimited
+    int drag_amount;                  // +0x41C items moved by one drop (1)
+    int _unk420;                      // +0x420 0xff from create, not read here
+    ui_button *drag_data;             // +0x424 this, from create (not read here)
 };
 LAYOUT_CHECK(ui_button, sizeof(ui_button) == 0x428);
+
+// decomp61: the button being dragged (ui_button::process sets it; ui_process ends the drag).
+extern ui_button *ui_drag_gadget;     // 0x2cbfcb8
 
 class ui_static : public ui_gadget {  // 0x3cc, vtable 0x581dac
 public:
     ui_static();                      // 0x527ea0
+    // decomp61: slots 0, 5, 7 of 0x581dac (slot 8 is ui_gadget's).
+    virtual void dtor();              // slot 0, 0x527e20 ui_static__vfunc0
+    virtual int  process(int key);    // slot 5, 0x527e50 event 0x12 on a left press over it
+    virtual void draw();              // slot 7, 0x5280e0
     void create(ui_element *window, int x, int y, int w, int h, int id, bool owned);   // 0x527f10
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x527fa0
     void set_text(const char *text);  // 0x528060
-    ubyte _unk274[0x384 - 0x274];
+    char *get_text();                 // 0x528090 (no caller)
+    // decomp61: sum.symbols names (no caller). They set the state bitmap's clip size and offset, not the
+    // justification and the text offset (D4107).
+    void set_justification(int w, int h);    // 0x5280a0 bm_w, bm_h
+    void set_text_offset(int u, int v);      // 0x5280c0 bm_u, bm_v when both are >= 0
+    char text[0x100];                 // +0x274
+    int bm_w;                         // +0x374 state bitmap clip size (create: w, h)
+    int bm_h;                         // +0x378
+    int bm_u;                         // +0x37C state bitmap offset (create: 0, 0)
+    int bm_v;                         // +0x380
     int font;                         // +0x384
     Color *colors;                    // +0x388 text colours (editor_dialog_show stores editor_dialog_colors; D3101)
     ui_state_bitmap state_normal;     // +0x38C
     ui_state_bitmap state_disabled;   // +0x3A4
     int h_justify;                    // +0x3BC 0 left, 1 center, 2 right
     int v_justify;                    // +0x3C0 0 top, 1 center, 2 bottom
-    int text_x;                       // +0x3C4
-    int text_y;                       // +0x3C8
+    int text_x;                       // +0x3C4 -1 = by h_justify
+    int text_y;                       // +0x3C8 -1 = by v_justify
 };
 LAYOUT_CHECK(ui_static, sizeof(ui_static) == 0x3cc);
 

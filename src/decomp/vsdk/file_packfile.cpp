@@ -405,7 +405,7 @@ int packfile_fseek(PackfileEntry *entry, int offset, int origin)
 
 // 0x5348a0  Confidence: exact. "FREAD BAIL" is printed for a NULL entry or packfile, not for a short read;
 // a hard drive entry that is not open returns 0 silently.
-int packfile_fread(void *buf, int size, int count, PackfileEntry *entry)
+int packfile_fread(void *buf, int size, int count, PackfileEntry *entry, int unused)
 {
     FILE *fp;
 

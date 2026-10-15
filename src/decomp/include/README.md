@@ -60,7 +60,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `quaternion`, `matrix43` |
 | `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point), `ix_ray`, `ix_*` |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
-| `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
+| `vsdk/vfile/file.h` | vsdk\vfile (decomp61: `unnamed_vfile_0x5128b0.cpp`, `unnamed_vfile_rw_0x525720.cpp`) | `File`, `FileReader`, `file_slot`, `lfsr_cipher`, `file_path_entry`, `PATH_ANY`, `FILE_*`, `file_*`, `file_find_*` |
 | `vsdk/vfile/linefile.h` | LineFile (0x558340-0x558a40; unit, directory and file name not known, decomp44) | `LineFile` (what load_script uses), `LineFile_open` |
 | `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` (0x533db0-0x534a1b, decomp49) | `Packfile`, `PackfileEntry`, `PackfileLookup`, `packfile_header`, the unit globals, every `packfile_*` (D2900, D2901) |
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
@@ -83,7 +83,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/geom/vfx.h` | vsdk\geom | `vfx_base`, `ptr_relocate` |
 | `vsdk/geom/effect_mem.h` | `vsdk\geom\effect_mem.cpp` (pilot) | effect bases and pools |
 | `vsdk/ui/ui.h` | vsdk\ui | `ui_tooltip`, `ui_element`, `ui_gadget`, UI globals and events |
-| `vsdk/ui/ui_gadgets.h` | vsdk\ui | button, static, checkbox, radio, inputbox, listbox, slider |
+| `vsdk/ui/ui_gadgets.h` | vsdk\ui (decomp61: `unnamed_ui_button_0x526940.cpp`, `unnamed_ui_static_0x527e20.cpp`) | button (`UI_BUTTON_*`, `ui_drag_gadget`), static, checkbox, radio, inputbox, listbox, slider |
 | `vsdk/ui/ui_container.h` | `vsdk\ui\ui_container.cpp` (pilot) | `ui_container` |
 | `vsdk/ui/window.h` | `vsdk\ui\window.cpp` (pilot) | `ui_window` |
 | `engine/objects/objects.h` | `Engine\objects\objects.cpp` | `obj`, `item_obj`, `container`, party inventory |

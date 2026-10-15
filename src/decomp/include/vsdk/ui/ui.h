@@ -103,6 +103,14 @@ public:
     void clear_focus();                // 0x52c630
     int  get_type();                   // 0x52c680
     void set_hotkey(int key, int slot);                   // 0x52c690
+    // decomp61 (ui_button, ui_static).
+    ui_element *get_window();          // 0x52c5c0 +0x25c
+    bool is_selected();                // 0x52c660 the window's keyboard selection (+0x4cc) is this
+    bool is_mouse_over();              // 0x52c670 the window's gadget under the mouse (+0x4c8) is this
+    bool has_hotkey(int key);          // 0x52c6c0 key > 0 and one of the two hotkeys
+    void fill_inset(Color c, int inset);                  // 0x55e280 gr_rect over the rect shrunk by inset
+    void draw_raised(Color *colors, int width);           // 0x55e320 face colors[2], bevel light / dark
+    void draw_sunken(Color *colors, int width);           // 0x55e3a0 the bevel colours swapped
     ui_gadget *hit_test(int x, int y);                    // 0x52c730
     void set_hotspot(int size);        // 0x52c800
     void draw_bevel(Color *light, Color *dark, int width, int inset);   // 0x55e2e0 (last two unsure)
@@ -155,6 +163,14 @@ extern Color ui_window_colors[4];     // 0x2cbf670
 extern Color ui_tooltip_colors[4];    // 0x2cbf708 (init_ui_tooltip_state)
 extern Color ui_container_colors[4];  // 0x2cbfc20 (init_ui_container_state)
 extern Color ui_button_colors[15];    // 0x2cbf6a8 (LoadSettings sets [7])
+// decomp61: three sets of three (background, text, text shadow): [0..2] shown, [3..5] hidden.
+extern Color ui_static_colors[6];     // 0x2cbf6e8
+// decomp61: sound index 2 is the button press (ui_button::process).
+void ui_play_sound(int index);        // 0x52f720 snd_play of ui_sounds[index], else entry 1 for index > 1
+// decomp61 (ui_button::process): the drop target of the current drag and the "dropped" flag that
+// ui_process reads (the dragged button itself: ui_drag_gadget, vsdk/ui/ui_gadgets.h).
+extern ui_gadget *ui_drop_target;     // 0x2cbfcbc
+extern bool ui_drag_dropped;          // 0x2cbfcc0
 extern ui_gadget *ui_current_gadget;  // 0x2cbfcc4
 extern int ui_group_depth;            // 0x2cbfcc8
 extern int ui_mouse_x;                // 0x2cbfca8

@@ -23,6 +23,10 @@ public:
     void assign_n(const char *s, int n);        // 0x5566e0 String__assign_n
     // "%.*f" of f; cdecl with the hidden result (three cdecl arguments at each call in parse.cpp).
     static String from_float(float f, int precision);   // 0x557c00 String__from_float
+    // decomp61 (File::read_String_raw, File::read_line_String).
+    void alloc(int len);                        // 0x556790 String__alloc: free, then an empty len + 1 buffer
+    void free();                                // 0x5567d0 String__free: operator delete(buf), buf = NULL
+    String &append_char(char c);                // 0x557500 String__append_char (returns this)
 
     int max_len;                                // +0x0
     char *buf;                                  // +0x4
