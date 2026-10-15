@@ -191,6 +191,9 @@ bool lobj_is_door(lobj *l);           // 0x477310 flag 0x100 and a door whose +4
 void hover_tint_set_object(obj *o, float r, float g, float b);     // 0x4820b0
 void hover_tint_set_character(lobj *l, float r, float g, float b); // 0x4820e0
 float fog_get_far_current();         // 0x486c20
+// Zeroes the six overhead label slots (0x22f9560; unit not known). interface_set_screen calls it before
+// the automap, spells and skills panels open (decomp48).
+void overhead_label_slots_clear();   // 0x4872b0
 // (bitmap, pos, yaw degrees, width, height): the target decal (unit not known).
 void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   // 0x487800
 // (ray, hit, iterator (NULL: from 0), flag (NULL), skip lists): ray against the level objects of the draw

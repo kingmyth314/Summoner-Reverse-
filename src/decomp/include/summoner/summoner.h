@@ -75,6 +75,7 @@ void player_input_frame();            // 0x434470 (state_game_frame)
 void cutscene_sequence_update();      // 0x436a90 (state_game_frame while GF_CUTSCENE)
 void cutscene_events_frame();         // 0x436c00
 void cutscene_play_escape();          // 0x437130 (state_game_enter with GF_ESCAPE_CUTSCENE)
+void cutscene_cleanup();              // 0x436620 ends the running cutscene (interface_frame on Esc; decomp48)
 extern bool cheat_gold_5fbf19;        // 0x5fbf19 9999900 gold on a new game (state_game_enter), read by lsf_catacombs_boss_dead (name ours)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).

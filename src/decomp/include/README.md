@@ -121,7 +121,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/multi/multiplayerdata.h` | multiplayerdata.cpp (0x4af340-0x4afc9f, decomp47) | NET_INF / NEW_INF / PLY_DAT, the player record packing |
 | `summoner/multi/multiendgame.h` | multiendgame.cpp (0x4811a0-0x481673, decomp47) | leaving a game, GM_OVER / LV_GAME, the Game Over box, `MP_LEAVE_*`, Multi_path_type |
 | `summoner/interface/new_multi.h` | new_multi.cpp (0x41dde0-0x41e3cf, decomp47) | the multiplayer elevators (ui_screen_stop_player stays in interface.h) |
-| `summoner/interface/interface.h` | interface core, new_hud / new_inventory helpers | screen switch, button records, popups, colours, `new_icam` |
+| `summoner/interface/interface.h` | the interface manager 0x411270-0x414cb0 (`game/unnamed_interface_0x411270.cpp`, file name a placeholder; decomp48), new_hud / new_inventory helpers | screen switch and dispatch, view clip, button records, popups, tooltip, HUD message lines, colours, model lights, `new_icam`, show_ui |
 | `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
 | `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |

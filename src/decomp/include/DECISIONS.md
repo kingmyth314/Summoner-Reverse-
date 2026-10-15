@@ -2203,3 +2203,68 @@ MP_NET_INF .. MP_LV_GAME 5-9 (mp_packet_table, the send counters 0x595250 / 0x59
 tracker_end_game (0x4aba20), mp_server_addr / mp_server_player_id, and includes the two new unit headers
 multiplayerdata.h and multiendgame.h. vsdk/net/net.h: nw_NewCloseSocket(int *) (the callers push
 &mp_player::socket and store -1 afterwards, 0x481565-0x48157a) and nw_addr_equal (0 = equal, 0x519394).
+
+## the interface manager, game/unnamed_interface_0x411270.cpp (decomp48; the file name is a placeholder)
+
+**D2800 (summoner/interface/interface.h). party_cycle returns bool.** Was `void party_cycle(int)`. Both
+exits set EAX: `mov eax, 1` after party_select_member in the multiplayer branch (0x4133bf), `xor eax, eax`
+when the leader did not change (0x4133ca), and `cmp edi, ecx / setne al` (the old leader against
+party_leader, 0x41344f-0x413453) at the end of the single-player branch. The callers (new_hud.cpp
+hud_handle_keys, new_spell.cpp) ignore the result; a return-type change cannot form an overload, so no call
+needed changing.
+
+**D2801 (interface.h). statscreen_show_next_member / statscreen_show_prev_member take bool skip_summon.**
+Were `(int a)`. Both pass their argument unchanged (`mov eax, [esp+4] / push eax`, 0x413320, 0x413340) to
+party_find_next_member / party_find_prev_member, which read it as a byte (`mov al, [esp+0x10] / test al,
+al`, 0x413241, 0x4132d1) and then add CF_SUMMON (0x100) to the skip mask. An int parameter passed to a bool
+one would need a `test / setne` conversion, which is not there. The calls (new_inventory.cpp,
+new_status.cpp) pass 1 and are unchanged; there is no other definition.
+
+**D2802 (interface.h). ui_bitmap_scaled takes gr::Mode.** Was `gr_mode`. The body pushes its fourth
+argument straight on to gr_bitmap_stretched (`mov edx, [esp+0x24] / push edx`, 0x41450e), whose parameter is
+gr::Mode (D2001); a gr_mode parameter would need gr::Mode::Mode(gr_mode) (0x506810, out of line, D2002),
+which the function does not call. The callers pass gr_bitmap_wrap_mode (a gr::Mode) and compile
+unchanged; there is no other definition.
+
+**D2803 (interface.h, new_inventory.h, game/new_inventory.cpp). ccmd_show_ui and cmd_show_ui belong to the
+interface manager.** The object (0x5bd780) lies in the manager's .bss (between ui_choice_popup_flags 0x5bd77c
+and ui_choice_popup_mouse_mode 0x5bd78c), its strings (0x58bfcc-0x58c054) follow the manager's literals
+("v%d.%02d" 0x58bfc0) and come before new_inventory.cpp's first .data object (0x58c080), and its initialiser
+(0x414c80 / 0x414c90, static_initializers entry 49) and cmd_show_ui (0x414cb0) end the manager's code
+before new_inventory.cpp's first initialiser (0x414d30). The definitions move to the end of the manager's
+file (the initialiser's position puts the object after the last function and before cmd_show_ui), and the
+cmd_show_ui prototype moves from new_inventory.h to interface.h (declared once).
+
+**D2804 (vsdk/geom/vfx.h). vfx_instance::lights (+0x1c), vfx_base::light_tracks (+0x24) and the new class
+vfx_light_desc.** ui_3d_begin (0x412400) walks the circular list from `[vfx + 0x1c]` through `[esi + 0x28]`
+until it is back at the head (0x412579-0x412583), reads the light's offset (floats +0x08..+0x10), colour
+bytes (+0x20..+0x22) and range (`movsx edx, word ptr [esi+0x24]`, times 1/256), and calls the thiscall
+vfx_light_desc__sample (0x51fdc0, ret 8) with `base->+0x24 + 0x70 * index` and reported_frametime; the base
+is effect_get_base(id_bits >> 9) (0x412483-0x412489). interface_frame clears bit 2 of the instance's first
+dword (`and dword ptr [eax], -5`, 0x4119f9). The fields are added to the existing partial classes (nothing
+in the tree takes their sizeof or embeds them); vfx.h now includes vsdk/math/vector.h for the vector3 field.
+
+**D2805 (levelscripts/level_scripts.h). cutscene_entry::flags (+4).** interface_frame ends the cutscene on
+Esc only when `test byte ptr [eax+4], 1` is clear (0x4119dd), cutscene_data being the loaded entry; bit 0 is
++NoAbort in symbols/types.h. Appended to the partial struct.
+
+**D2806 (interface.h). ui_bitmap_suffix_tga / ui_bitmap_suffix are defined in the interface manager.** The
+two arrays (0x58bda4, 0x58bdac) point to "640.tga" / "1024.tga" / "640" / "1024" at 0x58bf10-0x58bf2f,
+inside the manager's literal pool (between the message popup names 0x58bed4 and the cursor names 0x58bf30).
+VC6 puts a unit's string literals after its own initialised data, so the arrays are the manager's first
+.data objects; the previous unit's pool ends with "rt" at 0x58bda0. The manager's .data therefore starts at
+0x58bda4 (docs/sum-exe/source-map.md says 0x58bdb4).
+
+**D2807 (interface.h). status_character is the manager's.** The header said new_status.cpp; the dword
+(0x5bd810) lies in the manager's .bss and interface_init_global / interface_load_all / statscreen_refresh_anim
+write it. No other unit defines it.
+
+**D2808 (gr.h, effect_mem.h, levelrender.h, summoner.h, new_itemtrade.h, interface.h). New declarations, no
+conflict.** light_set_all_enabled (0x51e100, `push 0` / `push 1`), light_delete (0x51e540),
+lights_set_max_per_object (0x51f530), lights_max_per_object / light_ambient_r/g/b (0x5a8900-0x5a890c),
+gr_fov_to_vertical (0x50e5e0, float in, ST0 out), vfx_instance_free (0x51d7b0) and vfx_load (0x51dd00, (name,
+1), result stored as the instance), overhead_label_slots_clear (0x4872b0), cutscene_cleanup (0x436620),
+itemtrade_gold_input_active (0x5c1590, already defined by new_itemtrade.cpp),
+worldmap_load_overlay / worldmap_frame (key in, key out) /
+worldmap_draw_locations (0x42f320 / 0x42f500 / 0x42fa80), item_info_popup_load_bitmaps (0x4185a0), and the
+manager's own functions and globals. elevator_popup_frame is called from new_multi.h (decomp47), not redeclared.

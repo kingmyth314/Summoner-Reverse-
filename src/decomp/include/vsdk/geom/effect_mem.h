@@ -182,5 +182,9 @@ int effects_hash_name(const char *name);                // 0x51db50
 void effects_load_preload_rfx();                        // 0x51dbb0 (level_preload_effects tail-jumps to it; decomp29)
 
 void effects_release_level_memory();  // 0x51dc20 (level_unload; decomp42)
+// decomp48 (the interface manager's model lights "inv-lights1.vfx"): an instance of an effect file and
+// its release. vfx_load's second argument is 1 at that call (meaning not known).
+void vfx_instance_free(vfx_instance *vi);                // 0x51d7b0
+vfx_instance *vfx_load(const char *name, int a);        // 0x51dd00
 
 #endif

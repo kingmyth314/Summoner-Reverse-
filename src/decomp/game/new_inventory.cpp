@@ -1,13 +1,14 @@
-// new_inventory.cpp - Sum.exe v1.40, code 0x414c80-0x418572 (screen 1, the inventory: party item list with
+// new_inventory.cpp - Sum.exe v1.40, code 0x414d30-0x418572 (screen 1, the inventory: party item list with
 // category jumps, the paper-doll equipment slots, the 3D views of the character and of the equipped items,
 // the item action popup (info / identify / use / destroy / cancel), drag and drop between list and slots).
 // Written from the Sum.exe disassembly (build/sum.asm, tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966), /O2 /Ob1.
 // Confidence per function: exact (control flow, calls, constants and globals match), likely (same, but one
 // detail of statement order or expression form is a guess), unsure (the shape itself is a guess).
-// Data: .rdata 0x57f040-0x57fdbb (layout tables, the per-item view offset table), .data 0x58bfcc-0x58cbd7
-// (show_ui strings, button table, scrollbar names, "inv_cameras.tbl"), .bss 0x5bd970-0x5c146b. The console
-// command object ccmd_show_ui (0x5bd780) lies in the interface unit's .bss but is constructed by this unit's
-// first initialiser, so it is defined here (see NOTES). status_character (0x5bd810) is extern.
+// Data: .rdata 0x57f040-0x57fdbb (layout tables, the per-item view offset table), .data 0x58c080-0x58cbd7
+// (button table, scrollbar names, "inv_cameras.tbl"), .bss 0x5bd970-0x5c146b. The show_ui console command
+// (ccmd_show_ui 0x5bd780, its initialiser 0x414c80 / 0x414c90 and cmd_show_ui 0x414cb0) moved to the
+// interface manager, game/unnamed_interface_0x411270.cpp (decomp48: its object, strings and code all lie in
+// that unit's ranges). status_character (0x5bd810) is extern.
 //
 // The list shows the party inventory (open mode 0) or only its unidentified items (open mode 1, the
 // inventory_init byte). Paper-doll hot spots are the buttons 18-27; inventory_equip_index_for_button turns a
@@ -117,7 +118,7 @@ const int inventory_gold_pos[3][2]        = { { 476, 427 }, { 595, 534 }, { 762,
 
 // ---- .data ---------------------------------------------------------------------------------
 // "show_ui" (0x58bfcc), "Toggles the visibility state of the HUD" (0x58bfd4) and the four cmd_show_ui texts
-// (0x58bffc-0x58c054) are this unit's literals.
+// (0x58bffc-0x58c054) are the interface manager's literals (decomp48: moved with cmd_show_ui).
 //
 // 0x58c080  45 x 0x40 (*new* name). flags: 1 paper-doll hot spot (double click: info, drag: unequip, right
 // click: action popup), 2 acting on release through the Press entry after it, 4 acting on press with
@@ -210,37 +211,17 @@ inventory_str_ref inventory_action_strings[5] = {
     { XSTR("Cancel", 696) },
 };
 
-// The show_ui command object. Its address (0x5bd780) is inside the interface unit's .bss. 0x414c80
-// init_ccmd_show_ui_thunk (static_initializers entry 49) / 0x414c90 init_ccmd_show_ui. Confidence: exact.
-// Placement: most likely wrong. symbols/sum.symbols no longer tags 0x414c80-0x414cb0 new_inventory.cpp. The
-// object sits between ui_choice_popup_flags (0x5bd77c) and the interface manager's other globals, and its .data
-// follows that unit's, so it belongs at the end of the interface manager file (0x411270-, name unknown). It
-// stays here until that file is written.
-console_command_M ccmd_show_ui("show_ui", "Toggles the visibility state of the HUD", cmd_show_ui);
+// The show_ui command (ccmd_show_ui, its initialiser 0x414c80 / 0x414c90 and cmd_show_ui 0x414cb0) is in
+// game/unnamed_interface_0x411270.cpp (decomp48): the object at 0x5bd780 lies in that unit's .bss, its
+// strings in its .data, and its initialiser and function end that unit's code.
 
-// Static initialisers in definition order (entries 49-52): 0x414c80/0x414c90 ccmd_show_ui (above);
-// 0x414d30/0x414d40 init_empty_414d40 (a bare ret), read as the initialiser of inventory_cameras with the
-// inline empty new_icam_table constructor (as status_cameras, NOTES-status.md Q1); 0x414d50/0x414d60
-// inventory_action_strings; 0x414da0/0x414db0 "mov ecx, 0x5c0ffc / jmp RealtimeTimer__RealtimeTimer" for
-// inventory_repeat_timer. Confidence: exact (compiler-generated) except the cameras pairing (unsure).
-// The source order of the definitions is therefore ccmd_show_ui, inventory_cameras, the action strings,
-// the timer; the .bss addresses do not follow it (same open question as the other units).
-
-// 0x414cb0  Confidence: exact. The HUD toggle is refused while a screen is open.
-void cmd_show_ui()
-{
-    if (calling_a_command_function) {
-        if (interface_get_screen()) {
-            print_to_console("Must close all non-HUD windows first", 0);
-            return;
-        }
-        ui_input_locked = !ui_input_locked;
-    }
-    if (checking_status_for_command)
-        print_to_console(ui_input_locked ? "HUD is currently hidden" : "HUD is currently visible", 0);
-    if (doing_help_for_comand)
-        print_to_console("Toggles the visibility of the HUD.\n", 0);
-}
+// Static initialisers in definition order (entries 50-52): 0x414d30/0x414d40 init_empty_414d40 (a bare
+// ret), read as the initialiser of inventory_cameras with the inline empty new_icam_table constructor (as
+// status_cameras, NOTES-status.md Q1); 0x414d50/0x414d60 inventory_action_strings; 0x414da0/0x414db0
+// "mov ecx, 0x5c0ffc / jmp RealtimeTimer__RealtimeTimer" for inventory_repeat_timer. Confidence: exact
+// (compiler-generated) except the cameras pairing (unsure). The source order of the definitions is
+// therefore inventory_cameras, the action strings, the timer; the .bss addresses do not follow it (same
+// open question as the other units).
 
 // 0x414dc0  Confidence: exact.
 void inv_cameras_parse_table()

@@ -593,9 +593,11 @@ bool level_add_navpoint(s3d_navpoint *np);           // 0x4d5720 always true (mo
 void cutscene_script_entries_frame();                 // 0x4ed680
 
 // ---- the cutscene unit's data that script_internal.cpp uses (unit not known; decomp44) ---------------
-// The loaded cutscene (symbols/types.h cutscene_entry, 0x140 bytes); only the name is declared here.
+// The loaded cutscene (symbols/types.h cutscene_entry, 0x140 bytes); only the head is declared here.
 struct cutscene_entry {
     const char *name;                                 // +0x000 $Cutscene: ("game-intro", ...)
+    ushort flags;                                     // +0x004 1 +NoAbort (interface_frame: Esc does not end
+                                                      // the cutscene; decomp48), 2 +HideUnscripted
 };
 extern cutscene_entry *cutscene_data;                 // 0x601e68 NULL when no cutscene is loaded
 extern int cutscene_path_id;                          // 0x601e6c the cutscene's file path id

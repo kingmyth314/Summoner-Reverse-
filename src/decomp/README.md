@@ -62,6 +62,7 @@ Rules:
 | `game/new_automap.cpp` | `new_automap.cpp` (`0x401e80`-`0x404871`) | 46 | 34 / 10 / 2 |
 | `game/new_inventory.cpp` | `new_inventory.cpp` (`0x414c80`-`0x418572`) | 78 | 49 / 27 / 2 |
 | `game/new_hud.cpp` | `new_hud.cpp` (`0x40cb60`-`0x41075a`) | 70 | 45 / 25 / 0 |
+| `game/unnamed_interface_0x411270.cpp` | interface manager `0x411270`-`0x414cb0` (**file name not known; placeholder**) | 122 | 98 / 23 / 1 |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |
@@ -103,6 +104,9 @@ Rules:
 | `game/level_script_wolong_caverns.cpp` | `level_script_wolong_caverns.cpp` | 24 | 15 / 5 / 4 |
 | `game/level_script_catacombs.cpp` | `level_script_catacombs.cpp` | 15 | 13 / 2 / 0 |
 | 13 more `game/level_script_*.cpp` (temple_inside, slums, iona_ext2, ikaemosu, ikaemosl2, courtyard, lenele2aa, lenele1aa, lpalaceint02, eleh, wolong, lenele3d, lenele3a) | one file each | 86 | 80 / 6 / 0 (see `NOTES-level-scripts-13.md`) |
+
+
+Files named `unnamed_<what>_<address>.cpp` hold a translation unit whose original file name is not known (no path string, no strings.tbl block); the name is a placeholder, never a guess at the original.
 
 **Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file.
 

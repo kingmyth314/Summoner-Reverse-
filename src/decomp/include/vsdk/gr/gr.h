@@ -311,6 +311,14 @@ int  light_create_point(const vector3 *pos, float range_a, float range_b, float 
 int  light_create_spot(const vector3 *pos, const vector3 *dir, float a, float b, float range_a,
                        float range_b, float intensity, float r, float g, float b2, int flags, int bm,
                        const quaternion *orient);     // 0x51e3f0
+// decomp48 (the interface manager's 3D model views, ui_3d_begin / ui_3d_end).
+void light_set_all_enabled(bool on);                  // 0x51e100 bit 14 of every light's flags (+8)
+void light_delete(int index);                         // 0x51e540
+void lights_set_max_per_object(int n);                // 0x51f530 lights_max_per_object = n
+extern int lights_max_per_object;                     // 0x5a8900 init 2
+extern float light_ambient_r;                         // 0x5a8904 init 1.0 (light_set_ambient)
+extern float light_ambient_g;                         // 0x5a8908
+extern float light_ambient_b;                         // 0x5a890c
 
 // ---- decomp33 (gr_opengl.cpp) ---------------------------------------------------------------------
 // gr.cpp state the back ends read: gr_color, gr_texture, gr_texture_2, gr_fog_enabled, gr_fog_color,
@@ -326,6 +334,8 @@ extern float gr_far_clip_dist;                        // 0x2692e88
 // gr_calc_depth(1 / v->z); only x, y, z are read, so the fog code passes a vector3 cast to a vertex.
 float gr_vertex_depth(const gr_vertex *v);            // 0x50d8b0
 void gr_get_view_fov(float *h_fov, float *v_fov);     // 0x50e5a0 degrees
+// (fov degrees) -> the fov for the current clip rectangle and aspect (interface_set_view_clip; decomp48).
+float gr_fov_to_vertical(float fov);                  // 0x50e5e0
 // decomp35 (gametarget.cpp): the mouse ray {eye position, direction} through screen point (sx, sy).
 struct ix_ray;
 void gr_screen_to_world_ray(ix_ray *out, float sx, float sy);   // 0x50ebe0

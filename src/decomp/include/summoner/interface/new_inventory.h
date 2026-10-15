@@ -1,4 +1,5 @@
-// new_inventory.h - screen 1, the inventory (new_inventory.cpp, 0x414c80-0x418572).
+// new_inventory.h - screen 1, the inventory (new_inventory.cpp, 0x414d30-0x418572; the show_ui command
+// 0x414c80-0x414cb0 moved to the interface manager, summoner/interface/interface.h, decomp48).
 #ifndef NEW_INVENTORY_H
 #define NEW_INVENTORY_H
 
@@ -10,7 +11,6 @@ struct ItemType;
 struct item_info;
 struct party_inventory_entry;
 
-void cmd_show_ui();                                 // 0x414cb0
 void inv_cameras_parse_table();                     // 0x414dc0
 void inventory_load_bitmaps();                      // 0x414de0
 void inventory_init(bool open_mode);                // 0x414fc0 (interface_set_screen passes a byte)

@@ -40,5 +40,7 @@ void itemtrade_draw_scrollbar();                    // 0x41a700
 void itemtrade_draw_gold_input();                   // 0x41a7b0
 int  itemtrade_get_panel_width();                   // 0x41a8b0
 bool itemtrade_mouse_in_panel(int x, int y);        // 0x41a8c0
+// The gold amount input line is open (interface_frame then keeps the keys from the chat line; decomp48).
+extern bool itemtrade_gold_input_active;            // 0x5c1590
 
 #endif
