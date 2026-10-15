@@ -4712,8 +4712,8 @@
 0x4f0680  lsf_murod_intro          func  -                    O ; level-script helper keyed on story flag "murod_intro", L"Joseph acquired Summon Jade Golem!" (checked: gated on savegame_get_flag("murod_intro") and sets it with savegame_set_flag, music_find_by_name, music_play, script_player_near_navpoint, script_play_cutscene, "Boss" "murod_dead", caller ls_jade...)
 0x4f0990  ls_jadetemple_finish     func  -                    O ; party_add_member Jekhar / Rosalind / Flece, next level "khosanistrng" / "khosanistrng_v3" (checked: party_add_member Jekhar / Rosalind / Flece then gameseq_set_state toward "khosanistrng" / "khosanistrng_v3", caller ls_jadetemple_frame)
 0x4f0a40  ls_jadetemple_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
-0x4f0d80  static_init_ls_jadetemple_timer_b func  -                    O ; hidden start: initialiser table entry 480 (0x588784): jmp init_ls_jadetemple_timer_b
-0x4f0d90  init_ls_jadetemple_timer_b func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257e9d0), used by ls_jadetemple_action and ls_lenele3d_init, reached from initialiser table entry 480 (0x588784) via jmp 0x4f0d80
+0x4f0d80  static_init_ls_jadetemple_timer_b func  -                    O ; hidden start: initialiser table entry 480 (0x588784): jmp init_ls_lenele3d_timer
+0x4f0d90  init_ls_lenele3d_timer   func  -                    O ; hidden start, static initialiser: GameTimer__GameTimer(ls_lenele3d_timer 0x257e9d0), whose only other user is ls_lenele3d_init (formerly init_ls_jadetemple_timer_b)
 0x4f0da0  ls_lenele3d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0eb0  ls_lenele3d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f0f00  ls_ionaext02_leave       func  -                    O ; level_script_table entry: level script leave handler; shared with ls_lenele3d_leave
@@ -6338,7 +6338,7 @@
 0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
 0x52f530  build_stamp_get_name_String func  vsdk\ui              O ; (String* out): String__assign_cstr(build_stamp_name)
 0x52f540  build_stamp_get_name     func  vsdk\ui              O ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.") (checked: (out): strcpy of build_stamp_name 0x5a960c into out, caller build_stamp_show)
-0x52f570  init_ui_repeat_timer     func  vsdk\ui              I ; hidden start, static initialiser (table 0x588974): RealtimeTimer__RealtimeTimer(0x2cbf680)
+0x52f570  init_ui_tooltip_timer    func  vsdk\ui              I ; hidden start, static initialiser (table 0x588974): RealtimeTimer__RealtimeTimer(ui_tooltip_timer 0x2cbf680), the hover delay that ui_process sets to 1 s (formerly init_ui_repeat_timer)
 0x52f590  init_ui_window_sentinel  func  vsdk\ui              O ; hidden start, initialiser table entry 0x588978: constructs the window list sentinel 0x2cbf718 and registers its destructor
 0x52f5a0  ui_window_sentinel_ctor  func  vsdk\ui              O ; ui_window__ui_window(0x2cbf718), the list head walked by ui_draw / ui_process
 0x52f5b0  ui_window_sentinel_register_dtor func  vsdk\ui              O ; atexit(ui_window_sentinel_dtor)
@@ -9582,7 +9582,7 @@
 0x257e9c5  ls_jadetemple_tg_intro_done data:bool -                    O ; set by lsf_tg_intro when tg_intro starts the Boss music
 0x257e9c8  ls_jadetemple_fade_timer data:GameTimer -                    O ; GameTimer (init_ls_jadetemple_timers) 5 s with gr_fade_out in lsf_tiger2_dead
 0x257e9cc  ls_jadetemple_place_pending data:bool -                    I ; set by ls_jadetemple_action, ls_jadetemple_frame then moves the party
-0x257e9d0  ls_lenele3d_timer        data:GameTimer -                    O ; GameTimer built by init_ls_jadetemple_timer_b, 1 s set by ls_lenele3d_init
+0x257e9d0  ls_lenele3d_timer        data:GameTimer -                    O ; GameTimer built by init_ls_lenele3d_timer, 1 s set by ls_lenele3d_init
 0x257e9ec  ls_eleh_go_ground        data:bool -                    O ; elevator choice GroundFloor set by ls_eleh_action, read by ls_eleh_cutscene_frame (entry point 5)
 0x257e9ed  ls_eleh_go_bottom        data:bool -                    O ; elevator choice BottomFloor set by ls_eleh_action, read by ls_eleh_cutscene_frame
 0x257e9ee  ls_eleh_go_other         data:bool -                    I ; third elevator choice set by ls_eleh_action, read by ls_eleh_cutscene_frame
@@ -9980,7 +9980,7 @@
 0x2cbf62a  ui_right_pressed         data:bool vsdk\ui              O ; mouse_was_pressed(1) stored by ui_process
 0x2cbf630  ui_checkbox_colors       data:Color[16] vsdk\ui              I ; colour set (init_ui_global_2cbf630, ui_colors4_x4) referenced by ui_checkbox__create and ui_radio_button__create (+0x390)
 0x2cbf670  ui_window_colors         data:Color[4] vsdk\ui              O ; window colours (init_ui_window_defaults) set by ui_init and LoadSettings, referenced by ui_window__init (+0x4e0)
-0x2cbf680  ui_tooltip_timer         data:int vsdk\ui              O ; RealtimeTimer (init_ui_repeat_timer): 1 s set by ui_process when the hovered gadget changes, elapsed shows the tooltip
+0x2cbf680  ui_tooltip_timer         data:int vsdk\ui              O ; RealtimeTimer (init_ui_tooltip_timer): 1 s set by ui_process when the hovered gadget changes, elapsed shows the tooltip
 0x2cbf684  ui_sounds                data:int[8] vsdk\ui              O ; sound handles of the UI (-1 at ui_init), played by ui_play_sound
 0x2cbf6a8  ui_button_colors         data:Color[15] vsdk\ui              I ; colour set (init_ui_global_2cbf6a8, ui_colors5_x3) referenced by ui_button__create (+0x390), set by ui_init / LoadSettings
 0x2cbf6e4  ui_tooltip_ready         data:bool vsdk\ui              O ; set when ui_tooltip_timer elapses, cleared when the hovered gadget changes, ui_draw then draws ui_tooltip_gadget
