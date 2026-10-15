@@ -18,6 +18,9 @@ public:
     // Inline (DECISIONS.md D12): item_paging.cpp's static initialiser expands it to a bare Copy call,
     // effect_mem.cpp (built /Ob0) calls the out-of-line COMDAT copy at 0x51dff0 at the end of its unit.
     Mempool(char *dest, int size, const char *name) { Copy(dest, size, name); }
+    // Inline and empty (decomp38, D1801): the 15 pools of characterinfo.cpp have no initialiser, and the
+    // unit has 15 empty dynamic initialisers (init_empty_444850 .. init_empty_444a10).
+    Mempool() {}
     void Copy(char *dest, int size, const char *name);   // 0x512770 (returns void; EAX is not `this`)
     // Summoner 2's allocate_in_mempool(pool, size); thiscall on the pool in Sum.exe, so a member here
     // (decomp22 D201). 16-byte rounded size, NULL (no error) when the pool is full.

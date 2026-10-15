@@ -49,5 +49,9 @@ int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const v
 // (effect file, flag): fx_create_instance(name, 0, vector3_zero, identity_matrix, flag); names containing
 // "sky" go to the sky list. Handle or -1 (level_create_world_effects; decomp27).
 int  fx_create_world(const char *effect, bool flag);   // 0x48cea0
+// decomp38 (characterinfo.cpp):
+extern effect_object fx_active_list;                  // 0x2305920 sentinel (fx_next 0x23059b8)
+void fx_destroy(int handle);                          // 0x48cfc0
+void fx_end_owned(int owner, bool destroy);           // 0x48d100 every effect owned (+0xb4) by the handle
 
 #endif

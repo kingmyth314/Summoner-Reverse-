@@ -60,6 +60,9 @@ public:
     void class_die();                 // 0x4739e0 ai_class_die
     void knock_down(int ms);          // 0x474350 ai_knock_down
     void disable_2f();                // 0x4743e0 ai_disable_2f
+    // decomp38 (characterinfo.cpp, summon_stash_for_cutscene):
+    void begin_emerge();              // 0x473970 ai_begin_emerge
+    void summon_emerge_update();      // 0x4b4660 summon_emerge_update (unit not known)
     void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
     // decomp29 (boss_ai.cpp). (pos, layer, 30.0f, 0, 5000) at boss_release_mount; return unused.
     void add_move_to_timed(vector3 *pos, int layer, float f, int walk, int ms);   // 0x474190 ai_goal_add_move_to_timed

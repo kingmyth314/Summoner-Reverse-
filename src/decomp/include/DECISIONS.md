@@ -1479,3 +1479,65 @@ range is recomputed only when its argument is set (`mov eax, [esp + 0xc]; test e
 gr_d3d_read_backbuffer(x, y, w, h, buf) returns 3 (565) or 0. The DirectDraw enumeration records are 0x428
 bytes (d3d_device_record: GUID, GUID *, GUID, GUID *, name[0x400]; arrays of 8 at 0x2dc07c8 and 16 at
 0x2dc2990, from the strides and the neighbouring globals).
+
+## characterinfo.cpp (decomp38)
+
+**D1800 (engine/characterinfo/characterinfo.h). skill_names has 84 entries.** The header declared
+`skill_names[36]` ("0x595bf4 ends it"), sized by the loop of items_parse_table. The table at 0x595b64 holds
+84 pointers ("hand to hand" .. "serpent whip multi"), followed by the dword 84 at 0x595cb4, and every lookup
+loop in characterinfo_parse_table ends at that address (`cmp esi, 0x595cb4` at 0x445c0b / 0x445c6d /
+0x445ccf / 0x445d31 / 0x445d93). Now `skill_names[MAX_SKILLS]` plus `int num_skill_names` (no reader; the
+same sizeof pattern as items.cpp's num_weapon_flag_names). items.cpp keeps its explicit 36.
+
+**D1801 (vsdk/os/memory.h). Mempool gets an inline empty default constructor.** characterinfo.cpp defines
+15 Mempools with no initialiser (Copy is called at run time: characterinfo_load_party, ..._alloc_level_buffers,
+..._load_party_anims, statscreen_load_anim), and its static initialiser list has exactly 15 empty thunk /
+`ret` pairs (init_empty_444850 .. init_empty_444a10, entries 162-176, between resistance_level_names and
+ccmd_All_summons). An inline `Mempool() {}` gives both: the definitions compile and VC6 emits one empty
+dynamic initialiser per object (as for ai_path_nodes, pathfinding.cpp). The 3-argument inline constructor
+(D12) is unchanged; no other unit defines a Mempool without arguments.
+
+**D1802 (engine/characterinfo/characterinfo.h). move_info, char_info, skill_info completed.** From the
+parser stores: move_info +0x00 action (AddUniqueQuoted after "$Action:", 0x4461dd), +0x04 anim_file
+(AddUnique after "$Animation:", 0x446163; the first argument of character_add_skeleton, 0x4477bd), +0x34
+sound (sound_ref_parse(&m+0x34), 0x4461da), +0x48 effect ("$Effect:", 0x44621a); size 0x4c (the free list
+stride, 0x4451cb). The names of decomp23 (anim, anim_class, category, id, variant, triggers, next, hit_tag)
+are kept; id is the "$Variation:" index, variant the "$Location:" index. char_info: +0x18a short[8] attack
+point tags (0x446a47), +0x19c short count and +0x21c int* of the cast-move spells (0x445253 / 0x44525f),
++0x25c head bone / +0x260 head height (0x446a87 / 0x446b54), replacing _unk18a / _unk19c / _unk21c /
+_unk25c. skill_info `_unk24[8]` is two ints (-1 in every record; init_skill_table stores dwords).
+
+**D1803 (engine/characterinfo/characterinfo.h). charinfo_collect_moves: the fourth argument is the list.**
+The body indexes `info->moves` with [esp+0x18] (0x446d9c, the fourth argument) and never reads the second;
+combat.cpp passes (moves, 0xa, info, 0, ...), so the second is the array size (not checked) and the fourth
+the category (0, attacks). Parameter names changed only; the call is unchanged.
+
+**D1804 (engine/characterinfo/characterinfo.h). charinfo_find_move's flag is a bool.** It is read as a
+byte (`mov bl, byte ptr [esp+0x20]`, 0x446cc4; the same in charinfo_find_move_alt 0x446d24) and only tested.
+The callers pass 0 / 1; `int flag` became `bool loaded_only`.
+
+**D1805 (engine/characterinfo/characterinfo.h). species_info, chain_skill, multi_charinfo_slot_t.** New
+types from the unit: species_table entries are 0xc bytes {name, species, byte load} (the stride 0xc and
+`cmp byte ptr [edi+8], 1` at 0x4451e6; types.h's `int _unk08` is the load byte plus padding); chain_skill
+0x14 bytes {name slot, species, skill, chain slot, byte points} (init_chain_skill_names stores dword, dword,
+dword, dword, byte; character_learn_chain_skill compares the byte at +0x10, 0x4497a2); the multiplayer slot
+0x3ec bytes {used, char_info copy, int textures[6]} (characterinfo_find_multi_slot copies 0xf4 dwords to
+slot+4, charinfo_create_character_instance writes bm_reload results from slot+0x3d4).
+
+**D1806 (vsdk/os/memory.h, engine/characterinfo/characterinfo.h). summon_mempool and player_instance_mempool
+are defined in characterinfo.cpp.** Both lie in this unit's .bss (0x7592c0, 0x744680, between char_infos and
+the move records) and are among the 15 objects of D1801. memory.h keeps its `extern summon_mempool`;
+player_instance_mempool (sum.symbols module "-") is declared in characterinfo.h.
+
+**D1807 (none; vsdk/ca/character.h unchanged). character_load's fourth argument.** charinfo_create_character_instance
+passes the +Alternate character: texture entry there (`push [esi+0x268]`, 0x448e2b) and 0 otherwise; the
+header calls it `int unused`. Written as `(int)info->alt_textures` with a NOTES question; the header is
+not changed because character.cpp (decomp30) found no reader.
+
+**D1808 (engine/ai/ai.h, engine/effects/fx.h, summoner/summoner.h, engine/objects/living_entity.h). New
+declarations, no conflict:** ai_state::begin_emerge (0x473970, thiscall on cur_summon+0x324, 0x448068) and
+ai_state::summon_emerge_update (0x4b4660, the same `lea ecx, [edx+0x324]`, 0x4480d2); fx_active_list
+(0x2305920 sentinel, walked through +0x98 at 0x4480dd), fx_destroy(handle) and fx_end_owned(handle, bool)
+(push 1 / push handle, 0x448222); alt_textures_find(name, int*) and alt_textures_find_entry(base, name)
+(0x4465cf / 0x446653); Character::apply_hero_model(bool) (0x4628a0, `mov ecx, esi` with one pushed byte,
+0x448aeb-0x448af3) as one line in living_entity.h.

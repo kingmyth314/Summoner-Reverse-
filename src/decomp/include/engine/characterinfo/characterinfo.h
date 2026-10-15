@@ -115,6 +115,34 @@ struct resistance_set {
     int level[7];
 };
 
+// char_info::flags (+0x258), set by the flag lines after +Texture Effect: (characterinfo_parse_table;
+// decomp38). 8 / 0x10 are also set when the record has no trip / push flinch move; 0x400 marks the
+// head / attack point lookup done (living_entity_setup_head); 0x10000 a multiplayer slot copy.
+#define CIF_NO_SHADOW          0x0001   // +No Shadow
+#define CIF_EDGED              0x0002   // +Edged
+#define CIF_ELONGATED          0x0004   // +Elongated (living_entity_setup_head measures the $head bone)
+#define CIF_NO_TRIP            0x0008   // +Notrip
+#define CIF_NO_PUSH            0x0010   // +Nopush
+#define CIF_NO_BACKSTAB        0x0020   // +Nobackstab
+#define CIF_NO_AIMED_ATTACK    0x0040   // +Noaimedattack
+#define CIF_NO_BLIND           0x0080   // +Noblind
+#define CIF_NO_SILENCE         0x0100   // +Nosilence
+#define CIF_USE_MONSTER_DAMAGE 0x0200   // +UseMonsterDamage (assess ignores the weapon)
+#define CIF_HEAD_SET_UP        0x0400   // living_entity_setup_head ran
+#define CIF_FLYING             0x0800   // +Flying
+#define CIF_SHORT_DIALOGUE_CAMERA        0x1000   // +ShortDialogueCamera
+#define CIF_REALLY_SHORT_DIALOGUE_CAMERA 0x2000   // +ReallyShortDialogueCamera
+#define CIF_TALL_DIALOGUE_CAMERA         0x4000   // +TallDialogueCamera
+#define CIF_NO_DRAW            0x8000   // +No draw
+#define CIF_MULTI_SLOT         0x10000  // characterinfo_find_multi_slot copy
+
+#define MAX_CHARACTER_INFO     256      // "Need to increase MAX_CHARACTER_INFO."
+#define MAX_TOTAL_MOVES        3250     // move_infos ("Need to increase MAX_TOTAL_MOVES."; decomp38)
+#define NUM_MOVE_TYPES         16       // char_info::moves, move_type_names
+#define MOVE_TYPE_CAST         7        // "cast" moves (characterinfo_load_party collects their spells)
+#define MOVE_TYPE_STATE        14       // "state" moves (named anims: charinfo_find_anim)
+#define MOVE_TYPE_SCRIPT       15       // script anims (charinfo_load_script_anim, no table name)
+
 // A "$Character:" record (characterinfo_parse_table 0x4452f0; char_infos 0x6d7e50, 0x3d0 bytes each).
 struct char_info {
     const char *name;        // +0x000 $Character: name
@@ -156,13 +184,14 @@ struct char_info {
     const char *prop_tags[0x10]; // +0x128
     short _unk168[0x10];     // +0x168
     short num_target_points; // +0x188 attack points (character_target_point_count, boss_ai.cpp; D901)
-    ubyte _unk18a[0x10];
+    short target_points[8];  // +0x18A mesh tags of "$Attack01".."$Attack08" (living_entity_setup_head; decomp38)
     short num_footstep_sets; // +0x19A
-    ubyte _unk19c[0x04];
+    short num_cast_spells;   // +0x19C spells of the "cast" moves (characterinfo_load_party; decomp38)
+    ubyte _pad19e[2];
     int footstep_sounds_a[3][5]; // +0x1A0
     int footstep_sounds_b[3][5]; // +0x1DC
     int skin;                // +0x218 +Skin:
-    ubyte _unk21c[0x04];
+    int *cast_spells;        // +0x21C into charinfo_cast_spells (characterinfo_load_party; decomp38)
     float fov_range;         // +0x220
     float detection_range;   // +0x224
     float speedup_rate;      // +0x228
@@ -176,8 +205,9 @@ struct char_info {
     const char *light_pos;   // +0x244
     float light_color[3];    // +0x248
     float light_atten;       // +0x254
-    unsigned int flags;      // +0x258 0x8 cannot be tripped, 0x10 pushed, 0x20 backstabbed; 0x200 assess ignores the weapon
-    ubyte _unk25c[0x08];
+    unsigned int flags;      // +0x258 CIF_*
+    int head_bone;           // +0x25C "$head" mesh tag, -1 none (CIF_ELONGATED records; decomp38)
+    float head_height;       // +0x260 distance of the head bone from the origin + 0.1 (decomp38)
     float icon_height;       // +0x264
     void *alt_textures;      // +0x268
     int alt_index;           // +0x26C
@@ -200,7 +230,10 @@ void *charinfo_get_multi_appearance(char_info *info); // 0x449b80
 int   species_is_hero(int species);                   // 0x449a20
 void  statscreen_unload_anim(Character *c);         // 0x449100
 extern const char *variation_names[194];             // 0x595cf8 "", "variation 1", ... (characterinfo.cpp .data; +Variation:)
-extern const char *skill_names[36];                   // 0x595b64 (characterinfo.cpp .data; 0x595bf4 ends it)
+// 84 names, one per skill id, then the count 84 (0x595cb4); items_parse_table only matches the first 36
+// (D1800).
+extern const char *skill_names[MAX_SKILLS];           // 0x595b64 (characterinfo.cpp .data)
+extern int num_skill_names;                           // 0x595cb4 84 (no reader; label ours)
 int   charinfo_find_anim(char_info *info, const char *name);   // 0x448d90, anim index or -1
 
 // A skill record (0x34 bytes, skill_table 0x8b3f88, built by 0x442ba0 from strings.tbl).
@@ -210,12 +243,13 @@ struct skill_info {
     int ap_cost;                      // +0x04 (skill_is_available, character_use_skill; was _unk04)
     int recovery;                     // +0x08 seconds (player_start_skill_cooldown multiplies by 1000)
     float hp_share;                   // +0x0c summon skills: share of max HP
-    int _unk10;
-    int group;                        // +0x14 skills screen page: 0 combat .. 5 spells
+    int _unk10;                       // +0x10 -1 (6 for kick; no reader in characterinfo.cpp)
+    int group;                       // +0x14 skills screen page: 0 combat .. 5 spells
     int spell;                        // +0x18 the spell that carries it out (summons, backstab 0x45, assess 0x46)
     char **display_name;              // +0x1c localize_strings slot: summon popup entry name
     unsigned int flags;               // +0x20 1 passive, 2 only while attacking, 4 summon, 8 aimed attack part, 0x10 dragon
-    ubyte _unk24[0x2c - 0x24];
+    int _unk24;                       // +0x24 -1 in every record (init_skill_table; decomp38)
+    int _unk28;                       // +0x28 -1 in every record
     char **description;               // +0x2c localize_strings slot (tooltip)
     char **use_description;           // +0x30 localize_strings slot, preferred for active skills when not empty
 };
@@ -236,25 +270,33 @@ int  chain_skill_get_points(Player *p, int skill);    // 0x449960 (decomp24)
 void chain_skill_set_points(Player *p, int skill, int points);   // 0x4499c0 (decomp24; return unused)
 void chain_config_reset_defaults();                   // 0x449310 (decomp24)
 
-// A "+Move:" record of a char_info move list (char_info.moves[category], next at +0x40). Partial: the
-// fields combat.cpp reads (decomp23, D301). Type name ours (types.h comments call it move_info).
+// A "+Move:" record of a char_info move list (char_info.moves[category], next at +0x40), 0x4c bytes
+// (move_infos, MAX_TOTAL_MOVES). Completed from characterinfo_parse_table (decomp38); combat.cpp's names
+// kept (decomp23, D301). Type name ours (types.h comments call it move_info).
 struct move_info {
-    ubyte _unk00[0x08];
-    int anim;                         // +0x08 animation (types.h Character +0xa8 comment)
-    int anim_class;                   // +0x0C +Animation class (charinfo_find_move)
-    int category;                     // +0x10 move type (2 parry, 3 dodge, ...: living_combat_update_exchange)
-    int id;                           // +0x14 id within the category (charinfo_find_move compares it)
-    int variant;                      // +0x18 matched by the opponent's parry / flinch move
-    struct { int id; float time; } triggers[3];   // +0x1C {id, float} pairs (move_get_trigger_time)
-    ubyte _unk34[0x0c];
+    const char *action;               // +0x00 $Action: (the skeleton name; charinfo_find_anim matches it)
+    const char *anim_file;            // +0x04 $Animation: file
+    int anim;                         // +0x08 skeleton index, -1 not loaded (types.h Character +0xa8 comment)
+    int anim_class;                   // +0x0C +Animation class: bit per anim_class_names entry (default 1)
+    int category;                     // +0x10 move type (move_type_names; 2 parry, 3 dodge, ...)
+    int id;                           // +0x14 $Variation: (variation_names index; charinfo_find_move)
+    int variant;                      // +0x18 $Location: (location_names: 1 low, 2 medium, 3 high)
+    struct { int id; float time; } triggers[3];   // +0x1C $Trigger: anim_event_names index, frame / 30
+    sound_ref sound;                  // +0x34 $Sound: (sound_ref_parse)
     move_info *next;                  // +0x40
-    const char *hit_tag;              // +0x44 weapon tag name of the hit (combat_get_weapon_tag_position)
+    const char *hit_tag;              // +0x44 $Contact tag: weapon tag name of the hit
+    const char *effect;               // +0x48 $Effect: (vfx_preload for some bosses)
 };
+LAYOUT_CHECK(move_info, sizeof(move_info) == 0x4c);
 
-move_info *charinfo_find_move(char_info *info, int category, int id, int flag);     // 0x446cb0
-// (out, category, info, ?, exclude id, weapon class): the call in living_combat_pick_attack_move pushes them
-// in this order (sum.symbols lists info second).
-int   charinfo_collect_moves(move_info **out, int category, char_info *info, int a, int exclude, int anim_class);  // 0x446d70 count
+// Flag: for the heroes, skip a move whose anim is loaded for none of the record's weapon classes.
+move_info *charinfo_find_move(char_info *info, int category, int id, bool loaded_only);   // 0x446cb0
+move_info *charinfo_find_move_alt(char_info *info, int category, int variant, bool loaded_only); // 0x446d10 (by +0x18)
+move_info *charinfo_find_move_any(char_info *info, int anim);  // 0x446c60 any list, by anim (skips parry/flinch low)
+// (out, max, info, category, exclude id, weapon class): the call in living_combat_pick_attack_move pushes them
+// in this order (sum.symbols lists info second). max (10 from combat.cpp) is not checked (decomp38: the
+// category is the fourth argument, D1803).
+int   charinfo_collect_moves(move_info **out, int max, char_info *info, int category, int exclude, int anim_class);  // 0x446d70 count
 float move_get_trigger_time(move_info *move, int trigger);     // 0x446e20
 bool  skill_is_combat_special(int skill);                      // 0x4473f0 (0xc..0x11)
 int   character_get_chain_skill(Player *p, int slot);          // 0x449440 (SKILL_NONE none)
@@ -276,6 +318,132 @@ extern Mempool flece_char_mempool;                    // 0x7deee8
 extern Mempool flece_model_mempool;                   // 0x847fc0
 extern Mempool rosalind_char_mempool;                 // 0x714e60
 extern Mempool rosalind_model_mempool;                // 0x68e1d8
+// The argument is not read (decomp38).
 void characterinfo_load_party(int path_id);           // 0x4450c0 (GameInit passes path_tables_characterinfo)
+
+// ---- decomp38: the rest of characterinfo.cpp (0x4425b0-0x449d88) ----------------------------------------
+
+// One entry of species_table (0x580e60, 223 entries, .rdata of an unknown unit): $Character: names map to
+// species ids through it (characterinfo_parse_name); characterinfo_load_party parses "<name>.tbl" for every
+// entry with load set.
+struct species_info {
+    const char *name;                 // +0x0
+    int species;                      // +0x4
+    ubyte load;                       // +0x8 parsed at startup (characterinfo_load_party)
+    ubyte _pad09[3];
+};
+LAYOUT_CHECK(species_info, sizeof(species_info) == 0xc);
+#define NUM_SPECIES_TABLE 223
+extern species_info species_table[NUM_SPECIES_TABLE];  // 0x580e60
+
+// A chain attack entry (0x14 bytes, chain_skill_table 0x8b3c68, 40 entries, init_chain_skill_names).
+// Per hero, the chain slot (0 added blow, 1..3 the up / down / left-right chains of chainpts) and the
+// chain points at which the skill is learned (0, 10, 30).
+struct chain_skill {
+    char **name;                      // +0x00 localize_strings slot ("Chain Kick", ...)
+    int species;                      // +0x04 SPECIES_*
+    int skill;                        // +0x08 skill id
+    int slot;                         // +0x0C chain points counter ("chainpts<species><slot>")
+    ubyte points;                     // +0x10 points needed (character_learn_chain_skill)
+    ubyte _pad11[3];
+};
+LAYOUT_CHECK(chain_skill, sizeof(chain_skill) == 0x14);
+#define NUM_CHAIN_SKILLS 40
+extern chain_skill chain_skill_table[NUM_CHAIN_SKILLS];   // 0x8b3c68
+
+// A multiplayer char_info copy (0x3ec bytes, multi_charinfo_slots 0x7def08, 4 slots).
+struct multi_charinfo_slot_t {
+    int used;                         // +0x000
+    char_info info;                   // +0x004
+    int textures[6];                  // +0x3D4 bm_reload of the mesh textures (charinfo_get_multi_appearance)
+};
+LAYOUT_CHECK(multi_charinfo_slot_t, sizeof(multi_charinfo_slot_t) == 0x3ec);
+extern multi_charinfo_slot_t multi_charinfo_slots[4]; // 0x7def08
+
+extern const char *summon_creature_names[16];         // 0x595b24 skills 0x24..0x33 (label ours)
+extern const char *resistance_level_type_names[6];    // 0x595cb8 "weak" .. "strengthen" (+Resistances:; label ours)
+extern const char *team_names[4];                     // 0x595cd0
+extern const char *skill_group_names[6];              // 0x595ce0 "Combat" .. "Spells" (no reader here; label ours)
+extern const char *hurt_variation_names[10];          // 0x596000 moves dropped for non-bosses (label ours)
+extern int num_hurt_variation_names;                  // 0x596028 10 (label ours)
+extern const char *default_footstep_sounds[2][5];     // 0x59602c left / right (label ours)
+extern const char *size_names[4];                     // 0x596054 $Size: (label ours)
+extern const char *move_type_names[NUM_MOVE_TYPES];   // 0x596064 (15 names; [15] NULL)
+extern const char *location_names[4];                 // 0x5960a4 $Location: "", low, medium, high (label ours)
+extern const char *anim_event_names[14];              // 0x5960b4
+extern const char *prop_tag_names[16];                // 0x5960ec $Prop Tag: (label ours)
+extern const char *attack_point_names[8];             // 0x59612c "$Attack01".. (label ours)
+extern const char *offense_point_names[10];           // 0x59614c "$offense01"..
+extern bool Quick_combo;                              // 0x8b50b2
+
+class StringPool;
+class TextFile;
+class console_command;
+class character_instance;
+extern StringPool charinfo_string_pool;               // 0x68e1a8
+extern StringPool charinfo_script_anim_pool;          // 0x68e1c0
+extern move_info move_infos[MAX_TOTAL_MOVES];         // 0x7e12e8 (label ours)
+extern move_info *move_info_free_list;                // 0x7916dc
+extern int characterinfo_anim_slot_count;             // 0x68e1f4
+extern int charinfo_cast_spells[250];                 // 0x88904c (label ours)
+extern Mempool player_instance_mempool;               // 0x744680
+extern Mempool statscreen_mempool;                    // 0x7592a0 (label ours)
+extern Mempool joseph_anim_mempool;                   // 0x889028 (label ours)
+extern Mempool jekhar_anim_mempool;                   // 0x847fe8 (label ours)
+extern Mempool flece_anim_mempool;                    // 0x6d7e30 (label ours)
+extern Mempool rosalind_anim_mempool;                 // 0x6d7e10 (label ours)
+extern Character *stashed_summon;                     // 0x8b3c34
+extern Player *stashed_summon_player;                 // 0x7e12e0
+extern int charinfo_level_mem_used;                   // 0x8b3c44
+extern console_command ccmd_All_summons;              // 0x68e200
+extern console_command ccmd_Quick_combo;              // 0x65e998
+extern console_command ccmd_charinfo;                 // 0x65e968
+extern console_command ccmd_levelchars;               // 0x8b3c38
+
+void cmd_All_summons();                               // 0x444a50
+void cmd_Quick_combo();                               // 0x449590
+void cmd_levelchars();                                // 0x449c00
+// 1 when the move need not be loaded on this level (towns, masad, the boss levels; decomp38).
+int   move_used_on_level(char_info *info, move_info *move, bool full_set);   // 0x444bb0
+char_info *characterinfo_parse_table(const char *filename);   // 0x4452f0 the last record of the file
+move_info *characterinfo_add_move();                  // 0x446740 from move_info_free_list
+void  move_info_free(move_info *move);                // 0x446770
+void  sound_ref_parse(TextFile *tf, char_info *info, sound_ref *ref, const char *folder);  // 0x446790
+void  characterinfo_parse_name(TextFile *tf, char_info *info);          // 0x446890 name + species
+void  characterinfo_parse_resistances(TextFile *tf, char_info *info);   // 0x446930
+void  living_entity_setup_head(char_info *info, character_instance *ci); // 0x4469c0 prop tags, attack points, head
+int   summon_find_charinfo(int spell);                // 0x446c00 char_infos index of the summon cast by the spell, -1
+const char *summon_skill_creature_name(int skill);    // 0x446c40 "" for other skills
+multi_charinfo_slot_t *multi_charinfo_slot(char_info *info);   // 0x446de0 the slot holding the copy, NULL
+void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, bool summon);   // 0x447410
+void  charinfo_load_move_anim(char_info *info, struct ca_character *ca, move_info *move, bool load_sounds,
+                              int anim_folder, bool full_set);  // 0x447780
+void  charinfo_remap_town_moves(char_info *info, bool full_set); // 0x447850
+void  level_load_preload(char_info *info, bool load_sounds, bool summon, Mempool *pool);  // 0x447b10
+unsigned int str_hash_nocase_rol6(const char *s);     // 0x447e80 -1 for NULL
+void  charinfo_mark_anims_loaded(char_info *info);    // 0x447ec0 anim_class = -1 (and the copies)
+void  character_reinit_anims(Character *c, int anim_class);     // 0x447f20
+void  summon_stash_for_cutscene();                    // 0x448000
+int   charinfo_load_script_anim(char_info *info, const char *name, int path_id);  // 0x4482a0 anim, -1
+void  charinfo_free_moves(char_info *info);           // 0x4484a0 the script anims
+void  summon_restore_after_cutscene();                // 0x448500
+void  charinfo_mark_anims_unloaded(char_info *info);  // 0x4486b0 anim_class = 0 (and the copies)
+void  charinfo_unload_anims(char_info *info);         // 0x448710
+void  charinfo_page_in_sounds(char_info *info);       // 0x448790 footsteps
+const char *offense_point_name(int i);                // 0x4487f0
+void  characterinfo_alloc_level_buffers();            // 0x448800
+void  characterinfo_level_unload(bool reset_player_pool);   // 0x448c10
+float resistance_level_damage_mult(int level);        // 0x448c80 1 - damage multiplier (weak -1 .. strengthen 1.5)
+int   summon_skill_from_creature_name(const char *name);    // 0x448d00 -1
+character_instance *charinfo_create_character_instance(char_info *info, bool summon);   // 0x448de0
+Mempool *charinfo_select_mempool(int species, bool summon); // 0x448f20
+void  statscreen_load_anim(Character *c, bool heavy); // 0x448f60
+void  chain_config_set(int species, int slot, int skill);   // 0x449200 savegame "chainconfig%d%d"
+int   chain_config_get(int species, int slot);        // 0x449240 (resets the defaults when 0)
+void  chain_points_set(int species, int slot, int points);  // 0x449290 savegame "chainpts%d%d"
+int   chain_points_get(int species, int slot);        // 0x4492d0
+char_info *characterinfo_find_multi_slot(int index);  // 0x449a30 multiplayer heroes get a slot copy
+void  multi_charinfo_slot_release(char_info *info);   // 0x449b00
+void  multi_charinfo_slots_clear();                   // 0x449b60
 
 #endif

@@ -108,6 +108,7 @@ public:
     bool  anim_lod_skip();            // 0x46ad10 character_anim_lod_skip
     void  process_anim(float frametime);  // 0x46adf0 character_process_anim
     void  fill_locomotion_anims();    // 0x46af70 character_fill_locomotion_anims
+    void  apply_hero_model(bool heavy); // 0x4628a0 character_apply_hero_model (decomp38)
     // decomp29 (boss_ai.cpp)
     Character *get_mount();           // 0x462d20 character_get_mount (+0x6e0 when that entity has +0x6e4 bit 1)
     Character *get_rider();           // 0x462d40 character_get_rider (+0x6e0 when that entity has +0x6e4 bit 0)

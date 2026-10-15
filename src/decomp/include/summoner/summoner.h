@@ -78,6 +78,9 @@ void cutscene_parse_table();          // 0x4355e0 cutscene.tbl
 void cutscene_shutdown_stub();        // 0x437120 empty (push ebp / pop ebp / ret)
 void alt_textures_parse_table();      // 0x4aac10 alt_textures.tbl
 void alt_textures_free();             // 0x4aafb0
+// decomp38 (characterinfo_parse_table): the texture list of a base name and an entry of it.
+void *alt_textures_find(const char *base, int *count);               // 0x4aaff0
+void *alt_textures_find_entry(const char *base, const char *name);   // 0x4ab050 (0x2d4-byte entry)
 void debug_noop_cleanup();            // 0x531c80 bare ret
 void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 records at 0x2d064e8
 

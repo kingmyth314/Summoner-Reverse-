@@ -71,6 +71,7 @@ Rules:
 | `game/multispell.cpp` | `multispell.cpp` | 22 | 16 / 6 / 0 |
 | `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
+| `game/characterinfo.cpp` | `characterinfo.cpp` | 122 | 81 / 26 / 15 (the 15 are empty Mempool initialisers) |
 | `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |
 | `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 30 of 39 (the three draw-list back ends left) | 13 / 5 / 12 |
 | `game/spells.cpp` | `spells.cpp` | 44 of 53 (cast pipeline left) | 30 / 14 / 0 |
