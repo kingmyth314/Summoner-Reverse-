@@ -155,10 +155,31 @@ static void RunConsoleKey(int scan)
     ((PFN_ExecuteCommandLine)(UINT_PTR)SumVa(VA_EXECUTE_COMMAND_LINE))(line);
 }
 
+// [Debug] ScriptEditorKey (default none): toggles Volition's built-in level script editor during gameplay.
+// script_editor_frame (0x4e01f0) runs the editor only while bit 0x80 of game_debug_flags (0x5fbfd8) is set,
+// and nothing in the retail game sets it (docs/sum-exe/script-editor.md). Toggled here, on the game thread,
+// so it cannot race the game's own read-modify-write of the flags. The title screen clears the bit again.
+#define VA_GAME_DEBUG_FLAGS 0x5fbfd8u
+#define VA_GAMESEQ_STATE_CUR 0x5b27e0u // 4 = in game
+static volatile int g_editorScan;     // scan code, 0 = off
+
+static void ToggleScriptEditor(void)
+{
+    if (*(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4)
+        return;
+    volatile DWORD *flags = (volatile DWORD *)(UINT_PTR)SumVa(VA_GAME_DEBUG_FLAGS);
+    *flags ^= 0x80;
+    Log("script editor %s", (*flags & 0x80) ? "on" : "off");
+}
+
 static void __cdecl MsgHandler(UINT msg, WPARAM wp, LPARAM lp)
 {
-    if ((msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) && !(lp & 0x40000000))
-        RunConsoleKey((int)((lp >> 16) & 0xff) | ((lp & 0x01000000) ? 0x80 : 0));
+    if ((msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) && !(lp & 0x40000000)) {
+        int scan = (int)((lp >> 16) & 0xff) | ((lp & 0x01000000) ? 0x80 : 0);
+        if (g_editorScan && scan == g_editorScan)
+            ToggleScriptEditor();
+        RunConsoleKey(scan);
+    }
     switch (msg) {
     case WM_XBUTTONDOWN:
     case WM_XBUTTONUP:
@@ -321,6 +342,14 @@ static void LoadGameKeys(void)
     int toggle = _stricmp(mode, "Hold") != 0;
     if (toggle != g_speedToggle)
         Log("hotkeys: speed key mode %s", toggle ? "toggle" : "hold");
+    char ed[32];
+    GetPrivateProfileStringA("Debug", "ScriptEditorKey", "", ed, sizeof ed, g_cfg.iniPath);
+    int edScan = ed[0] && _stricmp(ed, "none") != 0 ? KeyParse(ed) : 0;
+    if (edScan < 0)
+        edScan = 0;
+    if (edScan != g_editorScan)
+        Log("hotkeys: script editor key %s", edScan ? ed : "off");
+    g_editorScan = edScan;
     g_configVk = config;
     g_speedVk = speed;
     g_speedFactor = factor;

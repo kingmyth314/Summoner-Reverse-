@@ -16,6 +16,7 @@
 //   capture NAME       screenshot to agent\NAME.bmp (waits until written)
 //   info               game state, screen, fps, cursor
 //   peek ADDR [N]      hex dump of game memory (N bytes, default 16)
+//   poke ADDR BYTE     write one byte of (writable) game data, both in hex
 //   quit               ask the game to exit (game state 3)
 #include "summonerfix.h"
 #include "keynames.h"
@@ -97,6 +98,20 @@ static void Peek(DWORD va, int n)
     for (int i = 0; i < n; i++)
         len += _snprintf(line + len, sizeof line - (size_t)len, " %02X", p[i]);
     Out("%s", line);
+}
+
+// Write one byte of game data (not code: only already-writable memory). For experiments such as
+// setting a debug flag bit; prints the old and new value.
+static void Poke(DWORD va, unsigned value)
+{
+    BYTE *p = (BYTE *)(UINT_PTR)SumVa(va);
+    if (IsBadWritePtr(p, 1)) {
+        Out("poke %06lX: not writable", va);
+        return;
+    }
+    BYTE old = *p;
+    *p = (BYTE)value;
+    Out("poke %06lX: %02X -> %02X", va, old, *p);
 }
 
 static void RunLine(char *line)
@@ -189,6 +204,8 @@ static void RunLine(char *line)
         Info();
     } else if (!_stricmp(c, "peek") && argc >= 2) {
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
+    } else if (!_stricmp(c, "poke") && argc >= 3) {
+        Poke((DWORD)strtoul(argv[1], NULL, 16), (unsigned)strtoul(argv[2], NULL, 16));
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

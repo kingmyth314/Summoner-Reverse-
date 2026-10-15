@@ -189,7 +189,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `speedkey 1|0`: acts as if the speed key were held or released (the real key is read with `GetAsyncKeyState`, which agent mode cannot set);
 - `move X Y`, `click [left|right|middle] [X Y] [ms]`, `down/up BUTTON`, `drag X1 Y1 X2 Y2`;
 - `wait MS`, `capture NAME`;
-- `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `quit`.
+- `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `poke ADDR BYTE` (one byte of writable game
+  data, hex; used to test the script editor flag), `quit`.
 
 Coordinates are screenshot pixels, which are half the window size (1280x720 on a 2560x1440
 screen). Key names are the ones `summonerfix.ini [KeyBindings]` uses.
