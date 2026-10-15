@@ -96,6 +96,8 @@ Summoner 2 and Dash Faction give names only.
 | `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` (decomp47) | the visibility sweep: `pathvis_edge`, the unit's .bss, `pathvis_*`, `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
+| `engine/rendering/unnamed_decals_0x4bbe80.h` | decal unit 0x4bbe80-0x4bce55 (source game/unnamed_decals_0x4bbe80.cpp, decomp56; file and directory names placeholders) | `decal_record`, `decal_node`, the decal rings and `decal_*` / `decals_*` |
+| `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a20 (not written; names placeholders, decomp56) | `projector_record`, `lobj_face_marks` |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
 | `engine/camera/camera_sequence.h` | camera sequences 0x493f20-0x4946a0 (unit not known; file name ours, decomp52) | `camera_sequence`, `cutscene_camera_sequence` (the 0x70-byte cutscene shot) |

@@ -72,6 +72,8 @@ LAYOUT_CHECK(mp_player, sizeof(mp_player) == 0xbc);
 void mp_send_new_path(Character *c);                  // 0x480070 NEW_PTH
 void mp_send_obj_update(Character *c, int a);         // 0x480530 OBJ_UPD (ai_frame passes 0)
 void mp_broadcast_ai_disable(Character *c, int kind, int ms);   // 0x480eb0 kind 0 knock-down, 1 push
+// decomp56 (AI combat unit): packet 0x1b (the character handle and a byte), sent by the AI move goals.
+void mp_send_character_walk(Character *c, int a);    // 0x488230
 void mp_send_swi_2dir();                              // 0x4884f0 SWI2DIR (cur_character)
 void mp_send_swi_ndir();                              // 0x488700 SWI!DIR
 void mp_send_swi_hide(Character *c);                  // 0x488b00 SWI_HID

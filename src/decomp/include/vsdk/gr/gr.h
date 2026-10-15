@@ -288,6 +288,11 @@ struct gr_vertex {
 LAYOUT_CHECK(gr_vertex, sizeof(gr_vertex) == 0x30);
 // (n, verts): clips the polygon, projects the result; returns the vertex count (vsdk\gr).
 int gr_clip_and_project_poly(int n, gr_vertex **verts);   // 0x53e9d0
+// decomp56 (decals): (out, in, count) view-space vertices from world points; (v, d) pushes a vertex d
+// along its view ray (depth bias); (n, verts, flags, a, b) draws a polygon (the decals pass 0x118c21, 0, 0).
+void gr_rotate_vertices(gr_vertex *out, const vector3 *in, int count);   // 0x50e990
+void gr_offset_point_depth(gr_vertex *v, float d);    // 0x50ea00
+void gr_poly(int n, gr_vertex **verts, unsigned int flags, int a, int b);   // 0x53e770 (return unused)
 
 // Dynamic lights (vsdk\gr, 0x51e0c0-; 400 records of 0x94 bytes at 0x2ca5de0; file not known).
 // Partial layout from levelrender_sum_point_lights.
@@ -304,6 +309,12 @@ struct gr_light {
     ubyte _unk54[0x40];
 };
 LAYOUT_CHECK(gr_light, sizeof(gr_light) == 0x94);
+// decomp56 (decals): light selection around a point for per-vertex shading, (-1, pos, radius); the
+// shading writes r / g / b bytes per point (r, g, b, points, normals, count, 0, colour).
+void lights_select_nearest(int a, const vector3 *pos, float radius);   // 0x51e970
+void lights_pop_selection();                          // 0x51eb50
+void lights_shade_vertices(ubyte *r, ubyte *g, ubyte *b, const vector3 *pts, const vector3 *normals,
+                           int count, int a, int colour);   // 0x51f3b0
 void light_reset_all();                               // 0x51e0c0
 void light_set_ambient(float r, float g, float b);    // 0x51e230
 // (pos, range a, range b, intensity, r, g, b, flags); return unused (decomp28).

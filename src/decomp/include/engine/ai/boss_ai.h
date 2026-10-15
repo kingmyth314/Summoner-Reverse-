@@ -317,6 +317,7 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 extern boss_threat giant_salamanka_threat_table[BOSS_MAX_THREATS];   // 0x248c7ec
 // The bosses' "combat enabled" bytes (their console commands set them; level_script_init sets them for
 // the multiplayer levels 0x15 / 0x13 / 0x19; decomp41). The last two names are ours.
+extern bool titus_turn_lock;                         // 0x248b914 titus_update_turn_lock (decomp56: ai_combat_face_target)
 extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
 extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
 extern bool machival_combat_enabled;                  // 0x248b034 cmd_machival_combat, machival_ai_idle
@@ -365,6 +366,130 @@ void  level_page_in_characters();                      // 0x4a3580 (level_load_f
 void  frame_sleep_when_inactive(int active, int a);    // 0x4a3870 timer_wait(10) when active == 0
 void  obstacles_debug_render();                        // 0x4a3890 (Render_3d_obstacles)
 void  shadow_list_clear();                             // 0x4a3eb0
+
+// ---- decomp56: the Pyrul unit (0x4b87c0-0x4b9e62) and the Ghost Rider unit (0x4b9e70-0x4bbe77) ----------
+// Files not known (placeholders game/unnamed_pyrul_0x4b87c0.cpp, game/unnamed_ghost_rider_0x4b9e70.cpp).
+class console_command;
+class matrix;
+
+// One found "$offense NN" mesh tag of a boss (0x1c bytes, 10 per boss after the count; the *_boss_load
+// loops pack the found tags, the *_update_attack_points functions refresh dir / pos every think).
+// Type and field names ours (bosses.md "offense points").
+struct boss_offense_point {
+    int tag;                          // +0x00 character_find_mesh_tag(offense_point_name(i))
+    vector3 dir;                      // +0x04 second row (uvec) of the bone's world orientation
+    vector3 pos;                      // +0x10 bone position + the boss's centre offset
+};
+LAYOUT_CHECK(boss_offense_point, sizeof(boss_offense_point) == 0x1c);
+
+// Shared helper of another boss unit (Evil Joseph unit 0x4c3470-0x4c40d0; not written yet;
+// boss_target_list_find 0x4c3c70 is declared above).
+void  boss_resurrect_full(Character *c);               // 0x4c3fb0
+
+// Pyrul (species 0xc4). The move pointers are [stage][index] records of pyrul_attack_table; names ours.
+extern console_command ccmd_pyrul_stage;              // 0x247fcf0
+extern console_command ccmd_pyrul_combat;             // 0x247fd18
+void  cmd_pyrul_stage();                               // 0x4b8850
+void  cmd_pyrul_combat();                              // 0x4b88c0
+extern boss_attack *pyrul_move_2_3;                   // 0x247fcfc &pyrul_attack_table[1][3]
+extern boss_attack *pyrul_move_3_3;                   // 0x247fd00 [2][3]
+extern boss_attack *pyrul_move_3_2;                   // 0x247fd04 [2][2]
+extern boss_attack *pyrul_move_2_2;                   // 0x247fd08 [1][2]
+extern boss_attack *pyrul_move_1_0;                   // 0x247fd0c [0][0]
+extern boss_attack *pyrul_move_2_0;                   // 0x247fd10 [1][0]
+extern boss_attack *pyrul_move_3_0;                   // 0x247fd14 [2][0]
+extern int  pyrul_stage;                              // 0x247fd28 1..3
+extern int  pyrul_target_stage;                       // 0x247fd2c cmd_pyrul_stage (0 = by HP)
+extern int  pyrul_247fd30;                            // 0x247fd30 zeroed when the target is lost, never read
+extern int  pyrul_num_offense_points;                 // 0x247fdb4
+extern boss_offense_point pyrul_offense_points[10];   // 0x247fdb8
+extern boss_attack pyrul_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x247fed0 "pyrul_boss.tbl"
+extern GameTimer pyrul_move_timer;                    // 0x2480294 started when a move is chosen
+extern int  pyrul_target;                             // 0x2480298 target handle
+extern GameTimer pyrul_target_timer;                  // 0x248029c retarget timer
+extern GameTimer pyrul_timer_a;                       // 0x24802a0 stage 2 special (30 s)
+extern GameTimer pyrul_timer_b;                       // 0x24802a4 stage 3 special (30 s)
+extern int  pyrul_ground_fx;                          // 0x24802a8 last wall of fire effect, never read
+extern int  pyrul_24802ac;                            // 0x24802ac -1 at load, never read
+extern int  pyrul_24802b0;                            // 0x24802b0 0 at load, never read
+extern int  pyrul_24802b4;                            // 0x24802b4 0 at load, never read
+extern int  pyrul_num_hits;                           // 0x24802b8
+extern int  pyrul_hits[5];                            // 0x24802bc handles the area attack hits
+extern boss_attack *pyrul_move_1_2;                   // 0x24802d0 [0][2]
+extern boss_attack *pyrul_move_1_1;                   // 0x24802d4 [0][1]
+extern boss_attack *pyrul_move_2_1;                   // 0x24802d8 [1][1]
+extern boss_attack *pyrul_move_3_1;                   // 0x24802dc [2][1]
+void  pyrul_timer_a_reset(Character *c);               // 0x4b89b0 (the argument is not read)
+void  pyrul_timer_b_reset(Character *c);               // 0x4b89c0 (the argument is not read)
+void  pyrul_stage1_reset(Character *c);                // folded into empty_function 0x4f13e0 (name ours)
+void  pyrul_init_move_ptrs();                          // 0x4b8b20
+void  pyrul_timer_set_random(int min_ms, int max_ms);  // 0x4b93d0 pyrul_target_timer
+void  pyrul_update_attack_points(Character *c);        // 0x4b9400
+void  pyrul_get_missile_origin(Character *c, matrix *orient, vector3 *pos);   // 0x4b95f0
+bool  pyrul_point_in_attack_cone(Character *c, boss_attack *move);  // 0x4b9c20
+
+// Ghost Rider (species 0x5a). Move pointers [stage][index] of ghost_attack_table; names ours. The minions
+// are the bone servants (species 0x43, spell 0x51), bone mages (0x45, spell 0x52) and undead (0x9c,
+// spell 0x53), two each (bosses.md "Ghost minions").
+extern boss_attack *ghost_move_3_2;                   // 0x24802e0 [2][2]
+extern boss_attack *ghost_move_1_2;                   // 0x24802e4 [0][2]
+extern boss_attack *ghost_move_2_2;                   // 0x24802e8 [1][2]
+extern Character *ghost_mount;                        // 0x24802ec the mount at load (rider sound)
+extern boss_attack *ghost_move_3_0;                   // 0x24802f0 [2][0]
+extern boss_attack *ghost_move_3_1;                   // 0x24802f4 [2][1]
+extern boss_attack *ghost_move_2_1;                   // 0x24802f8 [1][1]
+extern console_command ccmd_ghost_combat;             // 0x2480300
+extern boss_attack *ghost_move_2_0;                   // 0x248030c [1][0]
+extern int  ghost_target_stage;                       // 0x2480314 cmd_ghost_stage (0 = by HP)
+extern bool ghost_dismount_requested;                 // 0x2480318 HP below 66 %: waits for the script
+extern bool ghost_dismount_done;                      // 0x2480319 set by the Ghost-Dismount cutscene end
+extern bool ghost_combat_enabled;                     // 0x248031a cmd_ghost_combat, ghost_ai_idle
+extern bool ghost_mounted;                            // 0x248031b
+extern int  ghost_remap_count;                        // 0x2480320 ghost_anim_remap_in / _out
+extern int  ghost_remap_kind[2];                      // 0x2480324 locomotion_anim_names index
+extern float ghost_remap_weight[2];                   // 0x248032c
+extern int  ghost_num_offense_points;                 // 0x2480334
+extern boss_offense_point ghost_offense_points[10];   // 0x2480338
+extern boss_attack ghost_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x2480450 "ghost_rider_boss.tbl"
+extern int  ghost_pending_submode;                    // 0x2480814 0x20 (AIS_SAFETY) when ghost_choose_attack returns 1
+extern int  ghost_2480818;                            // 0x2480818 zeroed when the target is lost, never read
+extern int  ghost_target;                             // 0x2480894 target handle
+extern GameTimer ghost_target_timer;                  // 0x2480898 retarget timer
+extern GameTimer ghost_think_timer;                   // 0x248089c wander check (ghost_timer_set_random)
+extern GameTimer ghost_wander_timer;                  // 0x24808a0 wander duration (5 s)
+extern GameTimer ghost_fear_timer;                    // 0x24808a4 paralysing fear (45 s / 30 s)
+extern GameTimer ghost_summon_timer;                  // 0x24808a8 minion summons (20-40 s)
+extern int  ghost_saved_trip_anim;                    // 0x24808ac anim_tripped_liedown while mounted
+extern int  ghost_bone_servants[2];                   // 0x24808b0 minion handles (species 0x43)
+extern int  ghost_bone_mages[2];                      // 0x24808b8 (species 0x45; the servants in jadetemple)
+extern int  ghost_undead[2];                          // 0x24808c0 (species 0x9c; the servants in jadetemple)
+extern int  ghost_minions_raised;                     // 0x24808c8 summons out (the summon gate is < 2)
+extern int  ghost_summon_minion;                      // 0x24808cc handle for the next summon, -1 none
+extern vector3 ghost_summon_pos;                      // 0x24808d0
+extern int  ghost_num_hits;                           // 0x24808dc
+extern int  ghost_hits[12];                           // 0x24808e0
+extern console_command ccmd_ghost_unlink;             // 0x2480910
+extern boss_attack *ghost_move_1_0;                   // 0x248091c [0][0]
+extern boss_attack *ghost_move_1_1;                   // 0x2480920 [0][1]
+extern console_command ccmd_ghost_stage;              // 0x2480928
+extern console_command ccmd_ghost_solo;               // 0x2480938
+extern bool ghost_loaded;                             // 0x2480944 ghost_rider_boss_load ran (ghost_unload clears it)
+void  cmd_ghost_stage();                               // 0x4b9ea0
+void  cmd_ghost_unlink();                              // 0x4b9f00
+void  cmd_ghost_combat();                              // 0x4b9fc0
+Character *ghost_find_rider();                         // 0x4b9fe0 the last living entity of species 0x5a
+void  cmd_ghost_solo();                                // 0x4ba050
+// (unused, layer, pos): pos->y = the highest floor hit between pos->y + 20 and pos->y - 20, if any.
+void  ghost_find_floor_below(Character *unused, int layer, vector3 *pos);   // 0x4ba0d0
+void  ghost_timer_set_random(int min_ms, int max_ms);  // 0x4ba690 ghost_think_timer
+void  ghost_set_stage1_anims(Character *c);            // 0x4ba6c0
+void  ghost_setup_anims_unmounted(Character *c);       // 0x4ba780
+void  ghost_setup_anims(Character *c);                 // 0x4ba7a0
+void  ghost_init_move_ptrs();                          // 0x4ba870
+void  ghost_timer2_set_random(int min_ms, int max_ms); // 0x4bb050 ghost_target_timer
+void  ghost_update_attack_points(Character *c);        // 0x4bb080
+void  ghost_choose_move_target(Character *boss);       // 0x4bb120 summon move, minion and position
+bool  ghost_point_in_attack_cone(Character *c, boss_attack *move);  // 0x4bbb80
 
 #endif
 

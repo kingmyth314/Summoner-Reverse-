@@ -29,12 +29,13 @@ struct s3d_box {
 };
 
 // Extra geometry data at s3d_geometry +0x38 (0x14 bytes). Unit 0x4bbe80-0x4bcdc0 (decals and these
-// helpers; file not known). Layout from the sum.symbols comment of s3d_geom_block_read.
+// helpers; file not known; source game/unnamed_decals_0x4bbe80.cpp, decomp56). Layout from the sum.symbols comment of s3d_geom_block_read.
 class s3d_geom_block {
 public:
     s3d_geom_block();                 // 0x4bcd40 s3d_geom_block__ctor (s3d_geom_block_clear)
     ~s3d_geom_block();                // 0x4bcd90 (thunk to the destructor)
     void read(File *f);               // 0x4bcdc0 s3d_geom_block_read
+    void clear();                     // 0x4bcda0 s3d_geom_block_clear (decomp56)
     ushort *_unk00;                   // +0x00
     void *_unk04;                     // +0x04 12-byte entries
     unsigned int _unk08;              // +0x08

@@ -13,6 +13,12 @@
 // vector3::operator= for the normal, then copies d).
 class plane {
 public:
+    // decomp56 (D3601): the constructor from a normal and a point is the COMDAT 0x4a42e0 (sum.symbols
+    // plane__set_normal_point_b: the same body, returns this); the shadow and decal code build temporary
+    // planes with it for projector_record::add_plane. The default constructor is empty.
+    plane() {}
+    plane(const vector3 *n, const vector3 *p)         // 0x4a42e0 plane__set_normal_point_b
+    { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }
     void set_normal_point(const vector3 *n, const vector3 *p)   // 0x43b5a0 plane__set_normal_point
     { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }
     float distance_to_point(const vector3 *p);       // 0x50f860 Plane__distance_to_point
@@ -32,6 +38,11 @@ LAYOUT_CHECK(ix_ray, sizeof(ix_ray) == 0x18);
 // false when the ray is parallel to the plane; else out = origin + dir * t (t may be negative).
 bool  ix_ray_plane(ix_ray *ray, plane *pl, vector3 *out);    // 0x53ce30
 // (point, segment start, segment end, out closest point): the distance (pick_test_character drops it).
+// decomp56: polygon tests against plane sets (vsdkgeom in sum.symbols, file not known), used by the
+// decal, shadow and projector code. (n, points, planes, count, offset): false when for some plane no
+// point lies behind it. (n < 32, in, out, planes, count): clips in to out, the vertex count (< 3: gone).
+int   polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, int offset);   // 0x551f90
+int   polygon_clip_to_planes(int n, const vector3 *in, vector3 *out, const plane *planes, int num_planes);   // 0x551e90
 float ix_point_linesegment(const vector3 *p, const vector3 *a, const vector3 *b, vector3 *closest);   // 0x53da80
 
 #endif

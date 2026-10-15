@@ -71,6 +71,7 @@ Rules:
 | `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 46 / 8 / 0 (`NOTES-unnamed-input-cutscene.md`) |
 | `game/unnamed_mpmenus_0x43eb00.cpp`, `unnamed_lobby_0x43ef30.cpp`, `unnamed_mlayout_0x43f9d0.cpp`, `unnamed_effectstream_0x440400.cpp`, `unnamed_netsession_0x440b40.cpp`, `unnamed_netpackets_0x441820.cpp` | multiplayer menus, IRC lobby, monster layouts, effect streaming, net session and packets (**names not known**) | 129 | 94 / 35 / 0 (`NOTES-unnamed-multi-net.md`) |
 | `game/unnamed_ai_groups_0x492b00.cpp`, `unnamed_cutscene_camera_0x493e50.cpp`, `unnamed_snow_0x4946a0.cpp`, `unnamed_serpent_0x495290.cpp`, `unnamed_phoenix_0x497ac0.cpp`, `unnamed_tiger_0x499e50.cpp` | AI groups, cutscene camera sequences, snow, and the Serpent, Phoenix and Tiger bosses (**names not known**) | 220 | 146 / 69 / 6 (`NOTES-unnamed-aigroups-bosses.md`) |
+| `game/unnamed_pyrul_0x4b87c0.cpp`, `unnamed_ghost_rider_0x4b9e70.cpp`, `unnamed_decals_0x4bbe80.cpp`, `unnamed_ai_combat_0x4bce60.cpp` | Pyrul and Ghost Rider bosses, decals and s3d geometry blocks, AI combat modes (**names not known**) | 131 | 65 / 60 / 6 (`NOTES-unnamed-pyrul-ghost-ai.md`) |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |

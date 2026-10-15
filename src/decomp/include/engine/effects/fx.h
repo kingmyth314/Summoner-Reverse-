@@ -43,6 +43,9 @@ public:
 };
 LAYOUT_CHECK(effect_object, sizeof(effect_object) == 0x10c);
 
+// decomp56 (Pyrul unit, AI combat unit): effect objects with spell 0x1a (fireball), 0x1d (wall of fire)
+// or 0x4e (Pyrul fireball).
+int  fx_count_spells_1a_1d_4e();                       // 0x48bd40
 obj *obj_from_handle_b(int handle);                    // 0x489f00 (thin obj_from_handle wrapper)
 extern effect_object fx_active_list;                   // 0x2305920 sentinel (fx_next = 0x23059b8)
 // decomp37 (living_entity.cpp): the status / ownership calls, argument lists from its call sites.

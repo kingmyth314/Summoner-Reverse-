@@ -115,11 +115,11 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`, `file_packfile`, the mouse, exception-handler, localisation, network and two os modules (placeholder names), `console`, `norlsallocpool`, `matrix`, `skeleton`, `character`, `bmpman`, `gr`, `gr_opengl`, `gr_direct3d`, `gr_glide`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
   level select, shop, item trade, options, save/load, status, automap, inventory, HUD, skills, spells, tutorial, multiplayer game list and
-  PXO chat screens, the interface manager, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow and the Serpent, Phoenix and Tiger bosses (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
+  PXO chat screens, the interface manager, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow the Serpent, Phoenix, Tiger, Pyrul and Ghost Rider bosses, decals and the AI combat modes (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 4,026 functions written (46.6%). Of these, 2,625 match the
-disassembly exactly as far as can be read, 1,261 likely, 64 unsure. All 132 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 4,154 functions written (48.1%). Of these, 2,690 match the
+disassembly exactly as far as can be read, 1,318 likely, 70 unsure. All 136 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

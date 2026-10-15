@@ -2739,3 +2739,45 @@ source-map.md says), serpent 0x495290 (273-277), phoenix 0x497ac0 (278-282), tig
 pathfinding.cpp starts at 0x49c840). No assert path, no strings.tbl read: all six are placeholder files.
 snow_start / snow_stop moved from levelrender.h to the snow unit header (levelrender.h includes it);
 Snow_enabled moved there from the cutscene header (which includes it).
+
+## decomp56: Pyrul, Ghost Rider, decals, AI combat (0x4b87c0-0x4c0245)
+
+**D3600 (engine/ai/ai.h). ai_state::ghost_seat_rider returns bool.** It sets AL on every path (`mov al, 1`
+0x4ba9ea / 0x4baa50, `xor al, al` 0x4baa58), like the serpent / tiger / phoenix seat functions (D3405). The
+only caller, boss_ai_check_stage, ignores the value, so no call changes.
+
+**D3601 (vsdk/math/ix.h). plane gets plane(const vector3 *n, const vector3 *p) and an empty plane().**
+0x4a42e0 (sum.symbols plane__set_normal_point_b) has set_normal_point's body but returns this (`mov eax,
+ecx`), and its callers pass EAX straight on to projector_record::add_plane / set (0x4bc157-0x4bc15c,
+0x4bc1a6-0x4bc1b1): a constructor of a temporary. The empty default constructor keeps `plane p;`
+(gametarget.cpp) compiling.
+
+**D3602 (engine/ai/ai.h). ai_state +0x20 is vector3 approach_pos and +0x2c int approach_layer** (were
+`int _unk20; ubyte _unk24[0xc]`). ai_combat_start_approach (0x4bd9c9-0x4bd9e9) and
+ai_chase_target_until_in_range (0x4be109-0x4be134) store the target's position and layer there. No other
+src/decomp file uses the old names.
+
+**D3603 (engine/ai/ai.h). 0x4bce80 is an ai_state member.** sum.symbols calls it charinfo_within_attack_radius,
+but every caller passes the AI record in ECX (0x4bd2cb, 0x4bdc1f, 0x4be6c7, 0x4be7dd) and +0x34 is
+ai_state::attack_range; it is declared ai_state::within_attack_radius (dist < attack_range + 0.2).
+
+**D3604 (engine/ai/boss_ai.h). The Pyrul / Ghost Rider .bss cut is 0x24802e0, not 0x2480300.** Pyrul's
+last move pointer is 0x24802dc (pyrul_init_move_ptrs) and ghost_init_move_ptrs writes 0x24802e0-0x24802f8,
+so the ghost unit's .bss starts at 0x24802e0 (source-map.md gives 0x2480300, the first command object). The
+ghost minion handles are three arrays of two (servants 0x24808b0, mages 0x24808b8, undead 0x24808c0):
+ghost_revive_minions has three separate loops and ghost_choose_move_target picks one pair per summon spell.
+The offense-point record type boss_offense_point (0x1c) is shared by both units.
+
+**D3605 (engine/rendering/unnamed_decals_0x4bbe80.h, unnamed_projectors_0x4c0250.h; new placeholder
+headers).** decal_record (0x128) embeds the projector record (0xe0) at +0x38; the projector keeps world
+planes at +0x14 (add_plane 0x4c070b) and object-space planes at +0x80 (to_lobj_space 0x4c0740), which the
+decal draw and projector_collect_lobj_faces clip against (0x4bc8ee, 0x4c0574). Flag words are bitfields
+(lifetime : 29 at decal +0x24; plane count bits 1-3 at projector +0). The rings are vsdk.h's plist_* lists;
+decal_recycle's body is expanded again in decals_draw_for_lobj and decals_recycle_unused.
+
+**D3606 (engine/ai/ai.h). The AI combat unit uses decomp54's names.** ai_group +0x1c / +0x20 are
+num_enemies / enemies (D3400): ai_combat_cast_frame reads them for the support candidates (the target's
+group) and a party member's offensive candidates. combat_approach, turn_towards, follow_path,
+alert_guards_of_target, combat_close_in / _melee_attack / _ranged_attack and choose_support_spell keep the
+decomp54 declarations; living_combat::update(int move_id) is D3404 (the AI combat callers push
+boss_get_attack_move_id's result, -1 or 0).

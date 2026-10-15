@@ -13,6 +13,14 @@
 
 class Character;
 class vector3;
+struct boss_target;                    // engine/ai/boss_ai.h (the AI spell code uses the same records)
+
+// One candidate spell of ai_choose_offensive_spell (8 bytes on its stack): the score is the running
+// total when appended, normalised before the pick. Type and field names ours (decomp56).
+struct ai_spell_choice {
+    int spell;
+    float score;
+};
 
 // An AI group (10 x 0x54 bytes at 0x243e040; Character +0x4cc points at one). Saved in the LENT chunk.
 struct ai_group {
@@ -232,7 +240,7 @@ public:
     void phoenix_check_stage();       // 0x499690
     bool phoenix_seat_rider();        // 0x4982a0 (decomp54: returns al; was void)
     void ghost_update_stage();        // 0x4bb4c0
-    void ghost_seat_rider();          // 0x4ba8e0
+    bool ghost_seat_rider();          // 0x4ba8e0 (decomp56: returns true when the rider was placed; was void, D3600)
     void tentacle_beast_check_stage();// 0x4c7360
     void titus_check_stage();         // 0x4c24c0
     void pyrul_check_stage();         // 0x4b8b90
@@ -291,6 +299,37 @@ public:
     bool combat_approach(Character *t);       // 0x4bda50 ai_combat_approach (tiger_wander_update tests al)
     bool turn_towards(vector3 *point, int a); // 0x4b2af0 ai_turn_towards (the tiger passes 1)
     void alert_guards_of_target(Character *attacker);   // 0x4bfed0 ai_alert_guards_of_target
+    // decomp56 (the Pyrul and Ghost Rider units): their think helpers.
+    int  pyrul_choose_attack();       // 0x4b8da0 0 none, 3 approach with a new move, 5 keep the current move
+    int  ghost_choose_attack();       // 0x4bac20 0 none, 1 wander (ghost_pending_submode), 3 new move, 5 keep
+    void ghost_wander_update();       // 0x4baaa0 (sub-mode AIS_SAFETY)
+    bool ghost_wander_start();        // 0x4baae0
+    int  goal_do_cast_at_target(int spell, int target);   // 0x4b6500 ai_goal_do_cast_at_target: 0, or -1 without the target (unit not known)
+    // decomp56 (the AI combat unit 0x4bce60-0x4c0245, game/unnamed_ai_combat_0x4bce60.cpp; file not known).
+    // combat_approach, alert_guards_of_target, combat_close_in / _melee_attack / _ranged_attack and
+    // choose_support_spell are declared with the decomp54 declarations.
+    bool within_attack_radius(float dist);   // 0x4bce80 charinfo_within_attack_radius: dist < attack_range + 0.2 (D3603)
+    bool approach_random_offset(Character *target);   // 0x4bcea0 ai_approach_random_offset
+    bool approach_target_point(Character *target);    // 0x4bcff0 ai_approach_target_point
+    bool approach_attack_slot(Character *target);     // 0x4bd2a0 ai_approach_attack_slot
+    bool combat_start_approach(Character *target, bool random_offset);   // 0x4bd9c0 ai_combat_start_approach
+    bool combat_toggle_ready_stance();                // 0x4bdce0 ai_combat_toggle_ready_stance (true: done)
+    int  chase_target_until_in_range(Character *target, float range);   // 0x4be0a0 1 in range, 0 chasing, -1 no path / target
+    bool combat_face_target(Character *target);       // 0x4be470 ai_combat_face_target (false: still turning)
+    void combat_follow_and_strike(Character *target); // 0x4be840 ai_combat_follow_and_strike
+    void combat_close_strike(Character *target);      // 0x4be8a0 ai_combat_close_strike
+    // (spell, record, candidates, candidate count, running total): appends {spell, running total}.
+    void rate_spell_targets(int spell, boss_target *t, ai_spell_choice *out, int *count, float *total);   // 0x4beba0
+    int  consider_blind_or_silence(boss_target *list, int count, boss_target **out);   // 0x4bee40 7, 8 or -1
+    int  consider_area_spell(int spell, boss_target *list, int count);          // 0x4befe0 spell or -1
+    // The next five take the current target record (pushed by value; not read): their spell or -1.
+    int  consider_power_leech(boss_target *list, int count, boss_target *cur);  // 0x4bf0c0 0x11
+    int  consider_death(boss_target *list, int count, boss_target *cur);        // 0x4bf1d0 0xc
+    int  consider_poison(boss_target *list, int count, boss_target *cur);       // 0x4bf320 6
+    int  consider_jade_beam(boss_target *list, int count, boss_target *cur);    // 0x4bf460 0x18
+    int  consider_life_drain(boss_target *list, int count, boss_target *cur);   // 0x4bf5a0 0xd
+    int  choose_offensive_spell(boss_target *list, int count, boss_target **out);   // 0x4bf700 spell or -1
+    void combat_cast_frame(Character *target);        // 0x4bfaa0 ai_combat_cast_frame (AIS_CHOOSE_SPELL)
     // decomp54: the tiger unit's thiscall functions (game/unnamed_tiger_0x499e50.cpp).
     bool tiger_wander_start(int target);      // 0x49a9b0 (ret 4)
     int  tiger_choose_attack();               // 0x49b350 0 none, 3 move chosen, 5 busy
@@ -311,8 +350,8 @@ public:
     int pending_submode;     // +0x14
     int combat_style;        // +0x18 ai_get_combat_style / ai_set_18
     GameTimer timer;         // +0x1C restarted by ai_set_mode
-    int _unk20;
-    ubyte _unk24[0x0c];
+    vector3 approach_pos;    // +0x20 the target position when an approach starts (decomp56, D3602; was _unk20 / _unk24)
+    int approach_layer;      // +0x2C
     GameTimer timer30;       // +0x30
     float attack_range;      // +0x34 reach of the current boss move (boss_get_move_range; was _unk34, D900)
     int priority;           // +0x38 999999 for direct orders
@@ -455,6 +494,15 @@ LAYOUT_CHECK(cast_effect_track, sizeof(cast_effect_track) == 0xc);
 #define MAX_CAST_EFFECT_TRACKS 5
 extern cast_effect_track cast_effect_tracks[MAX_CAST_EFFECT_TRACKS];   // 0x22e4950
 int  cast_effect_track_count();                       // 0x475160
+
+// decomp56: the AI combat unit (0x4bce60-0x4c0245, game/unnamed_ai_combat_0x4bce60.cpp, file not known).
+// (records, count, heal wanted, cure wanted): per record flag 1 hurt below half (score 50 - 100 * HP
+// fraction), flag 2 a curable status (+10); returns the sum of the scores.
+float ai_score_support_targets(boss_target *list, int count, bool heal, bool cure);   // 0x4be940
+extern vector3 ai_combat_aim_point;                   // 0x2483558 the target's attack point or position (name ours)
+// The AI movement unit before it (0x4b0210-0x4b77f0, file not known). Names ours.
+extern Character *ai_follow_target;                   // 0x247e878 set before ai_follow_path by the combat code
+extern int ai_combat_frames_watched;                  // 0x247e84c counts combat frames of the object under the mouse
 
 void ai_frame(Character *c);                          // 0x472a90 cdecl (sum.symbols: thiscall; D1901)
 bool ai_update_perception(Character *c);              // 0x472e80 cdecl: true = skip this frame's AI
