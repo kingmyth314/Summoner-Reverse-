@@ -127,7 +127,7 @@ The common template (Serpent, Phoenix, Tiger, Ghost, Pyrul, Titus, Giant Salaman
 ...
 495c74: fcomp dword ptr [0x57e6b0]       ; 0.5
 ...
-495c8f: mov al, byte ptr [0x2451da0]     ; serpent_stage_done ("stage 2 reached")
+495c8f: mov al, byte ptr [0x2451da0]     ; serpent_dismount_stage_reached ("stage 2 reached")
 495c99: mov byte ptr [0x2451da0], 0x1
 495ca0: mov byte ptr [0x2451da1], 0x0    ; serpent_stage_trigger, set by the Dismount cutscene
 ```
@@ -216,7 +216,7 @@ flag is 1, and the Intro cutscene end callback sets it. **Observed.** See [Level
 
 | Boss | Level script | Cutscenes | Script hooks |
 |---|---|---|---|
-| Serpent Rider | `rand-forest01` (`ls_rand_forest01_frame` `0x4f5b90`) | Serpent-Intro, Serpent-Dismount, Serpent-Escape | Dismount when `serpent_stage_done` is 1; Escape when the rider's HP <= 0 (sets `serpent_killed`) |
+| Serpent Rider | `rand-forest01` (`ls_rand_forest01_frame` `0x4f5b90`) | Serpent-Intro, Serpent-Dismount, Serpent-Escape | Dismount when `serpent_dismount_stage_reached` is 1; Escape when the rider's HP <= 0 (sets `serpent_killed`) |
 | Phoenix Rider | `rand-hills01` | PHNX-Intro, PHNX-Dismount, PHNX-Escape | same pattern (`phoenix_stage_trigger`) |
 | Ghost Rider | `rand-forestnite1` | Ghost-Intro, Ghost-Dismount, Ghost-Escape | same pattern (`0x2480319`) |
 | Tiger Rider | `templeint` | Tiger-Intro, Tiger-Dismount, Tiger-Escape | Escape end plays Act2-Outro once `act2_done` |

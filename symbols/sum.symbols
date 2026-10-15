@@ -3482,7 +3482,7 @@
 0x4bbae0  ghost_attack_test        func  -                    O ; boss_attack_test_dispatch ghost case: living_combat_test_defense of the target in reach (0x4bbb80) into 0x24808dc / 0x24808e0, used by ghost_resolve_hit (checked: boss_attack_test_dispatch ghost case: ghost_point_in_attack_cone then living_combat_test_defense of the target)
 0x4bbb80  ghost_point_in_attack_cone func  -                    O ; (target, attack) as pyrul_point_in_attack_cone on the ghost attack points 0x2480338, caller ghost_attack_test
 0x4bbc20  ghost_resolve_hit        func  -                    O ; living_combat_resolve_hit_vs on the target recorded in 0x24808dc / 0x24808e0
-0x4bbc70  ghost_revive_minions     func  -                    O ; Ghost Rider boss (boss_ai_check_stage case 0x5a): resurrects its minions with boss_resurrect_full, the stage logic is ghost_update_stage 0x4bb4c0 (formerly ghost_check_stage) (checked: three obj_from_handle minion handles each passed to boss_resurrect_full, then GameTimer__SetTimeout x2, caller boss_ai_check_stage)
+0x4bbc70  ghost_revive_minions     func  -                    O ; Ghost Rider boss (boss_ai_check_stage case 0x5a): while the revive counter 0x24808c8 is positive, resurrects dead ones of its six minion handles 0x24808b0-0x24808c4 with boss_resurrect_full; stage logic is ghost_update_stage 0x4bb4c0 (formerly ghost_check_stage)
 0x4bbd80  ghost_set_solo           func  -                    O ; rider_unlink_mount, combat flag 0x248031a = 1 (cmd_ghost_solo)
 0x4bbdd0  ghost_minions_deactivate func  -                    O ; for the six ghost minion handles 0x24808b0..0x24808c4: flag 8 in +0x320 and obj_flags bit 0 cleared, callers lsf_tiger2_dead, ls_rand_forestnite1_frame
 0x4bbe80  static_init_decal_records func  -                    O ; hidden start: initialiser table entry 314 (0x5884ec): jmp init_decal_records
@@ -3642,7 +3642,7 @@
 0x4c4020  evil_joseph_fire_attack  func  -                    O ; spell_cast_execute for the current move 0x248bc8c with the target data 0x248bcc0.., caller boss_attack_trigger_dispatch (checked: for move 0x248bc8c with spell 0x5c or 0x5e..0x60: increments 0x248bcc0 and spell_cast_execute at 0x248bcb4 on layer +0x68c, caller boss_attack_trigger_dispatch)
 0x4c4080  evil_joseph_filter_target func  -                    O ; case of boss_target_filter_dispatch: sets flag bit 0 of candidate +0xc when its distance +4 exceeds reach (+0x220) times a constant (formerly evil_joseph_evaluate_target)
 0x4c40b0  evil_joseph_get_attack_move_id func  -                    O ; alt id (+0x18) of the current move 0x248bc8c, or 0x248bc9c for move 0x248bcf4, evil Joseph case of 0x4a2070 (the attack move id passed to living_combat_update)
-0x4c40d0  evil_joseph_destroy_effects func  -                    O ; fx_destroy of the effects 0x248bca4 / 0x248bcb4 (living_from_handle), caller lsf_joseph_killed
+0x4c40d0  evil_joseph_destroy_effects func  -                    O ; loops over the Evil Joseph helper records: fx_destroy of their effects (living_from_handle), caller lsf_joseph_killed
 0x4c4170  static_init_evil_urath_timers func  -                    O ; hidden start: initialiser table entry 325 (0x588518): jmp init_evil_urath_timers
 0x4c4180  init_evil_urath_timers   func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248bd24 (stride 0x18) and 0x248bed4, reached from initialiser table entry 325 (0x588518) via jmp 0x4c4170
 0x4c41b0  static_init_ccmd_urath_combat func  -                    O ; hidden start: initialiser table entry 326 (0x58851c): jmp init_ccmd_urath_combat
@@ -5045,23 +5045,23 @@
 0x4fb500  init_ls_worldmap1_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ed08), used by ls_worldmap1_init / ls_worldmap1_frame and ls_lenele1b_action, reached from initialiser table entry 493 (0x5887b8) via jmp 0x4fb4f0
 0x4fb510  ls_worldmap1_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fb6d0  ls_worldmap1_setup_lenele func  -                    O ; stage-based triggers "lenele3d", "lenele2d", "lenele1d"(_v2/_v3)
-0x4fb830  ls_worldmap1_setup_masad func  -                    O ; stage >= 9: "masad_v2" instead of "masad"
+0x4fb830  ls_worldmap1_setup_masad func  -                    O ; stage < 9: the masad / masad_v2 exit is live, stage 9+: no exit and the Masad* map objects are hidden
 0x4fb860  ls_worldmap1_setup_iona  func  -                    O ; "ionaext", "ionaext02"(_v2)
 0x4fb940  ls_worldmap1_setup_ikaemos func  -                    O ; "ikaemosext" / "ikaemosext2", "got_ikaemos_map"
 0x4fb9c0  ls_worldmap1_setup_khosani func  -                    O ; "khosanistrng".."_v6", "got_ring_of_fire", "found_khosani"
 0x4fbcb0  ls_worldmap1_setup_jadetemple func  -                    O ; stage >= 14: "eleh" on, "jadetemple" off
-0x4fbd00  ls_worldmap1_setup_wolong func  -                    O ; stage >= 13: "wolong" instead of "wolong2" / "wolong2_v2"
+0x4fbd00  ls_worldmap1_setup_wolong func  -                    O ; stage < 13: the wolong exit, stage 13+: wolong2 / wolong2_v2
 0x4fbd50  ls_worldmap1_setup_liangshan func  -                    O ; stage >= 13 disables "liangshan"
 0x4fbd80  ls_worldmap1_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fbed0  ls_worldmap1_roll_encounter func  -                    O ; hidden start, only caller ls_worldmap1_frame: encounters on, 10 s timer elapsed, moving, AI not paused, frand against the ring / boss intro flags
 0x4fbfd0  ls_worldmap1_pick_encounter_early func  -                    O ; hidden start (no padding), caller ls_worldmap1_frame when the game stage is below 4: nearest hills/forest/grass navpoint, frand, rand-hills01 ... encounter levels
-0x4fc2a0  ls_worldmap1_nearest_hills_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $hills navpoint to cur_character, distance to out
-0x4fc350  ls_worldmap1_nearest_forest_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $forest navpoint to cur_character, distance to out
-0x4fc400  ls_worldmap1_nearest_grass_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $grass navpoint to cur_character, distance to out
+0x4fc2a0  ls_worldmap1_nearest_hills_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): pointer to the navpoint record (navpoints + 0x30*i) of the nearest $hills navpoint to cur_character, distance to out
+0x4fc350  ls_worldmap1_nearest_forest_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): pointer to the navpoint record (navpoints + 0x30*i) of the nearest $forest navpoint to cur_character, distance to out
+0x4fc400  ls_worldmap1_nearest_grass_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): pointer to the navpoint record (navpoints + 0x30*i) of the nearest $grass navpoint to cur_character, distance to out
 0x4fc4b0  ls_worldmap1_pick_encounter_stage4 func  -                    O ; hidden start, caller ls_worldmap1_frame (game stage 4..8): rand-hills/forest/forestnite level by nearest terrain, ring boss _v2 variants
 0x4fcaf0  ls_worldmap1_pick_encounter_stage9 func  -                    O ; hidden start, caller ls_worldmap1_frame (game stage 9..14): rand-desert / rand-orenia (nite) level by the nearer $desert / $orenian navpoint
-0x4fcce0  ls_worldmap1_nearest_desert_nav func  -                    O ; hidden start, only caller ls_worldmap1_pick_encounter_stage9: index of the nearest $desert navpoint, distance to out
-0x4fcd90  ls_worldmap1_nearest_orenian_nav func  -                    O ; hidden start, only caller ls_worldmap1_pick_encounter_stage9: index of the nearest $orenian navpoint, distance to out
+0x4fcce0  ls_worldmap1_nearest_desert_nav func  -                    O ; hidden start, only caller ls_worldmap1_pick_encounter_stage9: pointer to the navpoint record (navpoints + 0x30*i) of the nearest $desert navpoint, distance to out
+0x4fcd90  ls_worldmap1_nearest_orenian_nav func  -                    O ; hidden start, only caller ls_worldmap1_pick_encounter_stage9: pointer to the navpoint record (navpoints + 0x30*i) of the nearest $orenian navpoint, distance to out
 0x4fce40  ls_worldmap1_pick_encounter_stage15 func  -                    O ; hidden start, caller ls_worldmap1_frame (game stage 15+): iceland / hills / forest variants keyed on quest flags (Tome Page 8, extra_5)
 0x4fd560  ls_worldmap1_leave       func  -                    O ; level_script_table entry: level script leave handler
 0x4fd5c0  static_init_ccmd_iw      func  -                    O ; hidden start: initialiser table entry 494 (0x5887bc): jmp init_ccmd_iw
@@ -10101,7 +10101,7 @@
 0x2451d90  serpent_attack_anim_d    data:int -                    O ; move id 5 set by serpent_boss_load, stored per attack by serpent_choose_attack (checked: dword set 5 by serpent_boss_load, read by serpent_choose_attack)
 0x2451d98  serpent_stage            data:int -                    O ; current serpent fight stage (start of the 0x190-dword block cleared by serpent_boss_load), checked by serpent_check_stage, serpent_evaluate_target, serpent_choose_attack
 0x2451d9c  serpent_target_stage     data:int -                    O ; stage to switch to, set by cmd_serpent_stage (0..3), serpent_boss_load, cutscene_play_escape, compared by serpent_check_stage
-0x2451da0  serpent_stage_done       data:bool -                    O ; cleared by serpent_boss_load, set by serpent_check_stage when a stage change completes, used by serpent_anim_remap_in/out (checked: byte cleared by serpent_boss_load, set 1 by serpent_check_stage, cmp 1 in ls_rand_forest01_frame)
+0x2451da0  serpent_dismount_stage_reached data:bool -                    O ; set by serpent_check_stage when HP drops below 50% (stage 2, on foot), cleared by serpent_boss_load; the level script then plays Serpent-Dismount (formerly serpent_stage_done)
 0x2451da1  serpent_stage_trigger    data:bool -                    O ; set by ls_rand_forest01_frame, consumed by serpent_check_stage (checked: byte set 1 by ls_rand_forest01_serpent_dismount_cs_end, read and cleared by serpent_check_stage)
 0x2451da2  serpent_combat           data:bool -                    O ; set by cmd_serpent_combat (Setting serpent's ai state to combat), serpent_set_solo and ls_rand_forest01_frame, tested by serpent_choose_attack
 0x2451da3  serpent_has_rider        data:bool -                    O ; level-dependent flag set by serpent_boss_load, tested by serpent_seat_rider and the foot/ride animation setters (checked: byte set by serpent_boss_load/set_ride_anims, cleared by serpent_set_foot_anims, read by serpent_seat_rider)
@@ -10135,7 +10135,7 @@
 0x2452414  serpent_mount            data:Character* -                    O ; character_get_mount result stored by serpent_boss_load, used by serpent_seat_rider
 0x2452420  phoenix_stage            data:int -                    O ; current phoenix fight stage set by phoenix_boss_load/phoenix_stage_transition_move/phoenix_set_solo, read by phoenix_choose_attack, phoenix_reposition_update, phoenix_check_stage
 0x2452424  phoenix_target_stage     data:int -                    O ; stage to switch to, set by cmd_phoenix_stage (0..3), phoenix_boss_load, cutscene_play_escape, compared by phoenix_check_stage
-0x2452428  phoenix_stage_done       data:bool -                    O ; cleared by phoenix_boss_load, set by phoenix_check_stage, used by phoenix_anim_remap_in/out (checked: byte cleared by phoenix_boss_load, set 1 by phoenix_check_stage, cmp 1 in ls_rand_hills01_frame)
+0x2452428  phoenix_dismount_stage_reached data:bool -                    O ; set by the phoenix stage check when stage 2 (dismount) is reached, cleared by phoenix_boss_load; the level script then plays PHNX-Dismount (formerly phoenix_stage_done)
 0x2452429  phoenix_stage_trigger    data:bool -                    O ; set by ls_rand_hills01_frame, consumed by phoenix_check_stage (checked: byte set 1 by ls_rand_hills01_phoenix_dismount_cs_end, read and cleared by phoenix_check_stage)
 0x245242a  phoenix_combat           data:bool -                    O ; set by cmd_phoenix_combat (Setting phoenix's ai state to combat), phoenix_set_solo and ls_rand_hills01_frame, tested by phoenix_ai_idle/phoenix_choose_attack
 0x245242b  phoenix_has_rider        data:bool -                    O ; set by phoenix_boss_load and phoenix_set_ride_anims, cleared by phoenix_set_foot_anims, tested by phoenix_seat_rider (checked: byte set by phoenix_boss_load/set_ride_anims, cleared by phoenix_set_foot_anims, read by phoenix_seat_rider)
@@ -10164,14 +10164,14 @@
 0x2452a80 ccmd_tiger_stage         data:console_command -                      O ; console command object "tiger_stage"
 0x2452a90  tiger_stage              data:int -                    O ; current tiger fight stage set by tiger_boss_load/tiger_set_ride_anims/tiger_set_solo, compared by tiger_check_stage, tiger_wander_start, tiger_choose_attack
 0x2452a94  tiger_target_stage       data:int -                    O ; stage to switch to, set by cmd_tiger_stage (Invalid stage for tiger rider), tiger_boss_load, cutscene_play_escape, read by tiger_check_stage
-0x2452a98  tiger_stage_done         data:bool -                    O ; cleared by tiger_boss_load, set by tiger_check_stage, checked by ls_templeint_frame before Tiger-Dismount (checked: byte cleared by tiger_boss_load, set 1 by tiger_check_stage, cmp 1 in ls_templeint_frame)
+0x2452a98  tiger_dismount_stage_reached data:bool -                    O ; set by tiger_check_stage when stage 3 (on foot, HP < 50%) is reached, cleared by tiger_boss_load; the level script then plays Tiger-Dismount (formerly tiger_stage_done)
 0x2452a99  tiger_stage_trigger      data:bool -                    O ; set by the ls_templeint_frame callback, consumed by tiger_check_stage (checked: byte set 1 by ls_templeint_tiger_dismount_cs_end, read and cleared by tiger_check_stage)
 0x2452a9a  tiger_combat             data:bool -                    O ; set by cmd_tiger_combat (Setting tiger's ai state to combat) and tiger_set_solo, cleared by tiger_boss_load, tested by tiger_ai_idle
 0x2452a9b  tiger_has_rider          data:bool -                    O ; set by tiger_boss_load/tiger_set_ride_anims, cleared by tiger_set_foot_anims, tested by tiger_seat_rider (checked: byte set by tiger_boss_load/set_ride_anims, cleared by tiger_set_foot_anims, read by tiger_seat_rider)
 0x2452a9c  tiger_anim_remap_count   data:int -                    O ; entry count copied from the remap table by tiger_anim_remap_in, looped by tiger_anim_remap_out
 0x2452ab0  tiger_weapon             data:void* -                    O ; first weapon item created by tiger_equip_weapon (item_create_weapon), its range used by tiger_get_attack_range
 0x2452ab4  tiger_axe                data:void* -                    O ; TigerAxe item created by tiger_equip_weapon, swapped in by tiger_swap_weapon/tiger_setup_anims, freed by tiger_unload
-0x2452ab8  tiger_weapon_equipped    data:int -                    O ; set by tiger_equip_weapon, zeroed by tiger_swap_weapon/tiger_setup_anims, checked by tiger_check_stage (checked: dword set by tiger_equip_weapon, zeroed by tiger_swap_weapon/setup_anims, tested in tiger_check_stage and stage_move_update)
+0x2452ab8  tiger_spear_uses_left    data:int -                    O ; countdown: tiger_equip_weapon sets 4, tiger_move_done_hook decrements it after each move 0; at 0 (HP still above 50%) tiger_check_stage swaps the spear for the axe (stage 2) (formerly tiger_weapon_equipped)
 0x2452ac0  tiger_threat_table       data:uint8[5*0x18] -                    O ; 5 threat records of 0x18 bytes (GameTimer at +0x14) reset by tiger_boss_load, searched by tiger_threat_find, returned by boss_get_threat_table
 0x2452b38  tiger_wander_point       data:vector3 -                    O ; destination picked by tiger_pick_wander_point, passed by tiger_wander_start, distance checked in tiger_wander_update
 0x2452b5c  tiger_reposition_timer   data:GameTimer -                    O ; GameTimer (init_tiger_timers) set by tiger_wander_update, tiger_reposition_update and tiger_ai_frame
@@ -10443,7 +10443,7 @@
 0x2490ca0  level_shopkeepers        data:uint8[0x12c] -                    O ; 0x14-byte shopkeeper records filled by level_parse_shopkeeper, searched by level_shopkeeper_find
 0x2490dcc  level_effect_count       data:int -                    O ; count of level_effects
 0x2490dd0  level_triggers           data:uint8[0xc80] -                    O ; 32 trigger records of 0x64 bytes ($Trigger:, flags +0x54, navpoint +0x5c), level_parse_trigger / level_trigger_trip
-0x2491a50  random_encounter_flags   data:int -                    O ; bits 1 and 2 set by level_check_triggers, bit 2 tested by hud_confirm_level_exit (checked: dword zeroed and or 1/2 in level_check_triggers, byte read in hud_confirm_level_exit)
+0x2491a50  level_exit_block_flags   data:int -                    O ; level_check_triggers: bit 0x1 a party member is more than 10 units away, bit 0x2 a hostile in combat is within 20 units; hud_confirm_level_exit refuses to leave; skipped on the world map, in towns and rand- levels (formerly random_encounter_flags)
 0x2491a54  level_script_leave_fn    data:void* -                    O ; level_script_info +0x0c of the current level, called by level_script_leave / restart
 0x2491a58  level_ambient_count      data:int -                    O ; number of records in level_ambients
 0x2491a5c  game_frozen              data:bool -                    O ; GameTick sets reported_frametime = 0 when 1 (checked: byte cmp 1 in GameTick, set 1 by hud_confirm_level_exit_cb, cleared by level_check_triggers/level_script_reparse)
