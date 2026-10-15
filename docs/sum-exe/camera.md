@@ -66,7 +66,7 @@ Flags at `+0x0c` (**observed** unless marked):
 | `0x8` | A camera sequence is running |
 | `0x10` | Free look (slew); runs only while `0x1` is clear |
 | `0x20` | Default view values stored (`camera_set_default_view_params`) |
-| `0x40` | Blocks zoom input; cleared by `camera_auto_rotate_update` every frame. Setter *unknown* |
+| `0x40` | Blocks zoom input. `camera_auto_rotate_update` sets it while it turns the camera (`0x477e1f`) and clears it again, so the player cannot zoom during an automatic turn (**observed**) |
 | `0x80` | Sequence origin and rotation are set |
 | `0x100` | Restore zoom from `+0x1a0` when auto-turning ends |
 | `0x200` | Go back to mode 3 after mode 5 |
@@ -260,7 +260,7 @@ See [Console](console.md).
 
 ## Open questions
 
-- Who sets flag `0x40`, and what `+0x19c` is meant for (the low view lowers the eye by 1.5).
+- What `+0x19c` is meant for (the low view lowers the eye by 1.5). (Flag `0x40` is answered above.)
 - What `$low_camera` stores, and which detail settings set `+0x008`.
 - The byte at `0x5943fd` gates the auto-turn toward a mouse-move target in
   `world_pick_under_mouse` (`0x43b52e`). It is 1, it is never written, and it sits inside the

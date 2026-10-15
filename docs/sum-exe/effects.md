@@ -63,7 +63,7 @@ Kinds set by the creators:
 
 | Kind | Creator | Use |
 |---|---|---|
-| 2 | (target set by `fx_set_target` `0x48cf50`) | *inferred*: cast effect that waits for a target |
+| 2 | (`fx_set_target` `0x48cf50` only acts on objects whose type `+0xc` is 2) | *inferred*: cast effect that waits for a target; the check is on the object type `+0xc`, not the effect kind `+0xa4` (**observed**) |
 | 3 | `fx_create_at_camera` `0x48c140` | cutscene effects at the camera |
 | 4 | `fx_create_missile` `0x48c220` | projectiles; `fx_update_missile` `0x48b7a0` homes on the target bone |
 | 7 | `fx_create_ground_effect` `0x48c540` | spell ground effects with a sound and timer |
