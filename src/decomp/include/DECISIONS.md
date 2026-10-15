@@ -908,3 +908,57 @@ pass 1). The trigger functions take a float frame number (callers push it with f
 Mempool::ResetOffset (inline in memory.h like getPoolSpaceLeft, D12: the COMDAT 0x505540 `mov [ecx+8], 0`
 is called by character_reload_mesh), bm_replace_file 0x5031c0 (int; -1 on failure), charinfo_find_by_name
 0x446b80 (characterinfo.h; character_load_shadow tests `char_infos[i].flags & 1`, +0x258).
+
+## s3d.cpp / levelrender.cpp (decomp28)
+
+**D800 (s3d.h, levelrender.h). The level is one object, s3d_level level_s3d (0xe0 bytes at 0xa5a2a0).**
+sum.symbols types 0xa5a2a0 `uint8[0x28]` and names its later fields as separate globals (num_lobjs
+0xa5a2c8, lobjs 0xa5a2cc, level_num_navpoints 0xa5a2d8, ..., level_texture_bms 0xa5a320). But
+level_load_files passes 0xa5a2a0 to level_load_s3d (0x438708), s3d_level_clear zeroes 0x38 dwords of it
+(0x46e1a5), every reader addresses the counts and arrays as level +0x20..+0xdc, and level_page_in_textures
+ORs bit 1 into the byte at 0xa5a2a0 itself (0x46ff38-0x46ff46). New `struct s3d_level` in the new header
+engine/s3d/s3d.h (Engine\s3d\s3d.cpp, path literal 0x59ad10). levelrender.h's `extern int num_lobjs`,
+`extern lobj *lobjs` and `extern int *level_texture_bms` become macros on its fields, as D404 did for
+pxo_cfg_flags (`#define num_lobjs (level_s3d.num_meshes)`, and likewise num_doors, doors,
+level_num_navpoints, level_navpoints, level_num_vis_records, level_vis_records, level_num_textures,
+level_face_bitmaps), so gamesound.cpp, new_hud.cpp, new_tutorial.cpp and objects.cpp compile unchanged. The
+field names differ from the macro names on purpose. levelrender.h includes s3d.h. `extern bool
+S3d_load_lightmaps` (0x59aa58, added to levelrender.h by decomp26) moves to s3d.h: the byte is the first
+.data of s3d.cpp, right before the unit's literals ("level" 0x59aa5c).
+
+**D801 (levelrender.h). lobj_face +4 is a 24-bit lightmap index and a signed byte (bit fields).**
+s3d_read_mesh_ref writes the pair with `sar ecx, 0x18` and `shl eax, 8 / sar eax, 8` (0x470056-0x470062)
+and stores it back as `(hi & 0xff) << 24 | (lo & 0xffffff)` (0x4700a3-0x4700c3); s3d_read_meshes tests the
+low part's sign with `shl ecx, 8 / js` (0x46ed4c) and sets it to -1 with `or edi, 0xffffff` (0x46f0ab,
+0x46f0dc). So `int lightmap : 24; int _unk7 : 8;` in place of `int _unk4` (no pilot used it). The low
+part indexes level_face_bitmaps (level +0x7c, the lightmap bitmaps of s3d_load_lightmap).
+
+**D802 (levelrender.h). door_info fields from s3d_read_door.** 0x470220-0x4702e1 reads +0x00 int (the
+level object), +0x04 / +0x06 int16 (+0x04 indexes the named paths: level_load_s3d 0x46e783-0x46e796),
++0x08 float, +0x0c vector, +0x18 quaternion, +0x28 vector, +0x34 quaternion, then invalidates the
+GameTimer at +0x44 and resets +0x48..+0x76. +0x44 is a real GameTimer member: `new door_info[n]` in
+s3d_alloc_level_arrays constructs it per element (0x46fbcb-0x46fbdf, EH state 2). `_unk10[6]` becomes
+closed_pos (+0x0c) / closed_orient (+0x18); door_update's +0x10 and +0x1c reads fall inside them. open_pos,
+open_orient and lock keep their offsets and names.
+
+**D803 (levelrender.h). lobj has a constructor.** lobj_clear_layers (0x4775e0) sets the dword +0x6c to -1
+and returns this; `new lobj[n]` in s3d_alloc_level_arrays calls it for every element inside EH state 1
+(0x46fa77-0x46fa85), the pattern of an out-of-line constructor. Declared `lobj();`. Also from
+s3d_read_meshes: +0x04 is the s3d_geometry (was void *mesh, same name), +0x10 the lightmap boxes (was
+_unk10), +0x68 the per-vertex RGB bytes and +0x6c the four layer bytes (was _pad68[8]);
+get_layer_n / set_layer_n (0x4775f0 / 0x4776a0) added.
+
+**D804 (file.h). File::close returns int.** 0x514740 ends with `mov eax, [esi+0xc]` (the slot error,
+0x5147af) and level_load_s3d returns that value (0x46e764 `call File__close / mov ebp, eax`, 0x46e8e8).
+Was `void close()`; the other callers ignore the result.
+
+**D805 (vfx.h). attached_light's constructor is inline.** levelrender.cpp's initialiser for the 16 records
+at 0x23df188 (0x48db40) loops over attached_light__reset (0x520210) with no constructor call, while
+init_attached_lights (0x51fb10) calls the out-of-line attached_light__ctor: the D500 pattern. New class
+attached_light in vsdk/geom/vfx.h with `attached_light() { reset(); }`; only the type byte (+0x00, -1 free)
+is named.
+
+**D806 (matrix.h). quaternion(const matrix *) is 0x522790.** quaternion__set_from_matrix_b returns this
+(0x52292a, ret 4) like the constructor 0x522610, and s3d_read_navpoint builds a temporary with it and then
+copies it with the inline operator= (0x46f343-0x46f374) before File::write_quaternion. Declared as a second
+constructor taking the matrix by pointer (the reference one is 0x522610's).

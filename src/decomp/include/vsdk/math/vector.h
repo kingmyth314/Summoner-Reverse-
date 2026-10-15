@@ -68,6 +68,7 @@ public:
     vector3 negated_b() const;                        // 0x524340 vector3__negated_b (operator-'s body; name ours)
     float normalize_length();                         // 0x524470 normalize, returns the length
     void random_direction();                          // 0x5246a0 vector3__random_direction (twin of 0x524650)
+    void rotate(const matrix &m);                     // 0x5245a0 vector3__rotate (in place, dot with each row; decomp28)
 
     float x, y, z;
 };
@@ -77,6 +78,8 @@ LAYOUT_CHECK(vector3, sizeof(vector3) == 0xc);
 vector3 operator*(float s, const vector3 &v);         // 0x468a90
 float distance(const vector3 *a, const vector3 *b);   // 0x524810 |a - b|
 int vector3_near_equal(const vector3 *a, const vector3 *b);   // 0x524910 each |a - b| component below 0x581930 (decomp25)
+// (out, p0, p1, p2): cross product of two edges, not normalised (Volition vm_vec_perp; decomp28).
+void vector3_perp(vector3 *out, const vector3 *p0, const vector3 *p1, const vector3 *p2);   // 0x524990
 
 int imax(int a, int b);                               // 0x51b750 (COMDAT in character_instance.cpp)
 int imin(int a, int b);                               // 0x503dc0
@@ -90,6 +93,7 @@ public:
     float x, y;
 };
 LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
+extern vector2 vector2_zero;                          // 0x2cbf4b0 (0, 0), static initialiser (decomp28)
 // decomp25 (cdecl, called from matrix.cpp; vsdk\math, unit not known):
 float atan2_fast(float y, float x);                   // 0x542790 fpatan with quadrant fix-up
 float cross_2d(float ax, float ay, float bx, float by);   // 0x542b50 ax*by - ay*bx

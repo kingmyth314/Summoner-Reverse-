@@ -7,7 +7,9 @@
 #include "vsdk/vsdk.h"
 #include <time.h>
 
+class vector2;
 class vector3;
+class matrix;
 class quaternion;
 
 #define PATH_ANY 9999999                // 0x98967f, the "search every path" id
@@ -20,7 +22,12 @@ public:
     ~File();                                             // 0x5140f0 closes if open
     bool find(const char *name, int path_id);            // 0x5141c0 (returns AL)
     int  open(const char *name, int mode, int path_id);  // 0x514630 mode 1 read, 2 write; 0 success, < 0 failure
-    void close();                                        // 0x514740
+    // Returns the slot's error value (level_load_s3d returns it; D804).
+    int  close();                                        // 0x514740
+    int  check_flags(int mask);                          // 0x514100 slot flags & mask (1 = read mode)
+    bool check_version(int min_ver);                     // 0x514120 slot version >= min_ver
+    int  get_version();                                  // 0x514150
+    void set_version(int ver);                           // 0x514170
     int  size(const char *name, int path_id);            // 0x514860 (called as size(NULL, PATH_ANY))
     int  seek(int pos, int origin);                      // 0x514910 < 0 failure
     int  tell();                                         // 0x5149f0
@@ -40,6 +47,11 @@ public:
     void   read_string(char *buf, int size, int min_ver, const char *def);   // 0x525ee0 (decomp24)
     int    read_line(char *buf, int size, int unused);   // 0x525f60 (0 at end of file)
     int    read(void *buf, int len, int min_ver, int unused);   // 0x525fe0 bytes read
+    // decomp28: (out, min_ver, default) readers, ret 0xc.
+    void   read_vector(vector3 *v, int min_ver, const vector3 *def);          // 0x525a80
+    void   read_quaternion(quaternion *q, int min_ver, const quaternion *def);   // 0x525ad0
+    // uint16 length-prefixed string into buf (truncated to max), (buf, max, min_ver, default).
+    void   read_string_buf(char *buf, int max, int min_ver, const char *def);   // 0x525e20
 
     void write_uint8(ubyte v);                           // 0x526220
     void write_uint16(ushort v);                         // 0x526240
@@ -51,8 +63,25 @@ public:
     // text (strlen when len < 0; NULL writes only the newline) then "\n"; < 0 failure (decomp22).
     int  write_line(const char *text, int len);          // 0x5264e0
     int  write(const void *buf, int len);                // 0x526410
+    void write_quaternion(const quaternion *q);          // 0x526290 (decomp28)
+    void write_string(const char *s, int len);           // 0x526390 uint16 length (strlen if -1), bytes (decomp28)
 
-    int path_id;                       // +0x000 path id of the found file (File__find_in_path, File__get_path_id)
+    // Read or write by the open mode (check_flags(1) = read): (value, min_ver, default), ret 0xc.
+    // decomp28; every s3d.cpp call pushes 0 as the scalar default.
+    void sync_uint8(ubyte *v, int min_ver, ubyte def);                 // 0x526600
+    void sync_int16(short *v, int min_ver, short def);                 // 0x526640
+    void sync_uint16(ushort *v, int min_ver, ushort def);              // 0x526680
+    void sync_int(int *v, int min_ver, int def);                       // 0x5266c0
+    void sync_uint(unsigned int *v, int min_ver, unsigned int def);    // 0x526700
+    void sync_float(float *v, int min_ver, float def);                 // 0x526740
+    void sync_vector(vector3 *v, int min_ver, const vector3 *def);     // 0x526780
+    void sync_quaternion(quaternion *q, int min_ver, const quaternion *def);   // 0x5267c0
+    void sync_matrix(matrix *m, int min_ver, const matrix *def);       // 0x526800
+    // (buf, size, min_ver, default): reads into buf (size bytes), writes buf with size -1 (strlen).
+    void sync_string_buf(char *buf, int size, int min_ver, const char *def);   // 0x5268c0
+    void sync_bytes(void *buf, int len, int min_ver);                  // 0x526900
+
+    int path_id;                      // +0x000 path id of the found file (File__find_in_path, File__get_path_id)
     ubyte _unk004;                     // +0x004
     char full_path[0x103];             // +0x005 resolved path (File__get_full_path returns this + 5)
     void *packentry;                   // +0x108 (File__is_in_packfile)
@@ -123,6 +152,15 @@ typedef file_find_node file_entry;
 // (list, path_id, pattern, flags, callback); flags 5 / 6 and callback 0 in the pilots. Return unused.
 void file_find_files(file_find_list *list, int path_id, const char *pattern, int flags,
                      void *callback);                                 // 0x5133b0
+
+// Array helpers (cdecl; vsdk\vfile in sum.symbols, decomp28): read or write by the open mode.
+void file_sync_vector_array(File *f, vector3 *v, int count, int min_ver, const vector3 *def);   // 0x544ee0
+void file_sync_float_pair_array(File *f, vector2 *v, int count, int min_ver, const vector2 *def);   // 0x544f30
+void file_sync_int16_array(File *f, short *v, int count);             // 0x545080
+// Defaults set by file_init (decomp28).
+extern vector3 file_zero_vector;          // 0x2cbf4d8
+extern quaternion file_identity_quaternion;   // 0x2cbf4c8
+extern matrix file_default_matrix;        // 0x2cbf518
 
 
 #endif

@@ -75,6 +75,9 @@ public:
     void operator=(const quaternion &q)
     { x = q.x; y = q.y; z = q.z; w = q.w; }
     quaternion(const matrix &m);                      // 0x522610 quaternion__set_from_matrix (returns this: a constructor)
+    // 0x522790 quaternion__set_from_matrix_b also returns this (thiscall, ret 4) and s3d_read_navpoint
+    // builds a temporary with it before an inline copy: a second constructor, by pointer (decomp28, D806).
+    quaternion(const matrix *m);
     void to_matrix(matrix *out) const;                // 0x522bf0 quaternion__to_matrix
     void to_matrix_b(matrix *out) const;              // 0x522cc0 quaternion__to_matrix_b (doors; decomp24)
     void normalize();                                 // 0x522f20 quaternion__normalize (decomp25)

@@ -30,4 +30,15 @@ public:
     int  get_tag_transform(int tag, int a, int b);                   // 0x537f70 (result unused by spells.cpp)
 };
 
+// A light attached to an object (0x98 bytes; slots at 0x2cb45d0, attached_light_create / _free). The
+// constructor is inline (decomp28, D805): levelrender.cpp's array initialiser loops over reset() with
+// no constructor call, while init_attached_lights calls the out-of-line copy attached_light__ctor.
+class attached_light {
+public:
+    attached_light() { reset(); }
+    void reset();                             // 0x520210 attached_light__reset (identity orientation, defaults)
+    ubyte type;                               // +0x00 -1 free slot
+    ubyte _unk01[0x97];
+};
+
 #endif

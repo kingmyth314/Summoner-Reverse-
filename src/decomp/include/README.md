@@ -85,7 +85,8 @@ Summoner 2 and Dash Faction give names only.
 | `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state`, `ai_group` |
 | `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` | `pf_find_nearest_navigable_point`, `ai_path_find` / `ai_path_free`, `pf_trace_edge_crossings` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
-| `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` | `lobj`, level render calls |
+| `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
+| `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
 | `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
 | `engine/effects/effect_stream.h` | effect streamer (0x4404a0) | `effect_stream_*` |
 | `engine/effects/fx.h` | fx_* (0x48bd80-0x48d720, file not known; name ours) | `effect_object`, `fx_*`, `obj_from_handle_b` |

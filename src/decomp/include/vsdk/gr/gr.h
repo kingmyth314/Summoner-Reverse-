@@ -145,4 +145,56 @@ LAYOUT_CHECK(gr_light_desc, sizeof(gr_light_desc) == 0x20);
 
 float rgb_to_lightened_grey(float r, float g, float b);  // 0x508090 (avg + (255 - avg) * 0.6) / 255 (decomp23)
 
+// ---- decomp28 (levelrender.cpp) -------------------------------------------------------------------
+// Colour tint applied by the back ends when enabled (gr.cpp .bss).
+extern bool gr_tint_enabled;                          // 0x25d8dc0
+extern float gr_tint_r;                               // 0x25d8dc4
+extern float gr_tint_g;                               // 0x25d8dc8
+extern float gr_tint_b;                               // 0x25d8dcc
+
+// A 3D pipeline vertex (0x30 bytes; symbols/types.h gr_Vertex, +0x1a.. from levelrender_face_vertex_colors).
+struct gr_vertex {
+    float x, y, z;                    // +0x00 view space
+    float sx, sy, sw;                 // +0x0c screen x / y and 1/z (gr_project_vertex)
+    ubyte codes;                      // +0x18 clip codes
+    ubyte flags;                      // +0x19 1 projected, 2 behind the viewer, 4 temporary
+    ubyte _unk1a;                     // +0x1a levelrender stores 0xf
+    ubyte index;                      // +0x1b levelrender stores the corner number
+    float u, v;                       // +0x1c
+    float u2, v2;                     // +0x24 lightmap
+    ubyte r, g, b, a;                 // +0x2c
+};
+LAYOUT_CHECK(gr_vertex, sizeof(gr_vertex) == 0x30);
+// (n, verts): clips the polygon, projects the result; returns the vertex count (vsdk\gr).
+int gr_clip_and_project_poly(int n, gr_vertex **verts);   // 0x53e9d0
+
+// Dynamic lights (vsdk\gr, 0x51e0c0-; 400 records of 0x94 bytes at 0x2ca5de0; file not known).
+// Partial layout from levelrender_sum_point_lights.
+struct gr_light {
+    ubyte _unk00[0x20];
+    vector3 pos;                      // +0x20
+    float r, g, b;                    // +0x2c
+    float intensity;                  // +0x38
+    ubyte _unk3c[0xc];
+    bool has_range;                   // +0x48
+    ubyte _pad49[3];
+    float range_near;                 // +0x4c
+    float range_far;                  // +0x50
+    ubyte _unk54[0x40];
+};
+LAYOUT_CHECK(gr_light, sizeof(gr_light) == 0x94);
+void light_reset_all();                               // 0x51e0c0
+void light_set_ambient(float r, float g, float b);    // 0x51e230
+// (pos, range a, range b, intensity, r, g, b, flags); return unused (decomp28).
+int  light_create_point(const vector3 *pos, float range_a, float range_b, float intensity, float r,
+                        float g, float b, int flags);  // 0x51e290
+// (pos, dir, a, b, range a, range b, intensity, r, g, b, flags, bitmap, orientation); return unused.
+int  light_create_spot(const vector3 *pos, const vector3 *dir, float a, float b, float range_a,
+                       float range_b, float intensity, float r, float g, float b2, int flags, int bm,
+                       const quaternion *orient);     // 0x51e3f0
+
+// Direct3D back end (vsdk\gr\directx\gr_direct3d.cpp).
+extern bool d3d_use_vertex_buffer;                    // 0x2dc6c31
+extern void *d3d_direct3d;                            // 0x2dc6c3c IDirect3D7*
+
 #endif

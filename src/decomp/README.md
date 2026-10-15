@@ -65,6 +65,8 @@ Rules:
 | `game/multicontainer.cpp` | `multicontainer.cpp` | 13 | |
 | `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
+| `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |
+| `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 30 of 39 (the three draw-list back ends left) | 13 / 5 / 12 |
 | `game/spells.cpp` | `spells.cpp` | 44 of 53 (cast pipeline left) | 30 / 14 / 0 |
 | `game/combat.cpp` | `combat.cpp` (`0x464010`-`0x469010`) | 59 of 63 | 38 / 20 / 1 |
 | `game/conversation.cpp` | `levelscripts\conversation.cpp` (`0x4d7b30`-..) | 32 | 22 / 10 / 0 |

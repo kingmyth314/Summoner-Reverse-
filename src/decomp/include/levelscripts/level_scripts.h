@@ -124,4 +124,9 @@ extern vector3 level_exit_return_pos;                // 0x2493a08
 
 void goto_credits();                                 // 0x4ef6a0 (level_script_templeint2.cpp range)
 
+// A level-file navpoint ("$npc", "$hostile", "$player") into the level marker records (level_scripts.cpp;
+// decomp28: level_load_s3d passes the s3d record).
+struct s3d_navpoint;
+void level_add_navpoint(s3d_navpoint *np);           // 0x4d5720
+
 #endif
