@@ -228,7 +228,11 @@ four functions that name themselves in their asserts (`nw_NewReceiveReliable`,
   - connection requests and the "IAMHERE"/ACK handshake;
   - resends and time-outs.
 - **Game side:** `multi_process_incoming` (`0x441b10`) and `multi_send_packet` (`0x442060`,
-  which keeps per-type "net rate info") sit on top. The `net_stats` console command shows
+  which keeps per-type "net rate info") sit on top. `multi_send_packet` always sends reliably:
+  it appends the packet to the receiver's buffer (`multi_reliable_send_bufs`, `0x65d8b0`) and
+  sends that buffer with `nw_NewSendReliable` when the packet would take it past 0x200 bytes,
+  or at once when its last argument is set (`0x442178`, `0x4421e6`). The unreliable path is
+  `multi_send_packet_buffered` (`0x441e90`, `nw_send`). The `net_stats` console command shows
   the statistics.
 - **Imports:** WinSock is imported by ordinal. The import thunks at `0x57b4b0`-`0x57b5ca`
   are now named (`socket`, `sendto`, `recvfrom`, `select`, …), along with the DirectInput,

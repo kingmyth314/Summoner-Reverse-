@@ -16,7 +16,7 @@
 // 0x584530 / 0x584558), as in ai.cpp; the label texts are not in the binary, the names used here are the
 // timing report's (ours). The read_tsc phase counters are separate statements.
 //
-// pathvis_insert_edge (0x4b7e80) is compiled without optimisation (ebp frame, every access through memory,
+// add_or_remove_edge (0x4b7e80) is compiled without optimisation (ebp frame, every access through memory,
 // the `xor reg, reg / test / jne` of the list macros' while (0)): written between #pragma optimize("", off)
 // and on (D2603).
 
@@ -34,7 +34,7 @@
 #define PATHVIS_EPSILON 0.0001f       // 0x581930 / -0x581b74
 
 // The list insertions of this file (names ours): before `pos` (pathvis_insert_sorted, pathvis_insert_by_side,
-// pathvis_insert_edge) and after it (pathvis_insert_edge). Their store order differs from vsdk.h's
+// add_or_remove_edge) and after it (add_or_remove_edge). Their store order differs from vsdk.h's
 // list_insert, so they are separate macros.
 #define pathvis_list_insert_before(pos, elem) do { (pos)->prev->next = (elem); (elem)->prev = (pos)->prev; \
                                                    (pos)->prev = (elem); (elem)->next = (pos); } while (0)
@@ -63,7 +63,7 @@ int pathvis_edge_pool_inited;                           // 0x247fcec
 // key, equal keys nearer first; the lists are joined down-left, left-up, up-right, right-down (clockwise).
 // The heads' f is 0, so a point with key 0 after the head is marked collinear too; the first point of each
 // list is cleared again at the end.
-pf_vis_node *pathvis_scan_cells(const vector2 *pt)
+pf_vis_node *sort_points_clockwise(const vector2 *pt)
 {
     profile_label label("sort_points_clockwise");
     pf_vis_node quad[4];
@@ -155,7 +155,7 @@ pf_vis_node *pathvis_scan_cells(const vector2 *pt)
 // taken), likely for the rest (the straddle test as a conditional; `i` and `e` are initialised once at the
 // top). For each layer: the edges of every cell of the graph that cross the vertical line x = pt->x below
 // the point, nearest first, with a = the end with the larger x.
-void pathvis_build_edge_lists(const vector2 *pt)
+void make_initial_edge_tree(const vector2 *pt)
 {
     profile_label label("make_initial_edge_tree");
     pathvis_edge *head;
@@ -287,7 +287,7 @@ void pathvis_insert_sorted(pathvis_edge *e, int layer)
 // An edge already in the list (either direction) is removed; an edge parallel to the sweep ray is
 // skipped. The first edge of a point is placed by side (pathvis_insert_by_side) and kept pending; the
 // second goes before or after it by its direction against the ray.
-void pathvis_insert_edge(pf_edge *edge, int layer, vector2 *pos)
+void add_or_remove_edge(pf_edge *edge, int layer, vector2 *pos)
 {
     pathvis_edge *e;
     profile_label label("add_or_remove_edge");
@@ -377,7 +377,7 @@ void pathvis_insert_by_side(pathvis_edge *e, int layer)
 // sum.symbols name reads the other way, D2603): the ray is already closed, the midpoint of from-to is
 // inside the layer's BSP solid (pathvis_bsp_contains), or the segment crosses the nearest edge of the
 // layer (with `all`, any edge).
-int pathvis_segment_visible(pf_vis_node *from, pf_vis_node *to, bool all)
+int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
 {
     profile_label label("do_single_vis_check");
     vector2 a, b, mid;
@@ -436,8 +436,8 @@ void determine_point_visibility(const vector2 *pt, int layer)
     last = &origin;
     pathvis_edge_cycles = 0;
     pathvis_segment_cycles = 0;
-    n = pathvis_scan_cells(pt);
-    pathvis_build_edge_lists(pt);
+    n = sort_points_clockwise(pt);
+    make_initial_edge_tree(pt);
 
     while (n) {
         n_layer = n->layer;
@@ -454,7 +454,7 @@ void determine_point_visibility(const vector2 *pt, int layer)
 
         pathvis_target = n->pos;
         t = read_tsc();
-        blocked = pathvis_segment_visible(last, n, group);
+        blocked = do_single_vis_check(last, n, group);
         pathvis_segment_cycles += read_tsc() - t;
         if (!blocked)
             n->flags |= PFN_VISIBLE;
@@ -465,16 +465,16 @@ void determine_point_visibility(const vector2 *pt, int layer)
         if (!(n->flags & PFN_NO_EDGES)) {
             if (!group) {
                 pathvis_pending_edge = NULL;
-                pathvis_insert_edge(n->edges[0], n_layer, n->pos);
-                pathvis_insert_edge(n->edges[1], n_layer, n->pos);
+                add_or_remove_edge(n->edges[0], n_layer, n->pos);
+                add_or_remove_edge(n->edges[1], n_layer, n->pos);
             } else {
                 if (num_pending == PATHVIS_MAX_PENDING) {
                     if (pathvis_alt_mode)
                         VSDK_ERROR("D:\\projects\\Summoner\\pccode\\Engine\\ai\\pathfinding_visibility.cpp", 970,
                                    "Too many points on same sweep line.  Get DaveA");
                     pathvis_pending_edge = NULL;
-                    pathvis_insert_edge(n->edges[0], n_layer, n->pos);
-                    pathvis_insert_edge(n->edges[1], n_layer, n->pos);
+                    add_or_remove_edge(n->edges[0], n_layer, n->pos);
+                    add_or_remove_edge(n->edges[1], n_layer, n->pos);
                 }
                 pending[num_pending++] = n;
             }
@@ -494,8 +494,8 @@ void determine_point_visibility(const vector2 *pt, int layer)
             if (!(n->flags & PFN_COLLINEAR)) {
                 for (i = 0; i < num_pending; i++) {
                     pathvis_pending_edge = NULL;
-                    pathvis_insert_edge(pending[i]->edges[0], pending[i]->layer, pending[i]->pos);
-                    pathvis_insert_edge(pending[i]->edges[1], pending[i]->layer, pending[i]->pos);
+                    add_or_remove_edge(pending[i]->edges[0], pending[i]->layer, pending[i]->pos);
+                    add_or_remove_edge(pending[i]->edges[1], pending[i]->layer, pending[i]->pos);
                     pending[i] = NULL;
                 }
                 num_pending = 0;

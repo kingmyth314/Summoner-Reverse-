@@ -81,15 +81,15 @@ which also takes it out of the 2-unit range so the box is not offered again at o
 ### pathfinding_visibility.cpp (.data 0x59d7d8-0x59d933, .bss 0x247e968-0x247fcef)
 | Address | Function | Confidence |
 |---|---|---|
-| 0x4b77f0 | pathvis_scan_cells ("sort_points_clockwise()") | likely |
-| 0x4b7af0 | pathvis_build_edge_lists ("make_initial_edge_tree()") | unsure (the never-taken alt-mode loop) |
+| 0x4b77f0 | sort_points_clockwise ("sort_points_clockwise()") | likely |
+| 0x4b7af0 | make_initial_edge_tree ("make_initial_edge_tree()") | unsure (the never-taken alt-mode loop) |
 | 0x4b7d30 | pathvis_add_edge_node | exact |
 | 0x4b7da0 | pathvis_edge_pool_init | likely |
 | 0x4b7df0 | pathvis_insert_sorted | likely |
-| 0x4b7e80 | pathvis_insert_edge ("add_or_remove_edge()", unoptimised) | likely |
+| 0x4b7e80 | add_or_remove_edge ("add_or_remove_edge()", unoptimised) | likely |
 | 0x4b8150 | pathvis_free_edge_node | exact |
 | 0x4b8190 | pathvis_insert_by_side | likely |
-| 0x4b8230 | pathvis_segment_visible ("do_single_vis_check()") | likely |
+| 0x4b8230 | do_single_vis_check ("do_single_vis_check()") | likely |
 | 0x4b8350 | determine_point_visibility | likely |
 | 0x4b86e0 | pathvis_bsp_contains | likely |
 
@@ -101,11 +101,11 @@ suggestion for the main session (not done: names come from sum.symbols).
 - cd_find_drive: the targets of the three zero-displacement jumps the no-CD edit left (D2600). The reading
   (skip non-CD drives, skip unreadable volumes, return -3 when levelm.vpp is on a non-CD drive) rests on the
   `found` store pattern only.
-- pathvis_build_edge_lists' alternative mode (0x247fce8 set): cell edges walked through a link at +0x14 of a
+- make_initial_edge_tree' alternative mode (0x247fce8 set): cell edges walked through a link at +0x14 of a
   pf_edge (a 0x10-byte record); the flag is never written, so the layout behind it is unknown.
 - cd_root size: sum.symbols char[64]; the .bss gap is 0xdc bytes.
 - profile_label texts (all five pathvis functions) are ours, as in ai.cpp / gameplay.cpp.
-- pathvis_insert_edge's local declaration order (unoptimised frame) is inferred from the "first declared =
+- add_or_remove_edge's local declaration order (unoptimised frame) is inferred from the "first declared =
   highest address" rule; the label sits second (ebp-0x14).
 - The packet's PLY_DAT skill count 0x54 against Character's 0x5c skill bytes: the last 8 are not sent.
 
@@ -120,7 +120,7 @@ suggestion for the main session (not done: names come from sum.symbols).
   (PXO game, pxo_cfg_flags bit 0) or 0xC.
 - sum.symbols 0x4af340 mentions "mp_process_new_player" (stale name; the function calls mp_pack_player_info).
 - sum.symbols 0x43e8e0 cd_set_root `sprintf ".\\" path`: that is the patched format (D2600).
-- sum.symbols 0x4b77f0 pathvis_scan_cells "collects the edges facing the point": it sorts the graph points
+- sum.symbols 0x4b77f0 sort_points_clockwise "collects the edges facing the point": it sorts the graph points
   clockwise and returns them as one list. 0x4b7df0 / 0x4b8190 "(list index, node)": (node, layer). 0x4b86e0
   "(node, point)": (point, node). 0x4b7e80 "(node, list index)": (edge, layer, point). 0x4b8230 "1 unless
   0x247ecdc is set ... else": 1 = blocked, returned at once while 0x247ecdc is clear (D2602, D2603).
@@ -137,7 +137,7 @@ suggestion for the main session (not done: names come from sum.symbols).
 - determine_point_visibility: the pending array holds 50 points of one sweep ray. At 50 the point's edges are
   inserted at once and the point is still appended (`pending[50]`, then 51, ...), overwriting the EH
   registration and the saved registers above the array (0x4b84ac-0x4b84f0); the later flush inserts those
-  edges a second time, which removes them again (pathvis_insert_edge toggles). Needs more than 50 graph
+  edges a second time, which removes them again (add_or_remove_edge toggles). Needs more than 50 graph
   points exactly in line with the query point.
 - pathvis_bsp_contains: a node type other than 1, 2, 3 loops for ever (the default jumps back to the loop
   test with the same node, 0x4b8701 -> 0x4b8795).

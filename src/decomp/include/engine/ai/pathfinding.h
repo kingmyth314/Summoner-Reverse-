@@ -56,7 +56,7 @@ LAYOUT_CHECK(pf_wall, sizeof(pf_wall) == 0x14);
 // .pfg file, +0x18..+0x27 are pf_graph_search's A* state. The avoidance corners (avoid_corner, ai.h)
 // start with the same fields.
 #define PFN_VISIBLE      0x0001       // straight walk from the query point clear
-#define PFN_COLLINEAR    0x0002       // pathvis_scan_cells: same direction from the point as the node before
+#define PFN_COLLINEAR    0x0002       // sort_points_clockwise: same direction from the point as the node before
                                       // it in the sweep (name ours, decomp47)
 #define PFN_FROM_START   0x0004       // visible from the search start
 #define PFN_FROM_GOAL    0x0008       // visible from the search goal

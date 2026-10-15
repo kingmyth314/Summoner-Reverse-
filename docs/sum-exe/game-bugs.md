@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 175 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 180 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,9 +26,9 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 37 | 2 |
-| Gameplay | 25 | 13 | 3 |
-| Cosmetic | 32 | 10 | 2 |
+| Crash or hang | 3 | 39 | 2 |
+| Gameplay | 25 | 14 | 3 |
+| Cosmetic | 34 | 10 | 2 |
 | Invisible | 22 | 33 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -78,6 +78,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C144 | Latent: in multiplayer, a chat or system message that wraps into more than six lines crashes the game | `chat_add_line` `0x41ed60` | **Observed** code, *inferred* crash | No |
 | C150 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), a polygon of more than 25 vertices overwrites the renderer's mode, the `whee` console command object, the cursor clip rectangle and the hardware configuration | `gr_glide_tmapper` `0x54b240`, `gr_glide_tmapper_multitexture` `0x54b3a0` | **Observed** code, *inferred* effect | No |
 | C151 | Latent: in the Temple of Urath (`templeint_v2`) a missing Tiger Rider, in the Lenele courtyard a Flece who cannot join (a load pending, or no Flece character), and in Eleh and Wolong a Joseph or Rosalind who is not in the reserve party dereference NULL and crash | `ls_templeint_frame` `0x4f5f80`, `lsf_lenele1c_flag_found_flece` `0x4fab90`, `ls_eleh_frame` `0x4f1560`, `ls_wolong_frame` `0x4fe9a0` | **Observed** code and retail data, *inferred* crash | No |
+| C160 | Latent: with the `precalc_vis_method` console setting on, more than 50 path graph points on one straight line from a path's start or end point overwrite the exception record and then the return address of the visibility sweep | `determine_point_visibility` `0x4b8350` | **Observed** code, *inferred* crash | No |
+| C161 | Latent: a navigation BSP node with a type other than 1, 2 or 3 in a level's `.pfg` path graph hangs the game at the next path or position test | `pf_bsp_node_find` `0x4a5c60`, `pathvis_bsp_contains` `0x4b86e0`, `pf_read_typed_refs` `0x49ca20` | **Observed** code, *inferred* hang | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -270,8 +272,9 @@ also only tried when start 0 is missing, so a group with `-01` but without `-02`
 NULL. In the retail tables every single-player "load level" trigger's `+Index:` has a full group of four in
 the target's `_script.tbl` (and `.s3d`). The only gap, `lenele3a.tbl`'s exit to `lenele3d` with `+Index: 2`, uses
 the spline `$loadarea01`, which `lenele3a` does not have, so the parser drops that trigger (count decremented at
-`0x4cc4c5`). The entry points set by scripts and the elevator callbacks (2 to 5) were not checked against the
-navpoints.
+`0x4cc4c5`). The elevator callbacks set entry points 3 to 5 (`0x41dec0`..`0x41e2c0`, multiplayer only), and
+the groups exist: 3 and 4 in `IonaEXT_script.tbl` (level 15), 3 to 5 in `eleh_script.tbl` (level 29), and the
+same in their `_m1` copies. The entry points set by scripts were not checked against the navpoints.
 
 **C111. A 0x44-byte buffer.** `lc_find_by_hash` builds `level_script_name + object name` with
 `strncpy(buf, level_script_name, 0x40)` and `strncat(buf, name, 0x40)` into a 0x44-byte stack buffer
@@ -385,6 +388,30 @@ returns 0 when the name is not in the reserve party (`0x43411b`..`0x434126`, `0x
 retail play the rider is there, the Flece trigger runs on a level frame (no load pending) and Joseph and Rosalind are
 in the reserve party when those dialogues run, so all four are latent.
 
+**C160. The pending array has no bound.** `determine_point_visibility` walks the graph points that
+`pathvis_scan_cells` returns sorted clockwise. Points on one ray from the query point are flagged `PFN_COLLINEAR`
+(`0x4b7a09`, `0x4b7a21`). They are collected in a 50-entry stack array (`esp+0x54`, cleared by `rep stosd` of 0x32
+dwords at `0x4b839a`..`0x4b83a6`), and their edges are inserted when the group ends (`0x4b8542`..`0x4b8585`). At a
+count of 50 (`cmp [esp+0x10], 0x32` at `0x4b84ac`) the code inserts the current point's two edges at once
+(`0x4b84c0`..`0x4b84e4`). It still stores the point at `pending[count++]` (`0x4b84e7`..`0x4b84f0`). The
+DebugError "Too many points on same sweep line. Get DaveA" (`0x4b86bf`) is on the other branch, which needs flag
+`0x247fce8`, and nothing writes that flag. Entry 50 is the saved exception-list link (`esp+0x11c`), 51 and 52 the
+handler and try level, and 53 the return address. The flush writes 0 into every entry it used (`0x4b8577`), and the
+epilogue restores `fs:[0]` from entry 50 (`0x4b86a3`..`0x4b86ad`). So 51 points on one ray leave a broken exception
+chain, and 54 or more make the function return to address 0, or into a graph node when the group runs to the end
+of the list. The 51st point's edges are also inserted twice, which removes them again, because `pathvis_insert_edge`
+drops an edge it already holds (`0x4b7f41`). The function runs only with `Precalc_vis_method` (`0x245c9d8`, .bss) set
+(`pf_compute_endpoint_visibility` `0x49f36b`..`0x49f385`). Only the `precalc_vis_method` console command writes it
+(`0x49c88f`..`0x49c8a9`), and v1.40 has no console (only a patch or a `.vcs` script can send a command). Whether a
+retail `.pfg` has 51 points on one line was not checked.
+
+**C161. No default case.** Both BSP walks switch on the node type (`dec eax` / `je` at `0x4a5c72`..`0x4a5c7b` and
+`0x4b86f2`..`0x4b86fb`). Any other type jumps back to the loop test with the same node (`jmp 0x4a5d16`, `jmp
+0x4b8795`), so the walk never ends. `pf_read_typed_refs` stores the type from the file without a test
+(`0x49ca44`..`0x49ca53`). `pf_bsp_node_find` is behind `pf_bsp_find_cell`, which `pf_point_is_navigable`,
+`pf_graph_search` and `pf_straight_walk_clear` call, so such a node would hang ordinary play. Retail levels play,
+so no walked retail node has another type. The `.pfg` files were not scanned.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -427,6 +454,7 @@ in the reserve party when those dialogues run, so all four are latent.
 | G131 | On the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0` | **Observed** code and retail data, *inferred* effect | No |
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
+| G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -750,6 +778,13 @@ actions use "Tunic", "Leather Jerkin" (torso) and "Bougu-Dou" (heavy) from `item
 
 (none)
 
+**G160. A third path mode with no code.** `cmd_Multi_path_type` accepts 0 to 2 (`jl` / `cmp eax, 2` / `jg` at
+`0x4811e8`..`0x4811ef`) and prints 2 as "Unknown" (`0x481222`). `mp_handle_new_path` first frees the character's
+current path (`ai_path_free`, `0x48026b`). It then builds the received nodes for type 0 (`0x4802d2`..`0x4802da`), or
+for type 1 calls `ai_path_find_new` / `ai_path_find_append` (`0x480381`..`0x480401`). Type 2 does neither, and the
+type-0 tail is skipped too (`0x480425`..`0x480434`), so the character is left with no path. `multi_path_type`
+(`0x59bca8`) is a local setting of each machine, and only the console sets it. The help text also says "machiens".
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -796,6 +831,8 @@ actions use "Tunic", "Leather Jerkin" (torso) and "Bougu-Dou" (heavy) from `item
 | K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
 | K150 | In the Ikaemos palace's upper hall the Priest King fight keeps the level's "IkaemosPalace" music; the "Boss" track never plays | `ls_ikaemostopint_init` `0x4f9ec0`, `lsf_ikaemos_found_boss` `0x4fa050`, `lsf_ikaemos_boss_killed` `0x4fa140` | **Observed** code and retail data, *inferred* effect | No |
 | K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
+| K160 | In multiplayer, a player who joins while another join is still going on can see "%s has entered the game." twice for the other new player | `mp_add_new_player` `0x4af4e0`, `mp_handle_new_info` `0x4af4b0`, `mp_handle_net_info` `0x4af760` | **Observed** code, *inferred* trigger | No |
+| K161 | The "Insert Summoner CD #2" box is centred across the screen but starts at the middle, so it sits in the lower half | `cd_prompt_disc2` `0x43ea20` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1155,6 +1192,21 @@ the top-left corner. No loader makes format 2: `bm_read_header` maps TGA depths 
 (byte table `0x502e08`, jump table `0x502df4`), PCX is 1 (`0x502add`), M2V 5 (`0x502d9b`), and `bm_read_vbm_header`
 gives 5, 4 or 3 (`0x501df8`..`0x501e1b`); the `bm_create` callers pass formats 3, 4, 5, 6 and 1. So this is latent
 even with modded data. It needs the Glide renderer: a 3dfx card or a Glide wrapper.
+
+**K160. Duplicate join line.** For an id that is already known, `mp_add_new_player` returns the existing record
+(`0x4af5a6`..`0x4af5d4`). Its "Received new player packet but player %s is already connected" text goes only into
+`string_buffer`. Both `mp_handle_new_info` (`0x4af4cb`..`0x4af4d0`) and `mp_handle_net_info` (`0x4af77f`..`0x4af784`)
+call `mp_announce_player_joined` (L236 "%s has entered the game.") for any non-NULL result. *Inferred trigger:*
+when the host accepts a player, it sends that player NET_INF with every other player (`mp_send_net_info`, called by
+`mp_server_accept_connections` `0x440d4f`). Once the player reports status 3, the host broadcasts NEW_INF for it
+(`mp_host_update_session` `0x440dc8`..`0x440de1`) to every connected player except the new one (`mp_broadcast_packet`
+skips flag `0x40000000` once, `0x441ad7`..`0x441aed`). A player C who is accepted while player B is between those two
+steps gets B in both packets.
+
+**K161. Half a centring.** `cd_prompt_disc2` sets x = (screen width - box width) / 2 (`0x43ea6f`..`0x43ea7d`) but
+y = screen height / 2 (`0x43ea7f`..`0x43ea89`). It draws `ui_draw_text_box(x, y, w, h)` and the text at (x + 3, y + 2)
+(`0x43ea9c`, `0x43eab3`). `level_load` shows the box when `eleh.s3d` is not on disk and `levelm.vpp` is not in the
+data path (`0x4385cf`..`0x4385f0`), that is, when the level data is on CD #2.
 
 ## Invisible
 
@@ -1794,6 +1846,14 @@ the tables above; the rest are below.
 - lenele3d's 1 s `ls_lenele3d_timer` (set by `ls_lenele3d_init`, never read) and the dword `0x257e9dc` (written 0, never read): remains of a removed sequence, no effect.
 - The Eleh choice bytes `0x257e9ec`..`0x257e9ef`: the code is right (TopFloor to entry 5, GroundFloor to entry 3, BottomFloor to entry 4, `0x4f176a`..`0x4f178a`; JoinJoseph handled in `ls_eleh_frame`); only the sum.symbols names are shifted (symfix.txt).
 
+- `mp_send_player_data` sending PLY_DAT "unreliably" (`multi_send_packet(..., 0)`, `0x4af96d`): `multi_send_packet` has no unreliable path. Every packet goes into the receiver's reliable buffer and out through `nw_NewSendReliable` (`0x442175`..`0x4421a5`). The last argument only sends the buffer at once (`0x4421e6`..`0x44221d`), so PLY_DAT goes out with the next flush or when the buffer fills.
+- `mp_handle_player_data` clamping HP (`0x4afb23`..`0x4afb3e`) and AP (`0x4afb65`..`0x4afb75`) at 0 but not at the maximum: the values are the sender's own current HP and AP (`+0x5f8`, `+0x5fe`, `0x4af8e3`, `0x4af917`), so the sender has already capped them.
+- `mp_handle_net_info` not reaching `mp_set_local_status(3)` when `mp_add_new_player` returns NULL (`0x4af781`): NULL comes only from a full player pool, which also starts the leave with reason 3 (`0x4af5e0`..`0x4af5e3`), or from the receiver's own id, which `mp_send_net_info` never sends to that player (`nw_addr_equal`, `0x4af6a2`..`0x4af6ac`).
+- PLY_DAT sending 0x54 of the skill bytes at `+0x614` (`0x4af867`..`0x4af881`): there are 84 (0x54) skills ([Characters](characters.md)); the rest of the 0x60-byte array is not skills.
+- `determine_point_visibility` not flushing the pending points when the last listed point is in a group (`0x4b8530`..`0x4b8532` jump to the end): the sweep is over, and the edge lists are freed right after (`0x4b8595`..`0x4b85d3`).
+- `cd_has_level_data` using its buffer as both the destination and the `%s` argument of `sprintf` (`0x43e95a`..`0x43e969`): with this CRT the string is copied onto itself and "\eleh.s3d" is appended.
+- `cd_root` declared `char[64]` with a 0xdc-byte .bss gap: `cd_set_root` writes at most 4 bytes.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1894,6 +1954,7 @@ the tables above; the rest are below.
 - lenele3a in multiplayer: `ls_lenele3a_init` changes every trigger of a name, including the `+Multi` copies of "templeint2" (`level_trigger_set_script_use` loops over all records, `0x4cd00a`..`0x4cd047`). Retail `lenele3a.tbl` has a `+Multi` "templeint2" on `$loadarea06` with no `+Multi` palace exit there. If this level script runs in multiplayer before stage 21, that doorway would do nothing silently, which is where the "templeint" refusal (V151) would have been heard. Whether multiplayer runs `ls_lenele3a_init` with those stages was not checked.
 - Glide animated textures after a texture quality change: `gr_glide_mark_texture_dirty` rebuilds and invalidates only the current frame (`0x5496e8`..`0x549718`). The other frames' entries keep their old size, and their owner still matches, so `gr_glide_tcache_set` will not rebuild them. Whether that shows (UVs from the reduced bitmap size against a full-size texture) was not traced.
 - What a Glide wrapper reports in `fbRam` and the TMU count (`0x2f0f218`, `0x2f0f220`) decides whether the 8 MB test passes and whether the focus code closes the Glide window. Not checked for any wrapper.
+- On the edited `Sum.exe` only (not v1.40 as shipped): `cd_prompt_disc2` calls `cd_find_drive("SUMMONER_2")`. That needs the volume label of `.\` to read SUMMONER_2 (`0x43e825`..`0x43e839`), so it may never return a drive and the "Insert CD #2" box may loop when `levelm.vpp` is missing. Not tested. It depends on what `GetVolumeInformationA(".\\")` returns.
 
 ## Evidence
 
@@ -2079,3 +2140,8 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V151 temple refusal | `ls_lenele3a_use` `0x4f1034`..`0x4f105c`; `ls_lenele3a_init` `0x4f0f87`..`0x4f0fed`; `level_parse_trigger` `0x4cc2ec`..`0x4cc32f`; `level_check_triggers` `0x4cac75`..`0x4cac79`, `0x4cac9a`..`0x4cad2c`; retail `lenele3a.tbl` `#Triggers` |
 | V152 release order topic | `ls_lenele1b_action` `0x4fb1e6`..`0x4fb23b`; `script_topic_toggle_by_item` `0x4ceb80`..`0x4cebbe`; `script_topic_toggle_by_item_inv` `0x4cebc0`; retail `lenele1b_dlg.tbl` Gorbus the Guard |
 | V153 animated rebuild | `gr_glide_mark_texture_dirty` `0x5496e8`..`0x549718`; `gr_glide_create_texture` `0x549337`; `gr_glide_tcache_set` `0x5495bc`..`0x5495c9`; `gr_mark_texture_dirty` callers `0x427215`, `0x4d2997`, `0x5022f3`, `0x50339c` |
+| C160 sweep pending | `determine_point_visibility` `0x4b839a`..`0x4b83a6`, `0x4b84ac`..`0x4b84f0`, `0x4b8542`..`0x4b8585`, `0x4b86a3`..`0x4b86ad`, `0x4b86bf`; `pathvis_scan_cells` `0x4b7a09`, `0x4b7a21`; `pathvis_insert_edge` `0x4b7f41`; `pf_compute_endpoint_visibility` `0x49f36b`..`0x49f385`; `cmd_precalc_vis_method` `0x49c88f`..`0x49c8a9` |
+| C161 BSP type | `pf_bsp_node_find` `0x4a5c72`..`0x4a5c81`, `0x4a5d16`; `pathvis_bsp_contains` `0x4b86f2`..`0x4b8701`, `0x4b8795`; `pf_read_typed_refs` `0x49ca44`..`0x49ca53` |
+| G160 path type 2 | `cmd_Multi_path_type` `0x4811e8`..`0x4811f1`, `0x481215`..`0x481222`; `mp_handle_new_path` `0x48026b`, `0x4802d2`..`0x4802da`, `0x480381`..`0x480401`, `0x480425`..`0x480434` |
+| K160 join line | `mp_add_new_player` `0x4af5a6`..`0x4af5d4`; `mp_handle_new_info` `0x4af4cb`..`0x4af4d0`; `mp_handle_net_info` `0x4af77f`..`0x4af784`; `mp_server_accept_connections` `0x440d4f`; `mp_host_update_session` `0x440dc8`..`0x440de1`; `mp_broadcast_packet` `0x441ad7`..`0x441aed` |
+| K161 disc 2 box | `cd_prompt_disc2` `0x43ea6f`..`0x43ea89`, `0x43ea9c`, `0x43eab3`; `level_load` `0x4385cf`..`0x4385f0` |

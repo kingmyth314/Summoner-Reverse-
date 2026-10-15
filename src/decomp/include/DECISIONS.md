@@ -2173,9 +2173,9 @@ then &mid). pf_bsp type 1 is not a leaf: pathvis_bsp_contains and pf_bsp_node_fi
 point's x with the node point's x and go front / back (both when within 0.0001); pathfinding.h's comment
 corrected. New: pathvis_edge (0x28, derived from seg2d: a / b at +0 / +4 are passed to
 seg2d_segment_intersect and seg2d_point_left_of), the unit's .bss, PFN_COLLINEAR (0x2, set and cleared by
-pathvis_scan_cells, tested by determine_point_visibility), float_lerp_range (0x4a4f00), read_tsc (timer.h).
+sort_points_clockwise, tested by determine_point_visibility), float_lerp_range (0x4a4f00), read_tsc (timer.h).
 
-**D2603 (pathfinding_visibility.cpp). pathvis_segment_visible returns 1 for blocked; pathvis_insert_edge is
+**D2603 (pathfinding_visibility.cpp). do_single_vis_check returns 1 for blocked; add_or_remove_edge is
 unoptimised.** 0x4b825e returns 1 when 0x247ecdc is clear, 0x4b82f8 / 0x4b832b return 1 when the midpoint is
 in the BSP or the segment crosses an edge, the end returns 0; determine_point_visibility sets PFN_VISIBLE
 when the result is 0 (`cmp ebp, ebx / jne`, 0x4b8455-0x4b8465). The name (sum.symbols) is kept, the header

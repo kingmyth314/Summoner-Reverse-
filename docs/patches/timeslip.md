@@ -63,6 +63,15 @@ attach and patches Sum.exe in memory with `VirtualProtect`. Nothing is written t
 The rows marked *Inferred* were not cross-checked against the Sum.exe code at those
 addresses.
 
+{: .note }
+The `Sum.exe` in this repository (`Summoner/`) already has a separate no-CD edit in the file itself,
+in `cd_find_drive` (`0x43e660`) and `cd_set_root` (`0x43e8e0`). It puts `jne +0` at `0x43e6b0`, `0x43e6e3`
+and `0x43e872`, forces a `.` drive letter at `0x43e695` and `0x43e914`, and replaces `A:\` / `%c:\` with
+`.\\` / `.\` at `0x594f50` / `0x594f70`. Every drive letter then tests the current folder, so
+`cd_find_drive` returns drive 0 whenever `setup.exe` or `levelm.vpp` is there, and `CdCheck` does not show
+its box. On that copy, Timeslip's `jge` -> `jmp` at `0x43e9cb` changes nothing. Who made the edit is
+*unknown*. See the [decomp plan](../decomp-plan.md) and D2600 in `src/decomp/include/DECISIONS.md`.
+
 ## The >4 GHz fix
 
 **Observed.** The replacement `QueryPerformanceFrequency` (`FUN_1000a750`):

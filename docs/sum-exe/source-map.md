@@ -459,7 +459,7 @@ belong to the inventory unit. No evidence excludes that the inventory code is th
 |---|---|---|---|
 | 0x4705b0 | 0x470e20 | multiplayer game list and join requests | init run 0x4705b0; .bss 0x22e4428-0x22e462f |
 | 0x470e30 | 0x471d70 | multitrade.cpp (already tagged) | |
-| 0x471df0 | 0x471f90 | player removal / kick packets | no private data. Reads ids 233-234 of `// multiendgame.cpp`, but multiendgame.cpp is at 0x481340-0x4815c0, so the ids are shared, not a file name. Tail of multitrade.cpp or own file: undecided |
+| 0x471df0 | 0x471f90 | player removal / kick packets | no private data. Reads ids 233-234 of `// multiendgame.cpp`, but multiendgame.cpp is the contiguous block 0x4811a0-0x481673 (static initialiser entry 238 at its front, mp_handle_leave_game 0x4815c0 last), so the ids are shared, not a file name (D2604). Tail of multitrade.cpp or own file: undecided |
 | 0x471ff0 | - | ai.cpp starts | |
 
 #### 0x492b00-0x49c7c0
