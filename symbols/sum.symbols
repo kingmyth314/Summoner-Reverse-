@@ -87,7 +87,7 @@
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
 0x404860  init_empty_404870_thunk  func  -                    O ; hidden start, static_initializers entry 7: jmp init_empty_404870
 0x404870  init_empty_404870        func  -                    O ; hidden start, static initialiser with an empty body (trivially constructed static object)
-0x404880  eh_vector_constructor_iterator func  -                    O ; MSVC `eh vector constructor iterator' (ptr, size, count, ctor): calls ctor on each element
+0x404880  vector_constructor_iterator func  -                    O ; MSVC `vector constructor iterator` (??_H, no SEH frame): (ptr, size, count, ctor) calls ctor on each element; the eh version is eh_vector_ctor_iterator 0x56db8c (formerly eh_vector_constructor_iterator)
 0x4048b0  init_realtimetimer_5b640c_thunk func  -                    O ; hidden start, static_initializers entry 8: jmp init_realtimetimer_5b640c
 0x4048c0  init_realtimetimer_5b640c func  -                    O ; hidden start, static initialiser: RealtimeTimer__RealtimeTimer(0x5b640c), object used by buysell_handle_click buysell_update_buttons
 0x4048d0  buysell_update_button_states func  new_buysell.cpp      O ; selected entry: sets disabled bit 0x4 on button 0x5b6760 when buying (0x5b6410 != 1) and party_gold < price, button 0x5b6790 enabled only when item_type_is_identified
@@ -1191,7 +1191,7 @@
 0x433390  init_gametimer_array_5fc058_thunk func  -                    O ; hidden start, static_initializers entry 107: jmp init_gametimer_array_5fc058
 0x4333a0  init_gametimer_array_5fc058 func  -                    O ; hidden start, static initialiser: GameTimer__GameTimer on 84 timers at 0x5fc058 (stride 4)
 0x4333c0  init_gametimer_arrays_5fc500_thunk func  -                    O ; hidden start, static_initializers entry 108: jmp init_gametimer_arrays_5fc500
-0x4333d0  init_gametimer_arrays_5fc500 func  -                    O ; hidden start, static initialiser: eh_vector_constructor_iterator(GameTimer, 4 bytes, 84) on 5 blocks at 0x5fc500 (stride 0x188)
+0x4333d0  init_gametimer_arrays_5fc500 func  -                    O ; hidden start, static initialiser: vector_constructor_iterator(GameTimer, 4 bytes, 84) on 5 blocks at 0x5fc500 (stride 0x188)
 0x433400  init_ccmd_max_skills_thunk func  -                    O ; hidden start, static_initializers entry 109: jmp init_ccmd_max_skills
 0x433410  init_ccmd_max_skills     func  -                    O ; static initialiser: registers console command object ccmd_max_skills
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
@@ -3151,18 +3151,18 @@
 0x4a5e20  grid_linear_index        func  -                    O ; (x, y, w): x + y * w
 0x4a5e30  pf_grid_hash_find        func  -                    O ; (x, y, grid): bucket grid_hash_bucket(x, y, +0x18, +0x20) of the 8-byte bucket array +0x24 ({short count, 0xc-byte entries*}), returns the entry whose key equals grid_linear_index(x, y, +0x18), else 0 (checked: grid_hash_bucket then linear scan of the bucket entries comparing the grid_linear_index key, callers pf_grid_cells_in_box, pf_grid_cells_along_segment)
 0x4a5eb0  seg2d_intersect_params   func  -                    O ; (a, b, c, d, out t, out u) 2D segment intersection parameters with a parallel test (0x581b80) and _isnan checks, callers pf_sweep_test_wall, pf_check_direct_walk, avoid_clip_segments, 0x4a7210, 0x4aa400, 0x4c4200 (checked: computes 2D segment intersection t and u with a parallel epsilon test and two _isnan checks, callers pf_sweep_test_wall, pf_check_direct_walk, avoid_clip_segments)
-0x4a5f70  pf_grid_cells_in_box     func  -                    O ; (point, half size, grid) cells of the grid (+0x10/+0x14 cell size) overlapping a square around the point (crt_floor), found with pf_grid_hash_find into the list 0x2460afc (count 0x2460c94)
-0x4a6060  pf_grid_cells_along_segment func  -                    O ; (a, b, grid) walks the grid cells crossed by a segment (DDA with crt_floor) into the list 0x2460afc (count 0x2460c94) through pf_grid_hash_find (checked: crt_floor cell coordinates and DDA stepping, pf_grid_hash_find per cell into list 0x2460afc, caller pf_cells_along_segment)
+0x4a5f70  pf_grid_cells_in_box     func  -                    O ; (point, half size, grid) cells of the grid (+0x10/+0x14 cell size) overlapping a square around the point (floor), found with pf_grid_hash_find into the list 0x2460afc (count 0x2460c94)
+0x4a6060  pf_grid_cells_along_segment func  -                    O ; (a, b, grid) walks the grid cells crossed by a segment (DDA with floor) into the list 0x2460afc (count 0x2460c94) through pf_grid_hash_find (checked: floor cell coordinates and DDA stepping, pf_grid_hash_find per cell into list 0x2460afc, caller pf_cells_along_segment)
 0x4a64b0  pf_cells_along_segment   func  -                    O ; (size class, layer, a, b) pf_grid_cells_along_segment on the grid of graph 0x245f460[size][layer] (+0x24) when it has cells (+0x44), else 0, callers pf_sweep_segment, pf_check_direct_walk, fx_find_spawn_point, avoid_clip_segments, 0x4c4200
 0x4a64f0  pf_cells_in_box          func  -                    O ; (size class, layer, point, half size) pf_grid_cells_in_box on the grid of graph 0x245f460[size][layer], else 0, caller door_find_floor_point
 0x4a6530  seg2d_point_near_middle  func  -                    O ; (point, segment {a*, b*}, distance) true when the point lies within the segment half-length of its midpoint along it and within distance across it
 0x4a6600  pf_layer_from_edges      func  -                    O ; (point, layer a, layer b) over the layer-transition edges 0x2460cb8 (count 0x2460ca4) joining the two layers, the one within 3.0 of the point (seg2d_point_near_middle) decides the layer by side (seg2d_point_left_of), callers lobj_pick_layer, pf_graph_search (checked: (point, layer a, layer b): transition edges 0x2460cb8 (count 0x2460ca4) joining both layers, seg2d_point_near_middle then seg2d_point_left_of picks the layer, caller pf_graph_search)
 0x4a6710  static_init_vector3_arrays_246a804 func  -                    O ; hidden start: initialiser table entry 298 (0x5884ac): jmp init_vector3_arrays_246a804
-0x4a6720  init_vector3_arrays_246a804 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 30) arrays from 0x246a804 (inside the avoidance polygon table 0x246a7f0), reached from initialiser table entry 298 (0x5884ac) via jmp 0x4a6710
+0x4a6720  init_vector3_arrays_246a804 func  -                    O ; hidden start: static initialiser: 14 vector_constructor_iterator(vector3, 30) arrays from 0x246a804 (inside the avoidance polygon table 0x246a7f0), reached from initialiser table entry 298 (0x5884ac) via jmp 0x4a6710
 0x4a6750  static_init_vector3_arrays_246a0b8 func  -                    O ; hidden start: initialiser table entry 299 (0x5884b0): jmp init_vector3_arrays_246a0b8
-0x4a6760  init_vector3_arrays_246a0b8 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 8) arrays from 0x246a0b8 (avoidance tables), reached from initialiser table entry 299 (0x5884b0) via jmp 0x4a6750
+0x4a6760  init_vector3_arrays_246a0b8 func  -                    O ; hidden start: static initialiser: 14 vector_constructor_iterator(vector3, 8) arrays from 0x246a0b8 (avoidance tables), reached from initialiser table entry 299 (0x5884b0) via jmp 0x4a6750
 0x4a6790  static_init_vector3_arrays_2461020 func  -                    O ; hidden start: initialiser table entry 300 (0x5884b4): jmp init_vector3_arrays_2461020
-0x4a67a0  init_vector3_arrays_2461020 func  -                    O ; hidden start: static initialiser: 14 eh_vector_constructor_iterator(vector3, 30) arrays around 0x2461020 (avoidance tables), reached from initialiser table entry 300 (0x5884b4) via jmp 0x4a6790
+0x4a67a0  init_vector3_arrays_2461020 func  -                    O ; hidden start: static initialiser: 14 vector_constructor_iterator(vector3, 30) arrays around 0x2461020 (avoidance tables), reached from initialiser table entry 300 (0x5884b4) via jmp 0x4a6790
 0x4a67e0  static_init_ccmd_avoidance func  -                    O ; hidden start: initialiser table entry 301 (0x5884b8): jmp init_ccmd_avoidance
 0x4a67f0  init_ccmd_avoidance      func  -                    O ; static initialiser: registers console command object ccmd_avoidance
 0x4a6810  cmd_avoidance            func  -                      O ; console command "avoidance": Sets avoidance area parameters
@@ -3696,8 +3696,8 @@
 0x4c6410  murod_oni_apply_area_hits func  -                    O ; living_combat_resolve_hit_vs against hit list 0x248c2fc
 0x4c6460  murod_oni_move_is_first  func  -                    O ; current murod oni move 0x248c2dc == move pointer 0x248bff4, caller species switch 0x4a1090
 0x4c6480  static_init_tentacle_records func  -                    O ; hidden start: initialiser table entry 329 (0x588528): jmp init_tentacle_records
-0x4c6490  init_tentacle_records    func  -                    O ; hidden start: static initialiser: 4 tentacle records (0x248c328, stride 0x110): eh_vector_constructor_iterator(+0, 0x18, 5, 0x4c64f0) and GameTimers at +0xa8/+0xc0/+0xc4/+0xc8/+0x100, reached from initialiser table entry 329 (0x588528) via jmp 0x4c6480
-0x4c64f0  tentacle_slot__ctor      func  -                    O ; thiscall: GameTimer at +0x14, element constructor (0x18 bytes) passed to eh_vector_constructor_iterator by init_tentacle_records
+0x4c6490  init_tentacle_records    func  -                    O ; hidden start: static initialiser: 4 tentacle records (0x248c328, stride 0x110): vector_constructor_iterator(+0, 0x18, 5, 0x4c64f0) and GameTimers at +0xa8/+0xc0/+0xc4/+0xc8/+0x100, reached from initialiser table entry 329 (0x588528) via jmp 0x4c6480
+0x4c64f0  tentacle_slot__ctor      func  -                    O ; thiscall: GameTimer at +0x14, element constructor (0x18 bytes) passed to vector_constructor_iterator by init_tentacle_records
 0x4c6500  static_init_tentacle_beast_timer func  -                    O ; hidden start: initialiser table entry 330 (0x58852c): jmp init_tentacle_beast_timer
 0x4c6510  init_tentacle_beast_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x248c768), the tentacle beast timer, reached from initialiser table entry 330 (0x58852c) via jmp 0x4c6500
 0x4c6520  tentacle_beast_ai_select_action func  -                    O ; thiscall ai_state: action code for tentacle_beast_ai_frame
@@ -4555,11 +4555,11 @@
 0x4dfdb0  register_atexit_ui_static_2560298 func  -                    O ; atexit(atexit_dtor_ui_static_2560298), tail of initialiser table entry 466 (0x58874c)
 0x4dfdc0  atexit_dtor_ui_static_2560298 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_2560298: mov ecx, 0x2560298, jmp ui_static__dtor
 0x4dfdd0  static_init_ui_static_array_2558388 func  -                    O ; hidden start: initialiser table entry 467 (0x588750): calls init_ui_static_array_2558388 then jmp register_atexit_ui_static_array_2558388
-0x4dfde0  init_ui_static_array_2558388 func  -                    O ; static initialiser: eh_vector_constructor_iterator(0x2558388, 0x3cc, 5, ui_static__ui_static), called from initialiser table entry 467 (0x588750)
+0x4dfde0  init_ui_static_array_2558388 func  -                    O ; static initialiser: vector_constructor_iterator(0x2558388, 0x3cc, 5, ui_static__ui_static), called from initialiser table entry 467 (0x588750)
 0x4dfe00  register_atexit_ui_static_array_2558388 func  -                    O ; atexit(atexit_dtor_ui_static_array_2558388), tail of initialiser table entry 467 (0x588750)
 0x4dfe10  atexit_dtor_ui_static_array_2558388 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_static_array_2558388: push ui_static__dtor, push 0x5, push 0x3cc, push 0x2558388, call 0x56dc0e, ret
 0x4dfe30  static_init_ui_array_2547468 func  -                    O ; hidden start: initialiser table entry 468 (0x588754): calls init_ui_array_2547468 then jmp register_atexit_ui_array_2547468
-0x4dfe40  init_ui_array_2547468    func  -                    O ; static initialiser: eh_vector_constructor_iterator(0x2547468, 0x5b0, 5, 0x5526b0), destroyed through ui_gadget__dtor_base, called from initialiser table entry 468 (0x588754)
+0x4dfe40  init_ui_array_2547468    func  -                    O ; static initialiser: vector_constructor_iterator(0x2547468, 0x5b0, 5, 0x5526b0), destroyed through ui_gadget__dtor_base, called from initialiser table entry 468 (0x588754)
 0x4dfe60  register_atexit_ui_array_2547468 func  -                    O ; atexit(atexit_dtor_ui_array_2547468), tail of initialiser table entry 468 (0x588754)
 0x4dfe70  atexit_dtor_ui_array_2547468 func  -                    O ; hidden start: atexit handler registered by register_atexit_ui_array_2547468: push 0x4de800, push 0x5, push 0x5b0, push 0x2547468, call 0x56dc0e, ret
 0x4dfe90  static_init_ui_button_2556688_x2 func  -                    O ; hidden start: initialiser table entry 469 (0x588758): calls init_ui_button_2556688_x2 then jmp register_atexit_ui_button_2556688_x2
@@ -5117,7 +5117,7 @@
 0x500990  dialogue_rec__init4      func  -                    O ; thiscall (a, b, c, d): +0 a, +8 b, +0xc c, +0x10 d, +0x14 next = 0, only caller dialogue_parse_table (ret 0x10), the llvm-objdump listing is desynchronised here by the jump table before it (checked: thiscall (a, b, c, d): +0 a, +8 b, +0xc c, +0x10 d, +0x14 = 0, ret 0x10, callers dialogue_parse_table)
 0x5009c0  dialogue_rec__init3      func  -                    O ; thiscall (a, b, c): +4/+8/+0xc, child list head +0x10 and +0 cleared, only caller dialogue_parse_table (checked: thiscall: stores args at +4, +8, +0xc, clears +0 and +0x10 (child list head), ret 0xc, only caller dialogue_parse_table)
 0x5009f0  dialogue_rec__append_child func  -                    O ; thiscall (child): appends to the singly linked list headed at +0x10 through +0x14 next pointers, caller dialogue_parse_table
-0x500a30  init_mouse_buttons       func  vsdk\os\mouse        O ; hidden start, static initialiser (table 0x5887c4): eh_vector_constructor_iterator(mouse_buttons, 0x10, 3, mouse_button__mouse_button)
+0x500a30  init_mouse_buttons       func  vsdk\os\mouse        O ; hidden start, static initialiser (table 0x5887c4): vector_constructor_iterator(mouse_buttons, 0x10, 3, mouse_button__mouse_button)
 0x500a60  init_mouse_buttons_live  func  vsdk\os\mouse        O ; hidden start, static initialiser (table 0x5887c8): constructs the 3 mouse_buttons_live records
 0x500a90  mouse_update             func  vsdk\os\mouse        O ; per frame: latch buttons, DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor, optional re-centring (mouse look) (checked: clears mouse_dx/dy/dz, latches mouse_buttons_live into mouse_buttons under mouse_lock, mouse_di_read or cursor position path, clamp_int, mouse_set_pos re-centre when keep_mouse_centered)
 0x500c80  mouse_set_pos            func  vsdk\os\mouse        O ; (x, y) client coords -> ClientToScreen + SetCursorPos, only when foreground (checked: only when os_foreground: ClientToScreen on os_get_main_wnd then SetCursorPos (imports 0x57e3c0 / 0x57e330), callers mouse_update, mouse_move_to)
@@ -5146,7 +5146,7 @@
 0x501410  mouse_set_visible        func  vsdk\os\mouse        O ; byte 0x257f030 = !visible, Dash Faction mouse_set_visible sits right before keep_centered_enable/disable as here
 0x501420  mouse_keep_centered_enable func  vsdk\os\mouse        V ; keep_mouse_centered = 1, Dash Faction mouse_keep_centered_enable, same order and global offset (mouse_inited+0x10)
 0x501430  mouse_keep_centered_disable func  vsdk\os\mouse        V ; keep_mouse_centered = 0, Dash Faction mouse_keep_centered_disable
-0x501440  mouse_button__mouse_button func  vsdk\os\mouse        O ; constructor of the 0x10-byte mouse_buttons entry (RealtimeTimer at +0xc), passed to eh_vector_constructor_iterator for mouse_buttons[3]
+0x501440  mouse_button__mouse_button func  vsdk\os\mouse        O ; constructor of the 0x10-byte mouse_buttons entry (RealtimeTimer at +0xc), passed to vector_constructor_iterator for mouse_buttons[3]
 0x501450  clamp_int                func  -                    O ; (int*, lo, hi) (checked: (int* v, lo, hi): *v = lo when below, *v = hi when above, callers mouse_update, gr_circle, gr_draw_sphere)
 0x501470  init_frametime_saved_min func  frametime.cpp        O ; hidden start, static initialiser (table 0x5887cc): 0x257f084 = min_reported_frametime
 0x501490  init_frametime_saved_max func  frametime.cpp        O ; hidden start, static initialiser (table 0x5887d0): 0x257f080 = max_reported_frametime
@@ -5368,7 +5368,7 @@
 0x507100  gr_bitmap_float          func  vsdk\gr\gr.cpp       O ; float rectangle through gr_tmapper (checked: gr_set_texture, vector of gr__Vertex__Vertex, bm_get_dimensions float UVs, gr_tmapper, callers automap_draw_map, worldmap_draw_location)
 0x507310  gr_line                  func  vsdk\gr\gr.cpp         O ; (x1, y1, x2, y2, mode)
 0x507690  gr_circle                func  vsdk\gr\gr.cpp       O ; hidden start, (x, y, radius, mode): clamp_int(radius*3, 5, 128) segments drawn with gr_line around the centre
-0x5077d0  gr_rect                  func  vsdk\gr\gr.cpp       O ; (x, y, w, h, mode) through gr_tmapper (checked: builds gr__Vertex__Vertex quad vertices (eh_vector_constructor_iterator) and draws them with gr_tmapper, 63 callers)
+0x5077d0  gr_rect                  func  vsdk\gr\gr.cpp       O ; (x, y, w, h, mode) through gr_tmapper (checked: builds gr__Vertex__Vertex quad vertices (vector_constructor_iterator) and draws them with gr_tmapper, 63 callers)
 0x5079b0  gr_is_mode_supported     func  vsdk\gr\gr.cpp       O ; (Mode) dispatch: D3D 0x53aad0, Glide 0x54a0b0, OpenGL always true, false for multitexture modes without multitexture support
 0x5079f0  gr_get_video_memory_mb   func  vsdk\gr\gr.cpp       O ; dispatch: D3D 0x2dc6c98, Glide 0x2f0f208, OpenGL constant 8, 0x43e250 compares it with 8 to pick defaults
 0x507a20  gr_tmapper               func  vsdk\gr\gr.cpp         O ; (nv, verts, mode); Dash Faction gr::tmapper
@@ -5548,7 +5548,7 @@
 0x50f490  gr_light__read           func  vsdk\gr              O ; hidden start, thiscall (File*): reads the gr_light__reset record: type, orientation quaternion, position, six floats (one more for type 4), bool, two floats, bool, 64-char name, unreferenced (checked: thiscall (File*): File__read_int8 type, read_quaternion (identity default), read_vector, seven floats, bools and read_string, the fields of gr_light__reset)
 0x50f590  gr_clip_plane__gr_clip_plane func  vsdk\gr              O ; ctor: Plane at +4 (0x1c-byte entry, 8 frustum planes built by gr_3d_state ctor)
 0x50f5a0  gr_instance_entry__gr_instance_entry func  vsdk\gr              O ; ctor of the 0x64-byte instance stack entry (vectors +4/+0x34, matrices +0x10/+0x40)
-0x50f5d0  gr_3d_state__gr_3d_state func  vsdk\gr              O ; static ctor of the 3D globals: matrices/vectors, two arrays of 8 gr_clip_plane, gr_instance_entry[5] at +0x1b8 (checked: thiscall ctor: matrix/vector members, eh_vector_constructor_iterator of gr_clip_plane and gr_instance_entry arrays, caller init_gr_3d_state_saved)
+0x50f5d0  gr_3d_state__gr_3d_state func  vsdk\gr              O ; static ctor of the 3D globals: matrices/vectors, two arrays of 8 gr_clip_plane, gr_instance_entry[5] at +0x1b8 (checked: thiscall ctor: matrix/vector members, vector_constructor_iterator of gr_clip_plane and gr_instance_entry arrays, caller init_gr_3d_state_saved)
 0x50f660  matrix__matrix_default   func  vsdk\math            O ; default constructor: three 0xc-byte rows via vector3__vector3_default (checked: thiscall: three vector3__vector3_default calls at +0, +0xc, +0x18, returns this, used for every 3x3 matrix local)
 0x50f680  gr_setup_3d_free_clip_verts func  vsdk\gr              O ; jmp gr_clip_free_temp_verts, caller gr_setup_3d
 0x50f690  gr_clip_free_temp_verts  func  vsdk\gr              O ; zeroes the temporary clip vertex count 0x2f54700 after clipped drawing (gr_line_3d, gr_poly) and at gr_setup_3d (checked: single store gr_clip_num_temp_verts = 0, callers gr_line_3d, gr_poly, gr_clip_and_project_poly, gr_setup_3d_free_clip_verts)
@@ -6032,7 +6032,7 @@
 0x51fb90  vfx_node_create_shadow   func  vsdk\geom            O ; thiscall node (desc, ...): samples the description tracks at time 0 (position, size and three byte channels) and shadow_create_from_vfx, stores the shadow index in bits 23..28 of +4 (read by vfx_node_free_shadow), caller vfx_instance_init_nodes
 0x51fc80  vfx_node_free_shadow     func  vsdk\geom            O ; thiscall: shadow index packed in bits 23..28 of +4, shadow_free when present, callers 0x51d7b0, 0x5369f0 (checked: thiscall: when the 6-bit field in bits 23..28 of +4 is not all ones, shadow_free(that index), callers vfx_instance_free, vfx_instance_release_nodes)
 0x51fcb0  vfx_node_update_shadow   func  vsdk\geom            O ; thiscall node (...): updates the node's shadow from the tracks (0x51fdc0) and the node transform (vector3__unrotate), 0x2cb45d0 shadows, caller vfx_instance_process (checked: thiscall node: vfx_shadow_desc__sample, vector3__unrotate of the node offset, vfx_node__get_scale, caller vfx_instance_process)
-0x51fdc0  vfx_shadow_desc__sample  func  vsdk\geom            O ; thiscall desc (time, ...): samples position, size and colour tracks (vfx_shadow_desc__get_position, sample_34..58) with frame interpolation (crt_floor), callers ui_3d_begin, vfx_node_update_shadow (checked: thiscall (time, ...): crt_floor frame split, vfx_shadow_desc__get_position interpolation and the sample_34/40/4c tracks, callers ui_3d_begin, vfx_node_update_shadow)
+0x51fdc0  vfx_shadow_desc__sample  func  vsdk\geom            O ; thiscall desc (time, ...): samples position, size and colour tracks (vfx_shadow_desc__get_position, sample_34..58) with frame interpolation (floor), callers ui_3d_begin, vfx_node_update_shadow (checked: thiscall (time, ...): floor frame split, vfx_shadow_desc__get_position interpolation and the sample_34/40/4c tracks, callers ui_3d_begin, vfx_node_update_shadow)
 0x520070  shadows_init_slots       func  vsdk\geom            O ; marks all 0x18 shadow slots free (type byte -1), callers shadows_init, fx_level_restart
 0x520090  shadows_clear_slots      func  vsdk\geom            O ; same loop as shadows_init_slots, callers fx_shutdown, fx_level_leave, fx_level_restart
 0x5200b0  shadow_create_b          func  vsdk\geom            I ; hidden start, first free slot of the 0x18 shadows at 0x2cb45d0 (type byte -1), stores the position at +0x14 and the parameters, -1 when full, same layout as shadow_create
@@ -6594,7 +6594,7 @@
 0x532840  timer_init               func  timer.cpp            O ; QPC setup, keeps only the low 32 bits of the frequency (checked: once (timer_initialized): QueryPerformanceFrequency low dword into timer_qpc_freq_low32, QPC base/last, InitializeCriticalSection timer_lock, TSC rate over Sleep(250), atexit timer_close)
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
-0x5329f0  init_vif_records         func  -                    O ; hidden start, static initialiser (table 0x5889c4): 100 records of 0xe8 bytes at 0x2d064e8 (vif_record__ctor), cleared by vif_records_reset (checked: static initialiser: eh_vector_constructor_iterator(0x2d064e8, 0xe8, 100, vif_record__ctor))
+0x5329f0  init_vif_records         func  -                    O ; hidden start, static initialiser (table 0x5889c4): 100 records of 0xe8 bytes at 0x2d064e8 (vif_record__ctor), cleared by vif_records_reset (checked: static initialiser: vector_constructor_iterator(0x2d064e8, 0xe8, 100, vif_record__ctor))
 0x532a20  vif_compact_particles    func  -                    O ; compacts the vif particle buffers between "COMPACTING VIF PARTICLES" and "DONE COMPACTING" (0x2d0bf8c, 0x2d06558, 0x2cbffe0), caller vif_instantiate_level
 0x532cb0  vif_emitter_spawn_point  func  -                    O ; (...): computes a particle spawn position (0x558e20, 0x558f40, vector ops), caller vif_emitter_update (checked: (out, record) spawn position by emitter shape byte +0xc0: the emitter point, a spline (spline__ctor_points / spline__eval) or a line interpolation, caller vif_emitter_update)
 0x532e30  vif_find_min_weight      func  -                    I ; hidden start, (rec): index of the smallest nonzero float of the byte +0x60 count at +0, no reference found (dead code?)
@@ -6847,7 +6847,7 @@
 0x53e8d0  gr_poly_b                func  vsdk\gr              I ; hidden start, gr_poly variant: vertex codes into the gr_instance_stack buffer, gr_clip_polygon, gr_project_vertex, no reference found (dead code?)
 0x53e9d0  gr_clip_and_project_poly func  vsdk\gr              O ; (n, verts, ...): gr_clip_polygon, gr_project_vertex of the result, gr_clip_free_temp_verts (0x26926f4 / 0x2692758), caller 0x48f8c0 (level render lists) (checked: (n, verts, ...) gr_clip_polygon when clipping is needed, gr_project_vertex of the result, gr_clip_free_temp_verts, caller levelrender_face_vertex_colors)
 0x53eae0  gr_bitmap_3d_projected   func  vsdk\gr              O ; builds a screen-aligned quad around a projected vertex from bm_get_dimensions and matrix_scale, then gr_poly (checked: eh vector of 4 gr__Vertex, gr_project_vertex of the centre, bm_get_dimensions of gr_texture, corners scaled by gr_matrix_scale and gr_scale_by_far_clip, caller gr_bitmap_3d)
-0x53edd0  gr_bitmap_3d_oriented_quad func  vsdk\gr              O ; (...): builds an oriented quad (eh_vector_constructor_iterator of 4 gr__Vertex, bm_get_dimensions, gr_rotate_vertex, gr_code_vertex, gr_check_normal_facing) and draws it with gr_poly, caller gr_bitmap_3d_oriented
+0x53edd0  gr_bitmap_3d_oriented_quad func  vsdk\gr              O ; (...): builds an oriented quad (vector_constructor_iterator of 4 gr__Vertex, bm_get_dimensions, gr_rotate_vertex, gr_code_vertex, gr_check_normal_facing) and draws it with gr_poly, caller gr_bitmap_3d_oriented
 0x53f060  gr_bitmap_3d_oriented_quad_facing func  vsdk\gr              I ; hidden start, gr_check_normal_facing then a 4-vertex quad like gr_bitmap_3d_oriented_quad, no reference found (dead code?)
 0x53f3b0  gr_bitmap_3d             func  vsdk\gr              O ; (pos, a, b, c): rotate + project a point, then 0x53eae0 when projected (camera-facing sprite) (checked: (pos, a, b, c): gr_rotate_vertex and gr_project_vertex of pos, gr_bitmap_3d_projected when the projected flag is set, else 0)
 0x53f410  gr_bitmap_3d_oriented    func  vsdk\gr              O ; same entry pattern as gr_bitmap_3d but draws through 0x53edd0 (quad with gr_check_normal_facing) (checked: (pos, ...): gr_rotate_vertex and gr_project_vertex, then gr_bitmap_3d_oriented_quad when projected, caller vfx_mesh_instance__render_billboards)
@@ -6924,7 +6924,7 @@
 0x542770  frand_range              func  -                    O ; (lo, hi): lo + frand() * (hi - lo), 18 callers
 0x542790  atan2_fast               func  vsdk\math            O ; fpatan with quadrant fix-up (checked: (y, x): 0 for (0,0), +-pi/2 constants when x == 0, else fpatan(y/x, 1) plus pi when x < 0, callers matrix3__extract_angles, character_update_head_look)
 0x542800  sqrt_abs                 func  vsdk\math            O ; sqrt(-x) for negative x, else sqrt(x)
-0x542830  float_format_buf         func  vsdk\math            I ; (buf, value, size): formats a float digit by digit ("-" sign, "0.0" for zero, "." and "0" from 0x5ac8c8.., crt_floor), returns the length, 0 when size < 4, reached by no direct call (compare float_to_string 0x515700)
+0x542830  float_format_buf         func  vsdk\math            I ; (buf, value, size): formats a float digit by digit ("-" sign, "0.0" for zero, "." and "0" from 0x5ac8c8.., floor), returns the length, 0 when size < 4, reached by no direct call (compare float_to_string 0x515700)
 0x542b50  cross_2d                 func  vsdk\math            O ; (ax, ay, bx, by): ax*by - ay*bx, caller 0x510ed0
 0x542b70  float_ptr_near_value     func  vsdk\math            O ; (float*, value): abs(*a - value) inside the epsilon pair 0x581930/0x581b74
 0x542ba0  float_near_ptr_value     func  vsdk\math            O ; (value, float*): same test with the operands swapped
@@ -6981,9 +6981,9 @@
 0x544ad0  anim_pos_key__ctor_from_matrix func  vsdk\ca\skeleton.cpp O ; thiscall (time, matrix43): anim_key__ctor(time) then three vectors +4/+0x10/+0x1c (0x28 bytes, the anim_pos_key size) with +4 = matrix position, not a skeleton node (formerly skeleton_node__ctor)
 0x544b20  anim_key__ctor           func  vsdk\ca              O ; thiscall (time): +0 = time, returns this, base of the skeleton key records, callers the 0x28-byte position key ctor 0x544ad0 and anim_rot_key__ctor (checked: thiscall(time): stores the argument at +0 and returns this, ret 4, callers anim_pos_key__ctor_from_matrix, anim_rot_key__ctor)
 0x544b30  anim_pos_key__get_size   func  vsdk\ca              O ; thiscall: returns 0x28, the stride of the position key array that skeleton_read allocates with ctor 0x544b60 (checked: returns 0x28, the size of the key built by 0x544ad0 (anim_key time + three vectors), caller skeleton_read uses it as the position key stride)
-0x544b40  anim_rot_key__ctor       func  vsdk\ca              I ; eh_vector_constructor_iterator ctor of the 0x14-byte key array in skeleton_read: anim_key__ctor(0) plus the 12-byte member at +4
+0x544b40  anim_rot_key__ctor       func  vsdk\ca              I ; vector_constructor_iterator ctor of the 0x14-byte key array in skeleton_read: anim_key__ctor(0) plus the 12-byte member at +4
 0x544b60  skeleton_node__ctor_default func  vsdk\ca              O ; hidden start, eh vector constructor callback pushed by skeleton_read: skeleton_node__ctor(0, identity_matrix43)
-0x544b70  anim_vec_key__ctor       func  vsdk\ca              I ; eh_vector_constructor_iterator ctor of a 0x10-byte key array (time + vector3 at +4) in skeleton_read
+0x544b70  anim_vec_key__ctor       func  vsdk\ca              I ; vector_constructor_iterator ctor of a 0x10-byte key array (time + vector3 at +4) in skeleton_read
 0x544b80  StringPool__Init         func  vsdk\os\stringpool.cpp V ; Summoner 2 decomp; same field layout
 0x544ba0  StringPool__Allocate     func  vsdk\os\stringpool.cpp O ; thiscall (max_length): pool = operator_new(max_length), allocated = 1, length = count = 0
 0x544bd0  StringPool__Reset        func  vsdk\os\stringpool.cpp V ; Summoner 2
@@ -7072,7 +7072,7 @@
 0x5470e0  perlin_noise3            func  -                    O ; Ken Perlin reference noise3(vec[3]) over g3 0x2f0d190, callers 0x48de60 and the vfx code 0x5605f0
 0x547390  glide_unload_dll         func  vsdk\gr\glide\gr_glide.cpp O ; FreeLibrary(glide2x.dll handle 0x2f0e9b0), called by gr_glide_close
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
-0x547990  init_glide_records_2f0eb70 func  vsdk\gr\glide        O ; hidden start, static initialiser (table 0x588a0c): 2 records of 0x48 bytes at 0x2f0eb70 (glide_record__ctor) (checked: static initialiser: eh_vector_constructor_iterator(0x2f0eb70, 0x48, 2, glide_record__ctor), the two TMU records)
+0x547990  init_glide_records_2f0eb70 func  vsdk\gr\glide        O ; hidden start, static initialiser (table 0x588a0c): 2 records of 0x48 bytes at 0x2f0eb70 (glide_record__ctor) (checked: static initialiser: vector_constructor_iterator(0x2f0eb70, 0x48, 2, glide_record__ctor), the two TMU records)
 0x5479c0  gr_glide_tcache_init     func  -                    O ; allocates the 0xaf0-entry texture table 0x2f0ec00, glide_tmu_init for both TMU records, prints the total, then sets every entry to -1/0, counterpart of gr_glide_tcache_close (formerly glide_report_texture_memory)
 0x547a90  gr_glide_tcache_free_entry func  vsdk\gr\glide\gr_glide.cpp O ; (entry, release_tmus, free_sections): frees the texture memory of a 0x10-byte texture entry in both TMU records (glide_record__free_texture_thunk) and/or deletes its 0x38-byte section data, counterpart of gr_d3d_tcache_free_entry, callers gr_glide_tcache_flush, gr_glide_tcache_free, gr_glide_create_texture (checked: (entry, release tmus, free sections) glide_record__free_texture_thunk for both TMU records, operator_delete of the section buffers, callers gr_glide_tcache_flush/free, gr_glide_create_texture)
 0x547b60  gr_glide_tcache_close    func  vsdk\gr\glide\gr_glide.cpp O ; gr_glide_tcache_flush, frees each TMU block table (0x48-byte TMU records at 0x2f0eb70), deletes the texture table 0x2f0ec00, caller gr_glide_close
@@ -7133,7 +7133,7 @@
 0x54baa0  gr_glide_set_alpha_test  func  vsdk\gr\glide\gr_glide.cpp O ; grAlphaTestFunction(GREATER or ALWAYS), glide back end of 0x508110
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp O ; grGammaCorrectionValue(gr_gamma), sole caller gr_set_gamma
 0x54bad0  gr_glide_flush_pipeline  func  vsdk\gr\glide\gr_glide.cpp O ; grLfbLock, grLfbReadRegion of one pixel, grLfbUnlock (forces the card to finish) (checked: grLfbLock(read, back buffer), grLfbReadRegion of the screen size, grLfbUnlock, forces the card to finish, sole caller gr_flush_pipeline)
-0x54bb30  init_opengl_records_2f132d8 func  vsdk\gr\opengl       O ; hidden start, static initialiser (table 0x588a18): 2 records of 0x18 bytes at 0x2f132d8 (opengl_record__ctor) (checked: static initialiser: eh_vector_constructor_iterator(0x2f132d8, 0x18, 2, opengl_record__ctor))
+0x54bb30  init_opengl_records_2f132d8 func  vsdk\gr\opengl       O ; hidden start, static initialiser (table 0x588a18): 2 records of 0x18 bytes at 0x2f132d8 (opengl_record__ctor) (checked: static initialiser: vector_constructor_iterator(0x2f132d8, 0x18, 2, opengl_record__ctor))
 0x54bb60  gr_d3d_tcache_init       func  vsdk\gr\directx\gr_direct3d.cpp O ; allocates 0xaf0 texture entries of 0x10 bytes (0x2f13308, handle -1) and the texture slots, caller gr_d3d_init
 0x54bbb0  gr_d3d_tcache_close      func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_d3d_tcache_flush, frees every entry, deletes the table, caller gr_d3d_close
 0x54bbf0  gr_d3d_tcache_free_entry func  vsdk\gr\directx\gr_direct3d.cpp O ; (entry) releases the slots of one texture entry, callers gr_d3d_tcache_free, gr_d3d_create_texture (checked: (entry): Release (vtable +8) of each section surface (0x20 stride at +0xc), subtracts its size from 0x2f13314, operator_delete of the section array, count +4 = 0)
@@ -7410,7 +7410,7 @@
 0x558e00  spline__ctor             func  vsdk\math            O ; hidden start, thiscall: 22 vector3 points
 0x558e20  spline__ctor_points      func  vsdk\math            O ; thiscall (points, n): 22 vector3 then spline__set_points, caller 0x532cb0
 0x558e50  spline__set_points       func  vsdk\math            O ; thiscall (points, n): copies the points into +1.. and extrapolates the end points (2p0 - p1 style), count +0x108 (checked: thiscall (points, n <= 20) copies the points after slot 0 and extrapolates both ends (2p0 - p1), count +0x108 (0 when n > 20), caller spline__ctor_points)
-0x558f40  spline__eval             func  vsdk\math            O ; thiscall (out, t): uniform cubic spline through the points (four-point blend weights from frac(t)), clamps t to the last point, caller 0x532cb0 (checked: thiscall (out, t) vector3_zero when the count +0x108 <= 0, crt_floor segment index, four-point blend of the neighbours, caller vif_emitter_spawn_point)
+0x558f40  spline__eval             func  vsdk\math            O ; thiscall (out, t): uniform cubic spline through the points (four-point blend weights from frac(t)), clamps t to the last point, caller 0x532cb0 (checked: thiscall (out, t) vector3_zero when the count +0x108 <= 0, floor segment index, four-point blend of the neighbours, caller vif_emitter_spawn_point)
 0x5590b0  init_gr_clip_temp_verts  func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a24): 64 gr__Vertex in gr_clip_temp_verts
 0x5590e0  gr_clip_edge             func  vsdk\gr              O ; creates the intersection vertex of an edge with one clip plane (uses gr_clip_alloc_temp_vertex), callers gr_clip_line, gr_clip_plane (checked: gr_clip_alloc_temp_vertex, interpolates the edge against the plane given by the code bits (gr_far_clip_z for the far plane), gr_code_vertex, callers gr_clip_line, gr_clip_plane)
 0x559330  gr_clip_alloc_temp_vertex func  vsdk\gr              O ; returns the next 0x30-byte vertex of the pool 0x2f53b00 (count 0x2f54700), marks flags +0x19 = 4 (temporary)
@@ -7491,7 +7491,7 @@
 0x55beb0  BitArray__set            func  vsdk\geom            O ; hidden start, thiscall (bit, value): sets or clears one bit
 0x55bef0  BitArray__free           func  vsdk\geom            O ; thiscall: operator_delete of the data when owned (+8), data = NULL, reached by jmp from the dtor thunk 0x55bd90
 0x55bf20  BitArray__all_equal      func  vsdk\geom            O ; hidden start, thiscall (n, value): true when the first n bits all equal value
-0x55bf90  init_ds_channels         func  -                    O ; hidden start, static initialiser (table 0x588a28): builds the 32 DirectSound channel records (0x2c bytes) at 0x2f798b8 (RealtimeTimer at +0x24, ctor 0x55dda0) (formerly init_timed_records_2f798b8) (checked: static initialiser: eh_vector_constructor_iterator(0x2f798b8, 0x2c, 32, ds_channel__ctor))
+0x55bf90  init_ds_channels         func  -                    O ; hidden start, static initialiser (table 0x588a28): builds the 32 DirectSound channel records (0x2c bytes) at 0x2f798b8 (RealtimeTimer at +0x24, ctor 0x55dda0) (formerly init_timed_records_2f798b8) (checked: static initialiser: vector_constructor_iterator(0x2f798b8, 0x2c, 32, ds_channel__ctor))
 0x55bfc0  ds_is_3d_buffer          func  -                    O ; (IDirectSoundBuffer*): GetCaps (vtbl +0xc, DSBCAPS size 0x14) and returns the DSBCAPS_CTRL3D bit (0x10), callers ds_play_3d, ds_play, FreeSpace 2 ds_is_3d_buffer
 0x55c000  ds_duplicate_buffer      func  -                    O ; "DuplicateSoundBuffer failed because: %s" (checked: (dest_channel, sound): IDirectSound vtable +0x14 (DuplicateSoundBuffer) into channel +0, on failure "DuplicateSoundBuffer failed because: %s" and clears the channel, callers ds_play, ds_play_3d)
 0x55c080  ds_eax_init              func  -                    O ; creates a dummy 22050 Hz 3D buffer, QueryInterface for IDirectSound3DBuffer and IKsPropertySet (0x2f8f730), "Failed to get sound card property set: %s", caller ds_init, FreeSpace 2 ds_eax_init
@@ -7583,16 +7583,16 @@
 0x55eed0  ui_slider__update_marker func  vsdk\ui              O ; marker size = track length * visible / (count + visible - 1), clamped
 0x55ef50  ui_tooltip__dtor         func  vsdk\ui              O ; empty, called by ui_tooltip__scalar_deleting_dtor, ui_element__dtor (member tooltip) and an unwind funclet (checked: empty body (ret), called by ui_tooltip__scalar_deleting_dtor, ui_element__dtor for its member and an unwind funclet)
 0x55ef60  ui_tooltip__draw         func  vsdk\ui              O ; tooltip node: text +0xc at owner screen position + (+0x114, +0x118), gr_get_string_size box, called by ui_draw
-0x55f110  gr_poly_split_sections_draw func  vsdk\gr              O ; (n, verts, mode, bitmap): for bitmaps split into texture sections, cuts the polygon along the section u/v lines (gr_poly_split_at_tex_line, bm_get_dimensions, floor) into the vertex pool 0x2f8f758 and draws each piece with gr_tmapper_multipass, caller gr_poly_clip_and_draw (checked: (n, verts, mode, bitmap) bm_get_dimensions, section lines via crt_floor, gr_poly_split_at_tex_line, gr_tmapper_multipass per piece, caller gr_poly_clip_and_draw)
+0x55f110  gr_poly_split_sections_draw func  vsdk\gr              O ; (n, verts, mode, bitmap): for bitmaps split into texture sections, cuts the polygon along the section u/v lines (gr_poly_split_at_tex_line, bm_get_dimensions, floor) into the vertex pool 0x2f8f758 and draws each piece with gr_tmapper_multipass, caller gr_poly_clip_and_draw (checked: (n, verts, mode, bitmap) bm_get_dimensions, section lines via floor, gr_poly_split_at_tex_line, gr_tmapper_multipass per piece, caller gr_poly_clip_and_draw)
 0x55f580  gr_poly_split_at_tex_line func  vsdk\gr              O ; (poly, stage, use_v, line, out...): splits a polygon where texture coordinate u (+4) or v (+8) crosses line, new vertices from gr_poly_split_edge_vertex, caller gr_poly_split_sections_draw (checked: (poly, stage, use v, line, out ...) float_strictly_between tests of u/v per edge, gr_poly_split_edge_vertex for the cut points, caller gr_poly_split_sections_draw)
 0x55f8b0  float_strictly_between   func  vsdk\math            O ; (a, b, x): true when min(a, b) < x < max(a, b) (float_min/float_max), caller gr_poly_split_at_tex_line
 0x55f900  gr_poly_split_edge_vertex func  vsdk\gr              O ; (v0, v1, t, ...): gr_poly_alloc_clip_vertex, interpolated position, gr_project_vertex, then interpolated uv, rgb and alpha per stage, caller gr_poly_split_at_tex_line
-0x55fb00  gr_poly_get_section      func  vsdk\gr              O ; (bitmap, u, v, ...): bm_get_dimensions against the maximum texture size (0x25d8d6c/0x25d8d70) and the uv to pick the texture section index of a polygon, callers 0x536360 (D3D multitexture) and gr_glide_tmapper_multitexture (checked: (bitmap, u, v, ...) bm_get_dimensions against the max texture size 0x25d8d6c/70 (imax), section index from crt_floor of the uv, callers gr_d3d_tmapper_multipass, gr_glide_tmapper_multitexture)
+0x55fb00  gr_poly_get_section      func  vsdk\gr              O ; (bitmap, u, v, ...): bm_get_dimensions against the maximum texture size (0x25d8d6c/0x25d8d70) and the uv to pick the texture section index of a polygon, callers 0x536360 (D3D multitexture) and gr_glide_tmapper_multitexture (checked: (bitmap, u, v, ...) bm_get_dimensions against the max texture size 0x25d8d6c/70 (imax), section index from floor of the uv, callers gr_d3d_tmapper_multipass, gr_glide_tmapper_multitexture)
 0x55fc70  vfx_dummy_state__reset   func  vsdk\geom            O ; thiscall: clears the top three flag bits of +4, zero vector +8, identity quaternion +0x14, caller 0x536a70
-0x55fc90  vfx_dummy_state__update  func  vsdk\geom            O ; thiscall (record, time): position (0x5202f0 pair, frame-interpolated) and orientation (vfx_node__get_orient) of a 0x64-byte record (effect base +0x30, count +0xa) into the state, caller 0x536fb0 (checked: thiscall (record, time) crt_floor frame split, vfx_shadow_desc__get_position pair interpolated with vector3__scaled, orientation channel, caller vfx_instance_process)
+0x55fc90  vfx_dummy_state__update  func  vsdk\geom            O ; thiscall (record, time): position (0x5202f0 pair, frame-interpolated) and orientation (vfx_node__get_orient) of a 0x64-byte record (effect base +0x30, count +0xa) into the state, caller 0x536fb0 (checked: thiscall (record, time) floor frame split, vfx_shadow_desc__get_position pair interpolated with vector3__scaled, orientation channel, caller vfx_instance_process)
 0x55fed0  vfx_dummy__relocate      func  vsdk\geom            O ; thiscall (header_base, base): relocates a 0x64-byte effect record (base +0x30): header, vec channel +0x10, quat channel +0x34, caller 0x536bc0
 0x55ff00  init_gr_mode_2f91a5c     func  vsdk\geom            O ; hidden start, static initialiser (table 0x588a2c): gr__Mode(0, 0, 0, 3, 1, 0) into 0x2f91a5c
-0x55ff30  vfx_emitter_instance__spawn func  vsdk\geom            O ; thiscall (record, time, ...): emission rate from vfx_emitter__get_rate over the elapsed frames (floor), then vfx_emitter_instance__init_particle for each new particle, caller vfx_emitter_instance__update (checked: thiscall (record, time, ...) vfx_emitter__get_rate over the elapsed frames (crt_floor), vfx_emitter_instance__init_particle per new particle, caller vfx_emitter_instance__update)
+0x55ff30  vfx_emitter_instance__spawn func  vsdk\geom            O ; thiscall (record, time, ...): emission rate from vfx_emitter__get_rate over the elapsed frames (floor), then vfx_emitter_instance__init_particle for each new particle, caller vfx_emitter_instance__update (checked: thiscall (record, time, ...) vfx_emitter__get_rate over the elapsed frames (floor), vfx_emitter_instance__init_particle per new particle, caller vfx_emitter_instance__update)
 0x5601f0  vfx_emitter_instance__init_particle func  vsdk\geom            O ; thiscall (record, particle, ...): random position/direction (frand_range, vector3__random_unit_vector) inside the emitter shape, velocity, lifetime (vfx_particle__set_lifetime) and size, caller vfx_emitter_instance__spawn (checked: thiscall (record, particle, ...) vector3__random_unit_vector, frand_range and the emitter fixed-point getters for position, speed and lifetime, caller vfx_emitter_instance__spawn)
 0x5605f0  vfx_particle_apply_forces func  vsdk\geom            O ; (particle, forces, dt, ...): integrates velocity with gravity/force records, perlin_noise3 turbulence and plane collision (plane__set_normal_point_b, Plane__distance_to_point), caller vfx_emitter_instance__move_particles (checked: (particle, forces, dt, ...) vfx_particle__get_velocity/get_age, force sums, plane collision, callers vfx_emitter_instance__move_particles)
 0x560a00  vfx_emitter_instance__move_particles func  vsdk\geom            O ; thiscall (record, time, ...): evaluates the force records (vfx_force__get_transform) and runs vfx_particle_apply_forces on every live particle, caller vfx_emitter_instance__update (checked: thiscall (record, time, ...) eh vector of vfx_vec_pair, vfx_force__get_transform per force record, vfx_particle_apply_forces per live particle, caller vfx_emitter_instance__update)
@@ -7679,13 +7679,13 @@
 0x564d50  ptr_relocate             func  vsdk\geom            O ; (void** p, base): *p += base unless NULL, used by vfx_relocate_entry, anim_track__relocate and the vfx loaders
 0x564d70  vfx_material_layer__ctor func  vsdk\geom            O ; hidden start, trivial ctor (returns this) pushed with 0x564d80 by vfx_material__ctor to the eh vector constructor (2 x 0x14)
 0x564d80  vfx_material_layer__dtor func  vsdk\geom            O ; hidden start, bare ret, element dtor pushed by vfx_material__ctor and its unwind funclet 0x57db20
-0x564d90  vfx_tex_layer__get_frame_bitmap func  vsdk\geom            O ; thiscall (time): animated texture layer: bitmap +0 plus the frame from time, fps +0xc, start +8 and play mode +0x10 (loop, once, ping-pong) over the bm frame count (0x502500) (checked: thiscall (time) bitmap +0 with bm_get_num_frames, frame from time * fps +0xc minus start +8 by play mode +0x10, crt_floor, imax)
-0x564e40  vfx_tex_layer__get_frame_bitmap_frac func  vsdk\geom            O ; thiscall (fraction): as vfx_tex_layer__get_frame_bitmap with the frame chosen by a 0..1 life fraction (checked: thiscall (fraction) bitmap +0 with bm_get_num_frames, frame = crt_floor(fraction * frames), callers vfx_particle_get_bitmaps)
+0x564d90  vfx_tex_layer__get_frame_bitmap func  vsdk\geom            O ; thiscall (time): animated texture layer: bitmap +0 plus the frame from time, fps +0xc, start +8 and play mode +0x10 (loop, once, ping-pong) over the bm frame count (0x502500) (checked: thiscall (time) bitmap +0 with bm_get_num_frames, frame from time * fps +0xc minus start +8 by play mode +0x10, floor, imax)
+0x564e40  vfx_tex_layer__get_frame_bitmap_frac func  vsdk\geom            O ; thiscall (fraction): as vfx_tex_layer__get_frame_bitmap with the frame chosen by a 0..1 life fraction (checked: thiscall (fraction) bitmap +0 with bm_get_num_frames, frame = floor(fraction * frames), callers vfx_particle_get_bitmaps)
 0x564ef0  vfx_tex_layer__ctor      func  vsdk\geom            O ; hidden start, thiscall: zeroes the six dwords of the 0x14-byte layer
 0x564f10  vfx_stub_ret_564f10      func  vsdk\geom            I ; hidden start after vfx_tex_layer__ctor, bare ret, no reference found (dead code?)
 0x564f20  vfx_material__ctor       func  vsdk\geom            O ; thiscall ctor: two 0x14-byte texture layers at +0xc (eh vector ctor) then vfx_material__reset
 0x564f80  vfx_material__reset      func  vsdk\geom            O ; thiscall: default flags, colours +8..+0xa = 255, layer bitmaps -1, curve pointers/counts zero, +0x38 default name 0x2f91a70, +0x3c = -1, +0x40 = 0.6
-0x564ff0  vfx_material__eval_curve34 func  vsdk\geom            O ; thiscall (time): 0..1 value of the byte key curve +0x34 (count +2, 15 fps scaled by the rate in flag bits 7..15, constant for mode 0/2), callers 0x538430, vfx_mesh_instance__render_billboards, 0x562f60 (checked: thiscall (time) mode from the low 3 bits of word +0, byte key curve at +0x34 sampled with crt_floor and clamped by float_max/float_min, callers vfx_instance__setup_render_state, vfx_mesh_render)
+0x564ff0  vfx_material__eval_curve34 func  vsdk\geom            O ; thiscall (time): 0..1 value of the byte key curve +0x34 (count +2, 15 fps scaled by the rate in flag bits 7..15, constant for mode 0/2), callers 0x538430, vfx_mesh_instance__render_billboards, 0x562f60 (checked: thiscall (time) mode from the low 3 bits of word +0, byte key curve at +0x34 sampled with floor and clamped by float_max/float_min, callers vfx_instance__setup_render_state, vfx_mesh_render)
 0x5650e0  vfx_material__eval_curve44 func  vsdk\geom            O ; thiscall (time): 0..1 value of the byte key curve +0x44 (count +4), callers vfx_particle_get_color, 0x538430, 0x562f60 (checked: thiscall (time) rate from word +0 >> 7, time * rate * 15, byte key curve +0x44 sampled and clamped 0..1, callers vfx_particle_get_color, vfx_mesh_render)
 0x5651b0  vfx_material__eval_curve48 func  vsdk\geom            O ; thiscall (time): 0..1 value of the byte key curve +0x48 (count +6), callers vfx_emitter_instance__get_transform, vfx_mesh_instance__render_billboards, 0x562f60 (checked: thiscall (time) rate from word +0 >> 7, time * rate * 15, byte key curve +0x48 sampled and clamped 0..1, callers vfx_emitter_instance__get_transform, vfx_mesh_render)
 0x565280  vfx_material__relocate   func  vsdk\geom            O ; thiscall (header_base, base): both texture layers (vfx_tex_layer__relocate), name +0x38, curve pointers +0x34/+0x44/+0x48, bitmap +0x3c = 0, caller 0x536bc0
@@ -7867,70 +7867,377 @@
 0x56c450  finish_pass_master       func  libjpeg              O ; jcmaster.c: master method 2
 0x56c4d0  jpeg_fdct_float          func  libjpeg              O ; jfdctflt.c: AAN float forward DCT, stored as do_float_dct
 0x56c740  sprintf                  func  crt                    O ; C runtime
+0x56c792  _fpmath                  func  crt                  O ; _cfltcvt_init, _adjust_fdiv = _ms_p5_mp_test_fdiv(), _setdefaultprecision, fnclex, reached via _FPinit from _cinit
+0x56c7aa  _cfltcvt_init            func  crt                  O ; fills _cfltcvt_tab 0x5af7c8: _cfltcvt, _cropzeros, _fassign, _forcdecpt, _positive, _cfltcvt
 0x56c7e4  _ftol                    func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__ftol)
 0x56c810  strncpy                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strncpy)
+0x56c910  strcspn                  func  crt                  O ; 256-bit set built with bts, counts chars until one is in the set
 0x56c960  strchr                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strchr)
+0x56ca1c  isalpha                  func  crt                  O ; _pctype mask 0x103 (_ALPHA), _isctype when __mb_cur_max > 1
+0x56ca4a  isupper                  func  crt                  O ; _pctype mask 1 (_UPPER), _isctype when __mb_cur_max > 1
+0x56ca72  islower                  func  crt                  O ; _pctype mask 2 (_LOWER), _isctype when __mb_cur_max > 1
+0x56ca9a  isdigit                  func  crt                  O ; _pctype mask 4 (_DIGIT), _isctype when __mb_cur_max > 1
+0x56cac2  isspace                  func  crt                  O ; _pctype mask 8 (_SPACE), _isctype when __mb_cur_max > 1
+0x56caea  _JumpToContinuation      func  crt                  O ; trnsctrl.cpp: unlinks fs:0 node, restores esp/ebp from the registration node, jmp to catch continuation, called by CatchIt
+0x56cb1e  _CallMemberFunction1     func  crt                  I ; trnsctrl.cpp thiscall trampoline (pop eax, pop ecx, xchg, jmp): copy ctor in BuildCatchObject, also the dtor call in _DestructExceptionObject
+0x56cb25  _CallMemberFunction2     func  crt                  I ; trnsctrl.cpp thiscall trampoline: copy ctor with virtual-base flag 1, BuildCatchObject when CatchableType has CT_HASVB (4)
+0x56cb2c  _UnwindNestedFrames      func  crt                  O ; trnsctrl.cpp: RtlUnwind to the given frame with return label, clears EXCEPTION_UNWINDING bit, relinks fs:0
+0x56cb7b  __CxxFrameHandler        func  crt                  O ; funcinfo in eax, forwards to __InternalCxxFrameHandler, called by all compiler unwind funclets (eh_unwind_*)
+0x56cbb1  _CallCatchBlock2         func  crt                  O ; trnsctrl.cpp: installs CatchGuardHandler frame then _CallSettingFrame(handler, frame, 0x100)
+0x56cc05  CatchGuardHandler        func  crt                  O ; trnsctrl.cpp: guard frame handler, calls __InternalCxxFrameHandler with the saved funcinfo/catch depth
+0x56cc2a  _CallSETranslator        func  crt                  O ; trnsctrl.cpp: TranslatorGuardHandler frame, calls ptd->_translator (+0x68) with the exception code
+0x56cce0  TranslatorGuardHandler   func  crt                  O ; trnsctrl.cpp: guard frame handler of _CallSETranslator, unwinds and jumps to the continuation
+0x56cd55  _GetRangeOfTrysToCheck   func  crt                  O ; trnsctrl.cpp: walks FuncInfo try-block map (0x14 entries) by catch depth, _inconsistency on bad state
 0x56cdd0  _global_unwind2          func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__global_unwind2)
 0x56ce12  _local_unwind2           func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__local_unwind2)
 0x56ce7a  _abnormal_termination    func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__abnormal_termination)
 0x56ce9d  _NLG_Notify1             func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__NLG_Notify1)
+0x56cea6  _NLG_Notify              func  crt                  O ; exsup.asm: stores frame/ebp into __NLG_Destination 0x5af4e0, sibling of _NLG_Notify1
 0x56cebe  tolower                  func  crt                    O ; C runtime
+0x56cf2d  _tolower_lk              func  crt                  O ; fast A-Z path when __lc_handle[LC_CTYPE] is 0, else __crtLCMapStringA(LCMAP_LOWERCASE), called by tolower/_stricmp/_strnicmp
+0x56cff8  sscanf                   func  crt                  O ; string FILE (_IOREAD+_IOSTRG 0x49, cnt = strlen) passed to _input
 0x56d02c  fclose                   func  crt                    O ; C runtime
 0x56d05d  _fclose_lk               func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__fclose_lk)
+0x56d0a9  fgets                    func  crt                  O ; _lock_file, per-char _getc_lk/_filbuf until n-1 or newline, _unlock_file
+0x56d10b  _fsopen                  func  crt                  O ; _getstream, _openfile(name, mode, shflag, stream), _unlock_file, fopen passes _SH_DENYNO 0x40
 0x56d13c  fopen                    func  crt                    O ; C runtime
+0x56d14f  _onexit                  func  crt                  O ; _lockexit, grows __onexitbegin table with _msize/realloc, appends func, _unlockexit, atexit wrapper
 0x56d1cd  atexit                   func  crt                    O
+0x56d210  memmove                  func  crt                  O ; VC6 memcpy.asm code with overlap check and backward copy, callers shift overlapping buffers (_shift, __sbh_free_block)
 0x56d550  strncmp                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strncmp)
 0x56d590  strrchr                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strrchr)
 0x56d5b7  strtok                   func  crt                    O
 0x56d660  strncat                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strncat)
+0x56d783  srand                    func  crt                  O ; stores seed into ptd->_holdrand (+0x14) via _getptd, rand reads the same field
 0x56d790  rand                     func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_rand)
 0x56d7c0  _chkstk                  func  crt                    O ; stack probe for large frames
 0x56d7ef  time                     func  crt                    O
+0x56d8cb  localtime                func  crt                  O ; __tzset, gmtime of t - _timezone, _isindst then subtract _dstbias, sets tm_isdst
 0x56da2b  printf                   func  crt                    O ; stdout (_iob + 0x20)
+0x56da6c  _cinit                   func  crt                  O ; calls _FPinit (0x5af4cc) if set, then _initterm(__xi_a..__xi_z) and _initterm(__xc_a..__xc_z)
 0x56da99  exit                     func  crt                    O ; C runtime
 0x56daaa  _exit                    func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__exit)
+0x56dabb  doexit                   func  crt                  O ; crt0dat.c: _lockexit, _C_Termination_Done/_exitflag, runs atexit table backwards, _initterm pre/terminators, ExitProcess
+0x56db60  _lockexit                func  crt                  O ; _lock(_EXIT_LOCK1 0xd)
+0x56db69  _unlockexit              func  crt                  O ; _unlock(_EXIT_LOCK1 0xd)
+0x56db72  _initterm                func  crt                  O ; calls each non-NULL function pointer in [begin, end)
+0x56db8c  eh_vector_ctor_iterator  func  crt                  O ; compiler helper ??_L (eh vector constructor iterator, 0x404880 is the non-EH ??_H): calls thiscall ctor on count elements of size, SEH frame, unwinds with __ArrayUnwind on failure
+0x56dbf6  eh_vector_ctor_iterator__finally func  crt                  O ; finally funclet of eh_vector_ctor_iterator: __ArrayUnwind of the constructed elements if not completed
+0x56dc0e  eh_vector_dtor_iterator  func  crt                  O ; compiler helper ??_M (eh vector destructor iterator): calls thiscall dtor on count elements backwards, SEH frame
+0x56dc76  eh_vector_dtor_iterator__finally func  crt                  O ; finally funclet of eh_vector_dtor_iterator: __ArrayUnwind of the remaining elements
+0x56dc8e  __ArrayUnwind            func  crt                  O ; destroys elements backwards under __try, ArrayUnwindFilter calls terminate on a nested exception
 0x56dcf0  strstr                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strstr)
 0x56dd70  _CIacos                  func  crt                    O ; x87 intrinsic acos
+0x56dd8d  acos_start               func  crt                  I ; x87 acos body after _fload_withFB: fpatan of sqrt(1-x*x), domain error via _startOneArgErrorHandling with "acos" (opcode 0xd)
+0x56df01  _seh_longjmp_unwind      func  crt                  O ; exsup3.asm stdcall: _local_unwind2 of jmp_buf registration (+0x18) to saved trylevel (+0x1c)
+0x56df1c  _findfirst               func  crt                  O ; FindFirstFileA, fills _finddata_t (attrib, __timet_from_ft times, size, strcpy name), errno on failure
+0x56dfe9  _findnext                func  crt                  O ; FindNextFileA, fills _finddata_t like _findfirst
+0x56e0b1  _findclose               func  crt                  O ; FindClose, errno EINVAL on failure
 0x56e0d1  __timet_from_ft          func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (___timet_from_ft)
 0x56e135  WinMainCRTStartup        func  crt                    O ; calls WinMain
 0x56e23d  _amsg_exit               func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__amsg_exit)
+0x56e262  fast_error_exit          func  crt                  O ; crt0.c: _FF_MSGBANNER when __error_mode is _OUT_TO_STDERR, _NMSG_WRITE(code), ExitProcess(255)
+0x56e286  atol                     func  crt                  O ; skips isspace, sign, decimal digits, atoi and _tzset_lk call it
 0x56e311  atoi                     func  crt                    O
-0x56e31c  crt_floor                func  -                    O ; C runtime, double -> double rounding down, used by spell_roll_amount (checked: CRT double floor: control-word helper 0x575422(0xffff), exponent 0x7ff0 NaN/inf branch, round-down result, callers use it to split times into frame index and fraction)
+0x56e31c  floor                    func  crt                  O ; C runtime floor (double -> double rounding down), used by spell_roll_amount (formerly crt_floor)
+0x56e3eb  asctime                  func  crt                  O ; per-thread ptd->_asctimebuf (+0x38, malloc 0x1a), "SunMonTueWedThuFriSat" day/month tables, store_dt
+0x56e4b5  store_dt                 func  crt                  O ; asctime.c: writes two decimal digits (val/10, val%10) and returns p+2
 0x56e4dd  fprintf                  func  crt                    O ; (FILE*, fmt, ...)
+0x56e520  _CIsqrt                  func  crt                  O ; x87 intrinsic: fst arg, _checkTOS_withFB, sqrt body
+0x56e53d  sqrt_start               func  crt                  I ; x87 sqrt body: fsqrt, negative arg domain error with "sqrt" (opcode 5) via _startOneArgErrorHandling
+0x56e5da  ceil                     func  crt                  O ; like floor (floor) but _FpCodeCeil 0xc to _handle_qnan1/_except1, rounding control 0x5af518
+0x56e6a9  qsort                    func  crt                  O ; qsort.c: median partition with explicit stack, shortsort below cutoff, swap, callers are game sorts
+0x56e7fd  shortsort                func  crt                  O ; qsort.c: selection sort of small ranges, calls swap
+0x56e84b  swap                     func  crt                  O ; qsort.c: byte-wise swap of two elements of width bytes
+0x56e877  bsearch                  func  crt                  O ; binary search (key, base, num, width, compare), followed by _purecall (_amsg_exit 0x19)
 0x56e90c  _isnan                   func  crt                    O
+0x56e93a  _fpclass                 func  crt                  O ; returns _FPCLASS_* (0x200 PINF, 4 NINF, 2 QNAN, 1 SNAN, normals, denormals, zeros) using _sptype
+0x56e9d0  _CIasin                  func  crt                  O ; x87 intrinsic: fst arg, _checkTOS_withFB, asin body
+0x56e9ed  asin_start               func  crt                  I ; x87 asin body, domain error with "asin" (opcode 0xe) via _startOneArgErrorHandling
 0x56ea9b  free                     func  crt                    O ; C runtime
+0x56eb05  free__finally_1          func  crt                  O ; __finally funclet of free: _munlock(_HEAP_LOCK 9) after __sbh_find_block/__sbh_free_block, rest of free follows
+0x56eb5d  free__finally_2          func  crt                  O ; __finally funclet of free: _munlock(_HEAP_LOCK) after __old_sbh_find_block/__old_sbh_free_block, then HeapFree
 0x56eb84  malloc                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_malloc)
 0x56eb96  _nh_malloc               func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__nh_malloc)
+0x56ebc2  _heap_alloc              func  crt                  O ; malloc.c: __sbh_alloc_block under __sbh_threshold (V6 heap), __old_sbh_alloc_block (V5), else HeapAlloc(_crtheap, size rounded 16)
+0x56ec29  _heap_alloc__finally_1   func  crt                  O ; __finally funclet of _heap_alloc: _munlock(_HEAP_LOCK) after __sbh_alloc_block
+0x56ec88  _heap_alloc__finally_2   func  crt                  O ; __finally funclet of _heap_alloc: _munlock(_HEAP_LOCK) after __old_sbh_alloc_block, then HeapAlloc
+0x56ecc0  strpbrk                  func  crt                  O ; 256-bit set built with bts, returns pointer to first char in set or NULL
+0x56ecfa  atof                     func  crt                  O ; skips isspace, _fltin2(str, strlen) and returns its double
 0x56ed51  strtol                   func  crt                    O
+0x56ed68  strtoxl                  func  crt                  O ; strtol.c: base detection 0x/0, isdigit/isalpha via _isctype, toupper, overflow sets errno ERANGE
+0x56ef70  _CIpow                   func  crt                  O ; x87 intrinsic for pow: _fload_withFB, pow body
+0x56ef92  pow_start                func  crt                  I ; x87 pow body: _load_CW, _twoToTOS, _isintTOS, _powhlp special cases, errors with "pow" (opcode 0x1d)
+0x56f165  _isintTOS                func  crt                  I ; pow helper: frndint compare, cl = 0 not integer, 1 odd, 2 even (x*0.5 test)
 0x56f190  _setjmp3                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__setjmp3)
 0x56f20c  longjmp                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_longjmp)
 0x56f285  vsprintf                 func  crt                    O ; (buf, fmt, va_list)
+0x56f2d6  _mkdir                   func  crt                  O ; CreateDirectoryA, _dosmaperr(GetLastError()) on failure
+0x56f302  remove                   func  crt                  O ; DeleteFileA, _dosmaperr on failure
+0x56f32c  _unlink                  func  crt                  O ; tail call to remove
+0x56f337  _getcwd                  func  crt                  O ; _lock(_ENV_LOCK), _getdcwd_lk(0, buf, len), _unlock
+0x56f35e  _getdcwd_lk              func  crt                  O ; _validdrive, GetFullPathNameA of "X:." or GetCurrentDirectoryA, malloc when buf NULL, ERANGE
+0x56f433  _validdrive              func  crt                  O ; GetDriveTypeA of the drive root, false for DRIVE_UNKNOWN/NO_ROOT_DIR
+0x56f46a  _getdrive                func  crt                  O ; GetCurrentDirectoryA, toupper(drive letter) - 'A' + 1, 0 for UNC
+0x56f4ad  _chdrive                 func  crt                  O ; _lock(_ENV_LOCK), SetCurrentDirectoryA("X:"), _dosmaperr, errno EACCES on bad drive
+0x56f520  _chdir                   func  crt                  O ; SetCurrentDirectoryA, GetCurrentDirectoryA, _mbctoupper drive, SetEnvironmentVariableA("=X:")
+0x56f5a6  _strlwr                  func  crt                  O ; fast A-Z path in C locale, else __crtLCMapStringA(LCMAP_LOWERCASE) into malloc buffer, strcpy back, free
+0x56f6da  setvbuf                  func  crt                  O ; _lock_file, _flush, _freebuf, _IONBF/_IOFBF buffer (malloc, _cflush++), _unlock_file
+0x56f789  _filelength              func  crt                  O ; _lock_fhandle, _lseek_lk(SEEK_CUR) then SEEK_END and restore, _unlock_fhandle, EBADF on bad handle
+0x56f813  fflush                   func  crt                  O ; NULL stream -> flsall(FLUSHNULL), else _lock_file, _fflush_lk, _unlock_file
+0x56f842  _fflush_lk               func  crt                  O ; _flush then _commit when _IOCOMMIT (0x4000)
+0x56f870  _flush                   func  crt                  O ; writes pending buffer with _write when _IOWRT and buffered, sets _IOERR on short write, resets ptr/cnt, _flushall follows
+0x56f8d5  flsall                   func  crt                  O ; _lock(_IOB_SCAN_LOCK 2), walks __piob[_nstream] with _lock_file2/_fflush_lk/_unlock_file2
 0x56f979  fseek                    func  crt                    O ; C runtime
+0x56f9a5  _fseek_lk                func  crt                  O ; validates whence, SEEK_CUR via _ftell_lk, _flush, clears _IOEOF, _lseek
+0x56fa32  rename                   func  crt                  O ; MoveFileA, _dosmaperr on failure
+0x56fa60  toupper                  func  crt                  O ; locale read guard (__setlc_active / __unguarded_readlc_active InterlockedIncrement), _lock(_SETLOCALE_LOCK 0x13), _toupper_lk
+0x56facf  _toupper_lk              func  crt                  O ; fast a-z path when __lc_handle[LC_CTYPE] is 0, else __crtLCMapStringA(LCMAP_UPPERCASE), counterpart of _tolower_lk
+0x56fb9b  fscanf                   func  crt                  O ; _lock_file, _input(stream, fmt, args), _unlock_file
 0x56fbc8  fread                    func  crt                    O ; C runtime
+0x56fbf7  _fread_lk                func  crt                  O ; memcpy from buffer, _read for big blocks, _filbuf otherwise, sets _IOEOF/_IOERR
 0x56fcdf  fwrite                   func  crt                    O
+0x56fd0e  _fwrite_lk               func  crt                  O ; memcpy into buffer, _flush, _write direct for big blocks, _flsbuf for single chars
 0x56fe20  _alldiv                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__alldiv)
 0x56fed0  _allmul                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__allmul)
 0x56ff10  memchr                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_memchr)
+0x56ffb5  fputc                    func  crt                  O ; _lock_file, store char or _flsbuf, _unlock_file
+0x56fff0  _beginthread             func  crt                  O ; calloc ptd (0x74), _initptd, CreateThread(_threadstart, CREATE_SUSPENDED), ResumeThread, _dosmaperr on failure
+0x570067  _threadstart             func  crt                  O ; TlsSetValue(__tlsindex, ptd), _FPmtinit, calls ptd->_initaddr(_initarg), _endthread, _XcptFilter/_exit
+0x5700fa  _endthread               func  crt                  O ; _FPmtterm, CloseHandle(ptd->_thandle), _freeptd, ExitThread(0)
 0x570140  _strnicmp                func  crt                    O ; C runtime; TextFile::Peek / Accept
+0x5702fd  _lock_file               func  crt                  O ; streams inside _iob: _lock(index + _STREAM_LOCKS 0x1c), else EnterCriticalSection(stream + 0x20)
+0x57032c  _lock_file2              func  crt                  O ; by __piob index: _lock(i + 0x1c) for i < 20, else EnterCriticalSection(stream + 0x20)
+0x57034f  _unlock_file             func  crt                  O ; counterpart of _lock_file: _unlock or LeaveCriticalSection
+0x57037e  _unlock_file2            func  crt                  O ; counterpart of _lock_file2
+0x5703a1  getenv                   func  crt                  O ; _lock(_ENV_LOCK 7), _getenv_lk, _unlock, libjpeg jinit_memory_mgr calls it
+0x5703c2  _getenv_lk               func  crt                  O ; __wtomb_environ when _environ NULL, scans _environ with strlen/_mbsnbicoll for "name="
+0x57043f  _flsbuf                  func  crt                  O ; output buffer flush/allocation: _getbuf, _isatty for stdout/stderr, _write, _lseek for _IOAPPEND
+0x570557  _output                  func  crt                  O ; printf format engine (sprintf/printf/fprintf/vsprintf): flags, width, %p "p+X", int64, wctomb, _cfltcvt
+0x570c98  write_char               func  crt                  O ; output.c: _putc_lk via _flsbuf, -1 into *pnumwritten on EOF
+0x570ccd  write_multi_char         func  crt                  O ; output.c: repeated write_char
+0x570cfe  write_string             func  crt                  O ; output.c: write_char over a length-counted string
+0x570d36  get_int_arg              func  crt                  O ; output.c: *pargptr += 4, returns int
+0x570d43  get_int64_arg            func  crt                  O ; output.c: *pargptr += 8, returns __int64 in edx:eax
+0x570d53  get_short_arg            func  crt                  O ; output.c: *pargptr += 4, returns short
+0x570d61  _setdefaultprecision     func  crt                  O ; _controlfp(_PC_53 0x10000, _MCW_PC 0x30000)
+0x570d73  _ms_p5_test_fdiv         func  crt                  O ; Pentium FDIV bug test with constants 0x582b88/0x582b90
+0x570db1  _ms_p5_mp_test_fdiv      func  crt                  O ; IsProcessorFeaturePresent(PF_FLOATING_POINT_PRECISION_ERRATA) via GetProcAddress("KERNEL32"), else _ms_p5_test_fdiv
+0x570dda  _forcdecpt               func  crt                  O ; _cfltcvt_tab[3]: inserts decimal point before exponent ('e' via tolower) or after digits (isdigit)
 0x570e9a  _fassign                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__fassign)
+0x570ed8  _cftoe                   func  crt                  O ; cvt.c: _fltout2, _fptostr, _cftoe2
+0x570f39  _cftoe2                  func  crt                  O ; cvt.c: formats mantissa and "e+000" exponent, _shift
+0x570ffb  _cftof                   func  crt                  O ; cvt.c: _fltout2, _fptostr, _cftof2
+0x571050  _cftof2                  func  crt                  O ; cvt.c: fixed format with leading zeros (memset), _shift
+0x5710f7  _cftog                   func  crt                  O ; cvt.c: chooses _cftoe2 or _cftof2 by exponent, _cfltcvt dispatches e/f/g
 0x57118a  _cfltcvt                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__cfltcvt)
+0x5711db  _shift                   func  crt                  O ; cvt.c: memmove(s + dist, s, strlen(s) + 1)
+0x571200  _isctype                 func  crt                  O ; _pctype for c+1 <= 256, else __crtGetStringTypeA(CT_CTYPE1) for multibyte chars
+0x571275  __InternalCxxFrameHandler func  crt                  O ; frame.cpp: magic 0x19930520 check, __FrameUnwindToState on unwind, FindHandler
+0x571310  FindHandler              func  crt                  O ; frame.cpp: _GetRangeOfTrysToCheck, TypeMatch per catch, CatchIt, foreign exceptions to FindHandlerForForeignException
+0x5714c3  FindHandlerForForeignException func  crt                  O ; frame.cpp: _CallSETranslator, then catch(...) blocks via CatchIt
+0x57156d  TypeMatch                func  crt                  O ; frame.cpp: compares TypeDescriptor names with strcmp, const/volatile/reference flags
+0x5715ca  __FrameUnwindToState     func  crt                  O ; frame.cpp: calls unwind map actions with _CallSettingFrame down to target state
+0x57167e  CatchIt                  func  crt                  O ; frame.cpp: BuildCatchObject, _UnwindNestedFrames, __FrameUnwindToState, CallCatchBlock, _JumpToContinuation
+0x5716f9  CallCatchBlock           func  crt                  O ; frame.cpp: saves/restores ptd curexception (+0x6c) and context (+0x70), _CallCatchBlock2
+0x5717c6  CallCatchBlock__finally  func  crt                  O ; __finally funclet of CallCatchBlock: restores ptd fields, _DestructExceptionObject(abnormal_termination), ExFilterRethrow follows
+0x57183e  BuildCatchObject         func  crt                  O ; frame.cpp: _ValidateRead/_ValidateWrite, AdjustPointer, memmove or copy ctor via _CallMemberFunction1/2
+0x571a02  _DestructExceptionObject func  crt                  O ; frame.cpp: calls ThrowInfo dtor (+4) on the object under __try, terminate on failure
+0x571a69  AdjustPointer            func  crt                  O ; frame.cpp: this-pointer adjustment with PMD mdisp/pdisp/vdisp
 0x571a90  _CallSettingFrame        func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__CallSettingFrame@12)
+0x571adc  _mtinit                  func  crt                  O ; _mtinitlocks, TlsAlloc -> __tlsindex 0x5afa00, calloc ptd, TlsSetValue, _initptd, GetCurrentThreadId
+0x571b30  _initptd                 func  crt                  O ; ptd->_pxcptacttab = _XcptActTab, _holdrand = 1
+0x571b43  _getptd                  func  crt                  O ; TlsGetValue(__tlsindex), creates ptd with calloc on first use, GetLastError/SetLastError preserved, _amsg_exit(_RT_THREAD)
+0x571baa  _freeptd                 func  crt                  O ; frees ptd buffers (strtok, asctime, gmtime...) and ptd, TlsSetValue(NULL)
+0x571c4a  terminate                func  crt                  O ; calls ptd->_terminate (+0x60) under __try, then abort
+0x571cab  _inconsistency           func  crt                  O ; calls __pInconsistency (0x5afa04) if set, then terminate
+0x571d01  _mtinitlocks             func  crt                  O ; InitializeCriticalSection of the 4 preallocated locks in _locktable
+0x571d2a  _lock                    func  crt                  O ; lazily mallocs and InitializeCriticalSection _locktable[n] under _LOCKTAB_LOCK, EnterCriticalSection
+0x571d8b  _unlock                  func  crt                  O ; LeaveCriticalSection(_locktable[n])
+0x571da0  __crtLCMapStringA        func  crt                  O ; LCMapStringW probe, else LCMapStringA, or MultiByteToWideChar/LCMapStringW/WideCharToMultiByte with __lc_codepage
+0x571fc4  strncnt                  func  crt                  O ; aw_map.c: length of string bounded by count, used by __crtLCMapStringA/__crtCompareStringA
+0x571fef  _input                   func  crt                  O ; scanf format engine (sscanf/fscanf): " \t-\r]" scanset, _hextodec, _inc/_un_inc/_whiteout, mbtowc, int64
+0x572a14  _hextodec                func  crt                  O ; input.c: isdigit, else (c & ~0x20) - 7
+0x572a4b  _inc                     func  crt                  O ; input.c: _getc_lk (cnt/ptr or _filbuf)
+0x572a65  _un_inc                  func  crt                  O ; input.c: _ungetc_lk unless EOF
+0x572a7c  _whiteout                func  crt                  O ; input.c: _inc while isspace
 0x572aa0  strlen                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strlen)
+0x572b1b  _close                   func  crt                  O ; _lock_fhandle, _close_lk, _unlock_fhandle, EBADF when fh >= _nhandle or not FOPEN
+0x572b78  _close_lk                func  crt                  O ; CloseHandle of _get_osfhandle (skips duplicated stdout/stderr), _free_osfhnd, _dosmaperr
 0x572bfb  _freebuf                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__freebuf)
+0x572c26  _filbuf                  func  crt                  O ; input buffer refill: _getbuf, _read, sets _IOEOF/_IOERR, returns first char
+0x572d02  _openfile                func  crt                  O ; parses fopen mode (r/w/a/+, t/b/c/n), _sopen with share flag, sets FILE fields, _cflush
+0x572e72  _getstream               func  crt                  O ; _lock(_IOB_SCAN_LOCK), finds free __piob slot, mallocs FILE + CRITICAL_SECTION for slots >= 20, locks it
+0x572f3a  realloc                  func  crt                  O ; V6 small-block resize/alloc (__sbh_resize_block, __sbh_alloc_block, memcpy, __sbh_free_block), V5 path, HeapReAlloc, _callnewh
+0x5730c5  realloc__finally_1       func  crt                  O ; __finally funclet of realloc: _munlock(_HEAP_LOCK) after the V6 small-block path, V5 path follows
+0x573213  realloc__finally_2       func  crt                  O ; __finally funclet of realloc: _munlock(_HEAP_LOCK) after the V5 (old sbh) path
+0x573269  _msize                   func  crt                  O ; __sbh_find_block -> header size, old sbh path, else HeapSize(_crtheap), _onexit uses it
+0x5732d3  _msize__finally_1        func  crt                  O ; __finally funclet of _msize: _munlock(_HEAP_LOCK) after __sbh_find_block, V5 path follows
+0x57334e  _msize__finally_2        func  crt                  O ; __finally funclet of _msize: _munlock(_HEAP_LOCK) after __old_sbh_find_block
+0x573357  __loctotime_t            func  crt                  O ; dtoxtime.c: local y/m/d h:m:s to time_t with _days table, __tzset, _timezone, _isindst/_dstbias
+0x573419  __tzset                  func  crt                  O ; first_time flag, _lock(_TIME_LOCK), _tzset_lk once
+0x573447  _tzset_lk                func  crt                  O ; getenv "TZ" or GetTimeZoneInformation, sets _timezone/_daylight/_dstbias/_tzname, atol of offsets
+0x5736ce  _isindst                 func  crt                  O ; _lock(_TIME_LOCK), _isindst_lk, _unlock
+0x5736ef  _isindst_lk              func  crt                  O ; tzapiused rules or default US first-Sunday-April/last-Sunday-October via cvtdate, dststart/dstend
+0x57389b  cvtdate                  func  crt                  O ; tzset.c: converts a transition date (month/week/day or day-of-year) to yd/ms in dststart/dstend
+0x5739db  gmtime                   func  crt                  O ; per-thread ptd->_gmtimebuf (malloc), splits time_t into struct tm
+0x573ae5  _stbuf                   func  crt                  O ; temporary buffering for stdout/stderr (_isatty), static or malloc buffer, _cflush++
+0x573b72  _ftbuf                   func  crt                  O ; ends temporary buffering: _flush, resets _IOFLRTN stream
+0x573d70  _startTwoArgErrorHandling func  crt                  I ; x87 libm helper paired with _startOneArgErrorHandling: stores both args into _exception, calls _87except
 0x573d87  _startOneArgErrorHandling func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__startOneArgErrorHandling)
+0x573dd0  _twoToTOS                func  crt                  I ; x87 helper: 2^st(0) via frndint, f2xm1, fscale (pow)
+0x573de5  _load_CW                 func  crt                  I ; x87 helper: loads control word with default precision bits 0x7f or (cw & 0x300)
+0x573dfc  _convertTOStoQNaN        func  crt                  I ; x87 helper: SNaN arg -> QNaN (fadd), returns error code 7 or 1
 0x573e15  _fload_withFB            func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__fload_withFB)
+0x573e58  _checkTOS_withFB         func  crt                  I ; x87 helper used by _CIacos/_CIsqrt/_CIasin: tests exponent of the stacked double for NaN/Inf
+0x573e6e  _fast_exit               func  crt                  I ; x87 helper: restores saved control word if not 0x27f, pop edx, ret
 0x573e7b  _math_exit               func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__math_exit)
+0x573eb9  _check_range_exit        func  crt                  I ; x87 helper after pow: overflow/underflow scaling and precision checks, error via _startOne/TwoArgErrorHandling
+0x573f60  strcpy                   func  crt                  O ; strcat.asm: push edi, dest, jmp into the shared copy loop of strcat
+0x573f70  strcat                   func  crt                  O ; strcat.asm: finds end of dest with 0x7efefeff word scan, then copies
+0x574050  _dosmaperr               func  crt                  O ; sets _doserrno, maps through errtable 0x5afcd0 to errno, EACCES/ENOEXEC ranges, else EINVAL
+0x5740c3  _errno                   func  crt                  O ; &_getptd()->_terrno (+8)
+0x5740cc  __doserrno               func  crt                  O ; &_getptd()->_tdoserrno (+0xc)
+0x5740d5  _XcptFilter              func  crt                  O ; winxfltr.c: xcptlookup in ptd->_pxcptacttab, calls signal handler or UnhandledExceptionFilter, FPE codes
+0x574213  xcptlookup               func  crt                  O ; winxfltr.c: linear search of the _XcptActTab by exception number
+0x57424d  _wincmdln                func  crt                  O ; skips program name (quotes, _ismbblead) and whitespace in _acmdln for WinMain lpCmdLine
+0x5742a5  _setenvp                 func  crt                  O ; __initmbctable, counts _aenvptr strings, mallocs _environ, strcpy each (skips =), _amsg_exit on failure
+0x57435e  _setargv                 func  crt                  O ; __initmbctable, GetModuleFileNameA into _pgmptr buffer, parse_cmdline twice, sets __argc/__argv
+0x5743f7  parse_cmdline            func  crt                  O ; stdargv.c: splits command line into argv with quote and backslash rules
+0x5745ab  __crtGetEnvironmentStringsA func  crt                  O ; GetEnvironmentStringsW + WideCharToMultiByte, else GetEnvironmentStrings copy (memcpy), FreeEnvironmentStrings
+0x5746dd  _ioinit                  func  crt                  O ; mallocs __pioinfo[0] (32 ioinfo), inherits handles from GetStartupInfoA, GetStdHandle/GetFileType, SetHandleCount
+0x574899  _GetLinkerVersion        func  crt                  I ; heapinit.c: GetModuleHandleA(NULL) PE header, Major/MinorLinkerVersion (+0x1a/+0x1b)
+0x5748c6  __heap_select            func  crt                  O ; "__MSVCRT_HEAP_SELECT"/"__GLOBAL_HEAP_SELECTED" env, GetVersionExA, linker version, picks heap kind
+0x574a0e  _heap_init               func  crt                  O ; HeapCreate -> _crtheap, __heap_select -> __active_heap, __sbh_heap_init or __old_sbh_new_region
+0x574a6b  _FF_MSGBANNER            func  crt                  O ; writes the runtime error banner (_RT_CRNL 252, _RT_BANNER 255) for console/error-mode stderr
+0x574aa4  _NMSG_WRITE              func  crt                  O ; "Runtime Error!" + GetModuleFileNameA ("<program name unknown>", "..."), __crtMessageBoxA or WriteFile to stderr
+0x574bf7  _handle_qnan1            func  crt                  O ; fpexcept.c: QNaN arg passed through, _umatherr with _DOMAIN, restores cw with _ctrlfp
+0x574c4b  _except1                 func  crt                  O ; fpexcept.c: _handle_exc, _raise_exc, _errcode, _umatherr, _set_errno, _ctrlfp
+0x574ce3  _raise_exc               func  crt                  O ; fpexcept.c: builds _FPIEEE_RECORD from the status word, RaiseException with the STATUS_FLOAT_* code
+0x574f96  _handle_exc              func  crt                  O ; fpexcept.c: masked IEEE exception defaults (overflow/underflow via _decomp/_set_exp, inexact), _set_statfp
+0x5751ad  _umatherr                func  crt                  O ; fpexcept.c: fills _exception (_get_fname), calls _matherr, else _set_errno
+0x575235  _set_errno               func  crt                  O ; fpexcept.c: _DOMAIN -> EDOM, _OVERFLOW/_UNDERFLOW -> ERANGE
+0x57525d  _get_fname               func  crt                  O ; fpexcept.c: looks up opcode in _ctab (0x5aff78) and returns the function name
+0x575282  _errcode                 func  crt                  O ; fpexcept.c: IEEE flags -> _DOMAIN/_SING/_OVERFLOW/_UNDERFLOW/_TLOSS code
 0x5752af  _frnd                    func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__frnd)
+0x5752c1  _set_exp                 func  crt                  O ; util.c: replaces the binary exponent of a double
+0x5752ea  _sptype                  func  crt                  O ; util.c: T_PINF 1, T_NINF 2, T_QNAN 3, T_SNAN 4, else 0
+0x575344  _decomp                  func  crt                  O ; util.c: mantissa in [0.5,1) and exponent, handles denormals
+0x575405  _statfp                  func  crt                  O ; fpctrl.c: fnstsw
+0x575413  _clrfp                   func  crt                  O ; fpctrl.c: fnstsw + fnclex
+0x575422  _ctrlfp                  func  crt                  O ; fpctrl.c: fnstcw, merge new/mask, fldcw, returns old cw
+0x575445  _set_statfp              func  crt                  O ; fpctrl.c: raises the requested IEEE flags with dummy x87 operations
+0x57549b  __sbh_heap_init          func  crt                  O ; HeapAlloc(_crtheap, 0x140) header list, zeroes defer/count, scan = list, __sbh_threshold, header capacity 16
+0x5754e3  __sbh_find_block         func  crt                  O ; scans __sbh_pHeaderList[__sbh_cntHeaderList] for the region containing the block
+0x57550e  __sbh_free_block         func  crt                  O ; V6 small-block free: coalesce, group bitmaps, deferred decommit (VirtualFree), region release (HeapFree, memmove of list)
+0x575837  __sbh_alloc_block        func  crt                  O ; V6 small-block alloc: bitmap search from __sbh_pHeaderScan, __sbh_alloc_new_region/__sbh_alloc_new_group
+0x575b40  __sbh_alloc_new_region   func  crt                  O ; grows header list (HeapReAlloc), VirtualAlloc reserve 1 MB region, HeapAlloc region header
+0x575bf1  __sbh_alloc_new_group    func  crt                  O ; VirtualAlloc commits a 32 KB group and links its free lists
+0x575cec  __sbh_resize_block       func  crt                  O ; V6 small-block in-place grow/shrink for realloc
+0x575fe2  __old_sbh_new_region     func  crt                  O ; V5 heap: static __small_block_heap or HeapAlloc region, VirtualAlloc reserve/commit, memset
+0x576126  __old_sbh_release_region func  crt                  O ; V5 heap: VirtualFree region and HeapFree its descriptor (not the static first one)
+0x57617c  __old_sbh_decommit_pages func  crt                  O ; V5 heap: VirtualFree MEM_DECOMMIT of free pages, release empty regions
+0x57623e  __old_sbh_find_block     func  crt                  O ; V5 heap: finds region/page/paragraph for a pointer starting at __small_block_heap
+0x576295  __old_sbh_free_block     func  crt                  O ; V5 heap: marks paragraphs free, decommit when page empties
+0x5762da  __old_sbh_alloc_block    func  crt                  O ; V5 heap: searches regions from __sbh_p_starting_region, __old_sbh_alloc_block_from_page, new region
+0x5764e2  __old_sbh_alloc_block_from_page func  crt                  O ; V5 heap: finds a run of free paragraphs in a page
+0x576606  __old_sbh_resize_block   func  crt                  O ; V5 heap: in-place resize for realloc
+0x5766af  _callnewh                func  crt                  O ; calls _pnhHeap (0x2fbdea0) new handler if set, returns its result
+0x5766ca  _fltin2                  func  crt                  O ; fltintrn: __strgtold12 then _ld12tod into the static _flt result (atof), pow wrapper code follows in this block
+0x576957  _powhlp                  func  crt                  I ; powhlp.c: pow special cases for infinities/zero/negative base, uses _d_inttype
+0x576a87  _d_inttype               func  crt                  I ; powhlp.c: _fpclass, _frnd, x/2 test, 0 not integer, 1 odd, 2 even
+0x576aec  _rt_probe_read4          func  crt                  I ; longjmp.asm stdcall: reads a dword under __try, __except on STATUS_ACCESS_VIOLATION, longjmp C++ cookie check
+0x576b51  _mbctoupper              func  crt                  O ; __mbcodepage/__mblcid, __crtLCMapStringA(LCMAP_UPPERCASE 0x200) for lead bytes, _chdir drive letter
+0x576bcc  _alloc_osfhnd            func  crt                  O ; _lock(_OSFHND_LOCK), first free ioinfo (InitializeCriticalSection lazily), mallocs new 32-entry blocks, grows _nhandle
+0x576cef  _set_osfhnd              func  crt                  O ; stores OS handle in __pioinfo, SetStdHandle for 0..2 in console apps
+0x576d6b  _free_osfhnd             func  crt                  O ; resets OS handle to -1, SetStdHandle(NULL) for 0..2 in console apps
+0x576dea  _get_osfhandle           func  crt                  O ; __pioinfo[fh >> 5][fh & 31].osfhnd, EBADF when invalid
+0x576e2c  _lock_fhandle            func  crt                  O ; lazily InitializeCriticalSection of ioinfo lock (+0xc) under _LOCKTAB_LOCK, EnterCriticalSection
+0x576e8b  _unlock_fhandle          func  crt                  O ; LeaveCriticalSection of the ioinfo lock
+0x576ead  _lseek                   func  crt                  O ; validates fh, _lock_fhandle, _lseek_lk, _unlock_fhandle
+0x576f12  _lseek_lk                func  crt                  O ; SetFilePointer, _dosmaperr, clears FEOFLAG
+0x576f85  _commit                  func  crt                  O ; FlushFileBuffers of _get_osfhandle under _lock_fhandle
+0x577018  _write                   func  crt                  O ; validates fh, _lock_fhandle, _write_lk, _unlock_fhandle
+0x57707d  _write_lk                func  crt                  O ; FAPPEND seek, text mode LF -> CRLF expansion, WriteFile, ^Z device handling, _dosmaperr
+0x577208  _ftell_lk                func  crt                  O ; ftell.c: _lseek(SEEK_CUR) adjusted by buffered count and CR/LF in text mode, used by _fseek_lk SEEK_CUR
+0x577369  _read                    func  crt                  O ; validates fh, _lock_fhandle, _read_lk, _unlock_fhandle
+0x5773ce  _read_lk                 func  crt                  O ; ReadFile, pipe peek char, text mode CRLF -> LF and ^Z, _lseek_lk for lone CR, _dosmaperr
+0x5775b0  memcpy                   func  crt                  O ; VC6 memcpy.asm code (overlap check, dword copy), callers _fread_lk/_fwrite_lk/realloc/__crtGetEnvironmentStringsA
+0x5778e5  calloc                   func  crt                  O ; num*size, V6 __sbh_alloc_block/V5 __old_sbh_alloc_block + memset, else HeapAlloc(HEAP_ZERO_MEMORY), _callnewh
+0x57797e  calloc__finally_1        func  crt                  O ; __finally funclet of calloc: _munlock(_HEAP_LOCK) after __sbh_alloc_block, V5 path follows
+0x577a07  calloc__finally_2        func  crt                  O ; __finally funclet of calloc: _munlock(_HEAP_LOCK) after __old_sbh_alloc_block, _fcloseall follows
 0x577aa3  _mbsnbicoll              func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__mbsnbicoll)
+0x577ae2  __wtomb_environ          func  crt                  O ; wenviron.c: WideCharToMultiByte of each _wenviron string, malloc, __crtsetenv
+0x577b50  _getbuf                  func  crt                  O ; mallocs _INTERNAL_BUFSIZ 0x1000 stream buffer (_cflush++) or uses the 2-byte _charbuf
+0x577b94  _isatty                  func  crt                  O ; __pioinfo osfile FDEV (0x40) flag of fh
+0x577bbd  wctomb                   func  crt                  O ; locale read guard (__setlc_active / __unguarded_readlc_active), _wctomb_lk
+0x577c16  _wctomb_lk               func  crt                  O ; C locale range check (EILSEQ), else WideCharToMultiByte(__lc_codepage)
 0x577c80  _aulldiv                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__aulldiv)
 0x577cf0  _aullrem                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__aullrem)
+0x577d65  _control87               func  crt                  O ; _abstract_cw of fnstcw, merge, _hw_cw, fldcw
+0x577d9a  _controlfp               func  crt                  O ; _control87(new, mask & ~_EM_DENORMAL)
+0x577db0  _abstract_cw             func  crt                  O ; fpctrl: x87 control word bits -> _MCW_* abstract flags
+0x577e42  _hw_cw                   func  crt                  O ; fpctrl: abstract _MCW_* flags -> x87 control word bits
+0x577ecb  _ZeroTail                func  crt                  O ; intrncvt.c: tests that mantissa bits after nbit are zero
+0x577f14  _IncMan                  func  crt                  O ; intrncvt.c: adds one at bit nbit with __addl carry
+0x577f6a  _RoundMan                func  crt                  O ; intrncvt.c: round-to-nearest using _ZeroTail/_IncMan
+0x577ff6  _CopyMan                 func  crt                  O ; intrncvt.c: copies the 3-dword internal mantissa
+0x578011  _FillZeroMan             func  crt                  O ; intrncvt.c: zeroes the internal mantissa
+0x57801d  _IsZeroMan               func  crt                  O ; intrncvt.c: tests the internal mantissa for zero
+0x578038  _ShrMan                  func  crt                  O ; intrncvt.c: shifts the internal mantissa right by n bits
+0x5780c5  _ld12cvt                 func  crt                  O ; intrncvt.c: _LDBL12 to double/float per format descriptor, rounding and denormals
+0x578231  _ld12tod                 func  crt                  O ; intrncvt.c: _ld12cvt with the double format
+0x578247  _ld12tof                 func  crt                  O ; intrncvt.c: _ld12cvt with the float format
+0x57825d  _atodbl                  func  crt                  O ; intrncvt.c: __strgtold12 then _ld12tod, referenced by _fassign
+0x57828a  _atoflt                  func  crt                  O ; intrncvt.c: __strgtold12 then _ld12tof, referenced by _fassign
+0x5782b7  _fptostr                 func  crt                  O ; cvt: rounds the digit string from _fltout2 to ndigits (memmove on carry)
+0x57832e  _fltout2                 func  crt                  O ; cvt: __dtold then $I10_OUTPUT, strcpy of the digit string into STRFLT
+0x57838a  __dtold                  func  crt                  O ; double to 80-bit long double (_LDOUBLE) conversion
 0x578440  memset                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_memset)
+0x578498  _fptrap                  func  crt                  O ; _amsg_exit(_RT_FLOAT 2): floating point not loaded
+0x5784a1  __crtGetStringTypeA      func  crt                  O ; GetStringTypeW probe, else GetStringTypeA, or MultiByteToWideChar + GetStringTypeW with __lc_codepage
+0x5785ea  __CxxUnhandledExceptionFilter func  crt                  O ; msvc C++ exception (0xe06d7363, 0x19930520) -> terminate, else previous filter if _ValidateExecute
+0x57864e  _ValidateRead            func  crt                  O ; IsBadReadPtr wrapper (validate.cpp)
+0x57866a  _ValidateWrite           func  crt                  O ; IsBadWritePtr wrapper (validate.cpp)
+0x578686  _ValidateExecute         func  crt                  O ; IsBadCodePtr wrapper (validate.cpp)
 0x5786a0  strcmp                   func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (_strcmp)
+0x578724  abort                    func  crt                  O ; _NMSG_WRITE(_RT_ABORT), raise(SIGABRT), _exit(3)
+0x57873b  mbtowc                   func  crt                  O ; locale read guard, _mbtowc_lk
+0x578798  _mbtowc_lk               func  crt                  O ; C locale byte copy, else isleadbyte/MultiByteToWideChar(__lc_codepage, MB_PRECOMPOSED+MB_ERR_INVALID_CHARS)
 0x578870  _allshl                  func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (__allshl)
-0x578ea5  GetOEMCP                 func  crt                    O ; import thunk: jmp [KERNEL32.dll!GetOEMCP]
-0x578eba  GetACP                   func  crt                    O ; import thunk: jmp [KERNEL32.dll!GetACP]
+0x57888f  _ungetc_lk               func  crt                  O ; pushes char back into the stream buffer (_getbuf when unbuffered), clears _IOEOF
+0x5788fd  _sopen                   func  crt                  O ; open flags to CreateFileA access/share/disposition, _alloc_osfhnd, GetFileType, _set_osfhnd, ^Z trim via _chsize_lk
+0x578bcc  _87except                func  crt                  O ; 87except.c: maps x87 error to _exception, _handle_exc/_raise_exc, _matherr, _set_errno, _ctrlfp
+0x578c9c  _ismbblead               func  crt                  O ; x_ismbbtype(c, 0, _MLEAD 4)
+0x578cad  x_ismbbtype              func  crt                  O ; ismbbyte.c: _mbctype[c+1] & cmask or _pctype & kmask
+0x578cde  _setmbcp                 func  crt                  O ; getSystemCP, GetCPInfo lead-byte ranges into _mbctype, __mbcodepage/__mblcid/__ismbcodepage, setSBCS/setSBUpLow
+0x578e8b  getSystemCP              func  crt                  O ; mbctype.c: -2 GetOEMCP, -3 GetACP, -4 __lc_codepage, sets fSystemSet (0x2fbdf14)
+0x578ed5  CPtoLCID                 func  crt                  O ; mbctype.c: 932 -> 0x411, 936 -> 0x804, 949 -> 0x412, 950 -> 0x404
+0x578f08  setSBCS                  func  crt                  O ; mbctype.c: clears _mbctype, __mbcodepage/__ismbcodepage/__mblcid = 0
+0x578f31  setSBUpLow               func  crt                  O ; mbctype.c: GetCPInfo, __crtGetStringTypeA and __crtLCMapStringA to fill _mbctype upper/lower and _mbcasemap
+0x5790b6  __initmbctable           func  crt                  O ; _setmbcp(_MB_CP_ANSI -3) once (flag 0x2fbf2ec)
+0x5790d2  __crtMessageBoxA         func  crt                  O ; LoadLibraryA("user32.dll"), GetProcAddress MessageBoxA/GetActiveWindow/GetLastActivePopup, cached pointers
+0x57915b  _matherr                 func  crt                  O ; default math error handler, returns 0
+0x57915e  __strgtold12             func  crt                  O ; strgtold.c: decimal string state machine (isdigit, decimal point) to _LDBL12 via __mtold12/__multtenpow12
+0x57a3bb  __crtCompareStringA      func  crt                  O ; CompareStringW probe, else CompareStringA or MultiByteToWideChar + CompareStringW, GetCPInfo for DBCS
+0x57a638  __crtsetenv              func  crt                  O ; setenv.c: _mbschr =, findenv, copy_environ, realloc of _environ, SetEnvironmentVariableA
+0x57a7bf  findenv                  func  crt                  O ; setenv.c: index of "name=" in _environ with _mbsnbicoll
+0x57a817  copy_environ             func  crt                  O ; setenv.c: malloc a new table and _strdup each entry, _amsg_exit on failure
+0x57a87e  raise                    func  crt                  O ; signal.c: SIGINT/SIGBREAK/SIGABRT/SIGTERM globals, SIGFPE/SIGILL/SIGSEGV via siglookup in ptd XcptActTab
+0x57aa00  siglookup                func  crt                  O ; signal.c: search of the XcptActTab by signal number
+0x57aa3d  __addl                   func  crt                  O ; mantold.c: 32-bit add with carry out
 0x57aa5e  __add_12                 func  crt                  O ; MSVC 6 C runtime, Ghidra function-ID match (___add_12)
+0x57aabc  __shl_12                 func  crt                  O ; mantold.c: shifts the 12-byte mantissa left by one
+0x57aaea  __shr_12                 func  crt                  O ; mantold.c: shifts the 12-byte mantissa right by one
+0x57ab17  __mtold12                func  crt                  O ; mantold.c: decimal digit mantissa to _LDBL12 (x10 by shift/add, normalize)
+0x57abde  I10_OUTPUT               func  crt                  O ; x10fout.c $I10_OUTPUT: "1#SNAN"/"1#IND"/"1#INF"/"1#QNAN", digits of an 80-bit value with __multtenpow12
 0x57ae80  _stricmp                 func  crt                    O ; C runtime; used to sort and look up console commands
+0x57af50  _chsize_lk               func  crt                  O ; chsize.c: extend with zeroed blocks via _write_lk (binary via _setmode_lk) or SetEndOfFile
+0x57b075  __ld12mul                func  crt                  O ; tenpow.c: 12-byte long double multiply
+0x57b295  __multtenpow12           func  crt                  O ; tenpow.c: multiplies _LDBL12 by 10^n from the power tables, __ld12mul
+0x57b311  _mbschr                  func  crt                  O ; MBCS strchr: plain strchr when !__ismbcodepage, else lead-byte aware scan under _MB_CP_LOCK
+0x57b3a8  _strdup                  func  crt                  O ; strlen + malloc + strcpy
+0x57b3d3  _setmode_lk              func  crt                  O ; setmode.c: sets/clears FTEXT in __pioinfo, returns old _O_TEXT/_O_BINARY
 0x57b4b0  DirectInputCreateA       func  crt                    O ; import thunk: jmp [DINPUT.dll!DirectInputCreateA]
 0x57b4b6  ntohl                    func  crt                    O ; import thunk: jmp [WSOCK32.dll!ntohl]
 0x57b4bc  gethostbyname            func  crt                    O ; import thunk: jmp [WSOCK32.dll!gethostbyname]
@@ -7979,6 +8286,14 @@
 0x57b5be  RtlUnwind                func  crt                    O ; import thunk: jmp [KERNEL32.dll!RtlUnwind]
 0x57b5c4  gluPerspective           func  crt                    O ; import thunk: jmp [GLU32.dll!gluPerspective]
 0x57b5ca  gluLookAt                func  crt                    O ; import thunk: jmp [GLU32.dll!gluLookAt]
+0x57b5d0  _dtoxmode                func  crt                  O ; stat.c: attributes to st_mode, _S_IEXEC for ".exe", ".cmd", ".bat", ".com" (_mbsrchr, _mbsicmp)
+0x57b688  _stat                    func  crt                  O ; stat.c: rejects "?*" (_mbspbrk), FindFirstFileA, root dirs (IsRootUNCName, GetDriveTypeA), __loctotime_t, _dtoxmode
+0x57b943  IsRootUNCName            func  crt                  O ; stat.c: tests for a UNC root path (server and share only)
+0x57b9b3  _mbsicmp                 func  crt                  O ; _stricmp when !__ismbcodepage, else __crtLCMapStringA case mapping per char
+0x57bb48  _mbsrchr                 func  crt                  O ; strrchr when !__ismbcodepage, else lead-byte aware scan
+0x57bbba  _fullpath                func  crt                  O ; GetFullPathNameA, malloc when buffer NULL, _getcwd for empty path, _dosmaperr
+0x57bc5f  _mbctolower              func  crt                  O ; __mbcodepage/__mblcid, __crtLCMapStringA(LCMAP_LOWERCASE 0x100) for lead bytes, _stat drive letter
+0x57bcda  _mbspbrk                 func  crt                  O ; strpbrk when !__ismbcodepage, else lead-byte aware scan under _MB_CP_LOCK
 0x57bd70  eh_unwind_57bd70         func  -                    O ; C++ exception-unwind funclet generated by the compiler for a game function (Ghidra: Unwind@)
 0x57bd90  eh_unwind_57bd90         func  -                    O ; C++ exception-unwind funclet generated by the compiler for a game function (Ghidra: Unwind@)
 0x57bdb0  eh_unwind_57bdb0         func  -                    O ; C++ exception-unwind funclet generated by the compiler for a game function (Ghidra: Unwind@)
