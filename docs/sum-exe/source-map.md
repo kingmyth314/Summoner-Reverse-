@@ -240,7 +240,7 @@ The tool:
    unit's. The gap lets a file whose statics are declared in function order (`ui_parse_button`,
    `ui_parse_checkbox`, ...) stay in one unit.
 
-**Result:** 122 units over `0x401000`-`0x56a000`. None mixes two `.cpp` tags; 16 of the 66 tagged files are split
+**Result:** 119 units over `0x401000`-`0x56a000` (after moving the three `*_render_character_mesh` tags to `vsdk`). None mixes two `.cpp` tags; 14 of the 66 tagged files are split
 over several units. *Inferred:* the split files mostly point at tag errors, not at real boundaries:
 - **Inline functions from headers** (`Mempool__ResetOffset`, `vector3__*`) are compiled into every file that uses
   them, but carry their class's file tag. The tool then forces a false cut.

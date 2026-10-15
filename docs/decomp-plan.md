@@ -265,9 +265,27 @@ Twelve "set" console variables were typed `int` by the generator. They are `floa
 `command_argument_float`, as with `chance_gold`, the LOD distances and the fog/far-plane values. Every console variable
 whose callback pattern confirms the type is now **O**.
 
+**Data globals, agent batches (2026-10-14 night):** four agents named 2,205 more globals: every unnamed
+address used by two or more functions, then single-function globals with 3+ references. The pattern on the UI
+screens is regular: a 0x40-byte static button table, 0x18-byte runtime button states, a scrollbar rectangle and
+bitmap, the scroll position, the mouse mode, the pressed button and a RealtimeTimer. About 580 frequently used
+addresses are string literals and were left as they are. Corrections that came out of this:
+- `skill_table` has 84 entries, not 85 (`SKILL_WEAK` has none);
+- `0x5c1888` is the journal's line count (`journal_desc_line_count`; the scroll position is `0x5c1ac8`);
+- GameTimer is 4 bytes;
+- `multitrade_load_bitmaps` is `itemtrade_load_bitmaps`;
+- the difficulty selection, formerly "game type", is `gamecreate_set_difficulty` / `mp_game_difficulty`.
+
+**C runtime:** the Ghidra function-ID matches added 38 CRT functions (`_ftol`, `strncpy`, `rand`, ...) and 352
+compiler exception-unwind funclets (`eh_unwind_*`) at the end of `.text`.
+
+**State (2026-10-14 night):** about 10,860 symbols.
+- 8,019 functions: 7,767 **O**, 162 **V**, 90 **I**.
+- 2,836 data: 2,331 **O**, 37 **V**, 468 **I**.
+
 **Next for the decompilation:**
-1. Raise the confidence of the **I** names in the game layers.
-2. Name and type the remaining data globals (agent batches, most-used first).
-3. Split the binary into translation units with the [source-file map](sum-exe/source-map.md) and the initialiser
-   table order. Each translation unit's static initialisers are adjacent in the table.
-4. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
+1. Name the remaining C runtime functions and about 290 newly found hidden function starts (agents running).
+2. Split the binary into translation units. `tools/tu-split.mjs` proposes 119 units (see the
+   [source-file map](sum-exe/source-map.md#translation-units-from-data-locality)). First fix the stray module tags that
+   `--score` lists.
+3. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
