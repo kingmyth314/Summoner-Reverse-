@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 134 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 145 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 24 | 2 |
-| Gameplay | 22 | 10 | 3 |
-| Cosmetic | 28 | 8 | 2 |
-| Invisible | 15 | 24 | 0 |
+| Crash or hang | 3 | 29 | 2 |
+| Gameplay | 22 | 12 | 3 |
+| Cosmetic | 29 | 8 | 2 |
+| Invisible | 16 | 26 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -65,6 +65,11 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C90 | Latent: with the OpenGL renderer, a multi-pass polygon of more than 32 vertices after clipping overwrites the stack | `gr_tmapper_multipass` `0x507a80` | **Observed** code, *inferred* effect | No |
 | C91 | Latent: Print Screen with the Direct3D renderer quits the game with "see your graphics guy" when the back buffer cannot be locked | `gr_screenshot` `0x5061f0`, `gr_d3d_read_backbuffer` `0x53a7f0` | **Observed** code, *inferred* trigger | No |
 | C100 | Latent: a party member who joins or is set to a level with more skill points than its progression can take (for example with a modded `experience.tbl`) hangs the game | `character_add_xp` `0x44fab0` | **Observed** code, retail data and progression tables, *inferred* hang | No |
+| C110 | Latent: a level entered at an entry point that has neither `$player<n>-01` nor `$player01` crashes when the party is placed; the "Find Allender" error that should catch it never fires | `level_find_player_starts` `0x4caf40`, `character_place_at_party_start` `0x44f1a0` | **Observed** code and retail data, *inferred* crash | No |
+| C111 | Latent: a clickable object whose name plus the level script name has 68 or more characters overflows the stack when the level's door and chest states are saved or loaded | `lc_find_by_hash` `0x4cd570` | **Observed** code and retail data, *inferred* effect | No |
+| C112 | Latent: a `$Door:` name that is not a level object crashes the level load or changes the last level object's door | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
+| C113 | Latent: a level with more than 10 level effects, 32 triggers, 32 level items or 50 clickable objects overwrites memory | `level_parse_table` `0x4cb7b0`, `level_parse_trigger` `0x4cc190`, `level_items_parse_table` `0x4cb430`, `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
+| C114 | Latent: a level item of the current script with a missing `$Navpoint:` crashes the level load; one with an unknown `$Item:` uses a stale item type | `level_items_parse_table` `0x4cb430` | **Observed** code and retail data, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -247,6 +252,46 @@ The smallest capacity is Jekhar's, 13 entries of about 9 points each, 119 in all
 from `Jekhar.tbl`). So retail data cannot trigger it. `party_set_level` has its own copy of the loop
 (`0x4cecf0`..`0x4ced47`) with the same exit test.
 
+**C110. The test reads the wrong slot.** `level_find_player_starts` fills `level_player_starts[0..3]` (`0x60a32c`)
+from `$player<entry>-01`..`04` and, when the first is missing, from `$player01`..`04`. The error test after the
+fallback loop uses the loop counter, which is 4 there: `mov eax, [4*edi + 0x60a32c]` at `0x4cafcc` reads
+`0x60a33c`, which is `level_entry_point` (always 1 or more), so the `DebugError` "Unable to locate player starts
+for level %s ... Find Allender." is never reached. A level without the starts keeps NULL pointers, and
+`character_place_at_party_start` reads the position through them (`add ecx, 0x14` at `0x44f1d5`). The fallback is
+also only tried when start 0 is missing, so a group with `-01` but without `-02`..`-04` leaves members 2-4 on
+NULL. In the retail tables every single-player "load level" trigger's `+Index:` has a full group of four in
+the target's `_script.tbl` (and `.s3d`). The only gap, `lenele3a.tbl`'s exit to `lenele3d` with `+Index: 2`, uses
+the spline `$loadarea01`, which `lenele3a` does not have, so the parser drops that trigger (count decremented at
+`0x4cc4c5`). The entry points set by scripts and the elevator callbacks (2 to 5) were not checked against the
+navpoints.
+
+**C111. A 0x44-byte buffer.** `lc_find_by_hash` builds `level_script_name + object name` with
+`strncpy(buf, level_script_name, 0x40)` and `strncat(buf, name, 0x40)` into a 0x44-byte stack buffer
+(`sub esp, 0x44` at `0x4cd575`, calls at `0x4cd59b` and `0x4cd5ac`). Both two-stage paths call it
+(`savegame_two_stage_set` `0x4d0fac`, `savegame_read_two_stage` `0x4d3618`), so the overflow would happen on a save
+or load in that level. G42 is the same name pair in another function. The longest retail pair (script name plus
+`#Clicks` name) is 36 characters (`IkaemosBottomInt_m1` + `MedPriestStoned13`).
+
+**C112. No test after the search.** The `#Doors` loop compares the `$Door:` name with every level object
+(`0x4cd982`..`0x4cd9c5`) and keeps the last one compared when nothing matches. `door_from_lobj` returns 0
+for an object without flag `0x100` (`0x4768d4`), and the parser writes the lock bit through it
+(`mov [esi+0x54], edx` at `0x4cd9ec`). If the last object is a door, that door gets the other door's lock and
+sounds. Every retail `$Door:` name is in its level's `.s3d`.
+
+**C113. Four tables without a bound.** `level_parse_table` writes `$Level_fx:` records at `level_effect_count`
+(`0x4cb8fd`..`0x4cb92d`) into 10 records of 0x28 bytes (`0x24902c8`; `level_ambients` follows at `0x2490458`).
+`level_parse_trigger` writes `$Trigger:` records into 32 of 0x64 bytes (`0x2490dd0`), `level_items_parse_table`
+level items into 32 of 0x70 bytes (`0x24e3b50`), and the `#Clicks` loop of `level_script_parse_table` into 50
+`lc_entries` of 0x10c bytes (`0x248ce40`, `0x4cdbe2`). None compares the count. The ambient sounds do (`cmp esi,
+0x80` at `0x4cd257`). Retail maxima: 7 effects (`IonaExt02.tbl`), 25 triggers (`Lenele1aa.tbl`), 18 level items
+(`sewer` in `level_items.tbl`), 26 clickable objects (`IkaemosExt_script.tbl` and others).
+
+**C114. Two unchecked look-ups.** For a record of the current script, `navpoint_find` stores its result in
+`+0x48` (`0x4cb5f8`) and, after `savegame_level_item_has`, the parser writes through it
+(`mov [eax+0x2c], ecx` at `0x4cb6b6`) with no NULL test. An unknown `$Item:` skips the store at `0x4cb5a1`, so
+`+0x40` keeps whatever an earlier level left in that record (or 0), and `item_create_by_name` gets its name from
+there (`mov eax, [edx]` at `0x4cb6ed`). Every retail item and navpoint of `level_items.tbl` resolves.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -283,6 +328,8 @@ from `Jekhar.tbl`). So retail data cannot trigger it. `party_set_level` has its 
 | G71 | Latent: a misspelled `$Skill:` name in a character table overwrites the record's up-direction skill; a misspelled direction skill becomes id `0x54`, past the skill table | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data | No |
 | G72 | Latent: a character with more than two `$Default Weapon:` lines gets wrong materials on its first weapons and, from the eighth line on, junk weapons | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
 | G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data, *inferred* effect | No |
+| G110 | Latent: a `#Clicks` name that is not a level object makes level object 0 clickable with that entry's message and gold | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
+| G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -554,6 +601,16 @@ single-player path through `living_entity_get_hit_by_spell` (`test dl, 2` at `0x
 *Inferred:* what leech was meant to do (drain the target or heal the caster) is not known; `spells.tbl` marks it
 `+Beneficial`, `+Target character`, `+Hit only`.
 
+**G110. Index 0 for "not found".** `lobj_find_by_name` returns -1 for an unknown name, and the parser then
+pushes 0 instead of the index (`push ebx` with `ebx = 0` at `0x4cdbb6`) and stores `lobj_from_index(0)` as the entry's
+object (`0x4cdbe2`). Every retail `#Clicks` name appears in its level's `.s3d` (a string search, not a parse of
+the object list).
+
+**G111. Type -1 stored as the key.** With `+Locked:` and a non-empty `+Key:`, the parser stores
+`&item_types[item_type_find(key)]` (`shl eax, 8; add eax, 0x8cbec0` at `0x4cda11`) without a test for -1, so an
+unknown key name becomes the address 0x100 bytes before the item table. The 13 retail key names are all in
+`items.tbl`.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -594,6 +651,7 @@ single-player path through `living_entity_get_hit_by_spell` (`test dl, 2` at `0x
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
 | K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code, *inferred* effect | No |
+| K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -890,6 +948,20 @@ exactly 60,000 the pop-up offers a summon that cannot be cast yet. Ring gains ar
 (`(int)(xp x 2 x summon skill)` and its eighth), capped at twice the character's experience, so landing on
 60,000 is possible but rare.
 
+**K110. Removing by index from a table that shrinks.** `level_script_leave` runs
+`for (i = 0; i < level_ambient_count; i++) level_ambient_remove(i)` (`0x4cccbb`..`0x4ccccc`).
+`level_ambient_remove` deletes the emitter, moves the later records down and decrements the count
+(`0x4cd2e0`..`0x4cd320`), so the loop deletes records 0, 2, 4, ... of the original table and stops halfway.
+`level_script_reparse` then sets the count to 0 (`0x4cb3d9`), and the other half keep flag `0x1` in
+`sound_emitters` (128 records) for good: only `sound_emitter_delete` clears it, and `sound_emitters_delete_all`
+has no reachable caller. `snd_stop_all` in `state_game_leave` silences them, so the leak is not heard. Retail
+levels have up to 44 `$Ambient:` lines (`Lenele1aa.tbl`; `sewer.tbl` and `Liangshan.tbl` 42), so a few visits
+to the big towns fill the pool. After that `sound_emitter_find_free` returns -1, `sound_create_emitter`
+fails and `level_ambient_add` drops the sound (`0x4cd2a2`), and so does every ground effect sound
+(`fx_create_ground_effect` `0x48c584`). *Inferred:* loading a save leaves the level through the same
+`state_game_leave`, so it does not help. Not seen at runtime;
+an agent-mode test can watch `level_ambient_count` (`0x2491a58`) after entering Lenele1aa a few times.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -933,6 +1005,9 @@ exactly 60,000 the pop-up offers a summon that cannot be cast yet. Ring gains ar
 | V100 | Several spell handlers store an `amount` that the dice roll overwrites; Laharah's scream's 10-unit test only guards that store | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data |
 | V101 | Jade Beam's boss branch tests for fireball (`0x1a`), which it can never be, and the other branch prints "jade dmg: %d" with a double | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code |
 | V102 | `character_walk_to_point` normalises the direction and never uses it; its "already facing" test compares a raw dot product with 1.0 | `character_walk_to_point` `0x455e70` | **Observed** code |
+| V110 | Latent: allocating a script avoid spline tests "already in use" twice with the same handle and NULL-tests the target's handle instead of the target character | `script_alloc_avoid_spline` `0x4cedf0` | **Observed** code |
+| V111 | The script editor's level restart respawns level items of other script variants (navpoint never looked up) and items already taken, and frees the avoid splines without clearing their slots | `level_script_restart` `0x4cb060` | **Observed** code, *inferred* effect |
+| V112 | Latent: the level-scaling code reads `cur_character`'s level before testing `cur_character` for NULL | `level_script_init` `0x4cc7e0` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1189,6 +1264,26 @@ forward vector. It skips the travel order only when the product is exactly 1.0 (
 at `0x455f24`..`0x455f2f`). *Inferred:* the test was meant for the unit vector; as written the order is
 practically always given. Callers: `conversation_frame`, `conversation_end_cleanup`, `script_action_wait_at`.
 
+**V110. The second test repeats the first.** After `living_from_handle(handle)` the function calls
+`script_avoid_spline_in_use(handle)` twice (`push esi` with the same `esi` at `0x4cee23` and `0x4cee30`).
+*Inferred:* the second was meant for the target. It then calls `living_from_handle(target)` and tests
+`esi`, the handle (`test esi, esi` at `0x4cee5a`), not `eax`, so a stale target would reach
+`script_build_avoid_spline` as NULL. Both callers (`script_entry_start` `0x4dd5e2`, `ls_lpalaceint_sneak_frame`
+`0x4f3327`) pass `cur_character`'s handle as the target.
+
+**V111. A debug path that trusts every record.** `level_script_restart` (only caller
+`script_editor_on_time_back`) loops over all `level_item_count` records and calls
+`navpoint_get_position(record +0x48)` (`0x4cb2cc`..`0x4cb2da`). The parser fills `+0x48` only for records of the
+current script (`0x4cb5e6`), so the others hold a pointer from an earlier level or 0. It spawns the item
+whether or not the save marks it as taken. At the end it calls `avoid_spline_free` for each used slot
+(`0x4cb31a`..`0x4cb339`) but leaves the keys, so a later `script_free_avoid_spline` for that character frees
+the spline again and `script_alloc_avoid_spline` refuses a new one. `level_script_leave` frees them the same way,
+but there `level_script_reparse` resets the slots (`script_avoid_splines_reset`, `0x4cb427`) before they are used.
+
+**V112. The NULL test comes too late.** In single player the code multiplies the roll by `cur_character +0x600`
+(`0x4cc893`..`0x4cc8b2`) and only then, inside the loop, tests `cur_character` (`test eax, eax` at `0x4cc8cc`).
+The branch for no current character (characters keep their `char_info` level) is unreachable.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1333,6 +1428,15 @@ the tables above; the rest are below.
   `0x453f94`, for a dying summon. A dead hero stays type 7 with flag `0x80` and is saved by the type 7 case. Dead
   summons are not saved anyway (see the LENT line above). This item can move here.
 
+- `party_set_level` "loops forever": its round-robin spend loop (`0x4cece0`..`0x4ced47`) never runs with points. It calls `character_add_xp(xp, 1, 0)`, which already spends all points for type-7 characters at +10 each with the same loop (`0x44fecb`..`0x44ffa6`). That loop could only hang if the points outnumbered the room left in the unlocked skills. At level 30 (the highest `game_stage_set` asks for) a member has 71 points (`experience.tbl`), and 13 to 17 progression entries starting at 10 leave 117 or more.
+- `party_count_item_by_name` counts equipment slots 0..8 only: those are the slots a party member saves (`savegame` 9 x 4 at `+0x06c`). Slot 9 is the monster and summon second weapon (K17).
+- `level_script_leave` frees the avoid splines without clearing the slots: `level_script_reparse` clears them on the next load (`0x4cb427`). Only the restart path (V111) keeps them.
+- `script_object_talk` calls `conversation_is_idle` twice in a row (`0x4ce646`, `0x4ce654`): the second call gives the same answer. Not counted.
+- The messages that are only formatted into a buffer ("\"%s\" not found.", "No level item entry ...", "Couldn't find level trigger", "Unable to locate character ... for shopkeeper support", "Ambient sound navpoint not found", "Tripped trigger", the string pool usage) are debug output that the release build does not print. Not counted.
+- `level_check_triggers` compares only 4 characters of `"rand-"`: every retail level name starting with `rand` is an encounter map, so the effect is as intended (corrected on [World map](worldmap.md)).
+- The door sound third value (0.1 becomes 1.0, then truncated to a byte): every retail `+Open sound:` / `+Close sound:` line has 1.0 there.
+- `script_party_remove_item` indexes `item_types[-1]` for an unknown name before its `type >= 0` test (`0x4cdfa6`..`0x4cdfc7`): `party_inventory_find_type` only compares the pointer (`0x46bd19`), and the test then skips the removal.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1411,6 +1515,10 @@ the tables above; the rest are below.
   to get +20 was not decided.
 - The death spells unequip and free every equipment slot of a non-party target (`0x45fdf0`), so its equipment
   cannot drop as loot. Intent unknown.
+- `party_set_level`'s own spend loop gives Joseph (species 0) +20 per point, while `character_add_xp`, which really spends the points, gives everyone +10. Whether the stage jumps were meant to give Joseph +20 was not decided.
+- `level_trigger_disable_by_target` / `_enable_by_target` change only the first trigger with that `+RefName:`. In the retail tables the single-player copy always comes first and its `+Multi` copy second, so in multiplayer `ls_sewer_init`'s toggles never reach the trigger that is used. Whether multiplayer is meant to keep every sewer exit live was not checked.
+- `script_play_cutscene` saves `level_script_frame_fn` without checking that it is already `script_cutscene_done`. Two calls in one frame (for example two of `ls_templeint_frame`'s eight `urathmyth` flags set at once) would leave the level's `frame` slot replaced by `script_cutscene_done`, which then calls the second continuation every frame. Whether two of those flags can be set before one frame runs was not traced. The Giant Salamanka pair in `ls_khosanilab_salamanka_fight` cannot: stage 3 needs the stage 2 acknowledgement (`giant_salamanka_check_stage` `0x4c85fa`).
+- `script_eleh_strip_party_gear` puts Joseph's old weapon and the slot 6 / 1 / 2 items into the party inventory (`party_inventory_add_item`), so they can be put back on at once. Whether the prison was meant to take them away was not checked.
 
 ## Evidence
 
@@ -1555,3 +1663,14 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V100 dead stores | die-0 return `spell_roll_amount` `0x47f4ec`..`0x47f4fe`; store `0x45febe`; distance return `0x45e0d8`..`0x45e123` |
 | V101 Jade Beam | `0x45f0dd` (`cmp [ebp+0x8], 0x1a`), `0x45f1c4`..`0x45f209` |
 | V102 walk_to_point | `0x455eba`, `0x455f24`..`0x455f42` |
+| C110 player starts | `level_find_player_starts` `0x4caf91`..`0x4cafd5`; `character_place_at_party_start` `0x44f1c2`..`0x44f1ed`; `level_parse_trigger` `0x4cc4a2`..`0x4cc4c6`; retail `lenele3a.tbl`, `Lenele3a.s3d`, `lenele3d_script.tbl`, `Lenele3d.s3d` |
+| C111 0x44 buffer | `lc_find_by_hash` `0x4cd575`, `0x4cd58f`..`0x4cd5ac`; callers `0x4d0fac`, `0x4d3618`; retail `*_script.tbl` `#Clicks` |
+| C112 door name | `level_script_parse_table` `0x4cd971`..`0x4cd9ec`; `door_from_lobj` `0x4768ce`..`0x4768df`; retail `*_script.tbl` `#Doors` against `levelm.vpp` `.s3d` |
+| C113 table bounds | `level_parse_table` `0x4cb8ed`..`0x4cb9cc`; `level_parse_trigger` `0x4cc1c2`..`0x4cc1d2`; `level_items_parse_table` `0x4cb51f`..`0x4cb540`, `0x4cb735`..`0x4cb745`; `level_script_parse_table` `0x4cdbb1`..`0x4cdbe2`, `0x4cdcd6`..`0x4cdce0`; `level_ambient_add` `0x4cd257` |
+| C114 level items | `level_items_parse_table` `0x4cb597`..`0x4cb5ab`, `0x4cb5e8`..`0x4cb5f8`, `0x4cb6a9`..`0x4cb6b6`, `0x4cb6e1`..`0x4cb6f1`; retail `level_items.tbl`, `items.tbl` |
+| G110 click object 0 | `level_script_parse_table` `0x4cdba5`..`0x4cdbe2` |
+| G111 key -1 | `level_script_parse_table` `0x4cd9ea`..`0x4cda1c`; retail `+Key:` names against `items.tbl` |
+| K110 ambient leak | `level_script_leave` `0x4cccaf`..`0x4ccccc`; `level_ambient_remove` `0x4cd2c0`..`0x4cd320`; `level_script_reparse` `0x4cb3d9`; `level_ambient_add` `0x4cd26e`..`0x4cd2ab`; `sound_emitter_delete` `0x5467e4`..`0x54682d`; `sound_create_emitter` `0x546703`..`0x546773`; `sound_emitters_delete_all` `0x5461cd` (caller `0x546650` only); retail `$Ambient:` counts in `tables.vpp` level `.tbl` files |
+| V110 avoid spline | `script_alloc_avoid_spline` `0x4cee10`..`0x4cee5c`; callers `0x4dd5c7`..`0x4dd5e2`, `0x4f3314`..`0x4f3327` |
+| V111 restart | `level_script_restart` `0x4cb2bc`..`0x4cb339`; `level_items_parse_table` `0x4cb5d6`..`0x4cb5f8`; `level_script_reparse` `0x4cb427` |
+| V112 cur_character | `level_script_init` `0x4cc88e`..`0x4cc8ce` |

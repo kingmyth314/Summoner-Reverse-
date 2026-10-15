@@ -84,20 +84,20 @@ void ls_sewer_init()
     }
 
     if (game_stage_get() >= 9) {
-        level_trigger_enable_by_target("v11");
-        level_trigger_enable_by_target("v12");
-        level_trigger_enable_by_target("v13");
-        level_trigger_enable_by_target("v21");
-        level_trigger_enable_by_target("v22");
-        level_trigger_enable_by_target("v23");
-        level_trigger_enable_by_target("v31");
-        level_trigger_enable_by_target("v32");
-        level_trigger_enable_by_target("v33");
-        level_trigger_enable_by_target("v41");
-        level_trigger_enable_by_target("v42");
-        level_trigger_enable_by_target("v43");
-        level_trigger_disable_by_target("v51");
-        level_trigger_disable_by_target("v52");
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v12");
+        level_trigger_set_script_use_by_refname("v13");
+        level_trigger_set_script_use_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v22");
+        level_trigger_set_script_use_by_refname("v23");
+        level_trigger_set_script_use_by_refname("v31");
+        level_trigger_set_script_use_by_refname("v32");
+        level_trigger_set_script_use_by_refname("v33");
+        level_trigger_set_script_use_by_refname("v41");
+        level_trigger_set_script_use_by_refname("v42");
+        level_trigger_set_script_use_by_refname("v43");
+        level_trigger_set_exit_by_refname("v51");
+        level_trigger_set_exit_by_refname("v52");
         door_apply_saved_state("$GateC3", false);
         door_apply_saved_state("$GateB2", true);
         door_apply_saved_state("$GateA3", true);
@@ -108,20 +108,20 @@ void ls_sewer_init()
         return;
     }
     if (game_stage_get() >= 7) {
-        level_trigger_enable_by_target("v11");
-        level_trigger_enable_by_target("v12");
-        level_trigger_enable_by_target("v13");
-        level_trigger_enable_by_target("v21");
-        level_trigger_enable_by_target("v22");
-        level_trigger_enable_by_target("v23");
-        level_trigger_enable_by_target("v31");
-        level_trigger_enable_by_target("v32");
-        level_trigger_enable_by_target("v33");
-        level_trigger_disable_by_target("v41");
-        level_trigger_disable_by_target("v42");
-        level_trigger_disable_by_target("v43");
-        level_trigger_enable_by_target("v51");
-        level_trigger_enable_by_target("v52");
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v12");
+        level_trigger_set_script_use_by_refname("v13");
+        level_trigger_set_script_use_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v22");
+        level_trigger_set_script_use_by_refname("v23");
+        level_trigger_set_script_use_by_refname("v31");
+        level_trigger_set_script_use_by_refname("v32");
+        level_trigger_set_script_use_by_refname("v33");
+        level_trigger_set_exit_by_refname("v41");
+        level_trigger_set_exit_by_refname("v42");
+        level_trigger_set_exit_by_refname("v43");
+        level_trigger_set_script_use_by_refname("v51");
+        level_trigger_set_script_use_by_refname("v52");
         door_apply_saved_state("$GateC3", false);
         door_apply_saved_state("$GateB2", false);
         door_apply_saved_state("$GateA3", true);
@@ -138,40 +138,40 @@ void ls_sewer_init()
         return;
     }
     if (game_stage_get() >= 6) {
-        level_trigger_enable_by_target("v11");
-        level_trigger_enable_by_target("v12");
-        level_trigger_enable_by_target("v13");
-        level_trigger_enable_by_target("v21");
-        level_trigger_enable_by_target("v22");
-        level_trigger_enable_by_target("v23");
-        level_trigger_disable_by_target("v31");
-        level_trigger_disable_by_target("v32");
-        level_trigger_disable_by_target("v33");
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v12");
+        level_trigger_set_script_use_by_refname("v13");
+        level_trigger_set_script_use_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v22");
+        level_trigger_set_script_use_by_refname("v23");
+        level_trigger_set_exit_by_refname("v31");
+        level_trigger_set_exit_by_refname("v32");
+        level_trigger_set_exit_by_refname("v33");
     } else {
         if (game_stage_get() >= 4) {
-            level_trigger_enable_by_target("v11");
-            level_trigger_enable_by_target("v12");
-            level_trigger_enable_by_target("v13");
-            level_trigger_disable_by_target("v21");
-            level_trigger_disable_by_target("v22");
-            level_trigger_disable_by_target("v23");
+            level_trigger_set_script_use_by_refname("v11");
+            level_trigger_set_script_use_by_refname("v12");
+            level_trigger_set_script_use_by_refname("v13");
+            level_trigger_set_exit_by_refname("v21");
+            level_trigger_set_exit_by_refname("v22");
+            level_trigger_set_exit_by_refname("v23");
         } else {
-            level_trigger_disable_by_target("v11");
-            level_trigger_disable_by_target("v12");
-            level_trigger_disable_by_target("v13");
-            level_trigger_enable_by_target("v21");
-            level_trigger_enable_by_target("v22");
-            level_trigger_enable_by_target("v23");
+            level_trigger_set_exit_by_refname("v11");
+            level_trigger_set_exit_by_refname("v12");
+            level_trigger_set_exit_by_refname("v13");
+            level_trigger_set_script_use_by_refname("v21");
+            level_trigger_set_script_use_by_refname("v22");
+            level_trigger_set_script_use_by_refname("v23");
         }
-        level_trigger_enable_by_target("v31");
-        level_trigger_enable_by_target("v32");
-        level_trigger_enable_by_target("v33");
+        level_trigger_set_script_use_by_refname("v31");
+        level_trigger_set_script_use_by_refname("v32");
+        level_trigger_set_script_use_by_refname("v33");
     }
-    level_trigger_enable_by_target("v41");
-    level_trigger_enable_by_target("v42");
-    level_trigger_enable_by_target("v43");
-    level_trigger_enable_by_target("v51");
-    level_trigger_enable_by_target("v52");
+    level_trigger_set_script_use_by_refname("v41");
+    level_trigger_set_script_use_by_refname("v42");
+    level_trigger_set_script_use_by_refname("v43");
+    level_trigger_set_script_use_by_refname("v51");
+    level_trigger_set_script_use_by_refname("v52");
 }
 
 // 0x4edc30  Confidence: exact. level_script_table init of "sewerboss". The two exits are script-use

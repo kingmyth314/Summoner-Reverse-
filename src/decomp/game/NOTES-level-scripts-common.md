@@ -63,8 +63,8 @@ had left 0x2493a14-0x2493a17 to this unit: level_script_restarting, Dont_load_fx
 | 0x4ccf00 | script_play_cutscene | exact |
 | 0x4ccf90 | level_trigger_set_exit | exact |
 | 0x4ccff0 | level_trigger_set_script_use | exact |
-| 0x4cd060 | level_trigger_disable_by_target | exact |
-| 0x4cd0c0 | level_trigger_enable_by_target | exact |
+| 0x4cd060 | level_trigger_set_exit_by_refname | exact |
+| 0x4cd0c0 | level_trigger_set_script_use_by_refname | exact |
 | 0x4cd120 | level_trigger_trip | likely |
 | 0x4cd250 | level_ambient_add | exact |
 | 0x4cd2c0 | level_ambient_remove | exact |
@@ -162,7 +162,7 @@ a 0xc-byte console command, so alignment). 0x2490c78 is only zeroed by level_scr
   (cur_level_index 4), which the page does not say.
 - symbols/sum.symbols, lc_entry_add / lc_entry_clear / lc_entry_exists: the argument is a level object
   pointer, not a hash (D2106).
-- sum.symbols level_exit_trigger_flags (0x2490c60): it holds the trigger's +Index: value and becomes
+- sum.symbols level_exit_trigger_index (0x2490c60): it holds the trigger's +Index: value and becomes
   level_entry_point; level_apply_pending_change does not test a bit of it (D2104).
 - sum.symbols script_party_member_say: "current character only unless debug flag 0x1000". It is the other
   way round: with game_flags 0x1000 (GF_SOLO_MODE) only cur_character speaks; without it any party member of

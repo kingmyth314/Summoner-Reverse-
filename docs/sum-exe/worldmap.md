@@ -52,9 +52,20 @@ functions pick one trigger per location by game stage (`game_stage_get`, `0x4d47
 `level_trigger_set_script_use` (`0x4ccff0`, formerly "level_trigger_enable") **sets** bit `0x2` of
 trigger `+0x54`. `level_check_triggers` calls `level_script_use` for a trigger with that bit set. It
 treats the trigger as a level exit only when the bit is clear (`test byte ptr [esi-4], 2` at
-`0x4cac4f`). `level_trigger_set_exit` (`0x4ccf90`, formerly "level_trigger_disable") clears the bit, so
-it is the one that makes an exit live. In every setup function, exactly one trigger per location gets
-`level_trigger_set_exit`. The table below is written in terms of the live exit.
+`0x4cabbf` for a line trigger and at `0x4cac4f` for a radius trigger). `level_trigger_set_exit` (`0x4ccf90`,
+formerly "level_trigger_disable") clears the bit, so it is the one that makes an exit live. In every setup
+function, exactly one trigger per location gets `level_trigger_set_exit`. The table below is written in
+terms of the live exit.
+
+- **Observed:** a trigger record starts with flags `+0x54` = 1 (`0x4cc1d8`), so every trigger of the
+  level `.tbl` is a live exit until a script sets bit `0x2`. Bit `0x4` is `+Multi`: in single player
+  (`game_flags` bit `0x1`) those triggers are skipped, in multiplayer (bit `0x2`) only those are used
+  (`0x4caa79`..`0x4caa95`).
+- **Observed:** when an exit is crossed, `level_check_triggers` stores the trigger in
+  `level_exit_trigger` (`0x24902c4`), its script name in `level_pending_exit_name` and its `+Index:`
+  value (trigger `+0x50`) in `0x2490c60`. After the player confirms, `level_apply_pending_change`
+  (`0x4ccd10`) copies that value into `level_entry_point` (`0x60a33c`, `0x4ccda6`), which picks the
+  `$player<index>-01`..`04` start navpoints of the next level.
 
 | Location | Setup function | Live exit (level / variant) by stage |
 |---|---|---|
@@ -71,7 +82,8 @@ it is the one that makes an exit live. In every setup function, exactly one trig
   object whose name starts with that prefix. *Inferred:* these are the town models on the map.
 - *Unknown:* what `level_script_use` does on the world map when you walk into an inactive trigger.
 - **Observed:** the exit check skips the "Hostile monsters nearby" and "Party members too far away"
-  tests on the world map (index 4), in towns (`level_is_town`) and in `rand-*` levels. See
+  tests on the world map (index 4), in towns (`level_is_town`) and in every level whose file name
+  starts with `rand` (all the `rand-*` encounter maps). See
   [Leaving an encounter](#leaving-an-encounter).
 
 ### What is stored in the save
@@ -213,12 +225,41 @@ Notes:
 
 ### Leaving an encounter
 
-**Observed:** `level_check_triggers` skips its exit checks when `level_filename` starts with
-`rand-` (`_strnicmp`, length 5). Elsewhere it sets bit `0x1` of `0x2491a50` when a party member is
-more than 10 units away (squared distance > 100) and bit `0x2` when a type 5 or 9 creature in
-combat mode is within 20 units of the party member it targets (squared distance <= 400).
-`hud_confirm_level_exit` (`0x40d640`) then refuses to leave. *Inferred:* you can walk out of any
-encounter level at once, even mid-fight.
+{: .important }
+Corrected 2026-10-15: the compare length is **4**, not 5 (`push ebx` with `ebx = 4`, `0x4cad56`), so the
+skip applies to every level name that starts with `rand` (case-insensitive). All retail names that start
+that way are the `rand-*` encounter maps, so the effect in the retail game is the same. The skip also
+applies in towns and on the world map.
+
+**Observed:** once an exit trigger is crossed, `level_check_triggers` clears
+`level_exit_block_flags` (`0x2491a50`). It leaves it at 0 and goes straight on when
+`level_is_town` (`0x60a40c`) is set, when `cur_level_index` is 4 (the world map), or when
+`_strnicmp(level_filename, "rand-", 4)` is 0:
+
+```
+4cad37: mov al, byte ptr [0x60a40c]      ; level_is_town
+4cad44: jne 0x4caeb7
+4cad4a: cmp dword ptr [0x59f120], ebx    ; cur_level_index == 4
+4cad50: je 0x4caeb7
+4cad56: push ebx                         ; 4
+4cad57: push 0x59e224                    ; "rand-"
+4cad5c: push 0x60a2c8                    ; level_filename
+4cad61: call 0x570140                    ; _strnicmp
+```
+
+In other levels it sets two bits:
+
+- bit `0x1` when a party member other than the leader is more than 10 units from the leader
+  (squared distance > 100, `0x57e6b4`). Summons (flag `0x100`) and members with flag `0x80` are
+  not counted;
+- bit `0x2` when a living entity of type 5 or 9 in AI mode 3 (combat) targets a party member
+  (`+0x384`) and is within 20 units of it (squared distance <= 400, `0x58192c`). The search stops
+  at the first one.
+
+`hud_confirm_level_exit` (`0x40d640`, from `hud_frame`) then shows "Cannot Leave" with "Hostile
+monsters nearby" (bit `0x2` first) or "Party members too far away" (bit `0x1`), and its OK button steps
+the leader back to `level_exit_return_pos` (`0x2493a08`). *Inferred:* you can walk out of any encounter
+level at once, even mid-fight.
 
 ## For players
 
@@ -248,8 +289,22 @@ Function and data addresses (no REA evidence ids).
 | stage bands 4 / 9 / 15 | `ls_worldmap1_frame` `0x4fbe69`..`0x4fbe9c` |
 | encounter table | the four pickers `0x4fbfd0`, `0x4fc4b0`, `0x4fcaf0`, `0x4fce40`; floats `0x57e6b0` 0.5, `0x5819bc` 0.45, `0x581948` 0.55, `0x58020c` 0.7, `0x581c08` 0.33, `0x581b24` 0.66, `0x580e00` 0.25, `0x580e04` 0.75, `0x580214` 0.1, `0x581cd8` 0.35, `0x581cd4` 0.65, `0x58021c` 0.05, `0x581cdc` 0.16, `0x57ef10` 0.2, `0x581ad8` 0.4, `0x5819a4` 0.6 |
 | nearest navpoint returns a record pointer | `ls_worldmap1_nearest_hills_nav` `0x4fc33c` (`navpoints + 0x30*i`) |
-| trigger bit `0x2` means "not an exit" | `level_trigger_set_script_use` `0x4cd038`, `level_check_triggers` `0x4cac4f` |
-| exits in `rand-` levels skip hostile/party checks | `level_check_triggers` `0x4cad56`..`0x4cae97` |
+| trigger bit `0x2` means "not an exit" | `level_trigger_set_script_use` `0x4cd038`, `level_check_triggers` `0x4cabbf`, `0x4cac4f` |
+| default trigger flags, `+Multi` bit `0x4` | `level_parse_trigger` `0x4cc1d8`..`0x4cc1f9`; `level_check_triggers` `0x4caa79`..`0x4caa95` |
+| `+Index:` becomes the entry point | `level_parse_trigger` `0x4cc331`..`0x4cc34f`; `level_check_triggers` `0x4cad26`..`0x4cad32`; `level_apply_pending_change` `0x4ccd9d`..`0x4ccda6` |
+| exits in towns, on the world map and in `rand*` levels skip hostile/party checks | `level_check_triggers` `0x4cad37`..`0x4cad6b` (length 4 at `0x4cad56`), checks `0x4cad71`..`0x4cae97` |
+| "Cannot Leave" messages | `hud_confirm_level_exit` `0x40d696`..`0x40d703` |
 | location markers and visibility | `worldmap_init_locations` `0x42f3b0`, tables `0x592cb4` / `0x592cd4`, jump table `0x42f4d4` |
 | `L` toggle, no click handling | `worldmap_frame` `0x42f51c` |
 | console toggle | `cmd_random_encounters` `0x4fd630` |
+
+## Changes (2026-10-15, level_scripts_common.cpp)
+
+Checked against the disassembly while writing `src/decomp/game/level_scripts_common.cpp`
+(`NOTES-level-scripts-common.md`).
+
+- Leaving an encounter: the `_strnicmp` length is 4, not 5, so any level name starting with `rand`
+  skips the checks. The skip also covers towns and the world map. Added the members that are not
+  counted, the "first hostile" stop and the two "Cannot Leave" messages.
+- Locations: the default trigger flags, the `+Multi` bit `0x4`, the second `test [esi-4], 2` site and
+  how `+Index:` becomes `level_entry_point`.

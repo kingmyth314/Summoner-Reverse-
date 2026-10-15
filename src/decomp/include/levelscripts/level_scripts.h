@@ -220,7 +220,7 @@ int  party_count_item_by_name(const char *name);     // 0x4ce9a0
 
 // ---- level_scripts_common.cpp (0x4ca700-0x4ceebf, decomp41) ---------------------------------------------
 // A level trigger (0x64 bytes, level_triggers 0x2490dd0, 32; level_parse_trigger). Type and field names
-// ours. sum.symbols calls +0x50 level_exit_trigger_flags when copied; it is the +Index: value (the entry
+// ours. sum.symbols calls +0x50 level_exit_trigger_index when copied; it is the +Index: value (the entry
 // point of the next level, D2104).
 #define LEVEL_TRIGGER_ON         0x1     // set by level_parse_trigger; radius triggers trip only while set
 #define LEVEL_TRIGGER_SCRIPT_USE 0x2     // level_script_use(ref_name) instead of a level exit
@@ -251,7 +251,7 @@ extern int level_trigger_count;                      // 0x2490c74
 extern const char *level_trigger_type_names[2];      // 0x59e0e8 "spline", "location" (name ours)
 extern const char *level_trigger_id_names[3];        // 0x59e0f0 "load level", "boss", "sound" (name ours)
 extern const char *level_pending_exit_name;          // 0x24902a4 trigger +0x20 (the next script name)
-extern int level_exit_trigger_flags;                 // 0x2490c60 trigger +0x50 (+Index:)
+extern int level_exit_trigger_index;                 // 0x2490c60 trigger +0x50 (+Index:)
 extern int level_unk_2490c78;                        // 0x2490c78 zeroed by level_script_reparse, never read (name ours)
 // Shops.
 #define MAX_LEVEL_SHOPKEEPERS 15
@@ -309,8 +309,8 @@ bool script_character_has_pending_goal(Character *c);// 0x4ccc50
 void level_script_leave();                           // 0x4ccc70 (state_game_leave)
 void level_apply_pending_change();                   // 0x4ccd10
 void script_cutscene_done();                         // 0x4ccdf0 the frame hook while a cutscene plays
-void level_trigger_disable_by_target(const char *ref_name);   // 0x4cd060 clears LEVEL_TRIGGER_SCRIPT_USE
-void level_trigger_enable_by_target(const char *ref_name);    // 0x4cd0c0 sets it
+void level_trigger_set_exit_by_refname(const char *ref_name);   // 0x4cd060 clears LEVEL_TRIGGER_SCRIPT_USE
+void level_trigger_set_script_use_by_refname(const char *ref_name);    // 0x4cd0c0 sets it
 // (object, out id, out index): the first non-script trigger of the object's move (-1, -1 when none);
 // "Tripped trigger:  %s" goes only to string_buffer. ls_catacombs_frame passes cur_character.
 void level_trigger_trip(obj *o, int *out_id, int *out_index);  // 0x4cd120

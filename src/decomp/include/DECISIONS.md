@@ -1791,7 +1791,7 @@ gamesound.h).
 level_triggers (0x2490dd0) is laid out from level_parse_trigger (name +0x00, script name +0x20, +RefName:
 +0x24, +Id: +0x48 via ParseTypeString over {"load level", "boss", "sound"} at 0x59e0f0, +Type: +0x4c over
 {"spline", "location"} at 0x59e0e8, +Index: +0x50, flags +0x54 = 1 then |= 4 for +Multi, +Plane: +0x58,
-the path or navpoint +0x5c, +Radius: +0x60). sum.symbols names the copy of +0x50 `level_exit_trigger_flags`
+the path or navpoint +0x5c, +Radius: +0x60). sum.symbols names the copy of +0x50 `level_exit_trigger_index`
 (0x2490c60) and level_apply_pending_change "tests bit 2" of it; the code stores it into level_entry_point
 (`mov dword ptr [0x60a33c], ecx`, 0x4ccda6), so it is the entry point of the next level. The global keeps
 its sum.symbols name; the field is `index`. The flag bit 0x80000000 is level_trigger_trip's "fired once".

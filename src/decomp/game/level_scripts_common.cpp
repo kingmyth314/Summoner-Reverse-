@@ -78,7 +78,7 @@ char *level_exit_trigger;                            // 0x24902c4
 level_effect level_effects[MAX_LEVEL_EFFECTS];       // 0x24902c8
 float level_fog_far;                                 // 0x2490c58
 void (*level_script_action_fn)(dialogue_action *action);   // 0x2490c5c
-int level_exit_trigger_flags;                        // 0x2490c60
+int level_exit_trigger_index;                        // 0x2490c60
 int level_trigger_count;                             // 0x2490c74
 int level_unk_2490c78;                               // 0x2490c78 (name ours)
 shopkeeper level_shopkeepers[MAX_LEVEL_SHOPKEEPERS]; // 0x2490ca0
@@ -254,7 +254,7 @@ void level_check_triggers()
 
     level_exit_block_flags = 0;
     level_exit_trigger = level_triggers[i].name;
-    level_exit_trigger_flags = level_triggers[i].index;
+    level_exit_trigger_index = level_triggers[i].index;
     level_pending_exit_name = level_triggers[i].script;
     if (!level_is_town && cur_level_index != 4 && _strnicmp(level_filename, "rand-", 4) != 0) {
         Player *p;
@@ -1085,7 +1085,7 @@ void level_apply_pending_change()
         strcpy(level_prev_filename, level_filename);
         strcpy(level_filename, level_exit_trigger);
         strcpy(level_script_name, level_pending_exit_name);
-        level_entry_point = level_exit_trigger_flags;
+        level_entry_point = level_exit_trigger_index;
         if (MP_IS_HOST()) {
             mp_netgame_level = level_table_find_id(level_script_find(level_filename));
             mp_change_level(level_entry_point);
@@ -1179,7 +1179,7 @@ void level_trigger_set_script_use(const char *name, const char *script)
 }
 
 // 0x4cd060  Confidence: exact.
-void level_trigger_disable_by_target(const char *ref_name)
+void level_trigger_set_exit_by_refname(const char *ref_name)
 {
     int i;
 
@@ -1192,7 +1192,7 @@ void level_trigger_disable_by_target(const char *ref_name)
 }
 
 // 0x4cd0c0  Confidence: exact.
-void level_trigger_enable_by_target(const char *ref_name)
+void level_trigger_set_script_use_by_refname(const char *ref_name)
 {
     int i;
 
