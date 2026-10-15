@@ -241,7 +241,7 @@ The tool:
    `ui_parse_checkbox`, ...) stay in one unit.
 
 **Result (2026-10-15):** 99 units over `0x401000`-`0x56a000`. None mixes two `.cpp` tags, and only 1 of the 65
-tagged files is split. Getting there took 66 module-tag corrections, each checked against the neighbouring functions
+tagged files is split. Getting there took about 80 module-tag corrections, each checked against the neighbouring functions
 and the data they use:
 - the three `*_render_character_mesh` functions go to `vsdk\ca`;
 - header inlines (`gr__Mode` accessors, `Mempool` methods) get folder-level tags (`vsdk\gr`, `vsdk\os`);
