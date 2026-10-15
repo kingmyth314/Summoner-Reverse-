@@ -34,6 +34,12 @@ public:
     bool eof();                                          // 0x514a10
     int  error();                                        // 0x514a40
     int  Delete(const char *name, int path_id);          // 0x514a80 File__delete ("delete" is a keyword); 0 = removed
+    // decomp55 (the script editor). (name, path_id): find(name) first when name is not NULL, then the
+    // found file's attributes (bit 2 = read-only); (new_name, name, path_id): find(name) when not NULL,
+    // then rename the found file to new_name in its folder: 0, -4 not found, -3 open, -99999 rename failed.
+    // sum.symbols calls the second make_backup (the script save renames the old file to "<file>.bak").
+    int  get_attributes(const char *name, int path_id);  // 0x514bf0
+    int  make_backup(const char *new_name, const char *name, int path_id);   // 0x514ae0
 
     // Typed readers: the version check passes (min_ver), else the default comes back. The default is read
     // as a byte / word (mov al / mov ax, [esp+0xc]), so its type is the result type (DECISIONS.md D3).

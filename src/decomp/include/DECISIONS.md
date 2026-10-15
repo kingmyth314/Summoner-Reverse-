@@ -2781,3 +2781,37 @@ group) and a party member's offensive candidates. combat_approach, turn_towards,
 alert_guards_of_target, combat_close_in / _melee_attack / _ranged_attack and choose_support_spell keep the
 decomp54 declarations; living_combat::update(int move_id) is D3404 (the AI combat callers push
 boss_get_attack_move_id's result, -1 or 0).
+
+## decomp55: the script editor unit (game/unnamed_script_editor_0x4de0b0.cpp, placeholder name; 0x4de0b0-0x4ecf90, static initialisers 374-473, .data 0x5a08a8-0x5a1573, .bss 0x2546828-0x256b74f)
+
+**D3500 (summoner/unnamed_script_editor_0x4de0b0.h). The hover and selection records are struct objects.**
+0x2546bd0 (hover) and 0x255a008 (selection) are two 0x44-byte records {kind, size, pos, orient, object}
+copied whole (`rep movsd` with ecx 0x11, sel = hover); sum.symbols' per-field names become macros on
+script_editor_hover / script_editor_sel (type script_editor_pick, names ours). The mouse ray at 0x2552c08
+is an ix_ray filled by gr_screen_to_world_ray.
+
+**D3501 (same header). script_action_defaults.** The 33-entry 0xc-byte table built by the inline
+constructor 0x4de410 holds arg0c, arg10, flag14, needs_nav (script_make_filename picks a default navpoint)
+and has_params (opens the parameter window). Field names ours.
+
+**D3502. 0x254a8b0 is a matrix, not a position.** It is copied as 9 floats with the selection's orient and
+restored the same way; sum.symbols' script_editor_saved_pos names it wrongly. The saved position is the
+vector3 at 0x2563a58 (script_editor_saved_pos here, script_editor_saved_orient for 0x254a8b0).
+
+**D3503. Two sum.symbols names are fields of gadgets.** script_editor_name_room 0x254e020 is
+script_editor_save_name_inputbox (0x254daa0) +0x580, its max_length; script_editor_ambient_file_list
+0x2564d04 is script_editor_ambient_listbox (0x2564a30) +0x2d4, its entry ring. Both stay as macros.
+
+**D3504 (vsdk/ui/ui_gadgets.h). ui_inputbox +0x5ac is a character filter callback.** The editor stores
+script_editor_decimal_filter_cb there and the inputbox key handler calls it before inserting a character;
+the field (char_filter, name ours) replaces padding.
+
+**D3505. sum.symbols names that describe other functions.** script_editor_delete_navpoint (0x4e6a30) adds a
+"$camera%.3d" navpoint; script_editor_refresh_action_editor (0x4e7a40) returns whether action type is
+offered for a character; script_editor_show_action_params (0x4e7cd0) deletes the selected action;
+script_make_filename (0x4e8cf0) returns the default navpoint of a new action. Names kept (no rename
+without a strings/path source), behaviour stated at each declaration.
+
+**D3506 (vsdk/ui/ui_gadgets.h). ui_listbox::select_by_data returns bool.** It returns AL: false when no
+entry has the data (0x52d8d1 / 0x52d8e2); the editor tests it. No existing definition or caller used the
+old void result, so nothing else changed.

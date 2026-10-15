@@ -44,5 +44,13 @@ bool  ix_ray_plane(ix_ray *ray, plane *pl, vector3 *out);    // 0x53ce30
 int   polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, int offset);   // 0x551f90
 int   polygon_clip_to_planes(int n, const vector3 *in, vector3 *out, const plane *planes, int num_planes);   // 0x551e90
 float ix_point_linesegment(const vector3 *p, const vector3 *a, const vector3 *b, vector3 *closest);   // 0x53da80
+// decomp55 (the script editor's picking). (out hit, out t, ray, ray length, centre, radius): the ray within
+// length hits the sphere; (ray, box centre, box orientation, box size, out hit): the oriented box. Which
+// of the sphere test's first two outputs is the point is from the editor's use (it measures from the
+// first); the parameter names are ours.
+class matrix;
+bool  ix_ray_sphere(vector3 *hit, float *t, ix_ray *ray, float length, const vector3 *centre, float radius);   // 0x53d7a0
+bool  ix_ray_box_oriented(ix_ray *ray, const vector3 *centre, const matrix *orient, const vector3 *size,
+                          vector3 *hit);                                     // 0x53d100
 
 #endif

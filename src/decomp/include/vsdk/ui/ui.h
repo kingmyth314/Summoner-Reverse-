@@ -55,6 +55,10 @@ public:
     void get_size(int *w, int *h);     // 0x542e80
     bool is_hidden();                  // 0x542fe0
     bool is_shown();                   // 0x542ff0
+    // decomp55 (the script editor): hidden = hide / = !show; hiding the focused gadget sends it event 4
+    // and clears ui_current_gadget.
+    void set_hidden(bool hide);        // 0x542ea0 ui_element__set_hidden
+    void set_visible(bool show);       // 0x542ed0 ui_element__set_visible
     void set_size(int w, int h);       // 0x542e60 (decomp53, state 6)
 
     ubyte initialized;                 // +0x004 0 from the constructor, 1 from init
@@ -93,6 +97,7 @@ public:
     int  get_screen_y(int offset);     // 0x52c460
     bool is_owned();                   // 0x52c4a0
     bool is_hidden();                  // 0x52c4b0
+    bool is_shown();                   // 0x52c4f0 window, parent and gadget all shown (decomp55)
     void set_parent(ui_gadget *parent);                   // 0x52c570
     void set_focus();                  // 0x52c600 event 4 to ui_current_gadget, event 3 to this (decomp51)
     void clear_focus();                // 0x52c630
@@ -159,6 +164,7 @@ extern bool ui_right_released;        // 0x2cbf629
 extern bool ui_right_pressed;         // 0x2cbf62a
 extern bool ui_left_double_clicked;   // 0x2cbf700
 extern bool ui_left_released;         // 0x2cbfca4
+extern int ui_key;                    // 0x2cbfc68 the key ui_process got (the editor's callbacks test it; decomp55)
 extern bool ui_right_double_clicked;  // 0x2cbfc04
 void ui_init();                       // 0x52f760 (guarded, once)
 void ui_draw_bevel(int x, int y, int w, int h, Color *light, Color *dark, int width, int inset); // 0x55e040
@@ -168,6 +174,8 @@ void ui_draw(void (*callback)());     // 0x52ff30
 // second argument is 1 at both callers (meaning not checked).
 int  ui_process(int key, int arg);    // 0x530330
 // The build stamp (vsdk\ui in sum.symbols): 3 unstamped (retail), 2 expired, 1 bad name checksum, 0 valid.
+// decomp55 (the script editor): the topmost shown modal window that is enabled (NULL when none).
+ui_window *ui_get_top_modal_window(); // 0x530970
 int  build_stamp_check();             // 0x52f450
 void build_stamp_get_name(char *out, int size);   // 0x52f540 (build_stamp_show passes 512)
 

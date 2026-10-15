@@ -595,6 +595,10 @@ void cutscene_script_entries_frame();                 // 0x4ed680
 // cutscene file's calls). The load's return value is not used.
 void cutscene_script_load(const char *name);          // 0x4ed0f0
 void cutscene_script_unload();                        // 0x4ed390
+// decomp55 (the script editor's < Time): cutscene_time = 0, the saved equipment put back.
+void cutscene_script_rewind_actors();                 // 0x4ed550 (return unused)
+// decomp55 (the script editor): the cutscene script clock (seconds; cutscene_script_rewind_actors zeroes it).
+extern float cutscene_time;                           // 0x257e970
 
 // ---- the cutscene file's data that script_internal.cpp uses -----------------------------------------
 // decomp52: cutscene_entry, cutscene_data (0x601e68), cutscene_path_id (0x601e6c) and

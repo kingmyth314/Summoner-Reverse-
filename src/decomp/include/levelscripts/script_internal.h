@@ -114,6 +114,8 @@ int  script_build_avoid_spline(Character *c, Character *target);// 0x4ddc60 avoi
 // (out, base, suffix): base cut to 32 - strlen(suffix) characters, then suffix (unit not known, after
 // conversationctl.cpp; possibly the head of script_internal.cpp, decomp44 NOTES).
 void str_copy_append_32(char *out, const char *base, const char *suffix);   // 0x4db250
+// (name): true when name ends with "_cscript.tbl" (same unit question as str_copy_append_32; decomp55).
+bool filename_has_cscript_suffix(const char *name);  // 0x4db2c0
 // The script editor's unsaved-changes flags (cleared by level_script_reparse; unit not known).
 extern bool script_ambients_dirty;                   // 0x255b4d8
 extern bool script_level_items_dirty;                // 0x2563d88

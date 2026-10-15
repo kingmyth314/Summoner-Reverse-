@@ -30,6 +30,10 @@ public:
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x5271c0
     void set_text(const char *text);  // 0x5272c0
     void press();                     // 0x527420 programmatic click (state 1, 100 ms timer; decomp51)
+    // decomp55 (the script editor): flag 0x20 of +0x274, a toggle state; is_latched is false while hidden.
+    void set_latched(bool latched);   // 0x526990
+    void toggle_latched();            // 0x5269c0
+    bool is_latched();                // 0x5269e0
     ubyte _unk274[0x38c - 0x274];
     int font;                         // +0x38C
     ubyte _unk390[4];
@@ -70,6 +74,8 @@ public:
     void create(ui_element *window, int x, int y, int box_w, int box_h, const char *label,
                 int label_x, int label_y, int font, bool checked, int id, bool owned);  // 0x553d00
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x553e00
+    void set_checked(bool checked);   // 0x553ee0 byte +0x274 (decomp55)
+    bool is_checked();                // 0x553ef0
     ubyte _unk274[0x394 - 0x274];
     int bm_unchecked;                 // +0x394
     int bm_checked;                   // +0x398
@@ -95,6 +101,7 @@ public:
     void set_valid_chars(const char *chars);              // 0x552870
     void set_invalid_chars(const char *chars);            // 0x552c50
     void set_text(const char *text);  // 0x553030
+    char *get_text();                 // 0x5530a0 +0x278 (decomp55)
     ubyte _unk274[0x578 - 0x274];
     int font;                         // +0x578
     ubyte _unk57c[4];
@@ -110,7 +117,9 @@ public:
     int bm_cursor;                    // +0x5A0
     int bm_normal;                    // +0x5A4
     int bm_disabled;                  // +0x5A8
-    ubyte _unk5ac[4];
+    // +0x5AC (decomp55): (text so far, typed character), false rejects the character; the script editor
+    // stores script_editor_decimal_filter_cb here (D3504). Field name ours.
+    bool (*char_filter)(const char *text, char c);
 };
 LAYOUT_CHECK(ui_inputbox, sizeof(ui_inputbox) == 0x5b0);
 
@@ -123,11 +132,13 @@ public:
     ui_listbox_entry();               // 0x52d540 font -1, data -1
     ~ui_listbox_entry();              // 0x52d560 (restores the vtable; non-virtual)
     virtual void set_text(const char *text);   // slot 0, 0x52d5b0 (the text entry: 0x52d4a0)
+    void set_font(int font);          // 0x52d5a0 font, dirty = 1 (decomp55)
     ubyte dirty;                      // +0x04
     ubyte _unk05[3];
     ui_listbox_entry *next;           // +0x08 entry ring (head: the list box's +0x2d4)
     ui_listbox_entry *prev;           // +0x0C
-    ubyte _unk10[0x1c - 0x10];
+    int y;                            // +0x10 top of the line in the content (recalc_content_size; decomp55)
+    ubyte _unk14[0x1c - 0x14];
     int indent;                       // +0x1C
     int wrap_indent;                  // +0x20
     int line_spacing;                 // +0x24
@@ -147,18 +158,26 @@ public:
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x52d7e0
     // decomp51 (the load-game screen, game/unnamed_states_0x431870.cpp).
     ui_listbox_entry *get_selected();                 // 0x52d8a0 +0x2b4
-    void select_by_data(int data, bool scroll_into_view);   // 0x52d8b0 the entry whose +0x34 is data (decomp53)
+    // decomp55 (D3506): returns AL, false when no entry has the data (0x52d8d1 / 0x52d8e2).
+    bool select_by_data(int data, bool scroll_into_view);   // 0x52d8b0 the entry whose +0x34 is data (decomp53)
     void select_by_text(const char *text, bool scroll_into_view);   // 0x52d8f0
     void select_entry(ui_listbox_entry *e, bool scroll_into_view);  // 0x52d920
     ui_listbox_entry *find_by_text(const char *text); // 0x52d9b0 strcmp of entry +0x30
     ui_listbox_entry *add_entry(const char *text, int font, int indent, int wrap_indent,
                                 int line_spacing);    // 0x52da40 appends; returns the entry
     void clear();                     // 0x52dc30
+    // decomp55 (the script editor).
+    void recalc_content_size();       // 0x52cd90
+    void clear_selection();           // 0x52d9a0 +0x2b4 = NULL
+    void set_hscroll(int pos);        // 0x52ea00
+    void set_vscroll(int pos, bool force);  // 0x52ea50 (second argument's meaning unsure)
+    void set_sorted(bool sorted);     // 0x52f3d0 flag 0x40 of +0x274
     ubyte _unk274[0x2b8 - 0x274];
     int bm_background;                // +0x2B8
     int margin;                       // +0x2BC
     int v_margin;                     // +0x2C0
-    ubyte _unk2c4[8];
+    int hscroll;                      // +0x2C4 horizontal scroll position (set_hscroll; decomp55)
+    int vscroll;                      // +0x2C8 vertical scroll position (set_vscroll; decomp55)
     int entry_spacing;                // +0x2CC
     ubyte _unk2d0[4];
     ui_listbox_entry entries;         // +0x2D4 entry ring head (constructed by ui_listbox(); D3100)

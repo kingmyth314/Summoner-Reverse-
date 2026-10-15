@@ -354,6 +354,17 @@ struct ix_ray;
 void gr_screen_to_world_ray(ix_ray *out, float sx, float sy);   // 0x50ebe0
 void gr_get_eye(vector3 *pos, matrix *orient);         // 0x50ef30
 float gr_scale_by_far_clip(float f);                  // 0x50ecb0 f * the far clip scale
+// decomp55 (the script editor's markers). (out, world point): into view space with the clip codes;
+// (v): the screen point, sets flags bit 0 (bit 1 behind the viewer). The return values are not used by
+// the editor (types unsure).
+ubyte gr_rotate_vertex(gr_vertex *out, const vector3 *p);   // 0x50e910
+ubyte gr_project_vertex(gr_vertex *v);                // 0x50ea50 returns v->flags
+// Wire shapes in the current colour (vsdk\gr, file not known): two rotated vertices (false when both are
+// clipped by one plane), two world points, a box arrow (pos, orient, size) and a sphere.
+bool gr_line_3d(gr_vertex *a, gr_vertex *b, gr::Mode mode);                     // 0x53e520
+void gr_line_3d_world(const vector3 *a, const vector3 *b, gr::Mode mode);      // 0x53e610
+void gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode);           // 0x53f720
+void gr_draw_arrow_3d(const vector3 *pos, const matrix *orient, const vector3 *size, gr::Mode mode);   // 0x53faf0
 
 // Direct3D back end (vsdk\gr\directx\gr_direct3d.cpp).
 extern bool d3d_use_vertex_buffer;                    // 0x2dc6c31

@@ -37,6 +37,21 @@ void sound_emitter_unpause(int emitter);                                   // 0x
 int  sound_create_emitter(int sound, int volume, int delay_ms);            // 0x5466f0
 void sound_emitter_delete(int emitter, int fade);                          // 0x5467c0 (return unused)
 void sound_emitter_update_position(int emitter, const vector3 *pos, const vector3 *vel, float f);   // 0x5468c0
+// decomp55 (the script editor): the sound and the repeat delay (ms) of an emitter (-1 / 0 out of range).
+int  sound_emitter_get_sound(int emitter);                                 // 0x546c20
+int  sound_emitter_get_repeat_delay(int emitter);                          // 0x546c50
+// One sounds.tbl record (0x40 bytes; sounds 0x2cb5458, 0x280 records, snd_init_sounds clears them). Only
+// what the script editor reads; field names ours. snd_get_handle stores p1 at +0x2c (1.0 when <= 0), p2
+// at +0x28, p3 at +0x34 and the rolloff distance computed from them at +0x30 (decomp55).
+struct snd_sound {
+    char name[0x28];                  // +0x00 file name (the editor copies it whole; length guessed)
+    float volume;                     // +0x28 snd_get_handle p2
+    float min_range;                  // +0x2c snd_get_handle p1
+    float max_range;                  // +0x30 snd_calc_rolloff (drawn as the outer sphere)
+    float rolloff;                    // +0x34 snd_get_handle p3
+    ubyte _unk38[8];
+};
+extern snd_sound sounds[0x280];       // 0x2cb5458
 // The EAX environment and the per-level EAX properties file (<level>.eax in data\internal).
 void snd_set_eax_environment(const char *name);                            // 0x521e00 (return unused)
 int  eax_save_props(const char *filename);                                 // 0x5220e0 nonzero = saved
