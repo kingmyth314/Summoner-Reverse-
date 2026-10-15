@@ -169,4 +169,7 @@ extern matrix file_default_matrix;        // 0x2cbf518
 void vfile_raise_access_level();      // 0x513370
 void vfile_lower_access_level();      // 0x513390
 
+// decomp47 (summoner_cd.cpp): strcpy into cd_root_path (file_make_cd_path's root).
+void file_set_cd_root(const char *path);                              // 0x513e60
+
 #endif

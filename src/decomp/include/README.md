@@ -93,7 +93,7 @@ Summoner 2 and Dash Faction give names only.
 | `engine/characterinfo/characterinfo.h` | `Engine\characterinfo\characterinfo.cpp` | `char_info`, skills, chain attacks, experience |
 | `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state` (all ai.cpp members, decomp39), `ai_goal`, `ai_group`, the unit's name tables, console variables, profiler (`ai_profile`) and cast effect tracks; the avoidance records and calls pathfinding.cpp uses (decomp32, D1205) |
 | `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a6600 | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
-| `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` | `determine_point_visibility` |
+| `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` (decomp47) | the visibility sweep: `pathvis_edge`, the unit's .bss, `pathvis_*`, `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
@@ -118,6 +118,9 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/multi/multicontainer.h` | multicontainer.cpp (0x488c00-0x48972a) | loot drops, container open / close, lock picking |
 | `summoner/multi/multispell.h` | multispell.cpp (0x4afca0-0x4b0957, decomp35) | RLS_SPL / CST_ANM casts, the one-summon claim (SMN_*) |
 | `summoner/multi/multi_chattracker.h` | multi_chattracker.cpp (0x4abb80-0x4ae32d, decomp35) | the PXO lobby's IRC client: `irc_command`, `irc_user`, `irc_channel`, `irc_*` |
+| `summoner/multi/multiplayerdata.h` | multiplayerdata.cpp (0x4af340-0x4afc9f, decomp47) | NET_INF / NEW_INF / PLY_DAT, the player record packing |
+| `summoner/multi/multiendgame.h` | multiendgame.cpp (0x4811a0-0x481673, decomp47) | leaving a game, GM_OVER / LV_GAME, the Game Over box, `MP_LEAVE_*`, Multi_path_type |
+| `summoner/interface/new_multi.h` | new_multi.cpp (0x41dde0-0x41e3cf, decomp47) | the multiplayer elevators (ui_screen_stop_player stays in interface.h) |
 | `summoner/interface/interface.h` | interface core, new_hud / new_inventory helpers | screen switch, button records, popups, colours, `new_icam` |
 | `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
 | `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |

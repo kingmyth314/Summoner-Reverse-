@@ -56,6 +56,8 @@ LAYOUT_CHECK(pf_wall, sizeof(pf_wall) == 0x14);
 // .pfg file, +0x18..+0x27 are pf_graph_search's A* state. The avoidance corners (avoid_corner, ai.h)
 // start with the same fields.
 #define PFN_VISIBLE      0x0001       // straight walk from the query point clear
+#define PFN_COLLINEAR    0x0002       // pathvis_scan_cells: same direction from the point as the node before
+                                      // it in the sweep (name ours, decomp47)
 #define PFN_FROM_START   0x0004       // visible from the search start
 #define PFN_FROM_GOAL    0x0008       // visible from the search goal
 #define PFN_IN_REACH     0x0010       // inside the query box and on a reachable layer
@@ -89,8 +91,10 @@ struct pf_cell {
 };
 LAYOUT_CHECK(pf_cell, sizeof(pf_cell) == 0x20);
 
-// A navigation BSP node (0x10, pf_read_typed_refs). Type 1 leaf (data = a pf_nodes point), 2 split line
-// (data = a pf_edge), 3 empty (the file's index is dropped).
+// A navigation BSP node (0x10, pf_read_typed_refs). Type 1 splits at the x of a pf_nodes point (data;
+// front: x below it), 2 splits by the line of a pf_edge (data; front: the side with the cross product <= 0),
+// 3 empty (the file's index is dropped). pf_bsp_node_find and pathvis_bsp_contains test both sides of a
+// point within 0.0001 of the split (decomp47, D2602; type 1 was read as a leaf before).
 struct pf_bsp {
     int type;                         // +0x00
     void *data;                       // +0x04
@@ -250,6 +254,8 @@ int  seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out);   //
 // (point - a) above the epsilon 0x57eb84; (a, b, c, d) the x / z segments a-b and c-d cross
 // (seg2d_segment_intersect == 1).
 bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags);        // 0x4a4f60
+// decomp47 (pathfinding_visibility.cpp): y0 + (x - x0) * (y1 - y0) / (x1 - x0).
+float float_lerp_range(float x, float x0, float y0, float x1, float y1);      // 0x4a4f00
 bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c, const vector3 *d);   // 0x4a5570
 // (segment, line, out, 0): parameter in seg2d_param (denominator seg2d_denom).
 int  seg2d_line_intersect(const seg2d *seg, const seg2d *line, vector2 *out, int flags);   // 0x4a5bd0

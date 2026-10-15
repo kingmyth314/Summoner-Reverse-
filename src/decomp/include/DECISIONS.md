@@ -2131,3 +2131,75 @@ the .cpp (D1400).
 not known. tiger_find_rider (0x49a010, returns eax = the last living entity whose char_info +0x10 is 0x57, 0
 when none) and the bytes tiger_dismount_stage_reached / tiger_stage_trigger / tiger_combat (0x2452a98..a9a,
 byte compares and stores in ls_templeint_frame / the cutscene ends).
+
+## new_multi / summoner_cd / multiendgame / multiplayerdata / pathfinding_visibility (decomp47)
+
+**D2600 (summoner_cd.cpp). The shipped Sum.exe carries a no-CD edit in cd_find_drive / cd_set_root; the
+source is the unpatched reading.** Bytes no compiler emits: `0f 85 00 00 00 00` (jne +0) at 0x43e6b0 (after
+GetDriveTypeA, `cmp eax, 5`) and 0x43e6e3 (after GetVolumeInformationA, `cmp eax, 1`), `75 00` at 0x43e872
+(after the second GetDriveTypeA); `mov dl, bl / b2 2e / 90` at 0x43e695 (a `mov dl, bl` whose result is
+overwritten, then `mov dl, '.'` and a nop filling the 3 bytes of `add dl, 0x41`) and `b0 2e 90` at 0x43e914
+(`mov al, '.'`, nop: the 3 bytes of `add eax, 0x41`); the strings 0x594f50 `2e 5c 5c 00` and 0x594f70 `2e 5c
+00 00` sit where "A:\" and "%c:\" belong (the pushed letter is still pushed at 0x43e917 and ignored). This
+is on disk, unlike Timeslip's in-memory jge -> jmp at 0x43e9cb (docs/patches/timeslip.md). summoner_cd.cpp
+writes `root[0] = 'A' + i`, "A:\", "%c:\" with `drive + 'A'`, and the three tests as `continue` (the first
+two) and "skip result = i, break" (the third: `found` is stored only on the SUMMONER_1 path, so the found
+block cannot loop back; the other matches jump into it with the store dropped). The original jump targets
+are lost: unsure. A byte-matching build has to re-apply the patch. summoner/summoner.h: cd_select_drive
+returns int (`mov eax, esi` = cd_set_root's result at 0x43e8d4; WinMain ignores it), new cd_find_drive,
+cd_set_root, cd_root (sum.symbols char[64]; the .bss gap to 0x60ae58 is 0xdc bytes).
+
+**D2601 (summoner/multi/multiendgame.h, multi.h). mp_player_disconnected is (reason, bool quit); LV_GAME is
+{reason, id}; the declaration moved to multiendgame.h.** multi.h had (int id, int reason) with a note that the
+first argument looks like a reason. The host path passes argument 1 to mp_send_player_left and argument 2 to
+mp_leave_game (`mov eax, [esp+4] / push / call 0x481260`, `mov edx, [esp+0xc] / push / call 0x4812a0` at
+0x481514-0x481526), the client path argument 1 to mp_show_disconnect_popup (0x48152f-0x481534), whose jump
+table 0x481430 maps 1-6 to the strings.tbl reasons 225-230. mp_leave_game reads its argument as a byte (`mov
+al, [esp+4] / test al, al`, 0x48130b): bool; the dword is passed through unchanged, so the parameter is bool
+too. Only the type of the second parameter changes (all callers pass literal 0: gameplay.cpp, new_hud.cpp,
+new_levelselect.cpp, new_playmenu.cpp compile unchanged). mp_send_player_removed stores argument 1 at
+data + 3 and argument 2 at data + 7 (0x481474 / 0x481491) and is called as (reason, mp_local_player->id)
+(0x48154d-0x481558); mp_handle_leave_game reads data[0] as the reason (compared with 1, 4, 6) and data[1] as
+the id (mp_player_find_by_id, 0x4815cc-0x4815d2): sum.symbols' "(id, reason)" is reversed. mp_send_player_left's
+4-byte word is the reason, not an id (sum.symbols "(id)"); its handler mp_handle_game_over never reads it.
+
+**D2602 (engine/ai/pathfinding_visibility.h, pathfinding.h). Argument orders and the BSP node types.**
+pathvis_insert_sorted reads the list index from [esp+8] before its pushes and the node from [esp+0xc] after
+two (0x4b7df0-0x4b7e0c), the caller pushes the layer, then the node (0x4b7c92-0x4b7c9f): (node, layer), not
+sum.symbols' "(list index, node)"; pathvis_insert_by_side the same (0x4b8190 / 0x4b81d2, caller 0x4b8122);
+pathvis_bsp_contains takes (point, node): `mov esi, [esp+0xc]` after one push is argument 2, tested and
+dispatched as the node, argument 1 is the point (0x4b86e1-0x4b86f2; caller 0x4b82e8 pushes the graph's BSP
+then &mid). pf_bsp type 1 is not a leaf: pathvis_bsp_contains and pf_bsp_node_find (0x4a5ce1) compare the
+point's x with the node point's x and go front / back (both when within 0.0001); pathfinding.h's comment
+corrected. New: pathvis_edge (0x28, derived from seg2d: a / b at +0 / +4 are passed to
+seg2d_segment_intersect and seg2d_point_left_of), the unit's .bss, PFN_COLLINEAR (0x2, set and cleared by
+pathvis_scan_cells, tested by determine_point_visibility), float_lerp_range (0x4a4f00), read_tsc (timer.h).
+
+**D2603 (pathfinding_visibility.cpp). pathvis_segment_visible returns 1 for blocked; pathvis_insert_edge is
+unoptimised.** 0x4b825e returns 1 when 0x247ecdc is clear, 0x4b82f8 / 0x4b832b return 1 when the midpoint is
+in the BSP or the segment crosses an edge, the end returns 0; determine_point_visibility sets PFN_VISIBLE
+when the result is 0 (`cmp ebp, ebx / jne`, 0x4b8455-0x4b8465). The name (sum.symbols) is kept, the header
+says what the value means. 0x4b7e80 has an ebp frame, reloads every variable from memory, `imul eax, eax,
+0x28` and the `xor reg, reg / test / jne` of the list macros' while (0) (0x4b7f37, 0x4b80d3, 0x4b8110):
+written between `#pragma optimize("", off)` / `on` (guarded by _MSC_VER for the mingw check). Its locals are
+declared in frame order (first = highest address, as objects.cpp).
+
+**D2604 (multiendgame.cpp). The kick functions 0x471df0-0x471fef stay out.** mp_remove_player,
+mp_send_removed_notice and mp_handle_kick_pl read strings.tbl 233-234 of the `// multiendgame.cpp` block, but
+they follow multitrade.cpp at 0x471df0 and multiendgame.cpp is the contiguous block 0x4811a0-0x481673
+(static initialiser entry 238 at its front). One translation unit's code is contiguous in this link, so they
+are another file (or multitrade.cpp's tail; source-map.md leaves it open). Not written here.
+
+**D2605 (summoner/multi/multi.h). mp_player +0x08 addr, +0x54 display_name; flags and packet names.**
++0x08 (8 bytes) is the net address: nw_addr_equal(&p->addr, &to->addr, 1) in mp_send_net_info (0x4af69d-0x4af6a2)
+and the two dwords of mp_server_addr copied there in mp_handle_net_info (0x4af798-0x4af7a6). +0x54 (16 bytes)
+receives gr_string_truncate_ellipsis(p + 0x54, name, 50, -1) in mp_add_new_player (0x4af637-0x4af645). No
+pilot used _unk08 / _unk54. New macros (names ours): MP_PF_DATA_RECEIVED 4 (`or [eax+0x10], 4` after PLY_DAT,
+0x4afbaf / 0x4afbcb), MP_PF_TRACKED 0x20 (`test al, 0x20` before tracker_end_game, 0x4812be), MP_PF_INFO_SENT
+0x40000000 (0x4af37f), MP_PF_LEAVING 0x80000000 (0x4814e9 / 0x4814f4, ui_screen_stop_player 0x41e392);
+MP_NET_INF .. MP_LV_GAME 5-9 (mp_packet_table, the send counters 0x595250 / 0x59526c / 0x595288 / 0x5952a4 /
+0x5952c0 = 0x5951b8 + 0x1c * type + 0xc); MP_ADD_FLOAT (the float copy through a stack temporary at
+0x4af8c6-0x4af8d0). multi.h also declares mp_player_alloc (0x441610), mp_player_disconnect (0x441660),
+tracker_end_game (0x4aba20), mp_server_addr / mp_server_player_id, and includes the two new unit headers
+multiplayerdata.h and multiendgame.h. vsdk/net/net.h: nw_NewCloseSocket(int *) (the callers push
+&mp_player::socket and store -1 afterwards, 0x481565-0x48157a) and nw_addr_equal (0 = equal, 0x519394).

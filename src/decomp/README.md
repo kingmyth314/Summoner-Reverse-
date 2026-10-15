@@ -75,6 +75,7 @@ Rules:
 | `game/gametarget.cpp` | `gametarget.cpp` | 26 | 12 / 14 / 0 |
 | `game/multi_chattracker.cpp` | `multi_chattracker.cpp` | 20 | 11 / 9 / 0 |
 | `game/multispell.cpp` | `multispell.cpp` | 22 | 16 / 6 / 0 |
+| `game/multiendgame.cpp`, `new_multi.cpp`, `multiplayerdata.cpp`, `summoner_cd.cpp`, `pathfinding_visibility.cpp` (`engine\ai\`) | one file each | 48 | 17 / 29 / 2 (see `NOTES-multi-small.md`; summoner_cd is written without the no-CD byte patch the shipped exe carries, D2600) |
 | `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
 | `game/living_entity.cpp` | `living_entity.cpp` (unoptimised) | 166 | 97 / 69 / 0 |
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |

@@ -68,4 +68,6 @@ void key_init(int layout, int fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
 // No name in sum.symbols; label ours.
 extern char *key_names[256];          // 0x5a68c0
 
+int  key_inkey();                     // 0x509ce0 next queued key code, 0 none (decomp47: cd_prompt_disc2)
+
 #endif

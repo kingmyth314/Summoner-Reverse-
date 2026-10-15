@@ -7,4 +7,7 @@ void timer_wait(int ms);              // 0x530bf0 Sleep wrapper
 int  timer_get(int scale);            // 0x5328d0 elapsed QPC ticks * scale / frequency (32-bit result)
 void timer_init();                    // 0x532840 once: QPC frequency (low 32 bits), base
 
+// RDTSC, low dword (decomp47: pathfinding_visibility.cpp's phase counters subtract two readings).
+int  read_tsc();                      // 0x5329b1
+
 #endif

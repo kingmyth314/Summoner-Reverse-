@@ -1,7 +1,7 @@
 // summoner/multi/multi.h - the multiplayer game: players, session, packets, game list, PXO lobby, character
 // select records; gathering header of the multi*.cpp units. Units (strings.tbl / sum.symbols):
-// multiplayerdata.cpp, multiendgame.cpp (0x471df0, 0x4814e0), and the units with headers of their own,
-// included at the end: multisave.cpp (0x46cc60-0x46dd2f, multisave.h), multitrade.cpp (0x470e30-0x471def,
+// the units with headers of their own, included at the end: multiplayerdata.cpp (0x4af340-0x4afc9f,
+// multiplayerdata.h; decomp47), multiendgame.cpp (0x4811a0-0x481673, multiendgame.h; decomp47), multisave.cpp (0x46cc60-0x46dd2f, multisave.h), multitrade.cpp (0x470e30-0x471def,
 // multitrade.h), multichat.cpp (0x487b90-0x488223, multichat.h), multicontainer.cpp (0x488c00-0x48972a,
 // multicontainer.h), multispell.cpp (0x4afca0-0x4b0957, multispell.h), multi_chattracker.cpp
 // (0x4abb80-0x4ae32d, multi_chattracker.h; decomp35). Directory and file name are ours. Not original source.
@@ -22,8 +22,9 @@ class Character;
 struct mp_player {
     mp_player *next;                  // +0x00 mp_player_list
     mp_player *prev;                  // +0x04 (inferred: list pair)
-    ubyte _unk08[0x08];               // +0x08 net address (mp_player_find_by_addr compares it)
-    unsigned int flags;               // +0x10 bit 0 host
+    ubyte addr[0x08];                 // +0x08 net address (mp_player_find_by_addr, nw_addr_equal; mp_handle_net_info
+                                      //       copies mp_server_addr here for the server's record; decomp47)
+    unsigned int flags;               // +0x10 bit 0 host, MP_PF_* below
     int type;                         // +0x14 state: 3 listed on the level select screen, 4..9 loading steps
                                       //       (6 linking players, 9 ready; mp_draw_loading_status)
     int socket;                       // +0x18 reliable socket, -1 not connected (mp_broadcast_packet skips
@@ -35,7 +36,8 @@ struct mp_player {
     int profile_flags;                // +0x30 the .plr flags word (mp_char_record +0x4c): written and read by
                                       //       mp_player_file_write / mp_player_file_load
     char name[0x20];                  // +0x34 copied from the character profile by mp_local_player_create
-    ubyte _unk54[0x10];
+    char display_name[0x10];          // +0x54 name cut to 50 pixels with "..." (gr_string_truncate_ellipsis in
+                                      //       mp_add_new_player; decomp47, name ours)
     GameTimer move_update_timer;      // +0x64 100 ms OBJ_UPD resend while traveling (ai_frame; decomp39, name ours)
 };
 extern mp_player mp_player_list;      // 0x651418 head
@@ -43,6 +45,11 @@ extern mp_player *mp_local_player;    // 0x651598
 // mp_player::flags bits that ai_frame keeps for the party member's player (decomp39; names ours).
 #define MP_PF_TRAVELING      0x8      // traveling sub-mode 1 this frame
 #define MP_PF_WAS_TRAVELING  0x10     // ... the frame before
+// decomp47 (multiplayerdata.cpp, multiendgame.cpp, new_multi.cpp; names ours).
+#define MP_PF_DATA_RECEIVED  0x4      // PLY_DAT handled for this player (mp_handle_player_data)
+#define MP_PF_TRACKED        0x20     // the host's game is on the PXO game tracker (tracker_end_game)
+#define MP_PF_INFO_SENT      0x40000000   // NEW_INF broadcast (mp_broadcast_new_info)
+#define MP_PF_LEAVING        0x80000000   // mp_player_disconnected ran (ui_screen_stop_player tests it)
 
 // The AI's multiplayer senders (module "-", 0x480070-0x488b00; decomp39). Argument lists from ai.cpp.
 void mp_send_new_path(Character *c);                  // 0x480070 NEW_PTH
@@ -73,6 +80,11 @@ void mp_send_swi_hide(Character *c);                  // 0x488b00 SWI_HID
 #define MP_HEADER_SIZE 3
 #define MP_MAX_PACKET  0x200
 
+#define MP_NET_INF 0x05
+#define MP_NEW_INF 0x06
+#define MP_PLY_DAT 0x07
+#define MP_GM_OVER 0x08
+#define MP_LV_GAME 0x09
 #define MP_CHAT_LN 0x0c
 #define MP_ITM_DRP 0x23
 #define MP_ITM_GET 0x24
@@ -112,6 +124,10 @@ extern mp_packet_info mp_packet_table[66];            // 0x5951b8
 #define MP_BUILD_HEADER(t) (data[0] = (ubyte)(t), packet_size = MP_HEADER_SIZE, mp_packet_table[t].sent++)
 #define MP_ADD_DATA(v)     (memcpy(data + packet_size, &(v), sizeof(v)), packet_size += sizeof(v))
 #define MP_END_PACKET()    (*(ushort *)(data + 1) = (ushort)(packet_size - MP_HEADER_SIZE))
+// A float goes through a stack temporary (mp_send_player_data 0x4af8c6: `mov [esp+8], edx / mov esi,
+// [esp+8]` before the store into the packet; decomp47, macro ours).
+#define MP_ADD_FLOAT(v)    do { float mp_tmp_f = (v); memcpy(data + packet_size, &mp_tmp_f, 4); \
+                                packet_size += 4; } while (0)
 
 // (data, total length, to (0 = the server), reliable). Return unused here.
 void multi_send_packet(ubyte *data, int len, mp_player *to, int reliable);   // 0x442060
@@ -135,14 +151,19 @@ vector3 mp_dequantize_position(short x, short y, short z);                 // 0x
 void mp_host_game(const char *name, const char *password, int max_players, int difficulty,
                   int levels_below, int levels_above);   // 0x43edc0 (return type guessed)
 void mp_session_reset();                                // 0x441490
+// decomp47 (multiplayerdata.cpp, multiendgame.cpp; module "-" in sum.symbols, units not known).
+mp_player *mp_player_alloc();                           // 0x441610 NULL when the free list is empty
+void mp_player_disconnect(mp_player *p);                // 0x441660 party_remove_player, closes +0x18, unlinks
+void tracker_end_game();                                // 0x4aba20 (mp_leave_game, host of a tracked game)
+extern uint mp_server_addr[2];                          // 0x651404 (mp_handle_acpt_jn)
+extern int mp_server_player_id;                         // 0x65140c
 bool mp_level_available_to_all(int level, int difficulty);   // 0x43ebd0
 void mp_levelselect_set_level(int level);               // 0x43ec20
 void mp_levelselect_start_if_ready();                   // 0x43ec40 (return type guessed)
 void mp_remove_player(mp_player *p, int reason);        // 0x471df0 (reason 1 = kicked)
 void mp_respawn_and_notify(int id);                     // 0x481130 (hud_confirm_quit)
 extern int mp_netgame_state;                            // 0x6513fc session state 0..5 (5 = playing)
-// The level select passes (2, 0) / (0, 0): the first argument looks like a reason or mode, not an id.
-void mp_player_disconnected(int id, int reason);        // 0x4814e0
+// mp_player_disconnected (0x4814e0) is in multiendgame.h (decomp47: (reason, quit), D2601).
 void mp_send_character_skills(Character *c);            // 0x480ba0
 extern int mp_netgame_level;                            // 0x6513d8
 extern int mp_game_difficulty;                          // 0x6513ec
@@ -244,6 +265,8 @@ void mp_send_unequip_item(Character *c, int slot);           // 0x487a70 packet 
 // multi_door.cpp: (player id, level object index, open) the host's door toggle (object_try_unlock_or_open).
 void door_find_by_mesh(int player_id, int lobj_index, int open);   // 0x4aa8e0 (return unused)
 
+#include "summoner/multi/multiplayerdata.h"
+#include "summoner/multi/multiendgame.h"
 #include "summoner/multi/multisave.h"
 #include "summoner/multi/multitrade.h"
 #include "summoner/multi/multichat.h"

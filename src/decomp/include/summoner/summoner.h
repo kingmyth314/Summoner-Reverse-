@@ -106,8 +106,14 @@ void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 record
 void vif_reset_all();                 // 0x532ea0 (level_load; decomp42)
 void script_editor_frame();           // 0x4e01f0 (game_render_frame; decomp42)
 
-// ---- summoner_cd.cpp (0x43e660-0x43eaff) ----------------------------------------------------------
-void cd_select_drive();               // 0x43e8a0 (WinMain, before MainLoop)
+// ---- summoner_cd.cpp (0x43e660-0x43eaff; .data 0x594f2c-0x594f87, .bss cd_root; decomp47) -----------
+extern char cd_root[64];              // 0x60ad7c "X:\" of the game disc, "" when none (size from sum.symbols)
+// Drive index 0..25 of a CD-ROM drive with the disc whose volume label is `volume` ("SUMMONER_1" needs
+// setup.exe, "SUMMONER_2" levelm.vpp), or with either file when volume is NULL; < 0 when none
+// (-3: a CD drive was seen, -1: none).
+int  cd_find_drive(const char *volume);   // 0x43e660
+int  cd_set_root(int drive);          // 0x43e8e0 drive < 0: cd_root = "" and 0; else "X:\" and 1
+int  cd_select_drive();               // 0x43e8a0 cd_set_root's result (WinMain ignores it; decomp47)
 void CdCheck();                       // 0x43e9b0 (LoadSettings; return unused)
 int  cd_has_level_data();             // 0x43e940 nonzero: the level packfiles need no adding (level_load; decomp42)
 void cd_prompt_disc2();               // 0x43ea20 (level_load, when levelm.vpp is not found; decomp42)
