@@ -118,7 +118,9 @@ What is known:
   - **User test 2026-10-14:** shops (buy/sell, 7) and looting/pickup work at 1366. Not seen yet: item trade (19),
     assess (20).
 
-Still open: check item trade (19) and assess (20) at 1366, and the intro credit position against a 1024 run.
+Still open: item trade (19) uses the multiplayer trade background, so it probably needs a multiplayer game. Assess (20)
+needs the Assess skill: giving Joseph the skill byte in an edited save was not enough, because the Skills panel only lists
+skills the character may have (2026-10-14). The intro credit position against a 1024 run is also unchecked.
 
 ## Decompilation
 

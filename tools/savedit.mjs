@@ -6,6 +6,8 @@
 //   --gold N               party gold (INVT +0x04)
 //   --member I             which party member the following fields change (0 = first, default)
 //   --level N  --xp N  --hp N  --maxhp N  --ap N  --maxap N  --skillpoints N
+//   --skill ID=VALUE       a skill byte (ids 0-35 are saved; 10 = level 1, see the skill table in docs/sum-exe/characters.md).
+//                          The Skills panel only lists skills the character may have, so a new skill may not appear.
 //
 // Notes: the game does not recompute anything from these values on load. Raising --level does not grant the
 // HP, AP or skill points of the skipped levels; set those too if wanted. The file has no checksum, and the
@@ -17,7 +19,7 @@ import { resolve } from "node:path";
 const args = process.argv.slice(2);
 const [input, output] = args;
 if (!input || !output || input.startsWith("--") || output.startsWith("--")) {
-  console.log("usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--member I] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N]");
+  console.log("usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--member I] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE]");
   process.exit(1);
 }
 if (resolve(input) === resolve(output)) { console.error("refusing: output must be a different file than the input"); process.exit(1); }
@@ -31,7 +33,7 @@ for (let i = 2; i < args.length; i++) {
   if (!args[i].startsWith("--")) { console.error(`unexpected argument ${args[i]}`); process.exit(1); }
   opts[args[i].slice(2)] = args[++i];
 }
-const known = ["desc", "gold", "member", "level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints"];
+const known = ["desc", "gold", "member", "level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"];
 for (const k of Object.keys(opts)) if (!known.includes(k)) { console.error(`unknown option --${k}`); process.exit(1); }
 const num = (k) => { const v = Number(opts[k]); if (!Number.isFinite(v)) { console.error(`--${k} needs a number`); process.exit(1); } return v; };
 const changes = [];
@@ -50,7 +52,7 @@ if (opts.gold !== undefined) {
   changes.push(`gold ${old} -> ${num("gold") | 0}`);
 }
 
-const fieldOpts = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints"].filter((k) => opts[k] !== undefined);
+const fieldOpts = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"].filter((k) => opts[k] !== undefined);
 if (fieldOpts.length) {
   const lent = b.indexOf("LENT", 0x200, "latin1");
   const count = b.readInt32LE(lent + 0x30);
@@ -69,7 +71,17 @@ if (fieldOpts.length) {
     ap: (v) => b.writeInt16LE(v, r + 0x152), maxap: (v) => b.writeInt16LE(v, r + 0x154),
     skillpoints: (v) => b.writeInt32LE(v, rec + 4 + 0x17c + 4),
   };
-  for (const k of fieldOpts) { set[k](num(k)); changes.push(`member ${want} ${k} = ${num(k)}`); }
+  for (const k of fieldOpts) {
+    if (k === "skill") {
+      const [id, val] = opts.skill.split("=").map(Number);
+      if (!(id >= 0 && id < 36) || !(val >= 0 && val < 256)) { console.error("--skill needs ID=VALUE with ID 0-35 and VALUE 0-255"); process.exit(1); }
+      const old = b[r + 0x120 + id];
+      b[r + 0x120 + id] = val;
+      changes.push(`member ${want} skill 0x${id.toString(16)} ${old} -> ${val}`);
+      continue;
+    }
+    set[k](num(k)); changes.push(`member ${want} ${k} = ${num(k)}`);
+  }
 }
 
 if (!changes.length) { console.error("no edits given"); process.exit(1); }
