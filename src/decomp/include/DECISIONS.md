@@ -613,3 +613,71 @@ With the declaration in scope the definition gets external linkage, as it needs 
 callers (skills_init 0x42753c, the refresh functions 0x429055 / 0x42ad95) push nothing and the bodies read
 no argument; sum.symbols' "(page)" is wrong. They loop over the 49 buttons with a switch on the index
 (byte tables 0x427b3c / 0x42a01c over i - 23).
+
+## multisave.cpp / multitrade.cpp / multichat.cpp / multicontainer.cpp (decomp24)
+
+**D400 (multisave.cpp). The .plr summary is its own type, mp_char_summary (0x12c bytes).**
+mp_player_file_read_summary stores +0x20 (char_info, 0x46d591), +0x24 (flags, 0x46d59c), the string at +0x28
+(0x46d5b4) and +0x128 (level, 0x46d5d7) of its output; mp_player_file_write keeps one in a local at esp+0x16c
+whose description it reads at +0x28 (0x46d146 lea [esp+0x194]). The callers pass mp_char_record + 0x28, so the
+record is a file name followed by this. New `mp_char_summary` in `summoner/multi/multisave.h`; mp_char_record
+is unchanged (its users read rec->name etc.). mp_player_file_read_summary keeps `void *out` (new_charselect.cpp
+passes `rec->name`, a char*); the definition casts. The flags field is `int`: the version-8 conversion uses
+`sar` (0x46d5a6, and 0x46d779 for mp_player +0x30).
+
+**D401 (multitrade.cpp, new_itemtrade.cpp). mp_trade_partner is a Player*.** mp_handle_it_rqst passes
+player_from_handle's result (0x471096) to mp_send_it_acpt, which stores it with mp_trade_set_state(2, p)
+(0x4712b3); mp_handle_it_qury / _stat compare player_from_handle(...) with it (0x471ca6, 0x471dc6); +0xc goes
+to mp_handle_to_net as a handle. multi.h's `struct mp_trade_peer {_unk00[0xc]; id; _unk10; mp_player
+*player;}` was the same record seen from new_itemtrade.cpp (+0x14 = Player::mp_owner). Now `typedef Player
+mp_trade_peer;` (multitrade.h) and `extern Player *mp_trade_partner;`; Player +0x14 becomes an anonymous union
+{mp_owner, player} so new_itemtrade.cpp's `mp_trade_partner->player` still compiles unchanged.
+
+**D402 (multi.h). mp_player +0x18 socket, +0x30 profile_flags.** +0x18: mp_forward_cur_packet skips
+records with -1 (0x44230e), chat_cmd_ping passes it to net_get_reliable_socket_ping (0x487c85, 0x487cb8).
++0x30: mp_player_file_write writes it after the char_info (0x46d21b), mp_player_file_load reads it back
+(0x46d769) and converts version-8 bits with sar (0x46d779), so `int profile_flags`. `_unk18[4]` and the
+first half of `_unk2c[8]` are gone (no pilot used them).
+
+**D403 (multi.h). Packet helpers.** Every sender builds {type byte, ushort data size, data} in a 0x200-byte
+local and bumps mp_packet_table[type].sent (+0xc); the variable-length ones keep a ushort size in a register
+(`and esi, 0xffff` in mp_send_container_close 0x488e21, container_spawn_loot 0x489088) and close with
+`size - 3` at +1 (0x488e42, 0x4890e9); chat_build_packet takes the size by address. Written with our macros
+MP_BUILD_HEADER / MP_ADD_DATA / MP_END_PACKET; with constant offsets they fold to the stores seen in the
+fixed-size senders. MP_IS_HOST() / MP_IS_CLIENT() spell the `(game_flags & 2) && mp_local_player &&
+(flags & 1)` test in that order (living_entity.cpp's unoptimised copy at 0x453077-0x45309a shows the three
+terms). `struct mp_packet_info` (types.h layout) added with name[8] + 4 bytes: multi_process_packet reads the
+bytes +0x18 / +0x19 (0x4418a6, 0x44191d). The handler type is (data, sender address): 0x44196e pushes
+mp_cur_packet + 3 and the address argument.
+
+**D404 (multisave.cpp). The PXO settings are one struct, pxo_config pxo_cfg (0x610 bytes at 0xa59a88).**
+pxo_read_config clears 0x184 dwords from 0xa59a88 (0x46daa6) before it sets +4 (word 4200), +8 and the six
+0x100-byte strings. multi.h's `extern unsigned int pxo_cfg_flags;` becomes `#define pxo_cfg_flags
+(pxo_cfg.flags)` (with pxo_utracker_server / pxo_gtracker_server / pxo_chat_server likewise), so the four
+pilots that read or write pxo_cfg_flags compile unchanged. The next 0x208 bytes (0xa5a098 word, 0xa5a09c
+string; read only by InetGetFile__InetGetFile 0x51b84f-0x51b891, never written) lie before s3d.cpp's .bss
+and are defined here as inet_proxy_port / inet_proxy_server[0x200] (names ours).
+
+**D405 (item_paging.cpp, multisave.cpp). mp_player_autosave_timer moves to multisave.cpp.** item_paging.cpp's
+last code is the jump table 0x46cc50-0x46cc5f; sum.symbols tags the initialiser pair 0x46cc60 / 0x46cc70
+multisave.cpp (strings.tbl id 237 in mp_player_file_write), and only mp_player_autosave_start / _frame /
+mp_player_save_on_leave use the timer. The definition and its initialiser comment are now at the top of
+multisave.cpp; item_paging.cpp's range is 0x46c5d0-0x46cc5f.
+
+**D406 (multi.h). Unit headers for the four units.** `summoner/multi/multisave.h`, `multitrade.h`,
+`multichat.h`, `multicontainer.h` (file names from the module column, directory ours) hold the units'
+types, globals and prototypes; multi.h includes them at its end, so every `#include "summoner/multi/multi.h"`
+sees the same declarations as before. Moved there: the .plr prototypes and pxo_cfg_flags (multisave.h),
+mp_trade_item and the trade globals / prototypes (multitrade.h), chat_send_line (multichat.h),
+mp_send_container_close (multicontainer.h). The unit headers use forward declarations only, except
+multitrade.h, which includes player.h for the mp_trade_peer typedef.
+
+**D407 (decomp24). Smaller additions, no conflict.** File: read_float (0x525a30), read_string (0x525ee0,
+(buf, size, min_ver, default): pushes 0, 0, 0x20, buf at 0x46d56c), write_int16 (0x526230), write_float
+(0x526270), write_string_z (0x5263e0). characterinfo: chain_skill_get_points / chain_skill_set_points
+(Player*, skill[, points]) and chain_config_reset_defaults. objects: party_inventory_clear,
+party_inventory_find_type_index (by type index, pushes the index at 0x471913), OBJ_TYPE_CONTAINER (11: the
+container handlers compare +0xc with 0xb). savegame: hot_buttons_clear_member (thiscall, one argument at
+0x46d96f). matrix: matrix(r, u, f) (0x50fad0, thiscall, ret 0xc). net: net_get_reliable_socket_ping.
+mp_quantize_position(short*, short*, short*, vector3 by value: the vector is copied to the stack first,
+0x488fd3) and mp_dequantize_position (hidden result, 0x489202).

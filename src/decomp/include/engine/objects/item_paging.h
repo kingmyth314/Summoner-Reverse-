@@ -1,4 +1,4 @@
-// item_paging.h - Sum.exe v1.40 item mesh paging (Engine\objects\item_paging.cpp, 0x46c5d0-0x46cc7a)
+// item_paging.h - Sum.exe v1.40 item mesh paging (Engine\objects\item_paging.cpp, 0x46c5d0-0x46cc5f)
 // Written from the Sum.exe disassembly. Names from symbols/sum.symbols.
 #ifndef ITEM_PAGING_H
 #define ITEM_PAGING_H

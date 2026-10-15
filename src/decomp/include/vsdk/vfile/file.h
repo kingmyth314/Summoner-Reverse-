@@ -32,12 +32,18 @@ public:
     short  read_int16(int min_ver, short def);           // 0x5258f0
     int    read_int(int min_ver, int def);               // 0x525990
     unsigned int read_uint(int min_ver, unsigned int def);   // 0x5259e0
+    float  read_float(int min_ver, float def);          // 0x525a30 (decomp24)
+    // (buf, size, min_ver, default): the .plr readers pass (buf, 0x20 / 0x100, 0, 0). Return unused.
+    void   read_string(char *buf, int size, int min_ver, const char *def);   // 0x525ee0 (decomp24)
     int    read_line(char *buf, int size, int unused);   // 0x525f60 (0 at end of file)
     int    read(void *buf, int len, int min_ver, int unused);   // 0x525fe0 bytes read
 
     void write_uint8(ubyte v);                           // 0x526220
     void write_uint16(ushort v);                         // 0x526240
+    void write_int16(short v);                           // 0x526230 (decomp24)
     void write_int(int v);                               // 0x526250
+    void write_float(float v);                           // 0x526270 (decomp24)
+    void write_string_z(const char *s);                  // 0x5263e0 with its terminator (decomp24)
     // text (strlen when len < 0; NULL writes only the newline) then "\n"; < 0 failure (decomp22).
     int  write_line(const char *text, int len);          // 0x5264e0
     int  write(const void *buf, int len);                // 0x526410

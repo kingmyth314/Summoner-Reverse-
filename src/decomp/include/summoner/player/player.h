@@ -44,7 +44,10 @@ public:
     int char_info;                    // +0x008 char_infos index
     int handle;                       // +0x00c character object handle, -1 none
     unsigned int flags;               // +0x010 PF_*
-    mp_player *mp_owner;              // +0x014 owning multiplayer player
+    union {
+        mp_player *mp_owner;          // +0x014 owning multiplayer player
+        mp_player *player;            //        new_itemtrade.cpp's name through mp_trade_peer (D401)
+    };
     int _unk18;                       // +0x018
     int _unk1c;                       // +0x01c
     int num_progression;              // +0x020

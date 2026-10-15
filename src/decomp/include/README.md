@@ -90,7 +90,11 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/summoner.h` | summoner.cpp, gameplay.cpp, gametarget.cpp, gameseq | game flags, pause, level change, path ids, `SummonerOptions` |
 | `summoner/automap.h` | automap.cpp (0x42ffe0-0x4302b0) | `automap_label`, map labels, corners, reveal grid |
 | `summoner/player/player.h` | `Summoner\player\player.cpp` (pilot) | `Player`, party lists |
-| `summoner/multi/multi.h` | multi*.cpp | `mp_player`, session, trade, `.plr` records |
+| `summoner/multi/multi.h` | multi*.cpp (gathering header) | `mp_player`, packets (`mp_packet_table`, `MP_IS_HOST`, build macros), session, game list, lobby, character select records; includes the four unit headers below |
+| `summoner/multi/multisave.h` | multisave.cpp (0x46cc60-0x46dd2f) | `.plr` files, `mp_char_summary`, autosave timer, `pxo_config` |
+| `summoner/multi/multitrade.h` | multitrade.cpp (0x470e30-0x471def) | trade state, `mp_trade_item`, IT_* senders and handlers |
+| `summoner/multi/multichat.h` | multichat.cpp (0x487b90-0x488223) | `chat_entry` ring, slash commands, CHAT_LN |
+| `summoner/multi/multicontainer.h` | multicontainer.cpp (0x488c00-0x48972a) | loot drops, container open / close, lock picking |
 | `summoner/interface/interface.h` | interface core, new_hud / new_inventory helpers | screen switch, button records, popups, colours, `new_icam` |
 | `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
 | `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |

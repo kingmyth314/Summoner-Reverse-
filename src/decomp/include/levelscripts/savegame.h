@@ -27,6 +27,7 @@ public:
     // Hot buttons (new_hud.cpp): 5 members x 6 buttons of 6 bytes {used, kind, id} at +0x105c; the member
     // is the portrait species (0..3, 4 for the rest). Argument order from the callee (sum.symbols
     // CORRECTION notes): get stores *kind = byte +1, *id = dword +2 and returns `setne al` of byte +0.
+    void hot_buttons_clear_member(int member);                       // 0x4d1630 all 6 (decomp24)
     void hot_button_clear(int member, int slot);                     // 0x4d1660 savegame_hot_button_clear
     void hot_button_set(int kind, int id, int member, int slot);     // 0x4d16a0 savegame_hot_button_set
     bool hot_button_get(int *kind, int *id, int member, int slot);   // 0x4d1770 savegame_hot_button_get

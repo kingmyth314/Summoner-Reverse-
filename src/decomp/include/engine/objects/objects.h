@@ -22,6 +22,7 @@ struct shop_item;
 // objects_update_frame), 3 item object (item_obj_spawn), 4/5/7/9 living, 6/8/10 their dead forms.
 #define OBJ_TYPE_NONE  0
 #define OBJ_TYPE_ITEM  3
+#define OBJ_TYPE_CONTAINER 11         // decomp24: the multicontainer.cpp handlers test it (0xb)
 
 // The base object (0x98 bytes, DECISIONS.md D13): vtable obj__vtable (0x5819c4, one slot), the object
 // list links, then the common fields that obj_link_new (0x469b60) initialises (+0xc type, +0x34, +0x80,
@@ -158,6 +159,8 @@ void party_inventory_add_item(item_info *item, int a, int b);       // 0x46b870 
 void party_inventory_add_type(int type, int count, int a, int b);   // 0x46b980 (called (type, 1, -1, 1); return unused)
 void party_inventory_remove(int slot, int a, int b); // 0x46bb30 (called (slot, 1, 1) and (slot, 0, 1))
 int  party_inventory_find_type(ItemType *type);      // 0x46bd00, index or -1
+void party_inventory_clear();                        // 0x46bbb0 item_free on every entry (decomp24)
+int  party_inventory_find_type_index(int type);      // 0x46bd60 by item type index, -1 none (decomp24)
 
 // Using and equipping items (the party-inventory block after objects.cpp, 0x46bc00-0x46c4e0).
 bool character_use_inventory_item(Character *c, party_inventory_entry *entry, int target_handle,

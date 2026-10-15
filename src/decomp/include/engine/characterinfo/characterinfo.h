@@ -228,6 +228,9 @@ void character_set_chain_skill(Player *p, int slot, int skill);   // 0x4493e0
 int  chain_count_unlocked_skills(Player *p);          // 0x449830
 int  chain_get_unlocked_skill(Player *p, int n);      // 0x449890
 int  chain_config_find_skill(Player *p, int skill);   // 0x449910: slot 0..3, -1 none
+int  chain_skill_get_points(Player *p, int skill);    // 0x449960 (decomp24)
+void chain_skill_set_points(Player *p, int skill, int points);   // 0x4499c0 (decomp24; return unused)
+void chain_config_reset_defaults();                   // 0x449310 (decomp24)
 
 // experience.tbl (xp_level_table 0x2305420)
 int   xp_for_level(int level);                        // 0x489a60

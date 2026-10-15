@@ -1,14 +1,14 @@
-// item_paging.cpp - Sum.exe v1.40, code 0x46c5d0-0x46cc7a (Engine\objects\item_paging.cpp)
+// item_paging.cpp - Sum.exe v1.40, code 0x46c5d0-0x46cc5f (Engine\objects\item_paging.cpp)
 // Written from the Sum.exe disassembly (build/sum.asm). Target: VC++ 6.0 (cl 12.00.8966), /O2 /Ob1.
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
 //
-// Unit range: symbols/sum.symbols tags 0x46c7d0-0x46cc70 with item_paging.cpp. The unit starts
+// Unit range: symbols/sum.symbols tags 0x46c7d0-0x46cb50 with item_paging.cpp. The unit starts
 // earlier, at the static initialiser 0x46c5d0 (init_mempools_ip_general), because it builds the
 // 0xa59870 pools that items_reset_paging resets (symbols already put that pool here); the stub
 // 0x46c7c0 sits between them. The previous unit (add_gold console command) ends with cmd_add_gold's RET at 0x46c5cd.
-// The last two functions (0x46cc60/0x46cc70, the RealtimeTimer at 0xa59a84) may instead be the
-// first lines of the next unit; see the end of this file.
+// The RealtimeTimer at 0xa59a84 and its initialiser pair 0x46cc60/0x46cc70 moved to multisave.cpp
+// (decomp24); see the end of this file.
 
 #include <stdio.h>
 #include "engine/objects/item_paging.h"
@@ -292,12 +292,7 @@ void item_paging_find_player_slot(Character *character, int *slot1, int *slot2)
     *slot2 = -1;
 }
 
-// 0x46cc60 init_realtimetimer_a59a84_thunk (jmp, mis-decoded in the listing after the jump
-// table) and 0x46cc70 init_realtimetimer_a59a84 (mov ecx, this; jmp RealtimeTimer::RealtimeTimer):
-// the dynamic initialiser of this definition. Confidence: unsure for the placement: only
-// mp_player_autosave_start/frame and mp_player_save_on_leave (next unit, 0x46da20-0x46da60) use
-// it, and an initialiser at the top of that unit lands at the same address as one at the bottom
-// of this one. Kept here for now, but symbols/sum.symbols now puts 0x46cc60-0x46da80 in multisave.cpp
-// (strings.tbl id 237 in mp_player_file_write; see docs/sum-exe/source-map.md, Round 3), so this
-// definition most likely belongs at the top of multisave.cpp.
-RealtimeTimer mp_player_autosave_timer;                        // 0xa59a84
+// The unit ends with the jump table 0x46cc50-0x46cc5f of item_paging_find_player_slot. The
+// RealtimeTimer at 0xa59a84 (mp_player_autosave_timer) and its initialiser pair 0x46cc60 / 0x46cc70,
+// formerly defined here, belong to the next unit: they are now the first definition of
+// multisave.cpp (decomp24), whose functions are its only users.

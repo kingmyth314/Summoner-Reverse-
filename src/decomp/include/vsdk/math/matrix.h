@@ -11,6 +11,7 @@
 class matrix {
 public:
     matrix();                                         // 0x50f660 matrix__matrix_default (three vector3 ctors)
+    matrix(const vector3 &r, const vector3 &u, const vector3 &f);   // 0x50fad0 matrix3__matrix3_ruf (decomp24)
     matrix operator*(const matrix &m) const;          // 0x50fbc0 matrix3__multiply
     void operator=(const matrix &m);                  // 0x4a4320 matrix3__copy
     void make_identity();                             // 0x511050 matrix3__make_identity
