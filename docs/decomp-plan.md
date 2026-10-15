@@ -125,7 +125,7 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **2,306 / 5,548** game/engine functions named (41.6%), plus 472
+Phase 0 is complete. Progress (2026-10-14): **3,316 / 5,548** game/engine functions named (59.8%), plus about 480
 pointer-only functions (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
@@ -183,3 +183,13 @@ New layouts in `types.h`:
 Two earlier inferences were corrected: `Character +0x5ac` holds the locomotion animations, not textures, and
 `0x471f40` is a packet send, not `ai_mode_name`. File names were only kept where an assert string or a reference
 project confirms them; `gr_3d.cpp` was replaced by the folder `vsdkgr`.
+
+**2026-10-14, third parallel pass:** 1,053 more names were merged:
+- UI screens, HUD, chat, conversation, boss AI helpers;
+- the game layers: movement, AI goals, combat reactions, spells, level objects, multiplayer;
+- the vsdk UI widget system.
+
+The agents also flagged eight existing names as wrong. Each was checked in the disassembly and renamed:
+`world_mouse_frame`, `character_use_skill`, `character_spell_on_cooldown`, `cutscene_cleanup`, the
+`ui_gadget` disabled/enabled methods, and the static-object destructors. The `ai_state` path is at `+0x210`, not
+`+0x80`.
