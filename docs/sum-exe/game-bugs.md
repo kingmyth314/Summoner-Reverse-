@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 36 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 59 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 7 | 2 |
-| Gameplay | 9 | 0 | 3 |
-| Cosmetic | 11 | 0 | 1 |
-| Invisible | 3 | 3 | 0 |
+| Crash or hang | 3 | 10 | 2 |
+| Gameplay | 9 | 2 | 3 |
+| Cosmetic | 14 | 4 | 1 |
+| Invisible | 4 | 12 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -48,6 +48,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C8 | Latent: a level with more than 15 shopkeepers or 1000 shop entries overwrites memory | `level_parse_shopkeeper` `0x4cc4d0` | **Observed** code, *inferred* effect | No |
 | C9 | Latent: a surface name longer than about 56 characters in the surfaces table overflows the stack | `surfaces_parse_table` `0x468e40` | **Observed** code, *inferred* effect | No |
 | C10 | Latent: a dialogue topic that removes two initial topics, the first of them the current hail topic, hangs the game | `conversation_apply_topic_effects` `0x4d7eb0` | **Observed** code and retail data, *inferred* hang | No |
+| C11 | Latent: more than 1000 item objects in a level overwrite the object list | `item_obj_spawn` `0x46a1b0` | **Observed** code, *inferred* effect | No |
+| C12 | Latent: more than 1224 live items crash on the next item created | `item_alloc` `0x44b380` | **Observed** code, *inferred* crash | No |
+| C13 | Latent: an object still in the active list when the game returns to the title hangs or corrupts the heap | `objects_free_all` `0x469fc0` | **Observed** code, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -77,8 +80,10 @@ without a compare. See [Cutscenes](cutscenes.md#what-cutscene_play-changes).
 
 **C7. A loop that never advances.** With window flag `0x10` and no selection, the loop at
 `0x52bcd8`..`0x52bce5` calls the first gadget's "selectable" method. It repeats while that returns 0,
-but `edi` never moves to the next gadget. The vsdk UI tables are used by the
-[script editor](script-editor.md), so retail play does not reach this.
+but `edi` never moves to the next gadget. Flag `0x10` ("+Always a selection") is set only by
+the UI table loader, `ui_load_table`, which has no caller (V9). The script editor builds its windows with constant
+flags that do not include `0x10`. The only other path is `editor_dialog_show`, which builds its flags at run time
+(`or ecx, 0x20` at `0x430ebc`) and was not traced, so this is reachable at most from that debug dialog.
 
 **C8. Shop tables.** The parser stores into `level_shopkeepers` (`0x2490ca0`, 15 records) and
 `level_shop_items` (`0x2491ac0`, 1000 entries) without checking either count. The retail tables fit. See
@@ -97,6 +102,27 @@ at that point (`"Hail"#2`) is the first line in the file, so it is last in the l
 pass. A modded table that swaps the two lines would hang. Found while writing
 [`conversation.cpp`](../../src/decomp/game/conversation.cpp).
 
+**C11. No full test on the item pool.** The search loop for a free `item_obj` stops at 1000
+(`cmp [ebp-0x88], 0x3e8; jge` at `0x46a1db`). It then uses `item_obj_pool[i]` anyway (`0x46a200`..`0x46a20c`).
+The pool holds 1000 records of 0xac bytes (`0x946790`..`0x970770`), so record 1000 is `obj_active_list`
+(`0x970770`) itself. `obj_link_new` (`0x469b60`) then links the list head into its own list, and the following
+stores write over the globals after it, including `objects_initialized` (`0x970809`). Item objects are freed when
+they are picked up. `items_init_pool` only runs from `objects_reset` (title screen and multiplayer reset), so the
+limit is per level visit. We know of no retail level that comes near it.
+
+**C12. No test for an empty free list.** `item_alloc` takes `item_free_list` and reads its `next` with no NULL
+test (`mov ecx, [eax]` at `0x44b385`). `items_init_pool` (`0x44b280`) builds the list from 1224 records of 0x10
+bytes (`0x8b50c8`..`0x8b9d48`). The last record's `next` is 0, so item 1225 dereferences NULL. Every `item_create*`
+goes through it: party inventory, equipment of every living character, loot and shop stock.
+
+**C13. The delete loop does not advance.** `objects_free_all` repeats `delete obj_active_list.next` until the
+list is empty (`0x469fc6`..`0x46a01b`). `obj::~obj` (`0x469b40`) only stores the vtable and does not unlink, and
+`operator delete` (`0x512570`) does not unlink either. So any object still linked is deleted again and again.
+Item objects live in a static pool (`0x946790`), so deleting one also passes a non-heap pointer to the heap. Callers:
+`objects_reset` (`0x46b203`, from `state_title_enter` and `mp_session_reset`) and `game_cleanup` (`0x43e228`).
+*Inferred:* the level unload always empties the list first, because returning to the title works in retail
+play. A path that leaves an object linked would hang.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -110,6 +136,8 @@ pass. A modded table that swaps the two lines would hang. Found while writing
 | G7 | If a cutscene's data fails to load, input stays locked and the music stays off | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
 | G8 | When any party record is removed (for example a summon dies), control may jump to the first member | `party_remove_player` `0x4335a0` | **Observed** code, *inferred* effect | No |
 | G9 | Alt+Tab does not work: the game takes the focus straight back | `os_wndproc` `0x530ff0` | **Observed** at runtime | Fixed |
+| G10 | Latent: adding gold to a container that already holds gold loses the gold and leaves a stale slot | `container_add_item` `0x46aa30` | **Observed** code, *inferred* effect | No |
+| G11 | Latent: using aimed attack (or forge, mine, enchant) as a skill takes the AP and does nothing | `character_use_skill` `0x429410` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -153,6 +181,23 @@ The intent is unknown. See [Party](party.md#leaving-and-coming-back).
 on losing focus too (`0x5310e9`), and flags 0 include activation. See
 [Controls](controls.md#switching-away-from-the-game-alttab).
 
+**G10. The merge branch falls into the insert.** When slot 0 already holds gold, the new count is added to it
+(`0x46aa79`..`0x46aa9a`) and the new gold object is deinit-ed (`call [edx]` at `0x46aaa8`). The code then jumps
+to the common tail (`jmp 0x46aae5`). That tail stores the deinit-ed object in slot 0 over the merged gold
+(`mov [edx+0x98], eax` at `0x46aaf7`) and increments `num_items` (`0x46ab06`). The merged sum is lost. The new
+last slot was never written, and the slot-0 object is free in the pool again. Callers: `monster_drop_loot`
+(`0x452f00`), `level_item_spawn` (`0x46a681`, always a new container), `mp_handle_item_drop` (`0x4892fa`) and
+`savegame_read_item_objects` (`0x4d3341`). A monster drop creates at most one gold object (`item_create_misc_by_name("Gold")`
+at `0x450fee`), so we know of no retail path that adds two.
+
+**G11. AP first, action second.** `character_use_skill` pays the AP for every skill outside the 0x12..0x33
+switch range, so also for 0x11 (`lea ecx, [edi-0x12]; cmp ecx, 0x21; ja` at `0x42948f`, then `character_add_ap`
+at `0x4294b6`). The action switch has no case for 0x11 or 0x18..0x1a, so it returns false. The skills panel
+sends aimed attack to its popup (`skills_handle_mouse`), and the popup uses the per-part skills (eyes, arms,
+legs). The panel also refuses to drag 0x11 or 0x1b onto a hot button (`cmp esi, 0x11` at `0x4288aa`,
+`cmp esi, 0x1b` at `0x4288af`). The creation skills have no icon (`skills_icon_names[24..26]` = 0), so no retail
+path reaches the bad case. Found in the [`new_skill.cpp`](../../src/decomp/game/new_skill.cpp) notes.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -168,6 +213,13 @@ on losing focus too (`0x5310e9`), and flags 0 include activation. See
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
 | K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code, *inferred* effect | No |
+| K12 | In a container's pickup list, the scrollbar thumb fills the whole track and runs past its end | `pickup_update_scrollbar` `0x420850` | **Observed** code | No |
+| K13 | In the multiplayer level select, the player list's hover and click rows drift from the drawn names | `mp_levelselect_handle_click` `0x41c450` | **Observed** code | No |
+| K14 | The PXO chat banner is never clickable | `pxo_parse_chat_banners_cfg` `0x4223d0` | **Observed** code | No |
+| K15 | Latent: Print Screen saved as TGA (console `targa`) from a 32-bit back buffer gives garbled colours | `tga_convert_pixels` `0x555020` | **Observed** code, *inferred* effect | No |
+| K16 | Latent: resetting a character's animations clears only the first 25 of 100 weights | `character_instance__reset_anims` `0x519850` | **Observed** code, *inferred* effect | No |
+| K17 | Latent: a summon's second weapon (slot 9) pages the first weapon's model | `items_level_load` `0x44d540` | **Observed** code, *inferred* effect | No |
+| K18 | Latent: paging out the popup model slot 18 can drop another slot's item model | `item_page_out_all` `0x46ca50` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -213,6 +265,55 @@ its x and z (`[esp+0x54]` and `[esp+0x5c]`, `0x4d8fcb`..`0x4d8fd7`), never y (`[
 (`vector3__normalize_safe` at `0x4d8fe4`). Whatever the stack held decides how much of the camera offset goes up
 instead of sideways. *Inferred:* the value is often the same from call to call, so this may not show.
 
+**K12. Full-height thumb.** Both branches set the thumb height to the full track height
+(`mov [0x5c3b34], edx` at `0x4208f8` and `mov [0x5c3b34], edi` at `0x420943`). The scrolled branch still moves
+the thumb down by `scroll_pos / num_items x track` (`0x420901`..`0x420941`). `pickup_draw_scrollbar` (`0x4212c0`)
+tiles the thumb bitmap over that height, so once the list is scrolled the thumb runs past the bottom of the track.
+The hit area grows with it. The assess screen scales the height with `page / count` (`0x4017a6`..`0x4017d7`).
+This shows for any container with more items than one page.
+
+**K13. Row counter steps for every player.** The click loop adds the font height for every entry of
+`mp_player_list` (`add ebp, esi` at `0x41c7e0`), but tests only type-3 players (`cmp [edi+0x14], 3` at
+`0x41c79d`). `mp_levelselect_draw_players` moves down only after drawing a type-3 player (`0x41d522`..). A
+player in another state, for example one who is still joining (state 2, `mp_accept_join_request` `0x4ab6a8`),
+shifts every later name by one row. The hover highlight then lands on another line, and a click can select a
+different player. Kick uses the selected *name*, which is drawn highlighted, so the host can see the mistake
+before kicking. Only the first four rows are hit-tested (the box is `font_h * 4` high).
+
+**K14. Link parsed into a scratch buffer.** Each `+Link:` value is parsed into one stack buffer
+(`lea eax, [esp+0x294]` at `0x4225e3`) and never copied into `links[count]`. `pxo_chat_banner_link_url` is
+therefore always empty, and `pxochat_banner_has_url` (`0x422790`) is always false. This was live while PXO
+served banners. The service is gone, so it no longer shows.
+
+**K15. Copy size and advance disagree.** For a 4-byte source pixel, `tga_convert_pixels` falls through to the
+plain copy. It copies `count x src_bpp` bytes (`imul ecx, esi` at `0x5550ab`) but returns `count x dst_bpp`
+(`imul eax, edx` at `0x5550ae`). `gr_screenshot` always asks for 3-byte output (`push 3` at `0x5063fa`) and uses
+`src_bpp` 4 when `gr_read_backbuffer` reports format 7 (`0x506283`). In raw packets of more than one pixel, each
+BGRA quad is then read back as a BGR triple, so the channels shift. 16-bit (format 3) and 24-bit back buffers
+convert correctly. By default screenshots are JPEG (`Print_screen_as_targa` `0x5fc022` tested at `0x43251e`), so
+this needs the console command `targa` and a renderer that reports 32 bits.
+
+**K16. Byte count passed as an element count.** `reset_anims(true)` clears `weights` with `mov ecx, 0x19; rep
+stosd` (`0x51986b`), which is 25 floats of the 100 that `alloc_buffers` allocates. `character_reinit_anims`
+(`0x447f20`) clears every weight anyway through `clear_state_anims` and `clear_action_anims`. `level_load_preload`
+(`0x447ce9`) does not: it resets every living character of a char_info after `charinfo_remap_town_moves`, so a
+nonzero weight at index 25 or above keeps blending into the new animation set. *Inferred:* it needs an animation
+with index 25 or above playing at that moment, and it would only last until that animation ends.
+
+**K17. Index 5 for slot 9.** For characters with flag `0x100` (summons) the loop tests `equipment[9]`
+(`[esi+0x778]` at `0x44d72d`) but pages `equipment[5]`'s type (`mov ecx, [esi+0x768]` at `0x44d737`) into paging
+slot 9. The second weapon's model is never paged, and if slot 5 is empty while slot 9 is not, `[ecx+4]` reads
+through NULL. Whether any retail summon carries a slot-9 item is not checked.
+
+**K18. The popup branch evicts the wrong slot.** When slot 18 owns a mesh that another slot (0..16) also shows,
+`item_page_out_all(18)` clears the *other* slot and sets the type's mesh to NULL (`0x46caab`..`0x46caca`). It then
+returns without clearing slot 18 (`ret` at `0x46cad2`). The general branch swaps the pools instead
+(`0x46cae4`..`0x46caf9`). Slot 18 keeps its type with a NULL mesh, so a later `item_page_in(type, 18)` returns at
+once (`s->type == type`) with no mesh, and the other slot's item loses its model until it is paged again. Callers
+of slot 18 are the shop model view, the inventory drag and the item info popup (`buysell_handle_click` `0x405507`,
+`inventory_drag_to_equip` `0x417442`, `item_info_popup_close` `0x418c22`). We found no retail sequence where slot
+18 owns a mesh that another slot shares.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -223,6 +324,16 @@ instead of sideways. *Inferred:* the value is often the same from call to call, 
 | V4 | Latent: a TGA with an image ID field is read from the wrong offset | `tga_read_bitmap` (`File__seek` at `0x5556f7`) | **Observed** code |
 | V5 | A speed change on one animation fills all 5 speed slots | `character_instance__start_anim` `0x51aee0` | **Observed** code, *inferred* effect |
 | V6 | Latent: the ring of small streamed-effect slots restarts at slot 0, 1, 4 or 5 only | `effects_find_stream_slot` `0x51c5c0` | **Observed** code |
+| V7 | Latent: the registry helpers read past an "HKEY_..." string without a backslash; delete formats its error with NULL | `os_registry_resolve_key` `0x511e50`, `os_registry_delete` `0x5123e0` | **Observed** code |
+| V8 | Freed font slots are not reused, and the kerning search can apply another character's pair | `gr_font_create` `0x508560`, `gr_font_get_char` `0x508440` | **Observed** code and retail data |
+| V9 | The UI table loader has no caller; it also ignores a missing file, never sets window mask data and drops several button options | `ui_load_table` `0x52b200`, `ui_window__set_mask_bitmap` `0x52b930`, `ui_parse_button` `0x528530` | **Observed**; no caller |
+| V10 | Every line skipped by `SkipToNextLine` is counted twice in parser line numbers | `TextFile__SkipToNextLine` `0x515af0` | **Observed** code |
+| V11 | Latent: a negative number with 3k digits is printed as "-,123,456" | `int_to_string_with_commas` `0x5152a0` | **Observed** code |
+| V12 | Latent: a hex number at the very end of a table reads past the text | `TextFile__ParseInt` `0x516290`, `TextFile__ParseUInt` `0x516380` | **Observed** code |
+| V13 | Latent: the list parsers ignore their maximum count | `TextFile__ParseIntList` `0x516940`, `TextFile__ParseFloatList` `0x516a30`, `TextFile__ParseStringList` `0x5168b0` | **Observed** code and retail data |
+| V14 | The 16-to-16-bit TGA converter writes nothing to its output | `tga_convert_pixels` `0x555020` | **Observed**; no caller reaches it |
+| V15 | An item placed on a pick layer is always placed again by the general floor probe | `item_obj_spawn` `0x46a1b0` | **Observed** code, *inferred* effect |
+| V16 | Two character-instance helpers lose their result | `character_instance__get_anim_root_velocity` `0x51b1e0`, `character_instance__get_bone_bind_inverse` `0x51ae00` | **Observed**; no caller |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -232,8 +343,8 @@ match). Nothing calls the function, so it never runs.
 streamed effects are evicted sooner than intended. `effects_find_stream_slot` scans its 8 slots with
 `and eax, 7` but stores the next start with `and edx, 5` (`0x51c613`), so all 8 slots are still used.
 
-**V3.** "Alt" sets the same flag as "Shift" (`mov bl, 1` at `0x5284a1` and `0x528481`). Only the vsdk UI
-tables of the [script editor](script-editor.md) use this parser.
+**V3.** "Alt" sets the same flag as "Shift" (`mov bl, 1` at `0x5284a1` and `0x528481`). Only `ui_load_table`
+uses this parser, and nothing calls it (V9).
 
 **V4.** With a non-zero ID length, the reader seeks to that length from the start of the file (origin 0)
 instead of past the 18-byte header. A seek is only made when the length is non-zero (`jbe` at `0x5556e4`).
@@ -241,6 +352,63 @@ instead of past the 18-byte header. A seek is only made when the length is non-z
 
 **V5.** With a speed other than 1.0, the loop at `0x51af53`..`0x51af65` stores `{anim, speed}` in every free
 one of the 5 slots, with no break after the first.
+
+**V7.** After the root name, `os_registry_resolve_key` reads `[esi+1]` (`0x511eb4`) whether `esi` stopped on the
+`\` or on the terminator. The root-name copy into the 256-byte stack buffer has no length check
+(`0x511e9b`..`0x511ea8`). `os_registry_delete` with `name == NULL` formats "Error removing registry key '%s'"
+with that NULL name. No caller passes an "hkey..." string (the only such literals are `os_registry_hkey_from_string`'s
+own, `0x5a7554`..), and `os_registry_delete` has no caller.
+
+**V8.** `gr_font_create` remembers the first free slot but loads into slot `gr_num_fonts`. `gr_close_fonts`
+(`0x5081d0`, only from `gr_close`) does not reset that count. The game loads its three fonts once in `GameInit`
+(`0x43df76`..`0x43df9e`), so no slot is ever freed and reloaded. After the kern loop, `gr_font_get_char` compares
+only `ch1` (`cmp edx, edi` at `0x5084d9`), not `ch0`. When the loop runs off the character's pairs, it can apply
+the next character's pair. If it runs off the end of the table, it reads one record past it. None of the 7 retail
+fonts has any kern pairs (`num_kern_pairs` 0), so this never runs.
+
+**V9.** `ui_load_table` has no call and no pointer in the image (we searched the bytes for `0x52b200`). Every
+`ui_parse_*` function, `ui_parse_hotkey` (V3) and `ui_window__load_mask_bitmap` (`0x52b42a`) is reached only from
+it. The defects inside it are therefore dead code:
+- a missing file only formats a message (`0x52b25e`);
+- without "+Name:" it copies an uninitialised stack buffer (`0x52b3a3`..`0x52b3ca`);
+- `set_mask_bitmap` never writes `mask_data` (`+0x4d8` is written only by the constructor, `0x52b07c`);
+- `ui_parse_button` reuses the previous target for an unknown state name.
+
+`ui_window__init` (live, used by the script editor and two debug states) calls `get_flags` in both list walks and
+ignores the result (`0x52b1a1`..`0x52b1d3`). Every window is appended last, so a modeless window created while a
+modal one exists goes after it. No retail path creates such a pair.
+
+**V10.** The loop stops on the CR (`cmp byte [eax], 0xd`). It counts the line (`0x515b13`) and then tests the
+same CR for LF (`cmp dl, 0xa` at `0x515b19`), so the cursor stays on the CR. The next `SkipWhitespace` counts the
+CR again. Only `localize_load_level_table` calls it (`0x504a37`, `0x504bb9`), and the following `Accept` skips the
+CR, so only the line numbers in parse error messages change. Live (every level string table), invisible.
+
+**V11.** The digits before the first comma are `(len - neg) % 3 + (neg != 0)`, and 3 only when the sum is 0
+(`0x515331`..`0x515344`). For -123456 this gives "-", then ",123,456". The size check counts
+`(len - neg - 1) / 3` commas (`0x5152e3`..`0x5152ef`), one too few for that case. Callers are `status_draw_level`
+and `ring_format_info`, which pass experience values, never negative.
+
+**V12.** The hex loop tests each character with `strchr("0123456789abcdefABCDEF", c)` (`0x5162d4`..`0x5162e3`).
+`strchr` also finds the terminator, so a NUL is taken as a digit ('A'-'F' branch, `0x516314`) and the cursor goes
+past the end. It needs a `0x` number as the last bytes of a file (retail tables end with `#End`).
+
+**V13.** The loops end only on `)` or NUL (`0x5169fe`..`0x516a02`, `0x516a83`..`0x516a8a`). The max-count
+argument (8 for `+RenderMask:` at `0x44b13d`, 3 for `+LightColor:` at `0x44659b`) is never read. Retail: the
+longest `+RenderMask:` list has 5 parts, and no character table has `+LightColor:`. `ParseStringList` has no caller.
+
+**V14.** For 16-bit to 16-bit, `tga_convert_pixels` toggles bit 15 of the *source* in place (`xor word [eax],
+0x8000` at `0x555042`), and the caller still advances by the returned size. Its only callers are
+`tga_rle_encode_row` from `gr_screenshot`, which always asks for 3-byte output (`0x5063fa`), and the
+unreferenced `tga_write_rle` (`0x555970`).
+
+**V15.** The layer loop over all level objects has no break, so `i >= num_lobjs` is always true after it, and
+`layer` becomes -1 (`0x46a52d`..`0x46a535`). The general `lobj_raycast_all` probe (`0x46a5d8`) then places the item
+again from 3 units above the layer floor. It was probably meant to run only when the layer probe found nothing.
+*Inferred:* the result differs only where another surface lies within 3 units above the layer floor.
+
+**V16.** `get_anim_root_velocity` stores zero for an action animation and then overwrites it unconditionally
+(`0x51b1fc` jumps only past the zero, `0x51b21a`..). `get_anim_root_speed` (`0x51b250`) does return 0 there.
+`get_bone_bind_inverse` inverts a temporary copy and drops it. Neither function has a caller.
 
 ## Claims that did not hold
 
@@ -253,12 +421,48 @@ one of the 5 slots, with no break after the first.
 | Only slots 0, 1, 4 and 5 of the 8-entry stream ring are reachable | [`src/decomp` notes](../../src/decomp/README.md) | True for the 6-slot ring (V2). The 8-slot ring reaches all 8 (V6) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
-(`0x479430`) is empty. They look like cut features ([Camera](camera.md)). Other oddities in the decompilation
-notes have not been checked again and are left out for now: the pickup scrollbar thumb height, hit rows vs
-drawn rows in the multiplayer level select, `item_page_out_all` slot 18, the registry helpers, font slot
-reuse and kerning, `ui_window` insert order and mask bitmaps, `ui_load_table`, `ui_parse_button`,
-`character_instance__reset_anims` (25 weights), the targa 16-bit converter, and the one-pixel lines in
-`ui_container::draw`.
+(`0x479430`) is empty. They look like cut features ([Camera](camera.md)). The other oddities in the decompilation notes were checked again on 2026-10-15. Those that are bugs are in
+the tables above; the rest are below.
+
+**Checked, not bugs:**
+
+- `ui_container::draw` one-pixel lines: both calls pass the same point twice on purpose (`0x5539fd`..`0x553a02`,
+  `0x553b2c`..`0x553b43`). They are the corner dots of the label gap in the etched frame.
+- `skills_handle_mouse` reading `skills_list[-1]`: mouse mode 2 is entered only after `skills_handle_click` has
+  set `skills_hover_row` to the hit row, so the index is never -1 there (`0x428711`).
+- `spells_update_member_buttons` without a multiplayer test: the buttons call `ui_party_prev` / `ui_party_next`, and
+  `party_cycle` stops only on members of the local player in multiplayer ([Party](party.md)), so they do nothing harmful.
+- `hud_interact_nearest` skipping items that are "in view": `gr_cull_sphere` returns 1 when the sphere is
+  *outside* a plane (`mov al, 1` at `0x50ed2b`), so `item_obj_is_in_view` means "culled" and the skip is right.
+- `pxochat_new_version_popup_frame` leaving for every choice above 0: the popup has only two buttons.
+- `status_apply_skill_points` dead sum and `inventory_destroy_selected_item` testing `item_can_destroy` twice:
+  no effect on the result.
+- `gamecreate_levels_below_dec` stopping at 0: the code is consistent with `levels_above_dec`. Only the
+  sum.symbols comment ("min 1") is wrong.
+- `buysell_page_up` testing `jl`: equal in effect to the other screens' `> 0`.
+- Loops without a break in `itemtrade_party_handle_mouse` and `pxochat_handle_click`: the matches are unique,
+  so the last match is the only one.
+- `cmdline_take_argument` formatting a message and dropping it: the debug print is compiled out.
+- `gr_fit_string_String` returning "" when the string fits: no caller (`0x508df0`).
+- `mainmenu_start_new_game`'s argument from `conversation_save_table[84]`: a naming problem, not a code fault.
+- `assess_update_scrollbar` inner test on `line_count`: a dead branch, with no effect.
+- `hud_portrait_get_color` case 3 (already on the page): not counted.
+- `game_abandon_to_menu` dereferencing `mp_local_player` when `cur_character` is dead (`0x421d7e`). In single
+  player that pointer is NULL, but an all-dead single-player party goes to HUD mode 5 (`0x4394ee`), which runs no
+  key handling. Multiplayer has the pointer. *Unclear* rather than disproved, because we have not proved that the
+  play menu can never open in mode 5.
+
+**Still unclear (left out):**
+
+- `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
+  with type 1, but `living_entity_init` passes its type from a register (`0x461c05`, not traced).
+- `automap_label_margin` read at +0xc instead of +8 for the cursor y, `pickup_list_origin[2] = {210, 293}`,
+  `itemtrade_gold_input_size` 303 at 800x600 and the larger 640 values in pxochat: possible data slips. They need
+  screenshots to judge.
+- `build_bone_matrices` keeping the fade factor only for state animations: intent unknown.
+- The other parse.cpp remarks in `NOTES-memory-parse.md` (Error's 40-byte copy, ParseMultiline's trim,
+  ParseFlags' NULL entry, AcceptQuoted's advance, `wide_charmap_to_string`, `stristr`,
+  `allocate_in_commonblock`'s 2 slots) were not checked again.
 
 ## Evidence
 
@@ -302,3 +506,25 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V4 seek | `tga_read_bitmap` `0x5556de`..`0x5556f7`; `File__seek` `0x51492f` (origin 0 = absolute) |
 | V5 speed slots | `character_instance__start_anim` `0x51af3d`..`0x51af65` |
 | `level_time` claim | `savegame_read` `0x4d261d`..`0x4d263f`; `savegame_read_header` `0x4d2ac6`..`0x4d2aea` |
+| C11 item pool | `item_obj_spawn` `0x46a1db`..`0x46a20c`; pool `0x946790` + 1000 x 0xac = `obj_active_list` `0x970770` |
+| C12 item records | `item_alloc` `0x44b380`..`0x44b387`; `items_init_pool` `0x44b282`..`0x44b295` |
+| C13 delete loop | `objects_free_all` `0x469fc6`..`0x46a01b`; `obj__dtor` `0x469b40`; callers `0x46b203`, `0x43e228` |
+| G10 gold merge | `container_add_item` `0x46aa79`..`0x46aaaa`, `0x46aae5`..`0x46ab0c` |
+| G11 skill AP | `character_use_skill` `0x42948f`..`0x4294b6`; `skills_handle_mouse` `0x4288aa`..`0x4288b2` |
+| K12 pickup thumb | `pickup_update_scrollbar` `0x4208f8`, `0x420901`..`0x420943`; `assess_update_scrollbar` `0x4017a6`..`0x4017d7` |
+| K13 player rows | `mp_levelselect_handle_click` `0x41c79d`..`0x41c7e8`; `mp_levelselect_draw_players` `0x41d522` |
+| K14 banner link | `pxo_parse_chat_banners_cfg` `0x4225cd`..`0x4225f4` |
+| K15 32-bit TGA | `tga_convert_pixels` `0x5550a0`..`0x5550c6`; `gr_screenshot` `0x50625d`..`0x50629d`, `0x5063fa` |
+| K16 weights | `character_instance__reset_anims` `0x51986b`..`0x519872`; `level_load_preload` `0x447cd9`..`0x447ce9` |
+| K17 slot 9 | `items_level_load` `0x44d72d`..`0x44d74e` |
+| K18 slot 18 | `item_page_out_all` `0x46caa2`..`0x46cad2` |
+| V7 registry | `os_registry_resolve_key` `0x511e8d`..`0x511ecf`; `os_registry_delete` `0x5123e0` |
+| V8 fonts | `gr_font_get_char` `0x5084b6`..`0x5084e7`; `GameInit` `0x43df76`..`0x43df9e` |
+| V9 UI tables | `ui_load_table` `0x52b25e`, `0x52b3a3`..`0x52b3ca`; `ui_window__init` `0x52b18f`..`0x52b1d5` |
+| V10 line count | `TextFile__SkipToNextLine` `0x515af4`..`0x515b1f` |
+| V11 commas | `int_to_string_with_commas` `0x5152e3`..`0x5152f4`, `0x515331`..`0x515344` |
+| V12 hex | `TextFile__ParseInt` `0x5162d0`..`0x5162e3`, `0x516314` |
+| V13 lists | `TextFile__ParseIntList` `0x5169e7`..`0x516a02`; `TextFile__ParseFloatList` `0x516a6f`..`0x516a8a` |
+| V14 16-bit TGA | `tga_convert_pixels` `0x55502f`..`0x555052` |
+| V15 floor probe | `item_obj_spawn` `0x46a52d`..`0x46a535`, `0x46a5d8` |
+| V16 helpers | `character_instance__get_anim_root_velocity` `0x51b1f7`..`0x51b226` |
