@@ -160,6 +160,10 @@ node tools/asm.mjs strings <lo> <hi> [--unnamed] # strings each function referen
 References to `localize_strings[id]` are shown as `L<id> "text"` when `extracted/tables/strings.tbl` has
 been extracted (`node tools/vpp.mjs extract Summoner/tables.vpp strings.tbl`).
 
+Limitation: llvm-objdump disassembles linearly, so right after a jump table embedded in the code it can be out of step
+for a few instructions (seen just before `0x500990`). If a listing looks wrong there, check it against `tools/disasm.mjs`
+or Ghidra.
+
 For example, `node tools/asm.mjs grep "\+ 0x5f8\]"` lists every access to a character's current HP.
 
 ## `tools/agent.mjs` (agent mode)

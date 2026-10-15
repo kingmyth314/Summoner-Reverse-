@@ -687,3 +687,13 @@ typedef struct effect_object {
     void*   sound;           // +0xE0 sound emitter
     uint8_t _unke4[0x28];
 } effect_object;
+
+// A dynamic light (0x94 bytes, list head 0x2cb4520). Partial.
+typedef struct light {
+    struct light* next;      // +0x00
+    struct light* prev;      // +0x04
+    uint16_t flags;          // +0x08 low bits type; bit 14 enabled (light_set_all_enabled); bit 15 dynamic
+    uint8_t _unk0a[0x0e];
+    float   spot[5];         // +0x18..+0x28 spot-light parameters
+    uint8_t _unk2c[0x68];
+} light;

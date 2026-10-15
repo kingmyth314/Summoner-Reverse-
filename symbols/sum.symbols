@@ -3723,6 +3723,11 @@
 0x4fec50  conv_speaker__add_topic  func  -                    O ; appends a topic to the list +0x10/+0x14
 0x4fed30  lsf_cflag_none           func  -                    I ; level-script helper keyed on story flag "Cflag_None"
 0x4fee50  dialogue_parse_table     func  -                    O ; "_dlg.tbl": "$Character:", "+Topic:", "+Shop", "+PCText:", "+NPCText:" ...
+0x500990  dialogue_rec__init4      func  -                    I ; thiscall (a, b, c, d): +0 a, +8 b, +0xc c, +0x10 d, +0x14 next = 0, only caller dialogue_parse_table (ret 0x10), the llvm-objdump listing is desynchronised here by the jump table before it
+0x5009c0  dialogue_rec__init3      func  -                    I ; thiscall (a, b, c): +4/+8/+0xc, child list head +0x10 and +0 cleared, only caller dialogue_parse_table
+0x5009f0  dialogue_rec__append_child func  -                    O ; thiscall (child): appends to the singly linked list headed at +0x10 through +0x14 next pointers, caller dialogue_parse_table
+0x500a30  init_mouse_buttons       func  vsdk\os\mouse        O ; hidden start, static initialiser (table 0x5887c4): eh_vector_constructor_iterator(mouse_buttons, 0x10, 3, mouse_button__mouse_button)
+0x500a60  init_mouse_buttons_live  func  vsdk\os\mouse        O ; hidden start, static initialiser (table 0x5887c8): constructs the 3 mouse_buttons_live records
 0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)
 0x500c80  mouse_set_pos            func  vsdk\os\mouse          I ; (x, y) client coords -> ClientToScreen + SetCursorPos, only when foreground
 0x500cd0  mouse_di_read            func  vsdk\os\mouse          I ; IDirectInputDevice::GetDeviceState; on INPUTLOST/NOTACQUIRED Sleep(500) and Acquire; clamps x/y to the screen
@@ -3752,11 +3757,14 @@
 0x501430  mouse_keep_centered_disable func  vsdk\os\mouse        V ; keep_mouse_centered = 0, Dash Faction mouse_keep_centered_disable
 0x501440  mouse_button__mouse_button func  vsdk\os\mouse        O ; constructor of the 0x10-byte mouse_buttons entry (RealtimeTimer at +0xc), passed to eh_vector_constructor_iterator for mouse_buttons[3]
 0x501450  clamp_int                func  -                      I ; (int*, lo, hi)
+0x501470  init_frametime_saved_min func  frametime.cpp        O ; hidden start, static initialiser (table 0x5887cc): 0x257f084 = min_reported_frametime
+0x501490  init_frametime_saved_max func  frametime.cpp        O ; hidden start, static initialiser (table 0x5887d0): 0x257f080 = max_reported_frametime
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
 0x5016d0  frametime_set_divisor    func  frametime.cpp        O ; frametime_divisor = arg
 0x5016e0  frametime_get_divisor    func  frametime.cpp        O ; returns frametime_divisor
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
+0x501720  frametime_get_limits     func  frametime.cpp        O ; hidden start, (float* min, float* max): copies min/max_reported_frametime to the non-null outputs, counterpart of frametime_set_limits
 0x501750  frametime_unlimit        func  frametime.cpp        O ; saves min/max_reported_frametime to 0x257f084/0x257f080 (restored by frametime_restore_limits) and calls frametime_set_limits(10.0, 1e-5)
 0x501780  frametime_restore_limits func  frametime.cpp        I ; frametime_set_limits(saved 0x257f084, 0x257f080), caller cutscene_cleanup
 0x5017a0  increase_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused++
@@ -3786,9 +3794,14 @@
 0x501ac0  RealtimeTimer__GetRemainingTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b00  RealtimeTimer__GetElapsedTime func  timestamp.cpp          V ; Summoner 2 decomp
 0x501b10  RealtimeTimer__valid     func  timestamp.cpp          V ; Summoner 2 decomp
+0x501b20  init_ccmd_load_mipmaps_thunk func  -                    O ; hidden start, initialiser table entry 0x5887d4: jmp init_ccmd_load_mipmaps
 0x501b30  init_ccmd_load_mipmaps   func  -                    O ; static initialiser: registers console command object ccmd_load_mipmaps
 0x501b50  cmd_load_mipmaps         func  -                      O ; console command "load_mipmaps": Toggles Load_mipmaps
+0x501c10  init_bm_name_pool        func  vsdk\bmpman          O ; hidden start, initialiser table entry 0x5887d8: bm_init_name_pool then registers its atexit destructor (0x501c40)
 0x501c20  bm_init_name_pool        func  vsdk\bmpman\bmpman.cpp O ; static initialiser: bm_name_pool = StringPool(64 KB)
+0x501c40  bm_name_pool_register_dtor func  vsdk\bmpman          O ; atexit(bm_name_pool_dtor), tail of init_bm_name_pool
+0x501c50  bm_name_pool_dtor        func  vsdk\bmpman          O ; hidden start, atexit handler: StringPool__dtor(0x25c5c68)
+0x501c60  init_ccmd_change_texture_res_thunk func  -                    O ; hidden start, initialiser table entry 0x5887dc: jmp init_ccmd_change_texture_res
 0x501c70  init_ccmd_change_texture_res func  -                    O ; static initialiser: registers console command object ccmd_change_texture_res
 0x501c90  cmd_change_texture_res   func  -                      O ; console command "change_texture_res": Toggle the texture resolution between high and low resolutions.
 0x501ce0  bm_calc_num_pixels       func  vsdk\bmpman\bmpman.cpp O ; (w, h, levels): sum of w*h over halving mip levels
@@ -3839,13 +3852,20 @@
 0x503b50  bm_unlock                func  vsdk\bmpman\bmpman.cpp O ; bm_free_data(h, 0); Dash Faction bm::unlock
 0x503b60  bm_get_filename          func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_filename
 0x503ba0  bm_get_total_size        func  vsdk\bmpman\bmpman.cpp O ; (handle): bm_get_mipmap_info total bytes times bm_get_num_frames, -1 for invalid handles
+0x503c00  bm_read_pcx_header_of    func  vsdk\bmpman\bmpman.cpp I ; hidden start, (handle, out): pcx_read_header on the current frame's file, DebugError "Couldn't open %s." (bmpman.cpp line 0x936), no direct callers
 0x503c80  bm_release               func  vsdk\bmpman\bmpman.cpp O ; frees texture cache entries (0x508020) for every frame, then the entry
 0x503cf0  bm_create                func  vsdk\bmpman\bmpman.cpp O ; (format, w, h, data, pal) named "USERBMAP"; Dash Faction bm::create
+0x503d90  bm_malloc                func  vsdk\bmpman          I ; hidden start, (size) -> operator_new(size), unreferenced allocator wrapper between bmpman functions
 0x503da0  bm_set_preload_on_load   func  vsdk\bmpman\bmpman.cpp I ; bm_preload_on_load = arg
 0x503dc0  imin                     func  -                      I ; min(a, b); used by bm_read_header
 0x503dd0  progress_set_callback    func  -                      I ; (cb, param, check_keys): cb(0,0) now, then every 100 ms via progress_update; NULL ends with cb(-1,0)
 0x503e80  progress_update          func  -                      I ; calls the callback when 100 ms passed; returns 1 once a key was pressed (if check_keys)
+0x503f60  init_localize_pool_non_level func  -                    O ; hidden start, static initialiser (table 0x5887e0): default-constructs localize_pool_non_level
+0x503f80  init_localize_pool_level func  -                    O ; hidden start, static initialiser (table 0x5887e4): default-constructs localize_pool_level
+0x503fa0  init_localize_string_pool func  -                    O ; hidden start, initialiser table entry 0x5887e8: localize_init_string_pool then registers its atexit destructor
 0x503fb0  localize_init_string_pool func  localize               I ; static initialiser: StringPool of 0xa800 bytes at 0x25c68d0
+0x503fc0  localize_string_pool_register_dtor func  -                    O ; atexit(localize_string_pool_dtor), tail of init_localize_string_pool
+0x503fd0  localize_string_pool_dtor func  -                    O ; hidden start, atexit handler: StringPool__dtor(localize_string_pool)
 0x503fe0  localize_unescape        func  localize               O ; in place: \n \r \" \xHH
 0x504070  localize_strdup          func  localize               O ; into localize_string_pool, or allocate_in_mempool of the current pool; "INVALID" if none
 0x5040e0  localize_table_add       func  localize               O ; (text, english_hash, table): chained hash, 0xfd buckets, 12-byte nodes {hash, text, next}
@@ -3875,16 +3895,52 @@
 0x505510  localize_get_language_name func  localize               O
 0x505530  vector3__vector3_default func  vsdk\math            I ; trivial default constructor (returns this); 19 static initialisers
 0x505540  Mempool__ResetOffset     func  vsdk\os\memory.cpp     V ; Summoner 2 inline ResetOffset: offset = 0
+0x505550  init_gr_mode_25d8df4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887ec): gr__Mode(3, 2, 3, 3, 0, 3) into 0x25d8df4 (text mode used by gr_string callers)
+0x505580  init_gr_mode_25d8cdc     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887f0): gr__Mode(3, 2, 3, 3, 0, 3) into 0x25d8cdc
+0x5055b0  init_gr_mode_25d8d08     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887f4): gr__Mode(1, 1, 0, 3, 0, 3) into 0x25d8d08
+0x5055e0  init_gr_mode_25d88c4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887f8): gr__Mode(1, 2, 3, 3, 0, 3) into 0x25d88c4
+0x505610  init_gr_mode_25d8d10     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x5887fc): gr__Mode(1, 1, 0, 2, 0, 3) into 0x25d8d10
+0x505640  init_gr_mode_25d8ce4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588800): gr__Mode(0, 0, 0, 3, 0, 3) into 0x25d8ce4 (ui_checkbox__draw)
+0x505670  init_gr_mode_25d88ac     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588804): gr__Mode(0, 0, 0, 3, 0, 3) into 0x25d88ac (gr_draw_fade, ui_static__draw)
+0x5056a0  init_gr_mode_25d88a4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588808): gr__Mode(0, 0, 0, 3, 0, 3) into 0x25d88a4
+0x5056d0  init_gr_mode_25d8d28     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58880c): gr__Mode(0, 0, 0, 3, 4, 0) into 0x25d8d28
+0x505700  init_gr_mode_25d88c0     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588810): gr__Mode(0, 0, 0, 3, 4, 0) into 0x25d88c0
+0x505730  init_gr_mode_25d8ce0     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588814): gr__Mode(1, 1, 2, 3, 0, 0) into 0x25d8ce0
+0x505760  init_gr_mode_25d88cc     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588818): gr__Mode(1, 2, 3, 3, 0, 0) into 0x25d88cc
+0x505790  init_gr_mode_25d8df0     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58881c): gr__Mode(2, 2, 3, 3, 1, 0) into 0x25d8df0
+0x5057c0  init_gr_mode_25d8d24     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588820): gr__Mode(2, 2, 3, 2, 1, 3) into 0x25d8d24
+0x5057f0  init_gr_mode_25d88a8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588824): gr__Mode(1, 2, 3, 2, 1, 0) into 0x25d88a8
+0x505820  init_gr_mode_25d8cfc     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588828): gr__Mode(1, 2, 3, 2, 0, 0) into 0x25d8cfc
+0x505850  init_gr_mode_25d88a0     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58882c): gr__Mode(1, 2, 0, 3, 4, 0) into 0x25d88a0
+0x505880  init_gr_mode_25d8cd4     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588830): gr__Mode(1, 2, 0, 0, 4, 0) into 0x25d8cd4
+0x5058b0  init_gr_mode_25d8df8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588834): gr__Mode(1, 2, 3, 3, 4, 0) into 0x25d8df8 (character mesh renderers)
+0x5058e0  init_gr_mode_25d8d00     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588838): gr__Mode(1, 2, 3, 3, 1, 0) into 0x25d8d00
+0x505910  init_gr_mode_25d8d0c     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58883c): gr__Mode(1, 2, 3, 3, 1, 0) into 0x25d8d0c
+0x505940  init_gr_mode_25d8cd8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588840): gr__Mode(2, 2, 0, 0, 4, 1) into 0x25d8cd8
+0x505970  init_gr_mode_25d88c8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588844): gr__Mode(2, 2, 3, 2, 1, 1) into 0x25d88c8
+0x5059a0  init_gr_mode_25d8dd8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588848): gr__Mode(1, 1, 2, 5, 4, 2) into 0x25d8dd8 (lightmap blend)
+0x5059d0  init_gr_mode_25d8d04     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58884c): gr__Mode(0, 0, 0, 2, 1, 0) into 0x25d8d04
+0x505a00  init_gr_mode_25d8d1c     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588850): gr__Mode(4, 1, 3, 3, 4, 0) into 0x25d8d1c (multitexture mode tested by gr_is_mode_supported for lightmaps)
+0x505a30  init_gr_mode_25d8d18     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588854): gr__Mode(6, 2, 3, 3, 4, 0) into 0x25d8d18
+0x505a60  init_gr_mode_25d8cd0     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588858): gr__Mode(4, 2, 3, 2, 1, 0) into 0x25d8cd0 (gr_set_gamma)
+0x505a90  init_gr_mode_25d8ce8     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x58885c): gr__Mode(4, 2, 3, 2, 4, 0) into 0x25d8ce8
+0x505ac0  init_gr_mode_25d8d14     func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588860): gr__Mode(1, 1, 2, 3, 4, 0) into 0x25d8d14
+0x505af0  init_gr_screen           func  vsdk\gr\gr.cpp       O ; hidden start, static initialiser (table 0x588864): constructs gr_screen (0x5081a0)
+0x505b10  init_ccmd_level_fog_thunk func  -                    O ; hidden start, initialiser table entry 0x588868: jmp init_ccmd_level_fog
 0x505b20  init_ccmd_level_fog      func  -                    O ; static initialiser: registers console command object ccmd_level_fog
 0x505b40  cmd_level_fog            func  -                      O ; console command "level_fog": Sets Gr_level_fog_multiplier
+0x505bd0  init_ccmd_alpha_fog_thunk func  -                    O ; hidden start, initialiser table entry 0x58886c: jmp init_ccmd_alpha_fog
 0x505be0  init_ccmd_alpha_fog      func  -                    O ; static initialiser: registers console command object ccmd_alpha_fog
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
+0x505c90  init_ccmd_gr_show_stats_thunk func  -                    O ; hidden start, initialiser table entry 0x588870: jmp init_ccmd_gr_show_stats
 0x505ca0  init_ccmd_gr_show_stats  func  -                    O ; static initialiser: registers console command object ccmd_gr_show_stats
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
+0x505d80  init_ccmd_antialiasing_thunk func  -                    O ; hidden start, initialiser table entry 0x588874: jmp init_ccmd_antialiasing
 0x505d90  init_ccmd_antialiasing   func  -                    O ; console_command "antialiasing" constructor (static initializer)
 0x505db0  cmd_antialiasing         func  -                    O ; toggles gr_set_antialias, prints "antialiasing toggled!" or "antialiasing not supported on this card."
 0x505e00 gr_init                  func  vsdk\gr\gr.cpp           O ; (w, h, mode, window_mode, hwnd, far_z, dual)
 0x506110  gr_check_dual_monitors   func  vsdk\gr\gr.cpp         O ; fullscreen only: SST_DUALHEAD environment variable (3dfx)
+0x506160  gr_set_cfg_34_flag       func  vsdk\gr\gr.cpp       I ; (bool) 0x25d8dd0 = arg (summoner.cfg +0x34 copy, see options_set_cfg_34), callers state_loadgame_enter, cutscene_play, cutscene_cleanup
 0x506170  gr_screen_width          func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_width
 0x506180  gr_screen_height         func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_height
 0x506190  gr_deactivate            func  vsdk\gr\gr.cpp       I ; Glide only (flag 0x25d921e): gr_glide_deactivate, reached from DebugError through 0x531ca0
@@ -3896,9 +3952,11 @@
 0x5066b0  gr_draw_fade             func  vsdk\gr\gr.cpp         I ; advances by reported_frametime, draws the full-screen black rect; called by gr_flip
 0x5067c0  gr_close                 func  vsdk\gr\gr.cpp         O ; Dash Faction gr::close; back-end close, then gr_close_fonts
 0x5067f0  Color__Color             func  vsdk\gr\gr.cpp         I ; (r, g, b, a) thiscall
+0x506810  gr__Mode__Mode_value     func  vsdk\gr\gr.cpp       I ; hidden start, thiscall (int value): this->value = value, returns this
 0x506820  Color__set               func  vsdk\gr\gr.cpp         I ; (r, g, b, a) thiscall; identical body
 0x506840 gr__set_clip             func  vsdk\gr\gr.cpp           V ; Dash Faction gr::set_clip; 27 callers
 0x506950  gr_get_aspect            func  vsdk\gr\gr.cpp         O
+0x506960  gr_set_aspect            func  vsdk\gr\gr.cpp       O ; hidden start, gr_screen.aspect (+0x18, 0x25d8d48) = arg, Dash Faction Screen layout
 0x506970  gr_get_clip              func  vsdk\gr\gr.cpp         O ; Dash Faction gr::get_clip
 0x5069a0 gr__reset_clip           func  vsdk\gr\gr.cpp           V ; Dash Faction gr::reset_clip
 0x5069c0  gr_clear                 func  vsdk\gr\gr.cpp         O ; Dash Faction gr::clear
@@ -3916,6 +3974,7 @@
 0x506f90  gr_bitmap                func  vsdk\gr\gr.cpp         O ; (bm, x, y, mode), clipped
 0x507100  gr_bitmap_float          func  vsdk\gr\gr.cpp         I ; float rectangle through gr_tmapper
 0x507310  gr_line                  func  vsdk\gr\gr.cpp         O ; (x1, y1, x2, y2, mode)
+0x507690  gr_circle                func  vsdk\gr\gr.cpp       O ; hidden start, (x, y, radius, mode): clamp_int(radius*3, 5, 128) segments drawn with gr_line around the centre
 0x5077d0  gr_rect                  func  vsdk\gr\gr.cpp         I ; (x, y, w, h, mode) through gr_tmapper
 0x5079b0  gr_is_mode_supported     func  vsdk\gr\gr.cpp       O ; (Mode) dispatch: D3D 0x53aad0, Glide 0x54a0b0, OpenGL always true, false for multitexture modes without multitexture support
 0x5079f0  gr_get_video_memory_mb   func  vsdk\gr\gr.cpp       O ; dispatch: D3D 0x2dc6c98, Glide 0x2f0f208, OpenGL constant 8, 0x43e250 compares it with 8 to pick defaults
@@ -3927,10 +3986,12 @@
 0x507fb0  gr_finish                func  vsdk\gr\gr.cpp       I ; back-end dispatch on gr_screen.mode: Glide (0x67) -> 0x54a6d0, OpenGL (0x68) -> glFinish, D3D nothing
 0x507fd0  gr_tcache_flush          func  vsdk\gr\gr.cpp         I
 0x508020  gr_tcache_free           func  vsdk\gr\gr.cpp         I ; (bm); bm_release calls it per frame
+0x508090  rgb_to_lightened_grey    func  -                    O ; (r, g, b) -> (avg + (255 - avg) * 0.6) / 255 with avg = (r+g+b)/3, only caller combat_spawn_blood
 0x5080c0  gr_set_antialias         func  vsdk\gr\gr.cpp       O ; (enable) when 0x25d921c: dispatch to gr_d3d_set_antialias, Glide 0x54ba90 and OpenGL 0x550630 are empty
 0x508110  gr_set_alpha_test        func  vsdk\gr\gr.cpp       O ; (enable) dispatch to gr_d3d_set_alpha_test / gr_glide_set_alpha_test
 0x508140  gr_flush_pipeline        func  vsdk\gr\gr.cpp       I ; dispatch on gr_screen.mode: D3D -> gr_d3d_flush_pipeline, Glide -> gr_glide_flush_pipeline
 0x508160  gr__Mode__Mode           func  vsdk\gr\gr.cpp         O ; packs six 5-bit fields, as Dash Faction gr::Mode
+0x5081a0  gr__Screen__Screen       func  vsdk\gr\gr.cpp       I ; thiscall ctor of gr_screen: default-constructs the vector3 members at +0x54 and +0x61, only reached from init_gr_screen
 0x5081c0  gr__Vertex__Vertex       func  vsdk\gr              I ; default ctor (vector3 at +0 default-constructed), 0x30-byte vertex locals in gr_line_3d_world / gr_bitmap_3d, also the Plane in Plane__transform and gr_clip_plane +4
 0x5081d0  gr_close_fonts           func  vsdk\gr\gr_font.cpp    I ; frees every font's tables
 0x508290  gr_font_is_whitespace    func  vsdk\gr\gr_font.cpp    I ; space, tab, newline
@@ -3945,6 +4006,8 @@
 0x508970  gr_font_read_file        func  vsdk\gr\gr_font.cpp    O ; "Trying to read a newer font version"
 0x508c60  gr_string                func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::string(x, y, s, font, mode); x = 0x8000 centres
 0x508d70  gr_font_center_x         func  vsdk\gr\gr_font.cpp    I ; (clip_width - width) / 2
+0x508dc0  gr_string_at_text_pos    func  vsdk\gr\gr_font.cpp  I ; hidden start, (s, font, mode): gr_string at the saved text position 0x25d94cc/0x25d94d0
+0x508df0  gr_fit_string_String     func  vsdk\gr\gr_font.cpp  I ; String version of gr_font_fit_string: gr_get_string_size, backs up to gr_font_is_whitespace, no direct callers
 0x509030  gr_font_fit_string       func  vsdk\gr\gr_font.cpp    I ; how much of s fits in max_w, backing up to whitespace
 0x509130  gr_split_str             func  vsdk\gr\gr_font.cpp    O ; Dash Faction gr::split_str (7 arguments)
 0x5093a0  key_mark                 func  -                      I ; (code, state, latency): remap layout, update key_down_state/key_press_counts, queue the key
@@ -3967,10 +4030,12 @@
 0x509d40  key_putkey               func  -                    O ; (code) under key_lock appends to the 16-entry key_queue at key_queue_tail
 0x509d90  key_get_shift_status     func  -                    O ; under key_lock: 0x1000 shift (0x2a/0x36), 0x2000 alt (0x38/0xb8), 0x4000 ctrl (0x1d/0x9d), 0x800 for 0x29 when 0x25daa77 is set
 0x509e20  key_get_press_count      func  -                      I ; returns and clears the press counter of key N (0..255) under the key lock
+0x509e70  key_get_release_count    func  -                    O ; hidden start, returns and clears key_release_counts[key] under key_lock (incremented by key_mark on release)
 0x509ec0  key_queue_not_empty      func  -                      I ; key queue head != tail, under the key lock
 0x509f00  key_is_down              func  -                      I ; returns the current down-state byte of key N
 0x509f10  key_enable_debug_modifier func  -                    I ; 0x25daa77 = 1 (lets key_get_shift_status report 0x800 for scancode 0x29)
 0x509f20  key_disable_debug_modifier func  -                    I ; 0x25daa77 = 0
+0x509f30  key_is_modifier          func  -                    O ; hidden start, true for scancodes 0x1d 0x29 0x2a 0x36 0x38 0x9d 0xb8 (ctrl, grave, shift, alt)
 0x50a010  init_ccmd_print_to_file  func  -                    O ; static initialiser: registers console command object ccmd_print_to_file
 0x50a030  cmd_print_to_file        func  -                      O ; console command "print_to_file": Print out console commands to the text file console.txt
 0x50a180  console_command__console_command func  console.cpp                      V ; Summoner 2 class; ctor(name, description, callback) inserts into Console_commands, sorted; 145 static instances
@@ -3985,16 +4050,32 @@
 0x50aab0  read_word                func  console.cpp            V ; Summoner 2 static helper
 0x50ab00  read_quoted_string       func  console.cpp            V ; Summoner 2 static helper
 0x50ab60  init_char_types          func  console.cpp            V ; Summoner 2 static helper; letters 0, digits 4, others 2, '"' 1, NUL 3
+0x50ac30  init_ccmd_script_thunk   func  -                    O ; hidden start, initialiser table entry 0x58887c: jmp init_ccmd_script
 0x50ac40  init_ccmd_script         func  -                    O ; static initialiser: registers console command object ccmd_script
 0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
 0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
 0x50aef0  console_printf           func  console.cpp          O ; vsprintf into a 0x800-byte buffer then print_to_console(buf, 0), caller cmd_summon
+0x50af50  console_set_font         func  console.cpp          I ; 0x5a6f28 = font handle, GameInit passes the gr_load_font result, placed after console_printf
+0x50af80  init_ca_vertex_buf_266f108 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588880): 2000 vector3 at 0x266f108 (work buffer of ca_render_morph_vertices)
+0x50afb0  init_ca_vertex_buf_25e74b0 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588884): 2000 vector3 at 0x25e74b0
+0x50afe0  init_ca_vertex_buf_2622e48 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588888): 2000 vector3 at 0x2622e48
+0x50b010  init_ca_vertex_buf_2605988 func  vsdk\ca              O ; hidden start, static initialiser (table 0x58888c): 2000 vector3 at 0x2605988
+0x50b040  init_ca_vertex_buf_260b748 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588890): 4000 vector3 at 0x260b748
+0x50b070  init_ca_vertex_buf_25db930 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588894): 4000 vector3 at 0x25db930
+0x50b0a0  init_ca_vertex_buf_25ed2e8 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588898): 4000 vector3 at 0x25ed2e8
+0x50b0d0  init_ca_vertex_buf_2628c08 func  vsdk\ca              O ; hidden start, static initialiser (table 0x58889c): 4000 vector3 at 0x2628c08
+0x50b100  init_ca_vertex_buf_2675698 func  vsdk\ca              O ; hidden start, static initialiser (table 0x5888a0): 4000 vector3 at 0x2675698
+0x50b130  gr_load_reflection_map   func  vsdk\gr              O ; bm_load("refmap01.tga") into 0x5a7280, caller LoadSettings
+0x50b150  ca_render_morph_vertices func  vsdk\ca              I ; copies the mesh vertices to the 0x266f108 work buffer and blends the instance morph/vertex-animation keys into it, callers the Glide, D3D and OpenGL character mesh renderers
+0x50b380  init_ca_offset_table_25ed270 func  vsdk\ca              O ; hidden start, static initialiser (table 0x5888a4): ten vector3 with x = 0, 1e-4, 0.005, 0.01, 0.03, 0.1, 0.15, 0.2, 0.375 ... at 0x25ed270
 0x50b4c0  gr_glide_render_character_mesh func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of ca_render_mesh (mode 0x67), calls glide_grDrawPlanarPolygonVertexList
 0x50c130  gr_d3d_render_character_mesh func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of ca_render_mesh (mode 0x66), skinning + gr_d3d set_render_state
 0x50cd00  gr_opengl_render_character_mesh func  vsdk\gr\opengl\gr_opengl.cpp I ; OpenGL target of ca_render_mesh (mode 0x68)
 0x50d6c0  ca_render_set_instance   func  vsdk\ca              I ; (character, instance) stores the globals 0x268298c/0x2682990, character_instance__render sets them, then clears with (0,0)
 0x50d6e0  ca_render_set_mesh       func  vsdk\ca              I ; (mesh) stores 0x2682988, character_instance__render passes the LOD mesh from character +0x1e4
 0x50d6f0  ca_render_mesh           func  vsdk\ca              O ; draws mesh 0x2682988 through the back end for gr_screen.mode: 0x50c130 D3D, 0x50b4c0 Glide, 0x50cd00 OpenGL
+0x50d7b0  ca_render_has_mesh       func  vsdk\ca              O ; hidden start, returns ca render mesh 0x2682988 != NULL (see ca_render_set_mesh)
+0x50d7c0  ca_render_set_flags      func  vsdk\ca              I ; hidden start, 0x2682994 = arg, next to ca_render_set_instance and ca_render_set_mesh
 0x50d7e0  vector3__cross           func  vsdk\math              I
 0x50d830  gr_get_fog_alpha         func  vsdk\gr              I ; (z): 255 when fog off (gr_screen +0x60) or z below fog start, else 255 * max(0, (end - z) * scale) from gr_screen +0x70..0x78
 0x50d880  gr_calc_depth            func  vsdk\gr              I ; (w) w * 1/far (0x5a729c) * Gr_3d_zmult, clamped to Gr_3d_zmax, used by D3D tmapper and fog
@@ -4003,17 +4084,36 @@
 0x50d910  gr_get_fog_value         func  vsdk\gr              I ; (value, z): as gr_get_fog_alpha with the second fog range (gr_screen +0x7c..0x84), scales value
 0x50d960  float_max                func  vsdk\math            O ; (a, b) returns the larger float, 23 callers (fog, effects, lighting)
 0x50d980  clamp_float              func  vsdk\math            O ; (float* v, lo, hi) clamps in place, used by the Glide tint code and the sound group volumes
+0x50d9b0  init_gr_view_matrix      func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888a8): matrix default ctor on gr_view_matrix
+0x50d9d0  init_gr_view_pos         func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888ac): gr_view_pos
+0x50d9f0  init_gr_light_matrix     func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888b0): gr_light_matrix
+0x50da10  init_gr_light_base       func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888b4): gr_light_base
+0x50da30  init_gr_eye_matrix       func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888b8): gr_eye_matrix
+0x50da50  init_gr_eye_pos          func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888bc): gr_eye_pos
+0x50da70  init_gr_matrix_scale     func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888c0): gr_matrix_scale
+0x50da90  init_ccmd_far_min_thunk  func  -                    O ; hidden start, initialiser table entry 0x5888c4: jmp init_ccmd_far_min
 0x50daa0  init_ccmd_far_min        func  -                    O ; static initialiser: registers console command object ccmd_far_min
 0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
+0x50db50  init_ccmd_far_max_thunk  func  -                    O ; hidden start, initialiser table entry 0x5888c8: jmp init_ccmd_far_max
 0x50db60  init_ccmd_far_max        func  -                    O ; static initialiser: registers console command object ccmd_far_max
 0x50db80  cmd_far_max              func  -                      O ; console command "far_max": Sets Gr_far_max
+0x50dc10  init_gr_user_clip_planes func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888cc): 8 gr_clip_plane (0x1c bytes) at 0x26829a0
+0x50dc40  init_ccmd_zmult_thunk    func  -                    O ; hidden start, initialiser table entry 0x5888d0: jmp init_ccmd_zmult
 0x50dc50  init_ccmd_zmult          func  -                    O ; static initialiser: registers console command object ccmd_zmult
 0x50dc70  cmd_zmult                func  -                      O ; console command "zmult": Sets Gr_3d_zmult
+0x50dd00  init_ccmd_zmax_thunk     func  -                    O ; hidden start, initialiser table entry 0x5888d4: jmp init_ccmd_zmax
 0x50dd10  init_ccmd_zmax           func  -                    O ; static initialiser: registers console command object ccmd_zmax
 0x50dd30  cmd_zmax                 func  -                      O ; console command "zmax": Sets Gr_3d_zmax
+0x50ddc0  init_gr_instance_stack   func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888d8): 5 gr_instance_entry (0x64 bytes) in gr_instance_stack
+0x50ddf0  init_gr_vertex_buf_2692e28 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888dc): 5 gr__Vertex (0x10-byte stride) at 0x2692e28
+0x50de20  init_gr_vertex_buf_2692830 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888e0): 5 gr__Vertex at 0x2692830
+0x50de50  init_gr_frustum_planes   func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888e4): 8 gr_clip_plane in gr_frustum_planes
+0x50de80  init_gr_clip_plane_26924b8 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888e8): gr_clip_plane__gr_clip_plane(0x26924b8)
+0x50dea0  init_gr_3d_state_saved   func  vsdk\gr              O ; hidden start, static initialiser (table 0x5888ec): gr_3d_state__gr_3d_state(0x2692890), the block used by gr_save_3d_state and gr_restore_3d_state
 0x50dec0  gr_setup_3d              func  vsdk\gr              O ; (viewer_orient, viewer_pos, fov, zbuffer_flag): copies to view/eye pos+matrix, projection from clip rect, far plane from Gr_far_min/max, D3D z range, then gr_setup_frustum, Dash Faction gr_setup_3d has the same leading args
 0x50e150  gr_setup_frustum         func  vsdk\gr              O ; far_clip_z = far * matrix_scale.z, builds the view frustum planes from view_pos/eye fvec, called by gr_setup_3d and gr_set_far_clip
 0x50e5a0  gr_get_view_fov          func  vsdk\gr              O ; (float*h, float*v) 2*atan(scale.z/scale.x) and 2*atan(scale.z/scale.y) times rad-to-deg
+0x50e5e0  gr_fov_to_vertical       func  vsdk\gr              I ; (fov deg): converts a horizontal field of view into a vertical one with the clip width/height (0x25d8d64/68) and gr_screen.aspect (atan/tan), caller interface_set_view_clip
 0x50e640  gr_start_instance        func  vsdk\gr              O ; (pos, orient, light flag) pushes view_pos/view_matrix (and light base/matrix) on the instance stack then transforms them, Dash Faction gr::start_instance(pos, orient)
 0x50e750  gr_stop_instance         func  vsdk\gr              O ; pops the instance stack entry pushed by gr_start_instance, Dash Faction gr::stop_instance
 0x50e7c0  gr_set_far_clip          func  vsdk\gr              O ; (dist): dist > 1 enables far clipping at dist * Gr_level_fog_multiplier (0x5a729c = 1/far), else disables, then gr_setup_frustum
@@ -4022,12 +4122,15 @@
 0x50e910  gr_rotate_vertex         func  vsdk\gr              O ; (Vertex* out, vector3* in): (in - view_pos) rotated by view_matrix, clears flags +0x19, returns gr_code_vertex, Dash Faction gr::rotate_vertex(Vertex*, const Vector3&)
 0x50e960  gr_rotate_delta_vec      func  vsdk\gr              O ; (out, in): rotation only by view_matrix, no translation
 0x50e990  gr_rotate_vertices       func  vsdk\gr              O ; (gr__Vertex* out, vector3* in, count): (in - gr_view_pos) rotated by gr_view_matrix, flags +0x19 cleared, gr_code_vertex for each (0x30 stride)
+0x50ea00  gr_scale_to_depth        func  vsdk\gr              I ; (vector3* v, float d): rescales v by its depth (0x50ecc0) towards depth d unless the factor is below a minimum, callers 0x4a46a0, 0x4bc6b0
 0x50ea50  gr_project_vertex        func  vsdk\gr              O ; (Vertex*) if not projected: sw = 1/z, sx/sy from projection half sizes + clip offset, clamped, sets flag 1 (2 when z <= 0), Dash Faction gr::project_vertex
 0x50eb30  gr_check_normal_facing   func  vsdk\gr              O ; (pos, normal): dot(view_pos - pos, normal) > 0 (backface test)
 0x50eb70  gr_plane_faces_viewer    func  vsdk\gr              O ; (Plane*): Plane__distance_to_point(gr_view_pos) > 0
 0x50eba0  gr_get_normal_facing_dot func  vsdk\gr              O ; (pos, normal): normalized(gr_view_pos - pos) dot normal
 0x50ebe0  gr_screen_to_world_ray   func  vsdk\gr              O ; (out {pos, dir}, sx, sy): unprojects with gr_projection_xmul/ymul and gr_matrix_scale, dir unrotated by gr_eye_matrix, pos = gr_eye_pos, callers world_mouse_frame, script_editor_frame
 0x50ec90  gr_project_size          func  vsdk\gr              I ; (Vertex*, float*size) size * projection x half-width * matrix_scale.x / z
+0x50ecb0  gr_scale_by_far_clip     func  vsdk\gr              I ; (f) returns f * 0x2692e80 (far clip scale), callers levelrender_draw_list, gr_set_fog, gr_d3d_set_fog and others
+0x50ecc0  gr_vector_scaled_z       func  vsdk\gr              O ; (vector3*) returns v.z * gr_one_over_matrix_scale_z
 0x50ecd0  gr_cull_sphere           func  vsdk\gr              O ; (pos, radius, ignore_far): Plane__distance_to_point against the gr_frustum_planes, true when the sphere is fully outside one plane, as Dash Faction gr::cull_sphere
 0x50ed60  gr_get_frustum_planes    func  vsdk\gr              O ; (Plane* out, uint8* out_flags): copies gr_num_frustum_planes Planes (entry +4, stride 0x1c) and the flag byte at entry +0
 0x50edc0  gr_cull_bounding_box     func  vsdk\gr              O ; (mins, maxs): bbox_get_corner by each plane's corner index (+0x10) then Plane__distance_to_point, true when outside, as Dash Faction gr::cull_bounding_box
@@ -4037,10 +4140,16 @@
 0x50f120  gr_restore_3d_state      func  vsdk\gr              O ; inverse of gr_save_3d_state, copies the 0x2692890 block back into the gr 3D globals (no direct callers)
 0x50f2e0  sort_by_float_key        func  -                    O ; (pairs, n) shell sort of 8-byte {float key, value} entries with float_key_less, caller mesh_check_materials
 0x50f380  float_key_less           func  -                    O ; (a*, b*) *(float*)a < *(float*)b
+0x50f3a0  matrix43_compose         func  vsdk\math            I ; (orient_a, pos_a, orient_b, pos_b): orient_b = orient_a * orient_b, pos_b = unrotate(pos_b, orient_a) + pos_a, caller spell_launch_missile
+0x50f3e0  gr_light_desc__gr_light_desc func  vsdk\gr              I ; thiscall ctor: vector3 at +0xc then gr_light_desc__reset, callers the model view renderers (buysell, inventory, status, levelrender)
+0x50f400  gr_light_desc__reset     func  vsdk\gr              I ; thiscall: +0 = 0, +4 = -1, +8 = 0xff, +0x10 = 0, +0x14 = -1.0f, +0x1c = 0, callers levelrender_draw_list and the ctor
+0x50f420  gr_light__reset          func  vsdk\gr              I ; hidden start, thiscall: type byte +0 = 0, identity quaternion +4, zero vector +0x14, colour and params, +0x44 = 40.0f, name at +0x49, unreferenced
+0x50f490  gr_light__read           func  vsdk\gr              I ; hidden start, thiscall (File*): reads the gr_light__reset record: type, orientation quaternion, position, six floats (one more for type 4), bool, two floats, bool, 64-char name, unreferenced
 0x50f590  gr_clip_plane__gr_clip_plane func  vsdk\gr              O ; ctor: Plane at +4 (0x1c-byte entry, 8 frustum planes built by gr_3d_state ctor)
 0x50f5a0  gr_instance_entry__gr_instance_entry func  vsdk\gr              O ; ctor of the 0x64-byte instance stack entry (vectors +4/+0x34, matrices +0x10/+0x40)
 0x50f5d0  gr_3d_state__gr_3d_state func  vsdk\gr              I ; static ctor of the 3D globals: matrices/vectors, two arrays of 8 gr_clip_plane, gr_instance_entry[5] at +0x1b8
 0x50f660  matrix__matrix_default   func  vsdk\math            I ; default constructor: three 0xc-byte rows via vector3__vector3_default
+0x50f680  gr_setup_3d_free_clip_verts func  vsdk\gr              O ; jmp gr_clip_free_temp_verts, caller gr_setup_3d
 0x50f690  gr_clip_free_temp_verts  func  vsdk\gr              I ; zeroes the temporary clip vertex count 0x2f54700 after clipped drawing (gr_line_3d, gr_poly) and at gr_setup_3d
 0x50f6a0  vector3__scale           func  vsdk\math              I ; *= s
 0x50f6c0  gr_clip_plane__set_from_points func  vsdk\gr              I ; thiscall (flag, p0, p1, p2): byte +0 flag, Plane at +4 from points, +0x14/+0x18 from 0x559a80, used by gr_setup_frustum
@@ -4052,13 +4161,18 @@
 0x50f840  vector3__sub_assign      func  vsdk\math              I ; -= v
 0x50f860  Plane__distance_to_point func  vsdk\math            V ; dot(pt, normal) + offset, Dash Faction rf::Plane::distance_to_point identical
 0x50f880  Plane__transform         func  vsdk\math            I ; (out, pos, matrix): rebuilds the plane in another frame (scaled normal + pos, rotated)
+0x50f900  gr_clip_plane__assign    func  vsdk\gr              O ; hidden start, thiscall copy (flag byte, Plane at +4, +0x14/+0x18), callers gr_save_3d_state, gr_restore_3d_state
+0x50f930  gr_instance_entry__assign func  vsdk\gr              O ; hidden start, thiscall copy: +0 dword, vector +4, matrix +0x10, vector +0x34, matrix +0x40, callers gr_save_3d_state, gr_restore_3d_state
 0x50f990  quaternion__quaternion   func  vsdk\math            O ; thiscall (x, y, z, w), returns this
 0x50f9b0  quaternion__assign       func  vsdk\math            O ; copies 4 floats, returns this
+0x50f9d0  init_identity_matrix     func  vsdk\math\matrix.cpp V ; hidden start, static initialiser (table 0x5888f0): identity_matrix(vector3(1,0,0), (0,1,0), (0,0,1)) as Summoner 2 matrix.cpp
+0x50fa30  init_identity_matrix43   func  vsdk\math\matrix.cpp V ; hidden start, static initialiser (table 0x5888f4): identity_matrix43 with zero position as Summoner 2 matrix.cpp
 0x50faa0  matrix3__matrix3_copy    func  vsdk\math\matrix.cpp   I
 0x50fad0  matrix3__matrix3_ruf     func  vsdk\math\matrix.cpp   I ; (r, u, f)
 0x50fb30  matrix3__matrix3_sincos  func  vsdk\math            O ; ctor: default rows then matrix3__set_from_sincos(6 args)
 0x50fb80  matrix3__matrix3_angles  func  vsdk\math            O ; ctor: default rows then matrix3__set_from_angles(p, b, h)
 0x50fbc0  matrix3__multiply        func  vsdk\math\matrix.cpp   I ; this * m
+0x50fcf0  matrix3__multiply_by_transpose func  vsdk\math\matrix.cpp I ; hidden start, thiscall (out, m): row-dot-row products (this * m^T), caller 0x511a40
 0x50fe20  matrix3__multiply_transposed func  vsdk\math\matrix.cpp   I ; this^T * m
 0x50ff50  matrix3__is_normalized   func  vsdk\math\matrix.cpp   I ; each row length within 5e-7 of 1
 0x50fff0  matrix3__matrix3_axis_angle func  vsdk\math            O ; ctor: default rows then matrix3__set_from_axis_angle(axis, angle)
@@ -4067,39 +4181,61 @@
 0x510110  matrix3__set_from_axis_angle func  vsdk\math\matrix.cpp   I ; (axis, angle) via a half-angle quaternion
 0x510240  matrix3__extract_angles  func  vsdk\math\matrix.cpp   I ; (&p, &b, &h) with atan2
 0x510390  matrix3__get_axis_angle  func  vsdk\math\matrix.cpp   V ; Summoner 2; same "invalid index - this should never happen" assert (PC line 505)
+0x510510  matrix3__has_zero_axis   func  vsdk\math\matrix.cpp O ; hidden start, true when any row or any column is exactly (0, 0, 0)
 0x510660  matrix3__is_valid        func  vsdk\math\matrix.cpp   I ; every row passes vector3__is_valid
+0x5106a0  matrix3__determinant     func  vsdk\math\matrix.cpp O ; hidden start, 3x3 determinant of this (rule of Sarrus), caller matrix3__invert
+0x510a80  matrix3__transpose       func  vsdk\math\matrix.cpp V ; hidden start, Summoner 2 matrix3::transpose() const, returns matrix3(r, u, f) built from the columns
+0x510b10  matrix3__inverse         func  vsdk\math\matrix.cpp O ; hidden start, returns a copy inverted by matrix3__invert
 0x510b40  matrix3__orthogonalize   func  vsdk\math\matrix.cpp   V ; Summoner 2; same zero-up/zero-right fallbacks
+0x510e70  matrix3__transpose_in_place func  vsdk\math\matrix.cpp O ; hidden start, swaps the three off-diagonal pairs
+0x510ea0  matrix3__set_random      func  vsdk\math\matrix.cpp O ; hidden start, set_from_unit_forward(vector3__random_direction)
+0x510ed0  matrix3__invert          func  vsdk\math\matrix.cpp O ; hidden start, adjugate (cross_2d minors) divided by matrix3__determinant, in place
 0x511050  matrix3__make_identity   func  vsdk\math\matrix.cpp   V ; Summoner 2
 0x511080  matrix3__set_from_forward func  vsdk\math\matrix.cpp   V ; Summoner 2; fvec = forward.normalized()
 0x511140  matrix3__set_from_unit_forward func  vsdk\math\matrix.cpp   V ; Summoner 2; fvec = forward
 0x511200  matrix3__set_from_forward_up func  vsdk\math\matrix.cpp   V ; Summoner 2; falls back to set_from_forward
+0x5112d0  matrix3__set_from_forward_right func  vsdk\math\matrix.cpp O ; hidden start, (forward, right): fvec = normalized forward, rvec = right normalized, uvec = f x r, falls back to set_from_forward on zero length
 0x5113a0  matrix43__matrix43_rot   func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(const matrix3&), zero position
 0x5113f0  matrix43__matrix43_rufp  func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(r, u, f, position)
 0x511450  matrix43__matrix43_pos_rot func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43(position, rotation)
 0x5114b0  matrix43__multiply_4x4   func  vsdk\math\matrix.cpp   I ; uses Homogeneous_column {0,0,0,1} as Summoner 2 multiply_4x4; thiscall form
 0x5116f0  matrix43__inverse        func  vsdk\math\matrix.cpp   V ; Summoner 2: identity, transpose, -position * result
+0x5117e0  matrix43__make_identity  func  vsdk\math\matrix.cpp O ; hidden start, this = identity rotation with zero position (matrix43__set_rotation)
 0x511840  matrix43__set_quat       func  vsdk\math\matrix.cpp   V ; Summoner 2 matrix43::set(const quaternion&, const vector3&)
+0x511860  matrix43_interpolate     func  vsdk\math\matrix.cpp V ; hidden start, Summoner 2 interpolate(from, to, t): quaternions of both matrices, slerp, to_matrix, linear position blend
+0x511920  matrix43_interpolate_quat func  vsdk\math\matrix.cpp O ; hidden start, (out, qa, qb, pa, pb, t): slerp of two quaternions to a matrix plus lerp of two positions
+0x5119c0  matrix43_set_interpolated func  vsdk\math\matrix.cpp O ; hidden start, as matrix43_interpolate_quat writing into an existing matrix43 (position at +0x24)
+0x511a40  matrix3__rotate_between  func  vsdk\math\matrix.cpp I ; hidden start, thiscall (a, b): this = this * products of a and b through matrix3__multiply_by_transpose, then orthogonalize
 0x511ab0  matrix43__multiply_4x4_b func  vsdk\math\matrix.cpp   I ; second variant with its own {0,0,0,1} table, result in this
 0x511b70  matrix43__get_rotation   func  vsdk\math\matrix.cpp   V ; Summoner 2
+0x511bb0  matrix43__transpose_in_place func  vsdk\math\matrix.cpp I ; hidden start, swaps the off-diagonal rotation entries in place
 0x511c10  vector3__set             func  vsdk\math              I ; (x, y, z)
 0x511c30  vector3__equals          func  vsdk\math              I ; exact component compare
 0x511c70  matrix43__transform_point func  vsdk\math\matrix.cpp   I ; returns m * v (rotation + position)
 0x511cf0  matrix43__set_position   func  vsdk\math\matrix.cpp   I
 0x511d10  matrix43__get_position   func  vsdk\math\matrix.cpp   I
+0x511d30  matrix43__set_rotation   func  vsdk\math\matrix.cpp O ; hidden start, thiscall (matrix3*): copies the 9 rotation floats and zeroes the position
 0x511d80  os_registry_write        func  vsdk\os\registry.cpp   O ; (subkey, name, type, data, size): RegCreateKeyExA + RegSetValueExA; "Error writing registry key"
 0x511e50  os_registry_resolve_key  func  vsdk\os\registry.cpp   O ; (out_path, subkey) -> HKEY: NULL = app key; no "hkey" prefix = relative to app key; else "HKEY_...\path"
 0x511f90  os_registry_hkey_from_string func  vsdk\os\registry.cpp   O ; HKEY_CLASSES_ROOT/CURRENT_USER/LOCAL_MACHINE/USERS; "Bogus HKEY string" -> DebugError line 185
 0x512050 os_registry_read         func  vsdk\os\registry.cpp     O ; RegOpenKeyExA + RegQueryValueExA
 0x512110 os_registry_set_app_key  func  vsdk\os\registry.cpp     O ; builds Software\<company>\<app>
+0x5121c0  os_registry_read_String  func  vsdk\os\registry.cpp O ; hidden start, (subkey, name, String* out): os_registry_read into a 1 KB buffer then String__assign_cstr, -1 on failure
 0x512210  os_registry_read_string_nodefault func  vsdk\os\registry.cpp   I ; like os_registry_read_string but returns -1 instead of copying a default
 0x512280 os_registry_read_string  func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512310  os_registry_write_string func  vsdk\os\registry.cpp   O ; os_registry_write(..., REG_SZ, s, strlen(s))
 0x512340 os_registry_read_dword   func  vsdk\os\registry.cpp     O ; (subkey, name, out, default)
 0x512370 os_registry_write_dword  func  vsdk\os\registry.cpp     O
+0x512390  os_registry_read_int     func  vsdk\os\registry.cpp I ; hidden start, (subkey, name, int* out, default): 4-byte os_registry_read, stores the default and returns -1 on failure
+0x5123c0  os_registry_write_binary_int func  vsdk\os\registry.cpp O ; hidden start, (subkey, name, value): os_registry_write with type 3 (REG_BINARY) and 4 bytes
+0x5123e0  os_registry_delete       func  vsdk\os\registry.cpp O ; hidden start, (subkey, value name): "Error opening registry key", "Error removing registry value", "Error removing registry key" (RegDeleteValue/RegDeleteKey)
 0x5124c0  operator_new_dbg         func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size, file, line); malloc or mempool; 'Failed to allocate %d bytes'
 0x512530  operator_new_array_dbg   func  memory.cpp             I ; forwards (size, file, line) to operator_new_dbg; only caller allocate_in_commonblock
 0x512550  operator_new             func  vsdk\os\memory.cpp     V ; Summoner 2 operator new(size) -> operator_new_dbg(size, 0, 0)
 0x512570  operator_delete          func  vsdk\os\memory.cpp     V ; Summoner 2 operator delete -> free
+0x512580  operator_delete_array    func  vsdk\os\memory.cpp   V ; hidden start, Summoner 2 memory.cpp operator delete[](p) -> ::operator delete(p)
+0x5125a0  mem_report_open          func  memory.cpp           O ; hidden start, (filename): fopen into mem_report_file unless already open, verbose = 1, depth = 0
+0x5125e0  mem_report_close         func  memory.cpp           O ; hidden start, fclose(mem_report_file), mem_report_file = NULL
 0x512600  mem_report_indent        func  memory.cpp             I ; mem_report_depth += 1
 0x512610  mem_report_unindent      func  memory.cpp             I ; mem_report_depth -= 1, clamped at 0
 0x512630  mem_report_is_verbose    func  memory.cpp             I ; returns mem_report_verbose (never written: always 0)
@@ -4111,10 +4247,15 @@
 0x512810  is_mempool_active        func  memory.cpp             V ; Summoner 2
 0x512820  allocate_in_commonblock  func  memory.cpp             V ; Summoner 2 text "Common block is already locked."; PC heap-allocates (new at line 600)
 0x512880  deallocate_from_commonblock func  memory.cpp             V ; Summoner 2; PC frees the block
+0x5128b0  init_stringpool_26b427c_thunk func  -                    O ; hidden start, initialiser table entry 0x5888f8: init_stringpool_26b427c then registers its atexit destructor
 0x5128c0  init_stringpool_26b427c  func  -                      O ; static initialiser: 8 KB StringPool at 0x26b427c
+0x5128e0  stringpool_26b4268_register_dtor func  -                    O ; atexit(stringpool_26b4268_dtor), tail of init_stringpool_26b427c_thunk
+0x5128f0  stringpool_26b4268_dtor  func  -                    O ; hidden start, atexit handler: StringPool__dtor(0x26b4268)
+0x512900  init_file_slots          func  vsdk\vfile           O ; hidden start, static initialiser (table 0x5888fc): 4 open-file slots of 0x8040 bytes at 0x2694068 (file_slot__file_slot)
 0x512930  file_get_path_string     func  vsdk\vfile           O ; (String* out, path_id): String(install_path) + file_path_table[id].dir, or install_path without its trailing separator for id 0
 0x5129e0  file_get_dir_string      func  vsdk\vfile           I ; (String* out, path_id): String of file_path_table[id].dir only (empty string 0x26b6388 for id 0)
 0x512a70  file_get_full_dir        func  vsdk\vfile           O ; (path_id, char* out): strcpy install_path, strcat the path's dir (or strip the trailing backslash for id 0), returns out
+0x512af0  file_get_dir             func  vsdk\vfile           O ; hidden start, (path_id, char* out): strcpy of file_path_table[id].dir, empty for id 0, char version of file_get_dir_string
 0x512b30  file_make_path           func  vsdk\vfile           O ; (path_id, filename, char* out): install_path + dir + separator + filename after file_path_id_valid, 15 callers (screenshots, settings, eax props)
 0x512c00  file_make_cd_path        func  vsdk\vfile           O ; (path_id, filename, char* out): same as file_make_path from cd_root_path
 0x512cd0  file_path_id_valid       func  vsdk\vfile           O ; (id) true for 9999999 (default path id) or 0..0x1ff with a registered dir
@@ -4132,8 +4273,14 @@
 0x513370  vfile_raise_access_level func  -                    I ; "Group file access raised to level %d."
 0x513390  vfile_lower_access_level func  -                    I ; "Group file access lowered to level %d."
 0x5133b0  file_find_files          func  vsdk\vfile           I ; recursive directory scan with _findfirst/_findnext, file_strip_ext and a callback, allocating 0x38-byte entries, callers saveload_scan_saves, mp_char_scan_files, quicksave
+0x513590  file_list_files          func  vsdk\vfile           I ; hidden start, (list head, dir, ...): walks registered paths whose dir matches (_strnicmp), builds patterns from the extensions and calls file_find_files
 0x513710  file_exists_on_disk      func  vsdk\vfile           O ; (name, path_id): _stat of file_make_path == 0, false for path ids 9999999/9999998
 0x513770  file_delete              func  vsdk\vfile           O ; (name, path_id): if file_exists_on_disk, SetFileAttributesA(FILE_ATTRIBUTE_NORMAL) then remove
+0x5137e0  file_delete_small_files  func  vsdk\vfile           O ; (pattern, path_id): _findfirst/_findnext, file_delete for every non-directory match smaller than 10 bytes, caller pxo_find_chat_banners
+0x5138c0  file_getcwd              func  vsdk\vfile           I ; hidden start, (buf, size) -> CRT 0x56f337 (_getcwd)
+0x5138e0  file_chdrive             func  vsdk\vfile           I ; hidden start, (drive) CRT 0x56f4ad == 0
+0x513900  file_chdir               func  vsdk\vfile           I ; hidden start, (path): switches drive for "X:" paths (file_chdrive) then changes directory, 0 ok, 1/2 errors
+0x5139d0  file_try_chdir           func  vsdk\vfile           I ; hidden start, (path): saves the cwd, file_chdir(path), restores the old directory on failure, returns success
 0x513a20  FileReader__FileReader   func  vsdk\vfile             I ; {mode +0 (0 File, 1 memory, -1 none), File* +4, buffer +8, pos +0xC, size +0x10}
 0x513a30  FileReader__attach_memory func  vsdk\vfile             I ; (buffer, size)
 0x513a50  FileReader__attach_file  func  vsdk\vfile             I ; (File*)
@@ -4152,7 +4299,13 @@
 0x513da0  FileReader__read_quaternion func  vsdk\vfile             I ; 16 bytes
 0x513e00  FileReader__read_string  func  vsdk\vfile             I ; (buf, max): NUL-terminated
 0x513e60  file_set_cd_root         func  vsdk\vfile           O ; (path) strcpy into cd_root_path
+0x513e90  file_slot__file_slot     func  vsdk\vfile           O ; thiscall ctor of the 0x8040-byte open-file slot: file_slot_state__init on the sub-object at +0x8034
+0x513eb0  file_slot_state__init    func  vsdk\vfile           I ; thiscall: zeroes three dwords (the +0x8034 state of an open-file slot), returns this, used by file_slot__file_slot
+0x513ec0  File__find_at            func  vsdk\vfile           O ; thiscall (full path, &packentry, use_packfiles): _stat on disk else packfile_find, sets found flag +4
+0x513f30  File__find_in_path       func  vsdk\vfile           O ; thiscall (name, path_id, ...): file_make_path into +5, path id into +0, then File__find_at, caller File__find
+0x513f70  File__find_on_cd         func  vsdk\vfile           O ; hidden start, thiscall: as File__find_in_path with file_make_cd_path
 0x513fb0  file_is_absolute_path    func  vsdk\vfile           O ; (name) true for "X:..." or a leading / or backslash
+0x513fd0  File__get_packfile_path  func  vsdk\vfile           I ; thiscall (out, ...): fails unless in a packfile (+0x108), builds install_path + packfile name, caller snd_load
 0x5140b0  file_find_free_slot      func  vsdk\vfile           O ; index of the first free 0x8040-byte open-file slot at 0x2694068, -1 if none
 0x5140d0  File__File               func  vsdk\vfile             O ; Dash Faction rf::File (0x114-byte object)
 0x5140f0  File__dtor               func  vsdk\vfile             O ; closes if open
@@ -4160,21 +4313,37 @@
 0x514120  File__check_version      func  vsdk\vfile           V ; thiscall (min_ver): slot version (+8) >= min_ver, Dash Faction File::check_version, called by every File__read_*
 0x514150  File__get_version        func  vsdk\vfile           O ; thiscall: slot version (+8)
 0x514170  File__set_version        func  vsdk\vfile           O ; thiscall (ver): slot version (+8) = ver, callers monster_layout_load, pathfinding_load_graph
+0x514190  File__get_full_path      func  vsdk\vfile           O ; thiscall: returns this + 5 (the resolved path buffer), caller snd_load
+0x5141a0  File__get_filename       func  vsdk\vfile           O ; hidden start, thiscall: part of the path buffer +5 after the last backslash
 0x5141c0  File__find               func  vsdk\vfile             O ; (name, path_id); Dash Faction
+0x514460  File__open_found         func  vsdk\vfile           O ; thiscall (mode): opens the found file: write mode makes the dirs and fopens "wb"/"wt", read mode fopen or packfile_fopen, fills a free slot, callers File__open, File__calc_crc32
 0x514630  File__open               func  vsdk\vfile             O ; (name, mode, path_id); Dash Faction
 0x514740  File__close              func  vsdk\vfile             O ; fclose or packfile_fclose
+0x5147c0  File__get_async_status   func  vsdk\vfile           O ; thiscall: packfile_fstatus for an open packfile entry with the async flag, else 1, caller effect_stream_update
+0x514810  File__check_stream_error func  vsdk\vfile           I ; hidden start, thiscall: CRT 0x56f813 (ferror) on the slot FILE*, sets the slot error (+0xc) to -100000 when set
 0x514860  File__size               func  vsdk\vfile             O ; Dash Faction File::size(name, path_id)
+0x5148f0  File__is_in_packfile     func  vsdk\vfile           O ; hidden start, thiscall: packentry (+0x108) set and its packfile flag bit 0
 0x514910  File__seek               func  vsdk\vfile             O ; Dash Faction File::seek(pos, origin); fseek or packfile_fseek
 0x5149f0  File__tell               func  vsdk\vfile             O ; Dash Faction File::tell
 0x514a10  File__eof                func  vsdk\vfile             I
 0x514a40  File__error              func  vsdk\vfile             O ; Dash Faction File::error
+0x514a60  File__get_path_id        func  vsdk\vfile           O ; hidden start, thiscall: returns +0 (path id stored by File__find_in_path)
 0x514a70  File__is_open            func  vsdk\vfile           O ; thiscall: slot index (+0x110) >= 0
 0x514a80  File__delete             func  vsdk\vfile           O ; thiscall (name, path_id): File__find, -4 if not found, -3 if open, else remove(full name at +5), callers saveload_delete_save, script writers
+0x514ae0  File__make_backup        func  vsdk\vfile           I ; thiscall (name, path_id, ...): -4 not found, -3 in a packfile, else builds a sibling name with sprintf and renames (CRT 0x56fa32), callers cmd_save_map_labels and the level script writers
+0x514bf0  File__get_attributes     func  vsdk\vfile           O ; thiscall (name, path_id): GetFileAttributesA -> 2 read-only, 4 archive, 3 for packfile entries, -4 not found
+0x514c60  File__set_attributes     func  vsdk\vfile           O ; hidden start, thiscall (flags, name, path_id): adds read-only (2) / archive (4) with SetFileAttributesA
+0x514ce0  File__clear_attributes   func  vsdk\vfile           O ; hidden start, thiscall (flags, name, path_id): removes read-only (2) / archive (4) with SetFileAttributesA
+0x514d60  File__calc_crc32         func  vsdk\vfile           O ; hidden start, thiscall (name, path_id): opens if needed, reads 1 KB blocks through Crc32__update, restores the position
+0x514eb0  Crc32__Crc32_b           func  vsdk\vfile           O ; thiscall value = 0, second copy of Crc32__Crc32, callers File__calc_crc32, TextFile__Checksum
 0x514ec0  is_blank                 func  -                    V ; Summoner 2 plainstring.cpp is_blank: true when the string is empty or only space/tab/newline
 0x514f00  trim_leading_whitespace  func  -                    O ; (dest, src): skips leading space/tab/newline then strcpy
 0x514f60  trim_trailing_whitespace func  -                    O ; (dest, src): strncpy without trailing space/tab/newline
 0x514fb0  trim_whitespace          func  -                    V ; Summoner 2 plainstring.cpp trim_whitespace(dest, src, max_length): first/last non-blank, strncpy, empty when count <= 0
+0x515030  format_indented_column   func  -                    I ; hidden start, (dest, indent, label, width, fmt, ...): indent copies of a 2-char unit, the label, padding to width, then the vsprintf text
+0x515170  format_indented_column_b func  -                    I ; hidden start, second variant of format_indented_column with its own fill strings
 0x5152a0  int_to_string_with_commas func  -                    V ; Summoner 2 plainstring.cpp: sprintf %d then inserts a comma every three digits, callers status_draw_level, ring_format_info
+0x5153b0  gr_string_truncate_ellipsis func  -                    O ; (dest, s, max_w, font): copies s and, when gr_get_string_size exceeds max_w, cuts it and appends "..." until it fits, 10 UI callers
 0x5154d0  strcat_char              func  -                    O ; (string, c): appends one char and a terminator, returns string
 0x515500  stristr                  func  -                    V ; Summoner 2 plainstring.cpp stristr: lower-cases both strings into 512-byte buffers (tolower), strstr, maps the hit back into the original
 0x5155e0  strlwr                   func  -                    V ; Summoner 2 plainstring.cpp strlwr (tolower per char), caller file_add_path
@@ -4233,20 +4402,29 @@
 0x516cd0  vector3_to_string        func  -                      I ; "<x, y, z>"-style text through the string class (0x556f70 / 0x557070 / 0x557c00)
 0x516e80  matrix3_to_string        func  -                      I ; three vector3_to_string rows
 0x517000  bool_to_cstr             func  -                    O ; (char* dest, bool): strcpy "true"/"false"
+0x517060  vector3_to_cstr          func  -                    O ; (dest, precision, v): sprintf "< %.*f, %.*f, %.*f >", caller script_write_navpoint
+0x5170d0  matrix3_to_cstr          func  -                    O ; (dest, precision, m): nine %.*f values of the three rows, caller script_write_navpoint
+0x517180  file_write_text_block    func  -                    O ; hidden start, (text, File*): writes the text in lines of at most 70 chars broken at spaces/CR, then "$end text" (File__printf)
+0x517220  file_blast_into_buffer   func  vsdk\vfile           I ; hidden start, (buf, size, name): remembers buffer and name (0x26b63a0/0x26b63a4), loads the file through 0x534900, "ERROR BLASTING FILE INTO BUFFER!" on failure, buf NULL resets
 0x5172f0  movie_play               func  -                    O ; (file name): plays a Bink movie until it ends or a key is pressed; called for vlogo.bik/eaxlogo.bik (mainmenu_init) and by credits_frame
+0x517430  movie_blit_frame         func  -                    I ; (bink): BinkDoFrame then copies the frame to the back buffer (Glide grLfbLock / D3D surface lock) and gr_flip, caller movie_play
 0x517590  nw_buffer_receive        func  vsdk\net               I ; pops a packet from the per-type receive buffer
 0x5175e0  nw_can_write             func  vsdk\net               I ; select() for writability on nw_udp_socket
+0x517630  nw_reliable_slot_status  func  vsdk\net             I ; (slot 0..4): 1 when the reliable slot has a connected socket within range, 0 otherwise, -1 for bad ids
 0x517680  nw_send_packet           func  vsdk\net               I ; (data, len, flags, addr, type): prefixes a type byte, sendto()
 0x517730  nw_buffer_init           func  vsdk\net               I
 0x517780  nw_buffer_push           func  vsdk\net               I
 0x517820  nw_buffer_pop            func  vsdk\net               I
 0x5178c0  nw_ras_init              func  vsdk\net               I ; loads RasEnumConnectionsA / RasGetConnectStatusA / RasGetProjectionInfoA (dial-up)
 0x517ae0  nw_set_socket_options    func  vsdk\net               I ; broadcast, non-blocking ("Unable to make socket non-blocking"), receive buffer size
+0x517bf0  nw_reliable_reset        func  vsdk\net             O ; zeroes the reliable socket table 0x2708ad0 (0x20f0 dwords) and returns 1, caller nw_init_socket
 0x517c10  nw_init_socket           func  vsdk\net               I ; (port): UDP socket (message says "TCP"), bind, options
 0x517d20  nw_send_reliable_reply   func  vsdk\net               I ; 14-byte control packet to a reliable peer
 0x517d70  nw_send_heartbeat        func  vsdk\net               I ; 10-byte control packet, records the send time
+0x517dc0  float_compare            func  -                    O ; hidden start, qsort callback (float* a, float* b): 1, -1 or 0, address taken by nw_work_reliable
 0x517e00  nw_work_reliable         func  vsdk\net               I ; connection requests, IAMHERE/ACK, resends, "Reliable socket %d timed out"
 0x518770  nw_receive_all           func  vsdk\net               I ; select + recvfrom, sorts packets into per-type buffers by the first byte
+0x518880  nw_close                 func  vsdk\net             O ; hidden start, atexit handler registered by nw_init_networking: WSACancelBlockingCall, shutdown + closesocket nw_udp_socket, WSACleanup
 0x5188d0  nw_init_networking       func  vsdk\net               I ; ConnectionSpeed from the registry, RAS, WSAStartup(1.1), nw_init_socket
 0x518a30  nw_addr_to_string        func  vsdk\net               I ; "IP: %s:%d"
 0x518a90  nw_send_to               func  vsdk\net               I
@@ -4255,9 +4433,14 @@
 0x518bb0  nw_NewReceiveReliable    func  -                      O ; own assert "Invalid socket id passed to nw_NewReceiveReliable()"
 0x518ce0  nw_accept_reliable       func  vsdk\net               I ; "Got address from: %s"
 0x518d70  nw_NewSendReliable       func  -                      O ; own assert "Invalid socket id passed to nw_NewSendReliable()"
+0x518f30  nw_ConnectToServer       func  vsdk\net             O ; hidden start, own message "Unable to send UDP packet in nw_ConnectToServer()!", connection request with timeout, recvfrom errors, caller mp_handle_acpt_jn
 0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
 0x519370  nw_addr_equal            func  vsdk\net               I
 0x5193a0  net_get_reliable_socket_status func  -                      O ; own assert "Invalid socket id passed to net_get_reliable_socket_status()"
+0x5193f0  net_get_reliable_socket_ping func  -                    O ; hidden start, own assert "Invalid socket id passed to net_get_reliable_socket_ping()", returns the ping field of the reliable socket record (index below 10), caller chat_cmd_ping
+0x519440  nw_flush_receive         func  vsdk\net             I ; hidden start, drains nw_receive, then nw_buffer_receive for every connected reliable slot, caller nw_ConnectToServer
+0x5194b0  init_vertex_buf_2710ed0  func  vsdk\ca              O ; hidden start, static initialiser (table 0x588900): 3000 vector3 at 0x2710ed0
+0x5194e0  init_vertex_buf_2719b70  func  vsdk\ca              O ; hidden start, static initialiser (table 0x588904): 3000 vector3 at 0x2719b70
 0x519510  character_instance__free_buffers func  vsdk\ca              O ; operator_delete of the anim time/weight arrays (+0x40/+0x44) and the vertex buffers (+0x48/+0x4c)
 0x519570  character_instance__alloc_buffers func  vsdk\ca              O ; vertex buffers from the mesh vertex count (gr__Vertex 0x34 and 0x30-byte arrays at +0x48/+0x4c), 100-entry time/weight arrays, times = skeleton start (+0x60)
 0x5196b0  character_instance__character_instance_default func  vsdk\ca              O ; default constructor: vector members and 0xcc zero bytes, caller the eh vector iterator thunk 0x4115a0
@@ -4265,6 +4448,8 @@
 0x519840  character_instance__dtor func  vsdk\ca              I ; calls character_instance__free_buffers, caller the eh vector destructor thunk 0x4115b0
 0x519850  character_instance__reset_anims func  vsdk\ca              O ; thiscall (clear_weights): allocates buffers if missing, optionally zeroes weights, resets every anim time to its skeleton start, callers level_load_preload, character_reinit_anims
 0x5198a0  character_instance__rewind_anim func  vsdk\ca              O ; thiscall (anim): weight 0 and time = skeleton start (+0x60), caller statscreen_load_anim
+0x5198d0  character_instance__blend_bone_keys func  vsdk\ca              I ; blends position/rotation keys of the active animations (slerp, weighted add) into a matrix43 (matrix43__set_quat), caller 0x519ac0
+0x519ac0  character_instance__build_bone_matrices func  vsdk\ca              I ; recursive per-bone matrix build (matrix43__multiply_4x4, skeleton_get_bone_blend_weight), "CHAR INST : %s", callers increment_tick, setup_matrices(_b), compute_bone_matrix
 0x51a130  skeleton_get_bone_blend_weight func  vsdk\ca              I ; (skeleton, bone, time): per-bone weight byte (+0x88) faded in over +0xa0 and out over +0xa4 ticks
 0x51a1e0  character_instance__advance_anim_time func  vsdk\ca              I ; thiscall (anim, dt): per-anim speed from a 5-entry (anim, scale) table, time +0x40[anim] += dt * scale
 0x51a230  character_instance__increment_tick func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::increment_tick"
@@ -4272,9 +4457,16 @@
 0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
 0x51a780  character_instance__setup_matrices_b func  vsdk\ca\character_instance.cpp I ; second function with label "character_instance::setup_matrices"
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
+0x51a950  character_instance__get_root_velocity func  vsdk\ca              O ; thiscall (out): weighted sum of skeleton__get_root_velocity of the active animations into +0x64, callers character_stopping_distance, ai_follow_path and others
+0x51aab0  character_instance__get_motion_delta func  vsdk\ca              I ; thiscall (out): movement since the last frame from +0x7c/+0x88/+0x94 or the root velocity, validated with vector3__is_valid
+0x51abb0  character_instance__get_root_offset func  vsdk\ca              I ; thiscall (out): copy of the vector at +0x94, caller 0x45c340
 0x51abd0  character_instance__check_anims func  vsdk\ca\character_instance.cpp I ; "Character has NULL anim: %s (%d)"
+0x51acb0  character_instance__take_turn_delta func  vsdk\ca              I ; thiscall (out quat): quaternion from the yaw delta +0x78 - +0x74, then clears both
 0x51ad00  character_instance__get_tag_pos func  vsdk\ca              I ; thiscall (&out, tag) world position of a mesh tag (0xa0-byte tags of mesh +0x1e4), zero vector when out of range, used by character_update_footsteps
 0x51adc0  character_instance__get_bounding_sphere func  vsdk\ca              O ; thiscall (&centre, &radius) from the mesh header (+0x28): centre +0x50, radius +0x5c
+0x51ae00  character_instance__get_bone_bind_inverse func  vsdk\ca              I ; thiscall (out pos, out matrix, bone): bone base position from the mesh and the inverse of the bone bind matrix (matrix43__inverse)
+0x51ae70  ca_system_init_stub      func  vsdk\ca              O ; empty function called by ca_system_init
+0x51ae80  ca_system_close_stub     func  vsdk\ca              O ; empty function called by ca_system_close
 0x51ae90  character_instance__set_state_weight func  vsdk\ca              O ; thiscall (anim, weight) only for state skeletons (+0x5c), weight > 0 makes it the dominant state (+0x5c of the instance)
 0x51aee0  character_instance__start_anim func  vsdk\ca              O ; thiscall (anim, weight, is_action): stop, weight +0x44, time = skeleton start +0x60, action index +0x54
 0x51af70  character_instance__set_anim_speed func  vsdk\ca              O ; thiscall (anim, scale): stores into the 5-entry (anim, scale) table read by character_instance__advance_anim_time when the anim is active
@@ -4284,6 +4476,7 @@
 0x51b100  character_instance__clear_state_anims func  vsdk\ca              O ; zeroes the weights of all state skeletons, dominant state +0x5c = -1
 0x51b140  character_instance__clear_action_anims func  vsdk\ca              O ; zeroes the weights of all non-state skeletons
 0x51b1c0  character_instance__stop_anim func  vsdk\ca              O ; thiscall (anim): weight 0, clears the action index +0x58 if it was this anim
+0x51b1e0  character_instance__get_anim_root_velocity func  vsdk\ca              O ; hidden start, thiscall (anim, out): skeleton__get_root_velocity of that animation, zero when its skeleton has no root motion (+0x5c)
 0x51b250  character_instance__get_anim_root_speed func  vsdk\ca              I ; thiscall (anim): length of skeleton__get_root_velocity for state skeletons
 0x51b290  character_instance__anim_trigger_hit func  vsdk\ca              I ; thiscall (name, ...) checks the 5 trigger slots (+0xa8) of the current action skeleton (+0xb0), used by character_update_footsteps
 0x51b330  character_instance__page_in_textures func  vsdk\ca              O ; gr_page_in every texture of the mesh with progress_update, caller level_page_in_characters
@@ -4293,11 +4486,15 @@
 0x51b4a0  character_instance__report_memory func  vsdk\ca\character_instance.cpp I ; mem_report_line "cur time", "anim pct", "bone info", "TOTAL"
 0x51b560  ca_system_init           func  vsdk\ca              I ; LoadSettings: empty stub, ca_init(arg), then resets the skeleton read state (0x544a10)
 0x51b580  ca_system_close          func  vsdk\ca              I ; empty stub, ca_close, empty stub
+0x51b590  character_instance__set_tint func  vsdk\ca              O ; thiscall (r, g, b): bytes +0xc9/+0xca/+0xcb (copied by character_instance__render), callers character_clear_all_effects, 0x45b6e0
+0x51b5c0  init_ccmd_high_lod_thunk func  -                    O ; hidden start, initialiser table entry 0x588908: jmp init_ccmd_high_lod
 0x51b5d0  init_ccmd_high_lod       func  -                    O ; static initialiser: registers console command object ccmd_high_lod
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
 0x51b6b0  profile_label__profile_label func  -                    I ; thiscall (const char* label) returning this, empty in release: the label strings "ix_ray_sphere", "character_instance::process" etc are passed to it
 0x51b6c0  matrix43__copy           func  vsdk\math            O ; rep movsd of 12 dwords (0x30 bytes)
+0x51b6e0  matrix43__get_position_b func  vsdk\math            O ; thiscall (out): copies +0x24..+0x2c, second copy of matrix43__get_position, 8 callers
 0x51b700  vector3__negated         func  vsdk\math            O ; (&out) returns (-x, -y, -z)
+0x51b730  quaternion__assign_b     func  vsdk\math            O ; thiscall copy of four floats returning this, second copy of quaternion__assign
 0x51b750  imax                     func  -                    O ; (a, b) larger int, counterpart of imin (0x503dc0)
 0x51b760  InetGetFile__AbortGet    func  -                    I ; FreeSpace 2 style InetGetFile: http_abort_get or the ftp getter (+0x8 selects http +4 / ftp +0)
 0x51b780  InetGetFile__InetGetFile func  -                    I ; (url, local file) "http:" -> http_get_create, "ftp:" -> ftp_get_create, error flag +0x14, callers version_check_fetch, pxo_load_chat_banners
@@ -4306,20 +4503,46 @@
 0x51b9b0  InetGetFile__IsReceiving func  -                    I ; getter status == 0xb
 0x51b9e0  InetGetFile__IsFileReceived func  -                    I ; getter status == 0xc
 0x51ba10  InetGetFile__IsFileError func  -                    I ; error flag +0x14, else a table over getter states 0..0xf
+0x51bb10  InetGetFile__GetBytesIn  func  -                    I ; hidden start, FreeSpace 2 style: http getter (+4) or ftp getter (+0) bytes received (0x55abb0 / 0x55a1d0)
 0x51bb30  http_get__scalar_deleting_dtor func  -                    O ; http_get_destroy then operator delete
 0x51bb50  ftp_get__scalar_deleting_dtor func  -                    O ; ftp_get_destroy then operator delete
+0x51bb70  init_vertex_buf_272b900  func  vsdk\geom            O ; hidden start, static initialiser (table 0x58890c): 1820 vector3 at 0x272b900
+0x51bba0  init_fx_rec48_array      func  vsdk\geom            O ; hidden start, static initialiser (table 0x588910): 0x30 records of 0x48 bytes at 0x2c7d010 (fx_rec48__ctor)
+0x51bbd0  init_fx_rec98_array      func  vsdk\geom            O ; hidden start, static initialiser (table 0x588914): 0x180 records of 0x98 bytes at 0x2c7ddb0 (fx_rec98__ctor)
+0x51bc00  init_fx_rec30_array_2730e50 func  vsdk\geom            O ; hidden start, static initialiser (table 0x588918): 0x20 records of 0x30 bytes at 0x2730e50 (fx_rec_2vec__ctor)
+0x51bc30  init_fx_rec2c_array_2c8ff60 func  vsdk\geom            O ; hidden start, static initialiser (table 0x58891c): 0x40 records of 0x2c bytes at 0x2c8ff60 (fx_rec_2vec__ctor)
+0x51bc60  init_fx_rec4c_array      func  vsdk\geom            O ; hidden start, static initialiser (table 0x588920): 0x80 records of 0x4c bytes at 0x2c8c1b0 (fx_rec4c__ctor)
+0x51bc90  init_fx_rec28_array_2c42690 func  vsdk\geom            O ; hidden start, static initialiser (table 0x588924): 6000 records of 0x28 bytes at 0x2c42690 (fx_rec_2vec__ctor)
+0x51bcc0  init_fx_recb0_array      func  vsdk\geom            O ; hidden start, static initialiser (table 0x588928): 0x80 records of 0xb0 bytes at 0x27229d8 (fx_recb0__ctor)
+0x51bcf0  init_effects_mempool     func  vsdk\geom\effect_mem.cpp O ; hidden start, static initialiser (table 0x58892c): Mempool__Mempool(0x2c98a70, 0x2731450, 0x511240, "Effects")
+0x51bd20  init_effects_string_pool func  vsdk\geom            O ; hidden start, initialiser table entry 0x588930: constructs StringPool 0x2c7dd98 and registers its atexit destructor
+0x51bd30  effects_string_pool_ctor func  vsdk\geom            O ; StringPool__StringPool_default(0x2c7dd98), called by init_effects_string_pool
+0x51bd40  effects_string_pool_register_dtor func  vsdk\geom            O ; atexit(effects_string_pool_dtor)
+0x51bd50  effects_string_pool_dtor func  vsdk\geom            O ; hidden start, atexit handler: StringPool__dtor(0x2c7dd98)
+0x51bd60  init_ccmd_show_effect_mem_thunk func  -                    O ; hidden start, initialiser table entry 0x588934: jmp init_ccmd_show_effect_mem
 0x51bd70  init_ccmd_show_effect_mem func  -                    O ; static initialiser: registers console command object ccmd_show_effect_mem
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
+0x51bda0  effect_base_alloc_stream_buffer func  vsdk\geom\effect_mem.cpp O ; (index): operator_new(size + 64) for a streamed base without a buffer, returns the buffer aligned with align_up_64, undoes the slot count on failure, caller effect_stream_open_current
+0x51be80  align_up_64              func  -                    O ; (value) rounded up to a multiple of 0x40, callers effect_base_alloc_stream_buffer, 0x51c6a0
+0x51bea0  effect_base_finish_stream func  vsdk\geom\effect_mem.cpp I ; (index): for a streamed, not yet resident base runs vfx_relocate over its data and realigns the Effects mempool offset, caller effect_stream_finish_entry
+0x51bf20  vfx_preload_by_name      func  vsdk\geom            O ; hidden start, (name): vfx_find_name, rfx_preload of its base unless resident or streaming, -1 if unknown
 0x51bf70  vfx_find_name            func  vsdk\geom            I ; (path): strips the directory (strrchr '\\'), _stricmp over the name table 0x27281d8 (count 0x2c9f99c), index or -1
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
 0x51c370  effect_base_release      func  vsdk\geom            I ; (index) clears the loaded data of the 0x14-byte effect base (table 0x2c8f060), streamed bases (kind 3) drop a use count, used by rfx_preload
 0x51c490  effect_base_load         func  vsdk\geom            I ; (index) loads an effect base unless already resident (flag 0x80000000), -1 on failure
 0x51c520  effects_alloc_stream_slot func  vsdk\geom            O ; (base): ring of 6 streamed-effect slots at 0x2c9f270 (cursor 0x2c9f974), releases an unused base (effect_base_release) when full
+0x51c5c0  effects_find_stream_slot func  vsdk\geom\effect_mem.cpp I ; picks the next of 6 slots in the 8-entry ring 0x27288b8 (cursor 0x2c9f970), releasing an unused base (effect_base_release), caller rfx_preload
+0x51c660  effects_preload_slot_ptr func  vsdk\geom            I ; (slot) address of a fixed-size preload buffer from 0x2965f10, caller rfx_preload
+0x51c680  effects_stream_slot_ptr  func  vsdk\geom            I ; (slot) address of a fixed-size stream buffer from 0x277d910 (the cutscene range freed by effects_release_cutscene_memory), caller rfx_preload
+0x51c6a0  effect_base_queue_stream func  vsdk\geom\effect_mem.cpp I ; (index, out ptr, queue, ...): aligned buffer size of the base and effect_stream_queue_add of its name, caller rfx_preload
 0x51c720  effect_get_base          func  vsdk\geom            I ; (id) effect base for an id through the byte map 0x2c8e7c8, loading it on demand, used by ui_3d_begin and the fx instance code
 0x51c800  effects_get_num_bases    func  vsdk\geom            O ; returns the effect base count 0x2c9f998
 0x51c810  effects_find_base        func  vsdk\geom            O ; (name) _stricmp over the base names (+0x10), index or -1
+0x51c860  effect_base_set_info     func  vsdk\geom            O ; hidden start, (index, kind, data, size): kind word, data pointer and the 23-bit size of the 0x14-byte base record
 0x51c8b0  effect_base_read         func  vsdk\geom            I ; (index) opens the base file by name with File and reads it into its buffer
 0x51c9c0  vfx_preload              func  vsdk\geom              I ; (name.vfx, flags)
+0x51c9f0  vfx_relocate             func  vsdk\geom            I ; thiscall (base, end): runs vfx_relocate_entry over the +0 count of 8-byte entries at +0xc, caller effect_base_finish_stream
+0x51ca30  vfx_relocate_entry       func  vsdk\geom            I ; thiscall (base, end): fixes the pointer at +4 (0x564d50) then 0x536bc0
 0x51ca60  effects_parse_arr_line   func  vsdk\geom\effect_mem.cpp O ; reads one effects.arr line: name and category preload/cutscene/level/spell/character/summon, only caller effects_load_bases
 0x51ccd0  effects_reset_level      func  vsdk\geom            I ; clears the preload/stream slot tables (-1) and the per-level flag of every base, then effects_init_pools
 0x51cd40  effects_init_pools       func  vsdk\geom            I ; zeroes the effect memory pool counters 0x2c9f978..0x2c9f990, used by effects_load_bases
@@ -4328,17 +4551,81 @@
 0x51dbb0  effects_load_preload_rfx func  vsdk\geom            O ; finds the base named "preload.rfx" and loads it once (flag 0x2c9f994)
 0x51dc20  effects_release_level_memory func  vsdk\geom            I ; releases every base inside the level effect memory range, callers level_unload
 0x51dc50  effects_release_range    func  vsdk\geom            I ; (start, size) releases every loaded base whose data lies in the range
+0x51dcb0  vfx_all_resident         func  vsdk\geom            O ; hidden start, (names[25]): true when every named vfx is found and resident (flag 0x80000000)
 0x51dd00  vfx_load                 func  vsdk\geom            I ; (name, ...): level scope unless the name starts with "nar-", "mi-" or "worl", vfx_preload then builds the instance data, callers ui_load_model_lights, fx_create_instance
+0x51de90  effects_base_is_resident func  vsdk\geom            O ; (name): effects_find_base then the resident bit, true when not found, caller effect_stream_next
+0x51dec0  effect_is_cutscene_base  func  vsdk\geom            I ; (id): bit 26 of the base flags through the byte map 0x2c8e7c8, callers fx_pause_for_cutscene, fx_resume_after_cutscene
+0x51def0  effects_release_cutscene_memory func  vsdk\geom            O ; when 0x2c9f96c is set, effects_release_range(0x277d910, 0x4c4d80), caller cutscene_cleanup
+0x51df10  fx_rec48__ctor           func  vsdk\geom            O ; thiscall ctor of the 0x48-byte record (vector at +0x30), used by init_fx_rec48_array
+0x51df20  fx_rec98__ctor           func  vsdk\geom            O ; thiscall ctor of the 0x98-byte record: vectors +0/+0x20/+0x50/+0x80, matrices +0x2c/+0x5c
+0x51df60  fx_rec_2vec__ctor        func  vsdk\geom            O ; thiscall ctor with vectors at +8 and +0x14, shared by three record arrays
+0x51df80  fx_rec4c__ctor           func  vsdk\geom            O ; thiscall ctor of the 0x4c-byte record: vectors +0xc/+0x18/+0x28/+0x34
+0x51dfb0  fx_recb0__ctor           func  vsdk\geom            O ; thiscall ctor of the 0xb0-byte record: vectors +0x1c/+0x4c..+0x7c, matrix +0x28
+0x51dff0  Mempool__Mempool         func  memory.cpp           O ; thiscall (buffer, size, name) -> Mempool__Copy, returns this, used by init_effects_mempool
+0x51e010  Mempool__getPoolSpaceLeft func  memory.cpp           V ; Summoner 2 Mempool::getPoolSpaceLeft(): size (+4) - offset (+8)
+0x51e020  vfx_get_length_seconds   func  vsdk\geom            I ; thiscall: (+0x24 + 1) * +0x20 / 4800 (4800 ticks per second), caller 0x51d250
+0x51e040  fixed8__set              func  vsdk\math            O ; thiscall (float): stores float_to_fixed8 as an int16
+0x51e060  float_to_fixed8          func  vsdk\math            O ; (f) ftol(f * 256)
+0x51e070  init_lights              func  vsdk\gr              O ; hidden start, static initialiser (table 0x588938): 400 lights of 0x94 bytes at 0x2ca5de0 (light__light)
+0x51e0a0  init_light_list_head     func  vsdk\gr              O ; hidden start, static initialiser (table 0x58893c): light__light(0x2cb4520), the list head emptied by light_reset_all
 0x51e0c0  light_reset_all          func  vsdk\gr              I ; empties the light list 0x2cb4520 and zeroes the 400 x 0x94-byte light array 0x2ca5de0
-0x51e100  light_set_all_disabled   func  vsdk\gr              I ; (bool) sets bit 14 of the flags (+8) of every light in the list, ui_3d_begin/ui_3d_end
+0x51e100  light_set_all_enabled    func  vsdk\gr              I ; (bool) sets bit 14 (enabled; lights_collect_enabled keeps only lights with it) of the flags +8 of every light in the list 0x2cb4520 (formerly light_set_all_disabled)
+0x51e140  light_transform_to_instance func  vsdk\gr              O ; (light): point (type 2) and spot (type 3) position/direction into the current instance space (gr_light_base, gr_light_matrix) at +0x40/+0x4c, caller lights_transform_selection
 0x51e230  light_set_ambient        func  vsdk\gr              I ; (r, g, b) into 0x5a8904..0x5a890c, bumps the light change counter
 0x51e260  light_get_ambient        func  vsdk\gr              V ; Dash Faction rf::gr::light_get_ambient(float *r, float *g, float *b): reads 0x5a8904..0x5a890c, after padding
 0x51e290  light_create_point       func  vsdk\gr              I ; allocates a light (light_alloc) and sets type 2 (Red Faction LT_POINT) with position and colour
 0x51e360  light_get                func  vsdk\gr              O ; (index) &lights[index], 0x94-byte entries at 0x2ca5de0
 0x51e380  light_alloc              func  vsdk\gr              O ; first light with type 0 among 400, -1 when full
+0x51e3f0  light_create_spot        func  vsdk\gr              O ; light_alloc, type 3, position, direction from a quaternion (to_matrix_b), clamped intensity, angles through light_set_spot_angles, caller 0x48e520
+0x51e540  light_delete             func  vsdk\gr              I ; (index): bumps the change counter, unlocks the projected bitmap (+0x68) of type 4 lights and frees the entry, callers ui_3d_end, levelrender_setup_level_lights
+0x51e5e0  light_set_pos            func  vsdk\gr              O ; hidden start, (index, pos) into +0xc, bumps the change counter 0x2cb45b4 unless the light is dynamic (bit 15)
+0x51e620  light_get_pos            func  vsdk\gr              O ; hidden start, (index, out) copy of +0xc
+0x51e650  light_set_enabled        func  vsdk\gr              O ; hidden start, (index, bool) bit 14 of the flags +8 (lights_collect_enabled only takes lights with it set)
+0x51e690  light_is_enabled         func  vsdk\gr              O ; hidden start, (index) bit 14 of the flags +8
+0x51e6b0  light_set_radius         func  vsdk\gr              O ; hidden start, (index, inner, outer): +0x2c/+0x30 and their squares +0x58/+0x5c
+0x51e700  light_get_radius         func  vsdk\gr              O ; hidden start, (index, &inner, &outer)
+0x51e720  light_set_color          func  vsdk\gr              O ; hidden start, (index, intensity, r, g, b): +0x34..+0x3c = colour * intensity
+0x51e770  light_get_color          func  vsdk\gr              O ; hidden start, (index, &r, &g, &b, &intensity): reads +0x34..+0x3c, intensity 1
+0x51e7b0  light_set_spot_dir       func  vsdk\gr              O ; hidden start, (index, dir) into +0x18 for spot lights (type 3)
+0x51e800  light_get_spot_dir       func  vsdk\gr              O ; hidden start, (index, out): +0x18 for spot lights, else (1, 0, 0)
+0x51e850  light_set_spot_angles    func  vsdk\gr              O ; (index, a, b) degrees into +0x24/+0x28 and -cos(angle * k) into +0x60/+0x64 for spot lights, caller light_create_spot
+0x51e8c0  light_get_spot_angles    func  vsdk\gr              O ; hidden start, (index, &a, &b) +0x24/+0x28 for spot lights
+0x51e910  lights_collect_enabled   func  vsdk\gr              O ; walks the light list 0x2cb4520 into the array 0x2c9f9e0 (count 0x2c9f9a0) for lights with a type and bit 14, resets the selection depth 0x2cb45bc to 1, callers light_reset_all, lights_select_nearest, mesh_check_materials
+0x51e970  lights_select_nearest    func  vsdk\gr              I ; (pos, radius, ...): pushes a selection level with the lights in range sorted by distance (qsort light_compare_dist), callers the character mesh renderers, mesh_check_materials, 0x4bc6b0
+0x51eb10  light_compare_dist       func  vsdk\gr              O ; hidden start, qsort callback comparing the float +0x90 of two light pointers
+0x51eb50  lights_pop_selection     func  vsdk\gr              O ; selection depth 0x2cb45bc -= 1, callers the character mesh renderers
+0x51eb60  lights_transform_selection func  vsdk\gr              O ; inside an instance (gr_instance_depth) applies light_transform_to_instance to every light of the current selection
+0x51ebb0  lights_get_selection_count func  vsdk\gr              O ; hidden start, count of the current selection level (0x2c9f99c[depth])
+0x51ebc0  lights_get_selected_info func  vsdk\gr              I ; hidden start, (i, out pos, out radii, ...): selected light data, instance-space position when inside an instance
+0x51ec50  lights_get_selected      func  vsdk\gr              O ; hidden start, (i) light pointer i of the current selection level
+0x51ec70  lights_shade_point       func  vsdk\gr              I ; (pos, normal, out colour): accumulates the selected lights (distance falloff, spot cone, projected bitmaps), callers lights_select_nearest, lights_shade_vertices
+0x51f0d0  light_sample_projected_bitmap func  vsdk\gr              I ; bm_lock/bm_get_data of a type 4 light's bitmap and samples the texel for a point, caller lights_shade_point
+0x51f3b0  lights_shade_vertices    func  vsdk\gr              I ; per-vertex colours from ambient plus lights_shade_point, clamped and converted to bytes, callers the character mesh renderers, mesh_check_materials
+0x51f530  lights_set_max_per_object func  vsdk\gr              I ; 0x5a8900 = n, options_apply_detail passes 2/4/6 by detail level, ui_3d_begin/end change it
+0x51fa20  light_set_dynamic        func  vsdk\gr              I ; hidden start, (index, bool) bit 15 of the flags +8 (dynamic lights do not bump the change counter)
+0x51fa50  light_is_dynamic         func  vsdk\gr              I ; hidden start, (index) bit 15 of the flags +8
+0x51fa70  lights_debug_draw        func  vsdk\gr              O ; hidden start, gr_set_color(0, 255, 0) then draws every light position (0x53f720) with mode 0x25d8ce4
+0x51fac0  light__light             func  vsdk\gr              O ; thiscall ctor of the 0x94-byte light: vectors +0xc/+0x18/+0x40/+0x4c, matrix +0x6c
 0x51faf0  float_min                func  vsdk\math            O ; (a, b) returns the smaller float (counterpart of float_max), 17 callers in lighting/effects
+0x51fb10  init_shadows             func  vsdk\geom            O ; hidden start, static initialiser (table 0x588940): 0x18 shadows of 0x98 bytes at 0x2cb45d0 (shadow__shadow)
+0x51fc80  vfx_node_free_shadow     func  vsdk\geom            I ; thiscall: shadow index packed in bits 23..28 of +4, shadow_free when present, callers 0x51d7b0, 0x5369f0
+0x520070  shadows_init_slots       func  vsdk\geom            O ; marks all 0x18 shadow slots free (type byte -1), callers shadows_init, fx_level_restart
+0x520090  shadows_clear_slots      func  vsdk\geom            O ; same loop as shadows_init_slots, callers fx_shutdown, fx_level_leave, fx_level_restart
+0x5200b0  shadow_create_b          func  vsdk\geom            I ; hidden start, first free slot of the 0x18 shadows at 0x2cb45d0 (type byte -1), stores the position at +0x14 and the parameters, -1 when full, same layout as shadow_create
+0x520160  shadow_create            func  vsdk\geom            I ; first free slot of the 0x18 shadows at 0x2cb45d0, position at +0x14 and parameters, -1 when full, callers living_entity_init, 0x5203c0
+0x5201f0  shadow_free              func  vsdk\geom            O ; (index) type byte = -1 if in use, callers living_entity__vfunc0, 0x51fc80, 0x537f70
+0x520210  shadow__reset            func  vsdk\geom            I ; thiscall: identity quaternion, zero vectors and defaults, callers shadow__shadow, 0x48da00
+0x520280  shadow__shadow           func  vsdk\geom            O ; thiscall ctor: vectors +4/+0x14/+0x20 then shadow__reset
+0x520360  fixed4_to_float          func  vsdk\math            O ; (int16) value * 0.0625
+0x520400  fixed8_to_float          func  vsdk\math            O ; (int16) value / 256, 15 callers
 0x520420  character_instance__render func  vsdk\ca\character_instance.cpp I ; thiscall (?, ?, params): setup_matrices_b, copies tint bytes +0xc9..cb, ca_render_set_instance, picks LOD mesh, ca_render_mesh
+0x5204c0  init_cmdline_param_nosound_thunk func  -                    O ; hidden start, initialiser table entry 0x588944: init_cmdline_param_nosound then registers its atexit destructor
 0x5204d0  init_cmdline_param_nosound func  -                    O ; static initialiser: CmdLineParam__CmdLineParam(cmdline_param_nosound, "-nosound")
+0x5204f0  cmdline_param_nosound_register_dtor func  -                    O ; atexit(cmdline_param_nosound_dtor)
+0x520500  cmdline_param_nosound_dtor func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_param_nosound)
+0x520510  init_snd_listener_pos    func  -                    O ; hidden start, static initialiser (table 0x588948): vector3 0x2cb5420, the listener position stored by snd_change_listener
+0x520530  init_snd_listener_vel    func  -                    O ; hidden start, static initialiser (table 0x58894c): vector3 0x2cb5410, the listener velocity stored by snd_change_listener
+0x520550  init_snd_listener_orient func  -                    O ; hidden start, static initialiser (table 0x588950): matrix 0x2cbf458, the listener orientation stored by snd_change_listener
 0x520570  Sound__params_equal      func  -                    O ; (Sound*, a, b, c) floats +0x28/+0x34/+0x2c equal, used by sound_check_filename
 0x5205b0  snd_init                 func  -                    O ; checks cmdline_param_nosound, GetVersionEx, calls ds_init, inits group volumes and sound table, atexit(snd_close), RF snd_pc_init
 0x520680  snd_init_sounds          func  -                    O ; clears sounds[0x280] (0x40-byte Sound records at 0x2cb5458): sid=-1, name[0]=0
@@ -4361,7 +4648,11 @@
 0x520ea0  snd_play_streamed        func  -                    O ; snd_load(handle, streamed=1) then ds_play_streamed(.., looping=0), used by cmd_play_sound
 0x520f20  snd_play_streamed_looping func  -                    O ; as snd_play_streamed with looping=1
 0x520fa0  snd_calc_volume_3d       func  -                    I ; (handle, pos, scale) distance attenuation using listener pos, RF snd_pc_calc_volume_3d
+0x5210b0  sound_emitter_calc_volume func  -                    I ; (handle, pos, ...): distance attenuation of sounds[handle] against the listener position 0x2cb5420 with an occlusion/path query (0x53da80), callers sound_emitter_update_volume, 0x5468c0
 0x5211f0  snd_calc_pan             func  -                    I ; (pos) pan from listener orientation, RF snd_pc_calculate_pan
+0x521270  sound_emitter_calc_pan   func  -                    I ; (pos, ...): pan from the listener position and orientation 0x2cbf458 (0 when at the listener), caller sound_emitter_update_pan
+0x521310  sound_emitter_calc_doppler func  -                    I ; (pos, vel, freq): frequency shift from the direction to the listener, caller sound_emitter_update_frequency
+0x5213b0  sound_emitter_calc_doppler_b func  -                    I ; second doppler variant using the 0x53da80 query, caller sound_emitter_update_frequency
 0x521480  snd_play_3d              func  -                    O ; (handle, pos, ..) uses ds_play_3d when DS3D enabled, else snd_calc_volume_3d/snd_calc_pan + snd_play(_looping), RF snd_pc_play_3d
 0x5215d0  snd_stop                 func  -                    O ; (sig) forwards to ds_stop
 0x521600  snd_stop_all             func  -                    O ; forwards to ds_stop_all, called from state_game_leave
@@ -4373,6 +4664,7 @@
 0x5217c0  snd_set_frequency        func  -                    I ; clamps then ds_set_frequency
 0x521800  snd_get_frequency        func  -                    I ; forwards to ds_get_frequency
 0x521830  snd_get_format           func  -                    I ; snd_load then ds_get_format (rate, bits, channels)
+0x5218a0  snd_set_group            func  -                    O ; hidden start, (handle, group): low 27 bits of the sounds[handle] flags (+0x3c), the group read by snd_get_volume
 0x5218e0  snd_set_group_volume     func  -                    I ; forwards to ds_set_group_volume, called from options_leave
 0x521950  snd_get_group_volume     func  -                    O ; (group): float at 0x2cb542c[group] (set by snd_set_group_volume)
 0x521980  snd_get_sound            func  -                    O ; (handle) &sounds[handle] for 0..0x27f, else NULL
@@ -4382,9 +4674,13 @@
 0x521b10  sounds_parse_entry       func  -                    O ; (TextFile*, handle) quoted name (0x28 bytes), three floats (+0x2c, +0x28, +0x34), rolloff +0x30 = snd_calc_rolloff
 0x521b70  snd_get_rolloff          func  -                    O ; (handle) sounds[handle] +0x30 (snd_calc_rolloff result), 0.0 when invalid
 0x521b90  snd_is_ds3d_enabled      func  -                    O ; jmp ds_is_ds3d_enabled, RF snd_pc_is_ds3d_enabled
+0x521ba0  snd_is_eax_enabled       func  -                    O ; jmp ds_is_eax_enabled, callers mainmenu_init, options_set_eax, summoner_cfg_load
 0x521bb0  snd_restore_reverb       func  -                    O ; eax_restore_reverb when ds_is_eax_enabled
 0x521bc0  snd_mute_reverb          func  -                    O ; eax_mute_reverb when ds_is_eax_enabled
+0x521bd0  snd_is_reverb_muted      func  -                    O ; hidden start, jmp eax_is_reverb_muted
 0x521be0  snd_get_duration         func  -                    O ; (handle): ds_estimate_duration of the sound's DirectSound buffer (+0x10 of the 0x40-byte entry, 0x280 entries), 0 when sound is off
+0x521c20  snd_calc_duration        func  -                    I ; hidden start, duration in ms from snd_get_duration / snd_get_format (rate, bits, channels) through ftol
+0x521ca0  snd_estimate_file_duration func  -                    I ; hidden start, (handle): File__size of the sound file divided by the byte rate from snd_get_format
 0x521dd0  snd_calc_rolloff         func  -                    I ; float formula on (dist, min, max) used by sounds_parse_table
 0x521e00  snd_set_eax_environment  func  -                    O ; forwards name to ds_set_eax_environment
 0x521e10  Sound__is_used           func  -                    O ; thiscall: name[0] != 0
@@ -4402,17 +4698,30 @@
 0x522240  eax_get_listener_props   func  -                    O ; IKsPropertySet::Get of individual EAX listener properties into a struct, called by eax_save_props
 0x522420  eax_load_props           func  -                    I ; fopen/fscanf-like/fclose counterpart of eax_save_props
 0x522580  eax_set_listener_props   func  -                    O ; IKsPropertySet::Set listener property 1 (ALLPARAMETERS, 0x38 bytes), called by eax_load_props
+0x5225b0  init_cquat_identity      func  vsdk\math            O ; hidden start, static initialiser (table 0x588954): cquat__cquat(cquat_identity, 0, 0, 0, 0x3fff)
+0x5225e0  init_quaternion_identity func  vsdk\math            O ; hidden start, static initialiser (table 0x588958): quaternion_identity = (0, 0, 0, 1)
 0x522610  quaternion__set_from_matrix func  vsdk\math            O ; thiscall (matrix3*): trace-based matrix to quaternion, sqrt(trace + 1) * 0.5 into w
+0x522790  quaternion__set_from_matrix_b func  vsdk\math            O ; thiscall (matrix3*): second trace-based matrix to quaternion conversion, then quaternion__normalize, callers 0x46f2c0, 0x537a10
 0x522930  quaternion__multiply     func  vsdk\math            O ; thiscall (out, q): w1*v2 + w2*v1 + v1 x v2 and w1*w2 - v1.v2
 0x522a40  cquat__multiply          func  vsdk\math            O ; thiscall (out, q): quaternion product on the int16 cquat form, results through ftol into cquat__cquat_copy
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
 0x522cc0  quaternion__to_matrix_b  func  vsdk\math            O ; thiscall (matrix3*): second unit-quaternion to rotation matrix routine (1 - 2(y2+z2) ...), 17 callers (doors, game frame)
 0x522d90  quaternion__normalized   func  vsdk\math            O ; thiscall (out): copy scaled by 1/sqrt(x2+y2+z2+w2)
 0x522e00  quaternion__conjugate    func  vsdk\math            O ; thiscall (out): (-x, -y, -z, w)
+0x522e30  quaternion__log          func  vsdk\math            O ; hidden start, thiscall (out): (atan2(len(v), w) / len(v)) * v with w = 0, caller quaternion_log_of_delta
+0x522ea0  quaternion__exp          func  vsdk\math            O ; hidden start, thiscall (out): (sin(len(v)) / len(v)) * v, w = cos(len(v))
 0x522f20  quaternion__normalize    func  vsdk\math            O ; in place scale by 1/sqrt(x2+y2+z2+w2), callers skeleton_read and the key-frame readers
+0x522f70  quaternion__negate_xyz   func  vsdk\math            O ; hidden start, in place x, y, z = -x, -y, -z (in-place conjugate)
+0x522f90  quaternion__log_in_place func  vsdk\math            O ; hidden start, in place version of quaternion__log
+0x522ff0  quaternion__exp_in_place func  vsdk\math            O ; hidden start, in place version of quaternion__exp
 0x523050  cquat__normalized        func  vsdk\math            O ; thiscall (out): int16 quaternion rescaled by sqrt(0x3fff^2 / len_sq(q))
 0x5230f0  cquat__conjugate         func  vsdk\math            O ; thiscall (out): (-x, -y, -z, w) on the int16 form
+0x523120  cquat__log               func  vsdk\math            O ; thiscall (out): quaternion__log on the int16 form (components / 0x3fff), caller cquat_log_of_delta
+0x5231e0  cquat__exp               func  vsdk\math            I ; thiscall (out): exponential on the int16 quaternion form, counterpart of cquat__log, caller 0x5506e0
 0x5232b0  cquat__normalize         func  vsdk\math            O ; in place version of cquat__normalized
+0x523350  cquat__negate_xyz        func  vsdk\math            O ; hidden start, in place negation of the three int16 vector components
+0x523370  cquat__log_in_place      func  vsdk\math            I ; hidden start, in place version of cquat__log
+0x523430  cquat__exp_in_place      func  vsdk\math            I ; hidden start, in place version of cquat__exp
 0x523500  quaternion__make_identity func  vsdk\math            O ; (0, 0, 0, 1)
 0x523520  quaternion_dot           func  vsdk\math            O ; (a*, b*) x*x' + y*y' + z*z' + w*w'
 0x523550  cquat_dot                func  vsdk\math            O ; (a*, b*) integer dot of the four int16 components times a 1/0x3fff^2 constant
@@ -4420,6 +4729,9 @@
 0x5237c0  cquat_slerp              func  vsdk\math            O ; (out, a, b, t): slerp on the int16 cquat form (cquat_dot, cquat__negated, acos)
 0x523a90  quaternion_squad         func  vsdk\math            O ; (out, q0, q1, a, b, t): slerp(slerp(q0,q1,t), slerp(a,b,t), 2t(1-t))
 0x523b10  cquat_squad              func  vsdk\math            O ; cquat version of quaternion_squad (three cquat_slerp)
+0x523c00  quaternion_log_of_delta  func  vsdk\math            I ; hidden start, (out, a, b): log(normalized(conjugate(a)) * b), the tangent term used for squad
+0x523c60  cquat_log_of_delta       func  vsdk\math            I ; cquat version of quaternion_log_of_delta, caller 0x5506e0
+0x523cc0  cquat__set_from_quaternion func  vsdk\math            O ; hidden start, thiscall (quaternion*): four ftol(component * scale) stored as int16
 0x523d20  cquat__cquat_copy        func  vsdk\math            O ; thiscall copy constructor of the 8-byte int16 quaternion (x, y, z, w, 1.0 = 0x3fff)
 0x523d50  cquat__cquat             func  vsdk\math            O ; thiscall (x, y, z, w) int16 components
 0x523d80  cquat__assign            func  vsdk\math            O ; thiscall operator= of the int16 quaternion
@@ -4429,6 +4741,8 @@
 0x523e70  quaternion__negated      func  vsdk\math            O ; thiscall (out): all four components negated (used by quaternion_slerp)
 0x523eb0  quaternion__operator_add func  vsdk\math            O ; thiscall (out, b)
 0x523ef0  quaternion__operator_sub func  vsdk\math            O ; thiscall (out, b)
+0x523f30  init_vector3_zero        func  vsdk\math            O ; hidden start, static initialiser (table 0x58895c): vector3_zero = (0, 0, 0)
+0x523f60  init_vector2_zero        func  vsdk\math            O ; hidden start, static initialiser (table 0x588960): vector2_zero = (0, 0)
 0x523f80  vector2__len             func  vsdk\math            O ; sqrt(x*x + y*y), thiscall
 0x523fa0  vector2__len_sq          func  vsdk\math            O ; x*x + y*y, thiscall
 0x523fc0  vector2__normalize       func  vsdk\math            V ; Summoner 2 vector2::normalize: returns the length, zero vector becomes (1, 0) and returns 1
@@ -4439,6 +4753,7 @@
 0x5241e0  vector3__is_zero         func  vsdk\math            V ; Summoner 2 vector3::is_zero: all three components equal 0
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
 0x524270  vector3__normalized      func  vsdk\math              I
+0x5242c0  vector3__normalized_or_x func  vsdk\math            O ; hidden start, thiscall (out): normalized copy, (1, 0, 0) for a zero vector, caller vector3_rotate_towards
 0x524340  vector3__negated_b       func  vsdk\math            O ; thiscall (out) returns (-x, -y, -z), second copy next to vector3__negated, caller matrix43__inverse
 0x524370  vector3__rotated         func  vsdk\math            O ; (out, matrix3*) returns new vector (dot rvec, dot uvec, dot fvec)
 0x5243d0  vector3__unrotated       func  vsdk\math            O ; (out, matrix3*) returns M^T v as a new vector
@@ -4464,17 +4779,28 @@
 0x524910  vector3_near_equal       func  vsdk\math            O ; (a*, b*) each abs(a-b) component below epsilon 0x581930
 0x524960  vector3_normal           func  vsdk\math            O ; (out, p0, p1, p2): vector3_perp then vector3__normalize (Volition vm_vec_normal)
 0x524990  vector3_perp             func  vsdk\math            O ; (out, p0, p1, p2): cross product of two edge differences, unnormalized (Volition vm_vec_perp)
+0x5249e0  vector3_angle_and_axis   func  vsdk\math            I ; (a, b, out axis, ...): acos of the normalized dot and the cross axis between two directions, callers 0x42f750, summon_create
 0x524ab0  direction_dot            func  vsdk\math            O ; (a, b, n): normalized(a - b).n
 0x524ae0  project_onto_plane       func  vsdk\math            V ; Summoner 2 project_onto_plane(result, point, normal, plane_point): point - normal * (n.point - n.plane_point)
+0x524b50  vector3_rotate_about_axis func  vsdk\math            I ; (out, point, centre, axis, angle): rotates point - centre about axis (set_from_forward + matrix3_angles) and adds the centre back, callers ai_turn_towards, 0x524c80
+0x524c10  vector3_rotate_towards   func  vsdk\math            I ; hidden start, normalizes both directions (vector3__normalized_or_x) then vector3_rotate_towards_unit
+0x524c80  vector3_rotate_towards_unit func  vsdk\math            I ; hidden start, axis = a x b, angle = -acos(a . b), vector3_rotate_about_axis
+0x525100  polygon_calc_normal      func  vsdk\math            I ; hidden start, (verts, count, out): sums vector3_perp of the fan triangles (half length) and divides, Newell-style polygon normal/area
 0x5252c0  vector3_world_to_local   func  vsdk\math            O ; (out, point, origin, matrix3): out = (point - origin) rotated into the matrix
 0x525300  vector3_local_to_world   func  vsdk\math            O ; (out, local, origin, matrix3): out = unrotated(local) + origin
 0x525340  vector2_distance         func  vsdk\math            O ; (a, b): vector2__len of a - b
 0x525370  vector2_distance_squared func  vsdk\math            O ; (a, b): vector2__len_sq of a - b
+0x5253a0  vector2_dist_sq_to_segment func  vsdk\math            I ; hidden start, (p, a, b): squared distance from p to the segment from projection t = (p-a).(b-a) / len(b-a)^2
+0x525410  vector2_closest_point_on_segment func  vsdk\math            O ; (out, p, a, b): t clamped to 0..1 with float_max/float_min, out = a + (b - a) * t, caller 0x49dc20
 0x525650  vector2__vector2         func  vsdk\math            O ; thiscall (x, y) constructor, as Summoner 2 vector2(float, float)
 0x525670  vector3__operator_div_assign func  vsdk\math            O ; thiscall (s): multiplies the three components by 1/s
 0x5256a0  vector2__operator_sub    func  vsdk\math            O ; thiscall (out, b)
 0x5256d0  vector2_scaled           func  vsdk\math            O ; (out, s, v): out = v * s
 0x525700  vector2__dot             func  vsdk\math            V ; Summoner 2 vector2::dot: x*x' + y*y'
+0x525720  init_file_zero_vector    func  vsdk\vfile           O ; hidden start, static initialiser (table 0x588964): file_zero_vector
+0x525740  init_file_identity_quaternion func  vsdk\vfile           O ; hidden start, static initialiser (table 0x588968): file_identity_quaternion
+0x525760  init_file_default_matrix func  vsdk\vfile           O ; hidden start, static initialiser (table 0x58896c): file_default_matrix
+0x525780  init_vector3_2cbf4e8     func  vsdk\vfile           O ; hidden start, static initialiser (table 0x588970): vector3 at 0x2cbf4e8 (next to the file defaults)
 0x5257a0  File__read_String_raw    func  vsdk\vfile           O ; uint16 length then bytes into a String object (String__free, String__alloc)
 0x525800  File__read_bool          func  vsdk\vfile           O ; version check, File__read 1 byte, returns value != 0 or default on error
 0x525850  File__read_int8          func  vsdk\vfile             I
@@ -4489,6 +4815,8 @@
 0x525b40  File__read_matrix        func  vsdk\vfile           V ; three File__read_vector (fvec at +0x18, rvec, uvec) with default matrix, Dash Faction File::read_matrix
 0x525ba0  File__read_matrix43      func  vsdk\vfile           I ; version check then 12 File__read_float, reader for File__write_matrix43
 0x525c90  File__read_String        func  vsdk\vfile           I ; versioned String read built on File__read_String_raw
+0x525ce0  File__read_String8       func  vsdk\vfile           O ; hidden start, thiscall (String* out, min_ver, default): int8 length then that many chars, default (or the empty string 0x2cbf540) when the version check fails
+0x525d80  File__read_line_String   func  vsdk\vfile           O ; hidden start, thiscall (String* out, min_ver): appends chars until CR/LF (String__append_char), skips the LF after CR
 0x525e20  File__read_string_buf    func  vsdk\vfile           O ; (buf, max, ver, default) uint16 length-prefixed string into a fixed buffer, truncating
 0x525ee0  File__read_string        func  vsdk\vfile             I ; (buf, max, min_ver, unused)
 0x525f60  File__read_line          func  vsdk\vfile           O ; reads bytes up to CR/LF into buf, skips line endings, seeks back one
@@ -4508,6 +4836,7 @@
 0x526390  File__write_string       func  vsdk\vfile           O ; uint16 length (strlen if -1) then bytes
 0x5263e0  File__write_string_z     func  vsdk\vfile           O ; File__write strlen+1 bytes (with terminator)
 0x526410  File__write              func  vsdk\vfile             I ; (buf, len); optional transform when the file flag bit 0 is set
+0x5264e0  File__printf             func  vsdk\vfile           I ; thiscall (fmt or default string 0x2cbf550, len, ...): text output through fwrite, callers cmd_save_map_labels and the script writers
 0x526580  File__sync_bool          func  vsdk\vfile           O ; read mode (mode bit 1): File__read_bool, else File__write_bool
 0x5265c0  File__sync_int8          func  vsdk\vfile           O ; File__read_int8 or File__write_int8 by mode
 0x526600  File__sync_uint8         func  vsdk\vfile           O ; File__read_uint8 or File__write_uint8 by mode
@@ -4716,14 +5045,31 @@
 0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
 0x52f530  build_stamp_get_name_String func  vsdk\ui              O ; (String* out): String__assign_cstr(build_stamp_name)
 0x52f540  build_stamp_get_name     func  vsdk\ui                I ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.")
+0x52f570  init_ui_repeat_timer     func  vsdk\ui              I ; hidden start, static initialiser (table 0x588974): RealtimeTimer__RealtimeTimer(0x2cbf680)
+0x52f590  init_ui_window_sentinel  func  vsdk\ui              O ; hidden start, initialiser table entry 0x588978: constructs the window list sentinel 0x2cbf718 and registers its destructor
+0x52f5a0  ui_window_sentinel_ctor  func  vsdk\ui              O ; ui_window__ui_window(0x2cbf718), the list head walked by ui_draw / ui_process
+0x52f5b0  ui_window_sentinel_register_dtor func  vsdk\ui              O ; atexit(ui_window_sentinel_dtor)
+0x52f5c0  ui_window_sentinel_dtor  func  vsdk\ui              O ; hidden start, atexit handler: ui_window__dtor(0x2cbf718)
+0x52f5d0  init_ui_tooltip_state    func  vsdk\ui              O ; hidden start, static initialiser (table 0x58897c): constructs 0x2cbf708 (used by every *_set_tooltip)
+0x52f5f0  init_ui_container_state  func  vsdk\ui              O ; hidden start, static initialiser (table 0x588980): constructs 0x2cbfc20 (used by ui_container__create)
+0x52f610  init_ui_window_defaults  func  vsdk\ui              O ; hidden start, static initialiser (table 0x588984): constructs 0x2cbf670 (used by ui_window__init and LoadSettings)
+0x52f630  init_ui_global_2cbf6a8   func  vsdk\ui              O ; hidden start, static initialiser (table 0x588988): constructs 0x2cbf6a8 (0x530a00)
+0x52f650  init_ui_global_2cbf6e8   func  vsdk\ui              O ; hidden start, static initialiser (table 0x58898c): constructs 0x2cbf6e8 (0x530a20)
+0x52f670  init_ui_global_2cbf630   func  vsdk\ui              O ; hidden start, static initialiser (table 0x588990): constructs 0x2cbf630 (0x530a40)
+0x52f690  init_ui_global_2cbfc70   func  vsdk\ui              O ; hidden start, static initialiser (table 0x588994): constructs 0x2cbfc70 (0x530aa0)
+0x52f6b0  init_ui_global_2cbfc08   func  vsdk\ui              O ; hidden start, static initialiser (table 0x588998): constructs 0x2cbfc08 (0x530af0)
+0x52f6d0  init_ui_global_2cbfc50   func  vsdk\ui              O ; hidden start, static initialiser (table 0x58899c): constructs 0x2cbfc50 (0x530b10)
+0x52f6f0  init_ui_global_2cbfc30   func  vsdk\ui              O ; hidden start, static initialiser (table 0x5889a0): constructs 0x2cbfc30 (0x530b50)
 0x52f720  ui_play_sound            func  vsdk\ui              O ; (index) snd_play of the UI sound table at 0x2cbf684 (falls back to entry 1), used by button/listbox/radio processing
 0x52f760  ui_init                  func  vsdk\ui              I ; one-time UI setup (guard 0x2cbfcd0): empty window list (sentinel 0x2cbf718), sound table -1, default colours, called by LoadSettings and ui_window__init
 0x52ff30  ui_draw                  func  vsdk\ui              O ; ui_window__draw for every window in the list, optional callback, then the tooltip of the gadget under the mouse
 0x530330  ui_process               func  vsdk\ui              O ; reads mouse_was_pressed/released into the UI globals and processes the windows (ui_window__process)
+0x5308e0  ui_destroy_all_windows   func  vsdk\ui              O ; hidden start, repeatedly calls the first virtual method of the head window (0x2cbfbfc) until the list reaches the sentinel 0x2cbf718
 0x530910  ui_push_group            func  vsdk\ui              O ; ++0x2cbfcc8 (windows of other groups report disabled, ui_window__is_disabled)
 0x530920  ui_pop_group             func  vsdk\ui              O ; --0x2cbfcc8
 0x530930  ui_find_gadget_by_name   func  vsdk\ui              O ; ui_window__find_gadget_by_name over all windows, after padding
 0x530970  ui_get_top_modal_window  func  vsdk\ui              O ; first shown, enabled window with the modal flag 0x20
+0x530b70  ui_get_draw_callback     func  vsdk\ui              I ; thiscall: returns +0x37c, caller ui_draw
 0x530b80  ui_window__get_mask_data func  vsdk\ui              O ; returns +0x4d8
 0x530b90  os_find_window_callback  func  vsdk\os              O ; EnumWindows callback of os_find_previous_instance: GetWindowTextA, strstr with the wanted title, sets 0x2cbff0c and stops
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
@@ -4735,15 +5081,28 @@
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
 0x530d10  os_init                  func  vsdk\os                I ; single-instance mutex (focuses the running copy and exits), CoInitialize, creates the window
 0x530e40  os_find_previous_instance func  vsdk\os              I ; GetModuleFileName, window title "[run] - %s -", EnumWindows, called by os_init
+0x530ee0  os_init_window           func  vsdk\os              O ; os_create_window then returns 0, caller os_init
 0x530ef0  os_create_window         func  vsdk\os                I ; RegisterClassEx + CreateWindowEx 32x32 popup, ShowCursor(0)
 0x530ff0  os_wndproc               func  vsdk\os                I ; msg handlers, WM_ACTIVATE/ACTIVATEAPP -> SetWindowPos TOPMOST/NOTOPMOST (flags 0 = activates!), WM_SYSCOMMAND blocks the screensaver
 0x531260  os_close_main_window     func  vsdk\os              I ; ReleaseMutex then PostMessage(main_wnd, WM_DESTROY)
 0x531280  os_seed_random           func  vsdk\os              O ; (seed): srand(time(0)) for -1 else srand(seed), then three rand() calls, caller GameInit
+0x5312c0  cpu_read_tsc             func  -                    O ; rdtsc, returns the low dword, caller cpu_identify
 0x5312d6 cpu_identify             func  -                        O ; CPU type/speed/extensions
 0x53171f PrintSystemInfo          func  -                        O ; prints CPU, RAM, RAM speed
+0x531a80  init_ccmd_sysinfo_entry  func  -                    O ; initialiser table entry 0x5889a4: frame-pointer wrapper calling init_ccmd_sysinfo
 0x531a8a  init_ccmd_sysinfo        func  -                    O ; static initialiser: registers console command object ccmd_sysinfo
 0x531aa8  cmd_sysinfo              func  -                      O ; console command "sysinfo": Shows system info
+0x531c10  stricmp_wrapper          func  -                    O ; hidden start, (a, b) -> _stricmp(a, b)
+0x531c50  debug_return_zero        func  -                    O ; returns 0, callers multi_process_packet, multi_send_packet, multi_send_packet_buffered, 0x441da0 (compiled-out debug hook)
+0x531ca0  debug_error_deactivate_gr func  -                    O ; jmp gr_deactivate, caller DebugError
 0x531cb0  DebugError               func  -                      V ; Summoner 2 DebugError(File, Line, Error); PC: MessageBox + exit(1)
+0x531d20  init_movement_vec_2cbff58 func  -                    O ; hidden start, static initialiser (table 0x5889a8): vector3 0x2cbff58 of the free-movement (slew) state used by movement_init / movement_read_controls
+0x531d40  init_movement_vec_2cbff88 func  -                    O ; hidden start, static initialiser (table 0x5889ac): vector3 0x2cbff88 (free movement)
+0x531d60  init_movement_vec_2cbff98 func  -                    O ; hidden start, static initialiser (table 0x5889b0): vector3 0x2cbff98 (free movement)
+0x531d80  init_movement_vec_2cbff38 func  -                    O ; hidden start, static initialiser (table 0x5889b4): vector3 0x2cbff38 (free movement)
+0x531da0  init_movement_vec_2cbff68 func  -                    O ; hidden start, static initialiser (table 0x5889b8): vector3 0x2cbff68 (free movement)
+0x531dc0  init_movement_vec_2cbff48 func  -                    O ; hidden start, static initialiser (table 0x5889bc): vector3 0x2cbff48 (free movement)
+0x531de0  init_ccmd_movement_vel_change_thunk func  -                    O ; hidden start, initialiser table entry 0x5889c0: jmp init_ccmd_movement_vel_change
 0x531df0  init_ccmd_movement_vel_change func  -                    O ; static initialiser: registers console command object ccmd_movement_vel_change
 0x531e10  cmd_movement_vel_change  func  -                      O ; console command "movement_vel_change": Toggles Allow_movement_vel_change
 0x531ed0  movement_init            func  -                    I ; (max_vel, max_rotvel, a3, a4): fills the free-movement (slew) limits at 0x2cbff58..0x2cbff90, zeroes the velocity vectors, sets 0x2cbffa4
@@ -4759,13 +5118,22 @@
 0x5324e0  NoRlsAllocPool__AllocZeroed func  -                    O ; thiscall (size): NoRlsAllocPool__Alloc then zero fill
 0x532510  NoRlsAllocPool__Align    func  -                    V ; Summoner 2: rounds current up to 4 and recomputes remaining (+0x10), clamped at 0
 0x532540  NoRlsAllocPool__GetUsed  func  -                    O ; block_size - remaining plus block_size for every further block in the chain
+0x532620  NoRlsAllocPool__GetUsed_thunk func  -                    O ; hidden start, jmp NoRlsAllocPool__GetUsed
 0x532630  NoRlsAllocPool__SetOffset func  -                    O ; thiscall (offset): for non-growing pools current = start + offset and remaining = block_size - offset
 0x532820  timer_close              func  timer.cpp            O ; atexit handler of timer_init: timer_initialized = 0, DeleteCriticalSection(timer_lock)
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
+0x5329f0  init_vif_records         func  -                    I ; hidden start, static initialiser (table 0x5889c4): 100 records of 0xe8 bytes at 0x2d064e8 (vif_record__ctor), cleared by vif_records_reset
+0x532e80  vif_records_reset        func  -                    I ; clears the word at +0x68 of each of the 100 0xe8-byte records at 0x2d064e8, caller LoadSettings
 0x5337a0  vif_instantiate_level    func  -                    I ; "VIF INSTANTIATE : LEVEL", "COMPACTING VIF PARTICLES"
+0x533c70  vif_record__ctor         func  -                    I ; thiscall ctor of the 0xe8-byte record: vector +0, matrix +0xc, vector +0x30, matrix +0x3c
+0x533db0  init_packfile_string_pool func  vsdk\vfile\packfile\file_packfile.cpp I ; hidden start, initialiser table entry 0x5889c8: constructs StringPool 0x2d0bf98 and registers its destructor
+0x533dc0  packfile_string_pool_ctor func  vsdk\vfile\packfile\file_packfile.cpp I ; StringPool__StringPool_default(0x2d0bf98)
+0x533dd0  packfile_string_pool_register_dtor func  vsdk\vfile\packfile\file_packfile.cpp I ; atexit(packfile_string_pool_dtor)
+0x533de0  packfile_string_pool_dtor func  vsdk\vfile\packfile\file_packfile.cpp I ; hidden start, atexit handler: StringPool__dtor(0x2d0bf98)
 0x533df0  packfile_init            func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; adds tables/summoner/chars/items/effects/music/sounds/cutscene.vpp, prints load time
+0x533ef0  packfile_release_string_pool func  vsdk\vfile\packfile\file_packfile.cpp O ; StringPool__Release(0x2d0bf98) when 0x2d90ed0 is set, caller file_shutdown
 0x533f10  packfile_lookup_insert   func  vsdk\vfile\packfile\file_packfile.cpp O ; open-addressing insert into the 0x50e9-slot {hash, entry} table
 0x533f60  packfile_check_header    func  vsdk\vfile\packfile\file_packfile.cpp O ; VPP header magic 0x51890ace; reads num_files and directory size
 0x533f90  packfile_read_directory  func  vsdk\vfile\packfile\file_packfile.cpp I ; copies 15-dword directory records into entries
@@ -4782,8 +5150,11 @@
 0x534830  packfile_fseek           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; offset + sector * 0x800
 0x5348a0  packfile_fread           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; "FREAD BAIL"
 0x5348f0  packfile_fstatus         func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; always 1 on PC
+0x534900  packfile_read_whole_file func  vsdk\vfile\packfile\file_packfile.cpp I ; hidden start, (buf, size, name): packfile_find_packfile then fopen/fread/fclose of the data into buf, printf on failure, caller file_blast_into_buffer
 0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
+0x534a20  init_gr_d3d_current_mode func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889cc): gr__Mode__Mode_invalid(0x2d90ee4), the D3D state cache compared by 0x534a40
 0x535480  gr_d3d_apply_tint        func  vsdk\gr\directx\gr_direct3d.cpp O ; (int* r, int* g, int* b): luminance r+g+b times the gr tint factors 0x25d8dc4/8/c, clamp_int 0..255, callers gr_d3d_bitmap/line/line_3d/tmapper
+0x535510  gr_d3d_set_zbias         func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, (bias) gr_d3d_set_render_state(0x2f = D3DRENDERSTATE_ZBIAS, bias)
 0x535520  gr_d3d_page_in           func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535550  gr_d3d_clear             func  vsdk\gr\directx\gr_direct3d.cpp I
 0x5355e0  gr_d3d_zbuffer_clear     func  vsdk\gr\directx\gr_direct3d.cpp I
@@ -4802,10 +5173,25 @@
 0x5368f0  gr__Mode__get_alpha_blend func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 15) & 0x1f
 0x536900  gr__Mode__get_zbuffer_type func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 20) & 0x1f
 0x536910  gr__Mode__get_fog_type   func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 25) & 0x1f
+0x536920  gr__Mode__invalidate     func  vsdk\gr\gr.cpp       O ; thiscall: value = -1 (forces the next state change), callers gr_glide_set_fog, gr_opengl_tcache_set, gr_opengl_init_context and the D3D frame setup
 0x536930  gr__Mode__is_multitexture func  vsdk\gr\gr.cpp       O ; texture_source >= 4 (TEXTURE_SOURCE_CLAMP_1_WRAP_0 and up are the two-texture sources in Dash Faction)
+0x536950  init_gr_d3d_vertex_buf   func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889d0): 4000 gr__Vertex (0x30 bytes) at 0x2d90f10
+0x536980  init_vfx_camera_pos      func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d4): vector 0x2d90ee8 copied out by vfx_get_camera
+0x5369a0  init_vfx_camera_orient   func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d8): quaternion 0x2d90ef8 copied out by vfx_get_camera
+0x5383e0  vfx_get_camera           func  vsdk\geom            I ; (out pos, out quat): copies 0x2d90ee8/0x2d90ef8 when a camera effect is active (0x2dbfd10), else zero and identity, caller state_game_frame
+0x538590  vfx_instance__get_base   func  vsdk\geom            O ; thiscall: effect_get_base(flags +0 >> 9), 13 callers in the vfx instance code
+0x538650  init_cmdline_param_fb2_thunk func  -                    O ; hidden start, initialiser table entry 0x5889dc: init_cmdline_param_fb2 then registers its destructor
 0x538660  init_cmdline_param_fb2   func  -                    O ; static initialiser: CmdLineParam "-fb2"
+0x538680  cmdline_param_fb2_register_dtor func  -                    O ; atexit(cmdline_param_fb2_dtor)
+0x538690  cmdline_param_fb2_dtor   func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_param_fb2)
+0x5386a0  init_cmdline_param_vertexfog_thunk func  -                    O ; hidden start, initialiser table entry 0x5889e0: init_cmdline_param_vertexfog then registers its destructor
 0x5386b0  init_cmdline_param_vertexfog func  -                    O ; static initialiser: CmdLineParam "-vertexfog"
+0x5386d0  cmdline_param_vertexfog_register_dtor func  -                    O ; atexit(cmdline_param_vertexfog_dtor)
+0x5386e0  cmdline_param_vertexfog_dtor func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_param_vertexfog)
+0x5386f0  init_cmdline_param_rz_thunk func  -                    O ; hidden start, initialiser table entry 0x5889e4: init_cmdline_param_rz then registers its destructor
 0x538700  init_cmdline_param_rz    func  -                    O ; static initialiser: CmdLineParam "-rz"
+0x538720  cmdline_param_rz_register_dtor func  -                    O ; atexit(cmdline_param_rz_dtor)
+0x538730  cmdline_param_rz_dtor    func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_param_rz)
 0x538740  gr_d3d_set_render_state  func  vsdk\gr\directx\gr_direct3d.cpp O ; IDirect3DDevice7::SetRenderState (vtbl +0x50) on device 0x2dc6c40
 0x538850  d3d_enumerate_ddraw_devices func  vsdk\gr\directx\gr_direct3d.cpp O ; DirectDrawEnumerateA with callback 0x5389f0, collects the device list (count 0x2dc6cac), caller gr_d3d_init_device
 0x538b70  gr_d3d_set_window        func  vsdk\gr\directx\gr_direct3d.cpp I ; (hwnd): stores 0x2dc6c94, GetWindowRect/GetClientRect sizing, called by the gr init-context dispatcher 0x5061b0 for D3D
@@ -4832,6 +5218,10 @@
 0x53d100  ix_ray_box_oriented      func  -                    O ; label string "ix_ray_box_oriented"
 0x53d2d0  ix_ray_boundingbox       func  -                    O ; label string "ix_ray_boundingbox"
 0x53d7a0  ix_ray_sphere            func  -                    O ; label string "ix_ray_sphere"
+0x53dec0  init_cmdline_params      func  -                    O ; hidden start, initialiser table entry 0x5889e8: constructs the cmdline_params list head and registers its destructor
+0x53ded0  cmdline_params_ctor      func  -                    O ; CmdLineParam__CmdLineParam(cmdline_params, 0, 0, 1)
+0x53def0  cmdline_params_register_dtor func  -                    O ; atexit(cmdline_params_dtor)
+0x53df00  cmdline_params_dtor      func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_params)
 0x53df10  cmdline_init             func  vsdk\os\cmdline.cpp  O ; GetCommandLineA plus registry "CmdLineOptions" (os_registry_read_string), cmdline_parse, atexit cleanup
 0x53e030  cmdline_parse            func  vsdk\os\cmdline.cpp    O ; (cmd_line, check_unknown, ...): split, match params, optionally reject unknown "-x"
 0x53e060  cmdline_split            func  vsdk\os\cmdline.cpp    O ; strtok on spaces; rejoins "quoted args"; fills cmdline_args (max 50)
@@ -4845,12 +5235,26 @@
 0x53e4b0  CmdLineParam__get_arg_int func  vsdk\os\cmdline.cpp    O ; atoi(arg)
 0x53e520  gr_line_3d               func  vsdk\gr              O ; (Vertex* a, Vertex* b, mode): rejects when codes AND, clips with 0x559350, projects, then the back end for gr_screen.mode (0x535fd0 D3D, 0x54b110 Glide, 0x54ff00 OpenGL)
 0x53e610  gr_line_3d_world         func  vsdk\gr              O ; (p0, p1, mode): gr_rotate_vertex both points into local vertices, then gr_line_3d
+0x53e670  init_ccmd_use_buffered_alpha_polys_thunk func  -                    O ; hidden start, initialiser table entry 0x5889ec: jmp init_ccmd_use_buffered_alpha_polys
 0x53e680  init_ccmd_use_buffered_alpha_polys func  -                    O ; static initialiser: registers console command object ccmd_use_buffered_alpha_polys
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
 0x53e770  gr_poly                  func  vsdk\gr              O ; (n, verts, ...): clips with 0x559490, projects with gr_project_vertex, defers alpha-blended polys to the 0x545150.. buffer when Use_buffered_alpha_polys, Dash Faction gr::poly has the same role
 0x53eae0  gr_bitmap_3d_projected   func  vsdk\gr              I ; builds a screen-aligned quad around a projected vertex from bm_get_dimensions and matrix_scale, then gr_poly
 0x53f3b0  gr_bitmap_3d             func  vsdk\gr              I ; (pos, a, b, c): rotate + project a point, then 0x53eae0 when projected (camera-facing sprite)
 0x53f410  gr_bitmap_3d_oriented    func  vsdk\gr              I ; same entry pattern as gr_bitmap_3d but draws through 0x53edd0 (quad with gr_check_normal_facing)
+0x540810  init_ca_characters       func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f0: constructs ca_characters and registers the array destructor
+0x540820  ca_characters_ctor       func  vsdk\ca              O ; eh vector constructor (0x56db8c) of 200 ca_character (0x1f8 bytes) in ca_characters with ca_character__ca_character / ca_character__dtor
+0x540840  ca_characters_register_dtor func  vsdk\ca              O ; atexit(ca_characters_dtor)
+0x540850  ca_characters_dtor       func  vsdk\ca              O ; hidden start, atexit handler: eh vector destructor (0x56dc0e) over ca_characters
+0x540870  init_ca_character_2ee22f8 func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f4: constructs the object at 0x2ee22f8 (0x541970) and registers its destructor
+0x540890  ca_character_2ee22f8_register_dtor func  vsdk\ca              O ; atexit(ca_character_2ee22f8_dtor)
+0x5408a0  ca_character_2ee22f8_dtor func  vsdk\ca              O ; hidden start, atexit handler: destructor 0x541960 on 0x2ee22f8
+0x5408b0  init_ca_string_pool      func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f8: constructs StringPool 0x2dc7070 and registers its destructor
+0x5408c0  ca_string_pool_ctor      func  vsdk\ca              O ; StringPool__StringPool_default(0x2dc7070)
+0x5408d0  ca_string_pool_register_dtor func  vsdk\ca              O ; atexit(ca_string_pool_dtor)
+0x5408e0  ca_string_pool_dtor      func  vsdk\ca              O ; hidden start, atexit handler: StringPool__dtor(0x2dc7070)
+0x540950  ca_character__ca_character func  vsdk\ca              O ; trivial thiscall ctor returning this, used for the ca_characters array
+0x540960  ca_character__dtor       func  vsdk\ca              O ; hidden start, empty destructor of the ca_characters elements
 0x540970  character_add_skeleton   func  vsdk\ca\character.cpp  O ; "No more room for skeletons in character %s -- see allender"; from the preload index or a File, then skeleton_read
 0x540b80  character_free_skeletons func  vsdk\ca\character.cpp O ; thiscall: unless flag 8 at +0x44, deletes the +0x48 skeletons at +0x54 (skeleton__scalar_deleting_dtor), count = 0
 0x540bd0  character_free_skeleton  func  vsdk\ca\character.cpp O ; thiscall (index): deletes skeleton +0x54[index] unless flag 8, shrinks the count +0x48 when it was the last, caller statscreen_unload_anim
@@ -4955,6 +5359,11 @@
 0x545000  file_read_int16_array    func  vsdk\vfile           O ; (File*, int16*, count, ...): File__read_int16 per element
 0x545040  file_write_int16_array   func  vsdk\vfile           O ; (File*, int16*, count): File__write_int16 per element
 0x545080  file_sync_int16_array    func  vsdk\vfile           O ; File__check_flags(1) picks file_read_int16_array or file_write_int16_array
+0x5450c0  init_gr_vertex_buf_2ee6338 func  vsdk\gr              O ; hidden start, static initialiser (table 0x5889fc): 64 gr__Vertex (0x30 bytes) at 0x2ee6338
+0x5450f0  init_gr_mode_slots_2ee45d8 func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a00): 4 records of 0x14 bytes at 0x2ee45d8 (gr_mode_slot__ctor)
+0x546110  gr_mode_slot__ctor       func  vsdk\gr              I ; thiscall ctor: gr__Mode__Mode_invalid on +0, returns this
+0x546150  init_sound_emitters      func  -                    O ; hidden start, static initialiser (table 0x588a04): 0x80 sound_emitters of 0x74 bytes (sound_emitter__sound_emitter)
+0x546180  init_sound_emitter_list_head func  -                    O ; hidden start, static initialiser (table 0x588a08): sound_emitter__sound_emitter(0x2f076f0), the list head used by sound_emitters_init
 0x5461f0  sound_emitter_reset      func  -                    O ; (idx) clears flags +0x50, handles +8/+0xc = -1, zeroes vectors +0x24/+0x3c of the 0x74-byte entry at 0x2f07768
 0x546230  sound_emitter_find_free  func  -                    O ; index of the first emitter without flag 1 (128 entries), -1 if none, caller sound_create_emitter
 0x5462b0  sound_emitter_stop       func  -                    O ; (idx, fade_ms) clears playing flag 8, snd_stop_fade or snd_stop on handle +0xc, num playing (0x2f0b168)--
@@ -4968,8 +5377,10 @@
 0x546b20  sound_emitter_pause      func  -                    O ; (idx) when used: flag 2 set, +0x10 = 0, sound_emitter_stop(idx, 0)
 0x546b80  sound_emitter_unpause    func  -                    O ; (idx) clears flag 2
 0x546c20  sound_emitter_get_sound  func  -                    I ; (idx) +8 of the emitter (sound handle passed at creation), -1 when out of range
+0x546c80  sound_emitter__sound_emitter func  -                    O ; thiscall ctor of the 0x74-byte emitter: vectors +0x24/+0x30/+0x3c, RealtimeTimer +0x4c, GameTimer +0x58
 0x547390  glide_unload_dll         func  vsdk\gr\glide\gr_glide.cpp O ; FreeLibrary(glide2x.dll handle 0x2f0e9b0), called by gr_glide_close
 0x5473b0  glide_load_dll           func  -                    O ; LoadLibrary "glide2x.dll" and GetProcAddress of the _gr*/_gu* entry points
+0x547990  init_glide_records_2f0eb70 func  vsdk\gr\glide        I ; hidden start, static initialiser (table 0x588a0c): 2 records of 0x48 bytes at 0x2f0eb70 (glide_record__ctor)
 0x5479c0  glide_report_texture_memory func  -                    I ; "Total texture memory on 3dfx card = ..."
 0x547b60  gr_glide_tcache_close    func  vsdk\gr\glide\gr_glide.cpp O ; gr_glide_tcache_flush, frees each TMU block table (0x48-byte TMU records at 0x2f0eb70), deletes the texture table 0x2f0ec00, caller gr_glide_close
 0x547ba0  gr_glide_tcache_flush    func  vsdk\gr\glide\gr_glide.cpp I
@@ -4977,6 +5388,7 @@
 0x547cc0  gr_glide_bitmap_size_check func  vsdk\gr\glide\gr_glide.cpp I ; "Glide: Not drawing %dx%d bitmap '%s'"
 0x5496e0  gr_glide_mark_texture_dirty func  vsdk\gr\glide\gr_glide.cpp I
 0x549730  gr_glide_tcache_free     func  vsdk\gr\glide\gr_glide.cpp I
+0x549780  glide_record__ctor       func  vsdk\gr\glide        I ; hidden start, thiscall ctor: byte +0 = 0, +8/+0xc = -1, +0x10..+0x1c = 0 and more fields
 0x5497a0  glide_tmu_init           func  vsdk\gr\glide\gr_glide.cpp O ; (tmu) guTexMemQueryAvail and grTexMinAddress into the TMU record, then its block table, caller glide_report_texture_memory
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549cf0  glide_clip_cursor        func  vsdk\gr\glide\gr_glide.cpp O ; ClipCursor(&rect 0x2f0f1f8) or ClipCursor(NULL)
@@ -4985,6 +5397,7 @@
 0x549fc0  glide_set_active         func  vsdk\gr\glide\gr_glide.cpp I ; (active): grSstWinOpen on os_get_main_wnd with gamma (grGammaCorrectionValue) and glide_clip_cursor, or gr_glide_tcache_flush and grSstWinClose
 0x54a0b0  gr_glide_is_mode_supported func  vsdk\gr\glide\gr_glide.cpp O ; true unless the mode is multitexture and flag 0x2f132cd is set (cleared when fewer than 2 TMUs)
 0x54a0d0  gr_glide_get_video_memory_mb func  vsdk\gr\glide\gr_glide.cpp O ; returns 0x2f0f208, set in gr_glide_init (>= 12 changes a texture option)
+0x54a0e0  init_gr_glide_current_mode func  vsdk\gr\glide\gr_glide.cpp O ; hidden start, static initialiser (table 0x588a10): gr__Mode__Mode_invalid(0x2f0f1e4), the mode cache of gr_glide_set_mode
 0x54a100  gr_glide_set_mode        func  vsdk\gr\glide\gr_glide.cpp I ; (gr::Mode) returns early when equal to the current mode 0x2f0f1e4 (gr__Mode__operator_eq), else sets the Glide combine/blend/depth state
 0x54a540  gr_glide_apply_tint      func  vsdk\gr\glide\gr_glide.cpp O ; (GrVertex*): luminance of the float colours (+0xc..0x14) times the gr tint factors, clamp_float 0..255, callers gr_glide_bitmap/line/line_3d/tmapper
 0x54a5b0  gr_glide_set_viewport    func  vsdk\gr\glide\gr_glide.cpp I
@@ -4999,6 +5412,7 @@
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b110  gr_glide_line_3d         func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of gr_line_3d, calls glide_grDrawLine
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
+0x54b930  init_ccmd_whee_thunk     func  -                    O ; hidden start, initialiser table entry 0x588a14: jmp init_ccmd_whee
 0x54b940  init_ccmd_whee           func  -                    O ; static initialiser of the console command "whee"
 0x54b960  cmd_whee                 func  -                    O ; console command "whee": process_command(0x10) then copies the parsed int into 0x5ad544
 0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
@@ -5007,6 +5421,7 @@
 0x54baa0  gr_glide_set_alpha_test  func  vsdk\gr\glide\gr_glide.cpp O ; grAlphaTestFunction(GREATER or ALWAYS), glide back end of 0x508110
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
 0x54bad0  gr_glide_flush_pipeline  func  vsdk\gr\glide\gr_glide.cpp I ; grLfbLock, grLfbReadRegion of one pixel, grLfbUnlock (forces the card to finish)
+0x54bb30  init_opengl_records_2f132d8 func  vsdk\gr\opengl       I ; hidden start, static initialiser (table 0x588a18): 2 records of 0x18 bytes at 0x2f132d8 (opengl_record__ctor)
 0x54bb60  gr_d3d_tcache_init       func  vsdk\gr\directx\gr_direct3d.cpp O ; allocates 0xaf0 texture entries of 0x10 bytes (0x2f13308, handle -1) and the texture slots, caller gr_d3d_init
 0x54bbb0  gr_d3d_tcache_close      func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_d3d_tcache_flush, frees every entry, deletes the table, caller gr_d3d_close
 0x54bbf0  gr_d3d_tcache_free_entry func  vsdk\gr\directx\gr_direct3d.cpp I ; (entry) releases the slots of one texture entry, callers gr_d3d_tcache_free, gr_d3d_bitmap_size_check
@@ -5016,6 +5431,7 @@
 0x54d330  gr_d3d_round_texture_size func  vsdk\gr\directx\gr_direct3d.cpp O ; rounds a dimension up to 4/8/16/..., caller gr_d3d_bitmap_size_check
 0x54d3f0  gr_d3d_mark_texture_dirty func  vsdk\gr\directx\gr_direct3d.cpp I
 0x54d430  gr_d3d_tcache_free       func  vsdk\gr\directx\gr_direct3d.cpp I
+0x54d470  opengl_record__ctor      func  vsdk\gr\opengl       I ; hidden start, thiscall ctor: byte +0 = 0, +8/+0xc = -1, +0x10/+0x14 = 0
 0x54d5a0  tcache_slot__invalidate_bitmap func  vsdk\gr              I ; thiscall (bitmap): bitmap +8 = -1 when it matches, used by the Glide and Direct3D mark_texture_dirty/tcache_free
 0x54e640  gr_opengl_tcache_close   func  vsdk\gr\opengl\gr_opengl.cpp O ; gr_opengl_tcache_flush then frees the texture tables 0x2f1331c/0x2f13334, caller gr_opengl_close
 0x54e690 gr_opengl_texture_init   func  vsdk\gr\opengl\gr_opengl.cpp     O ; allocates max_texture_size^2 * 4 bytes
@@ -5025,6 +5441,7 @@
 0x54ed90  gr_opengl_tcache_set     func  vsdk\gr\opengl\gr_opengl.cpp I ; (bitmap, ..., stage) binds a bitmap texture, uploading it (0x54e840) when missing, -1 bitmap unbinds the stage
 0x54eed0  gr_opengl_mark_texture_dirty func  vsdk\gr\opengl\gr_opengl.cpp O
 0x54ef20  gr_opengl_tcache_free    func  vsdk\gr\opengl\gr_opengl.cpp O
+0x54efb0  init_gr_opengl_current_mode func  vsdk\gr\opengl\gr_opengl.cpp O ; hidden start, static initialiser (table 0x588a1c): gr__Mode__Mode_invalid(0x2f1333c), the OpenGL state cache
 0x54efd0  gr_opengl_get_current_mode func  vsdk\gr\opengl\gr_opengl.cpp O ; returns &0x2f1333c (the gr::Mode last set)
 0x54efe0  gr_opengl_set_mode       func  vsdk\gr\opengl\gr_opengl.cpp I ; (gr::Mode) returns early when equal to the current mode, else sets texture/blend/depth/fog GL state
 0x54f320  gr_opengl_page_in        func  vsdk\gr\opengl\gr_opengl.cpp O
@@ -5051,6 +5468,7 @@
 0x5504f0  glFinish                 func  -                      O ; import thunk: jmp [OPENGL32.dll!glFinish]
 0x550630  gr_opengl_set_antialias  func  vsdk\gr\opengl\gr_opengl.cpp O ; empty OpenGL target of gr_set_antialias
 0x550640  clamp_ubyte              func  -                    O ; (unsigned char *v, min, max) clamps in place, used by 0x54f9a0 (gr_opengl_bitmap colour)
+0x5519c0  init_vector_buf_2f13368  func  vsdk\geom            O ; hidden start, static initialiser (table 0x588a20): 64 elements of 8 bytes at 0x2f13368
 0x5520d0  Crc32__init_table        func  -                    O ; builds the 256-entry CRC-32 table (polynomial 0xedb88320) at 0x2f136e8, sets 0x2f13ae8
 0x552120  Crc32__Crc32             func  -                    O ; thiscall value = 0, used by name_hash_nocase and the true/false parser
 0x552130  Crc32__update            func  -                    O ; thiscall (buf, len): table-driven CRC-32 over len bytes (builds the table on first use), returns the value
@@ -5160,6 +5578,7 @@
 0x557b70  String__from_hex         func  -                    O ; sprintf "0x%x" into a String
 0x557c00  String__from_float       func  -                    O ; sprintf "%.*f" into a String
 0x557c90  String__format_bytes     func  -                    O ; " bytes" / " KB" / " MB" size formatting
+0x5590b0  init_gr_clip_temp_verts  func  vsdk\gr              O ; hidden start, static initialiser (table 0x588a24): 64 gr__Vertex in gr_clip_temp_verts
 0x5590e0  gr_clip_edge             func  vsdk\gr              I ; creates the intersection vertex of an edge with one clip plane (uses gr_clip_alloc_temp_vertex), callers gr_clip_line, gr_clip_plane
 0x559330  gr_clip_alloc_temp_vertex func  vsdk\gr              O ; returns the next 0x30-byte vertex of the pool 0x2f53b00 (count 0x2f54700), marks flags +0x19 = 4 (temporary)
 0x559350  gr_clip_line             func  vsdk\gr              I ; (Vertex** a, Vertex** b, codes) clips a line against each set plane bit with gr_clip_edge, caller gr_line_3d
@@ -5170,6 +5589,8 @@
 0x559ed0  ftp_get_create           func  -                    O ; FTP getter ctor: fopen local file, socket/bind/listen, "anonymous" / "pxouser@pxo.net", parses "ftp:" URL (FreeSpace 2 inetfile CFtpGet layout)
 0x55a150  ftp_get_destroy          func  -                    O ; shutdown + closesocket of control/data sockets
 0x55a1c0  ftp_get_status           func  -                    I ; returns state field +8 (getter group at 55a1c0/55a1d0/55a1e0)
+0x55a1d0  ftp_get_bytes_in         func  -                    I ; hidden start, thiscall returns +0, tail-called by InetGetFile__GetBytesIn, after ftp_get_status
+0x55a1e0  ftp_get_total_bytes      func  -                    I ; hidden start, thiscall returns +4, getter after ftp_get_bytes_in
 0x55a1f0  ftp_worker_thread        func  -                    O ; ftp_connect_control_socket, state 6 -> ftp_login_host, state 8 -> ftp_get_file, sets done flag
 0x55a220  ftp_get_file             func  -                    O ; "TYPE I", "CWD %s", ftp_send_port, "RETR %s", accept, ftp_read_data_channel
 0x55a3f0  ftp_send_port            func  -                    I ; "PORT %d,%d,%d,%d,%d,%d"
@@ -5186,11 +5607,14 @@
 0x55a9a0  http_get_init            func  -                    O ; parses "http:" URL, fopen local file, socket, ioctlsocket non-blocking
 0x55ab70  http_get_destroy         func  -                    O ; shutdown + closesocket
 0x55aba0  http_get_status          func  -                    I ; returns field +0xc (getter group 55aba0/55abb0/55abc0)
+0x55abb0  http_get_bytes_in        func  -                    I ; hidden start, thiscall returns +4, tail-called by InetGetFile__GetBytesIn, after http_get_status
+0x55abc0  http_get_total_bytes     func  -                    I ; hidden start, thiscall returns +8, getter after http_get_bytes_in
 0x55abd0  http_send_get            func  -                    I ; "GET %s%s HTTP/1.1", parses "Content-Length:"
 0x55ae20  http_connect_socket      func  -                    O ; inet_addr or resolve, getservbyname("http"), connect, select
 0x55b0d0  http_get_line            func  -                    O ; recv one header line, WSAGetLastError
 0x55b1c0  http_read_data_channel   func  -                    O ; select/recv loop, fwrite, fclose
 0x55b3e0  http_resolve_host        func  -                    I ; gethostbyname thread: stores address or failure flag
+0x55bf90  init_timed_records_2f798b8 func  vsdk\geom            I ; hidden start, static initialiser (table 0x588a28): 0x20 records of 0x2c bytes at 0x2f798b8 (RealtimeTimer at +0x24, ctor 0x55dda0)
 0x55c000  ds_duplicate_buffer      func  -                    I ; "DuplicateSoundBuffer failed because: %s"
 0x55c1a0  ds_init                  func  -                    O ; "dsound.dll", DirectSoundCreate, SetCooperativeLevel
 0x55c3f0  ds_init_buffers          func  -                    O ; clears ds_buffers[0x100] (0x250 bytes each at 0x2f54720, same size as RF DsBuffer)
@@ -5268,6 +5692,8 @@
 0x55eeb0  ui_slider__set_range     func  vsdk\ui              O ; (content) count = content - visible +0x2a8 + 1, then ui_slider__update_marker
 0x55eed0  ui_slider__update_marker func  vsdk\ui              O ; marker size = track length * visible / (count + visible - 1), clamped
 0x55ef60  ui_tooltip__draw         func  vsdk\ui              O ; tooltip node: text +0xc at owner screen position + (+0x114, +0x118), gr_get_string_size box, called by ui_draw
+0x55ff00  init_gr_mode_2f91a5c     func  vsdk\geom            O ; hidden start, static initialiser (table 0x588a2c): gr__Mode(0, 0, 0, 3, 1, 0) into 0x2f91a5c
+0x562a30  init_ccmd_dump_mesh_frames_thunk func  -                    O ; hidden start, initialiser table entry 0x588a30: jmp init_ccmd_dump_mesh_frames
 0x562a40  init_ccmd_dump_mesh_frames func  -                    O ; static initialiser: registers console command object ccmd_dump_mesh_frames
 0x562a60  cmd_dump_mesh_frames     func  -                      O ; console command "dump_mesh_frames": Toggles Dump_mesh_frames
 0x562f60  mesh_check_materials     func  -                    I ; "Face is missing a material -- mesh %s"
@@ -5582,6 +6008,7 @@
 0x5a66c0  key_ascii_table_shifted  data:int[127] -                      I
 0x5a6f20  command_line_cursor      data:char* console.cpp            O ; current position in the command line
 0x5a6f24  token_write_ptr          data:char* console.cpp            O
+0x5a7280  gr_reflection_map_bm     data:int vsdk\gr              O ; bitmap handle of refmap01.tga set by gr_load_reflection_map (initially -1)
 0x5a7294  Gr_far_min               data:int -                      I ; set by console command "far_min" (sets); type inferred
 0x5a7298  Gr_far_max               data:int -                      I ; set by console command "far_max" (sets); type inferred
 0x5a72a0  Gr_3d_zmult              data:int -                      I ; set by console command "zmult" (sets); type inferred
@@ -5884,6 +6311,7 @@
 
 0x25d94e0 key_queue                data:uint16[] -                      I
 0x25da140 key_press_counts         data:int[256] -                      I ; read and cleared by key_get_press_count
+0x25da540  key_release_counts       data:int[256] -                    O ; key_mark increments on key up, key_clear and key_get_release_count reset
 0x25da940 key_queue_head           data:int -                      I
 0x25da944 key_queue_tail           data:int -                      I
 0x25da94c key_down_state           data:uint8[256] -                      I ; read by key_is_down
