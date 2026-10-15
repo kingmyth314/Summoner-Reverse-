@@ -24,6 +24,8 @@ Rules:
 | `game/new_playmenu.cpp` | `new_playmenu.cpp` | 16 | 13 / 3 / 0 |
 | `game/new_mainmenu.cpp` | `new_mainmenu.cpp` | 13 | 9 / 4 / 0 |
 | `game/new_dialogue.cpp` | `new_dialogue.cpp` | 6 | 3 / 3 / 0 |
+| `game/new_assess.cpp` | `new_assess.cpp` | 20 | 12 / 8 / 0 |
+| `game/new_pickup.cpp` | `new_pickup.cpp` | 22 | 12 / 10 / 0 |
 
 **Headers.** `include/` holds one stub header per batch (`stubs_*.h`) that declares the engine and UI functions
 the files call, plus `ui_screen.h` and `dialogue_box.h`. The signatures are inferred from the call sites. They
