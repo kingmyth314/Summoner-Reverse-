@@ -63,29 +63,8 @@ typedef matrix matrix3_t;
 
 extern matrix identity_matrix;                        // 0x2692ea0 (matrix.cpp)
 
-class quaternion {                                    // w at +0xC (quaternion__to_matrix)
-public:
-    quaternion() {}                                   // folded with 0x505530 (empty)
-    quaternion(float x, float y, float z, float w)    // 0x50f990 (COMDAT in the gr unit)
-    { this->x = x; this->y = y; this->z = z; this->w = w; }
-    quaternion(const quaternion &q)                   // 0x51b730 quaternion__assign_b (COMDAT in character_instance.cpp)
-    { x = q.x; y = q.y; z = q.z; w = q.w; }
-    // 0x50f9b0 quaternion__assign: EAX is left holding q.w, so the operator returns nothing (decomp25,
-    // D501; the old declaration returned quaternion &).
-    void operator=(const quaternion &q)
-    { x = q.x; y = q.y; z = q.z; w = q.w; }
-    quaternion(const matrix &m);                      // 0x522610 quaternion__set_from_matrix (returns this: a constructor)
-    // 0x522790 quaternion__set_from_matrix_b also returns this (thiscall, ret 4) and s3d_read_navpoint
-    // builds a temporary with it before an inline copy: a second constructor, by pointer (decomp28, D806).
-    quaternion(const matrix *m);
-    void to_matrix(matrix *out) const;                // 0x522bf0 quaternion__to_matrix
-    void to_matrix_b(matrix *out) const;              // 0x522cc0 quaternion__to_matrix_b (doors; decomp24)
-    void normalize();                                 // 0x522f20 quaternion__normalize (decomp25)
-    void make_identity();                             // 0x523500 quaternion__make_identity (0, 0, 0, 1; decomp61)
-    float x, y, z, w;
-};
-LAYOUT_CHECK(quaternion, sizeof(quaternion) == 0x10);
-void quaternion_slerp(quaternion *out, const quaternion *a, const quaternion *b, float t);  // 0x5235a0
+// decomp60: quaternion (and cquat) moved to vsdk/math/quaternion.h, the header of the quaternion unit.
+#include "vsdk/math/quaternion.h"
 
 class matrix43 {                                      // rotation rows m[0..2] + position m[3]
 public:

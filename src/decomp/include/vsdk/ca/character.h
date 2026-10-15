@@ -140,6 +140,10 @@ void ca_load_preload_index(const char *name);   // 0x541790
 int  ca_preload_find(const char *name, int *offset, int *size);   // 0x5418f0 1 = found
 
 // Mesh rendering used by the 3D views of the screens.
+// decomp60 (character_instance::render): the character and instance the next ca_render_mesh uses
+// (cleared with (NULL, NULL) afterwards).
+class character_instance;
+void ca_render_set_instance(ca_character *character, character_instance *instance);   // 0x50d6c0
 void ca_render_set_mesh(void *mesh);                                       // 0x50d6e0
 void ca_render_mesh(vector3 *pos, matrix *orient, gr_light_desc *light);   // 0x50d6f0 (return unused)
 

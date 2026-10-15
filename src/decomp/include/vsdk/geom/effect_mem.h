@@ -62,21 +62,18 @@ LAYOUT_CHECK(effect_base, sizeof(effect_base) == 0x14);
 // Effect record pools threaded by effects_init_pools. Only the constructed members and the links are
 // named; the constructors are the compiler-generated ones (0x51df10-0x51dfee; the three
 // two-vector types share one body at 0x51df60, folded by the linker).
-struct fx_rec48 {                     // vfx instance (0x48), free list vfx_instance_free_list
-    unsigned int flags;               // +0x00 bit 0x40 cleared by effects_init_pools
-    char _unk04[0x18 - 0x04];
-    int _unk18, _unk1c, _unk20;       // +0x18..+0x20 zeroed by effects_init_pools
-    int _unk24;
-    int _unk28;                       // +0x28 zeroed by effects_init_pools
-    char _unk2c[0x30 - 0x2c];
-    vector3 pos;                      // +0x30
-    char _unk3c[0x40 - 0x3c];
-    fx_rec48 *next;                   // +0x40
-    fx_rec48 *prev;                   // +0x44
-};
+// decomp60 (D4000): the 0x48-byte record is the vfx instance and the 0x30-byte one the instance light,
+// declared in vfx.h; their compiler-generated constructors are 0x51df10 and the shared 0x51df60.
+typedef vfx_instance fx_rec48;        // free list vfx_instance_free_list
+typedef vfx_light_desc fx_rec30;      // free list fx_rec30_free_list
+// A node record of an instance (0x98; vfx_mesh_render's mesh instance, the pointer at 0x2c9f968 is the
+// last one rendered).
 struct fx_rec98 {
     vector3 v00;                      // +0x00
-    char _unk0c[0x20 - 0x0c];
+    char _unk0c[0x1c - 0x0c];
+    unsigned int _bits1c : 28;        // +0x1c
+    unsigned int level : 1;           //       bit 28: vfx_instance_create's flag argument
+    unsigned int _bits1c_29 : 3;
     vector3 v20;                      // +0x20
     matrix m2c;                       // +0x2c
     vector3 v50;                      // +0x50
@@ -86,13 +83,6 @@ struct fx_rec98 {
     fx_rec98 *next;                   // +0x90
     fx_rec98 *prev;                   // +0x94
 };
-struct fx_rec30 {
-    char _unk00[0x08];
-    vector3 v08, v14;                 // +0x08, +0x14
-    char _unk20[0x28 - 0x20];
-    fx_rec30 *next;                   // +0x28
-    fx_rec30 *prev;                   // +0x2c
-};
 struct fx_rec2c {
     char _unk00[0x08];
     vector3 v08, v14;
@@ -100,13 +90,16 @@ struct fx_rec2c {
     fx_rec2c *next;                   // +0x24
     fx_rec2c *prev;                   // +0x28
 };
+// A particle of an emitter (0x28; 6000 at 0x2c42690 on fx_rec28_list).
 struct fx_rec28 {
-    char _unk00[0x08];
+    fixed8 life;                      // +0x00 -1.0 when taken by vfx_instance_create
+    char _unk02[0x08 - 0x02];
     vector3 v08, v14;
     fx_rec28 *next;                   // +0x20
     fx_rec28 *prev;                   // +0x24
 };
 struct fx_rec4c {
+    void clear();                     // 0x55b440 vfx_node_state__clear (+8 = 0, top three bits of +4 cleared)
     char _unk00[0x0c];
     vector3 v0c, v18;                 // +0x0c, +0x18
     char _unk24[0x28 - 0x24];
@@ -115,12 +108,16 @@ struct fx_rec4c {
     fx_rec4c *next;                   // +0x44
     fx_rec4c *prev;                   // +0x48
 };
+// An emitter of an instance (0xb0; 128 at 0x27229d8 on fx_recb0_list).
 struct fx_recb0 {
-    char _unk00[0x1c];
+    fx_rec4c *links[3];               // +0x00 the instance's fx_rec4c records the emitter's links name
+    char _unk0c[0x1c - 0x0c];
     vector3 v1c;                      // +0x1c
     matrix m28;                       // +0x28
     vector3 v4c, v58, v64, v70, v7c;  // +0x4c..+0x7c
-    char _unk88[0xa8 - 0x88];
+    char _unk88[0x9c - 0x88];
+    fx_rec28 *particles;              // +0x9c
+    char _unka0[0xa8 - 0xa0];
     fx_recb0 *next;                   // +0xa8
     fx_recb0 *prev;                   // +0xac
 };
@@ -179,12 +176,19 @@ void effects_init_pools();
 int effects_load_bases();
 void effects_show_memory_usage();
 
-// same unit, not written yet (0x51d250-0x51df0f, see game/NOTES-player-effectmem.md)
+// decomp60: the rest of the unit (0x51d250-0x51df0f).
 int effects_hash_name(const char *name);                // 0x51db50
-void effects_load_preload_rfx();                        // 0x51dbb0 (level_preload_effects tail-jumps to it; decomp29)
+// Returns 0, or -1 when preload.rfx does not load (D4005; level_preload_effects tail-jumps to it, decomp29).
+int effects_load_preload_rfx();                         // 0x51dbb0
 
 void effects_release_level_memory();  // 0x51dc20 (level_unload; decomp42)
+void effects_release_range(char *start, int size);      // 0x51dc50 releases the resident bases whose data is inside
+int  effects_stub_ret1();                               // 0x51dca0 (no caller)
+int  vfx_all_resident(const char **names);              // 0x51dcb0 25 names (no caller)
+bool effect_is_cutscene_base(int name_index);           // 0x51dec0 (fx_pause_for_cutscene / fx_resume_after_cutscene)
 void effects_release_cutscene_memory();   // 0x51def0 (cutscene_cleanup; decomp52)
+// (base, a, flag): a new instance with the base's records, NULL when no record is free.
+vfx_instance *vfx_instance_create(vfx_base *base, int a, bool flag);   // 0x51d250
 // decomp48 (the interface manager's model lights "inv-lights1.vfx"): an instance of an effect file and
 // its release. vfx_load's second argument is 1 at that call (meaning not known).
 void vfx_instance_free(vfx_instance *vi);                // 0x51d7b0

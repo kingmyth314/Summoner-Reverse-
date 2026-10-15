@@ -58,8 +58,16 @@ public:
     // Inline in the original header (decomp20, DECISIONS.md C3): expanded in conversation_frame, called
     // as the COMDAT 0x4d9a80 vector3__len_sq from conversation_camera_compute_shot.
     float len_sq() const { return x * x + y * y + z * z; }
+    // decomp60: inline; its out-of-line copy is the COMDAT 0x4b24f0 (vsdk\math), called by the light and
+    // vector units (built without inline expansion). The code sums the z term first (D504).
+    float dot(const vector3 &v) const                 // 0x4b24f0 vector3__dot
+    { return x * v.x + y * v.y + z * v.z; }
 
-    // Out of line, in the vector unit (0x523f80-0x524930; not written yet).
+    // decomp60: inline; its only copy is a COMDAT at the end of the vector unit (0x525670).
+    void operator/=(float s)                          // 0x525670 vector3__operator_div_assign (times 1 / s)
+    { float r = 1.0f / s; x *= r; y *= r; z *= r; }
+
+    // Out of line, in the vector unit (0x523f30-0x525710, src/decomp/vsdk/unnamed_vector_0x523f30.cpp; decomp60).
     int  is_valid() const;                            // 0x524220
     int  is_zero() const;                             // 0x5241e0 vector3__is_zero (decomp37)
     void unrotate(const matrix &m);                   // 0x5245f0
@@ -78,6 +86,16 @@ public:
     void random_direction();                          // 0x5246a0 vector3__random_direction (twin of 0x524650)
     void rotate(const matrix &m);                     // 0x5245a0 vector3__rotate (in place, dot with each row; decomp28)
     float length_quick() const;                       // 0x5240e0 vector3__length_quick (sorted |components|, weighted; decomp32)
+    // decomp60: the other members of the vector unit.
+    // (axis, u, v): the index of the largest |component| and the two others in a fixed order, swapped
+    // when that component is not positive.
+    void get_major_axis(int *axis, int *u, int *v) const;   // 0x524010
+    vector3 normalized_or_x() const;                  // 0x5242c0 (1, 0, 0) at length 0
+    void negate();                                    // 0x524580
+    // thiscall in Sum.exe (Summoner 2's free functions take the vector first): a random unit vector
+    // with z in min_z..1, and the same around an axis (passed by value).
+    void random_direction_in_cone(float min_z);       // 0x5246f0 random_direction_in_cone
+    void random_direction_in_cone_axis(vector3 axis, float min_z);   // 0x524740 random_direction_in_cone_axis
 
     float x, y, z;
 };
@@ -90,6 +108,31 @@ int vector3_near_equal(const vector3 *a, const vector3 *b);   // 0x524910 each |
 // (out, p0, p1, p2): cross product of two edges, not normalised (Volition vm_vec_perp; decomp28).
 void vector3_perp(vector3 *out, const vector3 *p0, const vector3 *p1, const vector3 *p2);   // 0x524990
 extern vector3 vector3_zero;                          // 0x2cbf4b8 (0, 0, 0), static initialiser (decomp27)
+// decomp60 (the sound unit): (out, a, b) out = a - b normalised; returns |a - b|.
+float vector3_normalized_dir(vector3 *out, const vector3 *a, const vector3 *b);   // 0x5248d0
+// decomp60: the free functions of the vector unit (cdecl).
+float vector3_project_onto_normal(vector3 *out, const vector3 *v, const vector3 *n);   // 0x524780 out = n (v . n); returns v . n
+void vector3_remove_normal_component(vector3 *out, const vector3 *v, const vector3 *n);   // 0x5247c0 out = v - n (v . n)
+float distance_quick(const vector3 *a, const vector3 *b);   // 0x524870 (a - b).length_quick()
+float dot_of_difference(const vector3 *a, const vector3 *b, const vector3 *c);   // 0x5248a0 b . (a - c)
+void vector3_normal(vector3 *out, const vector3 *p0, const vector3 *p1, const vector3 *p2);   // 0x524960 vector3_perp, normalised
+// (a, b, axis): the angle between a and b, negative when a x b points away from axis.
+float vector3_angle_and_axis(const vector3 *a, const vector3 *b, const vector3 *axis);   // 0x5249e0
+float direction_dot(const vector3 *dir, const vector3 *from, const vector3 *to);   // 0x524ab0 dir . normalised(to - from)
+// (out, v, n, p): v moved along n onto the plane through p.
+void project_onto_plane(vector3 *out, const vector3 *v, const vector3 *n, const vector3 *p);   // 0x524ae0
+// (out, v, angle, origin, axis): v rotated by angle (the bank of a matrix built on axis) around origin.
+void vector3_rotate_about_axis(vector3 *out, const vector3 *v, float angle, const vector3 *origin,
+                               const vector3 *axis);  // 0x524b50
+// (out, from, to, t): from turned towards to by t of the angle between them (normalised copies first).
+void vector3_rotate_towards(vector3 *out, const vector3 *from, const vector3 *to, float t);   // 0x524c10
+void vector3_rotate_towards_unit(vector3 *out, const vector3 *from, const vector3 *to, float t);   // 0x524c80
+// (points, n, center, radius): Ritter's bounding sphere.
+void bounding_sphere_from_points(const vector3 *pts, int n, vector3 *center, float *radius);   // 0x524d10
+// (n, verts, centroid): the area-weighted centroid of a fan-triangulated polygon; returns the area.
+float polygon_calc_centroid(int n, const vector3 *verts, vector3 *centroid);   // 0x525100
+void vector3_world_to_local(vector3 *v, const vector3 *origin, const matrix *orient);   // 0x5252c0 (v - origin) rotated
+void vector3_local_to_world(vector3 *v, const vector3 *origin, const matrix *orient);   // 0x525300 v unrotated + origin
 
 int imax(int a, int b);                               // 0x51b750 (COMDAT in character_instance.cpp)
 int imin(int a, int b);                               // 0x503dc0
@@ -98,6 +141,12 @@ float frand_range(float lo, float hi);                // 0x542770 lo + frand() *
 float distance_squared(const vector3 *a, const vector3 *b);   // 0x524840 |a - b|^2 (decomp41)
 // (v, lo, hi): clamps *v in place (vsdk\math; the Glide tint code and the sound group volumes; decomp45).
 void clamp_float(float *v, float lo, float hi);       // 0x50d980
+// decomp60: inline (D4004). Out-of-line copies: float_max 0x50d960 (a COMDAT before clamp_float, in the
+// gr unit), float_min 0x51faf0 (at the end of the light unit). Both cdecl, `fcomp` of a with b.
+inline float float_max(float a, float b)              // 0x50d960
+{ return a > b ? a : b; }
+inline float float_min(float a, float b)              // 0x51faf0
+{ return a < b ? a : b; }
 
 // A 2D vector (conversation_frame passes the x / z offset; decomp20), (x, z of a ground position in spell_place_ground_effect). len as in decomp20's copy.
 class vector2 {
@@ -106,6 +155,13 @@ public:
     // avoidance tables static initialisers 0x4a6720 / 0x4a6760 / 0x4a67a0 pass 0x505530 to `vector
     // constructor iterator` for their vector2 arrays (count 30 / 8, size 8).
     vector2() {}
+    // decomp60: inline; the COMDATs 0x525650 / 0x5256a0 / 0x525700 at the end of the vector unit.
+    vector2(float x, float y)                         // 0x525650 vector2__vector2 (ret 8)
+    { this->x = x; this->y = y; }
+    vector2 operator-(const vector2 &v) const         // 0x5256a0 vector2__operator_sub
+    { return vector2(x - v.x, y - v.y); }
+    float dot(const vector2 &v) const                 // 0x525700 vector2__dot
+    { return x * v.x + y * v.y; }
     // decomp57: inline members like vector3s (D500); their only out-of-line copies are the COMDATs the
     // avoidance unit (built without inline expansion) calls: operator= returns nothing (EAX not set,
     // ret 4), operator+ returns through the hidden pointer (ret 8).
@@ -128,13 +184,22 @@ public:
 };
 LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
 extern vector2 vector2_zero;                          // 0x2cbf4b0 (0, 0), static initialiser (decomp28)
+// decomp60: s * v, inline (cdecl, hidden result; the COMDAT 0x5256d0 at the end of the vector unit).
+inline vector2 operator*(float s, const vector2 &v)  // 0x5256d0 vector2_scaled
+{ return vector2(s * v.x, s * v.y); }
+float vector2_distance(const vector2 *a, const vector2 *b);           // 0x525340 |b - a|
+float vector2_distance_squared(const vector2 *a, const vector2 *b);   // 0x525370
+// (p, a, b): the squared distance of p from the line through a and b.
+float vector2_dist_sq_to_line(const vector2 *p, const vector2 *a, const vector2 *b);   // 0x5253a0
 // decomp25 (cdecl, called from matrix.cpp; vsdk\math, unit not known):
 float atan2_fast(float y, float x);                   // 0x542790 fpatan with quadrant fix-up
 float cross_2d(float ax, float ay, float bx, float by);   // 0x542b50 ax*by - ay*bx
 // decomp32 (pathfinding.cpp; vsdk\math, unit not known). Closest point to p on segment a-b (t clamped to
 // 0..1) into out; returns the squared distance (pf_sweep_test_wall compares it with 0.0009 = 0.03^2).
 float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const vector2 *b, vector2 *out);   // 0x525410
-// t of the projection of p on a-b; t = 0 and true when |a - p| <= margin, false outside 0..1.
+// decomp60: a segment / circle test (Summoner 2: segment_hits_circle): true with t = 0 when a is within
+// margin of p, else the first t in 0..1 where a + t (b - a) is at distance margin from p; false when the
+// segment misses the circle.
 bool vector2_project_onto_segment(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t);   // 0x5254d0
 
 #endif

@@ -56,8 +56,10 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/plainstring.h` | plainstring.cpp (0x514ec0-0x515955, decomp22; directory guessed) | `is_blank`, `trim_*`, `stristr`, `int_to_string*`, `wide_charmap_*`, ... |
 | `vsdk/os/profile.h` | (ours) | `profile_label` |
 | `vsdk/os/movie.h` | movie (0x5172f0) | `movie_play` |
-| `vsdk/math/vector.h` | vsdk\math | `vector3`, `imax`, `imin`, `frand` |
-| `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `quaternion`, `matrix43` |
+| `vsdk/math/vector.h` | vsdk\math (the vector unit 0x523f30-0x525710, source at src/decomp/vsdk/unnamed_vector_0x523f30.cpp, file name a placeholder, decomp60) | `vector3`, `vector2` and every member, the free vector functions, `imax`, `imin`, `frand`, inline `float_max` / `float_min` (D4004) |
+| `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `matrix43`; includes quaternion.h |
+| `vsdk/math/quaternion.h` | vsdk\math (the quaternion unit 0x5225b0-0x523f29, source at src/decomp/vsdk/unnamed_quaternion_0x5225b0.cpp, file name a placeholder, decomp60) | `quaternion`, `cquat` (moved from matrix.h / skeleton.h, D4013), slerp / squad / log-of-delta, the identities |
+| `vsdk/math/fixed.h` | vsdk\math (file name ours, decomp60) | inline `fixed8`, `float_to_fixed8`, `fixed8_to_float`, `fixed4_to_float` (D4004) |
 | `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point), `ix_ray`, `ix_*` |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile (decomp61: `unnamed_vfile_0x5128b0.cpp`, `unnamed_vfile_rw_0x525720.cpp`) | `File`, `FileReader`, `file_slot`, `lfsr_cipher`, `file_path_entry`, `PATH_ANY`, `FILE_*`, `file_*`, `file_find_*` |
@@ -75,12 +77,14 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/gr/directx/d3d_min.h` | (ours; stands in for `<ddraw.h>` / `<d3d.h>`, D1600) | the DirectDraw 7 / Direct3D 7 structures, C-style interfaces and the SDK call macros, IIDs and constants the Direct3D back end uses; not combinable with the system DirectX headers |
 | `vsdk/gr/directx/gr_direct3d.h` | `vsdk\gr\directx\gr_direct3d.cpp` and the state / drawing object before it (decomp36, D1601) | `d3d_tlvertex`, `d3d_device_record`, `d3d_color_channel`, the Direct3D back end and its globals, the D3D texture cache calls |
 | `vsdk/localize/localize.h` | localize (0x503f60-0x505547, source at src/decomp/vsdk/unnamed_localize_0x503f60.cpp, file name a placeholder, decomp50) | `localize_strings`, `XSTR`, `localize_node` (the name hash tables), `localize_language_info`, every `localize_*` (D3000-D3003) |
-| `vsdk/snd/snd.h` | snd (0x5207d0) | `snd_*`, `eax_*` |
+| `vsdk/snd/snd.h` | the sound unit 0x5204c0-0x521e38 and the EAX unit 0x521e40-0x5225a1 (src/decomp/vsdk/unnamed_snd_0x5204c0.cpp, unnamed_eax_0x521e40.cpp, file names placeholders, decomp60; D4010) | `snd_sound`, the sound globals, every `snd_*` / `eax_*`, the sound emitter calls, `clamp_uint` |
+| `vsdk/snd/ds.h` | (ours; the ds_* layer 0x55c000-0x55dfe0 and EAX 2.0, D4008) | `ds_*` prototypes, `IKsPropertySet`, `EAXLISTENERPROPERTIES`, the EAX GUIDs and constants |
 | `vsdk/net/net.h` | vsdk\net (0x517590-0x5194ab, source at src/decomp/vsdk/unnamed_net_0x517590.cpp, file name a placeholder, decomp50) | `net_addr`, the packet buffers, `reliable_header`, `reliable_socket`, `RNT_*` / `RNF_*`, every `nw_*` (D3004, D3005) |
 | `vsdk/ca/skeleton.h` | `vsdk\ca\skeleton.cpp` | `anim_track`, `skeleton`, `vim` (= `ca_vim`), `vim_load` |
 | `vsdk/ca/character.h` | `vsdk\ca\character.cpp` (decomp30) | `ca_character` (0x1f8, members), `ca_mesh` (mesh slots), `ca_vertex_weights`, preload index, `ca_*` / `character_*`, `ca_render_*` |
 | `vsdk/ca/character_instance.h` | `vsdk\ca\character_instance.cpp` (pilot) | `character_instance` |
-| `vsdk/geom/vfx.h` | vsdk\geom | `vfx_base`, `ptr_relocate` |
+| `vsdk/geom/vfx.h` | vsdk\geom; the attached-light unit 0x51fb10-0x520413 (src/decomp/vsdk/unnamed_attached_lights_0x51fb10.cpp, file name a placeholder, decomp60) | `vfx_base`, `vfx_emitter_desc`, the key channels, `vfx_light_track`, `vfx_light_desc`, `vfx_instance` (D4000, D4001), `attached_light` and `attached_light_*`, `ptr_relocate` |
+| `vsdk/gr/unnamed_lights_0x51e070.h` | the light unit 0x51e070-0x51fb08 (src/decomp/vsdk/unnamed_lights_0x51e070.cpp, file name a placeholder, decomp60; included by gr.h) | `light` (0x94), the light table, selection levels and ambient, every `light_*` / `lights_*`, `gr_env_map_uv`, the gr 3D state it reads |
 | `vsdk/geom/effect_mem.h` | `vsdk\geom\effect_mem.cpp` (pilot) | effect bases and pools |
 | `vsdk/ui/ui.h` | vsdk\ui | `ui_tooltip`, `ui_element`, `ui_gadget`, UI globals and events |
 | `vsdk/ui/ui_gadgets.h` | vsdk\ui (decomp61: `unnamed_ui_button_0x526940.cpp`, `unnamed_ui_static_0x527e20.cpp`) | button (`UI_BUTTON_*`, `ui_drag_gadget`), static, checkbox, radio, inputbox, listbox, slider |

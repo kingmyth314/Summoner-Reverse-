@@ -3155,3 +3155,101 @@ ui_listbox_entry's _unk14 becomes width / height. No src/decomp file used the ol
 line_h)).** ui_listbox::layout_entry pushes the callback (+0x31c) first, then y, then the width (0x52cc82-
 0x52cc92); the callback gets (y, line height) (0x52ca98-0x52ca9e) and its non-zero result replaces the width.
 sum.symbols' "(width, callback, ...)" has the order wrong.
+
+## decomp60: effect_mem.cpp's last functions, the light, attached-light, sound, EAX, quaternion and vector units (0x51d250-0x525710)
+
+**D4000 (vfx.h, effect_mem.h). fx_rec48 is vfx_instance and fx_rec30 is vfx_light_desc.** The record
+vfx_instance_create takes from vfx_instance_free_list (0x48 bytes, the 48 records effects_init_pools
+threads) is the instance the rest of the code knows as vfx_instance: vfx_load stores the name index << 9
+at +0 (the id_bits ai.cpp and the interface read), +0x1c is the list of 0x30-byte records that
+ui_3d_begin walks as vfx_instance::lights (next +0x28), and vfx_instance_free hands those records to
+vfx_node_free_light. vfx_instance now has the full layout (lists +0x18 / +0x1c / +0x20 / +0x28 / +0x2c, pos
++0x30, next / prev +0x40), vfx_light_desc gets offset +0x14 and prev +0x2c (0x30); effect_mem.h keeps the
+old names as typedefs (`typedef vfx_instance fx_rec48; typedef vfx_light_desc fx_rec30;`). Their implicit
+constructors are still 0x51df10 and the shared 0x51df60. effects_init_pools' stores to _unk18 / _unk1c /
+_unk20 / _unk28 / flags are now nodes / lights / emitters / rec2c_list / id_bits (same offsets).
+
+**D4001 (vfx.h). The 0x70-byte light track is vfx_light_track (name ours).** sum.symbols uses
+vfx_light_desc for both records: vfx_light_desc__sample (0x51fdc0) is thiscall on the 0x30-byte instance
+light, while vfx_light_desc__relocate / get_position / sample_34 / _40 / _4c / _58 are thiscall on the
+0x70-byte track of the base (light_tracks + 0x70 * i; the sample reads its frame count at +0xc and its
+channels at +0x10..+0x64). decomp48's vfx_light_desc (the instance light, with sample) is kept; the track is
+a new class vfx_light_track whose members carry the vfx_light_desc__* addresses. The vfx_node_* functions
+(create_light 0x51fb90, free_light 0x51fc80, update_light 0x51fcb0, get_scale 0x5203f0) are thiscall on the
+instance light, so they are vfx_light_desc members. vfx_light_desc::sample keeps its `void *track`
+parameter so unnamed_interface_0x411270.cpp compiles unchanged.
+
+**D4002 (gr.h). gr_light is the attached-light layout, 0x98 bytes.** levelrender_sum_point_lights reads
+world position +0x20, colour +0x2c, intensity +0x38, has_range +0x48, ranges +0x4c / +0x50: the fields
+attached_light_create / attached_light__reset write (attached_light, 24 slots of 0x98 at 0x2cb45d0;
+levelrender_lights[16] is the same type). The 400 records of 0x94 bytes at 0x2ca5de0 (light_reset_all's
+0x39d0 dwords) are the light unit's `class light` (colour times intensity at +0x34, radii +0x2c / +0x30).
+gr.h's comment and size are corrected (0x94 -> 0x98, `_unk54[0x40]` -> `[0x44]`); gr_light stays its own
+declaration (levelrender.h forward-declares `struct gr_light`).
+
+**D4003 (vfx.h). attached_light_create(pos, intensity, range_near, range_far, r, g, b).** The third
+argument is stored as a float at +0x4c next to the range at +0x50 (0x5201c2), and has_range (+0x48) is set;
+it was `int b`. living_entity_init passes 0, which converts to 0.0f (the same bits).
+
+**D4004 (vector.h, fixed.h). float_max, float_min and the fixed-point helpers are inline.** Their only
+out-of-line copies are COMDATs at the ends of objects that call them and were built without inline
+expansion: float_max 0x50d960 (before clamp_float in the gr unit), float_min 0x51faf0 (after the light
+unit's light__light), fixed8::set 0x51e040 and float_to_fixed8 0x51e060 (after effect_mem.cpp's record
+constructors and Mempool members), fixed4_to_float 0x520360 and fixed8_to_float 0x520400 (among the
+attached-light unit's COMDATs). vector3::dot (0x4b24f0) is added as an inline member for the same reason.
+
+**D4005 (effect_mem.h). effects_load_preload_rfx returns int.** 0 at 0x51dc16, -1 when effect_base_load
+fails (0x51dc1b); it was declared void. boss_ai.cpp calls it as a statement.
+
+**D4006 (unnamed_lights_0x51e070.h). Light argument types from the stores.** light_set_all_enabled and
+light_set_enabled AND their byte argument with 1 before the bitfield store (an int argument; was bool),
+light_create_point and light_set_dynamic store theirs without the AND (bool; was `int flags`).
+lights_shade_vertices tests its sixth and seventh arguments as bytes (bool dynamic, bool dynamic_only;
+were int count / int a) and never reads the eighth. lights_select_nearest returns the selection count
+(was void). The callers compile unchanged.
+
+**D4007 (unit bounds). character_instance::render (0x520420) is a unit of its own.** It follows the
+attached-light object's COMDAT block (0x520280-0x520413: the inline constructor, the track samplers,
+attached_light_create_from_vfx, get_scale, fixed8_to_float) and precedes the sound unit's first static
+initialiser (0x5204c0). Every object in this range ends with its inline functions (effect_mem.cpp, the
+light, attached-light, sound, quaternion and vector units), and nothing in the attached-light unit calls
+render, so it is not one of that unit's COMDATs: written as vsdk/unnamed_ca_render_0x520420.cpp (likely;
+which file it belongs to is not known).
+
+**D4008 (vsdk/snd/ds.h, ours). The DirectSound layer and EAX declarations.** The sound and EAX units call
+ds_* (0x55c000-0x55dfe0, not written) and the EAX 2.0 IKsPropertySet interface; ds.h declares the ds_*
+prototypes from these call sites and a minimal IKsPropertySet (C++ vtable: Release +0x08, Get +0x0c, Set
++0x10, QuerySupport +0x14), EAXLISTENERPROPERTIES (0x38) and the three GUIDs (shared .rdata 0x5832e0 /
+0x5833b0 / 0x5833c0, not this unit's data), standing in for <dsound.h> / <eax.h> like d3d_min.h.
+
+**D4009 (snd.h). snd_play_3d(handle, pos, bool looping, int a, int unused).** The third argument is
+compared with 1 as a byte (0x521579) and chooses snd_play_looping or snd_play, and both it and the fourth
+go to ds_play_3d's last two arguments; the fifth is never read. It was (handle, pos, float a, float b,
+int c). The callers push (sound, pos, 0 / 1, 0, 0) (sound_play_3d_at, sound_emitter_play);
+gamesound.cpp's `snd_play_3d(sound, pos, 0.0f, 0.0f, 0)` compiles unchanged (0.0f converts to false / 0)
+and should become `(sound, pos, false, 0, 0)`. snd_init (0 / -1), snd_get_frequency (ds_get_frequency's
+value or -1) and eax_load_props (1 / 0) return int (were void).
+
+**D4010 (unit bounds). The sound and EAX functions are two objects.** The sound object ends with the
+COMDATs Sound::is_used (0x521e10) and clamp_uint (0x521e20) after snd_set_eax_environment; the EAX
+functions follow from 0x521e40. The two are built differently: sounds_parse_table's two "#Sounds End"
+arguments are one literal (0x5a8954, string pooling), while eax_save_props / eax_load_props use 28
+separate "%d\n" / "%f\n" literals (0x5a8ad8-0x5a8b48). Their .bss is contiguous (sound 0x2cb5410-0x2cbf487,
+EAX 0x2cbf488-0x2cbf497). source-map.md's "may be the tail of the sound file" is answered: separate files.
+
+**D4011 (quaternion.h). quaternion::to_matrix fills a matrix43.** 0x522bf0 writes twelve floats: the nine
+rotation values and zeros at +0x24 / +0x28 / +0x2c (0x522cb0); to_matrix_b (0x522cc0) writes the nine
+rotation values only. Every caller of to_matrix passes a matrix43 (matrix43::set, matrix43_interpolate,
+..., matrix.cpp casts it to matrix *). The declaration keeps `matrix *` so matrix.cpp compiles unchanged;
+the definition writes through a matrix43 pointer. To do: make the parameter matrix43 * together with
+matrix.cpp's four calls.
+
+**D4012 (quaternion.h). cquat normalisation uses an integer square.** cquat::normalized (0x523050) and
+cquat::normalize (0x5232b0) compute `idiv` 0xfff8001 (16383^2) by the integer |q|^2 before FILD / FSQRT,
+so the scale is the root of a whole number (0 for any cquat longer than one unit, 1 near one unit) and a
+zero cquat divides by zero. Reproduced as written (game bug, NOTES.md).
+
+**D4013 (headers). quaternion and cquat move to vsdk/math/quaternion.h.** The quaternion unit's header
+(file name ours) holds both classes with their members; matrix.h includes it where quaternion was defined
+(so every user still sees it) and skeleton.h loses its cquat (it includes matrix.h). decomp61's
+make_identity declaration moved with the class.

@@ -33,13 +33,8 @@ public:
 };
 LAYOUT_CHECK(anim_pos_key, sizeof(anim_pos_key) == 0x28);
 
-// The rotation of a key: four int16 components scaled by 16383 (cquat_dot, cquat_slerp work on it).
-// Empty constructor (folded with vector3() at 0x505530).
-class cquat {
-public:
-    cquat() {}
-    short x, y, z, w;
-};
+// The rotation of a key: cquat, four int16 components scaled by 16383 (decomp60: declared in
+// vsdk/math/quaternion.h, the header of the unit with its members, which matrix.h includes).
 
 // Rotation key (0x14 bytes); its implicit constructor is 0x544b40 (anim_key(0), then cquat()).
 class anim_rot_key : public anim_key {

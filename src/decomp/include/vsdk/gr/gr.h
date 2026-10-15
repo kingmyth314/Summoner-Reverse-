@@ -250,13 +250,14 @@ void gr_bitmap_3d(vector3 *pos, int a, float size, gr::Mode mode);   // 0x53f3b0
 class gr_light_desc {
 public:
     gr_light_desc();                  // 0x50f3e0 gr_light_desc__gr_light_desc
-    int _unk00;                       // +0x00
-    int _unk04;                       // +0x04 -1
-    int _unk08;                       // +0x08 0xff
+    int _unk00;                       // +0x00 bit 0: character_instance::render skips the mesh (decomp60)
+    int _unk04;                       // +0x04 -1; not 0 / -1: render the shadow mesh when there is one (decomp60)
+    int _unk08;                       // +0x08 0xff; 0: character_instance::render draws nothing (decomp60)
     float _unk0c;                     // +0x0c (vector3 x; y, z overlap +0x10 / +0x14 as written by the ctor)
     void *appearance;                 // +0x10 charinfo_get_multi_appearance
     float f14;                        // +0x14 -1.0f from the ctor; buysell sets 0.15 before ca_render_mesh
-    int _unk18;                       // +0x18
+    ubyte tint[3];                    // +0x18 the instance's tint (character_instance::render; decomp60, was int _unk18)
+    ubyte _pad1b;
     const char *model_prefix;         // +0x1c character_hero_model_prefix
 };
 LAYOUT_CHECK(gr_light_desc, sizeof(gr_light_desc) == 0x20);
@@ -294,8 +295,10 @@ void gr_rotate_vertices(gr_vertex *out, const vector3 *in, int count);   // 0x50
 void gr_offset_point_depth(gr_vertex *v, float d);    // 0x50ea00
 void gr_poly(int n, gr_vertex **verts, unsigned int flags, int a, int b);   // 0x53e770 (return unused)
 
-// Dynamic lights (vsdk\gr, 0x51e0c0-; 400 records of 0x94 bytes at 0x2ca5de0; file not known).
-// Partial layout from levelrender_sum_point_lights.
+// A light record as levelrender_sum_point_lights reads it (decomp28). decomp60 (D4002): these are the
+// attached-light fields (vfx.h attached_light, 0x98 bytes: world position +0x20, colour +0x2c,
+// intensity +0x38, range +0x48..+0x50), not the 0x94-byte light table of the light unit (class light
+// below, colour at +0x34). Kept as its own declaration so levelrender.cpp compiles unchanged.
 struct gr_light {
     ubyte _unk00[0x20];
     vector3 pos;                      // +0x20
@@ -306,32 +309,12 @@ struct gr_light {
     ubyte _pad49[3];
     float range_near;                 // +0x4c
     float range_far;                  // +0x50
-    ubyte _unk54[0x40];
+    ubyte _unk54[0x44];
 };
-LAYOUT_CHECK(gr_light, sizeof(gr_light) == 0x94);
-// decomp56 (decals): light selection around a point for per-vertex shading, (-1, pos, radius); the
-// shading writes r / g / b bytes per point (r, g, b, points, normals, count, 0, colour).
-void lights_select_nearest(int a, const vector3 *pos, float radius);   // 0x51e970
-void lights_pop_selection();                          // 0x51eb50
-void lights_shade_vertices(ubyte *r, ubyte *g, ubyte *b, const vector3 *pts, const vector3 *normals,
-                           int count, int a, int colour);   // 0x51f3b0
-void light_reset_all();                               // 0x51e0c0
-void light_set_ambient(float r, float g, float b);    // 0x51e230
-// (pos, range a, range b, intensity, r, g, b, flags); return unused (decomp28).
-int  light_create_point(const vector3 *pos, float range_a, float range_b, float intensity, float r,
-                        float g, float b, int flags);  // 0x51e290
-// (pos, dir, a, b, range a, range b, intensity, r, g, b, flags, bitmap, orientation); return unused.
-int  light_create_spot(const vector3 *pos, const vector3 *dir, float a, float b, float range_a,
-                       float range_b, float intensity, float r, float g, float b2, int flags, int bm,
-                       const quaternion *orient);     // 0x51e3f0
-// decomp48 (the interface manager's 3D model views, ui_3d_begin / ui_3d_end).
-void light_set_all_enabled(bool on);                  // 0x51e100 bit 14 of every light's flags (+8)
-void light_delete(int index);                         // 0x51e540
-void lights_set_max_per_object(int n);                // 0x51f530 lights_max_per_object = n
-extern int lights_max_per_object;                     // 0x5a8900 init 2
-extern float light_ambient_r;                         // 0x5a8904 init 1.0 (light_set_ambient)
-extern float light_ambient_g;                         // 0x5a8908
-extern float light_ambient_b;                         // 0x5a890c
+LAYOUT_CHECK(gr_light, sizeof(gr_light) == 0x98);
+// The dynamic light table and its functions (decomp28 / decomp48 / decomp56 declared the first ones
+// here; decomp60 moved them into the light unit's header).
+#include "vsdk/gr/unnamed_lights_0x51e070.h"
 
 // ---- decomp33 (gr_opengl.cpp) ---------------------------------------------------------------------
 // gr.cpp state the back ends read: gr_color, gr_texture, gr_texture_2, gr_fog_enabled, gr_fog_color,

@@ -1,4 +1,4 @@
-// effect_mem.cpp - Sum.exe v1.40, code 0x51bb70-0x51e018 (vsdk\geom\effect_mem.cpp)
+// effect_mem.cpp - Sum.exe v1.40, code 0x51bb70-0x51e06a (vsdk\geom\effect_mem.cpp)
 // Written from the Sum.exe disassembly (build/sum.asm). Target: VC++ 6.0 (cl 12.00.8966).
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
@@ -7,10 +7,12 @@
 // between them (24 untagged functions) and the static initialisers before them (0x51bb70-0x51bcc0)
 // belong to the same object: effects_init_pools threads the records the 0x51bb70.. initialisers
 // construct, and the compiler-generated record constructors (0x51df10-0x51dfee) and the out-of-line
-// Mempool members (0x51dff0, 0x51e010) close the unit. This file holds 0x51bb70-0x51d240 (all of it)
-// and gets 0x51df10-0x51e018 from the definitions and declarations. NOT written yet, although in the
-// unit: 0x51d250 vfx_instance_create .. 0x51def0 effects_release_cutscene_memory (13 functions; see
-// NOTES.md). The previous unit ends with ftp_get__scalar_deleting_dtor (0x51bb50).
+// Mempool members (0x51dff0, 0x51e010) close the unit, followed by three more COMDATs of inline
+// members it calls (vfx_get_length_seconds 0x51e020, fixed8::set 0x51e040, float_to_fixed8 0x51e060;
+// the light unit's static initialiser follows at 0x51e070). This file holds 0x51bb70-0x51df0f; the
+// COMDATs 0x51df10-0x51e06a come from the definitions in effect_mem.h, vfx.h, fixed.h and memory.h
+// (listed at the end of the file). The previous unit ends with ftp_get__scalar_deleting_dtor
+// (0x51bb50). decomp60 wrote the last 12 functions (0x51d250-0x51def0).
 //
 // Build flags of this unit differ from the game code: no string pooling (the __FILE__ literal and
 // " \r\n\t:," each appear more than once in .data) and no inline expansion (cmd_show_effect_mem
@@ -58,11 +60,14 @@ char effects_mem_buffer[EFFECTS_PRELOAD_SIZE + EFFECTS_CUTSCENE_SIZE];   // 0x27
 // 0x51bcf0 init_effects_mempool (jmp 0x51bd00: push "Effects", 0x511240, buffer; Mempool::Mempool
 // called, not inlined). Confidence: likely (inline expansion, see the file comment).
 Mempool effects_mempool(effects_mem_buffer, sizeof(effects_mem_buffer), "Effects"); // 0x2c98a70
-// 0x51bd20 init_effects_string_pool (call 0x51bd30, jmp 0x51bd40), 0x51bd30 effects_string_pool_ctor
-// (mov ecx; jmp StringPool::StringPool), 0x51bd40 effects_string_pool_register_dtor (atexit 0x51bd50),
+// (decomp60: one comment line per compiler-generated function.)
+// 0x51bd20 init_effects_string_pool (call 0x51bd30, jmp 0x51bd40). Confidence: exact.
+// 0x51bd30 effects_string_pool_ctor (mov ecx; jmp StringPool::StringPool). Confidence: exact.
+// 0x51bd40 effects_string_pool_register_dtor (atexit 0x51bd50). Confidence: exact.
 // 0x51bd50 effects_string_pool_dtor (mov ecx; jmp StringPool::~StringPool). Confidence: exact.
 StringPool effects_string_pool;                   // 0x2c7dd98
-// 0x51bd60 init_ccmd_show_effect_mem_thunk / 0x51bd70 init_ccmd_show_effect_mem. Confidence: exact.
+// 0x51bd60 init_ccmd_show_effect_mem_thunk. Confidence: exact.
+// 0x51bd70 init_ccmd_show_effect_mem. Confidence: exact.
 console_command ccmd_show_effect_mem("show_effect_mem", "Shows how much memory the effects system is using.",
                                      cmd_show_effect_mem); // 0x2c90a60
 
@@ -72,7 +77,7 @@ const char *effect_base_names[MAX_EFFECT_NAMES];  // 0x27281d8
 int effects_stream_slots[NUM_STREAM_SLOTS];       // 0x27288b8
 static char effects_string_buffer[0x3000];        // 0x27288d8 effects_string_pool storage (label ours)
 int effects_stream_slots_saved[NUM_STREAM_SLOTS]; // 0x272b8dc
-int effects_level_mem_mark;                       // 0x2c7dd90 (effects_load_preload_rfx, not written yet)
+int effects_level_mem_mark;                       // 0x2c7dd90 Effects mempool offset after preload.rfx
 int effects_stream_slots_b_saved[NUM_BIG_SLOTS];  // 0x2c8e7b0
 ubyte effect_base_record_index[MAX_EFFECT_NAMES]; // 0x2c8e7c8 effect_bases index per name
 static int effects_name_order[MAX_EFFECT_NAMES];  // 0x2c8e980 set to 0..439 by effects_load_bases, no reader found (label ours)
@@ -80,7 +85,9 @@ effect_base effect_bases[MAX_EFFECT_BASES];       // 0x2c8f060
 ubyte effect_base_stream_users[MAX_EFFECT_BASES]; // 0x2c9f1b0
 int effects_stream_slots_b[NUM_BIG_SLOTS];        // 0x2c9f270
 static int effects_name_map[MAX_EFFECT_NAMES];    // 0x2c9f288 set to -1 by effects_load_bases, no reader found (label ours)
-int effects_vfx_counter_2c9f968;                  // 0x2c9f968 fx_frame, vfx_instance_free, vfx_mesh_instance__render (label ours)
+// decomp60: a node pointer, not a counter (vfx_mesh_instance__render compares it with its this and
+// stores it; vfx_instance_free clears it when the node is freed). Was effects_vfx_counter_2c9f968.
+fx_rec98 *vfx_last_mesh_instance;                 // 0x2c9f968 (label ours)
 int effects_preload_count;                        // 0x2c9f96c
 int effects_stream_slot_next;                     // 0x2c9f970
 int effects_stream_slot_b_next;                   // 0x2c9f974
@@ -91,11 +98,12 @@ fx_rec2c *fx_rec2c_free_list;                     // 0x2c9f984
 fx_rec4c *fx_rec4c_free_list;                     // 0x2c9f988
 fx_rec28 *fx_rec28_list;                          // 0x2c9f98c
 fx_recb0 *fx_recb0_list;                          // 0x2c9f990
-bool effects_preload_done;                        // 0x2c9f994 (effects_load_preload_rfx, not written yet)
+bool effects_preload_done;                        // 0x2c9f994 set by effects_load_preload_rfx
 int effects_num_bases;                            // 0x2c9f998
 int effects_num_names;                            // 0x2c9f99c
-// Not placed: 0x2c90a70-0x2c98a6f and 0x2c98a8c-0x2c9f1af lie inside this unit's .bss but are only
-// used by the functions not written yet.
+// Not placed: 0x2c90a70-0x2c98a6f and 0x2c98a8c-0x2c9f1af lie inside this unit's .bss; none of this
+// unit's functions uses them (0x2c98a90 is read by vfx_mesh_render / vfx_mesh_instance__update_frame
+// in another vsdk\geom unit).
 
 // Append to a circular list given by a head pointer (NULL = empty).
 #define fx_list_append(head, rec) \
@@ -684,11 +692,11 @@ void effects_init_pools()
     for (i = 0; i < 48; i++) {
         r48 = &fx_rec48_array[i];
         fx_list_append(vfx_instance_free_list, r48);
-        r48->_unk18 = 0;
-        r48->_unk1c = 0;
-        r48->_unk20 = 0;
-        r48->_unk28 = 0;
-        r48->flags &= ~0x40;
+        r48->nodes = NULL;
+        r48->lights = NULL;
+        r48->emitters = NULL;
+        r48->rec2c_list = NULL;
+        r48->id_bits &= ~0x40;
     }
     for (i = 0; i < 384; i++) {
         fx_list_append(fx_rec98_free_list, &fx_rec98_array[i]);
@@ -788,3 +796,309 @@ int effects_load_bases()
 void effects_show_memory_usage()
 {
 }
+
+// ---- decomp60: 0x51d250-0x51def0 -----------------------------------------------------------------
+
+// 0x51d250  Confidence: likely. Takes an instance and, from the free pools, the base's node, light,
+// fx_rec4c, emitter (with their particles) and fx_rec2c records; each loop stops early when its pool
+// runs dry. An emitter's links are resolved to the instance's n-th fx_rec4c record. Level bases
+// (category 0) build their nodes in the level mempool; `level` lives in flag's dead argument slot.
+vfx_instance *vfx_instance_create(vfx_base *base, int a, bool flag)
+{
+    vfx_instance *vi;
+    fx_rec98 *node;
+    vfx_light_desc *light;
+    fx_rec4c *r4c;
+    fx_recb0 *em;
+    fx_rec28 *p;
+    fx_rec2c *r2c;
+    vfx_emitter_desc *desc;
+    int i, j, k, idx;
+    bool level;
+
+    vi = vfx_instance_free_list;
+    if (vi == NULL)
+        return NULL;
+    plist_remove(vfx_instance_free_list, vi);
+    vi->id_bits |= 0x40;
+
+    vi->nodes = NULL;
+    for (i = 0; fx_rec98_free_list != NULL && i < base->num_nodes; i++) {
+        node = fx_rec98_free_list;
+        node->level = flag;
+        plist_remove(fx_rec98_free_list, node);
+        plist_append(vi->nodes, node);
+    }
+    vi->lights = NULL;
+    for (i = 0; fx_rec30_free_list != NULL && i < base->num_lights; i++) {
+        light = fx_rec30_free_list;
+        plist_remove(fx_rec30_free_list, light);
+        plist_append(vi->lights, light);
+    }
+    vi->rec4c_list = NULL;
+    for (i = 0; fx_rec4c_free_list != NULL && i < base->num_rec4c; i++) {
+        r4c = fx_rec4c_free_list;
+        r4c->clear();
+        plist_remove(fx_rec4c_free_list, r4c);
+        plist_append(vi->rec4c_list, r4c);
+    }
+    vi->length = 0.0f;
+    vi->emitters = NULL;
+    for (i = 0; fx_recb0_list != NULL && i < base->num_emitters; i++) {
+        desc = &base->emitters[i];
+        em = fx_recb0_list;
+        plist_remove(fx_recb0_list, em);
+        plist_append(vi->emitters, em);
+        vi->length = float_max(vi->length, desc->get_length_seconds());
+        em->particles = NULL;
+        for (j = 0; fx_rec28_list != NULL && j < base->emitters[i].num_particles; j++) {
+            p = fx_rec28_list;
+            p->life.set(-1.0f);
+            plist_remove(fx_rec28_list, p);
+            plist_append(em->particles, p);
+        }
+        for (k = 0; k < (int)desc->num_links; k++) {
+            if (desc->links[k] != NULL) {
+                idx = (desc->links[k] - base->rec4c_table) / 0xa0;
+                r4c = vi->rec4c_list;
+                for (j = 0; r4c != NULL && j < idx; j++)
+                    r4c = r4c->next;
+                em->links[k] = r4c;
+            } else {
+                em->links[k] = NULL;
+            }
+        }
+    }
+    vi->rec2c_list = NULL;
+    for (i = 0; fx_rec2c_free_list != NULL && i < base->num_rec2c; i++) {
+        r2c = fx_rec2c_free_list;
+        plist_remove(fx_rec2c_free_list, r2c);
+        plist_append(vi->rec2c_list, r2c);
+    }
+
+    level = false;
+    if (base->category == EFFECT_CAT_LEVEL) {
+        level = true;
+        set_current_mempool(&level_mempool);
+    }
+    vi->init_nodes(base, a, level);
+    if (level)
+        set_current_mempool(NULL);
+    return vi;
+}
+
+// 0x51d7b0  Confidence: likely. Every list of a live instance goes back to its pool (lights after
+// unlinking free their attached light, emitters return their particles); the last user of a streamed
+// cutscene base (not marked for the level) or of a cutscene-category base while preloads exist
+// releases it.
+void vfx_instance_free(vfx_instance *vi)
+{
+    int index = vi->id_bits >> 9;
+    int rec;
+    fx_rec98 *node;
+    vfx_light_desc *light;
+    fx_recb0 *em;
+    fx_rec28 *p;
+    fx_rec4c *r4c;
+    fx_rec2c *r2c;
+    effect_base *b;
+
+    if (!(vi->id_bits & 0x40))
+        return;
+    vi->release_nodes();
+    plist_append(vfx_instance_free_list, vi);
+    vi->id_bits &= ~0x40;
+
+    while ((node = vi->nodes) != NULL) {
+        if (vfx_last_mesh_instance == node)
+            vfx_last_mesh_instance = NULL;
+        plist_remove(vi->nodes, node);
+        plist_append(fx_rec98_free_list, node);
+    }
+    while ((light = vi->lights) != NULL) {
+        plist_remove(vi->lights, light);
+        plist_append(fx_rec30_free_list, light);
+        light->free_light();
+    }
+    while ((em = vi->emitters) != NULL) {
+        plist_remove(vi->emitters, em);
+        plist_append(fx_recb0_list, em);
+        while ((p = em->particles) != NULL) {
+            plist_remove(em->particles, p);
+            plist_append(fx_rec28_list, p);
+        }
+    }
+    while ((r4c = vi->rec4c_list) != NULL) {
+        plist_remove(vi->rec4c_list, r4c);
+        plist_append(fx_rec4c_free_list, r4c);
+    }
+    while ((r2c = vi->rec2c_list) != NULL) {
+        plist_remove(vi->rec2c_list, r2c);
+        plist_append(fx_rec2c_free_list, r2c);
+    }
+
+    rec = effect_base_record_index[index];
+    if (--effect_base_stream_users[rec] == 0) {
+        b = &effect_bases[rec];
+        if (b->cutscene) {
+            if (!b->level)
+                effect_base_release(rec);
+        } else if (b->category == EFFECT_CAT_CUTSCENE && effects_preload_count != 0) {
+            effect_base_release(rec);
+        }
+    }
+}
+
+// 0x51db50  Confidence: exact. The low bit of each lower-cased character shifted in from the right
+// (high word) xor the sum of the characters as written.
+int effects_hash_name(const char *name)
+{
+    int len = strlen(name);
+    int bits = 0;
+    int sum = 0;
+    int i;
+
+    for (i = 0; i < len; i++) {
+        bits = (tolower(name[i]) & 1) | (bits << 1);
+        sum += name[i];
+    }
+    return (bits << 16) ^ sum;
+}
+
+// 0x51dbb0  Confidence: likely (unsigned counter; the loop runs on after a load). Loads the base named
+// "preload.rfx" once and marks the Effects mempool behind it.
+int effects_load_preload_rfx()
+{
+    unsigned int i;
+
+    if (!effects_preload_done) {
+        for (i = 0; i < (unsigned int)effects_num_bases; i++) {
+            if (!effect_bases[i].resident && !_stricmp("preload.rfx", effect_bases[i].name)) {
+                if (effect_base_load(i))
+                    return -1;
+                effects_preload_done = true;
+                effects_level_mem_mark = effects_mempool.offset;
+            }
+        }
+    }
+    return 0;
+}
+
+// 0x51dc20  Confidence: exact (NEG / SBB / AND for the conditional). Releases everything behind
+// preload.rfx (or the whole buffer when it is not loaded).
+void effects_release_level_memory()
+{
+    effects_mempool.offset = effects_preload_done ? effects_level_mem_mark : 0;
+    effects_release_range(effects_mem_buffer + effects_mempool.offset,
+                          sizeof(effects_mem_buffer) - effects_mempool.offset);
+}
+
+// 0x51dc50  Confidence: exact (JS / JGE on the offset: signed).
+void effects_release_range(char *start, int size)
+{
+    unsigned int i;
+    int off;
+
+    for (i = 0; i < (unsigned int)effects_num_bases; i++) {
+        if (effect_bases[i].resident) {
+            off = effect_bases[i].data - start;
+            if (off >= 0 && off < size)
+                effect_base_release(i);
+        }
+    }
+}
+
+// 0x51dca0  Confidence: exact. No caller.
+int effects_stub_ret1()
+{
+    return 1;
+}
+
+// 0x51dcb0  Confidence: exact. True when each of the 25 names is empty, unknown or resident. No caller;
+// it indexes effect_bases with the name index (vfx_find_name), not through effect_base_record_index.
+int vfx_all_resident(const char **names)
+{
+    int i, id;
+
+    for (i = 0; i < 25; i++) {
+        if (names[i] != NULL && (id = vfx_find_name(names[i])) >= 0 && !effect_bases[id].resident)
+            return 0;
+    }
+    return 1;
+}
+
+// 0x51dd00  Confidence: likely (the prefix test is written as a chain of ||; the copy of the base's two
+// flag bits into the instance is a guess at the source shape). An instance of a named effect: effects
+// whose names start with "nar-", "mi-" or "worl" pass flag 1 to vfx_instance_create. The base's
+// bitmaps are loaded with preload-on-load set.
+vfx_instance *vfx_load(const char *name, int a)
+{
+    char prefix[5];
+    int index;
+    vfx_base *base;
+    vfx_instance *vi;
+    effect_base *b;
+    bool flag;
+
+    strncpy(prefix, name, 4);
+    prefix[4] = '\0';
+    _strlwr(prefix);
+    flag = !strncmp(prefix, "nar-", 4) || !strncmp(prefix, "mi-", 3) || !strncmp(prefix, "worl", 4);
+    base = vfx_preload(name, &index);
+    if (base == NULL)
+        return NULL;
+    vi = vfx_instance_create(base, a, flag);
+    if (vi == NULL)
+        return vi;
+    b = &effect_bases[effect_base_record_index[index]];
+    vi->id_bits = (vi->id_bits & 0x1ff) | (index << 9);
+    vi->pos = base->pos;
+    vi->_unk3c = base->_unk54;
+    vi->category = b->category;
+    vi->id_bits = (vi->id_bits & ~0x190) | ((((base->flags & 4) ? 4 : 0) | ((base->flags & 2) ? 2 : 0)) << 6);
+    bm_set_preload_on_load(1);
+    base->load_bitmaps(-1);
+    bm_set_preload_on_load(0);
+    effect_base_stream_users[effect_base_record_index[index]]++;
+    b->bitmaps_pending = 0;
+    return vi;
+}
+
+// 0x51de90  Confidence: exact. True for names that are not a base.
+bool effects_base_is_resident(const char *name)
+{
+    int i = effects_find_base(name);
+
+    if (i >= 0 && (unsigned int)i < (unsigned int)effects_num_bases)
+        return effect_bases[i].resident;
+    return true;
+}
+
+// 0x51dec0  Confidence: exact (the record index is a byte, so the < 0 test never fires).
+bool effect_is_cutscene_base(int name_index)
+{
+    int i = effect_base_record_index[name_index];
+
+    if (i >= 0 && i < effects_num_bases)
+        return effect_bases[i].cutscene;
+    return false;
+}
+
+// 0x51def0  Confidence: exact.
+void effects_release_cutscene_memory()
+{
+    if (effects_preload_count)
+        effects_release_range(effects_stream_buffer, EFFECTS_CUTSCENE_SIZE);
+}
+
+// ---- COMDATs at the end of the object (bodies in the headers) --------------------------------------
+// 0x51df10 fx_rec48__ctor: vfx_instance's implicit constructor (vector3 at +0x30). Confidence: exact.
+// 0x51df20 fx_rec98__ctor: fx_rec98's implicit constructor. Confidence: exact.
+// 0x51df60 fx_rec_2vec__ctor: one body for vfx_light_desc, fx_rec2c and fx_rec28 (identical code folded). Confidence: exact.
+// 0x51df80 fx_rec4c__ctor. Confidence: exact.
+// 0x51dfb0 fx_recb0__ctor. Confidence: exact.
+// 0x51dff0 Mempool__Mempool (vsdk/os/memory.h, inline). Confidence: exact.
+// 0x51e010 Mempool__getPoolSpaceLeft (memory.h, inline). Confidence: exact.
+// 0x51e020 vfx_get_length_seconds = vfx_emitter_desc::get_length_seconds (vfx.h, inline). Confidence: exact.
+// 0x51e040 fixed8__set (vsdk/math/fixed.h, inline). Confidence: exact.
+// 0x51e060 float_to_fixed8 (fixed.h, inline; `jmp _ftol`). Confidence: exact.
