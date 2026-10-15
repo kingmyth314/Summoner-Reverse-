@@ -30,11 +30,11 @@ extern int   help_num_debug_controls;          // 0x59411c 12
 extern char *help_camera_controls[2];          // 0x594120
 extern int   help_num_camera_controls;         // 0x594128 2
 extern void (*help_page_draw_funcs[1])(int y); // 0x59412c (help_controls_window_draw)
-#define NUM_HELP_PAGES 1                       // help_draw_page and state_loading_key_handler (ours)
+#define NUM_HELP_PAGES 1                       // help_draw_page and state_help_key_handler (ours)
 
 // ---- .bss 0x609f40-0x60ab5f ---------------------------------------------------------------------------
 extern int  loading_screen_start_time;         // 0x609f4c
-extern bool state_game_level_ready;            // 0x609f58 set only when level_load / the pending load FAILED (D2207)
+extern bool state_game_load_failed;            // 0x609f58 set only when level_load / the pending load FAILED (D2207)
 extern int  level_load_num_steps;              // 0x609f5c
 extern int  level_load_start_time;             // 0x609f88
 extern bool loading_screen_active;             // 0x609fbc
@@ -59,9 +59,9 @@ extern int  level_layer_automap_index[40];     // 0x60a36c
 extern int  gameplay_no_render_60a630;         // 0x60a630 never written: 1 would skip game_render_frame (name ours)
 extern bool move_target_decal_visible;         // 0x60a664 player_read_mouse_input; game_render_frame draws the decal (name ours)
 extern bool Render_3d_obstacles;               // 0x60a665 console "render_3d_obstacles"
-extern int  state_loading_next_state;          // 0x60a668 the state the help screen returns to
-extern int  loading_help_page;                 // 0x60a66c
-extern int  state_loading_active;              // 0x60ab5c
+extern int  state_help_return_state;          // 0x60a668 the state the help screen returns to
+extern int  help_page;                 // 0x60a66c
+extern int  state_help_active;              // 0x60ab5c
 
 // ---- functions, in address order ----------------------------------------------------------------------
 void cmd_full_party();                         // 0x437800
@@ -105,9 +105,9 @@ void cmd_jekhar();                             // 0x439dd0
 void cmd_rosalind();                           // 0x439e20
 void help_controls_window_draw(int y);         // 0x439e80 help page 1
 void help_draw_page();                         // 0x43a0a0
-void state_loading_key_handler(int key);       // 0x43a170
-void state_loading_enter();                    // 0x43a2b0 state 5 enter (the help screen)
-void state_loading_frame();                    // 0x43a2e0
-void state_loading_leave();                    // 0x43a300
+void state_help_key_handler(int key);       // 0x43a170
+void state_help_enter();                    // 0x43a2b0 state 5 enter (the help screen)
+void state_help_frame();                    // 0x43a2e0
+void state_help_leave();                    // 0x43a300
 
 #endif

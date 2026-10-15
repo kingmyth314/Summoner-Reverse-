@@ -94,14 +94,21 @@ skills and spells member buttons use it. **Observed.**
 - **Five records, five members.** The four heroes plus one summon fill all five records, which is
   why F5-F9 has five keys. *Inferred.*
 - **New members** come from `party_member_join` (`0x439ba0`, args: name, level, leader, place at start,
-  char_info index). In single player it first looks for the name in `party_list` and
+  char_info index). It does nothing (returns 0) while a savegame load is pending, because the save
+  restores the party. In single player it first looks for the char_info in `party_list` and
   `player_list_other` and returns the existing character. If five or more records are already in
-  use, it refuses. Otherwise it creates the character (`player_create`), adds XP up to the given level
-  (`character_add_xp(xp_for_level(level))`), resets its AI and shows "%s has joined the party!".
-  **Observed.**
-- **Starting party:** `level_spawn_party` (`0x438a90`) joins Joseph as leader on a new game. With the
-  `Full_party` cheat (`cmd_full_party`, `0x437800`) it also joins Rosalind, Jekhar and Flece. The test
-  level `masad` clears `Full_party`. **Observed.**
+  use (both lists counted), it refuses. Multiplayer skips both tests. Otherwise it creates the
+  character (`player_create`), adds XP up to the given level (`character_add_xp(xp_for_level(level))`,
+  quiet, only above level 1), resets its AI, places it at the party start when asked, re-sorts the
+  party and shows "%s has joined the party!". **Observed.**
+- **Starting party:** `level_spawn_party` (`0x438a90`, from `level_load_files`) joins Joseph as leader
+  when state 4 is entered from state 2 with no save pending, which in practice means a new game. With the
+  `Full_party` cheat (`cmd_full_party`, `0x437800`) it would also join Rosalind, Jekhar and Flece at
+  level 1. But when the level is `masad` it clears `Full_party` and returns after Joseph. `masad` is
+  not a test level: it is Masad Village, level 3, where every new game starts (`mainmenu_start_new_game`
+  passes `level_script_table[3]`). So on a new game `Full_party` only adds Joseph and is switched off;
+  it can work only when the console starts another level through state 2 (`cutscene_change_level_for`).
+  **Observed.** In multiplayer each player of `mp_player_list` joins with its `.plr` file instead.
 
 Story joins (**observed** arguments; the level number is the level the member arrives at):
 
@@ -145,11 +152,24 @@ used for summons, multiplayer disconnects and `party_remove_all`. **Observed.**
 ## Death
 
 - A dead member stays in `party_list` with `0x80` set. It cannot be selected. **Observed.**
-- `party_check_all_dead` (`0x439450`) runs every frame. When the leader is dead in single player, it
-  selects the first living member in `party_list` (species order, so Joseph first). Only when no
-  member is alive does it show the death screen. **Observed.**
-- Dead members are revived with full HP and AP on the next level change (`party_level_reset`,
-  `0x437e50`) or when a script calls `party_add_member`. **Observed.**
+- `party_check_all_dead` (`0x439450`) runs every frame (in multiplayer only once the net game state is
+  5 or more). When the leader is dead in single player, it fades the screen in and selects the first
+  living member in `party_list` (species order, so Joseph first). Only when no member is alive does it
+  set `game_flags` `0x40000`, unpause and show the death screen (`hud_mode_set_5`). In multiplayer a dead
+  leader goes straight to `hud_party_dead`. **Observed.**
+- Dead members are **not** revived on every level change. `party_level_reset` (`0x437e50`), called by
+  `level_unload` when the party is kept, resurrects dead members and sets HP and AP to their maximum
+  only when the new level is a town (`#Town` in its `_script.tbl`, read by
+  `level_script_read_town_characters`) or the world map (`level_filename` equal to
+  `level_script_table[4]`, `worldmap1`). It then also clears `Character +0x320` bits `0x2` and `0x400`
+  and all effects. Into any other level the dead stay dead and the living keep their HP and AP. In
+  multiplayer no level counts as a town, so only the world map would revive. **Observed.** A script that
+  calls `party_add_member` also revives the member.
+- On every level change `party_level_reset` deletes every object in the active list except the heroes
+  (type 7 without the summon flag `0x100`): the summon gets its lent max HP back
+  (`summon_return_lent_max_hp`) and is destroyed, so it is not carried over. The heroes' effects are
+  cleared and their AI reset. **Observed.** A next state other than 4 (back to the menu) removes the
+  whole party (`party_remove_all`) and clears the three "joined" bytes. **Observed.**
 - A dead hero keeps type 7; only the summon's type changes (7 to 8). `character_on_death` skips the
   loot drop and the type change for a party member that is not a summon (`0x453f00`..`0x453f16`).
   **Observed.**
@@ -298,6 +318,8 @@ the skill points are spent at once ([Characters](characters.md#experience-and-le
 - In solo mode a summon can wander far from Joseph without being dismissed.
 - If the leader dies, control passes to the next living member; the game ends only when all are dead.
 - Members who rejoin after a story split come back revived with full HP and AP.
+- A member who dies stays dead until the party reaches a town or the world map, which also refills
+  everyone's HP and AP. Other level exits do not heal.
 
 ## Evidence
 
@@ -327,6 +349,11 @@ Float constants were read from `Sum.exe` (`0x580de8` = 50, `0x57e6b4` = 100, `0x
 | Dead hero keeps type 7 | `character_on_death` `0x453f00`-`0x453fb2` |
 | Species order | `player_create` jump table `0x433950` (targets `0x4337fb`, `0x43380c`, `0x43381e`, `0x433830`) |
 | `party_set_level` | `0x4cec3a`-`0x4cecd3` (reset to level 1, `character_add_xp` with `quiet` = 1) |
+| Join while a save is pending, char_info match | `party_member_join` `0x439bb1`-`0x439bc6`, `0x439c0a`, `0x439c25`, single-player test `0x439bf5` |
+| Starting party, `masad` | `level_spawn_party` `0x438aaf`-`0x438afd` (`0x5930c0` = "masad"); new game level `mainmenu_start_new_game` `0x41dac0` (`0x59f1e8`) |
+| Revival only in towns and on the world map | `party_level_reset` `0x437f5e`-`0x43801e` (`0x59f228` points to "worldmap1"); town bit `level_script_read_town_characters` `0x437af1`-`0x437b0f` |
+| Objects deleted, summon not kept | `party_level_reset` `0x437eb2`-`0x437f58`; `living_entity__vfunc0` `0x44edf0` calls `party_remove_player` |
+| Death check | `party_check_all_dead` `0x4394b1`-`0x4394f7`; multiplayer gate `state_game_frame` `0x438f94`-`0x438fa6` |
 
 ## Changes (2026-10-15, living_entity.cpp)
 
@@ -338,3 +365,14 @@ defaults to Melee. Experience: `+0x608` is rewritten on every HP change, so the 
 pays; the share is capped at 2^31 and a multiplayer client does not award it. `party_set_level` resets the
 members to level 1 and re-adds the XP quietly; it is not an XP gift. Death: a dead hero keeps type 7; a dying
 summon returns the lent HP and starts the summon cooldown.
+
+## Changes (2026-10-15, gameplay.cpp)
+
+{: .important }
+Checked against the disassembly of the `gameplay.cpp` functions (`src/decomp/game/gameplay.cpp`). The page said
+dead members are revived on the next level change; `party_level_reset` revives and heals only when the new level is
+a town or the world map, and other level changes leave the dead dead and the HP and AP as they are. `masad` is not
+a test level but Masad Village, where every new game starts, so `Full_party` never adds the other heroes on a new
+game. `party_member_join` matches existing members by char_info index, does nothing while a save is pending, and
+applies the five-record limit only in single player. A level change destroys every non-hero object, the summon
+included. The death check fades in before switching the leader and runs in multiplayer only from net state 5.

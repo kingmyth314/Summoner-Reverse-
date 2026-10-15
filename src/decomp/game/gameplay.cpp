@@ -15,7 +15,7 @@
 // unread ints, then the literals in order of use, with world_mouse_target_handle (0x593f50) between
 // level_load_layers' and game_render_frame's literals and the help tables (0x5940ac-0x59412f) after the
 // console texts. .bss 0x609f40-0x60ab5f (game_camera 0x60a018, the level names and layer maps, the
-// help window 0x60a670, state_loading_active 0x60ab5c). The .bss addresses are not in definition order
+// help window 0x60a670, state_help_active 0x60ab5c). The .bss addresses are not in definition order
 // (as in summoner.cpp); the definitions follow the initialiser order where there is one.
 //
 // Literals pooled with other units (/Gf): "Joseph" 0x593888, "Rosalind" 0x593840, "Jekhar" 0x593870,
@@ -95,7 +95,7 @@ int gameplay_data_593c68[4] = { 1, 1, 1, 1 };                 // 0x593c68 no rea
 
 // ---- .bss without initialisers -------------------------------------------------------------------------
 int  loading_screen_start_time;                               // 0x609f4c
-bool state_game_level_ready;                                  // 0x609f58 (see state_game_enter)
+bool state_game_load_failed;                                  // 0x609f58 (see state_game_enter)
 int  level_load_num_steps;                                    // 0x609f5c
 int  level_load_start_time;                                   // 0x609f88
 bool loading_screen_active;                                   // 0x609fbc
@@ -131,9 +131,9 @@ int  gameplay_no_render_60a630;                               // 0x60a630 never 
 float level_time;                                             // 0x60a654
 bool move_target_decal_visible;                               // 0x60a664
 bool Render_3d_obstacles;                                     // 0x60a665
-int  state_loading_next_state;                                // 0x60a668
-int  loading_help_page;                                       // 0x60a66c
-int  state_loading_active;                                    // 0x60ab5c
+int  state_help_return_state;                                // 0x60a668
+int  help_page;                                       // 0x60a66c
+int  state_help_active;                                    // 0x60ab5c
 
 void cmd_full_party();
 void cmd_dump_sound_usage();
@@ -428,7 +428,7 @@ void cmd_Give_all_items()
 // 0x438130  Confidence: likely (the switch: jump table 0x438554 / index table 0x438560; the two failure
 // tails are one block in the binary, written twice here). State 4 enter. Coming from state 2 or 14 (a
 // new game) the AI groups, the party inventory and level_time are reset and the camera snaps; coming back
-// from state 5 (help) or 6 nothing is done. state_game_level_ready is set only on the failure paths
+// from state 5 (help) or 6 nothing is done. state_game_load_failed is set only on the failure paths
 // (level_load failed or the pending savegame did not load), so state_game_leave saves the conversation
 // state and pauses only when the level did load: the sum.symbols name has the meaning inverted.
 void state_game_enter()
@@ -436,7 +436,7 @@ void state_game_enter()
     bool new_game;
     bool loaded_save;
 
-    state_game_level_ready = false;
+    state_game_load_failed = false;
     switch (gameseq_get_prev_state()) {
     case 2:
     case 14:
@@ -467,7 +467,7 @@ void state_game_enter()
             mp_player_disconnected(4, 0);
         else
             gameseq_set_state(1);
-        state_game_level_ready = true;
+        state_game_load_failed = true;
         vfile_lower_access_level();
         input_flush();
         return;
@@ -479,7 +479,7 @@ void state_game_enter()
     if (savegame_state.pending_load_length()) {
         if (!savegame_state.load_pending()) {
             gameseq_set_state(1);
-            state_game_level_ready = true;
+            state_game_load_failed = true;
             vfile_lower_access_level();
             input_flush();
             return;
@@ -772,7 +772,7 @@ void state_game_leave()
         return;
     containers_free_all();
     items_level_unload();
-    if (!state_game_level_ready)
+    if (!state_game_load_failed)
         conversation_db.save_state();
     snd_stop_all();
     level_script_leave();
@@ -788,7 +788,7 @@ void state_game_leave()
     } else if (game_is_paused()) {
         game_unpause();
     }
-    if (!state_game_level_ready)
+    if (!state_game_load_failed)
         game_pause_count_inc();
     fx_level_leave();
     game_flags &= ~(GF_PARTY_DEAD | GF_LEADER_SOUND | GF_CONVERSATION);
@@ -813,7 +813,7 @@ int world_mouse_target_handle = -1;                           // 0x593f50 (gamet
 // (unless a full-screen interface screen is up), the obstacle debug view, the interface (with the depth
 // test inverted on a full-screen screen), the script editor. The fog text below can never show: the
 // timer is a function-local static that only this block starts, and only while it is already valid.
-// It prints fog_get_far_current (0x486bf0, which returns fog_near_distance) as Fog_near.
+// It prints fog_get_near_current (0x486bf0, which returns fog_near_distance) as Fog_near.
 void game_render_frame()
 {
     char text[256];
@@ -837,7 +837,7 @@ void game_render_frame()
     if (fog_text_timer.valid() && fog_text_timer.GetElapsedTime() < 10000) {
         if (levelrender_get_flag_22fb6f7())
             fog_text_timer.SetTimeout(0);
-        sprintf(text, "Fog_near = %.2f, Fog_far = %.2f", fog_get_far_current(), fog_get_near_current());
+        sprintf(text, "Fog_near = %.2f, Fog_far = %.2f", fog_get_near_current(), fog_get_far_current());
         gr_set_color(250, 190, 190, 255);
         gr_string(10, 50, text, font_small, gr_string_mode);
     } else {
@@ -1396,61 +1396,61 @@ void help_draw_page()
     gr_set_color(0, 255, 0, 128);
     gr_string(GR_CENTER_X, 20, "Summoner Help", font_bones_small, gr_string_mode);
     int y = gr_get_font_height(font_bones_small) + line_h + 20;
-    sprintf(string_buffer, "Page %d of %d", loading_help_page + 1, NUM_HELP_PAGES);
+    sprintf(string_buffer, "Page %d of %d", help_page + 1, NUM_HELP_PAGES);
     gr_string(GR_CENTER_X, y, string_buffer, font_main, gr_string_mode);
-    help_page_draw_funcs[loading_help_page](76);
+    help_page_draw_funcs[help_page](76);
     gr_string(GR_CENTER_X, (160 - line_h) * 3, "ESC to exit this screen", font_main, gr_string_mode);
 }
 
 // 0x43a170  Confidence: exact (jump table 0x43a1d0 / index table 0x43a1e0 for keys 1-0xcd). Esc returns to
 // the state the help screen came from; left / right page (one page: right wraps to 0).
-void state_loading_key_handler(int key)
+void state_help_key_handler(int key)
 {
     switch (key) {
     case KEY_ESC:
-        gameseq_set_state(state_loading_next_state);
+        gameseq_set_state(state_help_return_state);
         break;
     case KEY_PAD4:
     case KEY_LEFT:
-        if (--loading_help_page < 0)
-            loading_help_page = 0;
+        if (--help_page < 0)
+            help_page = 0;
         break;
     case KEY_PAD6:
     case KEY_RIGHT:
-        if (++loading_help_page == NUM_HELP_PAGES)
-            loading_help_page = 0;
+        if (++help_page == NUM_HELP_PAGES)
+            help_page = 0;
         break;
     }
 }
 
 // 0x43a2b0  Confidence: exact. State 5 enter: the help screen (not a loading screen). From the game
 // (state 4) the game stays paused while it is up.
-void state_loading_enter()
+void state_help_enter()
 {
-    loading_help_page = 0;
-    state_loading_next_state = gameseq_get_prev_state();
-    if (state_loading_next_state == 4)
+    help_page = 0;
+    state_help_return_state = gameseq_get_prev_state();
+    if (state_help_return_state == 4)
         game_pause_count_inc();
-    state_loading_active = 1;
+    state_help_active = 1;
     input_flush();
 }
 
 // 0x43a2e0  Confidence: exact.
-void state_loading_frame()
+void state_help_frame()
 {
     cursor_visible = false;
     help_draw_page();
-    ui_poll_and_process(state_loading_key_handler, true);
+    ui_poll_and_process(state_help_key_handler, true);
 }
 
 // 0x43a300  Confidence: exact.
-void state_loading_leave()
+void state_help_leave()
 {
-    state_loading_active = 0;
+    state_help_active = 0;
     gr_clear();
     gr_flip();
     gr_clear();
     gr_flip();
-    if (state_loading_next_state == 4)
+    if (state_help_return_state == 4)
         game_pause_count_dec();
 }

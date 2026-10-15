@@ -79,14 +79,14 @@ Each entry is 12 bytes: `{ enter, frame, leave }`.
 | State | enter | frame | leave | Notes |
 |---|---|---|---|---|
 | 0 | - | - | - | empty |
-| 1 | `0x431c60` | `0x431e00` | `0x431df0` | |
-| 2 | `0x431e20` | `0x431e70` | `0x4f13e0` | |
+| 1 | `0x431c60` | `0x431e00` | `0x431df0` | Boot: opens the main menu; also the fallback when a level or a save fails to load |
+| 2 | `0x431e20` | `0x431e70` | `0x4f13e0` | Level change from outside a level (new game, load, quickload, console); frame goes straight to state 4 |
 | 3 | - | - | - | quit; ends `MainLoop` |
-| 4 | `0x438130` | `0x438f30` | `0x438c80` | *Inferred* in-game; `FrameEnd` special-cases state 4 |
-| 5 | `0x43a2b0` | `0x43a2e0` | `0x43a300` | Loading (*inferred*); leave clears both buffers |
-| 6 | `0x43fb60` | `0x43fc80` | `0x43fc70` | Builds a UI table; frame sleeps with `timer_wait` |
-| 7 | `0x430ad0` | `0x430b20` | `0x430b10` | Draws a centred message |
-| 8 | `0x431e80` | `0x432370` | `0x4323d0` | "Load" screen |
+| 4 | `0x438130` | `0x438f30` | `0x438c80` | In-game: level load on enter, gameplay frame, level unload on leave; `FrameEnd` special-cases state 4 |
+| 5 | `0x43a2b0` | `0x43a2e0` | `0x43a300` | In-game help screen ("Summoner Help"), not a loading screen; **never entered** in v1.40 |
+| 6 | `0x43fb60` | `0x43fc80` | `0x43fc70` | Monster layout editor table; frame sleeps with `timer_wait`; **never entered** |
+| 7 | `0x430ad0` | `0x430b20` | `0x430b10` | Debug help text (centred message); **never entered** |
+| 8 | `0x431e80` | `0x432370` | `0x4323d0` | Debug "Load" screen (level and script list boxes); **never entered** |
 | 9 | `0x430b80` | `0x430b90` | `0x4f13e0` | Credits (screen 21) |
 | 10 | `0x43f9c0` | `0x43ed90` | `0x4f13e0` | Multiplayer character select (screen 16) |
 | 11 | `0x43eff0` | `0x43f080` | `0x43f740` | Multiplayer PXO lobby (screen 11) |
@@ -100,6 +100,49 @@ States 10-14 belong to the [multiplayer code](source-map.md#more-file-names-from
 command (a stub in retail). Ghidra did not mark these handlers as functions;
 `tools/disasm.mjs` reads them. The menu screens are listed on the
 [Interface](interface.md) page.
+
+**Which states are reachable (observed).** `gameseq_set_state` (`0x401020`) has 54 call sites, and
+the raw `E8` scan of `.text` finds no other. Their arguments are 1, 2, 3, 4, 9, 10-14, the previous
+state (state 7's frame, `0x430b35`) and the saved return state (state 5's key handler, `0x43a192`).
+Nothing writes the next-state variable (`0x5b27e8`) except `gameseq_set_state` and the reset at
+`0x401000`, and no table holds a pointer to `0x401020`. So **states 5, 6, 7 and 8 are never entered** in
+v1.40. Their handlers are left-over debug screens. `state_game_leave` and `state_game_enter` still
+keep the level when the next or previous state is 5 or 6; that branch is dead too.
+
+### Level changes and state 4 (observed)
+
+```mermaid
+flowchart LR
+    M["main menu, Save/Load,<br/>quickload, console"] -->|game_change_level| S2["state 2"]
+    S2 -->|frame: gameseq_set_state 4| S4["state 4"]
+    S4 -->|level exit:<br/>level_apply_pending_change| S4
+    S4 -->|load failed| S1["state 1"]
+```
+
+- **`game_change_level`** (`0x431a40`) copies the level and script names and always sets state 2.
+  Its callers are `mainmenu_start_new_game` (level 3, `masad`), `saveload_load_selected`, `quickload`,
+  `cmd_loadgame`, `cutscene_change_level_for` (console), `mp_change_level` and the unreachable state 8.
+- **State 2 enter** (`state_title_enter`, `0x431e20`) plays the "Title" music, resets the objects, the
+  party inventory (30 gold, no items) and the item types, and sets `game_flags` to
+  `(game_flags & 0x1c) | 1` (single player), or `| 2` (multiplayer) when the previous state was 14.
+  This runs on a load too; the save then restores the state.
+- **A level exit in single player** sets state 4 while in state 4 (`level_apply_pending_change`,
+  `0x4ccde5`). State 4's leave and enter both run, with previous and next state 4.
+- **State 4 enter** (`state_game_enter`, `0x438130`): previous state 2 or 14 is a new start (AI groups,
+  party inventory and `level_time` reset, camera to the default view); 5 or 6 returns at once; any other
+  keeps the party. Then `level_load` (`0x438570`, with the loading screen), the pending savegame or the
+  automap labels, `level_script_init`, the party placement, the conversation, `game_pause_count_dec`,
+  `game_flags |= 0x200` and `&= ~0x40000`, the level visit count, `interface_load_all`.
+  If `level_load` or `savegame_load_pending` fails, single player goes to state 1 (`0x438211`) and
+  multiplayer reports the local player as disconnected (`0x4381cc`); only these failure paths set
+  `state_game_load_failed` (`0x609f58`, `0x43821b`; formerly `state_game_level_ready`, a wrong name).
+- **State 4 leave** (`state_game_leave`, `0x438c80`): unless the next state is 5 or 6, it frees the
+  containers and level items, saves the conversation state (only after a good load), stops all sounds,
+  runs `level_script_leave` and `level_unload` (`0x437e00`). `level_unload` resets the party
+  (`party_level_reset`): a next state other than 4 removes the whole party, a level change keeps it
+  and revives it only when the new level is a town or the world map ([Party](party.md#death)). After a
+  good load it calls `game_pause_count_inc`, the counterpart of the enter's decrement. It clears
+  `game_flags` `0x100`, `0x200` and `0x40000`, and turns solo mode off.
 
 ## Frame timer: `FrameTimer` (`FUN_00501510`)
 
@@ -215,7 +258,7 @@ on any PC whose frames are much shorter than 1/120 s. See
 
 ## Evidence
 
-| Claim | REA evidence ID |
+| Claim | REA evidence ID or address (`tools/asm.mjs`) |
 |---|---|
 | `MainLoop` pseudocode | `ev_a63ff74605b37d2977eb826bc221a85e122eba85a12bfbbdede9d04b4636257a` |
 | `GameTick` pseudocode | `ev_5162c28f5149888a1c314487cb3e1d72ae5f3093fa97a1185f39609f5b3dcd99` |
@@ -224,3 +267,20 @@ on any PC whose frames are much shorter than 1/120 s. See
 | `FrameTimerInit` constants | `ev_c9973c5d2ef9a827b581da3d8b270b1b5cc8c8e847f3913dd998e1884f40bb9b` |
 | State table bytes | `ev_9616c1b41de02d17a7d58676d24dacf44456b2e38e1ee78c2b97b60d481c9b7c` |
 | `FrameClockRead` assembly | `ev_2a63b0c40da8d738c1d8775fb3148f6fe942bfb42cf521d23133078825a5ba25` |
+| States 5-8 never entered | `gameseq_set_state` call sites (54, listed with `tools/asm.mjs callers 0x401020`); writers of `0x5b27e8` at `0x40100c`, `0x40102b` |
+| Level change through state 2 | `game_change_level` `0x431a40`..`0x431b4e`; `state_title_enter` `0x431e20`..`0x431e63`; `state_title_frame` `0x431e70` |
+| Level exit 4 to 4 | `level_apply_pending_change` `0x4ccd2d`..`0x4ccde5` |
+| State 4 enter | `state_game_enter` `0x438130`..`0x438551`, jump table `0x438554` / index bytes `0x438560` |
+| Load-failed flag | `state_game_enter` `0x438132`, `0x4381c8`..`0x43821b`; `state_game_leave` `0x438cb8`, `0x438d2e` |
+| State 4 leave | `state_game_leave` `0x438c80`..`0x438d55`; `level_unload` `0x437e00` |
+| Help screen | `state_help_enter` `0x43a2b0`, `state_help_frame` `0x43a2e0`, `state_help_leave` `0x43a300`, `help_draw_page` `0x43a0a0` |
+
+## Changes (2026-10-15, gameplay.cpp)
+
+{: .important }
+Checked against the disassembly of `gameplay.cpp` (`src/decomp/game/gameplay.cpp`). State 5 is the in-game
+help screen ("Summoner Help", one page of mouse, keyboard and camera controls, Esc returns to the saved state),
+not a loading screen. The level loads inside state 4's enter handler, behind the loading-screen progress bar.
+States 5, 6, 7 and 8 have no `gameseq_set_state` caller and are never entered in v1.40. State 2 is the
+level-change state for new games and loads (normal level exits go from state 4 to state 4). States 1, 2 and 4
+now have **observed** descriptions. `state_game_load_failed` (formerly `state_game_level_ready`) is set only when the load fails.

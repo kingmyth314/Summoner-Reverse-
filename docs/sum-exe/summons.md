@@ -234,9 +234,13 @@ What removes the dragon afterwards is *unknown*.
 - **Story cutscenes** stash the summon: `summon_stash_for_cutscene` (`0x448000`) saves it in
   `stashed_summon` (`0x8b3c34`) and `summon_restore_after_cutscene` (`0x448500`) puts it back.
   Details are on [Cutscenes](cutscenes.md).
-- **Level change:** `level_unload` -> `party_level_reset` (`0x437e50`) sets `cur_summon` and
-  `summon_player` to 0. **Observed.** That the creature is not carried to the next level is
-  *inferred*.
+- **Level change:** `level_unload` -> `party_level_reset` (`0x437e50`) destroys the summon. It walks
+  the active object list, and every object that is not a hero (type 7 without the summon flag `0x100`)
+  is deleted through its first virtual function. For the summon that first returns the lent max HP
+  (`summon_return_lent_max_hp`, `0x437f42`); `living_entity__vfunc0` (`0x44edf0`) then calls
+  `party_remove_player`, so the summon's `Player` record is freed too. In multiplayer, if the summon was
+  `cur_character`, the local player's character becomes leader first. Then `cur_summon` and
+  `summon_player` are set to 0. **Observed.** The summon is not carried to the next level.
 - **Saving** is refused while the summon is still emerging (`savegame_location_allowed`
   `0x4d4a50` returns 3, "during summon"). A save stores the summon's species and name in the
   LENT party state, and loading recreates it ([Savegame](savegame.md)). **Observed.**
@@ -282,3 +286,11 @@ Skill record values were read from `init_skill_table`; spell data from `spells.t
 | Death, hostile summon, cooldown | `character_on_death` `0x4537f0` (`0x453a06`, `0x453d87`-`0x453ece`) |
 | Cooldown length | `player_start_skill_cooldown` `0x433ef0` |
 | Console | `cmd_summon` `0x47f730`, `cmd_kill_summon` `0x463140` |
+| Summon destroyed on a level change | `party_level_reset` `0x437eb2`-`0x437f58`; `living_entity__vfunc0` `0x44edf0` (`party_remove_player`) |
+
+## Changes (2026-10-15, gameplay.cpp)
+
+{: .important }
+Checked against the disassembly of `party_level_reset` for `src/decomp/game/gameplay.cpp`. That the summon is not
+carried to the next level is now **observed**: the level change deletes it, returns its lent max HP and frees its
+`Player` record.

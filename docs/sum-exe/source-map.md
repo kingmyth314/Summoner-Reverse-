@@ -334,7 +334,7 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 | `0x411330`-`0x414a10` | interface manager (interface_init/frame/draw, tooltips, HUD messages, static colours) | names interface_*, ui_tooltip_*, hud_draw_message; .cpp tag removed by commit 04c1de1 |
 | `0x414a20`-`0x414d40` | HUD message display and pulse colour, show_ui ccmd | names hud_show_message, color_pulse_scale; .cpp tag removed by commit 04c1de1 |
 | `0x430be0`-`0x4333d0` | game state machine: boot/title/loadgame states, pause, FrameEnd, screenshots, cursors | names state_boot_*/state_title_*/state_loadgame_*, FrameEnd, screenshot_save; strings "Title", "screen%03d", c |
-| `0x437660`-`0x43a300` | game/loading states: level load and unload, state_game_*, party control, loading screen | names state_game_enter/frame/leave, level_load*, state_loading_*; strings.tbl places 0x439ba0 in gameplay.cpp  |
+| `0x437660`-`0x43a300` | in-game state 4 and the help screen state 5: level load and unload, loading screen, state_game_*, party control | names state_game_enter/frame/leave, level_load*, state_loading_* (state 5 is the help screen, not loading); strings.tbl places 0x439ba0 in gameplay.cpp  |
 | `0x43ec90`-`0x43f9d0` | multiplayer menu states and IRC lobby (channels, users, chat) | names state_mp_*, lobby_*; strings.tbl ids for summoner_cd.cpp at 0x43e9b0 lie just before; no path string |
 | `0x43f9e0`-`0x4425c0` | multiplayer session/net frame, monster layouts, effect streaming | names mp_server_*, mp_client_*, multi_process_packet, monster_layout_*, effect_stream_*; strings ".mlo"; no pa |
 | `0x464010`-`0x469010` | melee/ranged combat resolution (living_combat_*, combat_*) | names combat_*, living_combat_*; strings.tbl combat.cpp at 0x464700-0x464f50; .cpp tag removed by commit 04c1d |
@@ -420,7 +420,7 @@ player.cpp. Their ccmd objects 0x5fbf20/0x5fbff8/0x5fc008/0x5fbf30 and flags 0x5
 |---|---|---|---|
 | 0x4343a0 | 0x4349a0 | player input, camera keys, slew ccmd, and the static objects of the cutscene system (cutscene 0x601e68, 85 entries 0x6034c8, NoRlsAllocPool 0x5fccc0) | optimised code (no ebp, 0x90 padding) up to the unoptimised run; .bss 0x5fcca8-0x609f08; .data 0x593950-0x593988 (between player.cpp and cutscene) |
 | 0x4349b0 | 0x437650 | cutscene playback (unoptimised file) | ebp frames + 0xcc padding, exact ends; own .bss 0x609f30-0x609f38 |
-| 0x437660 | 0x43a300 | **gameplay.cpp** | strings.tbl id 622 (`// gameplay.cpp`) read by party_member_join 0x439ba0 (the other reader, party_add_member, is in player.cpp by path string); one .bss block 0x609f40-0x60a670: game_render_frame and cmd_render_3d_obstacles share 0x60a665, state_game_frame/state_game_enter use 0x60a630/0x60a654 between the ccmd objects 0x60a420-0x60a658 |
+| 0x437660 | 0x43a300 | **gameplay.cpp** | strings.tbl id 622 (`// gameplay.cpp`) read by party_member_join 0x439ba0 (the other reader, party_add_member, is in player.cpp by path string); one .bss block 0x609f40-0x60ab5f (the help ui_window 0x60a670 and state_loading_active 0x60ab5c included; gametarget.cpp starts at 0x60ab60): game_render_frame and cmd_render_3d_obstacles share 0x60a665, state_game_frame/state_game_enter use 0x60a630/0x60a654 between the ccmd objects 0x60a420-0x60a658 |
 
 Tags to check: 0x4343a0-0x4348b0 is tagged gameplay.cpp ("slew ccmd group heads gameplay unit"). It cannot be the
 same file as 0x437660-0x43a300, which holds the strings.tbl evidence: the unoptimised cutscene file lies between them,
@@ -622,3 +622,12 @@ Table row (Engine ranges format: Start | End = start of the last function | Labe
   span large ranges, which hints at their size.
 - Next refinement: once the Ghidra function list is available (`symbols/ghidra-functions.tsv`),
   assign every function to the nearest bracketing file references.
+
+## Changes (2026-10-15, gameplay.cpp)
+
+{: .important }
+`gameplay.cpp` (`src/decomp/game/gameplay.cpp`, 71 functions): its `.bss` runs to `0x60ab5f`, not `0x60a670`, and
+the `state_loading_*` functions are the in-game help screen (state 5), which is never entered in v1.40
+([Main loop](main-loop.md#game-state-table-0x588a70)). The tagged-range row `0x4340d0`-`0x439ba0` above counts the
+two readers of strings.tbl id 622; `0x4340d0` (`party_add_member`) is in `player.cpp`, so the unit itself starts
+at `0x437660`.

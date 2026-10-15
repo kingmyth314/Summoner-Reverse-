@@ -4,7 +4,7 @@
 // Written from the Sum.exe disassembly (build/sum.asm, tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966), /O2 /Ob1.
 // Confidence per function: exact (control flow, calls, constants and globals match), likely (same, but one
 // detail of statement order or expression form is a guess), unsure (the shape itself is a guess).
-// Unit: sum.symbols module column (strings.tbl ids 623-638). It follows state_loading_leave (0x43a300,
+// Unit: sum.symbols module column (strings.tbl ids 623-638). It follows state_help_leave (0x43a300,
 // gameplay.cpp) and ends with hud_set_timed_highlight; summoner.cpp starts at 0x43cd70. Inside the range
 // are two COMDATs of inline members: vector3(x, y, z) 0x43b580 and plane::set_normal_point 0x43b5a0
 // (vsdk/math/vector.h, vsdk/math/ix.h), and the atexit nop of world_mouse_frame's static (0x43cd40).
@@ -231,7 +231,7 @@ int world_pick_lobj(vector3 *origin, vector3 *dir, vector3 *hit, int *face)
 
     do {
         ray.start = *origin;
-        ray.dir = *dir * fog_get_near_current();
+        ray.dir = *dir * fog_get_far_current();
         ray._unk18 = 0;
         ray.flags = 0;
         ray.require_flags = 0;

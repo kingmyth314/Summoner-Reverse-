@@ -83,10 +83,10 @@ Data: .rdata `0x580df4`-`0x580e07`; .data `0x593c34`-`0x5943ef`; .bss `0x609f40`
 | `0x439e70` | dtor_ui_window_60a670 | exact |
 | `0x439e80` | help_controls_window_draw | likely |
 | `0x43a0a0` | help_draw_page | exact |
-| `0x43a170` | state_loading_key_handler | exact |
-| `0x43a2b0` | state_loading_enter | exact |
-| `0x43a2e0` | state_loading_frame | exact |
-| `0x43a300` | state_loading_leave | exact |
+| `0x43a170` | state_help_key_handler | exact |
+| `0x43a2b0` | state_help_enter | exact |
+| `0x43a2e0` | state_help_frame | exact |
+| `0x43a300` | state_help_leave | exact |
 
 The two unsure: `init_empty_438db0_thunk` / `init_empty_438db0` (which object the empty initialiser
 constructs; assigned to `world_last_click_pos`, D2208). The likely ones are marked in the source with their
@@ -115,8 +115,8 @@ reason (mostly the local layout, a duplicated tail that VC6 merged, or the profi
 
 1. docs/sum-exe/main-loop.md, state table: state 5 is "Loading (*inferred*)". It is the in-game help
    screen (help_draw_page, "Summoner Help" / "ESC to exit this screen"); sum.symbols' `state_loading_*`
-   and `loading_help_page` names follow the same guess.
-2. sum.symbols `state_game_level_ready` (0x609f58): "set once the level is loaded". It is set only on the
+   and `help_page` names follow the same guess.
+2. sum.symbols `state_game_load_failed` (0x609f58): "set once the level is loaded". It is set only on the
    failure paths of state_game_enter (0x43821b); state_game_leave saves the conversation and re-pauses
    only when it is 0 (D2207).
 3. docs/sum-exe/party.md: "Dead members are revived with full HP and AP on the next level change
@@ -131,18 +131,18 @@ reason (mostly the local layout, a duplicated tail that VC6 merged, or the profi
    used.
 6. sum.symbols `level_is_town` / `level_script_read_town_characters`: "forced 0 with debug flag 2". The
    bit is game_flags 2, GF_MULTIPLAYER: towns never count as towns in a network game.
-7. Fog names: `fog_get_far_current` (0x486bf0) returns `fog_near_distance` (0x59bd80, after today's data
+7. Fog names: `fog_get_near_current` (0x486bf0) returns `fog_near_distance` (0x59bd80, after today's data
    rename), and game_render_frame prints it as "Fog_near" (first %f). The two getter names look swapped
    relative to the renamed data.
 8. sum.symbols `help_controls_window_draw`: "draw callback in the record 0x594120 (+0xc)". 0x594120 is the
    camera controls table; 0x59412c is a one-entry page function table (help_page_draw_funcs). The debug
    key table 0x5940ec (12 strings, count 0x59411c) is never drawn.
-9. sum.symbols `state_loading_key_handler`: "arrow keys move 0x60a66c (clamped to 0)". Left clamps at 0,
+9. sum.symbols `state_help_key_handler`: "arrow keys move 0x60a66c (clamped to 0)". Left clamps at 0,
    right wraps to 0 at the page count (1).
 10. sum.symbols `init_screen_rects_609fc0`: the eight ints are the loading bar's four corners, and nothing
     reads them.
 11. docs/sum-exe/source-map.md hand cuts: gameplay .bss "0x609f40-0x60a670". It runs to 0x60ab5f (the help
-    ui_window 0x60a670 and state_loading_active 0x60ab5c); the old summary row "0x4340d0-0x439ba0 |
+    ui_window 0x60a670 and state_help_active 0x60ab5c); the old summary row "0x4340d0-0x439ba0 |
     gameplay.cpp" (line 166) and summoner.h's old comment are stale.
 12. sum.symbols comment on `GF_LEADER_SOUND` (summoner.h, "meaning unsure"): 0x200 is set at the end of
     state_game_enter and cleared by state_game_leave, i.e. "level entered".

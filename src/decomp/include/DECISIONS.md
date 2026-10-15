@@ -1892,7 +1892,7 @@ counters (D202) that level_load zeroes. The others are plain additions (interfac
 objects.h, ai.h, levelrender.h, camera.h, fx.h, boss_ai.h, level_scripts.h, localize.h, file.h,
 file_packfile.h, effect_mem.h, snd.h, vfx.h, bmpman.h).
 
-**D2207 (gameplay.cpp). state_game_level_ready is set only when the load failed.** sum.symbols says "set
+**D2207 (gameplay.cpp). state_game_load_failed is set only when the load failed.** sum.symbols says "set
 once the level is loaded". The only store of 1 is 0x43821b, on the shared tail of the two failure paths of
 state_game_enter (level_load returned false at 0x4381bb, or savegame_load_pending returned 0 at 0x43820d);
 the success path never writes it after the clear at 0x438132. state_game_leave saves the conversation state

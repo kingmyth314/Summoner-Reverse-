@@ -44,7 +44,7 @@ int  gameseq_get_next_state();        // 0x401060 (decomp42)
 int  GameTick();                      // 0x401070 one frame; returns the current state (3 = quit)
 void game_pause(int a, int b);        // 0x432660 (both 0 in the pilots)
 void game_pause_count_inc();          // 0x432d90 (GameInit)
-void game_pause_count_dec();          // 0x432d80 (state_game_enter, state_loading_leave; decomp42)
+void game_pause_count_dec();          // 0x432d80 (state_game_enter, state_help_leave; decomp42)
 void game_unpause();                  // 0x4326c0
 bool game_is_paused();                // 0x432da0
 void game_change_level(const char *filename, void *arg);   // 0x431a40 (second argument type guessed)

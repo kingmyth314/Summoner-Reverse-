@@ -186,7 +186,7 @@ bool lobj_is_door(lobj *l);           // 0x477310 flag 0x100 and a door whose +4
 // compares it with level objects, D1503). (target, r, g, b).
 void hover_tint_set_object(obj *o, float r, float g, float b);     // 0x4820b0
 void hover_tint_set_character(lobj *l, float r, float g, float b); // 0x4820e0
-float fog_get_near_current();         // 0x486c20
+float fog_get_far_current();         // 0x486c20
 // (bitmap, pos, yaw degrees, width, height): the target decal (unit not known).
 void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   // 0x487800
 // (ray, hit, iterator (NULL: from 0), flag (NULL), skip lists): ray against the level objects of the draw
@@ -252,7 +252,7 @@ void level_set_current_layer(int layer);              // 0x482110 level_current_
 void levelrender_level_load();                        // 0x4865a0
 void levelrender_level_unload();                      // 0x486ab0
 bool levelrender_get_flag_22fb6f7();                  // 0x486be0 (game_render_frame's fog text)
-float fog_get_far_current();                          // 0x486bf0
+float fog_get_near_current();                          // 0x486bf0
 int  level_vis_load(const char *level_filename);      // 0x486c60 nonzero = failure
 void move_target_set_bitmap(int bm);                  // 0x487750 move_target_bm (0x59c124)
 void move_target_draw_decal();                        // 0x487760

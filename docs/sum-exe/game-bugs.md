@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 145 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 148 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -29,7 +29,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Crash or hang | 3 | 29 | 2 |
 | Gameplay | 22 | 12 | 3 |
 | Cosmetic | 29 | 8 | 2 |
-| Invisible | 16 | 26 | 0 |
+| Invisible | 17 | 28 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -291,6 +291,8 @@ level items into 32 of 0x70 bytes (`0x24e3b50`), and the `#Clicks` loop of `leve
 (`mov [eax+0x2c], ecx` at `0x4cb6b6`) with no NULL test. An unknown `$Item:` skips the store at `0x4cb5a1`, so
 `+0x40` keeps whatever an earlier level left in that record (or 0), and `item_create_by_name` gets its name from
 there (`mov eax, [edx]` at `0x4cb6ed`). Every retail item and navpoint of `level_items.tbl` resolves.
+
+None.
 
 ## Gameplay
 
@@ -610,6 +612,8 @@ the object list).
 `&item_types[item_type_find(key)]` (`shl eax, 8; add eax, 0x8cbec0` at `0x4cda11`) without a test for -1, so an
 unknown key name becomes the address 0x100 bytes before the item table. The 13 retail key names are all in
 `items.tbl`.
+
+None.
 
 ## Cosmetic
 
@@ -962,6 +966,8 @@ fails and `level_ambient_add` drops the sound (`0x4cd2a2`), and so does every gr
 `state_game_leave`, so it does not help. Not seen at runtime;
 an agent-mode test can watch `level_ambient_count` (`0x2491a58`) after entering Lenele1aa a few times.
 
+None.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1008,6 +1014,9 @@ an agent-mode test can watch `level_ambient_count` (`0x2491a58`) after entering 
 | V110 | Latent: allocating a script avoid spline tests "already in use" twice with the same handle and NULL-tests the target's handle instead of the target character | `script_alloc_avoid_spline` `0x4cedf0` | **Observed** code |
 | V111 | The script editor's level restart respawns level items of other script variants (navpoint never looked up) and items already taken, and frees the avoid splines without clearing their slots | `level_script_restart` `0x4cb060` | **Observed** code, *inferred* effect |
 | V112 | Latent: the level-scaling code reads `cur_character`'s level before testing `cur_character` for NULL | `level_script_init` `0x4cc7e0` | **Observed** code |
+| V120 | The "Fog_near = %.2f, Fog_far = %.2f" debug text in the game view can never be drawn: its timer is started only inside the branch that already needs it running, and the flag that starts it is never set | `game_render_frame` `0x438dc0`, `levelrender_get_flag_22fb6f7` `0x486be0` | **Observed** code |
+| V121 | Latent: the `character` console command with no argument writes a zero one byte before its name buffer, then fails the lookup | `cmd_character` `0x439930` | **Observed** code |
+| V122 | Latent: the `Dump_sound_usage` and `Give_all_items` console toggles are stored and never read | `cmd_dump_sound_usage` `0x4378f0`, `cmd_Give_all_items` `0x438070` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1284,6 +1293,28 @@ but there `level_script_reparse` resets the slots (`script_avoid_splines_reset`,
 (`0x4cc893`..`0x4cc8b2`) and only then, inside the loop, tests `cur_character` (`test eax, eax` at `0x4cc8cc`).
 The branch for no current character (characters keep their `char_info` level) is unreachable.
 
+**V120. A timer that never starts.** `game_render_frame` keeps a static `GameTimer` (`0x60a2c0`), constructed
+invalid (`-1`, `GameTimer__GameTimer` at `0x501862`). It draws the fog text only while `GameTimer__valid` is true
+and less than 10,000 ms have passed (`0x438e65`..`0x438e81`); otherwise it calls `GameTimer__invalidate` and
+returns (`0x438f07`). The only `SetTimeout(0)` (`0x438e97`) is inside that drawing branch, so the timer can never
+become valid. That call also waits for byte `0x22fb6f7` (`levelrender_get_flag_22fb6f7`), whose only write is the
+clear in `levelrender_render_scene` (`0x482392`). *Inferred* intent: the text was meant to show for 10 s after a
+fog change, with the flag set by the fog code. The labels are right: the first value comes from `0x486bf0`, which
+returns the near distance (the getter names are swapped in sum.symbols, see the symbol fixes).
+
+**V121. Empty name.** `cmd_character` concatenates every argument plus a space into a 128-byte buffer at
+`[esp+0x38]`, then removes the last space with `name[strlen(name) - 1] = 0` (`mov [esp+ecx+0x37], al` at
+`0x4399da`). With no argument the name is empty, `strlen - 1` is -1 and the zero goes to `[esp+0x37]`, the top
+byte of a local that the command only fills later (the copy of `cur_character +0x10..+0x58`, `0x439a55`..`0x439aa5`).
+`charinfo_find_by_name("")` then returns -1 (`0x446bb9`) and the command prints "Unable to find character  in
+character table". Nothing changes. The usage text is printed only for `help`.
+
+**V122. Toggles with no reader.** `Dump_sound_usage` (`0x609fe1`) is written only by its command
+(`0x43790f`..`0x437929`); `Give_all_items` (`0x609fec`) by its command (`0x43808f`..`0x4380a9`) and by
+`ls_test_init`, which sets it for the test level (`0x4fde10`). No instruction reads either byte except the
+commands' status prints, and the raw byte scan finds no other reference. The cheat that gives all items does not
+exist in retail.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1437,6 +1468,30 @@ the tables above; the rest are below.
 - The door sound third value (0.1 becomes 1.0, then truncated to a byte): every retail `+Open sound:` / `+Close sound:` line has 1.0 there.
 - `script_party_remove_item` indexes `item_types[-1]` for an unknown name before its `type >= 0` test (`0x4cdfa6`..`0x4cdfc7`): `party_inventory_find_type` only compares the pointer (`0x46bd19`), and the test then skips the removal.
 
+- Revival only in towns (notes item 3): `party_level_reset` revives and heals only when the new level is a town or
+  `worldmap1` (`0x437f72`..`0x437fa6`). This is a consistent rule (the towns are the rest stops), not a fault; the
+  [Party](party.md#death) page said every level change revives and has been corrected.
+- `party_member_join` keeping a `Player` slot when `player_create` fails (notes item 8): the `index < 0` test after
+  `player_alloc_slot` (`0x439c7d`) repeats one already passed at `0x439bce`..`0x439bf5`, and `player_create` can only
+  fail when `living_entity_create` returns 0, which it never does (it loops on `DebugError` when the pool is full,
+  `0x461bba`..`0x461bda`, and always returns the record, `0x461daa`). Both branches are dead.
+- `level_load_report` formatting three lines and never printing them (notes item 6, `0x437da3`..`0x437de4`): a debug
+  print compiled out, like `cmdline_take_argument`.
+- `level_load_layers` discarding `lobj_get_layer_n(1)` (notes item 7, `0x43896f`): a dead call. The logic it keeps is
+  consistent: an object listed in a second `$layerNN` record gets that layer as its layer 1 unless it is already its
+  layer 0 (`0x438974`..`0x438983`).
+- Every door opened on a multiplayer level load (notes item 9, `level_restore_doors` `0x438a21`..`0x438a70`): done on
+  purpose for every door, open and stored in the two-stage state; the `savegame_two_stage_get` results at `0x438a58`
+  are unused, which changes nothing.
+- `gameplay_no_render_60a630` never written (notes item 5): its two readers (`0x43275b`, `0x43930d`) only guard a
+  debug branch (`frame_sleep_when_inactive`); a cut feature, not counted.
+- States 5 to 8 never entered (help screen, monster layout editor, debug help text, debug load screen): no
+  `gameseq_set_state` caller passes 5, 6, 7 or 8. Cut debug screens, like `camera_cut_to_view_stub`; not counted.
+- `Full_party` cleared on `masad` (`level_spawn_party` `0x438adb`..`0x438af4`): the story starts with Joseph alone in
+  Masad Village, so the test is deliberate. It does mean the cheat never works on a new game ([Party](party.md)).
+- The help screen's debug key table (`0x5940ec`, six `<debug>-x` pairs) is never drawn: only the one page function
+  at `0x59412c` exists. Part of the unreachable state 5 anyway.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1519,6 +1574,16 @@ the tables above; the rest are below.
 - `level_trigger_set_exit_by_refname` / `level_trigger_set_script_use_by_refname` change only the first trigger with that `+RefName:`. In the retail tables the single-player copy always comes first and its `+Multi` copy second, so in multiplayer `ls_sewer_init`'s toggles never reach the trigger that is used. Whether multiplayer is meant to keep every sewer exit live was not checked.
 - `script_play_cutscene` saves `level_script_frame_fn` without checking that it is already `script_cutscene_done`. Two calls in one frame (for example two of `ls_templeint_frame`'s eight `urathmyth` flags set at once) would leave the level's `frame` slot replaced by `script_cutscene_done`, which then calls the second continuation every frame. Whether two of those flags can be set before one frame runs was not traced. The Giant Salamanka pair in `ls_khosanilab_salamanka_fight` cannot: stage 3 needs the stage 2 acknowledgement (`giant_salamanka_check_stage` `0x4c85fa`).
 - `script_eleh_strip_party_gear` puts Joseph's old weapon and the slot 6 / 1 / 2 items into the party inventory (`party_inventory_add_item`), so they can be put back on at once. Whether the prison was meant to take them away was not checked.
+- `party_check_all_dead` picks the first party member without `0x80` (`0x439494`..`0x4394a5`), but
+  `party_select_member` refuses one with `0x8` as well (`test [eax+0x320], 0x88` at `0x4396e5`). If that member were
+  hidden while the leader is dead, the selection would fail every frame (error sound `0x24`) and the death screen
+  would never come. At least nine places set `0x8` (`0x450e18`, `0x453870`, `0x495788`, `0x495816`, `0x4b8cd3`,
+  `0x4ba4f5`, `0x4c2603`, `0x4c35b6` and others); whether any of them can hide a living member while the leader is
+  dead was not traced.
+- `cmd_character` appends every argument to its 128-byte stack buffer with no length check (`0x43995e`..`0x4399c9`).
+  Whether a console line can be long enough to overflow it depends on the console input limit, which was not read.
+- `state_game_enter` in multiplayer: when `level_load` fails it reports the local player as disconnected
+  (`mp_player_disconnected(4, 0)`, `0x4381cc`) but does not leave state 4. What the game does next was not traced.
 
 ## Evidence
 
@@ -1674,3 +1739,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V110 avoid spline | `script_alloc_avoid_spline` `0x4cee10`..`0x4cee5c`; callers `0x4dd5c7`..`0x4dd5e2`, `0x4f3314`..`0x4f3327` |
 | V111 restart | `level_script_restart` `0x4cb2bc`..`0x4cb339`; `level_items_parse_table` `0x4cb5d6`..`0x4cb5f8`; `level_script_reparse` `0x4cb427` |
 | V112 cur_character | `level_script_init` `0x4cc88e`..`0x4cc8ce` |
+| V120 fog text | `game_render_frame` `0x438e35`..`0x438f11`; timer constructor `0x501862`, `GameTimer__valid` `0x501990`; flag `0x22fb6f7` read `0x486be0`, only write `0x482392` |
+| V121 empty name | `cmd_character` `0x4399cc`..`0x4399e3` (`mov [esp+ecx+0x37], al` at `0x4399da`); lookup failure `charinfo_find_by_name` `0x446bb9`, message `0x4399f2`..`0x439a0d` |
+| V122 toggles | `Dump_sound_usage` writers `0x43790f`, `0x43791c`, `0x437929`; `Give_all_items` writers `0x43808f`, `0x43809c`, `0x4380a9`, `ls_test_init` `0x4fde10`; byte scan of the image for `0x609fe1` / `0x609fec` |
