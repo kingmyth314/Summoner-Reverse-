@@ -233,9 +233,24 @@ reference project) and 1,968 **I** (inferred). The **I** entries are the main th
 behaviour matters, and raise them to **O** or rename them. Spot checks of every agent batch found about one wrong name
 per 300-500, each corrected before merging.
 
+**Data globals (2026-10-14):** the code references about 13,270 distinct addresses in `.data` and `.bss`. About 610
+had names before this step, mostly console variables and command objects. Of the unnamed ones, about 3,600 are used
+by two or more functions. The first data pass named these:
+- the console parser state, with Summoner 2 names: `calling_a_command_function`, `doing_help_for_comand`,
+  `checking_status_for_command`, `arg_type`, `next_arg`, `original_arg`, `command_argument_int` / `_float`,
+  `rest_of_command_line`, `debug_command_prefixed`, and the shared `string_buffer`;
+- the gr modes passed to `gr_string`, `gr_rect`, `gr_line` and `gr_bitmap`;
+- `mp_local_player` and the multiplayer player lists;
+- the living-entity list sentinel `0x8eca60`;
+- the game's per-frame mouse position.
+
+Twelve "set" console variables were typed `int` by the generator. They are `float`: the callback copies
+`command_argument_float`, as with `chance_gold`, the LOD distances and the fog/far-plane values. Every console variable
+whose callback pattern confirms the type is now **O**.
+
 **Next for the decompilation:**
 1. Raise the confidence of the **I** names in the game layers.
-2. Type the remaining data globals.
+2. Name and type the remaining data globals (agent batches, most-used first).
 3. Split the binary into translation units with the [source-file map](sum-exe/source-map.md) and the initialiser
    table order. Each translation unit's static initialisers are adjacent in the table.
 4. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
