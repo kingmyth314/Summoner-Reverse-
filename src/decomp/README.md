@@ -41,6 +41,7 @@ Rules:
 | `vsdk/file_packfile.cpp` | `vsdk\vfile\packfile\file_packfile.cpp` | 24 | see `NOTES-packfile-mouse-exception.md` (50 / 23 / 0 for the five files) |
 | `vsdk/unnamed_mouse_0x500a30.cpp` | mouse module `0x500a30`-`0x501468` (**name not known**) | 30 | |
 | `vsdk/unnamed_exceptionhandler_0x5419a0.cpp` | exception handler `0x5419a0`-`0x5424fa` (**name not known**; functions as in Bruce Dawson's ExceptionHandler.cpp) | 8 | |
+| `vsdk/unnamed_localize_0x503f60.cpp`, `unnamed_net_0x517590.cpp`, `unnamed_os_0x530b90.cpp`, `unnamed_os_0x531bf0.cpp` | localize, net and os code (**names not known**) | 72 | 41 / 31 / 0 (`NOTES-localize-net-os.md`) |
 | `vsdk/matrix.cpp` | `vsdk\math\matrix.cpp` | 48 | 27 / 20 / 1 |
 | `vsdk/skeleton.cpp` | `vsdk\ca\skeleton.cpp` | 27 | 15 / 12 / 0 |
 | `vsdk/character.cpp` | `vsdk\ca\character.cpp` | 46 + 3 | 25 / 22 / 2 |

@@ -2328,3 +2328,85 @@ version_check_need_fetch 0x58bd38, names ours); the packfile unit's records, glo
 unit's globals (those of windows / dinput types stay in the .cpp) and functions. door_find_by_mesh,
 version_check_run, version_check_status_text, packfile_read_whole_file, packfile_find_in_packfile and the nine
 old mouse declarations keep their signatures.
+
+## decomp50: localize, vsdk\net, vsdk\os (vsdk/unnamed_localize_0x503f60.cpp, vsdk/unnamed_net_0x517590.cpp, vsdk/unnamed_os_0x530b90.cpp, vsdk/unnamed_os_0x531bf0.cpp; all file names are placeholders)
+
+**D3000 (vsdk/localize/localize.h). localize_remap_charset returns char *, not void.** Every exit leaves the
+text pointer in EAX: `mov eax, [esp + 8]` for other languages (0x5051b0), `mov eax, esi` after the French and
+German loops (0x50526a, 0x5052c9) and at the shared empty-string exit (0x505316). The five callers in src/decomp
+(items.cpp, level_scripts.cpp, level_scripts_common.cpp, new_credits.cpp, script_internal.cpp) call it as a
+statement, so they compile unchanged; no other definition exists. The other new declarations of the unit (every
+localize_* in address order, localize_node, localize_language_info, the four tables, localize_language) did not
+exist before; the existing ones keep their signatures.
+
+**D3001 (localize unit). localize_pool_used is a char *, the write pointer into a 0xa000-byte text buffer.**
+sum.symbols says data:int "bytes used". Its .data value is 0x025ce47c (the byte after localize_strings[1000]),
+localize_set_string stores it into localize_strings[id] (0x504417), compares the length with
+0x25d847d - pointer (0x50442e: the buffer ends at localize_item_table 0x25d847c) and advances it by length + 1
+(0x5044a2). The buffer gets a name of ours (localize_text_buffer, 0x25ce47c); the symbol keeps its name.
+
+**D3002 (localize.h). Typed tables.** localize_topic / script / quest / item_table are `localize_node *[0xfd]`
+(sum.symbols void*[0xfd]): localize_table_add allocates 12-byte nodes and stores hash +0, text +4, next +8
+(0x504118-0x50412d). localize_language_names is `localize_language_info[3]` {name[0x21], code[0x21]}
+(sum.symbols char[3][0x42]): localize_get_language_code_buf copies from 0x5a5c59 + 0x42 * language (0x505170),
+and the .data holds "gr" / "fr" at +0x21 of the German / French entries. The second table at 0x5a5d00
+(char[3][20]: "\"Farewell.\"", "\"Leb wohl.\"", "\"Au revoir.\"", indexed with lea eax, [eax + 4*eax] at
+0x504ccf) and the flags 0x5a5d3c (init 1, English), 0x25d8874 (German), 0x25d887c (pools created) get names of
+ours.
+
+**D3003 (localize unit). XSTR is the conditional form of D1701 in this unit.** The /O2 object still emits the
+English literal of each XSTR next to the used key: "Golem" at 0x5a5eac (no reference) before the key 0x5a5eb4,
+the same for the other eleven summon names and "Spirit of Laharah" 0x5a5fcc before the key "Spirit Of Laharah"
+0x5a5fe0. The unit #undefs XSTR and uses `(0 ? (char *)(text) : localize_strings[id])`; localize.h's lvalue
+XSTR stays (other units take its address).
+
+**D3004 (vsdk/net/net.h). Packet buffer, reliable header and reliable socket layouts.** sum.symbols types them
+as byte arrays. nw_recv_buffers (0x26b63f0) is `nw_packet_buffer[5]`: the stride is 0x1050c (the
+*7, *29, *3, <<6, +1, *3, *4 sequence at 0x5175ab-0x5175c3), nw_init_networking initialises them up to
+0x2707d2c (0x518a13), each holds 0x60 slots of 0x2b8 bytes {seq, size, addr[8], data[0x2a8]} and the counters
++0x10500 / +0x10504 / +0x10508 (nw_buffer_init 0x517730). The four buffers 0x2708130 / 0x2708398 / 0x2708600 /
+0x2708868 are `reliable_header` (0x262 bytes, packed: type +0, seq +2, data_len +4, send_time +6, data +0xa;
+nw_buffer_receive's size 0x262 and the 0x98-dword + word memset at 0x518f78); 0x2708130 has no sum.symbols
+entry (nw_flush_buf, ours). nw_reliable_sockets is `reliable_socket[10]` of 0xd2d bytes (packed): sbuffers +0,
+ssequence +0x258, timesent +0x384, send_len +0x5dc, rbuffers +0x708, recv_len +0x960 (dword stores at
+0x5183a0), rsequence +0xbb8, last received +0xce4, last sent +0xce8, status +0xcec, their / our sequence
++0xcf0 / +0xcf2, addr +0xcf4, pings[10] +0xcfc, ping_pos +0xd24 (byte), num_ping_samples +0xd25 (unsigned:
+jb at 0x5181d9), mean_ping +0xd29 (net_get_reliable_socket_ping 0x51942e). net_addr {ip, port} (8 bytes,
+host order) is new. The socket globals are `unsigned int` in the header (no winsock include); the .cpp uses
+SOCKET, the same type.
+
+**D3005 (net.h). Kept names whose sum.symbols comments are off.** nw_reliable_slot_status(type) returns 1
+when the packet buffer of that type holds a packet (first_seq != -1 and <= last_seq, 0x51765b-0x51766d), not
+"a connected socket". nw_send_heartbeat sends the IAMHERE packet (type 6, seq 0xfebd, 0x517d7b); the real
+heartbeat (type 5) is built inline in nw_work_reliable (0x5186e6). nw_send_reliable_reply's arguments are
+(addr, seq, send_time) (0x517d2d-0x517d57), not (socket, seq, addr). nw_reliable_resend_time is, on the client,
+the connect time that the LIMBO time-out counts from (set at 0x51916b). nw_addr_equal keeps its decomp47
+`const void *` parameters (the callers pass mp_player::addr, a ubyte[8]).
+
+**D3006 (vsdk/os/os.h). os_init's parameters, os_init_window's argument, the title size.** os_init copies
+argument 1 to the mutex name and the window class and argument 2 to the title (0x530d16-0x530d87; called as
+os_init("Volition", "Summoner")): the parameters are renamed (name, title), the types are unchanged.
+os_init_window takes an int: os_init pushes 0 and pops it with the atexit argument (add esp, 8 at 0x530e34).
+os_window_title is char[0x80], not 0x98: the critical section passed to InitializeCriticalSection is
+0x2cbfe60. os_foreground keeps the decomp49 declaration (one line); the other declarations are new.
+
+**D3007 (units). One os object 0x530b90-0x531bea that ends in unoptimised code; 0x531bf0 starts another.**
+The CPU / sysinfo code and os_clipboard_get_text (0x5312c0-0x531bea) are /Od-style (frame pointer, locals
+reloaded, no 16-byte function alignment: cpu_identify at 0x5312d6), but ccmd_sysinfo (0x2cbff00) lies in the
+middle of the os .bss (0x2cbfce0-0x2cbff27), and the padding after os_seed_random is the compiler's nop fill,
+not the linker's int3 fill seen after 0x531beb. So it is one object with optimisation switched off part way
+(written as `#pragma optimize("", off)` before os_clipboard_get_text; intrinsics stay on, the strlen is
+repne scasb). The -1 stubs 0x531bf0 / 0x531c00 follow the int3 gap and are optimised: a separate placeholder
+file. timer_wait (0x530bf0, module vsdk\os) is in the os object, between os_find_window_callback and
+os_get_main_wnd; its declaration stays in vsdk/os/timer.h.
+
+**D3008 (memory.h). The three vsdk\os Mempool functions need no new code.** Mempool__ResetOffset (0x505540),
+Mempool__Mempool (0x51dff0) and Mempool__getPoolSpaceLeft (0x51e010) are the out-of-line COMDATs of the inlines
+in vsdk/os/memory.h (D12), emitted by the /Ob0 objects that call them (localize: localize_clear_level
+0x504ee2; effect_mem.cpp). 0x505530 (vector3__vector3_default) is the localize object's empty Mempool() COMDAT
+(both pool initialisers jump to it), folded with every other empty constructor.
+
+**D3009 (net unit). FD_SET is <winsock.h>'s.** Both selects build the fd_set with two stores (count 1,
+array[0] = socket; 0x5175f2, 0x518790): the WinSock 1.1 macro (no duplicate scan), matching WSAStartup(0x101).
+The RAS structures are written out in the .cpp (Windows 95 sizes: RASCONN 0x19c, RASCONNSTATUS 0xa0, RASPPPIP
+0x28) because the SDK's <ras.h> sizes depend on WINVER.

@@ -43,7 +43,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/timestamp.h` | timestamp.cpp (pilot) | `GameTimer`, `RealtimeTimer`, tickers |
 | `vsdk/os/frametime.h` | frametime.cpp (pilot) | frame time globals and functions |
 | `vsdk/os/timer.h` | timer.cpp | `timer_init`, `timer_get`, `timer_wait` |
-| `vsdk/os/os.h` | vsdk\os (0x530c00-0x531280; file name guessed, decomp26) | `os_init`, `os_poll`, `os_get_main_wnd`, `os_close_main_window`, `os_seed_random` |
+| `vsdk/os/os.h` | vsdk\os (one object 0x530b90-0x531bea, source at src/decomp/vsdk/unnamed_os_0x530b90.cpp, file name a placeholder, decomp50; the two -1 stubs 0x531bf0 / 0x531c00 in unnamed_os_0x531bf0.cpp) | `os_init`, `os_poll`, `os_get_main_wnd`, `os_foreground`, `os_wndproc`, the window / mutex / message-handler globals, `os_clipboard_get_text` (D3006, D3007) |
 | `vsdk/os/exceptionhandler.h` | exceptionhandler (0x5419a0-0x5424fa; source at src/decomp/vsdk/exceptionhandler.cpp, directory and file name placeholders, decomp26 / decomp49) | `RecordExceptionInfo` (the helpers are file-static, D2905) |
 | `vsdk/os/registry.h` | `vsdk\os\registry.cpp` (pilot) | `os_registry_*` |
 | `vsdk/os/cmdline.h` | `vsdk\os\cmdline.cpp` (pilot) | `CmdLineParam`, `cmdline_*` |
@@ -74,9 +74,9 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/gr/glide/gr_glide.h` | `vsdk\gr\glide\gr_glide.cpp` (decomp45; decomp40 declared the dispatch targets) | `glide_section`, `glide_tcache_entry`, `glide_block`, `glide_record` (TMU memory, derives from `tcache_slot`), the entry point pointers and the unit globals, all `gr_glide_*` / `glide_*` |
 | `vsdk/gr/directx/d3d_min.h` | (ours; stands in for `<ddraw.h>` / `<d3d.h>`, D1600) | the DirectDraw 7 / Direct3D 7 structures, C-style interfaces and the SDK call macros, IIDs and constants the Direct3D back end uses; not combinable with the system DirectX headers |
 | `vsdk/gr/directx/gr_direct3d.h` | `vsdk\gr\directx\gr_direct3d.cpp` and the state / drawing object before it (decomp36, D1601) | `d3d_tlvertex`, `d3d_device_record`, `d3d_color_channel`, the Direct3D back end and its globals, the D3D texture cache calls |
-| `vsdk/localize/localize.h` | localize | `localize_strings`, `XSTR`, `localize_*` |
+| `vsdk/localize/localize.h` | localize (0x503f60-0x505547, source at src/decomp/vsdk/unnamed_localize_0x503f60.cpp, file name a placeholder, decomp50) | `localize_strings`, `XSTR`, `localize_node` (the name hash tables), `localize_language_info`, every `localize_*` (D3000-D3003) |
 | `vsdk/snd/snd.h` | snd (0x5207d0) | `snd_*`, `eax_*` |
-| `vsdk/net/net.h` | vsdk\net | `nw_*` globals |
+| `vsdk/net/net.h` | vsdk\net (0x517590-0x5194ab, source at src/decomp/vsdk/unnamed_net_0x517590.cpp, file name a placeholder, decomp50) | `net_addr`, the packet buffers, `reliable_header`, `reliable_socket`, `RNT_*` / `RNF_*`, every `nw_*` (D3004, D3005) |
 | `vsdk/ca/skeleton.h` | `vsdk\ca\skeleton.cpp` | `anim_track`, `skeleton`, `vim` (= `ca_vim`), `vim_load` |
 | `vsdk/ca/character.h` | `vsdk\ca\character.cpp` (decomp30) | `ca_character` (0x1f8, members), `ca_mesh` (mesh slots), `ca_vertex_weights`, preload index, `ca_*` / `character_*`, `ca_render_*` |
 | `vsdk/ca/character_instance.h` | `vsdk\ca\character_instance.cpp` (pilot) | `character_instance` |
