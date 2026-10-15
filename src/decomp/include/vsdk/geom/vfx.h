@@ -10,7 +10,9 @@ class vfx_base {
 public:
     void load_bitmaps(int flag);              // 0x536e50 vfx_base__load_bitmaps
     void relocate_node(char *a, char *b);     // 0x536bc0 vfx_node_relocate (argument meaning unsure)
-    char _unk00[0x1c];
+    char _unk00[0x12];
+    short num_frames;                         // +0x12 (cast_effect_track_add: frames / 15 * 1.5 s; decomp39)
+    char _unk14[0x08];
     int category;                             // +0x1c copied from the base record's category
 };
 
@@ -28,6 +30,7 @@ public:
     void get_node_world_transform(int node, vector3 pos, matrix orient, int a, int b, int c); // 0x537a10
     int  find_tag(const char *name);                                 // 0x537f10, -1 (">>> FAILED TO GET TAG %s")
     int  get_tag_transform(int tag, int a, int b);                   // 0x537f70 (result unused by spells.cpp)
+    unsigned int id_bits;                                            // +0x00 effect id << 9 (cast_effect_track_add; decomp39)
 };
 
 // A light attached to an object (0x98 bytes; slots at 0x2cb45d0, attached_light_create / _free). The

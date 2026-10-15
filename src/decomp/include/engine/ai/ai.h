@@ -1,5 +1,6 @@
-// engine/ai/ai.h - the AI sub-object of a character and AI groups (ai.cpp in sum.symbols, 0x471f40-0x4742b0
-// by string ids; directory from the engine\ai\pathfinding.cpp path). Not original source.
+// engine/ai/ai.h - the AI sub-object of a character and AI groups (ai.cpp in sum.symbols, code
+// 0x471ff0-0x475178: the unit opens with its static initialiser thunks, decomp39; directory from the
+// engine\ai\pathfinding.cpp path). Not original source.
 // Layout: symbols/types.h ai_state / ai_group, with the GameTimer fields typed as GameTimer and +0x1a8
 // named `group` (player.cpp reads the character's group there).
 #ifndef ENGINE_AI_AI_H
@@ -24,9 +25,115 @@ struct ai_group {
 };
 LAYOUT_CHECK(ai_group, sizeof(ai_group) == 0x54);
 
+// A goal slot (ai_state +0x8c, five of 0x34 bytes). Fields from ai_goal_alloc's stores (0x47609e-
+// 0x47611e), ai_state_init and ai_state_save / _load (decomp39, D1902). Type and field names ours.
+struct ai_path;
+struct ai_goal {
+    int type;                         // +0x00 AI_GOAL_* (0 free)
+    unsigned int flags;               // +0x04 bit 0 kept by ai_goal_alloc, bit 1 set by it, 0x10 walk, 0x200 run
+    int id;                           // +0x08 from ai_goal_next_id; ai_state::cur_goal holds the running one
+    float time;                       // +0x0C level_session_time when added
+    int priority;                     // +0x10 -1 in a cleared slot
+    vector3 pos;                      // +0x14 point argument
+    int layer;                        // +0x20
+    int spell;                        // +0x24 AI_NO_SPELL (0x6c) unless a cast goal
+    int target;                       // +0x28 target handle, -1 none (saved as a name hash)
+    float arg;                        // +0x2C goal_add's last argument (30.0f at boss_release_mount)
+    ai_path *path;                    // +0x30 freed by ai_goal_remove (not saved)
+};
+LAYOUT_CHECK(ai_goal, sizeof(ai_goal) == 0x34);
+#define AI_NO_SPELL 0x6c              // the spell argument of the non-cast goals (name ours)
+
+// Goal types (ai_state::goal_add's first argument; names from the goal-name table 0x59ae98, decomp39).
+#define AI_GOAL_ATTACK            1
+#define AI_GOAL_FOLLOW            2
+#define AI_GOAL_CAST_SPELL        3
+#define AI_GOAL_CAST_TARGETED     4
+#define AI_GOAL_CAST_LOCATION     5
+#define AI_GOAL_SWITCH_COMBAT     6
+#define AI_GOAL_SWITCH_NORMAL     7
+#define AI_GOAL_PROTECT           8
+#define AI_GOAL_PATHFIND          9
+#define AI_GOAL_TURN_TO           10
+#define AI_GOAL_RUN_AWAY          11
+#define AI_GOAL_GOTO_NAVPOINT     12   // ai_goal_add_move_to
+#define AI_GOAL_WANDER            13   // ai_goal_add_move_to_timed
+#define AI_GOAL_BACKSTAB          14
+#define AI_GOAL_SNEAK             15
+#define AI_GOAL_HIDE              16
+#define AI_GOAL_PICKUP_ITEM       17
+
 // The AI sub-object at Character +0x324 (ai_state__ctor 0x4722f0). thiscall members on this+0x324.
 class ai_state {
 public:
+    // ai.cpp (decomp39), in address order; the older declarations below keep their places.
+    ai_state();                       // 0x4722f0 ai_state__ctor (constructs the GameTimer members)
+    void call_for_help();             // 0x472200 ai_call_for_help
+    void init();                      // 0x472380 ai_state_init (living_entity_init)
+    void shutdown();                  // 0x472420 ai_state_shutdown
+    void reset_party_member();        // 0x4725e0 ai_reset_party_member
+    int  count_attack_slots_used();   // 0x4726a0 ai_count_attack_slots_used
+    void attack_slot_direction(vector3 *out, int slot);   // 0x4726d0 ai_attack_slot_direction (this unused)
+    int  pick_attack_slot(Character *attacker);           // 0x472780 ai_pick_attack_slot
+    // (self, attacker, ms, slot -1 = best): self is the character the slots belong to.
+    void claim_attack_slot(Character *self, Character *attacker, int ms, int slot);   // 0x472840
+    void offset_point_sideways(const vector3 *pos, const vector3 *offset);   // 0x4729b0 -> travel_dest
+    bool is_following_leader();       // 0x473100 ai_is_following_leader
+    bool is_combat_sub16_17();        // 0x473190 ai_is_combat_sub16_17
+    bool is_combat_sub16();           // 0x4731b0 ai_is_combat_sub16
+    int  set_mode(int mode, int sub); // 0x473320 ai_set_mode: 0 when refused or unchanged, else 1
+    bool path_get_destination(vector3 *out);              // 0x473660 ai_path_get_destination
+    int  count_engaged_attackers(bool ignore_goals);      // 0x4736a0 ai_count_engaged_attackers
+    int  count_attackers();           // 0x473750 ai_count_attackers
+    void go_inactive();               // 0x473880 ai_go_inactive
+    void go_mount_idle();             // 0x473940 ai_go_mount_idle
+    void travel_to_xyz(float x, float y, float z);        // 0x473a40 ai_travel_to_xyz
+    void travel_to_point(vector3 *pos, int priority);     // 0x473a90 ai_travel_to_point
+    void path_begin();                // 0x473ac0 ai_path_begin
+    ai_path *set_path(vector3 *start, ai_path *p);        // 0x473bc0 ai_set_path
+    ai_path *path_find_new(vector3 *from, int from_layer, vector3 *to, int to_layer, int size,
+                           float cost_bias);              // 0x473c40 ai_path_find_new
+    ai_path *path_find_append(vector3 *from, int from_layer, vector3 *to, int to_layer, int size,
+                              float cost_bias);           // 0x473d80 ai_path_find_append
+    // 0 with a path, -1 without (from_layer < 0 frees the path). The fifth argument is not read.
+    int  path_to(vector3 *from, int from_layer, vector3 *to, int to_layer, int unused, int size,
+                 bool append, bool keep_flag);            // 0x473e50 ai_path_to
+    int  add_travel(vector3 *pos, int layer, int priority, bool walk);   // 0x473f40 ai_goal_add_travel
+    int  set_combat_mode_goal(bool on, int priority);     // 0x473fd0 ai_set_combat_mode_goal
+    int  add_move_to(vector3 *pos, int layer, bool walk, int priority);  // 0x474160 ai_goal_add_move_to
+    int  knock_down_local(int ms);    // 0x4742b0 ai_knock_down_local: 0 when refused
+    int  disable_2f_local();          // 0x474390 ai_disable_2f_local (pushed): 0 when refused
+    void disable_31();                // 0x474410 ai_disable_31 (stunned)
+    void attack_target(Character *t); // 0x4744a0 ai_attack_target
+    void attack_target_sub10(Character *t);   // 0x4744e0 ai_attack_target_sub10
+    void net_attack_target(Character *t);     // 0x474520 ai_net_attack_target
+    void start_travel(bool walk);     // 0x474580 ai_start_travel
+    void charge_target(Character *t); // 0x4745d0 ai_charge_target
+    void travel_to_current_dest();    // 0x474620 ai_travel_to_current_dest
+    void enter_sneaking();            // 0x474650 ai_enter_sneaking
+    void enter_hiding(int enter);     // 0x474690 ai_enter_hiding (0 = leave)
+    int  save(ubyte *out);            // 0x4746d0 ai_state_save, bytes written
+    int  load(const ubyte *in);       // 0x4747e0 ai_state_load, bytes read
+    void enter_combat();              // 0x474fc0 ai_enter_combat
+    bool is_disabled_2c();            // 0x474fd0 ai_is_disabled_2c
+    bool is_knocked_down();           // 0x474fe0 ai_is_knocked_down
+    bool is_disabled_2e();            // 0x474ff0 ai_is_disabled_2e
+    bool can_be_knocked_down();       // 0x475030 ai_can_be_knocked_down
+    // The units after ai.cpp (module "-" in sum.symbols; decomp39 calls).
+    void think();                     // 0x4b7610 ai_think
+    void mode_traveling_frame();      // 0x4b4100 ai_mode_traveling_frame
+    void mode_cast_spell_frame();     // 0x4b4590 ai_mode_cast_spell_frame
+    void mode_disabled_frame();       // 0x4b4ad0 ai_mode_disabled_frame
+    void mode_hiding_frame();         // 0x4b4d80 ai_mode_hiding_frame
+    void mode_sneaking_frame();       // 0x4b4eb0 ai_mode_sneaking_frame
+    void mode_combat_frame();         // 0x4bff60 ai_mode_combat_frame
+    // (type, priority, flags, target handle, pos, layer, spell, arg): the slot index or -1.
+    int  goal_add(int type, int priority, unsigned int flags, int target, vector3 *pos, int layer,
+                  int spell, float arg);                  // 0x476190 ai_goal_add (ret 0x20)
+    int  goal_alloc(int type, int priority, unsigned int flags, int target, vector3 *pos, int layer,
+                    int spell);                           // 0x476020 ai_goal_alloc
+    void goal_remove(int slot);       // 0x476300 ai_goal_remove
+
     void reset();                     // 0x472450 ai_reset
     bool is_combat_e_or_sneak_attack(); // 0x473120 ai_is_combat_e_or_sneak_attack
     bool is_mode(int mode, int sub);  // 0x473200 ai_is_mode (sub -1 = any)
@@ -43,17 +150,19 @@ public:
     void goals_remove_type1();        // 0x475e00 ai_goals_remove_type1
     // decomp20 (conversationctl.cpp):
     bool is_traveling_sub0();         // 0x4730c0 ai_is_traveling_sub0
-    // (mask, type, ...): goal slot index or -1. The conversation calls pass (1, type, 0, 0, -1, 0, 0, 0x6c);
-    // the meaning of the last six is not known.
+    // (mask, type, ...): goal slot index or -1. The conversation calls pass (1, type, 0, 0, -1, 0, 0, 0x6c).
+    // decomp39: the arguments after the mask are goal_add's first seven (type, priority, flags, target,
+    // pos, layer, spell); ai.cpp passes masks 1, 3, 4 and 0x41, ai_goal_add 0x1f. Parameter names kept.
     int  goal_find(int mask, int type, int a, int b, int c, int d, int e, int f);  // 0x475eb0 ai_goal_find
     void goals_clear();               // 0x476380 ai_goals_clear
-    void add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell (return unused)
+    // decomp39: the goal_add wrappers return its slot index (or -1); the callers above ignore it.
+    int  add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell
     bool is_attacking();              // 0x473150 ai_is_attacking
-    void add_cast_at_target(int spell, Character *target, int priority);   // 0x4740e0 ai_goal_add_cast_at_target
-    void add_cast_at_point(int spell, vector3 *pos, int layer, int priority); // 0x474130 ai_goal_add_cast_at_point
-    void add_skill_from_behind(Character *target, int priority);           // 0x4741d0 ai_goal_add_skill_from_behind
-    void add_hide();                  // 0x474440 ai_goal_add_hide (toggles)
-    void add_sneak();                 // 0x474480 ai_goal_add_sneak
+    int  add_cast_at_target(int spell, Character *target, int priority);   // 0x4740e0 ai_goal_add_cast_at_target
+    int  add_cast_at_point(int spell, vector3 *pos, int layer, int priority); // 0x474130 ai_goal_add_cast_at_point
+    int  add_skill_from_behind(Character *target, int priority);           // 0x4741d0 ai_goal_add_skill_from_behind
+    int  add_hide();                  // 0x474440 ai_goal_add_hide (toggles; 0 when it left hiding)
+    int  add_sneak();                 // 0x474480 ai_goal_add_sneak
     // decomp23 (combat.cpp, spells.cpp):
     bool is_combat_sub10();           // 0x473170 ai_is_combat_sub10 (ranged attack)
     bool is_combat_sub11();           // 0x4731e0 ai_is_combat_sub11 (special attack)
@@ -65,7 +174,8 @@ public:
     void summon_emerge_update();      // 0x4b4660 summon_emerge_update (unit not known)
     void retaliate_on_hit(int attacker);  // 0x4b5790 ai_retaliate_on_hit (unit not known)
     // decomp29 (boss_ai.cpp). (pos, layer, 30.0f, 0, 5000) at boss_release_mount; return unused.
-    void add_move_to_timed(vector3 *pos, int layer, float f, int walk, int ms);   // 0x474190 ai_goal_add_move_to_timed
+    // decomp39 (D1903): f is goal_add's float argument, walk a byte (`cmp dl, 1`), the last the priority.
+    int  add_move_to_timed(vector3 *pos, int layer, float f, bool walk, int ms);   // 0x474190 ai_goal_add_move_to_timed
 
     // boss_ai.cpp (decomp29): the species dispatchers that are thiscall on the AI record.
     void boss_ai_unload();            // 0x4a04d0 (ai_state_shutdown)
@@ -164,15 +274,15 @@ public:
     int _unk48;
     Character *owner;        // +0x4C
     unsigned int flags;      // +0x50 AI_FLAG_*; 0x10000000 path started (ai_path_begin)
-    float travel_dest[3];    // +0x54
+    vector3 travel_dest;     // +0x54 (was float[3]; decomp39)
     int target;              // +0x60 target handle
     int prev_target;         // +0x64
     ubyte _unk68[0x14];
-    int _unk7c;              // +0x7C
-    int handle_slot;         // +0x80
-    int mode_target;         // +0x84
+    int _unk7c;              // +0x7C attack point index at the target (its attack_point_users), -1 none
+    int handle_slot;         // +0x80 released by ai_set_mode (handle_slot_release)
+    int mode_target;         // +0x84 -1 when a cast mode ends
     int _unk88;
-    ubyte goals[5][0x34];    // +0x8C goal slots
+    ai_goal goals[5];        // +0x8C goal slots (was ubyte[5][0x34]; decomp39)
     int cur_goal;            // +0x190
     int emerge_move;         // +0x194
     int _unk198;
@@ -185,15 +295,15 @@ public:
         int handle;          //   -1 free
         GameTimer timer;
     } attackers[5];
-    int _unk1d8[8];          // +0x1D8
+    int attack_point_users[8]; // +0x1D8 per char_info attack point, -1 free (was _unk1d8; decomp39)
     int path_started;        // +0x1F8
     int _unk1fc;
     int path_step;           // +0x200
     int _unk204;             // +0x204
     GameTimer perception_timer; // +0x208
     int _unk20c;
-    void *path;              // +0x210
-    float path_dest[3];      // +0x214
+    ai_path *path;           // +0x210 (was void *; decomp39)
+    vector3 path_start;      // +0x214 the from point of the search (was path_dest float[3]; D1904)
     int _unk220;             // +0x220
     GameTimer timer224;      // +0x224
     GameTimer path_timer_a;  // +0x228
@@ -220,9 +330,94 @@ void ai_group_add_member(ai_group *group, Character *c); // 0x492c50
 void ai_group_remove_member(Character *c);            // 0x492ca0
 
 void ai_do_frame();                                   // 0x474950 (objects_do_frame)
-void cast_effect_tracks_reset();                      // 0x475090 (unit not known; follows ai_do_frame)
+void cast_effect_tracks_reset();                      // 0x475090 (decomp39: ai.cpp, D1905)
 
 extern char **ai_combat_style_names[6];               // 0x22e49a0 localize_strings slots (init_strptrs_22e49a0)
+
+// ---- ai.cpp (decomp39) ---------------------------------------------------------------------------
+// ai_state::mode names and the AIS_* sub-mode names (cmd_ai_state lists the first table; nothing reads
+// the second, which has 55 names and 10 empty slots and lacks five values: D1906).
+#define NUM_AI_STATES 13
+extern char *ai_state_names[NUM_AI_STATES];           // 0x59ad60 (name ours)
+extern char *ai_substate_names[65];                   // 0x59ad94 (name ours)
+extern char *ai_goal_type_names[18];                  // 0x59ae98 "unused", "attack", "follow", ... (name ours)
+// The default combat style (ai_combat_style_names index) per species, read by ai_reset. Type name ours.
+struct ai_species_style {
+    int species;
+    int style;
+};
+extern ai_species_style ai_species_styles[14];        // 0x59aee0 (name ours)
+extern int num_ai_species_styles;                     // 0x59af50 14 (name ours)
+extern float slowdown_scaler;                         // 0x59af54 4.0, ai_frame scales Character +0x6b0 by it
+extern bool Ai_path_wandering_enabled;                // 0x59af58 true ("ai_wander"; ai_follow_path)
+extern bool ai_path_flag_59af59;                      // 0x59af59 true, read by ai_follow_path only (name ours)
+extern int ai_frame_update_rate;                      // 0x59af5c 8, 1..30 ("ai_frame_update_rate"; no reader)
+extern int Ai_attack_point;                           // 0x59af60 -1 ("attack_point"; no reader; name ours)
+extern int Ai_offense_point;                          // 0x59af64 -1 ("offense_point"; no reader; name ours)
+
+extern vector3 ai_directions[16];                     // 0x22e47f0 {cos, 0, sin} in 22.5 degree steps (name ours)
+extern unsigned int ai_move_flags;                    // 0x22e48cc passed to character_ai_move_frame
+extern vector3 ai_move_dir;                           // 0x22e4940 first path step (ai_path_begin)
+extern bool ai_do_frame_active;                       // 0x22e499d
+// The AI profiler (0x22e48e0, 0x50 bytes): one static initialiser constructs both timers, so it is one
+// object (D1900). The averages are recomputed every 500 ms by ai_do_frame from the accumulators.
+// sum.symbols names the accumulators and the second timer; the macros keep those names.
+struct ai_prof_counters {
+    int path_us;                      // the total: ai_do_frame's time and ai_path_to's outside it
+    int do_frame_us;
+    int frame_us;
+    int frame_b_us;
+    int frame_c_us;
+    int think_a_us;
+    int think_b_us;
+    int think_c_us;
+    int think_d_us;
+};
+struct ai_profile {
+    RealtimeTimer avg_timer;          // +0x00 (0x22e48e0) never used
+    ai_prof_counters avg;             // +0x04 averages (microseconds per 1000 ms of play)
+    RealtimeTimer timer;              // +0x28 (0x22e4908) ai_prof_timer, 500 ms
+    ai_prof_counters acc;             // +0x2C (0x22e490c) accumulators
+};
+LAYOUT_CHECK(ai_profile, sizeof(ai_profile) == 0x50);
+extern ai_profile ai_prof;                            // 0x22e48e0 (name ours)
+#define ai_prof_timer       (ai_prof.timer)
+#define ai_prof_path_us     (ai_prof.acc.path_us)
+#define ai_prof_do_frame_us (ai_prof.acc.do_frame_us)
+#define ai_prof_frame_us    (ai_prof.acc.frame_us)
+#define ai_prof_frame_b_us  (ai_prof.acc.frame_b_us)
+#define ai_prof_frame_c_us  (ai_prof.acc.frame_c_us)
+#define ai_prof_think_a_us  (ai_prof.acc.think_a_us)
+#define ai_prof_think_b_us  (ai_prof.acc.think_b_us)
+#define ai_prof_think_c_us  (ai_prof.acc.think_c_us)
+#define ai_prof_think_d_us  (ai_prof.acc.think_d_us)
+
+// Tracked cast effects (5 x 0xc at 0x22e4950; the three functions after ai_can_be_knocked_down, D1905).
+struct cast_effect_track {
+    int spell;                        // +0x0 -1 free
+    int handle;                       // +0x4 effect object
+    float time;                       // +0x8 seconds left (counted down by ai_do_frame)
+};
+LAYOUT_CHECK(cast_effect_track, sizeof(cast_effect_track) == 0xc);
+#define MAX_CAST_EFFECT_TRACKS 5
+extern cast_effect_track cast_effect_tracks[MAX_CAST_EFFECT_TRACKS];   // 0x22e4950
+void cast_effect_track_add(int spell, int handle);    // 0x4750b0 (spells below 0x26 with an effect)
+int  cast_effect_track_count();                       // 0x475160
+
+void ai_frame(Character *c);                          // 0x472a90 cdecl (sum.symbols: thiscall; D1901)
+bool ai_update_perception(Character *c);              // 0x472e80 cdecl: true = skip this frame's AI
+void cmd_ai_frame_update_rate();                      // 0x4720e0
+void cmd_slowdown_scaler();                           // 0x472190
+void cmd_attack_point();                              // 0x473260
+void cmd_offense_point();                             // 0x473300
+void cmd_ai_state();                                  // 0x474d10
+void cmd_pause_ai();                                  // 0x474e10
+void cmd_ai_wander();                                 // 0x474f00
+
+// The AI mode units (0x4b4100-..): per-mode frame counters zeroed by ai_do_frame (13 ints at 0x247e840;
+// ai_mode_traveling_frame increments [2], ai_mode_combat_frame [3], ai_mode_cast_spell_frame [4]). Name ours.
+extern int ai_mode_frame_counts[NUM_AI_STATES];       // 0x247e840
+void ai_groups_frame();                               // 0x492d30 (unit not known)
 
 // A service request (0xc bytes on the caller's stack; hud_key_pause sets only the type). Type name ours.
 struct ai_service_req {

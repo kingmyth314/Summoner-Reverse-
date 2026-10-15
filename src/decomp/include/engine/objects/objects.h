@@ -85,6 +85,7 @@ int  obj_create(obj *o);                              // 0x469c40, the new handl
 int  obj_handle_base_next();                          // 0x469dd0
 void objects_free_all_thunk();                        // 0x469fb0
 void handle_slots_reset_thunk();                      // 0x4a36f0 jmp handle_slots_reset (GameInit; unit not known)
+void handle_slot_release(int handle);                 // 0x4a36a0 (ai_set_mode releases ai_state +0x80; unit not known, decomp39)
 void objects_free_all();                              // 0x469fc0
 obj *obj_from_handle(int handle);                     // 0x46b130
 Character *living_from_handle(int handle);            // 0x46b1a0

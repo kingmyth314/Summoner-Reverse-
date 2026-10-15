@@ -38,6 +38,7 @@ LAYOUT_CHECK(level_script_info, sizeof(level_script_info) == 0x40);
 #define NUM_LEVEL_SCRIPTS 51
 extern level_script_info level_script_table[NUM_LEVEL_SCRIPTS];   // 0x59f128
 int name_hash_nocase(const char *name);               // 0x4d5f50 (savegame name hashes; Crc32 of the lower case)
+bool cutscene_script_is_active();                    // 0x4ed770 (ai_do_frame skips ai_groups_frame; unit not known, decomp39)
 extern bool level_is_town;                           // 0x60a40c set by level_script_parse_table ("#Town")
 extern int cur_level_index;                          // 0x59f120 (4 = world map)
 int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none

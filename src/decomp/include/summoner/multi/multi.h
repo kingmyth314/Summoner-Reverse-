@@ -10,6 +10,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/math/vector.h"
+#include "vsdk/os/timestamp.h"
 #include "engine/objects/items.h"
 #include "engine/objects/objects.h"
 
@@ -34,9 +35,22 @@ struct mp_player {
     int profile_flags;                // +0x30 the .plr flags word (mp_char_record +0x4c): written and read by
                                       //       mp_player_file_write / mp_player_file_load
     char name[0x20];                  // +0x34 copied from the character profile by mp_local_player_create
+    ubyte _unk54[0x10];
+    GameTimer move_update_timer;      // +0x64 100 ms OBJ_UPD resend while traveling (ai_frame; decomp39, name ours)
 };
 extern mp_player mp_player_list;      // 0x651418 head
 extern mp_player *mp_local_player;    // 0x651598
+// mp_player::flags bits that ai_frame keeps for the party member's player (decomp39; names ours).
+#define MP_PF_TRAVELING      0x8      // traveling sub-mode 1 this frame
+#define MP_PF_WAS_TRAVELING  0x10     // ... the frame before
+
+// The AI's multiplayer senders (module "-", 0x480070-0x488b00; decomp39). Argument lists from ai.cpp.
+void mp_send_new_path(Character *c);                  // 0x480070 NEW_PTH
+void mp_send_obj_update(Character *c, int a);         // 0x480530 OBJ_UPD (ai_frame passes 0)
+void mp_broadcast_ai_disable(Character *c, int kind, int ms);   // 0x480eb0 kind 0 knock-down, 1 push
+void mp_send_swi_2dir();                              // 0x4884f0 SWI2DIR (cur_character)
+void mp_send_swi_ndir();                              // 0x488700 SWI!DIR
+void mp_send_swi_hide(Character *c);                  // 0x488b00 SWI_HID
 
 // The pilots read these fields through macros while the stub record was short (kept, DECISIONS.md D10).
 #define MP_PLAYER_NAME(p) ((p)->name)

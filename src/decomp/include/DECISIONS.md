@@ -1541,3 +1541,76 @@ ai_state::summon_emerge_update (0x4b4660, the same `lea ecx, [edx+0x324]`, 0x448
 (push 1 / push handle, 0x448222); alt_textures_find(name, int*) and alt_textures_find_entry(base, name)
 (0x4465cf / 0x446653); Character::apply_hero_model(bool) (0x4628a0, `mov ecx, esi` with one pushed byte,
 0x448aeb-0x448af3) as one line in living_entity.h.
+
+## ai.cpp (decomp39)
+
+**D1900 (engine/ai/ai.h). The AI profiler is one object, ai_profile ai_prof (0x22e48e0, 0x50 bytes).**
+sum.symbols names the timer 0x22e4908 and the nine accumulators 0x22e490c-0x22e492c separately, but one
+static initialiser (init_realtimetimers_22e48e0, entry 220) constructs both RealtimeTimers 0x22e48e0 and
+0x22e4908 (`mov ecx, 0x22e48e0; call 0x5019e0; mov ecx, 0x22e4908; jmp 0x5019e0`, 0x472040-0x47204f): two
+separate globals would get two initialisers. The layout is {timer, nine averages, timer, nine
+accumulators}: ai_do_frame stores acc * 1000 / 500 of 0x22e490c + 4i into 0x22e48e4 + 4i (0x47497d-
+0x474ae9). The sum.symbols names stay as macros (ai_prof_timer, ai_prof_path_us, ...). The first timer
+has no reader (sum.symbols' "used by mp_handle_kick_pl" does not hold: no reference outside the
+initialiser).
+
+**D1901 (engine/ai/ai.h). ai_frame and ai_update_perception are cdecl on the character.** sum.symbols calls
+both thiscall ai_state; ai_do_frame pushes the character and pops it (`push eax; call 0x472a90; add esp,
+4`, 0x474bee-0x474c39), ai_frame reads it at [esp+0x28] after its EH prologue (0x472aac) and passes it to
+0x472e80 the same way (0x472b51 / 0x472b5d). Declared as free functions (Character *).
+
+**D1902 (engine/ai/ai.h). The goal slots are ai_goal[5].** `ubyte goals[5][0x34]` becomes a struct from
+ai_goal_alloc's stores (type +0, flags +4 or-ed with 2, id +8 from ai_goal_next_id, level_session_time
++0xc, priority +0x10, pos +0x14, layer +0x20, spell +0x24, target +0x28; 0x47609e-0x47611e), the
+ai_state_init clears (+0, +0x10 = -1, +4, +0x30) and ai_state_save, which writes +0xc, +0x14..+0x1c and
++0x2c through fld / fstp (floats) and the others with mov (0x474700-0x4747b4). +0x30 is the goal's path
+(ai_goal_remove frees it). goal_add's eighth argument is a float (boss_release_mount's 30.0f reaches it
+unconverted through ai_goal_add_move_to_timed: `push edx` of the raw argument, 0x4741a4); goal_alloc
+takes seven. The goal_find parameters keep their names (conversationctl.cpp), with a comment. Nothing
+else read `goals` as bytes.
+
+**D1903 (engine/ai/ai.h). The goal_add wrappers return int; add_move_to_timed's walk is a bool.** The
+wrappers end in `call 0x476190; ret n` and their callers in ai.cpp test the result (ai_goal_add_hide's
+`xor eax, eax` path), so add_cast_spell / add_cast_at_target / add_cast_at_point / add_skill_from_behind
+/ add_hide / add_sneak / add_move_to_timed are `int` (they were void with "return unused"; the existing
+callers ignore the value). add_move_to_timed tests its fourth argument with `cmp dl, 1` (0x474196), so
+bool; its fifth goes to goal_add's priority slot (0x4741b4), the parameter name `ms` is kept.
+
+**D1904 (engine/ai/ai.h). +0x214 is the path's start point; +0x54 and +0x214 are vector3; path is
+ai_path *.** ai_path_find_new and ai_path_find_append copy the search's from point there
+(`mov edx, [edi]` with edi = from, 0x473cd1; 0x473dce), and ai_path_begin drops a one-node path whose
+node lies within 0.05 of it (0x473ad7-0x473af2), so `path_dest` became `path_start`. No other unit used
+the old names. ai_path_find_new adds char_info +0x260 (head_height, D1802) to the cost bias
+(`fadd dword ptr [ecx + 0x260]`, 0x473cae); the field name is kept.
+
+**D1905 (engine/ai/ai.h). cast_effect_tracks_reset / _add / _count are ai.cpp's.** They follow
+ai_can_be_knocked_down without a gap (0x475090-0x475178), their table 0x22e4950 lies in this unit's
+.bss (between ccmd_attack_point 0x22e4930 and ccmd_ai_frame_update_rate 0x22e4990), ai_do_frame counts it
+down (0x474b47-0x474b79), and cast_effect_track_add's 1/15 (0x581a08) follows this unit's .rdata
+constants 0x5819fc-0x581a04. sum.symbols has module "-" for them. The table type is cast_effect_track
+{spell, handle, float time}. vsdk/geom/vfx.h gets vfx_instance::id_bits (+0, `shr eax, 9` at 0x4750d6)
+and vfx_base::num_frames (short +0x12, `movsx edx, word ptr [eax + 0x12]` at 0x47512f).
+
+**D1906 (engine/ai/ai.h). The AIS_* name table is five entries short from 0x22.** ai_substate_names
+(0x59ad94, 55 names and 10 NULLs) is read by nothing. By index it matches the sub-modes up to 0x21
+(9 / 0xb enter / leave hiding, 0xc / 0xd sneaking, 0xf close and 0x10 ranged combat, 0x11 backstab,
+0x15 choose spell with ai_set_mode's random 500-1500 ms timeout, 0x16..0x1d the positioning modes that
+set flag 4), but the cast sub-modes 0x27 / 0x28 / 0x29 (ai_goal handlers) and the disabled ones (0x2c
+ai_knock_down_local, 0x2d ai_is_knocked_down, 0x2f pushed, 0x31 stunned) match it only with an offset of
+5 (AIS_SPELL is entry 0x22, AIS_TRIPPED_FALL 0x27, AIS_STUNNED 0x2c). ai.cpp defines the values it uses
+as AIS_* macros with the shifted names; 0x1f and 0x3f have no name.
+
+**D1907 (summoner/multi/multi.h, engine/objects/living_entity.h, others). New declarations, no
+conflict.** mp_player gets +0x64 move_update_timer (a GameTimer: `lea ecx, [edx + 0x64]; call
+GameTimer::SetTimeout` on mp_local_player, 0x472d8f) and the flag bits 8 / 0x10 that ai_frame keeps;
+multi.h includes vsdk/os/timestamp.h. The senders mp_send_new_path, mp_send_obj_update,
+mp_broadcast_ai_disable, mp_send_swi_2dir / _ndir / _hide (argument counts from the pushes and `add esp`).
+living_entity.h: kill, on_death, set_flag_2_4, ai_move_frame, ai_suspended (thiscall, `mov ecx, esi`).
+objects.h: handle_slot_release (0x4a36a0). level_scripts.h: cutscene_script_is_active (0x4ed770).
+vector.h: frand_range (0x542770). ai.h: the ai.cpp data, the mode handlers of the later AI units, goal_add,
+goal_alloc, goal_remove, ai_groups_frame, ai_mode_frame_counts (13 ints at 0x247e840, cleared by
+`rep stosd` with ecx = 0xd, 0x474b39).
+
+**D1908 (none; engine/combat/combat.h unchanged). living_combat::set_target's first argument.** Every
+ai.cpp caller pushes the owner pointer there (`push edi; push eax` with eax = owner, 0x4744b4); the
+declaration keeps `int unused` (combat.cpp's definition), so ai.cpp passes `(int)owner`.

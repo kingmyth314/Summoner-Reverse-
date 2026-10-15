@@ -77,6 +77,7 @@ Rules:
 | `game/spells.cpp` | `spells.cpp` | 44 of 53 (cast pipeline left) | 30 / 14 / 0 |
 | `game/combat.cpp` | `combat.cpp` (`0x464010`-`0x469010`) | 59 of 63 | 38 / 20 / 1 |
 | `game/boss_ai.cpp` | `boss_ai.cpp` (`0x4a04b0`-`0x4a3575`) | 59 | 42 / 17 / 0 |
+| `game/ai.cpp` | `ai.cpp` (+ the 3 cast_effect functions after it, D1905) | 110 | 76 / 30 / 4 |
 | `game/pathfinding.cpp` | `pathfinding.cpp` (`0x49c840`-`0x4a04af`) | 40 | 20 / 20 / 0 |
 | `game/conversation.cpp` | `levelscripts\conversation.cpp` (`0x4d7b30`-..) | 32 | 22 / 10 / 0 |
 | `game/conversationctl.cpp` | `conversationctl.cpp` (`0x4d87d0`-`0x4daf50`) | 40 | 23 / 16 / 1 |

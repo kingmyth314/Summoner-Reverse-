@@ -124,6 +124,12 @@ public:
     // decomp34 (level_script_khosani_lab.cpp, level_script_worldmap.cpp; D1404)
     void  place_at_party_start(int slot);         // 0x44f1a0 character_place_at_party_start (level_player_starts[slot])
     void  set_speed_scale(float scale, bool flag);// 0x462260 character_set_speed_scale (+0x6bc; flag: +0x320 bit 0x200)
+    // decomp39 (ai.cpp). Argument lists from its call sites.
+    void  kill(int killer);           // 0x450d90 character_kill (ai_class_die passes 0x22)
+    void  on_death();                 // 0x4537f0 character_on_death (every ai_frame)
+    void  set_flag_2_4(int n);        // 0x454670 character_set_flag_2_4 (ai_disable_31 passes -1)
+    void  ai_move_frame(unsigned int flags, vector3 *dir);   // 0x45c340 character_ai_move_frame (dir may be NULL)
+    bool  ai_suspended();             // 0x462de0 character_ai_suspended
 
     int team;                         // +0x098
     int move_start_time;              // +0x09C
