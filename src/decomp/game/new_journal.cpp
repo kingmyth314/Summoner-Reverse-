@@ -11,10 +11,20 @@
 // line 1 is blank, lines 2.. are the gr_split_str lines of the current step's text.
 
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "new_journal.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/plainstring.h"
+#include "levelscripts/level_scripts.h"
+#include "levelscripts/savegame.h"
+#include "summoner/interface/new_buysell.h"
+#include "summoner/interface/new_journal.h"
 
 #define JOURNAL_NUM_BUTTONS 19
 

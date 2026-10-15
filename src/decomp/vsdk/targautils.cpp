@@ -12,8 +12,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "stubs_container_targa.h"
-#include "targautils.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/bmpman/targautils.h"
 
 // Original __FILE__ of this unit (pushed by tga_read_bitmap, 0x5ada90).
 #define TARGAUTILS_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\bmpman\\targautils.cpp"

@@ -19,7 +19,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "effect_mem.h"
+#include "vsdk/geom/effect_mem.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/console.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "engine/effects/effect_stream.h"
 
 // Original __FILE__ of this unit (literals 0x5a8770 and 0x5a88a8, not pooled).
 #define EFFECT_MEM_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\geom\\effect_mem.cpp"

@@ -7,10 +7,19 @@
 // options_draw_version (0x4146c0) is not in this unit: sum.symbols already moved it to the interface code.
 
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_options_saveload.h"
-#include "new_options.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/snd/snd.h"
+#include "engine/rendering/levelrender.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_options.h"
 
 #define OPTIONS_NUM_BUTTONS 75
 

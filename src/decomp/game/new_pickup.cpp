@@ -9,7 +9,19 @@
 // obvious one; likely = same behaviour and probably the same code, but register/stack choices or
 // an equivalent source spelling could differ; unsure = behaviour right, shape guessed.
 
-#include "stubs_assess_pickup.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "engine/objects/objects.h"
+#include "summoner/multi/multi.h"
+#include "summoner/player/player.h"
+#include "summoner/interface/new_pickup.h"
 
 // ---------------------------------------------------------------- .rdata (0x580220-0x580477)
 // Nine buttons in hilite/press pairs (see new_assess.cpp); action id = hilite index + 1.

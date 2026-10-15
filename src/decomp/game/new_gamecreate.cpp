@@ -7,10 +7,18 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "new_gamecreate.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_charselect.h"
+#include "summoner/interface/new_gamecreate.h"
 
 #define GAMECREATE_NUM_BUTTONS 23
 

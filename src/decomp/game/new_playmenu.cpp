@@ -6,10 +6,22 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "new_playmenu.h"
-#include "new_mainmenu.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "summoner/player/player.h"
+#include "summoner/multi/multi.h"
+#include "engine/objects/living_entity.h"
+#include "levelscripts/level_scripts.h"
+#include "levelscripts/savegame.h"
+#include "summoner/interface/new_playmenu.h"
+#include "summoner/interface/new_mainmenu.h"
 
 #ifdef __GNUC__
 // playmenu_open_save passes a localized string as the sprintf format, as the binary does.

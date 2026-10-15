@@ -16,7 +16,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include "character_instance.h"
+#include "vsdk/ca/character_instance.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/console.h"
+#include "vsdk/os/memory.h"
+#include "vsdk/os/profile.h"
+#include "vsdk/bmpman/bmpman.h"
 
 #define CHARACTER_INSTANCE_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\ca\\character_instance.cpp"
 #define TICKS_TO_SECONDS(t) ((t) * (1.0f / CI_TICKS_PER_FRAME) * (1.0f / CI_FRAMES_PER_SEC))

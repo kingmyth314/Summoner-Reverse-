@@ -9,10 +9,10 @@
 // 0x5ad9e0-0x5ada4f. Float constants: 1.0f 0x57e990, 2.0f 0x580200, 6.0f 0x581a38, 7.0f 0x581bf8,
 // 10.0f 0x57eb7c, 11.0f 0x581f64, 12.0f 0x581a2c (all float).
 
-#include "stubs_credits_help.h"     // Color, gr_set_color_ptr, gr_string, gr_get_string_size,
-                                    // gr_string_mode, bm_load, sprintf, strcpy, strlen
-#include "stubs_container_targa.h"
-#include "ui_container.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/ui/ui_container.h"
 
 // Original __FILE__ of this unit (pushed by load_mask_bitmap, 0x5ad9f8).
 #define UI_CONTAINER_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\ui\\ui_container.cpp"

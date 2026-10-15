@@ -15,11 +15,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "stubs_buysell_itemtrade.h"
-#include "new_itemtrade.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/plainstring.h"
+#include "engine/objects/living_entity.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_itemtrade.h"
 
 #define ITEMTRADE_NUM_BUTTONS 28
 #define ITEMTRADE_MAX_GOLD    9999999

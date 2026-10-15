@@ -16,12 +16,21 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "registry.h"
-#include "stubs_charselect_levelselect.h"
-#include "new_charselect.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/vfile/file.h"
+#include "vsdk/os/registry.h"
+#include "vsdk/os/plainstring.h"
+#include "engine/characterinfo/characterinfo.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_charselect.h"
 
 #define CHARSELECT_NUM_BUTTONS 34
 #define CHARSELECT_MAX_CHARS   64

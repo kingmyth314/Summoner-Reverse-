@@ -12,11 +12,20 @@
 // player (button 11) or start (button 13).
 
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "stubs_charselect_levelselect.h"
-#include "new_levelselect.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/plainstring.h"
+#include "vsdk/vfile/file.h"
+#include "levelscripts/level_scripts.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_levelselect.h"
 
 #define LEVELSELECT_NUM_BUTTONS 15
 #define LEVELSELECT_CHAT_LINES  64

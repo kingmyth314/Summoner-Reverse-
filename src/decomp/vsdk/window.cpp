@@ -15,22 +15,13 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "window.h"
-
-// DirectInput scan codes (handle_arrow_key) and the FreeSpace-style hotkey modifier bits.
-#define KEY_UP      0xc8
-#define KEY_LEFT    0xcb
-#define KEY_RIGHT   0xcd
-#define KEY_DOWN    0xd0
-#define KEY_SHIFTED 0x1000
-#define KEY_CTRLED  0x4000
-
-// Events sent to the gadgets (ui_gadget::send_event) and to the window callback.
-#define UI_EVENT_DRAW_BEGIN 0
-#define UI_EVENT_DRAW_END   1
-#define UI_EVENT_MOUSE_LEFT 5
-#define UI_EVENT_SELECTED   7
-#define UI_EVENT_DESELECTED 8
+#include "vsdk/ui/window.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/console.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/plainstring.h"
+#include "vsdk/bmpman/bmpman.h"
 
 // ---- .bss (0x2cbf554-0x2cbf55f) -------------------------------------------------------------------
 ui_gadget *ui_nav_best_gadget;      // 0x2cbf554 read and written by ui_gadget__find_nearest_* too

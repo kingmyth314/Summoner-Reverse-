@@ -12,11 +12,22 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_gamecreate_journal.h"
-#include "stubs_buysell_itemtrade.h"
-#include "new_buysell.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/ca/character.h"
+#include "vsdk/os/plainstring.h"
+#include "engine/objects/living_entity.h"
+#include "engine/objects/item_paging.h"
+#include "levelscripts/level_scripts.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/new_buysell.h"
 
 #define BUYSELL_NUM_BUTTONS 40
 #define BUYSELL_PAGE_SLOT   0x12      // item paging slot of the shop's 3D view (ITEM_PAGE_SLOT_POPUP)

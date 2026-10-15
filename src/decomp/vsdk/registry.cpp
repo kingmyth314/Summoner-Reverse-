@@ -13,8 +13,9 @@
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
-#include "registry.h"
-#include "stubs_sound_items_registry.h"
+#include "vsdk/os/registry.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/vstring.h"
 
 // Original __FILE__ of this unit (the DebugError call pushes this literal, 0x5a75b4).
 #define REGISTRY_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\os\\registry.cpp"

@@ -11,8 +11,15 @@
 // first lines of the next unit; see the end of this file.
 
 #include <stdio.h>
-#include "item_paging.h"
-#include "timestamp.h"   // RealtimeTimer (src/decomp/vsdk)
+#include "engine/objects/item_paging.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "engine/objects/living_entity.h"
+#include "engine/characterinfo/characterinfo.h"
+#include "summoner/summoner.h"
+#include "summoner/player/player.h"
 
 // Original __FILE__ of this unit (literal 0x59a914).
 #define ITEM_PAGING_CPP "D:\\projects\\Summoner\\pccode\\Engine\\objects\\item_paging.cpp"

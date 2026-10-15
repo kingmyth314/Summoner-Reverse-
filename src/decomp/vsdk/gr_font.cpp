@@ -5,10 +5,13 @@
 // Dash Faction (rf::gr font functions) was used for names and argument lists only.
 
 #include <string.h>
-#include "gr_font.h"
-#include "stubs_cmdline_grfont.h"
-
-extern gr__Screen gr_screen;        // 0x25d8d30, gr.cpp
+#include "vsdk/gr/gr.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/registry.h"
+#include "vsdk/os/vstring.h"
+#include "vsdk/vfile/file.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/localize/localize.h"
 
 // One kern pair in Font.kern_data (3 bytes). The bytes are read with movsx, so they are plain
 // (signed) char; types.h types the pointer as uint8_t*.
@@ -568,7 +571,7 @@ char *gr_font_fit_string(int *split_at, char *s, int max_w, int font)
 // start and length of line n; returns the line count. Breaks at the last space run (not before
 // French : ? ! punctuation) or after a '-'. ignore_char starts a run that is skipped up to the next
 // whitespace (not measured). strlen is re-evaluated in the loop test and compared signed.
-int gr_split_str(int *len_array, int *offset_array, char *s, int max_w, int max_lines, char ignore_char, int font)
+int gr_split_str(int *len_array, int *offset_array, const char *s, int max_w, int max_lines, char ignore_char, int font)
 {
     int w, h;
     char buf[512];

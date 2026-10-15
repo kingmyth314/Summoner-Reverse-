@@ -5,7 +5,20 @@
 // obvious one; likely = same behaviour and probably the same code, but register/stack choices or
 // an equivalent source spelling could differ; unsure = behaviour right, shape guessed.
 
-#include "stubs_credits_help.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/memory.h"
+#include "vsdk/os/frametime.h"
+#include "vsdk/parse/parse.h"
+#include "vsdk/os/movie.h"
+#include "summoner/interface/new_credits.h"
 
 // ---------------------------------------------------------------- .rdata (0x57eb34-0x57eb7b)
 // Per resolution_index (0 = 640, 1 = 800, 2 = 1024) layout of the credits column.

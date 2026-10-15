@@ -14,7 +14,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "player.h"
+#include "summoner/player/player.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/console.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/multi/multi.h"
+#include "summoner/interface/interface.h"
+#include "engine/camera/camera.h"
+#include "engine/rendering/levelrender.h"
+#include "engine/gamesound/gamesound.h"
+#include "levelscripts/level_scripts.h"
+#include "levelscripts/savegame.h"
 
 // Original __FILE__ of this unit (literal 0x5938bc).
 #define PLAYER_CPP "D:\\projects\\Summoner\\pccode\\Summoner\\player\\player.cpp"

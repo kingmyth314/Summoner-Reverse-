@@ -4,12 +4,10 @@
 // unsure = the source shape is a guess.
 
 #include <string.h>
-#include "frametime.h"
-#include "timestamp.h"
+#include "vsdk/os/frametime.h"
+#include "vsdk/os/timestamp.h"
 
-// timer.cpp (0x5328d0, 0x530bf0)
-int timer_get(int scale);   // elapsed QPC ticks * scale / frequency (32-bit result)
-void timer_wait(int ms);    // Sleep wrapper
+#include "vsdk/os/timer.h"       // timer_get, timer_wait (timer.cpp)
 
 // ---- .data, in address order ---------------------------------------------------------------
 float actual_frametime = 1.0f / 30.0f;        // 0x5a573c  0x3d088889

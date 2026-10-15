@@ -13,10 +13,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "stubs_options_saveload.h"
-#include "new_saveload.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/vfile/file.h"
+#include "vsdk/os/plainstring.h"
+#include "engine/camera/camera.h"
+#include "engine/rendering/levelrender.h"
+#include "levelscripts/level_scripts.h"
+#include "levelscripts/savegame.h"
+#include "levelscripts/conversation.h"
+#include "summoner/interface/new_saveload.h"
 
 #define SAVELOAD_NUM_BUTTONS 23
 #define SAVELOAD_MAX_SAVES   32

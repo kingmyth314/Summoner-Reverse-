@@ -9,7 +9,17 @@
 //
 // Confidence per function: exact / likely / unsure (see new_credits.cpp for the meaning).
 
-#include "stubs_credits_help.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/frametime.h"
+#include "summoner/interface/new_help.h"
 
 // ---------------------------------------------------------------- .rdata (0x57edd0-0x57edff)
 // Per resolution_index: the help panel rectangle.

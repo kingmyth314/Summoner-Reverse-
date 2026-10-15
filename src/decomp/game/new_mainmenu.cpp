@@ -5,10 +5,22 @@
 // The elevator code that follows (0x41dde0-0x41e37f) is not included; see NOTES.md.
 
 #include <string.h>
-#include "stubs_menus_dialogue.h"
-#include "ui_screen.h"
-#include "new_mainmenu.h"
-#include "new_playmenu.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/movie.h"
+#include "vsdk/net/net.h"
+#include "vsdk/snd/snd.h"
+#include "levelscripts/level_scripts.h"
+#include "levelscripts/conversation.h"
+#include "summoner/interface/new_mainmenu.h"
+#include "summoner/interface/new_playmenu.h"
 
 #define MAINMENU_NUM_BUTTONS 13
 

@@ -8,8 +8,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "cmdline.h"
-#include "stubs_cmdline_grfont.h"
+#include "vsdk/os/cmdline.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/registry.h"
 
 // ---- .bss, in address order (0x2dc6ea8-0x2dc705b) ------------------------------------------
 CmdArg cmdline_args[MAX_CMDLINE_ARGS];          // 0x2dc6ea8

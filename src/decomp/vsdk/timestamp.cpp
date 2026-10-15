@@ -3,14 +3,8 @@
 // Confidence per function: exact / likely / unsure (see frametime.cpp header).
 
 #include <stdlib.h>
-#include "timestamp.h"
-
-// vsdk\vfile (0x525990, 0x526250), __thiscall
-class File {
-public:
-    int read_int(int min_version, int default_value);
-    void write_int(int value);
-};
+#include "vsdk/os/timestamp.h"
+#include "vsdk/vfile/file.h"    // File::read_int (0x525990), File::write_int (0x526250)
 
 // ---- .data ---------------------------------------------------------------------------------
 int Timestamp_ticker = 1;           // 0x5a5758  only this file uses it

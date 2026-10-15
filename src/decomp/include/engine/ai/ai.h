@@ -1,0 +1,108 @@
+// engine/ai/ai.h - the AI sub-object of a character and AI groups (ai.cpp in sum.symbols, 0x471f40-0x4742b0
+// by string ids; directory from the engine\ai\pathfinding.cpp path). Not original source.
+// Layout: symbols/types.h ai_state / ai_group, with the GameTimer fields typed as GameTimer and +0x1a8
+// named `group` (player.cpp reads the character's group there).
+#ifndef ENGINE_AI_AI_H
+#define ENGINE_AI_AI_H
+
+#include "vsdk/vsdk.h"
+#include "vsdk/os/timestamp.h"
+
+class Character;
+
+// An AI group (10 x 0x54 bytes at 0x243e040; Character +0x4cc points at one). Saved in the LENT chunk.
+struct ai_group {
+    int count;               // +0x00
+    int members[6];          // +0x04 handles
+    ubyte _unk1c[0x2c];
+    int leader;              // +0x48 leader's object handle
+    unsigned int flags;      // +0x4C
+    GameTimer timer;         // +0x50
+};
+LAYOUT_CHECK(ai_group, sizeof(ai_group) == 0x54);
+
+// The AI sub-object at Character +0x324 (ai_state__ctor 0x4722f0). thiscall members on this+0x324.
+class ai_state {
+public:
+    void reset();                     // 0x472450 ai_reset
+    void set_18(int style);           // 0x473610 ai_set_18 (combat style, +0x18)
+    int  get_combat_style();          // 0x473620 ai_get_combat_style
+    bool is_casting();                // 0x4731d0 ai_is_casting
+    void go_idle();                   // 0x4738c0 ai_go_idle
+    bool is_disabled_any();           // 0x475000 ai_is_disabled_any
+    void goals_remove_type1();        // 0x475e00 ai_goals_remove_type1
+
+    int mode;                // +0x00 enum ai_state_mode
+    int submode;             // +0x04
+    int prev_mode;           // +0x08
+    int prev_submode;        // +0x0C
+    int pending_mode;        // +0x10
+    int pending_submode;     // +0x14
+    int combat_style;        // +0x18 ai_get_combat_style / ai_set_18
+    GameTimer timer;         // +0x1C restarted by ai_set_mode
+    int _unk20;
+    ubyte _unk24[0x0c];
+    GameTimer timer30;       // +0x30
+    int _unk34;
+    int priority;            // +0x38 999999 for direct orders
+    GameTimer timer3c;       // +0x3C
+    GameTimer timer40;       // +0x40
+    GameTimer timer44;       // +0x44
+    int _unk48;
+    Character *owner;        // +0x4C
+    unsigned int flags;      // +0x50 AI_FLAG_*; 0x10000000 path started (ai_path_begin)
+    float travel_dest[3];    // +0x54
+    int target;              // +0x60 target handle
+    int prev_target;         // +0x64
+    ubyte _unk68[0x14];
+    int _unk7c;              // +0x7C
+    int handle_slot;         // +0x80
+    int mode_target;         // +0x84
+    int _unk88;
+    ubyte goals[5][0x34];    // +0x8C goal slots
+    int cur_goal;            // +0x190
+    int emerge_move;         // +0x194
+    int _unk198;
+    GameTimer timer19c;      // +0x19C
+    GameTimer disable_timer; // +0x1A0
+    int disable_ms;          // +0x1A4
+    ai_group *group;         // +0x1A8 (Character +0x4cc; types.h _unk1a8, zeroed by ai_state_init)
+    int _unk1ac;             // +0x1AC
+    struct {                 // +0x1B0 attacker slots
+        int handle;          //   -1 free
+        GameTimer timer;
+    } attackers[5];
+    int _unk1d8[8];          // +0x1D8
+    int path_started;        // +0x1F8
+    int _unk1fc;
+    int path_step;           // +0x200
+    int _unk204;             // +0x204
+    GameTimer perception_timer; // +0x208
+    int _unk20c;
+    void *path;              // +0x210
+    float path_dest[3];      // +0x214
+    int _unk220;             // +0x220
+    GameTimer timer224;      // +0x224
+    GameTimer path_timer_a;  // +0x228
+    GameTimer path_timer_b;  // +0x22C
+    ubyte path_flags;        // +0x230
+    ubyte _pad231[3];
+};
+LAYOUT_CHECK(ai_state, sizeof(ai_state) == 0x234);
+
+#define AI_FLAG_PLAYER_CONTROL 0x1    // ai_state::flags bit 0: player controlled, AI off
+
+// ai_state::mode; names from the game's own string table at 0x59ad60.
+enum ai_state_mode {
+    AI_STATE_INACTIVE = 0, AI_STATE_IDLE = 1, AI_STATE_TRAVELING = 2, AI_STATE_COMBAT = 3, AI_STATE_CAST_SPELL = 4,
+    AI_STATE_PATROL = 5, AI_STATE_SUMMONING = 6, AI_STATE_BANISHING = 7, AI_STATE_DISABLED = 8,
+    AI_STATE_HIDING = 9, AI_STATE_SNEAKING = 10, AI_STATE_MOUNT_TRAVEL = 11, AI_STATE_MOUNT_IDLE = 12,
+};
+
+void ai_group_create(Character *c);                   // 0x492ba0 (return value unused; type guessed)
+void ai_group_add_member(ai_group *group, Character *c); // 0x492c50
+void ai_group_remove_member(Character *c);            // 0x492ca0
+
+extern char **ai_combat_style_names[6];               // 0x22e49a0 localize_strings slots (init_strptrs_22e49a0)
+
+#endif

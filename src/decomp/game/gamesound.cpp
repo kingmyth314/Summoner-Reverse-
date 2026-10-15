@@ -14,7 +14,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "gamesound.h"
+#include "engine/gamesound/gamesound.h"
+#include "vsdk/os/debug.h"
+#include "vsdk/os/console.h"
+#include "vsdk/os/vstring.h"
+#include "vsdk/os/stringpool.h"
+#include "vsdk/parse/parse.h"
+#include "vsdk/vfile/file.h"
+#include "vsdk/snd/snd.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "engine/rendering/levelrender.h"
+#include "engine/characterinfo/characterinfo.h"
+#include "engine/objects/living_entity.h"
+#include "summoner/summoner.h"
+#include "summoner/player/player.h"
 
 // Original __FILE__ of this unit (literal 0x59a504).
 #define GAMESOUND_CPP "D:\\projects\\Summoner\\pccode\\Engine\\gamesound\\gamesound.cpp"

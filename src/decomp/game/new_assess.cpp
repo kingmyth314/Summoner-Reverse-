@@ -11,7 +11,17 @@
 // obvious one; likely = same behaviour and probably the same code, but register/stack choices or
 // an equivalent source spelling could differ; unsure = behaviour right, shape guessed.
 
-#include "stubs_assess_pickup.h"
+#include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
+#include "vsdk/os/mouse.h"
+#include "vsdk/os/key.h"
+#include "vsdk/os/timestamp.h"
+#include "vsdk/localize/localize.h"
+#include "summoner/summoner.h"
+#include "summoner/interface/interface.h"
+#include "engine/gamesound/gamesound.h"
+#include "engine/objects/living_entity.h"
+#include "summoner/interface/new_assess.h"
 
 // ---------------------------------------------------------------- .rdata (0x57e4c0-0x57e6af)
 // Seven buttons in hilite/press pairs; assess_update_buttons draws and fires the "Press" record

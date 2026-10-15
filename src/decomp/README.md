@@ -44,25 +44,20 @@ Rules:
 | `game/new_charselect.cpp` | `new_charselect.cpp` | 36 | 20 / 16 / 0 |
 | `game/new_levelselect.cpp` | `new_levelselect.cpp` | 29 | 15 / 13 / 1 |
 
-**To fix when the headers are merged** (found by the agents, not yet resolved):
-- `interface_set_screen(int id, ...)`: the second argument is `int` in two stub headers and `void*` in
-  `stubs_menus_dialogue.h`; the call sites push both constants and pointers.
-- `Color` is defined in more than one stub header.
-- `mp_player` in the stubs lacks the name at `+0x34`.
-- `File`: `stubs_sound_items_registry.h` declares only `find()`; `stubs_container_targa.h` defines a fuller `File`.
-- `symbols/types.h` declares `ui_element` as a C struct, but the game uses it as the C++ base class of `ui_window`
-  and `ui_gadget`, so a file that includes `types.h` cannot also declare those classes.
+**Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file.
 
-**Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file (2026-10-15: 704 of
-8,642, 407 exact, 261 likely, 12 unsure).
-
-**Headers.** `include/` holds one stub header per batch (`stubs_*.h`) that declares the engine and UI functions
-the files call, plus `ui_screen.h` and `dialogue_box.h`. The signatures are inferred from the call sites. They
-overlap and will be merged into proper engine headers once there is a real build.
+**Headers.** `include/` is one consistent header set laid out like the original source tree
+(`vsdk/os/memory.h`, `vsdk/vfile/file.h`, `engine/objects/living_entity.h`, `summoner/player/player.h`, ...):
+see [include/README.md](include/README.md) for the scheme and what each header covers, and
+[include/DECISIONS.md](include/DECISIONS.md) for how the conflicts between the old per-batch stub headers
+were resolved (with the disassembly evidence). The unit headers (`timestamp.h`, `window.h`, `new_*.h`, ...)
+live in the same tree; the `.cpp` files stay in `vsdk/` and `game/` and include headers by path from the
+include root. `symbols/types.h` stays the C reference; the headers mirror its layouts (same offsets, size
+checks with `LAYOUT_CHECK`) and add the thiscall methods.
 
 Syntax check (mingw is not the target compiler; it only catches syntax and type errors; VC6 accepts string
 literals as `char*`):
 
 ```
-i686-w64-mingw32-g++ -fsyntax-only -Wall -Wno-write-strings -I src/decomp/include -I src/decomp/vsdk -I src/decomp/game -I symbols src/decomp/game/new_credits.cpp
+i686-w64-mingw32-g++ -fsyntax-only -Wall -Wno-write-strings -Wno-format-security -I src/decomp/include src/decomp/game/new_credits.cpp
 ```
