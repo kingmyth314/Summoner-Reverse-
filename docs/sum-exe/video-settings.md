@@ -112,7 +112,7 @@ setters (agent naming pass, 2026-10-14) and are *inferred*. The layout matches t
 
 | Offset | Type | Meaning (*inferred*) | Value in the file |
 |---|---|---|---|
-| `+0x00`, `+0x04` | float | volumes (two sliders) | 0.5, 0.5 |
+| `+0x00`, `+0x04` | float | unknown; probably the two volume sliders (a guess from the 0.5 values) | 0.5, 0.5 |
 | `+0x09` | byte | invert camera | 0 |
 | `+0x0c` | byte | combat flag | 0 |
 | `+0x0d` | byte | solo confirmation | 0 |
