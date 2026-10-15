@@ -3253,3 +3253,108 @@ zero cquat divides by zero. Reproduced as written (game bug, NOTES.md).
 (file name ours) holds both classes with their members; matrix.h includes it where quaternion was defined
 (so every user still sees it) and skeleton.h loses its cquat (it includes matrix.h). decomp61's
 make_identity declaration moved with the class.
+
+## decomp64: containers, the experience table, the effect objects and the user tracker login (D4400-D4412)
+
+**D4400 (units). Four placeholder units for 0x489730-0x48db2f.** No path string, no strings.tbl read and module
+"-" for every function, so all four file names are placeholders. Cuts: (1) game/unnamed_containers_0x489730.cpp
+0x489730-0x48992f: static initialiser entry 250 builds `containers` (0x2302fe0, right after multichat.cpp's
+chat_history ring, which ends at 0x2302fdf), .data "backpack" / "leather bag" (0x59c230-0x59c247); (2)
+game/unnamed_experience_0x489930.cpp 0x489930-0x489c3f: xp_level_table 0x2305420-0x2305617, "experience.tbl" and
+"D" (0x59c248-0x59c25b); (3) game/unnamed_fx_0x489c40.cpp 0x489c40-0x48d7bf: entries 251 / 252 (fx_active_list,
+fx_pool) open its code, .data 0x59c25c-0x59c357 ("sky" ends right where levelrender.cpp's level_light_scale
+starts), .bss 0x2305618-0x2318e43; the .data order proves fx_obj_destroy and the blob shadow code are one file
+("Destroying AA" 0x59c2a0, used at 0x489e0a, lies after shadow_blob_bms 0x59c260, written at 0x48a014); (4)
+game/unnamed_utrack_0x48d7c0.cpp 0x48d7c0-0x48db2f: .bss 0x2318e48-0x231906f (after fx_count 0x2318e40), no
+.data, then levelrender.cpp (0x48db30, .bss 0x2319070). Between (1), (2) and (3) there is neither a data gap nor
+an out-of-order use (xp_level_table follows the pool exactly, fx_num_sky follows the table exactly): they may be
+one file. The cuts follow the initialisers and the topics; this is open (NOTES.md).
+
+**D4401 (engine/effects/fx.h). effect_object gets its constructor, destructor and virtual destroy; the +0xbc bit
+field is split.** fx_obj__ctor (0x489d30) / fx_obj__dtor (0x489db0, stores vtable 0x581aac then jumps to
+obj__dtor) / fx_obj_destroy (0x489dc0, the vtable's one slot, called through `call [edx]` by fx_destroy and
+fx_create_instance). +0xbc: the signed 17-bit fx_flags (decomp37), then an unsigned 3-bit hit_count (`shr 0x11;
+and 7` at 0x48aa63, 0x48c6dc; `add 0x20000` / `and 0xe0000` to count, 0xc0000 = 6 at 0x48c7e0), a 4-bit field
+that is cleared and an 8-bit field set to -1 (`and 0xfffff; or 0xff000000` at 0x489d7a, 0x48bdea). `_bits_hi :
+15` is replaced (no .cpp used it). `target` (+0xc0) stays an int: fx_frame reads it as the casting ItemType (its
++0x58 charge effect's +0xc at 0x48b501, 0x48b534; source type 5 when nonzero) and character_equip_item_fx stores
+the ItemType there (0x48ca90). The new unit globals and every function of the unit are declared in fx.h.
+
+**D4402 (fx.h, vfx.h). Signatures corrected from the bodies.** All existing calls compile unchanged (int / bool
+literals convert); none of them had a definition. vfx_instance::process(int, ...) -> (float frametime, ...):
+fx_update_instance pushes its float argument (0x48b766), the creators 0.001f (0x3a83126f at 0x48c0f9, 0x48ca0f);
+spells.cpp (lines 551, 695) passes 0. fx_attach_to_character's last two (int a, int b) -> bool (`mov dl, [esp +
+0x20]; test dl, dl` / `mov dl, [esp + 0x30]` at 0x48c09a, 0x48c0ac). fx_add_effect (..., int a) -> bool flag
+(passed on to fx_create_instance's byte, `mov al, [esp + 0x90]` 0x48c036). fx_end_owned (int, bool) -> (int, int
+destroy) (`test edi, edi` on the whole dword, 0x48d138). fx_remove_missiles_from void -> bool (`xor al, al` /
+`mov al, 1`, 0x48d0a5 / 0x48d0e2). status_stone_fx void -> int (the effect handle in EAX, 0x48cdcc / 0x48cddf).
+
+**D4403 (fx.h). fx_find_spawn_point fills a matrix, not a position.** sum.symbols: "(out pos, character,
+distance) point in front of the character". 0x48d4c6-0x48d643 write three rows into the output (rvec copied,
+uvec / fvec through vector3::operator=), and fx_create_spell_effect_near passes the same 0x24-byte local as the
+orientation of fx_create_instance (0x48c828 / 0x48c837), with the character's position as the position. The
+four candidates are forward, right, back and left at the distance; the chosen side's orientation is the
+character's turned toward it. fx_create_spell_effect_near is (spell, caster, owner, ms): four arguments
+(0x48c833, 0x48c868-0x48c883).
+
+**D4404 (engine/spells/spells.h). spell_hit +0x10..+0x18 are source type, item and power; inline constructor.**
+fx_frame and fx_missile_hit fill +0x10 with `item ? 5 : 0`, +0x14 with the item and +0x18 with 0 (0x48a9ca-
+0x48a9f2, 0x48bb54-0x48bb80) where the single-player path passes the same values as get_hit_by_spell's
+source_type / item / power (0x48aad5-0x48aaea). `int _unk10[3]` (unused by name) becomes three fields. The
+store group -1, -1, then zeros before fx_frame's spell 0x66 loop (0x48adfc-0x48ae36, overwritten inside the
+loop) is an inline constructor; at the other uses it is dead-store-eliminated.
+
+**D4405 (vsdk/geom/vfx.h, effect_mem.h). vfx_base and vfx_instance fields the fx unit reads.** vfx_base: +0x00
+name (`_stricmp([base], name)` 0x48d693), counts +0x04 / +0x06 / +0x08 / +0x0a / +0x16 (get_num_tags sums +4,
++6, +0xa, +0x16), +0x18 flags (bit 0: random yaw 0x48bfa7; the attached kinds keep their orientation
+0x48a4e5), +0x20 node descriptors (0xa8 each, flag 0x40 = lamp glow, radius +0x28; 0x48bea4-0x48bed2), +0x28
+emitter descriptors (0xe8, +0x20 frames, +0x24 rate; count +0x08), +0x2c records of 0x21c (+0x4c, +0x50 seconds;
+count +0x16), +0x40 (nonzero: linkable, 0x48d1f9). `char _unk00[0x12]` / `_unk14[8]` / `int _unk20` are
+replaced (num_frames +0x12, category +0x1c, light_tracks +0x24 keep their offsets). vfx_instance: +0x08
+category (2 = destroyed by fx_destroy_spell_effects 0x48d746; fx_disable_by_effect_name only matches 0,
+0x48d67a), +0x10 time (compared with 14.0 / 55.25 in fx_frame), +0x14 length (fx_is_finished 0x48d031), +0x18
+the fx_rec98 list (next +0x90, glow +0x8c; 0x48bec0 / 0x48becc), +0x20 the fx_recb0 list (next +0xa8, live
+count word +0x96; fx_missile_hit 0x48bbe3); fx_rec98 / fx_recb0 in effect_mem.h get the two field names. New
+members: stop 0x537230, is_stopped 0x537270, get_node_name 0x5373a0, bind_node 0x537580 (node, character
+instance, tag), node_can_bind 0x537700, reset_flags 0x537800, vfx_base::get_num_tags 0x538340. Names follow
+decomp60 where the later tree (commit 0c74176, merged after this copy was taken) has the same offsets
+(num_nodes, num_lights, num_emitters, num_rec2c, category, length, nodes, emitters, `short flags`); that tree
+also declares effect_is_cutscene_base (int), attached_light_slots / MAX_ATTACHED_LIGHTS and
+attached_lights_init_slots / _clear_slots, which this copy adds too: keep one of each when merging
+(CHANGED-HEADERS.txt). The +0x10 time is `_unk10` there.
+
+**D4406 (engine/characterinfo/characterinfo.h). xp_level and the experience parsers.** types.h's xp_level as a
+struct with groups of {hp, ap, hp_random, ap_random}: experience_parse_level calls experience_parse_stat_gain(tf,
++6 + 4i, +8 + 4i) and (tf, +7 + 4i, +9 + 4i) (0x489a04-0x489a15), which stores Accept("D") through the second
+pointer and ParseInt through the first (0x489a3c-0x489a53). xp_level_up_gains (0x489b04, 0x489b6f) rolls
+floor(frand() * value + 1), at least 3.0 (0x57ef1c), when the flag is set. types.h's hp_extra / ap_extra
+("perhaps a random range") are these flags.
+
+**D4407 (engine/ai/unnamed_avoidance_0x4a6710.h, comment not changed). avoid_area_desc::_unk00 is not always 0.**
+summon_spawn_effect stores 1 in the first two fields (`mov eax, 1` 0x48cbd7, then +0x10 / +0x14 of its local),
+so the summon's area is a prohibited one; the header's "0 at every caller" belongs to the avoidance unit and is
+noted in NOTES.md.
+
+**D4408 (summoner/multi/unnamed_utrack_0x48d7c0.h, new; multi.h includes it). The user tracker login.**
+utrack_packet (0x204 bytes, packed 17-byte header: type +0, len +1, code +3, sig +9, data +0x11; 0x48d7dd-
+0x48d7ee, 0x48da38-0x48da9a), utrack_login_request {login[0x21], password[0x1b]} (the second strcpy writes at
++0x21, 0x48d96d; length 0x4d = 0x11 + 0x3c; pxo_login_name char[33] and pxo_login_password char[27] are
+adjacent at 0x5f9670 / 0x5f9691), the sum.symbols globals and pxo_login_data (0x2318e48, ours). pxo_login_request
+takes the request pointer and the reply buffer (0x48d87c, 0x48d913).
+
+**D4409 (vsdk/math/ix.h). seg2d_intersect.** (a, b, c, d) with a / b by address and c / d by value: six argument
+dwords (`add esp, 0x18` at 0x48d406), the body reads [esp+4], [esp+8] as pointers and [esp+0xc]..[esp+0x18] as
+floats (0x53d8f0-0x53d916); returns AL.
+
+**D4410 (fx.h). The blob shadow bitmaps.** shadow_create_blob_bitmap builds a grey palette (0x230561c, 0x300
+bytes) and 16 64 x 64 ramps (0x2308e2c, 0x1000 each, up to fx_sky_list 0x2318e2c) and stores 16 bm_create
+handles at 0x59c260 (initialised to -1). Nothing else references 0x59c260-0x59c29f, 0x230561c or 0x2308e2c: the
+bitmaps are made and never used. Names ours.
+
+**D4411 (fx.h). The two hooks through empty_function.** fx_link_character_obj (0x48d273, with its flag) and
+fx_summon_hook_stub (0x48d1c7) call 0x4f13e0 with two arguments; as for the boss stage hooks (decomp56), they are
+declared as fx_link_hook (fx, character) and fx_summon_hook (fx, argument) and defined empty, folded.
+
+**D4412 (vsdk/geom/effect_mem.h). effect_is_cutscene_base and the frame counter.** effect_is_cutscene_base (id)
+returns AL (bit 26 of the base flags, 0x51dec0-0x51deea); effects_vfx_counter_2c9f968 (defined in
+effect_mem.cpp) gets its extern; fx_frame zeroes it (0x48a242).

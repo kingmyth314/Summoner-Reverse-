@@ -359,6 +359,7 @@ void mp_send_door_lockpick(mp_player *p, int lobj_index, int result);   // 0x4aa
 #include "summoner/multi/unnamed_lobby_0x43ef30.h"
 #include "summoner/multi/unnamed_netsession_0x440b40.h"
 #include "summoner/multi/unnamed_netpackets_0x441820.h"
+#include "summoner/multi/unnamed_utrack_0x48d7c0.h"     // decomp64
 
 #include "summoner/multi/multiplayerdata.h"
 #include "summoner/multi/multiendgame.h"

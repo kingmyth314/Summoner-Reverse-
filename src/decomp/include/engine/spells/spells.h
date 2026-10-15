@@ -138,12 +138,18 @@ LAYOUT_CHECK(spell_cast_params, sizeof(spell_cast_params) == 0x34);
 // spell_prepare_cast's 0x34-byte result to +0x1c, 0x47d878-0x47d894) as character_spell_apply_hit_effects
 // 0x460190 reads it (decomp37). The result's first dword is a bit field (shl / sar 0x19 / 0x1a for the
 // kind, shr 7 for the 22-bit mask, shr 0x1d for the flinch); the rest depends on the spell. Names ours.
+// decomp64: +0x10..+0x18 are the source type, item and power of living_entity_get_hit_by_spell (fx_frame
+// and fx_missile_hit fill them with the values they pass to it: item ? 5 : 0, the effect's item, 0); the
+// inline constructor is the store group of fx_frame 0x48adfc-0x48ae36 (-1, -1, then zeros).
 struct spell_hit {
+    spell_hit() { spell = -1; source = -1; pos = 0; orient = 0; source_type = 0; item = 0; power = 0.0f; }
     int spell;                       // +0x00
     int source;                      // +0x04 caster handle
     vector3 *pos;                    // +0x08 effect position (missiles), or NULL
     matrix *orient;                  // +0x0C
-    int _unk10[3];                   // +0x10
+    int source_type;                 // +0x10 (was _unk10[0]; decomp64)
+    ItemType *item;                  // +0x14 (was _unk10[1])
+    float power;                     // +0x18 (was _unk10[2])
     unsigned int _bit0 : 1;          // +0x1C
     int kind : 6;                    //   1 HP, 2 AP, 3 / 5 flinch only, 4 chain HP, 6 AP + sleep, 7 drain, 8 level, 9 AP drain
     unsigned int hit_mask : 22;      //   bit n: target n was hit (bit 0 the target itself)

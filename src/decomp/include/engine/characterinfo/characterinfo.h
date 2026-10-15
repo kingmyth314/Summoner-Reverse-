@@ -1,6 +1,7 @@
 // engine/characterinfo/characterinfo.h - character info records, skills and chain attacks
 // (engine\characterinfo\characterinfo.cpp, path references 0x445374-0x449acf). The experience table
-// functions (0x4899d0-0x489bf0) are declared here too; their unit is not known. Not original source.
+// functions (0x489930-0x489c20) are declared here too; their unit is not known (decomp64: placeholder
+// game/unnamed_experience_0x489930.cpp). Not original source.
 // Layout: symbols/types.h char_info (with +0xf8 as the resistance set of new_assess.cpp).
 #ifndef ENGINE_CHARACTERINFO_CHARACTERINFO_H
 #define ENGINE_CHARACTERINFO_CHARACTERINFO_H
@@ -326,7 +327,32 @@ float resistance_level_damage_mult(int level);      // 0x448c80
 int   summon_skill_from_creature_name(const char *name);   // 0x448d00 -1 none
 character_instance *charinfo_create_character_instance(char_info *info, bool summon);   // 0x448de0
 
-// experience.tbl (xp_level_table 0x2305420)
+// experience.tbl (xp_level_table 0x2305420). decomp64: the unit is 0x489930-0x489c3f (source
+// game/unnamed_experience_0x489930.cpp, file name a placeholder; .data 0x59c248-0x59c25b, .bss
+// 0x2305420-0x2305617).
+// One level record (0x18 bytes, types.h xp_level). The four groups are by char_info::species; each value
+// is read by experience_parse_stat_gain, whose flag is a "D" before the number: then the gain is random,
+// floor(frand() * value + 1), but at least 3 (xp_level_up_gains). types.h calls the flags hp_extra /
+// ap_extra. Field names ours.
+struct xp_level_gain {
+    ubyte hp;                                       // +0x0
+    ubyte ap;                                       // +0x1
+    ubyte hp_random;                                // +0x2 "D" before the HP+ value
+    ubyte ap_random;                                // +0x3 "D" before the AP+ value
+};
+struct xp_level {
+    int xp;                                         // +0x00 experience needed
+    ubyte skill_points;                             // +0x04
+    ubyte skill_cap;                                // +0x05 xp_level_skill_cap
+    xp_level_gain groups[4];                        // +0x06
+    ubyte _pad16[2];
+};
+LAYOUT_CHECK(xp_level, sizeof(xp_level) == 0x18);
+#define NUM_XP_LEVELS 21
+extern xp_level xp_level_table[NUM_XP_LEVELS];      // 0x2305420
+class TextFile;
+void  experience_parse_level(TextFile *tf, xp_level *level);           // 0x4899d0
+void  experience_parse_stat_gain(TextFile *tf, ubyte *value, ubyte *random);   // 0x489a30
 bool  xp_level_reached(int level, int xp);           // 0x489aa0 xp >= xp_for_level(level + 1)
 int   xp_max_level();                               // 0x489c20 50 (75 with game_flags 2)
 // (species, &level, &base max HP, &base max AP, &skill points, &skill cap): the push order of

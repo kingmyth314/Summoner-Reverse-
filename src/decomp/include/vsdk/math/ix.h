@@ -44,6 +44,10 @@ bool  ix_ray_plane(ix_ray *ray, plane *pl, vector3 *out);    // 0x53ce30
 int   polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, int offset);   // 0x551f90
 int   polygon_clip_to_planes(int n, const vector3 *in, vector3 *out, const plane *planes, int num_planes);   // 0x551e90
 float ix_point_linesegment(const vector3 *p, const vector3 *a, const vector3 *b, vector3 *closest);   // 0x53da80
+// decomp64 (fx_find_spawn_point): the 2D segments a-b and c-d cross (both parameters in 0..1); the second
+// segment is passed by value (six argument dwords, the body reads c and d at [esp+0xc]..[esp+0x18]).
+class vector2;
+bool  seg2d_intersect(const vector2 *a, const vector2 *b, vector2 c, vector2 d);   // 0x53d8f0
 // decomp55 (the script editor's picking). (out hit, out t, ray, ray length, centre, radius): the ray within
 // length hits the sphere; (ray, box centre, box orientation, box size, out hit): the oriented box. Which
 // of the sphere test's first two outputs is the point is from the editor's use (it measures from the

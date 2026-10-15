@@ -79,7 +79,7 @@ struct fx_rec98 {
     vector3 v50;                      // +0x50
     matrix m5c;                       // +0x5c
     vector3 v80;                      // +0x80
-    char _unk8c[0x90 - 0x8c];
+    int glow;                         // +0x8c lamp_glow_add index (fx_create_instance; decomp64)
     fx_rec98 *next;                   // +0x90
     fx_rec98 *prev;                   // +0x94
 };
@@ -115,7 +115,9 @@ struct fx_recb0 {
     vector3 v1c;                      // +0x1c
     matrix m28;                       // +0x28
     vector3 v4c, v58, v64, v70, v7c;  // +0x4c..+0x7c
-    char _unk88[0x9c - 0x88];
+    char _unk88[0x96 - 0x88];
+    ushort num_live;                  // +0x96 live particles (fx_missile_hit waits for none; decomp64)
+    char _unk98[0x9c - 0x98];
     fx_rec28 *particles;              // +0x9c
     char _unka0[0xa8 - 0xa0];
     fx_recb0 *next;                   // +0xa8
@@ -186,6 +188,8 @@ void effects_release_range(char *start, int size);      // 0x51dc50 releases the
 int  effects_stub_ret1();                               // 0x51dca0 (no caller)
 int  vfx_all_resident(const char **names);              // 0x51dcb0 25 names (no caller)
 bool effect_is_cutscene_base(int name_index);           // 0x51dec0 (fx_pause_for_cutscene / fx_resume_after_cutscene)
+// decomp64: defined in effect_mem.cpp; fx_frame clears it every frame (0x48a242).
+extern fx_rec98 *vfx_last_mesh_instance;                // 0x2c9f968
 void effects_release_cutscene_memory();   // 0x51def0 (cutscene_cleanup; decomp52)
 // (base, a, flag): a new instance with the base's records, NULL when no record is free.
 vfx_instance *vfx_instance_create(vfx_base *base, int a, bool flag);   // 0x51d250

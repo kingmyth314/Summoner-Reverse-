@@ -457,6 +457,8 @@ Character *living_entity_create(int type, int char_info, const vector3 *pos, con
 void character_xp_death_penalty(Character *c);        // 0x441710 (defined in the net session unit, game/unnamed_netsession_0x440b40.cpp; decomp53)
 // Stops or attaches the looping effect of a status (unit not known; conversation_begin passes the
 // character's handle, Character +0x80; decomp20). Returns the effect handle (status_effect_add keeps it).
+// decomp64 (game/unnamed_fx_0x489c40.cpp): the second argument becomes the effect's kind (the callers pass
+// 5 and 6, the fading kinds of fx_frame); -1 while a stone effect (kind 10) is on the character.
 int  status_effect_update_fx(int handle, int status); // 0x48c470
 
 #endif

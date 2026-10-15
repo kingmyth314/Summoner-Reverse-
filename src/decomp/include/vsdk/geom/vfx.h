@@ -38,13 +38,32 @@ public:
 };
 LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 
+// decomp64 (the fx unit): the node descriptors (vfx_base +0x20, 0xa8 bytes each) and the +0x2c records (0x21c)
+// as fx_create_instance and fx_frame read them. Names ours.
+struct vfx_node_desc {
+    ubyte _unk00[0x18];
+    int flags;                                // +0x18 0x40: a lamp glow (fx_create_instance)
+    ubyte _unk1c[0x0c];
+    float glow_radius;                        // +0x28
+    ubyte _unk2c[0x7c];
+};
+LAYOUT_CHECK(vfx_node_desc, sizeof(vfx_node_desc) == 0xa8);
+struct vfx_desc21c {
+    ubyte _unk00[0x4c];
+    float time_a;                             // +0x4c
+    float time_b;                             // +0x50 (time_a + time_b) s (fx_frame kind 16)
+    ubyte _unk54[0x1c8];
+};
+LAYOUT_CHECK(vfx_desc21c, sizeof(vfx_desc21c) == 0x21c);
+
 // The loaded effect base ("vfx base") an effect id resolves to. Only +0x1c is written by effect_mem.cpp.
 // decomp60: the record counts and fields vfx_instance_create / vfx_load read (names ours).
 class vfx_base {
 public:
     void load_bitmaps(int flag);              // 0x536e50 vfx_base__load_bitmaps
     void relocate_node(char *a, char *b);     // 0x536bc0 vfx_node_relocate (argument meaning unsure)
-    char _unk00[0x04];
+    int  get_num_tags();                      // 0x538340 vfx_base__get_num_tags (+4 + +6 + +0xa + +0x16 + vif tags; decomp64)
+    const char *name;                         // +0x00 the effect file name (fx_disable_by_effect_name; decomp64)
     short num_nodes;                          // +0x04 fx_rec98 records per instance
     short num_lights;                         // +0x06 vfx_light_desc records per instance (light_tracks)
     short num_emitters;                       // +0x08 fx_recb0 records (emitters)
@@ -52,17 +71,24 @@ public:
     short num_rec4c;                          // +0x0c fx_rec4c records (the 0xa0-byte table at +0x34)
     char _unk0e[0x04];
     short num_frames;                         // +0x12 (cast_effect_track_add: frames / 15 * 1.5 s; decomp39)
-    char _unk14[0x04];
+    short _unk14;                             // +0x14
+    short num_desc21c;                        // +0x16 records at +0x2c (decomp64)
     short flags;                              // +0x18 bits 1 and 2 are copied into the instance's bits 7 / 8
-                                              //       (vfx_load; meaning not known)
+                                              //       (vfx_load; meaning not known); bit 0: random yaw at
+                                              //       creation, and the objects that follow a character keep
+                                              //       their own orientation (decomp64)
     short _pad1a;
     int category;                             // +0x1c copied from the base record's category
-    int _unk20;                               // +0x20
+    vfx_node_desc *node_descs;                // +0x20 num_nodes descriptors (was int _unk20; decomp64)
     char *light_tracks;                       // +0x24 0x70 bytes per light of an instance (ui_3d_begin; decomp48)
     vfx_emitter_desc *emitters;               // +0x28 num_emitters records
-    char _unk2c[0x08];
+    vfx_desc21c *descs21c;                    // +0x2c num_desc21c records (decomp64)
+    char _unk30[0x04];
     char *rec4c_table;                        // +0x34 0xa0 bytes per fx_rec4c record
-    char _unk38[0x10];
+    char _unk38[0x08];
+    int _unk40;                               // +0x40 nonzero: the effect can be linked to a character
+                                              //       (fx_link_character_obj; decomp64)
+    char _unk44[0x04];
     vector3 pos;                              // +0x48 copied into the instance by vfx_load
     float _unk54;                             // +0x54 copied to the instance's +0x3c
 };
@@ -183,7 +209,15 @@ LAYOUT_CHECK(vfx_light_desc, sizeof(vfx_light_desc) == 0x30);
 // order from the call sites (sum.symbols lists the node index first for get_node_transform).
 class vfx_instance {
 public:
-    void process(int a, const vector3 *pos, const matrix *orient);   // 0x536fb0 vfx_instance_process (callers pass 0)
+    // decomp64: the first argument is the frame time (a float: fx_update_instance passes its float
+    // argument, the creators 0.001f); it was declared int (D4402).
+    void process(float frametime, const vector3 *pos, const matrix *orient);   // 0x536fb0 vfx_instance_process
+    void stop();                                                     // 0x537230 vfx_instance__stop (decomp64)
+    bool is_stopped();                                               // 0x537270 vfx_instance__is_stopped (decomp64)
+    const char *get_node_name(int node);                             // 0x5373a0 (decomp64)
+    void bind_node(int node, character_instance *ci, int tag);       // 0x537580 (decomp64)
+    bool node_can_bind(int node);                                    // 0x537700 (decomp64)
+    void reset_flags(int a, int b);                                  // 0x537800 (decomp64)
     void get_node_transform(vector3 *pos, matrix *orient, int node); // 0x537840
     // The world transform of a node, the vector and matrix passed by value (spell_probe_ground_point).
     void get_node_world_transform(int node, vector3 pos, matrix orient, int a, int b, int c); // 0x537a10
@@ -198,7 +232,8 @@ public:
                                                                      // interface_frame clears bit 2 of the UI lights' instance (decomp48)
     int _unk04;                                                      // +0x04
     int category;                                                    // +0x08 the base record's category (vfx_load)
-    int _unk0c, _unk10;
+    int _unk0c;
+    float time;                                                      // +0x10 elapsed (fx_frame compares it with 14 / 55.25; decomp64)
     float length;                                                    // +0x14 longest emitter, seconds
     fx_rec98 *nodes;                                                 // +0x18 list heads, NULL empty
     vfx_light_desc *lights;                                          // +0x1c first light, NULL none (ui_3d_begin; decomp48)
@@ -254,6 +289,8 @@ int  attached_light_create_b(const vector3 *pos, float intensity, float angle_a,
 void attached_light_free(int index);                 // 0x5201f0
 void attached_lights_init_slots();                   // 0x520070 every slot free
 void attached_lights_clear_slots();                  // 0x520090 (the same loop)
+// decomp64: the instance vfx_instance_process works on (cleared by fx_destroy_all).
+extern void *vfx_active_instance;                    // 0x2dbfd10
 // Inline: its only copy is a COMDAT among the attached-light unit's (0x5203c0, between the track
 // samplers and vfx_node__get_scale). (pos, intensity, range far, r, g, b), range near 0.
 inline int attached_light_create_from_vfx(const vector3 *pos, float intensity, float range_far,

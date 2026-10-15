@@ -109,7 +109,7 @@ Summoner 2 and Dash Faction give names only.
 | `engine/camera/camera.h` | the camera unit 0x4778b0-0x479b59 (game/unnamed_camera_0x4778b0.cpp, file name a placeholder, decomp58) | `camera` (all members), `game_camera`, `CAMF_*`, the unit's globals and console commands, `camera_approach_value` |
 | `engine/camera/camera_sequence.h` | camera sequences 0x493f20-0x4946a0 (unit not known; file name ours, decomp52) | `camera_sequence`, `cutscene_camera_sequence` (the 0x70-byte cutscene shot) |
 | `engine/effects/effect_stream.h` | effect streamer (0x440400-0x440b3a; source game/unnamed_effectstream_0x440400.cpp, file name a placeholder; decomp53) | `effect_stream_entry`, the unit's globals, every `effect_stream_*`, `file_type_from_ext` (D3300) |
-| `engine/effects/fx.h` | fx_* (0x48bd80-0x48d720, file not known; name ours) | `effect_object`, `fx_*`, `obj_from_handle_b` |
+| `engine/effects/fx.h` | the effect object unit 0x489c40-0x48d7bf (game/unnamed_fx_0x489c40.cpp, file name a placeholder; decomp64) | `effect_object` (ctor / dtor / destroy, the +0xbc bit fields), `fx_char_link`, the unit's .data / .bss (pool, lists, sky list, blob shadow bitmaps), every `fx_*` and the creators |
 | `engine/spells/spells.h` | spells.cpp (0x479b60-0x47f857, pilot decomp23) | `spell_info`, `spells`, groups, missiles, spell effects, the cast request, `spell_*` / `summon_*` |
 | `engine/combat/combat.h` | combat.cpp (0x463540-0x468c77, pilot decomp23; directory guessed) | `living_combat` (Character +0x558) and the combat helpers |
 | `engine/ai/boss_ai.h` | boss_ai.cpp (0x4a04b0-0x4a3580) and the per-boss units | the boss hooks combat.cpp calls, `rand_int_range`, `ghost_stage` |
@@ -130,6 +130,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/multi/unnamed_lobby_0x43ef30.h` | PXO lobby 0x43ef30-0x43f9cc (game/unnamed_lobby_0x43ef30.cpp, placeholder; decomp53) | `lobby_channel`, the lobby globals, state 11, every `lobby_*` |
 | `summoner/multi/unnamed_netsession_0x440b40.h` | net session 0x440b40-0x441817 (game/unnamed_netsession_0x440b40.cpp, placeholder; decomp53) | `mp_netgame_info mp_netgame` and the old names as macros (D3305), `MP_STATUS_*`, the player lists and records, the host / client frames, GM_STAT / CT_STAT |
 | `summoner/multi/unnamed_netpackets_0x441820.h` | packet layer 0x441820-0x4425a6 (game/unnamed_netpackets_0x441820.cpp, placeholder; decomp53) | `mp_packet_table`, `mp_send_buffer`, the receive / send / broadcast / forward calls, the net statistics, `cmd_disp_rate` |
+| `summoner/multi/unnamed_utrack_0x48d7c0.h` | PXO user tracker login 0x48d7c0-0x48db2f (game/unnamed_utrack_0x48d7c0.cpp, placeholder; decomp64; included by multi.h) | `utrack_packet`, `utrack_login_request`, the login globals, `pxo_login_send` / `utrack_init` / `pxo_login_request` / `pxo_login_poll` |
 | `summoner/unnamed_mlayout_0x43f9d0.h` | state 6 and the monster layouts 0x43f9d0-0x4403f2 (game/unnamed_mlayout_0x43f9d0.cpp, placeholder; decomp53) | the state 6 gadgets, `monster_layout_save` / `_load`, the load_mlayout / save_mlayout commands |
 | `summoner/multi/multisave.h` | multisave.cpp (0x46cc60-0x46dd2f) | `.plr` files, `mp_char_summary`, autosave timer, `pxo_config` |
 | `summoner/multi/multitrade.h` | multitrade.cpp (0x470e30-0x471def) | trade state, `mp_trade_item`, IT_* senders and handlers |
