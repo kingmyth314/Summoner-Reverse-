@@ -292,8 +292,12 @@ cutscene end callbacks, the worldmap encounter pickers, and `ix_ray_plane` (`0x5
 (dead code). Game and engine code now has no unnamed direct call target.
 
 **State (2026-10-14 night):** about 11,470 symbols.
-- 8,632 functions: 8,232 **O**, 162 **V**, 238 **I**.
-- 2,836 data: 2,331 **O**, 37 **V**, 468 **I**.
+- 8,633 functions: 8,329 **O**, 162 **V**, 142 **I**.
+- 2,838 data: 2,768 **O**, 37 **V**, 33 **I**.
+
+Two more confidence rounds produced these counts. The data round fixed 16 types: array sizes that ran into the next
+symbol, bool vs int, and `game_camera`. The function round renamed 15, for example `gr_d3d_set_bump_env` (D3D7 bump-map
+stage states), `ix_sphere_sphere` and `LineFile__flush`.
 
 **Next for the decompilation:**
 1. Raise the **I** names, mostly the newly found starts, the CRT libm helpers and data.
