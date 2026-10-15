@@ -28,6 +28,14 @@ Rules:
 | `game/new_dialogue.cpp` | `new_dialogue.cpp` | 6 | 3 / 3 / 0 |
 | `game/new_assess.cpp` | `new_assess.cpp` | 20 | 12 / 8 / 0 |
 | `game/new_pickup.cpp` | `new_pickup.cpp` | 22 | 12 / 10 / 0 |
+| `game/new_gamecreate.cpp` | `new_gamecreate.cpp` | 22 | 16 / 5 / 1 |
+| `game/new_journal.cpp` | `new_journal.cpp` | 29 | 17 / 12 / 0 |
+
+**To fix when the headers are merged** (found by the agents, not yet resolved):
+- `interface_set_screen(int id, ...)`: the second argument is `int` in two stub headers and `void*` in
+  `stubs_menus_dialogue.h`; the call sites push both constants and pointers.
+- `Color` is defined in more than one stub header.
+- `mp_player` in the stubs lacks the name at `+0x34`.
 
 **Headers.** `include/` holds one stub header per batch (`stubs_*.h`) that declares the engine and UI functions
 the files call, plus `ui_screen.h` and `dialogue_box.h`. The signatures are inferred from the call sites. They
