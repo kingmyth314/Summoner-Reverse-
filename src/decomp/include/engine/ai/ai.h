@@ -143,8 +143,27 @@ public:
                   int spell, float arg);                  // 0x476190 ai_goal_add (ret 0x20)
     int  goal_alloc(int type, int priority, unsigned int flags, int target, vector3 *pos, int layer,
                     int spell);                           // 0x476020 ai_goal_alloc
-    void goal_remove(int slot);       // 0x476300 ai_goal_remove
+    // decomp58: returns AL (false for a slot outside 0..4; was void).
+    bool goal_remove(int slot);       // 0x476300 ai_goal_remove
     bool has_goal_without_flag20();   // 0x476670 ai_has_goal_without_flag20 (decomp41: script_character_has_pending_goal)
+    // decomp58 (the goal unit 0x475180, game/unnamed_goals_doors_0x475180.cpp):
+    void goals_remove_type9();        // 0x475dd0 ai_goals_remove_type9
+    void goals_remove_types_3_5();    // 0x475e30 ai_goals_remove_types_3_5
+    // The goal handlers (0x4b6000-0x4b68c0, unit not known; argument lists from ai_process_goals).
+    void goal_do_attack(int target, unsigned int flags);                  // 0x4b6000 ai_goal_do_attack
+    void goal_do_follow(int target);                                      // 0x4b6240 ai_goal_do_follow
+    void goal_do_travel(vector3 *pos, int layer, int priority, unsigned int flags);   // 0x4b62a0 ai_goal_do_travel
+    void goal_do_nothing();                                               // 0x4b63e0 ai_goal_do_nothing
+    void goal_do_approach_party(int target);                              // 0x4b63f0 ai_goal_do_approach_party
+    void goal_do_combat_mode();                                           // 0x4b6430 ai_goal_do_combat_mode
+    void goal_do_cast_spell(int spell);                                   // 0x4b64c0 ai_goal_do_cast_spell
+    void goal_do_cast_at_point(int spell, vector3 *pos, int layer);       // 0x4b6560 ai_goal_do_cast_at_point
+    void goal_do_move_to(vector3 *pos, int layer, bool walk, ai_path *path);    // 0x4b65c0 ai_goal_do_move_to
+    void goal_do_move_to_timed(vector3 *pos, int layer, float arg, bool walk);  // 0x4b6690 ai_goal_do_move_to_timed
+    void goal_do_hide();                                                  // 0x4b6710 ai_goal_do_hide
+    void goal_do_sneak();                                                 // 0x4b6790 ai_goal_do_sneak
+    void goal_do_special_attack(int target);                              // 0x4b6810 ai_goal_do_special_attack
+    void goal_do_pickup(int target);                                      // 0x4b68c0 ai_goal_do_pickup
 
     ~ai_state();                      // 0x4f13e0 (folded)
     bool is_traveling_sub1();         // 0x4730e0 ai_is_traveling_sub1
@@ -525,7 +544,29 @@ struct ai_service_req {
     int _unk04;
     int _unk08;
 };
-void ai_service_request(ai_service_req *req);         // 0x4766f0 (handled locally or sent with multi_send_packet)
+// decomp58: only a multiplayer client sends it (SRV_REQ to the host); everywhere else it does nothing.
+void ai_service_request(ai_service_req *req);         // 0x4766f0
+
+// ---- the goal unit (decomp58, game/unnamed_goals_doors_0x475180.cpp) --------------------------------
+// ai_goal_evaluate's verdict (names ours): keep, drop (no target), drop (done / dead), suspend.
+#define AI_GOAL_KEEP     0
+#define AI_GOAL_LOST     1
+#define AI_GOAL_DONE     2
+#define AI_GOAL_SUSPEND  3
+// The fields a goal type uses (ai_goal_type_fields; bits ours, D3803): goal_find compares and
+// goal_add fills only these (with 0x1 type, 0x2 flags and 0x40 "not the running goal" from the mask).
+#define AI_GF_TYPE    0x01
+#define AI_GF_FLAGS   0x02
+#define AI_GF_TARGET  0x04
+#define AI_GF_POS     0x08            // pos and layer
+#define AI_GF_SPELL   0x10
+#define AI_GF_ARG     0x20
+#define AI_GF_NOT_CUR 0x40
+int  ai_goal_evaluate(ai_state *ai, ai_goal *goal);   // 0x475830 cdecl, AI_GOAL_*
+int  ai_goal_compare(const void *a, const void *b);   // 0x475d20 qsort comparator
+void ai_goals_sort(ai_goal *goals);                   // 0x475db0 qsort of the five slots
+unsigned int ai_goal_type_fields(int type);           // 0x475fb0 AI_GF_* of the type
+void ai_goals_validate(ai_state *ai);                 // 0x476610 cdecl
 void ai_global_init();                                // 0x474900 pathfinding_init, direction table (GameInit)
 
 // The query record of ai_score_target (0x14 bytes on the caller's stack; boss_target_list_build fills

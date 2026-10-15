@@ -2900,3 +2900,67 @@ are defined in the shadow / obstacle-debug unit.** Both lie between the handle-s
 tags it boss_ai.cpp; it follows level_preload_effects with no gap, uses no data of its own, and the next
 unit begins with its static initialiser at 0x4a3640 (entry 291, the handle slots, whose .bss follows
 boss_ai.cpp's timer 0x245c9e0). decomp29 had left it out only because its task range ended at 0x4a3580.
+
+## decomp58: the goal / door unit and the camera unit (game/unnamed_goals_doors_0x475180.cpp, game/unnamed_camera_0x4778b0.cpp; both file names placeholders)
+
+**D3800 (unit boundaries 0x475180-0x479b5f).** Two objects. (1) 0x475180-0x4778ab: ai.cpp ends with
+cast_effect_track_count (D1905, ret 0x475178) and its .data with its literals ("Ai_path_wandering_enabled"
+ends 0x59b7c6); the next .data item is an initialised variable, ai_goal_next_id (0x59b7c8 = 1, read by
+ai_goal_alloc and the savegame code), followed by this object's one literal, "WARNING: unknown service
+request type -- %d\n" (0x59b7cc, mp_handle_srv_req). A variable after another object's literals starts a new
+object (as D3309). No .bss; its .rdata floats 0x581a0c-0x581a24 follow ai.cpp's 0x5819fc-0x581a08. The mp
+helpers, goals and doors could be several objects (none has other data); kept as one placeholder.
+(2) 0x4778b0-0x479b59: opens with the static initialiser thunk of ccmd_zoom_limit (entry 229; 230 / 231
+follow), .data 0x59b7fc-0x59b986 starts with its variables (mlook_sensitivity, camera_zoom_max, 1.5f), .bss
+0x22e49b8-0x22e4b0c lies between ai.cpp's (to 0x22e49b7) and spells.cpp's (0x22e4b18); spells.cpp starts at
+0x479b60 (entry 232, strings.tbl spells.cpp ids). The source map's spells.cpp tag for 0x479ad0
+(camera_set_sequence_transform) is a stray. No path string or strings.tbl block names either file.
+
+**D3801 (signatures changed; all callers compile unchanged).** camera::snap_to_target(bool, bool) (was
+(int, int): `cmp al, 1` at 0x478e77 / 0x478e9e); camera::cycle_mode returns bool (AL at 0x479a6d / 0x479a89;
+was void); camera::start_sequence(cutscene_camera_sequence *) (cutscene_camera_sequence_sample is called on
+it directly and +0x08 is its fov; the one caller passes &cutscene_sequences[i]); ai_state::goal_remove
+returns bool (`mov al, 1` / `xor al, al`, ret 4; was void); door_set_open(lobj *, float, bool, bool) and
+door_toggle_state(lobj *, bool) (their flags are pushed through as dwords to door_start_move, which tests
+bytes at 0x476f61 / 0x477030; were int); mp_dequantize_position(ushort, ushort, ushort) (`and eax,
+0xffff` before fild at 0x4756f7; was short). Fields: camera::num_saved_states is uint (jae / jbe at
+0x4797b9 / 0x4797d5), camera::sequence is camera_sequence * and camera::target obj * (were void *).
+
+**D3802 (engine/camera/camera.h). CAMF_* names for the camera flag bits** (ours, from the doc's table).
+camera_set_follow_flags clears 0x1, 0x2 and 0x10 and sets 0x2 from its first and 0x10 from its second
+argument (`(b << 3 | a) << 1`, 0x479759-0x47977f); a running sequence ends with restore = !second argument
+(sum.symbols says !a).
+
+**D3803 (engine/ai/ai.h). AI_GF_* goal field bits and AI_GOAL_KEEP / LOST / DONE / SUSPEND** (names ours).
+ai_goal_type_fields returns 4 target, 8 pos + layer, 0x10 spell, 0x20 the float argument (byte table
+0x476008); ai_goal_find adds 1 (type), 2 (flags, compared without 0x30e) and 0x40 (skip the running goal)
+and masks with its first argument; ai_goal_add passes 0x1f. ai_goal_evaluate's results 1 / 2 remove the
+goal, 3 sets goal flag 8 (suspended), 0 clears it (ai_goals_validate).
+
+**D3804 (engine/rendering/levelrender.h). door_info +0x54 is a bit field** (moving, opening, close_wait,
+locked_default, then a 28-bit close_delay = ms + 1), in a union with the old `state` word (s3d.cpp and the
+savegame code use the word). Evidence: door_start_move's `sete / and 1 / shl / or` merges and the delay store
+`shl 4; xor (state & 0xf)` (0x476fa3-0x476fb2), door_update's `shr ecx, 4; dec ecx` (0x4770b9). +0x08 is the
+move duration in seconds (union name `duration`); +0x48 the floor point (accessor floor_point(), no code).
+
+**D3805 (game/unnamed_camera_0x4778b0.cpp). camera_frame's statics are of a vector type with an empty
+destructor (cam_vec, ours).** The two statics (0x22e4ac0, 0x22e4ad0) are guarded (0x22e4a38 bits 0 / 1) and
+register atexit destructors that are a bare RET (0x478d10 / 0x478d00); camera_frame has an EH frame (handler
+0x57c528) whose state goes to 0 after the statics, for the local copy of the target point that is never
+destroyed visibly. So the type has an inline empty destructor; vector3 cannot (its globals register no
+atexit). Unsure: the type might be the original vector class of another header. The 0x84 bytes
+0x22e4a3c-0x22e4abf are referenced by no instruction; kept as camera_unk_22e4a3c.
+
+**D3806 (camera_frame / camera_update_sequence). State-1 sequences are camera_blend_sequence (D3401).**
+time_left and advance are called on the running sequence when get_state() == 1; camera_free_sequence deletes
+only state-1 sequences (the shots, state 0, live in the cutscene's array and are only dropped).
+
+**D3807 (summoner/multi/multi.h). mp_packed_orient (0x14 bytes, ours) for matrix3_pack_orientation /
+matrix3_unpack_orientation; mp_net_handle_map declared (int[1000], 0x22e94f4).** The map's .bss lies after
+spells.cpp's, so it is not defined in the handle unit; its owner (probably the object unit 0x47f9a0, whose
+mp_net_handle_map_reset fills it) is open. MP_NEW_MON 0x3e and MP_SRV_REQ 0x3f added.
+
+**D3808 (engine/rendering/levelrender.h). 0x476890 is a function with no symbol: lobj_index_compare (ours),
+`*a - *b` over ints**, the bsearch comparator of door_from_lobj and lobj_find_textured_record (`push
+0x476890` at 0x476900 / 0x477485). It sits in the padding gap sum.symbols leaves before
+name_ptr_stricmp_compare.

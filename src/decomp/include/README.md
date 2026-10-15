@@ -96,12 +96,12 @@ Summoner 2 and Dash Faction give names only.
 | `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a670f (game/unnamed_pfgeom_0x4a4ee0.cpp, placeholder; decomp57) | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
 | `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` (decomp47) | the visibility sweep: `pathvis_edge`, the unit's .bss, `pathvis_*`, `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
-| `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
+| `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers; decomp58: the door, lobj and level-record helpers of game/unnamed_goals_doors_0x475180.cpp (placeholder), the `door_info` state bit field |
 | `engine/rendering/unnamed_decals_0x4bbe80.h` | decal unit 0x4bbe80-0x4bce55 (source game/unnamed_decals_0x4bbe80.cpp, decomp56; file and directory names placeholders) | `decal_record`, `decal_node`, the decal rings and `decal_*` / `decals_*` |
 | `engine/rendering/unnamed_projectors_0x4c0250.h` | projector unit 0x4c0250-0x4c0a20 (not written; names placeholders, decomp56) | `projector_record`, `shadow_record` and `shadow_frame` (decomp57), `lobj_face_marks` |
 | `engine/rendering/unnamed_shadows_0x4a37d0.h` | obstacle debug drawing and blob shadows 0x4a37d0-0x4a4ed7 (game/unnamed_shadows_0x4a37d0.cpp, placeholder; decomp57) | `blob_shadow`, the debug switches, `shadow_*`, `cmd_obstacle_height_offset` |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |
-| `engine/camera/camera.h` | camera (0x478ff0) | `camera`, `game_camera` |
+| `engine/camera/camera.h` | the camera unit 0x4778b0-0x479b59 (game/unnamed_camera_0x4778b0.cpp, file name a placeholder, decomp58) | `camera` (all members), `game_camera`, `CAMF_*`, the unit's globals and console commands, `camera_approach_value` |
 | `engine/camera/camera_sequence.h` | camera sequences 0x493f20-0x4946a0 (unit not known; file name ours, decomp52) | `camera_sequence`, `cutscene_camera_sequence` (the 0x70-byte cutscene shot) |
 | `engine/effects/effect_stream.h` | effect streamer (0x440400-0x440b3a; source game/unnamed_effectstream_0x440400.cpp, file name a placeholder; decomp53) | `effect_stream_entry`, the unit's globals, every `effect_stream_*`, `file_type_from_ext` (D3300) |
 | `engine/effects/fx.h` | fx_* (0x48bd80-0x48d720, file not known; name ours) | `effect_object`, `fx_*`, `obj_from_handle_b` |

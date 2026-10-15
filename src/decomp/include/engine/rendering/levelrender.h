@@ -120,22 +120,38 @@ extern bool shadows_enabled;           // 0x59c120 (1)
 extern int lamp_glow_bitmap;           // 0x59db70 (lamp_glow_load)
 int  lobj_get_layer(int lobj_index);                  // 0x4775c0 the first layer byte
 float char_fog_get_far();                             // 0x481e50 the +CharFog far distance, 0 when off (unit not known)
-void door_update(lobj *door);         // 0x477080 (unit not known)
+void door_update(lobj *door);         // 0x477080 (decomp58: unnamed_goals_doors_0x475180.cpp, as all door and lobj helpers here)
 // A door record (0x8c bytes, sorted by lobj index at 0xa5a304; door_update reads both poses). Type and
 // field names ours (D100). s3d_read_door reads +0x00..+0x43 and resets the rest (decomp28, D802).
 struct door_info {
     int lobj_index;                   // +0x00
     short named_path;                 // +0x04 level named path the door takes its name from, -1 none
     short _unk06;                     // +0x06
-    float _unk08;                     // +0x08
+    union {
+        float _unk08;                 // +0x08
+        float duration;               //       seconds a move takes (door_update: elapsed / (duration * 1000); decomp58)
+    };
     vector3 closed_pos;               // +0x0c door_update reads +0x10 and +0x1c too
     quaternion closed_orient;         // +0x18
     vector3 open_pos;                 // +0x28
     quaternion open_orient;           // +0x34
     GameTimer timer;                  // +0x44 move timer (constructed by new door_info[n])
-    float _unk48[3];                  // +0x48
-    unsigned int state;               // +0x54 bits 0, 1 and 3 cleared on load; bit 3 the default locked
+    float _unk48[3];                  // +0x48 the floor point (door_find_floor_point; door_in_use_range reads +0x4c)
+    // decomp58: the door state is a bit field (door_start_move: `sete; shl; and; or` merges, the delay
+    // field `shl 4; xor (state & 0xf)` and `shr 4` in door_update; names ours, D3804). s3d.cpp and the
+    // savegame code keep the whole-word name.
+    union {
+        unsigned int state;           // +0x54 bits 0, 1 and 3 cleared on load; bit 3 the default locked
                                       //        state (savegame_two_stage_get, decomp27)
+        struct {
+            unsigned int moving : 1;        // bit 0 the move timer runs
+            unsigned int opening : 1;       // bit 1 direction of the move
+            unsigned int close_wait : 1;    // bit 2 waiting to close again (door_update)
+            unsigned int locked_default : 1;// bit 3
+            unsigned int close_delay : 28;  // bits 4.. auto-close delay in ms + 1, 0 none (door_start_move)
+        };
+    };
+    vector3 &floor_point() { return *(vector3 *)_unk48; }   // (accessor ours; no code)
     float lock;                       // +0x58 lock value, 0 unlocked (character_use_skill pick lock; D100)
     union {                           // +0x5c the key item type, NULL none (object_try_unlock_or_open;
         int _unk5c;                   //        decomp35, D1505). s3d_read_door clears _unk5c.
@@ -165,15 +181,16 @@ door_info *door_from_lobj(lobj *l);   // 0x4768c0 0 unless the lobj has flag 0x1
 // (door, fraction): open, or moving with the eased progress past fraction (pf_door_index_is_open passes
 // 0.4f; decomp32). Returns AL.
 bool door_is_open(door_info *d, float fraction);   // 0x476940
-// The door commands' helpers (unit not known; decomp27). door_find_by_name: 0 found, -1 not (the outputs
+// The door commands' helpers (decomp27; decomp58: the goal unit 0x475180). door_find_by_name: 0 found, -1 not (the outputs
 // are then not written).
 int  door_find_by_name(const char *name, lobj **out_lobj, door_info **out_door);   // 0x477280
-bool door_set_open(lobj *l, float speed, int a, int b);   // 0x476e00 (cmd_door_open: -1.0, 1, 1)
+// decomp58: the flags are bools (passed through to door_start_move, which tests bytes; were int).
+bool door_set_open(lobj *l, float close_delay, bool force, bool sound);   // 0x476e00 (cmd_door_open: -1.0, 1, 1)
 void door_set_closed(lobj *l);        // 0x476e80 (return unused)
 // false when the door does not move (locked); object_try_unlock_or_open tests AL (D1504).
-bool door_toggle_state(lobj *l, int a);   // 0x476ee0 (cmd_door_toggle passes 1, gametarget 0)
+bool door_toggle_state(lobj *l, bool force);   // 0x476ee0 (cmd_door_toggle passes 1, gametarget 0; decomp58: bool, was int)
 lobj *lobj_from_index(int index);     // 0x477780
-// Level-script door and object helpers (unit not known, after lobj_from_index; decomp34, D1403).
+// Level-script door and object helpers (decomp34, D1403; decomp58: the goal unit 0x475180).
 // door_apply_saved_state: every door with that name whose saved two-stage state differs from `open` starts
 // moving (door_start_move(door, -1.0, 1, 1)); the state is compared as a byte (0x47739b).
 void door_apply_saved_state(const char *name, bool open);   // 0x477340 (return unused)
@@ -204,7 +221,7 @@ void char_fog_disable();                              // 0x481e40
 // hooks) moved with the rest of the snow unit to engine/rendering/unnamed_snow_0x4946a0.h (decomp54),
 // included here so the callers keep compiling.
 #include "engine/rendering/unnamed_snow_0x4946a0.h"
-// Door objects within reach of the character (unit not known; next to the AI code).
+// Door objects within reach of the character (decomp58: the goal unit 0x475180).
 bool door_in_use_range(Character *c, lobj *door);             // 0x476a30
 // decomp35 (gametarget.cpp). (lobj, fraction) door_is_open of the door of a door object.
 bool lobj_door_is_open(lobj *l, float fraction);              // 0x4769f0
@@ -279,9 +296,23 @@ gr_vertex **levelrender_face_vertex_colors(lobj *l, s3d_face *face, int unused, 
 int  levelrender_sum_point_lights(vector3 *out, const vector3 *pos, const vector3 *normal, int count,
                                   gr_light **lights);           // 0x48fbb0
 
-// Level object helpers (unit not known, next to door_from_lobj).
+// Level object helpers (decomp58: the goal unit 0x475180-0x4778ab, game/unnamed_goals_doors_0x475180.cpp,
+// file name not known).
 s3d_textured_record *lobj_find_textured_record(int lobj_index);   // 0x477450 bsearch of level +0x70
 int  name_ptr_stricmp_compare(const void *a, const void *b);      // 0x4768a0 qsort / bsearch comparator
+// bsearch comparator of two records that start with an int (the lobj index): *a - *b. No symbol (the
+// gap 0x476890-0x47689e before name_ptr_stricmp_compare); name ours (decomp58).
+int  lobj_index_compare(const void *a, const void *b);            // 0x476890
+// (lobj, auto-close delay in seconds (< 0 none), ignore the lock, play the sound): false when locked.
+// Flips the saved two-stage state and starts the move timer.
+bool door_start_move(lobj *l, float close_delay, bool force, bool sound);   // 0x476f30
+s3d_vis_set *level_vis_record_find(const char *name);  // 0x477540 (level_vis_parse, level_vis_force_add)
+bool lobj_index_out_of_range(int index);              // 0x4776b0 index >= num_lobjs
+void lobj_get_bounding_sphere(int index, vector3 *centre, float *radius);   // 0x477720
+// The fog defaults of the two camera presets (unit not known; used only when the layer has no fog
+// distance of its own).
+void fog_set_high_camera_default();   // 0x487080 (camera_view_high)
+void fog_set_low_camera_default();    // 0x4870b0 (camera_view_low)
 // Ken Perlin's reference noise over a vector (unit not known; the vfx code calls it too).
 float perlin_noise3(vector3 v);       // 0x5470e0
 

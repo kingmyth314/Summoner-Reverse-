@@ -40,5 +40,10 @@ void slew_set_enabled(int on);        // 0x4348b0
 // (max velocity, max rotation velocity, a3, a4): the free-movement (slew) limits 0x2cbff58.. (vsdk, unit
 // not known).
 void movement_init(float max_vel, float max_rotvel, float a3, float a4);   // 0x531ed0
+// decomp58 (camera_free_look_update): (position, orientation, dt) moves and turns a free view from the
+// keys within those limits (vsdk, unit not known; cdecl).
+class vector3;
+class matrix;
+void movement_read_controls(vector3 *pos, matrix *orient, float dt);      // 0x531f50
 
 #endif

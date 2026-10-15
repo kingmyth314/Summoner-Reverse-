@@ -165,7 +165,21 @@ mp_player *mp_player_find_by_id(int id);                                   // 0x
 mp_player *mp_player_find_by_name(const char *name);                       // 0x475200 (stricmp)
 // Three 16-bit values scaled to the level bounds; the position is passed by value (last).
 void mp_quantize_position(short *x, short *y, short *z, vector3 pos);      // 0x475660
-vector3 mp_dequantize_position(short x, short y, short z);                 // 0x4756e0 (hidden result)
+// decomp58: the three values are unsigned (`and eax, 0xffff` before fild at 0x4756f7; was short).
+vector3 mp_dequantize_position(ushort x, ushort y, ushort z);              // 0x4756e0 (hidden result)
+// An orientation packed for NEW_LEP (0x14 bytes; type and field names ours, decomp58): two terms of the
+// first two rows and the signs of five dropped terms (bits 0..4: m[2], m[5], m[8], m[6], m[7] < 0).
+struct mp_packed_orient {
+    float r0, r1;                     // +0x00 rvec.x, rvec.y
+    float u0, u1;                     // +0x08 uvec.x, uvec.y (the packer stores rvec.x, rvec.y again: a bug)
+    ubyte signs;                      // +0x10
+    ubyte _pad11[3];
+};
+LAYOUT_CHECK(mp_packed_orient, sizeof(mp_packed_orient) == 0x14);
+void matrix3_pack_orientation(mp_packed_orient *out, const matrix *m);     // 0x475380 (mp_send_new_lep)
+void matrix3_unpack_orientation(const mp_packed_orient *in, matrix *out);  // 0x475430 (mp_handle_new_lep)
+#define MP_NEW_MON 0x3e               // decomp58
+#define MP_SRV_REQ 0x3f               // decomp58
 // decomp53: the rest of the handle unit's calls the session and packet units make. (address, check_port):
 // the list entry whose +0x08 address matches (nw_addr_equal), NULL.
 mp_player *mp_player_find_by_addr(const void *addr, bool check_port);       // 0x475180
@@ -191,6 +205,10 @@ void mp_broadcast_status_cure(Character *c, int status, bool restore_fx);   // 0
 // decomp53: the calls of other unwritten multiplayer units the session, lobby and menu units make.
 // The object unit 0x47f9a0-0x480000.
 void mp_net_handle_map_reset();                         // 0x47f9a0 the 1000-entry map 0x22e94f4 = -1
+// decomp58: net handle index -> local handle (a client's map; the .bss lies after spells.cpp's, so it is
+// not the handle unit's; which unit defines it is open).
+#define MP_NET_HANDLE_MAP_SIZE 1000
+extern int mp_net_handle_map[MP_NET_HANDLE_MAP_SIZE];   // 0x22e94f4
 void mp_send_local_updates();                           // 0x47f9c0 OBJ_UPD of the locally controlled characters
 void mp_send_monster_list();                            // 0x47fb20 host: OBJ_HND of every type 4 / 5 / 9 object
 void mp_send_new_lep(Character *c);                     // 0x47fdf0 NEW_LEP

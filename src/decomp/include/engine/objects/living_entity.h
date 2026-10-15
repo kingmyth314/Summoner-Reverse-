@@ -359,7 +359,7 @@ LAYOUT_CHECK(Character, sizeof(Character) == 0x788);
                                     (elem)->live_next->live_prev = (elem)->live_prev; \
                                     (elem)->live_next = NULL; (elem)->live_prev = NULL; } while (0)
 
-bool character_is_locally_controlled(Character *c);   // 0x475780 (unit not known)
+bool character_is_locally_controlled(Character *c);   // 0x475780 (decomp58: unnamed_goals_doors_0x475180.cpp)
 
 extern Character living_list;         // 0x8eca60 sentinel (sum.symbols' living_list_first 0x8ecd78 = live_next)
 extern Character living_list_inactive; // 0x8ed1e8 second sentinel (live_next 0x8ed500), walked by
