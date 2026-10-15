@@ -224,6 +224,18 @@ node tools/savedit.mjs Summoner/savegame/summoner7.sav edited.sav --gold 5000 --
 
 To use the result, copy it into `Summoner/savegame` under an unused name such as `summoner15.sav`.
 
+## `tools/tu-split.mjs`
+
+Proposes translation-unit (source file) boundaries for the whole of `.text` from data locality: which `.bss`
+globals each function uses, plus the `.cpp` module tags. The method and its limits are on the
+[Source-file map](sum-exe/source-map.md#translation-units-from-data-locality) page. `--score` reports units that
+mix two files, files split over several units, and the tags that look stray.
+
+```
+node tools/tu-split.mjs --out units.txt
+node tools/tu-split.mjs --score
+```
+
 ## `tools/addsym.mjs`
 
 Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address

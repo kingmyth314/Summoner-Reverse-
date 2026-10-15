@@ -214,6 +214,42 @@ The result supports the expected link order: the `new_*` screens are alphabetica
 | `0x5395c0`-`0x549d10` | 2 | `gr_direct3d.cpp` |
 
 
+## Translation units from data locality
+
+`node tools/tu-split.mjs` (2026-10-14) proposes a boundary for every source file, not just those that reference a
+path string. It rests on three observations (all **observed** in this binary):
+
+1. **The static initialiser table is in address order.** All 652 entries of the table at `0x588004` point to
+   increasing addresses, so the table gives the link order. Each file's initialisers sit inside its own code,
+   usually at the start. Example: `init_realtimetimer_5b28bc` (`0x4011c0`) comes just before the first
+   `new_assess.cpp` function.
+2. **Initialised data follows link order almost perfectly.** For globals used by a single function, 96-99% of
+   address-adjacent pairs belong to nearby functions. That is true inside a file as well as between files, so it
+   orders the code but does not show where one file ends.
+3. **Each file's `.bss` is one contiguous block, in declaration order.** The functions of one file use `.bss`
+   addresses that interleave. The next file's block starts above. Example: `new_assess.cpp` uses
+   `0x5b27fc`-`0x5b28d4` and `new_automap.cpp` uses `0x5b29e0`-`0x5b2d08`.
+
+The tool:
+1. Treats a global as private when all its users lie within 60 functions of each other. Entries of
+   `localize_strings` never count.
+2. Allows a cut only where no private global is used on both sides, and never between an initialiser thunk and
+   its initialiser.
+3. Forces a cut between two functions tagged with different `.cpp` files.
+4. Joins the pieces greedily. A new unit starts when the next piece's `.bss` lies more than `0x40` bytes above the
+   unit's. The gap lets a file whose statics are declared in function order (`ui_parse_button`,
+   `ui_parse_checkbox`, ...) stay in one unit.
+
+**Result:** 122 units over `0x401000`-`0x56a000`. None mixes two `.cpp` tags; 16 of the 66 tagged files are split
+over several units. *Inferred:* the split files mostly point at tag errors, not at real boundaries:
+- **Inline functions from headers** (`Mempool__ResetOffset`, `vector3__*`) are compiled into every file that uses
+  them, but carry their class's file tag. The tool then forces a false cut.
+- **Names that suggest a file** but sit elsewhere (`gr_d3d_render_character_mesh` at `0x50c130`, far from the
+  Direct3D code).
+
+`--score` lists these as "stray?" lines. Fixing the tags is the next step before the units can be used to lay out
+source files.
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`

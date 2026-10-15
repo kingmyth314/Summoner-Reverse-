@@ -233,6 +233,23 @@ reference project) and 1,968 **I** (inferred). The **I** entries are the main th
 behaviour matters, and raise them to **O** or rename them. Spot checks of every agent batch found about one wrong name
 per 300-500, each corrected before merging.
 
+**2026-10-14, confidence round:** three agents re-checked the 1,824 function names that were still **I**, each
+against the disassembly. They raised 1,317 to **O** (7 to **V**, matched to Summoner 2 or Dash Faction) and proposed
+72 renames. I verified a sample of each batch before applying it, and comments that mentioned the old names were
+updated. Notable fixes:
+- `buysell_recharge_item` is `buysell_buy_item` ("fully charged" is only the warning for an item already owned);
+- `mp_trade_error` is `mp_send_it_rqst` (packet 0x2a);
+- `spell_description` is `camera_set_focus_override`;
+- `script_editor_any_window_open` was inverted: it is `script_editor_no_window_open`;
+- `journal_format_event` is `conversation_execute_action`, the 13-case dialogue action switch;
+- the H key handler is `hud_toggle_solo_mode`;
+- `cmd_charinfo` is a bare `ret` shared by every empty function body after identical-code folding, so it is now
+  `empty_function`;
+- engine: `gr_glide_tcache_init`, `gr_d3d_create_texture`, `snd_get_handle`, `ds3d_init_listener`,
+  `File__write_line`, `file_dir_exists`.
+
+After this round, about 530 symbols are still **I**.
+
 **Data globals (2026-10-14):** the code references about 13,270 distinct addresses in `.data` and `.bss`. About 610
 had names before this step, mostly console variables and command objects. Of the unnamed ones, about 3,600 are used
 by two or more functions. The first data pass named these:
