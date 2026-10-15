@@ -944,7 +944,7 @@ void buysell_draw_item_model()
     if (!entry)
         return;
     ItemType *type = &item_types[entry->item_type];
-    void *mesh = (void *)type->_unk10;
+    void *mesh = type->mesh;
     if (!mesh)
         return;
 
