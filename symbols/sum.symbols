@@ -566,7 +566,7 @@
 0x419180  init_realtimetimer_5c1858 func  -                    O ; hidden start, static initialiser: RealtimeTimer__RealtimeTimer(0x5c1858), object used by itemtrade_handle_click itemtrade_update_buttons
 0x419190  init_realtimetimer_5c1860_thunk func  -                    O ; hidden start, static_initializers entry 55: jmp init_realtimetimer_5c1860
 0x4191a0  init_realtimetimer_5c1860 func  -                    O ; hidden start, static initialiser: RealtimeTimer__RealtimeTimer(0x5c1860), object used by itemtrade_frame itemtrade_handle_click itemtrade_begin_gold_input
-0x4191b0  multitrade_load_bitmaps  func  -                    O ; loads "MultiTrade-Bkgrnd" bitmaps; called from the load-all list at 0x4118e0
+0x4191b0  itemtrade_load_bitmaps   func  -                    O ; item-trade screen loader (new_itemtrade.cpp): its button states 0x5c1598 and scrollbar bitmap 0x5c1848, background bitmaps MultiTrade-Bkgrnd, caller interface_load_all (formerly multitrade_load_bitmaps)
 0x419380  itemtrade_init           func  new_itemtrade.cpp    O ; screen 19 (checked: screen 19 init: item_type_find Gold, party_gold, hud_show_message L Trading with %s)
 0x419420  itemtrade_update_scrollbar func  new_itemtrade.cpp    O ; scrollbar template, per-list
 0x419530  itemtrade_count_party_rows func  new_itemtrade.cpp    O ; 0x5c1594 = party item count (0x97186c) + 1 when party_gold > 0
@@ -7659,34 +7659,118 @@
 0x581f68  ui_checkbox__vtable      data:void*[9] vsdk\ui              O ; 
 0x588004  static_initializers      data:void*[652] -                    O ; C runtime constructor table (__xc_a..__xc_z; 652 entries, entry 652 is the zero terminator and the C runtime tables follow); each entry is a jmp thunk to one static initialiser, in link (source file) order
 0x588a70 gameseq_state_table      data:GameStateHandlers[15] -           O ; {enter, frame, leave} per state; 0 and 3 empty
+0x588b54  assess_scrollbar_track_y data:int new_assess.cpp       O ; scrollbar track top y, read as [8*resolution_index+0x588b54] (x at +0) by assess_update_scrollbar and assess_drag_scrollbar
+0x588b68  assess_scrollbar_track_height data:int[3] new_assess.cpp       O ; per resolution_index, assess_drag_scrollbar divides mouse offset by it (fidiv) to get the scroll pos
 0x588bc4  Map_mask                 data:bool -                      O ; set by console command "map_mask" (toggles); type from the TOGGLE callback (xor byte 1)
 0x588bd0  Show_coordinates         data:bool -                      O ; set by console command "show_coordinates" (toggles); type from the TOGGLE callback (xor byte 1)
+0x589864  mp_charselect_button_defs data:uint8[2176] new_charselect.cpp   O ; 34 static button defs of 0x40 bytes, flag byte +0 (4 hidden, 8 drawn on top), walked with runtime states 0x5b6940 in mp_charselect_draw/handle_click
+0x58a0b0  mp_charselect_name_box_x data:int new_charselect.cpp   O ; [8*resolution_index] pair with y at 0x58a0b4: name input rectangle origin used by frame, handle_click and draw_name_input
+0x58a0b4  mp_charselect_name_box_y data:int new_charselect.cpp   O ; [8*resolution_index] y of the name input rectangle (x at 0x58a0b0)
+0x58a21c  gamecreate_button_defs   data:uint8[] new_gamecreate.cpp   O ; static button defs of 0x40 bytes (shl 6), flag byte tested 2/4 by gamecreate_handle_click and gamecreate_update_buttons
+0x58a7dc  gamelist_button_defs     data:uint8[] new_gamelist.cpp     O ; static button defs of 0x40 bytes walked with runtime states 0x5bc768 by gamelist_handle_click and gamelist_draw
 0x58ac50  help_page_draw_table     data:void* -                    O ; 4 page draw functions indexed by the help page 0x5bc920 (call [4*page + 0x58ac50] in help_draw)
+0x58bc48  hud_flash_paused_names   data:char*[2] new_hud.cpp          O ; {"FlashPaused640.vbm","FlashPaused1024.vbm"}, bm_load([4*ui_hires]) in hud_load_bitmaps
+0x58bda4  ui_bitmap_suffix_tga     data:char*[2] -                    O ; {"640.tga","1024.tga"} indexed by 0x5bd318, appended to file names in every *_load_bitmaps
+0x58bdac  ui_bitmap_suffix         data:char*[2] -                    O ; {"640","1024"} indexed by 0x5bd318, used by skills_load_bitmaps and spells_load_bitmaps
+0x58bdb4  cursoricon_chain_bm      data:int -                    O ; bm_load("cursoricon-chain.tga") result stored by interface_init_global, drawn by levelrender_render_scene
+0x58bdb8  hud_target_mode          data:int new_hud.cpp          I ; -1 none, 0 set by inventory_use_*_item_begin, 2 by hud_use_hot_button (spell target), compared with 1 in interface_frame, reset by hud_button_action
+0x58bdbc  ui_pick_override_x       data:float -                    O ; returned through the first out pointer of ui_get_pick_screen_override when 0x5bd960 is set, written by inventory_use_*_item_begin
+0x58bdc0  ui_pick_override_y       data:float -                    O ; returned through the second out pointer of ui_get_pick_screen_override, written with 0x58bdbc by inventory_use_*_item_begin
+0x58bdc4  interface_pulse_time     data:float -                    O ; init 1.0, interface_pulse_update adds the frame time, hud_draw scales it for blinking
 0x58bdc8  screen_refresh_table     data:void* -                    I ; per-screen refresh callbacks indexed by screen id (1 inventory, 2 status, 5 spells, 6 skills), others 0
+0x58be24  ui_scale                 data:float -                    O ; returned by ui_get_scale, multiplied in ui_bitmap_scaled, computed in interface_init_global
+0x58be34  cursorspot_focus_bm      data:int -                    O ; bm_load("cursorspot-focus.tga") in interface_init_global, placed as ground decal by game_draw_leader_marker
+0x58be38  cursorspot_focus_large_bm data:int -                    O ; bm_load("cursorspot-focus-large.tga") in interface_init_global, used by game_draw_leader_marker
+0x58be48  ui_tooltip_pad_left      data:int -                    O ; init 1, added to the tooltip x and box width in ui_tooltip_draw and ui_tooltip_set
+0x58be4c  ui_tooltip_pad_right     data:int -                    O ; init 0, added to the tooltip box width in ui_tooltip_draw and ui_tooltip_set
+0x58be50  ui_tooltip_pad_top       data:int -                    O ; init 1, added to the tooltip y and box height in ui_tooltip_draw
+0x58be54  ui_tooltip_pad_bottom    data:int -                    O ; init 1, added to the tooltip box height in ui_tooltip_draw and ui_tooltip_set
+0x58cddc  itemtrade_button_defs    data:uint8[] new_itemtrade.cpp    O ; static button defs of 0x40 bytes walked with runtime states 0x5c15a0 by itemtrade_handle_click and itemtrade_draw
+0x58e10c  options_button_defs      data:uint8[] new_options.cpp      O ; static button defs of 0x40 bytes (shl 6), flag byte tested by options_handle_click and options_update_buttons
+0x58f390  pickup_list_row_width    data:int[3] new_pickup.cpp       O ; per resolution_index width passed to point_in_rect for each list row in pickup_handle_click and pickup_list_handle_click
+0x58f3e0  pickup_scrollbar_track_y data:int new_pickup.cpp       O ; [8*resolution_index] scrollbar track top y used by pickup_update_scrollbar and pickup_drag_scrollbar
+0x58f3f4  pickup_scrollbar_track_height data:int[3] new_pickup.cpp       O ; per resolution_index divisor (fidiv) in pickup_drag_scrollbar
+0x58f400  pickup_page_size         data:int[3] new_pickup.cpp       O ; visible rows per resolution_index (init 7), compared with the item count in pickup_update_scrollbar and page_up/down
+0x58f7b0  pxochat_join_pending     data:bool new_pxochat.cpp      I ; init 1, set to 1 by pxochat_init and pxochat_join_selected_channel, tested by pxochat_on_channel_joined
+0x58f7f4  pxochat_button_defs      data:uint8[] new_pxochat.cpp      O ; static button defs of 0x40 bytes walked with runtime states 0x5c3f08 by pxochat_handle_click and pxochat_draw
+0x590630  saveload_thumbnail_bm    data:int new_saveload.cpp     O ; bm_create result in saveload_load_bitmaps, drawn by saveload_draw_thumbnail, gr_mark_texture_dirty after saveload_capture_thumbnail
+0x5928e8  status_skill_row_right   data:int[3] new_status.cpp       I ; per resolution_index (init 248), right edge of the skill rows in status_handle_click, status_show_skill_tooltip, status_draw_skills
+0x5928f4  status_page_size         data:int[3] new_status.cpp       O ; visible rows per resolution_index (init 10), compared with the row count in status_update_scrollbar, handle_click, page_up/down
+0x592918  status_skill_button_x    data:int new_status.cpp       I ; [8*resolution_index] x offset (y at 0x59291c) of the skill +/- buttons in status_handle_skill_buttons and status_draw_skills
+0x59291c  status_skill_button_y    data:int new_status.cpp       I ; [8*resolution_index] y offset of the skill +/- buttons (x at 0x592918)
+0x59293c  status_scrollbar_track_y data:int new_status.cpp       O ; [8*resolution_index] scrollbar track top y in status_update_scrollbar and status_drag_scrollbar
+0x592950  status_scrollbar_track_height data:int[3] new_status.cpp       O ; per resolution_index divisor (fidiv) in status_drag_scrollbar
+0x592dbc  automap_label_type_names data:char*[2] new_automap.cpp      O ; {"Permanent","Custom"}: TextFile__ParseTypeString in automap_labels_parse_table, "$Type:" in cmd_save_map_labels
 0x5930bd  play_intro_movies        data:bool -                    O ; 1 until the first mainmenu_init plays vlogo.bik and (with EAX) eaxlogo.bik; SummonerFix SkipIntroMovies clears it
 0x5931b0  Gamewide_show_net_stats  data:bool -                      O ; set by console command "net_stats" (toggles); type from the TOGGLE callback (xor byte 1)
+0x5931b4  cursor_type              data:int -                    O ; init -1, set by cursor_set_type, read by cursor_draw
 0x593508  joseph_skill_progression data:skill_progression[17] characterinfo.cpp    I ; player record +0x24 for Joseph: {skill, level, value}; character_add_xp copies value into Character.skill[skill] at that level
+0x5935d4  joseph_skill_progression_count data:int characterinfo.cpp    O ; 17, entries of joseph_skill_progression, copied into the player record +0x20 by player_create and mp_player_file_create
+0x5935d8  jekhar_skill_progression data:skill_progression[13] characterinfo.cpp    O ; player record +0x24 for species 1 (Jekhar, species_table) in player_create, player_init_from_character (count 13)
+0x593674  jekhar_skill_progression_count data:int characterinfo.cpp    O ; 13, count copied with jekhar_skill_progression into player record +0x20
+0x593678  flece_skill_progression  data:skill_progression[16] characterinfo.cpp    O ; player record +0x24 for species 2 (Flece) in player_create, player_init_from_character (count 16)
+0x593738  flece_skill_progression_count data:int characterinfo.cpp    O ; 16, count copied with flece_skill_progression into player record +0x20
+0x593740  rosalind_skill_progression data:skill_progression[14] characterinfo.cpp    O ; player record +0x24 for species 3 (Rosalind) in player_create, player_init_from_character (count 14)
+0x5937e8  rosalind_skill_progression_count data:int characterinfo.cpp    O ; 14, count copied with rosalind_skill_progression into player record +0x20
+0x59399c  cutscene_saved_music     data:int -                    O ; music_get_current saved by cutscene_play before music_stop, restarted by cutscene_cleanup when >= 0
+0x5939a0  cutscene_stream_sound    data:int -                    O ; snd_play_streamed handle stored by SequenceTimer, stopped by cutscene_cleanup when >= 0
+0x593c64  loading_screen_bm        data:int -                    O ; bm_load("Loading-Bkgrnd640.tga") in loading_screen_load_bitmap, drawn by LoadingScreenDraw, reset to -1 by level_load_report
+0x593f50  world_mouse_target_handle data:int -                    O ; init -1, handle (+0x80) of the character under the mouse stored by world_mouse_frame, used via living_from_handle by cmd_health, cmd_ai_state, ai_frame
+0x5943f0  world_pick_default_filter data:uint8[] -                    I ; init 01 01 01 01, pointer stored into the pick filter 0x60aba4 by world_pick_set_skill_filter and world_pick_ground_point
+0x594418  world_hover_tint_r       data:float -                    O ; 0.75, red argument of world_hover_tint_character from world_mouse_frame and world_mouse_hover_target
+0x59441c  world_hover_tint_g       data:float -                    O ; 1.0, green argument of world_hover_tint_character
+0x594420  world_hover_tint_b       data:float -                    O ; 1.0, blue argument of world_hover_tint_character
+0x594440  level_display_names      data:char*[104] -                    O ; {level name, display string} pairs, 51 levels (cmp 0x33), filled by init_level_display_names, searched by saveload_format_level_name and level_format_display_name
+0x59513c  effect_stream_base       data:int -                    O ; effects_find_base result stored by effect_stream_open_current, tested by effect_stream_finish_entry
 0x5951b8  mp_packet_table          data:mp_packet_info[66] -                    O ; 0x1c-byte records {type, handler, flag, send counter, name[12] "GM_QURY".."INV_UQP"}, senders increment +0xc
+0x595b64  skill_names              data:char*[] characterinfo.cpp    O ; {"hand to hand","protection","speed","sword weapons",...} matched by characterinfo_parse_table and items_parse_table
+0x595cd0  team_names               data:char*[4] -                    O ; {"friendly","neutral","hostile","evil"}: ParseTypeString 4 in characterinfo_parse_table/script_parse_objects, "+Team:" in script_write_objects
+0x595cf8  variation_names          data:char*[194] -                    O ; {"","variation 1",...}: TextFile__ParseTypeString 0xc2 in characterinfo_parse_table, spells_parse_table, boss_ai_parse_table
 0x596064  move_type_names          data:char*[16] -                    O ; "+Move:" type names, index = move_info +0x10: attack, special attack, parry, dodge, flinch, non-combat flinch, death, cast, movement, misc, transition, ranged attack, emerge, banish, state
+0x5960b4  anim_event_names         data:char*[14] characterinfo.cpp    O ; {"","generic","generic 1",...,"critical end","impact start",...}: ParseTypeString 0xe in characterinfo_parse_table, charinfo_load_move_anim
+0x59614c  offense_point_names      data:char*[] -                    O ; {"$offense01","$offense02",...} returned by offense_point_name, tag names walked by living_entity_setup_head
+0x598f5c  material_names           data:char*[17] -                    O ; {"default","flesh","leather","stone",...,"volitionite"}: ParseTypeString 0x11 in characterinfo_parse_table and items_parse_table
 0x598fa0  anim_class_names         data:char*[9] -                    O ; "+Animation class:" names (bit n of move_info +0xC): none, swords, large swords, maces, staves, pole arms, bows, crossbows, daggers
+0x598fc4  damage_type_names        data:char*[7] -                    O ; {"fire","ice","energy","magic","slashing","piercing","blunt"}: ParseTypeString 7 in characterinfo_parse_resistances, items/spells parse
+0x599648  locomotion_anim_names    data:char*[18] -                    O ; {"stand","norm_walk","norm_run","ready",...,"statscreen"}: character_fill_locomotion_anims, script_parse_objects, script_action_format
 0x599690  Chance_to_drop_gold      data:float -                    O ; set by console command "chance_gold" (SET_FLOAT: process_command(0x10), copies command_argument_float, status prints it with fld)
 0x599694  Use_spell_ap             data:bool -                      O ; set by console command "Spell_ap" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59a16c  Debug_death              data:bool -                      O ; set by console command "death" (toggles); type from the TOGGLE callback (xor byte 1)
+0x59a330  surface_default          data:int -                    I ; set to 2 by surfaces_parse_table, returned by lobj_face_get_surface when no face entry matches
 0x59a334  music_handle             data:int32_t gamesound.cpp        O ; playing music sound handle, -1 none (music_play/music_stop)
 0x59a33c  music_index              data:int32_t gamesound.cpp        O ; index of the playing music.tbl entry (music_play)
 0x59a340  music_looping            data:bool gamesound.cpp        O ; loop flag of the playing music (music_play)
+0x59a5a0  obj_handle_next          data:int objects.cpp          O ; next object handle, read and advanced by obj_handle_base_next, saved/restored by savegame_write_living/savegame_read_living
+0x59a750  item_page_slots          data:int[68] item_paging.cpp      O ; 17 slots of 0x10 bytes {type, -1, ?, count}, indexed shl 4 by item_page_in, reset by items_reset_paging, freed by item_page_out_all
+0x59aa54  path_models_levels       data:int -                    O ; file_add_path("data\\models\\levels") id stored by setup_data_paths, used by state_loadgame_enter
 0x59aa58  S3d_load_lightmaps       data:bool -                      O ; set by console command "load_lightmaps" (toggles); type from the TOGGLE callback (xor byte 1)
+0x59af54  slowdown_scaler          data:float -                    O ; init 4.0, set by console command slowdown_scaler, multiplied in ai_frame
 0x59af58  Ai_path_wandering_enabled data:bool -                      O ; set by console command "ai_wander" (toggles); type from the TOGGLE callback (xor byte 1)
+0x59b7c8  ai_goal_next_id          data:int -                    O ; init 1, copied into a new goal +0x94 and advanced by ai_goal_alloc, saved/restored with the living records
+0x59b7fc  mlook_sensitivity        data:float -                    O ; init 1.0, set by console command mlook_sensitivity, scales the mouse delta in camera_free_look_update
 0x59b800  camera_zoom_max          data:float -                    O ; camera zoom-out limit (1.0); camera +0x184 is clamped to [0.3, camera_zoom_max]; zoom_limit console command sets 1.0 / 1000
+0x59b988  spell_group_skill        data:int[7] -                    O ; {0x1c,0x1d,0x1e,0x1f,0x20,0x21,0x1b}: skill id per spell_get_group result, used by spell_is_usable, character_can_cast_spell, spell_prepare_cast
+0x59bca8  multi_path_type          data:int -                    O ; init 1, 0..2 set by console command Multi_path_type, selects the path rebuild method in mp_handle_new_path
+0x59bd70  detail_level_entry_index data:int -                    O ; index of the current level in the detail table 0x22fb010 (stride 0x28) found by levelrender_level_load (-1 none), read by detail_apply_level_settings
+0x59bd74  path_internal            data:int -                    O ; file_add_path("data\\internal") id stored by setup_data_paths, used by level_vis_load for the .vis file
 0x59bd79  Render_level             data:bool -                      O ; set by console command "render_level" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59bd7a  Render_characters        data:bool -                      O ; set by console command "render_characters" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59bd7b  Render_effects           data:bool -                      O ; set by console command "render_effects" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59bd7c  fog_near                 data:float -                    O ; printed by set_fog as "near: %.3f meters"
 0x59bd80  fog_far                  data:float -                    O ; printed by set_fog as "far: %.3f meters"
+0x59bd84  fog_level_near           data:float -                    O ; level default fog near (50.0 after levelrender_level_unload), set by fog_set_level_default, used by fog_set_distances
+0x59bd88  fog_level_far            data:float -                    O ; level default fog far (35.0 after levelrender_level_unload), set by fog_set_level_default, used by fog_set_distances
+0x59bd90  level_current_layer      data:int -                    O ; set by level_set_current_layer, compared in levelrender_render_scene, indexes the per-layer fog values in fog_set_high_camera_default
+0x59bd94  level_rendered_layer     data:int -                    O ; layer of the last rendered frame (copied from level_current_layer in levelrender_render_scene), -1 from level_vis_load / level_vis_invalidate
 0x59bd9c  Main_character_lod_dist  data:float -                      O ; set by console command "main_lod_dist" (sets); type from the SET callback (copies command_argument_float)
 0x59bda0  Character_lod_dist       data:float -                      O ; set by console command "lod_dist" (sets); type from the SET callback (copies command_argument_float)
+0x59bda4  levelrender_fade_alpha   data:int -                    O ; 0xff after levelrender_fade_reset, stepped by levelrender_fade_out_start, compared with 0xff in levelrender_render_scene
 0x59bda8  Cull_ground_too          data:bool -                      O ; set by console command "Cull_ground_too" (toggles); type from the TOGGLE callback (xor byte 1)
+0x59c120  shadows_enabled          data:bool -                    O ; init 1, shadows_draw_characters and shadows_render return at once when 0
+0x59c124  move_target_bm           data:int -                    O ; set by move_target_set_bitmap, decal bitmap of move_target_draw_decal
 0x59c180  chat_commands            data:chat_command[3] -                    O ; {"/kick", "/ping", "/list"}; count 3 at 0x59c198
+0x59c25c  shadow_bm                data:int -                    O ; bm_load("Shadow01.tga") in shadows_init, used by shadow_draw_character
+0x59c358  level_light_scale        data:float -                    O ; init 1.0, multiplies the level ambient in level_lights_setup, set from the Luminar hp ratio by luminar_ai_select_action, reset by luminar_free_bitmap
 0x59c47c  Small_mesh_threshold     data:float -                      O ; set by console command "small_mesh_threshold" (sets); type from the SET callback (copies command_argument_float)
 0x59c480  Time_mult                data:float -                      O ; set by console command "time_mult" (sets); type from the SET callback (copies command_argument_float)
 
@@ -7694,12 +7778,23 @@
 0x59c594  Party_controller_check   data:bool -                      O ; set by console command "party_controller_check" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59c5e8  Snow_enabled             data:bool -                      O ; set by console command "snow" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59c5e9  Snow_render              data:bool -                      O ; set by console command "snow_render" (toggles); type from the TOGGLE callback (xor byte 1)
+0x59c5ec  snow_flake_bm            data:int -                    O ; bm_load("SnowFlake.tga") in snow_start, drawn by snow_render
+0x59c65c  serpent_boss_needs_setup data:bool -                    I ; init 1, set to 1 by serpent_unload, tested == 1 by serpent_boss_load
+0x59ce88  avoidance_enabled        data:int -                    O ; init 1, console command avoidance enable: "Avoidance areas enabled/disabled", tested by avoid_add_primitive
+0x59ce8c  avoidance_no_remove      data:int -                    O ; console command avoidance no_remove: "Avoidance areas will not be removed", tested by avoid_area_remove
+0x59d6e4  turn_scaler              data:float -                    O ; init 2.0, set by console command turn_scaler, multiplies the turn rate in ai_turn_towards
+0x59d7c8  character_size_radii     data:float[4] living_entity.cpp    O ; {0.15,0.47,1.0,99.9} indexed by char_info +0x90 in character_size_radius, character_distance_between_edges, charinfo_boss_radius
 0x59db70  lamp_glow_bitmap         data:int -                    O ; bm_load("WolongLampGlow01.tga") handle set by lamp_glow_load, used by lamp_glow_draw
 0x59ddb0  murod_cure_statuses      data:int[4] -                    O ; status ids murod_try_self_heal cures with spell 1
+0x59dfd0  luminar_beam_bm          data:int -                    I ; bitmap handle tested in luminar_boss_load, released by luminar_free_bitmap, pushed in luminar_beam_hit
 0x59e0fc  Do_frame_callback        data:bool -                      O ; set by console command "do_frame_callback" (toggles); type from the TOGGLE callback (xor byte 1)
 0x59e794  savegame_thumbnail_bm    data:int -                    O ; bitmap handle created on the thumbnail section, 201x151
 0x59f120  cur_level_index          data:int -                    I ; index of the current level in level_script_table, used by the two-stage code and 0x4ddaf0
 0x59f128  level_script_table       data:level_script_info[51] -                    O ; 0x40-byte records: name, init, frame, leave, use, +0x14 (unused), action, load steps, music name
+0x59fde8  level_table              data:int[104] -                    O ; 26 entries of 0x10 bytes {id, display string, mp flags, ?} filled by init_level_table, read [16*i] by mp_change_level, level_boss_init, level_table_display_name
+0x5a045c  script_action_names      data:char*[33] -                    O ; {"walk to","run to","move through","wait at",...}: ParseTypeString 0x21 in script_parse_objects, script_action_format, script_editor_select_next
+0x5a04e0  script_navpoint_type_names data:char*[4] -                    O ; {"level","cutscene","camera","ambient sound"}: ParseTypeString 4 in script_parse_navpoint/navpoints, script_write_navpoint
+0x5a08a8  script_editor_mode_names data:char*[4] -                    O ; {"Creature","Navpoint","Camera","Ambient sound"} button text indexed by the editor mode 0x25629c0 in script_editor_create_ui/ambient_ok
 0x5a4c4c  Random_encounters_enabled data:bool -                      O ; set by console command "random_encounters" (toggles); type from the TOGGLE callback (xor byte 1)
 0x5a5734  mouse_use_cursor         data:int vsdk\os\mouse          I ; 1 when DirectInput is unavailable
 0x5a5738  mouse_double_click_time  data:int vsdk\os\mouse        I ; ms timeout passed to RealtimeTimer__SetTimeout by mouse_mark_button for double-click detection
@@ -7714,6 +7809,8 @@
 0x5a575c Timestamp_realtime_ticker    data:int             timestamp.cpp     V ; Summoner 2 decomp; real-time ms clock, starts at 1
 0x5a5760  Load_mipmaps             data:bool -                      O ; set by console command "load_mipmaps" (toggles); type from the TOGGLE callback (xor byte 1)
 
+0x5a5c24  progress_next_time       data:int -                    O ; timer_get(1000)+100 set by progress_set_callback, -1 when cleared, progress_update calls back only after this time
+0x5a5c28  progress_step_count      data:int -                    O ; total steps passed to progress_set_callback, progress_update forces the callback when the step count since the last call exceeds 0x9b
 0x5a5c38  localize_language_names  data:char[3][0x42] localize               O ; English, German, French
 0x5a6058  Gr_alpha_fog_ratio       data:float -                      O ; set by console command "alpha_fog" (sets); type from the SET callback (copies command_argument_float)
 0x5a605c  Gr_level_fog_multiplier  data:float -                      O ; set by console command "level_fog" (sets); type from the SET callback (copies command_argument_float)
@@ -7726,26 +7823,418 @@
 0x5a7280  gr_reflection_map_bm     data:int vsdk\gr              O ; bitmap handle of refmap01.tga set by gr_load_reflection_map (initially -1)
 0x5a7294  Gr_far_min               data:float -                      O ; set by console command "far_min" (sets); type from the SET callback (copies command_argument_float)
 0x5a7298  Gr_far_max               data:float -                      O ; set by console command "far_max" (sets); type from the SET callback (copies command_argument_float)
+0x5a729c  gr_depth_scale           data:float vsdk\gr              I ; 0.0001, fld x Gr_3d_zmult x 1/w in gr_calc_depth and the d3d/opengl draw lists
 0x5a72a0  Gr_3d_zmult              data:float -                      O ; set by console command "zmult" (sets); type from the SET callback (copies command_argument_float)
 0x5a72a4  Gr_3d_zmax               data:float -                      O ; set by console command "zmax" (sets); type from the SET callback (copies command_argument_float)
+0x5a72a8  gr_view_zfar             data:float vsdk\gr              I ; init 1000.0, 8000.0 for mode 0x67 in gr_setup_3d, saved/restored by gr_save_3d_state/gr_restore_3d_state
 0x5a7480  Homogeneous_column       data:float[4] vsdk\math\matrix.cpp   V ; Summoner 2 name; {0, 0, 0, 1}
+0x5a783c  wide_charmap_table       data:uint16[86] -                    O ; 86 wide chars (cmp 0x56), mapped by string_to_wide_charmap and searched by wide_charmap_to_string
+0x5a7dcc  nw_server_socket         data:int vsdk\net             I ; init -1, set by nw_ConnectToServer, compared in nw_work_reliable and nw_NewCloseSocket
 0x5a7dd0  nw_udp_socket            data:SOCKET vsdk\net               I
+0x5a8900  lights_max_per_object    data:int vsdk\gr              O ; init 2, set by lights_set_max_per_object, used by lights_select_nearest, saved by ui_3d_begin
+0x5a8904  light_ambient_r          data:float vsdk\gr              O ; init 1.0, set by light_set_ambient, read by light_get_ambient and lights_shade_vertices, saved/restored by ui_3d_begin/ui_3d_end
+0x5a8908  light_ambient_g          data:float vsdk\gr              O ; init 1.0, green of light_set_ambient
+0x5a890c  light_ambient_b          data:float vsdk\gr              O ; init 1.0, blue of light_set_ambient
 0x5a9604  build_stamp_checksum     data:uint32 vsdk\ui                I ; rotate-right-add checksum of the name, high bit set
 0x5a9608  build_stamp_expiry       data:time_t vsdk\ui                I
 0x5a960c  build_stamp_name         data:char[] vsdk\ui                I
 0x5a98d4  Allow_movement_vel_change data:bool -                      O ; set by console command "movement_vel_change" (toggles); type from the TOGGLE callback (xor byte 1)
+0x5a99d8  vif_particle_top         data:void* -                    I ; init 0x2cbffe0 (particle pool base), reset by vif_reset_all, moved by vif_compact_particles, read by vif_instantiate_level
+0x5a9cf8  gr_d3d_vertex_color      data:bool vsdk\gr\directx\gr_direct3d.cpp I ; set 0/1 from the gr Mode colour source in gr_d3d_set_state, tested by gr_d3d_bitmap, line, tmapper
+0x5a9cf9  gr_d3d_vertex_alpha      data:bool vsdk\gr\directx\gr_direct3d.cpp I ; set 0/1 from the gr Mode alpha source in gr_d3d_set_state, tested by gr_d3d_bitmap, line, tmapper
+0x5a9d24  gr_d3d_lock_discard      data:uint32 vsdk\gr\directx\gr_direct3d.cpp O ; 0x2820 (DDLOCK_DISCARDCONTENTS, WRITEONLY, NOSYSLOCK) used when the vertex buffer wraps in gr_d3d_draw_primitive and render_character_mesh
+0x5a9d28  gr_d3d_lock_nooverwrite  data:uint32 vsdk\gr\directx\gr_direct3d.cpp O ; 0x1820 (DDLOCK_NOOVERWRITE, WRITEONLY, NOSYSLOCK) used for appends in gr_d3d_draw_primitive and render_character_mesh
+0x5aca40  gr_poly_buffer_ptr       data:void* vsdk\gr              O ; write pointer of the poly buffer: advanced by gr_poly_buffer_skip/put_byte/put_float/put_vector, compared with 0x5aca38 in gr_poly_begin
+0x5aca88  perlin_needs_init        data:int -                    O ; init 1, tested by perlin_noise1/2/3 which build the permutation tables on first use
+0x5ad7c8  gr_opengl_bound_texture0 data:int vsdk\gr\opengl\gr_opengl.cpp I ; set by gr_opengl_texture_init, cleared by gr_opengl_delete_texture when it matches, -1 from gr_opengl_tcache_flush
+0x5ad7cc  gr_opengl_bound_texture1 data:int vsdk\gr\opengl\gr_opengl.cpp I ; second bound texture id, same handling as 0x5ad7c8 in texture_init, delete_texture, tcache_flush
+0x5ad7e4  gr_opengl_packed_pixels  data:int vsdk\gr\opengl\gr_opengl.cpp O ; init 1, out flag of the "PackedPixels" extension check in gr_opengl_texture_init, tested by gr_opengl_create_texture
+0x5ad7ec  gr_opengl_next_texture_id data:int vsdk\gr\opengl\gr_opengl.cpp O ; reset to 1 by gr_opengl_texture_init, assigned and incremented by gr_opengl_tcache_set for new textures
+0x5ad858  gr_opengl_vertex_color   data:bool vsdk\gr\opengl\gr_opengl.cpp I ; set 0/1 from the colour source in gr_opengl_set_mode, tested by gr_opengl_bitmap and gr_opengl_tmapper
+0x5ad859  gr_opengl_vertex_alpha   data:bool vsdk\gr\opengl\gr_opengl.cpp I ; set 0/1 from the alpha source in gr_opengl_set_mode, tested by gr_opengl_bitmap and gr_opengl_tmapper
+0x5ad85c  gr_opengl_texture_u_scale data:float vsdk\gr\opengl\gr_opengl.cpp O ; out param of gr_opengl_tcache_set in gr_opengl_page_in, multiplies u in gr_opengl_bitmap and gr_opengl_tmapper
+0x5ad860  gr_opengl_texture_v_scale data:float vsdk\gr\opengl\gr_opengl.cpp O ; out param of gr_opengl_tcache_set in gr_opengl_page_in, multiplies v in gr_opengl_bitmap and gr_opengl_tmapper
+0x5af7e0  crt_pctype               data:void* -                    I ; C runtime _pctype: character class table pointer, [ptr + 2*c] & mask in the is*() functions when crt_mb_cur_max is 1
+0x5af9ec  crt_mb_cur_max           data:int -                    I ; C runtime __mb_cur_max (init 1): the is*() functions call _isctype when it is above 1, else index crt_pctype
 0x5b27e0 gameseq_state_cur        data:int             -                 O
 0x5b27e4 gameseq_state_prev       data:int             -                 O
 0x5b27e8 gameseq_state_next       data:int             -                 O
 0x5b27ec gameseq_state_pending    data:bool            -                 O
+0x5b27f0  assess_scrollbar_w       data:int new_assess.cpp       O ; scrollbar rectangle width (scrollbar bitmap width) set by assess_update_scrollbar, hit-tested in assess_handle_click
+0x5b27f4  assess_scrollbar_h       data:int new_assess.cpp       O ; scrollbar track height set by assess_update_scrollbar, tiles of the bitmap height in assess_draw_scrollbar
+0x5b27f8  assess_scrollbar_x       data:int new_assess.cpp       O ; scrollbar x from the per-resolution table, used by assess_handle_click and assess_draw_scrollbar
+0x5b27fc  assess_scrollbar_y       data:int new_assess.cpp       O ; scrollbar y from assess_scrollbar_track_y, used by assess_handle_click and assess_draw_scrollbar
+0x5b2800  assess_paused_game       data:int new_assess.cpp       O ; cleared by assess_init, bit 1 set when it paused the game, assess_leave calls game_unpause when set
+0x5b2804  assess_pressed_button    data:int new_assess.cpp       O ; -1 from assess_init and assess_handle_click, button index auto-repeated by assess_update_buttons
+0x5b2808  assess_scrollbar_bm_w    data:int new_assess.cpp       O ; bm_get_dimensions width of the scrollbar bitmap in assess_load_bitmaps
+0x5b280c  assess_scrollbar_bm_h    data:int new_assess.cpp       O ; bm_get_dimensions height of the scrollbar bitmap, tile step in assess_draw_scrollbar
+0x5b2810  assess_buttons           data:uint8[168] new_assess.cpp       O ; 7 runtime button states of 0x18 bytes {flags, bitmap, x, y, w, h} set by assess_load_bitmaps, cleared in assess_frame, drawn by assess_draw
+0x5b28b8  assess_scroll_pos        data:int new_assess.cpp       O ; first visible text line: 0 in assess_init, changed by page_up/down, scroll_up/down and drag, used by assess_draw_text
+0x5b28bc  assess_repeat_timer      data:int new_assess.cpp       O ; RealtimeTimer (init_realtimetimer_5b28bc) for the 100 ms button auto-repeat in assess_update_buttons
+0x5b28c0  assess_drag_start_thumb  data:int new_assess.cpp       I ; thumb offset stored by assess_handle_click when a drag starts, added back by assess_drag_scrollbar
+0x5b28c4  assess_scrollbar_visible data:bool new_assess.cpp       O ; set by assess_update_scrollbar when the text is longer than a page, assess_draw_scrollbar returns when 0
+0x5b28c8  assess_scrollbar_bm      data:int new_assess.cpp       O ; bm_load result in assess_load_bitmaps, tiled by assess_draw_scrollbar
+0x5b28cc  assess_line_count        data:int new_assess.cpp       O ; number of text lines counted by assess_format_info, scroll limit in update_scrollbar, page_down, scroll_down
+0x5b28d0  assess_drag_start_y      data:int new_assess.cpp       I ; game_mouse_y stored by assess_handle_click at drag start, subtracted in assess_drag_scrollbar
+0x5b28d4  assess_text              data:char[256] new_assess.cpp       O ; sprintf target of assess_format_info (level, hit points, damage, protection), drawn by assess_draw_text
+0x5b29d4  assess_mouse_mode        data:int new_assess.cpp       O ; 0 idle, 1 button held, 2 dragging the scrollbar: set by assess_handle_click, dispatched by assess_frame
+0x5b29d8  automap_label_w          data:int new_automap.cpp      O ; gr_get_string_size width of the label text 0x5b2a14 (automap_select_label), label box in handle_click/label_box_hover
+0x5b29dc  automap_label_h          data:int new_automap.cpp      O ; gr_get_string_size height of the label text 0x5b2a14, label box in handle_click/label_box_hover
+0x5b29e0  ui_color_red_full        data:uint8[4] -                    O ; Color (255,0,0,255) from init_colors_5b29e0, used by assess_mouse_in_panel and automap_draw_label
+0x5b29e8  automap_saved_scroll_x   data:int new_automap.cpp      I ; zeroed by automap_show_player_layer, copied to the scroll position 0x5b2b4c by automap_center_on_player and handle_click
+0x5b29ec  automap_saved_scroll_y   data:int new_automap.cpp      I ; zeroed by automap_show_player_layer, copied to 0x5b2b50 by automap_center_on_player and handle_click
+0x5b29f0  automap_label_edit_mode  data:int new_automap.cpp      I ; set to 1 with mouse mode 3 by automap_handle_click, tested == 1 by automap_add_label_at_mouse
+0x5b29f4  automap_layer_w          data:int new_automap.cpp      O ; bm_get_dimensions width of the layer map bitmap (automap_set_layer), scales world-to-map coordinates
+0x5b29f8  automap_layer_h          data:int new_automap.cpp      O ; bm_get_dimensions height of the layer map bitmap (automap_set_layer), scales world-to-map coordinates
 0x5b2a00  ccmd_map_grid            data:console_command -                      O ; console command object "map_grid"
+0x5b2a0c  automap_centered         data:bool new_automap.cpp      I ; set by automap_show_player_layer, tested by automap_center_on_player (else restores the saved scroll) and automap_handle_click
+0x5b2a10  automap_mouse_mode       data:int new_automap.cpp      O ; 0..6 mouse state (0 idle, 2 drag, 3 label place, 4 label text, 5/6 label edit) set by handle_click, dispatched by automap_frame
+0x5b2a14  automap_label_text       data:char[] new_automap.cpp      O ; label text being edited: cleared by automap_select_label, measured with gr_get_string_size, drawn by automap_draw_label
+0x5b2b34  automap_mask_bm          data:int new_automap.cpp      O ; bm_load("hud-mapmask01.tga") in automap_load_bitmaps, drawn by automap_draw_map, handle_click returns when < 0
+0x5b2b38  automap_label_blink_timer data:int new_automap.cpp      O ; RealtimeTimer (init_realtimetimer_5b2b38), 500 ms cursor blink in automap_add_label_at_mouse and automap_label_text_input
+0x5b2b3c  automap_scale_x          data:float new_automap.cpp      I ; map scale computed in automap_load_bitmaps, multiplies x coordinates in automap_draw_map
+0x5b2b40  automap_scale_y          data:float new_automap.cpp      I ; map scale computed in automap_load_bitmaps, multiplies y coordinates in automap_draw_map
+0x5b2b44  automap_drag_start_mouse_x data:int new_automap.cpp      O ; game_mouse_x stored by automap_handle_click when a drag starts, subtracted in automap_drag_scroll
+0x5b2b48  automap_drag_start_mouse_y data:int new_automap.cpp      O ; game_mouse_y stored by automap_handle_click when a drag starts, subtracted in automap_drag_scroll
+0x5b2b4c  automap_scroll_x         data:int new_automap.cpp      O ; map scroll offset x set by automap_center_on_player, used by handle_click, mouse_to_map_cell, label_box_hover, draw_map
+0x5b2b50  automap_scroll_y         data:int new_automap.cpp      O ; map scroll offset y set by automap_center_on_player, used by handle_click, mouse_to_map_cell, label_box_hover, draw_map
+0x5b2b5c  automap_pressed_button   data:int new_automap.cpp      O ; -1 from automap_init and automap_handle_click, button auto-repeated by automap_update_buttons
 0x5b2b60  ccmd_show_coordinates    data:console_command -                      O ; console command object "show_coordinates"
+0x5b2b70  automap_label_bm_w       data:int new_automap.cpp      O ; bm_get_dimensions width of Map-Label640/1024.tga (automap_label_bm) in automap_load_bitmaps
+0x5b2b74  automap_label_bm_h       data:int new_automap.cpp      O ; bm_get_dimensions height of the Map-Label bitmap, label box height in select_label, handle_click, labels_hover
+0x5b2b78  automap_selected_label   data:int new_automap.cpp      O ; set by automap_select_label (-1 none), tested by automap_handle_click and automap_label_text_input
+0x5b2b7c  automap_hover_label      data:int new_automap.cpp      O ; label index stored by automap_handle_click, read by automap_labels_hover
+0x5b2b80  automap_label_screen_pos data:int[64] new_automap.cpp      O ; {x, y} per label (stride 8, 32 labels) filled by automap_labels_update_positions, read by select_label, handle_click, labels_hover
+0x5b2c80  automap_you_are_here_w   data:int new_automap.cpp      O ; bm_get_dimensions width of You-R-Here.tga (0x5b2cb4) in automap_load_bitmaps, used by automap_draw_map
+0x5b2c84  automap_you_are_here_h   data:int new_automap.cpp      O ; bm_get_dimensions height of You-R-Here.tga, used by automap_draw_map
+0x5b2c88  automap_label_cursor_on  data:bool new_automap.cpp      O ; set by automap_add_label_at_mouse, blinked by automap_label_text_input, draws the text cursor in automap_draw_label
+0x5b2c89  automap_on_player_layer  data:bool new_automap.cpp      O ; 1 from automap_show_player_layer, 0 after automap_layer_down/up, tested by automap_frame
+0x5b2c8c  automap_mask_w           data:int new_automap.cpp      O ; bm_get_dimensions width of hud-mapmask01.tga (automap_mask_bm), used by automap_draw_map
+0x5b2c90  automap_mask_h           data:int new_automap.cpp      O ; bm_get_dimensions height of hud-mapmask01.tga, used by automap_draw_map
+0x5b2c94  automap_label_box_x      data:int new_automap.cpp      O ; selected label box x computed by automap_select_label, hit-tested in handle_click and label_box_hover
+0x5b2c98  automap_label_box_y      data:int new_automap.cpp      O ; selected label box y computed by automap_select_label, hit-tested in handle_click and label_box_hover
+0x5b2c9c  automap_drag_start_scroll_x data:int new_automap.cpp      O ; scroll x stored by automap_handle_click at drag start, base of automap_drag_scroll
+0x5b2ca0  automap_drag_start_scroll_y data:int new_automap.cpp      O ; scroll y stored by automap_handle_click at drag start, base of automap_drag_scroll
+0x5b2ca4  automap_label_bm         data:int new_automap.cpp      O ; bm_load(Map-Label640/1024.tga by ui_hires) in automap_load_bitmaps, drawn by automap_draw_label
 0x5b2ca8  ccmd_reset_map_labels    data:console_command -                      O ; console command object "reset_map_labels"
+0x5b2cb4  automap_you_are_here_bm  data:int new_automap.cpp      O ; bm_load("You-R-Here.tga") in automap_load_bitmaps, drawn by automap_draw_map
+0x5b2cb8  automap_layer            data:int new_automap.cpp      O ; current map layer set by automap_set_layer (bounded by 0x60a340), compared by labels_update_positions and update_layer_buttons
+0x5b2cc0  automap_buttons          data:uint8[216] new_automap.cpp      O ; 9 runtime button states of 0x18 bytes set by automap_load_bitmaps, cleared in automap_frame, drawn by automap_draw
+0x5b2d98  automap_label_editing    data:bool new_automap.cpp      I ; set by automap_handle_click on a custom label, cleared after savegame_automap_label_add in automap_label_text_input
+0x5b2d9c  automap_camera_bm        data:int new_automap.cpp      O ; bm_load("hud-mapcamera.tga") in automap_load_bitmaps, drawn by automap_draw_map
+0x5b2da4  automap_camera_bm_h      data:int new_automap.cpp      O ; bm_get_dimensions height of hud-mapcamera.tga, scaled in automap_draw_map
 0x5b2da8  ccmd_map_mask            data:console_command -                      O ; console command object "map_mask"
 0x5b2db4  Map_grid                 data:bool -                      O ; set by console command "map_grid" (toggles); type from the TOGGLE callback (xor byte 1)
+0x5b2db8  buysell_scroll_pos       data:int new_buysell.cpp      O ; first visible row: 0 in buysell_set_category, page/scroll/drag change it, limit checks in buysell_count_party_items and update_scrollbar
+0x5b2dc0  buysell_cameras          data:uint8[] new_buysell.cpp      O ; item camera table loaded from "bs_cameras.tbl" by new_icam_load (bs_cameras_parse_table), new_icam_get in buysell/item_info_popup model drawing
+0x5b63e8  buysell_scrollbar_x      data:int new_buysell.cpp      O ; scrollbar x from the per-resolution table in buysell_update_scrollbar, hit-tested in handle_click, drawn by draw_scrollbar
+0x5b63ec  buysell_scrollbar_y      data:int new_buysell.cpp      O ; scrollbar y from the per-resolution table in buysell_update_scrollbar
+0x5b63f0  buysell_scrollbar_w      data:int new_buysell.cpp      O ; scrollbar width (bitmap width 0x5b641c) set by buysell_update_scrollbar, hit-tested in buysell_handle_click
+0x5b63f4  buysell_scrollbar_h      data:int new_buysell.cpp      O ; scrollbar track height set by buysell_update_scrollbar, tiled by the bitmap height in buysell_draw_scrollbar
+0x5b63f8  buysell_hover_row        data:int new_buysell.cpp      I ; -1 from buysell_init and buysell_handle_click, compared with the row index for highlighting in buysell_draw_item_list
+0x5b63fc  buysell_row_count        data:int new_buysell.cpp      O ; rows in the current category set by buysell_count_party_items, scroll limit in update_scrollbar, handle_click, page_down
+0x5b6400  buysell_category_start   data:int new_buysell.cpp      I ; first index of the category (+4 of the category record) stored by buysell_count_party_items, used by buysell_category_first_index
+0x5b6404  buysell_mouse_mode       data:int new_buysell.cpp      O ; 0 idle, 1 button held, 2 dragging: set by buysell_handle_click, dispatched by buysell_frame
+0x5b6408  buysell_drag_start_thumb data:int new_buysell.cpp      I ; thumb offset stored by buysell_handle_click at drag start, added back by buysell_drag_scrollbar
+0x5b640c  buysell_repeat_timer     data:int new_buysell.cpp      O ; RealtimeTimer (init_realtimetimer_5b640c) for the button auto-repeat in buysell_update_buttons
+0x5b6410  buysell_category         data:int new_buysell.cpp      O ; item category set by buysell_set_category, read by buysell_get_list_item and update_button_states
+0x5b6414  buysell_saved_view_x     data:int new_buysell.cpp      I ; 0x25d8d5c saved by buysell_model_view_begin and restored by buysell_model_view_end
+0x5b6418  buysell_saved_view_y     data:int new_buysell.cpp      I ; 0x25d8d60 saved by buysell_model_view_begin and restored by buysell_model_view_end
+0x5b641c  buysell_scrollbar_bm_w   data:int new_buysell.cpp      O ; bm_get_dimensions width of the scrollbar bitmap in buysell_load_bitmaps
+0x5b6420  buysell_scrollbar_bm_h   data:int new_buysell.cpp      O ; bm_get_dimensions height of the scrollbar bitmap, tile step in buysell_draw_scrollbar
+0x5b6424  buysell_selected_item    data:int new_buysell.cpp      O ; selected list row, -1 from buysell_set_category, set by buysell_handle_click, used by sell_item and button_action
+0x5b6428  buysell_paused_game      data:int new_buysell.cpp      O ; 6 in buysell_init plus the pause bit, buysell_leave unpauses when bit 1 is set
+0x5b642c  buysell_category_count   data:int new_buysell.cpp      I ; item count of the category (+8 of the record) stored by buysell_count_party_items, used by get_list_item and category_first_index
+0x5b6430  buysell_buttons          data:uint8[960] new_buysell.cpp      O ; 40 runtime button states of 0x18 bytes (update_buttons cmp 0x28) set by buysell_load_bitmaps, cleared in buysell_frame
+0x5b67f0  buysell_drag_start_y     data:int new_buysell.cpp      I ; game_mouse_y stored by buysell_handle_click at drag start, subtracted in buysell_drag_scrollbar
+0x5b67f4  buysell_shop             data:void* new_buysell.cpp      I ; current shop record: tested by buysell_init and set_category, searched by shop_find_item_type, category records via count_party_items
+0x5b67f8  buysell_scrollbar_bm     data:int new_buysell.cpp      O ; bm_load result in buysell_load_bitmaps, tiled by buysell_draw_scrollbar
+0x5b67fc  buysell_scrollbar_visible data:bool new_buysell.cpp      O ; set by buysell_update_scrollbar when the list is longer than a page, buysell_draw_scrollbar returns when 0
+0x5b6800  buysell_info_item        data:int new_buysell.cpp      I ; -1 from buysell_init/handle_click, item opened with item_info_popup_open_type by buysell_update_buttons
+0x5b6808  mp_charselect_scrollbar_visible data:bool[3] new_charselect.cpp   O ; per scrollbar, cleared by mp_charselect_update_scrollbar, tested by mp_charselect_draw_scrollbar
+0x5b680c  mp_charselect_scrollbar_size data:int[6] new_charselect.cpp   O ; {w, h} per scrollbar (stride 8) set by mp_charselect_update_scrollbar, hit-tested by handle_click, h tiles in draw_scrollbar
+0x5b6824  mp_charselect_selected   data:int new_charselect.cpp   O ; selected character profile, -1 after mp_char_scan_files, tested by update_button_states and handle_click
+0x5b6830  mp_charselect_name_editing data:bool new_charselect.cpp   I ; cleared by mp_charselect_init, tested by mp_charselect_frame and handle_click before the name box handling
+0x5b6834  mp_charselect_drag_start_thumb data:int new_charselect.cpp   I ; thumb offset stored by mp_charselect_handle_click at drag start, added back by mp_charselect_drag_scrollbar
+0x5b6838  mp_charselect_text_input_active data:bool new_charselect.cpp   I ; cleared by mp_charselect_init and mp_charselect_clear_text_input, tested by handle_click, format_info, draw
+0x5b683c  mp_charselect_text_input data:char[] new_charselect.cpp   O ; typed text: cleared by mp_charselect_init, appended in handle_click, wrapped by mp_charselect_wrap_text_input, used by mp_char_create
+0x5b6940  mp_charselect_buttons    data:uint8[816] new_charselect.cpp   O ; 34 runtime button states of 0x18 bytes set by mp_charcreate_load_bitmaps, cleared in mp_charselect_frame, drawn by mp_charselect_draw
+0x5b6c70  mp_charselect_repeat_timer data:int new_charselect.cpp   O ; RealtimeTimer (init_realtimetimer_5b6c70) for the button auto-repeat in mp_charselect_update_buttons
+0x5b6c74  mp_charselect_info_text  data:char[] new_charselect.cpp   O ; text built by mp_char_format_info, drawn by mp_charselect_draw_char_info
+0x5b6e78  mp_char_profiles         data:uint8[] new_charselect.cpp   O ; character profile records (index*0x50*4 addressing) filled by mp_char_scan_files, used by mp_char_delete_file and mp_charselect_get_selected_profile
+0x5bc378  mp_charselect_cursor_timer data:int new_charselect.cpp   O ; RealtimeTimer (init_realtimetimer_5bc378), 500 ms text cursor blink checked by mp_charselect_frame, armed by handle_click
+0x5bc380  mp_charselect_row_counts data:int[3] new_charselect.cpp   O ; row count per list (profiles, typed text lines, info lines) for the three scrollbars, [4*i] in update_scrollbar, handle_click, drag_scrollbar
+0x5bc38c  mp_charselect_scroll_pos data:int[3] new_charselect.cpp   O ; scroll position per list, [4*i] in mp_charselect_update_scrollbar, handle_click, page_up/down
+0x5bc398  mp_charselect_scrollbar_bm_w data:int new_charselect.cpp   O ; bm_get_dimensions width of the scrollbar bitmap (0x5bc3d8) in mp_charcreate_load_bitmaps
+0x5bc39c  mp_charselect_scrollbar_bm_h data:int new_charselect.cpp   O ; bm_get_dimensions height of the scrollbar bitmap, tile step in mp_charselect_draw_scrollbar
+0x5bc3a0  mp_charselect_scrollbar_pos data:int[6] new_charselect.cpp   O ; {x, y} per scrollbar (stride 8) set by mp_charselect_update_scrollbar, hit-tested by handle_click, drawn by draw_scrollbar
+0x5bc3b8  mp_charselect_name       data:char[32] new_charselect.cpp   O ; typed character name: cleared by mp_charselect_init, edited in handle_click, checked by update_create_button, used by mp_char_create
+0x5bc3d8  mp_charselect_scrollbar_bm data:int new_charselect.cpp   O ; bm_load result in mp_charcreate_load_bitmaps, tiled by mp_charselect_draw_scrollbar
+0x5bc3dc  mp_charselect_species    data:int new_charselect.cpp   O ; species chosen by mp_charselect_select_species, checked by update_create_button and mp_char_create
+0x5bc3e0  mp_charselect_drag_start_y data:int new_charselect.cpp   I ; game_mouse_y stored by mp_charselect_handle_click at drag start, subtracted in mp_charselect_drag_scrollbar
+0x5bc3e4  mp_charselect_name_input_active data:bool new_charselect.cpp   I ; cleared by mp_charselect_init, tested by mp_charselect_frame, handle_click and wrap_text_input before name typing
+0x5bc3e8  mp_charselect_drag_scrollbar_index data:int new_charselect.cpp   O ; scrollbar being dragged, -1 from handle_click, index of the per-scrollbar arrays in mp_charselect_drag_scrollbar
+0x5bc3ec  mp_charselect_mouse_mode data:int new_charselect.cpp   O ; 0 idle, else button held or dragging: set by mp_charselect_init/handle_click, dispatched by mp_charselect_frame
+0x5bc3f0  mp_charselect_hover_row  data:int new_charselect.cpp   I ; row stored by mp_charselect_handle_click, highlighted by mp_charselect_draw_char_list
+0x5bc3f4  mp_charselect_cursor_on  data:bool new_charselect.cpp   O ; toggled when mp_charselect_cursor_timer elapses in frame, set by handle_click, draws the cursor in draw_name/text_input
+0x5bc3f8  credits_lines            data:char* new_credits.cpp      O ; 0x2000-byte operator_new buffer of credit lines filled by credits_parse_table, drawn by credits_draw
+0x5bc404  credits_line_count       data:int new_credits.cpp      O ; lines read by credits_parse_table, loop bound of credits_draw
+0x5bc408  credits_timer            data:int new_credits.cpp      O ; RealtimeTimer (init_realtimetimer_5bc408) invalidated by credits_init, checked by credits_frame and credits_finish
+0x5bc40c  credits_bkgrnd_bm        data:int new_credits.cpp      O ; bm_load result in credits_init, drawn by credits_draw
+0x5bc410  credits_scroll_y         data:float new_credits.cpp      O ; screen height plus a margin in credits_init, decreased by the frame time in credits_frame, start y of credits_draw
+0x5bc418  dialogue_title           data:char[64] new_dialogue.cpp     I ; string copied by dialogue_init (rep movsd), drawn with gr_string by dialogue_draw
+0x5bc458  dialogue_buttons         data:uint8[48] new_dialogue.cpp     O ; 2 runtime button states of 0x18 bytes ("hud-dialoguebox") set by dialogue_load_bitmaps, cleared in dialogue_frame
+0x5bc488  dialogue_topic_box_built data:bool new_dialogue.cpp     I ; cleared by dialogue_init, set after dialogue_topic_box_add in dialogue_draw
+0x5bc48c  dialogue_mode            data:int new_dialogue.cpp     I ; 1 after conversation_start in dialogue_init, switched on by dialogue_frame and dialogue_draw (1 = text box only)
+0x5bc490  gamecreate_max_players   data:int new_gamecreate.cpp   O ; player limit set by gamecreate_init, changed by players_dec/players_inc, passed by gamecreate_create_game
+0x5bc494  gamecreate_field_active  data:bool[2] new_gamecreate.cpp   I ; per text field flag cleared by gamecreate_init (word store), scanned by gamecreate_frame and handle_click
+0x5bc498  gamecreate_buttons       data:uint8[552] new_gamecreate.cpp   O ; 23 runtime button states of 0x18 bytes ("PXO-CreateGame") set by gamecreate_load_bitmaps, cleared in gamecreate_frame
+0x5bc6c0  gamecreate_mouse_mode    data:int new_gamecreate.cpp   I ; cleared by gamecreate_init, set to 1 by gamecreate_handle_click, cleared again in frame/update_buttons
+0x5bc6c4  gamecreate_limit_a       data:int new_gamecreate.cpp   O ; 0..99 value changed by gamecreate_limit_a_dec/inc, drawn by gamecreate_draw_limits, passed by gamecreate_create_game
+0x5bc6c8  gamecreate_cursor_timer  data:int new_gamecreate.cpp   O ; RealtimeTimer (init_realtimetimer_5bc6c8), 500 ms text cursor blink in gamecreate_frame and handle_click
+0x5bc6cc  gamecreate_password      data:char[16] new_gamecreate.cpp   O ; second text field (max 15 chars) typed in gamecreate_handle_click, cleared by gamecreate_init, second argument of mp_host_game
+0x5bc6dc  gamecreate_pressed_button data:int new_gamecreate.cpp   O ; -1 from gamecreate_init and handle_click, button auto-repeated by gamecreate_update_buttons
+0x5bc6e0  gamecreate_game_type     data:int new_gamecreate.cpp   O ; 0..2 stored by gamecreate_set_game_type, passed to mp_host_game by gamecreate_create_game
+0x5bc6e4  gamecreate_limit_b       data:int new_gamecreate.cpp   O ; 0..99 value changed by gamecreate_limit_b_dec/inc, drawn by gamecreate_draw_limits, passed by gamecreate_create_game
+0x5bc6e8  gamecreate_game_name     data:char[32] new_gamecreate.cpp   O ; game name (max 31) preset from mp_local_player +0x34 by gamecreate_init, required by update_create_button, first argument of mp_host_game
+0x5bc708  gamecreate_cursor_on     data:bool new_gamecreate.cpp   O ; toggled when gamecreate_cursor_timer elapses in gamecreate_frame, set by handle_click, draws the cursor in draw_text_field
+0x5bc710  gamelist_password_input_active data:bool new_gamelist.cpp     O ; set by gamelist_password_input_begin, cleared by gamelist_init and password_input_cancel, tested by gamelist_frame and draw
+0x5bc714  gamelist_repeat_timer    data:int new_gamelist.cpp     O ; RealtimeTimer (init_realtimetimer_5bc714) for the button auto-repeat in gamelist_update_buttons
+0x5bc718  gamelist_cursor_timer    data:int new_gamelist.cpp     O ; RealtimeTimer (init_realtimetimer_5bc718), 500 ms password cursor blink in gamelist_frame
+0x5bc71c  gamelist_scroll_pos      data:int new_gamelist.cpp     O ; first visible game row: 0 in gamelist_init, changed by page_up/down and drag, row offset in gamelist_handle_click
+0x5bc720  gamelist_drag_start_thumb data:int new_gamelist.cpp     I ; thumb offset stored by gamelist_handle_click at drag start, added back by gamelist_drag_scrollbar
+0x5bc724  gamelist_scrollbar_visible data:bool new_gamelist.cpp     O ; set by gamelist_update_scrollbar when the list is longer than a page, gamelist_draw_scrollbar returns when 0
+0x5bc728  gamelist_password        data:char[16] new_gamelist.cpp     O ; join password typed in gamelist_handle_click, cleared by gamelist_init and gamelist_password_input_begin, used by gamelist_join_selected
+0x5bc738  gamelist_scrollbar_w     data:int new_gamelist.cpp     O ; scrollbar width (bitmap width) set by gamelist_update_scrollbar, hit-tested in gamelist_handle_click
+0x5bc73c  gamelist_scrollbar_h     data:int new_gamelist.cpp     O ; scrollbar track height set by gamelist_update_scrollbar, tiled in gamelist_draw_scrollbar
+0x5bc740  gamelist_scrollbar_bm_w  data:int new_gamelist.cpp     O ; bm_get_dimensions width of the scrollbar bitmap in gamelist_load_bitmaps
+0x5bc744  gamelist_scrollbar_bm_h  data:int new_gamelist.cpp     O ; bm_get_dimensions height of the scrollbar bitmap, tile step in gamelist_draw_scrollbar
+0x5bc748  gamelist_scrollbar_x     data:int new_gamelist.cpp     O ; scrollbar x from the per-resolution table in gamelist_update_scrollbar
+0x5bc74c  gamelist_scrollbar_y     data:int new_gamelist.cpp     O ; scrollbar y from the per-resolution table in gamelist_update_scrollbar
+0x5bc750  gamelist_mouse_mode      data:int new_gamelist.cpp     O ; 0 idle, 1 button held, 2 dragging (0..3 switch in gamelist_frame), set by gamelist_handle_click
+0x5bc754  gamelist_scrollbar_bm    data:int new_gamelist.cpp     O ; bm_load result in gamelist_load_bitmaps, tiled by gamelist_draw_scrollbar
+0x5bc758  gamelist_drag_start_y    data:int new_gamelist.cpp     I ; game_mouse_y stored by gamelist_handle_click at drag start, subtracted in gamelist_drag_scrollbar
+0x5bc75c  gamelist_hover_row       data:int new_gamelist.cpp     I ; -1 from gamelist_init/handle_click, row compared for highlighting in mp_server_list_draw
+0x5bc760  gamelist_buttons         data:uint8[432] new_gamelist.cpp     O ; 18 runtime button states of 0x18 bytes ("PXO-GameList") set by gamelist_load_bitmaps, cleared in gamelist_frame
+0x5bc910  gamelist_selected_game   data:void* new_gamelist.cpp     I ; game list entry pointer stored by gamelist_update_join_button, used by gamelist_join_selected and mp_server_list_draw
+0x5bc914  gamelist_pressed_button  data:int new_gamelist.cpp     O ; -1 from gamelist_init and handle_click, button auto-repeated by gamelist_update_buttons
+0x5bc918  gamelist_cursor_on       data:bool new_gamelist.cpp     O ; toggled when gamelist_cursor_timer elapses in gamelist_frame, set by password_input_begin, cursor in gamelist_draw
+0x5bc91c  help_paused_game         data:int new_help.cpp         O ; cleared by help_init, bit 1 set when it paused the game, help_leave calls game_unpause when set
+0x5bc920  help_page                data:int new_help.cpp         O ; 0..3 page index: help_reset_page, help_prev_page, help_next_page, dispatched by help_draw
+0x5bc924  help_bkgrnd_bm           data:int new_help.cpp         O ; bm_load result in help_init, drawn by help_draw
+0x5bca58  hud_buttons              data:uint8[1488] new_hud.cpp          O ; 62 runtime button states of 0x18 bytes (cmp 0x3e) set by hud_load_bitmaps, cleared in hud_frame, hit-tested by update_buttons and portraits
+0x5bce20  hud_hot_buttons_x        data:int new_hud.cpp          I ; x of the hot button bar rectangle tested with point_in_rect by hud_handle_keys and hud_hot_buttons_drag
+0x5bce24  hud_hot_buttons_y        data:int new_hud.cpp          I ; y of the hot button bar rectangle (point_in_rect in hud_handle_keys, hud_hot_buttons_drag)
+0x5bce28  hud_hot_buttons_w        data:int new_hud.cpp          I ; width of the hot button bar rectangle (point_in_rect in hud_handle_keys, hud_hot_buttons_drag)
+0x5bce2c  hud_hot_buttons_h        data:int new_hud.cpp          I ; height of the hot button bar rectangle (point_in_rect in hud_handle_keys, hud_hot_buttons_drag)
+0x5bd028  hud_hot_button_used      data:int new_hud.cpp          I ; -1 from hud_init, slot stored after hud_use_hot_button with a 100 ms GameTimer in hud_handle_keys, read by draw_tooltips
+0x5bd02c  hud_pause_bm             data:int new_hud.cpp          O ; bm_load("pause.vbm") in hud_load_bitmaps, animated by hud_draw_animated_icons when >= 0
+0x5bd030  hud_shown_detail_level   data:int new_hud.cpp          O ; -1 from hud_load_bitmaps, hud_draw_detail_level restarts the 4000 ms timer 0x5bd0cc when the level differs and stores it
+0x5bd034  hud_hover_button         data:int new_hud.cpp          I ; -1 at the start of hud_handle_keys, button under the mouse switched on (minus 0x14) by hud_frame, read by hud_update_buttons
+0x5bd038  hud_portrait_slots       data:int[20] new_hud.cpp          O ; 5 portrait records of 0x10 bytes {character, ?, GameTimer, state} reset by hud_load_bitmaps, set by hud_update_portraits/hud_portrait_set_state
+0x5bd088  hud_hot_button_timer     data:GameTimer new_hud.cpp          O ; GameTimer (init_gametimer_5bd088), 100 ms after hud_use_hot_button in hud_handle_keys, checked by hud_frame
+0x5bd08c  hud_flash_paused_bm      data:int new_hud.cpp          O ; bm_load(hud_flash_paused_names[ui_hires]) in hud_load_bitmaps, animated by hud_draw_animated_icons
+0x5bd090  hud_death_timer          data:GameTimer new_hud.cpp          O ; GameTimer (init_gametimer_5bd090) invalidated by hud_load_bitmaps, checked by hud_death_timer_frame and draw_game_over
+0x5bd094  hud_status_message_timer data:GameTimer new_hud.cpp          O ; GameTimer (init_gametimer_5bd094), 3000 ms in hud_key_camera, checked by hud_draw_status_message
+0x5bd098  hud_drag_icon_x          data:int new_hud.cpp          I ; first argument of hud_drag_icon_begin, x of the rectangle tested by hud_hot_buttons_drag
+0x5bd09c  hud_drag_icon_y          data:int new_hud.cpp          I ; second argument of hud_drag_icon_begin, y of the rectangle tested by hud_hot_buttons_drag
+0x5bd0a0  hud_drag_icon_w          data:int new_hud.cpp          I ; third argument of hud_drag_icon_begin, width of the rectangle tested by hud_hot_buttons_drag
+0x5bd0a4  hud_drag_icon_h          data:int new_hud.cpp          I ; fourth argument of hud_drag_icon_begin, height of the rectangle tested by hud_hot_buttons_drag
+0x5bd0a8  hud_drag_flags           data:int new_hud.cpp          I ; bit 0 set by hud_drag_icon_begin, cleared by hud_init and hud_drag_icon_end, toggled by hud_hot_buttons_drag, tested in hud_handle_keys
+0x5bd0ac  hud_hot_button_hover     data:int new_hud.cpp          I ; -1 from hud_handle_keys and hud_hot_buttons_drag, hot button slot read by hud_hot_buttons_handle_click and hud_draw_hot_buttons
+0x5bd0b0  hud_pause_frames         data:int new_hud.cpp          O ; bm_get_num_frames of pause.vbm (hud_load_bitmaps), wrap limit of hud_pause_anim_time in hud_update_anim_time
+0x5bd0b4  hud_mouse_mode           data:int new_hud.cpp          O ; 0..6 mouse state: 0 from hud_init, 4 from hud_handle_keys, switched on by hud_frame
+0x5bd0b8  hud_flash_paused_frames  data:int new_hud.cpp          O ; bm_get_num_frames of the FlashPaused bitmap (hud_load_bitmaps), wrap limit in hud_update_anim_time
+0x5bd0bc  hud_portrait_count       data:int new_hud.cpp          O ; portraits shown, counted from party_list by hud_update_portraits, bound in hud_select_party_member and hud_draw_health_bars
+0x5bd0c0  hud_selected_portrait    data:int new_hud.cpp          O ; -1 from hud_load_bitmaps, portrait of the current character set by hud_update_portraits, used by handle_keys and use_hot_button
+0x5bd0c4  hud_flash_paused_anim_time data:float new_hud.cpp          O ; frame position advanced by hud_update_anim_time (wraps at hud_flash_paused_frames), drawn by hud_draw_animated_icons
+0x5bd0c8  hud_pause_anim_time      data:float new_hud.cpp          O ; 0 from hud_load_bitmaps, advanced by hud_update_anim_time (wraps at hud_pause_frames), drawn by hud_draw_animated_icons
+0x5bd0cc  hud_detail_level_timer   data:GameTimer new_hud.cpp          O ; GameTimer (init_gametimer_5bd0cc), 4000 ms set by hud_draw_detail_level when the detail level changes
+0x5bd0d4  version_check_status_text data:char[512] -                    O ; status text copied by version_check_fetch, version_check_poll_download and version_check_set_error_text, shown by pxochat_version_check_frame
+0x5bd2d4  version_check_download   data:int -                    I ; result stored by version_check_fetch (0 = failed), polled by version_check_poll_download
+0x5bd2e0  ui_tooltip_rect_w        data:int -                    O ; width of the hover rectangle saved by ui_tooltip_set, point_in_rect in interface_mouse_drag_frame
+0x5bd2e4  ui_tooltip_rect_h        data:int -                    O ; height of the hover rectangle saved by ui_tooltip_set, point_in_rect in interface_mouse_drag_frame
+0x5bd2e8  ui_3d_saved_ambient_b    data:float -                    O ; light_ambient_b saved by ui_3d_begin and restored by ui_3d_end
+0x5bd2ec  ui_color_text            data:uint8[4] -                    O ; Color (180,180,180,255) from init_color_5bd2ec, default text colour of every screen (gr_set_color_ptr)
+0x5bd2f0  ui_3d_saved_ambient_r    data:float -                    O ; light_ambient_r saved by ui_3d_begin and restored by ui_3d_end
+0x5bd2f4  ui_3d_saved_ambient_g    data:float -                    O ; light_ambient_g saved by ui_3d_begin and restored by ui_3d_end
+0x5bd2f8  ui_pick_world_override_pos data:vector3 -                    O ; returned by ui_get_pick_world_override when 0x5bd961 is set, copied from a record +0x10..+0x18 by inventory_use_*_item_begin
+0x5bd304  hud_chain_message_text   data:char[16] new_hud.cpp          I ; text copied by hud_show_chain_message (4000 ms), drawn by hud_draw_chain_message
+0x5bd318  ui_hires                 data:int -                    O ; 0 = 640 layout, 1 = 1024 layout: index into ui_bitmap_suffix_tga and the 640/1024 bitmap name pairs in every *_load_bitmaps
+0x5bd31c  ui_tooltip_rect_x        data:int -                    O ; x of the hover rectangle saved by ui_tooltip_set, point_in_rect in interface_mouse_drag_frame
+0x5bd320  ui_tooltip_rect_y        data:int -                    O ; y of the hover rectangle saved by ui_tooltip_set, point_in_rect in interface_mouse_drag_frame
+0x5bd324  ui_color_white           data:uint8[4] -                    O ; Color (255,255,255,255) from init_color_5bd324
+0x5bd328  ui_color_blue            data:uint8[4] -                    O ; Color (110,138,177,255) from init_color_5bd328, chat names and list rows
+0x5bd32c  hud_message_text         data:char[68] new_hud.cpp          I ; text copied by hud_show_message (4000 ms), drawn by hud_draw_message
+0x5bd370  ui_message_box_title     data:char[33] -                    O ; strncpy 0x20 by ui_message_box_show, drawn by ui_message_box_draw
+0x5bd391  ui_message_box_text      data:char[259] -                    O ; strncpy 0xff by ui_message_box_show, wrapped and drawn by ui_message_box_draw
+0x5bd494  ui_message_box_x         data:int -                    O ; box x computed (clamped to the screen) by ui_message_box_show, used by ui_message_box_hit_test and ui_message_box_draw
+0x5bd498  ui_message_box_y         data:int -                    O ; box y computed (clamped to the screen) by ui_message_box_show, used by ui_message_box_hit_test and ui_message_box_draw
+0x5bd49c  ui_message_box_button_count data:int -                    O ; buttons of the message box set by ui_message_box_show, divides the box width in ui_message_box_hit_test and ui_message_box_draw
+0x5bd4a0  ui_message_box_button_labels data:char[96] -                    I ; button label text measured with gr_get_string_size per button in ui_message_box_hit_test and drawn by ui_message_box_draw
+0x5bd500  ui_message_box_hover_button data:int -                    O ; button under the mouse stored by ui_message_box_handle_click, tested by update_buttons, highlighted by ui_message_box_draw
+0x5bd504  ui_message_box_flags     data:int -                    O ; bit 31 shown (ui_message_box_show), bit 30 clicked (handle_click / update_buttons), low bits from the show flags, 0 from interface_init_global
+0x5bd508  ui_message_box_callback  data:void* -                    I ; stored by ui_message_box_show, tested and used by ui_message_box_frame after handle_click
+0x5bd50c  ui_using_equipped_item   data:bool -                    O ; set by inventory_use_equipped_item_begin, cleared by ui_clear_pick_overrides, branch in world_mouse_frame
+0x5bd510  cutscene_loading_total   data:int -                    O ; step count stored by cutscene_begin_loading, divisor of the loading bar in cutscene_draw_loading
+0x5bd514  ui_using_list_item_index data:int -                    O ; list item index stored by inventory_use_list_item_begin, passed by world_mouse_frame when ui_using_list_item is set
+0x5bd518  ui_choice_popup_title    data:char[512] -                    O ; strncpy 0x200 by ui_choice_popup_show, measured by ui_choice_popup_hit_test, drawn by ui_choice_popup_draw
+0x5bd71c  ui_choice_popup_x        data:int -                    O ; popup x (clamped to the screen width minus ui_choice_popup_w) set by ui_choice_popup_show
+0x5bd720  ui_choice_popup_y        data:int -                    O ; popup y (clamped to the screen height minus ui_choice_popup_h) set by ui_choice_popup_show
+0x5bd724  ui_choice_popup_w        data:int -                    O ; popup width computed by ui_choice_popup_show, used by hit_test, update_buttons, draw
+0x5bd728  ui_choice_popup_h        data:int -                    O ; popup height computed by ui_choice_popup_show, used by update_buttons and draw
+0x5bd72c  ui_choice_popup_count    data:int -                    O ; number of choices (max 16) set by ui_choice_popup_show, loop bound of hit_test and draw
+0x5bd730  ui_choice_popup_choices  data:char*[16] -                    O ; choice texts copied by ui_choice_popup_show, measured by update_buttons and drawn by ui_choice_popup_draw
+0x5bd770  ui_choice_popup_values   data:void* -                    O ; int array argument of ui_choice_popup_show (flag 4), value of the chosen entry read by ui_choice_popup_update_buttons
+0x5bd774  ui_choice_popup_enabled  data:void* -                    O ; byte array argument of ui_choice_popup_show, 0 entries are skipped by hit_test and drawn grey by ui_choice_popup_draw
+0x5bd778  ui_choice_popup_hover    data:int -                    O ; choice under the mouse stored by ui_choice_popup_handle_click, used by update_buttons and draw
+0x5bd77c  ui_choice_popup_flags    data:int -                    O ; bit 31 shown (ui_choice_popup_show), bit 30 clicked, cleared by ClearFrameFlag5bd77c and interface_init_global
 0x5bd780  ccmd_show_ui             data:console_command -                      O ; console command object "show_ui"
+0x5bd78c  ui_choice_popup_mouse_mode data:int -                    O ; 0 from ui_choice_popup_show, 1 after a press in handle_click, switched on by ui_choice_popup_frame
+0x5bd790  ui_color_dark_blue       data:uint8[4] -                    O ; Color (10,23,115,255) from init_color_5bd790, mana bar background
+0x5bd794  ui_color_disabled        data:uint8[4] -                    O ; Color (90,90,90,255) from init_color_5bd794, greyed entries in skills/spells lists and choice popups
+0x5bd798  ui_tooltip_x             data:int -                    O ; tooltip box x computed by ui_tooltip_set from game_mouse_x, drawn by ui_tooltip_draw
+0x5bd79c  ui_tooltip_y             data:int -                    O ; tooltip box y, drawn by ui_tooltip_draw
+0x5bd7a0  ui_color_gold            data:uint8[4] -                    O ; Color (212,165,51,255) from init_color_5bd7a0, gold amounts in buysell_draw and inventory_draw
+0x5bd7a4  ui_pulse_rgb_phase       data:float -                    O ; (sin(interface_pulse_time * k) + 1) / 2 from interface_pulse_update, added by ui_apply_pulse_rgb
+0x5bd7a8  ui_color_chain_message   data:uint8[4] -                    O ; Color (211,106,106,255) from init_color_5bd7a8, used by hud_draw_chain_message
+0x5bd7ac  ui_color_loading_bar     data:uint8[4] -                    O ; Color (36,121,28,255) from init_color_5bd7ac, cutscene_draw_loading and LoadingScreenDraw
+0x5bd7b0  ui_using_list_item       data:bool -                    O ; set by inventory_use_list_item_begin, cleared by ui_clear_pick_overrides, branch in world_mouse_frame
+0x5bd7b4  cursoricon_quest_bm      data:int -                    O ; bm_load("cursoricon-quest.vbm") result stored by interface_init_global
+0x5bd7b8  ui_color_panel_frame     data:uint8[4] -                    O ; Color (110,110,110,255) from init_color_5bd7b8, middle frame of ui_draw_panel_frame
+0x5bd7bc  ui_tooltip_text          data:char[64] -                    O ; text copied by ui_tooltip_set, drawn with gr_string by ui_tooltip_draw
+0x5bd7fc  ui_color_panel_inner     data:uint8[4] -                    O ; Color (0,0,0,255) from init_color_5bd7fc, inner frame of ui_draw_panel_frame
+0x5bd800  ui_tooltip_text_w        data:int -                    O ; tooltip text width added to the paddings for the ui_draw_text_box width
+0x5bd804  ui_tooltip_text_h        data:int -                    O ; tooltip text height added to the paddings for the ui_draw_text_box height
+0x5bd808  ui_color_highlight       data:uint8[4] -                    O ; Color (255,255,158,255) from init_color_5bd808, selected row / heading colour
+0x5bd80c  hud_message_timer        data:GameTimer -                    I ; GameTimer (init_gametimer_5bd80c) invalidated by interface_load_all, elapsed check in interface_frame, used by hud_draw_message
 0x5bd810  status_character         data:Character* -                    O ; character shown on the Character screen (status_draw_stats)
 0x5bd814  interface_cur_screen     data:int -                      I ; 0 = HUD (no menu)
+0x5bd818  interface_view_fov       data:float -                    O ; gr_get_view_fov result stored by interface_init_global, converted by gr_fov_to_vertical in interface_set_view_clip
+0x5bd81c  hud_chain_message_timer  data:GameTimer -                    O ; GameTimer (init_gametimer_5bd81c) set by hud_show_chain_message, checked by interface_draw and hud_draw_chain_message
+0x5bd820  ui_character_instance    data:uint8[204] -                    O ; character_instance object (init/dtor_character_instance_5bd820), zeroed (0x33 dwords) by interface_reset_state
+0x5bd8ec  ui_pending_use_skill     data:int -                    I ; skill or item action id stored by inventory_use_*_item_begin and character_use_skill, compared (>= 0x26) in interface_frame
+0x5bd8f0  ui_color_dark_green      data:uint8[4] -                    O ; Color (8,100,0,255) from init_color_5bd8f0, option sliders and level bar
+0x5bd8f4  ui_pulse_scale_phase     data:float -                    O ; (sin(interface_pulse_time * k) + 1) / 2 from interface_pulse_update, used by color_pulse_scale
+0x5bd8f8  ui_color_green           data:uint8[4] -                    O ; Color (11,226,11,255) from init_color_5bd8f8
+0x5bd8fc  ui_3d_lights             data:int[10] -                    O ; light_create_point handles appended by ui_3d_begin ([4*count]), released by ui_3d_end
+0x5bd924  ui_color_dark_red        data:uint8[4] -                    O ; Color (110,0,0,255) from init_color_5bd924, health bar background
+0x5bd928  ui_color_magenta         data:uint8[4] -                    O ; Color (190,80,190,255) from init_color_5bd928, chat_draw_lines
+0x5bd92c  cutscene_loading_progress data:int -                    O ; 0 from cutscene_begin_loading, set to the total by cutscene_loading_finish, numerator of the bar in cutscene_draw_loading
+0x5bd930  ui_message_box_mouse_mode data:int -                    O ; 0 from ui_message_box_show, 1 after a press in handle_click, switched on by ui_message_box_frame and update_buttons
+0x5bd934  cursoricon_incidental_bm data:int -                    O ; bm_load("cursoricon-incidental.vbm") result stored by interface_init_global
+0x5bd938  ui_color_text_box_bg     data:uint8[4] -                    O ; Color (0,0,0,196) from init_color_5bd938, translucent message box background (ui_draw_text_box, hud messages)
+0x5bd93c  ui_using_equipped_slot   data:int -                    O ; equipment slot stored by inventory_use_equipped_item_begin, passed by world_mouse_frame when ui_using_equipped_item is set
+0x5bd940  ui_3d_saved_max_lights   data:int -                    O ; lights_max_per_object saved by ui_3d_begin, restored with lights_set_max_per_object by ui_3d_end
+0x5bd944  ui_color_panel_shadow    data:uint8[4] -                    O ; Color (0,0,0,50) from init_color_5bd944, outer frame of ui_draw_panel_frame
+0x5bd948  ui_tooltip_visible       data:bool -                    O ; ui_tooltip_draw returns at once when 0
+0x5bd94c  cutscene_loading_bm      data:int -                    O ; bm_load result stored by interface_init_global, drawn by cutscene_draw_loading
+0x5bd950  interface_input_delay_timer data:int -                    O ; RealtimeTimer (init_realtimetimer_5bd950), 600 ms set by interface_start_input_delay and interface_mouse_drag_frame
+0x5bd954  ui_color_red             data:uint8[4] -                    O ; Color (191,0,0,255) from init_color_5bd954, unusable items and low stats
+0x5bd958  statscreen_saved_instance data:void* -                    O ; status_character +0x314 saved by statscreen_clone_instance (replaced by ui_character_instance), restored by statscreen_restore_instance
+0x5bd95c  message_popup_bkgrnd_bm  data:int -                    O ; bm_load(MessagePopupBkgrnd2640/1024.tga by ui_hires) in interface_init_global
+0x5bd960  ui_pick_screen_override_on data:bool -                    O ; set by inventory_use_*_item_begin and character_use_skill, cleared by ui_clear_pick_overrides, gate of ui_get_pick_screen_override
+0x5bd961  ui_pick_world_override_on data:bool -                    O ; set by inventory_use_*_item_begin and character_cast_spell, cleared by ui_clear_pick_overrides, gate of ui_get_pick_world_override
+0x5bd962  ui_input_locked          data:bool -                    I ; tested by interface_draw, interface_set_view_clip and interface_mouse_over_panel, written by ui_input_lock / ui_input_unlock
+0x5bd964  ui_3d_light_count        data:int -                    O ; lights created by ui_3d_begin (index of ui_3d_lights), released and reset to 0 by ui_3d_end
+0x5bd968  ui_model_lights_loaded   data:int -                    I ; tested by interface_frame and ui_load_model_lights, cleared by ui_model_lights_reset, read by ui_3d_begin
+0x5bd970  inventory_scroll_pos     data:int new_inventory.cpp    O ; first visible list row: 0 in inventory_init, changed by page/scroll/drag, row offset in inventory_handle_click
+0x5bd974  inventory_selected_equip_slot data:int new_inventory.cpp    I ; -1 from inventory_init/handle_click, converted with inventory_slot_for_item_slot by inventory_show_item_info
+0x5bd978  inventory_scrollbar_w    data:int new_inventory.cpp    O ; scrollbar width (bitmap width) set by inventory_update_scrollbar, hit-tested in inventory_handle_click
+0x5bd97c  inventory_scrollbar_h    data:int new_inventory.cpp    O ; scrollbar track height set by inventory_update_scrollbar, tiled in inventory_draw_scrollbar
+0x5bd980  inventory_cameras        data:uint8[] new_inventory.cpp    O ; item camera table loaded from "inv_cameras.tbl" by new_icam_load, new_icam_get in inventory_draw_item_model and draw_character
+0x5c0fa8  inventory_item_actions   data:int[5] new_inventory.cpp    O ; action ids offered for the selected item, filled by inventory_update_item_buttons, read by handle_click and inventory_popup_result
+0x5c0fbc  inventory_drag_start_thumb data:int new_inventory.cpp    I ; thumb offset stored by inventory_handle_click at drag start, added back by inventory_drag_scrollbar
+0x5c0fc0  inventory_row_count      data:int new_inventory.cpp    O ; rows in the list counted by inventory_count_unidentified, scroll limit in update_scrollbar, handle_click, page_down
+0x5c0fc4  inventory_identify_pending data:bool new_inventory.cpp    I ; cleared by inventory_handle_click, tested by inventory_identify_item, inventory_hover_tooltips and destroy_selected_item
+0x5c0fc8  inventory_saved_view_x   data:int new_inventory.cpp    I ; 0x25d8d5c saved by inventory_model_view_begin / inventory_preview_view_begin, restored by inventory_model_view_end
+0x5c0fcc  inventory_saved_view_y   data:int new_inventory.cpp    I ; 0x25d8d60 saved by inventory_model_view_begin / inventory_preview_view_begin, restored by inventory_model_view_end
+0x5c0fe4  inventory_mouse_mode     data:int new_inventory.cpp    O ; 0 idle, 1 button held, 2 dragging (0..5 switch in inventory_frame), set by inventory_handle_click
+0x5c0fe8  inventory_item_action_count data:int new_inventory.cpp    O ; entries of inventory_item_actions, reset and counted by inventory_update_item_buttons, loop bound in handle_click
+0x5c0fec  inventory_scrollbar_bm   data:int new_inventory.cpp    O ; bm_load result in inventory_load_bitmaps, tiled by inventory_draw_scrollbar
+0x5c0ff0  inventory_scrollbar_bm_w data:int new_inventory.cpp    O ; bm_get_dimensions width of the scrollbar bitmap in inventory_load_bitmaps
+0x5c0ff4  inventory_scrollbar_bm_h data:int new_inventory.cpp    O ; bm_get_dimensions height of the scrollbar bitmap, tile step in inventory_draw_scrollbar
+0x5c0ff8  inventory_selected_row   data:int new_inventory.cpp    O ; -1 from inventory_init/handle_click, added to inventory_scroll_pos by show_item_info, use_selected_item, identify_item
+0x5c0ffc  inventory_repeat_timer   data:int new_inventory.cpp    O ; RealtimeTimer (init_realtimetimer_5c0ffc) for the button auto-repeat in inventory_update_buttons
+0x5c1000  inventory_drag_start_y   data:int new_inventory.cpp    I ; game_mouse_y stored by inventory_handle_click at drag start, subtracted in inventory_drag_scrollbar
+0x5c1004  inventory_item_action_enabled data:bool[5] new_inventory.cpp    O ; per action flag set by inventory_update_item_buttons, passed to the choice popup by inventory_handle_click
+0x5c1009  inventory_scrollbar_visible data:bool new_inventory.cpp    O ; set by inventory_update_scrollbar when the list is longer than a page, inventory_draw_scrollbar returns when 0
+0x5c100c  inventory_paused_game    data:int new_inventory.cpp    O ; 6 in inventory_init plus the pause bit, inventory_leave unpauses when bit 1 is set
+0x5c1010  inventory_scrollbar_x    data:int new_inventory.cpp    O ; scrollbar x from the per-resolution table in inventory_update_scrollbar
+0x5c1014  inventory_scrollbar_y    data:int new_inventory.cpp    O ; scrollbar y from the per-resolution table in inventory_update_scrollbar
+0x5c1018  inventory_open_mode      data:bool new_inventory.cpp    I ; argument byte of inventory_init, selects the list contents in inventory_build_category, count_unidentified, handle_click, get_list_item
+0x5c1020  inventory_buttons        data:uint8[1080] new_inventory.cpp    O ; 45 runtime button states of 0x18 bytes (cmp 0x2d, "Inv-Bkgrnd") set by inventory_load_bitmaps, cleared in inventory_frame
+0x5c1458  inventory_action_strings data:char*[] new_inventory.cpp    O ; localize_strings pointers stored by init_strptrs_5c1458, [4*action] text of each inventory_item_actions entry in inventory_handle_click
+0x5c1470  item_info_popup_buttons  data:uint8[168] -                    O ; 7 runtime button states of 0x18 bytes ("ItemInfoPopupbkgrnd") set by item_info_popup_load_bitmaps, cleared in item_info_popup_frame
+0x5c1518  item_info_popup_visible  data:bool -                    O ; set by item_info_popup_setup, cleared by load_bitmaps and close, item_info_popup_frame returns when 0
+0x5c151c  item_info_popup_drag_start_thumb data:int -                    I ; thumb offset stored by item_info_popup_handle_click at drag start, added back by item_info_popup_drag_scrollbar
+0x5c1520  item_info_popup_line_count data:int -                    O ; text lines counted by item_info_popup_setup, scroll limit in update_scrollbar, page_down, scroll_down
+0x5c1524  item_info_popup_scrollbar_x data:int -                    O ; scrollbar x from the per-resolution table in item_info_popup_update_scrollbar
+0x5c1528  item_info_popup_scrollbar_y data:int -                    O ; scrollbar y from the per-resolution table in item_info_popup_update_scrollbar
+0x5c152c  item_info_popup_drag_start_y data:int -                    I ; game_mouse_y stored by item_info_popup_handle_click at drag start, subtracted in drag_scrollbar
+0x5c1530  item_info_popup_mouse_mode data:int -                    O ; 0 idle, 1 button held, 2 dragging: set by item_info_popup_setup/handle_click, dispatched by item_info_popup_frame
+0x5c1534  item_info_popup_item     data:void* -                    O ; item shown: set by item_info_popup_open_item or created by item_create in open_type, formatted by setup, freed by close
+0x5c1538  item_info_popup_source   data:int -                    O ; 2 from item_info_popup_open_item, 1 from open_type (created item), item_info_popup_close frees the item when bit 1 is set
+0x5c153c  item_info_popup_text     data:char* -                    O ; ring_format_info result stored by item_info_popup_setup, drawn by item_info_popup_draw_text
+0x5c1540  item_info_popup_pressed_button data:int -                    O ; -1 from item_info_popup_setup and handle_click, button auto-repeated by item_info_popup_update_buttons
+0x5c1544  item_info_popup_repeat_timer data:int -                    O ; RealtimeTimer (init_realtimetimer_5c1544) for the button auto-repeat in item_info_popup_update_buttons
+0x5c1548  item_info_popup_saved_view_x data:int -                    I ; 0x25d8d5c saved by item_info_popup_view_begin, restored by item_info_popup_view_end
+0x5c154c  item_info_popup_saved_view_y data:int -                    I ; 0x25d8d60 saved by item_info_popup_view_begin, restored by item_info_popup_view_end
+0x5c1550  item_info_popup_scrollbar_bm_w data:int -                    O ; bm_get_dimensions width of the scrollbar bitmap in item_info_popup_load_bitmaps
+0x5c1554  item_info_popup_scrollbar_bm_h data:int -                    O ; bm_get_dimensions height of the scrollbar bitmap, tile step in item_info_popup_draw_scrollbar
+0x5c1558  item_info_popup_scrollbar_bm data:int -                    O ; bm_load result in item_info_popup_load_bitmaps, tiled by item_info_popup_draw_scrollbar
+0x5c155c  item_info_popup_scrollbar_w data:int -                    O ; scrollbar width (bitmap width) set by item_info_popup_update_scrollbar, hit-tested in handle_click
+0x5c1560  item_info_popup_scrollbar_h data:int -                    O ; scrollbar track height set by item_info_popup_update_scrollbar, tiled in draw_scrollbar
+0x5c1564  item_info_popup_scrollbar_visible data:bool -                    O ; set by item_info_popup_update_scrollbar when the text is longer than a page, draw_scrollbar returns when 0
+0x5c1568  item_info_popup_scroll_pos data:int -                    O ; first visible line: 0 in item_info_popup_setup, changed by page_up/down and scroll, used by draw_text
+0x5c1570  itemtrade_party_hover_row data:int new_itemtrade.cpp    I ; -1 from itemtrade_handle_click, row under the mouse in itemtrade_party_handle_mouse, highlighted by draw_party_list
+0x5c1574  itemtrade_list1_hover_row data:int new_itemtrade.cpp    I ; -1 from itemtrade_handle_click, row under the mouse in itemtrade_list1_handle_mouse, highlighted by draw_list1
+0x5c1578  itemtrade_gold_entry     data:int[2] new_itemtrade.cpp    O ; pseudo party row {party_gold, name 0x5c1838} built by itemtrade_init, returned for row 0 by itemtrade_get_party_row
+0x5c1580  itemtrade_party_scroll_pos data:int new_itemtrade.cpp    O ; first visible party row: 0 in itemtrade_init, changed by party_page_up/down and scroll, used by update_scrollbar
+0x5c1584  itemtrade_scrollbar_w    data:int new_itemtrade.cpp    O ; scrollbar width (bitmap width) set by itemtrade_update_scrollbar, hit-tested in itemtrade_handle_click
+0x5c1588  itemtrade_scrollbar_h    data:int new_itemtrade.cpp    O ; scrollbar track height set by itemtrade_update_scrollbar, tiled in itemtrade_draw_scrollbar
+0x5c158c  itemtrade_drag_start_y   data:int new_itemtrade.cpp    I ; game_mouse_y stored by itemtrade_handle_click at drag start, subtracted in itemtrade_drag_scrollbar
+0x5c1590  itemtrade_gold_input_active data:bool new_itemtrade.cpp    O ; cleared by itemtrade_init and clear_gold_input, set by begin_gold_input, tested by interface_frame (screen 0x13) and handle_click
+0x5c1594  itemtrade_party_row_count data:int new_itemtrade.cpp    O ; party item count (0x97186c, plus the gold row) set by itemtrade_count_party_rows, scroll limit in update_scrollbar and page_down
+0x5c1598  itemtrade_buttons        data:uint8[672] new_itemtrade.cpp    O ; 28 runtime button states of 0x18 bytes (cmp 0x1c) set by itemtrade_load_bitmaps, cleared in itemtrade_frame
+0x5c1838  itemtrade_gold_item      data:int[2] new_itemtrade.cpp    O ; pseudo item record for gold, type (+4) = item_type_find("Gold") set by itemtrade_init, sent by mp_send_it_addi in itemtrade_submit_gold
+0x5c1848  itemtrade_scrollbar_bm   data:int new_itemtrade.cpp    O ; bm_load result in itemtrade_load_bitmaps, tiled by itemtrade_draw_scrollbar
+0x5c184c  itemtrade_scrollbar_bm_w data:int new_itemtrade.cpp    O ; bm_get_dimensions width of the scrollbar bitmap in itemtrade_load_bitmaps
+0x5c1850  itemtrade_scrollbar_bm_h data:int new_itemtrade.cpp    O ; bm_get_dimensions height of the scrollbar bitmap, tile step in itemtrade_draw_scrollbar
+0x5c1854  itemtrade_mouse_mode     data:int new_itemtrade.cpp    O ; 0..4 mouse state (1 button held, 2 dragging, 3 list drag) set by itemtrade_handle_click, dispatched by itemtrade_frame
+0x5c1858  itemtrade_repeat_timer   data:int new_itemtrade.cpp    O ; RealtimeTimer (init_realtimetimer_5c1858) for the button auto-repeat in itemtrade_update_buttons
+0x5c185c  itemtrade_drag_start_thumb data:int new_itemtrade.cpp    I ; thumb offset stored by itemtrade_handle_click at drag start, added back by itemtrade_drag_scrollbar
+0x5c1860  itemtrade_cursor_timer   data:int new_itemtrade.cpp    O ; RealtimeTimer (init_realtimetimer_5c1860), 500 ms gold input cursor blink in itemtrade_frame and handle_click
+0x5c1864  itemtrade_scrollbar_visible data:bool new_itemtrade.cpp    O ; set by itemtrade_update_scrollbar when the party list is longer than a page, draw_scrollbar returns when 0
+0x5c1868  itemtrade_list2_scroll_pos data:int new_itemtrade.cpp    O ; first visible row of list 2: 0 in itemtrade_init, changed by list2_scroll_up/down, used by draw_list2
+0x5c186c  itemtrade_pressed_button data:int new_itemtrade.cpp    O ; -1 from itemtrade_init and handle_click, button auto-repeated by itemtrade_update_buttons
+0x5c1870  itemtrade_scrollbar_x    data:int new_itemtrade.cpp    O ; scrollbar x from the per-resolution table in itemtrade_update_scrollbar
+0x5c1874  itemtrade_scrollbar_y    data:int new_itemtrade.cpp    O ; scrollbar y from the per-resolution table in itemtrade_update_scrollbar
+0x5c1878  itemtrade_gold_amount    data:int new_itemtrade.cpp    O ; typed gold amount (value*10 + digit in itemtrade_handle_click), 0 from itemtrade_init, sent by itemtrade_submit_gold
+0x5c187c  itemtrade_list1_scroll_pos data:int new_itemtrade.cpp    O ; first visible row of list 1: 0 in itemtrade_init, changed by list1_scroll_up/down, used by list1_handle_mouse and draw_list1
+0x5c1880  itemtrade_mouse_in_list  data:bool new_itemtrade.cpp    I ; point_in_rect result stored by itemtrade_list1_handle_mouse and party_handle_mouse, set with mode 3 by handle_click
+0x5c1881  itemtrade_cursor_on      data:bool new_itemtrade.cpp    O ; toggled when itemtrade_cursor_timer elapses in itemtrade_frame, set by handle_click and begin_gold_input, drawn by draw_gold_input
+0x5c1888  journal_desc_scroll_pos  data:int new_journal.cpp      O ; first visible description line: 0 in journal_select_quest, changed by desc page/scroll, limit check in handle_click
+0x5c188c  journal_desc_scrollbar_x data:int new_journal.cpp      O ; description scrollbar x from the per-resolution table in journal_update_desc_scrollbar
+0x5c1890  journal_desc_scrollbar_y data:int new_journal.cpp      O ; description scrollbar y from the per-resolution table in journal_update_desc_scrollbar
+0x5c1894  journal_selected_quest   data:int new_journal.cpp      O ; quest set by journal_select_quest (0 none), highlighted by journal_draw_quest_list, shown by journal_draw_description
+0x5c1898  journal_drag_start_y     data:int new_journal.cpp      I ; game_mouse_y stored by journal_handle_click at drag start, subtracted in journal_drag_scrollbar
+0x5c189c  journal_mouse_mode       data:int new_journal.cpp      O ; 0 idle, 1 button held, 2 dragging: set by journal_init/handle_click, dispatched by journal_frame
+0x5c18a0  journal_drag_start_thumb data:int new_journal.cpp      I ; thumb offset stored by journal_handle_click at drag start, added back by journal_drag_scrollbar
+0x5c18a4  journal_hover_quest      data:int new_journal.cpp      I ; 0 from journal_init and handle_click, compared with the row in journal_draw_quest_list for highlighting
+0x5c18a8  journal_list_scrollbar_size data:int[4] new_journal.cpp      O ; {w, h} per list scrollbar (stride 8) set by journal_update_list_scrollbar, hit-tested by handle_click, tiled by draw_list_scrollbar
+0x5c18b8  journal_pressed_button   data:int new_journal.cpp      O ; -1 from journal_init and handle_click, button auto-repeated by journal_update_buttons
+0x5c18bc  journal_repeat_timer     data:int new_journal.cpp      O ; RealtimeTimer (init_realtimetimer_5c18bc) for the button auto-repeat in journal_update_buttons
+0x5c18c0  journal_buttons          data:uint8[456] new_journal.cpp      O ; 19 runtime button states of 0x18 bytes ("QstJrn-Bkgrnd") set by journal_load_bitmaps, cleared in journal_frame
+0x5c1a88  journal_scrollbar_bm     data:int new_journal.cpp      O ; bm_load result in journal_load_bitmaps, tiled by journal_draw_list_scrollbar and journal_draw_desc_scrollbar
+0x5c1a8c  journal_desc_scrollbar_w data:int new_journal.cpp      O ; description scrollbar width (bitmap width) set by journal_update_desc_scrollbar, hit-tested in handle_click
+0x5c1a90  journal_desc_scrollbar_h data:int new_journal.cpp      O ; description scrollbar track height set by journal_update_desc_scrollbar, tiled in draw_desc_scrollbar
+0x5c1a94  journal_list_scrollbar_visible data:bool[2] new_journal.cpp      O ; per list scrollbar, cleared by journal_update_list_scrollbar, tested by journal_draw_list_scrollbar
+0x5c1a98  journal_drag_scrollbar_index data:int new_journal.cpp      O ; scrollbar being dragged, -1 from journal_init and handle_click, selects the arrays in journal_drag_scrollbar
+0x5c1a9c  journal_paused_game      data:int new_journal.cpp      O ; 6 in journal_init plus the pause bit, journal_leave unpauses when bit 1 is set
+0x5c1aa0  journal_list_scroll_pos  data:int[2] new_journal.cpp      O ; scroll position per list, [4*i] in journal_update_list_scrollbar, handle_click, list_page_up/down
+0x5c1aa8  journal_scrollbar_bm_w   data:int new_journal.cpp      O ; bm_get_dimensions width of the scrollbar bitmap in journal_load_bitmaps, scrollbar width of both lists
+0x5c1aac  journal_scrollbar_bm_h   data:int new_journal.cpp      O ; bm_get_dimensions height of the scrollbar bitmap, tile step in journal_draw_list/desc_scrollbar
 0x5f9610  ccmd_Ignore_tutorial     data:console_command -                      O ; console command object "Ignore_tutorial"
 0x5f9625  Ignore_tutorial          data:bool -                      O ; set by console command "Ignore_tutorial" (toggles); type from the TOGGLE callback (xor byte 1)
 0x5f9e38  ccmd_save_map_labels     data:console_command -                      O ; console command object "save_map_labels"
