@@ -169,7 +169,7 @@ const char *offense_point_names[10] = {       // 0x59614c (offense_point_name)
 char rosalind_char_buffer[0x2f800];           // 0x65e9a4
 void *joseph_anim_buffer;                     // 0x68e1a4
 int joseph_anim_buffer_size;                  // 0x68e1d4
-int characterinfo_anim_slot_count;            // 0x68e1f4 entries of charinfo_cast_spells in use
+int charinfo_cast_spells_used;            // 0x68e1f4 entries of charinfo_cast_spells in use
 void *statscreen_anim_buffer;                 // 0x68e1f8
 int charinfo_anim_mem_total;                  // 0x68e1fc the four hero anim blocks (written only)
 char jekhar_model_buffer[0x49c00];            // 0x68e20c
@@ -698,7 +698,7 @@ StringPool charinfo_script_anim_pool(charinfo_script_anim_pool_buffer, sizeof(ch
 // twice (once per level, as in the binary); `m->category == 4 && m->id == 0x82` repeats the category
 // test (the `cmp eax, eax` at 0x444bff). Side effect: on masad (not masad_v2), Liangshan and JadeTemple
 // m->anim is set to 1 before the name tests.
-int move_used_on_level(char_info *info, move_info *m, bool full_set)
+int move_skip_on_level(char_info *info, move_info *m, bool full_set)
 {
     int c;
 
@@ -834,7 +834,7 @@ void characterinfo_load_party(int path_id)
         prev = m;
     }
     move_info_free_list = prev;
-    characterinfo_anim_slot_count = 0;
+    charinfo_cast_spells_used = 0;
     for (s = species_table; s < &species_table[NUM_SPECIES_TABLE]; s++) {
         if (s->load == 1) {
             sprintf(filename, "%s.tbl", s->name);
@@ -846,7 +846,7 @@ void characterinfo_load_party(int path_id)
     for (i = 0; i < num_char_infos; i++) {
         info = &char_infos[i];
         info->num_cast_spells = 0;
-        info->cast_spells = &charinfo_cast_spells[characterinfo_anim_slot_count];
+        info->cast_spells = &charinfo_cast_spells[charinfo_cast_spells_used];
         if (species_is_hero(info->species) || species_is_boss(info->species))
             continue;
         for (m = (move_info *)info->moves[MOVE_TYPE_CAST]; m; m = m->next) {
@@ -854,7 +854,7 @@ void characterinfo_load_party(int path_id)
             if (spell != -1) {
                 info->cast_spells[info->num_cast_spells] = spell;
                 info->num_cast_spells++;
-                characterinfo_anim_slot_count++;
+                charinfo_cast_spells_used++;
             }
         }
     }
@@ -1744,14 +1744,14 @@ void characterinfo_load_party_anims(char_info *info, int anim_class, bool load_s
 }
 
 // 0x447780  Confidence: exact. Adds the move's skeleton (state skeletons for "state" moves) unless
-// move_used_on_level says skip, loads its sound (not for the ids 0x92-0x95) and the triggers of state
+// move_skip_on_level says skip, loads its sound (not for the ids 0x92-0x95) and the triggers of state
 // moves (frames: the time * 30.000002, constant 0x5818f4).
 void charinfo_load_move_anim(char_info *info, ca_character *ca, move_info *m, bool load_sounds, int anim_folder,
                              bool full_set)
 {
     int i;
 
-    if (move_used_on_level(info, m, full_set))
+    if (move_skip_on_level(info, m, full_set))
         return;
     m->anim = ca->add_skeleton(m->anim_file, m->action, m->category == MOVE_TYPE_STATE, anim_folder, true, false);
     if (load_sounds && m->id != 0x92 && m->id != 0x93 && m->id != 0x94 && m->id != 0x95)

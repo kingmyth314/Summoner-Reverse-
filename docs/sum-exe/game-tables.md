@@ -15,7 +15,7 @@ Each was checked against at least one record in a runtime dump where noted.
 | `items.tbl` | `items_parse_table` (`0x44a090`) | allocated per item type; an item's `+0x4` points at it | `ItemType` (checked: Short Sword, Tunic) |
 | `materials.tbl` | `materials_parse_table` (`0x449f60`) | `materials` (`0x8b9d4c`), 17 x 20 bytes | `material` |
 | `spells.tbl` | `spells_parse_table` (`0x47a190`) | `spells` (`0x22e4f28`), 108 x 0x80 bytes | `spell_info` |
-| character info (`$Character:`) | `characterinfo_parse_table` (`0x4452f0`) | `char_infos` (`0x6d7e50`), 0x3d0 bytes each, count `num_char_infos` | `char_info` |
+| `<species>.tbl`, one per character type (`#Character Info`) | `characterinfo_parse_table` (`0x4452f0`) | `char_infos` (`0x6d7e50`), at most 256 x 0x3d0 bytes, count `num_char_infos` (`0x714e54`); moves in `move_infos` (`0x7e12e8`), 3250 x 0x4c bytes | `char_info`, `move_info` |
 | `experience.tbl` | `experience_parse_table` (`0x489930`) | `xp_level_table` (`0x2305420`), 0x18 bytes per level | (first field checked in game) |
 
 ## How the offsets are read
@@ -36,7 +36,70 @@ displacements are then negative and need that base added.
 - **Spells:** class (heal, dark, energy, holy, fire, ice, summon, misc), cost, skill, hit chance, durations and
   timings, distance, damage type, target radius.
 - **Character info:** HP/AP, experience awarded for a kill (`+0x2c`), level, damage, team, size, the four
-  direction skills, AI ranges and turn rates, intelligence, icon height, drops.
+  direction skills, AI ranges and turn rates, intelligence, icon height, drops. The moves are separate
+  records (see [Character info and moves](#character-info-and-moves)).
+
+## Character info and moves
+
+**Loading (observed).** `characterinfo_load_party` (`0x4450c0`) runs once per session (`charinfo_party_loaded`,
+`0x8b50b1`). It walks `species_table` (`0x580e60`, 223 entries of 12 bytes: name, species id, load byte). For
+each entry whose load byte is 1 it parses `"<name>.tbl"` in lower case (`0x4451e6`..`0x445228`). In v1.40
+that is 160 files. Their 63 `+Alternate character:` lines add copies, so 223 of the 256 records are used
+(counted in the retail `tables.vpp`). A copy is the whole 0x3d0-byte record (`rep movsd`, 0xf4 dwords) with
+its own name, resistances and texture entry. It shares the base record's move lists, and `+0x270` points
+back at the base record.
+
+Each file starts with `#Character Info`. All `$Character:` blocks of one file go into the same record:
+the record pointer is taken once, before the loop. Every retail file has one block.
+
+**Fields not listed elsewhere (observed).**
+
+| Offset | Field |
+|---|---|
+| `+0x04c` | 16 move list heads, one per move type (`move_type_names` `0x596064`: attack, special attack, parry, dodge, flinch, non-combat flinch, death, cast, movement, misc, transition, ranged attack, emerge, banish, state; list 15 holds the run-time script anims) |
+| `+0x094` | `$Skill:` values, 0x54 bytes by skill id (zeroed, then speed = 10) |
+| `+0x0e8` | up, down, right, left skill bytes (`0x55` = none) |
+| `+0x0f8` | seven resistance levels from `+Resistances:` (default 2, standard; `characterinfo_parse_resistances` `0x446930`) |
+| `+0x19c` / `+0x21c` | count and pointer of the record's spell list: the spells of its "cast" moves (`spell_find_by_cast_id` of the variation), in `charinfo_cast_spells` (`0x88904c`); filled only for records that are neither heroes nor bosses (`0x44524d`..`0x4452c1`) |
+| `+0x274` | `+Drop:` count; only the first 5 lines are kept (`cmp eax, esi` with `esi = 5`, `0x446420`) although the arrays hold 17 |
+| `+0x300` | `+Multiplayer Drop:` count, at most 17 (`cmp eax, 0x11`, `0x4464c4`) |
+
+**Moves (observed).** Each `+Move:` takes a 0x4c-byte record from a free list (`characterinfo_add_move`
+`0x446740`, "Move_info array is full" when the 3250 run out) and pushes it on the head of its type's list.
+So a list runs from the last move in the file to the first, and a lookup finds the last matching move.
+
+| Offset | Field | Line |
+|---|---|---|
+| `+0x00` | action name (also the skeleton name) | `$Action:` |
+| `+0x04` | anim file | `$Animation:` |
+| `+0x08` | skeleton index, -1 while not loaded | |
+| `+0x0c` | weapon class bits (`anim_class_names` `0x598fa0`: none, swords, large swords, maces, staves, pole arms, bows, crossbows, daggers); default 1, none | `+Animation class:` |
+| `+0x10` | move type | `+Move:` |
+| `+0x14` | variation (`variation_names` `0x595cf8`, 194 names) | `$Variation:` |
+| `+0x18` | location (low, medium, high) | `$Location:` |
+| `+0x1c` | three `{event, time}` triggers; time = frame / 30 | `$Trigger:` |
+| `+0x34` | sound reference | `$Sound:` |
+| `+0x40` | next move in the list | |
+| `+0x44` | contact tag | `$Contact tag:` |
+| `+0x48` | effect | `$Effect:` |
+
+**Hurt moves are dropped (observed).** Right after each move is parsed, a record that is not a boss
+(`species_is_boss` `0x4a14f0`) unlinks and frees the move if its variation is one of the ten names at
+`0x596000`: stand_to_ready_hurt, ready_to_stand_hurt, stand hurt, ready hurt, walk hurt, run hurt, norm walk
+hurt, norm run hurt, turn left, turn right (`0x44631a`..`0x446372`). The heroes are not bosses, so they lose
+theirs too. In the retail tables this drops 354 of the 3302 `+Move:` blocks from 65 records (among them all four
+heroes, Alligator Beast, Aoqi, the bacites and the Orenian soldiers), leaving 2948 records in use. Only the
+boss records keep such moves (Tiger Rider, Phoenix Rider, Serpent Rider, Tentacle Beast, Evil Joseph).
+*Inferred:* the hurt locomotion slots of every other character fall back to the normal anims (see
+[Characters](characters.md#character-fields)).
+
+**Other effects of the move list (observed).** A record with no "tripped lie down" state move (variation
+`0x8f`) gets char_info flag `0x8`, cannot be tripped; one with no "pushed" misc move (`0x91`) gets `0x10`,
+cannot be pushed (`0x44638a`..`0x4463cc`).
+
+**Limits not checked (observed).** `$Default Weapon:` fills a two-entry array with no bound (`0x44583f`).
+`$Trigger:` fills the three trigger slots with no bound (`0x4462e0`..`0x446318`). The retail tables never
+exceed either limit. See [Bugs in the original game](game-bugs.md).
 
 ## Materials (`materials.tbl`)
 
@@ -174,3 +237,10 @@ Empty cells are not set in the table.
 | 105 | Water Dragon | misc | 50 | 6 |  |  | ice |
 | 106 | Four Winds Dragon | misc | 50 | 6 |  |  | energy |
 | 107 | Forest Dragon | misc | 50 | 6 |  |  |  |
+
+## Changes (2026-10-15)
+
+- The character info row now names the files (`<species>.tbl`), the 256-record limit and the move records.
+- New section [Character info and moves](#character-info-and-moves): how the tables load, the move record
+  layout, the dropped hurt moves (354 of 3302 in the retail tables), the drop limits and the unchecked
+  `$Default Weapon:` and `$Trigger:` counts. Checked against the disassembly and the retail `tables.vpp`.

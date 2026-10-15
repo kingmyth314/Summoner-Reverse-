@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 108 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 117 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 17 | 2 |
-| Gameplay | 20 | 8 | 3 |
+| Crash or hang | 3 | 21 | 2 |
+| Gameplay | 21 | 10 | 3 |
 | Cosmetic | 24 | 6 | 2 |
-| Invisible | 8 | 22 | 0 |
+| Invisible | 10 | 22 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -58,6 +58,10 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C51 | Latent: the OpenGL renderer crashes at start-up on a driver without `GL_ARB_multitexture` | `gl_init_multitexture` `0x54f370`, `gl_setup_multitexture_state` `0x54ffa0` | **Observed** code, *inferred* crash | No |
 | C52 | Latent: in the Khosani lab's room 4, a missing prisoner makes the script write into the event-name pool | `ls_khosanilab_room4_frame` `0x4f8d70` | **Observed** code and retail data, *inferred* effect | No |
 | C53 | Latent: a world map without `$hills`, forest or grass navpoints crashes the stage 4 to 8 encounter roll | `ls_worldmap1_pick_encounter_stage4` `0x4fc4b0` | **Observed** code, *inferred* crash | No |
+| C70 | Latent: opening the Character screen while Rosalind wears heavy body armour crashes, because she has no heavy stat-screen animation | `statscreen_load_anim` `0x448f60` | **Observed** code and retail data, *inferred* crash | No |
+| C71 | Latent: in a town, a character type with a hide or cloaked state move but no "stand" state move crashes while its animations load | `charinfo_remap_town_moves` `0x447850` | **Observed** code and retail data, *inferred* crash | No |
+| C72 | Latent: a move with more than three `$Trigger:` lines overwrites its sound reference, and from the fifth trigger on its move list link | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
+| C73 | Latent: a translated chain skill name of more than about 60 characters overflows the "%s learned %s!" message on the stack | `character_learn_chain_skill` `0x449650` | **Observed** code and retail data, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -183,6 +187,33 @@ is strictly nearer (`0x4fc685`..`0x4fc6c2`). With no terrain navpoint nearer tha
 
 None.
 
+**C70. No NULL check after the move search.** `statscreen_refresh_anim` (`0x412e50`) asks for the heavy
+version when the item in equipment slot 7 has slot type 8, "heavy" (`cmp dword ptr [eax+0x1c], 0x8` at
+`0x412ee8`). `statscreen_load_anim` walks the state list for variation `0x9f` ("statscreen heavy") and
+leaves `m` NULL when there is none. It then reads `m->anim` for the party member (`mov ebx, [ebx+0x8]` at
+`0x4490dc`). The multiplayer branch does the same with the result of `charinfo_find_move(info, 0xe, 0x9f, 0)`.
+Joseph, Jekhar and Flece have both stat-screen moves; Rosalind has only "statscreen light". All 48 heavy
+items in `items.tbl` are `+Restricted:` to Joseph, Flece and Jekhar, so no retail item triggers it.
+
+**C71. The town remap does not check its source.** In a town, or in templeint without the full set,
+`charinfo_remap_town_moves` points the state moves hide, ready hurt, hide_ready, ready_to_cloaked,
+cloaked_to_ready, cloaked_ready and cloaked_sneak at the anim of `charinfo_find_move(info, 0xe, 0x92, 1)`,
+"stand". The result is used without a test (`mov ecx, [eax+0x8]` at `0x447af8`). The function returns
+early only when the record has no movement move of variation 1. In the retail tables the only record with
+such state moves and no "stand" is Serpent Rider, which has no movement variation 1 move.
+
+**C72. No bound on the triggers.** `$Trigger:` lines fill `move_info +0x1c` in 8-byte steps with no
+counter (`0x4462e0`..`0x446318`). A fourth trigger lands on the sound reference at `+0x34` (name and
+handle), which was parsed just before. A fifth reaches `+0x3c` and the list link at `+0x40`, so the next
+walk of that move list follows a float as a pointer. No retail move has more than three triggers.
+
+**C73. Fixed message buffer.** The message is built with `sprintf` at `[esp+0x60]` (`0x4497d8`). The frame
+is 0xa0 bytes (`sub esp, 0xa0` before the three register pushes), so the buffer has 76 bytes before the
+return address. The name comes from
+`character_get_display_name` (at most 8 characters for the heroes), the skill name from
+`localize_string_or_invalid`. The longest retail chain skill names are 19 (English, "Chain Stamina
+Burst"), 13 (German) and 17 (French) characters. It needs a modded `strings.tbl`.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -215,6 +246,9 @@ None.
 | G51 | Latent: once the 1000 path nodes run out, every failed path search keeps its nodes until the next level load | `pf_graph_search` `0x49fa70` | **Observed** code, *inferred* effect | No |
 | G52 | Latent: a path to a goal outside the walkable area usually fails instead of ending at the area's edge | `pf_find_cell_crossing` `0x49ecb0` | **Observed** code, *inferred* effect | No |
 | G60 | Latent: when the chat server connection fails at once (any error except "would block"), the multiplayer lobby never reports it, retries every frame and opens a new socket each time | `irc_connect` `0x4abc10` | **Observed** code, *inferred* effect | No |
+| G70 | If a cutscene starts while a summon is still waiting to emerge, every later summon of that creature type ends its emerge at once, until the game is closed | `summon_stash_for_cutscene` `0x448000` | **Observed** code, *inferred* effect | No |
+| G71 | Latent: a misspelled `$Skill:` name in a character table overwrites the record's up-direction skill; a misspelled direction skill becomes id `0x54`, past the skill table | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data | No |
+| G72 | Latent: a character with more than two `$Default Weapon:` lines gets wrong materials on its first weapons and, from the eighth line on, junk weapons | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -444,6 +478,35 @@ The usual failures still get through: a refused or timed-out connection shows up
 connecting socket (`0x4abea7`..`0x4abed4`). Only an immediate error (no route to the host, an address that cannot
 be used, a firewall that rejects the call) takes this path. PXO's chat servers are gone, so this needs a
 replacement server. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**G70. The shared move record is edited.** When the summon has not yet started its emerge (object flag bit
+0 clear, AI not in mode 6), `summon_stash_for_cutscene` starts it with `ai_begin_emerge` (`0x448068`),
+which plays the emerge move and stores its start time (`character_play_move`, `0x461005`). It then
+fast-forwards the anim and subtracts `character_move_trigger_time_left(id) + 0.1` from each of the three
+trigger times (`fsubr`/`fstp [esi-0x8]` at `0x4480c4`..`0x4480c7`). The record is `cur_move`, the move in
+`move_infos` that every character of that char_info (and its alternates) shares. The tables load once per
+session, so the edit lasts until the game exits. Elapsed time is 0 at this point, so each trigger becomes
+about -0.1 s. A later stash of the same type subtracts 0, so the times do not drift further (the note's
+"shifts again" does not hold). `summon_emerge_update` (`0x4b4660`) ends the emerge when the move is finished
+or trigger 6, "critical end", has fired (`0x4b46e9`..`0x4b4701`). *Inferred:* with that trigger at -0.1 s,
+each later summon of that creature leaves its emerge state on the first update instead of at frame 80 to
+499 (for example the Golem's 304). The window is the delay before the emerge (`ai_frame` waits for the
+GameTimer at `ai_state +0x1a0`, `0x472c38`), so it needs a cutscene trigger right after a summon is cast.
+
+**G71. Search end used as an index.** The skill name search stops at the count, 84 (`cmp esi, 0x595cb4` at
+`0x445d93`), and the value is stored at `[edi+ebp+0x94]` (`0x445dad`). `skill` is 0x54 bytes
+(`mov ecx, 0x15; rep stosd` at `0x445bad`), so index 84 is `+0xe8`, the up skill. The four direction lines
+store the same 84 when the name is unknown (`0x445c13`). Id 84 is past `skill_table` and reads
+`resistance_level_names` (`0x8b5098`) as its first fields. Every skill name in the retail tables matches.
+
+**G72. No bound on the default weapons.** `$Default Weapon:` indexes `char_info +0x116` (two shorts) and
+`+0x11c` (two materials) by the running count `+0x114` with no compare (`0x44583f`, `0x44587e`..`0x44589c`).
+The third line writes the padding at `+0x11a` and `+0x124`. The fourth to seventh write their item indices
+over the two materials already stored at `+0x11c`/`+0x120`. Materials from the third line on land in
+`+0x124`..`+0x168`, which the prop tag code resets afterwards (`0x445b07`..`0x445b26`: prop tag 0x11, tag
+names 0). So weapons 8 and 9 read back as item types 0x11 and 0, and later ones as 0. `living_entity_init`
+creates one item per counted weapon (`0x44e8e9`..`0x44e911`). No retail record has more than two
+`$Default Weapon:` lines.
 
 ## Cosmetic
 
@@ -724,6 +787,8 @@ against 4 and 12, probably MB (`gr_glide_init` `0x549e5d`..`0x549ea2`). Direct3D
 | V51 | `gr_opengl_setup_view` looks at the forward vector instead of eye + forward and uses a near plane of 0 | `gr_opengl_setup_view` `0x550500` | **Observed**; no caller |
 | V60 | Latent: Direct3D reports its video memory in bytes, so the start-up check that lowers texture quality on cards with 8 MB or less never fires | `gr_d3d_init_device` `0x5395c0`, `gr_d3d_get_video_memory_mb` `0x53aaf0` | **Observed** code |
 | V61 | Latent: the DirectDraw driver list stops after the first driver, so only the primary display driver's Direct3D devices are ever listed | `d3d_ddraw_enum_callback` `0x5389f0` | **Observed** code |
+| V70 | Five hero moves inherit weapon-class bits from a dropped hurt move, so their anims also load for those weapon classes | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data |
+| V71 | On masad (not masad_v2), Liangshan and JadeTemple, the rider moves that are skipped keep skeleton index 1 instead of -1 | `move_used_on_level` `0x444bb0` | **Observed** code, *inferred* effect |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -900,6 +965,30 @@ Direct3D mode anyway (`0x539e73`..`0x539ec4`). With the enumeration continuing, 
 device and the game would quit with message 943, so the early stop has no bad effect we know of. Direct3D only.
 Found in the `NOTES-gr-direct3d.md` notes.
 
+**V70. Bits ORed into a recycled record.** `+Animation class:` does `or ebx, edx` into `move_info +0xc`
+(`0x44618d`..`0x4461a4`) and never clears it; only a move without the line gets a fresh 1 (`0x4461b2`). The
+hurt-move drop frees the record at once (`0x44635f`), and the next `+Move:` gets the same record back from
+the free list. Replaying the load order over the retail tables gives five such moves:
+
+- Joseph's staff stand_to_ready (`josp_stv_stand_to_ready.mvf`) also gets pole arms;
+- Rosalind's staff trip (`rosl_trip.mvf`) also gets swords, bows, crossbows and daggers;
+- Rosalind's sword ready (`rosl_swd_ready.mvf`) also gets bows and crossbows;
+- two Flece hurt transitions get bows, but they are dropped themselves.
+
+In each case a later move of the same variation with the right class is nearer the list head, so
+`charinfo_find_move` and `charinfo_find_anim` still pick the right anim. The trip and stand moves are not
+attack variations 1-5, so `charinfo_collect_moves` does not see them. What remains is that
+`characterinfo_load_party_anims` loads the extra anim into the hero's pool for those classes (the class test at
+`0x4475fd`..`0x447601`).
+
+**V71. Store before the test.** On these levels `move_used_on_level` writes `m->anim = 1`
+(`mov dword ptr [esi+0x8], 0x1` at `0x444db3` and `0x444fb8`) before its anim-name tests. When a test
+then skips the move (serp_, ghrd_, tigr_ and phnx_ stage anims), `charinfo_load_move_anim` returns without
+loading, and the move keeps 1. The earlier skip tests (low parry and flinch, non-combat flinch, towns) return
+before the store and keep -1. *Inferred:* the rider records are not heroes, so the loaded-only lookups ignore
+`anim` for them. A lookup by skeleton index (`charinfo_find_move_any`, used by the level script actions) could
+return a skipped move for skeleton 1; this was not traced.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -984,6 +1073,14 @@ the tables above; the rest are below.
 - Direct3D device choice: skipping hardware T&L devices and taking the last remaining one (the HAL when there is one, else the software device) is deliberate (see V61). Not counted.
 - `gr_d3d_read_backbuffer` returning format 3 and the reversed depth test on non-S3 cards: already noted on the page or design choices (the depth test is set on purpose per vendor, `0x539ed6`..`0x53a016`).
 
+- B7 `species_is_hero` has no lower bound (`cmp ecx, 0x3; setle al` at `0x449a26`): every species id in `species_table` (`0x580e60`) is 0 to 225 and `characterinfo_parse_name` only takes ids from it, so no negative species reaches it.
+- B8 console command `charinfo` does nothing: `init_ccmd_charinfo` registers `empty_function` (`0x4f13e0`, `0x449bb0`). Its help text promises a dump; like the other empty commands it looks like a debug feature compiled out. Not counted.
+- B10 the hurt-drop loop reads `m->id` after `move_info_free`: the free only writes `+0x40` (`0x446770`), and the ten names are distinct, so no second match and no second unlink.
+- B6 first part, `+Drop:` keeps 5 of 17: a compare against 5 (`0x446420`), no overrun. No retail record has more than five `+Drop:` lines. `+Multiplayer Drop:` stops at 17, the array size (`0x4464c4`).
+- B3 second part, `statscreen_unload_anim` without a NULL check (`0x44917d`): it runs only when `Character +0x5f0` is not -1 (`0x412e76`). The stat-screen moves have no class line (class 1), and every hero mask includes bit 0 (`mask |= 1` in `characterinfo_load_party_anims`), so the loaded light or heavy move is always found. A weapon-class reload resets `+0x5f0` through `character_reinit_anims` and `character_fill_locomotion_anims`.
+- The hurt-move drop itself (`0x44631a`..`0x446372`): an explicit list of ten names, applied to every non-boss record. It drops 354 of 3302 retail moves, but it reads as a design choice, not a slip. Not counted; documented in game-tables.md.
+- B2 for heroes in multiplayer (move_used_on_level skips their "stand" move there, so the loaded-only lookup would fail): *inferred* unreachable, since `level_is_town` is forced to 0 with flag 2 and multiplayer loads the full set, so the templeint branch does not run either.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1020,6 +1117,9 @@ the tables above; the rest are below.
 - K61: that dropped items reach `gr_d3d_render_character_mesh` / `gr_opengl_render_character_mesh` through `ca_render_set_mesh` (`0x4862b7`) was read from `levelrender_draw_list`, not traced per object type. The Glide mesh path (`0x50bba3`) and level geometry (`levelrender_face_vertex_colors` `0x48fa11`) were not checked for the same conversion.
 - K63: the intended shape (a cylinder of radius R inside a sphere of radius 2R) is a guess from the two tests.
 - `mp_write_spell_targets` sending `target[0..1]` of modes other than 4 and 5 as local handles (notes, last bullet): not checked in this batch.
+- `statscreen_unload_anim` leaves the freed light move's `anim` set (no store to `+0x8` after `character_free_skeleton`, `0x449194`). After light, then heavy, the next unload finds the stale light move first and frees its index. `character_free_skeleton` lowers the skeleton count when it frees the last slot (`0x540bf5`..`0x540bfd`), so the heavy anim normally gets the same index and the right skeleton is freed. Whether anything adds a skeleton to a hero between two Character screen visits without a full anim reload was not traced.
+- `character_fill_locomotion_anims` fills walk_hurt from norm_walk and norm_walk_hurt from walk (also run_hurt from norm_run, norm_run_hurt from run; `0x46b0b6`..`0x46b125`), while stand_hurt takes stand and ready_hurt takes ready. Non-boss characters always use these fallbacks. Whether the crossing is intended depends on which slot a hurt character uses; not traced.
+- V71: whether any script action or boss stage ever plays skeleton 1 through a skipped rider move.
 
 ## Evidence
 
@@ -1135,3 +1235,15 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K64 OpenGL 8 MB | `summoner_cfg_load` `0x43e2e0`, `0x43e32e`, `0x43e366`..`0x43e376`; `gr_get_video_memory_mb` `0x507a03`; `options_apply_detail` `0x4872d0`..`0x4872dc`; `options_apply_and_save` `0x41faa3` |
 | V60 bytes | `gr_d3d_init_device` `0x539f6a`..`0x539fab`, `0x53a01b`..`0x53a04d`; `gr_d3d_get_video_memory_mb` `0x53aaf0`; `gr_get_video_memory_mb` `0x507a0e`; `summoner_cfg_load` `0x43e36c`..`0x43e376`; `gr_glide_init` `0x549ea2` |
 | V61 enumeration | `d3d_ddraw_enum_callback` `0x538a02`, `0x538a58`..`0x538a61`; `d3d_enumerate_ddraw_devices` `0x538867`, `0x538884`..`0x5388f6`, `0x538907`..`0x538914`; `d3d_enum_devices_callback` `0x53892c`; `gr_d3d_init_device` `0x539e73`..`0x539ec4` |
+| C70 stat-screen heavy NULL | `statscreen_refresh_anim` `0x412edb`..`0x412ef9`; `statscreen_load_anim` loop `0x449044`..`0x44907a`, read `0x4490dc`; retail `Rosalind.tbl` (no "statscreen heavy"), `items.tbl` (48 heavy items, none for Rosalind) |
+| C71 town remap NULL | `charinfo_remap_town_moves` `0x447ab2`..`0x447af8` |
+| C72 trigger bound | `characterinfo_parse_table` `0x4461da`..`0x4461ee` (sound parsed first), `0x4462bb`..`0x446318` (triggers) |
+| G72 default weapon bound | `characterinfo_parse_table` `0x4457fb`..`0x4458b3`, `0x445b07`..`0x445b26`; `living_entity_init` `0x44e8e9`..`0x44e911` |
+| C73 chain message buffer | `character_learn_chain_skill` `0x449650` (`sub esp, 0xa0`), `0x4497ac`..`0x4497d8`; `strings.tbl` ids 7-32 in three languages |
+| G70 emerge triggers | `summon_stash_for_cutscene` `0x448038`..`0x4480ca`; `character_move_trigger_time_left` `0x461670`; `character_play_move` `0x460ff6`, `0x461005`; `summon_emerge_update` `0x4b46df`..`0x4b4701`; `ai_frame` `0x472c1f`..`0x472c45` |
+| G71 unknown skill name | `characterinfo_parse_table` `0x445ba7`..`0x445bb7`, `0x445be9`..`0x445c1b`, `0x445d71`..`0x445dad`; `skill_names` count `0x595cb4` = 0x54 |
+| V70 recycled class bits | `characterinfo_parse_table` `0x4460fb`, `0x44617d`..`0x4461b2`, `0x446354`..`0x44635f`; `characterinfo_add_move` `0x446740`; `characterinfo_load_party_anims` `0x4475ec`..`0x447601`; retail `Joseph.tbl`, `Rosalind.tbl`, `Flece.tbl` replayed in `species_table` order |
+| V71 anim = 1 | `move_used_on_level` `0x444db3`, `0x444fb8`; `charinfo_load_move_anim` `0x447792` |
+| B7 species ids | `species_is_hero` `0x449a20`; `species_table` `0x580e60`..`0x5818d4` |
+| B8 empty command | `init_ccmd_charinfo` `0x449bb0` |
+| B3 unload guard | `statscreen_refresh_anim` `0x412e76`; `statscreen_unload_anim` `0x449149`..`0x44917d` |

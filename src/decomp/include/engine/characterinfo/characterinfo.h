@@ -384,7 +384,7 @@ extern StringPool charinfo_string_pool;               // 0x68e1a8
 extern StringPool charinfo_script_anim_pool;          // 0x68e1c0
 extern move_info move_infos[MAX_TOTAL_MOVES];         // 0x7e12e8 (label ours)
 extern move_info *move_info_free_list;                // 0x7916dc
-extern int characterinfo_anim_slot_count;             // 0x68e1f4
+extern int charinfo_cast_spells_used;             // 0x68e1f4
 extern int charinfo_cast_spells[250];                 // 0x88904c (label ours)
 extern Mempool player_instance_mempool;               // 0x744680
 extern Mempool statscreen_mempool;                    // 0x7592a0 (label ours)
@@ -404,7 +404,7 @@ void cmd_All_summons();                               // 0x444a50
 void cmd_Quick_combo();                               // 0x449590
 void cmd_levelchars();                                // 0x449c00
 // 1 when the move need not be loaded on this level (towns, masad, the boss levels; decomp38).
-int   move_used_on_level(char_info *info, move_info *move, bool full_set);   // 0x444bb0
+int   move_skip_on_level(char_info *info, move_info *move, bool full_set);   // 0x444bb0
 char_info *characterinfo_parse_table(const char *filename);   // 0x4452f0 the last record of the file
 move_info *characterinfo_add_move();                  // 0x446740 from move_info_free_list
 void  move_info_free(move_info *move);                // 0x446770

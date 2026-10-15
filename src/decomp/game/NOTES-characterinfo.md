@@ -76,7 +76,7 @@ D1800-D1808 in include/DECISIONS.md.
 | 0x444b70 | init_stringpool_68e1c0 | exact |
 | 0x444b90 | register_dtor_stringpool_68e1c0 | exact |
 | 0x444ba0 | dtor_stringpool_68e1c0 | exact |
-| 0x444bb0 | move_used_on_level | likely |
+| 0x444bb0 | move_skip_on_level | likely |
 | 0x4450c0 | characterinfo_load_party | likely |
 | 0x4452f0 | characterinfo_parse_table | likely |
 | 0x446740 | characterinfo_add_move | exact |
@@ -194,7 +194,7 @@ declares are a different unit (not written here).
   0x46c00 / 0x70800, templeint 0x19000 / 0x25800; masad: 300 bytes for the three non-Josephs;
   multiplayer 0x7e400 / 0x8ac00 / 0x69c00 / 0xa1800); the summon pool is 0xfa000, the stat screen 0x7800.
   Other records use their .svf preload index (first four letters of the skeleton set + the last four
-  digits of its rol-6 name hash). move_used_on_level skips (returns 1) the low parry / flinch moves, the
+  digits of its rol-6 name hash). move_skip_on_level skips (returns 1) the low parry / flinch moves, the
   non-combat flinches, several hero moves in multiplayer, all combat moves in towns (and templeint for
   Jekhar / Rosalind), and boss rider moves on masad / Liangshan / JadeTemple.
 - **Chains.** chain_skill_table: per hero the slot 0 "added blow" and three slots of three skills each,
@@ -225,7 +225,7 @@ declares are a different unit (not written here).
    characterinfo_load_party's argument is not read.
 8. types.h char_info +0x1C "zeroed; compared with a move's class": it is the mask of loaded weapon
    classes (charinfo_mark_anims_loaded sets -1, ..._unloaded 0, load_party_anims ORs the class bit).
-9. types.h species_info `_unk08` is the load byte (D1805). sum.symbols move_used_on_level: 1 means
+9. types.h species_info `_unk08` is the load byte (D1805). sum.symbols move_skip_on_level: 1 means
    "skip", the opposite of the name.
 10. resistance_level_damage_mult is 1 - the multiplier, not the multiplier.
 11. charinfo_create_character_instance passes the alt texture entry as character_load's "unused" fourth
@@ -240,7 +240,7 @@ declares are a different unit (not written here).
 - B3 statscreen_load_anim / statscreen_unload_anim use the 0x9e / 0x9f move without a NULL check.
 - B4 summon_stash_for_cutscene subtracts the remaining trigger times from the summon's emerge move in the
   shared move record: every cutscene during an emerge shifts that creature type's triggers again.
-- B5 move_used_on_level sets m->anim = 1 on masad (not v2), Liangshan and JadeTemple before deciding: the
+- B5 move_skip_on_level sets m->anim = 1 on masad (not v2), Liangshan and JadeTemple before deciding: the
   moves it then skips keep skeleton index 1 instead of -1 (and play skeleton 1 if used).
 - B6 +Drop: keeps 5 entries although the arrays hold 17 (later lines are silently ignored);
   $Default Weapon: and $Trigger: have no bound (2 and 3 entries).
