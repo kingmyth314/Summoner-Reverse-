@@ -44,7 +44,7 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 | `KERNEL32::Sleep` | `0x57e200` | Frame limiter wrapper `0x530bf0`, 20 call sites total |
 | `WINMM::timeGetTime` | `0x57e3fc` | Cutscene/sequence timer `0x436a90`, `0x436c00`, `0x494310`, CPU info |
 | `WINMM::timeBeginPeriod` | `0x57e3dc` | `0x566cf0`, called with 1 ms |
-| `WINMM::timeSetEvent` | `0x57e408` | `0x566560` (probably audio; not investigated) |
+| `WINMM::timeSetEvent` | `0x57e408` | `snd_start_timer` (`0x566560`): the 250 ms sound-stream refill timer ([Sound and music](sound.md#streams-and-the-timer)) |
 | `USER32::PeekMessageA` | `0x57e3c4` | Message pump `0x530cb0` |
 
 ## Other files in the install
@@ -74,10 +74,20 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [vsdk: user interface](vsdk-ui.md)
 - [Interface screens](interface.md)
 - [Controls and keyboard map](controls.md)
+- [Camera](camera.md)
 - [Characters, experience and levels](characters.md)
+- [Party](party.md)
+- [Summons](summons.md)
 - [Combat: melee and spell damage](combat.md)
 - [AI](ai.md)
+- [Bosses](bosses.md)
 - [Level scripts](level-scripts.md)
+- [World map and encounters](worldmap.md)
+- [Cutscenes](cutscenes.md)
+- [Script editor](script-editor.md)
 - [Game data tables in memory](game-tables.md)
+- [Shops, loot and money](shops-loot.md)
 - [Savegame format](savegame.md)
 - [Multiplayer packets](multiplayer.md)
+- [Effects and lights](effects.md)
+- [Sound and music](sound.md)
