@@ -362,9 +362,9 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 | `0x4de800`-`0x5009f0` | script editor, cutscene scripts, per-level scripts (ls_<level>_*), conversation topics/dialogue parsing | names script_editor_*, ls_*/lsf_*, conversation_topic_*; strings.tbl names level_script_<level>.cpp files at 0 |
 | `0x50a010`-`0x50a010` | console command static initialiser | init_ccmd_print_to_file registers ccmd 0x25dadf8 for cmd_print_to_file (console.cpp); put in modules-out as co |
 | `0x5194e0`-`0x51a1e0` | character_instance construction, buffers and bone blending | names character_instance__*; folder vsdk\ca; character_instance.cpp path string is at 0x51ac9d in the next uni |
-| `0x520070`-`0x525760` | attached lights, vfx light tracks, sound system (snd_*), vector math | names attached_light_*, vfx_light_desc__*, snd_init*; folders vsdk\geom, vsdk\math, vsdk\vfile |
-| `0x525780`-`0x525ba0` | File binary readers (bool, ints, float, vector, quaternion, matrix) | names File__read_*; folder vsdk\vfile |
-| `0x525c90`-`0x5280e0` | File string/line readers, writers and sync; ui_button and ui_static gadgets | names File__read/write/sync_*, ui_button__*, ui_static__*; folders vsdk\vfile + vsdk\ui (two files) |
+| `0x520070`-`0x525700` | attached lights, vfx light tracks, sound system (snd_*), vector math | names attached_light_*, vfx_light_desc__*, snd_init*; folders vsdk\geom, vsdk\math |
+| `0x525720`-`0x526900` | File readers, writers and sync: one object (its initialisers 0x525720-0x525780, the binary readers, read_matrix43 0x525ba0, the string and line readers, writers, sync) | names File__read/write/sync_*; folder vsdk\vfile; own initialiser table 0x588964-0x588970 |
+| `0x526940`-`0x5280e0` | ui_button and ui_static gadgets (two objects) | names ui_button__*, ui_static__*; folder vsdk\ui; ui_button's EH funclets 0x57d370-0x57d3c7 end in int3 padding before ui_static's at 0x57d3d0 |
 | `0x52da40`-`0x530b80` | UI listbox gadget and window mask helpers | names ui_listbox__*, ui_window__get_mask_data; folder vsdk\ui |
 | `0x53ac20`-`0x53dec0` | ix_* intersection tests (ray/segment/sphere/box/polygon), then cmdline param inits | Dash Faction rf/math/ix.h names RF's ix_* module (ix_linesegment_boundingbox); 33 ix_* fns put in modules-out  |
 | `0x54bb30`-`0x54d5a0` | Direct3D texture cache (gr_d3d_tcache_*) and tcache slots | names gr_d3d_tcache_*, tcache_slot__*; tags now vsdk\gr\directx folder only |
@@ -575,7 +575,7 @@ head/tail of a neighbour cannot be decided: none reads an id of its own, and .bs
 | 0x521e40 | 0x522580 | EAX reverb | .bss 0x2cbf488-0x2cbf494, .data 0x5a8960-0x5a8b48; may be the tail of the sound file |
 | 0x5225b0 | 0x523ef0 | quaternion math (vsdk\math, tagged) | init run (cquat/quaternion identity) |
 | 0x523f30 | 0x525700 | vector math (vsdk\math, tagged) | init run (vector zero) |
-| 0x525720 | 0x526900 | File readers, writers and sync (vsdk\vfile) | init run 0x525720; .bss 0x2cbf4e8-0x2cbf550 |
+| 0x525720 | 0x526900 | File readers, writers and sync (vsdk\vfile) | init run 0x525720; .bss 0x2cbf4c8-0x2cbf550 (file_identity_quaternion 0x2cbf4c8 first, set at 0x525750) |
 | 0x526940 | 0x527df0 | ui_button gadget | method run; the current tu-split2 cut at 0x526f70 splits it |
 | 0x527e20 | 0x5280e0 | ui_static gadget | |
 | 0x52ca60 | 0x52f440 | ui_listbox gadget | |

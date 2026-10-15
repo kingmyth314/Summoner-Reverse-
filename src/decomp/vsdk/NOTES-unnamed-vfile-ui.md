@@ -59,9 +59,9 @@ read_matrix43 0x525ba0, which neither row covers), ui_button and ui_static. Its 
 - sum.symbols `File__set_cipher_key`: bit 0 (value 1) of slot +4, called "bit 1".
 - sum.symbols `File__check_stream_error` says CRT 0x56f813 is ferror; the symbol file's own label (shown by
   asm.mjs) is fflush.
-- sum.symbols `file_slot_state__init` (0x513eb0) is lfsr_cipher's inline constructor; `file_slot__file_slot`
+- sum.symbols `lfsr_cipher__lfsr_cipher` (0x513eb0) is lfsr_cipher's inline constructor; `file_slot__file_slot`
   (0x513e90) the implicit slot constructor.
-- sum.symbols `file_is_absolute_path`, `file_find_free_slot`: thiscall (File members, D4105).
+- sum.symbols `File__is_absolute_path`, `File__find_free_slot`: thiscall (File members, D4105).
 - sum.symbols `ui_drag_gadget` / `ui_drop_target` type ui_element*: the dragged gadget is a ui_button (its
   +0x40c..+0x41c are read).
 - sum.symbols `init_vector3_2cbf4e8`: probably a matrix43, never used.
@@ -107,7 +107,7 @@ unnamed_vfile_0x5128b0.cpp: 90 functions, 65 / 24 / 1
 |---|---|---|
 | 0x512900 | init_file_slots | exact |
 | 0x513e90 | file_slot__file_slot | exact |
-| 0x513eb0 | file_slot_state__init | exact |
+| 0x513eb0 | lfsr_cipher__lfsr_cipher | exact |
 | 0x5128b0 | init_stringpool_26b427c_thunk | exact (compiler-generated) |
 | 0x5128c0 | init_stringpool_26b427c | exact (compiler-generated) |
 | 0x5128e0 | stringpool_26b4268_register_dtor | exact (compiler-generated) |
@@ -162,9 +162,9 @@ unnamed_vfile_0x5128b0.cpp: 90 functions, 65 / 24 / 1
 | 0x513ec0 | File__find_at | likely |
 | 0x513f30 | File__find_in_path | exact |
 | 0x513f70 | File__find_on_cd | likely |
-| 0x513fb0 | file_is_absolute_path | exact |
+| 0x513fb0 | File__is_absolute_path | exact |
 | 0x513fd0 | File__get_packfile_path | exact |
-| 0x5140b0 | file_find_free_slot | exact |
+| 0x5140b0 | File__find_free_slot | exact |
 | 0x5140d0 | File__File | likely |
 | 0x5140f0 | File__dtor | exact |
 | 0x514100 | File__check_flags | exact |

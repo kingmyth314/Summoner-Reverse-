@@ -44,7 +44,7 @@ file_path_entry file_path_table[FILE_MAX_PATHS];   // 0x2693068
 // 0x513e90  file_slot::file_slot, implicit (constructs cipher, returns this). Confidence: exact
 // (compiler-generated).
 // 0x513eb0  lfsr_cipher::lfsr_cipher, the inline constructor's COMDAT (vsdk/vfile/file.h; sum.symbols
-// file_slot_state__init). Confidence: exact (compiler-generated).
+// lfsr_cipher__lfsr_cipher). Confidence: exact (compiler-generated).
 file_slot file_slots[FILE_MAX_OPEN];               // 0x2694068
 char install_path[0x100];                          // 0x26b4168
 // The pool that holds the path directories and extension lists (names ours).

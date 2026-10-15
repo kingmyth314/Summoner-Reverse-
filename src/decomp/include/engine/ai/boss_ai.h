@@ -267,7 +267,7 @@ int   tiger_move_in_range(Character *boss, Character *target);         // 0x49c6
 bool  serpent_move_in_range(Character *boss, Character *target);       // 0x497a00
 int   giant_salamanka_target_in_reach(Character *boss, Character *target);   // 0x4c8c40 (decomp59: mov eax, 1 / xor eax; was bool, D3905)
 bool  tentacle_target_in_reach(Character *boss, Character *target);    // 0x4c7910
-bool  murod_oni_move_is_first();                       // 0x4c6460
+bool  murod_oni_move_is_kick();                       // 0x4c6460
 bool  giant_salamanka_move_pushes();                   // 0x4c8c00
 bool  giant_salamanka_move_knocks_down();              // 0x4c8c20
 bool  giant_salamanka_stage_attack_enabled(int index); // 0x4c8cc0
@@ -703,7 +703,7 @@ void  murod_set_attack_timer(int min_ms, int max_ms);  // 0x4c5a30
 
 // Murod Oni (species 0xb8; game/unnamed_murod_oni_0x4c5c20.cpp). One stage of moves.
 extern boss_attack *murod_oni_move_0;                 // 0x248bff0 &murod_oni_moves[0][0]
-extern boss_attack *murod_oni_move_3;                 // 0x248bff4 [0][3] (murod_oni_move_is_first)
+extern boss_attack *murod_oni_move_3;                 // 0x248bff4 [0][3] (murod_oni_move_is_kick)
 extern int  murod_oni_248bff8[2];                     // 0x248bff8 never accessed
 extern int  murod_oni_248c000;                        // 0x248c000 zeroed when the target is lost
 extern bool murod_oni_engaged;                        // 0x248c004
@@ -764,8 +764,8 @@ extern vector3 luminar_bite_tag_pos;                  // 0x248cdc0 object space
 extern vector3 luminar_pickup_tag_pos;                // 0x248cdcc object space
 extern float luminar_melee_reach;                     // 0x248cdd8
 extern float luminar_pickup_reach;                    // 0x248cddc
-extern int  luminar_target_handle;                    // 0x248cde0 the carried character
-extern int  luminar_held_handle;                      // 0x248cde4 the thrown character in flight
+extern int  luminar_grabbed_handle;                    // 0x248cde0 the carried character
+extern int  luminar_thrown_handle;                      // 0x248cde4 the thrown character in flight
 extern GameTimer luminar_release_timer;               // 0x248cde8
 extern GameTimer luminar_teleport_timer;              // 0x248cdec
 extern GameTimer luminar_beam_timer;                  // 0x248cdf0

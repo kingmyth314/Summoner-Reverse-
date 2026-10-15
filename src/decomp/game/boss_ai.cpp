@@ -320,7 +320,7 @@ bool boss_attack_stuns_dispatch(int species)
     case SPECIES_EVIL_JOSEPH:
         break;
     case SPECIES_MUROD_ONI:
-        return murod_oni_move_is_first();
+        return murod_oni_move_is_kick();
     case SPECIES_GIANT_SALAMANKA:
         return giant_salamanka_move_pushes();
     }

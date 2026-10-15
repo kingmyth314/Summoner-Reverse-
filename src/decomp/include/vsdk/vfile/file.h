@@ -38,10 +38,10 @@ struct PackfileEntry;
 
 // The three-register LFSR stream cipher of the open-file slots (lfsr_cipher__* 0x559db0-0x559e10, tagged
 // vsdk\vfile, another unit). The constructor is inline: its COMDAT 0x513eb0 (sum.symbols
-// file_slot_state__init) was emitted by the vfile unit, whose implicit file_slot constructor calls it.
+// lfsr_cipher__lfsr_cipher) was emitted by the vfile unit, whose implicit file_slot constructor calls it.
 class lfsr_cipher {
 public:
-    lfsr_cipher() { regs[0] = 0; regs[1] = 0; regs[2] = 0; }   // 0x513eb0 file_slot_state__init
+    lfsr_cipher() { regs[0] = 0; regs[1] = 0; regs[2] = 0; }   // 0x513eb0 lfsr_cipher__lfsr_cipher
     void set_key(const unsigned int *key);         // 0x559db0 zero words get default seeds
     void get_key(unsigned int *key);               // 0x559df0
     void crypt(void *buf, int len);                // 0x559e10 in place, both directions
@@ -117,9 +117,9 @@ public:
     bool get_packfile_path(char *out, int *offset, int max);                       // 0x513fd0
     char *get_full_path();                               // 0x514190 full_path
     // thiscall although this is not used (ret 4; File::find calls it with ECX = this): sum.symbols
-    // file_is_absolute_path / file_find_free_slot (D4105). "X:..." or a leading slash / backslash.
-    bool is_absolute_path(const char *name);             // 0x513fb0 file_is_absolute_path
-    int  find_free_slot();                               // 0x5140b0 file_find_free_slot, -1 when all four are open
+    // File__is_absolute_path / File__find_free_slot (D4105). "X:..." or a leading slash / backslash.
+    bool is_absolute_path(const char *name);             // 0x513fb0 File__is_absolute_path
+    int  find_free_slot();                               // 0x5140b0 File__find_free_slot, -1 when all four are open
     char *get_filename();                                // 0x5141a0 after the last backslash (no caller)
     void set_cipher_key(unsigned int key);               // 0x5143e0 (no caller)
     int  open_found(int mode);                           // 0x514460 0, -4 not found, -6 no slot, -99999

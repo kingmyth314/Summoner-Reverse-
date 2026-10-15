@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 270 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 290 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 5 | 57 | 2 |
-| Gameplay | 45 | 20 | 3 |
-| Cosmetic | 44 | 20 | 2 |
-| Invisible | 34 | 45 | 0 |
+| Crash or hang | 6 | 61 | 2 |
+| Gameplay | 48 | 21 | 3 |
+| Cosmetic | 45 | 22 | 2 |
+| Invisible | 36 | 51 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -100,6 +100,11 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C220 | Latent: three script editor actions crash the game: adding an action that takes a navpoint while the Cutscene Script button is latched and the cutscene script has no navpoints; choosing the Die action for a character type without a death move; and Save while the Cutscene Script button is still latched after the cutscene script was unloaded | `script_make_filename` `0x4e8cf0`, `script_editor_apply_action_params` `0x4e84b0`, `script_editor_show_script_dialog` `0x4e6fe0` | **Observed** code, *inferred* crash | No |
 | C221 | Latent: the script editor's Save hangs (and fills the disk with one repeated line) when the level table has no line that is exactly `#Ambient Sounds`, or when `level_items.tbl` has neither the level's own `#Level:` line nor `#End` | `script_write_level_table` `0x4ea1e0`, `level_items_write_table` `0x4ea500` | **Observed** code and retail data, *inferred* hang | No |
 | C222 | Latent: in the script editor's Camera mode, New adds a `$camera` navpoint with no check against the 750-entry navpoint table; the 751st overwrites the memory after it | `script_editor_delete_navpoint` `0x4e6a30` (adds, despite the name) | **Observed** code, *inferred* effect | No |
+| C250 | In the Luminar fight, the game crashes when the target of the Luminar's lightning beam dies (or is gone) between the start of the beam and its hit | `luminar_beam_hit` `0x4ca3a0`, `luminar_ai_frame` `0x4c95f0` | **Observed** code and retail data, *inferred* crash | No |
+| C251 | Latent: an effects array (`.arr`) line longer than 1023 characters overflows the stack of the effects loader | `File__read_line` `0x525f60`, `effects_parse_arr_line` `0x51ca60` | **Observed** code and retail data, *inferred* effect | No |
+| C252 | Latent: drawing an arrow button whose inner height or width is exactly 5 pixels divides by zero | `ui_button__draw_arrow` `0x527440` | **Observed** code, *inferred* crash | No |
+| C253 | Latent: `file_make_path` called with the "any path" id reads far past the path table | `file_make_path` `0x512b30` | **Observed** code, *inferred* crash | No |
+| C254 | Latent: a level with five or more Tentacle Beast characters writes the fifth tentacle's record over the tentacle battle's own variables | `tentacle_beast_boss_load` `0x4c6d10` | **Observed** code and retail data, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -642,6 +647,38 @@ from `camera_view_pos` (`0x4e6a30`..`0x4e6a76`) without the `MAX_NAVPOINTS` comp
 `script_editor_add_navpoint` makes for level and ambient navpoints ("Limit reached - can't add any more level
 navpoints").
 
+**C250. A beam hit with no NULL test.** `luminar_beam_start` plays move `0x89` (`Luminar.tbl` "attack_beam":
+`$Trigger: "impact start" 88`, `"no interrupt" 0`) and sets AI mode `0x32` (`0x4ca32a`..`0x4ca330`). Each frame
+`luminar_ai_frame` takes the target from `ai_state +0x60` and drops it when it is gone or has flag `0x8`
+(dying) set (`0x4c95f8`..`0x4c9613`). Mode `0x32` goes to case 2 of the jump table (byte table `0x4c977c`,
+entry `0x23`; target `0x4c9722`), which calls `luminar_beam_hit(edi)`. `luminar_beam_hit` tests the pointer only
+for the turn toward the target (`test esi, esi` at `0x4ca3b4`). When trigger 7 fires (`0x4ca4d9`) it calls
+`character_add_hp(-125)` with ECX = the target pointer and no test (`0x4ca4f0`..`0x4ca502`), and
+`character_add_hp` reads `[ecx + 0x320]` first (`0x45085c`). `luminar_ai_beam_move_end` does test the target
+for flag `0x8` before a new beam (`0x4ca206`..`0x4ca211`). *Inferred:* a party member who dies of other damage,
+or a summon that disappears, during the beam's 88 frames crashes the game at the impact frame.
+
+**C251. A line reader that ignores its size.** `File::read_line(buf, size, min_ver)` copies bytes until NUL, CR
+or LF and never looks at `size` (`0x525f81`..`0x525fab`). `effects_parse_arr_line` reads into a 0x404-byte
+stack frame and passes 0x400 (`0x51ca77`, `0x51cba8`). Retail `effects.arr` and `ccrunch.arr`
+(`summoner.vpp`) have at most 206 and 241 characters per line, so only a modded file triggers it.
+
+**C252. Division by an empty interior.** `draw_arrow` computes the margin `m = (h - 4) / 4 + 2` and the inner
+size `h - 2m - 1` (`0x527448`..`0x5274ad`). It skips only a negative inner size (`jl` at `0x5274d9`) and then
+divides by it (`idiv edi` at `0x527504` / `0x52750b`; the width branch at `0x5275dd` / `0x5275e6`). A 5-pixel
+side gives 0. The script editor's two arrow buttons are 17 x 16 (`0x4e0e45`, `0x4e0e9e`); the slider arrow
+buttons take the slider's thickness (`0x55e8ea`..`0x55e9e2`), which was not traced.
+
+**C253. "Any path" passes the path check.** `file_path_id_valid` returns true for `0x98967f`
+(`0x512cd4`..`0x512cdd`), and `file_make_path` then reads `file_path_table[0x98967f]`
+(`mov edi, [8*ebx + 0x2693068]` at `0x512b8d`). No caller pushes `0x98967f` to it; most pass the path id in a
+register, and those were not all traced.
+
+**C254. No bound on the tentacle records.** The free-record search stops at the fourth record
+(`cmp eax, 0x248c7e8` at `0x4c6d88`) and then uses the index anyway (`0x4c6d8f`..`0x4c6d9f`): a fifth record lands on
+`tentacle_beast_grab_timer` (`0x248c768`) and the battle variables after it. Retail `sewerboss_script.tbl` has
+exactly four Tentacle Beasts (`#$npc057`..`#$npc060`).
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -711,6 +748,10 @@ navpoints").
 | G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code, *inferred* effect | No |
 | G242 | When a straight move crosses more than one layer-transition edge, the game takes the crossing nearest in x only, which can put a path, a walk test or a scripted avoid spline on the wrong floor layer | `pf_first_edge_crossing` `0x4a53d0` | **Observed** code, *inferred* effect | No |
 | G243 | Latent: when a new avoidance obstacle that merges two or three avoidance polygons cannot be clipped against the walls, all but the first merged polygon keep their corners switched off, so paths no longer go around those areas until they are rebuilt | `avoid_create_obstacle_polys` `0x4a9440` | **Observed** code, *inferred* effect | No |
+| G250 | The Tentacle Beast's tentacles never pick up and throw a party member, although the move ("Luminar grab" / "Luminar throw") is in `Tentacle Beast.tbl`; they only swipe and squeeze | `tentacle_beast_ai_select_action` `0x4c6520` | **Observed** code and retail data, *inferred* effect | No |
+| G251 | Latent: a tentacle swipe that hits five party members at once makes that tentacle unkillable: at 0 HP it never plays its death move or counts as lost | `tentacle_collect_area_hits` `0x4c77c0`, `tentacle_beast_check_stage` `0x4c7360` | **Observed** code, *inferred* effect | No |
+| G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
+| G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1266,6 +1307,42 @@ flag 8 (`AVOID_SEGLIST_OFF`) on the segment list of every merged polygon (`or ec
 clears the flag only on the first one (`and dword ptr [8*eax + 0x2460db4], -9` at `0x4a9b16`). We know of no
 retail geometry that makes the clip fail.
 
+**G250. A chance of below zero.** `tentacle_beast_ai_select_action` picks the grab move when `frand() < 0`
+(`0x4c666d`..`0x4c667f`; `0x57eb84` is 0.0). `frand` is `rand() * k` (`0x5426e0`), never negative. The pick is
+also lost: the function clears the tentacle's move (`+0x7c`) right after (`0x4c66a5`) and stores only
+`tentacle_move_2` or `tentacle_move_1` (`0x4c6753`, `0x4c67de`). `tentacle_beast_ai_frame` starts the grab only
+when `+0x7c` equals `tentacle_move_86` (`0x4c72b6`..`0x4c72cf`), and `tentacle_beast_boss_load` loads that move
+(`0x4c6fe5`). So `tentacle_beast_start_grab`, `_ai_grab`, the throw and the hold tick never run. The dead code
+has two more slips: the 6-second hold tick calls `character_add_hp(+3.0)`, a heal (`push 0x40400000` at
+`0x4c714b`; negative amounts are damage, `0x4508d7`), and `tentacle_beast_ai_release` uses the victim without a
+NULL test (`0x4c6b53`).
+
+**G251. Four hit slots.** `tentacle_collect_area_hits` adds every member of the leader's AI group within the
+swipe's reach whose defence roll fails to `hits[num_hits++]` with no bound (`0x4c7870`..`0x4c7887`). The record has
+four slots (`+0x94`), so a fifth hit writes a character handle into `+0xa4`, the death move (-1 until the death,
+`0x4c6e6b`). AI groups hold up to six members (`cmp edx, 0x6` at `0x492c59`), the party at most five. At 0 HP
+`tentacle_beast_check_stage` plays the death move, sets `0x88` and counts the tentacle lost only when `+0xa4` is
+-1 (`0x4c73fe`..`0x4c7452`); otherwise it treats `+0xa4` as a playing move, finds it finished, and only sets the
+record's "down" bit 0 (`0x4c745c`..`0x4c7487`). *Inferred:* the tentacle stays at 0 HP and is never killed. The
+fight's end does not depend on it (`ls_sewerboss_frame` waits for the golems, `0x4ee165`). Latent unless all four
+heroes and a summon fight in the sewer boss room and one swipe hits all five.
+
+**G252. A timer armed once.** `murod_oni_init_timers` (called only from `murod_oni_boss_load`, `0x4c5ccf`) sets
+`murod_oni_timer_b` to 5 s (`0x4c5dcf`..`0x4c5dd9`). `murod_oni_ai_select_action` tests it (`0x4c5ec7`) and, when a
+target with flag 4 exists, switches to it with `murod_oni_move_2` on `frand() < 0.3` (`0x4c5efa`..`0x4c5f27`), but
+never sets the timer again. The crowd timer next to it is re-armed for 20 s (`0x4c5ea5`..`0x4c5eb5`). Flag 4 means
+"in reach of move 2" (`murod_oni_evaluate_target` `0x4c6205`..`0x4c621e`); move 2 is the third
+`murod_oni_boss.tbl` entry, "bite backward" (`$offense02`). Because of G30 that flag is rarely set, so the effect
+shows less often than the code allows.
+
+**G253. Anchors without a life test.** `murod_start_leap` collects every party record's character with only a NULL
+test (`0x4c51cb`..`0x4c51e9`), picks one at random and tries up to five points 15 units away in a random horizontal
+direction (`0x57ef14` = 15, `0x4c5204`..`0x4c52dd`). Dead members stay in `party_list` with `0x80` set
+([Party](party.md)). `luminar_teleport_out` collects every living entity of type 7 (or any entity with game flag 8)
+with no flag test (`0x4c9dc5`..`0x4c9de6`), picks one, lands 14 units from it (`0x581ab8`) and stores it as the
+AI target (`mov [esi + 0x60], ecx` at `0x4c9f9f`). After the teleport the beam test drops a dying target
+(`0x4ca20a`), so the Luminar goes idle and picks again.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1334,6 +1411,9 @@ retail geometry that makes the clip fail.
 | K221 | In the script editor, while a level object is selected, the white hover marker of a character or navpoint is drawn as a box from the wrong fields | `script_editor_frame` `0x4e01f0` | **Observed** code, *inferred* effect | No |
 | K222 | In the script editor's door window, Enter in the sound name box takes the focus from the key item box instead of leaving the sound box | `script_editor_door_sound_inputbox_cb` `0x4ebb20` | **Observed** code | No |
 | K223 | Latent: a Pyrul model without a `$missile01` tag would fire his missiles from bone -1 (memory before the bone array) instead of from his own frame | `pyrul_get_missile_origin` `0x4b95f0` | **Observed** code and retail data, *inferred* effect | No |
+| K250 | Latent: a blob shadow that falls on eight level objects is drawn on none of them, and on nine to fifteen only on the last few | `projector_collect_lobj_faces` `0x4c0250`, `shadows_render` `0x4a4360` | **Observed** code, *inferred* effect | No |
+| K251 | When Evil Urath leaps across more than one obstacle edge, his rise is fitted to the last edge found, not the nearest, so the arc can be too flat or too steep | `evil_urath_leap_check_path` `0x4c4200` | **Observed** code, *inferred* effect; retail path data not checked | No |
+| K252 | Latent: a multiplayer character file whose name has 32 or more characters shows the name with junk after it in the character list | `File__read_string` `0x525ee0`, `mp_player_file_read_summary` `0x46d450` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1863,6 +1943,25 @@ for a hovered character or navpoint those offsets hold other fields.
 the outputs and then still calls `character_instance__get_bone_world_transform` with bone -1, which overwrites them
 (`0x4b95fd`..`0x4b9665`). `pyrul_boss_load` looks the tag up once; the retail `Pyrul.vim` has it.
 
+**K250. A 3-bit count.** The receiver count is bits 6-8 of the record's first dword. The append stores at
+`+0xe0 + 4*count` and adds `0x40` inside the mask `0x1c0` (`0x4c05b3`..`0x4c05d5`), so the eighth object goes to
+`+0xfc` and the count wraps to 0; the ninth overwrites the first. The `cmp ecx, 0x10; jae` exit after it
+(`0x4c05d2`) tests the old count (0-7) and never fires. `shadows_render` draws the shadow on `count` objects
+(`shr eax, 6; and eax, 7` at `0x4a4394`..`0x4a439a`).
+
+**K251. The minimum is kept and never used.** For every edge crossing along the leap,
+`evil_urath_leap_check_path` writes the distance to `*out` (`fst`/`fstp dword [edx]` at `0x4c4321`..`0x4c4327`) and
+keeps the smallest in a local (`[esp + 0x10]`, `0x4c4329`..`0x4c4334`) that is never read again. The return value
+(`*out < FLT_MAX`, `0x4c435b`..`0x4c4374`) is still right. `evil_urath_ai_leap_rise` computes the rise speed and the
+peak from `*out` (`0x4c48f3`..`0x4c491c`, `0x4c49e6`..`0x4c4a64`).
+
+**K252. The terminator goes one past.** `File::read_string(buf, max, ...)` stores up to `max` characters and then
+writes the NUL at `buf[max]` (`0x525f4a`..`0x525f54`); `FileReader::read_string` does the same
+(`0x513e29`..`0x513e35`). The `.plr` readers pass 0x20 for the name (`0x46d570`, `0x46d73d`). In the summary the
+byte after the name is `+0x20`, which the next `read_int` overwrites (`0x46d591`), so a 32-character name has no
+terminator. The character creation screen accepts at most 31 characters (`cmp esi, 0x1f; jge` at `0x406e05`), so
+only an edited `.plr` triggers it. `vim_read` passes 0x7f for 0x80-byte buffers and is safe.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1946,6 +2045,14 @@ the outputs and then still calls `character_instance__get_bone_world_transform` 
 | V222 | Each OK in the script editor's ambient window with a new sound or new parameters takes a further `sounds[]` slot (640 in all) and never releases the old one | `script_editor_ambient_ok` `0x4eb3d0` | **Observed** code, *inferred* effect | No |
 | V223 | Latent: for two segments that share an end point (the first segment's end equal to the second's start), the segment test reports the far end of the second segment as the meeting point; only the cell-crossing search uses that point | `seg2d_segment_intersect` `0x4a5750` | **Observed** code | No |
 | V224 | Latent: two avoidance helpers read the segment before a list's first segment (the list header) when a corner is on no segment, or when the previous segment does not end at the corner | `avoid_seglist_ensure_corner_offset` `0x4a82a0`, `avoid_merge_shared_segments` `0x4a8b80` | **Observed** code | No |
+| V250 | In Titus's stage 3, when the stage timer runs out with a paralysed target and no unparalysed candidate, Titus's target becomes -1; he idles for one think and then picks again | `titus_ai_select_action` `0x4c2790` | **Observed** code |
+| V251 | Latent: as V211, a Giant Salamanka flinch move whose `$Action:` is not `stage<N>_flinch_area/status/left/right/front` formats an error that is never shown; a name that does not start with `stage<N>_flinch_` indexes the tables with a wrong stage | `giant_salamanka_set_flinch` `0x4c8280` | **Observed** code and retail data |
+| V252 | Every failed `File::find` with an explicit path id runs its fallback search with an uninitialised extension buffer and may leave a wrong path in the File object; `File::open` searches again and overwrites it | `File__find` `0x5141c0` | **Observed** code |
+| V253 | Latent: a memory-mode `FileReader` cannot seek to 0 or to the end, and origin 2 counts back from the current position | `FileReader__seek` `0x513a90` | **Observed** code |
+| V254 | Latent: an extension of 8 or more characters overruns the 8-byte last-extension buffer onto `File::find`'s " " constant and the "wt" / "wb" mode strings | `File__open` `0x514630` | **Observed** code |
+| V255 | Latent: adding a data directory a second time never adds its new extensions | `file_add_path` `0x512e60` | **Observed** code and data |
+| V256 | Four File helpers with no caller are wrong: `read_matrix43` writes `m[i][3]` of a 4x3 matrix, `find_on_cd` passes the name pointer's address as the packfile out pointer, `file_list_files` splices its own stack list head into the caller's list on no match, `read_String8` copies without bound into a 256-byte stack buffer | `File__read_matrix43` `0x525ba0`, `File__find_on_cd` `0x513f70`, `file_list_files` `0x513590`, `File__read_String8` `0x525ce0` | **Observed**; no caller |
+| V257 | Latent (UI table loader only, V9): `set_tooltip` unlinks the old tooltip without freeing it (0x120 bytes), and every button created inside a container gets the auto-repeat flag | `ui_button__set_tooltip` `0x5271c0`, `ui_static__set_tooltip` `0x527fa0`, `ui_button__create_in_parent` `0x527100` | **Observed**; no caller outside `ui_load_table` |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2485,6 +2592,51 @@ takes `segs[index - 1]` as the segment before a reference and falls back to `seg
 end at the corner (left branch from `0x4a8c5c`); for index 1 that is `segs[-1]`. The lists are built so that every
 corner lies on a segment; we found no path that breaks it.
 
+**V250. A failed pick stored.** In stage 3, when `titus_stage_timer_a` has run out and the target has status 10
+(paralyse), Titus asks for a candidate with flag 8 (stage 3, not paralysed: `titus_filter_target`
+`0x4c2275`..`0x4c228c`) and keeps the result in ESI (`0x4c2c4a`..`0x4c2c7b`). When there is none, ESI is -1; the
+timer is set to 15 s and the code goes on to store ESI as `titus_target_handle` with move 21, 22 or 23
+(`0x4c2cf0`, `0x4c2d4e`, `0x4c2d61`). `titus_ai_frame` finds no target and goes idle unless the move is 21
+(`0x4c2680`..`0x4c271c`); the rock eruption (move 21) does not need the target. On the next think
+`titus_ai_select_action` sees no target and picks one with flags 0 (`0x4c2bb9`).
+
+**V251. The Giant Salamanka's copy of V211.** `giant_salamanka_set_flinch` skips `strlen("stage")`, reads one
+digit with `atoi`, skips the digit and `_flinch_` and compares the rest with "area", "status", "left", "right" and
+"front" (`0x4c82a3`..`0x4c8369`). Any other name goes to `sprintf` into a local buffer that is never printed
+(`0x4c836b`..`0x4c837e`). Retail `Giant Salamanka.tbl` has only matching names (stages 2 and 3 have no "left").
+
+**V252. A buffer filled only on the other branch.** The extension buffer `[esp + 0x10]` is written only for
+`PATH_ANY` (`0x5142ad`..`0x5142f6`). An explicit path id that is not found goes through the packfile test to the
+write-path loop, which calls `stristr(extensions, buffer)` on it (`0x51436f`..`0x514395`) and sets the path id and
+full path from the result (`0x5143a5`..`0x5143c0`). `File::open` repeats the find with `PATH_ANY` when the explicit
+one fails (`0x5146e5`..`0x5146ed`).
+
+**V253. Memory-mode seek limits.** Origin 0 and origin 1 accept only a positive offset that stays below the size
+(`0x513abb`..`0x513ad9`); origin 2 subtracts the offset from the current position (`0x513aa4`..`0x513ab3`). The
+callers (`skeleton_read` `0x54425a`, `0x5442a0`, `0x5442d5`; `vim_read` `0x543463`) use origins 0 and 1 with
+positive offsets or ignore the result.
+
+**V254. strcpy into 8 bytes.** `File::open` copies the extension from `file_get_ext` into `0x5a7818` ("none" plus
+padding, 8 bytes) without a length test (`0x51465c`..`0x51467a`, `0x51470c`..`0x514728`). The next bytes are the
+" " that `File::find` appends to the extension (`0x5a7820`, read at `0x5142ef`) and the mode strings "wt" / "wb"
+(`0x5a7824` / `0x5a7828`). No retail file name has such an extension.
+
+**V255. A dropped result.** When the directory is already in the table, `file_add_path` walks the new extension
+list and calls `stristr` for each entry (`0x512fc1`..`0x51302c`) but never uses the result and never adds the
+extension. `setup_data_paths` adds each directory once (`0x43dca0`..`0x43df04`); `cutscene_set_data_path` removes
+its directory first (`0x43533f`).
+
+**V256. Dead File helpers.** No call and no pointer to `0x525ba0`, `0x513f70`, `0x513590`, `0x525ce0` or
+`File__sync_matrix43` (`0x526840`) exists in the image (byte search). `read_matrix43` stores at `+0xc`, `+0x18`
+and so on (`0x525bd9`..`0x525c42`). `read_String8` copies bytes up to the NUL into `[esp + 0x4]` of a 0x100-byte
+frame (`0x525d34`..`0x525d5c`).
+
+**V257. Only the UI table loader reaches them.** `ui_button__set_tooltip` unlinks the first tooltip node and
+allocates a new one (`0x5271d6`..`0x5271f2`); `ui_static__set_tooltip` is the same. `ui_button__create_in_parent`
+ORs 2 into the flags (`or al, 0x2` at `0x52713e`). Their only callers are `ui_parse_button` and `ui_parse_static`,
+reached only from `ui_load_table` and the container / slider / listbox parsers it calls, and `ui_load_table` has no
+caller (V9).
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2771,6 +2923,16 @@ the tables above; the rest are below.
 - `ai_consider_blind_or_silence` "inflating every later record" (notes bug 5): the scores there are a running sum (`0x4bef2a`..`0x4bef2f`), so multiplying the total by 1.5 at `cur_character` (`0x4bef16`..`0x4bef24`) widens only that character's own band (by half the total before it); the later bands keep their width of 10. See the unclear list for the intent.
 - `pf_bsp_node_find` looping on a node type other than 1-3 (notes bug 7): already C161.
 
+- `titus_cast_special` reading `titus_current_move` without a test (`0x4c32e5`): its only caller chain is `living_combat_update_boss_attack` (`0x468423`) right after it started a move whose id `boss_get_attack_move_id` read from the same pointer (`0x4a20ba`), so the pointer is set; the shared reads of every boss's current move there are not separate bugs.
+- `evil_joseph_get_attack_move_id` (`0x4c40c5`): the same shared pattern as the other cases of `boss_get_attack_move_id` (`0x4a209d`..`0x4a20eb`); the melee attack runs only in the attack mode chosen together with the move.
+- `evil_urath_filter_target` / `murod_filter_target` reading the handle before the NULL test (`0x4c4482`, `0x4c5b82`): their only caller `boss_target_filter_dispatch` gets entries from `boss_target_list_build`, which stores only non-NULL characters (`test edi, edi` at `0x4a2fbf`, store `0x4a3053`). The later NULL test is dead.
+- `boss_target_list_find` / `_b` with unchecked candidates (`0x4c3c84`): same lists, built by `boss_target_list_build`.
+- `tentacle_beast_ai_release` without a victim test (`0x4c6b53`): real, but dead with the grab (part of G250).
+- The tentacle squeeze tick healing (`0x4c714b`): real, dead with the grab (part of G250).
+- Giant Salamanka forced stage outside 1-3 setting the stage to 0 (`0x4c8589`): `cmd_gs_stage` accepts only 1-3 (`0x4c80b8`..`0x4c80bf`), and the forced stage is cleared at boss load (`0x4c83df`); Titus also keeps an in-range forced stage (`0x4c24ce`..`0x4c253e`). Unreachable, and there is no console in v1.40.
+- "Invalid stage for titus rider" (`0x59dc38`) and "Sets dark josesph in combat state": console text; no console in v1.40.
+- F624 `ui_button__process` looping for ever above state 9: every store to `+0x278` is a constant 0-9 or a computed 6 / 0 (`0x526ce1`..`0x526cf2`) or 7 / 0 (`0x526da7`..`0x526dba`), so the default never runs.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2907,6 +3069,10 @@ the tables above; the rest are below.
 - `avoid_area_remove` returns before `avoid_area_free` when one of the area's obstacles is no longer used (`test cl, 1; je 0x4a9e5c` at `0x4a9e3c`), keeping its slot (14 in all) until `avoid_reset`. `avoid_area_rebuild` frees the rebuilt obstacle itself (`0x4a7d99`) and recreates the others of its polygon; whether a failed rebuild can free another area's obstacle was not traced.
 - Retail play in the variant scripts of G221 (`sewer_v2`, `masad_v2`, `Wolong2_v2`, ...): `level_parse_ambient` finds their level's `$ambientNNN` names in neither the script's navpoints nor (unless the level file has markers of those names) `level_marker_find`, and then skips the line (`0x4cc116`..`0x4cc125`, the "Ambient sound navpoint not found" text is only formatted). If the level files have no such markers, those variants play without ambient sounds. The level `.s3d` marker names were not checked.
 - Save on an install whose tables are only in `tables.vpp` (the retail layout): `File__find` falls back to the packfile when the loose file is missing (`0x51434c`..`0x51435a`), `File__delete` then returns -3 (`0x514aa5`..`0x514ab4`), and the table writers return that error before closing and renaming the temp file (`0x4ea47c`..`0x4ea485`, same in `level_items_write_table`). *Inferred:* Save reports an error for the level table or `level_items.tbl` and leaves `<n>.int` behind (if the folder exists), after the script file was already written.
+- F612 `FileReader::read*` in memory mode: real off-by-one (`lea edx, [eax + 4]; cmp edx, esi; jl` at `0x513bbd`..`0x513bc2`, the same in `read` `0x513b53`..`0x513b58` and the float, int16, int8, vector, quaternion and string readers), and a failed read returns 0 without moving. It is used for preloaded skeletons and effect streams (`character_add_skeleton` `0x540ab1`, `effect_stream_finish_entry` `0x440a28`, both into `skeleton_read`). Whether a retail `.mvf` ends exactly with the last field `skeleton_read` reads (the tag key floats, `0x544924`..`0x544963`) was not checked.
+- The party-list walks without a NULL test: `titus_rock_erupt_damage` (`0x4c3384` multiplayer, `0x4c340a` single player), `tentacle_collect_area_hits` (`0x4c7830`) and `tentacle_beast_battle_update` (`0x4c7696`). They crash only if a party record or AI group member handle can be stale; C171 shows records can lose their characters in multiplayer, but no single-player path was found.
+- ui_button / ui_static draw return at once when slot 4 (`is_disabled`) is true (`0x52769c`..`0x5276a1`) and use the disabled look when `ui_gadget__is_hidden` (`0x52c4b0`) is true (`0x5276af`..`0x5276b6`): either the names of `+0x1c` / `+0x1d` or of the two tests are swapped. Needs a runtime check.
+- Game flag 8 widening the Luminar's teleport and grab candidates to every living entity (the boss included, `0x4c9dcb`): what sets flag 8 is not known.
 
 ## Evidence
 
@@ -3187,3 +3353,23 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V222 sound slots | `script_editor_ambient_ok` `0x4eb480`..`0x4eb4c5`; `level_ambient_remove` `0x4cd2d8`; `snd_get_handle` `0x520818`..`0x520884` |
 | V223 shared end point | `seg2d_segment_intersect` `0x4a57b0`..`0x4a57e6`; `pf_find_cell_crossing` `0x49edb5`; other callers `0x4a527d`, `0x4a55dc`, `0x4b16fe`, `0x4b182c`, `0x4b8328` |
 | V224 segs[-1] | `avoid_seglist_ensure_corner_offset` `0x4a82c7`..`0x4a8309`; `avoid_merge_shared_segments` `0x4a8c5c`..`0x4a8cef` |
+| C250 beam hit | `luminar_beam_hit` `0x4ca3b4`, `0x4ca4d9`..`0x4ca502`; `luminar_ai_frame` `0x4c95f8`..`0x4c9613`, `0x4c9615`..`0x4c962c`, `0x4c9722`; byte table `0x4c977c`; `luminar_beam_start` `0x4ca28c`, `0x4ca32a`..`0x4ca330`; `luminar_ai_beam_move_end` `0x4ca206`..`0x4ca211`; `character_add_hp` `0x45085c`; `Luminar.tbl` "attack_beam" |
+| C251 arr line | `File__read_line` `0x525f81`..`0x525fab`; `effects_parse_arr_line` `0x51ca60`, `0x51ca77`, `0x51cba8`; `summoner.vpp` `effects.arr` (206) and `ccrunch.arr` (241) |
+| C252 arrow divide | `ui_button__draw_arrow` `0x527448`..`0x5274ad`, `0x5274d9`, `0x527504`, `0x52750b`, `0x5275dd`, `0x5275e6`; `ui_button__draw` `0x527dce`..`0x527de3`; arrow buttons `0x4e0e45`, `0x4e0e9e`, `0x55e8ea`..`0x55e9e2` |
+| C253 any path | `file_path_id_valid` `0x512cd4`..`0x512cdd`; `file_make_path` `0x512b37`, `0x512b8d` |
+| C254 fifth tentacle | `tentacle_beast_boss_load` `0x4c6d77`..`0x4c6d9f`; `tentacle_beast_grab_timer` `0x248c768`; `sewerboss_script.tbl` lines with `Tentacle Beast#$npc057`..`#$npc060` |
+| G250 tentacle grab | `tentacle_beast_ai_select_action` `0x4c666d`..`0x4c66b4`, `0x4c6753`, `0x4c67de`; `frand` `0x5426e0`; `tentacle_beast_ai_frame` `0x4c72b6`..`0x4c72cf`, `0x4c7122`..`0x4c7150`; `tentacle_beast_boss_load` `0x4c6fe5`; `tentacle_beast_ai_release` `0x4c6b53`; `character_add_hp` `0x4508d7`; `Tentacle Beast.tbl` "Luminar grab" / "Luminar throw" |
+| G251 tentacle hits | `tentacle_collect_area_hits` `0x4c77f1`, `0x4c7870`..`0x4c7887`; `tentacle_beast_boss_load` `0x4c6e6b`; `tentacle_beast_check_stage` `0x4c73fe`..`0x4c7452`, `0x4c745c`..`0x4c7487`; `ai_group_add_member` `0x492c59`; `ls_sewerboss_frame` `0x4ee165` |
+| G252 Murod Oni timer | `murod_oni_init_timers` `0x4c5dcf`..`0x4c5dd9` (only caller `0x4c5ccf`); `murod_oni_ai_select_action` `0x4c5ea5`..`0x4c5eb5`, `0x4c5ec7`..`0x4c5f27`; `murod_oni_evaluate_target` `0x4c6205`..`0x4c621e`; `murod_oni_boss.tbl` third entry |
+| G253 dead anchors | `murod_start_leap` `0x4c51cb`..`0x4c51e9`, `0x4c5204`..`0x4c52dd`; `luminar_teleport_out` `0x4c9dc5`..`0x4c9de6`, `0x4c9f9f`; `luminar_ai_beam_move_end` `0x4ca20a` |
+| K250 shadow receivers | `projector_collect_lobj_faces` `0x4c0595`..`0x4c05d7`; `shadows_render` `0x4a438e`..`0x4a439a` |
+| K251 Urath leap | `evil_urath_leap_check_path` `0x4c420b`, `0x4c4321`..`0x4c4338`, `0x4c435b`..`0x4c4374`; `evil_urath_ai_leap_rise` `0x4c48e7`..`0x4c491c`, `0x4c49d6`..`0x4c4a64` |
+| K252 32-character name | `File__read_string` `0x525f4a`..`0x525f54`; `FileReader__read_string` `0x513e29`..`0x513e35`; `mp_player_file_read_summary` `0x46d570`, `0x46d591`; `mp_player_file_load` `0x46d73d`; `mp_charselect_handle_click` `0x406e05` |
+| V250 Titus target -1 | `titus_ai_select_action` `0x4c2c4a`..`0x4c2cb2`, `0x4c2cf0`, `0x4c2d4e`, `0x4c2d61`, `0x4c2bb9`; `titus_filter_target` `0x4c2275`..`0x4c228c`; `titus_ai_frame` `0x4c2680`..`0x4c271c` |
+| V251 Salamanka flinch | `giant_salamanka_set_flinch` `0x4c82a3`..`0x4c837e`; caller `giant_salamanka_boss_load` `0x4c84b8`; `Giant Salamanka.tbl` |
+| V252 find fallback | `File__find` `0x5142ad`..`0x5142f6`, `0x51434c`..`0x5143c0`; `File__open` `0x5146e5`..`0x5146ed` |
+| V253 reader seek | `FileReader__seek` `0x513a99`..`0x513ae0`; callers `0x54425a`, `0x5442a0`, `0x5442d5`, `0x543463` |
+| V254 last extension | `File__open` `0x51465c`..`0x51467a`, `0x51470c`..`0x514728`; data `0x5a7818`..`0x5a782b`; `File__find` `0x5142ef` |
+| V255 add path again | `file_add_path` `0x512f68`..`0x512f92`, `0x512fc1`..`0x51302c`; `setup_data_paths` `0x43dca0`..`0x43df04`; `cutscene_set_data_path` `0x43533f` |
+| V256 dead File helpers | `File__read_matrix43` `0x525bd9`..`0x525c42`; `File__find_on_cd` `0x513f7d`..`0x513f96`; `File__read_String8` `0x525d34`..`0x525d5c`; no reference to `0x525ba0`, `0x513f70`, `0x513590`, `0x525ce0`, `0x526840` |
+| V257 tooltip and repeats | `ui_button__set_tooltip` `0x5271d6`..`0x5271f2`; `ui_button__create_in_parent` `0x52713e`; callers `ui_parse_button` `0x528a10`, `0x52877d`, `ui_parse_static` `0x52ab9a`; `ui_load_table` `0x52b505`, `0x52b5d4` (no caller) |

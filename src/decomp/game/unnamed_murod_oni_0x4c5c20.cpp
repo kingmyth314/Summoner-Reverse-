@@ -5,7 +5,7 @@
 // Target: VC++ 6.0 (cl 12.00.8966), /O2 like the other boss units. Confidence per function: exact =
 // expect identical code, likely = same semantics, small layout risk, unsure = the source shape is a guess.
 //
-// Unit range: static_init_murod_oni_timers (0x4c5c20) to murod_oni_move_is_first (0x4c6460-0x4c6470). The
+// Unit range: static_init_murod_oni_timers (0x4c5c20) to murod_oni_move_is_kick (0x4c6460-0x4c6470). The
 // tentacle beast unit opens with its initialiser 0x4c6480 (entry 329).
 // Data: .data 0x59ddd4-0x59dde6 ("murod_oni_boss.tbl"); .bss 0x248bff0-0x248c31b (murod_oni_move_0 first,
 // murod_oni_move_2 last; the tentacle unit starts at 0x248c320). 0x248bff8-0x248bfff and the timer
@@ -323,7 +323,7 @@ void murod_oni_apply_area_hits(Character *c)
 }
 
 // 0x4c6460  Confidence: exact. boss_attack_stuns_dispatch case 0xb8: move 3 stuns.
-bool murod_oni_move_is_first()
+bool murod_oni_move_is_kick()
 {
     return murod_oni_current_move == murod_oni_move_3;
 }

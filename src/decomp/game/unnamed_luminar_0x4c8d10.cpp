@@ -15,8 +15,8 @@
 // with the Giant Salamanka's / tentacle unit's strings); .bss 0x248cdb0-0x248ce3b (luminar_move_anim first,
 // ccmd_stage last; 0x248cdb4 is never accessed).
 // Sub-modes: 0xf melee, 0x16 close in, 0x32 beam, 0x33 teleport out, 0x34 teleport in, 0x35 the grab move,
-// 0x36 the grab approach, 0x37 the release. "Held" (luminar_held_handle) is the thrown character in flight,
-// luminar_target_handle the carried one (sum.symbols' names).
+// 0x36 the grab approach, 0x37 the release. "Held" (luminar_thrown_handle) is the thrown character in flight,
+// luminar_grabbed_handle the carried one (sum.symbols' names).
 
 #include <math.h>
 #include <stdlib.h>
@@ -65,8 +65,8 @@ vector3 luminar_bite_tag_pos;         // 0x248cdc0 object space
 vector3 luminar_pickup_tag_pos;       // 0x248cdcc object space
 float luminar_melee_reach;            // 0x248cdd8
 float luminar_pickup_reach;           // 0x248cddc
-int  luminar_target_handle;           // 0x248cde0 the carried character
-int  luminar_held_handle;             // 0x248cde4 the thrown character in flight
+int  luminar_grabbed_handle;           // 0x248cde0 the carried character
+int  luminar_thrown_handle;             // 0x248cde4 the thrown character in flight
 // 0x4c8d10  Confidence: exact. static_init_luminar_timers: "jmp 0x4c8d20" (initialiser entry 336).
 // 0x4c8d20  Confidence: likely. init_luminar_timers: the GameTimer constructor for the release, teleport,
 // beam, retarget and attack timers (the last a tail jump).
@@ -113,8 +113,8 @@ void ai_state::luminar_boss_load()
     luminar_forced_stage = 0;
     zero.zero();
     identity.make_identity();
-    luminar_held_handle = -1;
-    luminar_target_handle = -1;
+    luminar_thrown_handle = -1;
+    luminar_grabbed_handle = -1;
     luminar_release_timer.SetTimeout(0);
     luminar_teleport_timer.SetTimeout(0);
     owner->type = 9;
@@ -168,7 +168,7 @@ void luminar_frame_hook(Character *c)
     bool landed;
     int tag;
 
-    t = living_from_handle(luminar_target_handle);
+    t = living_from_handle(luminar_grabbed_handle);
     if (t) {
         tag = c->instance->character->find_mesh_tag("$tag-grab-point");
         c->instance->get_bone_world_transform(tag, &c->orient, &c->pos, &t->orient, &p);
@@ -185,7 +185,7 @@ void luminar_frame_hook(Character *c)
         luminar_throw_velocity.z = d.z / ft;
         t->pos = p;
     }
-    h = living_from_handle(luminar_held_handle);
+    h = living_from_handle(luminar_thrown_handle);
     if (h == NULL)
         return;
     landed = false;
@@ -226,7 +226,7 @@ void luminar_frame_hook(Character *c)
     fwd.y = 0.0f;
     h->orient.set_from_forward_up(fwd, up);
     h->find_ground();
-    luminar_held_handle = -1;
+    luminar_thrown_handle = -1;
     move_info *m = h->find_move(8, 1);
     if (m)
         h->set_flag_2_4(h->play_move((int)m, 1.0f, false, false, false));
@@ -254,8 +254,8 @@ void ai_state::luminar_ai_select_action(Character *t)
     luminar_grab_cooldown = luminar_grab_cooldown - reported_frametime;
     if (luminar_forced_stage)
         luminar_stage = luminar_forced_stage;
-    if (living_from_handle(luminar_target_handle) == NULL) {
-        if (living_from_handle(luminar_held_handle) == NULL && t && luminar_stage == 2) {
+    if (living_from_handle(luminar_grabbed_handle) == NULL) {
+        if (living_from_handle(luminar_thrown_handle) == NULL && t && luminar_stage == 2) {
             if (submode != AIS_LUMINAR_GRAB_APPROACH && submode != AIS_LUMINAR_GRAB) {
                 luminar_try_start_grab(t);
                 luminar_grab_cooldown = 30.0f;
@@ -266,7 +266,7 @@ void ai_state::luminar_ai_select_action(Character *t)
         }
         if (luminar_beam_timer.elapsed() && t && luminar_beam_start(t))
             return;
-    } else if (living_from_handle(luminar_held_handle) == NULL) {
+    } else if (living_from_handle(luminar_thrown_handle) == NULL) {
         if (luminar_stage != 2 || owner->hp <= luminar_grab_release_health || luminar_grab_cooldown < 0.0f) {
             luminar_start_release();
             return;
@@ -305,7 +305,7 @@ void ai_state::luminar_ai_frame()
         choose = luminar_ai_melee(t);
         break;
     case AIS_GET_CLOSE:
-        if (living_from_handle(luminar_target_handle) == NULL && luminar_stage != 3) {
+        if (living_from_handle(luminar_grabbed_handle) == NULL && luminar_stage != 3) {
             if (t) {
                 float d = distance(&owner->pos, &t->pos);
                 attack_range = luminar_melee_reach - (d - owner->distance_between_edges(t, false, -1));
@@ -352,7 +352,7 @@ int ai_state::luminar_choose_melee_move(Character *t)
     int count = 0;
     float d;
 
-    if (living_from_handle(luminar_target_handle))
+    if (living_from_handle(luminar_grabbed_handle))
         return 0x88;
     d = distance(&owner->pos, &t->pos) - luminar_melee_reach;
     if (d < 0.0f) {
@@ -469,7 +469,7 @@ void ai_state::luminar_ai_grab(Character *t)
         return;
     t->instance->clear_state_anims();
     t->instance->set_state_weight(anim, 1.0f);
-    luminar_target_handle = t->handle;
+    luminar_grabbed_handle = t->handle;
     luminar_grab_release_health = owner->hp - 250.0f;
     t->set_flag_2_4(-1);
     t->flags |= CF_LUMINAR_HELD;
@@ -507,13 +507,13 @@ void ai_state::luminar_ai_release()
     }
     if (!owner->move_trigger_fired(8, 0))
         return;
-    luminar_held_handle = luminar_target_handle;
-    luminar_target_handle = -1;
+    luminar_thrown_handle = luminar_grabbed_handle;
+    luminar_grabbed_handle = -1;
     luminar_release_timer.SetTimeout(10000);
     owner->anim_ready = charinfo_find_move(owner->info, 0xe, 0x93, true)->anim;
     owner->anim_ready_hurt = charinfo_find_move(owner->info, 0xe, 0x95, true)->anim;
     owner->update_locomotion_anim();
-    h = living_from_handle(luminar_held_handle);
+    h = living_from_handle(luminar_thrown_handle);
     if (h == cur_character)
         game_camera.set_target(h);
 }

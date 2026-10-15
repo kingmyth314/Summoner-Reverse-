@@ -188,8 +188,10 @@ and meshes. Effect meshes are lit by `lights_select_nearest` and `lights_shade_v
 - `lamp_glow_load` (`0x4c0a60`) loads `WolongLampGlow01.tga` into `lamp_glow_bitmap` (`0x59db70`) and zeroes
   `lamp_glow_count` (`0x248b008`). **Observed.**
 - Glows come from level objects (`levelrender_level_load`) and from effect meshes with flag `0x40`
-  (`fx_create_instance`). `lamp_glow_add` (`0x4c0a90`) appends a 0x18-byte record with no bound check.
-  The array has room for 300. **Observed** for the missing check; *inferred* for the size.
+  (`fx_create_instance`). `lamp_glow_add` (`0x4c0a90`) appends a 0x18-byte record with no bound check:
+  position `+0x0`, size x 5 `+0xc`, alpha `+0x10` (0 at the start) and a dword `+0x14` that it zeroes and
+  nothing in this unit reads. The array has room for 300; `lamp_glow_count` (`0x248b008`) follows it.
+  **Observed** for the missing check and the fields; *inferred* for the size.
 - `lamp_glows_draw` (`0x484380`) raycasts from each glow to the eye (`lobj_raycast`) and fades it in or out
   by frame time. `lamp_glow_draw` (`0x4c0b40`) draws a sprite scaled by its alpha. **Observed.**
 

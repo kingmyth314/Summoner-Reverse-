@@ -2992,7 +2992,7 @@ a dword (`mov eax, [esp+0x110]; test eax, eax`, 0x512e29); the bool parameters o
 bytes (File::find_at `mov al, [esp+0x3c]; test al, al`). summoner.cpp's file_init(NULL, true) compiles
 unchanged.
 
-**D4105 (vsdk/vfile/file.h). file_is_absolute_path (0x513fb0) and file_find_free_slot (0x5140b0) are File
+**D4105 (vsdk/vfile/file.h). File__is_absolute_path (0x513fb0) and File__find_free_slot (0x5140b0) are File
 members (File::is_absolute_path, File::find_free_slot), keeping the sum.symbols address comments.** 0x513fb0
 ends with `ret 4` and File::find calls it with ECX = this and no stack cleanup (0x5141de); File::open_found
 loads ECX = this before calling 0x5140b0 (0x51453a `mov ecx, edi`). Both are thiscall functions that do not
@@ -3086,7 +3086,7 @@ game/unnamed_luminar_0x4c8d10.cpp.
 
 **D3908 (names).** Move pointer names follow the table index: titus_move_<stage><index> as sum.symbols has them,
 machival_move_N / evil_joseph_move_N / murod_oni_move_N for [0][N] (machival_move_melee and the sum.symbols
-names kept). murod_oni_move_is_first (sum.symbols) compares with murod_oni_move_3, not move 0; the name is kept.
+names kept). murod_oni_move_is_kick (sum.symbols) compares with murod_oni_move_3, not move 0; the name is kept.
 evil_urath_unused_moves (0x248bd88, 0x140 bytes after the threat table, never accessed) is named for its size.
 Names ending in an address (machival_248b030, titus_248b950, ...) are dwords the code writes but never reads,
 or never touches.

@@ -242,7 +242,7 @@ Total: 256 (154 / 100 / 2)
 | `0x4c62d0` | murod_oni_get_attack_kind | exact |
 | `0x4c6330` | murod_oni_collect_area_hits | likely |
 | `0x4c6410` | murod_oni_apply_area_hits | exact |
-| `0x4c6460` | murod_oni_move_is_first | exact |
+| `0x4c6460` | murod_oni_move_is_kick | exact |
 | `folded (0x4f13e0, empty_function)` | murod_oni_unload (name ours) | likely |
 | `folded (0x4f13e0, empty_function)` | murod_oni_check_stage (name ours) | likely |
 | `folded (empty_function)` | murod_oni_fire_attack (name ours) | likely |
@@ -389,10 +389,10 @@ Total: 256 (154 / 100 / 2)
 - sum.symbols machival_spell100/101/102_timer: "random 56-104 s" is only the rearm (SetRandomTimeout(55999,
   103999)); the first arming (machival_reset_timers, at the first target) is 0-60 s / 0-45 s / 0-30 s
   (rand() % 1000 * 60 / 45 / 30), and the teleport 70 s.
-- sum.symbols luminar_held_handle: "the grabbed character carried by luminar_frame_hook". In the code
-  luminar_target_handle is the carried one (luminar_ai_grab stores it; the frame hook moves it with the bone)
-  and luminar_held_handle the thrown one (set at the release; the frame hook flies and lands it).
-- sum.symbols murod_oni_move_is_first: it returns current == murod_oni_move_3 (moves[0][3]), not move 0.
+- sum.symbols luminar_thrown_handle: "the grabbed character carried by luminar_frame_hook". In the code
+  luminar_grabbed_handle is the carried one (luminar_ai_grab stores it; the frame hook moves it with the bone)
+  and luminar_thrown_handle the thrown one (set at the release; the frame hook flies and lands it).
+- sum.symbols murod_oni_move_is_kick: it returns current == murod_oni_move_3 (moves[0][3]), not move 0.
 - sum.symbols giant_salamanka_current_move "0x20 bytes from 0x248c844": the rows are &moves[stage - 1][i]
   computed from that base (D3904); the table itself starts at 0x248c984.
 - bosses.md Murod row "jumps to a spot near a random party member": 15 units away from it, in a random
