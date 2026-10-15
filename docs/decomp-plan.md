@@ -193,3 +193,15 @@ The agents also flagged eight existing names as wrong. Each was checked in the d
 `world_mouse_frame`, `character_use_skill`, `character_spell_on_cooldown`, `cutscene_cleanup`, the
 `ui_gadget` disabled/enabled methods, and the static-object destructors. The `ai_state` path is at `+0x210`, not
 `+0x80`.
+
+**2026-10-14, fourth parallel pass:** about 650 more names (still running when this was written: the
+`0x480000`-`0x4c0000` pass). It covered:
+- boss AI and the script editor;
+- 72 static UI constructors and the options setters;
+- the statically linked **IJG libjpeg 6b** compressor (113 functions, named from its method tables and error codes,
+  spot-checked against `jpeg_write_tables`);
+- math (quaternions, compressed quaternions), frustum culling, and more renderer helpers.
+
+Corrections: `mp_player_file_write` (it writes the `.plr` file), `hud_set_timed_highlight`, and the two hidden static
+initialisers that had been merged into "level_display_name". About 400 function starts hidden after padding are
+still not in Ghidra's list.

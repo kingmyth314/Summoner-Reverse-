@@ -2775,6 +2775,8 @@
 0x500cd0  mouse_di_read            func  vsdk\os\mouse          I ; IDirectInputDevice::GetDeviceState; on INPUTLOST/NOTACQUIRED Sleep(500) and Acquire; clamps x/y to the screen
 0x500de0  mouse_init               func  vsdk\os\mouse          I ; (w, h): critical section, centre, mouse_di_init (failure -> cursor mode), os_add_msg_handler, atexit
 0x500e90  mouse_di_init            func  vsdk\os\mouse          I ; DirectInputCreateA version 0x700, then 0x300; SysMouse, c_dfDIMouse, cooperative level 6 (non-exclusive | foreground), Acquire
+0x500f60  mouse_msg_handler        func  vsdk\os\mouse        O ; window message handler registered by mouse_init: under mouse_lock marks buttons (mouse_mark_button) and accumulates mouse_wheel
+0x501020  mouse_close              func  vsdk\os\mouse        O ; atexit handler registered by mouse_init: mouse_di_close, mouse_inited = 0, DeleteCriticalSection(mouse_lock)
 0x501050  mouse_di_close           func  vsdk\os\mouse        O ; Unacquire (vtbl+0x20) and Release the DirectInput mouse device, Release mouse_dinput, clears mouse_di_active
 0x501090  mouse_flush              func  vsdk\os\mouse          I ; clears deltas and button state
 0x501100  mouse_mark_button        func  vsdk\os\mouse          I ; (button 0-2, down): live state, press/release counts, double-click flag
@@ -2799,7 +2801,10 @@
 0x501450  clamp_int                func  -                      I ; (int*, lo, hi)
 0x5014b0 frametime_initialize     func  frametime.cpp            V ; Summoner 2 decomp
 0x501510 FrameDone                func  frametime.cpp            V ; Summoner 2 decomp; frame limiter double-counts its sleep
+0x5016d0  frametime_set_divisor    func  frametime.cpp        O ; frametime_divisor = arg
+0x5016e0  frametime_get_divisor    func  frametime.cpp        O ; returns frametime_divisor
 0x5016f0 frametime_set_limits     func  frametime.cpp            I ; (min, max) -> min/max_reported_frametime
+0x501750  frametime_unlimit        func  frametime.cpp        O ; saves min/max_reported_frametime to 0x257f084/0x257f080 (restored by frametime_restore_limits) and calls frametime_set_limits(10.0, 1e-5)
 0x501780  frametime_restore_limits func  frametime.cpp        I ; frametime_set_limits(saved 0x257f084, 0x257f080), caller cutscene_cleanup
 0x5017a0  increase_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused++
 0x5017b0  decrease_frametime_pause_counter func  frametime.cpp        V ; Summoner 2 frametime.h, Frametime_paused--, previous_done_time = timer_get(1000000)
@@ -2843,14 +2848,18 @@
 0x5021d0  bm_handle_to_index       func  vsdk\bmpman\bmpman.cpp I ; identity in this build
 0x5021e0  bm_set_reduce_textures   func  vsdk\bmpman\bmpman.cpp I ; (bool): applies bm_set_reduced to every used bitmap
 0x502240  bm_set_reduced           func  vsdk\bmpman\bmpman.cpp I ; (handle, bool): halve/restore w,h and drop/restore a mip level
+0x502300  bm_is_reduced            func  vsdk\bmpman\bmpman.cpp O ; (handle): reduced byte (+0x40) of the current frame entry
 0x502320  bm_init                  func  vsdk\bmpman\bmpman.cpp O ; builds free/used lists, clears hash, makes the 32x32 default checker
 0x5023e0  bm_free_entry            func  vsdk\bmpman\bmpman.cpp O ; (index): back to the free list, fields cleared
 0x502450  bm_bytes_per_pixel       func  vsdk\bmpman\bmpman.cpp O ; (format): 1; 565/4444/1555/88 2; 888 3; 8888 4
 0x5024a0  bm_bits_per_pixel        func  vsdk\bmpman\bmpman.cpp O ; bm_bytes_per_pixel * 8
+0x5024c0  bm_get_total_bytes       func  vsdk\bmpman\bmpman.cpp O ; (handle): total_bytes (+0x38) of the current frame entry, -1 for an invalid handle
+0x5024e0  bm_get_type              func  vsdk\bmpman\bmpman.cpp O ; (handle): type (+0x10) of the current frame entry, 0 for an invalid handle
 0x502500  bm_get_num_frames        func  vsdk\bmpman\bmpman.cpp O ; (handle, &secs_per_frame)
 0x502560  bm_get_current_frame     func  vsdk\bmpman\bmpman.cpp I ; animated handle -> index of the frame for the current time
 0x5025d0  bm_find                  func  vsdk\bmpman\bmpman.cpp O ; (name) -> handle or -1, hash + _stricmp
 0x502650  bm_hash_name             func  vsdk\bmpman\bmpman.cpp O ; rol(h, 6) ^ tolower(c), abs (packfile_hash uses rol 5)
+0x502690  bm_is_user_bitmap        func  vsdk\bmpman\bmpman.cpp O ; (handle): missing handle -1 -> bm_missing_created, else true for type 3 entries named "USERBMAP"
 0x5026e0  bm_load                  func  vsdk\bmpman\bmpman.cpp O ; (name, path_id): bm_load_internal, then preload when bm_preload_on_load
 0x502720  bm_load_internal         func  vsdk\bmpman\bmpman.cpp O ; (name, path_id, force_new); missing file -> bm_create_missing
 0x502a00  bm_read_header           func  vsdk\bmpman\bmpman.cpp O ; named by its own error "Cannot determine bitmap type in bm_read_header"; tga mips "%s_mip%d.tga"
@@ -2859,9 +2868,11 @@
 0x502ee0  bm_alloc_entries         func  vsdk\bmpman\bmpman.cpp O ; (count): contiguous run for an animation
 0x502f70  bm_prefer_vbm            func  vsdk\bmpman\bmpman.cpp I ; for a .tga, use name.vbm instead if it is loaded or exists
 0x5030a0  bm_create_missing        func  vsdk\bmpman\bmpman.cpp I ; 32x32 checker user bitmap registered under the missing name
+0x503110  bm_load_animation_path   func  vsdk\bmpman\bmpman.cpp I ; (name, &num_frames, &fps, path_id): bm_load_internal, for animation headers frame count and fps = frames_per_ms * 1000
 0x503190  bm_reload                func  vsdk\bmpman\bmpman.cpp I ; bm_load_internal(name, path_id, force_new=1)
 0x5031c0  bm_replace_file          func  vsdk\bmpman\bmpman.cpp I ; (handle, name, path_id): swap the source file if size/format match
 0x5033c0  bm_is_valid_size         func  vsdk\bmpman\bmpman.cpp I ; both dimensions powers of two in 4..256
+0x503480  bm_load_animation        func  vsdk\bmpman\bmpman.cpp O ; (name, &num_frames, &fps): as Dash Faction bm::load_animation, 1 frame / 0 fps for single bitmaps
 0x503500  bm_get_dimensions        func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_dimensions
 0x503550  bm_get_mipmap_info       func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_mipmap_info (w, h, num_pixels, levels)
 0x5035c0  bm_get_format            func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_format
@@ -2874,6 +2885,7 @@
 0x503b20  bm_lock_m2v              func  vsdk\bmpman\bmpman.cpp O
 0x503b50  bm_unlock                func  vsdk\bmpman\bmpman.cpp O ; bm_free_data(h, 0); Dash Faction bm::unlock
 0x503b60  bm_get_filename          func  vsdk\bmpman\bmpman.cpp O ; Dash Faction bm::get_filename
+0x503ba0  bm_get_total_size        func  vsdk\bmpman\bmpman.cpp O ; (handle): bm_get_mipmap_info total bytes times bm_get_num_frames, -1 for invalid handles
 0x503c80  bm_release               func  vsdk\bmpman\bmpman.cpp O ; frees texture cache entries (0x508020) for every frame, then the entry
 0x503cf0  bm_create                func  vsdk\bmpman\bmpman.cpp O ; (format, w, h, data, pal) named "USERBMAP"; Dash Faction bm::create
 0x503da0  bm_set_preload_on_load   func  vsdk\bmpman\bmpman.cpp I ; bm_preload_on_load = arg
@@ -2884,6 +2896,7 @@
 0x503fe0  localize_unescape        func  localize               O ; in place: \n \r \" \xHH
 0x504070  localize_strdup          func  localize               O ; into localize_string_pool, or allocate_in_mempool of the current pool; "INVALID" if none
 0x5040e0  localize_table_add       func  localize               O ; (text, english_hash, table): chained hash, 0xfd buckets, 12-byte nodes {hash, text, next}
+0x504190  localize_set_string_raw  func  localize             O ; (text, id): localize_strings[id] = localize_strdup(text)
 0x5041b0  localize_table_lookup    func  localize               O ; (english, table) -> translation, or the input when not found
 0x504200  localize_hash            func  localize               O ; rol(h, 6) ^ c, case-sensitive (bm_hash_name lowercases)
 0x504230  localize_load_strings    func  localize               O ; strings.tbl, section "#<language>" to "#end", into localize_strings[1000]
@@ -2901,7 +2914,10 @@
 0x505070  localize_quest_name      func  localize               O
 0x505090  localize_script_name     func  localize               O
 0x5050b0  localize_set_language    func  localize               O ; "Setting language to %s"; 0 English, 1 German, 2 French
+0x505120  localize_get_language_name_buf func  localize             O ; (char* out): strcpy of localize_language_names[localize_language] (0x42-byte entries)
+0x505160  localize_get_language_code_buf func  localize             I ; (char* out): strcpy of the second string of the current language entry (0x5a5c59 = names + 0x21)
 0x5051a0  localize_remap_charset   func  localize               O ; (text, to_font): German/French Windows-1252 <-> font code points (CP437 positions for German)
+0x5054e0  localize_get_string_ptr  func  localize             O ; (id): &localize_strings[id]
 0x5054f0  localize_string_or_invalid func  localize               I ; *p or "INVALID"
 0x505510  localize_get_language_name func  localize               O
 0x505530  vector3__vector3_default func  vsdk\math            I ; trivial default constructor (returns this); 19 static initialisers
@@ -2912,11 +2928,14 @@
 0x505c00  cmd_alpha_fog            func  -                      O ; console command "alpha_fog": Sets Gr_alpha_fog_ratio
 0x505ca0  init_ccmd_gr_show_stats  func  -                    O ; static initialiser: registers console command object ccmd_gr_show_stats
 0x505cc0  cmd_gr_show_stats        func  -                      O ; console command "gr_show_stats": Toggles Gr_show_stats
+0x505d90  init_ccmd_antialiasing   func  -                    O ; console_command "antialiasing" constructor (static initializer)
+0x505db0  cmd_antialiasing         func  -                    O ; toggles gr_set_antialias, prints "antialiasing toggled!" or "antialiasing not supported on this card."
 0x505e00 gr_init                  func  vsdk\gr\gr.cpp           O ; (w, h, mode, window_mode, hwnd, far_z, dual)
 0x506110  gr_check_dual_monitors   func  vsdk\gr\gr.cpp         O ; fullscreen only: SST_DUALHEAD environment variable (3dfx)
 0x506170  gr_screen_width          func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_width
 0x506180  gr_screen_height         func  vsdk\gr\gr.cpp         O ; Dash Faction gr::screen_height
 0x506190  gr_deactivate            func  vsdk\gr\gr.cpp       I ; Glide only (flag 0x25d921e): gr_glide_deactivate, reached from DebugError through 0x531ca0
+0x5061b0  gr_init_context          func  vsdk\gr\gr.cpp       I ; (hwnd): 0x545d70, then gr_screen.mode 0x66 (D3D) -> 0x538b70 or 0x68 (OpenGL) -> gr_opengl_init_context, then gr__reset_clip
 0x5061f0  gr_screenshot            func  vsdk\gr\gr.cpp         O ; (name, format, path_id): read_backbuffer, then TGA or the 0x5565e0 writer
 0x5065e0  gr_fade_out              func  vsdk\gr\gr.cpp         I ; (ms): black overlay alpha 0 -> 1; ms < 1 = instantly black
 0x506630  gr_fade_in               func  vsdk\gr\gr.cpp         I ; (ms): alpha 1 -> 0, then off; ms < 1 = instantly clear
@@ -2952,10 +2971,12 @@
 0x507d30  gr_read_backbuffer       func  vsdk\gr\gr.cpp         O ; Dash Faction gr::read_backbuffer(x, y, w, h, buf) -> format
 0x507db0  gr_set_fog               func  vsdk\gr\gr.cpp         I ; (enable, r, g, b, near, far); uses Gr_alpha_fog_ratio / Gr_level_fog_multiplier
 0x507f70  gr_set_tint              func  vsdk\gr\gr.cpp         I ; (enable, r, g, b): back ends modulate vertex colours
+0x507fb0  gr_finish                func  vsdk\gr\gr.cpp       I ; back-end dispatch on gr_screen.mode: Glide (0x67) -> 0x54a6d0, OpenGL (0x68) -> glFinish, D3D nothing
 0x507fd0  gr_tcache_flush          func  vsdk\gr\gr.cpp         I
 0x508020  gr_tcache_free           func  vsdk\gr\gr.cpp         I ; (bm); bm_release calls it per frame
 0x5080c0  gr_set_antialias         func  vsdk\gr\gr.cpp       O ; (enable) when 0x25d921c: dispatch to gr_d3d_set_antialias, Glide 0x54ba90 and OpenGL 0x550630 are empty
 0x508110  gr_set_alpha_test        func  vsdk\gr\gr.cpp       O ; (enable) dispatch to gr_d3d_set_alpha_test / gr_glide_set_alpha_test
+0x508140  gr_flush_pipeline        func  vsdk\gr\gr.cpp       I ; dispatch on gr_screen.mode: D3D -> gr_d3d_flush_pipeline, Glide -> gr_glide_flush_pipeline
 0x508160  gr__Mode__Mode           func  vsdk\gr\gr.cpp         O ; packs six 5-bit fields, as Dash Faction gr::Mode
 0x5081c0  gr__Vertex__Vertex       func  vsdk\gr              I ; default ctor (vector3 at +0 default-constructed), 0x30-byte vertex locals in gr_line_3d_world / gr_bitmap_3d, also the Plane in Plane__transform and gr_clip_plane +4
 0x5081d0  gr_close_fonts           func  vsdk\gr\gr_font.cpp    I ; frees every font's tables
@@ -2979,15 +3000,24 @@
 0x509660  key_on_keydown           func  -                      I ; WM_KEYDOWN: extended keys, Print Screen (0xb7), shift
 0x5096e0  key_on_keyup             func  -                      I ; WM_KEYUP
 0x509770  key_init                 func  -                      I ; (layout, fix_numlock): critical section, flush, message handler, atexit
+0x509810  key_close                func  -                    O ; atexit handler of key_init: restores numlock when the flag 0x25daa75 is set (key_numlock_on), key_inited = 0, DeleteCriticalSection(key_lock)
+0x509850  key_numlock_on           func  -                    O ; GetKeyboardState, VK_NUMLOCK byte = 1, SetKeyboardState
+0x509880  key_msg_handler          func  -                    O ; window message handler registered by key_init: key_on_keydown / key_on_keyup with a GetMessageTime-based timestamp, key_flush on focus messages
 0x509a00  key_numlock_fix          func  -                      I ; Windows 9x only: turns NumLock off if on
 0x509a50  key_numlock_is_on        func  -                      I
+0x509a80  key_getch                func  -                    O ; waits until key_queue_not_empty then returns key_inkey, 0 when keys are not initialised
 0x509ab0  key_flush                func  -                      I ; clears the queue and key states
+0x509b50  key_clear                func  -                    O ; (scancode) under key_lock resets the timestamps (timer_get(1000)), press count, down state and the 0x25da540 counter of one key
 0x509bb0  key_down_time            func  -                      I ; (key) -> seconds held
 0x509ca0  key_to_ascii             func  -                      I ; two 127-entry tables, shifted when bit 0x1000 set
 0x509ce0  key_inkey                func  -                      I ; dequeues the next key code
+0x509d40  key_putkey               func  -                    O ; (code) under key_lock appends to the 16-entry key_queue at key_queue_tail
+0x509d90  key_get_shift_status     func  -                    O ; under key_lock: 0x1000 shift (0x2a/0x36), 0x2000 alt (0x38/0xb8), 0x4000 ctrl (0x1d/0x9d), 0x800 for 0x29 when 0x25daa77 is set
 0x509e20  key_get_press_count      func  -                      I ; returns and clears the press counter of key N (0..255) under the key lock
 0x509ec0  key_queue_not_empty      func  -                      I ; key queue head != tail, under the key lock
 0x509f00  key_is_down              func  -                      I ; returns the current down-state byte of key N
+0x509f10  key_enable_debug_modifier func  -                    I ; 0x25daa77 = 1 (lets key_get_shift_status report 0x800 for scancode 0x29)
+0x509f20  key_disable_debug_modifier func  -                    I ; 0x25daa77 = 0
 0x50a010  init_ccmd_print_to_file  func  -                    O ; static initialiser: registers console command object ccmd_print_to_file
 0x50a030  cmd_print_to_file        func  -                      O ; console command "print_to_file": Print out console commands to the text file console.txt
 0x50a180  console_command__console_command func  console.cpp                      V ; Summoner 2 class; ctor(name, description, callback) inserts into Console_commands, sorted; 145 static instances
@@ -3005,6 +3035,7 @@
 0x50ac40  init_ccmd_script         func  -                    O ; static initialiser: registers console command object ccmd_script
 0x50ac60  cmd_script               func  -                      O ; console command "script": Runs a console script file (.vcs)
 0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
+0x50aef0  console_printf           func  console.cpp          O ; vsprintf into a 0x800-byte buffer then print_to_console(buf, 0), caller cmd_summon
 0x50b4c0  gr_glide_render_character_mesh func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of ca_render_mesh (mode 0x67), calls glide_grDrawPlanarPolygonVertexList
 0x50c130  gr_d3d_render_character_mesh func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of ca_render_mesh (mode 0x66), skinning + gr_d3d set_render_state
 0x50cd00  gr_opengl_render_character_mesh func  vsdk\gr\opengl\gr_opengl.cpp I ; OpenGL target of ca_render_mesh (mode 0x68)
@@ -3018,6 +3049,7 @@
 0x50d8d0  gr_get_point_fog_value   func  vsdk\gr              I ; (value, world pos): rotates pos into view space, then gr_get_fog_value with its z
 0x50d910  gr_get_fog_value         func  vsdk\gr              I ; (value, z): as gr_get_fog_alpha with the second fog range (gr_screen +0x7c..0x84), scales value
 0x50d960  float_max                func  vsdk\math            O ; (a, b) returns the larger float, 23 callers (fog, effects, lighting)
+0x50d980  clamp_float              func  vsdk\math            O ; (float* v, lo, hi) clamps in place, used by the Glide tint code and the sound group volumes
 0x50daa0  init_ccmd_far_min        func  -                    O ; static initialiser: registers console command object ccmd_far_min
 0x50dac0  cmd_far_min              func  -                      O ; console command "far_min": Sets Gr_far_min
 0x50db60  init_ccmd_far_max        func  -                    O ; static initialiser: registers console command object ccmd_far_max
@@ -3036,9 +3068,20 @@
 0x50e890  gr_code_vertex           func  vsdk\gr              O ; as gr_code_point but stores the codes in vertex +0x18
 0x50e910  gr_rotate_vertex         func  vsdk\gr              O ; (Vertex* out, vector3* in): (in - view_pos) rotated by view_matrix, clears flags +0x19, returns gr_code_vertex, Dash Faction gr::rotate_vertex(Vertex*, const Vector3&)
 0x50e960  gr_rotate_delta_vec      func  vsdk\gr              O ; (out, in): rotation only by view_matrix, no translation
+0x50e990  gr_rotate_vertices       func  vsdk\gr              O ; (gr__Vertex* out, vector3* in, count): (in - gr_view_pos) rotated by gr_view_matrix, flags +0x19 cleared, gr_code_vertex for each (0x30 stride)
 0x50ea50  gr_project_vertex        func  vsdk\gr              O ; (Vertex*) if not projected: sw = 1/z, sx/sy from projection half sizes + clip offset, clamped, sets flag 1 (2 when z <= 0), Dash Faction gr::project_vertex
 0x50eb30  gr_check_normal_facing   func  vsdk\gr              O ; (pos, normal): dot(view_pos - pos, normal) > 0 (backface test)
+0x50eb70  gr_plane_faces_viewer    func  vsdk\gr              O ; (Plane*): Plane__distance_to_point(gr_view_pos) > 0
+0x50eba0  gr_get_normal_facing_dot func  vsdk\gr              O ; (pos, normal): normalized(gr_view_pos - pos) dot normal
+0x50ebe0  gr_screen_to_world_ray   func  vsdk\gr              O ; (out {pos, dir}, sx, sy): unprojects with gr_projection_xmul/ymul and gr_matrix_scale, dir unrotated by gr_eye_matrix, pos = gr_eye_pos, callers world_mouse_frame, script_editor_frame
 0x50ec90  gr_project_size          func  vsdk\gr              I ; (Vertex*, float*size) size * projection x half-width * matrix_scale.x / z
+0x50ecd0  gr_cull_sphere           func  vsdk\gr              O ; (pos, radius, ignore_far): Plane__distance_to_point against the gr_frustum_planes, true when the sphere is fully outside one plane, as Dash Faction gr::cull_sphere
+0x50ed60  gr_get_frustum_planes    func  vsdk\gr              O ; (Plane* out, uint8* out_flags): copies gr_num_frustum_planes Planes (entry +4, stride 0x1c) and the flag byte at entry +0
+0x50edc0  gr_cull_bounding_box     func  vsdk\gr              O ; (mins, maxs): bbox_get_corner by each plane's corner index (+0x10) then Plane__distance_to_point, true when outside, as Dash Faction gr::cull_bounding_box
+0x50ee70  gr_cull_bounding_box_transformed func  vsdk\gr              I ; (pos, orient, mins, maxs): Plane__transform each frustum plane into box space, bbox_corner_indices_from_normal, bbox_get_corner, true when outside
+0x50ef30  gr_get_eye               func  vsdk\gr              O ; (vector3* pos, matrix3* orient): copies gr_eye_pos and gr_eye_matrix
+0x50ef60  gr_save_3d_state         func  vsdk\gr              O ; copies view/light/eye matrices and positions, matrix scale, projection values and the frustum planes into the backup block at 0x2692890 (no direct callers)
+0x50f120  gr_restore_3d_state      func  vsdk\gr              O ; inverse of gr_save_3d_state, copies the 0x2692890 block back into the gr 3D globals (no direct callers)
 0x50f2e0  sort_by_float_key        func  -                    O ; (pairs, n) shell sort of 8-byte {float key, value} entries with float_key_less, caller mesh_check_materials
 0x50f380  float_key_less           func  -                    O ; (a*, b*) *(float*)a < *(float*)b
 0x50f590  gr_clip_plane__gr_clip_plane func  vsdk\gr              O ; ctor: Plane at +4 (0x1c-byte entry, 8 frustum planes built by gr_3d_state ctor)
@@ -3174,13 +3217,33 @@
 0x514a40  File__error              func  vsdk\vfile             O ; Dash Faction File::error
 0x514a70  File__is_open            func  vsdk\vfile           O ; thiscall: slot index (+0x110) >= 0
 0x514a80  File__delete             func  vsdk\vfile           O ; thiscall (name, path_id): File__find, -4 if not found, -3 if open, else remove(full name at +5), callers saveload_delete_save, script writers
+0x514ec0  is_blank                 func  -                    V ; Summoner 2 plainstring.cpp is_blank: true when the string is empty or only space/tab/newline
+0x514f00  trim_leading_whitespace  func  -                    O ; (dest, src): skips leading space/tab/newline then strcpy
+0x514f60  trim_trailing_whitespace func  -                    O ; (dest, src): strncpy without trailing space/tab/newline
+0x514fb0  trim_whitespace          func  -                    V ; Summoner 2 plainstring.cpp trim_whitespace(dest, src, max_length): first/last non-blank, strncpy, empty when count <= 0
+0x5152a0  int_to_string_with_commas func  -                    V ; Summoner 2 plainstring.cpp: sprintf %d then inserts a comma every three digits, callers status_draw_level, ring_format_info
+0x5154d0  strcat_char              func  -                    O ; (string, c): appends one char and a terminator, returns string
+0x515500  stristr                  func  -                    V ; Summoner 2 plainstring.cpp stristr: lower-cases both strings into 512-byte buffers (tolower), strstr, maps the hit back into the original
+0x5155e0  strlwr                   func  -                    V ; Summoner 2 plainstring.cpp strlwr (tolower per char), caller file_add_path
+0x515620  strupr                   func  -                    V ; Summoner 2 plainstring.cpp strupr (toupper 0x56fa60 per char)
+0x515660  int_to_string            func  -                    V ; Summoner 2 plainstring.cpp int_to_string(dest, size, value): sprintf into a 32-byte buffer then strcpy
+0x5156b0  int_to_hex_string        func  -                    O ; (dest, size, value): sprintf "0x%x" into a 32-byte buffer then strcpy
+0x515700  float_to_string          func  -                    O ; (dest, size, value, precision): sprintf "%.*f" then strcpy
+0x515760  byte_count_to_string     func  -                    O ; (dest, size, bytes): "%d bytes" below 999, else "%.2f KB" or "%.2f MB"
+0x515800  vector3_to_string_buf    func  -                    V ; Summoner 2 plainstring.cpp vector3_to_string(dest, size, v, precision): "< %.*f, %.*f, %.*f >" (the String version is 0x516cd0)
+0x515880  ptr_to_hex_string        func  -                    I ; (dest, size, value): sprintf "0x%x" (second copy of the format string), then strcpy
+0x5158d0  string_to_wide_charmap   func  -                    O ; (wchar* dest, char* src): maps chars 0x20-0x75 through the 16-bit table at 0x5a783c
+0x515910  wide_charmap_to_string   func  -                    O ; (char* dest, wchar* src): inverse lookup in the 0x5a783c table (index + 0x20)
 0x515960  TextFile__TextFile       func  vsdk\parse\parse.cpp   V ; Summoner 2 TextFile(); zeroes buffer, cursor, flag
+0x515970  TextFile__TextFile_open  func  vsdk\parse\parse.cpp O ; thiscall (name, max_size): TextFile__Open, DebugError "Unable to open parse file %s" (parse.cpp line 0xbf) on failure, returns this
 0x5159d0  TextFile__dtor           func  vsdk\parse\parse.cpp   V ; Summoner 2 ~TextFile(); thunk to Close
 0x5159e0  TextFile__SkipBlockComment func  vsdk\parse\parse.cpp   V ; Summoner 2; skips to */ and counts lines
 0x515a20  TextFile__SkipSpaces     func  vsdk\parse\parse.cpp   I ; skips blanks and control whitespace (used by SkipWhitespace?)
 0x515a80  TextFile__SkipWhitespace func  vsdk\parse\parse.cpp   I ; called first by Peek/Accept/ParseFloat, as Summoner 2's SkipWhitespace
 0x515af0  TextFile__SkipToNextLine func  vsdk\parse\parse.cpp   I ; to CR, counting the line, then past LF
+0x515b30  TextFile__SkipToWrap     func  vsdk\parse\parse.cpp O ; thiscall (string): SkipTo from the cursor, else Rewind and SkipTo again, restores the position when not found
 0x515ba0  TextFile__SkipTo         func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipTo(string, stop); strstr, stop must not come first
+0x515c20  TextFile__SkipPastWrap   func  vsdk\parse\parse.cpp O ; thiscall (string): TextFile__SkipToWrap then Expect(string)
 0x515c50  TextFile__SkipPast       func  vsdk\parse\parse.cpp   V ; Summoner 2 SkipPast(string, stop) = SkipTo + Expect
 0x515c80  TextFile__CopyUntil      func  vsdk\parse\parse.cpp   O ; copies text up to SkipTo(string, stop) into dest; not in Summoner 2
 0x515ce0  TextFile__GetPosition    func  vsdk\parse\parse.cpp   V ; Summoner 2; {line, cursor}
@@ -3195,6 +3258,7 @@
 0x5160b0  TextFile__ReadNextLine   func  vsdk\parse\parse.cpp   I ; SkipWhitespace + ReadLine
 0x5160d0  TextFile__Peek           func  vsdk\parse\parse.cpp   V ; Summoner 2; _strnicmp at cursor
 0x516110  TextFile__Accept         func  vsdk\parse\parse.cpp   V ; Summoner 2; consumes the string on match
+0x516150  TextFile__AcceptQuoted   func  vsdk\parse\parse.cpp O ; thiscall (string): accepts '"' + string + '"', else restores the position
 0x5161e0  TextFile__Expect         func  vsdk\parse\parse.cpp   V ; Summoner 2; Accept or Error
 0x516230  TextFile__ParseBool      func  vsdk\parse\parse.cpp   O ; Error("a boolean value"); PC-only
 0x516290  TextFile__ParseInt       func  vsdk\parse\parse.cpp   V ; Error("an integer")
@@ -3204,12 +3268,18 @@
 0x5165a0  TextFile__ParseMatrix    func  vsdk\parse\parse.cpp   V ; Error("a matrix")
 0x516630  TextFile__ParseString_b  func  vsdk\parse\parse.cpp   I ; Error("a string"); second string parser
 0x5166b0  TextFile__ParseString    func  vsdk\parse\parse.cpp   V ; Error("a string"), "Not enough storage provided (%d) for parsed C string"
+0x516780  TextFile__ParseMultiline func  vsdk\parse\parse.cpp O ; thiscall (String* out, terminator): text up to terminator (Error "multiline terminator" when missing), trailing whitespace trimmed, String__assign_n
+0x516830  TextFile__ParseMultilineJoined func  vsdk\parse\parse.cpp O ; TextFile__ParseMultiline then CR -> space and LF dropped
 0x5168b0  TextFile__ParseStringList func  vsdk\parse\parse.cpp   O ; Error("a string list")
 0x516940  TextFile__ParseIntList   func  vsdk\parse\parse.cpp   V ; Error("an integer list")
 0x516a30  TextFile__ParseFloatList func  vsdk\parse\parse.cpp   V ; Error("a float list")
+0x516ab0  TextFile__ParseFlags     func  vsdk\parse\parse.cpp O ; "a flags list" / "a valid flag name" / "a flags list terminator" errors, _stricmp against the name table
 0x516bd0  TextFile__ParseTypeString func  vsdk\parse\parse.cpp   V ; Error("a valid type string")
+0x516c70  TextFile__Checksum       func  vsdk\parse\parse.cpp V ; Summoner 2 TextFile::Checksum: Crc32 over buffer (+0) and size (+0x4c), callers the *_parse_table functions
+0x516ca0  bool_to_String           func  -                    O ; (String* out, bool): String__String_cstr("true"/"false")
 0x516cd0  vector3_to_string        func  -                      I ; "<x, y, z>"-style text through the string class (0x556f70 / 0x557070 / 0x557c00)
 0x516e80  matrix3_to_string        func  -                      I ; three vector3_to_string rows
+0x517000  bool_to_cstr             func  -                    O ; (char* dest, bool): strcpy "true"/"false"
 0x5172f0  movie_play               func  -                    O ; (file name): plays a Bink movie until it ends or a key is pressed; called for vlogo.bik/eaxlogo.bik (mainmenu_init) and by credits_frame
 0x517590  nw_buffer_receive        func  vsdk\net               I ; pops a packet from the per-type receive buffer
 0x5175e0  nw_can_write             func  vsdk\net               I ; select() for writability on nw_udp_socket
@@ -3235,6 +3305,14 @@
 0x5191c0  nw_NewCloseSocket        func  -                      O ; own assert "Invalid socket id passed to nw_NewCloseSocket()"
 0x519370  nw_addr_equal            func  vsdk\net               I
 0x5193a0  net_get_reliable_socket_status func  -                      O ; own assert "Invalid socket id passed to net_get_reliable_socket_status()"
+0x519510  character_instance__free_buffers func  vsdk\ca              O ; operator_delete of the anim time/weight arrays (+0x40/+0x44) and the vertex buffers (+0x48/+0x4c)
+0x519570  character_instance__alloc_buffers func  vsdk\ca              O ; vertex buffers from the mesh vertex count (gr__Vertex 0x34 and 0x30-byte arrays at +0x48/+0x4c), 100-entry time/weight arrays, times = skeleton start (+0x60)
+0x5196b0  character_instance__character_instance_default func  vsdk\ca              O ; default constructor: vector members and 0xcc zero bytes, caller the eh vector iterator thunk 0x4115a0
+0x519700  character_instance__character_instance func  vsdk\ca              O ; (character*): zeroes 0xcc bytes, character at +0x3c, character_instance__alloc_buffers, 5 anim speed slots = (-1, 1.0), tint bytes +0xc9..cb = 0xff, caller charinfo_create_character_instance
+0x519840  character_instance__dtor func  vsdk\ca              I ; calls character_instance__free_buffers, caller the eh vector destructor thunk 0x4115b0
+0x519850  character_instance__reset_anims func  vsdk\ca              O ; thiscall (clear_weights): allocates buffers if missing, optionally zeroes weights, resets every anim time to its skeleton start, callers level_load_preload, character_reinit_anims
+0x5198a0  character_instance__rewind_anim func  vsdk\ca              O ; thiscall (anim): weight 0 and time = skeleton start (+0x60), caller statscreen_load_anim
+0x51a130  skeleton_get_bone_blend_weight func  vsdk\ca              I ; (skeleton, bone, time): per-bone weight byte (+0x88) faded in over +0xa0 and out over +0xa4 ticks
 0x51a1e0  character_instance__advance_anim_time func  vsdk\ca              I ; thiscall (anim, dt): per-anim speed from a 5-entry (anim, scale) table, time +0x40[anim] += dt * scale
 0x51a230  character_instance__increment_tick func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::increment_tick"
 0x51a6a0  character_instance__get_active_anims func  vsdk\ca              O ; (ci, out[8]) indices of up to 8 animations with a non-zero weight (+0x44)
@@ -3246,6 +3324,7 @@
 0x51adc0  character_instance__get_bounding_sphere func  vsdk\ca              O ; thiscall (&centre, &radius) from the mesh header (+0x28): centre +0x50, radius +0x5c
 0x51ae90  character_instance__set_state_weight func  vsdk\ca              O ; thiscall (anim, weight) only for state skeletons (+0x5c), weight > 0 makes it the dominant state (+0x5c of the instance)
 0x51aee0  character_instance__start_anim func  vsdk\ca              O ; thiscall (anim, weight, is_action): stop, weight +0x44, time = skeleton start +0x60, action index +0x54
+0x51af70  character_instance__set_anim_speed func  vsdk\ca              O ; thiscall (anim, scale): stores into the 5-entry (anim, scale) table read by character_instance__advance_anim_time when the anim is active
 0x51b000  character_instance__get_anim_time_left func  vsdk\ca              I ; thiscall (anim): skeleton end +0x64 minus current time, 0 when inactive
 0x51b070  character_instance__get_anim_elapsed func  vsdk\ca              O ; thiscall (anim): (time - skeleton start) converted to seconds, 0 when the weight is 0
 0x51b0c0  character_instance__get_anim_length func  vsdk\ca              O ; thiscall (anim): max(end - start, 0) of the skeleton in seconds
@@ -3255,11 +3334,15 @@
 0x51b250  character_instance__get_anim_root_speed func  vsdk\ca              I ; thiscall (anim): length of skeleton__get_root_velocity for state skeletons
 0x51b290  character_instance__anim_trigger_hit func  vsdk\ca              I ; thiscall (name, ...) checks the 5 trigger slots (+0xa8) of the current action skeleton (+0xb0), used by character_update_footsteps
 0x51b330  character_instance__page_in_textures func  vsdk\ca              O ; gr_page_in every texture of the mesh with progress_update, caller level_page_in_characters
+0x51b3b0  character_instance__compute_bone_matrix func  vsdk\ca              O ; thiscall (matrix43* out, bone): get_active_anims then the recursive bone evaluator 0x519ac0
+0x51b3f0  character_instance__get_bone_world_transform func  vsdk\ca              O ; thiscall (bone, inst_orient, inst_pos, out_orient, out_pos): bone matrix rotation/position transformed by the instance orient and position, 28 callers
+0x51b460  character_instance__get_bone_transform func  vsdk\ca              O ; thiscall (bone, out_orient, out_pos): model-space bone rotation and position, callers combat_get_weapon_tag_position, character_get_bone_world_matrix
 0x51b4a0  character_instance__report_memory func  vsdk\ca\character_instance.cpp I ; mem_report_line "cur time", "anim pct", "bone info", "TOTAL"
 0x51b560  ca_system_init           func  vsdk\ca              I ; LoadSettings: empty stub, ca_init(arg), then resets the skeleton read state (0x544a10)
 0x51b580  ca_system_close          func  vsdk\ca              I ; empty stub, ca_close, empty stub
 0x51b5d0  init_ccmd_high_lod       func  -                    O ; static initialiser: registers console command object ccmd_high_lod
 0x51b5f0  cmd_high_lod             func  -                      O ; console command "high_lod": Toggles High_lod
+0x51b6b0  profile_label__profile_label func  -                    I ; thiscall (const char* label) returning this, empty in release: the label strings "ix_ray_sphere", "character_instance::process" etc are passed to it
 0x51b6c0  matrix43__copy           func  vsdk\math            O ; rep movsd of 12 dwords (0x30 bytes)
 0x51b700  vector3__negated         func  vsdk\math            O ; (&out) returns (-x, -y, -z)
 0x51b750  imax                     func  -                    O ; (a, b) larger int, counterpart of imin (0x503dc0)
@@ -3274,9 +3357,11 @@
 0x51bb50  ftp_get__scalar_deleting_dtor func  -                    O ; ftp_get_destroy then operator delete
 0x51bd70  init_ccmd_show_effect_mem func  -                    O ; static initialiser: registers console command object ccmd_show_effect_mem
 0x51bd90  cmd_show_effect_mem      func  -                      O ; console command "show_effect_mem": Shows how much memory the effects system is using.
+0x51bf70  vfx_find_name            func  vsdk\geom            I ; (path): strips the directory (strrchr '\\'), _stricmp over the name table 0x27281d8 (count 0x2c9f99c), index or -1
 0x51bfd0  rfx_preload              func  vsdk\geom\effect_mem.cpp I ; "Preload.rfx is too big for the current preload size! I refuse to run!", "ADD STREAMING EFFECT", "AS 0".."AS 9" checkpoints
 0x51c370  effect_base_release      func  vsdk\geom            I ; (index) clears the loaded data of the 0x14-byte effect base (table 0x2c8f060), streamed bases (kind 3) drop a use count, used by rfx_preload
 0x51c490  effect_base_load         func  vsdk\geom            I ; (index) loads an effect base unless already resident (flag 0x80000000), -1 on failure
+0x51c520  effects_alloc_stream_slot func  vsdk\geom            O ; (base): ring of 6 streamed-effect slots at 0x2c9f270 (cursor 0x2c9f974), releases an unused base (effect_base_release) when full
 0x51c720  effect_get_base          func  vsdk\geom            I ; (id) effect base for an id through the byte map 0x2c8e7c8, loading it on demand, used by ui_3d_begin and the fx instance code
 0x51c800  effects_get_num_bases    func  vsdk\geom            O ; returns the effect base count 0x2c9f998
 0x51c810  effects_find_base        func  vsdk\geom            O ; (name) _stricmp over the base names (+0x10), index or -1
@@ -3286,9 +3371,11 @@
 0x51ccd0  effects_reset_level      func  vsdk\geom            I ; clears the preload/stream slot tables (-1) and the per-level flag of every base, then effects_init_pools
 0x51cd40  effects_init_pools       func  vsdk\geom            I ; zeroes the effect memory pool counters 0x2c9f978..0x2c9f990, used by effects_load_bases
 0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x51db50  effects_hash_name        func  vsdk\geom            O ; (name): tolower bit hash shifted into the high word xor the byte sum
 0x51dbb0  effects_load_preload_rfx func  vsdk\geom            O ; finds the base named "preload.rfx" and loads it once (flag 0x2c9f994)
 0x51dc20  effects_release_level_memory func  vsdk\geom            I ; releases every base inside the level effect memory range, callers level_unload
 0x51dc50  effects_release_range    func  vsdk\geom            I ; (start, size) releases every loaded base whose data lies in the range
+0x51dd00  vfx_load                 func  vsdk\geom            I ; (name, ...): level scope unless the name starts with "nar-", "mi-" or "worl", vfx_preload then builds the instance data, callers ui_load_model_lights, fx_create_instance
 0x51e0c0  light_reset_all          func  vsdk\gr              I ; empties the light list 0x2cb4520 and zeroes the 400 x 0x94-byte light array 0x2ca5de0
 0x51e100  light_set_all_disabled   func  vsdk\gr              I ; (bool) sets bit 14 of the flags (+8) of every light in the list, ui_3d_begin/ui_3d_end
 0x51e230  light_set_ambient        func  vsdk\gr              I ; (r, g, b) into 0x5a8904..0x5a890c, bumps the light change counter
@@ -3296,6 +3383,7 @@
 0x51e290  light_create_point       func  vsdk\gr              I ; allocates a light (light_alloc) and sets type 2 (Red Faction LT_POINT) with position and colour
 0x51e360  light_get                func  vsdk\gr              O ; (index) &lights[index], 0x94-byte entries at 0x2ca5de0
 0x51e380  light_alloc              func  vsdk\gr              O ; first light with type 0 among 400, -1 when full
+0x51faf0  float_min                func  vsdk\math            O ; (a, b) returns the smaller float (counterpart of float_max), 17 callers in lighting/effects
 0x520420  character_instance__render func  vsdk\ca\character_instance.cpp I ; thiscall (?, ?, params): setup_matrices_b, copies tint bytes +0xc9..cb, ca_render_set_instance, picks LOD mesh, ca_render_mesh
 0x5204d0  init_cmdline_param_nosound func  -                    O ; static initialiser: CmdLineParam__CmdLineParam(cmdline_param_nosound, "-nosound")
 0x520570  Sound__params_equal      func  -                    O ; (Sound*, a, b, c) floats +0x28/+0x34/+0x2c equal, used by sound_check_filename
@@ -3327,11 +3415,13 @@
 0x521620  snd_stop_fade            func  -                    O ; (sig, ms) forwards to ds_stop_fade
 0x521650  snd_is_playing           func  -                    O ; (sig) forwards to ds_is_playing, RF snd_pc_is_playing
 0x521680  snd_set_volume           func  -                    I ; calls ds_set_volume with snd_get_volume result, RF snd_pc_set_volume
+0x5216e0  snd_set_volume_in_group  func  -                    O ; (group, sig, vol): vol clamped 0..1, scaled by snd_get_volume(group) and passed to ds_set_volume when the DirectSound backend is active
 0x521760  snd_set_pan              func  -                    I ; forwards to ds_set_pan, RF snd_pc_set_pan
 0x5217c0  snd_set_frequency        func  -                    I ; clamps then ds_set_frequency
 0x521800  snd_get_frequency        func  -                    I ; forwards to ds_get_frequency
 0x521830  snd_get_format           func  -                    I ; snd_load then ds_get_format (rate, bits, channels)
 0x5218e0  snd_set_group_volume     func  -                    I ; forwards to ds_set_group_volume, called from options_leave
+0x521950  snd_get_group_volume     func  -                    O ; (group): float at 0x2cb542c[group] (set by snd_set_group_volume)
 0x521980  snd_get_sound            func  -                    O ; (handle) &sounds[handle] for 0..0x27f, else NULL
 0x5219a0  snd_file_exists          func  -                    O ; (path) File__find of the part after the last backslash with the default path id
 0x521a30  snd_get_sound_info       func  -                    O ; (handle, out) copies the 0x40-byte Sound record, RF snd_pc_get_by_id analogue
@@ -3339,6 +3429,9 @@
 0x521b10  sounds_parse_entry       func  -                    O ; (TextFile*, handle) quoted name (0x28 bytes), three floats (+0x2c, +0x28, +0x34), rolloff +0x30 = snd_calc_rolloff
 0x521b70  snd_get_rolloff          func  -                    O ; (handle) sounds[handle] +0x30 (snd_calc_rolloff result), 0.0 when invalid
 0x521b90  snd_is_ds3d_enabled      func  -                    O ; jmp ds_is_ds3d_enabled, RF snd_pc_is_ds3d_enabled
+0x521bb0  snd_restore_reverb       func  -                    O ; eax_restore_reverb when ds_is_eax_enabled
+0x521bc0  snd_mute_reverb          func  -                    O ; eax_mute_reverb when ds_is_eax_enabled
+0x521be0  snd_get_duration         func  -                    O ; (handle): ds_estimate_duration of the sound's DirectSound buffer (+0x10 of the 0x40-byte entry, 0x280 entries), 0 when sound is off
 0x521dd0  snd_calc_rolloff         func  -                    I ; float formula on (dist, min, max) used by sounds_parse_table
 0x521e00  snd_set_eax_environment  func  -                    O ; forwards name to ds_set_eax_environment
 0x521e10  Sound__is_used           func  -                    O ; thiscall: name[0] != 0
@@ -3356,12 +3449,44 @@
 0x522240  eax_get_listener_props   func  -                    O ; IKsPropertySet::Get of individual EAX listener properties into a struct, called by eax_save_props
 0x522420  eax_load_props           func  -                    I ; fopen/fscanf-like/fclose counterpart of eax_save_props
 0x522580  eax_set_listener_props   func  -                    O ; IKsPropertySet::Set listener property 1 (ALLPARAMETERS, 0x38 bytes), called by eax_load_props
+0x522610  quaternion__set_from_matrix func  vsdk\math            O ; thiscall (matrix3*): trace-based matrix to quaternion, sqrt(trace + 1) * 0.5 into w
+0x522930  quaternion__multiply     func  vsdk\math            O ; thiscall (out, q): w1*v2 + w2*v1 + v1 x v2 and w1*w2 - v1.v2
+0x522a40  cquat__multiply          func  vsdk\math            O ; thiscall (out, q): quaternion product on the int16 cquat form, results through ftol into cquat__cquat_copy
 0x522bf0  quaternion__to_matrix    func  vsdk\math              O ; (matrix*): standard unit-quaternion rotation
+0x522cc0  quaternion__to_matrix_b  func  vsdk\math            O ; thiscall (matrix3*): second unit-quaternion to rotation matrix routine (1 - 2(y2+z2) ...), 17 callers (doors, game frame)
+0x522d90  quaternion__normalized   func  vsdk\math            O ; thiscall (out): copy scaled by 1/sqrt(x2+y2+z2+w2)
+0x522e00  quaternion__conjugate    func  vsdk\math            O ; thiscall (out): (-x, -y, -z, w)
+0x522f20  quaternion__normalize    func  vsdk\math            O ; in place scale by 1/sqrt(x2+y2+z2+w2), callers skeleton_read and the key-frame readers
+0x523050  cquat__normalized        func  vsdk\math            O ; thiscall (out): int16 quaternion rescaled by sqrt(0x3fff^2 / len_sq(q))
+0x5230f0  cquat__conjugate         func  vsdk\math            O ; thiscall (out): (-x, -y, -z, w) on the int16 form
+0x5232b0  cquat__normalize         func  vsdk\math            O ; in place version of cquat__normalized
 0x523500  quaternion__make_identity func  vsdk\math            O ; (0, 0, 0, 1)
+0x523520  quaternion_dot           func  vsdk\math            O ; (a*, b*) x*x' + y*y' + z*z' + w*w'
+0x523550  cquat_dot                func  vsdk\math            O ; (a*, b*) integer dot of the four int16 components times a 1/0x3fff^2 constant
+0x5235a0  quaternion_slerp         func  vsdk\math            O ; (out, a, b, t): t wrapped into 0-1, shortest path via quaternion_dot sign, acos-based weights
+0x5237c0  cquat_slerp              func  vsdk\math            O ; (out, a, b, t): slerp on the int16 cquat form (cquat_dot, cquat__negated, acos)
+0x523a90  quaternion_squad         func  vsdk\math            O ; (out, q0, q1, a, b, t): slerp(slerp(q0,q1,t), slerp(a,b,t), 2t(1-t))
+0x523b10  cquat_squad              func  vsdk\math            O ; cquat version of quaternion_squad (three cquat_slerp)
+0x523d20  cquat__cquat_copy        func  vsdk\math            O ; thiscall copy constructor of the 8-byte int16 quaternion (x, y, z, w, 1.0 = 0x3fff)
+0x523d50  cquat__cquat             func  vsdk\math            O ; thiscall (x, y, z, w) int16 components
+0x523d80  cquat__assign            func  vsdk\math            O ; thiscall operator= of the int16 quaternion
+0x523db0  cquat__negated           func  vsdk\math            O ; thiscall (out): all four components negated
+0x523df0  cquat__operator_sub      func  vsdk\math            O ; thiscall (out, b): component-wise difference
+0x523e30  cquat__operator_add      func  vsdk\math            O ; thiscall (out, b): component-wise sum
+0x523e70  quaternion__negated      func  vsdk\math            O ; thiscall (out): all four components negated (used by quaternion_slerp)
+0x523eb0  quaternion__operator_add func  vsdk\math            O ; thiscall (out, b)
+0x523ef0  quaternion__operator_sub func  vsdk\math            O ; thiscall (out, b)
 0x523f80  vector2__len             func  vsdk\math            O ; sqrt(x*x + y*y), thiscall
 0x523fa0  vector2__len_sq          func  vsdk\math            O ; x*x + y*y, thiscall
+0x523fc0  vector2__normalize       func  vsdk\math            V ; Summoner 2 vector2::normalize: returns the length, zero vector becomes (1, 0) and returns 1
+0x524000  vector2__negate          func  vsdk\math            V ; Summoner 2 vector2::negate: x = -x, y = -y
+0x524010  vector3__get_major_axis  func  vsdk\math            O ; thiscall (int* axis, int* u, int* v): index of the largest abs component and the other two axes from a sign-dependent table at 0x5a8b4c
+0x5240e0  vector3__length_quick    func  vsdk\math            V ; Summoner 2 vector3::length_quick: sorted absolute components with weights (fast length estimate)
+0x5241c0  vector3__dot_xyz         func  vsdk\math            O ; thiscall (x, y, z) dot with three floats, callers matrix3__is_normalized
+0x5241e0  vector3__is_zero         func  vsdk\math            V ; Summoner 2 vector3::is_zero: all three components equal 0
 0x524220  vector3__is_valid        func  vsdk\math              I ; no component is NaN
 0x524270  vector3__normalized      func  vsdk\math              I
+0x524340  vector3__negated_b       func  vsdk\math            O ; thiscall (out) returns (-x, -y, -z), second copy next to vector3__negated, caller matrix43__inverse
 0x524370  vector3__rotated         func  vsdk\math            O ; (out, matrix3*) returns new vector (dot rvec, dot uvec, dot fvec)
 0x5243d0  vector3__unrotated       func  vsdk\math            O ; (out, matrix3*) returns M^T v as a new vector
 0x524430  vector3__normalize       func  vsdk\math              I
@@ -3372,10 +3497,31 @@
 0x5245a0  vector3__rotate          func  vsdk\math            O ; in place v = (v.rvec, v.uvec, v.fvec) with matrix3* arg (world to local)
 0x5245f0  vector3__unrotate        func  vsdk\math            O ; in place v = M^T v (x*rvec + y*uvec + z*fvec), local to world
 0x524640  vector3__zero            func  vsdk\math            O ; x = y = z = 0
+0x524650  vector3__random_unit_vector func  vsdk\math            I ; thiscall: z = frand_range(-1, 1), angle = frand * 2pi, x/y on the circle of radius sqrt(1 - z2), Summoner 2 random_unit_vector or random_direction (identical copy at 0x5246a0)
+0x5246a0  vector3__random_direction func  vsdk\math            I ; identical body to 0x524650 (uniform random unit vector), AI callers
+0x5246f0  random_direction_in_cone func  vsdk\math            O ; thiscall (min_cos): z uniform in min_cos..1, as Summoner 2 random_direction_in_cone around +z
+0x524740  random_direction_in_cone_axis func  vsdk\math            O ; thiscall (axis, min_cos): random_direction_in_cone then unrotate by matrix3__set_from_unit_forward(axis)
+0x524780  vector3_project_onto_normal func  vsdk\math            O ; (out, v, n): d = v.n, out = n * d, returns d
+0x5247c0  vector3_remove_normal_component func  vsdk\math            O ; (out, v, n): out = v - n * (v.n)
+0x524810  distance                 func  vsdk\math            V ; Summoner 2 distance(a, b): length of a - b, 30 callers
+0x524840  distance_squared         func  vsdk\math            V ; Summoner 2 distance_squared(a, b): vector3__len_sq of a - b
+0x524870  distance_quick           func  vsdk\math            O ; (a, b): vector3__length_quick of a - b
+0x5248a0  dot_of_difference        func  vsdk\math            O ; (a, b, n): (a - b).n
 0x5248d0  vector3_normalized_dir   func  vsdk\math            O ; (out, a, b): out = a - b, then vector3__normalize_length, returns length (Volition vm_vec_normalized_dir)
 0x524910  vector3_near_equal       func  vsdk\math            O ; (a*, b*) each abs(a-b) component below epsilon 0x581930
 0x524960  vector3_normal           func  vsdk\math            O ; (out, p0, p1, p2): vector3_perp then vector3__normalize (Volition vm_vec_normal)
 0x524990  vector3_perp             func  vsdk\math            O ; (out, p0, p1, p2): cross product of two edge differences, unnormalized (Volition vm_vec_perp)
+0x524ab0  direction_dot            func  vsdk\math            O ; (a, b, n): normalized(a - b).n
+0x524ae0  project_onto_plane       func  vsdk\math            V ; Summoner 2 project_onto_plane(result, point, normal, plane_point): point - normal * (n.point - n.plane_point)
+0x5252c0  vector3_world_to_local   func  vsdk\math            O ; (out, point, origin, matrix3): out = (point - origin) rotated into the matrix
+0x525300  vector3_local_to_world   func  vsdk\math            O ; (out, local, origin, matrix3): out = unrotated(local) + origin
+0x525340  vector2_distance         func  vsdk\math            O ; (a, b): vector2__len of a - b
+0x525370  vector2_distance_squared func  vsdk\math            O ; (a, b): vector2__len_sq of a - b
+0x525650  vector2__vector2         func  vsdk\math            O ; thiscall (x, y) constructor, as Summoner 2 vector2(float, float)
+0x525670  vector3__operator_div_assign func  vsdk\math            O ; thiscall (s): multiplies the three components by 1/s
+0x5256a0  vector2__operator_sub    func  vsdk\math            O ; thiscall (out, b)
+0x5256d0  vector2_scaled           func  vsdk\math            O ; (out, s, v): out = v * s
+0x525700  vector2__dot             func  vsdk\math            V ; Summoner 2 vector2::dot: x*x' + y*y'
 0x5257a0  File__read_String_raw    func  vsdk\vfile           O ; uint16 length then bytes into a String object (String__free, String__alloc)
 0x525800  File__read_bool          func  vsdk\vfile           O ; version check, File__read 1 byte, returns value != 0 or default on error
 0x525850  File__read_int8          func  vsdk\vfile             I
@@ -3583,6 +3729,7 @@
 0x52d9b0  ui_listbox__find_by_text func  vsdk\ui              O ; strcmp of the entry text (+0x30)
 0x52da40  ui_listbox__add_entry    func  vsdk\ui              O ; allocates a base entry (flag 0x400) or a text entry and appends it
 0x52dc30  ui_listbox__clear        func  vsdk\ui              O ; removes and deletes all entries, resets selection, size and scroll
+0x52dcc0  ui_listbox__remove_by_text func  vsdk\ui              O ; thiscall (text): ui_listbox__find_by_text then ui_listbox__remove_entry, false for empty text or no match
 0x52dd00  ui_listbox__remove_entry func  vsdk\ui              O ; (entry) unlinks and deletes it, fixes selection, size and scrollbars
 0x52dde0  ui_listbox__select_prev  func  vsdk\ui              O ; previous entry, or scroll a line up in no-selection mode (flag 0x8)
 0x52deb0  ui_listbox__select_next  func  vsdk\ui              O ; next entry, or scroll a line down in no-selection mode (flag 0x8)
@@ -3597,10 +3744,13 @@
 0x52e870  ui_listbox__scroll_page_right func  vsdk\ui              O ; horizontal scroll += view width, clamped
 0x52e8c0  ui_listbox__scroll_page_left func  vsdk\ui              O ; horizontal scroll -= view width, clamped at 0
 0x52e8f0  ui_listbox__get_hscroll_fraction func  vsdk\ui              O ; float scroll x / (content width - view width), after padding
+0x52e920  ui_listbox__get_vscroll_fraction func  vsdk\ui              O ; vertical counterpart of ui_listbox__get_hscroll_fraction (scroll y over content height minus view height)
 0x52ea00  ui_listbox__set_hscroll  func  vsdk\ui              O ; (x) clamped into +0x2c4 and the scrollbar at +0x314
 0x52ea50  ui_listbox__set_vscroll  func  vsdk\ui              O ; (y, force) clamped, snapped to entry edges, into +0x2c8
 0x52eb20  ui_listbox__snap_scroll_top func  vsdk\ui              I ; (y) snaps a scroll position to an entry top, used by ui_listbox__set_vscroll
 0x52ebe0  ui_listbox__snap_scroll_bottom func  vsdk\ui              I ; (y) snaps so an entry bottom meets the view bottom (flag 0x80)
+0x52ed00  ui_listbox__set_hscroll_fraction func  vsdk\ui              O ; thiscall (fraction clamped 0..1, ?): +0x2c4 = (content width - view width) * fraction
+0x52ed70  ui_listbox__set_vscroll_fraction func  vsdk\ui              I ; thiscall (fraction clamped 0..1, ...): vertical counterpart of ui_listbox__set_hscroll_fraction using entry heights
 0x52f020  ui_listbox__get_view_width func  vsdk\ui              O ; width minus 2 * border +0x2bc
 0x52f030  ui_listbox__get_view_height func  vsdk\ui              O ; height minus 2 * border +0x2c0
 0x52f040  ui_listbox__get_content_width func  vsdk\ui              O ; returns +0x2a8
@@ -3611,6 +3761,7 @@
 0x52f420  ui_listbox_text_entry__scalar_deleting_dtor func  vsdk\ui              O ; ui_listbox_text_entry__dtor then operator delete
 0x52f440  ui_listbox_text_entry__dtor func  vsdk\ui              O ; jumps to ui_listbox_entry__dtor
 0x52f450  build_stamp_check        func  vsdk\ui                I ; 3 = unstamped (retail: placeholder 0x01010101/0x02020202), 2 = past the expiry time(), 1 = name checksum mismatch, 0 = valid stamp
+0x52f530  build_stamp_get_name_String func  vsdk\ui              O ; (String* out): String__assign_cstr(build_stamp_name)
 0x52f540  build_stamp_get_name     func  vsdk\ui                I ; copies the stamped recipient name (retail placeholder: "Read the Foundation Novels from Asimov.  I liked them.")
 0x52f720  ui_play_sound            func  vsdk\ui              O ; (index) snd_play of the UI sound table at 0x2cbf684 (falls back to entry 1), used by button/listbox/radio processing
 0x52f760  ui_init                  func  vsdk\ui              I ; one-time UI setup (guard 0x2cbfcd0): empty window list (sentinel 0x2cbf718), sound table -1, default colours, called by LoadSettings and ui_window__init
@@ -3621,10 +3772,12 @@
 0x530930  ui_find_gadget_by_name   func  vsdk\ui              O ; ui_window__find_gadget_by_name over all windows, after padding
 0x530970  ui_get_top_modal_window  func  vsdk\ui              O ; first shown, enabled window with the modal flag 0x20
 0x530b80  ui_window__get_mask_data func  vsdk\ui              O ; returns +0x4d8
+0x530b90  os_find_window_callback  func  vsdk\os              O ; EnumWindows callback of os_find_previous_instance: GetWindowTextA, strstr with the wanted title, sets 0x2cbff0c and stops
 0x530bf0 timer_wait               func  timer.cpp                V ; Summoner 2 decomp; Sleep wrapper
 0x530c00  os_get_main_wnd          func  vsdk\os                O ; returns main_wnd (0x2cbff10), as Dash Faction rf::main_wnd
 0x530c10  os_foreground            func  vsdk\os                O ; Dash Faction rf::os_foreground; returns 0x2cbff1c
 0x530c20  os_add_msg_handler       func  vsdk\os                O ; Dash Faction rf::os_add_msg_handler; key_init registers its window-message hook
+0x530c60  os_set_window_title      func  vsdk\os              O ; (title): copies into 0x2cbfde0 then SetWindowTextA(main_wnd)
 0x530ca0 os_poll                  func  -                        I ; Dash Faction name for the message-pump wrapper
 0x530cb0 os_pump_messages         func  -                        O ; PeekMessage/TranslateMessage/DispatchMessage loop
 0x530d10  os_init                  func  vsdk\os                I ; single-instance mutex (focuses the running copy and exits), CoInitialize, creates the window
@@ -3632,6 +3785,7 @@
 0x530ef0  os_create_window         func  vsdk\os                I ; RegisterClassEx + CreateWindowEx 32x32 popup, ShowCursor(0)
 0x530ff0  os_wndproc               func  vsdk\os                I ; msg handlers, WM_ACTIVATE/ACTIVATEAPP -> SetWindowPos TOPMOST/NOTOPMOST (flags 0 = activates!), WM_SYSCOMMAND blocks the screensaver
 0x531260  os_close_main_window     func  vsdk\os              I ; ReleaseMutex then PostMessage(main_wnd, WM_DESTROY)
+0x531280  os_seed_random           func  vsdk\os              O ; (seed): srand(time(0)) for -1 else srand(seed), then three rand() calls, caller GameInit
 0x5312d6 cpu_identify             func  -                        O ; CPU type/speed/extensions
 0x53171f PrintSystemInfo          func  -                        O ; prints CPU, RAM, RAM speed
 0x531a8a  init_ccmd_sysinfo        func  -                    O ; static initialiser: registers console command object ccmd_sysinfo
@@ -3639,6 +3793,21 @@
 0x531cb0  DebugError               func  -                      V ; Summoner 2 DebugError(File, Line, Error); PC: MessageBox + exit(1)
 0x531df0  init_ccmd_movement_vel_change func  -                    O ; static initialiser: registers console command object ccmd_movement_vel_change
 0x531e10  cmd_movement_vel_change  func  -                      O ; console command "movement_vel_change": Toggles Allow_movement_vel_change
+0x531ed0  movement_init            func  -                    I ; (max_vel, max_rotvel, a3, a4): fills the free-movement (slew) limits at 0x2cbff58..0x2cbff90, zeroes the velocity vectors, sets 0x2cbffa4
+0x531f50  movement_read_controls   func  -                    I ; key_is_down / key_down_time driven velocity and rotation for the free camera, honours Allow_movement_vel_change and ui_current_gadget
+0x532360  NoRlsAllocPool__NoRlsAllocPool func  -                    V ; Summoner 2 norlsallocpool.cpp constructor: start, blocks, last_allocation = 0, clears owns_blocks/can_grow bits (+0x18)
+0x532380  NoRlsAllocPool__dtor     func  -                    V ; Summoner 2 ~NoRlsAllocPool: jmp NoRlsAllocPool__Release
+0x532390  NoRlsAllocPool__Release  func  -                    V ; Summoner 2: when owns_blocks deletes the block chain (+0), clears start and the flag, caller conversation_free
+0x5323d0  NoRlsAllocPool__AddBlock func  -                    V ; Summoner 2: operator_new(block_size + 8), links it at +0, start = block + 4, Reset
+0x532420  NoRlsAllocPool__InitBlocks func  -                    O ; thiscall (block_size, can_grow): sets owns_blocks and can_grow then NoRlsAllocPool__AddBlock, caller conversation_alloc_storage
+0x532460  NoRlsAllocPool__Init     func  -                    V ; Summoner 2 Init(buffer, size): start, block_size, clears both flags, Reset
+0x532480  NoRlsAllocPool__Reset    func  -                    V ; Summoner 2: current = start then Align when start is set
+0x532490  NoRlsAllocPool__Alloc    func  -                    V ; Summoner 2 Alloc(size): AddBlock when can_grow and short, bumps current, Align, last_allocation
+0x5324e0  NoRlsAllocPool__AllocZeroed func  -                    O ; thiscall (size): NoRlsAllocPool__Alloc then zero fill
+0x532510  NoRlsAllocPool__Align    func  -                    V ; Summoner 2: rounds current up to 4 and recomputes remaining (+0x10), clamped at 0
+0x532540  NoRlsAllocPool__GetUsed  func  -                    O ; block_size - remaining plus block_size for every further block in the chain
+0x532630  NoRlsAllocPool__SetOffset func  -                    O ; thiscall (offset): for non-growing pools current = start + offset and remaining = block_size - offset
+0x532820  timer_close              func  timer.cpp            O ; atexit handler of timer_init: timer_initialized = 0, DeleteCriticalSection(timer_lock)
 0x532840 timer_init               func  timer.cpp                I ; QPC setup; keeps only the low 32 bits of the frequency
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
@@ -3661,6 +3830,7 @@
 0x5348a0  packfile_fread           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; "FREAD BAIL"
 0x5348f0  packfile_fstatus         func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; always 1 on PC
 0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
+0x535480  gr_d3d_apply_tint        func  vsdk\gr\directx\gr_direct3d.cpp O ; (int* r, int* g, int* b): luminance r+g+b times the gr tint factors 0x25d8dc4/8/c, clamp_int 0..255, callers gr_d3d_bitmap/line/line_3d/tmapper
 0x535520  gr_d3d_page_in           func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535550  gr_d3d_clear             func  vsdk\gr\directx\gr_direct3d.cpp I
 0x5355e0  gr_d3d_zbuffer_clear     func  vsdk\gr\directx\gr_direct3d.cpp I
@@ -3685,6 +3855,7 @@
 0x538700  init_cmdline_param_rz    func  -                    O ; static initialiser: CmdLineParam "-rz"
 0x538740  gr_d3d_set_render_state  func  vsdk\gr\directx\gr_direct3d.cpp O ; IDirect3DDevice7::SetRenderState (vtbl +0x50) on device 0x2dc6c40
 0x538850  d3d_enumerate_ddraw_devices func  vsdk\gr\directx\gr_direct3d.cpp O ; DirectDrawEnumerateA with callback 0x5389f0, collects the device list (count 0x2dc6cac), caller gr_d3d_init_device
+0x538b70  gr_d3d_set_window        func  vsdk\gr\directx\gr_direct3d.cpp I ; (hwnd): stores 0x2dc6c94, GetWindowRect/GetClientRect sizing, called by the gr init-context dispatcher 0x5061b0 for D3D
 0x538c70  ddraw_error_string       func  -                    O ; DirectDraw HRESULT -> message text
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x539590  gr_d3d_begin_scene       func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::BeginScene
@@ -3702,6 +3873,7 @@
 0x53ab00  gr_d3d_set_antialias     func  vsdk\gr\directx\gr_direct3d.cpp I ; render state 2 (ANTIALIAS) = bool ? 2 : 0, d3d back end of 0x5080c0
 0x53ab20  gr_d3d_set_gamma         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53ab80  gr_d3d_set_alpha_test    func  vsdk\gr\directx\gr_direct3d.cpp O ; render state ALPHAFUNC (0x19) = GREATER or ALWAYS, d3d back end of 0x508110
+0x53abb0  gr_d3d_flush_pipeline    func  vsdk\gr\directx\gr_direct3d.cpp I ; unless 0x5a9d34: back buffer Blt then GetBltStatus loop until done
 0x53ac00  guid_equal               func  -                    O ; 16-byte rep cmpsd compare, returns bool
 0x53ce30  ix_linesegment_box_oriented func  -                    O ; label string "ix_linesegment_box_oriented"
 0x53d100  ix_ray_box_oriented      func  -                    O ; label string "ix_ray_box_oriented"
@@ -3733,7 +3905,10 @@
 0x540c30  character_unlock_skeleton_count func  vsdk\ca\character.cpp O ; counterpart of character_lock_skeleton_count: frees skeletons above the saved count +0x4c, restores +0x48, clears flag 0x10
 0x540c80  character_add_skeleton_trigger func  vsdk\ca\character.cpp O ; thiscall (skeleton, name, time): first free of the 5 trigger slots at skeleton +0xa8 (name in the ca string pool, time scaled to ticks)
 0x540df0  character_load_shadow    func  vsdk\ca\character.cpp  O ; "ATTEMPTING TO LOAD", "SHADOW LOADED" / "SHADOW FAILED TO LOAD"; vim_load
+0x540ed0  character_find_state_skeleton func  vsdk\ca\character.cpp O ; thiscall (name): _stricmp over the skeletons (+0x54, count +0x48) whose state flag (+0x5c) is 1, index or -1
+0x540f20  character_find_action_skeleton func  vsdk\ca\character.cpp O ; thiscall (name): as character_find_state_skeleton for skeletons with the state flag clear
 0x540f70  character_find_mesh_tag  func  vsdk\ca              I ; thiscall (name): _stricmp over the 0xa0-byte tags of the current mesh (+0x1e4), used by living_entity_setup_head
+0x541020  character_report_memory  func  vsdk\ca\character.cpp O ; mem_report_line "bones :", "bone weights :", "tags :", "skeleton :", "TOTAL :" from the mesh at +0x1e4 and the skeletons
 0x541160  character_reload_mesh    func  vsdk\ca\character.cpp I ; saves texture handles (vim_save_bitmaps), resets the character mempool, character_load_shadow, restores them, caller 0x4628a0
 0x541240  character_replace_texture func  vsdk\ca\character.cpp O ; thiscall (index, file): bm_replace_file on texture[index] of the mesh at +0x1e4, caller character_set_underwear_textures
 0x541270  character_get_lod_index  func  vsdk\ca\character.cpp O ; thiscall: index of the current mesh +0x1e4 in the two LOD meshes at +0x1e8, -1 if none
@@ -3758,8 +3933,18 @@
 0x5421d0  RecordSystemInformation  func  exceptionhandler       O ; time, exe and user, processors, physical memory
 0x5422f0  GetExceptionDescription  func  exceptionhandler       O ; "an Access Violation", "a Float Divide by Zero", ...
 0x5424e0  GetFilePart              func  exceptionhandler       O ; text after the last backslash
+0x542500  fast_inv_sqrt            func  vsdk\math            O ; exponent trick plus 1024-entry mantissa table at 0x2ee2518
+0x542540  fast_sqrt_refined        func  vsdk\math            I ; table sqrt (0x2ee3518) followed by one Newton style correction
+0x542590  fast_sqrt                func  vsdk\math            O ; exponent halving plus 1024-entry mantissa table at 0x2ee3518
+0x5425d0  float_to_int_round       func  vsdk\math            O ; fistp with the current rounding mode
 0x5426e0  frand                    func  -                    O ; rand() * (1/32768): uniform 0..1
+0x542770  frand_range              func  -                    O ; (lo, hi): lo + frand() * (hi - lo), 18 callers
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
+0x542800  sqrt_abs                 func  vsdk\math            O ; sqrt(-x) for negative x, else sqrt(x)
+0x542b50  cross_2d                 func  vsdk\math            O ; (ax, ay, bx, by): ax*by - ay*bx, caller 0x510ed0
+0x542b70  float_ptr_near_value     func  vsdk\math            O ; (float*, value): abs(*a - value) inside the epsilon pair 0x581930/0x581b74
+0x542ba0  float_near_ptr_value     func  vsdk\math            O ; (value, float*): same test with the operands swapped
+0x542bd0  float_ptrs_near_equal    func  vsdk\math            O ; (float*, float*): same epsilon test on two pointers
 0x542cd0  ui_element__free_tooltips func  vsdk\ui              O ; deletes every node of the +0x124 tooltip list, valid byte +4 = 0, called by ui_gadget__dtor and ui_window__destroy
 0x542d20  ui_element__ui_element   func  vsdk\ui              O ; common base of ui_window and ui_gadget (vtable 0x581ea0), empty tooltip list at +0x124
 0x542d40  ui_element__dtor         func  vsdk\ui              O ; vtable 0x581ea0, ui_element__free_tooltips
@@ -3809,6 +3994,14 @@
 0x544e00  StringPool__StringPool_size func  vsdk\os\stringpool.cpp O ; ctor (max_length) -> StringPool__Allocate, localize_init_string_pool
 0x544e20  StringPool__dtor         func  vsdk\os\stringpool.cpp V ; Summoner 2 ~StringPool() { Release(), }: jmp StringPool__Release, atexit handlers of the global pools jump here
 0x544e30  StringPool__SetLength    func  vsdk\os\stringpool.cpp O ; truncate back to a saved length
+0x544e50  file_read_vector_array   func  vsdk\vfile           O ; (File*, vector3*, count, min_ver, default): File__read_vector per element, stops on File__error
+0x544ea0  file_write_vector_array  func  vsdk\vfile           O ; (File*, vector3*, count): File__write_vector per element
+0x544ee0  file_sync_vector_array   func  vsdk\vfile           O ; File__check_flags(1) picks file_read_vector_array or file_write_vector_array, callers in the save-game code (0x46e910)
+0x544f30  file_sync_float_pair_array func  vsdk\vfile           O ; (File*, float*, count, ...): File__sync_float twice per 8-byte element
+0x544fc0  file_write_int_array     func  vsdk\vfile           O ; (File*, int*, count): File__write_int per element
+0x545000  file_read_int16_array    func  vsdk\vfile           O ; (File*, int16*, count, ...): File__read_int16 per element
+0x545040  file_write_int16_array   func  vsdk\vfile           O ; (File*, int16*, count): File__write_int16 per element
+0x545080  file_sync_int16_array    func  vsdk\vfile           O ; File__check_flags(1) picks file_read_int16_array or file_write_int16_array
 0x5461f0  sound_emitter_reset      func  -                    O ; (idx) clears flags +0x50, handles +8/+0xc = -1, zeroes vectors +0x24/+0x3c of the 0x74-byte entry at 0x2f07768
 0x546230  sound_emitter_find_free  func  -                    O ; index of the first emitter without flag 1 (128 entries), -1 if none, caller sound_create_emitter
 0x5462b0  sound_emitter_stop       func  -                    O ; (idx, fade_ms) clears playing flag 8, snd_stop_fade or snd_stop on handle +0xc, num playing (0x2f0b168)--
@@ -3835,13 +4028,17 @@
 0x549cc0  gr_glide_close           func  vsdk\gr\glide\gr_glide.cpp I
 0x549cf0  glide_clip_cursor        func  vsdk\gr\glide\gr_glide.cpp O ; ClipCursor(&rect 0x2f0f1f8) or ClipCursor(NULL)
 0x549d10 gr_glide_init            func  vsdk\gr\glide\gr_glide.cpp       O ; renderer 0x67
+0x549f50  glide_msg_handler        func  vsdk\gr\glide\gr_glide.cpp O ; WM_ACTIVATE (6) / WM_ACTIVATEAPP (0x1c) handler registered by gr_glide_init, counts activations and calls glide_set_active on a change
+0x549fc0  glide_set_active         func  vsdk\gr\glide\gr_glide.cpp I ; (active): grSstWinOpen on os_get_main_wnd with gamma (grGammaCorrectionValue) and glide_clip_cursor, or gr_glide_tcache_flush and grSstWinClose
 0x54a0b0  gr_glide_is_mode_supported func  vsdk\gr\glide\gr_glide.cpp O ; true unless the mode is multitexture and flag 0x2f132cd is set (cleared when fewer than 2 TMUs)
 0x54a0d0  gr_glide_get_video_memory_mb func  vsdk\gr\glide\gr_glide.cpp O ; returns 0x2f0f208, set in gr_glide_init (>= 12 changes a texture option)
 0x54a100  gr_glide_set_mode        func  vsdk\gr\glide\gr_glide.cpp I ; (gr::Mode) returns early when equal to the current mode 0x2f0f1e4 (gr__Mode__operator_eq), else sets the Glide combine/blend/depth state
+0x54a540  gr_glide_apply_tint      func  vsdk\gr\glide\gr_glide.cpp O ; (GrVertex*): luminance of the float colours (+0xc..0x14) times the gr tint factors, clamp_float 0..255, callers gr_glide_bitmap/line/line_3d/tmapper
 0x54a5b0  gr_glide_set_viewport    func  vsdk\gr\glide\gr_glide.cpp I
 0x54a600  gr_glide_clear           func  vsdk\gr\glide\gr_glide.cpp I
 0x54a650  gr_glide_zbuffer_clear   func  vsdk\gr\glide\gr_glide.cpp I
 0x54a6b0  gr_glide_deactivate      func  vsdk\gr\glide\gr_glide.cpp O ; unless dual monitors (gr_screen +0x14): glide_grSstControl(2 = GR_CONTROL_DEACTIVATE), counter 0x2f132ac++
+0x54a6d0  gr_glide_finish          func  vsdk\gr\glide\gr_glide.cpp O ; jmp glide_grSstIdle, Glide back end of gr_finish
 0x54a6e0  gr_glide_flip            func  vsdk\gr\glide\gr_glide.cpp I
 0x54a780  gr_glide_page_in         func  vsdk\gr\glide\gr_glide.cpp I
 0x54a7c0  gr_glide_set_bitmap      func  vsdk\gr\glide\gr_glide.cpp I ; (mode, bitmap) gr_glide_set_mode, then the texture when the mode has a texture source, used by gr_glide_bitmap/line/line_3d
@@ -3849,11 +4046,14 @@
 0x54af10  gr_glide_line            func  vsdk\gr\glide\gr_glide.cpp I
 0x54b110  gr_glide_line_3d         func  vsdk\gr\glide\gr_glide.cpp I ; Glide target of gr_line_3d, calls glide_grDrawLine
 0x54b240  gr_glide_tmapper         func  vsdk\gr\glide\gr_glide.cpp I
+0x54b940  init_ccmd_whee           func  -                    O ; static initialiser of the console command "whee"
+0x54b960  cmd_whee                 func  -                    O ; console command "whee": process_command(0x10) then copies the parsed int into 0x5ad544
 0x54b980  gr_glide_read_backbuffer func  vsdk\gr\glide\gr_glide.cpp I
 0x54b9b0  gr_glide_set_fog         func  vsdk\gr\glide\gr_glide.cpp O ; gr_set_fog back end: grFogTable / grFogColorValue / grFogMode pointers
 0x54ba90  gr_glide_set_antialias   func  vsdk\gr\glide\gr_glide.cpp O ; empty Glide target of gr_set_antialias
 0x54baa0  gr_glide_set_alpha_test  func  vsdk\gr\glide\gr_glide.cpp O ; grAlphaTestFunction(GREATER or ALWAYS), glide back end of 0x508110
 0x54bac0  gr_glide_set_gamma       func  vsdk\gr\glide\gr_glide.cpp I
+0x54bad0  gr_glide_flush_pipeline  func  vsdk\gr\glide\gr_glide.cpp I ; grLfbLock, grLfbReadRegion of one pixel, grLfbUnlock (forces the card to finish)
 0x54bb60  gr_d3d_tcache_init       func  vsdk\gr\directx\gr_direct3d.cpp O ; allocates 0xaf0 texture entries of 0x10 bytes (0x2f13308, handle -1) and the texture slots, caller gr_d3d_init
 0x54bbb0  gr_d3d_tcache_close      func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_d3d_tcache_flush, frees every entry, deletes the table, caller gr_d3d_close
 0x54bbf0  gr_d3d_tcache_free_entry func  vsdk\gr\directx\gr_direct3d.cpp I ; (entry) releases the slots of one texture entry, callers gr_d3d_tcache_free, gr_d3d_bitmap_size_check
@@ -3886,6 +4086,7 @@
 0x54f7e0  gr_opengl_clear          func  vsdk\gr\opengl\gr_opengl.cpp O ; black glRecti over the clip rect
 0x54f870  gr_opengl_zbuffer_clear  func  vsdk\gr\opengl\gr_opengl.cpp O ; glClear(GL_DEPTH_BUFFER_BIT)
 0x54f8c0 gr_opengl_set_viewport   func  vsdk\gr\opengl\gr_opengl.cpp     O ; glOrtho + glViewport from the clip rectangle
+0x54f9a0  gr_opengl_apply_tint     func  vsdk\gr\opengl\gr_opengl.cpp O ; (uint8 rgb*): luminance times the gr tint factors, clamp_ubyte, callers gr_opengl_bitmap/line/line_3d/tmapper
 0x54fa30  gr_opengl_bitmap         func  vsdk\gr\opengl\gr_opengl.cpp O ; textured quad with glDrawArrays
 0x54fe10  gr_opengl_set_color      func  vsdk\gr\opengl\gr_opengl.cpp O ; empty
 0x54fe40  gr_opengl_line           func  vsdk\gr\opengl\gr_opengl.cpp O ; GL_LINE_STRIP
@@ -3965,7 +4166,10 @@
 0x5568d0  String__size             func  -                    V ; strlen(buf) or 0, RF size
 0x5568f0  String__empty            func  -                    O ; max_len <= 0 or buf[0] == 0
 0x556910  String__is_blank         func  -                    O ; true when only spaces, tabs, newlines
+0x556950  String__to_lower         func  -                    O ; tolower over the buffer (+4) for length (+0)
+0x556990  String__to_upper         func  -                    O ; toupper (0x56fa60) over the buffer (+4) for length (+0)
 0x5569d0  String__substr           func  -                    V ; (out, begin, end) copies range into a new String, RF substr
+0x556cb0  String__find_nocase      func  -                    I ; thiscall (substring, from_end): _strnicmp search, scanning backwards from the end when the flag is set
 0x556d50  String__trim_left        func  -                    O ; removes leading space/tab/newline in place
 0x556db0  String__trim_right       func  -                    O ; removes trailing space/tab/newline in place
 0x556df0  String__to_float         func  -                    I ; returns 0.0 for NULL buf else converts (after nop padding, not in Ghidra list)
@@ -3976,8 +4180,28 @@
 0x556f70  String__concat           func  -                    V ; (out, a, b) allocates len a+b and copies both, RF String::concat
 0x557070  String__concat_cstr      func  -                    I ; concat with a C string operand (NULL -> copy)
 0x557180  String__concat_cstr_b    func  -                    I ; concat variant with the C string operand on the other side
+0x557290  String_plus_char         func  -                    O ; (String* out, const String&, char): copy with one char appended
 0x557420  String__append           func  -                    O ; String__concat then String__assign (operator+=)
 0x557490  String__append_cstr      func  -                    O ; String__concat_cstr then String__assign
+0x557500  String__append_char      func  -                    O ; thiscall (char): String_plus_char then String__assign
+0x557570  String_eq                func  -                    O ; (const String&, const String&): two empty strings equal, else _stricmp == 0 (case-insensitive)
+0x5575b0  cstr_eq_String           func  -                    O ; (const char*, const String&) case-insensitive equality
+0x5575f0  String_eq_cstr           func  -                    O ; (const String&, const char*) case-insensitive equality
+0x557630  String_ne                func  -                    O ; (const String&, const String&): _stricmp != 0
+0x557670  cstr_ne_String           func  -                    O ; (const char*, const String&) case-insensitive inequality
+0x5576b0  String_ne_cstr           func  -                    O ; (const String&, const char*) case-insensitive inequality
+0x5576f0  String_lt                func  -                    O ; (const String&, const String&): _stricmp < 0
+0x557740  cstr_lt_String           func  -                    O ; (const char*, const String&): _stricmp < 0
+0x557790  String_lt_cstr           func  -                    O ; (const String&, const char*): _stricmp < 0
+0x5577e0  String_gt                func  -                    O ; (const String&, const String&): _stricmp > 0
+0x557830  cstr_gt_String           func  -                    O ; (const char*, const String&): _stricmp > 0
+0x557880  String_gt_cstr           func  -                    O ; (const String&, const char*): _stricmp > 0
+0x5578d0  String_le                func  -                    O ; (const String&, const String&): _stricmp <= 0
+0x557920  cstr_le_String           func  -                    O ; (const char*, const String&): _stricmp <= 0
+0x557970  String_le_cstr           func  -                    O ; (const String&, const char*): _stricmp <= 0
+0x5579c0  String_ge                func  -                    O ; (const String&, const String&): _stricmp >= 0
+0x557a10  cstr_ge_String           func  -                    O ; (const char*, const String&): _stricmp >= 0
+0x557a60  String_ge_cstr           func  -                    O ; (const String&, const char*): _stricmp >= 0
 0x557ab0  String__char_at          func  -                    O ; bounds-checked pointer to char n, else static empty char
 0x557ae0  String__from_int         func  -                    O ; sprintf "%d" into a String
 0x557b70  String__from_hex         func  -                    O ; sprintf "0x%x" into a String
@@ -3988,6 +4212,8 @@
 0x559350  gr_clip_line             func  vsdk\gr              I ; (Vertex** a, Vertex** b, codes) clips a line against each set plane bit with gr_clip_edge, caller gr_line_3d
 0x5593a0  gr_clip_plane            func  vsdk\gr              I ; (plane bit, src list, dst list, n, codes) Sutherland-Hodgman pass for one plane, caller gr_clip_polygon
 0x559490  gr_clip_polygon          func  vsdk\gr              I ; loops plane bits 1..0x10 that are set in the or-codes, calls gr_clip_plane and swaps lists, caller gr_poly
+0x559960  bbox_get_corner          func  vsdk\gr              O ; (vector3* out, int index 0-7, mins, maxs): jump table picks min/max per axis
+0x559a80  bbox_corner_indices_from_normal func  vsdk\gr              O ; (normal, int* near_index, int* far_index) from the signs of the normal components, used by gr_clip_plane__set_from_points/_normal
 0x559ed0  ftp_get_create           func  -                    O ; FTP getter ctor: fopen local file, socket/bind/listen, "anonymous" / "pxouser@pxo.net", parses "ftp:" URL (FreeSpace 2 inetfile CFtpGet layout)
 0x55a150  ftp_get_destroy          func  -                    O ; shutdown + closesocket of control/data sockets
 0x55a1c0  ftp_get_status           func  -                    I ; returns state field +8 (getter group at 55a1c0/55a1d0/55a1e0)
@@ -4097,8 +4323,13 @@
 0x565730  jpeg_abort_compress      func  -                    O ; IJG: jpeg_abort(cinfo), follows jpeg_destroy_compress without padding
 0x565740  jpeg_suppress_tables     func  -                    O ; IJG: sets sent_table on every quant and huffman table, caller jpeg_start_compress
 0x565790  jpeg_finish_compress     func  -                    O ; IJG: last call before fclose in jpeg_write_file
+0x565880  jpeg_write_marker        func  libjpeg              O ; jcapimin.c: state check 0x65-0x67, marker->write_marker_header then write_marker_byte per data byte
+0x565900  jpeg_write_m_header      func  libjpeg              O ; jcapimin.c: state check then marker->write_marker_header (+0x14)
+0x565950  jpeg_write_m_byte        func  libjpeg              O ; jcapimin.c: marker->write_marker_byte (+0x18)
+0x565970  jpeg_write_tables        func  libjpeg              O ; jcapimin.c: requires CSTATE_START 0x64, err reset, dest init, jinit_marker_writer, write_tables_only, dest term
 0x5659c0  jpeg_start_compress      func  -                    O ; IJG jcapistd.c: (cinfo, TRUE) from jpeg_write_file, jpeg_suppress_tables(FALSE) then jinit_compress_master
 0x565a30  jpeg_write_scanlines     func  -                    O ; IJG: called after jpeg_start_compress in jpeg_write_file
+0x565af0  jpeg_write_raw_data      func  libjpeg              O ; jcapistd.c: requires CSTATE_RAW_OK 0x66, JWRN_TOO_MUCH_DATA 0x7b, JERR_BUFFER_SIZE 0x17, coef->compress_data
 0x565bb0  jpeg_add_quant_table     func  -                    O ; IJG: allocates through jpeg_alloc_quant_table, scales and clamps each entry
 0x565c90  jpeg_set_linear_quality  func  -                    O ; IJG: jpeg_add_quant_table with the standard luminance/chrominance tables 0x582348/0x582448
 0x565cd0  jpeg_quality_scaling     func  -                    O ; IJG: q <= 0 -> 1, > 100 -> 100, q < 50 ? 5000/q : 200 - 2q
@@ -4107,7 +4338,11 @@
 0x565e30  std_huff_tables          func  -                    O ; IJG jcparam.c: four add_huff_table calls with the standard bits/val tables 0x582548..0x582654
 0x565e90  add_huff_table           func  -                    O ; IJG: jpeg_alloc_huff_table then copies bits and huffval
 0x565f30  jpeg_default_colorspace  func  -                    O ; IJG: switch on in_color_space, then jpeg_set_colorspace (0x565fb0)
+0x565fb0  jpeg_set_colorspace      func  libjpeg              O ; jcparam.c: only caller jpeg_default_colorspace, sets jpeg_color_space and per-component sampling/table ids
 0x5662a0  jpeg_stdio_dest          func  -                    O ; IJG jdatadst.c: (cinfo, FILE*) right after jpeg_CreateCompress in jpeg_write_file, its term method uses fwrite
+0x5662e0  init_destination         func  libjpeg              O ; jdatadst.c: stdio dest method (+0x8), allocs 4096-byte buffer
+0x566310  empty_output_buffer      func  libjpeg              O ; jdatadst.c: fwrite whole 4096 buffer, JERR_FILE_WRITE on short write (dest +0xc)
+0x566360  term_destination         func  libjpeg              O ; jdatadst.c: fwrite remaining bytes, JERR_FILE_WRITE 0x25, fflush (dest +0x10)
 0x5663b0  jpeg_std_error           func  -                    O ; IJG libjpeg jerror.c: installs error_exit/emit_message/output_message/format_message/reset_error_mgr, message table 0x5826f8, last code 0x7b, first call in jpeg_write_file
 0x566400  jpeg_error_exit          func  -                    O ; IJG error_exit method stored at err+0 by jpeg_std_error
 0x566420  jpeg_output_message      func  -                    O ; IJG output_message method stored at err+8 by jpeg_std_error
@@ -4134,11 +4369,115 @@
 0x567350  wav_read                 func  -                    O ; mmioGetInfo/mmioSetInfo buffered read
 0x567410  wav_close                func  -                    O ; mmioClose
 0x567430  jinit_memory_mgr         func  -                    I ; IJG libjpeg memory manager init: "JPEGMEM" env var, "%ld%c" parse
+0x567570  alloc_small              func  libjpeg              O ; jmemmgr.c: mem method 0, pool slop tables, jpeg_get_small, out_of_memory
+0x5676a0  out_of_memory            func  libjpeg              O ; jmemmgr.c: ERREXIT1 JERR_OUT_OF_MEMORY 0x36
+0x5676c0  alloc_large              func  libjpeg              O ; jmemmgr.c: mem method 1, jpeg_get_large
+0x567760  alloc_sarray             func  libjpeg              O ; jmemmgr.c: mem method 2
+0x567810  alloc_barray             func  libjpeg              O ; jmemmgr.c: mem method 3
+0x5678c0  request_virt_sarray      func  libjpeg              O ; jmemmgr.c: mem method 4
+0x567930  request_virt_barray      func  libjpeg              O ; jmemmgr.c: mem method 5
+0x5679a0  realize_virt_arrays      func  libjpeg              O ; jmemmgr.c: mem method 6 (jinit_compress_master calls mem +0x18)
+0x567b30  access_virt_sarray       func  libjpeg              O ; jmemmgr.c: mem method 7
+0x567c80  do_sarray_io             func  libjpeg              O ; jmemmgr.c: backing-store row transfer loop for sarray
+0x567d20  access_virt_barray       func  libjpeg              O ; jmemmgr.c: mem method 8
+0x567e70  do_barray_io             func  libjpeg              O ; jmemmgr.c: backing-store row transfer loop for barray
+0x567f10  free_pool                func  libjpeg              O ; jmemmgr.c: mem method 9, jpeg_free_large and jpeg_free_small
+0x568000  self_destruct            func  libjpeg              O ; jmemmgr.c: mem method 10, free_pool both pools, jpeg_free_small(mem), jpeg_mem_term
 0x568040  jpeg_abort               func  -                    O ; IJG jcomapi.c: mem->free_pool (vtbl +0x24) then global_state = 200 (DSTATE_START) or 100 (CSTATE_START)
 0x568080  jpeg_destroy             func  -                    O ; IJG jcomapi.c: mem->self_destruct (vtbl +0x28), mem = NULL, global_state = 0
 0x5680a0  jpeg_alloc_quant_table   func  -                    O ; IJG jcomapi.c: alloc_small through cinfo->mem, caller jpeg_add_quant_table
 0x5680c0  jpeg_alloc_huff_table    func  -                    O ; IJG jcomapi.c: alloc_small through cinfo->mem, caller add_huff_table
+0x5680e0  jinit_marker_writer      func  libjpeg              O ; jcmarker.c: allocs 0x20 struct at cinfo+0x15c with 7 methods
+0x568140  write_marker_header      func  libjpeg              O ; jcmarker.c: length check 0xfffd (JERR_BAD_LENGTH), emit_marker, emit_2bytes(len+2)
+0x568180  emit_marker              func  libjpeg              O ; jcmarker.c: emit_byte 0xff then marker code
+0x5681a0  emit_byte                func  libjpeg              O ; jcmarker.c: store byte, dest->empty_output_buffer when free_in_buffer reaches 0
+0x5681e0  emit_2bytes              func  libjpeg              O ; jcmarker.c: big-endian 16-bit via emit_byte
+0x568210  write_marker_byte        func  libjpeg              O ; jcmarker.c: marker method 6, emit_byte
+0x568230  write_file_header        func  libjpeg              O ; jcmarker.c: SOI 0xd8, optional JFIF APP0 and Adobe APP14
+0x568280  emit_jfif_app0           func  libjpeg              O ; jcmarker.c: APP0 0xe0, length 16, 0x4a
+0x568330  emit_adobe_app14         func  libjpeg              O ; jcmarker.c: APP14 0xee, length 14, 0x41
+0x5683d0  write_frame_header       func  libjpeg              O ; jcmarker.c: emit_dqt per component then emit_sof
+0x5684d0  emit_dqt                 func  libjpeg              O ; jcmarker.c: DQT for one quant table
+0x5685b0  emit_sof                 func  libjpeg              O ; jcmarker.c: SOFn marker with image dims and component specs
+0x568670  write_scan_header        func  libjpeg              O ; jcmarker.c: marker method 2, emit_dht per component, emit_dri, emit_sos
+0x568750  emit_dht                 func  libjpeg              O ; jcmarker.c: DHT for one huffman table
+0x568810  emit_dac                 func  libjpeg              O ; jcmarker.c: empty, arithmetic coding not compiled
+0x568820  emit_dri                 func  libjpeg              O ; jcmarker.c: DRI 0xdd, length 4, restart_interval
+0x568850  emit_sos                 func  libjpeg              O ; jcmarker.c: SOS 0xda
+0x568930  write_file_trailer       func  libjpeg              O ; jcmarker.c: EOI 0xd9
+0x568950  write_tables_only        func  libjpeg              O ; jcmarker.c: emit_dqt for 4 tables and emit_dht for unsent tables
 0x5689d0  jinit_compress_master    func  -                    O ; IJG jcinit.c: chains the compressor module initialisers, caller jpeg_start_compress
+0x568a90  jpeg_get_small           func  libjpeg              O ; jmemnobs.c: malloc
+0x568aa0  jpeg_free_small          func  libjpeg              O ; jmemnobs.c: free
+0x568ab0  jpeg_get_large           func  libjpeg              O ; jmemnobs.c: malloc
+0x568ac0  jpeg_free_large          func  libjpeg              O ; jmemnobs.c: free
+0x568ad0  jpeg_mem_available       func  libjpeg              O ; jmemnobs.c: returns max_bytes_needed
+0x568ae0  jpeg_open_backing_store  func  libjpeg              O ; jmemnobs.c: ERREXIT JERR_NO_BACKING_STORE 0x31
+0x568b00  jpeg_mem_init            func  libjpeg              O ; jmemnobs.c: returns 0
+0x568b10  jpeg_mem_term            func  libjpeg              O ; jmemnobs.c: empty
+0x568b20  jdiv_round_up            func  libjpeg              O ; jutils.c: (a + b - 1) / b
+0x568b30  jround_up                func  libjpeg              O ; jutils.c: round a up to a multiple of b
+0x568b50  jcopy_sample_rows        func  libjpeg              O ; jutils.c: row copy loop used by prep and downsample
+0x568ba0  jcopy_block_row          func  libjpeg              O ; jutils.c: copies num_blocks * 128 bytes
+0x568bd0  jzero_far                func  libjpeg              O ; jutils.c: rep stosd/stosb zero fill
+0x568bf0  jinit_c_main_controller  func  libjpeg              O ; jcmainct.c: called from jinit_compress_master(cinfo, FALSE)
+0x568c80  start_pass_main          func  libjpeg              O ; jcmainct.c: main method 0
+0x568cd0  process_data_simple_main func  libjpeg              O ; jcmainct.c: main method 1
+0x568d80  jinit_c_coef_controller  func  libjpeg              O ; jccoefct.c: need_full_buffer = num_scans > 1 or optimize_coding
+0x568e40  start_pass_coef          func  libjpeg              O ; jccoefct.c: picks compress_data, compress_first_pass or compress_output
+0x568ee0  start_iMCU_row           func  libjpeg              O ; jccoefct.c: MCU_rows_per_iMCU_row from comps_in_scan
+0x568f30  compress_data            func  libjpeg              O ; jccoefct.c: JBUF_PASS_THRU
+0x5691a0  compress_first_pass      func  libjpeg              O ; jccoefct.c: JBUF_SAVE_AND_PASS, tail-calls compress_output
+0x5693f0  compress_output          func  libjpeg              O ; jccoefct.c: JBUF_CRANK_DEST
+0x5695d0  jpeg_make_c_derived_tbl  func  libjpeg              O ; jchuff.c: huffsize/huffcode locals (0x52c frame)
+0x5697e0  jpeg_gen_optimal_table   func  libjpeg              O ; jchuff.c: bits/codesize/others locals (0x840 frame)
+0x569a10  jinit_huff_encoder       func  libjpeg              O ; jchuff.c: sequential huffman entropy encoder
+0x569a50  start_pass_huff          func  libjpeg              O ; jchuff.c: entropy method 0, chooses gather or encode methods
+0x569bc0  encode_mcu_huff          func  libjpeg              O ; jchuff.c: emit_restart then encode_one_block per block
+0x569cf0  encode_one_block         func  libjpeg              O ; jchuff.c: DC difference and AC run-length coding
+0x569e70  emit_bits                func  libjpeg              O ; jchuff.c: bit buffer put with 0xff stuffing
+0x569f30  dump_buffer              func  libjpeg              O ; jchuff.c: dest->empty_output_buffer, reload next_output_byte/free_in_buffer
+0x569f60  emit_restart             func  libjpeg              O ; jchuff.c: flush_bits, 0xff, RST0+n, clear last_dc_val
+0x569ff0  flush_bits               func  libjpeg              O ; jchuff.c: emit_bits(0x7f, 7), clear put_buffer/put_bits
+0x56a020  finish_pass_huff         func  libjpeg              O ; jchuff.c: entropy method 2 for encode pass
+0x56a0a0  encode_mcu_gather        func  libjpeg              O ; jchuff.c: optimize_coding statistics pass
+0x56a170  htest_one_block          func  libjpeg              O ; jchuff.c: abs(block[0] - last_dc_val) bit count, r > 15 loop
+0x56a250  finish_pass_gather       func  libjpeg              O ; jchuff.c: jpeg_alloc_huff_table and jpeg_gen_optimal_table
+0x56a360  jinit_forward_dct        func  libjpeg              O ; jcdctmgr.c: only JDCT_FLOAT (dct_method 2) built in, else JERR_NOT_COMPILED 0x30
+0x56a3d0  start_pass_fdctmgr       func  libjpeg              O ; jcdctmgr.c: fdct method 0, float divisors
+0x56a4f0  forward_DCT_float        func  libjpeg              O ; jcdctmgr.c: fdct method 1, calls do_float_dct (+0x1c)
+0x56a6b0  jinit_c_prep_controller  func  libjpeg              O ; jcprepct.c
+0x56a760  start_pass_prep          func  libjpeg              O ; jcprepct.c: prep method 0
+0x56a7b0  pre_process_data         func  libjpeg              O ; jcprepct.c: prep method 1 without context rows
+0x56a930  expand_bottom_edge       func  libjpeg              O ; jcprepct.c: jcopy_sample_rows of the last row
+0x56a970  pre_process_context      func  libjpeg              O ; jcprepct.c: prep method 1 with need_context_rows
+0x56ab40  create_context_buffer    func  libjpeg              O ; jcprepct.c
+0x56ac70  jinit_downsampler        func  libjpeg              O ; jcsample.c: picks per-component downsample method
+0x56adf0  start_pass_downsample    func  libjpeg              O ; jcsample.c: empty
+0x56ae00  sep_downsample           func  libjpeg              O ; jcsample.c: downsample method 1
+0x56ae90  int_downsample           func  libjpeg              O ; jcsample.c: integral sampling ratios
+0x56afb0  expand_right_edge        func  libjpeg              O ; jcsample.c
+0x56b010  fullsize_downsample      func  libjpeg              O ; jcsample.c
+0x56b060  h2v1_downsample          func  libjpeg              O ; jcsample.c
+0x56b100  h2v2_downsample          func  libjpeg              O ; jcsample.c
+0x56b1d0  h2v2_smooth_downsample   func  libjpeg              O ; jcsample.c: INPUT_SMOOTHING_SUPPORTED
+0x56b4b0  fullsize_smooth_downsample func  libjpeg              O ; jcsample.c: INPUT_SMOOTHING_SUPPORTED
+0x56b660  jinit_color_converter    func  libjpeg              O ; jccolor.c
+0x56b830  rgb_ycc_start            func  libjpeg              O ; jccolor.c: builds rgb_ycc_tab
+0x56b910  rgb_ycc_convert          func  libjpeg              O ; jccolor.c: JCS_YCbCr from JCS_RGB
+0x56ba50  rgb_gray_convert         func  libjpeg              O ; jccolor.c: JCS_GRAYSCALE from JCS_RGB
+0x56bb00  cmyk_ycck_convert        func  libjpeg              O ; jccolor.c: JCS_YCCK from JCS_CMYK
+0x56bc80  grayscale_convert        func  libjpeg              O ; jccolor.c
+0x56bcf0  null_convert             func  libjpeg              O ; jccolor.c
+0x56bd90  null_method              func  libjpeg              O ; jccolor.c: cconvert start_pass, empty
+0x56bda0  jinit_c_master_control   func  libjpeg              O ; jcmaster.c: progressive -> JERR_NOT_COMPILED, pass_type/total_passes
+0x56be70  initial_setup            func  libjpeg              O ; jcmaster.c: image and sampling validation, component dims via jdiv_round_up
+0x56c030  prepare_for_pass         func  libjpeg              O ; jcmaster.c: master method 0
+0x56c1e0  select_scan_parameters   func  libjpeg              O ; jcmaster.c
+0x56c260  per_scan_setup           func  libjpeg              O ; jcmaster.c: MCU geometry via jdiv_round_up
+0x56c420  pass_startup             func  libjpeg              O ; jcmaster.c: master method 1
+0x56c450  finish_pass_master       func  libjpeg              O ; jcmaster.c: master method 2
+0x56c4d0  jpeg_fdct_float          func  libjpeg              O ; jfdctflt.c: AAN float forward DCT, stored as do_float_dct
 0x56c740  sprintf                  func  crt                    O ; C runtime
 0x56cebe  tolower                  func  crt                    O ; C runtime
 0x56d02c  fclose                   func  crt                    O ; C runtime
@@ -4578,6 +4917,7 @@
 0x25d8d84 gr_color                 data:Color vsdk\gr\gr.cpp         O ; r, g, b, a bytes
 0x25d8d88 gr_texture               data:int vsdk\gr\gr.cpp         O ; current bitmap 1 (0x25d8d8c bitmap 2)
 0x25d8dc0 gr_tint_enabled          data:bool vsdk\gr\gr.cpp         I
+0x25d8dc4  gr_tint_r                data:float vsdk\gr\gr.cpp       O ; red tint factor applied by the gr_*_apply_tint back-end helpers when gr_tint_enabled (g at 0x25d8dc8, b at 0x25d8dcc)
 0x25d8de0 ccmd_gr_show_stats       data:console_command -                      O ; console command object "gr_show_stats"
 0x25d8e0c gr_gamma_ramp            data:int[256] vsdk\gr\gr.cpp         O ; as Dash Faction gr::gamma_ramp
 0x25d9210 ccmd_alpha_fog           data:console_command -                      O ; console command object "alpha_fog"
@@ -4619,12 +4959,14 @@
 0x2692880 ccmd_far_min             data:console_command -                      O ; console command object "far_min"
 0x2692d28 ccmd_far_max             data:console_command -                      O ; console command object "far_max"
 0x2692d34  gr_one_over_matrix_scale_z data:float vsdk\gr              O ; 1 / matrix_scale.z set by gr_setup_3d, Dash Faction gr::one_over_matrix_scale_z
+0x2692d38  gr_frustum_planes        data:gr_clip_plane[] vsdk\gr              O ; 0x1c-byte gr_clip_plane entries (flag byte +0, Plane +4 read at 0x2692d3c) filled by gr_setup_frustum, used by gr_cull_sphere/gr_cull_bounding_box
 0x2692e18 ccmd_zmax                data:console_command -                      O ; console command object "zmax"
 0x2692e78  gr_matrix_scale          data:vector3 vsdk\gr              O ; projection scale (x,y,z) computed by gr_setup_3d from fov and aspect, Dash Faction gr::matrix_scale
 0x2692e84  gr_far_clip_enabled      data:bool vsdk\gr              O ; set by gr_set_far_clip, enables clip code 1 in gr_code_point
 0x2692e88  gr_far_clip_dist         data:float vsdk\gr              O ; dist * Gr_level_fog_multiplier from gr_set_far_clip, also clamps the D3D far plane in gr_setup_3d
 0x2692e8c  gr_far_clip_z            data:float vsdk\gr              O ; gr_far_clip_dist * matrix_scale.z (gr_setup_frustum), vertices with z beyond get clip code 1
 0x2692e94  gr_instance_depth        data:int vsdk\gr              O ; zeroed by gr_setup_3d, ++ in gr_start_instance, -- in gr_stop_instance
+0x2692e98  gr_num_frustum_planes    data:int vsdk\gr              O ; count of gr_frustum_planes, set by gr_setup_frustum (last plane is the far plane when gr_far_clip_enabled)
 0x2692ea0  identity_matrix          data:matrix3 vsdk\math            O ; built from rows (1,0,0),(0,1,0),(0,0,1) by the static init at 0x50f9e0, Dash Faction rf::identity_matrix
 0x2692ec8  identity_matrix43        data:matrix43 vsdk\math            I ; static init at 0x50fa40: identity rotation, zero position
 0x2692ef8 os_registry_app_key      data:char[256] vsdk\os\registry.cpp   O ; "Software\<company>\<app>"
@@ -4646,6 +4988,10 @@
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cb5458  sounds                   data:Sound[0x280] -                    O ; 0x40-byte sound table filled by sounds_parse_table, Dash Faction rf::sounds (same 0x40 size)
+0x2cbf498  cquat_identity           data:cquat vsdk\math            O ; (0, 0, 0, 0x3fff) built by a static initializer
+0x2cbf4a0  quaternion_identity      data:quaternion vsdk\math            O ; (0, 0, 0, 1.0) built by a static initializer
+0x2cbf4b0  vector2_zero             data:vector2 vsdk\math            O ; (0, 0) built by a static initializer
+0x2cbf4b8  vector3_zero             data:vector3 vsdk\math            O ; (0, 0, 0) built by a static initializer
 0x2cbf4c8  file_identity_quaternion data:quaternion vsdk\vfile           I ; identity set by file_init, default argument of File__read_quaternion
 0x2cbf4d8  file_zero_vector         data:vector3 vsdk\vfile           I ; zeroed by file_init, default argument of File__read_vector
 0x2cbf518  file_default_matrix      data:matrix3 vsdk\vfile           V ; matrix3__make_identity in file_init, Dash Faction rf::file_default_matrix (default of read_matrix)

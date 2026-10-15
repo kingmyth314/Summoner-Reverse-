@@ -647,3 +647,8 @@ typedef struct game_camera {
     uint8_t _unk194[0xa0];
     float   height[2];       // +0x234 / +0x238
 } game_camera;
+
+// Compressed quaternion (four int16, 1.0 = 0x3fff), used for animation keys (vsdk math).
+typedef struct cquat {
+    int16_t x, y, z, w;
+} cquat;
