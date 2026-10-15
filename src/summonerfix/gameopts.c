@@ -7,7 +7,7 @@
 //                       vlogo.bik and eaxlogo.bik. The credits movie still plays.
 //   InteractRange=8     hud_interact_nearest (0x40e5..) compares the distance with 5.0 (`FCOM [0x57ef18]`
 //                       at 0x40e694); the operand is pointed at our own float.
-//   ContainerRange=8    container_open compares the squared distance with 25.0 (`FCOMP [0x580e08]` at
+//   ContainerRange=8    world_mouse_frame compares the squared distance with 25.0 (`FCOMP [0x580e08]` at
 //                       0x43ad36); the operand is pointed at our own float (range squared).
 // 5.0 and 25.0 are shared constants used by many other sites, so only these operands are changed.
 #include "summonerfix.h"
@@ -17,7 +17,7 @@
 #define VA_CAMERA_ZOOM_MAX 0x59b800u
 #define VA_PLAY_INTRO_MOVIES 0x5930bdu
 #define VA_INTERACT_OPERAND 0x40e696u  // FCOM dword ptr [0x57ef18] in hud_interact_nearest
-#define VA_CONTAINER_OPERAND 0x43ad38u // FCOMP dword ptr [0x580e08] in container_open
+#define VA_CONTAINER_OPERAND 0x43ad38u // FCOMP dword ptr [0x580e08] in world_mouse_frame
 
 static float g_interactRange, g_containerRangeSq;
 

@@ -293,7 +293,7 @@ So the list holds the unique level items that have not been picked up yet (*infe
 51 int32 counts, then 51 x 121 (0x79) name hashes, then 2 bits for each (level, entry) pair at byte
 `0x6138`. An entry's hash is `name_hash_nocase(level_script_name + object name)`.
 `savegame_two_stage_set` (`0x4d0e20`) and `savegame_two_stage_get` (`0x4d1110`), both proposed, are called
-by `lockpick_attempt`, `object_use_result` and the door code. On load, `savegame_read_two_stage` moves each
+by `character_use_skill`, `object_use_result` and the door code. On load, `savegame_read_two_stage` moves each
 two-stage mesh (`0xa5a304`, 0x8c bytes each) to its first- or second-stage position from bit 0. For the
 other kind of entry it finds (table `0x248ce40`, `"checking lc"`) it sets a "disabled" flag from bit 0. A
 hash that matches neither only produces `"WARNING: two-stage mesh chksum %d doesn't correspond..."`; the

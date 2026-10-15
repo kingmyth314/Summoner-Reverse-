@@ -40,18 +40,29 @@
 0x401e50  assess_mouse_in_panel    func  new_assess.cpp       O ; point_in_rect on panel rect, case 20 of interface_mouse_over_panel
 0x401ef0  automap_load_bitmaps     func  new_automap.cpp      I ; bm_load + progress_update, called from interface_load_all, just before automap_init
 0x402250  automap_init             func  new_automap.cpp        I ; screen 3; position between new_assess and new_automap strings
+0x402280  automap_select_label     func  new_automap.cpp      I ; (label index or -1) selected label 0x5b2b78, wraps label text (+0x10 of the 0x30-byte labels at 0x5f9838) into 0x5b2a14 and positions its box
 0x4023b0  automap_center_on_player func  new_automap.cpp      I ; uses cur_character position via automap_world_to_map
+0x402490  automap_labels_update_positions func  new_automap.cpp      O ; labels on the current layer 0x5b2cb8: automap_world_to_map * zoom into screen table 0x5b2b80, others -1
 0x402560  automap_show_player_layer func  new_automap.cpp      O ; automap_set_layer(layer index of cur_character+0x68c)
 0x4025a0  automap_set_layer        func  new_automap.cpp      I ; stores layer 0x5b2cb8, reads bitmap size, recomputes view
 0x402680  automap_frame            func  -                      O ; screen 3 per-frame input (interface_frame switch); (key) -> key
 0x402760  automap_handle_click     func  new_automap.cpp      O ; only caller automap_frame, mouse_was_pressed, key_is_down, label hit tests
+0x402d80  automap_map_point_revealed func  new_automap.cpp      O ; (x, y, scaled) 1 when Map_mask is off, else automap_is_cell_revealed(cur_level_index, layer, cell)
 0x402e90  automap_update_buttons   func  new_automap.cpp      O ; mouse_is_down + point_in_rect -> automap_button_action
 0x402f10  automap_button_action    func  new_automap.cpp      O ; layer up/down, player layer, close (interface_set_screen 0) with sounds
 0x402fb0  automap_layer_down       func  new_automap.cpp      O ; automap_set_layer(cur-1)
 0x402fd0  automap_layer_up         func  new_automap.cpp      O ; automap_set_layer(cur+1) if < layer count 0x60a340
+0x403000  automap_drag_scroll      func  new_automap.cpp      I ; scroll offset 0x5b29e8 from mouse position minus drag origin, clamped to the map size, only caller automap_frame
+0x403100  automap_add_label_at_mouse func  new_automap.cpp      I ; on mouse release: map cell under mouse, revealed check, automap_label_alloc, automap_map_to_world, savegame_automap_label_add, select it
+0x403240  automap_mouse_to_map_cell func  new_automap.cpp      O ; (out x, out y, mx, my) screen to map pixel / zoom, returns true when inside the map bitmap
+0x403300  automap_map_to_world     func  new_automap.cpp      O ; inverse of automap_world_to_map: map pixel to world x/z using corners 0x5f9e48..0x5f9e60
 0x403350  automap_label_text_input func  new_automap.cpp      O ; key_to_ascii into label name with cursor blink timer
+0x403510  automap_label_box_hover  func  new_automap.cpp      I ; label selected and mouse over its text box: cursor state 0x5b2a10 = 4, else deselects (automap_select_label(-1))
+0x4035c0  automap_labels_hover     func  new_automap.cpp      I ; point_in_rect over each label marker, selects the hovered label
 0x403690  automap_draw             func  -                      O ; screen 3 drawing (interface_draw switch)
 0x403750  automap_draw_map         func  new_automap.cpp      O ; only caller automap_draw, map bitmap, grid lines, mask, labels
+0x403ff0  automap_draw_label       func  new_automap.cpp      I ; (label index) marker bitmap, framed box (ui_draw_text_box) and label text, only caller automap_draw_map
+0x404310  automap_draw_title       func  new_automap.cpp      O ; level name (level_format_display_name / level_table_display_name) and L639 "%d of %d" layer counter
 0x404460  automap_get_panel_width  func  new_automap.cpp      O ; returns panel rect width 0x5b2cd0, used by interface_set_view_clip
 0x404470  automap_mouse_in_panel   func  new_automap.cpp      O ; point_in_rect on panel rect, case 3 of interface_mouse_over_panel
 0x4044b0  init_ccmd_map_mask       func  -                    O ; static initialiser: registers console command object ccmd_map_mask
@@ -65,11 +76,15 @@
 0x4047a0  cmd_reset_map_labels     func  -                      O ; console command "reset_map_labels": Reset automap labels for this level/script
 0x404880  eh_vector_constructor_iterator func  -                    O ; MSVC `eh vector constructor iterator' (ptr, size, count, ctor): calls ctor on each element
 0x404960  buysell_get_list_item    func  new_buysell.cpp      I ; returns item entry n from buy list or from party inventory list 0x970824
+0x4049c0  shop_find_item_type      func  new_buysell.cpp      O ; (ItemType*) index in the shopkeeper item list 0x5b67f4 (+0xc count, +0x10 8-byte entries), -1
 0x404a00  bs_cameras_parse_table   func  new_buysell.cpp      O ; new_icam_load("bs_cameras.tbl")
 0x404a20  buysell_load_bitmaps     func  new_buysell.cpp      O ; "BuySell-Bkgrnd" bm_load
 0x404bd0  buysell_init             func  new_buysell.cpp        I ; screen 7; position before new_buysell strings
+0x404cc0  buysell_set_category     func  new_buysell.cpp      I ; (category) recount party items, rebuild list, update scrollbar, callers buysell_init, buysell_button_action
+0x404dc0  buysell_build_list       func  new_buysell.cpp      I ; switch on the category calling buysell_category_first_index per shop category
 0x404f70  buysell_category_first_index func  new_buysell.cpp      I ; index of first list entry of category n, used by the goto-category buttons
 0x404fe0  buysell_update_scrollbar func  new_buysell.cpp      O ; scrollbar template (or/and 4 on gadget flags)
+0x4050f0  buysell_count_party_items func  new_buysell.cpp      I ; party_inventory_find_type per shop entry
 0x4051a0  buysell_leave            func  new_buysell.cpp        I
 0x4051e0  buysell_frame            func  -                      O ; screen 7 per-frame input (interface_frame switch); (key) -> key
 0x405260  buysell_handle_click     func  new_buysell.cpp      O ; only caller buysell_frame, mouse_was_pressed, buysell_draw_categories hit test
@@ -77,7 +92,9 @@
 0x405790  buysell_page_up          func  new_buysell.cpp      O ; scroll pos 0x5b2db8 -= page
 0x4057c0  buysell_page_down        func  new_buysell.cpp      O ; scroll pos 0x5b2db8 += page
 0x4057f0  buysell_recharge_item    func  -                    I ; L"This item is fully charged."
+0x405900  buysell_sell_item        func  new_buysell.cpp      O ; party_inventory_find_type, sound 0x2b, party_gold += price, party_inventory_remove, rebuild list, item_page_out_all(0x12)
 0x4059a0  buysell_button_action    func  new_buysell.cpp      O ; button switch: scroll, category jumps, buy/sell, close
+0x405ba0  buysell_goto_status      func  new_buysell.cpp      O ; clears button flags, interface_set_screen(2)
 0x405c00  buysell_scroll_up        func  new_buysell.cpp      O ; scroll pos--
 0x405c20  buysell_scroll_down      func  new_buysell.cpp      O ; scroll pos++
 0x405c50  buysell_goto_weapons     func  new_buysell.cpp      I ; scroll to buysell_category_first_index(0), category order from buysell_draw_categories
@@ -85,36 +102,52 @@
 0x405cd0  buysell_goto_magic_items func  new_buysell.cpp      I ; scroll to category 2
 0x405d10  buysell_goto_jewelry     func  new_buysell.cpp      I ; scroll to category 3
 0x405d50  buysell_goto_misc        func  new_buysell.cpp      I ; scroll to category 4
+0x405d90  buysell_show_item_info   func  new_buysell.cpp      O ; selected list item -> item_info_popup_open_type
 0x405db0  buysell_update_buttons   func  new_buysell.cpp      O ; release/auto-repeat template -> buysell_button_action
 0x405e80  buysell_drag_scrollbar   func  new_buysell.cpp      O ; mouse y -> scroll pos while dragging
 0x405f10  buysell_draw             func  -                      O ; screen 7 drawing (interface_draw switch)
 0x405fd0  buysell_draw_item_list   func  new_buysell.cpp      O ; only caller buysell_draw, item names and prices with sprintf
 0x406150  buysell_draw_scrollbar   func  new_buysell.cpp      O ; scrollbar tile template
 0x406200  buysell_draw_item_model  func  new_buysell.cpp      O ; new_icam_get + ui_3d_begin/ui_3d_end around model render
+0x406280  buysell_model_view_begin func  new_buysell.cpp      O ; saves gr_screen offset_x/y (0x25d8d5c/60) and adds the per-resolution model-view offset
+0x4062c0  buysell_model_view_end   func  new_buysell.cpp      O ; restores gr_screen offset_x/y saved by buysell_model_view_begin
+0x4062e0  buysell_render_item_mesh func  new_buysell.cpp      I ; gr_setup_3d (fov 60) + ca_render_mesh of the item model, only caller buysell_draw_item_model
 0x406360  ui_set_owner_character   func  -                    I ; 0x5b67f4 = lookup(obj name +0x2f4) or 0, called by inventory/journal/status leave and container_open
+0x406390  ui_has_owner_character   func  -                    O ; returns 0x5b67f4 != 0 (shopkeeper/owner set by ui_set_owner_character)
 0x4063a0  ui_return_true           func  -                    O ; mov al,1, ret, default case of interface_mouse_over_panel
 0x4063f0  mp_charcreate_load_bitmaps func  new_charselect.cpp   O ; "PXO-CharCreate" bm_load
 0x406590  mp_charselect_init       func  new_charselect.cpp     O ; screen 16: "Multiplayer Char", *.plr files
 0x406710  mp_char_scan_files       func  new_charselect.cpp   O ; lists "*.plr" files via sprintf("*%s") and file find
 0x406820  mp_charselect_update_scrollbar func  new_charselect.cpp   O ; scrollbar template, per-list index argument
 0x4069e0  mp_charselect_frame      func  -                      O ; screen 16 per-frame input (interface_frame switch); (key) -> key
+0x406b40  mp_charselect_update_button_states func  new_charselect.cpp   O ; selection 0x5b6824 >= 0 clears bit 0x4 (disabled) of three button records 0x5b6a18/48/78, else sets it
+0x406bb0  mp_charselect_update_create_button func  new_charselect.cpp   O ; enables button 0x5b6aa8 when name 0x5bc3b8 is non-empty and 0x5bc3dc >= 0
 0x406bf0  mp_charselect_handle_click func  new_charselect.cpp   O ; only caller mp_charselect_frame, mouse_was_pressed, key_to_ascii
+0x4073c0  mp_charselect_page_up    func  new_charselect.cpp   O ; (list) scroll pos 0x5bc38c[list] -= page size, clamp 0
+0x407410  mp_charselect_page_down  func  new_charselect.cpp   O ; (list) scroll pos += page size, clamp to max
 0x407460  mp_charselect_save_choice func  new_charselect.cpp   O ; os_registry_write_string("Multiplayer Char", selected name)
 0x4074b0  mp_charselect_back       func  new_charselect.cpp   O ; clears selection, gameseq_set_state(1)
 0x4074e0  mp_charselect_button_action func  new_charselect.cpp   O ; switch: create, delete (mp_char_confirm_delete), info, accept, back
+0x407650  mp_charselect_scroll_up  func  new_charselect.cpp   O ; (list) scroll pos--
+0x407680  mp_charselect_scroll_down func  new_charselect.cpp   O ; (list) scroll pos++
 0x4076d0  mp_char_create           func  -                    O ; L"Maximum number of multiplayer characters reached.", L"Player already exists.", L"Unable to create player directory."
 0x4078b0  mp_char_confirm_delete   func  -                    I ; L"Permanently delete character?"
+0x407900  mp_char_delete_file      func  new_charselect.cpp   O ; File__find + File__delete of the selected .plr, mp_char_scan_files, update scrollbar, only caller mp_char_confirm_delete
 0x4079c0  mp_char_format_info      func  -                    I ; L"Name: %s\n", L"Class: Summoner\n" ... L"Level: %d\n"
 0x407d30  mp_charselect_update_buttons func  new_charselect.cpp   O ; release/auto-repeat template
 0x407e10  mp_charselect_drag_scrollbar func  new_charselect.cpp   O ; drag template
 0x407ed0  mp_charselect_draw       func  -                      O ; screen 16 drawing (interface_draw switch)
 0x4080c0  mp_charselect_draw_scrollbar func  new_charselect.cpp   O ; scrollbar tile template
+0x408180  mp_charselect_draw_name_input func  new_charselect.cpp   I ; clipped gr_string of the name buffer 0x5bc3b8
 0x4085b0  credits_init             func  new_credits.cpp        O ; screen 21: credits.tbl, Credits-Bkgrnd640/1024.tga
 0x408620  credits_parse_table      func  new_credits.cpp      O ; "credits.tbl" TextFile parse until "#end", per language
 0x408970  credits_exit             func  new_credits.cpp      I ; gameseq_set_state, called from credits_parse_table and credits_frame
+0x408980  credits_get_line_size    func  new_credits.cpp      O ; gr_get_string_size skipping a leading '*' (heading marker)
 0x4089c0  credits_leave            func  new_credits.cpp        I
 0x4089f0  credits_frame            func  -                      O ; screen 21 per-frame input (interface_frame switch); (key) -> key
+0x408a90  credits_finish           func  new_credits.cpp      O ; gr_fade_out 500, music_stop 500, 800 ms timer 0x5bc408
 0x408ac0  credits_draw             func  -                      O ; screen 21 drawing (interface_draw switch)
+0x408ba0  credits_draw_lines       func  new_credits.cpp      I ; '-' / '*' prefixed lines in two colours with gr_set_alpha fade, only caller credits_draw
 0x408d80  dialogue_load_bitmaps    func  new_dialogue.cpp     O ; "hud-dialoguebox" bm_load
 0x408f90  dialogue_init            func  -                      I ; screen 13 (arg); between new_credits and new_gamecreate
 0x408fe0  dialogue_leave           func  -                      I
@@ -125,34 +158,49 @@
 0x409b10  gamecreate_init          func  new_gamecreate.cpp     I ; screen 17
 0x409cd0  gamecreate_frame         func  -                      O ; screen 17 per-frame input (interface_frame switch); (key) -> key
 0x409de0  gamecreate_handle_click  func  new_gamecreate.cpp   O ; only caller gamecreate_frame, mouse_was_pressed, key_to_ascii
+0x40a020  gamecreate_cancel        func  new_gamecreate.cpp   O ; gameseq_set_state(12) (game list)
 0x40a030  gamecreate_update_buttons func  new_gamecreate.cpp   O ; mouse_is_down -> gamecreate_button_action
 0x40a0c0  gamecreate_button_action func  new_gamecreate.cpp   O ; button switch with sounds
+0x40a230  gamecreate_players_dec   func  new_gamecreate.cpp   I ; 0x5bc490-- (min 1)
+0x40a250  gamecreate_players_inc   func  new_gamecreate.cpp   I ; 0x5bc490++ (max 4)
+0x40a2d0  gamecreate_create_game   func  new_gamecreate.cpp   O ; mp_host_game(name 0x5bc6e8, password 0x5bc6cc, ...) then gameseq_set_state(14) (level select)
 0x40a310  gamecreate_draw          func  -                      O ; screen 17 drawing (interface_draw switch)
 0x40a6a0  gamelist_load_bitmaps    func  new_gamelist.cpp     O ; "PXO-GameList" bm_load
 0x40a850  gamelist_init            func  new_gamelist.cpp       I ; screen 15
 0x40a880  gamelist_frame           func  -                      O ; screen 15 per-frame input (interface_frame switch); (key) -> key
+0x40a970  gamelist_update_join_button func  new_gamelist.cpp     O ; enables button 0x5bc808 when the server list 0x22e4570 has a selection
 0x40a9b0  mp_join_error_string     func  -                    I ; L"Game is full.", L"Incorrect password.", L"Game has already started." ...
 0x40ab80  gamelist_update_scrollbar func  new_gamelist.cpp     O ; scrollbar template
 0x40acd0  gamelist_handle_click    func  new_gamelist.cpp     O ; only caller gamelist_frame, mouse_was_pressed, mp_server_list_refresh
+0x40b0b0  mp_server_list_get       func  new_gamelist.cpp     O ; (index) walks the server list 0x22e4570, NULL past the end
 0x40b0e0  mp_server_list_refresh   func  -                    I ; L"Refresh list"
 0x40b120  gamelist_page_up         func  new_gamelist.cpp     O ; scroll pos 0x5bc71c -= page
 0x40b150  gamelist_page_down       func  new_gamelist.cpp     O ; scroll pos += page
+0x40b180  gamelist_join_selected   func  new_gamelist.cpp     I ; selected server -> 0x470bc0(server, password 0x5bc728, 1)
+0x40b1b0  gamelist_back            func  new_gamelist.cpp     O ; gameseq_set_state(11) (PXO lobby) when 0xa59a88 bit 0, else 1
 0x40b1e0  gamelist_button_action   func  new_gamelist.cpp     O ; button switch, network warnings L"If you host a game on a modem..."
 0x40b340  gamelist_scroll_up       func  new_gamelist.cpp     O ; scroll pos--
 0x40b360  gamelist_scroll_down     func  new_gamelist.cpp     O ; scroll pos++
+0x40b390  gamelist_refresh         func  new_gamelist.cpp     I ; 0x5bc910 = 0, 0x470bb0, clears 0x5bc71c
+0x40b3b0  gamelist_create_game     func  new_gamelist.cpp     O ; gameseq_set_state(13) (game creation)
 0x40b3d0  gamelist_update_buttons  func  new_gamelist.cpp     O ; release/auto-repeat template
 0x40b4a0  gamelist_drag_scrollbar  func  new_gamelist.cpp     O ; drag template
 0x40b530  gamelist_draw            func  -                      O ; screen 15 drawing (interface_draw switch)
 0x40b5c0  mp_server_list_draw      func  -                    I ; column headers L"Name", L"Level", L"Plyr", L"Ping"; L"<No servers found>"
 0x40bca0  gamelist_draw_scrollbar  func  new_gamelist.cpp     O ; scrollbar tile template
+0x40bd50  gamelist_draw_password_input func  new_gamelist.cpp     I ; clipped gr_string of the password buffer 0x5bc728
 0x40be80  mp_draw_join_help        func  -                    I ; L"Joining game..." and the mouse-control help lines
+0x40c7d0  help_reset_page          func  new_help.cpp         O ; help page 0x5bc920 = 0, called from interface_load_all
 0x40c7e0  help_init                func  new_help.cpp           O ; screen 22: DemoHelp640.tga
 0x40c850  help_leave               func  new_help.cpp           I
 0x40c860  help_frame               func  -                      O ; screen 22 per-frame input (interface_frame switch); (key) -> key
+0x40ca10  help_prev_page           func  new_help.cpp         O ; page--, wraps to 3
+0x40ca30  help_next_page           func  new_help.cpp         O ; page++, wraps to 0
 0x40ca50  help_draw                func  -                      O ; screen 22 drawing (interface_draw switch)
 0x40cc10  hud_load_bitmaps         func  new_hud.cpp          O ; "Main-HUD-MPH" bm_load, frame counts
 0x40cef0  hud_init                 func  new_hud.cpp            I ; screen 0
 0x40cf40  hud_frame                func  new_hud.cpp            I ; per-frame HUD; calls hud_handle_keys
+0x40d160  hud_update_portraits     func  new_hud.cpp          I ; per party member: portrait bitmap "%s%02d-%s" "hud-charportrait", ai mode, HP, only caller hud_frame
 0x40d540  hud_update_anim_time     func  new_hud.cpp          I ; accumulates frametime into two wrap-around HUD animation clocks (paused / running)
 0x40d640  hud_confirm_level_exit   func  -                    I ; L"Exit level?", L"Enter %s?", L"Hostile monsters nearby", L"Party members too far away"
 0x40d930  hud_handle_keys          func  new_hud.cpp            I ; the in-game keyboard map: switch on key codes (scan code | 0x1000 Shift | 0x4000 Alt); see docs/sum-exe/controls.md
@@ -173,39 +221,64 @@
 0x40e740  quickload                func  -                    O ; sprintf("quicksave%s",".sav"), read header, savegame_set_pending_load, game_change_level
 0x40e7c0  quicksave                func  -                    O ; "quicksave%s", L"Quick save successful.", L"Error during quick save.", L"No more savegame slots."
 0x40e980  hud_key_camera           func  new_hud.cpp            I ; F12: camera_cycle_mode
+0x40e9d0  hud_use_hot_button       func  new_hud.cpp          I ; (slot) savegame_hot_button_get then skill (lockpick_attempt), summon or spell (character_cast_spell) with sounds 0x23/0x24/0x27
 0x40eb30  hud_draw_tooltips        func  -                    I ; L"%s\nHP: %d/%d\nAP: %d/%d" for portraits; icon tooltips L"Enter combat mode" ... L"Skills"
 0x40ee20  hud_update_buttons       func  new_hud.cpp          O ; mouse_is_down -> hud_button_action
 0x40eeb0  hud_button_action        func  new_hud.cpp          O ; HUD icons -> hud_key_status/spells/journal/inventory/automap/pause/playmenu
+0x40f120  hud_portraits_handle_click func  new_hud.cpp          I ; point_in_rect per portrait, hud_portrait_action
 0x40f1b0  hud_portrait_action      func  new_hud.cpp          I ; hud_select_party_member / hud_key_status on portrait click
+0x40f230  hud_hot_buttons_handle_click func  new_hud.cpp          I ; point_in_rect per hot button slot, hud_use_hot_button
+0x40f340  hud_hot_buttons_drag     func  new_hud.cpp          I ; drag between hot button slots: savegame_hot_button_set / _clear, hud_drag_icon_end
+0x40f570  hud_death_timer_frame    func  new_hud.cpp          I ; 3 s GameTimer after the current character's death move, then gameseq_set_state(1)
 0x40f5d0  hud_confirm_quit         func  -                    I ; L"Are you sure?" L"Quit game"
 0x40f690  death_popup              func  -                    I ; L"You have died.", L"Restart", L"Quit"
 0x40f6e0  hud_draw                 func  new_hud.cpp            I ; the HUD bar, drawn by interface_draw unless a full panel hides it
+0x40f880  hud_portrait_get_color   func  new_hud.cpp          I ; switch on portrait state with pulse colour from GameTimer__GetRemainingTime
 0x40fa90  hud_detail_level_name    func  -                    I ; L"auto" / L"low" / L"high"
+0x40fc20  hud_draw_status_message  func  new_hud.cpp          I ; timed text 0x58bcb8 over a gr_rect, alpha from remaining time
 0x40fd40  hud_draw_health_bars     func  new_hud.cpp          I ; character_get_max_stat + gr_rect bars
+0x410020  hud_draw_hot_buttons     func  new_hud.cpp          I ; savegame_hot_button_get per slot, icons greyed by skill_is_busy / skill_is_available / character_can_cast_now / spell_is_usable
 0x4101e0  draw_game_over           func  -                    I ; L"Game Over. Press any key to continue"
 0x4102a0  mp_draw_loading_status   func  -                    I ; L"linking players", L"linking objects", L"loading level", L"'F' forces start"
 0x410510  hud_get_panel_height     func  new_hud.cpp          I ; subtracted from gr_screen_height in interface_set_view_clip
+0x410570  hud_drag_icon_begin      func  new_hud.cpp          I ; (x, y, w, h, kind, ...) icon dragged from the skills/spells panel: fields 0x5bd098..0x5bd0a4, flags 0x5bd0a8 bit 0
+0x4105d0  hud_drag_icon_end        func  new_hud.cpp          O ; clears bit 0 of 0x5bd0a8
+0x4105e0  hud_drag_icon_draw       func  new_hud.cpp          I ; full-screen clip, half-alpha ui_bitmap_scaled of the skill (0x5f4fe8) or spell (0x5f5820) icon, from interface_draw
 0x4106e0  hud_party_dead           func  new_hud.cpp          I ; closes screen, sets 0x5bd0b4=6, death_popup
 0x410760  new_icam_load            func  -                      O ; own assert string "Unable to parse item %s in new_icam_load()"
+0x410af0  new_icam_find            func  -                    I ; _stricmp of item name / char_infos name against the icam table entries, only caller new_icam_get
 0x410b70  new_icam_get             func  -                      O ; own message "DIDN'T FIND %s in new_icam_get()"
+0x410cd0  vector3__vector3_copy    func  -                    O ; copy constructor (this = v, returns this, ret 4), about 70 callers
 0x410cf0  version_check_fetch      func  -                    I ; downloads pxo.net .../version.nfo; L"Could not get data from website"
 0x410e20  version_check_read_reply func  -                    I ; called only by version_check_run, reads web reply buffers
 0x410f40  version_check_run        func  -                    O ; "SkipVerify" registry, version_check_fetch, "version.nfo"
 0x4116c0  hud_load_cursor_icons    func  -                    I ; cursoricon-chain.tga, cursoricon-quest.vbm, cursorspot-focus.tga ...
+0x4118c0  interface_reset_state    func  -                    I ; zeroes 0x5bd820 (0x33 dwords), party_inventory_clear, game_unpause, from game_cleanup
+0x4118e0  interface_load_all       func  -                    O ; interface_set_screen(0), every screen's *_load_bitmaps, help_reset_page, tutorial_reset, from state_game_enter
 0x4119a0  interface_frame          func  -                      I ; per-frame interface update and input; called by most state frame handlers
+0x411be0  interface_mouse_drag_frame func  -                    I ; mouse_get_delta + both buttons + point_in_rect, 600 ms RealtimeTimer, from interface_frame
 0x411cd0  interface_draw           func  -                      O ; HUD (0x40f6e0) then the current screen draw (switch), overlays
+0x4121d0  interface_pulse_update   func  -                    O ; advances phase 0x58bdc4 by dt and stores two sine pulses (0x5bd8f4, 0x5bd7a4) in 0..1
 0x412220  interface_set_view_clip  func  -                      I ; clips the 3D view per open screen (side panels shrink it), then draws
 0x4123c0  ui_load_model_lights     func  -                    O ; loads "inv-lights1.vfx"
 0x412400  ui_3d_begin              func  -                    I ; sets up 3D view and "inv-lights1.vfx" lights before UI model render, paired with ui_3d_end
 0x4125a0  ui_3d_end                func  -                    I ; restores state after UI model render, same callers as ui_3d_begin
 0x412610  interface_get_screen     func  -                    O ; returns interface_cur_screen
 0x412620  interface_set_screen     func  -                      I ; (id, arg): current screen's leave, then the new screen's init (23 ids); see docs/sum-exe/interface.md
+0x412ab0  interface_screen_is_fullscreen func  -                    I ; switch on interface_cur_screen (0..20) returning 0/1, callers interface_frame/draw, player_input_frame
 0x412af0  interface_mouse_over_panel func  -                    O ; switch on screen calls <screen>_mouse_in_panel(mouse x,y), caller player_read_mouse_input
+0x412dd0  statscreen_set_reduced_textures func  -                    I ; status_character model textures -> bm_set_reduced, only caller statscreen_refresh_anim
 0x412e50  statscreen_refresh_anim  func  -                    I ; unload/load statscreen anim, callers buysell/hud/interface_set_screen
 0x413190  vector3__assign          func  vsdk\math              I ; a = b, returns a copy
+0x413200  party_find_next_member   func  -                    I ; status_character's Player -> next party member on this level (flags +0x320), prev/next buttons
+0x413290  party_find_prev_member   func  -                    I ; same as party_find_next_member walking prev links
+0x413320  statscreen_show_next_member func  -                    O ; statscreen_refresh_anim(party_find_next_member(arg))
+0x413340  statscreen_show_prev_member func  -                    O ; statscreen_refresh_anim(party_find_prev_member(arg))
 0x413360  party_cycle              func  -                      I ; Tab (1) / Shift+Tab (0)
 0x413460  point_in_rect            func  -                    O ; (px,py,x,y,w,h) -> x<=px<x+w && y<=py<y+h
 0x4134a0  ui_get_scale             func  -                    O ; returns float 0x58be24 (UI scale used for bitmap sizes)
+0x4134b0  ui_draw_panel_frame      func  -                    I ; three nested gr_rect frames in colours 0x5bd944/0x5bd7b8/0x5bd7fc, mp help/loading and ui_choice_popup_draw
+0x4135a0  ui_draw_text_box         func  -                    I ; filled gr_rect (0x5bd938) plus four gr_line borders (0x5bd2ec), tooltips, automap labels, cd prompt
 0x4136a0  ui_choice_popup_show     func  -                    O ; copies text to 0x5bd518, button list, sets 0x5bd77c active
 0x4138a0 ClearFrameFlag5bd77c     func  -                        O ; clears per-frame flag 0x5bd77c
 0x4138b0  ui_choice_popup_frame    func  -                    O ; returns choice or -2, state machine over 0x5bd78c
@@ -224,58 +297,123 @@
 0x414270  ui_message_box_draw      func  -                    O ; from interface_draw, background + gr_split_str text
 0x4144d0  ui_message_box_is_active func  -                    O ; 0x5bd504 & 0x80000000
 0x4144f0  ui_bitmap_scaled         func  -                    O ; gr_bitmap_stretched(bm, x, y, w*scale, h*scale)
+0x414560  ui_clear_pick_overrides  func  -                    O ; clears bytes 0x5bd960, 0x5bd961, 0x5bd7b0, 0x5bd50c
+0x414580  ui_get_pick_screen_override func  -                    O ; if 0x5bd960: out x/y = 0x58bdbc/0x58bdc0, returns 1
+0x4145b0  ui_get_pick_world_override func  -                    O ; if 0x5bd961: out = vector 0x5bd2f8, returns 1
 0x4146a0  ui_input_lock            func  -                    I ; 0x5bd962 = 1 (tested by interface_mouse_over_panel), from cutscene play and container_open
 0x4146b0  ui_input_unlock          func  -                    I ; 0x5bd962 = 0, from effects_kill_all
+0x4146c0  options_draw_version     func  new_options.cpp      O ; sprintf "v%d.%02d" (1.40) bottom-right in grey
+0x414750  ui_tooltip_set           func  -                    I ; (x, y, text) measures text into 0x5bd800/0x5bd804, clamps to screen, copies text, inventory/skills/spells/status tooltips
 0x4148c0  interface_start_input_delay func  -                    O ; RealtimeTimer 600 ms, called by interface_set_screen
 0x4148e0  interface_input_ready    func  -                    O ; true when the open-screen delay timer elapsed, checked by screen click handlers
+0x414900  cutscene_draw_loading    func  -                    I ; bitmap + gr_rect progress bar then gr_flip, callers cutscene_load_data, cutscene_loading_finish
+0x4149d0  cutscene_begin_loading   func  -                    I ; (total) 0x5bd510 = total, clears 0x5bd92c and the screen, flips
+0x414a10  cutscene_loading_finish  func  -                    O ; 0x5bd92c = 0x5bd510 (progress full) then cutscene_draw_loading
 0x414a20  hud_show_message         func  new_hud.cpp          O ; copies <=63-char text and starts GameTimer, callers quicksave, pickup_report_count, saveload_show_saved...
 0x414a80  hud_show_chain_message   func  new_hud.cpp          I ; same as hud_show_message with 15-char limit, only caller chain_attack_select
+0x414ae0  color_pulse_scale        func  -                    I ; scales three floats by (pulse + bias), from hud_portrait_get_color
 0x414c90  init_ccmd_show_ui        func  -                    O ; static initialiser: registers console command object ccmd_show_ui
 0x414cb0  cmd_show_ui              func  -                      O ; console command "show_ui": Toggles the visibility state of the HUD
 0x414dc0  inv_cameras_parse_table  func  -                    O ; "inv_cameras.tbl" (inventory model camera positions)
 0x414de0  inventory_load_bitmaps   func  new_inventory.cpp    O ; "Inv-Bkgrnd" bm_load
 0x414fc0  inventory_init           func  new_inventory.cpp      I ; screen 1 (arg: page)
+0x4150c0  inventory_page_in_equipped func  new_inventory.cpp    O ; item_page_in for weapon (+0x768), armour (+0x76c) and another slot of status_character
+0x415220  inventory_rebuild_lists  func  new_inventory.cpp    I ; switch on the current category calling inventory_build_category
+0x4153d0  inventory_build_category func  new_inventory.cpp    I ; (category) collects party items of that category from 0x970820 (0x46b5b0 per item)
 0x415470  inventory_update_scrollbar func  new_inventory.cpp    O ; scrollbar template
+0x415580  inventory_update_trade_buttons func  new_inventory.cpp    O ; party_count_active > 1 (or debug) enables buttons 0x5c10f8 / 0x5c1128 (bit 0x4)
+0x4155f0  inventory_update_equip_slots func  new_inventory.cpp    I ; reads equipment slots +0x754..+0x774 of status_character for the paper-doll
 0x4158b0  inventory_leave          func  new_inventory.cpp      I
 0x4158f0  inventory_frame          func  -                      O ; screen 1 per-frame input (interface_frame switch); (key) -> key
 0x4159a0  inventory_handle_click   func  new_inventory.cpp    O ; only caller inventory_frame, mouse_was_pressed, inventory_draw_categories
+0x416020  inventory_get_list_item  func  new_inventory.cpp    I ; (row) item of the visible list or NULL
+0x416090  inventory_slot_for_item_slot func  new_inventory.cpp    I ; switch on ItemType slot (+0x1c) returning the equipment index
+0x416110  inventory_update_item_buttons func  new_inventory.cpp    O ; identify / magic info / destroy button states 0x5c1004.. from item_is_identified, item_has_magic_info, item_can_destroy
+0x416200  inventory_can_identify   func  new_inventory.cpp    I ; status_character or a party member on this level has skill 0x14 available (skill_is_available)
 0x416290  inventory_draw_categories func  -                    I ; inventory screen: L"Weapons", L"Armor", L"Magic items", L"Jewelry", L"Miscellaneous items"
+0x416560  inventory_show_item_info func  new_inventory.cpp    O ; selected or equipped item -> item_info_popup_open_item
 0x4165c0  inventory_page_up        func  new_inventory.cpp    O ; scroll pos 0x5bd970 -= page
 0x4165f0  inventory_page_down      func  new_inventory.cpp    O ; scroll pos += page
 0x416620  inventory_button_action  func  new_inventory.cpp    O ; button switch: close, party members, scroll, category jumps
+0x416840  inventory_goto_status    func  new_inventory.cpp    O ; clears button flags, interface_set_screen(2)
+0x416860  inventory_prev_member    func  new_inventory.cpp    O ; statscreen_show_prev_member(1)
+0x416870  inventory_next_member    func  new_inventory.cpp    O ; statscreen_show_next_member(1)
 0x416880  inventory_scroll_up      func  new_inventory.cpp    O ; scroll pos--
 0x4168a0  inventory_scroll_down    func  new_inventory.cpp    O ; scroll pos++
+0x4168d0  inventory_goto_category0 func  new_inventory.cpp    O ; inventory_build_category(0), clamp scroll 0x5bd970, update scrollbar
+0x416910  inventory_goto_category1 func  new_inventory.cpp    O ; inventory_build_category(1)
+0x416950  inventory_goto_category2 func  new_inventory.cpp    O ; inventory_build_category(2)
+0x416990  inventory_goto_category3 func  new_inventory.cpp    O ; inventory_build_category(3)
+0x4169d0  inventory_goto_category4 func  new_inventory.cpp    O ; inventory_build_category(4)
 0x416a10  interface_close_screen   func  -                    O ; interface_set_screen(0, 0), used by close buttons of many screens
 0x416a20  inventory_update_buttons func  new_inventory.cpp    O ; release/auto-repeat template
 0x416af0  inventory_drag_scrollbar func  new_inventory.cpp    O ; drag template
 0x416b80  inventory_popup_result   func  new_inventory.cpp    I ; reads ui_choice_popup_frame result -> identify / destroy
 0x416fb0  inventory_identify_item  func  -                    I ; L"Couldn't identify item."
 0x417110  inventory_confirm_destroy func  -                    I ; L"Destroy item?"
+0x417220  inventory_drag_to_equip  func  new_inventory.cpp    I ; drop of a list item on the paper-doll: slot from ItemType +0x1c, 0x44b550 check, inventory_equip_item, sound
+0x4174a0  inventory_equip_item     func  new_inventory.cpp    I ; (slot, entry) item_create_by_name, swap into equipment[slot] (0x46bdf0), party_inventory_remove/add, statscreen_refresh_anim
+0x417630  inventory_drag_from_equip func  new_inventory.cpp    I ; drag of an equipped item back to the list: inventory_unequip_item / inventory_unequip_both_hands
+0x417740  inventory_unequip_item   func  new_inventory.cpp    O ; (slot) 0x46c240 unequip, party_inventory_add_item, refresh lists and scrollbar
+0x417790  inventory_unequip_both_hands func  new_inventory.cpp    I ; unequips slots 1 and 2 (0x46c240) and frees the items
 0x417860  inventory_draw           func  -                      O ; screen 1 drawing (interface_draw switch)
+0x417950  inventory_draw_list_row  func  new_inventory.cpp    I ; item_get_display_name and "%d" count for one list row
+0x417a60  inventory_set_row_color  func  new_inventory.cpp    O ; colour by identified / shop category / character_can_equip_item
 0x417b10  inventory_draw_scrollbar func  new_inventory.cpp    O ; scrollbar tile template
 0x417bc0  inventory_draw_item_model func  new_inventory.cpp    O ; new_icam_get + ui_3d_begin/end
+0x417c50  ui_render_item_mesh      func  -                    I ; gr_setup_3d (fov 60) + ca_render_mesh, inventory, item info popup
+0x417cd0  inventory_item_view_offset func  new_inventory.cpp    I ; per-model camera offset table 0x57f188 with a "Nodachi" special case
+0x417da0  inventory_model_view_begin func  new_inventory.cpp    O ; saves gr_screen offset_x/y and adds the paper-doll offset from 0x57f058
+0x417df0  inventory_model_view_end func  new_inventory.cpp    O ; restores gr_screen offset_x/y
+0x417e10  inventory_draw_character func  new_inventory.cpp    I ; status_character model with new_icam_get, ui_3d_begin/end, weapon attachment (0x51b3f0)
+0x417fe0  inventory_render_character func  new_inventory.cpp    I ; gr_setup_3d, charinfo_get_multi_appearance, character_hero_model_prefix, character_instance__render
+0x418090  inventory_draw_hover_item func  new_inventory.cpp    I ; hovered list item: localize_item_name tooltip and model preview
+0x418160  inventory_draw_item_preview func  new_inventory.cpp    I ; (item) new_icam_get, view offset, ui_render_item_mesh between ui_3d_begin/end
+0x418430  inventory_draw_equipped_hover func  new_inventory.cpp    I ; point_in_rect over equipment slots, inventory_draw_item_preview
 0x4185a0  item_info_popup_load_bitmaps func  -                    O ; loads "ItemInfoPopupbkgrnd" bitmaps; called from the load-all list at 0x4118e0 (the popup is drawn by item_info_popup_render)
+0x418760  item_info_popup_open_item func  -                    O ; (item) page in its model (item_page_in 0x12), mode 0x5c1538 = 2, item_info_popup_setup
+0x4187a0  item_info_popup_setup    func  -                    I ; ring_format_info text for the popup item 0x5c1534, counts lines, item_info_popup_update_scrollbar
 0x418810  item_info_popup_update_scrollbar func  -                    O ; scrollbar template for item info text
+0x418920  item_info_popup_open_type func  -                    O ; (item type index) item_create, mode 0x5c1538 = 1, item_info_popup_setup
 0x418960  item_info_popup_frame    func  -                    O ; calls item info drag, update_buttons, click, from buysell_frame and inventory_frame
 0x4189c0  item_info_popup_handle_click func  -                    O ; mouse_was_pressed, "ItemInfoPopupbkgrnd" rect
 0x418ba0  item_info_popup_page_up  func  -                    O ; scroll 0x5c1568 -= page
 0x418bd0  item_info_popup_page_down func  -                    O ; scroll += page
+0x418c00  item_info_popup_close    func  -                    O ; item_free (mode 1) or item_page_out_all(0x12) (mode 2), active 0x5c1518 = 0
 0x418c40  item_info_popup_button_action func  -                    O ; scroll/close with sound
 0x418c90  item_info_popup_scroll_up func  -                    O ; scroll--
 0x418cb0  item_info_popup_scroll_down func  -                    O ; scroll++
 0x418ce0  item_info_popup_update_buttons func  -                    O ; release/auto-repeat template
 0x418db0  item_info_popup_drag_scrollbar func  -                    O ; drag template
 0x418e40  item_info_popup_render   func  -                    O ; dims screen with gr_rect, background, title, text, scrollbar, model, from buysell_draw and inventory_draw
+0x418ee0  item_info_popup_draw_title func  -                    O ; item_get_display_name of 0x5c1534
+0x418f30  item_info_popup_draw_text func  -                    I ; clipped gr_string of the info text
 0x418ff0  item_info_popup_draw_scrollbar func  -                    O ; scrollbar tile template
+0x4190a0  item_info_popup_draw_model func  -                    O ; new_icam_get, view offset, ui_render_item_mesh
+0x419100  item_info_popup_view_begin func  -                    O ; saves gr_screen offset_x/y and adds the popup model offset 0x57fe28
+0x419140  item_info_popup_view_end func  -                    O ; restores gr_screen offset_x/y
+0x419160  item_info_popup_is_active func  -                    O ; returns byte 0x5c1518
 0x4191b0  multitrade_load_bitmaps  func  -                    O ; loads "MultiTrade-Bkgrnd" bitmaps; called from the load-all list at 0x4118e0
 0x419380  itemtrade_init           func  new_itemtrade.cpp      I ; screen 19
 0x419420  itemtrade_update_scrollbar func  new_itemtrade.cpp    O ; scrollbar template, per-list
+0x419530  itemtrade_count_party_rows func  new_itemtrade.cpp    O ; 0x5c1594 = party item count (0x97186c) + 1 when party_gold > 0
 0x419550  itemtrade_leave          func  new_itemtrade.cpp      I
 0x419560  itemtrade_frame          func  -                      O ; screen 19 per-frame input (interface_frame switch); (key) -> key
 0x419710  itemtrade_handle_click   func  new_itemtrade.cpp    O ; only caller itemtrade_frame, mouse_was_pressed, key_to_ascii
+0x419bb0  itemtrade_party_page_up  func  new_itemtrade.cpp    O ; scroll 0x5c1580 -= page, update scrollbar
+0x419be0  itemtrade_party_page_down func  new_itemtrade.cpp    O ; scroll 0x5c1580 += page, clamp
+0x419c40  itemtrade_clear_gold_input func  new_itemtrade.cpp    I ; 0x5c1590 = 0
 0x419c50  itemtrade_button_action  func  new_itemtrade.cpp    O ; button switch on three lists with sounds
+0x419dc0  itemtrade_list1_scroll_up func  new_itemtrade.cpp    O ; 0x5c187c--
+0x419de0  itemtrade_list1_scroll_down func  new_itemtrade.cpp    O ; 0x5c187c++ up to count 0x22e47b8 - page
+0x419e10  itemtrade_list2_scroll_up func  new_itemtrade.cpp    O ; 0x5c1868--
+0x419e30  itemtrade_list2_scroll_down func  new_itemtrade.cpp    O ; 0x5c1868++ up to count 0x22e47c8 - page
+0x419e60  itemtrade_party_scroll_up func  new_itemtrade.cpp    O ; 0x5c1580--
+0x419e80  itemtrade_party_scroll_down func  new_itemtrade.cpp    O ; 0x5c1580++
 0x419ec0  itemtrade_update_buttons func  new_itemtrade.cpp    O ; release/auto-repeat template
 0x419f90  itemtrade_drag_scrollbar func  new_itemtrade.cpp    O ; drag template
+0x41a1d0  itemtrade_get_party_row  func  new_itemtrade.cpp    O ; row 0 is the gold row 0x5c1578 when party_gold > 0, else party item entry 0x970818/0x970820 + 8*row
+0x41a200  itemtrade_begin_gold_input func  new_itemtrade.cpp    I ; 0x5c1590 = 1, 500 ms timer 0x5c1860, 0x5c1881 = 1, chat_input_cancel
 0x41a230  itemtrade_draw           func  -                      O ; screen 19 drawing (interface_draw switch)
 0x41a700  itemtrade_draw_scrollbar func  new_itemtrade.cpp    O ; scrollbar tile template
 0x41a8b0  itemtrade_get_panel_width func  new_itemtrade.cpp    O ; returns panel rect width 0x5c15a8 for interface_set_view_clip
@@ -283,11 +421,23 @@
 0x41a960  journal_load_bitmaps     func  new_journal.cpp      O ; "QstJrn-Bkgrnd" bm_load
 0x41ab10  journal_init             func  -                      I ; screen 10; between new_itemtrade and new_mainmenu
 0x41abf0  journal_update_list_scrollbar func  new_journal.cpp      O ; scrollbar template for quest lists (index arg)
+0x41ad40  journal_select_quest     func  new_journal.cpp      I ; (quest) quest_get_current_step, gr_split_str of the step text, journal_update_desc_scrollbar
 0x41ade0  journal_update_desc_scrollbar func  new_journal.cpp      O ; scrollbar template for description pane (0x5c1ac8)
 0x41aef0  journal_leave            func  -                      I
 0x41af30  journal_frame            func  -                      O ; screen 10 per-frame input (interface_frame switch); (key) -> key
 0x41af80  journal_handle_click     func  new_journal.cpp      O ; only caller journal_frame, mouse_was_pressed, "QstJrn-Bkgrnd"
+0x41b470  journal_get_quest        func  new_journal.cpp      O ; (list, n) nth active quest (savegame_get_quest_bit) whose +4 byte matches list (1 = side), 0x6c-byte records at 0x253ef40
+0x41b4d0  journal_list_page_up     func  new_journal.cpp      O ; (list) scroll 0x5c1aa0[list] -= page
+0x41b520  journal_list_page_down   func  new_journal.cpp      O ; (list) scroll += page, clamp to 0x5c1ac0[list]
+0x41b570  journal_desc_page_up     func  new_journal.cpp      O ; description scroll 0x5c1ac8 -= page
+0x41b5a0  journal_desc_page_down   func  new_journal.cpp      O ; description scroll += page, clamp to 0x5c1888
 0x41b5d0  journal_button_action    func  new_journal.cpp      O ; button switch: close, scroll lists and description
+0x41b6f0  journal_goto_shop_or_status func  new_journal.cpp      O ; interface_set_screen(7) (buy/sell) when a shop owner is set, else 2
+0x41b720  journal_goto_inventory   func  new_journal.cpp      O ; clears flags, interface_set_screen(1, &0)
+0x41b750  journal_list_scroll_up   func  new_journal.cpp      O ; (list) scroll--
+0x41b780  journal_list_scroll_down func  new_journal.cpp      O ; (list) scroll++
+0x41b7c0  journal_desc_scroll_up   func  new_journal.cpp      O ; 0x5c1ac8--
+0x41b7e0  journal_desc_scroll_down func  new_journal.cpp      O ; 0x5c1ac8++
 0x41b810  journal_update_buttons   func  new_journal.cpp      O ; release/auto-repeat template
 0x41b8e0  journal_drag_scrollbar   func  new_journal.cpp      O ; drag template for both scrollbars
 0x41b9f0  journal_draw             func  -                      O ; screen 10 drawing (interface_draw switch)
@@ -296,27 +446,50 @@
 0x41bee0  mp_levelselect_load_bitmaps func  new_levelselect.cpp  O ; "PXO-LevelSelect" bm_load
 0x41c080  mp_levelselect_init            func  -                      O ; screen 18; between new_itemtrade and new_mainmenu
 0x41c110  mp_levelselect_update_scrollbar func  new_levelselect.cpp  O ; scrollbar template
+0x41c250  mp_levelselect_build_list func  new_levelselect.cpp  O ; indices of level table entries with flag bit 0 at 0x59fdf0 (all if All_multi_levels) into 0x5c1c70, count 0x5c1adc
 0x41c2a0  mp_levelselect_frame     func  -                      O ; screen 18 per-frame input (interface_frame switch); (key) -> key
 0x41c450  mp_levelselect_handle_click func  new_levelselect.cpp  O ; only caller mp_levelselect_frame, mouse_was_pressed
+0x41cad0  mp_levelselect_back      func  new_levelselect.cpp  O ; 0x4814e0 then gameseq_set_state(11) or (12)
+0x41cb20  mp_levelselect_page_up   func  new_levelselect.cpp  O ; (list) scroll 0x5c2f70[list] -= page
+0x41cb70  mp_levelselect_page_down func  new_levelselect.cpp  O ; (list) scroll += page, clamp to 0x5c1ad8[list]
 0x41cbd0  mp_levelselect_button_action func  new_levelselect.cpp  O ; button switch with sounds
+0x41cc90  mp_levelselect_scroll_up func  new_levelselect.cpp  O ; (list) scroll--
+0x41ccc0  mp_levelselect_scroll_down func  new_levelselect.cpp  O ; (list) scroll++
 0x41cd80  mp_levelselect_update_buttons func  new_levelselect.cpp  O ; release/auto-repeat template
 0x41ce50  mp_levelselect_drag_scrollbar func  new_levelselect.cpp  O ; drag template
 0x41cf00  mp_levelselect_draw      func  -                      O ; screen 18 drawing (interface_draw switch)
 0x41d2d0  mp_levelselect_draw_scrollbar func  new_levelselect.cpp  O ; scrollbar tile template
+0x41d5e0  mp_levelselect_add_chat_line func  new_levelselect.cpp  I ; gr_split_str into the 0x5c1d60 ring of lines, update scrollbar 0, only caller mp_process_join_request
 0x41d740  mainmenu_load_bitmaps    func  new_mainmenu.cpp     O ; "MainMenu-bkgrnd" bm_load
 0x41d8b0  mainmenu_init            func  new_mainmenu.cpp       O ; screen 14: "Title" table, vlogo.bik / eaxlogo.bik intro movies
 0x41d910  mainmenu_frame           func  -                      O ; screen 14 per-frame input (interface_frame switch); (key) -> key
 0x41d960  mainmenu_handle_click    func  new_mainmenu.cpp     O ; only caller mainmenu_frame, mouse_was_pressed
+0x41dac0  mainmenu_start_new_game  func  new_mainmenu.cpp     O ; game_change_level(0x59f1e8, 0x2538a10)
 0x41dae0  mainmenu_check_network   func  -                    I ; L"Internet connection not detected...", L"No network connection detected..."
+0x41dbf0  ui_open_options          func  -                    O ; interface_set_screen(12), main menu and play menu Options buttons
+0x41dc00  mainmenu_quit            func  new_mainmenu.cpp     O ; gameseq_set_state(3) (quit)
 0x41dc10  mainmenu_update_buttons  func  new_mainmenu.cpp     O ; mouse_is_down -> mainmenu_button_action
 0x41dca0  mainmenu_button_action   func  new_mainmenu.cpp     O ; new game, load, options, multiplayer (mainmenu_check_network), credits, quit
 0x41dd90  mainmenu_draw            func  -                      O ; screen 14 drawing (interface_draw switch)
 0x41dde0  elevator_popup_frame     func  -                    O ; from interface_frame, L"Elevator" L"Go down?" for $npc117/$npc118
+0x41df70  elevator_move_party      func  -                    I ; (floor) places cur_summon / party at the floor's player start (level_find_player_starts, 0x44f1a0), camera_reset_to_player
 0x41e060  elevator_choose_floor    func  -                    O ; L"Which floor?" L"Upper" L"Lower" L"Ground" L"Cancel"
+0x41e380  ui_screen_stop_player    func  -                    I ; clears player_input and cur_character goals, ai_go_idle (single player), called by screen init functions
+0x41e430  chat_input_frame         func  -                    I ; chat overlay: incoming lines 0x41e4a0, 500 ms timer, key handling 0x41e5d0 / chat_input_key_enter, from interface_frame
+0x41e590  chat_input_key_enter     func  -                    O ; (key) Enter (0x1c) starts chat input: 0x5c328c = 1, clears buffer 0x5c3290, 500 ms timer
 0x41e6b0  chat_format_msg          func  -                    I ; "/msg %s %s%c" variants
+0x41e8e0  chat_draw                func  -                    O ; chat_draw_lines then chat_draw_input when 0x5c328c == 1, from interface_draw
+0x41e900  chat_draw_lines          func  -                    I ; "name: text" lines with the name colour 0x5bd328
+0x41eb80  chat_get_origin          func  -                    O ; (out x, out y) chat position by resolution, other table when interface_screen_is_fullscreen
+0x41ebd0  chat_draw_input          func  -                    I ; gr_rect background and clipped input text
+0x41ed50  chat_input_cancel        func  -                    O ; 0x5c328c = 0
+0x41ed60  chat_add_line            func  -                    I ; gr_split_str into the 0x5c30d8 ring (9-dword lines), 5 s RealtimeTimer each
 0x41ef30  options_load_bitmaps     func  new_options.cpp      O ; "Options-Bkgrnd" bm_load
 0x41f0f0  options_init             func  -                      I ; screen 12; between new_multichat and new_pickup
+0x41f250  options_set_sfx_volume   func  new_options.cpp      O ; (volume) 0x5c32e0, snd_set_group_volume(0, v), slider knob x 0x5c3348
+0x41f2b0  options_set_music_volume func  new_options.cpp      O ; (volume) 0x5c32e4, music_set_volume, slider knob x 0x5c3360
 0x41f380  options_apply_gamma      func  new_options.cpp      O ; gr_set_gamma from slider value
+0x41f410  options_set_eax          func  new_options.cpp      I ; (on) 0x521ba0, eax_restore_reverb / eax_mute_reverb
 0x41fa60  options_leave            func  -                      I
 0x41fb00  options_frame            func  -                      O ; screen 12 per-frame input (interface_frame switch); (key) -> key
 0x41fb50  options_handle_click     func  new_options.cpp      O ; only caller options_frame, mouse_was_pressed
@@ -334,9 +507,11 @@
 0x420d20  pickup_page_up           func  new_pickup.cpp       O ; scroll 0x5c3b64 -= page
 0x420d50  pickup_page_down         func  new_pickup.cpp       O ; scroll += page
 0x420da0  pickup_report_count      func  -                    I ; L"1 item picked up" / L"%d items picked up"
+0x420f10  pickup_close             func  new_pickup.cpp       I ; multiplayer release 0x488da0, clears flags, interface_set_screen(0)
 0x420f60  pickup_button_action     func  new_pickup.cpp       O ; scroll / take / close, pickup_report_count
 0x421020  pickup_scroll_down       func  new_pickup.cpp       O ; scroll++
 0x421050  pickup_update_buttons    func  new_pickup.cpp       O ; release/auto-repeat template
+0x421110  pickup_list_handle_click func  new_pickup.cpp       I ; point_in_rect per row toggles selection 0x5c3a30[row], sound 0x27
 0x4211c0  pickup_drag_scrollbar    func  new_pickup.cpp       O ; drag template
 0x421260  pickup_draw              func  -                      O ; screen 4 drawing (interface_draw switch)
 0x4212c0  pickup_draw_scrollbar    func  new_pickup.cpp       O ; scrollbar tile template
@@ -355,17 +530,30 @@
 0x421ca0  mainmenu_confirm_quit    func  -                    I ; L"Are you sure?" L"Quit game"
 0x421cf0  playmenu_draw            func  -                      O ; screen 9 drawing (interface_draw switch)
 0x421d40  playmenu_mouse_in_panel  func  new_playmenu.cpp     O ; point_in_rect, case 9 of interface_mouse_over_panel
+0x421d70  game_abandon_to_menu     func  -                    I ; character_xp_death_penalty if dead, 0x4814e0 (multiplayer leave), gameseq_set_state(1), only caller mainmenu_confirm_quit
 0x421de0  open_url                 func  -                    O ; ShellExecute "open"; L"Could not locate/launch default Internet Browser"
+0x421e70  pxochat_open_banner_url  func  new_pxochat.cpp      O ; open_url(0x5c3d82) when the banner URL is non-empty
+0x421ea0  pxo_find_chat_banners    func  new_pxochat.cpp      O ; os_registry_read_dword "ChatBanners", file lists "*.cfg" and "*.pcx"
 0x421fa0  pxo_load_chat_banners    func  -                    I ; "new_chatbanners.cfg", pxo.net banner URL
+0x422370  pxochat_leave            func  new_pxochat.cpp      O ; frees banner object 0x5c3e8c and bm_release 0x5c3e84, via pxochat_leave_thunk from interface_set_screen
 0x4223d0  pxo_parse_chat_banners_cfg func  new_pxochat.cpp      O ; "new_chatbanners.cfg" $Base_url: $Pcx_name: +Link:
 0x422790  pxo_version_check_status func  -                    I ; L"A new version of Summoner is available.", L"Checking Version", L"Validating User"
+0x422d10  pxochat_input_cancel     func  new_pxochat.cpp      I ; clears 0x5c3e96 and 0x5c4240, restores 0x5c3ef8
+0x422d30  pxochat_join_selected_channel func  new_pxochat.cpp      I ; 0x43f7d0 on channel 0x5c469c or 0x5c58e0, resets selection
 0x422dd0  pxochat_load_bitmaps     func  new_pxochat.cpp      O ; "PXOChat-Bkgrnd" bm_load
 0x422fc0  pxochat_init             func  new_pxochat.cpp        I ; screen 11
 0x423050  pxochat_update_scrollbar func  new_pxochat.cpp      O ; scrollbar template, per-list
+0x4231a0  pxochat_leave_thunk      func  new_pxochat.cpp      O ; jmp pxochat_leave
 0x423220  pxochat_frame            func  -                      O ; screen 11 per-frame input (interface_frame switch); (key) -> key
 0x423950  chat_draw_status         func  -                    I ; L"Connecting to server...", L"Requesting channels...", L"Joining channel..."
 0x423a20  pxochat_handle_click     func  new_pxochat.cpp      O ; only caller pxochat_frame, mouse_was_pressed, key_to_ascii
+0x424120  pxochat_page_up          func  new_pxochat.cpp      O ; (list) scroll 0x5c4230[list] -= page
+0x424170  pxochat_page_down        func  new_pxochat.cpp      O ; (list) scroll += page, clamp to 0x5c57c0[list]
+0x4241c0  pxochat_goto_charselect  func  new_pxochat.cpp      O ; gameseq_set_state(10)
 0x4241d0  pxochat_button_action    func  new_pxochat.cpp      O ; button switch with sounds
+0x424360  pxochat_scroll_up        func  new_pxochat.cpp      O ; (list) scroll--
+0x424390  pxochat_scroll_down      func  new_pxochat.cpp      O ; (list) scroll++
+0x4243e0  pxochat_goto_gamelist    func  new_pxochat.cpp      O ; gameseq_set_state(12) when 0x60ae74 >= 0
 0x424410  pxochat_update_buttons   func  new_pxochat.cpp      O ; release/auto-repeat template
 0x4244f0  pxochat_drag_scrollbar   func  new_pxochat.cpp      O ; drag template
 0x4246d0  pxochat_draw             func  -                      O ; screen 11 drawing (interface_draw switch)
@@ -373,6 +561,8 @@
 0x4253e0  saveload_reset_lists     func  -                    I ; clears three list tables (0x5c57c0, 0x5c4230) via 0x423050, then 0x425260; the month-name formatting follows at 0x425420 (not a separate Ghidra function)
 0x4254e0  saveload_load_bitmaps    func  new_saveload.cpp     O ; "SaveLoad-Bkgrnd" bm_load + bm_create for thumbnail
 0x4256a0  saveload_init            func  new_saveload.cpp       I ; screen 8 (arg: save or load)
+0x425730  saveload_update_save_button func  new_saveload.cpp     O ; savegame_location_allowed (or multiplayer) enables buttons 0x5c59e8 / 0x5c5a18
+0x425790  saveload_refresh         func  new_saveload.cpp     O ; (save mode) resets selection, saveload_scan_saves, scrollbar, first thumbnail
 0x4258c0  saveload_scan_saves      func  -                    I ; "*.sav", L"No description"
 0x425b00  saveload_update_scrollbar func  new_saveload.cpp     O ; scrollbar template
 0x425c10  saveload_load_thumbnail  func  new_saveload.cpp     I ; calls savegame_read_thumbnail_file for selected entry
@@ -381,8 +571,11 @@
 0x425de0  saveload_text_input      func  new_saveload.cpp       I ; save-name entry, uses key_to_ascii
 0x426260  saveload_page_up         func  new_saveload.cpp     O ; scroll 0x5c5b9c -= page
 0x426290  saveload_page_down       func  new_saveload.cpp     O ; scroll += page
+0x4262c0  saveload_close           func  new_saveload.cpp     O ; interface_set_screen(14) (main menu) when opened from the title (0x5e3600 bit 1), else 0
 0x4262f0  saveload_show_saved      func  -                    I ; L"Game Saved"
+0x426320  saveload_try_save        func  new_saveload.cpp     O ; savegame_location_allowed, overwrite confirm when the slot is used, else saveload_save_to_slot
 0x426370  saveload_save_to_slot    func  new_saveload.cpp     O ; finds unused "summoner%d.sav", conversation_save_state, savegame_write
+0x426480  saveload_load_selected   func  new_saveload.cpp     O ; savegame_set_pending_load then game_change_level of the saved level
 0x426500  saveload_confirm_overwrite func  -                    I ; L"Overwrite existing savegame?", L"Game Saved"
 0x426570  saveload_button_action   func  new_saveload.cpp     O ; button switch: save, load, delete (saveload_confirm_delete), scroll, close
 0x426670  saveload_scroll_up       func  new_saveload.cpp     O ; scroll--
@@ -393,22 +586,39 @@
 0x426930  saveload_drag_scrollbar  func  new_saveload.cpp     O ; drag template
 0x4269c0  saveload_draw            func  -                      O ; screen 8 drawing (interface_draw switch)
 0x426a20  saveload_list_entries    func  -                    I ; L"<New Savegame>"
+0x426be0  saveload_format_level_name func  new_saveload.cpp     I ; level_script_table name -> localized name, L352 "Unknown" for "test"
+0x426d10  saveload_draw_info       func  new_saveload.cpp     I ; "%d:%02d %s" play time, "%s %d, %d" date, level name and thumbnail
+0x426fd0  saveload_draw_thumbnail  func  new_saveload.cpp     O ; gr_bitmap_stretched of savegame_thumbnail_bm (201x151)
 0x427050  saveload_draw_scrollbar  func  new_saveload.cpp     O ; scrollbar tile template
 0x427100  saveload_capture_thumbnail func  -                    O ; renders the scene into a 201x151 clip (0x482200 with debug flag 0x20000) and reads it back with gr_read_backbuffer into 0x5c5ba0, converted to 565 at 0x5e5d28, called by quicksave, saveload_init, cmd_savegame
 0x427240  skills_load_bitmaps      func  new_skill.cpp        O ; "Skills-Rollout" .tga bm_load
 0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
+0x427b50  skills_set_page          func  new_skill.cpp        I ; (page) builds the visible skill list for that page (switch), callers skills page buttons
+0x427db0  skills_select_first_page func  new_skill.cpp        O ; first of 6 skill pages with entries (0x427570), else -1, then skills_set_page
 0x427df0  skills_leave             func  -                      O
 0x427e10  skills_frame             func  -                      O ; screen 6 per-frame input (interface_frame switch); (key) -> key
 0x427f30  skills_handle_click      func  new_skill.cpp        O ; only caller skills_frame, mouse_was_pressed, skills_draw_categories
 0x4282a0  skills_draw_categories   func  -                    I ; L"Combat skills", L"Stealth skills", L"Creation skills", L"Examination skills", L"Weapon skills", L"Spell skills"
 0x4284d0  skills_update_buttons    func  new_skill.cpp        O ; mouse_is_down -> skills_button_action
 0x428550  skills_button_action     func  new_skill.cpp        O ; switch: prev/next party member (party_cycle), skill tabs
+0x4286b0  skills_page0             func  new_skill.cpp        O ; skills_set_page(0)
+0x4286c0  skills_page1             func  new_skill.cpp        O ; skills_set_page(1)
+0x4286d0  skills_page2             func  new_skill.cpp        O ; skills_set_page(2)
+0x4286e0  skills_page3             func  new_skill.cpp        O ; skills_set_page(3)
+0x4286f0  skills_page4             func  new_skill.cpp        O ; skills_set_page(4)
+0x428700  skills_page5             func  new_skill.cpp        O ; skills_set_page(5)
+0x428980  skills_build_summon_menu func  new_skill.cpp        I ; summon choices gated by "got_ring_of_darkness", "act2_done", "got_ring_of_water" and character_can_use_summon into 0x5f4f60 / 0x5f4a7c
+0x428b40  skills_release_drag      func  new_skill.cpp        O ; mouse button 0 up: drag state 0x5f4fc0 = 0
 0x428c30  skills_draw              func  -                      O ; screen 6 drawing (interface_draw switch)
 0x429060  skills_get_panel_width   func  new_skill.cpp        I ; returns 0x5f4ad0 for interface_set_view_clip
 0x429070  skills_mouse_in_panel    func  new_skill.cpp        O ; point_in_rect, case 6 of interface_mouse_over_panel
-0x429410  lockpick_attempt         func  -                    O ; "Pick skill %f, container %f", L"Pick successful.", L"Couldn't pick lock."
+0x4290a0  skill_is_busy            func  -                    I ; (skill) current character or summon is casting/attacking/in ai mode 6, so the skill is greyed
+0x4291d0  skill_is_available       func  -                    I ; (skill) unlock flags ("got_ring_of_*", "act2_done", "mach_killed", "lpalaceint_yago_found"), AP, cooldown GameTimer
+0x429410  character_use_skill      func  -                    I ; uses an active skill (called from the skills panel, hot buttons, item identify, world_mouse_frame); the pick-lock branch prints "Pick skill %f, container %f", L"Pick successful."; formerly lockpick_attempt
 0x429850  spells_load_bitmaps      func  new_spell.cpp        O ; "Spells-Rollout" .tga bm_load
 0x429b30  spells_init              func  -                      O ; screen 5; between new_skill and new_spell
+0x42a030  spells_set_page          func  new_spell.cpp        I ; (page) builds the visible spell list (switch), callers spell page buttons
+0x42a150  spells_select_first_page func  new_spell.cpp        O ; first of 6 spell pages with entries (spells_count_in_group), else -1, then spells_set_page
 0x42a190  spells_frame             func  -                      O ; screen 5 per-frame input (interface_frame switch); (key) -> key
 0x42a270  spells_handle_click      func  new_spell.cpp        O ; only caller spells_frame, mouse_was_pressed, spells_draw_categories
 0x42a5b0  spells_draw_categories   func  -                    I ; L"Heal spells" ... L"Ice spells"
@@ -416,28 +626,50 @@
 0x42a800  spells_button_action     func  new_spell.cpp        O ; switch: prev/next party member, spell tabs
 0x42a960  ui_party_prev            func  -                    I ; party_cycle wrapper shared by skills and spells buttons
 0x42a970  ui_party_next            func  -                    I ; party_cycle wrapper shared by skills and spells buttons
+0x42a980  spells_page0             func  new_spell.cpp        O ; spells_set_page(0)
+0x42a990  spells_page1             func  new_spell.cpp        O ; spells_set_page(1)
+0x42a9a0  spells_page2             func  new_spell.cpp        O ; spells_set_page(2)
+0x42a9b0  spells_page3             func  new_spell.cpp        O ; spells_set_page(3)
+0x42a9c0  spells_page4             func  new_spell.cpp        O ; spells_set_page(4)
+0x42a9d0  spells_page5             func  new_spell.cpp        O ; spells_set_page(5)
+0x42ab40  spells_release_drag      func  new_spell.cpp        O ; mouse button 0 up: drag state 0x5f5814 = 0
 0x42ab60  spells_draw              func  -                      O ; screen 5 drawing (interface_draw switch)
 0x42ada0  spells_get_panel_width   func  new_spell.cpp        I ; returns 0x5f5388 for interface_set_view_clip
 0x42adb0  spells_mouse_in_panel    func  new_spell.cpp        O ; point_in_rect, case 5 of interface_mouse_over_panel
+0x42ade0  character_can_cast_now   func  -                    O ; (character or NULL = cur_character) false while 0x60a40c, silenced (status 1) or ai_is_casting
+0x42ae20  spell_is_usable          func  -                    I ; (spell, ...) spell_get_group, AP vs spell_info, character_spell_ready, move lookup, skill level check
+0x42aee0  spells_count_in_group    func  -                    I ; (group) counts usable spells of cur_character in the group
+0x42af30  character_cast_spell     func  -                    I ; (spell) character_can_cast_now, spell_is_usable, AP check, ai goal 0x4740c0 with spell target mode (0x43a370)
+0x42b050  character_use_skill_on   func  -                    I ; (skill, target) AP cost, skill 0x13 path opens screen 20 (assess), skill cooldown, ai goal
 0x42b170  chain_slot_key_name      func  -                    I ; L"CAPS" / L"SHFT" / L"CTRL" / L"ALT" for chain slots 0-3
 0x42b240  status_cameras_parse_table func  -                    O ; "status_cameras.tbl" (Character screen camera positions)
 0x42b260  status_load_bitmaps      func  new_status.cpp       O ; "Skl-Bkgrnd" bm_load
 0x42b480  status_init              func  new_status.cpp         I ; screen 2
 0x42b800  status_update_scrollbar  func  new_status.cpp       O ; scrollbar template
 0x42b910  status_leave             func  new_status.cpp         I
+0x42b970  status_apply_skill_points func  new_status.cpp       I ; adds pending skill increments to Character.skill (+0x614) of status_character's Player
+0x42b9f0  status_cancel_skill_points func  new_status.cpp       I ; returns pending points to Player.skill_points (+0x17c)
 0x42ba50  status_frame             func  -                      O ; screen 2 per-frame input (interface_frame switch); (key) -> key
 0x42bb00  status_handle_click      func  new_status.cpp       O ; only caller status_frame, mouse_was_pressed, "Skl-Bkgrnd"
+0x42bfc0  status_get_skill_points  func  new_status.cpp       O ; Player.skill_points (+0x17c) of status_character
 0x42c020  status_confirm_skills    func  -                    I ; L"Accept changes to skills?"
 0x42c0e0  status_page_up           func  new_status.cpp       O ; scroll 0x5f93a8 -= page
 0x42c110  status_page_down         func  new_status.cpp       O ; scroll += page
 0x42c140  status_button_action     func  new_status.cpp       O ; switch: confirm skills, party prev/next, scroll
+0x42c260  status_confirm_inventory func  new_status.cpp       O ; status_confirm_skills(1)
 0x42c2d0  status_confirm_skills_b  func  -                    I ; L"Accept changes to skills?" (second caller path)
 0x42c400  status_scroll_up         func  new_status.cpp       O ; scroll--
 0x42c420  status_scroll_down       func  new_status.cpp       O ; scroll++
+0x42c4c0  status_confirm_close     func  new_status.cpp       O ; status_confirm_skills(0)
 0x42c540  status_update_buttons    func  new_status.cpp       O ; release/auto-repeat template
 0x42c630  status_drag_scrollbar    func  new_status.cpp       O ; drag template
+0x42c6c0  status_ai_popup_frame    func  new_status.cpp       O ; ui_choice_popup_frame, choice -> ai_set_18 on status_character's ai_state
+0x42c820  status_skill_increment   func  new_status.cpp       I ; spends a Player skill point on a skill row (0x489bf0 cost)
+0x42c8d0  status_skill_decrement   func  new_status.cpp       I ; returns a pending point from a skill row
+0x42c940  status_chain_popup_frame func  new_status.cpp       O ; ui_choice_popup_frame, choice -> character_set_chain_skill
 0x42c9c0  status_draw              func  -                      O ; screen 2 drawing (interface_draw switch)
 0x42ca50  status_draw_model        func  new_status.cpp       O ; new_icam_get + character instance render in panel
+0x42cd60  status_model_view_end    func  new_status.cpp       O ; restores gr_screen offset_x/y saved in 0x5f95e0/0x5f95e4
 0x42cd80  status_draw_level        func  -                    O ; called by status_draw: L"Level:", L"Experience:", L"To Next Level:" and the experience bar
 0x42cff0  status_draw_stats        func  -                    O ; Character screen HP/AP bars and "%d/%d", speed "%d%%", damage, protection; value coloured by its equipment bonus; character = status_character
 0x42d640  status_draw_skills       func  -                    O ; called by status_draw: skill list with chain keys L"CAPS" L"SHFT" L"CTRL" L"ALT"
@@ -448,19 +680,34 @@
 0x42e5c0  status_draw_ai           func  -                    I ; called by status_draw: AI mode name (character +0x324 via 0x473620, string table 0x22e49a0); range also holds tutorial text refs
 0x42e8f0  init_ccmd_Ignore_tutorial func  -                    O ; static initialiser: registers console command object ccmd_Ignore_tutorial
 0x42e910  cmd_Ignore_tutorial      func  -                      O ; console command "Ignore_tutorial": Toggles Ignore_tutorial
+0x42ecf0  tutorial_reset           func  -                    O ; 0x5f966c = 0, from interface_load_all
+0x42ed00  tutorial_show            func  -                    I ; (entry) positions the tutorial box (+0x18/+0x1c/+0x20 per resolution), pauses the game
+0x42ed90  tutorial_close           func  -                    O ; 0x5f966c = 0, game_unpause unless it was already paused (0x5f961c)
+0x42eea0  tutorial_ok_hit_test     func  -                    I ; tutorial layout (0x42edb0) then point_in_rect on the OK area
+0x42ef00  tutorial_frame           func  -                    I ; per level tutorial entries (level_script_find_index, Ignore_tutorial), click closes with sound 0x23/0x24, from hud_frame
+0x42f020  tutorial_draw            func  -                    I ; localized tutorial text in a ui_draw_text_box, from hud_draw
+0x42f1c0  tutorial_is_active       func  -                    O ; 0x5f966c != 0
 0x42f1e0  pxo_read_login           func  -                    O ; os_registry_read_string "THQMultiplay" "Login" "Password"
+0x42f290  pxo_get_login            func  -                    I ; switch: pxo_read_login or 0x48d870
 0x42fc60  automap_find_map_corners func  -                    O ; "$mapUpperLeft" / "$mapLowerRight" tags, "AUTOMAP ERROR : Could not find ..."
 0x42fd40  automap_labels_parse_table func  -                    O ; "automap_labels.tbl" #Script: $Label: $Type: $Pos: $Layer:
 0x42ff50  automap_reveal_around_party func  -                    O ; from state_game_frame, party_list positions -> automap_reveal_cell
 0x42ffe0  automap_world_to_map     func  -                    O ; normalizes world x/z against map corners 0x5f9e48..0x5f9e60
+0x430030  automap_get_world_scale  func  -                    O ; out x/z = const / abs(corner difference) of 0x5f9e48..0x5f9e60
+0x430070  automap_world_to_reveal_cell func  -                    O ; (out x, out y, wx, wz) world position to reveal-grid cell (scale 0x580dec)
 0x4300c0  automap_is_cell_revealed func  -                    O ; savegame_get_bit for level/layer/x/y
 0x430110  automap_reveal_cell      func  -                    O ; sets mask bit (savegame_set_bit) for level/layer/x/y
 0x430230  automap_label_alloc      func  -                    O ; returns next label index (max 32) 0x5f9e64
+0x430250  automap_label_delete     func  -                    O ; (index < 32) memmove later labels down, count 0x5f9e64--
 0x4302a0  automap_labels_clear     func  -                    O ; label count 0x5f9e64 = 0
+0x4302b0  automap_labels_reset_default func  -                    I ; automap_labels_clear then one label per level character with its display name, from cmd_reset_map_labels
 0x430410  init_ccmd_save_map_labels func  -                    O ; static initialiser: registers console command object ccmd_save_map_labels
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
 0x430ad0  state7_enter             func  -                      I ; state 7: frame draws a centred message with gr_string
 0x430b80  state_credits_enter      func  -                      I ; state 9: interface_set_screen(21 credits)
+0x431780  ui_static__dtor          func  -                    I ; destroys members +0x3a4, +0x38c then ui_gadget__dtor_base, atexit for ui_static__ui_static objects
+0x4317e0  ui_button__dtor          func  -                    I ; destroys five members +0x394..+0x3f4 then ui_gadget__dtor_base, atexit for ui_button__ui_button objects
+0x431950  ui_listbox__dtor         func  -                    I ; destroys member +0x2d4 then ui_gadget__dtor_base, atexit for ui_listbox__ui_listbox objects
 0x431a40  game_change_level        func  -                    O ; sets level_filename and script name, checks pending load, gameseq_set_state
 0x431b80  init_ccmd_us_open_demo   func  -                    O ; static initialiser: registers console command object ccmd_us_open_demo
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
@@ -477,8 +724,13 @@
 0x432710 PollInputEvents          func  -                        I ; input/event poll with wait loop
 0x4328a0  input_flush              func  -                    O ; key_flush + mouse_flush
 0x4328b0 FrameEnd                 func  -                        O ; HUD overlays, FPS counter, render stats, flip
+0x432d80  game_pause_count_dec     func  -                    O ; DecrementPauseCounter, 0x5fc024--
+0x432d90  game_pause_count_inc     func  -                    O ; IncrementPauseCounter, 0x5fc024++
 0x432da0  game_is_paused           func  -                      I ; game_debug_flags bit 2
 0x432db0  gameplay_load_cursors    func  -                    I ; cursor-walk.vbm, cursor-target.vbm, cursorspot-*.vbm, hud-loading.tga
+0x432e50  cursor_set_type          func  -                    O ; 0x5931b4 = arg
+0x432f50  script_disable_player_input func  -                    O ; player_input = 0, game_debug_flags or-equals 0x10000, level script cutscenes
+0x432f70  script_enable_player_input func  -                    O ; game_debug_flags &= ~0x10000
 0x432f90  init_ccmd_show_hud_info  func  -                    O ; static initialiser: registers console command object ccmd_show_hud_info
 0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
 0x433080  init_ccmd_targa          func  -                    O ; static initialiser: registers console command object ccmd_targa
@@ -490,10 +742,19 @@
 0x433410  init_ccmd_max_skills     func  -                    O ; static initialiser: registers console command object ccmd_max_skills
 0x433430  cmd_max_skills           func  -                      O ; console command "max_skills": Toggles Max_skills
 0x4334f0  player_alloc_slot        func  player.cpp           O ; "No more player slots availeble -- something went horribly wrong"
+0x4335a0  party_remove_player      func  -                    I ; unlinks a Player, picks a new leader, deletes the character, cur_summon = 0, handle = -1
+0x4336b0  party_remove_all         func  -                    O ; party_remove_player on every record of party_list and player_list_other
+0x433730  player_input_reset       func  -                    O ; clears player_input, 0x5fcc9c, 0x5fcca0
+0x433790  player_create            func  -                    I ; living_entity_create, character_set_name, per-species skill progression (joseph_skill_progression ...), team
 0x4339f0  player_skill_unlocked    func  player.cpp           I ; thiscall on a template (skill): story flags got_ring_of_darkness, act2_done, ...; used by character_skill_allowed
+0x433b70  player_init_from_character func  -                    I ; Player fields from a loaded character (species progression, timers, +0x180), only caller savegame_read_character
+0x433ca0  party_lists_init         func  -                    O ; empty circular lists party_list / player_list_other, cur_character = 0, atexit cleanup
+0x433d60  party_set_leader         func  -                    I ; (Player) cur_character = its character, clears goals, camera target, sound 0x28
 0x433eb0  player_from_handle       func  player.cpp           O ; (object handle) -> player record whose +0xc matches, searching party_list then player_list_other; 0 if none
+0x433ef0  player_start_skill_cooldown func  -                    O ; (character, skill) GameTimer at Player +0x28 + 4*skill from table 0x8b3f90 (skipped with Max_skills)
 0x433f40  party_remove_member      func  -                    I ; L"%s has left the party!\n"
 0x4340d0  party_add_member         func  -                    I ; L"%s has joined the party!\n"
+0x434270  party_sort_by_species    func  -                    I ; reorders party_list by char_info species (+0x10) switch
 0x434350  party_count_active       func  player.cpp           O ; number of party members that exist and are not flagged out (+0x320 & 0x800000; & 0x8 outside state 4)
 0x4343b0  init_ccmd_slew           func  -                    O ; static initialiser: registers console command object ccmd_slew
 0x4343d0  cmd_slew                 func  -                      O ; console command "slew": Toggles Slew Mode
@@ -503,12 +764,19 @@
 0x434660  camera_process_input     func  gameplay.cpp           I ; Left/Right and screen-edge mouse rotate, Up/Down tilt (not in camera type 4), wheel zoom; speed 0x60ad00, invert 0x60acd1
 0x434840  camera_key_yaw           func  gameplay.cpp           I ; key_down_time(Right) - key_down_time(Left)
 0x434870  camera_key_pitch         func  gameplay.cpp           I ; key_down_time(Up) - key_down_time(Down)
+0x434b40  cutscene_load_files      func  -                    I ; File__open / read_int / read_float of the cutscene camera data
+0x434e20  cutscene_bind_actors     func  -                    I ; matches cutscene actor names to level characters (character_get_name), preloads effects
+0x435000  cutscene_load_sounds     func  -                    O ; snd_level_page_in and sound_check_filename for the cutscene sounds
+0x4350b0  cutscene__ctor           func  -                    I ; initialises the cutscene object 0x601e68 (handles -1, eh vector ctor)
+0x4351e0  cutscene_unload          func  -                    I ; stops effects (0x48cfc0), snd_stop / snd_free, removes the data path
 0x435320  cutscene_set_data_path   func  -                    O ; "data\cutscenes\%s", "_cscript.tbl", ".csc .mvf .vfx"
 0x4353e0  cutscene_load_data       func  -                    I ; loads camera file, effects, sounds for a cutscene, only caller cutscene_play
 0x4355e0  cutscene_parse_table     func  -                    O ; "cutscene.tbl" $Cutscene: +NoAbort $Level: $Camera: $Soundtrack:
 0x435ff0  cutscene_parse_visset    func  -                    O ; "$VisSet:" "$vis" entries of cutscene.tbl
 0x4361d0  cutscene_play            func  -                    O ; callers cmd_play_cutscene etc., stops effects, ui_input_lock, "Placeholder"
+0x4365e0  cutscene_start_special_cases func  -                    O ; "serpent-dismount" -> 0x497840, "Nar-LeneleAct4" -> Snow_enabled = 0
 0x436620  effects_kill_all         func  -                    I ; "killing off %d effects", "killing effect %d"
+0x436a60  cutscene_end_special_cases func  -                    O ; "Nar-LeneleAct4" -> Snow_enabled = 1
 0x436a90 SequenceTimer            func  -                        I ; timeGetTime-based sequence (cutscene) timer; 24.9-day sign bug
 0x436c00 SequenceTimer2           func  -                        I ; another timeGetTime user of sequence_start_time
 0x437130  cutscene_play_escape     func  -                    I ; "Tiger-Escape" "Serpent-Escape" "PHNX-Escape" -> cutscene_play, from state_game_enter
@@ -534,11 +802,19 @@
 0x438070  cmd_Give_all_items       func  -                      O ; console command "Give_all_items": Toggles Give_all_items
 0x438130  state_game_enter         func  -                      I ; state 4: in-game (level start)
 0x438570  level_load               func  -                    O ; from state_game_enter, levelm/levele/levelt.vpp packfile_add, bm_set_mark
+0x4386c0  level_load_files         func  -                    I ; level_load body: level file, level_vis_load, layers, surfaces, pathfinding graph, level_script_select with timer_get and progress_update
 0x438880  level_load_layers        func  -                    O ; "$layer%02d" navpoint layers
+0x4389f0  level_restore_doors      func  -                    I ; door_set_open from savegame_two_stage_get per door
 0x438a90  level_spawn_party        func  -                    O ; Joseph/masad/Rosalind/Jekhar/Flece .plr, party_member_join
 0x438c80  state_game_leave         func  -                      I
 0x438dc0  game_render_frame        func  -                    O ; from state_game_frame, 3D render, interface_draw, "Fog_near = %.2f"
 0x438f30  state_game_frame         func  -                      I ; state 4 per-frame gameplay
+0x439370  gameplay_update_cursor   func  -                    I ; cursor_set_type by screen / mouse-over-panel / target (0x482090)
+0x439450  party_check_all_dead     func  -                    I ; all party members dead: fade, unpause, hud_party_dead
+0x439510  camera_reset_to_player   func  -                    I ; (snap) game_camera follows cur_character (0x478f60, 0x478ff0, 0x479790, 0x4798b0, 0x478e70)
+0x439580  combat_mode_set          func  -                    I ; (on) combat_mode = on, party goals cleared (0x473fd0) when leaving
+0x4396d0  party_select_member      func  -                    I ; (Player) party_set_leader unless dead, sound 0x23 or 0x24
+0x439750  party_teleport_to        func  -                    I ; (pos, layer +0x68c) moves cur_character and the party, camera_reset_to_player, debug click
 0x439820  init_ccmd_render_3d_obstacles func  -                    O ; static initialiser: registers console command object ccmd_render_3d_obstacles
 0x439840  cmd_render_3d_obstacles  func  -                      O ; console command "render_3d_obstacles": Toggles Render_3d_obstacles
 0x439910  init_ccmd_character      func  -                    O ; static initialiser: registers console command object ccmd_character
@@ -555,11 +831,19 @@
 0x43a2b0  state_loading_enter      func  -                      I ; state 5
 0x43a2e0  state_loading_frame      func  -                      I
 0x43a300  state_loading_leave      func  -                      I ; clears both buffers
+0x43a3a0  party_order_attack       func  -                    I ; (target) enemy check, each party member ai goal 0x473f70, combat_mode_set(1), sound 0x23/0x24
+0x43a460  character_can_talk_to    func  -                    I ; (npc) conversation_is_idle, not dead, distance vs character_size_radius, conversation_has_speaker
 0x43a600  container_take_gold      func  -                    I ; "gold" object, GameTimer, from container_open
-0x43a960  container_open           func  -                    I ; L"Picked up %d Gold", L"Container is currently in use", L"Locked"
+0x43a6e0  object_open_pickup       func  -                    I ; ai_service_request or multiplayer 0x488ce0, interface_set_screen(4, obj)
+0x43a960  world_mouse_frame        func  -                    I ; per-frame world mouse/click handler from state_game_frame: picking, talk, attack, pickup, containers (L"Picked up %d Gold", L"Container is currently in use"), chain attacks; formerly container_open
+0x43b260  world_pick_under_mouse   func  -                    I ; mouse ray (ix_linesegment_box_oriented) against objects, from the world mouse handler 0x43a960
 0x43b580  vector3__vector3         func  vsdk\math              I ; (x, y, z)
+0x43b5a0  plane__set_normal_point  func  -                    I ; copies the normal and stores d = dot(n, p) * 0x580e1c at +0xc
+0x43b5e0  world_mouse_hover_target func  -                    I ; cursor/highlight choice for the object under the mouse (team, enemy, talk, status)
 0x43c060  object_use_result        func  -                    I ; L"Unlocked!", L"Locked, Cannot Pick", L"Need item to use", L"Cannot be opened" ...
 0x43c420  container_examine        func  -                    I ; L"Nothing!", L"Examine", L"Found %d %s!"
+0x43c5a0  player_talk_to           func  -                    O ; (npc) conversation_has_speaker -> sound 0x23 and conversation_begin, else sound 0x24
+0x43c620  pick_test_character      func  -                    I ; ray against a character cylinder (character_size_radius / _height)
 0x43c830  chain_attack_select      func  gametarget.cpp         I ; on a chain opportunity: held Shift = slot 1, Ctrl = 2, Alt = 3, CapsLock = 0, none = character default (+0x184)
 0x43cb60  object_use_container     func  -                    O ; L"Picked up %d Gold" L"Container is currently in use" L"Locked"
 0x43cd50  level_display_name       func  -                    O ; level file name -> localized name ("masad" -> L"Masad Village", ...)
@@ -578,22 +862,38 @@
 0x43d780  cmd_stop_sound           func  -                      O ; console command "stop_sound": Stops all sounds that are playing
 0x43d7b0 MainLoop                 func  -                        O ; init, then PumpMessages + GameTick until state 3
 0x43d7f0 LoadSettings             func  -                        O ; registry settings, resolution table, renderer choice, GrInit
+0x43dc30  cmdline_read_params      func  -                    O ; cmdline_init, -port (0x651594, default 10234), directsound3d / eax / pack flags 0x60ad6c..0x60ad70
 0x43dca0  setup_data_paths         func  -                    O ; registers extension lists per data directory (data\maps, data\sounds\pc, players, savegame...)
+0x43df20  game_shutdown_systems    func  -                    O ; 0x51b580, bm_close, gr_close, snd_close, os_close_main_window
 0x43df40 GameInit                 func  -                        O
+0x43e1f0  game_cleanup             func  -                    I ; clears level names, conversation_free and subsystem shutdown calls, interface_reset_state, alt_textures_free, launch_updater
+0x43e250  summoner_cfg_load        func  -                    O ; File "summoner.cfg" into 0x60acc8, applies volumes, EAX, video memory
+0x43e410  summoner_cfg_save        func  -                    O ; File__write 0x40 bytes of 0x60acc8 to "summoner.cfg"
 0x43e4a0  launch_updater           func  -                    I ; "Summoner.exe" " -straight_to_update"
 0x43e5e0  WinMain                  func  -                      O ; called by WinMainCRTStartup; __try { MainLoop() } __except (RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread"))
 0x43e660  cd_find_drive            func  -                      I ; scans drive letters, GetDriveTypeA/GetVolumeInformationA for the game disc; used by CdCheck
 0x43e8a0  cd_select_drive          func  -                    I ; "Using %s for Summoner CD"
+0x43e8e0  cd_set_root              func  -                    I ; copies the drive, sprintf ".\\" path 0x60ad7c, file_set_cd_root
+0x43e940  cd_has_level_data        func  -                    O ; fopen "%s\\eleh.s3d" under the data dir
 0x43e9b0 CdCheck                  func  -                        O ; looks for the game disc; retry/cancel box
 0x43ea20  cd_prompt_disc2          func  -                    O ; L"Insert Summoner CD #2 (ESC exits game)", volume "SUMMONER_2"
 0x43eb00  state14_enter            func  -                      I ; state 14: interface_set_screen(18), multiplayer (0x4ab110)
+0x43ec20  mp_levelselect_set_level func  -                    O ; (level) 0x6513d8 = level, multi_set_netgame_state(0)
 0x43eca0  init_ccmd_all_multi_levels func  -                    O ; static initialiser: registers console command object ccmd_all_multi_levels
 0x43ecc0  cmd_all_multi_levels     func  -                      O ; console command "all_multi_levels": Toggles All_multi_levels
 0x43ed80  state_mp_gamecreate_enter func  -                      I ; state 13: interface_set_screen(17)
+0x43edc0  mp_host_game             func  -                    I ; (name, password, players, ...) mp_set_local_status(3), copies settings, 0x441570
 0x43eed0  state_mp_gamelist_enter  func  -                      I ; state 12: interface_set_screen(15)
 0x43eff0  state_mp_lobby_enter     func  -                      I ; state 11: interface_set_screen(11 PXO chat)
+0x43f1c0  lobby_request_channel_list func  -                    O ; 10 s timer 0x60ae78, irc_process_input("/list"), 0x60ae70 or-equals 2
+0x43f2d0  lobby_handle_chat_line   func  -                    I ; "!MOTD$#!", "!EMOTD$#!" and other prefixes routed to the chat panes (0x425270 kinds 1/3/4/6)
+0x43f360  chat_is_motd             func  -                    O ; line starts with "!MOTD$#!"
+0x43f3b0  chat_is_emotd            func  -                    O ; line starts with "!EMOTD$#!"
+0x43f440  chat_is_server_line      func  -                    O ; line starts with '<'
+0x43f930  lobby_disconnect         func  -                    O ; irc_disconnect, clears channel state 0x60ae6c..0x60ae74, timer, flags
 0x43f9c0  state_mp_charselect_enter func  -                      I ; state 10: interface_set_screen(16)
 0x43fb60  state6_enter             func  -                      I ; state 6: builds a UI table, frame waits with timer_wait
+0x43fc90  monster_layout_save      func  -                    O ; writes level characters (name, position, matrix ...) with File__write_*, from cmd_save_mlayout
 0x43fe00  monster_layout_load      func  -                    O ; "This monster layout is obsolete", "This monster layout is for map \"%s\""
 0x440180  init_ccmd_load_mlayout   func  -                    O ; static initialiser: registers console command object ccmd_load_mlayout
 0x4401a0  cmd_load_mlayout         func  -                      O ; console command "load_mlayout": Load a monster layout file
@@ -1228,35 +1528,67 @@
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
 0x4c0ee0  machival_find_teleports  func  -                    O ; navpoint_find("$tele_0%d") into 0x248b350/0x248b368, called by machival_boss_load
+0x4c0f20  machival_ai_idle         func  -                    O ; boss_ai_idle_dispatch handler: clears +0x56c without a move, enters combat once 0x248b034 is set
 0x4c0f60  machival_boss_load       func  -                    I ; "machival_boss.tbl"
+0x4c1030  machival_init_move_tables func  -                    O ; move-table pointers 0x248b378.. from machival_boss_load
 0x4c1070  machival_ai_frame        func  -                    O ; boss_ai_frame case 0xc5
+0x4c17f0  machival_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248b318 = random ms in range
+0x4c18c0  machival_cast_spell_at   func  -                    I ; (spell, x, y) character_find_move(7, spell move) + play + ai goal 0x474130
+0x4c1940  machival_cast_spell      func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
 0x4c19c0  machival_check_stage     func  -                    I ; boss_ai_check_stage case 0xc5
+0x4c1a80  machival_knock_down_party func  -                    O ; party members in range: ai_can_be_knocked_down, ai_knock_down for 2-3 s
 0x4c2160  init_ccmd_titus_stage    func  -                    O ; static initialiser: registers console command object ccmd_titus_stage
 0x4c2180  cmd_titus_stage          func  -                      O ; console command "titus_stage": Set Titus's current combat stage
 0x4c21d0  init_ccmd_titus_combat   func  -                    O ; static initialiser: registers console command object ccmd_titus_combat
 0x4c21f0  cmd_titus_combat         func  -                      O ; console command "titus_combat": Sets titus in combat state
 0x4c2380  titus_boss_load          func  -                    O ; boss_ai_load case 0xc1: "titus_boss.tbl" via boss_ai_parse_table, offense points
+0x4c2450  titus_init_move_tables   func  -                    O ; move-table pointers 0x248b380.. from titus_boss_load
 0x4c24c0  titus_check_stage        func  -                    I ; boss_ai_check_stage case 0xc1
+0x4c2610  titus_end_attack         func  -                    O ; 0x248b90c = 0, ai_go_idle
 0x4c2630  titus_ai_frame           func  -                    O ; boss_ai_frame case 0xc1
+0x4c2d90  titus_set_attack_timer   func  -                    O ; (min, max) GameTimer 0x248b91c = random ms in range
+0x4c2e60  titus_ai_idle            func  -                    O ; boss_ai_idle_dispatch handler, enters combat once 0x248b3b4 is set
+0x4c2ef0  titus_knock_down_party   func  -                    O ; knocks down party members in range (2-3 s) and hits 0x47c5d0
+0x4c32a0  titus_start_rock_erupt   func  -                    O ; ai_set_mode(3, 0x3e)
 0x4c34c0  init_ccmd_darkjo_combat  func  -                    O ; static initialiser: registers console command object ccmd_darkjo_combat
 0x4c34e0  cmd_darkjo_combat        func  -                      O ; console command "darkjo_combat": Sets dark josesph in combat state
+0x4c3500  evil_joseph_spawn_helpers func  -                    O ; creates four characters of species 0xc0, 0xca, 0xcb, 0xb0 near the boss (living_entity_create, ai active)
 0x4c35e0  evil_joseph_boss_load    func  -                    O ; boss_ai_load case 0xc9 (Evil Joseph, console darkjo_*): "darkjo_boss.tbl", gives "Sword of Summoners", teleport points 0x4c3720
 0x4c3720  evil_joseph_find_teleports func  -                    O ; navpoint_find("$tele_0%d") into 0x248bcd8
+0x4c3790  evil_joseph_init_move_tables func  -                    O ; move-table pointers 0x248bcf8.. from evil_joseph_boss_load
+0x4c3800  evil_joseph_ai_idle      func  -                    I ; boss_ai_idle_dispatch handler, enters combat
 0x4c3860  evil_joseph_ai_frame     func  -                    O ; boss_ai_frame case 0xc9
+0x4c3c70  boss_target_list_find    func  -                    O ; (list, count, handle) index of the 0x10-byte record whose character has that handle, -1
+0x4c3ca0  evil_joseph_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248bc98 = random ms in range
 0x4c3f20  evil_joseph_check_stage  func  -                    I ; boss_ai_check_stage case 0xc9
+0x4c3fb0  boss_resurrect_full      func  -                    O ; character_resurrect, HP = max, reset animation, ai active, ghost / evil Joseph stage changes
 0x4c41c0  init_ccmd_urath_combat   func  -                    O ; static initialiser: registers console command object ccmd_urath_combat
 0x4c41e0  cmd_urath_combat         func  -                      O ; console command "urath_combat": Sets urath in combat state
+0x4c43f0  evil_urath_cast_spell    func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
+0x4c4580  boss_target_list_find_b  func  -                    O ; same as boss_target_list_find (second copy)
 0x4c45b0  evil_urath_boss_load     func  -                    O ; boss_ai_load case 0xb1 (Evil Urath), calls 0x4c4640 for the "$balc01_0%d"/"$temple_0%d"/"$balc02_0%d" teleport navpoints
 0x4c4640  evil_urath_find_teleports func  -                    O ; navpoint_find("$balc01_0%d", "$temple_0%d", "$balc02_0%d") into 0x248bedc..0x248bf00
+0x4c4710  evil_urath_ai_idle       func  -                    I ; boss_ai_idle_dispatch handler, clears +0x320 bit 0x1000 and enters combat once 0x248bd0c is set
 0x4c4760  evil_urath_ai_frame      func  -                    O ; boss_ai_frame case 0xb1
 0x4c47e0  evil_urath_check_stage   func  -                    I ; boss_ai_check_stage case 0xb1
+0x4c5110  evil_urath_set_attack_timer func  -                    I ; (min, max) random GameTimer
+0x4c5550  murod_end_move           func  -                    O ; ai_go_idle once move 0x248bfc4 finished
+0x4c5600  murod_cast_spell         func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
+0x4c5680  murod_ai_idle            func  -                    I ; boss_ai_idle_dispatch handler, enters combat once 0x248bf38 is set
 0x4c56c0  murod_boss_load          func  -                    O ; boss_ai_load case 0xb7 (Murod)
 0x4c5750  murod_check_stage        func  -                    I ; boss_ai_check_stage case 0xb7
+0x4c5a30  murod_set_attack_timer   func  -                    O ; (min, max) GameTimer 0x248bfe0 = random ms in range
 0x4c5a60  murod_ai_frame           func  -                    O ; boss_ai_frame case 0xb7
+0x4c5c80  murod_oni_ai_idle        func  -                    I ; boss_ai_idle_dispatch handler, enters combat once 0x248c004 is set
 0x4c5cc0  murod_oni_boss_load      func  -                    I ; "murod_oni_boss.tbl"
+0x4c5d80  murod_oni_init_move_tables func  -                    O ; move-table pointers 0x248bff0.. from murod_oni_boss_load
+0x4c5dc0  murod_oni_init_timers    func  -                    O ; GameTimers 0x248c2ec (20 s) and 0x248c2f4 (5 s)
+0x4c60b0  murod_oni_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248c2e8 = random ms in range
 0x4c60e0  murod_oni_ai_frame       func  -                    O ; boss_ai_frame case 0xb8
 0x4c6d10  tentacle_beast_boss_load func  -                    O ; boss_ai_load case 0x93 (Tentacle Beast): "$tag-27-swipe"/"$tag-35-squeeze"/"$tag-26-pickup"/"$tag-grab-point" bones
+0x4c7060  tentacle_beast_ai_idle   func  -                    O ; boss_ai_idle_dispatch handler: ai_set_mode(3, 0xf)
 0x4c7070  tentacle_beast_ai_frame  func  -                    O ; boss_ai_frame case 0x93
+0x4c7330  tentacle_find            func  -                    O ; (handle) record in the tentacle table 0x248c328 (0x110 bytes each, key at +0x80), NULL
 0x4c7360  tentacle_beast_check_stage func  -                    I ; boss_ai_check_stage case 0x93
 0x4c7ca0  init_ccmd_tentacles      func  -                    O ; static initialiser: registers console command object ccmd_tentacles
 0x4c7cc0  cmd_tentacles            func  -                      O ; console command "tentacles": Start battle with tentacle beasts
@@ -1266,16 +1598,20 @@
 0x4c80a0  cmd_gs_stage             func  -                      O ; console command "gs_stage": Set Giant salamanka's current combat stage
 0x4c80e0  init_ccmd_gsal_combat    func  -                    O ; static initialiser: registers console command object ccmd_gsal_combat
 0x4c8100  cmd_gsal_combat          func  -                      O ; console command "gsal_combat": Sets gsal in combat state
+0x4c8120  character_set_locomotion_anims func  -                    O ; (character, anim) sets locomotion anims +0x5ac/+0x5b0/+0x5b8/+0x5bc/+0x5c4/+0x5c8/+0x5d0/+0x5d4 to one id, giant salamanka placement
 0x4c8160  giant_salamanka_place_boss1 func  -                    O ; "walk" anim and navpoint "$boss1" position/orientation
 0x4c81c0  giant_salamanka_place_boss2 func  -                    O ; "walk2" anim and navpoint "$boss2"
 0x4c8220  giant_salamanka_place_boss3 func  -                    O ; "walk3" anim and navpoint "$boss3"
 0x4c8280  giant_salamanka_set_flinch func  -                    O ; "Unable to set Giant Salamanka flinch for %s -- bad $Action"
 0x4c83a0  giant_salamanka_boss_load func  -                    O ; boss_ai_load case 0xac: "gsal_boss.tbl" via boss_ai_parse_table, "$missile" bone, giant_salamanka_set_flinch
+0x4c8540  giant_salamanka_free_bitmap func  -                    O ; bm_release 0x59debc, -1, from boss_ai_unload
 0x4c8560  giant_salamanka_check_stage func  -                    I ; boss_ai_check_stage case 0xac (giant_salamanka_place_boss1..3)
 0x4c86b0  giant_salamanka_ai_frame func  -                    O ; boss_ai_frame case 0xac
 0x4c8d70  init_ccmd_stage          func  -                    O ; static initialiser: registers console command object ccmd_stage
 0x4c8d90  cmd_stage                func  -                      O ; console command "stage": Set Luminar's current combat stage
 0x4c8dc0  luminar_boss_load        func  -                    O ; boss_ai_load case 0x51 (Luminar): "$tag-30-bite"/"$tag-22-pickup"/"$tag-28-backswing-l" bones, "GlowLuminarSkin02.vbm"
+0x4c8fd0  luminar_free_bitmap      func  -                    I ; bm_release 0x59dfd0, -1, 0x59c358 = 1.0, from boss_ai_unload
+0x4c95d0  luminar_ai_idle          func  -                    O ; boss_ai_idle_dispatch handler (multiplayer client skips) -> 0x4c9410(0)
 0x4c95f0  luminar_ai_frame         func  -                    O ; boss_ai_frame case 0x51 (calls luminar_teleport_in / luminar_beam_hit)
 0x4c9da0  luminar_teleport_out     func  -                    O ; "LuminarTeleportOut.vfx", picks a new spot (frand), multiplayer sync 0x4888d0
 0x4ca000  luminar_teleport_in      func  -                    O ; "LuminarTeleportIn.vfx" and the arrival move
@@ -1290,6 +1626,8 @@
 0x4caa00  random_encounter_check   func  -                    I ; level_script_frame: "rand-" level triggers while traveling the world map (US_open_demo check)
 0x4caf40  level_find_player_starts func  -                    O ; "$player%d-%02d", "Unable to locate player starts for level %s"
 0x4cb060  level_script_restart     func  -                    I ; calls the leave (+0xc) then init (+4) handler, then resets party/objects
+0x4cb350  level_script_reload      func  -                    I ; deletes non-party objects (vfunc 0 unless type 7), level_script_leave, level_script_reparse, script editor
+0x4cb3a0  level_script_reparse     func  -                    O ; timer 900 ms, game_frozen = 0, level_script_parse_table, level_items_parse_table, level_parse_table, player starts, script_avoid_splines_reset
 0x4cb430  level_items_parse_table  func  -                    O ; level_items.tbl: "#Level:", "$Item:", "$Navpoint:", "+Count:", "+Event:"
 0x4cb7b0  level_parse_table        func  -                    O ; level .tbl: #Effects $Level_fx: #Ambient Sounds #Triggers #Shopkeepers #Automap #Fog
 0x4cc010  level_parse_ambient      func  -                    O ; "$Ambient:", "Ambient sound navpoint not found: %s"
@@ -1298,7 +1636,9 @@
 0x4cc7e0  level_script_init        func  -                    O ; state_game_enter: calls the level's init handler (+4)
 0x4ccab0  level_script_frame       func  -                    O ; state_game_frame: timers, then the level's frame handler (+8) when Do_frame_callback
 0x4ccb40  level_ambient_sounds_frame func  -                    I ; level_script_frame helper over the ambient sound emitters 0x2490458 (count 0x2491a58)
+0x4ccba0  level_script_entries_frame func  -                    I ; level script objects: suspended check, timer, script_entry_check_done / script_entry_advance, from level_script_frame
 0x4ccc70  level_script_leave       func  -                    O ; state_game_leave: calls the level's leave handler (+0xc) and frees script state
+0x4ccd10  level_apply_pending_change func  -                    O ; game_frozen and pending name 0x24902c4: saves 0x60a308, copies level_filename / level_script_name / start 0x60a33c, multiplayer 0x4ab780 else gameseq_set_state(4)
 0x4ccdf0  script_cutscene_done     func  -                    O ; cutscene frame-callback hook: restores the saved level frame callback 0x2493a04 and calls the script continuation 0x24902b0
 0x4cce20  init_ccmd_No_cutscenes   func  -                    O ; static initialiser: registers console command object ccmd_No_cutscenes
 0x4cce40  cmd_No_cutscenes         func  -                      O ; console command "No_cutscenes": Toggles No_cutscenes
@@ -1308,8 +1648,15 @@
 0x4cd060  level_trigger_disable_by_target func  -                    O ; (name) matches the second trigger name +0x24, clears bit 1
 0x4cd0c0  level_trigger_enable_by_target func  -                    O ; (name) matches the second trigger name +0x24, sets bit 1
 0x4cd120  level_trigger_trip       func  -                    I ; "Tripped trigger: %s"
+0x4cd250  level_ambient_add        func  -                    O ; sound_create_emitter and position into the 0x10-byte table 0x2490458
+0x4cd2c0  level_ambient_remove     func  -                    O ; sound_emitter_delete and compacts the table 0x2490458
+0x4cd330  level_ambient_find_at    func  -                    I ; (pos) ambient entry whose position equals pos
+0x4cd470  lc_entry_clear           func  -                    O ; (hash) zeroes the hash of the matching 0x10c-byte entry in 0x248ce40
+0x4cd4b0  lc_entry_exists          func  -                    O ; (hash) true when an entry of 0x248ce40 has that hash
+0x4cd4e0  lc_entry_mark_used       func  -                    O ; (index) sets bit 0 of +0x104, savegame_two_stage_set(1, 0, hash)
 0x4cd570  lc_find_by_hash          func  -                    I ; hash of level_script_name + name over table 0x248ce40 (0x10c each, count 0x2491a68) -> index or -1, "lc" entries in the two-stage section
 0x4cd5f0  level_script_parse_table func  -                    O ; "_script.tbl" #Town #Navpoints #Objects #Doors #Clicks
+0x4cddc0  script_object_resume     func  -                    O ; script_entry_start for the object's character, +0x528 (suspended) = 0
 0x4cddf0  script_object_find       func  -                    O ; (name) index of the script object (0x550-byte records at 0x24f6230, handle +0x524, count 0x25443a0) whose living/dead character has that name, -1
 0x4cde70  script_object_find_character func  -                    O ; same search as script_object_find but returns the object pointer (0 if none)
 0x4cdef0  script_object_say        func  -                    O ; (index, text, time) character_say on the object character
@@ -1318,6 +1665,8 @@
 0x4ce140  script_object_set_disabled func  -                    O ; (index, on): on = character_set_flag_2_4(-1), character_set_ai_active(0), flags or= 0x20, off reverses
 0x4ce1c0  script_npc_set_disabled  func  -                    O ; script_object_find(name) then script_object_set_disabled, 42 callers in level scripts
 0x4ce1e0  script_object_is_type5   func  -                    O ; (index) character type (+0xc) == 5
+0x4ce220  script_object_receive_go func  -                    I ; removes the "wait for go" ai goal (0x6c, ...) and advances the script (script_entry_advance)
+0x4ce320  script_npc_send_go       func  -                    O ; (name) script_object_find then script_object_receive_go, "pass go" action and level scripts
 0x4ce340  script_object_command_f  func  -                    I ; (index, arg) queues script command 0xf on the object character through 0x4dca10
 0x4ce3a0  script_npc_command_f     func  -                    I ; script_object_find(name) then script_object_command_f, 45 callers in level scripts
 0x4ce3c0  script_check_navpoint    func  -                    I ; "WARNING: Script trying to check navpoint that doesn't exist!"
@@ -1330,11 +1679,17 @@
 0x4ce620  script_npc_drop_loot     func  -                    O ; script_object_find(name) then script_object_drop_loot
 0x4ce640  script_object_talk       func  -                    O ; (index) if no conversation is running (conversation_is_idle 0x25464b0), player_input = 0 and conversation_begin(name or char_info name, character)
 0x4ce6d0  script_npc_talk          func  -                    O ; script_object_find(name) then script_object_talk
+0x4ce6f0  script_guard_sees_player func  -                    I ; (guard) distance, view cone (char_info +0x220/+0x224), blindness, lpalaceint sneak section
 0x4ce9a0  party_count_item_by_name func  -                    O ; (item name) identified inventory count (0x970820) plus identified copies equipped by party members
 0x4cea70  script_player_has_equipped func  -                    O ; (item name) character_has_equipped_type(cur_character, type)
 0x4ceab0  script_party_acquire_item func  -                    I ; L"Party acquired %s!"
 0x4ceb00  script_party_gain_xp     func  -                    I ; L"party gained %d XP"
+0x4cec00  party_set_level          func  -                    I ; (level) every party member reset to level 1 stats (char_info +0x24..+0x2a, skills +0x93), then character_add_xp(xp_for_level(level))
+0x4ced90  script_avoid_spline_find_free func  -                    O ; first free slot (-1 key) of the 8-byte table 0x2491a70..0x2491ac0
+0x4cedb0  script_avoid_splines_reset func  -                    O ; sets every key of 0x2491a70 to -1
+0x4cedd0  script_avoid_spline_in_use func  -                    O ; (key) true when the table holds it
 0x4cedf0  script_alloc_avoid_spline func  -                    O ; "Ran out of level_script_avoid_spline slots"
+0x4cee90  script_free_avoid_spline func  -                    O ; (key) 0x4a78b0 on the spline, slot = -1
 0x4cef10  init_ccmd_Preparse_scripts func  -                    O ; static initialiser: registers console command object ccmd_Preparse_scripts
 0x4cef30  cmd_Preparse_scripts     func  -                      O ; console command "Preparse_scripts": Toggles Preparse_scripts
 0x4ceff0  savegame_report_sizes    func  -                    O ; printf of section sizes "thumb_size", "le_size", "quest_flag_size", "automap_labels_size"
@@ -1345,6 +1700,7 @@
 0x4cf790  savegame_read_character  func  -                    O ; LENT: matches a record's name hash to a living entity, character_load_state, player +0x178/+0x17c for type 7
 0x4cf8d0  savegame_write_groups    func  -                    I ; LENT: group table 0x243e040 (10 x 0x54): leader hash, member count - 1, member hashes, +0x4c
 0x4cfa00  savegame_read_groups     func  -                    I ; LENT: rebuilds the groups from name hashes (pair of savegame_write_groups)
+0x4cfb80  savegame_state__clear    func  -                    I ; zeroes the savegame_state header and 0x33 0x18-byte records
 0x4cfbb0  savegame_init_buffer     func  -                    O ; (buffer, size): stores buffer/size at +0/+4 then savegame_clear_buffer, from savegame_alloc with 0x2494b2c, 0x4b000
 0x4cfbd0  savegame_data_offset     func  -                    O ; bit offset of entry n of type 0/1/2 in per-level data block
 0x4cfc40  savegame_get_visit_count func  -                    O ; (level) -> dword [+0x1c][level], 0 if no buffer
@@ -1362,7 +1718,9 @@
 0x4d01c0  savegame_set_float       func  -                    O ; (level, name, value): type-3 float variable, ls_worldmap1_frame
 0x4d0240  savegame_find_flag_level func  -                    I ; searches all 51 level_script_table flag lists for a name hash
 0x4d0590  savegame_has_conversation_data func  -                    I ; tested before restoring conversation state
+0x4d05f0  savegame_get_speaker_bit func  -                    I ; conversation_save_table lookup by name hash, reads one bit (pair of savegame_set_speaker_bit)
 0x4d06e0  savegame_set_speaker_bit func  -                    I ; (level, conversation, ..., speaker name, value, propagate): sets a speaker bit in the conversation block, optionally in the level's other conversations, from conversation_save_state
+0x4d0870  savegame_get_topic_bit   func  -                    I ; conversation_save_table lookup of speaker and topic hash, reads one bit (pair of savegame_set_topic_bit)
 0x4d09e0  savegame_set_topic_bit   func  -                    I ; (level, conversation, speaker, topic, kind 0..3, value, ...): sets one of four topic bits, from conversation_save_state
 0x4d0c00  savegame_get_quest_bit   func  -                    O ; bit n of +0x103c, journal_init/journal_draw callers
 0x4d0c40  savegame_set_quest_bit   func  -                    O ; set/clear bit n of +0x103c, quest_evaluate, journal_notify_updated
@@ -1378,6 +1736,7 @@
 0x4d1630  savegame_hot_buttons_clear_member func  -                    O ; (member 0..4): zeroes that member's 6 hot buttons (36 bytes at +0x105c)
 0x4d1660  savegame_hot_button_clear func  -                    O ; (member 0..4, button 0..5): zeroes one 6-byte hot button
 0x4d16a0  savegame_hot_button_set  func  -                    I ; (member, button, flag, id): stores {1, flag, id} and clears the same id from the member's other buttons
+0x4d1770  savegame_hot_button_get  func  -                    O ; (member, slot, out kind, out id) from the hot button block savegame_state +0x105c
 0x4d17e0  savegame_clear_buffer    func  -                    O ; zeroes the whole savegame buffer (+0, +4 bytes)
 0x4d1800  savegame_layout_header   func  -                    O ; header section at buffer+0, size 0x1f8 (+0xc/+0x10)
 0x4d1820  savegame_layout_thumbnail func  -                    O ; thumbnail section aligned to 16, 0xed1e bytes (201x151 RGB565) (+0x14/+0x18)
@@ -1433,31 +1792,83 @@
 0x4d5110  level_display_name_b     func  -                    I ; second level-name table: L"Masad Village", L"Lenele Outskirts -- Summer" ...
 0x4d5570  level_script_select      func  -                    O ; finds the current level in level_script_table and copies its handlers to globals; "Unable to locate level script info for %s"
 0x4d56d0  level_script_load_steps  func  -                    O ; (level file) -> record +0x1c, the loading-screen progress total (default 10000)
+0x4d5720  level_add_navpoint       func  -                    I ; level-file navpoint into 0x24e4950 records, "Layer for navpoint %s is invalid -- assuming no layer"
+0x4d58f0  script_object_suspend    func  -                    O ; (index) ai_goals_clear, ai_go_idle, +0x528 = 1, animation reset
+0x4d5960  script_object_resume_index func  -                    O ; (index) script_object_resume when +0x528 is set
 0x4d5990  journal_format_event     func  -                    I ; L"<%s gained %d XP>", L"<party received %d gold>", L"<gained item: \"%s\">" ...
 0x4d5e50  init_ccmd_door_open      func  -                    O ; static initialiser: registers console command object ccmd_door_open
 0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
 0x4d5f50  name_hash_nocase         func  -                    O ; tolower copy then hash (0x552120/0x552130), used for flag and item names
 0x4d6040  journal_notify_updated   func  -                    I ; L"Quest Journal Updated"
+0x4d6080  quest_get_current_step   func  -                    O ; (quest) -1 if not active, else index of the last step whose flag is set (0x6c-byte quests at 0x253ef40)
 0x4d6100  script_filenames_parse_table func  -                    O ; "script_filenames.tbl" $Level: +Script: +Dialogue: +Levelcap:
 0x4d6300  level_script_find        func  -                    I ; (level name) -> index in level_script_table or -1
 0x4d6340  level_script_find_index  func  -                    I ; (level index, script name) -> script slot via _stricmp
 0x4d6390  level_is_endgame         func  -                    O ; compares with "endgame"
+0x4d63b0  level_format_display_name func  -                    O ; (level index, out) localized level_script_table name, L352 "Unknown" for "test"
+0x4d64c0  level_table_display_name func  -                    O ; (index < 26) localize_string_or_invalid of +4 in the 0x10-byte level table 0x59fde8
+0x4d64f0  level_ambient_pause_all  func  -                    O ; sound_emitter_pause on every ambient emitter (cutscene start)
+0x4d6520  level_ambient_unpause_all func  -                    O ; sound_emitter_unpause on every ambient emitter
 0x4d6560  init_ccmd_door_close     func  -                    O ; static initialiser: registers console command object ccmd_door_close
 0x4d6580  cmd_door_close           func  -                      O ; console command "door_close": closes a specified door in the level.
 0x4d65e0  init_ccmd_door_toggle    func  -                    O ; static initialiser: registers console command object ccmd_door_toggle
 0x4d6600  cmd_door_toggle          func  -                      O ; console command "door_toggle": opens or closes a specified door in the level.
+0x4d66a0  dialogue_box__ctor       func  -                    I ; text box object 0x2544408: base ctor, 64 line records, 32 empty 0x81-byte labels at +0x72c
 0x4d6730  dialogue_more_end_label  func  -                    I ; L"more" / L"end"
+0x4d6a20  dialogue_box__alloc_label func  -                    O ; first empty 0x81-byte label at +0x72c (32), NULL
+0x4d70f0  dialogue_box_base__ctor  func  -                    I ; vtable 0x581c6c, zero fields, GameTimer +0x28 invalidated
 0x4d7140  conversation_reset       func  -                    O ; zeroes state fields +0xc..+0x24
+0x4d7160  dialogue_box__set_rect   func  -                    I ; (x, y, w, lines) +4/+8/+0x14/+0x1c then vfunc 0, from dialogue_load_bitmaps
+0x4d7190  dialogue_box__add_text   func  -                    I ; (speaker, text, kind, ...) appends wrapped lines and scrolls, via dialogue_show_line
+0x4d7600  dialogue_box__line_rect  func  -                    I ; (line) screen position of a line from scroll +0xc and font height
 0x4d7650  conversation_start       func  -                    O ; from dialogue_init: reset + clear 32 line buffers
+0x4d7680  dialogue_text_box_draw   func  -                    I ; scroll animation (GameTimer +0x28), clip and lines of 0x2544408, from dialogue_draw
+0x4d7800  dialogue_topic_box_add   func  -                    I ; (topic, kind) adds a topic entry to 0x2545b68 (0x4d6de0)
+0x4d7900  dialogue_box__item_y     func  -                    O ; (item) scroll +0xc + item top
+0x4d7930  dialogue_topic_box_draw  func  -                    I ; scroll animation, clip and entries of 0x2545b68, from dialogue_draw
+0x4d7ab0  dialogue_topic_box_reset func  -                    O ; 0x2545b68 -> conversation_reset
+0x4d7ae0  dialogue_screen_open     func  -                    O ; (name) interface_set_screen(13, &name)
+0x4d7b00  dialogue_screen_close    func  -                    O ; interface_set_screen(0, 0)
+0x4d7b10  dialogue_show_line       func  -                    O ; (speaker, text, arg) dialogue_box__add_text on 0x2544408 with kind 1, journal_format_event, topics, ls_*_action
+0x4d7b80  conversation__ctor       func  -                    I ; conversation object 0x25461a0: pool +0x210, lists +0x238 / +0x244
 0x4d7c20  conversation_alloc_storage func  conversation.cpp     O ; "Unable to allocate space for conversation storage"
+0x4d7c70  conversation_clear       func  -                    I ; +0x22c = -1, counts +0x200..+0x20c = 0, pool reset
+0x4d7ca0  conversation_free        func  -                    I ; conversation_clear and frees the pool, from game_cleanup
+0x4d7cc0  conversation_add_speaker func  -                    O ; links a speaker into the list at +0x20c
+0x4d7ce0  conversation_alloc_speaker func  -                    I ; 0x1c-byte pool record, 0x4feb50 init
+0x4d7d10  conversation_alloc_topic func  -                    I ; 0x44-byte pool record, 0x4fec10 init, flags or-equals 0x12 when available
+0x4d7d50  conversation_set_speaker func  -                    I ; conversation_find_speaker -> +0x204, resets topic flags, builds the topic list
+0x4d7e10  conversation_clear_speaker func  -                    O ; +0x204 and +0x208 = 0
+0x4d7e40  conversation_set_topic   func  -                    I ; (topic) +0x208 = topic, applies its effects, removes it from the list
+0x4d7e90  conversation_select_greeting func  -                    I ; topic at speaker +0x18 -> conversation_set_topic
+0x4d7eb0  conversation_apply_topic_effects func  -                    I ; walks the topic's lists (+0x18..+0x40) setting flags, journal_notify_updated
 0x4d80c0  conversation_has_speaker func  -                    O ; list +0x20c search by name, returns bool
+0x4d8100  conversation_has_speaker_hash func  -                    O ; (hash) speaker list +0x20c, name_hash_nocase(+0xc)
+0x4d8140  conversation_first_topic func  -                    O ; first topic of the speaker with flag bit 1 and not bit 5
+0x4d8170  conversation_next_topic  func  -                    O ; next topic after arg with flag bit 1 and not bit 5
+0x4d81a0  conversation_add_name    func  -                    O ; appends a string pointer, count +0x200, returns its index
+0x4d81d0  conversation_find_name   func  -                    O ; _stricmp over the +0x200 strings, index or -1
 0x4d8220  conversation_set_topic_available func  -                    O ; find speaker + topic, toggles 0x20 flag, cmd_dialogue_make_topic_available/unavailable
 0x4d82b0  conversation_find_speaker func  -                    O ; list +0x20c search by name, returns node
 0x4d82f0  conversation_load        func  -                    O ; dialogue_parse_table, then restores saved state when present
 0x4d8390  conversation_save_state  func  -                    O ; callers quicksave, saveload_save_to_slot, state_game_leave, cmd_savegame
 0x4d84d0  conversation_restore_state func  -                    I ; only caller conversation_load, reads saved topic state
+0x4d8620  conversation_build_topic_list func  -                    I ; available topics into the list +0x238, "\"Farewell.\"" handled last
+0x4d86f0  conversation_remove_topic_entry func  -                    O ; unlinks the list entry for a topic
 0x4d8760  conversation_farewell    func  conversation.cpp     I ; L"farewell"
+0x4d8a90  conversation_update_talk_anims func  -                    I ; finished talk moves replaced with character_pick_talk_move
+0x4d8db0  conversation_open_dialogue func  -                    I ; character_get_display_name, dialogue_screen_open, greeting topic, conversation_select_topic
+0x4d9a80  vector3__len_sq          func  -                    O ; x*x + y*y + z*z
+0x4d9d90  conversation_camera_update func  -                    I ; conversation camera blend over the speaker positions, from conversation_frame
+0x4da010  conversation_frame       func  -                    I ; conversation controller 0x25464b0 per frame: camera, speakers turning, talk anims, from state_game_frame
+0x4da830  character_get_center     func  -                    O ; (out) position +0x10 plus the offset vector at +0x28
+0x4da890  conversation_camera_begin func  -                    I ; from conversation_begin: set speaker, camera mode (0x4797b0, 0x479740), ai_go_idle
+0x4daa70  conversation_end_cleanup func  -                    I ; clears goals, restores camera and positions, script_object_resume_index, conversation_clear_speaker
+0x4dabb0  conversation_choose_topic func  -                    O ; (topic) conversation_set_topic and conversation_select_topic with busy flag +0x38 bit 1
+0x4dabf0  conversation_request_end func  -                    O ; sets +0x38 bit 1, ends now when state +0x8 is 2
+0x4dac10  conversation_reset_state func  -                    O ; +0x8 = 0
 0x4dac20  conversation_is_idle     func  -                    O ; thiscall on the conversation object 0x25464b0: +0x8 == 0
+0x4dac30  conversation_end         func  -                    I ; state 1, conversation_end_cleanup, farewell when no topics remain
 0x4dacb0  conversation_select_topic func  -                    I ; L"<Quest Journal Updated>", journal_format_event
 0x4daef0  conversation_load_for_level func  -                    O ; from state_game_enter: conversation_load for current level script
 0x4daf50  conversation_begin       func  -                    I ; (name, character) stops cur_character AI (ai_go_idle / ai_goals_clear), cures some statuses, starts the conversation (0x4da890), callers script_object_talk and 0x43c5a0
@@ -1472,12 +1883,30 @@
 0x4dba30  script_parse_objects     func  -                    O ; $Character: +Hidden +Trigger: +Monster +Boss +Prop: +Action:
 0x4dc570  navpoint_find            func  -                    O ; (name) record pointer in navpoint tables 0x24e4950 / 0x256b750 (0x30 bytes), 0 if none
 0x4dc600  navpoint_get_position    func  -                    O ; (name, vector3* pos, matrix3* orient): stricmp over navpoint tables 0x24e4950 (count 0x2539f2c) and 0x256b750 (count 0x257e96c), 0x30-byte records
+0x4dc6e0  script_action_walk_to    func  -                    O ; script actions 0-2 "walk to", "run to", "move through": ai_path_find to the navpoint
+0x4dc860  script_action_wait_at    func  -                    O ; script action 3 "wait at": timer +0x518, place at the navpoint
+0x4dc900  script_action_do_state   func  -                    O ; script action 6 "do state": locomotion animation +0x5ac[state] speed 1.0
+0x4dc930  script_action_play_action func  -                    O ; script actions 7-8 "play action", "play .mvf": charinfo_find_move_any + play
+0x4dc990  script_action_die        func  -                    O ; script action 13 "die": plays the move then character_check_death
+0x4dca10  script_action_goto       func  -                    O ; script action 15 "goto": jumps the entry index +0x520 to the label
+0x4dca90  script_action_wander     func  -                    O ; script actions 4-5 "wander", "wander for": ai goal 0x474190 around the navpoint
+0x4dcb10  script_action_follow     func  -                    O ; script action 25 "follow": ai_goal_add(2, ...) on the named object
+0x4dcbc0  script_action_combat_mode func  -                    O ; script action 26 "combat mode"
+0x4dccb0  script_action_replace_weapon func  -                    O ; script action 29 "replace weapon": item_create into slot 5
+0x4dce60  script_action_replace_armor func  -                    O ; script action 31 "replace armor"
 0x4dd0b0  script_entry_start       func  -                    O ; "Unable to start script entry %d for %s. Try again in 5 seconds"
+0x4dd720  script_entry_advance     func  -                    O ; (entry, character) +0x520++, at the end stops or loops, else script_entry_start
+0x4dd780  script_entry_check_done  func  -                    I ; switch on the current action type: whether it has completed
+0x4dda30  script_object_near_player_dist func  -                    I ; (object, dist) cur_character within dist of the object
+0x4dda90  script_navpoint_near_player_dist func  -                    I ; (navpoint, dist) cur_character within dist of the navpoint position
+0x4ddaf0  script_check_visit_count func  -                    O ; (n) savegame_get_visit_count(cur_level_index) >= n
 0x4e0050  init_ccmd_remove_nav     func  -                    O ; static initialiser: registers console command object ccmd_remove_nav
 0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
+0x4e01a0  script_editor_any_window_open func  -                    I ; 0x52bf80 on five editor windows, from camera_process_input
 0x4e01f0  script_editor_frame      func  -                    I ; "Cutscene time: %.1f" "Level time: %.1f", from game_render_frame
 0x4e0690  script_editor_create_ui  func  -                    O ; builds editor gadgets "Pos" "Ori" "New" "Del" "Save" "Load" "Cutscene Script"
 0x4e2990  navpoint_set_name        func  -                    I ; "Unable to assign name to navpoint -- duplicate navpoint name"
+0x4e2a90  script_editor_set_status func  -                    O ; copies a message to 0x254ecc8 with a 2 s RealtimeTimer
 0x4e5b10  script_editor_add_navpoint func  -                    O ; "$cut%.3d" "$npc%.3d" "Limit reached - can't add any more ... navpoints"
 0x4e6a30  script_editor_delete_navpoint func  -                    O ; "Can't delete players."
 0x4e6d90  script_editor_navpoint_in_use func  -                    O ; "This navpoint is used as starting point for \"%s\""
@@ -1493,6 +1922,8 @@
 0x4ecf70  init_ccmd_render_s3d_navpoints func  -                    O ; static initialiser: registers console command object ccmd_render_s3d_navpoints
 0x4ecf90  cmd_render_s3d_navpoints func  -                      O ; console command "render_s3d_navpoints": Toggles Render_s3d_navpoints
 0x4ed0f0  cutscene_script_load     func  -                    O ; "_cscript.tbl", "#Navpoints", "Cutscene script string pool usage: %d bytes"
+0x4ed680  cutscene_script_entries_frame func  -                    I ; cutscene script objects: timers, script_entry_check_done / script_entry_advance, SequenceTimer2, state_game_frame
+0x4ed760  cutscene_script_table    func  -                    O ; returns 0x257e974
 0x4ed7e0  ls_sewer_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4edc30  ls_sewerboss_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4edd30  ls_sewerboss_leave       func  -                    O ; level_script_table entry: level script leave handler
@@ -1506,6 +1937,7 @@
 0x4ee000  lsf_sewers_flag_where_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_where_comment"; L"Where are all the sewer cleaners?"
 0x4ee070  lsf_sewers_flag_smell_comment func  -                    I ; level-script helper keyed on story flag "sewers_flag_smell_comment"; L"Ugh! And you thought pigs smelled bad."
 0x4ee0e0  ls_sewerboss_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ee220  ls_sewerboss_golems_dead func  -                    O ; script_npc_is_dead "Broken Brass Golem#boss1", "#boss2" and "Iron Golem#boss"
 0x4ee260  lsf_sewer_found_tb       func  -                    I ; level-script helper keyed on story flag "sewer_found_tb"
 0x4ee4f0  ls_sewer_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_sewerboss_use
 0x4ee580  ls_sewer_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names); shared with ls_sewerboss_action
@@ -1523,6 +1955,7 @@
 0x4eee20  ls_rand_hillsnite01_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4eee60  ls_ikaemosbottomint2_init func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4eeef0  ls_ikaemosbottomint2_frame func  -                    O ; level_script_table entry: level script per-frame handler
+0x4ef0e0  ls_ikaemosbottomint2_jekhar_remark func  -                    O ; timer 0x257e9ac: script_party_member_say "Jekhar", re-arm 25 s
 0x4ef120  ls_ikaemosext2_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4ef140  ls_ikaemosext2_frame     func  -                    O ; level_script_table entry: level script per-frame handler
 0x4ef190  ls_templeint2_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -1531,6 +1964,8 @@
 0x4ef360  lsf_joseph_killed        func  -                    I ; level-script helper keyed on story flag "joseph_killed"
 0x4ef3f0  lsf_mach_killed          func  -                    I ; level-script helper keyed on story flag "mach_killed"
 0x4ef5d0  lsf_mach_killed_4ef5d0   func  -                    I ; level-script helper keyed on story flag "mach_killed"
+0x4ef6a0  goto_credits             func  -                    O ; gameseq_set_state(9) (credits)
+0x4ef6b0  ls_templeint2_black_knight_revive func  -                    I ; "Black Knight" characters resurrected at random
 0x4ef770  ls_templeint2_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4ef850  ls_lenele1ab_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4efa30  ls_lenele1aa_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -1544,6 +1979,7 @@
 0x4f0160  lsf_tg_intro             func  -                    I ; level-script helper keyed on story flag "tg_intro"
 0x4f0360  lsf_tiger2_dead          func  -                    I ; level-script helper keyed on story flag "tiger2_dead"; L"Joseph acquired Summon Spirit of Laharah!"
 0x4f0680  lsf_murod_intro          func  -                    I ; level-script helper keyed on story flag "murod_intro"; L"Joseph acquired Summon Jade Golem!"
+0x4f0990  ls_jadetemple_finish     func  -                    I ; party_add_member Jekhar / Rosalind / Flece, next level "khosanistrng" / "khosanistrng_v3"
 0x4f0a40  ls_jadetemple_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f0da0  ls_lenele3d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f0eb0  ls_lenele3d_frame        func  -                    O ; level_script_table entry: level script per-frame handler
@@ -1567,13 +2003,17 @@
 0x4f1420  ls_lenele2aa_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f1490  ls_eleh_init             func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f1560  ls_eleh_frame            func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f16e0  ls_eleh_cutscene_frame   func  -                    I ; fade and camera sequence with player input off (script_disable_player_input)
 0x4f1890  ls_eleh_action           func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f1910  ls_eleh_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f1950  lsf_wolong2_fight1_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight1_won"
 0x4f1a00  lsf_wolong2_fight2_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight2_won"
 0x4f1ab0  lsf_wolong2_fight3_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight3_won"
 0x4f1b60  lsf_wolong2_fight4_won   func  -                    I ; level-script helper keyed on story flag "wolong2_fight4_won"
+0x4f1bf0  ls_wolong2_reinforcements func  -                    O ; "wolong2_reinforce": "Jade Temple Soldier#2..#6" commands once the lieutenant is dead
+0x4f1c80  ls_wolong2_force_recruit func  -                    O ; "wolong2_force_recruit": "$npc016" navpoint, "Jade Temple Priest#leader" talks
 0x4f1d00  lsf_wolong2_pijian_intro func  -                    I ; level-script helper keyed on story flag "wolong2_pijian_intro"
+0x4f1e40  ls_wolong2_force_alert   func  -                    O ; "wolong2_force_alert": alert soldier, "FollowMe" / "Charge", "JekharJoin"
 0x4f2060  ls_wolong2_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2140  ls_wolong2_frame         func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f21e0  ls_wolong2_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
@@ -1589,7 +2029,10 @@
 0x4f29c0  ls_test_use             func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_ikaemosbottomint_use, ls_ikaemosext_use, ls_ionaext_use, ls_ionaext_slot14, ls_ionaext02_use, ls_khosanistrng_use, ls_tancredhouse_use, ls_khosanilab2_use, ls_lenele2ab_use, ls_jadetemple_use, ls_lenele1ab_use, ls_ikaemosext2_use, ls_ikaemosbottomint2_use
 0x4f2ac0  ls_lpalaceint_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2ce0  ls_lpalaceint_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f2f00  ls_lpalaceint_sneak_frame func  -                    I ; palace sneaking: guards see player (script_guard_sees_player), "lpalaceint_int_sneak_attempts", teleport "$Teleport001"
+0x4f3520  ls_lpalaceint_sneak_remark func  -                    I ; "Joseph#npc" / "Flece" remarks by sneak attempt count
 0x4f36c0  lsf_lpalaceint_talked_to_joe func  -                    I ; level-script helper keyed on story flag "lpalaceint_talked_to_joe"
+0x4f3880  ls_lpalaceint_talk_to_king func  -                    O ; script_npc_talk("King Bellias")
 0x4f3890  ls_lpalaceint_action     func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f3a40  ls_lpalaceint_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f3a80  ls_khosanistrng_init     func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -1598,6 +2041,7 @@
 0x4f4210  ls_khosanistrng_action   func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f4570  ls_ionaext02_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4650  ls_ionaext02_frame       func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f48d0  ls_ionaext02_rosalind_remark func  -                    O ; timer 0x257ea58: script_party_member_say "Rosalind", re-arm 25 s
 0x4f4910  ls_rand_desert_init      func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4930  ls_liangshan_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f4a20  ls_liangshan_frame       func  -                    O ; level_script_table entry: level script per-frame handler
@@ -1613,6 +2057,7 @@
 0x4f51e0  lsf_liangshan_flag_wave3 func  -                    I ; level-script helper keyed on story flag "liangshan_flag_wave3"; L"Those are scouts. The army won't be far behind!"
 0x4f5280  lsf_liangshan_flag_wave4 func  -                    I ; level-script helper keyed on story flag "liangshan_flag_wave4"; L"Here comes Wentao and his soldiers!"
 0x4f5320  lsf_liangshan_flag_finished_quest func  -                    I ; level-script helper keyed on story flag "liangshan_flag_finished_quest"; L"That must be the last of them."
+0x4f53e0  ls_liangshan_poison_check func  -                    O ; "poisoned" flag when the player reaches "$poison1".."$poison5"
 0x4f54b0  lsf_li_intro             func  -                    I ; level-script helper keyed on story flag "li_intro"
 0x4f54f0  ls_liangshan_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f5630  ls_liangshan_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
@@ -1626,10 +2071,18 @@
 0x4f64f0  ls_templeint_action      func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f65e0  ls_templeint_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4f66c0  ls_wolongcaverns_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4f6850  ls_wolongcaverns_update_triggers func  -                    O ; game_stage_get -> level_trigger_enable / _disable "wolong", "wolong2", "wolong2_v2"
 0x4f68f0  ls_wolongcaverns_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f6910  ls_wolongcaverns_trap1_frame func  -                    I ; runs ls_wolongcaverns_trap1_fire
+0x4f6990  ls_wolongcaverns_trap1_fire func  -                    O ; "wc-trap1.vfx", sound, character_add_hp and status_effect_add on the victim
+0x4f6aa0  ls_wolongcaverns_ptrap_frame func  -                    I ; runs ls_wolongcaverns_ptrap_fire
+0x4f6b20  ls_wolongcaverns_ptrap_fire func  -                    O ; "wc-ptrap.vfx" poison trap: character_add_hp, status_effect_add
+0x4f6c30  ls_wolongcaverns_demilich_sequence func  -                    I ; "Balis the Demilich#1/#2" disabled/enabled with fade and camera
 0x4f6df0  lsf_wc_nali_used         func  -                    I ; level-script helper keyed on story flag "wc_nali_used"; L"Joseph acquired Summon Blue Imp!"
+0x4f6f10  ls_wolongcaverns_plants_remark func  -                    O ; "wc_near_plants" at "$nearplants": Rosalind remark
 0x4f6f80  ls_wolongcaverns_action  func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f6ff0  ls_wolongcaverns_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f7110  ls_wolongcaverns_trap2_fire func  -                    O ; "wc-trap2.vfx" trap from ls_wolongcaverns_use
 0x4f7220  ls_ionaext_init          func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f7270  ls_ionaext_frame         func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f72c0  lsf_iona_ext_flag_chick_cam func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_chick_cam"
@@ -1637,19 +2090,35 @@
 0x4f73d0  lsf_iona_ext_flag_sweep  func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_sweep"
 0x4f7440  lsf_iona_ext_flag_wood_cam func  -                    I ; level-script helper keyed on story flag "iona_ext_flag_wood_cam"
 0x4f74f0  lsf_iona_ext_found_rosalind func  -                    I ; level-script helper keyed on story flag "iona_ext_found_rosalind"
+0x4f75d0  ls_ionaext_cutscene_frame func  -                    I ; fade and camera sequence with player input off
 0x4f7760  ls_ionaext_action        func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4f8920  ls_khosanilab_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f89c0  lsf_sal_killed           func  -                    I ; level-script helper keyed on story flag "sal_killed"
 0x4f8a30  ls_khosanilab_frame      func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f8c60  ls_khosanilab_room1_frame func  -                    O ; "$symbol" -> "room1_stepped", secret doors "LAB-Rm1-SDoor01".."04", "Iron Golem#1"
 0x4f8d00  lsf_room1_killed         func  -                    I ; level-script helper keyed on story flag "room1_killed"
+0x4f8d70  ls_khosanilab_room4_frame func  -                    O ; "$platform" -> "room4_started", prison lids "prisonlid01".."06"
+0x4f8eb0  ls_khosanilab_room4_check_done func  -                    O ; four "Khosani Prisoner#n" dead -> xp, "LAB-Rm4-door01", "room4_finished"
+0x4f8f30  ls_khosanilab_reset_runes func  -                    O ; door_apply_saved_state(0) on "Lab-Rm7-Runenumber01".."06"
+0x4f8f80  ls_khosanilab_room1_intro func  -                    O ; "room1": "Ulsadana" speaks
+0x4f8ff0  ls_khosanilab_room2_intro func  -                    O ; "room2": "Ulsadana" speaks, xp
+0x4f90a0  ls_khosanilab_room4_intro func  -                    O ; "room4": "Ulsadana" speaks, xp
+0x4f9130  ls_khosanilab_room5_intro func  -                    O ; "room5": "Ulsadana" speaks
+0x4f91a0  ls_khosanilab_room7_intro func  -                    O ; "room7": "Ulsadana" speaks
 0x4f9210  lsf_room7_killed         func  -                    I ; level-script helper keyed on story flag "room7_killed"; L"The final test awaits you. Heal yourselves if you are weak
 0x4f92a0  lsf_sal_killed_4f92a0    func  -                    I ; level-script helper keyed on story flag "sal_killed"; L"Joseph acquired Summon Red Minotaur!"
 0x4f9580  ls_khosanilab_leave      func  -                    O ; level_script_table entry: level script leave handler
 0x4f95a0  ls_khosanilab_use       func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
+0x4f96f0  ls_khosanilab_pylon_use  func  -                    O ; "LeftPylonTrigger-0n" -> "LAB-Rm3-DoorPylon0n"
+0x4f99e0  ls_khosanilab_room2_doors func  -                    O ; "room2_door1..3": "LAB-Rm2-SDoor0n" open, "Onyx Golem#n" go
+0x4f9b10  ls_khosanilab_puzzle_use func  -                    I ; flipper puzzle, failure teleports the party from "$badplace"
+0x4f9ca0  ls_khosanilab_set_flippers func  -                    O ; door_apply_saved_state on "puzzle-flippers%02d"
+0x4f9d10  ls_khosanilab_room7_doors func  -                    O ; "room7_door1..3": doors open, "Steel Golem#n" go
 0x4f9e50  ls_ikaemosext_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f9e70  ls_ikaemosext_frame      func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f9ec0  ls_ikaemostopint_init    func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f9f50  ls_ikaemostopint_frame   func  -                    O ; level_script_table entry: level script per-frame handler
+0x4f9fa0  ls_ikaemostopint_main_door func  -                    O ; "ikaemos_slot1".."4" set -> "ikaemos_main_door", opens "Door02-01"
 0x4fa050  lsf_ikaemos_found_boss   func  -                    I ; level-script helper keyed on story flag "ikaemos_found_boss"
 0x4fa140  lsf_ikaemos_boss_killed  func  -                    I ; level-script helper keyed on story flag "ikaemos_boss_killed"; L"Joseph acquired Summon Golem!"
 0x4fa230  ls_ikaemostopint_use     func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
@@ -1673,12 +2142,21 @@
 0x4fb0c0  ls_lenele1b_use         func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fb160  ls_lenele1b_action       func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
 0x4fb510  ls_worldmap1_init        func  -                    O ; level_script_table entry: level script init (state_game_enter)
+0x4fb6d0  ls_worldmap1_setup_lenele func  -                    O ; stage-based triggers "lenele3d", "lenele2d", "lenele1d"(_v2/_v3)
+0x4fb830  ls_worldmap1_setup_masad func  -                    O ; stage >= 9: "masad_v2" instead of "masad"
+0x4fb860  ls_worldmap1_setup_iona  func  -                    O ; "ionaext", "ionaext02"(_v2)
+0x4fb940  ls_worldmap1_setup_ikaemos func  -                    O ; "ikaemosext" / "ikaemosext2", "got_ikaemos_map"
+0x4fb9c0  ls_worldmap1_setup_khosani func  -                    O ; "khosanistrng".."_v6", "got_ring_of_fire", "found_khosani"
+0x4fbcb0  ls_worldmap1_setup_jadetemple func  -                    O ; stage >= 14: "eleh" on, "jadetemple" off
+0x4fbd00  ls_worldmap1_setup_wolong func  -                    O ; stage >= 13: "wolong" instead of "wolong2" / "wolong2_v2"
+0x4fbd50  ls_worldmap1_setup_liangshan func  -                    O ; stage >= 13 disables "liangshan"
 0x4fbd80  ls_worldmap1_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fd560  ls_worldmap1_leave       func  -                    O ; level_script_table entry: level script leave handler
 0x4fd5d0  init_ccmd_iw             func  -                    O ; static initialiser: registers console command object ccmd_iw
 0x4fd5f0  cmd_iw                   func  -                      O ; console command "iw": reinits worldmap
 0x4fd610  init_ccmd_random_encounters func  -                    O ; static initialiser: registers console command object ccmd_random_encounters
 0x4fd630  cmd_random_encounters    func  -                      O ; console command "random_encounters": Toggles Random_encounters_enabled
+0x4fd6f0  ls_masad_reset_fire      func  -                    O ; game_stage_set(0), "masad-firedoor1/2.vfx", "masad-fire1.vfx", "invis-door01".."03"
 0x4fd750  ls_masad_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fd980  ls_masad_frame           func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fd9b0  lsf_masad_flag_gathering func  -                    I ; level-script helper keyed on story flag "masad_flag_gathering"
@@ -1707,6 +2185,7 @@
 0x4fe9a0  ls_wolong_frame          func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fea40  ls_wolong_use           func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fea80  ls_wolong_action         func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4fec50  conv_speaker__add_topic  func  -                    O ; appends a topic to the list +0x10/+0x14
 0x4fed30  lsf_cflag_none           func  -                    I ; level-script helper keyed on story flag "Cflag_None"
 0x4fee50  dialogue_parse_table     func  -                    O ; "_dlg.tbl": "$Character:", "+Topic:", "+Shop", "+PCText:", "+NPCText:" ...
 0x500a90  mouse_update             func  vsdk\os\mouse          I ; per frame: latch buttons; DirectInput deltas, or GetCursorPos/ScreenToClient when mouse_use_cursor; optional re-centring (mouse look)

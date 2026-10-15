@@ -580,3 +580,23 @@ typedef struct sound_emitter {
     uint32_t flags;          // +0x50 1 used, 2 paused, 8 playing
     uint8_t _unk54[0x20];
 } sound_emitter;
+
+// A level-script object (0x550 bytes; table at 0x24f6748, indexed by Character +0x6dc). Partial.
+typedef struct script_object {
+    uint8_t _unk000[0x518];
+    int32_t timer;           // +0x518 GameTimer
+    int32_t num_actions;     // +0x51C
+    int32_t cur_action;      // +0x520 action types: 33 names at 0x5a045c ("walk to" ... "one hand")
+    int32_t handle;          // +0x524 the scripted entity
+    uint8_t suspended;       // +0x528
+    uint8_t _unk529[0x27];
+} script_object;
+
+// A quest record (0x6c bytes at 0x253ef40, count at 0x25443a4).
+typedef struct quest_info {
+    int32_t _unk00;
+    int32_t side_quest;      // +0x04 1 = side quest
+    int32_t _unk08;
+    uint8_t steps[12][8];    // +0x0C 8-byte steps
+    int32_t num_steps;       // +0x68 (at most 12)
+} quest_info;
