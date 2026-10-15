@@ -2526,8 +2526,9 @@ scalar deleting destructor 0x493f40 and _purecall (0x56e903) in slots 1 and 2; t
 start_sequence, end_sequence (bool: `mov al, [esp + 8]` at 0x4797f8) and set_sequence_transform (ret 8) are
 added to camera.h.
 
-**D3204 (cutscene file). cutscene_saved_fog_far / cutscene_saved_fog_near keep their sum.symbols names,
-which are swapped.** cutscene_play stores fog_get_far_current into 0x609f1c (`saved_fog_near`, 0x4362e1) and
+**D3204 (cutscene file). The two saved-fog names were swapped in sum.symbols. Update after merge: sum.symbols
+now has 0x609f08 cutscene_saved_fog_near and 0x609f1c cutscene_saved_fog_far, and the source uses those; the
+evidence below was written with the old labels.** cutscene_play stores fog_get_far_current into 0x609f1c (`saved_fog_near`, 0x4362e1) and
 fog_get_near_current into 0x609f08 (`saved_fog_far`, 0x4362ec); cutscene_cleanup passes 0x609f08 first
 (0x4368db-0x4368e2) to fog_set_distances (near, far) (0x486b10: [esp + 4] goes to fog_near_distance 0x59bd80,
 per sum.symbols). The code is consistent; only the two labels are the wrong way round. The source uses the

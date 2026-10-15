@@ -88,8 +88,8 @@ cutscene_saved_actor cutscene_saved_actors[MAX_CUTSCENE_SAVED_ACTORS];   // 0x5f
 char cutscene_pool_buffer[CUTSCENE_POOL_SIZE];        // 0x5fd260 (name ours)
 float cutscene_saved_fog_multiplier;                  // 0x601e60
 int cutscene_num_saved_actors;                        // 0x6034b0
-float cutscene_saved_fog_far;                         // 0x609f08 the near distance (sum.symbols name; D3204)
-float cutscene_saved_fog_near;                        // 0x609f1c the far distance (sum.symbols name; D3204)
+float cutscene_saved_fog_near;                         // 0x609f08 the near distance (sum.symbols name; D3204)
+float cutscene_saved_fog_far;                        // 0x609f1c the far distance (sum.symbols name; D3204)
 float cutscene_last_time;                             // 0x609f2c
 int cutscene_num_entries;                             // 0x609f30
 bool cutscene_playing;                                // 0x609f34
@@ -612,8 +612,8 @@ void cutscene_play(const char *name)
             fx_pause_for_cutscene();
             cutscene_start_special_cases(name);
             ui_input_lock();
-            cutscene_saved_fog_near = fog_get_far_current();      // the names are swapped (D3204)
-            cutscene_saved_fog_far = fog_get_near_current();
+            cutscene_saved_fog_far = fog_get_far_current();      // the names are swapped (D3204)
+            cutscene_saved_fog_near = fog_get_near_current();
             cutscene_saved_fog_multiplier = Gr_level_fog_multiplier;
             Gr_level_fog_multiplier = 1.0f;
             level_ambient_pause_all();
@@ -732,7 +732,7 @@ void cutscene_cleanup()
     }
     level_ambient_unpause_all();
     game_camera.end_sequence(true);
-    fog_set_distances(cutscene_saved_fog_far, cutscene_saved_fog_near);   // (near, far): names swapped (D3204)
+    fog_set_distances(cutscene_saved_fog_near, cutscene_saved_fog_far);   // (near, far): names swapped (D3204)
     Gr_level_fog_multiplier = cutscene_saved_fog_multiplier;
     if (cutscene_data->num_vissets != 0)
         level_vis_force_end();

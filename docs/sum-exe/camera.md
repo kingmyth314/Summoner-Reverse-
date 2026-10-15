@@ -125,7 +125,7 @@ Flags at `+0x0c` (**observed** unless marked):
 | Input | Effect |
 |---|---|
 | Left / Right arrows | yaw rate +1 / -1 (`camera_key_yaw` `0x434840`: Left minus Right) |
-| Mouse within 3 px of the left / right edge | yaw rate -1 / +1, only with no mouse button down (the opposite sign of the arrows; how that looks on screen is *unknown*) |
+| Mouse within 3 px of the left / right edge | yaw rate -1 / +1, only with no mouse button down (the opposite sign of the arrows; how that looks on screen is *unknown*). A block meant to hold the edge turn back after a held left-button drag until the cursor leaves the edge (`0x5fccb8`, reset at `0x4347c2`..`0x4347e6`) can never be set: the test reads the held flag it has just stored (`0x4346e7`..`0x43471b`, game bug K191) |
 | Up / Down arrows | zoom rate (`camera_key_zoom` `0x434870`: Down minus Up) |
 | Mouse wheel | zoom rate -10 per notch forward, +10 back |
 | Options: camera speed `0x60ad00` | multiplies all three rates |

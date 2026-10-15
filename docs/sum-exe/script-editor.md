@@ -193,8 +193,14 @@ Save Ok (`script_editor_save_ok_cb`, `0x4eaf00`) calls `script_save_files` (`0x4
 | `<level>.tbl` | `data\tables\levels` | `script_write_level_table` (`0x4ea1e0`), which reads the old file and replaces two sections | `#Ambient Sounds`, `#Triggers` |
 | `level_items.tbl` | `data\tables` | `level_items_write_table` (`0x4ea500`) | `#Level:`, `$Item:`, `$Navpoint:`, `+Count:`, `+Event:` |
 
-Each writer first makes a `.bak` copy (`File__make_backup`) (**observed**). `script_save` reports
-"Script \"%s\" saved." or a read-only error with `editor_dialog_show` (**observed**).
+Each writer first makes a `.bak` copy (`File__make_backup`) (**observed**). `script_save` shows
+"Script \"%s\" saved." on the editor's status line (`script_editor_set_status`, `0x4eacf1`). A read-only
+file, a write error or "Unknown error occurred... Don't panic -- get Niq!" opens an "Error!" box with
+`editor_dialog_show` (`0x4eadad`, `0x4eade4`), and `script_write_objects` opens a "Warning!" box for walk or
+run-through commands that do not terminate (`0x4ea0d4`). All three pass a width of 400, the OK button, no
+callbacks and window flags `0xb`. The box is a modal `ui_window` (flag `0x20` added at `0x430ebc`) with up to
+10 lines of text; the other button sets (OK/Cancel, Retry/Cancel, Yes/No, Yes/No/Cancel) are never asked
+for. `GameTick` frees closed boxes each frame (`editor_dialogs_free_closed`, `0x431640`) (**observed**).
 `script_write_level_script` also counts names that occur twice ("*** DUPLICATE NAME ***")
 (**observed**). `script_save_files` also formats `"%d.int"` names in the levels and tables
 folders; their purpose is *unknown*. Whether a cutscene script is saved in the same layout that

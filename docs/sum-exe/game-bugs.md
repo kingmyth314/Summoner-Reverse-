@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 199 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 212 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 43 | 2 |
+| Crash or hang | 3 | 47 | 2 |
 | Gameplay | 26 | 17 | 3 |
-| Cosmetic | 36 | 12 | 2 |
-| Invisible | 24 | 38 | 0 |
+| Cosmetic | 38 | 15 | 2 |
+| Invisible | 26 | 40 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -84,6 +84,10 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C171 | Latent: in multiplayer, Tab or Shift+Tab hangs the game when the leader's character and every other party record's character are gone | `party_cycle` `0x413360` | **Observed** code, *inferred* hang | No |
 | C180 | Latent: a modded name table overflows the stack or a buffer: an `item_names.tbl` / `quest_names.tbl` id of 1000 or more, a level section of `topic_names.tbl` / `script_names.tbl` with more than 500 English lines, or a `strings.tbl` id of 1000 or more; a level whose topic and script names need more than the 10 KB level pool crashes | `localize_load_names` `0x504520`, `localize_load_level_table` `0x504870`, `localize_set_string` `0x504400`, `localize_strdup` `0x504070` | **Observed** code and retail data, *inferred* effect | No |
 | C181 | Latent: in multiplayer, a reliable data packet whose length field says more than 600 bytes overwrites the heap after its 600-byte receive buffer (only a malformed or hostile packet; the game's own senders stay below the limit) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
+| C190 | Latent: a `cutscene.tbl` entry without a `$Fog:` line, or whose first `$Fog` key is for a later shot, crashes the cutscene on its first frame | `cutscene_get_fog_distances` `0x4354a0` | **Observed** code and retail data, *inferred* crash | No |
+| C191 | Latent: a `cutscene.tbl` with more than 85 entries, or an entry with more than 4 `$Camera`, 2 plain or 10 shot `$Animation`, 4 `+Minitrack`, 16 `$Fog` or 16 `$Fade` lines, or camera files with more than 50 shots in all, overwrites memory | `cutscene_parse_table` `0x4355e0`, `cutscene_load_files` `0x434b40` | **Observed** code and retail data, *inferred* effect | No |
+| C192 | Latent: a script editor message box asked for a button set above 4 deletes garbage pointers when it closes, and one with an empty text shows uninitialised stack text | `editor_dialog_show` `0x430c80`, `editor_dialog_destroy` `0x4316a0` | **Observed** code, *inferred* effect | No |
+| C193 | Latent: in the debug "Load" screen (state 8, never entered in v1.40), a level-list message with no selected entry dereferences NULL | `loadgame_level_list_cb` `0x432200` | **Observed** code, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -116,7 +120,8 @@ without a compare. See [Cutscenes](cutscenes.md#what-cutscene_play-changes).
 but `edi` never moves to the next gadget. Flag `0x10` ("+Always a selection") is set only by
 the UI table loader, `ui_load_table`, which has no caller (V9). The script editor builds its windows with constant
 flags that do not include `0x10`. The only other path is `editor_dialog_show`, which builds its flags at run time
-(`or ecx, 0x20` at `0x430ebc`) and was not traced, so this is reachable at most from that debug dialog.
+from its last argument (`or ecx, 0x20` at `0x430ebc`). Its three callers (`script_write_objects` `0x4ea0b8`,
+`script_save` `0x4ead94` and `0x4eadcb`) all pass `0xb`, so its windows get flags `0x2b` and no path sets `0x10`.
 
 **C8. Shop tables.** The parser stores into `level_shopkeepers` (`0x2490ca0`, 15 records) and
 `level_shop_items` (`0x2491ac0`, 1000 entries) without checking either count. The retail tables fit. See
@@ -455,6 +460,37 @@ that `nw_buffer_receive` returned (`0x517f1f`) nor the 0x262-byte receive buffer
 later copies the same length into the caller's buffer (`0x518c6d`..`0x518c8f`). The game's senders put at most 0x200
 bytes into a reliable buffer before sending it (`multi_send_packet`), so only a corrupt or forged datagram on the
 game port does this.
+
+**C190. `fogs[i - 1]` after the loop.** `cutscene_get_fog_distances` walks the entry's `$Fog` keys while the current
+shot is not below the key's shot, then reads `fogs[i - 1]` (`0x4354eb`..`0x435510`). With no key reached yet (`i` = 0)
+that is the dword at entry `+0x74`, the `num_fogs` word and its padding, used as a key pointer: NULL for an entry
+without `$Fog`, a small number otherwise. `cutscene_events_frame` calls it on every cutscene frame (`0x4370ea`) and passes
+the result to `fog_set_distances`. All 84 retail entries have their first `$Fog` key at shot 0, in shot order, so the
+first frame (shot 0) always finds one. *Inferred:* an access violation on the first cutscene frame.
+
+**C191. No list bounds in the cutscene table.** `cutscene_parse_table` stores each `$Camera`, `$Animation` /
+`$Character Animation`, `+Minitrack`, `$Fog` and `$Fade` line at the next index of a fixed array in the `0x140`-byte
+entry (4, 2 plain and 10 shot effects, 4, 16, 16 slots) and the entries into `cutscene_entries` (85) without comparing
+any count; only `cutscene_parse_visset` checks its 16 sets and 16 names. The next field or the next entry is
+overwritten; an 86th entry (`0x609f08`) covers the saved fog distances, the `play_and_load_cutscene` and
+`stop_cutscene` command objects (`0x609f10`, `0x609f20`) and `cutscene_num_entries` (`0x609f30`). At load time `cutscene_bind_actors` and `cutscene_events_frame`
+use the counts as indices into the object's 2 and 10 effect-handle slots, and `cutscene_load_files` fills the
+50 `cutscene_sequences` records with every shot of every camera file (only a count of 0 or less fails, `0x434d0e`); a
+51st shot overwrites the current-shot index (`0x603460`) and the fields after it. Retail maxima: 84 entries, 4 cameras,
+1 plain and 7 shot effects, no minitrack, 13 fogs, 16 fades (exactly at the limit), 13 vissets, and 48 shots
+(Act2-Outro).
+
+**C192. Unchecked arguments of `editor_dialog_show`.** The button switch (jump table `0x4315a0`) has no default: a value
+above 4 jumps past it (`ja 0x431563` at `0x431039`), so the three button pointers of the `operator new` record keep
+whatever the heap held, and `editor_dialog_destroy` deletes them. With an empty text `gr_split_str` returns 0 lines, the
+copy loop never runs and the uninitialised 1024-byte stack buffer is measured and shown. All three callers
+(`script_write_objects`, `script_save`) pass button set 0 and a formatted message, and the script editor is a
+developer tool.
+
+**C193. NULL test that does not guard.** For message `0x18`, `loadgame_level_list_cb` gets the selected entry, skips
+only the empty hook when it is NULL (`test esi, esi; je 0x43222c` at `0x43221c`) and then reads `[esi + 0x30]` anyway
+(`0x43222c`). The callback is installed only by `state_loadgame_enter` (`0x431f73`), the enter handler of state 8,
+which has no `gameseq_set_state` caller ([Main loop](main-loop.md)).
 
 ## Gameplay
 
@@ -873,6 +909,8 @@ join result 2 and goes on (`0x470ac4`..`0x470ad3`). Every later `nw_NewSendRelia
 because of status 0", `0x518dd7`..`0x518df3`). *Inferred:* the join never completes. It needs `sendto` to fail
 right after the connect request to the same address succeeded.
 
+(none)
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -925,6 +963,11 @@ right after the connect request to the same address succeeded.
 | K171 | A lock that was already picked can be picked again: the skill rolls again, plays the unlock or the failure sound, and "This door already unlocked." is never shown for it | `character_use_skill` `0x429410`, `door_pick_by_mesh` `0x4aaa10` | **Observed** code, *inferred* trigger | No |
 | K180 | Latent: when a `strings.tbl` language section has more than 40 KB of text, each string that does not fit shows the text of the next string that does (or nothing) | `localize_set_string` `0x504400` | **Observed** code and retail data, *inferred* effect | No |
 | K181 | Latent: French text would show `Ä` as `É`; v1.40 never selects French | `localize_remap_charset` `0x5051a0` | **Observed** code and retail data | No |
+| K190 | A dragon summon's cutscene, cast after any story cutscene, streams a stale soundtrack handle: usually silence as intended, but when a music track has since taken that sound slot (for example boss music started right after a boss intro), that track restarts under the dragon scene and its slot is freed when the scene ends | `cutscene_unload` `0x4351e0`, `cutscene_load_sounds` `0x435000`, `cutscene_sequence_update` `0x436a90` | **Observed** code and retail data, *inferred* effect | No |
+| K191 | Releasing a long left-button drag with the cursor at the left or right screen edge starts the edge camera turn at once; the code meant to hold it back until the cursor leaves the edge never engages | `camera_process_input` `0x434660` | **Observed** code, *inferred* effect | No |
+| K192 | Latent: a `+Minitrack:` sound in `cutscene.tbl` never plays | `cutscene_load_sounds` `0x435000`, `cutscene_events_frame` `0x436c00` | **Observed** code and retail data | No |
+| K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code, *inferred* effect | No |
+| K194 | Latent: the help of the `play_and_load_cutscene` console command prints `play_cutscene`'s usage line. No console in v1.40 | `cmd_play_and_load_cutscene` `0x437590` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1336,6 +1379,48 @@ jump table `0x50531c` / `0x505384`), which is `É` in CP437, while `É` (0xC9) i
 tables), and v1.40 never selects French: the only call of `localize_set_language` passes 0 (`0x504f64`), and nothing
 else writes `localize_language`.
 
+**K190. A soundtrack handle that is freed but kept.** `cutscene_unload` stops and frees the soundtrack handle in the
+cutscene object (`+0x1630`, `0x603498`; `snd_stop` and `snd_free` at `0x4352c4`..`0x4352f1`) but never sets it back to -1.
+`cutscene_load_sounds` writes it only when the entry has `$Soundtrack` (`0x43502b`..`0x435056`), and shot 0 always
+streams it (`snd_play_streamed` at `0x436bbb`). Seven retail entries have no `$Soundtrack`: the four dragon summons
+(level `"any"`, played by `summon_create` at `0x47ef57` on every dragon cast), "test", "Test" and "WolongFlythrough". Story
+cutscenes with a soundtrack play from the start of a new game on ("Game-Intro" has `intro-final.wav`), so by the time a
+dragon is cast the handle is stale. Streams take sound slots
+from 0 (`snd_get_handle` with its last argument 1, `0x520805`..`0x520816`), other sounds from 8, and only `music_play`
+(`0x4690f9`) and the cutscene soundtrack ask for stream slots. `snd_level_release` in `cutscene_cleanup`
+(`0x436660`) frees the soundtrack's slot, so the stale slot is the lowest free stream slot afterwards. Two cases
+(*inferred*): if the slot is still free, `snd_load` fails on the empty name and the dragon scene is silent, as it would
+be with a reset handle. If a later `music_play` took it, for example a boss intro's continuation that starts the boss
+track at once (`ls_templeint2_machival_intro_cs_end` `0x4ef2c2`, `ls_wolong2_pijian_intro_cs_end` `0x4f1e2d`), the dragon
+scene restarts that track from its beginning, unlooped, under the scene (`cutscene_play` has just stopped the music).
+At the end `cutscene_cleanup` fades the stream out over 200 ms, restarts the saved track (`0x4366aa`) and then
+`cutscene_unload` frees the slot that track is now playing from (`snd_free` clears the name and drops the buffer,
+`0x520c10`). A failed `cutscene_load_data` also calls `cutscene_unload` (`0x435472`), which frees the stale slot again.
+
+**K191. The edge-turn block reads its own store.** `camera_process_input` stores the held-drag bit of the current
+input (`(flags >> 4) & 1`, `0x4346e7`..`0x4346f1`) into `0x5fccb7` and, with the cursor within 3 pixels of an edge, at
+once tests `(~flags >> 4) & 0x5fccb7` (`0x43470f`..`0x43471b`). That is "held now and not held now", always 0, so the
+branch that clears `0x5fccb7` and sets the block byte `0x5fccb8` (`0x43471d`..`0x434724`) never runs. `0x5fccb8` stays 0;
+its test (`0x43472d`) and its reset when the cursor leaves the edge (`0x4347c2`..`0x4347e6`) are dead. The intended
+test was evidently "held last frame, not held now". *Inferred:* holding the left button to walk with the cursor at
+the screen edge, then letting go, turns the camera at once, because the edge turn needs only that no mouse button is
+down (`0x434736`..`0x434750`).
+
+**K192. Minitrack handles stay -1.** `cutscene_load_sounds` sets `minitrack_sounds[i]` (`0x60349c`, 4 slots) to -1 for
+every `+Minitrack` (`0x43508a`..`0x435090`) and never loads the file. `cutscene_events_frame` passes that value to
+`snd_play` at the track's shot (`0x436fa0`..`0x436fa8`), which does nothing for -1. No retail entry has `+Minitrack`.
+
+**K193. A name-sorted scan picks the number.** `screenshot_save` lists `screen*.tga` or `screen*.jpg` in the install
+directory with `file_find_files` mode 1 (`push 0x1` at `0x432539`), which inserts every name in `_stricmp` order
+(`0x513507`..`0x513519`), and reads the number from the last node (`list.prev`, `0x432587`..`0x43259c`), then adds 1.
+Up to `screen999` that is the highest number. `screen1000` sorts before `screen999`, so from then on every screenshot is
+`screen1000` and replaces the previous one. A matching name that sorts last and does not parse as `screen%d` (for
+example `screenshot`) leaves the number uninitialised: `sscanf` writes nothing into the stack slot `[esp]`
+(`0x43258e`..`0x4325a9`).
+
+**K194. Copied usage line.** `cmd_play_and_load_cutscene` prints the same literal as `cmd_play_cutscene`, "Usage:
+play_cutscene <cutscene name>" (`push 0x593b90` at `0x43753d` and `0x4375fd`).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1402,6 +1487,10 @@ else writes `localize_language`.
 | V182 | Latent: in multiplayer, IAMHERE packets send four uninitialised stack bytes as their send time and ACKs two as their sequence number | `nw_send_heartbeat` `0x517d70`, `nw_send_reliable_reply` `0x517d20` | **Observed** code |
 | V183 | Latent: the level section name is lowered only while the index is below the character's code, and a duplicate name leaks its node and its copy in the pool | `localize_load_level_table` `0x504870`, `localize_table_add` `0x5040e0` | **Observed** code and retail data |
 | V184 | The clipboard reader leaves the clipboard open when there is no text on it, and needs one byte more than its size argument | `os_clipboard_get_text` `0x531b44` | **Observed**; no caller |
+| V190 | Every Print Screen leaks one 56-byte list node for each screenshot file already in the folder | `screenshot_save` `0x4324f0` | **Observed** code | No |
+| V191 | Latent: the third button of a script editor message box calls the second button's callback | `editor_dialog_handle_event` `0x4315c0` | **Observed** code | No |
+| V192 | Latent: the debug Backspace key flush in `PollInputEvents` tests a key code that can never arrive | `PollInputEvents` `0x432710` | **Observed** code | No |
+| V193 | At the end of every cutscene, `cutscene_unload` passes the soundtrack's sound handle to `snd_stop`, which takes a play signature, and frees a slot that `snd_level_release` has already freed | `cutscene_unload` `0x4351e0` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1828,6 +1917,29 @@ so a duplicate returns with both allocated and unused. The retail item, quest an
 copies at most `max` characters and writes the terminator at `buf[n]` (`0x531bcd`..`0x531bd3`). There is no call to it
 and no pointer to `0x531b44` in the image. Its code is unoptimised, unlike the rest of the object before `0x5312c0`.
 
+**V190. The file list is never freed.** `file_find_files` allocates a 0x38-byte node per match with `operator new`
+(`0x5134d7`) into a list whose head is a local of `screenshot_save` (`0x432552`). `screenshot_save` reads the last node
+and returns without freeing any of them; `quicksave` frees its list after the same call (`operator_delete` at
+`0x40e82d`). *Inferred:* a few kilobytes per hundred screenshots, never noticeable.
+
+**V191. Second callback for the third button.** `editor_dialog_handle_event` tests `callbacks[2]` (`mov eax, [esi +
+0x2c]` at `0x43161b`) but calls `callbacks[1]` (`call [esi + 0x28]` at `0x431628`). Every caller passes no callbacks and
+only the one-button OK set, so neither callback exists.
+
+**V192. `0x8000` instead of `0x800`.** The case compares the key with `0x800e` (`0x4327d9`), Backspace with bit
+`0x8000`. `key_mark` adds `0x800` for a key pressed while the grave key is down with `key_debug_modifier` set
+(`or ch, 0x8` at `0x509508`), and no code adds `0x8000`, so `key_flush` (`0x4327e1`) is never reached from here. The
+debug-key tracking above it masks the same wrong bit (`and ah, 0x7f` at `0x432789`) and only writes two bytes nothing
+reads (`0x5fc028`, `0x5fc029`).
+
+**V193. A handle used as a signature.** `snd_stop` (`0x5215d0`) passes its argument to `ds_stop`, which looks for a
+channel with that play signature (`ds_get_channel` `0x55db00`); `music_play` uses it with `music_play_signature`
+(`0x4690bc`). `cutscene_unload` gives it the sound slot index instead (`0x4352da`). Signatures count up from the first
+play of the session (`ds_next_signature`, `0x55d3d3`..`0x55d3e6`), so a slot index matches only a channel still
+holding one of the first few signatures; normally the call does nothing. The stream itself was already stopped
+with `snd_stop_fade` on its real signature (`0x43667a`). `snd_free` on the slot that `snd_level_release` freed is a
+no-op unless a stream took the slot in between (see K190).
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -2072,6 +2184,15 @@ the tables above; the rest are below.
 - `nw_init_networking` with "fast": skipping RAS leaves `nw_networking_ok` at 0, but `mainmenu_check_network` only
   tests it for status 1 and 2 (`0x41dae8`..`0x41dafa`).
 
+- `gr_info`, `show_hud_info` and `net_stats` show nothing, and neither does the "Screenshot written to" message. True, but these are compiled-out debug features, like `camera_key_extra_axis`: nothing writes `gr_info_total_time` (`0x2396c90`) except `FrameEnd`'s reset (`0x432c70`), so the `gr_info` block (`0x432a78`..`0x432c9b`) never draws; `Gamewide_show_hud_info` (`0x5fc021`) and `Gamewide_show_net_stats` (`0x5931b0`) have no reader outside their own console commands (`0x43302a`, `0x43320a`); `screenshot_save` hands its message to the bare `ret` `0x4f13e0` (`0x43264f`), and `game_status_message` (`0x5fbf54`) and its timer (`0x5fbf48`) are only read by `FrameEnd`. No console in v1.40. Not counted.
+- `screenshot_save` "takes the number from the last name the scan returns, not the highest": the scan is sorted (mode 1, `0x432539`; `0x513507`..`0x513519`), so up to `screen999` the last name is the highest. The real numbering defect is K193.
+- `cutscene_active_count` leaking on a failed load: `cutscene_load_sounds` increments it (`0x435009`), but every failure in `cutscene_load_data` returns before that call (`0x4353f7`, `0x435417`, `0x435437`), and `cutscene_cleanup` decrements it (`0x436647`) only after a load that set bit `0x20`.
+- C7 through `editor_dialog_show`: all three callers pass window flags `0xb` (`0x4ea0b8`, `0x4ead94`, `0x4eadcb`), `editor_dialog_show` adds `0x20` (`0x430ebc`), so its windows never get `0x10` and C7 cannot be reached from it either.
+- The `short` length read with `"%d"` in `cutscene_parse_table`: `sscanf` writes four bytes into the slot at `ebp-0x270`, and the next local (`shot`) starts at `ebp-0x26c`, so nothing is overwritten.
+- `cutscene_events_frame` testing the shot range twice in a row: the second test is redundant and harmless.
+- Shot effects and minitracks stop at the first record whose shot is later than the current one, so an unsorted list would skip effects; every retail entry lists its shot effects in shot order. Not counted.
+- `loadgame_window_unused` (`0x5fb600`), constructed and destroyed only: a dead object, no effect.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -2181,6 +2302,10 @@ the tables above; the rest are below.
 - G182's visible effect after the failed IAMHERE (what the join screen shows while every send fails) was not traced.
 - German `ß` goes to 0xBC (`0x50530b`) while the reverse table takes 0xE1 (CP437 `ß`, `0x5052be`) back to `ß`: right
   or wrong depends on the font's glyph order, which was not checked; v1.40 never selects German.
+- K190: what the player hears when `cutscene_unload` frees the slot of the music track that is playing (`snd_free` -> `snd_unload` -> `ds_unload_buffer`, `0x55ced0`, drops the buffer's reference count): whether the stream keeps playing to its end, stops, or breaks the next `music_play` of that track. Needs a test in agent mode (a dragon summon in Machival's fight after his intro).
+- `player_read_mouse_input` assigns `0x4` on a left press (`0x4345e0`), dropping Shift `0x20` and Alt `0x40` set earlier in the same call. Whether a reader of `player_input` needs Shift or Alt on the click frame (a Shift+click action) was not traced.
+- C190: whether the dword at entry `+0x74` has nonzero padding above the count word (the constructor and the parser write only the word), so whether the read is NULL or a small address; either way it faults.
+- 0x24268f0 / 0x24268f4 (two of the `gr_info` counters) are written as `esi`-indexed elements by `levelrender_draw_list_opengl` (`0x492313`), so they may be the first elements of a levelrender array rather than counters (D3104).
 
 ## Evidence
 
@@ -2390,3 +2515,16 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V182 stack bytes | `nw_send_heartbeat` `0x517d70`..`0x517dab`; `nw_send_reliable_reply` `0x517d20`..`0x517d5b`; `nw_work_reliable` `0x517e60`..`0x517e8a`, `0x51812a`..`0x51814c`, `0x5181a6`..`0x5181c9` |
 | V183 localize slips | `localize_load_level_table` `0x5049a1`..`0x5049c7`; `localize_table_add` `0x5040f2`..`0x504119`, `0x50414f`, `0x50416d` |
 | V184 clipboard | `os_clipboard_get_text` `0x531b51`..`0x531be0`; imports `0x57e384` (`OpenClipboard`), `0x57e388` (`GetClipboardData`), `0x57e1bc` (`GlobalLock`), `0x57e1c0` (`GlobalUnlock`), `0x57e3b8` (`CloseClipboard`) |
+| C190 fog key -1 | `cutscene_get_fog_distances` `0x4354a9`..`0x4354e9` (loop), `0x4354eb`..`0x435510` (`fogs[i - 1]`); caller `cutscene_events_frame` `0x4370dd`..`0x4370f7`; retail `cutscene.tbl`: 84 entries, first `$Fog` at shot 0 in each |
+| C191 table bounds | `cutscene_parse_table` `0x4355e0` (no compare against 85, 4, 2, 10, 4, 16); `cutscene_parse_visset` `0x435ff0` (its 16 checks); `cutscene_load_files` `0x434d0e`..`0x434d22`, `0x434d57`..`0x434da9`; retail maxima 84 / 4 / 1 / 7 / 0 / 13 / 16 fades / 13 vissets, 48 shots (Act2-Outro) |
+| C192 dialog arguments | `editor_dialog_show` `0x431033`..`0x43103f` (`ja 0x431563`, jump table `0x4315a0`); `editor_dialog_destroy` `0x4316a0`; callers `0x4ea0b8`..`0x4ea0d4`, `0x4ead94`..`0x4eadad`, `0x4eadcb`..`0x4eade4` |
+| C193 load-list NULL | `loadgame_level_list_cb` `0x432215`..`0x43222c`; installed by `state_loadgame_enter` `0x431f73`; state 8 has no `gameseq_set_state` caller |
+| K190 stale soundtrack | `cutscene_unload` `0x4352c4`..`0x4352f1`; `cutscene_load_sounds` `0x43502b`..`0x435056`; `cutscene_sequence_update` `0x436bb4`..`0x436bc3`; `cutscene_cleanup` `0x436660`, `0x43667a`, `0x4366aa`, `0x4369fa`; `cutscene_load_data` `0x435472`; `snd_get_handle` `0x520805`..`0x520816`; `snd_free` `0x520c10`..`0x520c45`; `snd_level_release` `0x520ce0`..`0x520d32`; `summon_create` `0x47ef57`; `ls_templeint2_machival_intro_cs_end` `0x4ef2c2`; `ls_wolong2_pijian_intro_cs_end` `0x4f1e2d`; retail `cutscene.tbl`: 7 entries without `$Soundtrack` |
+| K191 edge block | `camera_process_input` `0x4346e7`..`0x43471b`, `0x43471d`..`0x434724`, `0x43472d`, `0x434736`..`0x43476e`, `0x4347c2`..`0x4347e6`; only references to `0x5fccb7` / `0x5fccb8` |
+| K192 minitracks | `cutscene_load_sounds` `0x43506c`..`0x43509b`; `cutscene_events_frame` `0x436f57`..`0x436fd0` |
+| K193 screenshot number | `screenshot_save` `0x432539` (mode 1), `0x432587`..`0x4325a9`; `file_find_files` `0x5134f4`..`0x513519`, `0x513574`..`0x513586` |
+| K194 usage | `cmd_play_cutscene` `0x43753d`; `cmd_play_and_load_cutscene` `0x4375fd` (both `push 0x593b90`) |
+| V190 screenshot list | `screenshot_save` `0x432552`..`0x43264f` (no `operator_delete`); `file_find_files` `0x5134d5`..`0x5134d7`; `quicksave` `0x40e82d` |
+| V191 third callback | `editor_dialog_handle_event` `0x431616`..`0x431628` |
+| V192 debug Backspace | `PollInputEvents` `0x432787`..`0x43278f`, `0x4327d9`..`0x4327e1`; `key_mark` `0x5094f4`..`0x509508` |
+| V193 handle as signature | `cutscene_unload` `0x4352d3`..`0x4352ec`; `snd_stop` `0x5215d0`..`0x5215f1`; `ds_stop` `0x55d620`; `ds_get_channel` `0x55db00`..`0x55db27`; `ds_play_streamed` `0x55d3d3`..`0x55d3e6`; `music_play` `0x4690b2`..`0x4690c4` |

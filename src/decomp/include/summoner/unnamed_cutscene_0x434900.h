@@ -141,8 +141,8 @@ extern char cutscene_pool_buffer[CUTSCENE_POOL_SIZE]; // 0x5fd260 (name ours)
 extern cutscene_saved_actor cutscene_saved_actors[MAX_CUTSCENE_SAVED_ACTORS];   // 0x5fcce8
 extern int cutscene_num_saved_actors;                 // 0x6034b0
 extern float cutscene_saved_fog_multiplier;           // 0x601e60
-extern float cutscene_saved_fog_far;                  // 0x609f08 holds the NEAR distance (name swapped, D3204)
-extern float cutscene_saved_fog_near;                 // 0x609f1c holds the FAR distance (name swapped, D3204)
+extern float cutscene_saved_fog_near;                  // 0x609f08 holds the NEAR distance (name swapped, D3204)
+extern float cutscene_saved_fog_far;                 // 0x609f1c holds the FAR distance (name swapped, D3204)
 extern float cutscene_last_time;                      // 0x609f2c
 extern int cutscene_num_entries;                      // 0x609f30
 extern bool cutscene_playing;                         // 0x609f34 set for "Placeholder", never read

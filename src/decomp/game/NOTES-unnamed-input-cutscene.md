@@ -107,7 +107,7 @@ header `engine/camera/camera_sequence.h`).
 - D3201 the cut moves to 0x434900; `#pragma optimize("", off)` after the three objects.
 - D3202 summoner.h's cutscene / input declarations moved to the two unit headers (no signature change).
 - D3203 camera_sequence classes; cutscene_camera_read_track takes (File *, float start).
-- D3204 cutscene_saved_fog_far / _near keep their (swapped) sum.symbols names.
+- D3204: the saved-fog names were swapped in sum.symbols; fixed there after the merge.
 - D3205 combat_mode is defined in the input unit; player_input stays in player.cpp; 0x434650 is the
   profile_label destructor COMDAT.
 - D3206 config_invert_camera / config_camera_speed are macros onto Summoner_options.
@@ -136,7 +136,7 @@ header `engine/camera/camera_sequence.h`).
    "Tags to check" paragraph says the initialisers "end the 0x4343a0 unit". The objects, and .bss
    0x5fccc0-0x609f3b, are the cutscene file's (D3201); the input unit's .bss is 0x5fcca8-0x5fccb8. (The
    sum.symbols notes on 0x4343a0.. already give these .bss ranges.)
-2. sum.symbols 0x609f08 `cutscene_saved_fog_far` and 0x609f1c `cutscene_saved_fog_near` are swapped (D3204);
+2. sum.symbols had 0x609f08 and 0x609f1c the wrong way round (fixed after the merge, D3204);
    docs/sum-exe/cutscenes.md step 5 "Saves fog near/far (0x609f1c, 0x609f08)" inherits it.
 3. sum.symbols camera_key_yaw: the summary says "key_down_time(Right) - key_down_time(Left)"; the code (and the
    same entry's "checked" note) is Left - Right.

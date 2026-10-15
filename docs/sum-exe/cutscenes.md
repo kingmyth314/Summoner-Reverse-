@@ -45,7 +45,7 @@ non-releasing pool over a `0x4c00`-byte buffer. **Observed.** The retail table h
 | `$Animation: "fx.vfx" [shot [length]]` | see below | an effect |
 | `$Character Animation: "char" "fx.vfx" [shot [length]]` | see below | an effect attached to a named character |
 | `$Soundtrack: "file.wav"` | `+0x5c` | streamed sound started at shot 0 |
-| `+Minitrack: "file.wav" shot` | `+0x60` count, `+0x64` | sound played at a shot (no retail entry uses it) |
+| `+Minitrack: "file.wav" shot` | `+0x60` count, `+0x64` | meant as a sound played at a shot, but it never plays: `cutscene_load_sounds` sets every minitrack handle to -1 and never loads the file (`0x43508a`..`0x435090`). No retail entry uses it |
 | `$Fog: near far shot` | `+0x74` count, `+0x78` | fog distances from that shot on |
 | `$VisSet: shot "$vis…"` | `+0xb8` count | forced visibility set (`cutscene_parse_visset`, `0x435ff0`) |
 | `$Fade In:` / `$Fade Out: time length shot` | `+0xfc` count, `+0x100` | screen fade, `time` seconds after the shot starts |
@@ -105,17 +105,21 @@ In order (**observed**):
    that is not marked as a cutscene effect (`effect_is_cutscene_base`).
 4. `cutscene_start_special_cases` (`0x4365e0`): "serpent-dismount" sets a walk anim on the rider;
    "Nar-LeneleAct4" turns snow off.
-5. `ui_input_lock`. Saves fog near/far (`0x609f1c`, `0x609f08`) and `Gr_level_fog_multiplier`
-   (`0x601e60`), then sets the multiplier to 1.0.
+5. `ui_input_lock`. Saves the fog near distance in `0x609f08` and the far distance in `0x609f1c`
+   (`fog_get_near_current` and `fog_get_far_current`, `0x4362dc`..`0x4362ec`) and
+   `Gr_level_fog_multiplier` (`0x601e60`), then sets the multiplier to 1.0.
 6. `level_ambient_pause_all`. Saves the music track in `cutscene_saved_music` (`0x59399c`),
    `music_stop(200)` and `snd_stop_all`. See [Sound](sound.md).
 7. `cutscene_load_data` (`0x4353e0`): data path, camera files, actors and effects, sounds. The
    loading bar advances after each step.
 8. `camera_set_sequence_transform(NULL)` on `game_camera`. This clears the shot transform a summon cutscene may have set ([Camera](camera.md#taking-the-camera-over)).
 9. `level_vis_force_begin` when the entry has `$VisSet` lines. `cutscene_script_load(name)`.
-10. For every living character: keep its AI goals, clear its status effects, send it idle when
-    needed, and save four flags in `cutscene_saved_actors` (`0x5fcce8`). The flags are
-    `+0x320` bits `0x2`, `0x20`, `0x2000000` (armour alt texture) and `+0x84` bit 0.
+10. For every living character: keep its AI goals (`ai_goals_mark_keep`) and clear all its effects
+    (`character_clear_all_effects`). A scripted actor (cutscene object `+0x6d8` >= 0) gets its default prop
+    tag back (`+0x720` = `+0x724`) and loses `+0x320` bit `0x1` (combat ready) when its stand and ready
+    animations (`+0x5ac`, `+0x5b8`) differ. A character with `+0x320` bit `0x400` or in AI mode 9 is sent idle
+    (`ai_go_idle`), and bit `0x400` is cleared. Then four flags go to `cutscene_saved_actors` (`0x5fcce8`):
+    `+0x320` bits `0x2`, `0x20`, `0x2000000` (armour alt texture) and `+0x84` bit 0 (`0x4363b6`..`0x436556`).
 11. Clear the hover tints. `gr_set_vsync(1)`. `frame_show_loading_icon = 1`. Set
     `game_flags |= 0x20 | 0x8000`.
 
@@ -137,8 +141,9 @@ check. **Observed.** More than 175 living characters would overwrite the table p
 
 `cutscene_load_files` (`0x434b40`) opens each `$Camera` file from the cutscene path. It checks
 the magic `0x52435343` ("CSCR") and a version of at least `0x20000`. It reads two floats and a
-shot count, then each shot with `cutscene_camera_read_track` (`0x493fd0`). **Observed.** The
-shots fill `cutscene_sequences` (`0x601e80`), 50 records of `0x70` bytes, with the count in
+shot count, then each shot with `cutscene_camera_read_track(file, start)` (`0x493fd0`). **Observed.** The
+shots fill `cutscene_sequences` (`0x601e80`), 50 records of `0x70` bytes with no bound check (the longest
+retail cutscene, Act2-Outro, has 48 shots in its camera files), with the count in
 `cutscene_num_sequences` (`0x601e7c`). Record `+0xc` is the shot start and `+0x10` the shot end,
 in seconds. Each shot starts where the previous one ended. **Observed.** So the
 `0x601e90 + i*0x70` value in [Timing bugs](timing-bugs.md) is the end time of shot `i`.
@@ -150,7 +155,10 @@ frame becomes `cutscene_frametime` (`0x257f094`), which drives AI and objects du
 cutscene. When `end[i] - cutscene_time_offset - t <= 0` it moves to the next shot. **Observed.**
 
 - Shot 0 starts the clock, streams `$Soundtrack` (handle in `cutscene_stream_sound`,
-  `0x5939a0`) and resets the frame delta.
+  `0x5939a0`) and resets the frame delta (`cutscene_last_time` = 0). The sound handle is the object's
+  `+0x1630` (`0x603498`). `cutscene_unload` frees it but does not reset it, so an entry without
+  `$Soundtrack` (the four dragon summons) streams the slot the previous cutscene left behind
+  ([Game bugs](game-bugs.md) K190). **Observed.**
 - Every shot calls `camera_start_sequence` (`0x4792c0`) with its record.
   `cutscene_camera_sequence_sample` (`0x494310`) samples the position and rotation tracks
   (`anim_track__get_position` / `get_rotation`) from the same `timeGetTime` clock.
@@ -165,10 +173,10 @@ The clock is unsigned time put through a signed 64-bit load. That is the ~24.9-d
 
 | Event | Rule |
 |---|---|
-| Fades | at shot 0: instant black if the first fade is a Fade In, else instant clear. Then each `$Fade` fires once its shot is reached and `time` seconds have passed in it. Length is seconds (`gr_fade_out` / `gr_fade_in`). |
+| Fades | at shot 0: instant black if the first fade is a Fade In, else instant clear. Then the fades fire one at a time in table order: the next `$Fade` fires once its shot is reached and `time` seconds have passed since the start of the current shot (`0x436fd2`..`0x4370d6`). Length is seconds (`gr_fade_out` / `gr_fade_in`). |
 | Effects | at their shot: `fx_attach_to_character` for a character effect, `fx_create_at_camera` when the name contains "camera", else `fx_create_world`. Handles go in `cutscene_fx_handles` (`0x603470`). With a length, rendering stops at shot + length ("Stopping render of effect"). |
-| Minitracks | `snd_play` at their shot |
-| Fog | `cutscene_get_fog_distances` picks the `$Fog` key for the current shot |
+| Minitracks | `snd_play` at their shot, always with handle -1, so nothing plays (`0x436fa0`; see the table above) |
+| Fog | `cutscene_get_fog_distances` (`0x4354a0`) takes the last `$Fog` key whose shot has been reached. Before the first key's shot, or with no `$Fog` line, it reads `fogs[-1]` (the count word as a pointer) and would crash; every retail entry has a key at shot 0 (game bug C190) |
 | Visibility | `cutscene_apply_vis_overrides` for the current shot |
 | Script | `cutscene_script_entries_frame` (`0x4ed680`) |
 
@@ -217,15 +225,18 @@ the next frame. *Inferred.* `stop_cutscene` also calls `cutscene_cleanup`.
 `cutscene_cleanup` (`0x436620`) returns unless bit `0x20` is set and data is loaded. Then
 (**observed**):
 
-- Hides the loading icon. Releases cutscene sounds (`snd_level_release`). Fades out the
-  soundtrack over 200 ms. Clears bit `0x20`.
+- Hides the loading icon, decrements `cutscene_active_count` (`0x257f090`) and sets `cutscene_frametime`
+  (`0x257f094`) to 0. Releases the sounds loaded since `cutscene_load_sounds` (`snd_level_release`, which also
+  frees the soundtrack's slot). Fades out the soundtrack stream over 200 ms. Clears bit `0x20`.
 - Restarts `cutscene_saved_music`. Sets bit `0x8000`. Calls `gr_set_vsync(0)` and
   `cutscene_end_special_cases` (snow back on).
 - `cutscene_script_unload` restores the actors' equipment and AI.
 - For each character: speed scale, AI, and the four saved flags, matched by name hash. The first
   saved record with the same name wins. *Inferred* effect for characters that share a name.
 - Unpauses ambient sounds. `camera_end_sequence(1)` pops the saved camera. Restores fog and the
-  fog multiplier. Calls `level_vis_force_end`.
+  fog multiplier. Calls `level_vis_force_end` when the entry has `$VisSet` lines.
+- When the current summon has `+0x320` bit `0x800` (a dragon kept through its cutscene), destroys every
+  active effect that summon owns (`0x43690b`..`0x436977`).
 - Destroys the cutscene effects ("killing off %d effects") and calls `cutscene_unload`,
   `effects_release_cutscene_memory` and `frametime_restore_limits`.
 - `ui_input_unlock` (skipped when bit `0x8` is set), `fx_resume_after_cutscene`,
@@ -246,8 +257,11 @@ are *unknown*.
 
 ## Open questions
 
-- The two floats at the start of a `.csc` file and the exact setup of `cutscene_time_offset`
-  (`0x601e70`).
+- *Answered 2026-10-15:* `cutscene_load_files` reads the two floats at the start of each `.csc` file and
+  drops them (`0x434cd5`, `0x434cea`); what they hold is still *unknown*. It sets `cutscene_time_offset`
+  (`0x601e70`) to the running start time before the first file (`0x434cfe`..`0x434d01`), which is always 0, and
+  `cutscene_unload` sets it to -1. The end of the last shot goes to object `+0xc` (`0x434dc6`), which nothing
+  in the cutscene code reads. **Observed.**
 - *Answered 2026-10-15:* `gr_set_vsync` (`0x506160`) turns vsync on for the cutscene (DirectDraw `Flip` without
   `DDFLIP_NOVSYNC`, the Glide swap interval) and off again in `cutscene_cleanup`. **Observed.**
 - What `cutscene_playing` (`0x609f34`) was for. It is set only when the entry is named

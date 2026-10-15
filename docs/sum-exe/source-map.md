@@ -408,9 +408,9 @@ interface manager) in sum.symbols. They use the interface file's .bss (0x5bd780,
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x430bc0 | 0x4317e0 | editor dialog boxes (editor_dialog_*) | init_empty run at 0x430bc0; .bss 0x5fa278-0x5fa29c, .data 0x59309c-0x5930a4 |
-| 0x431870 | 0x4323d0 | boot / title / load-game states, game_change_level, us_open_demo ccmd | init run (ui_window/listbox/static/button objects) at 0x431870; .bss 0x5fa2c8-0x5fbf1a, .data 0x5930b8-0x5931a0 |
-| 0x4323e0 | 0x433280 | frame end, pause, input polling, screenshots, cursors, Gamewide_* display ccmds | .bss 0x5fbf20-0x5fc029 (one byte-flag run 0x5fc01c-0x5fc022: FrameEnd reads the gr_info flag 0x5fc020, screenshot_save the targa flag 0x5fc022), .data 0x5931b0-0x5934b4 (cmd_net_stats reads 0x5931b0) |
+| 0x430bc0 | 0x4317e0 | editor dialog boxes (editor_dialog_*) | init_empty run at 0x430bc0; .bss 0x5fa278-0x5fa2c7 (count, six colours, the list head as a whole 0x30-byte dialog); no initialised data, only the literal pool 0x59309c-0x5930b7 (corrected 2026-10-15; the row said .bss 0x5fa278-0x5fa29c, .data 0x59309c-0x5930a4) |
+| 0x431870 | 0x4323d0 | boot / title / load-game states, game_change_level, us_open_demo ccmd | init run (ui_window/listbox/static/button objects) at 0x431870; .bss 0x5fa2c8-0x5fbf1a, .data 0x5930b8-0x5931af (build_stamp_pending 0x5930b8 first, the literal "Load" 0x5931a8 last) |
+| 0x4323e0 | 0x433280 | frame end, pause, input polling, screenshots, cursors, Gamewide_* display ccmds | .bss 0x5fbf20-0x5fc029 (one byte-flag run 0x5fc01c-0x5fc022: FrameEnd reads the gr_info flag 0x5fc020, screenshot_save the targa flag 0x5fc022), .data 0x5931b0-0x5934cb (cmd_net_stats reads 0x5931b0; the last literal, "Gamewide_show_gr_info" at 0x5934b4, ends at 0x5934ca) |
 | 0x433340 | - | player.cpp starts | player .bss starts 0x5fc030 (party lists), .data 0x593508; path string 0x5938bc |
 
 Tags to check: the 12 functions 0x432f80-0x433280 (ccmds show_hud_info, targa, net_stats, gr_info) are tagged
@@ -421,15 +421,16 @@ player.cpp. Their ccmd objects 0x5fbf20/0x5fbff8/0x5fc008/0x5fbf30 and flags 0x5
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x4343a0 | 0x4349a0 | player input, camera keys, slew ccmd, and the static objects of the cutscene system (cutscene 0x601e68, 85 entries 0x6034c8, NoRlsAllocPool 0x5fccc0) | optimised code (no ebp, 0x90 padding) up to the unoptimised run; .bss 0x5fcca8-0x609f08; .data 0x593950-0x593988 (between player.cpp and cutscene) |
-| 0x4349b0 | 0x437650 | cutscene playback (unoptimised file) | ebp frames + 0xcc padding, exact ends; own .bss 0x609f30-0x609f38 |
+| 0x4343a0 | 0x4348b0 | player input, camera keys, slew ccmd | optimised code (no ebp, 0x90 padding), ends with slew_set_enabled's ret at 0x4348f6; .bss 0x5fcca8-0x5fccb8; .data 0x593948-0x593998 (its five literals, between player.cpp and cutscene) |
+| 0x434900 | 0x437650 | cutscene playback: the optimised initialisers of its three objects (cutscene 0x601e68, 85 entries 0x6034c8, NoRlsAllocPool 0x5fccc0; static_initializers entries 111-113), then the rest of the file compiled without optimisation | ebp frames + 0xcc padding after 0x4349a5, exact ends; .bss 0x5fccc0-0x609f3b (the three objects interleave with variables only the unoptimised code uses, cutscene_saved_actors 0x5fcce8 and ccmd_play_cutscene 0x6034b8); .data 0x59399c-0x593c31 (cutscene_saved_music, cutscene_stream_sound, then the literals); corrected 2026-10-15 (D3201), the table cut at 0x4349b0 |
 | 0x437660 | 0x43a300 | **gameplay.cpp** | strings.tbl id 622 (`// gameplay.cpp`) read by party_member_join 0x439ba0 (the other reader, party_add_member, is in player.cpp by path string); one .bss block 0x609f40-0x60ab5f (the help ui_window 0x60a670 and state_loading_active 0x60ab5c included; gametarget.cpp starts at 0x60ab60): game_render_frame and cmd_render_3d_obstacles share 0x60a665, state_game_frame/state_game_enter use 0x60a630/0x60a654 between the ccmd objects 0x60a420-0x60a658 |
 
 Tags to check: 0x4343a0-0x4348b0 is tagged gameplay.cpp ("slew ccmd group heads gameplay unit"). It cannot be the
 same file as 0x437660-0x43a300, which holds the strings.tbl evidence: the unoptimised cutscene file lies between them,
-and its .data (0x593950) is below cutscene's, gameplay's is above (0x593c34-0x5943f0). The 0x434900-0x4349a0
-initialisers are optimised (`.n`), so they are not part of the unoptimised cutscene file (whose own initialisers,
-like living_entity.cpp and objects.cpp, would open ebp frames); they end the 0x4343a0 unit.
+and its .data (0x593948) is below cutscene's, gameplay's is above (0x593c34-0x5943f0). The 0x434900-0x4349a0
+initialisers are optimised (`.n`), but their three objects lie inside the cutscene file's .bss, between variables
+that only its unoptimised code uses. So they belong to the cutscene file, which switches optimisation off after them
+(`#pragma optimize("", off)`, as in D3007; D3201). Corrected 2026-10-15: this note said they end the 0x4343a0 unit.
 
 #### 0x43eb00-0x442380 (table rows 0x43ec90-0x43f9d0 and 0x43f9e0-0x4425c0)
 

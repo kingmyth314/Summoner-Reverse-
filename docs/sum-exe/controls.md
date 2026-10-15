@@ -21,11 +21,17 @@ natural hook for [custom key bindings](../roadmap.md#custom-key-bindings-for-pla
      and German keyboards;
    - updates `key_down_state` and `key_press_counts`;
    - pushes the code to the key queue.
-3. Once per frame, `PollInputEvents` (`0x432710`) takes one code with `key_inkey` (call at
-   `0x432754`):
-   - **Shift+Esc** (`0x1001`) quits (`gameseq_set_state(3)`);
-   - **PrtSc** (`0xb7`) sets a flag in `game_flags`;
-   - any other code is returned.
+3. In game, `input_drain_events` (`0x434440`) calls `PollInputEvents` (`0x432710`) until it returns 0, and
+   passes each code to step 4. While the game window is in the background, `PollInputEvents` first waits
+   (`os_poll` and 100 ms `timer_wait` steps, with `game_pause_count` raised). Then it takes one code with
+   `key_inkey` (call at `0x432754`):
+   - **Shift+Esc** (`0x1001`) quits (`gameseq_set_state(3)`) in single player. In multiplayer it leaves the
+     game through `mp_player_disconnected` (reason 2 when the local player's flag `0x1` is set, else 0), and
+     does nothing while the game is paused;
+   - **PrtSc** (`0xb7`) sets `game_flags` bit `0x40`; `FrameEnd` saves the screenshot at the end of the frame;
+   - a debug Backspace (`0x800e`) would flush the key queue, but the debug modifier that `key_mark` adds is
+     `0x800`, so that code never arrives (dead code);
+   - these three return 0; any other code is returned.
 4. `interface_frame(code)` (`0x4119a0`) offers the code to the open screen's handler. With no
    screen open, `hud_frame` → `hud_handle_keys` handles it.
 
@@ -69,10 +75,11 @@ Confirmed from in-game frame captures (2026-10-13).
 
 | Flag | Meaning |
 |---|---|
-| `0x04` | Left click (move / act); `0x08` added with Ctrl |
-| `0x10` | Left button held for more than 400 ms |
-| `0x01` / `0x02` | Right button pressed / clicked |
+| `0x04` | Left button pressed outside the panels (move / act). It is assigned, not added, so it drops the Shift, Alt, right-button and held bits set earlier in that frame; `0x08` is then added with Ctrl |
+| `0x10` | Left button still held at least 400 ms after a press outside the panels |
+| `0x01` / `0x02` | Right button pressed / released (outside the panels) |
 | `0x20` / `0x40` | Shift / Alt held |
+| `0x40000000` / `0x80000000` | Left press while the grave key (`0x29`) is held, with / without Shift (`0x434609`..`0x434633`) |
 
 `camera_process_input` (`0x434660`) controls the camera:
 - **Rotation:** Left/Right arrows, or the mouse within 3-4 pixels of the left/right screen

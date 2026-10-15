@@ -63,13 +63,23 @@ the loop runs as fast as the frame limiter allows.
    - call the new state's *enter* handler.
 2. **Frame timer.** If `0x2491a5c == 1`, set `frame_dt = 0` (frozen). Otherwise call
    `FrameTimer`. *Inferred:* the flag is pause or cutscene freeze.
-3. `FUN_00500a90` and `FUN_005011e0` (*inferred:* input and cursor).
-4. Multiplayer packet statistics, if debug flag bit 1 of `0x5fbfd8` is set.
+3. `mouse_update` (`0x500a90`), then `mouse_get_pos` (`0x5011e0`) into `game_mouse_x`, `game_mouse_y` and
+   `game_mouse_z` (`0x5fbfdc`, `0x5fbfe0`, `0x257ef80`).
+4. In multiplayer (`game_flags` bit `0x2` at `0x5fbfd8`, set by `state_title_enter`; not a debug flag): clear
+   the per-type packet counters and run `multi_do_frame` (`0x4413d0`). Then `effect_stream_update` (`0x4408a0`)
+   when `effect_stream_state` (`0x65139c`) is 1.
 5. **The state's per-frame handler** (`state_table[cur].frame`). This is where gameplay
    runs, using `frame_dt`.
-6. `FUN_00431640`, then `FrameEnd` (`FUN_004328b0`): screenshot message, the
-   `FPS=%3.1f` counter when `show_framerate` is on, render statistics, then
-   *inferred* buffer flip (`FUN_00506a20`).
+6. In multiplayer, one "Packet type %d created %d time(s)" line per used packet type is formatted into
+   `string_buffer` and never shown (`0x40113d`..`0x401173`). Then `editor_dialogs_free_closed` (`0x431640`,
+   frees the script editor's closed message boxes) and `FrameEnd` (`0x4328b0`). `FrameEnd` draws
+   `game_status_message` while its timer runs (nothing in v1.40 sets either, so it never shows), the
+   `FPS=%3.1f` counter when `show_framerate` is on and no screen is open (`interface_get_screen() == 0`), and
+   the `gr_info` render statistics, which never appear because nothing adds to `gr_info_total_time`
+   (`0x2396c90`). It then draws the mouse cursor when `cursor_visible` (`0x5fc01c`) is set and the cutscene
+   loading icon in state 4, saves the screenshot that Print Screen requested (`game_flags` `0x40`), calls
+   `gr_flip` (`0x506a20`) unless `game_flags` bit `0x8000` is set (the bit is then cleared), and ends with
+   `snd_do_frame` (`0x432d48`). **Observed.**
 7. Return `cur` state to `MainLoop`.
 
 ### Game-state table (`0x588a70`)
@@ -119,7 +129,11 @@ flowchart LR
     S4 -->|load failed| S1["state 1"]
 ```
 
-- **`game_change_level`** (`0x431a40`) copies the level and script names and always sets state 2.
+- **`game_change_level`** (`0x431a40`) clears `level_prev_filename`, sets `level_entry_point` to 1, copies the
+  level name and the script name (for a NULL script: the level's first `conversation_save_table` name, or the
+  level name) and always sets state 2. It sets `level_entered_by_load` when a save is pending, or when the
+  level is `masad` (`level_script_find` index 3) with script `masad`, and sets the byte `0x5fbf18`, which
+  nothing reads, when it runs before the first state (`0x431a57`..`0x431b62`).
   Its callers are `mainmenu_start_new_game` (level 3, `masad`), `saveload_load_selected`, `quickload`,
   `cmd_loadgame`, `cutscene_change_level_for` (console), `mp_change_level` and the unreachable state 8.
 - **State 2 enter** (`state_title_enter`, `0x431e20`) plays the "Title" music, resets the objects, the
@@ -250,8 +264,9 @@ on any PC whose frames are much shorter than 1/120 s. See
 
 ## Other timers (not yet analysed)
 
-- `FUN_00436a90` (and `0x436c00`, `0x494310`): a `timeGetTime`-based sequence timer,
-  probably for cutscenes or scripted events. See
+- `cutscene_sequence_update` (`0x436a90`), `cutscene_events_frame` (`0x436c00`) and
+  `cutscene_camera_sequence_sample` (`0x494310`): the `timeGetTime` shot clock of the
+  [cutscenes](cutscenes.md#shots-timing-and-events). See
   [the cutscene bug](timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime).
 - `FUN_00566560`: a `timeSetEvent` multimedia timer, probably audio.
 - `FUN_0053171f`: system info dump (CPU type, speed, RAM); it times a memory copy.
