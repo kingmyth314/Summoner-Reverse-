@@ -116,7 +116,7 @@ In order (**observed**):
 10. For every living character: keep its AI goals, clear its status effects, send it idle when
     needed, and save four flags in `cutscene_saved_actors` (`0x5fcce8`). The flags are
     `+0x320` bits `0x2`, `0x20`, `0x2000000` (armour alt texture) and `+0x84` bit 0.
-11. Clear the hover tints. `gr_set_cfg_34_flag(1)`. `frame_show_loading_icon = 1`. Set
+11. Clear the hover tints. `gr_set_vsync(1)`. `frame_show_loading_icon = 1`. Set
     `game_flags |= 0x20 | 0x8000`.
 
 Bit `0x8000` makes `FrameEnd` skip one `gr_flip` and then clears itself, so one frame is never
@@ -219,7 +219,7 @@ the next frame. *Inferred.* `stop_cutscene` also calls `cutscene_cleanup`.
 
 - Hides the loading icon. Releases cutscene sounds (`snd_level_release`). Fades out the
   soundtrack over 200 ms. Clears bit `0x20`.
-- Restarts `cutscene_saved_music`. Sets bit `0x8000`. Calls `gr_set_cfg_34_flag(0)` and
+- Restarts `cutscene_saved_music`. Sets bit `0x8000`. Calls `gr_set_vsync(0)` and
   `cutscene_end_special_cases` (snow back on).
 - `cutscene_script_unload` restores the actors' equipment and AI.
 - For each character: speed scale, AI, and the four saved flags, matched by name hash. The first
@@ -248,7 +248,8 @@ are *unknown*.
 
 - The two floats at the start of a `.csc` file and the exact setup of `cutscene_time_offset`
   (`0x601e70`).
-- What `gr_set_cfg_34_flag` (`0x506160`) changes during a cutscene.
+- *Answered 2026-10-15:* `gr_set_vsync` (`0x506160`) turns vsync on for the cutscene (DirectDraw `Flip` without
+  `DDFLIP_NOVSYNC`, the Glide swap interval) and off again in `cutscene_cleanup`. **Observed.**
 - What `cutscene_playing` (`0x609f34`) was for. It is set only when the entry is named
   "Placeholder", and nothing reads it. **Observed.**
 - Whether the missing-file path above can happen with retail data.
