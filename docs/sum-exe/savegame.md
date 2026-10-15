@@ -19,6 +19,8 @@ buttons) *are* the live game state. The game reads and writes them in the buffer
 writes them to the file unchanged and loading reads them back. There is no compression, encryption or
 checksum over the data.
 
+`tools/savinfo.mjs` reads these fields from a save file (read-only).
+
 ## Evidence
 
 - Disassembly (`node tools/asm.mjs fn`) of `savegame_write` (`0x4d1c40`), `savegame_read` (`0x4d25b0`),

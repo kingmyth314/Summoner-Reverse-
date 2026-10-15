@@ -195,6 +195,17 @@ the load screen's Load (798, 368).
 
 Set `Agent=0` again for normal play.
 
+## `tools/savinfo.mjs`
+
+Read-only savegame inspector, based on [Savegame format](sum-exe/savegame.md). It prints the header (level, description,
+play time, section sizes) and the party members from the `LENT` chunk: level, experience, HP/AP, skill points and
+equipped items. Item names are shown when `items.tbl` has been extracted. `--all` also lists the other entity records.
+
+```
+node tools/vpp.mjs extract Summoner/tables.vpp items.tbl
+node tools/savinfo.mjs Summoner/savegame/summoner7.sav
+```
+
 ## `tools/addsym.mjs`
 
 Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address
