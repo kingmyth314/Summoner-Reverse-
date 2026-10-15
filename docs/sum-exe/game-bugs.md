@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 59 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 65 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 3 | 10 | 2 |
-| Gameplay | 9 | 2 | 3 |
+| Gameplay | 13 | 4 | 3 |
 | Cosmetic | 14 | 4 | 1 |
 | Invisible | 4 | 12 | 0 |
 
@@ -138,6 +138,12 @@ play. A path that leaves an object linked would hang.
 | G9 | Alt+Tab does not work: the game takes the focus straight back | `os_wndproc` `0x530ff0` | **Observed** at runtime | Fixed |
 | G10 | Latent: adding gold to a container that already holds gold loses the gold and leaves a stale slot | `container_add_item` `0x46aa30` | **Observed** code, *inferred* effect | No |
 | G11 | Latent: using aimed attack (or forge, mine, enchant) as a skill takes the AP and does nothing | `character_use_skill` `0x429410` | **Observed** code, *inferred* effect | No |
+| G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code and retail data, *inferred* effect | No |
+| G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code, *inferred* effect | No |
+| G14 | Multiplayer: when a player closes a container after taking some items, the other machines drop the container's last entries instead of the taken ones | `mp_handle_container_close` `0x488eb0` | **Observed** code, *inferred* effect | No |
+| G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No |
+| G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
+| G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -197,6 +203,62 @@ sends aimed attack to its popup (`skills_handle_mouse`), and the popup uses the 
 legs). The panel also refuses to drag 0x11 or 0x1b onto a hot button (`cmp esi, 0x11` at `0x4288aa`,
 `cmp esi, 0x1b` at `0x4288af`). The creation skills have no icon (`skills_icon_names[24..26]` = 0), so no retail
 path reaches the bad case. Found in the [`new_skill.cpp`](../../src/decomp/game/new_skill.cpp) notes.
+
+**G12. Record index stored for three fields.** `spells_parse_table` parses `+Recovery time:`, `+AI Recovery time:`
+and `+Loop Time:` and then stores the loop counter `bp`, not the parsed value (`mov word [esi-0x12], bp` at
+`0x47a49c`, `[esi-0x10]` at `0x47a4c1`, `[esi-0xe]` at `0x47a50b`; `ebp` is the record index, `inc ebp` at
+`0x47a648`). `TextFile__Accept` compares with `_strnicmp` (`0x516134`), so the table's "+AI Recovery Time:" and
+"+Loop time:" spellings do match. `character_perform_spell_cast` passes `+0x66` to
+`character_start_spell_recovery` (`0x45dc7a`), which starts the cooldown as the cast effect's length plus that
+value (`0x44dcf0`..`0x44dd1f`). For type 5 characters (the type of a summon that turned hostile, see
+[Summons](summons.md)) it uses `+0x68` instead (`0x44dce6`); `ai_consider_area_spell` also reads `+0x68`
+(`0x4bf068`). Retail `spells.tbl` has `+Recovery time:` on six spells: invisibility 0 -> 11, fireball 20 -> 26,
+wall of fire 20 -> 29, dark wall 20 -> 31, blizzard 25 -> 35, Pyrul fireball 20 -> 78. Twenty spells have
+`+AI Recovery Time:`, for example vitalize 10 -> 4, death 30 -> 12, curse 10 -> 23, ice coffin 25 -> 36.
+Spells without the line keep their `+Duration:` (or -1, no cooldown) as before. `+Loop Time:` is read only by
+`status_effect_duration` for status 8 (`movsx eax, word [0x22e5512]` at `0x47ab90`, spell 11 invisibility,
+10 -> 11 s). That is the tick period of the status, and `character_update_status_effects` has no tick action
+for status 8 (case byte 3 at `0x45bf3c + 3`), so this part has no effect. See
+[Spells](game-tables.md#spells).
+
+**G13. `cur_character` instead of the attacker.** The three status branches load `mov ecx, [0x5fcc88]` before
+`character_get_skill(0x11)` (`0x4663c0`, `0x466468`, `0x466510`) and compare the result with `frand()`. The
+cases also serve blindness stab, arm slice and leg swipe. In multiplayer every machine resolves other players'
+hits with its own selected character. In single player the aimed attacks are started through
+`character_use_skill` for the selected character, so the wrong skill is used only when the selection changes
+before the hit lands. Monsters never pick these skills (`living_combat::ai_choose_special` only takes ids below
+`0x24`).
+
+**G14. The container handle is read for every item.** The loop pushes `ebp`, the container's net handle from
+`data + 4`, for each taken item (`push ebp` at `0x488f00`), not the item handles that `mp_send_container_close`
+appends after the count (`0x488e08`..`0x488e2a`). So `container_remove_item` gets the container itself. It does
+not find it, but still decrements `num_items` (`0x46abf5`..`0x46ac04`). Each taken item therefore drops the
+*last* entry on the receiving machines (the host too, which then forwards the packet). When every item was
+taken the count reaches 0 and the container is deleted, as intended. Otherwise the taken items stay listed
+there and as many untaken ones vanish from the list.
+
+**G15. Negated die.** For damage the handlers pass the table's die negated (`neg eax` at `0x45e4d6` for
+lightning; nine `neg` sites in all), and `spell_roll_amount` rolls `floor(frand() x die + 1)` per die
+(`0x47f51e`..`0x47f549`). With die 6 that is 1..6 for a heal but 0..-5 for damage. Lightning (d6) and the other
+damage spells with a `+Die:` in retail `spells.tbl` lose one point per die on average. A designer may have tuned the tables to this, so the intent is *inferred*. See
+[Combat](combat.md#spell-hits).
+
+**G16. Both exits return.** When the free-slot search fails (`0x47e705`..`0x47e716`), the function clears the
+slots whose effect object is gone (`0x47e71d`..`0x47e745`) and then searches again, but both outcomes return
+(`je 0x47e821` at `0x47e74f`, `ret` at `0x47e765`). The missile is never recorded, so `spell_fire_missile`
+finds no slot (`spell_missile_remove` returns -1) and creates no missile. Slots are also freed when a missile
+fires, when its caster dies or plays a new move (`fx_remove_missiles_from`, callers `0x4538cf`, `0x460fcd`) and
+on entering a level (`spells_reset_runtime`), so 20 pending missiles at once are needed. We know of no retail
+fight that reaches that.
+
+**G17. No test for -1.** For each offered item that is not gold, `mp_trade_complete` subtracts the count at
+`party_inventory[party_inventory_find_type_index(type)]` (`0x471914`..`0x471929`) without testing for -1. Slot
+-1 is `0x970818`, the handler pointer of `ccmd_add_gold` (`0x970810`, set by `console_command__console_command`
+at `0x50a1dc`). The pointer stays positive, so `party_inventory_remove` is not called. The offered item stays in
+the inventory, the partner still gets it, and "add_gold" later jumps into the wrong code. The offer is built
+from the inventory with merged types and the count checked (`itemtrade` click handler), and the trade is
+cancelled when the character dies, hides or leaves AI mode 1 (`NOTES-multi.md`). We found no way to lose an offered item while the
+trade screen is open.
 
 ## Cosmetic
 
@@ -419,6 +481,10 @@ again from 3 units above the layer floor. It was probably meant to run only when
 | Loot gold is lost when the inventory is full | earlier notes | The gold loss is in the shop **buy** path (G5), not in loot pickup |
 | Level select button 31 scrolls the wrong way | earlier notes | The button is in the multiplayer **character** select screen (K2) |
 | Only slots 0, 1, 4 and 5 of the 8-entry stream ring are reachable | [`src/decomp` notes](../../src/decomp/README.md) | True for the 6-slot ring (V2). The 8-slot ring reaches all 8 (V6) |
+| Invisibility lasts 11 s instead of 10 because of the parser | `src/decomp/game/NOTES-spells-combat.md`, `spells.cpp` comment at `status_effect_duration` | `+Loop Time:` sets status 8's tick period (`0x454b29`..`0x454b3a`), not its length, and status 8 has no tick action. The real effect of the parser slip is on cooldowns (G12) |
+| After a container close the other machines keep the taken items and never delete an emptied container | `src/decomp/game/NOTES-multi.md` bug 1 | `container_remove_item` decrements the count even on a miss, so the last entries go and an emptied container is deleted (G14) |
+| Life leech is `0x450c70` with -0.1 / 0.1 of the damage | [Combat](combat.md) | `0x450c70` is `character_add_ap`, used by mind drain; life leech heals with `character_add_hp` (corrected on the page) |
+| Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
 (`0x479430`) is empty. They look like cut features ([Camera](camera.md)). The other oddities in the decompilation notes were checked again on 2026-10-15. Those that are bugs are in
@@ -452,6 +518,13 @@ the tables above; the rest are below.
   key handling. Multiplayer has the pointer. *Unclear* rather than disproved, because we have not proved that the
   play menu can never open in mode 5.
 
+- Backstab halved when the target is in combat mode (`je 0x4651b1` at `0x465193`): shared with the aimed
+  attacks' `x 0.5`, and consistent with x2.5 against an unaware target. A design choice, not a slip.
+- Status 16 blocking heals and dropping damage beyond its value (`0x450abc`..`0x450b1d`): consistent for a full
+  shield; intent unknown, not counted.
+- `spell_roll_amount` letting a resistance above 1 turn spell damage into healing (`0x47f583`..`0x47f592`): it
+  looks deliberate (absorption), not counted.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -463,6 +536,9 @@ the tables above; the rest are below.
 - The other parse.cpp remarks in `NOTES-memory-parse.md` (Error's 40-byte copy, ParseMultiline's trim,
   ParseFlags' NULL entry, AcceptQuoted's advance, `wide_charmap_to_string`, `stristr`,
   `allocate_in_commonblock`'s 2 slots) were not checked again.
+- Medevan technique (`0x40`) plays an attack move (`living_combat::play_skill_attack`) but deals 0 at the first
+  attack-type pass (byte 6 at `0x465d40 + 0x36`) and has no case in either side-effect table (`0x465d8c`,
+  `0x46659c + 0x36` = default). Whether the skill does its work elsewhere was not traced.
 
 ## Evidence
 
@@ -528,3 +604,9 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V14 16-bit TGA | `tga_convert_pixels` `0x55502f`..`0x555052` |
 | V15 floor probe | `item_obj_spawn` `0x46a52d`..`0x46a535`, `0x46a5d8` |
 | V16 helpers | `character_instance__get_anim_root_velocity` `0x51b1f7`..`0x51b226` |
+| G12 recovery times | `spells_parse_table` `0x47a49c`, `0x47a4c1`, `0x47a50b`, `0x47a648`; `character_start_spell_recovery` `0x44dce6`..`0x44dd1f`; `character_perform_spell_cast` `0x45dc7a`; `status_effect_duration` `0x47ab90` |
+| G13 aimed attack skill | `combat_apply_melee_hit` `0x4663c0`..`0x4663df`, `0x466468`..`0x466487`, `0x466510`..`0x46652f` |
+| G14 container close | `mp_handle_container_close` `0x488f00`..`0x488f15`, `0x488f4f`..`0x488f77`; `container_remove_item` `0x46abf5`..`0x46ac04`; `mp_send_container_close` `0x488e08`..`0x488e2a` |
+| G15 damage dice | `living_entity_get_hit_by_spell` `0x45e4ca`..`0x45e4d8`; `spell_roll_amount` `0x47f513`..`0x47f551` |
+| G16 missile slots | `spell_launch_missile` `0x47e700`..`0x47e765`; `spell_fire_missile` `0x47e883` |
+| G17 trade slot | `mp_trade_complete` `0x471913`..`0x47193e`; `party_inventory_find_type_index` `0x46bd91`; `console_command__console_command` `0x50a1dc` |
