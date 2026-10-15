@@ -254,6 +254,55 @@ The one split file is `vsdk\gr\gr.cpp`. It is a single file that the `.bss` rule
 interface code between `new_hud.cpp` and `new_inventory.cpp`, and the party-inventory block after `objects.cpp`.
 `--score` lists any remaining "stray?" tags for review.
 
+### Units without a file name (2026-10-15)
+
+For 40 units no source path or reference names the file. They are labelled by what their functions do (from the
+names and the strings they use; *inferred*). Many still hold several files that the splitter merges, for example
+bosses, `level_scripts_common.cpp` and the savegame code in one unit. These are the next places to cut by hand.
+
+| Range | What it holds | Evidence |
+|---|---|---|
+| `0x411330`-`0x414a10` | interface manager (interface_init/frame/draw, tooltips, HUD messages, static colours) | names interface_*, ui_tooltip_*, hud_draw_message; .cpp tag removed by commit 04c1de1 |
+| `0x414a20`-`0x414d40` | HUD message display and pulse colour, show_ui ccmd | names hud_show_message, color_pulse_scale; .cpp tag removed by commit 04c1de1 |
+| `0x430be0`-`0x4333d0` | game state machine: boot/title/loadgame states, pause, FrameEnd, screenshots, cursors | names state_boot_*/state_title_*/state_loadgame_*, FrameEnd, screenshot_save; strings "Title", "screen%03d", c |
+| `0x437660`-`0x43a300` | game/loading states: level load and unload, state_game_*, party control, loading screen | names state_game_enter/frame/leave, level_load*, state_loading_*; strings.tbl places 0x439ba0 in gameplay.cpp  |
+| `0x43ec90`-`0x43f9d0` | multiplayer menu states and IRC lobby (channels, users, chat) | names state_mp_*, lobby_*; strings.tbl ids for summoner_cd.cpp at 0x43e9b0 lie just before; no path string |
+| `0x43f9e0`-`0x4425c0` | multiplayer session/net frame, monster layouts, effect streaming | names mp_server_*, mp_client_*, multi_process_packet, monster_layout_*, effect_stream_*; strings ".mlo"; no pa |
+| `0x464010`-`0x469010` | melee/ranged combat resolution (living_combat_*, combat_*) | names combat_*, living_combat_*; strings.tbl combat.cpp at 0x464700-0x464f50; .cpp tag removed by commit 04c1d |
+| `0x46b460`-`0x46c570` | party/shop inventory lists and equipment | names party_inventory_*, shop_inventory_*, character_equip_item; items.cpp tags removed by commit 04c1de1 |
+| `0x46dd90`-`0x46dda0` | level mempool static initialiser | init_mempool_level only; .bss 0xa5a380; no string evidence |
+| `0x46ddc0`-`0x46e0c0` | lightmap/mesh console commands (test_meshes_on_load, load_lightmaps, p3d_files, lmap_reset) | ccmd names; directly precedes the s3d.cpp unit (s3d.cpp path string at 0x46f201); no own path string |
+| `0x470e30`-`0x472020` | multiplayer item trade (mp_trade_*, it_rqst/acpt/... packets) and player removal | names mp_trade_*, mp_send/handle_it_*; strings.tbl multitrade.cpp at 0x470f80 |
+| `0x472030`-`0x472040` | realtime-timer array static initialiser | init_realtimetimers_22e48e0 only; sits between the multitrade-like unit and the 0x472060 unit |
+| `0x492b00`-`0x49c7c0` | AI groups, cutscene camera sequences, snow, serpent/phoenix/tiger bosses | names ai_group_*, cutscene_camera_sequence_*, snow_cell_*, serpent_*, phoenix_*, tiger_*; "SnowFlake.tga"; no  |
+| `0x4a1d90`-`0x4a37d0` | boss mount/target dispatch helpers | names boss_*_dispatch, boss_target_list_*; follows the boss_ai.cpp unit (its path string is at 0x4a1812) |
+| `0x4a37e0`-`0x4a4f00` | blob shadows (shadow list, project onto level faces) and obstacle debug draw | names shadow_*, shadows_render, obstacles_debug_render; no path string |
+| `0x4a4f30`-`0x4a6710` | pathfinding geometry: BSP cell lookup, grid hash, 2D segment tests | names pf_*, seg2d_*, grid_hash_*; pathfinding.cpp tags removed by commit 04c1de1 |
+| `0x4a6720`-`0x4a67e0` | vector3-array static initialisers ahead of avoidance code | init_vector3_arrays_*, static_init_ccmd_avoidance; .bss 0x2461020-0x246a804 |
+| `0x4a67f0`-`0x4aa6b0` | obstacle avoidance (avoid areas, polys, splines, segment lists) | names avoid_*; ccmd avoidance; no path string |
+| `0x4ae330`-`0x4aea00` | game tracker client (gtrack heartbeat/game list) and level-object raycast start | names gtrack_*, lobj_raycast; strings.tbl multi_chattracker.cpp ids at 0x4ac240-0x4adcd0 lie just before |
+| `0x4aea50`-`0x4b0210` | level-object ray/sphere tests and multiplayer player/spell-target packets | names lobj_ray_test_*, lobj_raycast_bsp, mp_send/handle_*; strings.tbl multiplayerdata.cpp at 0x4af3c0 (one fn |
+| `0x4b9e80`-`0x4bff60` | ghost rider boss, decals, s3d geometry helpers, AI combat modes | names ghost_*, decal_*, s3d_geom_*, ai_combat_*/ai_consider_*; no path string |
+| `0x4c0250`-`0x4c6480` | projectors (shadow/decal records), lamp glows, bosses Machival, Titus, Evil Joseph, Evil Urath, Murod Oni | names projector_record_*, lamp_glow_*, machival_*, evil_joseph_*, murod_oni_*; "WolongLampGlow01.tga" |
+| `0x4c6490`-`0x4cfe00` | bosses tentacle beast, giant salamanka, luminar; then level_scripts_common.cpp; then savegame report/write | path string levelscripts\Scripts\level_scripts_common.cpp (0x4caf40, 0x4cb7b0); its .bss block 0x2490298-0x249 |
+| `0x4cfea0`-`0x4d0c40` | savegame flag/bit/int accessors (story flags, speaker/topic/quest bits) | names savegame_get/set_*; .bss 0x24f675c; no path string |
+| `0x4d0c90`-`0x4d6760` | savegame layout/write/read, quest evaluation, level-script helpers | names savegame_layout_*, savegame_write_*, savegame_read_*, quest_evaluate; strings.tbl level_scripts.cpp at 0 |
+| `0x4d6770`-`0x4d7900` | dialogue boxes (text/topic boxes, line layout) and conversation start | names dialogue_box__*, dialogue_topic_*; directly precedes the conversation.cpp unit |
+| `0x4da010`-`0x4dc570` | conversation controller, then script_internal.cpp navpoint/object parsing | conversation_* (strings.tbl conversationctl.cpp at 0x4dacb0, .bss 0x25443b4-0x2546750); path string levelscrip |
+| `0x4dc600`-`0x4de7f0` | script actions and script entries (walk_to, wait_at, follow, sequences), UI atexit registrations | names script_action_*, script_entry_*; .data strings continue script_internal.cpp's run (0x5a0840+) but no pat |
+| `0x4de800`-`0x5009f0` | script editor, cutscene scripts, per-level scripts (ls_<level>_*), conversation topics/dialogue parsing | names script_editor_*, ls_*/lsf_*, conversation_topic_*; strings.tbl names level_script_<level>.cpp files at 0 |
+| `0x50a010`-`0x50a010` | console command static initialiser | init_ccmd_print_to_file registers ccmd 0x25dadf8 for cmd_print_to_file (console.cpp); put in modules-out as co |
+| `0x5194e0`-`0x51a1e0` | character_instance construction, buffers and bone blending | names character_instance__*; folder vsdk\ca; character_instance.cpp path string is at 0x51ac9d in the next uni |
+| `0x520070`-`0x525760` | attached lights, vfx light tracks, sound system (snd_*), vector math | names attached_light_*, vfx_light_desc__*, snd_init*; folders vsdk\geom, vsdk\math, vsdk\vfile |
+| `0x525780`-`0x525ba0` | File binary readers (bool, ints, float, vector, quaternion, matrix) | names File__read_*; folder vsdk\vfile |
+| `0x525c90`-`0x5280e0` | File string/line readers, writers and sync; ui_button and ui_static gadgets | names File__read/write/sync_*, ui_button__*, ui_static__*; folders vsdk\vfile + vsdk\ui (two files) |
+| `0x52da40`-`0x530b80` | UI listbox gadget and window mask helpers | names ui_listbox__*, ui_window__get_mask_data; folder vsdk\ui |
+| `0x53ac20`-`0x53dec0` | ix_* intersection tests (ray/segment/sphere/box/polygon), then cmdline param inits | Dash Faction rf/math/ix.h names RF's ix_* module (ix_linesegment_boundingbox); 33 ix_* fns put in modules-out  |
+| `0x54bb30`-`0x54d5a0` | Direct3D texture cache (gr_d3d_tcache_*) and tcache slots | names gr_d3d_tcache_*, tcache_slot__*; tags now vsdk\gr\directx folder only |
+| `0x5520d0`-`0x5534c0` | CRC32 and UI inputbox gadget | names Crc32__*, ui_inputbox__*; folder vsdk\ui |
+| `0x55abd0`-`0x55bfc0` | HTTP client, vfx channels/forces, BitArray | names http_*, vfx_*, BitArray__*; several files |
+| `0x55c000`-`0x569ff0` | DirectSound (ds_*/ds3d_*), sound streams/ACM, UI slider/tooltip, vfx emitters/meshes, libjpeg | names ds_*, snd_stream_*, ui_slider__*, vfx_*, jpeg_*; Dash Faction rf/sound/sound_ds.h covers ds_* (no file n |
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`
