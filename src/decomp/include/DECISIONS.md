@@ -858,3 +858,53 @@ h b32 + a1 b12), and matrix::determinant's products come out as fz rx uy. So the
 terms cannot be recovered from the instructions; the expressions are written in natural index order.
 What the code does fix: which partial results are reused (2yy, 2zz, 1 - 2xx in set_from_axis_angle;
 1 - t in the interpolations), which are spilled, and `2 * a` compiled as `a + a`.
+
+**D1000 (character.cpp, decomp30). ca_character layout and members.** ca_character is 0x1f8 bytes, not
+0x1e8: the initialiser 0x540820 calls the EH vector constructor with (0x2dc7088, 0x1f8, 200, 0x540950,
+0x540960), and ca_init / ca_close / ca_find_character step by 0x1f8 to 0x2ddfa48. +0x44 is a flags word
+(`test byte [esi+0x44], 8` in character_free_skeletons, `or al, 4` in character_load_shadow, bit 0 in
+ca_close), so the name is 0x44 bytes (was 0x48). +0x4c is the count saved by character_lock_skeleton_count,
++0x50 and +0x1f0 are only cleared (character_clear), +0x1e8 are two LOD mesh slots (character_get_lod_index
+and character_unload loop twice from +0x1e8), +0x1f4 is the model Mempool (character_create_base stores
+its third argument there; character_reload_mesh calls ResetOffset on it). The character_* functions that
+take ECX (character_add_skeleton ... character_get_lod_index, 0x540970-0x541270, ret n with ECX = the
+character) are members with short names, the flat symbol in the comment (as living_entity.h's
+find_move); those with the character on the stack (character_clear, character_unload, character_release)
+stay free functions. Constructor 0x540950 (`mov eax, ecx; ret`) and destructor 0x540960 (`ret`) are
+user-declared and defined out of line in character.cpp: an implicit pair would not exist as functions for
+the vector constructor. num_anims keeps its name (character_instance.cpp uses it).
+
+**D1001 (character.cpp). ca_mesh, ca_bone name.** ca_mesh is the 0x30-byte slot of the table at 0x2ddfa48
+(205 entries to 0x2de20b8; ca_preload_alloc_slot: `lea eax, [ecx+2*ecx]; shl eax, 4`): +0 owner (NULL =
+free; character_create_base stores the character, character_unload clears it), +4 skin (= vim + 0x38),
++8 the stripped file name (strcpy in character_create_base; character_reload_mesh passes slot + 8 to
+load_shadow), +0x28 the mesh (cleared by ca_preload_alloc_slot), +0x2c the shadow mesh (load_shadow).
+sum.symbols types ca_preload_slots as uint8[0x300]; it is ca_mesh[205]. +0x1f0 of ca_character is kept as
+an int, not a third LOD: every LOD loop runs twice, although character_create_base stores lods[i] for every
+name i < num_names without a bound. ca_bone (skeleton.h) +0 is a name: character_find_mesh_tag
+`_stricmp(name, skin->bones + i * 0xa0)`; its length (0x50, up to bind) is ours.
+
+**D1002 (character.cpp). ca_vertex_weights.** 0x5408f0 (sum.symbols ca_vertex_weights__clear) returns
+`this` (`mov eax, ecx` before zeroing the four bytes): a constructor, not a void clear. 0x540900, a bare
+`ret` directly after it, is taken as the empty destructor (unsure). 0x540940 zeroes the same bytes and
+pops two unread arguments (`ret 8`) without returning this: an ordinary member clear_b(int, int). The
+struct is 8 bytes (add stores the weight at +4 + index). None of the four has a caller.
+
+**D1003 (character.cpp). Preload index.** ca_load_preload_index reads four ints (the first two are
+dropped; ca_preload_count is the third, ca_preload_size the fourth), then per entry 0x40 name bytes into a
+stack buffer (dropped) and two ints into 0x2ee20c4 + 4i / 0x2ee21dc + 4i (70 entries each up to
+0x2ee22f4: ca_preload_offsets / ca_preload_sizes, names ours), then seeks to 0 and reads the whole file
+into ca_preload_data. ca_preload_find compares names at 0x2de20d4 + 0x48 i, i.e. inside the data block
+after the 0x10-byte header: ca_preload_header / ca_preload_entry (0x48) describe that block. ca_preload_data
+is 0x100000 bytes (0x2de20c4 to the offsets array; character_add_skeleton only uses the preload data for
+sizes below 0x100000).
+
+**D1004 (character.cpp). Signatures.** character_load's third argument is a bool (`cmp byte [esp+0x14],
+1`) that sets flag 2, which character_release_all skips (keep_loaded); the fourth is never read.
+character_add_skeleton(filename, name, is_state, unused, check_dup, root_rotation): it passes arguments
+1, 2, 3, 4, 6 to the skeleton constructor 0x543d50 (whose order decomp25 fixed) and compares argument 5 as
+a byte with 1 before the duplicate search (callers charinfo_load_move_anim / charinfo_load_script_anim
+pass 1). The trigger functions take a float frame number (callers push it with fstp). New declarations:
+Mempool::ResetOffset (inline in memory.h like getPoolSpaceLeft, D12: the COMDAT 0x505540 `mov [ecx+8], 0`
+is called by character_reload_mesh), bm_replace_file 0x5031c0 (int; -1 on failure), charinfo_find_by_name
+0x446b80 (characterinfo.h; character_load_shadow tests `char_infos[i].flags & 1`, +0x258).

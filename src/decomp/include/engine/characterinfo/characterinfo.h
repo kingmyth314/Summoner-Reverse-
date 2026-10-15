@@ -192,6 +192,7 @@ struct char_info {
 LAYOUT_CHECK(char_info, sizeof(char_info) == 0x3d0);
 extern char_info char_infos[256];                     // 0x6d7e50
 
+int   charinfo_find_by_name(const char *name);       // 0x446b80 index or -1 (decomp30, character.cpp)
 int   charinfo_find_by_species(int species);          // 0x446bd0 index or -1
 void *charinfo_get_multi_appearance(char_info *info); // 0x449b80
 int   species_is_hero(int species);                   // 0x449a20

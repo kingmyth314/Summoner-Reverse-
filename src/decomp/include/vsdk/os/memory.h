@@ -24,6 +24,8 @@ public:
     void *allocate_in_mempool(unsigned int size);         // 0x5127c0
     // Inline for the same reason: the COMDAT 0x51e010 follows the constructor in effect_mem.cpp.
     unsigned int getPoolSpaceLeft() { return size - offset; }
+    // Inline as well: the out-of-line COMDAT 0x505540 is called by character.cpp (built /Ob0; decomp30).
+    void ResetOffset() { offset = 0; }
 
     char *destination;                     // +0x00 (char*: effect_mem.cpp stores char pointers; types.h uint8_t*)
     unsigned int size;                     // +0x04

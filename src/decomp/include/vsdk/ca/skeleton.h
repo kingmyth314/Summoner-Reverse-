@@ -143,7 +143,7 @@ int skeleton_read_tag_records(FileReader *r, anim_pos_key *keys, unsigned int n)
 // Moved here from character.h (decomp25): the bones and tags of a mesh are part of the .vim data block;
 // ca_mesh +0x4 (skin) points at vim +0x38.
 struct ca_bone {                      // 0xa0 bytes (ca_skin +0x4)
-    ubyte _unk00[0x50];
+    char name[0x50];                  // +0x00 character_find_mesh_tag (_stricmp; length ours, decomp30 D1001)
     matrix43 bind;                    // +0x50 multiplied in front of the animated bone matrix
     int parent;                       // +0x80 -1 = root
     vector3 tag_offset;               // +0x84 character_instance__get_tag_pos

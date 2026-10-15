@@ -36,6 +36,7 @@ LAYOUT_CHECK(bitmap_entry, sizeof(bitmap_entry) == 0x48);
 int  bm_find(const char *name);                       // 0x5025d0, -1 if none
 int  bm_load(const char *name, int path_id, int unk); // 0x5026e0 (the third argument is -1 at every pilot call)
 void bm_get_dimensions(int bm, int *w, int *h);       // 0x503500
+int  bm_replace_file(int bm, const char *name, int path_id);   // 0x5031c0 -1 failure (decomp30, character_replace_texture)
 const char *bm_get_filename(int bm);                  // 0x503b60 NULL for a bad handle (decomp25, vim_write_header)
 int  bm_get_num_frames(int bm, float *secs_per_frame);  // 0x502500 (0 here)
 // bm_lock returns the bitmap type (0 = failure), the pixel data through *data and the format through *format.

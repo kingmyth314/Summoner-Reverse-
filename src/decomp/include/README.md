@@ -69,7 +69,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/snd/snd.h` | snd (0x5207d0) | `snd_*`, `eax_*` |
 | `vsdk/net/net.h` | vsdk\net | `nw_*` globals |
 | `vsdk/ca/skeleton.h` | `vsdk\ca\skeleton.cpp` | `anim_track`, `skeleton`, `vim` (= `ca_vim`), `vim_load` |
-| `vsdk/ca/character.h` | `vsdk\ca\character.cpp` | `ca_character`, `ca_mesh`, `ca_skin`, `ca_bone`, `ca_render_*` |
+| `vsdk/ca/character.h` | `vsdk\ca\character.cpp` (decomp30) | `ca_character` (0x1f8, members), `ca_mesh` (mesh slots), `ca_vertex_weights`, preload index, `ca_*` / `character_*`, `ca_render_*` |
 | `vsdk/ca/character_instance.h` | `vsdk\ca\character_instance.cpp` (pilot) | `character_instance` |
 | `vsdk/geom/vfx.h` | vsdk\geom | `vfx_base`, `ptr_relocate` |
 | `vsdk/geom/effect_mem.h` | `vsdk\geom\effect_mem.cpp` (pilot) | effect bases and pools |
