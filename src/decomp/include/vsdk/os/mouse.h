@@ -5,6 +5,7 @@
 #include "vsdk/vsdk.h"
 
 bool mouse_is_down(int button);                   // 0x5012c0
+void mouse_flush();                               // 0x501090 clears deltas and button state
 bool mouse_was_double_clicked(int button);        // 0x5012e0
 bool mouse_was_pressed(int button);               // 0x501360
 void mouse_get_delta(int *dx, int *dy, int *dz);  // 0x5013c0

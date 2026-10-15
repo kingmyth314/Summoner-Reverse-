@@ -34,6 +34,8 @@ public:
     quaternion(float x, float y, float z, float w);   // 0x50f990
     quaternion(const quaternion &q);                  // 0x51b730 quaternion__assign_b (COMDAT in character_instance.cpp)
     quaternion &operator=(const quaternion &q);       // 0x50f9b0 quaternion__assign
+    void to_matrix(matrix *out) const;                // 0x522bf0 quaternion__to_matrix
+    void to_matrix_b(matrix *out) const;              // 0x522cc0 quaternion__to_matrix_b (doors)
     float x, y, z, w;
 };
 LAYOUT_CHECK(quaternion, sizeof(quaternion) == 0x10);

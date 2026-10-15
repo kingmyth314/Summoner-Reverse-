@@ -44,5 +44,8 @@ int spell_find_by_name(const char *name);     // 0x47a7c0, spells index or -1
 int damage_type_to_status(int spell);         // 0x47a8c0, status_effect_id or -1 (items_parse_table passes
                                               // the spell index of "+Effect:")
 extern char **spell_display_names[MAX_SPELLS];       // 0x22e9338 (localize_strings slots)
+extern char **spell_descriptions[38];                // 0x22e92a0 localize_strings slots 353.. (the player spells)
+int spell_get_group(int spell);               // 0x47a830 which of the 8 spell groups holds it, -1
+extern int spell_group_skill[7];                     // 0x59b988 skill id per spell_get_group result
 
 #endif

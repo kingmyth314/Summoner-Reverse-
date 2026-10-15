@@ -57,7 +57,8 @@ void  draw_game_over();                             // 0x4101e0
 void  mp_draw_loading_status();                     // 0x4102a0
 int   hud_get_panel_height();                       // 0x410510
 bool  hud_mouse_in_panel(int x, int y);             // 0x410520
-void  hud_drag_icon_begin(int x, int y, int w, int h, int kind, int id);  // 0x410570
+void  hud_drag_icon_begin(int x, int y, int w, int h, int kind, int id);  // 0x410570 (kind 0 spell, 1 skill)
+extern const int hud_hot_button_size[3][2];         // 0x57ee00 w, h (also the skills / spells row icons)
 void  hud_drag_icon_end();                          // 0x4105d0
 void  hud_drag_icon_draw();                         // 0x4105e0
 void  hud_mode_set_5();                             // 0x4106d0

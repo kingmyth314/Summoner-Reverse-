@@ -30,6 +30,8 @@ void combat_mode_set(int on);         // 0x439580 (gameplay.cpp range; decomp20:
 
 // The current level's names and layer maps (set by game_change_level / level_parse_table; module "-").
 extern char level_script_name[32];             // 0x60a2e8
+extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
+extern bool level_entered_by_load;             // 0x25443a8 (tutorial_frame / tutorial_draw run only while set; D101)
 extern int  level_num_layers;                  // 0x60a340
 extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of each layer
 extern int  level_layer_automap_index[40];     // 0x60a36c
@@ -48,6 +50,8 @@ extern Character *world_hover_portrait_character;   // 0x60ab6c (formerly world_
 extern int   world_interact_kind;              // 0x60ab88 1..4
 extern void *world_hover_object;               // 0x60ab8c
 extern void *world_interact_object;            // 0x60ab90
+class obj;
+void object_open_pickup(obj *o);               // 0x43a6e0 the pickup screen on a container (return unused)
 
 // Empty functions the screens call (identical-code folding shares bare RETs between units).
 void empty_frame_hook_40acc0();       // 0x40acc0 (bare ret, own copy)

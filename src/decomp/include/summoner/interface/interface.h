@@ -71,6 +71,7 @@ extern party_inventory_entry *ui_using_list_item_entry;             // 0x5bd514 
 // ---- scaling and drawing helpers ----------------------------------------------------------------------
 extern int   ui_hires;                                              // 0x5bd318, 0 = 640 layout, 1 = 1024
 extern char *ui_bitmap_suffix_tga[2];                               // 0x58bda4 {"640.tga", "1024.tga"}
+extern char *ui_bitmap_suffix[2];                                   // 0x58bdac {"640", "1024"} (skills / spells '#' names)
 bool  point_in_rect(int px, int py, int x, int y, int w, int h);    // 0x413460
 float ui_get_scale();                                               // 0x4134a0
 void  ui_bitmap_scaled(int bm, int x, int y, gr_mode mode);         // 0x4144f0
@@ -80,12 +81,18 @@ void  ui_screen_stop_player();                                      // 0x41e380
 void  ui_clear_pick_overrides();                                    // 0x414560
 void  ui_draw_panel_frame(int x, int y, int w, int h);              // 0x4134b0 three nested gr_rect frames
 void  ui_draw_text_box(int x, int y, int w, int h);                 // 0x4135a0 filled box with a border
+// ui_draw_panel_frame's per-resolution sizes (.rdata of the interface core; names ours).
+extern const int ui_frame_border[3];                                // 0x57ef40 {2, 2, 2} frame lines
+extern const int ui_frame_inset_x[3];                               // 0x57ef4c {8, 8, 8}
+extern const int ui_frame_inset_y[3];                               // 0x57ef58 {5, 5, 5}
 void  color_pulse_scale(float *r, float *g, float *b, float bias);  // 0x414ae0
 extern Color ui_color_text_box_bg;                                  // 0x5bd938 (0, 0, 0, 196)
 
 // ---- message box, choice popup, tooltip ---------------------------------------------------------------
+// a = flags (bit 2 stores b), b = an int array of entry values, c = a bool array of enabled entries
+// (new_skill.cpp, new_inventory.cpp pass the arrays cast to int; D103).
 void ui_choice_popup_show(const char *title, int x, int y, int num, char **items,
-                          int a, int b, int c);                     // 0x4136a0 (title and a..c 0 here; types guessed)
+                          int a, int b, int c);                     // 0x4136a0
 int  ui_choice_popup_frame(int key);                                // 0x4138b0: choice, -1 none yet, -2 cancelled
 void ui_choice_popup_draw();                                        // 0x413c70
 bool ui_choice_popup_is_active();                                   // 0x413e20

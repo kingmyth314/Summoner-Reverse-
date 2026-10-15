@@ -9,6 +9,7 @@
 #include "vsdk/os/timestamp.h"
 
 class Character;
+class vector3;
 
 // An AI group (10 x 0x54 bytes at 0x243e040; Character +0x4cc points at one). Saved in the LENT chunk.
 struct ai_group {
@@ -41,6 +42,12 @@ public:
     int  goal_find(int mask, int type, int a, int b, int c, int d, int e, int f);  // 0x475eb0 ai_goal_find
     void goals_clear();               // 0x476380 ai_goals_clear
     void add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell (return unused)
+    bool is_attacking();              // 0x473150 ai_is_attacking
+    void add_cast_at_target(int spell, Character *target, int priority);   // 0x4740e0 ai_goal_add_cast_at_target
+    void add_cast_at_point(int spell, vector3 *pos, int layer, int priority); // 0x474130 ai_goal_add_cast_at_point
+    void add_skill_from_behind(Character *target, int priority);           // 0x4741d0 ai_goal_add_skill_from_behind
+    void add_hide();                  // 0x474440 ai_goal_add_hide (toggles)
+    void add_sneak();                 // 0x474480 ai_goal_add_sneak
 
     int mode;                // +0x00 enum ai_state_mode
     int submode;             // +0x04

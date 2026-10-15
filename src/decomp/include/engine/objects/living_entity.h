@@ -21,6 +21,7 @@ class character_instance;
 class living_combat {
 public:
     float get_protection();           // 0x464de0 character_get_protection
+    void  set_38(int skill);          // 0x468750 living_combat_set_38 (queues a combat skill move)
     Character *owner;                 // +0x00
     ubyte _unk04[0x50];
 };
@@ -83,6 +84,9 @@ public:
     void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
     void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed
     void *get_current_move();         // 0x461500 character_get_current_move (0 = none)
+    void *find_move(int category, int id);   // 0x461370 character_find_move (0 = none)
+    int   spell_on_cooldown(int spell);// 0x44dd30 character_spell_on_cooldown
+    void  add_ap(float delta);        // 0x450c70 character_add_ap (return unused)
     bool  is_in_view(float radius_scale); // 0x44f020 character_is_in_view
     void  move_frame();               // 0x45cd00 living_entity_move_frame
     void  update_footsteps();         // 0x45d690 character_update_footsteps

@@ -6,6 +6,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/math/vector.h"
+#include "vsdk/math/matrix.h"
 
 class Character;
 
@@ -25,7 +26,7 @@ struct lobj {
     lobj_face *faces;                 // +0x0c
     int _unk10;                       // +0x10
     vector3 pos;                      // +0x14 position used for containers (lc_entries)
-    char _pad20[0x24];
+    matrix orient;                    // +0x20 (tutorial_cond_combat_part2 writes it from a door quaternion; D100)
     vector3 centre;                   // +0x44 position used for doors
     vector3 bbox_min;                 // +0x50 (lobj_get_bbox copies +0x50 and +0x5c)
     vector3 bbox_max;                 // +0x5c
@@ -69,6 +70,21 @@ LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
 void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear);   // 0x4ae890
 void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit);                           // 0x4af2c0
 void door_update(lobj *door);         // 0x477080 (unit not known)
+// A door record (0x8c bytes, sorted by lobj index at 0xa5a304; door_update reads both poses). Type and
+// field names ours (D100).
+struct door_info {
+    ubyte _unk00[0x10];
+    float _unk10[6];                  // +0x10 door_update reads +0x10 and +0x1c too (meaning not checked)
+    vector3 open_pos;                 // +0x28
+    quaternion open_orient;           // +0x34
+    ubyte _unk44[0x14];               // +0x44 move timer, ...
+    float lock;                       // +0x58 lock value, 0 unlocked (character_use_skill pick lock; D100)
+    ubyte _unk5c[0x30];
+};
+LAYOUT_CHECK(door_info, sizeof(door_info) == 0x8c);
+door_info *door_from_lobj(lobj *l);   // 0x4768c0 0 unless the lobj has flag 0x100
+int  lobj_find_by_name(const char *name);           // 0x4777a0 -1 if none
+void fx_disable_by_effect_name(const char *name);   // 0x48d660 (unit not known; effect objects)
 extern int *level_texture_bms;        // 0xa5a320
 void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs);   // 0x4776c0
 // Door objects within reach of the character (unit not known; next to the AI code).

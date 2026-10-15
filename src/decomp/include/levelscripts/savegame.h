@@ -12,6 +12,10 @@ struct automap_label;                // summoner/automap.h
 class savegame {                     // savegame_state at 0x2493a38 (thiscall members; layout not needed yet)
 public:
     int  get_flag(int level, const char *name);                      // 0x4cfca0 savegame_get_flag
+    void set_flag(int level, const char *name, int value);           // 0x4cfd30 savegame_set_flag (return unused)
+    // Two-stage objects (doors): two state bits per level object, open and locked (D100).
+    void two_stage_set(bool open, bool locked, struct lobj *obj);    // 0x4d0e20 (return unused)
+    void two_stage_get(bool *open, bool *locked, struct lobj *obj);  // 0x4d1110 (return unused)
     int  get_int(int level, const char *name);                       // 0x4d0030 savegame_get_int
     int  get_quest_bit(int quest);                                   // 0x4d0c00 0 or 1 in EAX (+0x103c bit n)
     // Map labels (new_automap.cpp). The second argument is a level_script_find_index slot (sum.symbols

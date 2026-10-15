@@ -550,3 +550,66 @@ name_hash_nocase stores 0 inline before calling 0x552120, so the constructor is 
 cdecl with the hidden result) and the three cdecl `operator+` (0x556f70 String + String, 0x557070
 String + char*, 0x557180 char* + String), used by vector3_to_string / matrix3_to_string. File gains
 write_line (0x5264e0).
+
+## new_skill.cpp / new_spell.cpp / new_tutorial.cpp (decomp21)
+
+**D100 (new_tutorial.cpp, new_skill.cpp). lobj +0x20 is a matrix; door records; two-stage state is
+{open, locked}.** tutorial_cond_combat_part2 copies three dwords from door +0x28 to lobj +0x14 (the
+position) and calls quaternion__to_matrix_b (0x522cc0, thiscall on door +0x34) with `lobj + 0x20`
+(0x42ebbf-0x42ebd8), so lobj's `_pad20[0x24]` becomes `matrix orient` (size unchanged; lobj already had
+vector3 members). New `door_info` (0x8c bytes, door_from_lobj's records): +0x28 open_pos, +0x34
+open_orient (quaternion), +0x58 float lock (character_use_skill compares it with the pick lock skill
++ 0.05 at 0x4295fa-0x429626; 0 = not locked). door_from_lobj, lobj_find_by_name, fx_disable_by_effect_name
+are declared in levelrender.h (units not known). savegame::two_stage_get(bool *, bool *, lobj *) /
+two_stage_set(bool, bool, lobj *): the tutorial opens the door with set(1, second, l) (0x42ebad-0x42ebba),
+the pick lock unlocks it with set(first, 0, l) (0x429640-0x42964d), so the first bit is "open" and the
+second "locked". quaternion gets to_matrix (0x522bf0) and to_matrix_b.
+
+**D101 (new_tutorial.cpp). level_entered_by_load gates the tutorial the other way round from its name.**
+tutorial_frame and tutorial_draw return at once when the byte 0x25443a8 is 0 (0x42ef0b-0x42ef12,
+0x42f030-0x42f03e), so the hints run only while it is set. sum.symbols says it is set "when a save is
+pending ... blocks the party joins and the tutorial". The code is written as the binary has it
+(`if (!level_entered_by_load || Ignore_tutorial) return false`); the symbol's name or comment needs
+checking in game_change_level (open question, NOTES).
+
+**D102 (new_skill.cpp). skill_info fields.** `_unk04` is the AP cost (skill_is_available 0x42929c,
+character_use_skill 0x429480, character_use_skill_on 0x42b096 / 0x42b140 for skills 0x13 / 0x12);
++0x14 the skills screen group (skills_count_in_group 0x4275c2, skills_set_page 0x427c6e); +0x18 the
+spell that carries the skill out (0x4294e1, 0x429577); +0x1c a localize slot, the summon / aimed-attack
+popup name (0x428a27, 0x428abc; skill_find_by_display_name compares it); +0x20 flags (bit 0 passive:
+0x4290c7, 0x427cf9; bit 1 attack-only: 0x429189; bit 2 summon, bit 3 aimed-attack part: skill_is_summon /
+skill_has_flag8); +0x30 a second description slot shown first for active skills (skills_show_tooltip
+0x428437-0x428453). +0x0c hp_share from docs/sum-exe/summons.md. Size unchanged (0x34).
+
+**D103 (new_skill.cpp). ui_choice_popup_show's last three arguments.** skills_handle_mouse passes
+(4, skills_popup_flags, skills_popup_enabled) (0x428798-0x4287a2); sum.symbols reads them as flags, an
+int* of values and a bool* of enabled entries. The prototype keeps `int a, int b, int c` because
+new_inventory.cpp already passes its bool array cast to int; new_skill.cpp casts the same way. A later
+pass can make them `int flags, int *values, bool *enabled` and drop both casts.
+
+**D104 (new_skill.cpp). skills_popup_skills holds names.** sum.symbols types 0x5f4f60 int[16] "skill
+ids", but both menu builders store localize_string_or_invalid(skill_table[s] +0x1c) there (0x428a43,
+0x428ad8) and skills_summon_popup_frame passes the chosen entry to skill_find_by_display_name (0x428b98):
+it is the `char *items[]` of the popup. The ids go to skills_popup_flags as `skill << 2 | 3`.
+
+**D105 (new_spell.cpp). spell_is_usable(int spell, Character *c, bool ignore_cost),
+character_cast_spell(int spell, Character *c).** The second argument of spell_is_usable is loaded into EDI
+and replaced by cur_character when 0 (0x42ae23-0x42ae2b), the third (byte) skips the AP and cooldown tests
+(0x42ae4b); character_cast_spell's second argument is the caster (0x42af31-0x42af3b). The old prototype
+(int, int, int) / (int, int) took 0s from the HUD, which still compiles. character_use_skill_on and
+character_cast_at_point (world_mouse_frame 0x43af07-0x43af7c) are declared with (spell, target / pos,
+layer, priority, user).
+
+**D106 (new_skill.cpp). character_can_use_summon(int skill, Character *c).** The callee reads the skill at
+[esp+4] (0x446ec0) and the character at [esp+8] (0x446eab); sum.symbols' comment says "(character, skill)".
+
+**D107 (interface.h, new_hud.h). Shared .rdata tables.** 0x57ef40 {2,2,2}, 0x57ef4c {8,8,8} and 0x57ef58
+{5,5,5} are ui_draw_panel_frame's frame width and insets (0x4134d1-0x41350f; tutorial_layout /
+tutorial_draw size the box with them); names ours. hud_hot_button_size (0x57ee00, defined `const` in
+new_hud.cpp) is declared `extern const` in new_hud.h: the skills and spells rows use it for their icons.
+With the declaration in scope the definition gets external linkage, as it needs in a real build.
+
+**D108 (new_skill.cpp, new_spell.cpp). skills_count_page / spells_count_page take no argument.** Both
+callers (skills_init 0x42753c, the refresh functions 0x429055 / 0x42ad95) push nothing and the bodies read
+no argument; sum.symbols' "(page)" is wrong. They loop over the 49 buttons with a switch on the index
+(byte tables 0x427b3c / 0x42a01c over i - 23).

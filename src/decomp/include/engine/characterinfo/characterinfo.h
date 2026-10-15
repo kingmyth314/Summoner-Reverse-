@@ -200,17 +200,27 @@ extern const char *skill_names[36];                   // 0x595b64 (characterinfo
 int   charinfo_find_anim(char_info *info, const char *name);   // 0x448d90, anim index or -1
 
 // A skill record (0x34 bytes, skill_table 0x8b3f88, built by 0x442ba0 from strings.tbl).
+// Fields +0x04..+0x20 from new_skill.cpp and docs/sum-exe/summons.md (D102).
 struct skill_info {
     char **name;                      // +0x00 localize_strings slot
-    int _unk04;
+    int ap_cost;                      // +0x04 (skill_is_available, character_use_skill; was _unk04)
     int recovery;                     // +0x08 seconds (player_start_skill_cooldown multiplies by 1000)
-    ubyte _unk0c[0x2c - 0x0c];
+    float hp_share;                   // +0x0c summon skills: share of max HP
+    int _unk10;
+    int group;                        // +0x14 skills screen page: 0 combat .. 5 spells
+    int spell;                        // +0x18 the spell that carries it out (summons, backstab 0x45, assess 0x46)
+    char **display_name;              // +0x1c localize_strings slot: summon popup entry name
+    unsigned int flags;               // +0x20 1 passive, 2 only while attacking, 4 summon, 8 aimed attack part, 0x10 dragon
+    ubyte _unk24[0x2c - 0x24];
     char **description;               // +0x2c localize_strings slot (tooltip)
-    ubyte _unk30[0x34 - 0x30];
+    char **use_description;           // +0x30 localize_strings slot, preferred for active skills when not empty
 };
 LAYOUT_CHECK(skill_info, sizeof(skill_info) == 0x34);
 extern skill_info skill_table[MAX_SKILLS];            // 0x8b3f88
 bool skill_is_summon(int skill);                      // 0x446e70
+bool skill_has_flag8(int skill);                      // 0x4473d0 skill_table +0x20 bit 3 (the aimed attack parts)
+bool character_can_use_summon(int skill, Character *c);   // 0x446e90 (sum.symbols lists the arguments the other way round)
+int  skill_find_by_display_name(const char *name);    // 0x448d40 -1 none
 extern bool All_summons;                              // 0x8b50b0
 
 // Chain attacks: the calls pass the Player record (sum.symbols says "char" for character_set_chain_skill).

@@ -33,6 +33,11 @@ int name_hash_nocase(const char *name);               // 0x4d5f50 (savegame name
 extern bool level_is_town;                           // 0x60a40c set by level_script_parse_table ("#Town")
 extern int cur_level_index;                          // 0x59f120 (4 = world map)
 int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none
+// Script objects (level_scripts_common.cpp; 0x550-byte records at 0x24f6230).
+int  script_object_find(const char *name);           // 0x4cddf0 -1 = none
+bool script_object_is_type5(int obj);                // 0x4ce1e0 character type (+0xc) == 5
+bool script_npc_near_player(const char *name, float dist);   // 0x4ce540
+int  level_script_use(const char *name);             // 0x4d5e20 the level's use handler, 0 without (return unused here)
 int  level_script_find_index(int level, const char *script_name);   // 0x4d6340, -1 = none
 void level_format_display_name(char *out, int level);// 0x4d63b0
 
