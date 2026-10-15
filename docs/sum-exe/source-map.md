@@ -371,7 +371,13 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 An agent cut all 40 ranges of the table above by hand. I re-checked the two new file names before tagging:
 `gameplay.cpp` (strings.tbl id 622 is read at `0x439d11`) and the savegame part of `level_scripts.cpp`. Together they put
 169 more functions in a file. The other cuts have a descriptive label only. The "Tags to check" notes list current tags
-that the data layout contradicts. They are not changed yet.
+that the data layout contradicts. A second agent re-checked each of the six. All six were wrong.
+- Five are now `-`. The ccmds at `0x432f80`-`0x433280` belong to the frame-end unit, not `player.cpp`. The slew unit
+  `0x4343a0`-`0x4348b0` is not `gameplay.cpp`. `disp_rate` is in the net core unit. `show_ui` is in the interface manager.
+  `add_gold` goes with the untagged party inventory code.
+- The Preparse ccmd (`0x4cef00`-`0x4cef30`) moved from `level_scripts_common.cpp` to `level_scripts.cpp`.
+
+`src/decomp/game/new_inventory.cpp` still defines `ccmd_show_ui`, with a note, until the interface file is written.
 
 Method: per function, the private `.bss` / `.data` it uses (all users within 60 functions), static-initialiser
 table entries, `ebp` frame and `0xcc` padding, strings.tbl ids. Ranges are function start addresses (start of the

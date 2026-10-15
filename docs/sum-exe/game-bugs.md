@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 34 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 36 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,9 +26,9 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 6 | 2 |
+| Crash or hang | 3 | 7 | 2 |
 | Gameplay | 9 | 0 | 3 |
-| Cosmetic | 10 | 0 | 1 |
+| Cosmetic | 11 | 0 | 1 |
 | Invisible | 3 | 3 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -47,6 +47,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C7 | Latent: a UI window with "+Always a selection" can hang the game | `ui_window__process` `0x52bc20` | **Observed** code, *inferred* hang | No |
 | C8 | Latent: a level with more than 15 shopkeepers or 1000 shop entries overwrites memory | `level_parse_shopkeeper` `0x4cc4d0` | **Observed** code, *inferred* effect | No |
 | C9 | Latent: a surface name longer than about 56 characters in the surfaces table overflows the stack | `surfaces_parse_table` `0x468e40` | **Observed** code, *inferred* effect | No |
+| C10 | Latent: a dialogue topic that removes two initial topics, the first of them the current hail topic, hangs the game | `conversation_apply_topic_effects` `0x4d7eb0` | **Observed** code and retail data, *inferred* hang | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -85,6 +86,16 @@ but `edi` never moves to the next gadget. The vsdk UI tables are used by the
 
 **C9. Wrong buffer size.** The second `ParseString` call passes size 0x100 (`push 0x100` at `0x468f68`)
 for a stack buffer at `esp+0xa4`. The next local starts at `esp+0xdc`, so the buffer has 0x38 bytes.
+
+**C10. Inner loop steps the wrong list.** For each `+Remove Initial Topic:` entry that removes the speaker's
+current hail topic, the game picks a new hail topic from the `+Add Initial Topic:` list. That inner loop advances
+with the *outer* entry's next pointer (`mov ecx, [eax+8]` at `0x4d7fcd`, with `eax` the remove entry). It ends only
+when the remove entry is the last in its list. The parser prepends entries (`conversation_topic__push_list24`
+`0x4fecb0`), so the list runs in reverse file order. Four retail topics remove two initial topics: "I have your
+book!" in `lenele1ab_dlg.tbl`, its `_v2`/`_v3` copies and `Miniquests_dlg.tbl`. In each, the hail topic in effect
+at that point (`"Hail"#2`) is the first line in the file, so it is last in the list, and the loop exits after one
+pass. A modded table that swaps the two lines would hang. Found while writing
+[`conversation.cpp`](../../src/decomp/game/conversation.cpp).
 
 ## Gameplay
 
@@ -156,6 +167,7 @@ on losing focus too (`0x5310e9`), and flags 0 include activation. See
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
+| K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -195,6 +207,11 @@ the same.
 `GetSystemMetrics(SM_CXSCREEN) / GetSystemMetrics(SM_CYSCREEN)` (`0x505ef5`..`0x505f0f`), not from the
 window. Only windowed mode is affected, and the retail game runs fullscreen. See
 [SummonerFix](../summonerfix/index.md#fixes).
+
+**K11. Missing component.** The shot code builds a side vector from the speaker-to-player direction. It writes only
+its x and z (`[esp+0x54]` and `[esp+0x5c]`, `0x4d8fcb`..`0x4d8fd7`), never y (`[esp+0x58]`), and then normalises it
+(`vector3__normalize_safe` at `0x4d8fe4`). Whatever the stack held decides how much of the camera offset goes up
+instead of sideways. *Inferred:* the value is often the same from call to call, so this may not show.
 
 ## Invisible
 
@@ -258,6 +275,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C7 loop | `ui_window__process` `0x52bcc8`..`0x52bce9` |
 | C8 shop tables | `level_parse_shopkeeper` `0x4cc4f5`..`0x4cc755` |
 | C9 buffer size | `surfaces_parse_table` `0x468f35`..`0x468f72` |
+| C10 topic loop | `conversation_apply_topic_effects` `0x4d7f9a`..`0x4d7fd9`; `conversation_topic__push_list24` `0x4fecb0` |
 | G1 limiter | `FrameTimer` `0x501540`, `0x501577`, `0x5015bc` |
 | G2 QPC | `timer_init` `0x532853`..`0x532868` |
 | G3 cutscene timer | `cutscene_sequence_update` `0x436ad9`..`0x436aff` |
@@ -277,6 +295,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K8 credits | `credits_parse_table` `0x408858`..`0x408868` |
 | K9 centring | `gamecreate_draw_player_count` `0x40a515`..`0x40a564` |
 | K10 aspect | `gr_init` `0x505eee`..`0x505f0f` |
+| K11 side vector | `conversation_camera_compute_shot` `0x4d8fbd`..`0x4d8fe4` |
 | V1 trigger time | `character_set_skeleton_trigger_time` `0x540dbc`..`0x540ddb` |
 | V2, V6 masks | `effects_alloc_stream_slot` `0x51c533`, `0x51c573`; `effects_find_stream_slot` `0x51c5d3`, `0x51c613` |
 | V3 hotkey | `ui_parse_hotkey` `0x52847a`..`0x5284a3` |

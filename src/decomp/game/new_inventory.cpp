@@ -212,6 +212,10 @@ inventory_str_ref inventory_action_strings[5] = {
 
 // The show_ui command object. Its address (0x5bd780) is inside the interface unit's .bss. 0x414c80
 // init_ccmd_show_ui_thunk (static_initializers entry 49) / 0x414c90 init_ccmd_show_ui. Confidence: exact.
+// Placement: most likely wrong. symbols/sum.symbols no longer tags 0x414c80-0x414cb0 new_inventory.cpp. The
+// object sits between ui_choice_popup_flags (0x5bd77c) and the interface manager's other globals, and its .data
+// follows that unit's, so it belongs at the end of the interface manager file (0x411270-, name unknown). It
+// stays here until that file is written.
 console_command_M ccmd_show_ui("show_ui", "Toggles the visibility state of the HUD", cmd_show_ui);
 
 // Static initialisers in definition order (entries 49-52): 0x414c80/0x414c90 ccmd_show_ui (above);
