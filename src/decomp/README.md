@@ -38,6 +38,7 @@ Rules:
 | `game/new_journal.cpp` | `new_journal.cpp` | 29 | 17 / 12 / 0 |
 | `game/new_buysell.cpp` | `new_buysell.cpp` | 44 | 32 / 11 / 1 |
 | `game/new_itemtrade.cpp` | `new_itemtrade.cpp` | 40 | 29 / 11 / 0 |
+| `game/new_status.cpp` | `new_status.cpp` (`0x42b1c0`-`0x42e62e`) | 57 | 33 / 22 / 2 |
 | `game/new_charselect.cpp` | `new_charselect.cpp` | 36 | 20 / 16 / 0 |
 | `game/new_levelselect.cpp` | `new_levelselect.cpp` | 29 | 15 / 13 / 1 |
 
