@@ -9419,7 +9419,7 @@
 0x5c5970  saveload_buttons         data:uint8[23*0x18] new_saveload.cpp     O ; 23 button records of 0x18 bytes (flags +0, x/y +0x10/+0x14) up to 0x5c5b98, bitmaps from saveload_load_bitmaps (SaveLoad-Bkgrnd)
 0x5c5b98  saveload_drag_start_thumb_y data:int new_saveload.cpp     O ; thumb y saved when a drag starts (mouse mode 3), added back in saveload_drag_scrollbar
 0x5c5b9c  saveload_scroll_pos      data:int new_saveload.cpp     O ; first visible save, zeroed by saveload_init/saveload_refresh, offsets the list in saveload_load_thumbnail and the scrollbar
-0x5c5ba0  saveload_thumbnail_buf   data:uint16[201*151] new_saveload.cpp     O ; 201x151 16-bit pixels rendered by saveload_capture_thumbnail (0xed1e bytes copied to 0x5e5d28)
+0x5c5ba0  saveload_thumbnail_buf   data:uint32[201*151] new_saveload.cpp     O ; 201x151 16-bit pixels rendered by saveload_capture_thumbnail (0xed1e bytes copied to 0x5e5d28) (type was uint16[201*151]: 32-bit pixels: 201*151*4 bytes end exactly at the next symbol 0x5e35dc)
 0x5e35dc  saveload_pressed_button  data:int new_saveload.cpp     O ; -1 at init/input start, pressed button index, read by saveload_update_buttons
 0x5e35e0  saveload_thumb_bm_w      data:int new_saveload.cpp     O ; bm_get_dimensions width of scrollbar bitmap saveload_scrollbar_bm, resolution-scaled
 0x5e35e4  saveload_thumb_bm_h      data:int new_saveload.cpp     O ; bm_get_dimensions height of the scrollbar bitmap, divisor in saveload_draw_scrollbar
@@ -9441,7 +9441,7 @@
 0x5e5d20  saveload_thumb_w         data:int new_saveload.cpp     O ; scrollbar thumb width = saveload_thumb_bm_w, hit-tested in saveload_handle_input
 0x5e5d24  saveload_thumb_h         data:int new_saveload.cpp     O ; scrollbar thumb height from saveload_update_scrollbar, divided by saveload_thumb_bm_h when drawing
 0x5e5d28  saveload_thumbnail_pixels data:uint16[201*151] new_saveload.cpp     O ; pixel data of the 201x151 user bitmap made by bm_create in saveload_load_bitmaps, filled by saveload_capture_thumbnail, written by savegame_write_thumbnail
-0x5f4a46  saveload_load_mode       data:bool new_saveload.cpp     O ; set from the saveload_refresh argument, selects the button set in saveload_update_mode_buttons and the list content in saveload_scan_saves (checked: byte stored from the saveload_refresh argument, read by update_mode_buttons, try_save, load_selected, draw_list)
+0x5f4a46  saveload_save_mode       data:bool new_saveload.cpp     O ; 1 in save mode (saveload_save_or_load saves when set), 0 for load; set from the saveload_refresh argument, selects the button set in saveload_update_mode_buttons (formerly saveload_load_mode)
 0x5f4a48  saveload_month_names     data:char*[12] new_saveload.cpp     O ; init_strptrs_5f4a48 stores localize_strings 702..713 (Jan. .. Dec.), indexed by month in saveload_draw_info (year + 1900)
 0x5f4a78  skills_popup_count       data:int new_skill.cpp        O ; entry count of the summon/aimed-attack popup, zeroed by skills_build_summon_menu and skills_build_aimed_attack_menu, passed with the entry arrays in skills_handle_mouse
 0x5f4a7c  skills_popup_flags       data:int[16] new_skill.cpp        O ; per-entry popup flags (or 3) written by the skills_build_*_menu functions, passed to the popup in skills_handle_mouse
