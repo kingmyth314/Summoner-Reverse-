@@ -106,6 +106,30 @@ When a small translation unit is fully mapped (for example `frametime.cpp`):
   bytes function by function (objdiff, as the Summoner 2 project does).
 - If it matches, set up the project layout and progress tracking for the rest.
 
+## Phase 3 status (2026-10-15)
+
+The source half of the pilot has started without the compiler. Agents rewrote whole translation units in C++ from
+the disassembly; I reviewed them, spot-checked a function of each against the listing, and checked that they compile
+with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
+- engine: `frametime`, `timestamp`, `registry`, `cmdline`, `gr_font`, `ui_container`, `targautils`, `window`,
+  `character_instance`, `effect_mem`;
+- game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
+  level select, shop, item trade, options, save/load and status screens, plus `gamesound`, `item_paging` and
+  `player`.
+
+`node tools/decomp-progress.mjs` counts the result: 704 functions written (8.1%). Of these, 407 match the
+disassembly exactly as far as can be read, 261 likely, 12 unsure. The automap, inventory and HUD screens (194 more
+functions) are written and waiting for the shared headers.
+
+**Lessons so far.**
+- The per-batch stub headers conflict, for example `File` three times and `interface_set_screen`'s second
+  argument. They are being merged into one set of engine headers. `symbols/types.h` stays the C reference, because
+  the game calls methods on most of these types.
+- Writing source finds symbol errors fast. The pilot notes gave about 120 verified fixes: argument orders,
+  arrays typed as scalars, and inverted names (`saveload_save_mode`, the inventory drag fields).
+- Recurring compiler questions only VC6 can answer: the static-initialiser order against `.bss` order, whether
+  divisions by constants become reciprocal multiplications, and how switches with shared tails were written.
+
 ## Status
 
 | Phase 0 step | Status (2026-10-13) |
