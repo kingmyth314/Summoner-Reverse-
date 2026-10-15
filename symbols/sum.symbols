@@ -1101,6 +1101,7 @@
 0x430400  init_ccmd_save_map_labels_thunk func  -                    O ; hidden start, static_initializers entry 92: jmp init_ccmd_save_map_labels
 0x430410  init_ccmd_save_map_labels func  -                    O ; static initialiser: registers console command object ccmd_save_map_labels
 0x430430  cmd_save_map_labels      func  -                      O ; console command "save_map_labels": Save automap labels for this level/script
+0x430580  automap_labels_save      func  -                    O ; hidden start (frame-pointer prologue), only caller cmd_save_map_labels: copies automap_labels.tbl into automap_labels_temp.tbl, rewriting the #Script: "%s" section of the current level
 0x430ad0  state_debug_help_enter   func  -                    O ; state 7 enter: if the help text 0x5f9e74 is empty, copies "You forgot to set the 'Debug_help_str' variable up", state 7 is the debug help text screen (formerly state7_enter)
 0x430b10  state7_leave             func  -                    O ; hidden start, gameseq_state_table state 7 leave: 0x5f9e74 = 0
 0x430b20  state7_frame             func  -                    O ; hidden start, gameseq_state_table state 7 frame: 0x432860(0, 1) returning 1 goes back to the previous state, else draws the centred message on a cleared screen
@@ -6665,6 +6666,7 @@
 0x536910  gr__Mode__get_fog_type   func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 25) & 0x1f
 0x536920  gr__Mode__invalidate     func  vsdk\gr\gr.cpp       O ; thiscall: value = -1 (forces the next state change), callers gr_glide_set_fog, gr_opengl_tcache_set, gr_opengl_init_context and the D3D frame setup
 0x536930  gr__Mode__is_multitexture func  vsdk\gr\gr.cpp       O ; texture_source >= 4 (TEXTURE_SOURCE_CLAMP_1_WRAP_0 and up are the two-texture sources in Dash Faction)
+0x536940  gr__Mode__identity       func  vsdk\gr\gr.cpp       I ; hidden start: returns its first argument (mov eax, [esp+4]), 6 calls from gr_d3d_set_stage0_states_16_17, probably an inlined gr__Mode accessor
 0x536950  init_gr_d3d_vertex_buf   func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889d0): 4000 gr__Vertex (0x30 bytes) at 0x2d90f10
 0x536980  init_vfx_camera_pos      func  vsdk\geom            O ; hidden start, static initialiser (table 0x5889d4): vector 0x2d90ee8 copied out by vfx_get_camera (checked: static initialiser thunk then vector3__vector3_default(0x2d90ee8))
 0x5369a0  init_vfx_camera_orient   func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d8): quaternion 0x2d90ef8 copied out by vfx_get_camera
