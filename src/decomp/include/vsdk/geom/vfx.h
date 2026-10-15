@@ -34,7 +34,12 @@ public:
     short _pad1e;
     int frames;                               // +0x20
     float rate;                               // +0x24
-    char _unk28[0xe8 - 0x28];
+    // decomp63 (levelrender_add_effects / levelrender_effect_apply_vis; names ours).
+    unsigned int vis_flags;                   // +0x28 0x400000 shown by a $vis tag, 0x800000 always shown
+    char _unk2c[0x3c - 0x2c];
+    vector3 centre;                           // +0x3c bounding sphere (effect frame)
+    float radius;                             // +0x48
+    char _unk4c[0xe8 - 0x4c];
 };
 LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 
@@ -42,19 +47,58 @@ LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 // as fx_create_instance and fx_frame read them. Names ours.
 struct vfx_node_desc {
     ubyte _unk00[0x18];
-    int flags;                                // +0x18 0x40: a lamp glow (fx_create_instance)
-    ubyte _unk1c[0x0c];
-    float glow_radius;                        // +0x28
-    ubyte _unk2c[0x7c];
+    // decomp63 (D4309): levelrender_effect_apply_vis rewrites the low word only (0x483ff0-0x484003):
+    // 0x200 shown by a $vis tag, 0x400 always shown (0x600 = drawn).
+    union {
+        int flags;                            // +0x18 0x40: a lamp glow (fx_create_instance)
+        ushort vis_flags;
+    };
+    vector3 pos;                              // +0x1c decomp63: the node's position in the effect frame
+    float glow_radius;                        // +0x28 (decomp63: also the sort radius of its draw entry)
+    float cull_radius;                        // +0x2c decomp63: gr_cull_sphere radius (levelrender_add_effect_entry)
+    ubyte _unk30[0x18];
+    vector3 glow_pos;                         // +0x48 decomp63: lamp_glow_update_effects' ray origin (effect frame)
+    ubyte _unk54[0xa8 - 0x54];
 };
 LAYOUT_CHECK(vfx_node_desc, sizeof(vfx_node_desc) == 0xa8);
 struct vfx_desc21c {
     ubyte _unk00[0x4c];
     float time_a;                             // +0x4c
     float time_b;                             // +0x50 (time_a + time_b) s (fx_frame kind 16)
-    ubyte _unk54[0x1c8];
+    ubyte _unk54[0x6a - 0x54];
+    ushort vis_flags;                         // +0x6a decomp63: 0x80 always shown, 0x100 shown by a $vis tag
+                                              //       (0x180 = drawn; the vif_* particle functions take these)
+    ubyte _unk6c[0x21c - 0x6c];
 };
 LAYOUT_CHECK(vfx_desc21c, sizeof(vfx_desc21c) == 0x21c);
+
+// decomp63 (the render-scene unit 0x481680): the base's tags (+0x3c) and the per-instance records of the
+// +0x2c descriptors (a list from vfx_instance +0x24), as levelrender_effect_apply_vis /
+// levelrender_add_effects / fx_draw_flagged_particles read them. Names ours.
+struct vfx_tag_ref {                          // 8 bytes
+    int kind;                                 // +0 0 node, 1 emitter, 2 +0x2c record
+    void *rec;                                // +4 the vfx_node_desc / vfx_emitter_desc / vfx_desc21c
+};
+struct vfx_base_tag {                         // 0x14 bytes ("$vis..." names)
+    char *name;                               // +0x00
+    ubyte _unk04[0x08];
+    int count;                                // +0x0c
+    vfx_tag_ref *refs;                        // +0x10
+};
+struct vfx_inst21c {                          // the instance record of a vfx_desc21c
+    ubyte _unk00[0x68];
+    ushort flags;                             // +0x68 0x10 updated this frame (fx_draw_flagged_particles)
+    ubyte _unk6a[0xe0 - 0x6a];
+    vfx_inst21c *next;                        // +0xe0
+};
+// What vfx_instance::render_node draws (8 bytes; the effect draw entries carry one at +0x14).
+struct vfx_node_ref {
+    short index;                              // +0 node or emitter index
+    ubyte kind;                               // +2 0 node, 4 emitter, 6 line trail (levelrender_add_effect_entry)
+    ubyte _pad3;
+    void *inst;                               // +4 the instance's fx_rec98 / fx_recb0
+};
+LAYOUT_CHECK(vfx_node_ref, sizeof(vfx_node_ref) == 8);
 
 // The loaded effect base ("vfx base") an effect id resolves to. Only +0x1c is written by effect_mem.cpp.
 // decomp60: the record counts and fields vfx_instance_create / vfx_load read (names ours).
@@ -69,7 +113,8 @@ public:
     short num_emitters;                       // +0x08 fx_recb0 records (emitters)
     short num_rec2c;                          // +0x0a fx_rec2c records
     short num_rec4c;                          // +0x0c fx_rec4c records (the 0xa0-byte table at +0x34)
-    char _unk0e[0x04];
+    char _unk0e[0x02];
+    short num_tags;                           // +0x10 decomp63 (levelrender_effect_apply_vis)
     short num_frames;                         // +0x12 (cast_effect_track_add: frames / 15 * 1.5 s; decomp39)
     short _unk14;                             // +0x14
     short num_desc21c;                        // +0x16 records at +0x2c (decomp64)
@@ -85,7 +130,8 @@ public:
     vfx_desc21c *descs21c;                    // +0x2c num_desc21c records (decomp64)
     char _unk30[0x04];
     char *rec4c_table;                        // +0x34 0xa0 bytes per fx_rec4c record
-    char _unk38[0x08];
+    char _unk38[0x04];
+    vfx_base_tag *tags;                       // +0x3c decomp63: num_tags records
     int _unk40;                               // +0x40 nonzero: the effect can be linked to a character
                                               //       (fx_link_character_obj; decomp64)
     char _unk44[0x04];
@@ -230,7 +276,11 @@ public:
     unsigned int id_bits;                                            // +0x00 effect name index << 9 (cast_effect_track_add; decomp39);
                                                                      // bits 0-8 flags: 0x40 in use, 0x80 / 0x100 the base's flag_a / flag_b,
                                                                      // interface_frame clears bit 2 of the UI lights' instance (decomp48)
-    int _unk04;                                                      // +0x04
+    union {
+        int _unk04;                                                  // +0x04
+        ubyte render_alpha;                                          //       decomp63: the effect object's bits >> 24
+                                                                     //       before each draw, 0xff for the sky effects
+    };
     int category;                                                    // +0x08 the base record's category (vfx_load)
     int _unk0c;
     float time;                                                      // +0x10 elapsed (fx_frame compares it with 14 / 55.25; decomp64)
@@ -238,14 +288,31 @@ public:
     fx_rec98 *nodes;                                                 // +0x18 list heads, NULL empty
     vfx_light_desc *lights;                                          // +0x1c first light, NULL none (ui_3d_begin; decomp48)
     fx_recb0 *emitters;                                              // +0x20
-    int _unk24;
+    union {
+        int _unk24;                                                  // +0x24
+        vfx_inst21c *insts21c;                                       //       decomp63: the records of the base's descs21c
+    };
     fx_rec2c *rec2c_list;                                            // +0x28
     fx_rec4c *rec4c_list;                                            // +0x2c
     vector3 pos;                                                     // +0x30 the base's pos (vfx_load)
     float _unk3c;                                                    // +0x3c the base's +0x54
     vfx_instance *next;                                              // +0x40
     vfx_instance *prev;                                              // +0x44
+    // decomp63: (ref, world position, orientation): draws one node or emitter (thiscall, ret 0xc;
+    // sum.symbols vfx_instance_render). levelrender_draw_list sets render_alpha first.
+    void render_node(vfx_node_ref *ref, const vector3 *pos, const matrix *orient);   // 0x538260
 };
+// decomp63: the character effect render state around character_instance::render (cdecl, two pushes;
+// the first argument receives the effect alpha) and its reset.
+void vfx_instance__setup_render_state(ubyte *alpha, vfx_instance *vi);   // 0x538430
+void vfx_render_state_reset();                                          // 0x5384f0
+// The particle functions of the +0x2c descriptors (cdecl; unit not known): (record, out centre, out
+// radius) the bounds of the live particles, (instance record, record, flag, pos, orient, vfx_instance
+// +0x0c) one update, (instance record, record) the draw.
+void vif_record_get_bounds(vfx_desc21c *rec, vector3 *centre, float *radius);   // 0x533aa0
+void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vector3 *pos,
+                        const matrix *orient, int unk0c);                   // 0x532f40
+void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec);               // 0x533620
 LAYOUT_CHECK(vfx_instance, sizeof(vfx_instance) == 0x48);
 
 // ---- attached lights (0x51fb10-0x520413, src/decomp/vsdk/unnamed_attached_lights_0x51fb10.cpp) ----
@@ -263,7 +330,8 @@ public:
     ubyte _pad01[3];
     quaternion orient;                        // +0x04 identity
     vector3 pos;                              // +0x14
-    vector3 world_pos;                        // +0x20 levelrender's light position
+    vector3 world_pos;                        // +0x20 levelrender's light position; decomp63 (D4303): the light
+                                              //       position relative to the level object being drawn, in its frame
     float r, g, b;                            // +0x2c
     float intensity;                          // +0x38 1.0
     float angle_a;                            // +0x3c attached_light_create_b

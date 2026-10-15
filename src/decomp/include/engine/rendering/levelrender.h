@@ -10,6 +10,7 @@
 #include "vsdk/os/timestamp.h"
 #include "engine/s3d/s3d.h"
 #include "engine/gamesound/gamesound.h"   // sound_ref (door_info, decomp41)
+#include "vsdk/geom/vfx.h"                 // vfx_node_ref (decomp63)
 
 class Character;
 struct ItemType;
@@ -102,14 +103,45 @@ void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit);                           /
 // and no attachment entries exist, nothing is tested). Both pointers may be NULL.
 int  lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *lobj_index, bool *blocked, bool attach_only);   // 0x4a4bb0
 int  lobj_get_count();                // 0x477770 num_lobjs (decomp57)
-// The draw-list entries (levelrender_build_draw_lists / add_lobj / push_attachment; partial, decomp57).
+// The draw-list entries (levelrender_build_draw_lists / add_lobj / push_attachment; decomp57, completed in
+// decomp63 from the render-scene unit 0x481680). Bump-allocated from levelrender_entry_pool every frame.
+// type: 0 living entity, 1 level object, 2 attachment (prop or weapon on a bone), 3 effect node / emitter /
+// trail, 4 item object, 5 container (the cases of levelrender_draw_list).
+class Character;
+class effect_object;
+#define LRE_CHARACTER  0
+#define LRE_LOBJ       1
+#define LRE_ATTACHMENT 2
+#define LRE_EFFECT     3
+#define LRE_ITEM       4
+#define LRE_CONTAINER  5
 struct levelrender_entry {
-    char type;                        // +0x00 1 = a level object
+    char type;                        // +0x00 LRE_*
     char _unk01;
-    short lobj;                       // +0x02 level object index
-    int _unk04;
-    float dist;                       // +0x08 view distance
+    short lobj;                       // +0x02 level object index (type 1)
+    union {
+        int _unk04;
+        float depth;                  // +0x04 eye-space depth (dot with the eye's fvec; decomp63)
+    };
+    float dist;                       // +0x08 sort key: depth minus the object's radius
+    obj *object;                      // +0x0c types 0, 4, 5 (decomp63)
 };
+LAYOUT_CHECK(levelrender_entry, sizeof(levelrender_entry) == 0x10);
+// A prop drawn at a bone (0x4c bytes; levelrender_push_attachment; names ours).
+struct levelrender_attach_entry : levelrender_entry {
+    Character *character;             // +0x10
+    ItemType *item;                   // +0x14 its mesh (+0x10) is drawn
+    float light;                      // +0x18 the character's light level (+0x780)
+    vector3 pos;                      // +0x1c bone position
+    matrix orient;                    // +0x28 bone orientation
+};
+LAYOUT_CHECK(levelrender_attach_entry, sizeof(levelrender_attach_entry) == 0x4c);
+// An effect node, emitter or line trail (0x1c bytes; levelrender_add_effect_entry; names ours).
+struct levelrender_effect_entry : levelrender_entry {
+    effect_object *fx;                // +0x10
+    vfx_node_ref ref;                 // +0x14 what vfx_instance::render_node draws
+};
+LAYOUT_CHECK(levelrender_effect_entry, sizeof(levelrender_effect_entry) == 0x1c);
 extern levelrender_entry *levelrender_attach_list[];   // 0x22ea584
 extern levelrender_entry *levelrender_sort_list[];     // 0x22f8d84
 extern levelrender_entry *levelrender_opaque_list[];   // 0x22fa6a8
@@ -250,12 +282,24 @@ void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   //
 // lists; continues from *iter, returns hit->num_hits. hit->face is the level object index, hit->_unk28
 // the s3d_face hit (world_pick_lobj).
 // Per level object render records (12 bytes; type name ours): +4 bits 4-11 all set = drawn opaque
-// (world_pick_lobj).
+// (world_pick_lobj). decomp63 (levelrender_level_load / levelrender_fade_occluders): +0 the "$seethru"
+// vis set the object belongs to (its members fade with it), +4 the fade bits below, +8 the fade timer.
+// The bits are written with explicit masks: the code's and / or patterns are not those of bit fields.
+#define LRS_FADE_HIDDEN   0x001       // bit 0: faded out (state 1), with bit 1 fading out (state 3)
+#define LRS_FADE_MOVING   0x002       // bit 1: fading in (state 2) or out (state 3)
+#define LRS_OCCLUDING     0x004       // between the camera and the target this frame
+#define LRS_WAS_OCCLUDING 0x008       // ... the frame before
+#define LRS_ALPHA_SHIFT   4           // bits 4-11: the alpha the back ends draw with (0xff opaque)
+#define LRS_ALPHA_MASK    0xff0
 struct lobj_render_state {
-    int _unk00;
-    unsigned int flags;
-    int _unk08;
+    union {
+        int _unk00;
+        s3d_vis_set *seethru;         // +0x00 NULL none
+    };
+    unsigned int flags;               // +0x04 LRS_*
+    GameTimer timer;                  // +0x08 (was int _unk08)
 };
+LAYOUT_CHECK(lobj_render_state, sizeof(lobj_render_state) == 0xc);
 extern lobj_render_state *levelrender_lobj_states;   // 0x22f9d7c
 extern bool levelrender_draw_chain_marker;   // 0x22fb6d4 set by chain_attack_select
 
@@ -282,6 +326,18 @@ extern float Space_mult;              // 0x59c484 console "space_mult" (wave noi
 extern void *levelrender_d3d_vertex_buffer;   // 0x243e03c IDirect3DVertexBuffer7*
 extern int levelrender_d3d_vertex_buffer_pos; // 0x240d9e8 next free vertex; reset by gr_d3d_init_device / gr_d3d_flip (name ours, decomp36)
 void levelrender_wave_lobj(lobj *l, vector3 *out);              // 0x48de60
+// decomp63: the three back ends levelrender_draw_list calls by gr_screen.mode (0x66 / 0x67 / 0x68) with
+// (level object, alpha 0..255, light count, the ranked lights); not written yet.
+class attached_light;
+void levelrender_draw_list_glide(lobj *l, int alpha, unsigned int num_lights, attached_light **lights);    // 0x48e6c0
+void levelrender_draw_list_d3d(lobj *l, int alpha, unsigned int num_lights, attached_light **lights);      // 0x48fdb0
+void levelrender_draw_list_opengl(lobj *l, int alpha, unsigned int num_lights, attached_light **lights);   // 0x491500
+// decomp63: levelrender.cpp .bss bytes the render-scene unit reads (names ours). The first is never set
+// to 1 by any instruction; the second guards a one-time loop over levelrender_lights[16] (+0x55 = 0).
+extern bool levelrender_lights_dirty;         // 0x243e038
+extern bool levelrender_lights_initialized;   // 0x243e039
+extern vector3 levelrender_wave_vertices[];   // 0x23ec658 (levelrender.cpp)
+extern attached_light levelrender_lights[16];  // 0x23df188 (levelrender.cpp, name ours)
 void levelrender_create_vertex_buffer();                        // 0x48e470
 void levelrender_free_d3d_vertex_buffer();                      // 0x48e4f0
 void level_lights_setup();                                      // 0x48e520
@@ -318,9 +374,11 @@ float perlin_noise3(vector3 v);       // 0x5470e0
 
 // ---- decomp42 (gameplay.cpp's calls; units not known) ---------------------------------------------------
 void door_find_floor_point(lobj *door);               // 0x476ab0 (level_restore_doors)
-bool hover_tint_active();                             // 0x482090 (gameplay_update_cursor)
+// decomp63 (D4300): int, was bool (mov eax, 1 / xor eax, eax at 0x4820a5 / 0x4820a2).
+int  hover_tint_active();                             // 0x482090 (gameplay_update_cursor)
 void level_set_current_layer(int layer);              // 0x482110 level_current_layer (0x59bd90)
-void levelrender_level_load();                        // 0x4865a0
+// decomp63 (D4300): returns 0 (xor eax, eax at 0x4868dd); was void. gameplay.cpp ignores it.
+int  levelrender_level_load();                        // 0x4865a0
 void levelrender_level_unload();                      // 0x486ab0
 bool levelrender_get_flag_22fb6f7();                  // 0x486be0 (game_render_frame's fog text)
 float fog_get_near_current();                          // 0x486bf0
@@ -334,5 +392,10 @@ extern Character *levelrender_fx_char;                // 0x22fb6d0
 extern float levelrender_fx_char_tint_r;              // 0x22fb678
 extern float levelrender_fx_char_tint_g;              // 0x22ea4a0
 extern float levelrender_fx_char_tint_b;              // 0x22f8ce8
+
+// decomp63: the render-scene unit 0x481680-0x48743f and the shadow-table unit 0x487440-0x48789f (both
+// file names placeholders).
+#include "engine/rendering/unnamed_render_scene_0x481680.h"
+#include "engine/rendering/unnamed_shadow_table_0x487440.h"
 
 #endif

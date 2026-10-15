@@ -180,6 +180,8 @@ void matrix3_pack_orientation(mp_packed_orient *out, const matrix *m);     // 0x
 void matrix3_unpack_orientation(const mp_packed_orient *in, matrix *out);  // 0x475430 (mp_handle_new_lep)
 #define MP_NEW_MON 0x3e               // decomp58
 #define MP_SRV_REQ 0x3f               // decomp58
+#define MP_INV_EQP 0x33               // decomp63 (mp_send_equip_item; name from mp_packet_table)
+#define MP_INV_UQP 0x41               // decomp63 (mp_send_unequip_item)
 // decomp53: the rest of the handle unit's calls the session and packet units make. (address, check_port):
 // the list entry whose +0x08 address matches (nw_addr_equal), NULL.
 mp_player *mp_player_find_by_addr(const void *addr, bool check_port);       // 0x475180

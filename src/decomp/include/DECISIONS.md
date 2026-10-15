@@ -3358,3 +3358,98 @@ declared as fx_link_hook (fx, character) and fx_summon_hook (fx, argument) and d
 **D4412 (vsdk/geom/effect_mem.h). effect_is_cutscene_base and the frame counter.** effect_is_cutscene_base (id)
 returns AL (bit 26 of the base flags, 0x51dec0-0x51deea); effects_vfx_counter_2c9f968 (defined in
 effect_mem.cpp) gets its extern; fx_frame zeroes it (0x48a242).
+
+## decomp63: the render-scene unit, the shadow-table unit and the equip packets (0x481680-0x487b0f; game/unnamed_render_scene_0x481680.cpp, unnamed_shadow_table_0x487440.cpp, unnamed_equip_packets_0x4878a0.cpp, all placeholders)
+
+**D4300 (engine/rendering/levelrender.h). hover_tint_active returns int; levelrender_level_load returns
+int.** hover_tint_active ends in `xor eax, eax; ret` / `mov eax, 1; ret` (0x4820a2 / 0x4820a5), the
+pattern D3905 reads as int (a bool return loads AL). levelrender_level_load clears EAX before its RET
+(0x4868dd) on its only path, so it returns 0; it was declared void. Callers: gameplay_update_cursor
+tests the result (an int in a condition), level_load_files (gameplay.cpp) ignores the load result; both
+compile unchanged.
+
+**D4301 (levelrender.h). The draw entries and the level-object render records are complete.**
+levelrender_entry (0x10) gains depth +0x04 (in a union with the old _unk04) and object +0x0c (types 0, 4,
+5); levelrender_attach_entry (0x4c: character +0x10, item +0x14, light +0x18, pos +0x1c, orient +0x28;
+levelrender_push_attachment 0x48349a-0x4834fb) and levelrender_effect_entry (0x1c: fx +0x10,
+vfx_node_ref +0x14; levelrender_add_effect_entry 0x48432a-0x48435b) derive from it; LRE_* name the six
+levelrender_draw_list cases (jump table 0x486398). lobj_render_state +0x00 is the "$seethru" vis set
+(levelrender_level_load 0x486811), +0x08 a GameTimer (`new lobj_render_state[num_lobjs]` runs
+GameTimer::GameTimer on +8 of each record, 0x486704). The flag bits are LRS_* masks, not bit fields:
+the transitions are `and ~1; or 2` / `and ~2; or 1` / `and ~3` / `or 3` (0x482be2, 0x482c7c, 0x482cc1,
+0x482b7c), while levelrender_level_load clears bits 0-1 in one RMW (0x486766); no bit-field layout
+gives both. gametarget.cpp (`.flags & 0xff0`) and unnamed_shadows_0x4a37d0.cpp (type / dist / lobj)
+compile unchanged.
+
+**D4302 (vsdk/geom/vfx.h). The vfx records levelrender reads, under the decomp60 / decomp64 names.**
+decomp60 (D4000) named the base records at +0x28 (0xe8 bytes) vfx_emitter_desc and the instance list
++0x20 (fx_recb0, next +0xa8) emitters; decomp64 named the +0x20 node descriptors vfx_node_desc (0xa8)
+and the +0x2c records vfx_desc21c (0x21c, count +0x16). decomp63 keeps those names and adds the fields
+its code reads: vfx_emitter_desc vis_flags +0x28 (0x400000 / 0x800000, levelrender_effect_apply_vis
+0x483fc6), centre +0x3c and radius +0x48 (levelrender_add_effects 0x483f16-0x483f19); vfx_node_desc pos
++0x1c, cull_radius +0x2c and glow_pos +0x48 (glow_radius +0x28 is also the node entry's sort radius,
+0x483d92); vfx_desc21c vis_flags +0x6a (0x80 / 0x100, 0x48401b-0x484030). The per-instance records of
+the +0x2c descriptors (instance +0x24, next +0xe0, flags word +0x68) are vfx_inst21c, the argument of the
+vif_* particle functions (0x483e4d, 0x483ed2, 0x487272). New: vfx_base num_tags +0x10 / tags +0x3c
+(vfx_base_tag, 0x14 bytes, refs of kind 0 node / 1 emitter / 2 +0x2c record, 0x48416c-0x48418f), the
+instance's render_alpha (+0x04 byte, in a union with _unk04: 0x4824dc, 0x486212) and insts21c (+0x24, in
+a union with _unk24), vfx_node_ref (the 8-byte argument of vfx_instance::render_node 0x538260, thiscall
+with three pushes). All are unions with or splits of the existing padding; nothing moves.
+
+**D4303 (vfx.h). attached_light::world_pos (+0x20) is object-relative at draw time.**
+levelrender_draw_list writes it, for each ranked light, as (light.pos - lobj.pos) rotated by the level
+object's orientation (0x485b46-0x485b68) just before the back end (which levelrender_sum_point_lights is
+part of) reads it. The name is decomp60's and is kept; the comment says what it holds.
+
+**D4304 (unit boundaries). 0x481680-0x48743f, 0x487440-0x48789f and 0x4878a0-0x487b8f are three files.**
+The first ends with detail_apply_level_settings (its RET at 0x487432); its .data 0x59bd70-0x59c11f is
+variables then literals, its .bss 0x22ea498-0x22fb71b. A new object starts at 0x487440: the variable
+shadows_enabled (0x59c120 = 1) follows the first unit's last literal ("$vis_set" 0x59c114), as in D3309,
+and the next function is the first to use that .data (shadow_get_character_anchor reads 0x59c128); its
+.bss 0x22fb720-0x22fedd3 follows the first unit's last byte (0x22fb718). The equip packet functions
+(0x4878a0-0x487b83) use no .data or .bss of their own (mp_packet_table's counters only); they are put
+in a placeholder file of their own because nothing ties them to either neighbour (the shadow unit or
+multichat.cpp, whose .data starts with its command table at 0x59c180). If evidence turns up, the file
+merges into one of them without any other change.
+
+**D4305 (new headers). engine/rendering/unnamed_render_scene_0x481680.h and
+unnamed_shadow_table_0x487440.h, included at the end of levelrender.h.** The declarations of these units
+that levelrender.h already had (fog_*, level_vis_force_*, hover_tint_*, levelrender_render_scene,
+options_apply_detail, shadows_parse_table, place_ground_decal, move_target_*, ...) stay where they were;
+the new headers hold the rest (globals, records, the other functions). levelrender.h also declares the
+three back ends levelrender_draw_list calls (0x48e6c0 / 0x48fdb0 / 0x491500, `(lobj, alpha, light count,
+lights)` from the pushes at 0x485bc5-0x485bed) and the levelrender.cpp objects the unit touches
+(levelrender_lights[16] 0x23df188, the bytes 0x243e038 / 0x243e039, levelrender_wave_vertices). fx.h's
+fx_char_link / fx_char_link_used / fx_sky_list / level_light_get (decomp64) are used as they are. gr.h
+gains gr_light_desc::reset (0x50f400), Gr_3d_zmult, gr_start_instance / gr_stop_instance /
+gr_set_far_clip / gr_line_quad_3d; multi.h MP_INV_EQP (0x33) / MP_INV_UQP (0x41) (mp_packet_table
+counters 0x595758 / 0x5958e0 = table + 0x1c * type + 0xc). path_internal (0x59bd74, summoner.h) is
+defined in the render-scene unit: it lies in that unit's .data.
+
+**D4306 (game/unnamed_render_scene_0x481680.cpp). render_scope, an inline empty scope object.**
+levelrender_render_scene (5 states), levelrender_draw_list (5), levelrender_fade_occluders,
+levelrender_build_draw_lists, levelrender_add_lobjs, levelrender_add_effects and lamp_glows_draw open EH
+frames (FuncInfo 0x583de0, 0x583ef0, 0x583e28, ...) whose unwind actions are all the folded empty
+destructor 0x434650 on a stack slot, with no constructor code and no destructor call on the normal path:
+an object whose constructor and destructor are both inline and empty. profile_label (vsdk/os/profile.h)
+does not fit: its constructor 0x51b6b0 is out of line and called. The class and its name are ours;
+render_scope objects are placed where the state numbers change (state 0 at the function start, 1-4 in
+the blocks). gr_light_desc cannot be the state-0 object: items and containers construct gr_light_desc
+locals in levelrender_draw_list without an EH state, and buysell_render_item_mesh has no EH frame.
+
+**D4307 (render-scene header). levelrender_push_attachment's alpha argument is a ubyte.** Its caller
+stores the byte from character_get_move_fade_alpha over the dead first argument's slot and pushes the
+whole dword (0x4833fa-0x483407), so the parameter is a char type (an int parameter would be widened).
+The callee never reads it (levelrender_draw_list takes the alpha from the character again).
+
+**D4308 (engine/rendering/unnamed_shadow_table_0x487440.h). shadow_entry is 0x50 bytes with a gap at
++0x40.** shadows_parse_table stores the radius at record +0x44, the scale at +0x48 and clears / sets the
+byte +0x4c (0x487575, 0x487593, 0x487560, 0x4875ac), then copies 0x14 dwords from the stack record
+(0x4875c3); +0x40 is never written. Nothing reads the table (shadow_entries is referenced only by
+0x4875cb).
+
+**D4309 (vfx.h). vfx_node_desc +0x18 is written as a word.** levelrender_effect_apply_vis clears 0x200
+with `mov ax, word [..+0x18]; and eax, 0xfdff; mov word [ecx], ax` (0x483ff0-0x484003) and the tag pass
+sets it with a byte or on +0x19 (0x48418f); fx_create_instance reads +0x18 as decomp64's int flags
+(0x40, lamp glow). Both stay: flags (int) and vis_flags (ushort) share the slot in a union, and the
+render-scene unit uses vis_flags for the 0x200 / 0x400 / 0x600 bits.

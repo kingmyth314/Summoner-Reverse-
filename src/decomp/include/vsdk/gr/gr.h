@@ -250,6 +250,9 @@ void gr_bitmap_3d(vector3 *pos, int a, float size, gr::Mode mode);   // 0x53f3b0
 class gr_light_desc {
 public:
     gr_light_desc();                  // 0x50f3e0 gr_light_desc__gr_light_desc
+    // decomp63 (levelrender_draw_list): +0 = 0, +4 = -1, +8 = 0xff, +0x10 = 0, +0x14 = -1.0f, +0x1c = 0.
+    // levelrender_draw_list sets +0 bit 2 (CIF_EDGED), +4 the model LOD (-1 / 0 / 2), +8 the alpha.
+    void reset();                     // 0x50f400 gr_light_desc__reset
     int _unk00;                       // +0x00 bit 0: character_instance::render skips the mesh (decomp60)
     int _unk04;                       // +0x04 -1; not 0 / -1: render the shadow mesh when there is one (decomp60)
     int _unk08;                       // +0x08 0xff; 0: character_instance::render draws nothing (decomp60)
@@ -473,4 +476,14 @@ void gr_poly_uv(float u, float v);                                             /
 void gr_poly_alpha(ubyte a);                                                   // 0x545760
 void gr_poly_end();                                                            // 0x5457b0
 
+
+// ---- decomp63 (the render-scene unit 0x481680; vsdk\gr in sum.symbols) ------------------------------
+extern float Gr_3d_zmult;             // 0x5a72a0 console "zmult" (levelrender_render_scene: 1.0 during the
+                                      // frame, 0.2 after it, unless game_flags & 0x120)
+// (pos, orient, project flag): pushes the view onto the instance stack (Dash Faction gr::start_instance).
+void gr_start_instance(const vector3 *pos, const matrix *orient, int flag);   // 0x50e640
+void gr_stop_instance();              // 0x50e750
+void gr_set_far_clip(float dist);     // 0x50e7c0 dist > 1 enables (times Gr_level_fog_multiplier)
+// (p0, p1, width, mode): a camera-facing quad along p0-p1 (the line trails of the effects).
+void gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode mode);   // 0x53f470
 #endif
