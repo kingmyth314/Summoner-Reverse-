@@ -7,6 +7,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/os/timestamp.h"
+#include "engine/ai/pathfinding.h"      // decomp32: rect2d, pf_edge, pf_vis_node for the avoidance records
 
 class Character;
 class vector3;
@@ -251,5 +252,86 @@ struct avoid_area_desc {
 };
 LAYOUT_CHECK(avoid_area_desc, sizeof(avoid_area_desc) == 0x30);
 int avoid_area_add(avoid_area_desc *d);               // 0x4a9b40 index ("AA - primative not added!!")
+
+// ---- Obstacle avoidance tables (0x4a6710-0x4aa760, file not known; decomp32, pathfinding.cpp) ----
+// Only the fields pathfinding.cpp reads; names ours. A segment-list corner starts like a pf_vis_node
+// (point, flags, links, A* parent at +0x1c), so pf_graph_search links the two kinds.
+struct avoid_corner {                 // 0x44, segment list +0x288
+    pf_vis_node node;                 // +0x00
+    ubyte _unk28[0x1c];
+};
+LAYOUT_CHECK(avoid_corner, sizeof(avoid_corner) == 0x44);
+#define AVOID_SEGLIST_USED 0x1
+#define AVOID_SEGLIST_DOOR 0x2        // blocks instead of adding search nodes (pf_add_avoidance_nodes)
+#define AVOID_SEGLIST_OFF  0x8        // skipped by pf_mark_nodes_visible_from_point
+struct avoid_seglist {                // 0xa78, 14 at 0x2460db0 (sum.symbols avoid_seglists)
+    int _unk00;
+    uint flags;                       // +0x04 AVOID_SEGLIST_*
+    ubyte _unk08[6];
+    short num_corners;                // +0x0e
+    int size;                         // +0x10
+    int layer;                        // +0x14
+    ubyte _unk18[0x270];
+    avoid_corner corners[29];         // +0x288
+    ubyte _unka3c[0x3c];
+};
+LAYOUT_CHECK(avoid_seglist, sizeof(avoid_seglist) == 0xa78);
+#define AVOID_NUM_SEGLISTS 14
+extern avoid_seglist avoid_seglists[AVOID_NUM_SEGLISTS];   // 0x2460db0
+// A box / circle primitive (avoid_prim_from_segment builds one on the caller's stack: 0x78 bytes fit in
+// pf_add_avoidance_nodes' frame).
+struct avoid_prim {
+    ubyte _unk00[0x78];
+};
+struct avoid_obstacle {               // 0x88, 14 at 0x246a080 (sum.symbols avoid_obstacles)
+    ushort flags;                     // +0x00 bit 0 used, bit 1 on the obstacle grid
+    short num_points;                 // +0x02
+    short size;                       // +0x04
+    short layer;                      // +0x06
+    ubyte _unk08[0x30];
+    vector2 points[10];               // +0x38 closed outline
+};
+LAYOUT_CHECK(avoid_obstacle, sizeof(avoid_obstacle) == 0x88);
+#define AVOID_NUM_OBSTACLES 14
+extern avoid_obstacle avoid_obstacles[AVOID_NUM_OBSTACLES];   // 0x246a080
+extern char avoid_obstacle_counts[PF_NUM_SIZES * PF_MAX_LAYERS];   // 0x246a040 per size * 20 + layer
+// An avoidance polygon (0x114, table 0x246a7f0; avoid_poly_get).
+struct avoid_poly {
+    short _unk00;
+    short count;                      // +0x02 obstacles
+    ubyte _unk04[4];
+    char obstacles[0xfc];             // +0x08 avoid_obstacles indices
+    rect2d bounds;                    // +0x104
+};
+LAYOUT_CHECK(avoid_poly, sizeof(avoid_poly) == 0x114);
+// An avoidance spline (0xc, 20 at 0x2460cc0) and its points (0x24, 100 at 0x246b998). A point carries a
+// wall record at +4 that pf_sweep_segment tests like a pf_edge.
+struct avoid_spline {
+    short flags;                      // +0x00
+    short count;                      // +0x02
+    char points[8];                   // +0x04 avoid_spline_point_get indices
+};
+LAYOUT_CHECK(avoid_spline, sizeof(avoid_spline) == 0xc);
+struct avoid_spline_point {
+    ubyte flags;                      // +0x00
+    ubyte _unk01;
+    char size;                        // +0x02
+    char layer;                       // +0x03
+    pf_edge wall;                     // +0x04
+    ubyte _unk14[0x10];
+};
+LAYOUT_CHECK(avoid_spline_point, sizeof(avoid_spline_point) == 0x24);
+extern char avoid_spline_point_counts[PF_NUM_SIZES * PF_MAX_LAYERS];   // 0x246b8dc per size * 20 + layer
+void avoid_reset();                                    // 0x4a9d60
+void avoid_seglists_clear_refs();                      // 0x4a7b90
+avoid_poly *avoid_poly_get(avoid_seglist *s);          // 0x4aa3e0
+bool rect2d_overlap(rect2d a, rect2d b);               // 0x4a7160 (eight floats on the stack)
+void avoid_prim_from_segment(avoid_prim *out, const vector2 *a, const vector2 *b);   // 0x4a6d60
+bool avoid_prim_overlap(const avoid_obstacle *a, const avoid_prim *b, float margin);   // 0x4a6e00
+// Returns the extra path cost of going round the obstacle (pf_add_avoidance_nodes adds it).
+float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *ob);   // 0x4aa400
+bool avoid_segment_hits_prim(const avoid_obstacle *ob, const vector2 *a, const vector2 *b, float margin);   // 0x4a6f50
+avoid_spline *avoid_spline_get(int i);                 // 0x4a7830 NULL unless used
+avoid_spline_point *avoid_spline_point_get(int i);     // 0x4a77d0 NULL unless used
 
 #endif

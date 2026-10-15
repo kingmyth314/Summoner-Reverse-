@@ -1154,3 +1154,71 @@ is the whole animation's length (num_frames / frames_per_ms * 0.001), renamed an
 gr_tcache_free (0x508020). Kept as declared although the call sites differ: tga_read_bitmap's fourth
 argument is a bool in bm_lock_tga (pushed as a dword loaded from a byte slot, 0x503880) and
 tga_read_header's sixth is 1 for the mip probes (0x502c6b), both left as targautils.h's int / void *.
+
+## pathfinding.cpp (decomp32)
+
+**D1200 (pathfinding.h). The graph types; pf_bounds is one rect2d.** decomp29's pf_point_list /
+pf_point_ref (boss_mount_pick_flee_point) are the .pfg graph (0x60, pf_graphs[3][20] at 0x245f460) and
+its visibility node (0x28): renamed pf_graph / pf_vis_node with typedefs and `#define pf_point_lists
+pf_graphs`, keeping decomp29's field names count / points / pos so boss_ai.cpp compiles unchanged. The
+other fields come from pathfinding_load_graph (0x49d2c5-0x49d573: +0x04 / +0x14 second node list, +0x0c /
++0x1c BSP, +0x20 cells, +0x24 the wall grid read by pf_read_region) and pf_graph_search (+0x18 open list,
++0x1c parent, +0x20 g, +0x24 f). The four floats 0x245c998..0x245c9a4 (sum.symbols pf_bounds_max_x,
+_min_x, _min_z, _max_z) are written as one 16-byte copy of a cell's bounds in pf_compute_graph_bounds
+(`lea edx, [ecx + 0xc]` and four dword moves, 0x49cb7b-0x49cb9a), so they are `rect2d pf_bounds` with the
+four symbol names as macros on its fields. The symbols swap x and z: mp_quantize_position scales the
+position's x by 0x245c9a0 / 0x245c9a4 and its z by 0x245c99c / 0x245c998 (0x475660-0x4756bc), and
+pf_find_nearest_navigable_point compares cell +0x14 / +0x18 with pos.x and +0x0c / +0x10 with pos.z
+(0x49e972-0x49e9bd). rect2d's fields are named by that use (y = world z); the macros keep the symbols'
+names (fixing sum.symbols is left open).
+
+**D1201 (pathfinding.h). pf_straight_walk_clear(a, a_layer, b, b_layer, flags).** sum.symbols says
+"(from, to, size, layer)". ai_path_smooth pushes (7, next->layer, &to, start_layer, &from)
+(0x49f6bd-0x49f6ce), where start_layer is ai_path_find's second argument (`mov ebp, [esp+0x3c]`
+0x4a0209, passed on at 0x4a022e), and its backward pass pushes (7, nodes[0]->layer, &from,
+nodes[i]->layer, &to) (0x49f7ac-0x49f7bf). The same order in pf_graph_search (0x49fc3d-0x49fc4b) and
+pf_mark_nodes_visible_from_point (0x49f240-0x49f253).
+
+**D1202 (pathfinding.h). ai_path_find(from, from_layer, to, to_layer, size, float cost_bias), `to`
+not const.** The sixth argument is passed through to pf_graph_search, which loads it with `fld dword
+[esp+0x274] / fchs` into the goal node's cost (0x49fc09-0x49fc12): a float (conversationctl's literal 0
+has the same bits). pf_graph_search writes to->x / to->z when the goal is outside every cell
+(0x49fb2a-0x49fb2c), so `to` loses its const in both.
+
+**D1203 (pathfinding.h). Which unit defines what.** pathfinding.cpp's .bss is 0x2452cb8-0x245c9df
+(pf_layer_links .. the search stamp 0x245c9dc; boss_ai.cpp's timer is 0x245c9e0). The graph tables at
+0x245f3a0-0x2460cbb (sum.symbols tags several of them pathfinding.cpp) lie after the obstacle-debug unit's
+.bss and are the geometry unit's (docs/sum-exe/source-map.md, 0x4a4ee0 row), so they are extern in
+pathfinding.h and not defined in pathfinding.cpp. 0x245cd8c (freed by pathfinding_atexit_free, not
+referenced elsewhere) and the .data int 0x59cd8c (compared with 7 before the search hook) belong to other
+units; both are declared with names of ours.
+
+**D1204 (pathfinding.h). ai_path is 0x28 and the pool holds 1000.** ai_path_pool_init threads
+0x2452d58..0x245c998 in 0x28 steps (0x49d932-0x49d944) = 1000 nodes, and ai_path_alloc_node prints
+"current max is %d" with 0x3e8 (0x4a02d9); sum.symbols' "500 path nodes" is the initial value of
+ai_path_peak_used (0x1f4, 0x49d956). Fields: +0x00 pos, +0x0c layer (pf_graph_search passes the node's
+layer word, 0x4a0180), +0x10 dir (ai_path_find), +0x1c cost, +0x20 flags (bit 1 tested by
+ai_path_smooth), +0x24 next. ai_path_node_create takes the point as a vector2 by value (x to +0, y to +8;
+the caller pushes the node's two floats, 0x4a0184-0x4a018e), ai_path_node_create_b a vector3.
+
+**D1205 (ai.h). Avoidance records.** pathfinding.cpp reads the avoidance unit's tables
+(0x4a6710-0x4aa760, file not known): the 14 segment lists 0x2460db0 (flags +4, corner count +0xe, size
++0x10, layer +0x14, corners of 0x44 from +0x288 whose first 0x28 bytes are used as pf_vis_node: point,
+flags, links, A* parent +0x1c; 0x49fd3e, 0x49ff3b-0x49ff6a), the obstacles 0x246a080 (0x88: flags,
+point count, size, layer words, outline from +0x38; 0x49e227-0x49e296), the polygons (avoid_poly_get,
+count +2, obstacle bytes +8, bounds +0x104), the splines and their points (wall record at point +4,
+search stamp at +0x10, 0x49e396-0x49e3a6). Declared in ai.h next to avoid_area_add, which now includes
+pathfinding.h for rect2d / pf_edge / pf_vis_node. avoid_prim's 0x78 bytes are what fits in
+pf_add_avoidance_nodes' frame (unsure).
+
+**D1206 (vector.h, file.h, levelrender.h). Other declarations.** vector2::negate 0x524000,
+to_vector3 0x4a4ec0 (hidden result), from_xz 0x4a4ee0 (`ret 4`, no this returned, so a member, not a
+constructor), static nearly_equal 0x4a4e60 (cdecl, two pointers); vector3::length_quick 0x5240e0;
+vector2_closest_point_on_segment 0x525410 is (p, a, b, out) returning the squared distance, not
+sum.symbols' "(out, p, a, b)": the body forms (b - a) . (p - a) with its first argument as p and writes
+the fourth (0x525413-0x5254b0), and pf_sweep_test_wall passes (&corner copy, &from, &to, &tmp)
+(0x49de5a-0x49de66). vector2_project_onto_segment 0x5254d0 takes five arguments (a, b, p, margin, out t;
+`add esp, 0x14` at 0x49df08). File::read_uint16(min_ver, def) 0x525940 (an overload of FileReader's
+name only, File had none) and File::read_bool 0x525800; door_is_open 0x476940 (door, fraction) -> AL.
+pf_cells_along_segment is (layer, size, a, b): it indexes 0x245f460 with arg0 + 20 * arg1
+(0x4a64b0-0x4a64c4), the reverse of sum.symbols' "(size class, layer, ...)".

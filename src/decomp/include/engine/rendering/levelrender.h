@@ -111,6 +111,9 @@ struct door_info {
 };
 LAYOUT_CHECK(door_info, sizeof(door_info) == 0x8c);
 door_info *door_from_lobj(lobj *l);   // 0x4768c0 0 unless the lobj has flag 0x100
+// (door, fraction): open, or moving with the eased progress past fraction (pf_door_index_is_open passes
+// 0.4f; decomp32). Returns AL.
+bool door_is_open(door_info *d, float fraction);   // 0x476940
 // The door commands' helpers (unit not known; decomp27). door_find_by_name: 0 found, -1 not (the outputs
 // are then not written).
 int  door_find_by_name(const char *name, lobj **out_lobj, door_info **out_door);   // 0x477280

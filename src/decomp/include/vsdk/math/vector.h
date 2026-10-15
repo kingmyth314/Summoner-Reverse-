@@ -69,6 +69,7 @@ public:
     float normalize_length();                         // 0x524470 normalize, returns the length
     void random_direction();                          // 0x5246a0 vector3__random_direction (twin of 0x524650)
     void rotate(const matrix &m);                     // 0x5245a0 vector3__rotate (in place, dot with each row; decomp28)
+    float length_quick() const;                       // 0x5240e0 vector3__length_quick (sorted |components|, weighted; decomp32)
 
     float x, y, z;
 };
@@ -92,6 +93,13 @@ public:
     float len() const;                                // 0x523f80 vector2__len
     float normalize();                                // 0x523fc0 vector2__normalize: returns the length, (1, 0) at 0
     float len_sq() const;                             // 0x523fa0 vector2__len_sq (in the vector unit, so out of line; decomp29)
+    // decomp32 (pathfinding.cpp): out-of-line members, called with ECX = this.
+    void negate();                                    // 0x524000 vector2__negate (x = -x, y = -y)
+    // The two below sit in the pathfinding geometry unit (0x4a4e60-0x4a4ef1, file not known).
+    vector3 to_vector3() const;                       // 0x4a4ec0 vector2__to_vector3 (x, 0, y); hidden result
+    void from_xz(const vector3 *v);                   // 0x4a4ee0 vector2__from_xz (x = v.x, y = v.z); ret 4, no this
+    // cdecl (two pushed pointers, add esp 8): both components within 0.001 (0x581938 / 0x58193c).
+    static bool nearly_equal(const vector2 *a, const vector2 *b);   // 0x4a4e60 vector2__nearly_equal
     float x, y;
 };
 LAYOUT_CHECK(vector2, sizeof(vector2) == 0x8);
@@ -99,5 +107,10 @@ extern vector2 vector2_zero;                          // 0x2cbf4b0 (0, 0), stati
 // decomp25 (cdecl, called from matrix.cpp; vsdk\math, unit not known):
 float atan2_fast(float y, float x);                   // 0x542790 fpatan with quadrant fix-up
 float cross_2d(float ax, float ay, float bx, float by);   // 0x542b50 ax*by - ay*bx
+// decomp32 (pathfinding.cpp; vsdk\math, unit not known). Closest point to p on segment a-b (t clamped to
+// 0..1) into out; returns the squared distance (pf_sweep_test_wall compares it with 0.0009 = 0.03^2).
+float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const vector2 *b, vector2 *out);   // 0x525410
+// t of the projection of p on a-b; t = 0 and true when |a - p| <= margin, false outside 0..1.
+bool vector2_project_onto_segment(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t);   // 0x5254d0
 
 #endif

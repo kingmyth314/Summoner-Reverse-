@@ -82,8 +82,9 @@ Summoner 2 and Dash Faction give names only.
 | `engine/objects/item_paging.h` | `Engine\objects\item_paging.cpp` (pilot) | item mesh paging |
 | `engine/objects/living_entity.h` | `Engine\objects\living_entity.cpp` | `Character`, `living_combat`, `CF_*`, status ids |
 | `engine/characterinfo/characterinfo.h` | `Engine\characterinfo\characterinfo.cpp` | `char_info`, skills, chain attacks, experience |
-| `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state`, `ai_group` |
-| `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` | `pf_find_nearest_navigable_point`, `ai_path_find` / `ai_path_free`, `pf_trace_edge_crossings` |
+| `engine/ai/ai.h` | ai.cpp (`Engine\ai\`) | `ai_state`, `ai_group`; the avoidance records and calls pathfinding.cpp uses (decomp32, D1205) |
+| `engine/ai/pathfinding.h` | `Engine\ai\pathfinding.cpp` (decomp32) and the geometry unit 0x4a4ee0-0x4a6600 | .pfg graph types (`pf_graph`, `pf_vis_node`, `pf_edge`, `pf_cell`, `pf_bsp`, `pf_grid`), `pf_sweep`, `ai_path`, the unit's functions and globals, the geometry calls and tables |
+| `engine/ai/pathfinding_visibility.h` | `engine\ai\pathfinding_visibility.cpp` | `determine_point_visibility` |
 | `engine/gamesound/gamesound.h` | `Engine\gamesound\gamesound.cpp` (pilot) | `sound_ref`, game sound and music |
 | `engine/rendering/levelrender.h` | `Engine\rendering\levelrender.cpp` (decomp28, partial) | `lobj`, `lobj_face`, `door_info`, level render calls, wave / light helpers |
 | `engine/s3d/s3d.h` | `Engine\s3d\s3d.cpp` (decomp28) | `s3d_level level_s3d` and its record types, the `num_lobjs` / `lobjs` / ... field macros (D800) |

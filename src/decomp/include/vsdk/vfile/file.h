@@ -40,6 +40,8 @@ public:
     char   read_int8(int min_ver, char def);             // 0x525850
     ubyte  read_uint8(int min_ver, ubyte def);           // 0x5258a0
     short  read_int16(int min_ver, short def);           // 0x5258f0
+    ushort read_uint16(int min_ver, ushort def);         // 0x525940 (decomp32)
+    bool   read_bool(int min_ver, bool def);             // 0x525800 byte != 0 (decomp32; pathfinding passes (0, true))
     int    read_int(int min_ver, int def);               // 0x525990
     unsigned int read_uint(int min_ver, unsigned int def);   // 0x5259e0
     float  read_float(int min_ver, float def);          // 0x525a30 (decomp24)
