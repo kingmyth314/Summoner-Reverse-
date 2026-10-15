@@ -176,6 +176,10 @@ void fog_set_level_default(float a, float b);         // 0x486b90 a -> 0x59bd88,
 void fog_restore_level_default();                     // 0x486bc0
 void char_fog_set(float near_dist, float far_dist);   // 0x481e00
 void char_fog_disable();                              // 0x481e40
+// Falling snow (unit not known; decomp46): snow_start loads SnowFlake.tga and sets the particles up,
+// snow_stop clears the state (0x2451d78). The lenele3 levels and IonaExt02 call them from their hooks.
+void snow_start();                                    // 0x494ab0
+void snow_stop();                                     // 0x494b80
 // Door objects within reach of the character (unit not known; next to the AI code).
 bool door_in_use_range(Character *c, lobj *door);             // 0x476a30
 // decomp35 (gametarget.cpp). (lobj, fraction) door_is_open of the door of a door object.

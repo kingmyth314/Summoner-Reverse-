@@ -2083,3 +2083,51 @@ get_section_rect (ushort x / y / w / h at +0x30 .. +0x36, 0x54952a-0x549556). +0
 TMU (`mov byte ptr [edi+ebp+8], 0` with EDI = the TMU, 0x5495dd); gr_glide_create_texture clears both
 with one `mov word ptr [edi+8], 0` (0x549390), written as a ushort store. Nothing in the unit sets a
 dirty byte, so the reload loop in gr_glide_tcache_set is dead code.
+
+**D2700 (level_script_lenele3d.cpp, level_script_iona_ext2.cpp). The folded leave hook 0x4f0f00 is defined in
+lenele3d.cpp under its sum.symbols name.** 0x4f0f00 is `jmp snow_stop` and is the leave slot of both
+level_script_table records 0x16 (IonaExt02) and 0x21 (lenele3d) (read from 0x59f128 + 0x40 * i, +0x0c). It
+lies between ls_lenele3d_frame (0x4f0eb0) and ls_lenele3d_use (0x4f0f10), so the copy the linker kept is
+lenele3d's; IonaExt02's identical hook (in iona_ext2.cpp, 0x4f4550-0x4f4905) was folded into it and has no
+address of its own. Written as `void ls_ionaext02_leave() { snow_stop(); }` in level_script_lenele3d.cpp (the
+sum.symbols name and the existing level_scripts.h declaration are kept); iona_ext2.cpp defines no leave. A
+rename to ls_lenele3d_leave would describe the code better.
+
+**D2701 (level_script_lenele2aa.cpp). empty_function (0x4f13e0) is defined in lenele2aa.cpp.** The bare RET
+that every empty function of the game was folded into lies between lsf_lenele2aa_flag_vengence_done (ends
+0x4f13d8) and ls_lenele2aa_action (0x4f13f0), inside this unit's code. Nothing else in src/decomp defines it
+(summoner.h declares it). Which empty function of the unit it was is not visible (lenele2aa's leave slot is
+0x4f13e0; likely). D907 / D703 (callers keep their own names for the folded copies) are unchanged.
+
+**D2702 (engine/camera/camera.h). camera::cut_to_view_stub (0x479430), new.** thiscall on game_camera
+(`mov ecx, 0x60a018`, 0x4efe6e), body `ret 0x14`: five dword arguments. lsf_lenele_flag_cart_played pushes
+2.0, 2.0, 17.0, &orient, &pos (0x4efe55-0x4efe6d; pos and orient are navpoint_get_position's outputs), so
+(vector3 *, matrix3 *, float, float, float). sum.symbols says "17.0, 4.0, 4.0" for the iona_ext callers;
+lenele1aa passes 2.0, 2.0.
+
+**D2703 (level_script_eleh.cpp). The four eleh choice bytes keep their sum.symbols names although they are
+shifted.** ls_eleh_action sets 0x257e9ef for "JoinJoseph", 0x257e9ec for "TopFloor", 0x257e9ed for
+"GroundFloor" and 0x257e9ee for "BottomFloor" (0x4f18a6-0x4f18fa); ls_eleh_fade_place_party_frame maps 9ec ->
+entry 5, 9ed -> 3, else 4 (0x4f176a-0x4f178a); ls_eleh_frame's JoinJoseph block reads 9ef. sum.symbols calls
+them go_ground / go_bottom / go_other / go_top. Written with the sum.symbols names and the real choice in a
+comment; renames proposed in NOTES (go_top -> join_joseph, go_ground -> go_top, go_bottom -> go_ground,
+go_other -> go_bottom).
+
+**D2704 (level_script_courtyard.cpp). lenele1d is part of the courtyard unit; 0x4fab90 gets a name.**
+ls_lenele1d_init / _frame / _use (0x4fa890-0x4faa57, module -) lie between ls_lenele1e_use (0x4fa850) and
+ls_lenele1c_init (0x4faa60), both level_script_courtyard.cpp, and their literals (0x5a46ec-0x5a4760) lie
+between lenele1e's / ikaemosu's and lenele1c's (0x5a4770-0x5a4834): one object file. ls_lenele1c_frame
+(0x4fab80) is `jmp 0x4fab90`; 0x4fab90 (after 11 bytes of padding) is a function with no sum.symbols entry
+(Flece joins at $fleceintro): lsf_lenele1c_flag_found_flece, name ours after its flag, declared at the top of
+the .cpp (D1400).
+
+**D2705 (the 13 units). More fixed level indices (as D2407).** Read from level_script_table: 2 "test" (eleh's
+"extra_4", 0x4f15f8; events.tbl: "used by eleh script to keep door shut"), 0x17 KhosaniStrng ("open_yago",
+0x4f4633), 0x18 LPalaceInt ("got_ring_of_darkness" 0x4efa95, "got_dagger_quest" 0x4f5efc), 9 sewer
+("sewer_flag_found_crate", 0x4fb326), 0x1c Wolong2 ("got_ring_of_wind", 0x4fe913). Per-unit #defines.
+
+**D2706 (engine/rendering/levelrender.h, engine/ai/boss_ai.h). New declarations, no conflict.** snow_start
+(0x494ab0) / snow_stop (0x494b80): no pushes before the calls (0x4f0da0, 0x4f0f00, 0x4f1000, 0x4f4570), unit
+not known. tiger_find_rider (0x49a010, returns eax = the last living entity whose char_info +0x10 is 0x57, 0
+when none) and the bytes tiger_dismount_stage_reached / tiger_stage_trigger / tiger_combat (0x2452a98..a9a,
+byte compares and stores in ls_templeint_frame / the cutscene ends).

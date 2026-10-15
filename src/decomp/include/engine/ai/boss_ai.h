@@ -177,6 +177,13 @@ void  ghost_set_solo(Character *rider);                // 0x4bbd80
 void  ghost_minions_deactivate();                      // 0x4bbdd0
 void  evil_joseph_destroy_effects();                   // 0x4c40d0
 void  tentacle_beast_battle_update();                  // 0x4c7640
+// decomp46 (level_script_temple_inside.cpp): the Tiger Rider's handshake with the TempleInt script. The
+// rider is the last living entity of species 0x57 (char_info +0x10), NULL when none; ls_templeint_frame
+// reads its HP through the result unchecked.
+Character *tiger_find_rider();                         // 0x49a010
+extern bool tiger_dismount_stage_reached;              // 0x2452a98 set by tiger_check_stage (stage 3)
+extern bool tiger_stage_trigger;                       // 0x2452a99 set by the script, read by tiger_check_stage
+extern bool tiger_combat;                              // 0x2452a9a tiger_ai_idle engages when set
 // One tentacle of the sewer boss (0x110 bytes, 4 at 0x248c328; sum.symbols types the array
 // uint8[0x440]). Only the fields the level scripts and tentacle_begin_sink touch are named. Type name ours.
 struct tentacle_info {

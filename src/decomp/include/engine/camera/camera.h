@@ -33,6 +33,9 @@ public:
     vector3 &get_pos() { return eye_pos; }
     matrix3 &get_orient() { return eye_orient; }
     void cycle_mode();                // 0x479a60 camera_cycle_mode (F12: 0 -> 1 -> 2 -> 0)
+    // (position, orientation, distance, two floats): an empty body (ret 0x14). The level scripts pass a
+    // navpoint's position and matrix, 17.0 and 2.0, 2.0 (lsf_lenele_flag_cart_played). decomp46.
+    void cut_to_view_stub(vector3 *pos, matrix3 *orient, float distance, float a, float b);   // 0x479430
 
     int mode;            // +0x000 0 low, 1 high, 2 automatic, 3 forced high, 5 glide (camera_set_mode)
     int prev_mode;       // +0x004
