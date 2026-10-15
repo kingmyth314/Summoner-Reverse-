@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **4,092 / 5,548** game/engine functions named (73.8%), plus 721
-pointer-only functions (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14): **4,655 / 5,548** game/engine functions named (83.9%), plus 1,982
+functions that Ghidra's analysis missed (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -206,3 +206,11 @@ effects; level rendering; boss AI; AI groups; pathfinding). It covered:
 Corrections: `mp_player_file_write` (it writes the `.plr` file), `hud_set_timed_highlight`, and the two hidden static
 initialisers that had been merged into "level_display_name". About 400 function starts hidden after padding are
 still not in Ghidra's list.
+
+**2026-10-14, fifth parallel pass:** about 1,800 entries, of which about 1,240 are function starts that Ghidra had
+missed. Most are the static-initialiser machinery: for each global object, a jump thunk in the 652-entry table at
+`0x588004`, an init function, an `atexit` registration and a destructor. The rest are hidden callbacks: game-state
+handlers, message-box and UI callbacks, script-editor buttons, multiplayer join and new-player handlers, sort
+comparators and the lights API. Corrections, each checked: `chat_history_pump`, `mp_pack_player_info`,
+`register_atexit_4d5110`, `dialogue_topic_box__ctor`, `register_atexit_439e60`, `init_chain_skill_names` and
+`light_set_all_enabled`. The initialiser table has 652 entries, not 712.
