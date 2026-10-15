@@ -9,7 +9,7 @@ SZ(sound_ref, 0xc);
 OF(sound_ref, name, 0x0); OF(sound_ref, handle, 0x4); OF(sound_ref, params, 0x8);
 
 SZ(ItemType, 0x100);
-OF(ItemType, _unk10, 0x10); OF(ItemType, animation, 0x14); OF(ItemType, value, 0x18);
+OF(ItemType, mesh, 0x10); OF(ItemType, animation, 0x14); OF(ItemType, value, 0x18);
 OF(ItemType, stat_mods, 0x40); OF(ItemType, status_effects, 0x48); OF(ItemType, ap_regen, 0x54);
 OF(ItemType, charge_effect, 0x58); OF(ItemType, flags, 0x5c); OF(ItemType, bitmap, 0x5e);
 OF(ItemType, restricted, 0x67); OF(ItemType, damage, 0x68); OF(ItemType, weapon_flags, 0x6a);
