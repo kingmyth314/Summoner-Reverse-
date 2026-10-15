@@ -249,6 +249,15 @@ node tools/tu-split2.mjs --out units.txt
 node tools/tu-split2.mjs --score
 ```
 
+## `tools/decomp-progress.mjs`
+
+Counts which functions of each original source file have rewritten source in `src/decomp/` (by the `// 0xADDR` comments)
+and their confidence (exact / likely / unsure). `--md` prints a Markdown table.
+
+```
+node tools/decomp-progress.mjs
+```
+
 ## `tools/addsym.mjs`
 
 Merges proposed symbols (`0xADDR|name|kind|module|conf|comment` lines) into `symbols/sum.symbols` in address

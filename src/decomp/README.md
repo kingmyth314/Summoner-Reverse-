@@ -53,6 +53,9 @@ Rules:
 - `symbols/types.h` declares `ui_element` as a C struct, but the game uses it as the C++ base class of `ui_window`
   and `ui_gadget`, so a file that includes `types.h` cannot also declare those classes.
 
+**Progress:** `node tools/decomp-progress.mjs` counts the written functions per original file (2026-10-15: 704 of
+8,642, 407 exact, 261 likely, 12 unsure).
+
 **Headers.** `include/` holds one stub header per batch (`stubs_*.h`) that declares the engine and UI functions
 the files call, plus `ui_screen.h` and `dialogue_box.h`. The signatures are inferred from the call sites. They
 overlap and will be merged into proper engine headers once there is a real build.
