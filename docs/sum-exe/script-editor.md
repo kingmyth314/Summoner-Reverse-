@@ -123,7 +123,7 @@ from the file):
 ### Main bar buttons
 
 Hotkeys are DirectInput scan codes passed to `ui_gadget__set_hotkey` (**observed**). Reading
-`0x4000` as Ctrl and `0x1000` as Shift is *inferred*.
+`0x4000` is Ctrl and `0x1000` Shift (**observed** in `key_mark`; `0x2000` is Alt).
 
 | Button | Callback | Hotkey | Action |
 |---|---|---|---|

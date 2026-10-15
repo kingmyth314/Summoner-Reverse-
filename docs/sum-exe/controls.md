@@ -29,7 +29,9 @@ natural hook for [custom key bindings](../roadmap.md#custom-key-bindings-for-pla
 4. `interface_frame(code)` (`0x4119a0`) offers the code to the open screen's handler. With no
    screen open, `hud_frame` → `hud_handle_keys` handles it.
 
-**Key codes:** the DirectInput-style scan code, plus `0x1000` for Shift and `0x4000` for Alt.
+**Key codes:** the DirectInput-style scan code, plus `0x1000` for Shift, `0x2000` for Alt and `0x4000` for Ctrl (`key_mark`
+and `key_get_shift_status` set them from scan codes `0x2a`/`0x36`, `0x38`/`0xb8` and `0x1d`/`0x9d`; **observed**,
+corrected 2026-10-15: this page said `0x4000` was Alt).
 Held keys are polled separately with `key_is_down` / `key_down_time`. Examples: the camera
 arrows, and the modifier keys in the mouse input.
 
