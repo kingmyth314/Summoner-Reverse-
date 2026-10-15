@@ -454,7 +454,7 @@ int  character_save_state_size();     // 0x4587f0 0x17c, the fixed LENT record s
 // decomp37: arguments 5 and 9 are bytes (the init flag and "placed": no navigation-mesh snap).
 Character *living_entity_create(int type, int char_info, const vector3 *pos, const matrix *orient,
                                 bool a, int layer, int level, int unused, bool placed);   // 0x461b80
-void character_xp_death_penalty(Character *c);        // 0x441710
+void character_xp_death_penalty(Character *c);        // 0x441710 (defined in the net session unit, game/unnamed_netsession_0x440b40.cpp; decomp53)
 // Stops or attaches the looping effect of a status (unit not known; conversation_begin passes the
 // character's handle, Character +0x80; decomp20). Returns the effect handle (status_effect_add keeps it).
 int  status_effect_update_fx(int handle, int status); // 0x48c470

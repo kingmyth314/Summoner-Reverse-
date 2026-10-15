@@ -143,6 +143,13 @@ int  nw_receive(ubyte *data, net_addr *from);                       // 0x518b80 
 int  nw_accept_reliable(net_addr *from);                            // 0x518ce0 socket or -1
 void nw_ConnectToServer(int *socket, net_addr *server);             // 0x518f30
 void nw_flush_receive();                                            // 0x519440
+// decomp53 (the net packet / session units): the reliable socket calls of the same object (module -).
+// (socket, buffer, size): bytes read, <= 0 when nothing is waiting.
+int  nw_NewReceiveReliable(int socket, void *buf, int size);         // 0x518bb0
+int  nw_NewSendReliable(int socket, const void *data, int len);      // 0x518d70 (result unused)
+// The socket's state: RNF_UNUSED 0, RNF_CONNECTED 1, RNF_BROKEN 2, 3, ...; the session drops a player
+// on 0, 2 and 3.
+int  net_get_reliable_socket_status(int socket);                     // 0x5193a0
 
 // The ping field of a reliable socket record (index below 10; own assert). decomp24 (chat_cmd_ping).
 int net_get_reliable_socket_ping(int socket);                       // 0x5193f0

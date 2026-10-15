@@ -147,6 +147,7 @@ public:
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x52d7e0
     // decomp51 (the load-game screen, game/unnamed_states_0x431870.cpp).
     ui_listbox_entry *get_selected();                 // 0x52d8a0 +0x2b4
+    void select_by_data(int data, bool scroll_into_view);   // 0x52d8b0 the entry whose +0x34 is data (decomp53)
     void select_by_text(const char *text, bool scroll_into_view);   // 0x52d8f0
     void select_entry(ui_listbox_entry *e, bool scroll_into_view);  // 0x52d920
     ui_listbox_entry *find_by_text(const char *text); // 0x52d9b0 strcmp of entry +0x30

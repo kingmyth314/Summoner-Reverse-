@@ -74,6 +74,8 @@ void pxochat_clear_motd();                          // 0x425260
 void pxochat_add_chat_line(const char *text, int type);   // 0x425270
 void pxochat_reset_lists();                         // 0x4253e0
 
+// decomp53: set once the PXO login went through; the lobby frame does nothing before (state_mp_lobby_frame).
+extern int pxochat_logged_in;                        // 0x5c5924
 extern int pxo_run_updater_on_exit;                 // 0x5c5934 set by "Yes" in the new-version popup
 
 #endif

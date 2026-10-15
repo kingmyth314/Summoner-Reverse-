@@ -167,6 +167,8 @@ int effect_base_queue_stream(int index, unsigned int *out_size, unsigned int *ou
 vfx_base *effect_get_base(int id);
 int effects_get_num_bases();
 int effects_find_base(const char *name);
+// decomp53 (effect streaming): the base's resident bit; true when the name is not a base.
+bool effects_base_is_resident(const char *name);   // 0x51de90
 void effect_base_set_info(unsigned int index, ushort num_nodes, int table_size, int size, ushort version);
 void effect_base_read(unsigned int index, int *out_nodes, int *out_table_size, int *out_size, int *out_version);
 vfx_base *vfx_preload(const char *name, int *out_index);

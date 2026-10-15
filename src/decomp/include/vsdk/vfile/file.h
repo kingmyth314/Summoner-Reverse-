@@ -83,6 +83,12 @@ public:
     void sync_string_buf(char *buf, int size, int min_ver, const char *def);   // 0x5268c0
     void sync_bytes(void *buf, int len, int min_ver);                  // 0x526900
 
+    // decomp53 (monster layouts, effect streaming).
+    bool is_open();                                      // 0x514a70 slot >= 0
+    int  get_async_status();                             // 0x5147c0 -1 error, 0 reading, 1 done (1 when not async)
+    void write_matrix(const matrix *m);                  // 0x5262d0 fvec, rvec, uvec
+    void read_matrix(matrix *m, int min_ver, const matrix *def);   // 0x525b40
+
     int path_id;                      // +0x000 path id of the found file (File__find_in_path, File__get_path_id)
     ubyte _unk004;                     // +0x004
     char full_path[0x103];             // +0x005 resolved path (File__get_full_path returns this + 5)
@@ -128,6 +134,7 @@ void file_init(const char *install_path, bool use_packfiles);        // 0x512d60
 int  file_add_path(const char *dir, const char *exts);               // 0x512e60 new path id
 void file_remove_path(int path_id);                                  // 0x513080 (decomp52)
 char *file_get_full_dir(int path_id, char *out);                     // 0x512a70 install path + dir
+char *file_get_ext(const char *name);                                 // 0x5131c0 from the last '.', or "" (decomp53)
 void file_strip_ext(char *out, const char *name);                     // 0x513100
 int  file_make_path_dirs(int path_id);                                // 0x5131e0 nonzero = failure
 // install path + directory of path_id + name into out (return value not used by the pilots).

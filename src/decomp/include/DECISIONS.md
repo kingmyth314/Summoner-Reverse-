@@ -2552,3 +2552,120 @@ fx_create_at_camera, fx_pause_for_cutscene, fx_resume_after_cutscene, fx_destroy
 effects_release_cutscene_memory (effect_mem.h), snd_free (snd.h), file_remove_path (file.h),
 cutscene_script_load / cutscene_script_unload (level_scripts.h; the load's return is not used, declared
 void), movement_init (input unit header, unit not known), Snow_enabled (cutscene header, unit not known).
+
+## decomp53: the multiplayer menu, lobby, state 6 / monster layout, effect stream, net session and packet units (placeholders)
+
+**D3300 (engine/effects/effect_stream.h). effect_stream_queue_add's third argument is the target; effect_stream_start
+returns int.** The header had (name, Mempool *pool, int arg) and void effect_stream_start(). effect_stream_queue_add
+stores its third argument at entry +0x2c (`mov edx, [esp + 0x14]` after two pushes, 0x4404d2 / 0x4404d9) and its second
+at +0x30 (0x4404f9 / 0x440503); +0x30 is the mempool every reader pushes (0x440739, 0x44098a, 0x440a0f), +0x2c the
+object a streamed file is read into (`mov ecx, [4*eax + 0x64fe64]` / skeleton_read 0x440a41; the vim * store 0x440ad3).
+So the order (name, pool, target) was right and only the type changes to void *. effect_stream_start returns 0 / 1 in
+EAX on every path (0x440569, 0x440589, 0x440598, 0x4405b4, 0x4405c3, 0x4405ce). The one call of each in src/decomp
+(effect_mem.cpp's `effect_stream_queue_add(b->name, pool, 0)` and the statement call of effect_stream_start) compile
+unchanged. The rest of the unit (queue, buffer, state, the open / finish / next / flush steps) is new in the header.
+
+**D3301 (summoner/multi/unnamed_netpackets_0x441820.h, unnamed_netsession_0x440b40.h). The last argument of
+multi_send_packet / multi_send_packet_buffered is a flush flag, mp_broadcast_packet's is "skip the flagged player",
+multi_process_client_status's is "reliable"; all bool.** multi.h declared `multi_send_packet(..., int reliable)`,
+`mp_broadcast_packet(..., int reliable)` and `multi_process_client_status(mp_player *, int a)`. multi_send_packet
+always sends with nw_NewSendReliable (0x442189, 0x442201); its fourth argument (`mov al, [esp + 0x34]; test al, al`,
+0x4421e6) only decides whether the buffer goes out now. multi_send_packet_buffered is the same with nw_send
+(0x442010). mp_broadcast_packet's third argument (`mov bl, [esp + 0x14]`, 0x441ab8) makes a player with
+MP_PF_INFO_SENT lose the flag instead of getting the packet (0x441ad7-0x441aed); it always flushes. The client status
+sender tests a byte (0x44119c) and picks the reliable or the buffered send. All existing calls pass 0 or 1 and
+compile unchanged; there was no definition before. Parameter names changed only in the comments of the callers'
+units (none edited).
+
+**D3302 (summoner/multi/multi.h). mp_player is 0xbc bytes with GameTimers at +0x24 and +0x68.** multi.h had
+`ubyte _unk20[8]` and no size. init_gametimer_array_651604 (0x440ba0) constructs +0x24, +0x64 and +0x68 of four
+records 0xbc apart from 0x6515a0 (the implicit constructor inline, as the two list heads' initialisers 0x440b50 /
+0x440be0 do at 0x651418 / 0x6514d8); mp_session_reset clears 0xbc dwords of the array (0x4414a7) and steps 0xbc
+(0x4414f1). +0x24 is SetTimeout by mp_accept_join_request (0x4ab69b, `join_timer`), +0x68 is used by
+mp_handle_swi_2dir (0x488659, `swi_timer`); names ours. `_unk20` is now an int. LAYOUT_CHECK 0xbc added. No code
+used `_unk20`.
+
+**D3303 (multi.h). mp_packet_info::flag is a byte.** It was an int. multi_process_packet compares it as a byte
+(`cmp byte ptr [ebp + 0x5951c0], 1`, 0x441959), which VC6 does not emit for an int compare. Three pad bytes keep
++0x0c. +0x18 / +0x19 (rate_flags[0] / [1]) are documented: [0] the type has rate info (cmd_disp_rate's help lists
+those, 0x442582), [1] its display is on (toggled at 0x44242e-0x442439, listed by the status at 0x44253c). No
+written code read `flag`.
+
+**D3304 (summoner/multi/unnamed_mpmenus_0x43eb00.h). mp_player_level_available's mask is int.** multi.h had
+`unsigned int mask`. The function shifts it with `sar eax, 0x1a` (0x43eb83), signed. Its only written caller,
+mp_level_available_to_all, passes mp_player::profile_flags (int). The callers mp_server_list_draw and
+mp_handle_join_request are not written yet.
+
+**D3305 (summoner/multi/unnamed_netsession_0x440b40.h). The netgame globals are one struct, mp_netgame (0x6513a8, 0x6c
+bytes); the old names are macros.** mp_host_game clears 0x1b dwords from mp_netgame_name (`mov ecx, 0x1b; mov edi,
+0x6513a8; rep stosd`, 0x43ede2-0x43edf1), exactly the bytes up to mp_update_timer (0x651414), so the fourteen
+globals multi.h declared separately (name, password, level, flags, players, max players, difficulty, host level,
+levels below / above, state, server address and id, level scale) and two unreferenced dwords (+0x34, +0x58) are one
+object. As multisave.h does for pxo_cfg (`#define pxo_cfg_flags (pxo_cfg.flags)`), the old names stay as macros
+(`#define mp_netgame_level (mp_netgame.level)`), so every existing use compiles unchanged, including
+multiplayerdata.cpp's `sizeof(mp_server_addr)` (8). Type and object names ours; the memset is
+`memset(&mp_netgame, 0, sizeof(mp_netgame))`.
+
+**D3306 (game/unnamed_lobby_0x43ef30.cpp). irc_connect's -2 is a dead case.** state_mp_lobby_frame treats -2 like
+1 (`cmp eax, -2; je`, 0x43f17b), but multi_chattracker.cpp's irc_connect returns only -1, 0 and 1. Comment only.
+
+**D3307 (unnamed_netpackets_0x441820.h). The byte averages are crosswise.** mp_net_stats_update stores the average of
+net_stats_sent_bytes_history into net_stats_avg_recv_bytes (0x441d73) and that of net_stats_recv_history into
+net_stats_avg_sent_bytes (0x441d90). sum.symbols' comments say the opposite. Nothing reads either average (only
+mp_reset_net_stats and mp_net_stats_update touch them), so the code keeps the sum.symbols names and the stores as
+they are. Comment only; a note for the symbols maintainer.
+
+**D3308 (game/unnamed_mlayout_0x43f9d0.cpp). monster_layout_load spawns every monster with the map name's char_info.**
+charinfo_find_by_name is called once, on the map-name string (0x43ff07), and its result stays in EBP for every
+living_entity_create (0x440111); the per-record name read into the same buffer (0x44001e) is used only to find a
+type-7 party member. So load_mlayout creates its monsters with char_info charinfo_find_by_name(level filename)
+(normally -1). Game bug of a debug command (state 6 and the layout editor are unreachable; the command is not).
+
+**D3309 (source-map). 0x440b40-0x442380 is two objects; the cut 0x43ef20 / 0x43ef30 has data evidence.** Each
+object's .data is its initialised variables, then its literals (the interface manager, the effect streamer and the
+lobby all show this). The literals of mp_handle_gm_stat and mp_handle_ct_stat (0x595158-0x5951b7) are followed by the
+variable mp_packet_table (0x5951b8), so a new object starts there; its literals follow the table (0x5958f0..: those
+of multi_process_packet, the senders and disp_rate). The .bss agrees: 0x440b40-0x441817 use only 0x6513a8-0x65188f
+(netgame block, timer, list heads, records), 0x441820-0x4425a6 only 0x651890-0x65e967 (receive buffers, send buffers,
+statistics, ccmd_disp_rate) besides calls and the extern player list. Written as game/unnamed_netsession_0x440b40.cpp
+and game/unnamed_netpackets_0x441820.cpp. Likewise the lobby's .data begins with two variables (0x594fcc = 1, no
+reference; lobby_join_channel_index 0x594fd0 = -1) right after the menu unit's literals ("All_multi_levels",
+0x594fb8), which supports the source map's "inferred" cut at 0x43ef30. The cut lobby / state 6 (0x43f9d0) still rests
+on the initialiser run (the .bss has an 8-byte gap 0x60f1c8-0x60f1cf; no .data variable).
+
+**D3310 (game/unnamed_netpackets_0x441820.cpp). multi_process_packet's type test is off by one; DMY_PCK has no
+handler.** `cmp cl, 0x42; ja` (0x441869) rejects only types above 66, so type 0x42 indexes mp_packet_table[66], the
+literal "multi_process_packet: Invalid packet type..." at 0x5958f0: its "handler" dword is "i_pr" (0x72705f69), its
+flag byte 'o' (not 1), so a packet of type 0x42 from a listed player calls 0x72705f69. DMY_PCK (0x40) has handler 0
+(0x5958bc) and is called the same way. Neither is checked; the sizes are not checked against the datagram length
+either. Game bugs, comment only (written as the code is).
+
+**D3311 (multi.h and the four new placeholder headers). Declarations moved out of multi.h, new ones added.** The
+declarations of functions and globals these units define moved from multi.h to the unit headers
+(unnamed_mpmenus_0x43eb00.h: mp_host_game, the level checks, All_multi_levels; unnamed_lobby_0x43ef30.h: lobby_channel
+and every lobby_* global and function; unnamed_netsession_0x440b40.h: mp_player_list, mp_local_player, mp_net_port,
+mp_player_alloc / _disconnect, mp_session_reset, mp_game_frame, multi_do_frame, mp_level_start, mp_set_local_status,
+multi_process_client_status, multi_set_netgame_state (decomp51's declaration, `send_now`), pxo_read_config_thunk and the
+netgame block; unnamed_netpackets_0x441820.h: mp_packet_table, multi_send_packet, mp_broadcast_packet, the two
+forwards). multi.h includes the four headers at its end, so every unit that includes multi.h sees the same names;
+the netsession and netpackets headers include multi.h themselves (guarded) because they need the complete mp_player.
+MP_MAX_PLAYERS (4) is in multi.h. New, no conflict: MP_GM_STAT / MP_CT_STAT, MP_NUM_PACKET_TYPES, MP_PF_ANNOUNCED
+(0x2: mp_host_update_session 0x440ddf, mp_handle_gm_stat 0x441081), mp_player_find_by_addr (address, check_port; the
+callers push 0 or 1), mp_all_players_have_status, mp_broadcast_packet_3e, the object unit's mp_send_local_updates /
+mp_send_monster_list / mp_send_new_lep / mp_net_handle_map_reset, the join / tracker unit's mp_join_timer_reset,
+chat_history_pump, mp_unpause, tracker_init / _start_game / _frame and its globals (0x24794bc, 0x24794c0, 0x2479520,
+0x2479620; names ours: mp_join_accept_player / _timer, tracker_game_channel / tracker_filter_channel),
+gtrack_send_channel_query with its 0x28-byte request, mp_level_find_boss / mp_level_complete_check, the game list
+state's mp_gamelist_init / _net_frame / _free, pxo_login_reply, and the 34 packet handlers of mp_packet_table that no
+header had (all (data, sender), as the table's call 0x441970 passes them). Elsewhere: nw_NewReceiveReliable,
+nw_NewSendReliable, net_get_reliable_socket_status (net.h, same object as decomp50's unit, module -); File::is_open,
+get_async_status, write_matrix, read_matrix and file_get_ext (file.h); effects_base_is_resident (effect_mem.h);
+ui_element::set_size, ui_push_group / ui_pop_group (ui.h); ui_listbox::select_by_data (ui_gadgets.h);
+debug_return_zero, debug_noop_mp_frame, debug_noop_disp_rate (debug.h); pxochat_logged_in (new_pxochat.h, defined in
+new_pxochat.cpp but not declared). living_entity.h keeps character_xp_death_penalty (defined in the net session unit).
+
+**D3312 (game/unnamed_*_0x43eb00 .. 0x441820.cpp). File names are placeholders.** None of the six units has an assert
+path, a strings.tbl block (no localize_strings read in 0x43eb00-0x4425a6) or a Summoner 2 counterpart name; all are
+module "-" in sum.symbols. Written as game/unnamed_mpmenus_0x43eb00.cpp, unnamed_lobby_0x43ef30.cpp,
+unnamed_mlayout_0x43f9d0.cpp, unnamed_effectstream_0x440400.cpp, unnamed_netsession_0x440b40.cpp and
+unnamed_netpackets_0x441820.cpp; effect_stream.h keeps its name (engine/effects/, directory ours).

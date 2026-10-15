@@ -55,6 +55,7 @@ public:
     void get_size(int *w, int *h);     // 0x542e80
     bool is_hidden();                  // 0x542fe0
     bool is_shown();                   // 0x542ff0
+    void set_size(int w, int h);       // 0x542e60 (decomp53, state 6)
 
     ubyte initialized;                 // +0x004 0 from the constructor, 1 from init
     int kind;                          // +0x008 1 window, 0 gadget
@@ -141,6 +142,9 @@ LAYOUT_CHECK(ui_gadget, sizeof(ui_gadget) == 0x274);
 #define UI_EVENT_LIST_DBLCLICK 0x19
 
 // ---- globals ---------------------------------------------------------------------------------------
+// decomp53 (state 6): windows of another group report disabled (ui_window::is_disabled).
+void ui_push_group();                 // 0x530910
+void ui_pop_group();                  // 0x530920
 extern ui_window ui_window_sentinel;  // 0x2cbf718 (list head: next 0x2cbfbfc, prev 0x2cbfc00)
 extern Color ui_window_colors[4];     // 0x2cbf670
 extern Color ui_tooltip_colors[4];    // 0x2cbf708 (init_ui_tooltip_state)
