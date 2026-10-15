@@ -10,17 +10,28 @@ Rules:
   is used for names only, never for code.
 - Function and global names come from `symbols/sum.symbols`; each function carries its address and a confidence
   comment (exact / likely / unsure).
-- Each folder has a `NOTES.md` with the function list and open questions.
+- The `NOTES*.md` files list the functions with addresses and confidence, and the open questions.
 
-| File | Original unit | Functions | Status |
+| File | Original unit | Functions | Exact / likely / unsure |
 |---|---|---|---|
-| `vsdk/frametime.cpp` | `frametime.cpp` (`0x501470`-`0x5017e6`) | 14 | written, syntax-checked with mingw |
-| `vsdk/timestamp.cpp` | `timestamp.cpp` (`0x5017f0`-`0x501b16`) | 23 | written, syntax-checked with mingw |
-| `game/new_credits.cpp` | `new_credits.cpp` (`0x408590`-`0x408d72`) | 11 | written (7 exact, 4 likely), syntax-checked |
-| `game/new_help.cpp` | `new_help.cpp` (`0x40bf30`-`0x40cb55`) | 16 + 5 initialiser pairs | written (5 exact, 11 likely), syntax-checked |
+| `vsdk/frametime.cpp` | `frametime.cpp` (`0x501470`-`0x5017e6`) | 14 | see `vsdk/NOTES.md` (29 / 8 / 0 with timestamp) |
+| `vsdk/timestamp.cpp` | `timestamp.cpp` (`0x5017f0`-`0x501b16`) | 23 | |
+| `vsdk/registry.cpp` | `vsdk\os\registry.cpp` | 14 | 10 / 4 / 0 |
+| `game/new_credits.cpp` | `new_credits.cpp` (`0x408590`-`0x408d72`) | 11 | 7 / 4 / 0 |
+| `game/new_help.cpp` | `new_help.cpp` (`0x40bf30`-`0x40cb55`) | 16 + 5 initialiser pairs | 5 / 11 / 0 |
+| `game/gamesound.cpp` | `gamesound.cpp` (`0x468c80`-`0x469720`..) | 20 | 14 / 5 / 1 |
+| `game/item_paging.cpp` | `item_paging.cpp` | 12 | 5 / 3 / 4 |
+| `game/new_playmenu.cpp` | `new_playmenu.cpp` | 16 | 13 / 3 / 0 |
+| `game/new_mainmenu.cpp` | `new_mainmenu.cpp` | 13 | 9 / 4 / 0 |
+| `game/new_dialogue.cpp` | `new_dialogue.cpp` | 6 | 3 / 3 / 0 |
 
-The game files declare the engine and UI functions they call in `game/engine_stubs.h`; some signatures there are
-inferred from the calls. Check them with `-Wno-write-strings` (VC6 accepts string literals as `char*`).
+**Headers.** `include/` holds one stub header per batch (`stubs_*.h`) that declares the engine and UI functions
+the files call, plus `ui_screen.h` and `dialogue_box.h`. The signatures are inferred from the call sites. They
+overlap and will be merged into proper engine headers once there is a real build.
 
-Syntax check: `i686-w64-mingw32-g++ -fsyntax-only -Wall -Wextra src/decomp/vsdk/frametime.cpp` (mingw is not the
-target compiler; it only catches syntax and type errors).
+Syntax check (mingw is not the target compiler; it only catches syntax and type errors; VC6 accepts string
+literals as `char*`):
+
+```
+i686-w64-mingw32-g++ -fsyntax-only -Wall -Wno-write-strings -I src/decomp/include -I src/decomp/vsdk -I src/decomp/game -I symbols src/decomp/game/new_credits.cpp
+```

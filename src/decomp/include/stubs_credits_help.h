@@ -5,8 +5,8 @@
 //
 // This header deliberately does not include symbols/types.h: types.h describes TextFile as a C
 // struct, while the game calls it as a C++ class with thiscall methods.
-#ifndef ENGINE_STUBS_H
-#define ENGINE_STUBS_H
+#ifndef STUBS_CREDITS_HELP_H
+#define STUBS_CREDITS_HELP_H
 
 // ---------------------------------------------------------------- C runtime
 extern "C" {

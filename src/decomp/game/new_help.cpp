@@ -9,7 +9,7 @@
 //
 // Confidence per function: exact / likely / unsure (see new_credits.cpp for the meaning).
 
-#include "engine_stubs.h"
+#include "stubs_credits_help.h"
 
 // ---------------------------------------------------------------- .rdata (0x57edd0-0x57edff)
 // Per resolution_index: the help panel rectangle.

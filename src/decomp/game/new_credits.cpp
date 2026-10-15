@@ -5,7 +5,7 @@
 // obvious one; likely = same behaviour and probably the same code, but register/stack choices or
 // an equivalent source spelling could differ; unsure = behaviour right, shape guessed.
 
-#include "engine_stubs.h"
+#include "stubs_credits_help.h"
 
 // ---------------------------------------------------------------- .rdata (0x57eb34-0x57eb7b)
 // Per resolution_index (0 = 640, 1 = 800, 2 = 1024) layout of the credits column.
