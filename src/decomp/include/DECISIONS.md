@@ -1120,3 +1120,37 @@ saveload_thumbnail_pixels. level_scripts.h: script_object (0x550, GameTimer at +
 +0x10 is a heading, not sum.symbols' handle: extract_angles h is stored there, 0x4d57ac), level_effect,
 level_ambient, the level-script hook globals of level_scripts_common.cpp, the 138 ls_* hooks, and the
 unit's functions and globals.
+
+## bmpman.cpp (decomp31)
+
+**D1100 (bmpman.cpp). bm_lock's third parameter is the palette.** bmpman.h had `bm_lock(bm, ubyte **data,
+int *format)` returning the type. The body (0x5036ac-0x5036c2) stores the entry's +0x20 (data) through the
+second argument, +0x28 (palette) through the third and returns +0x18 (format); the failure paths return 0.
+Now `int bm_lock(int bm, ubyte **data, ubyte **palette)` returning the format. ui_container::set_mask_bitmap
+passes 0x25c2ff8 as the third argument, so `bm_lock_format_unused` (name kept for ui_container.cpp) becomes
+`ubyte *` and is defined in bmpman.cpp (first dword after bm_bitmaps, 0x2591c78 + 0xaf0 * 0x48).
+
+**D1101 (bmpman.cpp). The m2v readers take one more argument.** bm_read_header pushes four arguments to
+m2v_read_header (`push 0; push h; push w; push name`, 0x502d63-0x502d67, `add esp, 0x10`) and bm_lock_m2v
+three to m2v_read_bitmap (`push 0` at 0x503b24, `add esp, 0xc`). Neither body reads the extra stack slot
+(both open with PATH_ANY), so targautils.h declares a trailing `int unused`. targautils.cpp's definitions
+still have the old parameter lists (they compile as separate overloads) and should get the parameter when
+merged.
+
+**D1102 (bmpman.cpp). bm_get_total_size has two parameters.** sum.symbols gives (handle). The body
+(0x503ba0) passes the address of its own first argument slot as num_pixels to bm_get_mipmap_info and then
+multiplies num_pixels * frames by `[esp+0x1c]` after the cleanup, which is the second stack argument. Declared
+`int bm_get_total_size(int bm, int bytes_per_pixel)` (name of the second parameter ours: the product is
+the byte size of all frames and levels at that depth). No caller in Sum.exe v1.40.
+
+**D1103 (bmpman.cpp). milliseconds_unpaused is read as unsigned.** bm_get_current_frame converts it with
+`mov [esp+8], edx; mov [esp+0xc], 0; fild qword` (0x50258a-0x50259c), VC6's unsigned-to-float sequence.
+frametime.h keeps `int` (frametime.cpp's definition); bmpman.cpp casts to unsigned int.
+
+**D1104 (bmpman.cpp). Other header changes.** bmpman.h: the BM_TYPE_* / BM_ANIM_* / BM_FORMAT_* and
+size constants (format names after Dash Faction's bm::Format, numbers from bm_bytes_per_pixel's jump
+table 0x50247c and bm_has_alpha), every bmpman.cpp function and global; bm_get_num_frames' out parameter
+is the whole animation's length (num_frames / frames_per_ms * 0.001), renamed anim_secs. gr.h:
+gr_tcache_free (0x508020). Kept as declared although the call sites differ: tga_read_bitmap's fourth
+argument is a bool in bm_lock_tga (pushed as a dword loaded from a byte slot, 0x503880) and
+tga_read_header's sixth is 1 for the mip probes (0x502c6b), both left as targautils.h's int / void *.

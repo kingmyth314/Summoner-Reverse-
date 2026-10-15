@@ -35,8 +35,9 @@ int  m2v_skip_extension_and_user_data(m2v_bitstream *bs);               // 0x554
 void m2v_skip_extra_bit_information(m2v_bitstream *bs);                 // 0x554ac0
 void m2v_read_slice_quantizer_scale(m2v_bitstream *bs);                 // 0x554af0
 int  m2v_skip_macroblock_stuffing(m2v_bitstream *bs);                   // 0x554b10
-int  m2v_read_header(const char *name, int *w, int *h);                 // 0x554b60 file size, 0 = failure
-int  m2v_read_bitmap(const char *name, ubyte **data);                   // 0x554d00 file size, 0 = failure
+// The last parameter of the two m2v readers is never read; bm_read_header / bm_lock_m2v pass 0 (D1101).
+int  m2v_read_header(const char *name, int *w, int *h, int unused);     // 0x554b60 file size, 0 = failure
+int  m2v_read_bitmap(const char *name, ubyte **data, int unused);       // 0x554d00 file size, 0 = failure
 
 // TGA
 int  tga_rle_encode_row(ubyte *dst, ubyte *src, int dst_bpp, int src_bpp, int row_bytes);  // 0x554ea0

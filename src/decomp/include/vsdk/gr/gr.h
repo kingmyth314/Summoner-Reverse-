@@ -94,6 +94,7 @@ void gr_set_color(int r, int g, int b, int a);        // 0x506b90
 void gr_set_color_ptr(Color *c);                      // 0x506c10
 void gr_set_alpha(int a);                             // 0x506c40
 void gr_mark_texture_dirty(int bm);                   // 0x506c70
+void gr_tcache_free(int bm);                          // 0x508020 per-mode texture cache release (bm_release, decomp31)
 // (bm, x, y, w, h, sx, sy, mode), clipped.
 void gr_bitmap_ex(int bm, int x, int y, int w, int h, int sx, int sy, gr_mode mode);   // 0x506cb0
 void gr_bitmap_stretched(int bm, int x, int y, int w, int h, int sx, int sy, int sw, int sh,
