@@ -4627,6 +4627,7 @@
 0x4e7dc0  script_editor_action_up_cb func  -                    O ; hidden start, callback of button 0x2563630 (script_editor_create_ui): message 0xc swaps the current action with the previous one
 0x4e7ee0  script_editor_action_down_cb func  -                    O ; hidden start, callback of button 0x2551a60 (script_editor_create_ui): message 0xc swaps the current action with the next one
 0x4e8000  script_editor_change_cb  func  -                    O ; hidden start, callback of script_editor_change_button (script_editor_create_ui): message 0xc calls script_editor_fill_action_lists
+0x4e8020  script_editor_marker_info_cb func  -                    I ; hidden start (no padding), gadget callback (no immediate reference found): fills the Time: and dist from nav: statics and input boxes unless the window is disabled
 0x4e83d0  script_editor_new_cancel_cb func  -                    O ; hidden start, callback of script_editor_new_cancel_button (script_editor_create_ui): unlatches the New button and closes script_editor_new_window
 0x4e8400  script_editor_new_listbox_cb func  -                    O ; hidden start, callback of script_editor_new_listbox (script_editor_create_ui): message 0x19 stores the entry data in script_editor_new_selection, closes the window
 0x4e8440  script_editor_action_window_cb func  -                    O ; hidden start, callback of script_editor_action_window (script_editor_create_ui): list double click or Ok runs script_editor_apply_action_params, Cancel closes
@@ -4649,6 +4650,7 @@
 0x4eb0f0  script_editor_load_listbox_cb func  -                    O ; hidden start, callback of script_editor_load_listbox (script_editor_create_ui): 0x18 copies the name to the inputbox, 0x19 script_editor_load_selected_script
 0x4eb140  script_editor_load_kind_radio_cb func  -                    O ; hidden start, callback (mov esi) of the level/cutscene radios of the load window (script_editor_create_ui): message 0x13 script_editor_list_scripts
 0x4eb160  script_editor_load_ok_cb func  -                    O ; hidden start, callback of script_editor_load_ok_button (script_editor_create_ui): script_editor_load_selected_script, closes the load window
+0x4eb190  script_editor_disable_gadget_cb func  -                    I ; hidden start (no padding), gadget callback (no immediate reference found): ui_element__set_disabled on an editor gadget, returns 1
 0x4eb1c0  script_editor_ambient_name_cb func  -                    O ; hidden start: gadget callback of the ambient sound name inputbox 0x2554350, message switch, its case 0x4eb1d7 autocompletes the ambient sound list (checked: gadget callback: message 0x14 and 0x15 cases, the 0x15 case (__complete) autocompletes the ambient sound name)
 0x4eb1d7  script_editor_ambient_name_cb__complete func  -                    O ; case block of script_editor_ambient_name_cb: selects the matching entry of the ambient sound listbox 0x2564a30 and fills the volume/range fields ("%.1f")
 0x4eb2b0  script_editor_ambient_listbox_cb func  -                    O ; hidden start, callback of script_editor_ambient_listbox (script_editor_create_ui): message 0x18 copies the selection into the ambient name inputbox
@@ -4665,6 +4667,7 @@
 0x4ebcf0  script_editor_door_field_cb func  -                    O ; hidden start, callback (mov edi) of the door window range/volume/rolloff inputboxes (script_editor_create_ui): Tab moves to the next field
 0x4ebe10  script_editor_door_lock_value_cb func  -                    I ; hidden start, callback of script_editor_door_lock_value_inputbox (script_editor_create_ui): Enter clears focus, message 4 atoi of the text
 0x4ebe90  script_editor_door_locked_cb func  -                    O ; hidden start, callback of script_editor_door_locked_checkbox (script_editor_create_ui): 0x13 shows/hides the skill and key fields, 0x4ebee0 follows unsplit
+0x4ebee0  script_editor_checkbox_fields_cb func  -                    I ; hidden start (no padding), gadget callback (no immediate reference found): ui_checkbox__is_checked shows or hides two fields and resets their input boxes
 0x4ebf50  script_editor_door_skill_cb func  -                    O ; hidden start, callback of script_editor_door_skill_inputbox (script_editor_create_ui): Tab focuses the key inputbox, Enter clears focus, message 4 atoi
 0x4ec000  script_editor_door_key_cb func  -                    O ; hidden start: gadget callback of inputbox 0x2559688 (door window, list 0x2569758), messages 0x14 / 0x15 (checked: gadget callback that acts only for inputbox 0x2559688 (id at 0x25597a8), messages 0x14 / 0x15 (__complete) in the door window)
 0x4ec029  script_editor_door_key_cb__complete func  -                    O ; case block of script_editor_door_key_cb: autocompletes the listbox 0x2569758 from the typed text
@@ -5041,6 +5044,7 @@
 0x4fbd50  ls_worldmap1_setup_liangshan func  -                    O ; stage >= 13 disables "liangshan"
 0x4fbd80  ls_worldmap1_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fbed0  ls_worldmap1_roll_encounter func  -                    O ; hidden start, only caller ls_worldmap1_frame: encounters on, 10 s timer elapsed, moving, AI not paused, frand against the ring / boss intro flags
+0x4fbfd0  ls_worldmap1_pick_encounter_early func  -                    O ; hidden start (no padding), caller ls_worldmap1_frame when the game stage is below 4: nearest hills/forest/grass navpoint, frand, rand-hills01 ... encounter levels
 0x4fc2a0  ls_worldmap1_nearest_hills_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $hills navpoint to cur_character, distance to out
 0x4fc350  ls_worldmap1_nearest_forest_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $forest navpoint to cur_character, distance to out
 0x4fc400  ls_worldmap1_nearest_grass_nav func  -                    O ; hidden start, 3 callers (worldmap encounter pickers): index of the nearest $grass navpoint to cur_character, distance to out
@@ -6772,6 +6776,7 @@
 0x53c1e0  atexit_nop_53c1e0        func  -                    O ; hidden start, bare ret, empty atexit destructor of a static vector3 in ix_sphere_polygon
 0x53c1f0  atexit_nop_53c1f0        func  -                    O ; hidden start, bare ret, empty atexit destructor of a static vector3 in ix_sphere_polygon
 0x53c200  ix_boundingbox_boundingbox func  -                    I ; hidden start, (min1, max1, min2, max2): component-wise overlap test, 0x53c260 follows unsplit, no reference found (dead code?)
+0x53c260  ix_point_boundingbox     func  -                    O ; hidden start (no padding), (p, min, max): 1 when min <= p <= max on all three axes, callers ix_point_box_oriented, ix_sphere_box_oriented
 0x53c2c0  ix_point_box_oriented    func  -                    I ; hidden start, point moved and vector3__rotate into box space, half extents +-0.5 size, point-in-box 0x53c260, no reference found (dead code?)
 0x53c3e0  atexit_nop_53c3e0        func  -                    O ; hidden start, bare ret, empty atexit destructor of a static vector3 in ix_point_box_oriented
 0x53c3f0  atexit_nop_53c3f0        func  -                    O ; hidden start, bare ret, empty atexit destructor of a static vector3 in ix_point_box_oriented
