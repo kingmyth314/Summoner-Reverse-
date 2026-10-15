@@ -168,7 +168,7 @@ The pass found these layouts: sound records (0x40 bytes, 640 at `0x2cb5458`); Di
 256 at `0x2f54720`) and channels (0x2c bytes, 32 at `0x2f798b8`), both sized as in Red Faction; character slots
 (200 x 0x1f8 bytes at `0x2dc7088`). It also found the ui_gadget tree links: x/y `+0xc`/`+0x10`, window `+0x25c`,
 parent `+0x268`, first child `+0x26c`, next sibling `+0x270`. Three earlier names were corrected:
-`item_info_popup_load_bitmaps`, `multitrade_load_bitmaps` and `saveload_reset_lists`.
+`item_info_popup_load_bitmaps`, `multitrade_load_bitmaps` and `pxochat_reset_lists`.
 
 **2026-10-14, second parallel pass:** another 1,100 symbols were merged after the same checks:
 - the savegame format ([Savegame format](sum-exe/savegame.md), checked against eight real saves);

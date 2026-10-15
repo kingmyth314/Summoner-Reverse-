@@ -46,7 +46,7 @@ does.
 | R | `0x13` | Character screen (2) | `hud_key_status` |
 | I | `0x17` | Inventory (1) | `hud_key_inventory` |
 | S | `0x1f` | Toggle the Skills panel (screen 6) | `hud_key_screen6` |
-| H | `0x23` | Toggles `game_debug_flags` bit `0x1000` or shows a prompt (*unknown* meaning) | `hud_key_h` |
+| H | `0x23` | Solo mode on/off: `party_toggle_hold` toggles `game_debug_flags` bit `0x1000` and makes the other party members hold (cleared in towns). When the byte at `0x60acd5` is set, it first asks "Enter solo mode?" / "Leave solo mode?" (**observed**) | `hud_toggle_solo_mode` |
 | X, middle mouse | `0x2d` | Interact with the nearest usable object (within 3 units) | `hud_interact_nearest` |
 | C | `0x2e` | Toggle the Spells panel (screen 5) | `hud_key_screen5` |
 | M | `0x32` | Toggle automap (3) | `hud_key_automap` |
