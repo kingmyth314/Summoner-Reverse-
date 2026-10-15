@@ -339,7 +339,10 @@ struct IDirect3DDevice7Vtbl {
     HRESULT (STDMETHODCALLTYPE *DrawPrimitiveVB)(IDirect3DDevice7 *This, DWORD type,
                                                  IDirect3DVertexBuffer7 *vb, DWORD start,
                                                  DWORD count, DWORD flags);                 // +0x7C
-    void *DrawIndexedPrimitiveVB;                                                           // +0x80
+    HRESULT (STDMETHODCALLTYPE *DrawIndexedPrimitiveVB)(IDirect3DDevice7 *This, DWORD type,
+                                                        IDirect3DVertexBuffer7 *vb, DWORD start,
+                                                        DWORD num_verts, WORD *indices,
+                                                        DWORD num_indices, DWORD flags);   // +0x80 (decomp65)
     void *ComputeSphereVisibility;                                                          // +0x84
     void *GetTexture;                                                                       // +0x88
     HRESULT (STDMETHODCALLTYPE *SetTexture)(IDirect3DDevice7 *This, DWORD stage,
@@ -431,6 +434,7 @@ extern "C" const GUID IID_IDirectDraw7;               // 0x583380 {15e65ec0-3b9c
 #define D3DTRANSFORMSTATE_VIEW          2
 #define D3DTRANSFORMSTATE_PROJECTION    3
 #define D3DPT_LINELIST                  2
+#define D3DPT_TRIANGLELIST              4   // decomp65 (the character meshes)
 #define D3DPT_TRIANGLEFAN               6
 #define D3DFVF_XYZRHW                   0x004
 #define D3DFVF_DIFFUSE                  0x040
@@ -582,6 +586,7 @@ extern "C" const GUID IID_IDirectDraw7;               // 0x583380 {15e65ec0-3b9c
 #define IDirect3DDevice7_SetRenderState(p, a, b)        (p)->lpVtbl->SetRenderState(p, a, b)
 #define IDirect3DDevice7_DrawPrimitive(p, a, b, c, d, e) (p)->lpVtbl->DrawPrimitive(p, a, b, c, d, e)
 #define IDirect3DDevice7_DrawPrimitiveVB(p, a, b, c, d, e) (p)->lpVtbl->DrawPrimitiveVB(p, a, b, c, d, e)
+#define IDirect3DDevice7_DrawIndexedPrimitiveVB(p, a, b, c, d, e, f, g) (p)->lpVtbl->DrawIndexedPrimitiveVB(p, a, b, c, d, e, f, g)
 #define IDirect3DDevice7_SetTextureStageState(p, a, b, c) (p)->lpVtbl->SetTextureStageState(p, a, b, c)
 
 #endif

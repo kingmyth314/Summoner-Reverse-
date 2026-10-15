@@ -60,7 +60,8 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/math/matrix.h` | `vsdk\math\matrix.cpp` | `matrix` (= `matrix3`), `matrix43`; includes quaternion.h |
 | `vsdk/math/quaternion.h` | vsdk\math (the quaternion unit 0x5225b0-0x523f29, source at src/decomp/vsdk/unnamed_quaternion_0x5225b0.cpp, file name a placeholder, decomp60) | `quaternion`, `cquat` (moved from matrix.h / skeleton.h, D4013), slerp / squad / log-of-delta, the identities |
 | `vsdk/math/fixed.h` | vsdk\math (file name ours, decomp60) | inline `fixed8`, `float_to_fixed8`, `fixed8_to_float`, `fixed4_to_float` (D4004) |
-| `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point), `ix_ray`, `ix_*` |
+| `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point; decomp65: the inline Plane__* members, D4502), `ix_ray`, `ix_*` |
+| `vsdk/math/bezier.h` | vsdk\math (0x558a30-0x558df3, not written; file name ours, decomp65) | `bezier` (0xf4: ctor, set_points, eval) |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile (decomp61: `unnamed_vfile_0x5128b0.cpp`, `unnamed_vfile_rw_0x525720.cpp`) | `File`, `FileReader`, `file_slot`, `lfsr_cipher`, `file_path_entry`, `PATH_ANY`, `FILE_*`, `file_*`, `file_find_*` |
 | `vsdk/vfile/linefile.h` | LineFile (0x558340-0x558a40; unit, directory and file name not known, decomp44) | `LineFile` (what load_script uses), `LineFile_open` |
@@ -83,6 +84,8 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/ca/skeleton.h` | `vsdk\ca\skeleton.cpp` | `anim_track`, `skeleton`, `vim` (= `ca_vim`), `vim_load` |
 | `vsdk/ca/character.h` | `vsdk\ca\character.cpp` (decomp30) | `ca_character` (0x1f8, members), `ca_mesh` (mesh slots), `ca_vertex_weights`, preload index, `ca_*` / `character_*`, `ca_render_*` |
 | `vsdk/ca/character_instance.h` | `vsdk\ca\character_instance.cpp` (pilot) | `character_instance` |
+| `vsdk/ca/unnamed_ca_mesh_0x50af80.h` | the character mesh renderer 0x50af80-0x50d9ab (src/decomp/vsdk/unnamed_ca_mesh_0x50af80.cpp, file name a placeholder, decomp65; included by character.h) | `ca_mesh_tri`, the sub-mesh field use (D4506), the render globals, the morph and the three back ends `gr_*_render_character_mesh` |
+| `vsdk/gr/unnamed_gr_3d_0x50d9b0.h` | the 3D view state 0x50d9b0-0x50f9cf (src/decomp/vsdk/unnamed_gr_3d_0x50d9b0.cpp, file name a placeholder, decomp65; included at the end of gr.h) | `gr_clip_plane`, `gr_instance_entry`, `gr_3d_state`, `gr_sort_entry`, `gr_light_record` (D4503), the projection / frustum / instance globals, the inline fog and depth helpers (D4500), the bbox calls |
 | `vsdk/geom/vfx.h` | vsdk\geom; the attached-light unit 0x51fb10-0x520413 (src/decomp/vsdk/unnamed_attached_lights_0x51fb10.cpp, file name a placeholder, decomp60) | `vfx_base`, `vfx_emitter_desc`, the key channels, `vfx_light_track`, `vfx_light_desc`, `vfx_instance` (D4000, D4001), `attached_light` and `attached_light_*`, `ptr_relocate` |
 | `vsdk/gr/unnamed_lights_0x51e070.h` | the light unit 0x51e070-0x51fb08 (src/decomp/vsdk/unnamed_lights_0x51e070.cpp, file name a placeholder, decomp60; included by gr.h) | `light` (0x94), the light table, selection levels and ambient, every `light_*` / `lights_*`, `gr_env_map_uv`, the gr 3D state it reads |
 | `vsdk/geom/effect_mem.h` | `vsdk\geom\effect_mem.cpp` (pilot) | effect bases and pools |

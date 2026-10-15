@@ -6,6 +6,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/math/vector.h"
+#include "vsdk/math/matrix.h"               // plane::transform (decomp65)
 
 // A plane {normal, d} with dot(normal, p) + d = 0 on it (0x10 bytes; type name ours). set_normal_point
 // is inline: its COMDATs are 0x43b5a0 (gametarget.cpp, whose .rdata holds the -1.0f at 0x580e1c) and
@@ -21,7 +22,32 @@ public:
     { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }
     void set_normal_point(const vector3 *n, const vector3 *p)   // 0x43b5a0 plane__set_normal_point
     { normal = *n; d = (p->y * n->y + p->z * n->z + p->x * n->x) * -1.0f; }
-    float distance_to_point(const vector3 *p);       // 0x50f860 Plane__distance_to_point
+    // decomp65 (D4502): the members sum.symbols calls Plane__* are inline: their copies are COMDATs at the
+    // end of the 3D view object (0x50f7d0-0x50f8f3), which was built without inline expansion; the ix
+    // code (ix_ray_plane, ix_ray_quad, ...) calls those copies. distance_to_point was out of line.
+    plane(const vector3 *p0, const vector3 *p1, const vector3 *p2)   // 0x50f7d0 Plane__Plane_points
+    { set_from_points(p0, p1, p2); }
+    // normal = the normalised edge cross product, d = -(normal . p0).
+    void set_from_points(const vector3 *p0, const vector3 *p1, const vector3 *p2)   // 0x50f800 Plane__set_from_points
+    {
+        vector3_perp(&normal, p0, p1, p2);
+        normal.normalize();
+        d = normal.dot(*p0) * -1.0f;
+    }
+    float distance_to_point(const vector3 *p)        // 0x50f860 Plane__distance_to_point
+    { return p->dot(normal) + d; }
+    // (out, pos, orient): the plane in the frame at pos / orient (gr_cull_bounding_box_transformed); the
+    // copy into out goes through the plane assignment 0x4c0a20, not 0x50f760 (D4502). Returns out.
+    plane *transform(plane *out, const vector3 *pos, const matrix *orient)   // 0x50f880 Plane__transform
+    {
+        plane p;
+        vector3 pt = normal * d;
+        pt += *pos;
+        p.d = normal.dot(pt);
+        p.normal = normal.rotated(*orient);
+        *out = p;
+        return out;
+    }
 
     vector3 normal;                                  // +0x00
     float d;                                         // +0x0c

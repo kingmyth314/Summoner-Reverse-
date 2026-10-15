@@ -188,7 +188,8 @@ extern bool gr_byte_25d921d;                          // 0x25d921d unnamed; set 
 class vector3;
 // 0x50ecd0 (vsdkgr): true when the sphere lies fully outside one frustum plane; the objects.cpp
 // is_in_view functions return its result unchanged (bool: no conversion after the call).
-bool gr_cull_sphere(const vector3 *pos, float radius, int ignore_far);
+// decomp65 (D4501): ignore_far is tested as a byte (0x50ece5, 0x50ed2f): bool, was int.
+bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far);
 
 int  gr_screen_width();                               // 0x506170
 int  gr_screen_height();                              // 0x506180
@@ -239,7 +240,10 @@ void gr_load_reflection_map();                        // 0x50b130 refmap01.tga (
 void gr_set_use_buffered_alpha_polys(bool on);        // 0x53e760 (vsdk\gr)
 
 // ---- 3D -------------------------------------------------------------------------------------------
-void gr_setup_3d(matrix *orient, vector3 *pos, float fov, int zbuffer, int a5);   // 0x50dec0 (1, 1 in the pilots)
+// decomp65 (D4501): zbuffer goes unchanged (a pushed dword, no conversion) to gr_zbuffer_clear(bool), so
+// it is bool (was int); fov below 2.0 is taken as the tangent of the half angle, else as degrees; a5 is
+// not read.
+void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5);   // 0x50dec0 (1, 1 in the pilots)
 bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs);   // 0x50edc0 (true = outside the view)
 // decomp54 (snow_render): (position, a, size, mode) a camera-facing sprite of the current texture.
 void gr_bitmap_3d(vector3 *pos, int a, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
@@ -330,8 +334,8 @@ float gr_get_aspect();                                // 0x506950
 extern vector3 gr_eye_pos;                            // 0x2682a80
 extern matrix gr_eye_matrix;                          // 0x26927c0 (rvec, uvec 0x26927cc, fvec 0x26927d8)
 extern float gr_far_clip_dist;                        // 0x2692e88
-// gr_calc_depth(1 / v->z); only x, y, z are read, so the fog code passes a vector3 cast to a vertex.
-float gr_vertex_depth(const gr_vertex *v);            // 0x50d8b0
+// gr_vertex_depth (0x50d8b0), gr_calc_depth and gr_get_fog_alpha are header inlines since decomp65
+// (D4500): defined in vsdk/gr/unnamed_gr_3d_0x50d9b0.h, included at the end of this header.
 void gr_get_view_fov(float *h_fov, float *v_fov);     // 0x50e5a0 degrees
 // (fov degrees) -> the fov for the current clip rectangle and aspect (interface_set_view_clip; decomp48).
 float gr_fov_to_vertical(float fov);                  // 0x50e5e0
@@ -360,10 +364,7 @@ extern void *d3d_direct3d;                            // 0x2dc6c3c IDirect3D7*
 // The rest of the Direct3D interface is in vsdk/gr/directx/gr_direct3d.h (it needs d3d_min.h).
 extern float Gr_far_min;                              // 0x5a7294 console "far_min"
 extern float Gr_far_max;                              // 0x5a7298 console "far_max"
-// (w): w / far * Gr_3d_zmult, clamped to Gr_3d_zmax: the z the back ends send (vsdk\gr).
-float gr_calc_depth(float w);                         // 0x50d880
-// (z): 255 with fog off or before the fog start, else 255 * the fog factor (vsdk\gr).
-int   gr_get_fog_alpha(float z);                      // 0x50d830
+// gr_calc_depth (0x50d880) and gr_get_fog_alpha (0x50d830): inline, vsdk/gr/unnamed_gr_3d_0x50d9b0.h (D4500).
 // One pass of gr_tmapper_multipass (0x14 bytes; layout from gr_d3d_tmapper_multipass, names ours).
 struct gr_tmapper_pass {
     gr::Mode mode;                    // +0x00
@@ -478,12 +479,13 @@ void gr_poly_end();                                                            /
 
 
 // ---- decomp63 (the render-scene unit 0x481680; vsdk\gr in sum.symbols) ------------------------------
-extern float Gr_3d_zmult;             // 0x5a72a0 console "zmult" (levelrender_render_scene: 1.0 during the
-                                      // frame, 0.2 after it, unless game_flags & 0x120)
-// (pos, orient, project flag): pushes the view onto the instance stack (Dash Faction gr::start_instance).
-void gr_start_instance(const vector3 *pos, const matrix *orient, int flag);   // 0x50e640
-void gr_stop_instance();              // 0x50e750
-void gr_set_far_clip(float dist);     // 0x50e7c0 dist > 1 enables (times Gr_level_fog_multiplier)
+// Gr_3d_zmult (0x5a72a0, console "zmult": levelrender_render_scene sets 1.0 during the frame, 0.2 after it,
+// unless game_flags & 0x120), gr_start_instance, gr_stop_instance and gr_set_far_clip are declared in the
+// 3D view unit's header below.
 // (p0, p1, width, mode): a camera-facing quad along p0-p1 (the line trails of the effects).
 void gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode mode);   // 0x53f470
+// decomp65: the 3D view state unit (0x50d9b0-0x50f9cf): clip planes, the instance stack, the saved state,
+// the fog / depth inlines.
+#include "vsdk/gr/unnamed_gr_3d_0x50d9b0.h"
+
 #endif

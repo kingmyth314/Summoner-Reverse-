@@ -140,7 +140,15 @@ float frand();                                        // 0x5426e0 rand() * (1/32
 float frand_range(float lo, float hi);                // 0x542770 lo + frand() * (hi - lo) (unit not known; decomp39)
 float distance_squared(const vector3 *a, const vector3 *b);   // 0x524840 |a - b|^2 (decomp41)
 // (v, lo, hi): clamps *v in place (vsdk\math; the Glide tint code and the sound group volumes; decomp45).
-void clamp_float(float *v, float lo, float hi);       // 0x50d980
+// decomp65 (D4500): inline; its only copy is the COMDAT 0x50d980 at the end of the character mesh object
+// (after float_max), which calls it from all three renderers.
+inline void clamp_float(float *v, float lo, float hi) // 0x50d980
+{
+    if (*v < lo)
+        *v = lo;
+    else if (*v > hi)
+        *v = hi;
+}
 // decomp60: inline (D4004). Out-of-line copies: float_max 0x50d960 (a COMDAT before clamp_float, in the
 // gr unit), float_min 0x51faf0 (at the end of the light unit). Both cdecl, `fcomp` of a with b.
 inline float float_max(float a, float b)              // 0x50d960

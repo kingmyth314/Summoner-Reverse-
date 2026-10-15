@@ -56,6 +56,7 @@ typedef void           GLvoid;
 #define GL_TEXTURE_2D                   0x0DE1
 #define GL_NICEST                       0x1102
 #define GL_UNSIGNED_BYTE                0x1401
+#define GL_UNSIGNED_SHORT               0x1403   // decomp65 (the character mesh indices)
 #define GL_FLOAT                        0x1406
 #define GL_MODELVIEW                    0x1700
 #define GL_PROJECTION                   0x1701

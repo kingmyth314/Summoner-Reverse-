@@ -147,4 +147,7 @@ void ca_render_set_instance(ca_character *character, character_instance *instanc
 void ca_render_set_mesh(void *mesh);                                       // 0x50d6e0
 void ca_render_mesh(vector3 *pos, matrix *orient, gr_light_desc *light);   // 0x50d6f0 (return unused)
 
+// decomp65: the rest of the character mesh renderer (0x50af80-0x50d9ab).
+#include "vsdk/ca/unnamed_ca_mesh_0x50af80.h"
+
 #endif

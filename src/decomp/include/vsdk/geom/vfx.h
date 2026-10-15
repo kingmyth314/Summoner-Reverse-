@@ -368,4 +368,9 @@ inline int attached_light_create_from_vfx(const vector3 *pos, float intensity, f
 // The camera shake of the running effects (state_game_frame adds it to the view; decomp42).
 void vfx_get_camera(vector3 *pos, quaternion *rot);   // 0x5383e0
 
+// decomp65: the render state vfx_instance__setup_render_state sets for the next mesh and
+// vfx_render_state_reset clears (vfx object, not written); the character mesh renderers read both.
+extern ubyte vfx_render_alpha;                        // 0x2dbfd14 the alpha of the second (environment) pass
+extern int vfx_render_bitmap;                         // 0x5a9cfc (name ours) its bitmap, -1 none
+
 #endif

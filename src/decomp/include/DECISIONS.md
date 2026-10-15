@@ -3453,3 +3453,92 @@ with `mov ax, word [..+0x18]; and eax, 0xfdff; mov word [ecx], ax` (0x483ff0-0x4
 sets it with a byte or on +0x19 (0x48418f); fx_create_instance reads +0x18 as decomp64's int flags
 (0x40, lamp glow). Both stay: flags (int) and vis_flags (ushort) share the slot in a union, and the
 render-scene unit uses vis_flags for the 0x200 / 0x400 / 0x600 bits.
+
+## decomp65: the character mesh renderer and the 3D view state (0x50af80-0x50f9cf)
+
+**D4500 (unit bounds; gr 3D header, vector.h). Two objects; the fog / depth helpers and clamp_float are header
+inlines.** The range is two objects. The character mesh object (vsdk\ca) opens with nine static initialisers
+(table 0x588880-0x5888a0, after console.cpp's), its last regular function is ca_render_stub_ret (0x50d7d0), and
+its COMDAT block 0x50d7e0-0x50d9ab follows: vector3::cross (a COMDAT, D500), gr_get_fog_alpha, gr_calc_depth,
+gr_vertex_depth, gr_get_point_fog_value, gr_get_fog_value, float_max (a COMDAT, D4004) and clamp_float. Every one of
+the eight is called by this object (the three renderers, ca_render_mesh, or another of the eight), and none of
+the five fog helpers is a regular function of it (they come after cross). A separate fog object does not fit:
+clamp_float, which no fog helper calls, follows float_max, and the 3D view object's initialisers start right after
+it (0x50d9b0); the helpers' data (gr_depth_scale 0x5a729c between Gr_far_max and Gr_3d_zmult, Gr_3d_zmult,
+Gr_3d_zmax) is the 3D view object's .data. So the five fog helpers are inlines of a gr header (written in
+vsdk/gr/unnamed_gr_3d_0x50d9b0.h; gr.h's three prototypes for them are removed) and clamp_float is inline in
+vector.h (was a prototype). The other objects that call them (the Direct3D and OpenGL back ends, the vfx code,
+the sound group volume, the Glide tint code) are vsdk objects built without inline expansion; they call the
+copies kept here. The 3D view object opens with its initialisers (table 0x5888a8-0x5888ec), runs from gr_setup_3d
+to gr_light__read (0x50f490) and ends with its COMDATs 0x50f590-0x50f9cf; matrix.cpp starts at 0x50f9d0 (table
+0x5888f0). .data: mesh 0x5a7280-0x5a7293 (gr_reflection_map_bm, "refmap01.tga": gr_load_reflection_map, vsdk\gr
+in sum.symbols, is the mesh object's), 3D view 0x5a7294-0x5a747f (matrix.cpp's Homogeneous_column follows at
+0x5a7480). .bss: mesh 0x25db930-0x2682997, 3D view 0x2682998-0x2692e9f (identity_matrix 0x2692ea0 is
+matrix.cpp's). The 3D view .bss also holds vfx_mesh_sort_buf / vfx_mesh_sort_count (only vfx_mesh_render uses
+them) and two 25-pointer vertex lists of the polygon clipper (0x26926f4, 0x2692758), so the sort helpers
+sort_by_float_key / float_key_less (0x50f2e0 / 0x50f380), matrix43_compose, the gr_light_desc members and the light
+record members are this object's too. No path string, no strings.tbl block, no Summoner 2 counterpart: both files
+are placeholders (vsdk/unnamed_ca_mesh_0x50af80.cpp, vsdk/unnamed_gr_3d_0x50d9b0.cpp). The order of the COMDATs in
+either block matches neither the first call nor the header order (open question).
+
+**D4501 (gr.h). gr_setup_3d(.., bool zbuffer, ..) and gr_cull_sphere(.., bool ignore_far).** gr_setup_3d pushes
+its fourth argument unchanged (`mov edx, [esp+0x20]; push edx`, 0x50df33) to gr_zbuffer_clear(bool); an int
+parameter would be converted (test / setne) first. gr_cull_sphere tests its third argument as a byte (`mov al,
+[esp+0x1c]; test al, al`, 0x50ece5 and 0x50ed2f). Both were int. Every caller in src/decomp passes the literal 0 or
+1 (ai.cpp, gameplay.cpp, living_entity.cpp, new_buysell.cpp, new_inventory.cpp, new_saveload.cpp, new_status.cpp,
+objects.cpp, unnamed_interface_0x411270.cpp) and compiles unchanged; no other definition exists.
+
+**D4502 (vsdk/math/ix.h). The Plane__* members are inline members of plane; two plane assignments.** The plane
+constructor from three points (0x50f7d0), set_from_points (0x50f800), distance_to_point (0x50f860, was an
+out-of-line prototype) and transform (0x50f880, thiscall (out, pos, orient), returns out) are COMDATs at the end of
+the 3D view object; the ix_* functions of another vsdk object (ix_ray_plane, ix_ray_quad, ix_ray_parallelogram)
+call these copies. They are written as header inlines of the existing class plane (one plane type, as decomp35 /
+decomp56 decided). Open: Sum.exe has two out-of-line plane copy assignments, 0x50f760 (this object: calls
+vector3::operator=, copies d, returns this; used by the clip plane setters, gr_get_frustum_planes and
+gr_clip_plane::operator=) and 0x4c0a20 (the projector object's, four dword moves), and plane::transform's
+`*out = p` calls 0x4c0a20, not its own object's 0x50f760. One implicit operator= cannot have two kept copies, so
+the original had two plane-like types (sum.symbols spells them Plane__ and plane__) or one user-declared
+assignment; and gr_cull_bounding_box_transformed's local plane has no constructor call (0x50ee70), which `plane p;`
+would emit here. Left as one class until a second type shows up elsewhere.
+
+**D4503 (vsdk/gr/unnamed_gr_3d_0x50d9b0.h). gr_light_record.** sum.symbols' gr_light__reset (0x50f420) and
+gr_light__read (0x50f490) are thiscall on a 0x8c-byte record: type byte +0, quaternion +4, vector3 +0x14, six
+floats +0x20..+0x34, a float +0x38 read only for type 4, bool +0x3c, floats +0x40 / +0x44 (40.0 after reset), bool
++0x48, char[64] name +0x49 (File::read_string(.., 0x40, 0x30007, "")). gr_light is the 0x98-byte attached-light
+layout (D4002), so the record is a new class gr_light_record (name ours). Nothing calls either member.
+
+**D4504 (vsdk/gr/unnamed_gr_3d_0x50d9b0.h). gr_check_normal_facing(normal, point) and
+gr_get_normal_facing_dot(normal, point); bool result.** In 0x50eb30 the operator- call consumes the second argument
+(`push eax; push ecx; push edx; mov ecx, gr_view_pos; call operator-`: the hidden result and [esp+8]), and the dot
+takes the first: dot(gr_view_pos - point, normal) > 0. 0x50eba0 is the same with a normalize. Every caller passes
+the normal first (the three character mesh renderers: the cross product, then the triangle's first vertex;
+levelrender_draw_list_*: the face's +8, then its first vertex, 0x48eba3-0x48eba8). sum.symbols' "(pos, normal)" has
+the order reversed. The callers test AL after the call, so the result type is bool (gr_plane_faces_viewer, the same
+shape without a caller, too).
+
+**D4505 (behaviour reproduced as written).** (1) The renderers transform the vertex normals with the full bone
+matrix, translation included (`fadd [eax + 0x24..0x2c]` for the normal too, 0x50b7e4-0x50b859 Glide, 0x50c514-0x50c58d Direct3D),
+then normalise the weighted sum: the lighting normal of a skinned vertex leans towards the bone position. (2)
+gr_d3d_render_character_mesh takes the fog alpha of a seam copy from ca_skin_normals[j - d].z (0x50c37f-0x50c39d)
+where the vertex it copies used its view depth. (3) gr_cull_sphere tests gr_frustum_near_plane whenever ignore_far
+is clear, also when far clipping is off and that plane is stale (or the zero plane, distance 0). (4) The tint grey
+is (r + g + b) * 0.75 (0x580e04), clamped to 255, not the average. Written as the code does it; NOTES.md lists them
+as game bugs to check.
+
+**D4506 (vsdk/ca/unnamed_ca_mesh_0x50af80.h, new; character.h includes it). The mesh renderer's view of a
+vim_submesh and of gr_light_desc.** The renderers read block0 positions, block1 normals, block2 u / v, block3
+16-byte triangles (ca_mesh_tri: three int indices, a short flags word: 0x20 two-sided, the other bits hidden when
+they meet gr_light_desc +0x1c << 6), block4 a short per vertex (a non-negative value d: copy of vertex j - d, a uv
+seam), block5 eight bytes per vertex, _unk18 the texture slot, vertex_extra the vertex of each morph target id,
+size0 / size1 the vertex and triangle counts. skeleton.h keeps its generic names. In block5 the bytes +0..+3 are
+the weights (0 = unused, they sum to 16: the result is scaled by 0.0625) and +4..+7 the bone indices; character.h's
+ca_vertex_weights calls +0 bones and +4 weights (character.cpp uses the names, so they stay; the renderers index
+the bytes). gr_light_desc +0x1c is used as an int mask (Character::hero_model_prefix returns the table values 6 / 2
+cast to const char *), and the constructor runs vector3() on +0x0c (a vector3 member the header splits into
+_unk0c / appearance / f14); both left as they are, noted. gr_light_desc::reset (0x50f400) is declared.
+
+**D4507 (d3d_min.h, gl_min.h, vfx.h, vsdk/math/bezier.h).** IDirect3DDevice7::DrawIndexedPrimitiveVB (+0x80, was
+`void *`) gets its prototype (device, type, vb, start, vertex count, WORD indices, index count, flags) and the SDK
+macro, D3DPT_TRIANGLELIST 4; gl_min.h gets GL_UNSIGNED_SHORT 0x1403; vfx.h declares vfx_render_alpha (0x2dbfd14)
+and vfx_render_bitmap (0x5a9cfc, name ours), the second pass the vfx render state asks for; bezier.h (file name
+ours) declares the 0xf4-byte bezier with the three members ca_ramp_curve_eval calls.
