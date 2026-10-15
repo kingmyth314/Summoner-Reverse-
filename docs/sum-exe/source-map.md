@@ -383,7 +383,9 @@ that the data layout contradicts. A second agent re-checked each of the six. All
   `add_gold` goes with the untagged party inventory code.
 - The Preparse ccmd (`0x4cef00`-`0x4cef30`) moved from `level_scripts_common.cpp` to `level_scripts.cpp`.
 
-`src/decomp/game/new_inventory.cpp` still defines `ccmd_show_ui`, with a note, until the interface file is written.
+`ccmd_show_ui` (`0x5bd780`) and `cmd_show_ui` (`0x414cb0`) moved from `src/decomp/game/new_inventory.cpp` to the end of
+`src/decomp/game/unnamed_interface_0x411270.cpp` (D2803). The file name is a placeholder: the unit has no assert path
+and no strings.tbl section.
 
 Method: per function, the private `.bss` / `.data` it uses (all users within 60 functions), static-initialiser
 table entries, `ebp` frame and `0xcc` padding, strings.tbl ids. Ranges are function start addresses (start of the
@@ -395,11 +397,12 @@ Ranges that round 3 already tagged completely (combat 0x464010-0x469010, 0x46dd9
 
 | Start | End | Label or file | Evidence |
 |---|---|---|---|
-| 0x411270 | 0x414cb0 | interface manager (one unit; both table rows plus the 0x411270 colour inits and the show_ui ccmd) | init run starts after new_int_multi_update at 0x4110b0; every function uses .bss 0x5bd2e0-0x5bd968 and .data 0x58bdb4-0x58c054; ccmd_show_ui object 0x5bd780 lies inside (0x5bd77c-0x5bd78c are the choice-popup globals) |
+| 0x411270 | 0x414cb0 | interface manager (one unit; both table rows plus the 0x411270 colour inits and the show_ui ccmd) | init run starts after new_int_multi_update at 0x4110b0; every function uses .bss 0x5bd2e0-0x5bd968, .rdata 0x57ef40-0x57f03f (twelve int layout tables, then float literals 0x57f00c-0x57f038) and .data 0x58bda4-0x58c07b (it starts with ui_bitmap_suffix_tga 0x58bda4 and ui_bitmap_suffix 0x58bdac, whose strings lie in this unit's literal pool, D2806; the last literal, "Must close all non-HUD windows first" at 0x58c054, ends at 0x58c078; corrected 2026-10-15, the table said .data 0x58bdb4-0x58c054); ccmd_show_ui object 0x5bd780 lies inside (0x5bd77c-0x5bd78c are the choice-popup globals) |
 | 0x414d30 | - | new_inventory.cpp starts | new_inventory .bss starts 0x5bd980 / 0x5c0ffc, .data 0x58c080 |
 
-Tag to check: 0x414c80 init_ccmd_show_ui_thunk, 0x414c90, 0x414cb0 cmd_show_ui are tagged new_inventory.cpp but use the
-interface file's .bss (0x5bd780, 0x5bd962) and .data (0x58bfd4, after "v%d.%02d" 0x58bfc0).
+Resolved: 0x414c80 init_ccmd_show_ui_thunk, 0x414c90 init_ccmd_show_ui and 0x414cb0 cmd_show_ui are now tagged `-` (the
+interface manager) in sum.symbols. They use the interface file's .bss (0x5bd780, 0x5bd962) and .data (0x58bfd4, after
+"v%d.%02d" 0x58bfc0), and init_ccmd_show_ui is static-initialiser entry 49, after the unit's last function.
 
 #### 0x430bc0-0x433330 (table row 0x430be0-0x4333d0)
 

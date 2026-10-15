@@ -223,7 +223,11 @@ Two details matter for the planned
   see the same physical keys on every layout.
 - **NumLock:** on Windows 9x only, `key_numlock_fix` (`0x509a00`) turns NumLock off at start-up.
 
-## Mouse (`0x500a30`-`0x50144f`)
+## Mouse (`0x500a30`-`0x501468`)
+
+{: .important }
+Corrected 2026-10-15: the module ends at `0x501468` (the end of `clamp_int`, `0x501450`), not `0x50144f`.
+v1.40 never uses DirectInput, and the mouse-look re-centring is dead code (see below).
 
 The mouse module sits just before `frametime.cpp`. It starts with two static initialisers for the button
 records (`0x500a30`, `0x500a60`). The `vsdk` block therefore starts a little earlier than the
@@ -232,7 +236,7 @@ records (`0x500a30`, `0x500a60`). The `vsdk` block therefore starts a little ear
 | Address | Name | Notes |
 |---|---|---|
 | `0x500de0` | `mouse_init(w, h)` | Centres the pointer and registers a message handler with `os_add_msg_handler` |
-| `0x500e90` | `mouse_di_init` | `DirectInputCreateA` version 0x700, falling back to 0x300. Opens the system mouse, non-exclusive and foreground |
+| `0x500e90` | `mouse_di_init` | Returns -1 at once while `mouse_use_cursor` is 1, which is always (see below). The unused rest: `DirectInputCreateA` version 0x700, falling back to 0x300, then the system mouse, non-exclusive and foreground |
 | `0x500a90` | `mouse_update` | Called every frame: latches the buttons, then reads movement |
 | `0x500cd0` | `mouse_di_read` | DirectInput `GetDeviceState`; re-acquires after focus loss (`Sleep(500)`) |
 | `0x500c80` | `mouse_set_pos(x, y)` | `ClientToScreen` + `SetCursorPos`, only while the window is in the foreground |
@@ -240,13 +244,23 @@ records (`0x500a30`, `0x500a60`). The `vsdk` block therefore starts a little ear
 | `0x501100`-`0x501440` | button state and queries | `mouse_mark_button`, `mouse_get_pos`, `mouse_is_down`, `mouse_was_pressed`, `mouse_get_delta`, `mouse_keep_centered_enable`, ... |
 
 How `mouse_update` reads movement:
-- **DirectInput mode:** the mouse moves by DirectInput deltas.
-- **Cursor mode:** used if DirectInput fails (`mouse_use_cursor`, `0x5a5734`). The position comes from
-  `GetCursorPos` + `ScreenToClient`.
-- **Mouse look:** optionally warps the pointer back to the centre and reports `mouse_dx`/`mouse_dy`.
+- **Cursor mode, always:** `mouse_use_cursor` (`0x5a5734`) is 1 in `.data`. The only store is
+  `mouse_init` setting it to 1 again when `mouse_di_init` fails (`0x500e59`), so `mouse_di_init` returns -1
+  before `DirectInputCreateA` (`0x500e90`..`0x500e9b`) and the DirectInput path (`mouse_di_read`,
+  `0x500cd0`) never runs. **Observed.** The position comes from `GetCursorPos` + `ScreenToClient`, is clamped
+  to the game resolution with `clamp_int`, and when the clamp changed it the OS cursor is moved back inside
+  with `mouse_set_pos` (only while the window is in the foreground, `0x500b56`..`0x500ba6`).
+- **Mouse look (dead):** the re-centring at `0x500c04` needs both `keep_mouse_centered` (`0x257f031`) and
+  `mouse_hidden` (`0x257f030`). Their setters (`mouse_set_hidden` `0x501400`, `mouse_set_visible`
+  `0x501410`, `mouse_keep_centered_enable` `0x501420`) have no callers and no pointer references, so the
+  pointer is never warped back. **Observed.**
+- **Double clicks** are the game's own, 400 ms per button (`mouse_double_click_time`, `0x5a5738`); the
+  `WM_*BUTTONDBLCLK` messages are ignored (handler jump table `0x500fec`).
 
 [SummonerFix](../summonerfix/index.md) relates to this module in two ways:
-- It **is** the `dinput.dll` that `mouse_di_init` loads. Its `DirectInputCreateA` forwards to the system DLL.
+- It **is** the `dinput.dll` that Windows loads for Sum.exe's static import of `DINPUT.dll!DirectInputCreateA`
+  (IAT `0x57e02c`, thunk `0x57b4b0`). Its `DirectInputCreateA` forwards to the system DLL, but v1.40 never
+  calls it (`mouse_di_init` returns first).
 - Its mouse mapping hooks the `ScreenToClient` call in `mouse_update` and the `ClientToScreen` call in
   `mouse_set_pos`.
 
@@ -286,4 +300,5 @@ renderers, and the OpenGL renderer gets no gamma (new [Gamma](#gamma) section). 
 `gr_set_color` and `gr_set_alpha` notes were completed. New sections: layout, `gr_screen`, render modes, fog,
 console commands. `0x5079b0`, `0x5079f0` and `0x508df0` are no longer open. The keyboard ends at `0x509f3f`,
 not `0x509f00`. The mouse module starts at `0x500a30`; the links to `#mouse-0x500a90-0x501090` in
-`controls.md` and `summonerfix/index.md` need the new anchor `#mouse-0x500a30-0x50144f`.
+`controls.md` and `summonerfix/index.md` need the new anchor `#mouse-0x500a30-0x50144f` (since corrected again to
+`#mouse-0x500a30-0x501468`: the module ends with `clamp_int`).

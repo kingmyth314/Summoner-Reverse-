@@ -112,9 +112,16 @@ the dialogs seen while bringing up SummonerFix.
 `RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread")` (`0x5419a0`), which
 **appends a crash report to `errorlog.txt` in the game folder**. The report contains:
 - the exception type and address;
-- registers, the bytes at EIP and a stack dump;
+- registers, the 16 bytes at EIP ("??" for unreadable ones) and a stack dump of at most 8 KB (from ESP to
+  ESP + 0x2000, or to the stack top `fs:[4]` when that is lower, `0x541d21`..`0x541d3b`);
 - a module list with load addresses and sizes;
 - the time, the user, processors and memory.
+
+Only the first exception is reported (static flag `0x2ee250c`, `0x5419c9`..`0x5419d6`). The filter returns
+`EXCEPTION_CONTINUE_SEARCH` (0) on every path (`xor eax, eax` at `0x541a99` and `0x541ea9`; the two
+`mov eax, 1` at `0x541cd0` and `0x541e75` are its own inner `__except` filters), as Dawson's original
+does. So `WinMain`'s `__except` block never runs: after the report the exception goes on to Windows' own
+crash handling, and `WinMain` does not return -1. **Observed.**
 
 The code and strings match Bruce Dawson's public `ExceptionHandler.cpp` (Game Developer
 magazine, 1999), so its function names are used:

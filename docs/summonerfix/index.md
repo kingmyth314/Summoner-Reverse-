@@ -34,7 +34,9 @@ folder before any game code runs. `DllMain`:
 3. Hooks Sum.exe imports and applies guarded byte patches. Each patch verifies the
    original bytes first and logs a skip if they differ.
 
-`DirectInputCreateA` forwards to the system `dinput.dll` (`SysWOW64`).
+`DirectInputCreateA` forwards to the system `dinput.dll` (`SysWOW64`). Sum.exe v1.40 never calls it: the mouse
+always runs in cursor mode ([Mouse](../sum-exe/vsdk-gr.md#mouse-0x500a30-0x501468)), so the import only serves
+to get the proxy loaded.
 
 ## Fixes
 
@@ -45,7 +47,7 @@ folder before any game code runs. `DllMain`:
 | OpenGL renderer | `0x43da64`: `BF 67` -> `BF 68` (`MOV EDI, 0x68`) | The default renderer is Glide; the OpenGL renderer `0x68` is never selected by the game |
 | Windowed mode | `0x43db45`: `68 C9` -> `68 C8` (`PUSH 200`), always for OpenGL | `gr_opengl.cpp` refuses fullscreen mode 201 |
 | Fullscreen output and scaling | Hooks on `SetWindowLongA`/`SetWindowPos` (only calls from `GrInit`), `glViewport`, `SwapBuffers` | See [Display scaling](#display-scaling) |
-| Mouse mapping | Hooks on `ScreenToClient` (game poll at `0x500b50` in [`mouse_update`](../sum-exe/vsdk-gr.md#mouse-0x500a30-0x50144f)) and `ClientToScreen` (cursor warp at `0x500ca7`) | Converts window pixels to game pixels and back |
+| Mouse mapping | Hooks on `ScreenToClient` (game poll at `0x500b50` in [`mouse_update`](../sum-exe/vsdk-gr.md#mouse-0x500a30-0x501468)) and `ClientToScreen` (cursor warp at `0x500ca7`) | Converts window pixels to game pixels and back |
 | Correct 3D aspect | Hook on `GetSystemMetrics` for calls from `GrInit` | Windowed `GrInit` takes the aspect from the desktop (16:9) instead of the game's 4:3 |
 | 2x game speed | `CALL SleepMs` at `0x5015bc` -> `FrameSleep` | See [Frame limiter](#frame-limiter-2x-speed) |
 | Cutscenes skip after ~24.9 days of uptime | IAT hooks on `timeGetTime` and `GetMessageTime` return time since start-up (both rebased by the same amount, because `0x509880` subtracts one from the other for key timing) | `cutscene_sequence_update` subtracts its start time as a signed 32-bit value; see [Timing bugs](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime). Tested 2026-10-14 in agent mode: with `[Debug] FakeUptimeDays=30` the new-game intro is skipped within 2 s (the reported bug), and with the fix it plays normally |

@@ -634,7 +634,8 @@ void launch_updater()
 // ---- entry point -----------------------------------------------------------------------------------
 
 // 0x43e5e0  Confidence: likely (unit membership: see the file comment; the code is exact). The
-// __except filter writes errorlog.txt and returns the handler value; the result stays -1 then.
+// __except filter writes errorlog.txt and returns EXCEPTION_CONTINUE_SEARCH on every path (D2905), so the
+// __except block never runs and the crash goes on to the system handler; result = -1 is never returned.
 // mingw has no __try / __except, so the syntax check sees the plain call (D601).
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {

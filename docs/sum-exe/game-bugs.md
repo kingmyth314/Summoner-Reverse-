@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 180 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 187 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 39 | 2 |
-| Gameplay | 25 | 14 | 3 |
-| Cosmetic | 34 | 10 | 2 |
-| Invisible | 22 | 33 | 0 |
+| Crash or hang | 3 | 41 | 2 |
+| Gameplay | 26 | 14 | 3 |
+| Cosmetic | 36 | 10 | 2 |
+| Invisible | 23 | 34 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -80,6 +80,8 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C151 | Latent: in the Temple of Urath (`templeint_v2`) a missing Tiger Rider, in the Lenele courtyard a Flece who cannot join (a load pending, or no Flece character), and in Eleh and Wolong a Joseph or Rosalind who is not in the reserve party dereference NULL and crash | `ls_templeint_frame` `0x4f5f80`, `lsf_lenele1c_flag_found_flece` `0x4fab90`, `ls_eleh_frame` `0x4f1560`, `ls_wolong_frame` `0x4fe9a0` | **Observed** code and retail data, *inferred* crash | No |
 | C160 | Latent: with the `precalc_vis_method` console setting on, more than 50 path graph points on one straight line from a path's start or end point overwrite the exception record and then the return address of the visibility sweep | `determine_point_visibility` `0x4b8350` | **Observed** code, *inferred* crash | No |
 | C161 | Latent: a navigation BSP node with a type other than 1, 2 or 3 in a level's `.pfg` path graph hangs the game at the next path or position test | `pf_bsp_node_find` `0x4a5c60`, `pathvis_bsp_contains` `0x4b86e0`, `pf_read_typed_refs` `0x49ca20` | **Observed** code, *inferred* hang | No |
+| C170 | Latent: a message box line of 64 or more characters overflows a stack buffer, and from about 69 characters on it corrupts the lengths of the lines after it | `ui_message_box_draw` `0x414270` | **Observed** code, *inferred* effect | No |
+| C171 | Latent: in multiplayer, Tab or Shift+Tab hangs the game when the leader's character and every other party record's character are gone | `party_cycle` `0x413360` | **Observed** code, *inferred* hang | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -412,6 +414,22 @@ retail `.pfg` has 51 points on one line was not checked.
 `pf_graph_search` and `pf_straight_walk_clear` call, so such a node would hang ordinary play. Retail levels play,
 so no walked retail node has another type. The `.pfg` files were not scanned.
 
+**C170. A 64-byte line buffer.** `ui_message_box_draw` splits the text with `gr_split_str` (`0x414360`, at most 16
+lines, width 280 / 350 / 448 pixels from `0x57efd0`) into start offsets (`[esp+0xa0]`) and lengths (`[esp+0x60]`).
+For each line it does `strncpy(line, text + start, len)` into a 64-byte local at `[esp+0x20]` (`0x414370`..`0x414388`)
+and writes the terminator at `line[len]` (`0x414399`), with no clamp. The next local is the length array, so a line of
+64 or more characters overwrites it, and from 68 + 4 characters on the length of the following line; that line's
+`strncpy` then pads up to a garbage length and overwrites the stack. The box holds 255 characters
+(`ui_message_box_show`, `0x413e71`). A line needs an average glyph under about 4.4 pixels at 640x480 to get there,
+or a word that `gr_split_str` cannot break (not traced). We know of no retail message that comes near it.
+
+**C171. A loop that only stops on a live character.** In multiplayer (`game_flags & 2`) `party_cycle` walks
+`party_list` from `party_leader` and calls `living_from_handle` for each record. A NULL result jumps straight back
+to the next record (`test eax, eax; je 0x413376` at `0x413392`); only a non-NULL one is compared with the starting
+record (`cmp esi, edi` at `0x413396`). So when the leader's own record and every other record have no living
+character, the loop never ends. The single-player branch tests for the start record first (`0x4133fa`) and always
+ends. We know of no retail sequence that leaves the leader's character gone while the Tab keys still work.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -455,6 +473,7 @@ so no walked retail node has another type. The `.pfg` files were not scanned.
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 | G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
+| G170 | A "Cannot save..." warning shown while the player has paused the game resumes the game when it is closed | `ui_message_box_show` `0x413e40`, `ClearFrameFlag5bd504` `0x414020` | **Observed** code, *inferred* trigger | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -785,6 +804,17 @@ for type 1 calls `ai_path_find_new` / `ai_path_find_append` (`0x480381`..`0x4804
 type-0 tail is skipped too (`0x480425`..`0x480434`), so the character is left with no path. `multi_path_type`
 (`0x59bca8`) is a local setting of each machine, and only the console sets it. The help text also says "machiens".
 
+**G170. Unpause without a pause.** A message box with flag 1 pauses a single-player game: `ui_message_box_show`
+calls `game_pause` (`0x413f96`), which does nothing when the game is already paused (`game_is_paused`, `jne` at
+`0x432667`). Closing the box (a button or Esc, `ui_message_box_handle_click` `0x4140e8`) runs
+`ClearFrameFlag5bd504`, which calls `game_unpause` whenever flag 1 was set (`0x41402c`..`0x414034`), without
+remembering whether its own pause took effect. The HUD keys still work while the game is paused (Space unpauses
+through the same `hud_handle_keys`, `0x40deea`), and the save key and the quick-save key have no pause test
+(`0x40df22`..`0x40df2f`, `0x40dff5`..`0x40e002`). Their warnings "Cannot save in combat.", "Cannot save during
+summon.", "Cannot save now.", "No more savegame slots." and the other quick-save errors use flag 1 (`push 0x1` at
+`0x40e1af`, `0x40e862`, `0x40e910`, `0x40e92b`). So a player who pauses a fight and presses the save key gets the
+warning, and the fight goes on as soon as it is closed.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -833,6 +863,8 @@ type-0 tail is skipped too (`0x480425`..`0x480434`), so the character is left wi
 | K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
 | K160 | In multiplayer, a player who joins while another join is still going on can see "%s has entered the game." twice for the other new player | `mp_add_new_player` `0x4af4e0`, `mp_handle_new_info` `0x4af4b0`, `mp_handle_net_info` `0x4af760` | **Observed** code, *inferred* trigger | No |
 | K161 | The "Insert Summoner CD #2" box is centred across the screen but starts at the middle, so it sits in the lower half | `cd_prompt_disc2` `0x43ea20` | **Observed** code | No |
+| K170 | In the "You have died." popup (and the other titled choice popups), the highlight and the click area of each entry sit 5 pixels above its text: the bottom of "Restart" selects "Quit" | `ui_choice_popup_hit_test` `0x413970` | **Observed** code, *inferred* effect | No |
+| K171 | A lock that was already picked can be picked again: the skill rolls again, plays the unlock or the failure sound, and "This door already unlocked." is never shown for it | `character_use_skill` `0x429410`, `door_pick_by_mesh` `0x4aaa10` | **Observed** code, *inferred* trigger | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1208,6 +1240,28 @@ y = screen height / 2 (`0x43ea7f`..`0x43ea89`). It draws `ui_draw_text_box(x, y,
 (`0x43ea9c`, `0x43eab3`). `level_load` shows the box when `eleh.s3d` is not on disk and `levelm.vpp` is not in the
 data path (`0x4385cf`..`0x4385f0`), that is, when the level data is on CD #2.
 
+**K170. The title gap is drawn but not tested.** Below a title, `ui_choice_popup_draw` moves down by the title
+height plus `[0x57ef7c]`, 5 pixels at every resolution (`0x413d45`..`0x413d4e`), and `ui_choice_popup_show` adds the
+same 5 to the height (`0x41380a`). `ui_choice_popup_hit_test` adds only the title height (`0x4139b3`..`0x4139d1`), so
+every row's rectangle starts 5 pixels above its text. The hovered row is the one drawn highlighted, so the player sees
+the wrong entry light up over the bottom 5 pixels of each entry, and the strip above the first entry selects it.
+Titled popups: `death_popup` (`0x40f690`, "You have died." with Restart / Quit, flags `0xb`, shown by `hud_party_dead`
+when the party dies) and the two PXO popups (`pxochat_version_check_frame` `0x42368c`, `pxochat_login_frame`
+`0x42387e`). The drag rectangle of `ui_choice_popup_update_buttons` ignores the title entirely (`0x413b07`..`0x413b24`),
+but only the untitled skills and status popups set the drag flag `0x4` (`0x4287a2`, `0x428816`, `0x42be85`), so that
+part never shows.
+
+**K171. The lock value stays.** Both pick paths, single player (`character_use_skill` `0x4295fa`..`0x429693`) and the
+multiplayer host (`door_pick_by_mesh` `0x4aaa87`..`0x4aab57`), test the door's lock value (`door +0x58`) against 0
+first: 0 means "no lock" (single player returns at once, the host sends result 2, which the client shows as "This
+door already unlocked.", `0x4aa8bc`). Otherwise they roll `character_get_skill(0x15)` against it. A success clears
+the two-stage locked flag (`savegame_two_stage_set(.., 0, ..)`, `0x42964d`, `0x4aaaf6`), runs the level's use hook,
+plays sound 6 and the feedback, but never writes `door +0x58`. So the pick skill used again on the same door rolls
+again: sound 6 and the feedback once more, or the failure sound 5 on a door that is already open, and result 2 is
+only ever sent for doors that never had a lock. Inferred trigger: the skill takes the clicked
+`world_interact_object` without a locked test (`0x4295d3`..`0x4295e8`); the world pick filter was not traced. The
+use hook is harmless twice: `door_toggle_state` runs it on every open too (`0x476f21`).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1267,6 +1321,8 @@ data path (`0x4385cf`..`0x4385f0`), that is, when the level data is on CD #2.
 | V151 | Joseph's "We're not ready to confront Machival yet." in Lenele (lenele3a) can never be said: the use hook tests the name "templeint", the trigger is "templeint2", and in single player the palace exit on the same spline fires first anyway | `ls_lenele3a_use` `0x4f1030`, `ls_lenele3a_init` `0x4f0f70` | **Observed** code and retail data |
 | V152 | In the Lenele slums every level-script dialogue action other than Gorbus's own "CheckReleaseOrder" sets his "Give him the release order." topic to the opposite of the party holding the Forged Document; his Hail resets it, so the player sees no difference | `ls_lenele1b_action` `0x4fb160` | **Observed** code and retail data, *inferred* effect |
 | V153 | With the Glide renderer (a 3dfx card or a Glide wrapper), a texture marked dirty (texture quality change, save thumbnail) of an animated bitmap is built twice: the rebuild stores the frame number as the owner, so the next use rebuilds it again | `gr_glide_mark_texture_dirty` `0x5496e0`, `gr_glide_tcache_set` `0x549560` | **Observed** code |
+| V170 | Opening a full-screen screen from a side panel with no character to show runs the side panel's leave function twice | `interface_set_screen` `0x412620` | **Observed** code, *inferred* trigger |
+| V171 | `packfile_read_whole_file` opens the `.vpp` by its bare name (not under the install path) and reports success for a CD packfile without reading it | `packfile_read_whole_file` `0x534900` | **Observed**; no caller |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1643,6 +1699,21 @@ handle; for an animation it is not, so the next draw builds the texture a second
 `gr_mark_texture_dirty`: `bm_set_reduced` (`0x5022f3`, texture quality), `bm_replace_file` (`0x50339c`) and the two
 thumbnail functions (`0x427215`, `0x4d2997`). Only time is lost.
 
+**V170. The restart keeps the old screen.** When the screen being left is not full-screen and the new one is 1, 2, 7
+or 10, `interface_set_screen` picks a `status_character` if it is NULL. When it finds none it restarts with screen 0
+by jumping back to its top (`jmp 0x41262c` at `0x412770`, `0x4127b9`, `0x4127d3`), but `interface_cur_screen` is
+only written later (`0x4127f8`), so the old screen's leave runs a second time. From the HUD the leave is empty. From
+a side panel the leaves are idempotent (`skills_leave`, `assess_leave`, `itemtrade_leave`), except `pickup_leave`,
+which in multiplayer sends `mp_send_container_close` again (`0x420999`). It needs `status_character` NULL while the
+current character is not the main hero and no type-7 living entity exists on the level, which we know of no retail
+case for.
+
+**V171. A whole-file reader that is never used.** `packfile_read_whole_file(buf, size, vpp)` finds the packfile by
+name, refuses a buffer smaller than its size (`"B : (%d %d)"`, `0x53492e`), then `fopen`s the record's name as it is
+(`push esi` at `0x534951`), relative to the current directory instead of `install_path`, and reads the whole `.vpp`.
+For a CD packfile (`+0x20` bit 0) it returns 1 without reading anything (`0x534946`..`0x53498c`). Its only caller,
+`file_blast_into_buffer` (`0x517220`), has no caller and no pointer reference in v1.40.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1854,6 +1925,18 @@ the tables above; the rest are below.
 - `cd_has_level_data` using its buffer as both the destination and the `%s` argument of `sprintf` (`0x43e95a`..`0x43e969`): with this CRT the string is copied onto itself and "\eleh.s3d" is appended.
 - `cd_root` declared `char[64]` with a 0xdc-byte .bss gap: `cd_set_root` writes at most 4 bytes.
 
+- `RecordExceptionInfo` returning `EXCEPTION_CONTINUE_SEARCH` on every path (`0x541a99`, `0x541ea9`): this is what Bruce Dawson's original `ExceptionHandler.cpp` does on purpose, so Windows' own crash handling (or a debugger) still runs after `errorlog.txt` is written. Reporting only the first exception (`0x2ee250c`) is also the original's design. Only the docs and the `summoner.cpp` comment were wrong.
+- `interface_frame` reading `cutscene_data +4` without a NULL test when `game_flags & 0x20` (`0x4119d8`..`0x4119dd`): `cutscene_play` sets bit `0x20` (`0x43659b`) only after `cutscene_load_data` succeeded and the data was already used (`0x43635f`..`0x436364`), and `cutscene_cleanup` clears the bit (`0x436691`). No write sets `0x601e68` to NULL while the bit is set.
+- `packfile_add` testing `name == NULL` and the name length only after the `_stricmp` loop and the `fopen`s (`0x5344f8`..`0x53450f`): all eleven callers pass constant `.vpp` names (`packfile_init` `0x533e30`..`0x533e7d`, `level_load` `0x4385f5`..`0x438609`).
+- `packfile_fseek` adding the entry's offset for every origin: its only caller, `File__seek`, converts `SEEK_CUR` / `SEEK_END` to an absolute position itself and always passes origin 0 (`push 0x0` at `0x5149ac`).
+- `packfile_fclose` / `packfile_fseek` / `packfile_fread` not testing the CD stream for NULL: `packfile_fopen` returns 0 when the CD `fopen` fails (`0x534737`), and its one caller `File__open_found` stops on 0 (`0x51457d`), so no CD entry is used with a NULL stream.
+- `mp_handle_door_toggle` / `mp_handle_door_lockpick` indexing `lobjs` with the packet's value without a range check (`0x4aa784`..`0x4aa79b`, `0x4aa813`..`0x4aa824`): needs a modified peer; not counted, like the other handlers that trust the peer's counts.
+- `version_read_nfo_file` processing the last line twice at end of file (`0x411135`..`0x4111c0`): it keeps the last non-comment line, and the repeat copies the same line again.
+- The version check ending in result 3 ("There was an error verifying your version ...", `0x41103a`): the pxo.net URL (`version_check_fetch` `0x410cf0`) no longer exists; that is the service, not the code. The `SkipVerify` registry DWORD skips it (`0x410f6f`..`0x410f96`).
+- The mouse button accessors not range-checking the button and `mouse_time_since_press` having no `mouse_inited` test: of the 189 calls to the seven accessors, 153 push a constant 0, 1 or 2 directly and the rest pass register copies of such constants; the static button records are valid before `mouse_init`.
+- The message box's 1024 background `MessagePopupBckgrnd21024.tga` against the 640 `MessagePopupBkgrnd2640.tga`: both names exist in `summoner.vpp`.
+- `0x58be28` (screen width / 640) written by `interface_init_global` (`0x41173b`) and read nowhere: a dead store. Not counted.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1955,6 +2038,8 @@ the tables above; the rest are below.
 - Glide animated textures after a texture quality change: `gr_glide_mark_texture_dirty` rebuilds and invalidates only the current frame (`0x5496e8`..`0x549718`). The other frames' entries keep their old size, and their owner still matches, so `gr_glide_tcache_set` will not rebuild them. Whether that shows (UVs from the reduced bitmap size against a full-size texture) was not traced.
 - What a Glide wrapper reports in `fbRam` and the TMU count (`0x2f0f218`, `0x2f0f220`) decides whether the 8 MB test passes and whether the focus code closes the Glide window. Not checked for any wrapper.
 - On the edited `Sum.exe` only (not v1.40 as shipped): `cd_prompt_disc2` calls `cd_find_drive("SUMMONER_2")`. That needs the volume label of `.\` to read SUMMONER_2 (`0x43e825`..`0x43e839`), so it may never return a drive and the "Insert CD #2" box may loop when `levelm.vpp` is missing. Not tested. It depends on what `GetVolumeInformationA(".\\")` returns.
+- `party_cycle` ignores its direction in multiplayer and always walks forward (`0x413370`..`0x4133ac`), so Shift+Tab acts like Tab. It only matters when the local player owns three or more members that the walk accepts; we did not establish whether a multiplayer player can (summons are not excluded by the `0x8a` test).
+- `door_find_by_mesh` for the host's own click calls `door_set_open(l, -1, 0, 1)` / `door_set_closed(l)` on a door that `door_toggle_state` has already set moving; whether the third argument (0 here, 1 in the DOOR_TG handler `0x4aa7ab`) restarts the host's door movement was not traced.
 
 ## Evidence
 
@@ -2145,3 +2230,10 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | G160 path type 2 | `cmd_Multi_path_type` `0x4811e8`..`0x4811f1`, `0x481215`..`0x481222`; `mp_handle_new_path` `0x48026b`, `0x4802d2`..`0x4802da`, `0x480381`..`0x480401`, `0x480425`..`0x480434` |
 | K160 join line | `mp_add_new_player` `0x4af5a6`..`0x4af5d4`; `mp_handle_new_info` `0x4af4cb`..`0x4af4d0`; `mp_handle_net_info` `0x4af77f`..`0x4af784`; `mp_server_accept_connections` `0x440d4f`; `mp_host_update_session` `0x440dc8`..`0x440de1`; `mp_broadcast_packet` `0x441ad7`..`0x441aed` |
 | K161 disc 2 box | `cd_prompt_disc2` `0x43ea6f`..`0x43ea89`, `0x43ea9c`, `0x43eab3`; `level_load` `0x4385cf`..`0x4385f0` |
+| C170 message box line | `ui_message_box_draw` `0x414339`..`0x414360` (`gr_split_str`, 16 lines, width `0x57efd0`), `0x414370`..`0x414399` (`strncpy` into `[esp+0x20]`, terminator), locals `[esp+0x60]` / `[esp+0xa0]`; `ui_message_box_show` `0x413e71`..`0x413e84` |
+| C171 multiplayer cycle | `party_cycle` `0x413370`..`0x4133ac` (NULL loop `0x413392`, start test `0x413396`); single-player branch `0x4133d8`..`0x413408` |
+| G170 pausing box | `ui_message_box_show` `0x413f73`..`0x413f96`; `game_pause` `0x432660`..`0x432667`; `ClearFrameFlag5bd504` `0x414020`..`0x414039`; `ui_message_box_handle_click` `0x4140d8`..`0x4140e8`; `hud_handle_keys` `0x40deea`, `0x40df22`..`0x40df2f`, `0x40dff5`..`0x40e002`; `hud_key_save` `0x40e1aa`..`0x40e1c4`; `quicksave` `0x40e857`..`0x40e873`, `0x40e910`, `0x40e925`..`0x40e934` |
+| K170 title gap | `ui_choice_popup_hit_test` `0x413988`..`0x4139d1`; `ui_choice_popup_draw` `0x413d39`..`0x413d4e`; `ui_choice_popup_show` `0x413805`..`0x413811`; gap table `0x57ef7c` = {5, 5, 5}; `death_popup` `0x40f690`..`0x40f6c9`; `ui_choice_popup_update_buttons` `0x413ae2`..`0x413b24`; titled callers `0x40f6c9`, `0x42368c`, `0x42387e` |
+| K171 lock value kept | `character_use_skill` `0x4295d3`..`0x429693`; `door_pick_by_mesh` `0x4aaa81`..`0x4aab57`; `mp_handle_door_lockpick` `0x4aa838`..`0x4aa8c3`; `door_toggle_state` `0x476f21` |
+| V170 double leave | `interface_set_screen` `0x41262c`..`0x4126ee` (leave switch, table `0x4129d8`), `0x4126ee`..`0x41270f` (case bytes `0x412a3c`), restarts `0x412770`, `0x4127b9`, `0x4127d3`, store `0x4127f8`; `pickup_leave` `0x420960`..`0x420999` |
+| V171 whole-file reader | `packfile_read_whole_file` `0x534900`..`0x534993`; caller `file_blast_into_buffer` `0x517299`; no reference to `0x517220` |

@@ -35,8 +35,10 @@ corrected 2026-10-15: this page said `0x4000` was Alt).
 Held keys are polled separately with `key_is_down` / `key_down_time`. Examples: the camera
 arrows, and the modifier keys in the mouse input.
 
-The keyboard does **not** use DirectInput; only the [mouse](vsdk-gr.md#mouse-0x500a30-0x50144f)
-does.
+Nothing in v1.40 uses DirectInput, neither the keyboard nor the [mouse](vsdk-gr.md#mouse-0x500a30-0x501468).
+The mouse always runs in cursor mode: `mouse_use_cursor` (`0x5a5734`) is 1 in `.data` and nothing clears it,
+so `mouse_di_init` returns -1 before it reaches `DirectInputCreateA` (`0x500e90`..`0x500e9b`). **Observed.**
+(Corrected 2026-10-15; this page said the mouse used DirectInput.)
 
 ## Default keyboard map (`hud_handle_keys`)
 
@@ -95,7 +97,10 @@ them would need a hook in `mouse_update`.
 
 ## Mouse buttons
 
-The mouse message handler (`0x500f60`, registered by `mouse_init`) maps `WM_LBUTTONDOWN`...`WM_MBUTTONUP` to `mouse_mark_button(button 0-2, down)` (`0x501100`). That function updates the live button state, the press/release counters read by `mouse_was_pressed`/`mouse_was_released` (`0x501360`/`0x501390`), and a double-click flag, under `mouse_lock`. The mouse wheel (`0x20a`) is added to `mouse_wheel`. Side buttons (`WM_XBUTTON*`) are ignored by the game.
+The mouse message handler (`0x500f60`, registered by `mouse_init`) maps `WM_LBUTTONDOWN`...`WM_MBUTTONUP` to `mouse_mark_button(button 0-2, down)` (`0x501100`). That function updates the live button state, the press/release counters read by `mouse_was_pressed`/`mouse_was_released` (`0x501360`/`0x501390`), and a double-click flag, under `mouse_lock`. Double clicks are the game's own: a second press within 400 ms
+(`mouse_double_click_time`, `0x5a5738`, a RealtimeTimer per button) sets the flag; `WM_LBUTTONDBLCLK`,
+`WM_RBUTTONDBLCLK` and `WM_MBUTTONDBLCLK` go to the handler's default case and are ignored (jump table
+`0x500fec`). **Observed.** The mouse wheel (`0x20a`) is added to `mouse_wheel`. Side buttons (`WM_XBUTTON*`) are ignored by the game.
 
 ## Text entry
 
