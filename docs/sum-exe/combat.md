@@ -45,8 +45,11 @@ After this, a second jump table on the attack type applies the side effects: sta
 and positive values heal. Status 16, when active, absorbs damage into its own value first (a shield).
 Damage to party members is skipped while `Players_immortal` (console command `immortal`) is set; `Debug_death` is
 checked next to it. HP is capped at `character_get_max_stat(0)`, with the excess kept at `Character +0x6e8`.
-At 0 HP, `character_check_death` (`0x450d90`) decides whether the character survives. Life leech in
-`combat_melee_damage` heals the attacker through this function.
+HP changes go through `character_add_hp` (`0x450850`), which `combat_melee_damage` also uses for the life leech.
+At 0 HP it calls `character_kill` (`0x450d90`). `character_kill` records the killer (`+0xa4`),
+clears all status effects and sets the dead flag (`0x8` in `+0x320`). The `death` debug option (`Debug_death`) and some
+multiplayer and party checks skip that last step (**observed**). Scripts (`script_action_die`), the `health` console
+command and the AI die action call it directly.
 
 ## Example (from the numbers on Joseph's screen)
 

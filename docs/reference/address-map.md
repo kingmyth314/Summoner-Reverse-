@@ -23,7 +23,7 @@ The machine-readable source of truth for names is `symbols/sum.symbols` (see the
 | `0x414020` | `FUN_00414020` | clears per-frame flag `0x5bd504` | [Main loop](../sum-exe/main-loop.md) |
 | `0x432710` | `FUN_00432710` | input/event poll with wait loop (*inferred*) | - |
 | `0x4328b0` | `FUN_004328b0` | `FrameEnd` / HUD overlays | [Main loop](../sum-exe/main-loop.md) |
-| `0x436a90` | `FUN_00436a90` | `SequenceTimer` (cutscenes, *inferred*) | [Timing bugs](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
+| `0x436a90` | `FUN_00436a90` | `cutscene_sequence_update` (cutscenes, *inferred*) | [Timing bugs](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime) |
 | `0x436c00` | `FUN_00436c00` | another `timeGetTime` user of `0x601e78` | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x437c80` | `FUN_00437c80` | Loading-screen progress draw (also calls `FrameTimer`) | [Timing bugs](../sum-exe/timing-bugs.md) |
 | `0x43d7b0` | `FUN_0043d7b0` | `MainLoop` | [Main loop](../sum-exe/main-loop.md#outer-loop-mainloop-fun_0043d7b0) |

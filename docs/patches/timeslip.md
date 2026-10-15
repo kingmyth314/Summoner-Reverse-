@@ -123,7 +123,7 @@ convention), so their purpose is **unknown**.
 ## What the patch does not change
 
 - `timeGetTime` is not hooked, so the [cutscene uptime bug](../sum-exe/timing-bugs.md#2-cutscene-timer-sign-bug-249-day-uptime)
-  remains, and the speed keys do not affect `SequenceTimer`.
+  remains, and the speed keys do not affect `cutscene_sequence_update`.
 - The frame limiter and clamp constants are untouched.
 
 ## Default `dinput.ini`

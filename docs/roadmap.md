@@ -62,7 +62,7 @@ What is known so far:
 - Limits to respect: `frame_dt` is clamped to `MAX_DT` = 0.25 s, and some logic is
   frame-based rather than time-based (for example the `ai_frame_update_rate` console
   variable). Very high multipliers may change gameplay or physics.
-- The cutscene `SequenceTimer` uses `timeGetTime`, not `FrameTimer`, so cutscene timing
+- The cutscene `cutscene_sequence_update` uses `timeGetTime`, not `FrameTimer`, so cutscene timing
   stays unaffected by levers 1 and 2. Whether that is right during a speed-up is to be
   decided.
 

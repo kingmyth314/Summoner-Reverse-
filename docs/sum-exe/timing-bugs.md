@@ -57,7 +57,7 @@ it plays normally (agent-mode screenshots). **Not** fixed by Timeslip's patch.
 
 ### The defect
 
-`SequenceTimer` (`FUN_00436a90`, our label) measures elapsed time since a sequence started
+`cutscene_sequence_update` (`FUN_00436a90`, our label) measures elapsed time since a sequence started
 using `timeGetTime`, which counts milliseconds since Windows booted:
 
 ```nasm
@@ -83,7 +83,7 @@ can quietly build up for weeks.
 ### Effect
 
 `start` is read as about -2.1 billion, so `elapsed` comes out at about 4.3 million seconds.
-Every sequence event (`0x601e90 + i*0x70`) then looks overdue. `SequenceTimer` fires one
+Every sequence event (`0x601e90 + i*0x70`) then looks overdue. `cutscene_sequence_update` fires one
 event per frame until the sequence ends, so the cutscene appears to run at "mach speed".
 
 ### How this matches user reports
@@ -142,5 +142,5 @@ which said the effect was only that the slept time was "counted in the next fram
 | `FrameClockInit` assembly | `ev_6d63a360cc4cfe55f9cdcf1c79c39e0ad6d9d9d1d4db37276460c5986b3801cc` |
 | `FrameClockRead` assembly | `ev_2a63b0c40da8d738c1d8775fb3148f6fe942bfb42cf521d23133078825a5ba25` |
 | RDTSC result never read (xrefs `0x2cbffb0`) | `ev_06253e9933cdf2b1caf4804d98022349de42794766525ae5cdd74452d41662e6` |
-| `SequenceTimer` assembly | `ev_1234f8a94618af3e68f160ac6f5fa65c6c12a2ca359dc6ca3f84e38064599ab5` |
+| `cutscene_sequence_update` assembly | `ev_1234f8a94618af3e68f160ac6f5fa65c6c12a2ca359dc6ca3f84e38064599ab5` |
 | Start-time xrefs (`0x601e78`) | `ev_d272ed8ae15c026baf2544857bb8f4349de69a965cb7c1c6765cf4bef430ac9f` |
