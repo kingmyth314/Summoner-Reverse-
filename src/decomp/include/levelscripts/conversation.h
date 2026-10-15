@@ -161,12 +161,26 @@ struct conversation_speaker {
 LAYOUT_CHECK(conversation_speaker, sizeof(conversation_speaker) == 0x1c);
 
 // One action of a line (0x18 bytes, dialogue_rec__init4 0x500990); run by conversation_execute_action.
+// decomp27: the fields as conversation_execute_action reads them (names ours; the _unk names stay as
+// union members for the existing code, D708).
 struct dialogue_action {
-    int _unk00;                          // +0x00
-    int _unk04;                          // +0x04
+    union {
+        int _unk00;                      // +0x00
+        const char *name;                //   kind 6 flag name; kinds 7-12 the topic made (un)available
+    };
+    union {
+        int _unk04;                      // +0x04
+        const char *flag;                //   kinds 8, 10 the flag name
+    };
     int kind;                            // +0x08 0..12 (conversation_execute_action's switch)
-    int _unk0c;                          // +0x0c
-    int _unk10;                          // +0x10
+    union {
+        int _unk0c;                      // +0x0c
+        int value;                       //   xp, skill points, gold, item type, flag level, gold needed
+    };
+    union {
+        int _unk10;                      // +0x10
+        int species;                     //   kinds 1, 2: the member, -1 the whole party
+    };
     dialogue_action *next;               // +0x14
 };
 LAYOUT_CHECK(dialogue_action, sizeof(dialogue_action) == 0x18);

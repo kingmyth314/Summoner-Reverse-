@@ -39,5 +39,7 @@ void saveload_draw_info();                          // 0x426d10
 void saveload_draw_thumbnail();                     // 0x426fd0
 void saveload_draw_scrollbar();                     // 0x427050
 void saveload_capture_thumbnail();                  // 0x427100 (also quicksave, cmd_savegame)
+// The RGB565 thumbnail (new_saveload.cpp .bss), copied by savegame_write_thumbnail (decomp27).
+extern unsigned short saveload_thumbnail_pixels[201 * 151];   // 0x5e5d28
 
 #endif

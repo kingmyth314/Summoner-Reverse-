@@ -35,6 +35,7 @@ void combat_mode_set(int on);         // 0x439580 (gameplay.cpp range; decomp20:
 extern char level_filename[32];                // 0x60a2c8 (game_cleanup clears all three)
 extern char level_script_name[32];             // 0x60a2e8
 extern char level_prev_filename[32];           // 0x60a308
+extern float level_time;                       // 0x60a654 unpaused seconds since state_game_enter (savegame header +0xac; decomp27)
 extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
 extern bool level_entered_by_load;             // 0x25443a8 (tutorial_frame / tutorial_draw run only while set; D101)
 extern int  level_num_layers;                  // 0x60a340
@@ -44,6 +45,8 @@ extern int  level_layer_automap_index[40];     // 0x60a36c
 // ---- gameplay.cpp: party control (0x439580-0x4396d0) -------------------------------------------------
 void party_toggle_hold();                      // 0x439620
 void party_select_member(class Player *p);     // 0x4396d0
+// (name, 1, 0, 1, -1) from game_stage_set; meaning of the four ints not checked (decomp27).
+void party_member_join(const char *name, int a, int b, int c, int d);   // 0x439ba0
 
 // ---- gametarget.cpp: world picking (0x43a370..; .bss 0x60ab68-0x60ab90) -------------------------------
 class Character;

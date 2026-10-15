@@ -80,6 +80,7 @@ float distance(const vector3 *a, const vector3 *b);   // 0x524810 |a - b|
 int vector3_near_equal(const vector3 *a, const vector3 *b);   // 0x524910 each |a - b| component below 0x581930 (decomp25)
 // (out, p0, p1, p2): cross product of two edges, not normalised (Volition vm_vec_perp; decomp28).
 void vector3_perp(vector3 *out, const vector3 *p0, const vector3 *p1, const vector3 *p2);   // 0x524990
+extern vector3 vector3_zero;                          // 0x2cbf4b8 (0, 0, 0), static initialiser (decomp27)
 
 int imax(int a, int b);                               // 0x51b750 (COMDAT in character_instance.cpp)
 int imin(int a, int b);                               // 0x503dc0

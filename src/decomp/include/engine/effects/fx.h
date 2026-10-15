@@ -46,5 +46,8 @@ int  fx_create_ground_effect(int spell, int caster, const vector3 *pos, const ma
 // NULL, orient or NULL): handle or -1. The timer is the 4th argument (sum.symbols lists it last; decomp29).
 int  fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const vector3 *pos,
                                const matrix *orient);                       // 0x48cab0
+// (effect file, flag): fx_create_instance(name, 0, vector3_zero, identity_matrix, flag); names containing
+// "sky" go to the sky list. Handle or -1 (level_create_world_effects; decomp27).
+int  fx_create_world(const char *effect, bool flag);   // 0x48cea0
 
 #endif

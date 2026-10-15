@@ -18,6 +18,14 @@ public:
     void resume_follow();             // 0x479790 camera_resume_follow
     void push_state();                // 0x4797b0 camera_push_state
     void pop_state();                 // 0x4797d0 camera_pop_state
+    // decomp27 (the CMRA chunk): 9 dwords {flags, distance, yaw, zoom, elevation, fov, look height, mode,
+    // prev mode} (sum.symbols camera_get_state).
+    void get_state(uint *out);        // 0x478890 camera_get_state
+    void set_state(const uint *in);   // 0x4788e0 camera_set_state
+    void reset_default();             // 0x478f60 camera_reset_default
+    void set_mode(int mode);          // 0x479930 camera_set_mode
+    void snap_to_target(int update_target, int arg);   // 0x478e70 camera_snap_to_target (1, 1)
+    void sync_yaw_to_target();        // 0x4798b0 camera_sync_yaw_to_target
     // Inline accessors of the original header (DECISIONS.md C3); conversationctl.cpp calls them as the
     // COMDATs 0x4d8f30 game_camera__get_pos / 0x4d8f40 game_camera__get_orient (lea eax, [ecx + off]).
     vector3 &get_pos() { return eye_pos; }

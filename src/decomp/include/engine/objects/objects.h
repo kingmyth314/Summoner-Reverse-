@@ -151,6 +151,8 @@ LAYOUT_CHECK(party_inventory_entry, sizeof(party_inventory_entry) == 8);
 extern party_inventory_entry party_inventory[521];   // 0x970820
 extern int party_gold;                               // 0x971868
 extern int party_inventory_count;                    // 0x97186c
+#define MAX_CONTAINERS 40
+extern container containers[MAX_CONTAINERS];         // 0x2302fe0 (containers_construct; decomp27)
 
 int  party_inventory_find_first_in_category(int category, party_inventory_entry *list, int count); // 0x46b5b0
 int  shop_inventory_find_first_in_category(int category, shop_item *list, int count);  // 0x46b5d0

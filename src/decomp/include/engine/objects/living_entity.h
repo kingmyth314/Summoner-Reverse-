@@ -74,6 +74,11 @@ public:
     vector3 get_center() { vector3 c; c.x = pos.x + centre_offset.x; c.y = pos.y + centre_offset.y;
                            c.z = pos.z + centre_offset.z; return c; }
     void  set_6ac(float v);           // 0x4570d0 character_set_6ac
+    // decomp27 (level_scripts.cpp): the LENT record and the flag-bound characters.
+    int   save_state(ubyte *out);     // 0x457150 character_save_state, bytes written
+    int   load_state(const ubyte *in);// 0x458800 character_load_state, bytes read
+    void  set_ai_active(bool on);     // 0x462200 character_set_ai_active
+    void  add_xp(int xp, int a, int b);   // 0x44fab0 character_add_xp (conversation_execute_action: xp, 0, 0)
     void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
     void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed
     void *get_current_move();         // 0x461500 character_get_current_move (0 = none)
@@ -261,6 +266,8 @@ extern bool Players_immortal;         // 0x941704 "immortal"
 extern bool No_resist;                // 0x941705 "no_resist"
 
 void living_entity_reset_tables();    // 0x462d80
+int  character_save_state_size();     // 0x4587f0 0x17c, the fixed LENT record size (decomp27)
+#define CF_SUMMON 0x100               // +0x320: the summon (savegame LENT code, level_scripts.cpp; decomp27)
 
 Character *living_entity_create(int type, int char_info, const vector3 *pos, const matrix *orient,
                                 int a, int b, int c, int d, int e);   // 0x461b80 (last five: 1, 0, 0, 0, 0)

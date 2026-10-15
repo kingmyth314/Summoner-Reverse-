@@ -97,7 +97,8 @@ struct door_info {
     quaternion open_orient;           // +0x34
     GameTimer timer;                  // +0x44 move timer (constructed by new door_info[n])
     float _unk48[3];                  // +0x48
-    unsigned int state;               // +0x54 bits 0, 1 and 3 cleared on load
+    unsigned int state;               // +0x54 bits 0, 1 and 3 cleared on load; bit 3 the default locked
+                                      //        state (savegame_two_stage_get, decomp27)
     float lock;                       // +0x58 lock value, 0 unlocked (character_use_skill pick lock; D100)
     int _unk5c;                       // +0x5c
     int _unk60;                       // +0x60
@@ -110,6 +111,13 @@ struct door_info {
 };
 LAYOUT_CHECK(door_info, sizeof(door_info) == 0x8c);
 door_info *door_from_lobj(lobj *l);   // 0x4768c0 0 unless the lobj has flag 0x100
+// The door commands' helpers (unit not known; decomp27). door_find_by_name: 0 found, -1 not (the outputs
+// are then not written).
+int  door_find_by_name(const char *name, lobj **out_lobj, door_info **out_door);   // 0x477280
+bool door_set_open(lobj *l, float speed, int a, int b);   // 0x476e00 (cmd_door_open: -1.0, 1, 1)
+void door_set_closed(lobj *l);        // 0x476e80 (return unused)
+void door_toggle_state(lobj *l, int a);   // 0x476ee0 (return unused; cmd_door_toggle passes 1)
+lobj *lobj_from_index(int index);     // 0x477780
 int  lobj_find_by_name(const char *name);           // 0x4777a0 -1 if none
 void fx_disable_by_effect_name(const char *name);   // 0x48d660 (unit not known; effect objects)
 void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs);   // 0x4776c0

@@ -1039,3 +1039,84 @@ boss_ai.h: the boss species constants, boss_attack, boss_threat, boss_target (0x
 record of boss_target_list_build), every boss_ai.cpp function and the per-boss functions and data the
 unit calls. tentacle_get_attack_kind takes the Character (both dispatchers push `[esi]`, the owner),
 not a handle as sum.symbols says.
+
+## level_scripts.cpp (decomp27)
+
+**D700 (savegame.h). The savegame object's layout.** `savegame` was a method list without fields ("layout
+not needed yet"). It is now the 0x10e8-byte object from the layout functions and the size reports:
++0 buffer, +4 reserved size (savegame_init_buffer 0x4cfbb0), +8 used (every layout function adds to it),
+then {data, size} pairs: header +0xc (0x4d1802 / 0x4d180d), thumbnail +0x14 (0x4d1847), visit counts +0x1c
+(0x4d1871), 51 level blocks of 0x18 bytes at +0x20 {data, num_flags, num_bits, num_ints, num_floats, size}
+(savegame_layout_level_data 0x4d1889-0x4d18bd; savegame_set_bit's message calls them
+`data_pointers[%d(%s)].size`), the conversation base +0x4e8 and 51 x 7 {data, size} at +0x4ec (0x4d18fc,
+0x4d191a), then items +0x1014 .. hot buttons +0x105c (0x4d19ed .. 0x4d1c1f), the pending load name +0x1064
+(0x80, savegame_set_pending_load 0x4d387e) and slot +0x10e4. num_flags / num_bits are unsigned
+(`shr edi, 3` at 0x4d18b5, `jae` at 0x4cff4a). The members that would clash with the globals level_items
+(0x24e3b50) and automap_labels (0x5f9838) are named level_item_hashes and map_labels (ours). New types:
+savegame_section, savegame_level_data, savegame_party_state (the LENT dword as bit fields: masks
+0x4cf522-0x4cf565 and 0x4d2e3c / 0x4d3029 / 0x4d2ee9), savegame_hot_button (6 bytes, `#pragma pack(1)`),
+savegame_automap_label (0x34), savegame_two_stage (0x673f: counts, 51 x 0x79 hashes, bits at +0x6138).
+savegame() is the constructor 0x4cfb80 (sum.symbols savegame_state__clear: init_savegame_state jumps to it
+with ECX = the object); the destructor is empty and inline (atexit 0x4ceef0 jumps to empty_function).
+
+**D701 (savegame.h). bool values.** set_flag's third argument is tested as a byte (`mov cl, [esp+0x1c];
+test cl, cl` at 0x4cfdb4), so `bool value` (was int; the callers pass 1). set_bit and set_speaker_bit /
+set_topic_bit likewise (0x4cfff7, 0x4d07bd); set_quest_bit compares with true (`cmp dl, 1` at 0x4d0c63).
+
+**D702 (savegame.h). Unused arguments, return types.** write (0x4d1c40) never reads its second argument
+and read (0x4d25b0, ret 8) its second (load_pending passes the pending slot). read_thumbnail_file returns
+int (EAX 0 / 1 at 0x4d29c0 / 0x4d29c9; was void, the return is still unused). The other members were
+added from their definitions; the free functions savegame_refresh_object_flags / _character_flags are
+cdecl (savegame_set_flag calls them with ECX not set, 0x4cfdd2).
+
+**D703 (level_scripts.h). level_script_info is the initialised table of level_scripts.cpp.**
+level_script_table (0x59f128) lies in this unit's .data (between its literals 0x59e798-0x59f11c and
+level_table); the image holds the name, the five hooks, +0x14, the load steps and the music name. +0x18 is
+`void (*)(dialogue_action *)` (conversation_execute_action pushes the action and calls it, 0x4d59bf; was
+void *). The hash lists are written by events_parse_table (`mov [eax + 4*edx], edi` at 0x4d3cf0), so
+`unsigned int *` (was const). empty_function in the action slot is cast (identical-code folding: the
+original had per-level empty functions).
+
+**D704 (level_scripts.h). level_script_use returns char.** It returns the hook's AL or `xor al, al`
+(0x4d5e34); was int (new_skill.cpp ignores the result).
+
+**D705 (level_scripts.h). level_items and the other .bss of 0x2493a18-0x25443af are level_scripts.cpp's.**
+sum.symbols tags level_items (0x24e3b50) items.cpp, but items.cpp's .bss is 0x8b9ea0-0x8ec9.. and the
+address sits between this unit's Preparse_scripts (0x24e3b48) and navpoints (0x24e4950). Defined in
+level_scripts.cpp with conversation_save_table, quest_table / quest_count (sum.symbols: new_journal.cpp,
+doubtful), level_entered_by_load (summoner.h keeps the extern), script_objects and the three StringPools.
+level_item_rec (0x70) is read from level_items_parse_table (0x4cb524-0x4cb65e).
+
+**D706 (levelrender.h). door_info +0x54.** decomp28 (D802) named it `state`; bit 3 is the door's default
+locked state (savegame_two_stage_get, `shr eax, 3; and al, 1` at 0x4d1287). Comment only. num_doors /
+doors are decomp28's macros; level_scripts.cpp includes engine/s3d/s3d.h.
+
+**D707 (ai.h). ai_group_create returns the group.** savegame_read_groups keeps EAX (0x4cfa93) and passes it
+to ai_group_add_member and stores +0x4c / sets the +0x50 timer through it. Was void (player.cpp ignores
+it). New: ai_groups[10] (0x243e040), ai_groups_reset (0x492b30), ai_goal_next_id (0x59b7c8).
+
+**D708 (conversation.h). dialogue_action fields.** conversation_execute_action reads +0 as the topic / flag
+name, +4 as a flag name, +0xc as the amount / item type / flag level, +0x10 as a species (-1 = the party).
+Added as anonymous-union aliases (name, flag, value, species) so conversationctl.cpp's `_unk` spellings
+still compile.
+
+**D709 (savegame.h, level_scripts.h). conversation_save_table records.** The table stays `void *[357 * 4]`
+(new_mainmenu.cpp, new_saveload.cpp, conversationctl.cpp index it); level_scripts.cpp reaches the 0x10-byte
+records {name, speakers, topics, level cap} through `CONVERSATION_SAVE_INFO(level, slot)` (struct
+conversation_save_info; +0xc is +Levelcap:, 100 by default, 0x4d6286 / 0x4d628e).
+
+**D710 (level_scripts.h). level_add_navpoint returns bool.** decomp28 declared `void
+level_add_navpoint(s3d_navpoint *)`; the function ends `mov al, 1` (0x4d58c9). The argument type is kept
+(s3d_navpoint: name +0, orient +4, pos +0x28 match the reads at 0x4d5740, 0x4d579e, 0x4d5774).
+
+**D711 (decomp27). Other additions, no conflict.** Character: save_state 0x457150, load_state 0x458800,
+set_ai_active 0x462200, add_xp 0x44fab0; character_save_state_size 0x4587f0; CF_SUMMON 0x100. camera:
+get_state / set_state (9 dwords), reset_default, set_mode, snap_to_target, sync_yaw_to_target. objects.h:
+containers[40] (0x2302fe0). levelrender.h: lobj::get_layer_n (decomp28 had it too), door_find_by_name
+(lobj ** / door_info ** outputs, 0x4772d9 / 0x477300), door_set_open, door_set_closed, door_toggle_state,
+lobj_from_index. fx.h: fx_create_world(name, flag). snd.h: sound_emitter_pause / _unpause. summoner.h:
+level_time (0x60a654), party_member_join. vector.h: vector3_zero (0x2cbf4b8). new_saveload.h:
+saveload_thumbnail_pixels. level_scripts.h: script_object (0x550, GameTimer at +0x518), navpoint (0x30;
++0x10 is a heading, not sum.symbols' handle: extract_angles h is stored there, 0x4d57ac), level_effect,
+level_ambient, the level-script hook globals of level_scripts_common.cpp, the 138 ls_* hooks, and the
+unit's functions and globals.

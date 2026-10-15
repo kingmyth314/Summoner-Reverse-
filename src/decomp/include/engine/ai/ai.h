@@ -203,7 +203,10 @@ enum ai_state_mode {
     AI_STATE_HIDING = 9, AI_STATE_SNEAKING = 10, AI_STATE_MOUNT_TRAVEL = 11, AI_STATE_MOUNT_IDLE = 12,
 };
 
-void ai_group_create(Character *c);                   // 0x492ba0 (return value unused; type guessed)
+ai_group *ai_group_create(Character *c);              // 0x492ba0 the new group (savegame_read_groups; D707)
+void ai_groups_reset();                               // 0x492b30 (state_game_enter, savegame_read_living)
+extern ai_group ai_groups[10];                        // 0x243e040
+extern int ai_goal_next_id;                           // 0x59b7c8 (init 1; saved in the LENT chunk; decomp27)
 void ai_group_add_member(ai_group *group, Character *c); // 0x492c50
 void ai_group_remove_member(Character *c);            // 0x492ca0
 

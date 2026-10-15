@@ -27,5 +27,8 @@ void snd_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool u
               bool dsinit);                                                // 0x5205b0
 void snd_close();                                                          // 0x5206e0
 void sounds_parse_table();                                                 // 0x521a60 sounds.tbl
+// Sound emitters (level ambients; unit not known, decomp27).
+void sound_emitter_pause(int emitter);                                     // 0x546b20 (return unused)
+void sound_emitter_unpause(int emitter);                                   // 0x546b80 (return unused)
 
 #endif
