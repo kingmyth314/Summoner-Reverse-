@@ -366,6 +366,215 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 | `0x55abd0`-`0x55bfc0` | HTTP client, vfx channels/forces, BitArray | names http_*, vfx_*, BitArray__*; several files |
 | `0x55c000`-`0x569ff0` | DirectSound (ds_*/ds3d_*), sound streams/ACM, UI slider/tooltip, vfx emitters/meshes, libjpeg | names ds_*, snd_stream_*, ui_slider__*, vfx_*, jpeg_*; Dash Faction rf/sound/sound_ds.h covers ds_* (no file n |
 
+### Hand cuts inside the unnamed units (2026-10-15)
+
+An agent cut all 40 ranges of the table above by hand. I re-checked the two new file names before tagging:
+`gameplay.cpp` (strings.tbl id 622 is read at `0x439d11`) and the savegame part of `level_scripts.cpp`. Together they put
+169 more functions in a file. The other cuts have a descriptive label only. The "Tags to check" notes list current tags
+that the data layout contradicts. They are not changed yet.
+
+Method: per function, the private `.bss` / `.data` it uses (all users within 60 functions), static-initialiser
+table entries, `ebp` frame and `0xcc` padding, strings.tbl ids. Ranges are function start addresses (start of the
+first function .. start of the last). "Label" rows have no file name. Only two rows carry a file name (marked **file**).
+Ranges that round 3 already tagged completely (combat 0x464010-0x469010, 0x46dd90-0x46e0c0 s3d.cpp, 0x472030 ai.cpp,
+0x50a010 console.cpp, 0x5194e0 character_instance.cpp) need no cut and are left out.
+
+#### 0x411270-0x414cb0 (table rows 0x411330-0x414a10 and 0x414a20-0x414d40)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x411270 | 0x414cb0 | interface manager (one unit; both table rows plus the 0x411270 colour inits and the show_ui ccmd) | init run starts after new_int_multi_update at 0x4110b0; every function uses .bss 0x5bd2e0-0x5bd968 and .data 0x58bdb4-0x58c054; ccmd_show_ui object 0x5bd780 lies inside (0x5bd77c-0x5bd78c are the choice-popup globals) |
+| 0x414d30 | - | new_inventory.cpp starts | new_inventory .bss starts 0x5bd980 / 0x5c0ffc, .data 0x58c080 |
+
+Tag to check: 0x414c80 init_ccmd_show_ui_thunk, 0x414c90, 0x414cb0 cmd_show_ui are tagged new_inventory.cpp but use the
+interface file's .bss (0x5bd780, 0x5bd962) and .data (0x58bfd4, after "v%d.%02d" 0x58bfc0).
+
+#### 0x430bc0-0x433330 (table row 0x430be0-0x4333d0)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x430bc0 | 0x4317e0 | editor dialog boxes (editor_dialog_*) | init_empty run at 0x430bc0; .bss 0x5fa278-0x5fa29c, .data 0x59309c-0x5930a4 |
+| 0x431870 | 0x4323d0 | boot / title / load-game states, game_change_level, us_open_demo ccmd | init run (ui_window/listbox/static/button objects) at 0x431870; .bss 0x5fa2c8-0x5fbf1a, .data 0x5930b8-0x5931a0 |
+| 0x4323e0 | 0x433280 | frame end, pause, input polling, screenshots, cursors, Gamewide_* display ccmds | .bss 0x5fbf20-0x5fc029 (one byte-flag run 0x5fc01c-0x5fc022: FrameEnd reads the gr_info flag 0x5fc020, screenshot_save the targa flag 0x5fc022), .data 0x5931b0-0x5934b4 (cmd_net_stats reads 0x5931b0) |
+| 0x433340 | - | player.cpp starts | player .bss starts 0x5fc030 (party lists), .data 0x593508; path string 0x5938bc |
+
+Tags to check: the 12 functions 0x432f80-0x433280 (ccmds show_hud_info, targa, net_stats, gr_info) are tagged
+player.cpp. Their ccmd objects 0x5fbf20/0x5fbff8/0x5fc008/0x5fbf30 and flags 0x5fc020-0x5fc022 sit in the
+0x4323e0 file's block, and FrameEnd/screenshot_save use the same flags. player.cpp should start at 0x433340.
+
+#### 0x4343a0-0x43a300 (around table row 0x437660-0x43a300)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4343a0 | 0x4349a0 | player input, camera keys, slew ccmd, and the static objects of the cutscene system (cutscene 0x601e68, 85 entries 0x6034c8, NoRlsAllocPool 0x5fccc0) | optimised code (no ebp, 0x90 padding) up to the unoptimised run; .bss 0x5fcca8-0x609f08; .data 0x593950-0x593988 (between player.cpp and cutscene) |
+| 0x4349b0 | 0x437650 | cutscene playback (unoptimised file) | ebp frames + 0xcc padding, exact ends; own .bss 0x609f30-0x609f38 |
+| 0x437660 | 0x43a300 | **gameplay.cpp** | strings.tbl id 622 (`// gameplay.cpp`) read by party_member_join 0x439ba0 (the other reader, party_add_member, is in player.cpp by path string); one .bss block 0x609f40-0x60a670: game_render_frame and cmd_render_3d_obstacles share 0x60a665, state_game_frame/state_game_enter use 0x60a630/0x60a654 between the ccmd objects 0x60a420-0x60a658 |
+
+Tags to check: 0x4343a0-0x4348b0 is tagged gameplay.cpp ("slew ccmd group heads gameplay unit"). It cannot be the
+same file as 0x437660-0x43a300, which holds the strings.tbl evidence: the unoptimised cutscene file lies between them,
+and its .data (0x593950) is below cutscene's, gameplay's is above (0x593c34-0x5943f0). The 0x434900-0x4349a0
+initialisers are optimised (`.n`), so they are not part of the unoptimised cutscene file (whose own initialisers,
+like living_entity.cpp and objects.cpp, would open ebp frames); they end the 0x4343a0 unit.
+
+#### 0x43eb00-0x442380 (table rows 0x43ec90-0x43f9d0 and 0x43f9e0-0x4425c0)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x43eb00 | 0x43ef20 | multiplayer level select / game create / game list states, all_multi_levels ccmd | mp_level_available_to_all reads All_multi_levels flag 0x60ae64 set by cmd_all_multi_levels; .bss 0x60ae58-0x60ae64, .data 0x594f88-0x594fb8; summoner_cd.cpp's last id (937) is at 0x43ea20 |
+| 0x43ef30 | 0x43f9c0 | IRC lobby state (channels, users, chat) | init run at 0x43ef30 (realtime timer 0x60ae78); .bss 0x60ae68-0x60aea1, .data 0x594fd0-0x594ff4. Cut from the row above rests only on the init run (inferred) |
+| 0x43f9d0 | 0x4402f0 | state 6 window and monster layouts (.mlo, load/save_mlayout ccmds) | init run of ui objects 0x60f938/0x60f500/0x60f1d0; ccmd objects 0x60f928/0x60f4f0 interleave with them; .bss 0x60f1d0-0x60fe24, .data 0x594ff8-0x595110 |
+| 0x440400 | 0x440b30 | effect streaming (effect_stream_*) | sinit of File 0x651288 (used by effect_stream_update) at 0x440400; .bss 0x60fe30-0x6513a4, .data 0x59513c-0x595150 |
+| 0x440b40 | 0x442380 | multiplayer session / net core (packets, net stats) and the disp_rate ccmd | init run 0x440b40; .bss 0x651414-0x65e964; ccmd_disp_rate object 0x65e0c0 sits inside the net-stats block 0x65e0c8-0x65e964; cmd_disp_rate reuses "OUT U " / "OUT R " (0x595978/0x595980) of multi_send_packet |
+| 0x4425b0 | - | characterinfo.cpp starts | .bss 0x65e968+, init_chain_skill_names reads ids 7-9 |
+
+Tags to check: 0x442350, 0x442360, 0x442380 (disp_rate ccmd) are tagged characterinfo.cpp; by .bss and strings they
+end the net file. characterinfo.cpp should start at 0x4425b0.
+
+#### 0x46b460-0x46c5cd (table row 0x46b460-0x46c570)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x46b460 | 0x46c570 | party/shop inventory lists, equipment, add_gold ccmd | after the unoptimised objects.cpp run (ends 0x46b3d0); .bss 0x970810-0x97186c: ccmd_add_gold object 0x970810 is below the inventory arrays 0x970820 and cmd_add_gold edits party_gold 0x971868 |
+| 0x46c5d0 | - | item_paging.cpp starts | "IP general" mempool init, .bss 0x971870+, path string 0x59a914 |
+
+Tags to check: 0x46c540-0x46c570 (add_gold) are tagged item_paging.cpp. If item_paging.cpp starts at 0x46c5d0 they
+belong to the inventory unit. No evidence excludes that the inventory code is the head of item_paging.cpp itself
+(the .data and .bss of both run on without a gap); then the add_gold tag is right and there is no cut here.
+
+#### 0x4705b0-0x471f90 (around table row 0x470e30-0x472020)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4705b0 | 0x470e20 | multiplayer game list and join requests | init run 0x4705b0; .bss 0x22e4428-0x22e462f |
+| 0x470e30 | 0x471d70 | multitrade.cpp (already tagged) | |
+| 0x471df0 | 0x471f90 | player removal / kick packets | no private data. Reads ids 233-234 of `// multiendgame.cpp`, but multiendgame.cpp is at 0x481340-0x4815c0, so the ids are shared, not a file name. Tail of multitrade.cpp or own file: undecided |
+| 0x471ff0 | - | ai.cpp starts | |
+
+#### 0x492b00-0x49c7c0
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x492b00 | 0x493d90 | AI groups (ai_group_*), party_controller_check ccmd | init 0x492b00; .bss 0x243e08c-0x243e3d4 (ccmd flag 0x243e388 also read by ai_group_create); .data 0x59c594-0x59c5d0 |
+| 0x493e50 | 0x494680 | cutscene camera sequences | init run 0x493e50; .bss 0x243e3d8-0x24435f0 |
+| 0x4946a0 | 0x4951d0 | snow (cells, render) with snow / snow_render ccmds | init run 0x4946a0; .bss 0x2444550-0x2451d78 (ccmd objects 0x2451d50, 0x24445a0 inside); .data 0x59c5e8-0x59c650 |
+| 0x495290 | 0x497a40 | serpent rider boss | init run 0x495290; .bss 0x2451d80-0x2452414; .data 0x59c670-0x59c7f8 |
+| 0x497ac0 | 0x499e20 | phoenix rider boss | init run 0x497ac0; .bss 0x2452418-0x2452a68; .data 0x59c81c-0x59c970 |
+| 0x499e50 | 0x49c7c0 | tiger rider boss | init run 0x499e50; .bss 0x2452a70-0x2452cb4; .data 0x59c98c-0x59cb18; pathfinding.cpp starts 0x49c840 |
+
+The current tu-split2 cut at 0x4950b0 puts the snow ccmds into the serpent unit; by .bss and .data they end the snow unit.
+
+#### 0x4a3640-0x4aa760 (table rows 0x4a37e0-0x4aa6b0)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4a3640 | 0x4a3700 | handle slots | init 0x4a3640; .bss 0x245c9e8-0x245cd78 (after boss_ai.cpp's 0x245c9e0), .data 0x59cd88 |
+| 0x4a37d0 | 0x4a4ec0 | obstacle debug draw, obstacle_height_offset ccmd, blob shadows | init run 0x4a37d0; .bss 0x245cd90-0x245f398, .data 0x59cd90-0x59ce54 |
+| 0x4a4ee0 | 0x4a6600 | pathfinding geometry: graph globals, BSP cell lookup, grid hash, seg2d tests | .bss 0x245f3a0-0x2460cb8: the graph data that pathfinding.cpp (0x49c840) uses as externs sits after the shadow block, so it is defined here; private 0x245f3a8, 0x2460c94 |
+| 0x4a6710 | 0x4aa760 | obstacle avoidance (avoid_*), avoidance ccmd | init run 0x4a6710; .bss 0x2460cc0-0x246b92c, .data 0x59ce88-0x59cea4; multi_door.cpp starts 0x4aa780 |
+
+#### 0x4ae330-0x4af320 (table rows 0x4ae330-0x4aea00 and 0x4aea50-0x4b0210)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4ae330 | 0x4ae830 | game tracker client (gtrack_*) | .bss 0x247b0a0-0x247e23d, after multi_chattracker.cpp's 0x2479c3c-0x247ae38; may be the tail of that file (no evidence either way) |
+| 0x4ae890 | 0x4af320 | level-object ray and sphere tests (lobj_ray*) | .bss 0x247e81c-0x247e820; multiplayerdata.cpp starts 0x4af340 (id 236), multispell.cpp at 0x4afca0 |
+
+#### 0x4bbe80-0x4c6460 (table rows 0x4b9e80-0x4bff60 and 0x4c0250-0x4c6480)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4b9e70 | 0x4bbdd0 | ghost rider boss | init run 0x4b9e70; .bss 0x2480300-0x2480944; .data 0x59d9ec-0x59dad8 |
+| 0x4bbe80 | 0x4bcdc0 | decals (decal_*), s3d_geom_block helpers | init run 0x4bbe80; .bss 0x2480948-0x2483554, .data 0x59daf0 |
+| 0x4bce60 | 0x4bff60 | AI combat modes (approach, melee/ranged, spell choice) | init 0x4bce60; own .bss 0x2483558-0x2483560 after the decal block |
+| 0x4c0250 | 0x4c0a20 | projectors (shadow/decal projection records, lobj face marks) | .bss 0x2483564-0x24893e4 |
+| 0x4c0a40 | 0x4c0bf0 | lamp glows | init 0x4c0a40; .bss 0x24893e8-0x248b008, .data 0x59db74 |
+| 0x4c0c40 | 0x4c2090 | Machival boss | init run; .bss 0x248b010-0x248b378; .data 0x59db8c-0x59dbf0 |
+| 0x4c20e0 | 0x4c3340 | Titus boss | init run; .bss 0x248b380-0x248b968; .data 0x59dc08-0x59dca8 |
+| 0x4c3470 | 0x4c40d0 | Evil Joseph boss | init run; .bss 0x248b978-0x248bcfc; .data 0x59dcb8-0x59dd28 |
+| 0x4c4170 | 0x4c5110 | Evil Urath boss | init run; .bss 0x248bd00-0x248bf28; .data 0x59dd3c-0x59dda4 |
+| 0x4c5140 | 0x4c5b70 | Murod boss | init run; .bss 0x248bf38-0x248bfec; .data 0x59ddb0-0x59ddc0 |
+| 0x4c5c20 | 0x4c6460 | Murod Oni boss | init run; .bss 0x248bff0-0x248c318; .data 0x59ddd4 |
+
+#### 0x4c6480-0x4d6600 (table rows 0x4c6490-0x4cfe00, 0x4cfea0-0x4d0c40, 0x4d0c90-0x4d6760)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4c6480 | 0x4c7e90 | tentacle beast boss, tentacles / tentacle_test ccmds | init run; .bss 0x248c320-0x248c7ad (ccmd objects 0x248c778/0x248c788 inside); .data 0x59dde8-0x59de7c |
+| 0x4c8030 | 0x4c8cc0 | giant salamanka boss | init run; .bss 0x248c7b0-0x248cdaf; .data 0x59dec0-0x59dfc0 |
+| 0x4c8d10 | 0x4ca650 | Luminar boss | init run; .bss 0x248cdb0-0x248ce30; .data 0x59dfd0-0x59e0cc |
+| 0x4ca700 | 0x4cee90 | level_scripts_common.cpp (tagged; ends here) | its .bss ends at 0x2493a16 |
+| 0x4ceec0 | 0x4d6600 | **level_scripts.cpp** (savegame code 0x4ceec0-0x4d4bb0 joins the tagged 0x4d4bc0-0x4d6600) | one .bss block: ccmd_loadgame 0x2493a18 (level_scripts.cpp) sits below savegame_state 0x2493a38 (init at 0x4ceec0); ccmd_savegame 0x2494b20 lies inside savegame_alloc's 0x2493a4c-0x2494b2c; ccmd_gamestage 0x24dfb30 next to events_parse_table's 0x24dfb3c; ccmd_door_open 0x25388b0 next to the speaker/topic bits 0x25388c4/0x25388c8 that script_filenames_parse_table also reads; quest 0x253efa8 shared by quest_get_current_step and quest_evaluate. File name from strings.tbl ids 469-476 (conversation_execute_action, quest_journal_set_entry) |
+
+Tags to check: 0x4cef00-0x4cef30 (Preparse_scripts ccmd) are tagged level_scripts_common.cpp. Their object 0x2493a28 is
+above ccmd_loadgame 0x2493a18 and cmd_Preparse_scripts uses 0x24e3b48, inside the savegame block 0x24e3b3c-0x24e3b94,
+so they belong to level_scripts.cpp.
+
+#### 0x4d6660-0x4db2c0 (table rows 0x4d6770-0x4d7900 and 0x4da010-0x4dc570)
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4d6660 | 0x4d7b10 | dialogue boxes (text and topic boxes, line layout) | init run 0x4d6660; .bss 0x25443b0-0x2546194 (dialogue_box 0x2544408, topic box 0x2545b68); conversation.cpp starts 0x4d7b30 (.bss 0x25461a0) |
+| 0x4dafe0 | 0x4db2c0 | dialogue_make_topic_* and dcamera ccmds, str_copy_append_32, filename_has_cscript_suffix | init run 0x4dafe0; .bss 0x2546730-0x2546750 right after conversationctl.cpp's 0x254672c and before script_internal.cpp's 0x2546760; .data 0x5a02cc-0x5a0408. Probably the end of conversationctl.cpp, not proven |
+
+#### 0x4de0b0-0x5009f0
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x4de0b0 | 0x4ecf90 | script editor (UI, navpoints, actions, script/level-table writers, remove_nav and render_s3d_navpoints ccmds) | one init run 0x4de0b0-0x4dff20 of ~100 ui objects whose .bss (0x2546948-0x256b774) is used, in no order, by callbacks across the whole range (e.g. 0x4eaf00 uses 0x256af48, 0x4eca00 uses 0x2551fa8); .data increases without a gap 0x5a08c0-0x5a155c |
+| 0x4ed050 | 0x4ed770 | cutscene scripts (_cscript.tbl load/unload/frame) | init run 0x4ed050; .bss 0x2571750-0x257e974, .data 0x5a1574-0x5a15a4 |
+| 0x4ed7c0 | 0x4ee5e0 | level_script_sewers.cpp (tagged) | |
+| 0x4ee730 | 0x4ee800 | lenele2d level script | no own .bss; ls_lenele2d_use reads id 502 of `// level_script_lenele2aa.cpp`, but lenele2aa.cpp is at 0x4f12c0, so the id is shared |
+| 0x4ee840 | 0x4eee20 | random-encounter level scripts (iceland01, grasslandnite01, desertnite01, orenianite01, orenia01, grassland01, hillsnite01) | .data 0x5a1938-0x5a1ae4; no .bss |
+| 0x4ef120 | 0x4ef140 | ikaemosext2 level script | after level_script_ikaemosl2.cpp; .data 0x5a1b18-0x5a1b28 continues it; may be the same file |
+| 0x4ef850 | 0x4ef850 | lenele1ab level script | .data 0x5a1cb4-0x5a1d04 between templeint2 and lenele1aa |
+| 0x4f1070 | 0x4f1220 | lenele2ab level script | .data 0x5a2204-0x5a2318 between lenele3a and lenele2aa |
+| 0x4f2250 | 0x4f2430 | khosanilab2 (Pyrul) level script | own .bss 0x257e9f8-0x257e9f9 between wolong2 (0x257e9f4) and lpalaceint02 (0x257e9fc) |
+| 0x4f2830 | 0x4f29c0 | tancredhouse level script, ls_test_use | .data 0x5a2894-0x5a28e8 after lpalaceint02 |
+| 0x4f3a80 | 0x4f4210 | khosanistrng level script | .data 0x5a2bd0-0x5a2fd8 between lpalaceint and iona_ext2 |
+| 0x4f4910 | 0x4f4910 | rand-desert level script | between iona_ext2 and liangshan |
+| 0x4f5670 | 0x4f5e70 | rand-forestnite1 and rand-forest01 level scripts | own .bss 0x257ea64-0x257ea65 and 0x257ea68-0x257ea6a between liangshan (0x257ea60) and temple_inside (0x257ea6c) |
+| 0x4f7220 | 0x4f7760 | ionaext level script | own .bss 0x257eb00-0x257eb0e between wolong_caverns (..0x257eafc) and khosani_lab (0x257eb10) |
+| 0x4f9e50 | 0x4f9e70 | ikaemosext level script | between khosani_lab and ikaemosu |
+| 0x4fa400 | 0x4fa780 | ikaemosbottomint init, rand-hills01 level script | .bss 0x257ed00-0x257ed02 after ikaemosu's 0x257ecfc-0x257ecfe |
+| 0x4fa890 | 0x4fa9d0 | lenele1d level script | inside the courtyard run (lenele1e before, lenele1c after, both tagged level_script_courtyard.cpp), so it is part of level_script_courtyard.cpp unless that tag is wrong |
+| 0x4fd6f0 | 0x4fde60 | masad (game start) and test level scripts | own .bss 0x257ed5c-0x257ed61 between worldmap (..0x257ed50) and catacombs (0x257ed64) |
+| 0x4fe8f0 | 0x4fea80 | level_script_wolong.cpp (tagged) | |
+| 0x4feb50 | 0x5009f0 | conversation topic records and dialogue table parser (_dlg.tbl) | .data 0x5a5484-0x5a5728 after wolong's 0x5a5478; no shared data with wolong; vsdk\os mouse starts 0x500a30 |
+
+Each untagged level-script group has its own data between two tagged neighbours. Whether a group is its own file or the
+head/tail of a neighbour cannot be decided: none reads an id of its own, and .bss gaps (4-byte steps) are only a hint.
+
+#### Engine ranges
+
+| Start | End | Label or file | Evidence |
+|---|---|---|---|
+| 0x51fb10 | 0x520420 | attached lights (vsdk\geom, tagged) | |
+| 0x5204c0 | 0x521e20 | sound system (snd_*, sounds.tbl, listener) | init run 0x5204c0 (cmdline -nosound, listener vectors); .bss 0x2cb5420-0x2cbf484, .data 0x5a8910-0x5a8954 |
+| 0x521e40 | 0x522580 | EAX reverb | .bss 0x2cbf488-0x2cbf494, .data 0x5a8960-0x5a8b48; may be the tail of the sound file |
+| 0x5225b0 | 0x523ef0 | quaternion math (vsdk\math, tagged) | init run (cquat/quaternion identity) |
+| 0x523f30 | 0x525700 | vector math (vsdk\math, tagged) | init run (vector zero) |
+| 0x525720 | 0x526900 | File readers, writers and sync (vsdk\vfile) | init run 0x525720; .bss 0x2cbf4e8-0x2cbf550 |
+| 0x526940 | 0x527df0 | ui_button gadget | method run; the current tu-split2 cut at 0x526f70 splits it |
+| 0x527e20 | 0x5280e0 | ui_static gadget | |
+| 0x52ca60 | 0x52f440 | ui_listbox gadget | |
+| 0x52f450 | 0x52f540 | build stamp check | .data 0x5a9604-0x5a966c |
+| 0x52f570 | 0x530b80 | UI manager (ui_init/draw/process, window stack, colour helpers) | init run 0x52f570; .bss 0x2cbf634-0x2cbfcd9 |
+| 0x53ac20 | 0x53dea0 | ix_* intersection tests (one unit, no cut) | .bss 0x2dc6cc0-0x2dc6e98; cmdline.cpp starts 0x53dec0 |
+| 0x5520d0 | 0x552190 | CRC32 | .bss 0x2f136e8-0x2f13ae8 (table) |
+| 0x5521a0 | 0x5534c0 | ui_inputbox gadget | ui_container.cpp starts 0x5534f0 |
+| 0x55a8e0 | 0x55b3e0 | HTTP client | .bss 0x2f54708-0x2f54718, .data 0x5adc80-0x5add1c |
+| 0x55b440 | 0x55bc00 | vfx forces and channels | |
+| 0x55bd80 | 0x55bf20 | BitArray (tagged vsdk\geom) | |
+| 0x55bf90 | 0x55dfe0 | DirectSound / DirectSound3D (ds_*, ds3d_*) | init 0x55bf90 (ds channels); .bss 0x2f798b4-0x2f8f748, .data 0x5add24-0x5ae0c8 |
+| 0x55e040 | 0x55ef60 | UI bevel drawing, gadget base, ui_slider, tooltip | |
+| 0x55f110 | 0x55fb00 | gr_poly clipping helpers | .bss 0x2f8f750-0x2f91a58 |
+| 0x55fc70 | 0x55fed0 | vfx dummies | |
+| 0x55ff00 | 0x562a20 | vfx emitters and particles | init 0x55ff00; .bss 0x2f91a5c |
+| 0x562a30 | 0x565610 | dump_mesh_frames ccmd, vfx meshes, faces, materials, groups, camera | init run 0x562a30; .bss 0x2f91a60-0x2f91a70, .data 0x5ae104-0x5ae1dc |
+| 0x565660 | 0x566550 | libjpeg destination manager and error handler | IJG names |
+| 0x566560 | 0x567410 | sound streams (snd_stream_*), ACM decoding, wav reader | .bss 0x2f54934-0x2fbdb88, .data 0x5af494-0x5af4a8; sits inside the libjpeg run |
+| 0x567430 | 0x569ff0 | libjpeg compressor (IJG objects) | IJG function names; file names could be matched to the IJG distribution, not done here |
+
 ## Notes for later
 
 - Link order within `vsdk` is not alphabetical. For example, `os\registry` and `os\memory`
