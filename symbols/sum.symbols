@@ -3504,26 +3504,67 @@
 0x4bd2a0  ai_approach_attack_slot  func  -                    I ; thiscall ai (target): unless already within the attack radius, attack points (character_target_point_count, ai_approach_target_point) or a free attack slot (ai_pick_attack_slot, ai_attack_slot_direction, pf_point_is_navigable, pf_straight_walk_clear) and a path to it, caller ai_combat_start_approach
 0x4bd9c0  ai_combat_start_approach func  -                    I ; thiscall ai (target, flag): stores the target position and layer (+0x20..+0x2c), 500 ms timer +0x30, then ai_approach_attack_slot (mode 3 sub 0x16) or ai_approach_random_offset (mode 3 sub 0x17), callers ai_combat_approach
 0x4bda50  ai_combat_approach       func  -                    I ; combat movement toward the target with range checks (character_get_attack_range, charinfo_within_attack_radius), cast goals, 19 callers (ai_goal_do_attack, boss frames)
+0x4bdce0  ai_combat_toggle_ready_stance func  -                    I ; thiscall ai_state: combat sub-mode 0xe of ai_mode_combat_frame (also tentacle_beast_ai_frame): toggles owner flags +0x320 bit 0 (two locomotion sets +0x5ac/+0x5b8) by playing move category 10 sub 0x23/0x24 (0x25/0x26 when character_is_badly_hurt), blends +0x694 with a cosine, timer +0x1a0, returns 1 when done
+0x4be0a0  ai_chase_target_until_in_range func  -                    O ; thiscall ai_state (target, range): 1 when character_distance_between_edges <= range, else every 500 ms re-paths to the target's predicted position (0x4ca650, pf_point_is_navigable, ai_path_find_new, ai_claim_attack_slot) and ai_follow_path, -1 when no path, 0 while moving, caller 0x4c9a40 (luminar)
+0x4be280  ai_combat_close_in       func  -                    O ; thiscall ai_state (target): combat sub-modes 0x16/0x17: follows the path to the target until within attack range, then ai_set_mode(3, 0xf melee / 0x10 ranged / 0x15 caster styles 4-5), falls back to ai_combat_approach, also used by the boss frames
+0x4be470  ai_combat_face_target    func  -                    O ; thiscall ai_state (target): turns toward the target centre (ai_turn_towards, the mount's AI when mounted, titus skips while 0x248b914), returns 0 while turning, for multi-part bosses (0x4a21b0) resets the bone slots +0x1d8 and makes attackers of the owner re-approach, returns 1
+0x4be5f0  ai_combat_melee_attack   func  -                    O ; thiscall ai_state (target): combat sub-mode 0xf: range checks (charinfo_within_attack_radius, ai_count_engaged_attackers), ai_combat_face_target, living_combat_update with the attack move (0x4a2070), claims attack slots on both sides, alerts allies (0x4bfed0)
+0x4be760  ai_combat_ranged_attack  func  -                    I ; thiscall ai_state (target): combat sub-mode 0x10: ranged attackers (character_get_attack_range != 0) keep between half and full range, face the target and living_combat_update, melee attackers go back to ai_combat_approach
+0x4be840  ai_combat_follow_and_strike func  -                    O ; thiscall ai_state (target): combat sub-mode 0x3f: follows the current path, then ai_combat_face_target and living_combat_update(0)
+0x4be8a0  ai_combat_close_strike   func  -                    O ; thiscall ai_state (target): combat sub-mode 0x11: idles when out of reach (0x580200), else faces and living_combat_update(-1), when the strike ends goes idle and adds mutual attack goals (ai_goal_add_attack 1000) and ai_process_goals on the target
+0x4be940  ai_score_support_targets func  -                    O ; (records {character, ?, weight, flags} x 0x10, count, check_heal, check_cure): flag 1 and weight for HP below half (HP / max HP), flag 2 and weight for a bad status (blind, silence, curse, sleep, paralyze, poison, cripple, slow), returns the total weight
+0x4bea80  ai_choose_support_spell  func  -                    O ; thiscall ai_state (records, count, out record): heal (0), cure (1) or vitalize (4, more than two hurt) from ai_score_support_targets weights and frand, character_can_cast_spell, party members wait for timer 0x941524, -1 none, callers 0x4936c0 (ai_group_combat_think) and ai_combat_cast_frame
+0x4beba0  ai_rate_spell_targets    func  -                    I ; thiscall ai_state (spell, records, count, ...): rates an offensive spell over the target records (character_can_cast_spell, spell_target_value, character_get_resistance, ai_count_engaged_attackers), used by ai_choose_offensive_spell for fire arrow, lightning, ice spells, fireball, burning hands
+0x4bee40  ai_consider_blind_or_silence func  -                    O ; thiscall ai_state (records, count, target): returns spell 7 (blind) or 8 (silence) by frand and the per-spell timers 0x941530/0x941534 and ai_get_combat_style, else -1, caller ai_choose_offensive_spell
+0x4befe0  ai_consider_area_spell   func  -                    O ; thiscall ai_state (spell, records, count): for non-party casters, at least two targets within the spell +Distance (spells +0x70) and a frand roll weighted by the per-spell timer 0x941514 and +AI Recovery time, spells 0x1c (meteor storm) and 0x1e (inferno)
+0x4bf0c0  ai_consider_power_leech  func  -                    O ; thiscall ai_state: spell 0x11 (power leech) when castable, frand and timer 0x941558 / AI recovery 0x22e5810, caller ai_choose_offensive_spell
+0x4bf1d0  ai_consider_death        func  -                    O ; thiscall ai_state: spell 0xc (death) with combat_attack_rating, ai_get_combat_style, timer 0x941544, caller ai_choose_offensive_spell
+0x4bf320  ai_consider_poison       func  -                    O ; thiscall ai_state: spell 6 (poison) with target HP (character_get_max_stat), timer 0x94152c, caller ai_choose_offensive_spell
+0x4bf460  ai_consider_jade_beam    func  -                    O ; thiscall ai_state: spell 0x18 (jade beam), timer 0x941574, caller ai_choose_offensive_spell
+0x4bf5a0  ai_consider_life_drain   func  -                    O ; thiscall ai_state: spell 0xd (life drain), timer 0x941548, caller ai_choose_offensive_spell
+0x4bf700  ai_choose_offensive_spell func  -                    O ; thiscall ai_state (records, count, target): skips sleeping/paralysed targets, then tries blind/silence, the area spells, power leech, death, poison, jade beam, life drain and ai_rate_spell_targets (0x20, 0xf, 0x21, 0x22, 0x25, 0x24, 0x19, 0x1a), returns a spell index or -1
+0x4bfaa0  ai_combat_cast_frame     func  -                    O ; thiscall ai_state (target): combat sub-mode 0x15 (caster styles): picks support (ai_choose_support_spell) or offensive spells (ai_choose_offensive_spell) for the AI group, adds cast goals, keeps range (ai_combat_approach)
+0x4bfed0  ai_alert_guards_of_target func  -                    O ; thiscall ai_state of the attacked character (attacker): unless a boss, switches its target (0x4b5790) and makes every living entity with a goal type 5 sub 8 on it add an attack goal (2000) on the attacker
 0x4bff60  ai_mode_combat_frame     func  -                    O ; AI_STATE_COMBAT (3) handler of ai_frame
+0x4c0250  projector_collect_lobj_faces func  -                    I ; (mesh bsp, root node, lobj index, record): walks the level-object BSP (10-bit packed normals) against the record sphere, clips the triangles to the record planes (0x551f90), marks faces in lobj_face_marks and records the lobj for shadow records (flag 0x20), caller lobj_project_records
+0x4c0670  projector_record__ctor   func  -                    O ; thiscall: base constructor of decal and shadow records: projector_record__clear_planes then clears flag 0x20, callers decal_record__ctor, shadow_record__ctor
 0x4c0690  shadow_record__ctor      func  -                    O ; thiscall: base record init 0x4c0670 then flag 0x20 in +0, caller init_shadow_records
+0x4c06b0  projector_record__clear_planes func  -                    O ; thiscall: clears the plane count bits 1..3 of the flags +0
+0x4c06c0  projector_record__set    func  -                    O ; thiscall (pos, value, plane): position +8, +4 = value, clears the planes, adds one plane (projector_record__add_plane), callers 0x4a3ef0 (shadow projection), 0x4bc2c0 (decal)
+0x4c06f0  projector_record__add_plane func  -                    O ; thiscall (plane 0x10 bytes): appends to the plane array +0x14 (count in flag bits 1..3, at most 6)
+0x4c0740  projector_record__to_lobj_space func  -                    O ; thiscall (lobj): position +8 into object space (+0x74, vector3__rotated) and the planes into +0x80.. (0x4c0a20 copies), caller lobj_project_records
+0x4c0870  projector_record__test_bounds func  -                    O ; thiscall (object): sets flag 0x10 when the object's sphere (+0x44 centre, +4 -> +0x30 radius) is inside all record planes, else clears it, callers 0x4a4b40, 0x4bcbb0
+0x4c08d0  lobj_project_records     func  -                    O ; (lobj index, records, count): projector_record__to_lobj_space and flag 1 per record, projector_collect_lobj_faces when the lobj mesh has a BSP (+0x3c), clears flag 0x10 of records that hit nothing, caller 0x486520
+0x4c09a0  lobj_face_marks_init     func  -                    O ; level load: per level object with flags 0x440 the start offset of its face bit range into lobj_face_mark_offsets (0x2485564, -1 for others), caller levelrender_level_load
+0x4c0a00  lobj_face_marks_clear    func  -                    O ; zeroes the 8 KB face mark bitmap 0x2483564, caller levelrender_render_scene
+0x4c0a20  plane__assign            func  vsdk\math            O ; thiscall (plane*): copies the 16-byte plane (normal + distance), callers projector_record__to_lobj_space, Plane__transform
 0x4c0a40  static_init_empty_4c0a50 func  -                    O ; hidden start: initialiser table entry 317 (0x5884f8): jmp init_empty_4c0a50
 0x4c0a50  init_empty_4c0a50        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 317 (0x5884f8) via jmp 0x4c0a40
 0x4c0a60  lamp_glow_load           func  -                    O ; bm_load("WolongLampGlow01.tga") into 0x248b008, callers shadows_init, 0x48a190
+0x4c0a90  lamp_glow_add            func  -                    O ; (pos, size): appends a 0x18-byte glow record {pos, size * k, alpha 0, +0x14 0} at 0x24893e8, count lamp_glow_count (0x248b008), returns the index, callers levelrender_level_load, fx_create_instance
 0x4c0af0  lamp_glow_forget         func  -                    O ; 0x248b008 (bitmap loaded by lamp_glow_load) = 0, callers levelrender_level_unload, fx_shutdown, fx_level_leave
+0x4c0b00  lamp_glow_set            func  -                    O ; (index, pos, size): updates position and size of a glow record, caller levelrender_add_effects
+0x4c0b40  lamp_glow_draw           func  -                    O ; (index): when alpha +0x10 != 0, gr_set_texture(lamp_glow_bitmap) and gr_bitmap_3d with size * alpha in mode 0x25d8cfc, callers lamp_glow_update_lobjs, lamp_glow_update_effects
+0x4c0ba0  lamp_glow_fade_out       func  -                    O ; (index, dt): alpha -= dt * k, clamped at 0, callers levelrender_add_lobj, levelrender_add_effects
+0x4c0bf0  lamp_glow_fade_in        func  -                    O ; (index, dt): alpha += dt * k, clamped at 1, callers lamp_glow_update_lobjs, lamp_glow_update_effects
 0x4c0c40  static_init_machival_timers func  -                    O ; hidden start: initialiser table entry 318 (0x5884fc): jmp init_machival_timers
 0x4c0c50  init_machival_timers     func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248b04c (stride 0x18) and the machival timers 0x248b310..0x248b334, reached from initialiser table entry 318 (0x5884fc) via jmp 0x4c0c40
 0x4c0cc0  static_init_ccmd_machival_combat func  -                    O ; hidden start: initialiser table entry 319 (0x588500): jmp init_ccmd_machival_combat
 0x4c0cd0  init_ccmd_machival_combat func  -                    O ; static initialiser: registers console command object ccmd_machival_combat
 0x4c0cf0  cmd_machival_combat      func  -                      O ; console command "machival_combat": Sets machival in combat state
 0x4c0d10  machival_evaluate_target func  -                    I ; boss target hook (species switch 0x4a2e00, called from target selection 0x4a2f60), placed with the machival code
+0x4c0dd0  machival_offense_point_reaches func  -                    O ; (target, spec {point, ?, max dist, min dot}): target within the offense point's distance and cone (offense point records 0x248b0b4, 0x1c bytes), callers machival_evaluate_target, machival_attack_test
 0x4c0e70  machival_reset_timers    func  -                    I ; GameTimer__SetTimeout on the machival timers 0x248b31c..0x248b328 with random spans (0x56d790), caller machival_ai_select_action
 0x4c0ee0  machival_find_teleports  func  -                    O ; navpoint_find("$tele_0%d") into 0x248b350/0x248b368, called by machival_boss_load
 0x4c0f20  machival_ai_idle         func  -                    O ; boss_ai_idle_dispatch handler: clears +0x56c without a move, enters combat once 0x248b034 is set
 0x4c0f60  machival_boss_load       func  -                    I ; "machival_boss.tbl"
 0x4c1030  machival_init_move_tables func  -                    O ; move-table pointers 0x248b378.. from machival_boss_load
 0x4c1070  machival_ai_frame        func  -                    O ; boss_ai_frame case 0xc5
+0x4c11c0  machival_count_targets_in_reach func  -                    O ; (boss, records, count, out a, out b, out c): counts targets in reach of the move records 0x248b01c, 0x248b378 and 0x248b02c (distance and facing cone), caller machival_ai_select_action
+0x4c1330  machival_pick_random_party_member func  -                    O ; handle of a random party member that is not flagged 0x8, -1 when none, caller machival_ai_select_action
 0x4c13a0  machival_ai_select_action func  -                    O ; thiscall ai_state: returns the action code that machival_ai_frame switches on (spells machival_cast_spell, attack timer, teleports)
 0x4c17f0  machival_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248b318 = random ms in range
+0x4c1820  machival_update_offense_points func  -                    O ; (boss): world positions of the offense point bones (count 0x248b0b0, records 0x248b0b4) through character_instance__get_bone_world_transform, callers machival_ai_select_action, machival_attack_test
 0x4c18c0  machival_cast_spell_at   func  -                    I ; (spell, x, y) character_find_move(7, spell move) + play + ai goal 0x474130
 0x4c1940  machival_cast_spell      func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
 0x4c19c0  machival_check_stage     func  -                    I ; boss_ai_check_stage case 0xc5
@@ -3545,6 +3586,8 @@
 0x4c21d0  init_ccmd_titus_combat   func  -                    O ; static initialiser: registers console command object ccmd_titus_combat
 0x4c21f0  cmd_titus_combat         func  -                      O ; console command "titus_combat": Sets titus in combat state
 0x4c2210  titus_evaluate_target    func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the titus code
+0x4c22a0  titus_target_list_any_within func  -                    O ; (records 0x10 bytes, count, dist): true when a record with a character has distance (+4) below dist, caller titus_ai_select_action
+0x4c22e0  titus_update_turn_lock   func  -                    I ; byte 0x248b914 = 1 while the current titus move 0x248b90c is 0x248b398 / 0x248b39c, the owner's move kind is 5 and trigger 1 is still ahead, read by ai_combat_face_target (no turning) and titus_get_attack_reach, caller titus_ai_frame
 0x4c2330  titus_reset_attack_timers func  -                    O ; GameTimers 0x248b91c = 10 s, 0x248b920 = 20 s, 0x248b924 invalidated, caller titus_check_stage
 0x4c2360  titus_reset_stage_timers func  -                    O ; GameTimers 0x248b928 = 0 and 0x248b92c = 25 s, caller titus_check_stage
 0x4c2380  titus_boss_load          func  -                    O ; boss_ai_load case 0xc1: "titus_boss.tbl" via boss_ai_parse_table, offense points
@@ -3554,14 +3597,19 @@
 0x4c2630  titus_ai_frame           func  -                    O ; boss_ai_frame case 0xc1
 0x4c2790  titus_ai_select_action   func  -                    O ; thiscall ai_state: action code for titus_ai_frame (attack timer, rock erupt, knock down)
 0x4c2d90  titus_set_attack_timer   func  -                    O ; (min, max) GameTimer 0x248b91c = random ms in range
+0x4c2dc0  titus_update_offense_points func  -                    O ; (boss): bone world positions of the titus offense points (0x248b430 / 0x248b440), caller titus_ai_select_action
 0x4c2e60  titus_ai_idle            func  -                    O ; boss_ai_idle_dispatch handler, enters combat once 0x248b3b4 is set
+0x4c2ea0  titus_get_attack_reach   func  -                    O ; (character): 0x57eb7c when the turn lock is set and +0x56c == 1 or the current move is 0x248b964, else char_info attack radius +0x34, caller 0x4a26f0
 0x4c2ef0  titus_knock_down_party   func  -                    O ; knocks down party members in range (2-3 s) and hits 0x47c5d0
 0x4c3060  titus_get_attack_kind    func  -                    O ; current titus move 0x248b90c -> attack kind 0..5 via the move-table pointers 0x248b380.., -1 when none
+0x4c30e0  titus_hold_attack        func  -                    O ; (boss, target) boss_hook_dispatch_51_c1 case 0xc1: true while a move plays, or for attack kind 4 when the target is disabled or sneak-attacked, true makes living_combat_update_boss_attack skip starting a new attack
 0x4c3130  titus_collect_area_hits  func  -                    O ; party members within squared radius 0x581a20 that fail living_combat_test_defense -> hit list 0x248b938, count 0x248b934
 0x4c31f0  titus_apply_area_hits    func  -                    O ; living_combat_resolve_hit_vs against hit list 0x248b938
 0x4c3240  titus_ai_rock_erupt      func  -                    O ; thiscall ai_state: plays the move, titus_rock_erupt_fx, titus_end_attack, second entry ai_set_mode(3, 0x3d)
 0x4c32a0  titus_start_rock_erupt   func  -                    O ; ai_set_mode(3, 0x3e)
+0x4c32b0  titus_ai_wait_rock_erupt_fx func  -                    O ; thiscall ai_state: titus_end_attack once the rock erupt effect 0x248b954 (stored by titus_ai_rock_erupt) has finished (0x48d000), caller titus_ai_frame
 0x4c32e0  titus_cast_special       func  -                    O ; boss_cast_special_dispatch titus case: current titus move 0x248b90c spell, ai_goal_add_cast_at_target / character_perform_spell_cast
+0x4c3340  titus_rock_erupt_damage  func  -                    I ; (pos, owner): party members (or in multiplayer the cur_character group +0x4cc) within the squared radius 0x581a5c of pos lose a random amount of HP (character_add_hp), caller fx_frame for an effect flagged with this damage, placed with the titus code
 0x4c3470  static_init_evil_joseph_timers func  -                    O ; hidden start: initialiser table entry 323 (0x588510): jmp init_evil_joseph_timers
 0x4c3480  init_evil_joseph_timers  func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248b9cc (stride 0x18) and the attack timer 0x248bc98, reached from initialiser table entry 323 (0x588510) via jmp 0x4c3470
 0x4c34b0  static_init_ccmd_darkjo_combat func  -                    O ; hidden start: initialiser table entry 324 (0x588514): jmp init_ccmd_darkjo_combat
@@ -3578,29 +3626,41 @@
 0x4c39b0  evil_joseph_ai_select_action func  -                    O ; thiscall ai_state: action code for evil_joseph_ai_frame (attack timer, boss_target_list_find, teleports)
 0x4c3c70  boss_target_list_find    func  -                    O ; (list, count, handle) index of the 0x10-byte record whose character has that handle, -1
 0x4c3ca0  evil_joseph_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248bc98 = random ms in range
+0x4c3cd0  evil_joseph_pick_helper_summon func  -                    I ; (target): cycles (then randomly picks) one of the four helper handles 0x248bca4, sets the current move 0x248bc8c to its record 0x248bb4c + 0x20*i and a navigable spot near the target (frand_range, vector3__random_direction) into 0x248bcb4, caller evil_joseph_ai_select_action
 0x4c3f20  evil_joseph_check_stage  func  -                    I ; boss_ai_check_stage case 0xc9
 0x4c3fb0  boss_resurrect_full      func  -                    O ; character_resurrect, HP = max, reset animation, ai active, ghost / evil Joseph stage changes
 0x4c4020  evil_joseph_fire_attack  func  -                    I ; spell_cast_execute for the current move 0x248bc8c with the target data 0x248bcc0.., caller boss_attack_trigger_dispatch
 0x4c4080  evil_joseph_evaluate_target func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the evil Joseph code
+0x4c40b0  evil_joseph_get_attack_move_id func  -                    O ; alt id (+0x18) of the current move 0x248bc8c, or 0x248bc9c for move 0x248bcf4, evil Joseph case of 0x4a2070 (the attack move id passed to living_combat_update)
 0x4c40d0  evil_joseph_destroy_effects func  -                    O ; fx_destroy of the effects 0x248bca4 / 0x248bcb4 (living_from_handle), caller lsf_joseph_killed
 0x4c4170  static_init_evil_urath_timers func  -                    O ; hidden start: initialiser table entry 325 (0x588518): jmp init_evil_urath_timers
 0x4c4180  init_evil_urath_timers   func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248bd24 (stride 0x18) and 0x248bed4, reached from initialiser table entry 325 (0x588518) via jmp 0x4c4170
 0x4c41b0  static_init_ccmd_urath_combat func  -                    O ; hidden start: initialiser table entry 326 (0x58851c): jmp init_ccmd_urath_combat
 0x4c41c0  init_ccmd_urath_combat   func  -                    O ; static initialiser: registers console command object ccmd_urath_combat
 0x4c41e0  cmd_urath_combat         func  -                      O ; console command "urath_combat": Sets urath in combat state
+0x4c4200  evil_urath_leap_check_path func  -                    I ; (...) checks the pathfinding grid (0x4a64b0, 0x4a5eb0, 0x2460afc) between the boss and the leap target navpoint 0x248bed8 (vector2__len), caller evil_urath_ai_leap_rise
+0x4c4380  evil_urath_pick_teleport_point func  -                    O ; picks the leap target 0x248bed8 at random from the navpoint sets 0x248bedc / 0x248bef4 (flag 8 of 0x248bd08) or 0x248bee8 (flag 4), caller evil_urath_ai_leap_start
 0x4c43f0  evil_urath_cast_spell    func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
 0x4c4470  evil_urath_evaluate_target func  -                    I ; boss target hook (species switch 0x4a2e00), placed with the evil Urath code, character_has_status checks
 0x4c4580  boss_target_list_find_b  func  -                    O ; same as boss_target_list_find (second copy)
 0x4c45b0  evil_urath_boss_load     func  -                    O ; boss_ai_load case 0xb1 (Evil Urath), calls 0x4c4640 for the "$balc01_0%d"/"$temple_0%d"/"$balc02_0%d" teleport navpoints
 0x4c4640  evil_urath_find_teleports func  -                    O ; navpoint_find("$balc01_0%d", "$temple_0%d", "$balc02_0%d") into 0x248bedc..0x248bf00
+0x4c46f0  evil_urath_hold_height   func  -                    O ; thiscall ai_state: during sub-modes 0x24..0x26 sets the owner height +0x14 to 0x248bf10, caller boss_ai_check_stage
 0x4c4710  evil_urath_ai_idle       func  -                    I ; boss_ai_idle_dispatch handler, clears +0x320 bit 0x1000 and enters combat once 0x248bd0c is set
 0x4c4760  evil_urath_ai_frame      func  -                    O ; boss_ai_frame case 0xb1
 0x4c47e0  evil_urath_check_stage   func  -                    I ; boss_ai_check_stage case 0xb1
+0x4c4810  evil_urath_ai_leap_start func  -                    O ; thiscall ai_state: sub-mode 0x23 of evil_urath_ai_frame: owner flags +0x320 or 0x1008, advances the stage flags 0x248bd08, stores the height 0x248bf10/0x248bf14, evil_urath_pick_teleport_point, ai_set_mode(3, 0x24)
+0x4c4870  evil_urath_ai_leap_rise  func  -                    I ; thiscall ai_state: sub-mode 0x24: raises the height 0x248bf10, turns toward the target navpoint, sets the travel speed 0x248bf08 and switches to sub-mode 0x25
+0x4c4ad0  evil_urath_ai_leap_travel func  -                    I ; thiscall ai_state: sub-mode 0x25: moves toward the leap target 0x248bed8 by reported_frametime and the speed 0x248bf08 (vector2__len), then the next sub-mode
+0x4c4ca0  evil_urath_ai_leap_land  func  -                    O ; thiscall ai_state: sub-mode 0x26: faces the navpoint orientation, then clears owner flags 0x1008, takes the navpoint layer (+0x68c), height 0, character_find_ground, advances the stage flags and goes back to combat (ai_set_mode(3, -1))
 0x4c4db0  evil_urath_ai_select_action func  -                    O ; thiscall ai_state: action code for evil_urath_ai_frame (attack timer, evil_urath_cast_spell, boss_target_list_find_b)
 0x4c5110  evil_urath_set_attack_timer func  -                    I ; (min, max) random GameTimer
 0x4c5140  static_init_murod_timers func  -                    O ; hidden start: initialiser table entry 327 (0x588520): jmp init_murod_timers
 0x4c5150  init_murod_timers        func  -                    O ; hidden start: static initialiser: 5 GameTimers at 0x248bf50 (stride 0x18) and the murod timers 0x248bfe0..0x248bfec, reached from initialiser table entry 327 (0x588520) via jmp 0x4c5140
+0x4c51a0  murod_start_leap         func  -                    O ; thiscall ai_state: picks a random party member and a navigable landing spot near it (frand, pf_point_is_navigable) into 0x248bfc8.., plays move (8, 0x8a), ai_set_mode(3, 0x33), timers 0x248bfe4, caller murod_ai_select_action
+0x4c53c0  murod_ai_leap            func  -                    I ; thiscall ai_state: sub-mode handler of murod_ai_frame for the leap: moves along the arc to 0x248bfc8.. by the anim time (character_instance__get_anim_elapsed), faces forward, lands with character_find_ground and plays the landing move
 0x4c5550  murod_end_move           func  -                    O ; ai_go_idle once move 0x248bfc4 finished
+0x4c5570  murod_try_self_heal      func  -                    O ; thiscall ai_state: timer 0x248bfe8 = 20 s, casts cure (1) on itself when it has one of the statuses in murod_cure_statuses, or heal (0) when HP fell below a fraction of the last value 0x248bfc0, returns true when a spell was cast
 0x4c5600  murod_cast_spell         func  -                    I ; (spell, target) character_find_move(7) + play + ai goal 0x4740e0
 0x4c5680  murod_ai_idle            func  -                    I ; boss_ai_idle_dispatch handler, enters combat once 0x248bf38 is set
 0x4c56c0  murod_boss_load          func  -                    O ; boss_ai_load case 0xb7 (Murod)
@@ -3616,9 +3676,11 @@
 0x4c5d80  murod_oni_init_move_tables func  -                    O ; move-table pointers 0x248bff0.. from murod_oni_boss_load
 0x4c5dc0  murod_oni_init_timers    func  -                    O ; GameTimers 0x248c2ec (20 s) and 0x248c2f4 (5 s)
 0x4c5de0  murod_oni_ai_select_action func  -                    O ; thiscall ai_state: action code for murod_oni_ai_frame (attack timer, ai_count_attackers)
+0x4c6010  murod_oni_update_offense_points func  -                    O ; (boss): bone world positions of the murod oni offense points (0x248c080 / 0x248c090), caller murod_oni_ai_select_action
 0x4c60b0  murod_oni_set_attack_timer func  -                    O ; (min, max) GameTimer 0x248c2e8 = random ms in range
 0x4c60e0  murod_oni_ai_frame       func  -                    O ; boss_ai_frame case 0xb8
 0x4c6190  murod_oni_evaluate_target func  -                    O ; (boss, target record) sets record +0xc bits: 1 attacking, 2 attacking or combat sub 16 against the boss, 4 in reach of move 0x248c318 (0x4c6230), species switch 0x4a2e00
+0x4c6230  murod_oni_offense_point_reaches func  -                    O ; (target, spec): target within the offense point's distance and cone (records 0x248c084), caller murod_oni_evaluate_target
 0x4c62d0  murod_oni_get_attack_kind func  -                    O ; current move 0x248c2dc -> attack kind 0..4 via move pointers 0x248bff0/0x248c310.., -1 when none
 0x4c6330  murod_oni_collect_area_hits func  -                    O ; party members in reach that fail living_combat_test_defense -> hit list 0x248c2fc, count 0x248c2f8
 0x4c6410  murod_oni_apply_area_hits func  -                    O ; living_combat_resolve_hit_vs against hit list 0x248c2fc
@@ -3629,6 +3691,12 @@
 0x4c6500  static_init_tentacle_beast_timer func  -                    O ; hidden start: initialiser table entry 330 (0x58852c): jmp init_tentacle_beast_timer
 0x4c6510  init_tentacle_beast_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x248c768), the tentacle beast timer, reached from initialiser table entry 330 (0x58852c) via jmp 0x4c6500
 0x4c6520  tentacle_beast_ai_select_action func  -                    O ; thiscall ai_state: action code for tentacle_beast_ai_frame
+0x4c6800  tentacle_beast_start_grab func  -                    O ; thiscall ai_state: plays move (0, 0x86), ai_set_mode(3, 0x35), invalidates the timer 0x248c768 and clears 0x248c770, caller tentacle_beast_ai_frame
+0x4c6850  tentacle_beast_ai_grab   func  -                    O ; thiscall ai_state (victim): on move trigger 7 the victim plays its held state anim (category 14 move 0x8c), the tentacle record 0x248c7a8 stores the victim handle (+0xbc) and a 30 s timer, the beast switches to its holding anim (0x8d), party leadership moves off the victim (party_set_leader)
+0x4c69e0  tentacle_beast_start_release func  -                    O ; thiscall ai_state: unless already in sub-mode 0x37, plays move (0, 0x87), ai_set_mode(3, 0x37), mp_send_obj_update and mp_send_swi_boss in multiplayer, callers tentacle_begin_sink, tentacle_beast_check_stage
+0x4c6a80  tentacle_beast_ai_release func  -                    O ; thiscall ai_state: on move trigger 8 drops the victim held by record 0x248c7a8 at the grab bone, restores its anims (category 14 moves 0x93 / 0x95) and the camera (camera_set_target cur_character)
+0x4c6c20  tentacle_begin_rise      func  -                    I ; (tentacle record): GameTimer +0x100 = 7 s and flag 2 at +0x84 (cleared when the tentacle enters combat), caller tentacle_beast_cycle_tentacles
+0x4c6c50  tentacle_begin_sink      func  -                    I ; (tentacle record, ms): releases a held victim (tentacle_beast_start_release), else GameTimer +0x100 = ms, flag 4 at +0x84, and party members drop their attack goals on it, callers tentacle_beast_cycle_tentacles, cmd_tentacles, cmd_tentacle_test, ls_sewerboss_frame
 0x4c6d10  tentacle_beast_boss_load func  -                    O ; boss_ai_load case 0x93 (Tentacle Beast): "$tag-27-swipe"/"$tag-35-squeeze"/"$tag-26-pickup"/"$tag-grab-point" bones
 0x4c7050  tentacle_beast_unload    func  -                    O ; boss_ai_unload tentacle beast case: byte 0x248c7ac = 0
 0x4c7060  tentacle_beast_ai_idle   func  -                    O ; boss_ai_idle_dispatch handler: ai_set_mode(3, 0xf)
@@ -3637,6 +3705,8 @@
 0x4c7360  tentacle_beast_check_stage func  -                    I ; boss_ai_check_stage case 0x93
 0x4c74f0  tentacle_beast_splash_a  func  -                    I ; tentacle_beast_check_stage helper: ai_goals_clear, ai_set_combat_mode_goal and fx_attach_to_character "splash.vfx"
 0x4c7570  tentacle_beast_splash_b  func  -                    I ; tentacle_beast_check_stage helper with an HP test (character_get_max_stat): ai_goals_clear, ai_set_combat_mode_goal, "splash.vfx"
+0x4c7640  tentacle_beast_battle_update func  -                    O ; ls_sewerboss_frame helper: in test mode (0x248c7ad) tentacle_beast_cycle_tentacles, else while the battle runs (0x248c76c) arms 0x248c770 from the timer 0x248c768 and clears it when only one party member is alive
+0x4c76d0  tentacle_beast_cycle_tentacles func  -                    O ; over the four tentacle records 0x248c328 (flags +0x84): when none is rising (2) or sinking (4), sinks the first one without flag 1 (5 s, index 0x248c79c), else raises the next (tentacle_begin_rise)
 0x4c7770  tentacle_get_attack_kind func  -                    O ; (handle) tentacle_find, record move +0x7c -> 0 (0x248c794), 2 (0x248c7a4), 1 (0x248c320) else -1
 0x4c77c0  tentacle_collect_area_hits func  -                    O ; (handle, boss) party members within record +0xe4 (character_distance_between_edges) that fail living_combat_test_defense -> record hit list +0x94, count +0x90
 0x4c78b0  tentacle_apply_area_hits func  -                    O ; (handle, boss) living_combat_resolve_hit_vs against the tentacle record hit list
@@ -3666,8 +3736,13 @@
 0x4c8560  giant_salamanka_check_stage func  -                    I ; boss_ai_check_stage case 0xac (giant_salamanka_place_boss1..3)
 0x4c86b0  giant_salamanka_ai_frame func  -                    O ; boss_ai_frame case 0xac
 0x4c87e0  giant_salamanka_ai_select_action func  -                    O ; thiscall ai_state: action code 0..4 for giant_salamanka_ai_frame
+0x4c8b30  giant_salamanka_get_missile_bone func  -                    O ; (boss, out pos, out orient): character_instance__get_bone_world_transform of the "$missile" bone 0x248c7e4, caller giant_salamanka_fire_attack
 0x4c8b60  giant_salamanka_cast_special func  -                    I ; boss_cast_special_dispatch giant salamanka case on the current move record 0x248cd50
 0x4c8b80  giant_salamanka_fire_attack func  -                    I ; fx_create_missile from the bone position 0x4c8b30 for the current move 0x248cd50, GameTimer 0x248c864, caller boss_attack_trigger_dispatch
+0x4c8c00  giant_salamanka_move_pushes func  -                    O ; current move record 0x248cd50 has flag 2 (+0x1c), in living_combat_resolve_hit (0x4a1090) a true result disables the target (ai_disable_2f)
+0x4c8c20  giant_salamanka_move_knocks_down func  -                    O ; current move record 0x248cd50 has flag 1 (+0x1c), in living_combat_resolve_hit (0x4a1150) a true result knocks the target down for 3-7 s
+0x4c8c40  giant_salamanka_target_in_reach func  -                    O ; (boss, target): distance from the move's offense point (records 0x248c87c, 0x1c bytes) <= move reach +8 + 1, or the edge distance against the attack radius without a move, caller 0x4a0ea0
+0x4c8cc0  giant_salamanka_stage_attack_enabled func  -                    O ; (index): per-stage byte tables 0x248cd98 / 0x248cda0 / 0x248cda8 by stage 0x248c7d4 (1..3), caller 0x4a1ac0
 0x4c8d10  static_init_luminar_timers func  -                    O ; hidden start: initialiser table entry 336 (0x588544): jmp init_luminar_timers
 0x4c8d20  init_luminar_timers      func  -                    O ; hidden start: static initialiser: GameTimers 0x248cde8, 0x248cdec, 0x248cdf0, 0x248ce28, 0x248ce2c (luminar), reached from initialiser table entry 336 (0x588544) via jmp 0x4c8d10
 0x4c8d60  static_init_ccmd_stage   func  -                    O ; hidden start: initialiser table entry 337 (0x588548): jmp init_ccmd_stage
@@ -3679,12 +3754,22 @@
 0x4c9410  luminar_ai_select_action func  -                    O ; thiscall ai_state: luminar teleport/beam decisions (luminar_teleport_out, luminar_beam_start), from luminar_ai_frame and luminar_ai_idle
 0x4c95d0  luminar_ai_idle          func  -                    O ; boss_ai_idle_dispatch handler (multiplayer client skips) -> 0x4c9410(0)
 0x4c95f0  luminar_ai_frame         func  -                    O ; boss_ai_frame case 0x51 (calls luminar_teleport_in / luminar_beam_hit)
+0x4c97b0  luminar_choose_melee_move func  -                    O ; thiscall ai_state (target): move 0x88 while holding a victim (0x248cde0), else a random move among 0x84 (close), 0x85 (far) and 0x83 (near the grab point 0x248cdc0) by distance, caller luminar_ai_melee
 0x4c98a0  luminar_ai_melee         func  -                    O ; thiscall ai_state: living_combat_update and ai_claim_attack_slot, combat handler of luminar_ai_frame
+0x4c9990  luminar_try_start_grab   func  -                    O ; thiscall ai_state (target): only party characters (type 7, in multiplayer not species 4 or flag 0x100): ai_path_free, ai_set_mode(3, 0x36), mp_send_swi_boss, caller luminar_ai_select_action
+0x4c9a40  luminar_ai_grab_approach func  -                    O ; thiscall ai_state: sub-mode 0x36: ai_chase_target_until_in_range of target 0x248cddc, flanks (ai_offset_point_sideways), turns, plays move 0x86 and ai_set_mode(3, 0x35)
+0x4c9b00  luminar_ai_grab          func  -                    O ; thiscall ai_state: on move trigger 7 damages the victim 96 HP (character_add_hp) and puts it in its held anims (category 14 moves 0x8c / 0x8d), victim 0x248cde0
+0x4c9c40  luminar_start_release    func  -                    O ; plays move (0, 0x87) into 0x248cdb0, ai_set_mode(3, 0x37), multiplayer sync, caller luminar_ai_select_action
+0x4c9cd0  luminar_ai_release       func  -                    O ; thiscall ai_state: on move trigger 8 releases the victim (category 14 move 0x93), retarget timer 10 s, camera back to cur_character
 0x4c9da0  luminar_teleport_out     func  -                    O ; "LuminarTeleportOut.vfx", picks a new spot (frand), multiplayer sync 0x4888d0
 0x4ca000  luminar_teleport_in      func  -                    O ; "LuminarTeleportIn.vfx" and the arrival move
 0x4ca1d0  luminar_ai_beam_move_end func  -                    O ; thiscall ai_state: after character_move_finished, luminar_beam_start on a live target, then ai_go_idle
 0x4ca230  luminar_beam_start       func  -                    O ; "spell-lbolt-source.vfx"/"LuminarBeam-source.vfx" effect and cast move
 0x4ca3a0  luminar_beam_hit         func  -                    O ; "spell-lbolt-target.vfx"/"LuminarBeam-target.vfx", damages the target (character_add_hp)
+0x4ca5a0  luminar_hold_attack      func  -                    O ; (boss) boss_hook_dispatch_51_c1 case 0x51: true while a move plays or the attack timer 0x248ce2c runs, true makes living_combat_update_boss_attack skip starting a new attack
+0x4ca5c0  luminar_can_switch_target func  -                    O ; true (and re-arms 5 s) when the retarget timer 0x248ce28 has elapsed, used by the target switch 0x4b5790 for species 0x51
+0x4ca5f0  luminar_delay_next_attack func  -                    O ; (boss): attack timer 0x248ce2c = max(remaining, current move time left + 100 ms), caller 0x4a2590
+0x4ca650  ai_predict_owner_position func  -                    O ; thiscall ai_state (out, seconds): owner position + direction (+0x50) * speed (character_get_698) * seconds, moved to the nearest navigable point when needed (pf_find_nearest_navigable_point), 5 callers
 0x4ca700  static_init_empty_4ca710 func  -                    O ; hidden start: initialiser table entry 338 (0x58854c): jmp init_empty_4ca710
 0x4ca710  init_empty_4ca710        func  -                    O ; hidden start: empty static initialiser (bare ret), reached from initialiser table entry 338 (0x58854c) via jmp 0x4ca700
 0x4ca720  static_init_level_script_timer func  -                    O ; hidden start: initialiser table entry 339 (0x588550): jmp init_level_script_timer
@@ -3701,6 +3786,7 @@
 0x4ca950  init_ccmd_eax_save_props func  -                    O ; static initialiser: registers console command object ccmd_eax_save_props
 0x4ca970  cmd_eax_save_props       func  -                      O ; console command "eax_save_props": Saves the EAX properties to disk
 0x4caa00  random_encounter_check   func  -                    I ; level_script_frame: "rand-" level triggers while traveling the world map (US_open_demo check)
+0x4caed0  level_trigger_point_left_of_line func  -                    O ; (trigger, pos): seg2d_point_left_of of pos against the trigger's line (+0xc -> two points, x/z), caller random_encounter_check
 0x4caf40  level_find_player_starts func  -                    O ; "$player%d-%02d", "Unable to locate player starts for level %s"
 0x4cb010  script_place_party_at_starts func  -                    O ; level_find_player_starts, character_place_at_party_start for each party member in order, camera_reset_to_player(0), 6 level-script callers
 0x4cb060  level_script_restart     func  -                    I ; calls the leave (+0xc) then init (+4) handler, then resets party/objects
@@ -3731,6 +3817,7 @@
 0x4cd250  level_ambient_add        func  -                    O ; sound_create_emitter and position into the 0x10-byte table 0x2490458
 0x4cd2c0  level_ambient_remove     func  -                    O ; sound_emitter_delete and compacts the table 0x2490458
 0x4cd330  level_ambient_find_at    func  -                    I ; (pos) ambient entry whose position equals pos
+0x4cd390  lc_entry_add             func  -                    O ; (hash): first free (zero) or new 0x10c-byte entry in 0x248ce40 (count 0x2491a68): +0 = hash, name copied from 0x5bd0d0, +0x100 / +0x108 cleared, caller script_editor_handle_input
 0x4cd470  lc_entry_clear           func  -                    O ; (hash) zeroes the hash of the matching 0x10c-byte entry in 0x248ce40
 0x4cd4b0  lc_entry_exists          func  -                    O ; (hash) true when an entry of 0x248ce40 has that hash
 0x4cd4e0  lc_entry_mark_used       func  -                    O ; (index) sets bit 0 of +0x104, savegame_two_stage_set(1, 0, hash)
@@ -3743,6 +3830,7 @@
 0x4cdef0  script_object_say        func  -                    O ; (index, text, time) character_say on the object character
 0x4cdf30  script_party_member_say  func  -                    O ; (name, text, time) character_say on the party member with that name (current character only unless debug flag 0x1000)
 0x4cdfa0  script_party_remove_item func  -                    O ; (item name): decrements the party inventory stack count (0x970820) or removes the entry
+0x4cdff0  script_eleh_strip_party_gear func  -                    O ; for Joseph: armour alt texture, gives a "Short Sword" (equipped), moves equipped items of slots 6/1/2 to the party inventory, removes the Rings of Darkness/Light/Fire/Stone (script_party_remove_item), callers ls_eleh_init, ls_eleh_frame, ls_templeint_frame, lsf_wc_nali_used
 0x4ce140  script_object_set_disabled func  -                    O ; (index, on): on = character_set_flag_2_4(-1), character_set_ai_active(0), flags or= 0x20, off reverses
 0x4ce1c0  script_npc_set_disabled  func  -                    O ; script_object_find(name) then script_object_set_disabled, 42 callers in level scripts
 0x4ce1e0  script_object_is_type5   func  -                    O ; (index) character type (+0xc) == 5
@@ -3806,6 +3894,7 @@
 0x4d0130  savegame_get_float       func  -                    O ; (level, name): type-3 float variable via level_script_table +0x38/+0x3c hash list, ls_worldmap1_init
 0x4d01c0  savegame_set_float       func  -                    O ; (level, name, value): type-3 float variable, ls_worldmap1_frame
 0x4d0240  savegame_find_flag_level func  -                    I ; searches all 51 level_script_table flag lists for a name hash
+0x4d02d0  savegame_init_conversation_slot func  -                    I ; thiscall savegame (level, slot, speakers): first use of a conversation_save_table slot: stores speaker and topic name hashes (name_hash_nocase) and their counts, then copies speaker/topic bits from another slot that has data (savegame_get/set_speaker_bit, savegame_get/set_topic_bit), caller conversation_load
 0x4d0590  savegame_has_conversation_data func  -                    I ; tested before restoring conversation state
 0x4d05f0  savegame_get_speaker_bit func  -                    I ; conversation_save_table lookup by name hash, reads one bit (pair of savegame_set_speaker_bit)
 0x4d06e0  savegame_set_speaker_bit func  -                    I ; (level, conversation, ..., speaker name, value, propagate): sets a speaker bit in the conversation block, optionally in the level's other conversations, from conversation_save_state
@@ -3820,6 +3909,7 @@
 0x4d0e20  savegame_two_stage_set   func  -                    I ; (open, flag2, obj): hash of level_script_name + object name, appends to the level list (max 0x79), sets the 2 state bits at +0x6138, "finding lc", "stuffing flag"
 0x4d1110  savegame_two_stage_get   func  -                    I ; (out bit0, out bit1, obj): reads the 2 state bits of a two-stage object, used by savegame_read_two_stage, lockpick_attempt, object_use_result
 0x4d12b0  savegame_automap_label_add func  -                    O ; (level, layer, {x,y,int,text}): appends a 0x34-byte label, max 0x80
+0x4d1390  savegame_automap_label_remove func  -                    O ; thiscall savegame (level, layer, pos): finds the automap label (list at +0x1054: count then 0x34-byte {level, layer, x, z, name[32]}, max 128) and memmoves the rest down, callers automap_handle_click, automap_label_text_input
 0x4d14f0  savegame_automap_labels_reset_level func  -                    I ; only caller cmd_reset_map_labels, removes labels from the 0x1054 list
 0x4d1620  savegame_automap_label_count func  -                    O ; returns the dword count at +0x1054
 0x4d1630  savegame_hot_buttons_clear_member func  -                    O ; (member 0..4): zeroes that member's 6 hot buttons (36 bytes at +0x105c)
@@ -3900,6 +3990,7 @@
 0x4d5120  atexit_dtor_stringpool_24ed600 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_24ed600: mov ecx, 0x24ed600, jmp StringPool__dtor
 0x4d5130  static_init_level_table  func  -                    O ; hidden start: initialiser table entry 355 (0x588590): jmp init_level_table
 0x4d5140  init_level_table         func  -                    O ; hidden start: static initialiser: fills the 0x10-byte level table 0x59fde8 (localized names L956 "Masad Village"..., numeric fields), reached from initialiser table entry 355 (0x588590) via jmp 0x4d5130
+0x4d54e0  level_create_world_effects func  -                    O ; fx_create_world for each level effect record (0x24902c8, 0x28 bytes: name, handle +0x20, flag +0x24, count 0x2490dcc), callers level_parse_table, level_script_select
 0x4d5570  level_script_select      func  -                    O ; finds the current level in level_script_table and copies its handlers to globals; "Unable to locate level script info for %s"
 0x4d56d0  level_script_load_steps  func  -                    O ; (level file) -> record +0x1c, the loading-screen progress total (default 10000)
 0x4d5720  level_add_navpoint       func  -                    I ; level-file navpoint into 0x24e4950 records, "Layer for navpoint %s is invalid -- assuming no layer"
@@ -3907,6 +3998,7 @@
 0x4d58f0  script_object_suspend    func  -                    O ; (index) ai_goals_clear, ai_go_idle, +0x528 = 1, animation reset
 0x4d5960  script_object_resume_index func  -                    O ; (index) script_object_resume when +0x528 is set
 0x4d5990  journal_format_event     func  -                    I ; L"<%s gained %d XP>", L"<party received %d gold>", L"<gained item: \"%s\">" ...
+0x4d5e20  level_script_use         func  -                    O ; (name): calls the level use handler 0x2491a60 when set, else 0, callers character_use_skill, container_examine, door_toggle_state, mp_handle_door_lockpick, door_pick_by_mesh, random_encounter_check
 0x4d5e40  static_init_ccmd_door_open func  -                    O ; hidden start: initialiser table entry 356 (0x588594): jmp init_ccmd_door_open
 0x4d5e50  init_ccmd_door_open      func  -                    O ; static initialiser: registers console command object ccmd_door_open
 0x4d5e70  cmd_door_open            func  -                      O ; console command "door_open": open a specified door in the level.
@@ -3957,16 +4049,24 @@
 0x4d6890  init_dialogue_more_text  func  -                    O ; hidden start: static initialiser: 0x2545b58 = &localize_strings[949] L"more", reached from initialiser table entry 367 (0x5885c0) via jmp 0x4d6880
 0x4d68a0  static_init_dialogue_end_text func  -                    O ; hidden start: initialiser table entry 368 (0x5885c4): jmp init_dialogue_end_text
 0x4d68b0  init_dialogue_end_text   func  -                    O ; hidden start: static initialiser: 0x25443fc = &localize_strings[950] L"end", reached from initialiser table entry 368 (0x5885c4) via jmp 0x4d68a0
+0x4d68c0  dialogue_split_quotes    func  -                    O ; (text, out starts, out lengths, out count, ...): splits a line into quoted and unquoted segments (strchr '"'), caller dialogue_line__init
 0x4d6a20  dialogue_box__alloc_label func  -                    O ; first empty 0x81-byte label at +0x72c (32), NULL
+0x4d6a50  dialogue_box__free_label func  -                    O ; thiscall (label): clears one of the 32 0x81-byte labels at +0x72c, caller dialogue_box__add_text
+0x4d6ad0  dialogue_line__init      func  -                    I ; thiscall line record (width, text, kind, ...): stores kind/text (topic names via localize_topic_name for kind 2), wraps it (gr_split_str, dialogue_split_quotes) and measures it with the font height, caller dialogue_box__add_text
+0x4d6de0  dialogue_topic_entry__init func  -                    I ; thiscall topic entry (topic, kind, ...): localized topic text, wrapping and size (gr_split_str, gr_get_string_size), "more"/"end" labels, caller dialogue_topic_box_add
 0x4d70f0  dialogue_box_base__ctor  func  -                    I ; vtable 0x581c6c, zero fields, GameTimer +0x28 invalidated
 0x4d7130  dialogue_box_base__dtor  func  -                    O ; hidden start: restores the base vtable 0x581c6c (set by dialogue_box_base__ctor)
 0x4d7140  conversation_reset       func  -                    O ; zeroes state fields +0xc..+0x24
 0x4d7160  dialogue_box__set_rect   func  -                    I ; (x, y, w, lines) +4/+8/+0x14/+0x1c then vfunc 0, from dialogue_load_bitmaps
 0x4d7190  dialogue_box__add_text   func  -                    I ; (speaker, text, kind, ...) appends wrapped lines and scrolls, via dialogue_show_line
+0x4d7410  dialogue_box__first_visible_line func  -                    O ; thiscall: index of the first line (ring of 64 at +0x2c, 0x1c bytes) below the scroll +0xc, -1, caller conversation_update_talk_anims
+0x4d7480  dialogue_box__last_visible_line func  -                    O ; thiscall: last line above scroll + lines * font height, -1, caller conversation_update_talk_anims
+0x4d74f0  dialogue_box__scroll_next_page func  -                    I ; thiscall: scroll target +0x10 one page down, clamped to the text height (+0x18) and aligned to a line start, caller dialogue_frame
 0x4d7600  dialogue_box__line_rect  func  -                    I ; (line) screen position of a line from scroll +0xc and font height
 0x4d7650  conversation_start       func  -                    O ; from dialogue_init: reset + clear 32 line buffers
 0x4d7680  dialogue_text_box_draw   func  -                    I ; scroll animation (GameTimer +0x28), clip and lines of 0x2544408, from dialogue_draw
 0x4d7800  dialogue_topic_box_add   func  -                    I ; (topic, kind) adds a topic entry to 0x2545b68 (0x4d6de0)
+0x4d78b0  dialogue_box__item_visible func  -                    O ; thiscall (item): item top + height within the visible lines (font height * +0x1c), callers dialogue_frame, dialogue_draw
 0x4d7900  dialogue_box__item_y     func  -                    O ; (item) scroll +0xc + item top
 0x4d7920  dialogue_box_reset_thunk func  -                    O ; jmp conversation_reset (0x4d7140), callers dialogue_frame, dialogue_topic_box_reset
 0x4d7930  dialogue_topic_box_draw  func  -                    I ; scroll animation, clip and entries of 0x2545b68, from dialogue_draw
@@ -4012,15 +4112,26 @@
 0x4d87f0  register_atexit_conversation_controller_25464b0 func  -                    O ; atexit(atexit_dtor_conversation_controller_25464b0), tail of initialiser table entry 370 (0x5885cc)
 0x4d8800  atexit_dtor_conversation_controller_25464b0 func  -                    O ; hidden start: atexit handler registered by register_atexit_conversation_controller_25464b0: mov ecx, 0x25464b0, jmp 0x4d8810
 0x4d8810  conversation_controller__dtor func  -                    O ; eh-framed destructor of the controller 0x25464b0: destroys the 16-entry array +0xfc (0x18 bytes) and the lists +0xe4 / +0xcc, reached from atexit_dtor_conversation_controller_25464b0
+0x4d8880  conversation_controller__add_talker func  -                    O ; thiscall (character, kind): takes a slot from the free list +0xe4 (conversation_slot__reset), stores the character (+8) and kind (+0x14), links it into the active list +0xcc, returns the slot
+0x4d8900  conversation_controller__topic_talker func  -                    O ; thiscall (topic): when the topic text contains a quote, cur_character talks (conversation_controller__add_talker kind 0), caller conversation_select_topic
+0x4d8940  conversation_controller__line_talker func  -                    O ; thiscall (line): when the line text contains a quote, picks the talker by the line kind (+8: cur_character, the speaker, a living entity of the speaker species ...), conversation_controller__add_talker kind 1, caller conversation_select_topic
 0x4d8a90  conversation_update_talk_anims func  -                    I ; finished talk moves replaced with character_pick_talk_move
 0x4d8ca0  conversation_slot__ctor  func  -                    O ; thiscall: +0 / +4 = 0, then conversation_slot__reset
 0x4d8cc0  conversation_slot__reset func  -                    O ; thiscall: +8 = 0, +0xc = -1, +0x10 = 0, +0x14 = -1
 0x4d8ce0  conversation_controller__ctor func  -                    O ; controller 0x25464b0: GameTimers +4 / +0x20, list heads +0xcc / +0xe4 (conversation_slot__ctor), 16 slots of 0x18 bytes at +0xfc linked into +0xe4, state +8 = 0
 0x4d8db0  conversation_open_dialogue func  -                    I ; character_get_display_name, dialogue_screen_open, greeting topic, conversation_select_topic
+0x4d8e10  conversation_camera_capture func  -                    O ; thiscall controller: pose {game camera position, position + forward} into +0x48 (dialog_camera_pose__set), copied to +0x60 unless flag 0x10 of +0x38 with mode 3, caller conversation_camera_update
+0x4d8f00  dialog_camera_pose__set  func  -                    O ; thiscall (6 floats): position and look point
+0x4d8f30  game_camera__get_pos     func  -                    O ; thiscall: returns &camera +0x1a4 (position), on game_camera
+0x4d8f40  game_camera__get_orient  func  -                    O ; thiscall: returns &camera +0x1b0 (orientation matrix), on game_camera
+0x4d8f50  conversation_camera_compute_shot func  -                    I ; thiscall controller: computes the camera pose framing the speakers (cur_character and the other talker: heights, distances, timers), caller conversation_camera_update
 0x4d9a80  vector3__len_sq          func  -                    O ; x*x + y*y + z*z
+0x4d9aa0  dialog_camera_pose__assign func  -                    O ; thiscall (pose*): copies the 6 floats, caller conversation_camera_compute_shot
+0x4d9ad0  conversation_camera_blend func  -                    O ; thiscall (out, from, to, t): smoothstep of t, position lerp and orientation by axis-angle interpolation (matrix3__set_from_forward, matrix3__get_axis_angle, matrix3__set_from_axis_angle), caller conversation_camera_update
 0x4d9d90  conversation_camera_update func  -                    I ; conversation camera blend over the speaker positions, from conversation_frame
 0x4da010  conversation_frame       func  -                    I ; conversation controller 0x25464b0 per frame: camera, speakers turning, talk anims, from state_game_frame
 0x4da830  character_get_center     func  -                    O ; (out) position +0x10 plus the offset vector at +0x28
+0x4da860  character_has_ai_goal_10 func  -                    O ; (character): ai_goal_find(mask 1, type 10) on +0x324 != -1, caller conversation_frame
 0x4da890  conversation_camera_begin func  -                    I ; from conversation_begin: set speaker, camera mode (0x4797b0, 0x479740), ai_go_idle
 0x4daa70  conversation_end_cleanup func  -                    I ; clears goals, restores camera and positions, script_object_resume_index, conversation_clear_speaker
 0x4dabb0  conversation_choose_topic func  -                    O ; (topic) conversation_set_topic and conversation_select_topic with busy flag +0x38 bit 1
@@ -4040,6 +4151,7 @@
 0x4db1c0  static_init_ccmd_dcamera func  -                    O ; hidden start: initialiser table entry 373 (0x5885d8): jmp init_ccmd_dcamera
 0x4db1d0  init_ccmd_dcamera        func  -                    O ; static initialiser: registers console command object ccmd_dcamera
 0x4db1f0  cmd_dcamera              func  -                      O ; console command "dcamera": Change the dialog camera options.
+0x4db250  str_copy_append_32       func  -                    O ; (out, base, suffix): base truncated to 32 - strlen(suffix) chars (strncpy) followed by suffix, callers level_script_parse_table, script_editor_show_script_dialog, script_editor_list_scripts, script_make_filename, script_save
 0x4db2c0  filename_has_cscript_suffix func  -                    O ; (name) true when the name ends with "_cscript.tbl" (cutscene script), caller 0x4e71e0
 0x4db340  script_object_spawn_at_navpoint func  -                    O ; navpoint_get_position then living_entity_create at it, links the script object (+0x34), returns the new handle (+0x80), second entry sets position/orientation directly, caller script_parse_objects
 0x4db420  script_parse_navpoint    func  -                    I ; "$Name:" "$Type:" ($npc/$player/$c_npc/$camera) "+Plane:" "$Position:" "$Orientation:"
@@ -4065,6 +4177,8 @@
 0x4dda30  script_object_near_player_dist func  -                    I ; (object, dist) cur_character within dist of the object
 0x4dda90  script_navpoint_near_player_dist func  -                    I ; (navpoint, dist) cur_character within dist of the navpoint position
 0x4ddaf0  script_check_visit_count func  -                    O ; (n) savegame_get_visit_count(cur_level_index) >= n
+0x4ddb10  script_entry_jump_to_sequence func  -                    I ; (entry, character): finds the action of type 0x17/0x18 whose parameter is the current sequence 0x603460, resets the actor (dismount for actions 0x1b/0x1c, goals, idle, anims), for 0x18 warps it to the action navpoint, then script_entry_advance, caller cutscene_script_entries_frame
+0x4ddc60  script_build_avoid_spline func  -                    O ; (...): builds a 4-point area around a path segment (normalize, matrix3__set_from_forward_up, 0x4a54b0, 0x4a53d0) and creates the avoid spline (0x4a7990), caller script_alloc_avoid_spline
 0x4de0b0  static_init_script_editor_defaults func  -                    O ; hidden start: initialiser table entry 374 (0x5885dc): jmp init_script_editor_defaults
 0x4de0c0  init_script_editor_defaults func  -                    O ; hidden start: static initialiser: default values of the settings block 0x2556ab0..0x2556b0c (50, 10, byte flags) used by the avoid-spline builder 0x4ddc60, reached from initialiser table entry 374 (0x5885dc) via jmp 0x4de0b0
 0x4de440  static_init_empty_4de450 func  -                    O ; hidden start: initialiser table entry 375 (0x5885e0): jmp init_empty_4de450
@@ -4443,6 +4557,7 @@
 0x4dff20  init_alloc_pool_255dc60  func  -                    O ; static initialiser: NoRlsAllocPool__NoRlsAllocPool(0x255dc60), called from initialiser table entry 471 (0x588760)
 0x4dff30  register_atexit_alloc_pool_255dc60 func  -                    O ; atexit(atexit_dtor_alloc_pool_255dc60), tail of initialiser table entry 471 (0x588760)
 0x4dff40  atexit_dtor_alloc_pool_255dc60 func  -                    O ; hidden start: atexit handler registered by register_atexit_alloc_pool_255dc60: mov ecx, 0x255dc60, jmp NoRlsAllocPool__dtor
+0x4dff90  script_character_uses_navpoint func  -                    O ; (character, navpoint): non-party, non-serpent-part characters whose start navpoint (+0x34) or any script action (0x18-byte actions of its script object 0x24f6230) uses the navpoint, caller script_remove_redundant_npc_navpoints
 0x4e0040  static_init_ccmd_remove_nav func  -                    O ; hidden start: initialiser table entry 472 (0x588764): jmp init_ccmd_remove_nav
 0x4e0050  init_ccmd_remove_nav     func  -                    O ; static initialiser: registers console command object ccmd_remove_nav
 0x4e0070  cmd_remove_nav           func  -                      O ; console command "remove_nav": Remove redundant $npc navpoints
@@ -4451,31 +4566,47 @@
 0x4e01f0  script_editor_frame      func  -                    I ; "Cutscene time: %.1f" "Level time: %.1f", from game_render_frame
 0x4e0690  script_editor_create_ui  func  -                    O ; builds editor gadgets "Pos" "Ori" "New" "Del" "Save" "Load" "Cutscene Script"
 0x4e28f0  script_editor_sync_cutscene_button func  -                    O ; shows the "Cutscene Script" button 0x25527e0 (ui_element__set_visible) when cutscene_script_is_active, else hides it
+0x4e2910  script_editor_clear_selection func  -                    O ; commits the edited name (navpoint_set_name), clears the selection kind/object 0x255a008/0x256b740 and hides the name box 0x2555908, action list 0x254c9d0 and buttons, callers script_editor_create_ui, script_editor_handle_input, script_editor_update_buttons
 0x4e2990  navpoint_set_name        func  -                    I ; "Unable to assign name to navpoint -- duplicate navpoint name"
 0x4e2a90  script_editor_set_status func  -                    O ; copies a message to 0x254ecc8 with a 2 s RealtimeTimer
 0x4e2ad0  script_editor_close      func  -                    O ; ui_window__destroy on the twelve editor windows, ui_pop_group, camera back to cur_character, 0x4ed390, cutscene_unload, caller script_editor_frame
+0x4e2bb0  script_editor_pick_hover func  -                    O ; unless dragging: ray picks under the mouse into the hover kind 0x2546bd0 (1 character, 2 navpoint, 3 / 4 level objects via world_pick_lobj) and object 0x2546c10 (script_editor_ray_hit_object), caller script_editor_frame
 0x4e2f30  script_editor_ray_hit_object func  -                    I ; ray against a sphere (ix_ray_sphere) or oriented box (ix_ray_box_oriented) of a character, callers the editor pick 0x4e2bb0 and script_editor_add_navpoint
 0x4e30d0  script_editor_draw_navpoints func  -                    I ; projects navpoints and ambient sound emitters (level_ambient_find_at, sound_emitter_get_sound) and labels them, honours Render_s3d_navpoints, caller script_editor_frame
+0x4e3700  script_editor_draw_marker func  -                    I ; (object, pos, size, colour): seven 3D lines (gr_rotate_vertex, gr_line_3d, gr_line_3d_world) marking a navpoint or emitter, caller script_editor_draw_navpoints
 0x4e3a20  script_editor_handle_input func  -                    I ; editor buttons and mouse: navpoint add/rename, creature placement, "Cannot use a cutscene navpoint in a level script.", "Invalid navpoint for script action.", caller script_editor_frame
+0x4e4890  script_editor_store_string func  -                    O ; (object, string): overwrites the string at +8 in place when it fits, else adds it to the cutscene (0x2571750, "Cutscene Script" latched) or level (0x2539f18) StringPool
 0x4e4910  script_action_format     func  -                    I ; sprintf text of one script action (" run", "(none)", move names via charinfo_find_move_any), callers the editor lists and script_write_objects
+0x4e4be0  script_editor_show_selection_panel func  -                    O ; per selection kind 0x255a008: name box 0x2555908 with the character name, the navpoint or object name, action list (script_editor_fill_action_list), callers script_editor_handle_input, script_editor_on_prev_next, script_editor_select_next, 0x4e84b0
+0x4e4cf0  script_editor_fill_action_list func  -                    O ; rebuilds the action listbox 0x254c9d0 of the selected object's script ("%s %s" with script_action_format) and selects the current action
 0x4e4f10  script_editor_show_creature_info func  -                    O ; fills the creature panel: team (character_get_team), checkboxes and "(default level = %d)"
+0x4e5050  script_editor_show_level_item func  -                    I ; (lobj): name box 0x2551e88, item list 0x2549688 and count box 0x2561c60 ("%d") from the level item record (0x24e3b50, 0x70 bytes) of the object, defaults "" and "1", caller script_editor_handle_input
 0x4e50f0  script_editor_list_ambient_sounds func  -                    O ; lists "data\sounds\ambient" "*.wav" into a listbox (file_find_files), selects the emitter sound
 0x4e53a0  script_editor_list_door_sounds func  -                    O ; lists "data\sounds\Doors" "*.wav" into a listbox for the selected door (door_from_lobj)
+0x4e57a0  script_editor_show_door_lock func  -                    I ; (door object): name box 0x2549d40, the matching lc entry (0x248ce40): item text +4 into 0x255c500, "Give item" checkbox 0x255b908 and count +0x108 ("%d") into 0x255dc80, caller script_editor_handle_input
 0x4e58a0  script_editor_place_creature func  -                    O ; creates a creature at a navpoint (living_entity_create, character_set_team/name), "That navpoint is already the start for creature", "Creature ... already occupies that point in space"
 0x4e5b10  script_editor_add_navpoint func  -                    O ; "$cut%.3d" "$npc%.3d" "Limit reached - can't add any more ... navpoints"
+0x4e6040  script_editor_update_buttons func  -                    O ; per frame: latches Pause by game_is_paused, shows/hides the action editing buttons by the action list selection and mode buttons, script_editor_fill_action_lists, script_editor_clear_selection, caller script_editor_frame
 0x4e62e0  script_editor_fill_action_lists func  -                    I ; action editor lists: moves (charinfo_find_move), "*.mvf" and "*.vfx" files, "(none)"
 0x4e6930  script_editor_on_pos_ori func  -                    O ; hidden start: button callback (gadget +0x244) of the editor "Pos" / "Ori" mode buttons 0x2565bc8 / 0x254edc8 / 0x254b6e0: toggles the latched one
 0x4e69a0  script_editor_on_new     func  -                    O ; hidden start: button callback of the editor "New" button 0x254f710 (set in script_editor_create_ui)
 0x4e6a30  script_editor_delete_navpoint func  -                    O ; "Can't delete players."
 0x4e6ad0  script_editor_on_delete  func  -                    O ; hidden start: button callback of the editor "Del" button 0x2546c18: "Can't delete players.", script_editor_navpoint_in_use, level_ambient_remove
 0x4e6d90  script_editor_navpoint_in_use func  -                    O ; "This navpoint is used as starting point for \"%s\""
+0x4e6f10  script_replace_navpoint_references func  -                    O ; (old, new): replaces a navpoint in the characters' start navpoints (+0x34), every script action (script objects 0x24f6230) and the level triggers (0x2490e2c, 0x64 bytes, count 0x2490c74), caller script_editor_on_delete
 0x4e6fe0  script_editor_show_script_dialog func  -                    I ; pauses the game and opens the script file dialog for level_script_name / level_filename with "_script.tbl" or "_cscript.tbl"
 0x4e70e0  script_editor_on_load    func  -                    O ; hidden start: button callback of the editor "Load" button 0x2560668: game_pause, script_editor_list_scripts, opens the load window 0x254f208
 0x4e7120  script_editor_list_scripts func  -                    O ; file_find_files "_script.tbl" scripts into a listbox, "$Level:" check, cutscene checkbox
 0x4e7340  script_editor_on_pause   func  -                    O ; hidden start: button callback of the editor "Pause" button 0x255ced8: game_is_paused -> game_unpause / game_pause
 0x4e7380  script_editor_on_time_back func  -                    O ; hidden start: button callback of the editor "< Time" button 0x2566a88: character_resurrect, level_script_restart, 0x4ed550
 0x4e7410  script_editor_on_prev_next func  -                    O ; hidden start: button callback of the editor "< Prev" / "Next >" buttons 0x2557b38 / 0x2565070
+0x4e7460  script_editor_select_prev func  -                    O ; previous selectable character (+0x31c, skipping non-living and serpent parts) or navpoint, then script_editor_focus_selection, "< Prev" in script_editor_on_prev_next
+0x4e75c0  script_editor_focus_selection func  -                    O ; moves the editor view to the selected object (position, size, orientation), latches the mode button, callers select_prev/next/first, 0x4e84b0
+0x4e7740  script_editor_select_first func  -                    O ; first navpoint (cutscene 0x256b750 or level 0x24e4950 list by the "Cutscene Script" button) or first living entity by the edit mode 0x2566a84, then script_editor_focus_selection
+0x4e7800  script_editor_select_next func  -                    I ; "Next >" in script_editor_on_prev_next: next character or navpoint, cutscene script switching (cutscene_script_unload, script_editor_sync_cutscene_button), refills the action lists
+0x4e7a40  script_editor_refresh_action_editor func  -                    I ; fills the action parameter lists of the selected action: moves (charinfo_find_move), "*.mvf" and "*.vfx" files (file_find_files), script_editor_show_action_params, scroll positions, caller script_editor_select_next
 0x4e7cd0  script_editor_show_action_params func  -                    O ; labels the action parameter fields per action type: "Time:", "dist from nav:", "Walk?", "Label id", "Goto id", "NPC to follow", "synch_point" ...
+0x4e84b0  script_editor_apply_action_params func  -                    O ; applies the parameter list selections to the current action (script_create when needed, script_action_format "%s %s", charinfo_load_script_anim, navpoint_set_name, item_create_weapon / character_equip_item), caller script_editor_show_action_params
 0x4e88a0  script_create            func  -                    I ; "Unable to create cutscene script / level script -- maximum ... reached"
 0x4e8cf0  script_make_filename     func  -                    I ; "_script.tbl" / "_cscript.tbl", "*** INVALID FILENAME ***"
 0x4e8e80  script_save_files        func  -                    I ; "%s.tbl" "level_items.tbl", from script_make_filename/script_save
@@ -4485,9 +4616,20 @@
 0x4ea1e0  script_write_level_table func  -                    O ; "#Ambient Sounds" "$Ambient:" "#Triggers"
 0x4ea500  level_items_write_table  func  -                    O ; editor save of level_items.tbl
 0x4eac70  script_save              func  -                    O ; "Script \"%s\" saved.", read-only file errors
+0x4eaf70  script_editor_script_name_cb func  -                    I ; hidden start: gadget callback of the script name inputbox 0x254bf30 (load dialog), message switch, its case 0x4eaf87 autocompletes the script list
+0x4eaf87  script_editor_script_name_cb__complete func  -                    O ; case block of script_editor_script_name_cb (Ghidra start inside the function): selects the first entry of the script listbox 0x2557068 that starts with the typed text (_strnicmp / _stricmp), scrolls to it, enables the Load button 0x2554900
+0x4eb080  script_editor_load_selected_script func  -                    I ; loads the script chosen in the load dialog: level_script_reload, or cutscene_set_data_path and cutscene_script_load when the cutscene checkbox is set, refreshes script_editor_list_scripts and the buttons, recursive, caller script_editor_script_name_cb
+0x4eb1c0  script_editor_ambient_name_cb func  -                    I ; hidden start: gadget callback of the ambient sound name inputbox 0x2554350, message switch, its case 0x4eb1d7 autocompletes the ambient sound list
+0x4eb1d7  script_editor_ambient_name_cb__complete func  -                    O ; case block of script_editor_ambient_name_cb: selects the matching entry of the ambient sound listbox 0x2564a30 and fills the volume/range fields ("%.1f")
 0x4eb3d0  script_editor_ambient_ok func  -                    I ; hidden start: gadget callback of the ambient sound window 0x254a8d8: "ambient\%s", sound_check_filename, level_ambient_remove / level_ambient_add
+0x4ec000  script_editor_door_key_cb func  -                    I ; hidden start: gadget callback of inputbox 0x2559688 (door window, list 0x2569758), messages 0x14 / 0x15
+0x4ec029  script_editor_door_key_cb__complete func  -                    O ; case block of script_editor_door_key_cb: autocompletes the listbox 0x2569758 from the typed text
+0x4ec100  script_editor_door_item_cb func  -                    I ; hidden start: gadget callback of inputbox 0x255c500 (door lock item, list 0x2555218), messages 0x14 / 0x15
+0x4ec129  script_editor_door_item_cb__complete func  -                    O ; case block of script_editor_door_item_cb: autocompletes the item listbox 0x2555218 and copies the selection into the inputbox
 0x4ec270  script_editor_door_ok    func  -                    I ; hidden start: gadget callback of the door window: door_from_lobj, "Doors\" sound_ref_load, savegame_two_stage_get / set ("Originally locked")
 0x4ec730  script_editor_creature_ok func  -                    I ; hidden start: gadget callback of the creature window 0x256b250: character_set_team, xp_for_level, character_get_max_stat from the four team radio buttons
+0x4eca00  script_editor_level_item_cb func  -                    I ; hidden start: gadget callback of the level item name inputbox 0x2551e88 (list 0x2549688), messages 0x14 / 0x15
+0x4eca29  script_editor_level_item_cb__complete func  -                    O ; case block of script_editor_level_item_cb: autocompletes the level item list 0x2549688, count box 0x2561c60 (atoi / "%d")
 0x4ecbe0  script_editor_level_item_ok func  -                    I ; hidden start: gadget callback of the level item window 0x2564540: item_create_by_name, level_item_spawn, "%s-%.3d", savegame_level_item_add / remove
 0x4ecf60  static_init_ccmd_render_s3d_navpoints func  -                    O ; hidden start: initialiser table entry 473 (0x588768): jmp init_ccmd_render_s3d_navpoints
 0x4ecf70  init_ccmd_render_s3d_navpoints func  -                    O ; static initialiser: registers console command object ccmd_render_s3d_navpoints
@@ -4502,6 +4644,7 @@
 0x4ed0e0  atexit_dtor_stringpool_2571750 func  -                    O ; hidden start: atexit handler registered by register_atexit_stringpool_2571750: mov ecx, 0x2571750, jmp StringPool__dtor
 0x4ed0f0  cutscene_script_load     func  -                    O ; "_cscript.tbl", "#Navpoints", "Cutscene script string pool usage: %d bytes"
 0x4ed390  cutscene_script_unload   func  -                    I ; restores the cutscene actors (equipment, ai_reset, anims), script_entry_advance cleanup, StringPool__Reset(0x2571750), camera back, callers cutscene_cleanup, script_editor_close, cutscene_script_load, 0x4e7800
+0x4ed550  cutscene_script_rewind_actors func  -                    I ; restores the saved equipment of the cutscene actors (records 0x2546768, count 0x2546820: character_equip_item / character_unequip_slot, item_free), orientation and ai_reset, clears 0x257e970, caller script_editor_on_time_back
 0x4ed680  cutscene_script_entries_frame func  -                    I ; cutscene script objects: timers, script_entry_check_done / script_entry_advance, SequenceTimer2, state_game_frame
 0x4ed760  cutscene_script_table    func  -                    O ; returns 0x257e974
 0x4ed770  cutscene_script_is_active func  -                    O ; true when debug flag 0x20 of game_debug_flags is set or the cutscene script name 0x257e974 is not empty, callers ai_do_frame, ai_goal_evaluate, ai_score_target, 0x4e28f0
@@ -4522,6 +4665,7 @@
 0x4ee0e0  ls_sewerboss_frame       func  -                    O ; level_script_table entry: level script per-frame handler
 0x4ee220  ls_sewerboss_golems_dead func  -                    O ; script_npc_is_dead "Broken Brass Golem#boss1", "#boss2" and "Iron Golem#boss"
 0x4ee260  lsf_sewer_found_tb       func  -                    I ; level-script helper keyed on story flag "sewer_found_tb"
+0x4ee3c0  ls_sewer_create_avoid_spline func  -                    O ; builds a fixed 4-point area (constant coordinates) and creates an avoid spline (0x4a7990) into 0x257e9a0, caller lsf_sewer_found_tb
 0x4ee4f0  ls_sewer_use            func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0; shared with ls_sewerboss_use
 0x4ee580  ls_sewer_action          func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names); shared with ls_sewerboss_action
 0x4ee730  ls_lenele2d_init         func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -4627,6 +4771,7 @@
 0x4f2ac0  ls_lpalaceint_init       func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4f2ce0  ls_lpalaceint_frame      func  -                    O ; level_script_table entry: level script per-frame handler
 0x4f2f00  ls_lpalaceint_sneak_frame func  -                    I ; palace sneaking: guards see player (script_guard_sees_player), "lpalaceint_int_sneak_attempts", teleport "$Teleport001"
+0x4f34a0  ls_lpalaceint_guard_in_group func  -                    O ; (character, upper): a Palace Guard (type 4, species 0x22) whose name is in the guard list 0x5a28f4 (upper floor, 4 names) or 0x5a2904 (7 names, e.g. "Palace Guard#2ndlvldoor2"), caller ls_lpalaceint_sneak_frame
 0x4f3520  ls_lpalaceint_sneak_remark func  -                    I ; "Joseph#npc" / "Flece" remarks by sneak attempt count
 0x4f36c0  lsf_lpalaceint_talked_to_joe func  -                    I ; level-script helper keyed on story flag "lpalaceint_talked_to_joe"
 0x4f3880  ls_lpalaceint_talk_to_king func  -                    O ; script_npc_talk("King Bellias")
@@ -4704,10 +4849,21 @@
 0x4f77c0  static_init_ls_khosanilab_timer func  -                    O ; hidden start: initialiser table entry 491 (0x5887b0): jmp init_ls_khosanilab_timer
 0x4f77d0  init_ls_khosanilab_timer func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257ebb4), used by ls_khosanilab_* and ls_ionaext_action, reached from initialiser table entry 491 (0x5887b0) via jmp 0x4f77c0
 0x4f77e0  ls_khosanilab_puzzle_update func  -                    O ; removes the old path splines (0x4f78e0), traces the path from the start cell when grid cell 0x257eb1c is open, else the idle path 0x4f88c0
+0x4f77fa  ls_khosanilab_puzzle_update__trace func  -                    O ; tail block of ls_khosanilab_puzzle_update (Ghidra start after its first ret): traces the beam from the start cell (0x4f7b50), then from every open, unvisited cell connected to the grid side (ls_khosanilab_puzzle_flood_connected), flushes the path
 0x4f78a0  ls_khosanilab_puzzle_flush_path func  -                    O ; turns the pending point list 0x257ebc0 (count 0x257ebb8) into a spline (0x4a7990) and appends its handle to 0x257ec84 (count 0x257ecac)
 0x4f78e0  ls_khosanilab_puzzle_clear_paths func  -                    O ; frees every path spline in 0x257ec84 (0x4a78b0, as script_free_avoid_spline) and zeroes the counts, callers ls_khosanilab_puzzle_update and ls_khosanilab_leave
+0x4f7930  ls_khosanilab_puzzle_flood_connected func  -                    O ; (x, y): recursive flood fill over open cells (ls_khosanilab_puzzle_cell_open), marks 0x60, true when it reaches a cell with side bits 0x1e
 0x4f7ad0  ls_khosanilab_puzzle_cell_open func  -                    O ; (cell*, state) bit 0 of grid cell 0x257eb14[x*5+y] (inverted when state is 0), 0 for cells off the grid
 0x4f7b20  ls_khosanilab_puzzle_cell_valid func  -                    O ; (cell {x, y}*) x in 0..7 and y in 0..4
+0x4f7b50  ls_khosanilab_puzzle_trace_beam func  -                    I ; (cell, dir, ...): follows the beam through the flipper grid 0x257eb14: per cell picks a turn (ls_khosanilab_puzzle_choose_turn / reflect), adds segments (ls_khosanilab_puzzle_emit_segment) and the edge points
+0x4f7ed0  ls_khosanilab_puzzle_turn_dirs func  -                    O ; (dir code, out a, out b, out c): the three candidate grid directions (+-1 unit vectors) for an incoming direction 0..3
+0x4f7fb0  ls_khosanilab_puzzle_reflect_dir func  -                    O ; (out, dir): direction code for a mirror reflection: dir.x == 0 -> 2 + (dir.y != 1), else dir.x == 1
+0x4f7fe0  ls_khosanilab_puzzle_edge_point_a func  -                    I ; (out, cell, dir, ...): point on the cell edge, cell centre + 0.5 minus dir scaled by 0x581970 (or 0x58020c), one of three variants
+0x4f8070  ls_khosanilab_puzzle_edge_point_b func  -                    I ; second variant of ls_khosanilab_puzzle_edge_point_a (cell centre and direction offsets)
+0x4f8100  ls_khosanilab_puzzle_edge_point_c func  -                    I ; third variant of ls_khosanilab_puzzle_edge_point_a
+0x4f8190  ls_khosanilab_puzzle_choose_turn func  -                    I ; (cell, dir, ...): picks the outgoing direction from ls_khosanilab_puzzle_turn_dirs and the cell bits (ls_khosanilab_puzzle_dir_to_side_bit), caller ls_khosanilab_puzzle_trace_beam
+0x4f83d0  ls_khosanilab_puzzle_dir_to_side_bit func  -                    O ; (dir {x, y}): cell side bit 2 / 4 (x <= 0 / x > 0) or 0x10 / 8 (y <= 0 / y > 0)
+0x4f8400  ls_khosanilab_puzzle_emit_segment func  -                    I ; (cell, dir, ...): converts a beam segment to world points (ls_khosanilab_puzzle_cell_to_world) and appends them (ls_khosanilab_puzzle_add_point)
 0x4f8810  ls_khosanilab_puzzle_cell_to_world func  -                    O ; (cell float {x, y}*, out*) grid coordinates -> world x/z with the constants 0x581cc0..0x581ccc
 0x4f8850  ls_khosanilab_puzzle_add_point func  -                    O ; (start*, end*) appends a point pair to the pending path (8 max, 0x257ebfc/0x257ec3c), flushing with ls_khosanilab_puzzle_flush_path when full
 0x4f88c0  ls_khosanilab_puzzle_idle_path func  -                    I ; one fixed segment from two hard-coded grid points (cell_to_world, add_point, flush), shown while the start cell is closed, callers ls_khosanilab_puzzle_update and ls_khosanilab_init
@@ -4805,13 +4961,30 @@
 0x4fe330  lsf_catacombs_flag_way_comment func  -                    I ; level-script helper keyed on story flag "CATACOMBS_FLAG_WAY_COMMENT"
 0x4fe380  lsf_maindoor_open        func  -                    I ; level-script helper keyed on story flag "maindoor_open"
 0x4fe410  lsf_catacombs_flag_iona_comment func  -                    I ; level-script helper keyed on story flag "CATACOMBS_FLAG_IONA_COMMENT"; L"Here it is! The tomb of the goddess Iona!"
+0x4fe460  ls_catacombs_sync_object_positions func  -                    O ; moves the objects 0x257ed68 / 0x257ed6c (obj_from_handle, -1 skipped) to the positions (+0x14) of the records 0x257ed74 / 0x257ed78, caller ls_catacombs_frame
 0x4fe4c0  lsf_maindoor_open_4fe4c0 func  -                    I ; level-script helper keyed on story flag "maindoor_open"
+0x4fe5b0  ls_catacombs_lobj_state  func  -                    O ; (name): savegame_two_stage_get on savegame_state for the level object lobj_find_by_name(name), returns the byte, caller ls_catacombs_use
 0x4fe5e0  ls_catacombs_use        func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fe8f0  ls_wolong_init           func  -                    O ; level_script_table entry: level script init (state_game_enter)
 0x4fe9a0  ls_wolong_frame          func  -                    O ; level_script_table entry: level script per-frame handler
 0x4fea40  ls_wolong_use           func  -                    O ; level_script_table entry: (name of the used object or exit) -> reacts (opens gates, speaks a refusal); returns 0
 0x4fea80  ls_wolong_action         func  -                    O ; level_script_table entry: script action handler (dialogue/trigger action names)
+0x4feb50  conversation_speaker__init func  -                    O ; thiscall (name): +0xc = name, lists +0x10..+0x18 and +0 cleared, +4 = 0, +6 = 3000, +8 = 1500, caller conversation_alloc_speaker
+0x4feb80  conversation_speaker__find_topic func  -                    O ; thiscall (name): topic of the speaker's list (+0x10, next +0) whose name (+8) equals name (strcmp), NULL, callers conversation_set_topic_available, dialogue_parse_table
+0x4febe0  conversation_speaker__refresh_topic_flags func  -                    O ; thiscall: for every topic (+0x10 list) except the greeting (+0x18): available (flag bit 3) -> sets 0x12, else clears 0x12, caller conversation_set_speaker
+0x4fec10  conversation_topic__init func  -                    O ; thiscall (name, text): +8 / +0xc, every list and field +0x10..+0x40 cleared, caller conversation_alloc_topic
 0x4fec50  conv_speaker__add_topic  func  -                    O ; appends a topic to the list +0x10/+0x14
+0x4fec80  conversation_topic__push_list18 func  -                    O ; thiscall (node): pushes node (next at +8) on the topic list +0x18, caller dialogue_parse_table
+0x4fec90  conversation_topic__push_list1c func  -                    O ; thiscall (node): push on list +0x1c (next +8), caller dialogue_parse_table
+0x4feca0  conversation_topic__push_list20 func  -                    O ; thiscall (node): push on list +0x20 (next +8), caller dialogue_parse_table
+0x4fecb0  conversation_topic__push_list24 func  -                    O ; thiscall (node): push on list +0x24 (next +8), caller dialogue_parse_table
+0x4fecc0  conversation_topic__push_list28 func  -                    O ; thiscall (node): push on list +0x28 (next +8), caller dialogue_parse_table
+0x4fecd0  conversation_topic__push_list2c func  -                    O ; thiscall (node): push on list +0x2c (next +8), caller dialogue_parse_table
+0x4fece0  conversation_topic__push_list30 func  -                    O ; thiscall (node): push on list +0x30 (next +4), caller dialogue_parse_table
+0x4fecf0  conversation_topic__push_list34 func  -                    O ; thiscall (node): push on list +0x34 (next +4), caller dialogue_parse_table
+0x4fed00  conversation_topic__push_list38 func  -                    O ; thiscall (node): push on list +0x38 (next +4), caller dialogue_parse_table
+0x4fed10  conversation_topic__push_list3c func  -                    O ; thiscall (node): push on list +0x3c (next +4), caller dialogue_parse_table
+0x4fed20  conversation_topic__push_list40 func  -                    O ; thiscall (node): push on list +0x40 (next +8), caller dialogue_parse_table
 0x4fed30  lsf_cflag_none           func  -                    I ; level-script helper keyed on story flag "Cflag_None"
 0x4fee50  dialogue_parse_table     func  -                    O ; "_dlg.tbl": "$Character:", "+Topic:", "+Shop", "+PCText:", "+NPCText:" ...
 0x500990  dialogue_rec__init4      func  -                    I ; thiscall (a, b, c, d): +0 a, +8 b, +0xc c, +0x10 d, +0x14 next = 0, only caller dialogue_parse_table (ret 0x10), the llvm-objdump listing is desynchronised here by the jump table before it
@@ -4948,6 +5121,7 @@
 0x503cf0  bm_create                func  vsdk\bmpman\bmpman.cpp O ; (format, w, h, data, pal) named "USERBMAP"; Dash Faction bm::create
 0x503d90  bm_malloc                func  vsdk\bmpman          I ; hidden start, (size) -> operator_new(size), unreferenced allocator wrapper between bmpman functions
 0x503da0  bm_set_preload_on_load   func  vsdk\bmpman\bmpman.cpp I ; bm_preload_on_load = arg
+0x503db0  bm_name_pool_get_length  func  vsdk\bmpman          O ; jmp StringPool__GetLength, used by bm_set_mark on the bitmap name pool 0x25c5c68
 0x503dc0  imin                     func  -                      I ; min(a, b); used by bm_read_header
 0x503dd0  progress_set_callback    func  -                      I ; (cb, param, check_keys): cb(0,0) now, then every 100 ms via progress_update; NULL ends with cb(-1,0)
 0x503e80  progress_update          func  -                      I ; calls the callback when 100 ms passed; returns 1 once a key was pressed (if check_keys)
@@ -5071,6 +5245,7 @@
 0x5079f0  gr_get_video_memory_mb   func  vsdk\gr\gr.cpp       O ; dispatch: D3D 0x2dc6c98, Glide 0x2f0f208, OpenGL constant 8, 0x43e250 compares it with 8 to pick defaults
 0x507a20  gr_tmapper               func  vsdk\gr\gr.cpp         O ; (nv, verts, mode); Dash Faction gr::tmapper
 0x507a80  gr_tmapper_multipass     func  vsdk\gr\gr.cpp         I ; per-pass uv/colour/alpha, then gr_tmapper
+0x507d20  gr_noop_507d20           func  vsdk\gr              O ; empty function (ret), called from gr_bitmap_3d_projected
 0x507d30  gr_read_backbuffer       func  vsdk\gr\gr.cpp         O ; Dash Faction gr::read_backbuffer(x, y, w, h, buf) -> format
 0x507db0  gr_set_fog               func  vsdk\gr\gr.cpp         I ; (enable, r, g, b, near, far); uses Gr_alpha_fog_ratio / Gr_level_fog_multiplier
 0x507f70  gr_set_tint              func  vsdk\gr\gr.cpp         I ; (enable, r, g, b): back ends modulate vertex colours
@@ -5147,6 +5322,7 @@
 0x50acd0  load_script              func  console.cpp            V ; Summoner 2 name; "Couldn't find a script file", "Error processing script line"
 0x50aef0  console_printf           func  console.cpp          O ; vsprintf into a 0x800-byte buffer then print_to_console(buf, 0), caller cmd_summon
 0x50af50  console_set_font         func  console.cpp          I ; 0x5a6f28 = font handle, GameInit passes the gr_load_font result, placed after console_printf
+0x50af60  file_stream__scalar_deleting_dtor func  -                    I ; thiscall (flags): 0x558590 (fclose of +0 and deallocate_from_commonblock of the buffer +4), operator_delete when bit 0, callers load_script, 0x558910
 0x50af80  init_ca_vertex_buf_266f108 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588880): 2000 vector3 at 0x266f108 (work buffer of ca_render_morph_vertices)
 0x50afb0  init_ca_vertex_buf_25e74b0 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588884): 2000 vector3 at 0x25e74b0
 0x50afe0  init_ca_vertex_buf_2622e48 func  vsdk\ca              O ; hidden start, static initialiser (table 0x588888): 2000 vector3 at 0x2622e48
@@ -5496,6 +5672,7 @@
 0x517060  vector3_to_cstr          func  -                    O ; (dest, precision, v): sprintf "< %.*f, %.*f, %.*f >", caller script_write_navpoint
 0x5170d0  matrix3_to_cstr          func  -                    O ; (dest, precision, m): nine %.*f values of the three rows, caller script_write_navpoint
 0x517180  file_write_text_block    func  -                    O ; hidden start, (text, File*): writes the text in lines of at most 70 chars broken at spaces/CR, then "$end text" (File__printf)
+0x517210  TextFile__AtEnd          func  vsdk\parse           O ; thiscall: true when the cursor (+4) points at the terminating NUL, caller alt_textures_parse_table
 0x517220  file_blast_into_buffer   func  vsdk\vfile           I ; hidden start, (buf, size, name): remembers buffer and name (0x26b63a0/0x26b63a4), loads the file through 0x534900, "ERROR BLASTING FILE INTO BUFFER!" on failure, buf NULL resets
 0x5172f0  movie_play               func  -                    O ; (file name): plays a Bink movie until it ends or a key is pressed; called for vlogo.bik/eaxlogo.bik (mainmenu_init) and by credits_frame
 0x517430  movie_blit_frame         func  -                    I ; (bink): BinkDoFrame then copies the frame to the back buffer (Glide grLfbLock / D3D surface lock) and gr_flip, caller movie_play
@@ -5547,6 +5724,8 @@
 0x51a6a0  character_instance__get_active_anims func  vsdk\ca              O ; (ci, out[8]) indices of up to 8 animations with a non-zero weight (+0x44)
 0x51a6f0  character_instance__setup_matrices func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::setup_matrices"
 0x51a780  character_instance__setup_matrices_b func  vsdk\ca\character_instance.cpp I ; second function with label "character_instance::setup_matrices"
+0x51a870  ca_noop_1arg             func  vsdk\ca              O ; empty thiscall (ret 4), called from character_instance__process
+0x51a880  ca_noop_2arg             func  vsdk\ca              O ; empty thiscall (ret 8), called from luminar_beam_hit
 0x51a890  character_instance__process func  vsdk\ca\character_instance.cpp I ; profiler label "character_instance::process"
 0x51a950  character_instance__get_root_velocity func  vsdk\ca              O ; thiscall (out): weighted sum of skeleton__get_root_velocity of the active animations into +0x64, callers character_stopping_distance, ai_follow_path and others
 0x51aab0  character_instance__get_motion_delta func  vsdk\ca              I ; thiscall (out): movement since the last frame from +0x7c/+0x88/+0x94 or the root velocity, validated with vector3__is_valid
@@ -5561,6 +5740,7 @@
 0x51ae90  character_instance__set_state_weight func  vsdk\ca              O ; thiscall (anim, weight) only for state skeletons (+0x5c), weight > 0 makes it the dominant state (+0x5c of the instance)
 0x51aee0  character_instance__start_anim func  vsdk\ca              O ; thiscall (anim, weight, is_action): stop, weight +0x44, time = skeleton start +0x60, action index +0x54
 0x51af70  character_instance__set_anim_speed func  vsdk\ca              O ; thiscall (anim, scale): stores into the 5-entry (anim, scale) table read by character_instance__advance_anim_time when the anim is active
+0x51afe0  character_instance__get_set_time func  vsdk\ca              I ; thiscall (float* value, bool set): set -> +0x60 = *value, else *value = +0x60 (the instance animation clock), the *_seat_rider functions copy it from the rider to the mount
 0x51b000  character_instance__get_anim_time_left func  vsdk\ca              I ; thiscall (anim): skeleton end +0x64 minus current time, 0 when inactive
 0x51b070  character_instance__get_anim_elapsed func  vsdk\ca              O ; thiscall (anim): (time - skeleton start) converted to seconds, 0 when the weight is 0
 0x51b0c0  character_instance__get_anim_length func  vsdk\ca              O ; thiscall (anim): max(end - start, 0) of the skeleton in seconds
@@ -5638,6 +5818,8 @@
 0x51ccd0  effects_reset_level      func  vsdk\geom            I ; clears the preload/stream slot tables (-1) and the per-level flag of every base, then effects_init_pools
 0x51cd40  effects_init_pools       func  vsdk\geom            I ; zeroes the effect memory pool counters 0x2c9f978..0x2c9f990, used by effects_load_bases
 0x51cf60  effects_load_bases       func  vsdk\geom\effect_mem.cpp I ; "effects.arr", "Too many effects! MAX_EFFECT_BASES needs to be increased!"
+0x51d250  vfx_instance_create      func  vsdk\geom            I ; (base, ...): takes a 0x48+ byte instance from the free list 0x2c9f978, flag 0x40, length (vfx_get_length_seconds), effects mempool (set_current_mempool) and node setup (vfx_instance_init_nodes), caller vfx_load
+0x51d7b0  vfx_instance_free        func  vsdk\geom            I ; releases an instance's nodes (vfx_instance_release_nodes, vfx_node_free_shadow), effect_base_release and returns it to the free list, callers ui_load_model_lights, fx_obj_destroy, fx_frame
 0x51db50  effects_hash_name        func  vsdk\geom            O ; (name): tolower bit hash shifted into the high word xor the byte sum
 0x51dbb0  effects_load_preload_rfx func  vsdk\geom            O ; finds the base named "preload.rfx" and loads it once (flag 0x2c9f994)
 0x51dc20  effects_release_level_memory func  vsdk\geom            I ; releases every base inside the level effect memory range, callers level_unload
@@ -5693,13 +5875,20 @@
 0x51f0d0  light_sample_projected_bitmap func  vsdk\gr              I ; bm_lock/bm_get_data of a type 4 light's bitmap and samples the texel for a point, caller lights_shade_point
 0x51f3b0  lights_shade_vertices    func  vsdk\gr              I ; per-vertex colours from ambient plus lights_shade_point, clamped and converted to bytes, callers the character mesh renderers, vfx_mesh_render
 0x51f530  lights_set_max_per_object func  vsdk\gr              I ; 0x5a8900 = n, options_apply_detail passes 2/4/6 by detail level, ui_3d_begin/end change it
+0x51f540  lights_set_detail_flag   func  vsdk\gr              O ; (bool): byte 0x2cb45c0 = arg, options_apply_detail passes detail level == 2
+0x51f550  lights_set_dynamic_enabled func  vsdk\gr              O ; (bool): byte lights_dynamic_enabled 0x2cb45c1, when 0 lights_select_nearest skips dynamic lights (bit 15), caller options_apply_detail (0x60ace9)
+0x51f960  gr_env_map_uv            func  vsdk\gr              O ; (pos, normal, out u, out v): reflects the view direction (gr_view_pos) about the normal, u = atan2 * k * 0.5 + 0.5, v = (1 - r.y) * 0.5, caller mesh_check_materials
 0x51fa20  light_set_dynamic        func  vsdk\gr              I ; hidden start, (index, bool) bit 15 of the flags +8 (dynamic lights do not bump the change counter)
 0x51fa50  light_is_dynamic         func  vsdk\gr              I ; hidden start, (index) bit 15 of the flags +8
 0x51fa70  lights_debug_draw        func  vsdk\gr              O ; hidden start, gr_set_color(0, 255, 0) then draws every light position (0x53f720) with mode 0x25d8ce4
 0x51fac0  light__light             func  vsdk\gr              O ; thiscall ctor of the 0x94-byte light: vectors +0xc/+0x18/+0x40/+0x4c, matrix +0x6c
 0x51faf0  float_min                func  vsdk\math            O ; (a, b) returns the smaller float (counterpart of float_max), 17 callers in lighting/effects
 0x51fb10  init_shadows             func  vsdk\geom            O ; hidden start, static initialiser (table 0x588940): 0x18 shadows of 0x98 bytes at 0x2cb45d0 (shadow__shadow)
+0x51fb40  vfx_shadow_desc__relocate func  vsdk\geom            I ; thiscall (base, ...): fixes the pointers of a shadow node description (0x55bbd0, 0x55bb50, tracks +0x34/+0x40/+0x4c/+0x58 vfx_track__relocate, +0x64 vfx_ptr__relocate), caller vfx_node_relocate
+0x51fb90  vfx_node_create_shadow   func  vsdk\geom            O ; thiscall node (desc, ...): samples the description tracks at time 0 (position, size and three byte channels) and shadow_create_from_vfx, stores the shadow index in bits 23..28 of +4 (read by vfx_node_free_shadow), caller vfx_instance_init_nodes
 0x51fc80  vfx_node_free_shadow     func  vsdk\geom            I ; thiscall: shadow index packed in bits 23..28 of +4, shadow_free when present, callers 0x51d7b0, 0x5369f0
+0x51fcb0  vfx_node_update_shadow   func  vsdk\geom            I ; thiscall node (...): updates the node's shadow from the tracks (0x51fdc0) and the node transform (vector3__unrotate), 0x2cb45d0 shadows, caller vfx_instance_process
+0x51fdc0  vfx_shadow_desc__sample  func  vsdk\geom            I ; thiscall desc (time, ...): samples position, size and colour tracks (vfx_shadow_desc__get_position, sample_34..58) with frame interpolation (crt_floor), callers ui_3d_begin, vfx_node_update_shadow
 0x520070  shadows_init_slots       func  vsdk\geom            O ; marks all 0x18 shadow slots free (type byte -1), callers shadows_init, fx_level_restart
 0x520090  shadows_clear_slots      func  vsdk\geom            O ; same loop as shadows_init_slots, callers fx_shutdown, fx_level_leave, fx_level_restart
 0x5200b0  shadow_create_b          func  vsdk\geom            I ; hidden start, first free slot of the 0x18 shadows at 0x2cb45d0 (type byte -1), stores the position at +0x14 and the parameters, -1 when full, same layout as shadow_create
@@ -5707,7 +5896,17 @@
 0x5201f0  shadow_free              func  vsdk\geom            O ; (index) type byte = -1 if in use, callers living_entity__vfunc0, 0x51fc80, 0x537f70
 0x520210  shadow__reset            func  vsdk\geom            I ; thiscall: identity quaternion, zero vectors and defaults, callers shadow__shadow, 0x48da00
 0x520280  shadow__shadow           func  vsdk\geom            O ; thiscall ctor: vectors +4/+0x14/+0x20 then shadow__reset
+0x5202b0  vfx_track__relocate      func  vsdk\geom            O ; thiscall (base): count word +8 = 0, keeps bit 15 of +0xa, relocates the key pointer (0x564d50), 7 callers
+0x5202d0  vfx_ptr__relocate        func  vsdk\geom            O ; thiscall (base): relocates the pointer (0x564d50), callers vfx_shadow_desc__relocate, 0x5645b0
+0x5202f0  vfx_shadow_desc__get_position func  vsdk\geom            O ; thiscall (out, time): vfx_vector_track__sample of the vector track at +0x10
+0x520310  vfx_vector_track__sample func  vsdk\geom            O ; thiscall (out, time): three fixed4 key tracks (+0, +0xc, +0x18, 0x55bc00 + fixed4_to_float) into a vector3
 0x520360  fixed4_to_float          func  vsdk\math            O ; (int16) value * 0.0625
+0x520380  vfx_shadow_desc__sample_34 func  vsdk\geom            O ; thiscall (time): key track +0x34 (0x55bc00), int16 size value for shadow_create
+0x520390  vfx_shadow_desc__sample_40 func  vsdk\geom            O ; thiscall (time): key track +0x40, byte channel for shadow_create
+0x5203a0  vfx_shadow_desc__sample_4c func  vsdk\geom            O ; thiscall (time): key track +0x4c, byte channel for shadow_create
+0x5203b0  vfx_shadow_desc__sample_58 func  vsdk\geom            O ; thiscall (time): key track +0x58, byte channel for shadow_create
+0x5203c0  shadow_create_from_vfx   func  vsdk\geom            O ; (pos, a, b, c, d, e): shadow_create(pos, ..., 0, ...) reordering the arguments, caller vfx_node_create_shadow
+0x5203f0  vfx_node__get_scale      func  vsdk\geom            I ; thiscall: fixed8_to_float of the word +0x24, caller vfx_node_update_shadow
 0x520400  fixed8_to_float          func  vsdk\math            O ; (int16) value / 256, 15 callers
 0x520420  character_instance__render func  vsdk\ca\character_instance.cpp I ; thiscall (?, ?, params): setup_matrices_b, copies tint bytes +0xc9..cb, ca_render_set_instance, picks LOD mesh, ca_render_mesh
 0x5204c0  init_cmdline_param_nosound_thunk func  -                    O ; hidden start, initialiser table entry 0x588944: init_cmdline_param_nosound then registers its atexit destructor
@@ -5883,6 +6082,7 @@
 0x525370  vector2_distance_squared func  vsdk\math            O ; (a, b): vector2__len_sq of a - b
 0x5253a0  vector2_dist_sq_to_segment func  vsdk\math            I ; hidden start, (p, a, b): squared distance from p to the segment from projection t = (p-a).(b-a) / len(b-a)^2
 0x525410  vector2_closest_point_on_segment func  vsdk\math            O ; (out, p, a, b): t clamped to 0..1 with float_max/float_min, out = a + (b - a) * t, caller 0x49dc20
+0x5254d0  vector2_project_onto_segment func  vsdk\math            I ; (p, a, b, out t): t of the projection of p on segment a-b (vector2__dot / len_sq), false outside 0..1, degenerate segments give t 0, caller 0x49dc20
 0x525650  vector2__vector2         func  vsdk\math            O ; thiscall (x, y) constructor, as Summoner 2 vector2(float, float)
 0x525670  vector3__operator_div_assign func  vsdk\math            O ; thiscall (s): multiplies the three components by 1/s
 0x5256a0  vector2__operator_sub    func  vsdk\math            O ; thiscall (out, b)
@@ -6077,6 +6277,7 @@
 0x52cd70  ui_listbox__update_hscrollbar func  vsdk\ui              O ; sets the range of the scrollbar at +0x314 from the content width
 0x52cd90  ui_listbox__recalc_content_size func  vsdk\ui              O ; assigns entry y offsets with spacing +0x2cc, max width +0x2a8, total height +0x2ac
 0x52ce20  ui_listbox__entry_at     func  vsdk\ui              O ; (x, y, clamp) entry containing the content point
+0x52ce90  ui_listbox__entry_above  func  vsdk\ui              O ; thiscall (y): walks the entry list (+0x2d4 head, next +8) while entry y +0x10 <= y and returns the previous entry (+0xc), 0 when empty or y < 0, caller ui_listbox__scroll_line_up
 0x52ced0  ui_listbox__entry_at_y   func  vsdk\ui              O ; (y) first entry whose bottom is below y
 0x52cf10  ui_listbox__relayout_dirty func  vsdk\ui              O ; re-wraps entries with the dirty flag (+4), then recalc size and both scrollbars
 0x52cf70  ui_listbox__sync_scrollbars func  vsdk\ui              O ; arrow buttons and positions of the scrollbars at +0x310/+0x314 into the scroll offsets
@@ -6130,6 +6331,7 @@
 0x52f050  ui_listbox__get_content_height func  vsdk\ui              O ; returns +0x2ac
 0x52f060  ui_listbox__is_empty     func  vsdk\ui              O ; entry list empty, after padding
 0x52f080  ui_listbox__draw         func  vsdk\ui              O ; vtable slot 7: entries with gr_string/gr_bitmap inside a clip
+0x52f3d0  ui_listbox__set_sorted   func  vsdk\ui              O ; thiscall (bool): flag 0x40 at +0x274 (ui_listbox__add_entry inserts in _stricmp order when set), callers script_editor_fill_action_lists, script_editor_apply_action_params
 0x52f400  ui_listbox_entry__scalar_deleting_dtor func  vsdk\ui              O ; ui_listbox_entry__dtor then operator delete
 0x52f420  ui_listbox_text_entry__scalar_deleting_dtor func  vsdk\ui              O ; ui_listbox_text_entry__dtor then operator delete
 0x52f440  ui_listbox_text_entry__dtor func  vsdk\ui              O ; jumps to ui_listbox_entry__dtor
@@ -6160,6 +6362,18 @@
 0x530920  ui_pop_group             func  vsdk\ui              O ; --0x2cbfcc8
 0x530930  ui_find_gadget_by_name   func  vsdk\ui              O ; ui_window__find_gadget_by_name over all windows, after padding
 0x530970  ui_get_top_modal_window  func  vsdk\ui              O ; first shown, enabled window with the modal flag 0x20
+0x5309c0  ui_window_colors__ctor   func  vsdk\ui              O ; thiscall: ui_colors3__ctor then one more Color at +0xc (4 colours set by init_game_config_defaults at 0x2cbf670..0x2cbf67c), caller init_ui_window_defaults
+0x5309e0  ui_colors3__ctor         func  vsdk\ui              O ; thiscall: three trivially constructed Colors (+0, +4, +8, ctor folded with vector3__vector3_default), callers init_ui_tooltip_state and the other ui colour groups
+0x530a00  ui_colors5_x3__ctor      func  vsdk\ui              O ; thiscall: three ui_colors5 groups (stride 0x14), caller init_ui_global_2cbf6a8
+0x530a20  ui_colors3_x2__ctor      func  vsdk\ui              O ; thiscall: two ui_colors3 groups (+0, +0xc), caller init_ui_global_2cbf6e8
+0x530a40  ui_colors4_x4__ctor      func  vsdk\ui              O ; thiscall: four ui_colors4 groups (stride 0x10), caller init_ui_global_2cbf630
+0x530a70  ui_colors4__ctor         func  vsdk\ui              O ; thiscall: four Colors (+0..+0xc), callers init_ui_container_state, ui_colors4_x4__ctor
+0x530aa0  ui_colors6_x2__ctor      func  vsdk\ui              O ; thiscall: two ui_colors6 groups (stride 0x18), caller init_ui_global_2cbfc70
+0x530ac0  ui_colors6__ctor         func  vsdk\ui              O ; thiscall: ui_colors3 then three Colors (+0xc..+0x14)
+0x530af0  ui_colors5__ctor         func  vsdk\ui              O ; thiscall: ui_colors3 then two Colors (+0xc, +0x10), callers init_ui_global_2cbfc08, ui_colors5_x3__ctor
+0x530b10  ui_colors2_x3__ctor      func  vsdk\ui              O ; thiscall: three ui_colors2 groups (stride 8), caller init_ui_global_2cbfc50
+0x530b30  ui_colors2__ctor         func  vsdk\ui              O ; thiscall: two Colors (+0, +4)
+0x530b50  ui_colors8__ctor         func  vsdk\ui              O ; thiscall: two ui_colors3 groups and a ui_colors2 (+0x18), caller init_ui_global_2cbfc30
 0x530b70  ui_get_draw_callback     func  vsdk\ui              I ; thiscall: returns +0x37c, caller ui_draw
 0x530b80  ui_window__get_mask_data func  vsdk\ui              O ; returns +0x4d8
 0x530b90  os_find_window_callback  func  vsdk\os              O ; EnumWindows callback of os_find_previous_instance: GetWindowTextA, strstr with the wanted title, sets 0x2cbff0c and stops
@@ -6183,8 +6397,13 @@
 0x531a80  init_ccmd_sysinfo_entry  func  -                    O ; initialiser table entry 0x5889a4: frame-pointer wrapper calling init_ccmd_sysinfo
 0x531a8a  init_ccmd_sysinfo        func  -                    O ; static initialiser: registers console command object ccmd_sysinfo
 0x531aa8  cmd_sysinfo              func  -                      O ; console command "sysinfo": Shows system info
+0x531b44  os_clipboard_get_text    func  vsdk\os              O ; (buf, max): OpenClipboard, GetClipboardData(CF_TEXT), GlobalLock, copies at most max chars, GlobalUnlock, CloseClipboard, reached by no direct call
 0x531c10  stricmp_wrapper          func  -                    O ; hidden start, (a, b) -> _stricmp(a, b)
 0x531c50  debug_return_zero        func  -                    O ; returns 0, callers multi_process_packet, multi_send_packet, multi_send_packet_buffered, 0x441da0 (compiled-out debug hook)
+0x531c60  debug_noop_mp_frame      func  -                    O ; empty function (ret), called from mp_game_frame
+0x531c70  debug_noop_frame_end     func  -                    O ; empty function (ret), called from FrameEnd
+0x531c80  debug_noop_cleanup       func  -                    O ; empty function (ret), called from game_cleanup
+0x531c90  debug_noop_disp_rate     func  -                    O ; empty function (ret), called from cmd_disp_rate
 0x531ca0  debug_error_deactivate_gr func  -                    O ; jmp gr_deactivate, caller DebugError
 0x531cb0  DebugError               func  -                      V ; Summoner 2 DebugError(File, Line, Error); PC: MessageBox + exit(1)
 0x531d20  init_movement_vec_2cbff58 func  -                    O ; hidden start, static initialiser (table 0x5889a8): vector3 0x2cbff58 of the free-movement (slew) state used by movement_init / movement_read_controls
@@ -6198,6 +6417,7 @@
 0x531e10  cmd_movement_vel_change  func  -                      O ; console command "movement_vel_change": Toggles Allow_movement_vel_change
 0x531ed0  movement_init            func  -                    I ; (max_vel, max_rotvel, a3, a4): fills the free-movement (slew) limits at 0x2cbff58..0x2cbff90, zeroes the velocity vectors, sets 0x2cbffa4
 0x531f50  movement_read_controls   func  -                    I ; key_is_down / key_down_time driven velocity and rotation for the free camera, honours Allow_movement_vel_change and ui_current_gadget
+0x5322c0  smooth_approach_exp      func  -                    O ; (tau, current, target, dt, out value, out rate): exponential approach value = target + (current - target) * exp(-dt / tau) (x87 f2xm1), with an immediate result when tau is ~0, caller movement_read_controls
 0x532360  NoRlsAllocPool__NoRlsAllocPool func  -                    V ; Summoner 2 norlsallocpool.cpp constructor: start, blocks, last_allocation = 0, clears owns_blocks/can_grow bits (+0x18)
 0x532380  NoRlsAllocPool__dtor     func  -                    V ; Summoner 2 ~NoRlsAllocPool: jmp NoRlsAllocPool__Release
 0x532390  NoRlsAllocPool__Release  func  -                    V ; Summoner 2: when owns_blocks deletes the block chain (+0), clears start and the flag, caller conversation_free
@@ -6216,9 +6436,20 @@
 0x5328d0 timer_get                func  timer.cpp                V ; Summoner 2 decomp; elapsed * scale / frequency
 0x5329b1 read_tsc                 func  timer.cpp                O ; RDTSC
 0x5329f0  init_vif_records         func  -                    I ; hidden start, static initialiser (table 0x5889c4): 100 records of 0xe8 bytes at 0x2d064e8 (vif_record__ctor), cleared by vif_records_reset
+0x532a20  vif_compact_particles    func  -                    O ; compacts the vif particle buffers between "COMPACTING VIF PARTICLES" and "DONE COMPACTING" (0x2d0bf8c, 0x2d06558, 0x2cbffe0), caller vif_instantiate_level
+0x532cb0  vif_emitter_spawn_point  func  -                    I ; (...): computes a particle spawn position (0x558e20, 0x558f40, vector ops), caller vif_emitter_update
 0x532e80  vif_records_reset        func  -                    I ; clears the word at +0x68 of each of the 100 0xe8-byte records at 0x2d064e8, caller LoadSettings
+0x532ea0  vif_reset_all            func  -                    O ; rebuilds the free list 0x2d064e4 of the 100 0xe8-byte vif records 0x2d064e8 (word +0x68 = 0), clears the counters 0x2d064e0 / 0x2d0bf8c / 0x2d0bf90 and the particle slots (0x2ce326c, stride 0x30), caller level_load
+0x532f40  vif_emitter_update       func  -                    I ; (record, ...): emitter transform (character_instance__compute_bone_matrix for bone-attached emitters), spawn rate by reported_frametime and vif_curve__evaluate, spawns particles with frand_range / vector3__random_unit_vector, callers levelrender_add_effects, vfx_instance_process
+0x533620  vif_draw_particles       func  -                    I ; (...): gr_set_texture / gr_set_color / gr_bitmap_3d per particle with point fog (gr_get_point_fog_value), caller 0x487230
 0x5337a0  vif_instantiate_level    func  -                    I ; "VIF INSTANTIATE : LEVEL", "COMPACTING VIF PARTICLES"
+0x5339b0  vif_record_release       func  -                    O ; (desc, record): returns the particle count to 0x2d064e0, unlinks the record's particle lists (+0x80/+0x9c, +0xb0/+0xcc), caller vfx_instance_release_nodes
+0x533aa0  vif_record_get_bounds    func  -                    I ; (record, out centre, out radius): bounding sphere of the live particles (vector3__add_assign, scale, len, float_max), caller levelrender_add_effects
+0x533be0  vif_desc__relocate       func  -                    O ; thiscall (base): reloc_ptr on +0, +4 and the bitmap name +0x70, bitmap +0x6c = 0, caller vfx_node_relocate
+0x533c20  vif_desc__load_bitmap    func  -                    O ; thiscall (flag): +0x6c = bm_load(name +0x70, -1, flag), retried with (-1, -1), caller vfx_base__load_bitmaps
 0x533c70  vif_record__ctor         func  -                    I ; thiscall ctor of the 0xe8-byte record: vector +0, matrix +0xc, vector +0x30, matrix +0x3c
+0x533ca0  vif_curve__evaluate      func  -                    O ; (curve, t): constant value when the key count (+0x60) is 1, else piecewise interpolation over the key times (+0x30..) and values, last value past the end, caller vif_emitter_update
+0x533d90  reloc_ptr                func  -                    O ; (ptr*, base): 0 stays, -1 becomes base, else base is added, 6 callers in the vfx relocation code
 0x533db0  init_packfile_string_pool func  vsdk\vfile\packfile\file_packfile.cpp I ; hidden start, initialiser table entry 0x5889c8: constructs StringPool 0x2d0bf98 and registers its destructor
 0x533dc0  packfile_string_pool_ctor func  vsdk\vfile\packfile\file_packfile.cpp I ; StringPool__StringPool_default(0x2d0bf98)
 0x533dd0  packfile_string_pool_register_dtor func  vsdk\vfile\packfile\file_packfile.cpp I ; atexit(packfile_string_pool_dtor)
@@ -6244,6 +6475,9 @@
 0x534900  packfile_read_whole_file func  vsdk\vfile\packfile\file_packfile.cpp I ; hidden start, (buf, size, name): packfile_find_packfile then fopen/fread/fclose of the data into buf, printf on failure, caller file_blast_into_buffer
 0x5349a0  packfile_find_in_packfile func  vsdk\vfile\packfile\file_packfile.cpp I ; (vpp name, file name) -> offset, size
 0x534a20  init_gr_d3d_current_mode func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889cc): gr__Mode__Mode_invalid(0x2d90ee4), the D3D state cache compared by 0x534a40
+0x534a40  gr_d3d_set_state         func  vsdk\gr\directx\gr_direct3d.cpp V ; Dash Faction rf::gr::d3d::set_state(Mode): when the mode differs from 0x2d90ee4, applies texture / colour / alpha sources, alpha blend, zbuffer and fog (gr__Mode__get_*) as render states and texture stage states, callers levelrender_draw_list_d3d, gr_d3d_set_bitmap, gr_d3d_clear, gr_d3d_tmapper_multipass ...
+0x535420  gr_d3d_invert_depth_test func  vsdk\gr\directx\gr_direct3d.cpp I ; when 0x2dc6c30 (set by gr_d3d_init_device): depth clear value 0x2dc2988 = 0, z compare 0x2dc05c0 = 7 (GREATEREQUAL), invalidates the current mode, caller game_render_frame
+0x535450  gr_d3d_restore_depth_test func  vsdk\gr\directx\gr_direct3d.cpp I ; counterpart of gr_d3d_invert_depth_test: clear value 1.0, z compare 4 (LESSEQUAL), invalidates the current mode, caller game_render_frame
 0x535480  gr_d3d_apply_tint        func  vsdk\gr\directx\gr_direct3d.cpp O ; (int* r, int* g, int* b): luminance r+g+b times the gr tint factors 0x25d8dc4/8/c, clamp_int 0..255, callers gr_d3d_bitmap/line/line_3d/tmapper
 0x535510  gr_d3d_set_zbias         func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, (bias) gr_d3d_set_render_state(0x2f = D3DRENDERSTATE_ZBIAS, bias)
 0x535520  gr_d3d_page_in           func  vsdk\gr\directx\gr_direct3d.cpp I
@@ -6254,8 +6488,10 @@
 0x535ce0  gr_d3d_set_bitmap        func  vsdk\gr\directx\gr_direct3d.cpp I ; (mode, bitmap) gr_d3d_tcache_set for bitmap >= 0, then the render mode (0x534a40), used by gr_d3d_bitmap/line/line_3d
 0x535d10  gr_d3d_set_color         func  vsdk\gr\directx\gr_direct3d.cpp I
 0x535da0  gr_d3d_line              func  vsdk\gr\directx\gr_direct3d.cpp I
+0x535eb0  gr_d3d_make_line_verts   func  vsdk\gr\directx\gr_direct3d.cpp O ; (v0, v1, x0, y0, x1, y1): screen-space TL vertices with the clip offset (0x25d8d5c/0x25d8d60) plus the half-pixel offset 0x2dc6c74, z 0.99, rhw 1, caller gr_d3d_line
 0x535fd0  gr_d3d_line_3d           func  vsdk\gr\directx\gr_direct3d.cpp I ; D3D target of gr_line_3d, uses gr_color, gr_tint_enabled, gr_calc_depth
 0x5361a0  gr_d3d_tmapper           func  vsdk\gr\directx\gr_direct3d.cpp I
+0x536360  gr_d3d_tmapper_multipass func  vsdk\gr\directx\gr_direct3d.cpp O ; D3D back end of gr_tmapper_multipass: per-vertex depth / fog alpha, gamma colours, two passes for multitexture modes with gr_d3d_set_state and gr_d3d_draw_primitive
 0x5368a0  gr__Mode__Mode_invalid   func  vsdk\gr\gr.cpp       O ; thiscall, value = -1 (no valid mode), returns this
 0x5368b0  gr__Mode__operator_eq    func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode::operator==, compares the packed dword
 0x5368c0  gr__Mode__get_texture_source func  vsdk\gr\gr.cpp       V ; Dash Faction gr::Mode (value >> 0) & 0x1f
@@ -6269,8 +6505,39 @@
 0x536950  init_gr_d3d_vertex_buf   func  vsdk\gr\directx\gr_direct3d.cpp O ; hidden start, static initialiser (table 0x5889d0): 4000 gr__Vertex (0x30 bytes) at 0x2d90f10
 0x536980  init_vfx_camera_pos      func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d4): vector 0x2d90ee8 copied out by vfx_get_camera
 0x5369a0  init_vfx_camera_orient   func  vsdk\geom            I ; hidden start, static initialiser (table 0x5889d8): quaternion 0x2d90ef8 copied out by vfx_get_camera
+0x5369c0  vfx_instance__clear      func  vsdk\geom            I ; thiscall: clears the words +4..+0x16 and the low 13 bits of +0x18, +0x40 = 0, caller vfx_instance__ctor
+0x5369f0  vfx_instance_release_nodes func  vsdk\geom            I ; thiscall: frees node shadows (vfx_node_free_shadow) and vif records (vif_record_release), clears the camera effect flag 0x2dbfd10, caller vfx_instance_free
+0x536a70  vfx_instance_init_nodes  func  vsdk\geom            I ; thiscall: initialises the node lists from the base (0x562b20, vfx_node_create_shadow, 0x561220, 0x55fc70, vif_instantiate_level), caller vfx_instance_create
+0x536bc0  vfx_node_relocate        func  vsdk\geom            O ; thiscall (base, end): relocates every pointer of a loaded vfx base (reloc_ptr, 0x564d50, vfx_shadow_desc__relocate, vif_desc__relocate, 0x5645b0, 0x561190 ...), caller vfx_relocate_entry
+0x536e50  vfx_base__load_bitmaps   func  vsdk\geom            I ; thiscall (flag): bitmaps of the meshes (+0x20, 0xa8 each, 0x564720), particle descs (+0x44, 0x4c, 0x5652e0) and vif descs (+0x2c, 0x21c, vif_desc__load_bitmap), callers effect_base_release, vfx_load
+0x536fb0  vfx_instance_process     func  vsdk\geom            I ; (instance, ...): per-frame update of a vfx instance: time, nodes (0x561670, 0x5385a0), vif emitters (vif_emitter_update), shadows (vfx_node_update_shadow), camera effect 0x2d90ee8/0x2d90ef8, callers spell_place_ground_effect, spell_spawn_hit_fx, fx_attach_to_character ...
+0x537230  vfx_instance__stop       func  vsdk\geom            O ; thiscall: sets flag bit 0 on the instance and bit 0 of +0xc on every node of the +0x20 list (next +0xa8), callers fx_frame, fx_remove_missiles_from, fx_end_owned ...
+0x537270  vfx_instance__is_stopped func  vsdk\geom            O ; thiscall: flags +0 bit 0
+0x537280  vfx_instance__set_stopped func  vsdk\geom            O ; thiscall (bool): flags +0 bit 0
+0x5372a0  vfx_base__decode_tag     func  vsdk\geom            I ; thiscall base (index, out kind, out list index, out sub): splits a flat tag index into mesh tags (+4), vif records (+8 list +0x28, counts +0x1c) and the other lists (+0x16 ...)
+0x5373a0  vfx_instance__get_node_name func  vsdk\geom            O ; thiscall (i): name of node i (fx_bind_character_tags compares it with "Scene Root"), callers fx_bind_character_tags, 0x537a10, 0x537f70
+0x537490  vfx_instance__get_tag_name func  vsdk\geom            I ; thiscall (i): name of tag i (vfx_base__decode_tag), caller vfx_instance__find_tag
+0x537580  vfx_instance__bind_node  func  vsdk\geom            O ; thiscall (i, character instance, mesh tag): attaches node i to a character mesh tag, caller fx_bind_character_tags
+0x537700  vfx_instance__node_can_bind func  vsdk\geom            I ; thiscall (i): whether node i can be attached to a mesh tag, caller fx_bind_character_tags
+0x537800  vfx_instance__reset_flags func  vsdk\geom            O ; thiscall (a, b): clears the stopped bit, flag bits 1 and 2 = a, b, +0xc and +0x10 = 0, callers fx_frame, fx_create_instance
+0x537840  vfx_instance__get_node_transform func  vsdk\geom            I ; thiscall (i, out pos, out orient): local transform of node i from its list (vfx_instance__list18_item .. list28_item, quaternion__to_matrix_b), callers spell_probe_ground_point, spell_launch_missile, 0x537a10
+0x537a10  vfx_instance__get_node_world_transform func  vsdk\geom            I ; thiscall (i, ...): recursive world transform of node i through its parents (quaternion__set_from_matrix_b, vfx_instance__get_node_transform), caller spell_probe_ground_point
+0x537f10  vfx_instance__find_tag   func  vsdk\geom            O ; thiscall (name): index of the tag with that name (vfx_base__get_num_tags, vfx_instance__get_tag_name, _stricmp), else ">>> FAILED TO GET TAG %s" and -1, callers spell_find_ground_points, spell_launch_missile
+0x537f70  vfx_instance__get_tag_transform func  vsdk\geom            I ; thiscall (tag, ...): recursive transform of a tag through the node lists (vfx_instance__list*_item), caller spell_find_ground_points
+0x538260  vfx_instance_render      func  vsdk\geom            I ; (instance, ...): renders the instance nodes (0x561670, 0x561ec0, 0x562ba0), callers levelrender_render_scene, levelrender_draw_list
+0x538340  vfx_base__get_num_tags   func  vsdk\geom            O ; thiscall: +4 + +6 + +0xa + +0x16 + the vif tag counts (+8 records, word +0x1c)
 0x5383e0  vfx_get_camera           func  vsdk\geom            I ; (out pos, out quat): copies 0x2d90ee8/0x2d90ef8 when a camera effect is active (0x2dbfd10), else zero and identity, caller state_game_frame
+0x538430  vfx_instance__setup_render_state func  vsdk\geom            I ; (instance): from the base track +0x40 at time +0x10 sets the render globals 0x2dbfd14 / 0x2dbfd15 (scaled bytes), 0x5a9cfc and 0x2dbfd18, caller levelrender_draw_list
+0x5384f0  vfx_render_state_reset   func  vsdk\geom            O ; 0x5a9cfc = -1, 0x2dbfd14 / 0x2dbfd15 / 0x2dbfd18 = 0, caller levelrender_draw_list
+0x538510  vfx_instance__get_time_left func  vsdk\geom            O ; thiscall: 0 when stopped (flag 4) or no base, else max(0, (base length +0x12 - frame +0x10) * k + +0x14), used by 0x48d000 to detect finished effects
+0x538570  vfx_instance__ctor       func  vsdk\geom            I ; thiscall: vector at +0x48, then vfx_instance__clear, reached by no direct call
 0x538590  vfx_instance__get_base   func  vsdk\geom            O ; thiscall: effect_get_base(flags +0 >> 9), 13 callers in the vfx instance code
+0x5385a0  vfx_get_word_72          func  vsdk\geom            O ; (object): returns the word +0x72, caller vfx_instance_process
+0x5385b0  vfx_instance__list18_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x18 (next +0x90)
+0x5385d0  vfx_instance__list1c_item func  vsdk\geom            O ; thiscall (n): item of the list +0x1c (next +0x28), n counted in steps of 2
+0x5385f0  vfx_instance__list20_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x20 (next +0xa8)
+0x538610  vfx_instance__list24_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x24 (next +0xe0)
+0x538630  vfx_instance__list28_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x28 (next +0x24)
 0x538650  init_cmdline_param_fb2_thunk func  -                    O ; hidden start, initialiser table entry 0x5889dc: init_cmdline_param_fb2 then registers its destructor
 0x538660  init_cmdline_param_fb2   func  -                    O ; static initialiser: CmdLineParam "-fb2"
 0x538680  cmdline_param_fb2_register_dtor func  -                    O ; atexit(cmdline_param_fb2_dtor)
@@ -6284,17 +6551,24 @@
 0x538720  cmdline_param_rz_register_dtor func  -                    O ; atexit(cmdline_param_rz_dtor)
 0x538730  cmdline_param_rz_dtor    func  -                    O ; hidden start, atexit handler: CmdLineParam__dtor(cmdline_param_rz)
 0x538740  gr_d3d_set_render_state  func  vsdk\gr\directx\gr_direct3d.cpp O ; IDirect3DDevice7::SetRenderState (vtbl +0x50) on device 0x2dc6c40
+0x538760  gr_d3d_draw_primitive    func  vsdk\gr\directx\gr_direct3d.cpp O ; (type, verts, count, ...): with the vertex buffer (0x2dc6c31) locks it (+0xc), appends the 0x28-byte vertices (wraps at 1000), unlocks (+0x10) and DrawPrimitiveVB (device +0x7c), else DrawPrimitive (+0x64), callers gr_d3d_bitmap, gr_d3d_line, gr_d3d_line_3d, gr_d3d_tmapper
 0x538850  d3d_enumerate_ddraw_devices func  vsdk\gr\directx\gr_direct3d.cpp O ; DirectDrawEnumerateA with callback 0x5389f0, collects the device list (count 0x2dc6cac), caller gr_d3d_init_device
+0x538a70  gr_d3d_set_default_transforms func  vsdk\gr\directx\gr_direct3d.cpp O ; (device): SetTransform (vtbl +0x2c) world (1) and view (2) identity and the projection (3), callers gr_setup_3d, gr_d3d_init_device
 0x538b70  gr_d3d_set_window        func  vsdk\gr\directx\gr_direct3d.cpp I ; (hwnd): stores 0x2dc6c94, GetWindowRect/GetClientRect sizing, called by the gr init-context dispatcher 0x5061b0 for D3D
 0x538c70  ddraw_error_string       func  -                    O ; DirectDraw HRESULT -> message text
 0x5394e0 gr_d3d_init              func  vsdk\gr\directx\gr_direct3d.cpp O ; renderer 0x66
 0x539590  gr_d3d_begin_scene       func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::BeginScene
 0x5395c0 gr_d3d_init_device       func  vsdk\gr\directx\gr_direct3d.cpp O ; any failure -> exit(0) at 0x539b41
 0x53a170  d3d_pixel_format_masks_valid func  vsdk\gr\directx\gr_direct3d.cpp I ; (DDPIXELFORMAT*) walks the R/G/B (and alpha when DDPF_ALPHAPIXELS) masks bit by bit, caller gr_d3d_init_device
+0x53a1d0  d3d_enum_texture_format_callback func  vsdk\gr\directx\gr_direct3d.cpp I ; EnumTextureFormats callback (DDPIXELFORMAT*): keeps a 16-bit DDPF_BUMPDUDV (0x80000) format with 8-bit du/dv in 0x2dc2940 and other formats in 0x2dc6c54..0x2dc6c5c / 0x2dc0798 / 0x2dc2920, reached by no direct call
+0x53a360  gr_d3d_noop_hook         func  vsdk\gr\directx\gr_direct3d.cpp O ; empty function (ret), callers gr_d3d_init_device, gr_d3d_close, gr_d3d_flip
+0x53a370  d3d_compute_pixel_format_shifts func  vsdk\gr\directx\gr_direct3d.cpp O ; (surface desc): shift and 255 / max scale of the R (+0x58), G (+0x5c), B and alpha masks into 0x2dc05c8..0x2dc0604 / 0x2dc07b8..0x2dc07c4, caller gr_d3d_init_device
 0x53a4c0  d3d_enum_zbuffer_callback func  vsdk\gr\directx\gr_direct3d.cpp O ; EnumZBufferFormats callback: copies the 0x20-byte DDPIXELFORMAT when flags == DDPF_ZBUFFER (0x400) and stops
 0x53a4f0  gr_d3d_close             func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a5f0  gr_d3d_flip_surface      func  vsdk\gr\directx\gr_direct3d.cpp I ; gr_d3d_end_scene then primary surface Flip(NULL, DDFLIP_WAIT)
 0x53a610  gr_d3d_end_scene         func  vsdk\gr\directx\gr_direct3d.cpp O ; nesting counter 0x2dc6c64, IDirect3DDevice7::EndScene
+0x53a640  gr_d3d_close_thunk       func  vsdk\gr\directx\gr_direct3d.cpp O ; jmp gr_d3d_close, caller gr_close
+0x53a650  gr_d3d_flip_thunk        func  vsdk\gr\directx\gr_direct3d.cpp O ; jmp gr_d3d_flip, caller gr_flip
 0x53a660  gr_d3d_flip              func  vsdk\gr\directx\gr_direct3d.cpp I ; reached through a thunk
 0x53a7f0  gr_d3d_read_backbuffer   func  vsdk\gr\directx\gr_direct3d.cpp I
 0x53a8c0  gr_d3d_set_fog           func  vsdk\gr\directx\gr_direct3d.cpp O ; gr_set_fog back end: render states FOGENABLE (0x1c), fog mode/colour
@@ -6305,10 +6579,21 @@
 0x53ab80  gr_d3d_set_alpha_test    func  vsdk\gr\directx\gr_direct3d.cpp O ; render state ALPHAFUNC (0x19) = GREATER or ALWAYS, d3d back end of 0x508110
 0x53abb0  gr_d3d_flush_pipeline    func  vsdk\gr\directx\gr_direct3d.cpp I ; unless 0x5a9d34: back buffer Blt then GetBltStatus loop until done
 0x53ac00  guid_equal               func  -                    O ; 16-byte rep cmpsd compare, returns bool
+0x53ac20  ix_ray_polygon           func  -                    I ; (...): ray (radius 0) against a level-object polygon: plane from the points (Plane__Plane_points, Plane__distance_to_point), hit point, ix_point_in_polygon, edge cases 0x53cde0 / 0x53ae60, caller 0x4aea50 (lobj_raycast via 0x4aea00)
+0x53b6f0  ix_point_in_polygon      func  -                    O ; (point, normal, verts, count, ...): projects on the plane of the dominant normal axis (axis pairs 0x5abe9c/0x5abea0) and tests the point against the polygon edges, callers 0x4aea50, 0x4aec20, ix_ray_polygon
+0x53b930  ix_sphere_polygon_plane  func  -                    I ; (...): swept sphere against the polygon plane (project_onto_plane, 0x53ae60), caller 0x4aec20
+0x53bb50  ix_sphere_polygon_edge   func  -                    I ; (...): swept sphere against one polygon edge (closest approach with vector3__len_sq), caller ix_sphere_polygon
+0x53bf60  ix_sphere_polygon        func  -                    I ; (...): swept sphere (radius > 0) against a level-object polygon: plane, edges (ix_sphere_polygon_edge), vertices, segment boxes (ix_linesegment_boundingbox), caller 0x4aec20 (lobj_raycast via 0x4aea00)
 0x53ce30  ix_linesegment_box_oriented func  -                    O ; label string "ix_linesegment_box_oriented"
 0x53d100  ix_ray_box_oriented      func  -                    O ; label string "ix_ray_box_oriented"
 0x53d2d0  ix_ray_boundingbox       func  -                    O ; label string "ix_ray_boundingbox"
+0x53d4d0  ix_linesegment_boundingbox func  -                    I ; (...): segment against an axis-aligned box using slab tests (0x53d720), callers ix_sphere_polygon, ix_linesegment_box_oriented
+0x53d720  ix_slab_clip             func  -                    I ; (...): one axis slab of ix_linesegment_boundingbox (entry / exit parameters)
 0x53d7a0  ix_ray_sphere            func  -                    O ; label string "ix_ray_sphere"
+0x53d8f0  seg2d_intersect          func  vsdk\math            O ; (a0, a1, b0, b1, ...): 2D segment intersection by cross products, false when parallel or outside, caller 0x48d2b0 (spell area code)
+0x53da80  ix_point_linesegment     func  -                    I ; (point, a, b, out ...): closest point of segment a-b to the point, its distance and the subtended angle (acos of the normalized directions), callers pick_test_character, tiger_combat_update, sound_emitter_calc_volume / _pan / _doppler_b
+0x53de00  vector3__plus_scalar     func  vsdk\math            O ; thiscall (out, s): out = (x + s, y + s, z + s), caller ix_sphere_polygon
+0x53de40  vector3__minus_scalar    func  vsdk\math            O ; thiscall (out, s): out = (x - s, y - s, z - s), caller ix_sphere_polygon
 0x53dec0  init_cmdline_params      func  -                    O ; hidden start, initialiser table entry 0x5889e8: constructs the cmdline_params list head and registers its destructor
 0x53ded0  cmdline_params_ctor      func  -                    O ; CmdLineParam__CmdLineParam(cmdline_params, 0, 0, 1)
 0x53def0  cmdline_params_register_dtor func  -                    O ; atexit(cmdline_params_dtor)
@@ -6329,15 +6614,23 @@
 0x53e670  init_ccmd_use_buffered_alpha_polys_thunk func  -                    O ; hidden start, initialiser table entry 0x5889ec: jmp init_ccmd_use_buffered_alpha_polys
 0x53e680  init_ccmd_use_buffered_alpha_polys func  -                    O ; static initialiser: registers console command object ccmd_use_buffered_alpha_polys
 0x53e6a0  cmd_use_buffered_alpha_polys func  -                      O ; console command "use_buffered_alpha_polys": Toggles Use_buffered_alpha_polys
+0x53e760  gr_set_use_buffered_alpha_polys func  vsdk\gr              O ; (bool): Use_buffered_alpha_polys = arg & 0xff, caller LoadSettings
 0x53e770  gr_poly                  func  vsdk\gr              O ; (n, verts, ...): clips with 0x559490, projects with gr_project_vertex, defers alpha-blended polys to the 0x545150.. buffer when Use_buffered_alpha_polys, Dash Faction gr::poly has the same role
+0x53e9d0  gr_clip_and_project_poly func  vsdk\gr              I ; (n, verts, ...): gr_clip_polygon, gr_project_vertex of the result, gr_clip_free_temp_verts (0x26926f4 / 0x2692758), caller 0x48f8c0 (level render lists)
 0x53eae0  gr_bitmap_3d_projected   func  vsdk\gr              I ; builds a screen-aligned quad around a projected vertex from bm_get_dimensions and matrix_scale, then gr_poly
+0x53edd0  gr_bitmap_3d_oriented_quad func  vsdk\gr              O ; (...): builds an oriented quad (eh_vector_constructor_iterator of 4 gr__Vertex, bm_get_dimensions, gr_rotate_vertex, gr_code_vertex, gr_check_normal_facing) and draws it with gr_poly, caller gr_bitmap_3d_oriented
 0x53f3b0  gr_bitmap_3d             func  vsdk\gr              I ; (pos, a, b, c): rotate + project a point, then 0x53eae0 when projected (camera-facing sprite)
 0x53f410  gr_bitmap_3d_oriented    func  vsdk\gr              I ; same entry pattern as gr_bitmap_3d but draws through 0x53edd0 (quad with gr_check_normal_facing)
+0x53f470  gr_line_quad_3d          func  vsdk\gr              I ; (p0, p1, width, ...): camera-facing quad along p0-p1 (vector3__cross with the view direction, gr_rotate_vertex) drawn through the buffered poly path (0x545150, 0x5452c0, 0x545340), callers levelrender_draw_list, 0x562ca0
+0x53f720  gr_draw_sphere           func  vsdk\gr              I ; (pos, radius, mode): wire sphere / circle marker (gr_project_size, clamp_int segment count, gr__Vertex__assign), callers script_editor_draw_navpoints, lights_debug_draw
+0x53faf0  gr_draw_arrow_3d         func  vsdk\gr              I ; (pos, dir, size, mode): 3D lines (gr_line_3d) of an arrow / orientation marker, caller script_editor_frame for navpoints
+0x540790  gr__Vertex__assign       func  vsdk\gr              O ; thiscall (Vertex*): copies the 0x30-byte vertex field by field, caller gr_draw_sphere
 0x540810  init_ca_characters       func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f0: constructs ca_characters and registers the array destructor
 0x540820  ca_characters_ctor       func  vsdk\ca              O ; eh vector constructor (0x56db8c) of 200 ca_character (0x1f8 bytes) in ca_characters with ca_character__ca_character / ca_character__dtor
 0x540840  ca_characters_register_dtor func  vsdk\ca              O ; atexit(ca_characters_dtor)
 0x540850  ca_characters_dtor       func  vsdk\ca              O ; hidden start, atexit handler: eh vector destructor (0x56dc0e) over ca_characters
 0x540870  init_ca_character_2ee22f8 func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f4: constructs the object at 0x2ee22f8 (0x541970) and registers its destructor
+0x540880  ca_character_2ee22f8_ctor func  vsdk\ca              O ; mov ecx, 0x2ee22f8, jmp ca_character_holder__ctor, called from init_ca_character_2ee22f8
 0x540890  ca_character_2ee22f8_register_dtor func  vsdk\ca              O ; atexit(ca_character_2ee22f8_dtor)
 0x5408a0  ca_character_2ee22f8_dtor func  vsdk\ca              O ; hidden start, atexit handler: destructor 0x541960 on 0x2ee22f8
 0x5408b0  init_ca_string_pool      func  vsdk\ca              O ; hidden start, initialiser table entry 0x5889f8: constructs StringPool 0x2dc7070 and registers its destructor
@@ -6372,6 +6665,7 @@
 0x541760  character_release_all    func  vsdk\ca\character.cpp O ; character_release on every used character (flag 1) that is not locked (flag 2) in the 200-entry table
 0x541790  ca_load_preload_index    func  vsdk\ca\character.cpp  I ; reads count, size, 0x48-byte name entries and one data blob into 0x2de20c4
 0x5418f0  ca_preload_find          func  vsdk\ca\character.cpp  I ; (name, &offset, &size) in the preload index
+0x541970  ca_character_holder__ctor func  vsdk\ca              O ; thiscall: ca_character__ca_character, returns this (object 0x2ee22f8, destructor 0x541960)
 0x541980  skeleton__scalar_deleting_dtor func  vsdk\ca\skeleton.cpp O ; skeleton__dtor then operator_delete if flag 1
 0x5419a0  RecordExceptionInfo      func  exceptionhandler       O ; Bruce Dawson's ExceptionHandler.cpp (Game Developer 1999): appends a report to errorlog.txt beside Sum.exe
 0x541ec0  hprintf                  func  exceptionhandler       O ; printf to a file HANDLE (Dawson)
@@ -6389,6 +6683,7 @@
 0x542770  frand_range              func  -                    O ; (lo, hi): lo + frand() * (hi - lo), 18 callers
 0x542790  atan2_fast               func  vsdk\math              I ; fpatan with quadrant fix-up
 0x542800  sqrt_abs                 func  vsdk\math            O ; sqrt(-x) for negative x, else sqrt(x)
+0x542830  float_format_buf         func  vsdk\math            I ; (buf, value, size): formats a float digit by digit ("-" sign, "0.0" for zero, "." and "0" from 0x5ac8c8.., crt_floor), returns the length, 0 when size < 4, reached by no direct call (compare float_to_string 0x515700)
 0x542b50  cross_2d                 func  vsdk\math            O ; (ax, ay, bx, by): ax*by - ay*bx, caller 0x510ed0
 0x542b70  float_ptr_near_value     func  vsdk\math            O ; (float*, value): abs(*a - value) inside the epsilon pair 0x581930/0x581b74
 0x542ba0  float_near_ptr_value     func  vsdk\math            O ; (value, float*): same test with the operands swapped
@@ -6424,10 +6719,18 @@
 0x543c20  vim_find_tag             func  vsdk\ca\skeleton.cpp I ; (vim*, name) index of the 0x60-byte entry (array +0x60, count +0x64) whose name matches (_stricmp), -1
 0x543c70  vim_get_tag_transform    func  vsdk\ca\skeleton.cpp O ; (vim*, index, &matrix43) position +0x54 and orientation +0x44 of the 0x60-byte tag (array +0x60, count +0x64)
 0x543cd0  vim_bitmaps_loaded       func  vsdk\ca\skeleton.cpp O ; (vim*) true when every texture handle (+0x10, count +0x28) is > 0, caller character_load
+0x543d00  vim__vim                 func  vsdk\ca\skeleton.cpp O ; thiscall: trivial constructor (bounding centre vector +0x50), caller vim_alloc
+0x543d10  vim_header__ctor         func  vsdk\ca\skeleton.cpp O ; thiscall: centre vector +0x10 of the vim file header, callers vim_load_file, vim_reload_bitmaps
+0x543d20  skeleton__skeleton       func  vsdk\ca\skeleton.cpp I ; thiscall: vectors +0x68 (root displacement, skeleton__get_root_velocity) and +0x74, zeroes 0xd0 bytes, reached by no direct call
 0x543d50  skeleton_add             func  vsdk\ca\skeleton.cpp   O ; "Too many skeletons"
 0x543e10  skeleton__dtor           func  vsdk\ca\skeleton.cpp I ; frees skeleton arrays, only called by skeleton__scalar_deleting_dtor
 0x543fc0  skeleton__get_root_velocity func  vsdk\ca\skeleton.cpp I ; thiscall (&out): root displacement vector +0x68 divided by the duration (end +0x64 - start +0x60) in seconds
+0x544010  skeleton__get_root_rotation func  vsdk\ca\skeleton.cpp I ; thiscall (out quat, time): quaternion_slerp from identity to the root rotation +0x74 by time / duration (end +0x64 - start +0x60), normalized, reached by no direct call
 0x544090  skeleton_read            func  vsdk\ca\skeleton.cpp   O ; "FILE ISN'T MVFREDUCED AND HAS MORPHING!!!", "Skeletons using too much memory"
+0x544a10  ca_init_globals_2ee4598  func  vsdk\ca              O ; 0x2ee4598 / 0x2ee45a0 / 0x2ee45a4 = 0 and 0x2ee459c / 0x2ee45a8 = -1, caller ca_system_init
+0x544a50  skeleton_read_tag_record func  vsdk\ca\skeleton.cpp I ; (FileReader*, record): FileReader__read_int then three FileReader__read_vector into a 0x28-byte record, FileReader__error, caller skeleton_read_tag_records
+0x544a90  skeleton_read_tag_records func  vsdk\ca\skeleton.cpp I ; (reader, count, records): skeleton_read_tag_record for each 0x28-byte record, stops on error, caller skeleton_read
+0x544ad0  skeleton_node__ctor      func  vsdk\ca\skeleton.cpp I ; thiscall (index, matrix43): 0x544b20(0), vectors +4/+0x10/+0x1c, position +4 from the matrix (matrix43__get_position), callers skeleton_read (with identity_matrix43), 0x544b40
 0x544b20  anim_key__ctor           func  vsdk\ca              I ; thiscall (time): +0 = time, returns this, base of the skeleton key records, callers the 0x28-byte position key ctor 0x544ad0 and anim_rot_key__ctor
 0x544b30  anim_pos_key__get_size   func  vsdk\ca              I ; thiscall: returns 0x28, the stride of the position key array that skeleton_read allocates with ctor 0x544b60
 0x544b40  anim_rot_key__ctor       func  vsdk\ca              I ; eh_vector_constructor_iterator ctor of the 0x14-byte key array in skeleton_read: anim_key__ctor(0) plus the 12-byte member at +4
@@ -7391,6 +7694,8 @@
 0x59c594  Party_controller_check   data:bool -                      I ; set by console command "party_controller_check" (toggles); type inferred
 0x59c5e8  Snow_enabled             data:bool -                      I ; set by console command "snow" (toggles); type inferred
 0x59c5e9  Snow_render              data:bool -                      I ; set by console command "snow_render" (toggles); type inferred
+0x59db70  lamp_glow_bitmap         data:int -                    O ; bm_load("WolongLampGlow01.tga") handle set by lamp_glow_load, used by lamp_glow_draw
+0x59ddb0  murod_cure_statuses      data:int[4] -                    O ; status ids murod_try_self_heal cures with spell 1
 0x59e0fc  Do_frame_callback        data:bool -                      I ; set by console command "do_frame_callback" (toggles); type inferred
 0x59e794  savegame_thumbnail_bm    data:int -                    O ; bitmap handle created on the thumbnail section, 201x151
 0x59f120  cur_level_index          data:int -                    I ; index of the current level in level_script_table, used by the two-stage code and 0x4ddaf0
@@ -7608,20 +7913,31 @@
 0x2480910 ccmd_ghost_unlink        data:console_command -                      O ; console command object "ghost_unlink"
 0x2480928 ccmd_ghost_stage         data:console_command -                      O ; console command object "ghost_stage"
 0x2480938 ccmd_ghost_solo          data:console_command -                      O ; console command object "ghost_solo"
+0x2483564  lobj_face_marks          data:uint8_t[0x2000] -                    O ; face mark bitmap cleared each frame by lobj_face_marks_clear, set by projector_collect_lobj_faces
+0x2485564  lobj_face_mark_offsets   data:int16_t -                    O ; per level object start offset into lobj_face_marks (-1 when not flagged 0x440), built by lobj_face_marks_init
+0x24893e8  lamp_glows               data:void* -                    O ; lamp glow records 0x18 bytes {pos, size, alpha, ?}, lamp_glow_add / set / draw / fade
+0x248b008  lamp_glow_count          data:int -                    O ; number of lamp glow records (0x24893e8, 0x18 bytes), reset by lamp_glow_load / lamp_glow_forget, bumped by lamp_glow_add
 0x248b010 ccmd_machival_combat     data:console_command -                      O ; console command object "machival_combat"
+0x248b914  titus_turn_lock          data:bool -                    I ; set by titus_update_turn_lock, read by ai_combat_face_target and titus_get_attack_reach
 0x248b958 ccmd_titus_combat        data:console_command -                      O ; console command object "titus_combat"
 0x248b968 ccmd_titus_stage         data:console_command -                      O ; console command object "titus_stage"
 0x248b980 ccmd_darkjo_combat       data:console_command -                      O ; console command object "darkjo_combat"
+0x248bed8  evil_urath_leap_target   data:void* -                    O ; navpoint the evil Urath leap goes to (evil_urath_pick_teleport_point)
+0x248bf10  evil_urath_leap_height   data:float -                    O ; height offset held during the leap (evil_urath_hold_height)
 0x248bf28 ccmd_urath_combat        data:console_command -                      O ; console command object "urath_combat"
 0x248c778 ccmd_tentacle_test       data:console_command -                      O ; console command object "tentacle_test"
 0x248c788 ccmd_tentacles           data:console_command -                      O ; console command object "tentacles"
 0x248c7b0 ccmd_gsal_combat         data:console_command -                      O ; console command object "gsal_combat"
 0x248c7c0 ccmd_gs_stage            data:console_command -                      O ; console command object "gs_stage"
+0x248ce28  luminar_retarget_timer   data:GameTimer -                    O ; luminar_can_switch_target (5 s)
+0x248ce2c  luminar_attack_timer     data:GameTimer -                    O ; luminar_hold_attack / luminar_delay_next_attack
 0x248ce30 ccmd_stage               data:console_command -                      O ; console command object "stage"
 0x24902b8 ccmd_eax_save_props      data:console_command -                      O ; console command object "eax_save_props"
+0x24902c8  level_effects            data:void* -                    O ; level effect records (0x28 bytes: name, fx handle +0x20, flag +0x24), level_create_world_effects
 0x2490c68 ccmd_do_frame_callback   data:console_command -                      O ; console command object "do_frame_callback"
 0x2490c80 ccmd_dont_load_fx        data:console_command -                      O ; console command object "dont_load_fx"
 0x2490c90 ccmd_No_cutscenes        data:console_command -                      O ; console command object "No_cutscenes"
+0x2490dcc  level_effect_count       data:int -                    O ; count of level_effects
 0x2491a5c game_frozen             data:bool            -                 I ; GameTick sets reported_frametime = 0 when 1
 0x2493a15 Dont_load_fx             data:bool -                      I ; set by console command "dont_load_fx" (toggles); type inferred
 0x2493a16 No_cutscenes             data:bool -                      I ; set by console command "No_cutscenes" (toggles); type inferred
@@ -7636,14 +7952,20 @@
 0x24ed5f0 ccmd_door_toggle         data:console_command -                      O ; console command object "door_toggle"
 0x25388b0 ccmd_door_open           data:console_command -                      O ; console command object "door_open"
 0x25388c0  conversation_save_table  data:void*[357*4] -                    I ; 51 x 7 entries of 0x10: {conversation name, speaker count, topic count, ?}, sizes the conversation section
+0x2539f18  level_script_stringpool  data:StringPool -                    O ; level script string pool (init_stringpool_2539f18), used by script_editor_store_string
 0x253ef30 ccmd_door_close          data:console_command -                      O ; console command object "door_close"
 0x25443ac  Script_filenames_tbl_checksum data:uint32_t -                    O ; name from the printf string, written to header +0x1e4, not checked on load
 0x2546730 ccmd_dialogue_make_topic_unavailable data:console_command -                      O ; console command object "dialogue_make_topic_unavailable"
 0x2546740 ccmd_dialogue_make_topic_available data:console_command -                      O ; console command object "dialogue_make_topic_available"
 0x2546750 ccmd_dcamera             data:console_command -                      O ; console command object "dcamera"
+0x2546bd0  script_editor_hover_kind data:int -                    O ; kind of the object under the mouse, set by script_editor_pick_hover
+0x2546c10  script_editor_hover_object data:void* -                    O ; object under the mouse, set by script_editor_pick_hover
 0x2549d30 ccmd_render_s3d_navpoints data:console_command -                      O ; console command object "render_s3d_navpoints"
 0x254a8a0 ccmd_remove_nav          data:console_command -                      O ; console command object "remove_nav"
+0x255a008  script_editor_sel_kind   data:int -                    O ; editor selection kind (1 character, 2 navpoint, 3, 4), script_editor_show_selection_panel switch
+0x255a048  script_editor_sel_object data:void* -                    O ; selected character / navpoint / object of the script editor
 0x256b74a Render_s3d_navpoints     data:bool -                      I ; set by console command "render_s3d_navpoints" (toggles); type inferred
+0x2571750  cutscene_script_stringpool data:StringPool -                    O ; cutscene script string pool (init_stringpool_2571750), reset by cutscene_script_unload
 0x257ed10 ccmd_random_encounters   data:console_command -                      O ; console command object "random_encounters"
 0x257ed50 ccmd_iw                  data:console_command -                      O ; console command object "iw"
 0x257ef84 mouse_screen_w           data:int vsdk\os\mouse          I
@@ -7778,6 +8100,8 @@
 0x2710ec0 ccmd_high_lod            data:console_command -                      O ; console command object "high_lod"
 0x2722810 High_lod                 data:bool -                      I ; set by console command "high_lod" (toggles); type inferred
 0x2c90a60 ccmd_show_effect_mem     data:console_command -                      O ; console command object "show_effect_mem"
+0x2c9f978  vfx_instance_free_list   data:void* vsdk\geom            I ; free list of vfx instances (next +0x40, prev +0x44), vfx_instance_create
+0x2cb45c1  lights_dynamic_enabled   data:bool vsdk\gr              O ; lights_set_dynamic_enabled, lights_select_nearest skips dynamic lights (flag bit 15) when 0
 0x2cb5440 cmdline_param_nosound    data:CmdLineParam -                      O ; "-nosound"
 0x2cb5458  sounds                   data:Sound[0x280] -                    O ; 0x40-byte sound table filled by sounds_parse_table, Dash Faction rf::sounds (same 0x40 size)
 0x2cbf498  cquat_identity           data:cquat vsdk\math            O ; (0, 0, 0, 0x3fff) built by a static initializer

@@ -125,8 +125,8 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **5,249 / 5,548** game/engine functions named (94.6%), plus 2,002
-functions that Ghidra's analysis missed (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14): **every function in Ghidra's list is named** (5,547 / 5,548; the last entry is not a real
+function start), plus 2,007 functions that Ghidra's analysis missed (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -224,3 +224,18 @@ comparators and the lights API. Corrections, each checked: `chat_history_pump`, 
 Corrections: `vfx_mesh_render`, `init_ds_channels`, `ghost_revive_minions`; `xp_level +0x05` is a skill cap.
 `tools/addsym.mjs` now reads only the kind field when keeping entries in address order, because a comment
 containing "data:" had misplaced one entry.
+- 0x4bdce0-0x544ad0: all 298 named, plus 5 hidden callbacks whose Ghidra starts were case blocks inside them. Areas:
+  generic AI combat sub-modes and spell choosers, the remaining bosses, decals, lamp glows, dialogue boxes, the script
+  editor, vfx/vif, D3D render states (`gr_d3d_set_state`, V, Dash Faction), the clipboard.
+
+**State after the six passes:** about 8,240 symbols. 6,089 are **O** (seen in the code), 179 **V** (confirmed by a
+reference project) and 1,968 **I** (inferred). The **I** entries are the main thing to improve: re-check them where the
+behaviour matters, and raise them to **O** or rename them. Spot checks of every agent batch found about one wrong name
+per 300-500, each corrected before merging.
+
+**Next for the decompilation:**
+1. Raise the confidence of the **I** names in the game layers.
+2. Type the remaining data globals.
+3. Split the binary into translation units with the [source-file map](sum-exe/source-map.md) and the initialiser
+   table order. Each translation unit's static initialisers are adjacent in the table.
+4. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
