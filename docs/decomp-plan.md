@@ -119,7 +119,7 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result: 3,240 functions written (37.5%). Of these, 2,099 match the
-disassembly exactly as far as can be read, 1,034 likely, 55 unsure. All 98 files compile against one header tree
+disassembly exactly as far as can be read, 1,034 likely, 55 unsure. All 100 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.
