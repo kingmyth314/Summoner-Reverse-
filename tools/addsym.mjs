@@ -39,7 +39,9 @@ for (const raw of readFileSync(input, "utf8").split(/\r?\n/)) {
   let idx = -1;
   for (let i = 0; i < lines.length; i++) {
     const x = addrOf(lines[i]);
-    if (x === null || /\sdata:/.test(lines[i]) !== isData) continue;
+    // Use the kind field only: comments may contain "data:" too.
+    const lineKind = lines[i].split(";")[0].trim().split(/ +/)[2] ?? "";
+    if (x === null || lineKind.startsWith("data") !== isData) continue;
     if (x > v) { idx = i; break; }
     idx = i + 1;
   }

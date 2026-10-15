@@ -421,7 +421,7 @@ typedef struct char_info {
 typedef struct xp_level {
     int32_t xp;              // +0x00 experience needed (0, 0, 100, 200, 450, ...)
     uint8_t skill_points;    // +0x04 skill points gained at this level (2)
-    uint8_t level;           // +0x05 the level number
+    uint8_t skill_cap;       // +0x05 per-level skill cap (xp_level_skill_cap: read as a float; 1.0 below level 1, 10.0 above 20). Equals the level number in the early levels
     struct {                 // +0x06 one group per species (char_info +0x10); read as two pairs by 0x489a30
         uint8_t hp_gain;     //   (hp_gain, hp_extra) and (ap_gain, ap_extra); the second value of each pair
         uint8_t ap_gain;     //   was 0 in the levels checked (perhaps a random range)
@@ -537,7 +537,7 @@ typedef struct ai_state {
     int32_t target;          // +0x60 target handle
     uint8_t _unk64[0x28];
     uint8_t goals[5][0x34];  // +0x8C goal slots
-    int32_t cur_goal;        // +0x190 current goal index
+    int32_t cur_goal;        // +0x190 current goal; compared with a handle in ai_goal_evaluate, so possibly the goal target rather than an index
     uint8_t _unk194[0x7c];
     void*   path;            // +0x210 current path (ai_path_free; an earlier note said +0x80, which was wrong)
 } ai_state;

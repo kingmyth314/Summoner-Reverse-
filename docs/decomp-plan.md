@@ -125,8 +125,7 @@ Windows restart.
 
 ## Where we start
 
-Phase 0 is complete. Progress (2026-10-14): **4,655 / 5,548** game/engine functions named (83.9%), plus 1,982
-functions that Ghidra's analysis missed (console-command initialisers and callbacks, level-script handlers).
+Phase 0 is complete. Progress (2026-10-14): see the sixth pass below (console-command initialisers and callbacks, level-script handlers).
 
 | Module | Status | Page |
 |---|---|---|
@@ -214,3 +213,13 @@ handlers, message-box and UI callbacks, script-editor buttons, multiplayer join 
 comparators and the lights API. Corrections, each checked: `chat_history_pump`, `mp_pack_player_info`,
 `register_atexit_4d5110`, `dialogue_topic_box__ctor`, `register_atexit_439e60`, `init_chain_skill_names` and
 `light_set_all_enabled`. The initialiser table has 652 entries, not 712.
+
+**2026-10-14, sixth parallel pass:** each agent got an exact list of about 300 of the remaining unnamed functions.
+- 0x40acc0-0x4bd9c0: 297 of 298 named (the last one is not a real function start).
+- 0x544b20-0x566b10: all 297 named, plus 20 newly found function starts. This covered the sorted transparent-polygon
+  buffer, the texture caches of all three renderers, animation key tracks, the VFX system, and Ken Perlin's reference
+  noise.
+
+Corrections: `vfx_mesh_render`, `init_ds_channels`, `ghost_revive_minions`; `xp_level +0x05` is a skill cap.
+`tools/addsym.mjs` now reads only the kind field when keeping entries in address order, because a comment
+containing "data:" had misplaced one entry.
