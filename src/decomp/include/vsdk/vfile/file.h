@@ -131,6 +131,10 @@ void file_strip_ext(char *out, const char *name);                     // 0x51310
 int  file_make_path_dirs(int path_id);                                // 0x5131e0 nonzero = failure
 // install path + directory of path_id + name into out (return value not used by the pilots).
 void file_make_path(int path_id, const char *name, char *out);       // 0x512b30
+// decomp49 (file_packfile.cpp): the part after the last backslash of path into out (return unused).
+void file_get_filename(char *out, const char *path);                  // 0x513160
+extern char install_path[];          // 0x26b4168 hard drive root (packfile_load_hdd, packfile_add, packfile_fopen)
+extern char cd_root_path[256];       // 0x26b627c CD root (packfile_load_cd, packfile_add, packfile_fopen)
 bool file_exists_on_disk(const char *name, int path_id);             // 0x513710 _stat of file_make_path
 void file_delete(const char *name, int path_id);                     // 0x513770 (return unused)
 // Deletes every match of pattern in path_id smaller than 10 bytes (failed downloads).

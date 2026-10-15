@@ -17,6 +17,7 @@
 #include "vsdk/gr/gr.h"
 #include "vsdk/os/cmdline.h"
 #include "vsdk/gr/directx/d3d_min.h"
+#include "vsdk/os/mouse.h"     // clamp_int (moved there by decomp49, D2902)
 
 // ---- records -------------------------------------------------------------------------------------------
 // The vertex every draw call sends (0x28 bytes, FVF 0x2c4: XYZRHW, diffuse, specular, two texture
@@ -210,9 +211,5 @@ void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h
 // decomp40 (gr.cpp dispatch): (bm): the dirty flag of the bitmap's entry / release of its slots.
 void gr_d3d_mark_texture_dirty(int bm);               // 0x54d3f0
 void gr_d3d_tcache_free(int bm);                      // 0x54d430
-
-// ---- not in a written unit yet --------------------------------------------------------------------------
-// (*v, lo, hi): *v = lo below, hi above (module "-", next to frametime.cpp).
-void clamp_int(int *v, int lo, int hi);               // 0x501450
 
 #endif

@@ -2268,3 +2268,63 @@ itemtrade_gold_input_active (0x5c1590, already defined by new_itemtrade.cpp),
 worldmap_load_overlay / worldmap_frame (key in, key out) /
 worldmap_draw_locations (0x42f320 / 0x42f500 / 0x42fa80), item_info_popup_load_bitmaps (0x4185a0), and the
 manager's own functions and globals. elevator_popup_frame is called from new_multi.h (decomp47), not redeclared.
+
+## decomp49: file_packfile.cpp, mouse (vsdk/mouse.cpp), exceptionhandler (vsdk/exceptionhandler.cpp), multi_door.cpp, new_int_multi_update.cpp
+
+**D2900 (vsdk/vfile/packfile/file_packfile.h). packfile_add returns int.** decomp42 declared it void (level_load
+ignores the result). It returns 1 for an already loaded packfile (`mov eax, 1` at 0x53449c), 0 when the file
+is not found or there is no room (0x53458c), and otherwise the result of packfile_load_cd / packfile_load_hdd
+(tail at 0x534558 / 0x534576, EAX kept). Only the return type changes: the one definition is new
+(file_packfile.cpp) and gameplay.cpp's three calls are statements, so no call or definition needed a change.
+
+**D2901 (file_packfile.h). Packfile / PackfileEntry layouts differ from symbols/types.h.** packfile_add stores
++0x20 as a dword (`sete cl` / `mov [esi+0x20], ecx`, 0x53453b) and clears the dword +0x24 (0x53453e): types.h
+has `uint8 flags; uint8 _pad[7]`; the header keeps two ints (`flags` is still tested as a byte everywhere, which
+is how VC6 tests `int & 1`). +0x30 is not the directory size (types.h, the sum.symbols comment of
+packfile_check_header) but header dword 3, the size of the whole .vpp: packfile_read_whole_file compares the
+caller's buffer size with it (0x534927) and freads that many bytes of the .vpp from offset 0 (0x534972); named
+`file_size` (docs/sum-exe/vsdk-packfile.md already calls it "total size"). PackfileEntry::hash is int (signed
+`cdq / idiv` at 0x533f1f and 0x534619; packfile_hash returns abs) and ::size is unsigned (`shr esi, 0xb` after
+the 0x7ff round-up, 0x5340fb). hdd_file / cd_file are FILE * (fclose / fread / fseek on them). types.h is the C
+reference and was not edited; the differences are noted for its maintainer.
+
+**D2902 (vsdk/os/mouse.h, vsdk/gr/directx/gr_direct3d.h). clamp_int moves to mouse.h and is defined in
+mouse.cpp.** gr_direct3d.h declared it under "not in a written unit yet" (module "-"). The function
+(0x501450-0x501468) follows the mouse unit's implicit mouse_button constructor (0x501440) and precedes
+frametime.cpp's first initialiser (0x501470, table entry 0x5887cc right after the mouse unit's 0x5887c4 /
+0x5887c8), so it is the mouse object's last function (possibly an out-of-line header function the object
+emitted). The declaration moved to mouse.h; gr_direct3d.h includes vsdk/os/mouse.h so gr.cpp and
+gr_direct3d.cpp still see it. mouse.h includes only vsdk.h and vsdk/os/timestamp.h (no windows.h or dinput.h,
+which would clash with d3d_min.h).
+
+**D2903 (mouse.h). DirectInput is never used in v1.40.** mouse_use_cursor (0x5a5734) is initialised to 1 in
+.data and its only writer is mouse_init (`mov dword ptr [0x5a5734], 1`, 0x500e59); mouse_di_init returns -1 at
+once when it is 1 (0x500e96). So DirectInputCreateA (import 0x57e02c) is never called, mouse_di_read is dead,
+and mouse_update always takes the GetCursorPos path. The mouse-look re-centring is dead as well:
+keep_mouse_centered (0x257f031) is written only by mouse_keep_centered_enable / _disable, and mouse_hidden only
+by mouse_set_hidden / mouse_set_visible, none of which has a caller. Comment only.
+
+**D2904 (mouse, exceptionhandler). File names are placeholders.** Neither unit has an assert or a path string
+(neither calls DebugError). The mouse unit is written as vsdk/mouse.cpp (sum.symbols tag vsdk\os\mouse) and the
+crash reporter as vsdk/exceptionhandler.cpp (tag "exceptionhandler", the name of Bruce Dawson's
+ExceptionHandler.cpp, whose strings and structure the object matches); both file comments say so. The
+headers vsdk/os/mouse.h and vsdk/os/exceptionhandler.h keep their names.
+
+**D2905 (exceptionhandler). The report helpers are file-static.** hprintf, RecordModuleList, ShowModuleInfo,
+PrintTime, RecordSystemInformation, GetExceptionDescription and GetFilePart are called only from this unit
+(direct calls, no other references), so the .cpp makes them static and exceptionhandler.h keeps only
+RecordExceptionInfo. `static` is ours (it does not change VC6's code). RecordExceptionInfo returns
+EXCEPTION_CONTINUE_SEARCH (0) on every path (0x541a99, 0x541ea9): WinMain's __except body is never entered and
+the exception continues to the system's unhandled-exception handling after errorlog.txt is written; the
+summoner.cpp comment "the result stays -1 then" describes a path that is not taken. Comment only.
+
+**D2906 (os.h, file.h, multi.h, new_int_multi_update.h, file_packfile.h, mouse.h). New declarations, no
+conflict.** os_foreground (0x530c10, returns the byte is_main_wnd_active); file_get_filename (0x513160,
+(out, path)), install_path (0x26b4168) and cd_root_path (0x26b627c, char[256]) in file.h (summoner.cpp's
+LoadSettings has a local install_path[260], which only shadows the global); MP_DOOR_TG 0x28 / MP_DOR_PCK 0x29
+and the five other multi_door.cpp functions in multi.h (send counters 0x595624 / 0x595640 = mp_packet_table[t]
++0x0c); the version check's remaining functions and globals (version_check_need_registry 0x58bd34 and
+version_check_need_fetch 0x58bd38, names ours); the packfile unit's records, globals and functions; the mouse
+unit's globals (those of windows / dinput types stay in the .cpp) and functions. door_find_by_mesh,
+version_check_run, version_check_status_text, packfile_read_whole_file, packfile_find_in_packfile and the nine
+old mouse declarations keep their signatures.

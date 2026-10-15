@@ -9,6 +9,7 @@
 void os_init(const char *company, const char *app);   // 0x530d10 single-instance mutex, CoInitialize, window
 void os_poll();                                       // 0x530ca0 message pump wrapper (Dash Faction name)
 HWND os_get_main_wnd();                               // 0x530c00 main_wnd (0x2cbff10)
+bool os_foreground();                                 // 0x530c10 is_main_wnd_active (0x2cbff1c; decomp49, mouse_set_pos)
 void os_close_main_window();                          // 0x531260 ReleaseMutex, PostMessage(WM_DESTROY)
 void os_seed_random(int seed);                        // 0x531280 -1 = srand(time(0))
 // decomp45 (gr_glide.cpp): the window procedure (0x531000) calls every registered handler with

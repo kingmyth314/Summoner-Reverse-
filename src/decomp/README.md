@@ -38,6 +38,9 @@ Rules:
 | `vsdk/stringpool.cpp` | `vsdk\os\stringpool.cpp` | 16 | 14 / 2 / 0 |
 | `vsdk/plainstring.cpp` | `plainstring.cpp` (folder not known; Summoner 2 name) | 20 | 12 / 8 / 0 |
 | `vsdk/parse.cpp` | `vsdk\parse\parse.cpp` (TextFile) | 51 | 32 / 18 / 1 |
+| `vsdk/file_packfile.cpp` | `vsdk\vfile\packfile\file_packfile.cpp` | 24 | see `NOTES-packfile-mouse-exception.md` (50 / 23 / 0 for the five files) |
+| `vsdk/unnamed_mouse_0x500a30.cpp` | mouse module `0x500a30`-`0x501468` (**name not known**) | 30 | |
+| `vsdk/unnamed_exceptionhandler_0x5419a0.cpp` | exception handler `0x5419a0`-`0x5424fa` (**name not known**; functions as in Bruce Dawson's ExceptionHandler.cpp) | 8 | |
 | `vsdk/matrix.cpp` | `vsdk\math\matrix.cpp` | 48 | 27 / 20 / 1 |
 | `vsdk/skeleton.cpp` | `vsdk\ca\skeleton.cpp` | 27 | 15 / 12 / 0 |
 | `vsdk/character.cpp` | `vsdk\ca\character.cpp` | 46 + 3 | 25 / 22 / 2 |
@@ -76,6 +79,7 @@ Rules:
 | `game/gametarget.cpp` | `gametarget.cpp` | 26 | 12 / 14 / 0 |
 | `game/multi_chattracker.cpp` | `multi_chattracker.cpp` | 20 | 11 / 9 / 0 |
 | `game/multispell.cpp` | `multispell.cpp` | 22 | 16 / 6 / 0 |
+| `game/multi_door.cpp`, `game/new_int_multi_update.cpp` | | 6 + 5 | |
 | `game/multiendgame.cpp`, `new_multi.cpp`, `multiplayerdata.cpp`, `summoner_cd.cpp`, `pathfinding_visibility.cpp` (`engine\ai\`) | one file each | 48 | 17 / 29 / 2 (see `NOTES-multi-small.md`; summoner_cd is written without the no-CD byte patch the shipped exe carries, D2600) |
 | `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
 | `game/living_entity.cpp` | `living_entity.cpp` (unoptimised) | 166 | 97 / 69 / 0 |

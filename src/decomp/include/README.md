@@ -44,13 +44,13 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/frametime.h` | frametime.cpp (pilot) | frame time globals and functions |
 | `vsdk/os/timer.h` | timer.cpp | `timer_init`, `timer_get`, `timer_wait` |
 | `vsdk/os/os.h` | vsdk\os (0x530c00-0x531280; file name guessed, decomp26) | `os_init`, `os_poll`, `os_get_main_wnd`, `os_close_main_window`, `os_seed_random` |
-| `vsdk/os/exceptionhandler.h` | exceptionhandler (0x5419a0; directory and file name guessed, decomp26) | `RecordExceptionInfo` |
+| `vsdk/os/exceptionhandler.h` | exceptionhandler (0x5419a0-0x5424fa; source at src/decomp/vsdk/exceptionhandler.cpp, directory and file name placeholders, decomp26 / decomp49) | `RecordExceptionInfo` (the helpers are file-static, D2905) |
 | `vsdk/os/registry.h` | `vsdk\os\registry.cpp` (pilot) | `os_registry_*` |
 | `vsdk/os/cmdline.h` | `vsdk\os\cmdline.cpp` (pilot) | `CmdLineParam`, `cmdline_*` |
 | `vsdk/os/console.h` | console.cpp (0x50a000-0x50af59, decomp44) | `console_command`, `ARG_*` / `TOKEN_*` / `CHAR_*`, the console globals and functions, `string_buffer` |
 | `vsdk/os/norlsallocpool.h` | norlsallocpool.cpp (0x532360-0x532653; source at src/decomp/vsdk/norlsallocpool.cpp, decomp44; directory guessed) | `NoRlsAllocPool` |
 | `vsdk/os/stringpool.h` | `vsdk\os\stringpool.cpp` (decomp22) | `StringPool` |
-| `vsdk/os/mouse.h` | vsdk\os\mouse | `mouse_*` |
+| `vsdk/os/mouse.h` | vsdk\os\mouse (0x500a30-0x501468; source at src/decomp/vsdk/mouse.cpp, file name a placeholder, decomp49) | `mouse_button`, the unit globals, every `mouse_*`, `clamp_int` (D2902) |
 | `vsdk/os/key.h` | key (0x509ca0) | `KEY_*` scan codes, `key_to_ascii`, `key_names` |
 | `vsdk/os/vstring.h` | String (0x5567f0) | `String`, the String `operator+` |
 | `vsdk/os/plainstring.h` | plainstring.cpp (0x514ec0-0x515955, decomp22; directory guessed) | `is_blank`, `trim_*`, `stristr`, `int_to_string*`, `wide_charmap_*`, ... |
@@ -62,7 +62,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
 | `vsdk/vfile/linefile.h` | LineFile (0x558340-0x558a40; unit, directory and file name not known, decomp44) | `LineFile` (what load_script uses), `LineFile_open` |
-| `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` | `packfile_read_whole_file`, `packfile_find_in_packfile` |
+| `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` (0x533db0-0x534a1b, decomp49) | `Packfile`, `PackfileEntry`, `PackfileLookup`, `packfile_header`, the unit globals, every `packfile_*` (D2900, D2901) |
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` (decomp31) | `bitmap_entry`, `BM_TYPE_*` / `BM_ANIM_*` / `BM_FORMAT_*`, the unit's globals, every `bm_*`, `progress_update` |
 | `vsdk/bmpman/targautils.h` | `vsdk\bmpman\targautils.cpp` (pilot) | TGA / PCX / m2v, `m2v_bitstream` |
@@ -123,7 +123,7 @@ Summoner 2 and Dash Faction give names only.
 | `summoner/interface/new_multi.h` | new_multi.cpp (0x41dde0-0x41e3cf, decomp47) | the multiplayer elevators (ui_screen_stop_player stays in interface.h) |
 | `summoner/interface/interface.h` | the interface manager 0x411270-0x414cb0 (`game/unnamed_interface_0x411270.cpp`, file name a placeholder; decomp48), new_hud / new_inventory helpers | screen switch and dispatch, view clip, button records, popups, tooltip, HUD message lines, colours, model lights, `new_icam`, show_ui |
 | `summoner/interface/new_pxo_banner.h` | `new_pxo_banner.cpp` | `open_url` |
-| `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` | `version_check_run` |
+| `summoner/interface/new_int_multi_update.h` | `new_int_multi_update.cpp` (0x410cf0-0x411260, decomp49) | `version_check_*`, `version_read_nfo_file` |
 | `summoner/interface/new_*.h` | `new_*.cpp` (pilots) | the screen units' prototypes |
 | `summoner/interface/new_skill.h`, `new_spell.h`, `new_tutorial.h` | new_skill.cpp, new_spell.cpp, new_tutorial.cpp (not pilots) | the functions and data the HUD and the inventory call |
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests, `level_trigger`, `script_action` (decomp41) |

@@ -91,6 +91,8 @@ void mp_send_swi_hide(Character *c);                  // 0x488b00 SWI_HID
 #define MP_CNT_OPN 0x25
 #define MP_CNT_CLS 0x26
 #define MP_CNT_PCK 0x27
+#define MP_DOOR_TG 0x28
+#define MP_DOR_PCK 0x29
 #define MP_IT_RQST 0x2a
 #define MP_IT_DENY 0x2b
 #define MP_IT_ACPT 0x2c
@@ -262,8 +264,17 @@ typedef mp_char_record mp_char_profile;
 
 void mp_send_equip_item(Character *c, int slot, int type);   // 0x4878a0 packet 0x33 (return unused)
 void mp_send_unequip_item(Character *c, int slot);           // 0x487a70 packet 0x41 (return unused)
-// multi_door.cpp: (player id, level object index, open) the host's door toggle (object_try_unlock_or_open).
+// multi_door.cpp (0x4aa780-0x4aac05, strings.tbl id 246; decomp49): the host's door changes. A level object
+// is named by its index in lobjs ("mesh id"). (player id, lobj index, open): the host's toggle
+// (object_try_unlock_or_open) or a client's service request 4 / 5 (mp_handle_srv_req).
 void door_find_by_mesh(int player_id, int lobj_index, int open);   // 0x4aa8e0 (return unused)
+void mp_handle_door_toggle(ubyte *data, void *from);               // 0x4aa780 DOOR_TG (lobj index, open)
+// DOR_PCK (player id, lobj index, result 0 picked / 1 failed / 2 not locked).
+void mp_handle_door_lockpick(ubyte *data, void *from);             // 0x4aa7d0
+void mp_send_door_toggle(int lobj_index, int open);                // 0x4aa9c0 broadcast
+// (player id, lobj index): a client's service request 7 (mp_handle_srv_req), the host rolls the pick.
+void door_pick_by_mesh(int player_id, int lobj_index);             // 0x4aaa10
+void mp_send_door_lockpick(mp_player *p, int lobj_index, int result);   // 0x4aab90
 
 #include "summoner/multi/multiplayerdata.h"
 #include "summoner/multi/multiendgame.h"
