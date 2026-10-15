@@ -10,7 +10,7 @@ nav_order: 6.33
 Every story cutscene in Summoner runs in the game engine, not as a movie. A cutscene is a
 `cutscene.tbl` entry. It has camera files (`.csc`), effects, a streamed soundtrack, fades, fog
 keys, and an optional `<name>_cscript.tbl` script that moves the actors. `cutscene_play`
-(`0x4361d0`) saves and hides the gameplay state and sets `game_debug_flags` bit `0x20`.
+(`0x4361d0`) saves and hides the gameplay state and sets `game_flags` bit `0x20`.
 `cutscene_sequence_update` (`0x436a90`) then steps through the camera shots on wall-clock time,
 and `cutscene_cleanup` (`0x436620`) puts everything back. Esc skips a cutscene unless it has
 `+NoAbort`. **Observed** (code and the retail tables), not yet tested in agent mode.
@@ -72,7 +72,7 @@ whatever the name. No retail entry uses it. **Observed.**
 
 `script_play_cutscene(name, continuation)` checks three things. At least one party member must
 be alive. The console toggle `No_cutscenes` (`0x2493a16`) must be off. The game must not be
-multiplayer (`game_debug_flags` bit 2). **Observed.** If cutscenes are off or it is multiplayer,
+multiplayer (`game_flags` bit 2). **Observed.** If cutscenes are off or it is multiplayer,
 it calls the continuation at once. If no party member is alive it does nothing. **Observed.**
 Otherwise it saves `level_script_frame_fn` (`0x24902ac`) in `cutscene_saved_frame_fn`
 (`0x2493a04`). It installs `script_cutscene_done` (`0x4ccdf0`) as the frame function, stores the
@@ -117,7 +117,7 @@ In order (**observed**):
     needed, and save four flags in `cutscene_saved_actors` (`0x5fcce8`). The flags are
     `+0x320` bits `0x2`, `0x20`, `0x2000000` (armour alt texture) and `+0x84` bit 0.
 11. Clear the hover tints. `gr_set_cfg_34_flag(1)`. `frame_show_loading_icon = 1`. Set
-    `game_debug_flags |= 0x20 | 0x8000`.
+    `game_flags |= 0x20 | 0x8000`.
 
 Bit `0x8000` makes `FrameEnd` skip one `gr_flip` and then clears itself, so one frame is never
 shown. **Observed.** Bit `0x20` means "cutscene running". It gates `cutscene_sequence_update`,
@@ -154,7 +154,7 @@ cutscene. When `end[i] - cutscene_time_offset - t <= 0` it moves to the next sho
 - Every shot calls `camera_start_sequence` (`0x4792c0`) with its record.
   `cutscene_camera_sequence_sample` (`0x494310`) samples the position and rotation tracks
   (`anim_track__get_position` / `get_rotation`) from the same `timeGetTime` clock.
-- After the last shot it calls `cutscene_cleanup`. If `game_debug_flags` bit `0x8` is set it then
+- After the last shot it calls `cutscene_cleanup`. If `game_flags` bit `0x8` is set it then
   calls `gameseq_set_state(1)`.
 
 The clock is unsigned time put through a signed 64-bit load. That is the ~24.9-day uptime bug in
@@ -235,7 +235,7 @@ the next frame. *Inferred.* `stop_cutscene` also calls `cutscene_cleanup`.
 ## Console cutscenes and pending playback
 
 `play_and_load_cutscene` calls `cutscene_change_level_for` (`0x437400`). It finds the entry,
-calls `game_change_level($Level, $Script)`, sets `game_debug_flags |= 0x18`, and stores the name
+calls `game_change_level($Level, $Script)`, sets `game_flags |= 0x18`, and stores the name
 in `cutscene_pending_name` (`0x609f38`). **Observed.** When the level is entered,
 `cutscene_play_escape` clears bit `0x10`. If a name is pending it locks input and plays it.
 **Observed.** For "Tiger-Escape", "Serpent-Escape" and "PHNX-Escape" it first sets the boss stage

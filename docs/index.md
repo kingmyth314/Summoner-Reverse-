@@ -37,7 +37,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 | Sum.exe contains a complete OpenGL renderer that its settings code never selects | Observed |
 | With SummonerFix, the OpenGL renderer reaches the main menu on Windows 11 (windowed) | Observed 2026-10-12 |
 | Start New Game crashes when no audio device is present (`snd_init` leaves sound half-enabled) | Observed and fixed 2026-10-14 |
-| The retail game still contains Volition's level script editor, gated by `game_debug_flags` bit `0x80` | Observed and tested 2026-10-14 |
+| The retail game still contains Volition's level script editor, gated by `game_flags` bit `0x80` | Observed and tested 2026-10-14 |
 | World map encounters: one 50% roll every 10 s while moving | Observed |
 
 ## Evidence levels

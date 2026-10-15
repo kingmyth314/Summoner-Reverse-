@@ -111,7 +111,7 @@
 0x405900  buysell_sell_item        func  new_buysell.cpp      O ; party_inventory_find_type, sound 0x2b, party_gold += price, party_inventory_remove, rebuild list, item_page_out_all(0x12)
 0x4059a0  buysell_button_action    func  new_buysell.cpp      O ; button switch: scroll, category jumps, buy/sell, close
 0x405ba0  buysell_goto_status      func  new_buysell.cpp      O ; clears button flags, interface_set_screen(2)
-0x405bc0  buysell_goto_inventory   func  new_buysell.cpp      O ; clears button flags, interface_set_screen(1) (screen 10 journal when game_debug_flags bit 0)
+0x405bc0  buysell_goto_inventory   func  new_buysell.cpp      O ; clears button flags, interface_set_screen(1) (screen 10 journal when game_flags bit 0)
 0x405c00  buysell_scroll_up        func  new_buysell.cpp      O ; scroll pos--
 0x405c20  buysell_scroll_down      func  new_buysell.cpp      O ; scroll pos++
 0x405c50  buysell_goto_weapons     func  new_buysell.cpp      O ; scroll to buysell_category_first_index(0), category order from buysell_category_tooltip (checked: buysell_category_first_index(0) clamped to list size - page rows, stored as scroll 0x5b2db8, jmp buysell_update_scrollbar)
@@ -491,7 +491,7 @@
 0x4165c0  inventory_page_up        func  new_inventory.cpp    O ; scroll pos 0x5bd970 -= page
 0x4165f0  inventory_page_down      func  new_inventory.cpp    O ; scroll pos += page
 0x416620  inventory_button_action  func  new_inventory.cpp    O ; button switch: close, party members, scroll, category jumps
-0x4167e0  inventory_goto_other_screen func  new_inventory.cpp    O ; clears bits 0x6 of 0x5c100c, then interface_set_screen 7 (buy/sell) when ui_has_owner_character, else 10 (journal) when game_debug_flags bit 0x1, else 2 (status), caller inventory_button_action (checked: interface_set_screen 7 when ui_has_owner_character, 10 when debug bit 1, else 2, caller inventory_button_action)
+0x4167e0  inventory_goto_other_screen func  new_inventory.cpp    O ; clears bits 0x6 of 0x5c100c, then interface_set_screen 7 (buy/sell) when ui_has_owner_character, else 10 (journal) when game_flags bit 0x1, else 2 (status), caller inventory_button_action (checked: interface_set_screen 7 when ui_has_owner_character, 10 when debug bit 1, else 2, caller inventory_button_action)
 0x416840  inventory_goto_status    func  new_inventory.cpp    O ; clears button flags, interface_set_screen(2)
 0x416860  inventory_prev_member    func  new_inventory.cpp    O ; statscreen_show_prev_member(1)
 0x416870  inventory_next_member    func  new_inventory.cpp    O ; statscreen_show_next_member(1)
@@ -766,7 +766,7 @@
 0x421900  playmenu_update_buttons  func  new_playmenu.cpp     O ; mouse_is_down -> playmenu_button_action
 0x4219c0  playmenu_button_action   func  new_playmenu.cpp     O ; new game, save (playmenu_open_save), load, options, quit
 0x421aa0  playmenu_confirm_new_game func  -                    O ; only caller playmenu_button_action (not the main menu): ui_message_box_show L Are you sure? titled L New game, cb 0x421ae0 (formerly mainmenu_confirm_new_game)
-0x421ae0  mainmenu_confirm_new_game_cb func  -                    O ; hidden start, message box callback pushed by playmenu_confirm_new_game: button 0 mainmenu_start_new_game and game_debug_flags or= 0x8000
+0x421ae0  mainmenu_confirm_new_game_cb func  -                    O ; hidden start, message box callback pushed by playmenu_confirm_new_game: button 0 mainmenu_start_new_game and game_flags or= 0x8000
 0x421b00  playmenu_open_save       func  -                    O ; savegame_location_allowed then interface_set_screen(8) (save/load), else L Cannot save ... boxes, play menu twin of hud_key_save (formerly playmenu_check_save_allowed)
 0x421c80  open_saveload_screen     func  -                    O ; interface_set_screen(8, ...), from hud_handle_keys, main menu and play menu (checked: interface_set_screen(8, &zero byte), callers hud_handle_keys, main menu and play menu)
 0x421ca0  playmenu_confirm_quit    func  -                    O ; only caller playmenu_button_action: ui_message_box_show L Are you sure? titled L Quit game, cb 0x421ce0 (formerly mainmenu_confirm_quit)
@@ -905,7 +905,7 @@
 0x427100  saveload_capture_thumbnail func  -                    O ; renders the scene into a 201x151 clip (0x482200 with debug flag 0x20000) and reads it back with gr_read_backbuffer into 0x5c5ba0, converted to 565 at 0x5e5d28, called by quicksave, saveload_init, cmd_savegame
 0x427240  skills_load_bitmaps      func  new_skill.cpp        O ; "Skills-Rollout" .tga bm_load
 0x427520  skills_init              func  -                      O ; screen 6; between new_saveload and new_skill
-0x427570  skills_count_in_group    func  new_skill.cpp        O ; (group) counts the skills of cur_character in one skills page (character_get_skill, game_debug_flags 2 progression check), used by skills_select_first_page and 0x427950 (checked: counts skill table entries (0x8b3fa8, stride 0x34) whose group equals the arg and character_get_skill > 0 for cur_character, spell pages via spells_count_in_group)
+0x427570  skills_count_in_group    func  new_skill.cpp        O ; (group) counts the skills of cur_character in one skills page (character_get_skill, game_flags 2 progression check), used by skills_select_first_page and 0x427950 (checked: counts skill table entries (0x8b3fa8, stride 0x34) whose group equals the arg and character_get_skill > 0 for cur_character, spell pages via spells_count_in_group)
 0x4276a0  skills_update_species_tab func  new_skill.cpp        O ; clears bit 0x1 of the 17 portrait tab records 0x5f4ad8.. (stride 0x18) and sets it on the one for the species of cur_character, callers skills_init, skills_refresh_for_character
 0x427950  skills_count_page        func  new_skill.cpp        O ; (page) switch over the six pages calling skills_count_in_group for that page group, callers skills_init, skills_draw_list (checked: switch over pages calling skills_count_in_group, callers skills_init, skills_refresh_for_character)
 0x427b50  skills_set_page          func  new_skill.cpp        O ; (page) builds the visible skill list for that page (switch), callers skills page buttons (checked: builds the page list with character_get_skill and spells_count_in_group, called by skills_page0..4 buttons)
@@ -990,7 +990,7 @@
 0x42b260  status_load_bitmaps      func  new_status.cpp       O ; "Skl-Bkgrnd" bm_load
 0x42b480  status_init              func  new_status.cpp       O ; screen 2 (checked: screen 2 init: game_pause, ui_screen_stop_player, statscreen_refresh_anim, status_build_skill_list)
 0x42b570  status_update_species_tab func  new_status.cpp       O ; clears bit 0x1 of the four portrait tab records 0x5f93e0/0x5f93f8/0x5f9410/0x5f9428 and sets the one for the species of status_character, callers status_init, status_refresh_for_character
-0x42b610  status_update_member_buttons func  new_status.cpp       O ; prev/next member buttons 0x5f94a0/0x5f94d0 disabled when at most one party member or in multiplayer (game_debug_flags 2), caller status_init
+0x42b610  status_update_member_buttons func  new_status.cpp       O ; prev/next member buttons 0x5f94a0/0x5f94d0 disabled when at most one party member or in multiplayer (game_flags 2), caller status_init
 0x42b680  status_build_skill_list  func  new_status.cpp       O ; fills the 0x14-byte skill rows 0x5f90d8 (max 35, count 0x5f939c) from the player record (player_from_handle +0x20/+0x24) with skills learned at or below the level (+0x600), multiplayer skips 0x14/0x15, callers status_init, status_refresh
 0x42b800  status_update_scrollbar  func  new_status.cpp       O ; scrollbar template
 0x42b910  status_leave             func  new_status.cpp       O ; screen 2 leave: status_apply/cancel_skill_points, statscreen_unload_anim, game_unpause, clears shopkeeper
@@ -1006,7 +1006,7 @@
 0x42c110  status_page_down         func  new_status.cpp       O ; scroll += page
 0x42c140  status_button_action     func  new_status.cpp       O ; switch: confirm skills, party prev/next, scroll
 0x42c260  status_confirm_inventory func  new_status.cpp       O ; status_confirm_skills(1)
-0x42c270  status_goto_shop_or_inventory func  new_status.cpp       O ; clears button flags, status_confirm_skills(7) when a shop owner is set (ui_has_owner_character), else 1 (10 when game_debug_flags bit 0)
+0x42c270  status_goto_shop_or_inventory func  new_status.cpp       O ; clears button flags, status_confirm_skills(7) when a shop owner is set (ui_has_owner_character), else 1 (10 when game_flags bit 0)
 0x42c2d0  status_confirm_skills_switch_member func  -                    O ; L Accept changes to skills? box (cb2/cb) or directly status_show_next_member / status_show_prev_member (formerly status_confirm_skills_b)
 0x42c380  status_show_prev_member  func  new_status.cpp       O ; clears pending skill rows 0x5f93a8/0x5f93ac and statscreen_show_prev_member(1), second entry is the accept popup callback (0 apply, else cancel, then prev)
 0x42c3a0  status_confirm_skills_b_cb func  new_status.cpp       O ; hidden start, message box callback pushed by status_confirm_skills_switch_member: -2 ignored, button 0 status_apply_skill_points
@@ -1141,11 +1141,11 @@
 0x431b70  init_ccmd_us_open_demo_thunk func  -                    O ; hidden start, static_initializers entry 99: jmp init_ccmd_us_open_demo
 0x431b80  init_ccmd_us_open_demo   func  -                    O ; static initialiser: registers console command object ccmd_us_open_demo
 0x431ba0  cmd_us_open_demo         func  -                      O ; console command "us_open_demo": Toggles US_open_demo
-0x431c60  state_boot_enter         func  -                    O ; state 1: build_stamp_show, then interface_set_screen(14 main menu) (checked: game_debug_flags = 1, build_stamp_show, cursor_set_type, input_flush, interface_set_screen(14) main menu)
+0x431c60  state_boot_enter         func  -                    O ; state 1: build_stamp_show, then interface_set_screen(14 main menu) (checked: game_flags = 1, build_stamp_show, cursor_set_type, input_flush, interface_set_screen(14) main menu)
 0x431cb0  build_stamp_show         func  -                    O ; once at start-up: "This version of Summoner has been built for:" <name>, or "has expired." then exit(1), skipped when unstamped (checked: build_stamp_check: This version of Summoner has been built for: / has expired. then exit, gr_flip, key_inkey)
 0x431df0  state_boot_leave         func  -                    O ; hidden start, gameseq_state_table state 1 leave: 0x5fc01c = 0
 0x431e00  state_boot_frame         func  -                    O ; PollInputEvents + interface_frame (checked: PollInputEvents, interface_frame, jmp interface_draw)
-0x431e20  state_title_enter        func  -                    O ; state 2: "Title" (checked: music_play(Title), objects_reset, party_inventory_reset, items_reset_for_new_game, sets game_debug_flags)
+0x431e20  state_title_enter        func  -                    O ; state 2: "Title" (checked: music_play(Title), objects_reset, party_inventory_reset, items_reset_for_new_game, sets game_flags)
 0x431e70  state_title_frame        func  -                    O ; hidden start, gameseq_state_table state 2 frame: gameseq_set_state(4)
 0x431e80  state_loadgame_enter     func  -                    O ; state 8: "Load" screen table (checked: ui_window with Load/Cancel buttons and listboxes filled from *.s3d and level_script_table)
 0x432200  loadgame_level_list_cb   func  -                    O ; hidden start, ui callback of the level listbox 0x5faac0 (installed by state_loadgame_enter at 0x5fad04), message 0x18: refills the second listbox 0x5fadf0 from level_script_find and conversation_save_table (checked: ui_listbox__get_selected then refills the second listbox from level_script_find / conversation_save_table)
@@ -1168,12 +1168,12 @@
 0x432d60  draw_loading_icon        func  -                    O ; gr_bitmap of hud-loading.tga (0x5fbf44, loaded by gameplay_load_cursors) at 0x123, 0x6c, caller FrameEnd
 0x432d80  game_pause_count_dec     func  -                    O ; DecrementPauseCounter, 0x5fc024--
 0x432d90  game_pause_count_inc     func  -                    O ; IncrementPauseCounter, 0x5fc024++
-0x432da0  game_is_paused           func  -                    O ; game_debug_flags bit 2 (checked: returns (game_debug_flags >> 2) & 1, 28 callers)
+0x432da0  game_is_paused           func  -                    O ; game_flags bit 2 (checked: returns (game_flags >> 2) & 1, 28 callers)
 0x432db0  gameplay_load_cursors    func  -                    O ; cursor-walk.vbm, cursor-target.vbm, cursorspot-*.vbm, hud-loading.tga (checked: bm_load cursor-walk/target.vbm, cursorspot-walkto/target/invalid.vbm, hud-loading.tga, cursor-url/hover.vbm, caller GameInit)
 0x432e50  cursor_set_type          func  -                    O ; 0x5931b4 = arg
 0x432e60  cursor_draw              func  -                    O ; draws the current cursor bitmap 0x5931b4 stretched by the resolution scale (1, 1.25, 1.6) at the mouse, the walk-to spot cursor 0x5fbf50 is centred, caller FrameEnd
-0x432f50  script_disable_player_input func  -                    O ; player_input = 0, game_debug_flags or-equals 0x10000, level script cutscenes
-0x432f70  script_enable_player_input func  -                    O ; game_debug_flags &= ~0x10000
+0x432f50  script_disable_player_input func  -                    O ; player_input = 0, game_flags or-equals 0x10000, level script cutscenes
+0x432f70  script_enable_player_input func  -                    O ; game_flags &= ~0x10000
 0x432f80  init_ccmd_show_hud_info_thunk func  -                    O ; hidden start, static_initializers entry 102: jmp init_ccmd_show_hud_info
 0x432f90  init_ccmd_show_hud_info  func  -                    O ; static initialiser: registers console command object ccmd_show_hud_info
 0x432fb0  cmd_show_hud_info        func  -                      O ; console command "show_hud_info": Toggles Gamewide_show_hud_info
@@ -1203,7 +1203,7 @@
 0x433750  player__set_ai_control   func  player.cpp           O ; thiscall Player (on): on clears, off sets bit 0 of the character ai_state.flags (Character +0x374), party_set_leader passes 0 for the leader and 1 for the others
 0x433790  player_create            func  -                    O ; living_entity_create, character_set_name, per-species skill progression (joseph_skill_progression ...), team (checked: living_entity_create, joseph_skill_progression, character_set_name, ai_reset, character_set_team, ai_group_add_member)
 0x433960  player__make_leader      func  player.cpp           O ; thiscall Player: unless already flagged, Player flags +0x10 = (flags & ~4) or 8 and player__set_ai_control(0), callers party_set_leader, state_game_enter
-0x4339a0  player__drop_leader      func  player.cpp           O ; thiscall Player: clears flag 8 of +0x10, sets flag 4 in solo mode (game_debug_flags 0x1000) else clears it, player__set_ai_control(1)
+0x4339a0  player__drop_leader      func  player.cpp           O ; thiscall Player: clears flag 8 of +0x10, sets flag 4 in solo mode (game_flags 0x1000) else clears it, player__set_ai_control(1)
 0x4339e0  player__is_leader        func  player.cpp           O ; thiscall Player: bit 3 (0x8) of +0x10, callers party_set_leader, solo-mode toggle 0x439620, party_order_attack, ai_goal_alloc
 0x4339f0  player_skill_unlocked    func  player.cpp           O ; thiscall on a template (skill): story flags got_ring_of_darkness, act2_done, ..., used by character_skill_allowed (checked: skill_is_summon + savegame_get_flag got_ring_of_darkness/act2_done/got_ring_of_water/lpalaceint_yago_found, caller character_skill_allowed)
 0x433b10  player_skill_unlocked_at_level func  -                    O ; thiscall Player (skill): 1 for skill 2 (speed) or when a skill_progression entry (+0x20 count, +0x24 array) for the skill has level <= the character level (+0x600), caller character_skill_equip_mod (checked: living_from_handle then scans skill_progression entries by level, caller character_skill_equip_mod)
@@ -1312,7 +1312,7 @@
 0x439500  state_game_frame_static_dtor func  -                    O ; hidden start, empty atexit destructor of a function-local static in state_game_frame (guard 0x60a41c)
 0x439510  camera_reset_to_player   func  -                    O ; (snap) game_camera follows cur_character (0x478f60, 0x478ff0, 0x479790, 0x4798b0, 0x478e70) (checked: camera_reset_default, level_set_current_layer(cur_character+0x68c), camera_set_target, resume_follow, snap_to_target)
 0x439580  combat_mode_set          func  -                    O ; (on) combat_mode = on, party goals cleared (0x473fd0) when leaving (checked: combat_mode = arg (not in level_is_town), ai_set_combat_mode_goal + ai_process_goals per party member)
-0x439620  party_toggle_hold        func  -                    O ; in towns clears game_debug_flags 0x1000, else toggles it and sets (flag 0x4 of +0x10, ai_go_idle) or clears the hold flag on every non-leader member of party_list, callers hud_key_h_cb, state_game_leave, ai_mode_sneaking_frame, savegame_read_living (checked: toggles game_debug_flags 0x1000 and per non-leader member ai_go_idle / hold flag, callers solo mode key and cb)
+0x439620  party_toggle_hold        func  -                    O ; in towns clears game_flags 0x1000, else toggles it and sets (flag 0x4 of +0x10, ai_go_idle) or clears the hold flag on every non-leader member of party_list, callers hud_key_h_cb, state_game_leave, ai_mode_sneaking_frame, savegame_read_living (checked: toggles game_flags 0x1000 and per non-leader member ai_go_idle / hold flag, callers solo mode key and cb)
 0x4396d0  party_select_member      func  -                    O ; (Player) party_set_leader unless dead, sound 0x23 or 0x24 (checked: player__drop_leader / party_set_leader unless dead, game_play_sound, callers hud_select_party_member, party_cycle)
 0x439750  party_teleport_to        func  -                    O ; (pos, layer +0x68c) moves cur_character and the party, camera_reset_to_player, debug click (checked: moves cur_character and party_list members to the point, camera_reset_to_player, caller world_mouse_frame)
 0x439800  items_reset_for_new_game func  -                    O ; savegame_build_layout then jmp item_types_reset_identified, caller state_title_enter
@@ -1551,10 +1551,10 @@
 0x441610  mp_player_alloc          func  -                    O ; unlinks first node of free list 0x6514d8 and appends it to the player list 0x651418 (checked: unlinks first node of free list 0x6514d8 and appends to list 0x651418, returns 0 when empty)
 0x441660  mp_player_disconnect     func  -                    O ; (player): if in the player list 0x651418: party_remove_player for its character (+0x28), nw_NewCloseSocket on +0x18, unlinks and frees it
 0x441710  character_xp_death_penalty func  -                    O ; xp -= 10% of (xp - xp_for_level(level)), floored at xp_for_level(level), reads +0x600/+0x604 (checked: xp(+0x604) -= 10% of (xp - xp_for_level(+0x600)), floored at xp_for_level)
-0x441760  mp_local_player_create   func  -                    O ; sets game_debug_flags = 2 (multiplayer), mp_player_alloc into 0x651598 and fills it from profile 0x408540(1) (name +0x28 -> +0x34), falls back to state 10 on failure, callers state_mp_gamelist_enter, state_mp_lobby_enter
+0x441760  mp_local_player_create   func  -                    O ; sets game_flags = 2 (multiplayer), mp_player_alloc into 0x651598 and fills it from profile 0x408540(1) (name +0x28 -> +0x34), falls back to state 10 on failure, callers state_mp_gamelist_enter, state_mp_lobby_enter
 0x441820  multi_process_packet     func  -                    O ; (data, len, from, reliable) (checked: mp_player_find_by_addr, per-type stats INC R/INC U, Invalid packet type: %d, caller multi_process_incoming)
 0x4419d0  mp_reset_net_stats       func  -                    O ; zeroes the net rate/statistics arrays 0x65e0cc/0x65e93c/0x65e910 and counters, only caller 0x441490 (mp_charselect_init path) (checked: rep stosd zeroes 0x65e0cc/0x65e93c/0x65e910 and counters, only caller mp_session_reset)
-0x441a30  mp_broadcast_packet_buffered func  -                    O ; host only (game_debug_flags 2, local player +0x10 bit 0): 0x441e90 for every other connected player in 0x651418 (+0x18 != -1), callers multi_set_netgame_state, mp_game_frame, mp_send_living_combat
+0x441a30  mp_broadcast_packet_buffered func  -                    O ; host only (game_flags 2, local player +0x10 bit 0): 0x441e90 for every other connected player in 0x651418 (+0x18 != -1), callers multi_set_netgame_state, mp_game_frame, mp_send_living_combat
 0x441a90  mp_broadcast_packet      func  -                    O ; (data, len, flag) walks player list 0x651418 and multi_send_packet to every connected player (+0x18 != -1), host only (0x651598 +0x10 bit 0)
 0x441b10  multi_process_incoming   func  -                    O ; polls nw_receive and nw_NewReceiveReliable (0x4000-byte buffer), dispatches to 0x441820 (checked: mp_net_stats_update, nw_receive and nw_NewReceiveReliable loops into multi_process_packet)
 0x441ca0  mp_net_stats_update      func  -                    O ; accumulates reported_frametime in 0x65d8a8 and once per second rolls the byte counters 0x65e0c8.. into per-second rates, caller multi_process_incoming (checked: reported_frametime into 0x65d8a8, per-second rate roll, caller multi_process_incoming)
@@ -1979,7 +1979,7 @@
 0x4691e0  music_feedback_parse_tables func  gamesound.cpp        O ; music.tbl and feedback.tbl ("feedback\%s", "+Death:", "Too many feedback sounds!")
 0x469580  music_feedback_reset_tables func  gamesound.cpp        O ; fills the music feedback tables 0x941754.. (0x121 dwords) with -1 and resets the per-entry fields, caller music_feedback_parse_tables
 0x4696d0  music_find_by_name       func  gamesound.cpp        O ; stricmp over music.tbl names 0x9421d8 (8-byte records, count 0x94389c, filled by music_feedback_parse_tables), -1 if none
-0x469720  feedback_play            func  gamesound.cpp        O ; (species, event, pos) multiplayer heroes only (species_is_hero, game_debug_flags 0x200, not 0x20): random chance byte 0x943858, random sound from the feedback table 0x941dd8 range (0x9437d8 first, 0x943818 count), game_play_sound or sound_play_3d_at (checked: species_is_hero + game_debug_flags gate, frand chance, random table entry via game_play_sound / sound_play_3d_at)
+0x469720  feedback_play            func  gamesound.cpp        O ; (species, event, pos) multiplayer heroes only (species_is_hero, game_flags 0x200, not 0x20): random chance byte 0x943858, random sound from the feedback table 0x941dd8 range (0x9437d8 first, 0x943818 count), game_play_sound or sound_play_3d_at (checked: species_is_hero + game_flags gate, frand chance, random table entry via game_play_sound / sound_play_3d_at)
 0x4697e0  sinit_obj_list_970770    func  -                    O ; static_initializers entry 202: frame-pointer wrapper that calls init_obj_list_970770 then registers its atexit destructor
 0x4697f0  init_obj_list_970770     func  -                    O ; static initialiser: obj__ctor_link(0x970770, 0), the object list head (objects_init)
 0x469810  register_dtor_obj_list_970770 func  -                    O ; atexit(0x469830), second half of static_initializers entry 202
@@ -2403,7 +2403,7 @@
 0x479790  camera_resume_follow     func  -                    O ; thiscall camera: camera_end_sequence(1) when flag 0x8 is set, then flags +0xc or= 3
 0x4797b0  camera_push_state        func  -                    O ; thiscall camera: camera_get_state into stack slot +0x14 + 0x24*depth, depth +0x10++ (max 8), callers conversation_camera_begin, script editor, cmd_slew
 0x4797d0  camera_pop_state         func  -                    O ; thiscall camera: depth +0x10--, camera_set_state from that slot
-0x4797f0  camera_end_sequence      func  -                    O ; thiscall camera (restore): camera_free_sequence, camera_pop_state when restore, clears flag 0x8 of +0xc and game_debug_flags 0x800
+0x4797f0  camera_end_sequence      func  -                    O ; thiscall camera (restore): camera_free_sequence, camera_pop_state when restore, clears flag 0x8 of +0xc and game_flags 0x800
 0x479830  camera_set_view_params   func  -                    O ; thiscall camera (distance +0x190, +0x188, zoom +0x184, height +0x194, +0x19c), +0x168 = 2
 0x479870  camera_set_default_view_params func  -                    O ; thiscall camera: stores five values at +0x16c..+0x17c and sets flag 0x20 of +0xc, caller 0x478f60
 0x4798b0  camera_sync_yaw_to_target func  -                    O ; thiscall camera: matrix3__extract_angles of the target object (+0x14c, orient +0x38) -> yaw +0x180 wrapped into range, callers camera_reset_to_player, mp_respawn_player, savegame_read_camera
@@ -2666,11 +2666,11 @@
 0x489930  experience_parse_table   func  -                    O ; "experience.tbl", presumably fills xp_level_table (checked: TextFile__Open("experience.tbl"), loops TextFile__ParseInt + experience_parse_level into xp_level_table 0x2305420, caller GameInit)
 0x4899d0  experience_parse_level   func  -                    O ; one experience.tbl line into an xp_level record: xp, skill points, level, 4 species groups
 0x489a30  experience_parse_stat_gain func  -                    O ; TextFile__Accept("D") flag byte then TextFile__ParseInt, called twice per character by experience_parse_level for the HP+ and AP+ columns of experience.tbl, not species groups (formerly experience_parse_pair)
-0x489a60  xp_for_level             func  -                    O ; (level) -> experience needed: xp_level_table[level] below 20, then +50000, +60000, ... per level; x5 with game_debug_flags & 2
+0x489a60  xp_for_level             func  -                    O ; (level) -> experience needed: xp_level_table[level] below 20, then +50000, +60000, ... per level; x5 with game_flags & 2
 0x489aa0  xp_level_reached         func  -                    O ; (level, xp) -> xp >= xp_for_level(level + 1)
 0x489ac0  xp_level_up_gains        func  -                    O ; (species group, short* level, int* skill points, int* byte5, float* max hp, short* max ap): level++ (cap 20), copies xp_level skill points / +5 and adds the group's HP / AP gains (random when the flag byte is set), caller character_add_xp
 0x489bf0  xp_level_skill_cap       func  -                    O ; (level) xp_level_table[level] byte +5 as float (1.0 at level <= 0, 10.0 above 20), status_skill_increment refuses to raise a skill past cap * 10, callers status_skill_increment, player_init_from_character, savegame_read_character
-0x489c20  xp_max_level             func  -                    O ; 50, or 75 with game_debug_flags & 2
+0x489c20  xp_max_level             func  -                    O ; 50, or 75 with game_flags & 2
 0x489c40  sinit_fx_obj_2305920     func  -                    O ; hidden start, static_initializers entry 251: calls init_fx_obj_2305920 then registers its atexit destructor
 0x489c50  init_fx_obj_2305920      func  -                    O ; static initialiser: fx_obj__ctor(0x2305920)
 0x489c60  register_dtor_fx_obj_2305920 func  -                    O ; atexit(0x489c70), second half of static_initializers entry 251
@@ -3823,7 +3823,7 @@
 0x4ccff0  level_trigger_set_script_use func  -                    O ; (name, ...): sets bit 0x2 of the matching trigger +0x54, so level_check_triggers calls level_script_use for it instead of treating it as a level exit (formerly level_trigger_enable)
 0x4cd060  level_trigger_disable_by_target func  -                    O ; (name) matches the second trigger name +0x24, clears bit 1
 0x4cd0c0  level_trigger_enable_by_target func  -                    O ; (name) matches the second trigger name +0x24, sets bit 1
-0x4cd120  level_trigger_trip       func  -                    O ; "Tripped trigger: %s" (checked: distance_squared / segments_intersect_xz trigger tests, sprintf "Tripped trigger:  %s" under game_debug_flags, caller ls_catacombs_frame)
+0x4cd120  level_trigger_trip       func  -                    O ; "Tripped trigger: %s" (checked: distance_squared / segments_intersect_xz trigger tests, sprintf "Tripped trigger:  %s" under game_flags, caller ls_catacombs_frame)
 0x4cd250  level_ambient_add        func  -                    O ; sound_create_emitter and position into the 0x10-byte table 0x2490458
 0x4cd2c0  level_ambient_remove     func  -                    O ; sound_emitter_delete and compacts the table 0x2490458
 0x4cd330  level_ambient_find_at    func  -                    O ; (pos) ambient entry whose position equals pos (checked: (pos) loops the ambient sound entries (count 0x2491a58, records from 0x2490464) comparing x/y/z for equality, returns the index or -1, callers script editor code)
@@ -4714,7 +4714,7 @@
 0x4ed550  cutscene_script_rewind_actors func  -                    O ; restores the saved equipment of the cutscene actors (records 0x2546768, count 0x2546820: character_equip_item / character_unequip_slot, item_free), orientation and ai_reset, clears 0x257e970, caller script_editor_on_time_back (checked: character_equip_item / character_unequip_slot + item_free of the saved equipment, matrix3__set_from_angles orientation, ai_reset, caller script_editor_on_time_back)
 0x4ed680  cutscene_script_entries_frame func  -                    O ; cutscene script objects: timers, script_entry_check_done / script_entry_advance, cutscene_events_frame, state_game_frame (checked: reported_frametime, GameTimer valid/elapsed, script_entry_jump_to_sequence, script_entry_check_done then script_entry_advance, callers cutscene_events_frame, state_game_frame)
 0x4ed760  cutscene_script_table    func  -                    O ; returns 0x257e974
-0x4ed770  cutscene_script_is_active func  -                    O ; true when debug flag 0x20 of game_debug_flags is set or the cutscene script name 0x257e974 is not empty, callers ai_do_frame, ai_goal_evaluate, ai_score_target, 0x4e28f0
+0x4ed770  cutscene_script_is_active func  -                    O ; true when debug flag 0x20 of game_flags is set or the cutscene script name 0x257e974 is not empty, callers ai_do_frame, ai_goal_evaluate, ai_score_target, 0x4e28f0
 0x4ed7c0  static_init_ls_sewerboss_timer func  -                    O ; hidden start: initialiser table entry 477 (0x588778): jmp init_ls_sewerboss_timer
 0x4ed7d0  init_ls_sewerboss_timer  func  -                    O ; hidden start: static initialiser: GameTimer__GameTimer(0x257e99c), used by ls_sewerboss_frame and lsf_sewer_found_tb, reached from initialiser table entry 477 (0x588778) via jmp 0x4ed7c0
 0x4ed7e0  ls_sewer_init            func  -                    O ; level_script_table entry: level script init (state_game_enter)
@@ -9546,7 +9546,7 @@
 0x5fbf50  cursor_target_bm         data:int -                    O ; bm_load cursor-target.vbm in gameplay_load_cursors, cursor_set_type in gameplay_update_cursor, compared in cursor_draw
 0x5fbf54  game_status_message      data:char[128] -                    O ; on-screen message drawn by FrameEnd with font_small at (10, 20), compared with "Screenshot written to" (checked: 128-byte text pushed to strlen/gr_string by FrameEnd at (10, 20))
 0x5fbfd4  cursor_walk_bm           data:int -                    O ; bm_load cursor-walk.vbm in gameplay_load_cursors, default cursor_set_type in state_boot_enter/state_game_enter/pxochat_update_banner_cursor
-0x5fbfd8 game_debug_flags         data:int             -                 I
+0x5fbfd8 game_flags               data:int             -                 O ; game mode and state bits (formerly game_debug_flags): 0x1 single player, 0x2 multiplayer, 0x4 paused, 0x8 return to state 1 after a console cutscene, 0x10 pending console cutscene, 0x20 cutscene running, 0x40 screenshot, 0x80 script editor, 0x1000 solo mode, 0x8000 skip one flip
 0x5fbfdc  game_mouse_x             data:int -                    O ; filled each frame by GameTick via mouse_get_pos(&x, &y, &z 0x257ef80), read by every ui click and draw handler
 0x5fbfe0  game_mouse_y             data:int -                    O ; filled each frame by GameTick via mouse_get_pos, read with game_mouse_x by the ui handlers
 0x5fbfe8  ccmd_show_framerate      data:console_command -                      O ; console command object "show_framerate"

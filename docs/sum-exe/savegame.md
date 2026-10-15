@@ -223,7 +223,7 @@ save only loads into the level it was made in.
 |---|---|
 | 0-3 | party members present, by species index (bit 0 = Joseph); missing members are created on load |
 | 4 | combat mode (`0x5fccb4`) |
-| 5 | `game_debug_flags & 0x1000` (toggled back with `0x439620` on load) |
+| 5 | `game_flags & 0x1000` (toggled back with `0x439620` on load) |
 | 6 | a summon was under control (`0x5fcc84` non-zero); the summon is then created as type 7, else type 5 |
 | 7-9 | species index of the selected party member (signed; -1 = the summon is selected) |
 | 10-31 | species index of the active summon (`0x5fcc8c`), -1 = none |

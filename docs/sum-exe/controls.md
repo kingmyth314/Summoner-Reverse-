@@ -24,7 +24,7 @@ natural hook for [custom key bindings](../roadmap.md#custom-key-bindings-for-pla
 3. Once per frame, `PollInputEvents` (`0x432710`) takes one code with `key_inkey` (call at
    `0x432754`):
    - **Shift+Esc** (`0x1001`) quits (`gameseq_set_state(3)`);
-   - **PrtSc** (`0xb7`) sets a flag in `game_debug_flags`;
+   - **PrtSc** (`0xb7`) sets a flag in `game_flags`;
    - any other code is returned.
 4. `interface_frame(code)` (`0x4119a0`) offers the code to the open screen's handler. With no
    screen open, `hud_frame` → `hud_handle_keys` handles it.
@@ -46,7 +46,7 @@ does.
 | R | `0x13` | Character screen (2) | `hud_key_status` |
 | I | `0x17` | Inventory (1) | `hud_key_inventory` |
 | S | `0x1f` | Toggle the Skills panel (screen 6) | `hud_key_screen6` |
-| H | `0x23` | Solo mode on/off: `party_toggle_hold` toggles `game_debug_flags` bit `0x1000` and makes the other party members hold (cleared in towns). When the byte at `0x60acd5` is set, it first asks "Enter solo mode?" / "Leave solo mode?" (**observed**) | `hud_toggle_solo_mode` |
+| H | `0x23` | Solo mode on/off: `party_toggle_hold` toggles `game_flags` bit `0x1000` and makes the other party members hold (cleared in towns). When the byte at `0x60acd5` is set, it first asks "Enter solo mode?" / "Leave solo mode?" (**observed**) | `hud_toggle_solo_mode` |
 | X, middle mouse | `0x2d` | Interact with the nearest usable object (within 3 units) | `hud_interact_nearest` |
 | C | `0x2e` | Toggle the Spells panel (screen 5) | `hud_key_screen5` |
 | M | `0x32` | Toggle automap (3) | `hud_key_automap` |
@@ -55,7 +55,7 @@ does.
 | F2 | `0x3c` | Options (screen 12) | inline |
 | F5-F9 | `0x3f`-`0x43` | Select party member 1-5 | `hud_select_party_member` |
 | F12 | `0x58` | Cycle camera mode (0, 1, 2) | `hud_key_camera` → `camera_cycle_mode` |
-| Q, Enter, F3, F4, Alt+S, Alt+L | | Single player only (`game_debug_flags & 1`; bit `0x1` means single player, set by `state_boot_enter` at `0x431c65`, not "debug"). These include the journal (`hud_key_journal`), the combat-mode toggle (`hud_toggle_combat_mode`) and save (`hud_key_save`) (**observed** in `hud_handle_keys`); which key does which is not mapped yet | `hud_handle_keys` |
+| Q, Enter, F3, F4, Alt+S, Alt+L | | Single player only (`game_flags & 1`; bit `0x1` means single player, set by `state_boot_enter` at `0x431c65`, not "debug"). These include the journal (`hud_key_journal`), the combat-mode toggle (`hud_toggle_combat_mode`) and save (`hud_key_save`) (**observed** in `hud_handle_keys`); which key does which is not mapped yet | `hud_handle_keys` |
 
 Confirmed from in-game frame captures (2026-10-13).
 

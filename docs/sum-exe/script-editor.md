@@ -13,7 +13,7 @@ nav_order: 6.35
 **Summary:** the retail `Sum.exe` v1.40 still contains Volition's in-game level script editor.
 It edits navpoints, creatures, doors, ambient sounds, clickable objects, level items and the
 action lists of level and cutscene scripts, and saves them back to `.tbl` files. It runs only
-while bit `0x80` of `game_debug_flags` (`0x5fbfd8`) is set. **No code in the retail binary sets
+while bit `0x80` of `game_flags` (`0x5fbfd8`) is set. **No code in the retail binary sets
 that bit** (**observed**), and no console command, key or command-line switch does it.
 [SummonerFix](../summonerfix/index.md) can toggle it with a key (`[Debug] ScriptEditorKey`).
 
@@ -34,7 +34,7 @@ from the disassembly; the evidence table lists function addresses, not REA evide
 condition of its own. The editor function then tests one bit (**observed**):
 
 ```nasm
-4e01f0: mov  al, byte ptr [0x5fbfd8]   ; game_debug_flags
+4e01f0: mov  al, byte ptr [0x5fbfd8]   ; game_flags
 4e01f8: test al, 0x80
 4e01fa: jne  0x4e0205                  ; bit set: run the editor
 4e01fc: call 0x4e2ad0                  ; script_editor_close (returns at once if the UI was never built)
@@ -56,7 +56,7 @@ Two other functions read the same bit (**observed**):
 
 ### Nothing in the retail game sets the bit
 
-Every instruction that writes `game_debug_flags` was listed with
+Every instruction that writes `game_flags` was listed with
 `node tools/asm.mjs grep "(mov|or|xor|and) (dword|byte) ptr \[0x5fbfd8\],"` (29 sites), and the
 value each one stores was checked (**observed**):
 

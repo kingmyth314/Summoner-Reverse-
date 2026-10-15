@@ -102,7 +102,7 @@ of Darkness lists Spirit of Laharah once `got_laharah_spirit` is set. **Observed
 ## When summoning is allowed
 
 `skill_is_available` (`0x4291d0`) and `player_skill_unlocked` (`0x4339f0`) add story gates in
-single player (`game_debug_flags` bit `0x1`). **Observed:**
+single player (`game_flags` bit `0x1`). **Observed:**
 
 - no summon skill before `got_ring_of_darkness`;
 - after `act2_done`, none until `got_ring_of_water`;
@@ -115,7 +115,7 @@ calls `character_can_use_summon`. `skill_is_usable` (`0x4290a0`) returns 0 for e
 time. **Observed.** *Inferred* story reading: the `act2_done` gate is the part of the story
 where Joseph has lost his rings.
 
-In multiplayer (`game_debug_flags` bit `0x2`) the rings do not matter. A summon is allowed when
+In multiplayer (`game_flags` bit `0x2`) the rings do not matter. A summon is allowed when
 the caster's level (`+0x600`) reaches a fixed value per skill: Blackfire 1, Mist 4, Blue Imp 8,
 Red Minotaur 12, Golem 16, Samurai 20, Poison 24, Jade Golem 28, Blade of Urath 32, Blood 36,
 Wraith 40, Laharah 44. Dragons are never allowed. **Observed** (jump table `0x44739c`). The game

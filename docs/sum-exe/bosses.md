@@ -162,7 +162,7 @@ Notes, all **observed** unless marked:
   dispatcher. The same HP fraction is written to `level_light_scale` (`0x59c358`), so the level gets darker
   as Luminar loses HP. *Inferred* for the visible effect.
 - Giant Salamanka, Pyrul and Titus at HP 0 go idle and set owner flag 8, but only when
-  `game_debug_flags` bit `0x20` is set. Bit `0x20` means "cutscene running" ([Cutscenes](cutscenes.md)), so
+  `game_flags` bit `0x20` is set. Bit `0x20` means "cutscene running" ([Cutscenes](cutscenes.md)), so
   this is the death pose kept while the boss's Death cutscene plays. *Inferred* for the purpose.
 - Bosses without HP stages: Machival, Evil Urath and Murod only clear their "casting" state when the cast
   move has finished. Murod Oni has no stage check. Evil Joseph's check revives helpers (below).

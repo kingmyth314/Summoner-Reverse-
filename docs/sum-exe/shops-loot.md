@@ -54,7 +54,7 @@ see [Game tables](game-tables.md)):
 |---|---|---|
 | `+Sell List:` | the shop sells to you | `value` |
 | `+Buy List:` | the shop buys from you (single player) | `_ftol(value x 0.7f)` |
-| `+Buy List:` | the shop buys from you (multiplayer, `game_debug_flags & 2`) | `max(1, _ftol(value x 0.1f))` |
+| `+Buy List:` | the shop buys from you (multiplayer, `game_flags & 2`) | `max(1, _ftol(value x 0.1f))` |
 
 ```
 4cc6fe: fild  dword ptr [esp + 0x14]     ; value
@@ -136,7 +136,7 @@ if (frand() < Chance_to_drop_gold)                       // 0x599690, default 0.
   ([Game tables](game-tables.md)). Single player uses `+Drop: "item" percent` (at most 5 lines,
   `char_info +0x274/+0x278/+0x2bc`). Multiplayer uses `+Multiplayer Drop: "item" percent level` (at
   most 17 lines, `+0x300/+0x304/+0x348/+0x38c`). The percent is stored as `percent x 0.01`.
-- **Observed:** the single-player test is `game_debug_flags & 1`. That bit is set by
+- **Observed:** the single-player test is `game_flags & 1`. That bit is set by
   `state_boot_enter` and `state_mp_lobby_leave`, and `mp_local_player_create` replaces it with 2.
 - **Observed:** a multiplayer line is skipped when its level is above the monster's level. Retail
   uses 1, 25 and 50.

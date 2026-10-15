@@ -156,7 +156,7 @@ static void RunConsoleKey(int scan)
 }
 
 // [Debug] ScriptEditorKey (default none): toggles Volition's built-in level script editor during gameplay.
-// script_editor_frame (0x4e01f0) runs the editor only while bit 0x80 of game_debug_flags (0x5fbfd8) is set,
+// script_editor_frame (0x4e01f0) runs the editor only while bit 0x80 of game_flags (0x5fbfd8) is set,
 // and nothing in the retail game sets it (docs/sum-exe/script-editor.md). Toggled here, on the game thread,
 // so it cannot race the game's own read-modify-write of the flags. The title screen clears the bit again.
 #define VA_GAME_DEBUG_FLAGS 0x5fbfd8u
