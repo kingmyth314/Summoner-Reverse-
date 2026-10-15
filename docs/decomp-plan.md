@@ -305,3 +305,20 @@ stage states), `ix_sphere_sphere` and `LineFile__flush`.
    [source-file map](sum-exe/source-map.md#translation-units-from-data-locality)). First fix the stray module tags that
    `--score` lists.
 3. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
+
+**Toolchain (2026-10-15).** Sum.exe's PE header gives linker 6.0 and the link date 2001-11-21. Its Rich header
+(decoded with a small script, **observed**) lists:
+
+| Tool (Rich product id) | Build | Objects |
+|---|---|---|
+| C++ compiler (`Utc12_CPP`, id 11) | 8966 | 348 |
+| C compiler (`Utc12_C`, id 10) | 8047 | 161 |
+| C++ compiler | 8047 / 8168 | 8 / 1 |
+| linker (`Linker600`, id 4) | 8447 / 8168 | |
+| MASM 6.13 (id 14) | 7299 | 38 |
+| import entries | 0 | 235 |
+
+So the game was built with **Visual C++ 6.0** (compiler version 12.00), most of it with a late service-pack build
+(8966; which service pack is *inferred*, not confirmed), plus static libraries built with older VC6 builds (the C
+runtime, 8047). A matching build needs Visual Studio 6.0 with the matching service pack. **Microsoft C 6.00** (1990)
+is a different, 16-bit DOS compiler and cannot produce this code.
