@@ -182,14 +182,20 @@ typedef struct Character {
     void*   _link04;         // +0x004 0x970770 in the dump (living-entity list head)
     int32_t _unk08;
     int32_t type;            // +0x00C 7 for player party members (level-up message, skill copy)
-    int32_t _unmapped10[0x1c];
+    float   pos[3];          // +0x010 world position
+    int32_t _unmapped1c[0x19];
     int32_t handle;          // +0x080 object handle (obj_create); player_from_handle(handle) gives the Player record
-    uint8_t _unmapped84[0x28];
+    uint32_t obj_flags;      // +0x084 bit 0 active
+    uint8_t _unmapped88[0x10];
+    int32_t team;            // +0x098
+    int32_t move_start_time; // +0x09C
+    int32_t trigger_latch[3];// +0x0A0
     uint8_t status_slots[18][0x20]; // +0x0AC status effects by status_effect_id: +0 state (-1..2), +4 and +0x14 GameTimers
-    uint8_t _unmapped2ec[0x08];     // +0x2EC GameTimer
+    int32_t timer2ec;        // +0x2EC GameTimer
+    uint32_t enemy_team_mask;// +0x2F0 teams this character fights (defaults at 0x581904)
     char    name[0x2c];      // +0x2F4 used by "%s gained level %d!" (length not yet confirmed)
     uint32_t flags;          // +0x320 0x80 dead (revived by party_level_reset), 0x100, 0x402 cleared on restore
-    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC two groups of six ints (31,30,29,26,30,29), probably body-part texture refs (head, torso, cape, thigh, leg, arms)
+    uint8_t _unmapped324[0x2d0]; // +0x324 sub-object (0x4725e0); +0x558 protection sub-object ([0] = this, character_get_protection); +0x5AC..+0x5E4 locomotion animation ids (ready, ready_hurt, walk, run, tripped_liedown, ...; set with charinfo_find_anim)
     float   base_max_hp;     // +0x5F4 max HP without equipment; written by the level table
     float   hp;              // +0x5F8 current HP (119 code references)
     int16_t base_max_ap;     // +0x5FC
@@ -199,7 +205,14 @@ typedef struct Character {
     int32_t xp;              // +0x604 experience
     uint8_t _unmapped608[0x0c];
     uint8_t skill[0x60];     // +0x614 skill/attribute values by skill_id, value = byte * 0.01 (character_get_skill); skill level shown = value * 10; speed (id 2) shown = value * 1000 (11 -> 110%)
-    uint8_t _unmapped674[0x6c];
+    uint8_t _unmapped674[0x28];
+    float   velocity[3];     // +0x69C
+    uint8_t _unmapped6a8[0x14];
+    float   speed_scale;     // +0x6BC
+    uint8_t _unmapped6c0[0x0c];
+    int32_t cur_anim;        // +0x6CC current animation
+    int32_t cur_move;        // +0x6D0 current move
+    uint8_t _unmapped6d4[0x0c];
     int32_t mount_link;      // +0x6E0 handle of the linked mount or rider (character_get_mount, rider_unlink_mount 0x4a33b0)
     uint32_t mount_flags;    // +0x6E4 bit 0 = is a rider, bit 1 = is a mount
     float   hp_overflow;     // +0x6E8 healing beyond max HP (character_add_hp)
@@ -506,7 +519,7 @@ enum skill_id {
 
 // The AI sub-object at Character +0x324 (ai_state__ctor 0x4722f0; fields from ai_set_mode 0x473320). Partial.
 typedef struct ai_state {
-    int32_t mode;            // +0x00
+    int32_t mode;            // +0x00 enum ai_state_mode
     int32_t submode;         // +0x04
     int32_t prev_mode;       // +0x08
     int32_t prev_submode;    // +0x0C
@@ -515,8 +528,25 @@ typedef struct ai_state {
     uint8_t _unk24[0x28];
     void*   owner;           // +0x4C the Character
     uint32_t flags;          // +0x50
-    uint8_t _unk54[0x0c];
+    float   travel_dest[3];  // +0x54 travel destination
     int32_t target;          // +0x60 target handle
     uint8_t _unk64[0x1c];
     void*   path;            // +0x80 current path (ai_path_free)
+    uint8_t _unk84[0x08];
+    uint8_t goals[5][0x34];  // +0x8C goal slots
+    int32_t cur_goal;        // +0x190 current goal index
 } ai_state;
+
+// AI states (ai_state.mode); names from the game's own string table at 0x59ad60.
+enum ai_state_mode {
+    AI_STATE_INACTIVE = 0, AI_STATE_IDLE = 1, AI_STATE_TRAVELING = 2, AI_STATE_COMBAT = 3, AI_STATE_CAST_SPELL = 4,
+    AI_STATE_PATROL = 5, AI_STATE_SUMMONING = 6, AI_STATE_BANISHING = 7, AI_STATE_DISABLED = 8 /* sub 0x2d = knocked down */,
+    AI_STATE_HIDING = 9, AI_STATE_SNEAKING = 10, AI_STATE_MOUNT_TRAVEL = 11, AI_STATE_MOUNT_IDLE = 12,
+};
+
+// One entry of species_table (0x580e60, 223 entries): char_info +0x10 is the species id.
+typedef struct species_info {
+    const char* name;
+    int32_t species;
+    int32_t _unk08;
+} species_info;

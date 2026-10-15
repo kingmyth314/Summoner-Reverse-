@@ -25,13 +25,17 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | Offset | Type | Field | How it is known |
 |---|---|---|---|
 | `+0x00c` | int | type: 7 for player party members; 6, 8 and 10 are the dead forms of 5, 7 and 9 | `character_add_xp` (type 7), `character_resurrect` (`0x454070`) |
-| `+0x324` | ai_state | AI sub-object: mode, previous mode, timer, owner, target handle `+0x60`, path `+0x80` | `ai_set_mode` (`0x473320`) |
+| `+0x010` | float[3] | world position | |
+| `+0x098` / `+0x2f0` | int / mask | team, and the mask of teams it fights (defaults at `0x581904`) | |
+| `+0x324` | ai_state | AI sub-object: mode (`AI_STATE_*`, names from the game's table at `0x59ad60`: inactive, idle, traveling, combat, cast spell, patrol, summoning, banishing, disabled, hiding, sneaking, mount travel, mount idle), previous mode, timer, owner, travel destination `+0x54`, target handle `+0x60`, path `+0x80`, five goal slots `+0x8c`, current goal `+0x190` | `ai_set_mode` (`0x473320`) |
+| `+0x69c` / `+0x6bc` | float[3] / float | velocity, speed scale | |
+| `+0x6cc` / `+0x6d0` | int | current animation and move | |
 | `+0x6e0` / `+0x6e4` | handle / flags | linked mount or rider; flags bit 0 rider, bit 1 mount | `character_get_mount`, `rider_unlink_mount` |
 | `+0x6f8` | char[16] | floating text over the character (colour `+0x709`, scale `+0x70c`) | `0x461fe0`, used for "%d AP" |
 | `+0x080` | handle | the object's handle | written by `obj_create`; `player_from_handle(handle)` returns the player record |
 | `+0x2f4` | char[] | name | argument of `"%s gained level %d!"` |
 | `+0x320` | flags | `0x80` = dead | `party_level_reset` revives characters with this flag set |
-| `+0x5ac` | int[6] x2 | probably body-part texture references (head, torso, cape, thigh, leg, arms), *inferred* | dump (31, 30, 29, 26, 30, 29); `character_fill_body_textures` |
+| `+0x5ac`-`+0x5e4` | int[] | locomotion animation ids: ready, ready_hurt, walk, run, tripped_liedown, ... | set with `charinfo_find_anim` (e.g. `serpent_setup_anims`); the dump values 31, 30, 29, 26 are animation indices |
 | `+0x5f4` | float | base max HP (without equipment) | written from the level table; read by `character_get_max_stat(0)` |
 | `+0x5f8` | float | current HP | 119 code references; set to max on level-up and restore |
 | `+0x5fc` | short | base max AP | `character_get_max_stat(1)` |
@@ -189,5 +193,4 @@ For Joseph's group, level 1 gives 64 HP and 5 AP, and levels 2 and 3 each add 32
 
 ## Open questions
 
-- The two six-value groups at `+0x5ac` are probably per-body-part texture or mesh references (head, torso, cape, thigh, leg, arms; see `character_set_underwear_textures`), *inferred*. What the numbers (31, 30, 29, 26, 30, 29) index is still open.
 - The rest of the stat panel after protection (`0x42d58f` onwards).
