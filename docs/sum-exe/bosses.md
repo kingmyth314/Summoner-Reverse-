@@ -269,9 +269,13 @@ Notes, all **observed** unless marked:
   above 50 %) the tiger swaps the spear for the axe. That move 0 is the spear throw is *inferred*.
 - **Phoenix second life.** When the phoenix's HP reaches 0 for the first time, `phoenix_stage_transition_move`
   (`0x4995b0`) plays move (9, 1), then sets HP to 50 % of max, stage 3 and `phoenix_flags` bit `0x10`.
-- **All four riders** start at forced stage 3 (on foot) in `Liangshan` and `Jadetemple`, and elsewhere at
+- **All four riders** start at forced stage 3 in `Liangshan` and `Jadetemple`, and elsewhere at
   stage 1 mounted (`serpent_boss_load` `0x495960`, `phoenix_boss_load` `0x498420`, `tiger_boss_load`
-  `0x49ad20`, `ghost_rider_boss_load` `0x4ba260`).
+  `0x49ad20`, `ghost_rider_boss_load` `0x4ba260`). The level scripts take them off their mounts
+  (`*_set_solo`): `ls_liangshan_init` for the Serpent and Phoenix Riders, `ls_jadetemple_init` for all four
+  in `jadetemple_v2`, and in the first Jade Temple visit only the end of Tiger-Ghost-Intro
+  (`ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0320`). Until that cutscene ends, the Tiger and Ghost Riders
+  are at stage 3 but still mounted.
   `cutscene_play_escape` (`0x437130`) also forces stage 3 for Tiger-Escape, Serpent-Escape and PHNX-Escape, but only for
   a cutscene started from the console (`play_and_load_cutscene`); see [Cutscenes](cutscenes.md#console-cutscenes-and-pending-playback).
 - **Giant Salamanka** only moves 1 to 2 and 2 to 3, never skips. Each stage also has an 8-byte attack enable
@@ -347,7 +351,7 @@ flag is 1, and the Intro cutscene end callback sets it. **Observed.** See [Level
 | Pyrul | `khosanilab2` | Pyrul-Intro, Pyrul-Death | combat flag `0x247fd38` |
 | Giant Salamanka | `khosanilab` (`ls_khosanilab_salamanka_fight` `0x4f92a0`) | GiantSalamanka-Intro, -Trans1, -Trans2, -Death | flags `salstart`, `sal_trans1`, `sal_trans2`, `sal_killed`; Trans1/Trans2 when stage 2/3 is reached, their end callbacks set the `_ack` bytes |
 | Titus | `ikaemosbottomint2` | Titus-Intro, Titus-Death | `titus_combat_enabled` and a 30 s timer |
-| Evil Urath, Evil Joseph, Machival | `templeint2` | Machival-intro, Machival-Trans1, Machival-Trans2, Machival-Death | Urath fights first; when Urath dies, Trans1 enables Evil Joseph; when Joseph dies, Trans2 enables Machival (`0x248b034`) |
+| Evil Urath, Evil Joseph, Machival | `templeint2` | Machival-intro, Machival-Trans1, Machival-Trans2, Machival-Death | Urath fights first; when Urath dies, Trans1 enables Evil Joseph; when Joseph dies, Trans2 enables Machival (`0x248b034`). Machival-Death's end callback (`0x4ef4d0`) takes Jekhar, Flece and Rosalind out of the party, ends every summon (`fx_end_owned`, `summon_return_lent_max_hp`, delete) and places the party at entry 2. Two endings follow, both ending in `goto_credits` (game sequence state 9): End1 (`$end2trig`, End1-EnterForge, End1-Montage) and End2 (the `lenele3a` exit, End2-LeaveTemple, End2-Montage); see [game bug G130](game-bugs.md) |
 | Tentacle Beast | `sewerboss` | TB-Intro | end callback raises 4 tentacles and starts the battle |
 | Luminar | `ionaext02` | Luminar-Intro, Luminar-Death | 30 s timer, then IonaExt2 music after the death |
 

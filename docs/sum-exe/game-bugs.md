@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 148 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 156 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 29 | 2 |
-| Gameplay | 22 | 12 | 3 |
-| Cosmetic | 29 | 8 | 2 |
-| Invisible | 17 | 28 | 0 |
+| Crash or hang | 3 | 30 | 2 |
+| Gameplay | 25 | 12 | 3 |
+| Cosmetic | 31 | 8 | 2 |
+| Invisible | 19 | 28 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -70,6 +70,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C112 | Latent: a `$Door:` name that is not a level object crashes the level load or changes the last level object's door | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | C113 | Latent: a level with more than 10 level effects, 32 triggers, 32 level items or 50 clickable objects overwrites memory | `level_parse_table` `0x4cb7b0`, `level_parse_trigger` `0x4cc190`, `level_items_parse_table` `0x4cb430`, `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | C114 | Latent: a level item of the current script with a missing `$Navpoint:` crashes the level load; one with an unknown `$Item:` uses a stale item type | `level_items_parse_table` `0x4cb430` | **Observed** code and retail data, *inferred* effect | No |
+| C130 | Latent: a level script whose rider (Liangshan, Jade Temple) is missing from the level, or a Wolong2 "JekharJoin" while Jekhar is not in the reserve party, dereferences NULL and crashes | `ls_liangshan_init` `0x4f4930`, `ls_jadetemple_init` `0x4effe0`, `ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0320`, `ls_wolong2_frame` `0x4f2140` | **Observed** code and retail data, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -294,6 +295,17 @@ there (`mov eax, [edx]` at `0x4cb6ed`). Every retail item and navpoint of `level
 
 None.
 
+**C130. Lookups used without a NULL test.** `ls_liangshan_init` passes `script_object_find_character("Serpent Rider#1")`
+and `("Phoenix Rider#1")` straight to `serpent_set_solo` / `phoenix_set_solo` (`0x4f4946`..`0x4f4961`).
+`ls_jadetemple_init` does the same for the four riders of `jadetemple_v2` (`0x4f0006`..`0x4f0041`) and
+`ls_jadetemple_tiger_ghost_intro_cs_end` for the Tiger and Ghost Riders (`0x4f0334`..`0x4f034f`). The lookup
+returns NULL when no character has that name, and `serpent_set_solo` writes `[esi + 0x320]` at once (`0x497a4b`).
+`ls_wolong2_frame` reads `[eax + 0xc]` from the result of `party_add_member("Jekhar")` (`0x4f21a7`..`0x4f21ac`), which
+returns NULL when Jekhar is not in the reserve list `player_list_other` (`0x43411d`, `0x434131`). The retail
+script tables place every rider (`Liangshan_script.tbl`, `jadetemple_script.tbl`, `jadetemple_v2_script.tbl`), and
+`ls_wolong2_init` moves Jekhar to the reserve before the "Join us." topic can run (`0x4f20b7`..`0x4f20bc`), so this
+needs modded data. Found in the `NOTES-level-scripts-8.md` notes (oddity 10).
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -332,6 +344,9 @@ None.
 | G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data, *inferred* effect | No |
 | G110 | Latent: a `#Clicks` name that is not a level object makes level object 0 clickable with that entry's message and gold | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
+| G130 | After loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0` | **Observed** code and retail data, *inferred* effect | No |
+| G131 | On the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0` | **Observed** code and retail data, *inferred* effect | No |
+| G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -615,6 +630,36 @@ unknown key name becomes the address 0x100 bytes before the item table. The 13 r
 
 None.
 
+**G130. The forge ending depends on a byte the level init clears.** `ls_templeint2_enter_forge` starts the first
+ending (party back, "End1-EnterForge", then "End1-Montage" and the credits) only when `mach_killed` is set, the
+player is near `$end2trig`, and `ls_templeint2_end2_ready` (`0x257e9b8`) is set (`0x4ef5ed`..`0x4ef5f4`). That byte is
+in .bss, cleared by `ls_templeint2_init` on every entry (`0x4ef1cf`) and set only by
+`ls_templeint2_machival_death_cs_end` (`0x4ef588`). The level sets `level_script_event_active` to 0 when the act 4
+narration ends (`0x4ef287`) and never back to 1, so saving is allowed after the fight. A game saved after
+Machival-Death therefore loads with `mach_killed` set and the byte 0: the forge does nothing. The lenele3a exit tests only
+`mach_killed` (`ls_templeint2_use` `0x4ef790`..`0x4ef7a2`) and still plays "End2-LeaveTemple" and "End2-Montage".
+*Inferred:* the player gets only the second ending after such a load. New in this check.
+
+**G131. A timer that does not survive a load.** In `jadetemple_v2`, once the four riders are dead,
+`lsf_tiger2_dead` sets `got_laharah_spirit`, shows the summon message, starts the 8 s `ls_jadetemple_tiger2_timer` and
+clears `level_script_event_active` (`0x4f053e`..`0x4f0574`). On later frames the set flag leads only to the timers:
+when the 8 s are up it starts the 5 s fade (`0x4f057c`..`0x4f05a8`), and when the fade ends it loads `worldmap1` at
+entry 5 (`0x4f05d9`..`0x4f0670`). `ls_jadetemple_init` invalidates both timers on every entry (`0x4f0049`..`0x4f0058`),
+and an invalid `GameTimer` never reports elapsed (`0x501914`). A game saved in those 8 s loads with the flag set and
+both timers invalid, so the level change never comes. `Jadetemple.tbl` has an empty `#Triggers` section, so the
+level has no exit of its own. *Inferred:* the player is stuck in the Jade Temple and must load an older save. The
+fade closes screen 4 every frame (`0x4f05c3`..`0x4f05d1`), so only the 8 s before the fade are a risk. New in this
+check.
+
+**G132. Wave 4 checks two of the three wave 3 enemies.** `lsf_liangshan_flag_wave3` sends `Orenian Samurai#w3a`,
+`#w3b` and `Orenian Mage#w3` (`0x4f5248`..`0x4f5261`). `lsf_liangshan_flag_wave4` starts the next wave (Greater
+Mage, two soldiers, General Wentao, and Flece's "Here comes Wentao and his soldiers!") when `#w3b` and the mage are
+dead (`0x4f5299`..`0x4f52b9`); `#w3a` is not tested. `lsf_liangshan_flag_finished_quest` tests only the wave 4 enemies
+(`0x4f533d`..`0x4f5383`). In `Liangshan_script.tbl`, `#w3a` is a hidden level 21 Elite Samurai that shows itself and
+runs to `$npc197` on "go", like `#w3b`. *Inferred:* when the player kills `#w3b` and the mage first, the fourth wave joins
+a fight that is still going on, and the end-of-quest remark can come with `#w3a` still alive. Found in the
+`NOTES-level-scripts-8.md` notes (bug 3).
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -656,6 +701,8 @@ None.
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
 | K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code, *inferred* effect | No |
 | K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
+| K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code and retail data, *inferred* effect | No |
+| K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -968,6 +1015,24 @@ an agent-mode test can watch `level_ambient_count` (`0x2491a58`) after entering 
 
 None.
 
+**K130. A "done" byte set before the event.** `ls_liangshan_frame` plays the looping "Boss" track once the
+`phoenix_serpent` flag is set (after SERP-PHNX-Intro, `0x4f4a91`..`0x4f4aac`). The branch that plays `level_music`
+again when `phoenix_dead` and `serpent_dead` are both set runs only while `ls_liangshan_phoenix_dead_done`
+(`0x257ea61`) is 0 (`0x4f4ab4`..`0x4f4b09`). `ls_liangshan_init` sets that byte to 1 on every entry, whatever the flags
+(`0x4f49be`), so the branch never runs. Nothing else switches the music back: the level's own restart
+(`level_script_frame`, `level_music_stop_timer`) runs once after the level load, and the riders die without a
+cutscene (`script_npc_goto_label(..., 2)`, `0x4f4b9e`, `0x4f4bf0`). *Inferred:* the boss music plays on until the player
+leaves Liangshan. Found in the `NOTES-level-scripts-8.md` notes (bug 2).
+
+**K131. "Played" kept in .bss.** `ls_templeint2_frame` plays "Nar-TempleAct4" while `ls_templeint2_act4_played`
+(`0x257e9b7`) is 0 (`0x4ef1e0`..`0x4ef1fb`), and `ls_templeint2_init` clears it on every entry (`0x4ef1c3`). There is no
+saved flag for it (events.tbl lists only `mach_intro`, `urath_killed`, `joseph_killed` and `mach_killed` for
+templeint2). The end callback replays Machival-intro only when `mach_intro` is not set (`0x4ef230`..`0x4ef237`), so
+only the narration repeats. In cutscene.tbl it is a 29 s camera flight with its own soundtrack
+(`Temple_Urath_Act_4.wav`, fade out at 27.3 s). Saving is allowed in the level (see G130). *Inferred:* each load
+inside the temple, before or after the Machival fight, starts with the act 4 narration again. Found in the
+`NOTES-level-scripts-8.md` notes (oddity 9).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -1017,6 +1082,8 @@ None.
 | V120 | The "Fog_near = %.2f, Fog_far = %.2f" debug text in the game view can never be drawn: its timer is started only inside the branch that already needs it running, and the flag that starts it is never set | `game_render_frame` `0x438dc0`, `levelrender_get_flag_22fb6f7` `0x486be0` | **Observed** code |
 | V121 | Latent: the `character` console command with no argument writes a zero one byte before its name buffer, then fails the lookup | `cmd_character` `0x439930` | **Observed** code |
 | V122 | Latent: the `Dump_sound_usage` and `Give_all_items` console toggles are stored and never read | `cmd_dump_sound_usage` `0x4378f0`, `cmd_Give_all_items` `0x438070` | **Observed** code |
+| V130 | The catacombs' "cryptintro" cutscene can never play: its guard byte is never written, the flag test is inverted, and cutscene.tbl has no such cutscene | `ls_catacombs_frame` `0x4fe1c0` | **Observed** code and retail data |
+| V131 | The "Charge" dialogue action clears `wolong2_charge`, which `ls_wolong2_init` sets on every Wolong2 entry; nothing in Sum.exe or the retail tables reads the flag | `ls_wolong2_force_alert_action` `0x4f1eb0`, `ls_wolong2_init` `0x4f2060` | **Observed** code and retail data |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1315,6 +1382,20 @@ character table". Nothing changes. The usage text is printed only for `help`.
 commands' status prints, and the raw byte scan finds no other reference. The cheat that gives all items does not
 exist in retail.
 
+**V130. Inverted test, missing cutscene.** `ls_catacombs_frame` goes on only when the byte `0x5fc014` is set
+(`0x4fe1e6`..`0x4fe1ed`) and then when `catacombs_flag_intro_played` is already set (`je` on a zero result at
+`0x4fe206`). It then sets the flag again and plays "cryptintro" with no callback (`0x4fe208`..`0x4fe227`). Nothing
+writes `0x5fc014`; its only reference is this read. Even if the byte were set, the inverted test would play the cutscene
+on every frame after the flag is set, never before. cutscene.tbl has no "cryptintro" entry (the catacombs have only
+"Carados-Intro"), and no `.vpp` holds a file of that name. Found in the `NOTES-level-scripts-8.md` notes (bug 1).
+
+**V131. Flag cleared, never read.** `ls_wolong2_init` sets `wolong2_charge` to 1 when the script is `wolong2`
+(`0x4f208c`..`0x4f209e`). The "Charge" trigger of the Jade Temple Priest's "How can we help?" topic (`wolong2_dlg.tbl`)
+reaches `ls_wolong2_force_alert_action`, which sets it to 0 (`push eax` with eax = 0 from `_stricmp`, `0x4f1f06`..`0x4f1f17`).
+The string has only these two references (`0x5a26e0`), and no dialogue, script or events table uses the flag
+except the `+Flag:` declaration in events.tbl. Either the polarity is backwards or the flag is unused; nothing changes
+for the player. Found in the `NOTES-level-scripts-8.md` notes (bug 6).
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1492,6 +1573,14 @@ the tables above; the rest are below.
 - The help screen's debug key table (`0x5940ec`, six `<debug>-x` pairs) is never drawn: only the one page function
   at `0x59412c` exists. Part of the unreachable state 5 anyway.
 
+- Wolong caverns, Joseph's "Not yet! I must find the Tail of the Rokhul." / "The Ring of Water must be around here somewhere." (notes, bug 5): `lsf_wc_nali_used` does call `script_party_member_say` every frame at `$healpoint` (`0x4f6e5a`..`0x4f6ed3`), but `character_say` only rewrites the speaker's text slot and its 5 s time (`0x461e3b`..`0x461e59`, no sound call). The line simply stays up while the party stands there and fades 5 s after it leaves.
+- Wolong caverns poison trap loop (notes, bug 4, second half): the three-pass loop compares the same stored distance (`0x4f6bc4`, `0x4f6bce`..`0x4f6be3`). A target in range breaks out on the first pass, so each target is hit once.
+- Flag-only remarks (notes, item 7): `lsf_catacombs_flag_way_comment` (`0x4fe330`) and `lsf_liangshan_flag_lair_comment` (`0x4f4f40`) set their flag and say nothing. No dialogue or script table reads either flag, so this is a cut line with no effect. `lsf_sewer_flag_scene_a` and `lsf_sewer_flag_found_crate` are flag-only by design.
+- Palace servant line (notes, item 8): `ls_lpalaceint_sneak_frame` calls `rand()` and ignores the result before it says the single servant line (`0x4f3365`..`0x4f336a`). Harmless.
+- `ls_sewer_init` comparing `level_prev_filename` with "lenele1d" (`0x4ed86f`..`0x4ed88b`): both outcomes call `game_stage_set(0)`, so the test has no effect. Probably removed code, not a bug.
+- Catacombs king tombs (notes, item 11): using `cry_kinge` or `cry_kingf` while the other is open opens `cry_tombcen` whatever the other tombs show; the 2000 XP needs A-D and G-M closed and `main_crypt_open` unset (`0x4fe674`..`0x4fe7a2`). The level has no `cry_kingj` (catacombs.s3d), so the list is complete. A bonus for the exact solution, not a broken test.
+- `ls_sewerboss_golems_done` not reset by `ls_sewerboss_init`: it is cleared by the TB-Intro end callback (`0x4ee36c`) before every fight, and in a fresh session it only repeats `camera_set_mode(4)` and the "Sewer" music once after the golems are already dead. No effect.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1584,6 +1673,7 @@ the tables above; the rest are below.
   Whether a console line can be long enough to overflow it depends on the console input limit, which was not read.
 - `state_game_enter` in multiplayer: when `level_load` fails it reports the local player as disconnected
   (`mp_player_disconnected(4, 0)`, `0x4381cc`) but does not leave state 4. What the game does next was not traced.
+- Wolong caverns poison mist trap (notes, bug 4): `ls_wolongcaverns_ptrap_fire` deals 15 damage and adds status 3 (Curse) with value 0.5 for 40 minutes (`push 0x3f000000`, `push 0x249f00`, `push 0x3` at `0x4f6bfd`..`0x4f6c09`). The trap is named poison (navpoint `$poisontrap`, `wolong_caverns_poisonmist.wav`, `wc-ptrap.vfx`), and the Liangshan marsh uses status 11 (Poison) with the same call shape and -24 (`0x4f4d42`..`0x4f4d56`). But 0.5 is a Curse value (damage x 1.5, magic resistance -0.5): as Poison it would add 0.5 HP at each tick. So the id and the value agree with each other, and the name does not. Whether the designers meant a curse is unknown. In game the player sees "+Curse" and a blue tint for 40 minutes, not "+Poison".
 
 ## Evidence
 
@@ -1742,3 +1832,11 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V120 fog text | `game_render_frame` `0x438e35`..`0x438f11`; timer constructor `0x501862`, `GameTimer__valid` `0x501990`; flag `0x22fb6f7` read `0x486be0`, only write `0x482392` |
 | V121 empty name | `cmd_character` `0x4399cc`..`0x4399e3` (`mov [esp+ecx+0x37], al` at `0x4399da`); lookup failure `charinfo_find_by_name` `0x446bb9`, message `0x4399f2`..`0x439a0d` |
 | V122 toggles | `Dump_sound_usage` writers `0x43790f`, `0x43791c`, `0x437929`; `Give_all_items` writers `0x43808f`, `0x43809c`, `0x4380a9`, `ls_test_init` `0x4fde10`; byte scan of the image for `0x609fe1` / `0x609fec` |
+| C130 unchecked lookups | `ls_liangshan_init` `0x4f4946`..`0x4f4961`; `ls_jadetemple_init` `0x4f0006`..`0x4f0041`; `ls_jadetemple_tiger_ghost_intro_cs_end` `0x4f0334`..`0x4f034f`; `serpent_set_solo` `0x497a4b`; `ls_wolong2_frame` `0x4f21a7`..`0x4f21ac`; `party_add_member` `0x43411d`, `0x434131`; `ls_wolong2_init` `0x4f20b7`..`0x4f20bc` |
+| G130 forge ending | `ls_templeint2_init` `0x4ef1cf`; `ls_templeint2_enter_forge` `0x4ef5d5`..`0x4ef5f4`; `ls_templeint2_machival_death_cs_end` `0x4ef588`; `ls_templeint2_act4_cs_end` `0x4ef287`; `ls_templeint2_use` `0x4ef790`..`0x4ef7f9`; `savegame_location_allowed` `0x4d4a50`..`0x4d4a58` |
+| G131 Laharah fade | `lsf_tiger2_dead` `0x4f053e`..`0x4f0574`, `0x4f057c`..`0x4f05a8`, `0x4f05d9`..`0x4f0670`; `ls_jadetemple_init` `0x4f0049`..`0x4f0058`; `GameTimer__elapsed` `0x501914`; retail `Jadetemple.tbl` `#Triggers` empty |
+| G132 wave 4 | `lsf_liangshan_flag_wave3` `0x4f5248`..`0x4f5261`; `lsf_liangshan_flag_wave4` `0x4f5299`..`0x4f52b9`; `lsf_liangshan_flag_finished_quest` `0x4f533d`..`0x4f5383`; retail `Liangshan_script.tbl` `Orenian Samurai#w3a` |
+| K130 boss music | `ls_liangshan_init` `0x4f49be`; `ls_liangshan_frame` `0x4f4a91`..`0x4f4aac`, `0x4f4ab4`..`0x4f4b09`; `level_script_frame` `0x4ccabe`..`0x4ccaf4` |
+| K131 act 4 narration | `ls_templeint2_init` `0x4ef1c3`; `ls_templeint2_frame` `0x4ef1e0`..`0x4ef1fb`; `ls_templeint2_act4_cs_end` `0x4ef230`..`0x4ef237`; retail cutscene.tbl "Nar-TempleAct4", events.tbl templeint2 flags |
+| V130 cryptintro | `ls_catacombs_frame` `0x4fe1e6`..`0x4fe227`; only reference to `0x5fc014` is `0x4fe1e6`; retail cutscene.tbl (no "cryptintro") |
+| V131 wolong2_charge | `ls_wolong2_init` `0x4f208c`..`0x4f209e`; `ls_wolong2_force_alert_action` `0x4f1ef2`..`0x4f1f17`; references to `0x5a26e0`: `0x4f1f0c`, `0x4f2093`; retail `wolong2_dlg.tbl` "Charge" trigger |
