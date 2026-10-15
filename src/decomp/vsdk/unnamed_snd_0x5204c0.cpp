@@ -1,6 +1,8 @@
 // unnamed_snd_0x5204c0.cpp - Sum.exe v1.40, code 0x5204c0-0x521e38: the sound library's snd_* layer
 // (sounds.tbl, groups, listener, 2D fallback of 3D sounds; module '-' in sum.symbols). The file name is a
 // placeholder: no path string, no strings.tbl block.
+// decomp66: this copy replaces the repo file; only snd_play_streamed / snd_play_streamed_looping changed
+// (int arg -> float pan, D4603).
 // Written from the Sum.exe disassembly (tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966).
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
@@ -355,8 +357,9 @@ int snd_play_looping(int handle, float volume, float pan, int a)
     return ds_play(sounds[handle].handle, v, pan, 1, a);
 }
 
-// 0x520ea0  Confidence: exact (the range is tested before snd_disabled here).
-int snd_play_streamed(int handle, float volume, int arg)
+// 0x520ea0  Confidence: exact (the range is tested before snd_disabled here). decomp66 (D4603): the third
+// argument is the pan (ds_play_streamed multiplies it by 1000 as a float); every caller passes 0.
+int snd_play_streamed(int handle, float volume, float pan)
 {
     float v;
 
@@ -369,11 +372,11 @@ int snd_play_streamed(int handle, float volume, int arg)
         return -1;
     if (snd_backend != 1)
         return -1;
-    return ds_play_streamed(sounds[handle].handle, v, arg, 0, 1.0f);
+    return ds_play_streamed(sounds[handle].handle, v, pan, 0, 1.0f);
 }
 
 // 0x520f20  Confidence: exact.
-int snd_play_streamed_looping(int handle, float volume, int arg)
+int snd_play_streamed_looping(int handle, float volume, float pan)
 {
     float v;
 
@@ -386,7 +389,7 @@ int snd_play_streamed_looping(int handle, float volume, int arg)
         return -1;
     if (snd_backend != 1)
         return -1;
-    return ds_play_streamed(sounds[handle].handle, v, arg, 1, 1.0f);
+    return ds_play_streamed(sounds[handle].handle, v, pan, 1, 1.0f);
 }
 
 // 0x520fa0  Confidence: likely (`zero` is a stack local in the binary, loaded when the divisor is 0).

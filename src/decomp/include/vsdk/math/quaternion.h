@@ -9,6 +9,7 @@
 
 class matrix;
 class matrix43;
+class cquat;
 
 #define CQUAT_ONE      16383          // a cquat component of 1.0
 #define CQUAT_TO_FLOAT (1.0f / 16383.0f)
@@ -43,6 +44,9 @@ public:
     void log_in_place();                              // 0x522f90
     void exp_in_place();                              // 0x522ff0
     void make_identity();                             // 0x523500
+    // decomp66 (the vfx key readers): x, y, z, w = the cquat's components * CQUAT_TO_FLOAT (0x581d78).
+    // Out of line in another vsdk\math unit (near skeleton.cpp; not written).
+    void unpack_short4(const cquat &q);               // 0x551960 quaternion__unpack_short4 (ret 4)
     // Inline: their only copies are COMDATs at the end of the quaternion object.
     quaternion operator-() const                      // 0x523e70 quaternion__negated
     { return quaternion(-x, -y, -z, -w); }

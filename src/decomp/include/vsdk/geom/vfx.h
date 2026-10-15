@@ -17,8 +17,17 @@ struct fx_rec2c;
 struct fx_rec4c;
 struct fx_recb0;
 struct vfx_node_ref;                          // below
+class vfx_base;                               // below
+class vfx_emitter_desc;                       // below (after the key channels; decomp66)
+struct vfx_dummy_desc;                        // below (after the key channels; decomp66)
+struct vfx_camera_desc;                       // below (after the key channels; decomp66)
+class vfx_force_desc;                         // below
+struct vfx_force_params;
 
-void ptr_relocate(void *p, char *base);       // 0x564d50 (*p += base unless NULL)
+// decomp66: inline (cdecl); its copy is a COMDAT at the end of the mesh object (0x564d50), which was built
+// without inline expansion; the other vsdk\geom objects call it.
+inline void ptr_relocate(void *p, char *base)   // 0x564d50 (*p += base unless NULL)
+{ if (*(char **)p != NULL) *(char **)p += (int)base; }
 // decomp67: (ptr*, base): 0 stays, -1 becomes base, else base is added (the record names; another unit).
 void reloc_ptr(void *p, char *base);          // 0x533d90
 
@@ -33,34 +42,6 @@ void reloc_ptr(void *p, char *base);          // 0x533d90
 #define VFX_TAG_EMITTER       4               // emitters / vfx_instance::emitters
 #define VFX_TAG_VIF           5               // descs21c / insts21c
 
-// One emitter record of a base (0xe8 bytes, the array at vfx_base +0x28; name ours). Only what
-// vfx_instance_create reads.
-class vfx_emitter_desc {
-public:
-    // (rate + 1) * frames / 4800 (thiscall; a COMDAT after effect_mem.cpp's record constructors).
-    float get_length_seconds()                // 0x51e020 vfx_get_length_seconds
-    { return (rate + 1.0f) * frames * (1.0f / 4800.0f); }
-    void relocate(char *header_base, char *base);   // 0x561190 vfx_emitter__relocate (another unit; decomp67)
-    const char *name;                         // +0x00 (decomp67; was char _unk00[0x0c])
-    const char *parent;                       // +0x04
-    char _unk08[0x04];
-    char *links[3];                           // +0x0c records of the base's 0xa0-byte table (+0x34), or NULL
-    unsigned int num_links : 31;              // +0x18
-    unsigned int _bit31 : 1;                  //       decomp67: the emitter can be bound to a mesh tag
-    // decomp67 (D4702): a signed 16-bit bit field (shl / sar 16 in vfx_instance_create, decode_tag and
-    // get_num_tags; was short num_particles, short _pad1e); also the emitter's sub-tag count.
-    int num_particles : 16;                   // +0x1c particle records (fx_rec28) per instance
-    int _bits1c_16 : 16;
-    int frames;                               // +0x20
-    float rate;                               // +0x24
-    // decomp63 (levelrender_add_effects / levelrender_effect_apply_vis; names ours).
-    unsigned int vis_flags;                   // +0x28 0x400000 shown by a $vis tag, 0x800000 always shown
-    char _unk2c[0x3c - 0x2c];
-    vector3 centre;                           // +0x3c bounding sphere (effect frame)
-    float radius;                             // +0x48
-    char _unk4c[0xe8 - 0x4c];
-};
-LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 
 // decomp64 (the fx unit): the node descriptors (vfx_base +0x20, 0xa8 bytes each) and the +0x2c records (0x21c)
 // as fx_create_instance and fx_frame read them. Names ours.
@@ -109,6 +90,8 @@ LAYOUT_CHECK(vfx_desc21c, sizeof(vfx_desc21c) == 0x21c);
 // +0x2c descriptors (a list from vfx_instance +0x24), as levelrender_effect_apply_vis /
 // levelrender_add_effects / fx_draw_flagged_particles read them. Names ours.
 struct vfx_tag_ref {                          // 8 bytes
+    // decomp66: inline (COMDAT 0x565450 vfx_group_entry__relocate, after vfx_base_tag::relocate).
+    void relocate(char *base) { ptr_relocate(&rec, base); }
     int kind;                                 // +0 0 node, 1 emitter, 2 +0x2c record
     void *rec;                                // +4 the vfx_node_desc / vfx_emitter_desc / vfx_desc21c
 };
@@ -144,41 +127,58 @@ inline int vif_record_num_live(vfx_inst21c *em)   // 0x5385a0
 { return em->num_live; }
 
 // decomp67: the other record kinds of a base (names ours; their methods are in other vsdk\geom units).
-struct vfx_dummy_desc {                       // 0x64 bytes, vfx_base +0x30 (count +0x0a)
-    void relocate(char *header_base, char *base);   // 0x55fed0 vfx_dummy__relocate
-    const char *name;                         // +0x00
-    const char *parent;                       // +0x04
-    ubyte _unk08[0x04];
-    ushort flags;                             // +0x0c 0x8000: can be bound
-    ubyte _unk0e[0x64 - 0x0e];                // +0x10 position channel, +0x34 rotation channel
-};
-LAYOUT_CHECK(vfx_dummy_desc, sizeof(vfx_dummy_desc) == 0x64);
-struct vfx_force_desc {                       // 0xa0 bytes, vfx_base +0x34 (count +0x0c)
-    void relocate(char *header_base, char *base);   // 0x55b960 vfx_force__relocate
-    ubyte _unk00[0xa0];
-};
-LAYOUT_CHECK(vfx_force_desc, sizeof(vfx_force_desc) == 0xa0);
-struct vfx_camera_desc {                      // 0x64 bytes, vfx_base +0x38 (count +0x0e)
-    void relocate(char *header_base, char *base);   // 0x5655c0 vfx_camera__relocate
-    // false outside its frame range, else the camera at frame t.
-    bool get_transform(float t, vector3 *pos, quaternion *rot);   // 0x565470 vfx_camera__get_transform
-    ubyte _unk00[0x64];
-};
-LAYOUT_CHECK(vfx_camera_desc, sizeof(vfx_camera_desc) == 0x64);
 struct vfx_tex_layer {                        // 0x14 bytes, two at vfx_material +0x0c
+    // decomp66: the material unit (0x564d70-0x56565c, src/decomp/vsdk/unnamed_vfx_material_0x564d70.cpp).
+    // The empty constructor and destructor are what vfx_material's constructor passes to 'eh vector
+    // constructor iterator' (0x564d70 / 0x564d80, sum.symbols vfx_material_layer__ctor / __dtor).
+    vfx_tex_layer() {}                        // 0x564d70
+    ~vfx_tex_layer() {}                       // 0x564d80
+    // The bitmap of the animation at frame t (from its frame rate, the layer's rate and first frame) or
+    // at fraction f of a particle's life; the bitmap itself when it has one frame (ret 4).
+    int get_frame_bitmap(float t);            // 0x564d90 vfx_tex_layer__get_frame_bitmap
+    int get_frame_bitmap_frac(float f);       // 0x564e40 vfx_tex_layer__get_frame_bitmap_frac
+    void relocate(char *header_base);         // 0x565360 vfx_tex_layer__relocate (bitmap 0)
+    void load_bitmap(int flags);              // 0x565380 vfx_tex_layer__load_bitmap ("" or "$...": none)
     int bitmap;                               // +0x00 -1 none
-    ubyte _unk04[0x10];
+    char *name;                               // +0x04 decomp66 (reloc_ptr against the header base)
+    int start;                                // +0x08 decomp66: first frame
+    float rate;                               // +0x0c
+    int mode;                                 // +0x10 0 / 2 wrap, 1 clamp
 };
+LAYOUT_CHECK(vfx_tex_layer, sizeof(vfx_tex_layer) == 0x14);
 struct vfx_material {                         // 0x4c bytes, vfx_base +0x44 (count +0x14)
+    // decomp66: the constructor (no caller; bases are loaded) and reset are in the material unit.
+    vfx_material();                           // 0x564f20 vfx_material__ctor (EH frame: the layers' destructor)
+    void reset();                             // 0x564f80 vfx_material__reset
     void relocate(char *header_base, char *base);   // 0x565280 vfx_material__relocate
     void load_bitmaps(int flags);             // 0x5652e0 vfx_material__load_bitmaps
+    // decomp66: the byte curves (n bytes, value / 255) sampled at rate * t / 15 with linear blending,
+    // clamped to 0..1; curve 34 only when its mode (bits 0-2) is 1, else 0.
     float eval_curve34(float t);              // 0x564ff0 0..1
     float eval_curve48(float t);              // 0x5651b0 0..1
     float eval_curve44(float t);              // 0x5650e0 0..1
-    ushort flags;                             // +0x00 bits 3-5 blend mode, bit 6 (setup_render_state)
-    ubyte _unk02[0x0a];
+    union {
+        ushort flags;                         // +0x00 bits 3-5 blend mode, bit 6 (setup_render_state);
+                                              //       decomp66: bit 6 additive particles, bits 7-15 the curve rate
+        struct {
+            short curve34_mode : 3;           //       decomp66 (D4608): read signed (shl 13 / sar 13)
+            short blend : 3;
+            short additive : 1;
+            unsigned short rate : 9;
+        };
+    };
+    ushort num34;                             // +0x02 decomp66: curve lengths
+    ushort num44;                             // +0x04
+    ushort num48;                             // +0x06
+    ubyte color[3];                           // +0x08 decomp66: the flat particles' rgb scale (/ 255)
+    ubyte _unk0b;
     vfx_tex_layer layers[2];                  // +0x0c
-    ubyte _unk34[0x4c - 0x34];                // +0x34 curve pointers, the name +0x38, its bitmap +0x3c
+    ubyte *curve34;                           // +0x34 decomp66 (was ubyte _unk34[0x18]: curve pointers, name, bitmap)
+    char *name;                               // +0x38 a bitmap name ("" after reset)
+    int bitmap;                               // +0x3c
+    float _unk40;                             // +0x40 0.6 after reset (no reader in these units)
+    ubyte *curve44;                           // +0x44
+    ubyte *curve48;                           // +0x48
 };
 LAYOUT_CHECK(vfx_material, sizeof(vfx_material) == 0x4c);
 struct vfx_material_link {                    // what vfx_base +0x40 points to (setup_render_state)
@@ -248,28 +248,41 @@ public:
 };
 
 // ---- key channels of the effect files (vsdk\geom; names from sum.symbols, layout from 0x55bc00) ----
-// A run-length coded int16 key channel (0xc bytes). eval is out of line in another vsdk\geom unit;
-// relocate is inline (its COMDAT 0x5202b0 is in the attached-light unit).
+// A run-length coded int16 key channel (0xc bytes). decomp66: the out-of-line members are in the vfx
+// channel unit (0x55b440-0x55bd77, src/decomp/vsdk/unnamed_vfx_channel_0x55b440.cpp); relocate is
+// inline (its COMDAT 0x5202b0 is in the attached-light unit: the AND 0x8000 clears frame and done).
+// The data: a byte with bit 0 set starts a run (count byte, then the value: one byte when `bytes`, else
+// two), with bit 0 clear a single two-byte key (D4602).
 class vfx_channel {
 public:
-    int eval(int frame);                      // 0x55bc00 vfx_channel__eval (int16 value, AX)
+    vfx_channel();                            // 0x55bbc0 vfx_channel__ctor (no caller)
+    void clear();                             // 0x55bbb0 vfx_channel__clear (the three words zeroed)
+    // The value at a frame (base_value + key); 4000 once the data is found broken (done set).
+    short eval(int frame);                    // 0x55bc00 vfx_channel__eval (decomp66, D4602: was int)
     void relocate(char *base)                 // 0x5202b0 vfx_track__relocate (thiscall, ret 4)
-    { frame = 0; cursor = 0; ptr_relocate(this, base); }
+    { frame = 0; done = 0; cursor = 0; ptr_relocate(this, base); }
     char *data;                               // +0x00
-    short size;                               // +0x04
+    ushort size;                              // +0x04 bytes of data
     short base_value;                         // +0x06
-    short cursor;                             // +0x08 cached key, reset by relocate
-    ushort frame : 15;                        // +0x0a cached frame, reset by relocate
-    ushort flag : 1;
+    ushort cursor;                            // +0x08 cached key offset, reset by relocate
+    ushort frame : 14;                        // +0x0a cached key frame, reset by relocate
+    ushort done : 1;                          //       bit 14: bad data, eval returns 4000
+    ushort bytes : 1;                         //       bit 15: run values are one byte
 };
 LAYOUT_CHECK(vfx_channel, sizeof(vfx_channel) == 0xc);
 
 // Three channels: x +0, y +0xc, z +0x18 (0x24 bytes).
 class vfx_vec_channel {
 public:
-    void relocate(char *base);                // 0x55bb50 vfx_vec_channel__relocate (another unit)
+    void relocate(char *base);                // 0x55bb50 vfx_vec_channel__relocate
+    // The value at a frame, 8.8 fixed (hidden result, ret 4; the z channel first).
+    vector3 eval(int frame);                  // 0x55b9e0 vfx_vec_channel__eval (decomp66)
     // The position at a frame (hidden result, ret 8; COMDAT 0x520310). The z channel is evaluated
     // first (the constructor's arguments are pushed right to left).
+    // decomp66: the same in 4.12 (inline; COMDAT 0x565610 vfx_vec_channel__eval_fixed12, the material unit).
+    vector3 eval_fixed12(int frame)
+    { return vector3(fixed12_to_float(x.eval(frame)), fixed12_to_float(y.eval(frame)),
+                     fixed12_to_float(z.eval(frame))); }
     vector3 sample(int frame)                 // 0x520310 vfx_vector_track__sample
     { return vector3(fixed4_to_float((short)x.eval(frame)), fixed4_to_float((short)y.eval(frame)),
                      fixed4_to_float((short)z.eval(frame))); }
@@ -277,31 +290,225 @@ public:
 };
 LAYOUT_CHECK(vfx_vec_channel, sizeof(vfx_vec_channel) == 0x24);
 
-// A per-frame bit array (0xc bytes at the light track's +0x64). get is out of line elsewhere; the
-// inline relocate is the COMDAT 0x5202d0 (sum.symbols: vfx_ptr__relocate).
+// Four channels of a cquat (0x30 bytes; decomp66).
+class vfx_quat_channel {
+public:
+    void relocate(char *base);                // 0x55bb80 vfx_quat_channel__relocate
+    cquat eval(int frame);                    // 0x55ba50 vfx_quat_channel__eval (hidden result, the w channel first)
+    vfx_channel x, y, z, w;
+};
+LAYOUT_CHECK(vfx_quat_channel, sizeof(vfx_quat_channel) == 0x30);
+
+// A bit array (0xc bytes; at the light track's +0x64, one bit per frame). decomp66: the out-of-line
+// members are in the BitArray unit (0x55bd80-0x55bf88, src/decomp/vsdk/unnamed_bitarray_0x55bd80.cpp);
+// the inline relocate is the COMDAT 0x5202d0 (sum.symbols: vfx_ptr__relocate).
+class NoRlsAllocPool;
 class BitArray {
 public:
+    BitArray();                               // 0x55bd80 BitArray__ctor (data = NULL)
+    ~BitArray();                              // 0x55bd90 BitArray__dtor (free)
+    // (bits, owned): operator new of the byte count; -1 when that fails.
+    int alloc(int bits, bool owned);          // 0x55bda0
+    void attach(void *buf, int bits);         // 0x55bde0 not owned
+    int alloc_from_pool(NoRlsAllocPool *pool, int bits);   // 0x55be00 -1 when the pool is full
+    void fill(bool on);                       // 0x55be40 every byte 0 or 0xff
     int get(int bit);                         // 0x55be80 BitArray__get (1 when set)
+    void set(int bit, int on);                // 0x55beb0
+    void free();                              // 0x55bef0 deletes an owned buffer
+    // (bits, value): the whole bytes are compared with 0 whatever value is, and the tail range is
+    // computed wrongly (start + bits, mod 8), so the tail is never tested (NOTES.md).
+    bool all_equal(unsigned int bits, bool value);   // 0x55bf20
     void relocate(char *base)                 // 0x5202d0 vfx_ptr__relocate (thiscall, ret 4)
     { ptr_relocate(this, base); }
     char *data;                               // +0x00
-    int _unk04;
-    int _unk08;
+    unsigned int num_bytes;                   // +0x04
+    bool owned;                               // +0x08
+    ubyte _pad09[3];
 };
 LAYOUT_CHECK(BitArray, sizeof(BitArray) == 0xc);
 
 // The header of an effect file record (0x10 bytes): two name / link fields, a pointer and the frame count.
+// decomp66 (D4601): the word at +0xc is read two ways: the light tracks take a 15-bit count above bit 0
+// of the low half (SHR 1 of the ushort), the forces an arithmetic SAR 8 of the whole dword (frame_word;
+// its low byte is the force kind). Both views are kept as an anonymous union.
 class vfx_node_header {
 public:
-    void relocate(char *header_base, char *base);   // 0x55bbd0 vfx_node_header__relocate (another unit)
-    int name;                                 // +0x00
-    int link;                                 // +0x04
+    void relocate(char *header_base, char *base);   // 0x55bbd0 vfx_node_header__relocate
+    int name;                                 // +0x00 (decomp67: the name; reloc_ptr)
+    int link;                                 // +0x04 (decomp67: the parent name)
     char *data;                               // +0x08
-    ushort _bit0 : 1;                         // +0x0c
-    ushort num_frames : 15;                   //       frames of the light's tracks (sample: SHR 1)
-    short _unk0e;
+    union {
+        struct {
+            ushort _bit0 : 1;                 // +0x0c
+            ushort num_frames : 15;           //       frames of the light's tracks (sample: SHR 1)
+            short _unk0e;
+        };
+        int frame_word;                       // +0x0c frames << 8 for the forces (vfx_force_desc::num_frames)
+    };
 };
 LAYOUT_CHECK(vfx_node_header, sizeof(vfx_node_header) == 0x10);
+
+// A node of an effect file (0x64 bytes): the header, the position and the orientation channels
+// (decomp66; class name from sum.symbols vfx_node__get_pos).
+class vfx_node {
+public:
+    vector3 get_pos(int frame);               // 0x55b9c0 vfx_node__get_pos (pos.eval)
+    cquat get_orient(int frame);              // 0x55ba30 vfx_node__get_orient (orient.eval)
+    int num_frames() const { return header.frame_word >> 8; }
+    vfx_node_header header;                   // +0x00
+    vfx_vec_channel pos;                      // +0x10 8.8 fixed
+    vfx_quat_channel orient;                  // +0x34
+};
+LAYOUT_CHECK(vfx_node, sizeof(vfx_node) == 0x64);
+
+
+// A force of an effect file (0xa0 bytes, the base's table at +0x34; decomp66). get_channel64 is the
+// strength (int16 * 2000), the other four 8.8 fixed. decomp66 (D4606): decomp67's vfx_force_desc stub
+// (struct, relocate only) and decomp66's vfx_force are one class; the name is decomp67's. The low byte of
+// header.frame_word is the kind (1: a point force, else a plane; the emitter unit).
+class vfx_force_desc : public vfx_node {
+public:
+    void relocate(char *header_base, char *base);   // 0x55b960 vfx_force__relocate
+    float get_channel64(int frame);           // 0x55baa0
+    float get_channel70(int frame);           // 0x55bad0
+    float get_channel7c(int frame);           // 0x55baf0
+    float get_channel88(int frame);           // 0x55bb10
+    float get_channel94(int frame);           // 0x55bb30
+    vfx_channel ch64;                         // +0x64
+    vfx_channel ch70;                         // +0x70
+    vfx_channel ch7c;                         // +0x7c
+    vfx_channel ch88;                         // +0x88
+    vfx_channel ch94;                         // +0x94
+};
+LAYOUT_CHECK(vfx_force_desc, sizeof(vfx_force_desc) == 0xa0);
+
+// A force evaluated at a time (0x2c bytes; fx_rec4c::get_transform's output, the emitter particle code's
+// input; names ours).
+struct vfx_force_params {
+    vector3 pos;                              // +0x00
+    vector3 dir;                              // +0x0c the force's up axis (0, 1, 0) turned by its rotation
+    float strength;                           // +0x18 ch64
+    float v1c, v20, v24, v28;                 // +0x1c ch70, ch7c, ch88, ch94; decomp66 (the emitter
+                                              //       unit): falloff (exp(-v1c d)), turbulence amount,
+                                              //       turbulence speed (* time * 48), turbulence scale
+};
+LAYOUT_CHECK(vfx_force_params, sizeof(vfx_force_params) == 0x2c);
+
+// decomp67: the other record kinds of a base. decomp66: the dummy's channels (moved after the key
+// channels); the dummy unit (0x55fc70-0x55fefa) reads the descriptor as a vfx_node (D4606).
+struct vfx_dummy_desc {                       // 0x64 bytes, vfx_base +0x30 (count +0x0a)
+    void relocate(char *header_base, char *base);   // 0x55fed0 vfx_dummy__relocate
+    // decomp66: the light track's sampler; the dummy unit calls the COMDAT 0x5202f0 (identical code
+    // folded, as fx_rec_2vec__ctor).
+    vector3 get_position(int frame)           // 0x5202f0 (folded)
+    { return pos.sample(frame); }
+    const char *name;                         // +0x00
+    const char *parent;                       // +0x04
+    ubyte _unk08[0x04];
+    ushort flags;                             // +0x0c 0x8000: can be bound; decomp66: bits 0-14 the frame count
+    ubyte _unk0e[0x10 - 0x0e];
+    vfx_vec_channel pos;                      // +0x10 decomp66
+    vfx_quat_channel orient;                  // +0x34
+};
+LAYOUT_CHECK(vfx_dummy_desc, sizeof(vfx_dummy_desc) == 0x64);
+// decomp67: a camera of a base. decomp66: its fields (moved after the key channels); the descriptor is
+// a vfx_node for get_orient (D4606).
+struct vfx_camera_desc {                      // 0x64 bytes, vfx_base +0x38 (count +0x0e)
+    void relocate(char *header_base, char *base);   // 0x5655c0 vfx_camera__relocate
+    // false outside its frame range, else the camera at frame t.
+    bool get_transform(float t, vector3 *pos, quaternion *rot);   // 0x565470 vfx_camera__get_transform
+    // decomp66: inline (COMDAT 0x5655f0, at the end of the material unit; hidden result, ret 8).
+    vector3 get_pos(int frame) { return pos.eval_fixed12(frame); }
+    const char *name;                         // +0x00
+    const char *parent;                       // +0x04
+    ubyte _unk08[0x04];
+    short start_frame;                        // +0x0c decomp66
+    short end_frame;                          // +0x0e
+    vfx_vec_channel pos;                      // +0x10 4.12 fixed
+    vfx_quat_channel orient;                  // +0x34
+};
+LAYOUT_CHECK(vfx_camera_desc, sizeof(vfx_camera_desc) == 0x64);
+
+// One emitter record of a base (0xe8 bytes, the array at vfx_base +0x28; name ours).
+// decomp66: moved after the key channels (its channels at +0x4c..+0xe7); the field names from the
+// emitter unit (0x55ff00-0x562a2b, src/decomp/vsdk/unnamed_vfx_emitter_0x55ff00.cpp; ours). The
+// accessors are inline: their copies are COMDATs at the end of the emitter object (0x5622b0-0x562a2b),
+// which was built without inline expansion.
+class vfx_emitter_desc {
+public:
+    // (rate + 1) * frames / 4800 (thiscall; a COMDAT after effect_mem.cpp's record constructors).
+    float get_length_seconds()                // 0x51e020 vfx_get_length_seconds
+    { return (rate + 1.0f) * frames * (1.0f / 4800.0f); }
+    // decomp66: the header part is vfx_node_header's layout (+0x00..+0x0b; the emitter's +0x0c is links[0]).
+    void relocate(char *header_base, char *base);   // 0x561190 vfx_emitter__relocate
+    float get_rate(int frame)                 // 0x5622b0 vfx_emitter__get_rate (particles per frame / 320)
+    { return fixed12_to_float(rate_ch.eval(frame)); }
+    vector3 get_offset(int frame)             // 0x562460 vfx_emitter__get_offset (hidden result)
+    { return offset.sample(frame); }
+    cquat get_orient(int frame)               // 0x562480 vfx_emitter__get_orient (hidden result)
+    { return orient.eval(frame); }
+    short eval_channel_a0(int frame) { return ch_a0.eval(frame); }   // 0x5624a0 width
+    short eval_channel_ac(int frame) { return ch_ac.eval(frame); }   // 0x5624c0 depth
+    short eval_channel_b8(int frame) { return ch_b8.eval(frame); }   // 0x5624e0 size
+    short eval_channel_c4(int frame) { return ch_c4.eval(frame); }   // 0x562500 speed
+    short eval_channel_d0(int frame) { return ch_d0.eval(frame); }   // 0x562520 speed spread
+    float get_fade_in() { return size_fade_in * (1.0f / 255.0f); }   // 0x5627d0 vfx_emitter__get_fade_in
+    float get_fade_out() { return size_fade_out * (1.0f / 255.0f); } // 0x5627f0 vfx_emitter__get_fade_out
+    float get_fixed8_2e() { return fixed8_to_float(alpha_fade_in); } // 0x562810
+    float get_fixed8_30() { return fixed8_to_float(alpha_fade_out); }// 0x562820
+    float get_fixed8_32() { return fixed8_to_float(stretch); }       // 0x562a20
+    const char *name;                         // +0x00 (decomp67; was char _unk00[0x0c])
+    const char *parent;                       // +0x04
+    vfx_base *base;                           // +0x08 decomp66: the header's data pointer (relocated against
+                                              //       base); the materials are read through it (was _unk08)
+    char *links[3];                           // +0x0c records of the base's 0xa0-byte table (+0x34, vfx_force_desc), or NULL
+    unsigned int num_links : 31;              // +0x18
+    unsigned int _bit31 : 1;                  //       decomp67: the emitter can be bound to a mesh tag
+    // decomp67 (D4702): a signed 16-bit bit field (shl / sar 16 in vfx_instance_create, decode_tag and
+    // get_num_tags; was short num_particles, short _pad1e); also the emitter's sub-tag count.
+    int num_particles : 16;                   // +0x1c particle records (fx_rec28) per instance
+    int start_frame : 16;                     //       decomp66: no emission before it (was _bits1c_16)
+    int frames;                               // +0x20 particle lifetime in 1/4800 s
+    float rate;                               // +0x24 lifetime spread (frames * rate either way)
+    // decomp63 (levelrender_add_effects / levelrender_effect_apply_vis; names ours). decomp66: the low
+    // bits as the emitter unit reads them (D4605).
+    union {
+        unsigned int vis_flags;               // +0x28 0x400000 shown by a $vis tag, 0x800000 always shown
+        struct {
+            int shape : 2;                    //       0 box (falls), 1 sphere; others emit nothing
+            int material : 14;                //       vfx_base::materials index
+            unsigned int white : 1;           //       0x10000 colour 255 (and additive in the 3D path)
+            unsigned int gravity : 1;         //       0x20000 9.8 down
+            unsigned int life_anim : 1;       //       0x40000 bitmap frames over the lifetime
+            unsigned int add_velocity : 1;    //       0x80000 the emitter's velocity is added
+            unsigned int random_rot : 1;      //       0x100000 random start angle
+            unsigned int _bit21 : 1;
+            unsigned int vis_tag : 1;         //       0x400000
+            unsigned int always_shown : 1;    //       0x800000
+            unsigned int flat : 1;            //       0x1000000 drawn as stretched triangles (gr_poly)
+            unsigned int _bits25 : 7;
+        };
+    };
+    ubyte size_fade_in;                       // +0x2c fraction of the life (/ 255) the size grows
+    ubyte size_fade_out;                      // +0x2d from this fraction the size shrinks
+    short alpha_fade_in;                      // +0x2e 8.8 fraction, alpha grows
+    short alpha_fade_out;                     // +0x30 8.8 fraction, alpha falls from here
+    short stretch;                            // +0x32 8.8 (flat particles: length along the velocity)
+    char _unk34[0x38 - 0x34];
+    int _bits38 : 16;                         // +0x38
+    int end_frame : 16;                       //       no emission after it; the frame count of a loop
+    vector3 centre;                           // +0x3c bounding sphere (effect frame)
+    float radius;                             // +0x48
+    vfx_vec_channel offset;                   // +0x4c emission point
+    vfx_quat_channel orient;                  // +0x70
+    vfx_channel ch_a0;                        // +0xa0 width (box) / radius (sphere), 4.12 fixed
+    vfx_channel ch_ac;                        // +0xac depth (box)
+    vfx_channel ch_b8;                        // +0xb8 particle size
+    vfx_channel ch_c4;                        // +0xc4 speed
+    vfx_channel ch_d0;                        // +0xd0 speed spread
+    vfx_channel rate_ch;                      // +0xdc emission rate
+};
+LAYOUT_CHECK(vfx_emitter_desc, sizeof(vfx_emitter_desc) == 0xe8);
 
 // The file track of one effect light (0x70 bytes, vfx_base::light_tracks + 0x70 * index; class name
 // ours, its methods are vfx_light_desc__* in sum.symbols, D4001). relocate is out of line in the

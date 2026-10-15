@@ -269,6 +269,10 @@ extern int ui_key;                    // 0x2cbfc68 the key ui_process got (the e
 extern bool ui_right_double_clicked;  // 0x2cbfc04
 void ui_init();                       // 0x52f760 (guarded, once)
 void ui_draw_bevel(int x, int y, int w, int h, Color *light, Color *dark, int width, int inset); // 0x55e040
+// decomp66 (the slider unit): colors[2] filled inside the bevel, light colors[0] / dark colors[1]
+// (sunken: swapped).
+void ui_draw_raised(int x, int y, int w, int h, Color *colors, int width);   // 0x55e1a0
+void ui_draw_sunken(int x, int y, int w, int h, Color *colors, int width);   // 0x55e210
 // decomp51: every window's draw, then callback (NULL in the load-game state), then the tooltip.
 void ui_draw(void (*callback)());     // 0x52ff30
 // The mouse buttons into the UI globals, then the windows' process; returns the key left over.

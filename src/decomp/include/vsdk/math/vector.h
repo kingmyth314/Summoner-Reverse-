@@ -75,6 +75,10 @@ public:
     // decomp60: inline; its only copy is a COMDAT at the end of the vector unit (0x525670).
     void operator/=(float s)                          // 0x525670 vector3__operator_div_assign (times 1 / s)
     { float r = 1.0f / s; x *= r; y *= r; z *= r; }
+    // decomp66: inline; its only copy is a COMDAT at the end of the clip unit (0x559da0, after
+    // bbox_transform; src/decomp/vsdk/unnamed_clip_0x5590b0.cpp).
+    float &operator[](int i)                          // 0x559da0 vector3__component_ptr
+    { return (&x)[i]; }
 
     // Out of line, in the vector unit (0x523f30-0x525710, src/decomp/vsdk/unnamed_vector_0x523f30.cpp; decomp60).
     int  is_valid() const;                            // 0x524220

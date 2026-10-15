@@ -118,8 +118,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 6,333 functions written (73.3%). Of these, 4,234 match the
-disassembly exactly as far as can be read, 1,898 likely, 92 unsure. All 186 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 6,680 functions written (77.3%). Of these, 4,480 match the
+disassembly exactly as far as can be read, 1,993 likely, 95 unsure. All 204 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

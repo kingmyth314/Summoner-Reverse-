@@ -20,6 +20,12 @@ inline float fixed8_to_float(short v)                 // 0x520400
 inline float fixed4_to_float(short v)                 // 0x520360
 { return v * (1.0f / 16.0f); }
 
+// decomp66: 4.12, the emitter values; their copies are COMDATs at the end of the emitter object.
+inline float fixed12_to_float(short v)                // 0x5622d0
+{ return v * (1.0f / 4096.0f); }
+inline int float_to_fixed12(float f)                  // 0x562330 (`fld; fmul 4096.0; jmp _ftol`)
+{ return (int)(f * 4096.0f); }
+
 // An 8.8 fixed-point value (2 bytes; class name from the symbol fixed8__set).
 class fixed8 {
 public:

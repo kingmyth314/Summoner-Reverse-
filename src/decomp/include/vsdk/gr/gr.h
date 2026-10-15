@@ -170,6 +170,7 @@ extern gr::Mode gr_mode_25d8cd8;                      // 0x25d8cd8 (2, 2, 0, 0, 
 extern gr::Mode gr_mode_25d88c8;                      // 0x25d88c8 (2, 2, 3, 2, 1, 1)
 extern gr::Mode gr_mode_25d8dd8;                      // 0x25d8dd8 (1, 1, 2, 5, 4, 2)
 extern gr::Mode gr_mode_vfx_flat_additive;            // 0x25d8d04 (0, 0, 0, 2, 1, 0)
+extern gr::Mode gr_mode_vfx_flat_alpha;               // 0x2f91a5c (0, 0, 0, 3, 1, 0) decomp66: the emitter unit's .bss, own initialiser
 extern gr::Mode gr_mode_lightmap_multitexture;        // 0x25d8d1c (4, 1, 3, 3, 4, 0)
 extern gr::Mode gr_mode_25d8d18;                      // 0x25d8d18 (6, 2, 3, 3, 4, 0)
 extern gr::Mode gr_mode_25d8cd0;                      // 0x25d8cd0 (4, 2, 3, 2, 1, 0)
@@ -246,7 +247,8 @@ void gr_set_use_buffered_alpha_polys(bool on);        // 0x53e760 (vsdk\gr)
 void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5);   // 0x50dec0 (1, 1 in the pilots)
 bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs);   // 0x50edc0 (true = outside the view)
 // decomp54 (snow_render): (position, a, size, mode) a camera-facing sprite of the current texture.
-void gr_bitmap_3d(vector3 *pos, int a, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
+// decomp66: the second argument is a float (the emitter passes the particle angle; the others 0).
+void gr_bitmap_3d(vector3 *pos, float angle, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
 
 // The lighting record a model is rendered with (0x20 bytes on the callers' stacks; thiscall constructor,
 // no destructor). The constructor builds a vector3 at +0xc and resets +0..+0x1c. status_draw_model

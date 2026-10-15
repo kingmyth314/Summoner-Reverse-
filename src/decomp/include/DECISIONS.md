@@ -3716,3 +3716,92 @@ the movement unit's (-1.5 0x581ba8, 120 0x581bac). pathfinding_visibility.cpp st
 
 **D4809 (summoner/multi/multi.h). Two AI senders.** mp_send_character_attack (0x488390) and mp_send_swi_sneak
 (0x488a20) are declared next to mp_send_swi_hide: one pushed Character, `add esp, 4` (0x4b621c, 0x4b680a).
+
+## decomp66 (0x5565e0-0x56c4d0: String / TextBuffer, LineFile, bezier, the clipper, lfsr, FTP / HTTP, vfx channels, BitArray, DirectSound, the slider, the polygon split, the vfx dummies, emitters and materials, the sound streams; all placeholders; libjpeg not rewritten)
+
+**D4600 (vsdk/vfile/linefile.h). LineFile::read_line returns the buffer.** 0x558600 returns its first argument
+in EAX for each line read and `xor eax, eax` (0x55879a) at the end of the file: char *, was int. console.cpp's
+`while (lf->read_line(line, 256))` compiles unchanged.
+
+**D4601 (vsdk/geom/vfx.h). The +0x0c word of vfx_node_header has two views.** The light-track samplers take
+`(ushort >> 1) & 0x7fff` (bit 0 separate), the forces and emitters an arithmetic `sar 8` of the dword
+(vfx_force_desc::num_frames); both kept in an anonymous union (num_frames:15 above _bit0, frame_word). The
+force kind is the low byte of frame_word (`cmp byte ptr [eax+0xc], 1`, 0x56069d and 0x560b48). The dummies
+read the low 15 bits of decomp67's vfx_dummy_desc::flags (`and edx, 0x7fff`, 0x55fcce).
+
+**D4602 (vfx.h). vfx_channel::eval returns short.** 0x55bc00 returns AX (`mov ax, 0xfa0`, 0x55bc10, the broken-
+data value 4000) and the callers sign-extend AX (`movsx edx, ax`, 0x56143e): short, was int.
+
+**D4603 (vsdk/snd/ds.h, vsdk/snd/snd.h). The third argument of ds_play_streamed / snd_play_streamed is a float
+pan.** ds_play_streamed multiplies it on the FPU (`fld dword ptr [esp+0x1c]; fmul`, 0x55d353) as ds_play does
+its pan; the fifth goes to ds_find_free_channel, which does not read it (the sound unit pushes 1.0f): float
+priority. snd_play_streamed / _looping pass their third argument through unchanged, so they become (int, float,
+float) too (was int arg); every caller passes 0 (gamesound.cpp, summoner.cpp, the cutscene unit), which
+converts to 0.0f with the same `push 0`. The decomp66 copy of src/decomp/vsdk/unnamed_snd_0x5204c0.cpp carries
+the change.
+
+**D4604 (vsdk/ui/ui_gadgets.h). The slider members that use +0x2a8 belong to ui_slider.** create_scrollbar
+(0x55ed30), set_range (0x55eeb0) and the other members reading +0x2a8 are called on ui_slider pointers
+(the listbox, window.cpp); the 0x2a8-byte ui_slider_base has no +0x2a8. They move from ui_slider_base to
+ui_slider (0x2ac); the existing callers are unaffected.
+
+**D4605 (vfx.h). vfx_emitter_desc +0x28 is a bit-field word.** The emitter unit reads the shape as `shl 0x1e;
+sar 0x1e` (0x56022b), the material index as `shl 0x10; sar 0x12` (0x56255f, 0x5612cd) and tests single bits
+0x10000 .. 0x1000000; decomp63's vis_flags (0x400000, 0x800000) are bits of the same word: an anonymous union of
+vis_flags and the bit fields. The high half of +0x1c (`sar 0x10`, 0x55ff5d) is the first emitting frame
+(start_frame, was _bits1c_16), the high half of +0x38 the last one (end_frame, also the loop length the frame
+counters are taken modulo). The class moves after the key channels (its channels fill +0x4c..+0xe7).
+
+**D4606 (vfx.h). The effect record kinds share vfx_node's layout.** The dummies (0x55fed0), cameras (0x5655c0),
+emitters (0x561190) and tag groups (0x565400) call vfx_node_header::relocate (0x55bbd0) on their own this, and
+the dummy and camera code call vfx_node::get_orient (0x55ba30) on their descriptor. decomp67 declared
+vfx_dummy_desc, vfx_camera_desc and vfx_base_tag as their own structs with name / parent first; they keep those
+names and fields, get their channels (dummy and camera: vec channel +0x10, quat channel +0x34; camera start /
+end frames +0x0c / +0x0e), and the code casts to vfx_node_header / vfx_node where the binary calls those
+members. decomp66's class vfx_force (vfx_node plus five channels, relocate 0x55b960) and decomp67's struct
+vfx_force_desc (relocate 0x55b960, 0xa0 bytes of _unk) are one class: decomp67's name, decomp66's layout
+(`class vfx_force_desc : public vfx_node`); fx_rec4c::update / get_transform take vfx_force_desc *.
+vfx_node_header keeps its int name / link (decomp67's vfx object reads header.link).
+
+**D4607 (vsdk/geom/effect_mem.h). fx_rec28 +0x08 is the velocity, +0x14 the position.** init_particle stores
+the speed vector through 0x562360 and the start point plus speed * age through 0x562340 (0x5602ac, 0x56034e);
+apply_forces measures the forces from 0x562400 (+0x14) and ends with new_pos = pos + 0.5 (vel + new_vel) dt
+stored through 0x562340 and new_vel through 0x562360 (0x5609da, 0x5609e6); the billboard axes put the triangle
+tip at +0x14 - +0x08 / 15. sum.symbols has the names the other way round (vfx_particle__set_pos 0x562360,
+set_velocity 0x562340, get_velocity 0x562400, get_pos 0x562420): the members are named by what they hold
+(set_vel, set_pos, get_pos, get_vel) with the symbols noted. +0x02 is the lifetime (8.8, compared unsigned
+with the age: `cmp ax, [edi+2]; jb`, 0x56185d), +0x04 the 4.12 angle sum.symbols calls the size.
+
+**D4608 (vfx.h). vfx_material flag bits and fields.** eval_curve34 reads bits 0-2 signed (`shl ecx, 0xd; movsx;
+sar ecx, 0xd`, 0x564ff9) and switches on 0 / 1 / 2; the curve rate is bits 7-15 (`shr ax, 7`, 0x5650ea); reset
+writes `and 0xffc7; or al, 7` then `and 0x7f; or 0x780` (0x564f88-0x564fb7). decomp67's flags keeps its name in
+a union with curve34_mode:3, blend:3, additive:1, rate:9. +0x02 / +0x04 / +0x06 are the curve lengths, +0x08 the
+rgb bytes of the flat particles, +0x34 / +0x44 / +0x48 the curve pointers (ptr_relocate), +0x38 a bitmap name
+(reloc_ptr) and +0x3c its handle (was _unk02[0x0a], _unk34[0x18]).
+
+**D4609 (vsdk/gr/gr.h). gr_bitmap_3d's second argument is a float.** The emitter pushes the particle angle as a
+float (`push ecx; fstp dword ptr [esp]`, 0x562082) and gr_bitmap_3d passes the dword through to
+gr_bitmap_3d_projected; the snow, lamp-glow and mesh callers push 0, the same bits as 0.0f. float angle, was
+int a.
+
+**D4610 (vfx.h). ptr_relocate is inline.** Its copy 0x564d50 sits in the mesh object's block of inline members
+(0x564770-0x564d62, after vfx_ptr4_relocate); the vfx and emitter objects call it. Declared inline with its
+body (base added unless the pointer is NULL); no definition existed.
+
+**D4611 (unit boundaries). 0x562a30-0x56565c is the mesh object and the material code.** The initialiser table's
+last user entry (651) runs 0x562a30 (the dump_mesh_frames console command, .bss 0x2f91a60-0x2f91a6f, .data
+0x5ae104-0x5ae1db); the mesh functions (0x562b20-0x564761) are followed by their inline accessors
+(0x564770-0x564d62, ending with ptr_relocate). The material, texture-layer, tag-group and camera code
+(0x564d70-0x56565c) follows with no initialiser and no .data; its only data is the empty-string literal
+0x2f91a70 (vfx_material::reset), the .bss slot after Dump_mesh_frames. Its small members sit after each group
+(0x5653e0 / 0x5653f0, 0x565450, 0x5655f0 / 0x565610), so it may be up to three objects; it is one placeholder,
+src/decomp/vsdk/unnamed_vfx_material_0x564d70.cpp. The mesh object itself is not written (decomp66 NOTES.md).
+
+**D4612 (effect_mem.h, vfx.h). Emitter instance and texture-layer fields.** fx_recb0 +0x18 is a float time in
+seconds (compared with 0 and advanced by dt, 0x561764-0x561831; was _unk18), +0x8c .. +0x94 five shorts (the
+4.12 width, depth, size, speed and speed spread blended in get_transform, 0x561466-0x56153d; was _unk8c), +0xa0
+the frame of the last update and +0xa4 the spawn accumulator (was _unka0); the top byte of +0x0c is the alpha
+(`and edx, 0xffffff; shl eax, 0x18; or`, 0x56155f), in a union with decomp67's flags (bit 0 stopped).
+vfx_tex_layer's empty constructor and destructor are the two functions vfx_material's constructor passes to
+`eh vector constructor iterator` (0x564f39-0x564f4f): inline in the header. The 0x18-byte zeroing constructor
+sum.symbols calls vfx_tex_layer__ctor (0x564ef0) belongs to another type (no caller).

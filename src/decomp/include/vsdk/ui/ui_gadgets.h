@@ -374,21 +374,43 @@ LAYOUT_CHECK(ui_listbox, sizeof(ui_listbox) == 0x320);
 
 // The slider (0x2a8, vtable 0x582308; constructor 0x55e780 ui_slider__ui_slider_base). sum.symbols names
 // the methods ui_slider__*; they are members of this base class.
+// decomp66: the slider unit (0x55e040-0x55f10b, src/decomp/vsdk/unnamed_ui_slider_0x55e040.cpp) wrote the
+// members and named the fields.
+// ui_slider_base::drag_state
+#define UI_SLIDER_IDLE      0
+#define UI_SLIDER_DRAGGING  1         // the marker follows the mouse
+#define UI_SLIDER_PAGE_UP   2         // pressed after the marker: pos += page_size while held
+#define UI_SLIDER_PAGE_DOWN 3         // pressed before it: pos -= page_size
 class ui_slider_base : public ui_gadget {
 public:
     ui_slider_base();                 // 0x55e780
     virtual int  process(int key);    // slot 5, 0x55e4c0
     virtual void draw();              // slot 7, 0x55eb70
+    // (x, y, w, h) of the marker relative to the gadget (count 1 divides by zero).
+    void get_marker_rect(int *x, int *y, int *w, int *h);    // 0x55e420
+    // flags bit 0: two arrow buttons, taken off the length.
     void create(ui_element *window, int x, int y, int w, int h, bool horizontal, int marker_size,
                 int positions, int id, int flags, bool owned);   // 0x55e7e0 ui_slider__create
-    void set_tooltip(const char *text, int x, int y, int delay);   // 0x55ea50
+    void set_tooltip(const char *text, int x, int y, int delay);   // 0x55ea50 (the old tooltip is unlinked, not freed)
     void set_pos(int pos);            // 0x55eb30
-    void create_scrollbar(ui_gadget *listbox, bool horizontal, int marker_size, int id, int flags,
-                          bool owned);                // 0x55ed30
     // decomp62 (the list box).
     int  get_pos();                   // 0x55eb10 +0x28c
-    void set_range(int content);      // 0x55eeb0
-    ubyte _unk274[0x2a0 - 0x274];
+    int  get_count();                 // 0x55eb20 (decomp66)
+    void set_count(int count);        // 0x55eb40 (decomp66)
+    void set_marker_size(int size);   // 0x55eb50 (decomp66)
+    void set_page_size(int size);     // 0x55eb60 (decomp66)
+    RealtimeTimer repeat_timer;       // +0x274 450 ms, then 150 ms between page steps
+    int drag_state;                   // +0x278 UI_SLIDER_*
+    int drag_start;                   // +0x27C the mouse coordinate when the drag began
+    int drag_pos;                     // +0x280 pos when the drag began (a right click restores it)
+    int _unk284;                      // +0x284
+    int count;                        // +0x288 positions
+    int pos;                          // +0x28C 0 .. count - 1 (clamped by draw)
+    int marker_size;                  // +0x290
+    int page_size;                    // +0x294
+    bool horizontal;                  // +0x298
+    ubyte _pad299[3];
+    Color *colors;                    // +0x29C ui_slider_colors: [0..2] marker, [3] before, [4] after it
     ui_button *inc_button;            // +0x2A0 right / down
     ui_button *dec_button;            // +0x2A4 left / up
 };
@@ -396,9 +418,17 @@ LAYOUT_CHECK(ui_slider_base, sizeof(ui_slider_base) == 0x2a8);
 
 // The scroll bar / table slider (0x2ac, vtable 0x581dd0 with the same nine entries as 0x582308). No user
 // constructor: the implicit one is the COMDAT 0x52bfa0 that window.cpp emits (ui_slider__ui_slider).
+// decomp66 (D4604): the members that use +0x2a8 are this class's (they were declared on the base; the
+// callers hold ui_slider pointers).
 class ui_slider : public ui_slider_base {
 public:
-    int _unk2a8;                      // +0x2A8 (never written by window.cpp)
+    void create_scrollbar(ui_gadget *listbox, bool horizontal, int marker_size, int id, int flags,
+                          bool owned);                // 0x55ed30
+    int  get_range();                 // 0x55ee50 visible + count - 1, at least 1
+    void set_visible_count(int n);    // 0x55ee70
+    void set_range(int content);      // 0x55eeb0
+    void update_marker();             // 0x55eed0 the marker the visible share of the length, 7 pixels or more
+    int visible;                      // +0x2A8 the list box's view size (was _unk2a8, never written by window.cpp)
 };
 LAYOUT_CHECK(ui_slider, sizeof(ui_slider) == 0x2ac);
 

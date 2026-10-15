@@ -23,8 +23,9 @@ int  snd_load(int handle, int streamed);                                    // 0
 // (handle, volume, pan, a, unused): a goes to ds_play's last argument (decomp60).
 int  snd_play(int handle, float volume, float pan, int a, int unused);      // 0x520d50
 int  snd_play_looping(int handle, float volume, float pan, int a);          // 0x520e10
-int  snd_play_streamed(int handle, float volume, int arg);                  // 0x520ea0
-int  snd_play_streamed_looping(int handle, float volume, int arg);          // 0x520f20
+// decomp66 (D4603): the third argument is the pan ds_play_streamed reads as a float (was int arg).
+int  snd_play_streamed(int handle, float volume, float pan);                // 0x520ea0
+int  snd_play_streamed_looping(int handle, float volume, float pan);        // 0x520f20
 // decomp60 (D4009): (handle, pos, looping, a, unused); the callers push (sound, pos, 0 / 1, 0, 0).
 int  snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused);   // 0x521480
 void snd_stop(int sig);                                                    // 0x5215d0

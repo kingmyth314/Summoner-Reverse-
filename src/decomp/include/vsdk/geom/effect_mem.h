@@ -93,13 +93,16 @@ struct fx_rec98 {
     fx_rec98 *prev;                   // +0x94
 };
 // decomp67: the dummy state of an instance (vfx_dummy_state__*; the base's dummies at +0x30).
+// decomp66: written in src/decomp/vsdk/unnamed_vfx_dummy_0x55fc70.cpp. The quaternion's empty constructor
+// folds with vector3()'s, so 0x51df60 is unchanged.
 struct fx_rec2c {
-    void reset();                     // 0x55fc70 vfx_dummy_state__reset (another unit; decomp67)
+    void reset();                     // 0x55fc70 vfx_dummy_state__reset (the three flag bits, v08 0, q14 identity)
+    // (dummy, t): position / rotation at frame t unless placed; through the model's bone when bound (ret 8).
     void update(vfx_dummy_desc *desc, float t);   // 0x55fc90 vfx_dummy_state__update
     character_instance *ci;           // +0x00 bound model (decomp67)
-    unsigned int tag : 29;            // +0x04 (decomp67)
+    unsigned int tag : 29;            // +0x04 (decomp67) the bone (compute_bone_matrix; decomp66)
     unsigned int bound : 1;           //       bit 29
-    unsigned int placed : 1;          //       bit 30
+    unsigned int placed : 1;          //       bit 30 (decomp66: not sampled)
     unsigned int hidden : 1;          //       bit 31
     vector3 v08;                      // +0x08 position
     quaternion q14;                   // +0x14 orientation (decomp67; was vector3 v14 and _unk20)
@@ -107,48 +110,120 @@ struct fx_rec2c {
     fx_rec2c *prev;                   // +0x28
 };
 // A particle of an emitter (0x28; 6000 at 0x2c42690 on fx_rec28_list).
+// decomp66 (the emitter unit): the age and lifetime are seconds in 8.8, the angle 4.12 radians; +0x08 is
+// the velocity and +0x14 the position (the effect frame relative to the emitter's origin). The accessors
+// are inline (their COMDATs: 0x5622f0-0x562420 in the emitter object, 0x564c60 / 0x564c70 in the mesh
+// object). sum.symbols has the position and velocity accessors the other way round (D4607).
 struct fx_rec28 {
-    fixed8 life;                      // +0x00 -1.0 when taken by vfx_instance_create
-    char _unk02[0x08 - 0x02];
-    vector3 v08, v14;
+    float get_age() { return fixed8_to_float(life.v); }            // 0x564c60 vfx_particle__get_age
+    float get_lifetime() { return fixed8_to_float(lifetime); }     // 0x564c70 vfx_particle__get_lifetime
+    void set_lifetime(float s) { lifetime = (ushort)float_to_fixed8(s); }   // 0x5622f0
+    float get_size() { return fixed12_to_float(angle); }           // 0x562540 vfx_particle__get_size (the angle)
+    void set_size(float a) { angle = (short)float_to_fixed12(a); } // 0x562310 vfx_particle__set_size
+    void set_pos(const vector3 &v) { pos = v; }                    // 0x562340 (sum.symbols vfx_particle__set_velocity)
+    void set_vel(const vector3 &v) { vel = v; }                    // 0x562360 (sum.symbols vfx_particle__set_pos)
+    vector3 get_pos() { return pos; }                              // 0x562400 (sum.symbols vfx_particle__get_velocity)
+    vector3 get_vel() { return vel; }                              // 0x562420 (sum.symbols vfx_particle__get_pos)
+    fixed8 life;                      // +0x00 age; -1.0 free (vfx_instance_create, the emitter update)
+    ushort lifetime;                  // +0x02 8.8 (compared unsigned with life)
+    short angle;                      // +0x04 4.12 (sum.symbols: size)
+    short _pad06;
+    vector3 vel;                      // +0x08 (was v08)
+    vector3 pos;                      // +0x14 (was v14)
     fx_rec28 *next;                   // +0x20
     fx_rec28 *prev;                   // +0x24
 };
+// decomp66: the state of one force of an instance (the record vfx_force_state__update /
+// vfx_force__get_transform run on; the vfx channel unit). The two rotations are quaternions (their
+// empty constructor folds with vector3()'s, so the implicit constructor 0x51df80 is unchanged); the
+// old v0c / v18 / v28 / v34 had no reader.
 struct fx_rec4c {
-    void clear();                     // 0x55b440 vfx_node_state__clear (+8 = 0, top three bits of +4 cleared)
-    char _unk00[0x0c];
-    vector3 v0c, v18;                 // +0x0c, +0x18
-    char _unk24[0x28 - 0x24];
-    vector3 v28, v34;                 // +0x28, +0x34
-    char _unk40[0x44 - 0x40];
+    void clear();                     // 0x55b440 vfx_node_state__clear (time 0, the three flag bits cleared)
+    // (force, t): the force's position / rotation at time t (the previous ones kept), through the owner's
+    // bone when on_bone (ret 8).
+    void update(vfx_force_desc *f, float t);   // 0x55b460 vfx_force_state__update
+    // (force, out, t): position and rotation blended from the previous to the current state by t's
+    // fraction, the force channels blended between frames (ret 0xc; sum.symbols names it
+    // vfx_force__get_transform, but this is the state record).
+    void get_transform(vfx_force_desc *f, vfx_force_params *out, float t);   // 0x55b730
+    character_instance *owner;        // +0x00
+    unsigned int bone : 29;           // +0x04
+    unsigned int fixed : 1;           //       bit 29: not sampled
+    unsigned int on_bone : 1;         //       bit 30: through the owner's bone matrix
+    unsigned int _bit31 : 1;
+    float time;                       // +0x08 the last time sampled (clamped to the last frame)
+    vector3 pos;                      // +0x0c
+    quaternion rot;                   // +0x18
+    vector3 prev_pos;                 // +0x28
+    quaternion prev_rot;              // +0x34
     fx_rec4c *next;                   // +0x44
     fx_rec4c *prev;                   // +0x48
 };
 // An emitter of an instance (0xb0; 128 at 0x27229d8 on fx_recb0_list).
 // decomp67: vfx_emitter_instance__* in sum.symbols; +0x0c..+0x18 and +0x70 / +0x7c from the vfx object.
+// decomp66: written in src/decomp/vsdk/unnamed_vfx_emitter_0x55ff00.cpp (times in frames, 15 a second;
+// dt in seconds). The inline members' copies are COMDATs at the end of that object.
 struct fx_recb0 {
     void init(vfx_emitter_desc *desc);   // 0x561220 vfx_emitter_instance__init (another unit; decomp67)
     // (descriptor, frame, position, orientation, wrapped this frame).
     void update(vfx_emitter_desc *desc, float t, const vector3 *pos, const matrix *orient, bool wrapped);   // 0x561670
     void render(vfx_emitter_desc *desc, float t);   // 0x561ec0 vfx_emitter_instance__render
+    // decomp66: (desc, t, dt, emitter velocity): new particles for the frames since last_t (ret 0x10).
+    void spawn(vfx_emitter_desc *desc, float t, float dt, const vector3 &vel);   // 0x55ff30
+    // (desc, particle, fraction of the step, age, emitter velocity) (ret 0x14).
+    void init_particle(vfx_emitter_desc *desc, fx_rec28 *p, float frac, float age, const vector3 &vel);   // 0x5601f0
+    // (desc, particle, forces, count, dt): one integration step (ret 0x14; sum.symbols vfx_particle_apply_forces).
+    void apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_params *forces, int count, float dt);   // 0x5605f0
+    // (desc, t, dt): the forces at each frame since last_t, then steps of at most 1/30 s (ret 0xc).
+    void move_particles(vfx_emitter_desc *desc, float t, float dt);   // 0x560a00
+    // (desc, t, wrapped): offset, rotation, the five shape values and the alpha at t (ret 0xc).
+    void get_transform(vfx_emitter_desc *desc, float t, bool wrapped);   // 0x5612b0
+    void render_d3d(vfx_emitter_desc *desc, float t);   // 0x561900 vfx_emitter_instance__render_d3d (no caller)
+    // Inline (COMDATs 0x562380-0x5623b0, 0x562830): the shape values as floats.
+    float get_fixed12_8c() { return fixed12_to_float(width); }      // 0x562380
+    float get_fixed12_8e() { return fixed12_to_float(depth); }      // 0x562390
+    float get_fixed12_90() { return fixed12_to_float(size); }       // 0x562830
+    float get_fixed12_92() { return fixed12_to_float(speed); }      // 0x5623a0
+    float get_fixed12_94() { return fixed12_to_float(speed_var); }  // 0x5623b0
+    // Inline, defined in the emitter unit (COMDATs; thiscall, this unused by get_bitmaps / get_color).
+    vfx_material *get_bitmaps(vfx_emitter_desc *desc, fx_rec28 *p, int *bitmaps);   // 0x562550 vfx_particle_get_bitmaps
+    void get_color(vfx_emitter_desc *desc, vfx_material *mat, float t, ubyte *r, ubyte *g, ubyte *b);   // 0x562600
+    void get_fade(vfx_emitter_desc *desc, float age, float life, float *size, float *fade, float *alpha);   // 0x5626b0
+    void get_billboard_axes(vfx_emitter_desc *desc, fx_rec28 *p, vector3 *a, vector3 *b, vector3 *c,
+                            float size, float fade);   // 0x562840 vfx_particle_get_billboard_axes
     fx_rec4c *links[3];               // +0x00 the instance's fx_rec4c records the emitter's links name
-    unsigned int flags;               // +0x0c bit 0: stopped (vfx_instance::stop; decomp67)
+    union {
+        unsigned int flags;           // +0x0c bit 0: stopped (vfx_instance::stop; decomp67)
+        struct {
+            unsigned int stopped : 1; //       decomp66: the same bit 0
+            unsigned int _flags1 : 23;
+            unsigned int alpha : 8;   //       decomp66: the material's curve 48 * 255 (get_transform)
+        };
+    };
     unsigned int tag : 28;            // +0x10 (decomp67)
     unsigned int bound : 1;           //       bit 28
     unsigned int placed : 1;          //       bit 29
     unsigned int hidden : 1;          //       bit 30
     unsigned int _bit31 : 1;
     character_instance *ci;           // +0x14
-    char _unk18[0x1c - 0x18];
-    vector3 v1c;                      // +0x1c
-    matrix m28;                       // +0x28
+    float time;                       // +0x18 decomp66: seconds since the first update (was _unk18)
+    vector3 v1c;                      // +0x1c decomp66: the instance position (update's pos)
+    matrix m28;                       // +0x28 decomp66: the instance orientation
     vector3 v4c, v58, v64, v70;       // +0x4c..+0x70 (v70: the position get_node_world_transform sets)
+                                      //       decomp66: v4c / v58 the emission point before / after this
+                                      //       update, v64 the origin (offset at frame 0 plus the first
+                                      //       position), v70 the offset at t
     quaternion q7c;                   // +0x7c orientation (decomp67; was vector3 v7c)
-    char _unk8c[0x96 - 0x8c];
+    short width;                      // +0x8c decomp66: 4.12 at t (ch_a0); was _unk8c
+    short depth;                      // +0x8e ch_ac
+    short size;                       // +0x90 ch_b8
+    short speed;                      // +0x92 ch_c4
+    short speed_var;                  // +0x94 ch_d0
     ushort num_live;                  // +0x96 live particles (fx_missile_hit waits for none; decomp64)
     char _unk98[0x9c - 0x98];
     fx_rec28 *particles;              // +0x9c
-    char _unka0[0xa8 - 0xa0];
+    float last_t;                     // +0xa0 decomp66: the frame of the last update
+    float spawn_accum;                // +0xa4 particles owed * 320
     fx_recb0 *next;                   // +0xa8
     fx_recb0 *prev;                   // +0xac
 };

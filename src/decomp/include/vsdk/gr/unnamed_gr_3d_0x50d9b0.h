@@ -13,10 +13,15 @@
 
 class File;
 
-// ---- calls into other vsdk\gr objects (not written) ---------------------------------------------------
+// ---- calls into other vsdk\gr objects ------------------------------------------------------------------
+// decomp66: the two bbox functions and gr_clip_num_temp_verts belong to the clip unit (0x5590b0-0x559da7,
+// src/decomp/vsdk/unnamed_clip_0x5590b0.cpp, header vsdk/gr/unnamed_clip_0x5590b0.h); they stay declared
+// here, where they were first.
 // (normal, near index, far index): the box corners nearest to / farthest along the normal (0..7).
 void bbox_corner_indices_from_normal(const vector3 *normal, int *near_index, int *far_index);   // 0x559a80
-// (out, index 0..7, mins, maxs): bit 0 / 1 / 2 of the index picks maxs.x / .y / .z.
+// (out, index 0..7, mins, maxs): decomp66: not a bit pattern but an eight-case switch: 0 (max, max, min),
+// 1 (max, min, min), 2 (min, min, min), 3 (min, max, min), 4 (max, max, max), 5 (max, min, max),
+// 6 (min, min, max), 7 (min, max, max).
 void bbox_get_corner(vector3 *out, int index, const vector3 *mins, const vector3 *maxs);       // 0x559960
 void gr_poly_reset_clip_verts();                      // 0x545120
 extern bool gr_poly_clip_verts_ready;                 // 0x2f076c4 (name ours) gr_setup_3d sets it before the first reset
