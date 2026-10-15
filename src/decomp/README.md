@@ -33,6 +33,7 @@ Rules:
 | `vsdk/bmpman.cpp` | `vsdk\bmpman\bmpman.cpp` | 64 | 42 / 21 / 1 |
 | `vsdk/gr_opengl.cpp` | `vsdk\gr\opengl\gr_opengl.cpp` (the renderer SummonerFix enables) | 56 | 41 / 15 / 0 |
 | `vsdk/gr_direct3d.cpp` | `vsdk\gr\directx\gr_direct3d.cpp` (`0x534a20`-`0x536944` is a second file of `vsdk\gr\directx`, see source-map.md) | 65 of 66 | 37 / 25 / 3 |
+| `vsdk/gr_glide.cpp` | `vsdk\gr\glide\gr_glide.cpp` (Glide 2, glide2x.dll) | 63 + 4 | 40 / 23 / 0 |
 | `vsdk/memory.cpp` | `vsdk\os\memory.cpp` | 19 | 18 / 1 / 0 |
 | `vsdk/stringpool.cpp` | `vsdk\os\stringpool.cpp` | 16 | 14 / 2 / 0 |
 | `vsdk/plainstring.cpp` | `plainstring.cpp` (folder not known; Summoner 2 name) | 20 | 12 / 8 / 0 |

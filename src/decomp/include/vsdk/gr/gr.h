@@ -422,4 +422,27 @@ void gr_flush_pipeline();                             // 0x508140
 // vsdk\gr, file not known: flushes the buffered polygons (gr_init_context, gr_flip).
 void gr_poly_buffer_flush();                          // 0x545d70
 
+// ---- the texture stage slot (decomp45) ---------------------------------------------------------------
+// The common head of the per-stage / per-TMU texture cache records (0x18 bytes): the Glide TMU record
+// (glide_record, 0x48, vsdk/gr/glide/gr_glide.h) derives from it and calls is_bound / invalidate_bitmap on
+// its glide_tmus (ecx = the record, 0x5495a2, 0x549706). The members lie in the Direct3D texture cache
+// object (0x54d470-0x54d5bf, vsdk\gr in sum.symbols, file not known). No constructor is declared: the
+// Glide record's constructor 0x549780 sets these fields itself instead of calling one (D2502).
+class tcache_slot {
+public:
+    void init_stage(int stage);                       // 0x54d490 tcache_slot__init_stage: initialized = 1, stage, bitmap / section = -1
+    void reset();                                     // 0x54d4b0 tcache_slot__reset: bitmap / section = -1
+    // true (and the cached scales) when that bitmap section is the one bound.
+    bool is_bound(int bitmap, int section, float *u_scale, float *v_scale);   // 0x54d4f0 tcache_slot__is_bound
+    void invalidate_bitmap(int bitmap);               // 0x54d5a0 tcache_slot__invalidate_bitmap: bitmap = -1 when it matches
+    bool initialized;                                 // +0x00
+    ubyte _pad01[3];
+    int stage;                                        // +0x04 texture stage / Glide TMU
+    int bitmap;                                       // +0x08 bound bitmap (frame) index, -1 none
+    int section;                                      // +0x0c bound section, -1 none
+    float u_scale;                                    // +0x10 scales of the bound section
+    float v_scale;                                    // +0x14
+};
+LAYOUT_CHECK(tcache_slot, sizeof(tcache_slot) == 0x18);
+
 #endif

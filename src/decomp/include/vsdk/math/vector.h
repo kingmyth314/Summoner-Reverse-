@@ -95,6 +95,8 @@ int imin(int a, int b);                               // 0x503dc0
 float frand();                                        // 0x5426e0 rand() * (1/32768) (unit not known)
 float frand_range(float lo, float hi);                // 0x542770 lo + frand() * (hi - lo) (unit not known; decomp39)
 float distance_squared(const vector3 *a, const vector3 *b);   // 0x524840 |a - b|^2 (decomp41)
+// (v, lo, hi): clamps *v in place (vsdk\math; the Glide tint code and the sound group volumes; decomp45).
+void clamp_float(float *v, float lo, float hi);       // 0x50d980
 
 // A 2D vector (conversation_frame passes the x / z offset; decomp20), (x, z of a ground position in spell_place_ground_effect). len as in decomp20's copy.
 class vector2 {

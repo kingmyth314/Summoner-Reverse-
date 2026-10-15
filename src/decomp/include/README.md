@@ -66,11 +66,12 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` (decomp31) | `bitmap_entry`, `BM_TYPE_*` / `BM_ANIM_*` / `BM_FORMAT_*`, the unit's globals, every `bm_*`, `progress_update` |
 | `vsdk/bmpman/targautils.h` | `vsdk\bmpman\targautils.cpp` (pilot) | TGA / PCX / m2v, `m2v_bitstream` |
-| `vsdk/gr/gr.h` | `vsdk\gr\gr.cpp` (decomp40) + vsdk\gr | `Color`, `gr_mode`, `gr::Mode` (D1300, D2001, D2002), `gr__Screen` (0xa8 with the colour / fog / tint fields, D2000), the 30 mode globals, `gr_*`, `gr::` clip, `gr_light_desc`; includes gr_font.h |
+| `vsdk/gr/gr.h` | `vsdk\gr\gr.cpp` (decomp40) + vsdk\gr | `Color`, `gr_mode`, `gr::Mode` (D1300, D2001, D2002), `gr__Screen` (0xa8 with the colour / fog / tint fields, D2000), the 30 mode globals, `gr_*`, `gr::` clip, `gr_light_desc`, `tcache_slot` (the texture stage slot, decomp45); includes gr_font.h |
 | `vsdk/gr/gr_font.h` | `vsdk\gr\gr_font.cpp` (pilot) | `Font`, `FontCharInfo`, `gr_string`, `gr_split_str`, ... |
 | `vsdk/gr/opengl/gl_min.h` | (ours; stands in for `<GL/gl.h>` / `<GL/glu.h>`, D1305) | the GL 1.1 / GLU functions and constants Sum.exe imports, the multitexture pointer type |
 | `vsdk/gr/opengl/gr_opengl.h` | `vsdk\gr\opengl\gr_opengl.cpp` (decomp33) | `gl_tcache_entry`, the OpenGL back end and its globals |
-| `vsdk/gr/glide/gr_glide.h` | `vsdk\gr\glide\gr_glide.cpp` (not written; decomp40) | the Glide entry points gr.cpp dispatches to |
+| `vsdk/gr/glide/glide_min.h` | (ours; stands in for `<glide.h>`, D2500) | the Glide 2 types (GrVertex, GrTexInfo, GrLfbInfo_t, GrHwConfiguration), the constants the unit pushes, the 112 __stdcall entry point pointer types |
+| `vsdk/gr/glide/gr_glide.h` | `vsdk\gr\glide\gr_glide.cpp` (decomp45; decomp40 declared the dispatch targets) | `glide_section`, `glide_tcache_entry`, `glide_block`, `glide_record` (TMU memory, derives from `tcache_slot`), the entry point pointers and the unit globals, all `gr_glide_*` / `glide_*` |
 | `vsdk/gr/directx/d3d_min.h` | (ours; stands in for `<ddraw.h>` / `<d3d.h>`, D1600) | the DirectDraw 7 / Direct3D 7 structures, C-style interfaces and the SDK call macros, IIDs and constants the Direct3D back end uses; not combinable with the system DirectX headers |
 | `vsdk/gr/directx/gr_direct3d.h` | `vsdk\gr\directx\gr_direct3d.cpp` and the state / drawing object before it (decomp36, D1601) | `d3d_tlvertex`, `d3d_device_record`, `d3d_color_channel`, the Direct3D back end and its globals, the D3D texture cache calls |
 | `vsdk/localize/localize.h` | localize | `localize_strings`, `XSTR`, `localize_*` |

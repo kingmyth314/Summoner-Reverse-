@@ -2036,3 +2036,50 @@ script_navpoint_type_names, cutscene_saved_item / cutscene_saved_equipment (this
 level_scripts.h the cutscene unit's globals this unit reads (cutscene_data with a one-field
 cutscene_entry, cutscene_path_id, cutscene_cur_sequence, cutscene_navpoints, cutscene_script_objects,
 cutscene_script_stringpool); ai.h ai_state::goals_remove_unmarked (0x4766c0).
+
+
+
+## gr_glide.cpp (decomp45)
+
+**D2500 (new vsdk/gr/glide/glide_min.h). Glide 2, through pointers.** Sum.exe imports nothing from Glide:
+glide_load_dll (0x5473b0) calls LoadLibraryA("glide2x.dll") (0x5473b5) and GetProcAddress for 112
+decorated __stdcall names ("_grDrawLine@8" .. "_guFogGenerateLinear@12"), storing each result in the
+sum.symbols glide_gr* / glide_gu* dword. So the API is Glide 2.x, not Glide 3, and the unit calls every
+entry point through its pointer (`call dword ptr [0x2f0e9c8]`). glide_min.h stands in for glide.h: the
+pointer types follow the argument bytes of the decorated names (all 112 agree with the Glide 2
+prototypes), and only the constants the call sites push are defined. The pointer globals are declared in
+gr_glide.h (levelrender_draw_list_glide and gr_glide_render_character_mesh call them too).
+
+**D2501 (vsdk/gr/glide/gr_glide.h). glide_poly_vertex_ptrs is GrVertex[25].** sum.symbols types 0x2f0ec08
+as void*[32]. gr_glide_tmapper writes 0x3c-byte records from it (`add esi, 0x3c`, 0x54b37f; colour at
++0xc, x at +0, oow at +0x20, sow / tow at +0x24 / +0x28) and passes the address itself to
+grDrawPolygonVertexList (0x54b390), and the next global (gr_glide_current_mode) is at 0x2f0f1e4 =
+0x2f0ec08 + 25 * 0x3c. The name is kept.
+
+**D2502 (vsdk/gr/gr.h, gr_glide.h). tcache_slot and glide_record.** gr_glide_tcache_set calls
+tcache_slot__is_bound (0x54d4f0) and the mark-dirty / free functions call tcache_slot__invalidate_bitmap
+(0x54d5a0) with ECX = &glide_tmus[i] (0x5495a2, 0x549706), and both read +0x8 .. +0x14 of it, the fields
+that glide_record::load_section writes (bitmap +8, section +0xc, scales +0x10 / +0x14, 0x549b1c-0x549b38).
+So glide_record (0x48) derives from a 0x18-byte tcache_slot (declared in gr.h: its members are in the
+Direct3D texture cache object, vsdk\gr). tcache_slot gets no constructor: glide_record::glide_record
+(0x549780) stores +0, +8, +0xc, +0x10, +0x14 itself; a base constructor, being out of line in another
+object, would be called (opengl_record__ctor 0x54d470 sets the same five fields and is the D3D slot's).
+
+**D2503 (vsdk/gr/glide/gr_glide.h). glide_tmus is glide_record[2].** sum.symbols: uint8[0x90]. The static
+initialiser 0x5479a0 runs `vector constructor iterator`(0x2f0eb70, 0x48, 2, glide_record__ctor) and the
+loops step 0x48 up to 0x2f0ec00 (0x547ac2-0x547acb).
+
+**D2504 (gr_glide.cpp). The .bss gap after glide_hwconfig and the initialised fog table.** grSstQueryHardware
+fills 0x2f0f210 (fbRam read at +8, nTexelfx at +0x10: 0x549e58, 0x549e82); the Glide 2 GrHwConfiguration
+is 0x94 bytes, and 0x2f0f2a4-0x2f132a3 (0x4000 bytes) has no reference before glide_initialized at
+0x2f132a4. It is written as an unreferenced ubyte[0x4000] (name ours). The fog table 0x5ad500 (64 bytes,
+pushed to guFogGenerateLinear / grFogTable 0x54ba3d / 0x54ba4d) is in .data, all zero except its last five
+bytes 3, 0x42, 0x81, 0xc0, 0xff, so it has an initialiser in the source; it is written with those values.
+
+**D2505 (vsdk/gr/glide/gr_glide.h). The texture cache records.** glide_tcache_entry (0x10; tcache_init
+0x547a68-0x547a72 sets +0 = -1, +4 = 0, +0xc = 0; `shl eax, 4` indexing) and glide_section (0x38; the
+section loops step 0x38) are ours, from gr_glide_create_texture(_section), load_section and
+get_section_rect (ushort x / y / w / h at +0x30 .. +0x36, 0x54952a-0x549556). +0x8 holds one dirty byte per
+TMU (`mov byte ptr [edi+ebp+8], 0` with EDI = the TMU, 0x5495dd); gr_glide_create_texture clears both
+with one `mov word ptr [edi+8], 0` (0x549390), written as a ushort store. Nothing in the unit sets a
+dirty byte, so the reload loop in gr_glide_tcache_set is dead code.
