@@ -17,7 +17,7 @@ const chunkAt = (b, tag) => {
   const invt = 0x200 + s(0) + s(1), o = tag === "INVT" ? invt : invt + s(4) + s(2) + s(3);
   return b.toString("latin1", o, o + 4) === tag ? o : -1;
 };
-const TYPES = { 4: "object", 5: "creature", 6: "creature (dead)", 7: "party member", 8: "party member (dead)", 9: "npc", 10: "npc (dead)" };
+const TYPES = { 4: "object", 5: "creature", 6: "creature (dead)", 7: "party member", 8: "summon (dying)", 9: "npc", 10: "npc (dead)" };
 
 let itemNames = null;
 const itemsTbl = join(repoRoot, "extracted", "tables", "items.tbl");

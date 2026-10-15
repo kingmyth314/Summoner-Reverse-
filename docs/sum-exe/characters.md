@@ -21,23 +21,31 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
   (`0x437e50`).
 - Disassembly of `init_skill_table` (`0x442ba0`), `characterinfo_parse_table` (`0x4452f0`) and
   `character_fill_locomotion_anims` (`0x46af70`), and the retail `tables.vpp` (2026-10-15).
+- Disassembly of the `living_entity.cpp` functions (`0x44d9f0`..`0x463480`), read again for the
+  decompilation in `src/decomp/game/living_entity.cpp` (2026-10-15): `status_effect_add` (`0x454700`),
+  `character_update_status_effects` (`0x45b6e0`), `ring_add_xp` (`0x44ffc0`), `rings_add_xp_all` (`0x450420`),
+  `character_get_skill` (`0x462440`), `character_get_resistance` (`0x4626b0`), `character_on_death`
+  (`0x4537f0`) and `xp_level_up_gains` (`0x489ac0`).
 
 ## Character fields
 
 | Offset | Type | Field | How it is known |
 |---|---|---|---|
-| `+0x00c` | int | type: 7 for player party members; 6, 8 and 10 are the dead forms of 5, 7 and 9 | `character_add_xp` (type 7), `character_resurrect` (`0x454070`) |
+| `+0x00c` | int | type: 7 for player party members. `character_on_death` turns 5 into 6 and 9 into 10, and 7 into 8 only for a summon; a dead hero stays type 7 with flag `0x80` | `character_add_xp` (type 7), `character_on_death` `0x453f62`..`0x453fb2`, `character_resurrect` (`0x454070`) |
 | `+0x010` | float[3] | world position | |
 | `+0x098` / `+0x2f0` | int / mask | team, and the mask of teams it fights (defaults at `0x581904`) | |
+| `+0x0a4` | int | the death move id (category 6) that `character_on_death` plays. `character_kill` stores its argument here: 0x22 from `character_add_hp`, the AI die action and the `health` command; a script's own value from `script_action_die` | `character_kill` `0x450d9d`; `character_on_death` (`find_move(6, +0xa4)`) |
+| `+0x0ac` | status[18] | status slots, 0x20 bytes each (see [Status effects](#status-effects)) | `character_update_status_effects` loop `cmp [ebp-0x10], 0x12` at `0x45b744` |
 | `+0x324` | ai_state | AI sub-object: mode (`AI_STATE_*`, names from the game's table at `0x59ad60`: inactive, idle, traveling, combat, cast spell, patrol, summoning, banishing, disabled, hiding, sneaking, mount travel, mount idle), previous mode, timer, owner, travel destination `+0x54`, target handle `+0x60`, five goal slots `+0x8c`, current goal `+0x190`, path `+0x210` | `ai_set_mode` (`0x473320`) |
 | `+0x69c` / `+0x6bc` | float[3] / float | velocity, speed scale | |
 | `+0x6cc` / `+0x6d0` | int / pointer | current animation, and the current move record (a `move_info`, see [Game tables](game-tables.md#character-info-and-moves)) | `character_play_move` (`0x460f20`) stores the move at `0x460ff6` and its start time at `+0x9c` (`0x461005`) |
 | `+0x6e0` / `+0x6e4` | handle / flags | linked mount or rider; flags bit 0 rider, bit 1 mount | `character_get_mount`, `rider_unlink_mount` |
-| `+0x6f8` | char[16] | floating text over the character (colour `+0x709`, scale `+0x70c`) | `0x461fe0`, used for "%d AP" |
+| `+0x6e8` / `+0x6f0` | float / float | the floating HP number and its 2 s timer (see [Combat](combat.md#applying-damage-and-healing)) | `character_add_hp` (`0x450925`..`0x4509b0`) |
+| `+0x6f8` | char[17] | floating text over the character, at most 16 characters (colour `+0x709`..`+0x70b`, time in seconds `+0x70c`) | `character_set_floating_text` (`0x461fe0`), used for "%d AP" and "+Level!" |
 | `+0x71c` | char_info* | the character's record from the character tables | `statscreen_unload_anim` reads its species at `[+0x71c]+0x10` (`0x449106`) |
 | `+0x080` | handle | the object's handle | written by `obj_create`; `player_from_handle(handle)` returns the player record |
 | `+0x2f4` | char[] | name | argument of `"%s gained level %d!"` |
-| `+0x320` | flags | `0x80` = dead | `party_level_reset` revives characters with this flag set |
+| `+0x320` | flags | `0x2` asleep, paralysed or in an ice coffin; `0x8` dying (set by `character_kill` and `character_on_death`, also used to hide party members); `0x80` dead; `0x4000` took damage | `status_effect_add` `0x454c3d`, `status_effect_cure` `0x4555df`; `character_kill` `0x450e18`; `character_on_death` `0x453870`, `0x45393a`; `character_add_hp` `0x4509d3`; `party_level_reset` revives characters with `0x80` set |
 | `+0x5ac`-`+0x5f0` | int[18] | locomotion animation ids, in the order of `locomotion_anim_names` (`0x599648`): stand, norm_walk, norm_run, ready, walk, run, stand_hurt, norm_walk_hurt, norm_run_hurt, ready_hurt, walk_hurt, run_hurt, sneak_ready, hide_ready, tripped_liedown, cloaked_ready, cloaked_sneak, statscreen (`+0x5f0`) | `character_fill_locomotion_anims` (`0x46af70`) fills each with `charinfo_find_anim`; the dump values 31, 30, 29, 26 (first four slots) are animation indices |
 | `+0x5f4` | float | base max HP (without equipment) | written from the level table; read by `character_get_max_stat(0)` |
 | `+0x5f8` | float | current HP | 119 code references; set to max on level-up and restore |
@@ -45,6 +53,7 @@ computed: base value plus equipment bonuses. The layout is `Character` in `symbo
 | `+0x5fe` | short | current AP | set to max on level-up and restore |
 | `+0x600` | short | level | dump (3); `character_add_xp` |
 | `+0x604` | int | experience | dump (200); `character_add_xp` adds to it |
+| `+0x608` | byte | 1 when the last `character_add_hp` call came from a party member (type 7) | `character_add_hp` `0x4508b7`; read by `character_on_death` `0x453a4a` |
 | `+0x558` | sub-object | protection helper; its first field points back at the character | `character_get_protection` |
 | `+0x614` | byte[] | skill and attribute values by skill id; value = byte x 0.01 | `character_get_skill`: id 2 = speed (11), id 1 = base protection |
 | `+0x754` | item*[10] | equipment slots; slots 1 and 2 are rings (they gain experience through `ring_add_xp`), slot 5 (`+0x768`) is the weapon, slots 3, 4, 6, 7 and 8 are armour | `character_equip_bonus`; the dump had a Short Sword in slot 5 and a Tunic in slot 7 |
@@ -86,9 +95,24 @@ the normal colour for none.
 | Damage | weapon item type `+0x68` (slot 5) | Short Sword: 35 |
 | Protection | `character_get_protection` x 100 | Tunic 0.07 + level 3 x 0.01 = 0.10 → 10 |
 
-`character_get_skill(id)` (`0x462440`) returns `skill[id] x 0.01`, adjusted by equipment
-(`character_skill_equip_mod`, four `{skill, value}` entries at item type `+0x20`). It returns -999999 when
-`character_skill_allowed` says the skill is locked (`player_skill_unlocked` on the player record, which checks story flags).
+`character_get_skill(id)` (`0x462440`) returns `skill[id] x 0.01` plus the equipment's `+Skill Mod:`
+entries (`character_skill_equip_mod`, four `{skill, value}` entries at item type `+0x20`). **Observed**
+special cases:
+
+- speed (2) is multiplied, not added: `skill x (1 + mods) / speed of each worn weapon and armour piece`;
+- banish summon (`0x34`) is always 1;
+- the summon creature skills (`0x24`..`0x33`) return the summon skill (`0x1b`) instead;
+- a positive weapon or combat skill (`0x3`..`0x23`) is rounded to a step of 0.05, at least 0.05
+  (`0x462513`..`0x462528`);
+- a party member gets an item's skill mod only once the skill is in its progression at its level
+  (`player_skill_unlocked_at_level`); in multiplayer, appraise mods count as aimed attack and pick lock
+  mods as dark.
+
+It returns -999999 when `character_skill_allowed` says the skill is locked. For a party member that is
+`player_skill_unlocked` on the player record: hand to hand, protection and speed are always open, banish
+and the summon creature skills belong to Joseph only, a few skills (summon, sneak, hide) also need story
+flags, and any other skill must be in the member's progression table. A summon and every other character
+have all skills.
 
 `character_get_protection` (`0x464de0`) works in one of two ways:
 
@@ -97,9 +121,13 @@ the normal colour for none.
 
 **Resistances** (`status_draw_resistances`) come from `character_get_resistance(type)` (`0x4626b0`). The types
 are 0 fire, 1 ice, 2 energy, 3 magic, then 4-6 slashing, piercing and blunt in the screen's order. This is the
-order of `damage_type_names` (`0x598fc4`). Equipment adds
-its `+Resist Mod:` entries (`character_resist_equip_bonus`, item type `+0x30`). Magic resistance also
-grows with skill `0x23` x 0.5 and level x 0.02, which is Joseph's 6% at level 3.
+order of `damage_type_names` (`0x598fc4`). Type -1 returns 0. **Observed:**
+
+- every type except magic: the record's resistance level (`resistance_level_damage_mult`, below) plus the
+  equipment's `+Resist Mod:` entries (`character_resist_equip_bonus`, item type `+0x30`);
+- magic (3) does not use the record's level. It is `skill(0x23) x 0.5 + equipment - curse value + level x 0.02`,
+  and while Faith is active it is at least the Faith value (`0x4626ce`..`0x462784`). Joseph's 6% at level 3
+  is the level part alone.
 
 The record's own resistance levels come from its `+Resistances:` block. `characterinfo_parse_resistances`
 (`0x446930`) stores seven level indices at char_info `+0xf8` (default 2, standard). The level names are
@@ -191,20 +219,47 @@ give 10 points instead of 1. Crossing a threshold shows "%s learned %s!".
 
 ## Status effects
 
-`Character +0xac` holds 18 status slots of 0x20 bytes, indexed by status id. Each slot has a state at `+0` and
-`GameTimer`s at `+4` and `+0x14`. `status_effect_add` (`0x454700`) checks immunities, sets the slot and shows
-floating text. `status_effect_cure` (`0x4553a0`) clears it ("-Silence" ...).
+`Character +0xac` holds 18 status slots of 0x20 bytes, indexed by status id 0 to 17 (**observed**: every
+loop over them runs to 0x12, for example `0x45b744`). A slot holds a kind at `+0x00` (-1 none, 0 timed,
+1 held by an item, 2 permanent until a forced cure), the duration `GameTimer` at `+0x04`, an effect handle
+at `+0x08`, the source handle at `+0x0c`, the spell (or, for kind 1, the item) at `+0x10`, the tick
+`GameTimer` at `+0x14`, the tick period at `+0x18` and the value at `+0x1c`.
 
-| Id | Effect | Id | Effect |
+`status_effect_add` (`0x454700`) checks immunities, sets the slot and shows floating text.
+`status_effect_cure` (`0x4553a0`) clears it ("-Silence" ...). `character_update_status_effects`
+(`0x45b6e0`) runs the ticks, tints and expiry every frame.
+
+| Id | Effect | Text | What the code does (**observed**) |
 |---|---|---|---|
-| 0 | Blind | 6 | Power |
-| 1 | Silence | 9 | Sleep |
-| 2 | Faith | 10 | Paralyze |
-| 3 | Curse | 11 | Poison |
-| 4 | Bless | 12 | Cripple |
-| 5 | Regen | 13 | Slow |
+| 0 | Blind | +Blind | black tint; char_info flag `0x80` makes a character immune |
+| 1 | Silence | +Silence | purple tint; char_info flag `0x100`, bosses and `0x40`-flagged characters are immune |
+| 2 | Faith | +Faith | magic resistance is at least the Faith value |
+| 3 | Curse | +Curse | blue tint; its value is taken off magic resistance |
+| 4 | Bless | +Bless | white tint (bless and protect) |
+| 5 | Regen | +Regen | adds its value as HP at each tick |
+| 6 | Power | +Power | red tint (empower) |
+| 7 | Light | none | starts a light effect (`fx_create_status_effect`) |
+| 8 | Invisible | none | fades the character (spell 11, invisibility) |
+| 9 | Sleep | +Sleep | the character goes inactive, flag `0x2`; damage wakes it |
+| 10 | Paralyze | +Paralyze | as sleep, with the stone effect |
+| 11 | Poison | +Poison | adds its (negative) value as HP at each tick; bosses are immune |
+| 12 | Cripple | +Cripple | brown tint |
+| 13 | Slow | +Slow | walking speed; not applied while mounted |
+| 14 | Firewall | none | deals its value at each tick, reduced by the spell's damage type and by magic resistance |
+| 15 | Blizzard | none | as firewall |
+| 16 | Ice coffin | none | as sleep; it blocks every HP change and ends when its value (level x 10) is used up |
+| 17 | Dark wall | none | casts blind, silence and curse on the character at each tick |
 
-Ids 7, 8 and 14-16 exist (the maximum is 0x10) but show no text.
+Curse, sleep, paralyze, slow and ice coffin are also ignored by bosses (type 9) and by characters with flag
+`0x40` (`0x454738` switch). Nothing is applied on the world map (level 4) or with no level. A status does
+not stack: the longer of the remaining and the new time is kept, and the value with the larger magnitude
+wins. An item-held status (kind 1) is never replaced by a spell.
+
+{: .important }
+**Corrected 2026-10-15.** This section used to say that ids 7, 8 and 14-16 exist with "the maximum 0x10".
+There are 18 slots, ids 0 to 17. The `0x10` limit is only the immunity switch in `status_effect_add`
+(`cmp [ebp-0x18], 0x10` at `0x454738`); its effect switch takes ids 7 to 17 (`sub ecx, 7; cmp 0xa` at
+`0x4549e8`).
 
 ## Player record
 
@@ -219,11 +274,15 @@ dump of Joseph's record at `0x5fcaf8` (2026-10-14).
 | `+0x00c` | character object handle | `0x2658d` (= `Character +0x80`) |
 | `+0x020` / `+0x024` | count and pointer of the skill progression: `{skill, level, value}` entries | 17 entries at `0x593508` |
 | `+0x17c` | **unspent skill points** | 4 (matches the Character screen) |
-| `+0x180` | set on level-up from the level table | 3 |
+| `+0x180` | set on level-up to the level table's third column (MSP in `experience.tbl`) | 3 |
 | (`+0x190`) | not a field: the record is 0x188 bytes ([Party](party.md#records-and-lists)). For Joseph's record, the last of the five, `+0x190` lands on `cur_character` (`0x5fcc88`), which held his `Character` | `0x9086c8` |
 
 On a level-up, `character_add_xp` adds the level table's skill points to `+0x17c`. For each progression
 entry whose level equals the new level, it also sets `Character.skill[skill] = value`.
+
+The four progression tables are in `Sum.exe` (`player_create` picks one by species, `0x4337f4`). Every
+entry has value 10. **Observed** (2026-10-15): Joseph 17 entries (`0x593508`), Jekhar 13 (`0x5935d8`),
+Flece 16 (`0x593678`), Rosalind 14 (`0x593740`). Five or six entries of each start at level 1.
 
 ## Objects and handles
 
@@ -234,24 +293,46 @@ and a network handle at `+0x8c`. `obj_from_handle` (`0x46b130`) reverses this. `
 
 ## Experience and levels
 
-`character_add_xp` (`thiscall`, ECX = character) is called by the console command `add_xp`. In order, it:
+`character_add_xp` (`0x44fab0`, `thiscall (xp, quiet, from_net)`) is called by kills
+(`character_on_death`), the console command `add_xp`, scripts, conversations, `party_member_join` and
+`party_set_level`. The last two pass `quiet` = 1. **Observed**, in order:
 
-1. stops at the level cap, `xp_max_level` (50, or 75 with debug flag 2);
-2. adds the experience to `+0x604`;
-3. gives a share of the experience to the rings in equipment slots 1 and 2 (`ring_add_xp`, `0x44ffc0`), which counts it per ring (`dark_ring_xp`, `fire_ring_xp`, ...);
-4. checks `xp_level_reached(level, xp)`, which means `xp >= xp_for_level(level + 1)`;
-5. on a level-up, calls `0x489ac0` with the class. That call updates the level, base max
-   HP, base max AP and the skill points;
-6. sets current HP and AP to the new maximum;
-7. for party members, applies the player record's skill progression and shows "+Level!".
+1. it stops at once at the level cap, `xp_max_level` (`0x489c20`): 50, or 75 in multiplayer
+   (`game_flags` `0x2`). A character at the cap gains no experience, and neither do its rings;
+2. in multiplayer, a client ignores calls that did not come from the network, and the host sends the
+   award to the others (`mp_broadcast_xp`);
+3. it adds the experience to `+0x604`;
+4. in single player, and only when the summon skill (`0x1b`) is above 0, it feeds the rings. The share is
+   `(int)(xp x 2 x summon skill)`. Each ring worn in slot 1 or 2 gets it through `ring_add_xp` (`0x44ffc0`).
+   Then `rings_add_xp_all` (`0x450420`) gives share / 8 to all eight rings, worn or not, the Ring of Darkness
+   included. So a worn ring gets 9/8 of the share. Every ring total is capped at twice the character's
+   experience (see [Summons](summons.md#ring-power));
+5. while `xp_level_reached(level, xp)` holds, which means `xp >= xp_for_level(level + 1)`, it levels up once
+   per pass:
+   - `xp_level_up_gains` (`0x489ac0`) raises the level and the base max HP and AP, and returns the skill
+     points and the skill cap of the new level's record (records above 20 use record 20);
+   - current HP and AP are set to the new maximum;
+   - for a party member (type 7) in single player, or one controlled on this machine, the skill points go to
+     the player record (`+0x17c`), the cap to `+0x180`, and the progression entries of exactly the new level
+     set their skill;
+   - every party member shows "%s gained level %d!" (L321);
+   - every character, party member or not, shows the floating text "+Level!" (L322);
+   - the loop ends at the level cap;
+6. after a level-up it plays the hero's level-up voice (feedback 0xe), unless `quiet` is set;
+7. with `quiet` set, for a party member and without the `Max_skills` toggle, it spends all unspent skill
+   points at once. It walks the progression round-robin and gives +10 to each skill whose entry is at or
+   below the character's level and whose value is below 100 (`0x44fef9`..`0x44ffa6`). The loop only ends when
+   the points are gone (see [Game bugs](game-bugs.md)).
 
 `xp_level_table` has 0x18-byte records indexed by level. The first field is the experience needed:
-level 2 = 100, 3 = 200, 4 = 450 (confirmed in game). Beyond level 20, each level adds 50,000, then
-60,000, and so on. Debug flag 2 multiplies the thresholds by 5.
+level 2 = 100, 3 = 200, 4 = 450 (confirmed in game). For level 20 and above, `xp_for_level` starts from
+record 19 (127,000) and adds 50,000 for level 20, then 60,000 more for 21, and so on, 10,000 more each level
+(`0x489a75`..`0x489a90`). The 50,000 in record 20 of `experience.tbl` is not a threshold. In multiplayer every
+threshold is multiplied by 5 (`lea eax, [eax+4*eax]` at `0x489a9b`).
 
 The rest of each record (`xp_level` in `symbols/types.h`, read by `experience_parse_level`) is:
-- the skill points gained at that level (2);
-- the level number;
+- the skill points gained at that level (2 or 3);
+- the skill cap (`+0x180`; the level number up to 10, then 10);
 - four 4-byte groups, one per species (`char_info +0x10`), with the HP and AP gained.
 
 For Joseph's group, level 1 gives 64 HP and 5 AP, and levels 2 and 3 each add 32 HP and 3 AP. That makes
@@ -265,6 +346,9 @@ The heroes are species 0 to 3. `species_is_hero` (`0x449a20`) is `species <= 3`;
 - The rest of the stat panel after protection (`0x42d58f` onwards).
 - Whether the crossed hurt fallbacks (walk_hurt from norm_walk, norm_walk_hurt from walk) are meant.
   Which locomotion slot the game picks for a hurt character was not traced.
+- What bytes 2 and 3 of each species group in `xp_level_table` mean. `xp_level_up_gains` treats a non-zero
+  byte as "roll the HP (or AP) gain at random" (`0x489afe`, `0x489b69`); whether the parser ever sets them
+  was not checked.
 
 ## Changes (2026-10-15)
 
@@ -274,3 +358,17 @@ The heroes are species 0 to 3. `species_is_hero` (`0x449a20`) is `species <= 3`;
   The old row named the wrong slots.
 - Added `+0x71c` (char_info pointer), Player `+0x008`, the char_info resistance levels and
   `resistance_level_damage_mult` (it returns 1 minus the multiplier), and a short chain skill section.
+
+## Changes (2026-10-15, living_entity.cpp)
+
+- Status effects: 18 slots, ids 0 to 17, not "up to 0x10". Named 7 Light, 8 Invisible, 14 Firewall,
+  15 Blizzard, 16 Ice coffin and 17 Dark wall, with the slot layout, immunities and stacking rule.
+- Experience: the level cap is 75 in **multiplayer**, not with a debug flag, and the x5 thresholds are also
+  multiplayer. Levels from 20 build on record 19. Ring experience is given only in single player with a
+  summon skill above 0, and all eight rings get 1/8 of the share. "+Level!" shows for every character; the
+  skill points and progression apply to party members only. Added the `quiet` path and the multiplayer rules.
+- Magic resistance does not use the record's resistance level; curse lowers it and Faith sets a floor.
+  `character_get_skill`'s special cases (speed multiplied, banish 1, summon skills, 0.05 steps) added.
+- Fields: `+0x0a4` is the death move id, `+0x608` the "hit by a party member" byte, `+0x6e8` / `+0x6f0` the
+  floating number, `+0x70c` the floating text time (not a scale). Flags `0x2`, `0x8` and `0x4000` added.
+  A dead hero keeps type 7; only a summon becomes type 8.

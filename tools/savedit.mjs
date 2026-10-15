@@ -70,8 +70,8 @@ if (fieldOpts.length) {
   let o = lent + 0x34, seen = -1, rec = -1;
   for (let i = 0; i < count; i++) {
     const type = b.readInt32LE(o + 4);
-    // Only living party members (type 7) carry the extra 8 bytes (savegame_write_character 0x4cf733); a dead
-    // member (type 8) has the plain record and no level/XP/skill block, so it is not counted.
+    // Only party members (type 7, dead heroes too: they keep type 7 with flag 0x80) carry the extra 8 bytes
+    // (savegame_write_character 0x4cf733). Type 8 is a dying summon (character_on_death 0x453f94): plain record.
     if (type === 7) { seen++; if (seen === want) { rec = o; break; } o += 4 + 0x17c + 8; }
     else o += 4 + 0x17c;
   }

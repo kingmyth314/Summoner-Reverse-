@@ -19,9 +19,10 @@ chain count, `+0x3c` the attack or skill id (see [Skills](characters.md#skills))
 
 ## Formula
 
-1. **Evade:** if the target has status 8 and `frand() < 0.25`, the damage is 0. Status 8 has no floating
-   text, see [Status effects](characters.md#status-effects). It is probably invisibility (*inferred*:
-   `status_effect_duration` (`0x47ab60`) takes status 8's tick period from spell 11, invisibility).
+1. **Evade:** if the target has status 8 and `frand() < 0.25`, the damage is 0. Status 8 is invisibility
+   (**observed**: `damage_type_to_status` (`0x47a8c0`) maps spell 11, invisibility, to it, and
+   `character_update_status_effects` fades a character that has it). It has no floating text, see
+   [Status effects](characters.md#status-effects).
 2. **Protection:** `p = character_get_protection(target) x 0.5`, at most 0.75.
 3. **Attack type, first pass** (byte table `0x465d40` for ids `0xa`..`0x55`). Only some ids compute weapon
    damage (steps 4-9). The others set the damage directly:
@@ -91,22 +92,44 @@ chain count, `+0x3c` the attack or skill id (see [Skills](characters.md#skills))
 and positive values heal. It is **observed** to:
 
 - do nothing to a character with flag `0x80` (returns false), and ignore type 4 (returns true);
+- set `Character +0x608` to 1 when the source is a party member (type 7) and to 0 otherwise, on every call
+  (`0x4508b7`). `character_on_death` pays experience only when this byte is set, so the last HP change before
+  a death decides it ([Party](party.md#experience-sharing));
 - in multiplayer, when `a4` is 0, multiply damage from a source with flag `0x40` or of type 9 by 4, and damage
   from any other source that is not a party member by 2 (`0x4508bd`..`0x450922`). Melee and spell hits pass 0;
 - keep the change for the floating number (`levelrender_draw_float_text`) at `Character +0x6e8`, with a 2 s
-  timer at `+0x6f0`. Changes less than 0.2 s apart add up;
-- cure sleep (status 9) on damage, and send the character back to idle from AI mode 8 / `0x31`;
-- while status 16 is active, change no HP at all. Damage with a source lowers the status value instead
-  (not below 0). Damage beyond that value is lost, and heals do nothing;
+  timer at `+0x6f0`. Changes less than 0.2 s apart add up. A change of exactly 0 starts a "0" only when no
+  number is showing (`0x450925`..`0x45095a`); the draw prints `|+0x6e8|` whenever the timer runs (`0x48543a`);
+- set flag `0x4000` on damage, then return at once for a change of 0;
+- feed a boss's threat table (`boss_threat_add`, type 9), cure sleep (status 9) on damage, send the character
+  back to idle from AI mode 8 / `0x31`, and give a sneaking character (flag `0x400`) a sneak goal;
+- while status 16 (ice coffin) is active, change no HP at all. Damage with a source lowers the status value
+  instead (not below 0). Damage beyond that value is lost, and heals do nothing. The coffin ends when the
+  value reaches 0 (`character_update_status_effects`);
 - skip all damage while the `death` console option (`Debug_death`, on by default) is off, and damage to party
   members while `Players_immortal` (console command `immortal`) is set. A multiplayer client always applies;
 - cap HP at `character_get_max_stat(0)`. A capped heal stores only the HP actually gained at `+0x6e8`.
 
-At 0 HP it calls `character_kill` (`0x450d90`). `character_kill` records the killer (`+0xa4`), sets HP to 0
-and clears all status effects. It sets the dead flag (`0x8` in `+0x320`) only on a single-player game or a
-multiplayer host, with the death option on, for a character that is not a party member (type 7), and not for
-type 9 when `game_flags` bit 0 is set (**observed**). Scripts (`script_action_die`), the `health` console
-command and the AI die action call it directly.
+At 0 HP or below it calls `character_kill(0x22)` (`0x450d90`) and returns the opposite of its result. This
+happens after every call that gets that far, also when the ice coffin blocked the change.
+
+`character_kill` (**observed**, `0x450d90`..`0x450e29`):
+
+- stores its argument at `+0xa4`. That is the id of the death move (category 6) that `character_on_death`
+  plays later, not the killer. `character_add_hp`, the AI die action (`ai_class_die`) and the `health`
+  command pass 0x22; `script_action_die` passes the script's value;
+- sets HP to 0 and clears all status effects;
+- returns false without setting a flag when, on a single-player game or a multiplayer host, the death option
+  is off, or the character is a boss (type 9) in single player. On a multiplayer client these tests are
+  skipped;
+- returns false for a party member (type 7);
+- otherwise sets flag `0x8` in `+0x320` and returns true.
+
+Flag `0x8` marks a character that is dying (the party code also uses it to hide members). The dead flag
+`0x80` is set by `character_on_death` (`0x4537f0`, at `0x45393a`), which `ai_frame` calls (`0x472dd6`). It
+acts on any character with HP at 0 or below, party members included. It sets `0x8` too (`0x453870`), waits while the
+current move's trigger 9 is still ahead, plays the death move, pays experience and turns 5 into 6, 9 into 10
+and a summon's 7 into 8. In single player it does nothing for a boss (type 9).
 
 ## Example (from the numbers on Joseph's screen)
 
@@ -129,11 +152,21 @@ shows the weapon's raw damage (35), not this value.
 
 ## Spell hits
 
-`living_entity_get_hit_by_spell` (`0x45dea0`) handles a spell hitting a target. Its arguments are the spell index
-into [`spells`](game-tables.md#spells), the caster's handle, and a source type (fourth stack argument,
-`[ebp+0x18]`; 0 = cast by a character). It first returns without effect for a dead target (flag `0x80` or
-HP <= 0), except for spells 3, 5 and `0x69`, and for a target farther than the spell's `+Distance:` (when it is
-above 0). Spell `0x48` (Nightmare) applies spells 7, 8 and `0x43` instead. It then:
+`living_entity_get_hit_by_spell` (`0x45dea0`) handles a spell hitting a target in single player (in
+multiplayer, `spell_prepare_cast` and `spell_apply_hit_effects` do this work). It is a `thiscall` on the
+target with eight stack arguments: the spell index into [`spells`](game-tables.md#spells) (`[ebp+0x8]`), the
+caster's handle, the hit position, the hit orientation, the source type (`[ebp+0x18]`, the fifth; 0 = cast
+by a character), the item for item sources, a strength value (`[ebp+0x20]`, used only by leech and conversion, and passed on to the nested hits) and a
+"preloaded effect" flag.
+**Observed:** it returns without effect
+
+- for a dead target (flag `0x80` or HP <= 0), except for spells 3, 5 and `0x69`;
+- when every party member is dead, or when `serpent_part_on_hit` takes the hit (`0x45df5a`);
+- when the caster's handle no longer resolves;
+- for a target farther than the spell's `+Distance:` (when it is above 0).
+
+Spell `0x48` (Nightmare) applies spells 7, 8 and `0x43` instead. An offensive spell that hits a party member
+from a caster not on team 0 turns combat mode on (`combat_mode_set`, `0x45e0d0`). It then:
 
 1. **Power.** A switch on the source type (table `0x460075`) sets the power: the caster's level for 0 and 8,
    100 for 7, values from char_info, an item or an ability for 1 to 5, and for 6 (a combat skill) the level
@@ -141,18 +174,41 @@ above 0). Spell `0x48` (Nightmare) applies spells 7, 8 and `0x43` instead. It th
 2. **Resist value.** It takes the spell's hit chance (`+0x5c`, with special cases: a caster of species `0xb6` uses
    level x 2 / 100, spell `0x50` in ghost stage 3 uses 0.5, and source type 8 uses 0.3) and the target's magic
    resistance (`character_get_resistance(3)`). From those it computes
-   `resist = 1 - (1 - (0.5 + magic resist - power x 0.04)) x hit chance`. An offensive spell is resisted when
-   `frand() <= resist` (the `No_resist` console variable skips the test).
-3. **Per-spell handler.** A 108-way switch on the spell index chooses the effect. For example:
-   - lightning: `amount = power x (1 + energy skill)` for a cast by a character, else `power`; the die is the
+   `resist = 1 - (1 - (0.5 + magic resist - power x 0.04)) x hit chance`. A spell with no `+Hit Chance:` line
+   has hit chance 1 (the parser's default, `0x47a294`), so its resist value is `0.5 + magic resist - power x 0.04`.
+   The handlers that can be resisted test it in two ways (**observed**; `No_resist` skips both):
+   - the shared status block resists an **offensive** spell when `frand() <= resist` (`test ah, 0x41` at
+     `0x45e9c3`);
+   - the other handlers resist when `frand() < resist` (`test ah, 0x1`), whether or not the spell is
+     offensive: Failed Dark void's five statuses, leech, conversion, apdrain, pushback, trip, Titus stone gaze,
+     power leech, Laharah's scream, the death spells and Life Drain (eleven tests, `0x45eccc`..`0x45fe39`);
+   - the sleep part of icy sleep (spell `0x21`) is tested against the target's magic resistance instead, after
+     the damage: it lands unless `frand() <= magic resistance` (`0x45ffac`).
+3. **Per-spell handler.** A 108-way switch on the spell index chooses the effect. The handlers set a dice
+   count and a die for the roll. For example:
+   - lightning: `count = power x (1 + energy skill)` for a cast by a character, else `power`; the die is the
      table's 6, **negated** (damage);
-   - heal and vitalize: `amount = power` dice of the table's size, 12 or 8 (positive, so healing);
-   - the status spells (blind, silence, curse, freeze, sleep, ...) share one block that calls `status_effect_add`;
-   - resurrect and revive share a block, as do the meteor storms and the death spells.
+   - heal and vitalize: `count = power` dice of the table's size, 12 or 8 (positive, so healing);
+   - the status spells (blind, silence, curse, freeze, sleep, ...) share one block that calls `status_effect_add`
+     when `spell_target_value` is above 0.01;
+   - resurrect and revive share a block, as do the meteor storms and the death spells;
+   - Jade Beam (`0x18`) on a target that is not a boss and has no flag `0x40` takes half the target's current
+     HP at once (`character_add_hp(-hp / 2, caster, 1, 0)`, `0x45f1c4`..`0x45f209`), with no resist test;
+   - the death spells (death, Ghost death, Urath death, Dark void) do nothing to bosses and `0x40`-flagged
+     characters. If not resisted they take all current HP, and a target that is not a party member loses its
+     equipment slots 0 to 8 (freed, so they do not drop; `0x45fdf0`). A resisted Dark void casts Failed Dark
+     void on the target;
+   - Life Drain (`0xd`) takes one level from a target above level 1 and rescales its stats; it deals no HP;
+   - power leech (`0x11`) takes `AP x power x 0.01` AP (all AP with chance 0.05); the caster gains at most 20;
+   - leech (`0x3e`, the special ability of the Blood Elemental, Crystal Rokhul and Wraith) computes
+     `strength x 0.05 x power` but sets no dice, so the roll gives 0 and no HP changes (`0x45f471`..`0x45f47d`).
+     The multiplayer path keeps the same value (`spell_prepare_cast` `0x47baa6`..`0x47babb`). See
+     [Game bugs](game-bugs.md).
 4. **Roll** (`spell_roll_amount`, `0x47f4d0`):
-   - for `amount > 0` the result is `amount` dice, each `floor(frand() x die + 1)`. A positive die gives 1 to
+   - for `count > 0` the result is `count` dice, each `floor(frand() x die + 1)`. A positive die gives 1 to
      `die`. A negated die gives 0 to `-(die - 1)`, so damage dice average `(die - 1) / 2`, not `(die + 1) / 2`.
-     With die 0 the result is `-amount`; with `amount <= 0` it is 0;
+     With die 0 the result is `-count` at once, with no resistance or party factor (`0x47f4ec`..`0x47f4fe`);
+     with `count <= 0` it is 0;
    - damage (a negative result) on a target is multiplied by `1 - resistance(spell damage type)` (fire, ice,
      energy, ... at `spell +0x78`). A resistance above 1 turns the damage into healing;
    - damage that is still negative is then multiplied by `1 - magic resistance`. This is the target's
@@ -160,7 +216,9 @@ above 0). Spell `0x48` (Nightmare) applies spells 7, 8 and `0x43` instead. It th
      negative, it becomes 0. `No_resist` skips both multipliers;
    - a party-size factor applies as in melee, but smaller: 0.15, 0.30 or 0.45 for 3, 4 or 5 members. Party members
      (and a missing target) take more damage, others less. Healing gets no party factor.
-5. **Apply:** `character_add_hp(result, caster, 0, 0)`, a flinch for damage, then the spell's hit effect.
+5. **Apply:** `character_add_hp(result, caster, 0, 0)` for every handler that reaches the end, also with a
+   result of 0 (`0x45fecd`); a flinch for damage; the spell's hit effect; and, for the damage spells, the AI's
+   retaliation against the caster (`ai_retaliate_on_hit`).
 
 ## Evidence
 
@@ -183,10 +241,18 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | Floating number at `+0x6e8` | `0x450925`..`0x4509b0`, `0x450bf5`; `levelrender_draw_float_text` `0x48543a` |
 | Status 16 blocks every HP change | `0x450abc`..`0x450b1d` (both paths `jmp 0x450c3c`) |
 | Death option and immortal | `0x450b4e`..`0x450b97` |
-| Dead flag conditions | `character_kill` `0x450db8`..`0x450e24` |
+| `+0x608` party hit byte | `character_add_hp` `0x450892`..`0x4508b7`; read at `character_on_death` `0x453a4a` |
+| Zero change shows "0" | `0x450928`..`0x45095a` (`delta == 0` with the timer at 0 or below), early return `0x4509df`..`0x4509f1` |
+| Kill: death move id, flag `0x8` | `character_kill` `0x450d9d` (`mov [eax+0xa4], ecx`), conditions `0x450db8`..`0x450e0d`, `or edx, 8` at `0x450e18`; callers pass `push 0x22` (`0x450c52`, `0x461a3c`, `0x473a03`) or the script value (`0x4dc9d0`) |
+| Dead flag `0x80` | `character_on_death` `0x453870` (`or al, 8`), `0x45393a` (`or dl, 0x80`); called from `ai_frame` `0x472dd6` |
 | Dead targets, range, Nightmare | `0x45deb6`..`0x45def7`, `0x45e0d8`..`0x45e123`, `0x45df93`..`0x45e078` |
+| Dead party, serpent part, combat mode | `0x45df5a` (`serpent_part_on_hit`), `0x45e0d0` (`combat_mode_set`) |
 | Power by source type | `0x45e128`, table `0x460075` |
-| Hit chance and resist value | `0x45e3ac`..`0x45e450`; resist test `0x45e9b3`..`0x45e9c6` |
+| Hit chance and resist value | `0x45e3ac`..`0x45e450`; default hit chance 1.0 `spells_parse_table` `0x47a294` |
+| Resist tests | `<=` in the status block `0x45e9b3`..`0x45e9c6`; `<` at `0x45eccc`, `0x45f467`, `0x45f4ab`, `0x45f4fc`, `0x45f551`, `0x45f596`, `0x45f5ef`, `0x45f6a7`, `0x45fc67`, `0x45fd25`, `0x45fe39`; icy sleep against magic resistance `0x45ff8f`..`0x45ffb4` |
+| Jade Beam half HP | `0x45f1c4`..`0x45f209` |
+| Death spells strip equipment | `character_unequip_slot` loop, `0x45fdf0` |
+| Leech value dropped | `0x45f471`..`0x45f47d`, then `spell_roll_amount` result stored over it at `0x45febe` |
 | Lightning die negated | `0x45e4ca`..`0x45e4d8` |
 | Roll passes magic resistance | `mov ecx, [ebp-0x20]` at `0x45fe87` (stored from `character_get_resistance(3)` at `0x45e424`) |
 | Dice, resistances, clamp, party | `spell_roll_amount` `0x47f4df`..`0x47f64a` |
@@ -205,3 +271,17 @@ death option stops all damage; multiplayer doubles damage from non-party sources
 multiplier is `1 - magic resistance`, not `1 - resist value` (the resist value only decides whether an
 offensive spell lands); damage dice roll 0 to `-(die - 1)`; healing gets no party factor; the hit-chance cases
 include spell `0x50`; the species case is the caster's.
+
+## Changes (2026-10-15, living_entity.cpp)
+
+{: .important }
+Checked against the disassembly of the `living_entity.cpp` functions. Corrected: `character_kill` stores the
+**death move id** at `+0xa4`, not the killer; the flag it sets, `0x8`, means dying, and the dead flag `0x80`
+comes later from `character_on_death`. On a multiplayer client the death-option and boss tests are skipped,
+so the old "only on a single-player game or a multiplayer host" was wrong. Spell hits: the source type is
+the **fifth** stack argument, not the fourth; most handlers resist with `frand() < resist` and test it even
+for spells without the offensive flag, and only the shared status block uses `<=` for offensive spells; icy
+sleep's sleep is tested against magic resistance. Status 8 is now **observed** as invisibility and status 16
+named as the ice coffin. Added the `+0x608` "hit by a party member" byte, the "0" for a zero change, the early
+returns of `living_entity_get_hit_by_spell`, Jade Beam's half-HP hit, the death spells' equipment loss,
+Life Drain, power leech and leech (which changes no HP), and die 0 skipping resistances in the roll.

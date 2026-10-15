@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 128 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 134 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 3 | 23 | 2 |
-| Gameplay | 21 | 10 | 3 |
-| Cosmetic | 27 | 8 | 2 |
-| Invisible | 12 | 24 | 0 |
+| Crash or hang | 3 | 24 | 2 |
+| Gameplay | 22 | 10 | 3 |
+| Cosmetic | 28 | 8 | 2 |
+| Invisible | 15 | 24 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -64,6 +64,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C73 | Latent: a translated chain skill name of more than about 60 characters overflows the "%s learned %s!" message on the stack | `character_learn_chain_skill` `0x449650` | **Observed** code and retail data, *inferred* effect | No |
 | C90 | Latent: with the OpenGL renderer, a multi-pass polygon of more than 32 vertices after clipping overwrites the stack | `gr_tmapper_multipass` `0x507a80` | **Observed** code, *inferred* effect | No |
 | C91 | Latent: Print Screen with the Direct3D renderer quits the game with "see your graphics guy" when the back buffer cannot be locked | `gr_screenshot` `0x5061f0`, `gr_d3d_read_backbuffer` `0x53a7f0` | **Observed** code, *inferred* trigger | No |
+| C100 | Latent: a party member who joins or is set to a level with more skill points than its progression can take (for example with a modded `experience.tbl`) hangs the game | `character_add_xp` `0x44fab0` | **Observed** code, retail data and progression tables, *inferred* hang | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -235,6 +236,17 @@ surface cannot be locked ends the game. Glide and OpenGL always return 3 and 7. 
 only while the surface is lost (for example around a task switch), so this is latent. SummonerFix's OpenGL
 renderer is not affected. The failed-lock path also skips `gr_d3d_begin_scene` (`0x53a8ae`); see Still unclear.
 
+**C100. Skill points with nowhere to go.** With `quiet` set, `character_add_xp` spends a party member's
+unspent points at once: it walks the progression round-robin and gives +10 to a skill whose entry is at or
+below the character's level and below 100 (`0x44ff15`..`0x44ffa6`). The loop ends only when the points reach 0
+(`cmp [edx+0x17c], 0; jle` at `0x44ff18`). If every eligible skill is at 100, it never ends. With a
+progression count of 0 it would divide by zero instead (`idiv [ecx+0x20]` at `0x44ffa0`). `party_member_join`
+and `party_set_level` pass `quiet` = 1. In retail the highest level they set is 30 (`game_stage_set`,
+`push 0x1e` at `0x4d45e2`), which gives 71 points (`experience.tbl`: 2 per level for 2-6 and from 20, 3 for 7-19).
+The smallest capacity is Jekhar's, 13 entries of about 9 points each, 119 in all (`0x5935d8`; base skills 10
+from `Jekhar.tbl`). So retail data cannot trigger it. `party_set_level` has its own copy of the loop
+(`0x4cecf0`..`0x4ced47`) with the same exit test.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -270,6 +282,7 @@ renderer is not affected. The failed-lock path also skips `gr_d3d_begin_scene` (
 | G70 | If a cutscene starts while a summon is still waiting to emerge, every later summon of that creature type ends its emerge at once, until the game is closed | `summon_stash_for_cutscene` `0x448000` | **Observed** code, *inferred* effect | No |
 | G71 | Latent: a misspelled `$Skill:` name in a character table overwrites the record's up-direction skill; a misspelled direction skill becomes id `0x54`, past the skill table | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data | No |
 | G72 | Latent: a character with more than two `$Default Weapon:` lines gets wrong materials on its first weapons and, from the eighth line on, junk weapons | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
+| G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -529,6 +542,18 @@ names 0). So weapons 8 and 9 read back as item types 0x11 and 0, and later ones 
 creates one item per counted weapon (`0x44e8e9`..`0x44e911`). No retail record has more than two
 `$Default Weapon:` lines.
 
+**G100. Leech value overwritten.** Case `0x3e` (spell 62, "leech") stores
+`strength x 0.05 x power` in `amount` (`fld [ebp+0x20]; fmul [0x58021c]; fimul [ebp-0x3c]; fstp [ebp-0x24]` at
+`0x45f471`..`0x45f47d`) but leaves the dice count and die at 0. After the switch, every case calls
+`spell_roll_amount(target, spell, count, die, ...)` and stores its result over `amount` (`fstp [ebp-0x24]` at
+`0x45febe`). With count 0 the roll returns 0 (`test eax, eax; je 0x47f653` at `0x47f4ff`, `fld [0x57eb84]` at `0x47f653`), so `character_add_hp(0)` changes nothing.
+In multiplayer, `spell_prepare_cast` computes the same value and keeps it in the cast request
+(`0x47baa6`..`0x47babb`), so only single player loses it. `combat_trigger_special_ability` takes the
+single-player path through `living_entity_get_hit_by_spell` (`test dl, 2` at `0x46714a`). Retail users:
+`+Special Ability: "leech"` in `Blood Elemental.tbl` (100 10), `Crystal Rokhul.tbl` (40) and `Wraith.tbl` (100).
+*Inferred:* what leech was meant to do (drain the target or heal the caster) is not known; `spells.tbl` marks it
+`+Beneficial`, `+Target character`, `+Hit only`.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -568,6 +593,7 @@ creates one item per counted weapon (`0x44e8e9`..`0x44e911`). No retail record h
 | K91 | With the Direct3D renderer and a hardware gamma ramp, lit polygons get the gamma curve twice | `gr_d3d_tmapper` `0x5361a0`, `gr_d3d_tmapper_multipass` `0x536360`, `gr_d3d_set_gamma` `0x53ab20` | **Observed** code, *inferred* effect | No |
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
+| K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -854,6 +880,16 @@ prints "antialiasing toggled!", and the options screen keeps showing the old set
 reachable with the Direct3D renderer on a device that sets `gr_antialias_enabled` (`0x539dd5`); elsewhere the
 command prints "not supported". A developer console command, so latent.
 
+**K100. Three tests, two meanings.** `character_can_use_summon` unlocks a ring summon when the ring's total
+is above 60,000 (`cmp eax, 0xea60; jle` at `0x44738b`). `ring_check_summon_unlock` shows the message only
+when the old total is below 60,000 and the new one above it (`jge` at `0x45022d`, `jle` at `0x45023a`). A gain
+that lands on exactly 60,000 shows nothing, and the next gain starts from 60,000, so it fails the "old below
+60,000" test: the message is never shown, although the summon becomes usable. `ring_format_info` lists the
+summon under "Available Summons:" from 60,000 on (`cmp eax, 0xea60; jl` at `0x44bb34`, seven times), so at
+exactly 60,000 the pop-up offers a summon that cannot be cast yet. Ring gains are integers
+(`(int)(xp x 2 x summon skill)` and its eighth), capped at twice the character's experience, so landing on
+60,000 is possible but rare.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -894,6 +930,9 @@ command prints "not supported". A developer console command, so latent.
 | V81 | Latent: the `ai_frame_update_rate`, `attack_point` and `offense_point` console variables are stored and never read; `attack_point` also accepts an index one past the target's last attack point | `cmd_ai_frame_update_rate` `0x4720e0`, `cmd_attack_point` `0x473260`, `cmd_offense_point` `0x473300` | **Observed** code |
 | V82 | The branch of `ai_knock_down_local` for a character that is already down can never run; if it did, it would restart the lying phase with the first knock-down's duration | `ai_knock_down_local` `0x4742b0`, `ai_can_be_knocked_down` `0x475030` | **Observed** code |
 | V90 | `LoadSettings` passes the vsync option as `gr_init`'s far-z argument (0.0 or 1.0) and a constant 0 as its vsync argument | `LoadSettings` `0x43d7f0`, `gr_init` `0x505e00` | **Observed** code, *inferred* intent |
+| V100 | Several spell handlers store an `amount` that the dice roll overwrites; Laharah's scream's 10-unit test only guards that store | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data |
+| V101 | Jade Beam's boss branch tests for fireball (`0x1a`), which it can never be, and the other branch prints "jade dmg: %d" with a double | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code |
+| V102 | `character_walk_to_point` normalises the direction and never uses it; its "already facing" test compares a raw dot product with 1.0 | `character_walk_to_point` `0x455e70` | **Observed** code |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -1128,6 +1167,28 @@ two arguments look swapped. Nothing shows: `far_zvalue` has no reader, and `Game
 `options_apply_detail` (`0x43e141`), which sets the real vsync value before play. Only the clear and flip
 inside `gr_init` run with vsync 0.
 
+**V100. Dead stores.** Cases `0x40`-`0x42` (ice, fire and energy shield), `0x68` and `0x6a`/`0x6b` (dragons,
+non-party targets), `3`/`5`/`0x69` (non-party targets of `0x69`), `0x66` (Laharah's scream) and `0xc`, `0x54`,
+`0x57`, `0x65` (the death spells) set `amount` and a count with die 0. The roll with die 0 returns `-count`
+(`0x47f4ec`..`0x47f4fe`), which is the same value (or `-ceil(hp)` for the death spells), and is stored over
+`amount` at `0x45febe`. So nothing changes. In Laharah's scream the store of `-level` happens only within 10 units
+(`distance` at `0x45fc88`, `fcomp` at `0x45fc90`), but the count and die are set either way; `spells.tbl` gives the scream `+Distance: 10`, and
+the function already returns for a target farther than that (`0x45e0d8`..`0x45e123`). Leech is the one case
+where the lost store matters (G100).
+
+**V101. Jade Beam leftovers.** For a boss or a `0x40`-flagged target, case `0x18` copies the fireball code,
+including `if (spell == 0x1a)` before `spell_effect_obj_set_timer` (`cmp [ebp+0x8], 0x1a` at `0x45f0dd`), which
+is always false in case `0x18`. For other targets it takes half the current HP and prints it with
+`printf("jade dmg: %d\n", (double)dmg)` (`fstp qword [esp]` then `push 0x599c54` at `0x45f1df`..`0x45f1e7`). The
+`%d` reads the low half of the double. `printf` has no console in the retail build. The Jade Golem
+(`Jade Golem.tbl`, move "jade beam") is the caster.
+
+**V102. Unused direction.** `character_walk_to_point` computes `p - pos`, normalises it into a local
+(`vector3__normalize_safe` at `0x455eba`), computes `p - pos` again and dots that unnormalised copy with the
+forward vector. It skips the travel order only when the product is exactly 1.0 (`fcomp [0x57e990]; test ah, 0x40`
+at `0x455f24`..`0x455f2f`). *Inferred:* the test was meant for the unit vector; as written the order is
+practically always given. Callers: `conversation_frame`, `conversation_end_cleanup`, `script_action_wait_at`.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -1248,6 +1309,30 @@ the tables above; the rest are below.
 - Gamma applied to the alpha of 8-bit-alpha textures on all renderers (`0x54c233`, `0x5486bd`, `0x54d5f3`): for the white additive textures this changes their brightness, which is probably the intent.
 - `cmd_gamma` (`0x43d520`) only stores `config_gamma`, so `gamma <x>` in the console shows no change until the options are accepted or a level loads. The help text says only that it "Sets" the value; working as written.
 
+- `character_load_state` setting `attachments[0].slot = 1` for species `0xce` (`0x459df0`..`0x459dff`): not a slip
+  for the count. `summon_emerge_update` sets the same slot to 1 for species `0xce` when its emerge move's trigger
+  2 fires (`0x4b4743`..`0x4b475b`), after `living_entity_init` gave it slot 4 (`0x44ea0e`). The load restores the
+  attach point the summon has after it emerged.
+- `character_move_has_trigger` without a NULL test (`mov edx, [ecx+0x6d0]` at `0x461644`): `cur_move` is NULL
+  only together with `cur_anim = -1` (`living_entity_init` `0x44e688`, `ai_reset` `0x47258e`). Both callers test
+  first: `character_on_death` needs `cur_anim >= 0`, `character_play_move` needs `get_current_move() != NULL`.
+  `character_move_trigger_time_left` has its NULL test (`0x46167c`). Reading an ended move's trigger time gives a
+  negative value, which the callers treat as "passed".
+- `character_size_height` dropping the boss height (notes bug 2): already K30.
+- The resist tests mixing `<=` (status block, `0x45e9c3`) and `<` (eleven other handlers): the difference is a
+  single `frand()` value out of 32,768. Not counted.
+- The leech, conversion and apdrain handlers testing the resist value without a `+Hit Chance:` line: the parser's
+  default hit chance is 1.0 (`mov [esi-0x1c], 0x3f800000` at `0x47a294`), so the resist value is the normal
+  `0.5 + magic - 0.04 x power`, not 1.
+- `character_get_resistance(3)` uses `character_get_skill(0x23)`, which returns -999999 for a locked skill. Magic
+  resist is in all four hero progression tables (Joseph level 13, Jekhar 14, Flece 16, Rosalind 5), and
+  `player_skill_unlocked` does not test the level, so it is never locked for a hero.
+- From "Still unclear" on the page: "Dead party members: `character_save_state` and `character_load_state`
+  have no case for type 8". A dead hero is not type 8. `character_on_death` changes the type only for a
+  character that is not type 7 or has the summon flag `0x100` (`0x453f00`..`0x453f16`); the only store of 8 is
+  `0x453f94`, for a dying summon. A dead hero stays type 7 with flag `0x80` and is saved by the type 7 case. Dead
+  summons are not saved anyway (see the LENT line above). This item can move here.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -1309,6 +1394,23 @@ the tables above; the rest are below.
 - `gr_d3d_read_backbuffer` always reports 565 and copies `2 * w` bytes per row (`0x53a850`, `0x53a8b3`). If the Direct3D renderer can run with a 32-bit back buffer, screenshots and thumbnails would be garbled. Whether it ever picks one was not checked.
 - `gr::set_clip` with an origin right of or below the screen sets `clip_left` / `clip_top` to `max - origin - 1`, a negative value, and the clip becomes one pixel wide at the screen edge instead of empty (`0x506840`-`0x50689f`). No caller with such an origin was found.
 - The per-layer fog arrays (`0x22ea4f4`, `0x22fae78`) may be named the wrong way round, like `0x59bd7c` / `0x59bd80`; depends on the "+Distance:" order in `level_parse_table` (`0x4cbddc`).
+- `character_add_hp` with a change of exactly 0 starts the floating number at 0 when none is showing
+  (`delta == 0` at `0x450946`, store `0x450951`), and `levelrender_draw_float_text` prints `|+0x6e8|` whenever the
+  timer runs (`0x48543a`). `living_entity_get_hit_by_spell` calls `character_add_hp` after every handler, also
+  status spells, cures and resisted spells (`0x45fecd`). So such hits should show a "0" over the target for 2 s.
+  Whether that is meant as a "no damage" marker was not decided; needs a screenshot.
+- `rings_add_xp_all` feeds all eight rings, owned or not (`0x450420`). The Light, Fire and Stone messages have no
+  inventory test, so "Joseph acquired Summon Wraith!" could show for a Ring of Light the party does not have. The
+  four dragon messages need the ring in the party, so a dragon ring that passes 60,000 before it is found never
+  gets its message (the summon still unlocks). Whether retail ring totals reach 60,000 before the ring is found
+  was not measured.
+- `party_set_level` has its own skill-spending loop that gives Joseph +20 per point and the others +10
+  (`0x4ced1b`..`0x4ced26`). It runs after `character_add_xp(..., quiet = 1)`, which has already spent every point
+  with +10, so the +20 branch never runs (`mov eax, [edi+0x17c]` at `0x4cece0`, `cmp eax, ebx; jle` at
+`0x4cece8`). Whether Joseph was meant
+  to get +20 was not decided.
+- The death spells unequip and free every equipment slot of a non-party target (`0x45fdf0`), so its equipment
+  cannot drop as loot. Intent unknown.
 
 ## Evidence
 
@@ -1447,3 +1549,9 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K92 stale fog | `gr_set_fog` `0x507dc9`-`0x507e2f`, `0x507f3f`-`0x507f6d`; `levelrender_fog_enable` `0x482850`-`0x4829c6`; `fog_set_distances` `0x486b10`-`0x486b7a`; `level_set_current_layer` `0x482176`-`0x4821b6` |
 | K93 antialias flag | `cmd_antialiasing` `0x505db0`-`0x505dda`; `options_apply_detail` `0x487330`-`0x48733c`; `gr_set_antialias` `0x5080c0`; `gr_d3d_init_device` `0x539dd5` |
 | V90 vsync argument | `LoadSettings` `0x43db08`-`0x43db4d`; `gr_init` `0x505e52`, `0x505e87`, `0x505eaa`; `options_apply_detail` `0x48734d`-`0x48735a`; `gr_d3d_flip` `0x53a718`; `gr_glide_flip` `0x54a762` |
+| C100 quiet loop | `character_add_xp` `0x44fecb`..`0x44ffa6` (`jle` at `0x44ff1f`, `idiv` at `0x44ffa0`); quiet callers `party_member_join` `0x439cda`..`0x439cea`, `party_set_level` `0x4cecc4`..`0x4cecd3`; highest level `game_stage_set` `0x4d45e2`; progression tables `0x593508`, `0x5935d8`, `0x593678`, `0x593740` |
+| G100 leech store | `0x45f441`..`0x45f480`; roll stored over it `0x45feb6`..`0x45febe`; count 0 `spell_roll_amount` `0x47f4ff`; multiplayer `spell_prepare_cast` `0x47ba86`..`0x47babb`; single-player path `combat_trigger_special_ability` `0x46714a`..`0x46721a` |
+| K100 thresholds | `character_can_use_summon` `0x44738b`; `ring_check_summon_unlock` `0x450226`..`0x45023a`; `ring_format_info` `0x44bb34` (and six more `cmp eax, 0xea60; jl`) |
+| V100 dead stores | die-0 return `spell_roll_amount` `0x47f4ec`..`0x47f4fe`; store `0x45febe`; distance return `0x45e0d8`..`0x45e123` |
+| V101 Jade Beam | `0x45f0dd` (`cmp [ebp+0x8], 0x1a`), `0x45f1c4`..`0x45f209` |
+| V102 walk_to_point | `0x455eba`, `0x455f24`..`0x455f42` |

@@ -44,7 +44,11 @@ Fields of the `Player` record used by the party code (**observed**):
 
 `Character +0x320` carries the party flags on the character side: `0x8` hidden (the world map hides
 the other members this way, see [World map](worldmap.md)), `0x80` dead, `0x100` summon, `0x800000`
-left the party. **Observed** (bits read by the functions below).
+left the party. **Observed** (bits read by the functions below). `0x8` is also the "dying" flag:
+`character_on_death` sets it on every character that dies, party members included (`0x453870`), and
+`character_resurrect` (`0x454070`) clears it together with `0x80`. `0x2` is set while the character is
+asleep, paralysed or in an ice coffin (`status_effect_add` `0x454c3d`, cleared by `status_effect_cure`
+`0x4555df`).
 
 ## The leader and `cur_character`
 
@@ -76,8 +80,10 @@ It:
 All paths end in `party_select_member` (`0x4396d0`). It refuses a member whose `Character +0x320` has
 `0x80` (dead) or `0x8` (hidden) and plays sound `0x24`. Otherwise it calls `player__drop_leader` on
 every member, then `party_set_leader`, and plays sound `0x23`. **Observed.** `party_cycle` also skips
-members with flag `0x2` in `+0x320` (*unknown* meaning). In multiplayer it only stops on members owned
-by the local player. **Observed.** See [Controls](controls.md#default-keyboard-map-hud_handle_keys).
+members with flag `0x2` in `+0x320`, which the status code sets while a member is asleep, paralysed or
+in an ice coffin (**observed** in `status_effect_add`; other setters were not searched). *Inferred:* Tab
+passes over a disabled member, while F5-F9 can still select it. In multiplayer it only stops on members
+owned by the local player. **Observed.** See [Controls](controls.md#default-keyboard-map-hud_handle_keys).
 
 `party_count_active` (`0x434350`) counts members that exist and do not have `0x800000`. Outside the world
 map (`cur_level_index` 4) it also skips hidden (`0x8`) members. The inventory trade buttons and the
@@ -144,8 +150,13 @@ used for summons, multiplayer disconnects and `party_remove_all`. **Observed.**
   member is alive does it show the death screen. **Observed.**
 - Dead members are revived with full HP and AP on the next level change (`party_level_reset`,
   `0x437e50`) or when a script calls `party_add_member`. **Observed.**
-- A dying summon is removed with `party_remove_player`. If Joseph dies, his summon turns hostile.
-  See [Summons](summons.md#behaviour-dismissal-and-death).
+- A dead hero keeps type 7; only the summon's type changes (7 to 8). `character_on_death` skips the
+  loot drop and the type change for a party member that is not a summon (`0x453f00`..`0x453f16`).
+  **Observed.**
+- A dying summon gives Joseph back the max HP lent to it (`summon_return_lent_max_hp`, `0x4536c0`) and is
+  removed with `party_remove_player`. The summon skill's cooldown starts when the current summon dies. If
+  Joseph dies, his summon turns hostile (team 3, type 5, "Summoned creature has turned against you!").
+  **Observed.** See [Summons](summons.md#behaviour-dismissal-and-death).
 
 ## Solo mode and hold
 
@@ -236,8 +247,11 @@ After that, the AI groups decide (`ai_groups_frame`, every 1.5-2.5 s; `ai_group_
 | 5 | Healer/Caster | as 3, with the caster range of 4 |
 
 The default comes from the species in `living_entity_init`: species 0 and 1 get Melee, 2 gets
-Support, 3 gets Healer/Caster. **Observed.** *Inferred:* species 0-3 are Joseph, Jekhar, Flece and
-Rosalind (the order of `characterinfo_load_party`). You change it on the status screen:
+Support, 3 gets Healer/Caster, and every other species Melee. **Observed** (`0x44eb2c`..`0x44eb7d`).
+Species 0-3 are Joseph, Jekhar, Flece and Rosalind: `player_create` picks the progression table by
+species through the jump table at `0x433950`, and each table's skills match that hero's `$Skill:` lines
+(Jekhar axe weapons, Flece bow weapons, Rosalind heal and staff weapons). **Observed** (2026-10-15).
+You change it on the status screen:
 `status_ai_popup_show` (`0x42c450`) offers all six names, and `status_ai_popup_frame` (`0x42c6c0`)
 stores the choice with `ai_set_18`. The style is saved with the character (`ai_state_save` writes
 `+0x18` first). **Observed.** See [Interface](interface.md).
@@ -255,16 +269,23 @@ can leave. On the world map only the leader is shown ([World map](worldmap.md)).
 
 ## Experience sharing
 
-`character_on_death` (`0x4537f0`) pays XP when a monster with byte `+0x608` set dies. **Observed:**
+`character_on_death` (`0x4537f0`) pays XP when a monster with byte `+0x608` set dies. `character_add_hp`
+writes that byte on every call: 1 when the source is a party member, 0 otherwise (`0x4508b7`). So the
+last HP change before the death decides, not who did most of the damage. The party's summon is type 7,
+so its hits count too. **Observed:**
 
 1. It collects party members that are alive, not hidden, not summons and within 20 units.
 2. Total XP = `char_info +0x2c` x `r`, where `r` = monster level / `char_info +0x30`; when `r` >= 1
-   it uses `r^1.25` instead. In multiplayer it is multiplied by the number of players.
-3. Each collected member gets total / count (`character_add_xp`), and "+N xp" floats over the monster.
+   it uses `r^1.25` (`sqrt(sqrt(r)) x r`) instead. In multiplayer it is multiplied by the number of players.
+3. The share is total / count, at most 2^31. "+N xp" (the total) floats over the monster. Each collected
+   member gets the share as an integer (`character_add_xp`), except on a multiplayer client, where the host's
+   award arrives over the network.
 
 So a kill is split evenly, and members far away get nothing. Summons never take a share. Other
 `character_add_xp` callers give XP to every member: `script_party_gain_xp` (`0x4ceb00`, "party gained %d
-XP") and `party_set_level` (`0x4cec00`). **Observed.**
+XP"). `party_set_level` (`0x4cec00`) is different: it resets each member at or below the given level (not
+summons) to level 1 with no XP and no skill points, then adds `xp_for_level(level)` with `quiet` set, so
+the skill points are spent at once ([Characters](characters.md#experience-and-levels)). **Observed.**
 
 ## Tips for players
 
@@ -299,3 +320,21 @@ Float constants were read from `Sum.exe` (`0x580de8` = 50, `0x57e6b4` = 100, `0x
 | Attack order | `party_order_attack` `0x43a3ec`-`0x43a412` |
 | Combat styles | `init_strptrs_22e49a0` `0x472070`, `living_entity_init` `0x44eb2c`-`0x44eb7d`, `ai_state_save` `0x4746d0` |
 | XP split | `character_on_death` `0x453a42`-`0x453d40` |
+| Party hit byte `+0x608` | `character_add_hp` `0x450892`-`0x4508b7`; `character_on_death` `0x453a4a` |
+| Share cap, client skip | `character_on_death` `0x453c42`-`0x453c60` (`0x4f000000` = 2^31), `0x453d40` |
+| Dying flag `0x8`, dead `0x80` | `character_on_death` `0x453870`, `0x45393a`; `character_resurrect` `0x454070` |
+| Flag `0x2` | `status_effect_add` `0x454c3d`; `status_effect_cure` `0x4555df` |
+| Dead hero keeps type 7 | `character_on_death` `0x453f00`-`0x453fb2` |
+| Species order | `player_create` jump table `0x433950` (targets `0x4337fb`, `0x43380c`, `0x43381e`, `0x433830`) |
+| `party_set_level` | `0x4cec3a`-`0x4cecd3` (reset to level 1, `character_add_xp` with `quiet` = 1) |
+
+## Changes (2026-10-15, living_entity.cpp)
+
+{: .important }
+Checked against the disassembly of the `living_entity.cpp` functions. `0x2` in `Character +0x320` is no
+longer *unknown*: it marks a member who is asleep, paralysed or in an ice coffin. `0x8` is also the dying
+flag. The species order (Joseph, Jekhar, Flece, Rosalind) is now **observed**, and every non-hero species
+defaults to Melee. Experience: `+0x608` is rewritten on every HP change, so the last hit decides whether a kill
+pays; the share is capped at 2^31 and a multiplayer client does not award it. `party_set_level` resets the
+members to level 1 and re-adds the XP quietly; it is not an XP gift. Death: a dead hero keeps type 7; a dying
+summon returns the lent HP and starts the summon cooldown.
