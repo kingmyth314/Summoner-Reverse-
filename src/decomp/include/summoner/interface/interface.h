@@ -149,7 +149,8 @@ void item_info_popup_render();                                      // 0x418e40
 bool item_info_popup_is_active();                                   // 0x419160
 
 // ---- chat (new_multichat.cpp) -----------------------------------------------------------------------
-void chat_input_cancel();                                           // 0x41ed50
+// The unit's functions and globals (chat_input_cancel 0x41ed50, ...) are in new_multichat.h (decomp44).
+#include "summoner/interface/new_multichat.h"
 
 // ---- interface colours (static Color objects of the interface core) -----------------------------------
 extern Color ui_color_text;                                         // 0x5bd2ec

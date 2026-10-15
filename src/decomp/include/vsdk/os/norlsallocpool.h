@@ -1,5 +1,6 @@
 // vsdk/os/norlsallocpool.h - the no-release bump allocator (norlsallocpool.cpp, 0x532360-0x532650;
-// file name from sum.symbols, Summoner 2 gives the names; directory guessed). Not original source.
+// file name from sum.symbols, Summoner 2 gives the names; directory guessed; decomp44 writes the unit
+// as src/decomp/vsdk/norlsallocpool.cpp). Not original source.
 #ifndef VSDK_OS_NORLSALLOCPOOL_H
 #define VSDK_OS_NORLSALLOCPOOL_H
 
@@ -20,6 +21,10 @@ public:
     void *AllocZeroed(int size);               // 0x5324e0
     void Align();                              // 0x532510 (decomp20)
     int  GetUsed();                            // 0x532540 (decomp20)
+    // decomp44 (vsdk/norlsallocpool.cpp). Grow and the GetUsed thunk have no caller in the binary.
+    void *Grow(void *ptr, int size);           // 0x532570 resizes the last allocation, NULL on failure
+    int  GetUsed_thunk();                      // 0x532620 jmp GetUsed (name from sum.symbols)
+    void SetOffset(int offset);                // 0x532630 non-growing pools only
 
     void *blocks;                 // +0x00 chain of owned blocks (next at +0)
     char *start;                  // +0x04 first byte of the current block

@@ -5101,7 +5101,7 @@ void Character::get_display_name(char *buf)
 }
 
 // 0x462200  Confidence: exact.
-void Character::set_ai_active(bool on)
+void Character::set_ai_active(int on)
 {
     if (on) {
         obj_flags |= 1;

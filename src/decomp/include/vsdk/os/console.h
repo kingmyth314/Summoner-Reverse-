@@ -1,5 +1,5 @@
-// vsdk/os/console.h - developer console commands (console.cpp in sum.symbols; 0x50a180-0x50a5b0).
-// Directory guessed (vsdk\os). Not original source.
+// vsdk/os/console.h - developer console commands (console.cpp in sum.symbols; 0x50a000-0x50af59, written
+// in decomp44). Directory guessed (vsdk\os). Not original source.
 #ifndef VSDK_OS_CONSOLE_H
 #define VSDK_OS_CONSOLE_H
 
@@ -28,6 +28,23 @@ typedef console_command console_command_M;
 #define ARG_FLOAT 0x10                   // cmd_gamma passes 0x10, then reads command_argument_float
 #define ARG_TRUE  0x40
 #define ARG_FALSE 0x80
+// decomp44 (console.cpp): the other bits process_command sets.
+#define ARG_QUOTED 0x04                  // a "..." token; process_command strips the quotes and makes it ARG_STRING
+#define ARG_HEX   0x20                   // "0x..." (set with ARG_INT)
+#define ARG_PLUS  0x100                  // "+"
+#define ARG_MINUS 0x200                  // "-"
+#define ARG_COMMA 0x400                  // ","
+// Token types of get_token (token_type).
+#define TOKEN_END    0                   // end of the line
+#define TOKEN_WORD   1                   // a word / number, or one punctuation character
+#define TOKEN_QUOTED 3                   // a "..." string (the quotes are kept in token)
+// char_types classes (init_char_types).
+#define CHAR_LETTER 0                    // A-Z a-z _ : \ $
+#define CHAR_QUOTE  1                    // "
+#define CHAR_OTHER  2                    // punctuation and spaces: a one-character token
+#define CHAR_END    3                    // NUL
+#define CHAR_DIGIT  4                    // 0-9 + - .
+#define MAX_CONSOLE_COMMANDS 300
 
 extern char next_arg[256];               // 0x25dacec lowercase copy of the parsed argument (decomp20)
 extern int command_argument_int;         // 0x25db2dc (decomp20)
@@ -45,5 +62,19 @@ void init_char_types(int arg);           // 0x50ab60 (LoadSettings passes 0)
 extern char string_buffer[];             // 0x257ed80
 
 void console_printf(const char *fmt, ...);   // 0x50aef0 (vsprintf + print_to_console; decomp23: cmd_summon)
+
+// decomp44 (console.cpp, 0x50a000-0x50af59). The rest of the unit's globals and functions.
+extern char original_arg[256];           // 0x25db2e4 the parsed argument as typed
+extern char *rest_of_command_line;       // 0x25db914 the line after the parsed argument
+extern int current_command_count;        // 0x25db918
+extern console_command *Console_commands[MAX_CONSOLE_COMMANDS];   // 0x25db3e4 sorted by name (_stricmp)
+extern int debug_command_prefixed;       // 0x25db920 "debug <command>": trace the parse
+extern console_command ccmd_print_to_file;   // 0x25dadf8
+extern console_command ccmd_script;      // 0x25dae08
+void cmd_print_to_file();                // 0x50a030
+// 0 = run, -1 = empty / too long / bad keyword / unknown command / argument error (longjmp).
+int  execute_command_line(const char *line);   // 0x50a210
+void cmd_script();                       // 0x50ac60
+void load_script(const char *name);      // 0x50acd0 runs <install dir>\<name>.vcs line by line
 
 #endif

@@ -47,7 +47,8 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/os/exceptionhandler.h` | exceptionhandler (0x5419a0; directory and file name guessed, decomp26) | `RecordExceptionInfo` |
 | `vsdk/os/registry.h` | `vsdk\os\registry.cpp` (pilot) | `os_registry_*` |
 | `vsdk/os/cmdline.h` | `vsdk\os\cmdline.cpp` (pilot) | `CmdLineParam`, `cmdline_*` |
-| `vsdk/os/console.h` | console.cpp | `console_command`, console globals, `string_buffer` |
+| `vsdk/os/console.h` | console.cpp (0x50a000-0x50af59, decomp44) | `console_command`, `ARG_*` / `TOKEN_*` / `CHAR_*`, the console globals and functions, `string_buffer` |
+| `vsdk/os/norlsallocpool.h` | norlsallocpool.cpp (0x532360-0x532653; source at src/decomp/vsdk/norlsallocpool.cpp, decomp44; directory guessed) | `NoRlsAllocPool` |
 | `vsdk/os/stringpool.h` | `vsdk\os\stringpool.cpp` (decomp22) | `StringPool` |
 | `vsdk/os/mouse.h` | vsdk\os\mouse | `mouse_*` |
 | `vsdk/os/key.h` | key (0x509ca0) | `KEY_*` scan codes, `key_to_ascii`, `key_names` |
@@ -60,6 +61,7 @@ Summoner 2 and Dash Faction give names only.
 | `vsdk/math/ix.h` | vsdk\math (ix_ray_plane 0x53ce30, ix_point_linesegment 0x53da80; file name ours, decomp35) | `plane` (inline set_normal_point), `ix_ray`, `ix_*` |
 | `vsdk/inetfile/inetgetfile.h` | InetGetFile (0x51b760-0x51bb10) | `InetGetFile` (directory and file name guessed) |
 | `vsdk/vfile/file.h` | vsdk\vfile | `File`, `PATH_ANY`, `file_*`, `file_find_*` |
+| `vsdk/vfile/linefile.h` | LineFile (0x558340-0x558a40; unit, directory and file name not known, decomp44) | `LineFile` (what load_script uses), `LineFile_open` |
 | `vsdk/vfile/packfile/file_packfile.h` | `vsdk\vfile\packfile\file_packfile.cpp` | `packfile_read_whole_file`, `packfile_find_in_packfile` |
 | `vsdk/parse/parse.h` | `vsdk\parse\parse.cpp` (decomp22) | `TextFile`, to-text helpers, `file_blast_*` |
 | `vsdk/bmpman/bmpman.h` | `vsdk\bmpman\bmpman.cpp` (decomp31) | `bitmap_entry`, `BM_TYPE_*` / `BM_ANIM_*` / `BM_FORMAT_*`, the unit's globals, every `bm_*`, `progress_update` |
@@ -123,4 +125,5 @@ Summoner 2 and Dash Faction give names only.
 | `levelscripts/level_scripts.h` | level_scripts(_common).cpp | `level_script_info`, level tables, shops, quests, `level_trigger`, `script_action` (decomp41) |
 | `levelscripts/conversation.h` | `levelscripts\conversation.cpp`, conversationctl.cpp | dialogue boxes; speakers, topics, lines; `conversation` (0x25461a0), `conversation_controller` (0x25464b0) |
 | `levelscripts/savegame.h` | savegame (0x4cfca0) | `savegame`, `savegame_state` |
-| `levelscripts/script_internal.h` | script_internal.cpp (0x4dc600; directory guessed, decomp34) | `navpoint_get_position`, `navpoint_find`, the script entry calls (decomp41) |
+| `levelscripts/script_internal.h` | `levelscripts\script_internal.cpp` (0x4db340-0x4de0a3, assert path; decomp44) | `SCRIPT_ACTION_*`, `NAVPOINT_TYPE_*`, the action / navpoint type names, `cutscene_saved_item`, every function of the unit |
+| `summoner/interface/new_multichat.h` | new_multichat.cpp (0x41e3d0-0x41ee8f, decomp44; included by interface.h) | `chat_line`, the chat overlay's globals, layout tables and functions |

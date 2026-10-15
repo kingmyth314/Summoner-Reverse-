@@ -160,7 +160,8 @@ public:
     // (mask, type, ...): goal slot index or -1. The conversation calls pass (1, type, 0, 0, -1, 0, 0, 0x6c).
     // decomp39: the arguments after the mask are goal_add's first seven (type, priority, flags, target,
     // pos, layer, spell); ai.cpp passes masks 1, 3, 4 and 0x41, ai_goal_add 0x1f. Parameter names kept.
-    int  goal_find(int mask, int type, int a, int b, int c, int d, int e, int f);  // 0x475eb0 ai_goal_find
+    // decomp44 (D2306): d is the position pointer (script_entry_check_done passes &navpoint->pos).
+    int  goal_find(int mask, int type, int a, int b, int c, vector3 *d, int e, int f);  // 0x475eb0 ai_goal_find
     void goals_clear();               // 0x476380 ai_goals_clear
     // decomp39: the goal_add wrappers return its slot index (or -1); the callers above ignore it.
     int  add_cast_spell(int spell, int priority);   // 0x4740c0 ai_goal_add_cast_spell
@@ -183,6 +184,8 @@ public:
     // decomp29 (boss_ai.cpp). (pos, layer, 30.0f, 0, 5000) at boss_release_mount; return unused.
     // decomp39 (D1903): f is goal_add's float argument, walk a byte (`cmp dl, 1`), the last the priority.
     int  add_move_to_timed(vector3 *pos, int layer, float f, bool walk, int ms);   // 0x474190 ai_goal_add_move_to_timed
+    // decomp44 (script_internal.cpp, script_entry_jump_to_sequence):
+    void goals_remove_unmarked();     // 0x4766c0 ai_goals_remove_unmarked (every used goal without flag 0x40)
 
     // boss_ai.cpp (decomp29): the species dispatchers that are thiscall on the AI record.
     void boss_ai_unload();            // 0x4a04d0 (ai_state_shutdown)

@@ -127,7 +127,7 @@ chat_entry *chat_history_pop()
 }
 
 // 0x487e20  Confidence: exact. A line of a player that has left stays unformatted (out unchanged).
-char *chat_format_entry(char *out, chat_entry *e)
+char *chat_format_entry(char *out, int size, chat_entry *e)
 {
     if (e->sender == -1) {
         sprintf(out, "** %s **", e->text);

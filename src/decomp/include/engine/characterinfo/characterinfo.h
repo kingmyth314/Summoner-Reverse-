@@ -304,7 +304,8 @@ LAYOUT_CHECK(move_info, sizeof(move_info) == 0x4c);
 // Flag: for the heroes, skip a move whose anim is loaded for none of the record's weapon classes.
 move_info *charinfo_find_move(char_info *info, int category, int id, bool loaded_only);   // 0x446cb0
 move_info *charinfo_find_move_alt(char_info *info, int category, int variant, bool loaded_only); // 0x446d10 (by +0x18)
-move_info *charinfo_find_move_any(char_info *info, int anim);  // 0x446c60 any list, by anim (skips parry/flinch low)
+// (info, anim, loaded_only): the third argument is not read; all four callers push it (1), D2300.
+move_info *charinfo_find_move_any(char_info *info, int anim, bool loaded_only);   // 0x446c60 any list, by anim (skips parry/flinch low)
 // (out, max, info, category, exclude id, weapon class): the call in living_combat_pick_attack_move pushes them
 // in this order (sum.symbols lists info second). max (10 from combat.cpp) is not checked (decomp38: the
 // category is the fourth argument, D1803).

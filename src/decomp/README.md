@@ -18,6 +18,8 @@ Rules:
 | `vsdk/timestamp.cpp` | `timestamp.cpp` (`0x5017f0`-`0x501b16`) | 23 | |
 | `vsdk/registry.cpp` | `vsdk\os\registry.cpp` | 14 | 10 / 4 / 0 |
 | `vsdk/cmdline.cpp` | `vsdk\os\cmdline.cpp` | 20 | 14 / 6 / 0 |
+| `vsdk/console.cpp` | `console.cpp` (vsdk\os) | 20 + 2 helpers | 15 / 7 / 0 |
+| `vsdk/norlsallocpool.cpp` | `norlsallocpool.cpp` (Summoner 2 name, folder not known) | 14 | 9 / 5 / 0 |
 | `vsdk/gr_font.cpp` | `vsdk\gr\gr_font.cpp` | 17 | 9 / 7 / 1 |
 | `vsdk/gr.cpp` | `vsdk\gr\gr.cpp` (`0x505550`-..) | 102 | 89 / 13 / 0 |
 | `vsdk/effect_mem.cpp` | `vsdk\geom\effect_mem.cpp` (`0x51bb70`-`0x51e018`) | 38 | 20 / 18 / 0 (13 vfx_instance functions not written yet) |
@@ -67,6 +69,7 @@ Rules:
 | `game/multisave.cpp` | `multisave.cpp` (`0x46cc60`-`0x46da80`) | 10 | see `NOTES-multi.md` (38 / 23 / 1 for the four files) |
 | `game/multitrade.cpp` | `multitrade.cpp` | 26 | |
 | `game/multichat.cpp` | `multichat.cpp` | 13 | |
+| `game/new_multichat.cpp` | `new_multichat.cpp` | 16 | 9 / 7 / 0 |
 | `game/multicontainer.cpp` | `multicontainer.cpp` | 13 | |
 | `game/gametarget.cpp` | `gametarget.cpp` | 26 | 12 / 14 / 0 |
 | `game/multi_chattracker.cpp` | `multi_chattracker.cpp` | 20 | 11 / 9 / 0 |
@@ -84,6 +87,7 @@ Rules:
 | `game/pathfinding.cpp` | `pathfinding.cpp` (`0x49c840`-`0x4a04af`) | 40 | 20 / 20 / 0 |
 | `game/conversation.cpp` | `levelscripts\conversation.cpp` (`0x4d7b30`-..) | 32 | 22 / 10 / 0 |
 | `game/conversationctl.cpp` | `conversationctl.cpp` (`0x4d87d0`-`0x4daf50`) | 40 | 23 / 16 / 1 |
+| `game/script_internal.cpp` | `levelscripts\script_internal.cpp` | 26 | 10 / 15 / 1 |
 | `game/level_scripts.cpp` | `levelscripts\level_scripts.cpp` (`0x4ceec0`-`0x4d6651`, savegame code included) | 124 + 34 initialiser helpers | 96 / 27 / 1 |
 | `game/level_scripts_common.cpp` | `levelscripts\Scripts\level_scripts_common.cpp` (`0x4ca700`-`0x4ceebf`) | 92 | 71 / 17 / 4 |
 | `game/level_script_khosani_lab.cpp` | `level_script_khosani_lab.cpp` | 48 | 33 / 15 / 0 |

@@ -38,7 +38,9 @@ void chat_history_clear_thunk();                        // 0x487db0 (mp_session_
 void chat_history_clear();                              // 0x487dc0
 void chat_history_clear_thunk2();                       // 0x487dd0 (mp_leave_game)
 chat_entry *chat_history_pop();                         // 0x487de0 NULL when empty
-char *chat_format_entry(char *out, chat_entry *e);      // 0x487e20 returns out
+// (out, out size, entry): the size is not read (D2301: both callers push three arguments, the entry is
+// [esp + 0xc]).
+char *chat_format_entry(char *out, int size, chat_entry *e);   // 0x487e20 returns out
 // (sender id, text): runs a slash command (true) or queues the line; false = also show / forward it.
 bool chat_process_command(int sender, const char *text);   // 0x487ea0
 chat_entry *chat_history_push();                        // 0x488030 NULL when full

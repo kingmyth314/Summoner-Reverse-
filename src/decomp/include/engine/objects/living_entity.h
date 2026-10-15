@@ -193,7 +193,7 @@ public:
     // decomp27 (level_scripts.cpp): the LENT record and the flag-bound characters.
     int   save_state(ubyte *out);     // 0x457150 character_save_state, bytes written
     int   load_state(const ubyte *in);// 0x458800 character_load_state, bytes read
-    void  set_ai_active(bool on);     // 0x462200 character_set_ai_active
+    void  set_ai_active(int on);      // 0x462200 character_set_ai_active (a dword test, D2302)
     void  add_xp(int xp, bool quiet, bool from_net);   // 0x44fab0 character_add_xp (conversation_execute_action: xp, 0, 0)
     void  update_locomotion_anim();   // 0x45a120 character_update_locomotion_anim
     void  set_locomotion_speed(float speed);  // 0x45a6e0 character_set_locomotion_speed

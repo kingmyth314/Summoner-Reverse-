@@ -112,14 +112,14 @@ The source half of the pilot has started without the compiler. Agents rewrote wh
 the disassembly; I reviewed them, spot-checked a function of each against the listing, and checked that they compile
 with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
 - engine: `frametime`, `timestamp`, `registry`, `cmdline`, `gr_font`, `ui_container`, `targautils`, `window`,
-  `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`, `matrix`, `skeleton`, `character`, `bmpman`, `gr`, `gr_opengl`, `gr_direct3d`;
+  `character_instance`, `effect_mem`, `memory`, `stringpool`, `plainstring`, `parse`, `console`, `norlsallocpool`, `matrix`, `skeleton`, `character`, `bmpman`, `gr`, `gr_opengl`, `gr_direct3d`;
 - game: the credits, help, main and play menus, dialogue, assess, pickup, game create, journal, character select,
   level select, shop, item trade, options, save/load, status, automap, inventory, HUD, skills, spells, tutorial, multiplayer game list and
   PXO chat screens, the multiplayer save, trade, chat, chat-tracker, spell and container code, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, the Khosani lab, world map and eight more per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 3,014 functions written (34.9%). Of these, 1,937 match the
-disassembly exactly as far as can be read, 971 likely, 54 unsure. All 80 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 3,091 functions written (35.8%). Of these, 1,979 match the
+disassembly exactly as far as can be read, 1,005 likely, 55 unsure. All 84 files compile against one header tree
 (`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

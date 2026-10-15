@@ -1968,3 +1968,71 @@ constant level (`push 0x9 / push "tb_killed"`, ...). Each unit #defines the ones
 level_script_table record at that index (read from 0x59f128 + 0x40 * i): 0 Wolong, 5 lenele1b, 9 sewer,
 0xc IkaemosTopInt, 0xe KhosaniLab, 0x10 WolongCaverns, 0x18 LPalaceInt, 0x23 lenele1aa. No shared header
 constant exists yet; when one is added these should move there.
+
+## script_internal.cpp / console.cpp / norlsallocpool.cpp / new_multichat.cpp (decomp44)
+
+**D2300 (engine/characterinfo/characterinfo.h). charinfo_find_move_any takes a third argument.** All four
+callers push three (`push 1; push anim; push info`, `add esp, 0xc`: 0x4dc940-0x4dc953, 0x4dc9a1-0x4dc9b5,
+0x4dd234-0x4dd24a, 0x4e49b1-0x4e49c0); the body reads only [esp+4] and [esp+0x14] (after three pushes:
+the second argument). So the prototype the callers saw had a third parameter that the function ignores,
+named loaded_only after charinfo_find_move's (both callers pass true). characterinfo.cpp's definition
+must get the unused parameter (`bool loaded_only`), otherwise it becomes a second overload.
+
+**D2301 (summoner/multi/multichat.h). chat_format_entry is (out, size, entry).** Both callers push three
+arguments: chat_update_lines `push entry; push 0x200; push buf` (0x41e514-0x41e51f) and chat_history_pump
+(0x4ab13f-0x4ab14b); the function reads the entry at [esp+0x10] after one push (0x487e21), the third
+argument. The size is not read. multichat.cpp's definition must take `(char *out, int size, chat_entry *e)`
+(it has no caller in src/decomp, so the old two-argument definition would compile as an overload).
+
+**D2302 (engine/objects/living_entity.h). Character::set_ai_active takes an int.** The member tests the
+whole dword (`mov eax, [esp+4]; test eax, eax`, 0x462200-0x46220a), and script_entry_start's show/hide
+passes the action's int argument with no conversion (`mov ecx, [esi+0xc]; push ecx`, 0x4dd470-0x4dd47d);
+a bool parameter would be `test al, al` and a `setne` at that caller. living_entity.cpp's definition must
+become `void Character::set_ai_active(int on)` (a member definition without a declaration does not
+compile, so this one is caught). The callers that pass true / false compile unchanged.
+
+**D2303 (levelscripts/level_scripts.h). script_action: a navpoint at +0x04, a text at +0x08, signed
+arguments.** script_parse_objects stores navpoint_find's result at +0x04 (0x4dc166) and the teleports read
+nav->pos / heading / layer through it (0x4dd3db-0x4dd408); the text actions store the string pool's result
+at +0x08 (0x4dc355) that say / play effect / pass go / follow pass on. `name` and `_unk08` stay as
+the first members of anonymous unions (`nav`, `text`), so level_scripts_common.cpp compiles unchanged.
+arg0c and arg10 become int: the actions test them with jl / jge (0x4dc939, 0x4dc999, 0x4dcd00, 0x4dce04),
+which an unsigned field would not produce; nothing in src/decomp depends on the unsigned type.
+
+**D2304 (levelscripts/script_internal.h). script_action_goto returns bool.** It ends with `mov al, 1` /
+`xor al, al` (0x4dca7d, 0x4dca69) and script_entry_start keeps AL as the action's result (`mov bl, al`
+at 0x4dd265 after the call at 0x4dd3bb). The decomp41 declaration said void (return unused there).
+
+**D2305 (levelscripts/script_internal.h). script_parse_objects's second argument is a bool.** It is read
+as a byte (`mov al, [esp + 0x39c]; test al, al`, 0x4dbfaa and 0x4dc312): true for a level script
+(script_objects, end mode 0, the say texts remapped), false for a cutscene script. The level passes 1, cutscene_script_load
+EBX (0x4ed2cf); level_scripts_common.cpp compiles unchanged.
+
+**D2306 (engine/ai/ai.h). ai_state::goal_find's sixth argument is a vector3 pointer.** decomp39 already
+names it the goal's position; script_entry_check_done passes `&navpoint->pos` (`add eax, 0x14; push eax`,
+0x4dd80b-0x4dd80f). Every other caller in src/decomp passes 0, which stays valid.
+
+**D2307 (levelscripts/level_scripts.h). navpoint +0x24 / +0x28.** The script navpoint parsers store a
+float at +0x24 (the height above the floor found below, `fsub; fstp [esi+0x24]` at 0x4db67e, cleared to 0
+when the navpoint is moved onto the floor) and the $Type: index at +0x28 (0x4db47a). Both become
+anonymous unions with the old names first (`_unk24` / `ground_height`, `_unk28` / `type`).
+
+**D2308 (summoner/interface/interface.h, new summoner/interface/new_multichat.h). The chat unit gets its
+own header.** chat_input_cancel (0x41ed50) moves from interface.h to new_multichat.h with the rest of the
+unit; interface.h includes new_multichat.h at the old place, so new_itemtrade.cpp compiles unchanged.
+interface_screen_is_fullscreen was already declared by decomp42; chat_get_origin uses that declaration.
+
+**D2309 (none). sum.symbols types char_types wrong.** char_types (0x25dae14) is int[256], not uint8[256]:
+every access is `[4*eax + 0x25dae14]` (0x50a6ef, 0x50a9c4, 0x50aabd, 0x50ab88), and the next global,
+current_char, is 0x400 bytes on (0x25db214).
+
+**D2310 (several headers). New declarations, no conflict:** console.h the rest of the unit (ARG_QUOTED /
+ARG_HEX / ARG_PLUS / ARG_MINUS / ARG_COMMA, TOKEN_*, CHAR_*, original_arg, rest_of_command_line,
+current_command_count, Console_commands, debug_command_prefixed, ccmd_print_to_file, ccmd_script,
+cmd_print_to_file, execute_command_line, cmd_script, load_script); new vsdk/vfile/linefile.h (LineFile,
+0x1c bytes, and LineFile_open; file name ours); norlsallocpool.h Grow, GetUsed_thunk, SetOffset;
+script_internal.h the unit's functions, SCRIPT_ACTION_*, NAVPOINT_TYPE_*, script_action_names,
+script_navpoint_type_names, cutscene_saved_item / cutscene_saved_equipment (this unit's .bss, 0x2546760);
+level_scripts.h the cutscene unit's globals this unit reads (cutscene_data with a one-field
+cutscene_entry, cutscene_path_id, cutscene_cur_sequence, cutscene_navpoints, cutscene_script_objects,
+cutscene_script_stringpool); ai.h ai_state::goals_remove_unmarked (0x4766c0).

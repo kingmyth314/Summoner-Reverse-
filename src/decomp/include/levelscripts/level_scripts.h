@@ -48,13 +48,25 @@ int  level_script_find(const char *level_name);      // 0x4d6300, -1 = none
 #define SCRIPT_ACTION_WAIT_GO   0x0b     // arg0c set by script_object_receive_go, cleared by the restart
 #define SCRIPT_ACTION_LOOP      0x0d     // makes level_script_restart set end_mode 1
 #define SCRIPT_ACTION_GOTO      0x0f     // script_action_goto (script_object_goto_label builds one)
+// decomp44 (script_internal.cpp, D2303): +0x04 holds a navpoint record (script_parse_objects stores
+// navpoint_find's result; teleports read nav->pos), +0x08 a string-pool text (say, play .mvf, play effect,
+// pass go, follow), arg0c / arg10 are signed (jl tests at 0x4dc939, 0x4dc999, 0x4dcd00, 0x4dce04).
+// type: script_action_names index (SCRIPT_ACTION_*, script_internal.h), -1 none.
+struct navpoint;
 struct script_action {
     int type;                            // +0x00
-    const char *name;                    // +0x04 navpoint / file name argument
-    int _unk08;                          // +0x08
-    unsigned int arg0c;                  // +0x0C (the goto label; the "go" flag of type 0xb)
-    unsigned int arg10;                  // +0x10
-    ubyte flag14;                        // +0x14
+    union {
+        const char *name;                // +0x04 navpoint / file name argument
+        navpoint *nav;                   //       the navpoint record (navpoint_find)
+    };
+    union {
+        int _unk08;                      // +0x08
+        const char *text;                //       level_script_stringpool / cutscene_script_stringpool string
+    };
+    int arg0c;                           // +0x0C (the goto label; the "go" flag of type 0xb; the int argument;
+                                         //        0xcdcdcd when the action is allocated)
+    int arg10;                           // +0x10 "wander for" seconds, -1 otherwise
+    ubyte flag14;                        // +0x14 wander: walk (1) unless "run" follows
     ubyte _pad15[3];
 };
 LAYOUT_CHECK(script_action, sizeof(script_action) == 0x18);
@@ -372,9 +384,14 @@ struct navpoint {
     float heading;                   // +0x10 matrix3::extract_angles h of the level-file navpoint
     vector3 pos;                     // +0x14 dropped onto the geometry below
     int layer;                       // +0x20 lobj_get_layer_n of the floor, 0 when invalid
-    int _unk24;                      // +0x24 zeroed
-    int _unk28;                      // +0x28 level_script_restart only moves characters whose start
-                                     //        navpoint has 0 here (decomp41)
+    union {                          // +0x24 zeroed by level_add_navpoint; the script parsers store
+        int _unk24;                  //        the height above the ground found below (0 when it was
+        float ground_height;         //        below the ground: then pos is moved onto it; decomp44)
+    };
+    union {                          // +0x28 level_script_restart only moves characters whose start
+        int _unk28;                  //        navpoint has 0 here (decomp41): the script parsers' $Type:
+        int type;                    //        (script_navpoint_type_names: 0 level, 1 cutscene, 2 camera,
+    };                               //        3 ambient sound; by name $npc / $player 0, $c_npc 1, $camera 2)
     int level_item;                  // +0x2c level_items index placed here (level_items_parse_table; D2102)
 };
 LAYOUT_CHECK(navpoint, sizeof(navpoint) == 0x30);
@@ -574,5 +591,21 @@ bool level_add_navpoint(s3d_navpoint *np);           // 0x4d5720 always true (mo
 
 // ---- the level hooks gameplay.cpp calls (decomp42) ---------------------------------------------------
 void cutscene_script_entries_frame();                 // 0x4ed680
+
+// ---- the cutscene unit's data that script_internal.cpp uses (unit not known; decomp44) ---------------
+// The loaded cutscene (symbols/types.h cutscene_entry, 0x140 bytes); only the name is declared here.
+struct cutscene_entry {
+    const char *name;                                 // +0x000 $Cutscene: ("game-intro", ...)
+};
+extern cutscene_entry *cutscene_data;                 // 0x601e68 NULL when no cutscene is loaded
+extern int cutscene_path_id;                          // 0x601e6c the cutscene's file path id
+extern short cutscene_cur_sequence;                   // 0x603460 the current sequence (synch actions)
+#define MAX_CUTSCENE_NAVPOINTS 0x2d6                  // 0x8818 bytes / 0x30
+extern navpoint cutscene_navpoints[MAX_CUTSCENE_NAVPOINTS];   // 0x256b750 the second navpoint table
+extern int cutscene_navpoint_count;                   // 0x257e96c
+#define MAX_CUTSCENE_SCRIPT_OBJECTS 32
+extern script_object cutscene_script_objects[MAX_CUTSCENE_SCRIPT_OBJECTS];   // 0x2573f68 (end_mode 2)
+extern int cutscene_script_object_count;              // 0x257e968
+extern StringPool cutscene_script_stringpool;         // 0x2571750 the cutscene scripts' texts
 
 #endif

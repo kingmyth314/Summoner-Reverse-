@@ -1446,7 +1446,7 @@ const char *summon_skill_creature_name(int skill)
 
 // 0x446c60  Confidence: exact. The move of any list that plays the anim, not counting the low parry /
 // flinch moves.
-move_info *charinfo_find_move_any(char_info *info, int anim)
+move_info *charinfo_find_move_any(char_info *info, int anim, bool loaded_only)
 {
     move_info *m;
     int i;
