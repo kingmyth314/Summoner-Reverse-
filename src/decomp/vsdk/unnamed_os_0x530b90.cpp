@@ -13,9 +13,10 @@
 // So the original most likely switched optimisation off (`#pragma optimize("", off)`) before the CPU code;
 // intrinsics stay on (os_clipboard_get_text's strlen is repne scasb).
 //
-// Not written here (sum.symbols module -, same object): os_poll 0x530ca0, os_pump_messages 0x530cb0,
-// cpu_read_tsc 0x5312c0, cpu_identify 0x5312d6, PrintSystemInfo 0x53171f, init_ccmd_sysinfo_entry 0x531a80,
-// init_ccmd_sysinfo 0x531a8a, cmd_sysinfo 0x531aa8 (and ccmd_sysinfo 0x2cbff00).
+// Not written here (sum.symbols module -, same object): os_poll 0x530ca0, os_pump_messages 0x530cb0.
+// Written by decomp74 (D5608), module - as well: cpu_read_tsc 0x5312c0, cpu_identify 0x5312d6,
+// PrintSystemInfo 0x53171f, init_ccmd_sysinfo_entry 0x531a80, init_ccmd_sysinfo 0x531a8a, cmd_sysinfo
+// 0x531aa8 and ccmd_sysinfo 0x2cbff00.
 
 #include <windows.h>
 #include <objbase.h>
@@ -25,6 +26,8 @@
 #include <time.h>
 #include "vsdk/os/os.h"
 #include "vsdk/os/timer.h"
+#include "vsdk/os/console.h"
+#include "vsdk/os/vstring.h"
 
 // ---- .bss (0x2cbfce0-0x2cbff27, address order) ------------------------------------------------------
 char os_mutex_name[0x80];                // 0x2cbfce0
@@ -272,9 +275,324 @@ void os_seed_random(int seed)
     rand();
 }
 
-// 0x5312c0-0x531b43: cpu_read_tsc, cpu_identify, PrintSystemInfo, the sysinfo console command (module -,
-// not written here). The original's optimisation switch would stand before them:
+// 0x5312c0-0x531b43: cpu_read_tsc, cpu_identify, PrintSystemInfo, the sysinfo console command (module -;
+// written by decomp74, D5608). The original's optimisation switch stands before them:
 #pragma optimize("", off)
+
+// 0x5312c0  Confidence: exact (/Od: frame, one local; the __asm block saves EBX / ESI / EDI). The low
+// dword of the time stamp counter.
+unsigned int cpu_read_tsc()
+{
+    unsigned int t;
+
+#if defined(_MSC_VER)
+    __asm {
+        rdtsc
+        mov t, eax
+    }
+#else
+    t = 0;                                           // (syntax check only)
+#endif
+    return t;
+}
+
+// 0x5312d6  Confidence: likely (/Od; the zeroed CPUID result as a struct whose first member is stored
+// with an immediate, the rest from EAX; the brand string buffer cleared with memset). (family, mmx, 3dnow,
+// katmai, tsc, name, mhz): CPUID level 1 gives the family and the feature bits (without CPUID: a 486, no
+// features); AMD's extended levels give 3DNow! and the brand string; the speed is the TSC over 100 ms at
+// raised priority. Bugs (NOTES): mmx is always set to 1 (mmx_ok is never cleared), and the AMD / Intel
+// names test the pointer `mmx`, not *mmx, so they always say MMX; the priority calls pass a NULL handle,
+// so they change nothing.
+void cpu_identify(int *family, int *mmx, int *amd3dnow, int *katmai, int *tsc, char *name, int *mhz)
+{
+    unsigned int signature;
+    unsigned int features;
+    int mmx_ok = 1;
+    struct {
+        unsigned int max_level;
+        char vendor[16];
+    } id = { 0 };
+    char brand[64];
+    DWORD old_class;
+    int mhz_60;
+    int old_priority;
+    unsigned int tsc_start;
+    int ticks;
+    unsigned int tsc_end;
+    DWORD time_start;
+    DWORD time_end;
+
+    *family = 0;
+    *mmx = 0;
+    *amd3dnow = 0;
+    *tsc = 0;
+    *katmai = 0;
+    if (mhz)
+        *mhz = 0;
+
+#if defined(_MSC_VER)
+    __asm {
+        push eax
+        push ebx
+        push ecx
+        push edx
+        pushfd
+        pop eax
+        mov ebx, eax
+        xor eax, 0x200000
+        push eax
+        popfd
+        pushfd
+        pop eax
+        xor eax, ebx
+        je no_cpuid
+        mov eax, 0
+        cpuid
+        mov id.max_level, eax
+        mov dword ptr [id + 4], ebx
+        mov dword ptr [id + 8], edx
+        mov dword ptr [id + 12], ecx
+        mov eax, 1
+        cpuid
+        mov signature, eax
+        mov features, edx
+        jmp done
+no_cpuid:
+        mov signature, 0x400
+        mov features, 0
+done:
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+    }
+#else
+    signature = 0x400;                               // (syntax check only)
+    features = 0;
+#endif
+
+    *family = (signature >> 8) & 0xf;
+    if (*family < 5) {
+        *family = 4;
+        if (name)
+            sprintf(name, "Not Pentium Compatible");
+        return;
+    }
+    if (features & 0x10)
+        *tsc = 1;
+    if (features & 0x800000) {
+    } else {
+        *mmx = 0;
+    }
+    if (mmx_ok == 0)
+        *mmx = 0;
+    else
+        *mmx = 1;
+    if (*family > 5 && (features & 0x2000000))
+        *katmai = 1;
+
+    if (!_stricmp(id.vendor, "AuthenticAMD")) {
+#if defined(_MSC_VER)
+        __asm {
+            mov eax, 0x80000000
+            cpuid
+            mov signature, eax
+        }
+#endif
+        if (signature < 0x80000005) {
+            if (name)
+                sprintf(name, "AMD-K%d, MMX:%s", *family, mmx ? "Yes" : "No");
+        } else {
+#if defined(_MSC_VER)
+            __asm {
+                mov eax, 0x80000001
+                cpuid
+                mov signature, eax
+                mov features, edx
+            }
+#endif
+            if (features & 0x80000000)
+                *amd3dnow = 1;
+            if (name) {
+                memset(brand, 0, sizeof(brand));
+#if defined(_MSC_VER)
+                __asm {
+                    mov eax, 0x80000002
+                    cpuid
+                    mov dword ptr brand[0], eax
+                    mov dword ptr brand[4], ebx
+                    mov dword ptr brand[8], ecx
+                    mov dword ptr brand[12], edx
+                    mov eax, 0x80000003
+                    cpuid
+                    mov dword ptr brand[16], eax
+                    mov dword ptr brand[20], ebx
+                    mov dword ptr brand[24], ecx
+                    mov dword ptr brand[28], edx
+                    mov eax, 0x80000004
+                    cpuid
+                    mov dword ptr brand[32], eax
+                    mov dword ptr brand[36], ebx
+                    mov dword ptr brand[40], ecx
+                    mov dword ptr brand[44], edx
+                }
+#endif
+                strcpy(name, brand);
+            }
+        }
+    } else if (!_stricmp(id.vendor, "GenuineIntel")) {
+        if (name) {
+            switch (*family) {
+            case 5:
+                sprintf(name, "Intel Pentium");
+                if (mmx)
+                    strcat(name, " w/ MMX");
+                break;
+            case 6:
+                if (*katmai)
+                    sprintf(name, "Intel Pentium III");
+                else if (mmx)
+                    sprintf(name, "Intel Pentium II w/ MMX");
+                else
+                    sprintf(name, "Intel Pentium Pro");
+                break;
+            default:
+                sprintf(name, "Intel i%d86", *family);
+                break;
+            }
+        }
+    } else if (name) {
+        if (*mmx)
+            sprintf(name, "%d86 w/ MMX Compatible", *family);
+        else
+            sprintf(name, "%d86 Compatible", *family);
+    }
+
+    if (mhz) {
+        *mhz = 0;
+        if (*tsc) {
+            old_class = GetPriorityClass(0);
+            old_priority = GetThreadPriority(0);
+            SetPriorityClass(0, REALTIME_PRIORITY_CLASS);
+            SetThreadPriority(0, THREAD_PRIORITY_TIME_CRITICAL);
+            Sleep(100);
+            do {
+                time_start = timeGetTime();
+                tsc_start = cpu_read_tsc();
+                while (timeGetTime() < time_start + 100)
+                    ;
+                tsc_end = cpu_read_tsc();
+                time_end = timeGetTime();
+            } while (tsc_start > tsc_end);
+            ticks = tsc_end - tsc_start;
+            mhz_60 = (ticks + 833333) / 1666667;
+            *mhz = mhz_60 * 1666667 / 100000;
+            SetPriorityClass(0, old_class);
+            SetThreadPriority(0, old_priority);
+        }
+    }
+}
+
+// 0x53171f  Confidence: likely (/Od; the two buffers through new and delete temporaries). Appends the CPU
+// type, speed, extensions and RAM size to tb; with test_ram, copies 256 KB blocks for one second and
+// prints freq / (ticks per copy), the copies per second, as "MB/s" (four times the real rate, NOTES).
+void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
+{
+    int mhz;
+    int katmai;
+    char ext[0x400];
+    int mmx;
+    int tsc;
+    int amd3dnow;
+    char name[0x80];
+    MEMORYSTATUS ms;
+    int family;
+    int mb;
+    char *dst;
+    int speed;
+    char *src;
+    int count;
+    LARGE_INTEGER freq;
+    __int64 per_copy;
+    DWORD end_time;
+    LARGE_INTEGER start;
+    LARGE_INTEGER stop;
+
+    memset(name, 0, sizeof(name));
+    cpu_identify(&family, &mmx, &amd3dnow, &katmai, &tsc, name, &mhz);
+    TextBuffer_printf(tb, "CPU Type: %s\n", name);
+    TextBuffer_printf(tb, "CPU Speed: %d Mhz\n", mhz);
+    strcpy(ext, "");
+    if (family > 5)
+        strcat(ext, "[PPro] ");
+    if (mmx)
+        strcat(ext, "[MMX] ");
+    if (amd3dnow)
+        strcat(ext, "[3DNow] ");
+    if (katmai)
+        strcat(ext, "[Katmai] ");
+    TextBuffer_printf(tb, "CPU Extensions: %s\n", ext);
+
+    ms.dwLength = sizeof(ms);
+    GlobalMemoryStatus(&ms);
+    mb = (ms.dwTotalPhys + 0x200000) >> 22;
+    mb <<= 2;
+    sprintf(ext, "%d MB", mb);
+    TextBuffer_printf(tb, "Total RAM: %s\n", ext);
+
+    if (test_ram) {
+        dst = new char[0x400000];
+        src = new char[0x400000];
+        QueryPerformanceCounter(&start);
+        count = 0;
+        end_time = timeGetTime() + 1000;
+        while (timeGetTime() < end_time) {
+#if defined(_MSC_VER)
+            __asm {
+                push esi
+                push edi
+                push ecx
+                mov esi, src
+                mov edi, dst
+                mov ecx, 0x10000
+                rep movsd
+                pop ecx
+                pop edi
+                pop esi
+            }
+#endif
+            count++;
+        }
+        QueryPerformanceCounter(&stop);
+        QueryPerformanceFrequency(&freq);
+        delete dst;
+        delete src;
+        per_copy = (stop.QuadPart - start.QuadPart) / count;
+        speed = (int)(freq.QuadPart / per_copy);
+        TextBuffer_printf(tb, "RAM Speed: %d MB/s\n", speed);
+    }
+}
+
+// 0x531a80 init_ccmd_sysinfo_entry (/Od: push ebp; call 0x531a8a; pop ebp) /
+// 0x531a8a init_ccmd_sysinfo: the dynamic initialiser of the definition below. Compiler-generated.
+// Confidence: likely (the object's .bss slot 0x2cbff00 lies among the os globals above).
+void cmd_sysinfo();
+console_command ccmd_sysinfo("sysinfo", "Shows system info", cmd_sysinfo);   // 0x2cbff00
+
+// 0x531aa8  Confidence: likely (/Od; EH frame for the TextBuffer). The console's "sysinfo": the system
+// info through a 2 KB text buffer.
+void cmd_sysinfo()
+{
+    if (calling_a_command_function) {
+        char buf[0x800];
+        TextBuffer tb(buf, 0x800, 0);
+
+        PrintSystemInfo(&tb, 1, true);
+        print_to_console(tb.get_text(), 0);
+    }
+    if (doing_help_for_comand)
+        print_to_console("Shows system info", 0);
+}
 
 // 0x531b44  Confidence: likely (/Od code: frame pointer, locals h -4, text -8, i -0xc, len -0x10).
 // Both failure returns skip CloseClipboard, leaving the clipboard open; buf needs max_len + 1 bytes.

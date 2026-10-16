@@ -33,34 +33,45 @@
 #define DIALOGUE_SCROLL_SPEED 0.142857149f   // 0x581c74: pixels per ms of the scroll animation
 
 // ---- .bss ----------------------------------------------------------------------------------------
-// 0x4d6660 static_init_dialogue_box_2544408 (call 0x4d6670; jmp 0x4d6680), 0x4d6670
-// init_dialogue_box_2544408 (mov ecx, 0x2544408; jmp dialogue_box__ctor), 0x4d6680
-// register_atexit_dialogue_box_2544408 (atexit(0x4d6690)) and 0x4d6690 atexit_dtor_dialogue_box_2544408
+// 0x4d6660 static_init_dialogue_box_2544408 (call 0x4d6670; jmp 0x4d6680) /
+// 0x4d6670 init_dialogue_box_2544408 (mov ecx, 0x2544408; jmp dialogue_box__ctor) /
+// 0x4d6680 register_atexit_dialogue_box_2544408 (atexit(0x4d6690)) /
+// 0x4d6690 atexit_dtor_dialogue_box_2544408
 // (mov ecx, 0x2544408; jmp 0x4d6720): the compiler's dynamic initialiser and atexit helpers of this
 // definition. Confidence: exact.
 // 0x4d6720 dialogue_box__dtor (jmp dialogue_box_base__dtor): the implicit destructor of both boxes (one
 // body for the two classes, identical-code folding; the atexit helpers of both jump to it). Confidence: likely.
 dialogue_box dialogue_text_box;                      // 0x2544408
-// 0x4d66e0 static_init_dialogue_topic_box_2545b68, 0x4d66f0 init_dialogue_topic_box_2545b68, 0x4d6700
-// register_atexit_dialogue_topic_box_2545b68, 0x4d6710 atexit_dtor_dialogue_topic_box_2545b68 (the same
+// 0x4d66e0 static_init_dialogue_topic_box_2545b68 /
+// 0x4d66f0 init_dialogue_topic_box_2545b68 /
+// 0x4d6700 register_atexit_dialogue_topic_box_2545b68 /
+// 0x4d6710 atexit_dtor_dialogue_topic_box_2545b68 (the same
 // helpers for the topic list). Confidence: exact.
 dialogue_topic_list dialogue_topic_box;              // 0x2545b68
-// 0x4d6760 static_init_color_2544400 (jmp) / 0x4d6770 init_color_2544400. Confidence: exact.
+// 0x4d6760 static_init_color_2544400 (jmp) /
+// 0x4d6770 init_color_2544400. Confidence: exact.
 Color dialogue_color_blue(107, 154, 184, 255);       // 0x2544400
-// 0x4d6790 static_init_color_2545b64 / 0x4d67a0 init_color_2545b64. Confidence: exact.
+// 0x4d6790 static_init_color_2545b64 /
+// 0x4d67a0 init_color_2545b64. Confidence: exact.
 Color dialogue_color_green(95, 197, 88, 255);        // 0x2545b64
-// 0x4d67c0 static_init_color_25443b0 / 0x4d67d0 init_color_25443b0. Confidence: exact.
+// 0x4d67c0 static_init_color_25443b0 /
+// 0x4d67d0 init_color_25443b0. Confidence: exact.
 Color dialogue_color_red(150, 80, 80, 255);          // 0x25443b0
-// 0x4d67f0 static_init_color_2545b5c / 0x4d6800 init_color_2545b5c. Confidence: exact.
+// 0x4d67f0 static_init_color_2545b5c /
+// 0x4d6800 init_color_2545b5c. Confidence: exact.
 Color dialogue_color_gray(180, 180, 180, 255);       // 0x2545b5c
-// 0x4d6820 static_init_color_25443b8 / 0x4d6830 init_color_25443b8. Confidence: exact.
+// 0x4d6820 static_init_color_25443b8 /
+// 0x4d6830 init_color_25443b8. Confidence: exact.
 Color dialogue_color_yellow(255, 255, 158, 255);     // 0x25443b8
-// 0x4d6850 static_init_color_2546194 / 0x4d6860 init_color_2546194. Confidence: exact.
+// 0x4d6850 static_init_color_2546194 /
+// 0x4d6860 init_color_2546194. Confidence: exact.
 Color dialogue_color_highlight(255, 255, 158, 255);  // 0x2546194
-// 0x4d6880 static_init_dialogue_more_text (jmp) / 0x4d6890 init_dialogue_more_text (a dynamic store of
+// 0x4d6880 static_init_dialogue_more_text (jmp) /
+// 0x4d6890 init_dialogue_more_text (a dynamic store of
 // the slot address, as ai.cpp's and new_status.cpp's XSTR_SLOT tables). Confidence: likely.
 char **dialogue_more_text = XSTR_SLOT("more", 949);  // 0x2545b58
-// 0x4d68a0 static_init_dialogue_end_text (jmp) / 0x4d68b0 init_dialogue_end_text. Confidence: likely.
+// 0x4d68a0 static_init_dialogue_end_text (jmp) /
+// 0x4d68b0 init_dialogue_end_text. Confidence: likely.
 char **dialogue_end_text = XSTR_SLOT("end", 950);    // 0x25443fc
 int dialogue_selected_topic;                         // 0x25443b4 (no initialiser)
 

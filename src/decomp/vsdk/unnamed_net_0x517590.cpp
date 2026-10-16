@@ -14,8 +14,8 @@
 // Every error path formats a message into a local buffer that is never printed (as registry.cpp).
 //
 // Not written here (sum.symbols module -, same object): float_compare 0x517dc0, nw_NewReceiveReliable
-// 0x518bb0, nw_NewSendReliable 0x518d70, nw_NewCloseSocket 0x5191c0, net_get_reliable_socket_status
-// 0x5193a0, net_get_reliable_socket_ping 0x5193f0.
+// 0x518bb0, nw_NewSendReliable 0x518d70, nw_NewCloseSocket 0x5191c0. (net_get_reliable_socket_status 0x5193a0 and
+// net_get_reliable_socket_ping 0x5193f0, module - as well, are written below: decomp74, D5610.)
 
 #include <windows.h>
 #include <winsock.h>
@@ -894,7 +894,31 @@ int nw_addr_equal(const void *a, const void *b, bool check_port)
     return -1;
 }
 
-// 0x5193a0 net_get_reliable_socket_status, 0x5193f0 net_get_reliable_socket_ping: module -, not written.
+// 0x5193a0  Confidence: exact (VC6 byte match; `jb`: the id compared as unsigned). The status of a
+// reliable socket, -1 for a bad id (the message goes to a local buffer, never printed). Module - in
+// sum.symbols; between nw_addr_equal and nw_flush_receive, so this object's (D5610).
+int net_get_reliable_socket_status(int socket)
+{
+    char msg[256];
+
+    if ((unsigned int)socket >= NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Invalid socket id passed to net_get_reliable_socket_status() -- %d\n", socket);
+        return -1;
+    }
+    return nw_reliable_sockets[socket].status;
+}
+
+// 0x5193f0  Confidence: exact (VC6 byte match). The mean ping of a reliable socket.
+int net_get_reliable_socket_ping(int socket)
+{
+    char msg[256];
+
+    if ((unsigned int)socket >= NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Invalid socket id passed to net_get_reliable_socket_ping() -- %d\n", socket);
+        return -1;
+    }
+    return nw_reliable_sockets[socket].mean_ping;
+}
 
 // 0x519440  Confidence: exact.
 void nw_flush_receive()

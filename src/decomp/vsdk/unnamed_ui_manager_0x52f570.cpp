@@ -32,9 +32,11 @@
 // 0x52f570 / 0x52f580  init_ui_tooltip_timer: the dynamic initialiser (a jmp to its body, which tail-calls
 //                      RealtimeTimer::RealtimeTimer). Compiler-generated.
 RealtimeTimer ui_tooltip_timer;                 // 0x2cbf680
-// 0x52f590  init_ui_window_sentinel: calls 0x52f5a0 (ui_window_sentinel_ctor, ui_window::ui_window) and
-//           0x52f5b0 (ui_window_sentinel_register_dtor, atexit of 0x52f5c0 ui_window_sentinel_dtor, which
-//           jumps to ui_window::~ui_window). Compiler-generated.
+// 0x52f590  init_ui_window_sentinel: calls 0x52f5a0 and 0x52f5b0 /
+// 0x52f5a0  ui_window_sentinel_ctor: mov ecx, 0x2cbf718; jmp ui_window::ui_window /
+// 0x52f5b0  ui_window_sentinel_register_dtor: atexit(0x52f5c0) /
+// 0x52f5c0  ui_window_sentinel_dtor: mov ecx, 0x2cbf718; jmp ui_window::~ui_window.
+//           Compiler-generated. Confidence: exact.
 ui_window ui_window_sentinel;                   // 0x2cbf718 (next 0x2cbfbfc, prev 0x2cbfc00)
 // 0x52f5d0 / 0x52f5e0  init_ui_tooltip_state (ui_colors3). Compiler-generated.
 ui_colors3 ui_tooltip_colors;                   // 0x2cbf708

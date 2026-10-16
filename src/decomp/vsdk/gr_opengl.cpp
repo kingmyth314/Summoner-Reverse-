@@ -1496,6 +1496,10 @@ void gr_opengl_set_fog(int set_range)
     glFogfv(GL_FOG_COLOR, color);
 }
 
+// 0x5504f0 glFinish: not source. The linker's import thunk `jmp [0x57e318]` (OPENGL32.dll!glFinish) for
+// gr.cpp's gr_finish, which calls glFinish without __declspec(dllimport); this unit calls the import
+// directly. Confidence: exact.
+
 // 0x550500  Confidence: exact. No reference.
 // Pushes a gluLookAt / gluPerspective projection. Never used, and wrong as written: the look-at target is
 // the forward vector itself (not eye + forward) and the near plane is 0.

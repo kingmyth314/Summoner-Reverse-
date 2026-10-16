@@ -35,10 +35,13 @@ bool ci_root_to_position = true;      // 0x5a8484
 // ---- .bss (0x2710ec0-0x272281f) ---------------------------------------------------------------------
 // The console command is defined first: its object is first in .bss and its two literals are first in
 // .data (0x5a8488 "Toggles High_lod", 0x5a849c "high_lod"), although its initialiser is the last
-// function of the unit (0x51b5c0 thunk / 0x51b5d0, initialiser table 0x588908). Confidence: likely.
+// function of the unit (initialiser table 0x588908). Confidence: likely.
+// 0x51b5c0 init_ccmd_high_lod_thunk (jmp 0x51b5d0) /
+// 0x51b5d0 init_ccmd_high_lod: compiler-generated (console_command::console_command, ret).
 console_command ccmd_high_lod("high_lod", "Toggles High_lod", cmd_high_lod);   // 0x2710ec0
 
-// 0x5194b0 thunk / 0x5194c0 and 0x5194e0 thunk / 0x5194f0: the dynamic initialisers (vector constructor
+// 0x5194b0 thunk / 0x5194c0 and
+// 0x5194e0 init_vertex_buf_2719b70 (thunk) / 0x5194f0: the dynamic initialisers (vector constructor
 // iterator with the out-of-line vector3() constructor; no destructor, so no atexit). Initialiser table
 // entries 0x588900 / 0x588904. Nothing else references the two buffers. Labels ours. Confidence: likely.
 vector3 ci_vertex_buf_a[3000];        // 0x2710ed0
@@ -961,7 +964,18 @@ void cmd_high_lod()
     }
 }
 
-// Header inline functions emitted out of line by this object (callers above), no source here:
-// 0x51b6b0 profile_label::profile_label, 0x51b6c0 matrix43::operator= (matrix43__copy),
-// 0x51b6e0 matrix43::get_position (matrix43__get_position_b), 0x51b700 vector3::operator- (negated),
-// 0x51b730 quaternion copy constructor (quaternion__assign_b), 0x51b750 imax.
+// Header inline functions emitted out of line by this object (callers above), bodies in the headers:
+// 0x51b6b0 profile_label::profile_label,
+// 0x51b6c0 matrix43__copy: matrix43::operator= (vsdk/math/matrix.h), rep movsd of 12 dwords, no result.
+// Confidence: exact.
+// 0x51b6e0 matrix43::get_position (matrix43__get_position_b),
+// 0x51b700 vector3__negated: vector3::operator-() (vsdk/math/vector.h), (-x, -y, -z) into the hidden
+// result. Confidence: exact.
+// 0x51b730 quaternion copy constructor (quaternion__assign_b).
+
+// 0x51b750  Confidence: exact. imax, the last of these copies; defined here out of line (not inline in
+// vector.h) so that its callers keep their calls under /Ob1, as imin in bmpman.cpp (D5606).
+int imax(int a, int b)
+{
+    return a > b ? a : b;
+}

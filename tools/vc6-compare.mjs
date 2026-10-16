@@ -22,7 +22,7 @@ import { loadSymbols, loadFunctions } from "./symbols.mjs";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const exePath = join(repoRoot, "Summoner", "Sum.exe");
 const asmPath = join(repoRoot, "build", "sum.asm");
-const includeDir = join(repoRoot, "src", "decomp", "include");
+const includeDir = process.env.DECOMP_INCLUDE || join(repoRoot, "src", "decomp", "include"); // DECOMP_INCLUDE: another header tree (a merge stage)
 
 // ---- arguments -----------------------------------------------------------------------------------------
 const args = process.argv.slice(2);

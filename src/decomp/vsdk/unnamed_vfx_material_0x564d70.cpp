@@ -20,8 +20,9 @@
 #include "vsdk/math/vector.h"
 #include "vsdk/math/quaternion.h"
 
-// 0x564d70 / 0x564d80 vfx_tex_layer's empty constructor and destructor (vfx.h, inline; referenced only by
-// vfx_material's constructor). Confidence: exact.
+// 0x564d70 vfx_tex_layer's empty constructor /
+// 0x564d80 vfx_material_layer__dtor: its empty destructor (vfx.h, inline; both referenced only by
+// vfx_material's constructor and its unwind funclet 0x57db20). Confidence: exact.
 
 // 0x564d90  Confidence: likely (the order of the float factors). Frames run at the bitmap's frame count
 // over its animation time, times the layer rate, from the first frame; wrap (modes 0 and 2) or clamp.

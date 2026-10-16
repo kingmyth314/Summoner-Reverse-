@@ -48,6 +48,14 @@ int vim_saved_bitmap_count;           // 0x2ee4574
 // 0x2ee4578-0x2ee4590: the seven "" literals of the name buffers (vim_write_cache 2, vim_read 1,
 // vim_load 2, vim_reload_bitmaps 2). 0x2ee4594: no reference (a literal or variable of unknown use).
 
+// 0x543030  Confidence: unsure (the placement; the body is exact). sum.symbols ui_stub_ret_543030: a bare ret
+// that nothing references. Not a COMDAT (the linker drops unreferenced COMDATs), and after
+// ui_element's closing COMDAT (ui_tooltip's scalar deleting destructor 0x543010), so it is the first
+// function of this object (D5609). Name from sum.symbols.
+void ui_stub_ret_543030()
+{
+}
+
 // 0x543040  Confidence: exact. No check of the new: a failed allocation writes through NULL.
 vim *vim_alloc()
 {
@@ -703,6 +711,14 @@ int skeleton_read_tag_records(FileReader *r, anim_pos_key *keys, unsigned int n)
     return 0;
 }
 
-// 0x544ad0 anim_pos_key::anim_pos_key, 0x544b20 anim_key::anim_key, 0x544b30 anim_pos_key::get_size:
-// inline in skeleton.h. 0x544b40 (anim_rot_key), 0x544b60 (anim_pos_key's default constructor closure
-// for new[], calling it with 0 and identity_matrix43), 0x544b70 (anim_vec_key): compiler-generated.
+// 0x544ad0 anim_pos_key::anim_pos_key,
+// 0x544b20 anim_key__ctor: anim_key::anim_key(time), +0 = time, returns this; inline in skeleton.h.
+// Confidence: exact.
+// 0x544b30 anim_pos_key__get_size: anim_pos_key::get_size(), returns 0x28; inline in skeleton.h.
+// Confidence: exact.
+// 0x544b40 anim_rot_key__ctor: anim_rot_key's implicit default constructor (anim_key(0), then the vector3
+// at +4). Compiler-generated. Confidence: exact.
+// 0x544b60 skeleton_node__ctor_default: anim_pos_key's default constructor closure for new[], calling it
+// with 0 and identity_matrix43. Compiler-generated. Confidence: exact.
+// 0x544b70 anim_vec_key__ctor: anim_vec_key's implicit default constructor (the vector3 at +4).
+// Compiler-generated. Confidence: exact.

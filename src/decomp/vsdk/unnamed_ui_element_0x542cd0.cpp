@@ -9,7 +9,7 @@
 // skeleton.cpp (vim_alloc 0x543040); ui_tooltip's compiler-generated scalar deleting destructor (0x543010)
 // closes it. .data 0x5ac8dc (the automatic id counter; skeleton.cpp's "vim" follows at 0x5ac8e0), no .bss.
 // The EH funclet of ~ui_element is 0x57d61e. 0x543030 (sum.symbols ui_stub_ret_543030, a bare ret with
-// no reference) is not attributed: it may as well be the start of skeleton.cpp (NOTES decomp67).
+// no reference) is written as skeleton.cpp's first function (D5609; NOTES decomp67).
 
 #include "vsdk/ui/ui.h"
 

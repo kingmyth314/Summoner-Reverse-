@@ -4311,3 +4311,87 @@ matrices, so the sentinels have no constructed members. Every existing user (unn
 unnamed_render_scene_0x481680.cpp) reads only fields that kept their names and offsets. vif_emitter_update keeps
 D4704's int last argument (the effect time's raw dword) and reads it as a float. The unit is a placeholder, built
 with the inline members out of line (/Ob0).
+
+## decomp74 (the unwritten runs of runs-b: initialiser and COMDAT markers, seven level-script units, the loading progress, Bink movies, InetGetFile, the sysinfo code, the reliable-socket getters)
+
+**D5600 (game/level_scripts.cpp, game/unnamed_ai_think_0x4b5140.cpp). The empty initialisers stay unwritten.**
+init_empty_4d5030 and init_empty_4b5150 are a `jmp` thunk and a bare `ret`. Tested with VC6 /O2 /Ob1 /GX: a global
+array of a class whose inline constructor is empty (`struct V { float x, y, z; V() {} }; V a[4];`, as vector3) gives
+exactly this pair (one per definition). So each is such a definition; which object is not known (the think unit's
+two vector3 arrays would give two pairs, the binary has one), so none is written and the markers are unsure.
+
+**D5601 (game/script_internal.cpp). str_copy_append_32 (0x4db250) and filename_has_cscript_suffix (0x4db2c0) are
+written at the head of script_internal.cpp.** Untagged, no data of their own ("_cscript.tbl" 0x5939b4 is pooled),
+between conversationctl.cpp's last ccmd (0x4db248) and script_internal.cpp (0x4db340); levelscripts/script_internal.h
+already declares them. Both match VC6 byte for byte; the suffix test needs `if (strcmp(...) == 0) return true;
+return false;` (the `return strcmp(...) == 0` form adds an instruction).
+
+**D5602 (game/level_script_ikaemosext2.cpp, _lenele1ab, _khosanilab2, _tancredhouse, _khosanistrng, _rand_desert,
+_ikaemosext). Seven level-script units named by the D5300 convention.** None has a strings.tbl block or a path
+string; the names are level_script_<record>.cpp (lower case, '-' as '_'), not proven. ikaemosext2's two literals
+continue level_script_ikaemosl2.cpp's .data (source-map.md), so it may be that file's tail; kept separate like
+ikaemosbottomint (D5303). khosanilab2 is a unit of its own by its .bss (0x257e9f8-0x257e9f9, D5301).
+
+**D5603 (game/level_script_khosanilab2.cpp). 0x4f22b0 is a function: lsf_khosanilab2_flag_pyrulstart (name ours).**
+ls_khosanilab2_frame is `jmp 0x4f22b0` (as ls_lenele1c_frame, D2704); the body has no sum.symbols entry and is named
+after its first flag. Both match. The first music start needs a temporary (`music = music_find_by_name("Pyrul");
+music_play(music, true)`: the original pushes `true` after the inner call), the second is the nested form.
+
+**D5604 (game/level_script_tancredhouse.cpp). ls_test_use (0x4f29c0) is defined in the tancredhouse unit.** Its body
+(`xor al, al; ret`) ends the tancredhouse run, and every record whose use hook does nothing points at it (identical
+code folding); sum.symbols names the folded copy after the "test" record, so the definition keeps that name. The
+sum.symbols comment ("reacts (opens gates, speaks a refusal)") does not describe this body.
+
+**D5605 (vsdk/unnamed_progress_0x503dd0.cpp, vsdk/bmpman/bmpman.h). The loading progress is a unit of its own; two
+signature changes.** bmpman.cpp's object ends with its imin COMDAT (0x503dc0), and the progress data follows
+bmpman's (.data 0x5a5c24, .bss 0x25c6898), so 0x503dd0-0x503f54 is a separate object (placeholder name). SIGNATURE:
+`bool progress_update(int flags)` (was int: it returns AL and the callers test AL, e.g. 0x4387e4; gameplay.cpp's
+0x4386c0 now matches) and `progress_set_callback(..., bool abortable)` (was int arg: `mov cl, [esp+0x14]`). Both
+functions match.
+
+**D5606 (vsdk/bmpman.cpp, vsdk/character_instance.cpp). imin and imax are defined out of line in the objects whose
+COMDATs they are.** Both are header inlines in the original (copies at object ends), but vector.h declares them out
+of line and every caller calls them; defining them inline would let /Ob1 expand them in the callers. So imin is
+defined at the end of bmpman.cpp and imax at the end of character_instance.cpp (both match).
+
+**D5607 (vsdk/unnamed_movie_0x5172f0.cpp). The Bink movie unit.** Placeholder name (movie_play's header vsdk/os/movie.h
+is a guess too). The Bink entry points are declared `__declspec(dllimport) __stdcall` from the import table
+(binkw32.dll 0x57e488-0x57e4a4); BinkSetSoundSystem gets the import address of BinkOpenDirectSound. movie_blit_frame
+matches. movie_play does not: its File local (constructed, never used) sits at [esp] in the original, while VC6
+places it above the path buffer in every declaration order tried (and in an inner scope); the while-loop form gives
+the original's size.
+
+**D5608 (vsdk/unnamed_os_0x530b90.cpp). The CPU / sysinfo code is written under `#pragma optimize("", off)`.** The
+__asm blocks have a non-MSVC branch (D5316). cpu_read_tsc matches. In cpu_identify and PrintSystemInfo the code
+follows the binary but VC6 /Od lays the locals out in an order that is not the declaration order (it changes with
+the names), so the frame offsets differ: likely. The zeroed CPUID result is a struct (its first member is stored with
+an immediate, the rest from EAX, as /Od does for `= { 0 }`); in __asm its vendor dwords are written as
+`dword ptr [id + 4]` (`dword ptr id.vendor[0]` is C2443 to VC6).
+
+**D5609 (vsdk/skeleton.cpp). ui_stub_ret_543030 (a bare ret, no reference) is skeleton.cpp's first function.** It
+follows ui_element's closing COMDAT (ui_tooltip's scalar deleting destructor 0x543010), and an unreferenced COMDAT
+would have been dropped by the linker, so it is an ordinary function at the start of the next object. Placement
+unsure; the body matches.
+
+**D5610 (vsdk/unnamed_net_0x517590.cpp). net_get_reliable_socket_status / _ping are the net unit's.** Module - in
+sum.symbols, but they lie between nw_addr_equal and nw_flush_receive and index nw_reliable_sockets (status +0xcec,
+mean_ping +0xd29). Both match (the id test is unsigned).
+
+**D5611 (vsdk/unnamed_inetgetfile_0x51b760.cpp, vsdk/inetfile/inetgetfile.h). InetGetFile is a unit of its own.**
+Between character_instance.cpp's last COMDAT (imax) and effect_mem.cpp, ending with its own COMDATs (the scalar
+deleting destructors of http_get and ftp_get). Header: the getter fields are typed and renamed `ftp_get *ftp` /
+`http_get *http` (were `void *ftp_get` / `*http_get`, which hid the class names; no other code uses them);
+GetErrorCode (0x51ba70, no sum.symbols entry, name ours) and the INET_ERROR_* values (from the code: 1 bad
+parameters, 3 neither "http:" nor "ftp:", 7 new failed; names ours) are added. Eight of ten functions match; the
+destructor differs because the original calls the scalar deleting destructors where VC6 here expands
+`delete` into the destructor and operator delete (why is not known), and the constructor in its EH layout.
+
+**D5612 (game/level_script_khosanistrng.cpp). One stack cleanup in ls_khosanistrng_init is not reproduced.** In the
+v4 branch the original adds `add esp, 0x10` after the two door calls, before printf("enabled kl2\n"); VC6 defers it.
+A block, a `do { } while (0)` and a label before the printf change nothing; same size, likely.
+
+**D5613 (marker convention). Every function address starts a comment line.** The earlier pilots described many
+compiler-generated functions and COMDAT copies in running text ("0x4d5040 / 0x4d5050 / ..."), which the
+unwritten-function survey does not count. decomp74 splits those comments so that each address begins a line
+(`// 0xADDR name: ...`), one per line, in address order; the first line of a block still names the following
+definition for vc6-compare.mjs, the later ones are notes. Bodies of header inlines stay in the headers.

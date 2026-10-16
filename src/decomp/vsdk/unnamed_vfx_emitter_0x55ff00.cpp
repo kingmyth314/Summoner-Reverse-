@@ -735,13 +735,35 @@ void fx_recb0::render(vfx_emitter_desc *desc, float t)
     }
 }
 
-// COMDATs of this object not written above (inline in the headers):
-// 0x5622b0 vfx_emitter__get_rate, 0x562460 get_offset, 0x562480 get_orient, 0x5624a0-0x562520
-// eval_channel_a0..d0, 0x5627d0 / 0x5627f0 get_fade_in / out, 0x562810 / 0x562820 / 0x562a20
-// get_fixed8_2e / 30 / 32 = vfx_emitter_desc (vfx.h). Confidence: exact.
-// 0x562380-0x5623b0, 0x562830 fx_recb0::get_fixed12_8c..94 / 90 (effect_mem.h). Confidence: exact.
-// 0x5622f0 / 0x562310 / 0x562340 / 0x562360 / 0x562400 / 0x562420 / 0x562540 fx_rec28 set_lifetime,
-// set_size, set_pos, set_vel, get_pos, get_vel, get_size (effect_mem.h; D4607). Confidence: exact.
-// 0x5622d0 fixed12_to_float, 0x562330 float_to_fixed12 (fixed.h). Confidence: exact.
-// 0x5623c0 vector3::operator/ (vector.h). Confidence: exact.
-// 0x562440 vfx_vec_pair__ctor: vfx_force_params' implicit constructor (two vector3()). Confidence: exact.
+// COMDATs of this object not written above (inline in the headers; one per line, address order). The
+// vfx_emitter_desc members are in vfx.h, fx_rec28 / fx_recb0 in effect_mem.h, the fixed-point helpers in
+// fixed.h. Confidence: exact for all.
+// 0x5622b0 vfx_emitter__get_rate: vfx_emitter_desc::get_rate(frame).
+// 0x5622d0 fixed12_to_float.
+// 0x5622f0 vfx_particle__set_lifetime: fx_rec28::set_lifetime.
+// 0x562310 vfx_particle__set_size: fx_rec28::set_size (the angle word +4).
+// 0x562330 float_to_fixed12.
+// 0x562340 vfx_particle__set_velocity: fx_rec28::set_pos (+0x14; sum.symbols calls it the velocity, D4607).
+// 0x562360 vfx_particle__set_pos: fx_rec28::set_vel (+8).
+// 0x562380 vfx_emitter__get_fixed12_8c: fx_recb0::get_fixed12_8c.
+// 0x562390 vfx_emitter__get_fixed12_8e: fx_recb0::get_fixed12_8e.
+// 0x5623a0 vfx_emitter__get_fixed12_92: fx_recb0::get_fixed12_92.
+// 0x5623b0 vfx_emitter__get_fixed12_94: fx_recb0::get_fixed12_94.
+// 0x5623c0 vector3::operator/ (vector.h).
+// 0x562400 vfx_particle__get_velocity: fx_rec28::get_pos (+0x14).
+// 0x562420 vfx_particle__get_pos: fx_rec28::get_vel (+8).
+// 0x562440 vfx_vec_pair__ctor: vfx_force_params' implicit constructor (two vector3()).
+// 0x562460 vfx_emitter__get_offset: vfx_emitter_desc::get_offset(frame).
+// 0x562480 vfx_emitter__get_orient: vfx_emitter_desc::get_orient(frame).
+// 0x5624a0 vfx_emitter__eval_channel_a0: vfx_emitter_desc::eval_channel_a0.
+// 0x5624c0 vfx_emitter__eval_channel_ac: vfx_emitter_desc::eval_channel_ac.
+// 0x5624e0 vfx_emitter__eval_channel_b8: vfx_emitter_desc::eval_channel_b8.
+// 0x562500 vfx_emitter__eval_channel_c4: vfx_emitter_desc::eval_channel_c4.
+// 0x562520 vfx_emitter__eval_channel_d0: vfx_emitter_desc::eval_channel_d0.
+// 0x562540 vfx_particle__get_size: fx_rec28::get_size.
+// 0x5627d0 vfx_emitter__get_fade_in: vfx_emitter_desc::get_fade_in.
+// 0x5627f0 vfx_emitter__get_fade_out: vfx_emitter_desc::get_fade_out.
+// 0x562810 vfx_emitter__get_fixed8_2e: vfx_emitter_desc::get_fixed8_2e.
+// 0x562820 vfx_emitter__get_fixed8_30: vfx_emitter_desc::get_fixed8_30.
+// 0x562830 vfx_emitter__get_fixed12_90: fx_recb0::get_fixed12_90.
+// 0x562a20 vfx_emitter__get_fixed8_32: vfx_emitter_desc::get_fixed8_32 (the last COMDAT).

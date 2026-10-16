@@ -1197,3 +1197,11 @@ void bm_set_preload_on_load(int on)
 // caller (bm_set_mark), at the end of the object next to imin, so presumably an out-of-line copy of a
 // header inline member that forwards to GetLength. Which inline it is is not known; bm_set_mark is
 // written with GetLength directly (NOTES open question).
+
+// 0x503dc0  Confidence: exact. imin: the out-of-line copy of a vsdk\math header inline that closes this
+// object (callers bm_read_header and File::read; the linker keeps this one copy). Defined here,
+// not inline in vector.h, so that the callers keep their out-of-line calls under /Ob1 (D5606).
+int imin(int a, int b)
+{
+    return a < b ? a : b;
+}

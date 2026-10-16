@@ -604,15 +604,35 @@ void vfx_node_desc::load_bitmap(int flags)
     }
 }
 
-// COMDATs (inline members of vsdk/geom/vfx.h and vsdk/geom/effect_mem.h), exact unless noted:
-// 0x564770 vfx_mesh_xform::relocate, 0x5647a0 vfx_mesh_morph::relocate, 0x5647e0 vfx_mesh_anim::relocate,
-// 0x564810 vfx_face_uv_anim::relocate, 0x564840 vfx_mesh_vertices::relocate (vfx_ptr0_relocate), 0x564860
-// vfx_node_desc::is_billboard, 0x564870 / 0x564890 vfx_face_uv::get_u / get_v, 0x5648b0 float_round_to_int,
-// 0x5648c0 vfx_vnormal::unpack_normal, 0x564950 vfx_vnormal::pack_normal, 0x564a20 vfx_face::get_normal
-// (vfx_unpack_vector_s8), 0x564aa0 / 0x564ac0 vfx_face_uv::set_u / set_v, 0x564ae0 vfx_mesh_xform::get_pos
-// (likely: the conditional), 0x564b40 get_scale, 0x564b60 get_rot, 0x564b80 vfx_mesh_morph::get_pos,
-// 0x564bb0 vfx_mesh_vertices::get_vertex, 0x564c00 / 0x564c20 / 0x564c40 vfx_mesh_anim::get_a / get_b /
-// get_vec, 0x564c60 / 0x564c70 vfx_mesh_sprite::get_w / get_h (folded with fx_rec28::get_age /
-// get_lifetime), 0x564c80 vfx_mesh_sprite::get_pos (vfx_get_fixed8_vector_4), 0x564cc0 / 0x564ce0
-// vfx_face_uv_anim::get_u / get_v, 0x564d00 vfx_node_desc::frame_bit, 0x564d20 has_flag4 (likely: the bit
-// read), 0x564d30 vfx_vnormal::relocate (vfx_ptr4_relocate), 0x564d50 ptr_relocate.
+// COMDATs (inline members of vsdk/geom/vfx.h and vsdk/geom/effect_mem.h), one per line, exact unless noted:
+// 0x564770 vfx_mesh_xform::relocate
+// 0x5647a0 vfx_mesh_morph::relocate (vfx_mesh_morph__relocate)
+// 0x5647e0 vfx_mesh_anim::relocate (vfx_mesh_anim__relocate)
+// 0x564810 vfx_face_uv_anim::relocate
+// 0x564840 vfx_mesh_vertices::relocate (vfx_ptr0_relocate)
+// 0x564860 vfx_node_desc::is_billboard (vfx_mesh__is_billboard)
+// 0x564870 vfx_face_uv::get_u (vfx_face__get_u)
+// 0x564890 vfx_face_uv::get_v (vfx_face__get_v)
+// 0x5648b0 float_round_to_int
+// 0x5648c0 vfx_vnormal::unpack_normal
+// 0x564950 vfx_vnormal::pack_normal (vfx_pack_normal)
+// 0x564a20 vfx_face::get_normal (vfx_unpack_vector_s8)
+// 0x564aa0 vfx_face_uv::set_u (vfx_face__set_u)
+// 0x564ac0 vfx_face_uv::set_v (vfx_face__set_v)
+// 0x564ae0 vfx_mesh_xform::get_pos (vfx_mesh_xform__get_pos). Confidence: likely (the conditional).
+// 0x564b40 vfx_mesh_xform::get_scale
+// 0x564b60 vfx_mesh_xform::get_rot
+// 0x564b80 vfx_mesh_morph::get_pos
+// 0x564bb0 vfx_mesh_vertices::get_vertex
+// 0x564c00 vfx_mesh_anim::get_a
+// 0x564c20 vfx_mesh_anim::get_b
+// 0x564c40 vfx_mesh_anim::get_vec
+// 0x564c60 vfx_mesh_sprite::get_w (vfx_particle__get_age: folded with fx_rec28::get_age)
+// 0x564c70 vfx_mesh_sprite::get_h (vfx_particle__get_lifetime: folded with fx_rec28::get_lifetime)
+// 0x564c80 vfx_mesh_sprite::get_pos (vfx_get_fixed8_vector_4)
+// 0x564cc0 vfx_face_uv_anim::get_u
+// 0x564ce0 vfx_face_uv_anim::get_v
+// 0x564d00 vfx_node_desc::frame_bit (vfx_mesh__frame_bit)
+// 0x564d20 vfx_node_desc::has_flag4 (vfx_mesh__has_flag4). Confidence: likely (the bit read).
+// 0x564d30 vfx_vnormal::relocate (vfx_ptr4_relocate)
+// 0x564d50 ptr_relocate

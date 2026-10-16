@@ -155,10 +155,13 @@ int  bm_create(int format, int w, int h, void *data, void *palette, int a6);   /
 void *bm_malloc(int size);                            // 0x503d90 (no caller)
 void bm_set_preload_on_load(int on);                  // 0x503da0
 
-int  progress_update(int check_keys);                 // 0x503e80 (called with 0; return type guessed)
+// The progress functions are unnamed_progress_0x503dd0.cpp's (D5605). progress_update returns AL (the callers
+// test AL, e.g. 0x4387e4): true once Escape was pressed during an abortable load; flags go to the callback.
+bool progress_update(int flags);                      // 0x503e80 (called with 0)
 
 // The loading progress: (callback, estimated steps, 0) starts it, (NULL, -1, 0) ends it and returns the
 // real count (level_load_report; decomp42). The callback gets (step, 0).
-int  progress_set_callback(void (*callback)(int step, int flags), int num_steps, int arg);   // 0x503dd0
+// abortable: a byte (`mov cl, [esp+0x14]`, stored to progress_abortable).
+int  progress_set_callback(void (*callback)(int step, int flags), int num_steps, bool abortable);   // 0x503dd0
 
 #endif

@@ -287,10 +287,24 @@ void anim_track::relocate(char *base)
     ptr_relocate(&scale_aux_b, base);
 }
 
-// COMDATs (inline members, vsdk/ca/skeleton.h and vsdk/math/quaternion.h), exact:
-// 0x551770 anim_track::pos_key_value, 0x551790 pos_key_in, 0x5517b0 pos_key_out, 0x5517d0
-// pos_control_a, 0x5517e0 pos_control_b, 0x5517f0 rot_key_time, 0x551800 rot_key_quat, 0x551820
-// rot_key_continuity, 0x551840 rot_key_tension, 0x551860 rot_key_bias, 0x551880 rot_inner_a, 0x551890
-// rot_inner_b, 0x5518a0 scale_key_value, 0x5518c0 scale_key_in, 0x5518e0 scale_key_out, 0x551900
-// scale_control_a, 0x551910 scale_control_b, 0x551920 rot_key_ease_to, 0x551940 rot_key_ease_from,
-// 0x551960 quaternion::unpack_short4.
+// COMDATs (inline members, vsdk/ca/skeleton.h and vsdk/math/quaternion.h), exact, one per line:
+// 0x551770 anim_track::pos_key_value
+// 0x551790 anim_track::pos_key_in
+// 0x5517b0 anim_track::pos_key_out
+// 0x5517d0 anim_track::pos_control_a
+// 0x5517e0 anim_track::pos_control_b
+// 0x5517f0 anim_track::rot_key_time
+// 0x551800 anim_track::rot_key_quat
+// 0x551820 anim_track::rot_key_continuity
+// 0x551840 anim_track::rot_key_tension
+// 0x551860 anim_track::rot_key_bias
+// 0x551880 anim_track::rot_inner_a
+// 0x551890 anim_track::rot_inner_b
+// 0x5518a0 anim_track::scale_key_value
+// 0x5518c0 anim_track::scale_key_in
+// 0x5518e0 anim_track::scale_key_out
+// 0x551900 anim_track::scale_control_a
+// 0x551910 anim_track::scale_control_b
+// 0x551920 anim_track::rot_key_ease_to
+// 0x551940 anim_track::rot_key_ease_from
+// 0x551960 quaternion::unpack_short4

@@ -21,11 +21,13 @@
 #include "levelscripts/conversation.h"
 
 // ---- .bss ----------------------------------------------------------------------------------------
-// 0x4d7b30 static_init_conversation_25461a0 (call 0x4d7b40; jmp 0x4d7b50), 0x4d7b40
-// init_conversation_25461a0 (mov ecx, 0x25461a0; jmp conversation__ctor), 0x4d7b50
-// register_atexit_conversation_25461a0 (atexit(0x4d7b60)) and 0x4d7b60 atexit_dtor_conversation_25461a0
+// 0x4d7b30 static_init_conversation_25461a0 (call 0x4d7b40; jmp 0x4d7b50) /
+// 0x4d7b40 init_conversation_25461a0 (mov ecx, 0x25461a0; jmp conversation__ctor) /
+// 0x4d7b50 register_atexit_conversation_25461a0 (atexit(0x4d7b60)) /
+// 0x4d7b60 atexit_dtor_conversation_25461a0
 // (mov ecx, 0x25461a0; jmp 0x4d7b70) are the compiler's dynamic initialiser and atexit helpers of this
-// definition; 0x4d7b70 conversation__dtor is the implicit destructor (add ecx, 0x210; jmp
+// definition;
+// 0x4d7b70 conversation__dtor is the implicit destructor (add ecx, 0x210; jmp
 // NoRlsAllocPool__dtor: the pool is the only member with a destructor). Confidence: exact.
 conversation conversation_db;                        // 0x25461a0 (tagged new_saveload.cpp in sum.symbols)
 

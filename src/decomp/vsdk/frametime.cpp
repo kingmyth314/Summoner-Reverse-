@@ -39,7 +39,8 @@ static bool Frametime_initialized;            // 0x257f0a0  (dword slot)
 static int Frametime_paused;                  // 0x257f0a4
 static int Animation_timer_paused;            // 0x257f0a8
 
-// 0x501470 init_frametime_saved_min / 0x501490 init_frametime_saved_max: the compiler-generated
+// 0x501470 init_frametime_saved_min (jmp 0x501480, the store) /
+// 0x501490 init_frametime_saved_max (jmp 0x5014a0, the store): the compiler-generated
 // dynamic initialisers for the two definitions above (a jmp thunk into the store, VC6 $E pair).
 // Confidence: likely (order of the two .bss slots, see above).
 

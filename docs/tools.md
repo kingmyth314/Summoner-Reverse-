@@ -173,7 +173,8 @@ Sum.exe's bytes at that address. Relocated fields (call / jmp targets, absolute 
 relocations of the `.obj`; the `/FAsc` listing gives the demangled names and the instruction text. Object and
 listing go to a temporary folder outside the repository. It needs `VC6_DIR`, the `VC98` folder of an extracted
 VC6 Professional or Enterprise (Standard Edition has no optimiser), and runs from PowerShell or cmd (Git Bash
-rewrites `/switches`).
+rewrites `/switches`). `DECOMP_INCLUDE` points it at another header tree (a merge stage) instead of
+`src/decomp/include`.
 
 ```powershell
 $env:VC6_DIR = 'C:\path\to\VC98'

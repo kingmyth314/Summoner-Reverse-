@@ -14,10 +14,11 @@
 // unit's cutscene_saved_equipment 0x2546760) and their strings follow conversation.cpp's in .data
 // (0x5a02cc-0x5a0451), and they only call conversation_db.
 //
-// Not in this unit: 0x4d8f30 game_camera__get_pos, 0x4d8f40 game_camera__get_orient, 0x4d9a80
+// Header inlines: 0x4d8f30 game_camera__get_pos, 0x4d8f40 game_camera__get_orient, 0x4d9a80
 // vector3__len_sq and 0x4da830 character_get_center are COMDATs of inline header functions (camera.h,
 // vector.h, living_entity.h); 0x4d8f00 dialog_camera_pose__set and 0x4d9aa0 dialog_camera_pose__assign
-// likewise (conversation.h, DECISIONS.md C3).
+// likewise (conversation.h, DECISIONS.md C3). Their bodies are in the headers; this file marks the copies
+// at their addresses (as gr_direct3d.cpp does for gr::Mode).
 //
 // vector3 arithmetic: the binary expands some vector3 operators inline and calls the out-of-line copies
 // (0x45b680 +, 0x45b6b0 -, 0x413190 =, 0x468a90 float * v) elsewhere, in the same function. That is VC6
@@ -45,10 +46,12 @@
 #define PI 3.1415927f
 
 // ---- .bss ----------------------------------------------------------------------------------------
-// 0x4d87d0 static_init_conversation_controller_25464b0 (call 0x4d87e0; jmp 0x4d87f0), 0x4d87e0
-// init_conversation_controller_25464b0 (mov ecx, 0x25464b0; jmp conversation_controller__ctor), 0x4d87f0
-// register_atexit_conversation_controller_25464b0 and 0x4d8800 atexit_dtor_conversation_controller_25464b0
-// (jmp 0x4d8810) are the compiler's helpers of this definition. 0x4d8810 conversation_controller__dtor is
+// 0x4d87d0 static_init_conversation_controller_25464b0 (call 0x4d87e0; jmp 0x4d87f0) /
+// 0x4d87e0 init_conversation_controller_25464b0 (mov ecx, 0x25464b0; jmp conversation_controller__ctor) /
+// 0x4d87f0 register_atexit_conversation_controller_25464b0 /
+// 0x4d8800 atexit_dtor_conversation_controller_25464b0
+// (jmp 0x4d8810) are the compiler's helpers of this definition.
+// 0x4d8810 conversation_controller__dtor is
 // the implicit destructor: `eh vector destructor iterator` over slots[16], then the two list heads'
 // ~conversation_slot (both folded into empty_function). Confidence: exact.
 conversation_controller conversation_active;          // 0x25464b0 (tagged living_entity.cpp in sum.symbols)
@@ -254,6 +257,13 @@ void conversation_controller::camera_capture()
         start = game;
 }
 
+// 0x4d8f00 dialog_camera_pose__set: COMDAT of the inline dialog_camera_pose::set(vector3, vector3)
+// (levelscripts/conversation.h), six dword stores, ret 0x18. Confidence: exact.
+// 0x4d8f30 game_camera__get_pos: COMDAT of camera::get_pos() (engine/camera/camera.h), lea eax,
+// [ecx+0x1a4]. Confidence: exact.
+// 0x4d8f40 game_camera__get_orient: COMDAT of camera::get_orient(), lea eax, [ecx+0x1b0]. Confidence:
+// exact.
+
 // 0x4d8f50  Confidence: unsure (the arithmetic follows the binary; which operators were expanded inline,
 // the operand order of the commutative sums and the shared tails are the compiler's or guesses).
 // Two camera points beside the player, on either side of the line between the two characters; the one
@@ -348,6 +358,11 @@ void conversation_controller::camera_compute_shot()
     shot.pos = chosen;
     shot.dir = look - chosen;
 }
+
+// 0x4d9a80 vector3__len_sq: COMDAT of vector3::len_sq() (vsdk/math/vector.h), x*x + y*y + z*z.
+// Confidence: exact.
+// 0x4d9aa0 dialog_camera_pose__assign: COMDAT of dialog_camera_pose::operator= (conversation.h), six
+// dword copies, returns this. Confidence: exact.
 
 // 0x4d9ad0  Confidence: likely (thiscall, `this` not used). out = a * t + b * (1 - t) with t eased
 // (2t^2 below one half, 4t - 2t^2 - 1 above); the direction is interpolated as axis and angle, the axis of
@@ -631,6 +646,9 @@ int conversation_controller::frame()
     return 0;
 }
 
+// 0x4da830 character_get_center: COMDAT of Character::get_center() (engine/objects/living_entity.h), the
+// position +0x10 plus the centre offset +0x28 into the hidden result. Confidence: exact.
+
 // 0x4da860  Confidence: exact (cdecl; setne). Goal type 10 is the turn-to-face goal of walk_to_point (the
 // type's name is not known).
 bool character_has_ai_goal_10(Character *c)
@@ -850,7 +868,8 @@ int conversation_begin(const char *name, Character *speaker)
 }
 
 // ---- console commands ----------------------------------------------------------------------------
-// 0x4dafe0 static_init_ccmd_dialogue_make_topic_available (jmp) / 0x4daff0 init_..: the dynamic
+// 0x4dafe0 static_init_ccmd_dialogue_make_topic_available (jmp) /
+// 0x4daff0 init_ccmd_dialogue_make_topic_available: the dynamic
 // initialiser. Confidence: exact.
 console_command ccmd_dialogue_make_topic_available("dialogue_make_topic_available",
                                                    "mark a specific dialogue topic as available.",
@@ -879,7 +898,8 @@ void cmd_dialogue_make_topic_available()
         print_to_console("Usage: dialogue_make_topic_available person topic", 0);
 }
 
-// 0x4db0d0 static_init_ccmd_dialogue_make_topic_unavailable (jmp) / 0x4db0e0 init_... Confidence: exact.
+// 0x4db0d0 static_init_ccmd_dialogue_make_topic_unavailable (jmp) /
+// 0x4db0e0 init_ccmd_dialogue_make_topic_unavailable. Confidence: exact.
 // (.bss order: this object is at 0x2546730, before the "available" one at 0x2546740.)
 console_command ccmd_dialogue_make_topic_unavailable("dialogue_make_topic_unavailable",
                                                      "mark a specific dialogue topic as unavailable.",
@@ -908,7 +928,8 @@ void cmd_dialogue_make_topic_unavailable()
         print_to_console("Usage: dialogue_make_topic_unavailable person topic", 0);
 }
 
-// 0x4db1c0 static_init_ccmd_dcamera (jmp) / 0x4db1d0 init_ccmd_dcamera. Confidence: exact.
+// 0x4db1c0 static_init_ccmd_dcamera (jmp) /
+// 0x4db1d0 init_ccmd_dcamera. Confidence: exact.
 console_command ccmd_dcamera("dcamera", "Change the dialog camera options.", cmd_dcamera);   // 0x2546750
 
 // 0x4db1f0  Confidence: likely (an out-of-range value sets doing_help_for_comand, and the compiler jumps

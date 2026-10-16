@@ -12,7 +12,7 @@
 // Float constants: 0.5 (0x57e6b0), 0 (0x57eb84), 2.0 (0x580200), 0.1 (0x580214), 20.0 (0x581960), all
 // __real@ COMDATs of other units.
 // str_copy_append_32 (0x4db250) and filename_has_cscript_suffix (0x4db2c0) lie between conversationctl.cpp
-// and this unit and have no module tag; they may be this file's first functions (NOTES.md).
+// and this unit and have no module tag; they are written here as this file's first functions (D5601).
 
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +57,37 @@ const char *script_navpoint_type_names[4] = { "level", "cutscene", "camera", "am
 // ---- .bss (0x2546760-0x2546823) ----------------------------------------------------------------------
 cutscene_saved_item cutscene_saved_equipment[MAX_CUTSCENE_SAVED_ITEMS];   // 0x2546760
 int cutscene_saved_equipment_count;                                      // 0x2546820
+
+// ---- the two file name helpers before the parsers (0x4db250-0x4db33e, untagged; D5601) ---------------
+// 0x4db250  Confidence: exact. base cut to 32 - strlen(suffix) characters, then suffix (strcpy expanded).
+// strncpy does not terminate; the strcpy does.
+void str_copy_append_32(char *out, const char *base, const char *suffix)
+{
+    size_t n = strlen(base);
+    size_t room = 32 - strlen(suffix);
+
+    if (room < n)
+        n = room;
+    strncpy(out, base, n);
+    strcpy(out + n, suffix);
+}
+
+// 0x4db2c0  Confidence: exact (the suffix length is computed before the NULL test). True when the name
+// is longer than "_cscript.tbl" and ends with it (case-sensitive).
+bool filename_has_cscript_suffix(const char *name)
+{
+    int suffix_len = strlen("_cscript.tbl");
+    int len;
+
+    if (name == NULL)
+        return false;
+    len = strlen(name);
+    if (len < suffix_len + 1)
+        return false;
+    if (strcmp(name + len - suffix_len, "_cscript.tbl") == 0)
+        return true;
+    return false;
+}
 
 // 0x4db340  Confidence: likely (the copy of the orientation as one matrix assignment). A living entity
 // that already started at this navpoint (+No create re-runs, level_script_restart) is moved back onto it

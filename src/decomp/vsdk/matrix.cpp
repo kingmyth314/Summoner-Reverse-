@@ -31,7 +31,8 @@
 float Homogeneous_column[4] = { 0.0f, 0.0f, 0.0f, 1.0f };    // 0x5a7480
 
 // ---- .bss (0x2692ea0-0x2692ef7) --------------------------------------------------------------------
-// 0x50f9d0 thunk / 0x50f9e0 and 0x50fa30 thunk / 0x50fa40: the dynamic initialisers (initialiser table
+// 0x50f9d0 thunk / 0x50f9e0 and
+// 0x50fa30 init_identity_matrix43 (thunk) / 0x50fa40: the dynamic initialisers (initialiser table
 // 0x5888f0 / 0x5888f4; no destructor, so no atexit). Confidence: likely (generated).
 matrix identity_matrix(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));   // 0x2692ea0
 matrix43 identity_matrix43(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f),
@@ -803,3 +804,16 @@ void matrix43::transpose_in_place()
     m[2][1] = m[3][1];
     m[3][1] = t;
 }
+
+// ==== header inlines emitted out of line at the end of this object (D500) ===========================
+// Bodies in vsdk/math/vector.h and matrix.h; this object was built without inline expansion, so its
+// callers call these copies.
+// 0x511c10 vector3__set: vector3::set(x, y, z), three dword stores, ret 0xc. Confidence: exact.
+// 0x511c30 vector3__operator_eq: vector3::operator==, exact fcomp of x, y, z, returns AL. Confidence: exact.
+// 0x511c70 matrix43__transform_point: matrix43::transform(v), rotation rows times v plus the position
+// row, into the hidden result. Confidence: exact.
+// 0x511cf0 matrix43__set_position: matrix43::set_position(v), the row +0x24. Confidence: exact.
+// 0x511d10 matrix43__get_position: matrix43::get_position(), vector3(+0x24, +0x28, +0x2c) by value.
+// Confidence: exact.
+// 0x511d30 matrix43__set_rotation: matrix43::set_rotation(rot), the nine floats, then the position row
+// zeroed (from EAX = 0). Confidence: exact.

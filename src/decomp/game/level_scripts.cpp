@@ -141,13 +141,14 @@ static inline unsigned int savegame_remap_item_hash(unsigned int hash)
     return hash;
 }
 
-// 0x4ceec0 static_init_savegame_state (call 0x4ceed0; jmp 0x4ceee0), 0x4ceed0 init_savegame_state (mov ecx,
-// 0x2493a38; jmp savegame_state__clear = the constructor), 0x4ceee0 register_atexit_savegame_state and
-// 0x4ceef0 atexit_dtor_savegame_state (the empty destructor, folded into empty_function 0x4f13e0).
-// Confidence: exact.
+// 0x4ceec0 static_init_savegame_state (call 0x4ceed0; jmp 0x4ceee0) /
+// 0x4ceed0 init_savegame_state (mov ecx, 0x2493a38; jmp savegame_state__clear = the constructor) /
+// 0x4ceee0 register_atexit_savegame_state; the handler 0x4ceef0 atexit_dtor_savegame_state (the empty
+// destructor) is folded into empty_function 0x4f13e0. Compiler-generated. Confidence: exact.
 savegame savegame_state;                             // 0x2493a38
 
-// 0x4cef00 static_init_ccmd_Preparse_scripts (jmp) / 0x4cef10 init_ccmd_Preparse_scripts. Confidence: exact.
+// 0x4cef00 static_init_ccmd_Preparse_scripts (jmp) /
+// 0x4cef10 init_ccmd_Preparse_scripts. Compiler-generated. Confidence: exact.
 console_command ccmd_Preparse_scripts("Preparse_scripts", "Toggles Preparse_scripts",
                                       cmd_Preparse_scripts);   // 0x2493a28
 
@@ -2744,7 +2745,8 @@ int savegame_location_allowed()
     return 0;
 }
 
-// 0x4d4bc0 static_init_ccmd_gamestage (jmp) / 0x4d4bd0 init_ccmd_gamestage. Confidence: exact.
+// 0x4d4bc0 static_init_ccmd_gamestage (jmp) /
+// 0x4d4bd0 init_ccmd_gamestage. Compiler-generated. Confidence: exact.
 console_command ccmd_gamestage("gamestage", "Set the important event flags to different stages of the game.",
                                cmd_gamestage);   // 0x24dfb30
 
@@ -2764,7 +2766,8 @@ void cmd_gamestage()
         print_to_console("Usage: gamestage <x>, where x is the stage of the game.", 0);
 }
 
-// 0x4d4c50 static_init_ccmd_savegame (jmp) / 0x4d4c60 init_ccmd_savegame. Confidence: exact.
+// 0x4d4c50 static_init_ccmd_savegame (jmp) /
+// 0x4d4c60 init_ccmd_savegame. Compiler-generated. Confidence: exact.
 console_command ccmd_savegame("savegame", "Save the game to a file", cmd_savegame);   // 0x2494b20
 
 // 0x4d4c80  Confidence: exact.
@@ -2820,7 +2823,8 @@ void cmd_savegame()
     print_to_console(string_buffer, 0);
 }
 
-// 0x4d4e70 static_init_ccmd_loadgame (jmp) / 0x4d4e80 init_ccmd_loadgame. Confidence: exact.
+// 0x4d4e70 static_init_ccmd_loadgame (jmp) /
+// 0x4d4e80 init_ccmd_loadgame. Compiler-generated. Confidence: exact.
 console_command ccmd_loadgame("loadgame", "Load a previously saved game", cmd_loadgame);   // 0x2493a18
 
 // 0x4d4ea0  Confidence: exact.
@@ -2862,19 +2866,32 @@ void cmd_loadgame()
         print_to_console("Unable to read header from file.\n", 0);
 }
 
-// 0x4d4ff0 static_init_script_object_timers (jmp) / 0x4d5000 init_script_object_timers: the implicit
+// 0x4d4ff0 static_init_script_object_timers (jmp) /
+// 0x4d5000 init_script_object_timers: the implicit
 // constructor of the 200 records (one GameTimer each, at +0x518). Confidence: exact.
 script_object script_objects[MAX_SCRIPT_OBJECTS];   // 0x24f6230
 
-// 0x4d5020 static_init_empty_4d5030 (jmp) / 0x4d5030 init_empty_4d5030: an empty dynamic initialiser (an
+// 0x4d5020 static_init_empty_4d5030 (jmp) /
+// 0x4d5030 init_empty_4d5030: an empty dynamic initialiser (an
 // object with an inline empty constructor whose definition is not known). Not reproduced (see NOTES).
+// Confidence: unsure. VC6 /O2 /Ob1 emits exactly this `jmp` / bare `ret` pair for a global of a class
+// whose inline constructor is empty (an array of vector3 does it: tested, D5600), so the object is such
+// a definition; which one is not known, so none is written.
 
-// 0x4d5040 / 0x4d5050 / 0x4d5070 / 0x4d5080: StringPool(buffer, 0x5000, false), atexit ~StringPool.
-// Confidence: exact.
+// 0x4d5040 static_init_stringpool_2539f18 (call; jmp) /
+// 0x4d5050 init_stringpool_2539f18: StringPool(buffer, 0x5000, false) /
+// 0x4d5070 register_atexit_stringpool_2539f18 /
+// 0x4d5080 atexit_dtor_stringpool_2539f18 (~StringPool). Compiler-generated. Confidence: exact.
 StringPool level_script_stringpool(level_script_string_buffer, 0x5000, false);           // 0x2539f18
-// 0x4d5090 / 0x4d50a0 / 0x4d50c0 / 0x4d50d0. Confidence: exact.
+// 0x4d5090 static_init_stringpool_24f6218 /
+// 0x4d50a0 init_stringpool_24f6218 /
+// 0x4d50c0 register_atexit_stringpool_24f6218 /
+// 0x4d50d0 atexit_dtor_stringpool_24f6218. Compiler-generated. Confidence: exact.
 StringPool events_string_pool(events_string_buffer, 0x8400, false);                     // 0x24f6218
-// 0x4d50e0 / 0x4d50f0 / 0x4d5110 / 0x4d5120. Confidence: exact.
+// 0x4d50e0 static_init_stringpool_24ed600 /
+// 0x4d50f0 init_stringpool_24ed600 /
+// 0x4d5110 register_atexit_4d5110 /
+// 0x4d5120 atexit_dtor_stringpool_24ed600. Compiler-generated. Confidence: exact.
 StringPool script_filenames_string_pool(script_filenames_string_buffer, 0x800, false);  // 0x24ed600
 
 // ---- .data: the level script table and the level table ------------------------------------------------
@@ -2938,7 +2955,8 @@ level_script_info level_script_table[NUM_LEVEL_SCRIPTS] = {
     { "sewerboss", ls_sewerboss_init, ls_sewerboss_frame, ls_sewerboss_leave, ls_sewer_use, 0, ls_sewer_action, 1700, "Sewer" },
 };
 
-// 0x59fde8; 0x4d5130 static_init_level_table (jmp) / 0x4d5140 init_level_table. Confidence: likely (the
+// 0x4d5130 static_init_level_table (jmp) /
+// 0x4d5140 init_level_table, the table at 0x59fde8. Confidence: likely (the
 // localize_strings slot is not a constant expression to VC6, so everything after entry 0's id is stored by
 // the initialiser, as for level_display_names, D602; the order of the stores is the compiler's).
 level_table_entry level_table[26] = {
@@ -3234,7 +3252,8 @@ char level_script_use(const char *name)
     return 0;
 }
 
-// 0x4d5e40 static_init_ccmd_door_open (jmp) / 0x4d5e50 init_ccmd_door_open. Confidence: exact.
+// 0x4d5e40 static_init_ccmd_door_open (jmp) /
+// 0x4d5e50 init_ccmd_door_open. Compiler-generated. Confidence: exact.
 console_command ccmd_door_open("door_open", "open a specified door in the level.", cmd_door_open);   // 0x25388b0
 
 // 0x4d5e70  Confidence: exact. door_find_by_name's result is not tested: an unknown name passes an
@@ -3479,7 +3498,8 @@ void level_ambient_unpause_all()
         sound_emitter_unpause(level_ambients[i].emitter);
 }
 
-// 0x4d6550 static_init_ccmd_door_close (jmp) / 0x4d6560 init_ccmd_door_close. Confidence: exact.
+// 0x4d6550 static_init_ccmd_door_close (jmp) /
+// 0x4d6560 init_ccmd_door_close. Compiler-generated. Confidence: exact.
 console_command ccmd_door_close("door_close", "closes a specified door in the level.", cmd_door_close);   // 0x253ef30
 
 // 0x4d6580  Confidence: exact.
@@ -3497,7 +3517,8 @@ void cmd_door_close()
         print_to_console("Usage: door_close door_name", 0);
 }
 
-// 0x4d65d0 static_init_ccmd_door_toggle (jmp) / 0x4d65e0 init_ccmd_door_toggle. Confidence: exact.
+// 0x4d65d0 static_init_ccmd_door_toggle (jmp) /
+// 0x4d65e0 init_ccmd_door_toggle. Compiler-generated. Confidence: exact.
 console_command ccmd_door_toggle("door_toggle", "opens or closes a specified door in the level.",
                                  cmd_door_toggle);   // 0x24ed5f0
 

@@ -75,9 +75,12 @@ vector3 ai_formation_member_pos[AI_FORMATION_SLOTS];          // 0x247e8e0
 vector3 ai_formation_slot_pos[AI_FORMATION_SLOTS];            // 0x247e920
 int ai_formation_count;                                       // 0x247e960
 
-// 0x4b5140 static_init_empty_4b5150 (jmp, static initialiser entry 305) / 0x4b5150 init_empty_4b5150
-// (bare ret). Confidence: unsure (an initialiser that expands to nothing: a definition whose constructor
-// is empty, as ai.cpp's init_empty_472000; which object is not known, so none is written).
+// 0x4b5140 static_init_empty_4b5150 (jmp, static initialiser entry 305) /
+// 0x4b5150 init_empty_4b5150 (bare ret). Confidence: unsure (an initialiser that expands to nothing: a
+// definition whose constructor is empty, as ai.cpp's init_empty_472000; VC6 /O2 /Ob1 emits exactly this
+// pair for a global array of a class with an empty inline constructor such as vector3, D5600. The two
+// vector3 arrays above would give two such pairs, the binary has one; which object it is is not known,
+// so none is written).
 
 // ---- formation -----------------------------------------------------------------------------------------
 // 0x4b5160  Confidence: likely (the group pointer is re-read from the owner and stored back). The leader
