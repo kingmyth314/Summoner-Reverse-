@@ -210,6 +210,20 @@ static void RunLine(char *line)
         Info();
     } else if (!_stricmp(c, "peek") && argc >= 2) {
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
+    } else if (!_stricmp(c, "pokecode") && argc >= 3) {
+        // pokecode ADDR BYTE: one byte of Sum.exe code (made writable around the write). Testing only, e.g. to
+        // switch a fix on and off in a running game for a before / after capture.
+        DWORD va = (DWORD)strtoul(argv[1], NULL, 16);
+        BYTE *p = (BYTE *)(UINT_PTR)SumVa(va), old = *p;
+        DWORD prot;
+        if (VirtualProtect(p, 1, PAGE_EXECUTE_READWRITE, &prot)) {
+            *p = (BYTE)strtoul(argv[2], NULL, 16);
+            VirtualProtect(p, 1, prot, &prot);
+            FlushInstructionCache(GetCurrentProcess(), p, 1);
+            Out("pokecode %06lX: %02X -> %02X", va, old, *p);
+        } else {
+            Out("pokecode %06lX: VirtualProtect failed", va);
+        }
     } else if (!_stricmp(c, "poke") && argc >= 3) {
         Poke((DWORD)strtoul(argv[1], NULL, 16), (unsigned)strtoul(argv[2], NULL, 16));
     } else if (!_stricmp(c, "flag") && argc >= 2) {
