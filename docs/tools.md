@@ -231,7 +231,9 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `poke ADDR BYTE` (one byte of writable game
   data, hex; used to test the script editor flag), `quit`;
 - `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
-  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`). Testing only.
+  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`). Testing only;
+- `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
+  and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters.
 
 For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
 armour casts (caster, target, team), and the HUD's Solo button keeps the other party members out of a fight.
