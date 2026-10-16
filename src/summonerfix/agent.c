@@ -215,7 +215,9 @@ static void RunLine(char *line)
         long faces, coloured;
         float rgb[3];
         TraceGlLightStats(&faces, &coloured, rgb);
-        Out("k310: %ld faces, %ld with a coloured light; last coloured rgb %.3f %.3f %.3f", faces, coloured, rgb[0], rgb[1], rgb[2]);
+        long calls, lit, maxLights;
+        TraceGlDrawStats(&calls, &lit, &maxLights);
+        Out("k310: %ld faces, %ld with a coloured light; last coloured rgb %.3f %.3f %.3f; draw-list calls %ld, %ld with lights (max %ld)", faces, coloured, rgb[0], rgb[1], rgb[2], calls, lit, maxLights);
     } else if (!_stricmp(c, "pokecode") && argc >= 3) {
         // pokecode ADDR BYTE: one byte of Sum.exe code (made writable around the write). Testing only, e.g. to
         // switch a fix on and off in a running game for a before / after capture.

@@ -123,6 +123,34 @@ __asm__(".text\n"
         "    popl %eax\n"
         "    ret\n");
 
+// Also count calls of levelrender_draw_list_opengl (0x491500) and those whose third argument, the number of point
+// lights near the drawn object, is non-zero: its first instruction mov al, [0x23c5b38] (5 bytes) becomes a call.
+#define VA_GL_DRAW_LIST_ENTRY 0x491500u
+#define VA_GL_DRAW_LIST_GUARD 0x23c5b38u
+__attribute__((used)) DWORD g_glDrawListGuard;
+__attribute__((used)) volatile LONG g_k310Calls, g_k310CallsLit, g_k310LightsMax;
+void GlDrawListTraceStub(void);
+__asm__(".text\n"
+        "_GlDrawListTraceStub:\n"
+        "    incl _g_k310Calls\n"
+        "    movl 16(%esp), %eax\n" // third argument: our return at 0, the caller's return at 4, args at 8, 12, 16
+        "    testl %eax, %eax\n"
+        "    je 1f\n"
+        "    incl _g_k310CallsLit\n"
+        "    cmpl _g_k310LightsMax, %eax\n"
+        "    jle 1f\n"
+        "    movl %eax, _g_k310LightsMax\n"
+        "1:  movl _g_glDrawListGuard, %eax\n"
+        "    movb (%eax), %al\n"
+        "    ret\n");
+
+void TraceGlDrawStats(long *calls, long *lit, long *maxLights)
+{
+    *calls = g_k310Calls;
+    *lit = g_k310CallsLit;
+    *maxLights = g_k310LightsMax;
+}
+
 void TraceGlLightStats(long *faces, long *coloured, float rgb[3])
 {
     *faces = g_k310Faces;
@@ -143,4 +171,12 @@ void TraceGlLightInstall(void)
     DWORD rel = (DWORD)(UINT_PTR)GlLightTraceStub - (site + 5);
     memcpy(repl + 1, &rel, 4);
     PatchBytes(VA_GL_UNCLIPPED_COLOR_LOAD, orig, repl, 6, "count unclipped lightmap colour loads (TraceGlLights)");
+
+    g_glDrawListGuard = SumVa(VA_GL_DRAW_LIST_GUARD);
+    DWORD entry = SumVa(VA_GL_DRAW_LIST_ENTRY);
+    static const BYTE eorig[5] = {0xA0, 0x38, 0x5B, 0x3C, 0x02}; // mov al, [0x23c5b38]
+    BYTE erepl[5] = {0xE8};
+    DWORD erel = (DWORD)(UINT_PTR)GlDrawListTraceStub - (entry + 5);
+    memcpy(erepl + 1, &erel, 4);
+    PatchBytes(VA_GL_DRAW_LIST_ENTRY, eorig, erepl, 5, "count draw-list calls with point lights (TraceGlLights)");
 }

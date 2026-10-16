@@ -2556,7 +2556,14 @@ of the three loads (`[Debug] TraceGlLights`, agent command `k310`) explained it:
 this path at all. It runs only when `levelrender_draw_list_opengl`'s third argument, the count of point lights near
 the object (`[esp + 0x1c]` of `levelrender_draw_list`, `0x485b6d`), is non-zero, and spell effect lights are not
 among them. The level's own point lights are. The fix stays out of SummonerFix until a scene with one is found. The burning village of the Masad tutorial (walked up to the fires) also
-gave zero faces on this path, so its fires are effect lights too. *Inferred:* the path may be rare in retail play.
+gave zero faces on this path, so its fires are effect lights too. *Inferred:* the path may be rare in retail play. A second counter on the entry of `levelrender_draw_list_opengl` (same
+setting) narrowed it down. Its point lights are the 24 `attached_light_slots` (`level_light_get` `0x48d180`), filled
+by effects with a light node (`vfx_node_create_light`) and by characters with `+LightColor:` (`living_entity_init`
+`0x44ecf6`); no retail character table has `+LightColor:`. The Masad fires create none. Rosalind's Icicle and Light
+spells do: with Light active in the Ikaemos exterior, 25,618 of 180,140 draw-list calls got 1-3 lights, but still
+no face took the unclipped branch, so every lit face there went through the clipped branch, which reads all three
+channels correctly. The faulty branch needs a light-node effect next to a level object whose faces are drawn
+unclipped; no such scene has been found yet.
 
 ## Invisible
 
