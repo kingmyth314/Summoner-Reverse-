@@ -81,7 +81,7 @@ LAYOUT_CHECK(TextFile, sizeof(TextFile) == 0x50);
 String bool_to_String(bool b);                                           // 0x516ca0
 String vector3_to_string(const vector3 *v, int precision);               // 0x516cd0
 String matrix3_to_string(const matrix *m, int precision);                // 0x516e80
-void bool_to_cstr(char *dest, bool b);                                   // 0x517000
+void bool_to_cstr(char *dest, int size, bool b);                         // 0x517000 (size unused, D6000)
 void vector3_to_cstr(char *dest, int size, const vector3 *v, int precision);   // 0x517060 (size unused)
 void matrix3_to_cstr(char *dest, int size, const matrix *m, int precision);    // 0x5170d0 (size unused)
 // Lines of at most 70 chars (broken at a space or CR), then "$end text" and an empty line.

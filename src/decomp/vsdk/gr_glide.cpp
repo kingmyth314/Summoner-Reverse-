@@ -50,7 +50,7 @@
 
 // A texture side rounded up to a Glide size, 4 .. 256 (the compare chain of 0x547c00 and 0x548539).
 #define GLIDE_TEXTURE_SIZE(n) ((n) <= 4 ? 4 : (n) <= 8 ? 8 : (n) <= 16 ? 16 : (n) <= 32 ? 32 : \
-                               (n) <= 64 ? 64 : (n) > 128 ? 256 : 128)
+                               (n) <= 64 ? 64 : (n) <= 128 ? 128 : 256)
 
 // The draw calls do nothing while the Glide window is closed (glide_set_active).
 #define GLIDE_WINDOW_CLOSED (glide_close_on_deactivate == 1 && glide_pending_deactivations == -1)
@@ -182,8 +182,8 @@ GrHwConfiguration glide_hwconfig;                     // 0x2f0f210 (0x94 bytes)
 ubyte glide_unused_2f0f2a4[0x4000];                   // 0x2f0f2a4 no reference (16 KB up to 0x2f132a3; name ours, D2504)
 int glide_initialized;                                // 0x2f132a4
 int glide_init_done;                                  // 0x2f132a8 (name ours)
-int glide_pending_activations;                         // 0x2f132ac
-int glide_pending_deactivations;                      // 0x2f132b0 (name ours)
+volatile int glide_pending_activations;               // 0x2f132ac (volatile, D6001)
+volatile int glide_pending_deactivations;             // 0x2f132b0 (name ours; volatile, D6001)
 int glide_swap_enabled;                               // 0x2f132b4 (name ours)
 bool glide_close_on_deactivate;                       // 0x2f132b8 (name ours)
 float gr_glide_texture_scale_u;                       // 0x2f132bc
@@ -1050,7 +1050,7 @@ glide_record::glide_record()
     mem_used = 0;
 }
 
-// 0x5497a0  Confidence: likely (the two grTexLodBiasValue calls share their call in the binary).
+// 0x5497a0  Confidence: exact (the two grTexLodBiasValue calls share their call in the binary).
 // sum.symbols glide_tmu_init. Returns the TMU's free texture memory.
 int glide_record::tmu_init(int tmu, bool mipmap)
 {
@@ -1102,7 +1102,7 @@ void glide_record::reset_blocks()
     mem_used = 0;
 }
 
-// 0x549900  Confidence: likely (an out-of-line wrapper in source order, not a COMDAT).
+// 0x549900  Confidence: exact (an out-of-line wrapper in source order, not a COMDAT).
 void glide_record::free_texture_thunk(int texture)
 {
     free_texture(texture);
@@ -1130,7 +1130,7 @@ void glide_record::evict_block(int index)
     }
 }
 
-// 0x5499d0  Confidence: likely (`jmp close`: a wrapper in source order, tail call).
+// 0x5499d0  Confidence: exact (`jmp close`: a wrapper in source order, tail call).
 void glide_record::close_thunk()
 {
     close();
@@ -1146,7 +1146,7 @@ void glide_record::close()
     num_blocks = 0;
 }
 
-// 0x549a10  Confidence: likely (`jmp reset_blocks`).
+// 0x549a10  Confidence: exact (`jmp reset_blocks`).
 void glide_record::reset_blocks_thunk()
 {
     reset_blocks();
@@ -1227,9 +1227,12 @@ FxU32 glide_record::alloc(int size, int texture, int section)
 // 0x549c50  Confidence: exact.
 void glide_record::release_block(int index)
 {
+    int next;
+
     evict_block(index);
-    blocks[index].next = free_head;
+    next = free_head;
     free_head = index;
+    blocks[index].next = next;
 }
 
 // 0x549c80  Confidence: exact. Takes a free block and links it after the tail of the used list.
@@ -1356,7 +1359,7 @@ void glide_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
     }
 }
 
-// 0x549fc0  Confidence: likely.
+// 0x549fc0  Confidence: exact.
 void glide_set_active(int active)
 {
     HWND hwnd = os_get_main_wnd();
@@ -1407,7 +1410,7 @@ int gr_glide_get_video_memory_mb()
 // 0x54a0f0 (body): `mov ecx, 0x2f0f1e4; jmp gr::Mode::Mode`. Confidence: exact.
 gr::Mode gr_glide_current_mode;                       // 0x2f0f1e4
 
-// 0x54a100  Confidence: likely (case order of the texture switch from the binary: 0, 2, 3, 1, 4, 6; the
+// 0x54a100  Confidence: exact (case order of the texture switch from the binary: 0, 2, 3, 1, 4, 6; the
 // fog switch has the store and return duplicated into each case).
 // Applies the six fields of a gr::Mode that differ from the mode set last.
 void gr_glide_set_mode(gr::Mode mode)
@@ -1612,8 +1615,8 @@ void gr_glide_set_viewport()
     if (GLIDE_WINDOW_CLOSED)
         return;
     glide_grClipWindow(gr_screen.offset_x + gr_screen.clip_left, gr_screen.offset_y + gr_screen.clip_top,
-                       gr_screen.offset_x + gr_screen.clip_right + 1,
-                       gr_screen.offset_y + gr_screen.clip_bottom + 1);
+                       gr_screen.clip_right + gr_screen.offset_x + 1,
+                       gr_screen.clip_bottom + gr_screen.offset_y + 1);
 }
 
 // 0x54a600  Confidence: exact.
@@ -1651,7 +1654,7 @@ void gr_glide_finish()
     glide_grSstIdle();
 }
 
-// 0x54a6e0  Confidence: likely (the counters are read twice: `n = count; count -= n`).
+// 0x54a6e0  Confidence: exact (the counters are read twice: `n = count; count -= n`).
 // Without the Voodoo2 window handling the focus changes are passed to grSstControl here, once a frame.
 void gr_glide_flip()
 {
@@ -1673,8 +1676,12 @@ void gr_glide_flip()
             glide_swap_enabled--;
         }
     }
-    if (glide_swap_enabled > 0)
-        glide_grBufferSwap(gr_vsync ? 1 : 0);
+    if (glide_swap_enabled > 0) {
+        if (gr_vsync)
+            glide_grBufferSwap(1);
+        else
+            glide_grBufferSwap(0);
+    }
     gr_glide_tcache_frame();
 }
 
@@ -1853,7 +1860,7 @@ void gr_glide_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw,
     }
 }
 
-// 0x54af10  Confidence: likely. The end points are truncated to pixels; the smaller coordinate of each
+// 0x54af10  Confidence: exact. The end points are truncated to pixels; the smaller coordinate of each
 // axis gets +0.5, the larger +1.
 void gr_glide_line(float x1, float y1, float x2, float y2, gr::Mode mode)
 {
@@ -1862,16 +1869,16 @@ void gr_glide_line(float x1, float y1, float x2, float y2, gr::Mode mode)
         return;
     gr_glide_set_bitmap(mode, -1);
     float ox = (float)gr_screen.offset_x;
-    float oy = (float)gr_screen.offset_y;
     v1.x = (float)(int)x1 + ox;
+    float oy = (float)gr_screen.offset_y;
     v1.y = (float)(int)y1 + oy;
     float r = (float)gr_color.r;
-    float g = (float)gr_color.g;
-    float b = (float)gr_color.b;
-    float a = (float)gr_color.a;
     v1.r = r;
+    float g = (float)gr_color.g;
     v1.g = g;
+    float b = (float)gr_color.b;
     v1.b = b;
+    float a = (float)gr_color.a;
     v1.a = a;
     v1.oow = 1.0f;
     v2.x = (float)(int)x2 + ox;
@@ -1902,7 +1909,7 @@ void gr_glide_line(float x1, float y1, float x2, float y2, gr::Mode mode)
     glide_grDrawLine(&v1, &v2);
 }
 
-// 0x54b110  Confidence: likely. Projected vertices: screen x / y snapped, 1/w; no depth.
+// 0x54b110  Confidence: exact. Projected vertices: screen x / y snapped, 1/w; no depth.
 void gr_glide_line_3d(gr_vertex *v0, gr_vertex *v1, gr::Mode mode)
 {
     GrVertex a, b;
@@ -1913,12 +1920,12 @@ void gr_glide_line_3d(gr_vertex *v0, gr_vertex *v1, gr::Mode mode)
     a.oow = v0->sw;
     a.y = v0->sy + GLIDE_SNAP;
     float r = (float)gr_color.r;
-    float g = (float)gr_color.g;
-    float bl = (float)gr_color.b;
-    float al = (float)gr_color.a;
     a.r = r;
+    float g = (float)gr_color.g;
     a.g = g;
+    float bl = (float)gr_color.b;
     a.b = bl;
+    float al = (float)gr_color.a;
     a.a = al;
     b.x = v1->sx + GLIDE_SNAP;
     b.oow = v1->sw;
@@ -2095,7 +2102,7 @@ int gr_glide_read_backbuffer(int x, int y, int w, int h, void *buf)
     return 3;
 }
 
-// 0x54b9b0  Confidence: likely (the order of the two stores of the new range).
+// 0x54b9b0  Confidence: exact (the order of the two stores of the new range).
 // Forces the next gr_glide_set_mode to set the fog mode again; rebuilds the fog table when the range
 // changed.
 void gr_glide_set_fog(int set_range)

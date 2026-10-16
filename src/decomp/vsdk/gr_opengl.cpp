@@ -489,7 +489,7 @@ void gr_opengl_tcache_close()
     }
 }
 
-// 0x54e690  Confidence: likely (operator new spelled out: the size is the byte count of the cache).
+// 0x54e690  Confidence: exact (operator new spelled out: the size is the byte count of the cache).
 // Called once, at the end of the first gr_opengl_init_context. The scratch buffer is
 // GL_MAX_TEXTURE_SIZE^2 * 4 bytes: 1 GB on drivers that report 16384 (SummonerFix caps the query).
 void gr_opengl_texture_init()
@@ -499,11 +499,12 @@ void gr_opengl_texture_init()
     gl_tcache_entries = (gl_tcache_entry *)operator new(MAX_BITMAPS * sizeof(gl_tcache_entry));
     if (gl_tcache_entries == NULL)
         exit(1);
+    gl_tcache_entry *t = gl_tcache_entries;
     for (int i = 0; i < MAX_BITMAPS; i++) {
-        gl_tcache_entries[i].gl_id = -1;
-        gl_tcache_entries[i].bitmap = -1;
-        gl_tcache_entries[i].size = 0;
-        gl_tcache_entries[i].used = 0;
+        t[i].gl_id = -1;
+        t[i].bitmap = -1;
+        t[i].size = 0;
+        t[i].used = 0;
     }
     gr_opengl_bound_texture[0] = -1;
     gr_opengl_bound_texture[1] = -1;
@@ -551,12 +552,16 @@ void gr_opengl_tcache_flush()
 // Tail of gr_opengl_flip.
 void gr_opengl_tcache_frame()
 {
+    gl_tcache_entry *t;
+    int i;
+
     gr_opengl_bound_texture[0] = -1;
     gr_opengl_bound_texture[1] = -1;
     gl_texture_mem_frame = 0;
     gl_frame_count++;
-    for (int i = 0; i < MAX_BITMAPS; i++)
-        gl_tcache_entries[i].used = 0;
+    t = gl_tcache_entries;
+    for (i = 0; i < MAX_BITMAPS; i++, t++)
+        t->used = 0;
 }
 
 // 0x54e840  Confidence: likely (the format switch; register use and the level loop match).
@@ -1030,7 +1035,9 @@ bool gl_extension_supported(const char *name, const char *extensions)
 {
     if (extensions == NULL)
         return false;
-    return strstr(extensions, name) != NULL;
+    if (strstr(extensions, name))
+        return true;
+    return false;
 }
 
 // ---- init / frame ----------------------------------------------------------------------------------------
@@ -1163,7 +1170,7 @@ void gr_opengl_clear()
     glColor4ub(0, 0, 0, 255);
     glDisable(GL_BLEND);
     glRecti(gr_screen.clip_left + gr_screen.offset_x, gr_screen.clip_top + gr_screen.offset_y,
-            gr_screen.offset_x + gr_screen.clip_right + 1, gr_screen.offset_y + gr_screen.clip_bottom + 1);
+            gr_screen.clip_right + gr_screen.offset_x + 1, gr_screen.clip_bottom + gr_screen.offset_y + 1);
     glEnable(GL_BLEND);
 }
 
@@ -1317,7 +1324,9 @@ void gr_opengl_set_color()
 // 0x54fe20  Confidence: exact. No caller; nothing reads gl_scale_2f13360.
 void gr_opengl_set_scale_2f13360(int v)
 {
-    gl_scale_2f13360 = (float)v * 0.0625f * 0.001f;
+    float s = (float)v * 0.0625f;
+
+    gl_scale_2f13360 = s * 0.001f;
 }
 
 // 0x54fe40  Confidence: exact.
@@ -1513,7 +1522,8 @@ void gr_opengl_setup_view()
               gr_eye_matrix.fvec.x, gr_eye_matrix.fvec.y, gr_eye_matrix.fvec.z,
               gr_eye_matrix.uvec.x, gr_eye_matrix.uvec.y, gr_eye_matrix.uvec.z);
     gr_get_view_fov(&h_fov, &v_fov);
-    gluPerspective(v_fov, gr_get_aspect(), 0.0, gr_far_clip_dist);
+    float aspect = gr_get_aspect();
+    gluPerspective(v_fov, aspect, 0.0, gr_far_clip_dist);
 }
 
 // 0x5505d0  Confidence: exact. No reference.

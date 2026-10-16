@@ -51,9 +51,9 @@ bool ds_is_3d_buffer(IDirectSoundBuffer *buf)
     DSBCAPS caps;
 
     caps.dwSize = sizeof(caps);
-    if (buf->GetCaps(&caps) < 0)
-        return false;
-    return (caps.dwFlags >> 4) & 1;
+    if (buf->GetCaps(&caps) >= 0)
+        return (caps.dwFlags >> 4) & 1;
+    return false;
 }
 
 // 0x55c000  Confidence: exact.
@@ -592,8 +592,8 @@ int ds_find_free_buffer(const char *name)
 // 0x55ce60  Confidence: exact.
 int ds_find_buffer(const char *name)
 {
-    int hash = ds_find_free_buffer(name);
     int free_index = -1;
+    int hash = ds_find_free_buffer(name);
     int i;
 
     for (i = 0; i < DS_MAX_BUFFERS; i++) {
@@ -910,7 +910,7 @@ void ds_pause(int sig)
     }
 }
 
-// 0x55d800  Confidence: likely (the argument is tested as a byte, a bool in the original).
+// 0x55d800  Confidence: exact (the argument is tested as a byte, a bool in the original).
 void ds_pause_all(int all)
 {
     int i;
@@ -937,10 +937,12 @@ void ds_unpause(int sig)
 // 0x55d880  Confidence: exact.
 void ds_channel_unpause(int channel)
 {
-    ds_channel *c = &ds_channels[channel];
+    DWORD play_flags = 0;
 
-    c->pdsb->Play(0, 0, (c->flags & (DS_CHANNEL_LOOPING | DS_CHANNEL_STREAMED)) ? DSBPLAY_LOOPING : 0);
-    c->flags &= ~DS_CHANNEL_PAUSED;
+    if (ds_channels[channel].flags & (DS_CHANNEL_LOOPING | DS_CHANNEL_STREAMED))
+        play_flags = DSBPLAY_LOOPING;
+    ds_channels[channel].pdsb->Play(0, 0, play_flags);
+    ds_channels[channel].flags &= ~DS_CHANNEL_PAUSED;
 }
 
 // 0x55d8c0  Confidence: exact.
@@ -1008,7 +1010,9 @@ bool ds_is_playing(int sig)
 
     if (ch < 0)
         return false;
-    return ds_channel_is_playing(ch) != 0;
+    if (ds_channel_is_playing(ch))
+        return true;
+    return false;
 }
 
 // 0x55da50  Confidence: exact.
@@ -1079,7 +1083,7 @@ IKsPropertySet *ds_get_eax_property_set()
     return ds_eax_property_set;
 }
 
-// 0x55db80  Confidence: likely (VC6's compare tree). DSERR_INVALIDPARAM has no break: it gets
+// 0x55db80  Confidence: exact (VC6's compare tree). DSERR_INVALIDPARAM has no break: it gets
 // "DSERR_NOAGGREGATION", and its own literal (0x5ae00c) is left unreferenced.
 const char *ds_error_string(HRESULT hr)
 {

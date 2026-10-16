@@ -60,7 +60,7 @@ void light_set_all_enabled(int on)
         l->enabled = on;
 }
 
-// 0x51e140  Confidence: likely (the temporaries of the out-of-line operators share stack slots).
+// 0x51e140  Confidence: exact (the temporaries of the out-of-line operators share stack slots).
 // The position (and a spot light's direction) in the space of the current gr instance.
 void light_transform_to_instance(light *l)
 {
@@ -98,7 +98,7 @@ void light_get_ambient(float *r, float *g, float *b)
     *b = light_ambient_b;
 }
 
-// 0x51e290  Confidence: likely. No check of light_alloc's -1: with 400 lights in use the record before
+// 0x51e290  Confidence: exact. No check of light_alloc's -1: with 400 lights in use the record before
 // the table (the end of lights_selection) is written (game bug, NOTES.md).
 int light_create_point(const vector3 *pos, float inner, float outer, float intensity, float r,
                        float g, float b, bool dynamic)
@@ -299,7 +299,7 @@ void light_get_spot_dir(int index, vector3 *dir)
     }
 }
 
-// 0x51e850  Confidence: likely (FCOS inline: cos with /Oi).
+// 0x51e850  Confidence: exact (FCOS inline: cos with /Oi).
 void light_set_spot_angles(int index, float a, float b)
 {
     light *l = light_get(index);
@@ -400,11 +400,13 @@ void lights_pop_selection()
 // 0x51eb60  Confidence: exact.
 void lights_transform_selection()
 {
-    int i;
+    int i, n, d;
 
     if (gr_instance_depth) {
-        for (i = 0; i < lights_selection_counts[lights_selection_depth - 1]; i++)
-            light_transform_to_instance(lights_selection[lights_selection_depth - 1][i]);
+        d = lights_selection_depth - 1;
+        n = lights_selection_counts[d];
+        for (i = 0; i < n; i++)
+            light_transform_to_instance(lights_selection[d][i]);
     }
 }
 
@@ -756,17 +758,18 @@ void light_set_dynamic(int index, bool dynamic)
 // 0x51fa50  Confidence: exact.
 bool light_is_dynamic(int index)
 {
-    return light_get(index)->dynamic != 0;
+    return light_get(index)->dynamic ? true : false;
 }
 
 // 0x51fa70  Confidence: exact. Walks the first light_count records of the table, not the active list,
 // so freed records in front are drawn and the last used ones may not be.
 void lights_debug_draw()
 {
-    int i;
+    int i, n;
 
     gr_set_color(0, 255, 0, 255);
-    for (i = 0; i < light_count; i++)
+    n = light_count;
+    for (i = 0; i < n; i++)
         gr_draw_sphere(&lights[i].pos, 1.0f, gr_line_mode);
 }
 

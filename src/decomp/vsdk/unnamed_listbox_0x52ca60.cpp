@@ -79,14 +79,14 @@ int ui_listbox_entry::line_top(int line)
     return (gr_get_font_height(font) + line_spacing) * line + y;
 }
 
-// 0x52cba0  Confidence: likely (operand order of the final adds).
+// 0x52cba0  Confidence: exact (operand order of the final adds).
 int ui_listbox_entry::line_bottom(int line)
 {
     int fh = gr_get_font_height(font);
     return (line_spacing + fh) * line + y + fh;
 }
 
-// 0x52cbd0  Confidence: likely (operand order). The line under y, counting the spacing above a line
+// 0x52cbd0  Confidence: exact (operand order). The line under y, counting the spacing above a line
 // as part of it.
 int ui_listbox_entry::line_at_y_with_spacing(int y)
 {
@@ -109,7 +109,7 @@ int ui_listbox_entry::line_at_y(int y)
     return line;
 }
 
-// 0x52cc60  Confidence: likely (shape of the width choice). Wrapping lists wrap to max_content_w, or to
+// 0x52cc60  Confidence: exact (shape of the width choice). Wrapping lists wrap to max_content_w, or to
 // the view width without one; the others never wrap.
 int ui_listbox::layout_entry(ui_listbox_entry *e, int y)
 {
@@ -127,7 +127,9 @@ bool ui_listbox::is_entry_visible(ui_listbox_entry *e)
 {
     if (vscroll >= e->height + e->y)
         return false;
-    return get_view_height() + vscroll > e->y;
+    if (get_view_height() + vscroll > e->y)
+        return true;
+    return false;
 }
 
 // 0x52cce0  Confidence: exact.
@@ -135,13 +137,17 @@ bool ui_listbox::is_entry_fully_visible(ui_listbox_entry *e)
 {
     if (vscroll > e->y)
         return false;
-    return get_view_height() + vscroll >= e->height + e->y;
+    if (get_view_height() + vscroll >= e->height + e->y)
+        return true;
+    return false;
 }
 
 // 0x52cd20  Confidence: exact. No caller.
 bool ui_listbox::is_entry_bottom_visible(ui_listbox_entry *e)
 {
-    return get_view_height() + vscroll >= e->height + e->y;
+    if (get_view_height() + vscroll >= e->height + e->y)
+        return true;
+    return false;
 }
 
 // 0x52cd50  Confidence: exact.
@@ -439,7 +445,7 @@ int ui_listbox_entry::line_at_y_or_none(int y)
     return -1;
 }
 
-// 0x52d540  Confidence: likely (store order: dirty last). next / prev are not set.
+// 0x52d540  Confidence: exact (store order: dirty last). next / prev are not set.
 ui_listbox_entry::ui_listbox_entry()
 {
     indent = 0;
@@ -694,7 +700,7 @@ inserted:
     return e;
 }
 
-// 0x52dc30  Confidence: likely (the unlink with temporaries in the code's store order).
+// 0x52dc30  Confidence: exact (the unlink with temporaries in the code's store order).
 void ui_listbox::clear()
 {
     ui_listbox_entry *e;
@@ -733,7 +739,7 @@ bool ui_listbox::remove_by_text(const char *text)
     return false;
 }
 
-// 0x52dd00  Confidence: likely (unlink store order). Keeps the view on the entry that was at the top.
+// 0x52dd00  Confidence: exact (unlink store order). Keeps the view on the entry that was at the top.
 // F6207: the new scroll position is not passed to the scroll bar, so the next process (sync_scrollbars)
 // can move the view back to the scroll bar's old position.
 void ui_listbox::remove_entry(ui_listbox_entry *e)
@@ -838,55 +844,55 @@ void ui_listbox::select_page_up()
 {
     if (entries.next == &entries)
         return;
-    if (!selected) {
-        scroll_page_up();
-        return;
-    }
-    if (is_entry_visible(selected))
-        scroll_page_up();
+    if (selected) {
+        if (is_entry_visible(selected))
+            scroll_page_up();
 
-    int y = selected->y - get_view_height();
-    if (y < 0)
-        y = 0;
-    ui_listbox_entry *e = entry_at(0, y, true);
-    if (selected != e) {
-        selected = e;
-        send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
+        int y = selected->y - get_view_height();
+        if (y < 0)
+            y = 0;
+        ui_listbox_entry *e = entry_at(0, y, true);
+        if (selected != e) {
+            selected = e;
+            send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
+        }
+        user_selected = true;
+    } else {
+        scroll_page_up();
     }
-    user_selected = true;
 }
 
-// 0x52e050  Confidence: likely (the `if (next)` test of a ring pointer). F6208: when the selected entry
+// 0x52e050  Confidence: exact (the `if (next)` test of a ring pointer). F6208: when the selected entry
 // is the last one and taller than the view, next is the ring head, which becomes the selection.
 void ui_listbox::select_page_down()
 {
     if (entries.next == &entries)
         return;
-    if (!selected) {
-        scroll_page_down();
-        return;
-    }
-    if (is_entry_visible(selected))
-        scroll_page_down();
+    if (selected) {
+        if (is_entry_visible(selected))
+            scroll_page_down();
 
-    ui_listbox_entry *e = selected;
-    if (e->height > get_view_height()) {
-        e = e->next;
-        if (e) {
-            selected = e;
-            send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
+        ui_listbox_entry *e = selected;
+        if (e->height > get_view_height()) {
+            e = e->next;
+            if (e) {
+                selected = e;
+                send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
+            }
+        } else {
+            int y = get_view_height() + selected->y;
+            if (y > content_height - 1)
+                y = content_height - 1;
+            e = entry_at(0, y, true);
+            if (selected != e) {
+                selected = e;
+                send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
+            }
         }
+        user_selected = true;
     } else {
-        int y = get_view_height() + selected->y;
-        if (y > content_height - 1)
-            y = content_height - 1;
-        e = entry_at(0, y, true);
-        if (selected != e) {
-            selected = e;
-            send_event(UI_EVENT_LIST_SELECT, UI_USE_ID);
-        }
+        scroll_page_down();
     }
-    user_selected = true;
 }
 
 // 0x52e110  Confidence: likely (the shared returns). One line (or one entry) up; bottom-aligned lists
@@ -938,7 +944,7 @@ void ui_listbox::scroll_line_up()
     set_vscroll(e->line_top(e->line_at_y(vscroll - 1)), false);
 }
 
-// 0x52e290  Confidence: likely. Top-aligned lists step one pixel and let set_vscroll snap.
+// 0x52e290  Confidence: exact. Top-aligned lists step one pixel and let set_vscroll snap.
 void ui_listbox::scroll_line_down()
 {
     ui_listbox_entry *e;
@@ -1105,10 +1111,12 @@ void ui_listbox::scroll_page_left()
         hscroll = 0;
 }
 
-// 0x52e8f0  Confidence: likely (the view width is fetched before hscroll is loaded). No caller.
+// 0x52e8f0  Confidence: exact (the view width is fetched before hscroll is loaded). No caller.
 float ui_listbox::get_hscroll_fraction()
 {
-    return (float)hscroll / (content_width - get_view_width());
+    int range = content_width - get_view_width();
+
+    return (float)hscroll / range;
 }
 
 // 0x52e920  Confidence: likely (float temporaries). No caller. The scroll position between the first and
@@ -1269,7 +1277,7 @@ int ui_listbox::snap_scroll_bottom(int y)
     return y - get_view_height();
 }
 
-// 0x52ed00  Confidence: likely. No caller; the second argument is not read; no scroll bar update.
+// 0x52ed00  Confidence: exact. No caller; the second argument is not read; no scroll bar update.
 void ui_listbox::set_hscroll_fraction(float f, bool unused)
 {
     if (f < 0.0f)
@@ -1387,7 +1395,9 @@ int ui_listbox::get_content_height()
 // 0x52f060  Confidence: exact. No caller.
 bool ui_listbox::is_empty()
 {
-    return entries.next == &entries;
+    if (entries.next == &entries)
+        return true;
+    return false;
 }
 
 // 0x52f080  vtable slot 7. Confidence: likely (local layout; the background branch's argument

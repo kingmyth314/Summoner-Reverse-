@@ -26,7 +26,7 @@ public:
     light *prev;                      // +0x04
     short type : 14;                  // +0x08 LIGHT_TYPE_* (signed field: SHL 2 / SAR 2)
     ushort enabled : 1;               //       bit 14
-    ushort dynamic : 1;               //       bit 15: changes do not count in light_change_count
+    short dynamic : 1;                //       bit 15: changes do not count in light_change_count (signed, D6002)
     short _pad0a;
     vector3 pos;                      // +0x0c
     vector3 dir;                      // +0x18 spot direction

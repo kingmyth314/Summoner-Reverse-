@@ -4529,3 +4529,59 @@ is stored to +0x68c and passed as living_entity_create's layer, and the fifth is
 create). The ring xp chain is an if / else-if chain in the binary's order (0xc0 / 0xcd share a body with ||, the other
 pairs are separate tests with repeated bodies); VC6 tail-merges the repeated get_int calls, so 2195 against 2415
 bytes; likely.
+
+**D6000 (vsdk/parse/parse.h, vsdk/parse.cpp). bool_to_cstr (0x517000): SIGNATURE change.** Was `void
+bool_to_cstr(char *dest, bool b)`; now `void bool_to_cstr(char *dest, int size, bool b)`: the flag is read from
+the third argument slot ([esp + 0xc] before the two pushes) and dest from the first, as in its neighbours
+vector3_to_cstr / matrix3_to_cstr (0x517060 / 0x5170d0, size unused). No caller in Sum.exe or in the tree.
+VC6: matches.
+
+**D6001 (vsdk/gr/glide/gr_glide.h, vsdk/gr_glide.cpp). glide_pending_activations (0x2f132ac) and
+glide_pending_deactivations (0x2f132b0) are `volatile int`.** Every access in the binary is a load into a
+register followed by a compare or an `inc reg` / store (`mov eax, [x]; cmp eax, -1`, `mov ecx, [x]; inc ecx;
+mov [x], ecx`, the double read in gr_glide_flip), never a memory operand, while the neighbouring bool and int
+globals are compared and incremented in memory (`cmp byte ptr [glide_close_on_deactivate], 1`, `inc dword ptr
+[glide_swap_enabled]`). The window procedure (glide_msg_handler) writes them. VC6: +7 functions in gr_glide.cpp
+(glide_set_active, gr_glide_set_mode, the clear / zbuffer_clear / deactivate / set_zbias / set_fog wrappers);
+the other user, unnamed_ca_mesh_0x50af80.cpp, keeps its 8 matches.
+
+**D6002 (vsdk/gr/unnamed_lights_0x51e070.h). light::dynamic is `short dynamic : 1` (signed).** Every test of the
+bit is `mov ax, [l + 8]; and eax, 0xffff8000; test ax, ax`, the code VC6 gives a signed one-bit field (an
+unsigned one is `test byte ptr [l + 9], 0x80`); `enabled` (bit 14) stays unsigned (light_is_enabled matches only
+that way). Only lights code touches the field, and only for truth tests or bool stores. VC6: +6 functions
+(light_create_point, light_set_pos, light_set_radius, light_set_color, light_set_spot_dir / _angles);
+light_is_dynamic is written `? true : false`.
+
+**D6003 (vsdk/unnamed_snd_0x5204c0.cpp). The backend tests are one-case switches.** `mov eax, [snd_backend];
+dec eax; jne` (not `cmp dword ptr [snd_backend], 1`) is VC6's code for `switch (snd_backend) { case 1: ... }`;
+the functions that return the backend's result keep it in a variable initialised to the failure value
+(`or eax, -1` / `xor al, al` before the `dec`). snd_get_frequency alone returns from inside the case. VC6: +17
+functions.
+
+**D6004 (vsdk/unnamed_snd_0x5204c0.cpp). snd_load's path buffer is 0x200 bytes and get_packfile_path gets 0x80.**
+The frame is 0x418 bytes (File 0x114, filename 0x100, path 0x200, offset) and the size pushed for
+File::get_packfile_path is the constant 0x80, not sizeof(path). The stripped name is two strcpy calls in an
+if / else (the copy code is shared, the destination address is set in both arms). VC6: the function now
+differs only at its last bitfield store (`or [mem], imm` where the original loads, ors and stores).
+
+**D6005 (all ten units of this pass). Source shapes that make cl 12.00.8168 emit build 8966's code.** Recorded
+so that later passes use the same forms (details and counter-examples in the pass notes):
+- bool results: `if (f(..) == 0) return true; return false;` (also for `||` chains and for a returned
+  comparison after a call) gives the original `test / setcc al` or `mov al, 1 / xor al, al`; `return a != b`
+  gives `neg / sbb / neg` or `xor / setcc / mov al`. A plain member comparison (`return slot >= 0`) is already
+  right as an expression.
+- 8966 keeps globals and fields in registers across stores through other pointers (and loop bounds across
+  calls); where the original does so, a local copy written in the source gives the same code: `n =
+  light_count` before a loop that calls out, `d = lights_selection_depth - 1`, a local alias of
+  gl_tcache_entries for an init loop, `next = free_head` read after evict_block, the free-list unlink in
+  bm_alloc_entry through `prev` / `next` locals.
+- Counted loops over a global array whose index is passed on (snd_level_page_in, gr_opengl_tcache_frame) are
+  `for (i = 0; i < N; i++, p++)` with a walking pointer: the original compares the counter, not the pointer.
+- An argument that is itself a call (gr_get_aspect() for gluPerspective) is evaluated first by 8966: a local
+  before the call reproduces it.
+- `x ? 1 : 0` passed on as an argument was an if / else of two calls (gr_glide_flip); `n > 128 ? 256 : 128`
+  is `n <= 128 ? 128 : 256` (the setg / dec / and al, 0x80 / add 0x100 sequence).
+- Not reproducible with 8168 (left as they were): return-value optimisation of `return T(args)` (8168 builds a
+  temporary and calls the copy constructor), strcat of a one-character literal as a word move, `and dh, imm`
+  partial-register bitfield stores, the `or eax, eax` return of an already -1 EAX, the rotate idiom as `rol`,
+  and most register-allocation and scheduling differences.

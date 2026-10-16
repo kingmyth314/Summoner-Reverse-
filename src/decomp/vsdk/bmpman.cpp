@@ -157,7 +157,7 @@ void bm_read_vbm_header(const char *name, int *w, int *h, int *format, int *num_
     f.close();
 }
 
-// 0x501eb0  Confidence: likely (the call to 0x503db0, a thiscall stub that jumps to
+// 0x501eb0  Confidence: exact (the call to 0x503db0, a thiscall stub that jumps to
 // StringPool::GetLength, is written as a direct GetLength call; see 0x503db0 below).
 void bm_set_mark()
 {
@@ -313,7 +313,7 @@ bool bm_is_reduced(int bm)
     return bm_bitmaps[bm_get_current_frame(bm)].reduced;
 }
 
-// 0x502320  Confidence: likely (the list macros: VC6 keeps bm_used_list.prev in a register through the
+// 0x502320  Confidence: exact (the list macros: VC6 keeps bm_used_list.prev in a register through the
 // append loop and drops list_init's dead store). Every entry is appended to the used list and then moved
 // to the free list by bm_free_entry. The missing-bitmap pixels: 888 pink-grey with a grey line every
 // eight pixels.
@@ -373,7 +373,7 @@ void bm_free_entry(int index)
     e->mark_count = 0;
 }
 
-// 0x502450  Confidence: likely (case order; jump table 0x50247c for formats 1-8).
+// 0x502450  Confidence: exact (case order; jump table 0x50247c for formats 1-8).
 int bm_bytes_per_pixel(int format)
 {
     switch (format) {
@@ -386,9 +386,11 @@ int bm_bytes_per_pixel(int format)
         return 3;
     case BM_FORMAT_8888:
         return 4;
-    default:
+    case BM_FORMAT_8_PALETTED:
+    case BM_FORMAT_8_ALPHA:
         return 1;
     }
+    return 1;
 }
 
 // 0x5024a0  Confidence: exact.
@@ -397,7 +399,7 @@ int bm_bits_per_pixel(int format)
     return bm_bytes_per_pixel(format) * 8;
 }
 
-// 0x5024c0  Confidence: likely (the failure return is `or eax, eax` with eax already -1, not the usual
+// 0x5024c0  Confidence: exact (the failure return is `or eax, eax` with eax already -1, not the usual
 // `or eax, -1`: the source may return the index itself).
 int bm_get_total_bytes(int bm)
 {
@@ -720,9 +722,16 @@ int bm_get_type_from_ext(const char *name)
 bitmap_entry *bm_alloc_entry()
 {
     bitmap_entry *e = bm_free_list.next;
+    bitmap_entry *prev = e->prev;
+    bitmap_entry *next = e->next;
 
-    list_remove(e);                     // its NULL stores are dead before list_insert
-    list_insert(&bm_used_list, e);
+    prev->next = next;
+    next->prev = prev;
+    next = bm_used_list.next;
+    bm_used_list.next = e;
+    e->next = next;
+    next->prev = e;
+    e->prev = &bm_used_list;
     return e;
 }
 
@@ -811,9 +820,9 @@ int bm_load_animation_path(const char *name, int *num_frames, int *fps, int path
 // 0x503190  Confidence: exact. A second, unhashed entry for the same file (charinfo_create_character_instance).
 int bm_reload(int bm)
 {
-    int i = bm_get_current_frame(bm);
+    bitmap_entry *e = &bm_bitmaps[bm_get_current_frame(bm)];
 
-    return bm_load_internal(bm_bitmaps[i].name, bm_bitmaps[i].path_id, 1);
+    return bm_load_internal(e->name, e->path_id, 1);
 }
 
 // 0x5031c0  Confidence: likely (comparison order). Points an unlocked single bitmap at another file of the
@@ -883,14 +892,16 @@ static inline int bm_round_texture_size(int n)
     return 256;
 }
 
-// 0x5033c0  Confidence: likely (the rounding may be written out twice or as a macro). Both dimensions
+// 0x5033c0  Confidence: exact (the rounding may be written out twice or as a macro). Both dimensions
 // powers of two from 4 to 256.
 bool bm_is_valid_size(int w, int h)
 {
     int rw = bm_round_texture_size(w);
     int rh = bm_round_texture_size(h);
 
-    return rw == w && rh == h;
+    if (rw == w && rh == h)
+        return true;
+    return false;
 }
 
 // 0x503480  Confidence: exact. Returns the first frame's handle for an animation.
@@ -943,7 +954,7 @@ int bm_get_format(int bm)
     return bm_bitmaps[bm_get_current_frame(bm)].format;
 }
 
-// 0x5035e0  Confidence: likely (the || result is built in EAX, the early false in AL).
+// 0x5035e0  Confidence: exact (the || result is built in EAX, the early false in AL).
 bool bm_has_alpha(int bm)
 {
     int format;
@@ -1086,17 +1097,21 @@ void bm_lock_vbm(int index)
 // 0x503aa0  Confidence: exact (no entry pointer: every field is indexed from bm_bitmaps).
 bool bm_lock_pcx(int index)
 {
-    bm_bitmaps[index].data = new ubyte[bm_bytes_per_pixel(bm_bitmaps[index].format) * bm_bitmaps[index].num_pixels];
+    bm_bitmaps[index].data = new ubyte[bm_bitmaps[index].num_pixels * bm_bytes_per_pixel(bm_bitmaps[index].format)];
     if (bm_bitmaps[index].format == BM_FORMAT_8_PALETTED)
         bm_bitmaps[index].palette = new ubyte[0x300];
-    return pcx_read_bitmap(bm_bitmaps[index].name, (ubyte *)bm_bitmaps[index].data,
-                           (ubyte *)bm_bitmaps[index].palette, bm_bitmaps[index].path_id) == 0;
+    if (pcx_read_bitmap(bm_bitmaps[index].name, (ubyte *)bm_bitmaps[index].data,
+                        (ubyte *)bm_bitmaps[index].palette, bm_bitmaps[index].path_id) != 0)
+        return false;
+    return true;
 }
 
 // 0x503b20  Confidence: exact. The raw file becomes the data (m2v_read_bitmap allocates it).
 bool bm_lock_m2v(int index)
 {
-    return m2v_read_bitmap(bm_bitmaps[index].name, (ubyte **)&bm_bitmaps[index].data, 0) != 0;
+    if (m2v_read_bitmap(bm_bitmaps[index].name, (ubyte **)&bm_bitmaps[index].data, 0))
+        return true;
+    return false;
 }
 
 // 0x503b50  Confidence: exact.
@@ -1115,7 +1130,7 @@ const char *bm_get_filename(int bm)
     return e->name;
 }
 
-// 0x503ba0  Confidence: likely (D1102: the product reads a second stack argument; the mip info's w, h and
+// 0x503ba0  Confidence: exact (D1102: the product reads a second stack argument; the mip info's w, h and
 // level count are unused, and num_pixels lands in the dead argument slot of bm).
 int bm_get_total_size(int bm, int bytes_per_pixel)
 {
@@ -1142,7 +1157,7 @@ void bm_read_pcx_header_of(int bm, ubyte *palette)
     }
 }
 
-// 0x503c80  Confidence: likely (the two bm_free_entry tails are separate in the code). An animation
+// 0x503c80  Confidence: exact (the two bm_free_entry tails are separate in the code). An animation
 // header frees the frames' texture cache slots but only its own entry; the frames stay on the used list.
 void bm_release(int bm)
 {
@@ -1158,7 +1173,7 @@ void bm_release(int bm)
     bm_free_entry(bm_handle_to_index(bm));
 }
 
-// 0x503cf0  Confidence: likely (VC6 passes the stored width / height and the constant level count to
+// 0x503cf0  Confidence: exact (VC6 passes the stored width / height and the constant level count to
 // bm_calc_num_pixels). The caller's buffer becomes the data (never freed by bm_free_data); the sixth
 // argument is not read.
 int bm_create(int format, int w, int h, void *data, void *palette, int a6)

@@ -215,10 +215,10 @@ extern int glide_initialized;                         // 0x2f132a4
 extern int glide_init_done;                           // 0x2f132a8 (name ours) 1 at the end of gr_glide_init, no reader
 // Activations still to pass to grSstControl by gr_glide_flip (the msg handler and gr_glide_deactivate add
 // one). sum.symbols' name says the opposite; kept.
-extern int glide_pending_activations;                  // 0x2f132ac
+extern volatile int glide_pending_activations;         // 0x2f132ac volatile: every access is a load / store of its own (D6001)
 // Deactivations still to pass to grSstControl; with glide_close_on_deactivate, -1 = the Glide window is
 // closed (glide_set_active) and every draw call returns at once. Name ours.
-extern int glide_pending_deactivations;               // 0x2f132b0
+extern volatile int glide_pending_deactivations;       // 0x2f132b0 volatile (D6001)
 extern int glide_swap_enabled;                        // 0x2f132b4 (name ours) gr_glide_flip swaps while > 0
 // Set by gr_glide_init for 2 TMUs and 12 MB or more (Voodoo2): the Glide window is closed when the game
 // loses the focus and opened again when it gets it back. Name ours.

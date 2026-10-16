@@ -49,7 +49,7 @@ matrix snd_listener_orient;                       // 0x2cbf458
 // The rest in address order.
 float snd_group_volumes[SND_NUM_GROUPS];          // 0x2cb542c
 snd_sound sounds[SND_MAX_SOUNDS];                 // 0x2cb5458
-int snd_backend;                                  // 0x2cbf47c
+int snd_backend;                                  // 0x2cbf47c 1 = DirectSound; every test is a one-case switch (D6003)
 bool snd_disabled;                                // 0x2cbf480
 static bool snd_sounds_initialized;               // 0x2cbf481 (label ours)
 
@@ -66,7 +66,7 @@ static bool snd_params_equal(snd_sound *s, float volume, float rolloff, float mi
     return true;
 }
 
-// 0x5205b0  Confidence: likely. No sound with -nosound, the No Sound setting, or Windows NT before 5.
+// 0x5205b0  Confidence: exact. No sound with -nosound, the No Sound setting, or Windows NT before 5.
 // A failing ds_init returns -1 with snd_disabled still clear (docs/sum-exe/sound.md).
 int snd_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use_eax, bool no_sound,
              bool dsinit)
@@ -111,10 +111,10 @@ void snd_init_sounds()
 // 0x5206c0  Confidence: exact.
 void snd_init_group_volumes()
 {
-    snd_group_volumes[0] = 1.0f;
-    snd_group_volumes[1] = 1.0f;
-    snd_group_volumes[2] = 1.0f;
-    snd_group_volumes[3] = 1.0f;
+    int i;
+
+    for (i = 0; i < 4; i++)
+        snd_group_volumes[i] = 1.0f;
 }
 
 // 0x5206e0  Confidence: exact (pointer loop over the names).
@@ -124,8 +124,11 @@ void snd_close()
 
     if (snd_disabled)
         return;
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_close();
+        break;
+    }
     for (i = 0; i < SND_MAX_SOUNDS; i++)
         sounds[i].name[0] = '\0';
 }
@@ -138,32 +141,50 @@ void snd_change_listener(vector3 *pos, vector3 *vel, matrix *orient)
     snd_listener_pos = *pos;
     snd_listener_vel = *vel;
     snd_listener_orient = *orient;
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds3d_update_listener(pos, vel, orient);
+        break;
+    }
 }
 
 // 0x520770  Confidence: exact (tail jump).
 void snd_do_frame()
 {
-    if (!snd_disabled && snd_backend == 1)
-        ds_do_frame();
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            ds_do_frame();
+            break;
+        }
+    }
 }
 
 // 0x520790  Confidence: exact. Only the second argument is passed on.
 void snd_pause_all(int a, int b)
 {
-    if (!snd_disabled && snd_backend == 1)
-        ds_pause_all(b);
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            ds_pause_all(b);
+            break;
+        }
+    }
 }
 
 // 0x5207b0  Confidence: exact.
 void snd_unpause_all()
 {
-    if (!snd_disabled && snd_backend == 1)
-        ds_unpause_all();
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            ds_unpause_all();
+            break;
+        }
+    }
 }
 
-// 0x5207d0  Confidence: likely. The first record (from slot 0 or 8) with the name and the same three
+// 0x5207d0  Confidence: exact. The first record (from slot 0 or 8) with the name and the same three
 // parameters, else the first free one after the file is found. The name is copied unchecked into a
 // 0x100-byte buffer; the 0x28 limit is tested only for a new record. The parameters are compared
 // before min_range <= 0 becomes 1.0, so such a sound never matches its own record and takes a new
@@ -223,19 +244,25 @@ int snd_load(int handle, int streamed)
     if (s->handle < 0) {
         File f;
         char filename[0x100];
-        char path[0x100];
+        char path[0x200];
 
         offset = 0;
         strcpy(filename, s->name);
         p = strrchr(s->name, '\\');
-        strcpy(filename, p ? p + 1 : s->name);
+        if (p)
+            strcpy(filename, p + 1);
+        else
+            strcpy(filename, s->name);
         if (f.find(filename, 9999999) != true)
             return -1;
         strcpy(path, f.get_full_path());
         offset = 0;
-        f.get_packfile_path(path, &offset, sizeof(path));
-        if (snd_backend == 1)
+        f.get_packfile_path(path, &offset, 0x80);
+        switch (snd_backend) {
+        case 1:
             s->handle = ds_load_buffer(s->name, path, offset, s->group, streamed);
+            break;
+        }
     }
     if (s->handle < 0)
         s->load_failed = 1;
@@ -252,14 +279,17 @@ void snd_unload(int handle)
         return;
     s = &sounds[handle];
     if (s->handle >= 0) {
-        if (snd_backend == 1)
+        switch (snd_backend) {
+        case 1:
             ds_unload_buffer(s->handle);
+            break;
+        }
         s->handle = -1;
         s->loaded = 0;
     }
 }
 
-// 0x520c10  Confidence: likely (the two bitfield clears are one AND 0x0fffffff).
+// 0x520c10  Confidence: exact (the two bitfield clears are one AND 0x0fffffff).
 void snd_free(int handle)
 {
     if (handle < 0 || handle >= SND_MAX_SOUNDS)
@@ -279,19 +309,20 @@ void snd_unload_all()
         snd_unload(i);
 }
 
-// 0x520c70  Confidence: likely (the in-place increment of the 3-bit field). Loads every used sound
+// 0x520c70  Confidence: exact (the in-place increment of the 3-bit field). Loads every used sound
 // and counts the level in; unused records get level_refs 0.
 void snd_level_page_in()
 {
+    snd_sound *s = sounds;
     int i;
 
-    for (i = 0; i < SND_MAX_SOUNDS; i++) {
-        if (sounds[i].is_used()) {
-            if (!sounds[i].loaded)
+    for (i = 0; i < SND_MAX_SOUNDS; i++, s++) {
+        if (s->is_used()) {
+            if (!s->loaded)
                 snd_load(i, 0);
-            sounds[i].level_refs++;
+            s->level_refs++;
         } else {
-            sounds[i].level_refs = 0;
+            s->level_refs = 0;
         }
     }
 }
@@ -327,9 +358,14 @@ int snd_play(int handle, float volume, float pan, int a, int unused)
     v = snd_get_volume(handle, volume);
     if (v < 0.0f)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    return ds_play(sounds[handle].handle, v, pan, 0, a);
+    int rval = -1;
+
+    switch (snd_backend) {
+    case 1:
+        rval = ds_play(sounds[handle].handle, v, pan, 0, a);
+        break;
+    }
+    return rval;
 }
 
 // 0x520de0  Confidence: exact.
@@ -352,9 +388,14 @@ int snd_play_looping(int handle, float volume, float pan, int a)
     v = snd_get_volume(handle, volume);
     if (v < 0.0f)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    return ds_play(sounds[handle].handle, v, pan, 1, a);
+    int rval = -1;
+
+    switch (snd_backend) {
+    case 1:
+        rval = ds_play(sounds[handle].handle, v, pan, 1, a);
+        break;
+    }
+    return rval;
 }
 
 // 0x520ea0  Confidence: exact (the range is tested before snd_disabled here). decomp66 (D4603): the third
@@ -370,9 +411,14 @@ int snd_play_streamed(int handle, float volume, float pan)
     v = snd_get_volume(handle, volume);
     if (v < 0.0f)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    return ds_play_streamed(sounds[handle].handle, v, pan, 0, 1.0f);
+    int rval = -1;
+
+    switch (snd_backend) {
+    case 1:
+        rval = ds_play_streamed(sounds[handle].handle, v, pan, 0, 1.0f);
+        break;
+    }
+    return rval;
 }
 
 // 0x520f20  Confidence: exact.
@@ -387,9 +433,14 @@ int snd_play_streamed_looping(int handle, float volume, float pan)
     v = snd_get_volume(handle, volume);
     if (v < 0.0f)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    return ds_play_streamed(sounds[handle].handle, v, pan, 1, 1.0f);
+    int rval = -1;
+
+    switch (snd_backend) {
+    case 1:
+        rval = ds_play_streamed(sounds[handle].handle, v, pan, 1, 1.0f);
+        break;
+    }
+    return rval;
 }
 
 // 0x520fa0  Confidence: likely (`zero` is a stack local in the binary, loaded when the divisor is 0).
@@ -488,7 +539,7 @@ float sound_emitter_calc_pan(const vector3 *a, const vector3 *b)
     return pan;
 }
 
-// 0x521310  Confidence: likely. freq * (600 + v_listener . to_listener) / (600 - v_source . to_source).
+// 0x521310  Confidence: exact. freq * (600 + v_listener . to_listener) / (600 - v_source . to_source).
 int sound_emitter_calc_doppler(int freq, const vector3 *pos, const vector3 *vel)
 {
     vector3 to_source;
@@ -501,7 +552,7 @@ int sound_emitter_calc_doppler(int freq, const vector3 *pos, const vector3 *vel)
     return (int)((to_source.dot(snd_listener_vel) + 600.0f) / (600.0f - to_listener.dot(*vel)) * freq);
 }
 
-// 0x5213b0  Confidence: likely. The same for the nearest point of segment a-b.
+// 0x5213b0  Confidence: exact. The same for the nearest point of segment a-b.
 int sound_emitter_calc_doppler_segment(int freq, const vector3 *a, const vector3 *b, const vector3 *vel)
 {
     vector3 to_source;
@@ -549,22 +600,37 @@ int snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused)
 // 0x5215d0  Confidence: exact.
 void snd_stop(int sig)
 {
-    if (!snd_disabled && sig != -1 && snd_backend == 1)
-        ds_stop(sig);
+    if (!snd_disabled && sig != -1) {
+        switch (snd_backend) {
+        case 1:
+            ds_stop(sig);
+            break;
+        }
+    }
 }
 
 // 0x521600  Confidence: exact.
 void snd_stop_all()
 {
-    if (!snd_disabled && snd_backend == 1)
-        ds_stop_all();
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            ds_stop_all();
+            break;
+        }
+    }
 }
 
 // 0x521620  Confidence: exact.
 void snd_stop_fade(int sig, int ms)
 {
-    if (!snd_disabled && sig != -1 && snd_backend == 1)
-        ds_stop_fade(sig, ms);
+    if (!snd_disabled && sig != -1) {
+        switch (snd_backend) {
+        case 1:
+            ds_stop_fade(sig, ms);
+            break;
+        }
+    }
 }
 
 // 0x521650  Confidence: exact.
@@ -572,9 +638,14 @@ bool snd_is_playing(int sig)
 {
     if (snd_disabled)
         return false;
-    if (snd_backend != 1)
-        return false;
-    return ds_is_playing(sig);
+    bool rval = false;
+
+    switch (snd_backend) {
+    case 1:
+        rval = ds_is_playing(sig);
+        break;
+    }
+    return rval;
 }
 
 // 0x521680  Confidence: exact (the clamp writes the argument).
@@ -586,8 +657,11 @@ void snd_set_volume(int sig, float volume)
         volume = 0.0f;
     else if (volume >= 1.0f)
         volume = 1.0f;
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_set_volume(sig, volume);
+        break;
+    }
 }
 
 // 0x5216e0  Confidence: exact. The playing channel sig of sound handle at its group volume.
@@ -600,8 +674,11 @@ void snd_set_volume_in_group(int handle, int sig, float volume)
     else if (volume >= 1.0f)
         volume = 1.0f;
     volume = snd_get_volume(handle, volume);
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_set_volume(sig, volume);
+        break;
+    }
 }
 
 // 0x521760  Confidence: exact.
@@ -613,8 +690,11 @@ void snd_set_pan(int sig, float pan)
         pan = -1.0f;
     else if (pan >= 1.0f)
         pan = 1.0f;
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_set_pan(sig, pan);
+        break;
+    }
 }
 
 // 0x5217c0  Confidence: exact.
@@ -623,8 +703,11 @@ void snd_set_frequency(int sig, int freq)
     if (snd_disabled)
         return;
     clamp_uint((unsigned int *)&freq, 100, 100000);
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_set_frequency(sig, freq);
+        break;
+    }
 }
 
 // 0x521800  Confidence: exact.
@@ -632,20 +715,25 @@ int snd_get_frequency(int sig, unsigned int *freq)
 {
     if (snd_disabled)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    return ds_get_frequency(sig, freq);
+    switch (snd_backend) {
+    case 1:
+        return ds_get_frequency(sig, freq);
+    }
+    return -1;
 }
 
-// 0x521830  Confidence: likely (no return value: EAX holds whatever the last call or test left).
+// 0x521830  Confidence: exact (no return value: EAX holds whatever the last call or test left).
 void snd_get_format(int handle, int *a, int *b, int *c)
 {
     if (snd_disabled || handle < 0 || handle >= SND_MAX_SOUNDS)
         return;
     if (sounds[handle].handle < 0 && snd_load(handle, 0) == -1)
         return;
-    if (snd_backend == 1)
+    switch (snd_backend) {
+    case 1:
         ds_get_format(sounds[handle].handle, a, b, c);
+        break;
+    }
 }
 
 // 0x5218a0  Confidence: exact.
@@ -663,8 +751,13 @@ void snd_set_group_volume(int group, float volume)
     else if (volume >= 1.0f)
         volume = 1.0f;
     snd_group_volumes[group] = volume;
-    if (!snd_disabled && snd_backend == 1)
-        ds_set_group_volume(group, volume);
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            ds_set_group_volume(group, volume);
+            break;
+        }
+    }
 }
 
 // 0x521950  Confidence: exact.
@@ -676,8 +769,12 @@ float snd_get_group_volume(int group)
 // 0x521960  Confidence: exact (tail jump).
 int snd_get_num_playing_channels()
 {
-    if (!snd_disabled && snd_backend == 1)
-        return ds_get_num_playing_channels();
+    if (!snd_disabled) {
+        switch (snd_backend) {
+        case 1:
+            return ds_get_num_playing_channels();
+        }
+    }
     return 0;
 }
 
@@ -784,7 +881,7 @@ float snd_get_duration(int handle)
     return 0.0f;
 }
 
-// 0x521c20  Confidence: likely (the first format value lives in the handle's argument slot).
+// 0x521c20  Confidence: exact (the first format value lives in the handle's argument slot).
 int snd_calc_duration(int handle)
 {
     float duration;
@@ -797,7 +894,7 @@ int snd_calc_duration(int handle)
     return (int)(a * b * duration) / 8;
 }
 
-// 0x521ca0  Confidence: likely (EH frame for the File, which only the not-loaded branch uses).
+// 0x521ca0  Confidence: exact (EH frame for the File, which only the not-loaded branch uses).
 int snd_estimate_file_duration(int handle)
 {
     float duration;

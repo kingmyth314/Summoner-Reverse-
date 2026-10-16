@@ -59,7 +59,7 @@ bool file_inited;                                  // 0x26b637c
 int vfile_access_level;                            // 0x26b6380
 bool file_root_exts_set;                           // 0x26b6384
 
-// 0x512930  Confidence: likely (the EH state numbering). install_path + the path's directory, or for the
+// 0x512930  Confidence: exact (the EH state numbering). install_path + the path's directory, or for the
 // root the install path without its trailing backslash (substr to size - 2). No caller.
 String file_get_path_string(int path_id)
 {
@@ -70,7 +70,7 @@ String file_get_path_string(int path_id)
     return s.substr(0, s.size() - 2);
 }
 
-// 0x5129e0  Confidence: likely. No caller.
+// 0x5129e0  Confidence: exact. No caller.
 String file_get_dir_string(int path_id)
 {
     String s("");
@@ -135,7 +135,7 @@ char *file_make_cd_path(int path_id, const char *name, char *out)
     return out;
 }
 
-// 0x512cd0  Confidence: likely (the id <= 0 test is a jle after the range check).
+// 0x512cd0  Confidence: exact (the id <= 0 test is a jle after the range check).
 bool file_path_id_valid(int path_id)
 {
     if (path_id == PATH_ANY)
@@ -164,7 +164,7 @@ void file_shutdown()
     file_inited = false;
 }
 
-// 0x512d60  Confidence: likely (GetModuleFileNameA's buffer is a 256-byte local copied with strcpy).
+// 0x512d60  Confidence: exact (GetModuleFileNameA's buffer is a 256-byte local copied with strcpy).
 void file_init(const char *path, int use_packfiles)
 {
     char exe_path[256];
@@ -308,7 +308,7 @@ int file_make_path_dirs(int path_id)
     return file_make_dirs(file_get_full_dir(path_id, dir));
 }
 
-// 0x513210  Confidence: likely. Creates the parent directories first (recursion on the path without its
+// 0x513210  Confidence: exact. Creates the parent directories first (recursion on the path without its
 // last component), then the directory itself; the _mkdir result is ignored, so the function always
 // returns 0.
 int file_make_dirs(const char *path)
@@ -327,7 +327,7 @@ int file_make_dirs(const char *path)
     return 0;
 }
 
-// 0x513280  Confidence: likely (File is constructed after file_make_path). Deletes every plain file of
+// 0x513280  Confidence: exact (File is constructed after file_make_path). Deletes every plain file of
 // the path that is not read-only; returns the count. No caller.
 int file_delete_all(int path_id)
 {
@@ -478,7 +478,9 @@ bool file_exists_on_disk(const char *name, int path_id)
     if (path_id == PATH_ANY || path_id == PATH_NONE)
         return false;
     file_make_path(path_id, name, path);
-    return _stat(path, &st) == 0;
+    if (_stat(path, &st) == 0)
+        return true;
+    return false;
 }
 
 // 0x513770  Confidence: exact.
@@ -493,7 +495,7 @@ bool file_delete(const char *name, int path_id)
     return _unlink(path) == 0;
 }
 
-// 0x5137e0  Confidence: likely. The File local is constructed and destroyed but never used.
+// 0x5137e0  Confidence: exact. The File local is constructed and destroyed but never used.
 void file_delete_small_files(const char *pattern, int path_id)
 {
     struct _finddata_t fd;
@@ -520,7 +522,9 @@ char *file_getcwd(char *buf, int size)
 // 0x5138e0  Confidence: exact.
 bool file_chdrive(int drive)
 {
-    return _chdrive(drive) == 0;
+    if (_chdrive(drive) == 0)
+        return true;
+    return false;
 }
 
 // 0x513900  Confidence: likely (root is initialised after the drive switch, so it is declared there).
@@ -601,34 +605,35 @@ int FileReader::tell()
     return file->tell();
 }
 
-// 0x513a90  Confidence: likely (case 0 shares case 1's bound check). Memory blocks: only positive
+// 0x513a90  Confidence: exact (case 0 shares case 1's bound check). Memory blocks: only positive
 // offsets are accepted (seek(0, 0) fails), and origin 2 counts back from the current position, not from
 // the end (NOTES.md). 0 or -1.
 int FileReader::seek(int offset, int origin)
 {
-    if (mode == 0)
-        return file->seek(offset, origin);
-    switch (origin) {
-    case 0:
-        if (offset > 0 && offset < size) {
-            pos = offset;
-            return 0;
+    if (mode != 0) {
+        switch (origin) {
+        case 0:
+            if (offset > 0 && offset < size) {
+                pos = offset;
+                return 0;
+            }
+            break;
+        case 1:
+            if (offset > 0 && offset + pos < size) {
+                pos = offset + pos;
+                return 0;
+            }
+            break;
+        case 2:
+            if (offset > 0 && pos - offset >= 0) {
+                pos = pos - offset;
+                return 0;
+            }
+            break;
         }
-        break;
-    case 1:
-        if (offset > 0 && offset + pos < size) {
-            pos = offset + pos;
-            return 0;
-        }
-        break;
-    case 2:
-        if (offset > 0 && pos - offset >= 0) {
-            pos = pos - offset;
-            return 0;
-        }
-        break;
+        return -1;
     }
-    return -1;
+    return file->seek(offset, origin);
 }
 
 // 0x513b00  Confidence: exact.
@@ -803,7 +808,7 @@ void file_set_cd_root(const char *path)
 
 // ---- File ------------------------------------------------------------------------------------------
 
-// 0x513ec0  Confidence: likely (found = true, then the byte is returned).
+// 0x513ec0  Confidence: exact (found = true, then the byte is returned).
 bool File::find_at(const char *path, PackfileEntry **entry, bool use_packfiles)
 {
     struct _stat st;
@@ -827,7 +832,7 @@ bool File::find_in_path(const char *name, int path_id, PackfileEntry **entry, bo
     return find_at(full_path, entry, use_packfiles);
 }
 
-// 0x513f70  Confidence: likely. Passes the address of its own name parameter as the packfile entry out
+// 0x513f70  Confidence: exact. Passes the address of its own name parameter as the packfile entry out
 // pointer (lea edx, [esp + 0x10] is the first argument's slot), so a packfile hit overwrites the local
 // name instead of packentry (NOTES.md). No caller.
 bool File::find_on_cd(const char *name, int path_id, bool use_packfiles)
@@ -840,7 +845,9 @@ bool File::find_on_cd(const char *name, int path_id, bool use_packfiles)
 // 0x513fb0  Confidence: exact.
 bool File::is_absolute_path(const char *name)
 {
-    return name[1] == ':' || name[0] == '/' || name[0] == '\\';
+    if (name[1] == ':' || name[0] == '/' || name[0] == '\\')
+        return true;
+    return false;
 }
 
 // 0x513fd0  Confidence: exact. offset = the entry's first sector * 2048.
@@ -872,7 +879,7 @@ int File::find_free_slot()
     return -1;
 }
 
-// 0x5140d0  Confidence: likely (store order).
+// 0x5140d0  Confidence: exact (store order).
 File::File()
 {
     full_path[0] = '\0';
@@ -1076,7 +1083,7 @@ int File::open_found(int mode)
     return 0;
 }
 
-// 0x514630  Confidence: likely. An explicit path id is tried first; then the path of the last PATH_ANY
+// 0x514630  Confidence: exact. An explicit path id is tried first; then the path of the last PATH_ANY
 // open when the extension is the same (not for path_root); then a PATH_ANY search, whose path id and
 // extension are remembered on success.
 int File::open(const char *name, int mode, int path_id)

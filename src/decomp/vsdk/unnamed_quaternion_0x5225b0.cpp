@@ -26,7 +26,7 @@ cquat cquat_identity(0, 0, 0, CQUAT_ONE);         // 0x2cbf498
 // 0x5225e0 init_quaternion_identity (jmp 0x5225f0: quaternion(0, 0, 0, 1)). Confidence: exact.
 quaternion quaternion_identity(0.0f, 0.0f, 0.0f, 1.0f);   // 0x2cbf4a0
 
-// 0x522610  Confidence: likely (the case order of the switch; m.uvec.y + m.fvec.z is kept for case 0).
+// 0x522610  Confidence: exact (the case order of the switch; m.uvec.y + m.fvec.z is kept for case 0).
 // Shoemake's conversion: from the trace when it is >= 0, else from the largest diagonal element.
 quaternion::quaternion(const matrix &m)
 {
@@ -191,7 +191,7 @@ void quaternion::to_matrix(matrix *out) const
 
     m->m[0][0] = 1.0f - yy2 - zz2;
     xy = x * y;
-    wz = w * z;
+    wz = z * w;
     m->m[0][1] = xy * 2.0f - wz * 2.0f;
     wy = w * y;
     xz = z * x;
@@ -200,7 +200,7 @@ void quaternion::to_matrix(matrix *out) const
     xx = 1.0f - x * x * 2.0f;
     m->m[1][1] = xx - zz2;
     yz = z * y;
-    wx = w * x;
+    wx = x * w;
     m->m[1][2] = yz * 2.0f - wx * 2.0f;
     m->m[2][0] = xz * 2.0f - wy * 2.0f;
     m->m[2][1] = (wx + yz) * 2.0f;
@@ -219,7 +219,7 @@ void quaternion::to_matrix_b(matrix *out) const
 
     out->rvec.x = 1.0f - yy2 - zz2;
     xy = x * y;
-    wz = w * z;
+    wz = z * w;
     out->rvec.y = xy * 2.0f - wz * 2.0f;
     wy = w * y;
     xz = z * x;
@@ -272,7 +272,7 @@ quaternion quaternion::exp() const
     return quaternion(x * s, y * s, z * s, (float)cos(a));
 }
 
-// 0x522f20  Confidence: likely.
+// 0x522f20  Confidence: exact.
 void quaternion::normalize()
 {
     float s = (float)sqrt(1.0f / (x * x + y * y + z * z + w * w));
@@ -291,7 +291,7 @@ void quaternion::negate_xyz()
     z = -z;
 }
 
-// 0x522f90  Confidence: likely.
+// 0x522f90  Confidence: exact.
 void quaternion::log_in_place()
 {
     float s = (float)sqrt(x * x + y * y + z * z);
@@ -304,7 +304,7 @@ void quaternion::log_in_place()
     z *= s;
 }
 
-// 0x522ff0  Confidence: likely.
+// 0x522ff0  Confidence: exact.
 void quaternion::exp_in_place()
 {
     float a = (float)sqrt(x * x + y * y + z * z);
@@ -365,10 +365,10 @@ cquat cquat::exp() const
     return cquat((short)(fx * s), (short)(fy * s), (short)(fz * s), (short)((float)cos(a) * 16383.0f));
 }
 
-// 0x5232b0  Confidence: likely (the integer division of cquat::normalized, D4012).
+// 0x5232b0  Confidence: exact (the integer division of cquat::normalized, D4012).
 void cquat::normalize()
 {
-    int ix = x, iy = y, iz = z, iw = w;
+    int iw = w, iz = z, iy = y, ix = x;
     float s = (float)sqrt((float)((CQUAT_ONE * CQUAT_ONE) / (ix * ix + iy * iy + iz * iz + iw * iw)));
 
     x = (short)(ix * s);
@@ -418,7 +418,7 @@ void cquat::exp_in_place()
     w = (short)((float)cos(a) * 16383.0f);
 }
 
-// 0x523500  Confidence: likely (store order w first).
+// 0x523500  Confidence: exact (store order w first).
 void quaternion::make_identity()
 {
     w = 1.0f;

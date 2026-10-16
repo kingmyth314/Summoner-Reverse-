@@ -370,7 +370,9 @@ bool TextFile::Peek(const char *str)
     int len = strlen(str);
 
     SkipWhitespace();
-    return _strnicmp(cursor, str, len) == 0;
+    if (_strnicmp(cursor, str, len) == 0)
+        return true;
+    return false;
 }
 
 // 0x516110  Confidence: exact (sete then test: the result is a bool local).
@@ -385,7 +387,7 @@ bool TextFile::Accept(const char *str)
     return match;
 }
 
-// 0x516150  Confidence: likely (`cmp bl, 1`: a comparison with true). Accept skips whitespace after
+// 0x516150  Confidence: exact (`cmp bl, 1`: a comparison with true). Accept skips whitespace after
 // the opening quote, but the final advance is strlen + 2, so `" name"` is accepted and misplaces the
 // cursor by the skipped spaces.
 bool TextFile::AcceptQuoted(const char *str)
@@ -509,15 +511,16 @@ unsigned int TextFile::ParseUInt()
     return value;
 }
 
-// 0x516460  Confidence: likely (the two '.' tests share the fraction code). The integer part goes
+// 0x516460  Confidence: exact (the two '.' tests share the fraction code). The integer part goes
 // through ParseInt (which would accept a second '-'); the fraction sums digit * 0.1^n in x87
 // precision (0.0f 0x57eb84, 0.1f 0x580214).
 float TextFile::ParseFloat()
 {
-    bool neg = false;
+    bool neg;
     int whole;
 
     SkipWhitespace();
+    neg = false;
     if (*cursor == '-') {
         cursor++;
         neg = true;
@@ -631,7 +634,7 @@ int TextFile::ParseString(char *dest, int size, char open_quote, char close_quot
     return len;
 }
 
-// 0x516780  Confidence: likely. The text from the current position up to the terminator, trailing
+// 0x516780  Confidence: exact. The text from the current position up to the terminator, trailing
 // whitespace (space, 0x09-0x0d) dropped, then past the terminator.
 // Defect: the trim has no lower bound; with the terminator right after the skipped whitespace it walks
 // back before the start and the length goes negative.
@@ -751,7 +754,7 @@ int TextFile::ParseFloatList(float *list, int max_count)
     return count;
 }
 
-// 0x516ab0  Confidence: likely. ( "name" ... ) -> bit i for names[i]. A NULL entry ends the search
+// 0x516ab0  Confidence: exact. ( "name" ... ) -> bit i for names[i]. A NULL entry ends the search
 // without an error, so with a NULL-terminated table an unknown name is ignored silently.
 int TextFile::ParseFlags(const char **names, int count)
 {
@@ -808,7 +811,7 @@ int TextFile::ParseTypeString(const char **types, int count)
     return 0;
 }
 
-// 0x516c70  Confidence: likely (the constructor is the out-of-line COMDAT 0x514eb0, then init; see
+// 0x516c70  Confidence: exact (the constructor is the out-of-line COMDAT 0x514eb0, then init; see
 // crc32.h).
 unsigned int TextFile::Checksum()
 {
@@ -824,7 +827,7 @@ String bool_to_String(bool b)
     return String(b ? "true" : "false");
 }
 
-// 0x516cd0  Confidence: likely (one expression; the operands are built right to left: z, y, x, then
+// 0x516cd0  Confidence: exact (one expression; the operands are built right to left: z, y, x, then
 // "< ", and the literals are emitted " >", ", ", ", ", "< ").
 String vector3_to_string(const vector3 *v, int precision)
 {
@@ -832,7 +835,7 @@ String vector3_to_string(const vector3 *v, int precision)
            + ", " + String::from_float(v->z, precision) + " >";
 }
 
-// 0x516e80  Confidence: likely (as vector3_to_string; rows fvec, uvec, rvec are built first).
+// 0x516e80  Confidence: exact (as vector3_to_string; rows fvec, uvec, rvec are built first).
 String matrix3_to_string(const matrix *m, int precision)
 {
     return "\n\t[ " + vector3_to_string(&m->rvec, precision) + "\n\t  " + vector3_to_string(&m->uvec, precision)
@@ -840,7 +843,7 @@ String matrix3_to_string(const matrix *m, int precision)
 }
 
 // 0x517000  Confidence: exact.
-void bool_to_cstr(char *dest, bool b)
+void bool_to_cstr(char *dest, int size, bool b)
 {
     if (b)
         strcpy(dest, "true");
@@ -858,7 +861,7 @@ void vector3_to_cstr(char *dest, int size, const vector3 *v, int precision)
     strcpy(dest, buf);
 }
 
-// 0x5170d0  Confidence: likely (the frame is 8-byte aligned: and esp, -8 with EBP; why is not known).
+// 0x5170d0  Confidence: exact (the frame is 8-byte aligned: and esp, -8 with EBP; why is not known).
 // size unused (caller script_write_navpoint).
 void matrix3_to_cstr(char *dest, int size, const matrix *m, int precision)
 {
