@@ -4,6 +4,7 @@
 // usage: node tools/savedit.mjs <in.sav> <out.sav> [edits...]
 //   --desc "text"          description shown on the Save/Load screens (max 255 characters)
 //   --gold N               party gold (INVT +0x04)
+//   --add-item "Name[=N]"  one more party inventory entry (N items, default 1); names as in items.tbl
 //   --member I             which party member the following fields change (0 = first, default)
 //   --level N  --xp N  --hp N  --maxhp N  --ap N  --maxap N  --skillpoints N
 //   --skill ID=VALUE       a skill byte (ids 0-35 are saved; 10 = level 1, see the skill table in docs/sum-exe/characters.md).
@@ -28,7 +29,7 @@ const chunkAt = (b, tag) => {
 const args = process.argv.slice(2);
 const [input, output] = args;
 if (!input || !output || input.startsWith("--") || output.startsWith("--")) {
-  console.log("usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--member I] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE]");
+  console.log("usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--member I] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE]");
   process.exit(1);
 }
 if (resolve(input) === resolve(output)) { console.error("refusing: output must be a different file than the input"); process.exit(1); }
@@ -42,7 +43,7 @@ for (let i = 2; i < args.length; i++) {
   if (!args[i].startsWith("--")) { console.error(`unexpected argument ${args[i]}`); process.exit(1); }
   opts[args[i].slice(2)] = args[++i];
 }
-const known = ["desc", "gold", "member", "level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"];
+const known = ["desc", "gold", "add-item", "member", "level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"];
 for (const k of Object.keys(opts)) if (!known.includes(k)) { console.error(`unknown option --${k}`); process.exit(1); }
 const num = (k) => { const v = Number(opts[k]); if (!Number.isFinite(v)) { console.error(`--${k} needs a number`); process.exit(1); } return v; };
 const changes = [];
@@ -59,6 +60,27 @@ if (opts.gold !== undefined) {
   const old = b.readInt32LE(invt + 4);
   b.writeInt32LE(num("gold") | 0, invt + 4);
   changes.push(`gold ${old} -> ${num("gold") | 0}`);
+}
+// --add-item "Name[=count]": one more party inventory entry. The game finds item types by name_hash_nocase
+// (0x4d5f50): Crc32 (0x552130, table polynomial 0xedb88320, starting at 0, no final inversion) of the lower-cased
+// name. The INVT section has a fixed capacity, so the entry, the count (+0x08) and the trailing length move inside
+// it; an unknown name makes the load fail with "Couldn't find item type!!!", so spell the item as items.tbl does.
+const crcTable = Array.from({ length: 256 }, (_, i) => { let v = i; for (let k = 0; k < 8; k++) v = v & 1 ? (v >>> 1) ^ 0xedb88320 : v >>> 1; return v >>> 0; });
+const nameHash = (s) => { let v = 0; for (const ch of Buffer.from(s.toLowerCase(), "latin1")) v = (crcTable[(v ^ ch) & 0xff] ^ (v >>> 8)) >>> 0; return v; };
+if (opts["add-item"] !== undefined) {
+  const invt = chunkAt(b, "INVT");
+  if (invt < 0) { console.error("no INVT chunk"); process.exit(1); }
+  const m = /^(.*?)(?:=(\d+))?$/.exec(opts["add-item"]);
+  const name = m[1], count = m[2] ? Number(m[2]) : 1, n = b.readInt32LE(invt + 8);
+  const capacity = b.readInt32LE(0x1b0 + 4 * 4); // the INVT section size in the header's size table
+  if (16 + 12 * (n + 1) + 4 > capacity || n + 1 > 0x209) { console.error("the party inventory is full"); process.exit(1); }
+  const at = invt + 0x0c + 12 * n;
+  b.writeUInt32LE(nameHash(name), at);
+  b.writeInt32LE(count, at + 4);
+  b.writeInt32LE(0, at + 8);
+  b.writeInt32LE(n + 1, invt + 8);
+  b.writeInt32LE(12 + 12 * (n + 1) + 4, at + 12);
+  changes.push(`added ${count} x "${name}" (hash 0x${nameHash(name).toString(16)}) to the party inventory`);
 }
 
 const fieldOpts = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints", "skill"].filter((k) => opts[k] !== undefined);

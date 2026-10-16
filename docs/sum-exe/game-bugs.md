@@ -921,7 +921,7 @@ a script without the rider triggers it. Both retail scripts place their rider. S
 | G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code, *inferred* effect | No |
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
-| G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | No |
+| G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code and retail data | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
@@ -1572,6 +1572,13 @@ Robe of Restoration, `+Triggered Effect: "heal" 20 20` ("may cast a Heal spell u
 "+Beneficial" without "+Hit only". `spell_cast_execute`'s case for spell 0 calls `living_entity_get_hit_by_spell` on
 `living_from_handle(target)` (`0x47c9a6`..`0x47c9d4`), so the enemy gets the Heal. Found in the
 `NOTES-sweep-below-0x4a0000.md` notes (their K300 candidate, the offensive case, has no retail item).
+
+**Reproduced and fixed (2026-10-16).** In agent mode (Ikaemos exterior reached with `play_and_load_cutscene
+Nar-Ikaemos`, the Robe added with `tools/savedit.mjs --add-item`, Rosalind alone in Solo mode against a Bacite
+Shaman, `[Debug] TraceArmourSpells` logging the call at `0x467c86`) the Robe cast "spell 0 cast by Rosalind on
+Bacite Shaman#1az (team 2)" right after the Shaman's hit. SummonerFix (`bugfix.c`) changes `mov ecx, [ebp]` at
+`0x467b0f` to `mov ecx, eax` (eax holds the wearer there), and in the same test the next three casts went "on
+Rosalind".
 
 **G301. 100 for 10.** In `Lenele2ab_dlg.tbl` the topic {Give him 10 gold pieces.} under {"Massacre?"} triggers
 "payoff". `ls_lenele2ab_action` then sends Canis away and subtracts 100 (`sub eax, 0x64` at `0x4f124d`), clamping the

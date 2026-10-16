@@ -238,7 +238,7 @@ missing from `symbols/ghidra-functions.tsv`.
 | `ghost_solo` | `0x4ba050` | `0x2480938` | Set ghost without horse |
 | `ghost_stage` | `0x4b9ea0` | `0x2480928` | Set Ghost rider's current combat stage |
 | `ghost_unlink` | `0x4b9f00` | `0x2480910` | Unlinks ghost from mount |
-| `Give_all_items` | `0x438070` | `0x609f60` | Toggles Give_all_items |
+| `Give_all_items` | `0x438070` | `0x609f60` | Toggles Give_all_items (no effect in retail: only `ls_test_init` writes the flag and nothing reads it) |
 | `gr_info` | `0x433280` | `0x5fbf30` | Toggles Gamewide_show_gr_info |
 | `gr_show_stats` | `0x505cc0` | `0x25d8de0` | Toggles Gr_show_stats |
 | `gs_stage` | `0x4c80a0` | `0x248c7c0` | Set Giant salamanka's current combat stage |

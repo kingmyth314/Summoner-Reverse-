@@ -233,6 +233,12 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
   `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`). Testing only.
 
+For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
+armour casts (caster, target, team), and the HUD's Solo button keeps the other party members out of a fight.
+The inventory equips by drag only when the button is held about 0.4 s before the mouse moves (`down left; wait
+400; move ...; up left`); `drag` is too fast. The console cheat `Give_all_items` does nothing in retail levels (only
+the test level's script writes it, nothing reads it); add items with `savedit.mjs --add-item` instead.
+
 Console commands need `postkey` with a `[ConsoleKeys]` binding (`key` goes through DirectInput and never reaches
 the console keys). `[Debug] TestSaves=1` keeps test saves in `Summoner/savetest`. To reach a story level, bind
 `play_and_load_cutscene <cutscene>` (cutscene names and levels are in `cutscene.tbl`); it sets `game_flags` bit
@@ -268,6 +274,12 @@ so raising the level does not add the HP, AP or skill points of the skipped leve
 which dead heroes keep) are counted by `--member`; type 8 is a dying summon, with no level, XP or skill block. The chunks are found from the
 size table, not by a tag search (fixed 2026-10-15). Tested 2026-10-14: an edited copy
 (5000 gold, 10 skill points) loaded and showed both values.
+
+`--add-item "Name[=N]"` (2026-10-16) adds a party inventory entry. Items are found by `name_hash_nocase`
+(`0x4d5f50`): CRC-32 of the lower-cased name, table polynomial `0xedb88320`, starting at 0 with no final inversion
+(checked against the Ring of Light and Ring of Darkness entries of a fresh save). Spell the name as `items.tbl`
+does; an unknown hash fails the load. Tested: a save with `--add-item "Robe of Restoration"` loaded with the Robe
+in the party inventory.
 
 ```
 node tools/savedit.mjs Summoner/savegame/summoner7.sav edited.sav --gold 5000 --skillpoints 10 --desc "edited"

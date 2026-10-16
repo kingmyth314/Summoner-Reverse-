@@ -78,6 +78,9 @@ void DisplayGetAgentCursor(int *clientX, int *clientY);
 // agent.c
 void AgentInstall(void);
 
+// trace.c (testing: [Debug] TraceArmourSpells)
+void TraceInstall(void);
+
 // gamma.c
 void GammaConfigure(const char *mode); // [Display] Brightness: Auto, Shader, Ramp or Off
 void GammaApply(HWND wnd, int cw, int ch);

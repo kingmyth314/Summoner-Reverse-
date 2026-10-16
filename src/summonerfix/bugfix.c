@@ -20,12 +20,20 @@
 // group * sound volume in again, so the slider value counts twice (0.5 gives 0.25). Fix: the fld / fdiv / fstp at
 // 0x52156e becomes a call that divides the group volume out as well, so the slider scales world sounds linearly,
 // like the DirectSound3D path. At full volume nothing changes.
+//
+// Robe of Restoration heals the attacker (not a crash; game-bugs G300). In single player
+// combat_trigger_reflex_ability casts an armour's beneficial "+Triggered Effect:" spell with the attacker's handle
+// as the target ([ebp] at 0x467b0f, then [ecx+0x80] at 0x467b17), so Rosalind's robe heals the enemy that hit her
+// (reproduced 2026-10-16 with [Debug] TraceArmourSpells). eax holds the wearer there (0x467afc; it is also the caster
+// pushed at 0x467c85), so mov ecx, [ebp] becomes mov ecx, eax: the heal lands on the wearer, as the reflex-ability
+// branch and the multiplayer branch already do.
 #include "summonerfix.h"
 #include <string.h>
 
 #define VA_DS_CHANNEL_STREAM_CHECK 0x55c5dbu // mov eax, [esi+0xc] ; test eax, eax  (8B 46 0C 85 C0)
 #define VA_DS_INITED 0x2f8f73cu              // byte, set to 1 at the end of ds_init
 #define VA_GL_VIDEO_MEMORY_MB 0x507a03u      // mov eax, 8 in gr_get_video_memory_mb (OpenGL case)
+#define VA_ARMOUR_SPELL_TARGET 0x467b0fu    // mov ecx, [ebp] (the attacker) in combat_trigger_reflex_ability
 #define VA_SND_PLAY_3D_DIVIDE 0x52156eu      // fld [esp+0x1c] ; fdiv [esi+0x28] ; fstp [esp+0x1c] in snd_play_3d
 #define VA_SND_GROUP_VOLUMES 0x2cb542cu      // float snd_group_volumes[], indexed by the sound's group
 
@@ -74,6 +82,10 @@ void BugFixesInstall(void)
     static const BYTE glMemOrig[5] = {0xB8, 0x08, 0x00, 0x00, 0x00}; // mov eax, 8
     static const BYTE glMemRepl[5] = {0xB8, 0x40, 0x00, 0x00, 0x00}; // mov eax, 64
     PatchBytes(VA_GL_VIDEO_MEMORY_MB, glMemOrig, glMemRepl, 5, "OpenGL video memory reported as 8 MB (low textures on a fresh install)");
+
+    static const BYTE robeOrig[3] = {0x8B, 0x4D, 0x00}; // mov ecx, [ebp]
+    static const BYTE robeRepl[3] = {0x8B, 0xC8, 0x90}; // mov ecx, eax ; nop
+    PatchBytes(VA_ARMOUR_SPELL_TARGET, robeOrig, robeRepl, 3, "armour heal aimed at the attacker (G300, Robe of Restoration)");
 
     // eax, ecx and edx are reloaded before their next use in snd_play_3d; the FPU stack is empty here.
     g_sndGroupVolumes = (volatile float *)(UINT_PTR)SumVa(VA_SND_GROUP_VOLUMES);
