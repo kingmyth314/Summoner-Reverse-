@@ -44,7 +44,7 @@ ubyte vfx_render_value_b;                            // 0x2dbfd15 (label ours)
 int vfx_render_flag;                                 // 0x2dbfd18 (label ours)
 int vfx_render_bitmap = -1;                          // 0x5a9cfc (label ours)
 
-// 0x5369c0  Confidence: likely (the store order). sum.symbols: vfx_instance__clear (D4701).
+// 0x5369c0  Confidence: exact (the store order). sum.symbols: vfx_instance__clear (D4701).
 void vfx_base::clear()
 {
     flags &= 0xe000;
@@ -148,7 +148,7 @@ int vfx_instance::init_nodes(vfx_base *base, bool no_light, bool level)
     return 0;
 }
 
-// 0x536bc0  Confidence: likely. Names against the header base, table pointers against the base; then
+// 0x536bc0  Confidence: exact. Names against the header base, table pointers against the base; then
 // every record; the counts are capped afterwards.
 void vfx_base::relocate_node(char *header_base, char *base)
 {
@@ -364,7 +364,7 @@ bool vfx_instance::is_stopped()
     return id_bits & 1;
 }
 
-// 0x537280  Confidence: likely.
+// 0x537280  Confidence: exact.
 void vfx_instance::set_stopped(bool stopped)
 {
     id_bits = (id_bits & ~1) | (stopped & 1);
@@ -551,7 +551,7 @@ bool vfx_instance::node_can_bind(int node)
     return false;
 }
 
-// 0x537800  Confidence: likely (the bit merge).
+// 0x537800  Confidence: exact (the bit merge).
 void vfx_instance::reset_flags(bool a, bool b)
 {
     set_stopped(false);
@@ -560,7 +560,7 @@ void vfx_instance::reset_flags(bool a, bool b)
     elapsed = 0.0f;
 }
 
-// 0x537840  Confidence: likely (jump table 0x5379f0). The node's transform relative to the instance;
+// 0x537840  Confidence: exact (jump table 0x5379f0). The node's transform relative to the instance;
 // the first mesh's when the node has none (an emitter sub-tag, a negative index, a missing record).
 void vfx_instance::get_node_transform(vector3 *pos, matrix *orient, int node)
 {
@@ -721,17 +721,19 @@ void vfx_instance::get_node_world_transform(int node, vector3 pos, matrix orient
 int vfx_instance::find_tag(const char *name)
 {
     int i, n;
+    const char *tag;
 
     n = get_base()->get_num_tags();
     for (i = 0; i < n; i++) {
-        if (_stricmp(get_tag_name(i), name) == 0)
+        tag = get_tag_name(i);
+        if (_stricmp(tag, name) == 0)
             return i;
     }
     printf(">>> FAILED TO GET TAG %s\n", name);
     return -1;
 }
 
-// 0x537f70  Confidence: likely (jump table 0x538248). Not a transform: hides (a) or shows the tag, and
+// 0x537f70  Confidence: exact (jump table 0x538248). Not a transform: hides (a) or shows the tag, and
 // with b every tag whose parent it is; hiding a light frees its attached light. sum.symbols' name is kept.
 void vfx_instance::get_tag_transform(int tag, bool a, bool b)
 {
@@ -796,7 +798,8 @@ void vfx_instance::get_tag_transform(int tag, bool a, bool b)
     }
 }
 
-// 0x538260  Confidence: likely. A done instance is drawn only with bit 8; a stopped mesh likewise. An
+// 0x538260  Confidence: likely (D6304: the mesh case is the else branch; the index is read unsigned, as
+// render_scene casts it). A done instance is drawn only with bit 8; a stopped mesh likewise. An
 // emitter is updated here before it is drawn.
 void vfx_instance::render_node(vfx_node_ref *ref, const vector3 *pos, const matrix *orient)
 {
@@ -807,20 +810,22 @@ void vfx_instance::render_node(vfx_node_ref *ref, const vector3 *pos, const matr
     if ((id_bits & 4) && !(id_bits & 8))
         return;
     base = get_base();
-    if (ref->kind == VFX_TAG_MESH) {
+    if (ref->kind != VFX_TAG_MESH) {
+        if (ref->kind == VFX_TAG_EMITTER) {
+            e = (fx_recb0 *)ref->inst;
+            e->update(&base->emitters[(ushort)ref->index], time, pos, orient, (id_bits >> 4) & 1);
+            e->render(&base->emitters[(ushort)ref->index], time);
+        }
+    } else {
         if ((id_bits & 1) && !(id_bits & 8))
             return;
         m = (fx_rec98 *)ref->inst;
         m->alpha = render_alpha;
-        m->render(&base->node_descs[ref->index], time, pos, orient);
-    } else if (ref->kind == VFX_TAG_EMITTER) {
-        e = (fx_recb0 *)ref->inst;
-        e->update(&base->emitters[ref->index], time, pos, orient, (id_bits >> 4) & 1);
-        e->render(&base->emitters[ref->index], time);
+        m->render(&base->node_descs[(ushort)ref->index], time, pos, orient);
     }
 }
 
-// 0x538340  Confidence: likely (the sum's order).
+// 0x538340  Confidence: exact (the sum's order).
 int vfx_base::get_num_tags()
 {
     int n, i;
@@ -871,9 +876,10 @@ void vfx_instance__setup_render_state(ubyte *out, vfx_instance *vi)
     vfx_render_alpha = (ubyte)(mat->eval_curve34(vi->time) * 255.0f);
     *out = (ubyte)(mat->eval_curve48(vi->time) * 255.0f);
     vfx_render_value_b = (ubyte)(mat->eval_curve44(vi->time) * 255.0f);
+    unsigned int flags = mat->flags;
     vfx_render_bitmap = mat->layers[1].bitmap;
-    vfx_render_blend = (mat->flags >> 3) & 7;
-    vfx_render_flag = (mat->flags >> 6) & 1;
+    vfx_render_blend = (flags >> 3) & 7;
+    vfx_render_flag = (flags >> 6) & 1;
 }
 
 // 0x5384f0  Confidence: exact (vfx_render_blend is not reset).
@@ -885,20 +891,22 @@ void vfx_render_state_reset()
     vfx_render_flag = 0;
 }
 
-// 0x538510  Confidence: likely. The seconds to the base's last frame plus the longest emitter.
+// 0x538510  Confidence: exact. The seconds to the base's last frame plus the longest emitter.
 float vfx_instance::get_time_left()
 {
     vfx_base *base;
+    float t;
 
     if (id_bits & 4)
         return 0.0f;
     base = get_base();
     if (base == NULL)
         return 0.0f;
-    return float_max(0.0f, (base->num_frames - time) * (1.0f / 15.0f) + length);
+    t = (base->num_frames - time) * (1.0f / 15.0f) + length;
+    return float_max(0.0f, t);
 }
 
-// 0x538570  Confidence: likely (an out-of-line definition here: it has no caller, yet it is in the
+// 0x538570  Confidence: exact (an out-of-line definition here: it has no caller, yet it is in the
 // binary; sum.symbols vfx_instance__ctor, D4701).
 vfx_base::vfx_base()
 {

@@ -121,11 +121,11 @@ matrix matrix::multiply_transposed(const matrix &m) const
 // True when every row of this has a dot product within 5e-7 of 1 with the same row of m.
 bool matrix::rows_match(const matrix &m) const
 {
-    if (fabs(m.rvec.dot_xyz(rvec.x, rvec.y, rvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
+    if ((float)fabs(m.rvec.dot_xyz(rvec.x, rvec.y, rvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
         return false;
-    if (fabs(m.uvec.dot_xyz(uvec.x, uvec.y, uvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
+    if ((float)fabs(m.uvec.dot_xyz(uvec.x, uvec.y, uvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
         return false;
-    if (fabs(m.fvec.dot_xyz(fvec.x, fvec.y, fvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
+    if ((float)fabs(m.fvec.dot_xyz(fvec.x, fvec.y, fvec.z) - 1.0f) > MATRIX_ROW_EPSILON)
         return false;
     return true;
 }
@@ -164,7 +164,7 @@ void matrix::set_from_angles(float p, float b, float h)
     set_from_sincos((float)sin(p), (float)cos(p), (float)sin(b), (float)cos(b), (float)sin(h), (float)cos(h));
 }
 
-// 0x510110  Confidence: likely (the products are computed in the order declared; 2 * a is compiled as
+// 0x510110  Confidence: exact (the products are computed in the order declared; 2 * a is compiled as
 // a + a; 2yy, 2zz and 1 - 2xx are reused).
 // The rotation of the unit quaternion (axis * sin(angle / 2), cos(angle / 2)).
 void matrix::set_from_axis_angle(const vector3 &axis, float angle)
@@ -190,7 +190,7 @@ void matrix::set_from_axis_angle(const vector3 &axis, float angle)
     fvec.z = 1.0f - 2.0f * xx - 2.0f * yy;
 }
 
-// 0x510240  Confidence: likely (fvec.x goes through a stack copy before the first compare; the source
+// 0x510240  Confidence: exact (fvec.x goes through a stack copy before the first compare; the source
 // of that copy is not known).
 // Heading from fvec.x / fvec.z, pitch from -fvec.y, bank from rvec.y / uvec.y. Game bug (latent): the
 // cos(pitch) estimate MULTIPLIES by sin(h) / cos(h) (`fmul` at 0x5102b2 / 0x5102bd) where dividing
@@ -209,7 +209,7 @@ void matrix::extract_angles(float *p, float *b, float *h) const
     sinh = (float)sin(*h);
     cosh = (float)cos(*h);
 
-    if (fabs(sinh) > fabs(cosh))
+    if ((float)fabs(sinh) > (float)fabs(cosh))
         cosp = sinh * fvec.x;
     else
         cosp = cosh * fvec.z;
@@ -472,9 +472,9 @@ void matrix::transpose_in_place()
 {
     float t;
 
-    t = rvec.y; rvec.y = uvec.x; uvec.x = t;
-    t = rvec.z; rvec.z = fvec.x; fvec.x = t;
-    t = uvec.z; uvec.z = fvec.y; fvec.y = t;
+    t = uvec.x; uvec.x = rvec.y; rvec.y = t;
+    t = fvec.x; fvec.x = rvec.z; rvec.z = t;
+    t = fvec.y; fvec.y = uvec.z; uvec.z = t;
 }
 
 // 0x510ea0  Confidence: exact.
@@ -486,7 +486,7 @@ void matrix::set_random()
     set_from_unit_forward(v);
 }
 
-// 0x510ed0  Confidence: likely (the adjugate is formed in a local matrix and divided by the
+// 0x510ed0  Confidence: exact (the adjugate is formed in a local matrix and divided by the
 // determinant; the ninth element is never stored to the local, which the compiler may do on its own).
 // Nothing happens for a singular matrix.
 void matrix::invert()
@@ -532,7 +532,7 @@ void matrix::make_identity()
     fvec.z = 1.0f;
 }
 
-// 0x511080  Confidence: likely (store order of the else branch).
+// 0x511080  Confidence: exact (store order of the else branch).
 // For a vertical forward the right vector is world x and up is -/+z; else right is horizontal.
 void matrix::set_from_forward(const vector3 &fwd)
 {
@@ -550,7 +550,7 @@ void matrix::set_from_forward(const vector3 &fwd)
     }
 }
 
-// 0x511140  Confidence: likely (as set_from_forward).
+// 0x511140  Confidence: exact (as set_from_forward).
 void matrix::set_from_unit_forward(const vector3 &fwd)
 {
     fvec = fwd;
@@ -632,7 +632,7 @@ matrix43::matrix43(const vector3 &pos, const matrix &rot)
     m[3][0] = pos.x; m[3][1] = pos.y; m[3][2] = pos.z;
 }
 
-// 0x5114b0  Confidence: likely (a loop over the four rows, the counter is the Homogeneous_column
+// 0x5114b0  Confidence: exact (a loop over the four rows, the counter is the Homogeneous_column
 // pointer; the term order of each sum is the compiler's). this * m with the implicit fourth column.
 // The result is a local copied out with the implicit copy constructor (rep movsd).
 matrix43 matrix43::operator*(const matrix43 &b) const
@@ -647,7 +647,7 @@ matrix43 matrix43::operator*(const matrix43 &b) const
     return r;
 }
 
-// 0x511570  Confidence: likely (the bool of operator== is normalised again with test / setne).
+// 0x511570  Confidence: exact (the bool of operator== is normalised again with test / setne).
 // The rotation rows match (dot products within 5e-7 of 1) and the positions are exactly equal.
 bool matrix43::equals(const matrix43 &o) const
 {
@@ -699,7 +699,7 @@ void matrix43::set(const quaternion &q, const vector3 &pos)
     set_position(pos);
 }
 
-// 0x511860  Confidence: likely (declaration order of the locals from the constructor order).
+// 0x511860  Confidence: exact (declaration order of the locals from the constructor order).
 // Slerp of the two rotations, linear blend of the positions.
 matrix43 matrix43_interpolate(const matrix43 &from, const matrix43 &to, float t)
 {
@@ -757,7 +757,7 @@ void matrix::rotate_between(const matrix &a, const matrix &b)
     orthogonalize();
 }
 
-// 0x511ab0  Confidence: likely (as operator*; the result goes into this with a block copy, written as
+// 0x511ab0  Confidence: exact (as operator*; the result goes into this with a block copy, written as
 // memcpy because matrix43::operator= is a called inline in this object).
 void matrix43::set_product_4x4(const matrix43 &a, const matrix43 &b)
 {

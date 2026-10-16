@@ -29,7 +29,7 @@
 // The other two axes of a plane's largest normal component, swapped for a negative one (label ours).
 static int ix_axis_pairs[3][2] = { { 2, 1 }, { 0, 2 }, { 1, 0 } };   // 0x5abe9c
 
-// 0x53ac20  Confidence: likely. The segment p + t d (t in 0..1) against the plane through q with normal n.
+// 0x53ac20  Confidence: exact. The segment p + t d (t in 0..1) against the plane through q with normal n.
 // 0x53ad30 atexit_nop_53ad30: the atexit handler of tmp (compiler-generated). Confidence: exact.
 bool ix_ray_polygon(ix_hit *out, const vector3 *p, const vector3 *d, const vector3 *q, const vector3 *n)
 {
@@ -50,7 +50,7 @@ bool ix_ray_polygon(ix_hit *out, const vector3 *p, const vector3 *d, const vecto
     return true;
 }
 
-// 0x53ad40  Confidence: likely. No caller.
+// 0x53ad40  Confidence: exact. No caller.
 bool ix_linesegment_plane_t(ix_hit *out, const vector3 *p, const vector3 *d, plane *pl)
 {
     float den, t;
@@ -75,7 +75,7 @@ bool ix_ray_plane_point(ix_ray *ray, vector3 **tri, plane *pl, vector3 *hit, flo
     return ix_point_in_polygon(hit, 3, tri, pl);
 }
 
-// 0x53ae60  Confidence: likely.
+// 0x53ae60  Confidence: exact.
 bool ix_linesegment_plane_front_t(const vector3 *p, const vector3 *d, plane *pl, float *t)
 {
     float dist, den;
@@ -281,7 +281,7 @@ bool ix_sphere_sphere(const vector3 *a, const vector3 *b, float ra, float rb)
     return distance_squared(a, b) < s * s;
 }
 
-// 0x53b930  Confidence: likely. The times the moving sphere touches (t) and leaves the plane, sorted; when
+// 0x53b930  Confidence: exact. The times the moving sphere touches (t) and leaves the plane, sorted; when
 // it starts touching inside the move, out is the touch point moved onto the plane. True when the span
 // overlaps the move (t < 1, leaving after 0).
 // 0x53bac0 atexit_nop_53bac0: the handler of touch (compiler-generated). Confidence: exact.
@@ -293,23 +293,24 @@ bool ix_sphere_polygon_plane(vector3 *out, const vector3 *p0, const vector3 *d, 
     pd = -n->dot(*pp);
     s = n->dot(*p0);
     v = n->dot(*d);
-    if (fabs(v) <= 1e-30f)
-        return false;
-    t0 = (r - (s + pd)) / v;
-    t1 = (-pd - s - r) / v;
-    if (t1 < t0) {
-        tmp = t1;
-        t1 = t0;
-        t0 = tmp;
+    if ((float)fabs(v) > 1e-30f) {
+        t0 = (r - (s + pd)) / v;
+        t1 = (-pd - s - r) / v;
+        if (t1 < t0) {
+            tmp = t0;
+            t0 = t1;
+            t1 = tmp;
+        }
+        *t = t0;
+        if (t0 > 0.0f && t0 < 1.0f) {
+            static vector3 touch;                         // 0x2dc6da8 ix_sphere_polygon_plane_tmp (guard 0x2dc6cc0)
+            touch = *p0 + *d * t0;
+            project_onto_plane(out, &touch, n, pp);
+        }
+        *span = t1 - t0;
+        return t0 < 1.0f && t1 > 0.0f;
     }
-    *t = t0;
-    if (t0 > 0.0f && t0 < 1.0f) {
-        static vector3 touch;                         // 0x2dc6da8 ix_sphere_polygon_plane_tmp (guard 0x2dc6cc0)
-        touch = *p0 + *d * t0;
-        project_onto_plane(out, &touch, n, pp);
-    }
-    *span = t1 - t0;
-    return t0 < 1.0f && t1 > 0.0f;
+    return false;
 }
 
 // 0x53bad0  Confidence: exact. No caller. The sphere's nearest point to the plane against the plane.
@@ -592,7 +593,7 @@ int ix_box_oriented_box_oriented(const float B[3][4], const vector3 *T, const ve
     return 0;
 }
 
-// 0x53cb60  Confidence: likely (the squares through a register copy). No caller. Not two lines: the
+// 0x53cb60  Confidence: exact (the squares through a register copy). No caller. Not two lines: the
 // intersection line of two planes, its point solved in the plane of the direction's largest component.
 // 0x53cd50 atexit_nop_53cd50: the handler of sq (compiler-generated). Confidence: exact.
 bool ix_line_line(const plane *a, const plane *b, ix_ray *out)
@@ -772,12 +773,14 @@ bool ix_ray_boundingbox(const vector3 *min, const vector3 *max, const vector3 *o
     return true;
 }
 
-// 0x53d4d0  Confidence: likely (the y / z temporaries). Only the faces a lies outside of are tried.
+// 0x53d4d0  Confidence: likely (D6305: the clip masks are unsigned, `> 0` gives the binary's test / ja;
+// the two differences are computed once, the faces chosen with if / else; build 8966 schedules the
+// out->z store between fcomp and fnstsw). Only the faces a lies outside of are tried.
 bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const vector3 *a, const vector3 *b,
                                 vector3 *out)
 {
-    int ca, cb;
-    float y, z, x;
+    unsigned int ca, cb;
+    float y, z, x, d, s;
 
     ca = ix_slab_clip(min, max, a);
     if (ca == 0) {
@@ -789,31 +792,46 @@ bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const ve
         *out = *b;
         return true;
     }
-    if (ca & cb)
+    if ((ca & cb) > 0)
         return false;
     if (ca & 3) {
-        out->x = (ca & 1) ? max->x : min->x;
-        y = (b->y - a->y) * (out->x - a->x) / (b->x - a->x) + a->y;
+        if (ca & 1)
+            out->x = max->x;
+        else
+            out->x = min->x;
+        d = b->x - a->x;
+        s = out->x - a->x;
+        y = (b->y - a->y) * s / d + a->y;
         out->y = y;
-        z = (b->z - a->z) * (out->x - a->x) / (b->x - a->x) + a->z;
+        z = (b->z - a->z) * s / d + a->z;
         out->z = z;
         if (y <= max->y && y >= min->y && z <= max->z && z >= min->z)
             return true;
     }
     if (ca & 0xc) {
-        out->y = (ca & 4) ? max->y : min->y;
-        x = (b->x - a->x) * (out->y - a->y) / (b->y - a->y) + a->x;
+        if (ca & 4)
+            out->y = max->y;
+        else
+            out->y = min->y;
+        d = b->y - a->y;
+        s = out->y - a->y;
+        x = (b->x - a->x) * s / d + a->x;
         out->x = x;
-        z = (b->z - a->z) * (out->y - a->y) / (b->y - a->y) + a->z;
+        z = (b->z - a->z) * s / d + a->z;
         out->z = z;
         if (x <= max->x && x >= min->x && z <= max->z && z >= min->z)
             return true;
     }
     if (ca & 0x30) {
-        out->z = (ca & 0x20) ? max->z : min->z;
-        x = (b->x - a->x) * (out->z - a->z) / (b->z - a->z) + a->x;
+        if (ca & 0x20)
+            out->z = max->z;
+        else
+            out->z = min->z;
+        d = b->z - a->z;
+        s = out->z - a->z;
+        x = (b->x - a->x) * s / d + a->x;
         out->x = x;
-        y = (b->y - a->y) * (out->z - a->z) / (b->z - a->z) + a->y;
+        y = (b->y - a->y) * s / d + a->y;
         out->y = y;
         if (x <= max->x && x >= min->x && y <= max->y && y >= min->y)
             return true;

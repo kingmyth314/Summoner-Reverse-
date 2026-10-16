@@ -27,13 +27,13 @@ vector3 vector3_zero(0.0f, 0.0f, 0.0f);           // 0x2cbf4b8
 // 0x523f60 init_vector2_zero (jmp 0x523f70: vector2(0, 0)). Confidence: exact.
 vector2 vector2_zero(0.0f, 0.0f);                 // 0x2cbf4b0
 
-// 0x523f80  Confidence: likely (a copy of the components in registers).
+// 0x523f80  Confidence: exact (a copy of the components in registers).
 float vector2::len() const
 {
     return (float)sqrt(x * x + y * y);
 }
 
-// 0x523fa0  Confidence: likely.
+// 0x523fa0  Confidence: exact.
 float vector2::len_sq() const
 {
     return x * x + y * y;
@@ -122,7 +122,7 @@ float vector3::length_quick() const
     return t + t * 0.5f + a;
 }
 
-// 0x5241c0  Confidence: likely (the term order: y, z, x).
+// 0x5241c0  Confidence: exact (the term order: y, z, x).
 float vector3::dot_xyz(float x, float y, float z) const
 {
     return y * this->y + z * this->z + x * this->x;
@@ -186,7 +186,7 @@ vector3 vector3::unrotated(const matrix &m) const
                    x * m.rvec.z + y * m.uvec.z + z * m.fvec.z);
 }
 
-// 0x524430  Confidence: likely. No zero check.
+// 0x524430  Confidence: exact. No zero check.
 void vector3::normalize()
 {
     float s = 1.0f / (float)sqrt(x * x + y * y + z * z);
@@ -196,7 +196,7 @@ void vector3::normalize()
     z *= s;
 }
 
-// 0x524470  Confidence: likely.
+// 0x524470  Confidence: exact.
 float vector3::normalize_length()
 {
     float l = (float)sqrt(x * x + y * y + z * z);
@@ -208,7 +208,7 @@ float vector3::normalize_length()
     return l;
 }
 
-// 0x5244b0  Confidence: likely.
+// 0x5244b0  Confidence: exact.
 void vector3::normalize_safe()
 {
     float l = (float)sqrt(x * x + y * y + z * z);
@@ -226,7 +226,7 @@ void vector3::normalize_safe()
     z *= s;
 }
 
-// 0x524510  Confidence: likely. A zero vector becomes (1, 0, 0) and the result is 1, not 0.
+// 0x524510  Confidence: exact. A zero vector becomes (1, 0, 0) and the result is 1, not 0.
 float vector3::normalize_safe_length()
 {
     float l = (float)sqrt(x * x + y * y + z * z);
@@ -253,7 +253,7 @@ void vector3::negate()
     z = -z;
 }
 
-// 0x5245a0  Confidence: likely (the components are loaded once).
+// 0x5245a0  Confidence: exact (the components are loaded once).
 void vector3::rotate(const matrix &m)
 {
     float vx = x, vy = y, vz = z;
@@ -263,7 +263,7 @@ void vector3::rotate(const matrix &m)
     z = vx * m.fvec.x + vy * m.fvec.y + vz * m.fvec.z;
 }
 
-// 0x5245f0  Confidence: likely.
+// 0x5245f0  Confidence: exact.
 void vector3::unrotate(const matrix &m)
 {
     float vx = x, vy = y, vz = z;
@@ -327,7 +327,7 @@ void vector3::random_direction_in_cone_axis(vector3 axis, float min_z)
     unrotate(m);
 }
 
-// 0x524780  Confidence: likely (the dot product lives in the n argument's slot).
+// 0x524780  Confidence: exact (the dot product lives in the n argument's slot).
 float vector3_project_onto_normal(vector3 *out, const vector3 *v, const vector3 *n)
 {
     float d = v->dot(*n);
@@ -336,7 +336,7 @@ float vector3_project_onto_normal(vector3 *out, const vector3 *v, const vector3 
     return d;
 }
 
-// 0x5247c0  Confidence: likely.
+// 0x5247c0  Confidence: exact.
 void vector3_remove_normal_component(vector3 *out, const vector3 *v, const vector3 *n)
 {
     float d = v->dot(*n);
@@ -379,7 +379,7 @@ float vector3_normalized_dir(vector3 *out, const vector3 *a, const vector3 *b)
 // 0x524910  Confidence: exact.
 int vector3_near_equal(const vector3 *a, const vector3 *b)
 {
-    if (fabs(a->x - b->x) < 0.0001f && fabs(a->y - b->y) < 0.0001f && fabs(a->z - b->z) < 0.0001f)
+    if ((float)fabs(a->x - b->x) < 0.0001f && (float)fabs(a->y - b->y) < 0.0001f && (float)fabs(a->z - b->z) < 0.0001f)
         return 1;
     return 0;
 }
@@ -473,7 +473,7 @@ void vector3_rotate_towards_unit(vector3 *out, const vector3 *from, const vector
     vector3_rotate_about_axis(out, from, angle * t, &origin, &axis);
 }
 
-// 0x524d10  Confidence: likely (the assignment temporaries). Ritter's sphere: the widest of the
+// 0x524d10  Confidence: exact (the assignment temporaries). Ritter's sphere: the widest of the
 // x / y / z extreme pairs gives the first sphere, which grows over every point outside it.
 void bounding_sphere_from_points(const vector3 *pts, int n, vector3 *center, float *radius)
 {
@@ -538,7 +538,7 @@ void bounding_sphere_from_points(const vector3 *pts, int n, vector3 *center, flo
     *radius = rad;
 }
 
-// 0x525100  Confidence: likely. The fan triangles (v0, vi, vi+1): the total area first, then each
+// 0x525100  Confidence: exact. The fan triangles (v0, vi, vi+1): the total area first, then each
 // triangle's centroid weighted by its share.
 float polygon_calc_centroid(int n, const vector3 *verts, vector3 *centroid)
 {
@@ -623,7 +623,7 @@ float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const
     return (*out - *p).len_sq();
 }
 
-// 0x5254d0  Confidence: likely (the root order swap; several values live in argument slots). The
+// 0x5254d0  Confidence: exact (the root order swap; several values live in argument slots). The
 // circle of radius margin around p against the segment a-b.
 bool vector2_segment_circle_intersect(const vector2 *a, const vector2 *b, const vector2 *p, float margin, float *t)
 {

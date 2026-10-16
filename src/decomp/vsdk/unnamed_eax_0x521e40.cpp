@@ -30,7 +30,7 @@ const char *eax_environment_names[EAX_NUM_ENVIRONMENTS] = {   // 0x5a8960
     "underwater", "drugged", "dizzy", "psychotic",
 };
 
-// 0x521e40  Confidence: likely (the result as SETGE / DEC).
+// 0x521e40  Confidence: exact (the result as SETGE / DEC).
 int eax_set_decay_time(float t)
 {
     if (!eax_enabled)
@@ -42,7 +42,7 @@ int eax_set_decay_time(float t)
     return 0;
 }
 
-// 0x521e90  Confidence: likely (as eax_set_decay_time).
+// 0x521e90  Confidence: exact (as eax_set_decay_time).
 int eax_set_environment(int env)
 {
     if (!eax_enabled)
@@ -84,30 +84,30 @@ int eax_init()
 {
     ULONG support = 0;
 
-    if (eax_enabled == true)
-        return 0;
-    eax_property_set = ds_get_eax_property_set();
-    if (eax_property_set == NULL)
-        return -1;
-    if (FAILED(eax_property_set->QuerySupport(DSPROPSETID_EAX20_ListenerProperties,
-                                              DSPROPERTY_EAXLISTENER_ALLPARAMETERS, &support))
-        || (support & (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET))
-               != (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET)) {
-        if (eax_property_set != NULL) {
-            eax_property_set->Release();
-            eax_property_set = NULL;
+    if (eax_enabled != true) {
+        eax_property_set = ds_get_eax_property_set();
+        if (eax_property_set == NULL)
+            return -1;
+        if (FAILED(eax_property_set->QuerySupport(DSPROPSETID_EAX20_ListenerProperties,
+                                                  DSPROPERTY_EAXLISTENER_ALLPARAMETERS, &support))
+            || (support & (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET))
+                   != (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET)) {
+            if (eax_property_set != NULL) {
+                eax_property_set->Release();
+                eax_property_set = NULL;
+            }
+            ds_disable_eax();
+            eax_enabled = false;
+            return -1;
         }
-        ds_disable_eax();
-        eax_enabled = false;
-        return -1;
+        eax_enabled = true;
+        eax_set_environment(EAX_ENVIRONMENT_CAVE);
+        eax_reverb_muted = 0;
     }
-    eax_enabled = true;
-    eax_set_environment(EAX_ENVIRONMENT_CAVE);
-    eax_reverb_muted = 0;
     return 0;
 }
 
-// 0x521fd0  Confidence: likely. The buffer's room level to the minimum. Neither the QueryInterface
+// 0x521fd0  Confidence: exact. The buffer's room level to the minimum. Neither the QueryInterface
 // result is checked nor the property set released (a reference leak per played buffer, NOTES.md).
 void eax_buffer_init(IUnknown *buffer)
 {
@@ -121,7 +121,7 @@ void eax_buffer_init(IUnknown *buffer)
     }
 }
 
-// 0x522020  Confidence: likely. Saves the room level and sets it to the minimum (muted even when the
+// 0x522020  Confidence: exact. Saves the room level and sets it to the minimum (muted even when the
 // read fails).
 void eax_mute_reverb()
 {
@@ -152,7 +152,8 @@ void eax_restore_reverb()
 // 0x5220d0  Confidence: exact.
 bool eax_is_reverb_muted()
 {
-    return eax_reverb_muted != 0;
+    if (eax_reverb_muted) return true;
+    return false;
 }
 
 // 0x5220e0  Confidence: likely (8-aligned frame for the double arguments). One value per line in
@@ -183,7 +184,7 @@ int eax_save_props(const char *filename)
     return 1;
 }
 
-// 0x522240  Confidence: likely (one Get per property; the byte count goes to a reused slot). The last
+// 0x522240  Confidence: exact (one Get per property; the byte count goes to a reused slot). The last
 // Get asks for AIRABSORPTIONHF (14) again instead of FLAGS (15), so dwFlags is saved as the air
 // absorption bits (game bug, NOTES.md). Nothing checks the property set or the results.
 void eax_get_listener_props(EAXLISTENERPROPERTIES *props)

@@ -12,11 +12,12 @@
 // no COMDAT between them); it is kept apart (unnamed_bitarray_0x55bd80.cpp).
 
 #include <math.h>
+#include <string.h>
 #include "vsdk/geom/effect_mem.h"
 #include "vsdk/geom/vfx.h"
 #include "vsdk/ca/character_instance.h"
 
-// 0x55b440  Confidence: likely (VC6 merges the three bit clears into one AND 0x1fffffff).
+// 0x55b440  Confidence: exact (VC6 merges the three bit clears into one AND 0x1fffffff).
 void fx_rec4c::clear()
 {
     time = 0.0f;
@@ -185,16 +186,10 @@ void vfx_quat_channel::relocate(char *base)
     w.relocate(base);
 }
 
-// 0x55bbb0  Confidence: likely (three dword stores of 0).
+// 0x55bbb0  Confidence: exact (D6303: a memset of the 12 bytes, expanded as three dword stores of 0).
 void vfx_channel::clear()
 {
-    data = NULL;
-    size = 0;
-    base_value = 0;
-    cursor = 0;
-    frame = 0;
-    done = 0;
-    bytes = 0;
+    memset(this, 0, sizeof(*this));
 }
 
 // 0x55bbc0  Confidence: exact.

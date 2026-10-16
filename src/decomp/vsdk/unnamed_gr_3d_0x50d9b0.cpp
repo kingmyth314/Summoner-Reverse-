@@ -282,11 +282,15 @@ void gr_setup_frustum()
 // 0x50e5a0  Confidence: exact.
 void gr_get_view_fov(float *h_fov, float *v_fov)
 {
-    *h_fov = (float)atan(gr_matrix_scale.z / gr_matrix_scale.x) * 2.0f * GR_RAD_TO_DEG;
-    *v_fov = (float)atan(gr_matrix_scale.z / gr_matrix_scale.y) * 2.0f * GR_RAD_TO_DEG;
+    float a;
+
+    a = (float)atan(gr_matrix_scale.z / gr_matrix_scale.x) * 2.0f;
+    *h_fov = a * GR_RAD_TO_DEG;
+    a = (float)atan(gr_matrix_scale.z / gr_matrix_scale.y) * 2.0f;
+    *v_fov = a * GR_RAD_TO_DEG;
 }
 
-// 0x50e5e0  Confidence: likely (all in the FPU; a fov below 2.0 is a tangent, as in gr_setup_3d).
+// 0x50e5e0  Confidence: exact (all in the FPU; a fov below 2.0 is a tangent, as in gr_setup_3d).
 float gr_fov_to_vertical(float fov)
 {
     float a;
@@ -296,8 +300,9 @@ float gr_fov_to_vertical(float fov)
     else
         a = fov * GR_DEG_TO_RAD;
     float t = (float)tan(a * 0.5f);
-    return (float)atan(t * (1.0f / ((float)gr_screen.clip_height * gr_screen.aspect / (float)gr_screen.clip_width)))
-           * 2.0f * GR_RAD_TO_DEG;
+    float w = (float)gr_screen.clip_width;
+    a = (float)atan(t * (1.0f / ((float)gr_screen.clip_height * gr_screen.aspect / w))) * 2.0f;
+    return a * GR_RAD_TO_DEG;
 }
 
 // 0x50e640  Confidence: exact. The light frame moves with the instance only when lighting is set.
@@ -338,9 +343,12 @@ void gr_stop_instance()
 void gr_set_far_clip(float dist)
 {
     if (dist > 1.0f) {
+        float d;
+
         gr_far_clip_enabled = true;
-        gr_far_clip_dist = Gr_level_fog_multiplier * dist;
-        gr_depth_scale = 1.0f / gr_far_clip_dist;
+        d = Gr_level_fog_multiplier * dist;
+        gr_far_clip_dist = d;
+        gr_depth_scale = 1.0f / d;
     } else {
         gr_far_clip_enabled = false;
     }
@@ -458,17 +466,13 @@ ubyte gr_project_vertex(gr_vertex *v)
 // 0x50eb30  Confidence: exact.
 bool gr_check_normal_facing(const vector3 *normal, const vector3 *point)
 {
-    if ((gr_view_pos - *point).dot(*normal) > 0.0f)
-        return 1;
-    return 0;
+    return (gr_view_pos - *point).dot(*normal) > 0.0f;
 }
 
 // 0x50eb70  Confidence: exact.
 bool gr_plane_faces_viewer(plane *p)
 {
-    if (p->distance_to_point(&gr_view_pos) > 0.0f)
-        return 1;
-    return 0;
+    return p->distance_to_point(&gr_view_pos) > 0.0f;
 }
 
 // 0x50eba0  Confidence: exact.
@@ -513,7 +517,7 @@ float gr_vector_scaled_z(const gr_vertex *v)
     return gr_one_over_matrix_scale_z * v->z;
 }
 
-// 0x50ecd0  Confidence: likely (the first plane is tested before the count, a do-while). With far
+// 0x50ecd0  Confidence: exact (the first plane is tested before the count, a do-while). With far
 // clipping on the far plane is replaced by gr_frustum_fog_plane; that plane is also tested when far
 // clipping is off (D4505).
 bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
@@ -536,17 +540,18 @@ bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
 // 0x50ed60  Confidence: exact.
 void gr_get_frustum_planes(plane *out, ubyte *flags)
 {
-    int i;
+    int i, n;
 
     for (i = 0; i < gr_num_frustum_planes; i++)
         out[i] = gr_frustum_planes[i].pl;
     if (flags) {
-        for (i = 0; i < gr_num_frustum_planes; i++)
+        n = gr_num_frustum_planes;
+        for (i = 0; i < n; i++)
             flags[i] = gr_frustum_planes[i].flag;
     }
 }
 
-// 0x50edc0  Confidence: likely (do-while as in gr_cull_sphere; the plane count is read once).
+// 0x50edc0  Confidence: exact (do-while as in gr_cull_sphere; the plane count is read once).
 bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs)
 {
     vector3 corner;
@@ -587,7 +592,7 @@ void gr_get_eye(vector3 *pos, matrix *orient)
     *orient = gr_eye_matrix;
 }
 
-// 0x50ef60  Confidence: likely (the order of the scalar copies is the compiler's).
+// 0x50ef60  Confidence: exact (the order of the scalar copies is the compiler's).
 void gr_save_3d_state()
 {
     int i;
@@ -624,7 +629,7 @@ void gr_save_3d_state()
         gr_saved_3d_state.frustum_planes[i] = gr_frustum_planes[i];
 }
 
-// 0x50f120  Confidence: likely (as gr_save_3d_state).
+// 0x50f120  Confidence: exact (as gr_save_3d_state).
 void gr_restore_3d_state()
 {
     int i;
@@ -661,7 +666,7 @@ void gr_restore_3d_state()
         gr_frustum_planes[i] = gr_saved_3d_state.frustum_planes[i];
 }
 
-// 0x50f2e0  Confidence: likely (the n > 0 guard before the gap loop).
+// 0x50f2e0  Confidence: exact (the n > 0 guard before the gap loop).
 void sort_by_float_key(gr_sort_entry *entries, int n)
 {
     if (n <= 0)
@@ -682,9 +687,7 @@ void sort_by_float_key(gr_sort_entry *entries, int n)
 // 0x50f380  Confidence: exact.
 bool float_key_less(const gr_sort_entry *a, const gr_sort_entry *b)
 {
-    if (a->key < b->key)
-        return 1;
-    return 0;
+    return a->key < b->key;
 }
 
 // 0x50f3a0  Confidence: exact.

@@ -272,7 +272,7 @@ void gr_glide_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr_
                                          * gr_projection_xmul + gr_screen.offset_x;
                 ca_skin_positions[j].y = (1.0f - ca_skin_positions[j].z * ca_skin_positions[j].y)
                                          * gr_projection_ymul + gr_screen.offset_y;
-                if (!(fabs(ca_skin_positions[j].x) < 1224.0f && fabs(ca_skin_positions[j].y) < 1000.0f
+                if (!((float)fabs(ca_skin_positions[j].x) < 1224.0f && (float)fabs(ca_skin_positions[j].y) < 1000.0f
                       && ca_skin_positions[j].z >= 0.0f)) {
                     ca_vertex_done[j] = 0;
                     continue;
@@ -520,7 +520,7 @@ void gr_d3d_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr_li
             ca_skin_positions[j].y = (1.0f - ca_skin_positions[j].z * ca_skin_positions[j].y)
                                      * gr_projection_ymul + gr_screen.offset_y;
             ca_vertex_done[j] = 1;
-            if (!(fabs(ca_skin_positions[j].x) < 2048.0f && fabs(ca_skin_positions[j].y) < 2048.0f
+            if (!((float)fabs(ca_skin_positions[j].x) < 2048.0f && (float)fabs(ca_skin_positions[j].y) < 2048.0f
                   && ca_skin_positions[j].z >= 0.0f)) {
                 ca_vertex_done[j] = 0;
                 continue;

@@ -504,7 +504,7 @@ void gr_d3d_set_color()
 {
 }
 
-// 0x535d20  Confidence: likely (where the early `*out = 0` stands).
+// 0x535d20  Confidence: exact (where the early `*out = 0` stands).
 // Vertex fog as a specular alpha (linear between gr_fog_near and gr_fog_far). No caller.
 void gr_d3d_fog_alpha(float z, D3DCOLOR *out)
 {
@@ -517,7 +517,7 @@ void gr_d3d_fog_alpha(float z, D3DCOLOR *out)
     *out = (int)(f * 255.0f) << 24;
 }
 
-// 0x535da0  Confidence: likely.
+// 0x535da0  Confidence: exact.
 void gr_d3d_line(float x1, float y1, float x2, float y2, gr::Mode mode)
 {
     d3d_tlvertex v[2];
@@ -567,7 +567,7 @@ void gr_d3d_make_line_verts(d3d_tlvertex *v0, d3d_tlvertex *v1, int x0, int y0, 
     }
 }
 
-// 0x535fd0  Confidence: likely.
+// 0x535fd0  Confidence: exact.
 void gr_d3d_line_3d(gr_vertex *v0, gr_vertex *v1, gr::Mode mode)
 {
     d3d_tlvertex v[2];
@@ -958,7 +958,7 @@ d3d_device_record *d3d_enumerate_ddraw_devices()
     return NULL;
 }
 
-// 0x538920  Confidence: likely (memmove: the 16-byte copies are calls, not inline).
+// 0x538920  Confidence: exact (memmove: the 16-byte copies are calls, not inline).
 // EnumDevices callback: records every device without hardware transform and lighting.
 HRESULT CALLBACK d3d_enum_devices_callback(LPSTR description, LPSTR name, D3DDEVICEDESC7 *desc,
                                            LPVOID context)
@@ -979,7 +979,7 @@ HRESULT CALLBACK d3d_enum_devices_callback(LPSTR description, LPSTR name, D3DDEV
     return D3DENUMRET_OK;
 }
 
-// 0x5389f0  Confidence: likely.
+// 0x5389f0  Confidence: exact.
 // DirectDrawEnumerate callback. It returns DDENUMRET_CANCEL (`xor eax, eax` before the ret at
 // 0x538a58), so only the first driver, the primary display, is ever listed.
 BOOL WINAPI d3d_ddraw_enum_callback(GUID *guid, LPSTR description, LPSTR name, LPVOID context)
@@ -996,7 +996,8 @@ BOOL WINAPI d3d_ddraw_enum_callback(GUID *guid, LPSTR description, LPSTR name, L
     return DDENUMRET_CANCEL;
 }
 
-// 0x538a70  Confidence: likely.
+// 0x538a70  Confidence: exact (D6301: one store per element, in the binary's order; zfar - 1.0f is a
+// constant, not a reload of view._44; proj._44 = 0 is stored although memset cleared it).
 // Identity world and view; a projection with _11 = _22 = 2, _33 = zfar / (zfar - 1), _34 = 1,
 // _43 = -_33 (gr_d3d_init_device passes 250).
 HRESULT gr_d3d_set_default_transforms(IDirect3DDevice7 *dev, float zfar)
@@ -1006,21 +1007,27 @@ HRESULT gr_d3d_set_default_transforms(IDirect3DDevice7 *dev, float zfar)
     memset(&world, 0, sizeof(world));
     memset(&view, 0, sizeof(view));
     memset(&proj, 0, sizeof(proj));
-    world._11 = world._22 = world._33 = world._44 = 1.0f;
-    view._11 = view._22 = view._33 = view._44 = 1.0f;
+    world._11 = 1.0f;
+    world._22 = 1.0f;
+    world._33 = 1.0f;
+    world._44 = 1.0f;
+    view._11 = 1.0f;
+    view._22 = 1.0f;
+    view._33 = 1.0f;
+    view._44 = 1.0f;
     hr = IDirect3DDevice7_SetTransform(dev, D3DTRANSFORMSTATE_WORLD, &world);
     if (hr != DD_OK)
         return hr;
     hr = IDirect3DDevice7_SetTransform(dev, D3DTRANSFORMSTATE_VIEW, &view);
     if (hr != DD_OK)
         return hr;
-    float q = zfar / (zfar - view._44);
+    float q = zfar / (zfar - 1.0f);
     proj._11 = 2.0f;
     proj._22 = 2.0f;
-    proj._33 = q;
-    proj._34 = 1.0f;
-    proj._43 = -q;
     proj._44 = 0.0f;
+    proj._34 = 1.0f;
+    proj._33 = q;
+    proj._43 = -q;
     return IDirect3DDevice7_SetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &proj);
 }
 
@@ -1322,17 +1329,14 @@ void gr_d3d_init(HWND hwnd)
     d3d_init_done = 1;
 }
 
-// 0x539590  Confidence: likely (an empty case 1: the compare tree tests depth 1 separately).
+// 0x539590  Confidence: exact (D6302: the range test 0..1, then != 1, is the binary's compare tree; it may
+// have been a two-case switch that build 8966 lowered this way, but 8168 needs it written out).
 void gr_d3d_begin_scene()
 {
     if (d3d_device_ready) {
-        switch (d3d_scene_depth) {
-        case 0:
+        if (d3d_scene_depth >= 0 && d3d_scene_depth <= 1 && d3d_scene_depth != 1) {
             d3d_scene_depth++;
             IDirect3DDevice7_BeginScene(d3d_device);
-            break;
-        case 1:
-            break;
         }
     }
 }
@@ -1659,7 +1663,7 @@ void gr_d3d_init_device()
     d3d_device_ready = 1;
 }
 
-// 0x53a170  Confidence: likely (the counters are dead, the loops stay).
+// 0x53a170  Confidence: exact (the counters are dead, the loops stay).
 // Walks the R, G, B (and alpha) masks to their first and past their last bit; nothing is kept. A zero
 // mask would never end the first loop.
 void d3d_pixel_format_masks_valid(DDPIXELFORMAT *pf)
@@ -1794,7 +1798,7 @@ HRESULT CALLBACK d3d_enum_zbuffer_callback(DDPIXELFORMAT *pf, LPVOID context)
     return D3DENUMRET_OK;
 }
 
-// 0x53a4f0  Confidence: likely.
+// 0x53a4f0  Confidence: exact.
 // Clears and shows a black frame, frees the texture cache, puts the gamma ramp back and releases the
 // objects. d3d_vertex_buffer is not released.
 void gr_d3d_close()
@@ -1848,34 +1852,30 @@ void gr_d3d_flip_surface()
     IDirectDrawSurface7_Flip(d3d_primary_surface, NULL, DDFLIP_WAIT);
 }
 
-// 0x53a610  Confidence: likely (empty case 0, as in gr_d3d_begin_scene).
+// 0x53a610  Confidence: exact (D6302: the same range test, then != 0, as in gr_d3d_begin_scene).
 void gr_d3d_end_scene()
 {
     if (d3d_device_ready) {
-        switch (d3d_scene_depth) {
-        case 0:
-            break;
-        case 1:
+        if (d3d_scene_depth >= 0 && d3d_scene_depth <= 1 && d3d_scene_depth != 0) {
             d3d_scene_depth--;
             IDirect3DDevice7_EndScene(d3d_device);
-            break;
         }
     }
 }
 
-// 0x53a640  Confidence: likely (a tail jump; why the wrapper exists is not known).
+// 0x53a640  Confidence: exact (a tail jump; why the wrapper exists is not known).
 void gr_d3d_close_thunk()
 {
     gr_d3d_close();
 }
 
-// 0x53a650  Confidence: likely.
+// 0x53a650  Confidence: exact.
 void gr_d3d_flip_thunk()
 {
     gr_d3d_flip();
 }
 
-// 0x53a660  Confidence: likely.
+// 0x53a660  Confidence: exact.
 // Windowed: blit the render target into the window and wait. Fullscreen: restore lost surfaces and flip
 // (vsync unless gr_vsync is off), retrying every second while the surfaces stay lost.
 void gr_d3d_flip()
@@ -1950,7 +1950,7 @@ int gr_d3d_read_backbuffer(int x, int y, int w, int h, void *buf)
     return 3;
 }
 
-// 0x53a8c0  Confidence: likely.
+// 0x53a8c0  Confidence: exact.
 // gr_set_fog's back end (it passes 1): table or vertex fog, the range in the units of the fog mode, the
 // colour. FOGSTART / FOGEND are sent only when they change.
 void gr_d3d_set_fog(int set_range)

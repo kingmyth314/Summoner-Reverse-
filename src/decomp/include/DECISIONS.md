@@ -4830,3 +4830,70 @@ mp_handle_swi_sneak, mp_handle_respawn, mp_handle_forcepr and two more) the orig
 with `mov eax, [eax]` (reusing the pointer's register) where VC6 emits `mov ecx, [eax]`, for every source form tried
 (pointer casts, array index, locals, memcpy, other parameter types) and every /G and /O variant. A different
 compiler build (service pack) is one explanation; the functions are marked likely.
+
+**D6300 (vsdk/matrix.cpp, unnamed_vector_0x523f30.cpp, unnamed_ix_0x53ac20.cpp, unnamed_ca_mesh_0x50af80.cpp; match5
+pass). Source shapes that make cl 12.00.8168 emit build 8966's code (/O2 /Ob0 vsdk units), each verified by a byte
+match.** (1) A fabs compared with a float constant is `(float)fabs(x) < 0.0001f`: plain `fabs(x) < 0.0001f` compares
+in double (`fcomp QWORD PTR`), fabsf is an out-of-line call under /Ob0; the cast keeps the intrinsic and the dword
+constant (rows_match, vector3_near_equal, ix_sphere_polygon_plane, and `(float)fabs(a) > (float)fabs(b)` in
+extract_angles, which also gives the binary's `fxch / fxch / fcompp`). (2) A swap of two values in memory is written
+with the temporary taking the value that is stored LAST in the binary: `t = uvec.x; uvec.x = rvec.y; rvec.y = t`
+(matrix::transpose_in_place, ix_sphere_polygon_plane's t0 / t1). (3) An early return whose code the binary places
+after the body is the body in a then-block (`if ((float)fabs(v) > 1e-30f) { ... } return false;`). (4) A product of
+constants that 8168 folds (`atan(..) * 2.0f * RAD_TO_DEG`) keeps the binary's `fadd st, st / fmul` through a float
+local (`a = atan(..) * 2.0f; *h = a * RAD_TO_DEG;`, gr_get_view_fov, gr_fov_to_vertical); a converted int divisor is
+a float local (`float w = (float)clip_width;` gives `fild / fdivp`, not `fidiv`). (5) A value stored to a global and
+reused is a local (`d = fog * dist; gr_far_clip_dist = d; gr_depth_scale = 1.0f / d;`: `fst` then `fdiv st, st(1)`).
+(6) bool functions whose binary sets EAX (`mov eax, 1` / `xor eax, eax`) after a float compare are a returned
+expression (`return a->key < b->key;`); the if-form gives `mov al, 1`. A bool function that sets AL after `test /
+setne` on an int global is the if-form (`if (eax_reverb_muted) return true; return false;`). (7) Locals: a global
+loop bound read once (`int next = effects_stream_slot_b_next;` before both scans of effects_alloc_stream_slot /
+effects_find_stream_slot); declaration order picks the registers (effects_hash_name: `sum, bits, i, len`); a call
+argument that is a call goes to a local first (`tag = get_tag_name(i); _stricmp(tag, name)`), and so does a float
+argument the binary stores to a stack slot (`t = ...; return float_max(0.0f, t);`). (8) `return value - rem + 0x40;`
+inside the if (align_up_64) gives `sub / add`; the assignment form gives `mov edx, 64 / sub / add`. (9) A pointer local
+to an array element (`b = &effect_bases[index]; if (b->resident || b->streamed)`) gives the binary's dead `lea`.
+
+**D6301 (vsdk/gr_direct3d.cpp). gr_d3d_set_default_transforms: element stores and the projection constant.** The
+binary stores world / view _11, _22, _33, _44 in that order (one assignment each; the chained `a = b = c = 1.0f`
+stores _44 first), computes `zfar / (zfar - 1.0f)` with the constant 1.0 (the source re-read view._44), and stores
+proj _11, _22, _44 (= 0, though the memset cleared it), _34, _33, _43. Same behaviour; now exact.
+
+**D6302 (vsdk/gr_direct3d.cpp). gr_d3d_begin_scene / gr_d3d_end_scene: the depth test as a range test.** The binary
+tests depth < 0, depth > 1, then depth == 1 (begin) or == 0 (end) before changing it: `if (d >= 0 && d <= 1 && d !=
+1)`. This is likely build 8966's lowering of a two-case switch (case 0 / case 1, one empty), which 8168 folds into one
+compare; the if-chain reproduces the binary and does the same. Exact.
+
+**D6303 (vsdk/unnamed_vfx_channel_0x55b440.cpp). vfx_channel::clear is a memset of the record.** Three dword stores
+of 0 (+0, +4, +8) clear data, size, base_value, cursor and the frame / done / bytes word together;
+`memset(this, 0, sizeof(*this))` (12 bytes, intrinsic) is the code, member stores give five word stores. Exact.
+
+**D6304 (vsdk/unnamed_vfx_0x536950.cpp). render_node reads the node index unsigned; setup_render_state reads the
+material flags once.** render_node zero-extends vfx_node_ref::index (`xor eax, eax / mov ax, [edi]`) for both the
+mesh and the emitter tables, as unnamed_render_scene_0x481680.cpp already casts it ((ushort)); the header keeps
+`short` (other writers store a short), the reads are cast. For an index >= 0x8000 the old source indexed
+backwards; the binary does not (no such index exists in practice). The mesh case is the else branch (`if (kind !=
+MESH) { if (kind == EMITTER) ... } else ...`, the binary's block order); the rest differs by scheduling.
+setup_render_state loads mat->flags as one word into a local (`unsigned int flags = mat->flags;`) before the
+bitmap store; still differs (the binary loads vi->time above the vfx_render_alpha store).
+
+**D6305 (vsdk/unnamed_ix_0x53ac20.cpp). ix_linesegment_boundingbox: unsigned clip masks and computed-once
+differences.** `test ebx, eax / ja` is an unsigned `(ca & cb) > 0` (a signed or `!= 0` test gives `jne`); the face
+coordinate is an if / else of two integer copies (the ternary loads through the FPU); the segment difference and the
+offset along the face axis are computed once per face (`d`, `s`), kept on the FPU stack as the binary does (the old
+source re-read out->x after storing out->y, which differs only if out aliases a or b). Still differs: build 8966
+moves the out->z store between fcomp and fnstsw.
+
+**D6306 (notes only; match5 pass). Differences that are the compiler build.** In addition to D5905 / D6005 / D6107,
+seen in these ten units and not reproducible with 8168: (1) `vector3 v = a - b;` and `return vector3(...)` /
+`return matrix(...)`: 8966 constructs the result in place, 8168 builds a temporary and calls the copy constructor
+(vfx_node::get_pos / get_orient, vfx_vec_channel::eval, vector3::normalized / rotated / unrotated / negated_b,
+matrix::operator* and the multiply variants, ix_ray_sphere, ix_sphere_boundingbox, gr_get_normal_facing_dot: about
+25 functions); direct initialisation `vector3 v(a - b)` gives the same as copy initialisation. (2) A copy of 9 or 3
+dwords (matrix43 constructors, get_rotation) loads the last two before storing them in 8966; element stores and POD
+struct copies (`movsd`) do not give it. (3) Integer stores and loads scheduled between `fcomp` and `fnstsw`, or above
+a store through another pointer (get_axis_angle, effect_base_set_info, effect_base_finish_stream, get_tag_name, gr_d3d_init). (4) 8966 reuses dead argument slots for locals (seg2d_intersect, gr_setup_3d); 8168
+adds a frame. (5) 8168 sorts the terms of a sum of products (matrix::determinant: a source with
+the terms and factors reordered gives identical code). (6) 8966 tail-merges identical calls at the end of if / else
+branches (matrix::orthogonalized: the two fvec.normalize() calls share one); 8168 keeps both. (7) A bool from a
+one-bit field is narrowed with `and al, 1` in 8966 (effects_base_is_resident, effect_is_cutscene_base).

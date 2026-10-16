@@ -110,7 +110,7 @@ int effects_num_names;                            // 0x2c9f99c
     if ((head) == NULL) { (rec)->next = (rec); (rec)->prev = (rec); (head) = (rec); } \
     else { (rec)->prev = (head)->prev; (rec)->next = (head); (head)->prev->next = (rec); (head)->prev = (rec); }
 
-// 0x51bd90  Confidence: likely (JMP to the empty function 0x51d240: a call that /Ob0 does not
+// 0x51bd90  Confidence: exact (JMP to the empty function 0x51d240: a call that /Ob0 does not
 // expand; the function's own body was compiled out).
 void cmd_show_effect_mem()
 {
@@ -158,8 +158,8 @@ int align_up_64(int value)
 {
     int rem = value & 0x3f;
 
-    if (rem)
-        value = value - rem + 0x40;
+    if (rem != 0)
+        return value - rem + 0x40;
     return value;
 }
 
@@ -184,11 +184,13 @@ int vfx_preload_by_name(const char *name)
 {
     int id = vfx_find_name(name);
     int index;
+    effect_base *b;
 
     if (id < 0)
         return -1;
     index = effect_base_record_index[id];
-    if (effect_bases[index].resident || effect_bases[index].streamed)
+    b = &effect_bases[index];
+    if (b->resident || b->streamed)
         return 0;
     return rfx_preload(index);
 }
@@ -377,7 +379,7 @@ void effect_base_release(int index)
     }
 }
 
-// 0x51c490  Confidence: likely (version > 9 and version < 9 are two tests of one compare: two
+// 0x51c490  Confidence: exact (version > 9 and version < 9 are two tests of one compare: two
 // source checks whose messages are compiled out).
 int effect_base_load(int index)
 {
@@ -402,13 +404,14 @@ int effect_base_load(int index)
     return 0;
 }
 
-// 0x51c520  Confidence: likely. Six slots, but the index is masked with 5 (not taken modulo 6), as
+// 0x51c520  Confidence: exact. Six slots, but the index is masked with 5 (not taken modulo 6), as
 // the binary does: only slots 0, 1, 4 and 5 are ever used.
 int effects_alloc_stream_slot(int base)
 {
     int i, slot;
+    int next = effects_stream_slot_b_next;
 
-    for (i = effects_stream_slot_b_next; i < effects_stream_slot_b_next + NUM_BIG_SLOTS; i++) {
+    for (i = next; i < next + NUM_BIG_SLOTS; i++) {
         slot = i & 5;
         if (effects_stream_slots_b[slot] == -1) {
             effects_stream_slots_b[slot] = base;
@@ -416,7 +419,7 @@ int effects_alloc_stream_slot(int base)
             return slot;
         }
     }
-    for (i = effects_stream_slot_b_next; i < effects_stream_slot_b_next + NUM_BIG_SLOTS; i++) {
+    for (i = next; i < next + NUM_BIG_SLOTS; i++) {
         slot = i & 5;
         if (!effect_base_stream_users[effects_stream_slots_b[slot]]) {
             effect_base_release(effects_stream_slots_b[slot]);
@@ -428,13 +431,14 @@ int effects_alloc_stream_slot(int base)
     return -1;
 }
 
-// 0x51c5c0  Confidence: likely. Eight slots scanned six at a time with mask 7; the cursor is masked
+// 0x51c5c0  Confidence: exact. Eight slots scanned six at a time with mask 7; the cursor is masked
 // with 5, so it only ever restarts at 0, 1, 4 or 5.
 int effects_find_stream_slot(int base)
 {
     int i, slot;
+    int next = effects_stream_slot_next;
 
-    for (i = effects_stream_slot_next; i < effects_stream_slot_next + 6; i++) {
+    for (i = next; i < next + 6; i++) {
         slot = i & 7;
         if (effects_stream_slots[slot] == -1) {
             effects_stream_slots[slot] = base;
@@ -442,7 +446,7 @@ int effects_find_stream_slot(int base)
             return slot;
         }
     }
-    for (i = effects_stream_slot_next; i < effects_stream_slot_next + 6; i++) {
+    for (i = next; i < next + 6; i++) {
         slot = i & 7;
         if (!effect_base_stream_users[effects_stream_slots[slot]]) {
             effect_base_release(effects_stream_slots[slot]);
@@ -599,7 +603,7 @@ void effect_base::relocate(char *base_addr, char *end)
         ((vfx_node_entry *)data)[i].relocate(base_addr, end);
 }
 
-// 0x51ca30  Confidence: likely (vfx_node_relocate gets the two arguments swapped; their meaning is
+// 0x51ca30  Confidence: exact (vfx_node_relocate gets the two arguments swapped; their meaning is
 // not settled).
 void vfx_node_entry::relocate(char *base_addr, char *end)
 {
@@ -657,7 +661,7 @@ int effects_parse_arr_line(File *f, int *line, char *name, int *category, unsign
     return -1;
 }
 
-// 0x51ccd0  Confidence: likely (memset as REP STOSD with -1; the loop runs over all 192 records).
+// 0x51ccd0  Confidence: exact (memset as REP STOSD with -1; the loop runs over all 192 records).
 void effects_reset_level()
 {
     int i;
@@ -791,7 +795,7 @@ int effects_load_bases()
     return 0;
 }
 
-// 0x51d240  Confidence: likely. Empty: its body (a memory report) is compiled out in this build.
+// 0x51d240  Confidence: exact. Empty: its body (a memory report) is compiled out in this build.
 // Name ours (no symbol).
 void effects_show_memory_usage()
 {
@@ -953,10 +957,10 @@ void vfx_instance_free(vfx_instance *vi)
 // (high word) xor the sum of the characters as written.
 int effects_hash_name(const char *name)
 {
-    int len = strlen(name);
-    int bits = 0;
     int sum = 0;
+    int bits = 0;
     int i;
+    int len = strlen(name);
 
     for (i = 0; i < len; i++) {
         bits = (tolower(name[i]) & 1) | (bits << 1);
@@ -965,7 +969,7 @@ int effects_hash_name(const char *name)
     return (bits << 16) ^ sum;
 }
 
-// 0x51dbb0  Confidence: likely (unsigned counter; the loop runs on after a load). Loads the base named
+// 0x51dbb0  Confidence: exact (unsigned counter; the loop runs on after a load). Loads the base named
 // "preload.rfx" once and marks the Effects mempool behind it.
 int effects_load_preload_rfx()
 {
