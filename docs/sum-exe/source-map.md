@@ -188,7 +188,7 @@ The result supports the expected link order: the `new_*` screens are alphabetica
 | `0x4d5110` | 1 | `new_mainmenu.cpp` |
 | `0x4d5990`-`0x4d6040` | 2 | `level_scripts.cpp` |
 | `0x4d63b0` | 1 | `living_entity.cpp` |
-| `0x4d6730` | 1 | `new_mainmenu.cpp` |
+| `0x4d6890`-`0x4d68b0` | 2 | `new_mainmenu.cpp` |
 | `0x4d8760` | 1 | `conversation.cpp` |
 | `0x4dacb0` | 1 | `conversationctl.cpp` |
 | `0x4dd0b0` | 1 | `living_entity.cpp` |
@@ -366,7 +366,7 @@ the per-level scripts, `plainstring.cpp` into `parse.cpp`, `norlsallocpool.cpp` 
 | `0x525720`-`0x526900` | File readers, writers and sync: one object (its initialisers 0x525720-0x525780, the binary readers, read_matrix43 0x525ba0, the string and line readers, writers, sync) | names File__read/write/sync_*; folder vsdk\vfile; own initialiser table 0x588964-0x588970 |
 | `0x526940`-`0x5280e0` | ui_button and ui_static gadgets (two objects) | names ui_button__*, ui_static__*; folder vsdk\ui; ui_button's EH funclets 0x57d370-0x57d3c7 end in int3 padding before ui_static's at 0x57d3d0 |
 | `0x52bfe0`-`0x530b80` | UI gadget base (`ui_gadget`, `ui_state_bitmap`), list box (from 0x52ca60), build stamp (0x52f450) and UI manager (0x52f570); the "window mask helpers" are only the two header-inline COMDATs at the end (0x530b70 / 0x530b80) | names ui_gadget__*, ui_listbox__*, build_stamp_*, ui_init / ui_draw / ui_process; folder vsdk\ui; four objects (D4200) |
-| `0x53ac20`-`0x53dec0` | ix_* intersection tests (ray/segment/sphere/box/polygon), then cmdline param inits | Dash Faction rf/math/ix.h names RF's ix_* module (ix_linesegment_boundingbox); 33 ix_* fns put in modules-out  |
+| `0x53ac20`-`0x53dec0` | ix_* intersection tests (ray/segment/sphere/box/polygon); cmdline.cpp's own initialisers start at `0x53dec0` | Dash Faction rf/math/ix.h names RF's ix_* module (ix_linesegment_boundingbox); 33 ix_* fns put in modules-out  |
 | `0x54bb30`-`0x54d5a0` | Direct3D texture cache (gr_d3d_tcache_*) and tcache slots | names gr_d3d_tcache_*, tcache_slot__*; tags now vsdk\gr\directx folder only |
 | `0x5520d0`-`0x5534c0` | CRC32 and UI inputbox gadget | names Crc32__*, ui_inputbox__*; folder vsdk\ui |
 | `0x55abd0`-`0x55bfc0` | HTTP client, vfx channels/forces, BitArray | names http_*, vfx_*, BitArray__*; several files |

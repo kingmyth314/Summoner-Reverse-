@@ -134,7 +134,9 @@ been triggered.
   (**observed**).
 - Channel flags: 1 looping, 2 paused, 4 streamed (set by `ds_play_streamed`), 8 fading
   (set by `ds_stop_fade`) (**observed**). `ds_channel_release` does nothing for a channel
-  with flag 8 (**observed**); the fade releases it itself.
+  with flag 8 (**observed**); the fade releases it itself, except when the sound stops before the fade
+  ends: `ds_channel_update_fade` then returns without clearing the flag (`0x55d6f8`..`0x55d702`), and the next sound
+  on that channel inherits the fade ([game bugs](game-bugs.md), K294).
 - Fades: `ds_stop_fade` (`0x55d640`) stops at once below 75 ms. Otherwise it lowers the
   volume in steps every 75 ms, `step = volume / (ms / 75)`, run by `ds_do_frame` from
   `snd_do_frame` (`FrameEnd`) (**observed**).

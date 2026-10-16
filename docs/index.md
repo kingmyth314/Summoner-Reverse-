@@ -15,7 +15,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Sum.exe overview](sum-exe/index.md) - identity, layout and imports of the game executable.
 - [Main loop and frame timer](sum-exe/main-loop.md) - how the game advances time each frame.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
-- [Bugs in the original game](sum-exe/game-bugs.md) - 322 defects found in the code, and which ones SummonerFix fixes.
+- [Bugs in the original game](sum-exe/game-bugs.md) - 337 defects found in the code, and which ones SummonerFix fixes.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
 - [Decompilation plan](decomp-plan.md) - how the binary is being mapped: symbol file, phases, where we start.

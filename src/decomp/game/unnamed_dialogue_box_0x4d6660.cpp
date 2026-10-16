@@ -324,7 +324,7 @@ dialogue_box_base::~dialogue_box_base()
 {
 }
 
-// 0x4d7140 conversation_reset  Confidence: exact (slot 0 of the base vtable).
+// 0x4d7140 dialogue_box_base__reset  Confidence: exact (slot 0 of the base vtable).
 void dialogue_box_base::reset()
 {
     scroll = 0;
@@ -470,7 +470,7 @@ bool dialogue_box::line_fits(int i)
     return (int)scroll + line[i].height + line[i].top <= visible;
 }
 
-// 0x4d7650 conversation_start  Confidence: exact (slot 0 of the text box vtable).
+// 0x4d7650 dialogue_box__reset  Confidence: exact (slot 0 of the text box vtable).
 void dialogue_box::reset()
 {
     int i;
@@ -555,7 +555,7 @@ int dialogue_topic_list::item_y(int item)
     return (int)scroll + entry[item].top;
 }
 
-// 0x4d7920 dialogue_box_reset_thunk  Confidence: exact (slot 0 of the topic list vtable: jmp 0x4d7140).
+// 0x4d7920 dialogue_topic_list__reset  Confidence: exact (slot 0 of the topic list vtable: jmp 0x4d7140).
 void dialogue_topic_list::reset()
 {
     dialogue_box_base::reset();

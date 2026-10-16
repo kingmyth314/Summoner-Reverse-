@@ -138,6 +138,7 @@ first), structured so it can become a byte-matching decompilation later.
 - **World sounds too quiet with the default sound setting: done 2026-10-16** (SummonerFix `bugfix.c`, K260; the slider is now linear).
 - **Story state lost on load: no fix needed (2026-10-16).** G130 and G131 cannot happen in retail play: the game refuses saving in TempleINT2 once `mach_intro` is set and in the Jade Temple once `got_laharah_spirit` is set (`savegame_location_allowed`, tested in agent mode). See [Bugs](sum-exe/game-bugs.md).
 - **Flickering right bar after cutscenes: fixed 2026-10-16** (a SummonerFix bug, K280: the strip right of the centred menus was never cleared).
+- **Sounds cut off after a fade (candidate for SummonerFix, K294).** A sound that ends during its fade leaves the fade flag on its channel; the next sound on that channel is cut within 75 ms and the old DirectSound buffer leaks. `character_play_move`'s 100 ms fade makes it happen in normal play. A fix: wrap the `ds_channel_is_playing` call in `ds_channel_update_fade` (`0x55d6f8`) so a stopped channel also clears flag 8 and is released. To reproduce before fixing (the user's rule for fixes).
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

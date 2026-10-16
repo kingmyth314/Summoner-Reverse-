@@ -3337,7 +3337,7 @@
 0x4b09f0  mp_mark_level_complete   func  -                    O ; (level < 26): sets bit level in +0x30 of every multiplayer player record (list 0x651418), host broadcasts it, callers mp_level_find_boss, 0x4b1150
 0x4b0a50  mp_send_difficulty_complete func  -                    O ; packet 0x3D D_CMPLT sender (counter 0x595870), host only (checked: host only (debug flag 2, player flag 1): packet byte 0x3d, len 4, value arg, counter 0x595870, mp_broadcast_packet, caller mp_mark_difficulty_complete)
 0x4b0ab0  mp_handle_difficulty_complete func  -                    O ; packet 0x3D D_CMPLT handler: mp_mark_difficulty_complete (checked: clients only (player flag 1 clear): mp_mark_difficulty_complete(*packet), no direct callers (packet table entry))
-0x4b0ae0  mp_mark_difficulty_complete func  -                    O ; (n < 3): sets bits 26..26+n in +0x30 of every player record (game completed at difficulty n, inferred), host broadcasts (checked: (n < 3) ORs bits 26..26+n into +0x30 of every player, mp_handle_join_request tests bit 25+difficulty, so completing n unlocks n+1, host sends mp_send_difficulty_complete)
+0x4b0ae0  mp_mark_difficulty_complete func  -                    O ; (n < 3): builds bits 26..26+n and, for every player record whose +0x30 lacks one of them, assigns the mask to +0x30 (mov [eax+0x30], edx at 0x4b0b1e; clears bits 0..25), host broadcasts (mp_send_difficulty_complete); mp_handle_join_request tests bit 25+difficulty
 0x4b0b50  mp_level_find_boss       func  -                    O ; cur_level_index -> table 0x59fde8 index into 0x247e834, switch scans living list 0x8ecd78 for the level boss name, stores it in 0x247e838, boss-less levels mp_mark_level_complete (formerly level_boss_init)
 0x4b1150  mp_level_complete_check  func  -                    O ; once (0x247e830) when the level boss 0x247e838 is dead (flag 0x80) or absent: mp_mark_level_complete(0x247e834), and level 25 also marks the difficulty 0x6513ec complete, caller mp_game_frame
 0x4b11a0  mp_send_living_combat    func  -                    O ; only builds packet 0x22 from the living_combat state (handles, move, anim bytes) and broadcasts it (host) or multi_send_packet_buffered (client), no reset string here, caller living_combat_send_net (formerly mp_combat_reset_target)
@@ -4071,19 +4071,19 @@
 0x4d6e70  dialogue_topic_entry__draw func  -                    O ; hidden start, vtable 0x581c68 slot 0 (topic entry): localize_topic_name, gr_split_str, gr_string, mouse_get_pos hover, more/end labels
 0x4d70f0  dialogue_box_base__ctor  func  -                    O ; vtable 0x581c6c, zero fields, GameTimer +0x28 invalidated (checked: GameTimer__GameTimer at +0x28, vtable 0x581c6c, zeroes +4..+0x1c, GameTimer__invalidate, callers dialogue_box__ctor, dialogue_topic_box__ctor)
 0x4d7130  dialogue_box_base__dtor  func  -                    O ; hidden start: restores the base vtable 0x581c6c (set by dialogue_box_base__ctor)
-0x4d7140  conversation_reset       func  -                    O ; zeroes state fields +0xc..+0x24
+0x4d7140  dialogue_box_base__reset func  -                    O ; slot 0 of the base vtable 0x581c6c: zeroes the box's scroll +0xc/+0x10, +0x18 and the line ring +0x20/+0x24, was conversation_reset (formerly conversation_reset)
 0x4d7160  dialogue_box__set_rect   func  -                    O ; (x, y, w, lines) +4/+8/+0x14/+0x1c then vfunc 0, from dialogue_load_bitmaps (checked: stores +4, +8, +0x14, +0x1c from the four args then calls vtable[0], caller dialogue_load_bitmaps)
 0x4d7190  dialogue_box__add_text   func  -                    O ; (speaker, text, kind, ...) appends wrapped lines and scrolls, via dialogue_show_line (checked: dialogue_box__free_label / alloc_label, dialogue_line__init per wrapped line, vtable +8 calls, only caller dialogue_show_line)
 0x4d7410  dialogue_box__first_visible_line func  -                    O ; thiscall: index of the first line (ring of 64 at +0x2c, 0x1c bytes) below the scroll +0xc, -1, caller conversation_update_talk_anims
 0x4d7480  dialogue_box__last_visible_line func  -                    O ; thiscall: last line above scroll + lines * font height, -1, caller conversation_update_talk_anims
 0x4d74f0  dialogue_box__scroll_next_page func  -                    O ; thiscall: scroll target +0x10 one page down, clamped to the text height (+0x18) and aligned to a line start, caller dialogue_frame (checked: thiscall dialogue box: target scroll +0x10 += font height * visible lines (+0x1c), clamped to the text height and snapped to a line start, caller dialogue_frame)
 0x4d7600  dialogue_box__line_fits  func  -                    O ; returns a bool: line top (+0xc) + height (+4) + scroll <= font height * visible lines (+0x1c), it computes no rect, callers dialogue_frame, dialogue_draw (formerly dialogue_box__line_rect) (checked: thiscall (line) returns line top + height + scroll <= gr_get_font_height * visible lines (+0x1c), callers dialogue_frame, dialogue_draw)
-0x4d7650  conversation_start       func  -                    O ; from dialogue_init: reset + clear 32 line buffers
+0x4d7650  dialogue_box__reset      func  -                    O ; slot 0 of the text box vtable 0x581c4c: dialogue_box_base__reset then clears the 32 label buffers at +0x72c, was conversation_start (formerly conversation_start)
 0x4d7680  dialogue_text_box_draw   func  -                    O ; scroll animation (GameTimer +0x28), clip and lines of 0x2544408, from dialogue_draw (checked: GameTimer +0x28 scroll animation, gr_get_clip / gr__set_clip, gr_get_font_height, per-line vtable draw, caller dialogue_draw)
 0x4d7800  dialogue_topic_box_add   func  -                    O ; (topic, kind) adds a topic entry to 0x2545b68 (0x4d6de0) (checked: dialogue_topic_entry__init then vtable +8 on a free entry of the topic box, callers dialogue_draw, dialogue_topic_box_add_kind3)
 0x4d78b0  dialogue_box__item_visible func  -                    O ; thiscall (item): item top + height within the visible lines (font height * +0x1c), callers dialogue_frame, dialogue_draw
 0x4d7900  dialogue_box__item_y     func  -                    O ; (item) scroll +0xc + item top
-0x4d7920  dialogue_box_reset_thunk func  -                    O ; jmp conversation_reset (0x4d7140), callers dialogue_frame, dialogue_topic_box_reset
+0x4d7920  dialogue_topic_list__reset func  -                    O ; slot 0 of the topic list vtable 0x581c5c: jmp dialogue_box_base__reset, was dialogue_box_reset_thunk (formerly dialogue_box_reset_thunk)
 0x4d7930  dialogue_topic_box_draw  func  -                    O ; scroll animation, clip and entries of 0x2545b68, from dialogue_draw (checked: same scroll/clip pattern as dialogue_text_box_draw over the topic box entries, caller dialogue_draw)
 0x4d7ab0  dialogue_topic_box_reset func  -                    O ; 0x2545b68 -> conversation_reset
 0x4d7ac0  dialogue_topic_box_add_kind3 func  -                    O ; (topic) dialogue_topic_box_add(0x2545b68, topic, 3), returns 0, caller conversation_farewell
@@ -5537,12 +5537,12 @@
 0x50e990  gr_rotate_vertices       func  vsdk\gr              O ; (gr__Vertex* out, vector3* in, count): (in - gr_view_pos) rotated by gr_view_matrix, flags +0x19 cleared, gr_code_vertex for each (0x30 stride)
 0x50ea00  gr_offset_point_depth    func  vsdk\gr              O ; (v, d): z' = z + d / gr_one_over_matrix_scale_z, x/y scaled by z'/z when above 0x581d40: pushes the point along its view ray (depth bias for shadows, decals) (formerly gr_scale_to_depth)
 0x50ea50  gr_project_vertex        func  vsdk\gr              O ; (Vertex*) if not projected: sw = 1/z, sx/sy from projection half sizes + clip offset, clamped, sets flag 1 (2 when z <= 0), Dash Faction gr::project_vertex
-0x50eb30  gr_check_normal_facing   func  vsdk\gr              O ; (pos, normal): dot(view_pos - pos, normal) > 0 (backface test)
+0x50eb30  gr_check_normal_facing   func  vsdk\gr              O ; (normal, point): dot(gr_view_pos - point, normal) > 0 (backface test); operator_sub takes arg 2, the dot arg 1 (0x50eb30..0x50eb4e)
 0x50eb70  gr_plane_faces_viewer    func  vsdk\gr              O ; (Plane*): Plane__distance_to_point(gr_view_pos) > 0
-0x50eba0  gr_get_normal_facing_dot func  vsdk\gr              O ; (pos, normal): normalized(gr_view_pos - pos) dot normal
+0x50eba0  gr_get_normal_facing_dot func  vsdk\gr              O ; (normal, point): normalized(gr_view_pos - point) dot normal (point [esp+8] at 0x50eba0, normal at 0x50ebc0)
 0x50ebe0  gr_screen_to_world_ray   func  vsdk\gr              O ; (out {pos, dir}, sx, sy): unprojects with gr_projection_xmul/ymul and gr_matrix_scale, dir unrotated by gr_eye_matrix, pos = gr_eye_pos, callers world_mouse_frame, script_editor_frame
 0x50ec90  gr_project_size          func  vsdk\gr              O ; (Vertex*, float*size) size * projection x half-width * matrix_scale.x / z (checked: returns gr_projection_xmul * *size * gr_matrix_scale / vertex->z (+8), sole caller gr_draw_sphere)
-0x50ecb0  gr_scale_by_far_clip     func  vsdk\gr              O ; (f) returns f * 0x2692e80 (far clip scale), callers levelrender_draw_list, gr_set_fog, gr_d3d_set_fog and others (checked: returns arg * float 0x2692e80 (fld, fmul, ret), callers levelrender_draw_list and the per-API draw lists)
+0x50ecb0  gr_scale_by_far_clip     func  vsdk\gr              O ; (f) returns f * gr_matrix_scale.z (0x2692e80 = gr_matrix_scale 0x2692e78 + 8, written by gr_setup_3d 0x50e0c6), not a far clip value; callers levelrender_draw_list, gr_set_fog, gr_d3d_set_fog and others
 0x50ecc0  gr_vector_scaled_z       func  vsdk\gr              O ; (vector3*) returns v.z * gr_one_over_matrix_scale_z
 0x50ecd0  gr_cull_sphere           func  vsdk\gr              O ; (pos, radius, ignore_far): Plane__distance_to_point against the gr_frustum_planes, true when the sphere is fully outside one plane, as Dash Faction gr::cull_sphere
 0x50ed60  gr_get_frustum_planes    func  vsdk\gr              O ; (Plane* out, uint8* out_flags): copies gr_num_frustum_planes Planes (entry +4, stride 0x1c) and the flag byte at entry +0
@@ -6714,7 +6714,7 @@
 0x538590  vfx_instance__get_base   func  vsdk\geom            O ; thiscall: effect_get_base(flags +0 >> 9), 13 callers in the vfx instance code
 0x5385a0  vfx_get_word_72          func  vsdk\geom            O ; (object): returns the word +0x72, caller vfx_instance_process
 0x5385b0  vfx_instance__list18_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x18 (next +0x90)
-0x5385d0  vfx_instance__list1c_item func  vsdk\geom            O ; thiscall (n): item of the list +0x1c (next +0x28), n counted in steps of 2
+0x5385d0  vfx_instance__list1c_item func  vsdk\geom            O ; thiscall (n): item n of the light list +0x1c (next +0x28), but n is stepped by 2 (sub ecx, 2 at 0x5385e2) where list18/list20 step by 1, so light k resolves to light ceil(k/2) (game bug K296)
 0x5385f0  vfx_instance__list20_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x20 (next +0xa8)
 0x538610  vfx_instance__list24_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x24 (next +0xe0)
 0x538630  vfx_instance__list28_item func  vsdk\geom            O ; thiscall (n): n-th item of the list +0x28 (next +0x24)
@@ -6819,7 +6819,7 @@
 0x53d2d0  ix_ray_boundingbox       func  vsdk\math            O ; label string "ix_ray_boundingbox" (module - -> vsdk\math: contiguous ix_* intersection run; Dash Faction rf/math/ix.h names RF's ix module (file name inferred))
 0x53d4d0  ix_linesegment_boundingbox func  vsdk\math            O ; (...): segment against an axis-aligned box using slab tests (0x53d720), callers ix_sphere_polygon, ix_ray_plane (checked: segment vs axis-aligned box with ix_slab_clip per axis, entry point via vector3__assign, callers ix_sphere_polygon, ix_ray_plane) (module - -> vsdk\math: contiguous ix_* intersection run; Dash Faction rf/math/ix.h names RF's ix module (file name inferred))
 0x53d720  ix_slab_clip             func  vsdk\math            O ; (...): one axis slab of ix_linesegment_boundingbox (entry / exit parameters) (checked: one axis of the slab test: compares the segment ends with the slab bounds and updates entry/exit parameters, callers ix_linesegment_boundingbox) (module - -> vsdk\math: contiguous ix_* intersection run; Dash Faction rf/math/ix.h names RF's ix module (file name inferred))
-0x53d7a0  ix_ray_sphere            func  vsdk\math            O ; label string "ix_ray_sphere" (module - -> vsdk\math: contiguous ix_* intersection run; Dash Faction rf/math/ix.h names RF's ix module (file name inferred))
+0x53d7a0  ix_ray_sphere            func  vsdk\math            O ; (out point, out t, ray {pos, dir +0xc}, length, center, radius): label "ix_ray_sphere"; the length is never read (slot overwritten at 0x53d7e7), only caller script_editor_ray_hit_object passes 1000.0
 0x53d8f0  seg2d_intersect          func  vsdk\math            O ; (a0, a1, b0, b1, ...): 2D segment intersection by cross products, false when parallel or outside, caller 0x48d2b0 (spell area code)
 0x53d9d0  ix_ray_closest_point_t   func  vsdk\math            O ; (point, ray {origin, dir}, out): t = dot(point - origin, dir), out = origin + dir*t, returns t, no radius, so not a ray-sphere test (formerly ix_ray_sphere_b)
 0x53da70  atexit_nop_53da70        func  vsdk\math            O ; hidden start, bare ret, empty atexit destructor of the static vector3 0x2dc6dc8 in 0x53d9d0
@@ -7538,7 +7538,7 @@
 0x55d620  ds_stop                  func  -                    O ; (sig) ds_get_channel + ds_channel_release
 0x55d640  ds_stop_fade             func  -                    O ; (sig, ms) below 75 ms stops, else sets fade flag 8 and per-tick volume step
 0x55d6c0  ds_do_frame              func  -                    O ; ds_channel_update_fade for channels with flag 8
-0x55d6f0  ds_channel_update_fade   func  -                    O ; every 75 ms lowers volume, releases channel at 0
+0x55d6f0  ds_channel_update_fade   func  -                    O ; (channel) every 75 ms lowers the volume by +0x20 and releases the channel at 0, clearing flag 8; returns at once, flag 8 kept, when the sound has stopped (0x55d6f8..0x55d702), game bug K294
 0x55d780  ds_channel_is_playing    func  -                    O ; GetStatus & DSBSTATUS_PLAYING, RF snd_ds_channel_is_playing
 0x55d800  ds_pause_all             func  -                    O ; (bool all) Stop + flag 2 on playing channels (skips flag 4 unless all)
 0x55d850  ds_unpause               func  -                    O ; (sig) ds_channel_unpause if flag 2 (after nop padding, not in Ghidra list)
@@ -7670,7 +7670,7 @@
 0x5648b0  float_round_to_int       func  vsdk\math            O ; (f): ftol(f + 0.5)
 0x5648c0  vfx_unpack_normal        func  vsdk\geom            O ; thiscall (out): normal from the 8-bit fields at bits 20..27 and 12..19 of +0 and byte +0xb (b * 2/255 - 1), caller 0x562f60
 0x564950  vfx_pack_normal          func  vsdk\geom            O ; thiscall (vector3*): inverse of vfx_unpack_normal ((x + 1) * 127.5 clamped to 0..255)
-0x564a20  vfx_unpack_vector_s8     func  vsdk\geom            O ; thiscall (out): vector from the three high signed bytes of +0 (* 2/255 - 1), caller 0x562f60
+0x564a20  vfx_unpack_vector_s8     func  vsdk\geom            O ; thiscall (out): vector from the three high bytes of +0 extracted signed (sar) but mapped as b / 127.5 - 1 like the unsigned vfx_unpack_normal, so every component is -2..0 (game bug K299); caller vfx_mesh_render
 0x564aa0  vfx_face__set_u          func  vsdk\geom            O ; thiscall (i, float): int16 +2*i = float_to_fixed12, caller vfx_mesh_instance__update_frame
 0x564ac0  vfx_face__set_v          func  vsdk\geom            O ; thiscall (i, float): int16 +6+2*i = float_to_fixed12
 0x564ae0  vfx_mesh_xform__get_pos  func  vsdk\geom            O ; thiscall (out, frame, scaled, base): vec channel +0xc (optionally * 1/16) plus base, caller vfx_mesh_instance__update_frame (checked: thiscall (out, frame, scaled, base) vfx_vec_channel__eval of +0xc, times 1/16 (0x3d800000) when scaled, plus base, callers vfx_mesh_instance__update_frame)
@@ -11067,7 +11067,7 @@
 0x26924a0  gr_num_user_clip_planes  data:int vsdk\gr              O ; number of gr_user_clip_planes in use, loop count of gr_save_3d_state / gr_restore_3d_state
 0x26924a4  gr_projection_xadd       data:float vsdk\gr              O ; clip left plus gr_projection_xmul (gr_setup_3d), Dash Faction gr::projection_xadd
 0x26924a8  gr_view_pos              data:vector3 vsdk\gr              O ; viewer position (instance-relative), set by gr_setup_3d, saved/transformed by gr_start_instance, Dash Faction gr::view_pos
-0x26924b8  gr_frustum_near_plane    data:gr_clip_plane vsdk\gr              O ; clip plane object (init_gr_clip_plane_26924b8) set from the view normal by gr_setup_frustum (checked: gr_clip_plane: ctor in init_gr_clip_plane_26924b8, set_from_normal at view_pos + fvec in gr_setup_frustum, its Plane (+4) tested in gr_cull_sphere)
+0x26924b8  gr_frustum_fog_plane     data:gr_clip_plane vsdk\gr              O ; not a near plane: gr_setup_frustum sets it only while far clipping is on, at gr_view_pos + view dir * gr_far_clip_dist / Gr_level_fog_multiplier (the fog distance, 0x50e54b..0x50e591), gr_cull_sphere tests its Plane (+4) in place of the far plane when ignore_far is 0 (0x50ed2f..0x50ed4b) (formerly gr_frustum_near_plane)
 0x26924d8  gr_view_matrix           data:matrix3 vsdk\gr              O ; viewer orientation (instance-relative), Dash Faction gr::view_matrix
 0x26924fc  gr_projection_yadd       data:float vsdk\gr              O ; clip top plus gr_projection_ymul (gr_setup_3d), Dash Faction gr::projection_yadd
 0x2692500  gr_instance_stack        data:gr_instance_entry[] vsdk\gr              O ; 0x64-byte entries: +0 lighting flag, +4 view_pos, +0x10 view_matrix, +0x34 light_base, +0x40 light_matrix

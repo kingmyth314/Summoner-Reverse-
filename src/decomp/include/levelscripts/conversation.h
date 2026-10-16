@@ -34,7 +34,7 @@ class dialogue_box_base {
 public:
     dialogue_box_base();                             // 0x4d70f0 dialogue_box_base__ctor
     ~dialogue_box_base();                            // 0x4d7130 dialogue_box_base__dtor (restores the vtable)
-    virtual void reset();                            // 0x4d7140 conversation_reset (slot 0)
+    virtual void reset();                            // 0x4d7140 dialogue_box_base__reset (slot 0)
     virtual void draw() = 0;                         // slot 1 (_purecall in the base vtable)
     void set_rect(int x, int y, int w, int lines);   // 0x4d7160 dialogue_box__set_rect
 
@@ -89,7 +89,7 @@ struct dialogue_label {
 class dialogue_box : public dialogue_box_base {
 public:
     dialogue_box();                                  // 0x4d66a0 dialogue_box__ctor
-    virtual void reset();                            // 0x4d7650 conversation_start (slot 0: base reset + labels)
+    virtual void reset();                            // 0x4d7650 dialogue_box__reset (slot 0: base reset + labels)
     void start() { reset(); }                        // the decomp20 name of the same call (D4800)
     virtual void draw();                             // 0x4d7680 dialogue_text_box_draw (slot 1)
     virtual void layout();                           // 0x4d69d0 dialogue_box__layout_lines (slot 2)
@@ -125,7 +125,7 @@ public:
 class dialogue_topic_list : public dialogue_box_base {
 public:
     dialogue_topic_list();                           // 0x4d6730 dialogue_topic_box__ctor
-    virtual void reset();                            // 0x4d7920 dialogue_box_reset_thunk (slot 0: jmp base reset)
+    virtual void reset();                            // 0x4d7920 dialogue_topic_list__reset (slot 0: jmp base reset)
     virtual void draw();                             // 0x4d7930 dialogue_topic_box_draw (slot 1)
     virtual void layout();                           // 0x4d6a90 dialogue_topic_box__layout_entries (slot 2)
     dialogue_topic_entry *add(conversation_topic *topic, int kind);   // 0x4d7800 dialogue_topic_box_add (decomp68: returns the entry)

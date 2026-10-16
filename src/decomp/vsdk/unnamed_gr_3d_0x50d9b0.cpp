@@ -162,7 +162,7 @@ plane gr_plane_buf_2692830[5];                        // 0x2692830
 // 0x50de50 init_gr_frustum_planes (body 0x50de60)  Confidence: exact.
 gr_clip_plane gr_frustum_planes[GR_MAX_CLIP_PLANES];  // 0x2692d38
 // 0x50de80 init_gr_clip_plane_26924b8 (body 0x50de90)  Confidence: exact.
-gr_clip_plane gr_frustum_near_plane;                  // 0x26924b8
+gr_clip_plane gr_frustum_fog_plane;                  // 0x26924b8
 // 0x50dea0 init_gr_3d_state_saved (body 0x50deb0)  Confidence: exact.
 gr_3d_state gr_saved_3d_state;                        // 0x2692890
 
@@ -251,7 +251,7 @@ void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5)
 
 // 0x50e150  Confidence: likely. The four side planes through the eye and the corners of the view window
 // one unit ahead, the plane behind the eye, and with far clipping the far plane (plus
-// gr_frustum_near_plane, the far plane pulled in by Gr_level_fog_multiplier).
+// gr_frustum_fog_plane, the far plane pulled in by Gr_level_fog_multiplier).
 void gr_setup_frustum()
 {
     gr_far_clip_z = gr_far_clip_dist * gr_matrix_scale.z;
@@ -274,7 +274,7 @@ void gr_setup_frustum()
     if (gr_far_clip_enabled) {
         gr_frustum_planes[gr_num_frustum_planes++].set_from_normal(
             1, gr_eye_matrix.fvec, gr_view_pos + gr_eye_matrix.fvec * gr_far_clip_dist);
-        gr_frustum_near_plane.set_from_normal(
+        gr_frustum_fog_plane.set_from_normal(
             1, gr_eye_matrix.fvec, gr_view_pos + gr_eye_matrix.fvec * (gr_far_clip_dist / Gr_level_fog_multiplier));
     }
 }
@@ -514,7 +514,7 @@ float gr_vector_scaled_z(const gr_vertex *v)
 }
 
 // 0x50ecd0  Confidence: likely (the first plane is tested before the count, a do-while). With far
-// clipping on the far plane is replaced by gr_frustum_near_plane; that plane is also tested when far
+// clipping on the far plane is replaced by gr_frustum_fog_plane; that plane is also tested when far
 // clipping is off (D4505).
 bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
 {
@@ -528,7 +528,7 @@ bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
             return true;
         i++;
     } while (i < n);
-    if (!ignore_far && gr_frustum_near_plane.pl.distance_to_point(pos) > radius)
+    if (!ignore_far && gr_frustum_fog_plane.pl.distance_to_point(pos) > radius)
         return true;
     return false;
 }

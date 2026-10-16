@@ -151,7 +151,7 @@ extern gr_clip_plane gr_user_clip_planes[GR_MAX_CLIP_PLANES];   // 0x26829a0 (on
 extern gr_sort_entry vfx_mesh_sort_buf[8000];         // 0x2682aa0 (filled and sorted by vfx_mesh_render)
 extern int gr_num_user_clip_planes;                   // 0x26924a0
 extern float gr_projection_xadd;                      // 0x26924a4
-extern gr_clip_plane gr_frustum_near_plane;           // 0x26924b8 the far plane at far / Gr_level_fog_multiplier
+extern gr_clip_plane gr_frustum_fog_plane;           // 0x26924b8 the far plane at far / Gr_level_fog_multiplier
 extern matrix gr_view_matrix;                         // 0x26924d8 rows scaled by gr_matrix_scale
 extern float gr_projection_yadd;                      // 0x26924fc
 extern gr_instance_entry gr_instance_stack[GR_MAX_INSTANCE_DEPTH];   // 0x2692500

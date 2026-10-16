@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 322 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 337 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 69 | 2 |
-| Gameplay | 48 | 23 | 3 |
-| Cosmetic | 51 | 28 | 5 |
-| Invisible | 42 | 54 | 0 |
+| Crash or hang | 7 | 72 | 2 |
+| Gameplay | 48 | 24 | 3 |
+| Cosmetic | 57 | 32 | 5 |
+| Invisible | 42 | 55 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -114,6 +114,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
 | C274 | Latent: a level item placed while all 40 containers are in use crashes the level load | `level_item_spawn` `0x46a640`, `container_obj_create` `0x4897f0` | **Observed** code and retail data, *inferred* crash | No |
 | C280 | Latent (console only): after `play_and_load_cutscene` returns to the main menu, Start New Game crashes (access violation) | `cmd_play_and_load_cutscene` `0x437590`, `cutscene_change_level_for` `0x437400` | **Observed** in game once, cause not analysed | No |
+| C290 | Latent: Print Screen at a screen height above 1024 lines (only with a resolution patch, for example SummonerFix's `GameHeight`) overwrites the JPEG writer's return address and crashes | `jpeg_write_file` `0x5565e0` | **Observed** code, *inferred* crash | No |
+| C291 | Latent: an `alt_textures.tbl` `$Base:` name of 33 to 40 characters runs into the next base, and a texture set with more than 15 textures overwrites the next set | `alt_textures_parse_table` `0x4aac10` | **Observed** code and retail data, *inferred* effect | No |
+| C292 | Latent: an input box character set with a character above `0x7f` (script editor or UI table) writes past its 128-entry stack table into the return address | `ui_inputbox__set_valid_chars` `0x552870` | **Observed** code, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -778,6 +781,31 @@ Jade Temple), clicking Start New Game from that menu ended the process with `0xC
 before the cutscene ended, played on normally. *Inferred:* some level or cutscene state is not reset on the way back
 to the menu. Not reachable without the console. Cause not analysed yet.
 
+**C290. A 1024-row table on the stack.** `jpeg_write_file` reserves `0x11fc` bytes (`0x5565e0`..`0x5565e5`) and fills
+one row pointer per image line at `[esp + 0x20c + 4*i]` for `h` lines with no limit (`0x55661f`..`0x55663a`). The
+table ends at `esp + 0x120c`, where the return address sits, so it holds 1024 rows; row 1025 replaces the return
+address with a pointer into the pixel buffer, and rows after it overwrite the arguments. `gr_screenshot` passes the
+screen clip height (`0x25d8d68`, `0x506214`) for all three JPEG calls (`0x5064bd`, `0x506518`, `0x5065a7`), and
+`screenshot_save` takes the JPEG path unless `Print_screen_as_targa` is set (`0x43251e`). The retail resolution
+table stops at 1024x768 ([Video settings](video-settings.md)), so the original game cannot reach it. SummonerFix
+reads any `GameWidth` / `GameHeight` from `summonerfix.ini` (`main.c`). *Inferred:* with a height above 1024,
+Print Screen ends the game when `jpeg_write_file` returns.
+
+**C291. Two unchecked sizes in the alternate textures table.** `alt_textures_parse_table` parses `$Base:` with a
+limit of 0x28 characters into rows of 0x21 bytes (`n * 33 + 0x2476fb8`, `0x4aacf3`..`0x4aad0f`), so a name of 33
+characters or more runs into the next row. The texture names of a `+Textures:` set are read in a loop that stops
+only at the next keyword or `#End` (`0x4aaea4`..`0x4aaee8`), with a word counter at `+0x68` and no test against the 15
+bitmap slots. Retail `alt_textures.tbl` has 27 bases, the longest name has 21 characters, and no set has more than
+two textures. Found in the `NOTES-unnamed-inventory-popup-join-gtrack.md` notes (D5207).
+
+**C292. Character codes above 127 index a 128-byte table.** `ui_inputbox__set_valid_chars` builds the allowed set in a
+128-byte table at `[esp + 0x1c]` (frame `sub esp, 0x8c` plus four pushes) and marks each character with
+`xor eax, eax; mov al, [ebx + ebp - 1]; mov byte [esp + eax + 0x1c], 1` (`0x552952`..`0x55295d`, also `0x5528d0`,
+`0x5529e0`..`0x5529eb`). The table ends at the return address (`esp + 0x9c`), so a character from `0x80` writes into
+it. The script editor's sets are ASCII ("A-Za-z0-9$_-", "01234567890.", "0123456789"); the other caller,
+`ui_parse_inputbox` (`0x529576`), only runs for UI tables, which nothing loads (V9). Found in the
+`NOTES-unnamed-anim-clip-ui-vfxmesh.md` notes.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -853,6 +881,7 @@ to the menu. Not reachable without the console. Cause not analysed yet.
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
 | G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code, *inferred* effect | No |
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
+| G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1482,6 +1511,13 @@ makes `fx_destroy_spell_effects` (cutscene start, `0x48d733`) destroy status hol
 `character_update_status_effects` recreates (harmless), and item effects, which only an equip recreates; no
 retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a402`), so that part is latent.
 
+**G290. A full node stack drops the subtree.** `lobj_raycast_bsp` keeps the crossed nodes on a 128-entry stack. When
+it is full (`cmp edx, 0x80; jae` at `0x4af0a5`..`0x4af0ab`) the current node is neither pushed nor descended, so its
+faces and both children are skipped and the ray can pass through that part of the object. The only caller is
+`lobj_raycast` (`0x4ae9e2`). The retail level geometry was not measured; a tree with 10-bit node indices would need
+more than 128 crossings along one segment, which we have not seen. Found in the
+`NOTES-unnamed-inventory-popup-join-gtrack.md` notes (D5216).
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1565,6 +1601,16 @@ retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a4
 | K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
 | K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
 | K280 | With SummonerFix's widescreen output (a game width above 1024), the black strip right of the centred main menu showed old frames of the last level in turn with black after a cutscene had run (seen after the console cutscene viewer and after skipping story cutscenes) | SummonerFix `display.c` (`Hook_SwapBuffers`), not the game | **Observed** by the user and in agent-mode captures (2026-10-16) | Fixed (`display.c`) |
+| K290 | Animated characters are lit as if their normals leaned towards each bone's position: the skinning moves the normals by the bone translation too | `gr_glide_render_character_mesh` `0x50b4c0`, `gr_d3d_render_character_mesh` `0x50c130`, `gr_opengl_render_character_mesh` `0x50cd00` | **Observed** code, *inferred* effect | No |
+| K291 | With Direct3D in a fogged level, character vertices on texture seams are not fogged while the vertices around them fade | `gr_d3d_render_character_mesh` `0x50c130` | **Observed** code, *inferred* effect | No |
+| K292 | In a conversation, the "more" and "end" entries light up for the wrong mouse positions | `dialogue_topic_entry__draw` `0x4d6e70` | **Observed** code, *inferred* effect | No |
+| K293 | In a conversation of more than 64 text lines and spacers, the later lines play no talk animation | `dialogue_box__add_text` `0x4d7190` | **Observed** code, *inferred* effect | No |
+| K294 | A sound that is fading out and ends during the fade leaves its channel marked as fading; the next sound put on that channel is cut off within 75 ms, and the old sound buffer is not released | `ds_channel_update_fade` `0x55d6f0`, `ds_channel_release` `0x55c5b0`, `ds_find_free_channel` `0x55d0a0` | **Observed** code, *inferred* effect | No |
+| K295 | Effect particles pushed by forces (gravity, wind) move by at most 1/30 of the step per update, so they move slower when updates are long | `vfx_emitter_instance__move_particles` `0x560a00` | **Observed** code, *inferred* effect | No |
+| K296 | Latent: in an effect bound to a character, light tags from the third on bind to (and place, hide or show) the wrong light, and dummies bound to a bone never take the bone's rotation | `vfx_instance__list1c_item` `0x5385d0`, `vfx_dummy_state__update` `0x55fc90` | **Observed** code, *inferred* effect | No |
+| K297 | Latent: in the script editor, check boxes and radio buttons are clickable only over the first few characters of their label, and input boxes place the scroll and cursor with the wrong font | `ui_checkbox__create` `0x553d00`, `ui_radio_button__create` `0x5548a0`, `ui_inputbox__draw` `0x5530b0` | **Observed** code, *inferred* effect | No |
+| K298 | Latent: velocity-aligned (streak) particles have a length that ignores one of their size factors | `vfx_particle_get_billboard_axes` `0x562840` | **Observed** code, *inferred* effect | No |
+| K299 | Latent: lit effect meshes get vertex normals that all point into the negative octant, because face normals are unpacked as signed bytes with the unsigned mapping | `vfx_unpack_vector_s8` `0x564a20`, `vfx_mesh_render` `0x562f60` | **Observed** code, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1713,7 +1759,7 @@ green and blue (`0x54f9fb`, `0x54fa19`). `gr_d3d_apply_tint` clamps the int (`cl
 `gr_glide_apply_tint` the float (`0x54a56d`..`0x54a5a1`). So a white vertex (sum 765) with a tint of 0.5 gives 126 instead of
 255. The function runs from `gr_opengl_bitmap`, `gr_opengl_line`, `gr_opengl_line_3d` and `gr_opengl_tmapper` while
 `gr_tint_enabled` is set (`0x5501a4`..`0x5501af`). The hover and effect tints of `levelrender_draw_list` reach meshes
-(`ca_render_mesh`, which clamps first at `0x50d3a1`..`0x50d3c3`) and level geometry (`levelrender_face_vertex_colors`), and
+(the character mesh renderers, which clamp the brightness first, OpenGL in `gr_opengl_render_character_mesh` at `0x50d3a1`..`0x50d3c3`) and level geometry (`levelrender_face_vertex_colors`), and
 `gr_poly_buffer_flush` clears the flag while it replays (`0x545d9e`, `0x546028`). We found no draw that reaches this
 function with a tint set.
 
@@ -2238,6 +2284,95 @@ the menu), one showed the Jade Temple in the strip. Fixed 2026-10-16: on menu sc
 `Hook_SwapBuffers` also clears the area right of the 1024-wide layout. The same four captures with the fix were
 all black there. In-game full-screen panels are not changed (the world may show beside them).
 
+**K290. The normals get the bone translation.** All three character renderers skin each vertex with up to four
+bone matrices of 0x30 bytes. They transform the position with the rotation rows and add the translation
+(`fadd [eax + 0x24]` / `+0x28` / `+0x2c`, OpenGL `0x50d00e`..`0x50d056`). They then transform the normal the same way,
+translation included (`0x50d088`..`0x50d0de`), sum the weighted results into `ca_skin_normals` and normalise them
+(`0x50d33b`) before `lights_shade_vertices` (`0x50d366`). Direct3D does the same at `0x50c514`..`0x50c58d` and
+`0x50c846`, Glide at `0x50b7e4`..`0x50b859` and `0x50bb00`. A normal is a direction and should only be rotated.
+*Inferred:* when a bone moves away from its rest position, the lighting normals of its vertices lean towards the
+bone's offset. Characters drawn without an instance (`0x2682990` = 0) copy the mesh normals and are lit correctly
+(`0x50d1c0`..`0x50d1f1`). Found in the `NOTES-unnamed-ca-mesh-gr-3d.md` notes.
+
+**K291. The seam copy reads the normal's z.** For a vertex that copies an earlier one (a texture seam,
+`ca_vertex_done` set), `gr_d3d_render_character_mesh` takes the fog alpha from `ca_skin_normals[j - d].z`
+(`add ecx, 0x2622e48; mov eax, [ecx + 8]; call gr_get_fog_alpha`, `0x50c37f`..`0x50c39d`) and copies the position
+from `ca_skin_positions` (`0x50c3a6`..`0x50c3b3`). Every other vertex uses its view-space depth
+(`[esi + 0x25e74b8]`, `0x50c778`..`0x50c77e`). The result goes into the fog byte of the vertex (`+0x17`, `0x50c3a8`).
+`gr_get_fog_alpha` returns 255 for a depth at or below the fog start (`0x50d839`..`0x50d848`), and a unit normal's z is
+at most 1, so seam vertices are never fogged. Glide copies the whole vertex and OpenGL draws without a per-vertex fog
+alpha, so only Direct3D, the retail default, is affected. Found in the `NOTES-unnamed-ca-mesh-gr-3d.md` notes.
+
+**K292. The hover test compares x with a y bound.** For the "more" (kind 5) and "end" (kind 6) entries,
+`dialogue_topic_entry__draw` tests the mouse against the topic box's corner (`0x2545b6c`, `0x2545b70`) and the text
+size. The last test compares the mouse x with `box y + text height` (`mov edx, [esp + 0x18]; add ecx, edx;
+cmp eax, ecx` with `eax` still the x, `0x4d6fe8`..`0x4d6ff0`; "end" `0x4d707c`..`0x4d7084`), so there is no lower
+bound on the mouse y. The click test in `dialogue_frame` uses `point_in_rect` with the same rectangle and is right
+(`0x4094d3`..`0x4094f0`, `0x409560`..`0x40957d`). *Inferred:* the highlight colour shows anywhere below the entry
+within its width (or never, if the box's x is beyond its y plus the text height), while clicks work only on the
+text. Found in the `NOTES-unnamed-ai-move-think-dialogue.md` notes.
+
+**K293. The full ring drops the speaker.** `dialogue_box__add_text` keeps 64 lines (`cmp eax, 0x40` at `0x4d7262`).
+While the ring is not full it passes the speaker (its fourth argument) to `dialogue_line__init` (`0x4d73cc`..`0x4d73ea`),
+which stores it at `+0x18` for text lines (`0x4d6b06`..`0x4d6b0d`). Once the ring is full it pushes 0 instead
+(`0x4d72fa`..`0x4d7316`). `conversation_update_talk_anims` picks the talking character from `+0x18` of the visible
+lines (`0x4d8b49`, `0x4d8bb5`). The ring is cleared only when a conversation opens (`dialogue_init` -> `0x4d7650` ->
+`0x4d7140`). Each text adds a spacer line as well, so about 32 texts fill it. *Inferred:* in a long conversation the
+speakers stop moving their lips and hands. Found in the `NOTES-unnamed-ai-move-think-dialogue.md` notes.
+
+**K294. The fade flag outlives a sound that ends by itself.** `ds_stop_fade` sets flag 8 on the channel and a
+75 ms timer (`0x55d673`..`0x55d6ab`); `ds_do_frame` then calls `ds_channel_update_fade` for every channel with that
+flag. If the sound has stopped, the update returns at once (`ds_channel_is_playing`, `0x55d6f8`..`0x55d702`); flag 8
+is cleared only when the volume reaches 0 (`0x55d742`..`0x55d74c`). `ds_channel_release` does nothing for a channel
+with flag 8 (`0x55c5c5`..`0x55c5d5`). `ds_find_free_channel` takes any stopped channel without flags 1 or 4, calls
+`ds_channel_release` on it and returns it (`0x55d0b4`..`0x55d0f7`). `ds_play` then duplicates the new buffer into the
+channel and sets its volume (`0x55d170`, `0x55d21e`), so the old buffer is never released and flag 8 stays. On the
+next frame the fade timer has long run out, and the update subtracts the old step (`volume / (ms / 75)`) from the new
+volume and releases the channel when it reaches 0. `character_play_move` fades the previous move sound over 100 ms
+(`0x46112b`..`0x461137`), a step of the whole volume, so a sound that ends in that window leaves a channel that cuts
+the next sound on it at once. *Inferred:* now and then a sound effect is missing. Found in the
+`NOTES-unnamed-vsdk-tail.md` notes.
+
+**K295. The sub-step counter advances by 0.5.** `vfx_emitter_instance__move_particles` integrates the force records in
+steps: total = elapsed effect time x 1/15 (`[0x581a08]`, `0x560b85`..`0x560b9e`), each step min(total - done, 1/30)
+(`[0x582338]`, `0x560bb7`..`0x560bde`), then done += 0.5 (`[0x57e6b0]`, `0x560c16`..`0x560c2d`). So one step runs and
+any update longer than 1/30 integrates only 1/30. The same loop is in the three other branches (`0x560d9a`, `0x560f01`,
+`0x561131`). *Inferred:* force-driven particles move by less at low frame rates and differently at each frame rate.
+Found in the `NOTES-unnamed-vsdk-tail.md` notes.
+
+**K296. Two slips in effect nodes bound to a character.** `vfx_instance__list1c_item`, the light list walker, steps
+its index by 2 (`sub ecx, 2` at `0x5385e2`) where `list18_item` and `list20_item` step by 1 (`dec ecx`, `0x5385c5`,
+`0x538605`). `vfx_base__decode_tag` returns the plain light index (kind 2, `0x53734b`..`0x537365`), so light 2 resolves to
+light 1, light 3 to light 2 and so on. `vfx_instance__bind_node` (light case `0x537600`..`0x537634`, from
+`fx_bind_character_tags`), `get_node_transform`, `set_node_transform` and `get_tag_transform` use it. Separately,
+`vfx_dummy_state__update` builds the bone product for a bound dummy and stores the position (`0x55fe8c`), then calls
+`quaternion__to_matrix` on its own orientation into that product (`0x55feb5`..`0x55febc`) where the emitter converts
+the product back into its orientation (`quaternion__set_from_matrix` and `quaternion__assign`, `0x56164b`..`0x56165b`).
+The retail `.rfx` files were not checked for effects with three or more lights or bone-bound dummies. Found in the
+`NOTES-unnamed-vfx-ix-floatmath-ui.md` and `NOTES-unnamed-vsdk-tail.md` notes.
+
+**K297. Font and length swapped.** `gr_get_string_size` takes (w, h, text, length, font). `ui_checkbox__create` and
+`ui_radio_button__create` push -1 as the font and the gadget's font as the length (`0x553d0e`..`0x553d1c`,
+`0x5548af`..`0x5548bd`), and the font is what they store at `+0x380` for drawing (`0x553dba`). So the gadget width
+covers as many characters as the font handle's value, measured in the default font. `ui_inputbox__draw` measures
+its text with the default font (`push -1` at `0x553217`); the notes say it draws and processes with the box font. The callers are
+`script_editor_create_ui` and the UI table parsers, which nothing loads (V9). Found in the
+`NOTES-unnamed-anim-clip-ui-vfxmesh.md` notes.
+
+**K298. The tip is computed twice.** In `vfx_particle_get_billboard_axes` the velocity path builds a vector divided by
+15 and scaled by 1.6, by the function's argument at `[esp + 0xc0]` and by `vfx_emitter__get_fixed8_32`, and stores it
+in the output (`0x562947`..`0x5629ad`). It then builds it again without the argument factor and stores it over the
+first (`0x5629b2`..`0x562a04`). The notes read the argument as the particle size. Which retail emitters use this
+path was not checked. Found in the `NOTES-unnamed-vsdk-tail.md` notes.
+
+**K299. Signed bytes, unsigned mapping.** `vfx_unpack_vector_s8` extracts the three high bytes of a face's word with
+`sar` and maps each as `b / 127.5 - 1` (`0x564a28`..`0x564a7c`, `[0x582340]` = 1/127.5). `vfx_unpack_normal` uses the
+same mapping on unsigned bytes (`shr`, `0x5648c7`..`0x5648fc`), and `vfx_pack_normal` packs `(x + 1) * 127.5`. With
+signed bytes every component comes out between -2 and 0. `vfx_mesh_render` averages these face normals for each
+vertex, normalises and packs the result and lights the vertex with it (`0x5631c7`..`0x56325a`), unless the mesh is
+full-bright (`test al, 0x10` at `0x563193`) or its material value is 254 or more (`0x56319b`). Which retail effect
+meshes are lit was not checked. Found in the `NOTES-unnamed-anim-clip-ui-vfxmesh.md` notes (D5108).
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -2338,6 +2473,7 @@ all black there. In-game full-screen panels are not changed (the world may show 
 | V270 | Nothing in v1.40: the `render_level`, `render_characters` and `render_effects` console toggles change flags that nothing reads. No console in v1.40: only a patch or a `.vcs` script can run them | `cmd_render_level` `0x481890`, `cmd_render_characters` `0x481980`, `cmd_render_effects` `0x481a70` | **Observed** code | No |
 | V271 | Nothing: three render flags are read but never set, so the frame-rate fog scaling, a "no lighting" mode (no level lights, distance culling of level objects, no lamp glows, LOD 2) and a level-light rebuild are dead code | `levelrender_fog_enable` `0x482850`, `fog_get_near_current` `0x486bf0`, `fog_get_far_current` `0x486c20`, `levelrender_render_scene` `0x482200` | **Observed** code | No |
 | V272 | Nothing: sixteen 64 x 64 blob shadow bitmaps are built at start-up and never used | `shadow_create_blob_bitmap` `0x489f10` | **Observed** code | No |
+| V290 | Latent: two functions with no caller have slips: the oriented-box test multiplies one term by the wrong extent, and the Direct3D particle path culls the top 100 pixels of the screen | `ix_box_oriented_box_oriented` `0x53c610`, `vfx_emitter_instance__render_d3d` `0x561900` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -2991,6 +3127,13 @@ at `0x482d9b`, `0x4839f4`, `0x4841fa`, `0x48438e` and `0x485f89`; `levelrender_l
 instruction reads `0x59c260`..`0x59c29f`, the palette `0x230561c` or the ramps; shadows use `Shadow01.tga`
 (`shadow_bm`, `0x48a078`).
 
+**V290. Slips in dead code.** In `ix_box_oriented_box_oriented` the third separating-axis test computes
+`(|B[1][2]| + |B[1][0]|) * b.z + |B[1][1]| * b.y` (`0x53c741`..`0x53c75a`), so `|B[1][0]|` multiplies the third
+extent instead of the first; the notes list three more tests of the same kind. In
+`vfx_emitter_instance__render_d3d` the screen test keeps x above -100 (`[0x580e34]`, `0x561ba6`) but y above +100
+(`[0x57e6b4]`, `0x561bd6`). Neither function has a caller (`tools/asm.mjs callers`, no address reference). Found
+in the `NOTES-unnamed-vfx-ix-floatmath-ui.md` and `NOTES-unnamed-vsdk-tail.md` notes.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -3303,6 +3446,13 @@ the tables above; the rest are below.
 - `fx_destroy_spell_effects` destroying status holders at a cutscene start: `character_update_status_effects` recreates them (folded into G271).
 - `camera.md` fog defaults 20 / 30 and 35 / 50: confirmed (`0x4870c9`..`0x4870d3`, `0x487099`..`0x4870a3`).
 
+- The character tint replaces the lit colour by tint x clamp((r + g + b) x 0.75, 0, 255) in all three renderers (`[0x580e04]` = 0.75: `0x50bb6d`, `0x50c8bb`, `0x50d3b9`), and level geometry uses the plain clamped sum (`levelrender_face_vertex_colors` `0x48f9a2`..`0x48f9ee`). Neither is an average, and the two paths agree on a bright, flat highlight, so this reads as intended.
+- `gr_cull_sphere` tests `gr_frustum_near_plane` (`0x26924bc`, `0x50ed2f`..`0x50ed4b`) whenever `ignore_far` is 0, also with far clipping off, and `gr_setup_frustum` updates that plane only while far clipping is on (`0x50e4e4`..`0x50e591`). In retail every level view fogs (`fog_set_high_camera_default` / `fog_set_low_camera_default` store 35/50 and 20/30, `0x487099`, `0x4870c9`), so `levelrender_fog_enable` (`0x482399`) sets the plane before `levelrender_add_lobjs`, `levelrender_build_draw_lists` and `levelrender_add_effects` cull; `worldmap_frame` (`0x42f5b1`) runs after the scene and reads that frame's plane. The plane is the fog distance, not a near plane (symbol fix).
+- The Glide, Direct3D and OpenGL character renderers drop vertices at different screen bounds (Glide 1224 x 1000, Direct3D 2048, OpenGL depth only): a renderer difference, not a slip.
+- `ix_ray_sphere` never reads its length argument (`[esp + 0x5c]` is overwritten by the dot product at `0x53d7e7` before any read); its only caller, `script_editor_ray_hit_object`, passes 1000.0 (`0x4e2f56`), farther than any visible object.
+- The dialogue box draws compare the visible height with the scroll offset instead of each line's top (`dialogue_text_box_draw` `0x4d779e`, `dialogue_topic_box_draw` `0x4d7a48`), so lines below the box are drawn and clipped by `gr__set_clip` (`0x4d775a`): wasted draws only.
+- `character_use_inventory_item` / `character_use_equipped_item` keep an item with a fractional `+Disposable:` value at 0 charges when the break roll fails (D5204): that is the break chance working, and items.tbl 1.40 uses only plain `+Disposable` (1.0).
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -3451,6 +3601,13 @@ the tables above; the rest are below.
 - C274: whether a loaded save can restore containers before `level_items_parse_table` places the level items.
 - `detail_apply_level_settings` (`0x487370`) stores "+UnlockMedium" / "+UnlockHigh" into `game_camera +0x08`, which the camera code treats as "defer high camera requests": either the camera field's name is inverted or the flags lock the high camera (render notes, open question; not a bug candidate yet).
 - `experience.tbl` gains marked "D" are never below 3 (`fld 3.0` at `0x489b3a`..`0x489b4b`), even "D1" or "D2"; no retail line uses "D", so the intent cannot be compared.
+- `ai_think_party_update` reads `char_info` of each AI group member from `living_from_handle` with no NULL test (`0x4b756b`..`0x4b7574`), for summoned creatures in the party group. Whether a group can hold a stale member handle (a dead or departed party member) was not traced; compare the party-list walks in "Checked, not bugs".
+- `vfx_instance__set_node_transform`'s child loop (`0x537db3`..`0x537ee4`): the notes say mesh children of a light, dummy, emitter or vif parent are placed at the parent's displacement instead of their own position moved by it, and that vif children are measured from the file position (`0x537cb3`). Only `spell_probe_ground_point` (`0x47e4a9`) reaches it; not traced against an effect file.
+- `vfx_mesh` xform branch of the frame update scales by 64 for mesh flag 4 after adding the translation (`0x564292`..`0x56429f`); the notes say the other branches scale first. Whether any retail mesh sets flag 4 on an xform mesh was not checked.
+- `ui_radio_button::process` clears byte `+0x274` of every sibling gadget on a hotkey or Enter (`0x5547bf`, per the notes); the script editor's radio containers hold only radio buttons, mixed containers not checked.
+- `anim_track__get_rotation` before the first key and `anim_track__calc_rot_tangents`' wrap interval (notes: harmless at t = 0; loop always 0): not checked.
+- Multiplayer: `mp_mark_difficulty_complete` assigns the difficulty bits to `+0x30` (`mov [eax + 0x30], edx` at `0x4b0b1e`) when they are not all set, which clears bits 0..25. Verified in the code; whether that wipe of the level progress is intended (start the next difficulty from the first level) is not known.
+- Multiplayer, unchecked: `ftp_get::abort_get` spinning when the worker never sets done; `http_get` never seeing a failed asynchronous host lookup; the items-checksum version check accepting the constant 1.40 value (D5210); `mp_change_level`'s dead search for "<level>_m1" (D5211); `tracker_start_game` copying the 0x100-byte channel into a 0x24-byte field (D5212); `gtrack_send_game_over` state 2 never set; the tracker's packet size test (D5214).
 
 ## Evidence
 
@@ -3781,3 +3938,18 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V270 render toggles | `cmd_render_level` `0x4818af`..`0x48190a`; `cmd_render_characters` `0x48199f`..`0x4819fa`; `cmd_render_effects` `0x481a8f`..`0x481aea` |
 | V271 dead flags | `levelrender_fog_enable` `0x482897`; `fog_get_near_current` `0x486bf0`; `fog_get_far_current` `0x486c20`; `0x22fb714` readers `0x482d9b`, `0x4839f4`, `0x4841fa`, `0x48438e`, `0x485f89`; `levelrender_render_scene` `0x48236a`, `0x482381` |
 | V272 blob bitmaps | `shadow_create_blob_bitmap` `0x489f15`..`0x48a045`; `shadows_init` `0x48a06f`..`0x48a085` |
+| C290 JPEG row table | `jpeg_write_file` `0x5565e0`..`0x5565e5`, `0x55661f`..`0x55663a`; `gr_screenshot` `0x506214`, `0x5064bd`, `0x506518`, `0x5065a7`; `screenshot_save` `0x43251e` |
+| C291 alt textures | `alt_textures_parse_table` `0x4aacf3`..`0x4aad0f`, `0x4aae91`, `0x4aaea4`..`0x4aaee8` |
+| C292 valid chars | `ui_inputbox__set_valid_chars` `0x552870`, `0x5528d0`, `0x552952`..`0x55295d`, `0x5529e0`..`0x5529eb`; `ui_parse_inputbox` `0x529576` |
+| G290 BSP stack | `lobj_raycast_bsp` `0x4af0a5`..`0x4af0ab`; `lobj_raycast` `0x4ae9e2` |
+| K290 skinned normals | `gr_opengl_render_character_mesh` `0x50d00e`..`0x50d0de`, `0x50d33b`, `0x50d366`, `0x50d1c0`..`0x50d1f1`; `gr_d3d_render_character_mesh` `0x50c514`..`0x50c58d`, `0x50c846`; `gr_glide_render_character_mesh` `0x50b7e4`..`0x50b859`, `0x50bb00` |
+| K291 seam fog | `gr_d3d_render_character_mesh` `0x50c37f`..`0x50c3b3`, `0x50c778`..`0x50c77e`; `gr_get_fog_alpha` `0x50d839`..`0x50d848` |
+| K292 more / end hover | `dialogue_topic_entry__draw` `0x4d6fc3`..`0x4d6ff0`, `0x4d7057`..`0x4d7084`; `dialogue_frame` `0x4094d3`..`0x4094f0`, `0x409560`..`0x40957d` |
+| K293 talker | `dialogue_box__add_text` `0x4d7262`, `0x4d72fa`..`0x4d7316`, `0x4d73cc`..`0x4d73ea`; `dialogue_line__init` `0x4d6b06`..`0x4d6b0d`; `conversation_update_talk_anims` `0x4d8b49`, `0x4d8bb5`; `dialogue_init` `0x408fbb` |
+| K294 fade flag | `ds_stop_fade` `0x55d673`..`0x55d6ab`; `ds_channel_update_fade` `0x55d6f8`..`0x55d702`, `0x55d742`..`0x55d74c`; `ds_channel_release` `0x55c5c5`..`0x55c5d5`; `ds_find_free_channel` `0x55d0b4`..`0x55d0f7`; `ds_play` `0x55d170`, `0x55d21e`; `character_play_move` `0x46112b`..`0x461137` |
+| K295 force steps | `vfx_emitter_instance__move_particles` `0x560b85`..`0x560c2d`, `0x560d9a`, `0x560f01`, `0x561131` |
+| K296 light tags, dummies | `vfx_instance__list1c_item` `0x5385e2`; `vfx_instance__list18_item` `0x5385c5`; `vfx_instance__list20_item` `0x538605`; `vfx_instance__bind_node` `0x537600`..`0x537634`; `vfx_dummy_state__update` `0x55fe8c`, `0x55feb5`..`0x55febc`; emitter `0x56164b`..`0x56165b` |
+| K297 editor gadgets | `ui_checkbox__create` `0x553d0e`..`0x553d1c`, `0x553dba`; `ui_radio_button__create` `0x5548af`..`0x5548bd`; `ui_inputbox__draw` `0x553217`..`0x55322a` |
+| K298 billboard tip | `vfx_particle_get_billboard_axes` `0x562947`..`0x5629ad`, `0x5629b2`..`0x562a04` |
+| K299 face normals | `vfx_unpack_vector_s8` `0x564a28`..`0x564a7c`; `vfx_unpack_normal` `0x5648c7`..`0x5648fc`; `vfx_mesh_render` `0x563190`..`0x5631a0`, `0x5631c7`..`0x56325a` |
+| V290 dead code slips | `ix_box_oriented_box_oriented` `0x53c741`..`0x53c75a`; `vfx_emitter_instance__render_d3d` `0x561ba6`, `0x561bd6` |
