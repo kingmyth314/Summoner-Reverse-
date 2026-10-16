@@ -109,42 +109,47 @@ int packfile_check_header(Packfile *pf, packfile_header *header)
 }
 
 // 0x533f90  Confidence: likely (the name is copied with a 15-dword rep movsd: memcpy of 60 bytes; the loop
-// counts down in the argument slot). cd_file and the sector are set later by packfile_assign_offsets.
+// counts down in the argument slot; the guarded copy p gives the binary's rotated loop, D6803). cd_file and
+// the sector are set later by packfile_assign_offsets.
 int packfile_read_directory(Packfile *pf, ubyte *sector, int num, int *index)
 {
     char name[PACKFILE_DIR_NAME_LEN];
     unsigned int size;
     int i;
 
-    for (i = 0; i < num; i++) {
-        memcpy(name, sector, PACKFILE_DIR_NAME_LEN);
-        sector += PACKFILE_DIR_NAME_LEN;
-        size = *(unsigned int *)sector;
-        sector += 4;
-        pf->entries[*index].hash = packfile_hash(name);
-        pf->entries[*index].name = packfile_string_pool.Add(name);
-        pf->entries[*index].size = size;
-        pf->entries[*index].packfile = pf;
-        pf->entries[*index].hdd_file = NULL;
-        packfile_lookup_insert(&pf->entries[*index]);
-        (*index)++;
+    if (num > 0) {
+        ubyte *p = sector;
+        for (i = 0; i < num; i++) {
+            memcpy(name, p, PACKFILE_DIR_NAME_LEN);
+            p += PACKFILE_DIR_NAME_LEN;
+            size = *(unsigned int *)p;
+            p += 4;
+            pf->entries[*index].hash = packfile_hash(name);
+            pf->entries[*index].name = packfile_string_pool.Add(name);
+            pf->entries[*index].size = size;
+            pf->entries[*index].packfile = pf;
+            pf->entries[*index].hdd_file = NULL;
+            packfile_lookup_insert(&pf->entries[*index]);
+            (*index)++;
+        }
     }
     return 1;
 }
 
-// 0x534090  Confidence: likely (rol through _rotl; the character is tolower's result as a char; abs is the
-// intrinsic cdq / xor / sub).
+// 0x534090  Confidence: exact (rol through _rotl; the character is tolower's result as a char; abs is the
+// intrinsic cdq / xor / sub; the name walked through a local pointer, D6800).
 int packfile_hash(const char *name)
 {
     unsigned int h;
+    const char *p = name;
 
-    if (name == NULL)
+    if (p == NULL)
         return -1;
     h = 0;
-    while (*name) {
-        char c = (char)tolower(*name);
+    while (*p) {
+        char c = (char)tolower(*p);
         h = _rotl(h, 5) ^ c;
-        name++;
+        p++;
     }
     return abs((int)h);
 }
@@ -176,7 +181,7 @@ int packfile_alloc_directory(Packfile *pf)
     return pf->entries != NULL;
 }
 
-// 0x5341a0  Confidence: likely (frame: path 0x80, sector 0x800, index and the sector count as locals;
+// 0x5341a0  Confidence: exact (frame: path 0x80, sector 0x800, index and the sector count as locals;
 // the count of the last batch is taken before the fread). Sector 0 is the header, then one sector per 32
 // directory records; the data starts after the directory.
 int packfile_load_cd(Packfile *pf)
@@ -218,7 +223,7 @@ int packfile_load_cd(Packfile *pf)
     return 1;
 }
 
-// 0x5342e0  Confidence: likely (as packfile_load_cd, with install_path).
+// 0x5342e0  Confidence: exact (as packfile_load_cd, with install_path).
 int packfile_load_hdd(Packfile *pf)
 {
     int sectors;
@@ -259,7 +264,8 @@ int packfile_load_hdd(Packfile *pf)
 }
 
 // 0x534420  Confidence: likely (the open test is shared by both fopen calls: where is set on each path and
-// one fclose follows). The hard drive wins over the CD. The NULL test of name comes after name was already
+// one fclose follows; the three checks as one condition give the shared `return 0` block, D6803). The hard
+// drive wins over the CD. The NULL test of name comes after name was already
 // used by _stricmp, sprintf and fopen, and a name of 32 characters or more is refused only after the file
 // was found. Packfiles[].name is not terminated by strncpy (31 characters fit; the .bss is zero).
 int packfile_add(const char *name)
@@ -289,25 +295,21 @@ int packfile_add(const char *name)
     }
     fclose(fp);
 
-    if (Num_packfiles >= MAX_PACKFILES)
-        return 0;
-    if (name == NULL)
-        return 0;
-    if (strlen(name) > 31)
-        return 0;
-
-    Packfile *pf = &Packfiles[Num_packfiles++];
-    strncpy(pf->name, name, 31);
-    pf->flags = (where == 2);
-    pf->_unk24 = 0;
-    pf->num_files = 0;
-    pf->entries = NULL;
-    if (where == 2) {
-        printf("Adding CD PACKFILE : %s\n", name);
-        return packfile_load_cd(pf);
+    if (Num_packfiles < MAX_PACKFILES && name != NULL && strlen(name) <= 31) {
+        Packfile *pf = &Packfiles[Num_packfiles++];
+        strncpy(pf->name, name, 31);
+        pf->flags = (where == 2);
+        pf->_unk24 = 0;
+        pf->num_files = 0;
+        pf->entries = NULL;
+        if (where == 2) {
+            printf("Adding CD PACKFILE : %s\n", name);
+            return packfile_load_cd(pf);
+        }
+        printf("Adding HARD DRIVE PACKFILE : %s\n", name);
+        return packfile_load_hdd(pf);
     }
-    printf("Adding HARD DRIVE PACKFILE : %s\n", name);
-    return packfile_load_hdd(pf);
+    return 0;
 }
 
 // 0x5345a0  Confidence: exact.
@@ -322,7 +324,7 @@ Packfile *packfile_find_packfile(const char *name)
     return NULL;
 }
 
-// 0x5345f0  Confidence: likely (the NULL-name test returns instead of probing on). Only the file part of
+// 0x5345f0  Confidence: exact (the NULL-name test returns instead of probing on). Only the file part of
 // the name is looked up, so two packfiles with the same file name shadow each other (the first one added
 // wins: insertion stops at the first free slot and the search returns the first match).
 PackfileEntry *packfile_find(const char *name)
@@ -349,7 +351,7 @@ PackfileEntry *packfile_find(const char *name)
     return NULL;
 }
 
-// 0x534690  Confidence: likely (the two fseek calls are merged into one tail by the compiler). Fails when
+// 0x534690  Confidence: exact (the two fseek calls are merged into one tail by the compiler). Fails when
 // the entry is open already.
 int packfile_fopen(PackfileEntry *entry)
 {

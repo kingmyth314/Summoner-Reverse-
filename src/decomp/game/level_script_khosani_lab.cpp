@@ -249,15 +249,17 @@ bool ls_khosanilab_puzzle_flood_connected(ls_khosanilab_cell c)
     return false;
 }
 
-// 0x4f7ad0  Confidence: likely (the return expressions: `and eax, 1` / `not eax; and eax, 1` without a
+// 0x4f7ad0  Confidence: exact (VC6 byte match, match9; was likely: the return expressions: `and eax, 1` / `not eax;
+// and eax, 1` without a
 // bool conversion). state true: the cell is open; false: closed. Off the grid: false.
 bool ls_khosanilab_puzzle_cell_open(const ls_khosanilab_cell *c, bool state)
 {
-    if (!ls_khosanilab_puzzle_cell_valid(c))
-        return false;
-    if (state)
-        return ls_khosanilab_puzzle_grid[c->x][c->y] & KL_CELL_OPEN;
-    return ~ls_khosanilab_puzzle_grid[c->x][c->y] & KL_CELL_OPEN;
+    if (ls_khosanilab_puzzle_cell_valid(c)) {
+        if (state)
+            return ls_khosanilab_puzzle_grid[c->x][c->y] & KL_CELL_OPEN;
+        return ~ls_khosanilab_puzzle_grid[c->x][c->y] & KL_CELL_OPEN;
+    }
+    return false;
 }
 
 // 0x4f7b20  Confidence: exact.
@@ -336,7 +338,8 @@ void ls_khosanilab_puzzle_trace_beam(const ls_khosanilab_cell *start, int dir, b
     }
 }
 
-// 0x4f7ed0  Confidence: likely (case order = the code order 2, 0, 3, 1; jump table 0x4f7f98; the float copies
+// 0x4f7ed0  Confidence: exact (VC6 byte match, match9; was likely: case order = the code order 2, 0, 3, 1; jump table
+// 0x4f7f98; the float copies
 // load y before x). Direction codes: 0 (-1, 0), 1 (1, 0), 2 (0, 1), 3 (0, -1) = b, the straight-on
 // direction; a and c are the two turns. An unknown code leaves a, b and c as they are.
 void ls_khosanilab_puzzle_turn_dirs(ls_khosanilab_cell *a, ls_khosanilab_cell *b, ls_khosanilab_cell *c,
@@ -364,10 +367,14 @@ void ls_khosanilab_puzzle_turn_dirs(ls_khosanilab_cell *a, ls_khosanilab_cell *b
         c->x = 0;  c->y = -1;
         break;
     }
-    fb->x = (float)b->x;
-    fb->y = (float)b->y;
-    fc->x = (float)c->x;
-    fc->y = (float)c->y;
+    float y = (float)b->y;
+    float x = (float)b->x;
+    fb->x = x;
+    fb->y = y;
+    y = (float)c->y;
+    x = (float)c->x;
+    fc->x = x;
+    fc->y = y;
 }
 
 // 0x4f7fb0  Confidence: likely (setne / sete from the conditional expressions). The direction code of a
@@ -491,7 +498,7 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
 {
     vector2 b, a, g, g2;
 
-    if (fabs(p0->x - 0.2f) < 0.001f && fabs(p1->x - 0.2f) < 0.001f) {
+    if (fabsf(p0->x - 0.2f) < 0.001f && fabsf(p1->x - 0.2f) < 0.001f) {
         ls_khosanilab_puzzle_cell_to_world(p0, &a);
         b.x = -136.2f;
         b.y = -38.1f;
@@ -502,7 +509,7 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
         ls_khosanilab_puzzle_add_point(&a, &b);
         return;
     }
-    if (fabs(p0->x - 7.8f) < 0.001f && fabs(p1->x - 7.8f) < 0.001f) {
+    if (fabsf(p0->x - 7.8f) < 0.001f && fabsf(p1->x - 7.8f) < 0.001f) {
         b.x = -155.2f;
         b.y = -38.1f;
         ls_khosanilab_puzzle_cell_to_world(p1, &a);
@@ -513,7 +520,7 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
         ls_khosanilab_puzzle_add_point(&b, &a);
         return;
     }
-    if (fabs(p0->y - 4.8f) < 0.001f && fabs(p1->y - 4.8f) < 0.001f && p0->x <= 2.5f && p1->x >= 2.5f) {
+    if (fabsf(p0->y - 4.8f) < 0.001f && fabsf(p1->y - 4.8f) < 0.001f && p0->x <= 2.5f && p1->x >= 2.5f) {
         if (p0->x < 2.0f) {
             ls_khosanilab_puzzle_cell_to_world(p0, &b);
             g.x = 2.2f;
@@ -543,7 +550,7 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
         return;
     }
     // Only p0's y is tested here (both are in the y = 4.8 case above).
-    if (fabs(p0->y - 0.2f) < 0.001f && p0->x >= 5.5f && p1->x <= 5.5f) {
+    if (fabsf(p0->y - 0.2f) < 0.001f && p0->x >= 5.5f && p1->x <= 5.5f) {
         if (p0->x > 6.0f) {
             ls_khosanilab_puzzle_cell_to_world(p0, &b);
             g.x = 5.8f;
@@ -590,17 +597,20 @@ void ls_khosanilab_puzzle_cell_to_world(const vector2 *cell, vector2 *out)
     out->y -= cell->y * 2.151f;
 }
 
-// 0x4f8850  Confidence: likely (statement order). Appends one point pair (cells 1 and 2 for every point);
+// 0x4f8850  Confidence: exact (VC6 byte match, match9; was likely: statement order). Appends one point pair (cells 1
+// and 2 for every point);
 // eight pending pairs are flushed into a spline.
 void ls_khosanilab_puzzle_add_point(const vector2 *a, const vector2 *b)
 {
-    ls_khosanilab_path_len++;
-    ls_khosanilab_path.p0[ls_khosanilab_path_len - 1] = *a;
-    ls_khosanilab_path.p1[ls_khosanilab_path_len - 1] = *b;
-    ls_khosanilab_path.cell_x[ls_khosanilab_path_len - 1] = 1;
-    ls_khosanilab_path.cell_y[ls_khosanilab_path_len - 1] = 2;
-    ls_khosanilab_path.count = ls_khosanilab_path_len;
-    if (ls_khosanilab_path_len == 8) {
+    int n = ls_khosanilab_path_len;
+    ls_khosanilab_path.p0[n] = *a;
+    ls_khosanilab_path.p1[n] = *b;
+    ls_khosanilab_path.cell_x[n] = 1;
+    ls_khosanilab_path.cell_y[n] = 2;
+    n++;
+    ls_khosanilab_path_len = n;
+    ls_khosanilab_path.count = n;
+    if (n == 8) {
         ls_khosanilab_puzzle_flush_path();
         ls_khosanilab_path_len = 0;
     }
@@ -612,10 +622,10 @@ void ls_khosanilab_puzzle_idle_path()
 {
     vector2 g0, g1, w1, w0;
 
-    g0.x = -0.1f;
-    g0.y = 3.1f;
     g1.x = -0.1f;
     g1.y = 1.9f;
+    g0.x = -0.1f;
+    g0.y = 3.1f;
     ls_khosanilab_puzzle_cell_to_world(&g0, &w0);
     ls_khosanilab_puzzle_cell_to_world(&g1, &w1);
     ls_khosanilab_puzzle_add_point(&w0, &w1);
@@ -876,7 +886,8 @@ void ls_khosanilab_salamanka_fight()
     if (!ls_khosanilab_salstart_done && savegame_state.get_flag(cur_level_index, "salstart")
         && !(game_flags & GF_CUTSCENE)) {
         ls_khosanilab_salstart_done = true;
-        music_play(music_find_by_name("Salamanka"), true);
+        int music = music_find_by_name("Salamanka");
+        music_play(music, true);
     }
     if (!savegame_state.get_flag(cur_level_index, "sal_killed") && script_npc_is_dead("Giant Salamanka")) {
         savegame_state.set_flag(cur_level_index, "sal_killed", true);
@@ -1067,7 +1078,8 @@ void ls_khosanilab_room2_doors()
     }
 }
 
-// 0x4f9b10  Confidence: likely (the search loop's early exit `col > -1` sits after the compare). A used
+// 0x4f9b10  Confidence: exact (VC6 byte match, match9; was likely: the search loop's early exit `col > -1` sits after
+// the compare). A used
 // flipper toggles itself (its door moves on its own) and its four neighbours, the beam grid is rebuilt, and
 // every party member within 9 units of $badplace is put back at player start 3.
 void ls_khosanilab_puzzle_use(int flipper)
@@ -1106,8 +1118,10 @@ void ls_khosanilab_puzzle_use(int flipper)
             float dx = c->pos.x - pos.x;
             float dy = c->pos.y - pos.y;
             float dz = c->pos.z - pos.z;
-            if (dx * dx + dy * dy + dz * dz < 81.0f)
-                c->place_at_party_start(slot++);
+            if (dx * dx + dy * dy + dz * dz < 81.0f) {
+                c->place_at_party_start(slot);
+                slot++;
+            }
         }
     }
 }

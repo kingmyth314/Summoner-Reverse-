@@ -123,7 +123,7 @@ void gr_opengl_invalidate_mode();                     // 0x5503b0 (no caller)
 void gr_opengl_set_fog(int set_range);                // 0x5503c0 gr_set_fog passes 1
 void gr_opengl_setup_view();                          // 0x550500 (no caller)
 void gl_set_vertex_arrays(float *verts, int unused, ubyte *colors);   // 0x5505d0 (no caller)
-void gr_opengl_set_antialias(int on);                 // 0x550630 empty
+void gr_opengl_set_antialias(bool on);                // 0x550630 empty (bool: gr_set_antialias pushes the dword unmasked, D6801)
 void clamp_ubyte(ubyte *v, ubyte lo, ubyte hi);       // 0x550640
 
 #endif

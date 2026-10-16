@@ -86,7 +86,7 @@ static nw_RasEnumConnections_t nw_RasEnumConnections;    // 0x2710eb0 (names our
 static nw_RasGetConnectStatus_t nw_RasGetConnectStatus;  // 0x2710eb4
 static nw_RasGetProjectionInfo_t nw_RasGetProjectionInfo;   // 0x2710eb8
 
-// 0x517590  Confidence: likely (max_len and flags are not read; the size lives in type's argument slot).
+// 0x517590  Confidence: exact (max_len and flags are not read; the size lives in type's argument slot).
 int nw_buffer_receive(ubyte *data, int max_len, int flags, net_addr *from, int type)
 {
     int size;
@@ -127,7 +127,7 @@ int nw_reliable_slot_status(int type)
     return 0;
 }
 
-// 0x517680  Confidence: likely (local order). -2 when the send would block, -1 on other errors, else the
+// 0x517680  Confidence: exact (local order). -2 when the send would block, -1 on other errors, else the
 // byte count of sendto (len + 1 with the type byte).
 int nw_send_packet(void *data, int len, int flags, net_addr *to, int type)
 {
@@ -156,28 +156,29 @@ void nw_buffer_init(nw_packet_buffer *buf)
     buf->last_seq = -1;
 }
 
-// 0x517780  Confidence: likely (the free-slot search as a loop with break). A full buffer drops the packet.
+// 0x517780  Confidence: exact (the push inside the search loop, the address copied through a local,
+// D6800). A full buffer drops the packet.
 void nw_buffer_push(nw_packet_buffer *buf, ubyte *data, int size, net_addr *from)
 {
     int i;
 
     for (i = 0; i < NW_BUFFER_PACKETS; i++) {
-        if (buf->slots[i].seq == -1)
-            break;
+        if (buf->slots[i].seq == -1) {
+            nw_packet_slot *slot = &buf->slots[i];
+            memcpy(slot->data, data, size);
+            slot->size = size;
+            net_addr a = *from;
+            slot->addr = a;
+            slot->seq = buf->next_seq;
+            buf->last_seq = buf->next_seq++;
+            if (buf->first_seq == -1)
+                buf->first_seq = buf->last_seq;
+            return;
+        }
     }
-    if (i == NW_BUFFER_PACKETS)
-        return;
-    nw_packet_slot *slot = &buf->slots[i];
-    memcpy(slot->data, data, size);
-    slot->size = size;
-    slot->addr = *from;
-    slot->seq = buf->next_seq;
-    buf->last_seq = buf->next_seq++;
-    if (buf->first_seq == -1)
-        buf->first_seq = buf->last_seq;
 }
 
-// 0x517820  Confidence: likely (the search as for / break).
+// 0x517820  Confidence: likely (the pop inside the search loop, one shared `return 0`, D6803).
 int nw_buffer_pop(nw_packet_buffer *buf, ubyte *data, int *size, net_addr *from)
 {
     int seq = buf->first_seq;
@@ -186,19 +187,18 @@ int nw_buffer_pop(nw_packet_buffer *buf, ubyte *data, int *size, net_addr *from)
     if (seq == -1 || seq > buf->last_seq)
         return 0;
     for (i = 0; i < NW_BUFFER_PACKETS; i++) {
-        if (buf->slots[i].seq == seq)
-            break;
+        if (buf->slots[i].seq == seq) {
+            nw_packet_slot *slot = &buf->slots[i];
+            int len = slot->size;
+            memcpy(data, slot->data, len);
+            *size = len;
+            *from = slot->addr;
+            slot->seq = -1;
+            buf->first_seq++;
+            return 1;
+        }
     }
-    if (i == NW_BUFFER_PACKETS)
-        return 0;
-    nw_packet_slot *slot = &buf->slots[i];
-    int len = slot->size;
-    memcpy(data, slot->data, len);
-    *size = len;
-    *from = slot->addr;
-    slot->seq = -1;
-    buf->first_seq++;
-    return 1;
+    return 0;
 }
 
 // 0x5178c0  Confidence: likely (locals: count +0xc, size +0x10, projection size +0x14, projection +0x18,
@@ -267,7 +267,7 @@ unsigned long nw_ras_init()
     return ip == INADDR_NONE ? 0 : ip;
 }
 
-// 0x517ae0  Confidence: likely (the halving loop's form). Broadcast on, non-blocking, then the largest
+// 0x517ae0  Confidence: exact (the halving loop's form). Broadcast on, non-blocking, then the largest
 // receive buffer from 32 KB down that the stack accepts, but never below the current size.
 void nw_set_socket_options(unsigned int sock)
 {
@@ -303,13 +303,14 @@ int nw_reliable_reset()
     return 1;
 }
 
-// 0x517c10  Confidence: likely (the sockaddr clearing). Ports 0-1023 and 65535 become 4200. The messages
+// 0x517c10  Confidence: exact (the sockaddr clearing; error is volatile so that VC6 12.00.8168 keeps the
+// binary's dead store and its frame slot, D6800). Ports 0-1023 and 65535 become 4200. The messages
 // say TCP; the socket is UDP. A second SO_BROADCAST is set and its error code kept in a dead local.
 void nw_init_socket(unsigned short port)
 {
     struct sockaddr_in addr;
     int broadcast;
-    int error;
+    volatile int error;
     char msg[256];
 
     unsigned short use_port = 4200;
@@ -635,7 +636,7 @@ void nw_WorkReliable()
     }
 }
 
-// 0x518770  Confidence: likely (from_len is cleared before the select and set to 16 before recvfrom; the
+// 0x518770  Confidence: exact (from_len is cleared before the select and set to 16 before recvfrom; the
 // type test keeps its `< 0` half). Drains the socket; packets with a first byte above 4 are dropped.
 void nw_receive_all()
 {
@@ -743,7 +744,7 @@ int nw_send_broadcast(unsigned short port, void *data, int len)
     return nw_send(&to, data, len);
 }
 
-// 0x518ac0  Confidence: likely (the port-0 message pushes the constant 0).
+// 0x518ac0  Confidence: exact (the port-0 message pushes the constant 0).
 int nw_send(net_addr *to, void *data, int len)
 {
     char msg[256];
@@ -816,7 +817,7 @@ int nw_NewReceiveReliable(int socket, void *buf, int size)
     return 0;
 }
 
-// 0x518ce0  Confidence: likely (the found branch after the loop).
+// 0x518ce0  Confidence: likely (the found branch inside the loop, the address through a local, D6803).
 int nw_accept_reliable(net_addr *from)
 {
     char addr_text[64];
@@ -824,17 +825,16 @@ int nw_accept_reliable(net_addr *from)
 
     nw_WorkReliable();
     for (i = 1; i < NW_MAX_RELIABLE_SOCKETS; i++) {
-        if (nw_reliable_sockets[i].status == RNF_CONNECTING)
-            break;
+        if (nw_reliable_sockets[i].status == RNF_CONNECTING) {
+            nw_reliable_sockets[i].status = RNF_CONNECTED;
+            net_addr a = nw_reliable_sockets[i].addr;
+            *from = a;
+            nw_addr_to_string(addr_text, sizeof(addr_text), from);
+            sprintf(string_buffer, "Got address from: %s\n", addr_text);
+            return i;
+        }
     }
-    if (i == NW_MAX_RELIABLE_SOCKETS)
-        return -1;
-    nw_reliable_sockets[i].status = RNF_CONNECTED;
-    *from = nw_reliable_sockets[i].addr;
-    nw_addr_to_string(addr_text, sizeof(addr_text), from);
-    sprintf(string_buffer, "Got address from: %s\n", addr_text);
-    return i;
-}
+    return -1;}
 
 // 0x518d70  Confidence: likely (VC6: same size, the registers of the two copies differ). Sends one data packet on a
 // connected link
@@ -1061,7 +1061,7 @@ int net_get_reliable_socket_ping(int socket)
     return nw_reliable_sockets[socket].mean_ping;
 }
 
-// 0x519440  Confidence: exact.
+// 0x519440  Confidence: exact (the inner loop as while (1) / break: one status call per pass, D6800).
 void nw_flush_receive()
 {
     net_addr from;
@@ -1070,7 +1070,10 @@ void nw_flush_receive()
     while (nw_receive(data, &from) > 0)
         ;
     for (int i = 0; i < NW_NUM_BUFFERS; i++) {
-        while (nw_reliable_slot_status(i))
+        while (1) {
+            if (!nw_reliable_slot_status(i))
+                break;
             nw_buffer_receive((ubyte *)&nw_flush_buf, sizeof(reliable_header), 0, &from, i);
+        }
     }
 }

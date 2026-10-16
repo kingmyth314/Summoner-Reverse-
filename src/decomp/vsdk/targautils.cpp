@@ -116,7 +116,7 @@ void m2v_read_slice_quantizer_scale(m2v_bitstream *bs)
     bs->get_bits(1);
 }
 
-// 0x554b10  Confidence: likely (loop shape). Skips macroblock_stuffing (0x00f) and escape (0x008) codes;
+// 0x554b10  Confidence: exact (loop shape). Skips macroblock_stuffing (0x00f) and escape (0x008) codes;
 // returns 1 and eats the bit when the address increment is 1 (code '1'), else 0.
 int m2v_skip_macroblock_stuffing(m2v_bitstream *bs)
 {
@@ -135,7 +135,7 @@ int m2v_skip_macroblock_stuffing(m2v_bitstream *bs)
     return 0;
 }
 
-// 0x554b60  Confidence: likely (the byte swap: a 16-bit half swap then a byte swap inside each half
+// 0x554b60  Confidence: exact (the byte swap: a 16-bit half swap then a byte swap inside each half
 // gives exactly the register use of 0x554c72-0x554c9c). Reads the sequence header code and the
 // size word (big endian: 12 bits width, 12 bits height, aspect and frame rate). Returns the file size.
 int m2v_read_header(const char *name, int *w, int *h, int unused)
@@ -271,7 +271,8 @@ int tga_rle_encode_row(ubyte *dst, ubyte *src, int dst_bpp, int src_bpp, int row
     return out - dst;
 }
 
-// 0x555020  Confidence: exact. 16-bit to 16-bit toggles bit 15 of the SOURCE pixels in place and
+// 0x555020  Confidence: exact (the 565 channels scaled with `* 8` / `* 4`: the binary keeps the masks,
+// D6800). 16-bit to 16-bit toggles bit 15 of the SOURCE pixels in place and
 // writes nothing to dst (the caller still advances by the returned size); 16 (565) to 24 expands to
 // B, G, R bytes; anything else is a plain copy. Returns the bytes for dst.
 int tga_convert_pixels(ubyte *dst, ubyte *src, int count, int src_bpp, int dst_bpp)
@@ -289,9 +290,9 @@ int tga_convert_pixels(ubyte *dst, ubyte *src, int count, int src_bpp, int dst_b
             ushort *p = (ushort *)src;
             for (i = 0; i < count; i++) {
                 ushort c = *p++;
-                *dst++ = (c & 0x1f) << 3;
-                *dst++ = ((c >> 5) & 0x3f) << 2;
-                *dst++ = ((c >> 11) & 0x1f) << 3;
+                *dst++ = (c & 0x1f) * 8;
+                *dst++ = ((c >> 5) & 0x3f) * 4;
+                *dst++ = ((c >> 11) & 0x1f) * 8;
             }
             return count * 3;
         }
@@ -362,7 +363,8 @@ int tga_read_header(const char *name, int *w, int *h, int *bpp, void *unused1, v
     return 0;
 }
 
-// 0x555330  Confidence: likely (the run loop is a do-while on the packet's count field). Decodes
+// 0x555330  Confidence: likely (the run loop is a do-while on the packet's count field; the header byte
+// as an int: the source cursor then lives in dst's argument slot as in the binary, D6803). Decodes
 // num_pixels pixels of TGA RLE packets; returns the source bytes used.
 int tga_rle_decode(ubyte *dst, ubyte *src, int num_pixels, int pixel_size)
 {
@@ -373,7 +375,7 @@ int tga_rle_decode(ubyte *dst, ubyte *src, int num_pixels, int pixel_size)
     int i = 0;
 
     while (i < num_pixels) {
-        ubyte c = *s++;
+        int c = *s++;
         if (c & 0x80) {
             c &= 0x7f;
             i += c + 1;
@@ -391,18 +393,21 @@ int tga_rle_decode(ubyte *dst, ubyte *src, int num_pixels, int pixel_size)
     return s - src;
 }
 
-// 0x555410  Confidence: exact. Copies n pixels and advances both pointers. (The symbol comment's
-// argument order "(n, size, &dst, &src)" is wrong: size is the last argument.)
+// 0x555410  Confidence: exact (both pointers read before the stores, D6800). Copies n pixels and
+// advances both pointers. (The symbol comment's argument order "(n, size, &dst, &src)" is wrong: size
+// is the last argument.)
 void copy_pixels_advance(int n, ubyte **dst, ubyte **src, int size)
 {
     int bytes = n * size;
 
     memcpy(*dst, *src, bytes);
-    *dst += bytes;
-    *src += bytes;
+    ubyte *d = *dst;
+    ubyte *s = *src;
+    *dst = d + bytes;
+    *src = s + bytes;
 }
 
-// 0x555450  Confidence: likely (the row loops are written with y and strength-reduced by the compiler
+// 0x555450  Confidence: exact (the row loops are written with y and strength-reduced by the compiler
 // into a top and a bottom pointer, which the binary has; the colour map fill order is the chained
 // assignment's right-to-left order). Error line 598 (0x256). Reads the image into data (rows bottom-up
 // unless the descriptor's top-left bit is set) and the colour map into palette as R, G, B, padding it to
@@ -504,7 +509,7 @@ int tga_read_bitmap(const char *name, ubyte *data, ubyte *palette, int unused, i
     return 0;
 }
 
-// 0x555970  Confidence: likely. Unreferenced. Writes an RLE (type 10) .tga, top-left origin; the
+// 0x555970  Confidence: exact. Unreferenced. Writes an RLE (type 10) .tga, top-left origin; the
 // whole image is encoded as one row into a buffer twice the image size. 0 on success, -1 on failure.
 int tga_write_rle(const char *name, ubyte *data, int unused, int w, int h, int bpp, int path_id)
 {
@@ -543,7 +548,7 @@ int tga_write_rle(const char *name, ubyte *data, int unused, int w, int h, int b
     return 0;
 }
 
-// 0x555b50  Confidence: likely. Unreferenced. Writes an uncompressed (type 2) .tga, top-left origin.
+// 0x555b50  Confidence: exact. Unreferenced. Writes an uncompressed (type 2) .tga, top-left origin.
 int tga_write(const char *name, ubyte *data, int unused, int w, int h, int bpp, int path_id)
 {
     File f;
@@ -696,13 +701,13 @@ int pcx_read_bitmap(const char *name, ubyte *data, ubyte *palette, int path_id)
     return 0;
 }
 
-// 0x5562a0  Confidence: likely (header field store order). Unreferenced. Writes an 8-bit RLE .pcx
-// from an array of row pointers, then the 0x0c marker and the 768-byte palette.
+// 0x5562a0  Confidence: exact (filename is 512 bytes: the frame is 0x394, D6800). Unreferenced. Writes
+// an 8-bit RLE .pcx from an array of row pointers, then the 0x0c marker and the 768-byte palette.
 int pcx_write(const char *name, int w, int h, ubyte **rows, ubyte *palette)
 {
     pcx_header header;
     File f;
-    char filename[256];
+    char filename[512];
     int i;
 
     file_change_ext(filename, name, ".pcx");
@@ -736,14 +741,14 @@ int pcx_write(const char *name, int w, int h, ubyte **rows, ubyte *palette)
     return 0;
 }
 
-// 0x556470  Confidence: likely (pointer increment form). RLE-encodes one line; returns the bytes
-// written, 0 on a write failure. Runs are cut at 63.
+// 0x556470  Confidence: exact (pointer increment form; total declared before count, D6800). RLE-encodes
+// one line; returns the bytes written, 0 on a write failure. Runs are cut at 63.
 int pcx_encode_line(ubyte *src, int width, File *f)
 {
     ubyte last = *src;
     ubyte cur;
-    ubyte count = 1;
     int total = 0;
+    ubyte count = 1;
     int i, n;
 
     for (i = 1; i < width; i++) {
@@ -793,7 +798,7 @@ int pcx_encode_byte(ubyte byte, ubyte count, File *f)
     return 0;
 }
 
-// 0x5565a0  Confidence: likely (the NULL test inside the loop is in the binary). The n-th message of
+// 0x5565a0  Confidence: exact (the NULL test inside the loop is in the binary). The n-th message of
 // bm_image_error_strings (the PCX return codes).
 const char *bm_image_error_string(int n)
 {

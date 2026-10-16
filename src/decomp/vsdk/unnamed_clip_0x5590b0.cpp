@@ -126,7 +126,7 @@ void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
     gr_vertex *tmp;
 
     for (bit = 1; bit < 0x20; bit <<= 1) {
-        if (codes & bit) {
+        if (bit & codes) {
             if ((*p0)->codes & bit) {
                 tmp = *p1;
                 *p1 = *p0;
@@ -192,7 +192,8 @@ gr_vertex **gr_clip_polygon(gr_vertex **src, gr_vertex **tmp, int *nv, ubyte *co
     return src;
 }
 
-// 0x5594f0  Confidence: likely (the distances are kept in a local array for the second pass).
+// 0x5594f0  Confidence: likely (the distances are kept in a local array for the second pass; z read once,
+// D6803).
 int gr_classify_sphere_view(const vector3 *p, float r)
 {
     float d[4];
@@ -200,9 +201,10 @@ int gr_classify_sphere_view(const vector3 *p, float r)
     float xs;
     float ys;
 
-    if (p->z + r <= 0.0f)
+    float z = p->z;
+    if (z + r <= 0.0f)
         return -1;
-    nz = p->z * -0.70710677f;
+    nz = z * -0.70710677f;
     xs = p->x * 0.70710677f;
     d[0] = nz - xs;
     if (d[0] >= r)
@@ -400,8 +402,8 @@ void bbox_corner_indices_from_normal(const vector3 *n, int *near_corner, int *fa
     }
 }
 
-// 0x559b80  Confidence: exact.
-bool bbox_straddles_plane(plane *p, const vector3 *min, const vector3 *max)
+// 0x559b80  Confidence: exact. (min, max, plane): the plane is the third argument (D6802; no caller).
+bool bbox_straddles_plane(const vector3 *min, const vector3 *max, plane *p)
 {
     vector3 c;
     int near_corner;
@@ -417,7 +419,7 @@ bool bbox_straddles_plane(plane *p, const vector3 *min, const vector3 *max)
     return true;
 }
 
-// 0x559c20  Confidence: likely (no symbol and no caller; name ours; operand order of the products).
+// 0x559c20  Confidence: exact (no symbol and no caller; name ours; operand order of the products).
 void bbox_transform(matrix *m, const vector3 *pos, vector3 *min, vector3 *max, vector3 *out_min,
                     vector3 *out_max)
 {

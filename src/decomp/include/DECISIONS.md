@@ -5307,3 +5307,172 @@ D6206):
 **D6515 (notes only). Markers that say exact but differ under 8168**, left as they were (D6207):
 mp_charselect_update_create_button (0x406bb0), buysell_page_up (0x405790), buysell_goto_inventory (0x405bc0),
 phoenix_anim_remap_out (0x499b80).
+
+**D6800 (vsdk/gr.cpp, targautils.cpp, file_packfile.cpp, character.cpp, unnamed_clip_0x5590b0.cpp,
+unnamed_net_0x517590.cpp; match10 pass). Source shapes that make cl 12.00.8168 emit build 8966's code** (each verified
+by a byte match; details in the pass notes):
+- Three unfolded constant factors (D6600): frame * (1/30) * 30 * 160 with a float local per product
+  (add_skeleton_trigger, set_skeleton_trigger_time); the CA_FRAMES_TO_TICKS macro (D4903) folded two of them and is
+  gone.
+- Arguments reused as the binary does: `gamma = 1.0f / gamma;` puts the exponent in the argument slot (gr_set_gamma),
+  and `powf(...) * 255.0f` gives the binary's float multiplier (`fmul dword`; `pow(...) * 255.0f` multiplies by a
+  double); `filename[512]` in pcx_write (the frame is 0x394, the upper 256 bytes are never touched).
+- `if (ms <= 0)` for `test eax, eax / jg` (gr_fade_out / gr_fade_in; `ms < 1` compares with 1).
+- Declaration order = store order (D6600): `float angle = 0.0f;` before `int segments` (gr_circle), `int total = 0;`
+  before `ubyte count = 1;` (pcx_encode_line).
+- Loads before stores through locals (D6600): `Mempool *p = pool;` before the vim store (reload_mesh), both pixel
+  pointers read before their stores (copy_pixels_advance), the source address copied through a `net_addr` local
+  (nw_buffer_push).
+- A local walking pointer (`const char *p = name;`): packfile_hash's register choice.
+- Two pointer clears as a counted loop give their own zero register (character_clear's LOD slots; as clear_hotkeys).
+- `(c & 0x1f) * 8` instead of `<< 3` keeps the binary's byte masks (tga_convert_pixels: 8168 drops a mask before a
+  byte shift, keeps it before a multiply).
+- The found work inside a search loop, with the single fail return after it: `for (...) if (found) { ...; return; }`
+  gives 8966's one shared `return 0` block that D6514 listed as not reproducible (nw_buffer_push exact; nw_buffer_pop,
+  nw_accept_reliable and packfile_add, written `if (a && b && c) { ... } return 0;`, now differ only later).
+- `while (1) { if (!f(i)) break; ... }` for a top-tested call loop (nw_flush_receive's inner loop, D5904).
+- A dead store the binary keeps: `volatile int error` (nw_init_socket keeps the setsockopt error in a frame slot; 8168
+  drops a plain dead local and the frame shrinks by 4). A reproduction device like D6101's renames.
+
+**D6801 (include/vsdk/gr/opengl/gr_opengl.h, vsdk/gr_opengl.cpp). HEADER CHANGE: gr_opengl_set_antialias takes a
+bool.** gr_set_antialias pushes its bool argument's dword unmasked for the OpenGL call as for the Direct3D and Glide ones
+(0x5080e1-0x5080ea, no `and eax, 0xff`); the function is an empty `ret` (0x550630), so its own code says nothing. The
+definition in gr_opengl.cpp follows. gr_set_antialias matches; gr_opengl.cpp 31 / 55 before and after.
+
+**D6802 (include/vsdk/gr/unnamed_clip_0x5590b0.h, vsdk/unnamed_clip_0x5590b0.cpp). HEADER CHANGE:
+bbox_straddles_plane is (min, max, plane).** The plane is read from the third argument (`mov esi, [esp + 0x2c]` at
+0x559b8f, used as `this` of plane::distance_to_point and as the normal for bbox_corner_indices_from_normal), the box
+from the first two (pushed as bbox_get_corner's min / max). No caller in the binary or the tree. Matches.
+
+Header checks for D6801 / D6802: mingw `-fsyntax-only -std=c++98 -w -Iinclude`: 0 `error:` lines in all 259 .cpp. VC6
+before (snapE tree) / after (match10 tree) of the other units that include the changed headers: levelrender 5 / 5,
+gr_opengl 31 / 31, unnamed_ca_mesh 8 / 8, unnamed_gr_line 2 / 2, unnamed_gr_poly 6 / 6, unnamed_vfx_mesh 3 / 3 (the
+same addresses).
+
+**D6803 (notes only; match10 pass). Differences of this pass that no source form changed** (8168 against 8966, as
+D5905 / D6005 / D6306 / D6514 / D6603):
+- Stack pops not merged across consecutive cdecl calls (character report_memory, character_create_base's and
+  add_skeleton's error loops, packfile_init, packfile_alloc_directory): 8168 merges the cleanup of several calls into
+  one `add esp`; tried statement and local forms, and every flag set of D6602.
+- gr_vertex's constructor (D1605, still open): gr_rect and gr_bitmap_float run `vector constructor iterator` over the
+  vertices in the binary.
+- Copy elision of vector3 results (D6306): bbox_from_segment and most of fx_recb0 (spawn excepted; the frames are
+  12 bytes per temporary larger).
+- strcat of a short literal as dword / byte moves (load_shadow's "_shadow.vim", tga_read_header's ".tga", D6005).
+- Cross-jumping: 8168 merges a case's `next_start_code(); goto top` with the function's first call
+  (m2v_skip_extension_and_user_data); nw_init_networking's shared "none" return is placed at the end by 8168, inline
+  by 8966.
+- FPU values kept on the stack across compares (gr_classify_sphere_view's nz, fx_recb0 get_fade / get_color), the
+  `or eax, eax` of nw_can_write (D6005), the zero pushed from EBP in pcx_read_bitmap, the dword copy of last_t in
+  spawn, the strength-reduced arrays of ca_load_preload_index and gr_tmapper_multipass.
+- Store scheduling and register choice (packfile_check_header, read_directory, assign_offsets, fseek, fread,
+  find_in_packfile, gr_init's gr_screen stores, gr_line, bbox_union / from_points / silhouette_corners, gr_clip_line,
+  gr_clip_plane, tga_rle_encode_row, m2v_read_slice_quantizer_scale, nw_buffer_pop's address copy, nw_NewCloseSocket).
+Partial progress kept: ca_preload_find (count in a local, walking entry pointer; differs at +0x4a), tga_rle_decode
+(int header byte: frame and slots now as the binary, `and ebx` against `and bl`), packfile_read_directory (rotated loop),
+packfile_add, nw_buffer_pop, nw_accept_reliable, gr_clip_line, gr_classify_sphere_view.
+
+**D6804 (notes only). Markers that say exact but differ under 8168**, left as they were (D6207):
+m2v_read_slice_quantizer_scale (0x554af0), packfile_assign_offsets (0x5340d0), packfile_fseek (0x534830),
+packfile_fread (0x5348a0), packfile_find_in_packfile (0x5349a0), gr_clip_line (0x559350), gr_clip_plane (0x5593a0),
+bbox_from_points (0x5595e0), bbox_from_segment (0x559660), bbox_union (0x559790), bbox_silhouette_corners (0x559890).
+
+**D6700 (include/engine/rendering/levelrender.h, game/unnamed_render_scene_0x481680.cpp, game/gameplay.cpp). HEADER
+CHANGE: hover_tint_active returns bool (amends D4300).** Its only caller, gameplay_update_cursor, tests the result
+as a byte (`call 0x482090 / test al, al` at 0x439415); an int result is tested with `test eax, eax`. The callee's
+`xor eax, eax / mov eax, 1` is what a bool `return a || b;` gives (D6203). The definition in
+unnamed_render_scene_0x481680.cpp changes its return type only and still matches (48 / 77 before and after, the same
+addresses); gameplay_update_cursor now matches. mingw: 259 files, 0 errors.
+
+**D6701 (include/engine/ai/boss_ai.h, game/unnamed_pyrul_0x4b87c0.cpp). HEADER CHANGE: the Pyrul's state
+0x247fd28-0x24802cf is one object, struct pyrul_boss pyrul (as D6510 / D6511).** init_pyrul_timers (0x4b87d0)
+constructs the five threat timers and pyrul_move_timer, pyrul_target_timer, pyrul_timer_a and pyrul_timer_b in one
+function, the one-object rule of D6510. The binary reloads pyrul_num_offense_points after storing into
+pyrul_offense_points[n] (pyrul_boss_load) and pyrul_num_hits after storing into pyrul_hits[n] (both attack tests);
+8168 does that for fields of one object only. Extent as D6511: stage first (0x247fd28; the four bytes 0x247fd24
+after ccmd_pyrul_combat are not accessed and stay outside), hits[5] last; the move pointers on both sides
+(0x247fcfc-0x247fd14, 0x24802d0-0x24802dc) stay separate globals. Field names ours, LAYOUT_CHECK 0x5a8, the old names
+are macros (the externs of pyrul_missile_bone, pyrul_combat_enabled, pyrul_threat_table and pyrul_cur_move higher up
+in the header became comments). pyrul_boss_load, pyrul_attack_test_class0 and pyrul_attack_test_class2 now match.
+Callers rechecked with VC6 before / after (boss_ai 45 / 58, level_scripts_common 64 / 78, level_script_khosanilab2
+5 / 5, living_entity 88 / 132, unnamed_ghost_rider 31 / 38, unnamed_titus 19 / 27: identical address lists) and a
+full VC6 sweep of all 259 units (4107 -> 4161 matches, none lost); mingw: 259 files, 0 errors.
+
+**D6702 (the ten units of this pass; match9). Source shapes that make cl 12.00.8168 emit build 8966's code** (each
+verified by a byte match; details in the match9 notes):
+- Element pointers for both arrays of a button loop (D6403 / D6502): pickup / options / levelselect load_bitmaps (the
+  def pointer declared right after the state pointer), options_handle_click (`ui_button_def *d` declared first: the
+  loop compares the def pointer), pickup_handle_click (`d->flags`, which also gives the `mov bl, 4` constant), the
+  draw loops (options_draw declares the pointer after the slider switch); index loops (`jl`) instead of pointer
+  loops for pickup_frame and pickup_draw.
+- The *_update_buttons template `if (!mouse_is_down(0)) { release; } else { held; return; }` with the element
+  pointer (pickup, levelselect); options_update_buttons needs only the pointer.
+- Clamps `last = n - page; if (pos < last) last = pos; pos = last;` (pickup_page_down, pickup_drag_scrollbar).
+- Rectangle arguments through locals (pickup_list_handle_click, the row test of pickup_handle_click with the first
+  row in a local `first`, so that `(i - first) * fh` is strength-reduced as in the binary).
+- A call argument that is a call goes into a local (D6005): `move_info *m = owner->find_move(..); play_move((int)m,
+  ..)` (tentacle grab / release / death), `int music = music_find_by_name(..)` (khosani salamanka_fight),
+  `char *fmt = XSTR(..)` before the sprintf with a call argument (party_member_join), `float fog_near =
+  fog_get_near_current()` (game_render_frame, closer). The opposite for strchr: `const char *text = topic->text;`
+  (topic_talker).
+- Distances: `vector3 v = a - b; float d = v.len();` for the five worldmap nearest_*_nav searches (the binary sums
+  z, x, y; no order of three component products gives it); `vector3 d(x, 0.0f, z)` constructed in place and the
+  natural x, y, z dot product (pyrul_point_in_attack_cone, D6502); `t->throw_velocity = d * (2.0f / 3.0f)` through
+  the inline operator* (tentacle ai_release); `pt->pos = pos + c->centre_offset` (pyrul_update_attack_points).
+- Bool shapes: `x ? true : false` for a bool call stored to a bool (`*is_town = tf.Accept(..) ? true : false`,
+  read_town_characters) and for `return t->num_hits > 0 ? true : false` (collect_area_hits: `setg al` without the
+  `xor eax, eax`); `if (f->error() == 0) return true; return false;` (s3d_read_header, D6005); an early-exit chain
+  into one shared `return true` written as one `||` condition (ls_worldmap1_roll_encounter); `if (valid) { ...
+  return ..; } return false;` (khosani cell_open).
+- Store / statement order: `pickup_container = c;` before the memset (pickup_init); `state = 1;` before `busy = 1;`
+  (open_dialogue); the add_point index written as `n = len; ...[n] ..;
+  n++; len = n; count = n;` (khosani add_point); `terrain = 0;` after the first distance call (worldmap
+  pick_encounter_early); g1 before g0 (khosani idle_path); the float copies of turn_dirs through `y` then `x` locals;
+  `slot++` as its own statement after place_at_party_start (khosani puzzle_use).
+- Globals the binary keeps in a register while storing: the level list count written as
+  `mp_levelselect_levels[mp_levelselect_list_count[1]++] = i` (8168 promotes it, with the first store of 0 kept);
+  `int n = num_lobjs;` before the countdown loop and `lobjs[k]` (index local, the global pointer reloaded) in
+  level_load_layers.
+- Operand order: the options slider fill width `w = btn.w / 2 - pos.x + btn.x` computed first with the x / y / h
+  locals declared after it; levelselect thumb `h * (x / c)` (the fild order; same value, D6502);
+  `float t = (gamma - 0.7f) / 1.5f;` before the product (options_apply_gamma).
+- Frames: pickup_take_selected's message buffer is 128 bytes (D6704); level_load_layers' name buffer 32 bytes;
+  block-scoped buffers that share the frame with later temporaries (s3d_read_navpoint's name, s3d_read_geometry's
+  name and corner array; both closer, see D6703).
+- Switch: case bodies written out separately where the binary's dec chain has two cases jumping to one target
+  (options_set_texture_quality: `case 0:` and `case 1:` each with the body; a shared `case 0: case 1:` gives 8168's
+  range compare).
+
+**D6703 (notes only; match9). Differences of this pass that no source form changed** (8168 against 8966, as D5905 /
+D6206 / D6306 / D6405 / D6514 / D6603):
+- Shared return / tail blocks and cross-jumped tails (tentacle ai_frame and cmd_* tails, pyrul_ai_frame,
+  state_game_enter's two failure tails, conversation end / line_talker, worldmap stage9's day / night blocks,
+  pyrul_cast_special: 8168 merges the wall-of-fire `return true` into the meteor case's tail, 8966 keeps it first).
+- Jump tables with an explicit `case -1` slot (pyrul_ai_frame, pyrul_cast_special).
+- The `max(x, 0)` AND into the other register (pickup_page_up, mp_levelselect_add_chat_line's scroll clamp).
+- Stack pops merged across a varargs call (level_load_report, level_unload, help_draw_page).
+- Dead argument / local slots reused (khosani trace_beam and the three corner_* functions, s3d_read_geometry's loop
+  index, level_free_s3d's palette pointer, s3d_read_color_record, worldmap stage15's rolls).
+- Float members copied through the FPU into a stack temporary (ls_worldmap1_frame's set_float arguments,
+  emit_segment's grid points, options_drag_sliders' slider width).
+- Bitfield tests through `shr / test cl, 1` (conversation end / select_topic) and the byte narrowing of
+  `!(game_flags & 0x20)` (`not al / shr al, 5`, game_render_frame).
+- Copy from a constructed temporary through EAX (s3d_read_navpoint's quaternion operator=); the inline
+  vector3(float, float, float) called out of line in camera_capture.
+- A pointer-compare range test of a switch with `ja` (options_load_bitmaps; 8168 `jg`).
+- options_init: 8168 forwards Summoner_options.sfx_volume past the struct copy (also with memcpy).
+- Register choice / scheduling: pickup_draw_item_list (ebx / ebp), party_level_reset (8966 pushes the callee-saved
+  registers first and keeps CF_SUMMON in EBX), mp_levelselect_draw_levels (pushes after the clamp), read_door's
+  `mov ecx, edi`, cmd_tentacles' constant 8 in EBP, mp_levelselect_drag_scrollbar (the operand order of the
+  thumb offset is canonicalised by 8168 whatever the source order), state_game_frame's `+=` operand order.
+
+**D6704 (game/new_pickup.cpp). pickup_take_selected's message buffer is 128 bytes; pickup_init stores the container
+first.** The frame is 0xc0 with items at +0x10 (16 pointers) and msg at +0x50 (both read from the sprintf / take
+loops): msg reaches the end of the frame, so it is char[128], not char[112] with 16 unused bytes. pickup_init's
+binary stores pickup_container between the memset's first and second dwords, which is 8168's schedule of the
+container store written before the memset. Both now match.
+
+**D6705 (notes only). Markers that say exact but differ under 8168** in this pass's units, left as they were (D6207):
+pickup_page_up (0x420d20), level_load_report (0x437d70), level_unload (0x437e00), help_draw_page (0x43a0a0),
+conversation_controller::line_talker (0x4d8940), conversation_controller::end (0x4dac30), ls_worldmap1_frame
+(0x4fbd80). Functions raised to exact by a VC6 byte match carry "exact (VC6 byte match, match9; was likely ...)".

@@ -171,7 +171,8 @@ int ai_state::tentacle_beast_ai_select_action()
 // the grab timer is rearmed.
 void ai_state::tentacle_beast_start_grab()
 {
-    emerge_move = owner->play_move((int)owner->find_move(0, 0x86), 1.0f, false, false, false);
+    move_info *m = owner->find_move(0, 0x86);
+    emerge_move = owner->play_move((int)m, 1.0f, false, false, false);
     set_mode(AI_STATE_COMBAT, AIS_TENTACLE_GRAB);
     tentacle_beast_grab_ready = 0;
     tentacle_beast_grab_timer.invalidate();
@@ -224,7 +225,8 @@ void ai_state::tentacle_beast_start_release()
         return;
     if (owner->get_current_move())
         return;
-    emerge_move = owner->play_move((int)owner->find_move(0, 0x87), 1.0f, true, false, false);
+    move_info *m = owner->find_move(0, 0x87);
+    emerge_move = owner->play_move((int)m, 1.0f, true, false, false);
     set_mode(AI_STATE_COMBAT, AIS_TENTACLE_RELEASE);
     priority = 99999;
     ai_move_flags |= 4;
@@ -234,7 +236,8 @@ void ai_state::tentacle_beast_start_release()
     }
 }
 
-// 0x4c6a80  Confidence: likely. Sub-mode AIS_TENTACLE_RELEASE: at trigger 8 the victim is thrown towards
+// 0x4c6a80  Confidence: exact (VC6 byte match, match9; was likely). Sub-mode AIS_TENTACLE_RELEASE: at trigger 8 the
+// victim is thrown towards
 // the swipe point (two thirds of the offset per second), the tentacle goes back to its normal anims (0xe,
 // 0x93 / 0x95) and the camera follows a thrown cur_character. The grab bone's transform is computed into
 // locals that are not used, and the victim is not NULL-checked (NOTES, game bugs).
@@ -261,9 +264,7 @@ void ai_state::tentacle_beast_ai_release()
     vector3 d(tentacle_beast_active_tentacle->swipe_pos.x - victim->pos.x,
               tentacle_beast_active_tentacle->swipe_pos.y - victim->pos.y,
               tentacle_beast_active_tentacle->swipe_pos.z - victim->pos.z);
-    tentacle_beast_active_tentacle->throw_velocity.x = d.x * (2.0f / 3.0f);
-    tentacle_beast_active_tentacle->throw_velocity.y = d.y * (2.0f / 3.0f);
-    tentacle_beast_active_tentacle->throw_velocity.z = d.z * (2.0f / 3.0f);
+    tentacle_beast_active_tentacle->throw_velocity = d * (2.0f / 3.0f);
     tentacle_beast_active_tentacle->squeeze_timer.invalidate();
     owner->anim_ready = charinfo_find_move(owner->info, 0xe, 0x93, true)->anim;
     owner->anim_ready_hurt = charinfo_find_move(owner->info, 0xe, 0x95, true)->anim;
@@ -485,7 +486,8 @@ tentacle_info *tentacle_find(Character *c)
     return NULL;
 }
 
-// 0x4c7360  Confidence: likely. boss_ai_check_stage case 0x93: the end of a rise / dive flips the tentacle;
+// 0x4c7360  Confidence: exact (VC6 byte match, match9; was likely). boss_ai_check_stage case 0x93: the end of a rise
+// / dive flips the tentacle;
 // a tentacle at HP 0 releases its victim, then plays its death move (6, 0x22) once (one more lost, one less
 // up) and is submerged and deactivated when it ends; a living one releases below release_hp or after 30 s.
 void ai_state::tentacle_beast_check_stage()
@@ -514,7 +516,8 @@ void ai_state::tentacle_beast_check_stage()
             tentacle_beast_tentacles_lost++;
             tentacle_beast_tentacles_up--;
             owner->flags |= CF_HIDDEN | CF_DEAD;
-            t->death_anim = owner->play_move((int)owner->find_move(6, 0x22), 1.0f, true, true, false);
+            move_info *m = owner->find_move(6, 0x22);
+            t->death_anim = owner->play_move((int)m, 1.0f, true, true, false);
             return;
         }
         if (t->death_anim != -1 && !owner->move_playing(t->death_anim, NULL)) {
@@ -623,7 +626,8 @@ int tentacle_get_attack_kind(Character *c)
     return t->move == tentacle_move_2 ? 1 : -1;
 }
 
-// 0x4c77c0  Confidence: likely. The swipe hits the members of cur_character's group within reach (by the
+// 0x4c77c0  Confidence: exact (VC6 byte match, match9; was likely). The swipe hits the members of cur_character's
+// group within reach (by the
 // edges) that are visible and fail their defence (the members are not NULL-checked).
 bool tentacle_collect_area_hits(Character *c)
 {
@@ -646,7 +650,7 @@ bool tentacle_collect_area_hits(Character *c)
             && living_combat_test_defense(&c->combat, &m->combat))
             t->hits[t->num_hits++] = group->members[i];
     }
-    return t->num_hits > 0;
+    return t->num_hits > 0 ? true : false;
 }
 
 // 0x4c78b0  Confidence: exact.

@@ -335,7 +335,7 @@ int gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, boo
     return 0;
 }
 
-// 0x506110  Confidence: likely (the store after the call). Fullscreen only: the 3dfx SST_DUALHEAD
+// 0x506110  Confidence: exact (the store after the call). Fullscreen only: the 3dfx SST_DUALHEAD
 // variable (a number other than 0) turns on the dual-monitor handling of the Glide back end.
 void gr_check_dual_monitors()
 {
@@ -502,10 +502,11 @@ void gr_screenshot(const char *name, int format, int path_id)
 
 // ---- fades -------------------------------------------------------------------------------------------
 
-// 0x5065e0  Confidence: exact. Black overlay 0 -> 1 over ms milliseconds; ms < 1: black at once.
+// 0x5065e0  Confidence: exact (`ms <= 0`: test / jg, D6800). Black overlay 0 -> 1 over ms milliseconds;
+// ms < 1: black at once.
 void gr_fade_out(int ms)
 {
-    if (ms < 1) {
+    if (ms <= 0) {
         gr_fade_state = 0;
         gr_fade_level = 1.0f;
         return;
@@ -515,10 +516,10 @@ void gr_fade_out(int ms)
     gr_fade_duration = ms * 0.001f;
 }
 
-// 0x506630  Confidence: exact. Overlay 1 -> 0, then off (-1); ms < 1: off at once.
+// 0x506630  Confidence: exact (`ms <= 0`, D6800). Overlay 1 -> 0, then off (-1); ms < 1: off at once.
 void gr_fade_in(int ms)
 {
-    if (ms < 1) {
+    if (ms <= 0) {
         gr_fade_state = 0;
         gr_fade_level = -1.0f;
         return;
@@ -754,7 +755,8 @@ void gr_zbuffer_clear(bool enable)
     }
 }
 
-// 0x506a90  Confidence: likely (the reciprocal constants: written as multiplications, see NOTES).
+// 0x506a90  Confidence: exact (the exponent overwrites gamma, the binary's argument slot; powf for the
+// float 255 multiplier, D6800). The reciprocal constants are written as multiplications (see NOTES).
 // gr_gamma_ramp[i] = 255 * (i / 255) ^ (1 / gamma), clamped; gr_color_gamma_lut[i] = i, clamped to
 // 0..255 (an identity table: no gamma is applied to it). Only Direct3D and Glide upload a ramp.
 void gr_set_gamma(float gamma)
@@ -762,9 +764,9 @@ void gr_set_gamma(float gamma)
     int i;
     gr_gamma = gamma;
     gr_gamma_percent = (int)(gamma * 100.0f);
-    float exponent = 1.0f / gamma;
+    gamma = 1.0f / gamma;
     for (i = 0; i < 256; i++) {
-        int v = (int)(pow(i * (1.0f / 255.0f), exponent) * 255.0f);
+        int v = (int)(powf(i * (1.0f / 255.0f), gamma) * 255.0f);
         if (v > 255)
             v = 255;
         else if (v < 0)
@@ -848,7 +850,7 @@ void gr_mark_texture_dirty(int bm)
 
 // ---- 2D drawing ------------------------------------------------------------------------------------------
 
-// 0x506cb0  Confidence: likely (variable homes: bw lives in h's argument slot, dy1 in w's).
+// 0x506cb0  Confidence: exact (variable homes: bw lives in h's argument slot, dy1 in w's).
 // (bm, x, y, w, h, sx, sy, mode): the w x h part of the bitmap at (sx, sy) drawn at (x, y), clipped;
 // a negative sx / sy moves the destination and clips again.
 void gr_bitmap_ex(int bm, int x, int y, int w, int h, int sx, int sy, gr::Mode mode)
@@ -932,7 +934,7 @@ void gr_bitmap_stretched(int bm, int x, int y, int w, int h, int sx, int sy, int
     }
 }
 
-// 0x506f90  Confidence: likely (the w == 0 test's spelling). The whole bitmap at (x, y), clipped.
+// 0x506f90  Confidence: exact (the w == 0 test's spelling). The whole bitmap at (x, y), clipped.
 void gr_bitmap(int bm, int x, int y, gr::Mode mode)
 {
     int w, h;
@@ -1125,13 +1127,14 @@ void gr_line(float x1, float y1, float x2, float y2, gr::Mode mode)
     }
 }
 
-// 0x507690  Confidence: likely (float conversions inline, as the loop hoists them and the last segment
-// converts again). No caller. A circle of radius * 3 segments (5..128) drawn with gr_line; x uses the
-// sine and y the cosine, and the closing segment ends at sin(0.0) / cos(0.0) (the start).
+// 0x507690  Confidence: exact (float conversions inline, as the loop hoists them and the last segment
+// converts again; angle declared first, D6800). No caller. A circle of radius * 3 segments (5..128)
+// drawn with gr_line; x uses the sine and y the cosine, and the closing segment ends at sin(0.0) /
+// cos(0.0) (the start).
 void gr_circle(int x, int y, int radius, gr::Mode mode)
 {
-    int segments = radius * 3;
     float angle = 0.0f;
+    int segments = radius * 3;
     clamp_int(&segments, 5, 128);
     float step = 6.2831855f / segments;
     for (int i = 0; i < segments - 1; i++) {
@@ -1478,7 +1481,7 @@ void gr_stub_ret_508080()
 {
 }
 
-// 0x508090  Confidence: likely (the reciprocal constants). Only caller combat_spawn_blood.
+// 0x508090  Confidence: exact (the reciprocal constants). Only caller combat_spawn_blood.
 float rgb_to_lightened_grey(float r, float g, float b)
 {
     float avg = (r + g + b) * (1.0f / 3.0f);
@@ -1486,7 +1489,8 @@ float rgb_to_lightened_grey(float r, float g, float b)
 }
 
 // 0x5080c0  Confidence: exact. Does nothing unless the card can (gr_antialias_enabled, set by the
-// Direct3D back end); the Glide and OpenGL versions are empty.
+// Direct3D back end); the Glide and OpenGL versions are empty. All three take the bool (the OpenGL call
+// pushes the dword unmasked; gr_opengl.h said int, D6801).
 void gr_set_antialias(bool on)
 {
     if (gr_antialias_enabled) {

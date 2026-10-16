@@ -79,7 +79,8 @@ conversation_slot *conversation_controller::add_talker(Character *c, int kind)
 // 0x4d8900  Confidence: exact. Only quoted text is spoken (a talk animation is played).
 conversation_slot *conversation_controller::topic_talker(conversation_topic *topic)
 {
-    if (!strchr(topic->text, '"'))
+    const char *text = topic->text;
+    if (!strchr(text, '"'))
         return NULL;
     return add_talker(cur_character, 0);
 }
@@ -221,15 +222,15 @@ conversation_controller::conversation_controller()
         list_append(&free_slots, &slots[i]);
 }
 
-// 0x4d8db0  Confidence: likely (state is stored between the flag load and store).
+// 0x4d8db0  Confidence: exact (VC6 byte match, match9; was likely: state is stored between the flag load and store).
 void conversation_controller::open_dialogue()
 {
     char name[256];
 
     speaker->get_display_name(name);
     dialogue_screen_open(name);
-    busy = 1;
     state = 1;
+    busy = 1;
     select_topic(conversation_db.select_greeting());
     busy = 0;
 }

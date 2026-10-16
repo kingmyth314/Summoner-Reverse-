@@ -51,27 +51,7 @@ boss_attack *pyrul_move_2_2;          // 0x247fd08
 boss_attack *pyrul_move_1_0;          // 0x247fd0c
 boss_attack *pyrul_move_2_0;          // 0x247fd10
 boss_attack *pyrul_move_3_0;          // 0x247fd14
-int  pyrul_stage;                     // 0x247fd28
-int  pyrul_target_stage;              // 0x247fd2c
-int  pyrul_247fd30;                   // 0x247fd30
-int  pyrul_missile_bone;              // 0x247fd34
-bool pyrul_combat_enabled;            // 0x247fd38
-boss_threat pyrul_threat_table[BOSS_MAX_THREATS];   // 0x247fd3c (timers constructed by init_pyrul_timers)
-int  pyrul_num_offense_points;        // 0x247fdb4
-boss_offense_point pyrul_offense_points[10];        // 0x247fdb8
-boss_attack pyrul_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x247fed0
-boss_attack *pyrul_cur_move;          // 0x2480290
-GameTimer pyrul_move_timer;           // 0x2480294
-int  pyrul_target;                    // 0x2480298
-GameTimer pyrul_target_timer;         // 0x248029c
-GameTimer pyrul_timer_a;              // 0x24802a0
-GameTimer pyrul_timer_b;              // 0x24802a4
-int  pyrul_ground_fx;                 // 0x24802a8
-int  pyrul_24802ac;                   // 0x24802ac
-int  pyrul_24802b0;                   // 0x24802b0
-int  pyrul_24802b4;                   // 0x24802b4
-int  pyrul_num_hits;                  // 0x24802b8
-int  pyrul_hits[5];                   // 0x24802bc
+pyrul_boss pyrul;                     // 0x247fd28-0x24802cf: stage .. hits (D6701; fields in boss_ai.h)
 boss_attack *pyrul_move_1_2;          // 0x24802d0
 boss_attack *pyrul_move_1_1;          // 0x24802d4
 boss_attack *pyrul_move_2_1;          // 0x24802d8
@@ -167,7 +147,8 @@ void ai_state::pyrul_ai_idle()
     }
 }
 
-// 0x4b8a10  Confidence: likely (the offense-point packing loop as in the other loaders).
+// 0x4b8a10  Confidence: exact (VC6 byte match, match9; was likely: the offense-point packing loop as in the other
+// loaders).
 void ai_state::pyrul_boss_load()
 {
     int i;
@@ -499,7 +480,7 @@ void pyrul_timer_set_random(int min_ms, int max_ms)
     pyrul_target_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4b9400  Confidence: likely (the position sum goes through a temporary).
+// 0x4b9400  Confidence: exact (VC6 byte match, match9; was likely: the position sum goes through a temporary).
 void pyrul_update_attack_points(Character *c)
 {
     int i;
@@ -511,9 +492,7 @@ void pyrul_update_attack_points(Character *c)
         pt = &pyrul_offense_points[i];
         c->instance->get_bone_world_transform(pt->tag, &c->orient, &c->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + c->centre_offset.x;
-        pt->pos.y = pos.y + c->centre_offset.y;
-        pt->pos.z = pos.z + c->centre_offset.z;
+        pt->pos = pos + c->centre_offset;
     }
 }
 
@@ -705,20 +684,18 @@ bool pyrul_attack_test_class0(Character *c)
     return pyrul_num_hits > 0;
 }
 
-// 0x4b9c20  Confidence: likely (the dot product is summed z, y, x). Horizontal distance from the move's
+// 0x4b9c20  Confidence: exact (VC6 byte match, match9; was likely: the dot product is summed z, y, x). Horizontal
+// distance from the move's
 // offense point within range_max and the direction within the cone. The point index is not checked
 // (every retail move has -1; bosses.md "offense points").
 bool pyrul_point_in_attack_cone(Character *c, boss_attack *move)
 {
     boss_offense_point *pt = &pyrul_offense_points[move->offense_point];
-    vector3 d;
+    vector3 d(c->pos.x - pt->pos.x, 0.0f, c->pos.z - pt->pos.z);
 
-    d.x = c->pos.x - pt->pos.x;
-    d.y = 0.0f;
-    d.z = c->pos.z - pt->pos.z;
     if (d.normalize_safe_length() > move->range_max)
         return false;
-    if (d.z * pt->dir.z + d.y * pt->dir.y + d.x * pt->dir.x < move->cos_max_angle)
+    if (d.x * pt->dir.x + d.y * pt->dir.y + d.z * pt->dir.z < move->cos_max_angle)
         return false;
     return true;
 }

@@ -62,7 +62,7 @@ gr::Mode gr_mode_vfx_flat_alpha(0, 0, 0, 3, 1, 0);   // 0x2f91a5c
 
 // ---- inline helpers (COMDATs at the end of the object) -------------------------------------------
 
-// 0x562550 vfx_particle_get_bitmaps  Confidence: likely. The two layers' bitmaps at the particle's age
+// 0x562550 vfx_particle_get_bitmaps  Confidence: exact. The two layers' bitmaps at the particle's age
 // (life_anim: over its lifetime); returns the material.
 inline vfx_material *fx_recb0::get_bitmaps(vfx_emitter_desc *desc, fx_rec28 *p, int *bitmaps)
 {
@@ -387,7 +387,7 @@ void vfx_emitter_desc::relocate(char *header_base, char *base)
         ptr_relocate(&links[i], base);
 }
 
-// 0x561220  Confidence: likely (one AND for each group of bit clears).
+// 0x561220  Confidence: exact (one AND for each group of bit clears).
 void fx_recb0::init(vfx_emitter_desc *desc)
 {
     flags &= 0xff000000;

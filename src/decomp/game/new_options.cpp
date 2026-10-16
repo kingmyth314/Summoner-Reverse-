@@ -141,31 +141,33 @@ void options_load_bitmaps()
     int i;
 
     for (i = 0; i < OPTIONS_NUM_BUTTONS; i++) {
-        options_buttons[i].flags = 0;
-        options_buttons[i].bitmap = -1;
-        options_buttons[i].x = 0;
-        options_buttons[i].y = 0;
-        options_buttons[i].w = 0;
-        options_buttons[i].h = 0;
+        ui_button_state *b = &options_buttons[i];
+        ui_button_def *d = &options_button_defs[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
-        if (strlen(options_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, options_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            options_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            options_buttons[i].x = options_button_defs[i].pos[resolution_index][0];
-            options_buttons[i].y = options_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(options_buttons[i].bitmap, &options_buttons[i].w, &options_buttons[i].h);
-            options_buttons[i].w = (int)(options_buttons[i].w * scale + 0.5f);
-            options_buttons[i].h = (int)(options_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             switch (i) {
             case 0:
             case 1:
             case 2:
             case 19:
             case 70:
-                options_buttons[i].flags |= 1;
+                b->flags |= 1;
                 break;
             }
         }
@@ -244,7 +246,8 @@ void options_set_camera_speed(float speed)
                           - options_buttons[19].w / 2;
 }
 
-// 0x41f380  Confidence: likely (the binary multiplies by the float 2/3 (0x580204): written as the division
+// 0x41f380  Confidence: exact (VC6 byte match, match9; was likely: the binary multiplies by the float 2/3 (0x580204):
+// written as the division
 // by the 1.5 range, which VC6 is assumed to turn into the reciprocal; see NOTES). Range 0.7..2.2.
 void options_apply_gamma(float gamma)
 {
@@ -254,8 +257,9 @@ void options_apply_gamma(float gamma)
         gamma = 2.2f;
     options_edit.gamma_correction = gamma;
     gr_set_gamma(gamma);
+    float t = (gamma - 0.7f) / 1.5f;
     options_buttons[70].x = options_gamma_slider_pos[resolution_index][0]
-                          + (int)((gamma - 0.7f) / 1.5f * options_gamma_slider_size[resolution_index][0] + 0.5f)
+                          + (int)(t * options_gamma_slider_size[resolution_index][0] + 0.5f)
                           - options_buttons[70].w / 2;
 }
 
@@ -407,6 +411,9 @@ void options_set_texture_quality(int quality)
     options_edit.texture_quality = quality;
     switch (quality) {
     case 0:
+        options_buttons[42].flags |= 1;
+        options_buttons[44].flags &= ~1;
+        break;
     case 1:
         options_buttons[42].flags |= 1;
         options_buttons[44].flags &= ~1;
@@ -575,21 +582,22 @@ int options_handle_click(int key)
     options_pressed_button = -1;
 
     for (i = 0; i < OPTIONS_NUM_BUTTONS; i++) {
-        if (!(options_buttons[i].flags & 4) && (options_button_defs[i].flags & 7)) {
+        ui_button_def *d = &options_button_defs[i];
+        ui_button_state *b = &options_buttons[i];
+        if (!(b->flags & 4) && (d->flags & 7)) {
             int margin = 0;
 
-            if (options_button_defs[i].flags & 4)
+            if (d->flags & 4)
                 margin = options_slider_hit_margin[resolution_index];
-            if (point_in_rect(game_mouse_x, game_mouse_y, options_buttons[i].x - margin / 2, options_buttons[i].y,
-                              options_buttons[i].w + margin, options_buttons[i].h)) {
-                options_buttons[i].flags |= 2;
+            if (point_in_rect(game_mouse_x, game_mouse_y, b->x - margin / 2, b->y, b->w + margin, b->h)) {
                 options_pressed_button = i;
-                if (options_button_defs[i].flags & 3) {
+                b->flags |= 2;
+                if (d->flags & 3) {
                     if (mouse_was_pressed(0)) {
                         options_mouse_mode = 1;
                         return key;
                     }
-                } else if (options_button_defs[i].flags & 4) {
+                } else if (d->flags & 4) {
                     if (mouse_was_pressed(0)) {
                         options_mouse_mode = 2;
                         return key;
@@ -600,7 +608,8 @@ int options_handle_click(int key)
         }
     }
 
-    if (key == KEY_ESC) {
+    switch (key) {
+    case KEY_ESC:
         options_close();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
@@ -628,13 +637,13 @@ void options_update_buttons()
         button = pressed;
 
     if (pressed >= 0 && pressed < OPTIONS_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, options_buttons[button].x, options_buttons[button].y,
-                          options_buttons[button].w, options_buttons[button].h))
-            options_buttons[button].flags |= 2;
+        ui_button_state *b = &options_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
         if (mouse_is_down(0))
             return;
-        if (options_buttons[button].flags & 2)
+        if (b->flags & 2)
             options_button_action(button);
         if (ui_choice_popup_is_active())
             return;
@@ -854,7 +863,8 @@ void options_drag_sliders()
         options_mouse_mode = 0;
 }
 
-// 0x420320  Confidence: likely (order of the two antialias tests: 63 is compared first). Without card
+// 0x420320  Confidence: exact (VC6 byte match, match9; was likely: order of the two antialias tests: 63 is compared
+// first). Without card
 // support the "antialias on" box (62) and its hot spot (63) are not drawn. Mode 3 is never set in this
 // unit; the popup draw is reached only if another unit sets options_mouse_mode.
 void options_draw()
@@ -880,10 +890,10 @@ void options_draw()
             break;
         }
 
-        if (options_buttons[i].flags & 3) {
+        ui_button_state *b = &options_buttons[i];
+        if (b->flags & 3) {
             gr_set_color(255, 255, 255, 255);
-            ui_bitmap_scaled(options_buttons[i].bitmap, options_buttons[i].x, options_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
         }
     }
 
@@ -892,13 +902,14 @@ void options_draw()
     options_draw_version();
 }
 
-// 0x420430  Confidence: likely (operand order of the fill width). The filled part ends under the knob centre.
+// 0x420430  Confidence: exact (VC6 byte match, match9; was likely: operand order of the fill width). The filled part
+// ends under the knob centre.
 void options_draw_sfx_slider()
 {
+    int w = options_buttons[1].w / 2 - options_sfx_slider_pos[resolution_index][0] + options_buttons[1].x;
     int x = options_sfx_slider_pos[resolution_index][0];
     int y = options_sfx_slider_pos[resolution_index][1];
     int h = options_sfx_slider_size[resolution_index][1];
-    int w = options_buttons[1].w / 2 - x + options_buttons[1].x;
 
     if (w > 0) {
         gr_set_color_ptr(&ui_color_dark_green);
@@ -906,13 +917,13 @@ void options_draw_sfx_slider()
     }
 }
 
-// 0x420490  Confidence: likely (as options_draw_sfx_slider).
+// 0x420490  Confidence: exact (VC6 byte match, match9; was likely: as options_draw_sfx_slider).
 void options_draw_music_slider()
 {
+    int w = options_buttons[2].w / 2 - options_music_slider_pos[resolution_index][0] + options_buttons[2].x;
     int x = options_music_slider_pos[resolution_index][0];
     int y = options_music_slider_pos[resolution_index][1];
     int h = options_music_slider_size[resolution_index][1];
-    int w = options_buttons[2].w / 2 - x + options_buttons[2].x;
 
     if (w > 0) {
         gr_set_color_ptr(&ui_color_dark_green);
@@ -920,13 +931,13 @@ void options_draw_music_slider()
     }
 }
 
-// 0x4204f0  Confidence: likely (as options_draw_sfx_slider).
+// 0x4204f0  Confidence: exact (VC6 byte match, match9; was likely: as options_draw_sfx_slider).
 void options_draw_camera_speed_slider()
 {
+    int w = options_buttons[19].w / 2 - options_camera_slider_pos[resolution_index][0] + options_buttons[19].x;
     int x = options_camera_slider_pos[resolution_index][0];
     int y = options_camera_slider_pos[resolution_index][1];
     int h = options_camera_slider_size[resolution_index][1];
-    int w = options_buttons[19].w / 2 - x + options_buttons[19].x;
 
     if (w > 0) {
         gr_set_color_ptr(&ui_color_dark_green);
@@ -934,13 +945,13 @@ void options_draw_camera_speed_slider()
     }
 }
 
-// 0x420550  Confidence: likely (as options_draw_sfx_slider).
+// 0x420550  Confidence: exact (VC6 byte match, match9; was likely: as options_draw_sfx_slider).
 void options_draw_gamma_slider()
 {
+    int w = options_buttons[70].w / 2 - options_gamma_slider_pos[resolution_index][0] + options_buttons[70].x;
     int x = options_gamma_slider_pos[resolution_index][0];
     int y = options_gamma_slider_pos[resolution_index][1];
     int h = options_gamma_slider_size[resolution_index][1];
-    int w = options_buttons[70].w / 2 - x + options_buttons[70].x;
 
     if (w > 0) {
         gr_set_color_ptr(&ui_color_dark_green);

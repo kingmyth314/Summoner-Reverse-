@@ -128,27 +128,28 @@ void mp_levelselect_load_bitmaps()
     int i;
 
     for (i = 0; i < LEVELSELECT_NUM_BUTTONS; i++) {
-        mp_levelselect_buttons[i].flags = 0;
-        mp_levelselect_buttons[i].bitmap = -1;
-        mp_levelselect_buttons[i].x = 0;
-        mp_levelselect_buttons[i].y = 0;
-        mp_levelselect_buttons[i].w = 0;
-        mp_levelselect_buttons[i].h = 0;
+        ui_button_state *b = &mp_levelselect_buttons[i];
+        ui_button_def *d = &mp_levelselect_button_defs[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
-        if (strlen(mp_levelselect_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, mp_levelselect_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            mp_levelselect_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            mp_levelselect_buttons[i].x = mp_levelselect_button_defs[i].pos[resolution_index][0];
-            mp_levelselect_buttons[i].y = mp_levelselect_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(mp_levelselect_buttons[i].bitmap, &mp_levelselect_buttons[i].w,
-                              &mp_levelselect_buttons[i].h);
-            mp_levelselect_buttons[i].w = (int)(mp_levelselect_buttons[i].w * scale + 0.5f);
-            mp_levelselect_buttons[i].h = (int)(mp_levelselect_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                mp_levelselect_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -187,7 +188,8 @@ void mp_levelselect_init()
     mp_levelselect_selected_player[0] = 0;
 }
 
-// 0x41c110  Confidence: likely (same template as mp_charselect_update_scrollbar). Buttons 3 + 4 * list /
+// 0x41c110  Confidence: exact (VC6 byte match, match9; was likely: same template as mp_charselect_update_scrollbar).
+// Buttons 3 + 4 * list /
 // 5 + 4 * list are the list's arrows.
 void mp_levelselect_update_scrollbar(int list)
 {
@@ -208,34 +210,34 @@ void mp_levelselect_update_scrollbar(int list)
     mp_levelselect_buttons[3 + list * 4].flags &= ~4;
     mp_levelselect_buttons[5 + list * 4].flags &= ~4;
 
-    if (count > 0) {
-        mp_levelselect_thumb_pos[list][0] = mp_levelselect_track_pos[resolution_index][list][0];
-        mp_levelselect_thumb_pos[list][1] = (int)((float)mp_levelselect_scroll_pos[list] / count
-                                                  * mp_levelselect_track_h[resolution_index][list] + 0.5f)
-                                            + mp_levelselect_track_pos[resolution_index][list][1];
-        mp_levelselect_thumb_size[list][0] = mp_levelselect_thumb_w;
-        mp_levelselect_thumb_size[list][1] = (int)((float)page / count
-                                                   * mp_levelselect_track_h[resolution_index][list] + 0.5f);
-    } else {
+    if (count <= 0) {
         mp_levelselect_thumb_pos[list][0] = mp_levelselect_track_pos[resolution_index][list][0];
         mp_levelselect_thumb_pos[list][1] = mp_levelselect_track_pos[resolution_index][list][1];
         mp_levelselect_thumb_size[list][0] = mp_levelselect_thumb_w;
         mp_levelselect_thumb_size[list][1] = mp_levelselect_track_h[resolution_index][list];
+    } else {
+        mp_levelselect_thumb_pos[list][0] = mp_levelselect_track_pos[resolution_index][list][0];
+        mp_levelselect_thumb_pos[list][1] = (int)(mp_levelselect_track_h[resolution_index][list]
+                                                  * ((float)mp_levelselect_scroll_pos[list] / count) + 0.5f)
+                                            + mp_levelselect_track_pos[resolution_index][list][1];
+        mp_levelselect_thumb_size[list][0] = mp_levelselect_thumb_w;
+        mp_levelselect_thumb_size[list][1] = (int)(mp_levelselect_track_h[resolution_index][list]
+                                                   * ((float)page / count) + 0.5f);
     }
 }
 
-// 0x41c250  Confidence: likely (the counter is a register; the first store of 0 is kept as a separate
+// 0x41c250  Confidence: exact (VC6 byte match, match9; was likely: the counter is a register; the first store of 0 is
+// kept as a separate
 // statement). The levels with bit 0 of their mp flags, or every level with All_multi_levels.
 void mp_levelselect_build_list()
 {
-    int i, n;
+    int i;
 
     mp_levelselect_list_count[1] = 0;
-    for (i = 0, n = 0; i < 26; i++) {
+    for (i = 0; i < 26; i++) {
         if (All_multi_levels || (level_table[i].mp_flags & 1))
-            mp_levelselect_levels[n++] = i;
+            mp_levelselect_levels[mp_levelselect_list_count[1]++] = i;
     }
-    mp_levelselect_list_count[1] = n;
     mp_levelselect_update_scrollbar(1);
 }
 
@@ -620,21 +622,20 @@ void mp_levelselect_update_buttons()
     int button = mp_levelselect_pressed_button + 1;
 
     if (mp_levelselect_pressed_button >= 0 && mp_levelselect_pressed_button < LEVELSELECT_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_buttons[button].x,
-                          mp_levelselect_buttons[button].y, mp_levelselect_buttons[button].w,
-                          mp_levelselect_buttons[button].h))
-            mp_levelselect_buttons[button].flags |= 2;
+        ui_button_state *b = &mp_levelselect_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
-        if (mouse_is_down(0)) {
-            if (mp_levelselect_button_timer.valid() && mp_levelselect_button_timer.elapsed()
-                && (mp_levelselect_buttons[button].flags & 2)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !mp_levelselect_button_timer.valid())
+                mp_levelselect_button_action(button);
+        } else {
+            if (mp_levelselect_button_timer.valid() && mp_levelselect_button_timer.elapsed() && (b->flags & 2)) {
                 mp_levelselect_button_action(button);
                 mp_levelselect_button_timer.SetTimeout(100);
             }
             return;
         }
-        if ((mp_levelselect_buttons[button].flags & 2) && !mp_levelselect_button_timer.valid())
-            mp_levelselect_button_action(button);
     }
     mp_levelselect_mouse_mode = 0;
 }
@@ -665,9 +666,9 @@ void mp_levelselect_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < LEVELSELECT_NUM_BUTTONS; i++) {
-        if (mp_levelselect_buttons[i].flags & 3)
-            ui_bitmap_scaled(mp_levelselect_buttons[i].bitmap, mp_levelselect_buttons[i].x,
-                             mp_levelselect_buttons[i].y, gr_bitmap_wrap_mode);
+        ui_button_state *b = &mp_levelselect_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     mp_levelselect_draw_chat();
     mp_levelselect_draw_levels();

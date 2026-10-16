@@ -396,7 +396,7 @@ void fog_set_low_camera_default();    // 0x4870b0 (camera_view_low)
 // ---- decomp42 (gameplay.cpp's calls; units not known) ---------------------------------------------------
 void door_find_floor_point(lobj *door);               // 0x476ab0 (level_restore_doors)
 // decomp63 (D4300): int, was bool (mov eax, 1 / xor eax, eax at 0x4820a5 / 0x4820a2).
-int  hover_tint_active();                             // 0x482090 (gameplay_update_cursor)
+bool hover_tint_active();                             // 0x482090 (gameplay_update_cursor; bool, D6700)
 void level_set_current_layer(int layer);              // 0x482110 level_current_layer (0x59bd90)
 // decomp63 (D4300): returns 0 (xor eax, eax at 0x4868dd); was void. gameplay.cpp ignores it.
 int  levelrender_level_load();                        // 0x4865a0

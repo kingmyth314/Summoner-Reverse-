@@ -398,11 +398,10 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
 // corners are copied into a local array (vector3's inline operator=, D500) before vector3_perp.
 void s3d_read_geometry(s3d_level *level, s3d_geometry *g, File *f)
 {
-    char name[0x20];
-    vector3 v[3];
     int i, j;
 
     if (f->check_flags(1)) {
+        char name[0x20];
         f->sync_string_buf(name, 0x20, 0, 0);
         g->name = level->names.Add(name);
     } else
@@ -441,6 +440,7 @@ void s3d_read_geometry(s3d_level *level, s3d_geometry *g, File *f)
     if (f->check_flags(1)) {
         for (i = 0; i < g->num_faces; i++) {
             s3d_face *face = &g->faces[i];
+            vector3 v[3];
             for (j = 0; j < 3; j++)
                 v[j] = g->vertices[face->v[j]];
             vector3_perp(&face->normal, &v[0], &v[1], &v[2]);
@@ -604,9 +604,9 @@ void s3d_read_vertex_set(s3d_level *level, s3d_vertex_set *rec, File *f)
 void s3d_read_navpoint(s3d_level *level, s3d_navpoint *np, File *f)
 {
     quaternion q;
-    char name[0x20];
 
     if (f->check_flags(1)) {
+        char name[0x20];
         f->sync_string_buf(name, 0x20, 0, 0);
         np->name = level->names.Add(name);
     } else
@@ -730,7 +730,9 @@ bool s3d_read_header(s3d_level *level, File *f)
     f->sync_float(&level->ambient.x, 0, 0);
     f->sync_float(&level->ambient.y, 0, 0);
     f->sync_float(&level->ambient.z, 0, 0);
-    return f->error() == 0;
+    if (f->error() == 0)
+        return true;
+    return false;
 }
 
 // 0x46f870  Confidence: likely (the face flag is set with a byte or: the field may be a byte in the

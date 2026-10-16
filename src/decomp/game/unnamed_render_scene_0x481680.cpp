@@ -413,8 +413,8 @@ void levelrender_fade_reset()
     Cull_ground = false;
 }
 
-// 0x482090  Confidence: exact (int, D4300).
-int hover_tint_active()
+// 0x482090  Confidence: exact (bool: the caller tests AL, D6700; was int, D4300).
+bool hover_tint_active()
 {
     return hover_tint_obj || hover_tint_char;
 }

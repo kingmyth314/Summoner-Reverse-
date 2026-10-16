@@ -227,7 +227,8 @@ void cmd_add_xp()
         print_to_console("Usage: add_xp <xp to add>", 0);
 }
 
-// 0x437a40  Confidence: likely (the local layout: TextFile at esp+0, file name +0x1d0, the seen table
+// 0x437a40  Confidence: exact (VC6 byte match, match9; was likely: the local layout: TextFile at esp+0, file name
+// +0x1d0, the seen table
 // +0xd8, the name +0x58). Reads "<script>_script.tbl": "#Town" sets *is_town (never in multiplayer), then
 // each "$Character:" under "#Objects" counts once (num_characters), and once more in num_models when the
 // record has no alt_parent (a model of its own). Callers level_load (into level_is_town) and
@@ -246,7 +247,7 @@ void level_script_read_town_characters(const char *script_name, bool *is_town, i
         *num_characters = 0;
         return;
     }
-    *is_town = tf.Accept("#Town");
+    *is_town = tf.Accept("#Town") ? true : false;
     if (game_flags & GF_MULTIPLAYER)
         *is_town = false;
     memset(seen, 0, sizeof(seen));
@@ -637,13 +638,14 @@ bool level_load_files()
     return true;
 }
 
-// 0x438880  Confidence: likely (the second get_layer_n result is not used: written as a bare call).
+// 0x438880  Confidence: exact (VC6 byte match, match9; was likely: the second get_layer_n result is not used: written
+// as a bare call).
 // level_layer_ground[i] = the vis set "$layer<i+1>" (D2202); the level objects of each set get flag 0x40
 // and their second layer byte set to the set's index. A level without layer sets puts every object on
 // layer 0.
 void level_load_layers()
 {
-    char name[48];
+    char name[32];
     int i, j;
 
     for (i = 0; i < 20; i++) {
@@ -664,16 +666,17 @@ void level_load_layers()
         found = true;
         int count = set->count;
         for (j = 0; j < count; j++) {
-            lobj *l = &lobjs[set->indices[j]];
-            l->flags |= 0x40;
-            int layer = l->get_layer_n(0);
-            l->get_layer_n(1);
+            int k = set->indices[j];
+            lobjs[k].flags |= 0x40;
+            int layer = lobjs[k].get_layer_n(0);
+            lobjs[k].get_layer_n(1);
             if (i != layer)
-                l->set_layer_n(1, i);
+                lobjs[k].set_layer_n(1, i);
         }
     }
     if (!found) {
-        for (i = 0; i < num_lobjs; i++) {
+        int n = num_lobjs;
+        for (i = 0; i < n; i++) {
             lobjs[i].flags |= 0x40;
             lobjs[i].set_layer_n(0, 0);
         }
@@ -837,7 +840,8 @@ void game_render_frame()
     if (fog_text_timer.valid() && fog_text_timer.GetElapsedTime() < 10000) {
         if (levelrender_get_flag_22fb6f7())
             fog_text_timer.SetTimeout(0);
-        sprintf(text, "Fog_near = %.2f, Fog_far = %.2f", fog_get_near_current(), fog_get_far_current());
+        float fog_near = fog_get_near_current();
+        sprintf(text, "Fog_near = %.2f, Fog_far = %.2f", fog_near, fog_get_far_current());
         gr_set_color(250, 190, 190, 255);
         gr_string(10, 50, text, font_small, gr_string_mode);
     } else {
@@ -1271,7 +1275,8 @@ Character *party_member_join(const char *name, int level, bool leader, bool plac
     if (place_at_start == true)
         c->place_at_party_start(known);
     party_sort_by_species();
-    sprintf(text, XSTR("%s has joined the party!\n", 622), c->get_name());
+    char *fmt = XSTR("%s has joined the party!\n", 622);
+    sprintf(text, fmt, c->get_name());
     hud_show_message(text);
     return c;
 }

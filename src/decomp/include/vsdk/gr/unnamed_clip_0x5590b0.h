@@ -57,7 +57,7 @@ void bbox_union(vector3 *min, vector3 *max, const vector3 *bmin, const vector3 *
 // bbox_expand_by_vector (0x559810) is declared in vsdk/math/ix.h.
 // (out[6], eye, min, max): the box corners of the outline seen from eye; 0 when eye is inside.
 int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, const vector3 *max);   // 0x559890
-bool bbox_straddles_plane(plane *p, const vector3 *min, const vector3 *max);   // 0x559b80
+bool bbox_straddles_plane(const vector3 *min, const vector3 *max, plane *p);   // 0x559b80 (the plane is the third argument, D6802)
 // (orient, pos, min, max, out min, out max): the axis-aligned box of a rotated and moved box.
 void bbox_transform(matrix *m, const vector3 *pos, vector3 *min, vector3 *max,
                     vector3 *out_min, vector3 *out_max);   // 0x559c20 (no symbol, name ours; no caller)

@@ -335,7 +335,8 @@ void ls_worldmap1_frame()
     }
 }
 
-// 0x4fbed0  Confidence: likely (the stone case returns at once where the light and fire cases zero the
+// 0x4fbed0  Confidence: exact (VC6 byte match, match9; was likely: the stone case returns at once where the light and
+// fire cases zero the
 // roll; the code cannot tell `return true` from a third `roll = 0` the compiler folded). A check every
 // 10 s while moving; the boss rings force the encounter until the boss intro has played.
 bool ls_worldmap1_roll_encounter()
@@ -356,22 +357,23 @@ bool ls_worldmap1_roll_encounter()
         roll = 0.0f;
     if (savegame_state.get_flag(14, "got_ring_of_fire") && !savegame_state.get_flag(10, "phoenix_intro_played"))
         roll = 0.0f;
-    if (savegame_state.get_flag(12, "got_ring_of_stone") && !savegame_state.get_flag(18, "serpent_intro_played"))
-        return true;
-    if (roll <= 0.5f)
+    if ((savegame_state.get_flag(12, "got_ring_of_stone") && !savegame_state.get_flag(18, "serpent_intro_played"))
+        || roll <= 0.5f)
         return true;
     return false;
 }
 
-// 0x4fbfd0  Confidence: likely (the Korel / Zane tails are merged in the code; the grass case is entered
+// 0x4fbfd0  Confidence: exact (VC6 byte match, match9; was likely: the Korel / Zane tails are merged in the code; the
+// grass case is entered
 // straight from the distance compare). Stage < 4. The navpoint results are not used, only the distances.
 void ls_worldmap1_pick_encounter_early()
 {
     float dist, best;
     float roll;
-    int terrain = 0;
+    int terrain;
 
     ls_worldmap1_nearest_hills_nav(&best);
+    terrain = 0;
     ls_worldmap1_nearest_forest_nav(&dist);
     if (dist < best) {
         terrain = 1;
@@ -428,7 +430,8 @@ void ls_worldmap1_pick_encounter_early()
     }
 }
 
-// 0x4fc2a0  Confidence: likely (the distance expression; the code squares z, x, y in that order). The nearest
+// 0x4fc2a0  Confidence: exact (VC6 byte match, match9; was likely: the distance expression; the code squares z, x, y
+// in that order). The nearest
 // "$hills..." navpoint to the leader and its distance (10000 when there is none).
 navpoint *ls_worldmap1_nearest_hills_nav(float *out_dist)
 {
@@ -438,10 +441,8 @@ navpoint *ls_worldmap1_nearest_hills_nav(float *out_dist)
 
     for (i = 0; i < navpoint_count; i++) {
         if (!_strnicmp(navpoints[i].name, "$hills", 6)) {
-            float dx = cur_character->pos.x - navpoints[i].pos.x;
-            float dy = cur_character->pos.y - navpoints[i].pos.y;
-            float dz = cur_character->pos.z - navpoints[i].pos.z;
-            float d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+            vector3 v = cur_character->pos - navpoints[i].pos;
+            float d = v.len();
             if (d < best) {
                 best = d;
                 found = i;
@@ -454,7 +455,7 @@ navpoint *ls_worldmap1_nearest_hills_nav(float *out_dist)
     return &navpoints[found];
 }
 
-// 0x4fc350  Confidence: likely (as the hills search). "$forest".
+// 0x4fc350  Confidence: exact (VC6 byte match, match9; was likely: as the hills search). "$forest".
 navpoint *ls_worldmap1_nearest_forest_nav(float *out_dist)
 {
     float best = 10000.0f;
@@ -463,10 +464,8 @@ navpoint *ls_worldmap1_nearest_forest_nav(float *out_dist)
 
     for (i = 0; i < navpoint_count; i++) {
         if (!_strnicmp(navpoints[i].name, "$forest", 7)) {
-            float dx = cur_character->pos.x - navpoints[i].pos.x;
-            float dy = cur_character->pos.y - navpoints[i].pos.y;
-            float dz = cur_character->pos.z - navpoints[i].pos.z;
-            float d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+            vector3 v = cur_character->pos - navpoints[i].pos;
+            float d = v.len();
             if (d < best) {
                 best = d;
                 found = i;
@@ -479,7 +478,7 @@ navpoint *ls_worldmap1_nearest_forest_nav(float *out_dist)
     return &navpoints[found];
 }
 
-// 0x4fc400  Confidence: likely (as the hills search). "$grass".
+// 0x4fc400  Confidence: exact (VC6 byte match, match9; was likely: as the hills search). "$grass".
 navpoint *ls_worldmap1_nearest_grass_nav(float *out_dist)
 {
     float best = 10000.0f;
@@ -488,10 +487,8 @@ navpoint *ls_worldmap1_nearest_grass_nav(float *out_dist)
 
     for (i = 0; i < navpoint_count; i++) {
         if (!_strnicmp(navpoints[i].name, "$grass", 6)) {
-            float dx = cur_character->pos.x - navpoints[i].pos.x;
-            float dy = cur_character->pos.y - navpoints[i].pos.y;
-            float dz = cur_character->pos.z - navpoints[i].pos.z;
-            float d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+            vector3 v = cur_character->pos - navpoints[i].pos;
+            float d = v.len();
             if (d < best) {
                 best = d;
                 found = i;
@@ -644,7 +641,7 @@ void ls_worldmap1_pick_encounter_stage9()
     }
 }
 
-// 0x4fcce0  Confidence: likely (as the hills search). "$desert".
+// 0x4fcce0  Confidence: exact (VC6 byte match, match9; was likely: as the hills search). "$desert".
 navpoint *ls_worldmap1_nearest_desert_nav(float *out_dist)
 {
     float best = 10000.0f;
@@ -653,10 +650,8 @@ navpoint *ls_worldmap1_nearest_desert_nav(float *out_dist)
 
     for (i = 0; i < navpoint_count; i++) {
         if (!_strnicmp(navpoints[i].name, "$desert", 7)) {
-            float dx = cur_character->pos.x - navpoints[i].pos.x;
-            float dy = cur_character->pos.y - navpoints[i].pos.y;
-            float dz = cur_character->pos.z - navpoints[i].pos.z;
-            float d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+            vector3 v = cur_character->pos - navpoints[i].pos;
+            float d = v.len();
             if (d < best) {
                 best = d;
                 found = i;
@@ -669,7 +664,7 @@ navpoint *ls_worldmap1_nearest_desert_nav(float *out_dist)
     return &navpoints[found];
 }
 
-// 0x4fcd90  Confidence: likely (as the hills search). "$orenian".
+// 0x4fcd90  Confidence: exact (VC6 byte match, match9; was likely: as the hills search). "$orenian".
 navpoint *ls_worldmap1_nearest_orenian_nav(float *out_dist)
 {
     float best = 10000.0f;
@@ -678,10 +673,8 @@ navpoint *ls_worldmap1_nearest_orenian_nav(float *out_dist)
 
     for (i = 0; i < navpoint_count; i++) {
         if (!_strnicmp(navpoints[i].name, "$orenian", 8)) {
-            float dx = cur_character->pos.x - navpoints[i].pos.x;
-            float dy = cur_character->pos.y - navpoints[i].pos.y;
-            float dz = cur_character->pos.z - navpoints[i].pos.z;
-            float d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+            vector3 v = cur_character->pos - navpoints[i].pos;
+            float d = v.len();
             if (d < best) {
                 best = d;
                 found = i;
@@ -700,9 +693,10 @@ navpoint *ls_worldmap1_nearest_orenian_nav(float *out_dist)
 void ls_worldmap1_pick_encounter_stage15()
 {
     float dist, r2, best, r1;
-    int terrain = 0;
+    int terrain;
 
     ls_worldmap1_nearest_hills_nav(&best);
+    terrain = 0;
     ls_worldmap1_nearest_forest_nav(&dist);
     if (dist < best) {
         terrain = 1;

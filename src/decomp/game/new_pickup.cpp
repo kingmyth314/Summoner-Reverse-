@@ -100,6 +100,7 @@ void pickup_load_bitmaps()
 
     for (i = 0; i < 9; i++) {
         screen_button *b = &pickup_buttons[i];
+        const screen_button_def *d = &pickup_button_defs[i];
         b->flags = 0;
         b->bitmap = -1;
         b->x = 0;
@@ -107,7 +108,6 @@ void pickup_load_bitmaps()
         b->w = 0;
         b->h = 0;
         progress_update(0);
-        const screen_button_def *d = &pickup_button_defs[i];
         if (strlen(d->name) == 0)
             continue;
         strcpy(name, d->name);
@@ -133,12 +133,12 @@ void pickup_load_bitmaps()
     pickup_thumb_bm_h = (int)(pickup_thumb_bm_h * scale);
 }
 
-// 0x4207d0, screen 4 init (interface_set_screen passes the container). Confidence: likely (the
-// memset / container store order is interleaved by the scheduler)
+// 0x4207d0, screen 4 init (interface_set_screen passes the container). Confidence: exact (VC6 byte match,
+// match9: the container is stored before the memset, D6704)
 void pickup_init(container *c)
 {
-    memset(pickup_item_selected, 1, sizeof(pickup_item_selected));
     pickup_container = c;
+    memset(pickup_item_selected, 1, sizeof(pickup_item_selected));
     pickup_flags = 0;
     if (game_flags & 1) {
         if (!game_is_paused()) {
@@ -189,11 +189,12 @@ void pickup_leave()
         mp_send_container_close(pickup_container->handle, 0, 0, 0, pickup_item_selected);
 }
 
-// 0x4209b0, screen 4 per-frame input. Jump table 0x420a14 (4 cases). Confidence: likely
+// 0x4209b0, screen 4 per-frame input. Jump table 0x420a14 (4 cases). Confidence: exact (VC6 byte match, match9; was
+// likely)
 int pickup_frame(int key)
 {
-    for (screen_button *b = pickup_buttons; b < pickup_buttons + 9; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < 9; i++)
+        pickup_buttons[i].flags &= ~2;
 
     if (!(player_input[0] & 0x10)) {
         switch (pickup_mouse_mode) {
@@ -215,7 +216,7 @@ int pickup_frame(int key)
 }
 
 // 0x420a30, mouse idle: buttons, thumb, list rows, ENTER / ESC and the mouse wheel.
-// Confidence: likely
+// Confidence: exact (VC6 byte match, match9; was likely)
 int pickup_handle_click(int key)
 {
     pickup_pressed_button = -1;
@@ -225,17 +226,18 @@ int pickup_handle_click(int key)
     int i;
     for (i = 0; i < 9; i++) {
         screen_button *b = &pickup_buttons[i];
-        if (!(b->flags & 4) && (pickup_button_defs[i].flags & 5)
+        const screen_button_def *d = &pickup_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 5)
             && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             b->flags |= 2;
             pickup_pressed_button = i;
-            if (pickup_button_defs[i].flags & 1) {
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     pickup_mouse_mode = 1;
                     pickup_button_timer.invalidate();
                     return key;
                 }
-            } else if (pickup_button_defs[i].flags & 4) {
+            } else if (d->flags & 4) {
                 if (mouse_was_pressed(0)) {
                     pickup_mouse_mode = 1;
                     pickup_button_action(pickup_pressed_button + 1);
@@ -257,13 +259,15 @@ int pickup_handle_click(int key)
     }
 
     int fh = gr_get_font_height(-1);
-    int end = pickup_scroll_pos + pickup_page_size[resolution_index];
+    int first = pickup_scroll_pos;
+    int end = first + pickup_page_size[resolution_index];
     if (end >= pickup_container->num_items)
         end = pickup_container->num_items;
-    for (i = pickup_scroll_pos; i < end; i++) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, pickup_list_origin[resolution_index].x,
-                          pickup_list_origin[resolution_index].y + (i - pickup_scroll_pos) * fh,
-                          pickup_list_row_width[resolution_index], fh)) {
+    for (i = first; i < end; i++) {
+        int x = pickup_list_origin[resolution_index].x;
+        int y = pickup_list_origin[resolution_index].y + (i - first) * fh;
+        int w = pickup_list_row_width[resolution_index];
+        if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh)) {
             pickup_list_pressed = 1;
             pickup_hover_item = i;
             if (mouse_was_pressed(0)) {
@@ -308,20 +312,22 @@ void pickup_page_down()
 {
     if (pickup_scroll_pos < pickup_container->num_items - pickup_page_size[resolution_index]) {
         pickup_scroll_pos += pickup_page_size[resolution_index];
-        pickup_scroll_pos = min(pickup_scroll_pos,
-                                pickup_container->num_items - pickup_page_size[resolution_index]);
+        int last = pickup_container->num_items - pickup_page_size[resolution_index];
+        if (pickup_scroll_pos < last)
+            last = pickup_scroll_pos;
+        pickup_scroll_pos = last;
         pickup_update_scrollbar();
     }
 }
 
 // 0x420da0, takes every checked item: the party gets them (item_obj_pickup), the inventory is
 // sorted, an empty container is deleted, "N items picked up" counts stack sizes of non-gold items.
-// Confidence: likely (local layout: items 0x10, msg 0x50 in a 0xc0 frame; 16 bytes below items
-// are unused, so msg may have been declared larger or another local dropped)
+// Confidence: exact (VC6 byte match, match9; items at esp+0x10, msg at +0x50: msg is 128 bytes, filling the
+// 0xc0 frame; the old reading "msg 0x70 bytes, 16 unused" is replaced, D6704)
 void pickup_take_selected()
 {
     item_obj *items[16];
-    char msg[112];
+    char msg[128];
     int picked = 0;
     int num_items = 0;
     int i;
@@ -419,7 +425,7 @@ void pickup_scroll_down()
 }
 
 // 0x421050, mouse mode 1. Same as assess_update_buttons except that the release fires without
-// checking the repeat timer. Confidence: likely
+// checking the repeat timer. Confidence: exact (VC6 byte match, match9; was likely)
 void pickup_update_buttons()
 {
     int id = pickup_pressed_button + 1;
@@ -427,15 +433,16 @@ void pickup_update_buttons()
         screen_button *b = &pickup_buttons[id];
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if (b->flags & 2)
+                pickup_button_action(id);
+        } else {
             if (pickup_button_timer.valid() && pickup_button_timer.elapsed() && (b->flags & 2)) {
                 pickup_button_action(id);
                 pickup_button_timer.SetTimeout(100);
             }
             return;
         }
-        if (b->flags & 2)
-            pickup_button_action(id);
     }
     pickup_mouse_mode = 0;
 }
@@ -445,11 +452,11 @@ void pickup_update_buttons()
 void pickup_list_handle_click()
 {
     int fh = gr_get_font_height(-1);
-    pickup_list_pressed = point_in_rect(game_mouse_x, game_mouse_y,
-                                        pickup_list_origin[resolution_index].x,
-                                        pickup_list_origin[resolution_index].y
-                                            + (pickup_hover_item - pickup_scroll_pos) * fh,
-                                        pickup_list_row_width[resolution_index], fh);
+    int dy = (pickup_hover_item - pickup_scroll_pos) * fh;
+    int x = pickup_list_origin[resolution_index].x;
+    int y = pickup_list_origin[resolution_index].y + dy;
+    int w = pickup_list_row_width[resolution_index];
+    pickup_list_pressed = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh);
     if (mouse_is_down(0))
         return;
     if (pickup_list_pressed) {
@@ -460,7 +467,7 @@ void pickup_list_handle_click()
 }
 
 // 0x4211c0, mouse mode 3 (two stores to pickup_scroll_pos, as in pickup_page_down).
-// Confidence: likely
+// Confidence: exact (VC6 byte match, match9; was likely)
 void pickup_drag_scrollbar()
 {
     int offset = game_mouse_y - pickup_scrollbar_track[resolution_index].y - pickup_drag_start_mouse_y
@@ -468,8 +475,10 @@ void pickup_drag_scrollbar()
     int pos = (int)((float)offset / pickup_scrollbar_track_height[resolution_index]
                     * pickup_container->num_items + 0.5f);
     pickup_scroll_pos = max(pos, 0);
-    pickup_scroll_pos = min(pickup_scroll_pos,
-                            pickup_container->num_items - pickup_page_size[resolution_index]);
+    int last = pickup_container->num_items - pickup_page_size[resolution_index];
+    if (pickup_scroll_pos < last)
+        last = pickup_scroll_pos;
+    pickup_scroll_pos = last;
     pickup_update_scrollbar();
     if (!mouse_is_down(0))
         pickup_mouse_mode = 0;
@@ -479,7 +488,8 @@ void pickup_drag_scrollbar()
 void pickup_draw()
 {
     gr_set_color(255, 255, 255, 255);
-    for (screen_button *b = pickup_buttons; b < pickup_buttons + 9; b++) {
+    for (int i = 0; i < 9; i++) {
+        screen_button *b = &pickup_buttons[i];
         if (b->flags & 3)
             ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }

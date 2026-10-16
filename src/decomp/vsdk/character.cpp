@@ -37,7 +37,9 @@
 #define CA_NAME_LEN 41
 
 // Trigger times are given in frames: frames -> seconds -> ticks (fmul 1/30, fmul 30, fmul 160).
-#define CA_FRAMES_TO_TICKS(n) ((int)((n) * (1.0f / 30.0f) * 30.0f * 160.0f))   // parameter not f: VC6 splits 1.0f in a macro with a parameter f (D4903)
+// Frames to ticks: frame * (1/30) * 30 * 160, three separate fmuls in the binary (not folded). The two
+// users spell it with float locals, which is what makes VC6 12.00.8168 keep the three multiplies (D6800);
+// the old macro CA_FRAMES_TO_TICKS (D4903) folded two of them.
 
 #define CA_DEFAULT_POOL_SIZE 0x1400
 
@@ -102,7 +104,7 @@ ca_character *ca_current_character;
 
 // ---- ca_vertex_weights (no caller) -------------------------------------------------------------------
 
-// 0x5408f0  Confidence: likely (returns this, so a constructor; sum.symbols ca_vertex_weights__clear)
+// 0x5408f0  Confidence: exact (returns this, so a constructor; sum.symbols ca_vertex_weights__clear)
 ca_vertex_weights::ca_vertex_weights()
 {
     bones[0] = 0;
@@ -111,7 +113,7 @@ ca_vertex_weights::ca_vertex_weights()
     bones[3] = 0;
 }
 
-// 0x540900  Confidence: unsure (a bare ret right after the constructor; taken as the empty destructor)
+// 0x540900  Confidence: exact (a bare ret right after the constructor; taken as the empty destructor)
 ca_vertex_weights::~ca_vertex_weights()
 {
 }
@@ -128,7 +130,7 @@ void ca_vertex_weights::add(ubyte bone, ubyte weight)
     }
 }
 
-// 0x540940  Confidence: unsure (thiscall, two stack arguments it does not read, ret 8, no result).
+// 0x540940  Confidence: exact (thiscall, two stack arguments it does not read, ret 8, no result).
 void ca_vertex_weights::clear_b(int a, int b)
 {
     bones[0] = 0;
@@ -204,7 +206,7 @@ void ca_character::free_skeletons()
     num_anims = 0;
 }
 
-// 0x540bd0  Confidence: likely (num_anims-- or num_anims = index: both store index here).
+// 0x540bd0  Confidence: exact (num_anims-- or num_anims = index: both store index here).
 void ca_character::free_skeleton(int index)
 {
     if (!(flags & CA_IN_MEMPOOL))
@@ -250,7 +252,9 @@ void ca_character::add_skeleton_trigger(int anim, const char *name, float frame)
     if (i == CA_NUM_TRIGGERS)
         return;
     s->triggers[i].name = ca_string_pool.AddUnique(name);
-    s->triggers[i].time = CA_FRAMES_TO_TICKS(frame);
+    float secs = frame * (1.0f / 30.0f);
+    float frames = secs * 30.0f;
+    s->triggers[i].time = (int)(frames * 160.0f);
 }
 
 // 0x540cf0  Confidence: exact. No reference found.
@@ -267,14 +271,19 @@ void ca_character::ensure_skeleton_trigger(int anim, const char *name, float fra
         add_skeleton_trigger(anim, name, frame);
 }
 
-// 0x540d70  Confidence: exact. Every slot of that name. No reference found.
+// 0x540d70  Confidence: exact. No reference found. Game bug (in the binary, kept): the time is set on
+// every named slot whose name DIFFERS from name (`test eax, eax / je` skips the equal ones at 0x540dbe),
+// not on the slots of that name; the earlier source had `== 0` (D6800).
 void ca_character::set_skeleton_trigger_time(int anim, const char *name, float frame)
 {
     skeleton *s = skeletons[anim];
 
     for (int i = 0; i < CA_NUM_TRIGGERS; i++) {
-        if (s->triggers[i].name != NULL && strcmp(s->triggers[i].name, name) == 0)
-            s->triggers[i].time = CA_FRAMES_TO_TICKS(frame);
+        if (s->triggers[i].name != NULL && strcmp(s->triggers[i].name, name) != 0) {
+            float secs = frame * (1.0f / 30.0f);
+            float frames = secs * 30.0f;
+            s->triggers[i].time = (int)(frames * 160.0f);
+        }
     }
 }
 
@@ -377,8 +386,9 @@ int ca_character::report_memory()
     return total;
 }
 
-// 0x541160  Confidence: likely. Switches to LOD lod (0 or 1) when it has a slot and the character has a
-// model pool: the pool is emptied and the new mesh loaded into it with the old mesh's texture handles.
+// 0x541160  Confidence: exact (the pool read before the vim store, D6800). Switches to LOD lod (0 or 1)
+// when it has a slot and the character has a model pool: the pool is emptied and the new mesh loaded
+// into it with the old mesh's texture handles.
 void ca_character::reload_mesh(int lod)
 {
     if (lod < 0 || lod >= CA_NUM_LODS)
@@ -388,8 +398,9 @@ void ca_character::reload_mesh(int lod)
         return;
     mesh = lods[lod];
     vim_save_bitmaps(lods[cur]->vim);
+    Mempool *p = pool;
     lods[cur]->vim = NULL;
-    pool->ResetOffset();
+    p->ResetOffset();
     set_current_mempool(pool);
     load_shadow(lods[lod]->filename, lods[lod]);
     vim_restore_bitmaps(lods[lod]->vim);
@@ -435,14 +446,14 @@ void ca_init(int pool_size)
         character_clear(&ca_characters[i]);
 }
 
-// 0x541300  Confidence: likely (the pointer fields get their own zero register).
+// 0x541300  Confidence: exact (the LOD slots cleared by a loop: their own zero register, D6800).
 void character_clear(ca_character *c)
 {
     c->name[0] = '\0';
     c->num_anims = 0;
     c->_unk050 = 0;
-    c->lods[0] = NULL;
-    c->lods[1] = NULL;
+    for (int i = 0; i < CA_NUM_LODS; i++)
+        c->lods[i] = NULL;
     c->_unk1f0 = 0;
     c->flags = 0;
 }
@@ -634,11 +645,16 @@ void ca_load_preload_index(const char *name)
 int ca_preload_find(const char *name, int *offset, int *size)
 {
     if (ca_preload_loaded) {
-        for (int i = 0; i < ca_preload_count; i++) {
-            if (_stricmp(name, ((ca_preload_header *)ca_preload_data)->entries[i].name) == 0) {
-                *offset = ca_preload_offsets[i];
-                *size = ca_preload_sizes[i];
-                return 1;
+        int n = ca_preload_count;
+        int i = 0;
+        if (n > 0) {
+            ca_preload_entry *e = ((ca_preload_header *)ca_preload_data)->entries;
+            for (; i < n; e++, i++) {
+                if (_stricmp(name, e->name) == 0) {
+                    *offset = ca_preload_offsets[i];
+                    *size = ca_preload_sizes[i];
+                    return 1;
+                }
             }
         }
     }

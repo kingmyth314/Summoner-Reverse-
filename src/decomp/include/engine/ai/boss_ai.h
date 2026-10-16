@@ -145,7 +145,7 @@ int   boss_target_list_pick(boss_target *list, int count, boss_threat *table, in
                             bool exclude_cur, unsigned int mask);   // 0x4a31c0 handle or -1
 void  rider_unlink_mount(Character *rider);            // 0x4a33b0
 int   rand_int_range(int lo, int hi);                  // 0x4a3410 lo + (int)(frand() * (hi - lo))
-extern int pyrul_missile_bone;                         // 0x247fd34 (character_perform_spell_cast; decomp37)
+// pyrul_missile_bone (0x247fd34, character_perform_spell_cast; decomp37): a field of the Pyrul's state object (D6701).
 int   random_stun_duration();                         // 0x4b9e50 rand_int_range(3000, 7000) (unit not known)
 int   rand_weighted_index(float *weights, int n);      // 0x4a3440 index or -1 (n <= 10)
 void  boss_rider_sound_timer_reset();                  // 0x4a34d0 (state_game_enter)
@@ -351,7 +351,7 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 // the multiplayer levels 0x15 / 0x13 / 0x19; decomp41). The last two names are ours.
 extern bool titus_turn_lock;                         // 0x248b914 titus_update_turn_lock (decomp56: ai_combat_face_target)
 extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
-extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
+// pyrul_combat_enabled (0x247fd38): a field of the Pyrul's state object (D6701).
 // machival_combat_enabled (0x248b034): a field of the machival's state object (D6510).
 // The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407): giant_salamanka_combat_enabled
 // (0x248c7d0), _stage2_reached / _stage2_ack (0x248c7dc / 0x248c7dd), _stage3_reached / _stage3_ack (0x248c7de /
@@ -361,7 +361,7 @@ extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_com
 // phoenix_threat_table (0x2452938): a field of the phoenix's state object (D3403, unnamed_phoenix_0x497ac0.h).
 // ghost_rider_threat_table (0x248081c): a field of the ghost rider's state object (D6511).
 extern boss_threat titus_threat_table[BOSS_MAX_THREATS];             // 0x248b3b8
-extern boss_threat pyrul_threat_table[BOSS_MAX_THREATS];             // 0x247fd3c
+// pyrul_threat_table (0x247fd3c): a field of the Pyrul's state object (D6701).
 extern boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];         // 0x248c008
 extern boss_threat murod_threat_table[BOSS_MAX_THREATS];             // 0x248bf3c
 extern boss_threat evil_urath_threat_table[BOSS_MAX_THREATS];        // 0x248bd10
@@ -370,7 +370,7 @@ extern boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];       // 0x248b9b
 // phoenix_cur_attack (0x2452920): a field of the phoenix's state object (D3403).
 // ghost_cur_move (0x2480810): a field of the ghost rider's state object (D6511).
 extern boss_attack *titus_current_move;               // 0x248b90c
-extern boss_attack *pyrul_cur_move;                   // 0x2480290 (name ours)
+// pyrul_cur_move (0x2480290): a field of the Pyrul's state object (D6701).
 extern boss_attack *murod_oni_current_move;           // 0x248c2dc
 extern boss_attack *evil_urath_current_move;          // 0x248bec8
 extern boss_attack *evil_joseph_current_move;         // 0x248bc8c
@@ -427,23 +427,57 @@ extern boss_attack *pyrul_move_2_2;                   // 0x247fd08 [1][2]
 extern boss_attack *pyrul_move_1_0;                   // 0x247fd0c [0][0]
 extern boss_attack *pyrul_move_2_0;                   // 0x247fd10 [1][0]
 extern boss_attack *pyrul_move_3_0;                   // 0x247fd14 [2][0]
-extern int  pyrul_stage;                              // 0x247fd28 1..3
-extern int  pyrul_target_stage;                       // 0x247fd2c cmd_pyrul_stage (0 = by HP)
-extern int  pyrul_247fd30;                            // 0x247fd30 zeroed when the target is lost, never read
-extern int  pyrul_num_offense_points;                 // 0x247fdb4
-extern boss_offense_point pyrul_offense_points[10];   // 0x247fdb8
-extern boss_attack pyrul_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x247fed0 "pyrul_boss.tbl"
-extern GameTimer pyrul_move_timer;                    // 0x2480294 started when a move is chosen
-extern int  pyrul_target;                             // 0x2480298 target handle
-extern GameTimer pyrul_target_timer;                  // 0x248029c retarget timer
-extern GameTimer pyrul_timer_a;                       // 0x24802a0 stage 2 special (30 s)
-extern GameTimer pyrul_timer_b;                       // 0x24802a4 stage 3 special (30 s)
-extern int  pyrul_ground_fx;                          // 0x24802a8 last wall of fire effect, never read
-extern int  pyrul_24802ac;                            // 0x24802ac -1 at load, never read
-extern int  pyrul_24802b0;                            // 0x24802b0 0 at load, never read
-extern int  pyrul_24802b4;                            // 0x24802b4 0 at load, never read
-extern int  pyrul_num_hits;                           // 0x24802b8
-extern int  pyrul_hits[5];                            // 0x24802bc handles the area attack hits
+// The Pyrul's state 0x247fd28-0x24802cf is one object (D6701, as D6510 / D6511): init_pyrul_timers (0x4b87d0)
+// constructs the five threat timers and the move, target, a and b timers in one function. Field names ours; the
+// old global names are macros. The move pointers on both sides (0x247fcfc-0x247fd14, 0x24802d0-0x24802dc) stay
+// separate globals.
+struct pyrul_boss {
+    int stage;                                        // +0x000 0x247fd28 1..3
+    int target_stage;                                 // +0x004 0x247fd2c cmd_pyrul_stage (0 = by HP)
+    int _unk30;                                       // +0x008 0x247fd30 zeroed when the target is lost, never read
+    int missile_bone;                                 // +0x00c 0x247fd34 (character_perform_spell_cast; decomp37)
+    bool combat_enabled;                              // +0x010 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
+    ubyte _pad39[3];
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x014 0x247fd3c
+    int num_offense_points;                           // +0x08c 0x247fdb4
+    boss_offense_point offense_points[10];            // +0x090 0x247fdb8
+    boss_attack attacks[3][BOSS_MAX_OFFENSE_POINTS];  // +0x1a8 0x247fed0 "pyrul_boss.tbl"
+    boss_attack *cur_move;                            // +0x568 0x2480290
+    GameTimer move_timer;                             // +0x56c 0x2480294 started when a move is chosen
+    int target;                                       // +0x570 0x2480298 target handle
+    GameTimer target_timer;                           // +0x574 0x248029c retarget timer
+    GameTimer timer_a;                                // +0x578 0x24802a0 stage 2 special (30 s)
+    GameTimer timer_b;                                // +0x57c 0x24802a4 stage 3 special (30 s)
+    int ground_fx;                                    // +0x580 0x24802a8 last wall of fire effect, never read
+    int _unk2ac;                                      // +0x584 0x24802ac -1 at load, never read
+    int _unk2b0;                                      // +0x588 0x24802b0 0 at load, never read
+    int _unk2b4;                                      // +0x58c 0x24802b4 0 at load, never read
+    int num_hits;                                     // +0x590 0x24802b8
+    int hits[5];                                      // +0x594 0x24802bc handles the area attack hits
+};
+LAYOUT_CHECK(pyrul_boss, sizeof(pyrul_boss) == 0x5a8);
+extern pyrul_boss pyrul;                              // 0x247fd28 (name ours)
+#define pyrul_stage              (pyrul.stage)
+#define pyrul_target_stage       (pyrul.target_stage)
+#define pyrul_247fd30            (pyrul._unk30)
+#define pyrul_missile_bone       (pyrul.missile_bone)
+#define pyrul_combat_enabled     (pyrul.combat_enabled)
+#define pyrul_threat_table       (pyrul.threat)
+#define pyrul_num_offense_points (pyrul.num_offense_points)
+#define pyrul_offense_points     (pyrul.offense_points)
+#define pyrul_attack_table       (pyrul.attacks)
+#define pyrul_cur_move           (pyrul.cur_move)
+#define pyrul_move_timer         (pyrul.move_timer)
+#define pyrul_target             (pyrul.target)
+#define pyrul_target_timer       (pyrul.target_timer)
+#define pyrul_timer_a            (pyrul.timer_a)
+#define pyrul_timer_b            (pyrul.timer_b)
+#define pyrul_ground_fx          (pyrul.ground_fx)
+#define pyrul_24802ac            (pyrul._unk2ac)
+#define pyrul_24802b0            (pyrul._unk2b0)
+#define pyrul_24802b4            (pyrul._unk2b4)
+#define pyrul_num_hits           (pyrul.num_hits)
+#define pyrul_hits               (pyrul.hits)
 extern boss_attack *pyrul_move_1_2;                   // 0x24802d0 [0][2]
 extern boss_attack *pyrul_move_1_1;                   // 0x24802d4 [0][1]
 extern boss_attack *pyrul_move_2_1;                   // 0x24802d8 [1][1]

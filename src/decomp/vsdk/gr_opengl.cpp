@@ -1540,7 +1540,7 @@ void gl_set_vertex_arrays(float *verts, int unused, ubyte *colors)
 }
 
 // 0x550630  Confidence: exact.
-void gr_opengl_set_antialias(int on)
+void gr_opengl_set_antialias(bool on)
 {
 }
 
