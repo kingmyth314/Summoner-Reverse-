@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 79 | 2 |
 | Gameplay | 51 | 24 | 4 |
-| Cosmetic | 59 | 35 | 5 |
+| Cosmetic | 58 | 36 | 5 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1725,7 +1725,7 @@ corrected every second, so they drift from the owner's view.
 | K301 | Latent: a `+Set Important:` or `+Clear Important:` line naming a speaker defined later in the same `_dlg.tbl` does nothing, so that character's quest icon is not shown or not removed | `dialogue_parse_table` `0x4fee50` | **Observed** code and retail data | No |
 | K302 | Latent: an effect whose particle interval curve has two or more non-zero keys spawns at the wrong rate between the keys | `vif_curve__evaluate` `0x533ca0` | **Observed** code, *inferred* effect | No |
 | K303 | Latent: the `sysinfo` console command always reports MMX, and shows the RAM speed four times too high | `cpu_identify` `0x5312d6`, `PrintSystemInfo` `0x53171f` | **Observed** code | No |
-| K310 | With the OpenGL renderer, coloured light from spells and effects on lightmapped walls and floors shows only its red value, as grey: fire and torch light turns white, blue light (Icicle, the Catacombs effects) all but disappears | `levelrender_draw_list_opengl` `0x491500` | **Observed** code and retail data, *inferred* effect | No |
+| K310 | Latent (not seen in five test scenes): With the OpenGL renderer, coloured light from spells and effects on lightmapped walls and floors shows only its red value, as grey: fire and torch light turns white, blue light (Icicle, the Catacombs effects) all but disappears | `levelrender_draw_list_opengl` `0x491500` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -2563,7 +2563,9 @@ by effects with a light node (`vfx_node_create_light`) and by characters with `+
 spells do: with Light active in the Ikaemos exterior, 25,618 of 180,140 draw-list calls got 1-3 lights, but still
 no face took the unclipped branch, so every lit face there went through the clipped branch, which reads all three
 channels correctly. The faulty branch needs a light-node effect next to a level object whose faces are drawn
-unclipped; no such scene has been found yet.
+unclipped; no such scene has been found yet. The Phoenix Rider ambush on the road to Lenele (`play_and_load_cutscene PHNX-Intro`, full
+party, Rosalind's Light active during the fight) gave 25,214 lit calls with up to six lights and again no face on
+the faulty branch. Filed as latent: real in the code, but not reached in any scene tried.
 
 ## Invisible
 
