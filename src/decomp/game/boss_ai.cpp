@@ -372,13 +372,14 @@ void ai_state::boss_threat_decay()
         return;
     if (owner->info->species == SPECIES_SERPENT_RIDER && owner->handle != serpent_handle)
         return;
-    for (i = 0; i < BOSS_MAX_THREATS; i++, t++) {
-        if (t->handle != -1) {
-            if (living_from_handle(t->handle)) {
-                t->threat[0] -= owner->frametime * t->threat[0] * 0.1f;
-                t->threat[1] -= owner->frametime * t->threat[1] * (1.0f / 60.0f);
+    for (i = 0; i < BOSS_MAX_THREATS; i++) {
+        boss_threat *p = &t[i];
+        if (p->handle != -1) {
+            if (living_from_handle(p->handle)) {
+                p->threat[0] -= owner->frametime * p->threat[0] * 0.1f;
+                p->threat[1] -= owner->frametime * p->threat[1] * (1.0f / 60.0f);
             } else
-                t->handle = -1;
+                p->handle = -1;
         }
     }
 }
@@ -627,7 +628,7 @@ void boss_anim_remap_out(Character *c, int *anims)
     }
 }
 
-// 0x4a1c50  Confidence: likely (the result variable: 0.0 is loaded once and kept, fst [esp+8]). ai_turn_towards:
+// 0x4a1c50  Confidence: exact (VC6 byte match) (the result variable: 0.0 is loaded once and kept, fst [esp+8]). ai_turn_towards:
 // the top rider of a stack (character_get_rider up the chain) that is a mounted serpent playing move
 // 0xbb, or the tiger in stage 2, close to its target (edge distance < 2) that is nearly still
 // (get_698 < 0.2) turns at a fixed rate: 0.86 / -0.7. 0 = no override.
@@ -635,33 +636,31 @@ float ai_state::boss_turn_rate_override()
 {
     ai_state *ai = this;
     Character *r;
-    Character *c;
     Character *target;
     float rate;
 
     for (r = owner->get_rider(); r; r = r->ai.owner->get_rider())
         ai = &r->ai;
-    c = ai->owner;
     rate = 0.0f;
-    if (c->type == CHAR_TYPE_BOSS) {
-        switch (c->info->species) {
+    if (ai->owner->type == CHAR_TYPE_BOSS) {
+        switch (ai->owner->info->species) {
         case SPECIES_SERPENT_RIDER:
             if (serpent_stage == 1) {
-                boss_attack *m = serpent_part_busy[serpent_part_index(c)];
+                boss_attack *m = serpent_part_busy[serpent_part_index(ai->owner)];
                 if (m && m->variation == 0xbb) {
                     target = living_from_handle(ai->target);
-                    if (target && c->distance_between_edges(target, true, ai->_unk7c) < 2.0f &&
+                    if (target && ai->owner->distance_between_edges(target, true, ai->_unk7c) < 2.0f &&
                         target->get_698() < 0.2f)
-                        return 0.86f;
+                        rate = 0.86f;
                 }
             }
             break;
         case SPECIES_TIGER_RIDER:
             if (tiger_stage == 2) {
                 target = living_from_handle(ai->target);
-                if (target && c->distance_between_edges(target, true, ai->_unk7c) < 2.0f &&
+                if (target && ai->owner->distance_between_edges(target, true, ai->_unk7c) < 2.0f &&
                     target->get_698() < 0.2f)
-                    return -0.7f;
+                    rate = -0.7f;
             }
             break;
         }
@@ -680,7 +679,7 @@ int charinfo_index_from_species(int species)
     return -1;
 }
 
-// 0x4a1dc0  Confidence: likely (the search result variable: the found path tests it again, 0x4a1e63).
+// 0x4a1dc0  Confidence: exact (VC6 byte match) (the search result variable: the found path tests it again, 0x4a1e63).
 // Outside Liangshan and Jadetemple a rider gets a mount: its own, a riderless species-0x55 one within
 // 4 m, or a new one at its position (living_entity_create type 4).
 bool boss_ensure_mount(Character *boss)
@@ -724,17 +723,14 @@ void boss_mount_pick_flee_point(Character *mount, vector3 *out)
 {
     float best = -FLT_MAX;
     int best_i = -1;
-    float x = mount->pos.x;
-    float z = mount->pos.z;
+    vector2 m(mount->pos.x, mount->pos.z);
     pf_point_list *list = &pf_point_lists[mount->info->size][mount->layer];
     int i;
 
     for (i = 0; i < list->count; i++) {
-        vector2 d;
+        vector2 d(m.x - list->points[i].pos->x, m.y - list->points[i].pos->y);
         float len;
 
-        d.x = x - list->points[i].pos->x;
-        d.y = z - list->points[i].pos->y;
         len = d.len_sq();
         if (len > best) {
             best = len;
@@ -743,14 +739,12 @@ void boss_mount_pick_flee_point(Character *mount, vector3 *out)
     }
     if (best_i != -1) {
         vector2 *p = list->points[best_i].pos;
-        out->x = p->x;
-        out->y = 0.0f;
-        out->z = p->y;
+        *out = vector3(p->x, 0.0f, p->y);
     } else
         *out = mount->pos;
 }
 
-// 0x4a1fe0  Confidence: likely (store order of the mount's link fields). The rider steps off: the mount
+// 0x4a1fe0  Confidence: exact (VC6 byte match) (store order of the mount's link fields). The rider steps off: the mount
 // is unlinked and runs to the farthest graph point (goal 0xd, 5 s).
 void boss_release_mount(Character *rider)
 {
@@ -1031,7 +1025,7 @@ void ai_state::boss_get_move_range(float *min, float *max)
     }
 }
 
-// 0x4a2870  Confidence: likely (body order: the phoenix call is laid out before the tiger call).
+// 0x4a2870  Confidence: exact (VC6 byte match) (body order: the phoenix call is laid out before the tiger call).
 // character_get_attack_range.
 bool boss_get_attack_range(Character *c, float *out)
 {
@@ -1062,7 +1056,7 @@ bool character_is_serpent_part(Character *c)
     return false;
 }
 
-// 0x4a2920  Confidence: likely (the Machival case: both kinds fall into "return false" even after
+// 0x4a2920  Confidence: exact (VC6 byte match) (the Machival case: both kinds fall into "return false" even after
 // set_40; the kind-7 path has its own copy of the return). Who the current special move reaches; true
 // skips the opponent's defence roll in living_combat_update_boss_attack. Machival never returns true,
 // so the roll runs after its area test (NOTES.md).
@@ -1181,7 +1175,9 @@ bool boss_attack_resolve_dispatch(living_combat *lc)
 // 0x4a2d40  Confidence: exact.
 bool character_is_not_boss(Character *c)
 {
-    return c->type != CHAR_TYPE_BOSS;
+    if (c->type != CHAR_TYPE_BOSS)
+        return true;
+    return false;
 }
 
 // 0x4a2d50  Confidence: exact.
@@ -1314,7 +1310,7 @@ int boss_target_list_build(Character *boss, boss_target *list, boss_threat *tabl
     return n;
 }
 
-// 0x4a31c0  Confidence: likely (the threat sum is accumulated as "sum -= t1 + t0"; the weight is
+// 0x4a31c0  Confidence: exact (VC6 byte match) (the threat sum is accumulated as "sum -= t1 + t0"; the weight is
 // 2 + 0.1 * sum - (3 * t0 + t1), recomputed per candidate; the found index is tested against -1).
 // mask 0x80000000 picks the nearest candidate (start 1000). Otherwise the candidates whose flags share
 // a bit with mask (all when mask is 0) get a weight from the threat amounts (negative HP deltas, so more
@@ -1423,7 +1419,7 @@ int rand_int_range(int lo, int hi)
     return lo + (int)(frand() * (hi - lo));
 }
 
-// 0x4a3440  Confidence: likely (the -1 result variable in EDI). Weighted random index: the running sums
+// 0x4a3440  Confidence: exact (VC6 byte match) (the -1 result variable in EDI). Weighted random index: the running sums
 // (at most 10, no check) are normalised and the first one >= frand() wins.
 int rand_weighted_index(float *weights, int n)
 {
@@ -1441,9 +1437,12 @@ int rand_weighted_index(float *weights, int n)
         cum[i] /= sum;
     result = -1;
     r = frand();
-    for (i = 0; i < n; i++)
-        if (r <= cum[i])
-            return i;
+    for (i = 0; i < n; i++) {
+        if (r <= cum[i]) {
+            result = i;
+            break;
+        }
+    }
     return result;
 }
 
@@ -1490,10 +1489,9 @@ void level_page_in_characters()
     level_page_in_textures();
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         c->instance->page_in_textures();
-        info = c->info;
-        if (info && info->alt_parent) {
-            for (i = 0; i < info->alt_textures->count; i++)
-                gr_page_in(info->alt_textures->bitmaps[i], 0);
+        if (c->info && c->info->alt_parent) {
+            for (i = 0; i < c->info->alt_textures->count; i++)
+                gr_page_in(c->info->alt_textures->bitmaps[i], 0);
         }
         charinfo_page_in_sounds(c->info);
     }

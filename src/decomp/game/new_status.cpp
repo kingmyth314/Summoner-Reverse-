@@ -236,7 +236,7 @@ void status_load_bitmaps()
     status_thumb_bm_h = (int)(status_thumb_bm_h * scale);
 }
 
-// 0x42b480  Confidence: likely (the found test after the loop survives as a dead compare: the refresh call
+// 0x42b480  Confidence: exact (VC6 byte match) (the found test after the loop survives as a dead compare: the refresh call
 // sits inside the loop and the shared not-found tail is duplicated). Without a character the first party
 // member (type 7, not dead / flag 0x100) is shown; with none the screen closes.
 void status_init()
@@ -321,7 +321,7 @@ void status_update_member_buttons()
     }
 }
 
-// 0x42b680  Confidence: likely (the byte goes through a stack slot before fild; the unsigned char
+// 0x42b680  Confidence: exact (VC6 byte match) (the byte goes through a stack slot before fild; the unsigned char
 // conversion is read from the and 0xff). Multiplayer hides pick lock (0x15) and appraise (0x14). Skills with
 // a negative value are left out.
 void status_build_skill_list()
@@ -338,18 +338,16 @@ void status_build_skill_list()
         return;
 
     for (i = 0; i < player->num_progression && status_num_skills < STATUS_MAX_SKILLS; i++) {
-        const skill_progression *p = &player->progression[i];
-
-        if (status_character->level >= p->level) {
-            int skill = p->skill;
+        if (status_character->level >= player->progression[i].level) {
+            int skill = player->progression[i].skill;
             float value;
 
             if ((game_flags & 2) && (skill == SKILL_PICK_LOCK || skill == SKILL_APPRAISE))
                 continue;
             value = CHAR_M(status_character)->get_skill(skill);
             if (value >= 0.0f) {
-                status_skill_entry *e = &status_skill_entries[status_num_skills];
                 unsigned char base = status_character->skill[skill];
+                status_skill_entry *e = &status_skill_entries[status_num_skills];
 
                 e->is_chain = false;
                 e->skill = skill;
@@ -371,7 +369,7 @@ void status_build_skill_list()
     }
 }
 
-// 0x42b800  Confidence: likely (journal_update_list_scrollbar shape; page is a local because fild needs it in
+// 0x42b800  Confidence: exact (VC6 byte match) (journal_update_list_scrollbar shape; page is a local because fild needs it in
 // memory).
 void status_update_scrollbar()
 {
@@ -389,7 +387,12 @@ void status_update_scrollbar()
     status_scrollbar_visible = true;
     status_buttons[15].flags &= ~4;
 
-    if (count > 0) {
+    if (count <= 0) {
+        status_thumb_x = status_scrollbar_track[resolution_index][0];
+        status_thumb_y = status_scrollbar_track[resolution_index][1];
+        status_thumb_w = status_thumb_bm_w;
+        status_thumb_h = status_scrollbar_track_height[resolution_index];
+    } else {
         status_thumb_x = status_scrollbar_track[resolution_index][0];
         status_thumb_y = (int)((float)status_scroll_pos / status_num_skills
                                * status_scrollbar_track_height[resolution_index] + 0.5f)
@@ -397,11 +400,6 @@ void status_update_scrollbar()
         status_thumb_w = status_thumb_bm_w;
         status_thumb_h = (int)((float)page / status_num_skills * status_scrollbar_track_height[resolution_index]
                                + 0.5f);
-    } else {
-        status_thumb_x = status_scrollbar_track[resolution_index][0];
-        status_thumb_y = status_scrollbar_track[resolution_index][1];
-        status_thumb_w = status_thumb_bm_w;
-        status_thumb_h = status_scrollbar_track_height[resolution_index];
     }
 }
 
@@ -422,7 +420,7 @@ void status_leave()
         shop_set_shopkeeper_from_char(0);
 }
 
-// 0x42b970  Confidence: likely (the binary sums the pending points in EDI and never reads the sum, written as
+// 0x42b970  Confidence: exact (VC6 byte match) (the binary sums the pending points in EDI and never reads the sum, written as
 // the dead local `spent`; the pending counts are not cleared). One level is 10 in the skill byte.
 void status_apply_skill_points()
 {
@@ -751,7 +749,7 @@ void status_confirm_inventory()
     status_confirm_skills(1);
 }
 
-// 0x42c270  Confidence: likely (written as nested ifs: ui_has_owner_character is called in both branches).
+// 0x42c270  Confidence: exact (VC6 byte match) (written as nested ifs: ui_has_owner_character is called in both branches).
 // Buy/sell (7) while a shopkeeper is set, else the journal (10) in single player, the inventory (1) in
 // multiplayer.
 void status_goto_shop_or_inventory()
@@ -854,7 +852,7 @@ void status_scroll_down()
     }
 }
 
-// 0x42c450  Confidence: likely (operand order of the two position sums). Mode 3 is entered by
+// 0x42c450  Confidence: exact (VC6 byte match) (operand order of the two position sums). Mode 3 is entered by
 // status_update_buttons when the popup is up after the button release.
 void status_ai_popup_show()
 {
@@ -878,11 +876,12 @@ void status_confirm_close()
 void status_show_skill_tooltip(int row)
 {
     int font_h = gr_get_font_height(-1);
+    int x = status_skill_list_pos[resolution_index][0];
+    int y = status_skill_list_pos[resolution_index][1] + font_h * row;
+    int w = status_skill_row_right[resolution_index];
+    status_skill_entry *e = &status_skill_entries[status_scroll_pos + row];
 
-    ui_tooltip_set(status_skill_list_pos[resolution_index][0], status_skill_list_pos[resolution_index][1] + font_h * row,
-                   status_skill_row_right[resolution_index], font_h,
-                   localize_string_or_invalid(
-                       skill_table[status_skill_entries[status_scroll_pos + row].skill].description));
+    ui_tooltip_set(x, y, w, font_h, localize_string_or_invalid(skill_table[e->skill].description));
 }
 
 // 0x42c540  Confidence: likely (journal_update_buttons shape, but the release path ends in its own mode store:
@@ -948,7 +947,7 @@ int status_ai_popup_frame(int key)
     return key;
 }
 
-// 0x42c710  Confidence: likely (the pressed flag of the miss path is stored from the point_in_rect result
+// 0x42c710  Confidence: exact (VC6 byte match) (the pressed flag of the miss path is stored from the point_in_rect result
 // register, read as a second constant store). Acts on release over the half that was pressed.
 void status_handle_skill_buttons()
 {
@@ -961,7 +960,11 @@ void status_handle_skill_buttons()
     if (!status_skill_button_side)
         x += half;
 
-    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, half, status_skill_row_bm_h)) {
+    if (!point_in_rect(game_mouse_x, game_mouse_y, x, y, half, status_skill_row_bm_h)) {
+        status_skill_button_pressed = false;
+        if (!mouse_is_down(0))
+            status_mouse_mode = 0;
+    } else {
         status_skill_button_pressed = true;
         if (mouse_is_down(0))
             return;
@@ -971,14 +974,10 @@ void status_handle_skill_buttons()
         else
             status_skill_decrement(status_scroll_pos + status_hover_row);
         game_play_sound(0x23, 1.0f, 0, 0, 0);
-    } else {
-        status_skill_button_pressed = false;
-        if (!mouse_is_down(0))
-            status_mouse_mode = 0;
     }
 }
 
-// 0x42c820  Confidence: likely (the (base + pending) * 10 spelling of the cap test). A skill cannot be raised
+// 0x42c820  Confidence: exact (VC6 byte match) (the (base + pending) * 10 spelling of the cap test). A skill cannot be raised
 // past the level's skill cap (xp_level_skill_cap, in levels).
 void status_skill_increment(int row)
 {
@@ -993,7 +992,8 @@ void status_skill_increment(int row)
     player = player_from_handle(status_character->handle);
     if (!player || player->skill_points <= 0)
         return;
-    if ((e->base_level + e->pending) * 10 < (int)(xp_level_skill_cap(status_character->level) * 10.0f + 0.5f)) {
+    int level = (e->base_level + e->pending) * 10;
+    if (level < (int)(xp_level_skill_cap(status_character->level) * 10.0f + 0.5f)) {
         e->pending++;
         player->skill_points--;
         status_skills_dirty = 1;
@@ -1042,16 +1042,16 @@ int status_chain_popup_frame(int key)
     return key;
 }
 
-// 0x42c9c0  Confidence: likely (the mode test is written as a switch: sub 3 / je / sub 2 / jne).
+// 0x42c9c0  Confidence: exact (VC6 byte match) (the mode test is written as a switch: sub 3 / je / sub 2 / jne).
 void status_draw()
 {
     int i;
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < STATUS_NUM_BUTTONS; i++) {
-        if (status_buttons[i].flags & 3)
-            ui_bitmap_scaled(status_buttons[i].bitmap, status_buttons[i].x, status_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &status_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     status_draw_model();
     status_draw_level();
@@ -1071,7 +1071,7 @@ void status_draw()
     }
 }
 
-// 0x42ca50  Confidence: likely (local order; the operand order of the two border rectangles' sums). The
+// 0x42ca50  Confidence: exact (VC6 byte match) (local order; the operand order of the two border rectangles' sums). The
 // model is animated only in single player. When gr_byte_25d921d is set the screen outside the view rectangle
 // is filled with black first (four rectangles: left, top, bottom, right).
 void status_draw_model()
@@ -1109,9 +1109,8 @@ void status_draw_model()
                 status_model_view_wh[res][0],
                 gr_screen.max_h - status_model_view_wh[res][1] - status_model_view_xy[res][1],
                 gr_mode_flat_alpha, FLT_MAX);
-        res = resolution_index;
-        gr_rect(status_model_view_wh[res][0] + status_model_view_xy[res][0], 0,
-                gr_screen.max_w - status_model_view_wh[res][0] - status_model_view_xy[res][0], gr_screen.max_h,
+        gr_rect(status_model_view_wh[resolution_index][0] + status_model_view_xy[resolution_index][0], 0,
+                gr_screen.max_w - status_model_view_wh[resolution_index][0] - status_model_view_xy[resolution_index][0], gr_screen.max_h,
                 gr_mode_flat_alpha, FLT_MAX);
         gr_set_color(255, 255, 255, 255);
         gr_set_alpha_test(1);
@@ -1243,8 +1242,8 @@ void status_draw_stats()
     sprintf(buf, "%d", max_hp);
     gr_string(status_stats_value_right[resolution_index] - w + w2 + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("AP:", 743), -1, gr_string_mode);
     sprintf(buf, "%d/%d", status_character->ap, max_ap);
     gr_get_string_size(&w, &h, buf, -1, -1);
@@ -1255,23 +1254,23 @@ void status_draw_stats()
     sprintf(buf, "%d", max_ap);
     gr_string(status_stats_value_right[resolution_index] - w + w2 + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Speed:", 744), -1, gr_string_mode);
     status_set_bonus_color((float)speed_bonus);
     sprintf(buf, "%d%%", speed);
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_stats_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Damage:", 745), -1, gr_string_mode);
     sprintf(buf, "%d", damage);
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_stats_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Protection:", 746), -1, gr_string_mode);
     sprintf(buf, "%d", protection);
     gr_get_string_size(&w, &h, buf, -1, -1);
@@ -1369,7 +1368,7 @@ void status_draw_skills()
     }
 }
 
-// 0x42da10  Confidence: likely (journal_draw_list_scrollbar shape with the visibility test).
+// 0x42da10  Confidence: exact (VC6 byte match) (journal_draw_list_scrollbar shape with the visibility test).
 void status_draw_scrollbar()
 {
     int tiles, i;
@@ -1386,7 +1385,7 @@ void status_draw_scrollbar()
                      gr_bitmap_wrap_mode);
 }
 
-// 0x42dac0  Confidence: likely (one buffer and one w / h pair reused for the three strings, as the frame shows;
+// 0x42dac0  Confidence: exact (VC6 byte match) (one buffer and one w / h pair reused for the three strings, as the frame shows;
 // the colour lerp's operand order). "Skill points: %d" is centred on status_skill_points_pos; the number is
 // drawn separately and pulses between the disabled grey and white while points are left.
 void status_draw_skill_points()
@@ -1411,7 +1410,9 @@ void status_draw_skill_points()
     if (player->skill_points > 0) {
         float r, g, b;
 
-        r = g = b = 1.0f;
+        r = 1.0f;
+        g = 1.0f;
+        b = 1.0f;
         ui_apply_pulse_rgb(&r, &g, &b, 0.0f);
         gr_set_color((int)((ui_color_white.r - ui_color_disabled.r) * r + ui_color_disabled.r + 0.5f),
                      (int)((ui_color_white.g - ui_color_disabled.g) * g + ui_color_disabled.g + 0.5f),
@@ -1420,7 +1421,7 @@ void status_draw_skill_points()
     gr_string(x, status_skill_points_pos[resolution_index][1], buf, -1, gr_string_mode);
 }
 
-// 0x42dcd0  Confidence: likely (statement order of the fourteen value computations follows the calls; the
+// 0x42dcd0  Confidence: exact (VC6 byte match) (statement order of the fourteen value computations follows the calls; the
 // magic bonus subtracts the skill and level part that character_get_resistance adds: Magic resist * 0.5 +
 // level * 0.02). Fire, ice, energy and magic in the first column, slashing, piercing and blunt in the second.
 void status_draw_resistances()
@@ -1453,24 +1454,24 @@ void status_draw_resistances()
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Ice:", 750), -1, gr_string_mode);
     status_set_bonus_color((float)ice_bonus);
     sprintf(buf, "%d%%", ice);
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Energy:", 751), -1, gr_string_mode);
     status_set_bonus_color((float)energy_bonus);
     sprintf(buf, "%d%%", energy);
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Magic:", 752), -1, gr_string_mode);
     status_set_bonus_color((float)magic_bonus);
     sprintf(buf, "%d%%", magic);
@@ -1486,16 +1487,16 @@ void status_draw_resistances()
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Piercing:", 754), -1, gr_string_mode);
     status_set_bonus_color((float)piercing_bonus);
     sprintf(buf, "%d%%", piercing);
     gr_get_string_size(&w, &h, buf, -1, -1);
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 
-    gr_set_color_ptr(&ui_color_text);
     y += font_h;
+    gr_set_color_ptr(&ui_color_text);
     gr_string(x, y, XSTR("Blunt:", 755), -1, gr_string_mode);
     status_set_bonus_color((float)blunt_bonus);
     sprintf(buf, "%d%%", blunt);
@@ -1503,7 +1504,7 @@ void status_draw_resistances()
     gr_string(status_resist_value_right[resolution_index] - w + x, y, buf, -1, gr_string_mode);
 }
 
-// 0x42e410  Confidence: likely (the skipped ids 14, 15 and 17 are compared as pointers into status_effect_names
+// 0x42e410  Confidence: exact (VC6 byte match) (the skipped ids 14, 15 and 17 are compared as pointers into status_effect_names
 // in the binary, written as a switch on the index; the "" initialiser of text). The active effects as one
 // comma-separated text, wrapped into at most 8 lines.
 void status_draw_status_effects()
@@ -1540,11 +1541,10 @@ void status_draw_status_effects()
 
         gr_set_color_ptr(&ui_color_text);
         n = gr_split_str(lengths, starts, text, status_effects_width[resolution_index], 8, 0, -1);
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < n; i++, y += font_h) {
             strncpy(line, text + starts[i], lengths[i]);
             line[lengths[i]] = 0;
             gr_string(x, y, line, -1, gr_string_mode);
-            y += font_h;
         }
     }
 }

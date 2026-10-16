@@ -53,7 +53,7 @@ public:
     bool  fire_weapon_missile();                    // 0x463910 combat_fire_weapon_missile
     float attack_rating();                          // 0x463b40 combat_attack_rating
     float weapon_skill();                           // 0x463b90 combat_weapon_skill
-    int   has_weapon_skill();                       // 0x463be0 combat_has_weapon_skill
+    bool  has_weapon_skill();                       // 0x463be0 combat_has_weapon_skill
     float speed_share(living_combat *other);        // 0x463c00
     void  ai_choose_special();                      // 0x463d00
     move_info *pick_attack_move(int allow_any);     // 0x463e20

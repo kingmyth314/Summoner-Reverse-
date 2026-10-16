@@ -175,7 +175,7 @@ void cmd_do_frame_callback()
 console_command ccmd_eax_save_props("eax_save_props", "Saves the EAX properties to disk",
                                     cmd_eax_save_props);   // 0x24902b8
 
-// 0x4ca970  Confidence: likely (the order of the three buffers in the frame: message at +0, name +0x40,
+// 0x4ca970  Confidence: exact (VC6 byte match) (the order of the three buffers in the frame: message at +0, name +0x40,
 // path +0x80).
 void cmd_eax_save_props()
 {
@@ -226,7 +226,7 @@ void level_check_triggers()
             cur += dir;
             vector3 *points = level_triggers[i].path->points;
             if (segments_intersect_xz(&prev, &cur, &points[0], &points[1]) == true
-                && level_trigger_point_left_of_line(&level_triggers[i], &prev, &cur)) {
+                && level_trigger_point_left_of_line(level_triggers[i].path, &prev, &cur)) {
                 if (level_triggers[i].flags & LEVEL_TRIGGER_SCRIPT_USE)
                     level_script_use(level_triggers[i].ref_name);
                 else {
@@ -293,13 +293,13 @@ void level_check_triggers()
 }
 
 // 0x4caed0  Confidence: exact. The previous position is passed but not read.
-int level_trigger_point_left_of_line(level_trigger *t, const vector3 *prev, const vector3 *cur)
+int level_trigger_point_left_of_line(s3d_named_path *path, const vector3 *prev, const vector3 *cur)
 {
     vector2 a, b, p;
     seg2d seg;
 
-    a.from_xz(&t->path->points[0]);
-    b.from_xz(&t->path->points[1]);
+    a.from_xz(&path->points[0]);
+    b.from_xz(&path->points[1]);
     seg.a = &a;
     seg.b = &b;
     p.from_xz(cur);
@@ -339,8 +339,10 @@ void script_place_party_at_starts()
     int slot = 0;
 
     level_find_player_starts();
-    for (p = party_list.next; p != &party_list; p = p->next)
-        living_from_handle(p->handle)->place_at_party_start(slot++);
+    for (p = party_list.next; p != &party_list; p = p->next, slot++) {
+        Character *c = living_from_handle(p->handle);
+        c->place_at_party_start(slot);
+    }
     camera_reset_to_player(0);
 }
 
@@ -703,7 +705,7 @@ void level_parse_table()
     level_create_world_effects();
 }
 
-// 0x4cc010  Confidence: likely (the order of the three buffers). "$Ambient:" name sound p1 p2 p3 [delay]:
+// 0x4cc010  Confidence: exact (VC6 byte match) (the order of the three buffers). "$Ambient:" name sound p1 p2 p3 [delay]:
 // the rest of the line is the repeat delay in seconds (none or "%f"); the position is a script navpoint
 // or a level-file marker.
 void level_parse_ambient(TextFile *tf)
@@ -736,7 +738,7 @@ void level_parse_ambient(TextFile *tf)
     }
 }
 
-// 0x4cc190  Confidence: likely (the running record pointer; the "default" case leaves the slot counted).
+// 0x4cc190  Confidence: exact (VC6 byte match) (the running record pointer; the "default" case leaves the slot counted).
 // "$Trigger:" name [+Multi] +Id: (load level | boss | sound); load level: [+Script:] [+RefName:];
 // [+Index:] +Type: (spline: [+Spline name:] | location: +Location: +Radius:) [+Plane:]. A trigger whose path
 // or navpoint is missing is dropped (the count goes back, the record is reused).
@@ -902,7 +904,7 @@ void level_parse_shopkeeper(TextFile *tf)
     }
 }
 
-// 0x4cc7e0  Confidence: likely (the clamps as max / min). The level's init hook, the lc entries' "used"
+// 0x4cc7e0  Confidence: exact (VC6 byte match) (the clamps as max / min). The level's init hook, the lc entries' "used"
 // bit from the savegame; on a fresh entry the monsters' levels: single player 0.8-1.2 times the current
 // character's level, capped by the script's +Levelcap: (characters above the player keep theirs);
 // multiplayer the host level times the session scale within a difficulty band. In multiplayer four boss
@@ -934,8 +936,8 @@ void level_script_init(bool scale_levels)
                 if (cur_character) {
                     if (c->type != 7 && cur_character->level >= c->level) {
                         c->level = (short)(int)(target + 0.5f);
-                        c->level = max(c->level, 1);
-                        c->level = min(c->level, cap);
+                        c->level = max((short)1, c->level);
+                        c->level = min((short)cap, c->level);
                         c->scale_stats_to_level();
                     }
                 } else if (c->type != 7) {
@@ -969,8 +971,8 @@ void level_script_init(bool scale_levels)
             for (c = living_list.live_next; c != &living_list; c = c->live_next) {
                 if (c->type != 7) {
                     c->level = (short)(int)(target + 0.5f);
-                    c->level = max(c->level, lo);
-                    c->level = min(c->level, hi);
+                    c->level = max((short)lo, c->level);
+                    c->level = min((short)hi, c->level);
                     c->scale_stats_to_level();
                 }
             }
@@ -1020,7 +1022,7 @@ void level_ambient_sounds_frame()
         sound_emitter_update_position(level_ambients[i].emitter, &level_ambients[i].pos, &vel, 1.75f);
 }
 
-// 0x4ccba0  Confidence: likely (the two `== true` tests). Each live script object advances to its next
+// 0x4ccba0  Confidence: exact (VC6 byte match) (the two `== true` tests). Each live script object advances to its next
 // action when its character is free (not suspended, not in a cutscene, no pending goal) and the current
 // action has completed; an object whose character is gone is freed.
 void level_script_entries_frame()
@@ -1052,7 +1054,8 @@ void level_script_entries_frame()
 // 0x4ccc50  Confidence: exact.
 bool script_character_has_pending_goal(Character *c)
 {
-    return c->ai.has_goal_without_flag20() == true;
+    bool r = c->ai.has_goal_without_flag20() == true;
+    return r;
 }
 
 // 0x4ccc70  Confidence: exact. Removing the ambients by index while the table compacts frees only every
@@ -1213,13 +1216,11 @@ void level_trigger_trip(obj *o, int *out_id, int *out_index)
     int i;
 
     for (i = 0; i < level_trigger_count; i++) {
-        unsigned int flags = level_triggers[i].flags;
-
-        if (flags & LEVEL_TRIGGER_SCRIPT_USE)
+        if (level_triggers[i].flags & LEVEL_TRIGGER_SCRIPT_USE)
             continue;
-        if ((game_flags & GF_MULTIPLAYER) && !(flags & LEVEL_TRIGGER_MULTI))
+        if ((game_flags & GF_MULTIPLAYER) && !(level_triggers[i].flags & LEVEL_TRIGGER_MULTI))
             continue;
-        if ((game_flags & GF_SINGLE_PLAYER) && (flags & LEVEL_TRIGGER_MULTI))
+        if ((game_flags & GF_SINGLE_PLAYER) && (level_triggers[i].flags & LEVEL_TRIGGER_MULTI))
             continue;
         if (level_triggers[i].id == 0)
             continue;
@@ -1229,9 +1230,11 @@ void level_trigger_trip(obj *o, int *out_id, int *out_index)
                                             &level_triggers[i].path->points[1]);
             break;
         case 1:
-            if ((flags & LEVEL_TRIGGER_ON) && !(flags & LEVEL_TRIGGER_TRIPPED))
-                tripped = distance_squared(&level_triggers[i].nav->pos, &o->pos)
-                          <= level_triggers[i].radius * level_triggers[i].radius;
+            if ((level_triggers[i].flags & LEVEL_TRIGGER_ON) && !(level_triggers[i].flags & LEVEL_TRIGGER_TRIPPED))
+            {
+                float d = distance_squared(&level_triggers[i].nav->pos, &o->pos);
+                tripped = d <= level_triggers[i].radius * level_triggers[i].radius;
+            }
             break;
         }
         if (tripped) {
@@ -1275,10 +1278,11 @@ int level_ambient_find_at(const vector3 *pos)
 {
     int i;
 
-    for (i = 0; i < level_ambient_count; i++)
-        if (level_ambients[i].pos.x == pos->x && level_ambients[i].pos.y == pos->y
-            && level_ambients[i].pos.z == pos->z)
+    for (i = 0; i < level_ambient_count; i++) {
+        vector3 *a = &level_ambients[i].pos;
+        if (a->x == pos->x && a->y == pos->y && a->z == pos->z)
             return i;
+    }
     return -1;
 }
 
@@ -1343,7 +1347,7 @@ int lc_find_by_name(const char *name)
     return -1;
 }
 
-// 0x4cd570  Confidence: likely (the buffer is 0x44 bytes in the frame, two strncpy / strncat of 0x40).
+// 0x4cd570  Confidence: exact (VC6 byte match) (the buffer is 0x44 bytes in the frame, two strncpy / strncat of 0x40).
 int lc_find_by_hash(unsigned int hash)
 {
     char name[0x44];
@@ -1586,15 +1590,15 @@ void script_eleh_strip_party_gear(bool strip)
             party_inventory_add_item(old1, 1, 1);
         if (old2)
             party_inventory_add_item(old2, 1, 1);
-        it = character_unequip_slot(c, 6, 1);
-        if (it)
-            party_inventory_add_item(it, 1, 1);
-        it = character_unequip_slot(c, 1, 1);
-        if (it)
-            party_inventory_add_item(it, 1, 1);
-        it = character_unequip_slot(c, 2, 1);
-        if (it)
-            party_inventory_add_item(it, 1, 1);
+        old1 = character_unequip_slot(c, 6, 1);
+        if (old1)
+            party_inventory_add_item(old1, 1, 1);
+        old1 = character_unequip_slot(c, 1, 1);
+        if (old1)
+            party_inventory_add_item(old1, 1, 1);
+        old1 = character_unequip_slot(c, 2, 1);
+        if (old1)
+            party_inventory_add_item(old1, 1, 1);
     }
     if (strip) {
         script_party_remove_item("Ring of Darkness");
@@ -1826,7 +1830,7 @@ void script_npc_drop_loot(const char *name)
         script_object_drop_loot(index);
 }
 
-// 0x4ce640  Confidence: likely (conversation_is_idle is called twice in a row; an expanded macro?). The
+// 0x4ce640  Confidence: exact (VC6 byte match) (conversation_is_idle is called twice in a row; an expanded macro?). The
 // name is the character's, else its char_info's; game_flags 0x100 is set for the conversation.
 void script_object_talk(int index)
 {
@@ -1953,7 +1957,7 @@ bool script_player_has_equipped(const char *item)
         return false;
     if (!cur_character)
         return false;
-    return character_has_equipped_type(cur_character, &item_types[type]) != 0;
+    return character_has_equipped_type(cur_character, &item_types[type]) ? true : false;
 }
 
 // 0x4ceab0  Confidence: exact.
@@ -1962,7 +1966,8 @@ void script_party_acquire_item(const char *name, int count)
     char text[256];
 
     party_inventory_add_by_name(name, count, -1, 1);
-    sprintf(text, XSTR("Party acquired %s!", 569), localize_item_name(name));
+    const char *fmt = XSTR("Party acquired %s!", 569);
+    sprintf(text, fmt, localize_item_name(name));
     hud_show_message(text);
 }
 

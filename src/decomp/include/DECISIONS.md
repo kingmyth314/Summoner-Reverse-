@@ -4897,3 +4897,114 @@ adds a frame. (5) 8168 sorts the terms of a sum of products (matrix::determinant
 the terms and factors reordered gives identical code). (6) 8966 tail-merges identical calls at the end of if / else
 branches (matrix::orthogonalized: the two fvec.normalize() calls share one); 8168 keeps both. (7) A bool from a
 one-bit field is narrowed with `and al, 1` in 8966 (effects_base_is_resident, effect_is_cutscene_base).
+
+**D6200 (include/engine/ai/ai.h, game/unnamed_ai_combat_0x4bce60.cpp). HEADER CHANGE: ai_score_support_targets
+takes `int heal, int cure`.** choose_support_spell keeps both can_cast_spell results as dwords (`and eax, 0xff /
+mov edi, eax`, `mov ebx, eax`) and pushes the registers; the scorer reads them as dwords (`mov ebx, [esp+0x14]`,
+`mov eax, [esp+0x24] / test eax, eax`). Its only caller is choose_support_spell (heal, cure and vitalize are int
+locals there). VC6: ai_score_support_targets now matches; mingw: 259 files, 0 errors.
+
+**D6201 (include/levelscripts/level_scripts.h, game/level_scripts_common.cpp). HEADER CHANGE:
+level_trigger_point_left_of_line takes the trigger's s3d_named_path, not the trigger.** The caller (level_check_triggers,
+0x4cabae) pushes the register that holds the path (`mov eax, [edi + 0xc]` reads the points just before), and the
+callee reads `[arg + 0xc]` as the points array. Same behaviour (the source read t->path->points); the only caller is
+in the same file. The function still differs (frame 0x28 against 0x20, D6206).
+
+**D6202 (include/summoner/multi/multi.h, game/unnamed_swi_0x488230.cpp, game/unnamed_ai_think_0x4b5140.cpp).
+HEADER CHANGE: mp_send_character_walk's second parameter is bool.** goal_do_move_to passes its bool `walk` with
+`push ebx` and no `and ebx, 0xff` (an int parameter makes VC6 widen it), and the callee only reads the low byte
+(`mov dl, [esp+0x20c]`). The definition in unnamed_swi_0x488230.cpp changes its signature only (12 / 14 matches
+before and after); the other callers pass 0 or a comparison (unnamed_ai_move 4 / 19 before and after, ai_combat and
+ai_think: no match lost). goal_do_move_to and goal_do_move_to_timed now match (with the speed-scale call written as
+an if / else of two calls).
+
+**D6203 (include/engine/combat/combat.h, game/combat.cpp, game/unnamed_ai_think_0x4b5140.cpp). HEADER CHANGE:
+living_combat::has_weapon_skill returns bool.** Both callers (goal_do_attack 0x4b600e, pick_attack_target 0x4b592f)
+test AL (`test al, al`); the callee's `mov eax, 1 / xor eax, eax` is what a bool `return x > 0.0f;` gives (D5904).
+combat.cpp: `return weapon_skill() > 0.0f;` (was `? 1 : 0` in an int function), still a byte match (35 / 63 before
+and after). goal_do_attack now matches.
+
+**D6204 (game/unnamed_tiger_0x499e50.cpp). LOGIC FIX: tiger_anim_remap_out reads the character's own loco anim
+table, not the mount's.** 0x49c1e0 keeps the argument in EBX (`mov ebx, [esp+8] / mov ecx, ebx / call get_mount`) and
+copies `[ebx + 4*slot + 0x5ac]`: the mount is only tested for NULL. The source read mount->loco_anims. Now exact.
+serpent_anim_remap_out (0x495db0, unnamed_serpent_0x495290.cpp, not part of this pass) has the same code (`mov edi,
+[ebx + 4*edi + 0x5ac]` with EBX the argument) and the same source error (its comment "puts the mount's current anims
+back" is wrong); left for its owner.
+
+**D6205 (the ten units of this pass). Source shapes that make cl 12.00.8168 emit build 8966's code** (each verified
+by a byte match; details in the pass notes):
+- Call arguments computed into locals first. Where the original evaluates the complex arguments of a call before the
+  simple ones (point_in_rect / ui_tooltip_set rectangles, automap_is_cell_revealed's cell indices, a float argument
+  through a memory temporary), `int x = ...; int y = ...; f(..., x, y, ...)` reproduces it: status_show_skill_tooltip,
+  automap_label_box_hover, automap_labels_hover, automap_map_point_revealed, skills_row_hit_text and _icon (all four
+  rectangle values), follow_character (`float dt = ...` for predict_owner_position), script_party_acquire_item (the
+  format string first).
+- A value read once from a global struct and stored into several fields goes through a local (`int walk =
+  tiger_anim_stage2_walk; c->a = walk; c->b = walk;`): the original does not re-read it after each store; a second
+  local re-reads it once (tiger_set_stage2_anims). `anim = tiger.x; if (anim != -1) {...}` for the guarded groups
+  (tiger_equip_weapon, tiger_setup_anims); `item_info *weapon = ...; tiger_weapon = weapon;` before the equip call.
+- A float local that is assigned in several places stays in memory in the original (`fst [esp+8]` of its 0.0 start,
+  `mov eax, [esp]` of 0.4): an assignment plus `break` and one return gives it (boss_turn_rate_override,
+  tiger_cache_move_b8, rand_weighted_index's `result`).
+- A loop search followed by `if (i == n || i == -1)` is the original's `if (r <= score) { if (i == -1) return -1;
+  ...; return x; }` inside the loop, with `return -1` after it (choose_offensive_spell, choose_support_spell).
+- `(float)a / (float)(b * 1000)` with ints: 8168 emits fidiv, the original loads both with fild and divides in
+  float: `(float)((float)a / (double)(b * 1000))` (the six consider_* spell timer factors).
+- Sums of products: 8168 emits the terms of `a*b + c*d + e*f` in reverse source order, so the natural `x, y, z` order
+  gives the original's z-first code (follow_character); a vector subtraction instead of three component differences
+  (script_object_near_player_dist, script_navpoint_near_player_dist), d.len() for the square root of the squares
+  (goal_do_pickup).
+- `v = vector3(a.x + b.x, ...)` instead of member assignments (combat_face_target), `target->pos +
+  target->centre_offset` (operand order of the inline add: update_target_pos), `vector2 d(x - p->x, z - p->y)`.
+- Element pointers again (D5904): `ui_button_state *b = &buttons[i]` in the button draw loops (status, automap,
+  skills) and the skills category tooltip, `script_action *l = &so->actions[i]`, `boss_threat *p = &t[i]`, the
+  tooltip's entry pointer (its dead lea is in the original), `vector3 *fwd = &t->orient.fvec` shared by two uses.
+- Bool shapes: `if (x) return true; return false;` (within_attack_radius, character_is_not_boss,
+  automap_mouse_to_map_cell); `return f() ? true : false;` for the `test al, al / setne al` of a bool call
+  (script_player_has_equipped, skills_row_hit); `bool r = f() == true; return r;` for `cmp al, 1 / sete al`.
+- int instead of bool where the binary keeps a flag in a full register (`and eax, 0xff / mov ebx, eax`):
+  consider_blind_or_silence, choose_support_spell; their target record read again through `*out` after its store.
+- Store and statement order: `y += font_h;` before `gr_set_color_ptr` (status), the flag store after the counter
+  (tiger_move_done_hook), `layer` before `text[0] = 0` (automap_add_label_at_mouse), the natural parameter order of
+  set_default_view_params, `height[1] = height[0] = h`, separate `r = 1.0f; g = 1.0f; b = 1.0f;`, the loop increments
+  `i++, y += font_h` and `p = p->next, slot++`, `int level = ...` before the cap call (status_skill_increment), the
+  progression read without a pointer (status_build_skill_list).
+- Branch layout: nested ifs with one shared `return -1` at the end (consider_area_spell), `if (a->arg0c >= 0) {
+  ...; return true; } return false;` (script_action_play_action), the else-part first where the binary falls into it
+  (status_update_scrollbar,
+  status_handle_skill_buttons, update_target_pos, skills_init), an if / else-if chain instead of a switch where the
+  binary compares in source order (consider_death, choose_offensive_spell's species specials), `case 0` with its own
+  body in a switch the original tests explicitly (automap_get_zoom), `while (1) { if (!goal_remove(...)) break; }`.
+- Clamps with the bound first: `max((short)lo, c->level)` / `min((short)hi, c->level)` with short operands give the
+  16-bit `cmp di, ax` of level_script_init; `fabsf` with float constants (D5904) in auto_rotate_update and
+  smooth_height, `fabsf(step) > fabsf(d)` (the operand order of the original compare).
+- Smaller ones: tiger_rider_set_flinch's message buffer is 0x80 bytes (frame 0x84), choose_offensive_spell's choice
+  array 38 entries (frame 0x144), combat_ranged_attack reuses `range` for the edge distance, the operand order
+  `cutscene_cur_sequence == a->arg0c`, `int press = b + 1` (automap_update_buttons), the masks `((b != 0) & 1)` of
+  set_follow_flags, no `c` local in boss_turn_rate_override, no `info` local in level_page_in_characters, `int lines`
+  declared first (automap_draw_label), the summon pointer for each party member (script_place_party_at_starts).
+
+**D6206 (notes only). Differences of this pass that no source form changed** (8168 against 8966, as D5905 / D6107):
+- Stack pops: 8966 never merges the pending `add esp` of a call across a varargs call (sprintf), 8168 does
+  (status_draw_stats, status_draw_level, script_party_acquire_item: the rest of those functions matches).
+- Jump tables whose cases repeat the default target (boss_attack_knocks_down_dispatch, boss_attack_stuns_dispatch,
+  boss_stage_attack_enabled_dispatch: 8966 builds a byte table over 0x79 values, 8168 two compares); a ternary whose
+  value stays on the FPU stack in the original (`zoom = max(zoom, 0.3f)` in apply_input_deltas); the
+  store-then-overwrite of `x = c ? a : b` (status_page_down, status_drag_scrollbar).
+- Copy elision of a by-value vector3 result into a named local (update_orientation, snap_to_target): 8168 copies.
+- Spill slots and frames: the original reuses a dead argument slot for a temporary where 8168 picks another
+  (goal_do_travel, tiger_anim_remap_in), frame sizes 4-8 bytes apart (level_trigger_point_left_of_line,
+  combat_toggle_ready_stance), callee-saved registers pushed late (shrink-wrapped) for two registers
+  (script_action_die, camera::auto_view_update; 8168 does it for one).
+- Register choice and scheduling: ebx / ebp and esi / edi swaps (choose_support_spell, consider_life_drain,
+  script_action_wander, group_assign_formation, combat_approach), 8168 sinking computations into the branch that
+  uses them (automap_center_on_player), `mov eax, imm / push eax` for a constant argument (camera::cycle_mode),
+  inline argument evaluation order of a vector3 constructor (boss_mount_pick_flee_point's result).
+
+**D6207 (notes only). Markers that say exact but differ under 8168.** Marked exact by reading before the VC6 tool
+existed, in this pass's units: camera::auto_view_update, camera::snap_to_target, status_load_bitmaps,
+status_goto_pending_screen, status_page_up, status_page_down, level_trigger_point_left_of_line, level_ambient_find_at,
+script_object_receive_go, script_party_acquire_item, script_action_die, script_action_wander,
+automap_center_on_player, ai_state::boss_ai_unload, boss_dismount_dispatch, boss_threat_find,
+skills_update_species_tab (and serpent_anim_remap_out outside the pass, D6204). Their remaining differences are of
+the D6206 kinds; the words were left as they were.

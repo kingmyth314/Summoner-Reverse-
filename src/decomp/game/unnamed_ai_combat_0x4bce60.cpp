@@ -95,7 +95,9 @@ vector3 ai_combat_aim_point;          // 0x2483558
 // record: +0x34 is ai_state::attack_range (D3603).
 bool ai_state::within_attack_radius(float dist)
 {
-    return dist < attack_range + 0.2f;
+    if (dist < attack_range + 0.2f)
+        return true;
+    return false;
 }
 
 // 0x4bcea0  Confidence: likely (the temporaries). A path to a point 0.5-1 attack ranges short of the
@@ -560,7 +562,7 @@ bool ai_state::combat_toggle_ready_stance()
     return false;
 }
 
-// 0x4be0a0  Confidence: likely. Luminar's grab approach: 1 in range (stops the owner), else a path to where
+// 0x4be0a0  Confidence: exact (VC6 byte match). Luminar's grab approach: 1 in range (stops the owner), else a path to where
 // the target will be in a second (re-planned every 0.5 s, the range as the search's cost bias), -1 without a
 // path or when the path ends and the owner stands still.
 int ai_state::chase_target_until_in_range(Character *target, float range)
@@ -597,7 +599,7 @@ int ai_state::chase_target_until_in_range(Character *target, float range)
     return 0;
 }
 
-// 0x4be280  Confidence: likely. Sub-modes AIS_GET_CLOSE / AIS_GET_FAR: without a path (the mount's when
+// 0x4be280  Confidence: exact (VC6 byte match). Sub-modes AIS_GET_CLOSE / AIS_GET_FAR: without a path (the mount's when
 // mounted) decide again; in reach (between half and the whole attack range when ranged, boss ranges
 // applied, less than 3 apart in height) switch to the attack sub-mode; else follow the path, re-deciding
 // every 0.5 s unless an approach is pending.
@@ -664,7 +666,7 @@ void ai_state::combat_close_in(Character *target)
     }
 }
 
-// 0x4be470  Confidence: likely (the centre goes through a temporary). False while still turning towards the
+// 0x4be470  Confidence: exact (VC6 byte match) (the centre goes through a temporary). False while still turning towards the
 // target's centre (the mount turns for a rider; Titus keeps his facing while titus_turn_lock). With attack
 // points (flag 0x20) a locally controlled owner frees its points and makes its attackers pick new ones.
 bool ai_state::combat_face_target(Character *target)
@@ -677,9 +679,8 @@ bool ai_state::combat_face_target(Character *target)
     bool r;
 
     flags &= ~0x10000000;
-    centre.x = target->centre_offset.x + target->pos.x;
-    centre.y = target->centre_offset.y + target->pos.y;
-    centre.z = target->centre_offset.z + target->pos.z;
+    centre = vector3(target->centre_offset.x + target->pos.x, target->centre_offset.y + target->pos.y,
+                     target->centre_offset.z + target->pos.z);
     if (owner->get_current_move() == NULL || owner->type == CHAR_TYPE_BOSS) {
         points = flags & 0x20;
         if (!(owner->info->species == SPECIES_TITUS && titus_turn_lock == true)) {
@@ -706,7 +707,7 @@ bool ai_state::combat_face_target(Character *target)
     return true;
 }
 
-// 0x4be5f0  Confidence: likely. Sub-mode AIS_CLOSE_COMBAT. A target with attack points counts as touching
+// 0x4be5f0  Confidence: exact (VC6 byte match). Sub-mode AIS_CLOSE_COMBAT. A target with attack points counts as touching
 // (bosses only within 5 by the edges); a ranged attacker crowded or out of its own reach re-decides; a
 // moving target counts nearer (x 4/9). Facing (or busy), one melee update with the boss move id, both
 // sides take each other's attack slot and the victim's guards are alerted.
@@ -751,14 +752,13 @@ void ai_state::combat_melee_attack(Character *target)
     }
 }
 
-// 0x4be760  Confidence: likely. Sub-mode AIS_RANGED_COMBAT: without a ranged weapon re-decide; out of reach
+// 0x4be760  Confidence: exact (VC6 byte match). Sub-mode AIS_RANGED_COMBAT: without a ranged weapon re-decide; out of reach
 // or nearer than half the range (the Tiger Rider: 2) re-decide; facing (or busy) one combat update.
 void ai_state::combat_ranged_attack(Character *target)
 {
     float range;
     float min_range;
     float max_range;
-    float dist;
     float too_near;
 
     if (!owner->get_attack_range(&range)) {
@@ -766,11 +766,11 @@ void ai_state::combat_ranged_attack(Character *target)
         return;
     }
     boss_get_move_range(&max_range, &min_range);
-    dist = owner->distance_between_edges(target, true, _unk7c);
+    range = owner->distance_between_edges(target, true, _unk7c);
     too_near = attack_range * 0.5f;
     if (owner->info->species == SPECIES_TIGER_RIDER)
         too_near = 2.0f;
-    if (!within_attack_radius(dist) || dist < too_near) {
+    if (!within_attack_radius(range) || range < too_near) {
         if (combat_approach(target) == true)
             return;
     }
@@ -790,7 +790,7 @@ void ai_state::combat_follow_and_strike(Character *target)
         owner->combat.update(0);
 }
 
-// 0x4be8a0  Confidence: likely. Sub-mode AIS_BACKSTAB: more than 2 away -> idle; facing, one update (-1);
+// 0x4be8a0  Confidence: exact (VC6 byte match). Sub-mode AIS_BACKSTAB: more than 2 away -> idle; facing, one update (-1);
 // when the record goes idle, an ordinary attack follows and a target not yet in combat attacks back.
 void ai_state::combat_close_strike(Character *target)
 {
@@ -808,9 +808,9 @@ void ai_state::combat_close_strike(Character *target)
     }
 }
 
-// 0x4be940  Confidence: likely (cdecl). Statuses counted as curable: blind, silence, curse, sleep,
+// 0x4be940  Confidence: exact (VC6 byte match) (cdecl). Statuses counted as curable: blind, silence, curse, sleep,
 // paralyze, poison, cripple, slow.
-float ai_score_support_targets(boss_target *list, int count, bool heal, bool cure)
+float ai_score_support_targets(boss_target *list, int count, int heal, int cure)
 {
     float total = 0.0f;
     float score;
@@ -845,9 +845,9 @@ float ai_score_support_targets(boss_target *list, int count, bool heal, bool cur
 // running sum; NOTES.md, game bugs): heal for a hurt record, cure for a curable one.
 int ai_state::choose_support_spell(boss_target *list, int count, boss_target **out)
 {
-    bool heal;
-    bool cure;
-    bool vitalize;
+    int heal;
+    int cure;
+    int vitalize;
     float total;
     float r;
     int hurt;
@@ -856,7 +856,7 @@ int ai_state::choose_support_spell(boss_target *list, int count, boss_target **o
     heal = owner->can_cast_spell(SPELL_HEAL);
     cure = owner->can_cast_spell(SPELL_CURE);
     if (owner->type == 5 && !spell_global_timers[SPELL_VITALIZE].elapsed())
-        vitalize = false;
+        vitalize = 0;
     else
         vitalize = owner->can_cast_spell(SPELL_VITALIZE);
     total = ai_score_support_targets(list, count, heal, cure);
@@ -873,20 +873,21 @@ int ai_state::choose_support_spell(boss_target *list, int count, boss_target **o
         return SPELL_VITALIZE;
     r = frand();
     for (i = 0; i < count; i++) {
-        if (r <= list[i].score)
+        if (r <= list[i].score) {
+            if (i == -1)
+                return -1;
+            *out = &list[i];
+            if (list[i].flags & AIT_HURT)
+                return SPELL_HEAL;
+            if (list[i].flags & AIT_CURABLE)
+                return SPELL_CURE;
             break;
+        }
     }
-    if (i == count || i == -1)
-        return -1;
-    *out = &list[i];
-    if (list[i].flags & AIT_HURT)
-        return SPELL_HEAL;
-    if (list[i].flags & AIT_CURABLE)
-        return SPELL_CURE;
     return -1;
 }
 
-// 0x4beba0  Confidence: likely (the order of the spell tests). Weight per spell: the sleeps 0 on a sleeping
+// 0x4beba0  Confidence: exact (VC6 byte match) (the order of the spell tests). Weight per spell: the sleeps 0 on a sleeping
 // or engaged target, 15 when its target is on the caster's team, else 10; ice coffin / freeze 0 on a target
 // already in one / paralysed; a party member's fireball only while every ally fighting the target resists
 // fire (5 x resistance each, 0 as soon as one does not); x4 for the spell in _unk88. Score: (value - 1) x
@@ -964,13 +965,13 @@ void ai_state::rate_spell_targets(int spell, boss_target *t, ai_spell_choice *ou
     (*count)++;
 }
 
-// 0x4bee40  Confidence: likely. Not for party members; 30 %: candidates not yet blind (0x10) / silenced
+// 0x4bee40  Confidence: exact (VC6 byte match). Not for party members; 30 %: candidates not yet blind (0x10) / silenced
 // (0x20) weigh 10 each, the running sum is multiplied by 1.5 at cur_character (NOTES.md), then a cumulative
 // pick: silence for cur_character or a caster (styles 4 / 5), blind for the others.
 int ai_state::consider_blind_or_silence(boss_target *list, int count, boss_target **out)
 {
-    bool blind;
-    bool silence;
+    int blind;
+    int silence;
     float total;
     float r;
     int style;
@@ -1011,17 +1012,17 @@ int ai_state::consider_blind_or_silence(boss_target *list, int count, boss_targe
         if (r < list[i].score) {
             *out = &list[i];
             style = list[i].character->ai.get_combat_style();
-            if ((list[i].flags & AIT_SILENCE_OK)
-                && (list[i].character == cur_character || style == 4 || style == 5))
+            if (((*out)->flags & AIT_SILENCE_OK)
+                && ((*out)->character == cur_character || style == 4 || style == 5))
                 return SPELL_SILENCE;
-            if ((list[i].flags & AIT_BLIND_OK) && style != 4 && style != 5)
+            if (((*out)->flags & AIT_BLIND_OK) && style != 4 && style != 5)
                 return SPELL_BLIND;
         }
     }
     return -1;
 }
 
-// 0x4befe0  Confidence: likely. Meteor storm / inferno: at least two candidates nearer than the spell's
+// 0x4befe0  Confidence: exact (VC6 byte match). Meteor storm / inferno: at least two candidates nearer than the spell's
 // distance, and a random roll scaled down by the global recovery still running at least 0.9. The distances
 // are the records' +0x04, which ai_combat_cast_frame does not fill for this list (NOTES.md).
 int ai_state::consider_area_spell(int spell, boss_target *list, int count)
@@ -1030,29 +1031,25 @@ int ai_state::consider_area_spell(int spell, boss_target *list, int count)
     int num_near;
     int i;
 
-    if (owner->type == CHAR_TYPE_PARTY)
-        return -1;
-    if (!owner->can_cast_spell(spell))
-        return -1;
-    if (count < 2)
-        return -1;
-    num_near = 0;
-    for (i = 0; i < count; i++) {
-        if (list[i].dist < spells[spell].distance)
-            num_near++;
+    if (owner->type != CHAR_TYPE_PARTY && owner->can_cast_spell(spell) && count >= 2) {
+        num_near = 0;
+        for (i = 0; i < count; i++) {
+            if (list[i].dist < spells[spell].distance)
+                num_near++;
+        }
+        if (num_near >= 2) {
+            r = frand();
+            if (!spell_global_timers[spell].elapsed())
+                r = (1.0f - (float)((float)spell_global_timers[spell].GetRemainingTime()
+                            / (double)(spells[spell].ai_recovery_time * 1000))) * r;
+            if (r >= 0.9f)
+                return spell;
+        }
     }
-    if (num_near < 2)
-        return -1;
-    r = frand();
-    if (!spell_global_timers[spell].elapsed())
-        r = (1.0f - (float)spell_global_timers[spell].GetRemainingTime()
-                    / (float)(spells[spell].ai_recovery_time * 1000)) * r;
-    if (r < 0.9f)
-        return -1;
-    return spell;
+    return -1;
 }
 
-// 0x4bf0c0  Confidence: likely. Power leech, weighted by the candidates' AP (cumulative).
+// 0x4bf0c0  Confidence: exact (VC6 byte match). Power leech, weighted by the candidates' AP (cumulative).
 int ai_state::consider_power_leech(boss_target *list, int count, boss_target *cur)
 {
     float r;
@@ -1065,8 +1062,8 @@ int ai_state::consider_power_leech(boss_target *list, int count, boss_target *cu
         return -1;
     r = frand();
     if (!spell_global_timers[SPELL_POWER_LEECH].elapsed())
-        r = (1.0f - (float)spell_global_timers[SPELL_POWER_LEECH].GetRemainingTime()
-                    / (float)(spells[SPELL_POWER_LEECH].ai_recovery_time * 1000)) * r;
+        r = (1.0f - (float)((float)spell_global_timers[SPELL_POWER_LEECH].GetRemainingTime()
+                    / (double)(spells[SPELL_POWER_LEECH].ai_recovery_time * 1000))) * r;
     if (r < 0.9f)
         return -1;
     total = 0.0f;
@@ -1084,13 +1081,14 @@ int ai_state::consider_power_leech(boss_target *list, int count, boss_target *cu
     return -1;
 }
 
-// 0x4bf1d0  Confidence: likely. Death, weighted by attack rating (x1.25 for combat style 3, x1.5 for 5).
+// 0x4bf1d0  Confidence: exact (VC6 byte match). Death, weighted by attack rating (x1.25 for combat style 3, x1.5 for 5).
 int ai_state::consider_death(boss_target *list, int count, boss_target *cur)
 {
     float r;
     float total;
     float rating;
     int i;
+    int style;
 
     if (owner->type == CHAR_TYPE_PARTY)
         return -1;
@@ -1098,21 +1096,18 @@ int ai_state::consider_death(boss_target *list, int count, boss_target *cur)
         return -1;
     r = frand();
     if (!spell_global_timers[SPELL_DEATH].elapsed())
-        r = (1.0f - (float)spell_global_timers[SPELL_DEATH].GetRemainingTime()
-                    / (float)(spells[SPELL_DEATH].ai_recovery_time * 1000)) * r;
+        r = (1.0f - (float)((float)spell_global_timers[SPELL_DEATH].GetRemainingTime()
+                    / (double)(spells[SPELL_DEATH].ai_recovery_time * 1000))) * r;
     if (r < 0.95f)
         return -1;
     total = 0.0f;
     for (i = 0; i < count; i++) {
         rating = list[i].character->combat.attack_rating();
-        switch (list[i].character->ai.get_combat_style()) {
-        case 3:
+        style = list[i].character->ai.get_combat_style();
+        if (style == 3)
             rating = (float)(rating * 1.25);
-            break;
-        case 5:
+        else if (style == 5)
             rating *= 1.5f;
-            break;
-        }
         total += rating;
         list[i].score = total;
     }
@@ -1126,7 +1121,7 @@ int ai_state::consider_death(boss_target *list, int count, boss_target *cur)
     return -1;
 }
 
-// 0x4bf320  Confidence: likely. The poison elemental's poison, weighted by HP fraction; poisoned records 0.
+// 0x4bf320  Confidence: exact (VC6 byte match). The poison elemental's poison, weighted by HP fraction; poisoned records 0.
 int ai_state::consider_poison(boss_target *list, int count, boss_target *cur)
 {
     float r;
@@ -1137,17 +1132,17 @@ int ai_state::consider_poison(boss_target *list, int count, boss_target *cur)
         return -1;
     r = frand();
     if (!spell_global_timers[SPELL_POISON].elapsed())
-        r = (1.0f - (float)spell_global_timers[SPELL_POISON].GetRemainingTime()
-                    / (float)(spells[SPELL_POISON].ai_recovery_time * 1000)) * r;
+        r = (1.0f - (float)((float)spell_global_timers[SPELL_POISON].GetRemainingTime()
+                    / (double)(spells[SPELL_POISON].ai_recovery_time * 1000))) * r;
     if (r < 0.9f)
         return -1;
     total = 0.0f;
     for (i = 0; i < count; i++) {
-        if (list[i].flags & AIT_POISONED) {
-            list[i].score = 0.0f;
-        } else {
+        if (!(list[i].flags & AIT_POISONED)) {
             total += list[i].character->hp / (float)list[i].character->get_max_stat(0);
             list[i].score = total;
+        } else {
+            list[i].score = 0.0f;
         }
     }
     for (i = 0; i < count; i++)
@@ -1160,7 +1155,7 @@ int ai_state::consider_poison(boss_target *list, int count, boss_target *cur)
     return -1;
 }
 
-// 0x4bf460  Confidence: likely. The jade golem's beam, weighted by HP fraction above 0.25.
+// 0x4bf460  Confidence: exact (VC6 byte match). The jade golem's beam, weighted by HP fraction above 0.25.
 int ai_state::consider_jade_beam(boss_target *list, int count, boss_target *cur)
 {
     float r;
@@ -1172,8 +1167,8 @@ int ai_state::consider_jade_beam(boss_target *list, int count, boss_target *cur)
         return -1;
     r = frand();
     if (!spell_global_timers[SPELL_JADE_BEAM].elapsed())
-        r = (1.0f - (float)spell_global_timers[SPELL_JADE_BEAM].GetRemainingTime()
-                    / (float)(spells[SPELL_JADE_BEAM].ai_recovery_time * 1000)) * r;
+        r = (1.0f - (float)((float)spell_global_timers[SPELL_JADE_BEAM].GetRemainingTime()
+                    / (double)(spells[SPELL_JADE_BEAM].ai_recovery_time * 1000))) * r;
     if (r < 0.95f)
         return -1;
     total = 0.0f;
@@ -1210,8 +1205,8 @@ int ai_state::consider_life_drain(boss_target *list, int count, boss_target *cur
         return -1;
     r = frand();
     if (!spell_global_timers[SPELL_LIFE_DRAIN].elapsed())
-        r = (1.0f - (float)spell_global_timers[SPELL_LIFE_DRAIN].GetRemainingTime()
-                    / (float)(spells[SPELL_LIFE_DRAIN].ai_recovery_time * 1000)) * r;
+        r = (1.0f - (float)((float)spell_global_timers[SPELL_LIFE_DRAIN].GetRemainingTime()
+                    / (double)(spells[SPELL_LIFE_DRAIN].ai_recovery_time * 1000))) * r;
     if (r < 0.95f)
         return -1;
     total = 0.0f;
@@ -1236,14 +1231,14 @@ int ai_state::consider_life_drain(boss_target *list, int count, boss_target *cur
     return -1;
 }
 
-// 0x4bf700  Confidence: likely. The current target joins the list (at most 10) and becomes *out; the
+// 0x4bf700  Confidence: exact (VC6 byte match). The current target joins the list (at most 10) and becomes *out; the
 // statuses become record flags. Two team-0 sides skip the specials and the disabling spells; otherwise
 // blind / silence, meteor storm, inferno, power leech, death and the species spells come first. Then a
 // weighted pick among icicle, lightning, the sleeps and freeze, ice coffin (monsters, more than one
 // candidate), fire arrow and fireball (none of 0x1a / 0x1d / 0x4e in flight).
 int ai_state::choose_offensive_spell(boss_target *list, int count, boss_target **out)
 {
-    ai_spell_choice choices[36];
+    ai_spell_choice choices[38];
     Character *t;
     int num_choices;
     float total;
@@ -1300,22 +1295,18 @@ int ai_state::choose_offensive_spell(boss_target *list, int count, boss_target *
         spell = consider_death(list, count, *out);
         if (spell != -1)
             return spell;
-        switch (owner->info->species) {
-        case SPECIES_POISON_ELEMENTAL:
+        if (owner->info->species == SPECIES_POISON_ELEMENTAL) {
             spell = consider_poison(list, count, *out);
             if (spell != -1)
                 return spell;
-            break;
-        case SPECIES_JADE_GOLEM:
+        } else if (owner->info->species == SPECIES_JADE_GOLEM) {
             spell = consider_jade_beam(list, count, *out);
             if (spell != -1)
                 return spell;
-            break;
-        case SPECIES_LIFE_DRAINER:
+        } else if (owner->info->species == SPECIES_LIFE_DRAINER) {
             spell = consider_life_drain(list, count, *out);
             if (spell != -1)
                 return spell;
-            break;
         }
     }
     num_choices = 0;
@@ -1338,12 +1329,13 @@ int ai_state::choose_offensive_spell(boss_target *list, int count, boss_target *
         choices[i].score /= total;
     r = frand();
     for (i = 0; i < num_choices; i++) {
-        if (r <= choices[i].score)
-            break;
+        if (r <= choices[i].score) {
+            if (i == -1)
+                return -1;
+            return choices[i].spell;
+        }
     }
-    if (i == num_choices || i == -1)
-        return -1;
-    return choices[i].spell;
+    return -1;
 }
 
 // 0x4bfaa0  Confidence: likely. Sub-mode AIS_CHOOSE_SPELL. Gives up (flag 0x80, approach) after 7 s, for
@@ -1471,7 +1463,7 @@ give_up:
     combat_approach(target);
 }
 
-// 0x4bfed0  Confidence: likely. On the victim's AI record (ai_combat_melee_attack and the boss melee
+// 0x4bfed0  Confidence: exact (VC6 byte match). On the victim's AI record (ai_combat_melee_attack and the boss melee
 // frames): retaliation, then every living entity with a protect goal on the victim attacks the attacker.
 // Bosses of species_is_boss_b do not call for help.
 void ai_state::alert_guards_of_target(Character *attacker)

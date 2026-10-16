@@ -371,9 +371,9 @@ float living_combat::weapon_skill()
 }
 
 // 0x463be0  Confidence: exact.
-int living_combat::has_weapon_skill()
+bool living_combat::has_weapon_skill()
 {
-    return weapon_skill() > 0.0f ? 1 : 0;
+    return weapon_skill() > 0.0f;
 }
 
 // 0x463c00  Confidence: exact. This side's share of the attack speed (speed skill, scaled by double

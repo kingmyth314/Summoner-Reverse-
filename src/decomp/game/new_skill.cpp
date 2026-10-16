@@ -224,10 +224,10 @@ void skills_init()
     skills_hover_row = -1;
     skills_update_species_tab();
     skills_count_page();
-    if (skills_count_in_group(skills_page) > 0)
-        skills_set_page(skills_page);
-    else
+    if (skills_count_in_group(skills_page) <= 0)
         skills_select_first_page();
+    else
+        skills_set_page(skills_page);
 }
 
 // 0x427570  Confidence: likely (the summon branch's spell test is a for loop with the found test after it).
@@ -595,20 +595,23 @@ int skills_handle_click(int key)
 // 0x4281e0  Confidence: exact (no bounds test, unlike spells_row_hit_icon).
 bool skills_row_hit_icon(int row)
 {
-    return point_in_rect(game_mouse_x, game_mouse_y, skills_list_pos[resolution_index][0],
-                         skills_row_height[resolution_index] * row + skills_list_pos[resolution_index][1],
-                         hud_hot_button_size[resolution_index][0], hud_hot_button_size[resolution_index][1]);
+    int x = skills_list_pos[resolution_index][0];
+    int y = skills_row_height[resolution_index] * row + skills_list_pos[resolution_index][1];
+    int w = hud_hot_button_size[resolution_index][0];
+    int h = hud_hot_button_size[resolution_index][1];
+
+    return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
 }
 
 // 0x428230  Confidence: exact. The whole name column up to the level's right edge.
 bool skills_row_hit_text(int row)
 {
-    return point_in_rect(game_mouse_x, game_mouse_y,
-                         skills_list_pos[resolution_index][0] + skills_text_offset[resolution_index][0],
-                         skills_row_height[resolution_index] * row + skills_text_offset[resolution_index][1]
-                             + skills_list_pos[resolution_index][1],
-                         skills_text_width[resolution_index] - skills_text_offset[resolution_index][0],
-                         gr_get_font_height(-1));
+    int x = skills_list_pos[resolution_index][0] + skills_text_offset[resolution_index][0];
+    int y = skills_row_height[resolution_index] * row + skills_text_offset[resolution_index][1]
+            + skills_list_pos[resolution_index][1];
+    int w = skills_text_width[resolution_index] - skills_text_offset[resolution_index][0];
+
+    return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, gr_get_font_height(-1));
 }
 
 // 0x4282a0  Confidence: exact (byte table 0x428380 over button - 24 into the jump table 0x428364).
@@ -626,8 +629,8 @@ void skills_category_tooltip(int button)
     default:
         return;
     }
-    ui_tooltip_set(skills_buttons[button].x, skills_buttons[button].y, skills_buttons[button].w,
-                   skills_buttons[button].h, text);
+    ui_button_state *b = &skills_buttons[button];
+    ui_tooltip_set(b->x, b->y, b->w, b->h, text);
 }
 
 // 0x428390  Confidence: exact. An active row shows its +0x30 text when it has one, else the +0x2c
@@ -816,7 +819,7 @@ void skills_handle_mouse()
     }
 }
 
-// 0x428980  Confidence: likely (the ring gates are skill_is_available's, inlined by hand or a macro; the
+// 0x428980  Confidence: exact (VC6 byte match) (the ring gates are skill_is_available's, inlined by hand or a macro; the
 // count test sits after character_can_use_summon). One entry per summon skill 0x24..0x33 the character may
 // use, greyed when not available now.
 void skills_build_summon_menu()
@@ -852,7 +855,7 @@ void skills_build_aimed_attack_menu()
     skills_popup_count = 0;
     if (!(cur_character->get_skill(SKILL_AIMED_ATTACK) > 0.0f))
         return;
-    for (skill = SKILL_AIMED_ATTACK_EYES; skill <= SKILL_AIMED_ATTACK_LEGS; skill++) {
+    for (skill = SKILL_AIMED_ATTACK_EYES; skill < SKILL_AIMED_ATTACK_LEGS + 1; skill++) {
         if (skills_popup_count >= SKILLS_MAX_POPUP)
             return;
         skills_popup_skills[skills_popup_count] = localize_string_or_invalid(skill_table[skill].display_name);
@@ -867,7 +870,7 @@ bool skills_row_hit(int row)
 {
     if (skills_row_hit_icon(row))
         return true;
-    return skills_row_hit_text(row) != 0;
+    return skills_row_hit_text(row) ? true : false;
 }
 
 // 0x428b40  Confidence: exact.
@@ -932,8 +935,9 @@ void skills_draw()
     gr::set_clip(0, 0, gr_screen_width(), gr_screen_height());
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < SKILLS_NUM_BUTTONS; i++) {
-        if (skills_buttons[i].flags & 3)
-            ui_bitmap_scaled(skills_buttons[i].bitmap, skills_buttons[i].x, skills_buttons[i].y, gr_bitmap_wrap_mode);
+        ui_button_state *b = &skills_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     skills_draw_list();
     if (skills_mouse_mode >= 4 && skills_mouse_mode <= 5)
@@ -1031,7 +1035,7 @@ bool skills_mouse_in_panel(int x, int y)
     return point_in_rect(x, y, skills_buttons[0].x, skills_buttons[0].y, skills_buttons[0].w, skills_buttons[0].h);
 }
 
-// 0x4290a0  Confidence: likely (town filter: byte table 0x4291b4 over skill - 0xd into the jump table
+// 0x4290a0  Confidence: exact (VC6 byte match) (town filter: byte table 0x4291b4 over skill - 0xd into the jump table
 // 0x4291ac). Whether the skill can be triggered now: not passive, no second summon, Banish only for a summon
 // that is out (and in multiplayer only for one's own), in towns only the non-combat skills (and no summon),
 // not while casting, and attack skills (flag 2) only while attacking.

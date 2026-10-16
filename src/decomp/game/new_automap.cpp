@@ -45,13 +45,13 @@ inline float automap_get_zoom()
 {
     switch (resolution_index) {
     case 0:
-    default:
         return 1.0f;
     case 1:
         return 1.25f;
     case 2:
         return 1.6f;
     }
+    return 1.0f;
 }
 
 // ---- .rdata --------------------------------------------------------------------------------
@@ -238,7 +238,7 @@ void automap_init()
     automap_select_label(-1);
 }
 
-// 0x402280  Confidence: likely (the store of the terminating 0 is scheduled between the pushes of the
+// 0x402280  Confidence: exact (VC6 byte match) (the store of the terminating 0 is scheduled between the pushes of the
 // gr_get_string_size call; the expression order of the two box coordinates is read from the code).
 // Wraps the label text into at most four lines and places the text box above the marker.
 void automap_select_label(int index)
@@ -308,7 +308,7 @@ void automap_labels_update_positions()
     }
 }
 
-// 0x402560  Confidence: likely (one register holds both bool stores and one the two zero stores; the
+// 0x402560  Confidence: exact (VC6 byte match) (one register holds both bool stores and one the two zero stores; the
 // source may chain them).
 void automap_show_player_layer()
 {
@@ -523,7 +523,7 @@ int automap_handle_click(int key)
     return key;
 }
 
-// 0x402d80  Confidence: likely (the clamps as if / else-if; the world-scale outputs reuse the dead
+// 0x402d80  Confidence: exact (VC6 byte match) (the clamps as if / else-if; the world-scale outputs reuse the dead
 // argument slot `scaled`). x, y in map pixels, times the zoom when `scaled`.
 bool automap_map_point_revealed(int x, int y, bool scaled)
 {
@@ -547,25 +547,26 @@ bool automap_map_point_revealed(int x, int y, bool scaled)
         y = automap_layer_h - 1;
 
     automap_get_world_scale(&cell_w, &cell_h);
-    return automap_is_cell_revealed(cur_level_index, automap_layer,
-                                    (int)(x / (automap_layer_w * cell_w)),
-                                    (int)(y / (automap_layer_h * cell_h))) != 0;
+    int cx = (int)(x / (automap_layer_w * cell_w));
+    int cy = (int)(y / (automap_layer_h * cell_h));
+    return automap_is_cell_revealed(cur_level_index, automap_layer, cx, cy) != 0;
 }
 
 // 0x402e90  Confidence: exact. The hit test and the action use the Press entry after the HiLite one.
 void automap_update_buttons()
 {
     int b = automap_pressed_button;
+    int press = b + 1;
 
     if (b >= 0 && b < AUTOMAP_NUM_BUTTONS) {
-        ui_button_state *button = &automap_buttons[b + 1];
+        ui_button_state *button = &automap_buttons[press];
 
         if (point_in_rect(game_mouse_x, game_mouse_y, button->x, button->y, button->w, button->h))
             button->flags |= 2;
         if (mouse_is_down(0))
             return;
         if (button->flags & 2)
-            automap_button_action(b + 1);
+            automap_button_action(press);
     }
     automap_mouse_mode = 0;
 }
@@ -651,8 +652,8 @@ void automap_add_label_at_mouse()
 
             label->type = automap_label_edit_mode;
             automap_map_to_world(&label->x, &label->z, x, y);
-            label->text[0] = 0;
             label->layer = automap_layer;
+            label->text[0] = 0;
             if (automap_label_edit_mode == AUTOMAP_LABEL_CUSTOM)
                 SAVEGAME_AUTOMAP.automap_label_add(cur_level_index, script, label);
             automap_labels_update_positions();
@@ -673,10 +674,12 @@ bool automap_mouse_to_map_cell(int *out_x, int *out_y, int mx, int my)
 
     *out_x = (int)((mx - automap_view_pos[resolution_index][0] - automap_scroll_x) / zoom + 0.5f);
     *out_y = (int)((my - automap_view_pos[resolution_index][1] - automap_scroll_y) / zoom + 0.5f);
-    return *out_x >= 0 && *out_x < automap_layer_w && *out_y >= 0 && *out_y < automap_layer_h;
+    if (*out_x >= 0 && *out_x < automap_layer_w && *out_y >= 0 && *out_y < automap_layer_h)
+        return true;
+    return false;
 }
 
-// 0x403300  Confidence: likely (the z step is computed first and kept on the FPU stack; written as two
+// 0x403300  Confidence: exact (VC6 byte match) (the z step is computed first and kept on the FPU stack; written as two
 // locals in that order).
 void automap_map_to_world(float *out_x, float *out_z, int mx, int my)
 {
@@ -765,10 +768,10 @@ void automap_label_box_hover()
 {
     if (automap_selected_label < 0 || mouse_is_down(0))
         return;
-    if (point_in_rect(game_mouse_x, game_mouse_y,
-                      automap_view_pos[resolution_index][0] + automap_label_box_x + automap_scroll_x,
-                      automap_view_pos[resolution_index][1] + automap_label_box_y + automap_scroll_y,
-                      automap_label_w, automap_label_h)) {
+    int x = automap_view_pos[resolution_index][0] + automap_label_box_x + automap_scroll_x;
+    int y = automap_view_pos[resolution_index][1] + automap_label_box_y + automap_scroll_y;
+
+    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, automap_label_w, automap_label_h)) {
         automap_mouse_mode = 4;
         return;
     }
@@ -782,12 +785,11 @@ void automap_labels_hover()
 {
     if (mouse_is_down(0))
         return;
-    if (point_in_rect(game_mouse_x, game_mouse_y,
-                      automap_label_screen_pos[automap_hover_label][0] + automap_view_pos[resolution_index][0]
-                          - automap_label_bm_w / 2 + automap_scroll_x,
-                      automap_label_screen_pos[automap_hover_label][1] + automap_view_pos[resolution_index][1]
-                          - automap_label_bm_h / 2 + automap_scroll_y,
-                      automap_label_bm_w, automap_label_bm_h)) {
+    int x = automap_label_screen_pos[automap_hover_label][0] + automap_view_pos[resolution_index][0]
+            - automap_label_bm_w / 2 + automap_scroll_x;
+    int y = automap_label_screen_pos[automap_hover_label][1] + automap_view_pos[resolution_index][1]
+            - automap_label_bm_h / 2 + automap_scroll_y;
+    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, automap_label_bm_w, automap_label_bm_h)) {
         automap_select_label(automap_hover_label);
         automap_mouse_mode = 0;
         return;
@@ -808,9 +810,9 @@ void automap_draw()
     gr__set_clip(0, 0, gr_screen_width(), gr_screen_height());
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < AUTOMAP_NUM_BUTTONS; i++) {
-        if (automap_buttons[i].flags & 3)
-            ui_bitmap_scaled(automap_buttons[i].bitmap, automap_buttons[i].x, automap_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &automap_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     automap_draw_map();
     automap_draw_title();
@@ -969,7 +971,7 @@ void automap_draw_map()
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x403ff0  Confidence: likely (the cursor tails return separately; w / h are reused for the box size;
+// 0x403ff0  Confidence: exact (VC6 byte match) (the cursor tails return separately; w / h are reused for the box size;
 // the margin members used for each offset are copied from the code, see NOTES).
 void automap_draw_label(int index)
 {
@@ -998,9 +1000,9 @@ void automap_draw_label(int index)
         gr_string(automap_label_margin.left + x + 1, automap_label_margin.top + y + 1, automap_label_text, -1,
                   gr_string_mode);
         if (automap_label_cursor_on) {
+            int lines = 0;
             char *p = strchr(automap_label_text, '\n');
             char *last = NULL;
-            int lines = 0;
 
             while (p) {
                 lines++;

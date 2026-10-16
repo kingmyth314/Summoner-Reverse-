@@ -89,7 +89,7 @@ bool filename_has_cscript_suffix(const char *name)
     return false;
 }
 
-// 0x4db340  Confidence: likely (the copy of the orientation as one matrix assignment). A living entity
+// 0x4db340  Confidence: exact (VC6 byte match) (the copy of the orientation as one matrix assignment). A living entity
 // that already started at this navpoint (+No create re-runs, level_script_restart) is moved back onto it
 // instead of creating a second one.
 int script_object_spawn_at_navpoint(int char_info, int type, navpoint *np, int level)
@@ -564,7 +564,7 @@ void script_parse_objects(TextFile *tf, bool level)
     }
 }
 
-// 0x4dc4d0  Confidence: likely (VC6 keeps the two equip outputs in the dead argument slots). A scripted
+// 0x4dc4d0  Confidence: exact (VC6 byte match) (VC6 keeps the two equip outputs in the dead argument slots). A scripted
 // hero copies the party (or other player) copy's flag 0x2000000 and gets new items of the same types
 // in the equipment slots 0-8.
 void script_object_copy_from_template(Character *tmpl, Character *c)
@@ -708,14 +708,15 @@ bool script_action_play_action(Character *c, script_action *a, bool hold)
 {
     move_info *m;
 
-    if (a->arg0c < 0)
-        return false;
-    m = charinfo_find_move_any(c->info, a->arg0c, true);
-    c->play_move((int)m, 1.0f, true, true, hold);
-    c->find_ground();
-    if (game_flags & 0x20)
-        c->flags |= 0x1000;
-    return true;
+    if (a->arg0c >= 0) {
+        m = charinfo_find_move_any(c->info, a->arg0c, true);
+        c->play_move((int)m, 1.0f, true, true, hold);
+        c->find_ground();
+        if (game_flags & 0x20)
+            c->flags |= 0x1000;
+        return true;
+    }
+    return false;
 }
 
 // 0x4dc990  Confidence: exact. Party members (type 4) play the death move first; a boss (type 9) dies
@@ -724,19 +725,20 @@ bool script_action_die(Character *c, script_action *a)
 {
     move_info *m;
 
-    if (a->arg0c < 0)
-        return false;
-    m = charinfo_find_move_any(c->info, a->arg0c, true);
-    if (c->type == 4) {
-        c->play_move((int)m, 1.0f, false, false, true);
+    if (a->arg0c >= 0) {
+        m = charinfo_find_move_any(c->info, a->arg0c, true);
+        if (c->type == 4) {
+            c->play_move((int)m, 1.0f, false, false, true);
+            c->kill(m->id);
+            c->flags |= 0x80;
+            return true;
+        }
+        if (c->type == 9)
+            c->type = 5;
         c->kill(m->id);
-        c->flags |= 0x80;
         return true;
     }
-    if (c->type == 9)
-        c->type = 5;
-    c->kill(m->id);
-    return true;
+    return false;
 }
 
 // 0x4dca10  Confidence: exact. Jumps to the "label" action with the same number (the advance runs the
@@ -748,7 +750,8 @@ bool script_action_goto(Character *c, script_action *a, script_object *so)
 
     if (c != NULL) {
         for (i = 0; i < so->num_actions; i++) {
-            if (so->actions[i].type == SCRIPT_ACTION_LABEL && so->actions[i].arg0c == a->arg0c) {
+            script_action *l = &so->actions[i];
+            if (l->type == SCRIPT_ACTION_LABEL && l->arg0c == a->arg0c) {
                 so->cur_action = i;
                 script_entry_advance(so, c);
                 return true;
@@ -770,14 +773,15 @@ bool script_action_wander(Character *c, script_action *a, bool walk)
     vector3 pos;
     int g;
 
-    if (np == NULL)
-        return false;
-    pos = np->pos;
-    g = c->ai.add_move_to_timed(&pos, np->layer, (float)a->arg0c, walk, 100);
-    if (g == -1)
-        return false;
-    c->ai.goals[g].flags |= 0x20;
-    return true;
+    if (np != NULL) {
+        pos = np->pos;
+        g = c->ai.add_move_to_timed(&pos, np->layer, (float)a->arg0c, walk, 100);
+        if (g != -1) {
+            c->ai.goals[g].flags |= 0x20;
+            return true;
+        }
+    }
+    return false;
 }
 
 // 0x4dcb10  Confidence: exact. Action 25: joins the named script object's AI group (created on demand)
@@ -1319,32 +1323,24 @@ bool script_entry_check_done(script_object *so, Character *c)
     return done;
 }
 
-// 0x4dda30  Confidence: likely (the order of the squares in the sum). cur_character within dist of c.
+// 0x4dda30  Confidence: exact (VC6 byte match) (the order of the squares in the sum). cur_character within dist of c.
 bool script_object_near_player_dist(Character *c, float dist)
 {
-    float dx, dy, dz;
-
     if (c == NULL)
         return false;
     if (cur_character == NULL)
         return false;
-    dx = c->pos.x - cur_character->pos.x;
-    dy = c->pos.y - cur_character->pos.y;
-    dz = c->pos.z - cur_character->pos.z;
-    return dz * dz + dx * dx + dy * dy <= dist * dist;
+    vector3 d = c->pos - cur_character->pos;
+    return d.x * d.x + d.y * d.y + d.z * d.z <= dist * dist;
 }
 
-// 0x4dda90  Confidence: likely (as above).
+// 0x4dda90  Confidence: exact (VC6 byte match) (as above).
 bool script_navpoint_near_player_dist(navpoint *np, float dist)
 {
-    float dx, dy, dz;
-
     if (cur_character == NULL)
         return false;
-    dx = cur_character->pos.x - np->pos.x;
-    dy = cur_character->pos.y - np->pos.y;
-    dz = cur_character->pos.z - np->pos.z;
-    return dz * dz + dx * dx + dy * dy <= dist * dist;
+    vector3 d = cur_character->pos - np->pos;
+    return d.x * d.x + d.y * d.y + d.z * d.z <= dist * dist;
 }
 
 // 0x4ddaf0  Confidence: exact.
@@ -1353,7 +1349,7 @@ bool script_check_visit_count(int count)
     return savegame_state.get_visit_count(cur_level_index) >= count;
 }
 
-// 0x4ddb10  Confidence: likely (the search keeps the action pointer of the last iteration). A cutscene
+// 0x4ddb10  Confidence: exact (VC6 byte match) (the search keeps the action pointer of the last iteration). A cutscene
 // jumped to another sequence: the script continues after its synch action for that sequence (a synch
 // teleport also places the character), with the AI goals, the animations and a move in progress reset.
 void script_entry_jump_to_sequence(script_object *so, Character *c)
@@ -1367,7 +1363,7 @@ void script_entry_jump_to_sequence(script_object *so, Character *c)
     for (i = 0; i < so->num_actions; i++) {
         a = &so->actions[i];
         if ((a->type == SCRIPT_ACTION_SYNCH || a->type == SCRIPT_ACTION_SYNCH_TELEPORT)
-            && a->arg0c == cutscene_cur_sequence)
+            && cutscene_cur_sequence == a->arg0c)
             break;
     }
     if (i >= so->num_actions)

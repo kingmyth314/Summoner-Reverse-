@@ -302,7 +302,7 @@ void cmd_No_cutscenes();                             // 0x4cce40
 void level_check_triggers();                         // 0x4caa00 (level_script_frame)
 // (trigger, previous position, position): the position on the left of the trigger's path (x / z); the
 // previous position is not read.
-int  level_trigger_point_left_of_line(level_trigger *t, const vector3 *prev, const vector3 *cur);   // 0x4caed0
+int  level_trigger_point_left_of_line(s3d_named_path *path, const vector3 *prev, const vector3 *cur);   // 0x4caed0
 void script_place_party_at_starts();                 // 0x4cb010
 void level_script_restart();                         // 0x4cb060
 void level_script_reload();                          // 0x4cb350 (script editor)

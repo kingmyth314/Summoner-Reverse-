@@ -73,7 +73,7 @@ bool Camera_geometry_avoidance;       // 0x22e4b0c
 // 0x4778c0 init_ccmd_zoom_limit (console_command::console_command(0x22e4af0, ...)). Confidence: exact.
 console_command ccmd_zoom_limit("zoom_limit", "Toggle camera zoom limiting.", cmd_zoom_limit);   // 0x22e4af0
 
-// 0x4778e0  Confidence: likely (the 1.0 store comes before the test). Not a toggle: "on" gives 1.0,
+// 0x4778e0  Confidence: exact (VC6 byte match) (the 1.0 store comes before the test). Not a toggle: "on" gives 1.0,
 // anything else 1000.0. The texts have no newline.
 void cmd_zoom_limit()
 {
@@ -84,7 +84,12 @@ void cmd_zoom_limit()
             camera_zoom_max = 1000.0f;
     }
     if (checking_status_for_command)
-        print_to_console(camera_zoom_max == 1.0f ? "Camera zoom limit is on." : "Camera zoom limit is off.", 0);
+    {
+        if (camera_zoom_max == 1.0f)
+            print_to_console("Camera zoom limit is on.", 0);
+        else
+            print_to_console("Camera zoom limit is off.", 0);
+    }
     if (doing_help_for_comand)
         print_to_console("Usage: zoom_limit [on | off]", 0);
 }
@@ -168,7 +173,7 @@ void camera::apply_input_deltas()
     elevation = min(elevation, 9.0f);
 }
 
-// 0x477ca0  Confidence: likely (the two quadrant fix-ups are the code's, odd as they are). Turns the yaw
+// 0x477ca0  Confidence: exact (VC6 byte match) (the two quadrant fix-ups are the code's, odd as they are). Turns the yaw
 // toward wanted_dir by at most 45 degrees per second of difference; a low, close view first zooms out
 // (flag 0x40 blocks the zoom input, 0x100 restores the zoom afterwards).
 void camera::auto_rotate_update()
@@ -197,7 +202,7 @@ void camera::auto_rotate_update()
     while (yaw - a < -CAM_PI)
         a -= CAM_TWO_PI;
     d = yaw - a;
-    if (fabs(d) > 0.174533f) {
+    if (fabsf(d) > 0.174533f) {
         if (elevation < 4.0f && zoom < 0.8f) {
             if (!was_blocked) {
                 saved_zoom = zoom;
@@ -345,7 +350,7 @@ void camera_approach_value(float *value, float *velocity, float accel, float dt,
     }
 }
 
-// 0x4784e0  Confidence: likely (thiscall with four arguments, ret 0x10; only the index is read).
+// 0x4784e0  Confidence: exact (VC6 byte match) (thiscall with four arguments, ret 0x10; only the index is read).
 void camera::add_occluder(vector3 *a, int lobj_index, int start_count, float radius)
 {
     int i;
@@ -399,21 +404,21 @@ int camera::find_occluders(vector3 *a, vector3 *b, float radius)
     return 0;
 }
 
-// 0x478700  Confidence: likely (h's slot holds the difference). A new wanted height only past 0.3; the
+// 0x478700  Confidence: exact (VC6 byte match) (h's slot holds the difference). A new wanted height only past 0.3; the
 // height moves at 4 x the difference per second and snaps within 0.001.
 // GAME BUG (NOTES): when a step would overshoot (frame time above 0.25 s) it is replaced by -difference,
 // which moves the height away from the wanted one.
 void camera::smooth_height(float h)
 {
-    if (fabs(height[0] - h) > 0.3f)
+    if (fabsf(height[0] - h) > 0.3f)
         height[1] = h;
     if (height[0] != height[1]) {
         float d = height[1] - height[0];
         float step = reported_frametime * d * 4.0f;
-        if (fabs(d) < fabs(step))
+        if (fabsf(step) > fabsf(d))
             step = -d;
         height[0] += step;
-        if (fabs(height[1] - height[0]) < 0.001f)
+        if (fabsf(height[1] - height[0]) < 0.001f)
             height[0] = height[1];
     }
 }
@@ -601,13 +606,15 @@ camera::~camera()
         end_sequence(true);
 }
 
-// 0x478e00  Confidence: likely (both branches end in one store of z).
+// 0x478e00  Confidence: exact (VC6 byte match) (both branches end in one store of z).
 void camera::update_target_pos()
 {
-    if (target)
-        look_at = target->centre_offset + target->pos;
-    else
-        look_at = vector3(0.0f, 0.0f, 0.0f);
+    if (!target) {
+        look_at.x = 0.0f;
+        look_at.y = 0.0f;
+        look_at.z = 0.0f;
+    } else
+        look_at = target->pos + target->centre_offset;
     look_at.y += look_height;
 }
 
@@ -653,7 +660,7 @@ void camera::reset_default()
 // 0x478fd0  Confidence: exact. ret 4.
 void camera::set_height(float h)
 {
-    height[0] = height[1] = h;
+    height[1] = height[0] = h;
 }
 
 // 0x478ff0  Confidence: exact. ret 4. A new target more than 10 units away snaps the camera; a closer one
@@ -700,7 +707,7 @@ void camera::set_input(float yaw_rate, float zoom_rate, float elevation_rate)
     input_elevation = elevation_rate;
 }
 
-// 0x4791a0  Confidence: likely (the matrix assignment is expanded). With a Ctrl key held the mouse turns
+// 0x4791a0  Confidence: exact (VC6 byte match) (the matrix assignment is expanded). With a Ctrl key held the mouse turns
 // the rendered view; the keys then move it (movement_read_controls).
 void camera::free_look_update()
 {
@@ -753,7 +760,7 @@ void camera::cut_to_view_stub(vector3 *pos, matrix3 *orient, float distance, flo
 {
 }
 
-// 0x479440  Confidence: likely (switch on the state; the delete tests the pointer again). A shot in state
+// 0x479440  Confidence: exact (VC6 byte match) (switch on the state; the delete tests the pointer again). A shot in state
 // 1 (a blend, D3806) is deleted (scalar deleting destructor, flag 1); a shot (state 0) is only dropped.
 void camera::free_sequence()
 {
@@ -823,14 +830,14 @@ bool camera::enemy_near_leader()
     return false;
 }
 
-// 0x479740  Confidence: likely (three bit-field stores merged: flag 0x1 cleared, 0x2 = follow, 0x10 =
+// 0x479740  Confidence: exact (VC6 byte match) (three bit-field stores merged: flag 0x1 cleared, 0x2 = follow, 0x10 =
 // free look). ret 8. A running shot ends first, popping the state unless free look is asked for.
 void camera::set_follow_flags(bool a, bool b)
 {
     if (flags & CAMF_SEQUENCE)
         end_sequence(!b);
     flags = (flags & ~(CAMF_FOLLOW_VIEW | CAMF_FOLLOW_TARGET | CAMF_FREE_LOOK))
-          | ((((b != 0) << 3) | (a != 0)) << 1);
+          | (((((b != 0) & 1) << 3) | ((a != 0) & 1)) << 1);
 }
 
 // 0x479790  Confidence: exact.
@@ -885,10 +892,10 @@ void camera::set_view_params(float dist, float elev, float z, float lh, float ey
 void camera::set_default_view_params(float dist, float elev, float z, float lh, float eye_off)
 {
     default_distance = dist;
-    default_zoom = z;
-    default_eye_offset = eye_off;
     default_elevation = elev;
+    default_zoom = z;
     default_look_height = lh;
+    default_eye_offset = eye_off;
     flags |= CAMF_DEFAULTS_SET;
 }
 

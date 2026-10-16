@@ -622,7 +622,7 @@ int  cast_effect_track_count();                       // 0x475160
 // decomp56: the AI combat unit (0x4bce60-0x4c0245, game/unnamed_ai_combat_0x4bce60.cpp, file not known).
 // (records, count, heal wanted, cure wanted): per record flag 1 hurt below half (score 50 - 100 * HP
 // fraction), flag 2 a curable status (+10); returns the sum of the scores.
-float ai_score_support_targets(boss_target *list, int count, bool heal, bool cure);   // 0x4be940
+float ai_score_support_targets(boss_target *list, int count, int heal, int cure);   // 0x4be940
 extern vector3 ai_combat_aim_point;                   // 0x2483558 the target's attack point or position (name ours)
 // The AI movement unit (0x4b1410-0x4b513f, game/unnamed_ai_move_0x4b1410.cpp; decomp68). Names ours.
 extern Character *ai_follow_target;                   // 0x247e878 set before ai_follow_path by the combat code (never read)

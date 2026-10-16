@@ -73,7 +73,7 @@ void cmd_tiger_stage()
 // 0x499f10 init_ccmd_tiger_unlink (console_command constructor). Confidence: exact.
 console_command ccmd_tiger_unlink("tiger_unlink", "Unlinks tiger to mount", cmd_tiger_unlink);   // 0x2452ca8
 
-// 0x499f30  Confidence: likely (the store order). The last tiger rider in the living list.
+// 0x499f30  Confidence: exact (VC6 byte match) (the store order). The last tiger rider in the living list.
 void cmd_tiger_unlink()
 {
     Character *rider = NULL;
@@ -142,48 +142,57 @@ int tiger_current_move_index()
 // 0x49a0c0  Confidence: exact. The ride stand / walk / run in the ready slots (the stand slots keep theirs).
 void tiger_set_ride_stand_anims(Character *c)
 {
-    c->anim_ready = tiger_anim_ride_stand;
-    c->anim_ready_hurt = tiger_anim_ride_stand;
-    c->anim_walk = tiger_anim_ride_walk;
-    c->anim_walk_hurt = tiger_anim_ride_walk;
-    c->anim_run = tiger_anim_ride_run;
-    c->anim_run_hurt = tiger_anim_ride_run;
+    int stand = tiger_anim_ride_stand;
+    c->anim_ready = stand;
+    c->anim_ready_hurt = stand;
+    int walk = tiger_anim_ride_walk;
+    c->anim_walk = walk;
+    c->anim_walk_hurt = walk;
+    int run = tiger_anim_ride_run;
+    c->anim_run = run;
+    c->anim_run_hurt = run;
 }
 
 // 0x49a100  Confidence: exact.
 void tiger_set_stage1_anims(Character *c)
 {
-    c->anim_ready = tiger_anim_ride_ready;
-    c->anim_ready_hurt = tiger_anim_ride_ready;
-    c->anim_walk = tiger_anim_stage1_walk;
-    c->anim_walk_hurt = tiger_anim_stage1_walk;
-    c->anim_run = tiger_anim_stage1_run;
-    c->anim_run_hurt = tiger_anim_stage1_run;
+    int ready = tiger_anim_ride_ready;
+    c->anim_ready = ready;
+    c->anim_ready_hurt = ready;
+    int walk = tiger_anim_stage1_walk;
+    c->anim_walk = walk;
+    c->anim_walk_hurt = walk;
+    int run = tiger_anim_stage1_run;
+    c->anim_run = run;
+    c->anim_run_hurt = run;
 }
 
 // 0x49a140  Confidence: exact. The stand slots get stage2_walk too (ride_horse_ready_axe, loaded into
 // tiger.anim_ride_ready_axe, is never used; NOTES.md).
 void tiger_set_stage2_anims(Character *c)
 {
-    c->anim_stand = tiger_anim_stage2_walk;
-    c->anim_ready = tiger_anim_stage2_walk;
-    c->anim_stand_hurt = tiger_anim_stage2_walk;
-    c->anim_ready_hurt = tiger_anim_stage2_walk;
-    c->anim_norm_walk = tiger_anim_stage2_walk;
-    c->anim_walk = tiger_anim_stage2_walk;
-    c->anim_norm_walk_hurt = tiger_anim_stage2_walk;
-    c->anim_walk_hurt = tiger_anim_stage2_walk;
-    c->anim_norm_run = tiger_anim_stage2_run;
-    c->anim_run = tiger_anim_stage2_run;
-    c->anim_norm_run_hurt = tiger_anim_stage2_run;
-    c->anim_run_hurt = tiger_anim_stage2_run;
+    int stand = tiger_anim_stage2_walk;
+    c->anim_stand = stand;
+    c->anim_ready = stand;
+    c->anim_stand_hurt = stand;
+    c->anim_ready_hurt = stand;
+    int walk = tiger_anim_stage2_walk;
+    c->anim_norm_walk = walk;
+    c->anim_walk = walk;
+    c->anim_norm_walk_hurt = walk;
+    c->anim_walk_hurt = walk;
+    int run = tiger_anim_stage2_run;
+    c->anim_norm_run = run;
+    c->anim_run = run;
+    c->anim_norm_run_hurt = run;
+    c->anim_run_hurt = run;
 }
 
-// 0x49a1a0  Confidence: likely (the buffer sizes). As serpent_rider_set_flinch.
+// 0x49a1a0  Confidence: exact (VC6 byte match) (the buffer sizes). As serpent_rider_set_flinch.
 void tiger_rider_set_flinch(move_info *moves)
 {
     char num[2];
-    char msg[0x70];
+    char msg[0x80];
 
     for (move_info *m = moves; m; m = m->next) {
         const char *p = m->action;
@@ -205,37 +214,43 @@ void tiger_rider_set_flinch(move_info *moves)
     tiger.flinch_status[0] = tiger.flinch_status[1];
 }
 
-// 0x49a2c0  Confidence: likely (the two equip results land in the argument slots). Stage 1: mounted
+// 0x49a2c0  Confidence: exact (VC6 byte match) (the two equip results land in the argument slots). Stage 1: mounted
 // (unless on_foot), the spear on four tags and the axe on the fifth, four spear moves left.
 void tiger_equip_weapon(Character *c, bool on_foot)
 {
+    int anim;
+
     if (!on_foot) {
         boss_ensure_mount(c);
-        if (tiger_anim_ride_stand != -1) {
-            c->anim_stand = tiger_anim_ride_stand;
-            c->anim_ready = tiger_anim_ride_stand;
-            c->anim_stand_hurt = tiger_anim_ride_stand;
-            c->anim_ready_hurt = tiger_anim_ride_stand;
+        anim = tiger_anim_ride_stand;
+        if (anim != -1) {
+            c->anim_stand = anim;
+            c->anim_ready = anim;
+            c->anim_stand_hurt = anim;
+            c->anim_ready_hurt = anim;
         }
-        if (tiger_anim_ride_walk != -1) {
-            c->anim_norm_walk = tiger_anim_ride_walk;
-            c->anim_walk = tiger_anim_ride_walk;
-            c->anim_norm_walk_hurt = tiger_anim_ride_walk;
-            c->anim_walk_hurt = tiger_anim_ride_walk;
+        anim = tiger_anim_ride_walk;
+        if (anim != -1) {
+            c->anim_norm_walk = anim;
+            c->anim_walk = anim;
+            c->anim_norm_walk_hurt = anim;
+            c->anim_walk_hurt = anim;
         }
-        if (tiger_anim_ride_run != -1) {
-            c->anim_norm_run = tiger_anim_ride_run;
-            c->anim_run = tiger_anim_ride_run;
-            c->anim_norm_run_hurt = tiger_anim_ride_run;
-            c->anim_run_hurt = tiger_anim_ride_run;
+        anim = tiger_anim_ride_run;
+        if (anim != -1) {
+            c->anim_norm_run = anim;
+            c->anim_run = anim;
+            c->anim_norm_run_hurt = anim;
+            c->anim_run_hurt = anim;
         }
     }
     int spear = item_type_find("TigerSpear");
-    tiger_weapon = item_create_weapon(spear);
+    item_info *weapon = item_create_weapon(spear);
+    tiger_weapon = weapon;
     int axe = item_type_find("TigerAxe");
     tiger_axe = item_create_weapon(axe);
     item_info *old1, *old2;
-    character_equip_item(&old1, &old2, c, 5, tiger_weapon);
+    character_equip_item(&old1, &old2, c, 5, weapon);
     if (old1)
         item_free(old1);
     if (old2)
@@ -255,7 +270,7 @@ void tiger_equip_weapon(Character *c, bool on_foot)
     tiger_target = -1;
 }
 
-// 0x49a420  Confidence: likely. Stage 2: the axe in hand, the four spear tags emptied (slot 0x11).
+// 0x49a420  Confidence: exact (VC6 byte match). Stage 2: the axe in hand, the four spear tags emptied (slot 0x11).
 void tiger_swap_weapon(Character *c)
 {
     if (tiger_axe) {
@@ -276,29 +291,35 @@ void tiger_swap_weapon(Character *c)
     tiger_spear_uses_left = 0;
 }
 
-// 0x49a4b0  Confidence: likely. Stage 3, on foot: the walking animations, the axe in hand (slot 0), off
+// 0x49a4b0  Confidence: exact (VC6 byte match). Stage 3, on foot: the walking animations, the axe in hand (slot 0), off
 // the mount.
 void tiger_setup_anims(Character *c)
 {
-    if (tiger_anim_ready != -1) {
-        c->anim_ready = tiger_anim_ready;
-        c->anim_stand = tiger_anim_ready;
+    int anim;
+
+    anim = tiger_anim_ready;
+    if (anim != -1) {
+        c->anim_ready = anim;
+        c->anim_stand = anim;
     }
-    if (tiger_anim_ready_hurt != -1) {
-        c->anim_stand_hurt = tiger_anim_ready_hurt;
-        c->anim_ready_hurt = tiger_anim_ready_hurt;
+    anim = tiger_anim_ready_hurt;
+    if (anim != -1) {
+        c->anim_stand_hurt = anim;
+        c->anim_ready_hurt = anim;
     }
-    if (tiger_anim_walk != -1) {
-        c->anim_norm_walk = tiger_anim_walk;
-        c->anim_walk = tiger_anim_walk;
-        c->anim_norm_walk_hurt = tiger_anim_walk;
-        c->anim_walk_hurt = tiger_anim_walk;
+    anim = tiger_anim_walk;
+    if (anim != -1) {
+        c->anim_norm_walk = anim;
+        c->anim_walk = anim;
+        c->anim_norm_walk_hurt = anim;
+        c->anim_walk_hurt = anim;
     }
-    if (tiger_anim_run != -1) {
-        c->anim_norm_run = tiger_anim_run;
-        c->anim_run = tiger_anim_run;
-        c->anim_norm_run_hurt = tiger_anim_run;
-        c->anim_run_hurt = tiger_anim_run;
+    anim = tiger_anim_run;
+    if (anim != -1) {
+        c->anim_norm_run = anim;
+        c->anim_run = anim;
+        c->anim_norm_run_hurt = anim;
+        c->anim_run_hurt = anim;
     }
     if (tiger_axe) {
         item_info *old1, *old2;
@@ -357,7 +378,7 @@ void tiger_set_ride_anims(Character *c)
     tiger_has_rider = true;
 }
 
-// 0x49a6c0  Confidence: likely (the case order of the forced stage). A forced stage, else below 50 % HP
+// 0x49a6c0  Confidence: exact (VC6 byte match) (the case order of the forced stage). A forced stage, else below 50 % HP
 // stage 3 (after the current move and the level script's answer), above 50 % with the spear used up
 // stage 2, else stage 1.
 void ai_state::tiger_check_stage()
@@ -443,7 +464,7 @@ bool tiger_pick_wander_point(Character *self, Character *target, int tries, floa
     return false;
 }
 
-// 0x49a9b0  Confidence: likely (the direction to the target is computed and normalised but not used).
+// 0x49a9b0  Confidence: exact (VC6 byte match) (the direction to the target is computed and normalised but not used).
 // Three tries at a wander point behind and beside the tiger relative to the target, 8-12 m from it.
 bool ai_state::tiger_wander_start(int target_handle)
 {
@@ -536,8 +557,8 @@ void tiger_cache_move_b8(Character *c)
     if (m) {
         for (int i = 0; i < 3; i++) {
             if (m->triggers[i].id == 7) {
-                tiger.charge_trigger_time = m->triggers[i].time;
-                return;
+                t = m->triggers[i].time;
+                break;
             }
         }
     }
@@ -545,7 +566,7 @@ void tiger_cache_move_b8(Character *c)
 }
 
 // ---- setup -----------------------------------------------------------------------------------------
-// 0x49ad20  Confidence: likely. Every load: the stage (on foot, stage 3 in Liangshan / Jadetemple), the
+// 0x49ad20  Confidence: exact (VC6 byte match). Every load: the stage (on foot, stage 3 in Liangshan / Jadetemple), the
 // move table, the animations, the weapons, the flinch moves, the timers and move state.
 void ai_state::tiger_boss_load()
 {
@@ -886,7 +907,7 @@ strike:
     t->ai.alert_guards_of_target(owner);
 }
 
-// 0x49b9e0  Confidence: likely. Sub-mode 0x1e: a charge (sub-mode 0x1f, the mount travels) when the
+// 0x49b9e0  Confidence: exact (VC6 byte match). Sub-mode 0x1e: a charge (sub-mode 0x1f, the mount travels) when the
 // target is more than 4 m away and a direct path exists, else the axe move and the normal approach.
 void ai_state::tiger_approach_target(Character *t)
 {
@@ -1192,7 +1213,7 @@ void tiger_anim_remap_out(Character *c, int *anims)
     if (mount == NULL)
         return;
     for (int i = 0; i < tiger_anim_remap_count; i++) {
-        set->anim[i] = mount->loco_anims[tiger.remap_slot[i]];
+        set->anim[i] = c->loco_anims[tiger.remap_slot[i]];
         set->weight[i] = tiger.remap_weight[i];
     }
 }
@@ -1280,7 +1301,7 @@ bool ai_state::tiger_stage_move_update()
     return false;
 }
 
-// 0x49c4a0  Confidence: likely. boss_set_foot_anims: stage 3 on foot, the axe in hand.
+// 0x49c4a0  Confidence: exact (VC6 byte match). boss_set_foot_anims: stage 3 on foot, the axe in hand.
 void tiger_set_foot_anims(Character *c)
 {
     int anim;
@@ -1333,7 +1354,7 @@ void tiger_set_foot_anims(Character *c)
     tiger_target_stage = 3;
 }
 
-// 0x49c610  Confidence: likely (the store order). boss_dismount_dispatch for the tiger, phoenix and
+// 0x49c610  Confidence: exact (VC6 byte match) (the store order). boss_dismount_dispatch for the tiger, phoenix and
 // serpent riders: rider_unlink_mount written out.
 void boss_dismount(Character *c)
 {
@@ -1353,12 +1374,12 @@ void boss_dismount(Character *c)
 void tiger_move_done_hook(Character *c)
 {
     if (tiger_current_move_index() == 0) {
-        tiger.weapon_ready = false;
         tiger_spear_uses_left--;
+        tiger.weapon_ready = false;
     }
 }
 
-// 0x49c690  Confidence: likely (cases 1 and 2-5 have separate, identical bodies). boss_move_in_range_dispatch:
+// 0x49c690  Confidence: exact (VC6 byte match) (cases 1 and 2-5 have separate, identical bodies). boss_move_in_range_dispatch:
 // the spear reaches spell 0x37's distance, the other moves twice the attack radius.
 int tiger_move_in_range(Character *boss, Character *target)
 {

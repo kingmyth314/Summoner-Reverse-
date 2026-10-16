@@ -38,7 +38,7 @@
 #define MP_MACHIVAL_TELEPORT_MOVE 0x33   // the sub-mode of his teleport (machival_ai_special_move)
 
 // 0x488230  Confidence: exact (VC6 byte match). SWI_PTH {handle, walk}: start traveling along the current path.
-void mp_send_character_walk(Character *c, int a)
+void mp_send_character_walk(Character *c, bool a)
 {
     ubyte data[MP_MAX_PACKET];
     ushort packet_size;

@@ -127,7 +127,7 @@ void ai_state::group_assign_formation()
     }
 }
 
-// 0x4b52e0  Confidence: likely (jump table 0x4b53a4 over slots 1..5; the leader lookup's result is not
+// 0x4b52e0  Confidence: exact (VC6 byte match) (jump table 0x4b53a4 over slots 1..5; the leader lookup's result is not
 // used). Slots: 1 (-2, -2), 2 (2, -2), 3 (0, -4), 4 (4, -4), 5 (-4, -4) as (side, ahead) along dir.
 void ai_state::formation_slot_position(vector3 *out, const vector3 *base, const vector3 *dir, int slot)
 {
@@ -214,7 +214,7 @@ void ai_score_target(ai_target_query *q, bool boss_list)
             return;
     }
     maxdy = self->type == 9 ? 7.5f : 3.0f;
-    if (fabs(c->pos.y - self->pos.y) > maxdy)
+    if (fabsf(c->pos.y - self->pos.y) > maxdy)
         return;
     if (!self->has_line_of_sight_to(c))
         return;
@@ -273,8 +273,11 @@ void ai_state::retaliate_on_hit(int attacker)
     if (target != -1) {
         float da = distance_squared(&owner->pos, &a->pos);
         Character *t = living_from_handle(target);
-        if (t && owner->info->intelligence * 4.0f * da >= distance_squared(&owner->pos, &t->pos))
-            return;
+        if (t) {
+            float dt = distance_squared(&owner->pos, &t->pos);
+            if (owner->info->intelligence * 4.0f * da >= dt)
+                return;
+        }
     }
     add_attack(a, 1000);
 }
@@ -352,7 +355,7 @@ int ai_state::follow_repath(Character *self, Character *target)
     return 0;
 }
 
-// 0x4b5bd0  Confidence: likely. A member of the target's group (the target its leader) walks to its
+// 0x4b5bd0  Confidence: exact (VC6 byte match). A member of the target's group (the target its leader) walks to its
 // formation slot around where the leader will be; close (within 25 units squared for a party leader, 9
 // otherwise) it waits (sub-mode 5), ahead of a moving leader it lets it pass (sub-mode 4). Anyone else
 // follows by edge distance: beyond 100 it gives up (1), beyond 3 it re-paths (ai_follow_repath).
@@ -372,8 +375,9 @@ int ai_state::follow_character(Character *t)
         near_d2 = 9.0f;
     if (group && group == t->ai.group && group->leader == t->handle) {
         ai_path *pp;
+        float dt = timer3c.GetRemainingTime() * (1.0f / 3000.0f);
 
-        t->ai.predict_owner_position(&p, timer3c.GetRemainingTime() * (1.0f / 3000.0f));
+        t->ai.predict_owner_position(&p, dt);
         if ((!is_mode(AI_STATE_TRAVELING, AIS_TRAVEL_FOLLOW) && !is_mode(AI_STATE_TRAVELING, AIS_TRAVEL_FOLLOW_SLOW))
             || t->get_698() < 0.01f) {
             p.y = owner->pos.y;
@@ -384,7 +388,8 @@ int ai_state::follow_character(Character *t)
                 return 0;
             }
         }
-        owner->ai.formation_slot_position(&slot, &p, &t->orient.fvec, -1);
+        vector3 *fwd = &t->orient.fvec;
+        owner->ai.formation_slot_position(&slot, &p, fwd, -1);
         slot.y = owner->pos.y;
         pf_find_nearest_navigable_point(&slot, owner->info->size, owner->layer);
         layer = pf_trace_edge_crossings(&t->pos, t->layer, slot);
@@ -402,7 +407,7 @@ int ai_state::follow_character(Character *t)
             if (t->get_698() > 0.0f) {
                 vector3 to = slot - owner->pos;
                 to.normalize();
-                if (to.z * t->orient.fvec.z + to.y * t->orient.fvec.y + to.x * t->orient.fvec.x < 0.0f) {
+                if (to.x * fwd->x + to.y * fwd->y + to.z * fwd->z < 0.0f) {
                     ai_path_free(path);
                     path = NULL;
                     set_mode(AI_STATE_TRAVELING, AIS_TRAVEL_FOLLOW_SLOW);
@@ -433,7 +438,7 @@ int ai_state::follow_character(Character *t)
 }
 
 // ---- goal handlers ---------------------------------------------------------------------------------------
-// 0x4b6000  Confidence: likely. Busy targets (all five attack slots taken by others) and invisible ones
+// 0x4b6000  Confidence: exact (VC6 byte match). Busy targets (all five attack slots taken by others) and invisible ones
 // (status 8) are left alone; the travel goals go, the combat target is set; a party member out of the
 // ready stance asks for combat mode first.
 int ai_state::goal_do_attack(int target_handle, unsigned int goal_flags)
@@ -463,8 +468,10 @@ int ai_state::goal_do_attack(int target_handle, unsigned int goal_flags)
         if (d > owner->info->detection_range)
             return 1;
     }
-    while (goal_remove(goal_find(1, AI_GOAL_PATHFIND, 0, 0, -1, 0, 0, AI_NO_SPELL)))
-        ;
+    while (1) {
+        if (!goal_remove(goal_find(1, AI_GOAL_PATHFIND, 0, 0, -1, 0, 0, AI_NO_SPELL)))
+            break;
+    }
     if (target == target_handle && mode == AI_STATE_COMBAT)
         return 0;
     target = target_handle;
@@ -555,7 +562,7 @@ int ai_state::goal_do_approach_party(int target_handle)
     return follow_character(t);
 }
 
-// 0x4b6430  Confidence: likely (the store order of the reset).
+// 0x4b6430  Confidence: exact (VC6 byte match) (the store order of the reset).
 int ai_state::goal_do_combat_mode()
 {
     if (owner->type == 7) {
@@ -625,7 +632,10 @@ int ai_state::goal_do_move_to(vector3 *pos, int layer, bool walk, ai_path *p)
     path_timer_b.SetTimeout(1000);
     path_timer_a.SetTimeout(1000);
     set_mode(AI_STATE_TRAVELING, AIS_TRAVEL_GOTO);
-    owner->set_speed_scale(walk ? owner->walk_speed : owner->run_speed, false);
+    if (walk)
+        owner->set_speed_scale(owner->walk_speed, false);
+    else
+        owner->set_speed_scale(owner->run_speed, false);
     if ((game_flags & 2) && character_is_locally_controlled(owner))
         mp_send_character_walk(owner, walk);
     return 0;
@@ -638,7 +648,10 @@ void ai_state::goal_do_move_to_timed(vector3 *pos, int layer, float arg, bool wa
     cast_arg = layer;
     wander_radius = arg;
     set_mode(AI_STATE_TRAVELING, AIS_TRAVEL_WANDER);
-    owner->set_speed_scale(walk ? owner->walk_speed : owner->run_speed, false);
+    if (walk)
+        owner->set_speed_scale(owner->walk_speed, false);
+    else
+        owner->set_speed_scale(owner->run_speed, false);
     timer40.SetTimeout(0);
 }
 
@@ -689,7 +702,7 @@ void ai_state::goal_do_sneak()
         mp_send_swi_sneak(owner);
 }
 
-// 0x4b6810  Confidence: likely (store order). The backstab within 2 units edge distance.
+// 0x4b6810  Confidence: exact (VC6 byte match) (store order). The backstab within 2 units edge distance.
 void ai_state::goal_do_special_attack(int target_handle)
 {
     Character *t = living_from_handle(target_handle);
@@ -720,7 +733,7 @@ void ai_state::goal_do_pickup(int target_handle)
     o = obj_from_handle(target_handle);
     if (o && (o->type == 3 || o->type == 0xb)) {
         vector3 d = o->pos - owner->pos;
-        if ((float)sqrt(d.x * d.x + d.y * d.y + d.z * d.z) <= 2.25f)
+        if (d.len() <= 2.25f)
             item_obj_pickup((item_obj *)o, 1);
     }
 }
