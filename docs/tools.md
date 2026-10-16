@@ -259,35 +259,81 @@ Set `Agent=0` again for normal play.
 ## `tools/savinfo.mjs`
 
 Read-only savegame inspector, based on [Savegame format](sum-exe/savegame.md). It prints the header (level, description,
-play time, section sizes) and the party members from the `LENT` chunk: level, experience, HP/AP, skill points and
-equipped items. Item names are shown when `items.tbl` has been extracted. `--all` also lists the other entity records.
+play time, section sizes), the gold and the party inventory, the party members from the `LENT` chunk (level,
+experience, HP/AP, skill points and equipped items), the story flags that are set and the non-zero variables of each
+level, and the active journal quests. `--all` also lists the other entity records, and `--flags-all` lists every level
+and every flag, set or not.
+
+Names come from the game tables, read at run time from `Summoner/tables.vpp` in memory (nothing is extracted):
+item names from `items.tbl`, flag, variable and quest names from `events.tbl`, and the automap layer counts, which
+the flag offsets depend on, from the `<level>.tbl` files. `--tables FILE.vpp` names another packfile, `--tables-dir DIR`
+a folder of extracted `.tbl` files, and `--items-tbl FILE` / `--events-tbl FILE` single files; `--lang` picks the
+language section (default `english`). Without `items.tbl` the items are shown by hash. The flags are shown only when
+the tables reproduce the save's level-data size exactly (25,035 bytes in v1.40); otherwise savinfo says why.
+
+`--json` prints everything as one JSON document for a GUI or a script: `{tool, format, tables, saves: [...]}`. Each
+save has the header fields, `inventory` (gold and entries with name, hash, count), `party` (with all 36 skill bytes
+and the equipment by slot), and `levels`: all 51 levels with every flag (0 or 1), int and float variable. The exit
+code is 2 when a file could not be read or is not a v1.40 save.
 
 ```
-node tools/vpp.mjs extract Summoner/tables.vpp items.tbl
 node tools/savinfo.mjs Summoner/savegame/summoner7.sav
+node tools/savinfo.mjs --json Summoner/savegame/summoner7.sav > save.json
 ```
 
 ## `tools/savedit.mjs`
 
 Savegame editor. It **never overwrites a file**: it writes a new output file, refuses if that file exists or is the
-input, and leaves the original untouched. It can change the description, the party's gold, and a party member's
-level, experience, HP/max HP, AP/max AP and skill points. On load the game recomputes only the skill cap from the level,
-so raising the level does not add the HP, AP or skill points of the skipped levels. Only party members (record type 7,
-which dead heroes keep) are counted by `--member`; type 8 is a dying summon, with no level, XP or skill block. The chunks are found from the
-size table, not by a tag search (fixed 2026-10-15). Tested 2026-10-14: an edited copy
-(5000 gold, 10 skill points) loaded and showed both values.
+input, and leaves the original untouched. Every edit is checked before anything is written, so one bad edit (an
+unknown item, flag or level, a bad number) writes nothing. It can change the description, the party's gold, the
+party inventory, story flags, and a party member's level, experience, HP/max HP, AP/max AP, skill points and skills.
+On load the game recomputes only the skill cap from the level, so raising the level does not add the HP, AP or skill
+points of the skipped levels. Only party members (record type 7, which dead heroes keep) are counted by `--member`;
+type 8 is a dying summon, with no level, XP or skill block. The chunks are found from the size table, not by a tag
+search (fixed 2026-10-15). Tested 2026-10-14: an edited copy (5000 gold, 10 skill points) loaded and showed both values.
 
-`--add-item "Name[=N]"` (2026-10-16) adds a party inventory entry. Items are found by `name_hash_nocase`
-(`0x4d5f50`): CRC-32 of the lower-cased name, table polynomial `0xedb88320`, starting at 0 with no final inversion
-(checked against the Ring of Light and Ring of Darkness entries of a fresh save). Spell the name as `items.tbl`
-does; an unknown hash fails the load. Tested: a save with `--add-item "Robe of Restoration"` loaded with the Robe
-in the party inventory.
+Options are applied in command-line order (2026-10-16). `--skill`, `--add-item`, `--remove-item`, `--set-item-count`
+and `--flag` may be repeated. `--member I` (an index from 0, or `Joseph`, `Flece`, `Jekhar`, `Rosalind`) selects the
+party member for the field options after it, and may be given again for the next member. A field given twice for
+the same member, a skill id given twice, or `--desc` / `--gold` given twice is refused instead of letting the last
+value win.
+
+**Items.** Items are found by `name_hash_nocase` (`0x4d5f50`): CRC-32 of the lower-cased name, table polynomial
+`0xedb88320`, starting at 0 with no final inversion (checked against the Ring of Light and Ring of Darkness entries
+of a fresh save). A name is accepted only if its hash is one of the item types in the save's own `ITEM` chunk, the
+list the loader resolves against, so an item the game does not know (which would fail the load) is refused, with
+similar names from `items.tbl` as hints. Case does not matter.
+
+| Option | Effect |
+|---|---|
+| `--add-item "Name[=N]"` | one more inventory entry of N items (default 1). Tested: a save with `--add-item "Robe of Restoration"` loaded with the Robe in the party inventory |
+| `--remove-item "Name[=N]"` | removes N of the item (default all), from the last entries first; refused if the party has fewer |
+| `--set-item-count "Name=N"` | the party holds exactly N: the first entry gets N, other entries of the item are removed, 0 removes it, and an item the party lacks is added |
+
+The entries, the count and the trailing length of `INVT` are rewritten together (at most 0x209 entries).
+
+**Story flags.** `--flag LEVEL:NAME=0|1` clears or sets a flag; the level is a name from `level_script_table`
+(case does not matter) or its index 0..50. A flag of another level is refused with the level it belongs to. The
+flag is bit `i & 7` of byte `i >> 3` of the level's block, where i is the flag's position in that level's list
+(`savegame_data_offset` `0x4cfbd0`, `savegame_set_flag` `0x4cfd30`). The block offsets come from `events.tbl` and the
+automap layer counts, and the edit is refused unless they add up to the save's level-data size. Setting a flag to 1
+also clears the journal bit of every quest whose `+Invalidate:` flag it is, as `quest_evaluate` (`0x4d0c90`) does in
+game. Not done offline: the game's refresh of item objects and scripted characters tied to the flag; the item objects
+are refreshed again on load (`savegame_read_level_items`), the characters are not (*inferred*).
+
+The same table options as savinfo (`--tables`, `--tables-dir`, `--items-tbl`, `--events-tbl`, `--lang`) apply.
 
 ```
 node tools/savedit.mjs Summoner/savegame/summoner7.sav edited.sav --gold 5000 --skillpoints 10 --desc "edited"
+node tools/savedit.mjs in.sav out.sav --member Rosalind --skill 20=100 --skill 21=90 --member Joseph --hp 500
+node tools/savedit.mjs in.sav out.sav --add-item "Healing Draught=5" --remove-item "Ring of Light" --flag masad:masad_flag_run_away=1
 ```
 
 To use the result, copy it into `Summoner/savegame` under an unused name such as `summoner15.sav`.
+
+The two tools share `tools/lib/savedata.mjs`, which reads the tables and the save into plain objects
+(`loadTables`, `describeSave`, `levelBlocks`, the inventory and flag helpers) and never writes a file; a GUI can use it
+directly.
 
 ## `tools/tu-split.mjs`
 
