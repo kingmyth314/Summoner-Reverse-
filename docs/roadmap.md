@@ -136,7 +136,8 @@ Added 2026-10-16 at the user's request.
 - **A save editor for players.** `tools/savedit.mjs` already edits gold and skill points from the command line and
   writes new files only; `tools/savinfo.mjs` reads every section ([Savegame](sum-exe/savegame.md) has the full
   layout). A player-facing editor would put this behind a simple window (like `SummonerFixConfig.exe`): party gold,
-  levels, skill points, inventory, story flags, with a backup of the original save.
+  levels, skill points, inventory, story flags, with a backup of the original save. *Engine done 2026-10-16:* `savedit` / `savinfo` now handle items by name, story flags by name,
+  repeatable options and `savinfo --json` (shared reader `tools/lib/savedata.mjs`); the window itself is next.
 - **More debug tools a player can reach.** What exists now is for testing: 149 console commands
   ([Console](sum-exe/console.md), cheats such as `immortal`, `Give_all_items`, `max_skills`, `add_xp`,
   `gamestage`, the boss `*_stage` commands), SummonerFix `[ConsoleKeys]`, `[Debug] ScriptEditorKey`,
