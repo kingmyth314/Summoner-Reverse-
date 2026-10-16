@@ -78,6 +78,11 @@ void DisplayGetAgentCursor(int *clientX, int *clientY);
 // agent.c
 void AgentInstall(void);
 
+// gamma.c
+void GammaConfigure(const char *mode); // [Display] Brightness: Auto, Shader, Ramp or Off
+void GammaApply(HWND wnd, int cw, int ch);
+void GammaShutdown(void);
+
 // widescreen.c
 void WidescreenInstall(void);
 int WidescreenFullPanel(void); // in game with a full-screen panel open: shift the whole output

@@ -366,8 +366,10 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
             p_glDisable(GL_SCISSOR_TEST);
         p_glClearColor(old[0], old[1], old[2], old[3]);
     }
-    if (GetMap(&m))
+    if (GetMap(&m)) {
+        GammaApply(g_wnd, m.cw, m.ch); // the options screen's brightness (K90), before the badge
         DrawSpeedIndicator(dc, &m);
+    }
     if (g_captureWanted && GetMap(&m)) {
         SaveFrame(&m, g_capturePath);
         InterlockedExchange(&g_captureWanted, 0);

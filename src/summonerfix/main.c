@@ -45,6 +45,10 @@ static void LoadConfig(void)
                      : !lstrcmpiA(r, "Glide")  ? RENDERER_GLIDE
                                                : RENDERER_OPENGL;
 
+    char bright[16];
+    GetPrivateProfileStringA("Display", "Brightness", "Auto", bright, sizeof bright, g_cfg.iniPath);
+    GammaConfigure(bright);
+
     GetPrivateProfileStringA("Sound", "Soundcard", "DirectSound", g_cfg.soundcard, sizeof g_cfg.soundcard,
                              g_cfg.iniPath);
 
@@ -108,6 +112,10 @@ static void ApplyDisplayPatches(void)
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
 {
     (void)reserved;
+    if (reason == DLL_PROCESS_DETACH) {
+        GammaShutdown(); // put the monitor's gamma ramp back if the brightness fallback changed it
+        return TRUE;
+    }
     if (reason != DLL_PROCESS_ATTACH)
         return TRUE;
     DisableThreadLibraryCalls(inst);

@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 68 | 2 |
 | Gameplay | 50 | 21 | 3 |
-| Cosmetic | 50 | 28 | 2 |
+| Cosmetic | 50 | 28 | 4 |
 | Invisible | 42 | 54 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1493,7 +1493,7 @@ retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a4
 | K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 | K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code, *inferred* effect | No |
-| K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | No |
+| K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | Fixed (`gamma.c`) |
 | K91 | With the Direct3D renderer and a hardware gamma ramp, lit polygons get the gamma curve twice | `gr_d3d_tmapper` `0x5361a0`, `gr_d3d_tmapper_multipass` `0x536360`, `gr_d3d_set_gamma` `0x53ab20` | **Observed** code, *inferred* effect | No |
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
@@ -1529,7 +1529,7 @@ retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a4
 | K250 | Latent: a blob shadow that falls on eight level objects is drawn on none of them, and on nine to fifteen only on the last few | `projector_collect_lobj_faces` `0x4c0250`, `shadows_render` `0x4a4360` | **Observed** code, *inferred* effect | No |
 | K251 | When Evil Urath leaps across more than one obstacle edge, his rise is fitted to the last edge found, not the nearest, so the arc can be too flat or too steep | `evil_urath_leap_check_path` `0x4c4200` | **Observed** code, *inferred* effect; retail path data not checked | No |
 | K252 | Latent: a multiplayer character file whose name has 32 or more characters shows the name with junk after it in the character list | `File__read_string` `0x525ee0`, `mp_player_file_read_summary` `0x46d450` | **Observed** code, *inferred* effect | No |
-| K260 | With the `DirectSound` sound setting (the default, no DirectSound3D), sounds placed in the world (footsteps, weapon hits, spells, moves, doors, loot, voices) play at the sound-effects volume squared: at half volume they play at a quarter, while menu clicks follow the slider; level ambient loops start that way until their next volume update | `snd_play_3d` `0x521480`, `snd_calc_volume_3d` `0x520fa0`, `snd_play` `0x520d50` | **Observed** code, *inferred* effect | No |
+| K260 | With the `DirectSound` sound setting (the default, no DirectSound3D), sounds placed in the world (footsteps, weapon hits, spells, moves, doors, loot, voices) play at the sound-effects volume squared: at half volume they play at a quarter, while menu clicks follow the slider; level ambient loops start that way until their next volume update | `snd_play_3d` `0x521480`, `snd_calc_volume_3d` `0x520fa0`, `snd_play` `0x520d50` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 | K261 | Latent: a saved EAX settings file (`<level>.eax` in `data\internal`) sets the listener flags to the bits of its air-absorption value; all 49 retail `.eax` files carry -5.0 there, but the game never reads them from `tables.vpp` | `eax_get_listener_props` `0x522240`, `eax_save_props` `0x5220e0`, `eax_load_props` `0x522420` | **Observed** code and retail data, *inferred* effect | No |
 | K262 | Latent: a spell ground effect whose ground node is turned more than 90 degrees about a tilted axis gets a wrong (or NaN) orientation when it is placed on the floor | `quaternion__set_from_matrix_b` `0x522790`, `vfx_instance__set_node_transform` `0x537a10` | **Observed** code, *inferred* effect; retail `.vfx` node orientations not checked | No |
 | K263 | Latent: a spot light with a projected texture lights points outside its range, shows an undefined colour for one texture format, and leaves the texture locked | `light_sample_projected_bitmap` `0x51f0d0`, `lights_shade_point` `0x51ec70`, `light_delete` `0x51e540` | **Observed** code and retail data, *inferred* effect | No |
@@ -1776,7 +1776,8 @@ textures uploaded after the change: nothing flushes the texture cache. Fonts are
 (`0x43df76`-`0x43df9e`) before the saved gamma is applied (`0x43e110`), so they use gamma 1.0. The identity table
 is right for Glide, where the hardware applies the curve; the OpenGL renderer never got a replacement.
 
-Live with SummonerFix, which runs the game on OpenGL. **How a fix could work** (not written):
+Live with SummonerFix, which runs the game on OpenGL, until its 2026-10-16 fix (`gamma.c`; options 2 and 1 below,
+see [SummonerFix](../summonerfix/index.md)). **The ways a fix could work:**
 
 1. *Hardware ramp, smallest change.* Build a `WORD[3][256]` ramp from `gr_gamma_ramp` (`0x25d8e0c`, 256 ints,
    shifted left by 8 as `gr_d3d_set_gamma` does at `0x53ab3d`-`0x53ab61`) and pass it to GDI
@@ -1798,6 +1799,12 @@ Live with SummonerFix, which runs the game on OpenGL. **How a fix could work** (
    leaves textures, the UI and bitmaps unchanged, and it would double the curve under Glide. Only a partial fix.
 
 Option 1 matches the other two renderers. Option 2 is the cleanest for a windowed or borderless game.
+
+**SummonerFix's fix.** Option 2 with a GLSL fragment shader (`pow(c, 1/gamma)`, the curve of `gr_gamma_ramp`), and
+option 1 as the fallback when OpenGL 2.0 is missing. Nothing runs at gamma 1.0. Tested in agent mode on 2026-10-16
+at gamma 0.7 and 2.0 (the main menu darkens and brightens; the black bars stay black). Not tested: the ramp fallback,
+and the slider itself (we wrote `gr_gamma` directly). The 8-bit-alpha textures uploaded after a change still get the
+curve in their alpha as before, so those few textures change opacity as in the original game.
 
 **K91. Gamma twice on Direct3D.** `gr_d3d_tmapper` passes a vertex's own colour through `gr_gamma_ramp`
 (`0x536247`-`0x536265`), and `gr_d3d_tmapper_multipass` does the same for the pass colours (`0x5366b6`-`0x5366fa`).
@@ -2104,6 +2111,11 @@ spell cast and hit sounds, moves, doors, loot drops, `feedback_play`). Emitters 
 At full volume (the default 1.0) nothing changes. The 1.75 that `snd_play_3d` passes as scale (`push 0x3fe00000` at
 `0x5214c3`) is applied only below 1.0 in the distance case (`0x52100b`..`0x52101f`), but unclamped when the sound is
 exactly at the listener (`0x520fe3`); the notes say "never".
+
+**SummonerFix's fix** (`bugfix.c`, 2026-10-16): the `fld` / `fdiv [esi + 0x28]` / `fstp` at `0x52156e` becomes a call
+that divides out the group volume as well (zero when the group volume is 0), so world sounds follow the slider
+linearly, as on the DirectSound3D path. At full volume nothing changes. Checked in the log (the patch applies); not
+yet judged by ear.
 
 **K261. Property 14 twice.** EAX 2 listener properties are numbered 2 (ROOM) to 15 (FLAGS) and fill
 `EAXLISTENERPROPERTIES` in that order. `eax_get_listener_props` reads them one by one with `IKsPropertySet::Get`, but

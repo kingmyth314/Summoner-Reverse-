@@ -12,7 +12,7 @@ if (-not $cc) { throw 'i686-w64-mingw32-gcc not found (install MartinStorsjo.LLV
 
 $ccArgs = @('-shared', '-O2', '-Wall', '-Wextra', '-Wno-unused-parameter', '-static',
           '-o', (Join-Path $out 'dinput.dll'),
-          (Join-Path $src 'main.c'), (Join-Path $src 'util.c'), (Join-Path $src 'reghook.c'), (Join-Path $src 'diag.c'), (Join-Path $src 'glfix.c'), (Join-Path $src 'display.c'), (Join-Path $src 'timing.c'), (Join-Path $src 'keys.c'), (Join-Path $src 'widescreen.c'), (Join-Path $src 'agent.c'), (Join-Path $src 'gameopts.c'), (Join-Path $src 'bugfix.c'),
+          (Join-Path $src 'main.c'), (Join-Path $src 'util.c'), (Join-Path $src 'reghook.c'), (Join-Path $src 'diag.c'), (Join-Path $src 'glfix.c'), (Join-Path $src 'display.c'), (Join-Path $src 'timing.c'), (Join-Path $src 'keys.c'), (Join-Path $src 'widescreen.c'), (Join-Path $src 'agent.c'), (Join-Path $src 'gameopts.c'), (Join-Path $src 'bugfix.c'), (Join-Path $src 'gamma.c'),
           (Join-Path $src 'dinput.def'),
           '-Wl,--enable-stdcall-fixup', '-ladvapi32', '-luser32', '-lgdi32')
 $ErrorActionPreference = 'Continue'
