@@ -114,7 +114,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
 | C274 | Latent: a level item placed while all 40 containers are in use crashes the level load | `level_item_spawn` `0x46a640`, `container_obj_create` `0x4897f0` | **Observed** code and retail data, *inferred* crash | No |
 | C280 | Latent (console only): after `play_and_load_cutscene` returns to the main menu, Start New Game crashes (access violation) | `cmd_play_and_load_cutscene` `0x437590`, `cutscene_change_level_for` `0x437400` | **Observed** in game once, cause not analysed | No |
-| C290 | Latent: Print Screen at a screen height above 1024 lines (only with a resolution patch, for example SummonerFix's `GameHeight`) overwrites the JPEG writer's return address and crashes | `jpeg_write_file` `0x5565e0` | **Observed** code, *inferred* crash | No |
+| C290 | Latent: Print Screen at a screen height above 1024 lines (only with a resolution patch, for example SummonerFix's `GameHeight`) overwrites the JPEG writer's return address and crashes | `jpeg_write_file` `0x5565e0` | **Observed** code, *inferred* crash | Avoided (`gameopts.c`) |
 | C291 | Latent: an `alt_textures.tbl` `$Base:` name of 33 to 40 characters runs into the next base, and a texture set with more than 15 textures overwrites the next set | `alt_textures_parse_table` `0x4aac10` | **Observed** code and retail data, *inferred* effect | No |
 | C292 | Latent: an input box character set with a character above `0x7f` (script editor or UI table) writes past its 128-entry stack table into the return address | `ui_inputbox__set_valid_chars` `0x552870` | **Observed** code, *inferred* crash | No |
 | C300 | Latent: with the Direct3D renderer on a card whose largest texture is smaller than a bitmap (256 on Voodoo-class cards; current cards take 8192 or more), loading that bitmap writes past the locked texture surface and reads past the bitmap | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0`, `gr_d3d_create_texture_section` `0x54bca0` | **Observed** code, *inferred* effect | No |
@@ -792,7 +792,10 @@ screen clip height (`0x25d8d68`, `0x506214`) for all three JPEG calls (`0x5064bd
 `screenshot_save` takes the JPEG path unless `Print_screen_as_targa` is set (`0x43251e`). The retail resolution
 table stops at 1024x768 ([Video settings](video-settings.md)), so the original game cannot reach it. SummonerFix
 reads any `GameWidth` / `GameHeight` from `summonerfix.ini` (`main.c`). *Inferred:* with a height above 1024,
-Print Screen ends the game when `jpeg_write_file` returns.
+Print Screen ends the game when `jpeg_write_file` returns. Confirmed in the code on 2026-10-16: after its four pushes
+the frame is `0x120c` bytes and the table starts at `+0x20c`. SummonerFix avoids it: with `GameHeight` above 1024
+it switches screenshots to Targa (`Print_screen_as_targa`, `0x5fc022`), whose writer has no row table. Not
+tested in game.
 
 **C291. Two unchecked sizes in the alternate textures table.** `alt_textures_parse_table` parses `$Base:` with a
 limit of 0x28 characters into rows of 0x21 bytes (`n * 33 + 0x2476fb8`, `0x4aacf3`..`0x4aad0f`), so a name of 33

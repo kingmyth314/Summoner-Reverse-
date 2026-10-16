@@ -140,7 +140,7 @@ first), structured so it can become a byte-matching decompilation later.
 - **Flickering right bar after cutscenes: fixed 2026-10-16** (a SummonerFix bug, K280: the strip right of the centred menus was never cleared).
 - **Sounds cut off after a fade (candidate for SummonerFix, K294).** A sound that ends during its fade leaves the fade flag on its channel; the next sound on that channel is cut within 75 ms and the old DirectSound buffer leaks. `character_play_move`'s 100 ms fade makes it happen in normal play. A fix: wrap the `ds_channel_is_playing` call in `ds_channel_update_fade` (`0x55d6f8`) so a stopped channel also clears flag 8 and is released. To reproduce before fixing (the user's rule for fixes).
 - **Robe of Restoration heals the attacker (candidate for SummonerFix, G300).** In single player the only armour with a triggered effect casts its Heal on the enemy that hit Rosalind; multiplayer aims it at the wearer. To reproduce before fixing.
-- **Print Screen above 1024 rows (C290).** `jpeg_write_file` has a 1024-row table on the stack; the retail game stops at 768, but SummonerFix's `GameHeight` can exceed 1024. Cap `GameHeight` at 1024 or patch the screenshot path.
+- **Print Screen above 1024 rows (C290): avoided 2026-10-16.** With `GameHeight` above 1024 SummonerFix switches screenshots to Targa. Not tested in game.
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

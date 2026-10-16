@@ -11,6 +11,11 @@
 //                       0x43ad36); the operand is pointed at our own float (range squared).
 // 5.0 and 25.0 are shared constants used by many other sites, so only these operands are changed.
 //
+// Print Screen above 1024 rows (game-bugs C290): jpeg_write_file (0x5565e0) keeps one row pointer per line in a
+// 1024-entry stack table, so a JPEG screenshot taller than 1024 lines overwrites its return address. The retail game
+// never runs above 768, but GameHeight can. With GameHeight > 1024 Print_screen_as_targa (0x5fc022) is set at start-up:
+// gr_screenshot then writes a Targa row by row, which has no such table. (The "targa" console command toggles it back.)
+//
 // [Debug] TestSaves=1 (testing only): setup_data_paths (0x43dee1) registers the .sav folder from the string
 // "savegame" (0x594b00); it becomes "savetest", so saves and loads use Summoner/savetest and the player's own
 // slots are never touched. The folder is created if missing.
@@ -22,6 +27,7 @@
 #define VA_PLAY_INTRO_MOVIES 0x5930bdu
 #define VA_INTERACT_OPERAND 0x40e696u  // FCOM dword ptr [0x57ef18] in hud_interact_nearest
 #define VA_CONTAINER_OPERAND 0x43ad38u // FCOMP dword ptr [0x580e08] in world_mouse_frame
+#define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u // bool, console command "targa"
 #define VA_SAVEGAME_DIR_NAME 0x594b00u // "savegame", the .sav path registered by setup_data_paths
 
 static float g_interactRange, g_containerRangeSq;
@@ -59,6 +65,11 @@ void GameOptionsInstall(void)
         g_containerRangeSq = range * range;
         WriteDword(VA_CONTAINER_OPERAND, 0x580e08, (DWORD)(UINT_PTR)&g_containerRangeSq, "container range (ContainerRange)");
         Log("container range %.2f (game default 5.0)", range);
+    }
+
+    if (g_cfg.height > 1024) {
+        BYTE off = 0, on = 1;
+        PatchBytes(VA_PRINT_SCREEN_AS_TARGA, &off, &on, 1, "Print Screen as Targa (GameHeight above 1024, C290)");
     }
 
     if (GetPrivateProfileIntA("Debug", "TestSaves", 0, g_cfg.iniPath)) {
