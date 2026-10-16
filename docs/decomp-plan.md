@@ -355,8 +355,13 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
    `/O2 /Ob0 /GX /MT` for 31 files, `/Od /Ob1 /GX /MT` for the unoptimised units).
 4. Raise the match rate. The differences, by kind (68 read by hand): branch layout 24, register allocation 15,
    stack frame 10, wrong types 8; constant folding shows up in many and is avoided by splitting expressions.
-5. Split `living_entity.cpp`: its last 32 functions (`0x461dc0`-`0x463480`) are optimised, so they belong to
-   another unit.
+5. *Done 2026-10-16:* `living_entity.cpp` is not two units. The VC6 linker keeps an object's data together, and the
+   tail's tables and console commands sit among living_entity's globals, so it is one `/O2` object that switches
+   optimisation off with `#pragma optimize("", off)` and back on before `character_say`, like the cutscene file
+   (D6100). The /Od frames of build 8168 order locals by a hash of their names, so local names decide the frame
+   (D6101). First match round (four agents, 38 files): engine 299 -> 369 of 564, game and unoptimised units
+   590 -> 743 of 1103, no match lost. What build 8168 cannot reproduce (by-value class returns, some `?:`
+   temporaries, register choices) is listed in D6005 and D6107.
 6. Write what is left: three levelrender draw lists, the PXO login / world map / automap label unit
    (`0x42f1e0`-`0x430bb0`, analysed in `src/decomp/game/NOTES-leftovers-combat-spells.md`), six net/os functions,
    then the multiplayer runs. libjpeg 6b is only identified.
