@@ -69,8 +69,8 @@ int camera_occluders_unk;             // 0x22e4acc (name ours)
 int camera_num_occluders;             // 0x22e4aec
 bool Camera_geometry_avoidance;       // 0x22e4b0c
 
-// 0x4778b0 init_ccmd_zoom_limit_thunk (jmp; static initialiser entry 229), 0x4778c0 init_ccmd_zoom_limit
-// (console_command::console_command(0x22e4af0, ...)). Confidence: exact.
+// 0x4778b0 init_ccmd_zoom_limit_thunk (jmp; static initialiser entry 229). Confidence: exact.
+// 0x4778c0 init_ccmd_zoom_limit (console_command::console_command(0x22e4af0, ...)). Confidence: exact.
 console_command ccmd_zoom_limit("zoom_limit", "Toggle camera zoom limiting.", cmd_zoom_limit);   // 0x22e4af0
 
 // 0x4778e0  Confidence: likely (the 1.0 store comes before the test). Not a toggle: "on" gives 1.0,
@@ -89,7 +89,8 @@ void cmd_zoom_limit()
         print_to_console("Usage: zoom_limit [on | off]", 0);
 }
 
-// 0x477960 init_ccmd_geom_avoid_thunk (jmp; entry 230), 0x477970 init_ccmd_geom_avoid. Confidence: exact.
+// 0x477960 init_ccmd_geom_avoid_thunk (jmp; entry 230). Confidence: exact.
+// 0x477970 init_ccmd_geom_avoid (console_command constructor). Confidence: exact.
 console_command ccmd_geom_avoid("geom_avoid", "Toggles Camera_geometry_avoidance", cmd_geom_avoid);   // 0x22e4b00
 
 // 0x477990  Confidence: exact (the console's bool command macro; nothing reads the variable).
@@ -115,8 +116,8 @@ void cmd_geom_avoid()
     }
 }
 
-// 0x477a50 init_ccmd_mlook_sensitivity_thunk (jmp; entry 231), 0x477a60 init_ccmd_mlook_sensitivity.
-// Confidence: exact.
+// 0x477a50 init_ccmd_mlook_sensitivity_thunk (jmp; entry 231). Confidence: exact.
+// 0x477a60 init_ccmd_mlook_sensitivity (console_command constructor). Confidence: exact.
 console_command ccmd_mlook_sensitivity("mlook_sensitivity", "Sets the sensitivity value for mouse look.",
                                        cmd_mlook_sensitivity);   // 0x22e4ae0
 
@@ -495,8 +496,11 @@ void camera::view_low()
 
 // 0x478990  Confidence: likely (the static guards and the EH state come from cam_vec's empty destructor;
 // see the class). Reads the target's position without a NULL test.
-// 0x478d00 camera_frame_static_dtor_b (atexit destructor of last_target_pos, a bare RET) and 0x478d10
-// camera_frame_static_dtor_a (of last_pos) are compiler-generated. Confidence: unsure (D3805).
+// The two static destructors are compiler-generated (after the function, inside this comment block so
+// that the function keeps its own address):
+// 0x478d00 camera_frame_static_dtor_b (atexit destructor of last_target_pos, a bare RET). Confidence: unsure (D3805).
+// 0x478d10 camera_frame_static_dtor_a (of last_pos, a bare RET; guard 0x22e4a38 bit 1 per sum.symbols).
+//          Confidence: unsure (D3805).
 void camera::frame()
 {
     static cam_vec last_pos(0.0f, 0.0f, 0.0f);          // 0x22e4ac0 (guard 0x22e4a38 bit 0)

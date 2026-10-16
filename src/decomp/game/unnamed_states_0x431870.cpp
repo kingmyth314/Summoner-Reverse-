@@ -57,24 +57,37 @@ bool play_intro_movies    = true;     // 0x5930bd (read at 0x41d8b0 / 0x41d8f0)
 // ---- .bss ----------------------------------------------------------------------------------------------
 // The load-game screen (state 8). Each object is a static initialiser (sinit_: call init_, then jmp to
 // register_dtor_) and an atexit destructor (register_dtor_: atexit(dtor_); dtor_: the destructor).
-// 0x431870 sinit_ui_window_5fb110 / 0x431880 init_ui_window_5fb110 (ui_window()) / 0x431890
-// register_dtor_ui_window_5fb110 / 0x4318a0 dtor_ui_window_5fb110 (~ui_window, jmp 0x52b0a0).
-// Confidence: exact (compiler-generated).
+// 0x431870 sinit_ui_window_5fb110 (static_initializers entry 94). Confidence: exact (compiler-generated).
+// 0x431880 init_ui_window_5fb110 (ui_window()). Confidence: exact.
+// 0x431890 register_dtor_ui_window_5fb110 (atexit). Confidence: exact.
+// 0x4318a0 dtor_ui_window_5fb110 (~ui_window, jmp 0x52b0a0). Confidence: exact.
 ui_window loadgame_window;            // 0x5fb110
-// 0x4318b0 / 0x4318c0 / 0x4318d0 / 0x4318e0, entry 95: a second window that nothing else uses.
-// Confidence: exact (compiler-generated); the object's purpose is not known (name ours).
+// A second window that nothing else uses; the object's purpose is not known (name ours).
+// 0x4318b0 sinit_ui_window_5fb600 (entry 95). Confidence: exact (compiler-generated).
+// 0x4318c0 init_ui_window_5fb600. Confidence: exact.
+// 0x4318d0 register_dtor_ui_window_5fb600. Confidence: exact.
+// 0x4318e0 dtor_ui_window_5fb600. Confidence: exact.
 ui_window loadgame_window_unused;     // 0x5fb600
-// 0x4318f0 / 0x431900 / 0x431920 / 0x431930, entry 96: ONE initialiser constructs both list boxes (0x5faac0,
-// then 0x5fadf0) and one atexit handler destroys them in reverse, so they are one declaration (as
-// player.cpp's party_list, player_free_list). Confidence: likely (one dynamic initialiser per declaration).
+// ONE initialiser constructs both list boxes (0x5faac0, then 0x5fadf0) and one atexit handler destroys them
+// in reverse, so they are one declaration (as player.cpp's party_list, player_free_list).
+// 0x4318f0 sinit_ui_listboxes_5faac0 (entry 96). Confidence: likely (one dynamic initialiser per declaration).
+// 0x431900 init_ui_listboxes_5faac0. Confidence: likely.
+// 0x431920 register_dtor_ui_listboxes_5faac0. Confidence: likely.
+// 0x431930 dtor_ui_listboxes_5faac0 (0x5fadf0 first). Confidence: likely.
 // 0x431950  ui_listbox::~ui_listbox, implicit: ~ui_listbox_entry (0x52d560) on +0x2d4, then ~ui_gadget;
 // the COMDAT is emitted after its first use, dtor_ui_listboxes_5faac0. Confidence: exact (compiler-generated, D3100).
 ui_listbox loadgame_level_listbox, loadgame_save_listbox;     // 0x5faac0, 0x5fadf0
-// 0x4319a0 / 0x4319b0 / 0x4319c0 / 0x4319d0, entry 97 (the destructor is the COMDAT 0x431780 of the editor
-// dialog unit). Confidence: exact (compiler-generated).
+// The destructor is the COMDAT 0x431780 of the editor dialog unit.
+// 0x4319a0 sinit_ui_static_5fa2c8 (entry 97). Confidence: exact (compiler-generated).
+// 0x4319b0 init_ui_static_5fa2c8. Confidence: exact.
+// 0x4319c0 register_dtor_ui_static_5fa2c8. Confidence: exact.
+// 0x4319d0 dtor_ui_static_5fa2c8. Confidence: exact.
 ui_static loadgame_title_static;      // 0x5fa2c8 created, never given a text
-// 0x4319e0 / 0x4319f0 / 0x431a10 / 0x431a20, entry 98: one declaration, as the list boxes (0x5fbaf0 first).
-// Confidence: likely (one declaration).
+// One declaration, as the list boxes (0x5fbaf0 first).
+// 0x4319e0 sinit_ui_buttons_5fbaf0 (entry 98). Confidence: likely (one declaration).
+// 0x4319f0 init_ui_buttons_5fbaf0. Confidence: likely.
+// 0x431a10 register_dtor_ui_buttons_5fbaf0. Confidence: likely.
+// 0x431a20 dtor_ui_buttons_5fbaf0 (0x5fa698 first). Confidence: likely.
 ui_button loadgame_load_button, loadgame_cancel_button;       // 0x5fbaf0, 0x5fa698
 
 bool game_change_level_early;         // 0x5fbf18

@@ -46,9 +46,9 @@ RealtimeTimer credits_timer;               // 0x5bc408 fade-out timer; construct
 int credits_bkgrnd_bm;                     // 0x5bc40c
 float credits_scroll_y;                    // 0x5bc410 y of the first line
 
-// init_realtimetimer_5bc408_thunk (0x408590) and init_realtimetimer_5bc408 (0x4085a0) are the
-// compiler-generated dynamic initialiser pair for credits_timer above ("mov ecx, 0x5bc408 /
-// jmp RealtimeTimer__RealtimeTimer"). Confidence: exact (no source of their own).
+// The compiler-generated dynamic initialiser pair for credits_timer above (no source of their own):
+// 0x408590 init_realtimetimer_5bc408_thunk (jmp, static_initializers entry 11). Confidence: exact.
+// 0x4085a0 init_realtimetimer_5bc408 (mov ecx, 0x5bc408 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4085b0, screen 21 init. Confidence: exact
 void credits_init()

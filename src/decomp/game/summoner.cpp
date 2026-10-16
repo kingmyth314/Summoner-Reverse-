@@ -71,10 +71,11 @@ const uint resolution_table[3][2] = {
 };
 
 // ---- .data -------------------------------------------------------------------------------------------
-// 0x594440 {level file name, display name slot}, 51 entries (D603). 0x43cd70 init_level_display_names_thunk
-// (jmp) / 0x43cd80 init_level_display_names: the slot addresses are not constant to the compiler, so
-// only entry 0's name is in the image ("test", 0x5945d8) and the initialiser writes the other 101
-// dwords (D602). Confidence: likely (how XSTR_SLOT was spelled).
+// 0x594440 {level file name, display name slot}, 51 entries (D603). The slot addresses are not constant to
+// the compiler, so only entry 0's name is in the image ("test", 0x5945d8) and the initialiser writes the
+// other 101 dwords (D602).
+// 0x43cd70 init_level_display_names_thunk (jmp, static_initializers entry 132). Confidence: exact.
+// 0x43cd80 init_level_display_names. Confidence: likely (how XSTR_SLOT was spelled).
 level_display_name level_display_names[51] = {
     { "test", XSTR_SLOT("test level", 571) },
     { "masad", XSTR_SLOT("Masad Village", 572) },
@@ -130,21 +131,57 @@ level_display_name level_display_names[51] = {
 };
 
 // ---- .bss --------------------------------------------------------------------------------------------
-// 0x43d180 init_game_config_defaults_thunk (jmp) / 0x43d190 init_game_config_defaults: the inline
-// constructor (SummonerOptions::set_defaults). Confidence: exact.
+// 0x43d180 init_game_config_defaults_thunk (jmp, entry 133). Confidence: exact.
+// 0x43d190 init_game_config_defaults: the inline constructor (SummonerOptions::set_defaults). Confidence: exact.
 SummonerOptions Summoner_options;     // 0x60acc8
 
 // The command-line parameters: each one an initialiser (sinit_ call + jmp, init_ calls the
 // constructor) and an atexit destructor (register_dtor_ / dtor_). Help texts are all "" (0x5bd0d0);
 // only -port takes an argument. Confidence: exact (all 36 functions).
+// 0x43d220 sinit_cmdline_port (call init, jmp register; static_initializers entry 134). Confidence: exact.
+// 0x43d230 init_cmdline_port (CmdLineParam constructor). Confidence: exact.
+// 0x43d250 register_dtor_cmdline_port (atexit). Confidence: exact.
+// 0x43d260 dtor_cmdline_port (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_port("-port", "", true);                    // 0x60aca8 0x43d220-0x43d265
+// 0x43d270 sinit_cmdline_directsound3d (call init, jmp register; static_initializers entry 135). Confidence: exact.
+// 0x43d280 init_cmdline_directsound3d (CmdLineParam constructor). Confidence: exact.
+// 0x43d2a0 register_dtor_cmdline_directsound3d (atexit). Confidence: exact.
+// 0x43d2b0 dtor_cmdline_directsound3d (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_directsound3d("-directsound3d", "", false); // 0x60ac38 0x43d270-0x43d2b5
+// 0x43d2c0 sinit_cmdline_eax (call init, jmp register; static_initializers entry 136). Confidence: exact.
+// 0x43d2d0 init_cmdline_eax (CmdLineParam constructor). Confidence: exact.
+// 0x43d2f0 register_dtor_cmdline_eax (atexit). Confidence: exact.
+// 0x43d300 dtor_cmdline_eax (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_eax("-eax", "", false);                     // 0x60abf8 0x43d2c0-0x43d305
+// 0x43d310 sinit_cmdline_pack (call init, jmp register; static_initializers entry 137). Confidence: exact.
+// 0x43d320 init_cmdline_pack (CmdLineParam constructor). Confidence: exact.
+// 0x43d340 register_dtor_cmdline_pack (atexit). Confidence: exact.
+// 0x43d350 dtor_cmdline_pack (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_pack("-pack", "", false);                   // 0x60ac68 0x43d310-0x43d355
+// 0x43d360 sinit_cmdline_glide (call init, jmp register; static_initializers entry 138). Confidence: exact.
+// 0x43d370 init_cmdline_glide (CmdLineParam constructor). Confidence: exact.
+// 0x43d390 register_dtor_cmdline_glide (atexit). Confidence: exact.
+// 0x43d3a0 dtor_cmdline_glide (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_glide("-glide", "", false);                 // 0x60ad50 0x43d360-0x43d3a5 (never read)
+// 0x43d3b0 sinit_cmdline_direct3d (call init, jmp register; static_initializers entry 139). Confidence: exact.
+// 0x43d3c0 init_cmdline_direct3d (CmdLineParam constructor). Confidence: exact.
+// 0x43d3e0 register_dtor_cmdline_direct3d (atexit). Confidence: exact.
+// 0x43d3f0 dtor_cmdline_direct3d (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_direct3d("-direct3d", "", false);           // 0x60abb8 0x43d3b0-0x43d3f5
+// 0x43d400 sinit_cmdline_800 (call init, jmp register; static_initializers entry 140). Confidence: exact.
+// 0x43d410 init_cmdline_800 (CmdLineParam constructor). Confidence: exact.
+// 0x43d430 register_dtor_cmdline_800 (atexit). Confidence: exact.
+// 0x43d440 dtor_cmdline_800 (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_800("-800", "", false);                     // 0x60ad18 0x43d400-0x43d445
+// 0x43d450 sinit_cmdline_1024 (call init, jmp register; static_initializers entry 141). Confidence: exact.
+// 0x43d460 init_cmdline_1024 (CmdLineParam constructor). Confidence: exact.
+// 0x43d480 register_dtor_cmdline_1024 (atexit). Confidence: exact.
+// 0x43d490 dtor_cmdline_1024 (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_1024("-1024", "", false);                   // 0x60ad30 0x43d450-0x43d495
+// 0x43d4a0 sinit_cmdline_dsinit (call init, jmp register; static_initializers entry 142). Confidence: exact.
+// 0x43d4b0 init_cmdline_dsinit (CmdLineParam constructor). Confidence: exact.
+// 0x43d4d0 register_dtor_cmdline_dsinit (atexit). Confidence: exact.
+// 0x43d4e0 dtor_cmdline_dsinit (CmdLineParam destructor). Confidence: exact.
 CmdLineParam cmdline_param_dsinit("-dsinit", "", false);               // 0x60ac90 0x43d4a0-0x43d4e5
 
 // Path ids (setup_data_paths). Only the ids someone reads are stored.
@@ -181,9 +218,10 @@ int console_sound_handle;             // 0x60ad74
 int console_sound_buffer;             // 0x60ad78 (D600)
 
 // ---- console commands -----------------------------------------------------------------------------
-// The float command macro. 0x43d4f0 init_ccmd_gamma_thunk / 0x43d500 init_ccmd_gamma build the
-// object; "Usage: %s [float]\nSets %s to the specified value.\n" and "%s is %f\n" are this unit's
-// literals (the first float command in link order). Confidence: exact (all three).
+// The float command macro. "Usage: %s [float]\nSets %s to the specified value.\n" and "%s is %f\n" are
+// this unit's literals (the first float command in link order).
+// 0x43d4f0 init_ccmd_gamma_thunk (jmp, entry 143). Confidence: exact.
+// 0x43d500 init_ccmd_gamma (console_command constructor). Confidence: exact.
 void cmd_gamma();
 console_command ccmd_gamma("gamma", "Sets Summoner_options.gamma_correction", cmd_gamma);   // 0x60abe8
 
@@ -205,7 +243,8 @@ void cmd_gamma()
     }
 }
 
-// 0x43d5b0 init_ccmd_play_sound_thunk / 0x43d5c0 init_ccmd_play_sound. Confidence: exact.
+// 0x43d5b0 init_ccmd_play_sound_thunk (jmp). Confidence: exact.
+// 0x43d5c0 init_ccmd_play_sound (console_command constructor). Confidence: exact.
 void cmd_play_sound();
 console_command ccmd_play_sound("play_sound", "Streams a wav file from disk", cmd_play_sound);   // 0x60ac20
 
@@ -244,7 +283,8 @@ void console_sound_stop()
         console_sound_buffer = 0;
 }
 
-// 0x43d750 init_ccmd_stop_sound_thunk / 0x43d760 init_ccmd_stop_sound. Confidence: exact.
+// 0x43d750 init_ccmd_stop_sound_thunk (jmp). Confidence: exact.
+// 0x43d760 init_ccmd_stop_sound (console_command constructor). Confidence: exact.
 void cmd_stop_sound();
 console_command ccmd_stop_sound("stop_sound", "Stops all sounds that are playing", cmd_stop_sound);   // 0x60abd0
 

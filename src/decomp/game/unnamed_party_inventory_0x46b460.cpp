@@ -733,8 +733,9 @@ bool character_wearing_servant_disguise(Character *c)
 }
 
 // ---- console command -----------------------------------------------------------------------------------
-// 0x46c540 init_ccmd_add_gold_thunk (jmp) / 0x46c550 init_ccmd_add_gold: the compiler's dynamic
-// initialiser pair of the object (static_initializers entry 204). Confidence: exact.
+// The compiler's dynamic initialiser pair of the object:
+// 0x46c540 init_ccmd_add_gold_thunk (jmp, static_initializers entry 204). Confidence: exact.
+// 0x46c550 init_ccmd_add_gold (console_command constructor). Confidence: exact.
 void cmd_add_gold();
 console_command ccmd_add_gold("add_gold", "Adds gold to party inventory", cmd_add_gold);   // 0x970810
 

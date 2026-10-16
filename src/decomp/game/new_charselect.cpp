@@ -131,11 +131,12 @@ int mp_charselect_mouse_mode;                                     // 0x5bc3ec 0 
 int mp_charselect_hover_row;                                      // 0x5bc3f0
 bool mp_charselect_cursor_on;                                     // 0x5bc3f4
 
-// init_realtimetimer_5b6c70_thunk (0x4063b0, "jmp 0x4063c0") and init_realtimetimer_5b6c70 (0x4063c0,
-// "mov ecx, 0x5b6c70 / jmp RealtimeTimer__RealtimeTimer") are the compiler's dynamic initialiser pair for
-// mp_charselect_repeat_timer (static_initializers entry 9); init_realtimetimer_5bc378_thunk (0x4063d0) and
-// init_realtimetimer_5bc378 (0x4063e0) the pair for mp_charselect_cursor_timer (entry 10). Confidence:
-// exact (no source of their own; the definition order above gives the entry order).
+// The compiler's dynamic initialiser pairs of the two timers (no source of their own; the definition order
+// above gives the entry order):
+// 0x4063b0 init_realtimetimer_5b6c70_thunk ("jmp 0x4063c0", static_initializers entry 9). Confidence: exact.
+// 0x4063c0 init_realtimetimer_5b6c70 (mp_charselect_repeat_timer: mov ecx, 0x5b6c70 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
+// 0x4063d0 init_realtimetimer_5bc378_thunk (jmp, entry 10). Confidence: exact.
+// 0x4063e0 init_realtimetimer_5bc378 (mp_charselect_cursor_timer). Confidence: exact.
 
 // 0x4063f0  Confidence: exact. Same loader as gamecreate_load_bitmaps; entries 0 (background) and 19 (info
 // panel background) are marked always drawn. The scrollbar tile is scaled without rounding.

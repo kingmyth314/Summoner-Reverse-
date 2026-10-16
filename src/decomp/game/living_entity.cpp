@@ -3025,6 +3025,14 @@ bool Character::clip_move_to_navmesh(vector3 *move)
     return moved;
 }
 
+// 0x45b680 vector3::operator+(const vector3 &) const (vsdk/math/vector.h): the COMDAT of the inline
+// operator, emitted after its first out-of-line use (character_clip_move_to_navmesh, above). The code is
+// optimised (no ebp frame, z first) although this part of the unit is built /Od (D5505). Confidence:
+// exact (compiler-generated from the header).
+
+// 0x45b6b0 vector3::operator-(const vector3 &) const: the COMDAT as above. Confidence: exact
+// (compiler-generated from the header).
+
 // 0x45b6e0  Confidence: likely. Frame: invisible -4, count -8, any -0xc, i -0x10, paralyzed -0x14, v
 // -0x18, res -0x1c / -0x20, src -0x24, fx -0x28, self -0x2c, this -0x30, the switch values -0x34 ..
 // -0x40. Per frame: the item statuses (not on a multiplayer client), then per active status the tint,

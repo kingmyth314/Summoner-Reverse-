@@ -47,8 +47,9 @@
 static inline bool slew_mode_on() { return !(game_camera.flags & 1); }
 
 // ---- .bss (0x5fcca8-0x5fccb8) ----------------------------------------------------------------------
-// 0x4343a0 init_ccmd_slew_thunk (jmp; static_initializers entry 110), 0x4343b0 init_ccmd_slew
-// (console_command::console_command(0x5fcca8, "slew", "Toggles Slew Mode", cmd_slew)). Confidence: exact.
+// 0x4343a0 init_ccmd_slew_thunk (jmp; static_initializers entry 110). Confidence: exact.
+// 0x4343b0 init_ccmd_slew (console_command::console_command(0x5fcca8, "slew", "Toggles Slew Mode", cmd_slew)).
+//          Confidence: exact.
 console_command ccmd_slew("slew", "Toggles Slew Mode", cmd_slew);   // 0x5fcca8
 bool combat_mode;                     // 0x5fccb4 (declared in player.h; the hud and gameplay.cpp use it)
 bool player_mouse_held;               // 0x5fccb6

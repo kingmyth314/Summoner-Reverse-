@@ -115,6 +115,10 @@ int mp_levelselect_thumb_size[2][2];                              // 0x5c2f88 th
 // mp_levelselect_blink_timer (static_initializers entry 57); init_realtimetimer_5c1d5c_thunk (0x41bec0) and
 // init_realtimetimer_5c1d5c (0x41bed0) the pair for mp_levelselect_button_timer (entry 58). Confidence:
 // exact (no source of their own).
+// 0x41bea0 init_realtimetimer_5c1c6c_thunk (jmp, entry 57). Confidence: exact.
+// 0x41beb0 init_realtimetimer_5c1c6c (mp_levelselect_blink_timer). Confidence: exact.
+// 0x41bec0 init_realtimetimer_5c1d5c_thunk (jmp, entry 58). Confidence: exact.
+// 0x41bed0 init_realtimetimer_5c1d5c (mp_levelselect_button_timer). Confidence: exact.
 
 // 0x41bee0  Confidence: exact. Same loader as gamecreate_load_bitmaps (index loop, entry 0 always drawn);
 // the scrollbar tile is scaled without rounding.

@@ -123,6 +123,10 @@ bool itemtrade_cursor_on;                                     // 0x5c1881
 // init_realtimetimer_5c1860_thunk (0x419190) / init_realtimetimer_5c1860 (0x4191a0) are the compiler's
 // dynamic initialiser pairs for itemtrade_repeat_timer and itemtrade_cursor_timer (static_initializers
 // entries 54 and 55; "jmp" thunk, then "mov ecx, obj / jmp RealtimeTimer__RealtimeTimer").
+// 0x419170 init_realtimetimer_5c1858_thunk (jmp, entry 54). Confidence: exact.
+// 0x419180 init_realtimetimer_5c1858 (itemtrade_repeat_timer). Confidence: exact.
+// 0x419190 init_realtimetimer_5c1860_thunk (jmp, entry 55). Confidence: exact.
+// 0x4191a0 init_realtimetimer_5c1860 (itemtrade_cursor_timer). Confidence: exact.
 // Confidence: exact (no source of their own).
 
 // 0x4191b0  Confidence: likely (VC6 walks the records with pointers and tests i == 0 / 21 as pointer

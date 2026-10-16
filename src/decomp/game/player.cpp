@@ -72,21 +72,25 @@ int rosalind_skill_progression_count = sizeof(rosalind_skill_progression) / size
 // (player_list_other 0x5fc030 < ccmd_max_skills 0x5fc1b8 < player_free_list 0x5fc1c8 < party_list
 // 0x5fc350 < Players 0x5fc4d8): the same open .bss question as frametime.cpp.
 //
-// 0x433340 init_gametimer_arrays_5fc378_thunk (jmp) / 0x433350 init_gametimer_arrays_5fc378: ONE
-// initialiser constructs party_list (84 GameTimers at +0x28 = 0x5fc378) and then player_free_list
-// (0x5fc1f0), so both are written as one declaration. Confidence: likely (one dynamic initialiser per
-// declaration statement is assumed; no atexit, Player has no destructor).
+// ONE initialiser constructs party_list (84 GameTimers at +0x28 = 0x5fc378) and then player_free_list
+// (0x5fc1f0), so both are written as one declaration (one dynamic initialiser per declaration statement
+// is assumed; no atexit, Player has no destructor).
+// 0x433340 init_gametimer_arrays_5fc378_thunk (jmp). Confidence: exact.
+// 0x433350 init_gametimer_arrays_5fc378. Confidence: likely (the one declaration).
 Player party_list, player_free_list;  // 0x5fc350, 0x5fc1c8
-// 0x433390 thunk / 0x4333a0 init_gametimer_array_5fc058. Confidence: exact.
+// 0x433390 init_gametimer_array_5fc058_thunk (jmp). Confidence: exact.
+// 0x4333a0 init_gametimer_array_5fc058. Confidence: exact.
 Player player_list_other;             // 0x5fc030
-// 0x4333c0 thunk / 0x4333d0 init_gametimer_arrays_5fc500: an explicit loop over the five records with
-// the inlined implicit constructor, which builds its member array with `vector constructor iterator`.
-// Confidence: likely (compiler-generated; label ours).
+// An explicit loop over the five records with the inlined implicit constructor, which builds its member
+// array with `vector constructor iterator`.
+// 0x4333c0 init_gametimer_arrays_5fc500_thunk (jmp). Confidence: exact.
+// 0x4333d0 init_gametimer_arrays_5fc500. Confidence: likely (compiler-generated; label ours).
 Player Players[MAX_PLAYERS];          // 0x5fc4d8
 
-// The bool console command. 0x433400 init_ccmd_max_skills_thunk / 0x433410 init_ccmd_max_skills: the
-// dynamic initialiser of the object. "%s is %s\n", "TRUE", "FALSE" and the usage text are pooled with
-// an earlier unit (0x588c34..), so /Gf. Confidence: exact.
+// The bool console command: the dynamic initialiser of the object. "%s is %s\n", "TRUE", "FALSE" and the
+// usage text are pooled with an earlier unit (0x588c34..), so /Gf.
+// 0x433400 init_ccmd_max_skills_thunk (jmp, static_initializers entry 109). Confidence: exact.
+// 0x433410 init_ccmd_max_skills (console_command constructor). Confidence: exact.
 console_command ccmd_max_skills("max_skills", "Toggles Max_skills", cmd_max_skills); // 0x5fc1b8
 
 Player *party_leader;                 // 0x5fcc80

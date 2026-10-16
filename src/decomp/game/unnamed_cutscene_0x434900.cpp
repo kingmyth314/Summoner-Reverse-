@@ -66,17 +66,21 @@ int cutscene_saved_music = -1;        // 0x59399c
 int cutscene_stream_sound = -1;       // 0x5939a0
 
 // ---- the three objects with optimised initialisers (static_initializers entries 111-113) -------------
-// 0x434900 sinit_cutscene_601e68 (call init, jmp register), 0x434910 init_cutscene_601e68
-// (cutscene::cutscene on 0x601e68, tail jump), 0x434920 register_dtor_cutscene_601e68 (atexit(0x434930)),
-// 0x434930 dtor_cutscene_601e68 (cutscene::~cutscene, tail jump). Compiler-generated. Confidence: exact.
+// Compiler-generated:
+// 0x434900 sinit_cutscene_601e68 (call init, jmp register; entry 111). Confidence: exact.
+// 0x434910 init_cutscene_601e68 (cutscene::cutscene on 0x601e68, tail jump). Confidence: exact.
+// 0x434920 register_dtor_cutscene_601e68 (atexit(0x434930)). Confidence: exact.
+// 0x434930 dtor_cutscene_601e68 (cutscene::~cutscene, tail jump). Confidence: exact.
 cutscene the_cutscene;                                // 0x601e68
-// 0x434940 init_cutscene_entries_6034c8_thunk (jmp), 0x434950 init_cutscene_entries_6034c8 (85 x
-// cutscene_entry::cutscene_entry, stride 0x140; no destructor, so no atexit). Compiler-generated.
-// Confidence: exact.
+// Compiler-generated (no destructor, so no atexit):
+// 0x434940 init_cutscene_entries_6034c8_thunk (jmp, entry 112). Confidence: exact.
+// 0x434950 init_cutscene_entries_6034c8 (85 x cutscene_entry::cutscene_entry, stride 0x140). Confidence: exact.
 cutscene_entry cutscene_entries[MAX_CUTSCENES];       // 0x6034c8
-// 0x434970 sinit_norlsallocpool_5fccc0, 0x434980 init (NoRlsAllocPool::NoRlsAllocPool, tail jump),
-// 0x434990 register (atexit(0x4349a0)), 0x4349a0 dtor (NoRlsAllocPool::~NoRlsAllocPool, tail jump).
-// Compiler-generated. Confidence: exact.
+// Compiler-generated:
+// 0x434970 sinit_norlsallocpool_5fccc0 (entry 113). Confidence: exact.
+// 0x434980 init_norlsallocpool_5fccc0 (NoRlsAllocPool::NoRlsAllocPool, tail jump). Confidence: exact.
+// 0x434990 register_dtor_norlsallocpool_5fccc0 (atexit(0x4349a0)). Confidence: exact.
+// 0x4349a0 dtor_norlsallocpool_5fccc0 (NoRlsAllocPool::~NoRlsAllocPool, tail jump). Confidence: exact.
 NoRlsAllocPool cutscene_alloc_pool;                   // 0x5fccc0
 
 #ifdef _MSC_VER
@@ -997,8 +1001,9 @@ void cutscene_change_level_for(const char *name)
     }
 }
 
-// 0x4374a0 init_ccmd_play_cutscene_thunk (ebp frame, call), 0x4374b0 init_ccmd_play_cutscene
-// (static_initializers entry 114). Compiler-generated. Confidence: exact.
+// Compiler-generated:
+// 0x4374a0 init_ccmd_play_cutscene_thunk (ebp frame, call; static_initializers entry 114). Confidence: exact.
+// 0x4374b0 init_ccmd_play_cutscene (console_command constructor). Confidence: exact.
 console_command ccmd_play_cutscene("play_cutscene", "Play a cutscene", cmd_play_cutscene);   // 0x6034b8
 
 // 0x4374d0  Confidence: exact. f (ebp-0x120) is constructed and destroyed and never used.
@@ -1014,8 +1019,9 @@ void cmd_play_cutscene()
         print_to_console("Usage: play_cutscene <cutscene name>", 0);
 }
 
-// 0x437560 init_ccmd_play_and_load_cutscene_thunk, 0x437570 init_ccmd_play_and_load_cutscene (entry 115).
-// Compiler-generated. Confidence: exact.
+// Compiler-generated:
+// 0x437560 init_ccmd_play_and_load_cutscene_thunk (entry 115). Confidence: exact.
+// 0x437570 init_ccmd_play_and_load_cutscene. Confidence: exact.
 console_command ccmd_play_and_load_cutscene("play_and_load_cutscene",
                                             "Play a cutscene and loads the level associated with it",
                                             cmd_play_and_load_cutscene);   // 0x609f10
@@ -1033,8 +1039,9 @@ void cmd_play_and_load_cutscene()
         print_to_console("Usage: play_cutscene <cutscene name>", 0);
 }
 
-// 0x437620 init_ccmd_stop_cutscene_thunk, 0x437630 init_ccmd_stop_cutscene (entry 116). Compiler-generated.
-// Confidence: exact.
+// Compiler-generated:
+// 0x437620 init_ccmd_stop_cutscene_thunk (entry 116). Confidence: exact.
+// 0x437630 init_ccmd_stop_cutscene. Confidence: exact.
 console_command ccmd_stop_cutscene("stop_cutscene", "Stop the current cutscene", cmd_stop_cutscene);   // 0x609f20
 
 // 0x437650  Confidence: exact.

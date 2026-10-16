@@ -71,32 +71,37 @@ int  tutorial_page;                                           // 0x5f9620
 bool tutorial_drawn;                                          // 0x5f9624 (*new*) set by tutorial_draw, never read
 bool Ignore_tutorial;                                         // 0x5f9625
 
-// 0x5f9628, init_strptrs_5f9628 (0x42e640, thunk 0x42e630, entry 83). Confidence: likely (as new_help.cpp).
+// 0x42e630 init_strptrs_5f9628_thunk (jmp, static_initializers entry 83). Confidence: exact.
+// 0x42e640 init_strptrs_5f9628: the slot stores of the table below (0x5f9628). Confidence: likely (as new_help.cpp).
 tutorial_str_ref tutorial_controls_pages[4] = {                                     // (*new*)
     { XSTR("Basic Controls\n\nWelcome to Summoner! This tutorial explain...", 913) },
     { XSTR("There are two ways to move in the world of Summoner. You can...", 915) },
     { XSTR("The second mode of travel is called direct travel and you ca...", 916) },
     { XSTR("Camera Control\n\nBy moving your mouse pointer to the right ...", 917) },
 };
-// 0x5f9638 (init_strptrs_5f9638 0x42e680, entry 84)
+// 0x42e670 init_strptrs_5f9638_thunk (jmp, entry 84). Confidence: exact.
+// 0x42e680 init_strptrs_5f9638 (0x5f9638). Confidence: likely.
 tutorial_str_ref tutorial_combat1_pages[4] = {
     { XSTR("Basic Combat Tutorial\n\nOne of the Orenians has killed a vi...", 918) },
     { XSTR("You can attack an enemy by highlighting him with your mouse ...", 920) },
     { XSTR("Once a target has been selected Joseph will attack and defen...", 921) },
     { XSTR("During combat numbers will appear over the participants' hea...", 922) },
 };
-// 0x5f9648 (init_strptrs_5f9648 0x42e6c0, entry 85)
+// 0x42e6b0 init_strptrs_5f9648_thunk (jmp, entry 85). Confidence: exact.
+// 0x42e6c0 init_strptrs_5f9648 (0x5f9648). Confidence: likely.
 tutorial_str_ref tutorial_combat2_pages[2] = {
     { XSTR("Joseph has defeated the Scout!\n\n Sometimes when enemies ar...", 923) },
     { XSTR("Joseph may have been injured in battle. However, he can be h...", 924) },
 };
-// 0x5f9650 (init_strptrs_5f9650 0x42e6f0, entry 86)
+// 0x42e6e0 init_strptrs_5f9650_thunk (jmp, entry 86). Confidence: exact.
+// 0x42e6f0 init_strptrs_5f9650 (0x5f9650). Confidence: likely.
 tutorial_str_ref tutorial_sewer_flece_pages[3] = {
     { XSTR("Flece has now joined your party!\n\n Now you have two charac...", 925) },
     { XSTR("Party members have their own unique set of skills and abilit...", 926) },
     { XSTR("You can also go into solo mode, by clicking the Solo button.", 927) },
 };
-// 0x5f965c (init_strptrs_5f965c 0x42e720, entry 87)
+// 0x42e710 init_strptrs_5f965c_thunk (jmp, entry 87). Confidence: exact.
+// 0x42e720 init_strptrs_5f965c (0x5f965c). Confidence: likely.
 tutorial_str_ref tutorial_ring_pages[4] = {
     { XSTR("Joseph has regained his ability to Summon creatures!\n\n To ...", 928) },
     { XSTR("As Joseph gains more summoning rings he'll gain access to mo...", 929) },
@@ -114,6 +119,8 @@ int tutorial_box_pos[3][TUTORIAL_NUM_ENTRIES][2] = {                            
     { { 96, 96 }, { 96, 320 }, { 96, 96 }, { 96, 96 }, { 96, 96 } },
 };
 int tutorial_unused_592aa4 = 0;                               // 0x592aa4 (*new*) never referenced (see NOTES)
+// 0x42e750 init_tutorial_entries_thunk (jmp, entry 88). Confidence: exact.
+// 0x42e760 init_tutorial_entries: the run-time part of the table below. Confidence: likely.
 // 0x592aa8. The x / y / w members read resolution_index, so the table is initialised at run time from the
 // first of them on (init_tutorial_entries 0x42e760, thunk 0x42e750, entry 88): VC6 keeps the constant
 // prefix (entry 0 +0x00..+0x14) in .data and stores everything after it, constants included. Confidence:
@@ -135,8 +142,9 @@ tutorial_entry tutorial_entries[TUTORIAL_NUM_ENTRIES] = {
       tutorial_box_pos[resolution_index][4][0], tutorial_box_pos[resolution_index][4][1],
       tutorial_box_width[resolution_index] },
 };
-// init_ccmd_Ignore_tutorial_thunk (0x42e8e0, entry 89) / init_ccmd_Ignore_tutorial (0x42e8f0): the
-// constructor call of ccmd_Ignore_tutorial. Confidence: exact (compiler-generated).
+// 0x42e8e0 init_ccmd_Ignore_tutorial_thunk (jmp, entry 89). Confidence: exact.
+// 0x42e8f0 init_ccmd_Ignore_tutorial: the constructor call of ccmd_Ignore_tutorial. Confidence: exact
+//          (compiler-generated).
 
 // 0x42e910  Confidence: exact (the automap toggles' template).
 void cmd_Ignore_tutorial()

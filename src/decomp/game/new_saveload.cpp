@@ -111,13 +111,18 @@ struct saveload_month_name {
     saveload_month_name(char *&r) : text(r) {}   // VC6 rejects { XSTR(..) } for a reference member otherwise (D4902)
 #endif
 };
+// 0x425410 init_strptrs_5f4a48_thunk (jmp, static_initializers entry 77). Confidence: exact.
+// 0x425420 init_strptrs_5f4a48: the twelve slot stores of the table below. Confidence: likely.
 saveload_month_name saveload_month_names[12] = {                          // 0x5f4a48
     { XSTR("Jan.", 702) }, { XSTR("Feb.", 703) }, { XSTR("Mar.", 704) }, { XSTR("Apr.", 705) },
     { XSTR("May", 706) },  { XSTR("Jun.", 707) }, { XSTR("Jul.", 708) }, { XSTR("Aug.", 709) },
     { XSTR("Sep.", 710) }, { XSTR("Oct.", 711) }, { XSTR("Nov.", 712) }, { XSTR("Dec.", 713) },
 };
-// init_realtimetimer_5e3614 (0x4254b0, thunk 0x4254a0) and init_realtimetimer_5e35f8 (0x4254d0, thunk
-// 0x4254c0): "mov ecx, timer / jmp RealtimeTimer__RealtimeTimer". Confidence: exact.
+// The timers' initialisers ("mov ecx, timer / jmp RealtimeTimer::RealtimeTimer"):
+// 0x4254a0 init_realtimetimer_5e3614_thunk (jmp, entry 78). Confidence: exact.
+// 0x4254b0 init_realtimetimer_5e3614 (saveload_cursor_timer). Confidence: exact.
+// 0x4254c0 init_realtimetimer_5e35f8_thunk (jmp, entry 79). Confidence: exact.
+// 0x4254d0 init_realtimetimer_5e35f8 (saveload_button_timer). Confidence: exact.
 RealtimeTimer saveload_cursor_timer;                       // 0x5e3614  500 ms text cursor blink
 RealtimeTimer saveload_button_timer;                       // 0x5e35f8  500 ms delay, 100 ms repeat
 

@@ -126,7 +126,10 @@ struct spell_cast_params {
     int mode : 6;                    // bits 1-6 target mode 1..10
     unsigned int value : 22;         // bits 7-28
     unsigned int kind : 3;           // bits 29-31
-    int target[12];                  // +0x04 (request +0x2c)
+    union {                          // +0x04 (request +0x2c); spell_prepare_cast stores floats in some
+        int target[12];              //       slots (amounts, status values; decomp73)
+        float ftarget[12];
+    };
 };
 LAYOUT_CHECK(spell_cast_params, sizeof(spell_cast_params) == 0x34);
 
@@ -176,6 +179,11 @@ LAYOUT_CHECK(spell_hit, sizeof(spell_hit) == 0x50);
 
 struct spell_cast_request {
     spell_cast_request() { target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
+    // decomp73 (D5506): combat_trigger_reflex_ability's four requests store spell = -1 and caster = 0
+    // before the five fields of the default constructor (0x467727-0x467743), so their constructor sets
+    // all seven. Written as this second constructor (the spell argument is always -1; ours).
+    spell_cast_request(int no_spell)
+    { spell = no_spell; caster = 0; target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
     Character *caster;               // +0x00
     int spell;                       // +0x04
     int target;                      // +0x08 target handle
@@ -219,8 +227,13 @@ int damage_type_to_status(int spell);         // 0x47a8c0, status_effect_id or -
 float status_effect_modifier(int status, int level); // 0x47a9c0
 int   spell_get_duration_ms(int spell, int level);   // 0x47aa80
 int   status_effect_duration(int status);            // 0x47ab60 ms
-spell_cast_params spell_prepare_cast(Character *caster, int spell, int target, int a, int source_type,
-                                     int b);         // 0x47abe0 (not written)
+// decomp73 (D5507): the fourth argument is the casting item's type (read through: +0x94, +0xf8, +0x58),
+// the last a float (combat_trigger_reflex_ability passes its damage bit for bit). Was (int a, int b).
+spell_cast_params spell_prepare_cast(Character *caster, int spell, int target, ItemType *item,
+                                     int source_type, float power);   // 0x47abe0
+// Creates the creatures of a summoning-type spell into out[4] (0x1c / 0x4f / 0x64; decomp73: the
+// arguments from spell_prepare_cast's call 0x47b81c; the body is not written yet).
+void  spell_spawn_creature(Character **out, Character *caster, int spell);   // 0x47bd30
 void  spell_compute_resist(float *out_magic_resist, float *out_resist, int spell, Character *caster,
                            Character *target, int power, int source_type);   // 0x47c510
 void  spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, int layer, int a,

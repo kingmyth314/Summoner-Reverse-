@@ -4395,3 +4395,106 @@ compiler-generated functions and COMDAT copies in running text ("0x4d5040 / 0x4d
 unwritten-function survey does not count. decomp74 splits those comments so that each address begins a line
 (`// 0xADDR name: ...`), one per line, in address order; the first line of a block still names the following
 definition for vc6-compare.mjs, the later ones are notes. Bodies of header inlines stay in the headers.
+
+## decomp73 (the unwritten run list A: static initialisers, header-inline COMDATs and helpers of existing units; the state sequencer 0x401000-0x4011ad and the icam tables 0x410760-0x410ce6 as placeholders; combat_trigger_reflex_ability; spell_prepare_cast, spell_cast_execute, spell_cast_launch_effects)
+
+**D5500 (game/unnamed_gameseq_0x401000.cpp, summoner/summoner.h). The state sequencer is a unit of its own.** The first
+seven functions of the executable (gameseq_init .. GameStateSwap, module -) end at 0x4011ad; new_assess.cpp's
+static initialiser follows at 0x4011c0. Its .data is gameseq_state_table (0x588a70, 15 x 0xc) followed by its only
+literal ("Packet type %d created %d time(s)\n", 0x588b24, read by GameTick), and new_assess.cpp's .data starts at
+0x588b50: so the table is this unit's, and it is defined there (initialised from the 35 state handlers). Its .bss is
+gameseq_state_cur / prev / next / pending (0x5b27e0-0x5b27ec), read by nobody else. A placeholder name (no assert
+path, no strings.tbl block). `GameStateHandlers` (symbols/types.h) moves into summoner.h with the table and the four
+variables; GameStateSwap and the state 7 / 9 handlers 0x430ad0-0x430b90 (not written yet; the run lists missed them
+because nothing marks them) are declared there. All seven functions match VC6 byte for byte.
+
+**D5501 (GameTick 0x401070). The packet counters are formatted and thrown away.** In multiplayer GameTick zeroes
+mp_packet_table[i].sent before multi_do_frame and, after the state's frame handler, sprintf's "Packet type %d created
+%d time(s)" into string_buffer for every counter above 0, with no output call: a debug print whose output was
+compiled out. Kept as written (byte match).
+
+**D5502 (game/new_automap.cpp). `vector constructor iterator` (0x404880) is marked in new_automap.cpp.** The
+compiler-generated helper (??_H) sits between new_automap.cpp's last function (0x404870) and new_buysell.cpp's first
+initialiser (0x4048b0). The linker keeps the first COMDAT copy in link order, so new_automap.obj is the first object
+that defines it, although none of the unit's functions calls it in v1.40 (the empty initialiser 0x404870 is the only
+candidate for an array of objects with an out-of-line constructor that VC6 later reduced). A marker comment only (no
+source); confidence likely for the placement.
+
+**D5503 (game/unnamed_icam_0x410760.cpp, summoner/interface/interface.h). The icam tables are a unit of their own.**
+new_hud.cpp ends at 0x41075a (NOTES-hud.md) and new_int_multi_update.cpp's version check starts at 0x410cf0; the three
+functions and their literals (0x58bcbc-0x58bd1f, between new_hud.cpp's .data and version_check_result 0x58bd3c) form
+one unit. The function prefix suggests new_icam.cpp, but no string names the file: a placeholder. The table layout
+(new_icam_data, 0x3628 bytes: count, a 0x21-byte file name, is_item[0x200], index[0x200] (ushort), offset[0x200],
+pbh[0x200]) is from new_icam_load's stores; field names ours. interface.h keeps new_icam_table as the byte array
+(D18) and the functions keep `void *`; the struct is local to the unit. new_icam_find (0x410af0) is declared in
+interface.h. The message buffer of new_icam_get is block-scoped: VC6 shares its stack slot with the second matrix
+product (frame 0xe4, which a function-scope buffer makes 0x108). All three match VC6 byte for byte.
+
+**D5504 (unnamed_icam_0x410760.cpp). The vector3 copy constructor COMDAT 0x410cd0 is marked in the icam unit.**
+new_icam_get's `*orient = pm * (bm * hm)` expands matrix::operator= inline, and the last row's vector3::operator=
+returns a copy through the out-of-line copy constructor (0x410cd0): its first out-of-line use, and the COMDAT follows
+the unit's last function. Marker only (vector.h has the inline body).
+
+**D5505 (game/living_entity.cpp). The vector3 operator+ / operator- COMDATs 0x45b680 / 0x45b6b0 are marked there.**
+They follow character_clip_move_to_navmesh (0x45ab00, their first out-of-line use, NOTES-living-entity.md) inside the
+unit's range. Their code is optimised (no ebp frame, z first) although this part of living_entity.cpp is built /Od,
+so either the COMDATs come from another object that was linked first or the optimised copy won; the markers only
+record where they are.
+
+**D5506 (game/combat.cpp, engine/spells/spells.h). combat_trigger_reflex_ability (0x467670).** The four casts (the
+defender's reflex ability, then each worn item's armour triggered effect; each beneficial or not) are written out in
+the binary; here one macro, COMBAT_TRIGGER_CAST (as COMBAT_SELF_CAST). Their request objects store spell = -1 and
+caster = 0 before the five fields of spell_cast_request's default constructor (0x467727-0x467743), which the self-cast
+and melee requests do not; VC6 removes no such dead stores (tested), so the requests here use a second constructor
+`spell_cast_request(int no_spell)` that sets all seven fields (the argument is always -1; ours). With it VC6 produces
+the same stores and size (1605 bytes) but keeps opponent->owner in callee-saved registers across frand, where the
+original reloads it and keeps -1 in edi: likely. The item branch's single-player spell_cast_execute call of an
+offensive, not hit-only effect passes the defender's own handle as the target (0x467c7c: `mov edx, [eax+0x80]` with
+eax = opponent->owner) together with the attacker's position and layer; every other branch targets the attacker
+(candidate bug K300 for game-bugs.md: an armour's offensive triggered spell is aimed at its wearer in single player).
+spell_cast_execute keeps its `int a` (party_inventory passes `(int)type`); the macro casts the item type.
+
+**D5507 (engine/spells/spells.h, game/spells.cpp). spell_prepare_cast (0x47abe0): SIGNATURE change.** Was (Character *,
+int spell, int target, int a, int source_type, int b). The fourth argument is the casting item's type (the source
+type switch reads its +0x94 weapon / +0xf8 armour triggered effect and +0x58 charge effect), the sixth a float:
+combat_trigger_reflex_ability passes its float damage bit for bit and spells 0x3e / 0x3f multiply by it (0x47baae).
+Now (Character *, int, int, ItemType *item, int source_type, float power); the existing callers pass 0 for both, which
+compiles the same. spell_cast_params gets an anonymous union `ftarget[12]` over target[12] for the float slots (same
+layout). spell_spawn_creature (0x47bd30, not written) is declared from the call 0x47b81c: (Character **out[4],
+caster, spell), a plain out pointer (the callee does not return it). The case bodies are written in the binary's
+order (VC6 emits them in source order). Behaviour notes: with No_resist set, spell 0x65 does nothing (the case returns
+before its hit roll); the curse case with source types 1-4 and the drain case read the target's handle / type without
+the NULL test the other cases make (latent: spells with SPELL_TARGET_CHARACTER return earlier without a target).
+VC6: same size class (1316 against 1264 instructions), the differences are tail merges and register choices.
+
+**D5508 (game/spells.cpp). spell_cast_execute (0x47c5d0): the EH frame and `where`.** The function opens an EH frame
+(handler 0x57c598) whose state becomes 0 at the start of the single-player part and is never unwound visibly: a local
+with an empty inline destructor. `where` (the hit sound position, [esp+0x10]) is the only candidate, written as a
+local class spell_vec : vector3 with ~spell_vec() {} (as D3805's cam_vec), declared after the multiplayer branch (that
+gives the original prologue order). Several cases (0x17 / 0x58 areas, the creatures 0x1c / 0x4f / 0x64, 0x36, 0x4c,
+the spells without a case, the non-party side buff without cur_character) reach the hit sound without setting
+`where`: the sound plays at whatever the stack holds (candidate bug K301; the same cases in
+spell_cast_launch_effects play no sound unless an effect was created). The 0x69 / 0x6b party loop calls
+get_hit_by_spell on living_from_handle's result without a NULL test (latent). VC6 builds a larger frame (0x190 against
+0x12c: it does not overlap the case-scoped vectors and matrices as the original does); likely.
+
+**D5509 (game/spells.cpp). spell_cast_launch_effects (0x47d420).** Two switches: the first creates the effects (and
+records spell_effect_add for the effect objects, through the macro SPELL_FX_RECORD: obj_from_handle before
+spell_effect_add, as the binary calls them), the second applies the hits that need no effect object and the summons
+(0x26-0x31 play the hit sound unconditionally). The weapon / armour triggered missile computes a copy of the target's
+orientation that nothing reads (the hit passes &t->orient, 0x47d870); the creature effects of 0x4f and 0x64 are
+spell 0x1c's (push 0x1c at 0x47da55); 0x0c / 0x65 / 0x67 read the target's position without a NULL test after creating
+the effect (latent). In the binary the second switch's dispatch and its first case sit between the first switch's
+missile case and its remaining cases; VC6 lays the source order out sequentially, so the layout differs: likely.
+
+**D5510 (combat.cpp, spells.cpp, levelrender.cpp, and the initialiser comments of 30 units). Markers one per line.**
+The run lists (and tools/vc6-compare.mjs) read a `// 0xADDR` at the start of a comment line; several units described
+an initialiser pair on one line ("// 0x404590 init_..._thunk / 0x4045a0 init_..."), which marked only the first
+address, and where such a line opened the comment block of the following function, vc6-compare took that address
+for the function (new_automap.cpp's cmd_map_grid, cmd_show_coordinates, cmd_reset_map_labels; new_buysell.cpp,
+new_inventory.cpp, new_skill.cpp, new_spell.cpp's goto / page functions): they are now one marker per line, with a
+blank line before the function's own marker, and those 21 functions are compared (all match). Conversely, comments
+that start with the address of a function that is NOT written ("// 0x4670a0 combat_trigger_special_ability: not
+written yet.") hid it from the run lists; in the files touched here they now read "// name (0xADDR): not written
+yet." (0x4670a0, 0x468360, 0x468760, 0x47e900, 0x48e6c0, 0x48fdb0, 0x491500). Other units still have such lines
+(unnamed_net_0x517590.cpp, unnamed_os_0x530b90.cpp: "module -, not written here").

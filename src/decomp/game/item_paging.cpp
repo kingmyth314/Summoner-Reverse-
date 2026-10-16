@@ -32,10 +32,10 @@ static char ip_level_buffer[0x38000];                          // 0x971870
 static char ip_general_buffers[MAX_ITEM_PAGE_SLOTS][0x8000];   // 0x9a9870
 static char ip_info_popup_buffer[0x18000];                     // 0xa41870
 
-// 0x46c5d0 init_mempools_ip_general_thunk (jmp) and 0x46c5e0 init_mempools_ip_general: the
-// dynamic initialiser of this array, 19 Mempool::Copy calls in index order.
-// Confidence: unsure. One initialiser function means one definition; the inline constructor that
-// forwards to Copy (engine_stubs.h) is an assumption. A temporary-and-copy form would add copies.
+// 0x46c5d0 init_mempools_ip_general_thunk (jmp). Confidence: exact.
+// 0x46c5e0 init_mempools_ip_general: the dynamic initialiser of this array, 19 Mempool::Copy calls in
+// index order. Confidence: unsure. One initialiser function means one definition; the inline constructor
+// that forwards to Copy (engine_stubs.h) is an assumption. A temporary-and-copy form would add copies.
 Mempool ip_general_mempool[MAX_ITEM_PAGE_SLOTS] = {            // 0xa59870 (0x1c bytes each)
     Mempool(ip_general_buffers[0], 0x8000, "IP general"),
     Mempool(ip_general_buffers[1], 0x8000, "IP general"),

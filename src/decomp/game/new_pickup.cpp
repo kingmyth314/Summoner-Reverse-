@@ -88,6 +88,8 @@ bool pickup_scrollbar_visible;        // 0x5c3b70
 // init_realtimetimer_5c3b3c_thunk (0x4205b0, static_initializers entry 62) and
 // init_realtimetimer_5c3b3c (0x4205c0: mov ecx, 0x5c3b3c / jmp RealtimeTimer__RealtimeTimer) are
 // the compiler-generated dynamic initialiser pair for pickup_button_timer. Confidence: exact.
+// 0x4205b0 init_realtimetimer_5c3b3c_thunk (jmp, entry 62). Confidence: exact.
+// 0x4205c0 init_realtimetimer_5c3b3c (mov ecx, 0x5c3b3c / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4205d0, called from interface_load_all. Confidence: exact
 void pickup_load_bitmaps()

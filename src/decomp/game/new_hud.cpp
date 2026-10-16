@@ -210,13 +210,19 @@ float hud_flash_paused_anim_time;                             // 0x5bd0c4
 float hud_pause_anim_time;                                    // 0x5bd0c8
 GameTimer hud_camera_mode_timer;                              // 0x5bd0cc (init_gametimer_5bd0cc)
 
-// init_gametimer_5bd0cc_thunk (0x40cb60) / init_gametimer_5bd0cc (0x40cb70, "mov ecx, 0x5bd0cc / jmp
-// GameTimer__GameTimer"), likewise 0x40cb80 / 0x40cb90 (hud_camera_forced_timer), 0x40cbd0 / 0x40cbe0
-// (hud_hot_button_timer) and 0x40cbf0 / 0x40cc00 (hud_death_timer): compiler-generated from the GameTimer
-// definitions above. Confidence: exact.
-// init_gametimer_array_5bd040_thunk (0x40cba0) / init_gametimer_array_5bd040 (0x40cbb0): the inline implicit
-// constructor of hud_portrait_slot run over the five records (GameTimer() on +8, stride 0x10). No destructor,
-// so no atexit helper. Confidence: exact.
+// The dynamic initialisers, compiler-generated from the definitions above (no destructors, so no atexit
+// helpers):
+// 0x40cb60 init_gametimer_5bd0cc_thunk (jmp, static_initializers entry 20). Confidence: exact.
+// 0x40cb70 init_gametimer_5bd0cc (hud_camera_mode_timer: mov ecx, 0x5bd0cc / jmp GameTimer::GameTimer). Confidence: exact.
+// 0x40cb80 init_gametimer_5bd094_thunk (jmp, entry 21). Confidence: exact.
+// 0x40cb90 init_gametimer_5bd094 (hud_camera_forced_timer). Confidence: exact.
+// 0x40cba0 init_gametimer_array_5bd040_thunk (jmp, entry 22). Confidence: exact.
+// 0x40cbb0 init_gametimer_array_5bd040: the inline implicit constructor of hud_portrait_slot run over the
+//          five records (GameTimer() on +8, stride 0x10). Confidence: exact.
+// 0x40cbd0 init_gametimer_5bd088_thunk (jmp, entry 23). Confidence: exact.
+// 0x40cbe0 init_gametimer_5bd088 (hud_hot_button_timer). Confidence: exact.
+// 0x40cbf0 init_gametimer_5bd090_thunk (jmp, entry 24). Confidence: exact.
+// 0x40cc00 init_gametimer_5bd090 (hud_death_timer). Confidence: exact.
 
 // The member whose hot buttons are shown (the selected portrait's species). Inline: every use loads
 // hud_selected_portrait and reads +0xc of its record.

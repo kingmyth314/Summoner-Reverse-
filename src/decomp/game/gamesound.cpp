@@ -54,10 +54,11 @@ static const char *feedback_event_names[MAX_FEEDBACK_EVENTS] = { // 0x59a344
 // declared here and defined in its address slot below. Whether VC6 keeps .bss in definition
 // order is the same open question as frametime.cpp's saved limits.
 extern char feedback_string_buffer[0x1400];
-// 0x468c80 sinit_stringpool_941740 (call init, jmp register), 0x468c90 init_stringpool_941740,
-// 0x468cb0 register_dtor_stringpool_941740 (atexit(0x468cc0)), 0x468cc0 dtor_stringpool_941740
-// (mov ecx, this; jmp StringPool::~StringPool): the compiler-generated dynamic initialiser and
-// atexit destructor of this definition. Confidence: exact (allocated = false is the push 0).
+// The compiler-generated dynamic initialiser and atexit destructor of this definition:
+// 0x468c80 sinit_stringpool_941740 (call init, jmp register; entry 201). Confidence: exact.
+// 0x468c90 init_stringpool_941740. Confidence: exact (allocated = false is the push 0).
+// 0x468cb0 register_dtor_stringpool_941740 (atexit(0x468cc0)). Confidence: exact.
+// 0x468cc0 dtor_stringpool_941740 (mov ecx, this; jmp StringPool::~StringPool). Confidence: exact.
 StringPool feedback_string_pool(feedback_string_buffer, 0x1400, false); // 0x941740
 int surface_sound_table[MAX_SURFACES][MAX_SURFACES];  // 0x941754
 static surface_type surface_types[MAX_SURFACE_TYPES]; // 0x941bd8

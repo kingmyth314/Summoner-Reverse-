@@ -66,13 +66,16 @@ obj_slot obj_slots[MAX_OBJECTS];      // 0x9438b0
 // The two objects with dynamic initialisers. The initialiser table runs obj_active_list (entry 202)
 // before item_obj_pool (entry 203), so they are defined in this order; their .bss addresses are the
 // other way round (0x970770 > 0x946790), the open .bss-order question of player.cpp / gamesound.cpp.
-// 0x4697e0 sinit_obj_list_970770 (call init, call register; frame-pointer wrapper), 0x4697f0
-// init_obj_list_970770 (obj::obj(0) on 0x970770), 0x469810 register_dtor_obj_list_970770
-// (atexit(0x469830)), 0x469830 dtor_obj_list_970770 (obj::~obj). Confidence: exact.
+// 0x4697e0 sinit_obj_list_970770 (call init, call register; frame-pointer wrapper; entry 202). Confidence: exact.
+// 0x4697f0 init_obj_list_970770 (obj::obj(0) on 0x970770). Confidence: exact.
+// 0x469810 register_dtor_obj_list_970770 (atexit(0x469830)). Confidence: exact.
+// 0x469830 dtor_obj_list_970770 (obj::~obj). Confidence: exact.
 obj obj_active_list(0);               // 0x970770
-// 0x469840 sinit_item_obj_pool_946790, 0x469850 init_item_obj_pool_946790 (eh vector constructor
-// iterator: 1000 x 0xac, item_obj::item_obj, item_obj::~item_obj), 0x469880 register (atexit(0x4698a0)),
-// 0x4698a0 dtor (eh vector destructor iterator). Confidence: exact.
+// 0x469840 sinit_item_obj_pool_946790 (entry 203). Confidence: exact.
+// 0x469850 init_item_obj_pool_946790 (eh vector constructor iterator: 1000 x 0xac, item_obj::item_obj,
+//          item_obj::~item_obj). Confidence: exact.
+// 0x469880 register_dtor_item_obj_pool_946790 (atexit(0x4698a0)). Confidence: exact.
+// 0x4698a0 dtor_item_obj_pool_946790 (eh vector destructor iterator). Confidence: exact.
 item_obj item_obj_pool[MAX_ITEM_OBJS]; // 0x946790
 bool objects_initialized;             // 0x970809 (0x970808, after the 0x98-byte head, is not referenced)
 

@@ -72,9 +72,9 @@ int assess_drag_start_y;           // 0x5b28d0
 char assess_text[256];             // 0x5b28d4
 int assess_mouse_mode;             // 0x5b29d4 0 idle, 1 button held, 2 dragging the thumb
 
-// init_realtimetimer_5b28bc_thunk (0x4011b0, static_initializers entry 0) and
-// init_realtimetimer_5b28bc (0x4011c0: mov ecx, 0x5b28bc / jmp RealtimeTimer__RealtimeTimer) are
-// the compiler-generated dynamic initialiser pair for assess_repeat_timer. Confidence: exact.
+// The compiler-generated dynamic initialiser pair for assess_repeat_timer (above):
+// 0x4011b0 init_realtimetimer_5b28bc_thunk (jmp, static_initializers entry 0). Confidence: exact.
+// 0x4011c0 init_realtimetimer_5b28bc (mov ecx, 0x5b28bc / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4011d0, called from interface_load_all. Confidence: exact
 void assess_load_bitmaps()

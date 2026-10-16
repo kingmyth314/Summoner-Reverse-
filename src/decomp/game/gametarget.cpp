@@ -558,6 +558,14 @@ void world_pick_under_mouse(vector3 *eye, vector3 *dir, vector3 *out, unsigned i
         game_camera.wanted_dir = *out;
 }
 
+// 0x43b580 vector3::vector3(float, float, float) (vsdk/math/vector.h): the COMDAT of the inline
+// constructor, emitted after its first out-of-line use (world_pick_under_mouse). Confidence: exact
+// (compiler-generated from the header).
+
+// 0x43b5a0 plane::set_normal_point (vsdk/math/ix.h): the COMDAT of the inline member, emitted after
+// world_pick_under_mouse; its -1.0f is this unit's .rdata 0x580e1c. Confidence: exact (compiler-generated
+// from the header).
+
 // 0x43b5e0  Confidence: likely (two jump tables: 0x43bb60 by hud_target_mode + 1, 0x43bb70 by object type
 // - 3). Tints what is under the mouse and says what a click does (WORLD_CLICK_*); for a targeted skill or
 // item it also places the target decal and sets *valid.

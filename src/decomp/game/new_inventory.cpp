@@ -218,13 +218,17 @@ inventory_str_ref inventory_action_strings[5] = {
 // game/unnamed_interface_0x411270.cpp (decomp48): the object at 0x5bd780 lies in that unit's .bss, its
 // strings in its .data, and its initialiser and function end that unit's code.
 
-// Static initialisers in definition order (entries 50-52): 0x414d30/0x414d40 init_empty_414d40 (a bare
-// ret), read as the initialiser of inventory_cameras with the inline empty new_icam_table constructor (as
-// status_cameras, NOTES-status.md Q1); 0x414d50/0x414d60 inventory_action_strings; 0x414da0/0x414db0
-// "mov ecx, 0x5c0ffc / jmp RealtimeTimer__RealtimeTimer" for inventory_repeat_timer. Confidence: exact
-// (compiler-generated) except the cameras pairing (unsure). The source order of the definitions is
+// Static initialisers in definition order (entries 50-52). The source order of the definitions is
 // therefore inventory_cameras, the action strings, the timer; the .bss addresses do not follow it (same
 // open question as the other units).
+// 0x414d30 init_empty_414d40_thunk (jmp, static_initializers entry 50). Confidence: exact.
+// 0x414d40 init_empty_414d40 (a bare ret), read as the initialiser of inventory_cameras with the inline
+//          empty new_icam_table constructor (as status_cameras, NOTES-status.md Q1). Confidence: unsure (the pairing).
+// 0x414d50 init_strptrs_5c1458_thunk (jmp, entry 51). Confidence: exact.
+// 0x414d60 init_strptrs_5c1458: the five slot stores of inventory_action_strings. Confidence: likely.
+// 0x414da0 init_realtimetimer_5c0ffc_thunk (jmp, entry 52). Confidence: exact.
+// 0x414db0 init_realtimetimer_5c0ffc (inventory_repeat_timer: mov ecx, 0x5c0ffc / jmp RealtimeTimer::RealtimeTimer).
+//          Confidence: exact.
 
 // 0x414dc0  Confidence: exact.
 void inv_cameras_parse_table()
@@ -1120,6 +1124,7 @@ void inventory_goto_category0()
     inventory_update_scrollbar();
 }
 
+// 0x416910  Confidence: exact (as inventory_goto_category0).
 void inventory_goto_category1()
 {
     int first = inventory_category_first_index(1);
@@ -1128,6 +1133,7 @@ void inventory_goto_category1()
     inventory_update_scrollbar();
 }
 
+// 0x416950  Confidence: exact (as inventory_goto_category0).
 void inventory_goto_category2()
 {
     int first = inventory_category_first_index(2);
@@ -1136,6 +1142,7 @@ void inventory_goto_category2()
     inventory_update_scrollbar();
 }
 
+// 0x416990  Confidence: exact (as inventory_goto_category0).
 void inventory_goto_category3()
 {
     int first = inventory_category_first_index(3);
@@ -1144,6 +1151,7 @@ void inventory_goto_category3()
     inventory_update_scrollbar();
 }
 
+// 0x4169d0  Confidence: exact (as inventory_goto_category0).
 void inventory_goto_category4()
 {
     int first = inventory_category_first_index(4);

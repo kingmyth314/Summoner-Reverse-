@@ -99,11 +99,12 @@ mp_gamelist_entry *gamelist_selected_game;                    // 0x5bc910
 int gamelist_pressed_button;                                  // 0x5bc914
 bool gamelist_cursor_on;                                      // 0x5bc918
 
-// init_realtimetimer_5bc714_thunk (0x40a660, "jmp 0x40a670") and init_realtimetimer_5bc714 (0x40a670,
-// "mov ecx, 0x5bc714 / jmp RealtimeTimer__RealtimeTimer") are the compiler's dynamic initialiser pair for
-// gamelist_repeat_timer (static_initializers entry 13); init_realtimetimer_5bc718_thunk (0x40a680) and
-// init_realtimetimer_5bc718 (0x40a690) the pair for gamelist_cursor_timer (entry 14). Confidence: exact
-// (no source of their own; the definition order above gives the entry order).
+// The compiler's dynamic initialiser pairs of the two timers (no source of their own; the definition order
+// above gives the entry order):
+// 0x40a660 init_realtimetimer_5bc714_thunk ("jmp 0x40a670", static_initializers entry 13). Confidence: exact.
+// 0x40a670 init_realtimetimer_5bc714 (gamelist_repeat_timer: mov ecx, 0x5bc714 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
+// 0x40a680 init_realtimetimer_5bc718_thunk (jmp, entry 14). Confidence: exact.
+// 0x40a690 init_realtimetimer_5bc718 (gamelist_cursor_timer). Confidence: exact.
 
 // 0x40a6a0  Confidence: exact. Same loader as gamecreate_load_bitmaps; entries 0 (background) and 13
 // (password popup) are marked always drawn. progress_update(0) after the buttons; the scrollbar tile is

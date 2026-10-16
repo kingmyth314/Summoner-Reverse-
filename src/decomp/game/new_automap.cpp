@@ -154,12 +154,13 @@ int automap_camera_bm_h;                                      // 0x5b2da4
 console_command_t ccmd_map_mask("map_mask", "Toggles Map_mask", cmd_map_mask);       // 0x5b2da8
 bool Map_grid;                                                // 0x5b2db4
 
-// init_realtimetimer_5b2b38_thunk (0x401e80, static_initializers entry 1) / init_realtimetimer_5b2b38
-// (0x401e90, "mov ecx, 0x5b2b38 / jmp RealtimeTimer__RealtimeTimer") and init_colors_5b29e0_thunk
-// (0x401ea0, entry 2) / init_colors_5b29e0 (0x401eb0, two Color::Color calls) are the compiler's dynamic
-// initialisers of automap_label_blink_timer and automap_label_type_colors. Confidence: exact (no source of
-// their own). Entry 1 before entry 2 means the timer is defined before the colours in the original
+// The compiler's dynamic initialisers of automap_label_blink_timer and automap_label_type_colors (no source
+// of their own). Entry 1 before entry 2 means the timer is defined before the colours in the original
 // source, the opposite of their .bss order.
+// 0x401e80 init_realtimetimer_5b2b38_thunk (jmp, static_initializers entry 1). Confidence: exact.
+// 0x401e90 init_realtimetimer_5b2b38 (mov ecx, 0x5b2b38 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
+// 0x401ea0 init_colors_5b29e0_thunk (jmp, entry 2). Confidence: exact.
+// 0x401eb0 init_colors_5b29e0 (two Color::Color calls). Confidence: exact.
 
 // 0x401ef0  Confidence: likely (the button loop is exact, as in the journal; the order of the two
 // max() sums and of the mask-scale quotient is a guess).
@@ -1075,7 +1076,8 @@ bool automap_mouse_in_panel(int x, int y)
 // Each object's dynamic initialiser (thunk + body, static_initializers entries 3..6) comes right before
 // its command function in .text, so the objects are defined here in the original (they are declared
 // above in address order only so that this file has one definition each; see NOTES).
-// 0x4044a0 init_ccmd_map_mask_thunk / 0x4044b0 init_ccmd_map_mask: ccmd_map_mask. Confidence: exact.
+// 0x4044a0 init_ccmd_map_mask_thunk (jmp, entry 3). Confidence: exact.
+// 0x4044b0 init_ccmd_map_mask: ccmd_map_mask (console_command constructor). Confidence: exact.
 
 // 0x4044d0  Confidence: exact. The console's bool command macro, as cmd_max_skills in player.cpp.
 void cmd_map_mask()
@@ -1100,7 +1102,9 @@ void cmd_map_mask()
     }
 }
 
-// 0x404590 init_ccmd_map_grid_thunk / 0x4045a0 init_ccmd_map_grid: ccmd_map_grid. Confidence: exact.
+// 0x404590 init_ccmd_map_grid_thunk (jmp, entry 4). Confidence: exact.
+// 0x4045a0 init_ccmd_map_grid: ccmd_map_grid (console_command constructor). Confidence: exact.
+
 // 0x4045c0  Confidence: exact.
 void cmd_map_grid()
 {
@@ -1124,7 +1128,9 @@ void cmd_map_grid()
     }
 }
 
-// 0x404680 init_ccmd_show_coordinates_thunk / 0x404690 init_ccmd_show_coordinates. Confidence: exact.
+// 0x404680 init_ccmd_show_coordinates_thunk (jmp, entry 5). Confidence: exact.
+// 0x404690 init_ccmd_show_coordinates: ccmd_show_coordinates (console_command constructor). Confidence: exact.
+
 // 0x4046b0  Confidence: exact.
 void cmd_show_coordinates()
 {
@@ -1148,7 +1154,9 @@ void cmd_show_coordinates()
     }
 }
 
-// 0x404770 init_ccmd_reset_map_labels_thunk / 0x404780 init_ccmd_reset_map_labels. Confidence: exact.
+// 0x404770 init_ccmd_reset_map_labels_thunk (jmp, entry 6). Confidence: exact.
+// 0x404780 init_ccmd_reset_map_labels: ccmd_reset_map_labels (console_command constructor). Confidence: exact.
+
 // 0x4047a0  Confidence: exact. Puts back the level's default (permanent) labels and drops the custom
 // labels of this level / script from the savegame.
 void cmd_reset_map_labels()
@@ -1178,7 +1186,15 @@ void cmd_reset_map_labels()
     print_to_console("Automap labels reset.", 0);
 }
 
-// 0x404860 init_empty_404870_thunk / 0x404870 init_empty_404870 (static_initializers entry 7): a dynamic
-// initialiser with an empty body, i.e. a static object defined after ccmd_reset_map_labels whose
-// constructor is an empty inline. Nothing in the unit's .bss is left for it (every byte up to 0x5b2db7 is
-// accounted for), so it is probably an empty object (sizeof 1, maybe in a hole). Not reproduced: see NOTES.
+// A dynamic initialiser with an empty body (static_initializers entry 7), i.e. a static object defined
+// after ccmd_reset_map_labels whose constructor is an empty inline. Nothing in the unit's .bss is left for
+// it (every byte up to 0x5b2db7 is accounted for), so it is probably an empty object (sizeof 1, maybe in a
+// hole). Not reproduced: see NOTES.
+// 0x404860 init_empty_404870_thunk (jmp, entry 7). Confidence: exact.
+// 0x404870 init_empty_404870 (a bare ret). Confidence: unsure (which object).
+
+// 0x404880 `vector constructor iterator` (??_H; (array, size, count, constructor), thiscall constructor
+// per element, ret 0x10), the compiler-generated helper with no source. The linker keeps the first COMDAT
+// copy in link order, and this one follows new_automap.cpp's code, so this unit's object defines it (no
+// function of the unit calls it in v1.40; the empty initialiser above is the only candidate). Confidence:
+// likely (the placement; the code is the compiler's, D5502).

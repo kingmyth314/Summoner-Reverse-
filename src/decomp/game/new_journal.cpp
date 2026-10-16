@@ -111,6 +111,8 @@ int journal_desc_first_line;                                  // 0x5c1ac8
 // init_realtimetimer_5c18bc_thunk (0x41a940, "jmp 0x41a950") and init_realtimetimer_5c18bc (0x41a950,
 // "mov ecx, 0x5c18bc / jmp RealtimeTimer__RealtimeTimer") are the compiler's dynamic initialiser pair for
 // journal_repeat_timer (static_initializers entry 56). Confidence: exact (no source of their own).
+// 0x41a940 init_realtimetimer_5c18bc_thunk (jmp, entry 56). Confidence: exact.
+// 0x41a950 init_realtimetimer_5c18bc (journal_repeat_timer). Confidence: exact.
 
 // 0x41a960  Confidence: exact. Like the play menu (progress_update per entry) but the position and size
 // are only set for named entries and bm_get_dimensions has no handle test. The scrollbar tile is scaled

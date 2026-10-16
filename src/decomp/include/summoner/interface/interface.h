@@ -213,6 +213,8 @@ public:
 };
 void new_icam_load(void *table, const char *filename);                          // 0x410760 (return unused)
 void new_icam_get(void *table, const char *name, matrix *orient, vector3 *pos); // 0x410b70
+int  new_icam_find(void *table, const char *name);                              // 0x410af0 entry or -1 (decomp73)
+// The three are game/unnamed_icam_0x410760.cpp (file name a placeholder; decomp73).
 
 // ---- status screen helpers (interface core) -----------------------------------------------------------
 void statscreen_refresh_anim(Character *c);                         // 0x412e50 (0 from most callers)

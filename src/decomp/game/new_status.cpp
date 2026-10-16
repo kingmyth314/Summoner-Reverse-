@@ -165,11 +165,15 @@ status_str_ref status_modifier_key_names[4] = {
     { XSTR("CAPS", 734) }, { XSTR("SHFT", 735) }, { XSTR("CTRL", 736) }, { XSTR("ALT", 737) },
 };
 
-// init_empty_42b1d0_thunk (0x42b1c0, static_initializers entry 80) / init_empty_42b1d0 (0x42b1d0, a bare ret):
-// read here as the dynamic initialiser of status_cameras, whose constructor is inline and empty (see NOTES).
-// init_strptrs_5f95fc_thunk / init_strptrs_5f95fc (entry 81): status_modifier_key_names.
-// init_realtimetimer_5f93b0_thunk (0x42b220) / init_realtimetimer_5f93b0 (0x42b230, "mov ecx, 0x5f93b0 / jmp
-// RealtimeTimer__RealtimeTimer", entry 82): status_button_timer. Confidence: exact (compiler-generated).
+// The dynamic initialisers (compiler-generated):
+// 0x42b1c0 init_empty_42b1d0_thunk (jmp, static_initializers entry 80). Confidence: exact.
+// 0x42b1d0 init_empty_42b1d0 (a bare ret): read here as the dynamic initialiser of status_cameras, whose
+//          constructor is inline and empty (see NOTES). Confidence: unsure (the pairing).
+// 0x42b1e0 init_strptrs_5f95fc_thunk (jmp, entry 81). Confidence: exact.
+// 0x42b1f0 init_strptrs_5f95fc: the four slot stores of status_modifier_key_names. Confidence: likely.
+// 0x42b220 init_realtimetimer_5f93b0_thunk (jmp, entry 82). Confidence: exact.
+// 0x42b230 init_realtimetimer_5f93b0 (status_button_timer: mov ecx, 0x5f93b0 / jmp RealtimeTimer::RealtimeTimer).
+//          Confidence: exact.
 
 // Value colour of a stat that equipment changes: blue above, red below the base. Inlined at every use
 // (fild of the int, compares with the 0.0f literal 0x57eb84).

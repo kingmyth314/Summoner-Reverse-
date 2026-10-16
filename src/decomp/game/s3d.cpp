@@ -73,16 +73,21 @@ bool Test_meshes_on_load;                 // 0x22e4423
 bool P3D_files;                           // 0x22e4424
 bool s3d_version_flag;                    // 0x22e4425
 
-// 0x46dd30 sinit_level_names_a5a2a0 (call init, jmp register), 0x46dd40 init_level_names_a5a2a0
-// (mov ecx / jmp the constructor), 0x46dd50 register_dtor_level_names_a5a2a0 (atexit(0x46dd60)),
-// 0x46dd60 dtor_level_names_a5a2a0 (mov ecx / jmp the destructor). The constructor 0x46dd80
-// (level_names__ctor: StringPool() on +8, returns this) and destructor 0x46dd70 (level_names__dtor:
-// ~StringPool() on +8, a jmp) are the compiler's for s3d_level (its only member with either is the
-// StringPool). Confidence: exact.
+// The constructor and destructor are the compiler's for s3d_level (its only member with either is the
+// StringPool):
+// 0x46dd30 sinit_level_names_a5a2a0 (call init, jmp register; entry 207). Confidence: exact.
+// 0x46dd40 init_level_names_a5a2a0 (mov ecx / jmp the constructor). Confidence: exact.
+// 0x46dd50 register_dtor_level_names_a5a2a0 (atexit(0x46dd60)). Confidence: exact.
+// 0x46dd60 dtor_level_names_a5a2a0 (mov ecx / jmp the destructor). Confidence: exact.
+// 0x46dd70 s3d_level::~s3d_level (sum.symbols level_names__dtor: ~StringPool() on +8, a jmp). Confidence:
+//          exact (compiler-generated).
+// 0x46dd80 s3d_level::s3d_level (sum.symbols level_names__ctor: StringPool() on +8, returns this).
+//          Confidence: exact (compiler-generated).
 s3d_level level_s3d;                      // 0xa5a2a0
 
-// 0x46dd90 init_mempool_level_thunk / 0x46dda0 init_mempool_level: Mempool's inline constructor is a
-// bare Copy call (D12). Confidence: exact.
+// Mempool's inline constructor is a bare Copy call (D12).
+// 0x46dd90 init_mempool_level_thunk (jmp). Confidence: exact.
+// 0x46dda0 init_mempool_level (Mempool::Copy). Confidence: exact.
 Mempool level_mempool(level_mempool_buffer, 0x186a000, "level");   // 0x22e43c0
 
 // ---- console commands --------------------------------------------------------------------------------
@@ -90,7 +95,8 @@ void cmd_test_meshes_on_load();
 void cmd_load_lightmaps();
 void cmd_p3d_files();
 
-// 0x46ddc0 init_ccmd_test_meshes_on_load_thunk / 0x46ddd0 init_ccmd_test_meshes_on_load. Confidence: exact.
+// 0x46ddc0 init_ccmd_test_meshes_on_load_thunk (jmp). Confidence: exact.
+// 0x46ddd0 init_ccmd_test_meshes_on_load (console_command constructor). Confidence: exact.
 console_command ccmd_test_meshes_on_load("test_meshes_on_load", "Toggles Test_meshes_on_load",
                                          cmd_test_meshes_on_load);   // 0x22e43e8
 
@@ -117,7 +123,8 @@ void cmd_test_meshes_on_load()
     }
 }
 
-// 0x46deb0 init_ccmd_load_lightmaps_thunk / 0x46dec0 init_ccmd_load_lightmaps. Confidence: exact.
+// 0x46deb0 init_ccmd_load_lightmaps_thunk (jmp). Confidence: exact.
+// 0x46dec0 init_ccmd_load_lightmaps (console_command constructor). Confidence: exact.
 console_command ccmd_load_lightmaps("load_lightmaps", "Toggles S3d_load_lightmaps",
                                     cmd_load_lightmaps);   // 0x22c4388
 
@@ -144,7 +151,8 @@ void cmd_load_lightmaps()
     }
 }
 
-// 0x46dfa0 init_ccmd_p3d_files_thunk / 0x46dfb0 init_ccmd_p3d_files. Confidence: exact.
+// 0x46dfa0 init_ccmd_p3d_files_thunk (jmp). Confidence: exact.
+// 0x46dfb0 init_ccmd_p3d_files (console_command constructor). Confidence: exact.
 console_command ccmd_p3d_files("p3d_files", "Toggles P3D_files", cmd_p3d_files);   // 0x22e43a8
 
 // 0x46dfd0  Confidence: exact.
@@ -181,7 +189,8 @@ void ccmd_lmap_reset_handler()
     lmap_reset_all();
 }
 
-// 0x46e090 init_ccmd_lmap_reset_thunk / 0x46e0a0 init_ccmd_lmap_reset. Confidence: exact.
+// 0x46e090 init_ccmd_lmap_reset_thunk (jmp). Confidence: exact.
+// 0x46e0a0 init_ccmd_lmap_reset (console_command constructor). Confidence: exact.
 console_command ccmd_lmap_reset("lmap_reset", "", ccmd_lmap_reset_handler);   // 0x22e4398
 
 // 0x46e0d0 (no symbol)  Confidence: exact. Turns the lightmaps of every level object back on.
@@ -199,7 +208,8 @@ void ccmd_lmap_off_handler()
     lmap_off_all();
 }
 
-// 0x46e110 init_ccmd_lmap_off_thunk / 0x46e120 init_ccmd_lmap_off. Confidence: exact.
+// 0x46e110 init_ccmd_lmap_off_thunk (jmp). Confidence: exact.
+// 0x46e120 init_ccmd_lmap_off (console_command constructor). Confidence: exact.
 console_command ccmd_lmap_off("lmap_off", "", ccmd_lmap_off_handler);   // 0x22e4408
 
 // 0x46e150 (no symbol)  Confidence: exact.

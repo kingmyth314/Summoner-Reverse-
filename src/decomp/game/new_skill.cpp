@@ -731,12 +731,22 @@ void skills_goto_spells()
     interface_set_screen(5, 0);
 }
 
-// 0x4286b0 .. 0x428700  Confidence: exact.
+// 0x4286b0  Confidence: exact.
 void skills_page0() { skills_set_page(0); }
+
+// 0x4286c0  Confidence: exact.
 void skills_page1() { skills_set_page(1); }
+
+// 0x4286d0  Confidence: exact.
 void skills_page2() { skills_set_page(2); }
+
+// 0x4286e0  Confidence: exact.
 void skills_page3() { skills_set_page(3); }
+
+// 0x4286f0  Confidence: exact.
 void skills_page4() { skills_set_page(4); }
+
+// 0x428700  Confidence: exact.
 void skills_page5() { skills_set_page(5); }
 
 // 0x428710  Confidence: likely (skills_list[skills_hover_row] is read before the hit test, also when the row

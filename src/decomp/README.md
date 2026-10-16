@@ -92,6 +92,7 @@ Rules:
 | `game/unnamed_handleslots_0x4a3640.cpp`, `unnamed_shadows_0x4a37d0.cpp`, `unnamed_pfgeom_0x4a4ee0.cpp`, `unnamed_avoidance_0x4a6710.cpp` | handle slots, blob shadows, pathfinding geometry, obstacle avoidance (**names not known**); also `level_page_in_characters` added to `boss_ai.cpp` | 135 | 88 / 45 / 2 (`NOTES-unnamed-shadows-pf-avoid.md`) |
 | `game/unnamed_level_complete_0x4b0960.cpp`, `unnamed_ai_move_0x4b1410.cpp`, `unnamed_ai_think_0x4b5140.cpp`, `unnamed_dialogue_box_0x4d6660.cpp` | multiplayer level completion, AI movement and goal handlers, AI think and target scoring, dialogue boxes (**names not known**) | 123 | 72 / 46 / 5 (`NOTES-unnamed-ai-move-think-dialogue.md`) |
 | six `game/unnamed_*` units: party inventory lists and `add_gold` (0x46b460), item info popup (0x418580), alt textures (0x4aac10), multiplayer join (0x4ab0f0), gtrack (0x4ae330), level-object ray tests (0x4ae890) (**names not known**) | 96 | 66 / 29 / 1 (`NOTES-unnamed-inventory-popup-join-gtrack.md`) |
+| `game/unnamed_gameseq_0x401000.cpp`, `unnamed_icam_0x410760.cpp` | the game state sequencer and GameTick (0x401000), the UI model camera tables new_icam_* (0x410760) (**names not known**) | 10 + 1 COMDAT | 10 / 0 / 0, all ten VC6 byte matches (include/DECISIONS.md D5500-D5504) |
 | `game/new_skill.cpp` | `new_skill.cpp` | 39 | 28 / 11 / 0 |
 | `game/new_spell.cpp` | `new_spell.cpp` | 38 | 31 / 7 / 0 |
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |
@@ -113,8 +114,8 @@ Rules:
 | `game/characterinfo.cpp` | `characterinfo.cpp` | 122 | 81 / 26 / 15 (the 15 are empty Mempool initialisers) |
 | `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |
 | `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 30 of 39 (the three draw-list back ends left) | 13 / 5 / 12 |
-| `game/spells.cpp` | `spells.cpp` | 44 of 53 (cast pipeline left) | 30 / 14 / 0 |
-| `game/combat.cpp` | `combat.cpp` (`0x464010`-`0x469010`) | 59 of 63 | 38 / 20 / 1 |
+| `game/spells.cpp` | `spells.cpp` | 47 of 53 (spell_spawn_creature and summon_create left; decomp73 added spell_prepare_cast, spell_cast_execute, spell_cast_launch_effects) | 30 / 17 / 0 |
+| `game/combat.cpp` | `combat.cpp` (`0x464010`-`0x469010`) | 60 of 63 (decomp73: combat_trigger_reflex_ability) | 38 / 21 / 1 |
 | `game/boss_ai.cpp` | `boss_ai.cpp` (`0x4a04b0`-`0x4a3575`) | 59 | 42 / 17 / 0 |
 | `game/ai.cpp` | `ai.cpp` (+ the 3 cast_effect functions after it, D1905) | 110 | 76 / 30 / 4 |
 | `game/pathfinding.cpp` | `pathfinding.cpp` (`0x49c840`-`0x4a04af`) | 40 | 20 / 20 / 0 |

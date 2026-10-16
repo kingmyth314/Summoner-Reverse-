@@ -90,6 +90,8 @@ int  item_info_popup_scroll_pos;                              // 0x5c1568 first 
 // 0x418580 init_realtimetimer_5c1544_thunk (jmp) / 0x418590 init_realtimetimer_5c1544 (mov ecx, 0x5c1544 /
 // jmp RealtimeTimer__RealtimeTimer): the compiler's dynamic initialiser pair of
 // item_info_popup_repeat_timer (static_initializers entry 53). Confidence: exact (no source of their own).
+// 0x418580 init_realtimetimer_5c1544_thunk (jmp, entry 53). Confidence: exact.
+// 0x418590 init_realtimetimer_5c1544 (mov ecx, 0x5c1544 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4185a0  Confidence: exact (the new_assess.cpp loader; the button table is in .data here). Called from
 // interface_load_all.

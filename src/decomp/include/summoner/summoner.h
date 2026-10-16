@@ -51,6 +51,26 @@ int  gameseq_get_state();             // 0x401040 (4 = game play)
 int  gameseq_get_prev_state();        // 0x401050 (decomp42)
 int  gameseq_get_next_state();        // 0x401060 (decomp42)
 int  GameTick();                      // 0x401070 one frame; returns the current state (3 = quit)
+// The sequencer unit (0x401000-0x4011ad, game/unnamed_gameseq_0x401000.cpp, file name a placeholder;
+// decomp73, D5500): its .data starts with gameseq_state_table, its .bss holds the four state variables.
+void GameStateSwap();                 // 0x401190 prev = cur, cur = next, pending = false
+struct GameStateHandlers {            // symbols/types.h GameStateHandlers (0xc)
+    void (*enter)();                  // +0x0 after the state becomes current
+    void (*frame)();                  // +0x4 every GameTick while current
+    void (*leave)();                  // +0x8 before switching away
+};
+extern GameStateHandlers gameseq_state_table[15];   // 0x588a70 states 0 and 3 empty
+extern int  gameseq_state_cur;        // 0x5b27e0
+extern int  gameseq_state_prev;       // 0x5b27e4
+extern int  gameseq_state_next;       // 0x5b27e8
+extern bool gameseq_state_pending;    // 0x5b27ec
+// State 7 (the debug help text) and state 9 (credits), code 0x430ad0-0x430b9f before the editor dialog
+// unit (not written yet; declared for gameseq_state_table, decomp73).
+void state_debug_help_enter();        // 0x430ad0 state 7
+void state7_leave();                  // 0x430b10
+void state7_frame();                  // 0x430b20
+void state_credits_enter();           // 0x430b80 state 9
+void state_credits_frame();           // 0x430b90
 void game_pause(int a, int b);        // 0x432660 (both 0 in the pilots)
 void game_pause_count_inc();          // 0x432d90 (GameInit)
 void game_pause_count_dec();          // 0x432d80 (state_game_enter, state_help_leave; decomp42)

@@ -62,14 +62,27 @@ gr_vertex levelrender_face_verts[3];          // 0x23c5aa8 (name ours)
 gr_vertex *levelrender_face_vert_list[10];    // 0x23ec630
 void *levelrender_d3d_vertex_buffer;          // 0x243e03c
 
-// 0x48db30 init_array_23df188_thunk / 0x48db40 init_array_23df188: the inline constructor of
-// attached_light (reset()) over the 16 records (D805). Static initialiser entry 253. Confidence: exact.
+// The inline constructor of attached_light (reset()) over the 16 records (D805).
+// 0x48db30 init_array_23df188_thunk (jmp, static initialiser entry 253). Confidence: exact.
+// 0x48db40 init_array_23df188. Confidence: exact.
 attached_light levelrender_lights[16];        // 0x23df188 (name ours; not referenced by address elsewhere)
 
-// Static initialiser entries 254-259 (0x48db60/0x48db70 .. 0x48dc00/0x48dc10): six thunks to empty
-// initialisers, i.e. six objects with empty inline constructors (vector3 arrays, D500) defined here.
-// Two of them are probably the wave arrays below; the other four are among the draw lists' vector3
-// arrays (which ones is open, NOTES.md). Confidence: unsure (the assignment of the six).
+// Static initialiser entries 254-259: six thunks to empty initialisers, i.e. six objects with empty
+// inline constructors (vector3 arrays, D500) defined here. Two of them are probably the wave arrays
+// below; the other four are among the draw lists' vector3 arrays (which ones is open, NOTES.md).
+// The assignment of the six to objects is unsure:
+// 0x48db60 init_empty_48db70_thunk (jmp, entry 254). Confidence: exact.
+// 0x48db70 init_empty_48db70 (a bare ret). Confidence: unsure (which object).
+// 0x48db80 init_empty_48db90_thunk (jmp, entry 255). Confidence: exact.
+// 0x48db90 init_empty_48db90 (a bare ret). Confidence: unsure (which object).
+// 0x48dba0 init_empty_48dbb0_thunk (jmp, entry 256). Confidence: exact.
+// 0x48dbb0 init_empty_48dbb0 (a bare ret). Confidence: unsure (which object).
+// 0x48dbc0 init_empty_48dbd0_thunk (jmp, entry 257). Confidence: exact.
+// 0x48dbd0 init_empty_48dbd0 (a bare ret). Confidence: unsure (which object).
+// 0x48dbe0 init_empty_48dbf0_thunk (jmp, entry 258). Confidence: exact.
+// 0x48dbf0 init_empty_48dbf0 (a bare ret). Confidence: unsure (which object).
+// 0x48dc00 init_empty_48dc10_thunk (jmp, entry 259). Confidence: exact.
+// 0x48dc10 init_empty_48dc10 (a bare ret). Confidence: unsure (which object).
 vector3 levelrender_wave_vertex_normals[LEVELRENDER_MAX_WAVE_NORMALS];   // 0x2396ca8
 vector3 levelrender_wave_vertices[LEVELRENDER_MAX_VERTS];               // 0x23ec658
 
@@ -78,7 +91,8 @@ void cmd_time_mult();
 void cmd_space_mult();
 void cmd_small_mesh_threshold();
 
-// 0x48dc20 init_ccmd_time_mult_thunk / 0x48dc30 init_ccmd_time_mult. Confidence: exact.
+// 0x48dc20 init_ccmd_time_mult_thunk (jmp). Confidence: exact.
+// 0x48dc30 init_ccmd_time_mult (console_command constructor). Confidence: exact.
 console_command ccmd_time_mult("time_mult", "Sets Time_mult", cmd_time_mult);   // 0x23fc838
 
 // 0x48dc50  Confidence: exact. The console's float command macro (as cmd_gamma in summoner.cpp).
@@ -98,7 +112,8 @@ void cmd_time_mult()
     }
 }
 
-// 0x48dce0 init_ccmd_space_mult_thunk / 0x48dcf0 init_ccmd_space_mult. Confidence: exact.
+// 0x48dce0 init_ccmd_space_mult_thunk (jmp). Confidence: exact.
+// 0x48dcf0 init_ccmd_space_mult (console_command constructor). Confidence: exact.
 console_command ccmd_space_mult("space_mult", "Sets Space_mult", cmd_space_mult);   // 0x2432478
 
 // 0x48dd10  Confidence: exact.
@@ -118,7 +133,8 @@ void cmd_space_mult()
     }
 }
 
-// 0x48dda0 init_ccmd_small_mesh_threshold_thunk / 0x48ddb0 init_ccmd_small_mesh_threshold. Confidence: exact.
+// 0x48dda0 init_ccmd_small_mesh_threshold_thunk (jmp). Confidence: exact.
+// 0x48ddb0 init_ccmd_small_mesh_threshold (console_command constructor). Confidence: exact.
 console_command ccmd_small_mesh_threshold("small_mesh_threshold", "Sets Small_mesh_threshold",
                                           cmd_small_mesh_threshold);   // 0x23f81d8
 
@@ -200,6 +216,14 @@ void levelrender_wave_lobj(lobj *l, vector3 *out)
             levelrender_wave_vertex_normals[i].normalize();
     }
 }
+
+// 0x48e440 vector3::operator+=(const vector3 &) (vsdk/math/vector.h): the COMDAT of the inline operator,
+// emitted after its first out-of-line use (levelrender_wave_lobj). Confidence: exact (compiler-generated
+// from the header).
+
+// 0x48e460 atexit_nop_48e460: the empty atexit destructor of levelrender_wave_lobj's static GameTimer
+// (0x23eb688; GameTimer has no destructor, so the guard's handler is a bare ret). Confidence: exact
+// (compiler-generated).
 
 // ---- Direct3D vertex buffer ----------------------------------------------------------------------
 
@@ -284,7 +308,10 @@ void level_lights_setup()
     }
 }
 
-// 0x48e6c0 levelrender_draw_list_glide: not written yet (see the head of this file).
+// levelrender_draw_list_glide (0x48e6c0): not written yet (see the head of this file).
+// 0x48fd90 atexit_nop_48fd90 and
+// 0x48fda0 atexit_nop_48fda0: the empty atexit destructors of two function-local statics of the Glide draw
+//          list (written with it). Confidence: exact (compiler-generated, bare rets).
 
 // ---- face helpers ----------------------------------------------------------------------------------
 
@@ -414,4 +441,10 @@ int levelrender_sum_point_lights(vector3 *out, const vector3 *pos, const vector3
     return n;
 }
 
-// 0x48fdb0 levelrender_draw_list_d3d, 0x491500 levelrender_draw_list_opengl: not written yet.
+// levelrender_draw_list_d3d (0x48fdb0) and levelrender_draw_list_opengl (0x491500): not written yet.
+// 0x4914e0 atexit_nop_4914e0 and
+// 0x4914f0 atexit_nop_4914f0 (guard 0x23d3600): the empty atexit destructors of the Direct3D draw list's
+//          two function-local statics. Confidence: exact (compiler-generated, bare rets).
+// 0x492ae0 atexit_nop_492ae0 and
+// 0x492af0 atexit_nop_492af0 (guard 0x23c5b38): the same for the OpenGL draw list. Confidence: exact
+//          (compiler-generated, bare rets).

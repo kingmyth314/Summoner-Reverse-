@@ -41,7 +41,9 @@ struct help_line {
     char *&text;
 };
 
-// 0x5bc928, built by init_strptrs_5bc928 (0x40bf40, thunk 0x40bf30). Confidence: likely
+// 0x40bf30 init_strptrs_5bc928_thunk (jmp, static_initializers entry 15). Confidence: exact.
+// 0x40bf40 init_strptrs_5bc928: the 16 slot stores of the table below. Confidence: likely (one initialiser per table).
+// 0x5bc928:
 help_line help_mouse_lines[] = {
     { XSTR("Left click and release", 835),   XSTR("Run to point", 836) },
     { XSTR("Left click and hold", 837),      XSTR("Move towards mouse cursor", 838) },
@@ -53,14 +55,18 @@ help_line help_mouse_lines[] = {
     { XSTR("Right click on portrait", 849),  XSTR("Status screen", 850) },
 };
 
-// 0x5bc968, built by init_strptrs_5bc968 (0x40c000, thunk 0x40bff0). Confidence: likely
+// 0x40bff0 init_strptrs_5bc968_thunk (jmp, static_initializers entry 16). Confidence: exact.
+// 0x40c000 init_strptrs_5bc968: the 6 slot stores of the table below. Confidence: likely (one initialiser per table).
+// 0x5bc968:
 help_line help_camera_lines[] = {
     { XSTR("Mouse at edge", 851), XSTR("Rotates camera", 852) },
     { XSTR("Mouse wheel", 853),   XSTR("Zoom camera", 854) },
     { XSTR("Arrow keys", 855),    XSTR("Rotate/Zoom camera", 856) },
 };
 
-// 0x5bc980, built by init_strptrs_5bc980 (0x40c050, thunk 0x40c040). Confidence: likely
+// 0x40c040 init_strptrs_5bc980_thunk (jmp, static_initializers entry 17). Confidence: exact.
+// 0x40c050 init_strptrs_5bc980: the 26 slot stores of the table below. Confidence: likely (one initialiser per table).
+// 0x5bc980:
 help_line help_keyboard1_lines[] = {
     { XSTR("C", 857),              XSTR("Cast spell", 858) },
     { XSTR("H", 859),              XSTR("Hold position (solo mode)", 860) },
@@ -77,7 +83,9 @@ help_line help_keyboard1_lines[] = {
     { XSTR("SPACE or PAUSE", 878), XSTR("Pause/unpause game", 879) },
 };
 
-// 0x5bc9e8, built by init_strptrs_5bc9e8 (0x40c170, thunk 0x40c160). Confidence: likely
+// 0x40c160 init_strptrs_5bc9e8_thunk (jmp, static_initializers entry 18). Confidence: exact.
+// 0x40c170 init_strptrs_5bc9e8: the 20 slot stores of the table below. Confidence: likely (one initialiser per table).
+// 0x5bc9e8:
 help_line help_keyboard2_lines[] = {
     { XSTR("ESC", 880),      XSTR("Game menu", 881) },
     { XSTR("F1", 882),       XSTR("Help screen", 883) },
@@ -91,7 +99,9 @@ help_line help_keyboard2_lines[] = {
     { XSTR("PrntScrn", 897), XSTR("Take screen shot", 898) },
 };
 
-// 0x5bca38, built by init_strptrs_5bca38 (0x40c250, thunk 0x40c240). Confidence: likely
+// 0x40c240 init_strptrs_5bca38_thunk (jmp, static_initializers entry 19). Confidence: exact.
+// 0x40c250 init_strptrs_5bca38: the 8 slot stores of the table below. Confidence: likely (one initialiser per table).
+// 0x5bca38:
 help_line help_automap_lines[] = {
     { XSTR("Left Click", 899),           XSTR("Select label / edit label text", 900) },
     { XSTR("Right click and drag", 901), XSTR("Reposition map", 902) },

@@ -79,9 +79,9 @@ int gamecreate_levels_below;                                       // 0x5bc6e4  
 char gamecreate_game_name[32];                                // 0x5bc6e8
 bool gamecreate_cursor_on;                                    // 0x5bc708
 
-// init_realtimetimer_5bc6c8_thunk (0x4099b0, "jmp 0x4099c0") and init_realtimetimer_5bc6c8 (0x4099c0,
-// "mov ecx, 0x5bc6c8 / jmp RealtimeTimer__RealtimeTimer") are the compiler's dynamic initialiser pair for
-// gamecreate_cursor_timer (static_initializers entry 12). Confidence: exact (no source of their own).
+// The compiler's dynamic initialiser pair for gamecreate_cursor_timer (no source of their own):
+// 0x4099b0 init_realtimetimer_5bc6c8_thunk ("jmp 0x4099c0", static_initializers entry 12). Confidence: exact.
+// 0x4099c0 init_realtimetimer_5bc6c8 (mov ecx, 0x5bc6c8 / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4099d0  Confidence: exact. No progress_update and no '.' test: the suffix is always appended,
 // bm_get_dimensions is called without a handle test, an empty name leaves the record cleared.

@@ -8,8 +8,8 @@
 // Unit range: living_combat_send_net (0x463540) to living_combat_set_40 (0x468c70-0x468c77). The previous
 // function, cmd_death (0x463480), is living_entity.cpp's last; the next, sinit_stringpool_941740
 // (0x468c80), is gamesound.cpp's first. Not written yet (NOTES.md): combat_trigger_special_ability
-// 0x4670a0, combat_trigger_reflex_ability 0x467670, living_combat_update_boss_attack 0x468360 and
-// blood_splot_place 0x468760 (about 1,370 instructions).
+// 0x4670a0, living_combat_update_boss_attack 0x468360 and blood_splot_place 0x468760 (decomp73 wrote
+// combat_trigger_reflex_ability 0x467670, D5506).
 //
 // Most functions are thiscall members of living_combat (Character +0x558); +0x08 is the other side of
 // the exchange. The "skill" of an attack (+0x3c) is a skill id (characterinfo.h SKILL_*).
@@ -464,7 +464,8 @@ bool living_combat_resolve_hit_vs(living_combat *c, living_combat *opp)
     return r;
 }
 
-// 0x464010 init_ccmd_Super_power_thunk / 0x464020 init_ccmd_Super_power. Confidence: exact.
+// 0x464010 init_ccmd_Super_power_thunk (jmp). Confidence: exact.
+// 0x464020 init_ccmd_Super_power (console_command constructor). Confidence: exact.
 console_command ccmd_Super_power("Super_power", "Toggles Super_power", cmd_Super_power);   // 0x941720
 
 // 0x464040  Confidence: exact (the console's bool command macro).
@@ -1563,7 +1564,76 @@ void living_combat::update_ranged()
         boss_clear_current_move(owner);
 }
 
-// 0x4670a0 combat_trigger_special_ability, 0x467670 combat_trigger_reflex_ability: not written yet.
+// combat_trigger_special_ability (0x4670a0): not written yet.
+
+// One cast of a triggered spell by `c` (the defender) for combat_trigger_reflex_ability: on the
+// multiplayer host as a request (spell_prepare_cast, mp_spell_cast_sync, spell_cast_launch_effects),
+// otherwise a hit-only spell hits the target directly and the others go through spell_cast_execute.
+// Written out four times in the binary with the stack temporaries of each copy; a macro here (D5506).
+#define COMBAT_TRIGGER_CAST(c, sp, tgt, tpos, tlayer, itype, src, hit_char, sp_target) do { \
+        if (game_flags & GF_MULTIPLAYER) { \
+            spell_cast_request req_(-1); \
+            req_.caster = (c); \
+            req_.spell = (sp); \
+            req_.target = (tgt); \
+            req_.target_pos = (tpos); \
+            req_.layer = (tlayer); \
+            req_.item = (itype); \
+            req_.source_type = (src); \
+            req_.params = spell_prepare_cast((c), (sp), (tgt), (itype), (src), damage); \
+            mp_spell_cast_sync(&req_); \
+            spell_cast_launch_effects(&req_); \
+        } else if (spells[sp].flags & SPELL_HIT_ONLY) { \
+            (hit_char)->get_hit_by_spell((sp), (c)->handle, (tpos), &(hit_char)->orient, (src), (itype), \
+                                         damage, false); \
+            spell_play_hit_sound((sp), &(hit_char)->pos); \
+        } else \
+            spell_cast_execute((c), (sp), (sp_target), (tpos), (tlayer), (int)(itype), (src), 0); \
+    } while (0)
+
+// 0x467670  Confidence: likely (VC6 compiles the same flow and stores, 1605 bytes, but keeps opponent->owner in
+// callee-saved registers across frand where the original reloads it and holds -1 in edi; D5506).
+// The defender (opponent's owner) answers a hit: with the chance of its char_info reflex ability, it
+// casts that spell (source type 2); then every worn item whose type has an armour triggered effect
+// casts that effect's spell with its chance (source type 4, the item type as the item). A beneficial
+// spell goes to the defender itself (at its position + 1.2 up), any other to the attacker (owner). The
+// single-player spell_cast_execute call of the item effects passes the defender's own handle as the
+// target of an offensive spell (with the attacker's position and layer), unlike every other branch
+// (bug K300 candidate, D5506).
+void living_combat::trigger_reflex_ability(float damage)
+{
+    vector3 self_pos = opponent->owner->pos;
+    self_pos.y += 1.2f;
+    vector3 attacker_pos = owner->pos;
+    attacker_pos.y += 1.2f;
+    int spell = opponent->owner->info->reflex_ability;
+    int i;
+
+    if (spell != -1 && frand() < opponent->owner->info->reflex_chance) {
+        if (spells[spell].flags & SPELL_BENEFICIAL)
+            COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
+                                opponent->owner->layer, (ItemType *)0, 2, opponent->owner,
+                                opponent->owner->handle);
+        else
+            COMBAT_TRIGGER_CAST(opponent->owner, spell, owner->handle, &attacker_pos, owner->layer,
+                                (ItemType *)0, 2, owner, owner->handle);
+    }
+    for (i = 0; i < 9; i++) {
+        item_info *it = opponent->owner->equipment[i];
+        if (it && it->type->kind == 1 && it->type->armour_triggered_effect &&
+            frand() < it->type->armour_triggered_effect->chance) {
+            spell = it->type->armour_triggered_effect->spell;
+            if (spells[spell].flags & SPELL_BENEFICIAL)
+                COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
+                                    opponent->owner->layer, opponent->owner->equipment[i]->type, 4,
+                                    opponent->owner, opponent->owner->handle);
+            else
+                COMBAT_TRIGGER_CAST(opponent->owner, spell, owner->handle, &attacker_pos, owner->layer,
+                                    opponent->owner->equipment[i]->type, 4, owner,
+                                    opponent->owner->handle);
+        }
+    }
+}
 
 // 0x467cb0  Confidence: likely. The backstab special attack (AI combat sub 0x11): move 0x6c, the full
 // bonus when the target is not in combat mode.
@@ -1759,7 +1829,7 @@ bool living_combat::update(int move_id)
     return state == COMBAT_IDLE;
 }
 
-// 0x468360 living_combat_update_boss_attack: not written yet.
+// living_combat_update_boss_attack (0x468360): not written yet.
 
 // 0x4685c0  Confidence: likely. Replays an exchange sent by another machine (living_combat_send_net):
 // hit = 0 makes the defender (the target's record) pick its parry / dodge or take the hit.
@@ -1825,7 +1895,7 @@ void living_combat::set_38(int s)
     chain_skill = s;
 }
 
-// 0x468760 blood_splot_place: not written yet.
+// blood_splot_place (0x468760): not written yet.
 
 // 0x468a90  Confidence: likely (an out-of-line vector operator whose COMDAT landed in this unit; 16
 // other callers). s * v.

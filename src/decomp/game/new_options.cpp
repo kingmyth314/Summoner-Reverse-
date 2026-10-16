@@ -130,6 +130,8 @@ ui_button_state options_buttons[OPTIONS_NUM_BUTTONS];     // 0x5c3328
 // init_options_config_defaults_thunk (0x41ee90, "jmp 0x41eea0") and init_options_config_defaults (0x41eea0)
 // are the compiler's dynamic initialiser pair for options_edit: the inline SummonerOptions constructor
 // (static_initializers entry 61; no destructor, so no atexit). Confidence: exact (no source of their own).
+// 0x41ee90 init_options_config_defaults_thunk (jmp, entry 61). Confidence: exact.
+// 0x41eea0 init_options_config_defaults (the inline SummonerOptions constructor on options_edit). Confidence: exact.
 
 // 0x41ef30  Confidence: likely (byte table 0x41f09c over i 0..70 into the two-entry jump table 0x41f094:
 // the entries that are always drawn are written as a switch inside the load branch).

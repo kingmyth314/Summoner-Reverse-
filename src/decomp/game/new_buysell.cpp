@@ -121,9 +121,9 @@ int buysell_scrollbar_bm;                                     // 0x5b67f8
 bool buysell_scrollbar_visible;                               // 0x5b67fc
 int buysell_pressed_button;                                   // 0x5b6800 pressed button (sum.symbols name; see NOTES)
 
-// init_realtimetimer_5b640c_thunk (0x4048b0, "jmp 0x4048c0", static_initializers entry 8) and
-// init_realtimetimer_5b640c (0x4048c0, "mov ecx, 0x5b640c / jmp RealtimeTimer__RealtimeTimer") are the
-// compiler's dynamic initialiser pair for buysell_repeat_timer. Confidence: exact (no source of their own).
+// The compiler's dynamic initialiser pair for buysell_repeat_timer (no source of their own):
+// 0x4048b0 init_realtimetimer_5b640c_thunk ("jmp 0x4048c0", static_initializers entry 8). Confidence: exact.
+// 0x4048c0 init_realtimetimer_5b640c (mov ecx, 0x5b640c / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
 // 0x4048d0  Confidence: likely (VC6 merged the two "info button disabled" tails; written as plain if/else).
 // Buy / sell button (34) disabled while buying something the party cannot afford; info button (36) needs
@@ -795,6 +795,7 @@ void buysell_goto_weapons()
     buysell_update_scrollbar();
 }
 
+// 0x405c90  Confidence: exact (as buysell_goto_weapons).
 void buysell_goto_armor()
 {
     int first = buysell_category_first_index(1);
@@ -803,6 +804,7 @@ void buysell_goto_armor()
     buysell_update_scrollbar();
 }
 
+// 0x405cd0  Confidence: exact (as buysell_goto_weapons).
 void buysell_goto_magic_items()
 {
     int first = buysell_category_first_index(2);
@@ -811,6 +813,7 @@ void buysell_goto_magic_items()
     buysell_update_scrollbar();
 }
 
+// 0x405d10  Confidence: exact (as buysell_goto_weapons).
 void buysell_goto_jewelry()
 {
     int first = buysell_category_first_index(3);
@@ -819,6 +822,7 @@ void buysell_goto_jewelry()
     buysell_update_scrollbar();
 }
 
+// 0x405d50  Confidence: exact (as buysell_goto_weapons).
 void buysell_goto_misc()
 {
     int first = buysell_category_first_index(4);

@@ -587,12 +587,22 @@ void ui_party_next()
     party_cycle(1);
 }
 
-// 0x42a980 .. 0x42a9d0  Confidence: exact.
+// 0x42a980  Confidence: exact.
 void spells_page0() { spells_set_page(0); }
+
+// 0x42a990  Confidence: exact.
 void spells_page1() { spells_set_page(1); }
+
+// 0x42a9a0  Confidence: exact.
 void spells_page2() { spells_set_page(2); }
+
+// 0x42a9b0  Confidence: exact.
 void spells_page3() { spells_set_page(3); }
+
+// 0x42a9c0  Confidence: exact.
 void spells_page4() { spells_set_page(4); }
+
+// 0x42a9d0  Confidence: exact.
 void spells_page5() { spells_set_page(5); }
 
 // 0x42a9e0  Confidence: exact. Mode 2: released on the row casts the spell and closes the screen; pressed

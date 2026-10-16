@@ -70,23 +70,29 @@ item_info *item_free_list;                    // 0x8b50b8
 item_info item_records[MAX_ITEMS];            // 0x8b50c8 (0x8b50bc-0x8b50c7 unreferenced; label ours)
 material materials[MAX_MATERIALS];            // 0x8b9d48
 unsigned int items_table_checksum;            // 0x8b9e9c
-// 0x449ef0 sinit_norlsallocpool_8b9ea0 (call init, jmp register), 0x449f00 init (NoRlsAllocPool()),
-// 0x449f10 register (atexit(0x449f20)), 0x449f20 dtor (jmp NoRlsAllocPool::~NoRlsAllocPool).
-// Confidence: exact.
+// 0x449ef0 sinit_norlsallocpool_8b9ea0 (call init, jmp register; static_initializers entry 186). Confidence: exact.
+// 0x449f00 init_norlsallocpool_8b9ea0 (NoRlsAllocPool()). Confidence: exact.
+// 0x449f10 register_dtor_norlsallocpool_8b9ea0 (atexit(0x449f20)). Confidence: exact.
+// 0x449f20 dtor_norlsallocpool_8b9ea0 (jmp NoRlsAllocPool::~NoRlsAllocPool). Confidence: exact.
 NoRlsAllocPool items_alloc_pool;              // 0x8b9ea0
 char items_alloc_buffer[0x12000];             // 0x8b9ebc (label ours)
 int items_num_allocated;                      // 0x8cbebc
 ItemType item_types[MAX_ITEM_TYPES];          // 0x8cbec0
 int num_item_types;                           // 0x8ec7c0
 char ring_info_text[0x200];                   // 0x8ec7c4
-// localize_strings slot tables: dynamic initialisers because &localize_strings[id] is stored (the
-// three thunk / initialiser pairs 0x449d90 / 0x449da0, 0x449df0 / 0x449e00, 0x449e20 / 0x449e30).
-// Confidence: likely (one initialiser per table; the order of the stores is the element order).
+// localize_strings slot tables: dynamic initialisers because &localize_strings[id] is stored (one
+// initialiser per table; the order of the stores is the element order).
+// 0x449d90 init_strptrs_8ec9c4_thunk (jmp, static_initializers entry 183). Confidence: exact.
+// 0x449da0 init_strptrs_8ec9c4 (damage_type_loc_names). Confidence: likely.
 char **damage_type_loc_names[7] = {           // 0x8ec9c4
     &XSTR("fire", 106), &XSTR("ice", 108), &XSTR("energy", 102), &XSTR("magic", 250),
     &XSTR("slashing", 251), &XSTR("piercing", 252), &XSTR("blunt", 253),
 };
+// 0x449df0 init_strptrs_8ec9e0_thunk (jmp, entry 184). Confidence: exact.
+// 0x449e00 init_strptrs_8ec9e0 (ring_stat_names). Confidence: likely.
 char **ring_stat_names[2] = { &XSTR("MaxHP", 254), &XSTR("MaxAP", 255) };   // 0x8ec9e0
+// 0x449e20 init_strptrs_8ec9e8_thunk (jmp, entry 185). Confidence: exact.
+// 0x449e30 init_strptrs_8ec9e8 (status_effect_names). Confidence: likely.
 char **status_effect_names[18] = {            // 0x8ec9e8
     &XSTR("Blind", 256), &XSTR("Silenced", 257), &XSTR("Faith", 258), &XSTR("Cursed", 259),
     &XSTR("Blessed", 260), &XSTR("Regenerating", 261), &XSTR("Empowered", 262), &XSTR("Light", 263),
