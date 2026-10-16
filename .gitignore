@@ -38,3 +38,5 @@ summonerfix.log
 # compiler and other installer archives the user keeps in the folder (third-party, never commit)
 /*.zip
 /*.iso
+/*.7z
+/*.rar

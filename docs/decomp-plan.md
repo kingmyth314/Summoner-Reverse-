@@ -376,3 +376,9 @@ frame-based code of `/Od` (**observed** on a test loop). Standard Edition has no
 compared against the units Sum.exe ships unoptimised (living_entity.cpp, objects.cpp, the cutscene file). Even those
 need the `src/decomp` headers made VC6-clean first (they include `stdint.h`, which VC6 lacks). The optimised units
 need the Professional or Enterprise Edition, ideally with the service pack that gives build 8966.
+
+**Visual C++ 6.0 Professional Edition (tested 2026-10-16).** A German VC6 Professional disc (February 1999, part
+X04-63216; cl 12.00.8168, the release build) optimises. `vector2::len` (`0x523f80`) and `vector2::normalize`
+(`0x523fc0`), written as in `src/decomp/vsdk/unnamed_vector_0x523f30.cpp` and compiled with `cl /O2`, give the same
+bytes as Sum.exe apart from the relocated addresses (**observed**). So byte-level comparison is possible now, even
+before the service pack that gives build 8966 is found; where the release build and 8966 differ is not known yet.
