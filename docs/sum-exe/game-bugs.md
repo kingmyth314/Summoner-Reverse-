@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 337 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 349 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,10 +26,10 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 72 | 2 |
-| Gameplay | 48 | 24 | 3 |
-| Cosmetic | 57 | 32 | 5 |
-| Invisible | 42 | 55 | 0 |
+| Crash or hang | 7 | 75 | 2 |
+| Gameplay | 50 | 24 | 3 |
+| Cosmetic | 58 | 35 | 5 |
+| Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -117,6 +117,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C290 | Latent: Print Screen at a screen height above 1024 lines (only with a resolution patch, for example SummonerFix's `GameHeight`) overwrites the JPEG writer's return address and crashes | `jpeg_write_file` `0x5565e0` | **Observed** code, *inferred* crash | No |
 | C291 | Latent: an `alt_textures.tbl` `$Base:` name of 33 to 40 characters runs into the next base, and a texture set with more than 15 textures overwrites the next set | `alt_textures_parse_table` `0x4aac10` | **Observed** code and retail data, *inferred* effect | No |
 | C292 | Latent: an input box character set with a character above `0x7f` (script editor or UI table) writes past its 128-entry stack table into the return address | `ui_inputbox__set_valid_chars` `0x552870` | **Observed** code, *inferred* crash | No |
+| C300 | Latent: with the Direct3D renderer on a card whose largest texture is smaller than a bitmap (256 on Voodoo-class cards; current cards take 8192 or more), loading that bitmap writes past the locked texture surface and reads past the bitmap | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0`, `gr_d3d_create_texture_section` `0x54bca0` | **Observed** code, *inferred* effect | No |
+| C301 | Latent: a cutscene script with more than 512 navpoints overwrites the cutscene string pool, and a level script with more than 750 navpoints overwrites the `door_toggle` console command and the memory after it | `cutscene_script_load` `0x4ed0f0`, `script_parse_navpoints` `0x4db700` | **Observed** code and retail data, *inferred* effect | No |
+| C302 | Latent: in `Rand-ForestNite1_v2` and `rand-hills01_v2`, a Ghost Rider or Phoenix Rider missing from the level crashes the game on the first frame | `ls_rand_forestnite1_frame` `0x4f56e0`, `ls_rand_hills01_frame` `0x4fa4a0` | **Observed** code and retail data, *inferred* crash | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -806,6 +809,39 @@ it. The script editor's sets are ASCII ("A-Za-z0-9$_-", "01234567890.", "0123456
 `ui_parse_inputbox` (`0x529576`), only runs for UI tables, which nothing loads (V9). Found in the
 `NOTES-unnamed-anim-clip-ui-vfxmesh.md` notes.
 
+**C300. The whole bitmap is copied into each section.** `gr_d3d_create_texture` splits a bitmap into sections of at
+most `gr_screen.max_bitmap_w` x `max_bitmap_h` (`0x25d8d6c`, `0x25d8d70`; `idiv` at `0x54d16f`, `0x54d187`), which
+`gr_d3d_init_device` takes from the device's maximum texture size, 256 when the driver reports less than 16
+(`0x539ba6`..`0x539c54`). Each section gets its own texture of the section's size (`gr_d3d_create_texture_section`
+`0x54bcd8`..`0x54bd8f`), but the section function passes the whole bitmap's width and height to the copy
+(`0x54bf51`..`0x54bf8e`; the mip loop halves them at `0x54bfe9`..`0x54c006`). In the palettised path the copy starts
+at the section's corner (`+0x10`, `+0x14`, `0x54c327`..`0x54c35e`), writes `bm_w` texels per row and `bm_h` rows one
+surface pitch apart (`0x54c388`..`0x54c417`), and pads only when the bitmap is narrower or shorter than the texture
+(`0x54c3e3`, `0x54c432`). With two or more sections each row runs into the next, the rows past `tex_h` land after the
+locked surface, and the source index `(y + row) * bm_w + x + col` runs past the bitmap by `y * bm_w` bytes. The 8-bit
+alpha path ignores the section position altogether (`0x54c1ab`..`0x54c28f`, see V301). With one section, which is the
+case for every bitmap on a card with 2048 or more, nothing goes wrong. Found in the
+`NOTES-unnamed-gr-line-poly-emitter-tcache.md` notes.
+
+**C301. No bound on either navpoint table.** `cutscene_script_load` parses navpoints until `#Objects` and stores each at
+`cutscene_navpoints[cutscene_navpoint_count++]` with no compare (`0x4ed281`..`0x4ed2b7`). The table holds 512 records
+of `0x30` bytes: `cutscene_script_stringpool` starts at `0x2571750`, `0x6000` bytes after `cutscene_navpoints`
+(`0x256b750`), and the script editor stops at `0x200` ("Limit reached - can't add any more cutscene navpoints",
+`0x4e5d59`). Record 513 overwrites the string pool object. `script_parse_navpoints` does the same for a level script's
+`#Navpoints` (`0x4db776`..`0x4db78a`, called in a loop by `level_script_parse_table` at `0x4cd718`..`0x4cd735`); its
+table has 750 records (`navpoints` `0x24e4950`, editor limit `0x2ee` at `0x4e5d7d`), and record 751 lands on
+`ccmd_door_toggle` (`0x24ed5f0`). Retail scripts stay well under both: at most 72 cutscene navpoints
+(`Game-Intro_cscript.tbl`) and 566 level navpoints (`lenele1b_v2_script.tbl`, `_v3`). Found in the
+`NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
+**C302. The rider is read without a test.** While `ghost_killed` is not set, the `Rand-ForestNite1_v2` frame handler
+calls `ghost_find_rider` and reads the result's hit points (`fld dword ptr [eax + 0x5f8]` at `0x4f583e`). The
+`rand-hills01_v2` handler does the same with `phoenix_find_rider` (`0x4fa5fe`). Both finders return 0 when no living
+entity has the rider's species (`xor eax, eax` at `0x4b9fe6`, `0x497be6`). The check runs from the first frame, before
+the intro cutscene, and stops once the rider's hit points reach 0 and the flag is set (`0x4f5887`, `0x4fa64b`), so only
+a script without the rider triggers it. Both retail scripts place their rider. Same kind as C130 and C151. Found in the
+`NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -882,6 +918,8 @@ it. The script editor's sets are ASCII ("A-Za-z0-9$_-", "01234567890.", "0123456
 | G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code, *inferred* effect | No |
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
+| G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | No |
+| G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code and retail data | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1518,6 +1556,26 @@ faces and both children are skipped and the ray can pass through that part of th
 more than 128 crossings along one segment, which we have not seen. Found in the
 `NOTES-unnamed-inventory-popup-join-gtrack.md` notes (D5216).
 
+**G300. Wrong handle for the armour's spell.** After the defender's reflex ability, `combat_trigger_reflex_ability`
+walks the defender's nine equipment slots (`+0x754`..`+0x774`, `0x46794a`..`0x467c97`) and, for armour (item type 1,
+`items_parse_table` `0x44a2b9`) with a `+Triggered Effect:` record (`+0xf8`), rolls `frand()` against the chance (the
+table value times 0.01, `0x44ad00`). In single player a spell that is beneficial (`+0x20`, "+Beneficial") but not
+"+Hit only" (`0x80`) goes to `spell_cast_execute` with the **attacker's** handle as target and the defender's position
+(`[ebp]` is the attacker, `0x467b0f`..`0x467b1d`, `0x467c83`..`0x467c86`). The reflex-ability branch above it targets
+the defender for the same kind of spell (`0x467815`..`0x467829`), and the multiplayer branch does too (`[eax + 0x80]` of
+the defender, `0x467a4b`..`0x467a68`). An offensive spell gets the opposite slip: the defender's own handle as target
+at the attacker's position (`0x467c64`..`0x467c86`). The only retail armour with a triggered effect is Rosalind's
+Robe of Restoration, `+Triggered Effect: "heal" 20 20` ("may cast a Heal spell upon the wearer"); `heal` is spell 0,
+"+Beneficial" without "+Hit only". `spell_cast_execute`'s case for spell 0 calls `living_entity_get_hit_by_spell` on
+`living_from_handle(target)` (`0x47c9a6`..`0x47c9d4`), so the enemy gets the Heal. Found in the
+`NOTES-sweep-below-0x4a0000.md` notes (their K300 candidate, the offensive case, has no retail item).
+
+**G301. 100 for 10.** In `Lenele2ab_dlg.tbl` the topic {Give him 10 gold pieces.} under {"Massacre?"} triggers
+"payoff". `ls_lenele2ab_action` then sends Canis away and subtracts 100 (`sub eax, 0x64` at `0x4f124d`), clamping the
+party's gold at 0 (`0x4f1255`..`0x4f1257`). The topic has no other line. The table's own
+comment after the topic ("Need to provide for the transfer of funds here.") suggests the amount was never matched up.
+Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1611,6 +1669,10 @@ more than 128 crossings along one segment, which we have not seen. Found in the
 | K297 | Latent: in the script editor, check boxes and radio buttons are clickable only over the first few characters of their label, and input boxes place the scroll and cursor with the wrong font | `ui_checkbox__create` `0x553d00`, `ui_radio_button__create` `0x5548a0`, `ui_inputbox__draw` `0x5530b0` | **Observed** code, *inferred* effect | No |
 | K298 | Latent: velocity-aligned (streak) particles have a length that ignores one of their size factors | `vfx_particle_get_billboard_axes` `0x562840` | **Observed** code, *inferred* effect | No |
 | K299 | Latent: lit effect meshes get vertex normals that all point into the negative octant, because face normals are unpacked as signed bytes with the unsigned mapping | `vfx_unpack_vector_s8` `0x564a20`, `vfx_mesh_render` `0x562f60` | **Observed** code, *inferred* effect | No |
+| K300 | The hit sound of many spells (Black Cloud, Recall, Destroy Undead, Wrath of God, Burning Hands, Curse, the Meteor Storms, Banish Summon and others) plays at a leftover stack position, so it can come from the wrong place or be out of earshot | `spell_cast_execute` `0x47c5d0` | **Observed** code, *inferred* effect | No |
+| K301 | Latent: a `+Set Important:` or `+Clear Important:` line naming a speaker defined later in the same `_dlg.tbl` does nothing, so that character's quest icon is not shown or not removed | `dialogue_parse_table` `0x4fee50` | **Observed** code and retail data | No |
+| K302 | Latent: an effect whose particle interval curve has two or more non-zero keys spawns at the wrong rate between the keys | `vif_curve__evaluate` `0x533ca0` | **Observed** code, *inferred* effect | No |
+| K303 | Latent: the `sysinfo` console command always reports MMX, and shows the RAM speed four times too high | `cpu_identify` `0x5312d6`, `PrintSystemInfo` `0x53171f` | **Observed** code | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -2373,6 +2435,42 @@ vertex, normalises and packs the result and lights the vertex with it (`0x5631c7
 full-bright (`test al, 0x10` at `0x563193`) or its material value is 254 or more (`0x56319b`). Which retail effect
 meshes are lit was not checked. Found in the `NOTES-unnamed-anim-clip-ui-vfxmesh.md` notes (D5108).
 
+**K300. The sound position is set only on some paths.** In single player `spell_cast_execute` ends at
+`spell_play_hit_sound(spell, &pos)` (`0x47c9ee`..`0x47c9f4`), which plays the spell's hit sound with
+`sound_play_3d_at` (`0x47e072`..`0x47e078`; only spells `0x32`..`0x35` play it flat). `pos` (`[esp + 0x10]`) is written
+only by the summon search (`0x47c7c6`), the dragon spells (`0x47c82a`), the target-character case (`0x47c9d9`) and
+some other cases. The jump to the sound comes without a write from the default case (black cloud, recall, destroy
+undead, wrath of god, burning hands and every spell without a case, `0x47c84b`, table `0x47d348` / `0x47d3a8`), from
+curse / Urath curse (`0x47ca5b`), the three meteor storms (`0x47ced2`), banish summon (`0x47cde5`), Titus stone gaze
+(`0x47d08c`), and vitalize, protect and faith cast by a character outside the party when there is no current
+character or group (`0x47c8c6`, `0x47c8d4`). The slot then holds whatever an earlier call left there. Not checked in
+play. Found in the `NOTES-sweep-below-0x4a0000.md` notes (their K301).
+
+**K301. Pending speakers are only checked.** `+Set Important:` / `+Clear Important:` with a quoted name look the speaker
+up while parsing (`conversation_find_speaker` at `0x5000dc`) and store the result in the reference (`0x5000e3`). When
+the speaker comes later in the file the result is NULL, and the name goes on a pending list
+(`0x5000e7`..`0x500152`). At the end the pending list is only checked for existence (`0x500835`..`0x500854`); the
+reference keeps NULL, and `conversation_apply_topic_effects` skips NULL speakers when it sets or clears bit 8
+(`0x4d807a`..`0x4d80b6`). Bit 8 is `Cflag_Important` (`dialogue_parse_cflags` `0x4fedf1`), the flag that draws the
+quest icon over the character (`levelrender_draw_speaker_icons` `0x48588c`). Retail: all 22 such lines name a later
+speaker. Three are in `LPalaceInt_v2_dlg.tbl` (Lady Ivane's "How can I help?" sets Evien, Brissa and Dali), but those
+three start with `Cflag_important` and nothing clears it; the other 19 are in `Miniquests_dlg.tbl`, which no level
+script loads. Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
+**K302. The key time is replaced by the reciprocal.** In reciprocal mode, which `vif_emitter_update` uses for the
+curve at `+0xf4` (`push 0x1` at `0x533187`), `vif_curve__evaluate` builds `1/v0` and then subtracts that from `t`
+instead of the key time `t0` (`fld dword ptr [esp + 0x8]; fsub st, st(1)` at `0x533d3c`..`0x533d40`). It returns
+`1 / (1/v0 + (t - 1/v0) / (t1 - t0) * (1/v1 - 1/v0))`. The linear mode uses `t - t0` (`0x533d61`..`0x533d65`). A curve with
+one key, or one where either key is 0 (`0x533cff`..`0x533d1e`), is not affected. Whether a retail effect file has such a
+curve was not checked. Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
+**K303. A flag that is never cleared and a 256 KB copy.** `cpu_identify` sets a local to 1 (`mov dword ptr [ebp - 0x1c],
+1` at `0x5312e2`) and then stores 0 or 1 in `*mmx` from that local, not from the CPUID bit (`0x5313e9`..`0x5313fd`). The
+AMD and Intel name strings test the pointer instead of `*mmx` (`cmp dword ptr [ebp + 0xc], 0` at `0x531453`, `0x53157b`, `0x5315bb`).
+`PrintSystemInfo` measures RAM speed with copies of `0x10000` dwords (256 KB, `0x53199b`) and prints copies per
+second as MB/s (`0x531a29`..`0x531a68`). Only `cmd_sysinfo` calls `PrintSystemInfo` (`0x531af4`), and v1.40 has no
+console (see C140). Found in the `NOTES-sweep-0x4a0000.md` notes.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |
@@ -2474,6 +2572,9 @@ meshes are lit was not checked. Found in the `NOTES-unnamed-anim-clip-ui-vfxmesh
 | V271 | Nothing: three render flags are read but never set, so the frame-rate fog scaling, a "no lighting" mode (no level lights, distance culling of level objects, no lamp glows, LOD 2) and a level-light rebuild are dead code | `levelrender_fog_enable` `0x482850`, `fog_get_near_current` `0x486bf0`, `fog_get_far_current` `0x486c20`, `levelrender_render_scene` `0x482200` | **Observed** code | No |
 | V272 | Nothing: sixteen 64 x 64 blob shadow bitmaps are built at start-up and never used | `shadow_create_blob_bitmap` `0x489f10` | **Observed** code | No |
 | V290 | Latent: two functions with no caller have slips: the oriented-box test multiplies one term by the wrong extent, and the Direct3D particle path culls the top 100 pixels of the screen | `ix_box_oriented_box_oriented` `0x53c610`, `vfx_emitter_instance__render_d3d` `0x561900` | **Observed** code | No |
+| V300 | Latent: a polygon colour tint whose red and green factors differ would tint red with the green factor and leave green untinted; every tint the game sets is grey | `gr_poly_rgb` `0x545610` | **Observed** code | No |
+| V301 | Latent: Direct3D 8-bit alpha textures read past the bitmap when it is smaller than its texture, and every section of a multi-section alpha bitmap gets the top-left texels | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0` | **Observed** code | No |
+| V302 | Nothing: `key_init` flushes the key queue before the keyboard is marked ready, so the flush returns at once; `key_putkey` (no caller) does not check for a full queue | `key_init` `0x509770`, `key_putkey` `0x509d40` | **Observed** code | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -3134,6 +3235,27 @@ extent instead of the first; the notes list three more tests of the same kind. I
 (`[0x57e6b4]`, `0x561bd6`). Neither function has a caller (`tools/asm.mjs callers`, no address reference). Found
 in the `NOTES-unnamed-vfx-ix-floatmath-ui.md` and `NOTES-unnamed-vsdk-tail.md` notes.
 
+**V300. Green goes to red.** With `gr_tint_enabled` set, `gr_poly_rgb` computes `(r + g + b) * tint` for each channel,
+like `gr_poly_set_texture`. It drops the red result (`fstp st(0)` at `0x54567b`), stores the green result in the red
+argument (`mov byte ptr [esp + 0x30], al` at `0x5456bb`) and keeps the untinted green in `ebx` (`0x545617`, used at
+`0x545706` and `0x54574c`). The tints come from `hover_tint_set_character` / `hover_tint_set_object` (the three
+channels from one `ui_apply_pulse_rgb` value, `world_hover_tint_character` `0x43b1d0`, `world_hover_tint_object`
+`0x43a650`) and the fx character tint (one `fst` for all three, `murod_ai_leap` `0x4c54ec`..`0x4c54f8`,
+`luminar_teleport_in` `0x4ca166`..`0x4ca172`). With equal factors the swapped results are the same. Found in the
+`NOTES-unnamed-gr-line-poly-emitter-tcache.md` notes.
+
+**V301. Texture size against bitmap stride.** The 8-bit alpha branch (format 2) loops `tex_h` rows of `tex_w` bytes and
+steps the source by `bm_w` (`0x54c1ab`..`0x54c28f`), without the section position the other formats read (C300). A
+bitmap narrower or shorter than its power-of-two texture is read for up to `(tex_h - bm_h) * bm_w + tex_w - bm_w`
+bytes past its end; those texels lie outside the drawn u/v range. Which retail bitmaps use this format was not
+checked. Found in the `NOTES-unnamed-gr-line-poly-emitter-tcache.md` notes.
+
+**V302. Two keyboard queue slips.** `key_init` calls `key_flush` at `0x5097b5`, but `key_flush` returns at once while
+`key_inited` is 0 (`0x509ab0`..`0x509aba`), and `key_inited` is set only at `0x5097fa`. The queue is still the zeroed
+`.bss` then. `key_putkey` advances the tail with no compare against the head (`0x509d54`..`0x509d76`), so a 16th
+pending key would make the queue read as empty; it has no caller. Found in the
+`NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -3453,6 +3575,10 @@ the tables above; the rest are below.
 - The dialogue box draws compare the visible height with the scroll offset instead of each line's top (`dialogue_text_box_draw` `0x4d779e`, `dialogue_topic_box_draw` `0x4d7a48`), so lines below the box are drawn and clipped by `gr__set_clip` (`0x4d775a`): wasted draws only.
 - `character_use_inventory_item` / `character_use_equipped_item` keep an item with a fractional `+Disposable:` value at 0 charges when the break roll fails (D5204): that is the break chance working, and items.tbl 1.40 uses only plain `+Disposable` (1.0).
 
+- Level vif particles are not leaked: `vfx_instance_create` makes `level_mempool` current and passes level = 1 only for a level effect (`0x51d76f`..`0x51d79f`), so the `operator new` in `vif_instantiate_level` (`0x5337ed`) allocates from that pool (`operator_new_dbg` `0x5124c0`), and `s3d_alloc_level_arrays` empties it on the next level load (`mov dword ptr [0x22e43c8], ebp` with `ebp = 0`, `0x46f9a9`..`0x46f9b0`). `vif_record_release` only has to clear the pointer.
+- `dialogue_parse_table` (conversation::parse_table) does return 0 on success: `xor eax, eax` at `0x5008a6`, after the destructors and before the shared exit at `0x5008a8`; the failure paths load -1 (`0x50091c`) or `TextFile::Open`'s result (`0x4feff2`).
+- `ls_test_use` (`0x4f29c0`) is `xor al, al; ret`, a shared empty use hook; no gate or refusal code.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -3608,6 +3734,11 @@ the tables above; the rest are below.
 - `anim_track__get_rotation` before the first key and `anim_track__calc_rot_tangents`' wrap interval (notes: harmless at t = 0; loop always 0): not checked.
 - Multiplayer: `mp_mark_difficulty_complete` assigns the difficulty bits to `+0x30` (`mov [eax + 0x30], edx` at `0x4b0b1e`) when they are not all set, which clears bits 0..25. Verified in the code; whether that wipe of the level progress is intended (start the next difficulty from the first level) is not known.
 - Multiplayer, unchecked: `ftp_get::abort_get` spinning when the worker never sets done; `http_get` never seeing a failed asynchronous host lookup; the items-checksum version check accepting the constant 1.40 value (D5210); `mp_change_level`'s dead search for "<level>_m1" (D5211); `tracker_start_game` copying the 0x100-byte channel into a 0x24-byte field (D5212); `gtrack_send_game_over` state 2 never set; the tracker's packet size test (D5214).
+- `+NPCText:` with a quoted speaker name that `conversation_find_name` does not know yet (`0x4ff3c7`..`0x4ff418`) adds the name but leaves the line's speaker 0 (`0x4ff369`); no retail `+NPCText:` names a speaker, and what a 0 speaker does to the line was not traced.
+- `gr_d3d_create_texture_section`: `Lock` on a mip level with flags 0 (`0x54bf46`); on failure it releases only that level and returns -1, which `gr_d3d_create_texture` ignores (`0x54d2ce`). The `CreateSurface` failure path calls `bm_unlock` (`0x54c088`) and `gr_d3d_create_texture` unlocks again (`0x54d308`). Whether either path is reachable or harmful was not traced.
+- `gr_d3d_round_texture_size` rounds every size above 128 to 256 (`0x54d371`..`0x54d384`), so `gr_d3d_create_texture` refuses ("D3D: Not drawing %dx%d bitmap") any mip-mapped bitmap larger than 256 (`0x54d1b3`..`0x54d1f9`); whether a retail bitmap has mip levels and is larger than 256 was not checked.
+- `spell_cast_launch_effects` creates the Pyrul and Mach Meteor Storm effects with spell `0x1c` (`push 0x1c` at `0x47da55`); all three have the same hit effect file in `spells.tbl`, and whether damage or sounds come from spell `0x1c` was not traced.
+- The decomp73 notes' latent NULL reads (`spell_prepare_cast` `0x47b094`, `0x47b9dc`; `spell_cast_launch_effects` `0x47d987`; `spell_cast_execute` `0x47d2c9`) and the No_resist slip for spell `0x65` (`0x47b31a`) were not checked.
 
 ## Evidence
 
@@ -3953,3 +4084,15 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K298 billboard tip | `vfx_particle_get_billboard_axes` `0x562947`..`0x5629ad`, `0x5629b2`..`0x562a04` |
 | K299 face normals | `vfx_unpack_vector_s8` `0x564a28`..`0x564a7c`; `vfx_unpack_normal` `0x5648c7`..`0x5648fc`; `vfx_mesh_render` `0x563190`..`0x5631a0`, `0x5631c7`..`0x56325a` |
 | V290 dead code slips | `ix_box_oriented_box_oriented` `0x53c741`..`0x53c75a`; `vfx_emitter_instance__render_d3d` `0x561ba6`, `0x561bd6` |
+| C300 section copy | `gr_d3d_copy_bitmap_to_surface` `0x54c327`..`0x54c35e`, `0x54c388`..`0x54c417`, `0x54c3e3`, `0x54c432`; `gr_d3d_create_texture_section` `0x54bcd8`..`0x54bd8f`, `0x54bf51`..`0x54bf8e`, `0x54bfe9`..`0x54c006`; `gr_d3d_create_texture` `0x54d16f`, `0x54d187`, `0x54d280`..`0x54d2c9`; `gr_d3d_init_device` `0x539ba6`..`0x539c54` |
+| C301 navpoint tables | `cutscene_script_load` `0x4ed281`..`0x4ed2b7`; `script_parse_navpoints` `0x4db776`..`0x4db78a`; `level_script_parse_table` `0x4cd718`..`0x4cd735`; `script_editor_add_navpoint` `0x4e5d59`, `0x4e5d7d`; `cutscene_script_stringpool` `0x2571750`; `ccmd_door_toggle` `0x24ed5f0`; retail `Game-Intro_cscript.tbl`, `lenele1b_v2_script.tbl` |
+| C302 rider NULL | `ls_rand_forestnite1_frame` `0x4f581f`..`0x4f5887`; `ls_rand_hills01_frame` `0x4fa5e5`..`0x4fa64b`; `ghost_find_rider` `0x4b9fe0`..`0x4ba012`; `phoenix_find_rider` `0x497be0`..`0x497c12` |
+| G300 armour target | `combat_trigger_reflex_ability` `0x46794a`..`0x467990`, `0x4679a9`..`0x4679b4`, `0x467a4b`..`0x467a68`, `0x467afc`..`0x467b1d`, `0x467c64`..`0x467c86`, reflex branch `0x467815`..`0x467829`; `spell_cast_execute` `0x47c9a6`..`0x47c9d4`; `items_parse_table` `0x44a2b9`, `0x44acd2`..`0x44ad41`; `spells_parse_table` `0x47a56c`, `0x47a61d`; retail `items.tbl` (Robe of Restoration), `spells.tbl` (heal) |
+| G301 Canis payoff | `ls_lenele2ab_action` `0x4f1239`..`0x4f1257`; retail `Lenele2ab_dlg.tbl` |
+| K300 hit sound position | `spell_cast_execute` `0x47c7c6`, `0x47c82a`, `0x47c84b`, `0x47c8c6`, `0x47c8d4`, `0x47c9d9`, `0x47c9ee`..`0x47c9f4`, `0x47ca5b`, `0x47cde5`, `0x47ced2`, `0x47d08c`; jump tables `0x47d348`, `0x47d3a8`; `spell_play_hit_sound` `0x47e072`..`0x47e078` |
+| K301 important speakers | `dialogue_parse_table` `0x5000dc`..`0x500152`, `0x500835`..`0x500854`; `conversation_apply_topic_effects` `0x4d807a`..`0x4d80b6`; `dialogue_parse_cflags` `0x4fedf1`; `levelrender_draw_speaker_icons` `0x48588c`; retail `LPalaceInt_v2_dlg.tbl`, `Miniquests_dlg.tbl` |
+| K302 reciprocal curve | `vif_curve__evaluate` `0x533d20`..`0x533d60`, `0x533d61`..`0x533d7a`; `vif_emitter_update` `0x533187`..`0x533191` |
+| K303 sysinfo | `cpu_identify` `0x5312e2`, `0x5313e9`..`0x5313fd`, `0x531453`, `0x53157b`, `0x5315bb`; `PrintSystemInfo` `0x53199b`, `0x531a29`..`0x531a68`; `cmd_sysinfo` `0x531af4` |
+| V300 tint channels | `gr_poly_rgb` `0x545617`, `0x54567b`, `0x5456bb`, `0x545706`, `0x54574c`; `world_hover_tint_character` `0x43b1d0`; `world_hover_tint_object` `0x43a650`; `murod_ai_leap` `0x4c54ec`..`0x4c54f8`; `luminar_teleport_in` `0x4ca166`..`0x4ca172` |
+| V301 alpha stride | `gr_d3d_copy_bitmap_to_surface` `0x54c1ab`..`0x54c28f` |
+| V302 key queue | `key_init` `0x5097b5`, `0x5097fa`; `key_flush` `0x509ab0`..`0x509aba`; `key_putkey` `0x509d54`..`0x509d76` |

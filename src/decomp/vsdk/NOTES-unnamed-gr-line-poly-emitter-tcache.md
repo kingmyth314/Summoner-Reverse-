@@ -76,9 +76,9 @@ blocks, so all names are placeholders. modules.txt is empty: nothing proves a fi
 - 0x53faf0 gr_draw_arrow_3d draws a wire box (pos, orient, size); 0x53edd0 gr_bitmap_3d_oriented_quad uses
   no bm_get_dimensions, gr_rotate_vertex or gr_check_normal_facing (its sum.symbols comment describes
   0x53f060); 0x5400a0's head sits at the middle of the shaft.
-- 0x54d470 opengl_record__ctor / 0x54bb30 init_opengl_records_2f132d8: the constructor and initialiser of the
+- 0x54d470 d3d_tcache_slot__ctor / 0x54bb30 init_d3d_tcache_slots_2f132d8: the constructor and initialiser of the
   Direct3D cache's two stage records (d3d_tcache_slot), not an OpenGL record (D5021).
-- 0x54d330 gr_d3d_round_texture_size returns whether both sizes already are texture sizes (4 .. 128, 256 for
+- 0x54d330 gr_d3d_is_texture_size returns whether both sizes already are texture sizes (4 .. 128, 256 for
   anything larger); it does not return a rounded size.
 - 0x546110 gr_mode_slot__ctor is the implicit constructor of gr_tmapper_pass (the slots are pass records).
 - 0x2f075b8 gr_poly_multitexture means "a pass has a sectioned bitmap" (it sends the polygon to

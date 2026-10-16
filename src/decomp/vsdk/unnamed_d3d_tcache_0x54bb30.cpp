@@ -36,7 +36,7 @@
 #define D3D_STEP_ONE 0x10000
 
 // ---- .bss, in address order ------------------------------------------------------------------------------
-// 0x54bb30 init_opengl_records_2f132d8 (jmp 0x54bb40: `vector constructor iterator` over the two slots
+// 0x54bb30 init_d3d_tcache_slots_2f132d8 (jmp 0x54bb40: `vector constructor iterator` over the two slots
 // with their constructor 0x54d470): compiler-generated. Confidence: likely.
 d3d_tcache_slot d3d_tcache_slots[D3D_TCACHE_NUM_SLOTS];   // 0x2f132d8
 d3d_tcache_entry *d3d_tcache_entries;                   // 0x2f13308
@@ -532,7 +532,7 @@ int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
     e->sections = new d3d_tcache_section[e->num_sections];
     for (i = 0; i < e->num_sections; i++)
         e->sections[i].surface = NULL;
-    if (num_levels > 1 && (!gr_d3d_round_texture_size(w, h) || e->num_sections > 1)) {
+    if (num_levels > 1 && (!gr_d3d_is_texture_size(w, h) || e->num_sections > 1)) {
         sprintf(string_buffer, "D3D: Not drawing %dx%d bitmap '%s'\n", w, h, bm_get_filename(bm));
         set_current_mempool(old_pool);
         return 0;
@@ -562,7 +562,7 @@ int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
 
 // 0x54d330  Confidence: exact. True when both dimensions are already a texture size: each is rounded up
 // to 4, 8, ..., 128, and anything above 128 to 256.
-bool gr_d3d_round_texture_size(int w, int h)
+bool gr_d3d_is_texture_size(int w, int h)
 {
     int tw, th;
 
@@ -621,7 +621,7 @@ void gr_d3d_tcache_free(int bm)
 }
 
 // Header inlines at the end of the object, in the order of their first use (not source here):
-// 0x54d470 opengl_record__ctor: d3d_tcache_slot::d3d_tcache_slot (gr_direct3d.h). Confidence: exact.
+// 0x54d470 d3d_tcache_slot__ctor: d3d_tcache_slot::d3d_tcache_slot (gr_direct3d.h). Confidence: exact.
 // 0x54d490 tcache_slot__init_stage: tcache_slot::init_stage (gr.h). Confidence: exact.
 // 0x54d4b0 tcache_slot__reset: tcache_slot::reset (gr.h). Confidence: exact.
 // 0x54d4c0 tcache_slot__d3d_unbind: d3d_tcache_slot::d3d_unbind (gr_direct3d.h). Confidence: exact.

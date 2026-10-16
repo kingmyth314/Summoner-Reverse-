@@ -2063,7 +2063,7 @@ that glide_record::load_section writes (bitmap +8, section +0xc, scales +0x10 / 
 So glide_record (0x48) derives from a 0x18-byte tcache_slot (declared in gr.h: its members are in the
 Direct3D texture cache object, vsdk\gr). tcache_slot gets no constructor: glide_record::glide_record
 (0x549780) stores +0, +8, +0xc, +0x10, +0x14 itself; a base constructor, being out of line in another
-object, would be called (opengl_record__ctor 0x54d470 sets the same five fields and is the D3D slot's).
+object, would be called (d3d_tcache_slot__ctor 0x54d470 sets the same five fields and is the D3D slot's).
 
 **D2503 (vsdk/gr/glide/gr_glide.h). glide_tmus is glide_record[2].** sum.symbols: uint8[0x90]. The static
 initialiser 0x5479a0 runs `vector constructor iterator`(0x2f0eb70, 0x48, 2, glide_record__ctor) and the
@@ -4141,7 +4141,7 @@ class. D2502 (no tcache_slot constructor) is unchanged.
 constructor (0x54d470: initialized 0, bitmap / section -1, scales 0, stage untouched) that the Glide record
 does not call, so they are a class of their own deriving from tcache_slot, with the constructor and the
 Direct3D bind / unbind as inline members (0x54d4c0, 0x54d530). sum.symbols names the constructor
-opengl_record__ctor and its initialiser init_opengl_records_2f132d8; the OpenGL back end has its own cache
+d3d_tcache_slot__ctor and its initialiser init_d3d_tcache_slots_2f132d8; the OpenGL back end has its own cache
 (gl_tcache_entries) and does not use it. d3d_unbind skips SetTexture while d3d_s3_depth (0x2dc6c30) is set.
 
 **D5022 (gr_direct3d.h). gr_d3d_tcache_set's last argument is bool bind.** It is tested as a byte

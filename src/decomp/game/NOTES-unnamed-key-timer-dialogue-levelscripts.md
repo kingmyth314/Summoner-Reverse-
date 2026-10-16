@@ -71,14 +71,14 @@ the middle reading.
   vif_curve__evaluate's reciprocal mode (0x533d20-0x533d60), used for the spawn interval curve, computes the
   fraction as (t - 1/v0) / (t1 - t0) instead of (t - t0) / (t1 - t0): the stack slot it subtracts holds the
   reciprocal it just made. The interval between two keys is therefore wrong (and can leave the key range).
-- Bug (live, fairly sure): a level effect's particles come from operator new (0x5337ed) and vif_record_release
-  (0x5339b0) only takes their size off vif_data_top and clears the pointer; neither it nor
-  vfx_instance::release_nodes (0x5369f0) frees them: every level unload leaks count * 48 bytes per level vif record.
+- Not a bug (checked 2026-10-16): a level effect's particles come from operator new (0x5337ed), but
+  vfx_instance_create has made level_mempool current for it (0x51d76f..0x51d79f), and s3d_alloc_level_arrays
+  empties that pool on the next level load (0x46f9b0); vif_record_release only has to clear the pointer.
 - vif_min_nonzero_float and vif_stub_ret_533c60 have no caller.
 
 **Dialogue table (0x4feb50-0x500a22).** The speaker / topic / line / action members and conversation::parse_table.
-- Bug (latent, sure): parse_table has no return value on success (0x500856-0x5008c0); it returns 0 only because the
-  TextFile destructor's Close leaves the NULL buffer in EAX (conversation::load tests for 0).
+- Not a bug (checked 2026-10-16): parse_table returns 0 on success with `xor eax, eax` at 0x5008a6, after the
+  destructors and before the shared exit at 0x5008a8 (conversation::load tests for 0).
 - Bug (live if the tables use it; sure about the code): an +NPCText: line naming a speaker not seen before
   (0x4ff3d0-0x4ff418) pools the name but leaves the line's who NULL; only names already known are used.
 - Bug (live if the tables use it; sure): "+Set important :" / "+Clear important :" naming a speaker defined later

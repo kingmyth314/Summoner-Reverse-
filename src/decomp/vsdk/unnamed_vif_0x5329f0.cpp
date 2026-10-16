@@ -8,7 +8,7 @@
 //
 // The vif particles: the particle systems of the effect files' +0x2c records (vfx_desc21c). 100 instance
 // records (vfx_inst21c) on a free ring; their particles come from two halves of a 3000-particle pool (static
-// effects; compacted into the other half when full) or from the heap (level effects). Per frame each record
+// effects; compacted into the other half when full) or from level_mempool (level effects). Per frame each record
 // spawns at its interval curve's rate around its origin (a point, a box, or along a spawn path), applies
 // gravity and a force, ages and kills its particles; the draw fades size and alpha in and out.
 // FILE NAME NOT KNOWN (D5317): no path string, no assert, no strings.tbl block; a placeholder. The unit is
@@ -392,7 +392,7 @@ void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
 }
 
 // 0x5337a0  Confidence: likely (the free-ring unlink as written). (desc, level effect): the next free record
-// with desc->count particles, from the heap for a level effect (operator new, never freed: see NOTES) or from
+// with desc->count particles, for a level effect from operator new in level_mempool (emptied at the next level load) or from
 // the pool (compacted when full; NULL with a message when still short), all on the free list; the record
 // leaves the free ring. NULL when no record is free.
 vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level)

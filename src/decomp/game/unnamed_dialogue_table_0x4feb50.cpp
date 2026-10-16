@@ -301,10 +301,8 @@ static inline bool dialogue_accept_ref_kind(TextFile *tf, int *kind, bool *no_ar
 // Reads <script_name>_dlg.tbl into this conversation: $Character: blocks (speaker name, move times, +Flags:,
 // +Topic: blocks with +Shop / +Hidden, the lines with their actions, the topic references, +Farewell),
 // a "Farewell." topic when no topic has bit 0, $Initial topics: (the first is the greeting), $End. Returns
-// TextFile::Open's error, -1 for a bad table, and nothing at the end of a good one: the function falls off
-// its end (no return statement; EAX is then 0 only because the last destructor, TextFile::Close on the
-// already closed file, leaves the NULL buffer pointer in it; conversation::load treats 0 as success; see
-// NOTES).
+// TextFile::Open's error, -1 for a bad table and 0 for a good one (xor eax, eax at 0x5008a6, after the
+// destructors; conversation::load treats 0 as success).
 int conversation::parse_table(const char *script_name)
 {
     char filename[0x100];
@@ -791,7 +789,7 @@ int conversation::parse_table(const char *script_name)
     for (dialogue_pending_speaker *p = pending_speakers; p; p = p->next)
         if (!find_speaker(p->name))
             return -1;
-    // (no return statement: see above)
+    return 0;
 }
 
 // 0x500990  Confidence: exact. +4 (the flag name) is left as it is.

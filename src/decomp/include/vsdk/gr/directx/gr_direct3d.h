@@ -227,11 +227,11 @@ extern int d3d_texture_mem_used;                      // 0x2f13314
 
 // The texture stage record of the Direct3D cache (decomp69, D5021): tcache_slot (gr.h) plus a constructor
 // and the bind / unbind members, all header inlines (COMDATs 0x54d470, 0x54d4c0, 0x54d530 at the end of
-// the cache object). sum.symbols calls the constructor opengl_record__ctor; the OpenGL back end does not
+// the cache object). sum.symbols calls the constructor d3d_tcache_slot__ctor; the OpenGL back end does not
 // use it (its array is the two d3d_tcache_slots). The constructor leaves the stage unset.
 class d3d_tcache_slot : public tcache_slot {
 public:
-    d3d_tcache_slot()                                 // 0x54d470 opengl_record__ctor
+    d3d_tcache_slot()                                 // 0x54d470 d3d_tcache_slot__ctor
     {
         initialized = false;
         bitmap = -1;
@@ -291,6 +291,6 @@ void gr_d3d_copy_bitmap_to_surface(DDPIXELFORMAT *pf, d3d_tcache_entry *e, int s
                                    ubyte *palette);   // 0x54c0a0
 int  gr_d3d_create_texture(int bm, d3d_tcache_entry *e);   // 0x54d120 1, 0 when it is not drawn
 // (w, h): true when both are already a texture size (4, 8, ..., 128, 256; larger rounds to 256).
-bool gr_d3d_round_texture_size(int w, int h);         // 0x54d330
+bool gr_d3d_is_texture_size(int w, int h);         // 0x54d330
 
 #endif

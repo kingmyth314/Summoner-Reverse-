@@ -12,7 +12,7 @@ second half `0x54efc0` (not in sum.symbols): 56 entries, **41 exact / 15 likely 
 Not written (not source of this unit):
 - `0x5504f0` `glFinish` (module `-`): the linker's import thunk `jmp [0x57e318]`. Only `gr_finish`
   (gr.cpp, `0x507fbd`) jumps to it; gr_opengl.cpp calls the import directly.
-- `0x54d470` `opengl_record__ctor` and the `tcache_slot__*` helpers before `0x54d5c0`: they belong to the
+- `0x54d470` `d3d_tcache_slot__ctor` and the `tcache_slot__*` helpers before `0x54d5c0`: they belong to the
   Direct3D / Glide texture caches (callers `gr_d3d_tcache_*`, `gr_glide_tcache_*`), whatever their folder
   column says.
 

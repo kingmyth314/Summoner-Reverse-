@@ -178,6 +178,10 @@ and meshes. Effect meshes are lit by `lights_select_nearest` and `lights_shade_v
   the live particles into the other half and flips `vif_particle_half`. **Observed.**
 - `vif_instantiate_level` (`0x5337a0`) gives each record its particles. It compacts when the 3000 limit is
   reached and prints "Skipping vif particle instantiation" when there is still no room. **Observed.**
+- A level effect does not use the pool. `vfx_instance_create` makes `level_mempool` current and passes
+  level = 1 when the effect base's `+0x1c` is 0 (`0x51d76f`..`0x51d79f`), and `vif_instantiate_level` then takes
+  the particles from `operator new` (`0x5337ed`), that is from `level_mempool`. `s3d_alloc_level_arrays` empties
+  the pool on the next level load (`0x46f9b0`), so `vif_record_release` only clears the pointer. **Observed.**
 - `vif_emitter_update` (`0x532f40`) spawns particles at a rate from `vif_curve__evaluate`, with the shape
   byte `+0xc0` choosing the spawn point. `vif_draw_particles` (`0x533620`) draws each one with
   `gr_bitmap_3d` and point fog. **Observed.**
