@@ -137,7 +137,7 @@ first), structured so it can become a byte-matching decompilation later.
 - ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
 - **World sounds too quiet with the default sound setting: done 2026-10-16** (SummonerFix `bugfix.c`, K260; the slider is now linear).
 - **Story state lost on load: no fix needed (2026-10-16).** G130 and G131 cannot happen in retail play: the game refuses saving in TempleINT2 once `mach_intro` is set and in the Jade Temple once `got_laharah_spirit` is set (`savegame_location_allowed`, tested in agent mode). See [Bugs](sum-exe/game-bugs.md).
-- **Flickering right bar after cutscenes (to investigate).** The user saw the black bar right of the 1024-wide menu flicker after a cutscene (K280); possibly SummonerFix's bar clearing.
+- **Flickering right bar after cutscenes: fixed 2026-10-16** (a SummonerFix bug, K280: the strip right of the centred menus was never cleared).
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

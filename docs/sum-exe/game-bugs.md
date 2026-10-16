@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 69 | 2 |
 | Gameplay | 48 | 23 | 3 |
-| Cosmetic | 51 | 28 | 4 |
+| Cosmetic | 51 | 28 | 5 |
 | Invisible | 42 | 54 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1564,7 +1564,7 @@ retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a4
 | K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No |
 | K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
 | K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
-| K280 | With SummonerFix's widescreen output, the black bar at the right flickers on the main menu after the console cutscene viewer returns there; the user has seen the same after skipping cutscenes in normal play | (not found yet) | **Observed** by the user, cause not analysed; may be SummonerFix's bar clearing rather than the game | No |
+| K280 | With SummonerFix's widescreen output (a game width above 1024), the black strip right of the centred main menu showed old frames of the last level in turn with black after a cutscene had run (seen after the console cutscene viewer and after skipping story cutscenes) | SummonerFix `display.c` (`Hook_SwapBuffers`), not the game | **Observed** by the user and in agent-mode captures (2026-10-16) | Fixed (`display.c`) |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -2228,12 +2228,15 @@ speech text and speaker icons return on `game_flags` `0x20` (`0x4848e2`, `0x484a
 `levelrender_draw_float_text` only tests its own flag (`0x59bd78`, `0x485380`); whether retail cutscenes ever
 show floating text (damage, "+Level!") was not checked.
 
-**K280. Flickering right bar after a cutscene.** Seen by the user on 2026-10-16 when the console cutscene viewer
-(C280) returned to the main menu at a 1366-wide game size, and earlier after skipping cutscenes in the story. The
-bars outside the 1024-wide menu exist only with SummonerFix (`display.c` clears them before `SwapBuffers`, and
-`GetMap` shifts the menu layout outside game state 4), so the cause may be ours: leftover cutscene state such as
-the letterbox or the scissor rectangle, or a state test that changes from frame to frame. To be checked with frame
-captures.
+**K280. Flickering right bar after a cutscene (a SummonerFix bug).** With `CenterMenus=1` and a game width above
+1024, SummonerFix shifts the 1024-wide menu layout to the middle of the window (`GetMap` in `display.c`), so the
+game's area right of x = 1024 becomes the right part of the picture. The game draws menus only inside 1024 x 768
+and does not clear the rest, and SummonerFix cleared only the bars outside the game area, not that strip. After a
+level had been drawn, the two back buffers kept old frames of it there, shown in turn with black: in four agent-mode
+captures taken 70-110 ms apart on the main menu (Jade Temple reached with `play_and_load_cutscene`, then back to
+the menu), one showed the Jade Temple in the strip. Fixed 2026-10-16: on menu screens (game state not 4)
+`Hook_SwapBuffers` also clears the area right of the 1024-wide layout. The same four captures with the fix were
+all black there. In-game full-screen panels are not changed (the world may show beside them).
 
 ## Invisible
 

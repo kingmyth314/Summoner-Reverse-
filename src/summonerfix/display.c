@@ -47,7 +47,7 @@ static HWND g_wnd;
 #define VA_GAMESEQ_STATE_CUR 0x5b27e0u // current game state; 4 = in game
 
 // Game-pixel -> window-pixel mapping for the current client size.
-typedef struct { int cw, ch; double scale; int offX, offY; } Map;
+typedef struct { int cw, ch; double scale; int offX, offY; int menuShift; } Map; // menuShift: a centred 1024-wide menu
 
 static BOOL GetMap(Map *m)
 {
@@ -62,13 +62,17 @@ static BOOL GetMap(Map *m)
     m->scale = sx < sy ? sx : sy;
     m->offX = (int)((m->cw - g_cfg.width * m->scale) / 2 + 0.5);
     m->offY = (int)((m->ch - g_cfg.height * m->scale) / 2 + 0.5);
+    m->menuShift = 0;
     // Widescreen menus: outside gameplay (game state 4) the UI is a fixed 1024-wide layout at the left of
     // the wider game screen. Shift the output so that layout is centred; the empty right part moves off
     // screen. The mouse uses this same mapping, so clicks stay aligned.
     // In game, full-screen panels (inventory, character, ...) are shifted the same way (WidescreenFullPanel).
     if (g_cfg.centerMenus && g_cfg.width > 1024 &&
         (*(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4 || WidescreenFullPanel()))
+    {
         m->offX += (int)((g_cfg.width - 1024) / 2.0 * m->scale + 0.5);
+        m->menuShift = *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4; // menus only, not in-game panels
+    }
     return TRUE;
 }
 
@@ -351,13 +355,16 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
     Map m;
     if (g_cfg.captureEvery > 0 && GetMap(&m))
         CaptureFrame(&m);
-    if (p_glClear && GetMap(&m) && (m.offX > 0 || m.offY > 0 || m.offX + (int)(g_cfg.width * m.scale + 0.5) < m.cw)) {
+    // With the menus centred (menuShift), only the 1024-wide layout is shown; the game's area right of it is not part
+    // of the picture. Clear it too: after some cutscenes the game no longer clears its whole screen, and that strip
+    // then shows the two back buffers' stale contents in turn (a flickering right bar, game-bugs K280).
+    if (p_glClear && GetMap(&m) && (m.offX > 0 || m.offY > 0 || m.menuShift || m.offX + (int)(g_cfg.width * m.scale + 0.5) < m.cw)) {
         float old[4];
         unsigned char scissor = p_glIsEnabled(GL_SCISSOR_TEST);
         p_glGetFloatv(GL_COLOR_CLEAR_VALUE, old);
         p_glClearColor(0, 0, 0, 1);
         p_glEnable(GL_SCISSOR_TEST);
-        int used_w = (int)(g_cfg.width * m.scale + 0.5), used_h = (int)(g_cfg.height * m.scale + 0.5);
+        int used_w = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5), used_h = (int)(g_cfg.height * m.scale + 0.5);
         ClearRect(0, 0, m.offX, m.ch);                                   // left bar
         ClearRect(m.offX + used_w, 0, m.cw - m.offX - used_w, m.ch);     // right bar
         ClearRect(0, 0, m.cw, m.offY);                                   // bottom bar
