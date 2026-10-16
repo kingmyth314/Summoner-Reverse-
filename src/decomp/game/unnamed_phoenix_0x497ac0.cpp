@@ -86,27 +86,27 @@ void cmd_phoenix_stage()
 // 0x497b30 init_ccmd_phoenix_unlink (console_command constructor). Confidence: exact.
 console_command ccmd_phoenix_unlink("phoenix_unlink", "Unlinks phoenix to mount", cmd_phoenix_unlink);   // 0x2452a58
 
-// 0x497b50  Confidence: likely (the store order). The first phoenix rider in the living list.
+// 0x497b50  Confidence: exact (VC6 byte match) (the store order). The first phoenix rider in the living list.
 void cmd_phoenix_unlink()
 {
     Character *c;
-    for (c = living_list.live_next; c != &living_list; c = c->live_next)
-        if (c->info->species == SPECIES_PHOENIX_RIDER)
-            break;
-    if (c == &living_list)
-        return;
-    if (c == NULL)
-        return;
-    Character *m = c->get_mount();
-    if (m == NULL)
-        return;
-    m->mount_flags = 0;
-    m->mount_link = -1;
-    m->ai.target = -1;
-    m->flags &= ~0x20;
-    c->mount_flags = 0;
-    c->mount_link = -1;
-    c->flags |= CF_COMBAT_READY;
+    for (c = living_list.live_next; c != &living_list; c = c->live_next) {
+        if (c->info->species == SPECIES_PHOENIX_RIDER) {
+            if (c == NULL)
+                return;
+            Character *m = c->get_mount();
+            if (m == NULL)
+                return;
+            m->mount_flags = 0;
+            m->mount_link = -1;
+            m->ai.target = -1;
+            m->flags &= ~0x20;
+            c->mount_flags = 0;
+            c->mount_link = -1;
+            c->flags |= CF_COMBAT_READY;
+            return;
+        }
+    }
 }
 
 // 0x497be0  Confidence: exact. The last match (cmd_phoenix_solo, ls_rand_hills01_frame).
@@ -147,7 +147,7 @@ void cmd_phoenix_combat()
 // 0x497d30  Confidence: exact. Half way between the phoenix and the party leader.
 void ai_state::phoenix_set_dive_point()
 {
-    phoenix_dive_point = (owner->pos + cur_character->pos) * 0.5f;
+    phoenix_dive_point = (cur_character->pos + owner->pos) * 0.5f;
 }
 
 // 0x497da0  Confidence: likely (the local copies of the first disabled member). Sub-mode 0x20 setup. In
@@ -243,7 +243,7 @@ void phoenix_timer_c4_set_random(int lo, int hi)
     phoenix_timer_c4.SetTimeout((int)(frand() * (hi - lo)) + lo);
 }
 
-// 0x498210  Confidence: likely (statement order). Sub-mode 0x3a.
+// 0x498210  Confidence: exact (VC6 byte match) (statement order). Sub-mode 0x3a.
 void ai_state::phoenix_end_move_3a()
 {
     phoenix_cur_attack = NULL;
@@ -253,7 +253,7 @@ void ai_state::phoenix_end_move_3a()
     set_mode(AI_STATE_COMBAT, 0xf);
 }
 
-// 0x498250  Confidence: likely. Sub-mode 0x3b.
+// 0x498250  Confidence: exact (VC6 byte match). Sub-mode 0x3b.
 void ai_state::phoenix_end_move_3b()
 {
     phoenix_cur_attack = NULL;
@@ -264,33 +264,34 @@ void ai_state::phoenix_end_move_3b()
     set_mode(AI_STATE_COMBAT, 0xf);
 }
 
-// 0x4982a0  Confidence: likely. As serpent_seat_rider, but the animation time is read from and written
+// 0x4982a0  Confidence: exact (VC6 byte match). As serpent_seat_rider, but the animation time is read from and written
 // back to the mount (the rider's time is never set; NOTES.md).
 bool ai_state::phoenix_seat_rider()
 {
     if (phoenix_mount)
         boss_rider_random_sound(&phoenix_mount->pos);
-    if (!phoenix_has_rider)
-        return false;
-    Character *m = owner->get_mount();
-    if (m == NULL)
-        return false;
-    m->ai.target = target;
-    float t;
-    m->instance->get_set_time(&t, false);
-    m->instance->get_set_time(&t, true);
-    int tag = m->instance->character->find_mesh_tag("$sit");
-    if (tag != -1) {
-        vector3 pos;
-        matrix orient;
-        m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
-        owner->pos = pos;
-        owner->orient = orient;
-        return true;
+    if (phoenix_has_rider) {
+        Character *m = owner->get_mount();
+        if (m != NULL) {
+            m->ai.target = target;
+            float t;
+            m->instance->get_set_time(&t, false);
+            m->instance->get_set_time(&t, true);
+            int tag = m->instance->character->find_mesh_tag("$sit");
+            if (tag != -1) {
+                vector3 pos;
+                matrix orient;
+                m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
+                owner->pos = pos;
+                owner->orient = orient;
+                return true;
+            }
+            owner->pos = m->pos;
+            owner->orient = m->orient;
+            return true;
+        }
     }
-    owner->pos = m->pos;
-    owner->orient = m->orient;
-    return true;
+    return false;
 }
 
 // ---- setup -----------------------------------------------------------------------------------------
@@ -370,11 +371,11 @@ void ai_state::phoenix_boss_load()
     phoenix_mount = owner->get_mount();
 }
 
-// 0x498720  Confidence: likely (the buffer sizes). As serpent_rider_set_flinch.
+// 0x498720  Confidence: exact (VC6 byte match) (the buffer sizes). As serpent_rider_set_flinch.
 void phoenix_rider_set_flinch(move_info *moves)
 {
     char num[2];
-    char msg[0x70];
+    char msg[0x80];
 
     for (move_info *m = moves; m; m = m->next) {
         const char *p = m->action;
@@ -706,7 +707,7 @@ void phoenix_timer_c0_set_random(int lo, int hi)
     phoenix_timer_c0.SetTimeout((int)(frand() * (hi - lo)) + lo);
 }
 
-// 0x499250  Confidence: likely (the skip test keeps the binary's three-way OR; the list entries always
+// 0x499250  Confidence: exact (VC6 byte match) (the skip test keeps the binary's three-way OR; the list entries always
 // have a character). Cumulative weights 2 + 0.1 * (minus the summed threat of the list) minus the
 // candidate's own threat (3 * [0] + [1]); the current target x1.2, or 0 when excluded; a far-only pick
 // skips the near ones.
@@ -724,13 +725,14 @@ int phoenix_pick_weighted_move(boss_target *list, int count, int cur_target, boo
         }
     }
     for (i = 0; i < count; i++) {
-        Character *c = list[i].character;
-        bool is_cur = c && c->handle == cur_target;
+        boss_target *t = &list[i];
         bool ok = true;
-        if (far_only == true && !(list[i].flags & PHOENIX_TF_FAR))
+        bool is_cur = t->character && t->character->handle == cur_target;
+        if (far_only == true && !(t->flags & PHOENIX_TF_FAR))
             ok = false;
+        Character *c = t->character;
         if (c == NULL && !ok && !is_cur) {
-            list[i].score = total;
+            t->score = total;
             continue;
         }
         float base = threat_sum * 0.1f + 2.0f;
@@ -746,7 +748,7 @@ int phoenix_pick_weighted_move(boss_target *list, int count, int cur_target, boo
                 w = 0.0f;
         }
         total += w;
-        list[i].score = total;
+        t->score = total;
     }
     for (i = 0; i < count; i++)
         list[i].score /= total;
@@ -758,9 +760,9 @@ int phoenix_pick_weighted_move(boss_target *list, int count, int cur_target, boo
             break;
         }
     }
-    if (pick == -1)
-        return -1;
-    return list[pick].character->handle;
+    if (pick != -1)
+        return list[pick].character->handle;
+    return -1;
 }
 
 // 0x4993f0  Confidence: exact.
@@ -858,7 +860,7 @@ void ai_state::phoenix_stage_transition_move()
     }
 }
 
-// 0x499690  Confidence: likely (the case order of the forced stage). Every frame: the rebirth at 0 HP
+// 0x499690  Confidence: exact (VC6 byte match) (the case order of the forced stage). Every frame: the rebirth at 0 HP
 // (once), a forced stage, else by HP (below 30 % or reborn stage 3, below 66 % stage 2 once the level
 // script answered the dismount request).
 void ai_state::phoenix_check_stage()
@@ -944,7 +946,7 @@ bool phoenix_cast_special(Character *c, int anim)
     return true;
 }
 
-// 0x499890  Confidence: likely (the effect search as a for loop with a break). boss_attack_trigger_dispatch:
+// 0x499890  Confidence: exact (VC6 byte match) (the effect search as a for loop with a break). boss_attack_trigger_dispatch:
 // 0x1a fires the missile of the effect the move started, 0x1d places the ground effect facing the
 // cast point, 0x1e knocks the party down.
 // GAME BUG (NOTES.md): the 0x1e blast tests the distance between the target and the phoenix (not each
@@ -961,10 +963,8 @@ void phoenix_special_strike(Character *boss, Character *target)
             Character *c = living_from_handle(p->handle);
             if (c == NULL)
                 continue;
-            float dx = target->pos.x - boss->pos.x;
-            float dy = target->pos.y - boss->pos.y;
-            float dz = target->pos.z - boss->pos.z;
-            if (dz * dz + dy * dy + dx * dx < r2) {
+            vector3 d = target->pos - boss->pos;
+            if (d.x * d.x + d.y * d.y + d.z * d.z < r2) {
                 fx_create_spell_effect_facing(SPELL_PHOENIX_BLAST, boss->handle, target->handle);
                 target->get_hit_by_spell(SPELL_PHOENIX_BLAST, boss->handle, NULL, NULL, 0, NULL, 0.0f, false);
                 c->ai.knock_down((int)(frand_range(5.0f, 10.0f) * 1000.0f));
@@ -973,7 +973,7 @@ void phoenix_special_strike(Character *boss, Character *target)
         break;
     }
     case SPELL_PHOENIX_GROUND: {
-        vector3 dir(boss->ai.cast_point.x - boss->pos.x, 0, boss->ai.cast_point.z - boss->pos.z);
+        vector3 dir = vector3(boss->ai.cast_point.x - boss->pos.x, 0, boss->ai.cast_point.z - boss->pos.z);
         dir.normalize();
         matrix m;
         m.set_from_forward_up(dir, boss->orient.uvec);
@@ -1046,7 +1046,7 @@ void phoenix_anim_remap_out(Character *c, int *anims)
     }
 }
 
-// 0x499be0  Confidence: likely (the ready_hurt lookup's result is overwritten before use, as in the
+// 0x499be0  Confidence: exact (VC6 byte match) (the ready_hurt lookup's result is overwritten before use, as in the
 // binary: its if block is missing). boss_set_foot_anims: stage 3.
 void phoenix_set_foot_anims(Character *c)
 {

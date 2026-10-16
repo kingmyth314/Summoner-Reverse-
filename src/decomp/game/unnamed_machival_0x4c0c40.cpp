@@ -53,29 +53,7 @@ boss_attack *machival_move_5;         // 0x248b020 [0][5]
 boss_attack *machival_move_4;         // 0x248b024 [0][4]
 boss_attack *machival_move_2;         // 0x248b028 [0][2]
 boss_attack *machival_move_1;         // 0x248b02c [0][1]
-int  machival_248b030;                // 0x248b030 zeroed when the target is lost, never read
-bool machival_combat_enabled;         // 0x248b034
-bool machival_timers_started;         // 0x248b035 machival_reset_timers ran (first target)
-boss_threat machival_threat_table[BOSS_MAX_THREATS];   // 0x248b038 (timers built by init_machival_timers)
-int  machival_num_offense_points;     // 0x248b0b0
-boss_offense_point machival_offense_points[10];        // 0x248b0b4
-boss_attack machival_attack_table[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248b1cc "machival_boss.tbl"
-boss_attack *machival_current_move;   // 0x248b30c
-GameTimer machival_248b310;           // 0x248b310 constructed, never used
-int  machival_target_handle;          // 0x248b314
-GameTimer machival_attack_timer;      // 0x248b318
-GameTimer machival_teleport_timer;    // 0x248b31c
-GameTimer machival_spell100_timer;    // 0x248b320
-GameTimer machival_spell101_timer;    // 0x248b324
-GameTimer machival_spell102_timer;    // 0x248b328
-int  machival_cast_anim;              // 0x248b32c
-int  machival_casting_spell;          // 0x248b330
-GameTimer machival_party_spell_timer; // 0x248b334
-int  machival_area_hit_count;         // 0x248b338
-int  machival_area_hits[5];           // 0x248b33c
-navpoint *machival_teleports[6];      // 0x248b350
-navpoint *machival_teleport_navpoint; // 0x248b368
-vector3 machival_teleport_pos;        // 0x248b36c the facing after the teleport (target - boss)
+machival_boss machival;               // 0x248b030-0x248b377 (D6510: the fields' old names are macros in boss_ai.h)
 boss_attack *machival_move_melee;     // 0x248b378 [0][0]
 
 // 0x4c0c40  Confidence: exact. static_init_machival_timers: "jmp 0x4c0c50" (initialiser entry 318).
@@ -115,19 +93,16 @@ void machival_filter_target(Character *boss, boss_target *t)
         t->flags |= 8;
 }
 
-// 0x4c0dd0  Confidence: likely (the dot product is summed z, y, x). The horizontal distance from the move's
+// 0x4c0dd0  Confidence: exact (VC6 byte match) (the dot product is summed z, y, x). The horizontal distance from the move's
 // offense point within range_max and the direction within the cone (as pyrul_point_in_attack_cone).
 bool machival_offense_point_reaches(Character *c, boss_attack *move)
 {
     boss_offense_point *pt = &machival_offense_points[move->offense_point];
-    vector3 d;
+    vector3 d(c->pos.x - pt->pos.x, 0.0f, c->pos.z - pt->pos.z);
 
-    d.x = c->pos.x - pt->pos.x;
-    d.y = 0.0f;
-    d.z = c->pos.z - pt->pos.z;
     if (d.normalize_safe_length() > move->range_max)
         return false;
-    if (d.z * pt->dir.z + d.y * pt->dir.y + d.x * pt->dir.x < move->cos_max_angle)
+    if (d.x * pt->dir.x + d.y * pt->dir.y + d.z * pt->dir.z < move->cos_max_angle)
         return false;
     return true;
 }
@@ -282,16 +257,12 @@ void machival_count_targets_in_reach(Character *boss, int *in_reach, int *in_mel
     target = living_from_handle(machival_target_handle);
     if (target == NULL)
         return;
-    dir.x = target->pos.x - boss->pos.x;
-    dir.y = 0.0f;
-    dir.z = target->pos.z - boss->pos.z;
+    dir = vector3(target->pos.x - boss->pos.x, 0.0f, target->pos.z - boss->pos.z);
     dir.normalize_safe();
     for (i = 0; i < count; i++, list++) {
         if (list->character == NULL)
             continue;
-        d.x = list->character->pos.x - boss->pos.x;
-        d.y = 0.0f;
-        d.z = list->character->pos.z - boss->pos.z;
+        d = vector3(list->character->pos.x - boss->pos.x, 0.0f, list->character->pos.z - boss->pos.z);
         dist = list->dist;
         d.normalize_safe();
         if (dist < machival_move_3->range_max)
@@ -459,7 +430,7 @@ void machival_set_attack_timer(int min_ms, int max_ms)
     machival_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c1820  Confidence: likely (the position sum goes through a temporary), as pyrul_update_attack_points.
+// 0x4c1820  Confidence: exact (VC6 byte match) (the position sum goes through a temporary), as pyrul_update_attack_points.
 void machival_update_offense_points(Character *c)
 {
     int i;
@@ -471,9 +442,7 @@ void machival_update_offense_points(Character *c)
         pt = &machival_offense_points[i];
         c->instance->get_bone_world_transform(pt->tag, &c->orient, &c->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + c->centre_offset.x;
-        pt->pos.y = pos.y + c->centre_offset.y;
-        pt->pos.z = pos.z + c->centre_offset.z;
+        pt->pos = pos + c->centre_offset;
     }
 }
 
@@ -489,23 +458,28 @@ void ai_state::machival_cast_spell_at(int spell, vector3 *pos, int layer)
     if (owner->cur_anim == -1)
         return;
     add_cast_at_point(spell, pos, layer, 5000);
-    machival_casting_spell = spell;
     machival_cast_anim = owner->cur_anim;
+    machival_casting_spell = spell;
 }
 
 // 0x4c1940  Confidence: exact. Spell 0x5b uses category 0 for its move, the others 7.
 void ai_state::machival_cast_spell(int spell, Character *target)
 {
-    move_info *move = owner->find_move(spell == SPELL_MACHIVAL_PARTY ? 0 : 7, spells[spell].variation);
+    move_info *move;
+    int variation = spells[spell].variation;
 
+    if (spell == SPELL_MACHIVAL_PARTY)
+        move = owner->find_move(0, variation);
+    else
+        move = owner->find_move(7, variation);
     if (move == NULL)
         return;
     owner->cur_anim = owner->play_move((int)move, 1.0f, true, true, false);
     if (owner->cur_anim == -1)
         return;
     add_cast_at_target(spell, target, 5000);
-    machival_casting_spell = spell;
     machival_cast_anim = owner->cur_anim;
+    machival_casting_spell = spell;
 }
 
 // 0x4c19c0  Confidence: exact. boss_ai_check_stage case 0xc5: no HP stages, only the end of a cast.
@@ -529,7 +503,7 @@ void ai_state::machival_ai_melee(Character *target)
     }
 }
 
-// 0x4c1a80  Confidence: likely. boss_attack_trigger_dispatch case 0xc5. For a move with spell 0x3b, every
+// 0x4c1a80  Confidence: exact (VC6 byte match). boss_attack_trigger_dispatch case 0xc5. For a move with spell 0x3b, every
 // party member within 8 of the boss is knocked down for 2-3 s with chance 0.8 (the target always).
 void machival_knock_down_party(Character *boss, Character *target)
 {
@@ -543,7 +517,7 @@ void machival_knock_down_party(Character *boss, Character *target)
         c = living_from_handle(p->handle);
         if (c == NULL)
             continue;
-        vector3 d(c->pos.x - boss->pos.x, c->pos.y - boss->pos.y, c->pos.z - boss->pos.z);
+        vector3 d = c->pos - boss->pos;
         if (d.len_sq() < 64.0f && (frand() < 0.8f || c == target) && c->ai.can_be_knocked_down() == true)
             c->ai.knock_down(rand_int_range(2000, 3000));
     }
@@ -634,7 +608,7 @@ void machival_apply_area_hits(Character *c)
     }
 }
 
-// 0x4c1e20  Confidence: likely. (index): a client takes the navpoint the host sent (mp_handle_swi_boss
+// 0x4c1e20  Confidence: exact (VC6 byte match). (index): a client takes the navpoint the host sent (mp_handle_swi_boss
 // has set machival_teleport_pos; a bad index becomes 0); the host / single player picks one of the six at
 // random and fails when it is the current one. Facing: towards the target, or the navpoint's heading.
 // Then the vanish move (category 8, 0x8a) and sub-mode AIS_MACHIVAL_TELEPORT; the host sends SWI_BSS.
@@ -648,7 +622,8 @@ bool ai_state::machival_teleport(int index)
             index = 0;
         machival_teleport_navpoint = machival_teleports[index];
     } else {
-        nav = machival_teleports[rand() % 6];
+        int r = rand() % 6;
+        nav = machival_teleports[r];
         if (nav == machival_teleport_navpoint)
             return false;
         machival_teleport_navpoint = nav;
@@ -658,12 +633,11 @@ bool ai_state::machival_teleport(int index)
             m.set_from_angles(0.0f, 0.0f, machival_teleport_navpoint->heading);
             machival_teleport_pos = m.fvec;
         } else {
-            machival_teleport_pos.x = target->pos.x - owner->pos.x;
-            machival_teleport_pos.y = target->pos.y - owner->pos.y;
-            machival_teleport_pos.z = target->pos.z - owner->pos.z;
+            machival_teleport_pos = target->pos - owner->pos;
         }
     }
-    machival_cast_anim = owner->play_move((int)owner->find_move(8, 0x8a), 1.0f, false, false, false);
+    move_info *m = owner->find_move(8, 0x8a);
+    machival_cast_anim = owner->play_move((int)m, 1.0f, false, false, false);
     set_mode(AI_STATE_COMBAT, AIS_MACHIVAL_TELEPORT);
     priority = 99999;
     owner->set_6ac(0.0f);
@@ -673,7 +647,7 @@ bool ai_state::machival_teleport(int index)
     return true;
 }
 
-// 0x4c1f90  Confidence: likely. Sub-mode AIS_MACHIVAL_TELEPORT: when the vanish move ends, the boss moves
+// 0x4c1f90  Confidence: exact (VC6 byte match). Sub-mode AIS_MACHIVAL_TELEPORT: when the vanish move ends, the boss moves
 // to the navpoint, faces machival_teleport_pos, becomes visible (object flag 1, instance alpha 0xff) and
 // plays the arrival move (8, 0x8b). Until then the object is hidden from frame 69 of the move on.
 void ai_state::machival_ai_special_move()
@@ -684,7 +658,8 @@ void ai_state::machival_ai_special_move()
         owner->orient.set_from_forward(machival_teleport_pos);
         owner->obj_flags |= 1;
         owner->instance->_unkb4 = 0xff;
-        machival_cast_anim = owner->play_move((int)owner->find_move(8, 0x8b), 1.0f, false, false, false);
+        move_info *m = owner->find_move(8, 0x8b);
+        machival_cast_anim = owner->play_move((int)m, 1.0f, false, false, false);
         set_mode(AI_STATE_COMBAT, AIS_MACHIVAL_ARRIVE);
         priority = 99999;
         return;

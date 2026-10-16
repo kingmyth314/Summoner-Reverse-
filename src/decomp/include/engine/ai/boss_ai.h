@@ -159,7 +159,7 @@ void  tiger_restore_ride_anims(Character *rider);      // 0x49c750 (tiger unit, 
 // The ghost rider's stage (ghost_update_stage writes 1..3; written by ghost_rider_boss_load too).
 // spell_compute_resist gives spell 0x50 (Ghost Paralyzing Fear) a 0.5 hit chance in stage 3. Name ours;
 // its .bss belongs to the ghost rider unit.
-extern int ghost_stage;                                // 0x2480310
+// ghost_stage (0x2480310): a field of the ghost rider's state object (D6511), macro below.
 
 // decomp29: the cdecl per-boss functions boss_ai.cpp calls (the thiscall ones are ai_state members).
 // "Folded" ones are empty bodies (or a bare "return false") that identical-code folding merged into
@@ -352,14 +352,14 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 extern bool titus_turn_lock;                         // 0x248b914 titus_update_turn_lock (decomp56: ai_combat_face_target)
 extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
 extern bool pyrul_combat_enabled;                     // 0x247fd38 cmd_pyrul_combat, pyrul_ai_idle
-extern bool machival_combat_enabled;                  // 0x248b034 cmd_machival_combat, machival_ai_idle
+// machival_combat_enabled (0x248b034): a field of the machival's state object (D6510).
 // The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407): giant_salamanka_combat_enabled
 // (0x248c7d0), _stage2_reached / _stage2_ack (0x248c7dc / 0x248c7dd), _stage3_reached / _stage3_ack (0x248c7de /
 // 0x248c7df) are fields of the state object since decomp59 (D3904), macros in unnamed_giant_salamanka_0x4c8030.h.
 // tiger_threat_table (0x2452ac0): a field of the tiger's state object (D3403).
 // serpent_threat_table (0x24522e8): a field of the serpent's state object (D3403, unnamed_serpent_0x495290.h).
 // phoenix_threat_table (0x2452938): a field of the phoenix's state object (D3403, unnamed_phoenix_0x497ac0.h).
-extern boss_threat ghost_rider_threat_table[BOSS_MAX_THREATS];       // 0x248081c
+// ghost_rider_threat_table (0x248081c): a field of the ghost rider's state object (D6511).
 extern boss_threat titus_threat_table[BOSS_MAX_THREATS];             // 0x248b3b8
 extern boss_threat pyrul_threat_table[BOSS_MAX_THREATS];             // 0x247fd3c
 extern boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];         // 0x248c008
@@ -368,13 +368,13 @@ extern boss_threat evil_urath_threat_table[BOSS_MAX_THREATS];        // 0x248bd1
 extern boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];       // 0x248b9b8
 // tiger_cur_move (0x2452c40): a field of the tiger's state object (D3403).
 // phoenix_cur_attack (0x2452920): a field of the phoenix's state object (D3403).
-extern boss_attack *ghost_cur_move;                   // 0x2480810 (name ours)
+// ghost_cur_move (0x2480810): a field of the ghost rider's state object (D6511).
 extern boss_attack *titus_current_move;               // 0x248b90c
 extern boss_attack *pyrul_cur_move;                   // 0x2480290 (name ours)
 extern boss_attack *murod_oni_current_move;           // 0x248c2dc
 extern boss_attack *evil_urath_current_move;          // 0x248bec8
 extern boss_attack *evil_joseph_current_move;         // 0x248bc8c
-extern boss_attack *machival_current_move;            // 0x248b30c
+// machival_current_move (0x248b30c): a field of the machival's state object (D6510).
 // The serpent and its two copies (index serpent_part_index): the attack each one is playing (sum.symbols
 // types it int[3]; the dispatchers read +0x14 / +0x1c through it) and its move id. decomp54 (D3403):
 // serpent_part_busy, serpent_part_move, serpent_handle, serpent_timer_attack, serpent_stage and
@@ -469,34 +469,76 @@ extern boss_attack *ghost_move_3_1;                   // 0x24802f4 [2][1]
 extern boss_attack *ghost_move_2_1;                   // 0x24802f8 [1][1]
 extern console_command ccmd_ghost_combat;             // 0x2480300
 extern boss_attack *ghost_move_2_0;                   // 0x248030c [1][0]
-extern int  ghost_target_stage;                       // 0x2480314 cmd_ghost_stage (0 = by HP)
-extern bool ghost_dismount_requested;                 // 0x2480318 HP below 66 %: waits for the script
-extern bool ghost_dismount_done;                      // 0x2480319 set by the Ghost-Dismount cutscene end
-extern bool ghost_combat_enabled;                     // 0x248031a cmd_ghost_combat, ghost_ai_idle
-extern bool ghost_mounted;                            // 0x248031b
-extern int  ghost_remap_count;                        // 0x2480320 ghost_anim_remap_in / _out
-extern int  ghost_remap_kind[2];                      // 0x2480324 locomotion_anim_names index
-extern float ghost_remap_weight[2];                   // 0x248032c
-extern int  ghost_num_offense_points;                 // 0x2480334
-extern boss_offense_point ghost_offense_points[10];   // 0x2480338
-extern boss_attack ghost_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x2480450 "ghost_rider_boss.tbl"
-extern int  ghost_pending_submode;                    // 0x2480814 0x20 (AIS_SAFETY) when ghost_choose_attack returns 1
-extern int  ghost_2480818;                            // 0x2480818 zeroed when the target is lost, never read
-extern int  ghost_target;                             // 0x2480894 target handle
-extern GameTimer ghost_target_timer;                  // 0x2480898 retarget timer
-extern GameTimer ghost_think_timer;                   // 0x248089c wander check (ghost_timer_set_random)
-extern GameTimer ghost_wander_timer;                  // 0x24808a0 wander duration (5 s)
-extern GameTimer ghost_fear_timer;                    // 0x24808a4 paralysing fear (45 s / 30 s)
-extern GameTimer ghost_summon_timer;                  // 0x24808a8 minion summons (20-40 s)
-extern int  ghost_saved_trip_anim;                    // 0x24808ac anim_tripped_liedown while mounted
-extern int  ghost_bone_servants[2];                   // 0x24808b0 minion handles (species 0x43)
-extern int  ghost_bone_mages[2];                      // 0x24808b8 (species 0x45; the servants in jadetemple)
-extern int  ghost_undead[2];                          // 0x24808c0 (species 0x9c; the servants in jadetemple)
-extern int  ghost_minions_raised;                     // 0x24808c8 summons out (the summon gate is < 2)
-extern int  ghost_summon_minion;                      // 0x24808cc handle for the next summon, -1 none
-extern vector3 ghost_summon_pos;                      // 0x24808d0
-extern int  ghost_num_hits;                           // 0x24808dc
-extern int  ghost_hits[12];                           // 0x24808e0
+// The fight state 0x2480310-0x248090f is one object (D6511, as D3403): one static initialiser
+// (init_ghost_timers 0x4ba080) constructs its GameTimers; stage first, up to the next console object
+// (ccmd_ghost_unlink 0x2480910), with the phoenix's field order at the start. Type and object names ours.
+struct ghost_boss {
+    int stage;                                        // +0x000 0x2480310 ghost_update_stage writes 1..3
+    int target_stage;                                 // +0x004 0x2480314 cmd_ghost_stage (0 = by HP)
+    bool dismount_requested;                          // +0x008 0x2480318 HP below 66 %: waits for the script
+    bool dismount_done;                               // +0x009 0x2480319 set by the Ghost-Dismount cutscene end
+    bool combat_enabled;                              // +0x00a 0x248031a cmd_ghost_combat, ghost_ai_idle
+    bool mounted;                                     // +0x00b 0x248031b
+    int _unk00c;                                      // +0x00c 0x248031c
+    int remap_count;                                  // +0x010 0x2480320 ghost_anim_remap_in / _out
+    int remap_kind[2];                                // +0x014 0x2480324 locomotion_anim_names index
+    float remap_weight[2];                            // +0x01c 0x248032c
+    int num_offense_points;                           // +0x024 0x2480334
+    boss_offense_point offense_points[10];            // +0x028 0x2480338
+    boss_attack attacks[3][BOSS_MAX_OFFENSE_POINTS];  // +0x140 0x2480450 "ghost_rider_boss.tbl"
+    boss_attack *cur_move;                            // +0x500 0x2480810
+    int pending_submode;                              // +0x504 0x2480814 0x20 (AIS_SAFETY) when ghost_choose_attack returns 1
+    int _unk508;                                      // +0x508 0x2480818 zeroed when the target is lost, never read
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x50c 0x248081c
+    int target;                                       // +0x584 0x2480894 target handle
+    GameTimer target_timer;                           // +0x588 0x2480898 retarget timer
+    GameTimer think_timer;                            // +0x58c 0x248089c wander check (ghost_timer_set_random)
+    GameTimer wander_timer;                           // +0x590 0x24808a0 wander duration (5 s)
+    GameTimer fear_timer;                             // +0x594 0x24808a4 paralysing fear (45 s / 30 s)
+    GameTimer summon_timer;                           // +0x598 0x24808a8 minion summons (20-40 s)
+    int saved_trip_anim;                              // +0x59c 0x24808ac anim_tripped_liedown while mounted
+    int bone_servants[2];                             // +0x5a0 0x24808b0 minion handles (species 0x43)
+    int bone_mages[2];                                // +0x5a8 0x24808b8 (species 0x45; the servants in jadetemple)
+    int undead[2];                                    // +0x5b0 0x24808c0 (species 0x9c; the servants in jadetemple)
+    int minions_raised;                               // +0x5b8 0x24808c8 summons out (the summon gate is < 2)
+    int summon_minion;                                // +0x5bc 0x24808cc handle for the next summon, -1 none
+    vector3 summon_pos;                               // +0x5c0 0x24808d0
+    int num_hits;                                     // +0x5cc 0x24808dc
+    int hits[12];                                     // +0x5d0 0x24808e0
+};
+LAYOUT_CHECK(ghost_boss, sizeof(ghost_boss) == 0x600);
+extern ghost_boss ghost;                              // 0x2480310 (name ours)
+#define ghost_stage                 (ghost.stage)
+#define ghost_rider_threat_table    (ghost.threat)
+#define ghost_cur_move              (ghost.cur_move)
+#define ghost_target_stage          (ghost.target_stage)
+#define ghost_dismount_requested    (ghost.dismount_requested)
+#define ghost_dismount_done         (ghost.dismount_done)
+#define ghost_combat_enabled        (ghost.combat_enabled)
+#define ghost_mounted               (ghost.mounted)
+#define ghost_remap_count           (ghost.remap_count)
+#define ghost_remap_kind            (ghost.remap_kind)
+#define ghost_remap_weight          (ghost.remap_weight)
+#define ghost_num_offense_points    (ghost.num_offense_points)
+#define ghost_offense_points        (ghost.offense_points)
+#define ghost_attack_table          (ghost.attacks)
+#define ghost_pending_submode       (ghost.pending_submode)
+#define ghost_2480818               (ghost._unk508)
+#define ghost_target                (ghost.target)
+#define ghost_target_timer          (ghost.target_timer)
+#define ghost_think_timer           (ghost.think_timer)
+#define ghost_wander_timer          (ghost.wander_timer)
+#define ghost_fear_timer            (ghost.fear_timer)
+#define ghost_summon_timer          (ghost.summon_timer)
+#define ghost_saved_trip_anim       (ghost.saved_trip_anim)
+#define ghost_bone_servants         (ghost.bone_servants)
+#define ghost_bone_mages            (ghost.bone_mages)
+#define ghost_undead                (ghost.undead)
+#define ghost_minions_raised        (ghost.minions_raised)
+#define ghost_summon_minion         (ghost.summon_minion)
+#define ghost_summon_pos            (ghost.summon_pos)
+#define ghost_num_hits              (ghost.num_hits)
+#define ghost_hits                  (ghost.hits)
 extern console_command ccmd_ghost_unlink;             // 0x2480910
 extern boss_attack *ghost_move_1_0;                   // 0x248091c [0][0]
 extern boss_attack *ghost_move_1_1;                   // 0x2480920 [0][1]
@@ -533,27 +575,62 @@ extern boss_attack *machival_move_5;                  // 0x248b020 [0][5]
 extern boss_attack *machival_move_4;                  // 0x248b024 [0][4]
 extern boss_attack *machival_move_2;                  // 0x248b028 [0][2]
 extern boss_attack *machival_move_1;                  // 0x248b02c [0][1]
-extern int  machival_248b030;                         // 0x248b030 zeroed when the target is lost, never read
-extern bool machival_timers_started;                  // 0x248b035
-extern boss_threat machival_threat_table[BOSS_MAX_THREATS];   // 0x248b038
-extern int  machival_num_offense_points;              // 0x248b0b0
-extern boss_offense_point machival_offense_points[10];        // 0x248b0b4
-extern boss_attack machival_attack_table[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248b1cc "machival_boss.tbl"
-extern GameTimer machival_248b310;                    // 0x248b310 constructed, never used
-extern int  machival_target_handle;                   // 0x248b314
-extern GameTimer machival_attack_timer;               // 0x248b318
-extern GameTimer machival_teleport_timer;             // 0x248b31c 70 s (2 s after a failed try)
-extern GameTimer machival_spell100_timer;             // 0x248b320 spell 0x64
-extern GameTimer machival_spell101_timer;             // 0x248b324 spell 0x65
-extern GameTimer machival_spell102_timer;             // 0x248b328 spell 0x66
-extern int  machival_cast_anim;                       // 0x248b32c
-extern int  machival_casting_spell;                   // 0x248b330 -1 none
-extern GameTimer machival_party_spell_timer;          // 0x248b334 spell 0x5b
-extern int  machival_area_hit_count;                  // 0x248b338
-extern int  machival_area_hits[5];                    // 0x248b33c
-extern navpoint *machival_teleports[6];               // 0x248b350 "$tele_01".."$tele_06"
-extern navpoint *machival_teleport_navpoint;          // 0x248b368 (mp_send_swi_boss)
-extern vector3 machival_teleport_pos;                 // 0x248b36c the facing after the teleport (mp_handle_swi_boss)
+// The fight state 0x248b030-0x248b377 is one object (D6510, as D3403): one static initialiser
+// (init_machival_timers 0x4c0c50) constructs its GameTimers, and VC6 reloads the hit and offense point
+// counts after a store into the arrays next to them, as it does for the fields of one object. Start and end
+// are inferred (the move pointers on both sides are taken as separate globals, as the phoenix's). Type and
+// object names ours; the sum.symbols / earlier names stay as macros.
+struct machival_boss {
+    int _unk030;                                      // +0x000 0x248b030 zeroed when the target is lost, never read
+    bool combat_enabled;                              // +0x004 0x248b034 cmd_machival_combat, machival_ai_idle
+    bool timers_started;                              // +0x005 0x248b035
+    ubyte _pad036[2];
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x008 0x248b038
+    int num_offense_points;                           // +0x080 0x248b0b0
+    boss_offense_point offense_points[10];            // +0x084 0x248b0b4
+    boss_attack attacks[1][BOSS_MAX_OFFENSE_POINTS];  // +0x19c 0x248b1cc "machival_boss.tbl"
+    boss_attack *current_move;                        // +0x2dc 0x248b30c
+    GameTimer timer_310;                              // +0x2e0 0x248b310 constructed, never used
+    int target_handle;                                // +0x2e4 0x248b314
+    GameTimer attack_timer;                           // +0x2e8 0x248b318
+    GameTimer teleport_timer;                         // +0x2ec 0x248b31c 70 s (2 s after a failed try)
+    GameTimer spell100_timer;                         // +0x2f0 0x248b320 spell 0x64
+    GameTimer spell101_timer;                         // +0x2f4 0x248b324 spell 0x65
+    GameTimer spell102_timer;                         // +0x2f8 0x248b328 spell 0x66
+    int cast_anim;                                    // +0x2fc 0x248b32c
+    int casting_spell;                                // +0x300 0x248b330 -1 none
+    GameTimer party_spell_timer;                      // +0x304 0x248b334 spell 0x5b
+    int area_hit_count;                               // +0x308 0x248b338
+    int area_hits[5];                                 // +0x30c 0x248b33c
+    navpoint *teleports[6];                           // +0x320 0x248b350 "$tele_01".."$tele_06"
+    navpoint *teleport_navpoint;                      // +0x338 0x248b368 (mp_send_swi_boss)
+    vector3 teleport_pos;                             // +0x33c 0x248b36c the facing after the teleport (mp_handle_swi_boss)
+};
+LAYOUT_CHECK(machival_boss, sizeof(machival_boss) == 0x348);
+extern machival_boss machival;                        // 0x248b030 (name ours)
+#define machival_248b030            (machival._unk030)
+#define machival_combat_enabled     (machival.combat_enabled)
+#define machival_timers_started     (machival.timers_started)
+#define machival_threat_table       (machival.threat)
+#define machival_num_offense_points (machival.num_offense_points)
+#define machival_offense_points     (machival.offense_points)
+#define machival_attack_table       (machival.attacks)
+#define machival_current_move       (machival.current_move)
+#define machival_248b310            (machival.timer_310)
+#define machival_target_handle      (machival.target_handle)
+#define machival_attack_timer       (machival.attack_timer)
+#define machival_teleport_timer     (machival.teleport_timer)
+#define machival_spell100_timer     (machival.spell100_timer)
+#define machival_spell101_timer     (machival.spell101_timer)
+#define machival_spell102_timer     (machival.spell102_timer)
+#define machival_cast_anim          (machival.cast_anim)
+#define machival_casting_spell      (machival.casting_spell)
+#define machival_party_spell_timer  (machival.party_spell_timer)
+#define machival_area_hit_count     (machival.area_hit_count)
+#define machival_area_hits          (machival.area_hits)
+#define machival_teleports          (machival.teleports)
+#define machival_teleport_navpoint  (machival.teleport_navpoint)
+#define machival_teleport_pos       (machival.teleport_pos)
 extern boss_attack *machival_move_melee;              // 0x248b378 [0][0]
 bool  machival_offense_point_reaches(Character *c, boss_attack *move);   // 0x4c0dd0
 void  machival_reset_timers();                         // 0x4c0e70

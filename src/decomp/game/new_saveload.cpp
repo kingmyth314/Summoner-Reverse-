@@ -159,33 +159,36 @@ unsigned short saveload_thumbnail_pixels[SAVELOAD_THUMB_W * SAVELOAD_THUMB_H]; /
 bool saveload_save_mode;                                   // 0x5f4a46  true = SAVE mode (see the top)
 // 0x5f4a48 saveload_month_names (above)
 
-// 0x4254e0  Confidence: likely (the scrollbar tile is scaled without the 0.5 rounding, as in the journal).
+// 0x4254e0  Confidence: exact (VC6 byte match) (the scrollbar tile is scaled without the 0.5 rounding, as in the journal).
 void saveload_load_bitmaps()
 {
     float scale = ui_get_scale();
     int i;
 
     for (i = 0; i < SAVELOAD_NUM_BUTTONS; i++) {
-        saveload_buttons[i].flags = 0;
-        saveload_buttons[i].bitmap = -1;
-        saveload_buttons[i].x = 0;
-        saveload_buttons[i].y = 0;
-        saveload_buttons[i].w = 0;
-        saveload_buttons[i].h = 0;
+        ui_button_state *b = &saveload_buttons[i];
+        ui_button_def *d = &saveload_button_defs[i];
 
-        if (strlen(saveload_button_defs[i].name)) {
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
+
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, saveload_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            saveload_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            saveload_buttons[i].x = saveload_button_defs[i].pos[resolution_index][0];
-            saveload_buttons[i].y = saveload_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(saveload_buttons[i].bitmap, &saveload_buttons[i].w, &saveload_buttons[i].h);
-            saveload_buttons[i].w = (int)(saveload_buttons[i].w * scale + 0.5f);
-            saveload_buttons[i].h = (int)(saveload_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                saveload_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -196,7 +199,7 @@ void saveload_load_bitmaps()
     saveload_thumbnail_bm = bm_create(3, SAVELOAD_THUMB_W, SAVELOAD_THUMB_H, saveload_thumbnail_pixels, 0, -1);
 }
 
-// 0x4256a0  Confidence: likely (order of the five resets). interface_set_screen(8, &byte) passes the byte
+// 0x4256a0  Confidence: exact (VC6 byte match) (order of the five resets). interface_set_screen(8, &byte) passes the byte
 // and prev != 14. Opened for saving from the main menu, nothing is reset or rescanned.
 void saveload_init(bool save_mode, bool in_game)
 {
@@ -335,7 +338,7 @@ void saveload_scan_saves()
     }
 }
 
-// 0x425b00  Confidence: likely (as journal_update_list_scrollbar: the count > 0 guard can never fail).
+// 0x425b00  Confidence: exact (VC6 byte match) (as journal_update_list_scrollbar: the count > 0 guard can never fail).
 void saveload_update_scrollbar()
 {
     int page = saveload_list_page[resolution_index];
@@ -351,18 +354,18 @@ void saveload_update_scrollbar()
     saveload_scrollbar_visible = true;
     saveload_buttons[11].flags &= ~4;
 
-    if (saveload_num_saves > 0) {
+    if (saveload_num_saves <= 0) {
+        saveload_thumb_x = saveload_track_pos[resolution_index][0];
+        saveload_thumb_y = saveload_track_pos[resolution_index][1];
+        saveload_thumb_w = saveload_thumb_bm_w;
+        saveload_thumb_h = saveload_track_h[resolution_index];
+    } else {
         saveload_thumb_x = saveload_track_pos[resolution_index][0];
         saveload_thumb_y = (int)((float)saveload_scroll_pos / saveload_num_saves * saveload_track_h[resolution_index]
                                  + 0.5f)
                          + saveload_track_pos[resolution_index][1];
         saveload_thumb_w = saveload_thumb_bm_w;
         saveload_thumb_h = (int)((float)page / saveload_num_saves * saveload_track_h[resolution_index] + 0.5f);
-    } else {
-        saveload_thumb_x = saveload_track_pos[resolution_index][0];
-        saveload_thumb_y = saveload_track_pos[resolution_index][1];
-        saveload_thumb_w = saveload_thumb_bm_w;
-        saveload_thumb_h = saveload_track_h[resolution_index];
     }
 }
 
@@ -434,7 +437,7 @@ void saveload_update_select_button()
         saveload_buttons[15].flags |= 4;
 }
 
-// 0x425d80  Confidence: likely (two copies of the disable store: written as two statements). Delete (19)
+// 0x425d80  Confidence: exact (VC6 byte match) (two copies of the disable store: written as two statements). Delete (19)
 // needs a row, and not the "<New Savegame>" row.
 void saveload_update_delete_button()
 {
@@ -462,18 +465,19 @@ int saveload_handle_input(int key)
     saveload_hover_row = -1;
 
     for (i = 0; i < SAVELOAD_NUM_BUTTONS; i++) {
-        if (!(saveload_buttons[i].flags & 4) && (saveload_button_defs[i].flags & 7)
-            && point_in_rect(game_mouse_x, game_mouse_y, saveload_buttons[i].x, saveload_buttons[i].y,
-                             saveload_buttons[i].w, saveload_buttons[i].h)) {
-            saveload_buttons[i].flags |= 2;
+        ui_button_state *b = &saveload_buttons[i];
+        ui_button_def *d = &saveload_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 7)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             saveload_pressed_button = i;
-            if (saveload_button_defs[i].flags & 2) {
+            if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     saveload_mouse_mode = 1;
                     saveload_button_timer.invalidate();
                     return key;
                 }
-            } else if (saveload_button_defs[i].flags & 4) {
+            } else if (d->flags & 4) {
                 if (mouse_was_pressed(0)) {
                     saveload_mouse_mode = 1;
                     saveload_button_action(saveload_pressed_button + 1);
@@ -501,14 +505,16 @@ int saveload_handle_input(int key)
         rows = saveload_list_page[resolution_index];
     int font_h = gr_get_font_height(-1);
 
-    if (point_in_rect(game_mouse_x, game_mouse_y, saveload_list_pos[resolution_index][0],
-                      saveload_list_pos[resolution_index][1], saveload_list_w[resolution_index], font_h * rows)) {
-        int y = 0;
-
-        for (i = 0; i < rows; i++, y += font_h) {
-            if (point_in_rect(game_mouse_x, game_mouse_y, saveload_list_pos[resolution_index][0],
-                              saveload_list_pos[resolution_index][1] + y, saveload_list_w[resolution_index],
-                              font_h)) {
+    int x = saveload_list_pos[resolution_index][0];
+    int y = saveload_list_pos[resolution_index][1];
+    int w = saveload_list_w[resolution_index];
+    int h = font_h * rows;
+    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h)) {
+        for (i = 0; i < rows; i++) {
+            int rx = saveload_list_pos[resolution_index][0];
+            int ry = saveload_list_pos[resolution_index][1] + i * font_h;
+            int rw = saveload_list_w[resolution_index];
+            if (point_in_rect(game_mouse_x, game_mouse_y, rx, ry, rw, font_h)) {
                 saveload_hover_row = i;
                 saveload_list_pressed = true;
                 if (mouse_was_double_clicked(0)) {
@@ -610,12 +616,15 @@ void saveload_page_up()
 // 0x426290  Confidence: exact.
 void saveload_page_down()
 {
+    int pos = saveload_scroll_pos;
     int page = saveload_list_page[resolution_index];
     int max = saveload_num_saves - page;
 
-    if (saveload_scroll_pos < max) {
-        int pos = saveload_scroll_pos + page;
-        saveload_scroll_pos = pos < max ? pos : max;
+    if (pos < max) {
+        pos += page;
+        if (pos < max)
+            max = pos;
+        saveload_scroll_pos = max;
         saveload_update_scrollbar();
     }
 }
@@ -642,7 +651,7 @@ void saveload_save_or_load()
     }
 }
 
-// 0x426320  Confidence: likely (the 1..3 range test as one if). Returns 0 when saved now. The overwrite
+// 0x426320  Confidence: exact (VC6 byte match) (the 1..3 range test as one if). Returns 0 when saved now. The overwrite
 // test reads saveload_entries[saveload_selected_row] without saveload_scroll_pos (a bug in the original:
 // after scrolling it checks the wrong row); the second selected_row >= 0 test is in the binary too.
 int saveload_try_save()
@@ -801,20 +810,20 @@ void saveload_update_buttons()
     int button = pressed + 1;
 
     if (pressed >= 0 && pressed < SAVELOAD_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, saveload_buttons[button].x, saveload_buttons[button].y,
-                          saveload_buttons[button].w, saveload_buttons[button].h))
-            saveload_buttons[button].flags |= 2;
+        ui_button_state *b = &saveload_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
-        if (mouse_is_down(0)) {
-            if (saveload_button_timer.valid() && saveload_button_timer.elapsed()
-                && (saveload_buttons[button].flags & 2)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !saveload_button_timer.valid())
+                saveload_button_action(button);
+        } else {
+            if (saveload_button_timer.valid() && saveload_button_timer.elapsed() && (b->flags & 2)) {
                 saveload_button_action(button);
                 saveload_button_timer.SetTimeout(100);
             }
             return;
         }
-        if ((saveload_buttons[button].flags & 2) && !saveload_button_timer.valid())
-            saveload_button_action(button);
     }
     saveload_mouse_mode = 0;
 }
@@ -824,9 +833,11 @@ void saveload_hover_thumbnail()
 {
     int font_h = gr_get_font_height(-1);
 
-    saveload_list_pressed = point_in_rect(game_mouse_x, game_mouse_y, saveload_list_pos[resolution_index][0],
-                                          saveload_list_pos[resolution_index][1] + saveload_hover_row * font_h,
-                                          saveload_list_w[resolution_index], font_h);
+    int dy = saveload_hover_row * font_h;
+    int x = saveload_list_pos[resolution_index][0];
+    int y = saveload_list_pos[resolution_index][1] + dy;
+    int w = saveload_list_w[resolution_index];
+    saveload_list_pressed = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, font_h);
     if (!mouse_is_down(0)) {
         if (saveload_list_pressed)
             saveload_load_thumbnail(saveload_hover_row);
@@ -834,7 +845,7 @@ void saveload_hover_thumbnail()
     }
 }
 
-// 0x426930  Confidence: likely (the y difference goes through a stack int for the fild).
+// 0x426930  Confidence: exact (VC6 byte match) (the y difference goes through a stack int for the fild).
 void saveload_drag_scrollbar()
 {
     int y = game_mouse_y - saveload_track_pos[resolution_index][1] - saveload_drag_start_mouse_y
@@ -844,7 +855,9 @@ void saveload_drag_scrollbar()
 
     pos = pos > 0 ? pos : 0;
     max = saveload_num_saves - saveload_list_page[resolution_index];
-    saveload_scroll_pos = pos < max ? pos : max;
+    if (pos < max)
+        max = pos;
+    saveload_scroll_pos = max;
     saveload_update_scrollbar();
 
     if (!mouse_is_down(0))
@@ -858,9 +871,9 @@ void saveload_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < SAVELOAD_NUM_BUTTONS; i++) {
-        if (saveload_buttons[i].flags & 3)
-            ui_bitmap_scaled(saveload_buttons[i].bitmap, saveload_buttons[i].x, saveload_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &saveload_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     saveload_draw_list();
     saveload_draw_scrollbar();
@@ -879,8 +892,8 @@ void saveload_draw_list()
     if (rows >= saveload_list_page[resolution_index])
         rows = saveload_list_page[resolution_index];
 
-    int x = saveload_list_pos[resolution_index][0];
     int y = saveload_list_pos[resolution_index][1];
+    int x = saveload_list_pos[resolution_index][0];
     int font_h = gr_get_font_height(-1);
 
     for (i = 0; i < rows; i++) {
@@ -908,7 +921,7 @@ void saveload_draw_list()
     }
 }
 
-// 0x426be0  Confidence: likely (layout of the found / not-found branches; the i < 51 test after the loop
+// 0x426be0  Confidence: exact (VC6 byte match) (layout of the found / not-found branches; the i < 51 test after the loop
 // is in the binary). The localized name is cut at its first digit or '#' and shortened with "...".
 void saveload_format_level_name(char *out, int level)
 {
@@ -997,7 +1010,7 @@ void saveload_draw_info()
     saveload_draw_thumbnail();
 }
 
-// 0x426fd0  Confidence: likely (if / ternary spelling). The captured picture for row 0 in save mode,
+// 0x426fd0  Confidence: exact (VC6 byte match) (if / ternary spelling). The captured picture for row 0 in save mode,
 // else the one savegame_read_thumbnail_file loaded.
 void saveload_draw_thumbnail()
 {
@@ -1014,7 +1027,7 @@ void saveload_draw_thumbnail()
                         0, 0, SAVELOAD_THUMB_W, SAVELOAD_THUMB_H, gr_bitmap_wrap_mode);
 }
 
-// 0x427050  Confidence: likely (operand order of the last tile y, as journal_draw_list_scrollbar).
+// 0x427050  Confidence: exact (VC6 byte match) (operand order of the last tile y, as journal_draw_list_scrollbar).
 void saveload_draw_scrollbar()
 {
     int tiles, i;

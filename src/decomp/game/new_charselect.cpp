@@ -146,27 +146,30 @@ void mp_charcreate_load_bitmaps()
     int i;
 
     for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
-        mp_charselect_buttons[i].flags = 0;
-        mp_charselect_buttons[i].bitmap = -1;
-        mp_charselect_buttons[i].x = 0;
-        mp_charselect_buttons[i].y = 0;
-        mp_charselect_buttons[i].w = 0;
-        mp_charselect_buttons[i].h = 0;
+        ui_button_state *b = &mp_charselect_buttons[i];
+        ui_button_def *d = &mp_charselect_button_defs[i];
 
-        if (strlen(mp_charselect_button_defs[i].name)) {
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
+
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, mp_charselect_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            mp_charselect_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            mp_charselect_buttons[i].x = mp_charselect_button_defs[i].pos[resolution_index][0];
-            mp_charselect_buttons[i].y = mp_charselect_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(mp_charselect_buttons[i].bitmap, &mp_charselect_buttons[i].w,
-                              &mp_charselect_buttons[i].h);
-            mp_charselect_buttons[i].w = (int)(mp_charselect_buttons[i].w * scale + 0.5f);
-            mp_charselect_buttons[i].h = (int)(mp_charselect_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w,
+                              &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0 || i == 19)
-                mp_charselect_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -227,7 +230,7 @@ void mp_charselect_init()
     mp_charselect_info_open = false;
 }
 
-// 0x406710  Confidence: likely (the list free loop: the head's prev field is the temporary, read as the
+// 0x406710  Confidence: exact (VC6 byte match) (the list free loop: the head's prev field is the temporary, read as the
 // three statements below; a list macro or inline in the original is likely). At most 64 records; a file
 // whose header cannot be read is skipped (its slot is reused). A directory failure leaves the selection.
 void mp_char_scan_files()
@@ -263,7 +266,7 @@ void mp_char_scan_files()
     mp_charselect_selected[0] = -1;
 }
 
-// 0x406820  Confidence: likely (count and page live in the argument and spare slots for fild; the order
+// 0x406820  Confidence: exact (VC6 byte match) (count and page live in the argument and spare slots for fild; the order
 // of the four stores of the count <= 0 branch). Buttons 22 + 4 * list / 24 + 4 * list are the list's
 // up / down arrows.
 void mp_charselect_update_scrollbar(int list)
@@ -271,8 +274,8 @@ void mp_charselect_update_scrollbar(int list)
     if (list == -1)
         return;
 
-    int count = mp_charselect_row_counts[list];
     int page = mp_charselect_list_page[resolution_index][list];
+    int count = mp_charselect_row_counts[list];
 
     if (count <= page) {
         mp_charselect_scrollbar_visible[list] = false;
@@ -285,23 +288,23 @@ void mp_charselect_update_scrollbar(int list)
     mp_charselect_buttons[22 + list * 4].flags &= ~4;
     mp_charselect_buttons[24 + list * 4].flags &= ~4;
 
-    if (count > 0) {
-        mp_charselect_scrollbar_pos[list][0] = mp_charselect_track_pos[resolution_index][list][0];
-        mp_charselect_scrollbar_pos[list][1] = (int)((float)mp_charselect_scroll_pos[list] / count
-                                                     * mp_charselect_track_h[resolution_index][list] + 0.5f)
-                                               + mp_charselect_track_pos[resolution_index][list][1];
-        mp_charselect_scrollbar_size[list][0] = mp_charselect_scrollbar_bm_w;
-        mp_charselect_scrollbar_size[list][1] = (int)((float)page / count
-                                                      * mp_charselect_track_h[resolution_index][list] + 0.5f);
-    } else {
+    if (count <= 0) {
         mp_charselect_scrollbar_pos[list][0] = mp_charselect_track_pos[resolution_index][list][0];
         mp_charselect_scrollbar_pos[list][1] = mp_charselect_track_pos[resolution_index][list][1];
         mp_charselect_scrollbar_size[list][0] = mp_charselect_scrollbar_bm_w;
         mp_charselect_scrollbar_size[list][1] = mp_charselect_track_h[resolution_index][list];
+    } else {
+        mp_charselect_scrollbar_pos[list][0] = mp_charselect_track_pos[resolution_index][list][0];
+        mp_charselect_scrollbar_pos[list][1] = (int)(mp_charselect_track_h[resolution_index][list]
+                                                     * ((float)mp_charselect_scroll_pos[list] / count) + 0.5f)
+                                               + mp_charselect_track_pos[resolution_index][list][1];
+        mp_charselect_scrollbar_size[list][0] = mp_charselect_scrollbar_bm_w;
+        mp_charselect_scrollbar_size[list][1] = (int)(mp_charselect_track_h[resolution_index][list]
+                                                      * ((float)page / count) + 0.5f);
     }
 }
 
-// 0x406970  Confidence: likely (where the store of mp_charselect_species sits among the clears). Bit 0 of
+// 0x406970  Confidence: exact (VC6 byte match) (where the store of mp_charselect_species sits among the clears). Bit 0 of
 // the tick entries 1 / 3 / 5 / 7 shows the class; the tick is indexed by the char_infos index, which
 // assumes the first four records are the four classes in species order.
 void mp_charselect_select_species(int species)
@@ -350,19 +353,20 @@ int mp_charselect_frame(int key)
     }
 
     if (mouse_was_pressed(0)) {
-        if (mp_charselect_name_focus)
-            mp_charselect_name_focus = point_in_rect(game_mouse_x, game_mouse_y,
-                                                       mp_charselect_name_box_pos[resolution_index][0],
-                                                       mp_charselect_name_box_pos[resolution_index][1],
-                                                       mp_charselect_name_box_size[resolution_index][0],
-                                                       mp_charselect_name_box_size[resolution_index][1]);
-        if (mp_charselect_desc_focus)
-            mp_charselect_desc_focus = point_in_rect(game_mouse_x, game_mouse_y,
-                                                            mp_charselect_list_pos[resolution_index][1][0],
-                                                            mp_charselect_list_pos[resolution_index][1][1],
-                                                            mp_charselect_list_width[resolution_index][1],
-                                                            gr_get_font_height(-1)
-                                                            * mp_charselect_list_page[resolution_index][1]);
+        if (mp_charselect_name_focus) {
+            int x = mp_charselect_name_box_pos[resolution_index][0];
+            int y = mp_charselect_name_box_pos[resolution_index][1];
+            int w = mp_charselect_name_box_size[resolution_index][0];
+            int h = mp_charselect_name_box_size[resolution_index][1];
+            mp_charselect_name_focus = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
+        }
+        if (mp_charselect_desc_focus) {
+            int x = mp_charselect_list_pos[resolution_index][1][0];
+            int y = mp_charselect_list_pos[resolution_index][1][1];
+            int w = mp_charselect_list_width[resolution_index][1];
+            int h = gr_get_font_height(-1) * mp_charselect_list_page[resolution_index][1];
+            mp_charselect_desc_focus = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
+        }
     }
     return key;
 }
@@ -639,7 +643,7 @@ void mp_charselect_wrap_text_input()
     mp_charselect_update_scrollbar(1);
 }
 
-// 0x4073c0  Confidence: likely (two stores of the element, as journal_list_page_up).
+// 0x4073c0  Confidence: exact (VC6 byte match) (two stores of the element, as journal_list_page_up).
 void mp_charselect_page_up(int list)
 {
     if (list == -1)
@@ -874,7 +878,7 @@ void mp_char_delete_file()
     }
 }
 
-// 0x4079c0  Confidence: likely (the order of the three initial stores; whether the class lines were a
+// 0x4079c0  Confidence: exact (VC6 byte match) (the order of the three initial stores; whether the class lines were a
 // switch on the species, as the jump table 0x407d20 suggests, or a table). Builds the info panel text:
 // the wrapped "Name:" line, the class, "Level:", a blank line, then the wrapped description; the row count
 // follows the lines.
@@ -956,21 +960,20 @@ void mp_charselect_update_buttons()
         button = pressed + 1;
 
     if (pressed >= 0 && pressed < CHARSELECT_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_buttons[button].x,
-                          mp_charselect_buttons[button].y, mp_charselect_buttons[button].w,
-                          mp_charselect_buttons[button].h))
-            mp_charselect_buttons[button].flags |= 2;
+        ui_button_state *b = &mp_charselect_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
-        if (mouse_is_down(0)) {
-            if (mp_charselect_repeat_timer.valid() && mp_charselect_repeat_timer.elapsed()
-                && (mp_charselect_buttons[button].flags & 2)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !mp_charselect_repeat_timer.valid())
+                mp_charselect_button_action(button);
+        } else {
+            if (mp_charselect_repeat_timer.valid() && mp_charselect_repeat_timer.elapsed() && (b->flags & 2)) {
                 mp_charselect_button_action(button);
                 mp_charselect_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((mp_charselect_buttons[button].flags & 2) && !mp_charselect_repeat_timer.valid())
-            mp_charselect_button_action(button);
     }
     mp_charselect_mouse_mode = 0;
 }
@@ -1000,9 +1003,9 @@ void mp_charselect_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
-        if (!(mp_charselect_button_defs[i].flags & 8) && (mp_charselect_buttons[i].flags & 3))
-            ui_bitmap_scaled(mp_charselect_buttons[i].bitmap, mp_charselect_buttons[i].x, mp_charselect_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &mp_charselect_buttons[i];
+        if (!(mp_charselect_button_defs[i].flags & 8) && (b->flags & 3))
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     mp_charselect_draw_char_list();
     for (i = 0; i < 3; i++) {
@@ -1015,16 +1018,16 @@ void mp_charselect_draw()
     if (mp_charselect_info_open) {
         gr_set_color(255, 255, 255, 255);
         for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
-            if ((mp_charselect_button_defs[i].flags & 8) && (mp_charselect_buttons[i].flags & 3))
-                ui_bitmap_scaled(mp_charselect_buttons[i].bitmap, mp_charselect_buttons[i].x,
-                                 mp_charselect_buttons[i].y, gr_bitmap_wrap_mode);
+            ui_button_state *b = &mp_charselect_buttons[i];
+            if ((mp_charselect_button_defs[i].flags & 8) && (b->flags & 3))
+                ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
         }
         mp_charselect_draw_char_info();
         mp_charselect_draw_scrollbar(2);
     }
 }
 
-// 0x407fd0  Confidence: likely (declaration order of the locals: font_h 0x10, x 0xc, text 0x18). The row
+// 0x407fd0  Confidence: exact (VC6 byte match) (declaration order of the locals: font_h 0x10, x 0xc, text 0x18). The row
 // under the mouse (while list 0 is the mouse target) and the selected row use the highlight colour.
 void mp_charselect_draw_char_list()
 {
@@ -1042,20 +1045,20 @@ void mp_charselect_draw_char_list()
 
     for (i = 0; i < rows; i++) {
         int index = mp_charselect_scroll_pos[0] + i;
-        mp_char_record *rec = &mp_char_profiles[index];
+        char *name = mp_char_profiles[index].name;
 
         if ((mp_charselect_drag_scrollbar_index == 0 && i == mp_charselect_hover_row)
             || index == mp_charselect_selected[0])
             gr_set_color_ptr(&ui_color_highlight);
         else
             gr_set_color_ptr(&ui_color_text);
-        gr_string_truncate_ellipsis(text, rec->name, mp_charselect_list_width[resolution_index][0], -1);
+        gr_string_truncate_ellipsis(text, name, mp_charselect_list_width[resolution_index][0], -1);
         gr_string(x, y, text, -1, gr_string_mode);
         y += font_h;
     }
 }
 
-// 0x4080c0  Confidence: likely (thumb y - tile h + thumb h for the last tile, as journal_draw_list_scrollbar).
+// 0x4080c0  Confidence: exact (VC6 byte match) (thumb y - tile h + thumb h for the last tile, as journal_draw_list_scrollbar).
 void mp_charselect_draw_scrollbar(int list)
 {
     int tiles, i;
@@ -1074,7 +1077,7 @@ void mp_charselect_draw_scrollbar(int list)
                      gr_bitmap_wrap_mode);
 }
 
-// 0x408180  Confidence: likely (as gamecreate_draw_text_field; the buffer is 36 bytes on the stack, 33 or
+// 0x408180  Confidence: exact (VC6 byte match) (as gamecreate_draw_text_field; the buffer is 36 bytes on the stack, 33 or
 // more in the source). Right-aligned once wider than the box; "|" while the box has the focus, shown when
 // the cursor blink is on.
 void mp_charselect_draw_name_input()
@@ -1105,7 +1108,7 @@ void mp_charselect_draw_name_input()
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x4082d0  Confidence: likely (local order). No colour is set: the text keeps the colour of the previous
+// 0x4082d0  Confidence: exact (VC6 byte match) (local order). No colour is set: the text keeps the colour of the previous
 // draw call. While the cursor blink is off the "|" is cut from the end of the last line.
 void mp_charselect_draw_text_input()
 {
@@ -1161,9 +1164,8 @@ void mp_charselect_draw_char_info()
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x408540  Confidence: likely (the parameter is a bool in the binary, "mov al, [esp+8]"; kept as the int
-// of the shared declaration). With validate, the .plr header must still be readable.
-mp_char_profile *mp_charselect_get_selected_profile(int validate)
+// 0x408540  Confidence: exact (VC6 byte match) (the parameter is a bool, "mov al, [esp+8]": D6513). With validate, the .plr header must still be readable.
+mp_char_profile *mp_charselect_get_selected_profile(bool validate)
 {
     mp_char_record *rec;
 

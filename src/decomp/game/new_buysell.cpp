@@ -125,7 +125,7 @@ int buysell_pressed_button;                                   // 0x5b6800 presse
 // 0x4048b0 init_realtimetimer_5b640c_thunk ("jmp 0x4048c0", static_initializers entry 8). Confidence: exact.
 // 0x4048c0 init_realtimetimer_5b640c (mov ecx, 0x5b640c / jmp RealtimeTimer::RealtimeTimer). Confidence: exact.
 
-// 0x4048d0  Confidence: likely (VC6 merged the two "info button disabled" tails; written as plain if/else).
+// 0x4048d0  Confidence: exact (VC6 byte match) (VC6 merged the two "info button disabled" tails; written as plain if/else).
 // Buy / sell button (34) disabled while buying something the party cannot afford; info button (36) needs
 // an identified item type.
 void buysell_update_button_states()
@@ -191,27 +191,30 @@ void buysell_load_bitmaps()
     int i;
 
     for (i = 0; i < BUYSELL_NUM_BUTTONS; i++) {
-        buysell_buttons[i].flags = 0;
-        buysell_buttons[i].bitmap = -1;
-        buysell_buttons[i].x = 0;
-        buysell_buttons[i].y = 0;
-        buysell_buttons[i].w = 0;
-        buysell_buttons[i].h = 0;
+        ui_button_state *b = &buysell_buttons[i];
+        ui_button_def *d = &buysell_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(buysell_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, buysell_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            buysell_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            buysell_buttons[i].x = buysell_button_defs[i].pos[resolution_index][0];
-            buysell_buttons[i].y = buysell_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(buysell_buttons[i].bitmap, &buysell_buttons[i].w, &buysell_buttons[i].h);
-            buysell_buttons[i].w = (int)(buysell_buttons[i].w * scale + 0.5f);
-            buysell_buttons[i].h = (int)(buysell_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                buysell_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -221,7 +224,7 @@ void buysell_load_bitmaps()
     buysell_scrollbar_bm_h = (int)(buysell_scrollbar_bm_h * scale);
 }
 
-// 0x404bd0  Confidence: likely (the second living_list test after statscreen_refresh_anim is what VC6
+// 0x404bd0  Confidence: exact (VC6 byte match) (the second living_list test after statscreen_refresh_anim is what VC6
 // leaves of the loop exit test; the loop shape is a guess). Pauses single player, stops the player in
 // multiplayer; needs a shopkeeper (shop_set_shopkeeper_from_char) and a usable party member for the
 // status_character model (the first type 7 member without flags 0x108 when the current one is unusable).
@@ -292,7 +295,7 @@ void buysell_set_category(int mode)
     }
 }
 
-// 0x404dc0  Confidence: likely (a switch on the loop index over all 40 records, jump table 0x404f48 /
+// 0x404dc0  Confidence: exact (VC6 byte match) (a switch on the loop index over all 40 records, jump table 0x404f48 /
 // index bytes 0x404f60 for i - 17; the cases use constant records, so they may have been written as
 // buysell_buttons[i] / [i + 1]). A category with no entry hides its icon and disables its hot spot.
 void buysell_update_category_buttons()
@@ -362,7 +365,7 @@ int buysell_category_first_index(int category)
     return -1;
 }
 
-// 0x404fe0  Confidence: likely (the second test is on buysell_row_count, which is always > 0 there;
+// 0x404fe0  Confidence: exact (VC6 byte match) (the second test is on buysell_row_count, which is always > 0 there;
 // pickup_update_scrollbar tests the scroll position instead). The thumb is page / rows of the track.
 void buysell_update_scrollbar()
 {
@@ -433,8 +436,8 @@ void buysell_leave()
 // the input while they are open.
 int buysell_frame(int key)
 {
-    for (ui_button_state *b = buysell_buttons; b < buysell_buttons + BUYSELL_NUM_BUTTONS; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < BUYSELL_NUM_BUTTONS; i++)
+        buysell_buttons[i].flags &= ~2;
 
     buysell_update_button_states();
     if (ui_message_box_is_active())
@@ -601,8 +604,8 @@ void buysell_category_tooltip(int button)
     default:
         return;
     }
-    ui_tooltip_set(buysell_buttons[button].x, buysell_buttons[button].y,
-                   buysell_buttons[button].w, buysell_buttons[button].h, text);
+    ui_button_state *b = &buysell_buttons[button];
+    ui_tooltip_set(b->x, b->y, b->w, b->h, text);
 }
 
 // 0x405790  Confidence: exact (the test is "jl": a position of 0 still pages, to 0).
@@ -617,16 +620,20 @@ void buysell_page_up()
 // 0x4057c0  Confidence: exact.
 void buysell_page_down()
 {
+    int pos = buysell_scroll_pos;
     int page = buysell_page_size[resolution_index];
     int limit = buysell_row_count - page;
 
-    if (buysell_scroll_pos < limit) {
-        buysell_scroll_pos = min(buysell_scroll_pos + page, limit);
+    if (pos < limit) {
+        pos += page;
+        if (pos < limit)
+            limit = pos;
+        buysell_scroll_pos = limit;
         buysell_update_scrollbar();
     }
 }
 
-// 0x4057f0  Confidence: likely (the "Ok" button array lives in the argument slot, so it was declared
+// 0x4057f0  Confidence: exact (VC6 byte match) (the "Ok" button array lives in the argument slot, so it was declared
 // after the last use of row). A non-stackable chargeable item the party already owns at full charge is
 // refused; otherwise the full price is paid and party_inventory_add_type adds (or recharges) one.
 void buysell_buy_item(int row)
@@ -637,29 +644,28 @@ void buysell_buy_item(int row)
     if (!entry)
         return;
 
-    if (party_gold < entry->price) {
-        sound_play_2d(0x24, 1.0f);
+    if (party_gold >= entry->price) {
+        ItemType *type = &item_types[entry->item_type];
+        int slot = party_inventory_find_type(type);
+        if (slot >= 0 && !item_type_is_stackable(type)) {
+            item_charge_effect *charge = (item_charge_effect *)type->charge_effect;
+            if (charge && party_inventory[slot].item->charges >= charge->max_charges) {
+                char *buttons[1];
+                buttons[0] = localize_strings[213];   // "Ok"
+                ui_message_box_show(localize_strings[645], localize_strings[646], -1, -1, 1, buttons, 0, 0);
+                                                      // "Warning", "This item is fully charged."
+                sound_play_2d(0x24, 1.0f);
+                return;
+            }
+        }
+
+        party_gold -= entry->price;
+        party_inventory_add_type(entry->item_type, 1, -1, 1);
+        sound_play_2d(0x2b, 1.0f);
+        buysell_update_category_buttons();
         return;
     }
-
-    ItemType *type = &item_types[entry->item_type];
-    int slot = party_inventory_find_type(type);
-    if (slot >= 0 && !item_type_is_stackable(type)) {
-        item_charge_effect *charge = (item_charge_effect *)type->charge_effect;
-        if (charge && party_inventory[slot].item->charges >= charge->max_charges) {
-            char *buttons[1];
-            buttons[0] = localize_strings[213];   // "Ok"
-            ui_message_box_show(localize_strings[645], localize_strings[646], -1, -1, 1, buttons, 0, 0);
-                                                  // "Warning", "This item is fully charged."
-            sound_play_2d(0x24, 1.0f);
-            return;
-        }
-    }
-
-    party_gold -= entry->price;
-    party_inventory_add_type(entry->item_type, 1, -1, 1);
-    sound_play_2d(0x2b, 1.0f);
-    buysell_update_category_buttons();
+    sound_play_2d(0x24, 1.0f);
 }
 
 // 0x405900  Confidence: exact. Sells one unit at the buy-list price; the last unit removes the entry.
@@ -699,7 +705,10 @@ void buysell_button_action(int id)
         break;
     case 10:
     case 12:
-        buysell_set_category(buysell_mode == 0 ? 1 : 0);
+        if (buysell_mode == 0)
+            buysell_set_category(1);
+        else
+            buysell_set_category(0);
         game_play_sound(0x28, 1.0f, 0, 0, 0);
         break;
     case 14:
@@ -852,28 +861,34 @@ void buysell_update_buttons()
 
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !buysell_repeat_timer.valid())
+                buysell_button_action(id);
+        } else {
             if (buysell_repeat_timer.valid() && buysell_repeat_timer.elapsed() && (b->flags & 2)) {
                 buysell_button_action(id);
                 buysell_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((b->flags & 2) && !buysell_repeat_timer.valid())
-            buysell_button_action(id);
     }
     buysell_mouse_mode = 0;
 }
 
-// 0x405e80  Confidence: likely (one store to buysell_scroll_pos, so the clamp is one expression).
+// 0x405e80  Confidence: exact (VC6 byte match) (one store to buysell_scroll_pos, so the clamp is one expression).
 void buysell_drag_scrollbar()
 {
     int offset = game_mouse_y - buysell_scrollbar_track[resolution_index][1] - buysell_drag_start_y
                + buysell_drag_start_thumb;
     int pos = (int)((float)offset / buysell_scrollbar_track_h[resolution_index] * buysell_row_count + 0.5f);
 
+    int limit;
+
     pos = max(pos, 0);
-    buysell_scroll_pos = min(pos, buysell_row_count - buysell_page_size[resolution_index]);
+    limit = buysell_row_count - buysell_page_size[resolution_index];
+    if (pos < limit)
+        limit = pos;
+    buysell_scroll_pos = limit;
     buysell_update_scrollbar();
     if (!mouse_is_down(0))
         buysell_mouse_mode = 0;
@@ -885,7 +900,8 @@ void buysell_draw()
     char gold[16];
 
     gr_set_color(255, 255, 255, 255);
-    for (ui_button_state *b = buysell_buttons; b < buysell_buttons + BUYSELL_NUM_BUTTONS; b++) {
+    for (int i = 0; i < BUYSELL_NUM_BUTTONS; i++) {
+        ui_button_state *b = &buysell_buttons[i];
         if (b->flags & 3)
             ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
@@ -995,7 +1011,7 @@ void buysell_model_view_end()
     gr_screen.offset_y = buysell_saved_view_y;
 }
 
-// 0x4062e0  Confidence: likely (the light is constructed before the mesh test, so it is declared first;
+// 0x4062e0  Confidence: exact (VC6 byte match) (the light is constructed before the mesh test, so it is declared first;
 // local order guessed). Viewer at (0, 0, -3) with an identity orientation, fov 60.
 void buysell_render_item_mesh(void *mesh, vector3 *pos, matrix3 *orient)
 {
@@ -1017,7 +1033,7 @@ void buysell_render_item_mesh(void *mesh, vector3 *pos, matrix3 *orient)
     ca_render_set_mesh(0);
 }
 
-// 0x406360  Confidence: likely (parameter type: see NOTES; stubs_gamecreate_journal.h has void*).
+// 0x406360  Confidence: exact (VC6 byte match) (parameter type: see NOTES; stubs_gamecreate_journal.h has void*).
 // The shopkeeper record whose name is the character's name, or none.
 void shop_set_shopkeeper_from_char(void *character)
 {
@@ -1033,7 +1049,7 @@ bool ui_has_owner_character()
     return buysell_shop != 0;
 }
 
-// 0x4063a0  Confidence: unsure (name and parameters). "mov al, 1 / ret": the identical-code-folded
+// 0x4063a0  Confidence: exact (VC6 byte match) (name and parameters). "mov al, 1 / ret": the identical-code-folded
 // *_mouse_in_panel at the end of this unit (the default of interface_mouse_over_panel; screen 7 covers
 // the whole screen). The parameters are a guess from the other *_mouse_in_panel functions.
 bool ui_return_true(int x, int y)

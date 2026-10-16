@@ -109,25 +109,25 @@ void world_pick_clear_filter()
     world_pick_filter = NULL;
 }
 
-// 0x43a3a0  Confidence: likely (is_leader compared with true: cmp al, 1). Every party member that is
+// 0x43a3a0  Confidence: exact (VC6 byte match) (is_leader compared with true: cmp al, 1). Every party member that is
 // the leader, or not on hold and without a target, attacks (in a network game only cur_character).
 void party_order_attack(Character *target)
 {
-    if (!cur_character->is_enemy(target)) {
-        game_play_sound(SOUND_CLICK_BAD, 1.0f, 0, 0, 0);
+    if (cur_character->is_enemy(target)) {
+        for (Player *p = party_list.next; p != &party_list; p = p->next) {
+            Character *c = living_from_handle(p->handle);
+            if (!c)
+                continue;
+            if ((game_flags & GF_MULTIPLAYER) && c != cur_character)
+                continue;
+            if (p->is_leader() == true || (!(p->flags & PF_HOLD) && c->ai.target == -1))
+                c->ai.add_attack(target, DIRECT_ORDER);
+        }
+        combat_mode_set(1);
+        game_play_sound(SOUND_CLICK_OK, 1.0f, 0, 0, 0);
         return;
     }
-    for (Player *p = party_list.next; p != &party_list; p = p->next) {
-        Character *c = living_from_handle(p->handle);
-        if (!c)
-            continue;
-        if ((game_flags & GF_MULTIPLAYER) && c != cur_character)
-            continue;
-        if (p->is_leader() == true || (!(p->flags & PF_HOLD) && c->ai.target == -1))
-            c->ai.add_attack(target, DIRECT_ORDER);
-    }
-    combat_mode_set(1);
-    game_play_sound(SOUND_CLICK_OK, 1.0f, 0, 0, 0);
+    game_play_sound(SOUND_CLICK_BAD, 1.0f, 0, 0, 0);
 }
 
 // 0x43a460  Confidence: likely (the order of the length sum's terms; the name test is written on the
@@ -152,11 +152,10 @@ int character_can_talk_to(Character *npc)
         }
     }
 
-    vector3 a = cur_character->centre_offset + cur_character->pos;
+    vector3 a = cur_character->pos + cur_character->centre_offset;
     vector3 b = npc->centre_offset + npc->pos;
     vector3 d = b - a;
-    if (fabs(d.y) > 0.5f)
-        return 0;
+    if (fabsf(d.y) <= 0.5f) {
     float dist = (float)sqrt(d.x * d.x + d.z * d.z);
     if (!(dist - npc->size_radius() - cur_character->size_radius() < 5.0f))
         return 0;
@@ -171,10 +170,11 @@ int character_can_talk_to(Character *npc)
         if (level_shopkeeper_find(name))
             return 1;
     }
+    }
     return 0;
 }
 
-// 0x43a600  Confidence: likely (the index typo). While the 5 s timer of hud_set_timed_highlight runs,
+// 0x43a600  Confidence: exact (VC6 byte match) (the index typo). While the 5 s timer of hud_set_timed_highlight runs,
 // the dropped object is tinted gold. The blue argument reads world_tint_gold[3], one past the array:
 // the four bytes of "gold" (0x594430) as a float, about 1.7e22 (game bug; NOTES). 0x59442c (the 0.51)
 // is read nowhere.
@@ -733,7 +733,7 @@ bool world_pick_ground_point(int ok_cursor, int bad_cursor, lobj *l, int face, v
         float dz = pos->z - cur_character->pos.z;
         dist_sq = dz * dz + dx * dx;
         if (!(l->flags & 0x40) || !pf_point_is_navigable(pos, 2, l->pick_layer(pos, 2))
-            || !(fabs(cur_character->pos.y - pos->y) < 5.0f) || !(dist_sq < 169.0f) || dist_sq < 9.0f)
+            || !(fabsf(cur_character->pos.y - pos->y) < 5.0f) || !(dist_sq < 169.0f) || dist_sq < 9.0f)
             valid = false;
         else
             valid = true;
@@ -916,26 +916,25 @@ void container_examine(lobj *l)
     buttons[0] = XSTR("Ok", 213);
     int i = lc_find_by_name(l->name);
     level_script_use(l->name);
-    lc_entry *e = &lc_entries[i];
-    if (e->gold > 0) {
-        if (e->flags & 1) {
+    if (lc_entries[i].gold > 0) {
+        if (lc_entries[i].flags & 1) {
             ui_message_box_show(XSTR("Examine", 631), XSTR("Nothing!", 632), -1, -1, 1, buttons, NULL, 1);
             return;
         }
         lc_entry_mark_used(i);
-        if (stricmp(e->name, "gold"))
-            party_inventory_add_by_name(e->name, e->gold, -1, 1);
+        if (stricmp(lc_entries[i].name, "gold"))
+            party_inventory_add_by_name(lc_entries[i].name, lc_entries[i].gold, -1, 1);
         else
-            party_gold += e->gold;
-        if (e->gold > 1)
-            sprintf(text, XSTR("Found %d %s!", 633), e->gold, localize_item_name(e->name));
+            party_gold += lc_entries[i].gold;
+        if (lc_entries[i].gold > 1)
+            sprintf(text, XSTR("Found %d %s!", 633), lc_entries[i].gold, localize_item_name(lc_entries[i].name));
         else
-            sprintf(text, XSTR("Found %s!", 634), localize_item_name(e->name));
+            sprintf(text, XSTR("Found %s!", 634), localize_item_name(lc_entries[i].name));
         ui_message_box_show(XSTR("Examine", 631), text, -1, -1, 1, buttons, NULL, 1);
         return;
     }
-    if (strlen(e->name))
-        ui_message_box_show(XSTR("Examine", 631), e->name, -1, -1, 1, buttons, NULL, 1);
+    if (strlen(lc_entries[i].name))
+        ui_message_box_show(XSTR("Examine", 631), lc_entries[i].name, -1, -1, 1, buttons, NULL, 1);
 }
 
 // 0x43c5a0  Confidence: exact. Starts the NPC's conversation (game flag 0x100 for its duration).

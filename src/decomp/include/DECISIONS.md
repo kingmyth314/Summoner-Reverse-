@@ -3831,7 +3831,7 @@ Open: new_help.cpp's `help_line` has two references (key, text), which VC6 accep
 two-argument constructor in braces; `help_line(a, b)` elements compile but load both addresses into registers
 first, unlike init_strptrs_5bc928 (0x40bf40). A `[][2]` array of the one-reference struct gives exactly the
 binary's stores, so the original was probably a two-dimensional table (`help_mouse_lines[i][0]`), which changes
-the drawing code; new_help.cpp is left failing under VC6 until that unit is revisited.
+the drawing code; new_help.cpp is left failing under VC6 until that unit is revisited. (Resolved by D6500: a [][2] array of a one-reference struct, same code and data.)
 
 **D4903 (vsdk/character.cpp). CA_FRAMES_TO_TICKS's parameter is not called f.** VC6's preprocessor splits the
 float suffix of `1.0f` when the macro has a parameter named `f` (C2059 "invalid suffix on number"). Renamed to
@@ -5175,3 +5175,135 @@ goto_inventory; new_spell.cpp spells_set_page; spells.cpp status_effect_modifier
 spell_effect_obj_set_timer, spell_spawn_hit_fx, spell_fire_missile; the dialogue box first_visible_line,
 last_visible_line, topic_list::add; seg2d_point_left_of. seg2d_point_near_middle, whose source was rewritten, is now
 marked likely.
+
+**D6500 (game/new_help.cpp; resolves D4902's open point). The help tables are two-dimensional arrays of a
+one-reference struct; new_help.cpp compiles under VC6.** VC6 12.00.8168 brace-initialises neither a struct with two
+reference members (C2440) nor an aggregate whose members are classes with constructors (C2552 "non-aggregate"), so
+the struct `help_line { char *&key; char *&text; }` cannot be written in any brace form, and `help_line(a, b)`
+elements load both addresses into registers first (D4902). What the original can have written, and what keeps the
+binary's data layout (two dwords per row, key first) and code: `help_string help_mouse_lines[][2] = { { {XSTR(..)},
+{XSTR(..)} }, ... }` with `struct help_string { char *&str; }` (the converting constructor `#ifdef _MSC_VER`, as
+saveload_month_name, D4902), the rows read as `[i][0].str` (key) and `[i][1].str` (description). The address
+arithmetic is the old one. Verified: the five `$E` initialisers are store for store and in order the binary's
+init_strptrs_5bc928 / _5bc968 / _5bc980 / _5bc9e8 / _5bca38 (0x40bf40, 0x40c000, 0x40c050, 0x40c170, 0x40c250: 16,
+6, 26, 20 and 8 `mov dword [table+4k], offset localize_strings+4id`, then `ret`; checked from the listing, the tool
+does not pair `$E` functions), and the four help_draw_page_* functions match byte for byte. mingw (no _MSC_VER)
+brace-initialises the reference aggregate unchanged.
+
+**D6501 (game/new_help.cpp). help_frame: the ESC screen is an if / else of two calls.** `interface_set_screen((p & 2)
+? 14 : 0, 0)` gives 8168's `and / neg / sbb / and` select; the binary's `push 0; test al, 2; je; push 0xe; jmp; push
+0` is what 8168 makes of `if (p & 2) interface_set_screen(14, 0); else interface_set_screen(0, 0);` (the shared
+`push 0` and call cross-jumped). Same shape: buysell_button_action's `buysell_set_category(mode == 0 ? 1 : 0)`
+(D6005's gr_glide_flip form). Both match.
+
+**D6502 (the nine units of this pass). Source shapes that make cl 12.00.8168 emit build 8966's code** (each
+verified by a byte match; the pass notes have the details):
+- Polarity of an early exit: where the binary's fall-through after the test is the main path, the source is `if
+  (ok) { main path; return; } failure;` (party_order_attack, buysell_buy_item, phoenix_pick_weighted_move's `if
+  (pick != -1) return ...; return -1;`), and `if (count <= 0) { simple; } else { computed; }` where the binary jumps
+  over the simple part (saveload_update_scrollbar, mp_charselect_update_scrollbar).
+- Nested ifs with one shared failure return (D6205): ghost_seat_rider, phoenix_seat_rider (`if (mounted) { if
+  (mount) { ...; return true; } } return false;`). cmd_phoenix_unlink does its work inside the search loop and
+  returns there (the loop exit is the not-found return).
+- Mouse-up / held order of the *_update_buttons template: `if (!mouse_is_down(0)) { release; } else { held; return;
+  }` with the element pointer `ui_button_state *b = &buttons[button]` (saveload, buysell, charselect).
+- Element pointers (D5904 / D6205): `ui_button_state *b = &buttons[i]` and `ui_button_def *d = &defs[i]` in the
+  three *_load_bitmaps loops, the draw loops (saveload_draw, buysell_draw, mp_charselect_draw) and the category
+  tooltip; the button-clearing loop of buysell_frame and buysell_draw's loop are index loops (`jl` on the pointer),
+  not pointer loops (`jb`). The opposite twice: mp_charselect_draw_char_list reads `mp_char_profiles[index].name`
+  directly (no record pointer), container_examine indexes lc_entries[i] (improves, still differs).
+- Rectangle arguments through locals in x, y, w, h order (D6205): saveload_hover_thumbnail, mp_charselect_frame's two
+  focus tests, saveload_handle_input's list tests (improve).
+- Clamps: `pos += page; if (pos < max) max = pos; scroll = max;` gives the binary's single store of a min
+  (saveload_page_down, saveload_drag_scrollbar, buysell_page_down, buysell_drag_scrollbar); `x = c ? a : b` stores
+  the first value and overwrites it.
+- Vector expressions instead of components: `*out = owner->orient.fvec * s + owner->pos` (predict_owner_position),
+  `c->pos - boss->pos` (machival_knock_down_party, machival_teleport, luminar_choose_melee_move's `t->pos -
+  owner->pos - luminar_bite_tag_pos`), `pt->pos = pos + c->centre_offset` (update_attack_points), `(cur_character->pos
+  + owner->pos) * 0.5f` (operand order of the inline add, phoenix_set_dive_point), `vector3 d(x, 0.0f, z)` for the
+  offense point cone tests, and `vector3 dir = vector3(...)` (temporary plus copy, D5904) in phoenix_special_strike.
+- Natural x, y, z order of a dot product (8168 reverses it, D6205): machival_offense_point_reaches,
+  ghost_point_in_attack_cone.
+- A call argument that is itself a call, through a local: `move_info *m = owner->find_move(..);
+  owner->play_move((int)m, ..)` (luminar grab approach, start release, teleport in; machival special move), the
+  variation local before an if / else of two find_move calls (machival_cast_spell), `int r = rand() % 6;` before the
+  table read (machival_teleport).
+- Store order: `machival_cast_anim = owner->cur_anim; machival_casting_spell = spell;` gives the binary's casting
+  store first (8168 reorders the two stores; machival_cast_spell / _cast_spell_at).
+- Smaller ones: `h * (x / c)` for the charselect scrollbar thumb (the fild order; same value), phoenix_rider_set_flinch's
+  message buffer is 0x80 bytes (as tiger_rider_set_flinch), `return f() ? false : true` for `test al, al / sete al`
+  (luminar_hold_attack), fabsf instead of fabs (world_pick_ground_point, character_can_talk_to: float constants).
+
+**D6510 (include/engine/ai/boss_ai.h, game/unnamed_machival_0x4c0c40.cpp). HEADER CHANGE: the Machival's state
+0x248b030-0x248b377 is one object, struct machival_boss machival.** (1) One static initialiser, init_machival_timers
+(0x4c0c50), constructs the GameTimers of the five threat records, 0x248b310, the attack, teleport and three spell
+timers and the party spell timer: VC6 emits one `$E` function per global with a dynamic initialiser (seen again with
+the help tables, D6500), so these are one object (the rule of D1900 / D3403). (2) The binary reloads
+machival_num_offense_points after storing a tag into machival_offense_points[n] (machival_boss_load,
+update_offense_points) and machival_area_hit_count after storing into machival_area_hits[n] (collect_area_hits,
+attack_test); 8168 does that for fields of one object and not for separate globals. With the struct alone three functions
+match (0x4c1820, 0x4c1bc0, 0x4c1d10); boss_load's last difference is the
+find_mesh_tag argument scheduling the phoenix shares. Extent **inferred**: the move pointers on both sides
+(0x248b01c-0x248b02c, machival_move_melee 0x248b378) are kept as separate globals as the phoenix's are; the end of the
+.bss block is not proven. Field names ours, the old names are macros (`#define machival_current_move
+(machival.current_move)`; the externs of machival_combat_enabled and machival_current_move became comments).
+LAYOUT_CHECK 0x348. Callers (boss_ai.cpp, level_scripts_common.cpp, level_script_templeint2.cpp,
+unnamed_evil_urath_0x4c4170.cpp) compile unchanged.
+
+**D6511 (include/engine/ai/boss_ai.h, game/unnamed_ghost_rider_0x4b9e70.cpp). HEADER CHANGE: the Ghost Rider's
+state 0x2480310-0x248090f is one object, struct ghost_boss ghost.** As D6510: init_ghost_timers (0x4ba080) constructs
+the five threat timers and the target, think, wander, fear and summon timers in one function; cut as D3403 (stage
+first, up to the next console object ccmd_ghost_unlink 0x2480910); its first 0x140 bytes have the phoenix's field
+order (stage, target stage, four flags, a dword, the anim remap, the offense points). The reloads of
+ghost_num_offense_points, ghost_num_hits and ghost_remap_count follow. Four functions match with it alone
+(update_attack_points 0x4bb080, anim_remap_out 0x4bb6c0, attack_test 0x4bbae0, minions_deactivate 0x4bbdd0). The
+move pointers (ghost_move_*), ghost_mount and ghost_loaded, outside the extent, stay separate globals. LAYOUT_CHECK
+0x600; ghost_stage, ghost_rider_threat_table, ghost_cur_move and the other externs became macros. Callers (boss_ai.cpp,
+spells.cpp, living_entity.cpp, the level scripts) compile unchanged.
+
+**D6512 (notes only). The Luminar's state 0x248cdb0-0x248ce2f is one object too, not converted.**
+init_luminar_timers (0x4c8d20) constructs all five of the unit's GameTimers, so by D6510's rule
+0x248cdb0-0x248ce2f (luminar_move_anim up to ccmd_stage 0x248ce30) is one object. A struct luminar_boss (0x80 bytes,
+the field order of the .bss list) was tried: it compiles and changes no function's code (the unit has no
+count-and-array pairs), so the declarations were left as separate globals to keep the header change small. Open for
+a later pass.
+
+**D6513 (include/summoner/interface/new_charselect.h, game/new_charselect.cpp). HEADER CHANGE:
+mp_charselect_get_selected_profile takes bool.** 0x408540 reads the argument (at 0x408560) as `mov al, [esp+8] / test al, al`; an
+int parameter gives `mov eax / test eax, eax`. Every caller passes the constant 0 or 1 (new_charselect.cpp,
+new_gamecreate.cpp, new_gamelist.cpp, unnamed_lobby_0x43ef30.cpp, unnamed_netsession_0x440b40.cpp), which a bool
+parameter pushes the same way. Matches.
+
+Header checks for D6510-D6513: mingw `-fsyntax-only -std=c++98`: 0 `error:` lines in all 259 .cpp files. VC6 before
+(snapD tree) / after (match7 tree), every other unit that names a changed identifier: boss_ai 45 / 45 of 58,
+level_script_jadetemple 6 / 6, level_script_rand_forestnite1 4 / 4, level_script_templeint2 15 / 15,
+level_script_worldmap 13 / 13, level_scripts_common 64 / 64, living_entity 88 / 88, new_gamecreate 11 / 11,
+new_gamelist 19 / 19, spells 18 / 18, unnamed_evil_urath 11 / 11, unnamed_lobby 22 / 22, unnamed_murod_oni 7 / 7,
+unnamed_netsession 15 / 15, unnamed_pyrul 14 / 14, unnamed_render_scene 48 / 48, unnamed_swi 12 / 12; the same
+addresses (none lost, none won).
+
+**D6514 (notes only). Differences of this pass that no source form changed** (8168 against 8966, as D5905 / D6107 /
+D6206):
+- Shared return blocks: 8966 jumps to one `xor eax, eax / ret` (or `return 0`) block at the end from several early
+  returns (saveload_handle_input's selected-row test, ghost_choose_attack's `handle == -1`, character_can_talk_to);
+  8168 returns in place. The same for tails cross-jumped between two switches (machival_ai_frame's client switch
+  calls the main switch's special-move block).
+- Jump tables with an explicit `case -1: break;` (ghost_ai_frame, phoenix_ai_frame, machival_ai_frame): 8966 gives
+  -1 its own byte-table slot (`inc eax; cmp eax, N`), 8168 drops the empty case (`add eax, -15`). The switch on the
+  choose result itself is written as a switch now (ghost_ai_frame: closer).
+- Loop layout: a do-while whose success exits through a return or goto is laid out `je exit; jmp top` by 8168 and
+  `jne top` by 8966, with the success block moved to the end (ghost_wander_start, luminar_teleport_out).
+- The `max(x, 0)` AND into the value register (D5905) in saveload_page_up, buysell_page_up,
+  buysell_count_party_items, mp_charselect_wrap_text_input and mp_char_create: each otherwise matches.
+- The loop bound load scheduled at the loop end (ghost_update_attack_points, sim 0.96); the find_mesh_tag argument
+  pushed after its object pointer is loaded (machival / phoenix boss_load, 0.94 / 0.99); stores reordered around a
+  call (saveload_save_to_slot's `sete` result).
+- A float camera field passed through fld / fstp (saveload_capture_thumbnail; the interface unit's call 0x41176d has the
+  same shape): probably an inline accessor in the original camera class; not changed (header).
+- A bool local in the top byte of its slot (buysell_goto_inventory, D5905).
+- Register choice: the charselect list index in edx / ecx (mp_charselect_page_down, _drag_scrollbar), the nav pointer
+  compare of object_open_pickup, count_targets_in_reach's two vectors in swapped slots.
+
+**D6515 (notes only). Markers that say exact but differ under 8168**, left as they were (D6207):
+mp_charselect_update_create_button (0x406bb0), buysell_page_up (0x405790), buysell_goto_inventory (0x405bc0),
+phoenix_anim_remap_out (0x499b80).

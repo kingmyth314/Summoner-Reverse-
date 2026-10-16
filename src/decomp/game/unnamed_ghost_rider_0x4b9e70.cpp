@@ -61,37 +61,7 @@ boss_attack *ghost_move_3_0;          // 0x24802f0
 boss_attack *ghost_move_3_1;          // 0x24802f4
 boss_attack *ghost_move_2_1;          // 0x24802f8
 boss_attack *ghost_move_2_0;          // 0x248030c
-int  ghost_stage;                     // 0x2480310
-int  ghost_target_stage;              // 0x2480314
-bool ghost_dismount_requested;        // 0x2480318
-bool ghost_dismount_done;             // 0x2480319
-bool ghost_combat_enabled;            // 0x248031a
-bool ghost_mounted;                   // 0x248031b
-int  ghost_remap_count;               // 0x2480320
-int  ghost_remap_kind[2];             // 0x2480324
-float ghost_remap_weight[2];          // 0x248032c
-int  ghost_num_offense_points;        // 0x2480334
-boss_offense_point ghost_offense_points[10];   // 0x2480338
-boss_attack ghost_attack_table[3][BOSS_MAX_OFFENSE_POINTS];   // 0x2480450
-boss_attack *ghost_cur_move;          // 0x2480810
-int  ghost_pending_submode;           // 0x2480814
-int  ghost_2480818;                   // 0x2480818
-boss_threat ghost_rider_threat_table[BOSS_MAX_THREATS];   // 0x248081c (timers: init_ghost_timers)
-int  ghost_target;                    // 0x2480894
-GameTimer ghost_target_timer;         // 0x2480898
-GameTimer ghost_think_timer;          // 0x248089c
-GameTimer ghost_wander_timer;         // 0x24808a0
-GameTimer ghost_fear_timer;           // 0x24808a4
-GameTimer ghost_summon_timer;         // 0x24808a8
-int  ghost_saved_trip_anim;           // 0x24808ac
-int  ghost_bone_servants[2];          // 0x24808b0
-int  ghost_bone_mages[2];             // 0x24808b8
-int  ghost_undead[2];                 // 0x24808c0
-int  ghost_minions_raised;            // 0x24808c8
-int  ghost_summon_minion;             // 0x24808cc
-vector3 ghost_summon_pos;             // 0x24808d0 (no initialiser: vector3() is empty)
-int  ghost_num_hits;                  // 0x24808dc
-int  ghost_hits[12];                  // 0x24808e0
+ghost_boss ghost;                     // 0x2480310-0x248090f (D6511: the fields' old names are macros in boss_ai.h)
 boss_attack *ghost_move_1_0;          // 0x248091c
 boss_attack *ghost_move_1_1;          // 0x2480920
 bool ghost_loaded;                    // 0x2480944
@@ -114,7 +84,7 @@ void cmd_ghost_stage()
 // 0x4b9ee0  Confidence: exact. init_ccmd_ghost_unlink (console_command constructor).
 console_command ccmd_ghost_unlink("ghost_unlink", "Unlinks ghost from mount", cmd_ghost_unlink);   // 0x2480910
 
-// 0x4b9f00  Confidence: likely (store order). The first Ghost Rider of the living list (ghost_find_rider
+// 0x4b9f00  Confidence: exact (VC6 byte match) (store order). The first Ghost Rider of the living list (ghost_find_rider
 // returns the last one) is unlinked from its mount; the mount keeps existing (rider_unlink_mount, the
 // solo path, deletes it).
 void cmd_ghost_unlink()
@@ -455,7 +425,7 @@ void ghost_script_hook(Character *c)
 {
 }
 
-// 0x4ba8e0  Confidence: likely (the matrix copies: VC6 expands matrix::operator= only partly here and
+// 0x4ba8e0  Confidence: exact (VC6 byte match) (the matrix copies: VC6 expands matrix::operator= only partly here and
 // calls vector3::operator= / the copy constructor for the last row). Rider sound at the load-time mount,
 // then, while mounted, the rider is put on the mount's "$sit" bone (or at the mount's origin) and the
 // mount gets the rider's target. The animation time is read and written back unchanged (0x4ba931).
@@ -469,24 +439,25 @@ bool ai_state::ghost_seat_rider()
 
     if (ghost_mount)
         boss_rider_random_sound(&ghost_mount->pos);
-    if (!ghost_mounted)
-        return false;
-    mount = owner->get_mount();
-    if (!mount)
-        return false;
-    mount->ai.target = target;
-    mount->instance->get_set_time(&t, false);
-    mount->instance->get_set_time(&t, true);
-    bone = mount->instance->character->find_mesh_tag("$sit");
-    if (bone != -1) {
-        mount->instance->get_bone_world_transform(bone, &mount->orient, &mount->pos, &orient, &pos);
-        owner->pos = pos;
-        owner->orient = orient;
-        return true;
+    if (ghost_mounted) {
+        mount = owner->get_mount();
+        if (mount) {
+            mount->ai.target = target;
+            mount->instance->get_set_time(&t, false);
+            mount->instance->get_set_time(&t, true);
+            bone = mount->instance->character->find_mesh_tag("$sit");
+            if (bone != -1) {
+                mount->instance->get_bone_world_transform(bone, &mount->orient, &mount->pos, &orient, &pos);
+                owner->pos = pos;
+                owner->orient = orient;
+                return true;
+            }
+            owner->pos = mount->pos;
+            owner->orient = mount->orient;
+            return true;
+        }
     }
-    owner->pos = mount->pos;
-    owner->orient = mount->orient;
-    return true;
+    return false;
 }
 
 // 0x4baa60  Confidence: exact. As pyrul_ai_idle with the ghost's flag and move.
@@ -667,7 +638,7 @@ void ghost_timer2_set_random(int min_ms, int max_ms)
     ghost_target_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4bb080  Confidence: likely. Same body as pyrul_update_attack_points on the ghost's points.
+// 0x4bb080  Confidence: exact (VC6 byte match). Same body as pyrul_update_attack_points on the ghost's points.
 void ghost_update_attack_points(Character *c)
 {
     int i;
@@ -679,9 +650,7 @@ void ghost_update_attack_points(Character *c)
         pt = &ghost_offense_points[i];
         c->instance->get_bone_world_transform(pt->tag, &c->orient, &c->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + c->centre_offset.x;
-        pt->pos.y = pos.y + c->centre_offset.y;
-        pt->pos.z = pos.z + c->centre_offset.z;
+        pt->pos = pos + c->centre_offset;
     }
 }
 
@@ -740,9 +709,7 @@ void ghost_choose_move_target(Character *boss)
         if (!t)
             return;
     }
-    ghost_summon_pos.x = (t->pos.x + boss->pos.x) * 0.5f;
-    ghost_summon_pos.y = (t->pos.y + boss->pos.y) * 0.5f;
-    ghost_summon_pos.z = (t->pos.z + boss->pos.z) * 0.5f;
+    ghost_summon_pos = (t->pos + boss->pos) * 0.5f;
     if (distance(&ghost_summon_pos, &t->pos) < 4.0f) {
         for (i = 0; i < 10; i++) {
             r = frand_range(4.0f, 8.0f);
@@ -774,15 +741,18 @@ void ai_state::ghost_ai_frame()
     if (t && (t->flags & CF_HIDDEN))
         t = NULL;
     result = ghost_choose_attack();
-    if (result == 0) {
+    switch (result) {
+    case 0:
         go_idle();
         return;
-    }
-    if (result == 1 && ghost_pending_submode == AIS_SAFETY) {
-        if (!ghost_wander_start())
-            return;
-        ghost_timer_set_random(5000, 10000);
-        set_mode(AI_STATE_COMBAT, AIS_SAFETY);
+    case 1:
+        if (ghost_pending_submode == AIS_SAFETY) {
+            if (!ghost_wander_start())
+                return;
+            ghost_timer_set_random(5000, 10000);
+            set_mode(AI_STATE_COMBAT, AIS_SAFETY);
+        }
+        break;
     }
     if (ghost_target != target) {
         target = ghost_target;
@@ -815,7 +785,7 @@ void ai_state::ghost_ai_frame()
     }
 }
 
-// 0x4bb4c0  Confidence: likely (forced-stage switch bodies laid out default, 3, 2, 1). The stage 2 step
+// 0x4bb4c0  Confidence: exact (VC6 byte match) (forced-stage switch bodies laid out default, 3, 2, 1). The stage 2 step
 // waits for the level script: the first time below 66 % it sets ghost_dismount_requested, and switches
 // only once ghost_dismount_done is set (the Ghost-Dismount cutscene end).
 void ai_state::ghost_update_stage()
@@ -903,7 +873,7 @@ void ghost_anim_remap_in(Character *c, int *anims)
     }
 }
 
-// 0x4bb6c0  Confidence: likely. Writes the rider's own anims of the remembered kinds back into the blend
+// 0x4bb6c0  Confidence: exact (VC6 byte match). Writes the rider's own anims of the remembered kinds back into the blend
 // (the count is not restored).
 void ghost_anim_remap_out(Character *c, int *anims)
 {
@@ -953,7 +923,7 @@ void ghost_set_foot_anims(Character *c)
     ghost_target_stage = 2;
 }
 
-// 0x4bb810  Confidence: likely (store order). boss_dismount_dispatch case 0x5a: as cmd_ghost_unlink, plus
+// 0x4bb810  Confidence: exact (VC6 byte match) (store order). boss_dismount_dispatch case 0x5a: as cmd_ghost_unlink, plus
 // the attachment slot.
 void ghost_dismount(Character *c)
 {
@@ -1020,7 +990,7 @@ bool ghost_cast_special(Character *c, int anim)
     return false;
 }
 
-// 0x4bb9a0  Confidence: likely (a switch: the compare tree tests 0x50 first, the 0x51-0x53 body comes
+// 0x4bb9a0  Confidence: exact (VC6 byte match) (a switch: the compare tree tests 0x50 first, the 0x51-0x53 body comes
 // first). The summons count up ghost_minions_raised and cast at the chosen minion and point; fear goes
 // at the target.
 void ghost_fire_attack(Character *boss, Character *target)
@@ -1090,18 +1060,15 @@ bool ghost_attack_test(Character *c)
     return ghost_num_hits > 0;
 }
 
-// 0x4bbb80  Confidence: likely. Same body as pyrul_point_in_attack_cone on the ghost's points.
+// 0x4bbb80  Confidence: exact (VC6 byte match). Same body as pyrul_point_in_attack_cone on the ghost's points.
 bool ghost_point_in_attack_cone(Character *c, boss_attack *move)
 {
     boss_offense_point *pt = &ghost_offense_points[move->offense_point];
-    vector3 d;
+    vector3 d(c->pos.x - pt->pos.x, 0.0f, c->pos.z - pt->pos.z);
 
-    d.x = c->pos.x - pt->pos.x;
-    d.y = 0.0f;
-    d.z = c->pos.z - pt->pos.z;
     if (d.normalize_safe_length() > move->range_max)
         return false;
-    if (d.z * pt->dir.z + d.y * pt->dir.y + d.x * pt->dir.x < move->cos_max_angle)
+    if (d.x * pt->dir.x + d.y * pt->dir.y + d.z * pt->dir.z < move->cos_max_angle)
         return false;
     return true;
 }
@@ -1119,7 +1086,7 @@ void ghost_resolve_hit(Character *c)
     }
 }
 
-// 0x4bbc70  Confidence: likely (three loops, one per minion array; obj_from_handle's object read as a
+// 0x4bbc70  Confidence: exact (VC6 byte match) (three loops, one per minion array; obj_from_handle's object read as a
 // Character). Every dead, inactive minion is reset (boss_resurrect_full) and counts one summon back;
 // when the count drops to 0 the wander and summon timers fire at once. Nothing checks that the count is
 // positive (docs/sum-exe/bosses.md says "while it is positive"; NOTES.md).
@@ -1169,7 +1136,7 @@ void ghost_set_solo(Character *rider)
     ghost_target_stage = 3;
 }
 
-// 0x4bbdd0  Confidence: likely (one loop over the pair index, undead, mages, servants in that order).
+// 0x4bbdd0  Confidence: exact (VC6 byte match) (one loop over the pair index, undead, mages, servants in that order).
 // Hides every minion and takes it off the active object list (obj flag 1).
 void ghost_minions_deactivate()
 {

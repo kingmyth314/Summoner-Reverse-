@@ -36,6 +36,6 @@ void mp_charselect_draw_name_input();               // 0x408180
 void mp_charselect_draw_text_input();               // 0x4082d0
 void mp_charselect_draw_char_info();                // 0x408490
 // The binary tests the low byte only (bool), see game/NOTES-charselect-levelselect.md; int as in the definition.
-mp_char_profile *mp_charselect_get_selected_profile(int validate);   // 0x408540
+mp_char_profile *mp_charselect_get_selected_profile(bool validate);  // 0x408540 (bool: D6513)
 
 #endif

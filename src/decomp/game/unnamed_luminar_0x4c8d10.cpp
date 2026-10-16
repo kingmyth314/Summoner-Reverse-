@@ -234,7 +234,7 @@ void luminar_frame_hook(Character *c)
         h->clear_flag_2_4();
 }
 
-// 0x4c9410  Confidence: likely (no return value: the eax left by the grab branch is not read). The stage
+// 0x4c9410  Confidence: exact (VC6 byte match) (no return value: the eax left by the grab branch is not read). The stage
 // from HP (thirds), which also dims the level (level_light_scale = HP fraction); the forced stage
 // overrides it. Not carrying: stage 2 starts the grab approach (30 s until the forced release), stage 3
 // teleports when its timer allows, any stage beams when the beam timer allows; carrying: the release in
@@ -343,7 +343,7 @@ void ai_state::luminar_ai_frame()
         luminar_ai_select_action(t);
 }
 
-// 0x4c97b0  Confidence: likely (the move list is a local array; the count is reloaded for the pick). While
+// 0x4c97b0  Confidence: exact (VC6 byte match) (the move list is a local array; the count is reloaded for the pick). While
 // carrying: move 0x88. Otherwise 0x84 inside the melee reach, 0x85 not more than 0.5 inside it, 0x83 when
 // the target stands at the bite tag (horizontal distance squared below 0.15); one of them at random.
 int ai_state::luminar_choose_melee_move(Character *t)
@@ -361,9 +361,8 @@ int ai_state::luminar_choose_melee_move(Character *t)
     }
     if (d > -0.5f)
         moves[count++] = 0x85;
-    float dx = t->pos.x - owner->pos.x - luminar_bite_tag_pos.x;
-    float dz = t->pos.z - owner->pos.z - luminar_bite_tag_pos.z;
-    if (dz * dz + dx * dx < 0.15f)
+    vector3 v = t->pos - owner->pos - luminar_bite_tag_pos;
+    if (v.z * v.z + v.x * v.x < 0.15f)
         moves[count++] = 0x83;
     return moves[(int)(frand() * count)];
 }
@@ -420,7 +419,7 @@ bool ai_state::luminar_try_start_grab(Character *t)
     return true;
 }
 
-// 0x4c9a40  Confidence: likely. Sub-mode AIS_LUMINAR_GRAB_APPROACH: chase to the pickup reach, step to the
+// 0x4c9a40  Confidence: exact (VC6 byte match). Sub-mode AIS_LUMINAR_GRAB_APPROACH: chase to the pickup reach, step to the
 // side point for the pickup tag, turn, then the grab move (0, 0x86) and sub-mode AIS_LUMINAR_GRAB. True:
 // the frame chooses afterwards.
 bool ai_state::luminar_ai_grab_approach(Character *t)
@@ -440,7 +439,8 @@ bool ai_state::luminar_ai_grab_approach(Character *t)
         return true;
     offset_point_sideways(&t->pos, &luminar_pickup_tag_pos);
     if (!turn_towards(&travel_dest, 0) && owner->get_current_move() == NULL) {
-        luminar_move_anim = owner->play_move((int)owner->find_move(0, 0x86), 1.0f, false, false, false);
+        move_info *m = owner->find_move(0, 0x86);
+        luminar_move_anim = owner->play_move((int)m, 1.0f, false, false, false);
         set_mode(AI_STATE_COMBAT, AIS_LUMINAR_GRAB);
         priority = 99999;
         ai_move_flags |= 4;
@@ -448,7 +448,7 @@ bool ai_state::luminar_ai_grab_approach(Character *t)
     return false;
 }
 
-// 0x4c9b00  Confidence: likely. Sub-mode AIS_LUMINAR_GRAB: at trigger 7 the target takes 96 HP and is
+// 0x4c9b00  Confidence: exact (VC6 byte match). Sub-mode AIS_LUMINAR_GRAB: at trigger 7 the target takes 96 HP and is
 // carried (held pose 0xe, 0x8c; released after 250 more HP of the boss's damage); the boss switches to its
 // carrying anims (0xe, 0x8d).
 void ai_state::luminar_ai_grab(Character *t)
@@ -483,7 +483,8 @@ void ai_state::luminar_ai_grab(Character *t)
 // the object update and SWI_BSS.
 void ai_state::luminar_start_release()
 {
-    luminar_move_anim = owner->play_move((int)owner->find_move(0, 0x87), 1.0f, true, false, false);
+    move_info *m = owner->find_move(0, 0x87);
+    luminar_move_anim = owner->play_move((int)m, 1.0f, true, false, false);
     set_mode(AI_STATE_COMBAT, AIS_LUMINAR_RELEASE);
     priority = 99999;
     ai_move_flags |= 4;
@@ -550,9 +551,7 @@ bool ai_state::luminar_teleport_out()
             i = rand() & 7;
         } while (i >= count);
         t = list[i];
-        d.z = frand() - 0.5f;
-        d.y = 0.0f;
-        d.x = frand() - 0.5f;
+        d = vector3(frand() - 0.5f, 0.0f, frand() - 0.5f);
         if (d.normalize_length() != 0.0f) {
             d.x *= 14.0f;
             d.y *= 14.0f;
@@ -569,10 +568,9 @@ fail:
     return false;
 found:
     luminar_teleport_dest = d;
-    luminar_teleport_dir.x = t->pos.x - d.x;
-    luminar_teleport_dir.y = t->pos.y - d.y;
-    luminar_teleport_dir.z = t->pos.z - d.z;
-    luminar_move_anim = owner->play_move((int)owner->find_move(8, 0x8a), 1.0f, false, false, false);
+    luminar_teleport_dir = t->pos - d;
+    move_info *m = owner->find_move(8, 0x8a);
+    luminar_move_anim = owner->play_move((int)m, 1.0f, false, false, false);
     fx_attach_to_character("LuminarTeleportOut.vfx", owner->handle, -1, -1, 0, 0);
     set_mode(AI_STATE_COMBAT, AIS_LUMINAR_TELEPORT);
     priority = 99999;
@@ -585,7 +583,7 @@ found:
     return true;
 }
 
-// 0x4ca000  Confidence: likely (as murod_ai_leap, with the move trigger 6 polled and the effects). Sub-mode
+// 0x4ca000  Confidence: exact (VC6 byte match) (as murod_ai_leap, with the move trigger 6 polled and the effects). Sub-mode
 // AIS_LUMINAR_TELEPORT: when the vanish move ends, the boss appears at the destination facing the target
 // with the arrival move (8, 0x8b) and "LuminarTeleportIn.vfx" (sub-mode AIS_LUMINAR_ARRIVE); until then the
 // tint and alpha fade from frame 73.
@@ -603,7 +601,8 @@ void ai_state::luminar_teleport_in()
         owner->orient.set_from_forward(luminar_teleport_dir);
         owner->obj_flags |= 1;
         owner->instance->_unkb4 = 0xff;
-        luminar_move_anim = owner->play_move((int)owner->find_move(8, 0x8b), 1.0f, false, false, false);
+        move_info *m = owner->find_move(8, 0x8b);
+        luminar_move_anim = owner->play_move((int)m, 1.0f, false, false, false);
         fx_attach_to_character("LuminarTeleportIn.vfx", owner->handle, -1, -1, 0, 0);
         set_mode(AI_STATE_COMBAT, AIS_LUMINAR_ARRIVE);
         priority = 99999;
@@ -647,7 +646,7 @@ void ai_state::luminar_ai_beam_move_end()
     go_idle();
 }
 
-// 0x4ca230  Confidence: likely. Range 5-20 (squared 25-400; a multiplayer client skips the test). The beam
+// 0x4ca230  Confidence: exact (VC6 byte match). Range 5-20 (squared 25-400; a multiplayer client skips the test). The beam
 // move (0, 0x89; a client plays it with keep), the source effect (the lightning bolt when the heights differ
 // by more than 2, else "LuminarBeam-source.vfx"), sub-mode AIS_LUMINAR_BEAM; the host sends SWI_BSS.
 bool ai_state::luminar_beam_start(Character *t)
@@ -731,7 +730,7 @@ bool luminar_hold_attack(Character *boss, Character *target)
 {
     if (boss->get_current_move())
         return true;
-    return !luminar_attack_timer.elapsed();
+    return luminar_attack_timer.elapsed() ? false : true;
 }
 
 // 0x4ca5c0  Confidence: exact. ai_retaliate_on_hit's call: at most one switch every 5 s.
@@ -760,15 +759,13 @@ void luminar_delay_next_attack(Character *c)
     luminar_attack_timer.SetTimeout(left);
 }
 
-// 0x4ca650  Confidence: likely (thiscall, ret 8). The owner's position after the given seconds at its
+// 0x4ca650  Confidence: exact (VC6 byte match) (thiscall, ret 8). The owner's position after the given seconds at its
 // forward speed along its facing, moved onto the navigation mesh when it leaves it.
 void ai_state::predict_owner_position(vector3 *out, float seconds)
 {
     float s = owner->get_698() * seconds;
 
-    out->x = owner->orient.fvec.x * s + owner->pos.x;
-    out->z = owner->orient.fvec.z * s + owner->pos.z;
-    out->y = owner->orient.fvec.y * s + owner->pos.y;
+    *out = owner->orient.fvec * s + owner->pos;
     if (!pf_point_is_navigable(out, owner->info->size, owner->layer))
         pf_find_nearest_navigable_point(out, owner->info->size, owner->layer);
 }
