@@ -210,6 +210,12 @@ static void RunLine(char *line)
         Info();
     } else if (!_stricmp(c, "peek") && argc >= 2) {
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
+    } else if (!_stricmp(c, "k310")) {
+        // k310: the TraceGlLights counters (faces on the unclipped lightmap path, how many had a coloured light).
+        long faces, coloured;
+        float rgb[3];
+        TraceGlLightStats(&faces, &coloured, rgb);
+        Out("k310: %ld faces, %ld with a coloured light; last coloured rgb %.3f %.3f %.3f", faces, coloured, rgb[0], rgb[1], rgb[2]);
     } else if (!_stricmp(c, "pokecode") && argc >= 3) {
         // pokecode ADDR BYTE: one byte of Sum.exe code (made writable around the write). Testing only, e.g. to
         // switch a fix on and off in a running game for a before / after capture.

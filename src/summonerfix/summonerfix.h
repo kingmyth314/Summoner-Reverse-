@@ -80,6 +80,8 @@ void AgentInstall(void);
 
 // trace.c (testing: [Debug] TraceArmourSpells)
 void TraceInstall(void);
+void TraceGlLightInstall(void);                            // [Debug] TraceGlLights (K310)
+void TraceGlLightStats(long *faces, long *coloured, float rgb[3]);
 
 // gamma.c
 void GammaConfigure(const char *mode); // [Display] Brightness: Auto, Shader, Ramp or Off

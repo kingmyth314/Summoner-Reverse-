@@ -2550,6 +2550,13 @@ The files were read with the layout of `vfx_node_relocate` (light count `+6`, ar
 white glow. Characters and effect meshes are lit through `lights_shade_vertices` and are not affected. The
 game never selects OpenGL, but SummonerFix always does, so every SummonerFix player sees this.
 
+**Not yet seen in game (2026-10-16).** Four agent-mode before/after captures (Catacombs, Temple of Urath, Icicle and
+Ice Coffin cast by Rosalind in the Ikaemos exterior) showed no difference beyond frame noise. A counter on the first
+of the three loads (`[Debug] TraceGlLights`, agent command `k310`) explained it: in the Ikaemos tests no face took
+this path at all. It runs only when `levelrender_draw_list_opengl`'s third argument, the count of point lights near
+the object (`[esp + 0x1c]` of `levelrender_draw_list`, `0x485b6d`), is non-zero, and spell effect lights are not
+among them. The level's own point lights are. The fix stays out of SummonerFix until a scene with one is found.
+
 ## Invisible
 
 | # | Effect | Function | Evidence |

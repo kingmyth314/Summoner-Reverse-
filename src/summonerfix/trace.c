@@ -88,3 +88,59 @@ void TraceInstall(void)
         PatchBytes(kReflexCalls[i], orig, repl, 5, "trace hits that reach the armour roll");
     }
 }
+
+// Testing only ([Debug] TraceGlLights=1, game-bugs K310): count the faces that take the unclipped lightmap path of
+// levelrender_draw_list_opengl, whose three colour loads at 0x491f9e / 0x491fb5 / 0x491fcd all read the red float of
+// levelrender_gl_vert_colors (0x24268f8, 12-byte r, g, b records, index in ebx). The first load (6 bytes) becomes a
+// call to a stub that counts the face, notes when green or blue differs from red (a coloured light that the bug
+// turns grey), keeps one sample, and then does the original fld. Read the counts with the agent command "k310".
+#define VA_GL_UNCLIPPED_COLOR_LOAD 0x491f9eu // fld dword ptr [ebx + 0x24268f8]
+#define VA_GL_VERT_COLORS 0x24268f8u
+__attribute__((used)) DWORD g_glVertColors;
+__attribute__((used)) volatile LONG g_k310Faces, g_k310Coloured;
+__attribute__((used)) volatile float g_k310Sample[3];
+void GlLightTraceStub(void);
+__asm__(".text\n"
+        "_GlLightTraceStub:\n"
+        "    pushl %eax\n"
+        "    pushl %edx\n"
+        "    movl _g_glVertColors, %eax\n"
+        "    addl %ebx, %eax\n"
+        "    incl _g_k310Faces\n"
+        "    movl (%eax), %edx\n"
+        "    cmpl 4(%eax), %edx\n"
+        "    jne 1f\n"
+        "    cmpl 8(%eax), %edx\n"
+        "    je 2f\n"
+        "1:  incl _g_k310Coloured\n"
+        "    movl %edx, _g_k310Sample\n"
+        "    movl 4(%eax), %edx\n"
+        "    movl %edx, _g_k310Sample+4\n"
+        "    movl 8(%eax), %edx\n"
+        "    movl %edx, _g_k310Sample+8\n"
+        "2:  flds (%eax)\n"
+        "    popl %edx\n"
+        "    popl %eax\n"
+        "    ret\n");
+
+void TraceGlLightStats(long *faces, long *coloured, float rgb[3])
+{
+    *faces = g_k310Faces;
+    *coloured = g_k310Coloured;
+    rgb[0] = g_k310Sample[0];
+    rgb[1] = g_k310Sample[1];
+    rgb[2] = g_k310Sample[2];
+}
+
+void TraceGlLightInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceGlLights", 0, g_cfg.iniPath))
+        return;
+    g_glVertColors = SumVa(VA_GL_VERT_COLORS);
+    DWORD site = SumVa(VA_GL_UNCLIPPED_COLOR_LOAD);
+    static const BYTE orig[6] = {0xD9, 0x83, 0xF8, 0x68, 0x42, 0x02};
+    BYTE repl[6] = {0xE8, 0, 0, 0, 0, 0x90};
+    DWORD rel = (DWORD)(UINT_PTR)GlLightTraceStub - (site + 5);
+    memcpy(repl + 1, &rel, 4);
+    PatchBytes(VA_GL_UNCLIPPED_COLOR_LOAD, orig, repl, 6, "count unclipped lightmap colour loads (TraceGlLights)");
+}

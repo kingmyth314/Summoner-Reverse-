@@ -143,6 +143,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         WidescreenInstall();
     AgentInstall();
     TraceInstall();
+    TraceGlLightInstall();
     Log("startup fixes applied.");
     return TRUE;
 }
