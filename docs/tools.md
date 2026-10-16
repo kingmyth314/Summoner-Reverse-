@@ -175,6 +175,9 @@ listing go to a temporary folder outside the repository. It needs `VC6_DIR`, the
 VC6 Professional or Enterprise (Standard Edition has no optimiser), and runs from PowerShell or cmd (Git Bash
 rewrites `/switches`). `DECOMP_INCLUDE` points it at another header tree (a merge stage) instead of
 `src/decomp/include`.
+Without `--flags`, each file is compiled with its line in `src/decomp/vc6-flags.txt` (the best flags from the
+2026-10-16 survey: `/O2 /Ob0 /GX /MT` for 31 units, `/Od /Ob1 /GX /MT` for the unoptimised ones), otherwise
+`/O2 /GX /MT`.
 
 ```powershell
 $env:VC6_DIR = 'C:\path\to\VC98'

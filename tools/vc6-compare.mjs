@@ -2,6 +2,7 @@
 // with Sum.exe's bytes at that address (relocated fields masked).
 //
 //   node tools/vc6-compare.mjs <file.cpp>... [--flags "/O2"] [--json] [--keep] [-v]
+// Without --flags each file uses its line in src/decomp/vc6-flags.txt, else the default /O2 /GX /MT.
 //
 // VC6_DIR must name the VC98 folder of an extracted Visual C++ 6.0 (the one with BIN\CL.EXE and INCLUDE). The
 // object and the /FAsc listing go to a temporary folder outside the repository (--keep prints it and leaves it).
@@ -27,7 +28,7 @@ const includeDir = process.env.DECOMP_INCLUDE || join(repoRoot, "src", "decomp",
 // ---- arguments -----------------------------------------------------------------------------------------
 const args = process.argv.slice(2);
 const files = [];
-let flags = "/O2 /MT", json = false, keep = false, verbose = false;
+let flags = null, json = false, keep = false, verbose = false;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--flags") flags = args[++i];
   else if (args[i] === "--json") json = true;
@@ -162,9 +163,25 @@ function sourceFunctions(src) {
 }
 
 // ---- one file -----------------------------------------------------------------------------------------
-function compile(cpp, dir) {
+// Per-unit flags (src/decomp/vc6-flags.txt: "<path under src/decomp> <flags>"), used when --flags is not given.
+const DEFAULT_FLAGS = "/O2 /GX /MT";
+const unitFlags = new Map();
+try {
+  for (const l of readFileSync(join(repoRoot, "src", "decomp", "vc6-flags.txt"), "utf8").split(/\r?\n/)) {
+    const m = /^([^#\s]\S*)\s+(\S.*?)\s*$/.exec(l);
+    if (m) unitFlags.set(m[1].toLowerCase(), m[2]);
+  }
+} catch {}
+function flagsFor(cpp) {
+  if (flags) return flags;
+  const rel = resolve(cpp).replace(/\\/g, "/").toLowerCase();
+  for (const [k, v] of unitFlags) if (rel.endsWith("/" + k)) return v;
+  return DEFAULT_FLAGS;
+}
+
+function compile(cpp, dir, fl) {
   const env = { ...process.env, INCLUDE: `${includeDir};${join(VC, "INCLUDE")}`, PATH: `${join(VC, "BIN")};${process.env.PATH}` };
-  const argv = ["/nologo", "/c", ...flags.split(/\s+/).filter(Boolean), "/FAsc", `/Fa${dir}\\`, `/Fo${dir}\\`, cpp];
+  const argv = ["/nologo", "/c", ...fl.split(/\s+/).filter(Boolean), "/FAsc", `/Fa${dir}\\`, `/Fo${dir}\\`, cpp];
   let out = "";
   try { out = execFileSync(join(VC, "BIN", "CL.EXE"), argv, { env, cwd: dir, encoding: "latin1", maxBuffer: 1 << 26 }); }
   catch (e) { return { error: ((e.stdout ?? "") + (e.stderr ?? "")).split(/\r?\n/).filter((l) => /error/.test(l)).slice(0, 10).join("\n") || String(e) }; }
@@ -174,9 +191,10 @@ function compile(cpp, dir) {
 
 function compareFile(cpp) {
   const dir = mkdtempSync(join(tmpdir(), "vc6cmp-"));
-  const result = { file: cpp, flags, functions: [], error: null, tmp: keep ? dir : undefined };
+  const fl = flagsFor(cpp);
+  const result = { file: cpp, flags: fl, functions: [], error: null, tmp: keep ? dir : undefined };
   try {
-    const c = compile(resolve(cpp), dir);
+    const c = compile(resolve(cpp), dir, fl);
     if (c.error) { result.error = c.error; return result; }
     const coff = readCoff(readFileSync(c.obj));
     const cod = readCod(readFileSync(c.cod, "latin1"));
