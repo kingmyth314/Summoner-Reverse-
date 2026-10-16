@@ -4498,3 +4498,34 @@ that start with the address of a function that is NOT written ("// 0x4670a0 comb
 written yet.") hid it from the run lists; in the files touched here they now read "// name (0xADDR): not written
 yet." (0x4670a0, 0x468360, 0x468760, 0x47e900, 0x48e6c0, 0x48fdb0, 0x491500). Other units still have such lines
 (unnamed_net_0x517590.cpp, unnamed_os_0x530b90.cpp: "module -, not written here").
+
+**D5700 (game/combat.cpp). combat_trigger_special_ability (0x4670a0) and update_boss_attack (0x468360).** The
+attacker's char_info special ability (+0x3c, chance +0x40, source type 1) and then its weapon's (equipment[5]) +0x94
+triggered effect (source type 3, the weapon type as the item) are cast with D5506's COMBAT_TRIGGER_CAST macro: a
+beneficial spell at the attacker (position + 1.2 up), any other at the defender. Unlike the reflex function every
+branch targets the matching side, so K300 has no twin here. VC6: same size (1479 bytes), the prologue register order
+differs; likely. update_boss_attack is written from its jump table (0 idle, 1 attacking, 2-3 clear, 6 the boss
+special cast, the rest wait for trigger 6) and matches byte for byte.
+
+**D5701 (game/combat.cpp). blood_splot_place (0x468760).** The decal's v half-axis is written as `0 - u.z, 0,
+u.x - 0` (the original's fsubr / fsub with the 0.0 constant: a cross product with (0, 1, 0) whose products by 0 and 1
+VC6 folded); u.cross() adds a temporary and a copy. The three size cases expand the vector operators less in each
+later case (the large case calls vector3::operator= and the free operator*(float, vector3) out of line); the
+operator form here gives 869 bytes against 810, the explicit vector3(x * s, ...) form 659: likely. The grey level
+goes to decal_place's int colour argument bit for bit (`*(int *)&grey`); that argument is probably a float
+(lights_shade_vertices' last argument), not changed here.
+
+**D5702 (game/spells.cpp, engine/spells/spells.h). spell_spawn_creature (0x47bd30) creates nothing.** It sorts the
+visible living entities within the spell's +Distance: into two local Character list heads (friends: team 0 with a
+team-0 caster, or the caster itself; others), picks four strike targets into out[4] (7/8 an other while any is listed
+or already picked, else a friend; a new one unless rand() % (2 x remaining) is 0) and moves every list back to the end
+of living_list. The sum.symbols name is kept (header comment corrected). Four local Character objects (the 0x788-byte
+constructor / destructor for each, the EH frame); 2016 bytes as the original; likely.
+
+**D5703 (engine/spells/spells.h, game/spells.cpp). summon_create (0x47e900): SIGNATURE change.** Was
+`Character *summon_create(Character *, vector3 *, int a, int spell, int b)`; now `void summon_create(Character
+*caster, vector3 *pos, int layer, int spell, int existing)`: no path sets EAX, no caller reads it, the third argument
+is stored to +0x68c and passed as living_entity_create's layer, and the fifth is a living-entity handle to reuse (-1:
+create). The ring xp chain is an if / else-if chain in the binary's order (0xc0 / 0xcd share a body with ||, the other
+pairs are separate tests with repeated bodies); VC6 tail-merges the repeated get_int calls, so 2195 against 2415
+bytes; likely.

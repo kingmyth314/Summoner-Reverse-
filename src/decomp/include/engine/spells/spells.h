@@ -231,14 +231,14 @@ int   status_effect_duration(int status);            // 0x47ab60 ms
 // the last a float (combat_trigger_reflex_ability passes its damage bit for bit). Was (int a, int b).
 spell_cast_params spell_prepare_cast(Character *caster, int spell, int target, ItemType *item,
                                      int source_type, float power);   // 0x47abe0
-// Creates the creatures of a summoning-type spell into out[4] (0x1c / 0x4f / 0x64; decomp73: the
-// arguments from spell_prepare_cast's call 0x47b81c; the body is not written yet).
+// Picks the four strike targets of a creature spell into out[4] (0x1c / 0x4f / 0x64; decomp75: it creates
+// nothing, the sum.symbols name is kept; arguments from spell_prepare_cast's call 0x47b81c).
 void  spell_spawn_creature(Character **out, Character *caster, int spell);   // 0x47bd30
 void  spell_compute_resist(float *out_magic_resist, float *out_resist, int spell, Character *caster,
                            Character *target, int power, int source_type);   // 0x47c510
 void  spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, int layer, int a,
-                         int source_type, int b);    // 0x47c5d0 (not written)
-void  spell_cast_launch_effects(spell_cast_request *req);   // 0x47d420 (not written)
+                         int source_type, int b);    // 0x47c5d0
+void  spell_cast_launch_effects(spell_cast_request *req);   // 0x47d420
 bool  spell_effect_pool_full();                      // 0x47dfc0 (true when a record is FREE; NOTES)
 void  spell_play_cast_sound(int spell, Character *c);       // 0x47dfe0
 void  spell_play_hit_sound(int spell, const vector3 *pos);  // 0x47e020
@@ -254,7 +254,7 @@ int   spell_missile_remove(int handle);              // 0x47e680 slot or -1
 void  spell_launch_missile(Character *caster, int handle);  // 0x47e6c0
 int   spell_fire_missile(int spell, int missile, Character *caster, Character *target,
                          const vector3 *start, const matrix *orient);   // 0x47e830 effect handle or -1
-Character *summon_create(Character *caster, vector3 *pos, int a, int spell, int b);   // 0x47e900 (not written)
+void  summon_create(Character *caster, vector3 *pos, int layer, int spell, int existing);   // 0x47e900 (decomp75: void, D5703)
 // Every caller pushes a handle (mp_game_frame, spell_cast_execute, spell_cast_launch_effects,
 // mp_handle_summon_quick, ai_think_party_update); the body never reads it (D1502).
 void  summon_dismiss(int handle);                    // 0x47f270

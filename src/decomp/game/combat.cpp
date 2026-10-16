@@ -7,9 +7,9 @@
 //
 // Unit range: living_combat_send_net (0x463540) to living_combat_set_40 (0x468c70-0x468c77). The previous
 // function, cmd_death (0x463480), is living_entity.cpp's last; the next, sinit_stringpool_941740
-// (0x468c80), is gamesound.cpp's first. Not written yet (NOTES.md): combat_trigger_special_ability
-// 0x4670a0, living_combat_update_boss_attack 0x468360 and blood_splot_place 0x468760 (decomp73 wrote
-// combat_trigger_reflex_ability 0x467670, D5506).
+// (0x468c80), is gamesound.cpp's first. Every function is written (decomp75 added
+// combat_trigger_special_ability, living_combat_update_boss_attack and blood_splot_place, D5700-D5701;
+// decomp73 combat_trigger_reflex_ability, D5506).
 //
 // Most functions are thiscall members of living_combat (Character +0x558); +0x08 is the other side of
 // the exchange. The "skill" of an attack (+0x3c) is a skill id (characterinfo.h SKILL_*).
@@ -40,6 +40,7 @@
 #include "engine/ai/boss_ai.h"
 #include "engine/gamesound/gamesound.h"
 #include "engine/rendering/levelrender.h"
+#include "engine/rendering/unnamed_decals_0x4bbe80.h"
 #include "vsdk/os/console.h"
 #include "vsdk/os/frametime.h"
 #include "vsdk/localize/localize.h"
@@ -49,6 +50,7 @@
 #include "vsdk/ca/character.h"
 #include "vsdk/ca/character_instance.h"
 #include "vsdk/gr/gr.h"
+#include "vsdk/bmpman/bmpman.h"
 #include "summoner/summoner.h"
 #include "summoner/player/player.h"
 #include "summoner/multi/multi.h"
@@ -1564,8 +1566,6 @@ void living_combat::update_ranged()
         boss_clear_current_move(owner);
 }
 
-// combat_trigger_special_ability (0x4670a0): not written yet.
-
 // One cast of a triggered spell by `c` (the defender) for combat_trigger_reflex_ability: on the
 // multiplayer host as a request (spell_prepare_cast, mp_spell_cast_sync, spell_cast_launch_effects),
 // otherwise a hit-only spell hits the target directly and the others go through spell_cast_execute.
@@ -1590,6 +1590,41 @@ void living_combat::update_ranged()
         } else \
             spell_cast_execute((c), (sp), (sp_target), (tpos), (tlayer), (int)(itype), (src), 0); \
     } while (0)
+
+// 0x4670a0  Confidence: likely (written with combat_trigger_reflex_ability's macro; same size as the original,
+// a different register order in the prologue; D5700). The attacker answers its own landed hit:
+// with the chance of its char_info special ability it casts that spell (source type 1), then its weapon's
+// triggered effect with that effect's chance (source type 3, the weapon type as the item). A beneficial spell
+// goes to the attacker itself (at its position + 1.2 up), any other to the defender.
+void living_combat::trigger_special_ability(float damage)
+{
+    vector3 target_pos = opponent->owner->pos;
+    target_pos.y += 1.2f;
+    vector3 self_pos = owner->pos;
+    self_pos.y += 1.2f;
+    int spell;
+    item_info *w;
+
+    if (owner->info->special_ability != -1 && frand() < owner->info->special_chance) {
+        spell = owner->info->special_ability;
+        if (spells[spell].flags & SPELL_BENEFICIAL)
+            COMBAT_TRIGGER_CAST(owner, spell, owner->handle, &self_pos, owner->layer, (ItemType *)0, 1,
+                                owner, owner->handle);
+        else
+            COMBAT_TRIGGER_CAST(owner, spell, opponent->owner->handle, &target_pos, opponent->owner->layer,
+                                (ItemType *)0, 1, opponent->owner, opponent->owner->handle);
+    }
+    w = owner->equipment[5];
+    if (w && w->type->weapon_triggered_effect && frand() < w->type->weapon_triggered_effect->chance) {
+        spell = w->type->weapon_triggered_effect->spell;
+        if (spells[spell].flags & SPELL_BENEFICIAL)
+            COMBAT_TRIGGER_CAST(owner, spell, owner->handle, &self_pos, owner->layer, owner->equipment[5]->type,
+                                3, owner, owner->handle);
+        else
+            COMBAT_TRIGGER_CAST(owner, spell, opponent->owner->handle, &target_pos, opponent->owner->layer,
+                                owner->equipment[5]->type, 3, opponent->owner, opponent->owner->handle);
+    }
+}
 
 // 0x467670  Confidence: likely (VC6 compiles the same flow and stores, 1605 bytes, but keeps opponent->owner in
 // callee-saved registers across frand where the original reloads it and holds -1 in edi; D5506).
@@ -1829,7 +1864,80 @@ bool living_combat::update(int move_id)
     return state == COMBAT_IDLE;
 }
 
-// living_combat_update_boss_attack (0x468360): not written yet.
+// 0x468360  Confidence: exact (VC6 byte match; the jump table: 0, 1, 2-3, 6, the rest; the trigger-7 test as
+// written). A boss's attack (living_combat::update for type 9): idle starts move_id unless the same move is
+// still playing or a boss hook takes over; state 6 is the boss special cast that boss_cast_special_dispatch
+// accepts for the move's anim.
+void living_combat::update_boss_attack(int move_id)
+{
+    move_info *m;
+    int a, r;
+    bool hook;
+
+    switch (state) {
+    case COMBAT_IDLE:
+        if (move_id == move_variant && !owner->move_finished(anim))
+            return;
+        if (boss_hook_dispatch_51_c1(owner, opponent->owner))
+            return;
+        m = owner->find_move(0, move_id);
+        a = owner->play_move((int)m, 1.0f, 0, 0, 0);
+        if (a == -1)
+            return;
+        anim = a;
+        state = COMBAT_ATTACKING;
+        move_variant = m->id;
+        if (!boss_attack_test_dispatch(this))
+            opponent->roll_defense(this, true);
+        if (game_flags & 2)
+            send_net(1, false);
+        if (owner->type == 9 && boss_cast_special_dispatch(owner, a))
+            state = 6;
+        return;
+    case COMBAT_ATTACKING:
+        if (owner->move_trigger_fired(6, 1)) {
+            boss_clear_current_move(owner);
+            state = COMBAT_IDLE;
+            return;
+        }
+        r = owner->move_trigger_fired(7, 1);
+        hook = false;
+        if (boss_move_trigger_dispatch(owner))
+            hook = true;
+        if (r == 1 || (r == 0 && hook)) {
+            boss_attack_trigger_dispatch(owner, opponent->owner);
+            if (hits > 0) {
+                if (owner->info->species == 0x59 && character_is_serpent_part(owner))
+                    return;
+                if (!boss_attack_resolve_dispatch(this))
+                    resolve_hit();
+            }
+        } else if (r == -1) {
+            boss_clear_current_move(owner);
+            state = COMBAT_IDLE;
+        }
+        return;
+    case COMBAT_HIT:
+    case COMBAT_DEFENCE:
+        boss_clear_current_move(owner);
+        state = COMBAT_IDLE;
+        return;
+    case 6:
+        if (owner->move_trigger_fired(7, 0))
+            boss_attack_trigger_dispatch(owner, opponent->owner);
+        if (owner->move_trigger_fired(6, 1)) {
+            state = COMBAT_IDLE;
+            boss_clear_current_move(owner);
+        }
+        return;
+    default:
+        if (owner->move_trigger_fired(6, 1)) {
+            state = COMBAT_IDLE;
+            boss_clear_current_move(owner);
+        }
+        return;
+    }
+}
 
 // 0x4685c0  Confidence: likely. Replays an exchange sent by another machine (living_combat_send_net):
 // hit = 0 makes the defender (the target's record) pick its parry / dodge or take the hit.
@@ -1895,7 +2003,61 @@ void living_combat::set_38(int s)
     chain_skill = s;
 }
 
-// blood_splot_place (0x468760): not written yet.
+// 0x468760  Confidence: likely (VC6 expands the vector operators less in each later case, which this
+// source order reproduces only if the original's matches; D5701). A blood splot decal (2 s, lit, depth
+// 0.25) under the target: at a random point of its size radius on the ground plane, with a random
+// horizontal direction (length at least 0.03 before normalising) and its perpendicular as the half-axes,
+// scaled by 0.2 / 0.3 / 0.45 of the radius for size 0 / 1 / 2. Another size places the decal with bitmap
+// -1. The rand() results are not used. The grey level goes to decal_place's colour argument bit for bit
+// (decal_place declares it int; lights_shade_vertices' last argument, probably a float).
+void living_combat::blood_splot_place(int size, float grey)
+{
+    Character *t = get_target();
+    float radius = t->size_radius();
+    vector3 pos = t->pos;
+    vector3 off;
+    vector3 u;
+    int bm;
+
+    off.random_unit_vector();
+    off.y = 0.0f;
+    off *= radius;
+    pos += off;
+    do {
+        u.random_unit_vector();
+        u.y = 0.0f;
+    } while (u.len() < 0.03f);
+    u.normalize_safe();
+    vector3 v;
+    v.x = 0.0f - u.z;
+    v.y = 0.0f;
+    v.z = u.x - 0.0f;
+    bm = -1;
+    switch (size) {
+    case 0:
+        radius *= 0.2f;
+        u = u * radius;
+        v = v * radius;
+        rand();
+        bm = bm_load("BloodSplot-small02.tga", -1, -1);
+        break;
+    case 1:
+        radius *= 0.3f;
+        u = u * radius;
+        v = v * radius;
+        rand();
+        bm = bm_load("BloodSplot-med02.tga", -1, -1);
+        break;
+    case 2:
+        radius *= 0.45f;
+        u = u * radius;
+        v = radius * v;
+        rand();
+        bm = bm_load("BloodSplot-large02.tga", -1, -1);
+        break;
+    }
+    decal_place(bm, &pos, &u, &v, 2000, true, *(int *)&grey, 0.25f);
+}
 
 // 0x468a90  Confidence: likely (an out-of-line vector operator whose COMDAT landed in this unit; 16
 // other callers). s * v.

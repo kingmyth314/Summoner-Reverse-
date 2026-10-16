@@ -33,7 +33,7 @@ public:
     Character *get_target();                        // 0x4681e0
     void  set_target(int unused, Character *c);     // 0x4681f0 (first argument not read)
     bool  update(int move_id);                      // 0x468210 (the move id goes to the boss branch; D3404)
-    void  update_boss_attack(int move_id);          // 0x468360 (not written yet; compares it with +0x18)
+    void  update_boss_attack(int move_id);          // 0x468360 (compares it with +0x18)
     void  apply_net_exchange(int hit, int move, int defence, int skill, bool special);   // 0x4685c0
     bool  is_busy();                                // 0x468740
     void  set_38(int skill);                        // 0x468750 living_combat_set_38 (chain skill)
@@ -71,12 +71,12 @@ public:
     void  update_exchange();                        // 0x466d20
     void  update_attack();                          // 0x466f00
     void  update_ranged();                          // 0x467020
-    void  trigger_special_ability(float damage);    // 0x4670a0 combat_trigger_special_ability (not written)
-    void  trigger_reflex_ability(float damage);     // 0x467670 combat_trigger_reflex_ability (not written)
+    void  trigger_special_ability(float damage);    // 0x4670a0 combat_trigger_special_ability
+    void  trigger_reflex_ability(float damage);     // 0x467670 combat_trigger_reflex_ability
     void  update_special();                         // 0x467cb0
     bool  resolve_hit();                            // 0x467df0 living_combat_resolve_hit
     void  flinch_if_idle(int variant);              // 0x468160
-    void  blood_splot_place(int size, float grey);  // 0x468760 (not written yet)
+    void  blood_splot_place(int size, float grey);  // 0x468760
     void  spawn_blood(float damage);                // 0x468ac0 combat_spawn_blood
 
     Character *owner;            // +0x00 set_owner

@@ -6,9 +6,9 @@
 // unsure = the source shape is a guess.
 //
 // Unit range: the first function is init_strptrs_22e92a0_thunk (0x479b60), the last cmd_summon
-// (0x47f730-0x47f857). Not written yet (see NOTES.md): spell_spawn_creature 0x47bd30 and summon_create
-// 0x47e900. decomp73 wrote the rest of the casting half: spell_prepare_cast 0x47abe0, spell_cast_execute
-// 0x47c5d0 and spell_cast_launch_effects 0x47d420 (D5507-D5509).
+// (0x47f730-0x47f857). Every function is written: decomp75 added spell_spawn_creature and summon_create
+// (D5702-D5703); decomp73 the rest of the casting half: spell_prepare_cast, spell_cast_execute
+// and spell_cast_launch_effects (D5507-D5509).
 //
 // Data: .data 0x59b988-0x59bcab (the tables below, then this unit's literals, "+Hit only" first);
 // literals pooled with earlier units (/Gf): ".wav", "$Sound:", "#End", "$missile", "Summon", "Misc" and
@@ -44,6 +44,13 @@
 #include "summoner/player/player.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_hud.h"
+#include "summoner/multi/multispell.h"
+#include "summoner/unnamed_cutscene_0x434900.h"
+#include "engine/camera/camera.h"
+#include "engine/rendering/unnamed_render_scene_0x481680.h"
+#include "engine/objects/objects.h"
+#include "engine/objects/item_paging.h"
+#include "levelscripts/savegame.h"
 
 // ---- .data (0x59b988-0x59ba0f; the literals follow) ----------------------------------------------
 // Skill per spell group (spell_get_group result): heal, dark, energy, holy, fire, ice magic, then summon.
@@ -881,7 +888,124 @@ spell_cast_params spell_prepare_cast(Character *caster, int spell, int target, I
     return p;
 }
 
-// spell_spawn_creature (0x47bd30): not written yet.
+// 0x47bd30  Confidence: likely (the list walks and the two-step pick as the binary does them; the EH states
+// of the four local Character list heads; D5702). Spells 0x1c, 0x4f and 0x64 (the creature spells whose effect
+// strikes four times): every living entity within the spell's +Distance: of the caster that it can see (not
+// type 4, not team 1) is moved to a local list of friends (team 0 when the caster is team 0, and the caster
+// itself) or others. With no friend the others go back and `out` is left as it was; otherwise each of the
+// four strikes picks, with chance 7/8 while any other is listed or picked, an other (a new one unless one
+// was picked already and rand() % (2 x remaining) is 0, then a picked one again), else a friend the same
+// way. Every list goes back to the end of living_list afterwards (the living-list order changes). The
+// "picked again" walk stores the list head itself when the random index runs past the end; it cannot,
+// since the index is below the count (latent).
+void spell_spawn_creature(Character **out, Character *caster, int spell)
+{
+    Character friends;
+    Character others;
+
+    if (spell == 0x1c || spell == 0x4f || spell == 0x64) {
+        Character *c, *next;
+        int n_friends, n_others, team, t;
+        float range_sq;
+        bool friendly;
+
+        friends.live_next = &friends;
+        friends.live_prev = &friends;
+        others.live_next = &others;
+        others.live_prev = &others;
+        n_friends = 0;
+        n_others = 0;
+        team = caster->get_team();
+        range_sq = spells[spell].distance * spells[spell].distance;
+        for (c = living_list.live_next, next = c->live_next; c != &living_list; c = next, next = c->live_next) {
+            t = c->get_team();
+            if (c->type == 4 || t == 1)
+                continue;
+            friendly = false;
+            if (team == 0 && t == 0)
+                friendly = true;
+            if (caster == c)
+                friendly = true;
+            if ((c->pos - caster->pos).len_sq() <= range_sq && caster->has_line_of_sight_to(c)) {
+                if (friendly) {
+                    live_list_remove(c);
+                    live_list_append(&friends, c);
+                    n_friends++;
+                } else {
+                    live_list_remove(c);
+                    live_list_append(&others, c);
+                    n_others++;
+                }
+            }
+        }
+        if (friends.live_next == &friends) {
+            for (c = others.live_next, next = c->live_next; c != &others; c = next, next = c->live_next) {
+                live_list_remove(c);
+                live_list_append(&living_list, c);
+            }
+        } else {
+            Character picked_friends;
+            Character picked_others;
+            int got_friends = 0, got_others = 0;
+            int i, r;
+
+            picked_friends.live_next = &picked_friends;
+            picked_friends.live_prev = &picked_friends;
+            picked_others.live_next = &picked_others;
+            picked_others.live_prev = &picked_others;
+            for (i = 0; i < 4; i++) {
+                if (got_others + n_others > 0 && rand() % 8) {
+                    if (got_others == 0 || (n_others > 0 && rand() % (n_others * 2))) {
+                        r = rand() % n_others;
+                        for (c = others.live_next; c != &others && --r >= 0; c = c->live_next)
+                            ;
+                        got_others++;
+                        n_others--;
+                        live_list_remove(c);
+                        live_list_append(&picked_others, c);
+                    } else {
+                        r = rand() % got_others;
+                        for (c = picked_others.live_next; c != &picked_others && --r >= 0; c = c->live_next)
+                            ;
+                    }
+                } else {
+                    if (got_friends == 0 || (n_friends > 0 && rand() % (n_friends * 2))) {
+                        r = rand() % n_friends;
+                        for (c = friends.live_next; c != &friends && --r >= 0; c = c->live_next)
+                            ;
+                        got_friends++;
+                        live_list_remove(c);
+                        live_list_append(&picked_friends, c);
+                        n_friends--;
+                    } else {
+                        r = rand() % got_friends;
+                        for (c = picked_friends.live_next; c != &picked_friends && --r >= 0; c = c->live_next)
+                            ;
+                    }
+                }
+                out[i] = c;
+            }
+            for (c = friends.live_next, next = c->live_next; c != &friends; c = next, next = c->live_next) {
+                live_list_remove(c);
+                live_list_append(&living_list, c);
+            }
+            for (c = others.live_next, next = c->live_next; c != &others; c = next, next = c->live_next) {
+                live_list_remove(c);
+                live_list_append(&living_list, c);
+            }
+            for (c = picked_friends.live_next, next = c->live_next; c != &picked_friends;
+                 c = next, next = c->live_next) {
+                live_list_remove(c);
+                live_list_append(&living_list, c);
+            }
+            for (c = picked_others.live_next, next = c->live_next; c != &picked_others;
+                 c = next, next = c->live_next) {
+                live_list_remove(c);
+                live_list_append(&living_list, c);
+            }
+        }
+    }
+}
 
 // 0x47c510  Confidence: likely (the hit chance reuses the caster's argument slot). Hit chance: the
 // species 0xb6 caster uses level x 2 %, Ghost Paralyzing Fear in ghost stage 3 0.5, source type 8 0.3,
@@ -1847,7 +1971,200 @@ int spell_fire_missile(int spell, int missile, Character *caster, Character *tar
 // 0x47e8e0 init_empty_47e8f0_thunk (jmp). Confidence: exact.
 // 0x47e8f0 init_empty_47e8f0 (a bare ret). Confidence: unsure (which object).
 
-// summon_create (0x47e900): not written yet.
+// 0x47e900  Confidence: likely (D5703: void, not Character *; the ring chain is an if / else-if chain in the
+// binary's order, whose identical get_int calls VC6 tail-merges where the original repeats them,
+// 2195 against 2415 bytes). Creates the summon of `spell` facing the caster at `pos` (or, with `existing`
+// a handle, moves that living entity there): its level is (skill 0x1b x 5 + caster level + 0.5) in
+// multiplayer, the level the matching ring's xp ("dark_ring_xp" ...; three summons take 0.7 of it) reaches
+// for the party (type 7) without All_summons, else (skill 0x1b + 0.5) x caster level + 0.5, at least 1. Four
+// species (summon_species_values) stand that far back along the facing; their creation passes placed = 1.
+// The party's summon gets a Player record (summon_player) and joins the caster's AI group; a dragon skill
+// (flag 0x10) destroys the caster's emerge effect, plays the skill's cutscene, freezes every living entity
+// that is not one of cur_character's group's enemies, and takes (1 - hp share) of the caster's base max HP
+// as its HP cap; the others lend the hp share of the caster's base max HP to the Player record. Then the
+// emerge effect, the +Misc effect: and the multiplayer handle.
+void summon_create(Character *caster, vector3 *pos, int layer, int spell, int existing)
+{
+    vector3 dir = caster->pos - *pos;
+    matrix orient;
+    Character *s;
+    int ci, level, xp, i;
+
+    orient.set_from_forward(dir);
+    if (existing == -1) {
+        int species;
+        vector3 p;
+        bool placed;
+
+        ci = summon_find_charinfo(spell);
+        if (ci == -1)
+            return;
+        if (game_flags & 2) {
+            level = (int)(caster->get_skill(0x1b) * 5.0f + caster->level + 0.5f);
+        } else if (caster->type == 7 && !All_summons) {
+            species = char_infos[ci].species;
+            if (species == 0xc0 || species == 0xcd)
+                xp = savegame_state.get_int(4, "dark_ring_xp");
+            else if (species == 0xcc)
+                xp = savegame_state.get_int(4, "light_ring_xp");
+            else if (species == 0xb9)
+                xp = (int)(savegame_state.get_int(4, "light_ring_xp") * 0.7f);
+            else if (species == 0x90)
+                xp = savegame_state.get_int(4, "fire_ring_xp");
+            else if (species == 0xcb)
+                xp = (int)(savegame_state.get_int(4, "fire_ring_xp") * 0.7f);
+            else if (species == 4)
+                xp = savegame_state.get_int(4, "stone_ring_xp");
+            else if (species == 0xb0)
+                xp = (int)(savegame_state.get_int(4, "stone_ring_xp") * 0.7f);
+            else if (species == 0xa4)
+                xp = savegame_state.get_int(4, "water_ring_xp");
+            else if (species == 0xb5)
+                xp = savegame_state.get_int(4, "water_ring_xp");
+            else if (species == 0xce)
+                xp = savegame_state.get_int(4, "wind_ring_xp");
+            else if (species == 0xb6)
+                xp = savegame_state.get_int(4, "wind_ring_xp");
+            else if (species == 0xca)
+                xp = savegame_state.get_int(4, "forest_ring_xp");
+            else if (species == 0xc3)
+                xp = savegame_state.get_int(4, "forest_ring_xp");
+            else if (species == 9)
+                xp = savegame_state.get_int(4, "jade_ring_xp");
+            else if (species == 0xc2)
+                xp = savegame_state.get_int(4, "jade_ring_xp");
+            else
+                xp = 0;
+            for (level = 2; level < 30; level++)
+                if (xp < xp_for_level(level))
+                    break;
+            level--;
+        } else {
+            level = (int)((caster->get_skill(0x1b) + 0.5f) * caster->level + 0.5f);
+        }
+        p = *pos;
+        placed = false;
+        for (i = 0; i < 4; i++) {
+            if (summon_species_values[i].species == char_infos[ci].species) {
+                p -= orient.fvec * summon_species_values[i].value;
+                placed = true;
+                break;
+            }
+        }
+        if (level < 1)
+            level = 1;
+        s = living_entity_create(caster->type, ci, &p, &orient, true, layer, level, 1, placed);
+    } else {
+        s = living_from_handle(existing);
+        s->orient = orient;
+        s->pos = *pos;
+        s->layer = layer;
+        s->flags &= ~8;
+        ci = charinfo_find_by_species(s->info->species);
+    }
+    if (!s)
+        return;
+    s->flags |= 0x103;
+    s->obj_flags &= ~1;
+    s->set_team(caster->get_team());
+    if (spell == 0x27)
+        item_free(character_unequip_slot(s, 5, true));
+    else if (s->type == 7 && s->equipment[5])
+        item_page_in(s->equipment[5]->type - item_types, 8, 0);
+    if (spell == 0x2e)
+        s->instance->_unkb4 = 0x80;
+    if (s->type == 7) {
+        summon_player = player_alloc_slot();
+        summon_player->char_info = ci;
+        summon_player->handle = s->handle;
+        summon_player->flags |= PF_SUMMON;
+        if (game_flags & 0x1000)
+            summon_player->flags |= PF_HOLD;
+        ai_group_add_member(caster->ai.group, s);
+        if (game_flags & 2)
+            summon_player->mp_owner = player_from_handle(caster->handle)->mp_owner;
+        cur_summon = s;
+        for (i = 0; i < MAX_SKILLS; i++) {
+            if (skill_table[i].spell == spell) {
+                if (skill_table[i].flags & 0x10) {
+                    effect_object *fx;
+                    Character *c;
+                    ai_group *g;
+                    vector3 a, b;
+                    matrix m;
+                    float angle;
+                    int j;
+
+                    for (fx = fx_active_list.fx_next; fx != &fx_active_list; fx = fx->fx_next) {
+                        if (fx->source == caster->ai.emerge_move && fx->owner == caster->handle) {
+                            fx_destroy(fx->handle);
+                            break;
+                        }
+                    }
+                    cur_summon->flags |= 0x1820;
+                    cutscene_play(skill_names[i]);
+                    levelrender_fade_out_start();
+                    for (c = living_list.live_next; c != &living_list; c = c->live_next) {
+                        if (c->type == 7)
+                            continue;
+                        g = cur_character->ai.group;
+                        for (j = 0; j < g->num_enemies; j++)
+                            if (c->handle == g->enemies[j])
+                                break;
+                        if (j == g->num_enemies) {
+                            c->flags |= 0x10;
+                            c->set_ai_active(0);
+                        }
+                    }
+                    a.x = 0.0f;
+                    a.y = 0.0f;
+                    a.z = 1.0f;
+                    b.x = 0.0f;
+                    b.y = 1.0f;
+                    b.z = 0.0f;
+                    angle = vector3_angle_and_axis(&a, &cur_summon->orient.fvec, &b);
+                    m.set_from_axis_angle(b, angle);
+                    game_camera.set_sequence_transform(&cur_summon->pos, &m);
+                    caster->hp = float_min(caster->hp, (1.0f - skill_table[i].hp_share) * caster->base_max_hp);
+                } else {
+                    Player *pl = player_from_handle(caster->handle);
+                    pl->lent_max_hp = skill_table[i].hp_share * caster->base_max_hp;
+                    caster->base_max_hp -= pl->lent_max_hp;
+                    if (caster->get_max_stat(0) < caster->hp)
+                        caster->hp = (float)caster->get_max_stat(0);
+                }
+                break;
+            }
+        }
+    } else if (caster->info->species == 0x5a || caster->info->species == 0xc9) {
+        s->flags |= 0x40000;
+    }
+    {
+        int fx = summon_spawn_effect(spell_get_effect_1c(spell), &s->pos, &s->orient, s, spells[spell].emerge_time,
+                                     spells[spell].target_radius, layer);
+        const char *misc;
+
+        s->ai.disable_timer.invalidate();
+        if (fx == -1 && !(s->flags & 0x800)) {
+            printf("no room for summon target effect!!  make summon emerge through AI code\n");
+            s->ai.disable_timer.SetTimeout(spells[spell].emerge_time);
+            s->ai.flags |= 0x200;
+        }
+        if (cur_summon && (cur_summon->flags & 0x800))
+            cur_summon->move_fx = fx;
+        misc = spells[spell].misc_effect;
+        if (misc) {
+            if (s->flags & 0x800)
+                fx_attach_to_character(misc, s->handle, -1, -1, false, false);
+            else
+                fx_summon_hook_stub(fx_add_effect(misc, &s->pos, &s->orient, true), (int)s);
+        }
+    }
+    if ((game_flags & 2) && mp_local_player && (mp_local_player->flags & 1))
+        mp_broadcast_summon_handle(s->handle);
+    else if ((game_flags & 2) && mp_local_player && !(mp_local_player->flags & 1))
+        mp_summon_map_handle(s->handle);
+}
 
 // 0x47f270  Confidence: exact (tail jump to mp_summon_claim_release).
 void summon_dismiss(int handle)
