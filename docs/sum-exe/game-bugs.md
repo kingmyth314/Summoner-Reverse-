@@ -2555,7 +2555,8 @@ Ice Coffin cast by Rosalind in the Ikaemos exterior) showed no difference beyond
 of the three loads (`[Debug] TraceGlLights`, agent command `k310`) explained it: in the Ikaemos tests no face took
 this path at all. It runs only when `levelrender_draw_list_opengl`'s third argument, the count of point lights near
 the object (`[esp + 0x1c]` of `levelrender_draw_list`, `0x485b6d`), is non-zero, and spell effect lights are not
-among them. The level's own point lights are. The fix stays out of SummonerFix until a scene with one is found.
+among them. The level's own point lights are. The fix stays out of SummonerFix until a scene with one is found. The burning village of the Masad tutorial (walked up to the fires) also
+gave zero faces on this path, so its fires are effect lights too. *Inferred:* the path may be rare in retail play.
 
 ## Invisible
 
