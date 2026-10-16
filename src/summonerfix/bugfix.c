@@ -27,6 +27,21 @@
 // (reproduced 2026-10-16 with [Debug] TraceArmourSpells). eax holds the wearer there (0x467afc; it is also the caster
 // pushed at 0x467c85), so mov ecx, [ebp] becomes mov ecx, eax: the heal lands on the wearer, as the reflex-ability
 // branch and the multiplayer branch already do.
+//
+// Choice popup rows 5 pixels above their text (not a crash; game-bugs K170). Below a title, ui_choice_popup_draw
+// moves down by the title height plus ui_choice_popup_title_gap[resolution] (0x57ef7c, 5 at every resolution), but
+// ui_choice_popup_hit_test adds only the title height, so the bottom 5 pixels of each entry select the next one
+// ("You have died.": the bottom of Restart lights Quit; reproduced 2026-10-16). The titled popups are all
+// multiplayer (death_popup and the two PXO popups). Fix: the mov esi, [4*edx + margin] ; add esi, ecx at 0x4139b3
+// becomes a call that also adds the gap, followed by the original jmp. eax (the title height) and ecx are kept.
+//
+// No hit effect on metal characters (not a crash; game-bugs K20). combat_spawn_hit_vfx first picks blood for
+// flesh and leather (skins 1, 2) and sparks for stone, ice and the seven metals (3, 9..16), and returns for the
+// rest; it then spawns blood.vfx only for skin 1 and sparkhit01.vfx only for skins 3 and 9, so Joseph's hits on
+// the Brass, Broken Brass and Steel Golems (bronze, skin 12) and the Iron Golem show nothing (reproduced
+// 2026-10-16 with [Debug] TraceHitVfx in the sewer boss room). Fix: cmp edi, 1 ; jne at 0x466a0c becomes
+// cmp edi, 2 ; ja (blood for 1 and 2), and the stone / ice test at 0x466a2f becomes a jmp to the spark spawn, so
+// every skin that got a name now gets the effect stone golems already show. Flesh, stone and ice are unchanged.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -36,6 +51,11 @@
 #define VA_ARMOUR_SPELL_TARGET 0x467b0fu    // mov ecx, [ebp] (the attacker) in combat_trigger_reflex_ability
 #define VA_SND_PLAY_3D_DIVIDE 0x52156eu      // fld [esp+0x1c] ; fdiv [esi+0x28] ; fstp [esp+0x1c] in snd_play_3d
 #define VA_SND_GROUP_VOLUMES 0x2cb542cu      // float snd_group_volumes[], indexed by the sound's group
+#define VA_HIT_VFX_BLOOD_TEST 0x466a0cu     // cmp edi, 1 ; jne 0x466a2f in combat_spawn_hit_vfx
+#define VA_HIT_VFX_SPARK_TEST 0x466a2fu     // cmp edi, 3 ; je 0x466a39 ; cmp edi, 9 ; jne 0x466a54
+#define VA_POPUP_HIT_TITLE 0x4139b3u       // mov esi, [4*edx + 0x57ef70] ; add esi, ecx ; jmp 0x4139cf
+#define VA_POPUP_MARGIN_Y 0x57ef70u         // int ui_choice_popup_margin_y[3]
+#define VA_POPUP_TITLE_GAP 0x57ef7cu        // int ui_choice_popup_title_gap[3] = {5, 5, 5}
 
 __attribute__((used)) volatile BYTE *g_dsInited;
 void DsChannelStreamGuard(void);
@@ -69,6 +89,19 @@ __asm__(".text\n"
         "    addl $8, %esp\n"
         "    ret\n");
 
+__attribute__((used)) DWORD g_popupMarginY, g_popupTitleGap;
+void PopupHitTitleStub(void);
+__asm__(".text\n"
+        "_PopupHitTitleStub:\n"
+        "    movl _g_popupMarginY, %esi\n"
+        "    movl (%esi,%edx,4), %esi\n" // margin_y[resolution_index]
+        "    addl %ecx, %esi\n"          // + ui_choice_popup_y
+        "    pushl %ecx\n"
+        "    movl _g_popupTitleGap, %ecx\n"
+        "    addl (%ecx,%edx,4), %esi\n" // + title_gap[resolution_index], as ui_choice_popup_draw does
+        "    popl %ecx\n"
+        "    ret\n");
+
 void BugFixesInstall(void)
 {
     g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
@@ -95,4 +128,20 @@ void BugFixesInstall(void)
     DWORD sndRel = (DWORD)(UINT_PTR)SndPlay3dUnscaleStub - (sndSite + 5);
     memcpy(sndRepl + 1, &sndRel, 4);
     PatchBytes(VA_SND_PLAY_3D_DIVIDE, sndOrig, sndRepl, 11, "world sounds at the sfx volume squared without DS3D (snd_play_3d)");
+
+    g_popupMarginY = SumVa(VA_POPUP_MARGIN_Y);
+    g_popupTitleGap = SumVa(VA_POPUP_TITLE_GAP);
+    static const BYTE popOrig[11] = {0x8B, 0x34, 0x95, 0x70, 0xEF, 0x57, 0x00, 0x03, 0xF1, 0xEB, 0x11};
+    BYTE popRepl[11] = {0xE8, 0, 0, 0, 0, 0xEB, 0x15, 0x90, 0x90, 0x90, 0x90}; // call stub ; jmp 0x4139cf
+    DWORD popSite = SumVa(VA_POPUP_HIT_TITLE);
+    DWORD popRel = (DWORD)(UINT_PTR)PopupHitTitleStub - (popSite + 5);
+    memcpy(popRepl + 1, &popRel, 4);
+    PatchBytes(VA_POPUP_HIT_TITLE, popOrig, popRepl, 11, "choice popup rows 5 px above their text (K170)");
+
+    static const BYTE bloodOrig[5] = {0x83, 0xFF, 0x01, 0x75, 0x1E}; // cmp edi, 1 ; jne 0x466a2f
+    static const BYTE bloodRepl[5] = {0x83, 0xFF, 0x02, 0x77, 0x1E}; // cmp edi, 2 ; ja 0x466a2f
+    PatchBytes(VA_HIT_VFX_BLOOD_TEST, bloodOrig, bloodRepl, 5, "blood hit effect for leather (K20)");
+    static const BYTE sparkOrig[10] = {0x83, 0xFF, 0x03, 0x74, 0x05, 0x83, 0xFF, 0x09, 0x75, 0x1B};
+    static const BYTE sparkRepl[10] = {0xEB, 0x08, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // jmp 0x466a39
+    PatchBytes(VA_HIT_VFX_SPARK_TEST, sparkOrig, sparkRepl, 10, "spark hit effect for metal characters (K20)");
 }

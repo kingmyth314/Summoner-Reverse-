@@ -175,5 +175,7 @@ Once `src/decomp` builds a working `Sum.exe`, these become source changes instea
 - **Robe of Restoration heals the attacker: fixed 2026-10-16** (G300, reproduced in game first; SummonerFix `bugfix.c`).
 - **Print Screen above 1024 rows (C290): avoided 2026-10-16.** With `GameHeight` above 1024 SummonerFix switches screenshots to Targa. Not tested in game.
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.
+- **Bug fix order: ranked 2026-10-16** in [Bug fix priorities](sum-exe/bug-priorities.md) (impact on a single-player game times ease of reproduction; visual-only, multiplayer-only and latent bugs lower). Next from the top: G4, G215, C250, G8, G12.
+- **Golem hit effects (K20) and the death popup's row offset (K170): fixed 2026-10-16**, both reproduced in game first (SummonerFix `bugfix.c`). K170 turned out to be multiplayer only. K272 (one shadow size for everyone) is deferred: a fix needs a design for the table's sizes.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

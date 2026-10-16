@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 79 | 2 |
 | Gameplay | 51 | 24 | 4 |
-| Cosmetic | 58 | 36 | 5 |
+| Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1651,7 +1651,7 @@ corrected every second, so they drift from the owner's view.
 | K17 | Latent: a summon's second weapon (slot 9) pages the first weapon's model | `items_level_load` `0x44d540` | **Observed** code, *inferred* effect | No |
 | K18 | Latent: paging out the popup model slot 18 can drop another slot's item model | `item_page_out_all` `0x46ca50` | **Observed** code, *inferred* effect | No |
 | K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | No |
-| K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code and retail data, *inferred* effect | No |
+| K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code, retail data and in game (2026-10-16, `[Debug] TraceHitVfx`) | Fixed (`bugfix.c`) |
 | K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No |
 | K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code, *inferred* effect | No |
 | K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
@@ -1676,7 +1676,7 @@ corrected every second, so they drift from the owner's view.
 | K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
 | K160 | In multiplayer, a player who joins while another join is still going on can see "%s has entered the game." twice for the other new player | `mp_add_new_player` `0x4af4e0`, `mp_handle_new_info` `0x4af4b0`, `mp_handle_net_info` `0x4af760` | **Observed** code, *inferred* trigger | No |
 | K161 | The "Insert Summoner CD #2" box is centred across the screen but starts at the middle, so it sits in the lower half | `cd_prompt_disc2` `0x43ea20` | **Observed** code | No |
-| K170 | In the "You have died." popup (and the other titled choice popups), the highlight and the click area of each entry sit 5 pixels above its text: the bottom of "Restart" selects "Quit" | `ui_choice_popup_hit_test` `0x413970` | **Observed** code, *inferred* effect | No |
+| K170 | Multiplayer only: in the "You have died." popup (and the two PXO popups, the only other titled choice popups), the highlight and the click area of each entry sit 5 pixels above its text: the bottom of "Restart" selects "Quit" | `ui_choice_popup_hit_test` `0x413970` | **Observed** code and in game (2026-10-16, popup forced in single player) | Fixed (`bugfix.c`) |
 | K171 | A lock that was already picked can be picked again: the skill rolls again, plays the unlock or the failure sound, and "This door already unlocked." is never shown for it | `character_use_skill` `0x429410`, `door_pick_by_mesh` `0x4aaa10` | **Observed** code, *inferred* trigger | No |
 | K180 | Latent: when a `strings.tbl` language section has more than 40 KB of text, each string that does not fit shows the text of the next string that does (or nothing) | `localize_set_string` `0x504400` | **Observed** code and retail data, *inferred* effect | No |
 | K181 | Latent: French text would show `Ä` as `É`; v1.40 never selects French | `localize_remap_charset` `0x5051a0` | **Observed** code and retail data | No |
@@ -1707,7 +1707,7 @@ corrected every second, so they drift from the owner's view.
 | K265 | Latent: Page Down in a list box whose selected last entry is taller than the box selects the list's own head record (no text, data -1), which the list's callback then receives | `ui_listbox__select_page_down` `0x52e050` | **Observed** code, *inferred* effect | No |
 | K270 | In the Ghost-Escape and Ghost-Dismount cutscenes (Rand-ForestNite1) the Ghost Rider's attached props are drawn, although the code means to hide them there | `levelrender_add_character` `0x483260` | **Observed** code and retail data, *inferred* effect; not seen in play | No |
 | K271 | A lamp glow on an effect (a torch or brazier effect) can shine through one level object that should hide it | `lamp_glow_update_effects` `0x484600` | **Observed** code, *inferred* effect | No |
-| K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No |
+| K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No (deferred: needs a design for `$Radius` and `$Scale`) |
 | K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
 | K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
 | K280 | With SummonerFix's widescreen output (a game width above 1024), the black strip right of the centred main menu showed old frames of the last level in turn with black after a cutscene had run (seen after the console cutscene viewer and after skipping story cutscenes) | SummonerFix `display.c` (`Hook_SwapBuffers`), not the game | **Observed** by the user and in agent-mode captures (2026-10-16) | Fixed (`display.c`) |
@@ -1839,7 +1839,12 @@ Found in the [`summoner.cpp`](../../src/decomp/game/summoner.cpp) notes.
 bronze, iron, silver, admantium, volitionite; `material_names` `0x598f5c`) get nothing, and `sparkhit.vfx` is never
 used. Retail tables: Brass Golem, Broken Brass Golem and Steel Golem are "bronze", Iron Golem is "iron"; no
 character is "leather". Both effect names exist in `effects.vpp`. All 13 callers are in `combat_apply_melee_hit`.
-Found in the `NOTES-spells-combat.md` notes.
+Found in the `NOTES-spells-combat.md` notes. **Reproduced 2026-10-16** in the sewer boss room
+(`play_and_load_cutscene TB-Intro`) with `[Debug] TraceHitVfx`: Joseph's hits on "Broken Brass Golem#boss1"
+(skin 12) logged no effect, the golems' hits on him logged `blood.vfx`. **Fixed** in SummonerFix (`bugfix.c`): the
+skin 1 test at `0x466a0c` becomes "1 or 2" and the stone / ice test at `0x466a2f` a jump to the spark spawn, so
+every skin that gets a name gets an effect (sparkhit01.vfx for stone, ice and the metals, as stone golems already
+had); after the fix the same hits logged `sparkhit01.vfx`.
 
 **K30. Boss height dropped.** For type 9, `character_size_height` calls `charinfo_boss_height` and discards
 the result (`fstp st(0)` at `0x45430f`), then returns the size-class height (`fld [4*edx + 0x5818d8]` at
@@ -2120,7 +2125,12 @@ Titled popups: `death_popup` (`0x40f690`, "You have died." with Restart / Quit, 
 when the party dies) and the two PXO popups (`pxochat_version_check_frame` `0x42368c`, `pxochat_login_frame`
 `0x42387e`). The drag rectangle of `ui_choice_popup_update_buttons` ignores the title entirely (`0x413b07`..`0x413b24`),
 but only the untitled skills and status popups set the drag flag `0x4` (`0x4287a2`, `0x428816`, `0x42be85`), so that
-part never shows.
+part never shows. All three titled popups are multiplayer only: in single player `party_check_all_dead` takes
+the timed death screen instead (`hud_mode_set_5`, `0x4394d6`), and the HUD draws the popup only from
+`mp_draw_loading_status`, which returns at once in single player (`0x4102aa`). **Reproduced 2026-10-16** by forcing
+both in a single-player test (agent `pokecode` at `0x4394b1` and `0x4102ac`): with the cursor tip on the bottom of
+"Restart", "Quit" lit up. **Fixed** in SummonerFix (`bugfix.c`): the hit test's start row at `0x4139b3` also adds
+the title gap; after the fix the same spot lit "Restart" and "Quit" lit only over its own text.
 
 **K171. The lock value stays.** Both pick paths, single player (`character_use_skill` `0x4295fa`..`0x429693`) and the
 multiplayer host (`door_pick_by_mesh` `0x4aaa87`..`0x4aab57`), test the door's lock value (`door +0x58`) against 0
@@ -2373,6 +2383,10 @@ never ray-tested (`lobj_raycast` `0x4847b4`), and the glow fades in although tha
 passes the constants `0x59c12c` / `0x59c130` / `0x59c134` (0.15, 1.0, 5.0) and `shadow_bm` for everyone
 (`0x487677`..`0x48769f`); the 20.0 radius from `shadows_draw_characters` (`0x487734`) is ignored. Retail
 `shadows.tbl` has 151 entries, radius 0.47 to 25.55 (Boat), Giant Salamanka 10.37, Joseph 1.49.
+Not fixed yet (2026-10-16): the shadow is a projector 2 m (`shadow_anchor_height`) above the root bone, so a fix
+has to decide how `$Radius` and `$Scale` map to its field of view and range, which no code tells us. The bug is
+cosmetic, so it waits until a fix can be compared in game; in the sewer boss room the shadows were too faint to
+compare at all.
 
 **K273. Arguments pushed in the wrong order.** `level_parse_table` pushes `level_fog_near` first and
 `level_fog_far` last (`0x4cbefc`..`0x4cbf09`), so `fog_set_level_default` gets the far value as its first argument

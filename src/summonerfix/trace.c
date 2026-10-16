@@ -67,8 +67,72 @@ __asm__(".text\n"
         "    addl $12, %esp\n"
         "    jmp *_g_spellCastExecute\n");
 
+// Testing only ([Debug] TraceHitVfx=1, game-bugs K20): log every combat_spawn_hit_vfx (0x4669c0) call with the
+// target and its skin material (char_info +0x218), and every effect it spawns through fx_attach_to_character
+// (0x48c080, called at 0x466a24 for blood and 0x466a4c for sparks). The entry's push esi ; mov esi, [esp+0xc]
+// (5 bytes) becomes a jmp to a stub that logs, redoes them and jumps back to 0x4669c5.
+#define VA_SPAWN_HIT_VFX 0x4669c0u
+#define VA_FX_ATTACH 0x48c080u
+static const DWORD kHitVfxCalls[2] = {0x466a24u, 0x466a4cu};
+__attribute__((used)) DWORD g_spawnHitVfxBody, g_fxAttach;
+
+__attribute__((used)) static void __cdecl TraceHitVfx(const BYTE *target)
+{
+    char t[96];
+    Describe(t, sizeof t, target);
+    const BYTE *info = target ? *(const BYTE *const *)(target + 0x71c) : NULL;
+    Log("hit vfx: target %s, skin %d", t, info ? *(const int *)(info + 0x218) : -1);
+}
+__attribute__((used)) static void __cdecl TraceFxSpawn(const char *name)
+{
+    Log("hit vfx: spawned %s", name ? name : "(null)");
+}
+void TraceHitVfxStub(void);
+__asm__(".text\n"
+        "_TraceHitVfxStub:\n"
+        "    pushal\n"
+        "    pushl 40(%esp)\n" // target: 32 bytes of registers, the return address, the attacker
+        "    call _TraceHitVfx\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    pushl %esi\n"
+        "    movl 0xc(%esp), %esi\n"
+        "    jmp *_g_spawnHitVfxBody\n");
+void TraceFxSpawnStub(void);
+__asm__(".text\n"
+        "_TraceFxSpawnStub:\n"
+        "    pushal\n"
+        "    pushl 36(%esp)\n" // effect name: 32 bytes of registers, the return address
+        "    call _TraceFxSpawn\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    jmp *_g_fxAttach\n");
+
+static void TraceHitVfxInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceHitVfx", 0, g_cfg.iniPath))
+        return;
+    g_spawnHitVfxBody = SumVa(VA_SPAWN_HIT_VFX + 5);
+    g_fxAttach = SumVa(VA_FX_ATTACH);
+    DWORD entry = SumVa(VA_SPAWN_HIT_VFX);
+    static const BYTE eorig[5] = {0x56, 0x8B, 0x74, 0x24, 0x0C}; // push esi ; mov esi, [esp+0xc]
+    BYTE erepl[5] = {0xE9};
+    DWORD erel = (DWORD)(UINT_PTR)TraceHitVfxStub - (entry + 5);
+    memcpy(erepl + 1, &erel, 4);
+    PatchBytes(VA_SPAWN_HIT_VFX, eorig, erepl, 5, "trace combat hit effects (TraceHitVfx)");
+    for (int i = 0; i < 2; i++) {
+        DWORD s = SumVa(kHitVfxCalls[i]);
+        BYTE orig[5] = {0xE8}, repl[5] = {0xE8};
+        DWORD ro = g_fxAttach - (s + 5), rn = (DWORD)(UINT_PTR)TraceFxSpawnStub - (s + 5);
+        memcpy(orig + 1, &ro, 4);
+        memcpy(repl + 1, &rn, 4);
+        PatchBytes(kHitVfxCalls[i], orig, repl, 5, "trace spawned hit effects (TraceHitVfx)");
+    }
+}
+
 void TraceInstall(void)
 {
+    TraceHitVfxInstall();
     if (!GetPrivateProfileIntA("Debug", "TraceArmourSpells", 0, g_cfg.iniPath))
         return;
     g_spellCastExecute = SumVa(VA_SPELL_CAST_EXECUTE);
