@@ -207,6 +207,13 @@ void alt_textures_free();             // 0x4aafb0
 // decomp38 (characterinfo_parse_table): the texture list of a base name and an entry of it.
 void *alt_textures_find(const char *base, int *count);               // 0x4aaff0
 void *alt_textures_find_entry(const char *base, const char *name);   // 0x4ab050 (0x2d4-byte entry)
+// decomp71: the unit is game/unnamed_alt_textures_0x4aac10.cpp (0x4aac10-0x4ab0ef, file name not known);
+// its .bss (names ours).
+struct alt_texture_set;
+extern alt_texture_set *alt_texture_lists[256];      // 0x2476bb8
+extern char alt_texture_bases[256][0x21];            // 0x2476fb8
+extern int  alt_texture_counts[256];                 // 0x24790b8
+extern int  num_alt_texture_bases;                   // 0x24794b8
 void debug_noop_cleanup();            // 0x531c80 bare ret
 void vif_records_reset();             // 0x532e80 clears +0x68 of the 100 records at 0x2d064e8
 void vif_reset_all();                 // 0x532ea0 (level_load; decomp42)

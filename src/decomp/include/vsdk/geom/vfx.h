@@ -46,14 +46,58 @@ void reloc_ptr(void *p, char *base);          // 0x533d90
 // decomp64 (the fx unit): the node descriptors (vfx_base +0x20, 0xa8 bytes each) and the +0x2c records (0x21c)
 // as fx_create_instance and fx_frame read them. Names ours.
 // decomp67: the node descriptors are the meshes (vfx_mesh__* in sum.symbols).
+// decomp70: the mesh object (0x562a30-0x564d62, src/decomp/vsdk/unnamed_vfx_mesh_0x562a30.cpp) gives the
+// rest of the layout (D5106). The records it points to are declared after the key channels below.
+struct vfx_face;
+struct vfx_face_uv;
+struct vfx_vnormal;
+struct vfx_face_uv_anim;
+struct vfx_mesh_morph;
+struct vfx_mesh_anim;
+struct vfx_mesh_vertices;
+struct vfx_mesh_sprite;
+struct vfx_mesh_xform;
+class anim_track;
+// vfx_node_desc::mesh_flags (+0x0c; names ours).
+#define VFX_MESH_BINDABLE     0x0001  // can be bound to a mesh tag (decomp67)
+#define VFX_MESH_SKINNED      0x0002  // anim_track at +0x6c over the rest pose
+#define VFX_MESH_X64          0x0004  // vertex positions * 64
+#define VFX_MESH_POS_FIXED4   0x0008  // xform positions / 16
+#define VFX_MESH_STATIC_VERTS 0x0010  // animated mesh: vertices, not morph targets
+#define VFX_MESH_STATIC_UVS   0x0020  // uv animation ignored
+// vfx_node_desc::flags (+0x18; decomp70, names ours; 0x40, 0x200, 0x400 are decomp63's).
+#define VFX_MESH_SPRITE       0x0001  // a camera-facing sprite (sprite record at +0x60)
+#define VFX_MESH_NO_LERP      0x0002  // no blending between frames
+#define VFX_MESH_ANIMATED     0x0004  // morph / anim records instead of the xform
+#define VFX_MESH_FULLBRIGHT   0x0010  // vertex colours 255, no lighting
+#define VFX_MESH_UV_ANIM      0x0100  // face uv animation at +0x58
+#define VFX_MESH_LINE         0x0800  // a line quad along line_axis (+0x9c)
+
+// D5107: a POD stand-in for vector3 (a union member cannot have vector3's copy constructor).
+struct vfx_vector3_alias {
+    float x, y, z;
+    operator vector3() const { return vector3(x, y, z); }
+};
+
 struct vfx_node_desc {
-    void relocate(char *header_base, char *base);   // 0x5645b0 vfx_mesh__relocate (another unit; decomp67)
+    void relocate(char *header_base, char *base);   // 0x5645b0 vfx_mesh__relocate (decomp70: the mesh object)
     void load_bitmap(int flags);              // 0x564720 vfx_mesh__load_bitmap (decomp67)
+    // decomp70: inline; their copies are COMDATs at the end of the mesh object.
+    bool is_billboard() { return (vis_flags & (VFX_MESH_SPRITE | VFX_MESH_LINE)) != 0; }   // 0x564860
+    bool frame_bit(int frame);                // 0x564d00 vfx_mesh__frame_bit (inline, below BitArray)
+    bool has_flag4() { return (vis_flags >> 2) & 1; }   // 0x564d20 vfx_mesh__has_flag4 (VFX_MESH_ANIMATED)
     const char *name;                         // +0x00 (decomp67; was ubyte _unk00[0x18])
     const char *parent;                       // +0x04
-    ubyte _unk08[0x04];
-    ubyte bind_flags;                         // +0x0c bit 0: can be bound to a mesh tag (decomp67)
-    ubyte _unk0d[0x0b];
+    vfx_base *base;                           // +0x08 decomp70: the header's data pointer (relocated against base)
+    union {
+        ubyte bind_flags;                     // +0x0c bit 0: can be bound to a mesh tag (decomp67)
+        ushort mesh_flags;                    //       decomp70: VFX_MESH_* above, bits 6-15 the frame rate
+    };
+    ushort num_frames;                        // +0x0e decomp70
+    ushort num_verts;                         // +0x10
+    ushort num_faces;                         // +0x12 also the face uv and uv animation records
+    ushort num_materials;                     // +0x14 entries of materials
+    ushort num_vnormals;                      // +0x16
     // decomp63 (D4309): levelrender_effect_apply_vis rewrites the low word only (0x483ff0-0x484003):
     // 0x200 shown by a $vis tag, 0x400 always shown (0x600 = drawn).
     union {
@@ -63,9 +107,41 @@ struct vfx_node_desc {
     vector3 pos;                              // +0x1c decomp63: the node's position in the effect frame
     float glow_radius;                        // +0x28 (decomp63: also the sort radius of its draw entry)
     float cull_radius;                        // +0x2c decomp63: gr_cull_sphere radius (levelrender_add_effect_entry)
-    ubyte _unk30[0x18];
-    vector3 glow_pos;                         // +0x48 decomp63: lamp_glow_update_effects' ray origin (effect frame)
-    ubyte _unk54[0xa8 - 0x54];
+    float start_time;                         // +0x30 decomp70: seconds (the frame is (t / 15 - start) * rate)
+    int _unk34;
+    vfx_face *faces;                          // +0x38 num_faces
+    ubyte *materials;                         // +0x3c indices into base->materials (a face's material picks one)
+    vfx_vnormal *vnormals;                    // +0x40 num_vnormals
+    // +0x44 the BitArray of the frames the mesh is shown in (frame_bit). D5107: decomp63's glow_pos
+    // (+0x48) is not a field of the mesh: lamp_glow_update_effects reads the vfx_base's pos (+0x48 of
+    // the base, 0x484690); the alias stays for unnamed_render_scene_0x481680.cpp until it is fixed.
+    union {
+        struct {
+            char *frames_data;                //       BitArray::data
+            unsigned int frames_num_bytes;    //       BitArray::num_bytes
+            bool frames_owned;                //       BitArray::owned
+            ubyte _pad4d[3];
+            vfx_mesh_morph *morph;            // +0x50 morph targets (animated meshes)
+        };
+        struct {
+            int _alias44;
+            vfx_vector3_alias glow_pos;       // (D5107: not a field)
+        };
+    };
+    vfx_mesh_anim *anim;                      // +0x54 sprite / line animation (animated billboards)
+    vfx_face_uv_anim *uv_anims;               // +0x58 num_faces
+    vfx_mesh_vertices *vertices;              // +0x5c num_verts
+    vfx_mesh_sprite *sprite;                  // +0x60 billboards
+    vfx_face_uv *face_uvs;                    // +0x64 num_faces
+    vfx_mesh_xform *xform;                    // +0x68
+    anim_track *track;                        // +0x6c VFX_MESH_SKINNED
+    vector3 rest_pos;                         // +0x70 the rest pose of a skinned mesh
+    cquat rest_rot;                           // +0x7c
+    vector3 rest_scale;                       // +0x84
+    int _unk90;
+    char *glow_name;                          // +0x94 reloc_ptr against the header base; NULL none
+    int glow_bm;                              // +0x98
+    vector3 line_axis;                        // +0x9c VFX_MESH_LINE
 };
 LAYOUT_CHECK(vfx_node_desc, sizeof(vfx_node_desc) == 0xa8);
 // decomp67: the vif emitter descriptors (vif_desc__* in sum.symbols).
@@ -360,6 +436,144 @@ public:
     vfx_quat_channel orient;                  // +0x34
 };
 LAYOUT_CHECK(vfx_node, sizeof(vfx_node) == 0x64);
+
+// ---- decomp70: the mesh records (vfx_node_desc's pointers; the mesh object 0x562a30-0x564d62) -----
+// Every accessor is inline; the copies are the COMDATs at the end of the mesh object (0x564770-0x564d62),
+// which was built without inline expansion. Type names ours (sum.symbols names the accessors).
+inline bool vfx_node_desc::frame_bit(int frame)
+{ return ((BitArray *)&frames_data)->get(frame) != 0; }
+// (f): (int)(f + 0.5) (cdecl; vsdk\math in sum.symbols).
+inline int float_round_to_int(float f)        // 0x5648b0
+{ return (int)(f + 0.5f); }
+
+// One triangle (0x1c bytes, vfx_node_desc +0x38).
+struct vfx_face {
+    // The face normal from the three bytes: each * (1 / 127.5) - 1, read as signed bit fields (sar), so
+    // components above 0 come out wrong (D5108; hidden result).
+    vector3 get_normal()                      // 0x564a20 vfx_unpack_vector_s8
+    { return vector3(nx * (1.0f / 127.5f) - 1.0f, ny * (1.0f / 127.5f) - 1.0f, nz * (1.0f / 127.5f) - 1.0f); }
+    int material : 8;                         // +0x00 index into vfx_node_desc::materials; < 0 none
+    int nx : 8;
+    int ny : 8;
+    int nz : 8;
+    ushort v[3];                              // +0x04 vertex indices (vfx_mesh_verts / gr_vertex_pool)
+    ubyte _unk0a[0x0c];
+    ushort vn[3];                             // +0x16 vertex normal records (vfx_node_desc::vnormals)
+};
+LAYOUT_CHECK(vfx_face, sizeof(vfx_face) == 0x1c);
+
+// The texture coordinates of one face (0xc bytes, 4.12): vfx_node_desc +0x64 and vfx_mesh_face_uvs.
+struct vfx_face_uv {
+    float get_u(int i) { return fixed12_to_float(u[i]); }            // 0x564870 vfx_face__get_u
+    float get_v(int i) { return fixed12_to_float(v[i]); }            // 0x564890 vfx_face__get_v
+    void set_u(int i, float f) { u[i] = (short)float_to_fixed12(f); }   // 0x564aa0 vfx_face__set_u
+    void set_v(int i, float f) { v[i] = (short)float_to_fixed12(f); }   // 0x564ac0 vfx_face__set_v
+    short u[3];
+    short v[3];
+};
+LAYOUT_CHECK(vfx_face_uv, sizeof(vfx_face_uv) == 0xc);
+
+// A shared vertex normal and its lit colour (0xc bytes, vfx_node_desc +0x40): the normal is the mean of
+// its faces' normals, the colour lights_shade_vertices' (vfx_mesh_render, once per frame: done).
+struct vfx_vnormal {
+    vector3 unpack_normal()                   // 0x5648c0 vfx_unpack_normal (hidden result)
+    { return vector3(nx * (1.0f / 127.5f) - 1.0f, ny * (1.0f / 127.5f) - 1.0f, nz * (1.0f / 127.5f) - 1.0f); }
+    void pack_normal(const vector3 *n)        // 0x564950 vfx_pack_normal (each (c + 1) * 127.5 in 0..255)
+    {
+        nx = float_max(0.0f, float_min(255.0f, (n->x + 1.0f) * 127.5f));
+        ny = float_max(0.0f, float_min(255.0f, (n->y + 1.0f) * 127.5f));
+        nz = (ubyte)float_max(0.0f, float_min(255.0f, (n->z + 1.0f) * 127.5f));
+    }
+    void relocate(char *base) { ptr_relocate(&faces, base); }   // 0x564d30 vfx_ptr4_relocate
+    unsigned int done : 1;                    // +0x00 lit this frame
+    unsigned int vertex : 11;
+    unsigned int nx : 8;
+    unsigned int ny : 8;
+    unsigned int count : 4;                   //       entries of faces
+    ushort *faces;                            // +0x04 the faces sharing the vertex
+    ubyte r, g, b;                            // +0x08
+    ubyte nz;                                 // +0x0b
+};
+LAYOUT_CHECK(vfx_vnormal, sizeof(vfx_vnormal) == 0xc);
+
+// The uv animation of one face (0x48 bytes, vfx_node_desc +0x58): three u and three v channels, 4.12.
+struct vfx_face_uv_anim {
+    void relocate(char *base)                 // 0x564810 vfx_face_uv_anim__relocate
+    { for (int i = 0; i < 3; i++) { u[i].relocate(base); v[i].relocate(base); } }
+    float get_u(int i, int frame) { return fixed12_to_float(u[i].eval(frame)); }   // 0x564cc0
+    float get_v(int i, int frame) { return fixed12_to_float(v[i].eval(frame)); }   // 0x564ce0
+    vfx_channel u[3];
+    vfx_channel v[3];
+};
+LAYOUT_CHECK(vfx_face_uv_anim, sizeof(vfx_face_uv_anim) == 0x48);
+
+// Morph targets (vfx_node_desc +0x50): one 8.8 position channel per vertex, and the origin.
+struct vfx_mesh_morph {
+    void relocate(int count, char *base)      // 0x5647a0 vfx_mesh_morph__relocate
+    {
+        ptr_relocate(&channels, base);
+        for (int i = 0; i < count; i++)
+            channels[i].relocate(base);
+    }
+    vector3 get_pos(int vertex, int frame) { return channels[vertex].eval(frame); }   // 0x564b80
+    vfx_vec_channel *channels;                // +0x00
+    vector3 origin;                           // +0x04
+};
+
+// The animation of a billboard (0x3c bytes, vfx_node_desc +0x54): width, height (8.8) and position.
+struct vfx_mesh_anim {
+    void relocate(char *base)                 // 0x5647e0 vfx_mesh_anim__relocate
+    { a.relocate(base); b.relocate(base); vec.relocate(base); }
+    float get_a(int frame) { return fixed8_to_float(a.eval(frame)); }   // 0x564c00
+    float get_b(int frame) { return fixed8_to_float(b.eval(frame)); }   // 0x564c20
+    vector3 get_vec(int frame) { return vec.eval(frame); }              // 0x564c40
+    vfx_channel a;                            // +0x00 width
+    vfx_channel b;                            // +0x0c height
+    vfx_vec_channel vec;                      // +0x18 position
+};
+LAYOUT_CHECK(vfx_mesh_anim, sizeof(vfx_mesh_anim) == 0x3c);
+
+// The static vertices (vfx_node_desc +0x5c): x, y, z 8.8 per vertex, and the origin.
+struct vfx_mesh_vertices {
+    void relocate(char *base) { ptr_relocate(&data, base); }   // 0x564840 vfx_ptr0_relocate
+    vector3 get_vertex(int i)                 // 0x564bb0 vfx_mesh__get_vertex (hidden result)
+    { return vector3(fixed8_to_float(data[i * 3]), fixed8_to_float(data[i * 3 + 1]), fixed8_to_float(data[i * 3 + 2])); }
+    short *data;                              // +0x00
+    vector3 origin;                           // +0x04
+};
+
+// The size and position of a billboard (vfx_node_desc +0x60), 8.8. D5109: get_w / get_h are the code of
+// fx_rec28::get_age / get_lifetime (effect_mem.h); the linker kept one COMDAT for each pair, in this
+// object, under the particle names in sum.symbols.
+struct vfx_mesh_sprite {
+    float get_w() { return fixed8_to_float(w); }   // folded with fx_rec28::get_age (D5109)
+    float get_h() { return fixed8_to_float(h); }   // folded with fx_rec28::get_lifetime (D5109)
+    vector3 get_pos()                         // 0x564c80 vfx_get_fixed8_vector_4
+    { return vector3(fixed8_to_float(x), fixed8_to_float(y), fixed8_to_float(z)); }
+    short w, h;                               // +0x00
+    short x, y, z;                            // +0x04
+};
+
+// The transform of a mesh (0x84 bytes, vfx_node_desc +0x68).
+struct vfx_mesh_xform {
+    void relocate(char *base)                 // 0x564770 vfx_mesh_xform__relocate
+    { pos.relocate(base); scale.relocate(base); rot.relocate(base); }
+    // (fixed4, frame): + origin; with fixed4 (VFX_MESH_POS_FIXED4) the channel value / 16 (hidden result).
+    vector3 get_pos(int fixed4, int frame)    // 0x564ae0 (fixed4 tested as a dword)
+    { return (fixed4 ? pos.eval(frame) * 0.0625f : pos.eval(frame)) + origin; }
+    vector3 get_scale(int frame) { return scale.eval(frame); }   // 0x564b40
+    cquat get_rot(int frame) { return rot.eval(frame); }         // 0x564b60
+    vector3 origin;                           // +0x00
+    vfx_vec_channel pos;                      // +0x0c
+    vfx_vec_channel scale;                    // +0x30
+    vfx_quat_channel rot;                     // +0x54
+};
+LAYOUT_CHECK(vfx_mesh_xform, sizeof(vfx_mesh_xform) == 0x84);
+
+// decomp70: the mesh object's scratch arrays (defined with effect_mem.cpp's .bss: 0x272b900 in
+// effect_mem.cpp; 0x2c98a90-0x2c9f1af lies in its .bss but only the mesh code uses it, D5110).
+extern vector3 vfx_mesh_verts[1820];          // 0x272b900 this frame's vertices (update_frame)
+extern vfx_face_uv vfx_mesh_face_uvs[2200];   // 0x2c98a90 this frame's face uvs (update_frame)
 
 
 // A force of an effect file (0xa0 bytes, the base's table at +0x34; decomp66). get_channel64 is the

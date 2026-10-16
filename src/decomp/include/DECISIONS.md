@@ -3853,3 +3853,187 @@ byte_count_to_string 0x515760, vector3_to_string_buf 0x515800, ptr_to_hex_string
 before the inline copy's `not ecx` (`mov eax, [esp+0x2c]` at 0x515687); `return strcpy(..)` loads it after.
 With the two statements all six compile byte for byte (vc6-compare, /O2); the first demonstration of a source
 shape found by the compiler.
+
+## decomp71 (the party inventory unit 0x46b460-0x46c5cd, the item info popup 0x418580-0x419166, alt_textures 0x4aac10-0x4ab0ef, the join / tracker unit 0x4ab0f0-0x4abb73, the game tracker client 0x4ae330-0x4ae882, the level-object ray tests 0x4ae890-0x4af335; all placeholders)
+
+**D5200 (no file). 0x43d190-0x43d510 and 0x419170-0x4191a0 need no new source.** The 39 functions of the first range
+are compiler output of summoner.cpp's definitions that are already written: init_game_config_defaults is the inline
+constructor of `SummonerOptions Summoner_options`, the nine sinit_ / init_ / register_dtor_ / dtor_ quads are the
+nine `CmdLineParam cmdline_param_*` objects, init_ccmd_gamma_thunk / init_ccmd_gamma is `console_command
+ccmd_gamma(...)`. summoner.cpp lists them in comments (`0x43d180 ...`, `0x43d220-0x43d265`, ...), as new_itemtrade.cpp
+does for its two RealtimeTimer pairs 0x419170-0x4191a0. Their source line is the object definition, so nothing is
+added; the tool that lists "functions without source" should count those comment ranges.
+
+**D5201 (game/unnamed_party_inventory_0x46b460.cpp). The add_gold command ends the party inventory unit.** Its
+initialiser pair 0x46c540 / 0x46c550 and cmd_add_gold 0x46c570 sit between character_wearing_servant_disguise and
+item_paging.cpp's initialiser 0x46c5d0; the object 0x970810 is the lowest address of the inventory .bss
+(0x970810-0x97186f), and its literals ("add_gold" 0x59a6e4 ...) follow the servant item names in the same .data
+block. VC6 emits a dynamic initialiser where the object is defined, so `console_command ccmd_add_gold` is written
+after the last inventory function, before cmd_add_gold (as summoner.cpp does for ccmd_gamma). sum.symbols' old
+item_paging.cpp tag on 0x46c540-0x46c570 is not followed (source-map.md left it open).
+
+**D5202 (game/unnamed_item_info_popup_0x418580.cpp). The item info popup is a unit of its own.** It starts with its
+own dynamic initialiser (0x418580, static_initializers entry 53, the popup's RealtimeTimer 0x5c1544) after
+new_inventory.cpp's last function (0x418540) and before new_itemtrade.cpp's initialisers (entries 54-55, 0x419170);
+its .rdata 0x57fdbc-0x57fe3f, .data 0x58cbd8-0x58cd9f and .bss 0x5c1470-0x5c156b lie exactly between the two
+screens' blocks. No name evidence: placeholder. The six functions other units call stay declared in interface.h;
+the rest is in summoner/interface/unnamed_item_info_popup_0x418580.h, which also declares new_buysell.cpp's
+buysell_cameras (defined there, declared nowhere before; the popup reads the shop's camera table for both screens).
+
+**D5203 (engine/objects/objects.h). SIGNATURE: two byte parameters.** party_inventory_remove (0x46bb30) reads its second
+argument with `mov al, [esp + 8]` and character_unequip_slot (0x46c240) its third with `mov al, [esp + 0x14]`; an
+int would be read as a dword. Both are now bool (free_item, update_model). Every caller passes 0 or 1 and compiles
+unchanged. Parameter names of party_inventory_add_item / _add_type / _add_by_name (count, charges, sort) from the
+code: charges < 0 means the charge effect's maximum, sort calls party_inventory_sort.
+
+**D5204 (game/unnamed_party_inventory_0x46b460.cpp). Breakable charged items.** character_use_inventory_item and
+character_use_equipped_item treat ItemType charge_effect->disposable as: >= 1.0 one unit (stack) or charge used, the
+item removed at 0; a fraction is the chance that the item breaks on this use, otherwise one charge goes but the
+item is kept at 0 charges (it can no longer be used: the first test is charges > 0). Written as the code is.
+
+**D5205 (character_equip_item 0x46bdf0). item_is_identified is called twice.** For a party member (type 7) the code
+calls item_is_identified(item) and, when it is true, calls it again (0x46be20, 0x46be31) before refusing. Written as
+`(!item_is_identified(item) || !item_is_identified(item))`; the second call may be another function folded with it
+by the linker (identical code).
+
+**D5206 (source-map 0x4aac10-0x4abb7f). Two units, cut at 0x4ab0f0.** alt_textures (0x4aac10-0x4ab0ef) uses only
+.data 0x59d39c-0x59d3c3 and .bss 0x2476bb8-0x24794bb; static_init_mp_join_timer (0x4ab0f0) starts the join / tracker
+code, whose initialised data (0x59d3c4, the accepted checksums) and .bss (0x24794bc-0x2479727) follow. Written as
+game/unnamed_alt_textures_0x4aac10.cpp and game/unnamed_mp_join_0x4ab0f0.cpp.
+
+**D5207 (alt_textures_parse_table 0x4aac10). Two unchecked buffers (latent bugs).** The "$Base:" name is parsed with
+a limit of 0x28 into a 0x21-byte row of alt_texture_bases (0x4aad01-0x4aad0f), so a name of 33..40 characters runs
+into the next row; the texture names of a set are stored without a count check (15 slots: bitmaps +0x2c, names
++0x6a), so a 16th texture overwrites the next set. The shipped table was not checked against either limit.
+
+**D5208 (objects.h equip_page_slots 0x5819d4). Not defined in this unit.** The table sits in .rdata after objects.cpp's
+225.0f (0x5819d0) and before shared float constants; nothing in 0x46b460-0x46c5cd reads it (inventory_page_in_equipped
+and mp_page_in_player_items do). It may be this unit's or item_paging.cpp's; left extern, owner open.
+
+**D5209 (engine/rendering/levelrender.h). lobj_ray / lobj_hit fields.** lobj_ray +0x28 is a float limit
+(lobj_raycast_all: `fld hit.t; fcomp [ray + 0x28]`, 0x4af2fd): union `stop_t` with `_unk28` (existing writes of
+_unk28 compile). +0x2c is the face tested with flag 2 (lobj_raycast pushes it as the face argument; living_entity.cpp
+already stores a face pointer cast to int): union `face`. lobj_hit +0x14 is the plane normal of the hit (the face
+tests copy their normal there): `vector3 normal` replaces `int _unk14[3]` (no code used _unk14). +0x20 is 1 for an
+edge / vertex hit of the sphere test. New declarations: lobj_ray_test_geometry / _faces, lobj_sphere_test_faces,
+lobj_raycast_bsp, lobj_last_hit_face / _index.
+
+**D5210 (mp_handle_join_request 0x4ab350). The version check cannot fail against a 1.40 client.** The host accepts a
+JN_RQST whose last dword equals its items_table_checksum or one of {0xf174baca, 0x6e4c08c4} (0x59d3c4, count
+0x59d3cc); the 1.40 sender (mp_send_jn_rqst, 0x470cad) puts the constant 0xf174baca there, not its own checksum. So a
+client with a different items.tbl is never refused (deny 8 needs another build). Comment only.
+
+**D5211 (mp_change_level 0x4ab780). Dead slot search.** The loop over the level's seven conversation_save_table slots
+looking for "<level>_m1" (0x4ab7d5-0x4ab7ff) leaves its index in ebx, which nothing reads. Written as a loop whose
+result is unused.
+
+**D5212 (tracker_start_game 0x4ab960). The channel copy is unchecked.** tracker_game_channel (0x100 bytes) is copied
+with strcpy into the 0x24-byte channel field of the 0x58-byte record, which ends where tracker_game_channel itself
+begins (0x2479520): a channel name of 36 or more characters overwrites the start of its own source. IRC channel
+names of the lobby are at most 0x20 characters (lobby_channel name[0x21]), so it is latent.
+
+**D5213 (source-map 0x4ae330-0x4af320). The game tracker client and the ray tests are two placeholder units.** The
+tracker's .bss runs from 0x247b0a0 to 0x247e818 (the last block is the 0x5f1-byte heartbeat packet at 0x247e228; the
+source map's 0x247e23d is only its last referenced field), the ray tests' from 0x247e81c; the tracker code has its
+own literals (0x59d618-0x59d647) and shares nothing with the geometry code. Whether the tracker is the tail of
+multi_chattracker.cpp (its .bss follows that file's directly) stays open. Files: game/unnamed_gtrack_0x4ae330.cpp,
+game/unnamed_lobj_raycast_0x4ae890.cpp, headers summoner/multi/unnamed_gtrack_0x4ae330.h (and
+unnamed_mp_join_0x4ab0f0.h for the join unit). The code matches the PXO game tracker client of Volition's published
+FreeSpace 2 source in structure (packet header len / game_type / addr / type / sig / data, 20 list buffers, the
+`i = MAX + 1` loop exit); that is not name evidence under the project rules, so no name is taken from it.
+
+**D5214 (gtrack_send_heartbeat 0x4ae410). The length test.** A received packet is handled only when the datagram size
+equals its len field minus one, and the decremented value is stored back (`dec ecx; cmp eax, ecx; mov [len], ecx`,
+0x4ae572-0x4ae575). Written as `size != (int)--in.len`; whether the server counts one byte more or this is an
+off-by-one is not known.
+
+**D5215 (lobj_ray_test_faces / lobj_sphere_test_faces). Back faces use different flags.** A thin ray accepts a face
+seen from behind when face flag 0x200 is set (`test byte [esi + 1], 2`, 0x4aea9b), the swept sphere when flag 0x20
+(texture with alpha, s3d_mark_alpha_meshes) is set (`test byte [edi], 0x20`, 0x4aec6f). Written as the code is; one
+of the two may be a typo of the other (unsure, comment only).
+
+**D5216 (lobj_raycast_bsp 0x4aeef0). A full node stack drops a subtree (latent).** When 128 crossed nodes are pending
+(`cmp edx, 0x80; jae`, 0x4af0a5) the current node is neither pushed nor descended: its faces and both children are
+skipped. Needs a tree deeper than 128 crossed levels along one segment; not seen.
+
+**D5217 (engine/characterinfo/characterinfo.h). alt_texture_set is 0x2d4 bytes with a name.** alt_textures_parse_table
+allocates n * 0x2d4 and parses the "+Textures:" set name into +0x00 with a limit of 0x28; alt_textures_find_entry
+compares +0x00. `ubyte _unk00[0x2c]` becomes `char name[0x28]` + `_unk28[4]`, LAYOUT_CHECK 0x2d4 added. No code used
+_unk00.
+
+**D5218 (engine/objects/objects.h, game/unnamed_party_inventory_0x46b460.cpp). The party inventory globals and the two
+unreferenced tables are defined here.** party_inventory (0x970820), party_gold (0x971868) and party_inventory_count
+(0x97186c) had declarations but no definition. .data 0x59a660 {"Weapons", "Armor", "Magic", "Jewelry", "Misc"} and
+0x59a674 {0, 1, 2, 3, 4} have no reference in Sum.exe; they are this unit's initialised data (between the servant
+list 0x59a63c and its literals), so they are written as shop_category_names / shop_category_ids (names ours).
+
+## decomp70 (0x550660-0x5534d0, 0x553ba0-0x5548b0, 0x562460-0x562550, 0x562a20-0x564d60, 0x565610-0x5664a0)
+
+**D5100 (unit boundaries).** Six placeholder units. anim_track 0x550660-0x5519b9 (vsdk\ca; no data; its
+inline accessors 0x551770-0x55195d and quaternion::unpack_short4 0x551960 are the closing COMDATs), the polygon
+clipper 0x5519c0-0x5520c0 (vsdk\geom; opened by initialiser 0x5519c0, table 0x588a20; .bss 0x2f13368-0x2f136e7),
+CRC-32 0x5520d0-0x552192 (.bss 0x2f136e8-0x2f13ae8, the next block), ui_inputbox 0x5521a0-0x5534e1 (ends before
+ui_container.cpp), ui_checkbox / ui_radio_button 0x553ba0-0x5549b9 (after ui_container.cpp, before targautils.cpp),
+and the vfx mesh object 0x562a30-0x564d62 (D4611). The anim_track code and the polygon clipper are separate
+objects: the clipper's initialiser opens its own object. Whether the checkbox code is one object with
+ui_container.cpp's neighbours cannot be told (no data); it is one placeholder. 0x562460-0x562540 / 0x562a20 (the
+emitter accessors) and 0x565610 were already written (inline in vfx.h / effect_mem.h, listed in the emitter and
+material files); 0x565660-0x5664a0 is libjpeg (identified in decomp66, not rewritten).
+
+**D5101 (skeleton.h). anim_track's scale keys.** +0x04 is a ushort count (init_tangents and get_scale loop over
+`word ptr [esi+4]`), +0x10 a pointer to 0x28-byte keys (scale_key_value reads +0x10, stride 0x28, +4) and +0x24 /
++0x28 their control points (stride 0xc), as the position keys. Were int _unk04, int _unk10, ubyte _unk24[8]; no
+code used them. The rotation key bytes +0x0c..+0x0e are tension, continuity and bias (the accessors at 0x551840,
+0x551820, 0x551860); the field names (tangent[3], ease_in / ease_out) are kept for the cutscene camera reader.
+
+**D5102 (quaternion.h). unpack_short4 is inline.** Its only copy (0x551960) closes the anim_track object, which
+was built without inline expansion (every vector3 / cquat operator is called there); the vfx units call that
+copy. Declared inline after cquat (the body needs the complete type); no definition existed.
+
+**D5103 (skeleton.h, SIGNATURE). init_tangents and get_rotation take bools.** Both pass their flag on as the
+dword they got (`mov ebx, [esp+0x28]; push ebx`, 0x551004; `mov edx, [esp+0x28]; push edx`, 0x5513f7) and the
+callees test a byte (`mov bl, [esp+0x70]` in calc_rot_tangents, `mov al, [esp+0x2c]` in
+anim_track_interp_rotation): with an int parameter VC6 would normalise it to a bool first. Callers pass 0 / 1.
+
+**D5104 (ix.h, SIGNATURE). polygon_touches_planes' offset is a float.** It is passed on to plane_classify_point,
+which loads it with FLD (0x551e0e). Was int; the three callers pass 0.
+
+**D5105 (ui_gadgets.h, SIGNATURE). ui_inputbox::set_valid_chars / set_invalid_chars / set_text return int.**
+`xor eax, eax` / `mov eax, 1` (0x55288e, 0x552b8e; 0x553044, 0x553064): a bool would be returned in AL (as
+is_char_allowed does, `xor al, al` / `mov al, 1`). Were void; no caller reads the result. ui_inputbox gets its
+four virtual slots (0, 5, 7, 8 of 0x581f1c) and its fields (+0x274 flags, the three 0x100-byte strings, +0x57c the
+colour pointer; were _unk274 / _unk57c). ui_checkbox gets its fields (were _unk274[0x120]) and toggle.
+
+**D5106 (vfx.h). The mesh descriptor.** vfx_node_desc's layout from vfx_node_desc::relocate (0x5645b0: the
+pointers +0x38 .. +0x6c, the name +0x94 against the header base, the BitArray +0x44, the header +0x00..+0x0b
+through vfx_node_header::relocate), update_frame (+0x0c flags and frame rate, +0x0e .. +0x16 counts, +0x30, the
+rest pose +0x70 / +0x7c / +0x84, +0x9c) and render_mesh. The header relocation is written as a cast to
+vfx_node_header (the call passes `this`); the BitArray as a POD mirror (frames_data ..) with a cast in frame_bit and
+relocate, because it shares a union with D5107's alias. The records it points to are new types in vfx.h (names
+ours; the accessor names are sum.symbols').
+
+**D5107 (vfx.h). glow_pos is not a mesh field.** decomp63 wrote lamp_glow_update_effects as reading
+rec->glow_pos (+0x48 of the mesh descriptor), but the code reads `[eax+0x48]` with EAX = effect_get_base's result
+(0x484690): the vfx_base's pos. +0x48 of the descriptor is inside the frame BitArray. Kept as a union alias of POD
+type (vfx_vector3_alias, convertible to vector3) so unnamed_render_scene_0x481680.cpp compiles; that file should
+read base->pos (NOTES.md).
+
+**D5108 (vfx.h). Face normals are signed bit fields.** vfx_unpack_vector_s8 (0x564a20) extracts the three bytes
+with SAR (signed) and maps each with * (1 / 127.5) - 1, the unsigned mapping the vertex normals use with SHR
+(0x5648c0). Written as `int nx : 8` fields so the code matches; the mismatch is listed as a bug.
+
+**D5109 (vfx.h). The billboard size accessors fold with the particle's.** vfx_mesh_sprite::get_w / get_h (the
+words +0 / +2 as 8.8) have the code of fx_rec28::get_age / get_lifetime; the COMDATs 0x564c60 / 0x564c70 sit in
+the mesh object's accessor block, so the mesh's copies are the ones the linker kept. The addresses stay on the
+fx_rec28 declarations (one declaration per address).
+
+**D5110 (vfx.h). The mesh scratch arrays.** vfx_mesh_verts (0x272b900, 1820 vector3) is defined in effect_mem.cpp;
+vfx_mesh_face_uvs (0x2c98a90-0x2c9f1af, 2200 x 0xc bytes: the "not placed" hole of effect_mem.cpp's .bss) is
+used only by the mesh object but lies in effect_mem.cpp's .bss, so its definition belongs there (not added: the
+file is the lead's). Both declared extern in vfx.h.
+
+**D5111 (gr.h, unnamed_gr_3d_0x50d9b0.h).** gr_poly_rgb (0x545610) and gr_bitmap_3d_oriented (0x53f410) declared
+(the mesh object calls them). gr_sort_entry's value gets a ushort alias (index): render_mesh stores and reloads it
+with word moves (0x563326, 0x5633bb). render_mesh passes the sort key (a float) as gr_poly_begin's second int
+argument (`mov eax, [edx]; push eax`, 0x563481): written as a reinterpreting cast; gr_poly_begin's parameters are
+not changed.

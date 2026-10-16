@@ -61,12 +61,20 @@ struct lobj_ray {
     lobj_ray() { _unk30 = 0; }
     vector3 start;                    // +0x00
     vector3 dir;                      // +0x0C length = reach
-    float _unk18;                     // +0x18
-    int flags;                        // +0x1C bit 1 selects lobj_ray_test_geometry
+    float _unk18;                     // +0x18 sphere radius: below 0.0001 a thin ray (lobj_ray_test_geometry; decomp71)
+    int flags;                        // +0x1C bit 1 tests only the face _unk2c (lobj_raycast); lobj_raycast_all:
+                                      //       bit 0 stop at the first hit, bit 2 stop at a hit nearer than stop_t
     unsigned int require_flags;       // +0x20 lobj flags that must all be set
     unsigned int exclude_flags;       // +0x24 lobj flags that must be clear
-    int _unk28;                       // +0x28
-    int _unk2c;                       // +0x2C
+    union {                           // +0x28
+        int _unk28;
+        float stop_t;                 //       decomp71: lobj_raycast_all compares hit.t with it (fcomp at 0x4af300)
+    };
+    union {                           // +0x2C
+        int _unk2c;
+        s3d_face *face;               //       decomp71: the one face tested with flag 2 (living_entity.cpp stores
+                                      //       &mesh->faces[i] cast to int)
+    };
     union {                           // +0x30
         int _unk30;
         float min_radius;             //       decomp57: lobj_raycast_draw_lists skips objects whose mesh radius
@@ -82,8 +90,8 @@ struct lobj_hit {
     int num_hits;                     // +0x00
     float t;                          // +0x04 hit distance as a fraction of ray.dir
     vector3 pos;                      // +0x08 the hit point (character_probe_lobj_ground; decomp37, was _unk08[6])
-    int _unk14[3];                    // +0x14
-    int _unk20;                       // +0x20
+    vector3 normal;                   // +0x14 the face plane's normal towards the ray (decomp71; was int _unk14[3])
+    int _unk20;                       // +0x20 1 when lobj_sphere_test_faces hit an edge or vertex (decomp71)
     int face;                         // +0x24 the level object index (world_pick_lobj, level_scripts.cpp's
                                       //        lobj_from_index(hit.face); character_probe_lobj_ground reads it
                                       //        as a word); copied to item_obj +0xa8
@@ -94,9 +102,20 @@ struct lobj_hit {
 };
 LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
 
-// Level object ray tests (unit 0x4ae330-0x4b0210, file not known).
+// Level object ray tests (unit 0x4ae890-0x4af335, file not known; game/unnamed_lobj_raycast_0x4ae890.cpp,
+// decomp71).
 void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear);   // 0x4ae890
 void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit);                           // 0x4af2c0
+// decomp71: the geometry tests (face, geometry, lobj index, ray in the object frame, hit).
+void lobj_ray_test_geometry(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_ray *ray, lobj_hit *hit);  // 0x4aea00
+void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_ray *ray, lobj_hit *hit);     // 0x4aea50
+void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_ray *ray, lobj_hit *hit);  // 0x4aec20
+// (the geometry's node block, its first node, geometry, lobj index, ray, hit).
+void lobj_raycast_bsp(s3d_geom_block *block, void *root, s3d_geometry *g, int lobj_index, lobj_ray *ray,
+                      lobj_hit *hit);                                                                       // 0x4aeef0
+// The face and object of the last hit of the two face tests (written, never read; names ours).
+extern s3d_face *lobj_last_hit_face;                 // 0x247e81c
+extern int lobj_last_hit_index;                      // 0x247e820
 // decomp37 (living_entity.cpp):
 // decomp57 (D3710): returns the hit count; `blocked` is the list stage byte (0 attachments, 1 opaque,
 // 2 sorted; written through a char pointer, it takes the value 2), the last argument a bool (when true

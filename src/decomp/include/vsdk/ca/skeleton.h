@@ -1,5 +1,5 @@
 // vsdk/ca/skeleton.h - animations (.mvf skeletons), key tracks and .vim meshes (vsdk\ca\skeleton.cpp,
-// path references 0x543d8c-0x5449da; anim_track 0x550f90-0x551350 is in an unnamed unit). Not original
+// path references 0x543d8c-0x5449da; anim_track 0x550660-0x5519b9 is in an unnamed unit, decomp70). Not original
 // source. Field names ours unless a symbol comment names them.
 // decomp25: skeleton.cpp written (0x543040-0x544b7e); the layouts below are completed from it.
 #ifndef VSDK_CA_SKELETON_H
@@ -40,7 +40,7 @@ LAYOUT_CHECK(anim_pos_key, sizeof(anim_pos_key) == 0x28);
 class anim_rot_key : public anim_key {
 public:
     cquat q;                          // +0x04
-    signed char tangent[3];           // +0x0c version 0/1 files only (float * 127)
+    signed char tangent[3];           // +0x0c tension, continuity, bias (float * 127; decomp70)
     signed char ease_in;              // +0x0f percent * 2.54
     signed char ease_out;             // +0x10
 };
@@ -55,25 +55,65 @@ LAYOUT_CHECK(anim_vec_key, sizeof(anim_vec_key) == 0x10);
 
 // One key track of a skeleton (0x2c bytes per bone, skeleton +0x8c). skeleton_read clears it and sets
 // the counts and key pointers (into the skeleton's key arrays); the rest is anim_track's own.
+// decomp70: the anim_track unit is vsdk/unnamed_anim_track_0x550660.cpp (0x550660-0x5519b9, built
+// without inline expansion). The small accessors below are inline: their only copies are the COMDATs
+// at the end of that object (0x551770-0x55195d, in this order). The rotation key bytes +0x0c..+0x0e
+// are the tension, continuity and bias (tangent[0..2]) and +0x0f / +0x10 the ease to / ease from
+// (ease_in / ease_out), all read as value / 127 (0x581eb8). The track also has scale keys (+0x04
+// count, +0x10 keys, +0x24 / +0x28 their control points; D5101); the vfx mesh code (anim_track
+// get_scale, relocate) is their only user.
 class anim_track {
 public:
-    void init_tangents(int flag);                     // 0x550f90 anim_track__init_tangents (decomp25)
-    quaternion get_rotation(int time, int flag);      // 0x551350 (flag 0 in the pilots)
+    // decomp70 (D5103): both flags are bools (passed on as dwords, tested as bytes); were int.
+    void init_tangents(bool loop);                    // 0x550f90 anim_track__init_tangents (decomp25)
+    quaternion get_rotation(int time, bool squad);    // 0x551350 (0 for skeletons, 1 for the cutscene camera)
     vector3 get_position(int time);                   // 0x551090
+    // decomp70 (the rest of the unit).
+    void calc_pos_controls(int key);                  // 0x550660 control b = value + out, a = value + in
+    void calc_rot_tangents(int key, bool loop);       // 0x5506e0 the squad inner quaternions (TCB)
+    void calc_scale_controls(int key);                // 0x550d10
+    void eval_scale_bezier(vector3 *out, int k0, int k1, float t);   // 0x550d90
+    void get_rot_time_range(int *first, int *last);   // 0x550f60 first and last rotation key time
+    vector3 get_scale(int time);                      // 0x551520 (vfx_mesh_instance::update_frame)
+    void relocate(char *base);                        // 0x551700 the nine pointers (vfx_mesh::relocate)
+
+    vector3 *pos_key_value(int i) { return &pos_keys[i].pos; }       // 0x551770
+    vector3 *pos_key_in(int i) { return &pos_keys[i].in; }           // 0x551790
+    vector3 *pos_key_out(int i) { return &pos_keys[i].out; }         // 0x5517b0
+    vector3 *pos_control_a(int i) { return &pos_aux_a[i]; }          // 0x5517d0
+    vector3 *pos_control_b(int i) { return &pos_aux_b[i]; }          // 0x5517e0
+    int rot_key_time(int i) { return rot_keys[i].time; }             // 0x5517f0
+    cquat *rot_key_quat(int i) { return &rot_keys[i].q; }            // 0x551800
+    float rot_key_continuity(int i) { return rot_keys[i].tangent[1] * (1.0f / 127.0f); }   // 0x551820
+    float rot_key_tension(int i) { return rot_keys[i].tangent[0] * (1.0f / 127.0f); }      // 0x551840
+    float rot_key_bias(int i) { return rot_keys[i].tangent[2] * (1.0f / 127.0f); }         // 0x551860
+    cquat *rot_inner_a(int i) { return &rot_aux_a[i]; }              // 0x551880
+    cquat *rot_inner_b(int i) { return &rot_aux_b[i]; }              // 0x551890
+    vector3 *scale_key_value(int i) { return &scale_keys[i].pos; }   // 0x5518a0
+    vector3 *scale_key_in(int i) { return &scale_keys[i].in; }       // 0x5518c0
+    vector3 *scale_key_out(int i) { return &scale_keys[i].out; }     // 0x5518e0
+    vector3 *scale_control_a(int i) { return &scale_aux_a[i]; }      // 0x551900
+    vector3 *scale_control_b(int i) { return &scale_aux_b[i]; }      // 0x551910
+    float rot_key_ease_to(int i) { return rot_keys[i].ease_in * (1.0f / 127.0f); }         // 0x551920
+    float rot_key_ease_from(int i) { return rot_keys[i].ease_out * (1.0f / 127.0f); }      // 0x551940
+
     ushort num_pos_keys;              // +0x00
     ushort num_rot_keys;              // +0x02
-    int _unk04;
+    ushort num_scale_keys;            // +0x04 (decomp70; was int _unk04)
+    ushort _unk06;
     anim_pos_key *pos_keys;           // +0x08
     anim_rot_key *rot_keys;           // +0x0c
     // decomp54 (cutscene_camera_read_track hands these out from its pools, one entry per key; D3402):
     // two 0xc-byte arrays per position key and two 8-byte arrays per rotation key (was _unk10[0x1c]).
-    // Names ours.
-    int _unk10;                       // +0x10
+    // Names ours. decomp70: pos_aux_a / _b are the Bezier control points a (before the key) and b
+    // (after it), rot_aux_a / _b the squad inner quaternions.
+    anim_pos_key *scale_keys;         // +0x10 (decomp70; was int _unk10) same 0x28-byte layout
     vector3 *pos_aux_a;               // +0x14
     vector3 *pos_aux_b;               // +0x18
     cquat *rot_aux_a;                 // +0x1c
     cquat *rot_aux_b;                 // +0x20
-    ubyte _unk24[8];                  // +0x24
+    vector3 *scale_aux_a;             // +0x24 (decomp70; was ubyte _unk24[8])
+    vector3 *scale_aux_b;             // +0x28
 };
 LAYOUT_CHECK(anim_track, sizeof(anim_track) == 0x2c);
 // (t, ease_from, ease_to): the 3D Studio style ease of a key interval (cdecl; decomp54, the camera blend).

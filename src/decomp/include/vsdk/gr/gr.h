@@ -477,6 +477,10 @@ void gr_poly_vertex(gr_vertex *v);                                             /
 void gr_poly_set_texture(gr::Mode mode, int bm, int r, int g, int b, int a, int flags);   // 0x545340
 void gr_poly_uv(float u, float v);                                             // 0x5455a0
 void gr_poly_alpha(ubyte a);                                                   // 0x545760
+// decomp70 (the vfx mesh object): (r, g, b) of the current vertex (gr_tint applied).
+void gr_poly_rgb(ubyte r, ubyte g, ubyte b);                                   // 0x545610
+// decomp70: as gr_bitmap_3d, through the oriented quad 0x53edd0 (pos, angle, width, height, mode).
+void gr_bitmap_3d_oriented(vector3 *pos, float angle, float w, float h, gr::Mode mode);   // 0x53f410
 void gr_poly_end();                                                            // 0x5457b0
 
 

@@ -67,8 +67,24 @@ bool  ix_ray_plane(ix_ray *ray, plane *pl, vector3 *out);    // 0x53ce30
 // decomp56: polygon tests against plane sets (vsdkgeom in sum.symbols, file not known), used by the
 // decal, shadow and projector code. (n, points, planes, count, offset): false when for some plane no
 // point lies behind it. (n < 32, in, out, planes, count): clips in to out, the vertex count (< 3: gone).
-int   polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, int offset);   // 0x551f90
+// decomp70 (D5104): offset is a float (plane_classify_point loads it with FLD; was int).
+int   polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, float offset);   // 0x551f90
 int   polygon_clip_to_planes(int n, const vector3 *in, vector3 *out, const plane *planes, int num_planes);   // 0x551e90
+// decomp70: the rest of the polygon clip unit (vsdk/unnamed_poly_clip_0x5519c0.cpp; cdecl). Point against
+// plane at distance offset: 1 in front (> offset + 0.0001), 2 behind (< offset - 0.0001), 3 on it.
+int   plane_classify_point(const plane *pl, const vector3 *p, float offset);   // 0x551e00
+// One Sutherland-Hodgman pass (the part behind the plane is kept); returns the new count.
+int   polygon_clip_to_plane(int n, const vector3 *in, vector3 *out, const plane *pl);   // 0x551ca0
+int   polygon_any_point_in_front(int n, const vector3 *pts, const plane *pl);   // 0x551e50 (no caller)
+// (point, radius, planes, count, offset): every plane distance < radius + offset - 0.0001 / < offset -
+// 0.0001 - radius (no callers).
+bool  sphere_intersects_plane_volume(const vector3 *p, float radius, plane *planes, int num_planes, float offset);   // 0x552010
+bool  sphere_inside_plane_volume(const vector3 *p, float radius, plane *planes, int num_planes, float offset);   // 0x552070
+// (num_edges, clip polygon, n, verts, out, result): clips the 2D polygon verts against the convex
+// polygon (its edge normals face away from its third vertex); *result = out when a vertex changed (then
+// the vertices are copied to out). Returns the count, 0 when fewer than 3 remain (no caller).
+int   polygon_clip_2d(int num_edges, const vector2 *edges, int n, vector2 *verts, vector2 *out,
+                      vector2 **result);   // 0x5519f0
 // decomp67: the result is the closest point's distance along a-b (clamped to 0..|b - a|), not its
 // distance from p.
 float ix_point_linesegment(const vector3 *p, const vector3 *a, const vector3 *b, vector3 *closest);   // 0x53da80

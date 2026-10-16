@@ -158,17 +158,31 @@ extern int party_inventory_count;                    // 0x97186c
 #define MAX_CONTAINERS 40
 extern container containers[MAX_CONTAINERS];         // 0x2302fe0 (containers_construct; decomp27)
 
+// decomp71: the unit is game/unnamed_party_inventory_0x46b460.cpp (0x46b460-0x46c5cd, file name not known).
+int  party_inventory_find_next_in_category(int start, int category, party_inventory_entry *list,
+                                           int count);                // 0x46b460
+int  shop_inventory_find_next_in_category(int start, int category, shop_item *list, int count); // 0x46b4b0
+int  party_inventory_compare(const void *a, const void *b);         // 0x46b500 qsort
+int  shop_inventory_compare(const void *a, const void *b);          // 0x46b560 qsort
+extern const char *servant_disguise_items[9];        // 0x59a63c per equipment index (names ours)
+extern const char *shop_category_names[5];           // 0x59a660 never read
+extern int shop_category_ids[5];                     // 0x59a674 never read
+class console_command;
+extern console_command ccmd_add_gold;                // 0x970810
+void cmd_add_gold();                                 // 0x46c570
 int  party_inventory_find_first_in_category(int category, party_inventory_entry *list, int count); // 0x46b5b0
 int  shop_inventory_find_first_in_category(int category, shop_item *list, int count);  // 0x46b5d0
 int  item_type_shop_category(int type);              // 0x46b5f0 (0 weapons .. 4 misc, -1)
 void party_inventory_sort(party_inventory_entry *inv, int count);   // 0x46b640
 void party_inventory_reset();                        // 0x46b680 gold 30, count 0 (decomp51: state_title_enter)
-void party_inventory_add_item(item_info *item, int a, int b);       // 0x46b870 (called (item, 1, 1))
-void party_inventory_add_type(int type, int count, int a, int b);   // 0x46b980 (called (type, 1, -1, 1); return unused)
-void party_inventory_remove(int slot, int a, int b); // 0x46bb30 (called (slot, 1, 1) and (slot, 0, 1))
+void party_inventory_add_item(item_info *item, int count, int sort);  // 0x46b870 (called (item, 1, 1))
+// charges < 0: the charge effect's maximum.
+void party_inventory_add_type(int type, int count, int charges, int sort);   // 0x46b980 (called (type, 1, -1, 1))
+// decomp71 (D5203): free_item is a byte (`mov al, [esp + 8]`); was int.
+void party_inventory_remove(int slot, bool free_item, int sort); // 0x46bb30 (called (slot, 1, 1) and (slot, 0, 1))
 int  party_inventory_find_type(ItemType *type);      // 0x46bd00, index or -1
 // decomp35: (name, count, -1, 1) from container_examine; return unused. The last two not known.
-void party_inventory_add_by_name(const char *name, int count, int a, int b);   // 0x46bb00
+void party_inventory_add_by_name(const char *name, int count, int charges, int sort);   // 0x46bb00
 int  character_find_equipped_type(Character *c, ItemType *type);    // 0x46c3b0 slot or -1
 void party_inventory_clear();                        // 0x46bbb0 item_free on every entry (decomp24)
 int  party_inventory_find_type_index(int type);      // 0x46bd60 by item type index, -1 none (decomp24)
@@ -184,7 +198,8 @@ bool character_use_inventory_item(Character *c, party_inventory_entry *entry, in
                                   void *point, int arg);              // 0x46bc00 (point type guessed)
 void character_equip_item(item_info **out_old1, item_info **out_old2, Character *c, int slot,
                           item_info *item);                           // 0x46bdf0 (return unused)
-item_info *character_unequip_slot(Character *c, int slot, int update_model); // 0x46c240
+// decomp71 (D5203): update_model is a byte (`mov al, [esp + 0x14]`); was int.
+item_info *character_unequip_slot(Character *c, int slot, bool update_model); // 0x46c240
 int  items_same_type(item_info *a, item_info *b);    // 0x46c3e0
 bool character_use_equipped_item(Character *c, int slot, int target_handle,
                                  void *point, int arg);               // 0x46c410 (point type guessed)

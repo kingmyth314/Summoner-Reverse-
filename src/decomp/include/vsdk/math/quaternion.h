@@ -90,6 +90,15 @@ public:
 };
 LAYOUT_CHECK(cquat, sizeof(cquat) == 8);
 
+// decomp70 (D5102): the body of quaternion::unpack_short4 (0x551960).
+inline void quaternion::unpack_short4(const cquat &q)
+{
+    x = q.x * CQUAT_TO_FLOAT;
+    y = q.y * CQUAT_TO_FLOAT;
+    z = q.z * CQUAT_TO_FLOAT;
+    w = q.w * CQUAT_TO_FLOAT;
+}
+
 extern cquat cquat_identity;                          // 0x2cbf498 (0, 0, 0, 16383), static initialiser
 extern quaternion quaternion_identity;                // 0x2cbf4a0 (0, 0, 0, 1), static initialiser
 

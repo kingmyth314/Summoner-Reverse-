@@ -145,13 +145,16 @@ struct resistance_set {
 #define MOVE_TYPE_STATE        14       // "state" moves (named anims: charinfo_find_anim)
 #define MOVE_TYPE_SCRIPT       15       // script anims (charinfo_load_script_anim, no table name)
 // An alternate texture set (alt_textures.tbl; char_info +0x268). Only the fields living_entity_init
-// reads (decomp37); names ours.
+// reads (decomp37); names ours. decomp71: 0x2d4 bytes (alt_textures_parse_table's operator new of
+// n * 0x2d4); the set name is parsed into +0x00 with a limit of 0x28 (game/unnamed_alt_textures_0x4aac10.cpp).
 struct alt_texture_set {
-    ubyte _unk00[0x2c];
-    int bitmaps[15];                  // +0x2C bm_load handles
+    char name[0x28];                  // +0x00 "+Textures:" set name (alt_textures_find_entry)
+    ubyte _unk28[4];                  // +0x28 never written by the parser
+    int bitmaps[15];                  // +0x2C bm_load handles (-1 from the parser)
     ushort count;                     // +0x68
     char names[15][0x29];             // +0x6A
 };
+LAYOUT_CHECK(alt_texture_set, sizeof(alt_texture_set) == 0x2d4);
 
 // A "$Character:" record (characterinfo_parse_table 0x4452f0; char_infos 0x6d7e50, 0x3d0 bytes each).
 struct char_info {

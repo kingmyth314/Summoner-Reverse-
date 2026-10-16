@@ -70,12 +70,21 @@ typedef vfx_light_desc fx_rec30;      // free list fx_rec30_free_list
 // last one rendered).
 // decomp67: the mesh instance (vfx_mesh_instance__* in sum.symbols); the +0x14 / +0x18 / +0x1c fields and
 // v20 / m2c (world, set by get_node_world_transform), v50 / m5c (local, get_node_transform) from the vfx object.
+// decomp70: the mesh object (0x562a30-0x564d62, src/decomp/vsdk/unnamed_vfx_mesh_0x562a30.cpp) wrote the
+// methods; v00 is the mesh's position (origin) this frame, v80 a line mesh's axis, +0x0c / +0x10 a
+// billboard's size.
 struct fx_rec98 {
-    void init(vfx_node_desc *desc);   // 0x562b20 vfx_mesh_instance__init (another unit; decomp67)
+    void init(vfx_node_desc *desc);   // 0x562b20 vfx_mesh_instance__init (decomp70: the mesh object)
     // (descriptor, frame, position, orientation).
     void render(vfx_node_desc *desc, float t, const vector3 *pos, const matrix *orient);   // 0x562ba0
+    // decomp70 (t in frames, 15 per second; ret 8).
+    void render_billboards(vfx_node_desc *desc, float t);   // 0x562ca0 vfx_mesh_instance__render_billboards
+    void render_mesh(vfx_node_desc *desc, float t);   // 0x562f60 sum.symbols vfx_mesh_render
+    void update_frame(vfx_node_desc *desc, float t);  // 0x563a40 vfx_mesh_instance__update_frame
+    void stub_ret10(int a, int b, int c, int d);      // 0x562b90 vfx_stub_ret10 (empty, no caller; unsure)
     vector3 v00;                      // +0x00
-    char _unk0c[0x14 - 0x0c];
+    float width;                      // +0x0c decomp70 (was char _unk0c[8])
+    float height;                     // +0x10
     float alpha;                      // +0x14 the instance's alpha byte (vfx_instance::render; decomp67)
     character_instance *ci;           // +0x18 bound model (bind_node; decomp67)
     unsigned int tag : 28;            // +0x1c the model's mesh tag (decomp67; was _bits1c)

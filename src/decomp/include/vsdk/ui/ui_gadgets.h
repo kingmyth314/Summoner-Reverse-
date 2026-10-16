@@ -153,7 +153,21 @@ public:
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x553e00
     void set_checked(bool checked);   // 0x553ee0 byte +0x274 (decomp55)
     bool is_checked();                // 0x553ef0
-    ubyte _unk274[0x394 - 0x274];
+    // decomp70 (vsdk/unnamed_checkbox_0x553ba0.cpp): the fields (were _unk274[0x120]) and toggle.
+    void toggle();                    // 0x553ec0
+    bool checked;                     // +0x274
+    ubyte _unk275[3];
+    int box_w;                        // +0x278
+    int box_h;                        // +0x27C
+    char label[0x100];                // +0x280 drawn right of the box
+    int font;                         // +0x380
+    int label_x;                      // +0x384 offset of the label from the box's right edge / top
+    int label_y;                      // +0x388
+    int state;                        // +0x38C 0 idle, 1 mouse over, 2 pressed, 3 hidden (process)
+    // +0x390 ui_checkbox_colors, four sets of (box, cross, text, text shadow): [0..3] idle, [4..7] mouse
+    // over (only its text and shadow are used; the box and cross are the idle ones), [8..11] pressed,
+    // [12..15] hidden (no cross).
+    Color *colors;
     int bm_unchecked;                 // +0x394
     int bm_checked;                   // +0x398
     int bm_pressed;                   // +0x39C
@@ -170,18 +184,39 @@ public:
                 int label_x, int label_y, int font, int id, bool owned);   // 0x5548a0
 };
 
+// ui_inputbox::flags (+0x274; decomp70, names ours).
+#define UI_INPUTBOX_PASSWORD   0x1    // drawn as password_char
+#define UI_INPUTBOX_NO_ESCAPE  0x2    // Esc does not clear the text
+#define UI_INPUTBOX_FIT_WIDTH  0x4    // refuse a character that would not fit the box
+
+// decomp70: the unit is vsdk/unnamed_inputbox_0x5521a0.cpp. Events to the window callback (names ours):
+// 0x14 a key reached the focused box, 0x15 the text changed, 0x16 the text is full.
 class ui_inputbox : public ui_gadget {  // 0x5b0, vtable 0x581f1c
 public:
     ui_inputbox();                    // 0x5526b0
+    // decomp70: slots 0, 5, 7, 8 of 0x581f1c (the others are ui_gadget's).
+    virtual void dtor();              // slot 0, 0x5526a0 ui_inputbox__vfunc0 (ui_gadget::dtor)
+    virtual int  process(int key);    // slot 5, 0x552310
+    virtual void draw();              // slot 7, 0x5530b0
+    virtual bool is_selectable();     // slot 8, 0x5534c0
     void create(ui_element *window, int x, int y, int w, int h, int id, int flags, bool owned); // 0x552700
     void set_tooltip(const char *text, int x, int y, int delay);   // 0x5527b0
-    void set_valid_chars(const char *chars);              // 0x552870
-    void set_invalid_chars(const char *chars);            // 0x552c50
-    void set_text(const char *text);  // 0x553030
+    // decomp70 (D5105): "A-Za-z0-9$_-" style sets (ranges of digits / capitals / small letters);
+    // 0 for a malformed set (the box is unchanged), else 1. Were void.
+    int  set_valid_chars(const char *chars);              // 0x552870
+    int  set_invalid_chars(const char *chars);            // 0x552c50
+    // decomp70: 0 when the text is longer than max_length (unchanged), else 1 (NULL clears). Was void.
+    int  set_text(const char *text);  // 0x553030
     char *get_text();                 // 0x5530a0 +0x278 (decomp55)
-    ubyte _unk274[0x578 - 0x274];
+    // decomp70: thiscall helpers (this unused by the first).
+    int  numpad_to_ascii(int key);    // 0x5521a0 ui_inputbox_numpad_to_ascii: keypad digits as digits
+    bool is_char_allowed(char c);     // 0x552280 invalid set, valid set, then char_filter
+    int flags;                        // +0x274 UI_INPUTBOX_* (decomp70)
+    char text[0x100];                 // +0x278
+    char valid_chars[0x100];          // +0x378 empty = any
+    char invalid_chars[0x100];        // +0x478
     int font;                         // +0x578
-    ubyte _unk57c[4];
+    Color *colors;                    // +0x57C ui_inputbox_colors: [0..5] shown, [6..11] hidden (decomp70)
     int max_length;                   // +0x580
     char password_char;               // +0x584
     ubyte _unk585[3];

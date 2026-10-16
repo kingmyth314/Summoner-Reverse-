@@ -113,7 +113,10 @@ LAYOUT_CHECK(gr_3d_state, sizeof(gr_3d_state) == 0x494);
 // An 8-byte sort record {key, value} (vfx_mesh_render fills vfx_mesh_sort_buf; name ours).
 struct gr_sort_entry {
     float key;                        // +0x0
-    int value;                        // +0x4 vfx_mesh_render stores a 16-bit index
+    union {
+        int value;                    // +0x4 vfx_mesh_render stores a 16-bit index
+        ushort index;                 //      decomp70: the face index it stores and reads back (word moves)
+    };
 };
 
 // A light record read from a file (0x8c bytes; sum.symbols gr_light__reset / gr_light__read, but gr_light
