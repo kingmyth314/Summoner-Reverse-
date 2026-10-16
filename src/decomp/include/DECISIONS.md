@@ -4716,3 +4716,117 @@ the source order); `max(x, 0)`'s `setle / dec / and` ANDs into the other registe
 byte of its slot (`[esp+3]`) where the original uses the bottom (`[esp]`); stack pops after a call are merged
 across the next call; a named Color initialised from a function result is copied instead of being constructed
 in place.
+
+**D5800 (game/levelrender.cpp). The unit compiles with VC6: d3d_min.h instead of <d3d.h>.** levelrender.cpp included
+the DirectX 7 SDK's <d3d.h>, which VC6's own INCLUDE does not have (D3DVERTEXBUFFERDESC, IDirect3D7 undeclared),
+so the unit never compiled with VC6. It now includes vsdk/gr/directx/gr_direct3d.h (d3d_min.h) and the Glide and
+OpenGL back-end headers (as unnamed_ca_mesh_0x50af80.cpp does), and the two vertex-buffer calls use the C macros
+(IDirect3D7_CreateVertexBuffer on D3D_DIRECT3D, lpVtbl->Release): levelrender_create_vertex_buffer and
+levelrender_free_d3d_vertex_buffer match byte for byte, as do the three console commands. mingw still compiles it.
+
+**D5801 (engine/s3d/s3d.h, game/levelrender.cpp). The geometry's render groups and the duplicate-vertex offsets.**
+The draw lists read geometry +0x4c / +0x50 as an array of {short num_faces, short num_vertices} with its count
+(`movsx ecx, word ptr [eax + 2]` per group, faces and vertices stored group after group, the group drawn with the
+texture of its first face): s3d_render_group, s3d_geometry::groups / num_groups. +0x18 (one int16 per vertex) is a
+backward offset: >= 0 the vertex repeats the one that many entries before (its clip codes, view position, colours
+and projection are copied), < 0 a vertex of its own: s3d_geometry::vertex_dup. Both are unions with the old _unk
+names (s3d.cpp keeps them).
+
+**D5802 (game/levelrender.cpp). The three draw lists (0x48e6c0, 0x48fdb0, 0x491500) and their .bss.** Written from the
+whole disassembly; the call sequences match the original one to one in all three (29, 59 and 59 calls), and VC6
+gives 1277 / 1342, 1627 / 1704 and 1480 / 1553 instructions: likely. The per-vertex bytes sum.symbols calls
+levelrender_*_vert_lit hold gr_code_point's clip codes (the names are kept); 0x2400ec8 (view-space vertices, passed
+to levelrender_face_vertex_colors by all three) is levelrender_view_verts, 0x2433424 / 0x23f81e4 the Direct3D and
+OpenGL index lists, 0x2395cf0 the OpenGL clip codes (names ours). Array sizes: 4000 for the per-vertex vector3 and
+byte arrays (the 0xbb80 spacing), 4512 (0x11a0) for the Glide polygon vertices and the OpenGL client arrays, 9000
+for the index lists. levelrender_d3d_vertex_buffer_pos (0x240d9e8) and levelrender_lights_dirty / _initialized
+(0x243e038 / 9), declared by earlier batches, are defined here. Inline pieces as macros (clip codes, projection,
+fog alpha, far fade) and one inline function, levelrender_depth (gr_calc_depth with the products in the other
+order, which several sites use).
+
+**D5803 (game/levelrender.cpp). The six function-local statics are the per-function projected and colour arrays.** A
+VC6 test shows that `static vector3 a[4000];` in a function gets a guard bit and an empty atexit handler, as the
+three guards (0x23eb68c, 0x23d3600, 0x23c5b38) and their six handlers show; each draw list has exactly two
+per-function vector3 arrays besides the shared ones (Glide 0x23c7a80 / 0x23d3608, Direct3D 0x23dfb08 / 0x235b1f0,
+OpenGL 0x240d9f0 / 0x24268f8), so those are the statics. levelrender_view_verts and levelrender_gl_vertex_array are
+globals, so with the two wave arrays four of the six empty initialisers 0x48db70-0x48dc10 are accounted for; two
+remain open. Unsure (which array has which guard bit).
+
+**D5804 (game/levelrender.cpp). Draw-list defects.** (1) OpenGL, lightmapped face without a clipped corner
+(0x491f9e-0x491fe2): with point lights the three colour bytes all take the red component (`fld [ebx +
+0x24268f8]` three times), so coloured dynamic lights on lightmapped level geometry are grey in the OpenGL renderer
+(SummonerFix's); live candidate. (2) Direct3D, lightmapped: when the next face would pass 8000 vertices the batch
+restarts with a discarding lock but levelrender_d3d_vertex_buffer_pos stays (harmless: the writes stay below the
+0x2140 capacity). (3) OpenGL, lightmapped: the restart tests count + 3 instead of count + the face's vertices
+(harmless: the client arrays hold 4512). (4) Glide and OpenGL plain paths: the vertices of clipped polygons are
+appended after the mesh's vertices for the whole object without a bound (latent overrun of the 4512 entries for a
+mesh near 4000 vertices). (5) The plain Direct3D / OpenGL paths index levelrender_fan_tables[n] without the n <= 8
+test of the lightmapped ones (latent: a triangle clipped by five planes has at most 8 corners).
+
+**D5805 (game/unnamed_worldmap_automap_0x42f1e0.cpp, summoner/unnamed_worldmap_automap_0x42f1e0.h). The unit
+0x42f1e0-0x430baf.** One unit by its contiguous .rdata 0x580d98-0x580df3, .data 0x592c8c-0x5930b7 and .bss
+0x5f9670-0x5fa273 (decomp75's analysis); the name is a placeholder. 35 functions: 31 match byte for byte, four are
+likely (worldmap_frame, worldmap_marker_clamp_to_edge, automap_labels_parse_table, automap_labels_save:
+register and frame-slot choices). Findings: the PXO login name and password are the two fields of one
+utrack_login_request (pxo_login_info; the sum.symbols names are macros); worldmap_location is 0x2c bytes (flags,
+navpoint, scale, angle, marker x / y, label x / y / w / h, name) and an off-screen location gets flags 2 and 4
+together (`or al, 6`); automap_reveal_all writes 0 into every cell (it hides the grid at GameInit); the automap
+labels' default set matches shopkeepers by name pointer; automap_reveal_cell's value is a bool passed on to
+savegame::set_bit (a dword push of the byte, as set_bit tests it); the twin levels are 7 / 49, 30 / 35 and
+31 / 36. VC6 folds `f * 0.5f + 0.5f` into (f + 1) * 0.5, so worldmap_marker_scale_for_distance halves in its own
+statement. Latent: automap_label_alloc's 0 when full overwrites label 0; automap_labels_save's first loop does
+not test ReadLine.
+
+**D5806 (vsdk/unnamed_net_0x517590.cpp, vsdk/unnamed_os_0x530b90.cpp, vsdk/net/net.h, vsdk/os/os.h). The last
+functions of the net and os objects.** float_compare (exact), nw_NewReceiveReliable (exact), nw_NewSendReliable and
+nw_NewCloseSocket (likely: register choices, same sizes), os_poll and os_pump_messages (exact; the pump returns 0:
+`xor eax, eax` on the empty queue, PeekMessage's 0 after the loop). RNT_DISCONNECT (4) is the close packet's type.
+nw_NewCloseSocket's send-buffer branch clears rsequence[i] instead of ssequence[i] (harmless: the record is cleared
+afterwards when the socket exists). The header comments no longer start with addresses (D5510).
+
+**D5807 (game/unnamed_gamelist_0x4705b0.cpp, summoner/multi/unnamed_gamelist_0x4705b0.h, multi.h). The client's game
+list and join requests, 0x4705b0-0x470e2f.** Its own unit by the initialiser run 0x4705b0 and the .bss
+0x22e4428-0x22e462f (source-map.md); placeholder name. 14 functions: 10 exact, 4 likely. SIGNATURE:
+mp_send_jn_rqst's last parameter is `bool retry` (was `int flag`): `mov al, [esp + 0x26c] / test al, al`; the only
+callers pass 1 and 0. The kept character is an mp_char_summary (0x12c bytes, `rep movsd` 0x4b) at 0x22e4430, the
+password a 16-byte copy (strncpy 15); the request's +0x40 field is the int at 0x68e1bc, which no written unit
+defines (declared as mp_join_unk_68e1bc). mp_handle_actv_gm reads the six ints and two bytes through memcpy (VC6
+then keeps them in memory, as the original does).
+
+**D5808 (game/unnamed_kick_0x471df0.cpp). mp_remove_player, mp_send_removed_notice, mp_handle_kick_pl as their own
+unit.** D2604 left open whether 0x471df0-0x471fe5 ends multitrade.cpp or is a file of its own; no data decides it.
+Written as a placeholder unit (moving the code into multitrade.cpp later only means appending). 2 exact, 1 likely
+(mp_remove_player: the original pops the first call's arguments at once). MP_KICK_PL (0x3b).
+
+**D5809 (game/unnamed_swi_0x488230.cpp, multi.h). The SWI packets 0x488230-0x488bf9.** Between multichat.cpp and
+multicontainer.cpp; no .data or .bss of its own beyond two printf literals; placeholder unit. 12 of 14 match byte
+for byte. mp_player +0x6c is a vector3 (the position kept at SWI2DIR / OBJ_UPD), +0x78 sixteen sampled update
+intervals and +0xb8 their count (mp_remote_travel_update, D5810; were _unk6c[]). MP_ADD_FLOAT's initialised temporary
+makes VC6 load a member through the FPU (fld / fstp), while the original copies with mov: the senders that read
+members use a plain `float f;` assigned before each MP_ADD_DATA (mp_send_swi_ndir and the object packets).
+
+**D5810 (game/unnamed_mp_objects_0x47f860.cpp, summoner/multi/unnamed_mp_objects_0x47f860.h, multi.h). The object
+packets 0x47f860-0x481196.** Placeholder unit; 31 functions: 17 exact, 12 likely, 2 unsure (mp_handle_new_path,
+mp_handle_obj_update). It may be the head of multiendgame.cpp: the code runs straight into multiendgame.cpp's
+static initialiser (0x4811a0), mp_handle_new_path reads multiendgame's multi_path_type (0x59bca8), and
+mp_net_handle_map (0x22e94f4, defined here; multi.h had left its owner open) lies 0xc bytes after
+ccmd_Multi_path_type (0x22e94e8). Not merged: multiendgame.cpp's header and D2604 say its block starts with the
+initialiser, and VC6's .bss order is not strictly the definition order (the worldmap unit's own .bss shows that).
+Defects: mp_send_local_updates sends the leader's OBJ_UPD again where it means the locally controlled summon's
+(`push esi` at 0x47fa55; live candidate in multiplayer: a client's summon is never position-updated by this path);
+mp_handle_new_lep uses the NULL result of a failed living_entity_create after mp_player_disconnected (latent);
+mp_respawn_player resurrects a NULL character for an unknown id (latent).
+
+**D5811 (game/new_pxo_banner.cpp; marker splits). open_url, mp_handle_unequip_item and the initialiser markers.**
+open_url (0x421de0) is new_pxo_banner.cpp by strings.tbl id 834 and sum.symbols, a unit of one function plus the
+two unreferenced rectangles at 0x58f6f8 that precede its literal "open" (unsure ownership); VC6 byte match (the
+switch includes SE_ERR_DLLNOTFOUND, 32, which the < 32 test excludes). mp_handle_unequip_item (0x487b10) completes
+unnamed_equip_packets_0x4878a0.cpp (byte match). The initialiser pairs of new_pxochat.cpp (0x4227c0-0x422970),
+multitrade.cpp (0x470e30-0x470e60), multisave.cpp (0x46cc60 / 0x46cc70), unnamed_mp_join_0x4ab0f0.cpp
+(0x4ab0f0 / 0x4ab100) and level_scripts.cpp's 0x4ceef0 are one marker per line (D5510).
+
+**D5812 (open). A register choice VC6 does not reproduce.** In six small handlers (mp_handle_deny_jn,
+mp_handle_swi_sneak, mp_handle_respawn, mp_handle_forcepr and two more) the original loads the packet's first int
+with `mov eax, [eax]` (reusing the pointer's register) where VC6 emits `mov ecx, [eax]`, for every source form tried
+(pointer casts, array index, locals, memcpy, other parameter types) and every /G and /O variant. A different
+compiler build (service pack) is one explanation; the functions are marked likely.

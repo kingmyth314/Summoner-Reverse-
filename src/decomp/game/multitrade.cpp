@@ -38,11 +38,14 @@ int mp_trade_state;                                           // 0x22e46f0
 mp_trade_item mp_trade_local_items[16];                       // 0x22e46f8
 int mp_trade_local_count;                                     // 0x22e47b8
 Player *mp_trade_partner;                                     // 0x22e47bc
-// init_realtimetimer_22e47c4_thunk (0x470e30, "jmp 0x470e40") / init_realtimetimer_22e47c4 (0x470e40,
-// "mov ecx, 0x22e47c4 / jmp RealtimeTimer__RealtimeTimer") is static_initializers entry 216, the pair
-// 0x470e50 / 0x470e60 for 0x22e47c0 entry 217. Initialisers run in definition order, so the timeout timer
-// is defined first although its address is the higher one. Confidence: exact for the pairs, unsure for
-// the definition order against the addresses.
+// The two timers' dynamic initialiser pairs, static_initializers entries 216 (0x22e47c4) and 217
+// (0x22e47c0). Initialisers run in definition order, so the timeout timer is defined first although its
+// address is the higher one (unsure for the definition order against the addresses; one marker per line,
+// decomp76):
+// 0x470e30 init_realtimetimer_22e47c4_thunk (jmp 0x470e40). Confidence: exact.
+// 0x470e40 init_realtimetimer_22e47c4 (mov ecx, 0x22e47c4 / jmp RealtimeTimer__RealtimeTimer). Confidence: exact.
+// 0x470e50 init_realtimetimer_22e47c0_thunk (jmp 0x470e60). Confidence: exact.
+// 0x470e60 init_realtimetimer_22e47c0 (mov ecx, 0x22e47c0 / jmp RealtimeTimer__RealtimeTimer). Confidence: exact.
 RealtimeTimer mp_trade_timeout_timer;                         // 0x22e47c4
 RealtimeTimer mp_trade_request_timer;                         // 0x22e47c0
 int mp_trade_remote_count;                                    // 0x22e47c8

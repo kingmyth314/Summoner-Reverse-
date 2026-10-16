@@ -53,7 +53,7 @@ Rules:
 | `vsdk/unnamed_gadget_0x52bfe0.cpp`, `unnamed_listbox_0x52ca60.cpp`, `unnamed_build_stamp_0x52f450.cpp`, `unnamed_ui_manager_0x52f570.cpp` | UI gadget base, list box, build stamp, UI manager (**names not known**) | 130 + 32 generated | 89 / 41 / 0 (`NOTES-unnamed-ui.md`) |
 | `vsdk/unnamed_mouse_0x500a30.cpp` | mouse module `0x500a30`-`0x501468` (**name not known**) | 30 | |
 | `vsdk/unnamed_exceptionhandler_0x5419a0.cpp` | exception handler `0x5419a0`-`0x5424fa` (**name not known**; functions as in Bruce Dawson's ExceptionHandler.cpp) | 8 | |
-| `vsdk/unnamed_localize_0x503f60.cpp`, `unnamed_net_0x517590.cpp`, `unnamed_os_0x530b90.cpp`, `unnamed_os_0x531bf0.cpp` | localize, net and os code (**names not known**) | 72 | 41 / 31 / 0 (`NOTES-localize-net-os.md`) |
+| `vsdk/unnamed_localize_0x503f60.cpp`, `unnamed_net_0x517590.cpp`, `unnamed_os_0x530b90.cpp`, `unnamed_os_0x531bf0.cpp` | localize, net and os code (**names not known**) | 78 (decomp76 added six, D5806) | 45 / 33 / 0 (`NOTES-localize-net-os.md`) |
 | `vsdk/matrix.cpp` | `vsdk\math\matrix.cpp` | 48 | 27 / 20 / 1 |
 | `vsdk/skeleton.cpp` | `vsdk\ca\skeleton.cpp` | 27 | 15 / 12 / 0 |
 | `vsdk/character.cpp` | `vsdk\ca\character.cpp` | 46 + 3 | 25 / 22 / 2 |
@@ -84,7 +84,7 @@ Rules:
 | `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 50 / 4 / 0 (`NOTES-unnamed-input-cutscene.md`; VC6 25 of 26 compared functions byte-identical, D6101) |
 | `game/unnamed_mpmenus_0x43eb00.cpp`, `unnamed_lobby_0x43ef30.cpp`, `unnamed_mlayout_0x43f9d0.cpp`, `unnamed_effectstream_0x440400.cpp`, `unnamed_netsession_0x440b40.cpp`, `unnamed_netpackets_0x441820.cpp` | multiplayer menus, IRC lobby, monster layouts, effect streaming, net session and packets (**names not known**) | 129 | 94 / 35 / 0 (`NOTES-unnamed-multi-net.md`) |
 | `game/unnamed_goals_doors_0x475180.cpp`, `unnamed_camera_0x4778b0.cpp` | multiplayer helpers, AI goals, doors and level objects; the game camera (**names not known**) | 122 | 87 / 33 / 2 (`NOTES-unnamed-goals-camera.md`) |
-| `game/unnamed_render_scene_0x481680.cpp`, `unnamed_shadow_table_0x487440.cpp`, `unnamed_equip_packets_0x4878a0.cpp` | level frame, fog, vis sets, draw lists, labels, lamp glows, detail levels; shadows.tbl and ground decals; equip packets (**names not known**) | 109 of 110 | 69 / 40 / 0 (`NOTES-unnamed-render-shadows-equip.md`) |
+| `game/unnamed_render_scene_0x481680.cpp`, `unnamed_shadow_table_0x487440.cpp`, `unnamed_equip_packets_0x4878a0.cpp` | level frame, fog, vis sets, draw lists, labels, lamp glows, detail levels; shadows.tbl and ground decals; equip packets (**names not known**) | 110 (decomp76: mp_handle_unequip_item, D5811) | 70 / 40 / 0 (`NOTES-unnamed-render-shadows-equip.md`) |
 | `game/unnamed_containers_0x489730.cpp`, `unnamed_experience_0x489930.cpp`, `unnamed_fx_0x489c40.cpp`, `unnamed_utrack_0x48d7c0.cpp` | containers, experience, effect objects, PXO login / user tracker (**names not known**) | 85 + 2 folded | 59 / 26 / 0 (`NOTES-unnamed-containers-xp-fx.md`) |
 | `game/unnamed_ai_groups_0x492b00.cpp`, `unnamed_cutscene_camera_0x493e50.cpp`, `unnamed_snow_0x4946a0.cpp`, `unnamed_serpent_0x495290.cpp`, `unnamed_phoenix_0x497ac0.cpp`, `unnamed_tiger_0x499e50.cpp` | AI groups, cutscene camera sequences, snow, and the Serpent, Phoenix and Tiger bosses (**names not known**) | 220 | 146 / 69 / 6 (`NOTES-unnamed-aigroups-bosses.md`) |
 | `game/unnamed_pyrul_0x4b87c0.cpp`, `unnamed_ghost_rider_0x4b9e70.cpp`, `unnamed_decals_0x4bbe80.cpp`, `unnamed_ai_combat_0x4bce60.cpp` | Pyrul and Ghost Rider bosses, decals and s3d geometry blocks, AI combat modes (**names not known**) | 131 | 65 / 60 / 6 (`NOTES-unnamed-pyrul-ghost-ai.md`) |
@@ -98,6 +98,12 @@ Rules:
 | `game/new_tutorial.cpp` | `new_tutorial.cpp` | 15 + 7 initialiser pairs | 12 / 10 / 0 |
 | `game/new_gamelist.cpp` | `new_gamelist.cpp` | 29 + 2 initialiser pairs | 14 / 15 / 0 |
 | `game/new_pxochat.cpp` | `new_pxochat.cpp` | 57 + 14 initialiser pairs | 20 / 36 / 1 |
+| `game/new_pxo_banner.cpp` | `new_pxo_banner.cpp` (`open_url` 0x421de0, D5811) | 1 | 1 / 0 / 0 |
+| `game/unnamed_worldmap_automap_0x42f1e0.cpp` | PXO login fields, world map, automap labels and reveal grid, game states 7 and 9 (`0x42f1e0`-`0x430baf`, **name not known**, D5805) | 35 | 31 / 4 / 0 |
+| `game/unnamed_gamelist_0x4705b0.cpp` | the client's game list and join requests (`0x4705b0`-`0x470e2f`, **name not known**, D5807) | 14 | 10 / 4 / 0 |
+| `game/unnamed_kick_0x471df0.cpp` | removing and kicking players (`0x471df0`-`0x471fe5`, **name not known**, maybe the tail of multitrade.cpp, D5808) | 3 | 2 / 1 / 0 |
+| `game/unnamed_mp_objects_0x47f860.cpp` | multiplayer object packets (`0x47f860`-`0x481196`, **name not known**, maybe the head of multiendgame.cpp, D5810) | 31 | 17 / 12 / 2 |
+| `game/unnamed_swi_0x488230.cpp` | SWI packets (`0x488230`-`0x488bf9`, **name not known**, D5809) | 14 | 12 / 2 / 0 |
 | `game/multisave.cpp` | `multisave.cpp` (`0x46cc60`-`0x46da80`) | 10 | see `NOTES-multi.md` (38 / 23 / 1 for the four files) |
 | `game/multitrade.cpp` | `multitrade.cpp` | 26 | |
 | `game/multichat.cpp` | `multichat.cpp` | 13 | |
@@ -113,7 +119,7 @@ Rules:
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
 | `game/characterinfo.cpp` | `characterinfo.cpp` | 122 | 81 / 26 / 15 (the 15 are empty Mempool initialisers) |
 | `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |
-| `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 30 of 39 (the three draw-list back ends left) | 13 / 5 / 12 |
+| `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 33 of 39 (decomp76 added the three draw lists and made the unit compile with VC6, D5800-D5804) | 13 / 8 / 12 |
 | `game/spells.cpp` | `spells.cpp` | 47 of 53 (spell_spawn_creature and summon_create left; decomp73 added spell_prepare_cast, spell_cast_execute, spell_cast_launch_effects) | 30 / 17 / 0 |
 | `game/combat.cpp` | `combat.cpp` (`0x463360`-`0x468c77`: the bloodspots / death console commands first, D6100) | 66 of 69 (decomp73: combat_trigger_reflex_ability) | 48 / 17 / 1 |
 | `game/boss_ai.cpp` | `boss_ai.cpp` (`0x4a04b0`-`0x4a3575`) | 59 | 42 / 17 / 0 |

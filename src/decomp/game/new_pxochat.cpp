@@ -385,11 +385,36 @@ char *&pxochat_str_cannot_validate  = XSTR("Unable to contact THQMultiplay.net t
                                            "Please try back later\n", 765);                     // 0x5c5958
 
 // Compiler-generated dynamic initialiser pairs (thunk "jmp", initialiser), static_initializers entries
-// 63-76, confidence exact (no source of their own):
-//   0x4227c0 / 0x4227d0 pxochat_chat_cursor_timer, 0x4227e0 / 0x4227f0 pxochat_channel_cursor_timer,
-//   0x422800 / 0x422810 pxochat_button_timer (RealtimeTimer__RealtimeTimer);
-//   0x422820 / 0x422830 ... 0x422960 / 0x422970 init_strptrs_5c5938, 5c593c, 5c5940, 5c5944, 5c5948,
-//   5c57cc, 5c3e9c, 5c594c, 5c5950, 5c5954, 5c5958 (one "mov [ref], &localize_strings[id]" each).
+// 63-76, no source of their own; the timers' initialisers jump to RealtimeTimer__RealtimeTimer, the
+// string references' store &localize_strings[id] (one marker per line, decomp76):
+// 0x4227c0 init_realtimetimer_5c423c_thunk (pxochat_chat_cursor_timer). Confidence: exact.
+// 0x4227d0 init_realtimetimer_5c423c. Confidence: exact.
+// 0x4227e0 init_realtimetimer_5c57d0_thunk (pxochat_channel_cursor_timer). Confidence: exact.
+// 0x4227f0 init_realtimetimer_5c57d0. Confidence: exact.
+// 0x422800 init_realtimetimer_5c426c_thunk (pxochat_button_timer). Confidence: exact.
+// 0x422810 init_realtimetimer_5c426c. Confidence: exact.
+// 0x422820 init_strptrs_5c5938_thunk (pxochat_str_new_version). Confidence: exact.
+// 0x422830 init_strptrs_5c5938. Confidence: exact.
+// 0x422840 init_strptrs_5c593c_thunk (pxochat_str_update_now). Confidence: exact.
+// 0x422850 init_strptrs_5c593c. Confidence: exact.
+// 0x422860 init_strptrs_5c5940_thunk (pxochat_str_checking_version). Confidence: exact.
+// 0x422870 init_strptrs_5c5940. Confidence: exact.
+// 0x422880 init_strptrs_5c5944_thunk (pxochat_str_blank_version). Confidence: exact.
+// 0x422890 init_strptrs_5c5944. Confidence: exact.
+// 0x4228a0 init_strptrs_5c5948_thunk (pxochat_str_version_error). Confidence: exact.
+// 0x4228b0 init_strptrs_5c5948. Confidence: exact.
+// 0x4228c0 init_strptrs_5c57cc_thunk (pxochat_str_validating_user). Confidence: exact.
+// 0x4228d0 init_strptrs_5c57cc. Confidence: exact.
+// 0x4228e0 init_strptrs_5c3e9c_thunk (pxochat_str_validation_error). Confidence: exact.
+// 0x4228f0 init_strptrs_5c3e9c. Confidence: exact.
+// 0x422900 init_strptrs_5c594c_thunk (pxochat_str_blank_login). Confidence: exact.
+// 0x422910 init_strptrs_5c594c. Confidence: exact.
+// 0x422920 init_strptrs_5c5950_thunk (pxochat_str_need_account). Confidence: exact.
+// 0x422930 init_strptrs_5c5950. Confidence: exact.
+// 0x422940 init_strptrs_5c5954_thunk (pxochat_str_invalid_user). Confidence: exact.
+// 0x422950 init_strptrs_5c5954. Confidence: exact.
+// 0x422960 init_strptrs_5c5958_thunk (pxochat_str_cannot_validate). Confidence: exact.
+// 0x422970 init_strptrs_5c5958. Confidence: exact.
 
 // 0x422980  Confidence: likely (the second NULL test is missing: with text1 NULL and text2 set,
 // strlen(NULL) runs, as in the binary; the widths are a local array). Wraps both texts at 400 / 500 / 640

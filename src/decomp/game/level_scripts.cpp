@@ -143,8 +143,9 @@ static inline unsigned int savegame_remap_item_hash(unsigned int hash)
 
 // 0x4ceec0 static_init_savegame_state (call 0x4ceed0; jmp 0x4ceee0) /
 // 0x4ceed0 init_savegame_state (mov ecx, 0x2493a38; jmp savegame_state__clear = the constructor) /
-// 0x4ceee0 register_atexit_savegame_state; the handler 0x4ceef0 atexit_dtor_savegame_state (the empty
-// destructor) is folded into empty_function 0x4f13e0. Compiler-generated. Confidence: exact.
+// 0x4ceee0 register_atexit_savegame_state (atexit of the handler below) /
+// 0x4ceef0 atexit_dtor_savegame_state: the handler, mov ecx, 0x2493a38 and a jmp to the empty destructor,
+// which is folded into empty_function 0x4f13e0. Compiler-generated. Confidence: exact.
 savegame savegame_state;                             // 0x2493a38
 
 // 0x4cef00 static_init_ccmd_Preparse_scripts (jmp) /

@@ -13,10 +13,10 @@
 // So the original most likely switched optimisation off (`#pragma optimize("", off)`) before the CPU code;
 // intrinsics stay on (os_clipboard_get_text's strlen is repne scasb).
 //
-// Not written here (sum.symbols module -, same object): os_poll 0x530ca0, os_pump_messages 0x530cb0.
-// Written by decomp74 (D5608), module - as well: cpu_read_tsc 0x5312c0, cpu_identify 0x5312d6,
-// PrintSystemInfo 0x53171f, init_ccmd_sysinfo_entry 0x531a80, init_ccmd_sysinfo 0x531a8a, cmd_sysinfo
-// 0x531aa8 and ccmd_sysinfo 0x2cbff00.
+// Module - in sum.symbols, same object: os_poll 0x530ca0, os_pump_messages 0x530cb0 (decomp76, D5806),
+// and (decomp74, D5608) cpu_read_tsc 0x5312c0, cpu_identify 0x5312d6, PrintSystemInfo 0x53171f,
+// init_ccmd_sysinfo_entry 0x531a80, init_ccmd_sysinfo 0x531a8a, cmd_sysinfo 0x531aa8 and ccmd_sysinfo
+// (0x2cbff00).
 
 #include <windows.h>
 #include <objbase.h>
@@ -99,7 +99,24 @@ void os_set_window_title(const char *title)
     SetWindowTextA(main_wnd, os_window_title);
 }
 
-// 0x530ca0 os_poll and 0x530cb0 os_pump_messages: module -, not written here.
+// 0x530ca0  Confidence: exact. The message pump the game loops call (decomp76).
+void os_poll()
+{
+    os_pump_messages(0);
+}
+
+// 0x530cb0  Confidence: likely (the return value: 0 on both paths, the loop's from PeekMessage's 0). Every
+// waiting message is translated and dispatched; the argument is not read (decomp76).
+int os_pump_messages(int unused)
+{
+    MSG msg;
+
+    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+    return 0;
+}
 
 // 0x530d10  Confidence: exact.
 // A copy that finds the mutex calls ReleaseMutex on the handle it opened (it does not own it) and never

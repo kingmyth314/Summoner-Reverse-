@@ -24,7 +24,10 @@
 // coordinate sets). The alpha byte of the specular colour carries the fog (gr_get_fog_alpha). Name ours.
 struct d3d_tlvertex {
     float sx, sy, sz, rhw;            // +0x00
-    D3DCOLOR color;                   // +0x10 diffuse ARGB
+    union {                           // +0x10 diffuse ARGB
+        D3DCOLOR color;
+        ubyte color_bytes[4];         // b, g, r, a (levelrender's draw list writes the bytes; decomp76)
+    };
     union {                           // +0x14
         D3DCOLOR specular;
         ubyte specular_bytes[4];      // [3] = fog alpha

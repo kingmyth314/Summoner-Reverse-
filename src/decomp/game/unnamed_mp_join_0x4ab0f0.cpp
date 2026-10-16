@@ -40,9 +40,10 @@ char tracker_game_channel[0x100];           // 0x2479520
 char tracker_filter_channel[0x100];         // 0x2479620
 int tracker_initialized;                    // 0x2479720 (0x2479724 is never referenced)
 
-// 0x4ab0f0 static_init_mp_join_timer (jmp) / 0x4ab100 init_mp_join_timer (mov ecx, 0x24794c0 / jmp
-// RealtimeTimer__RealtimeTimer): the compiler's dynamic initialiser pair of mp_join_accept_timer
-// (static_initializers entry 302). Confidence: exact (no source of their own).
+// The compiler's dynamic initialiser pair of mp_join_accept_timer (static_initializers entry 302; no source
+// of their own; one marker per line, decomp76):
+// 0x4ab0f0 static_init_mp_join_timer (jmp). Confidence: exact.
+// 0x4ab100 init_mp_join_timer (mov ecx, 0x24794c0 / jmp RealtimeTimer__RealtimeTimer). Confidence: exact.
 
 // 0x4ab110  Confidence: exact. state14_enter.
 void mp_join_timer_reset()

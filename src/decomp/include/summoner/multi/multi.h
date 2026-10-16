@@ -50,7 +50,10 @@ struct mp_player {
                                       //       mp_add_new_player; decomp47, name ours)
     GameTimer move_update_timer;      // +0x64 100 ms OBJ_UPD resend while traveling (ai_frame; decomp39, name ours)
     GameTimer swi_timer;              // +0x68 (mp_handle_swi_2dir; decomp53, name ours)
-    ubyte _unk6c[0xbc - 0x6c];
+    float swi_pos[3];                 // +0x6c decomp76: the party member's position at the last SWI2DIR or
+                                      //       OBJ_UPD (mp_handle_swi_2dir, mp_remote_travel_update; name ours)
+    int swi_samples[16];              // +0x78 decomp76: the last update intervals in ms, newest first
+    int swi_num_samples;              // +0xb8 decomp76: how many are valid (0 after SWI2DIR, at most 16)
 };
 LAYOUT_CHECK(mp_player, sizeof(mp_player) == 0xbc);
 #define MP_MAX_PLAYERS 4              // mp_players[] and the send buffers (decomp53)
@@ -196,6 +199,10 @@ void mp_broadcast_packet_3e();                                             // 0x
 // unnamed_netsession_0x440b40.h (decomp53); mp_host_game and the level checks in unnamed_mpmenus_0x43eb00.h.
 void tracker_end_game();                                // 0x4aba20 (mp_leave_game, host of a tracked game)
 void mp_remove_player(mp_player *p, int reason);        // 0x471df0 (reason 1 = kicked)
+// decomp76 (game/unnamed_kick_0x471df0.cpp, a placeholder unit, D5808): KICK_PL {player id, reason} to the
+// removed player (mp_handle_kick_pl below is its handler).
+#define MP_KICK_PL 0x3b
+void mp_send_removed_notice(mp_player *p, int reason);  // 0x471f40
 void mp_respawn_and_notify(int id);                     // 0x481130 (hud_confirm_quit)
 // mp_player_disconnected (0x4814e0) is in multiendgame.h (decomp47: (reason, quit), D2601).
 void mp_send_character_skills(Character *c);            // 0x480ba0
@@ -208,10 +215,11 @@ void mp_broadcast_status_add(Character *c, int status, int ms, int spell, float 
 void mp_broadcast_status_cure(Character *c, int status, bool restore_fx);   // 0x480de0
 
 // decomp53: the calls of other unwritten multiplayer units the session, lobby and menu units make.
-// The object unit 0x47f9a0-0x480000.
+// The object packet unit 0x47f860-0x481196 (decomp76: game/unnamed_mp_objects_0x47f860.cpp, a placeholder;
+// the rest of its declarations are in summoner/multi/unnamed_mp_objects_0x47f860.h).
 void mp_net_handle_map_reset();                         // 0x47f9a0 the 1000-entry map 0x22e94f4 = -1
 // decomp58: net handle index -> local handle (a client's map; the .bss lies after spells.cpp's, so it is
-// not the handle unit's; which unit defines it is open).
+// not the handle unit's; decomp76 defines it in the object packet unit, D5810).
 #define MP_NET_HANDLE_MAP_SIZE 1000
 extern int mp_net_handle_map[MP_NET_HANDLE_MAP_SIZE];   // 0x22e94f4
 void mp_send_local_updates();                           // 0x47f9c0 OBJ_UPD of the locally controlled characters
@@ -302,9 +310,10 @@ LAYOUT_CHECK(mp_gamelist_entry, sizeof(mp_gamelist_entry) == 0x50);
 extern mp_gamelist_entry mp_gamelist_used;              // 0x22e4570 head of the received games
 extern int mp_gamelist_count;                           // 0x22e4618
 void mp_gamelist_request_refresh();                     // 0x470bb0
-// (game, the 0x12c-byte character record from its name (profile + 0x28), password, flag); 1 from the
-// game list, the retry in mp_gamelist_refresh passes its own. Return unused.
-void mp_send_jn_rqst(mp_gamelist_entry *game, const void *character, const char *password, int flag);   // 0x470bc0
+// (game, the 0x12c-byte character record from its name (profile + 0x28), password, retry); true from the
+// game list, the resend in mp_gamelist_refresh passes NULLs and false. Return unused. decomp76 (D5807,
+// SIGNATURE): retry is a bool (the byte is tested), was int flag.
+void mp_send_jn_rqst(mp_gamelist_entry *game, const void *character, const char *password, bool retry);   // 0x470bc0
 // mp_join_result (0x22e4428): 0 none, 1 request sent (waiting), 2 accepted, 3..13 the deny codes
 // (4 = password needed / wrong), 0xd no answer.
 int  mp_join_get_result();                              // 0x470e10
@@ -314,7 +323,9 @@ void mp_gamelist_net_frame();                           // 0x4705f0 nw_receive_a
 void mp_gamelist_init();                                // 0x470790
 void mp_gamelist_free();                                // 0x470820
 
-// ---- PXO login (pxo_login_* 0x42f280; unit not known). The lobby itself (lobby_channel, lobby_*) is in
+// ---- PXO login (pxo_login_* 0x42f1e0-0x42f303: the head of game/unnamed_worldmap_automap_0x42f1e0.cpp,
+// decomp76; the rest of its declarations are in summoner/unnamed_worldmap_automap_0x42f1e0.h). The lobby
+// itself (lobby_channel, lobby_*) is in
 // unnamed_lobby_0x43ef30.h (decomp53). -------------------------------------------------------------------
 void pxo_login_reset();                                 // 0x42f280
 // 0 logged in, 1 no account, 2 cannot contact the server, 3 validating (busy), 4 invalid user name.

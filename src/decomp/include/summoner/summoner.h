@@ -65,7 +65,8 @@ extern int  gameseq_state_prev;       // 0x5b27e4
 extern int  gameseq_state_next;       // 0x5b27e8
 extern bool gameseq_state_pending;    // 0x5b27ec
 // State 7 (the debug help text) and state 9 (credits), code 0x430ad0-0x430b9f before the editor dialog
-// unit (not written yet; declared for gameseq_state_table, decomp73).
+// unit (decomp76: the tail of game/unnamed_worldmap_automap_0x42f1e0.cpp; declared here for
+// gameseq_state_table, decomp73).
 void state_debug_help_enter();        // 0x430ad0 state 7
 void state7_leave();                  // 0x430b10
 void state7_frame();                  // 0x430b20

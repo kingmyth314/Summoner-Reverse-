@@ -60,6 +60,7 @@ LAYOUT_CHECK(reliable_header, sizeof(reliable_header) == 0x262);
 #define RNT_DATA     1
 #define RNT_DATA2    2                    // handled as RNT_DATA
 #define RNT_REQ_CONN 3                    // seq = NW_CONNECT_SEQ
+#define RNT_DISCONNECT 4                  // seq = NW_CONNECT_SEQ (nw_NewCloseSocket; decomp76)
 #define RNT_HEARTBEAT 5
 #define RNT_I_AM_HERE 6                   // seq = NW_IAMHERE_SEQ
 #define RNT_IGNORE   7                    // set on a duplicate connection request

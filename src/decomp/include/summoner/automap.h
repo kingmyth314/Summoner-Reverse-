@@ -1,5 +1,7 @@
-// summoner/automap.h - the map labels, the map corners and the reveal grid (automap_* 0x42ffe0-0x4302b0,
-// module "-" in sum.symbols; .bss 0x5f9838-0x5f9e6c). The screen itself is new_automap.cpp
+// summoner/automap.h - the map labels, the map corners and the reveal grid (automap_* 0x42fc00-0x4302b0,
+// module "-" in sum.symbols; .bss 0x5f9838-0x5f9e6c). decomp76 wrote them in the unit 0x42f1e0-0x430baf
+// (game/unnamed_worldmap_automap_0x42f1e0.cpp, a placeholder name; its own header
+// summoner/unnamed_worldmap_automap_0x42f1e0.h declares the rest). The screen itself is new_automap.cpp
 // (summoner/interface/new_automap.h). Directory and file name ours. Not original source.
 #ifndef SUMMONER_AUTOMAP_H
 #define SUMMONER_AUTOMAP_H

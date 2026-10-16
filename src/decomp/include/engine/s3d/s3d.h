@@ -47,6 +47,13 @@ LAYOUT_CHECK(s3d_geom_block, sizeof(s3d_geom_block) == 0x14);
 // A geometry (mesh shape) record, 0x54 bytes, shared by the level objects (lobj +0x04). The vertex,
 // normal, uv and int16 arrays and the faces are slices of the level pools (s3d_read_geometry). The
 // constructor 0x46fdb0 and destructor 0x46e190 are the compiler's (they construct / destroy +0x38).
+// decomp76 (D5801): the render groups of a geometry (4 bytes each, geometry +0x4c): the faces and the
+// vertices are stored group after group, and each group is drawn with the texture of its first face
+// (levelrender_draw_list_*; names ours).
+struct s3d_render_group {
+    short num_faces;                  // +0x00
+    short num_vertices;               // +0x02
+};
 struct s3d_geometry {
     char *name;                       // +0x00
     int _unk04;                       // +0x04
@@ -54,15 +61,26 @@ struct s3d_geometry {
     vector3 *vertices;                // +0x0c
     vector3 *normals;                 // +0x10
     vector2 *uvs;                     // +0x14
-    short *_unk18;                    // +0x18 one int16 per vertex
+    union {                           // +0x18 one int16 per vertex
+        short *_unk18;
+        short *vertex_dup;            //       decomp76: >= 0 the vertex repeats the one that many places
+                                      //       before it (same position, a uv seam), < 0 a vertex of its own
+    };
     int num_faces;                    // +0x1c
     s3d_face *faces;                  // +0x20
     vector3 _unk24;                   // +0x24
-    float _unk30;                     // +0x30
+    float _unk30;                     // +0x30 the bounding radius (lobj_raycast_draw_lists; the draw lists
+                                      //       pick the fog range by it against Small_mesh_threshold)
     int _unk34;                       // +0x34
     s3d_geom_block block;             // +0x38
-    int *_unk4c;                      // +0x4c _unk50 ints (level mempool)
-    int _unk50;                       // +0x50
+    union {                           // +0x4c _unk50 ints (level mempool)
+        int *_unk4c;
+        s3d_render_group *groups;     //       decomp76
+    };
+    union {                           // +0x50
+        int _unk50;
+        int num_groups;               //       decomp76
+    };
 };
 LAYOUT_CHECK(s3d_geometry, sizeof(s3d_geometry) == 0x54);
 

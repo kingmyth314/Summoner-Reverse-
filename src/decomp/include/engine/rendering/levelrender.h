@@ -347,7 +347,7 @@ extern void *levelrender_d3d_vertex_buffer;   // 0x243e03c IDirect3DVertexBuffer
 extern int levelrender_d3d_vertex_buffer_pos; // 0x240d9e8 next free vertex; reset by gr_d3d_init_device / gr_d3d_flip (name ours, decomp36)
 void levelrender_wave_lobj(lobj *l, vector3 *out);              // 0x48de60
 // decomp63: the three back ends levelrender_draw_list calls by gr_screen.mode (0x66 / 0x67 / 0x68) with
-// (level object, alpha 0..255, light count, the ranked lights); not written yet.
+// (level object, alpha 0..255, light count, the ranked lights); written by decomp76 (levelrender.cpp).
 class attached_light;
 void levelrender_draw_list_glide(lobj *l, int alpha, unsigned int num_lights, attached_light **lights);    // 0x48e6c0
 void levelrender_draw_list_d3d(lobj *l, int alpha, unsigned int num_lights, attached_light **lights);      // 0x48fdb0

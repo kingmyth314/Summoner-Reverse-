@@ -10,8 +10,8 @@
 // /O2 /Ob1. Confidence per function: exact (control flow, calls, constants and globals match), likely (same,
 // but one detail of statement order or expression form is a guess), unsure (the shape itself is a guess).
 //
-// PARTIAL (decomp63): mp_handle_unequip_item (0x487b10-0x487b83) is outside the batch's range and not
-// written; it belongs at the end of this file.
+// mp_handle_unequip_item (0x487b10-0x487b83), outside decomp63's range, was added at the end of the file
+// by decomp76.
 
 #include <string.h>
 #include "engine/objects/objects.h"
@@ -95,4 +95,25 @@ void mp_send_unequip_item(Character *c, int slot)
         mp_broadcast_packet(data, packet_size, 1);
     else
         multi_send_packet(data, packet_size, NULL, 0);
+}
+
+// 0x487b10  Confidence: exact (VC6 byte match; decomp76). INV_UQP (player id, slot): the slot of the player's
+// party member is emptied (the model updated) and the removed item freed; the host forwards the packet.
+void mp_handle_unequip_item(ubyte *data, void *from)
+{
+    int id = ((int *)data)[0];
+    int slot = ((int *)data)[1];
+    item_info *old;
+
+    mp_player *p = mp_player_find_by_id(id);
+    if (!p || !p->object)
+        return;
+    Character *c = living_from_handle(p->object->handle);
+    if (!c || c->type != 7)
+        return;
+    old = character_unequip_slot(c, slot, true);
+    if (old)
+        item_free(old);
+    if (MP_IS_HOST())
+        mp_forward_cur_packet(from);
 }

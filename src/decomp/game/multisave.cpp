@@ -28,11 +28,12 @@
 #define MP_NUM_HOT_BUTTONS  6
 
 // ---- .bss ----------------------------------------------------------------------------------------
-// init_realtimetimer_a59a84_thunk (0x46cc60, "jmp 0x46cc70"; the listing mis-decodes it after
-// item_paging.cpp's jump table) and init_realtimetimer_a59a84 (0x46cc70, "mov ecx, 0xa59a84 / jmp
-// RealtimeTimer__RealtimeTimer") are the compiler's dynamic initialiser pair of this definition
-// (static_initializers entry 206). Moved here from item_paging.cpp (decomp24, D405): the code range is this
-// unit's in sum.symbols, and only this unit's autosave functions use the timer. Confidence: exact.
+// The compiler's dynamic initialiser pair of this definition (static_initializers entry 206). Moved here
+// from item_paging.cpp (decomp24, D405): the code range is this unit's in sum.symbols, and only this
+// unit's autosave functions use the timer (one marker per line, decomp76):
+// 0x46cc60 init_realtimetimer_a59a84_thunk (jmp 0x46cc70; the listing mis-decodes it after item_paging.cpp's
+// jump table). Confidence: exact.
+// 0x46cc70 init_realtimetimer_a59a84 (mov ecx, 0xa59a84 / jmp RealtimeTimer__RealtimeTimer). Confidence: exact.
 RealtimeTimer mp_player_autosave_timer;                       // 0xa59a84
 pxo_config pxo_cfg;                                           // 0xa59a88 (0x610 bytes)
 ushort inet_proxy_port;                                       // 0xa5a098 read by InetGetFile__InetGetFile only

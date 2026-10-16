@@ -13,9 +13,9 @@
 // 0x26b63f0-0x2710ebb (address order below).
 // Every error path formats a message into a local buffer that is never printed (as registry.cpp).
 //
-// Not written here (sum.symbols module -, same object): float_compare 0x517dc0, nw_NewReceiveReliable
-// 0x518bb0, nw_NewSendReliable 0x518d70, nw_NewCloseSocket 0x5191c0. (net_get_reliable_socket_status 0x5193a0 and
-// net_get_reliable_socket_ping 0x5193f0, module - as well, are written below: decomp74, D5610.)
+// sum.symbols tags six functions of this object module -: float_compare 0x517dc0,
+// nw_NewReceiveReliable 0x518bb0, nw_NewSendReliable 0x518d70, nw_NewCloseSocket 0x5191c0 (decomp76, D5806),
+// net_get_reliable_socket_status 0x5193a0 and net_get_reliable_socket_ping 0x5193f0 (decomp74, D5610).
 
 #include <windows.h>
 #include <winsock.h>
@@ -361,7 +361,18 @@ int nw_send_heartbeat(net_addr *to)
     return nw_send_packet(&packet, NW_RELIABLE_HEADER_SIZE, 0, to, NW_TYPE_RELIABLE);
 }
 
-// 0x517dc0 float_compare: module -, not written here.
+// 0x517dc0  Confidence: exact. The qsort callback of nw_WorkReliable's ping sort (module - in sum.symbols,
+// between nw_send_heartbeat and nw_WorkReliable; decomp76).
+int float_compare(const void *a, const void *b)
+{
+    if (*(const float *)a == *(const float *)b)
+        return 0;
+    if (*(const float *)a > *(const float *)b)
+        return 1;
+    if (*(const float *)a < *(const float *)b)
+        return -1;
+    return 0;
+}
 
 // 0x517e00  Confidence: likely (long function: the do / while (rcode > 0) form is from the rotated loop; the
 // order of the header stores; the dead `cmp 0x258`).
@@ -770,7 +781,40 @@ int nw_receive(ubyte *data, net_addr *from)
     return 0;
 }
 
-// 0x518bb0 nw_NewReceiveReliable: module -, not written here.
+// 0x518bb0  Confidence: exact (VC6 byte match). The next packet in sequence of a
+// connected (or limbo) link: copied to buf (size is not read), its buffer freed, the expected sequence
+// advanced; 0 when it has not arrived, -1 for a bad id (module -; decomp76).
+int nw_NewReceiveReliable(int socket, void *buf, int size)
+{
+    char msg[256];
+    reliable_socket *rsocket;
+    int i;
+
+    nw_WorkReliable();
+    if ((unsigned int)socket >= NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Invalid socket id passed to nw_NewReceiveReliable() -- %d\n", socket);
+        return -1;
+    }
+    rsocket = &nw_reliable_sockets[socket];
+    if (rsocket->status != RNF_CONNECTED && rsocket->status != RNF_LIMBO) {
+        sprintf(msg, "Can't receive packet because it isn't connected in nw_ReceiveReliable(). socket = %d\n", socket);
+        return 0;
+    }
+    for (i = 0; i < NW_MAX_NET_BUFFERS; i++) {
+        if (rsocket->rsequence[i] == rsocket->theirsequence && rsocket->rbuffers[i]) {
+            memcpy(buf, rsocket->rbuffers[i], rsocket->recv_len[i]);
+            Mempool *old_pool = get_current_mempool();
+            set_current_mempool(NULL);
+            delete rsocket->rbuffers[i];
+            set_current_mempool(old_pool);
+            rsocket->rbuffers[i] = NULL;
+            rsocket->rsequence[i] = 0;
+            rsocket->theirsequence++;
+            return rsocket->recv_len[i];
+        }
+    }
+    return 0;
+}
 
 // 0x518ce0  Confidence: likely (the found branch after the loop).
 int nw_accept_reliable(net_addr *from)
@@ -792,7 +836,61 @@ int nw_accept_reliable(net_addr *from)
     return i;
 }
 
-// 0x518d70 nw_NewSendReliable: module -, not written here.
+// 0x518d70  Confidence: likely (VC6: same size, the registers of the two copies differ). Sends one data packet on a
+// connected link
+// and keeps a copy until it is acknowledged (nw_WorkReliable resends it). A send that would block is
+// back-dated by 3 s so that the first resend comes early. 0 without a socket, for a bad id, a link that
+// is not connected or all 150 buffers in use (that one is printed); else nw_send_packet's result
+// (module -; decomp76).
+int nw_NewSendReliable(int socket, const void *data, int len)
+{
+    reliable_header send_header;
+    char msg[256];
+    reliable_socket *rsocket;
+    int i;
+    int bytesout;
+
+    if (!nw_socket)
+        return 0;
+    nw_WorkReliable();
+    if ((unsigned int)socket >= NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Invalid socket id passed to nw_NewSendReliable() -- %d\n", socket);
+        return 0;
+    }
+    rsocket = &nw_reliable_sockets[socket];
+    if (rsocket->status != RNF_CONNECTED) {
+        sprintf(msg, "Can't send packet because of status %d in nw_SendReliable(). socket = %d\n", rsocket->status,
+                socket);
+        return 0;
+    }
+    for (i = 0; i < NW_MAX_NET_BUFFERS; i++) {
+        if (rsocket->sbuffers[i] == NULL) {
+            int now = timer_get(1000);
+            rsocket->send_len[i] = (ushort)len;
+            Mempool *old_pool = get_current_mempool();
+            set_current_mempool(NULL);
+            rsocket->sbuffers[i] = new reliable_net_buffer;
+            set_current_mempool(old_pool);
+            send_header.send_time = now;
+            send_header.data_len = (ushort)len;
+            send_header.type = RNT_DATA;
+            memcpy(send_header.data, data, len);
+            rsocket->ssequence[i] = rsocket->oursequence;
+            memcpy(rsocket->sbuffers[i], data, len);
+            send_header.seq = rsocket->oursequence;
+            bytesout = nw_send_packet(&send_header, rsocket->send_len[i] + NW_RELIABLE_HEADER_SIZE, 0,
+                                      &rsocket->addr, NW_TYPE_RELIABLE);
+            if (bytesout == -2)
+                rsocket->timesent[i] = timer_get(1000) - 3000;
+            else
+                rsocket->timesent[i] = timer_get(1000);
+            rsocket->oursequence++;
+            return bytesout;
+        }
+    }
+    printf("Can't send packet because a buffer overflow nw_SendReliable(). socket = %d\n", socket);
+    return 0;
+}
 
 // 0x518f30  Confidence: likely (the loop: the reply path skips the start-time wrap update).
 // Sends the connection request every 2 s until an ACK with NW_CONNECT_SEQ arrives or 100 s pass, then
@@ -881,7 +979,50 @@ void nw_ConnectToServer(int *socket, net_addr *server)
     } while (rsocket->status != RNF_CONNECTED);
 }
 
-// 0x5191c0 nw_NewCloseSocket: module -, not written here.
+// 0x5191c0  Confidence: likely (VC6: same size; the socket pointer is not kept in ebx from the start). Frees the
+// link's buffers, tells the
+// peer (RNT_DISCONNECT with the connect sequence) and clears the record; *socket becomes -1. Without the
+// UDP socket only the buffers are freed. The send-buffer branch clears rsequence[i], not ssequence[i]
+// (harmless: the record is cleared afterwards; module -; decomp76).
+void nw_NewCloseSocket(int *socket)
+{
+    char msg[256];
+    reliable_header close_packet;
+    int i;
+
+    if ((unsigned int)*socket >= NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Invalid socket id passed to nw_NewCloseSocket() -- %d\n", *socket);
+        return;
+    }
+    sprintf(msg, "Closing socket %d\n", *socket);
+    Mempool *old_pool = get_current_mempool();
+    set_current_mempool(NULL);
+    for (i = 0; i < NW_MAX_NET_BUFFERS; i++) {
+        if (nw_reliable_sockets[*socket].rbuffers[i]) {
+            delete nw_reliable_sockets[*socket].rbuffers[i];
+            nw_reliable_sockets[*socket].rbuffers[i] = NULL;
+            nw_reliable_sockets[*socket].rsequence[i] = 0;
+        }
+        if (nw_reliable_sockets[*socket].sbuffers[i]) {
+            delete nw_reliable_sockets[*socket].sbuffers[i];
+            nw_reliable_sockets[*socket].sbuffers[i] = NULL;
+            nw_reliable_sockets[*socket].rsequence[i] = 0;
+        }
+    }
+    set_current_mempool(old_pool);
+    close_packet.type = RNT_DISCONNECT;
+    close_packet.seq = NW_CONNECT_SEQ;
+    close_packet.data_len = 0;
+    if (*socket == nw_server_socket)
+        nw_server_socket = -1;
+    if (!nw_socket)
+        return;
+    nw_send_packet(&close_packet, NW_RELIABLE_HEADER_SIZE, 0, &nw_reliable_sockets[*socket].addr, NW_TYPE_RELIABLE);
+    i = *socket;
+    *socket = -1;
+    memset(&nw_reliable_sockets[i], 0, sizeof(reliable_socket));
+    nw_reliable_sockets[i].status = RNF_UNUSED;
+}
 
 // 0x519370  Confidence: exact.
 int nw_addr_equal(const void *a, const void *b, bool check_port)

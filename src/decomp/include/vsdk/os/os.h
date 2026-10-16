@@ -10,6 +10,9 @@
 // name: the mutex and window class name ("Volition"), title: the window title ("Summoner").
 void os_init(const char *name, const char *title);   // 0x530d10 single-instance mutex, CoInitialize, window
 void os_poll();                                       // 0x530ca0 message pump wrapper (Dash Faction name)
+// decomp76: PeekMessage / TranslateMessage / DispatchMessage until the queue is empty; the argument is not
+// read (os_poll passes 0); returns 0.
+int  os_pump_messages(int unused);                    // 0x530cb0
 HWND os_get_main_wnd();                               // 0x530c00 main_wnd (0x2cbff10)
 bool os_foreground();                                 // 0x530c10 is_main_wnd_active (0x2cbff1c; decomp49, mouse_set_pos)
 void os_close_main_window();                          // 0x531260 ReleaseMutex, PostMessage(WM_DESTROY)
