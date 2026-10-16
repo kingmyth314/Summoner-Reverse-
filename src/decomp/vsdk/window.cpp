@@ -28,7 +28,7 @@ ui_gadget *ui_nav_best_gadget;      // 0x2cbf554 read and written by ui_gadget__
 int ui_nav_best_distance;           // 0x2cbf558
 bool ui_window_processing;          // 0x2cbf55c ui_window::process is running (dtor defers)
 
-// 0x528430  Confidence: likely (ctrl/shift stores before the Expect calls).
+// 0x528430  Confidence: exact (ctrl/shift stores before the Expect calls).
 // "+Hotkey:" value: optional "Ctrl+", "Shift+", "Alt+" prefixes and a key name looked up in key_names.
 // "Alt+" sets the shift bit (0x1000) like "Shift+"; there is no alt bit. A name that is not found gives
 // 256. Thiscall on the window, which it does not use.
@@ -69,7 +69,7 @@ int ui_window::parse_hotkey(TextFile *tf)
     return i;
 }
 
-// 0x528530  Confidence: likely (the eol pair is two byte stores in the binary; local layout).
+// 0x528530  Confidence: exact (the eol pair is two byte stores in the binary; local layout).
 // "#Button". Positions in the table are absolute: the parent's screen position is subtracted. Inside a
 // slider (type 7) the button is created in the slider. "+State bitmap:" takes the file, then a comma list
 // of states; the bitmap is loaded once for all of them. A state name that matches nothing reuses the
@@ -147,10 +147,12 @@ ui_button *ui_window::parse_button(TextFile *tf, ui_element *parent)
     }
     if (tf->Accept("+Hotspot:"))
         b->set_hotspot(tf->ParseInt());
-    while (tf->Accept("+State bitmap:")) {
-        tf->ParseString(filename, 260, '"', '"');
+    while (1) {
+        if (!tf->Accept("+State bitmap:"))
+            break;
         ui_state_bitmap *state = NULL;
         int bm = -1;
+        tf->ParseString(filename, 260, '"', '"');
         while (tf->Accept(",")) {
             tf->SkipWhitespace();
             tf->CopyUntil(buf, 64, ",", eol);
@@ -181,7 +183,7 @@ ui_button *ui_window::parse_button(TextFile *tf, ui_element *parent)
     return b;
 }
 
-// 0x528a40  Confidence: likely.
+// 0x528a40  Confidence: exact.
 // "#Checkbox". Always created in the window, then moved into a container parent. Each "+State bitmap:"
 // line names one state.
 ui_checkbox *ui_window::parse_checkbox(TextFile *tf, ui_element *parent)
@@ -274,14 +276,14 @@ ui_checkbox *ui_window::parse_checkbox(TextFile *tf, ui_element *parent)
     return cb;
 }
 
-// 0x528ec0  Confidence: likely.
+// 0x528ec0  Confidence: exact.
 // "#Container": a group, then its gadgets up to "$Inventory end" (the block markers are named
 // "$Inventory start" / "$Inventory end"). "+Tooltip:" lines are only read after a "+Mask bitmap:".
 ui_container *ui_window::parse_container(TextFile *tf, ui_element *parent)
 {
     int type = 0;
-    int parent_y = 0;
     int parent_x = 0;
+    int parent_y = 0;
     char name[64];
     char buf[64];
     char filename[260];
@@ -367,15 +369,15 @@ ui_container *ui_window::parse_container(TextFile *tf, ui_element *parent)
     return c;
 }
 
-// 0x5292f0  Confidence: likely.
+// 0x5292f0  Confidence: exact.
 // "#Inputbox". "+Password" may be followed by ":" and a string whose first character replaces '*'.
 ui_inputbox *ui_window::parse_inputbox(TextFile *tf, ui_element *parent)
 {
-    char password_char = '*';
     int type = 0;
+    int parent_x = 0;
     int parent_y = 0;
     int flags = 0;
-    int parent_x = 0;
+    char password_char = '*';
     char name[64];
     char buf[64];
     char filename[260];
@@ -490,17 +492,17 @@ ui_inputbox *ui_window::parse_inputbox(TextFile *tf, ui_element *parent)
     return ib;
 }
 
-// 0x5298c0  Confidence: likely ("+Add both scrollbars" sets only flag 2, like the vertical one; the two
+// 0x5298c0  Confidence: exact ("+Add both scrollbars" sets only flag 2, like the vertical one; the two
 // |= 2 blocks are one in the binary).
 // "#Listbox". "+Horizontal scrollbar" / "+Vertical scrollbar" are followed by a slider block parsed with
 // the list box as parent (ui_parse_slider creates it as a scroll bar of the list box).
 ui_listbox *ui_window::parse_listbox(TextFile *tf, ui_element *parent)
 {
     int type = 0;
+    int parent_x = 0;
     int parent_y = 0;
     int content_h = 0;
     int flags = 0;
-    int parent_x = 0;
     char name[64];
     char buf[64];
     char filename[260];
@@ -796,13 +798,13 @@ ui_slider_base *ui_window::parse_slider(TextFile *tf, ui_element *parent)
     return s;
 }
 
-// 0x52a700  Confidence: likely.
+// 0x52a700  Confidence: exact.
 // "#Static": text and/or bitmap label.
 ui_static *ui_window::parse_static(TextFile *tf, ui_element *parent)
 {
     int type = 0;
-    int parent_y = 0;
     int parent_x = 0;
+    int parent_y = 0;
     char name[64];
     char buf[64];
     char filename[260];
@@ -919,8 +921,8 @@ int ui_window::handle_arrow_key(int key)
         selected->get_size(&sw, &sh);
         int sx = selected->get_screen_x(0);
         int sy = selected->get_screen_y(0);
-        int bottom = sy + sh;
         int right = sx + sw;
+        int bottom = sy + sh;
         int cx = (sx + right) / 2;
         int cy = (bottom + sy) / 2;
         switch (key) {
@@ -1031,7 +1033,7 @@ void ui_window::nav_right(int px, int py)
         first_gadget->find_nearest_right(x, py);
 }
 
-// 0x52afe0  Confidence: unsure (a bare ret with no reference in the image; an empty function of this
+// 0x52afe0  Confidence: exact (a bare ret with no reference in the image; an empty function of this
 // unit, name and signature unknown).
 void ui_stub_ret_52afe0()
 {
@@ -1048,7 +1050,7 @@ bool ui_window::send_event(int event, int value)
     return false;
 }
 
-// 0x52b020  Confidence: likely (store order: the vtable store sits between the list and the other
+// 0x52b020  Confidence: exact (store order: the vtable store sits between the list and the other
 // fields in the binary).
 ui_window::ui_window()
 {
@@ -1114,7 +1116,7 @@ void ui_window::init(int x, int y, int w, int h, int id, int flags)
     next = win;
 }
 
-// 0x52b200  Confidence: likely (one 64-byte buffer for the name, both bitmaps and the tooltips, as in the
+// 0x52b200  Confidence: exact (one 64-byte buffer for the name, both bitmaps and the tooltips, as in the
 // binary's frame; if +Name: is missing, the uninitialised buffer is copied).
 // Reads a UI table: the window rectangle, name, id and flags, its bitmaps and tooltips, then the gadget
 // blocks up to "#End". A missing file only formats a message into string_buffer and parsing goes on.
@@ -1195,7 +1197,7 @@ void ui_window::load_table(const char *filename, int path_id)
     tf.Close();
 }
 
-// 0x52b630  Confidence: likely (the unlink store order is read from the code; it may be an inline list
+// 0x52b630  Confidence: exact (the unlink store order is read from the code; it may be an inline list
 // helper in the original).
 // Vtable slot 0 (ui_window__destroy). While ui_window::process runs it only sets UI_WINDOW_DESTROY and
 // process calls it again at the end. Otherwise every gadget is unlinked and destroyed (owned ones also
@@ -1365,7 +1367,7 @@ void ui_window::set_background_bitmap(int bm, const char *name)
     }
 }
 
-// 0x52b9f0  Confidence: likely (switch on the border style; case order).
+// 0x52b9f0  Confidence: exact (switch on the border style; case order).
 // Background bitmap stretched over the window, else border style 1 (plain face), 2 (face and a 3-pixel
 // bevel) or 3 (face and three bevels). The callback gets events 0 and 1 around the gadgets.
 void ui_window::draw()
@@ -1404,7 +1406,7 @@ void ui_window::draw()
     send_event(UI_EVENT_DRAW_END, UI_NO_ID);
 }
 
-// 0x52bc20  Confidence: likely.
+// 0x52bc20  Confidence: exact.
 // One frame of input. A hidden or disabled window only passes the key through its gadgets. Otherwise the
 // selection follows the mouse when it moved or a button was released; with "+Always a selection" the first
 // selectable gadget is selected (that loop never advances: it hangs if the first gadget in the list is not
@@ -1479,8 +1481,9 @@ int ui_window::process(int key)
         ui_right_double_clicked = false;
     }
 
+    int f = flags;
     ui_window_processing = false;
-    if (flags & UI_WINDOW_DESTROY)
+    if (f & UI_WINDOW_DESTROY)
         dtor();
     return key;
 }

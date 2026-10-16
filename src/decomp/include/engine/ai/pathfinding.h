@@ -287,7 +287,7 @@ pf_grid_cell *pf_grid_hash_find(int x, int y, pf_grid *grid);              // 0x
 int  pf_grid_cells_in_box(const vector2 *pt, float half, pf_grid *grid);   // 0x4a5f70 count
 int  pf_grid_cells_along_segment(const vector2 *a, const vector2 *b, pf_grid *grid);   // 0x4a6060 count
 int  pf_cells_in_box(int layer, int size, const vector2 *pt, float half);  // 0x4a64f0 count
-bool seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist);   // 0x4a6530
+int  seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist);  // 0x4a6530 1 / 0 in EAX (D6401)
 
 extern int pf_cell_pool_remaining;            // 0x245f3a0
 extern float seg2d_denom;                     // 0x245f3a4

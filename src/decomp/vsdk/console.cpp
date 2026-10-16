@@ -96,7 +96,7 @@ void cmd_print_to_file()
         print_to_console("Print out console commands to the text file console.txt", 0);
 }
 
-// 0x50a180  Confidence: likely (the append and the insert share the tail; the insert is a guarded
+// 0x50a180  Confidence: exact (the append and the insert share the tail; the insert is a guarded
 // down-shift). Inserts the command into Console_commands sorted by _stricmp. A full table or a name that
 // is already registered leaves the object unlinked and its fields unset (still zero).
 console_command::console_command(const char *name, const char *help, void (*func)())
@@ -127,7 +127,7 @@ console_command::console_command(const char *name, const char *help, void (*func
     this->callback = func;
 }
 
-// 0x50a210  Confidence: likely (mode in EBX: 0 call, 1 "?" status, 2 help; the "?" test reuses BL for
+// 0x50a210  Confidence: exact (mode in EBX: 0 call, 1 "?" status, 2 help; the "?" test reuses BL for
 // ARG_NONE). Frame pointer because of setjmp. An argument error inside the command (process_command's
 // longjmp) returns -1 from here.
 int execute_command_line(const char *line)
@@ -236,9 +236,10 @@ static void set_command_line(char *line)
 // 0x50a570  Confidence: exact. The cursor stops on the terminating NUL.
 static void get_next_char()
 {
-    current_char = *command_line_cursor;
-    if (current_char != '\0')
-        command_line_cursor++;
+    if (*command_line_cursor == '\0')
+        current_char = *command_line_cursor;
+    else
+        current_char = *command_line_cursor++;
 }
 
 // 0x50a5a0  Confidence: exact. Empty in the PC build.
@@ -246,7 +247,7 @@ void print_to_console(const char *text, int flags)
 {
 }
 
-// 0x50a5b0  Confidence: likely (the token-type mapping: the last case is a ternary, sub / neg / sbb).
+// 0x50a5b0  Confidence: exact (the token-type mapping: the last case is a ternary, sub / neg / sbb).
 // Parses the next argument into original_arg / next_arg and sets arg_type; when none of arg_types'
 // bits is set it reports the error and longjmps back into execute_command_line.
 void process_command(int arg_types)
@@ -353,7 +354,7 @@ void process_command(int arg_types)
     }
 }
 
-// 0x50a9a0  Confidence: likely (jump table 0x50aa18 over the five classes; the one-character case
+// 0x50a9a0  Confidence: exact (jump table 0x50aa18 over the five classes; the one-character case
 // stores through the pointer the compiler knows). Ends with a tail jump to make_lowercase_token.
 static void get_token()
 {
@@ -362,15 +363,15 @@ static void get_token()
     token[0] = '\0';
 
     switch (char_types[(unsigned char)current_char]) {
-    case CHAR_LETTER:
-    case CHAR_DIGIT:
-        read_word();
-        break;
     case CHAR_QUOTE:
         read_quoted_string();
         break;
     case CHAR_END:
         token_type = TOKEN_END;
+        break;
+    case CHAR_LETTER:
+    case CHAR_DIGIT:
+        read_word();
         break;
     default:
         *token_write_ptr++ = current_char;
@@ -389,7 +390,7 @@ static void skip_whitespace()
         get_next_char();
 }
 
-// 0x50aa50  Confidence: likely (a do-while: there is no test before the first character, so an empty
+// 0x50aa50  Confidence: exact (a do-while: there is no test before the first character, so an empty
 // token also lower-cases the stale bytes after its NUL up to the next NUL).
 static void make_lowercase_token()
 {
@@ -407,7 +408,9 @@ static void read_word()
 {
     while (char_types[(unsigned char)current_char] == CHAR_LETTER
            || char_types[(unsigned char)current_char] == CHAR_DIGIT) {
-        *token_write_ptr++ = current_char;
+        char *p = token_write_ptr;
+        *p++ = current_char;
+        token_write_ptr = p;
         get_next_char();
     }
     token_type = TOKEN_WORD;
@@ -417,16 +420,22 @@ static void read_word()
 // 0x50ab00  Confidence: exact. Keeps both quotes; an unterminated string ends at the end of the line.
 static void read_quoted_string()
 {
-    *token_write_ptr++ = '"';
+    char *p = token_write_ptr;
+    *p++ = '"';
+    token_write_ptr = p;
     get_next_char();
     while (current_char != '"' && current_char != '\0') {
-        *token_write_ptr++ = current_char;
+        p = token_write_ptr;
+        *p++ = current_char;
+        token_write_ptr = p;
         get_next_char();
     }
     get_next_char();
     token_type = TOKEN_QUOTED;
-    *token_write_ptr++ = '"';
-    *token_write_ptr = '\0';
+    p = token_write_ptr;
+    *p++ = '"';
+    token_write_ptr = p;
+    *p = '\0';
 }
 
 // 0x50ab60  Confidence: likely (the order of the nine single stores). The argument is not read
@@ -467,12 +476,13 @@ void cmd_script()
 {
     if (calling_a_command_function) {
         process_command(ARG_STRING);
-        if (strlen(next_arg) == 0) {
+        if (strlen(next_arg) != 0) {
+            load_script(next_arg);
+        } else {
             doing_help_for_comand = 1;
             print_to_console("Usage: script <scriptfilename>\n", 0);
             return;
         }
-        load_script(next_arg);
     }
     if (doing_help_for_comand)
         print_to_console("Usage: script <scriptfilename>\n", 0);

@@ -123,27 +123,30 @@ void journal_load_bitmaps()
     int i;
 
     for (i = 0; i < JOURNAL_NUM_BUTTONS; i++) {
-        journal_buttons[i].flags = 0;
-        journal_buttons[i].bitmap = -1;
-        journal_buttons[i].x = 0;
-        journal_buttons[i].y = 0;
-        journal_buttons[i].w = 0;
-        journal_buttons[i].h = 0;
+        ui_button_state *b = &journal_buttons[i];
+        const ui_button_def *d = &journal_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(journal_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, journal_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            journal_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            journal_buttons[i].x = journal_button_defs[i].pos[resolution_index][0];
-            journal_buttons[i].y = journal_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(journal_buttons[i].bitmap, &journal_buttons[i].w, &journal_buttons[i].h);
-            journal_buttons[i].w = (int)(journal_buttons[i].w * scale + 0.5f);
-            journal_buttons[i].h = (int)(journal_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                journal_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -236,7 +239,8 @@ void journal_select_quest(quest_info *quest)
         if (step >= 0) {
             int lengths[16];
             int starts[16];
-            journal_desc_line_count = gr_split_str(lengths, starts, journal_selected_quest->steps[step].text,
+            const char *text = journal_selected_quest->steps[step].text;
+            journal_desc_line_count = gr_split_str(lengths, starts, text,
                                                    journal_desc_width[resolution_index], 16, 0, -1) + 2;
         }
     }
@@ -301,7 +305,7 @@ int journal_frame(int key)
         return journal_handle_click(key);
     case 1:
         journal_update_buttons();
-        break;
+        return key;
     case 2:
         journal_drag_scrollbar();
         break;
@@ -450,23 +454,27 @@ int journal_handle_click(int key)
     return key;
 }
 
-// 0x41b470  Confidence: likely (the side test (list == 1) is hoisted out of the loop by the compiler).
+// 0x41b470  Confidence: exact (VC6 byte match) (the side test (list == 1) is hoisted out of the loop by the compiler).
 // The n-th quest of a list whose quest bit is set.
 quest_info *journal_get_quest(int list, int n)
 {
     int i;
 
+    bool side = list == 1;
+
     for (i = 0; i < quest_count; i++) {
-        if (quest_table[i].side_quest == (list == 1) && savegame_state.get_quest_bit(i)) {
+        quest_info *q = &quest_table[i];
+
+        if (q->side_quest == side && savegame_state.get_quest_bit(i)) {
             if (n == 0)
-                return &quest_table[i];
+                return q;
             n--;
         }
     }
     return 0;
 }
 
-// 0x41b4d0  Confidence: likely (two stores of the element: the subtraction, then the clamp).
+// 0x41b4d0  Confidence: exact (VC6 byte match) (two stores of the element: the subtraction, then the clamp).
 void journal_list_page_up(int list)
 {
     if (list == -1)
@@ -478,7 +486,7 @@ void journal_list_page_up(int list)
     }
 }
 
-// 0x41b520  Confidence: likely (as journal_list_page_up).
+// 0x41b520  Confidence: exact (VC6 byte match) (as journal_list_page_up).
 void journal_list_page_down(int list)
 {
     if (list == -1)
@@ -504,10 +512,14 @@ void journal_desc_page_up()
 // 0x41b5a0  Confidence: exact.
 void journal_desc_page_down()
 {
-    int last = journal_desc_line_count - journal_desc_page[resolution_index];
-    if (journal_desc_first_line < last) {
-        int line = journal_desc_first_line + journal_desc_page[resolution_index];
-        journal_desc_first_line = line < last ? line : last;
+    int first = journal_desc_first_line;
+    int page = journal_desc_page[resolution_index];
+    int last = journal_desc_line_count - page;
+    if (first < last) {
+        int line = first + page;
+        if (line < last)
+            last = line;
+        journal_desc_first_line = last;
         journal_update_desc_scrollbar();
     }
 }
@@ -623,20 +635,21 @@ void journal_update_buttons()
     int button = journal_pressed_button + 1;
 
     if (journal_pressed_button >= 0 && journal_pressed_button < JOURNAL_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, journal_buttons[button].x, journal_buttons[button].y,
-                          journal_buttons[button].w, journal_buttons[button].h))
-            journal_buttons[button].flags |= 2;
+        ui_button_state *b = &journal_buttons[button];
 
-        if (mouse_is_down(0)) {
-            if (journal_repeat_timer.valid() && journal_repeat_timer.elapsed()
-                && (journal_buttons[button].flags & 2)) {
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
+
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !journal_repeat_timer.valid())
+                journal_button_action(button);
+        } else {
+            if (journal_repeat_timer.valid() && journal_repeat_timer.elapsed() && (b->flags & 2)) {
                 journal_button_action(button);
                 journal_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((journal_buttons[button].flags & 2) && !journal_repeat_timer.valid())
-            journal_button_action(button);
     }
     journal_mouse_mode = 0;
 }
@@ -645,14 +658,16 @@ void journal_update_buttons()
 // once: written as three assignments and one nested clamp).
 void journal_drag_scrollbar()
 {
-    int y = game_mouse_y - journal_drag_start_y + journal_drag_start_thumb;
+    int y = journal_drag_start_thumb + (game_mouse_y - journal_drag_start_y);
 
     if (journal_drag_scrollbar_index == 3) {
         int line = (int)((float)(y - journal_desc_track_pos[resolution_index][1])
                          / journal_desc_track_h[resolution_index] * journal_desc_line_count + 0.5f);
         int last = journal_desc_line_count - journal_desc_page[resolution_index];
         line = line > 0 ? line : 0;
-        journal_desc_first_line = line < last ? line : last;
+        if (line < last)
+            last = line;
+        journal_desc_first_line = last;
         journal_update_desc_scrollbar();
     } else {
         int list = journal_drag_scrollbar_index;
@@ -676,9 +691,10 @@ void journal_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < JOURNAL_NUM_BUTTONS; i++) {
-        if (journal_buttons[i].flags & 3)
-            ui_bitmap_scaled(journal_buttons[i].bitmap, journal_buttons[i].x, journal_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &journal_buttons[i];
+
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     journal_draw_quest_list();
     journal_draw_description();
@@ -728,7 +744,7 @@ void journal_draw_quest_list()
     }
 }
 
-// 0x41bbf0  Confidence: likely (the min() of the visible line count; lines are copied with strncpy and
+// 0x41bbf0  Confidence: exact (VC6 byte match) (the min() of the visible line count; lines are copied with strncpy and
 // terminated by hand).
 void journal_draw_description()
 {
@@ -768,7 +784,7 @@ void journal_draw_description()
     }
 }
 
-// 0x41bd40  Confidence: likely (thumb y - tile h + thumb h for the last tile, in the binary's order).
+// 0x41bd40  Confidence: exact (VC6 byte match) (thumb y - tile h + thumb h for the last tile, in the binary's order).
 // The thumb is drawn as whole tiles plus one tile aligned to its bottom edge.
 void journal_draw_list_scrollbar(int list)
 {
@@ -787,7 +803,7 @@ void journal_draw_list_scrollbar(int list)
                      gr_bitmap_wrap_mode);
 }
 
-// 0x41be00  Confidence: likely (as journal_draw_list_scrollbar). No visibility test: the description
+// 0x41be00  Confidence: exact (VC6 byte match) (as journal_draw_list_scrollbar). No visibility test: the description
 // thumb is always drawn, with the values of the last scrolling quest (journal_update_desc_scrollbar
 // leaves them alone when the text fits; all 0 before the first one).
 void journal_draw_desc_scrollbar()

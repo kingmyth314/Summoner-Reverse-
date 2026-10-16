@@ -76,7 +76,7 @@ char **dialogue_end_text = XSTR_SLOT("end", 950);    // 0x25443fc
 int dialogue_selected_topic;                         // 0x25443b4 (no initialiser)
 
 // ---- the line records ------------------------------------------------------------------------------
-// 0x4d68c0  Confidence: likely (the in-quote flag starts as a branch `cont || *text == '"'`; arg 5 unread).
+// 0x4d68c0  Confidence: exact (VC6 byte match) (the in-quote flag starts as a branch `cont || *text == '"'`; arg 5 unread).
 bool dialogue_line::split_quotes(int *count, int *lengths, int *starts, const char *text, int max, bool in_quote)
 {
     bool quoted = in_quote || *text == '"';
@@ -84,34 +84,34 @@ bool dialogue_line::split_quotes(int *count, int *lengths, int *starts, const ch
     const char *q;
 
     *count = 0;
-    if (*p == 0)
-        return quoted;
-    do {
-        starts[*count] = p - text;
-        if (quoted) {
-            // the opening quote is part of the segment unless the line continues one
-            if (*count == 0 && in_quote)
+    if (*p != 0) {
+        do {
+            starts[*count] = p - text;
+            if (quoted) {
+                // the opening quote is part of the segment unless the line continues one
+                if (*count == 0 && in_quote)
+                    q = strchr(p, '"');
+                else
+                    q = strchr(p + 1, '"');
+                if (q) {
+                    lengths[*count] = q - p + 1;
+                    quoted = false;
+                } else {
+                    lengths[*count] = strlen(p);
+                }
+            } else {
                 q = strchr(p, '"');
-            else
-                q = strchr(p + 1, '"');
-            if (q) {
-                lengths[*count] = q - p + 1;
-                quoted = false;
-            } else {
-                lengths[*count] = strlen(p);
+                if (q) {
+                    lengths[*count] = q - p;
+                    quoted = true;
+                } else {
+                    lengths[*count] = strlen(p);
+                }
             }
-        } else {
-            q = strchr(p, '"');
-            if (q) {
-                lengths[*count] = q - p;
-                quoted = true;
-            } else {
-                lengths[*count] = strlen(p);
-            }
-        }
-        p += lengths[*count];
-        (*count)++;
-    } while (*p);
+            p += lengths[*count];
+            (*count)++;
+        } while (*p);
+    }
     return quoted;
 }
 
@@ -180,9 +180,10 @@ void dialogue_line::init(const char *text, int width, int kind, conversation_slo
         this->talker = NULL;
     if (text && kind == 2)
         this->text = localize_topic_name(text);
-    if (this->text)
-        height = gr_split_str(lengths, offsets, this->text, this->width, DIALOGUE_MAX_WRAP, 0, -1)
-                 * gr_get_font_height(-1);
+    if (this->text) {
+        int n = gr_split_str(lengths, offsets, this->text, this->width, DIALOGUE_MAX_WRAP, 0, -1);
+        height = gr_get_font_height(-1) * n;
+    }
     else
         height = gr_get_font_height(-1);
 }
@@ -254,9 +255,11 @@ void dialogue_topic_entry::init(conversation_topic *topic, int width, int state)
     this->topic = topic;
     this->width = width;
     this->state = state;
-    if (topic && topic->name)
-        height = gr_split_str(lengths, offsets, localize_topic_name(topic->text), this->width,
-                              DIALOGUE_MAX_WRAP, 0, -1) * gr_get_font_height(-1);
+    if (topic && topic->name) {
+        char *text = localize_topic_name(topic->text);
+        int n = gr_split_str(lengths, offsets, text, this->width, DIALOGUE_MAX_WRAP, 0, -1);
+        height = gr_get_font_height(-1) * n;
+    }
     else
         height = gr_get_font_height(-1);
 }
@@ -317,7 +320,7 @@ void dialogue_topic_entry::draw(int scroll)
 }
 
 // ---- the boxes ------------------------------------------------------------------------------------
-// 0x4d70f0  Confidence: likely (+0x20 / +0x24 are not cleared here; the stores follow the timer's
+// 0x4d70f0  Confidence: exact (VC6 byte match) (+0x20 / +0x24 are not cleared here; the stores follow the timer's
 // constructor and the vtable store, as the compiler orders them).
 dialogue_box_base::dialogue_box_base()
 {
@@ -429,10 +432,10 @@ dialogue_line *dialogue_box::add_text(const char *text, int kind, bool spacer, c
 int dialogue_box::first_visible_line()
 {
     int top_y = -(int)scroll;
-    int i;
+    int i, j;
 
-    for (i = 0; i < count; i++) {
-        dialogue_line *l = &line[(first + i) % DIALOGUE_RING];
+    for (i = 0, j = first; i < count; i++, j++) {
+        dialogue_line *l = &line[j % DIALOGUE_RING];
         if (l->text && l->top + l->height > top_y)
             return i;
     }
@@ -474,11 +477,12 @@ void dialogue_box::scroll_next_page()
     }
 }
 
-// 0x4d7600  Confidence: likely (operand order of the sum).
+// 0x4d7600  Confidence: exact (VC6 byte match) (operand order of the sum).
 bool dialogue_box::line_fits(int i)
 {
+    dialogue_line *l = &line[i];
     int visible = gr_get_font_height(-1) * lines;
-    return (int)scroll + line[i].height + line[i].top <= visible;
+    return (int)scroll + l->height + l->top <= visible;
 }
 
 // 0x4d7650 dialogue_box__reset  Confidence: exact (slot 0 of the text box vtable).
@@ -520,7 +524,7 @@ void dialogue_box::draw()
     gr_get_clip(&cx, &cy, &cw, &ch);
     gr::set_clip(x, y, w, gr_get_font_height(-1) * lines);
     for (i = 0; i < count; i++) {
-        dialogue_line *l = &line[(first + i) % DIALOGUE_RING];
+        dialogue_line *l = &line[(i + first) % DIALOGUE_RING];
         int visible = gr_get_font_height(-1) * lines;
         if (visible > scroll && (float)l->height + l->top + scroll >= 0.0f)
             l->draw((int)scroll);
@@ -549,15 +553,13 @@ dialogue_topic_entry *dialogue_topic_list::add(conversation_topic *topic, int ki
     return e;
 }
 
-// 0x4d78b0  Confidence: likely (returns through EAX = 1 / 0).
+// 0x4d78b0  Confidence: exact (VC6 byte match) (returns through EAX = 1 / 0).
 bool dialogue_topic_list::item_visible(int item)
 {
     dialogue_topic_entry *e = &entry[item];
     int bottom = (int)scroll + e->height + e->top;
 
-    if (bottom > 0 && bottom <= gr_get_font_height(-1) * lines)
-        return true;
-    return false;
+    return bottom > 0 && bottom <= gr_get_font_height(-1) * lines;
 }
 
 // 0x4d7900  Confidence: exact.
@@ -622,7 +624,7 @@ int dialogue_topic_box_add_kind3(conversation_topic *topic)
     return 0;
 }
 
-// 0x4d7ae0  Confidence: likely (the name goes through a local copy of the argument whose address is passed:
+// 0x4d7ae0  Confidence: exact (VC6 byte match) (the name goes through a local copy of the argument whose address is passed:
 // `mov [esp+0xc], eax` stores it back into its own slot).
 void dialogue_screen_open(const char *name)
 {

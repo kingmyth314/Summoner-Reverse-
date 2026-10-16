@@ -61,9 +61,12 @@ unsigned int snd_stream_get_writable(int stream)
 
     if (ds_channels[s->channel].pdsb->GetCurrentPosition(&play, &write) < 0)
         return 0;
+    unsigned int n;
     if (s->write_pos <= play)
-        return play - s->write_pos;
-    return s->ring_size - s->write_pos + play;
+        n = play - s->write_pos;
+    else
+        n = s->ring_size - s->write_pos + play;
+    return n;
 }
 
 // 0x566630  Confidence: likely (the shared exit unlocks even after a failed Lock). The converted bytes are
@@ -202,7 +205,7 @@ int snd_stream_rewind(int stream)
     return 0;
 }
 
-// 0x566b60  Confidence: likely. At the end of the file the rest of the window is filled with silence,
+// 0x566b60  Confidence: exact. At the end of the file the rest of the window is filled with silence,
 // also for a looping stream after its rewind (a gap at every loop; NOTES.md); a one-shot stream stops
 // once four ring sizes of silence are written.
 void snd_stream_service(int stream)
@@ -214,7 +217,7 @@ void snd_stream_service(int stream)
     if (!(s->flags & SND_STREAM_USED))
         return;
     n = snd_stream_get_writable(stream);
-    if (n == 0)
+    if (n <= 0)
         return;
     if (ds_buffers[s->buffer].format->wFormatTag == WAVE_FORMAT_ADPCM)
         snd_stream_fill_acm(stream, n, &written);
@@ -222,8 +225,8 @@ void snd_stream_service(int stream)
         snd_stream_fill_pcm(stream, n, &written);
     if (!(s->flags & SND_STREAM_ENDED))
         return;
-    s->flags &= ~SND_STREAM_ENDED;
     n -= written;
+    s->flags &= ~SND_STREAM_ENDED;
     if (s->flags & SND_STREAM_LOOPING)
         snd_stream_rewind(stream);
     s->silence += n;
@@ -305,7 +308,7 @@ void snd_stream_close_all()
     DeleteCriticalSection(&snd_stream_lock);
 }
 
-// 0x566d70  Confidence: likely (the FALSE of the found case is _stricmp's 0). Picks the "MS-ADPCM" driver
+// 0x566d70  Confidence: exact (the FALSE of the found case is _stricmp's 0). Picks the "MS-ADPCM" driver
 // (none when it is disabled) and stops the enumeration there.
 BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, DWORD instance, DWORD support)
 {
@@ -331,12 +334,13 @@ int acm_stream_open(WAVEFORMATEX *src, WAVEFORMATEX *dst, HACMSTREAM *out, int b
 {
     if (!acm_initialized && acm_init() != 0)
         return -1;
+    DWORD rate = src->nSamplesPerSec;
     dst->wBitsPerSample = (WORD)bits;
     dst->nChannels = src->nChannels;
     dst->nBlockAlign = (WORD)((dst->nChannels * (WORD)bits) / 8);
-    dst->nAvgBytesPerSec = dst->nBlockAlign * src->nSamplesPerSec;
+    dst->nAvgBytesPerSec = dst->nBlockAlign * rate;
     dst->wFormatTag = WAVE_FORMAT_PCM;
-    dst->nSamplesPerSec = src->nSamplesPerSec;
+    dst->nSamplesPerSec = rate;
     dst->cbSize = 0;
     return acmStreamOpen(out, acm_driver_handle, src, dst, NULL, 0, 0, ACM_STREAMOPENF_NONREALTIME) != 0 ? -1 : 0;
 }
@@ -399,7 +403,7 @@ int acm_init()
     if (acm_dll == NULL)
         return -1;
     FreeLibrary(acm_dll);
-    if (acmGetVersion() < 0x3320000)
+    if ((int)acmGetVersion() < 0x3320000)
         return -1;
     if (acmDriverEnum(acm_driver_enum_callback, 0, ACM_DRIVERENUMF_DISABLED) != 0)
         return -1;

@@ -51,9 +51,10 @@ void String::assign_char(char c)
 {
     free();
     max_len = 1;
-    buf = new char[2];
-    buf[0] = c;
-    buf[1] = '\0';
+    char *p = new char[2];
+    buf = p;
+    p[0] = c;
+    p[1] = '\0';
 }
 
 // 0x556790  Confidence: exact.
@@ -133,9 +134,9 @@ const char *String::c_str() const
 // 0x5568d0  Confidence: exact.
 int String::size() const
 {
-    if (buf == NULL)
-        return 0;
-    return strlen(buf);
+    if (buf != NULL)
+        return strlen(buf);
+    return 0;
 }
 
 // 0x5568f0  Confidence: exact. With max_len > 0 and buf NULL (after trim_left / trim_right freed an
@@ -233,7 +234,7 @@ String String::mid(int start, int len) const
     return r;
 }
 
-// 0x556cb0  Confidence: likely (the loop forms).
+// 0x556cb0  Confidence: exact (the loop forms).
 int String::find_nocase(const char *s, bool from_end) const
 {
     int len;
@@ -289,10 +290,10 @@ void String::trim_right()
         if (buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\n')
             break;
     }
-    if (i < 0)
-        free();
-    else
+    if (i >= 0)
         buf[i + 1] = '\0';
+    else
+        free();
 }
 
 // 0x556df0  Confidence: exact.
@@ -355,8 +356,9 @@ String &String::operator=(const char *s)
 String &String::operator=(char c)
 {
     if (max_len == 1) {
-        buf[0] = c;
-        buf[1] = '\0';
+        char *p = buf;
+        p[0] = c;
+        p[1] = '\0';
     } else {
         free();
         assign_char(c);
@@ -676,7 +678,7 @@ String String::from_float(float f, int precision)
     return s;
 }
 
-// 0x557c90  Confidence: likely (the order of the two temporaries in each sum, right operand first).
+// 0x557c90  Confidence: exact (the order of the two temporaries in each sum, right operand first).
 // Below 999 bytes "n bytes", below 999.99 KB "x.xx KB", else "x.xx MB".
 String String::format_bytes(int bytes)
 {
@@ -690,7 +692,7 @@ String String::format_bytes(int bytes)
     return from_float(kb * (1.0f / 1024.0f), 2) + String(" MB");
 }
 
-// 0x557e10  Confidence: likely (temporaries built right to left, as VC6 evaluates the operands).
+// 0x557e10  Confidence: exact (temporaries built right to left, as VC6 evaluates the operands).
 String String_from_vector3(const vector3 *v, int precision)
 {
     return String("< ") + String::from_float(v->x, precision) + String(", ") +
@@ -711,15 +713,18 @@ String String::from_hex_b(int n)
 // 0x558110  Confidence: exact.
 TextBuffer::TextBuffer(char *b, int sz, int lines)
 {
-    if (textbuffer_min_size < 1)
-        textbuffer_min_size = strlen(textbuffer_overrun_text) + 2;
+    int min_size = textbuffer_min_size;
+    if (min_size < 1) {
+        min_size = strlen(textbuffer_overrun_text) + 2;
+        textbuffer_min_size = min_size;
+    }
     if (b != NULL) {
         external = true;
         buf = b;
     } else {
         external = false;
-        if (sz < textbuffer_min_size)
-            sz = textbuffer_min_size;
+        if (sz < min_size)
+            sz = min_size;
         buf = new char[sz];
     }
     size = sz;
@@ -754,7 +759,7 @@ int TextBuffer::get_length()
     return length;
 }
 
-// 0x5581e0  Confidence: likely (the drop loop's form).
+// 0x5581e0  Confidence: exact (the drop loop's form).
 void TextBuffer::append(const char *s)
 {
     int len;
@@ -762,28 +767,28 @@ void TextBuffer::append(const char *s)
     int drop;
 
     len = strlen(s);
-    if (length + len + 1 >= size) {
+    if (length + len + 1 < size) {
+        for (i = 0; i < len; i++) {
+            if (s[i] == '\n')
+                num_lines++;
+        }
+        if (max_lines > 0 && num_lines > max_lines) {
+            drop = num_lines - max_lines;
+            for (i = 0; i < length; i++) {
+                if (buf[i] == '\n' && --drop == 0)
+                    break;
+            }
+            strcpy(buf, buf + i + 1);
+            length += -1 - i;
+            num_lines = max_lines;
+        }
+        strcat(buf, s);
+        length += len;
+    } else {
         clear();
         strcpy(buf, textbuffer_overrun_text);
         length = strlen(buf);
-        return;
     }
-    for (i = 0; i < len; i++) {
-        if (s[i] == '\n')
-            num_lines++;
-    }
-    if (max_lines > 0 && num_lines > max_lines) {
-        drop = num_lines - max_lines;
-        for (i = 0; i < length; i++) {
-            if (buf[i] == '\n' && --drop == 0)
-                break;
-        }
-        strcpy(buf, buf + i + 1);
-        length += -1 - i;
-        num_lines = max_lines;
-    }
-    strcat(buf, s);
-    length += len;
 }
 
 // 0x558300  Confidence: exact.

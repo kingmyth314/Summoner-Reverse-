@@ -122,44 +122,47 @@ int  spells_pressed_button;                                   // 0x5f5a9c
 int  spells_hover_row;                                        // 0x5f5aa0
 // 0x5f5aa4: 4 bytes nothing references.
 
-// 0x429850  Confidence: likely (skills_load_bitmaps' code, but one filename buffer for both loops: the frame
+// 0x429850  Confidence: exact (VC6 byte match) (skills_load_bitmaps' code, but one filename buffer for both loops: the frame
 // is 0x8c bytes against 0x10c there; progress_update before the null test in the icon loop).
 void spells_load_bitmaps()
 {
     float scale = ui_get_scale();
-    char filename[0x70];
+    char filename[0x80];
     int i, j;
 
     for (i = 0; i < SPELLS_NUM_BUTTONS; i++) {
-        spells_buttons[i].flags = 0;
-        spells_buttons[i].bitmap = -1;
-        spells_buttons[i].x = 0;
-        spells_buttons[i].y = 0;
-        spells_buttons[i].w = 0;
-        spells_buttons[i].h = 0;
+        ui_button_state *b = &spells_buttons[i];
+        const ui_button_def *d = &spells_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(spells_button_defs[i].name)) {
-            strcpy(filename, spells_button_defs[i].name);
+        if (strlen(d->name)) {
+            strcpy(filename, d->name);
             if (strchr(filename, '#')) {
                 // "Name<X>#": Name + "640" / "1024" + <X> + ".tga"
-                int len = strlen(spells_button_defs[i].name);
+                int len = strlen(d->name);
 
                 filename[len - 2] = 0;
                 strcat(filename, ui_bitmap_suffix[ui_hires]);
-                strncat(filename, &spells_button_defs[i].name[len - 2], 1);
+                strncat(filename, &d->name[len - 2], 1);
                 strcat(filename, ".tga");
             } else if (!strchr(filename, '.')) {
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
             }
-            spells_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            spells_buttons[i].x = spells_button_defs[i].pos[resolution_index][0];
-            spells_buttons[i].y = spells_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(spells_buttons[i].bitmap, &spells_buttons[i].w, &spells_buttons[i].h);
-            spells_buttons[i].w = (int)(spells_buttons[i].w * scale + 0.5f);
-            spells_buttons[i].h = (int)(spells_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                spells_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -199,10 +202,10 @@ void spells_init()
     spells_hover_row = -1;
     spells_update_species_tab();
     spells_count_page();
-    if (spells_count_in_group(spells_page) > 0)
-        spells_set_page(spells_page);
-    else
+    if (spells_count_in_group(spells_page) <= 0)
         spells_select_first_page();
+    else
+        spells_set_page(spells_page);
 }
 
 // 0x429b80  Confidence: exact (byte table 0x429d54 over the species 0..0xce into the jump table 0x429d10).
@@ -210,10 +213,22 @@ void spells_init()
 // bitmaps).
 void spells_update_species_tab()
 {
-    int i;
-
-    for (i = 1; i <= 16; i++)
-        spells_buttons[i].flags &= ~1;
+    spells_buttons[1].flags &= ~1;
+    spells_buttons[2].flags &= ~1;
+    spells_buttons[3].flags &= ~1;
+    spells_buttons[4].flags &= ~1;
+    spells_buttons[5].flags &= ~1;
+    spells_buttons[6].flags &= ~1;
+    spells_buttons[7].flags &= ~1;
+    spells_buttons[8].flags &= ~1;
+    spells_buttons[9].flags &= ~1;
+    spells_buttons[10].flags &= ~1;
+    spells_buttons[11].flags &= ~1;
+    spells_buttons[12].flags &= ~1;
+    spells_buttons[13].flags &= ~1;
+    spells_buttons[14].flags &= ~1;
+    spells_buttons[15].flags &= ~1;
+    spells_buttons[16].flags &= ~1;
 
     if (cur_character) {
         int tab;
@@ -242,34 +257,32 @@ void spells_update_species_tab()
     }
 }
 
-// 0x429e30  Confidence: likely (a switch over the button index inside the loop: byte table 0x42a01c over
+// 0x429e30  Confidence: exact (VC6 byte match) (a switch over the button index inside the loop: byte table 0x42a01c over
 // i - 23, the compiler folded the constant indexes). The B icon of a class shows (bit 0) and its C icon is
 // enabled (bit 2 clear) when the class has castable spells.
 void spells_count_page()
 {
     int i;
 
+#define SPELLS_GROUP_BUTTONS(b, g)                    \
+    if (spells_count_in_group(g) > 0) {               \
+        spells_buttons[b].flags |= 1;                 \
+        spells_buttons[b + 1].flags &= ~4;            \
+    } else {                                          \
+        spells_buttons[b].flags &= ~1;                \
+        spells_buttons[b + 1].flags |= 4;             \
+    }
     for (i = 0; i < SPELLS_NUM_BUTTONS; i++) {
-        int group;
-
         switch (i) {
-        case 23: group = 0; break;
-        case 26: group = 1; break;
-        case 29: group = 2; break;
-        case 32: group = 3; break;
-        case 35: group = 4; break;
-        case 38: group = 5; break;
-        default:
-            continue;
-        }
-        if (spells_count_in_group(group) > 0) {
-            spells_buttons[i].flags |= 1;
-            spells_buttons[i + 1].flags &= ~4;
-        } else {
-            spells_buttons[i].flags &= ~1;
-            spells_buttons[i + 1].flags |= 4;
+        case 23: SPELLS_GROUP_BUTTONS(23, 0); break;
+        case 26: SPELLS_GROUP_BUTTONS(26, 1); break;
+        case 29: SPELLS_GROUP_BUTTONS(29, 2); break;
+        case 32: SPELLS_GROUP_BUTTONS(32, 3); break;
+        case 35: SPELLS_GROUP_BUTTONS(35, 4); break;
+        case 38: SPELLS_GROUP_BUTTONS(38, 5); break;
         }
     }
+#undef SPELLS_GROUP_BUTTONS
 }
 
 // 0x42a030  Confidence: exact (jump table 0x42a130 over the classes 0..5). The rows ignore the AP cost
@@ -278,8 +291,12 @@ void spells_set_page(int page)
 {
     int i;
 
-    for (i = 41; i <= 46; i++)
-        spells_buttons[i].flags &= ~1;
+    spells_buttons[41].flags &= ~1;
+    spells_buttons[42].flags &= ~1;
+    spells_buttons[43].flags &= ~1;
+    spells_buttons[44].flags &= ~1;
+    spells_buttons[45].flags &= ~1;
+    spells_buttons[46].flags &= ~1;
     spells_page = page;
     switch (page) {
     case 0: spells_buttons[41].flags |= 1; break;
@@ -446,9 +463,12 @@ bool spells_row_hit_icon(int row)
 {
     if (row < 0 || row >= spells_list_count)
         return false;
-    return point_in_rect(game_mouse_x, game_mouse_y, spells_list_pos[resolution_index][0],
-                         spells_row_height[resolution_index] * row + spells_list_pos[resolution_index][1],
-                         hud_hot_button_size[resolution_index][0], hud_hot_button_size[resolution_index][1]);
+    int x = spells_list_pos[resolution_index][0];
+    int y = spells_row_height[resolution_index] * row + spells_list_pos[resolution_index][1];
+    int w = hud_hot_button_size[resolution_index][0];
+    int h = hud_hot_button_size[resolution_index][1];
+
+    return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
 }
 
 // 0x42a510  Confidence: exact.
@@ -458,12 +478,11 @@ bool spells_row_hit_text(int row)
 
     if (row < 0 || row >= spells_list_count)
         return false;
+    int x = spells_list_pos[resolution_index][0] + spells_text_offset[resolution_index][0];
+    int y = spells_row_height[resolution_index] * row + spells_text_offset[resolution_index][1]
+            + spells_list_pos[resolution_index][1];
     gr_get_string_size(&w, &h, localize_string_or_invalid(spell_display_names[spells_list[row]]), -1, -1);
-    return point_in_rect(game_mouse_x, game_mouse_y,
-                         spells_text_offset[resolution_index][0] + spells_list_pos[resolution_index][0],
-                         spells_row_height[resolution_index] * row + spells_text_offset[resolution_index][1]
-                             + spells_list_pos[resolution_index][1],
-                         w, h);
+    return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
 }
 
 // 0x42a5b0  Confidence: exact (byte table 0x42a690 over button - 24 into the jump table 0x42a674; the strcpy
@@ -482,8 +501,8 @@ void spells_category_tooltip(int button)
     default:
         return;
     }
-    ui_tooltip_set(spells_buttons[button].x, spells_buttons[button].y, spells_buttons[button].w,
-                   spells_buttons[button].h, text);
+    ui_button_state *b = &spells_buttons[button];
+    ui_tooltip_set(b->x, b->y, b->w, b->h, text);
 }
 
 // 0x42a6a0  Confidence: exact. The description of the row's spell over its icon or its name.
@@ -641,7 +660,7 @@ bool spells_row_hit(int row)
         return false;
     if (spells_row_hit_icon(row))
         return true;
-    return spells_row_hit_text(row) != 0;
+    return spells_row_hit_text(row) ? true : false;
 }
 
 // 0x42ab40  Confidence: exact.
@@ -661,14 +680,16 @@ void spells_draw()
     gr::set_clip(0, 0, gr_screen_width(), gr_screen_height());
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < SPELLS_NUM_BUTTONS; i++) {
-        if (spells_buttons[i].flags & 3)
-            ui_bitmap_scaled(spells_buttons[i].bitmap, spells_buttons[i].x, spells_buttons[i].y, gr_bitmap_wrap_mode);
+        ui_button_state *b = &spells_buttons[i];
+
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     spells_draw_list();
     gr::set_clip(x, y, w, h);
 }
 
-// 0x42ac10  Confidence: likely (the icon state is the index into spells_icon_bms: 0 idle, 1 hover, 2 pressed,
+// 0x42ac10  Confidence: exact (VC6 byte match) (the icon state is the index into spells_icon_bms: 0 idle, 1 hover, 2 pressed,
 // 3 not castable; the y step is strength-reduced into EDI).
 void spells_draw_list()
 {
@@ -697,6 +718,9 @@ void spells_draw_list()
             ui_bitmap_scaled(spells_icon_bms[spells_list[i]][state], x, y, gr_bitmap_wrap_mode);
         }
         switch (state) {
+        case 0:
+            gr_set_color_ptr(&ui_color_text);
+            break;
         case 1:
         case 2:
             gr_set_color_ptr(&ui_color_highlight);
@@ -704,7 +728,6 @@ void spells_draw_list()
         case 3:
             gr_set_color_ptr(&ui_color_disabled);
             break;
-        case 0:
         default:
             gr_set_color_ptr(&ui_color_text);
             break;
@@ -744,10 +767,10 @@ bool character_can_cast_now(Character *c)
         return false;
     if (c->has_status(STATUS_SILENCE))
         return false;
-    return !c->ai.is_casting();
+    return c->ai.is_casting() ? false : true;
 }
 
-// 0x42ae20  Confidence: likely (the last test returns through mov eax, 1 / xor eax, eax: a comparison
+// 0x42ae20  Confidence: exact (VC6 byte match) (the last test returns through mov eax, 1 / xor eax, eax: a comparison
 // result, not a bool constant). The character knows the spell when it has its cast move (category 7,
 // spell_info +0x50) and the skill of the spell's group reaches the spell's +Skill:. ignore_cost skips the AP
 // cost and the cooldown (the lists show such spells greyed).
@@ -786,7 +809,7 @@ int spells_count_in_group(int group)
     return count;
 }
 
-// 0x42af30  Confidence: likely (the radius is stored twice from one load). Spells with a target radius aim
+// 0x42af30  Confidence: exact (VC6 byte match) (the radius is stored twice from one load). Spells with a target radius aim
 // with a circle of that size (the walls 0x1d / 0x1f from the caster's position); target-character (flag 2)
 // and target-location (flag 4) spells wait for a world pick (hud_target_mode 0 / 1), the rest are cast at once.
 void character_cast_spell(int spell, Character *c)
@@ -833,13 +856,13 @@ void character_use_skill_on(int spell, Character *target, int priority, Characte
     if (!target || !user)
         return;
 
-    if (spell == 0x45) {
+    switch (spell) {
+    case 0x45:
         user->ai.add_skill_from_behind(target, priority);
         user->add_ap((float)-skill_table[SKILL_BACKSTAB].ap_cost);
         world_pick_clear_filter();
         return;
-    }
-    if (spell == 0x46) {
+    case 0x46:
         user->add_ap((float)-skill_table[SKILL_ASSESS].ap_cost);
         if (user->get_skill(SKILL_ASSESS) > target->info->level * 0.04f) {
             Character *t = target;
@@ -849,6 +872,7 @@ void character_use_skill_on(int spell, Character *target, int priority, Characte
             player_start_skill_cooldown(user, SKILL_ASSESS);
             feedback_play(user->info->species, 9, &user->pos);
         }
+        break;
     }
     user->ai.add_cast_at_target(spell, target, priority);
     user->ai.flags |= 2;

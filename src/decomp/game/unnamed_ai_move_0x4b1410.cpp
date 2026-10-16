@@ -172,8 +172,8 @@ bool ai_find_nearest_wall_hit(vector2 *from, vector2 *to, vector3 *dir, int size
     profile_label label("ai_find_nearest_wall_hit");
     bool hit = false;
     float min_x, max_x, min_y, max_y;
-    seg2d move;
-    seg2d edge;
+    pf_edge move;
+    pf_edge edge;
     vector2 pt;
     pf_cell *cell;
     int index;
@@ -273,22 +273,19 @@ bool ai_probe_move_for_walls(vector3 *pos, vector3 *move, int size, int layer, b
 {
     profile_label label("ai_probe_move_for_walls");
     vector2 a, b, hit;
-    vector3 end;
-    seg2d seg;
+    pf_edge seg;
     int next_layer;
 
     a.from_xz(pos);
-    end = *pos + *move;
+    vector3 end(pos->x + move->x, pos->y + move->y, pos->z + move->z);
     b.from_xz(&end);
     seg.a = &a;
     seg.b = &b;
-    if (pf_first_edge_crossing(&seg, layer, &hit, &next_layer)) {
-        do {
-            if (ai_find_nearest_wall_hit(&a, &hit, move, size, layer, obstacles))
-                return true;
-            a = hit;
-            layer = next_layer;
-        } while (pf_first_edge_crossing(&seg, layer, &hit, &next_layer));
+    while (pf_first_edge_crossing(&seg, layer, &hit, &next_layer)) {
+        if (ai_find_nearest_wall_hit(&a, &hit, move, size, layer, obstacles))
+            return true;
+        a = hit;
+        layer = next_layer;
     }
     return ai_find_nearest_wall_hit(&a, &b, move, size, layer, obstacles);
 }
@@ -1372,7 +1369,7 @@ void ai_state::mode_hiding_frame()
     owner->instance->_unkb4 = (ubyte)(int)(255.0f - t * 128.0f);
 }
 
-// 0x4b4eb0  Confidence: likely. Entering plays the sneak-in move and (single player) holds the party;
+// 0x4b4eb0  Confidence: exact (VC6 byte match). Entering plays the sneak-in move and (single player) holds the party;
 // the sneak lasts the hide / sneak skill level times 10 s (timer44); leaving plays the sneak-out move,
 // starts the skill's cooldown and releases the party hold again.
 void ai_state::mode_sneaking_frame()
@@ -1396,7 +1393,8 @@ void ai_state::mode_sneaking_frame()
             }
             disable_timer.SetTimeout(0);
             emerge_move = -1;
-            emerge_move = owner->play_move((int)owner->find_move(10, id), 1.0f, false, false, false);
+            move_info *m = owner->find_move(10, id);
+            emerge_move = owner->play_move((int)m, 1.0f, false, false, false);
             if (emerge_move == -1)
                 return;
             flags = (flags & 0x7ffffffd) | 2;

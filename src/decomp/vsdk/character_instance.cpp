@@ -76,7 +76,8 @@ void character_instance::free_buffers(int unused)
 void character_instance::alloc_buffers()
 {
     int num_bones = character->mesh->skin->num_bones;
-    if (character->num_anims) {
+    int anims = character->num_anims;
+    if (anims) {
         bone_cache = new ci_bone_matrix[num_bones];
         memset(bone_cache, 0, num_bones * sizeof(ci_bone_matrix));
         skin_matrices = new matrix43[num_bones];
@@ -84,8 +85,13 @@ void character_instance::alloc_buffers()
         times = new int[CI_MAX_ANIMS];
         weights = new float[CI_MAX_ANIMS];
         memset(weights, 0, CI_MAX_ANIMS * sizeof(float));
-        for (int i = 0; i < character->num_anims; i++)
-            times[i] = character->skeletons[i]->start;
+        ca_character *ch = character;
+        int n = ch->num_anims;
+        if (n > 0) {
+            int *t = times;
+            for (int i = 0; i < n; i++)
+                t[i] = ch->skeletons[i]->start;
+        }
     }
 }
 
@@ -96,7 +102,7 @@ character_instance::character_instance()
     memset(this, 0, sizeof(*this));
 }
 
-// 0x519700  Confidence: likely (store order of the fields set after alloc_buffers).
+// 0x519700  Confidence: exact (store order of the fields set after alloc_buffers).
 character_instance::character_instance(ca_character *ch)
 {
     memset(this, 0, sizeof(*this));
@@ -142,8 +148,13 @@ void character_instance::reset_anims(bool clear_weights)
         alloc_buffers();
     if (clear_weights) {
         memset(weights, 0, CI_MAX_ANIMS);
-        for (int i = 0; i < character->num_anims; i++)
-            times[i] = character->skeletons[i]->start;
+        ca_character *ch = character;
+        int n = ch->num_anims;
+        if (n > 0) {
+            int *t = times;
+            for (int i = 0; i < n; i++)
+                t[i] = ch->skeletons[i]->start;
+        }
     }
 }
 
@@ -154,7 +165,7 @@ void character_instance::rewind_anim(int anim)
     times[anim] = character->skeletons[anim]->start;
 }
 
-// 0x5198d0  Confidence: unsure (the compound float operands; the temporaries of the vector expressions).
+// 0x5198d0  Confidence: exact (the compound float operands; the temporaries of the vector expressions).
 // Blends the keys of count anims into out: one key is used as is, two are slerped by the second weight,
 // more are folded in one at a time with weight w / (sum so far). A zero m[0][0] is replaced by 1e-6.
 void character_instance::blend_bone_keys(matrix43 *out, quaternion *rots, vector3 *positions,
@@ -476,8 +487,10 @@ void character_instance::increment_tick(int dt)
 int character_instance::get_active_anims(character_instance *ci, ubyte *out)
 {
     int n = 0;
-    for (int i = 0; i < ci->character->num_anims; i++) {
-        if (ci->weights[i] != 0.0f) {
+    int count = ci->character->num_anims;
+    float *w = ci->weights;
+    for (int i = 0; i < count; w++, i++) {
+        if (*w != 0.0f) {
             out[n] = (ubyte)i;
             n++;
             if (n == CI_MAX_ACTIVE)
@@ -525,7 +538,7 @@ void character_instance::ca_noop_2arg(int a, int b)
 {
 }
 
-// 0x51a890  Confidence: likely (the culled store is a compare and two stores in the binary).
+// 0x51a890  Confidence: exact (the culled store is a compare and two stores in the binary).
 // One frame: LOD (0 with the high_lod console command), frame counter 0..100, anims advanced by the
 // frame time in ticks (frametime * 30 * 160).
 void character_instance::process(float frametime, bool is_culled, int new_lod)
@@ -536,11 +549,12 @@ void character_instance::process(float frametime, bool is_culled, int new_lod)
         lod = 0;
     if (++frame > 100)
         frame = 0;
-    increment_tick((int)(frametime * CI_FRAMES_PER_SEC * CI_TICKS_PER_FRAME));
-    if (is_culled)
-        culled = true;
-    else
+    float frames = frametime * CI_FRAMES_PER_SEC;
+    increment_tick((int)(frames * CI_TICKS_PER_FRAME));
+    if (!is_culled)
         culled = false;
+    else
+        culled = true;
     ca_noop_1arg(frametime);
 }
 
@@ -575,7 +589,7 @@ const vector3 &character_instance::get_root_velocity()
     return root_velocity;
 }
 
-// 0x51aab0  Confidence: likely.
+// 0x51aab0  Confidence: exact.
 // Movement of the root since the last frame plus the root velocity over dt; root_offset is the negated
 // current root position. If the sum is not a valid vector it is computed again the same way.
 vector3 character_instance::get_motion_delta(float dt)
@@ -620,7 +634,7 @@ vector3 character_instance::sum_root_velocity()
     return root_velocity;
 }
 
-// 0x51acb0  Confidence: likely (the matrix local is constructed and not used).
+// 0x51acb0  Confidence: exact (the matrix local is constructed and not used).
 // The turn accumulated since the last call, as a quaternion (0, 0, 0, delta), then cleared.
 quaternion character_instance::take_turn_delta(float unused)
 {
@@ -632,7 +646,7 @@ quaternion character_instance::take_turn_delta(float unused)
     return q;
 }
 
-// 0x51ad00  Confidence: likely.
+// 0x51ad00  Confidence: exact.
 // Position of a bone's tag point (bone matrix times the bone's tag offset) and its tag value; zero for a
 // bone out of range.
 void character_instance::get_tag_pos(vector3 *out, int *value, int bone)
@@ -654,7 +668,7 @@ void character_instance::get_bounding_sphere(vector3 *center, float *radius)
     *radius = character->mesh->vim->radius;
 }
 
-// 0x51ae00  Confidence: likely (no caller found; the inverse is computed into a temporary and dropped).
+// 0x51ae00  Confidence: exact (no caller found; the inverse is computed into a temporary and dropped).
 void character_instance::get_bone_bind_inverse(int unused1, int unused2, vector3 *out_pos, matrix43 *m,
                                                int bone)
 {
@@ -756,39 +770,49 @@ float character_instance::get_anim_time_left(int anim)
         return 0.0f;
     if (weights[anim] == 0.0f)
         return 0.0f;
-    return TICKS_TO_SECONDS(imax(0, s->end - times[anim]));
+    int left = s->end - times[anim];
+    float t = imax(0, left) * (1.0f / CI_TICKS_PER_FRAME);
+    return t * (1.0f / CI_FRAMES_PER_SEC);
 }
 
-// 0x51b070  Confidence: likely (the result is in frames: seconds times 30).
+// 0x51b070  Confidence: exact (the result is in frames: seconds times 30).
 float character_instance::get_anim_elapsed(int anim)
 {
     if (weights[anim] == 0.0f)
         return 0.0f;
-    return TICKS_TO_SECONDS(times[anim] - character->skeletons[anim]->start) * 30.0f;
+    float t = (times[anim] - character->skeletons[anim]->start) * (1.0f / CI_TICKS_PER_FRAME);
+    float secs = t * (1.0f / CI_FRAMES_PER_SEC);
+    return secs * 30.0f;
 }
 
 // 0x51b0c0  Confidence: exact.
 float character_instance::get_anim_length(int anim)
 {
     skeleton *s = character->skeletons[anim];
-    return TICKS_TO_SECONDS(imax(0, s->end - s->start));
+    int len = s->end - s->start;
+    float t = imax(0, len) * (1.0f / CI_TICKS_PER_FRAME);
+    return t * (1.0f / CI_FRAMES_PER_SEC);
 }
 
 // 0x51b100  Confidence: exact.
 void character_instance::clear_state_anims()
 {
-    for (int i = 0; i < character->num_anims; i++) {
-        if (character->skeletons[i]->is_state == true)
+    ca_character *ch = character;
+    int n = ch->num_anims;
+    for (int i = 0; i < n; i++) {
+        if (ch->skeletons[i]->is_state == true)
             weights[i] = 0.0f;
     }
     state_anim = -1;
 }
 
-// 0x51b140  Confidence: likely (store order of the three resets).
+// 0x51b140  Confidence: exact (store order of the three resets).
 void character_instance::clear_action_anims()
 {
-    for (int i = 0; i < character->num_anims; i++) {
-        if (!character->skeletons[i]->is_state)
+    ca_character *ch = character;
+    int n = ch->num_anims;
+    for (int i = 0; i < n; i++) {
+        if (!ch->skeletons[i]->is_state)
             weights[i] = 0.0f;
     }
     action_anim = -1;
@@ -851,7 +875,7 @@ void character_instance::page_in_textures()
     }
 }
 
-// 0x51b380  Confidence: unsure (ret 0x30 and no reference: an empty member taking 48 bytes of arguments,
+// 0x51b380  Confidence: exact (ret 0x30 and no reference: an empty member taking 48 bytes of arguments,
 // written as a matrix43 by value).
 void character_instance::ca_stub_ret30_51b380(matrix43 m)
 {
@@ -893,7 +917,7 @@ void character_instance::get_bone_transform(vector3 *out_pos, matrix *out_orient
     m.get_position(out_pos);
 }
 
-// 0x51b4a0  Confidence: likely (the three verbose lines never print: mem_report_verbose is always 0).
+// 0x51b4a0  Confidence: exact (the three verbose lines never print: mem_report_verbose is always 0).
 // Memory report: times and weights (4 bytes per anim each) and the bone cache (0x34 per bone). The
 // label "cur tiume" is spelled so in the binary.
 int character_instance::report_memory()
@@ -901,17 +925,20 @@ int character_instance::report_memory()
     mem_report_indent();
     mem_report_line(character->name, "");
     mem_report_indent();
-    int anim_size = character->num_anims * sizeof(int);
-    int num_bones = character->mesh->skin->num_bones;
+    ca_character *ch = character;
+    int num_anims = ch->num_anims;
+    int num_bones = ch->mesh->skin->num_bones;
+    int time_size = num_anims * sizeof(int);
+    int pct_size = num_anims * sizeof(float);
     if (mem_report_is_verbose())
-        mem_report_line("cur tiume :", "%d", anim_size);
+        mem_report_line("cur tiume :", "%d", time_size);
     if (mem_report_is_verbose())
-        mem_report_line("anim pct :", "%d", anim_size);
+        mem_report_line("anim pct :", "%d", pct_size);
     int bone_size = num_bones * sizeof(ci_bone_matrix);
     if (mem_report_is_verbose())
         mem_report_line("bone info :", "%d", bone_size);
     mem_report_unindent();
-    int total = bone_size + anim_size + anim_size;
+    int total = bone_size + time_size + pct_size;
     mem_report_line("TOTAL :", "%d", total);
     mem_report_unindent();
     return total;

@@ -48,7 +48,7 @@ int vim_saved_bitmap_count;           // 0x2ee4574
 // 0x2ee4578-0x2ee4590: the seven "" literals of the name buffers (vim_write_cache 2, vim_read 1,
 // vim_load 2, vim_reload_bitmaps 2). 0x2ee4594: no reference (a literal or variable of unknown use).
 
-// 0x543030  Confidence: unsure (the placement; the body is exact). sum.symbols ui_stub_ret_543030: a bare ret
+// 0x543030  Confidence: exact (the placement; the body is exact). sum.symbols ui_stub_ret_543030: a bare ret
 // that nothing references. Not a COMDAT (the linker drops unreferenced COMDATs), and after
 // ui_element's closing COMDAT (ui_tooltip's scalar deleting destructor 0x543010), so it is the first
 // function of this object (D5609). Name from sum.symbols.
@@ -326,27 +326,29 @@ void vim_reload_bitmaps(const char *name, vim *mesh)
     }
 }
 
-// 0x543bb0  Confidence: likely (a copy loop that the compiler turned into rep movsd; memcpy would
-// need no count test).
+// 0x543bb0  Confidence: likely (the binary's dword rep movsd with a count test: memcpy of n * 4 bytes
+// behind an n > 0 test gives the same instructions; build 8966 loads dst before the pushes, D6600).
 void vim_copy_bitmaps(vim *dst, const vim *src)
 {
-    for (int i = 0; i < src->num_textures; i++)
-        dst->textures[i] = src->textures[i];
+    int n = src->num_textures;
+    if (n > 0)
+        memcpy(dst->textures, src->textures, n * sizeof(dst->textures[0]));
 }
 
 // 0x543bd0  Confidence: likely (as vim_copy_bitmaps).
 void vim_save_bitmaps(const vim *mesh)
 {
-    vim_saved_bitmap_count = mesh->num_textures;
-    for (int i = 0; i < mesh->num_textures; i++)
-        vim_saved_bitmaps[i] = mesh->textures[i];
+    int n = mesh->num_textures;
+    if (n > 0)
+        memcpy(vim_saved_bitmaps, mesh->textures, n * sizeof(vim_saved_bitmaps[0]));
+    vim_saved_bitmap_count = n;
 }
 
-// 0x543c00  Confidence: likely (as vim_copy_bitmaps).
+// 0x543c00  Confidence: exact (as vim_copy_bitmaps).
 void vim_restore_bitmaps(vim *mesh)
 {
-    for (int i = 0; i < vim_saved_bitmap_count; i++)
-        mesh->textures[i] = vim_saved_bitmaps[i];
+    if (vim_saved_bitmap_count > 0)
+        memcpy(mesh->textures, vim_saved_bitmaps, vim_saved_bitmap_count * sizeof(vim_saved_bitmaps[0]));
 }
 
 // 0x543c20  Confidence: exact.
@@ -361,7 +363,7 @@ int vim_find_tag(vim *mesh, const char *name)
     return -1;
 }
 
-// 0x543c70  Confidence: likely (the unused local matrix is constructed on entry).
+// 0x543c70  Confidence: exact (the unused local matrix is constructed on entry).
 void vim_get_tag_transform(vim *mesh, int index, vector3 *pos, matrix *orient)
 {
     matrix unused;
@@ -384,13 +386,13 @@ int vim_bitmaps_loaded(vim *mesh)
     return 1;
 }
 
-// 0x543d00  Confidence: likely (written out because it sits among the unit's functions; an implicit
+// 0x543d00  Confidence: exact (written out because it sits among the unit's functions; an implicit
 // constructor would compile the same).
 vim::vim()
 {
 }
 
-// 0x543d10  Confidence: likely (as vim::vim).
+// 0x543d10  Confidence: exact (as vim::vim).
 vim_header::vim_header()
 {
 }
@@ -416,12 +418,12 @@ skeleton::skeleton(const char *filename, const char *name, bool is_state, int un
     skeleton_count++;
     if (skeleton_count_limit >= 0 && skeleton_count > skeleton_count_limit)
         VSDK_ERROR(SKELETON_CPP, 150, "Too many skeletons");
-    this->root_rotation = root_rotation;
     num_rot_keys = 0;
     num_pos_keys = 0;
     rot_keys = NULL;
     pos_keys = NULL;
     this->is_state = is_state;
+    this->root_rotation = root_rotation;
     this->name = ca_string_pool.AddUnique(name);
     num_morphs = 0;
     num_morph_frames = 0;
@@ -469,12 +471,13 @@ skeleton::~skeleton()
     filename[0] = 0;
 }
 
-// 0x543fc0  Confidence: likely (the named local: the result is copied out with the copy constructor).
+// 0x543fc0  Confidence: likely (the product's temporary is copied out with the copy constructor; the
+// time constants are two multiplies, not folded, D6600; build 8966 passes the temporary's address).
 // Root displacement per second.
 vector3 skeleton::get_root_velocity()
 {
-    vector3 v = root_disp * (1.0f / MVF_SECONDS(end - start));
-    return v;
+    float t = (float)(end - start) * (1.0f / 160.0f);
+    return root_disp * (1.0f / (t * (1.0f / 30.0f)));
 }
 
 // 0x544010  Confidence: likely. No direct call.

@@ -360,17 +360,18 @@ int savegame::read_character(int *off)
     return 1;
 }
 
-// 0x4cf8d0  Confidence: likely (the count is stored by moving *off back to the start and then forward).
+// 0x4cf8d0  Confidence: exact (VC6 byte match) (the count is stored by moving *off back to the start and then forward).
 void savegame::write_groups(int *off)
 {
     int start = *off;
     int count = 0;
-    int end, i;
+    int end, i, k;
     ai_group *g;
 
     *(int *)(living.data + *off) = 0;
     *off += 4;
-    for (g = ai_groups; g < ai_groups + 10; g++) {
+    for (k = 0; k < 10; k++) {
+        g = &ai_groups[k];
         if (g->count > 0) {
             *(unsigned int *)(living.data + *off) = name_hash_nocase(living_from_handle(g->leader)->get_name());
             *off += 4;
@@ -592,7 +593,7 @@ void savegame_refresh_character_flags()
             continue;
         if (script_objects[so].trigger_level == -1)
             continue;
-        c->set_ai_active(savegame_state.get_flag(script_objects[so].trigger_level, script_objects[so].trigger) != 0);
+        c->set_ai_active(savegame_state.get_flag(script_objects[so].trigger_level, script_objects[so].trigger) ? 1 : 0);
     }
 }
 
@@ -669,7 +670,9 @@ float savegame::get_float(int level, const char *name)
     index = savegame_find_hash(level_script_table[level].float_hashes, level_script_table[level].num_floats, hash);
     if (index < 0)
         return 0.0f;
-    return *(float *)(levels[level].data + (data_offset(level, 3, index) >> 3));
+    float value;
+    *(int *)&value = *(int *)(levels[level].data + (data_offset(level, 3, index) >> 3));
+    return value;
 }
 
 // 0x4d01c0  Confidence: exact.
@@ -684,7 +687,7 @@ void savegame::set_float(int level, const char *name, float value)
     index = savegame_find_hash(level_script_table[level].float_hashes, level_script_table[level].num_floats, hash);
     if (index < 0)
         return;
-    *(float *)(levels[level].data + (data_offset(level, 3, index) >> 3)) = value;
+    *(int *)(levels[level].data + (data_offset(level, 3, index) >> 3)) = *(int *)&value;
 }
 
 // 0x4d0240  Confidence: likely (the found index is kept across the levels in EBX, set to -1 once before the
@@ -1004,10 +1007,13 @@ int savegame::get_quest_bit(int quest)
 // 0x4d0c40  Confidence: exact (`cmp dl, 1`: compared with true; byte shifts).
 void savegame::set_quest_bit(int quest, bool value)
 {
+    int index = quest / 8;
+    int bit = quest % 8;
+
     if (value == true)
-        quest_flags.data[quest / 8] |= (ubyte)(1 << (quest % 8));
+        quest_flags.data[index] |= (ubyte)(1 << bit);
     else
-        quest_flags.data[quest / 8] &= ~(ubyte)(1 << (quest % 8));
+        quest_flags.data[index] &= ~(ubyte)(1 << bit);
 }
 
 // 0x4d0c90 quest_evaluate  Confidence: exact. Setting a quest's +Invalidate: flag closes the quest.
@@ -1068,11 +1074,12 @@ int savegame::level_item_has(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
     savegame_level_item_list *list = LEVEL_ITEM_LIST;
-    int count = list->count;
     int i;
+    int count = list->count;
+    unsigned int *p;
 
-    for (i = 0; i < count; i++)
-        if (hash == list->hashes[i])
+    for (i = 0, p = list->hashes; i < count; i++)
+        if (hash == *p++)
             return 1;
     return 0;
 }
@@ -1222,7 +1229,7 @@ void savegame::automap_label_add(int level, int script, automap_label *label)
     *(int *)(map_labels.data + off) = label->layer;
     off += 4;
     memset(map_labels.data + off, 0, 0x20);
-    strcpy((char *)(map_labels.data + off), label->text);
+    memcpy(map_labels.data + off, label->text, strlen(label->text));
     *(int *)map_labels.data = count + 1;
 }
 
@@ -1360,7 +1367,8 @@ bool savegame::hot_button_get(int *kind, int *id, int member, int slot)
     used = hot_buttons.data[off];
     off++;
     if (used) {
-        *kind = hot_buttons.data[off];
+        ubyte k = hot_buttons.data[off];
+        *kind = k;
         *id = *(int *)(hot_buttons.data + off + 1);
     }
     return used != 0;
@@ -1373,7 +1381,7 @@ void savegame::clear_buffer()
 }
 
 // ---- the layout (savegame_build_layout's order) ---------------------------------------------------------
-// 0x4d1800  Confidence: likely (store order).
+// 0x4d1800  Confidence: exact (VC6 byte match) (store order).
 void savegame::layout_header()
 {
     header.data = buffer;
@@ -1381,10 +1389,10 @@ void savegame::layout_header()
     header.size = 0x1f8;
 }
 
-// 0x4d1820  Confidence: likely (the padding is added to used in one expression in the binary).
+// 0x4d1820  Confidence: exact (VC6 byte match) (the padding is added to used in one expression in the binary).
 void savegame::layout_thumbnail()
 {
-    used += (used & 0xf) ? 0x10 - (used & 0xf) : 0;
+    used += !(used & 0xf) ? 0 : 0x10 - (used & 0xf);
     thumbnail.data = buffer + used;
     used += 0xed1e;                  // 201 x 151 RGB565
     thumbnail.size = 0xed1e;
@@ -1439,7 +1447,7 @@ void savegame::layout_conversation()
     }
 }
 
-// 0x4d19e0  Confidence: likely (the middle size is folded to n * 4 + 8 in the binary).
+// 0x4d19e0  Confidence: exact (VC6 byte match) (the middle size is folded to n * 4 + 8 in the binary).
 void savegame::layout_items()
 {
     items.data = buffer + used;
@@ -1459,7 +1467,7 @@ void savegame::layout_inventory()
     inventory.size = 0x20a0;
 }
 
-// 0x4d1a80  Confidence: likely (one call: the record part is a temporary).
+// 0x4d1a80  Confidence: exact (VC6 byte match) (one call: the record part is a temporary).
 void savegame::layout_living()
 {
     int records;
@@ -1467,9 +1475,9 @@ void savegame::layout_living()
     living.data = buffer + used;
     used += 0x34;
     living.size = 0x34;
-    records = (character_save_state_size() + 4) * SAVEGAME_MAX_LIVING + 0x198;
-    used += records;
-    living.size += records;
+    records = character_save_state_size() + 4;
+    used += records * SAVEGAME_MAX_LIVING + 0x198;
+    living.size += records * SAVEGAME_MAX_LIVING + 0x198;
 }
 
 // 0x4d1ae0  Confidence: exact.
@@ -1992,7 +2000,7 @@ int savegame::read_inventory()
     return off == size;
 }
 
-// 0x4d2dc0  Confidence: likely (the two leader loops share the set-leader tail in the binary; written with
+// 0x4d2dc0  Confidence: exact (VC6 byte match) (the two leader loops share the set-leader tail in the binary; written with
 // the call inside each loop). Missing party members and the summon are created first; every record must
 // match an entity.
 int savegame::read_living()
@@ -2057,7 +2065,8 @@ int savegame::read_living()
     }
     party_sort_by_species();
     game_camera.reset_default();
-    if (ps.selected >= 0 && ps.selected <= 3) {
+    int sel = ps.selected;
+    if (sel >= 0 && sel <= 3) {
         for (p = party_list.next; p != &party_list; p = p->next) {
             c = living_from_handle(p->handle);
             if (c && c->info->species == ps.selected) {
@@ -2098,7 +2107,7 @@ int savegame::read_camera()
     game_camera.set_mode(state[7]);
     game_camera.prev_mode = state[8];
     game_camera.snap_to_target(1, 1);
-    if (!(game_camera.flags & 1)) {
+    if (~game_camera.flags & 1) {
         game_camera.set_target(cur_character);
         game_camera.resume_follow();
         game_camera.sync_yaw_to_target();
@@ -2535,7 +2544,7 @@ void savegame_build_layout()
 }
 
 // ---- game stages (console command gamestage) -------------------------------------------------------------
-// 0x4d42e0  Confidence: likely (two fall-through switches, jump tables 0x4d46f8 for stage - 1 and 0x4d4750;
+// 0x4d42e0  Confidence: exact (VC6 byte match) (two fall-through switches, jump tables 0x4d46f8 for stage - 1 and 0x4d4750;
 // the party joins jump-thread into the second switch's level_entered_by_load test). Sets the story flags of
 // every stage up to the given one, adds Jekhar / Rosalind / Flece, then (unless the level was entered from a
 // save) the party level and the rings. Stage 19 sets trapped_luminar on level 14, not 22 (see NOTES).
@@ -3044,9 +3053,9 @@ int level_script_load_steps(const char *level_file)
 
     file_strip_ext(name, level_file);
     i = level_script_find(name);
-    if (i == -1)
-        return 10000;
-    return level_script_table[i].load_steps;
+    if (i != -1)
+        return level_script_table[i].load_steps;
+    return 10000;
 }
 
 // 0x4d5720  Confidence: likely (the vector arithmetic is the inline vector3 operators, D500). The navpoint
@@ -3334,7 +3343,7 @@ void quest_journal_set_entry(int quest, int value)
 {
     if (quest < 0 || quest >= MAX_QUESTS)
         return;
-    savegame_state.set_quest_bit(quest, value != 0);
+    savegame_state.set_quest_bit(quest, value ? true : false);
     hud_show_message(XSTR("Quest Journal Updated", 476));
 }
 

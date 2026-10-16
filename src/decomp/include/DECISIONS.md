@@ -5008,3 +5008,170 @@ script_object_receive_go, script_party_acquire_item, script_action_die, script_a
 automap_center_on_player, ai_state::boss_ai_unload, boss_dismount_dispatch, boss_threat_find,
 skills_update_species_tab (and serpent_anim_remap_out outside the pass, D6204). Their remaining differences are of
 the D6206 kinds; the words were left as they were.
+
+**D6600 (vsdk/character_instance.cpp, unnamed_gadget_0x52bfe0.cpp, window.cpp, unnamed_string_0x5566e0.cpp,
+unnamed_sndstream_0x566560.cpp, skeleton.cpp, console.cpp, registry.cpp, unnamed_checkbox_0x553ba0.cpp; match8 pass).
+Source shapes that make cl 12.00.8168 emit build 8966's code** (each verified by a byte match; details in the pass
+notes):
+- Products of two float constants are not folded in the binary (`fmul c1 / fmul c2`): a float local for the first
+  product (`float t = ticks * (1.0f / 160); return t * (1.0f / 30);`), a second one when a third factor follows
+  (get_anim_elapsed's `* 30`); the int argument through an `int` local first (`int len = s->end - s->start;`) gives
+  the original's register choice (get_anim_length, get_anim_time_left). Same for frametime * 30 * 160 (process).
+  The folded and unfolded forms can round differently in the last bit: the new source computes what the binary does.
+- Loops over character->num_anims: `ca_character *ch = character; int n = ch->num_anims;` and, where the binary loads
+  the array pointer after the count test, `if (n > 0) { int *t = times; for (...) t[i] = ...; }` (reset_anims,
+  clear_state_anims, clear_action_anims); a walking `float *w` with `w++, i++` (get_active_anims).
+- Declaration order of initialised locals is the order of their stores (and of the register variable's xor) in the
+  prologue: parse_container / parse_static / parse_inputbox / parse_listbox (type, parent_x, parent_y, ...);
+  report_memory (num_anims, num_bones, time_size, pct_size); a hoisted `int miss = 0;` before the if in the four
+  find_nearest_* (it is also the zero pushed for get_screen_x(0)).
+- `while (1) { if (!tf->Accept(..)) break; ... }` for the binary's top-tested loop, with the loop's locals
+  initialised before the first call of the body (parse_button's state bitmap loop).
+- Stores through locals where the binary does not reload: `char *p = buf; p[0] = c; p[1] = 0;`
+  (String::operator=(char), assign_char), `char *p = token_write_ptr; *p++ = c; token_write_ptr = p;` (console's
+  read_word / read_quoted_string), `int min_size = textbuffer_min_size;` (TextBuffer::TextBuffer), a local result
+  assigned in both branches (snd_stream_get_writable); closer but not matching: `ui_gadget *last =
+  win->gadgets.window_prev;` (ui_gadget::init), `DWORD rate = src->nSamplesPerSec;` (acm_stream_open).
+- A global or field read before an unrelated store (8966 schedules the load first): `int f = flags;` before
+  `ui_window_processing = false` (ui_window::process), `bool pressed = ui_left_pressed;` before `state = 3`
+  (ui_checkbox::process, ui_radio_button::process).
+- Branch layout, the then-block is the fall-through: `if (buf != NULL) return strlen(buf); return 0;` (String::size),
+  `if (i >= 0) buf[i + 1] = 0; else free();` (trim_right), `if (fits) { ... } else { overflow }`
+  (TextBuffer::append), `if (strlen(next_arg) != 0) load_script(..); else { help; return; }` (cmd_script),
+  `if (read(..) == 0) return 0;` (os_registry_read_dword / _int: the binary returns the zero EAX), `if (*cursor == 0)
+  current_char = *cursor; else current_char = *cursor++;` (get_next_char), `switch (state) { case 1: ...; default:
+  ... }` for `dec eax / je` (ui_state_bitmap::draw), switch cases in the binary's block order (get_token: QUOTE, END,
+  LETTER / DIGIT).
+- bool returns: `if (win->selected == this) return true; return false;` gives the `cmp / sete al` of is_selected /
+  is_mouse_over; the two-store hotkey clear is a counted loop (clear_hotkeys).
+- `if (callback) { bool handled = callback(e, v); if (handled) return handled; }` gives the binary's jump into the
+  shared epilogue with the callback's AL (ui_gadget::send_event; the registers still differ).
+- Signed compares: `(int)acmGetVersion() < 0x3320000` (acm_init, `jge`); `n <= 0` on an unsigned for `jbe`
+  (snd_stream_service, with `n -= written;` before the flag clear for the register choice).
+- `hkey = NULL; rval = -1;` as two statements after the declarations (os_registry_read, os_registry_delete).
+- The dword rep movsd behind a count test is `if (n > 0) memcpy(d, s, n * 4)` (vim_restore_bitmaps matches;
+  vim_copy_bitmaps / vim_save_bitmaps keep the form, 8966 loads the destination before the pushes).
+
+**D6601 (include/vsdk/ui/ui.h, vsdk/unnamed_ui_element_0x542cd0.cpp). HEADER CHANGE: ui_element::hidden and
+ui_element::disabled are bool, not ubyte.** is_hidden (0x542fe0) and is_disabled (0x543000) return the byte as it is
+(`mov al, [ecx + 0x1c] / ret`); a ubyte field returned as bool is normalised (`test / setne`). Every store is a bool
+or 0 / 1 (set_hidden / set_visible / set_disabled / set_enabled, init, ui_window's constructor). All 21 .cpp that
+include ui.h or name ui_element were VC6-compared before and after (game/summoner, unnamed_editor_dialogs,
+unnamed_frame, unnamed_mlayout, unnamed_script_editor, unnamed_states; vsdk skeleton, ui_container, build_stamp,
+checkbox, floatmath, gadget, inputbox, listbox, movement, ui_button, ui_element, ui_manager, ui_slider, ui_static,
+window): no match lost, ui_element 9 -> 11. mingw: 259 files, 0 errors.
+
+**D6602 (notes only; compiler flags, vc6-flags.txt not changed). Units that would gain from other flags.** (1)
+skeleton.cpp with `/Ox /Ob0 /GX /MT` (/O2 without /GF and /Gy): 17 -> 19 (vim_write_cache, vim_reload_bitmaps). The
+binary reads the "" initialisers of its name buffers from separate .bss literals (0x2ee4578-0x2ee4590, one per
+buffer), which only an unpooled compile reproduces; the other five units of the pass are equal with /Ox or lose
+(sndstream 17 -> 16, acm_driver_enum_callback). (2) Not in vc6-flags.txt but better with /Ob0:
+unnamed_anim_track_0x550660 1 -> 8, unnamed_d3d_tcache_0x54bb30 3 -> 7, unnamed_sound_emitter_0x546150 14 -> 17,
+unnamed_vfx_mesh_0x562a30 3 -> 6, unnamed_poly_clip_0x5519c0 1 -> 3, unnamed_gr_line_0x53e520 2 -> 3. console.cpp
+(with /Ob0) and registry.cpp gain one each with /Ox. Left for the owner of the flags file.
+
+**D6603 (notes only; match8 pass). Differences of this pass that no source form changed** (8168 against 8966, as
+D5905 / D6005 / D6107 / D6306): return-value and copy elision (character_instance::compute_bone_matrix,
+get_bone_transform, get_bone_world_transform, get_root_velocity, sum_root_velocity, skeleton::get_root_velocity:
+8966 hands the temporary's address straight to the copy constructor); dead argument or local slots reused for other
+locals (skeleton_get_bone_blend_weight, increment_tick, snd_stream_fill_acm / _pcm / _silence, ui_checkbox::create,
+parse_slider's frame 0x304); stores scheduled after the pushes of the next call (ui_gadget::set_focus / clear_focus,
+ui_element::set_hidden / set_visible / set_disabled / set_enabled, wav_descend_data, wav_read's fail path) or into
+an inline strcpy (the set_tooltip functions, skeleton::skeleton); loads hoisted above stores (start_anim,
+alloc_buffers' loop registers, acm_stream_open, acm_convert's rep stosd setup, String's copy constructor); register
+choices (set_parent's else branch, ui_gadget::send_event, ui_window::set_tooltip, handle_arrow_key's frame slots,
+wav_open's mmioDescend in a register); a dead copy of String::buf in the frame (to_lower / to_upper); the
+shrink-wrapped early ret of init_char_types; the byte `and al, -0x41` of ui_window::init; strcat of "\\" as a word
+move (os_registry_set_app_key); ~skeleton's list_remove (vsdk.h macro) without the reload of next / prev;
+ui_element::dtor's direct call to the scalar deleting destructor.
+
+**D6400 (game/unnamed_serpent_0x495290.cpp). LOGIC FIX: serpent_anim_remap_out reads the character's own loco anim
+table, not the mount's (as D6204 for the tiger).** 0x495db0 keeps the argument in EBX (`mov ebx, [esp+8] / mov ecx,
+ebx / call get_mount`), tests the mount only for NULL, and copies `[ebx + 4*edi + 0x5ac]` (c->loco_anims[slot]). The
+source read mount->loco_anims; its "exact" marker was by reading. Now a VC6 byte match; the remap_in comment no longer
+says the mount's anims are put back. In the same unit serpent_rider_set_flinch's message buffer is 0x80 bytes (frame
+0x84, as the tiger's; predicted by the match4 notes): now exact.
+
+**D6401 (include/engine/ai/pathfinding.h, game/unnamed_pfgeom_0x4a4ee0.cpp). HEADER CHANGE: seg2d_point_near_middle
+returns int.** Its only caller, pf_layer_from_edges, tests the result as a dword (`test eax, eax` after both calls; a
+bool result is tested with `test al, al`), and the callee sets EAX (`mov eax, 1` / `xor eax, eax`).
+pf_layer_from_edges now matches; mingw: 259 files, 0 errors. The callee still differs (8168 orders the factors of its
+second dot product, D6306 (5)) and is marked likely.
+
+**D6402 (game/unnamed_pfgeom_0x4a4ee0.cpp, game/unnamed_ai_move_0x4b1410.cpp). The local segments are 0x10-byte
+pf_edge records.** Every function of the geometry unit with a seg2d local has a frame 8 bytes larger per segment than
+an 8-byte seg2d gives (pf_trace_edge_crossings 0x20 against 0x18, segments_intersect_xz 0x40 with its two segments at
++0x20 and +0x30, pf_first_edge_crossing, pf_straight_walk_clear, pf_layer_from_edges 0x18 against 0x10, and
+ai_find_nearest_wall_hit). Declared as pf_edge (the 0x10-byte seg2d record of the cells; only a / b are set), the
+frames match: pf_trace_edge_crossings, segments_intersect_xz and pf_layer_from_edges are exact. pf_layer_from_edges
+copies only a / b of the wall (`s.a = w->a; s.b = w->b;`). ai_probe_move_for_walls keeps its 8-byte seg2d (its frame
+matches with it). The header is unchanged; the original probably had one segment type for both.
+
+**D6403 (the ten units of this pass). Source shapes that make cl 12.00.8168 emit build 8966's code** (each verified by a
+byte match; details in the match6 notes):
+- Unrolled source. A loop over constant button indices that the binary runs as straight-line code is written out in
+  the source: spells_update_species_tab (16 `&= ~1` stores), spells_set_page's six clears (not yet exact),
+  spells_count_page (one switch case per class with its own count call and button pair, a local macro: 168 -> 508
+  bytes, exact). skills_count_page and the skills species tab (new_skill.cpp) have the same shape (not in this pass).
+- Element pointers for both arrays of a button loader (`ui_button_state *b = &x_buttons[i]; const ui_button_def *d =
+  &x_button_defs[i];`): spells / journal / itemtrade_load_bitmaps exact (likely the same for the automap, skills and
+  status loaders). Also spells_draw, spells_category_tooltip, journal_draw, journal_update_buttons, itemtrade_draw.
+- Index loops instead of pointer loops where the binary compares with `jl` (fx_lists_init, itemtrade_frame,
+  write_groups); a pointer loop where it uses `jb` (the shadow blob palette).
+- Case order: 8168 emits the case bodies of a jump-table switch in source order; ordering the cases as the binary's
+  blocks gives the table and the code (damage_type_to_status, spell_get_duration_ms).
+- `if (a < b) b = a; g = b;` for a clamp stored to a global whose binary keeps the result in the bound's register
+  (journal_desc_page_down, itemtrade_party_page_down, itemtrade_drag_scrollbar); the ternary stores twice.
+- Rectangle / call arguments through locals (D6205) for spells_row_hit_icon / _text, itemtrade_list1 / party
+  handle_mouse; a call argument that is a call goes into a local first (localize_topic_name, find_move in
+  mode_sneaking_frame, the quest step text in journal_select_quest); `height = fh * n` with n from gr_split_str
+  (dialogue_line::init, dialogue_topic_entry::init).
+- Block layout: `if (x <= 0) A(); else B();` (spells_init), `if (i != -1) { ...; if (...) return true; } return
+  false;` (serpent_part_is_busy), a while loop instead of if + do-while (ai_probe_move_for_walls), the then-block
+  where the binary falls through (fx_end_owned, journal / itemtrade_update_buttons with the release branch first,
+  level_script_load_steps, layout_thumbnail's `!(used & 0xf) ? 0 : ...`), `if (*p) { do ... while (*p); }`
+  (split_quotes), `case 1: ...; return key;` so that the default shares case 2's return (journal_frame), a switch for
+  the two skill ids (character_use_skill_on, not yet exact).
+- Bool shapes (D5904 / D6205): `? true : false` for spells_row_hit and character_can_cast_now, the if-form for
+  fx_is_finished, `return a && b;` for dialogue item_visible (EAX), `return x <= y;` with the element pointer for
+  line_fits, `bool r = f() == 1; return r;` (segments_intersect_xz), `(float)fabs(d) < 1e-6f` (D6300).
+- Locals: a bitfield read into an int before the range test keeps the signed extract (read_living), `index` / `bit`
+  computed before the value test (set_quest_bit), the record size computed once (layout_living), the ring index
+  `(i + first)`, float bits copied as an int (get_float: `*(int *)&value = ...`), `step = first < last ? 1 : -1`,
+  `float pct = level * 2.0f; hit = pct * 0.01f;` (spell_compute_resist), a vector3 built from its components
+  (`vector3 end(p.x + m.x, ...)` is constructed in place; `vector3 end = a + b` is not, D6306).
+- Operand order of an int sum of globals: `thumb + (mouse_y - start_y)` gives the binary's load order;
+  itemtrade_drag_scrollbar matched with swapped relocation targets in the natural order (a warning of the tool, now
+  clean), journal_drag_scrollbar likewise (still differs elsewhere).
+
+**D6404 (game/level_scripts.cpp). automap_label_add copies the label text with memcpy(dst, text, strlen(text)).** The
+binary's copy after the 0x20-byte memset is `repne scasb / not ecx / dec ecx` and `rep movsd / rep movsb` of that
+length: no terminator is copied (the memset provides it). The source had strcpy, which also writes the NUL; the result
+is the same for texts below 32 characters. Still differs (the coordinates go through the FPU, D6405).
+
+**D6405 (notes only). Differences of this pass that no source form changed** (8168 against 8966, besides D5905 /
+D6206 / D6306):
+- Jump tables that start at 0 although the smallest case is 2 or 5 (status_effect_modifier, status_effect_duration):
+  8966 indexes the table with the value, 8168 subtracts the minimum; empty explicit cases are dropped by 8168.
+- One call with a selected constant argument (`push 1 / jmp / push 0 / call`): quest_journal_set_entry,
+  savegame_refresh_character_flags; 8168 gives setne or neg / sbb, or two calls for an if / else (8966 merges them).
+- Float members copied through the FPU into a stack temporary and stored as an int (write_character's lent_max_hp,
+  automap_label_add's x / z, spell_effect_obj_set_timer's descriptor); 8168 copies with mov for every form tried
+  (float local, memcpy, int pun).
+- `x = a op b` with the inline operator= that returns a copy: 8168 calls the vector3 copy constructor out of line
+  (steer_jitter, path_closest_point, the other ai_move EH functions), 8966 expands it.
+- Register choice and scheduling (dialogue first / last_visible_line, level_item_has / add / remove, get_int,
+  spells_set_page, use_skill_on's shrink-wrapped push, fx_new's stores), a NULL return value kept in EAX from the
+  start (spell_effect_alloc), the loop rotation of shadow_create_blob_bitmap, the FPU-kept cross product of
+  seg2d_point_left_of, serpent_part_is_busy_or_asleep (the binary has serpent_part_is_busy's body inlined there only).
+
+**D6406 (notes only). Markers that say exact but differ under 8168** (by reading, before the VC6 tool; left as they
+were, as D6207): level_scripts.cpp report_sizes, write_character, data_offset, refresh_character_flags, set_bit,
+get_int, set_float, has_conversation_data, get_speaker_bit, set_speaker_bit, get_topic_bit, set_topic_bit,
+level_item_add / remove / has, automap_label_add, hot_button_get, write_living, write_item_objects, read_info,
+read_header, read_items, read_inventory, read_automap_labels, savegame_location_allowed, quest_journal_set_entry,
+script_filenames_parse_table; new_itemtrade.cpp count_party_rows, party_page_up; new_journal.cpp desc_page_up,
+goto_inventory; new_spell.cpp spells_set_page; spells.cpp status_effect_modifier, status_effect_duration,
+spell_effect_obj_set_timer, spell_spawn_hit_fx, spell_fire_missile; the dialogue box first_visible_line,
+last_visible_line, topic_list::add; seg2d_point_left_of. seg2d_point_near_middle, whose source was rewritten, is now
+marked likely.

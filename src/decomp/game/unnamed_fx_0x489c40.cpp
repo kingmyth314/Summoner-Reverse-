@@ -93,7 +93,7 @@ effect_object *fx_alloc()
     return &fx_pool[i];
 }
 
-// 0x489d30  Confidence: likely (the order of the stores after the timers). Bits 20-23 cleared, 24-31 set.
+// 0x489d30  Confidence: exact (VC6 byte match) (the order of the stores after the timers). Bits 20-23 cleared, 24-31 set.
 effect_object::effect_object()
 {
     type = 0;
@@ -107,7 +107,7 @@ effect_object::~effect_object()
 {
 }
 
-// 0x489dc0  Confidence: likely (the two link loops' form). The virtual destroy: frees the spell effect
+// 0x489dc0  Confidence: exact (VC6 byte match) (the two link loops' form). The virtual destroy: frees the spell effect
 // record and the instance (a weapon missile has none of its own), removes the avoidance area, gives the
 // character links of this effect back (and clears the characters' link flag, which the second loop sets
 // again for every character still linked), unlinks the object and frees it.
@@ -165,10 +165,10 @@ int shadow_create_blob_bitmap()
     float scale;
     float v;
 
-    for (i = 0; i < 256; i++) {
-        shadow_blob_palette[i * 3] = (ubyte)i;
-        shadow_blob_palette[i * 3 + 1] = (ubyte)i;
-        shadow_blob_palette[i * 3 + 2] = (ubyte)i;
+    for (i = 0, p = shadow_blob_palette; p < &shadow_blob_palette[768]; i++, p += 3) {
+        p[0] = (ubyte)i;
+        p[1] = (ubyte)i;
+        p[2] = (ubyte)i;
     }
     p = shadow_blob_pixels[0];
     i = 0;
@@ -177,12 +177,13 @@ int shadow_create_blob_bitmap()
         for (row = 0, y = 32; row < 64; row++, y--) {
             for (x = 0; x < 64; x++) {
                 v = 32.0f - (float)sqrt((float)((32 - x) * (32 - x) + y * y));
-                if (v < 0.0f)
+                if (0.0f > v)
                     v = 0.0f;
                 v *= scale;
-                if (v > 32.0f)
+                if (32.0f < v)
                     v = 32.0f;
-                p[x] = (ubyte)(int)(v * 255.0f * 0.03125f);
+                v *= 255.0f;
+                p[x] = (ubyte)(int)(v * 0.03125f);
             }
             p += 64;
         }
@@ -205,18 +206,18 @@ void shadows_init()
     shadow_bm = bm_load("Shadow01.tga", -1, -1);
 }
 
-// 0x48a090  Confidence: likely (the order of the head stores). The two link lists and the effect list
+// 0x48a090  Confidence: exact (VC6 byte match) (the order of the head stores). The two link lists and the effect list
 // empty, the 20 link records on the free list.
 void fx_lists_init()
 {
-    fx_char_link *l;
+    int i;
 
     list_init(&fx_char_link_free);
     fx_active_list.fx_next = &fx_active_list;
     fx_active_list.fx_prev = &fx_active_list;
     list_init(&fx_char_link_used);
-    for (l = fx_char_link_nodes; l < &fx_char_link_nodes[MAX_FX_CHAR_LINKS]; l++)
-        list_append(&fx_char_link_free, l);
+    for (i = 0; i < MAX_FX_CHAR_LINKS; i++)
+        list_append(&fx_char_link_free, &fx_char_link_nodes[i]);
 }
 
 // 0x48a0e0  Confidence: exact. game_cleanup.
@@ -272,7 +273,7 @@ void fx_level_leave()
     effects_release_level_memory();
 }
 
-// 0x48a1f0  Confidence: likely (a second function with fx_sky_list_clear's call as its body; compiled to
+// 0x48a1f0  Confidence: exact (VC6 byte match) (a second function with fx_sky_list_clear's call as its body; compiled to
 // a jmp). Called by fx_level_leave and fx_level_restart.
 void fx_sky_list_clear_thunk()
 {
@@ -788,7 +789,7 @@ void fx_frame(float frametime, bool paused)
     }
 }
 
-// 0x48b690  Confidence: likely (strcmp expanded inline). Binds the nodes of an effect to a character's
+// 0x48b690  Confidence: exact (VC6 byte match) (strcmp expanded inline). Binds the nodes of an effect to a character's
 // mesh tags: all to the given tag, or (tag -1) each node but "Scene Root" that can be bound to the tag of
 // its own name.
 void fx_bind_character_tags(vfx_instance *vi, character_instance *ci, int tag)
@@ -1152,7 +1153,7 @@ effect_object *fx_new(int kind)
     return fx;
 }
 
-// 0x48c470  Confidence: likely (the second test's early return). Nothing while the character wears a stone
+// 0x48c470  Confidence: exact (VC6 byte match) (the second test's early return). Nothing while the character wears a stone
 // effect; else its status holders stop and the looping status effect (spells[11].hit_effect) is attached
 // with the given kind (5 / 6, fx_frame's fading kinds).
 int status_effect_update_fx(int handle, int status)
@@ -1334,7 +1335,7 @@ int titus_rock_erupt_fx(int handle)
     return fx->handle;
 }
 
-// 0x48ca40  Confidence: likely (switch on the item kind: `sub eax, 0`). character_equip_item: a weapon, or
+// 0x48ca40  Confidence: exact (VC6 byte match) (switch on the item kind: `sub eax, 0`). character_equip_item: a weapon, or
 // an armour item of slot 5 (the shield), with an animation effect gets a kind 16 object (fx_frame loads
 // the effect).
 int character_equip_item_fx(int handle, ItemType *type)
@@ -1548,7 +1549,7 @@ void fx_destroy(int handle)
     }
 }
 
-// 0x48d000  Confidence: likely (the progress expression's form). Finished when the object is gone or its
+// 0x48d000  Confidence: exact (VC6 byte match) (the progress expression's form). Finished when the object is gone or its
 // instance has no time left; progress = 1 - left / (frames / 15). The instance is not checked for NULL.
 bool fx_is_finished(int fx, float *progress)
 {
@@ -1567,7 +1568,9 @@ bool fx_is_finished(int fx, float *progress)
         left = 0.0f;
     if (progress)
         *progress = 1.0f - left / (effect_get_base(vi->id_bits >> 9)->num_frames * (1.0f / 15.0f));
-    return left <= 0.0f;
+    if (left <= 0.0f)
+        return true;
+    return false;
 }
 
 // 0x48d0a0  Confidence: exact. character_on_death, character_play_move.
@@ -1597,14 +1600,15 @@ void fx_end_owned(int handle, int destroy)
 
     for (fx = fx_active_list.fx_next, next = fx->fx_next; fx != &fx_active_list; fx = next, next = next->fx_next) {
         if (fx->owner == handle) {
-            if (fx->fx_flags & 8) {
+            if (!(fx->fx_flags & 8)) {
+                if (fx->instance) {
+                    if (!destroy)
+                        fx->instance->stop();
+                    else
+                        fx_destroy(fx->handle);
+                }
+            } else
                 fx_stop(fx->handle);
-            } else if (fx->instance) {
-                if (destroy)
-                    fx_destroy(fx->handle);
-                else
-                    fx->instance->stop();
-            }
         }
     }
 }
@@ -1624,7 +1628,7 @@ void fx_summon_hook_stub(int fx, int arg)
         fx_summon_hook(o, arg);
 }
 
-// 0x48d1d0  Confidence: likely (the order of the record stores). Only effects whose base has +0x40 set,
+// 0x48d1d0  Confidence: exact (VC6 byte match) (the order of the record stores). Only effects whose base has +0x40 set,
 // and only while a link record is free.
 void fx_link_character_obj(effect_object *fx, Character *c, bool hook)
 {

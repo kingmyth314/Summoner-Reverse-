@@ -390,19 +390,19 @@ int damage_type_to_status(int spell)
 {
     switch (spell) {
     case 0x02: return STATUS_REGEN;                       // regenerate
-    case 0x06: case 0x3c: case 0x59: return STATUS_POISON;   // Poison, poisoning, Urath poison
-    case 0x07: case 0x55: return STATUS_BLIND;            // blind, Urath blind
     case 0x08: case 0x56: return STATUS_SILENCE;          // silence, Urath silence
-    case 0x0b: return 8;                                  // invisibility
-    case 0x0e: return 7;                                  // light
-    case 0x10: return STATUS_POWER;                       // empower
+    case 0x07: case 0x55: return STATUS_BLIND;            // blind, Urath blind
     case 0x13: case 0x15: return STATUS_BLESS;            // bless, protect
-    case 0x16: return STATUS_FAITH;                       // faith
     case 0x17: case 0x58: return STATUS_CURSE;            // curse, Urath curse
-    case 0x21: case 0x25: case 0x43: return STATUS_SLEEP; // icy sleep, Blue Imp sleep, sleep
+    case 0x16: return STATUS_FAITH;                       // faith
+    case 0x10: return STATUS_POWER;                       // empower
     case 0x22: case 0x3d: case 0x49: case 0x4c: case 0x50: case 0x5a:
         return STATUS_PARALYZE;     // freeze, paralyze, Rider stun, Titus gaze, Ghost fear, Urath paralyze
+    case 0x21: case 0x25: case 0x43: return STATUS_SLEEP; // icy sleep, Blue Imp sleep, sleep
+    case 0x06: case 0x3c: case 0x59: return STATUS_POISON;   // Poison, poisoning, Urath poison
     case 0x24: return 0x10;                               // ice coffin
+    case 0x0e: return 7;                                  // light
+    case 0x0b: return 8;                                  // invisibility
     }
     return -1;
 }
@@ -427,6 +427,9 @@ float status_effect_modifier(int status, int level)
         return -(level * 4.0f);
     case 0x10:
         return level * 10.0f;
+    case 0:
+    case 0x11:
+        break;
     }
     return 0.0f;
 }
@@ -440,16 +443,16 @@ int spell_get_duration_ms(int spell, int level)
     case 0x07: case 0x08: case 0x0e: case 0x10: case 0x17: case 0x21: case 0x25: case 0x3d: case 0x43:
     case 0x55: case 0x56: case 0x58: case 0x5a:
         return 60000;
-    case 0x0b:
-        return level * 3000;
-    case 0x22:
-        return 30000;
-    case 0x49:
-        return 3000;
-    case 0x4c:
-        return 180000;
     case 0x50:
         return 20000;
+    case 0x49:
+        return 3000;
+    case 0x22:
+        return 30000;
+    case 0x0b:
+        return level * 3000;
+    case 0x4c:
+        return 180000;
     }
     return 0;
 }
@@ -464,6 +467,7 @@ int status_effect_duration(int status)
     case STATUS_POISON: return 10000;
     case 0xe: case 0xf: return 2000;
     case 0x11:         return 5000;
+    case 0:            break;
     }
     return 0;
 }
@@ -1007,7 +1011,7 @@ void spell_spawn_creature(Character **out, Character *caster, int spell)
     }
 }
 
-// 0x47c510  Confidence: likely (the hit chance reuses the caster's argument slot). Hit chance: the
+// 0x47c510  Confidence: exact (VC6 byte match) (the hit chance reuses the caster's argument slot). Hit chance: the
 // species 0xb6 caster uses level x 2 %, Ghost Paralyzing Fear in ghost stage 3 0.5, source type 8 0.3,
 // otherwise the table's +Hit Chance:.
 void spell_compute_resist(float *out_magic_resist, float *out_resist, int spell, Character *caster,
@@ -1017,7 +1021,10 @@ void spell_compute_resist(float *out_magic_resist, float *out_resist, int spell,
     float magic;
 
     if (caster->info->species == 0xb6)
-        hit = caster->level * 2.0f * 0.01f;
+    {
+        float pct = caster->level * 2.0f;
+        hit = pct * 0.01f;
+    }
     else if (spell == SPELL_GHOST_PARALYZING_FEAR && ghost_stage == 3)
         hit = 0.5f;
     else if (source_type == 8)
@@ -1748,12 +1755,12 @@ int spell_place_ground_effect(int spell, int caster, const vector3 *pos, int own
     return h;
 }
 
-// 0x47e280  Confidence: likely (do-while: no entry test of first != last). Walks the "$groundNN" tags
+// 0x47e280  Confidence: exact (VC6 byte match) (do-while: no entry test of first != last). Walks the "$groundNN" tags
 // from first towards last; once one tag fails the floor probe, it and every later tag get
 // get_tag_transform(tag, 1, 1) (result not used).
 void spell_find_ground_points(vector3 *out, int first, int last, effect_object *fx)
 {
-    int step = (first >= last) ? -1 : 1;
+    int step = (first < last) ? 1 : -1;
     bool failed = false;
     int i = first;
     char name[0x40];
@@ -1896,7 +1903,7 @@ int spell_missile_remove(int handle)
     return i;
 }
 
-// 0x47e6c0  Confidence: likely. Records the "$missile" node of the effect object (in the caster's
+// 0x47e6c0  Confidence: exact (VC6 byte match). Records the "$missile" node of the effect object (in the caster's
 // frame) for a later spell_fire_missile. When all 20 slots are taken, the slots whose effect is gone are
 // freed, but this missile is not recorded (both exits of the second search return).
 void spell_launch_missile(Character *caster, int handle)
@@ -2290,9 +2297,10 @@ spell_effect *spell_effect_alloc()
 
     for (i = 0; i < MAX_SPELL_EFFECTS; i++)
         if (!spell_effects[i].used) {
-            spell_effects[i].used = 1;
-            spell_effects[i].slot = 0x3f;
-            return &spell_effects[i];
+            spell_effect *e = &spell_effects[i];
+            e->used = 1;
+            e->slot = 0x3f;
+            return e;
         }
     return NULL;
 }

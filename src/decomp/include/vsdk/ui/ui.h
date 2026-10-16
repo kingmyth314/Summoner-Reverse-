@@ -71,8 +71,8 @@ public:
     ubyte initialized;                 // +0x004 0 from the constructor, 1 from init
     int kind;                          // +0x008 1 window, 0 gadget
     int x, y, w, h;                    // +0x00C rectangle
-    ubyte hidden;                      // +0x01C
-    ubyte disabled;                    // +0x01D
+    bool hidden;                       // +0x01C bool: is_hidden returns the byte as it is (D6601)
+    bool disabled;                     // +0x01D bool: is_disabled likewise (D6601)
     char name[0x102];                  // +0x01E
     int id;                            // +0x120 default event value
     // decomp67 (D4707): the list sentinel is a whole ui_tooltip (0x120 bytes up to +0x244): ~ui_element

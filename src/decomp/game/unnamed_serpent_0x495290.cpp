@@ -77,7 +77,7 @@ void cmd_serpent_stage()
 // 0x495380 init_ccmd_serpent_unlink (console_command constructor). Confidence: exact.
 console_command ccmd_serpent_unlink("serpent_unlink", "Unlinks serpent to mount", cmd_serpent_unlink);   // 0x24523f8
 
-// 0x4953a0  Confidence: likely (the store order of the two unlinks). rider_unlink_mount written out.
+// 0x4953a0  Confidence: exact (VC6 byte match) (the store order of the two unlinks). rider_unlink_mount written out.
 void cmd_serpent_unlink()
 {
     Character *c = living_from_handle(serpent_handle);
@@ -126,13 +126,13 @@ void cmd_serpent_combat()
 }
 
 // ---- setup -----------------------------------------------------------------------------------------
-// 0x4954c0  Confidence: likely (the buffer sizes). The flinch moves "stageN_flinch_area" /
+// 0x4954c0  Confidence: exact (VC6 byte match) (the buffer sizes). The flinch moves "stageN_flinch_area" /
 // "stageN_flinch_status" of the serpent's flinch list; stage 3 uses stage 2's. The message for a bad
 // name is formatted into a local buffer and never shown (NOTES.md).
 void serpent_rider_set_flinch(move_info *moves)
 {
     char num[2];
-    char msg[0x70];
+    char msg[0x80];
 
     for (move_info *m = moves; m; m = m->next) {
         const char *p = m->action;
@@ -312,7 +312,7 @@ void ai_state::serpent_boss_load()
     serpent_mount = owner->get_mount();
 }
 
-// 0x495b90  Confidence: likely (the case order of the forced stage). The serpent itself only: a stage
+// 0x495b90  Confidence: exact (VC6 byte match) (the case order of the forced stage). The serpent itself only: a stage
 // forced by serpent_stage / the escape cutscene, else by HP (below 25 % stage 3, below 50 % stage 2
 // once the level script answered the dismount request).
 void ai_state::serpent_check_stage()
@@ -376,7 +376,7 @@ void serpent_unload()
 
 // 0x495d00  Confidence: likely (the blend record through loco_blend_set). character_boss_anim_remap_in:
 // the rider's stand / walk / run entries are replaced by the mount's (stand 3 = ready when the rider is
-// in combat stance); remap_out puts the mount's current anims back.
+// in combat stance); remap_out copies the rider's own loco anims back into the remapped slots (D6400).
 void serpent_anim_remap_in(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -406,7 +406,8 @@ void serpent_anim_remap_in(Character *c, int *anims)
     }
 }
 
-// 0x495db0  Confidence: exact.
+// 0x495db0  Confidence: exact (VC6 byte match). LOGIC FIX (D6400): the slots get the character's own loco anims (EBX,
+// the argument); the mount is only tested for NULL. The source copied mount->loco_anims.
 void serpent_anim_remap_out(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -414,7 +415,7 @@ void serpent_anim_remap_out(Character *c, int *anims)
     if (mount == NULL)
         return;
     for (int i = 0; i < serpent_anim_remap_count; i++) {
-        set->anim[i] = mount->loco_anims[serpent.remap_slot[i]];
+        set->anim[i] = c->loco_anims[serpent.remap_slot[i]];
         set->weight[i] = serpent.remap_weight[i];
     }
 }
@@ -499,29 +500,30 @@ bool serpent_part_is_asleep(boss_target *list, int i)
 // 0x4960a0  Confidence: exact. Paralysed, asleep (the caller's flag) or in AI mode (8, 0x2d).
 bool serpent_part_is_busy(boss_target *list, bool asleep, int i)
 {
-    if (i == -1)
-        return false;
-    boss_target *t = &list[i];
-    Character *c = t->character;
-    if ((t->flags & SERPENT_TF_PARALYZED) || asleep)
-        return true;
-    if (c == NULL)
-        return false;
-    return c->ai.is_mode(AI_STATE_DISABLED, 0x2d);
+    if (i != -1) {
+        boss_target *t = &list[i];
+        Character *c = t->character;
+        if ((t->flags & SERPENT_TF_PARALYZED) || asleep)
+            return true;
+        if (c != NULL && c->ai.is_mode(AI_STATE_DISABLED, 0x2d))
+            return true;
+    }
+    return false;
 }
 
 // 0x4960f0  Confidence: likely (serpent_part_is_busy's body repeated rather than called).
 bool serpent_part_is_busy_or_asleep(boss_target *list, int i)
 {
     bool asleep = serpent_part_is_asleep(list, i);
-    if (i == -1)
-        return false;
-    boss_target *t = &list[i];
-    if ((t->flags & SERPENT_TF_PARALYZED) || asleep)
-        return true;
-    if (t->character == NULL)
-        return false;
-    return t->character->ai.is_mode(AI_STATE_DISABLED, 0x2d);
+    if (i != -1) {
+        boss_target *t = &list[i];
+        Character *c = t->character;
+        if ((t->flags & SERPENT_TF_PARALYZED) || asleep)
+            return true;
+        if (c != NULL && c->ai.is_mode(AI_STATE_DISABLED, 0x2d))
+            return true;
+    }
+    return false;
 }
 
 // 0x496150  Confidence: exact.
@@ -1066,7 +1068,7 @@ void ai_state::serpent_ai_frame()
     }
 }
 
-// 0x4975a0  Confidence: likely (the not-found result as -1 mapped to 0). 0 for the serpent and for a
+// 0x4975a0  Confidence: exact (VC6 byte match) (the not-found result as -1 mapped to 0). 0 for the serpent and for a
 // character that is no part.
 int serpent_part_index(Character *c)
 {
@@ -1188,7 +1190,7 @@ void serpent_set_cutscene_walk_anim()
 }
 
 // ---- the whip ---------------------------------------------------------------------------------------
-// 0x497890  Confidence: likely (the member is not NULL-checked, as in the binary). The party members in
+// 0x497890  Confidence: exact (VC6 byte match) (the member is not NULL-checked, as in the binary). The party members in
 // the whip's reach and angle whose defence roll fails.
 bool serpent_whip_test(Character *boss)
 {
@@ -1201,7 +1203,7 @@ bool serpent_whip_test(Character *boss)
             vector3 dir(m->pos.x - boss->pos.x, 0, m->pos.z - boss->pos.z);
             dir.normalize_safe();
             if (d < serpent_whip_reach
-                && dir.z * boss->orient.fvec.z + dir.y * boss->orient.fvec.y + dir.x * boss->orient.fvec.x
+                && dir.x * boss->orient.fvec.x + dir.y * boss->orient.fvec.y + dir.z * boss->orient.fvec.z
                        > serpent_attack_table[2][0].cos_max_angle
                 && living_combat_test_defense(&boss->combat, &m->combat)) {
                 serpent_whip_hits[serpent_whip_hit_count] = g->members[i];

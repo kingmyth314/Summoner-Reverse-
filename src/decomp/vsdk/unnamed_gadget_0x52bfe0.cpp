@@ -16,7 +16,7 @@
 #include "vsdk/ui/window.h"
 #include "vsdk/gr/gr.h"
 
-// 0x52bfe0  Confidence: likely (the store order parent, *link, next_sibling is read from the code; a
+// 0x52bfe0  Confidence: exact (the store order parent, *link, next_sibling is read from the code; a
 // plain `*link = next_sibling;` first would give the same instructions only if VC6 reordered the stores).
 // Unlinks the gadget from its parent's child chain, or from the window's top-level chain.
 void ui_gadget::unlink()
@@ -50,9 +50,10 @@ void ui_gadget::init(ui_element *window, int type, int x, int y, int w, int h, i
     this->window = window;
     first_child = NULL;
     win = (ui_window *)window;
+    ui_gadget *last = win->gadgets.window_prev;
     window_next = &win->gadgets;
-    window_prev = win->gadgets.window_prev;
-    win->gadgets.window_prev->window_next = this;
+    window_prev = last;
+    last->window_next = this;
     win->gadgets.window_prev = this;
     next_sibling = NULL;
     parent = NULL;
@@ -69,13 +70,13 @@ int ui_gadget::identity(int x)
     return x;
 }
 
-// 0x52c0f0  Confidence: likely (written as the tail recursion over the siblings that VC6 turns into the
+// 0x52c0f0  Confidence: exact (written as the tail recursion over the siblings that VC6 turns into the
 // loop; a do / while over next_sibling gives the same code). Keyboard navigation: the selectable gadget
 // above (x, y) with the smallest vertical distance plus horizontal miss, into ui_nav_best_gadget.
 void ui_gadget::find_nearest_up(int x, int y)
 {
+    int miss = 0;
     if (is_selectable()) {
-        int miss = 0;
         int gx = get_screen_x(0);
         int gy = get_screen_y(0);
 
@@ -96,11 +97,11 @@ void ui_gadget::find_nearest_up(int x, int y)
         next_sibling->find_nearest_up(x, y);
 }
 
-// 0x52c180  Confidence: likely (as find_nearest_up).
+// 0x52c180  Confidence: exact (as find_nearest_up).
 void ui_gadget::find_nearest_down(int x, int y)
 {
+    int miss = 0;
     if (is_selectable()) {
-        int miss = 0;
         int gx = get_screen_x(0);
         int gy = get_screen_y(0);
 
@@ -121,11 +122,11 @@ void ui_gadget::find_nearest_down(int x, int y)
         next_sibling->find_nearest_down(x, y);
 }
 
-// 0x52c210  Confidence: likely (as find_nearest_up, the axes swapped).
+// 0x52c210  Confidence: exact (as find_nearest_up, the axes swapped).
 void ui_gadget::find_nearest_left(int x, int y)
 {
+    int miss = 0;
     if (is_selectable()) {
-        int miss = 0;
         int gx = get_screen_x(0);
         int gy = get_screen_y(0);
 
@@ -146,11 +147,11 @@ void ui_gadget::find_nearest_left(int x, int y)
         next_sibling->find_nearest_left(x, y);
 }
 
-// 0x52c2a0  Confidence: likely.
+// 0x52c2a0  Confidence: exact.
 void ui_gadget::find_nearest_right(int x, int y)
 {
+    int miss = 0;
     if (is_selectable()) {
-        int miss = 0;
         int gx = get_screen_x(0);
         int gy = get_screen_y(0);
 
@@ -177,8 +178,11 @@ bool ui_gadget::send_event(int event, int value)
 {
     if (value == UI_USE_ID)
         value = id;
-    if (callback && callback(event, value))
-        return true;
+    if (callback) {
+        bool handled = callback(event, value);
+        if (handled)
+            return handled;
+    }
     if (parent)
         return parent->send_event(event, value);
     return window->send_event(event, value);
@@ -327,7 +331,7 @@ void ui_gadget::set_focus()
 // 0x52c630  Confidence: exact.
 void ui_gadget::clear_focus()
 {
-    if (ui_current_gadget == this && ui_current_gadget) {
+    if (ui_current_gadget == this && this) {
         ui_current_gadget = NULL;
         send_event(4, UI_USE_ID);
     }
@@ -336,13 +340,17 @@ void ui_gadget::clear_focus()
 // 0x52c660  Confidence: exact.
 bool ui_gadget::is_selected()
 {
-    return ((ui_window *)window)->selected == this;
+    if (((ui_window *)window)->selected == this)
+        return true;
+    return false;
 }
 
 // 0x52c670  Confidence: exact.
 bool ui_gadget::is_mouse_over()
 {
-    return ((ui_window *)window)->mouse_over == this;
+    if (((ui_window *)window)->mouse_over == this)
+        return true;
+    return false;
 }
 
 // 0x52c680  Confidence: exact.
@@ -360,8 +368,8 @@ void ui_gadget::set_hotkey(int key, int slot)
 // 0x52c6b0  Confidence: exact.
 void ui_gadget::clear_hotkeys()
 {
-    hotkeys[0] = -1;
-    hotkeys[1] = -1;
+    for (int i = 0; i < 2; i++)
+        hotkeys[i] = -1;
 }
 
 // 0x52c6c0  Confidence: exact.
@@ -384,7 +392,7 @@ int ui_gadget::get_mask_pixel(int x, int y)
     return ((ui_window *)window)->get_mask_pixel(x, y);
 }
 
-// 0x52c730  Confidence: likely (whether the `if (found)` sits inside a test of first_child: the code
+// 0x52c730  Confidence: exact (whether the `if (found)` sits inside a test of first_child: the code
 // skips it when there are no children). The last child that reports a hit wins; then the gadget itself:
 // enabled, inside its rectangle, and on its hotspot value of the mask (a container: any non-zero pixel of
 // its own mask, or its parent's mask when it has none).
@@ -484,7 +492,7 @@ void ui_gadget::clear_window_refs()
 
 // ---- ui_state_bitmap --------------------------------------------------------------------------------
 
-// 0x52c930  Confidence: likely (store order state, next, bm).
+// 0x52c930  Confidence: exact (store order state, next, bm).
 ui_state_bitmap::ui_state_bitmap()
 {
     state = 0;
@@ -520,7 +528,7 @@ void ui_state_bitmap::set(int bm)
     this->bm = bm;
 }
 
-// 0x52c9a0  Confidence: likely (the clip test is done once for both paths). In clip mode the bitmap is
+// 0x52c9a0  Confidence: exact (the clip test is done once for both paths). In clip mode the bitmap is
 // drawn relative to the clip origin (x + u, y + v), i.e. still at (x, y). F6204: with state 1 and no
 // bitmap it returns without gr::reset_clip, leaving the clip rectangle set.
 bool ui_state_bitmap::draw(int x, int y, int w, int h, int u, int v)
@@ -530,18 +538,20 @@ bool ui_state_bitmap::draw(int x, int y, int w, int h, int u, int v)
         x = -u;
         y = -v;
     }
-    if (state != 1) {
+    switch (state) {
+    case 1:
+        if (bm < 0)
+            return false;
+        gr_set_color(255, 255, 255, 255);
+        gr_bitmap(bm, x, y, gr_bitmap_wrap_mode);
+        if (u >= 0)
+            gr::reset_clip();
+        return true;
+    default:
         if (u >= 0)
             gr::reset_clip();
         return false;
     }
-    if (bm < 0)
-        return false;
-    gr_set_color(255, 255, 255, 255);
-    gr_bitmap(bm, x, y, gr_bitmap_wrap_mode);
-    if (u >= 0)
-        gr::reset_clip();
-    return true;
 }
 
 // 0x52ca50  Confidence: exact. No caller, no sum.symbols entry.

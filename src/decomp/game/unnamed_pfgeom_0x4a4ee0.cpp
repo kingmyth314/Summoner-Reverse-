@@ -15,7 +15,8 @@
 // unit ends with vector2::to_vector3 (0x4a4ec0) before it.
 // Profiling: pf_segment_hits_walls, pf_trace_edge_crossings and pf_bsp_find_cell open an EH frame whose
 // only unwind action is the empty destructor 0x434650 (FuncInfo 0x584170 / 0x584198 and the next one):
-// a profile_label local as in pathfinding.cpp; the label texts are not in the binary.
+// a profile_label local as in pathfinding.cpp; the label texts are not in the binary. The local segments
+// are 0x10-byte pf_edge records (the frames have room for two more dwords per segment, D6402).
 //
 // Data: no .data; .bss 0x245f3a0-0x2460cbb (defined here, D1203; pathfinding.cpp uses most of it).
 // Floats: 0 (0x57eb84), 0.5 (0x57e6b0), 1 (0x57e990), +-0.0001 (0x581930 / 0x581b74), +-0.003
@@ -83,7 +84,10 @@ void pf_select_graph(int size, int layer)
 // 0x4a4f60  Confidence: exact. The flags argument is not read.
 bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags)
 {
-    return (p->y - s->a->y) * (s->a->x - s->b->x) + (p->x - s->a->x) * (s->b->y - s->a->y) > 0.0f;
+    float dy = s->b->y - s->a->y;
+    float dx = s->a->x - s->b->x;
+
+    return (p->y - s->a->y) * dx + (p->x - s->a->x) * dy > 0.0f;
 }
 
 // 0x4a4fb0  Confidence: likely (the four corner sides are or-ed as 1 / 2; the obstacle counter is
@@ -93,7 +97,7 @@ bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags)
 bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int flags)
 {
     profile_label label("pf_segment_hits_walls");
-    seg2d seg;
+    pf_edge seg;
     vector2 c;
     pf_cell *cell;
     pf_edge *e;
@@ -177,7 +181,7 @@ bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int fl
 bool pf_first_edge_crossing(const seg2d *seg, int layer, vector2 *hit, int *hit_layer)
 {
     pf_wall *w;
-    seg2d ws;
+    pf_edge ws;
     vector2 pt;
     float best, d, dx;
     int from, to;
@@ -211,14 +215,14 @@ bool pf_first_edge_crossing(const seg2d *seg, int layer, vector2 *hit, int *hit_
     return found;
 }
 
-// 0x4a54b0  Confidence: likely (the hit point and layer live in the argument slots). Follows a move from
+// 0x4a54b0  Confidence: exact (VC6 byte match) (the hit point and layer live in the argument slots). Follows a move from
 // pos to dest across every layer-transition edge it crosses; returns the layer at dest.
 int pf_trace_edge_crossings(const vector3 *pos, int layer, vector3 dest)
 {
     profile_label label("pf_trace_edge_crossings");
     vector2 cur;
     vector2 to;
-    seg2d seg;
+    pf_edge seg;
     vector2 hit;
     int hit_layer;
 
@@ -239,7 +243,7 @@ int pf_trace_edge_crossings(const vector3 *pos, int layer, vector3 dest)
 bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c, const vector3 *d)
 {
     vector2 pa, pb, pc, pd;
-    seg2d s1, s2;
+    pf_edge s1, s2;
 
     pa.from_xz(a);
     pb.from_xz(b);
@@ -249,7 +253,8 @@ bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c,
     s1.b = &pb;
     s2.a = &pc;
     s2.b = &pd;
-    return seg2d_segment_intersect(&s1, &s2, NULL) == 1;
+    bool r = seg2d_segment_intersect(&s1, &s2, NULL) == 1;
+    return r;
 }
 
 // 0x4a55f0  Confidence: likely (the crossing layer is kept in a's argument slot). Straight walk from a
@@ -260,7 +265,7 @@ bool pf_straight_walk_clear(const vector2 *a, int a_layer, const vector2 *b, int
     vector2 cur;
     vector2 hit;
     vector3 mid;
-    seg2d seg;
+    pf_edge seg;
     int hit_layer;
 
     cur = *a;
@@ -492,7 +497,7 @@ bool pf_point_is_navigable(const vector3 *pos, int size, int layer)
         return false;
     if (!pf_cur_graph->bsp)
         return true;
-    return pf_bsp_find_cell(pos, -1) != NULL;
+    return pf_bsp_find_cell(pos, -1) ? true : false;
 }
 
 // 0x4a5e00  Confidence: exact.
@@ -535,14 +540,14 @@ bool seg2d_intersect_params(const vector2 *a, const vector2 *b, const vector2 *c
     ey = d->y - c->y;
     ex = d->x - c->x;
     den = (b->x - a->x) * ey - (b->y - a->y) * ex;
-    if (fabs(den) < 1e-6f)
+    if ((float)fabs(den) < 1e-6f)
         return false;
     *t = ((a->y - c->y) * ex - (a->x - c->x) * ey) / den;
     *u = ((a->y - c->y) * (b->x - a->x) - (b->y - a->y) * (a->x - c->x)) / den;
     return !_isnan(*t) && !_isnan(*u);
 }
 
-// 0x4a5f70  Confidence: likely (the order of the four floor calls). The hashed grid cells overlapping
+// 0x4a5f70  Confidence: exact (VC6 byte match) (the order of the four floor calls). The hashed grid cells overlapping
 // the square of half size `half` around pt, into pf_grid_cell_results; returns the count.
 int pf_grid_cells_in_box(const vector2 *pt, float half, pf_grid *grid)
 {
@@ -731,36 +736,33 @@ int pf_cells_in_box(int layer, int size, const vector2 *pt, float half)
     return pf_grid_cells_in_box(pt, half, &g->grid);
 }
 
-// 0x4a6530  Confidence: exact. True when pt projects within half the segment's length of its midpoint
+// 0x4a6530  Confidence: likely (8168 sorts the factors of the second dot product; int, not bool: D6401).
+// 1 when pt projects within half the segment's length of its midpoint
 // and lies closer than dist to its line.
-bool seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist)
+int seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist)
 {
-    vector2 dir;
     vector2 mid;
     vector2 d;
     vector2 perp;
     float half;
 
-    mid.x = (s->b->x + s->a->x) * 0.5f;
-    mid.y = (s->b->y + s->a->y) * 0.5f;
-    dir.x = s->b->x - mid.x;
-    dir.y = s->b->y - mid.y;
+    mid = 0.5f * (*s->a + *s->b);
+    vector2 dir(s->b->x - mid.x, s->b->y - mid.y);
     half = dir.normalize();
-    perp.x = -dir.y;
-    perp.y = dir.x;
+    perp = vector2(-dir.y, dir.x);
     d.x = mid.x - pt->x;
     d.y = mid.y - pt->y;
-    if (fabs(d.y * dir.y + d.x * dir.x) < half && fabs(perp.y * d.y + d.x * perp.x) < dist)
-        return true;
-    return false;
+    if ((float)fabs(d.y * dir.y + d.x * dir.x) < half && (float)fabs(d.x * perp.x + perp.y * d.y) < dist)
+        return 1;
+    return 0;
 }
 
-// 0x4a6600  Confidence: likely (the two tests are written as two ifs). Which of two layers joined by
+// 0x4a6600  Confidence: exact (VC6 byte match) (the two tests are written as two ifs). Which of two layers joined by
 // a transition edge within 3.0 of pos (middle part of the edge) the point is on; layer_b when no edge.
 int pf_layer_from_edges(int layer_a, int layer_b, const vector3 *pos)
 {
     pf_wall *w;
-    seg2d s;
+    pf_edge s;
     vector2 p;
     int i;
 
@@ -769,13 +771,15 @@ int pf_layer_from_edges(int layer_a, int layer_b, const vector3 *pos)
     for (i = 0; i < pf_wall_count; i++) {
         w = &pf_walls[i];
         if (w->layer_a == layer_a && w->layer_b == layer_b && seg2d_point_near_middle(&p, w, 3.0f)) {
-            s = *w;
+            s.a = w->a;
+            s.b = w->b;
             if (seg2d_point_left_of(&p, &s, 0))
                 return layer_b;
             return layer_a;
         }
         if (w->layer_a == layer_b && w->layer_b == layer_a && seg2d_point_near_middle(&p, w, 3.0f)) {
-            s = *w;
+            s.a = w->a;
+            s.b = w->b;
             if (seg2d_point_left_of(&p, &s, 0))
                 return layer_a;
             return layer_b;

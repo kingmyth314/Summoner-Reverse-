@@ -47,7 +47,7 @@ ui_element::~ui_element()
     ui_element::dtor();
 }
 
-// 0x542da0  Confidence: likely (the store order).
+// 0x542da0  Confidence: exact (the store order).
 void ui_element::init(int kind, int x, int y, int w, int h, int id)
 {
     if (id < 0) {

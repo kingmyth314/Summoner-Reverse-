@@ -129,7 +129,7 @@ bool itemtrade_cursor_on;                                     // 0x5c1881
 // 0x4191a0 init_realtimetimer_5c1860 (itemtrade_cursor_timer). Confidence: exact.
 // Confidence: exact (no source of their own).
 
-// 0x4191b0  Confidence: likely (VC6 walks the records with pointers and tests i == 0 / 21 as pointer
+// 0x4191b0  Confidence: exact (VC6 byte match) (VC6 walks the records with pointers and tests i == 0 / 21 as pointer
 // compares). Unlike the journal / buysell loaders the position is set for every record, a nameless one
 // gets bitmap -1 explicitly, and the size is only taken when the bitmap loaded. Records 0 and 21 (the two
 // backgrounds) are always drawn.
@@ -140,6 +140,7 @@ void itemtrade_load_bitmaps()
 
     for (i = 0; i < ITEMTRADE_NUM_BUTTONS; i++) {
         ui_button_state *b = &itemtrade_buttons[i];
+        const ui_button_def *d = &itemtrade_button_defs[i];
 
         b->flags = 0;
         b->bitmap = -1;
@@ -149,17 +150,17 @@ void itemtrade_load_bitmaps()
         b->h = 0;
         progress_update(0);
 
-        if (strlen(itemtrade_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, itemtrade_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
             b->bitmap = bm_load(filename, path_interface, -1);
         } else {
             b->bitmap = -1;
         }
-        b->x = itemtrade_button_defs[i].pos[resolution_index][0];
-        b->y = itemtrade_button_defs[i].pos[resolution_index][1];
+        b->x = d->pos[resolution_index][0];
+        b->y = d->pos[resolution_index][1];
         if (b->bitmap >= 0) {
             bm_get_dimensions(b->bitmap, &b->w, &b->h);
             b->w = (int)(b->w * scale + 0.5f);
@@ -179,7 +180,7 @@ void itemtrade_load_bitmaps()
     itemtrade_scrollbar_bm_h = (int)(itemtrade_scrollbar_bm_h * scale);
 }
 
-// 0x419380  Confidence: likely (store order around the item_type_find call is the scheduler's).
+// 0x419380  Confidence: exact (VC6 byte match) (store order around the item_type_find call is the scheduler's).
 // "Trading with %s" names the partner's player.
 void itemtrade_init()
 {
@@ -203,7 +204,7 @@ void itemtrade_init()
     }
 }
 
-// 0x419420  Confidence: likely (same template as buysell_update_scrollbar, including the row count test).
+// 0x419420  Confidence: exact (VC6 byte match) (same template as buysell_update_scrollbar, including the row count test).
 // The party list bar; records 9 / 11 are its arrows.
 void itemtrade_update_scrollbar()
 {
@@ -253,8 +254,8 @@ void itemtrade_leave()
 // 0x419560  Confidence: exact (jump table 0x4195f8, 5 cases). Blinks the gold input cursor every 500 ms.
 int itemtrade_frame(int key)
 {
-    for (ui_button_state *b = itemtrade_buttons; b < itemtrade_buttons + ITEMTRADE_NUM_BUTTONS; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < ITEMTRADE_NUM_BUTTONS; i++)
+        itemtrade_buttons[i].flags &= ~2;
 
     itemtrade_update_trade_buttons();
     itemtrade_update_scroll_buttons();
@@ -283,7 +284,7 @@ int itemtrade_frame(int key)
     return key;
 }
 
-// 0x419610  Confidence: likely (the case 4 body is laid out first). State 3: we accepted (tick 13 shown,
+// 0x419610  Confidence: exact (VC6 byte match) (the case 4 body is laid out first). State 3: we accepted (tick 13 shown,
 // accept hot spot 15 disabled); state 4: the partner accepted (tick 14 shown).
 void itemtrade_update_trade_buttons()
 {
@@ -473,11 +474,15 @@ void itemtrade_party_page_up()
 // 0x419be0  Confidence: exact.
 void itemtrade_party_page_down()
 {
+    int pos = itemtrade_party_scroll_pos;
     int page = itemtrade_party_page[resolution_index];
     int limit = itemtrade_party_row_count - page;
 
-    if (itemtrade_party_scroll_pos < limit) {
-        itemtrade_party_scroll_pos = min(itemtrade_party_scroll_pos + page, limit);
+    if (pos < limit) {
+        pos += page;
+        if (pos < limit)
+            limit = pos;
+        itemtrade_party_scroll_pos = limit;
         itemtrade_update_scrollbar();
     }
 }
@@ -622,29 +627,33 @@ void itemtrade_update_buttons()
 
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !itemtrade_repeat_timer.valid())
+                itemtrade_button_action(id);
+        } else {
             if (itemtrade_repeat_timer.valid() && itemtrade_repeat_timer.elapsed() && (b->flags & 2)) {
                 itemtrade_button_action(id);
                 itemtrade_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((b->flags & 2) && !itemtrade_repeat_timer.valid())
-            itemtrade_button_action(id);
     }
     itemtrade_mouse_mode = 0;
 }
 
-// 0x419f90  Confidence: likely (one store to the scroll position, as in buysell_drag_scrollbar).
+// 0x419f90  Confidence: exact (VC6 byte match) (one store to the scroll position, as in buysell_drag_scrollbar).
 void itemtrade_drag_scrollbar()
 {
-    int offset = game_mouse_y - itemtrade_scrollbar_track[resolution_index][1] - itemtrade_drag_start_y
-               + itemtrade_drag_start_thumb;
+    int offset = itemtrade_drag_start_thumb
+               + (game_mouse_y - itemtrade_scrollbar_track[resolution_index][1] - itemtrade_drag_start_y);
     int pos = (int)((float)offset / itemtrade_scrollbar_track_h[resolution_index] * itemtrade_party_row_count
                     + 0.5f);
 
     pos = max(pos, 0);
-    itemtrade_party_scroll_pos = min(pos, itemtrade_party_row_count - itemtrade_party_page[resolution_index]);
+    int last = itemtrade_party_row_count - itemtrade_party_page[resolution_index];
+    if (pos < last)
+        last = pos;
+    itemtrade_party_scroll_pos = last;
     itemtrade_update_scrollbar();
     if (!mouse_is_down(0))
         itemtrade_mouse_mode = 0;
@@ -655,10 +664,11 @@ void itemtrade_list1_handle_mouse()
 {
     int fh = gr_get_font_height(-1);
 
-    itemtrade_mouse_in_list = point_in_rect(game_mouse_x, game_mouse_y, itemtrade_list1_pos[resolution_index][0],
-                                            itemtrade_list1_pos[resolution_index][1]
-                                                + itemtrade_list1_hover_row * fh,
-                                            itemtrade_list1_width[resolution_index], fh);
+    int x = itemtrade_list1_pos[resolution_index][0];
+    int y = itemtrade_list1_pos[resolution_index][1] + itemtrade_list1_hover_row * fh;
+    int w = itemtrade_list1_width[resolution_index];
+
+    itemtrade_mouse_in_list = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh);
     if (mouse_is_down(0))
         return;
     if (itemtrade_mouse_in_list) {
@@ -668,17 +678,18 @@ void itemtrade_list1_handle_mouse()
     itemtrade_mouse_mode = 0;
 }
 
-// 0x41a0c0  Confidence: likely (the mode reset is duplicated into the gold branch, as VC6 may do for a
+// 0x41a0c0  Confidence: exact (VC6 byte match) (the mode reset is duplicated into the gold branch, as VC6 may do for a
 // common tail; the offered-count loop has no break, so the last match wins). Mouse mode 4: released over
 // the pressed party row offers one more unit (while some are not yet offered), or opens the gold box.
 void itemtrade_party_handle_mouse()
 {
     int fh = gr_get_font_height(-1);
 
-    itemtrade_mouse_in_list = point_in_rect(game_mouse_x, game_mouse_y, itemtrade_party_pos[resolution_index][0],
-                                            itemtrade_party_pos[resolution_index][1]
-                                                + itemtrade_party_hover_row * fh,
-                                            itemtrade_party_width[resolution_index], fh);
+    int x = itemtrade_party_pos[resolution_index][0];
+    int y = itemtrade_party_pos[resolution_index][1] + itemtrade_party_hover_row * fh;
+    int w = itemtrade_party_width[resolution_index];
+
+    itemtrade_mouse_in_list = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh);
     if (mouse_is_down(0))
         return;
     if (itemtrade_mouse_in_list) {
@@ -733,9 +744,10 @@ void itemtrade_draw()
     gr__set_clip(0, 0, gr_screen_width(), gr_screen_height());
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < ITEMTRADE_NUM_BUTTONS; i++) {
-        if (!(itemtrade_button_defs[i].flags & 8) && (itemtrade_buttons[i].flags & 3))
-            ui_bitmap_scaled(itemtrade_buttons[i].bitmap, itemtrade_buttons[i].x, itemtrade_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &itemtrade_buttons[i];
+
+        if (!(itemtrade_button_defs[i].flags & 8) && (b->flags & 3))
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     itemtrade_draw_list1();
     itemtrade_draw_list2();
@@ -744,9 +756,10 @@ void itemtrade_draw()
     if (itemtrade_gold_input_active) {
         gr_set_color(255, 255, 255, 255);
         for (i = 0; i < ITEMTRADE_NUM_BUTTONS; i++) {
-            if ((itemtrade_button_defs[i].flags & 8) && (itemtrade_buttons[i].flags & 3))
-                ui_bitmap_scaled(itemtrade_buttons[i].bitmap, itemtrade_buttons[i].x, itemtrade_buttons[i].y,
-                                 gr_bitmap_wrap_mode);
+            ui_button_state *b = &itemtrade_buttons[i];
+
+            if ((itemtrade_button_defs[i].flags & 8) && (b->flags & 3))
+                ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
         }
         itemtrade_draw_gold_input();
     }

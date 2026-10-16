@@ -28,7 +28,7 @@ bool os_registry_app_key_set;           // 0x2692ff8  (written as a byte)
 static char os_registry_write_class[4];  // 0x2692ffc  os_registry_write
 static char os_registry_delete_class[4]; // 0x2693000  os_registry_delete
 
-// 0x511d80  Confidence: likely (stack slot order of the four locals; the two failing sprintf
+// 0x511d80  Confidence: exact (stack slot order of the four locals; the two failing sprintf
 // calls share one call site, which VC6 does by tail merging).
 int os_registry_write(const char *subkey, const char *name, DWORD type, const void *data, DWORD size)
 {
@@ -108,16 +108,17 @@ HKEY os_registry_hkey_from_string(const char *s)
         DebugError(REGISTRY_CPP, 185, error);
 }
 
-// 0x512050  Confidence: likely (rval starts at -1 and only the success path clears it: XOR ESI
+// 0x512050  Confidence: exact (rval starts at -1 and only the success path clears it: XOR ESI
 // at 0x5120f3; size is the by-value argument whose address is passed as lpcbData).
 int os_registry_read(const char *subkey, const char *name, void *data, DWORD size)
 {
     HKEY hkey;
     char error[256];
     char path[1024];
-    int rval = -1;
+    int rval;
 
     hkey = NULL;
+    rval = -1;
     HKEY root = os_registry_resolve_key(path, subkey);
     if (RegOpenKeyExA(root, path, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS) {
         sprintf(error, "Error opening registry key '%s'\n", path);
@@ -190,11 +191,10 @@ int os_registry_write_string(const char *subkey, const char *name, const char *s
 // 0x512340  Confidence: exact. The success path returns the 0 still in EAX.
 int os_registry_read_dword(const char *subkey, const char *name, DWORD *out, DWORD default_value)
 {
-    if (os_registry_read(subkey, name, out, 4) != 0) {
-        *out = default_value;
-        return -1;
-    }
-    return 0;
+    if (os_registry_read(subkey, name, out, 4) == 0)
+        return 0;
+    *out = default_value;
+    return -1;
 }
 
 // 0x512370  Confidence: exact.
@@ -206,11 +206,10 @@ int os_registry_write_dword(const char *subkey, const char *name, DWORD value)
 // 0x512390  Confidence: exact. Same code as os_registry_read_dword.
 int os_registry_read_int(const char *subkey, const char *name, int *out, int default_value)
 {
-    if (os_registry_read(subkey, name, out, 4) != 0) {
-        *out = default_value;
-        return -1;
-    }
-    return 0;
+    if (os_registry_read(subkey, name, out, 4) == 0)
+        return 0;
+    *out = default_value;
+    return -1;
 }
 
 // 0x5123c0  Confidence: exact. No callers in Sum.exe.
@@ -219,7 +218,7 @@ int os_registry_write_binary_int(const char *subkey, const char *name, int value
     return os_registry_write(subkey, name, REG_BINARY, &value, 4);
 }
 
-// 0x5123e0  Confidence: likely (same layout risks as os_registry_write). No callers in Sum.exe.
+// 0x5123e0  Confidence: exact (same layout risks as os_registry_write). No callers in Sum.exe.
 // name == NULL deletes the key itself. Known defect: that branch formats its error with name,
 // which is NULL there (the binary pushes EDI = name), not with the path.
 int os_registry_delete(const char *subkey, const char *name)
@@ -228,9 +227,10 @@ int os_registry_delete(const char *subkey, const char *name)
     DWORD disposition;
     char error[256];
     char path[1024];
-    int rval = 0;
+    int rval;
 
     hkey = NULL;
+    rval = 0;
     HKEY root = os_registry_resolve_key(path, subkey);
     if (name == NULL) {
         if (RegDeleteKeyA(root, path) != ERROR_SUCCESS) {

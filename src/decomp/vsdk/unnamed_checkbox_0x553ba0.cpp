@@ -29,8 +29,9 @@ int ui_checkbox::process(int key)
     if (is_disabled())
         return key;
     if (is_hidden()) {
+        bool pressed = ui_left_pressed;
         state = 3;
-        if (ui_left_pressed && is_mouse_over())
+        if (pressed && is_mouse_over())
             ui_play_sound(3);
         if (has_hotkey(key))
             ui_play_sound(3);
@@ -262,8 +263,9 @@ int ui_radio_button::process(int key)
     if (is_disabled())
         return key;
     if (is_hidden()) {
+        bool pressed = ui_left_pressed;
         state = 3;
-        if (ui_left_pressed && is_mouse_over())
+        if (pressed && is_mouse_over())
             ui_play_sound(2);
         if (has_hotkey(key))
             ui_play_sound(2);
