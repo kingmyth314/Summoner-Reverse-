@@ -37,6 +37,9 @@
 // initialiser (init_strptrs_5f96xx), as in new_help.cpp / new_status.cpp.
 struct tutorial_str_ref {
     char *&s;
+#ifdef _MSC_VER
+    tutorial_str_ref(char *&r) : s(r) {}   // VC6 rejects { XSTR(..) } for a reference member otherwise (D4902)
+#endif
 };
 
 // One hint (0x24 bytes; type and field names ours).

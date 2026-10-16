@@ -37,7 +37,7 @@
 #define CA_NAME_LEN 41
 
 // Trigger times are given in frames: frames -> seconds -> ticks (fmul 1/30, fmul 30, fmul 160).
-#define CA_FRAMES_TO_TICKS(f) ((int)((f) * (1.0f / 30.0f) * 30.0f * 160.0f))
+#define CA_FRAMES_TO_TICKS(n) ((int)((n) * (1.0f / 30.0f) * 30.0f * 160.0f))   // parameter not f: VC6 splits 1.0f in a macro with a parameter f (D4903)
 
 #define CA_DEFAULT_POOL_SIZE 0x1400
 

@@ -493,7 +493,7 @@ public:
         int _unk1ac;         // +0x1AC
         int formation_slot;  //   1..5, 0 none (ai_group_assign_formation; decomp68)
     };
-    struct {                 // +0x1B0 attacker slots
+    struct ai_attacker {     // +0x1B0 attacker slots (named for VC6, D4901)
         int handle;          //   -1 free
         GameTimer timer;
     } attackers[5];

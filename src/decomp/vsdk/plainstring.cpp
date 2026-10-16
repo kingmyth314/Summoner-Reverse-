@@ -271,7 +271,8 @@ char *int_to_string(char *dest, int size, int value)
     char buf[32];
 
     sprintf(buf, "%d", value);
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x5156b0  Confidence: exact. size unused.
@@ -280,7 +281,8 @@ char *int_to_hex_string(char *dest, int size, int value)
     char buf[32];
 
     sprintf(buf, "0x%x", value);
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x515700  Confidence: exact. size unused.
@@ -289,7 +291,8 @@ char *float_to_string(char *dest, int size, float value, int precision)
     char buf[32];
 
     sprintf(buf, "%.*f", precision, value);
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x515760  Confidence: likely (VC6 turns the divisions by 1024 into the multiplications by 1/1024
@@ -307,7 +310,8 @@ char *byte_count_to_string(char *dest, int size, int bytes)
         else
             sprintf(buf, "%.2f MB", kb / 1024.0f);
     }
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x515800  Confidence: exact. size unused. parse.cpp has a copy (vector3_to_cstr 0x517060, 64-byte
@@ -317,7 +321,8 @@ char *vector3_to_string_buf(char *dest, int size, const vector3 *v, int precisio
     char buf[256];
 
     sprintf(buf, "< %.*f, %.*f, %.*f >", precision, v->x, precision, v->y, precision, v->z);
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x515880  Confidence: exact. size unused; the cast only satisfies the format check.
@@ -326,7 +331,8 @@ char *ptr_to_hex_string(char *dest, int size, const void *value)
     char buf[32];
 
     sprintf(buf, "0x%x", (unsigned int)value);
-    return strcpy(dest, buf);
+    strcpy(dest, buf);   // not return strcpy(..): dest is loaded before the copy (vc6-compare, D4905)
+    return dest;
 }
 
 // 0x5158d0  Confidence: likely (loop shape). Stops at the first char outside 0x20..0x75.

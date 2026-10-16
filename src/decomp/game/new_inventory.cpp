@@ -53,6 +53,9 @@
 // dynamic initialiser).
 struct inventory_str_ref {
     char *&s;
+#ifdef _MSC_VER
+    inventory_str_ref(char *&r) : s(r) {}   // VC6 rejects { XSTR(..) } for a reference member otherwise (D4902)
+#endif
 };
 
 // One entry of the per-item model offset table (0x58 bytes, *new* name).

@@ -166,6 +166,41 @@ or Ghidra.
 
 For example, `node tools/asm.mjs grep "\+ 0x5f8\]"` lists every access to a character's current HP.
 
+## `tools/vc6-compare.mjs`
+
+Compiles a `src/decomp` unit with Visual C++ 6.0 and compares each function that has a `// 0xADDR` comment with
+Sum.exe's bytes at that address. Relocated fields (call / jmp targets, absolute addresses) are masked, using the
+relocations of the `.obj`; the `/FAsc` listing gives the demangled names and the instruction text. Object and
+listing go to a temporary folder outside the repository. It needs `VC6_DIR`, the `VC98` folder of an extracted
+VC6 Professional or Enterprise (Standard Edition has no optimiser), and runs from PowerShell or cmd (Git Bash
+rewrites `/switches`).
+
+```powershell
+$env:VC6_DIR = 'C:\path\to\VC98'
+node tools/vc6-compare.mjs src/decomp/vsdk/frametime.cpp                     # default flags /O2 /MT
+node tools/vc6-compare.mjs src/decomp/vsdk/matrix.cpp --flags "/O2 /Ob0 /MT"  # a unit built without inlining
+node tools/vc6-compare.mjs src/decomp/game/objects.cpp --flags "/Od /Ob1 /GX /MT" --json
+```
+
+| Option | Meaning |
+|---|---|
+| `--flags "<cl flags>"` | compiler flags (default `/O2 /MT`; Sum.exe links the multithreaded CRT, DECISIONS.md D4904) |
+| `--json` | one JSON record per file and function instead of the table |
+| `--keep` | keep the temporary folder (printed) with the `.obj` and `.cod` |
+| `-v` | also list relocation targets that differ from the expected address, and other notes |
+
+Per function it prints `match`, `differs` (the first differing offset, both sizes and instruction counts, and the
+two instructions at that offset) or `not found` (no compiled function of that name: inlined, or the comment is not
+on a definition), then a summary line. The k-th definition of a name in the source is paired with the k-th compiled
+function of that name. A function is a match when its bytes equal the original's up to its length and the
+original has only padding (nop / int3) before the next known function start.
+
+Relocation targets are checked only as a hint: when the target is a function of the same file with an address
+comment, or a name `symbols/sum.symbols` knows (`a::b` as `a__b`), a different target in the original is counted
+in the summary (`-v` lists them). Overloads share a sum.symbols name and the linker folds identical functions, so
+these are not counted as differences. The original's instruction counts come from `build/sum.asm`
+(`tools/asm.mjs`'s cache; run that once first).
+
 ## `tools/agent.mjs` (agent mode)
 
 Plays the game from scripts, through SummonerFix's agent mode (`[Debug] Agent=1`,

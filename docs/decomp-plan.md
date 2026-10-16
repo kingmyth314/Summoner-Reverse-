@@ -382,3 +382,20 @@ X04-63216; cl 12.00.8168, the release build) optimises. `vector2::len` (`0x523f8
 (`0x523fc0`), written as in `src/decomp/vsdk/unnamed_vector_0x523f30.cpp` and compiled with `cl /O2`, give the same
 bytes as Sum.exe apart from the relocated addresses (**observed**). So byte-level comparison is possible now, even
 before the service pack that gives build 8966 is found; where the release build and 8966 differ is not known yet.
+
+**First comparison with VC6 (2026-10-16).** `src/decomp` now compiles under VC6 Professional (cl 12.00.8168,
+`/c /O2 /MT`): 202 of 204 units (**observed**); the header changes are DECISIONS.md D4900-D4905. The two left are
+new_help.cpp (a table VC6 cannot brace-initialise, D4902) and levelrender.cpp (needs the DirectX 7 SDK headers,
+D4904). [`tools/vc6-compare.mjs`](tools.md#toolsvc6-comparemjs) compares the compiled functions with Sum.exe:
+
+| Sample | Flags | Byte-identical functions |
+|---|---|---|
+| vector (unnamed_vector_0x523f30), matrix | `/O2 /Ob0` (the units call their inline members) | 62 of 97 |
+| frametime, timestamp, registry, stringpool, plainstring, cmdline, memory | `/O2` | 90 of 120 |
+| objects, living_entity, cutscene (unnamed_cutscene_0x434900) | `/Od /Ob1 /GX` | 100 of 200 (objects 35 of 40) |
+
+Most differing functions keep their size: the differences are scheduling and register choice, branch and block
+order, the order of x87 operations and constants (a few `double` literals where Sum.exe has `float`), and, in
+the unoptimised units, the stack frame size and the order of the locals (declaration order) and exception frames.
+**Inferred:** most are source shape (one pattern, `return strcpy(..)`, turned six functions into matches, D4905);
+some may be the 8168 / 8966 compiler difference, which can't be told apart until build 8966 is found.

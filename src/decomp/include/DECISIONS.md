@@ -3805,3 +3805,51 @@ the frame of the last update and +0xa4 the spawn accumulator (was _unka0); the t
 vfx_tex_layer's empty constructor and destructor are the two functions vfx_material's constructor passes to
 `eh vector constructor iterator` (0x564f39-0x564f4f): inline in the header. The 0x18-byte zeroing constructor
 sum.symbols calls vfx_tex_layer__ctor (0x564ef0) belongs to another type (no caller).
+
+## VC6 compile (D4900-D4999): src/decomp under Visual C++ 6.0 Professional (cl 12.00.8168, `/c /O2 /MT`)
+
+Edits that make the units compile under VC6 as well as mingw. They change no layout and no generated code for
+a compiler that already accepted the old spelling; tools/vc6-compare.mjs (docs/tools.md) checks the result.
+202 of 204 .cpp files compile; the two left are listed under D4902 and D4904.
+
+**D4900 (vsdk/vsdk.h). Fixed-width integer types without <stdint.h>.** VC6 has no stdint.h (fatal error C1083 in
+every unit). vsdk.h defines int8_t .. uint64_t, intptr_t and uintptr_t itself when `_MSC_VER < 1600` (VC6 is
+1200; `__int64` for the 64-bit pair) and includes <stdint.h> otherwise. Same sizes as symbols/types.h.
+
+**D4901 (engine/ai/ai.h). ai_state's attacker slots are a named struct.** VC6 cannot generate the default
+constructor of an unnamed class whose member has one (C2639, "compiler-generated default constructor required by
+unnamed class"): the slot holds a GameTimer. The struct is named `ai_attacker`; the array, its offset (+0x1b0)
+and the members are unchanged. This one error stopped 102 units.
+
+**D4902 (new_saveload.cpp, new_inventory.cpp, new_status.cpp, new_tutorial.cpp). The single-reference string
+tables get a constructor under VC6.** VC6 does not brace-initialise a struct with a reference member (C2440
+"cannot convert char * to struct ..."). With a converting constructor `T(char *&r) : s(r) {}` it accepts the
+tables unchanged (`{ XSTR(..) }` per element) and emits the init_strptrs_* pattern of Sum.exe: one
+`mov [table+4k], offset localize_strings+4id` per entry in a `$E` function (checked on a test file). The
+constructor is `#ifdef _MSC_VER`: C++98 (mingw) rejects brace initialisation of a class with a constructor.
+Open: new_help.cpp's `help_line` has two references (key, text), which VC6 accepts neither with braces nor with a
+two-argument constructor in braces; `help_line(a, b)` elements compile but load both addresses into registers
+first, unlike init_strptrs_5bc928 (0x40bf40). A `[][2]` array of the one-reference struct gives exactly the
+binary's stores, so the original was probably a two-dimensional table (`help_mouse_lines[i][0]`), which changes
+the drawing code; new_help.cpp is left failing under VC6 until that unit is revisited.
+
+**D4903 (vsdk/character.cpp). CA_FRAMES_TO_TICKS's parameter is not called f.** VC6's preprocessor splits the
+float suffix of `1.0f` when the macro has a parameter named `f` (C2059 "invalid suffix on number"). Renamed to
+`n`; the expansion is unchanged.
+
+**D4904 (build flags). `/MT`, the full VC98 include names, and the DirectX 7 SDK.** Sum.exe links the
+multithreaded static CRT (_beginthread 0x56fff0, _mtinit 0x571adc, _getptd 0x571b43), so units are compiled with
+`/MT`: without `_MT`, VC6's stdio.h defines `putc` as a macro (LineFile::putc in vfile/linefile.h fails to parse)
+and process.h does not declare `_beginthread` (the FTP and HTTP units). A VC98/INCLUDE copied straight from the
+CD has 8.3 names for the C++ headers (XCEPTION, ALGRITHM, FCTIONAL, STDXCEPT, STREAMBF, STRSTREM), which setup
+renames; <new> (combat.cpp) needs `exception`. levelrender.cpp includes the system <d3d.h> and uses the
+Direct3D 7 C++ interfaces (IDirect3D7, IDirect3DVertexBuffer7, D3DVERTEXBUFFERDESC), which VC6's own DirectX
+headers predate: it needs the DirectX 7 SDK include folder ahead of VC98/INCLUDE and is the other unit that
+does not compile here.
+
+**D4905 (vsdk/plainstring.cpp). `strcpy(dest, buf); return dest;`, not `return strcpy(dest, buf);`.** The six
+number-to-string helpers (int_to_string 0x515660, int_to_hex_string 0x5156b0, float_to_string 0x515700,
+byte_count_to_string 0x515760, vector3_to_string_buf 0x515800, ptr_to_hex_string 0x515880) load `dest` into EAX
+before the inline copy's `not ecx` (`mov eax, [esp+0x2c]` at 0x515687); `return strcpy(..)` loads it after.
+With the two statements all six compile byte for byte (vc6-compare, /O2); the first demonstration of a source
+shape found by the compiler.

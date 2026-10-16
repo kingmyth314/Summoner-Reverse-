@@ -107,6 +107,9 @@ int saveload_thumbnail_bm = -1;                                                 
 // makes VC6 emit init_strptrs_5f4a48 (0x425420, thunk 0x425410). Type name (*new*). Confidence: likely.
 struct saveload_month_name {
     char *&text;
+#ifdef _MSC_VER
+    saveload_month_name(char *&r) : text(r) {}   // VC6 rejects { XSTR(..) } for a reference member otherwise (D4902)
+#endif
 };
 saveload_month_name saveload_month_names[12] = {                          // 0x5f4a48
     { XSTR("Jan.", 702) }, { XSTR("Feb.", 703) }, { XSTR("Mar.", 704) }, { XSTR("Apr.", 705) },

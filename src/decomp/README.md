@@ -2,8 +2,10 @@
 
 C++ source rewritten from Sum.exe's disassembly, one file per original translation unit, for a future
 byte-matching build with Visual C++ 6.0 (see [docs/decomp-plan.md](../../docs/decomp-plan.md), "Phase 3" and
-"Toolchain"). **None of it has been compiled with VC6 yet**, so "exact" in the notes means "the control flow,
-constants and globals match the disassembly", not "the bytes match".
+"Toolchain"). "Exact" in the notes means "the control flow, constants and globals match the disassembly", not
+"the bytes match": the notes were written before VC6 was available. 202 of the 204 units now compile with VC6
+Professional (`cl /c /O2 /MT`, include/DECISIONS.md D4900-D4905), and `node tools/vc6-compare.mjs <file.cpp>`
+(docs/tools.md) checks a unit's functions byte for byte against Sum.exe.
 
 Rules:
 - Everything is written from Sum.exe's own code (`tools/asm.mjs`). The Summoner 2 decompilation has no licence and

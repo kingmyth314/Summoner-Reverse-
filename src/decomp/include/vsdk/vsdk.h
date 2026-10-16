@@ -11,7 +11,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <stdint.h>   // int8_t..uint32_t as in symbols/types.h (VC6 has no stdint.h: the real build needs a shim)
+// int8_t..uint32_t as in symbols/types.h. VC6 has no stdint.h, so the typedefs are spelled out for it
+// (DECISIONS.md D4900); every other compiler uses its own header.
+#if defined(_MSC_VER) && _MSC_VER < 1600
+typedef signed char      int8_t;
+typedef unsigned char    uint8_t;
+typedef short            int16_t;
+typedef unsigned short   uint16_t;
+typedef int              int32_t;
+typedef unsigned int     uint32_t;
+typedef __int64          int64_t;
+typedef unsigned __int64 uint64_t;
+typedef int              intptr_t;
+typedef unsigned int     uintptr_t;
+#else
+#include <stdint.h>
+#endif
 
 typedef unsigned char  ubyte;
 typedef unsigned short ushort;

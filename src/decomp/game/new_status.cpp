@@ -50,6 +50,9 @@ struct status_skill_entry {
 // dynamic initialiser).
 struct status_str_ref {
     char *&s;
+#ifdef _MSC_VER
+    status_str_ref(char *&r) : s(r) {}   // VC6 rejects { XSTR(..) } for a reference member otherwise (D4902)
+#endif
 };
 
 // ---- .rdata --------------------------------------------------------------------------------
