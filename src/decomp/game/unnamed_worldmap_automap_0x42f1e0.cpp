@@ -434,7 +434,7 @@ vector3 automap_upper_left;                   // 0x5f9e58 $mapUpperLeft
 
 // 0x42fc00  Confidence: exact. From GameInit: every cell of every map layer of every level gets the value
 // 0, so the grid starts hidden (the name says reveal; D5805).
-void automap_reveal_all()
+void automap_clear_all()
 {
     int level;
     int layer;

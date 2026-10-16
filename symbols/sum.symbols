@@ -1083,7 +1083,7 @@
 0x42fbd0  init_empty_42fbd0        func  -                    O ; hidden start, static initialiser with an empty body (trivially constructed static object)
 0x42fbe0  init_empty_42fbf0_thunk  func  -                    O ; hidden start, static_initializers entry 91: jmp init_empty_42fbf0
 0x42fbf0  init_empty_42fbf0        func  -                    O ; hidden start, static initialiser with an empty body (trivially constructed static object)
-0x42fc00  automap_reveal_all       func  -                    O ; automap_reveal_cell for every level (level_script_table +0x2c layers) and every 64x64 cell, caller GameInit
+0x42fc00  automap_clear_all        func  -                    O ; calls automap_reveal_cell(level, layer, x, y, 0) for every 64x64 cell of every level (push 0x0 at 0x42fc1c), so it clears the reveal bits, only caller GameInit 0x43e06a (formerly automap_reveal_all) (formerly automap_reveal_all)
 0x42fc60  automap_find_map_corners func  -                    O ; "$mapUpperLeft" / "$mapLowerRight" tags, "AUTOMAP ERROR : Could not find ..."
 0x42fd40  automap_labels_parse_table func  -                    O ; "automap_labels.tbl" #Script: $Label: $Type: $Pos: $Layer:
 0x42ff50  automap_reveal_around_party func  -                    O ; from state_game_frame, party_list positions -> automap_reveal_cell
@@ -1830,7 +1830,7 @@
 0x45de20  character_play_flinch    func  living_entity.cpp    O ; thiscall (sub): non-bosses play a flinch move (type 4) (character_find_move(4, sub)) with character_play_move, then character_set_flag_2_4(-1), flag 0x4, +0x56C = 0, callers living_entity_get_hit_by_spell and two level scripts
 0x45dea0  living_entity_get_hit_by_spell func  living_entity.cpp    O ; "Trying to get_hit_by_spell by an invalid method!!", "jade dmg: %d"
 0x460190  spell_apply_hit_effects  func  living_entity.cpp    O ; thiscall (debug-built) spell effect on a target: damage type to status (damage_type_to_status, status_effect_add / cure), resurrect, knock down, hit sound, fx_add_effect, callers spell_cast_launch_effects, fx_frame, 0x48bac0 (checked: damage_type_to_status, status_effect_add/cure, character_resurrect, ai_knock_down, spell_play_hit_sound, character_add_hp)
-0x460f20  character_play_move      func  living_entity.cpp    O ; thiscall (move, speed, ..., 5 args): sets cur_move +0x6D0 and cur_anim +0x6CC, blends the anim in the character instance, plays the move sound (handle +0x674) and effect (handle +0x60C), returns the anim or -1, 45 callers
+0x460f20  character_play_move      func  living_entity.cpp    O ; character_play_move: without keep, refuses a new move (returns -1) once the current move's trigger 9 "no interrupt" has time left <= 0.0001 (0x460fa4..0x460fbe); before that it calls fx_remove_missiles_from
 0x461370  character_find_move      func  living_entity.cpp    O ; charinfo_find_move(info, category, id, 1), category 4 refused for type 9
 0x4613b0  character_find_move_alt  func  living_entity.cpp    O ; charinfo_find_move_alt(info, category, id, 1), category 4 refused for type 9
 0x4613f0  character_move_progress  func  living_entity.cpp    O ; thiscall (anim): fraction of the current move anim still to play, 1.0 when not playing
@@ -2466,7 +2466,7 @@
 0x47f730  cmd_summon               func  spells.cpp           O ; console command "summon": Summon a creature (module - -> spells.cpp: strings.tbl spells.cpp ids (113 refs) in head init_strptrs_22e92a0/22e9338; spell_*/summon_* run to cmd_summon)
 0x47f860  mp_remote_travel_update  func  -                    O ; hidden start, (packet) for the object update of a remote character (living_from_handle): ai_travel_to_xyz toward the received position with a GameTimer, caller mp_handle_obj_update (checked: living_from_handle, ai_travel_to_xyz toward the received position with GameTimer, caller mp_handle_obj_update)
 0x47f9a0  mp_net_handle_map_reset  func  -                    O ; fills the 1000-entry net handle map 0x22e94f4 with -1
-0x47f9c0  mp_send_local_updates    func  -                    O ; multiplayer: for locally controlled characters (character_is_locally_controlled) sends mp_send_obj_update when their GameTimer runs out, caller mp_game_frame (checked: character_is_locally_controlled + GameTimer expiry -> mp_send_obj_update, caller mp_game_frame)
+0x47f9c0  mp_send_local_updates    func  -                    O ; mp_send_local_updates: the summon block pushes the leader (push esi at 0x47fa55) instead of cur_summon (game bug G310)
 0x47fb20  mp_send_monster_list     func  -                    O ; host: packet 0xD listing every type 4/5/9 object (type, name, net handle via mp_map_net_handle), caller mp_host_update_session (checked: character_get_name per object, mp_broadcast_packet, caller mp_host_update_session)
 0x47fcc0  mp_handle_obj_hnd        func  -                    O ; receive handler of multiplayer packet 0xd OBJ_HND (mp_packet_table 0x5951b8)
 0x47fdf0  mp_send_new_lep          func  -                    O ; builds and sends packet 0xe NEW_LEP for a character (char_infos index from +0x71c), caller monster_layout_load
@@ -6638,7 +6638,7 @@
 0x534110  packfile_alloc_directory func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name by role, "Out of packfile space!" (checked: reserves packfile+0x28 entries from the 0x34bc-entry pool 0x2d0bfb0 into +0x2c, prints sizes and DebugError "Out of packfile space!", Summoner 2 packfile_alloc_directory role)
 0x5341a0  packfile_load_cd         func  vsdk\vfile\packfile\file_packfile.cpp O ; opens <cd root>\<name>; PC counterpart of Summoner 2 packfile_load_dvd
 0x5342e0  packfile_load_hdd        func  vsdk\vfile\packfile\file_packfile.cpp O ; opens <install path>\<name>; Summoner 2 has packfile_load_hdd
-0x534420  packfile_add             func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name, "Ignoring packfile (%s) which was already loaded!", "Adding CD/HARD DRIVE PACKFILE" ((name): "Ignoring packfile (%s) which was already loaded!" (returns 1), else install_path + name first and cd_root_path + name when that fopen fails, refuses (0) a 17th packfile or a name of 32+ characters only after the file was found, "Adding HARD DRIVE PACKFILE : %s" + packfile_load_hdd or "Adding CD PACKFILE : %s" + packfile_load_cd, callers packfile_init (8 .vpp) and level_load (levelm, levele, levelt))
+0x534420  packfile_add             func  vsdk\vfile\packfile\file_packfile.cpp V ; packfile_add: sprintf("%s%s", install_path, name) into a 128-byte stack buffer without a length check (0x534425, 0x53446c; game bug C310)
 0x5345a0  packfile_find_packfile   func  vsdk\vfile\packfile\file_packfile.cpp O ; finds a loaded .vpp by name (0x34-byte records)
 0x5345f0  packfile_find            func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name; hash lookup of a file name
 0x534690  packfile_fopen           func  vsdk\vfile\packfile\file_packfile.cpp V ; Summoner 2 name
@@ -10122,7 +10122,7 @@
 0x240ca48  levelrender_glide_vert_point_light data:uint8[] -                    O ; per-vertex byte result of levelrender_sum_point_lights in levelrender_draw_list_glide
 0x240d9f0  levelrender_gl_proj_verts data:vector3[] -                    O ; per-vertex 12-byte records of levelrender_draw_list_opengl, indexed in step with levelrender_gl_vert_colors, copied into the GL vertex array (checked: 12-byte float records (copy +0/+4, fmul +8) in levelrender_draw_list_opengl)
 0x2419570  levelrender_gl_vertex_array data:vector3[] -                    O ; glVertexPointer(3, GL_FLOAT) array of levelrender_draw_list_opengl, 12 bytes per vertex
-0x24268f8  levelrender_gl_vert_colors data:vector3[] -                    O ; per-vertex float colour of levelrender_draw_list_opengl, scaled by 255 to bytes, same index as levelrender_gl_proj_verts (checked: 12-byte float records (fld x scale) indexed and pushed in levelrender_draw_list_opengl)
+0x24268f8  levelrender_gl_vert_colors data:vector3[] -                    O ; levelrender_gl_vert_colors: 12-byte r, g, b float records filled by levelrender_sum_point_lights (+0/+4/+8, 0x48fcc7..0x48fd0e); the lightmapped copy reads only +0 for all three bytes (0x491f9e, 0x491fb5, 0x491fcd; game bug K310)
 0x2432478 ccmd_space_mult          data:console_command -                      O ; console command object "space_mult"
 0x2432484  levelrender_d3d_vert_lit data:uint8[] -                    O ; per-vertex flag of levelrender_draw_list_d3d, copied from the shared vertex and tested before lighting, passed with the colour arrays (checked: byte per vertex copied/read and pushed in levelrender_draw_list_d3d)
 0x2437a74  levelrender_glide_vert_lit data:uint8[] -                    O ; per-vertex flag of levelrender_draw_list_glide, copied from the shared vertex and tested before lighting, passed with the colour arrays (checked: byte per vertex copied/read and pushed in levelrender_draw_list_glide)

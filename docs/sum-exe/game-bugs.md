@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 349 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,9 +26,9 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 75 | 2 |
-| Gameplay | 50 | 24 | 3 |
-| Cosmetic | 58 | 35 | 5 |
+| Crash or hang | 7 | 79 | 2 |
+| Gameplay | 51 | 24 | 4 |
+| Cosmetic | 59 | 35 | 5 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -120,6 +120,10 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C300 | Latent: with the Direct3D renderer on a card whose largest texture is smaller than a bitmap (256 on Voodoo-class cards; current cards take 8192 or more), loading that bitmap writes past the locked texture surface and reads past the bitmap | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0`, `gr_d3d_create_texture_section` `0x54bca0` | **Observed** code, *inferred* effect | No |
 | C301 | Latent: a cutscene script with more than 512 navpoints overwrites the cutscene string pool, and a level script with more than 750 navpoints overwrites the `door_toggle` console command and the memory after it | `cutscene_script_load` `0x4ed0f0`, `script_parse_navpoints` `0x4db700` | **Observed** code and retail data, *inferred* effect | No |
 | C302 | Latent: in `Rand-ForestNite1_v2` and `rand-hills01_v2`, a Ghost Rider or Phoenix Rider missing from the level crashes the game on the first frame | `ls_rand_forestnite1_frame` `0x4f56e0`, `ls_rand_hills01_frame` `0x4fa4a0` | **Observed** code and retail data, *inferred* crash | No |
+| C310 | Latent: a game folder whose path is 116 characters or longer crashes the game at start-up | `packfile_add` `0x534420`, `packfile_fopen` `0x534690` | **Observed** code, *inferred* crash | No |
+| C311 | Latent: in multiplayer, a new character from the host that the client cannot create (for example with all living-entity slots in use) crashes the client | `mp_handle_new_lep` `0x47ff10` | **Observed** code, *inferred* crash | No |
+| C312 | Latent: in multiplayer, a respawn packet for a player id the machine does not know crashes it | `mp_respawn_player` `0x481090` | **Observed** code, *inferred* crash | No |
+| C313 | Latent: the `save_map_labels` console command hangs the game when `automap_labels.tbl` has no `#End` line | `automap_labels_save` `0x430580` | **Observed** code and retail data, *inferred* hang | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -845,6 +849,35 @@ the intro cutscene, and stops once the rider's hit points reach 0 and the flag i
 a script without the rider triggers it. Both retail scripts place their rider. Same kind as C130 and C151. Found in the
 `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
 
+**C310. Two 128-byte path buffers.** `packfile_add` builds `install_path` + the packfile name with
+`sprintf("%s%s")` into a 128-byte stack buffer (`sub esp, 0x80` at `0x534425`, `sprintf` at `0x53446c`). The
+buffer ends at the return address, and nothing checks the length. `packfile_init` adds the eight packfiles at
+start-up; the longest names are `summoner.vpp` and `cutscene.vpp`, 12 characters (`0x533e30`..`0x533e7d`). So an
+`install_path` of 116 characters or more (with its trailing `\`) makes the string 128 bytes or longer. The
+terminating zero, or the rest of the path, then lands on the saved return address, and the `ret` at the end of
+`packfile_add` jumps to a broken address (*inferred*: a crash before the title). `packfile_fopen` repeats the
+copy for every packed file it opens, with no check, into its own 128-byte buffer (`sub esp, 0x80` at
+`0x534690`, copies `0x534741`..`0x534796`). `file_init` accepts up to 255 characters for the folder (`push 0xff`
+at `0x512dc6`). Latent: typical install folders are much shorter.
+
+**C311. The NULL entity is used.** When `living_entity_create` fails (`0x47ff88`; it returns 0, for example with
+"No more space for living entities"), `mp_handle_new_lep` calls `mp_player_disconnected(3, 0)` (`0x47ff96`) and
+then carries on with the same NULL pointer: `mov edx, [esi + 0x80]` at `0x47ffa1`, then `ai_reset` on
+`esi + 0x324` (`0x47ffc1`). *Inferred:* an access violation on the client.
+
+**C312. Resurrecting nothing.** `mp_respawn_player` looks up the player by id (`mp_player_find_by_id`,
+`0x481097`). For an unknown id it sets the character to NULL (`xor esi, esi` at `0x4810b6`) and still calls
+`character_resurrect`, `character_get_max_stat` and a store to `[esi + 0x5fe]` (`0x4810b8`..`0x4810cb`). It is
+reached from `mp_handle_respawn` (packet 0x19) and `mp_respawn_and_notify`. *Inferred:* a crash when a respawn arrives
+for a player who has already left.
+
+**C313. ReadLine's result is ignored.** `automap_labels_save` copies the old `automap_labels.tbl` to
+`automap_labels_temp.tbl` line by line (`TextFile__ReadLine` at `0x430791`). The loop ends only on a line that
+starts with `#End` (`strncmp` at `0x4307a5`) or on the current level's `#Script:` line (`0x4307d1`..`0x4307ff`).
+It never tests whether ReadLine read anything, so a file without `#End` makes it write the same line forever.
+The only caller is the `save_map_labels` console command (`cmd_save_map_labels`). Retail: the shipped
+`automap_labels.tbl` is just `#Automap Labels` and `#End`, so it is latent.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -923,6 +956,7 @@ a script without the rider triggers it. Both retail scripts place their rider. S
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
 | G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code and retail data | No |
+| G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1586,6 +1620,14 @@ party's gold at 0 (`0x4f1255`..`0x4f1257`). The topic has no other line. The tab
 comment after the topic ("Need to provide for the transfer of funds here.") suggests the amount was never matched up.
 Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
 
+**G310. The leader is pushed twice.** `mp_send_local_updates` sends an OBJ_UPD for the local leader (`esi`) when its
+timer has run out (`mp_send_obj_update` at `0x47fa00`). The second block tests `cur_summon`: it must be
+locally controlled and its own timer at `+0x784` must have run out. It then pushes `esi`, the leader, again
+(`push esi` at `0x47fa55`) and restarts the summon's timer (`0x47fa64`). The summon's OBJ_UPD is never sent
+from here. The other callers of `mp_send_obj_update` are the AI frame (only for `cur_character`, `0x472db1`),
+the elevators and two boss releases. *Inferred:* the summon's position and heading on the other machines are not
+corrected every second, so they drift from the owner's view.
+
 ## Cosmetic
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -1683,6 +1725,7 @@ Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
 | K301 | Latent: a `+Set Important:` or `+Clear Important:` line naming a speaker defined later in the same `_dlg.tbl` does nothing, so that character's quest icon is not shown or not removed | `dialogue_parse_table` `0x4fee50` | **Observed** code and retail data | No |
 | K302 | Latent: an effect whose particle interval curve has two or more non-zero keys spawns at the wrong rate between the keys | `vif_curve__evaluate` `0x533ca0` | **Observed** code, *inferred* effect | No |
 | K303 | Latent: the `sysinfo` console command always reports MMX, and shows the RAM speed four times too high | `cpu_identify` `0x5312d6`, `PrintSystemInfo` `0x53171f` | **Observed** code | No |
+| K310 | With the OpenGL renderer, coloured light from spells and effects on lightmapped walls and floors shows only its red value, as grey: fire and torch light turns white, blue light (Icicle, the Catacombs effects) all but disappears | `levelrender_draw_list_opengl` `0x491500` | **Observed** code and retail data, *inferred* effect | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -1704,7 +1747,10 @@ use the row, not scroll + row, so a scrolled top row shows the scene instead of 
 
 **K6. Full returns 0.** With 32 labels, `automap_label_alloc` returns 0 (`xor eax, eax` at `0x430245`)
 instead of -1. `automap_add_label_at_mouse` tests for a negative result (`jl` at `0x403180`), so it
-writes over label 0.
+writes over label 0. The other three callers make the same test: `automap_labels_parse_table` (`0x42fe19`,
+every label after the 32nd in `automap_labels.tbl` goes into label 0; the retail table has none),
+`automap_labels_reset_default` (`0x430342`, console command `reset_map_labels` only) and
+`savegame_read_automap_labels` (`0x4d3806`).
 
 **K7. No check for -1.** `gr_font_get_char` returns -1 for a character outside the font (`or eax, -1` at
 `0x508503`). `gr_string` uses the result as an index without a test (`mov edx, [edx+4*eax]` at `0x508d21`).
@@ -2480,6 +2526,29 @@ AMD and Intel name strings test the pointer instead of `*mmx` (`cmp dword ptr [e
 `PrintSystemInfo` measures RAM speed with copies of `0x10000` dwords (256 KB, `0x53199b`) and prints copies per
 second as MB/s (`0x531a29`..`0x531a68`). Only `cmd_sysinfo` calls `PrintSystemInfo` (`0x531af4`), and v1.40 has no
 console (see C140). Found in the `NOTES-sweep-0x4a0000.md` notes.
+
+**K310. Red three times.** The OpenGL draw list lights lightmapped faces in two passes. When moving point lights
+reach the object (count in the third argument, `[esp + 0x98]`), `levelrender_sum_point_lights` stores each
+vertex's light as three floats: red at `+0`, green at `+4`, blue at `+8` of
+`levelrender_gl_vert_colors` (`0x24268f8`, 12 bytes per vertex; `0x48fcc7`..`0x48fd0e`). The second pass adds
+that colour on top of the lightmap (`gr_mode_level_alpha_add`, `0x491c0a`). For a face with no clipped corner,
+the copy into the GL colour array reads the red float three times: `fld dword ptr [ebx + 0x24268f8]` at
+`0x491f9e`, `0x491fb5` and `0x491fcd`, each times 255. Byte 0 (red) gets red, byte 1 (green) gets red, byte 2
+(blue) gets red, and byte 3 keeps the fog alpha (`0x491f90`). Faces with a clipped corner take their bytes
+from the clipper's vertices (`+0x2c`..`+0x2e`, `0x491e06`..`0x491e14`), so they are coloured correctly. A face
+can therefore change colour as it crosses the screen edge. The other renderers are right: Glide reads `+0`, `+4`, `+8`
+(`0x48ee57`, `0x48ee73`, `0x48ee86`), and Direct3D reads `+8`, `+4`, `+0` into its BGRA bytes (`0x4907cd`..`0x490805`).
+The non-lightmapped OpenGL path also reads the three channels (`0x492669`, `0x492694`, `0x4926c4`). The lights
+come from `attached_light_slots` (`levelrender_rank_light`), filled by effect light nodes with red, green
+and blue from tracks `+0x40`, `+0x4c`, `+0x58` (`vfx_node_create_light` `0x51fbe0`..`0x51fc5b`,
+`attached_light_create` `0x5201da`..`0x5201e0`); no retail character table has `+LightColor:` (V13).
+Retail: 84 of the 146 light nodes in 42 of the 193 `.rfx` files have channels more than 24 apart. Examples:
+`icicle.rfx` (126, 228, 254), `catacombs.rfx` (36, 0, 254), `klab.rfx` (254, about 200, about 60), `lenele1b.rfx`
+(254, 204, 96), `fireball.rfx`, `Murod-Death.rfx` (28, 184, 66) and `preload.rfx` (34, 64, 156 and 254, 0, 0).
+The files were read with the layout of `vfx_node_relocate` (light count `+6`, array `+0x24`, 0x70 bytes each) and
+`vfx_channel__eval`. *Inferred:* with OpenGL, a blue light gives a dim grey glow on the walls, an orange one a
+white glow. Characters and effect meshes are lit through `lights_shade_vertices` and are not affected. The
+game never selects OpenGL, but SummonerFix always does, so every SummonerFix player sees this.
 
 ## Invisible
 
@@ -3589,6 +3658,19 @@ the tables above; the rest are below.
 - `dialogue_parse_table` (conversation::parse_table) does return 0 on success: `xor eax, eax` at `0x5008a6`, after the destructors and before the shared exit at `0x5008a8`; the failure paths load -1 (`0x50091c`) or `TextFile::Open`'s result (`0x4feff2`).
 - `ls_test_use` (`0x4f29c0`) is `xor al, al; ret`, a shared empty use hook; no gate or refusal code.
 
+- `snd_load` passing 0x80 to `File__get_packfile_path` (`push 0x80` at `0x520b17`): the call fails when `install_path` + packfile name is longer than 127 characters (`0x514059`..`0x51405b`), and then `ds_load_buffer` gets the plain name with offset 0. That length is the same one at which `packfile_add` already overflows at start-up (C310), so it cannot be reached on its own.
+- `automap_labels_parse_table` (`0x42fd40`) overwriting label 0 after 32 labels: the same `automap_label_alloc` return of 0 as K6, tested with `jl` (`0x42fe19`). The other callers, `automap_labels_reset_default` (`0x430342`) and `savegame_read_automap_labels` (`0x4d3806`), test it the same way. Retail `automap_labels.tbl` holds no labels. It is part of K6 (see the docfix).
+- `automap_reveal_all` (`0x42fc00`) calling `automap_reveal_cell(level, layer, x, y, 0)` for every cell (`push 0x0` at `0x42fc1c`): it clears the reveal bits. Its only caller is `GameInit` (`0x43e06a`), at start-up, where clearing is harmless. The name is wrong, not the code (symfix).
+- `automap_labels_reset_default` matching shopkeepers by name pointer (`cmp [ebp], eax` at `0x430317`): `level_parse_shopkeeper` stores the pointer `character_get_name()` returned for the same character (`0x4cc56a`..`0x4cc575`, `0x4cc5b8`..`0x4cc5bd`), so the pointer test works.
+- `decal_place`'s colour argument receiving a float from `blood_splot_place` (`push ecx` at `0x468a64`): decal `+0x30` is read only by `decals_draw_for_lobj`, which passes it as the eighth argument of `lights_shade_vertices` (`0x4bca96`). That function never reads its eighth argument (`0x51f3b0`..`0x51f524`). The value has no effect, whatever its type.
+- `character_play_move`'s trigger-9 test (D6104): trigger 9 is "no interrupt" (`anim_event_names` `0x5960b4`). The binary refuses a new move once that point is reached (time left <= 0.0001, `0x460fae`..`0x460fbe`), and `character_on_death` waits at the same point (`0x4538b0`..`0x4538bd`). Before it, both remove the move's missiles and go on (`fx_remove_missiles_from`). The lock ends when the move stops playing (`character_move_playing` sets `cur_anim` to -1, `0x4614ba`). This is the intended no-interrupt window. Only our source had the test inverted. combat.md describes the death wait the wrong way round (docfix).
+- `Give_all_items` (`0x609fec`) written only by `cmd_Give_all_items` and `ls_test_init` and read nowhere: confirmed (`0x43808f`..`0x4380a9`, `0x4fde10`). It is already V122.
+- `nw_NewCloseSocket` clearing `rsequence[i]` instead of `ssequence[i]` (D5806): the record is cleared afterwards when the socket exists, so there is no effect.
+- `levelrender_fan_tables[n]` indexed without an `n <= 8` test in the plain Direct3D and OpenGL paths (`0x492872`): `gr_clip_polygon` clips against plane bits 1..0x10, five planes, so a clipped triangle has at most 8 corners and the 9-entry table is enough.
+- Direct3D lightmapped batch restart keeping `levelrender_d3d_vertex_buffer_pos`, and the OpenGL restart testing count + 3 (`0x491c39`..`0x491c42`, limit 4000): D5804 already shows the writes stay inside the buffers (0x2140 entries and 4512).
+- `spell_spawn_creature` (`0x47bd30`) storing the list head when the random index runs past the end: the index is below the count, so it cannot happen.
+- `worldmap_frame` setting location flags 2 and 4 together (`or al, 6`) and `automap_reveal_cell` revealing twin levels 7/49, 30/35, 31/36: design, not defects.
+
 **Still unclear (left out):**
 
 - `objects_update_frame` animates objects of type 1 as characters (`0x46b3d0`). We found no `obj_link_new` caller
@@ -3749,6 +3831,7 @@ the tables above; the rest are below.
 - `gr_d3d_round_texture_size` rounds every size above 128 to 256 (`0x54d371`..`0x54d384`), so `gr_d3d_create_texture` refuses ("D3D: Not drawing %dx%d bitmap") any mip-mapped bitmap larger than 256 (`0x54d1b3`..`0x54d1f9`); whether a retail bitmap has mip levels and is larger than 256 was not checked.
 - `spell_cast_launch_effects` creates the Pyrul and Mach Meteor Storm effects with spell `0x1c` (`push 0x1c` at `0x47da55`); all three have the same hit effect file in `spells.tbl`, and whether damage or sounds come from spell `0x1c` was not traced.
 - The decomp73 notes' latent NULL reads (`spell_prepare_cast` `0x47b094`, `0x47b9dc`; `spell_cast_launch_effects` `0x47d987`; `spell_cast_execute` `0x47d2c9`) and the No_resist slip for spell `0x65` (`0x47b31a`) were not checked.
+- D5804 item 4: the Glide and OpenGL plain paths append clipped-polygon vertices after the mesh's vertices with no bound (OpenGL index from `[esp + 0x20]`, `0x491765`..`0x4917b5`). It needs the largest vertex count of a retail level object (from the `.s3d` files), and we have no reader for that yet. With no object near 4000 vertices it stays harmless.
 
 ## Evidence
 
@@ -3780,7 +3863,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K3 sell list | `buysell_category_first_index` `0x404f98`; `buysell_get_list_item` `0x40497d` |
 | K4 identify mode | `inventory_category_first_index` `0x4153dc`..`0x41543e` |
 | K5 thumbnail | `saveload_load_thumbnail` `0x425c61`..`0x425c67`; `saveload_draw_thumbnail` `0x426fda`..`0x426fe9` |
-| K6 labels | `automap_label_alloc` `0x430236`..`0x430245`; `automap_add_label_at_mouse` `0x40317e` |
+| K6 labels | `automap_label_alloc` `0x430236`..`0x430245`; `automap_add_label_at_mouse` `0x40317e`; `automap_labels_parse_table` `0x42fe12`..`0x42fe19`; `automap_labels_reset_default` `0x43033b`..`0x430342`; `savegame_read_automap_labels` `0x4d37ff`..`0x4d3806` |
 | K7 glyph | `gr_font_get_char` `0x5084ee`..`0x508503`; `gr_string` `0x508d0e`..`0x508d36` |
 | K8 credits | `credits_parse_table` `0x408858`..`0x408868` |
 | K9 centring | `gamecreate_draw_player_count` `0x40a515`..`0x40a564` |
@@ -4106,3 +4189,9 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V300 tint channels | `gr_poly_rgb` `0x545617`, `0x54567b`, `0x5456bb`, `0x545706`, `0x54574c`; `world_hover_tint_character` `0x43b1d0`; `world_hover_tint_object` `0x43a650`; `murod_ai_leap` `0x4c54ec`..`0x4c54f8`; `luminar_teleport_in` `0x4ca166`..`0x4ca172` |
 | V301 alpha stride | `gr_d3d_copy_bitmap_to_surface` `0x54c1ab`..`0x54c28f` |
 | V302 key queue | `key_init` `0x5097b5`, `0x5097fa`; `key_flush` `0x509ab0`..`0x509aba`; `key_putkey` `0x509d54`..`0x509d76` |
+| C310 install path | `packfile_add` `0x534425`, `0x53445c`..`0x53446c`, `0x53447b`; `packfile_init` `0x533e30`..`0x533e7d`; `packfile_fopen` `0x534690`, `0x534741`..`0x534798`; `file_init` `0x512dc6`; `File__get_packfile_path` `0x514045`..`0x51405b`; `snd_load` `0x520b17`, `0x520b47` |
+| C311 new LEP NULL | `mp_handle_new_lep` `0x47ff88`..`0x47ffc1`; `living_entity_create` `0x461b80` |
+| C312 respawn NULL | `mp_respawn_player` `0x481097`..`0x4810cb`; callers `0x481057`, `0x481136` |
+| C313 labels save loop | `automap_labels_save` `0x430780`..`0x4307ff`, `0x43082a`; retail `automap_labels.tbl` |
+| G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
+| K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |

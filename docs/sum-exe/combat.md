@@ -127,8 +127,9 @@ happens after every call that gets that far, also when the ice coffin blocked th
 
 Flag `0x8` marks a character that is dying (the party code also uses it to hide members). The dead flag
 `0x80` is set by `character_on_death` (`0x4537f0`, at `0x45393a`), which `ai_frame` calls (`0x472dd6`). It
-acts on any character with HP at 0 or below, party members included. It sets `0x8` too (`0x453870`), waits while the
-current move's trigger 9 is still ahead, plays the death move, pays experience and turns 5 into 6, 9 into 10
+acts on any character with HP at 0 or below, party members included. It sets `0x8` too (`0x453870`), waits once the
+current move's trigger 9 ("no interrupt") has been reached, until that move stops playing (`0x4538b0`..`0x4538bd`;
+before that point it removes the move's missiles and goes on), plays the death move, pays experience and turns 5 into 6, 9 into 10
 and a summon's 7 into 8. In single player it does nothing for a boss (type 9).
 
 ## Example (from the numbers on Joseph's screen)

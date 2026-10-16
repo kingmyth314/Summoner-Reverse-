@@ -533,7 +533,7 @@ void GameInit()
     game_pause_count_inc();
     music_feedback_parse_tables();
     interface_init_global();
-    automap_reveal_all();
+    automap_clear_all();
 
     if (os_registry_read_dword(NULL, "ComputerSpeed", (DWORD *)&speed, 2) == 0) {
         if (speed < 0)

@@ -38,7 +38,7 @@ The combat and spells entries in runs-final.txt were already written in snapB. N
 ## Disagreements with docs and symbols
 
 - The sum.symbols `levelrender_*_vert_lit` arrays hold gr_code_point clip codes, not lighting. The names are kept.
-- automap_reveal_all writes 0 into every cell, which hides the grid. That is the opposite of what the name says.
+- automap_clear_all writes 0 into every cell, which hides the grid. That is the opposite of what the name says.
 - worldmap_frame sets location flag bits 2 and 4 together (`or al, 6`). docs worldmap.md describes them separately.
 - open_url belongs to new_pxo_banner.cpp (strings.tbl id 834 and sum.symbols). NOTES-menus-dialogue suggested it was the head of new_pxochat.cpp.
 - 0x47f860-0x481196 may be the head of multiendgame.cpp: it runs into that file's initialiser, it reads multi_path_type, and it sits next to ccmd_Multi_path_type in .bss. It is not merged because D2604 says otherwise. Placeholder name.

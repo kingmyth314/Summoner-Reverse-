@@ -4770,7 +4770,7 @@ likely (worldmap_frame, worldmap_marker_clamp_to_edge, automap_labels_parse_tabl
 register and frame-slot choices). Findings: the PXO login name and password are the two fields of one
 utrack_login_request (pxo_login_info; the sum.symbols names are macros); worldmap_location is 0x2c bytes (flags,
 navpoint, scale, angle, marker x / y, label x / y / w / h, name) and an off-screen location gets flags 2 and 4
-together (`or al, 6`); automap_reveal_all writes 0 into every cell (it hides the grid at GameInit); the automap
+together (`or al, 6`); automap_clear_all writes 0 into every cell (it hides the grid at GameInit); the automap
 labels' default set matches shopkeepers by name pointer; automap_reveal_cell's value is a bool passed on to
 savegame::set_bit (a dword push of the byte, as set_bit tests it); the twin levels are 7 / 49, 30 / 35 and
 31 / 36. VC6 folds `f * 0.5f + 0.5f` into (f + 1) * 0.5, so worldmap_marker_scale_for_distance halves in its own

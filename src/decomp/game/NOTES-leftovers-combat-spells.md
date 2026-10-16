@@ -40,7 +40,7 @@ Also updated:
 
 - spell_spawn_creature (0x47bd30) creates no creature. It picks four strike targets (D5702). The name is kept.
 - summon_create returns nothing (D5703, SIGNATURE).
-- automap_reveal_all (0x42fc00) calls automap_reveal_cell with value 0 for every cell of every level. It clears the
+- automap_clear_all (0x42fc00) calls automap_reveal_cell with value 0 for every cell of every level. It clears the
   reveal bits at GameInit, the opposite of what its name says.
 - decal_place's colour argument receives a float: blood_splot_place passes its float bit for bit. The argument is
   declared int.
