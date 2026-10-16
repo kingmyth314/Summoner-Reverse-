@@ -34,3 +34,7 @@ summonerfix.log
 # Third-party reference repositories (read-only, not ours to redistribute)
 /reference/
 /extracted/
+
+# compiler and other installer archives the user keeps in the folder (third-party, never commit)
+/*.zip
+/*.iso
