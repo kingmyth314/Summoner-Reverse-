@@ -106,7 +106,7 @@ When a small translation unit is fully mapped (for example `frametime.cpp`):
   bytes function by function (objdiff, as the Summoner 2 project does).
 - If it matches, set up the project layout and progress tracking for the rest.
 
-## Phase 3 status (2026-10-15)
+## Phase 3 status (2026-10-16)
 
 The source half of the pilot has started without the compiler. Agents rewrote whole translation units in C++ from
 the disassembly; I reviewed them, spot-checked a function of each against the listing, and checked that they compile
@@ -120,7 +120,7 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
 
 `node tools/decomp-progress.mjs` counts the result: 7,583 functions written (87.7%). Of these, 5,097 match the
 disassembly exactly as far as can be read, 2,169 likely, 115 unsure. All 253 files compile against one header tree
-(`src/decomp/include`, decisions D1-D67 in its `DECISIONS.md`). Pilots written in parallel each changed a copy of the
+(`src/decomp/include`; decisions in its `DECISIONS.md`, one numbered block per pilot, last D5703). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.
 
@@ -349,7 +349,17 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
 2. Split the binary into translation units. `tools/tu-split.mjs` proposes 119 units (see the
    [source-file map](sum-exe/source-map.md#translation-units-from-data-locality)). First fix the stray module tags that
    `--score` lists.
-3. Phase 3 (a byte-matching pilot) needs a licensed VC6 compiler.
+3. *Done 2026-10-16:* the compiler. VC6 Professional builds 251 of 253 files (`levelrender.cpp` needs the
+   DirectX 7 headers, `new_help.cpp` a two-reference brace initialiser), and `tools/vc6-compare.mjs` compares each
+   function with Sum.exe: about 63% of the compiled functions match byte for byte (best flags `/O2 /GX /MT`,
+   `/O2 /Ob0 /GX /MT` for 31 files, `/Od /Ob1 /GX /MT` for the unoptimised units).
+4. Raise the match rate. The differences, by kind (68 read by hand): branch layout 24, register allocation 15,
+   stack frame 10, wrong types 8; constant folding shows up in many and is avoided by splitting expressions.
+5. Split `living_entity.cpp`: its last 32 functions (`0x461dc0`-`0x463480`) are optimised, so they belong to
+   another unit.
+6. Write what is left: three levelrender draw lists, the PXO login / world map / automap label unit
+   (`0x42f1e0`-`0x430bb0`, analysed in `src/decomp/game/NOTES-leftovers-combat-spells.md`), six net/os functions,
+   then the multiplayer runs. libjpeg 6b is only identified.
 
 **The analysed Sum.exe is not byte-clean (2026-10-15).** The copy in `Summoner/` carries a no-CD edit in `cd_find_drive` / `cd_set_root` that no compiler emits: `jne +0` (`0f 85 00 00 00 00`) at `0x43e6b0` and `0x43e6e3`, `75 00` at `0x43e872`, a forced `.` drive letter at `0x43e695` and `0x43e914`, and the strings at `0x594f50` / `0x594f70` changed from `A:\` / `%c:\` to `.\\` and `.\` (bytes `2e 5c 5c 00`, `2e 5c 00 00`). This is separate from Timeslip's patch (`0x43e9cb`, [Timeslip](patches/timeslip.md)). `src/decomp/game/summoner_cd.cpp` is written as the unpatched code (D2600), so a byte-matching build will differ at these bytes unless it is compared against an unmodified v1.40 executable.
 

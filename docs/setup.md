@@ -11,6 +11,12 @@ nav_order: 2
 
 Setup performed on 2026-10-12 on Windows 11 Pro (10.0.26100), x64.
 
+**Added 2026-10-16.** The repository has a private GitHub remote (`origin`, pushed only on the owner's request).
+The real compiler, Visual C++ 6.0 Professional (cl 12.00.8168), is used from an extracted copy outside the
+repository, never installed or committed; `tools/vc6-compare.mjs` needs its `VC98` folder in `VC6_DIR` (see
+[Tools](tools.md) and the toolchain notes in the [decompilation plan](decomp-plan.md)). Standard Edition has no
+optimiser and cannot be used for the optimised code.
+
 ## Components
 
 | Component | Version | Install method | Location |

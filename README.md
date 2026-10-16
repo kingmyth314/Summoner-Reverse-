@@ -50,6 +50,7 @@ Summoner/        Local game install - NOT committed (see .gitignore)
 
 ## Legal
 
-This repository contains documentation and original helper scripts only. It does not
-contain game files, game executables or third-party patch binaries. You need your own
+This repository contains documentation, our own helper scripts, the SummonerFix source and a C++
+reconstruction of `Sum.exe` (`src/decomp`, written from the disassembly). It does not contain game files,
+game executables, extracted game data, compilers or third-party patch binaries. You need your own
 copy of Summoner to reproduce the analysis.

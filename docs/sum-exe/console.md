@@ -177,7 +177,12 @@ which makes this table a map of debug features. Two patches give a way in:
   the game's `os_add_msg_handler` (`0x530c20`), runs on the game thread. On a key press (not an
   auto-repeat) it calls `execute_command_line` with a copy of the command. The key still reaches
   the game, and the section is reloaded live when the ini changes. The output stays invisible, so
-  a command shows only through its effect. A binding such as `F10=script test` runs a `.vcs` file.
+  a command shows only through its effect. A binding such as `F10=script test` runs a `.vcs` file. Keys are
+  ignored until the first game state (a command run during start-up crashed the game, 2026-10-16).
+- **`play_and_load_cutscene`** is a cutscene viewer: it loads the cutscene's level, and `game_flags` bit `0x8`
+  returns to the main menu when the cutscene ends ([Cutscenes](cutscenes.md#console-cutscenes-and-pending-playback)).
+  Clearing that bit while the cutscene plays keeps the game in the level, which is how agent-mode tests reach story
+  levels ([Tools](../tools.md)). Starting a new game from the menu it returns to crashed once (game-bugs C280).
 
 The planned [custom key bindings](../roadmap.md#custom-key-bindings-for-player-actions) can use the
 same route.

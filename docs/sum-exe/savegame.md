@@ -435,6 +435,19 @@ written in one `File__write`. Writers fail the save if a section would overflow 
 more than 175 entities). Callers: `quicksave`, `saveload_save_to_slot`, `cmd_savegame`. Slots are named
 `summoner%d.sav`, plus `quicksave.sav`.
 
+**When saving is refused** (`savegame_location_allowed`, `0x4d4a50`, *observed*; callers `hud_key_save`,
+`quicksave`, `playmenu_open_save`, `saveload_update_save_button`, `saveload_try_save`, `cmd_savegame`). It returns
+0 when saving is allowed, otherwise a reason code:
+
+| Code | When |
+|---|---|
+| 1 | `level_script_event_active` is set (a scripted boss or event), or a living entity of type 5 or 9 in AI mode 3 targets a party member |
+| 3 | a summon is out (`cur_summon`) while in AI mode 6 or without bit 0 of its `+0x84` |
+| 2 | a per-level rule, a jump table indexed by `cur_level_index` + 1 (`0x4d4b98`, targets `0x4d4b7c`): index 0 (no level) always; the first Khosani lab visit (level 14) until the story flag `room8` is set; Khosani lab 2 (level 27) once `pyrulstart` is set; the Jade Temple (level 34) once `got_laharah_spirit` is set; TempleINT2, the last temple (level 37), once `mach_intro` is set |
+
+Code 2 showed "Cannot save in The Temple of Urath." in agent mode (2026-10-16). The per-level rule is what keeps
+G130 and G131 out of reach ([Bugs](game-bugs.md)).
+
 **Load** (*observed*): the header only is read first (`savegame_read_info`, `0x4d2800`, used by the Save/Load
 list, `quickload` and `cmd_loadgame`). `savegame_set_pending_load` stores the filename. `game_change_level`
 then switches to the saved level, and after the level has loaded, `state_game_enter` calls

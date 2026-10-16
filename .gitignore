@@ -40,3 +40,6 @@ summonerfix.log
 /*.iso
 /*.7z
 /*.rar
+
+# Claude Code local settings (permissions)
+/.claude/
