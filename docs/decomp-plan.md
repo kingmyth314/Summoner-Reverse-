@@ -118,8 +118,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 5,410 match the
-disassembly exactly as far as can be read, 2,007 likely, 117 unsure. All 259 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 5,562 match the
+disassembly exactly as far as can be read, 1,855 likely, 117 unsure. All 259 files compile against one header tree
 (`src/decomp/include`; decisions in its `DECISIONS.md`, one numbered block per pilot, last D5703). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.
@@ -365,7 +365,10 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
 6. *Done 2026-10-16:* all game and engine code below the C runtime has source, except libjpeg 6b (about 140
    functions, identified only). The remaining functions of the 8,645 are the C runtime and other library code.
    `levelrender.cpp` now compiles under VC6; only `new_help.cpp` does not.
-7. Keep raising the byte-match rate, file by file, with the techniques in D5904, D6005 and D6107.
+7. Keep raising the byte-match rate, file by file, with the techniques in D5904, D6005, D6107, D6205 and D6305.
+   Second round (2026-10-16, 20 files): game units 256 -> 329 of 438, engine units 193 -> 216 of 333, no match
+   lost. Most of what still differs looks like the compiler build (8168 here, 8966 in Sum.exe): about 25 engine
+   functions build a returned `vector3` / `matrix` in place in Sum.exe and copy it here (D6306).
 
 **The analysed Sum.exe is not byte-clean (2026-10-15).** The copy in `Summoner/` carries a no-CD edit in `cd_find_drive` / `cd_set_root` that no compiler emits: `jne +0` (`0f 85 00 00 00 00`) at `0x43e6b0` and `0x43e6e3`, `75 00` at `0x43e872`, a forced `.` drive letter at `0x43e695` and `0x43e914`, and the strings at `0x594f50` / `0x594f70` changed from `A:\` / `%c:\` to `.\\` and `.\` (bytes `2e 5c 5c 00`, `2e 5c 00 00`). This is separate from Timeslip's patch (`0x43e9cb`, [Timeslip](patches/timeslip.md)). `src/decomp/game/summoner_cd.cpp` is written as the unpatched code (D2600), so a byte-matching build will differ at these bytes unless it is compared against an unmodified v1.40 executable.
 
