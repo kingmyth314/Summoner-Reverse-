@@ -1506,12 +1506,12 @@ void savegame::layout_level_items()
     level_item_hashes.size = sizeof(savegame_level_item_list);
 }
 
-// 0x4d1bb0  Confidence: exact.
+// 0x4d1bb0  Confidence: exact. The unpadded byte count 0x673f, not sizeof (0x6740 under VC6; D5400).
 void savegame::layout_two_stage()
 {
     two_stage.data = buffer + used;
-    used += sizeof(savegame_two_stage);
-    two_stage.size = sizeof(savegame_two_stage);
+    used += SAVEGAME_TWO_STAGE_BYTES;
+    two_stage.size = SAVEGAME_TWO_STAGE_BYTES;
 }
 
 // 0x4d1be0  Confidence: exact.

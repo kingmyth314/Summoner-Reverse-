@@ -678,7 +678,7 @@ void spell_effect_obj_set_timer(int caster, int handle, const vector3 *pos, int 
 
 // 0x47e590  Confidence: exact. Blizzard's hit effect (spells[0x23] +0x1c) with an avoidance shape 1 of
 // 3.3 m.
-int spell_spawn_hit_fx(int caster, const vector3 *pos, const matrix *orient, int owner)
+int spell_spawn_hit_fx(int caster, const vector3 *pos, int owner, const matrix *orient)
 {
     int h;
     effect_object *fx;

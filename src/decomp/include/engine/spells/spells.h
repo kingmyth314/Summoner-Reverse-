@@ -236,7 +236,7 @@ void  spell_find_ground_points(vector3 *out, int first, int last, effect_object 
 bool  spell_probe_ground_point(effect_object *fx, int node, vector3 *point);          // 0x47e330
 void  spell_effect_obj_set_timer(int caster, int handle, const vector3 *pos, int owner,
                                  const matrix *orient);     // 0x47e4d0
-int   spell_spawn_hit_fx(int caster, const vector3 *pos, const matrix *orient, int owner);   // 0x47e590
+int   spell_spawn_hit_fx(int caster, const vector3 *pos, int owner, const matrix *orient);   // 0x47e590 (D5400: owner before orient, caller 0x47cd93)
 int   spell_missile_remove(int handle);              // 0x47e680 slot or -1
 void  spell_launch_missile(Character *caster, int handle);  // 0x47e6c0
 int   spell_fire_missile(int spell, int missile, Character *caster, Character *target,

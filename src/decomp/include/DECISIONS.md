@@ -4037,3 +4037,10 @@ file is the lead's). Both declared extern in vfx.h.
 with word moves (0x563326, 0x5633bb). render_mesh passes the sort key (a float) as gr_poly_begin's second int
 argument (`mov eax, [edx]; push eax`, 0x563481): written as a reinterpreting cast; gr_poly_begin's parameters are
 not changed.
+
+**D5400 (savegame.h, level_scripts.cpp, spells.h, spells.cpp). Two fixes from the VC6 byte comparison.**
+`savegame::layout_two_stage` (0x4d1bb0) uses the section size 0x673f, but `sizeof(savegame_two_stage)` is 0x6740
+under VC6 (the int members pad the struct to 4): the code now uses `SAVEGAME_TWO_STAGE_BYTES`, the byte count of
+counts, hashes and the 0x607 bit bytes. `spell_spawn_hit_fx` (0x47e590) takes (caster, pos, owner, orient): the
+fourth argument goes to `fx_add_effect` as the orientation (`[esp + 0x50]` at 0x47e5a0) and the third into the
+avoidance owner (`[esp + 0x4c]` at 0x47e62a); its caller at 0x47cd93 pushes the object's orientation (+0x38) last.

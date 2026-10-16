@@ -76,12 +76,16 @@ struct savegame_automap_label {
 };
 LAYOUT_CHECK(savegame_automap_label, sizeof(savegame_automap_label) == 0x34);
 
-// The two-stage section (0x673f bytes): counts, hashes, then two bits per (level, entry) pair.
+// The two-stage section (0x673f bytes): counts, hashes, then two bits per (level, entry) pair. The struct pads to
+// 0x6740; the game's section is the unpadded byte count, SAVEGAME_TWO_STAGE_BYTES (D5400).
 struct savegame_two_stage {
     int counts[SAVEGAME_NUM_LEVELS];                                  // +0x0000
     unsigned int hashes[SAVEGAME_NUM_LEVELS][SAVEGAME_MAX_TWO_STAGE]; // +0x00CC
     ubyte bits[0x607];                                                // +0x6138 (51 * 242 bits)
 };
+#define SAVEGAME_TWO_STAGE_BITS_BYTES ((SAVEGAME_NUM_LEVELS * SAVEGAME_MAX_TWO_STAGE * 2 + 7) / 8) // 0x607
+#define SAVEGAME_TWO_STAGE_BYTES (sizeof(int) * SAVEGAME_NUM_LEVELS + sizeof(unsigned int) * SAVEGAME_NUM_LEVELS * SAVEGAME_MAX_TWO_STAGE + SAVEGAME_TWO_STAGE_BITS_BYTES)
+LAYOUT_CHECK(savegame_two_stage_bytes, SAVEGAME_TWO_STAGE_BYTES == 0x673f);
 
 class savegame {                     // savegame_state at 0x2493a38 (0x10e8 bytes)
 public:
