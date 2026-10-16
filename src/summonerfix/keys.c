@@ -149,6 +149,12 @@ static void RunConsoleKey(int scan)
     const char *cmd = g_ck->cmd[scan & 0xff];
     if (!cmd[0])
         return;
+    // Before the first game state (gameseq state 0, still starting up) the command system is not set up yet:
+    // a console key pressed then crashed the game (seen 2026-10-16). Ignore keys until the main menu.
+    if (*(volatile int *)(UINT_PTR)SumVa(0x5b27e0u /* gameseq current state */) < 1) {
+        Log("console key ignored during start-up: %s", cmd);
+        return;
+    }
     char line[CONSOLE_CMD_LEN];
     lstrcpynA(line, cmd, sizeof line); // the parser works on its own copy
     Log("console key: %s", line);

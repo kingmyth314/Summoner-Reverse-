@@ -29,6 +29,12 @@
 #define VA_FPS 0x5a5744u
 #define VA_IS_MAIN_WND_ACTIVE 0x2cbff1cu
 #define VA_GAMESEQ_SET_STATE 0x401020u
+#define VA_SAVEGAME_STATE 0x2493a38u    // savegame_state, the story flags of every level
+#define VA_SAVEGAME_GET_FLAG 0x4cfca0u // thiscall (level, name) -> int
+#define VA_SAVEGAME_SET_FLAG 0x4cfd30u // thiscall (level, name, bool value)
+#define VA_CUR_LEVEL_INDEX 0x59f120u
+#define VA_NAVPOINT_GET_POSITION 0x4dc600u // cdecl (name, vector3 *pos, matrix *orient) -> bool
+#define VA_CUR_CHARACTER 0x5fcc88u         // Character *; position at +0x10
 
 static char g_dir[MAX_PATH];
 static char g_out[16384];
@@ -206,6 +212,27 @@ static void RunLine(char *line)
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
     } else if (!_stricmp(c, "poke") && argc >= 3) {
         Poke((DWORD)strtoul(argv[1], NULL, 16), (unsigned)strtoul(argv[2], NULL, 16));
+    } else if (!_stricmp(c, "flag") && argc >= 2) {
+        // flag NAME [0|1]: read or set a story flag of the current level, as the level scripts do
+        // (savegame_get_flag / savegame_set_flag on savegame_state). Testing only; runs on the agent thread.
+        typedef int(__attribute__((thiscall)) * GetFlag)(void *, int, const char *);
+        typedef void(__attribute__((thiscall)) * SetFlag)(void *, int, const char *, int);
+        void *state = (void *)(UINT_PTR)SumVa(VA_SAVEGAME_STATE);
+        int level = *(volatile int *)(UINT_PTR)SumVa(VA_CUR_LEVEL_INDEX);
+        if (argc >= 3)
+            ((SetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_SET_FLAG))(state, level, argv[1], atoi(argv[2]) != 0);
+        Out("flag %s (level %d) = %d", argv[1], level, ((GetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_GET_FLAG))(state, level, argv[1]));
+    } else if (!_stricmp(c, "navgoto") && argc >= 2) {
+        // navgoto NAVPOINT: put the current character on a level navpoint (e.g. $end2trig). Testing only.
+        float pos[3], orient[9];
+        typedef char(__cdecl * GetNav)(const char *, float *, float *);
+        BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        if (!ch || !((GetNav)(UINT_PTR)SumVa(VA_NAVPOINT_GET_POSITION))(argv[1], pos, orient)) {
+            Out("navgoto %s: no character or no such navpoint", argv[1]);
+        } else {
+            memcpy(ch + 0x10, pos, sizeof pos);
+            Out("navgoto %s: %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
+        }
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

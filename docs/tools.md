@@ -225,7 +225,16 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `move X Y`, `click [left|right|middle] [X Y] [ms]`, `down/up BUTTON`, `drag X1 Y1 X2 Y2`;
 - `wait MS`, `capture NAME`;
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `poke ADDR BYTE` (one byte of writable game
-  data, hex; used to test the script editor flag), `quit`.
+  data, hex; used to test the script editor flag), `quit`;
+- `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
+  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`). Testing only.
+
+Console commands need `postkey` with a `[ConsoleKeys]` binding (`key` goes through DirectInput and never reaches
+the console keys). `[Debug] TestSaves=1` keeps test saves in `Summoner/savetest`. To reach a story level, bind
+`play_and_load_cutscene <cutscene>` (cutscene names and levels are in `cutscene.tbl`); it sets `game_flags` bit
+`0x8`, which returns to the main menu after the cutscene, so clear it while the cutscene plays
+(`poke 0x5fbfd8` with the value minus 8) to keep playing. Starting a new game from the menu it returns to crashed
+once (game-bugs C280).
 
 Coordinates are screenshot pixels, which are half the window size (1280x720 on a 2560x1440
 screen). Key names are the ones `summonerfix.ini [KeyBindings]` uses.

@@ -175,6 +175,7 @@ A binding adds a key; the default key keeps working. If the new key already belo
 | `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits, large allocations, FPS and sleep statistics |
 | `[Debug] CaptureEvery` | 0 | Seconds between back-buffer captures (`summonerfix-capture-N.bmp`) |
 | `[Debug] FakeUptimeDays` | 0 | Testing only: the game sees this many days of Windows uptime (25+ reproduces the cutscene timer bug) |
+| `[Debug] TestSaves` | 0 | Testing: 1 = save and load in `Summoner/savetest` (the `"savegame"` folder name at `0x594b00` becomes `"savetest"`), so the player's saves are never touched |
 | `[Debug] ScriptEditorKey` | none | Key that toggles the built-in level script editor in game (for modders; its Save writes into the data folders) |
 | `[Game] CameraZoomMax` | (empty) | Camera zoom-out limit; the game's is 1.0, Timeslip used 3 |
 | `[Game] SkipIntroMovies` | 0 | 1 = skip the Volition and EAX logo movies at start-up (the credits movie still plays) |

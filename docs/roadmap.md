@@ -136,7 +136,8 @@ first), structured so it can become a byte-matching decompilation later.
   (`glReadPixels` hook). Still open: Timeslip's Bink 32-bit fix (no movie corruption seen with OpenGL).
 - ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
 - **World sounds too quiet with the default sound setting: done 2026-10-16** (SummonerFix `bugfix.c`, K260; the slider is now linear).
-- **Story state lost on load (candidates for SummonerFix).** Two level scripts keep progress in memory that a save does not record: after Machival dies in templeint2, a loaded game no longer offers the forge ending (G130: `ls_templeint2_end2_ready` `0x257e9b8` is cleared by the level init), and a save in the 8 s after Spirit of Laharah strands the player in the Jade Temple (G131: the timers are reset on entry). A fix could set the byte from `mach_killed` in `ls_templeint2_init`, and restart the timer in `ls_jadetemple_init` when `got_laharah_spirit` is set. Not tested in play; see [Bugs](sum-exe/game-bugs.md).
+- **Story state lost on load: no fix needed (2026-10-16).** G130 and G131 cannot happen in retail play: the game refuses saving in TempleINT2 once `mach_intro` is set and in the Jade Temple once `got_laharah_spirit` is set (`savegame_location_allowed`, tested in agent mode). See [Bugs](sum-exe/game-bugs.md).
+- **Flickering right bar after cutscenes (to investigate).** The user saw the black bar right of the 1024-wide menu flicker after a cutscene (K280); possibly SummonerFix's bar clearing.
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.
 - Direct3D renderer: find which DirectDraw/Direct3D call fails at `0x539b41`
   (low priority while OpenGL works).

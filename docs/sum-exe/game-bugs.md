@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 320 in all.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 322 in all.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,9 +26,9 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 68 | 2 |
-| Gameplay | 50 | 21 | 3 |
-| Cosmetic | 50 | 28 | 4 |
+| Crash or hang | 7 | 69 | 2 |
+| Gameplay | 48 | 23 | 3 |
+| Cosmetic | 51 | 28 | 4 |
 | Invisible | 42 | 54 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -113,6 +113,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C272 | Latent: in the Masad combat tutorial, the "part 2" step (after the Orenian Scout is defeated) crashes if an arrow is in flight, a spell area is burning or any character's status effect holder exists at that moment; the level-start callers crash the same way if such an effect already exists | `fx_disable_by_effect_name` `0x48d660`, `tutorial_cond_combat_part2` `0x42ead0` | **Observed** code and retail data, *inferred* crash | No |
 | C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
 | C274 | Latent: a level item placed while all 40 containers are in use crashes the level load | `level_item_spawn` `0x46a640`, `container_obj_create` `0x4897f0` | **Observed** code and retail data, *inferred* crash | No |
+| C280 | Latent (console only): after `play_and_load_cutscene` returns to the main menu, Start New Game crashes (access violation) | `cmd_play_and_load_cutscene` `0x437590`, `cutscene_change_level_for` `0x437400` | **Observed** in game once, cause not analysed | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -769,6 +770,14 @@ passes it straight to `container_add_item` as `this` (`0x46a654`..`0x46a681`). I
 levels place at most 18 items (`sewer` in `level_items.tbl`); whether containers restored from a save can fill
 the pool before the level items are placed was not traced.
 
+**C280. New game after the console cutscene viewer.** `play_and_load_cutscene` loads the cutscene's level, sets
+`game_flags |= 0x18` and plays the cutscene; bit `0x8` sends the game back to state 1 (the main menu) when it ends
+([Cutscenes](cutscenes.md#console-cutscenes-and-pending-playback)). In agent mode on 2026-10-16 (Tiger-Ghost-Intro,
+Jade Temple), clicking Start New Game from that menu ended the process with `0xC0000005` about 20 s later
+(SummonerFix log: `ExitProcess(3221225477)`). The same command used for TempleINT2, with bit `0x8` cleared by hand
+before the cutscene ended, played on normally. *Inferred:* some level or cutscene state is not reset on the way back
+to the menu. Not reachable without the console. Cause not analysed yet.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -807,8 +816,8 @@ the pool before the level items are placed was not traced.
 | G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data, *inferred* effect | No |
 | G110 | Latent: a `#Clicks` name that is not a level object makes level object 0 clickable with that entry's message and gold | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
-| G130 | After loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0` | **Observed** code and retail data, *inferred* effect | No |
-| G131 | On the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0` | **Observed** code and retail data, *inferred* effect | No |
+| G130 | Latent (the game refuses saving there, tested): after loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0`, `savegame_location_allowed` `0x4d4b5e` | **Observed** code and in game (save refused) | No |
+| G131 | Latent (the game refuses saving there): on the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0`, `savegame_location_allowed` `0x4d4b45` | **Observed** code and retail data, *inferred* effect | No |
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 | G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
@@ -1137,6 +1146,15 @@ Machival-Death therefore loads with `mach_killed` set and the byte 0: the forge 
 `mach_killed` (`ls_templeint2_use` `0x4ef790`..`0x4ef7a2`) and still plays "End2-LeaveTemple" and "End2-Montage".
 *Inferred:* the player gets only the second ending after such a load. New in this check.
 
+**Not reachable in retail play (tested 2026-10-16).** `savegame_location_allowed` also has a per-level rule
+(jump table `0x4d4b7c`, index `0x4d4b98` by `cur_level_index` + 1): in TempleINT2 (level 37) it refuses saving once
+the story flag `mach_intro` is set (`0x4d4b5e`..`0x4d4b76`), that is from Machival's introduction on, through the
+fight and after it. In agent mode (TempleINT2 entered with `play_and_load_cutscene Nar-TempleAct4`) the Save button
+showed "Cannot save in The Temple of Urath." after the introduction. So no save made after Machival's death
+exists, and the cleared byte never matters. With the byte set, standing on `$end2trig` started End1-EnterForge
+at once; with only `mach_killed` set (the state a load would give) nothing happened, as the code says. A fix is
+not needed.
+
 **G131. A timer that does not survive a load.** In `jadetemple_v2`, once the four riders are dead,
 `lsf_tiger2_dead` sets `got_laharah_spirit`, shows the summon message, starts the 8 s `ls_jadetemple_tiger2_timer` and
 clears `level_script_event_active` (`0x4f053e`..`0x4f0574`). On later frames the set flag leads only to the timers:
@@ -1147,6 +1165,12 @@ both timers invalid, so the level change never comes. `Jadetemple.tbl` has an em
 level has no exit of its own. *Inferred:* the player is stuck in the Jade Temple and must load an older save. The
 fade closes screen 4 every frame (`0x4f05c3`..`0x4f05d1`), so only the 8 s before the fade are a risk. New in this
 check.
+
+**Not reachable in retail play.** The per-level rule of `savegame_location_allowed` refuses saving in the Jade
+Temple (level 34, read in agent mode) once `got_laharah_spirit` is set (`0x4d4b45`..`0x4d4b5d`), and
+`lsf_tiger2_dead` sets that flag in the same call that starts the 8 s timer (`0x4f053e`..`0x4f0574`). So the 8 s
+window cannot be saved in. **Observed** code; the refusal itself was seen in game for TempleINT2 (G130), not yet
+for the Jade Temple. A fix is not needed.
 
 **G132. Wave 4 checks two of the three wave 3 enemies.** `lsf_liangshan_flag_wave3` sends `Orenian Samurai#w3a`,
 `#w3b` and `Orenian Mage#w3` (`0x4f5248`..`0x4f5261`). `lsf_liangshan_flag_wave4` starts the next wave (Greater
@@ -1540,6 +1564,7 @@ retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a4
 | K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No |
 | K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
 | K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
+| K280 | With SummonerFix's widescreen output, the black bar at the right flickers on the main menu after the console cutscene viewer returns there; the user has seen the same after skipping cutscenes in normal play | (not found yet) | **Observed** by the user, cause not analysed; may be SummonerFix's bar clearing rather than the game | No |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -2202,6 +2227,13 @@ x offset before the clipped `gr_bitmap` / `gr_string` (`0x481d9c`, `0x4849ce`..`
 speech text and speaker icons return on `game_flags` `0x20` (`0x4848e2`, `0x484aeb`, `0x48581f`).
 `levelrender_draw_float_text` only tests its own flag (`0x59bd78`, `0x485380`); whether retail cutscenes ever
 show floating text (damage, "+Level!") was not checked.
+
+**K280. Flickering right bar after a cutscene.** Seen by the user on 2026-10-16 when the console cutscene viewer
+(C280) returned to the main menu at a 1366-wide game size, and earlier after skipping cutscenes in the story. The
+bars outside the 1024-wide menu exist only with SummonerFix (`display.c` clears them before `SwapBuffers`, and
+`GetMap` shifts the menu layout outside game state 4), so the cause may be ours: leftover cutscene state such as
+the letterbox or the scissor rectangle, or a state test that changes from frame to frame. To be checked with frame
+captures.
 
 ## Invisible
 
