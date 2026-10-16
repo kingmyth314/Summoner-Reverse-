@@ -90,7 +90,7 @@ public:
     ~Character();                     // 0x44e150 living_entity__dtor (not virtual)
     void  start_spell_recovery(int spell, int extra, int ms);   // 0x44dc70 character_start_spell_recovery
     void  scale_stats_to_level();     // 0x44ddb0 character_scale_stats_to_level
-    void  init(int type, int info_index, const vector3 *pos, const matrix *orient, int unused,
+    void  init(int type, int info_index, const vector3 *pos, const matrix *orient, bool unused,
                int level);            // 0x44e1c0 living_entity_init (ret 0x18)
     virtual void deinit();            // 0x44edf0 living_entity__vfunc0 (obj vtable slot 0)
     void  place_at_party_start(int slot);         // 0x44f1a0 character_place_at_party_start
@@ -149,7 +149,7 @@ public:
     float ap_regen_mult();            // 0x462810 character_ap_regen_mult
     void  apply_hero_model(int heavy);// 0x4628a0 character_apply_hero_model
     void  set_underwear_textures(int part, const char *texture);   // 0x462a20
-    void  set_armour_alt_texture(int on, int force);   // 0x462c80
+    void  set_armour_alt_texture(bool on, bool force); // 0x462c80
     bool  is_mount();                 // 0x462d60 character_is_mount
     bool  is_rider();                 // 0x462d70 character_is_rider
     bool  ai_suspended();             // 0x462de0 character_ai_suspended
@@ -217,7 +217,7 @@ public:
     move_info *find_move_alt(int category, int id);       // 0x4613b0 character_find_move_alt
     bool  move_playing(int anim, float *t);               // 0x461450 character_move_playing (t may be 0)
     float move_trigger_time_left(int trigger);            // 0x461670 character_move_trigger_time_left
-    int   move_trigger_fired(int trigger, int latch);     // 0x461740 1 once when passed, 0 before, -1 no move/trigger
+    int   move_trigger_fired(int trigger, bool latch);    // 0x461740 1 once when passed, 0 before, -1 no move/trigger
     // objects.cpp
     bool  anim_lod_skip();            // 0x46ad10 character_anim_lod_skip
     void  process_anim(float frametime);  // 0x46adf0 character_process_anim

@@ -290,7 +290,7 @@ void cmd_render_effects()
 // 0x481b40 init_ccmd_set_fog: the dynamic initialiser of ccmd_set_fog (console_command::console_command). Confidence: exact.
 console_command ccmd_set_fog("set_fog", "Set the fogging clip plane.", cmd_set_fog);   // 0x22f9d80
 
-// 0x481b60  Confidence: likely (the two locals; status before help, as the code tests them). "set_fog
+// 0x481b60  Confidence: exact (VC6 byte match) (the two locals; status before help, as the code tests them). "set_fog
 // far [near]": without the second value the near distance is far - 10, at least 1.0. The help text
 // says "<0.0f = no fog", but fog_set_distances replaces a value <= 0 by the level default.
 void cmd_set_fog()
@@ -303,10 +303,10 @@ void cmd_set_fog()
         process_command(ARG_FLOAT | ARG_NONE);
         if (arg_type & ARG_FLOAT)
             near_dist = command_argument_float;
-        else if (1.0f < far_dist - 10.0f)
-            near_dist = far_dist - 10.0f;
-        else
+        else if (1.0f > far_dist - 10.0f)
             near_dist = 1.0f;
+        else
+            near_dist = far_dist - 10.0f;
         fog_set_distances(near_dist, far_dist);
     }
     if (checking_status_for_command) {
@@ -331,7 +331,7 @@ void character_draw_overhead_bitmap(Character *c, int bm)
     int tag;
 
     if (c->type == 7 || !_stricmp(c->name, "Ulsadana")
-        || (fabs(cur_character->pos.y - c->pos.y) <= 4.0f && distance_squared(&cur_character->pos, &c->pos) <= 2500.0f
+        || (fabsf(cur_character->pos.y - c->pos.y) <= 4.0f && distance_squared(&cur_character->pos, &c->pos) <= 2500.0f
             && (c->obj_flags & 2))) {
         tag = c->instance->character->find_mesh_tag("BDBN-Head");
         if (tag >= 0 || (tag = c->instance->character->find_mesh_tag("Head")) >= 0) {
@@ -958,7 +958,7 @@ void levelrender_add_character(Character *c)
     }
 }
 
-// 0x4833b0  Confidence: likely (the alpha is a byte stored over the dead first argument's slot and pushed
+// 0x4833b0  Confidence: exact (the alpha is a byte stored over the dead first argument's slot and pushed
 // as a dword: the parameter is a char type).
 void levelrender_add_bone_attachment(Character *c, ItemType *item, int tag)
 {
@@ -1360,13 +1360,12 @@ add:
 }
 
 // ---- lamp glows ---------------------------------------------------------------------------------------
-// 0x484380  Confidence: likely (the scope object of the EH frame).
+// 0x484380  Confidence: exact (VC6 byte match) (the scope object of the EH frame).
 void lamp_glows_draw()
 {
-    render_scope scope;
-
     if (levelrender_no_lighting)
         return;
+    render_scope scope;
     gr_set_color(0xff, 0xff, 0xff, 0xff);
     lamp_glow_update_lobjs();
     lamp_glow_update_effects();
@@ -1519,7 +1518,7 @@ void levelrender_draw_health_bars(levelrender_entry *e)
         return;
     if (!(c->obj_flags & 2))
         return;
-    if (fabs(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
+    if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
         return;
     p = e->object->pos;
     p.y = c->size_height() + p.y;
@@ -1577,7 +1576,7 @@ void levelrender_draw_speech_text(character_speech_record *s)
     if (c->type == 7 || !_stricmp(c->name, "Ulsadana")) {
         if (c->type == 7 && (c->flags & CF_DEAD))
             return;
-    } else if (fabs(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f
+    } else if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f
                || !(c->obj_flags & 2)) {
         return;
     }
@@ -1789,12 +1788,12 @@ void levelrender_draw_float_text(levelrender_entry *e)
     if (c->type != 4 && c->type != 7 && c->type != 5 && c->type != 9 && c->type != 8 && c->type != 6
         && c->type != 10)
         return;
-    if (fabs(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
+    if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
         return;
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     drew_hp = false;
     if (c->hp_text_timer != 0.0f) {
-        sprintf(buf, "%d", (int)fabs(c->hp_overflow));
+        sprintf(buf, "%d", (int)fabsf(c->hp_overflow));
         p = e->object->pos;
         p.y = c->size_height() + p.y + 0.3f;
         gr_rotate_vertex(&v, &p);
@@ -2153,7 +2152,7 @@ void levelrender_draw_list(int count, levelrender_entry **list, bool sorted)
     }
 }
 
-// 0x4863b0  Confidence: likely (the shift loop). (r + g + b) * intensity, scaled down linearly between
+// 0x4863b0  Confidence: exact (VC6 byte match) (the shift loop). (r + g + b) * intensity, scaled down linearly between
 // the two ranges by the distance from the light to the object's sphere; inserted into the 16 strongest.
 void levelrender_rank_light(lobj *l, attached_light *light, unsigned int *count, float *weights,
                             attached_light **lights)
@@ -2276,9 +2275,10 @@ int levelrender_level_load()
     levelrender_lobj_state_bytes += level_mempool.offset - before;
     set_current_mempool(NULL);
     for (i = 0; i < num_lobjs; i++) {
+        lobj *l = &lobjs[i];
         levelrender_lobj_glow_map[i].occluder = -1;
-        if (lobjs[i].flags & 8)
-            levelrender_lobj_glow_map[i].glow = (short)lamp_glow_add(&lobjs[i].centre, lobjs[i].mesh->_unk30);
+        if (l->flags & 8)
+            levelrender_lobj_glow_map[i].glow = (short)lamp_glow_add(&l->centre, l->mesh->_unk30);
     }
     return 0;
 }
@@ -2409,7 +2409,7 @@ float fog_get_far_current()
 }
 
 // ---- the .vis file ------------------------------------------------------------------------------------
-// 0x486c60  Confidence: likely (the TextFile scope). "<level>.vis" from data\internal; without one every
+// 0x486c60  Confidence: exact (the TextFile scope). "<level>.vis" from data\internal; without one every
 // layer sees the $vis_base set. Always 0.
 int level_vis_load(const char *level_filename)
 {
@@ -2446,10 +2446,10 @@ void level_vis_parse(TextFile *tf)
     char high_name[0x44];
     int i;
 
-    for (i = 0; i < LEVEL_NUM_LAYERS; i++) {
-        level_layer_vis[i].count = 0;
-        level_layer_vis[i].sets = level_vis_set_lists;
-        level_layer_vis[i].sets_high = level_vis_set_records;
+    for (level_layer_vis_rec *v = level_layer_vis; v < &level_layer_vis[LEVEL_NUM_LAYERS]; v++) {
+        v->count = 0;
+        v->sets = level_vis_set_lists;
+        v->sets_high = level_vis_set_records;
     }
     level_num_vis_sets = 0;
     while (tf->Accept("$vis_set")) {
@@ -2517,15 +2517,15 @@ void level_vis_parse(TextFile *tf)
 // 0x487030  Confidence: exact. Both lists of every layer point at the one $vis_base entry.
 void level_vis_reset()
 {
-    int i;
+    level_layer_vis_rec *v;
 
     memset(level_layer_vis_flags, 0, sizeof(level_layer_vis_flags));
     level_num_vis_sets = 1;
     level_vis_set_lists[0] = (s3d_vis_set *)&level_vis_base_name;
-    for (i = 0; i < LEVEL_NUM_LAYERS; i++) {
-        level_layer_vis[i].count = 1;
-        level_layer_vis[i].sets = level_vis_set_lists;
-        level_layer_vis[i].sets_high = level_vis_set_lists;
+    for (v = level_layer_vis; v < &level_layer_vis[LEVEL_NUM_LAYERS]; v++) {
+        v->count = 1;
+        v->sets = level_vis_set_lists;
+        v->sets_high = level_vis_set_lists;
     }
 }
 
@@ -2596,7 +2596,7 @@ void level_vis_force_reset()
 // 0x4871b0  Confidence: exact.
 void level_vis_force_add(const char *name)
 {
-    if (level_vis_force_count < LEVEL_MAX_FORCED_VIS) {
+    if (level_vis_force_count < sizeof(level_vis_force_list) / sizeof(level_vis_force_list[0])) {
         s3d_vis_set *set = level_vis_record_find(name);
         if (set)
             level_vis_force_list[level_vis_force_count++] = set;
@@ -2625,7 +2625,7 @@ bool fog_layer_snow_allowed(int layer)
     return false;
 }
 
-// 0x487230  Confidence: likely (effect_get_base is called per flagged emitter). The particles of the
+// 0x487230  Confidence: exact (VC6 byte match) (effect_get_base is called per flagged emitter). The particles of the
 // emitters levelrender_add_effects updated this frame.
 void fx_draw_flagged_particles()
 {
@@ -2676,7 +2676,7 @@ void options_apply_detail()
     gr_vsync = Summoner_options.cfg_34 != 0;
 }
 
-// 0x487370  Confidence: likely (the order of the Small_mesh_threshold stores). The level's record: fog
+// 0x487370  Confidence: exact (VC6 byte match) (the order of the Small_mesh_threshold stores). The level's record: fog
 // quality 1 halves the fog multiplier's distance from 1.0 and unlocks the high camera with +UnlockMedium,
 // quality 2 uses the multiplier and +UnlockHigh; quality 0 or no record: multiplier 1.0 and no high
 // camera. A pending high-camera request is honoured when it is allowed again. S3 cards keep 1.0.
@@ -2700,9 +2700,7 @@ void detail_apply_level_settings()
     }
     game_camera.high_view_suppressed = suppressed;
     if (detail_level_entry_index >= 0) {
-        Small_mesh_threshold = 3.0f;
-        if (!d->small_mesh_culling)
-            Small_mesh_threshold = 0.0f;
+        Small_mesh_threshold = d->small_mesh_culling ? 3.0f : 0.0f;
     }
     if (!suppressed && game_camera.high_view_requested)
         game_camera.set_mode(3);

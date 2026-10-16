@@ -499,7 +499,7 @@ void character_instance::setup_matrices()
         build_bone_matrices(i, count, anims);
 }
 
-// 0x51a780  Confidence: likely.
+// 0x51a780  Confidence: exact.
 // Skinning matrices for rendering: bind * bone for every bone. Nothing when culled.
 void character_instance::setup_matrices_b()
 {

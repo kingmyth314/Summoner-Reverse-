@@ -1,14 +1,18 @@
-// living_entity.cpp - Sum.exe v1.40, code 0x44d9f0-0x46353f (Engine\objects\living_entity.cpp)
+// living_entity.cpp - Sum.exe v1.40, code 0x44d9f0-0x46335f (Engine\objects\living_entity.cpp)
 // Written from the Sum.exe disassembly (build/sum.asm, tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966).
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
 //
 // Unit range: sum.symbols tags 166 functions from 0x44d9f0 (sinit_living_entity_8eca60) to 0x463480
-// (cmd_death) with living_entity.cpp; items.cpp (optimised) ends at 0x44d9ee, combat.cpp starts
-// at 0x463540.
+// (cmd_death) with living_entity.cpp; items.cpp (optimised) ends at 0x44d9ee. The last unit function is
+// cmd_Spell_ap (0x4632a0): the bloodspots and death commands (0x463360-0x46353f) open combat.cpp's
+// object, which is where they are written now (D6100).
 //
-// Build: compiled WITHOUT optimisation (ebp frames, 0xcc padding, every statement reloads its
-// operands; docs/sum-exe/source-map.md "Version 2"), like objects.cpp. Inline functions WERE expanded
+// Build (D6100): one object compiled with /O2, `#pragma optimize("", off)` from the top and
+// `#pragma optimize("", on)` again from character_say (0x461dc0) on, as in the cutscene file (D3201).
+// The unoptimised part has ebp frames, 0xcc padding and reloads every operand (docs/sum-exe/source-map.md
+// "Version 2"), like objects.cpp; the optimised tail has no frame pointer and 0x90 padding. /O2 keeps
+// /Oi (inline strcpy / strlen) and string pooling on in the unoptimised part. Inline functions WERE expanded
 // (as in objects.cpp, D66): vector3::operator= (field moves through a pointer local, then the returned
 // copy), operator+= / -, len_sq, matrix::operator= (three row copies) and lobj_ray's constructor
 // appear as moves, while calls nested inside an expansion stay out of line (the vector3 copy
@@ -19,8 +23,8 @@
 // XSTR: the unoptimised code tests the constant 0 of Volition's `(0 ? text : localize_strings[id])`
 // before every lookup (`xor ecx, ecx; test ecx, ecx; je`, status_effect_add 0x454c79). localize.h's
 // XSTR is an lvalue the pilots take the address of, so this unit redefines it (D1701).
-// Local variables: VC6 /Od gives the first declared local the highest address (ebp-4 downwards);
-// declarations are ordered to reproduce the frame offsets where the notes give them.
+// Local variables: VC6 12.00.8168 lays out /Od locals by a hash of their names (DECISIONS.md D6101): the
+// names and declaration order are chosen so that it reproduces the frame offsets the notes give.
 
 #include <stdio.h>
 #include <string.h>
@@ -73,6 +77,12 @@
 // living_entity_create; "Objects" with a capital O as in objects.cpp's).
 #define LIVING_ENTITY_CPP "D:\\projects\\Summoner\\pccode\\Engine\\Objects\\living_entity.cpp"
 
+// Everything up to living_entity_create, the static initialisers of the living lists and the two
+// unoptimised console commands included, is compiled without optimisation (D6100).
+#ifdef _MSC_VER
+#pragma optimize("", off)
+#endif
+
 // ---- .rdata --------------------------------------------------------------------------------------
 // At 0x581914 living_entity__vtable (one slot, Character::deinit 0x44edf0), then this unit's float
 // constants 0x581918-0x58197c (1.8, 0.98, pi/2, -pi/2, 2^31, 400, 0.0001, 999999, 0.001, 0.0005,
@@ -124,7 +134,7 @@ move_fade move_fades[MAX_MOVE_FADES];  // 0x9416c8
 bool Players_immortal;                // 0x941704
 bool No_resist;                       // 0x941705
 int move_play_serial;                 // 0x941708
-bool Bloodspots;                      // 0x94173c
+// Bloodspots (0x94173c) and Debug_death (.data 0x59a16c) are combat.cpp's (D6100).
 
 // 0x44dbd0  Confidence: exact. i at ebp-4.
 void spell_cooldown_start(int spell, Character *c, int ms)
@@ -143,7 +153,7 @@ void spell_cooldown_start(int spell, Character *c, int ms)
     spell_global_timers[spell].SetTimeout(ms * 1000);
 }
 
-// 0x44dc70  Confidence: likely (the summon-type test is `if (type == 5) { switch ... }` with the
+// 0x44dc70  Confidence: exact (the summon-type test is `if (type == 5) { switch ... }` with the
 // default case storing into the argument; the three spells share the cooldown of spell 0x1c).
 // this at ebp-4, the switch value at ebp-8.
 void Character::start_spell_recovery(int spell, int extra, int ms)
@@ -189,31 +199,31 @@ int Character::spell_on_cooldown(int spell)
 #define ROUND_TO_STEP(x, step) ((float)(int)(((step) * 0.5f + (x)) / (step)) * (step))
 
 // 0x44ddb0  Confidence: likely (the min / max ?: temporaries at ebp-0x18 / -0x1c; the skill copy is a
-// struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_scale -4, v -8, hp_scale -0xc, i -0x10,
-// s -0x14, this -0x20.
+// struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult -4, v -8, hp_mult -0xc, i -0x10,
+// sk -0x14, this -0x20.
 void Character::scale_stats_to_level()
 {
-    float ap_scale;
+    float ap_mult;
+    float hp_mult;
     int v;
-    float hp_scale;
     int i;
-    float s;
+    float sk;
 
     if (type == 7 && summon_skill_from_creature_name(info->name) == -1) {
-        hp_scale = 1.0f;
-        ap_scale = 1.0f;
+        hp_mult = 1.0f;
+        ap_mult = 1.0f;
     } else {
-        hp_scale = (float)level / (float)info->level;
-        if (hp_scale < 1.0f)
-            ap_scale = hp_scale;
+        hp_mult = (float)level / (float)info->level;
+        if (hp_mult < 1.0f)
+            ap_mult = hp_mult;
         else
-            ap_scale = (float)sqrt(hp_scale) * hp_scale;
+            ap_mult = (float)sqrt(hp_mult) * hp_mult;
     }
-    base_max_hp = ROUND_TO_STEP(info->max_hp * hp_scale, 1.0f);
-    hp = ROUND_TO_STEP(info->hp * hp_scale, 1.0f);
-    v = (int)(info->max_ap * ap_scale + 0.5f);
+    base_max_hp = ROUND_TO_STEP(info->max_hp * hp_mult, 1.0f);
+    hp = ROUND_TO_STEP(info->hp * hp_mult, 1.0f);
+    v = (int)(info->max_ap * ap_mult + 0.5f);
     base_max_ap = (short)min(v, 0x7fff);
-    v = (int)(info->ap * ap_scale + 0.5f);
+    v = (int)(info->ap * ap_mult + 0.5f);
     ap = (short)min(v, 0x7fff);
     if ((game_flags & GF_MULTIPLAYER) && type != 7) {
         base_max_hp = mp_netgame_num_players * base_max_hp;
@@ -225,10 +235,10 @@ void Character::scale_stats_to_level()
             continue;
         if (i == SKILL_PROTECTION)
             continue;
-        s = skill[i] * hp_scale;
-        s = max(0.0f, s);
-        s = min(100.0f, s);
-        skill[i] = (ubyte)(int)(s + 0.5f);
+        sk = skill[i] * hp_mult;
+        sk = max(0.0f, sk);
+        sk = min(100.0f, sk);
+        skill[i] = (ubyte)(int)(sk + 0.5f);
     }
 }
 
@@ -244,7 +254,7 @@ Character::Character()
     type = 0;
 }
 
-// 0x44e150  Confidence: likely (vtable store, EH state 0, the body, ~ai_state = empty_function
+// 0x44e150  Confidence: exact (vtable store, EH state 0, the body, ~ai_state = empty_function
 // at 0x4f13e0, obj::~obj).
 Character::~Character()
 {
@@ -254,8 +264,8 @@ Character::~Character()
 // 0x44e1c0 living_entity_init  Confidence: likely. Frame: summon -4, species -8, style -0xc, centre
 // -0x18, weapon_type -0x1c, i -0x20, t -0x24 / r -0x28, j -0x2c, the equip outputs -0x30 / -0x34, slot
 // -0x38, item -0x3c, held -0x40, light orient -0x64, bone -0x68, light pos -0x74, the ?: temporary
-// -0x78, this -0xe0; the rest are inline-expansion temporaries. The fifth argument is not read.
-void Character::init(int type, int info_index, const vector3 *pos, const matrix *orient, int unused,
+// -0x78, this -0xe0; the rest are inline-expansion temporaries. The fifth argument (a bool, D6105) is not read.
+void Character::init(int type, int info_index, const vector3 *pos, const matrix *orient, bool unused,
                      int level)
 {
     int summon;
@@ -469,17 +479,17 @@ void Character::deinit()
     type = 0;
 }
 
-// 0x44f020  Confidence: likely. Frame: centre -0xc, radius -0x10, far -0x14, d -0x20, this -0x38;
+// 0x44f020  Confidence: likely. Frame: centre -0xc, r -0x10, far -0x14, d -0x20, this -0x38;
 // the rest inline temporaries. Type 0x79 (in a cutscene, game_flags 0x20) adds the centre offset;
 // species 0x58 culls with a 1.5 x larger sphere.
 bool Character::is_in_view(float radius_scale)
 {
     vector3 centre;
-    float radius;
     float far_dist;
+    float r;
     vector3 d;
 
-    instance->get_bounding_sphere(&centre, &radius);
+    instance->get_bounding_sphere(&centre, &r);
     centre.unrotate(orient);
     centre += pos;
     if ((game_flags & GF_CUTSCENE) && info->species == 0x79)
@@ -487,25 +497,26 @@ bool Character::is_in_view(float radius_scale)
     far_dist = char_fog_get_far();
     if (far_dist > 0.0f) {
         d = camera_view_pos - centre;
-        if (far_dist * far_dist < d.len_sq() - radius * radius * radius_scale)
+        if (far_dist * far_dist < d.len_sq() - r * r * radius_scale)
             return true;
     }
     if (info != NULL && info->species == 0x58)
-        return gr_cull_sphere(&centre, 1.5f * radius * radius_scale, 0);
-    return gr_cull_sphere(&centre, radius * radius_scale, 0);
+        return gr_cull_sphere(&centre, 1.5f * r * radius_scale, 0);
+    return gr_cull_sphere(&centre, r * radius_scale, 0);
 }
 
-// 0x44f1a0  Confidence: likely. t at ebp-4, this at ebp-0xa0 (the rest inline temporaries). Slots 0-3
-// are the level's player starts, later ones the formation slot behind cur_character.
+// 0x44f1a0  Confidence: exact. t at ebp-4, this at ebp-0xa0 (the rest inline temporaries). Slots 0-3
+// are the level's player starts, later ones the formation slot behind cur_character. After the store the
+// start is read back through start_navpoint (+0x34), not the table (D6103).
 void Character::place_at_party_start(int slot)
 {
     float t;
 
     if (slot < 4) {
         start_navpoint = level_player_starts[slot];
-        pos = level_player_starts[slot]->pos;
-        orient.set_from_angles(0.0f, 0.0f, level_player_starts[slot]->heading);
-        layer = level_player_starts[slot]->layer;
+        pos = ((navpoint *)start_navpoint)->pos;
+        orient.set_from_angles(0.0f, 0.0f, ((navpoint *)start_navpoint)->heading);
+        layer = ((navpoint *)start_navpoint)->layer;
     } else {
         ai.formation_slot_position(&pos, &cur_character->pos, &cur_character->orient.fvec, slot);
         orient = cur_character->orient;
@@ -524,7 +535,7 @@ void Character::place_at_party_start(int slot)
     }
 }
 
-// 0x44f5f0  Confidence: likely (as place_at_party_start, from a navpoint). t at ebp-4, this at ebp-0x6c.
+// 0x44f5f0  Confidence: exact (as place_at_party_start, from a navpoint). t at ebp-4, this at ebp-0x6c.
 void Character::place_at_marker(navpoint *marker)
 {
     float t;
@@ -546,35 +557,35 @@ void Character::place_at_marker(navpoint *marker)
     }
 }
 
-// 0x44f880  Confidence: likely. Frame: hit -0x2c, blocked -0x30, eye -0x3c, ray -0x88 (its inline
-// constructor's store at -0x58 is the first instruction), lobj_index -0x8c, this -0xd0.
+// 0x44f880  Confidence: likely. Frame: hit -0x2c, hidden -0x30, eye_pt -0x3c, ray -0x88 (its inline
+// constructor's store at -0x58 is the first instruction), li -0x8c, this -0xd0.
 bool Character::has_line_of_sight_to_point(vector3 *point)
 {
     lobj_hit hit;
-    bool blocked;
-    vector3 eye;
+    bool hidden;
+    vector3 eye_pt;
     lobj_ray ray;
-    int lobj_index;
+    int li;
 
     if (Character_los_enabled == 0)
         return true;
-    lobj_index = 0;
-    blocked = false;
-    eye = pos;
-    eye.y += size_height();
-    ray.start = eye;
-    ray.dir = *point - eye;
+    li = 0;
+    hidden = false;
+    eye_pt = pos;
+    eye_pt.y += size_height();
+    ray.start = eye_pt;
+    ray.dir = *point - eye_pt;
     ray._unk18 = 0.3f;
     ray.flags = 0;
     ray.require_flags = 0;
     ray.exclude_flags = 0x440;
-    lobj_raycast_draw_lists(&ray, &hit, &lobj_index, &blocked, 0);
+    lobj_raycast_draw_lists(&ray, &hit, &li, &hidden, 0);
     if (hit.num_hits != 0)
         return false;
     return true;
 }
 
-// 0x44fa20  Confidence: likely (p at ebp-0xc, the operator= copy at ebp-0x18, this at ebp-0x20). A
+// 0x44fa20  Confidence: exact (p at ebp-0xc, the operator= copy at ebp-0x18, this at ebp-0x20). A
 // living target is aimed at its head height.
 bool Character::has_line_of_sight_to(Character *target)
 {
@@ -588,19 +599,19 @@ bool Character::has_line_of_sight_to(Character *target)
     return has_line_of_sight_to_point(&target->pos);
 }
 
-// 0x44fab0  Confidence: likely. Frame: up -4 (bool), max_level -8, ring_xp -0xc, points -0x10, cap
-// -0x14, text -0x64, p -0x68, i -0x6c, pl -0x70, k -0x74, sk -0x78, this -0x7c. With `quiet` the level
+// 0x44fab0  Confidence: exact. Frame: lvl_up -4 (bool), max_level -8, ring_xp -0xc, points -0x10, cap
+// -0x14, msg -0x64, p -0x68, i -0x6c, pl -0x70, k -0x74, sk -0x78, this -0x7c. With `quiet` the level
 // feedback sound is skipped and a party member spends its skill points at once, round-robin over its
 // progression table: the loop never ends when no entry is below 100 at the character's level while
 // points are left (NOTES.md, game bugs).
 void Character::add_xp(int xp, bool quiet, bool from_net)
 {
-    bool up;
+    bool lvl_up;
     int max_level;
     int ring_xp;
-    int points;
     int cap;
-    char text[80];
+    int points;
+    char msg[80];
 
     max_level = xp_max_level();
     if (level >= max_level)
@@ -618,9 +629,9 @@ void Character::add_xp(int xp, bool quiet, bool from_net)
             ring_add_xp(equipment[2]->type->name, ring_xp, this->xp * 2);
         rings_add_xp_all(ring_xp / 8, this->xp * 2);
     }
-    up = xp_level_reached(level, this->xp);
-    if (up) {
-        while (up) {
+    lvl_up = xp_level_reached(level, this->xp);
+    if (lvl_up) {
+        while (lvl_up) {
             xp_level_up_gains(info->species, &level, &base_max_hp, &base_max_ap, &points, &cap);
             hp = (float)get_max_stat(0);
             ap = (short)get_max_stat(1);
@@ -637,13 +648,13 @@ void Character::add_xp(int xp, bool quiet, bool from_net)
                             skill[p->progression[i].skill] = (ubyte)p->progression[i].value;
                     }
                 }
-                sprintf(text, XSTR("%s gained level %d!", 321), name, level);
-                hud_show_message(text);
+                sprintf(msg, XSTR("%s gained level %d!", 321), name, level);
+                hud_show_message(msg);
             }
             set_floating_text(XSTR("+Level!", 322), 2.0f, 0x46, 0xc8, 0x46);
             if (level == max_level)
                 break;
-            up = xp_level_reached(level, this->xp);
+            lvl_up = xp_level_reached(level, this->xp);
         }
         if (!quiet && species_is_hero(info->species) && character_is_locally_controlled(this))
             feedback_play(info->species, 0xe, &pos);
@@ -668,12 +679,12 @@ void Character::add_xp(int xp, bool quiet, bool from_net)
     }
 }
 
-// 0x44ffc0  Confidence: likely (key at ebp-0x1c, value -0x20, old -0x24; strcpy expanded). The ring's
+// 0x44ffc0  Confidence: likely (key at ebp-0x1c, total -0x20, old -0x24; strcpy expanded). The ring's
 // experience is kept as a level-4 savegame integer, capped at `cap`.
 void ring_add_xp(const char *ring, int xp, int cap)
 {
     char key[28];
-    int value;
+    int total;
     int old;
 
     if (_stricmp(ring, "Ring of Darkness") == 0)
@@ -695,10 +706,10 @@ void ring_add_xp(const char *ring, int xp, int cap)
     else
         return;
     old = savegame_state.get_int(4, key);
-    value = old + xp;
-    value = min(value, cap);
-    savegame_state.set_int(4, key, value);
-    ring_check_summon_unlock(ring, old, value);
+    total = old + xp;
+    total = min(total, cap);
+    savegame_state.set_int(4, key, total);
+    ring_check_summon_unlock(ring, old, total);
 }
 
 // 0x450220  Confidence: exact (the ?: temporaries of the seven XSTRs at ebp-4 .. -0x1c). A ring
@@ -729,59 +740,59 @@ void ring_check_summon_unlock(const char *ring, int old_xp, int new_xp)
 // value kept in `old`).
 #define RING_XP_ADD(name)                                    \
     strcpy(key, name);                                       \
-    value = savegame_state.get_int(4, key);                  \
-    old = value;                                             \
-    value = value + xp;                                      \
-    value = min(value, cap);                                 \
-    savegame_state.set_int(4, key, value)
+    total = savegame_state.get_int(4, key);                  \
+    oldv = total;                                            \
+    total = total + xp;                                      \
+    total = min(total, cap);                                 \
+    savegame_state.set_int(4, key, total)
 
-// 0x450420  Confidence: likely (old -4, key -0x20, value -0x24). Every ring gets the share, worn or
+// 0x450420  Confidence: likely (oldv -4, key -0x20, total -0x24). Every ring gets the share, worn or
 // not; the darkness ring has no unlock check.
 void rings_add_xp_all(int xp, int cap)
 {
-    int old;
+    int oldv;
     char key[28];
-    int value;
+    int total;
 
     RING_XP_ADD("dark_ring_xp");
     RING_XP_ADD("light_ring_xp");
-    ring_check_summon_unlock("Ring of Light", old, value);
+    ring_check_summon_unlock("Ring of Light", oldv, total);
     RING_XP_ADD("fire_ring_xp");
-    ring_check_summon_unlock("Ring of Fire", old, value);
+    ring_check_summon_unlock("Ring of Fire", oldv, total);
     RING_XP_ADD("stone_ring_xp");
-    ring_check_summon_unlock("Ring of Stone", old, value);
+    ring_check_summon_unlock("Ring of Stone", oldv, total);
     RING_XP_ADD("water_ring_xp");
-    ring_check_summon_unlock("Ring of Water", old, value);
+    ring_check_summon_unlock("Ring of Water", oldv, total);
     RING_XP_ADD("wind_ring_xp");
-    ring_check_summon_unlock("Ring of Four Winds", old, value);
+    ring_check_summon_unlock("Ring of Four Winds", oldv, total);
     RING_XP_ADD("forest_ring_xp");
-    ring_check_summon_unlock("Ring of Forest", old, value);
+    ring_check_summon_unlock("Ring of Forest", oldv, total);
     RING_XP_ADD("jade_ring_xp");
-    ring_check_summon_unlock("Ring of Jade", old, value);
+    ring_check_summon_unlock("Ring of Jade", oldv, total);
 }
 
-// 0x450850  Confidence: likely. Frame: src -4, v -8, apply -0xc (bool), max_hp -0x10, this -0x14, the
+// 0x450850  Confidence: exact. Frame: c -4, v -8, can_apply -0xc (bool), max_hp -0x10, this -0x14, the
 // ?: temporaries -0x18 / -0x1c. Returns false when the character is (now) dead. Multiplayer hosts
 // scale damage dealt by bosses / 0x40-flagged attackers by 4 and by other non-party attackers by 2.
 // The +0x6e8 / +0x6f0 pair is the floating HP number: a hit within 0.2 s of the last one adds to it.
 // The first test stores the amount only when it is zero (`delta == 0`), as the code reads.
 bool Character::add_hp(float delta, int source, int a, bool from_net)
 {
-    Character *src;
+    Character *c;
     float v;
-    bool apply;
+    bool can_apply;
     int max_hp;
 
     if (flags & CF_DEAD)
         return false;
     if (type == 4)
         return true;
-    src = living_from_handle(source);
-    hit_by_party = (src != NULL && src->type == 7) ? 1 : 0;
-    if ((game_flags & GF_MULTIPLAYER) && !from_net && delta < 0.0f && src != NULL) {
-        if ((src->flags & 0x40) || src->type == 9)
+    c = living_from_handle(source);
+    hit_by_party = (c != NULL && c->type == 7) ? 1 : 0;
+    if ((game_flags & GF_MULTIPLAYER) && !from_net && delta < 0.0f && c != NULL) {
+        if ((c->flags & 0x40) || c->type == 9)
             delta *= 4.0f;
-        else if (src->type != 7)
+        else if (c->type != 7)
             delta *= 2.0f;
     }
     if (hp_text_timer <= 0.0f && delta == 0.0f) {
@@ -810,7 +821,7 @@ bool Character::add_hp(float delta, int source, int a, bool from_net)
     if ((flags & 0x400) && delta < 0.0f)
         ai.add_sneak();
     if (has_status(0x10)) {
-        if (delta < 0.0f && src != NULL) {
+        if (delta < 0.0f && c != NULL) {
             v = status_value(0x10);
             v += delta;
             if (v < 0.0f)
@@ -819,12 +830,12 @@ bool Character::add_hp(float delta, int source, int a, bool from_net)
         }
     } else {
         if (MP_IS_CLIENT())
-            apply = true;
+            can_apply = true;
         else if (delta < 0.0f)
-            apply = (Debug_death && (!Players_immortal || type != 7)) ? 1 : 0;
+            can_apply = (Debug_death && (!Players_immortal || type != 7)) ? 1 : 0;
         else
-            apply = true;
-        if (apply) {
+            can_apply = true;
+        if (can_apply) {
             max_hp = get_max_stat(0);
             hp += delta;
             if ((float)max_hp < hp) {
@@ -840,30 +851,30 @@ bool Character::add_hp(float delta, int source, int a, bool from_net)
     return true;
 }
 
-// 0x450c70  Confidence: likely. Frame: text -0x10, v -0x14, max_ap -0x18, this -0x1c, the XSTR
+// 0x450c70  Confidence: likely. Frame: buf -0x10, new_ap -0x14, max_ap -0x18, this -0x1c, the XSTR
 // temporary -0x20.
 void Character::add_ap(float delta)
 {
-    char text[16];
-    int v;
+    int new_ap;
+    char buf[16];
     int max_ap;
 
     if (type == 4)
         return;
     if (delta == 0.0f)
         return;
-    v = ap + (int)delta;
-    v = max(v, 0);
+    new_ap = ap + (int)delta;
+    new_ap = max(new_ap, 0);
     max_ap = get_max_stat(1);
-    v = min(v, max_ap);
-    sprintf(text, XSTR("%d AP", 323), (int)delta);
-    set_floating_text(text, 2.0f, 100, 100, 0xb4);
+    new_ap = min(new_ap, max_ap);
+    sprintf(buf, XSTR("%d AP", 323), (int)delta);
+    set_floating_text(buf, 2.0f, 100, 100, 0xb4);
     if (MP_IS_HOST())
-        mp_broadcast_ap(this, (short)v);
-    ap = (short)v;
+        mp_broadcast_ap(this, (short)new_ap);
+    ap = (short)new_ap;
 }
 
-// 0x450d90  Confidence: likely (the one condition with the client test first). Returns true when the
+// 0x450d90  Confidence: exact (the one condition with the client test first). Returns true when the
 // character starts dying (CF_HIDDEN set; character_on_death finishes it). Party members (type 7) and,
 // in single player, bosses never die here; Debug_death 0 ("death") makes everything immortal except
 // on a multiplayer client.
@@ -1194,7 +1205,7 @@ void Character::update_head_look()
         move_turn_angle = 0.0f;
 }
 
-// 0x4536c0  Confidence: likely (p at ebp-4, c -8, this -0xc; `this` is not read). Gives Joseph
+// 0x4536c0  Confidence: exact (p at ebp-4, c -8, this -0xc; `this` is not read). Gives Joseph
 // (species 0) back the max HP lent to the summon; in single player also searched in the other list.
 void Character::summon_return_lent_max_hp()
 {
@@ -1354,7 +1365,7 @@ void Character::on_death()
     live_list_append(&living_list_inactive, this);
 }
 
-// 0x454070  Confidence: likely (switch bodies in the order 8, 6, 10: the compare chain tests 6, 8, 10).
+// 0x454070  Confidence: exact (switch bodies in the order 8, 6, 10: the compare chain tests 6, 8, 10).
 // p at ebp-4, this -8, the switch value -0xc. Joseph gets back the max HP he lent to the summon.
 void Character::resurrect()
 {
@@ -1420,12 +1431,12 @@ float Character::size_height()
 }
 
 // 0x454330  Confidence: likely (the radius ?: temporaries at ebp-0xa4 / -0xa8; the NULL test is made
-// twice, as in the code). Frame: d -4, a -0x10, b -0x1c, m -0x40, this -0xa0. Centre to centre, minus
+// twice, as in the code). Frame: result -4, a -0x10, b -0x1c, m -0x40, this -0xa0. Centre to centre, minus
 // both radii; with a target point (char_info +0x18a bone) the distance to that bone, radii not taken
 // off. `flat` drops the heights.
 float Character::distance_between_edges(Character *other, bool flat, int point)
 {
-    float d;
+    float result;
     vector3 a;
     vector3 b;
     matrix m;
@@ -1439,9 +1450,9 @@ float Character::distance_between_edges(Character *other, bool flat, int point)
     if (point == -1) {
         if (flat == 1)
             a.y = b.y = 0.0f;
-        d = distance(&a, &b);
-        d -= (type == 9) ? charinfo_boss_radius(info) : character_size_radii[info->size];
-        d -= (other->type == 9) ? charinfo_boss_radius(other->info)
+        result = distance(&a, &b);
+        result -= (type == 9) ? charinfo_boss_radius(info) : character_size_radii[info->size];
+        result -= (other->type == 9) ? charinfo_boss_radius(other->info)
                                 : character_size_radii[other->info->size];
     } else {
         other->instance->get_bone_world_transform(other->info->target_points[point],
@@ -1449,9 +1460,9 @@ float Character::distance_between_edges(Character *other, bool flat, int point)
         b += other->centre_offset;
         if (flat == 1)
             a.y = b.y = 0.0f;
-        d = distance(&a, &b);
+        result = distance(&a, &b);
     }
-    return d;
+    return result;
 }
 
 // 0x454610  Confidence: exact.
@@ -1483,7 +1494,7 @@ void Character::clear_flag_2_4()
     flags &= ~CF_SUMMONLIKE;
 }
 
-// 0x454700  Confidence: likely. Frame: ms -4, src -8, left -0xc, fx_obj -0x10, this -0x14, the three
+// 0x454700  Confidence: exact. Frame: time -4, caster -8, remain_ms -0xc, fobj -0x10, this -0x14, the three
 // switch values -0x18 / -0x28 / -0x2c / -0x30, kind -0x1c, the fabs temporaries -0x20 / -0x24, the XSTR
 // temporaries -0x34 .. -0x60. A status is not stacked: the longer of the remaining and the new time is
 // kept (kind 0 timed, 2 `permanent` until cured with force); an item-held status (kind 1) is never
@@ -1493,11 +1504,11 @@ void Character::clear_flag_2_4()
 void Character::status_effect_add(int id, int ms, int spell, float value, int source, bool permanent)
 {
     int time;
-    Character *src;
-    int left;
-    obj *fx_obj;
+    Character *caster;
+    int remain_ms;
+    obj *fobj;
 
-    left = 0;
+    remain_ms = 0;
     if (id == -1)
         return;
     if (cur_level_index == -1 || cur_level_index == 4)
@@ -1527,20 +1538,20 @@ void Character::status_effect_add(int id, int ms, int spell, float value, int so
     if (id == STATUS_SLOW && get_mount() != NULL)
         return;
     switch (status[id].kind) {
+    case 2:
+        time = ms;
+        break;
     case -1:
     case 0:
         if (status[id].timer.valid()) {
-            left = status[id].timer.GetRemainingTime();
-            if (left > ms)
-                time = left;
+            remain_ms = status[id].timer.GetRemainingTime();
+            if (remain_ms > ms)
+                time = remain_ms;
             else
                 time = ms;
         } else {
             time = ms;
         }
-        break;
-    case 2:
-        time = ms;
         break;
     default:
         return;
@@ -1549,7 +1560,7 @@ void Character::status_effect_add(int id, int ms, int spell, float value, int so
         mp_broadcast_status_add(this, id, ms, spell, value, source);
     if (id == STATUS_PARALYZE) {
         if (spell == 0x49) {
-            if (ms > left)
+            if (ms > remain_ms)
                 flags |= 0x80000;
         } else {
             flags &= ~0x80000;
@@ -1564,8 +1575,8 @@ void Character::status_effect_add(int id, int ms, int spell, float value, int so
     status[id].source = source;
     if ((float)fabs(value) > (float)fabs(status[id].value))
         status[id].value = value;
-    src = living_from_handle(source);
-    if (src == NULL || !(src->flags & 0x800)) {
+    caster = living_from_handle(source);
+    if (caster == NULL || !(caster->flags & 0x800)) {
         switch (id) {
         case STATUS_LIGHT:
             status[id].fx = fx_create_status_effect(handle);
@@ -1583,9 +1594,9 @@ void Character::status_effect_add(int id, int ms, int spell, float value, int so
                 fx_stop_status_effects(handle);
                 status[id].fx = fx_attach_to_character(spells[spell].hit_effect, handle, -1, -1, 0, 1);
                 if (status[id].fx != -1) {
-                    fx_obj = obj_from_handle_b(status[id].fx);
-                    if (fx_obj != NULL)
-                        ((effect_object *)fx_obj)->spell = spell;
+                    fobj = obj_from_handle_b(status[id].fx);
+                    if (fobj != NULL)
+                        ((effect_object *)fobj)->spell = spell;
                 } else {
                     printf("BOGUS STATUS EFFECT HANDLE\n");
                 }
@@ -1653,7 +1664,7 @@ void Character::status_effect_add(int id, int ms, int spell, float value, int so
     }
 }
 
-// 0x454ff0  Confidence: likely (each immunity test is made twice, as the code has it). this at ebp-4,
+// 0x454ff0  Confidence: exact (each immunity test is made twice, as the code has it). this at ebp-4,
 // switch values -8 / -0xc / -0x18 / -0x1c, the fabs temporaries -0x10 / -0x14. An item-held status
 // (kind 1): no duration (the timer is set to 1,000,000 ms), the slot's spell field holds the item.
 void Character::status_effect_add_from_item(int id, item_info *item, float value)
@@ -1740,7 +1751,7 @@ void Character::status_effect_add_from_item(int id, item_info *item, float value
     }
 }
 
-// 0x4553a0  Confidence: likely. Frame: had -4, this -8, XSTR temporaries -0xc / -0x18 .. -0x44, the
+// 0x4553a0  Confidence: exact. Frame: had -4, this -8, XSTR temporaries -0xc / -0x18 .. -0x44, the
 // spell switch value -0x10, the message switch value -0x14. Without `force` a permanent (kind 2) status
 // shows "Cant cure!". `restore_fx` re-attaches the spell's hit effect (or restarts the status 8 effect)
 // when the slot was set by a spell other than 0x50.
@@ -1880,82 +1891,82 @@ void Character::clear_all_effects()
     float_text_scale = 0.0f;
 }
 
-// 0x455b20  Confidence: likely. Frame: i -4, j -8, lvl -0xc, best -0x10, best_level -0x14, l2 -0x18,
-// best2 -0x1c, best_level2 -0x20, l3 -0x24, l4 -0x28, v -0x2c, this -0x30. Statuses 0-8 from the
+// 0x455b20  Confidence: exact. Frame: s -4, e -8, ilvl -0xc, pick -0x10, best_level -0x14, l2 -0x18,
+// fill_item -0x1c, bl2 -0x20, l3 -0x24, l4 -0x28, mod -0x2c, this -0x30. Statuses 0-8 from the
 // equipment: an item-held status follows its item (or the best other item giving it, by +Effect: level,
 // 0 = the character's level), and a free slot takes the best item effect (not on the world map).
 void Character::refresh_item_status_effects()
 {
-    int i;
-    int j;
-    int lvl;
-    item_info *best;
-    int best_level;
+    int s;
+    int e;
+    int ilvl;
+    item_info *pick;
     int l2;
-    item_info *best2;
-    int best_level2;
+    int best_level;
     int l3;
+    int bl2;
+    item_info *fill_item;
+    float mod;
     int l4;
-    float v;
 
-    for (i = 0; i < 9; i++) {
-        if (status[i].kind == 1) {
-            for (j = 0; j < 9; j++) {
-                if (status[i].item == equipment[j])
+    for (s = 0; s < 9; s++) {
+        if (status[s].kind == 1) {
+            for (e = 0; e < 9; e++) {
+                if (status[s].item == equipment[e])
                     break;
             }
-            if (j < 9) {
-                lvl = equipment[j]->type->status_effects[i];
-                if (lvl == 0)
-                    lvl = level;
-                status[i].value = status_effect_modifier(i, lvl);
+            if (e < 9) {
+                ilvl = equipment[e]->type->status_effects[s];
+                if (ilvl == 0)
+                    ilvl = level;
+                status[s].value = status_effect_modifier(s, ilvl);
             } else {
-                best = NULL;
+                pick = NULL;
                 best_level = -1;
-                for (j = 0; j < 9; j++) {
-                    if (equipment[j] != NULL) {
-                        l2 = equipment[j]->type->status_effects[i];
+                for (e = 0; e < 9; e++) {
+                    if (equipment[e] != NULL) {
+                        l2 = equipment[e]->type->status_effects[s];
                         if (l2 < 0)
                             continue;
                         if (l2 == 0)
                             l2 = level;
                         if (l2 > best_level) {
-                            best = equipment[j];
+                            pick = equipment[e];
                             best_level = l2;
                         }
                     }
                 }
-                if (best != NULL) {
-                    status[i].item = best;
-                    status[i].value = status_effect_modifier(i, best_level);
+                if (pick != NULL) {
+                    status[s].item = pick;
+                    status[s].value = status_effect_modifier(s, best_level);
                 } else {
-                    status_effect_cure(i, true, false);
+                    status_effect_cure(s, true, false);
                 }
             }
-        } else if (status[i].kind == -1 && cur_level_index != -1 && cur_level_index != 4) {
-            best2 = NULL;
-            best_level2 = -1;
-            for (j = 0; j < 9; j++) {
-                if (equipment[j] != NULL) {
-                    l3 = equipment[j]->type->status_effects[i];
+        } else if (status[s].kind == -1 && cur_level_index != -1 && cur_level_index != 4) {
+            fill_item = NULL;
+            bl2 = -1;
+            for (e = 0; e < 9; e++) {
+                if (equipment[e] != NULL) {
+                    l3 = equipment[e]->type->status_effects[s];
                     if (l3 < 0)
                         continue;
                     if (l3 == 0)
                         l3 = level;
-                    if (l3 > best_level2) {
-                        best2 = equipment[j];
-                        best_level2 = l3;
+                    if (l3 > bl2) {
+                        fill_item = equipment[e];
+                        bl2 = l3;
                     }
                 }
             }
-            if (best2 != NULL) {
-                l4 = best2->type->status_effects[i];
+            if (fill_item != NULL) {
+                l4 = fill_item->type->status_effects[s];
                 if (l4 >= 0) {
                     if (l4 == 0)
-                        v = status_effect_modifier(i, level);
+                        mod = status_effect_modifier(s, level);
                     else
-                        v = status_effect_modifier(i, l4);
-                    status_effect_add_from_item(i, best2, v);
+                        mod = status_effect_modifier(s, l4);
+                    status_effect_add_from_item(s, fill_item, mod);
                 }
             }
         }
@@ -1969,18 +1980,18 @@ void Character::ai_travel_offset(vector3 offset)
     ai.travel_to_xyz(offset + pos);
 }
 
-// 0x455e70  Confidence: likely. Frame: dir -0xc, d -0x18, this -0x40. The normalised direction is
+// 0x455e70  Confidence: likely. Frame: dirn -0xc, delta -0x18, this -0x40. The normalised direction is
 // computed and not used: the test is on the raw difference, so a travel order is skipped only when that
 // dot product is exactly 1.
 void Character::walk_to_point(vector3 p, int priority)
 {
-    vector3 dir;
-    vector3 d;
+    vector3 delta;
+    vector3 dirn;
 
-    dir = p - pos;
-    dir.normalize_safe();
-    d = p - pos;
-    if (d.x * orient.fvec.x + d.y * orient.fvec.y + d.z * orient.fvec.z != 1.0f)
+    dirn = p - pos;
+    dirn.normalize_safe();
+    delta = p - pos;
+    if (delta.x * orient.fvec.x + delta.y * orient.fvec.y + delta.z * orient.fvec.z != 1.0f)
         ai.travel_to_point(&p, priority);
 }
 
@@ -2117,8 +2128,8 @@ void Character::find_ground()
     flags |= CF_ON_GROUND;
 }
 
-// 0x456750  Confidence: likely. cdecl (no `this`). Frame: hit -0x2c, ray -0x78 (constructor store
-// -0x48 first), y -0x7c. A ray 20 m down (4 m once on the ground) into one level object; with
+// 0x456750  Confidence: exact. cdecl (no `this`). Frame: hit -0x2c, ray -0x78 (constructor store
+// -0x48 first), hy -0x7c. A ray 20 m down (4 m once on the ground) into one level object; with
 // `use_face` only the remembered face is tested (ray flag 2). The highest hit above *best_y wins.
 // Returns true when the object was hit at all.
 bool character_probe_lobj_ground(unsigned int flags, int lobj_index, vector3 *pos, float *best_y,
@@ -2126,7 +2137,7 @@ bool character_probe_lobj_ground(unsigned int flags, int lobj_index, vector3 *po
 {
     lobj_hit hit;
     lobj_ray ray;
-    float y;
+    float hy;
 
     ray.start = *pos;
     if (!(flags & CF_ON_GROUND)) {
@@ -2149,9 +2160,9 @@ bool character_probe_lobj_ground(unsigned int flags, int lobj_index, vector3 *po
     }
     lobj_raycast(lobj_index, &ray, &hit, true);
     if (hit.num_hits > 0) {
-        y = ray.dir.y * hit.t + pos->y;
-        if (y > *best_y) {
-            *best_y = y;
+        hy = ray.dir.y * hit.t + pos->y;
+        if (hy > *best_y) {
+            *best_y = hy;
             *lobj_out = (short)hit.face;
             *face = (short)(hit.face_ptr - lobjs[*lobj_out].mesh->faces);
             *hit_pos = hit.pos;
@@ -2350,22 +2361,19 @@ void Character::boss_anim_remap_out(int *anims)
     for (i = 0; i < NUM_STATUS_EFFECTS; i++) {                          \
         if (n >= 4)                                                     \
             break;                                                      \
-        id = order[i];                                                  \
+        id = sort_order[i];                                             \
         switch (status[id].kind) {                                      \
         case 0:                                                         \
         case 2:                                                         \
-            break;                                                      \
-        default:                                                        \
-            continue;                                                   \
+            LE_PUT(ubyte, (ubyte)status[id].kind);                      \
+            LE_PUT(ubyte, (ubyte)id);                                   \
+            LE_PUT(ubyte, (ubyte)status[id].spell);                     \
+            LE_PUT(int, status[id].timer.GetRemainingTime());           \
+            LE_PUT(int, status[id].tick_timer.GetRemainingTime());      \
+            LE_PUT(int, status[id].tick_ms);                            \
+            LE_PUT(float, status[id].value);                            \
+            n++;                                                        \
         }                                                               \
-        LE_PUT(ubyte, (ubyte)status[id].kind);                          \
-        LE_PUT(ubyte, (ubyte)id);                                       \
-        LE_PUT(ubyte, (ubyte)status[id].spell);                         \
-        LE_PUT(int, status[id].timer.GetRemainingTime());               \
-        LE_PUT(int, status[id].tick_timer.GetRemainingTime());          \
-        LE_PUT(int, status[id].tick_ms);                                \
-        LE_PUT(float, status[id].value);                                \
-        n++;                                                            \
     }                                                                   \
     for (i = n; i < 4; i++) {                                           \
         LE_PUT(ubyte, 0xff);                                            \
@@ -2394,7 +2402,7 @@ void Character::boss_anim_remap_out(int *anims)
     }
 
 // 0x457150  Confidence: likely (statement order and widths are the code's; the macro shapes are ours,
-// see above). Frame: p -4, b -8, order -0x50 (18), ofs -0x54, h -0x58, i -0x5c, the per-put copies
+// see above). Frame: p -4, b -8, sort_order -0x50 (18), ofs -0x54, h -0x58, i -0x5c, the per-put copies
 // -0x60 .. -0x1e8, this -0x1ec, the switch values -0x1f0 .. -0x1fc. Writes the LENT record of one living
 // entity (savegame_write_living) and returns its length: a 32-byte header (type, pos, heading, layer,
 // object flags, flags), then by type: 4 / 5 / 9 statuses, level, HP, base max HP, AP, base max AP, prop
@@ -2406,9 +2414,9 @@ int Character::save_state(ubyte *out)
 {
     float p;
     float b;
-    int order[NUM_STATUS_EFFECTS] = { 0x10, 0xa, 9, 8, 1, 7, 5, 0xb, 2, 0, 3, 4, 6, 0xc, 0xd, 0xe, 0xf,
-                                      0x11 };
     int ofs = 0;
+    int sort_order[NUM_STATUS_EFFECTS] = { 0x10, 0xa, 9, 8, 1, 7, 5, 0xb, 2, 0, 3, 4, 6, 0xc, 0xd, 0xe,
+                                           0xf, 0x11 };
     float h;
     int i;
 
@@ -2422,8 +2430,8 @@ int Character::save_state(ubyte *out)
     switch (type) {
     case 5:
     case 9: {
-        int n;
         int id;
+        int n;
 
         LE_PUT_STATUSES(n, id);
         LE_PUT(short, level);
@@ -2867,65 +2875,65 @@ void Character::set_locomotion_speed(float speed)
     }
 }
 
-// 0x45a840  Confidence: likely (decel -4, speed -8, v -0x14, dist -0x18, the returned reference
+// 0x45a840  Confidence: likely (rate -4, len -8, vec -0x14, dst -0x18, the returned reference
 // -0x34, this -0x38). v^2 / (2 * deceleration) at the current root speed; the root velocity is
 // copied to out_vel when given.
 float Character::stopping_distance(vector3 *out_vel)
 {
-    float decel;
-    float speed;
-    vector3 v;
-    float dist;
+    float rate;
+    vector3 vec;
+    float dst;
+    float len;
 
     if (speed_scale == 0.0f)
         return 0.0f;
-    decel = slowdown_rate * speed_scale;
-    v = instance->get_root_velocity();
-    speed = v.len();
-    dist = speed * speed / (decel * 2.0f);
+    rate = slowdown_rate * speed_scale;
+    vec = instance->get_root_velocity();
+    len = vec.len();
+    dst = len * len / (rate * 2.0f);
     if (out_vel != NULL)
-        *out_vel = v;
-    return dist;
+        *out_vel = vec;
+    return dst;
 }
 
-// 0x45a930  Confidence: likely (accel -4, target -8, t -0xc, cur -0x10, v -0x1c, this -0x34). The
+// 0x45a930  Confidence: likely (a -4, want_speed -8, t -0xc, vmag -0x10, vec -0x1c, this -0x34). The
 // distance covered while the root speed changes from now to the speed at `blend` (speed-up rate of
 // the char_info, or the slow-down rate).
 float Character::distance_to_reach_blend(float blend)
 {
-    float accel;
-    float target;
+    float a;
+    float want_speed;
     float t;
-    float cur;
-    vector3 v;
+    float vmag;
+    vector3 vec;
 
-    v = instance->get_root_velocity();
-    cur = v.len();
-    target = anim_speed_at_blend(blend);
-    if (target > cur)
-        accel = info->speedup_rate * speed_scale;
+    vec = instance->get_root_velocity();
+    vmag = vec.len();
+    want_speed = anim_speed_at_blend(blend);
+    if (want_speed > vmag)
+        a = info->speedup_rate * speed_scale;
     else
-        accel = -slowdown_rate * speed_scale;
-    t = (target - cur) / accel;
-    return cur * t + accel * t * t / 2.0f;
+        a = -slowdown_rate * speed_scale;
+    t = (want_speed - vmag) / a;
+    return vmag * t + a * t * t / 2.0f;
 }
 
 // 0x45aa20  Confidence: likely (as distance_to_reach_blend with the target speed given).
 float Character::distance_to_reach_speed(float speed)
 {
-    float accel;
+    float a;
     float t;
-    float cur;
-    vector3 v;
+    float vmag;
+    vector3 vec;
 
-    v = instance->get_root_velocity();
-    cur = v.len();
-    if (speed > cur)
-        accel = info->speedup_rate * speed_scale;
+    vec = instance->get_root_velocity();
+    vmag = vec.len();
+    if (speed > vmag)
+        a = info->speedup_rate * speed_scale;
     else
-        accel = -slowdown_rate * speed_scale;
-    t = (speed - cur) / accel;
-    return cur * t + accel * t * t / 2.0f;
+        a = -slowdown_rate * speed_scale;
+    t = (speed - vmag) / a;
+    return vmag * t + a * t * t / 2.0f;
 }
 
 // 0x45ab00  Confidence: likely for the flow, unsure for the temporaries (the inline budget runs out
@@ -3444,48 +3452,48 @@ void Character::move_frame()
         find_ground();
 }
 
-// 0x45d4c0  Confidence: likely (left -4, right -8, the ca_character copies -0xc / -0x10 are the
+// 0x45d4c0  Confidence: likely (left_tag -4, right_tag -8, the ca_character copies -0xc / -0x10 are the
 // returns of an inline accessor, written here as the member read; this -0x14).
 void Character::find_foot_bones()
 {
-    int left;
-    int right;
+    int left_tag;
+    int right_tag;
 
-    left = 0;
-    right = 0;
-    left = instance->character->find_mesh_tag("BDBN-Foot-L");
-    right = instance->character->find_mesh_tag("BDBN-Foot-R");
-    foot_tag_l = (short)left;
-    foot_tag_r = (short)right;
+    left_tag = 0;
+    right_tag = 0;
+    left_tag = instance->character->find_mesh_tag("BDBN-Foot-L");
+    right_tag = instance->character->find_mesh_tag("BDBN-Foot-R");
+    foot_tag_l = (short)left_tag;
+    foot_tag_r = (short)right_tag;
 }
 
-// 0x45d540  Confidence: likely. Frame: snd -4, sounds -8, surface -0xc, hi -0x10, h -0x14, lo -0x18, freq
+// 0x45d540  Confidence: exact. Frame: sample -4, sounds -8, surface -0xc, fmax -0x10, h -0x14, fmin -0x18, frequency
 // -0x1c, this -0x20, the ?: temporary -0x24. The left / right footstep table of the char_info, by the
 // floor surface (one set, or a random one of several), played at a random 90-100% of its frequency.
 void Character::play_footstep(vector3 *at, bool left_foot)
 {
-    int snd;
     int (*sounds)[5];
+    int sample;
     int surface;
-    float hi;
+    float fmax;
     int h;
-    float lo;
-    unsigned int freq;
+    float fmin;
+    unsigned int frequency;
 
     surface = lobj_face_get_surface(ground_lobj, ground_face);
     sounds = left_foot ? info->footstep_sounds_a : info->footstep_sounds_b;
-    snd = -1;
+    sample = -1;
     if (info->num_footstep_sets == 1)
-        snd = sounds[0][surface];
+        sample = sounds[0][surface];
     else if (info->num_footstep_sets > 1)
-        snd = sounds[rand() % info->num_footstep_sets][surface];
-    if (snd >= 0) {
-        h = sound_play_3d_at(snd, at);
+        sample = sounds[rand() % info->num_footstep_sets][surface];
+    if (sample >= 0) {
+        h = sound_play_3d_at(sample, at);
         if (h >= 0) {
-            snd_get_frequency(h, &freq);
-            lo = (float)freq * 0.9f;
-            hi = (float)freq;
-            snd_set_frequency(h, (int)frand_range(lo, hi));
+            snd_get_frequency(h, &frequency);
+            fmin = (float)frequency * 0.9f;
+            fmax = (float)frequency;
+            snd_set_frequency(h, (int)frand_range(fmin, fmax));
         }
     }
 }
@@ -3514,29 +3522,29 @@ void Character::update_footsteps()
     }
 }
 
-// 0x45d830  Confidence: likely (ratio -4, style -8, w -0xc, this -0x10). Spell-casting combat styles
+// 0x45d830  Confidence: exact (ratio -4, style_id -8, wpn -0xc, this -0x10). Spell-casting combat styles
 // (4, 5) keep 8 m while they have AP (party members above 25%, others above 5%) and may cast; a
 // ranged weapon gives its attack radius. Bosses use their own table.
 bool Character::get_attack_range(float *out)
 {
     float ratio;
-    int style;
-    item_info *w;
+    int style_id;
+    item_info *wpn;
 
     if (type == 9)
         return boss_get_attack_range(this, out);
-    style = ai.get_combat_style();
+    style_id = ai.get_combat_style();
     if (!(type == 7 && (ai.flags & AI_FLAG_PLAYER_CONTROL)) && !(ai.flags & 0x80)
-        && !has_status(STATUS_SILENCE) && (style == 4 || style == 5)) {
+        && !has_status(STATUS_SILENCE) && (style_id == 4 || style_id == 5)) {
         ratio = (float)ap / get_max_stat(1);
         if ((type == 7 && ratio > 0.25f) || (type != 7 && ratio > 0.05f)) {
             *out = 8.0f;
             return true;
         }
     }
-    w = equipment[5];
-    if (w != NULL && w->type->kind == 0 && weapon_is_ranged(&w->type->weapon) == 1) {
-        *out = w->type->attack_radius;
+    wpn = equipment[5];
+    if (wpn != NULL && wpn->type->kind == 0 && weapon_is_ranged(&wpn->type->weapon) == 1) {
+        *out = wpn->type->attack_radius;
         return true;
     }
     return false;
@@ -3554,7 +3562,7 @@ bool Character::can_cast_spell(int spell)
         return false;
     if (!find_move(7, spells[spell].variation))
         return false;
-    if (ap < spells[spell].cost)
+    if (spells[spell].cost > ap)
         return false;
     if (spell_on_cooldown(spell))
         return false;
@@ -3632,21 +3640,21 @@ int Character::perform_spell_cast(int spell, bool arg)
     return anim;
 }
 
-// 0x45dd80  Confidence: exact. cdecl. i at ebp-4, cur -8, len -0xc. The first free fade record gets
+// 0x45dd80  Confidence: exact. cdecl. i at ebp-4, cur -8, dur -0xc. The first free fade record gets
 // the character, its move and a rate of half a fade per animation length.
 void character_start_move_fade(Character *c, int move)
 {
     int i;
+    float dur;
     move_info *cur;
-    float len;
 
     for (i = 0; i < MAX_MOVE_FADES; i++) {
         if (move_fades[i].handle == -1) {
             move_fades[i].handle = c->handle;
             move_fades[i].move = move;
             cur = c->get_current_move();
-            len = c->instance->get_anim_length(cur->anim);
-            move_fades[i].rate = 0.5f / len;
+            dur = c->instance->get_anim_length(cur->anim);
+            move_fades[i].rate = 0.5f / dur;
             break;
         }
     }
@@ -4602,18 +4610,19 @@ void Character::spell_apply_hit_effects(spell_hit *h)
         ai.retaliate_on_hit(h->source);
 }
 
-// 0x460f20  Confidence: likely (the move record arrives as an int: the declaration keeps D303's text;
-// i -4, cur -8, fx -0xc, p -0x18, this -0x2c, the switch value -0x30). Starts a move: refused while a
-// boss emerges (AI +0x194) in combat or while the current move's trigger 9 is pending (unless `keep`);
-// the move gets a new serial (cur_anim, returned), its latches are reset, death moves (category 6)
+// 0x460f20  Confidence: exact (the move record arrives as an int: the declaration keeps D303's text;
+// ii -4, mi -8, fx -0xc, pt -0x18, this -0x2c, the switch value -0x30). Starts a move: refused while a
+// boss emerges (AI +0x194) in combat or, unless `keep`, once the current move's trigger 9 time is
+// (nearly) reached (time left <= 0.0001, D6104); the move gets a new serial (cur_anim, returned), its
+// latches are reset, death moves (category 6)
 // hold their last frame (and flag 0x8000 for the species that stay as a corpse effect), its sound
 // replaces the last one and its effect is attached (species 0x57-0x5a: dropped at pos + 0.77 m).
 int Character::play_move(int m, float speed, bool keep, bool clear_actions, bool held)
 {
-    int i;
-    move_info *cur;
+    move_info *mi;
+    int ii;
     int fx;
-    vector3 p;
+    vector3 pt;
 
     if (m == 0)
         return -1;
@@ -4621,9 +4630,9 @@ int Character::play_move(int m, float speed, bool keep, bool clear_actions, bool
         return -1;
     if (ai.is_combat_e_or_sneak_attack() && ai.emerge_move != -1)
         return -1;
-    cur = get_current_move();
+    mi = get_current_move();
     if (!keep) {
-        if (cur != NULL && move_has_trigger(9) && move_trigger_time_left(9) > 0.0001f)
+        if (mi != NULL && move_has_trigger(9) && move_trigger_time_left(9) <= 0.0001f)
             return -1;
         fx_remove_missiles_from(cur_anim);
     }
@@ -4635,8 +4644,8 @@ int Character::play_move(int m, float speed, bool keep, bool clear_actions, bool
     if (move_play_serial < 0)
         move_play_serial = 0;
     cur_anim = move_play_serial;
-    for (i = 0; i < 3; i++)
-        trigger_latch[i] = 0;
+    for (ii = 0; ii < 3; ii++)
+        trigger_latch[ii] = 0;
     if (cur_move->category == 6) {
         switch (info->species) {
         case 0x4: case 0x8: case 0x9: case 0x45: case 0x57: case 0x58: case 0x59: case 0x5a:
@@ -4661,9 +4670,9 @@ int Character::play_move(int m, float speed, bool keep, bool clear_actions, bool
         if (cur_move->category == 6
             && (info->species == 0x5a || info->species == 0x57 || info->species == 0x59
                 || info->species == 0x58)) {
-            p = pos;
-            p.y += 0.77f;
-            fx = fx_add_effect(((move_info *)m)->effect, &p, &orient, 1);
+            pt = pos;
+            pt.y += 0.77f;
+            fx = fx_add_effect(((move_info *)m)->effect, &pt, &orient, 1);
         } else {
             fx = fx_attach_to_character(((move_info *)m)->effect, handle, -1, -1, 0, 0);
         }
@@ -4689,7 +4698,7 @@ move_info *Character::find_move_alt(int category, int id)
     return charinfo_find_move_alt(info, category, id, 1);
 }
 
-// 0x4613f0  Confidence: likely (t -4, len -8: the fst keeps the length for the division). 0..1 of the
+// 0x4613f0  Confidence: exact (t -4, len -8: the fst keeps the length for the division). 0..1 of the
 // move, 1 when it is not playing.
 float Character::move_progress(int anim)
 {
@@ -4702,11 +4711,11 @@ float Character::move_progress(int anim)
     return (len - t) / len;
 }
 
-// 0x461450  Confidence: exact (left -4, tmp -8, this -0xc). The move serial `anim` is still the current
+// 0x461450  Confidence: exact (rem -4, tmp -8, this -0xc). The move serial `anim` is still the current
 // one and its animation has time left; an ended move clears cur_anim.
 bool Character::move_playing(int anim, float *t)
 {
-    float left;
+    float rem;
     float tmp;
 
     if (anim == -1)
@@ -4715,9 +4724,9 @@ bool Character::move_playing(int anim, float *t)
         return false;
     if (t == NULL)
         t = &tmp;
-    left = instance->get_anim_time_left(cur_move->anim);
-    *t = left;
-    if (left < 0.0001f) {
+    rem = instance->get_anim_time_left(cur_move->anim);
+    *t = rem;
+    if (rem < 0.0001f) {
         cur_anim = -1;
         return false;
     }
@@ -4738,21 +4747,21 @@ move_info *Character::get_current_move()
     return NULL;
 }
 
-// 0x461540  Confidence: exact (m -4, first -8, pick -0xc, n -0x10). A random "talk*" move of the
+// 0x461540  Confidence: exact (mv -4, first -8, pick -0xc, n -0x10). A random "talk*" move of the
 // char_info's category 8 list; returned as an int (the play_move argument, D303).
 int Character::pick_talk_move()
 {
-    move_info *m;
+    move_info *mv;
     move_info *first;
     int pick;
     int n;
 
     first = NULL;
     n = 0;
-    for (m = (move_info *)info->moves[8]; m != NULL; m = m->next) {
-        if (_strnicmp(m->action, "talk", 4) == 0) {
+    for (mv = (move_info *)info->moves[8]; mv != NULL; mv = mv->next) {
+        if (_strnicmp(mv->action, "talk", 4) == 0) {
             if (first == NULL)
-                first = m;
+                first = mv;
             n++;
         }
     }
@@ -4761,10 +4770,10 @@ int Character::pick_talk_move()
     if (n == 1)
         return (int)first;
     pick = rand() % n;
-    for (m = first; m != NULL; m = m->next) {
-        if (_strnicmp(m->action, "talk", 4) == 0) {
+    for (mv = first; mv != NULL; mv = mv->next) {
+        if (_strnicmp(mv->action, "talk", 4) == 0) {
             if (pick == 0)
-                return (int)m;
+                return (int)mv;
             pick--;
         }
     }
@@ -4813,12 +4822,12 @@ void Character::move_trigger_mark(int trigger)
 
 // 0x461740  Confidence: exact. 1 once when the trigger time has passed (latched), 0 before or when
 // already reported, -1 without a move or trigger. `latch` is set for trigger 9 and never read.
-int Character::move_trigger_fired(int trigger, int latch)
+int Character::move_trigger_fired(int trigger, bool latch)
 {
     int i;
 
     if (trigger == 9)
-        latch = 1;
+        latch = true;
     for (i = 0; i < 3; i++) {
         if (cur_move == NULL)
             return -1;
@@ -4883,7 +4892,7 @@ void cmd_immortal()
 // 0x461990 init_ccmd_health: the console_command constructor. Confidence: exact.
 console_command ccmd_health("health", "Sets the percentage health for the debug object", cmd_health);   // 0x941508
 
-// 0x4619b0  Confidence: likely (c at ebp-4, v -8, the fild temporary -0xc). Sets the HP of the
+// 0x4619b0  Confidence: exact (c at ebp-4, v -8, the fild temporary -0xc). Sets the HP of the
 // character under the mouse to a fraction (0..1) of its char_info max HP; 0 kills it.
 void cmd_health()
 {
@@ -4937,7 +4946,7 @@ int Character::get_team()
     return team;
 }
 
-// 0x461b80  Confidence: likely. Frame: c -4, named -8, n -0xc, where -0x4c, i -0x50, taken -0x54, name
+// 0x461b80  Confidence: exact. Frame: c -4, used -8, count -0xc, where -0x4c, i -0x50, dup -0x54, name
 // -0x94, o -0x98. Takes the first free pool slot (the error loop, line 8424, when there is none),
 // initialises it, names it "<char_info name>#<n>" with the first unused n, and unless it is a party
 // member or `placed`, moves it onto the navigation mesh and the floor below (the position text of a
@@ -4946,11 +4955,11 @@ Character *living_entity_create(int type, int info_index, const vector3 *pos, co
                                 int layer, int level, int unused, bool placed)
 {
     Character *c;
-    bool named;
-    int n;
+    bool used;
+    int count;
     char where[64];
     int i;
-    bool taken;
+    bool dup;
     char name[64];
     Character *o;
 
@@ -4969,22 +4978,22 @@ Character *living_entity_create(int type, int info_index, const vector3 *pos, co
         c->ai.flags |= 0x40;
     if (c->type == 4)
         c->ai.flags |= 0x40;
-    named = false;
-    n = 1;
-    while (!named) {
-        taken = false;
-        sprintf(name, "%s#%d", c->info->name, n);
+    used = false;
+    count = 1;
+    while (!used) {
+        dup = false;
+        sprintf(name, "%s#%d", c->info->name, count);
         for (o = living_list.live_next; o != &living_list; o = o->live_next) {
             if (_stricmp(o->name, name) == 0) {
-                taken = true;
+                dup = true;
                 break;
             }
         }
-        if (!taken) {
-            named = true;
+        if (!dup) {
+            used = true;
             c->set_name(name);
         }
-        n++;
+        count++;
     }
     if (c->type == 7 || placed)
         return c;
@@ -4996,13 +5005,17 @@ Character *living_entity_create(int type, int info_index, const vector3 *pos, co
     return c;
 }
 
-// ---- 0x461dc0-0x46353f: the optimised tail ---------------------------------------------------------
-// From character_say on, the code is optimised (no frame pointer, 0x90 padding) while everything
-// before is not: either `#pragma optimize` in the file or another object linked right after it. The
-// strings.tbl "living_entity.cpp" block (ids 314-352) is used on both sides (character_get_display_name
-// at 0x462070 reads 351 / 352) and the .data / .bss of both sides interleave, so the functions stay here
-// (NOTES.md). The confidence below is for the C, not for the register allocation.
-// (In the first case the original would carry `#pragma optimize("", on)` here; not written.)
+// ---- 0x461dc0-0x46335f: the optimised tail ---------------------------------------------------------
+// From character_say on, the code is optimised (no frame pointer, 0x90 padding). It is the same object
+// as the unoptimised part, not another one (D6100): the tail's own tables (character_speech_times
+// 0x599698, hero_model_prefix_table 0x5996a4) lie among the unit's other initialised globals, before
+// the literals of the unoptimised part (VC6 puts an object's initialised globals before its literals,
+// tested with VC6's linker), and the tail's console command objects (0x8eca30-0x8eca50, 0x940428) lie
+// among the living lists and the pool in the one .bss block. strings.tbl ids 314-352 are used on both
+// sides (character_get_display_name at 0x462070 reads 351 / 352).
+#ifdef _MSC_VER
+#pragma optimize("", on)
+#endif
 
 // 0x461dc0  Confidence: likely (the frame is 0x134 bytes, so the quoted text is at most 240 bytes:
 // unsure). One speech bubble per character: its own record, else a free one, else the one with the
@@ -5061,10 +5074,11 @@ void Character::say(const char *text, float seconds)
     }
 }
 
-// 0x461fe0  Confidence: exact. Up to 16 characters of floating text, its time and colour.
+// 0x461fe0  Confidence: exact. Up to 16 characters of floating text, its time and colour; the length
+// test is signed (D6106).
 void Character::set_floating_text(const char *text, float seconds, ubyte r, ubyte g, ubyte b)
 {
-    if (strlen(text) > 16) {
+    if ((int)strlen(text) > 16) {
         strncpy(float_text, text, 16);
         float_text_nul = 0;
     } else {
@@ -5076,36 +5090,36 @@ void Character::set_floating_text(const char *text, float seconds, ubyte r, ubyt
     float_text_rgb[2] = b;
 }
 
-// 0x462070  Confidence: likely (the last two branches are the same code: two calls that may have been
+// 0x462070  Confidence: exact (the last two branches are the same code: two calls that may have been
 // different functions before identical-code folding, unsure). The name up to its '#' / digit suffix,
 // localised; "onif" is the Oni Female; multiplayer party members keep their player names.
 void Character::get_display_name(char *buf)
 {
     size_t n;
 
-    if (strlen(name) == 0) {
-        strcpy(buf, XSTR("Unknown", 352));
-        return;
-    }
-    if ((game_flags & GF_MULTIPLAYER) && type == 7 && !(flags & CF_SUMMON)) {
-        strcpy(buf, name);
-        return;
-    }
-    n = strcspn(name, "#$01234567890");
-    if (n != 0) {
-        strncpy(buf, name, n);
-        buf[n] = 0;
+    if (strlen(name) != 0) {
+        if ((game_flags & GF_MULTIPLAYER) && type == 7 && !(flags & CF_SUMMON)) {
+            strcpy(buf, name);
+            return;
+        }
+        n = strcspn(name, "#$01234567890");
+        if (n != 0) {
+            strncpy(buf, name, n);
+            buf[n] = 0;
+        } else {
+            strcpy(buf, name);
+        }
+        if (_stricmp(buf, "onif") == 0) {
+            strcpy(buf, XSTR("Oni Female", 351));
+            return;
+        }
+        if (((flags & CF_SUMMON) || type == 7 || type == 8) && !(flags & 0x40000))
+            strcpy(buf, localize_script_name(buf));
+        else
+            strcpy(buf, localize_script_name(buf));
     } else {
-        strcpy(buf, name);
+        strcpy(buf, XSTR("Unknown", 352));
     }
-    if (_stricmp(buf, "onif") == 0) {
-        strcpy(buf, XSTR("Oni Female", 351));
-        return;
-    }
-    if (((flags & CF_SUMMON) || type == 7 || type == 8) && !(flags & 0x40000))
-        strcpy(buf, localize_script_name(buf));
-    else
-        strcpy(buf, localize_script_name(buf));
 }
 
 // 0x462200  Confidence: exact.
@@ -5134,7 +5148,7 @@ void Character::set_speed_scale(float speed, bool walk)
         flags &= ~0x200;
 }
 
-// 0x4622b0  Confidence: likely. The alpha of the props while a move fade runs: fading out over the
+// 0x4622b0  Confidence: exact. The alpha of the props while a move fade runs: fading out over the
 // first `rate` of the move, back in over the last; a finished move frees its record.
 ubyte Character::get_move_fade_alpha()
 {
@@ -5185,7 +5199,7 @@ bool Character::skill_allowed(int skill)
     return true;
 }
 
-// 0x462440  Confidence: likely. skill level * 0.01 plus the equipment: speed is multiplied by the
+// 0x462440  Confidence: exact. skill level * 0.01 plus the equipment: speed is multiplied by the
 // equipment factor, banish is always 1, a summon skill counts as the summon skill; the weapon and combat
 // skills (3..0x23) are rounded to steps of 0.05 (at least 0.05). -999999 when not allowed.
 float Character::get_skill(int skill)
@@ -5213,7 +5227,7 @@ float Character::get_skill(int skill)
     return r;
 }
 
-// 0x462540  Confidence: likely. The +Skill Mod: sum of the ten equipment slots (a party member must have
+// 0x462540  Confidence: exact. The +Skill Mod: sum of the ten equipment slots (a party member must have
 // the skill at its level); in multiplayer appraise (0x14) counts as aimed attack (0x11) and pick lock
 // (0x15) as dark (0x1d). For speed it is (1 + sum) times 1 / each weapon's or armour's speed.
 float Character::skill_equip_mod(int skill)
@@ -5235,10 +5249,14 @@ float Character::skill_equip_mod(int skill)
                     int id = t->skill_mods[j]->id;
 
                     if (game_flags & GF_MULTIPLAYER) {
-                        if (id == SKILL_APPRAISE)
-                            id = SKILL_AIMED_ATTACK;
-                        else if (id == SKILL_PICK_LOCK)
+                        switch (id) {
+                        case SKILL_PICK_LOCK:
                             id = SKILL_DARK;
+                            break;
+                        case SKILL_APPRAISE:
+                            id = SKILL_AIMED_ATTACK;
+                            break;
+                        }
                     }
                     if (id == skill) {
                         p = player_from_handle(handle);
@@ -5467,7 +5485,7 @@ void Character::set_underwear_textures(int part, const char *texture)
 
 // 0x462c80  Confidence: likely. Joseph's alternate cloak texture (CF 0x2000000); `force` re-applies it
 // unchanged.
-void Character::set_armour_alt_texture(int on, int force)
+void Character::set_armour_alt_texture(bool on, bool force)
 {
     if (info->species != SPECIES_JOSEPH)
         return;
@@ -5543,16 +5561,14 @@ void living_entity_reset_tables()
         spell_global_timers[i].SetTimeout(0);
 }
 
-// 0x462de0  Confidence: likely. With pause_ai every AI character is suspended; while a conversation is
+// 0x462de0  Confidence: exact. With pause_ai every AI character is suspended; while a conversation is
 // not idle, characters in combat (except combat sub-mode 0xe) and type-5 characters are.
 bool Character::ai_suspended()
 {
     if (Ai_paused && !(ai.flags & AI_FLAG_PLAYER_CONTROL))
         return true;
     if (!conversation_active.is_idle()) {
-        if (ai.is_mode(AI_STATE_COMBAT, -1) && !ai.is_mode(AI_STATE_COMBAT, 0xe))
-            return true;
-        if (type == 5)
+        if ((ai.is_mode(AI_STATE_COMBAT, -1) && !ai.is_mode(AI_STATE_COMBAT, 0xe)) || type == 5)
             return true;
     }
     return false;
@@ -5569,7 +5585,7 @@ int Character::is_moving()
     return 1;
 }
 
-// 0x462ec0  Confidence: likely. Not a prefix: the hero model render mask (the declaration keeps its
+// 0x462ec0  Confidence: exact. Not a prefix: the hero model render mask (the declaration keeps its
 // const char * for new_status.cpp / new_inventory.cpp, D1711). Without a helmet the default mask per
 // hero {6, 6, 2, 2}; with one, the helmet's +RenderMask: byte for "[heavy ]<hero>".
 const char *Character::hero_model_prefix()
@@ -5577,15 +5593,9 @@ const char *Character::hero_model_prefix()
     char model[0x40];
     int index;
 
-    switch (info->species) {
-    case SPECIES_JOSEPH:
-    case SPECIES_JEKHAR:
-    case SPECIES_FLECE:
-    case SPECIES_ROSALIND:
-        break;
-    default:
+    if (info->species != SPECIES_JOSEPH && info->species != SPECIES_JEKHAR && info->species != SPECIES_FLECE
+        && info->species != SPECIES_ROSALIND)
         return 0;
-    }
     if (equipment[7] == NULL) {
         switch (info->species) {
         case SPECIES_JOSEPH:
@@ -5648,13 +5658,13 @@ void cmd_chance_gold()
 console_command ccmd_kill_summon("kill_summon", "kills off friendly summoned creature", cmd_kill_summon);   // 0x8eca50
 
 // 0x463140  Confidence: exact. Removes (and deletes) every summon record of the party but the leader.
+// The next link is read before each loop test (the original's safe-iteration shape, D6106).
 void cmd_kill_summon()
 {
     Player *p;
     Player *next;
 
-    for (p = party_list.next; p != &party_list; p = next) {
-        next = p->next;
+    for (p = party_list.next, next = p->next; p != &party_list; p = next, next = p->next) {
         if (p != party_leader && (p->flags & PF_SUMMON))
             party_remove_player(p, true);
     }
@@ -5710,64 +5720,6 @@ void cmd_Spell_ap()
     }
     if (checking_status_for_command) {
         sprintf(string_buffer, "%s is %s\n", "Spell_ap", Use_spell_ap ? "TRUE" : "FALSE");
-        print_to_console(string_buffer, 0);
-    }
-}
-
-// .data 0x59a16c: defined here, after the Spell_ap command's literals and before the bloodspots
-// command's (the .data order follows the source).
-bool Debug_death = true;              // 0x59a16c "death"
-
-// 0x463360 init_ccmd_bloodspots_thunk: jmp to the initialiser. Confidence: exact.
-// 0x463370 init_ccmd_bloodspots: the console_command constructor. Confidence: exact.
-console_command ccmd_bloodspots("bloodspots", "Toggles Bloodspots", cmd_bloodspots);   // 0x941730
-
-// 0x463390  Confidence: exact.
-void cmd_bloodspots()
-{
-    if (calling_a_command_function) {
-        process_command(ARG_TRUE | ARG_FALSE | ARG_NONE);
-        if (arg_type & ARG_TRUE)
-            Bloodspots = true;
-        else if (arg_type & ARG_FALSE)
-            Bloodspots = false;
-        else if (arg_type & ARG_NONE)
-            Bloodspots ^= 1;
-    }
-    if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
-                "bloodspots", "Bloodspots");
-        print_to_console(string_buffer, 0);
-    }
-    if (checking_status_for_command) {
-        sprintf(string_buffer, "%s is %s\n", "bloodspots", Bloodspots ? "TRUE" : "FALSE");
-        print_to_console(string_buffer, 0);
-    }
-}
-
-// 0x463450 init_ccmd_death_thunk: jmp to the initialiser. Confidence: exact.
-// 0x463460 init_ccmd_death: the console_command constructor. Confidence: exact.
-console_command ccmd_death("death", "Toggles Debug_death", cmd_death);   // 0x941710
-
-// 0x463480  Confidence: exact.
-void cmd_death()
-{
-    if (calling_a_command_function) {
-        process_command(ARG_TRUE | ARG_FALSE | ARG_NONE);
-        if (arg_type & ARG_TRUE)
-            Debug_death = true;
-        else if (arg_type & ARG_FALSE)
-            Debug_death = false;
-        else if (arg_type & ARG_NONE)
-            Debug_death ^= 1;
-    }
-    if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
-                "death", "Debug_death");
-        print_to_console(string_buffer, 0);
-    }
-    if (checking_status_for_command) {
-        sprintf(string_buffer, "%s is %s\n", "death", Debug_death ? "TRUE" : "FALSE");
         print_to_console(string_buffer, 0);
     }
 }

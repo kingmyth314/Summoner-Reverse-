@@ -332,7 +332,7 @@ void shadows_render()
     }
 }
 
-// 0x4a44b0  Confidence: likely (the profile label). An active record on one face: the face clipped to
+// 0x4a44b0  Confidence: exact (the profile label). An active record on one face: the face clipped to
 // the frustum and drawn with the shadow bitmap (shadow mode, or particle alpha with full_alpha).
 void shadow_render_on_face(blob_shadow *s, lobj *l, s3d_face *face)
 {

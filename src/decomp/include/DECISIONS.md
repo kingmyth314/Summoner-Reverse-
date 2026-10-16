@@ -4585,3 +4585,134 @@ so that later passes use the same forms (details and counter-examples in the pas
   temporary and calls the copy constructor), strcat of a one-character literal as a word move, `and dh, imm`
   partial-register bitfield stores, the `or eax, eax` return of an already -1 EAX, the rotate idiom as `rol`,
   and most register-allocation and scheduling differences.
+
+**D6100 (game/living_entity.cpp, game/combat.cpp, vc6-flags.txt). The optimised tail of living_entity.cpp is the
+same object; the bloodspots and death commands are combat.cpp's.** The survey proposed a separate unit for
+0x461dc0-0x463480. The data says otherwise. (1) VC6 puts all of an object's initialised globals before its
+literals, whatever their position in the source (tested with VC6's compiler and linker: a global defined after two
+functions, and after a `#pragma optimize("", off)`, still lands before their literals in the linked image). The
+tail's own tables character_speech_times (0x599698) and hero_model_prefix_table (0x5996a4) lie among the unit's
+other initialised globals (0x599644-0x5996b3), before the literals of the unoptimised part, and the tail's literals
+(0x599eb0-) follow the unoptimised part's (up to 0x599eac) directly. (2) An object's .bss is one contiguous block:
+the tail's console command objects (ccmd_chance_gold 0x8eca30, ccmd_Spell_ap 0x8eca40, ccmd_kill_summon 0x8eca50,
+ccmd_no_resist 0x940428), whose initialisers are tail code, lie before and between the living lists, the pool and
+spell_cooldowns, whose initialisers are unoptimised code. So 0x44d9f0-0x46335f is one object compiled with /O2 that
+turns optimisation off at the top and on again at character_say, as the cutscene file does (D3201): the
+unoptimised part keeps /Oi (inline strcpy / strlen: two more matches) and the /O2 string pooling (its literals fold
+with other objects', e.g. "fire_ring_xp" 0x593e54), and its static initialisers are frame-pointer wrappers while the
+tail's are tail jumps, exactly where the pragmas sit. (3) Debug_death = 1 (.data 0x59a16c) sits after the Spell_ap
+literals and before the bloodspots literals, so another object's .data starts there; its .bss (ccmd_death
+0x941710, ccmd_bloodspots 0x941730, Bloodspots 0x94173c) interleaves with combat.cpp's ccmd_Super_power 0x941720
+(initialised at 0x464020, combat code) and Super_power 0x94173d, and living_entity's .bss ends with
+move_play_serial 0x941708. So 0x463360-0x46353f (init_ccmd_bloodspots_thunk .. cmd_death, sum.symbols
+"living_entity.cpp") opens combat.cpp's object: moved there with Debug_death and Bloodspots (the declarations stay
+in living_entity.h). No new unit. Flags: living_entity.cpp /O2 /GX /MT (was /Od /Ob1 /GX /MT: 49 -> 67 of 132
+before any other source change), the cutscene file /O2 /GX /MT (the default; /Od /Ob1 ties).
+
+**D6101 (game/living_entity.cpp, game/objects.cpp, game/unnamed_cutscene_0x434900.cpp). VC6 12.00.8168 orders /Od
+locals by a hash of their names; locals renamed to give the binary's frames.** Observed with the compiler on probe
+functions: the frame slots of one scope go from ebp-4 downwards in bucket order, bucket = (h ^ (h >> 16)) & 15 with
+h = h * 4 + (h >> 4) + c over the name's characters (32-bit; it predicts every probe, 80+ names), and within a
+bucket the most recently declared local comes first. Block-scope locals follow the function scope's (each block in
+source order), `this` comes last, the EH record sits at the top; /Z7, /Zi, /Ob, /GX, /Gf, /Oi do not change it (/Og
+does: it orders by first use). The rule in the file headers ("the first declared local gets the highest address")
+held only where the names happened to hash in that order. The locals of 38 functions (25 / 4 / 9) are renamed (and tied ones
+re-declared newest-first) so that 8168 gives the binary's layout; the names are ours anyway (no local name is in the
+binary). **Inferred, open:** the original compiler (8966) may lay locals out differently:
+refresh_item_status_effects' 11 locals are in first-use order in the binary, which a hash order gives by chance with a probability of
+about 1e-6, while save_state initialises `ofs` before the status table that lies above it, which neither pure
+declaration order nor first-use order gives. The renames are kept because they make the available compiler
+reproduce the bytes.
+
+**D6102 (include/vsdk/os/profile.h). HEADER CHANGE: profile_label's constructor and destructor are inline.** Only
+the /Ob0 units (character_instance.cpp, the ix unit 0x53ac20) call 0x51b6b0 / 0x434650 directly; every /Ob1 unit,
+optimised or not, keeps only the EH states (objects.cpp's character_process_anim), and the unwind funclets call the
+destructor's COMDAT. Defined empty in the class. All 13 users rechecked with VC6: 0 lost, 9 won (ai.cpp 0x472a90,
+pathfinding.cpp 0x4a01d0, unnamed_ai_move 0x4b4590, unnamed_ai_think 0x4b6940 / 0x4b6a30, unnamed_pfgeom 0x4a5d40,
+unnamed_shadows 0x4a44b0, character_instance 0x51a6f0 / 0x51a780); mingw: 253 files, 0 errors.
+
+**D6103 (game/living_entity.cpp). place_at_party_start reads the start back through start_navpoint.** After
+`start_navpoint = level_player_starts[slot]` the position, heading and layer come from this+0x34 (cast to
+navpoint *, the member is a void *), not from the table again. Same behaviour; now exact.
+
+**D6104 (game/living_entity.cpp). BEHAVIOUR FIX: play_move refuses a new move once the current move's trigger 9
+time is (nearly) reached, not while it is pending.** The binary's test is `fcomp 0.0001; test ah, 0x41; je go_on`:
+it returns -1 when move_trigger_time_left(9) <= 0.0001. The source had `> 0.0001f`, the inverse. Now exact.
+
+**D6105 (include/engine/objects/living_entity.h). HEADER CHANGE: three bool parameters.** Character::init's fifth
+argument (not read) is a bool (living_entity_create pushes it with `mov cl, byte ptr`); move_trigger_fired's
+`latch` is stored as a byte (`mov byte ptr [ebp+0xc], 1`); set_armour_alt_texture's `on` / `force` are read as
+bytes. Every caller passes a constant or a bool expression; the callers' units were rechecked with VC6 (combat, the
+five AI / boss units, level_scripts_common, script_internal, the cutscene file): 0 lost.
+
+**D6106 (game/living_entity.cpp, game/unnamed_cutscene_0x434900.cpp). Source shapes read from the code order.**
+status_effect_add: the switch on the status kind has case 2 first. LE_PUT_STATUSES: the record is written inside
+`case 0: case 2:` (a kind that matches neither skips to the loop end), not after a `default: continue`.
+save_state: `ofs = 0` is declared (and initialised) before the status order table, renamed sort_order.
+can_cast_spell: `spells[spell].cost > ap` (the table address is computed first). cmd_kill_summon: `for (p =
+head.next, next = p->next; p != &head; p = next, next = p->next)` (the next link is read before each test).
+set_floating_text: a signed length test (`jle`). get_display_name: the empty-name case is the else branch (its code
+comes last). hero_model_prefix: a chain of `!=` tests instead of a switch. ai_suspended: one `||` condition with one
+return. skill_equip_mod: the multiplayer skill remap is a switch with pick lock first. cutscene::load_files:
+`num_sequences = num_sequences + num` (an int add stored back as a short; `+=` gives a 16-bit add).
+objects.cpp character_process_anim: `(cur_character->pos - pos).len_sq()` read in place (z, y, x), no named copy.
+
+**D6107 (notes only). What still differs in the unoptimised code is mostly the compiler build.** With the names and
+shapes above, the remaining /Od differences reproduce in small tests with every flag set tried and look like
+12.00.8168 against the original 8966: (1) `x = c ? a : b` writes both arms straight into x in Sum.exe (no
+temporary: ring_add_xp, rings_add_xp_all, scale_stats_to_level, add_ap, ...), 8168 always uses a temporary; (2) an
+inline function returning a vector3 by value is used in place in Sum.exe, 8168 copies the result once more (12
+bytes per use: process_anim, walk_to_point, distance_between_edges, is_in_view, ...); (3) `b = (byte == 1)` is
+`cmp ecx, 1; sete` in Sum.exe, `sub / neg / sbb / inc` in 8168 (save_state's script flag); (4) in the optimised tail,
+switch lowering (apply_hero_model's 4-entry jump table), cross-jumping (set_armour_alt_texture) and byte narrowing
+(is_mount / is_rider) differ the same way. None is worked around in the source.
+
+**D5900 (summoner/interface/interface.h, game/unnamed_interface_0x411270.cpp). party_cycle returns int, not bool
+(amends D2800).** Both early exits of the multiplayer branch set the whole register (`mov eax, 1` at 0x4133bf,
+`xor eax, eax` at 0x4133ca); VC6 compiles `return true` in a bool function as `mov al, 1`. The single-player exit
+(`xor eax, eax / setne al`) is the same code for both types. Every caller (new_hud.cpp, new_multi.cpp,
+new_spell.cpp) ignores the result, so nothing else changes; with the int type and the multiplayer exit written
+`if (p != party_leader) { party_select_member(p); return 1; } return 0;` the function matches byte for byte.
+
+**D5901 (engine/characterinfo/characterinfo.h, game/characterinfo.cpp). charinfo_select_mempool's second
+parameter is int, not bool.** 0x448f33 reads it as `mov eax, [esp+8] / test eax, eax`; a bool parameter is read as
+`mov al, [esp+8] / test al, al`. Its only caller (charinfo_create_character_instance) passes its own `summon`.
+
+**D5902 (engine/characterinfo/characterinfo.h, game/characterinfo.cpp). level_load_preload and
+characterinfo_load_party_anims take `int summon`.** level_load_preload tests the argument as a dword (0x447b20
+`mov eax, [esp+0x54] / test eax, eax`), and characterinfo_load_party_anims forwards its own argument to it
+unchanged (0x44746d `mov eax, [esp+0x28] / push eax`); with a bool parameter there VC6 inserts `and eax, 0xff`.
+The other callers (living_entity.cpp, unnamed_party_inventory_0x46b460.cpp) pass a constant or their own argument and still
+compile; their VC6 match counts are unchanged (49 / 134 and 19 / 30, checked with the old and the new headers).
+level_load_preload also picks its pool into a separate local (the original stores the chosen pool, even the
+argument itself, into the argument's slot: `if (!pool) {...} else mp = pool;`).
+
+**D5903 (game/unnamed_goals_doors_0x475180.cpp). mp_player_find_by_addr: logic error fixed.** The source returned
+the first player whose address DIFFERS from the argument: nw_addr_equal returns 0 for equal addresses (as its other
+callers test, `== 0`), and 0x4751a9 branches to the `return p` block on `je` (eax == 0). Now `== 0`; the function
+matches byte for byte.
+
+**D5904 (VC6 source shapes found while matching, match1 pilot).** What made VC6 12.00.8168 emit the original code
+in these ten units (each verified by a byte match): a bool function whose binary sets AL (`mov al, 1` / `xor al, al`)
+is written `if (x) return true; return false;`, one that sets EAX (`mov eax, 1` / `xor eax, eax`) is written
+`return a || b;`; VC6 lays the then-block of an if out as the fall-through, so the binary's branch polarity gives
+the source's (`if (x != 3) A; else B;`, `if (ok) { ...; return true; } return false;`); a duplicated loop test
+(`while ((i = f()) != -1)`) becomes one call with `while (1) { i = f(); if (i == -1) return; ... }` (`for (;;)`
+keeps the duplicate); a struct element accessed through a local pointer (`T *p = &arr[i];`) gives the original's
+biased pointer and register choice; a case body is never shared with an identical one (case 0 and default each
+have their own body); struct copies (`pt->p0 = *a;`, `out->points[i] = ob->points[i];`) instead of member copies;
+two separate float assignments instead of `a = b = c` (integer moves instead of the FPU); a float local splits a
+product of constants that VC6 would otherwise fold (`t = x * 0.001f; t * 204.0f`), and float locals for converted
+integers (`float fx = x;`) give `fild / fmulp` instead of `fimul`; `vector3 d = vector3(...)` (temporary plus copy)
+instead of `vector3 d(...)`; fabsf instead of fabs on floats (float constant in the compare); `int n = f(); g(n);`
+does NOT change the stack-pop merging. Declaration order of locals moves their registers (hud_draw_health_bars);
+an object with a destructor declared after an early return moves the EH state store (lamp_glows_draw).
+
+**D5905 (match1 pilot). Differences that look like the compiler build, not the source** (8168 here, 8966 in the
+Rich header; none of these could be changed by any source form tried): a strength-reduced loop's pointer compare
+uses `jb` where the original has `jl` (and the reverse in other loops); `rep stosd` setup order (`mov ecx` before
+`xor eax`); sums of products are reordered (no permutation of the terms changes 8168's order, the original keeps
+the source order); `max(x, 0)`'s `setle / dec / and` ANDs into the other register; a bool local sits in the top
+byte of its slot (`[esp+3]`) where the original uses the bottom (`[esp]`); stack pops after a call are merged
+across the next call; a named Color initialised from a function result is copied instead of being constructed
+in place.

@@ -1420,7 +1420,7 @@ int charinfo_find_by_species(int species)
     int i;
 
     for (i = 0; i < num_char_infos; i++)
-        if (char_infos[i].species == species)
+        if (species == char_infos[i].species)
             return i;
     return -1;
 }
@@ -1510,8 +1510,7 @@ int charinfo_collect_moves(move_info **out, int max, char_info *info, int catego
         mask = 1 << anim_class;
     else
         mask = info->anim_class;
-    n = 0;
-    for (m = (move_info *)info->moves[category]; m; m = m->next) {
+    for (m = (move_info *)info->moves[category], n = 0; m; m = m->next) {
         if (m->id != exclude && m->id >= 1 && m->id <= 5 && (m->anim_class & mask)) {
             *out++ = m;
             n++;
@@ -1544,10 +1543,12 @@ float move_get_trigger_time(move_info *m, int trigger)
     VSDK_ERROR(CHARACTERINFO_CPP, 0xd61, "Trigger not found.");
 }
 
-// 0x446e70  Confidence: likely (shr / and of the flags byte: a shift form, or a bit field).
+// 0x446e70  Confidence: exact (VC6 byte match) (shr / and of the flags byte: a shift form, or a bit field).
 bool skill_is_summon(int skill)
 {
-    return (skill_table[skill].flags >> 2) & 1;
+    if ((skill_table[skill].flags >> 2) & 1)
+        return true;
+    return false;
 }
 
 // 0x446e90  Confidence: likely (switch on the summon skill, jump table 0x44739c; the case bodies are laid
@@ -1633,23 +1634,27 @@ bool character_can_use_summon(int skill, Character *c)
     return false;
 }
 
-// 0x4473d0  Confidence: likely (as skill_is_summon).
+// 0x4473d0  Confidence: exact (VC6 byte match) (as skill_is_summon).
 bool skill_has_flag8(int skill)
 {
-    return (skill_table[skill].flags >> 3) & 1;
+    if ((skill_table[skill].flags >> 3) & 1)
+        return true;
+    return false;
 }
 
 // 0x4473f0  Confidence: exact.
 bool skill_is_combat_special(int skill)
 {
-    return skill >= SKILL_CRITICAL_HIT && skill <= SKILL_AIMED_ATTACK;
+    if (skill >= SKILL_CRITICAL_HIT && skill <= SKILL_AIMED_ATTACK)
+        return true;
+    return false;
 }
 
-// 0x447410  Confidence: likely (the two species switches, jump tables 0x44775c / 0x44776c, are written
+// 0x447410  Confidence: exact (VC6 byte match) (the two species switches, jump tables 0x44775c / 0x44776c, are written
 // with the cases in the order of their bodies: Joseph, Jekhar, Rosalind, Flece). Loads the anims of a
 // record for one more weapon class (anim_class bit): non-heroes go through level_load_preload, heroes
 // into their "<hero> Anims" pool, then every character using the record is re-initialised.
-void characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, bool summon)
+void characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, int summon)
 {
     ca_character *ca;
     unsigned int mask;
@@ -1662,7 +1667,10 @@ void characterinfo_load_party_anims(char_info *info, int anim_class, bool load_s
 
     mask = 1 << anim_class;
     full_set = false;
-    ca = ca_find_character(info->alt_parent ? info->alt_parent->name : info->name);
+    if (!info->alt_parent)
+        ca = ca_find_character(info->name);
+    else
+        ca = ca_find_character(info->alt_parent->name);
     if (mask & info->anim_class)
         return;
     charinfo_unload_anims(info);
@@ -1828,10 +1836,11 @@ void charinfo_remap_town_moves(char_info *info, bool full_set)
 // skeleton set and the last four digits of its name hash). Loads a non-hero record's anims into the given
 // pool (default: the level pool, or the summon pool for summons) through its .svf preload index, and the
 // effects of a few boss records.
-void level_load_preload(char_info *info, bool load_sounds, bool summon, Mempool *pool)
+void level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *pool)
 {
+    Mempool *mp;
     char name[0x10];
-    char hash[0x20];
+    char hash[0x30];
     bool full_set;
     ca_character *ca;
     unsigned int start;
@@ -1842,19 +1851,23 @@ void level_load_preload(char_info *info, bool load_sounds, bool summon, Mempool 
     full_set = false;
     if (!pool) {
         if (!summon) {
-            pool = &level_mempool;
+            mp = &level_mempool;
         } else {
-            pool = &summon_mempool;
+            mp = &summon_mempool;
             full_set = true;
         }
-    }
+    } else
+        mp = pool;
     if (!_stricmp(info->name, "Tiger Rider"))
         full_set = true;
     if (game_flags & 2)
         full_set = true;
-    set_current_mempool(pool);
-    start = pool->offset;
-    ca = ca_find_character(info->alt_parent ? info->alt_parent->name : info->name);
+    set_current_mempool(mp);
+    start = mp->offset;
+    if (!info->alt_parent)
+        ca = ca_find_character(info->name);
+    else
+        ca = ca_find_character(info->alt_parent->name);
     ca_preload_loaded = 0;
     strncpy(name, ca->name, 4);
     name[4] = 0;
@@ -1872,7 +1885,7 @@ void level_load_preload(char_info *info, bool load_sounds, bool summon, Mempool 
         if (c->info == info)
             c->instance->reset_anims(true);
     set_current_mempool(NULL);
-    charinfo_level_mem_used += pool->offset - start;
+    charinfo_level_mem_used += mp->offset - start;
     set_current_mempool(&level_mempool);
     if (info->species == 0xc4 || info->species == 0xc1 || info->species == 0xb7 || info->species == 0x5a) {
         for (i = 0; i < NUM_MOVE_TYPES; i++)
@@ -2043,7 +2056,10 @@ int charinfo_load_script_anim(char_info *info, const char *name, int path_id)
         else
             set_current_mempool(&level_mempool);
     }
-    ca = ca_find_character(info->alt_parent ? info->alt_parent->name : info->name);
+    if (!info->alt_parent)
+        ca = ca_find_character(info->name);
+    else
+        ca = ca_find_character(info->alt_parent->name);
     ca->lock_skeleton_count();
     m = characterinfo_add_move();
     m->action = charinfo_script_anim_pool.Add(name);
@@ -2085,7 +2101,10 @@ void charinfo_free_moves(char_info *info)
     }
     info->moves[MOVE_TYPE_SCRIPT] = NULL;
     if (!(game_flags & 0x80)) {
-        ca = ca_find_character(info->alt_parent ? info->alt_parent->name : info->name);
+        if (!info->alt_parent)
+            ca = ca_find_character(info->name);
+        else
+            ca = ca_find_character(info->alt_parent->name);
         if (ca)
             ca->unlock_skeleton_count();
     }
@@ -2150,14 +2169,20 @@ void charinfo_mark_anims_unloaded(char_info *info)
     info->anim_class = 0;
 }
 
-// 0x448710  Confidence: likely (the two tail calls: an if / else in the source).
+// 0x448710  Confidence: exact (VC6 byte match) (the two tail calls: an if / else in the source).
 void charinfo_unload_anims(char_info *info)
 {
     ca_character *ca;
     move_info *m;
     int i;
 
-    ca = ca_find_character(info->alt_parent ? info->alt_parent->name : info->name);
+    if (!info->alt_parent)
+
+        ca = ca_find_character(info->name);
+
+    else
+
+        ca = ca_find_character(info->alt_parent->name);
     if (ca && ca->num_anims > 0)
         ca->free_skeletons();
     for (i = 0; i < NUM_MOVE_TYPES; i++) {
@@ -2301,7 +2326,7 @@ void characterinfo_level_unload(bool reset_player_pool)
         player_instance_mempool.Copy(player_instance_buffer, sizeof(player_instance_buffer), "Player instance");
 }
 
-// 0x448c80  Confidence: likely (jump table 0x448ce0; every case keeps its own `1.0f - x`, so the
+// 0x448c80  Confidence: exact (VC6 byte match) (jump table 0x448ce0; every case keeps its own `1.0f - x`, so the
 // subtraction is written once after the switch and the compiler copied it into the cases). Returns
 // 1 - the damage multiplier of a resistance level (weak 2.0, vulnerable 1.5, standard 1.0, strong 0.5,
 // invulnerable 0, strengthen -0.5).
@@ -2348,7 +2373,7 @@ int charinfo_find_anim(char_info *info, const char *name)
     move_info *m;
 
     for (m = (move_info *)info->moves[MOVE_TYPE_STATE]; m; m = m->next)
-        if (!_stricmp(m->action, name) && (m->anim_class & info->anim_class))
+        if (!_stricmp(m->action, name) && (info->anim_class & m->anim_class))
             return m->anim;
     return -1;
 }
@@ -2388,7 +2413,7 @@ character_instance *charinfo_create_character_instance(char_info *info, bool sum
 }
 
 // 0x448f20  Confidence: exact (the hero range is tested inline, not through species_is_hero).
-Mempool *charinfo_select_mempool(int species, bool summon)
+Mempool *charinfo_select_mempool(int species, int summon)
 {
     if (species >= SPECIES_JOSEPH && species <= SPECIES_ROSALIND)
         return &player_instance_mempool;
@@ -2443,7 +2468,7 @@ void statscreen_load_anim(Character *c, bool heavy)
     }
 }
 
-// 0x449100  Confidence: likely.
+// 0x449100  Confidence: exact (VC6 byte match).
 void statscreen_unload_anim(Character *c)
 {
     move_info *m;
@@ -2462,7 +2487,8 @@ void statscreen_unload_anim(Character *c)
     if (!m)
         m = charinfo_find_move(c->info, MOVE_TYPE_STATE, 0x9f, true);
     anim = m->anim;
-    ca_find_character(c->info->name)->free_skeleton(anim);
+    ca_character *ch = ca_find_character(c->info->name);
+    ch->free_skeleton(anim);
     for (p = party_list.next; p != &party_list; p = p->next) {
         if (p->char_info == c->info - char_infos && (lc = living_from_handle(p->handle)) != NULL) {
             lc->anim_statscreen = -1;

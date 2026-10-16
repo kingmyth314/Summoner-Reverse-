@@ -23,7 +23,8 @@ Decisions: D1700-D1712 in include/DECISIONS.md.
 
 ## Open questions
 
-- Whether the optimised tail is `#pragma optimize` or a second object (D1712).
+- Whether the optimised tail is `#pragma optimize` or a second object (D1712): settled, `#pragma optimize` in one
+  object; the bloodspots and death commands belong to combat.cpp's object (D6100).
 - Frame layout of the many case locals in get_hit_by_spell (flow likely, locals unsure).
 - lobj_hit +0x24 meaning (face index vs lobj), +0x14..+0x20 unknown.
 - combat union forces combat.construct() in the Character ctor body (D1702); split the D1 union to get

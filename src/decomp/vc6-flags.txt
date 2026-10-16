@@ -1,12 +1,14 @@
 # Compiler flags per unit for tools/vc6-compare.mjs (best match in the 2026-10-16 survey). Units not listed use
 # the default /O2 /GX /MT. Format: <path under src/decomp> <flags>
+# living_entity.cpp and the cutscene file are /O2 units that switch optimisation off with #pragma optimize
+# (D3201, D6100); objects.cpp is unoptimised throughout (/Od /Ob1 and the /O2 + pragma form tie, D6101).
 vsdk/character.cpp /O2 /Ob0 /GX /MT
 vsdk/character_instance.cpp /O2 /Ob0 /GX /MT
 vsdk/effect_mem.cpp /O2 /Ob0 /GX /MT
 vsdk/gr_direct3d.cpp /O2 /Ob0 /GX /MT
 vsdk/gr_glide.cpp /O2 /Ob0 /GX /MT
 vsdk/gr_opengl.cpp /O2 /Ob0 /GX /MT
-game/living_entity.cpp /Od /Ob1 /GX /MT
+game/living_entity.cpp /O2 /GX /MT
 vsdk/matrix.cpp /O2 /Ob0 /GX /MT
 game/new_dialogue.cpp /O2 /Ob0 /GX /MT
 game/objects.cpp /Od /Ob1 /GX /MT
@@ -16,6 +18,7 @@ vsdk/unnamed_attached_lights_0x51fb10.cpp /O2 /Ob0 /GX /MT
 vsdk/unnamed_bezier_0x558a30.cpp /O2 /Ob0 /GX /MT
 vsdk/unnamed_ca_mesh_0x50af80.cpp /O2 /Ob0 /GX /MT
 vsdk/unnamed_clip_0x5590b0.cpp /O2 /Ob0 /GX /MT
+game/unnamed_cutscene_0x434900.cpp /O2 /GX /MT
 vsdk/unnamed_ds_0x55bf90.cpp /O2 /Ob0 /GX /MT
 vsdk/unnamed_eax_0x521e40.cpp /O2 /Ob0 /GX /MT
 vsdk/unnamed_gr_3d_0x50d9b0.cpp /O2 /Ob0 /GX /MT

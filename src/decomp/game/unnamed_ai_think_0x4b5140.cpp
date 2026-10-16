@@ -726,7 +726,7 @@ void ai_state::goal_do_pickup(int target_handle)
 }
 
 // ---- think helpers -------------------------------------------------------------------------------------
-// 0x4b6940  Confidence: likely. Follows the target of the follow goal (or, in the ready stance, of the
+// 0x4b6940  Confidence: exact. Follows the target of the follow goal (or, in the ready stance, of the
 // protect goal); a type-4 owner matches the target's speed.
 void ai_state::party_follow_think()
 {

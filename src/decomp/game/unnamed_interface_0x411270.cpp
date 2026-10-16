@@ -442,7 +442,7 @@ int interface_frame(int key)
     return key;
 }
 
-// 0x411be0  Confidence: likely (the order of the tests inside the two conditions). While the tooltip is
+// 0x411be0  Confidence: exact (VC6 byte match) (the order of the tests inside the two conditions). While the tooltip is
 // shown, only the wheel, a button, a key or leaving the owner's rectangle hides it; while it is hidden any
 // mouse activity restarts the 600 ms delay.
 void ui_tooltip_hide_on_mouse_activity(int key)
@@ -523,15 +523,15 @@ void ui_tooltip_draw()
         return;
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     gr::set_clip(0, 0, gr_screen_width(), gr_screen_height());
-    ui_draw_text_box(ui_tooltip_x, ui_tooltip_y, ui_tooltip_pad_right + ui_tooltip_pad_left + ui_tooltip_text_w + 2,
-                     ui_tooltip_pad_bottom + ui_tooltip_pad_top + ui_tooltip_text_h + 2);
+    ui_draw_text_box(ui_tooltip_x, ui_tooltip_y, ui_tooltip_text_w + ui_tooltip_pad_left + ui_tooltip_pad_right + 2,
+                     ui_tooltip_text_h + ui_tooltip_pad_top + ui_tooltip_pad_bottom + 2);
     gr_set_color_ptr(&ui_color_text);
     gr_string(ui_tooltip_x + ui_tooltip_pad_left + 1, ui_tooltip_y + ui_tooltip_pad_top + 1, ui_tooltip_text, -1,
               gr_string_mode);
     gr::set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x411f80  Confidence: likely (one Color local or two: the binary reuses one stack slot). The message
+// 0x411f80  Confidence: exact (VC6 byte match) (one Color local or two: the binary reuses one stack slot). The message
 // line across the top of the 3D view, fading over its last second (4000 ms timer, alpha = remaining / 4000).
 void hud_draw_message()
 {
@@ -557,7 +557,7 @@ void hud_draw_message()
     gr_string((clip_w - w) / 2, hud_message_y[resolution_index], hud_message_text, -1, gr_string_mode);
 }
 
-// 0x4120d0  Confidence: likely (the x clamp read as `if (x <= 0) x = 0`, jg). Not drawn at all while a
+// 0x4120d0  Confidence: exact (VC6 byte match) (the x clamp read as `if (x <= 0) x = 0`, jg). Not drawn at all while a
 // tutorial page is shown.
 void hud_draw_chain_message()
 {
@@ -588,8 +588,8 @@ void hud_draw_chain_message()
 void interface_pulse_update(float frametime)
 {
     interface_pulse_time += frametime;
-    ui_pulse_scale_phase = (float)((sin(interface_pulse_time * 3.1415927f) + 1.0f) * 0.5f);
-    ui_pulse_rgb_phase = (float)((sin(interface_pulse_time * 9.424778f) + 1.0f) * 0.5f);
+    ui_pulse_scale_phase = (sinf(interface_pulse_time * 3.1415927f) + 1.0f) * 0.5f;
+    ui_pulse_rgb_phase = (sinf(interface_pulse_time * 9.424778f) + 1.0f) * 0.5f;
 }
 
 // 0x412220  Confidence: likely (the input-locked and default cases may be one tail-merged block). The 3D
@@ -884,7 +884,7 @@ void interface_set_screen(int id, void *arg)
     interface_start_input_delay();
 }
 
-// 0x412ab0  Confidence: likely (which of the true cases are explicit labels cannot be told from the byte
+// 0x412ab0  Confidence: exact (which of the true cases are explicit labels cannot be told from the byte
 // table 0x412ad8: screens 0, 3-6, 9, 13, 19 and 20 show the 3D view, the rest cover it).
 bool interface_screen_is_fullscreen()
 {
@@ -950,7 +950,7 @@ void interface_refresh_cur_screen()
         refresh();
 }
 
-// 0x412dd0  Confidence: likely (the loop is strength-reduced to a pointer and a down counter). The model's
+// 0x412dd0  Confidence: exact (the loop is strength-reduced to a pointer and a down counter). The model's
 // textures (the multiplayer appearance's when the record is a multiplayer copy).
 void statscreen_set_reduced_textures(int reduced)
 {
@@ -1040,13 +1040,15 @@ Character *party_find_next_member(bool skip_summon)
 
     if (!c)
         return c;
-    start = player_from_handle(c->handle);
-    if (!start)
+    p = player_from_handle(c->handle);
+    if (!p)
         return c;
-    skip = cur_level_index == 4 ? (CF_SUMMONLIKE | CF_DEAD) : (CF_SUMMONLIKE | CF_HIDDEN | CF_DEAD);
+    start = p;
+    skip = CF_SUMMONLIKE | CF_DEAD;
+    if (cur_level_index != 4)
+        skip |= CF_HIDDEN;
     if (skip_summon)
         skip |= CF_SUMMON;
-    p = start;
     do {
         p = p == party_list.prev ? party_list.next : p->next;
         c = living_from_handle(p->handle);
@@ -1089,10 +1091,10 @@ void statscreen_show_prev_member(bool skip_summon)
     statscreen_refresh_anim(party_find_prev_member(skip_summon));
 }
 
-// 0x413360  Confidence: likely (the multiplayer loop's condition order). Selects the next (or previous)
+// 0x413360  Confidence: exact (VC6 byte match) (the multiplayer loop's condition order). Selects the next (or previous)
 // party member that is not summon-like, hidden or dead; in multiplayer the next one this player owns
 // (always forward). True when the leader changed.
-bool party_cycle(int forward)
+int party_cycle(int forward)
 {
     Player *start = party_leader;
     Player *p = party_leader;
@@ -1105,10 +1107,11 @@ bool party_cycle(int forward)
                 p = party_list.next;
             c = living_from_handle(p->handle);
         } while (!c || (p != start && ((c->flags & (CF_SUMMONLIKE | CF_HIDDEN | CF_DEAD)) || p->mp_owner != mp_local_player)));
-        if (p == party_leader)
-            return false;
-        party_select_member(p);
-        return true;
+        if (p != party_leader) {
+            party_select_member(p);
+            return 1;
+        }
+        return 0;
     }
     if (forward) {
         do {
@@ -1132,7 +1135,9 @@ bool party_cycle(int forward)
 // 0x413460  Confidence: exact.
 bool point_in_rect(int px, int py, int x, int y, int w, int h)
 {
-    return px >= x && px < x + w && py >= y && py < y + h;
+    if (px >= x && px < x + w && py >= y && py < y + h)
+        return true;
+    return false;
 }
 
 // 0x4134a0  Confidence: exact.
@@ -1151,8 +1156,8 @@ void ui_draw_panel_frame(int x, int y, int w, int h)
     gr_rect(x + ui_frame_inset_x[resolution_index], y + ui_frame_inset_y[resolution_index], w, h, gr_rect_mode, 1.0f);
     gr_set_color_ptr(&ui_color_panel_frame);
     for (i = 0; i <= ui_frame_border[resolution_index]; i++)
-        gr_rect(x + i, y + ui_frame_border[resolution_index] - i, w - 2 * i,
-                h - 2 * (ui_frame_border[resolution_index] - i), gr_rect_mode, 1.0f);
+        gr_rect(x + i, y + (ui_frame_border[resolution_index] - i), w - 2 * i,
+                h - (ui_frame_border[resolution_index] - i) * 2, gr_rect_mode, 1.0f);
     gr_set_color_ptr(&ui_color_panel_inner);
     gr_rect(x + ui_frame_border[resolution_index], y + ui_frame_border[resolution_index],
             w - 2 * ui_frame_border[resolution_index], h - 2 * ui_frame_border[resolution_index], gr_rect_mode, 1.0f);
@@ -1297,7 +1302,7 @@ int ui_choice_popup_hit_test()
     return -1;
 }
 
-// 0x413a90  Confidence: likely (the drag rectangle's statement order). Mouse held: the pressed entry
+// 0x413a90  Confidence: exact (VC6 byte match) (the drag rectangle's statement order). Mouse held: the pressed entry
 // stays highlighted while the mouse is on it; leaving it with flag 4 drags the entry's icon to the hot
 // buttons (value bit 1 skill / spell, bits 2- the id). On release: the entry (sound 0x23), a release
 // inside the popup re-arms it, outside cancels (sound 0x24) unless flag 8.
@@ -1387,10 +1392,11 @@ void ui_choice_popup_draw()
     }
 }
 
-// 0x413e20  Confidence: exact (neg / sbb / neg).
+// 0x413e20  Confidence: exact (neg / sbb / neg: the masked flag goes through an int).
 bool ui_choice_popup_is_active()
 {
-    return (ui_choice_popup_flags & 0x80000000) != 0;
+    int active = ui_choice_popup_flags & 0x80000000;
+    return active != 0;
 }
 
 // 0x413e40  Confidence: likely (the clamps as in ui_choice_popup_show). Flag 1 pauses a single-player
@@ -1580,10 +1586,11 @@ void ui_message_box_draw()
     }
 }
 
-// 0x4144d0  Confidence: exact.
+// 0x4144d0  Confidence: exact (as ui_choice_popup_is_active).
 bool ui_message_box_is_active()
 {
-    return (ui_message_box_flags & 0x80000000) != 0;
+    int active = ui_message_box_flags & 0x80000000;
+    return active != 0;
 }
 
 // 0x4144f0  Confidence: exact. The bitmap at its size times ui_scale (h is converted first: the arguments
@@ -1610,20 +1617,22 @@ void ui_clear_pick_overrides()
 // 0x414580  Confidence: exact.
 bool ui_get_pick_screen_override(float *x, float *y)
 {
-    if (!ui_pick_screen_override_on)
-        return false;
-    *x = ui_pick_override_x;
-    *y = ui_pick_override_y;
-    return true;
+    if (ui_pick_screen_override_on) {
+        *x = ui_pick_override_x;
+        *y = ui_pick_override_y;
+        return true;
+    }
+    return false;
 }
 
 // 0x4145b0  Confidence: exact (the inline vector3 assignment, three dwords; the first through the FPU).
 bool ui_get_pick_world_override(vector3 *pos)
 {
-    if (!ui_pick_world_override_on)
-        return false;
-    *pos = ui_pick_world_override_pos;
-    return true;
+    if (ui_pick_world_override_on) {
+        *pos = ui_pick_world_override_pos;
+        return true;
+    }
+    return false;
 }
 
 // 0x4145e0  Confidence: exact. The leader's ground ring, turning at 90 degrees a second.
@@ -1635,10 +1644,10 @@ void game_draw_leader_marker()
     if (leader_marker_phase < 0.0f)
         leader_marker_phase += 360.0f;
     gr_set_color(255, 255, 255, 255);
-    if (cur_character->info->size == 1)
-        place_ground_decal(cursorspot_focus_bm, &cur_character->pos, leader_marker_phase, 1.5f, 1.5f);
-    else
+    if (cur_character->info->size != 1)
         place_ground_decal(cursorspot_focus_large_bm, &cur_character->pos, leader_marker_phase, 1.5f, 1.5f);
+    else
+        place_ground_decal(cursorspot_focus_bm, &cur_character->pos, leader_marker_phase, 1.5f, 1.5f);
 }
 
 // 0x4146a0  Confidence: exact.
@@ -1653,7 +1662,7 @@ void ui_input_unlock()
     ui_input_locked = false;
 }
 
-// 0x4146c0  Confidence: likely (whether the version numbers were macros). "v1.40", bottom right, dark grey.
+// 0x4146c0  Confidence: exact (whether the version numbers were macros). "v1.40", bottom right, dark grey.
 void options_draw_version()
 {
     int w, h;
@@ -1743,7 +1752,7 @@ void cutscene_loading_finish()
     cutscene_draw_loading();
 }
 
-// 0x414a20  Confidence: likely (the length test twice: three inline strlen, the third is strcpy's).
+// 0x414a20  Confidence: exact (VC6 byte match) (the length test twice: three inline strlen, the third is strcpy's).
 void hud_show_message(const char *text)
 {
     if (strlen(text) > 63)
@@ -1754,7 +1763,7 @@ void hud_show_message(const char *text)
     hud_message_timer.SetTimeout(4000);
 }
 
-// 0x414a80  Confidence: likely (as hud_show_message).
+// 0x414a80  Confidence: exact (VC6 byte match) (as hud_show_message).
 void hud_show_chain_message(const char *text)
 {
     if (strlen(text) > 15)
@@ -1765,43 +1774,68 @@ void hud_show_chain_message(const char *text)
     hud_chain_message_timer.SetTimeout(4000);
 }
 
-// 0x414ae0  Confidence: likely (the clamp may be a macro). Each component times (pulse + bias), 0..1.
+// 0x414ae0  Confidence: exact (VC6 byte match; the value stays on the x87 stack and is stored after each step,
+// and the last component stores in an if / else: probably a clamp macro). Each component times (pulse + bias), 0..1.
 void color_pulse_scale(float *r, float *g, float *b, float bias)
 {
-    *r *= ui_pulse_scale_phase + bias;
-    if (*r >= 1.0f)
-        *r = 1.0f;
-    if (*r <= 0.0f)
-        *r = 0.0f;
-    *g *= ui_pulse_scale_phase + bias;
-    if (*g >= 1.0f)
-        *g = 1.0f;
-    if (*g <= 0.0f)
-        *g = 0.0f;
-    *b *= ui_pulse_scale_phase + bias;
-    if (*b >= 1.0f)
-        *b = 1.0f;
-    if (*b <= 0.0f)
+    float v;
+
+    v = *r * (ui_pulse_scale_phase + bias);
+    *r = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *r = v;
+    if (v <= 0.0f)
+        v = 0.0f;
+    *r = v;
+    v = *g * (ui_pulse_scale_phase + bias);
+    *g = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *g = v;
+    if (v <= 0.0f)
+        v = 0.0f;
+    *g = v;
+    v = *b * (ui_pulse_scale_phase + bias);
+    *b = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *b = v;
+    if (v > 0.0f)
+        *b = v;
+    else
         *b = 0.0f;
 }
 
-// 0x414bb0  Confidence: likely (as color_pulse_scale, with the faster pulse).
+// 0x414bb0  Confidence: exact (VC6 byte match) (as color_pulse_scale, with the faster pulse).
 void ui_apply_pulse_rgb(float *r, float *g, float *b, float offset)
 {
-    *r *= ui_pulse_rgb_phase + offset;
-    if (*r >= 1.0f)
-        *r = 1.0f;
-    if (*r <= 0.0f)
-        *r = 0.0f;
-    *g *= ui_pulse_rgb_phase + offset;
-    if (*g >= 1.0f)
-        *g = 1.0f;
-    if (*g <= 0.0f)
-        *g = 0.0f;
-    *b *= ui_pulse_rgb_phase + offset;
-    if (*b >= 1.0f)
-        *b = 1.0f;
-    if (*b <= 0.0f)
+    float v;
+
+    v = *r * (ui_pulse_rgb_phase + offset);
+    *r = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *r = v;
+    if (v <= 0.0f)
+        v = 0.0f;
+    *r = v;
+    v = *g * (ui_pulse_rgb_phase + offset);
+    *g = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *g = v;
+    if (v <= 0.0f)
+        v = 0.0f;
+    *g = v;
+    v = *b * (ui_pulse_rgb_phase + offset);
+    *b = v;
+    if (v >= 1.0f)
+        v = 1.0f;
+    *b = v;
+    if (v > 0.0f)
+        *b = v;
+    else
         *b = 0.0f;
 }
 
@@ -1822,8 +1856,12 @@ void cmd_show_ui()
         }
         ui_input_locked = !ui_input_locked;
     }
-    if (checking_status_for_command)
-        print_to_console(ui_input_locked ? "HUD is currently hidden" : "HUD is currently visible", 0);
+    if (checking_status_for_command) {
+        if (ui_input_locked)
+            print_to_console("HUD is currently hidden", 0);
+        else
+            print_to_console("HUD is currently visible", 0);
+    }
     if (doing_help_for_comand)
         print_to_console("Toggles the visibility of the HUD.\n", 0);
 }

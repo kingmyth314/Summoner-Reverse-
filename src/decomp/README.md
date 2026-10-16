@@ -81,7 +81,7 @@ Rules:
 | `game/unnamed_interface_0x411270.cpp` | interface manager `0x411270`-`0x414cb0` (**file name not known; placeholder**) | 122 | 98 / 23 / 1 |
 | `game/unnamed_editor_dialogs_0x430bc0.cpp`, `unnamed_states_0x431870.cpp`, `unnamed_frame_0x4323e0.cpp` | editor dialogs, boot/title/load-game states, frame end and input (**names not known**) | 79 | 66 / 13 / 0 (`NOTES-unnamed-states.md`) |
 | `game/unnamed_script_editor_0x4de0b0.cpp` | Volition's level script editor `0x4de0b0`-`0x4ecf90` (**name not known**) | 508 | 460 / 46 / 6 (`NOTES-unnamed-script-editor.md`) |
-| `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 46 / 8 / 0 (`NOTES-unnamed-input-cutscene.md`) |
+| `game/unnamed_input_0x4343a0.cpp`, `unnamed_cutscene_0x434900.cpp` | player input / camera keys, and cutscene playback (unoptimised) (**names not known**) | 54 | 50 / 4 / 0 (`NOTES-unnamed-input-cutscene.md`; VC6 25 of 26 compared functions byte-identical, D6101) |
 | `game/unnamed_mpmenus_0x43eb00.cpp`, `unnamed_lobby_0x43ef30.cpp`, `unnamed_mlayout_0x43f9d0.cpp`, `unnamed_effectstream_0x440400.cpp`, `unnamed_netsession_0x440b40.cpp`, `unnamed_netpackets_0x441820.cpp` | multiplayer menus, IRC lobby, monster layouts, effect streaming, net session and packets (**names not known**) | 129 | 94 / 35 / 0 (`NOTES-unnamed-multi-net.md`) |
 | `game/unnamed_goals_doors_0x475180.cpp`, `unnamed_camera_0x4778b0.cpp` | multiplayer helpers, AI goals, doors and level objects; the game camera (**names not known**) | 122 | 87 / 33 / 2 (`NOTES-unnamed-goals-camera.md`) |
 | `game/unnamed_render_scene_0x481680.cpp`, `unnamed_shadow_table_0x487440.cpp`, `unnamed_equip_packets_0x4878a0.cpp` | level frame, fog, vis sets, draw lists, labels, lamp glows, detail levels; shadows.tbl and ground decals; equip packets (**names not known**) | 109 of 110 | 69 / 40 / 0 (`NOTES-unnamed-render-shadows-equip.md`) |
@@ -108,14 +108,14 @@ Rules:
 | `game/multispell.cpp` | `multispell.cpp` | 22 | 16 / 6 / 0 |
 | `game/multi_door.cpp`, `game/new_int_multi_update.cpp` | | 6 + 5 | |
 | `game/multiendgame.cpp`, `new_multi.cpp`, `multiplayerdata.cpp`, `summoner_cd.cpp`, `pathfinding_visibility.cpp` (`engine\ai\`) | one file each | 48 | 17 / 29 / 2 (see `NOTES-multi-small.md`; summoner_cd is written without the no-CD byte patch the shipped exe carries, D2600) |
-| `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 37 / 10 / 1 |
-| `game/living_entity.cpp` | `living_entity.cpp` (unoptimised) | 166 | 97 / 69 / 0 |
+| `game/objects.cpp` | `objects.cpp` (`0x4697e0`-`0x46b45b`, unoptimised) | 48 | 46 / 1 / 1 (VC6 38 of 40 byte-identical, D6101) |
+| `game/living_entity.cpp` | `living_entity.cpp` (`0x44d9f0`-`0x46335f`; unoptimised, the tail from `0x461dc0` optimised by `#pragma optimize`, D6100) | 160 | 118 / 42 / 0 (VC6 88 of 132 byte-identical) |
 | `game/items.cpp` | `items.cpp` (`0x449d90`-`0x44d9ee`) | 41 | 31 / 10 / 0 |
 | `game/characterinfo.cpp` | `characterinfo.cpp` | 122 | 81 / 26 / 15 (the 15 are empty Mempool initialisers) |
 | `game/s3d.cpp` | `s3d.cpp` (`0x46dd30`-`0x470560`) | 52 | 37 / 15 / 0 |
 | `game/levelrender.cpp` | `levelrender.cpp` (`0x48db30`-`0x492af0`) | 30 of 39 (the three draw-list back ends left) | 13 / 5 / 12 |
 | `game/spells.cpp` | `spells.cpp` | 47 of 53 (spell_spawn_creature and summon_create left; decomp73 added spell_prepare_cast, spell_cast_execute, spell_cast_launch_effects) | 30 / 17 / 0 |
-| `game/combat.cpp` | `combat.cpp` (`0x464010`-`0x469010`) | 60 of 63 (decomp73: combat_trigger_reflex_ability) | 38 / 21 / 1 |
+| `game/combat.cpp` | `combat.cpp` (`0x463360`-`0x468c77`: the bloodspots / death console commands first, D6100) | 66 of 69 (decomp73: combat_trigger_reflex_ability) | 48 / 17 / 1 |
 | `game/boss_ai.cpp` | `boss_ai.cpp` (`0x4a04b0`-`0x4a3575`) | 59 | 42 / 17 / 0 |
 | `game/ai.cpp` | `ai.cpp` (+ the 3 cast_effect functions after it, D1905) | 110 | 76 / 30 / 4 |
 | `game/pathfinding.cpp` | `pathfinding.cpp` (`0x49c840`-`0x4a04af`) | 40 | 20 / 20 / 0 |

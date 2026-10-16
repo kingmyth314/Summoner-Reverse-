@@ -467,7 +467,7 @@ pf_bsp *pf_bsp_node_find(pf_bsp *node, const vector2 *pt)
     return NULL;
 }
 
-// 0x4a5d40  Confidence: likely (the profile label). The BSP root of the current graph (layer -1) or of
+// 0x4a5d40  Confidence: exact (the profile label). The BSP root of the current graph (layer -1) or of
 // the given layer of the current size class.
 pf_bsp *pf_bsp_find_cell(const vector3 *pos, int layer)
 {

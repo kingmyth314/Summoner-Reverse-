@@ -17,8 +17,8 @@
 // first, then the rest of the file is compiled without optimisation (ebp frames, 0xcc padding, every
 // statement reloads its operands; this file's own ccmd initialisers 0x4374a0.. open ebp frames too).
 // /Oi stays on (inline strlen / strcpy / strcmp), as in objects.cpp and living_entity.cpp.
-// Local variables: VC6 /Od gives the first declared local the highest address (ebp-4 downwards); the
-// declarations reproduce the frame offsets noted per function (block locals after the function's own).
+// Local variables: VC6 12.00.8168 lays out /Od locals by a hash of their names (DECISIONS.md D6101; block
+// locals after the function's own): names and declaration order reproduce the frame offsets noted per function.
 //
 // Data: .data 0x59399c-0x593c31 (cutscene_saved_music, cutscene_stream_sound, then the literals),
 // .bss 0x5fccc0-0x609f3b. The float literals 1000.0 (0x57ef28), 1.0 (0x57e990), 0.0 (0x57eb84) are shared
@@ -130,19 +130,19 @@ cutscene_entry::cutscene_entry()
         fades[i] = NULL;
 }
 
-// 0x434b40  Confidence: likely (exact flow; the frame order puts the File and the first float of each
+// 0x434b40  Confidence: exact (exact flow; the frame order puts the File and the first float of each
 // file in the loop block). Each $Camera file: magic "CSCR" (0x52435343), version >= 0x20000, two floats
 // that are not used, the shot count, then the shots; each shot starts where the previous one ended.
 // The path test reads this->path_id, File::open the object's field by its address (cutscene_path_id).
 bool cutscene::load_files(cutscene_entry *e)
 {
-    int i;                            // ebp-0x10 (EH frame above)
-    float start = 0;                  // ebp-0x14
-    int magic;                        // ebp-0x18
-    float unused_b;                   // ebp-0x1c
+    int ix;                            // ebp-0x10 (EH frame above)
+    float first = 0;                  // ebp-0x14
     int version;                      // ebp-0x20
+    float pad;                   // ebp-0x1c
+    int ident;                        // ebp-0x18
     int j;                            // ebp-0x24
-    int count;                        // ebp-0x28
+    int num;                        // ebp-0x28
 
     if (path_id < 0)
         return false;
@@ -150,14 +150,14 @@ bool cutscene::load_files(cutscene_entry *e)
     cur_sequence = -1;
     cur_fade_event = 0;
     cutscene_camera_tracks_clear();
-    for (i = 0; i < e->num_cameras; i++) {
+    for (ix = 0; ix < e->num_cameras; ix++) {
         File f;                       // ebp-0x13c
-        float unused_a;               // ebp-0x140
+        float reserved;               // ebp-0x140
 
-        if (f.open(e->cameras[i], 1, cutscene_path_id) < 0)
+        if (f.open(e->cameras[ix], 1, cutscene_path_id) < 0)
             return false;
-        magic = f.read_int(0, 0);
-        if (magic != 0x52435343) {
+        ident = f.read_int(0, 0);
+        if (ident != 0x52435343) {
             f.close();
             return false;
         }
@@ -167,46 +167,46 @@ bool cutscene::load_files(cutscene_entry *e)
             return false;
         }
         f.set_version(version);
-        unused_a = f.read_float(0, 0);
-        unused_b = f.read_float(0, 0);
-        if (i == 0)
-            time_offset = start;
-        count = f.read_int(0, 0);
-        if (count <= 0) {
+        reserved = f.read_float(0, 0);
+        pad = f.read_float(0, 0);
+        if (ix == 0)
+            time_offset = first;
+        num = f.read_int(0, 0);
+        if (num <= 0) {
             f.close();
             return false;
         }
-        for (j = 0; j < count; j++) {
-            sequences[num_sequences + j].read_track(&f, start);
-            start = sequences[num_sequences + j].end;
+        for (j = 0; j < num; j++) {
+            sequences[num_sequences + j].read_track(&f, first);
+            first = sequences[num_sequences + j].end;
         }
-        if (i == e->num_cameras - 1)
-            end_time = start;
-        num_sequences += count;
+        if (ix == e->num_cameras - 1)
+            end_time = first;
+        num_sequences = num_sequences + num;
         f.close();
     }
     return true;
 }
 
-// 0x434e20  Confidence: exact. i ebp-4, ok ebp-8, c ebp-0xc (this ebp-0x10, then the strcmp temporaries).
+// 0x434e20  Confidence: exact. i ebp-4, ok ebp-8, actor ebp-0xc (this ebp-0x10, then the strcmp temporaries).
 // The effects without a shot: on the named actor, else (no such actor, or no name) in the world.
 bool cutscene::bind_actors(cutscene_entry *e)
 {
     int i;
     bool ok;
-    Character *c;
+    Character *actor;
 
     ok = true;
     if (path_id < 0)
         return false;
     for (i = 0; i < e->num_effects; i++) {
         if (e->effects[i]->character != NULL) {
-            for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-                if (strcmp(c->get_name(), e->effects[i]->character) == 0)
+            for (actor = living_list.live_next; actor != &living_list; actor = actor->live_next) {
+                if (strcmp(actor->get_name(), e->effects[i]->character) == 0)
                     break;
             }
-            if (c != &living_list)
-                effect_handles[i] = fx_attach_to_character(e->effects[i]->name, c->handle, -1, -1, 1, 0);
+            if (actor != &living_list)
+                effect_handles[i] = fx_attach_to_character(e->effects[i]->name, actor->handle, -1, -1, 1, 0);
             else
                 effect_handles[i] = fx_add_effect(e->effects[i]->name, &vector3_zero, &identity_matrix, 0);
         } else {
@@ -332,7 +332,7 @@ void cutscene::clear_data_path()
     }
 }
 
-// 0x4353e0  Confidence: likely. ok ebp-4. Each failure stores false and jumps to its own stub after the
+// 0x4353e0  Confidence: exact. ok ebp-4. Each failure stores false and jumps to its own stub after the
 // final return (0x43548b / 0x43548d / 0x43548f, innermost first), and each stub jumps back to the common
 // tail 0x435460, which the success path reaches by falling through: the tail sits inside the innermost
 // else and the stubs are gotos after each if / else (the reconstruction of that layout; the original
@@ -390,25 +390,25 @@ void cutscene::get_fog_distances(float *near_out, float *far_out)
     *far_out = data->fogs[i - 1]->far_dist;
 }
 
-// 0x435520  Confidence: exact. next ebp-4, j ebp-8 (unsigned: jae), vs ebp-0xc. The next $VisSet once
+// 0x435520  Confidence: exact. nexti ebp-4, j ebp-8 (unsigned: jae), vs_cur ebp-0xc. The next $VisSet once
 // its shot is the current one.
 void cutscene::apply_vis_overrides()
 {
-    int next;
     unsigned int j;
-    cutscene_visset *vs;
+    int nexti;
+    cutscene_visset *vs_cur;
 
     if (data->num_vissets == 0)
         return;
-    next = vis_index + 1;
-    if (next >= data->num_vissets)
+    nexti = vis_index + 1;
+    if (nexti >= data->num_vissets)
         return;
-    if (cur_sequence == data->vissets[next]->shot) {
+    if (cur_sequence == data->vissets[nexti]->shot) {
         level_vis_force_reset();
-        vs = data->vissets[next];
-        for (j = 0; j < vs->count; j++)
-            level_vis_force_add(vs->names[j]);
-        vis_index = next;
+        vs_cur = data->vissets[nexti];
+        for (j = 0; j < vs_cur->count; j++)
+            level_vis_force_add(vs_cur->names[j]);
+        vis_index = nexti;
     }
 }
 
@@ -553,28 +553,28 @@ void cutscene_parse_table()
     tf.Close();
 }
 
-// 0x435ff0  Confidence: exact. n ebp-4, i ebp-8, vs ebp-0xc, buf ebp-0x10c, s ebp-0x110. 0 after one
+// 0x435ff0  Confidence: exact. idx ebp-4, ix ebp-8, vs ebp-0xc, buf ebp-0x10c, s ebp-0x110. 0 after one
 // "$VisSet: shot "$vis.." .." line, -1 when there is none (the normal end of the list) or it is bad
 // (17th set, shots not growing, more than 16 names, a name not starting "$vis", pool full).
 int cutscene_parse_visset(cutscene_entry *e, TextFile *tf)
 {
-    int n;
-    int i;
-    cutscene_visset *vs;
+    int idx;
     char buf[0x100];
+    cutscene_visset *vs;
+    int ix;
     char *s;
 
-    n = e->num_vissets;
-    if (n >= MAX_CUTSCENE_VISSETS)
+    idx = e->num_vissets;
+    if (idx >= MAX_CUTSCENE_VISSETS)
         return -1;
     if (!tf->Accept("$VisSet:"))
         return -1;
     vs = (cutscene_visset *)cutscene_alloc_pool.Alloc(0x44);
-    for (i = 0; i < 16; i++)
-        vs->names[i] = NULL;
-    e->vissets[n] = vs;
+    for (ix = 0; ix < 16; ix++)
+        vs->names[ix] = NULL;
+    e->vissets[idx] = vs;
     vs->shot = tf->ParseInt();
-    if (n > 0 && e->vissets[n - 1]->shot >= vs->shot)
+    if (idx > 0 && e->vissets[idx - 1]->shot >= vs->shot)
         return -1;
     vs->count = 0;
     while (tf->Peek("\"")) {
@@ -594,14 +594,14 @@ int cutscene_parse_visset(cutscene_entry *e, TextFile *tf)
     return 0;
 }
 
-// 0x4361d0  Confidence: exact. i ebp-4, c ebp-8. The first entry with the name on this level or on "any",
+// 0x4361d0  Confidence: exact. i ebp-4, ch ebp-8. The first entry with the name on this level or on "any",
 // or ANY entry whose level is "Placeholder" whatever its name (none in retail).
 // GAME BUG (latent; docs/sum-exe/cutscenes.md): a failed cutscene_load_data returns here with the input
 // locked, the summon stashed and the music stopped, and cutscene_saved_actors (175 slots) has no bound.
 void cutscene_play(const char *name)
 {
     int i;
-    Character *c;
+    Character *ch;
 
     for (i = 0; i < cutscene_num_entries; i++) {
         if ((_stricmp(cutscene_entries[i].name, name) == 0 && _stricmp(cutscene_entries[i].level, level_filename) == 0)
@@ -631,22 +631,22 @@ void cutscene_play(const char *name)
                 level_vis_force_begin();
             cutscene_script_load(name);
             cutscene_num_saved_actors = 0;
-            for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-                c->ai.goals_mark_keep();
-                c->clear_all_effects();
-                if (c->cutscene_object >= 0) {
-                    c->prop_tag = c->default_prop_tag;
-                    if (c->anim_stand != c->anim_ready)
-                        c->flags &= ~CF_COMBAT_READY;
+            for (ch = living_list.live_next; ch != &living_list; ch = ch->live_next) {
+                ch->ai.goals_mark_keep();
+                ch->clear_all_effects();
+                if (ch->cutscene_object >= 0) {
+                    ch->prop_tag = ch->default_prop_tag;
+                    if (ch->anim_stand != ch->anim_ready)
+                        ch->flags &= ~CF_COMBAT_READY;
                 }
-                if ((c->flags & 0x400) || c->ai.is_mode(9, -1))
-                    c->ai.go_idle();
-                c->flags &= ~0x400;
-                cutscene_saved_actors[cutscene_num_saved_actors].name_hash = name_hash_nocase(c->get_name());
-                cutscene_saved_actors[cutscene_num_saved_actors].summonlike = (c->flags & CF_SUMMONLIKE) != 0;
-                cutscene_saved_actors[cutscene_num_saved_actors].flag_20 = (c->flags & 0x20) != 0;
-                cutscene_saved_actors[cutscene_num_saved_actors].alt_texture = (c->flags & 0x2000000) != 0;
-                cutscene_saved_actors[cutscene_num_saved_actors].active = (c->obj_flags & 1) != 0;
+                if ((ch->flags & 0x400) || ch->ai.is_mode(9, -1))
+                    ch->ai.go_idle();
+                ch->flags &= ~0x400;
+                cutscene_saved_actors[cutscene_num_saved_actors].name_hash = name_hash_nocase(ch->get_name());
+                cutscene_saved_actors[cutscene_num_saved_actors].summonlike = (ch->flags & CF_SUMMONLIKE) != 0;
+                cutscene_saved_actors[cutscene_num_saved_actors].flag_20 = (ch->flags & 0x20) != 0;
+                cutscene_saved_actors[cutscene_num_saved_actors].alt_texture = (ch->flags & 0x2000000) != 0;
+                cutscene_saved_actors[cutscene_num_saved_actors].active = (ch->obj_flags & 1) != 0;
                 cutscene_num_saved_actors++;
             }
             hover_tint_set_object(NULL, 0, 0, 0);
@@ -671,15 +671,15 @@ void cutscene_start_special_cases(const char *name)
         Snow_enabled = false;
 }
 
-// 0x436620  Confidence: exact. i ebp-4, c ebp-8, hash ebp-0xc, next ebp-0x10, fx ebp-0x14. The first saved
+// 0x436620  Confidence: exact. i ebp-4, ch ebp-8, hash ebp-0xc, next ebp-0x10, cur ebp-0x14. The first saved
 // record with the character's name hash wins.
 void cutscene_cleanup()
 {
     int i;
-    Character *c;
-    int hash;
+    Character *ch;
+    effect_object *cur;
     effect_object *next;
-    effect_object *fx;
+    int hash;
 
     if (!(game_flags & GF_CUTSCENE) || cutscene_data == NULL)
         return;
@@ -701,38 +701,38 @@ void cutscene_cleanup()
     gr_set_vsync(false);
     cutscene_end_special_cases(cutscene_data->name);
     cutscene_script_unload();
-    for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        hash = name_hash_nocase(c->get_name());
-        c->ai.goals_mark_keep();
-        c->set_speed_scale(c->run_speed, false);
-        if (c->flags & 0x10) {
-            c->set_ai_active(1);
-            c->flags &= ~0x10;
+    for (ch = living_list.live_next; ch != &living_list; ch = ch->live_next) {
+        hash = name_hash_nocase(ch->get_name());
+        ch->ai.goals_mark_keep();
+        ch->set_speed_scale(ch->run_speed, false);
+        if (ch->flags & 0x10) {
+            ch->set_ai_active(1);
+            ch->flags &= ~0x10;
         }
         for (i = 0; i < cutscene_num_saved_actors; i++) {
             if (cutscene_saved_actors[i].name_hash == hash) {
-                if (c->type != 7 && cutscene_saved_actors[i].summonlike)
-                    c->flags |= CF_SUMMONLIKE;
+                if (ch->type != 7 && cutscene_saved_actors[i].summonlike)
+                    ch->flags |= CF_SUMMONLIKE;
                 else
-                    c->flags &= ~CF_SUMMONLIKE;
+                    ch->flags &= ~CF_SUMMONLIKE;
                 if (cutscene_saved_actors[i].flag_20)
-                    c->flags |= 0x20;
+                    ch->flags |= 0x20;
                 else
-                    c->flags &= ~0x20;
-                if (c->info->species == 0) {
+                    ch->flags &= ~0x20;
+                if (ch->info->species == 0) {
                     if (cutscene_saved_actors[i].alt_texture)
-                        c->set_armour_alt_texture(1, 0);
+                        ch->set_armour_alt_texture(1, 0);
                     else
-                        c->set_armour_alt_texture(0, 0);
+                        ch->set_armour_alt_texture(0, 0);
                 }
                 if (cutscene_saved_actors[i].active)
-                    c->obj_flags |= 1;
+                    ch->obj_flags |= 1;
                 else
-                    c->obj_flags &= ~1;
+                    ch->obj_flags &= ~1;
                 break;
             }
         }
-        c->refresh_item_status_effects();
+        ch->refresh_item_status_effects();
     }
     level_ambient_unpause_all();
     game_camera.end_sequence(true);
@@ -741,9 +741,9 @@ void cutscene_cleanup()
     if (cutscene_data->num_vissets != 0)
         level_vis_force_end();
     if (cur_summon != NULL && (cur_summon->flags & 0x800)) {
-        for (fx = fx_active_list.fx_next; next = fx->fx_next, fx != &fx_active_list; fx = next) {
-            if (fx->owner == cur_summon->handle)
-                fx_destroy(fx->handle);
+        for (cur = fx_active_list.fx_next; next = cur->fx_next, cur != &fx_active_list; cur = next) {
+            if (cur->owner == cur_summon->handle)
+                fx_destroy(cur->handle);
         }
     }
     printf("killing off %d effects\n", cutscene_data->num_shot_effects);
@@ -776,27 +776,27 @@ void cutscene_end_special_cases(const char *name)
         Snow_enabled = true;
 }
 
-// 0x436a90  Confidence: likely (the `fst / fmul 1.0 / fst` chain is written as nested assignments to t; the
-// 1.0 is perhaps a time-scale macro). remaining ebp-4, t ebp-8; ebp-0x10 / -0xc and -0x18 / -0x14 are the
+// 0x436a90  Confidence: exact (the `fst / fmul 1.0 / fst` chain is written as nested assignments to t; the
+// 1.0 is perhaps a time-scale macro). rem ebp-4, t ebp-8; ebp-0x10 / -0xc and -0x18 / -0x14 are the
 // compiler's 64-bit conversion temporaries of the two unsigned operands (G3, see the file comment).
 void cutscene_sequence_update()
 {
-    float remaining;
+    float rem;
     float t;
 
     if (!(game_flags & GF_CUTSCENE) || cutscene_data == NULL || game_is_paused())
         return;
     cutscene_sequence_started = false;
     if (cutscene_cur_sequence < 0) {
-        remaining = 0;
+        rem = 0;
     } else {
         // G3: FISUB dword of the unsigned start time (signed 32-bit load).
         cutscene_frametime = (t = (t = ((float)timeGetTime() - sequence_start_time) / 1000.0f) * 1.0f)
                              - cutscene_last_time;
         cutscene_last_time = t;
-        remaining = cutscene_sequences[cutscene_cur_sequence].end - cutscene_time_offset - t;
+        rem = cutscene_sequences[cutscene_cur_sequence].end - cutscene_time_offset - t;
     }
-    if (remaining <= 0.0f) {
+    if (rem <= 0.0f) {
         cutscene_cur_sequence++;
         if (cutscene_cur_sequence >= cutscene_num_sequences) {
             cutscene_cleanup();
@@ -814,22 +814,22 @@ void cutscene_sequence_update()
     }
 }
 
-// 0x436c00  Confidence: likely (the fade time as in cutscene_sequence_update; the switch has case 1 before
+// 0x436c00  Confidence: exact (the fade time as in cutscene_sequence_update; the switch has case 1 before
 // case 0: the case bodies follow the source order, the compare chain is sorted). Locals: fog_far ebp-4,
-// i ebp-8, fog_near ebp-0xc, c ebp-0x10, se ebp-0x14, o ebp-0x18, fade ebp-0x1c, seq ebp-0x20, t ebp-0x24
+// ix ebp-8, fog_near ebp-0xc, c ebp-0x10, eff ebp-0x14, po ebp-0x18, fade ebp-0x1c, sequence ebp-0x20, now ebp-0x24
 // (then the strcmp temporaries, the 64-bit temporaries and the switch value ebp-0x4c). The shot range is
 // tested twice in a row (in the binary).
 void cutscene_events_frame()
 {
     float fog_far;
-    int i;
-    float fog_near;
+    int ix;
     Character *c;
-    cutscene_shot_effect *se;
-    obj *o;
+    float fog_near;
+    obj *po;
+    cutscene_shot_effect *eff;
     cutscene_fade *fade;
-    cutscene_camera_sequence *seq;
-    float t;
+    cutscene_camera_sequence *sequence;
+    float now;
 
     if (!(game_flags & GF_CUTSCENE) || cutscene_data == NULL || game_is_paused())
         return;
@@ -845,53 +845,53 @@ void cutscene_events_frame()
             else
                 gr_fade_in(0);
         }
-        for (i = 0; i < cutscene_data->num_shot_effects; i++) {
-            if (cutscene_data->shot_effects[i]->shot == cutscene_cur_sequence) {
-                if (cutscene_data->shot_effects[i]->character != NULL) {
+        for (ix = 0; ix < cutscene_data->num_shot_effects; ix++) {
+            if (cutscene_data->shot_effects[ix]->shot == cutscene_cur_sequence) {
+                if (cutscene_data->shot_effects[ix]->character != NULL) {
                     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-                        if (strcmp(c->get_name(), cutscene_data->shot_effects[i]->character) == 0)
+                        if (strcmp(c->get_name(), cutscene_data->shot_effects[ix]->character) == 0)
                             break;
                     }
                     if (c != &living_list)
-                        cutscene_fx_handles[i] = fx_attach_to_character(cutscene_data->shot_effects[i]->name,
+                        cutscene_fx_handles[ix] = fx_attach_to_character(cutscene_data->shot_effects[ix]->name,
                                                                         c->handle, -1, -1, 0, 0);
                     else
-                        cutscene_fx_handles[i] = fx_create_world(cutscene_data->shot_effects[i]->name, true);
-                } else if (stristr(cutscene_data->shot_effects[i]->name, "camera")) {
-                    cutscene_fx_handles[i] = fx_create_at_camera(cutscene_data->shot_effects[i]->name, true);
+                        cutscene_fx_handles[ix] = fx_create_world(cutscene_data->shot_effects[ix]->name, true);
+                } else if (stristr(cutscene_data->shot_effects[ix]->name, "camera")) {
+                    cutscene_fx_handles[ix] = fx_create_at_camera(cutscene_data->shot_effects[ix]->name, true);
                 } else {
-                    cutscene_fx_handles[i] = fx_create_world(cutscene_data->shot_effects[i]->name, true);
+                    cutscene_fx_handles[ix] = fx_create_world(cutscene_data->shot_effects[ix]->name, true);
                 }
-            } else if (cutscene_data->shot_effects[i]->shot > cutscene_cur_sequence) {
+            } else if (cutscene_data->shot_effects[ix]->shot > cutscene_cur_sequence) {
                 break;
             }
         }
-        for (i = 0; i < cutscene_data->num_shot_effects; i++) {
-            if (cutscene_fx_handles[i] == -1)
+        for (ix = 0; ix < cutscene_data->num_shot_effects; ix++) {
+            if (cutscene_fx_handles[ix] == -1)
                 continue;
-            se = cutscene_data->shot_effects[i];
-            if (se->length > 0 && cutscene_cur_sequence >= se->shot + se->length) {
-                o = obj_from_handle_b(cutscene_fx_handles[i]);
-                if (o != NULL) {
+            eff = cutscene_data->shot_effects[ix];
+            if (eff->length > 0 && cutscene_cur_sequence >= eff->shot + eff->length) {
+                po = obj_from_handle_b(cutscene_fx_handles[ix]);
+                if (po != NULL) {
                     printf("Stopping render of effect\n");
-                    o->obj_flags &= ~1;
+                    po->obj_flags &= ~1;
                 }
             }
         }
-        for (i = 0; i < cutscene_data->num_minitracks; i++) {
-            if (cutscene_data->minitracks[i]->shot == cutscene_cur_sequence)
-                snd_play(the_cutscene.minitrack_sounds[i], 1.0f, 0, 0, 0);
-            else if (cutscene_data->minitracks[i]->shot > cutscene_cur_sequence)
+        for (ix = 0; ix < cutscene_data->num_minitracks; ix++) {
+            if (cutscene_data->minitracks[ix]->shot == cutscene_cur_sequence)
+                snd_play(the_cutscene.minitrack_sounds[ix], 1.0f, 0, 0, 0);
+            else if (cutscene_data->minitracks[ix]->shot > cutscene_cur_sequence)
                 break;
         }
     }
     if (cutscene_cur_fade_event < cutscene_data->num_fades) {
         fade = cutscene_data->fades[cutscene_cur_fade_event];
         if (cutscene_cur_sequence >= fade->shot) {
-            seq = &cutscene_sequences[cutscene_cur_sequence];
+            sequence = &cutscene_sequences[cutscene_cur_sequence];
             // G3: FISUB dword of the unsigned start time (signed 32-bit load).
-            t = (t = ((float)timeGetTime() - sequence_start_time) / 1000.0f) * 1.0f;
-            if (cutscene_time_offset + t - seq->start >= fade->time) {
+            now = (now = ((float)timeGetTime() - sequence_start_time) / 1000.0f) * 1.0f;
+            if (cutscene_time_offset + now - sequence->start >= fade->time) {
                 switch (fade->fade_out) {
                 case 1:
                     gr_fade_out((int)(fade->length * 1000.0f));
@@ -927,10 +927,10 @@ void cutscene_play_escape()
     if (_stricmp(cutscene_pending_name, "Tiger-Escape") == 0) {
         tiger_target_stage = 3;
         Character *rider = NULL;      // ebp-4
-        Character *c;                 // ebp-8
-        for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-            if (c->info->species == SPECIES_TIGER_RIDER)
-                rider = c;
+        Character *ch;                 // ebp-8
+        for (ch = living_list.live_next; ch != &living_list; ch = ch->live_next) {
+            if (ch->info->species == SPECIES_TIGER_RIDER)
+                rider = ch;
         }
         if (rider != NULL) {
             Character *mount = rider->get_mount();   // ebp-0xc
@@ -962,10 +962,10 @@ void cutscene_play_escape()
     } else if (_stricmp(cutscene_pending_name, "PHNX-Escape") == 0) {
         phoenix_target_stage = 3;
         Character *rider = NULL;      // ebp-0x18
-        Character *c;                 // ebp-0x1c
-        for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-            if (c->info->species == SPECIES_PHOENIX_RIDER) {
-                rider = c;
+        Character *ch;                 // ebp-0x1c
+        for (ch = living_list.live_next; ch != &living_list; ch = ch->live_next) {
+            if (ch->info->species == SPECIES_PHOENIX_RIDER) {
+                rider = ch;
                 break;
             }
         }

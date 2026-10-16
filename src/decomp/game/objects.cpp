@@ -20,8 +20,8 @@
 //     `mov eax, 1 / and eax, 1 / test` = the flags test with the constant 1);
 //   - profile_label's constructor and destructor leave no call in character_process_anim, only the
 //     EH state stores; the unwind funclet 0x57c3f0 calls the out-of-line destructor 0x434650.
-// Local variables: VC6 /Od gives the first declared local the highest address (ebp-4 downwards);
-// declarations below are ordered to reproduce the frame offsets noted per function.
+// Local variables: VC6 12.00.8168 lays out /Od locals by a hash of their names (DECISIONS.md D6101): the
+// names and declaration order are chosen so that it reproduces the frame offsets noted per function.
 
 #include <stdio.h>
 #include <string.h>
@@ -112,7 +112,7 @@ void objects_init()
     objects_initialized = true;
 }
 
-// 0x469a70  Confidence: likely (the vector3(0, 0, 0) temporary at ebp-0xc and operator='s returned
+// 0x469a70  Confidence: exact (the vector3(0, 0, 0) temporary at ebp-0xc and operator='s returned
 // copy at ebp-0x18 are the inline expansions; the store order type, handle, flags, navpoint is the
 // code's).
 obj::obj()
@@ -124,7 +124,7 @@ obj::obj()
     centre_offset = vector3(0.0f, 0.0f, 0.0f);
 }
 
-// 0x469b10  Confidence: likely (`jne body / jmp end` is the /Od shape of `if (x == 0) return;`, as
+// 0x469b10  Confidence: exact (`jne body / jmp end` is the /Od shape of `if (x == 0) return;`, as
 // the `break` in item_obj_spawn's first loop; `if (type) link_new(type);` would be a single je).
 obj::obj(int type)
 {
@@ -138,7 +138,7 @@ obj::~obj()
 {
 }
 
-// 0x469b60  Confidence: likely (same inline vector3 expansion as obj::obj).
+// 0x469b60  Confidence: exact (same inline vector3 expansion as obj::obj).
 void obj::link_new(int type)
 {
     this->type = type;
@@ -207,7 +207,7 @@ void objects_free_all_thunk()
     objects_free_all();
 }
 
-// 0x469fc0  Confidence: likely. Frame: p ebp-4, o ebp-8; ebp-0x10 / -0xc / -0x1c and -0x18 / -0x14 /
+// 0x469fc0  Confidence: exact. Frame: p ebp-4, o ebp-8; ebp-0x10 / -0xc / -0x1c and -0x18 / -0x14 /
 // -0x20 are the temporaries of the two expanded `delete` expressions (obj has a non-virtual destructor,
 // 0x469b40 is called directly). The first loop never ends unless the list is empty: obj::~obj does not
 // unlink, so it relies on every object having been deinit-ed before.
@@ -353,7 +353,7 @@ item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orie
     return io;
 }
 
-// 0x46a640  Confidence: likely. c at ebp-4, io ebp-8; the do / while (0) block (first at ebp-0xc,
+// 0x46a640  Confidence: exact. c at ebp-4, io ebp-8; the do / while (0) block (first at ebp-0xc,
 // operator= temporaries ebp-0x10..-0x20) is a macro expansion in the original (its name is not known):
 // it moves the container onto its first item, 0.2 higher.
 container *level_item_spawn(item_info *item, const vector3 *pos, const matrix *orient, int count,
@@ -398,7 +398,7 @@ int item_obj::is_gold()
     return 0;
 }
 
-// 0x46a7e0  Confidence: likely. centre ebp-0xc (declared first, assigned by the expanded operator=
+// 0x46a7e0  Confidence: exact. centre ebp-0xc (declared first, assigned by the expanded operator=
 // whose returned copy is ebp-0x1c), radius ebp-0x10; += is expanded, unrotate is a call.
 bool item_obj::is_in_view()
 {
@@ -436,7 +436,7 @@ void container::deinit()
     type = 0;
 }
 
-// 0x46a960  Confidence: likely (as item_obj::is_in_view).
+// 0x46a960  Confidence: exact (as item_obj::is_in_view).
 bool container::is_in_view()
 {
     vector3 centre;
@@ -480,21 +480,21 @@ void container::add_item(item_obj *it)
     }
 }
 
-// 0x46ab60  Confidence: likely (frame: the first loop's index at ebp-8, the second's at ebp-4, so the
-// second is declared first).
+// 0x46ab60  Confidence: exact (frame: the found index at ebp-8, the shift index at ebp-4: VC6 orders
+// the locals by the hash of their names, D6101).
 void container::remove_item(item_obj *it)
 {
-    int j;
+    int index;
     int i;
 
-    for (i = 0; i < num_items; i++) {
-        if (items[i] == it) {
-            items[i]->in_container = NULL;
+    for (index = 0; index < num_items; index++) {
+        if (items[index] == it) {
+            items[index]->in_container = NULL;
             break;
         }
     }
-    for (j = i; j < num_items - 1; j++)
-        items[j] = items[j + 1];
+    for (i = index; i < num_items - 1; i++)
+        items[i] = items[i + 1];
     num_items--;
 }
 
@@ -544,11 +544,13 @@ bool Character::anim_lod_skip()
 
 // 0x46adf0  Confidence: unsure for the profile label (its text is not in the binary: the inline
 // constructor leaves no reference to it; the object at ebp-0x10 is known only from the EH state and the
-// unwind funclet), likely for the rest. Frame: visible ebp-0x14, lod ebp-0x18, d (the expanded
-// operator- result) ebp-0x24..-0x1c. Two returns: each path ends with its own EH state -1 store.
+// unwind funclet), likely for the rest. Frame: profiler ebp-0x10, visible ebp-0x14, lod ebp-0x18, the
+// expanded operator- result ebp-0x24..-0x1c, read in place by the inline len_sq (z, y, x; D6107). VC6
+// 12.00.8168 copies the inline return value once more (12 bytes), which shifts the temporaries.
+// Two returns: each path ends with its own EH state -1 store.
 void Character::process_anim(float frametime)
 {
-    profile_label label("character_process_anim");
+    profile_label profiler("character_process_anim");
     bool visible;
     int lod;
 
@@ -559,8 +561,7 @@ void Character::process_anim(float frametime)
     if (is_in_view(1.0f) || (obj_flags & 0x20))
         visible = true;
     if (level_is_town && anim_lod_skip() && (flags & CF_ANIM_LOD_PREV)) {
-        vector3 d = cur_character->pos - pos;
-        if (d.x * d.x + d.y * d.y + d.z * d.z > 225.0f) {
+        if ((cur_character->pos - pos).len_sq() > 225.0f) {
             instance->process(frametime, true, lod);
             return;
         }
@@ -678,24 +679,25 @@ void objects_do_frame()
     }
 }
 
-// 0x46b330  Confidence: exact. o ebp-4, next ebp-8; a while loop (no jump over a step expression).
+// 0x46b330  Confidence: exact. objp ebp-4, next ebp-8 (D6101); a while loop (no jump over a step
+// expression).
 void objects_delete_marked()
 {
-    obj *o;
+    obj *objp;
     obj *next;
 
     if (!objects_initialized)
         objects_init();
-    o = obj_active_list.next;
-    while (o != &obj_active_list) {
-        next = o->next;
-        if (o->obj_flags & 4)
-            o->deinit();
-        o = next;
+    objp = obj_active_list.next;
+    while (objp != &obj_active_list) {
+        next = objp->next;
+        if (objp->obj_flags & 4)
+            objp->deinit();
+        objp = next;
     }
 }
 
-// 0x46b390  Confidence: likely (a for loop whose condition loads the next link first: the step is
+// 0x46b390  Confidence: exact (a for loop whose condition loads the next link first: the step is
 // `c = next`, the condition `next = c->live_next, c != head`).
 void living_entities_move_all()
 {
@@ -706,21 +708,21 @@ void living_entities_move_all()
         c->move_frame();
 }
 
-// 0x46b3d0  Confidence: exact. o ebp-4, i ebp-8, lo ebp-0xc. Type-1 objects are animated as
-// characters; level objects with flag 0x100 are doors.
+// 0x46b3d0  Confidence: exact. objp ebp-4, i ebp-8, l ebp-0xc (the names give that order, D6101).
+// Type-1 objects are animated as characters; level objects with flag 0x100 are doors.
 void objects_update_frame()
 {
-    obj *o;
+    obj *objp;
     int i;
-    lobj *lo;
+    lobj *l;
 
-    for (o = obj_active_list.next; o != &obj_active_list; o = o->next) {
-        if (o->type == 1)
-            ((Character *)o)->process_anim(reported_frametime);
+    for (objp = obj_active_list.next; objp != &obj_active_list; objp = objp->next) {
+        if (objp->type == 1)
+            ((Character *)objp)->process_anim(reported_frametime);
     }
     for (i = 0; i < num_lobjs; i++) {
-        lo = &lobjs[i];
-        if (lo->flags & 0x100)
-            door_update(lo);
+        l = &lobjs[i];
+        if (l->flags & 0x100)
+            door_update(l);
     }
 }

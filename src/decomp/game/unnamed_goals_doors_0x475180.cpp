@@ -51,13 +51,13 @@
 int ai_goal_next_id = 1;              // 0x59b7c8 (saved in the LENT chunk by level_scripts.cpp)
 
 // ---- multiplayer helpers -----------------------------------------------------------------------------
-// 0x475180  Confidence: exact.
+// 0x475180  Confidence: exact. nw_addr_equal is 0 for a match (D5903: the source tested it the wrong way).
 mp_player *mp_player_find_by_addr(const void *addr, bool check_port)
 {
     mp_player *p;
 
     for (p = mp_player_list.next; p != &mp_player_list; p = p->next) {
-        if (nw_addr_equal(p->addr, addr, check_port))
+        if (nw_addr_equal(p->addr, addr, check_port) == 0)
             return p;
     }
     return NULL;
@@ -188,15 +188,15 @@ void matrix3_unpack_orientation(const mp_packed_orient *in, matrix *out)
     out->uvec.x = u0;
     out->uvec.y = u1;
     a = 1.0f - r0 * r0;
-    rz = (float)sqrt(fabs(a - r1 * r1));
+    rz = (float)sqrt(fabsf(a - r1 * r1));
     out->rvec.z = rz;
-    uz = (float)sqrt(fabs(1.0f - u0 * u0 - u1 * u1));
+    uz = (float)sqrt(fabsf(1.0f - u0 * u0 - u1 * u1));
     out->uvec.z = uz;
-    fz = (float)sqrt(fabs(1.0f - rz * rz - uz * uz));
+    fz = (float)sqrt(fabsf(1.0f - rz * rz - uz * uz));
     out->fvec.z = fz;
-    fx = (float)sqrt(fabs(a - u0 * u0));
+    fx = (float)sqrt(fabsf(a - u0 * u0));
     out->fvec.x = fx;
-    fy = (float)sqrt(fabs(1.0f - r1 * r1 - u1 * u1));
+    fy = (float)sqrt(fabsf(1.0f - r1 * r1 - u1 * u1));
     out->fvec.y = fy;
     out->rvec.z = rz * ((in->signs & 1) ? -1.0f : 1.0f);
     out->uvec.z = uz * ((in->signs & 2) ? -1.0f : 1.0f);
@@ -224,25 +224,30 @@ void mp_handle_new_mon(ubyte *data, void *from)
 
     for (c = living_list.live_next; c != &living_list; c = next) {
         next = c->live_next;
-        if ((c->type >= 4 && c->type <= 5) || c->type == 9)
+        if (c->type >= 4 && (c->type <= 5 || c->type == 9))
             delete c;
     }
 }
 
-// 0x475660  Confidence: likely (the z range is computed first and kept on the x87 stack).
+// 0x475660  Confidence: exact (VC6 byte match) (the z range is computed first and kept on the x87 stack).
 void mp_quantize_position(short *x, short *y, short *z, vector3 pos)
 {
+    float dz = pf_bounds_max_z - pf_bounds_min_z;
+    float fy;
+
     *x = (short)((pos.x - pf_bounds_min_x) / (pf_bounds_max_x - pf_bounds_min_x) * 65535.0f);
-    *y = (short)((pos.y - -1024.0f) * (1.0f / 2048.0f) * 65535.0f);
-    *z = (short)((pos.z - pf_bounds_min_z) / (pf_bounds_max_z - pf_bounds_min_z) * 65535.0f);
+    fy = (pos.y - -1024.0f) * (1.0f / 2048.0f);
+    *y = (short)(fy * 65535.0f);
+    *z = (short)((pos.z - pf_bounds_min_z) / dz * 65535.0f);
 }
 
-// 0x4756e0  Confidence: likely (the y constant 2048 / 65535 is folded; the z store goes through a temporary).
+// 0x4756e0  Confidence: exact (the y constant 2048 / 65535 is folded; the z store goes through a temporary).
 vector3 mp_dequantize_position(ushort x, ushort y, ushort z)
 {
-    return vector3((pf_bounds_max_x - pf_bounds_min_x) * x * (1.0f / 65535.0f) + pf_bounds_min_x,
+    float fx = x, fz = z;
+    return vector3((pf_bounds_max_x - pf_bounds_min_x) * fx * (1.0f / 65535.0f) + pf_bounds_min_x,
                    y * (2048.0f / 65535.0f) - 1024.0f,
-                   (pf_bounds_max_z - pf_bounds_min_z) * z * (1.0f / 65535.0f) + pf_bounds_min_z);
+                   (pf_bounds_max_z - pf_bounds_min_z) * fz * (1.0f / 65535.0f) + pf_bounds_min_z);
 }
 
 // 0x475780  Confidence: exact (jump table 0x47580c over types 4..9). Single player: every NPC, monster
@@ -423,31 +428,33 @@ int ai_goal_evaluate(ai_state *ai, ai_goal *goal)
     return result;
 }
 
-// 0x475d20  Confidence: exact. Kept goals (0x40) and suspended goals (8) sort last; combat-mode and sneak
-// goals first; then the higher priority, then the newer goal.
+// 0x475d20  Confidence: exact (VC6 byte match only with the first test wrapping the rest). Kept goals (0x40)
+// and suspended goals (8) sort last; combat-mode and sneak goals first; then the higher priority, then the newer
+// goal.
 int ai_goal_compare(const void *pa, const void *pb)
 {
     const ai_goal *a = (const ai_goal *)pa;
     const ai_goal *b = (const ai_goal *)pb;
 
-    if ((a->flags & 0x40) && !(b->flags & 0x40))
+    if (!(a->flags & 0x40) || (b->flags & 0x40)) {
+        if (!(a->flags & 0x40) && (b->flags & 0x40))
+            return -1;
+        if ((a->flags & 8) && !(b->flags & 8))
+            return 1;
+        if (!(a->flags & 8) && (b->flags & 8))
+            return -1;
+        if (a->type == AI_GOAL_SWITCH_COMBAT || a->type == AI_GOAL_SNEAK)
+            return -1;
+        if (b->type == AI_GOAL_SWITCH_COMBAT || b->type == AI_GOAL_SNEAK)
+            return 1;
+        if (a->priority > b->priority)
+            return -1;
+        if (a->priority < b->priority)
+            return 1;
+        if (a->time > b->time)
+            return -1;
         return 1;
-    if (!(a->flags & 0x40) && (b->flags & 0x40))
-        return -1;
-    if ((a->flags & 8) && !(b->flags & 8))
-        return 1;
-    if (!(a->flags & 8) && (b->flags & 8))
-        return -1;
-    if (a->type == AI_GOAL_SWITCH_COMBAT || a->type == AI_GOAL_SNEAK)
-        return -1;
-    if (b->type == AI_GOAL_SWITCH_COMBAT || b->type == AI_GOAL_SNEAK)
-        return 1;
-    if (a->priority > b->priority)
-        return -1;
-    if (a->priority < b->priority)
-        return 1;
-    if (a->time > b->time)
-        return -1;
+    }
     return 1;
 }
 
@@ -462,8 +469,12 @@ void ai_state::goals_remove_type9()
 {
     int i;
 
-    while ((i = goal_find(1, AI_GOAL_PATHFIND, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+    while (1) {
+        i = goal_find(1, AI_GOAL_PATHFIND, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+        if (i == -1)
+            return;
         goal_remove(i);
+    }
 }
 
 // 0x475e00  Confidence: exact.
@@ -471,8 +482,12 @@ void ai_state::goals_remove_type1()
 {
     int i;
 
-    while ((i = goal_find(1, AI_GOAL_ATTACK, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+    while (1) {
+        i = goal_find(1, AI_GOAL_ATTACK, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+        if (i == -1)
+            return;
         goal_remove(i);
+    }
 }
 
 // 0x475e30  Confidence: exact.
@@ -480,12 +495,24 @@ void ai_state::goals_remove_types_3_5()
 {
     int i;
 
-    while ((i = goal_find(1, AI_GOAL_CAST_SPELL, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+    while (1) {
+        i = goal_find(1, AI_GOAL_CAST_SPELL, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+        if (i == -1)
+            break;
         goal_remove(i);
-    while ((i = goal_find(1, AI_GOAL_CAST_TARGETED, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+    }
+    while (1) {
+        i = goal_find(1, AI_GOAL_CAST_TARGETED, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+        if (i == -1)
+            break;
         goal_remove(i);
-    while ((i = goal_find(1, AI_GOAL_CAST_LOCATION, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+    }
+    while (1) {
+        i = goal_find(1, AI_GOAL_CAST_LOCATION, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+        if (i == -1)
+            return;
         goal_remove(i);
+    }
 }
 
 // 0x475eb0  Confidence: likely (`match` lives in BL and is also the bit-0 test constant). The mask picks
@@ -611,8 +638,12 @@ int ai_state::goal_add(int type, int priority, unsigned int flags, int target, v
 
     if (type == AI_GOAL_ATTACK) {
         goals_remove_type1();
-        while ((i = goal_find(1, AI_GOAL_BACKSTAB, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+        while (1) {
+            i = goal_find(1, AI_GOAL_BACKSTAB, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+            if (i == -1)
+                break;
             goal_remove(i);
+        }
     } else if (type == AI_GOAL_PATHFIND) {
         goals_remove_type9();
     } else if (type == AI_GOAL_CAST_SPELL || type == AI_GOAL_CAST_TARGETED || type == AI_GOAL_CAST_LOCATION) {
@@ -926,7 +957,7 @@ bool lobj_door_is_open(lobj *l, float fraction)
     return door_is_open(d, fraction);
 }
 
-// 0x476a30  Confidence: likely (the last test returns through EAX). Within 6 units horizontally; a door
+// 0x476a30  Confidence: exact (VC6 byte match) (the last test returns through EAX). Within 6 units horizontally; a door
 // with a named path also needs the character within 0.5 of its floor point's height.
 bool door_in_use_range(Character *c, lobj *door)
 {
@@ -944,7 +975,7 @@ bool door_in_use_range(Character *c, lobj *door)
     d = door_from_lobj(door);
     if (d->named_path < 0)
         return true;
-    return fabs(d->floor_point().y - c->pos.y) < 0.5f;
+    return fabsf(d->floor_point().y - c->pos.y) < 0.5f;
 }
 
 // 0x476ab0  Confidence: likely (the loop exits and the ray set-up order). A door without a named path
@@ -1250,7 +1281,7 @@ bool level_marker_find(const char *name, vector3 *pos, matrix *orient)
     if (name) {
         n = level_num_navpoints;
         np = level_navpoints;
-        for (i = 0; i < n; i++, np++) {
+        for (i = 0; i < n; np++, i++) {
             if (_stricmp(np->name, name) == 0) {
                 *pos = np->pos;
                 *orient = np->orient;
@@ -1268,7 +1299,7 @@ s3d_vis_set *level_vis_record_find(const char *name)
     s3d_vis_set *v = level_vis_records;
     int i;
 
-    for (i = 0; i < n; i++, v++) {
+    for (i = 0; i < n; v++, i++) {
         if (_stricmp(v->name, name) == 0)
             return v;
     }
@@ -1282,7 +1313,7 @@ s3d_named_path *level_trigger_record_find(const char *name)
     s3d_named_path *p = level_s3d.named_paths;
     int i;
 
-    for (i = 0; i < n; i++, p++) {
+    for (i = 0; i < n; p++, i++) {
         if (_stricmp(p->name, name) == 0)
             return p;
     }
@@ -1295,7 +1326,7 @@ int lobj_get_layer(int lobj_index)
     return lobjs[lobj_index].get_layer_n(0);
 }
 
-// 0x4775e0  Confidence: likely (one dword store of -1; a constructor: it returns this; D803).
+// 0x4775e0  Confidence: exact (VC6 byte match) (one dword store of -1; a constructor: it returns this; D803).
 lobj::lobj()
 {
     *(int *)layers = -1;
@@ -1339,7 +1370,9 @@ void lobj::set_layer_n(int n, int layer)
 // 0x4776b0  Confidence: exact.
 bool lobj_index_out_of_range(int index)
 {
-    return index >= num_lobjs;
+    if (index >= num_lobjs)
+        return true;
+    return false;
 }
 
 // 0x4776c0  Confidence: exact.
@@ -1349,7 +1382,7 @@ void lobj_get_bbox(int index, vector3 *mins, vector3 *maxs)
     *maxs = lobjs[index].bbox_max;
 }
 
-// 0x477720  Confidence: likely (the radius is the mesh's +0x30 float).
+// 0x477720  Confidence: exact (VC6 byte match) (the radius is the mesh's +0x30 float).
 void lobj_get_bounding_sphere(int index, vector3 *centre, float *radius)
 {
     *centre = lobjs[index].centre;

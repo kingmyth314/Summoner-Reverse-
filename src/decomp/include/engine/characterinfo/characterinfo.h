@@ -324,7 +324,7 @@ void  character_learn_chain_skill(Player *p, int skill, int count);     // 0x449
 char_info *characterinfo_find_multi_slot(int index);  // 0x449a30 the char_infos record, or a multiplayer copy
 void  multi_charinfo_slot_release(char_info *info);  // 0x449b00
 void  living_entity_setup_head(char_info *info, character_instance *ci);   // 0x4469c0
-void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, bool summon);   // 0x447410
+void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_sounds, int summon);    // 0x447410 (summon int: D5902)
 void  charinfo_unload_anims(char_info *info);        // 0x448710
 float resistance_level_damage_mult(int level);      // 0x448c80
 int   summon_skill_from_creature_name(const char *name);   // 0x448d00 -1 none
@@ -474,7 +474,7 @@ multi_charinfo_slot_t *multi_charinfo_slot(char_info *info);   // 0x446de0 the s
 void  charinfo_load_move_anim(char_info *info, struct ca_character *ca, move_info *move, bool load_sounds,
                               int anim_folder, bool full_set);  // 0x447780
 void  charinfo_remap_town_moves(char_info *info, bool full_set); // 0x447850
-void  level_load_preload(char_info *info, bool load_sounds, bool summon, Mempool *pool);  // 0x447b10
+void  level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *pool);   // 0x447b10 (summon int: D5902)
 unsigned int str_hash_nocase_rol6(const char *s);     // 0x447e80 -1 for NULL
 void  charinfo_mark_anims_loaded(char_info *info);    // 0x447ec0 anim_class = -1 (and the copies)
 void  character_reinit_anims(Character *c, int anim_class);     // 0x447f20
@@ -487,7 +487,7 @@ void  charinfo_page_in_sounds(char_info *info);       // 0x448790 footsteps
 const char *offense_point_name(int i);                // 0x4487f0
 void  characterinfo_alloc_level_buffers();            // 0x448800
 void  characterinfo_level_unload(bool reset_player_pool);   // 0x448c10
-Mempool *charinfo_select_mempool(int species, bool summon); // 0x448f20
+Mempool *charinfo_select_mempool(int species, int summon);  // 0x448f20 (summon int: D5901)
 void  statscreen_load_anim(Character *c, bool heavy); // 0x448f60
 void  chain_config_set(int species, int slot, int skill);   // 0x449200 savegame "chainconfig%d%d"
 int   chain_config_get(int species, int slot);        // 0x449240 (resets the defaults when 0)

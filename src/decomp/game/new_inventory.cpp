@@ -280,7 +280,7 @@ void inventory_load_bitmaps()
     inventory_scrollbar_bm_h = (int)(inventory_scrollbar_bm_h * scale);
 }
 
-// 0x414fc0  Confidence: likely (as status_init / buysell_init: the found test after the loop survives as a
+// 0x414fc0  Confidence: exact (as status_init / buysell_init: the found test after the loop survives as a
 // dead compare). Without a character the first usable party member (type 7, no flag 0x108) is shown.
 void inventory_init(bool open_mode)
 {
@@ -326,7 +326,7 @@ void inventory_init(bool open_mode)
     inventory_update_scrollbar();
 }
 
-// 0x4150c0  Confidence: likely (the loop runs on a pointer into equip_page_slots; the index tests become
+// 0x4150c0  Confidence: exact (the loop runs on a pointer into equip_page_slots; the index tests become
 // pointer compares). Weapon and shield go to the two paging slots of the hero, the rest to fixed slots.
 void inventory_page_in_equipped()
 {
@@ -372,7 +372,7 @@ void inventory_update_species_tab()
     }
 }
 
-// 0x415220  Confidence: likely (a switch on the loop index over all 45 records, jump table 0x4153a8 / index
+// 0x415220  Confidence: exact (a switch on the loop index over all 45 records, jump table 0x4153a8 / index
 // bytes 0x4153c0 for i - 28, as buysell_update_category_buttons). Despite the name it only updates the
 // category icons: a category with no entry hides its "Active" icon and disables its hot spot.
 void inventory_update_category_buttons()
@@ -428,7 +428,7 @@ void inventory_update_category_buttons()
     }
 }
 
-// 0x4153d0  Confidence: likely (loop shape). First party inventory index of the category, -1. In open mode
+// 0x4153d0  Confidence: exact (loop shape). First party inventory index of the category, -1. In open mode
 // only unidentified items count, but the index returned is still a party inventory index, not a row of the
 // unidentified-only list (so the category jumps can scroll to the wrong row there; behaviour of the binary).
 int inventory_category_first_index(int category)
@@ -450,7 +450,7 @@ int inventory_category_first_index(int category)
     return party_inventory_find_first_in_category(category, party_inventory, party_inventory_count);
 }
 
-// 0x415470  Confidence: likely (as buysell_update_scrollbar: the second test is on the row count, always
+// 0x415470  Confidence: exact (as buysell_update_scrollbar: the second test is on the row count, always
 // > 0 there). Thumb x / y / w / h from the track and page / rows.
 void inventory_update_scrollbar()
 {
@@ -806,9 +806,10 @@ party_inventory_entry *inventory_get_list_item(int row)
 {
     if (inventory_open_mode) {
         for (int i = 0; i < party_inventory_count; i++) {
-            if (!item_is_identified(party_inventory[i].item)) {
+            party_inventory_entry *e = &party_inventory[i];
+            if (!item_is_identified(e->item)) {
                 if (row == 0)
-                    return &party_inventory[i];
+                    return e;
                 row--;
             }
         }
@@ -995,11 +996,15 @@ void inventory_page_up()
 // 0x4165f0  Confidence: exact.
 void inventory_page_down()
 {
+    int pos = inventory_scroll_pos;
     int page = inventory_page_size[resolution_index];
     int limit = inventory_row_count - page;
 
-    if (inventory_scroll_pos < limit) {
-        inventory_scroll_pos = min(inventory_scroll_pos + page, limit);
+    if (pos < limit) {
+        pos += page;
+        if (pos < limit)
+            limit = pos;
+        inventory_scroll_pos = limit;
         inventory_update_scrollbar();
     }
 }
@@ -1177,15 +1182,16 @@ void inventory_update_buttons()
 
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !inventory_repeat_timer.valid())
+                inventory_button_action(id);
+        } else {
             if (inventory_repeat_timer.valid() && inventory_repeat_timer.elapsed() && (b->flags & 2)) {
                 inventory_button_action(id);
                 inventory_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((b->flags & 2) && !inventory_repeat_timer.valid())
-            inventory_button_action(id);
     }
     inventory_mouse_mode = 0;
 }
@@ -1309,7 +1315,7 @@ void inventory_use_selected_item()
         interface_set_screen(0, 0);
 }
 
-// 0x416dc0  Confidence: likely (the charge effect is re-read after ui_clear_pick_overrides, so it is not a
+// 0x416dc0  Confidence: exact (the charge effect is re-read after ui_clear_pick_overrides, so it is not a
 // local). Starts targeting with a list item's spell: pick radius from the spell, spell 0x1d (centred on the
 // character) also fixes the world pick at cur_character; flags 2 / 4 hand over to the HUD target modes 0 / 1,
 // else the AI casts it and the world pick filters by the spell.
@@ -1322,7 +1328,8 @@ void inventory_use_list_item_begin(party_inventory_entry *entry)
     int spell = ((item_charge_effect *)entry->item->type->charge_effect)->spell;
     if (spells[spell].target_radius != 0.0f) {
         ui_pick_screen_override_on = 1;
-        ui_pick_override_x = ui_pick_override_y = spells[spell].target_radius;
+        ui_pick_override_x = spells[spell].target_radius;
+        ui_pick_override_y = spells[spell].target_radius;
         if (spell == 0x1d) {
             ui_pick_world_override_on = 1;
             ui_pick_world_override_pos = cur_character->pos;
@@ -1345,7 +1352,7 @@ void inventory_use_list_item_begin(party_inventory_entry *entry)
     world_pick_set_skill_filter(spell);
 }
 
-// 0x416eb0  Confidence: likely (as inventory_use_list_item_begin). The same for status_character's
+// 0x416eb0  Confidence: exact (VC6 byte match) (as inventory_use_list_item_begin). The same for status_character's
 // equipped item in the slot.
 void inventory_use_equipped_item_begin(int slot)
 {
@@ -1358,7 +1365,8 @@ void inventory_use_equipped_item_begin(int slot)
     int spell = ((item_charge_effect *)item->type->charge_effect)->spell;
     if (spells[spell].target_radius != 0.0f) {
         ui_pick_screen_override_on = 1;
-        ui_pick_override_x = ui_pick_override_y = spells[spell].target_radius;
+        ui_pick_override_x = spells[spell].target_radius;
+        ui_pick_override_y = spells[spell].target_radius;
         if (spell == 0x1d) {
             ui_pick_world_override_on = 1;
             ui_pick_world_override_pos = cur_character->pos;
@@ -1462,15 +1470,15 @@ void inventory_destroy_selected_item()
     if (!item_can_destroy(entry->item))
         return;
 
-    if (entry->count > 1) {
-        entry->count--;
-    } else {
+    if (entry->count <= 1) {
         party_inventory_remove(index, 1, 1);
         inventory_count_rows();
         int pos = min(inventory_scroll_pos, inventory_row_count - inventory_page_size[resolution_index]);
         inventory_scroll_pos = max(pos, 0);
         inventory_update_category_buttons();
         inventory_update_scrollbar();
+    } else {
+        entry->count--;
     }
 }
 
@@ -1647,7 +1655,8 @@ void inventory_drag_from_equip()
 // 0x417740  Confidence: exact.
 void inventory_unequip_item(int slot)
 {
-    party_inventory_add_item(character_unequip_slot(status_character, slot, 1), 1, 1);
+    item_info *item = character_unequip_slot(status_character, slot, 1);
+    party_inventory_add_item(item, 1, 1);
     inventory_update_equip_slots();
     inventory_count_rows();
     inventory_update_category_buttons();
@@ -1656,7 +1665,7 @@ void inventory_unequip_item(int slot)
         mp_send_unequip_item(status_character, slot);
 }
 
-// 0x417790  Confidence: likely (the final "ring1 || ring2" test is jump-threaded into the ring 1 branch).
+// 0x417790  Confidence: exact (the final "ring1 || ring2" test is jump-threaded into the ring 1 branch).
 // Despite the name: swaps the two rings (equipment 1 and 2); anything character_equip_item hands back is freed.
 void inventory_swap_rings()
 {
@@ -1748,7 +1757,7 @@ void inventory_draw_list_rows()
     }
 }
 
-// 0x417a60  Confidence: likely (the category test is read as a small switch: < 0, <= 1, == 3). Selected row
+// 0x417a60  Confidence: exact (the category test is read as a small switch: < 0, <= 1, == 3). Selected row
 // highlighted, unidentified blue, weapons / armour / jewelry the character cannot equip red, else text.
 void inventory_set_row_color(int row)
 {
@@ -1790,7 +1799,7 @@ void inventory_draw_scrollbar()
                      inventory_scrollbar_y - inventory_scrollbar_bm_h + inventory_scrollbar_h, gr_bitmap_wrap_mode);
 }
 
-// 0x417bc0  Confidence: likely (status_character->equipment[i] is re-read for the view offset, so the item
+// 0x417bc0  Confidence: exact (status_character->equipment[i] is re-read for the view offset, so the item
 // is not a local; the mesh is). Each equipped item with a paged mesh in its paper-doll slot.
 void inventory_draw_item_model()
 {
@@ -1814,7 +1823,7 @@ void inventory_draw_item_model()
     }
 }
 
-// 0x417c50  Confidence: likely (local order, as buysell_render_item_mesh, which also tests the mesh).
+// 0x417c50  Confidence: exact (VC6 byte match) (local order, as buysell_render_item_mesh, which also tests the mesh).
 // Viewer at (0, 0, -3) with an identity orientation, fov 60. Also used by the item info popup.
 void ui_render_item_mesh(void *mesh, vector3 *pos, matrix3 *orient)
 {
@@ -1913,7 +1922,7 @@ void inventory_draw_character()
     }
 }
 
-// 0x417fe0  Confidence: likely (local order; the appearance test reads status_character, the model prefix
+// 0x417fe0  Confidence: exact (local order; the appearance test reads status_character, the model prefix
 // the parameter). Same set-up as status_draw_model, light +0x14 = 0.1.
 void inventory_render_character(Character *c, vector3 *pos, matrix3 *orient)
 {

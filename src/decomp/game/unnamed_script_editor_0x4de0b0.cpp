@@ -857,9 +857,11 @@ bool script_editor_decimal_filter_cb(const char *text, char c)
 // 0x4e01a0 script_editor_no_window_open (declared in summoner/summoner.h). Confidence: exact.
 bool script_editor_no_window_open()
 {
-    return script_editor_action_window.is_disabled() && script_editor_save_window.is_disabled()
+    if (script_editor_action_window.is_disabled() && script_editor_save_window.is_disabled()
         && script_editor_load_window.is_disabled() && script_editor_params_window.is_disabled()
-        && script_editor_new_window.is_disabled();
+        && script_editor_new_window.is_disabled())
+        return true;
+    return false;
 }
 
 // The marker colour helper of script_editor_frame: one box arrow of a level object (the size is its
@@ -2176,8 +2178,10 @@ void script_editor_store_string(script_action *a, const char *s)
         strcpy((char *)a->text, s);
         return;
     }
-    a->text = (script_editor_cutscene_button.is_latched() ? &cutscene_script_stringpool
-                                                          : &level_script_stringpool)->Add(s);
+    if (script_editor_cutscene_button.is_latched())
+        a->text = cutscene_script_stringpool.Add(s);
+    else
+        a->text = level_script_stringpool.Add(s);
 }
 
 // 0x4e4910  Confidence: likely (the tail merges of the sprintf cases; jump table 0x4e4b50). The action list
@@ -2412,17 +2416,17 @@ void script_editor_show_level_item(navpoint *np)
 {
     char buf[8];
 
-    if (np->level_item < 0) {
+    if (np->level_item >= 0) {
+        level_item_rec *li = &level_items[np->level_item];
+        script_editor_level_item_name_inputbox.set_text(li->type->name);
+        script_editor_level_item_listbox.select_by_text(li->type->name, true);
+        sprintf(buf, "%d", li->count);
+        script_editor_level_item_count_inputbox.set_text(buf);
+    } else {
         script_editor_level_item_name_inputbox.set_text("");
         script_editor_level_item_listbox.clear_selection();
         script_editor_level_item_count_inputbox.set_text("1");
-        return;
     }
-    level_item_rec *li = &level_items[np->level_item];
-    script_editor_level_item_name_inputbox.set_text(li->type->name);
-    script_editor_level_item_listbox.select_by_text(li->type->name, true);
-    sprintf(buf, "%d", li->count);
-    script_editor_level_item_count_inputbox.set_text(buf);
 }
 
 // 0x4e50f0  Confidence: likely (the four defaults: 1.0 min range, volume and roll-off, 0 delay). The ambient
@@ -2775,7 +2779,8 @@ void script_editor_add_navpoint(int type)
         np->type = type;
         i = 1;
         do {
-            sprintf(name, "$ambient%.3d", i++);
+            sprintf(name, "$ambient%.3d", i);
+            i++;
         } while (navpoint_find(name) != NULL);
         strcpy(np->name, name);
         orient.set_from_angles(0, 0, np->heading);
@@ -3128,7 +3133,8 @@ void script_editor_add_camera_navpoint()
     np->type = NAVPOINT_TYPE_CAMERA;
     i = 1;
     do {
-        sprintf(name, "$camera%.3d", i++);
+        sprintf(name, "$camera%.3d", i);
+        i++;
     } while (navpoint_find(name) != NULL);
     strcpy(np->name, name);
 }
@@ -3514,7 +3520,7 @@ void script_editor_focus_selection()
     script_editor_change_button.set_latched(false);
 }
 
-// 0x4e7740  Confidence: likely (the serpent skip loop). The first navpoint of the table being edited, or the
+// 0x4e7740  Confidence: exact (the serpent skip loop). The first navpoint of the table being edited, or the
 // first live character that is not a serpent part, by the pick filter.
 void script_editor_select_first()
 {
@@ -3594,14 +3600,14 @@ void script_editor_select_next()
 // unloads the cutscene script.
 bool script_editor_cutscene_button_cb(int event, int value)
 {
-    if (event == UI_EVENT_PRESSED) {
+    switch (event) {
+    case UI_EVENT_PRESSED:
         script_editor_cutscene_button.toggle_latched();
         if (script_editor_sel.kind == SE_PICK_CHARACTER)
             script_editor_fill_action_list();
         script_editor_show_selection_panel();
         return true;
-    }
-    if (event == 0xf) {
+    case 0xf:
         cutscene_script_unload();
         script_editor_sync_cutscene_button();
         script_editor_fill_action_list();
@@ -3618,23 +3624,24 @@ bool script_editor_add_action_cb(int event, int value)
     ui_listbox_entry *e;
     int i;
 
-    if ((value != script_editor_append_action_button.id && value != script_editor_insert_action_button.id)
-        || event != UI_EVENT_PRESSED)
-        return false;
-    script_editor_insert_action = value == script_editor_insert_action_button.id;
-    script_editor_action_list_kind = 1;
-    script_editor_action_window.set_enabled(true);
-    script_editor_action_type_listbox.clear();
-    for (i = 0; i < NUM_SCRIPT_ACTIONS; i++) {
-        if (script_editor_action_type_allowed(i, (Character *)script_editor_sel.object)) {
-            e = script_editor_action_type_listbox.add_entry(script_action_names[i], -1, 0, 0, 0);
-            e->data = i;
-            e->set_font(font_small);
+    if ((value == script_editor_append_action_button.id || value == script_editor_insert_action_button.id)
+        && event == UI_EVENT_PRESSED) {
+        script_editor_insert_action = value == script_editor_insert_action_button.id;
+        script_editor_action_list_kind = 1;
+        script_editor_action_window.set_enabled(true);
+        script_editor_action_type_listbox.clear();
+        for (i = 0; i < NUM_SCRIPT_ACTIONS; i++) {
+            if (script_editor_action_type_allowed(i, (Character *)script_editor_sel.object)) {
+                e = script_editor_action_type_listbox.add_entry(script_action_names[i], -1, 0, 0, 0);
+                e->data = i;
+                e->set_font(font_small);
+            }
         }
+        script_editor_action_type_listbox.select_entry(script_editor_action_type_listbox.entries.next, true);
+        script_editor_action_type_listbox.set_focus();
+        return true;
     }
-    script_editor_action_type_listbox.select_entry(script_editor_action_type_listbox.entries.next, true);
-    script_editor_action_type_listbox.set_focus();
-    return true;
+    return false;
 }
 
 // 0x4e7a40  Confidence: likely (jump tables 0x4e7c2c / 0x4e7c50 over type - 6). MISNAMED in sum.symbols
@@ -3737,7 +3744,7 @@ void script_editor_delete_selected_action()
     }
 }
 
-// 0x4e7dc0  Confidence: likely (the relinking statements in the order of the stores). Moves the selected
+// 0x4e7dc0  Confidence: exact (the relinking statements in the order of the stores). Moves the selected
 // action up one: swaps the two actions and the two list lines.
 bool script_editor_action_up_cb(int event, int value)
 {
@@ -3766,7 +3773,7 @@ bool script_editor_action_up_cb(int event, int value)
     return true;
 }
 
-// 0x4e7ee0  Confidence: likely (as script_editor_action_up_cb). Moves the selected action down one.
+// 0x4e7ee0  Confidence: exact (VC6 byte match) (as script_editor_action_up_cb). Moves the selected action down one.
 bool script_editor_action_down_cb(int event, int value)
 {
     script_action tmp;
@@ -3946,7 +3953,7 @@ bool script_editor_new_cancel_cb(int event, int value)
 // 0x4e8400  Confidence: exact. A double click picks the character.
 bool script_editor_new_listbox_cb(int event, int value)
 {
-    if (value == script_editor_new_listbox.id && event == UI_EVENT_LIST_DBLCLICK) {
+    if (script_editor_new_listbox.id == value && event == UI_EVENT_LIST_DBLCLICK) {
         script_editor_new_selection = script_editor_new_listbox.get_selected()->data;
         script_editor_new_window.set_disabled(true);
         return true;
@@ -4241,17 +4248,17 @@ bool script_editor_save_name_cb(int event, int value)
         }
         return true;
     case 0x15:
-        if (strlen(name) == 0) {
-            script_editor_save_filename_inputbox.set_text("*** INVALID FILENAME ***");
-            script_editor_save_ok_button.set_hidden(true);
+        if (strlen(name) != 0) {
+            if (script_editor_save_level_radio.is_checked())
+                str_copy_append_32(filename, name, "_script.tbl");
+            else
+                str_copy_append_32(filename, name, "_cscript.tbl");
+            script_editor_save_filename_inputbox.set_text(filename);
+            script_editor_save_ok_button.set_visible(true);
             return true;
         }
-        if (script_editor_save_level_radio.is_checked())
-            str_copy_append_32(filename, name, "_script.tbl");
-        else
-            str_copy_append_32(filename, name, "_cscript.tbl");
-        script_editor_save_filename_inputbox.set_text(filename);
-        script_editor_save_ok_button.set_visible(true);
+        script_editor_save_filename_inputbox.set_text("*** INVALID FILENAME ***");
+        script_editor_save_ok_button.set_hidden(true);
         return true;
     }
     return false;
@@ -4805,7 +4812,7 @@ write_items:
         editor_dialog_show(400, "Error!", msg, EDITOR_DIALOG_OK, NULL, NULL, NULL, 0xb); \
     } while (0)
 
-// 0x4eac70  Confidence: likely (jump table 0x4eadf4; the tail merges). The result of script_save_files:
+// 0x4eac70  Confidence: exact (VC6 byte match) (jump table 0x4eadf4; the tail merges). The result of script_save_files:
 // a status line and the save window closed, or an error box.
 void script_save(int result)
 {
@@ -4850,21 +4857,22 @@ bool script_editor_save_kind_radio_cb(int event, int value)
 {
     char filename[0x24];
 
-    if (event != 0x13)
-        return false;
-    if (script_editor_save_level_radio.is_checked()) {
-        script_editor_save_name_inputbox.set_text(level_script_name ? level_script_name : level_filename);
-        script_editor_save_name_inputbox.set_hidden(true);
-        script_editor_save_name_inputbox.max_length = 0x20 - strlen("_script.tbl");
-        str_copy_append_32(filename, level_script_name ? level_script_name : level_filename, "_script.tbl");
-    } else {
-        script_editor_save_name_inputbox.set_visible(true);
-        script_editor_save_name_inputbox.set_focus();
-        script_editor_save_name_inputbox.max_length = 0x20 - strlen("_cscript.tbl");
-        str_copy_append_32(filename, script_editor_save_name_inputbox.get_text(), "_cscript.tbl");
+    if (event == 0x13) {
+        if (script_editor_save_level_radio.is_checked()) {
+            script_editor_save_name_inputbox.set_text(level_script_name ? level_script_name : level_filename);
+            script_editor_save_name_inputbox.set_hidden(true);
+            script_editor_save_name_inputbox.max_length = 0x20 - strlen("_script.tbl");
+            str_copy_append_32(filename, level_script_name ? level_script_name : level_filename, "_script.tbl");
+        } else {
+            script_editor_save_name_inputbox.set_visible(true);
+            script_editor_save_name_inputbox.set_focus();
+            script_editor_save_name_inputbox.max_length = 0x20 - strlen("_cscript.tbl");
+            str_copy_append_32(filename, script_editor_save_name_inputbox.get_text(), "_cscript.tbl");
+        }
+        script_editor_save_filename_inputbox.set_text(filename);
+        return true;
     }
-    script_editor_save_filename_inputbox.set_text(filename);
-    return true;
+    return false;
 }
 
 // 0x4eaf00  Confidence: exact.
@@ -5217,7 +5225,7 @@ bool script_editor_params_cancel_cb(int event, int value)
         }                                                                                      \
     } while (0)
 
-// 0x4eb780  Confidence: likely (the shared block as a macro).
+// 0x4eb780  Confidence: exact (VC6 byte match) (the shared block as a macro).
 bool script_editor_choice_ok_cb(int event, int value)
 {
     if (value == script_editor_choice_ok_button.id && event == UI_EVENT_PRESSED) {
@@ -5237,7 +5245,7 @@ bool script_editor_choice_cancel_cb(int event, int value)
     return false;
 }
 
-// 0x4eb8d0  Confidence: likely (as script_editor_choice_ok_cb). A double click picks the mode.
+// 0x4eb8d0  Confidence: exact (VC6 byte match) (as script_editor_choice_ok_cb). A double click picks the mode.
 bool script_editor_choice_listbox_cb(int event, int value)
 {
     if (value != script_editor_choice_listbox.id)
@@ -5547,7 +5555,7 @@ bool script_editor_door_lock_item_listbox_cb(int event, int value)
         }                                                                                   \
     } while (0)
 
-// 0x4ec270  Confidence: likely (the lock branch's shared key store). OK of the door window: both sounds,
+// 0x4ec270  Confidence: exact (the lock branch's shared key store). OK of the door window: both sounds,
 // the lock (pick skill percent / 100, key item), and the saved open / locked state of the door. Game bug:
 // the parameter boxes were filled with "%.1f" of the bytes (script_editor_list_door_sounds), so OK after
 // opening the window stores whatever those boxes show back into the door.

@@ -431,7 +431,7 @@ void ai_state::offset_point_sideways(const vector3 *pos, const vector3 *offset)
 }
 
 // ---- the per-entity frame --------------------------------------------------------------------------
-// 0x472a90  Confidence: likely (cdecl on the character, D1901; jump table 0x472e40: 0 / 12 share the
+// 0x472a90  Confidence: exact (cdecl on the character, D1901; jump table 0x472e40: 0 / 12 share the
 // inactive body, 5, 7 and 11 do nothing; the idle body falls into it). The movement step, the
 // multiplayer travel flags and the death check follow the mode handler.
 void ai_frame(Character *c)
@@ -636,19 +636,25 @@ skip:
 // 0x4730c0  Confidence: exact.
 bool ai_state::is_traveling_sub0()
 {
-    return mode == AI_STATE_TRAVELING && submode == 0;
+    if (mode == AI_STATE_TRAVELING && submode == 0)
+        return true;
+    return false;
 }
 
-// 0x4730e0  Confidence: likely (`mov eax, 1; cmp edx, eax`: the constant is shared with the result).
+// 0x4730e0  Confidence: exact (VC6 byte match) (`mov eax, 1; cmp edx, eax`: the constant is shared with the result).
 bool ai_state::is_traveling_sub1()
 {
-    return mode == AI_STATE_TRAVELING && submode == 1;
+    if (mode == AI_STATE_TRAVELING && submode == 1)
+        return true;
+    return false;
 }
 
 // 0x473100  Confidence: exact. Goal slot 0 is the follow goal that is running.
 bool ai_state::is_following_leader()
 {
-    return goals[0].type == AI_GOAL_FOLLOW && goals[0].id == cur_goal;
+    if (goals[0].type == AI_GOAL_FOLLOW && goals[0].id == cur_goal)
+        return true;
+    return false;
 }
 
 // 0x473120  Confidence: exact.
@@ -664,51 +670,64 @@ bool ai_state::is_combat_e_or_sneak_attack()
 // 0x473150  Confidence: exact.
 bool ai_state::is_attacking()
 {
-    return mode == AI_STATE_COMBAT &&
-           (submode == AIS_CHARGE || submode == AIS_CLOSE_COMBAT || submode == 0x1f);
+    if (mode == AI_STATE_COMBAT && (submode == AIS_CHARGE || submode == AIS_CLOSE_COMBAT || submode == 0x1f))
+        return true;
+    return false;
 }
 
 // 0x473170  Confidence: exact.
 bool ai_state::is_combat_sub10()
 {
-    return mode == AI_STATE_COMBAT && submode == AIS_RANGED_COMBAT;
+    if (mode == AI_STATE_COMBAT && submode == AIS_RANGED_COMBAT)
+        return true;
+    return false;
 }
 
 // 0x473190  Confidence: exact.
 bool ai_state::is_combat_sub16_17()
 {
-    return mode == AI_STATE_COMBAT && (submode == AIS_GET_CLOSE || submode == AIS_GET_FAR);
+    if (mode == AI_STATE_COMBAT && (submode == AIS_GET_CLOSE || submode == AIS_GET_FAR))
+        return true;
+    return false;
 }
 
 // 0x4731b0  Confidence: exact.
 bool ai_state::is_combat_sub16()
 {
-    return mode == AI_STATE_COMBAT && submode == AIS_GET_CLOSE;
+    if (mode == AI_STATE_COMBAT && submode == AIS_GET_CLOSE)
+        return true;
+    return false;
 }
 
 // 0x4731d0  Confidence: exact.
 bool ai_state::is_casting()
 {
-    return mode == AI_STATE_CAST_SPELL;
+    if (mode == AI_STATE_CAST_SPELL)
+        return true;
+    return false;
 }
 
 // 0x4731e0  Confidence: exact.
 bool ai_state::is_combat_sub11()
 {
-    return mode == AI_STATE_COMBAT && submode == AIS_BACKSTAB;
+    if (mode == AI_STATE_COMBAT && submode == AIS_BACKSTAB)
+        return true;
+    return false;
 }
 
 // 0x473200  Confidence: exact.
 bool ai_state::is_mode(int m, int sub)
 {
-    return mode == m && (sub == -1 || submode == sub);
+    if (mode == m && (sub == -1 || submode == sub))
+        return true;
+    return false;
 }
 
 // 0x473230 init_ccmd_attack_point_thunk (jmp, static initialiser entry 224). Confidence: exact.
 // 0x473240 init_ccmd_attack_point (console_command constructor). Confidence: exact.
 console_command ccmd_attack_point("attack_point", "attack point", cmd_attack_point);   // 0x22e4930
 
-// 0x473260  Confidence: likely (the store of the value sits between the two range tests). Picks an
+// 0x473260  Confidence: exact (VC6 byte match) (the store of the value sits between the two range tests). Picks an
 // attack point of the study object; the upper test lets the index equal the point count (NOTES.md).
 void cmd_attack_point()
 {
@@ -722,8 +741,10 @@ void cmd_attack_point()
         return;
     }
     process_command(ARG_INT);
-    if (command_argument_int < 0 || (Ai_attack_point = command_argument_int) > c->info->num_target_points)
+    if (command_argument_int < 0 || command_argument_int > c->info->num_target_points)
         Ai_attack_point = -1;
+    else
+        Ai_attack_point = command_argument_int;
 }
 
 // 0x4732d0 init_ccmd_offense_point_thunk (jmp, static initialiser entry 225). Confidence: exact.
@@ -739,7 +760,7 @@ void cmd_offense_point()
     }
 }
 
-// 0x473320  Confidence: likely (byte-indexed jump table 0x4735f0 / 0x4735e0 over sub 0xf..0x1d; the case
+// 0x473320  Confidence: exact (byte-indexed jump table 0x4735f0 / 0x4735e0 over sub 0xf..0x1d; the case
 // bodies are in binary order). Leaving AI_STATE_HIDING other than through AIS_LEAVE_HIDING is turned
 // into AIS_LEAVE_HIDING with the request kept in pending_*; a sneaking owner (flag 0x400) gets the sneak
 // goal instead of any mode but traveling, sneaking and idle. The handle slot is released on every change.
@@ -872,7 +893,7 @@ bool ai_state::path_get_destination(vector3 *out)
     return true;
 }
 
-// 0x4736a0  Confidence: likely (the || chain's layout). Living entities targeting the owner that fight it
+// 0x4736a0  Confidence: exact (the || chain's layout). Living entities targeting the owner that fight it
 // (close, ranged or positioning sub-modes) or, unless ignore_goals, hold an attack goal on it.
 int ai_state::count_engaged_attackers(bool ignore_goals)
 {
@@ -984,13 +1005,11 @@ void ai_state::class_die()
     }
 }
 
-// 0x473a40  Confidence: likely (the three stores are scheduled y, x, z).
+// 0x473a40  Confidence: exact (VC6 byte match) (the three stores are scheduled y, x, z).
 // The point is passed by value as one vector3 (D1713: living_entity.cpp builds it in the argument slot).
 void ai_state::travel_to_xyz(vector3 dest)
 {
-    travel_dest.x = dest.x;
-    travel_dest.y = dest.y;
-    travel_dest.z = dest.z;
+    travel_dest = dest;
     priority = AI_DIRECT_PRIORITY;
     if (!is_traveling_sub1()) {
         set_mode(AI_STATE_TRAVELING, 1);
@@ -999,7 +1018,7 @@ void ai_state::travel_to_xyz(vector3 dest)
     flags &= ~0x10000000;
 }
 
-// 0x473a90  Confidence: likely (void or the tail of set_mode's result: `call; ret 8`).
+// 0x473a90  Confidence: exact (VC6 byte match) (void or the tail of set_mode's result: `call; ret 8`).
 void ai_state::travel_to_point(vector3 *pos, int n)
 {
     travel_dest = *pos;
@@ -1008,7 +1027,7 @@ void ai_state::travel_to_point(vector3 *pos, int n)
 }
 
 // ---- paths -----------------------------------------------------------------------------------------
-// 0x473ac0  Confidence: likely (the squared distance's operand order). Drops a one-node path that ends
+// 0x473ac0  Confidence: exact (VC6 byte match) (the squared distance's operand order). Drops a one-node path that ends
 // within 5 cm of its start (not for traveling sub 8), restarts the step counter, and for a moving
 // character (not a fighting monster) aims ai_move_dir along the first step.
 void ai_state::path_begin()
@@ -1048,7 +1067,7 @@ ai_path *ai_state::set_path(vector3 *start, ai_path *p)
     return path;
 }
 
-// 0x473c40  Confidence: likely (the mount walk). The search starts from the bottom of the mount chain,
+// 0x473c40  Confidence: exact (VC6 byte match) (the mount walk). The search starts from the bottom of the mount chain,
 // with its size and layer, and the path is stored on that character's AI. The cost bias gets the
 // char_info +0x260 value added (D1904).
 ai_path *ai_state::path_find_new(vector3 *from, int from_layer, vector3 *to, int to_layer, int size,
@@ -1080,7 +1099,7 @@ ai_path *ai_state::path_find_new(vector3 *from, int from_layer, vector3 *to, int
     return ai->path;
 }
 
-// 0x473d80  Confidence: likely. Appends a search from the last node, or starts a new path (only then
+// 0x473d80  Confidence: exact (VC6 byte match). Appends a search from the last node, or starts a new path (only then
 // is path_start set). Returns the new piece.
 ai_path *ai_state::path_find_append(vector3 *from, int from_layer, vector3 *to, int to_layer, int size,
                                     float cost_bias)
@@ -1091,9 +1110,11 @@ ai_path *ai_state::path_find_append(vector3 *from, int from_layer, vector3 *to, 
     while (n && n->next)
         n = n->next;
     if (n) {
-        piece = n->next = ai_path_find(&n->pos, n->layer, to, to_layer, size, cost_bias);
+        piece = ai_path_find(&n->pos, n->layer, to, to_layer, size, cost_bias);
+        n->next = piece;
     } else {
-        piece = path = ai_path_find(from, from_layer, to, to_layer, size, cost_bias);
+        piece = ai_path_find(from, from_layer, to, to_layer, size, cost_bias);
+        path = piece;
         path_start = *from;
     }
     if ((game_flags & GF_MULTIPLAYER) && character_is_locally_controlled(owner) && path)
@@ -1101,7 +1122,7 @@ ai_path *ai_state::path_find_append(vector3 *from, int from_layer, vector3 *to, 
     return piece;
 }
 
-// 0x473e50  Confidence: likely. The search time counts towards the profiler total unless ai_do_frame
+// 0x473e50  Confidence: exact (VC6 byte match). The search time counts towards the profiler total unless ai_do_frame
 // is running (which counts it itself). The size is the sixth argument; the fifth is not read, and the
 // cost bias is always 0.
 int ai_state::path_to(vector3 *from, int from_layer, vector3 *to, int to_layer, int unused, int size,
@@ -1154,7 +1175,7 @@ int ai_state::add_attack(Character *t, int priority)
     return goal_add(AI_GOAL_ATTACK, priority, 0, t->handle, NULL, 0, AI_NO_SPELL, 0.0f);
 }
 
-// 0x473fd0  Confidence: likely (the flag-inverting conditions). Party members (owner flag 1) invert the
+// 0x473fd0  Confidence: exact (VC6 byte match) (the flag-inverting conditions). Party members (owner flag 1) invert the
 // request; a combat transition or a pending flagged goal inverts it again unless +0x50 bit 31.
 int ai_state::set_combat_mode_goal(bool on, int priority)
 {
@@ -1227,14 +1248,14 @@ int ai_state::add_skill_from_behind(Character *t, int priority)
 {
     vector3 d, back;
 
-    if (!(owner->distance_between_edges(t, true, -1) <= 2.0f))
-        return -1;
-    d = owner->pos - t->pos;
-    d.normalize();
-    back = -t->orient.fvec;
-    if (!(d.z * back.z + d.y * back.y + d.x * back.x > 0.707f))
-        return -1;
-    return goal_add(AI_GOAL_BACKSTAB, priority, 0, t->handle, NULL, 0, AI_NO_SPELL, 0.0f);
+    if (owner->distance_between_edges(t, true, -1) <= 2.0f) {
+        d = owner->pos - t->pos;
+        d.normalize();
+        back = -t->orient.fvec;
+        if (d.z * back.z + d.y * back.y + d.x * back.x > 0.707f)
+            return goal_add(AI_GOAL_BACKSTAB, priority, 0, t->handle, NULL, 0, AI_NO_SPELL, 0.0f);
+    }
+    return -1;
 }
 
 // ---- disabling ---------------------------------------------------------------------------------------
@@ -1247,13 +1268,13 @@ int ai_state::knock_down_local(int ms)
     if (is_knocked_down() == true) {
         if (ms > disable_ms - timer.GetElapsedTime())
             timer.SetTimeout(0);
-        return 1;
+    } else {
+        disable_ms = ms;
+        disable_timer.invalidate();
+        set_mode(AI_STATE_DISABLED, AIS_TRIPPED_FALL);
+        if (owner == cur_character)
+            hud_show_message(XSTR("Knocked Down!", 6));
     }
-    disable_ms = ms;
-    disable_timer.invalidate();
-    set_mode(AI_STATE_DISABLED, AIS_TRIPPED_FALL);
-    if (owner == cur_character)
-        hud_show_message(XSTR("Knocked Down!", 6));
     return 1;
 }
 
@@ -1332,7 +1353,10 @@ void ai_state::net_attack_target(Character *t)
 {
     if (!t)
         return;
-    set_mode(AI_STATE_COMBAT, MP_IS_HOST() ? AIS_BACKSTAB : AIS_CLOSE_COMBAT);
+    if (MP_IS_HOST())
+        set_mode(AI_STATE_COMBAT, AIS_BACKSTAB);
+    else
+        set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT);
     priority = AI_DIRECT_PRIORITY;
     owner->combat.set_target((int)owner, t);
     target = t->handle;
@@ -1468,17 +1492,19 @@ static void ai_global_close()
 {
 }
 
-// 0x474900  Confidence: likely (the cos / sin order and the zero store). 16 horizontal directions.
+// 0x474900  Confidence: exact (VC6 byte match) (the cos / sin order and the zero store). 16 horizontal directions.
 void ai_global_init()
 {
-    float angle = 0.0f;
+    float angle;
     int i;
 
     pathfinding_init();
+    angle = 0.0f;
     for (i = 0; i < 16; i++) {
-        ai_directions[i].x = (float)cos(angle);
-        ai_directions[i].y = 0.0f;
-        ai_directions[i].z = (float)sin(angle);
+        vector3 *v = &ai_directions[i];
+        v->x = (float)cos(angle);
+        v->y = 0.0f;
+        v->z = (float)sin(angle);
         angle += 0.3926991f;          // PI / 8
     }
     atexit(ai_global_close);
@@ -1671,13 +1697,11 @@ bool ai_state::is_disabled_2e()
     return is_mode(AI_STATE_DISABLED, AIS_TRIPPED_UP);
 }
 
-// 0x475000  Confidence: likely (`mov eax, 1` / `xor eax, eax` for a bool that the callers test with
+// 0x475000  Confidence: exact (VC6 byte match) (`mov eax, 1` / `xor eax, eax` for a bool that the callers test with
 // `test al, al`).
 bool ai_state::is_disabled_any()
 {
-    if (is_disabled_2c() || is_knocked_down() || is_disabled_2e())
-        return true;
-    return false;
+    return is_disabled_2c() || is_knocked_down() || is_disabled_2e();
 }
 
 // 0x475030  Confidence: exact.
@@ -1726,7 +1750,8 @@ void cast_effect_track_add(int spell, int handle)
         return;
     cast_effect_tracks[i].spell = spell;
     cast_effect_tracks[i].handle = handle;
-    cast_effect_tracks[i].time = effect_get_base(fx->instance->id_bits >> 9)->num_frames * (1.0f / 15.0f) * 1.5f;
+    float t = effect_get_base(fx->instance->id_bits >> 9)->num_frames * (1.0f / 15.0f);
+    cast_effect_tracks[i].time = t * 1.5f;
 }
 
 // 0x475160  Confidence: exact.

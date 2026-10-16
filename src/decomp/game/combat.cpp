@@ -1,12 +1,14 @@
-// combat.cpp - Sum.exe v1.40, code 0x463540-0x468c77 (module "combat.cpp" in sum.symbols / strings.tbl:
+// combat.cpp - Sum.exe v1.40, code 0x463360-0x468c77 (module "combat.cpp" in sum.symbols / strings.tbl:
 // ids 215-217; no path string, so engine/combat/combat.h's directory is guessed).
 // Written from the Sum.exe disassembly (tools/asm.mjs fn; the jump tables decoded from the raw bytes).
 // Target: VC++ 6.0 (cl 12.00.8966), /O2 like the other optimised units (no frame pointer, 0x90 padding).
 // Confidence per function: exact = expect identical code, likely = same semantics, small layout risk,
 // unsure = the source shape is a guess.
 //
-// Unit range: living_combat_send_net (0x463540) to living_combat_set_40 (0x468c70-0x468c77). The previous
-// function, cmd_death (0x463480), is living_entity.cpp's last; the next, sinit_stringpool_941740
+// Unit range: init_ccmd_bloodspots_thunk (0x463360; the bloodspots and death console commands, tagged
+// living_entity.cpp in sum.symbols, moved here by D6100) and living_combat_send_net (0x463540) to
+// living_combat_set_40 (0x468c70-0x468c77). The previous function, cmd_Spell_ap (0x4632a0), is
+// living_entity.cpp's last; the next, sinit_stringpool_941740
 // (0x468c80), is gamesound.cpp's first. Every function is written (decomp75 added
 // combat_trigger_special_ability, living_combat_update_boss_attack and blood_splot_place, D5700-D5701;
 // decomp73 combat_trigger_reflex_ability, D5506).
@@ -14,11 +16,11 @@
 // Most functions are thiscall members of living_combat (Character +0x558); +0x08 is the other side of
 // the exchange. The "skill" of an attack (+0x3c) is a skill id (characterinfo.h SKILL_*).
 //
-// Data: .data 0x59a1bc-0x59a31b, only this unit's literals ("Queueing counter attack" first,
-// "BloodSplot-large02.tga" last); "Super_power" / "Toggles Super_power" and the console macro texts
-// (pooled, 0x588c34-0x588c50) and "!" (pooled, 0x594438). .bss: ccmd_Super_power 0x941720 and
-// Super_power 0x94173d sit between living_entity.cpp's ccmd_death (0x941710), ccmd_bloodspots (0x941730)
-// and Bloodspots (0x94173c): the .bss of the two units is interleaved (NOTES.md).
+// Data: .data 0x59a16c-0x59a31b: Debug_death, the console commands' literals, then the combat literals
+// ("Queueing counter attack" 0x59a1bc first, "BloodSplot-large02.tga" last); "Super_power" / "Toggles
+// Super_power" and the console macro texts (pooled, 0x588c34-0x588c50) and "!" (pooled, 0x594438).
+// .bss 0x941710-0x94173d: ccmd_death, ccmd_Super_power, ccmd_bloodspots, Bloodspots, Super_power. This
+// block was read as two interleaved units; it is one object's (D6100).
 //
 // Inline expansions (as in objects.cpp, DECISIONS.md D66): this unit expands vector3 / matrix
 // assignment inline in places (combat_fire_weapon_missile, combat_get_weapon_tag_position) while
@@ -60,8 +62,76 @@
 #define MP_HOST   ((game_flags & 2) && mp_local_player && (mp_local_player->flags & 1))
 #define MP_CLIENT ((game_flags & 2) && mp_local_player && !(mp_local_player->flags & 1))
 
+// ---- .data (0x59a16c-0x59a31b) -------------------------------------------------------------------
+// The object's only initialised global comes first, then the literals of the two console commands
+// below, then the combat literals ("Queueing counter attack" 0x59a1bc first). Its address, between
+// living_entity.cpp's last literal ("Spell_ap") and the bloodspots literals, is where this object's
+// .data starts: VC6 puts an object's initialised globals before its literals (D6100).
+bool Debug_death = true;              // 0x59a16c "death"
+
 // ---- .bss ----------------------------------------------------------------------------------------
 bool Super_power;                                      // 0x94173d
+bool Bloodspots;                                       // 0x94173c (only cmd_bloodspots uses it)
+
+// ---- 0x463360-0x46353f: the bloodspots and death console commands ------------------------------------
+// sum.symbols tags them living_entity.cpp, but they belong to this object (D6100): Debug_death above,
+// and the .bss of ccmd_death 0x941710, ccmd_bloodspots 0x941730 and Bloodspots 0x94173c interleaves with
+// this unit's ccmd_Super_power 0x941720 and Super_power 0x94173d (0x941710-0x94173d is one block, the
+// living_entity.cpp object ends with move_play_serial 0x941708, gamesound.cpp starts at 0x941740).
+
+// 0x463360 init_ccmd_bloodspots_thunk: jmp to the initialiser. Confidence: exact.
+// 0x463370 init_ccmd_bloodspots: the console_command constructor. Confidence: exact.
+console_command ccmd_bloodspots("bloodspots", "Toggles Bloodspots", cmd_bloodspots);   // 0x941730
+
+// 0x463390  Confidence: exact.
+void cmd_bloodspots()
+{
+    if (calling_a_command_function) {
+        process_command(ARG_TRUE | ARG_FALSE | ARG_NONE);
+        if (arg_type & ARG_TRUE)
+            Bloodspots = true;
+        else if (arg_type & ARG_FALSE)
+            Bloodspots = false;
+        else if (arg_type & ARG_NONE)
+            Bloodspots ^= 1;
+    }
+    if (doing_help_for_comand) {
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+                "bloodspots", "Bloodspots");
+        print_to_console(string_buffer, 0);
+    }
+    if (checking_status_for_command) {
+        sprintf(string_buffer, "%s is %s\n", "bloodspots", Bloodspots ? "TRUE" : "FALSE");
+        print_to_console(string_buffer, 0);
+    }
+}
+
+// 0x463450 init_ccmd_death_thunk: jmp to the initialiser. Confidence: exact.
+// 0x463460 init_ccmd_death: the console_command constructor. Confidence: exact.
+console_command ccmd_death("death", "Toggles Debug_death", cmd_death);   // 0x941710
+
+// 0x463480  Confidence: exact.
+void cmd_death()
+{
+    if (calling_a_command_function) {
+        process_command(ARG_TRUE | ARG_FALSE | ARG_NONE);
+        if (arg_type & ARG_TRUE)
+            Debug_death = true;
+        else if (arg_type & ARG_FALSE)
+            Debug_death = false;
+        else if (arg_type & ARG_NONE)
+            Debug_death ^= 1;
+    }
+    if (doing_help_for_comand) {
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+                "death", "Debug_death");
+        print_to_console(string_buffer, 0);
+    }
+    if (checking_status_for_command) {
+        sprintf(string_buffer, "%s is %s\n", "death", Debug_death ? "TRUE" : "FALSE");
+        print_to_console(string_buffer, 0);
+    }
+}
 
 // 0x463540  Confidence: likely (register choice per branch). Sends the exchange to the other machines:
 // the attacking side's handles first.
@@ -420,7 +490,7 @@ void living_combat::begin_attack()
         play_attack(m);
 }
 
-// 0x463f70  Confidence: likely (a separate function that is a tail jump to begin_attack; the original
+// 0x463f70  Confidence: exact (a separate function that is a tail jump to begin_attack; the original
 // is probably a second entry point with the same body).
 void living_combat::begin_attack_thunk()
 {
@@ -1320,7 +1390,7 @@ int combat_get_weapon_tag_position(Character *attacker, Character *defender)
     return best;
 }
 
-// 0x466920  Confidence: likely (the matrix copy is nine inline dword moves).
+// 0x466920  Confidence: exact (the matrix copy is nine inline dword moves).
 void character_get_bone_world_matrix(Character *c, int bone, vector3 *out_pos, matrix *out_orient)
 {
     c->instance->get_bone_transform(out_pos, out_orient, bone);
@@ -1670,7 +1740,7 @@ void living_combat::trigger_reflex_ability(float damage)
     }
 }
 
-// 0x467cb0  Confidence: likely. The backstab special attack (AI combat sub 0x11): move 0x6c, the full
+// 0x467cb0  Confidence: exact. The backstab special attack (AI combat sub 0x11): move 0x6c, the full
 // bonus when the target is not in combat mode.
 void living_combat::update_special()
 {
@@ -2071,7 +2141,7 @@ vector3 operator*(float s, const vector3 &v)
     return r;
 }
 
-// 0x468ac0  Confidence: likely (the colour bytes are read as `mov eax, [mem]; and eax, 0xff`, i.e.
+// 0x468ac0  Confidence: exact (the colour bytes are read as `mov eax, [mem]; and eax, 0xff`, i.e.
 // ubyte locals). Blood splots for skins 1-2 (flesh): one sized by the damage for small characters,
 // one of each size up to it for large ones. The rand() call's result is not used (literal).
 void living_combat::spawn_blood(float damage)

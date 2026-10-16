@@ -152,9 +152,10 @@ void avoid_clear_segment_flags()
         if (!(sl->flags & AVOID_SEGLIST_USED))
             continue;
         for (i = 0; i < sl->num_segs; i++) {
-            if (sl->segs[i].wall) {
-                sl->segs[i].wall->flags &= ~0x20;
-                sl->segs[i].wall->_pad0b = 0;
+            pf_edge *w = sl->segs[i].wall;
+            if (w) {
+                w->flags &= ~0x20;
+                w->_pad0b = 0;
             }
         }
     }
@@ -188,10 +189,10 @@ bool avoid_circle_contains_point(const vector2 *p, const avoid_obstacle *ob, flo
         return true;
     if (lsq <= r2 * 1.1717894f) {
         margin += ob->half_a;
-        if (fabs(d.y * ob->axis_a.y + d.x * ob->axis_a.x) < margin
-            && fabs(d.y * ob->axis_b.y + d.x * ob->axis_b.x) < r
-            && fabs(d.y * ob->axis_c.y + d.x * ob->axis_c.x) < margin
-            && fabs(d.y * ob->axis_d.y + d.x * ob->axis_d.x) < r)
+        if (fabsf(d.y * ob->axis_a.y + d.x * ob->axis_a.x) < margin
+            && fabsf(d.y * ob->axis_b.y + d.x * ob->axis_b.x) < r
+            && fabsf(d.y * ob->axis_c.y + d.x * ob->axis_c.x) < margin
+            && fabsf(d.y * ob->axis_d.y + d.x * ob->axis_d.x) < r)
             return true;
     }
     return false;
@@ -391,8 +392,7 @@ bool avoid_poly_from_obstacle(avoid_poly *out, const avoid_obstacle *ob)
     if (!(ob->flags & (AVOID_OB_BOX | AVOID_OB_CIRCLE)))
         return false;
     for (i = 0; i < ob->num_points; i++) {
-        out->points[i].x = ob->points[i].x;
-        out->points[i].y = ob->points[i].y;
+        out->points[i] = ob->points[i];
     }
     out->size = ob->size;
     out->layer = ob->layer;
@@ -536,9 +536,9 @@ avoid_spline_point *avoid_spline_point_alloc()
 // 0x4a77d0  Confidence: exact.
 avoid_spline_point *avoid_spline_point_get(int i)
 {
-    if (i < 0 || i >= AVOID_NUM_SPLINE_POINTS)
-        return NULL;
-    return (avoid_spline_points[i].flags & 1) ? &avoid_spline_points[i] : NULL;
+    if (i >= 0 && i < AVOID_NUM_SPLINE_POINTS)
+        return (avoid_spline_points[i].flags & 1) ? &avoid_spline_points[i] : NULL;
+    return NULL;
 }
 
 // 0x4a7800  Confidence: exact.
@@ -548,9 +548,10 @@ avoid_spline *avoid_spline_alloc()
 
     for (i = 0; i < AVOID_NUM_SPLINES; i++) {
         if (!(avoid_splines[i].flags & 1)) {
-            avoid_splines[i].flags = 1;
-            avoid_splines[i].count = 0;
-            return &avoid_splines[i];
+            avoid_spline *p = &avoid_splines[i];
+            p->flags = 1;
+            p->count = 0;
+            return p;
         }
     }
     return NULL;
@@ -559,9 +560,9 @@ avoid_spline *avoid_spline_alloc()
 // 0x4a7830  Confidence: exact.
 avoid_spline *avoid_spline_get(int i)
 {
-    if (i < 0 || i >= AVOID_NUM_SPLINES)
-        return NULL;
-    return (avoid_splines[i].flags & 1) ? &avoid_splines[i] : NULL;
+    if (i >= 0 && i < AVOID_NUM_SPLINES)
+        return (avoid_splines[i].flags & 1) ? &avoid_splines[i] : NULL;
+    return NULL;
 }
 
 // 0x4a7860  Confidence: exact.
@@ -605,10 +606,8 @@ int avoid_spline_point_create(const vector2 *a, const vector2 *b, int size, int 
     avoid_spline_point *pt = avoid_spline_point_alloc();
     if (!pt)
         return -1;
-    pt->p0.x = a->x;
-    pt->p0.y = a->y;
-    pt->p1.x = b->x;
-    pt->p1.y = b->y;
+    pt->p0 = *a;
+    pt->p1 = *b;
     pt->wall.a = &pt->p0;
     pt->wall.b = &pt->p1;
     pt->size = (char)size;
@@ -646,10 +645,11 @@ avoid_seglist *avoid_seglist_alloc()
 
     for (i = 0; i < AVOID_NUM_SEGLISTS; i++) {
         if (!(avoid_seglists[i].flags & AVOID_SEGLIST_USED)) {
-            avoid_seglists[i].num_corners = 0;
-            avoid_seglists[i].num_segs = 0;
-            avoid_seglists[i].poly = -1;
-            return &avoid_seglists[i];
+            avoid_seglist *p = &avoid_seglists[i];
+            p->num_corners = 0;
+            p->num_segs = 0;
+            p->poly = -1;
+            return p;
         }
     }
     return NULL;
@@ -662,10 +662,11 @@ avoid_poly *avoid_poly_alloc()
 
     for (i = 0; i < AVOID_NUM_POLYS; i++) {
         if (!(avoid_polys[i].flags & 1)) {
-            avoid_polys[i].flags = 0;
-            avoid_polys[i].num_points = 0;
-            avoid_polys[i].count = 0;
-            return &avoid_polys[i];
+            avoid_poly *p = &avoid_polys[i];
+            p->flags = 0;
+            p->num_points = 0;
+            p->count = 0;
+            return p;
         }
     }
     return NULL;
@@ -678,8 +679,9 @@ avoid_obstacle *avoid_obstacle_alloc()
 
     for (i = 0; i < AVOID_NUM_OBSTACLES; i++) {
         if (!(avoid_obstacles[i].flags & AVOID_OB_USED)) {
-            avoid_obstacles[i].num_points = 0;
-            return &avoid_obstacles[i];
+            avoid_obstacle *p = &avoid_obstacles[i];
+            p->num_points = 0;
+            return p;
         }
     }
     return NULL;
@@ -692,9 +694,10 @@ avoid_area *avoid_area_alloc()
 
     for (i = 0; i < AVOID_NUM_AREAS; i++) {
         if (!(avoid_areas[i].flags & 1)) {
-            avoid_areas[i].flags |= 1;
-            avoid_areas[i].count = 0;
-            return &avoid_areas[i];
+            avoid_area *p = &avoid_areas[i];
+            p->flags |= 1;
+            p->count = 0;
+            return p;
         }
     }
     return NULL;
@@ -750,11 +753,10 @@ void avoid_seglist_free(avoid_seglist *sl)
     for (i = 0; i < sl->num_corners; i++)
         avoid_link_block_free((avoid_link_block *)sl->corners[i].node.links);
     for (i = 0; i < sl->num_segs; i++) {
-        w = sl->segs[i].wall;
-        if (w) {
-            w->_pad0b--;
-            if (w->_pad0b == 0)
-                w->flags &= ~0x20;
+        if (sl->segs[i].wall) {
+            sl->segs[i].wall->_pad0b--;
+            if (sl->segs[i].wall->_pad0b == 0)
+                sl->segs[i].wall->flags &= ~0x20;
         }
     }
     avoid_seglist_mark_free(sl);
@@ -1211,7 +1213,7 @@ void avoid_sort_refs_along_segment(avoid_seg_ref_entry *refs, int count)
     use_x = 0;
     dx = w->b->x - w->a->x;
     dy = w->b->y - w->a->y;
-    if (fabs(dy) < fabs(dx))
+    if (fabsf(dy) < fabsf(dx))
         use_x = 1;
     for (i = 0; i < count; i++) {
         s = avoid_ref_entry(&refs[i]);

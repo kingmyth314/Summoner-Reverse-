@@ -66,9 +66,9 @@ bool  interface_mouse_over_panel();                                 // 0x412af0 
 bool  ui_get_pick_screen_override(float *x, float *y);              // 0x414580
 bool  ui_get_pick_world_override(vector3 *pos);                     // 0x4145b0
 extern float interface_pulse_time;                                  // 0x58bdc4 (1.0 + frame time, for blinking)
-// Returns true when the leader changed (setne al at 0x413453; the callers ignore it, D2800). In
-// multiplayer it always steps forward.
-bool  party_cycle(int forward);                                     // 0x413360 Tab (1) / Shift+Tab (0)
+// Returns 1 when the leader changed (setne al at 0x413453; mov eax, 1 in multiplayer: int, D5900; the callers
+// ignore it, D2800). In multiplayer it always steps forward.
+int   party_cycle(int forward);                                      // 0x413360 Tab (1) / Shift+Tab (0)
 
 // ---- the interface manager's own functions (decomp48) ---------------------------------------------
 // Screen ids (interface.md): 0 HUD, 1 inventory, 2 status, 3 automap, 4 pickup, 5 spells, 6 skills,

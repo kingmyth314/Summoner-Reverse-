@@ -133,10 +133,11 @@ pf_edge *pf_read_edges(int *count, File *f, int max_edges)
     pf_edge *e;
     int n;
 
-    n = *count = f->read_int(0, 0);
-    if (n == 0)
+    *count = f->read_int(0, 0);
+    if (*count == 0)
         return NULL;
     first = &pf_edges[pf_edge_count];
+    n = *count;
     do {
         e = &pf_edges[pf_edge_count++];
         e->a = &pf_nodes[f->read_int(0, 0)];
@@ -574,7 +575,7 @@ void pathfinding_init()
     atexit(pathfinding_atexit_free);
 }
 
-// 0x49d9f0  Confidence: likely (whether the `if (p) p = NULL` pairs were a free macro that expands to
+// 0x49d9f0  Confidence: exact (VC6 byte match) (whether the `if (p) p = NULL` pairs were a free macro that expands to
 // nothing for mempool memory). Nothing is freed: the arrays live in level_mempool.
 void pathfinding_free_graph()
 {
@@ -651,8 +652,10 @@ void seg2d_closest_point(vector2 *p, const seg2d *s, vector2 *out)
 // 0x49dbe0  Confidence: exact.
 bool pf_door_index_is_open(int door, float fraction)
 {
-    if (door >= 0 && door < num_doors)
-        return door_is_open(&doors[door], fraction);
+    if (door >= 0 && door < num_doors) {
+        door_info *d = &doors[door];
+        return door_is_open(d, fraction);
+    }
     return true;
 }
 
@@ -752,8 +755,7 @@ void pf_wall_normal(pf_edge *wall, vector2 *out)
 {
     vector2 d;
 
-    d.x = wall->b->x - wall->a->x;
-    d.y = wall->b->y - wall->a->y;
+    d = *wall->b - *wall->a;
     d.normalize();
     out->x = d.y;
     out->y = -d.x;
@@ -799,7 +801,7 @@ bool pf_sweep_segment(pf_sweep *s)
         cell = pf_grid_cell_results[i];
         for (k = 0; k < cell->num_walls; k++) {
             s->wall = cell->walls[k];
-            if (pf_sweep_test_wall(s) && fabs(s->t) < fabs(best_t))
+            if (pf_sweep_test_wall(s) && fabsf(s->t) < fabsf(best_t))
                 pf_sweep_record_hit(s, &best_t, &best_wall, &best_hit, &best_kind, &best_corner);
         }
     }
@@ -817,7 +819,7 @@ bool pf_sweep_segment(pf_sweep *s)
                     w.search_id = 0;
                     w.flags = 0;
                     s->wall = &w;
-                    if (pf_sweep_test_wall(s) && fabs(s->t) < fabs(best_t))
+                    if (pf_sweep_test_wall(s) && fabsf(s->t) < fabsf(best_t))
                         pf_sweep_record_hit(s, &best_t, &best_wall, &best_hit, &best_kind, &best_corner);
                 }
             }
@@ -838,7 +840,7 @@ bool pf_sweep_segment(pf_sweep *s)
                 pt->wall.search_id = 0;
                 found++;
                 s->wall = &pt->wall;
-                if (pf_sweep_test_wall(s) && fabs(s->t) < fabs(best_t))
+                if (pf_sweep_test_wall(s) && fabsf(s->t) < fabsf(best_t))
                     pf_sweep_record_hit(s, &best_t, &best_wall, &best_hit, &best_kind, &best_corner);
             }
         }
@@ -1632,7 +1634,7 @@ ai_path *pf_graph_search(const vector3 *from, int from_layer, vector3 *to, int t
     return NULL;
 }
 
-// 0x4a01d0  Confidence: likely (profile label text). Searches, smooths without Precalc_vis_method and
+// 0x4a01d0  Confidence: exact (profile label text). Searches, smooths without Precalc_vis_method and
 // stores each node's normalised x / z step from the previous position.
 ai_path *ai_path_find(const vector3 *from, int from_layer, vector3 *to, int to_layer, int size, float cost_bias)
 {
@@ -1665,7 +1667,7 @@ ai_path *ai_path_alloc_node()
         return NULL;
     }
     n = ai_path_free_list;
-    ai_path_free_list = n->next;
+    ai_path_free_list = ai_path_free_list->next;
     n->next = NULL;
     ai_path_used++;
     if (ai_path_used > ai_path_peak_used)
@@ -1673,7 +1675,7 @@ ai_path *ai_path_alloc_node()
     return n;
 }
 
-// 0x4a0330  Confidence: likely (the x / z distance vector, built in the dead pos argument's slot).
+// 0x4a0330  Confidence: exact (VC6 byte match) (the x / z distance vector, built in the dead pos argument's slot).
 ai_path *ai_path_node_create_b(vector3 pos, int layer, ai_path *next)
 {
     ai_path *n = ai_path_alloc_node();
@@ -1688,14 +1690,14 @@ ai_path *ai_path_node_create_b(vector3 pos, int layer, ai_path *next)
     n->next = next;
     n->flags = 0;
     if (next) {
-        vector3 d(next->pos.x - pos.x, 0.0f, next->pos.z - pos.z);
+        vector3 d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.z);
 
         n->cost += d.length_quick() + next->cost;
     }
     return n;
 }
 
-// 0x4a03c0  Confidence: likely. Like ai_path_node_create_b from an x / z point; pos.y is not written
+// 0x4a03c0  Confidence: exact (VC6 byte match). Like ai_path_node_create_b from an x / z point; pos.y is not written
 // (it keeps the pool's stale value; NOTES.md).
 ai_path *ai_path_node_create(vector2 pos, int layer, ai_path *next)
 {
@@ -1710,7 +1712,7 @@ ai_path *ai_path_node_create(vector2 pos, int layer, ai_path *next)
     n->pos.x = pos.x;
     n->pos.z = pos.y;
     if (next) {
-        vector3 d(next->pos.x - pos.x, 0.0f, next->pos.z - pos.y);
+        vector3 d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.y);
 
         n->cost += d.length_quick() + next->cost;
     }

@@ -326,7 +326,7 @@ void hud_init()
     statscreen_refresh_anim(0);
 }
 
-// 0x40cf40  Confidence: likely (the hot button timer test reads "valid || elapsed": the highlight set by
+// 0x40cf40  Confidence: exact (the hot button timer test reads "valid || elapsed": the highlight set by
 // hud_handle_keys is cleared on the next frame, not after 100 ms; reproduced as is). In a multiplayer game
 // that is still loading only the host's F key does something: it drops every player still at state 4.
 int hud_frame(int key)
@@ -516,7 +516,7 @@ void hud_update_portraits()
     }
 }
 
-// 0x40d4d0  Confidence: likely (the default case jumps straight to the timer test when the state is 2,
+// 0x40d4d0  Confidence: exact (VC6 byte match) (the default case jumps straight to the timer test when the state is 2,
 // read as VC6 threading the "!= 2" test into the common "== 2" test).
 void hud_portrait_set_state(int slot, int state)
 {
@@ -539,19 +539,16 @@ void hud_portrait_set_state(int slot, int state)
         s->state = 0;
 }
 
-// 0x40d540  Confidence: likely (game_is_paused is called before the frame time is loaded; the product is
+// 0x40d540  Confidence: exact (game_is_paused is called before the frame time is loaded; the product is
 // one expression shared by both branches).
 void hud_update_anim_time()
 {
-    bool paused = game_is_paused();
-    float dt = reported_frametime * 15.0f;
-
-    if (paused) {
-        hud_flash_paused_anim_time += dt;
+    if (game_is_paused()) {
+        hud_flash_paused_anim_time += reported_frametime * 15.0f;
         if (hud_flash_paused_anim_time >= hud_flash_paused_frames)
             hud_flash_paused_anim_time -= hud_flash_paused_frames;
     } else {
-        hud_pause_anim_time += dt;
+        hud_pause_anim_time += reported_frametime * 15.0f;
         if (hud_pause_anim_time >= hud_pause_frames)
             hud_pause_anim_time -= hud_pause_frames;
         hud_flash_paused_anim_time = 0;
@@ -998,7 +995,7 @@ void hud_key_help()
     interface_set_screen(22, 0);
 }
 
-// 0x40e270  Confidence: likely (one request record for both branches). A multiplayer client asks the host.
+// 0x40e270  Confidence: exact (one request record for both branches). A multiplayer client asks the host.
 void hud_key_pause()
 {
     ai_service_req req;
@@ -1049,10 +1046,10 @@ void hud_key_h_cb(int button)
 // 0x40e390  Confidence: exact.
 void hud_key_automap()
 {
-    if (interface_get_screen() == 3)
-        interface_set_screen(0, 0);
-    else
+    if (interface_get_screen() != 3)
         interface_set_screen(3, 0);
+    else
+        interface_set_screen(0, 0);
 }
 
 // 0x40e3c0  Confidence: exact.
@@ -1070,10 +1067,10 @@ void hud_key_status()
 // 0x40e3f0  Confidence: exact.
 void hud_key_spells()
 {
-    if (interface_get_screen() == 5)
-        interface_set_screen(0, 0);
-    else
+    if (interface_get_screen() != 5)
         interface_set_screen(5, 0);
+    else
+        interface_set_screen(0, 0);
 }
 
 // 0x40e420  Confidence: exact.
@@ -1094,10 +1091,10 @@ void hud_key_inventory()
 // 0x40e450  Confidence: exact.
 void hud_key_skills()
 {
-    if (interface_get_screen() == 6)
-        interface_set_screen(0, 0);
-    else
+    if (interface_get_screen() != 6)
         interface_set_screen(6, 0);
+    else
+        interface_set_screen(0, 0);
 }
 
 // 0x40e480  Confidence: likely (the distance is an inline vector length; the FPU order z, y, x of the squares
@@ -1136,7 +1133,7 @@ void hud_interact_nearest()
         dy = cur_character->pos.y - obj->pos.y;
         dz = cur_character->pos.z - obj->pos.z;
         d = (float)sqrt(dx * dx + dy * dy + dz * dz);
-        if (d <= 3.0f && d <= best_obj_dist && fabs(cur_character->pos.y - obj->pos.y) <= 3.0f) {
+        if (d <= 3.0f && d <= best_obj_dist && fabsf(cur_character->pos.y - obj->pos.y) <= 3.0f) {
             best_obj = obj;
             best_obj_dist = d;
         }
@@ -1664,9 +1661,7 @@ int hud_death_timer_frame(int key)
     if (cur_character && !CHAR_HM(cur_character)->get_current_move()) {
         if (!hud_death_timer.valid()) {
             hud_death_timer.SetTimeout(3000);
-            return key;
-        }
-        if (hud_death_timer.elapsed() && key) {
+        } else if (hud_death_timer.elapsed() && key) {
             gameseq_set_state(1);
             return 0;
         }
@@ -1747,8 +1742,8 @@ void hud_draw()
 
             gr_set_color_ptr(&c);
         } else if (def->flags & 8) {
-            gr_set_color(255, 255, 255,
-                         255 - (int)(((int)(interface_pulse_time * 1000.0f) % 1000) * 0.001f * 204.0f));
+            float t = ((int)(interface_pulse_time * 1000.0f) % 1000) * 0.001f;
+            gr_set_color(255, 255, 255, 255 - (int)(t * 204.0f));
         } else {
             gr_set_color(255, 255, 255, 255);
         }
@@ -1839,7 +1834,7 @@ Color hud_portrait_get_color(int n)
     return c;
 }
 
-// 0x40fa90  Confidence: likely (switch 0x40fc10, bodies in the order 2, 0, 1/3; frame: w 0x0, h 0x4,
+// 0x40fa90  Confidence: exact (VC6 byte match) (switch 0x40fc10, bodies in the order 2, 0, 1/3; frame: w 0x0, h 0x4,
 // text 0x8). sum.symbols calls it the detail level; what it shows is the camera mode (game_camera +0, or
 // +4 while gliding, mode 5): for 4 s after it changes, the "\xb9" icon and "auto" / "low" / "high".
 void hud_draw_camera_mode()
@@ -1889,7 +1884,7 @@ void hud_draw_camera_mode()
         hud_camera_mode_timer.invalidate();
 }
 
-// 0x40fc20  Confidence: likely (frame: Color 0x0, w 0x4, h 0x8, temp 0xc). The camera-lock icon "\xba"
+// 0x40fc20  Confidence: exact (VC6 byte match) (frame: Color 0x0, w 0x4, h 0x8, temp 0xc). The camera-lock icon "\xba"
 // right-aligned to the camera-mode overlay for 3 s after hud_key_camera, blinking every 500 ms.
 void hud_draw_camera_forced_icon()
 {
@@ -1902,11 +1897,11 @@ void hud_draw_camera_forced_icon()
     gr_set_color_ptr(&ui_color_text_box_bg);
     gr_rect(hud_camera_mode_pos[resolution_index][0] - w, hud_camera_mode_pos[resolution_index][1], w, h,
             gr_rect_mode, 1.0f);
+    int t = (3000 - hud_camera_forced_timer.GetRemainingTime()) % 500;
     c.r = ui_color_text.r;
     c.g = ui_color_text.g;
     c.b = ui_color_text.b;
-    c.a = (ubyte)(int)((1.0f - ((3000 - hud_camera_forced_timer.GetRemainingTime()) % 500) * 0.002f) * 255.0f
-                       + 0.5f);
+    c.a = (ubyte)(int)((1.0f - t * 0.002f) * 255.0f + 0.5f);
     gr_set_color_ptr(&c);
     gr_string(hud_camera_mode_pos[resolution_index][0] - w, hud_camera_mode_pos[resolution_index][1], "\xba", -1,
               gr_string_mode);
@@ -1914,7 +1909,7 @@ void hud_draw_camera_forced_icon()
         hud_camera_forced_timer.invalidate();
 }
 
-// 0x40fd40  Confidence: likely (the loop keeps i and the record pointer in stack slots; the AP product is
+// 0x40fd40  Confidence: exact (the loop keeps i and the record pointer in stack slots; the AP product is
 // fild / fimul, so the table value is converted to float first). HP (dark red) and AP (dark blue) bars
 // under each portrait background.
 void hud_draw_health_bars()
@@ -1922,8 +1917,8 @@ void hud_draw_health_bars()
     int i;
 
     for (i = 0; i < hud_portrait_count; i++) {
-        Character *c = hud_portrait_slots[i].character;
         ui_button_state *b = &hud_buttons[HUD_BTN_PORTRAIT_BKG + i];
+        Character *c = hud_portrait_slots[i].character;
         int x, y, w, h;
 
         x = hud_hp_bar_pos[resolution_index][0] + b->x;
@@ -1946,7 +1941,7 @@ void hud_draw_health_bars()
     }
 }
 
-// 0x40fed0  Confidence: likely (scale switch: bodies in the order 2, 1, default; frame: scale 0x0, h 0x4,
+// 0x40fed0  Confidence: exact (scale switch: bodies in the order 2, 1, default; frame: scale 0x0, h 0x4,
 // w 0x8). The running pause animation (pause.vbm, frames after the first) on the pause button, stretched
 // for 800 and 1024; while paused also the FlashPaused animation.
 void hud_draw_animated_icons()
@@ -1961,13 +1956,15 @@ void hud_draw_animated_icons()
         int y = hud_pause_icon_pos[resolution_index][1] + hud_buttons[HUD_BTN_PAUSE].y;
 
         switch (resolution_index) {
-        case 2:
-            scale = 1.6f;
+        case 0:
+            scale = 1.0f;
             break;
         case 1:
             scale = 1.25f;
             break;
-        case 0:
+        case 2:
+            scale = 1.6f;
+            break;
         default:
             scale = 1.0f;
             break;
@@ -2134,8 +2131,8 @@ bool hud_mouse_in_panel(int x, int y)
     int i;
 
     for (i = 0; i < HUD_NUM_BUTTONS; i++) {
-        if ((hud_buttons[i].flags & 3) &&
-            point_in_rect(x, y, hud_buttons[i].x, hud_buttons[i].y, hud_buttons[i].w, hud_buttons[i].h))
+        ui_button_state *b = &hud_buttons[i];
+        if ((b->flags & 3) && point_in_rect(x, y, b->x, b->y, b->w, b->h))
             return true;
     }
     return false;
