@@ -127,6 +127,38 @@ skills the character may have (2026-10-14). The intro credit position against a 
 See the [Decompilation plan](decomp-plan.md): map the whole binary first (engine core
 first), structured so it can become a byte-matching decompilation later.
 
+## Future projects
+
+Added 2026-10-16 at the user's request.
+
+### Soon
+
+- **A save editor for players.** `tools/savedit.mjs` already edits gold and skill points from the command line and
+  writes new files only; `tools/savinfo.mjs` reads every section ([Savegame](sum-exe/savegame.md) has the full
+  layout). A player-facing editor would put this behind a simple window (like `SummonerFixConfig.exe`): party gold,
+  levels, skill points, inventory, story flags, with a backup of the original save.
+- **More debug tools a player can reach.** What exists now is for testing: 149 console commands
+  ([Console](sum-exe/console.md), cheats such as `immortal`, `Give_all_items`, `max_skills`, `add_xp`,
+  `gamestage`, the boss `*_stage` commands), SummonerFix `[ConsoleKeys]`, `[Debug] ScriptEditorKey`,
+  `TestSaves`, and agent-mode `flag` / `navgoto`. A player-facing version could add a console window with the
+  game's own output, a cheats page in the config app, and a level-warp menu (`play_and_load_cutscene` with the
+  return-to-menu bit cleared, see [Tools](tools.md)).
+
+### After the code fully recompiles
+
+Once `src/decomp` builds a working `Sum.exe`, these become source changes instead of byte patches:
+
+- **dgVoodoo 2.** It wraps Glide and old DirectX for modern Direct3D 11/12. SummonerFix now forces the OpenGL
+  renderer; dgVoodoo 2 would make the original Glide and Direct3D renderers usable too (with their own gamma,
+  K90 does not apply there). To find out: which dgVoodoo DLLs Summoner loads, and whether the launcher-free start
+  and the widescreen output can work with it.
+- **Auto-saving.** The game already has `quicksave` (`quicksave.sav`) and the rules for when saving is allowed
+  (`savegame_location_allowed`, [Savegame](sum-exe/savegame.md#saving-and-loading)). An autosave could write a
+  rotating slot on level change and every few minutes when saving is allowed.
+- **Wider display options.** Today: any `GameWidth` / `GameHeight` (resolution table slot 2), borderless or
+  window output, centred menus and HUD, brightness. Candidates: a proper resolution list, exclusive fullscreen,
+  vsync and frame-rate options, anti-aliasing, field of view, UI scale.
+
 ## Other planned work
 
 - Widescreen (16:9) instead of 4:3 pillarboxing, with the 1024-wide UI kept centred.
