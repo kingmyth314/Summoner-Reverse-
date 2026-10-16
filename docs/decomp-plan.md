@@ -369,3 +369,10 @@ So the game was built with **Visual C++ 6.0** (compiler version 12.00), most of 
 (8966; which service pack is *inferred*, not confirmed), plus static libraries built with older VC6 builds (the C
 runtime, 8047). A matching build needs Visual Studio 6.0 with the matching service pack. **Microsoft C 6.00** (1990)
 is a different, 16-bit DOS compiler and cannot produce this code.
+
+**Visual C++ 6.0 Standard Edition (tested 2026-10-16).** A Japanese VC6 Standard Edition disc (cl 12.00.8168, the
+release build) compiles from its extracted `VC98\BIN` without setup, but its compiler ignores `/O2`: the output is the
+frame-based code of `/Od` (**observed** on a test loop). Standard Edition has no optimiser, so it can only be
+compared against the units Sum.exe ships unoptimised (living_entity.cpp, objects.cpp, the cutscene file). Even those
+need the `src/decomp` headers made VC6-clean first (they include `stdint.h`, which VC6 lacks). The optimised units
+need the Professional or Enterprise Edition, ideally with the service pack that gives build 8966.
