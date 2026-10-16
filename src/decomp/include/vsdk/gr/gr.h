@@ -248,7 +248,8 @@ void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5);
 bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs);   // 0x50edc0 (true = outside the view)
 // decomp54 (snow_render): (position, a, size, mode) a camera-facing sprite of the current texture.
 // decomp66: the second argument is a float (the emitter passes the particle angle; the others 0).
-void gr_bitmap_3d(vector3 *pos, float angle, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
+// decomp69 (D5004): returns bool (false when the point does not project; else gr_poly's result).
+bool gr_bitmap_3d(vector3 *pos, float angle, float size, gr::Mode mode);   // 0x53f3b0 (vsdk\gr)
 
 // The lighting record a model is rendered with (0x20 bytes on the callers' stacks; thiscall constructor,
 // no destructor). The constructor builds a vector3 at +0xc and resets +0..+0x1c. status_draw_model
@@ -302,7 +303,9 @@ int gr_clip_and_project_poly(int n, gr_vertex **verts);   // 0x53e9d0
 // along its view ray (depth bias); (n, verts, flags, a, b) draws a polygon (the decals pass 0x118c21, 0, 0).
 void gr_rotate_vertices(gr_vertex *out, const vector3 *in, int count);   // 0x50e990
 void gr_offset_point_depth(gr_vertex *v, float d);    // 0x50ea00
-void gr_poly(int n, gr_vertex **verts, unsigned int flags, int a, int b);   // 0x53e770 (return unused)
+// decomp69 (D5003): (n, verts, mode, fixed_depth, depth); the mode is a gr::Mode (get_alpha_source is
+// called on the argument slot), the last two go to gr_poly_begin; returns gr_poly_end's result.
+bool gr_poly(int n, gr_vertex **verts, gr::Mode mode, bool fixed_depth, float depth);   // 0x53e770
 
 // A light record as levelrender_sum_point_lights reads it (decomp28). decomp60 (D4002): these are the
 // attached-light fields (vfx.h attached_light, 0x98 bytes: world position +0x20, colour +0x2c,
@@ -355,8 +358,10 @@ ubyte gr_project_vertex(gr_vertex *v);                // 0x50ea50 returns v->fla
 // clipped by one plane), two world points, a box arrow (pos, orient, size) and a sphere.
 bool gr_line_3d(gr_vertex *a, gr_vertex *b, gr::Mode mode);                     // 0x53e520
 void gr_line_3d_world(const vector3 *a, const vector3 *b, gr::Mode mode);      // 0x53e610
-void gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode);           // 0x53f720
-void gr_draw_arrow_3d(const vector3 *pos, const matrix *orient, const vector3 *size, gr::Mode mode);   // 0x53faf0
+// decomp69 (D5004): both return true (`mov al, 1`). The "arrow" is a wire box: the 8 corners pos +-
+// half of size along the orient axes, 12 edges.
+bool gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode);           // 0x53f720
+bool gr_draw_arrow_3d(const vector3 *pos, const matrix *orient, const vector3 *size, gr::Mode mode);   // 0x53faf0
 
 // Direct3D back end (vsdk\gr\directx\gr_direct3d.cpp).
 extern bool d3d_use_vertex_buffer;                    // 0x2dc6c31
@@ -451,13 +456,39 @@ void gr_poly_buffer_flush();                          // 0x545d70
 // its glide_tmus (ecx = the record, 0x5495a2, 0x549706). The members lie in the Direct3D texture cache
 // object (0x54d470-0x54d5bf, vsdk\gr in sum.symbols, file not known). No constructor is declared: the
 // Glide record's constructor 0x549780 sets these fields itself instead of calling one (D2502).
+// decomp69 (D5020): the four members are header inlines. Their copies are COMDATs at the end of the
+// Direct3D texture cache object, after its last regular function and in the order of their first use
+// there (interleaved with the Direct3D slot's own inlines); the Glide object, built without inline
+// expansion, calls the same copies (one COMDAT kept by the linker).
 class tcache_slot {
 public:
-    void init_stage(int stage);                       // 0x54d490 tcache_slot__init_stage: initialized = 1, stage, bitmap / section = -1
-    void reset();                                     // 0x54d4b0 tcache_slot__reset: bitmap / section = -1
+    void init_stage(int stage)                        // 0x54d490 tcache_slot__init_stage
+    {
+        initialized = true;
+        this->stage = stage;
+        bitmap = -1;
+        section = -1;
+    }
+    void reset()                                      // 0x54d4b0 tcache_slot__reset
+    {
+        bitmap = -1;
+        section = -1;
+    }
     // true (and the cached scales) when that bitmap section is the one bound.
-    bool is_bound(int bitmap, int section, float *u_scale, float *v_scale);   // 0x54d4f0 tcache_slot__is_bound
-    void invalidate_bitmap(int bitmap);               // 0x54d5a0 tcache_slot__invalidate_bitmap: bitmap = -1 when it matches
+    bool is_bound(int bitmap, int section, float *u_scale, float *v_scale)   // 0x54d4f0 tcache_slot__is_bound
+    {
+        if (this->bitmap == bitmap && this->section == section) {
+            *u_scale = this->u_scale;
+            *v_scale = this->v_scale;
+            return true;
+        }
+        return false;
+    }
+    void invalidate_bitmap(int bitmap)                // 0x54d5a0 tcache_slot__invalidate_bitmap
+    {
+        if (this->bitmap == bitmap)
+            this->bitmap = -1;
+    }
     bool initialized;                                 // +0x00
     ubyte _pad01[3];
     int stage;                                        // +0x04 texture stage / Glide TMU
@@ -472,16 +503,20 @@ LAYOUT_CHECK(tcache_slot, sizeof(tcache_slot) == 0x18);
 // (p0, p1, mode): both points through gr_rotate_vertex, then gr_line_3d.
 // (out, in): (in - view position) rotated into the view; returns the clip codes.
 // The buffered / immediate polygon calls (0x545150-0x5457b0).
-void gr_poly_begin(int buffered, int a, int b, int c, int d);                  // 0x545150
+// decomp69 (D5010, the unit src/decomp/vsdk/unnamed_gr_poly_0x5450c0.cpp): (buffered, z, a2, fixed_depth,
+// depth). buffered records the polygon into the sorted command buffer (z is its sort key, gr_poly passes
+// the largest view z); fixed_depth makes every vertex z = depth, sw = 1 / depth when drawn; a2 is stored
+// and never read. set_texture: (mode, bm, r, g, b, a, stage), the colour bytes are ubyte (the tint code
+// masks them with 0xff); gr_poly_end returns false when the polygon is rejected. The rest of the unit:
+// vsdk/gr/unnamed_gr_poly_0x5450c0.h.
+void gr_poly_begin(bool buffered, float z, int a2, bool fixed_depth, float depth);      // 0x545150
 void gr_poly_vertex(gr_vertex *v);                                             // 0x5452c0
-void gr_poly_set_texture(gr::Mode mode, int bm, int r, int g, int b, int a, int flags);   // 0x545340
+void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte a, int stage);   // 0x545340
 void gr_poly_uv(float u, float v);                                             // 0x5455a0
 void gr_poly_alpha(ubyte a);                                                   // 0x545760
-// decomp70 (the vfx mesh object): (r, g, b) of the current vertex (gr_tint applied).
-void gr_poly_rgb(ubyte r, ubyte g, ubyte b);                                   // 0x545610
-// decomp70: as gr_bitmap_3d, through the oriented quad 0x53edd0 (pos, angle, width, height, mode).
-void gr_bitmap_3d_oriented(vector3 *pos, float angle, float w, float h, gr::Mode mode);   // 0x53f410
-void gr_poly_end();                                                            // 0x5457b0
+// gr_poly_rgb (0x545610) and gr_bitmap_3d_oriented (0x53f410), used by the vfx mesh unit (decomp70), are declared
+// in vsdk/gr/unnamed_gr_poly_0x5450c0.h and vsdk/gr/unnamed_gr_line_0x53e520.h with their definitions.
+bool gr_poly_end();                                                            // 0x5457b0
 
 
 // ---- decomp63 (the render-scene unit 0x481680; vsdk\gr in sum.symbols) ------------------------------
@@ -489,7 +524,8 @@ void gr_poly_end();                                                            /
 // unless game_flags & 0x120), gr_start_instance, gr_stop_instance and gr_set_far_clip are declared in the
 // 3D view unit's header below.
 // (p0, p1, width, mode): a camera-facing quad along p0-p1 (the line trails of the effects).
-void gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode mode);   // 0x53f470
+// decomp69 (D5004): returns true; always buffered (gr_poly_begin(true, centre z, ...)).
+bool gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode mode);   // 0x53f470
 // decomp65: the 3D view state unit (0x50d9b0-0x50f9cf): clip planes, the instance stack, the saved state,
 // the fog / depth inlines.
 #include "vsdk/gr/unnamed_gr_3d_0x50d9b0.h"

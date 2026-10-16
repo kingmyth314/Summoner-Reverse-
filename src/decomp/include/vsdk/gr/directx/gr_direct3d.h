@@ -199,9 +199,76 @@ void gr_d3d_set_alpha_test(bool on);                  // 0x53ab80
 void gr_d3d_flush_pipeline();                         // 0x53abb0
 // 0x53ac00 guid_equal is objbase.h's IsEqualGUID inline, out of line at the end of the object.
 
-// ---- the Direct3D texture cache (vsdk\gr\directx, 0x54bb60-0x54d5a0, file not known) -------------------
-// (stage, bm, section, &u_scale, &v_scale, fail_on_full); bm < 0 unbinds the stage. Returns 0 on failure.
-int  gr_d3d_tcache_set(int stage, int bm, int section, float *u_scale, float *v_scale, int fail_on_full);   // 0x54d050
+// ---- the Direct3D texture cache (vsdk\gr\directx, 0x54bb30-0x54d5b5, file not known) -------------------
+// decomp69: source src/decomp/vsdk/unnamed_d3d_tcache_0x54bb30.cpp (file name a placeholder).
+// One section of a bitmap's texture (0x20 bytes; names ours): a bitmap wider or taller than the largest
+// texture is cut into tiles of at most gr_screen.max_bitmap_w x max_bitmap_h.
+struct d3d_tcache_section {
+    IDirectDrawSurface7 *surface;     // +0x00 the managed texture surface (top mip level), NULL none
+    int size;                         // +0x04 bytes counted in d3d_texture_mem_used (w * h * 2)
+    float u_scale;                    // +0x08 section width / texture width
+    float v_scale;                    // +0x0c
+    int x, y;                         // +0x10 position of the tile in the bitmap
+    int w, h;                         // +0x18 tile size
+};
+LAYOUT_CHECK(d3d_tcache_section, sizeof(d3d_tcache_section) == 0x20);
+// One entry per bitmap frame (MAX_BITMAPS of them, indexed by bm_get_current_frame; 0x10 bytes, names ours).
+struct d3d_tcache_entry {
+    int bitmap;                       // +0x00 the handle loaded (as passed to gr_d3d_tcache_set), -1 none
+    int num_sections;                 // +0x04
+    bool dirty;                       // +0x08 gr_d3d_mark_texture_dirty: reload on the next set
+    ubyte _pad09[3];
+    d3d_tcache_section *sections;     // +0x0c operator new'd array
+};
+LAYOUT_CHECK(d3d_tcache_entry, sizeof(d3d_tcache_entry) == 0x10);
+
+extern d3d_tcache_entry *d3d_tcache_entries;          // 0x2f13308
+extern int d3d_texture_mem_used;                      // 0x2f13314
+
+// The texture stage record of the Direct3D cache (decomp69, D5021): tcache_slot (gr.h) plus a constructor
+// and the bind / unbind members, all header inlines (COMDATs 0x54d470, 0x54d4c0, 0x54d530 at the end of
+// the cache object). sum.symbols calls the constructor opengl_record__ctor; the OpenGL back end does not
+// use it (its array is the two d3d_tcache_slots). The constructor leaves the stage unset.
+class d3d_tcache_slot : public tcache_slot {
+public:
+    d3d_tcache_slot()                                 // 0x54d470 opengl_record__ctor
+    {
+        initialized = false;
+        bitmap = -1;
+        section = -1;
+        u_scale = 0.0f;
+        v_scale = 0.0f;
+    }
+    // Unbinds the stage (unless d3d_s3_depth is set), forgets the bitmap but not the section.
+    void d3d_unbind()                                 // 0x54d4c0 tcache_slot__d3d_unbind
+    {
+        if (!d3d_s3_depth)
+            IDirect3DDevice7_SetTexture(d3d_device, stage, NULL);
+        bitmap = -1;
+    }
+    // Binds section `section` of the entry and returns its scales.
+    void d3d_bind(d3d_tcache_entry *e, int section, float *u_scale, float *v_scale)   // 0x54d530 tcache_slot__d3d_bind
+    {
+        d3d_tcache_section *s = &e->sections[section];
+
+        e->dirty = false;
+        IDirect3DDevice7_SetTexture(d3d_device, stage, s->surface);
+        *u_scale = s->u_scale;
+        *v_scale = s->v_scale;
+        this->section = section;
+        this->bitmap = e - d3d_tcache_entries;
+        this->u_scale = s->u_scale;
+        this->v_scale = s->v_scale;
+    }
+};
+LAYOUT_CHECK(d3d_tcache_slot, sizeof(d3d_tcache_slot) == 0x18);
+#define D3D_TCACHE_NUM_SLOTS 2
+extern d3d_tcache_slot d3d_tcache_slots[D3D_TCACHE_NUM_SLOTS];   // 0x2f132d8
+
+// (stage, bm, section, &u_scale, &v_scale, bind); bm < 0 unbinds the stage. Returns 0 when the texture
+// cannot be created. decomp69 (D5022): the last argument is a bool (tested as a byte): bind the section
+// to the stage (false only makes sure the texture is loaded); was int fail_on_full.
+int  gr_d3d_tcache_set(int stage, int bm, int section, float *u_scale, float *v_scale, bool bind);   // 0x54d050
 void gr_d3d_tcache_init();                            // 0x54bb60
 void gr_d3d_tcache_close();                           // 0x54bbb0
 void gr_d3d_tcache_flush();                           // 0x54bc60
@@ -211,5 +278,19 @@ void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h
 // decomp40 (gr.cpp dispatch): (bm): the dirty flag of the bitmap's entry / release of its slots.
 void gr_d3d_mark_texture_dirty(int bm);               // 0x54d3f0
 void gr_d3d_tcache_free(int bm);                      // 0x54d430
+// decomp69: the rest of the cache.
+void gr_d3d_tcache_free_entry(d3d_tcache_entry *e);   // 0x54bbf0
+// (bm, entry, section, data, palette, bm_w, bm_h, format, num_levels): creates the managed texture of one
+// section (mip levels when num_levels > 1); 1, or -1 when the surface cannot be created or locked.
+int  gr_d3d_create_texture_section(int bm, d3d_tcache_entry *e, int section, ubyte *data, ubyte *palette,
+                                   int bm_w, int bm_h, int format, int num_levels);   // 0x54bca0
+// (pf, entry, section, locked desc, format, tex_h, tex_w, bm_h, bm_w, data, palette): converts the bitmap
+// into the locked surface's pixel format.
+void gr_d3d_copy_bitmap_to_surface(DDPIXELFORMAT *pf, d3d_tcache_entry *e, int section, DDSURFACEDESC2 *ddsd,
+                                   int format, int tex_h, int tex_w, int bm_h, int bm_w, ubyte *data,
+                                   ubyte *palette);   // 0x54c0a0
+int  gr_d3d_create_texture(int bm, d3d_tcache_entry *e);   // 0x54d120 1, 0 when it is not drawn
+// (w, h): true when both are already a texture size (4, 8, ..., 128, 256; larger rounds to 256).
+bool gr_d3d_round_texture_size(int w, int h);         // 0x54d330
 
 #endif

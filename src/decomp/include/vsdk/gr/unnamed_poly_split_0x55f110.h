@@ -23,9 +23,9 @@ extern gr_poly_split_rec *gr_poly_split_free_list;   // 0x2f8f750
 extern gr_poly_split_rec gr_poly_split_pool[GR_POLY_SPLIT_POOL];   // 0x2f8f758
 extern gr_poly_split_rec *gr_poly_split_active_list; // 0x2f91a58
 
-// Another vsdk\gr object (the buffered polygon code, 0x545150..; not written): the next multipass vertex
-// of the clip pool (its gr_vertex flags cleared).
-gr_multipass_vertex *gr_poly_alloc_clip_vertex();    // 0x546130
+// Another vsdk\gr object (the buffered polygon code): the next multipass vertex of the clip pool (its
+// gr_vertex flags cleared). decomp69: a header inline of that unit (0x546130), defined in its header.
+#include "vsdk/gr/unnamed_gr_poly_0x5450c0.h"
 
 // (nv, verts, npasses, passes): cuts the polygon along every 256-texel line of each sectioned pass's
 // bitmap (both axes), then draws the pieces with gr_tmapper_multipass. Nothing is drawn when the 64

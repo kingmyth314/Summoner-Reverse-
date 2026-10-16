@@ -24,6 +24,9 @@
 #include "vsdk/ca/skeleton.h"
 #include "vsdk/ca/character_instance.h"
 #include "vsdk/gr/gr.h"
+#include "vsdk/gr/unnamed_clip_0x5590b0.h"
+#include "vsdk/gr/unnamed_gr_poly_0x5450c0.h"
+#include "vsdk/gr/unnamed_gr_line_0x53e520.h"
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/os/console.h"
 

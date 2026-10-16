@@ -44,14 +44,20 @@ int  snd_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool u
               bool dsinit);                                                // 0x5205b0
 void snd_close();                                                          // 0x5206e0
 void sounds_parse_table();                                                 // 0x521a60 sounds.tbl
-// Sound emitters (level ambients; unit not known, decomp27).
-void sound_emitters_init();                                                // 0x546600 (snd_init; decomp60)
-void sound_emitter_pause(int emitter);                                     // 0x546b20 (return unused)
-void sound_emitter_unpause(int emitter);                                   // 0x546b80 (return unused)
-// decomp41 (level_scripts_common.cpp, the level ambients): (sound handle, volume 100, repeat delay ms),
-// -1 when emitters are off or the sound is missing; (emitter, fade); (emitter, pos, velocity, 1.75f).
-int  sound_create_emitter(int sound, int volume, int delay_ms);            // 0x5466f0
-void sound_emitter_delete(int emitter, int fade);                          // 0x5467c0 (return unused)
+// Sound emitters (level ambients; decomp27). decomp69: the object 0x546150-0x546cf0, source
+// src/decomp/vsdk/unnamed_sound_emitter_0x546150.cpp (module "-", file name a placeholder); the record
+// and the rest of the unit are declared at the end of this header. sound_emitters_init returns 0 (both
+// paths `xor eax, eax`; D5031).
+int  sound_emitters_init();                                                // 0x546600 (snd_init; decomp60)
+void sound_emitter_pause(int emitter);                                     // 0x546b20
+void sound_emitter_unpause(int emitter);                                   // 0x546b80
+// decomp41 (level_scripts_common.cpp, the level ambients): (sound handle, update interval ms, repeat
+// delay ms), -1 when emitters are off or the sound is missing; (emitter, fade); (emitter, pos, velocity,
+// 1.75f). decomp69 (D5030): the second argument is the position update interval (+0x48, the
+// RealtimeTimer timeout of sound_emitter_update_position), not a volume; delete returns -1 when emitters
+// are off, else 0.
+int  sound_create_emitter(int sound, int update_ms, int delay_ms);         // 0x5466f0
+int  sound_emitter_delete(int emitter, int fade);                          // 0x5467c0 (return unused)
 void sound_emitter_update_position(int emitter, const vector3 *pos, const vector3 *vel, float f);   // 0x5468c0
 // decomp55 (the script editor): the sound and the repeat delay (ms) of an emitter (-1 / 0 out of range).
 int  sound_emitter_get_sound(int emitter);                                 // 0x546c20
@@ -159,5 +165,65 @@ extern int eax_reverb_muted;          // 0x2cbf488
 extern long eax_saved_reverb;         // 0x2cbf48c
 extern IKsPropertySet *eax_property_set;   // 0x2cbf490
 extern bool eax_enabled;              // 0x2cbf494
+
+// ---- decomp69: the sound emitter unit (0x546150-0x546cf0) ---------------------------------------------
+#include "vsdk/os/timestamp.h"
+
+#define SOUND_MAX_EMITTERS     0x80
+#define SOUND_MAX_PLAYING      16     // sound_emitter_play steals the quietest beyond this
+#define SOUND_EMITTER_USED     0x01
+#define SOUND_EMITTER_PAUSED   0x02
+#define SOUND_EMITTER_SEGMENT  0x04   // the source is the segment seg_a - seg_b (nearest point)
+#define SOUND_EMITTER_FLAG8    0x08   // cleared by stop, play and delete, set nowhere (D5032)
+
+// One emitter (0x74 bytes). The constructor is the implicit one (0x546c80, a COMDAT after the unit's
+// functions: the member constructors of the five vectors and two timers, nothing else). Field names ours
+// unless sum.symbols names them.
+struct sound_emitter {
+    sound_emitter *next;              // +0x00 list links (sound_emitter_list_head is the sentinel)
+    sound_emitter *prev;              // +0x04
+    int sound;                        // +0x08 snd handle, -1 free
+    int sig;                          // +0x0c playing instance, -1 none
+    float volume;                     // +0x10 last computed volume (voice stealing compares it)
+    float pan;                        // +0x14 last pan set
+    float volume_scale;               // +0x18 scale of the last 3D volume update (-1.0 forces one)
+    int frequency_set;                // +0x1c last Doppler frequency set
+    int frequency;                    // +0x20 base frequency (snd_get_format; 11025 out of range)
+    vector3 pos;                      // +0x24
+    vector3 last_pos;                 // +0x30 pos at the previous update (the 3D path)
+    vector3 vel;                      // +0x3c
+    int update_ms;                    // +0x48 position update interval
+    RealtimeTimer update_timer;       // +0x4c
+    int flags;                        // +0x50 SOUND_EMITTER_*
+    int repeat_delay;                 // +0x54 ms between plays, 0 = looping
+    GameTimer repeat_timer;           // +0x58
+    vector3 seg_a;                    // +0x5c
+    vector3 seg_b;                    // +0x68
+};
+LAYOUT_CHECK(sound_emitter, sizeof(sound_emitter) == 0x74);
+
+extern sound_emitter sound_emitter_list_head;         // 0x2f076f0
+extern sound_emitter sound_emitters[SOUND_MAX_EMITTERS];   // 0x2f07768
+extern int sound_emitters_num_playing;                // 0x2f0b168
+extern bool sound_emitters_enabled;                   // 0x2f0b16c
+
+void sound_emitters_delete_all();                     // 0x5461a0
+void sound_emitter_reset(int emitter);                // 0x5461f0
+int  sound_emitter_find_free();                       // 0x546230 -1 when all 128 are used
+int  sound_emitter_find_quietest();                   // 0x546250 -1 when none plays
+void sound_emitter_stop(int emitter, int fade_ms);    // 0x5462b0
+void sound_emitter_play(int emitter);                 // 0x546320
+bool sound_emitter_stub_false();                      // 0x546430 the (disabled) DirectSound3D path test
+void sound_emitter_update_volume(int emitter, float scale);   // 0x546440
+void sound_emitter_update_pan(int emitter);           // 0x546500
+void sound_emitter_update_frequency(int emitter);     // 0x546580
+void sound_emitters_close();                          // 0x546650 (no caller)
+// (sound, a, b, update_ms, delay_ms): an emitter for the segment a - b.
+int  sound_emitter_create_segment(int sound, const vector3 *a, const vector3 *b, int update_ms, int delay_ms);   // 0x546670
+// (emitter, a, b, vel, scale): sets the segment ends (NULL keeps one), then the position update with a
+// (sum.symbols: "(idx, pos, vel)"). No caller.
+void sound_emitter_set_pos_vel(int emitter, const vector3 *a, const vector3 *b, const vector3 *vel, float scale);   // 0x546840
+void sound_emitter_set_frequency(int emitter, int freq);   // 0x546bc0 (no caller)
+int  sound_emitter_get_frequency(int emitter);        // 0x546bf0 (no caller)
 
 #endif

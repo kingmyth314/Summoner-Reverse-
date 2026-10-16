@@ -301,8 +301,16 @@ void file_find_files(file_find_list *list, int path_id, const char *pattern, int
 void file_list_files(file_find_list *list, const char *dir);          // 0x513590
 
 // Array helpers (cdecl; vsdk\vfile in sum.symbols, decomp28): read or write by the open mode.
+// decomp69: the whole object (0x544e50-0x5450bb, src/decomp/vsdk/unnamed_vfile_array_0x544e50.cpp). The
+// readers and writers stop at the first File::error and return it (0 = all done).
+int  file_read_vector_array(File *f, vector3 *v, int count, int min_ver, const vector3 *def);   // 0x544e50
+int  file_write_vector_array(File *f, const vector3 *v, int count);   // 0x544ea0
 void file_sync_vector_array(File *f, vector3 *v, int count, int min_ver, const vector3 *def);   // 0x544ee0
 void file_sync_float_pair_array(File *f, vector2 *v, int count, int min_ver, const vector2 *def);   // 0x544f30
+int  file_read_int_array(File *f, int *v, int count);                 // 0x544f80 (no symbol, name ours; no caller)
+int  file_write_int_array(File *f, const int *v, int count);          // 0x544fc0
+int  file_read_int16_array(File *f, short *v, int count);             // 0x545000
+int  file_write_int16_array(File *f, const short *v, int count);      // 0x545040
 void file_sync_int16_array(File *f, short *v, int count);             // 0x545080
 // Defaults set by file_init (decomp28), defined in unnamed_vfile_rw_0x525720.cpp.
 extern vector3 file_zero_vector;          // 0x2cbf4d8

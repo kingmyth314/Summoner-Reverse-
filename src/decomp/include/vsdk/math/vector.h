@@ -59,6 +59,10 @@ public:
     { this->x = x; this->y = y; this->z = z; }
     bool operator==(const vector3 &v) const           // 0x511c30 vector3__operator_eq (exact compare)
     { return x == v.x && y == v.y && z == v.z; }
+    // decomp69: inline; its only copy is a COMDAT at the end of the sound emitter object (0x546cc0, ret 4),
+    // which calls it from sound_emitter_update_position.
+    bool operator!=(const vector3 &v) const           // 0x546cc0 vector3__ne
+    { return x != v.x || y != v.y || z != v.z; }
     // decomp25: cross product, a COMDAT after ca_render (0x50d7e0); matrix.cpp calls it.
     vector3 cross(const vector3 &v) const             // 0x50d7e0 vector3__cross
     { return vector3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); }

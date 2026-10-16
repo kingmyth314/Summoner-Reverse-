@@ -17,6 +17,7 @@
 #include "vsdk/math/vector.h"
 
 class Character;
+class TextFile;                        // vsdk/parse/parse.h (decomp72)
 class conversation_slot;
 struct conversation_topic;
 struct Color;                          // vsdk/gr/gr.h
@@ -222,6 +223,9 @@ LAYOUT_CHECK(conversation_speaker, sizeof(conversation_speaker) == 0x1c);
 // decomp27: the fields as conversation_execute_action reads them (names ours; the _unk names stay as
 // union members for the existing code, D708).
 struct dialogue_action {
+    // decomp72: (name, kind, value, species); +0x04 (flag) is not written, next = NULL.
+    void init(const char *name, int kind, int value, int species);   // 0x500990 dialogue_rec__init4
+
     union {
         int _unk00;                      // +0x00
         const char *name;                //   kind 6 flag name; kinds 7-12 the topic made (un)available
@@ -283,6 +287,9 @@ struct conversation_topic {
     void push_set_important(conversation_speaker_ref *r);     // 0x4fed00 .._push_list38
     void push_clear_important(conversation_speaker_ref *r);   // 0x4fed10 .._push_list3c
     void push_set_hail_topic(conversation_topic_ref *r);      // 0x4fed20 .._push_list40
+    // decomp72: the lines are appended by the same code as conversation_speaker::add_topic (the two
+    // identical bodies were folded into one copy; D5309).
+    void add_line(conversation_line *line);                   // folded with conversation_speaker::add_topic
 
     conversation_topic *next;            // +0x00 speaker's topic list
     union {
@@ -355,6 +362,8 @@ public:
     void remove_topic_entry(conversation_topic *topic);   // 0x4d86f0
     void farewell();                                      // 0x4d8760 conversation_farewell
     int  parse_table(const char *script_name);            // 0x4fee50 dialogue_parse_table ("_dlg.tbl"; other unit)
+    // decomp72: +Flags: the quoted Cflag_* names (CFLAG_*); -1 (and the file closed) for an unknown name.
+    int  parse_cflags(TextFile *tf);                      // 0x4fed30 dialogue_parse_cflags (thiscall, this unused)
 
     char *names[128];                    // +0x000 pooled speaker names (conversation_add_name)
     unsigned int name_count;             // +0x200

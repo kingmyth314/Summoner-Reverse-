@@ -144,21 +144,76 @@ struct vfx_node_desc {
     vector3 line_axis;                        // +0x9c VFX_MESH_LINE
 };
 LAYOUT_CHECK(vfx_node_desc, sizeof(vfx_node_desc) == 0xa8);
-// decomp67: the vif emitter descriptors (vif_desc__* in sum.symbols).
+// decomp72 (the vif unit 0x5329f0-0x533dae, src/decomp/vsdk/unnamed_vif_0x5329f0.cpp): a vif key curve
+// (0x64 bytes; vif_curve__evaluate), the spawn path (0xc4 bytes; vif_emitter_spawn_point) and one particle
+// (0x30 bytes, plain floats: the record constructor 0x533c70 builds no member of the two list sentinels).
+// Names ours.
+struct vif_curve {
+    float values[12];                         // +0x00
+    float times[12];                          // +0x30
+    ubyte count;                              // +0x60 keys; 1 = constant
+    ubyte _pad61[3];
+};
+LAYOUT_CHECK(vif_curve, sizeof(vif_curve) == 0x64);
+struct vif_spawn_path {
+    vector3 points[12];                       // +0x00
+    float times[12];                          // +0x90
+    ubyte count;                              // +0xc0 (1 a point, 2 a line, more a spline)
+    ubyte _padc1[3];
+};
+LAYOUT_CHECK(vif_spawn_path, sizeof(vif_spawn_path) == 0xc4);
+#define VIF_PARTICLE_ALIVE 0x1
+struct vif_particle {
+    float x, y, z;                            // +0x00 position
+    int flags;                                // +0x0c VIF_PARTICLE_ALIVE
+    float vx, vy, vz;                         // +0x10 velocity
+    vif_particle *next;                       // +0x1c the record's live or free list
+    vif_particle *prev;                       // +0x20
+    int seed;                                 // +0x24 rand() at the spawn (not read by the vif unit)
+    float age;                                // +0x28 seconds
+    float lifetime;                           // +0x2c
+};
+LAYOUT_CHECK(vif_particle, sizeof(vif_particle) == 0x30);
+// decomp72: vis_flags bits the vif unit tests (names ours; 0x80 / 0x100 / 0x200 as above).
+#define VIF_ADDITIVE        0x0002            // drawn with gr_mode_particle_additive, else _alpha
+#define VIF_SPAWN_BOX       0x0004            // spawned on the emitter's rvec / fvec plane, else a sphere
+#define VIF_GRAVITY         0x0008            // vy -= 9.8 * dt
+#define VIF_SHOWN_ALONE     0x0010            // updated although not 0x180
+#define VIF_FORCE           0x0800            // the force curve pushes the particles
+#define VIF_FORCE_ATTRACT   0x1000            //   towards / away from the attract point, else along force_dir
+#define VIF_SPAWN_PATH      0x2000            // the origin moves along the spawn path with the effect time
+// decomp67: the vif emitter descriptors (vif_desc__* in sum.symbols). decomp72: the fields from the vif unit.
 struct vfx_desc21c {
     void relocate(char *header_base);         // 0x533be0 vif_desc__relocate (another unit; decomp67)
     void load_bitmap(int flag);               // 0x533c20 vif_desc__load_bitmap
     const char *name;                         // +0x00 (decomp67; was ubyte _unk00[0x4c])
     const char *parent;                       // +0x04
     vector3 pos;                              // +0x08 (get_node_world_transform measures from it)
-    ubyte _unk14[0x4c - 0x14];
-    float time_a;                             // +0x4c
-    float time_b;                             // +0x50 (time_a + time_b) s (fx_frame kind 16)
-    ubyte _unk54[0x6a - 0x54];
+    matrix orient;                            // +0x14 (decomp72; was _unk14)
+    float size;                               // +0x38 half the drawn size
+    float spread_x;                           // +0x3c spawn radius / box half-width (rvec)
+    float spread_y;                           // +0x40 box half-depth (fvec)
+    float speed;                              // +0x44
+    float speed_spread;                       // +0x48 +- random
+    float time_a;                             // +0x4c the particle lifetime
+    float time_b;                             // +0x50 (time_a + time_b) s (fx_frame kind 16); +- random lifetime
+    float size_in;                            // +0x54 age fractions of the size ramp up / down
+    float size_out;                           // +0x58
+    float alpha_in;                           // +0x5c age fractions of the alpha ramp up / down
+    float alpha_out;                          // +0x60
+    float alpha;                              // +0x64 alpha scale
+    ushort count;                             // +0x68 particles per record
     ushort vis_flags;                         // +0x6a decomp63: 0x80 always shown, 0x100 shown by a $vis tag
                                               //       (0x180 = drawn; the vif_* particle functions take these)
-                                              //       decomp67: 0x200 can be bound to a mesh tag
-    ubyte _unk6c[0x21c - 0x6c];               // +0x6c the bitmap, +0x70 its name
+                                              //       decomp67: 0x200 can be bound to a mesh tag; VIF_* above
+    int bitmap;                               // +0x6c bm_load handle (relocate clears it)
+    const char *bitmap_name;                  // +0x70
+    int _unk74;                               // +0x74
+    vector3 attract_offset;                   // +0x78 the attract point, from the effect position
+    vector3 force_dir;                        // +0x84
+    vif_curve force_curve;                    // +0x90 force per second over the effect time
+    vif_curve interval_curve;                 // +0xf4 seconds between spawns over the effect time
+    vif_spawn_path path;                      // +0x158
 };
 LAYOUT_CHECK(vfx_desc21c, sizeof(vfx_desc21c) == 0x21c);
 
@@ -179,21 +234,32 @@ struct vfx_base_tag {                         // 0x14 bytes ("$vis..." names)
     vfx_tag_ref *refs;                        // +0x10
 };
 // decomp67: vif_instantiate_level makes them, vif_record_release frees them; the fields from the vfx object.
+// decomp72: the vif unit's view (100 records at vif_records 0x2d064e8, init_vif_records constructs them with
+// the implicit constructor 0x533c70: the two vectors and the two matrices only).
 struct vfx_inst21c {                          // the instance record of a vfx_desc21c
     vector3 pos;                              // +0x00 (decomp67)
     matrix orient;                            // +0x0c
-    ubyte _unk30[0x68 - 0x30];
+    vector3 emit_pos;                         // +0x30 decomp72: the effect's position and orientation
+    matrix emit_orient;                       // +0x3c   (vif_emitter_update's pos / orient)
+    float time;                               // +0x60 the effect time of the last update
+    float interval;                           // +0x64 the spawn interval of the last update
     ushort flags;                             // +0x68 0x10 updated this frame (fx_draw_flagged_particles)
                                               //       decomp67: 2 placed by get_node_world_transform, 4 bound,
-                                              //       8 hidden (get_tag_transform)
+                                              //       8 hidden (get_tag_transform); decomp72: 1 in use,
+                                              //       0x20 particles from the heap (level effects)
     short tag;                                // +0x6a the mesh tag it is bound to (decomp67)
     character_instance *ci;                   // +0x6c
-    ubyte _unk70[0x02];
+    ushort count;                             // +0x70 particles (decomp72)
     ushort num_live;                          // +0x72 live particles (decomp67)
-    ubyte _unk74[0xe0 - 0x74];
+    float spawn_timer;                        // +0x74 decomp72: seconds to the next spawn
+    int first;                                // +0x78 index in vif_particles' live half, -1 heap
+    vif_particle *particles;                  // +0x7c
+    vif_particle live;                        // +0x80 list sentinels (decomp72)
+    vif_particle free;                        // +0xb0
     vfx_inst21c *next;                        // +0xe0
     vfx_inst21c *prev;                        // +0xe4 (decomp67)
 };
+LAYOUT_CHECK(vfx_inst21c, sizeof(vfx_inst21c) == 0xe8);
 // decomp67: the vfx object's calls into the vif unit (cdecl).
 vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level);   // 0x5337a0
 void vif_record_release(vfx_inst21c *em, vfx_desc21c *desc);       // 0x5339b0
@@ -864,6 +930,24 @@ void vif_record_get_bounds(vfx_desc21c *rec, vector3 *centre, float *radius);   
 void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vector3 *pos,
                         const matrix *orient, int unk0c);                   // 0x532f40
 void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec);               // 0x533620
+// decomp72: the rest of the vif unit (cdecl; names from sum.symbols, the spawn-path / curve types ours).
+void vif_compact_particles();                                                 // 0x532a20
+void vif_emitter_spawn_point(vector3 *out, const vif_spawn_path *path, float t);   // 0x532cb0
+float vif_min_nonzero_float(const vif_curve *c);                              // 0x532e30 (no caller)
+void vif_stub_ret_533c60();                                                   // 0x533c60 (bare ret, no caller)
+// (curve, time, reciprocal): the value at the time, linear between two keys; with reciprocal set the
+// reciprocals are interpolated (with a wrong fraction, see the unit's NOTES); 0 between two keys when
+// either is 0.
+float vif_curve__evaluate(const vif_curve *c, float t, bool reciprocal);     // 0x533ca0
+#define VIF_NUM_RECORDS   100
+#define VIF_MAX_PARTICLES 3000
+extern vif_particle vif_particles[2][VIF_MAX_PARTICLES];   // 0x2cbffe0 two halves (vif_compact_particles)
+extern vif_particle *vif_particle_top;        // 0x5a99d8 the live half
+extern int vif_data_top;                      // 0x2d064e0 bytes of heap particles (level effects)
+extern vfx_inst21c *vif_record_list;          // 0x2d064e4 the free records (a ring)
+extern vfx_inst21c vif_records[VIF_NUM_RECORDS];   // 0x2d064e8
+extern int vif_particle_half;                 // 0x2d0bf8c
+extern int vif_particle_used;                 // 0x2d0bf90 particles used in the live half
 LAYOUT_CHECK(vfx_instance, sizeof(vfx_instance) == 0x48);
 
 // ---- attached lights (0x51fb10-0x520413, src/decomp/vsdk/unnamed_attached_lights_0x51fb10.cpp) ----

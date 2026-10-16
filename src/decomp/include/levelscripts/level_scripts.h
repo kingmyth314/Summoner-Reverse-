@@ -593,19 +593,20 @@ bool level_add_navpoint(s3d_navpoint *np);           // 0x4d5720 always true (mo
 void cutscene_script_entries_frame();                 // 0x4ed680
 // The cutscene script of a cutscene (<name>_cscript.tbl; same unit as the frame hook, decomp52: the
 // cutscene file's calls). The load's return value is not used.
-void cutscene_script_load(const char *name);          // 0x4ed0f0
+bool cutscene_script_load(const char *name);          // 0x4ed0f0 (decomp72: bool, was void; AL 0 / 1, D5307)
 void cutscene_script_unload();                        // 0x4ed390
 // decomp55 (the script editor's < Time): cutscene_time = 0, the saved equipment put back.
 void cutscene_script_rewind_actors();                 // 0x4ed550 (return unused)
 // decomp55 (the script editor): the cutscene script clock (seconds; cutscene_script_rewind_actors zeroes it).
 extern float cutscene_time;                           // 0x257e970
+extern char cutscene_script_name[0x24];               // 0x257e974 (decomp72) "" when no cutscene script is loaded
 
 // ---- the cutscene file's data that script_internal.cpp uses -----------------------------------------
 // decomp52: cutscene_entry, cutscene_data (0x601e68), cutscene_path_id (0x601e6c) and
 // cutscene_cur_sequence (0x603460) are the cutscene file's (the entry class and the cutscene object's
 // fields as macros; D3200), declared in its unit header.
 #include "summoner/unnamed_cutscene_0x434900.h"
-#define MAX_CUTSCENE_NAVPOINTS 0x2d6                  // 0x8818 bytes / 0x30
+#define MAX_CUTSCENE_NAVPOINTS 0x200                  // decomp72: 0x6000 bytes up to the string pool 0x2571750; the editor caps at 0x200 (0x4e5d59), D5308
 extern navpoint cutscene_navpoints[MAX_CUTSCENE_NAVPOINTS];   // 0x256b750 the second navpoint table
 extern int cutscene_navpoint_count;                   // 0x257e96c
 #define MAX_CUTSCENE_SCRIPT_OBJECTS 32

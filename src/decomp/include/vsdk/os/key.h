@@ -4,6 +4,7 @@
 #define VSDK_OS_KEY_H
 
 #include "vsdk/vsdk.h"
+#include <windows.h>                    // UINT / WPARAM / LPARAM (key_msg_handler; decomp72)
 
 #define KEY_ESC       0x01
 #define KEY_1         0x02
@@ -62,7 +63,8 @@
 
 int  key_to_ascii(int key);           // 0x509ca0, 0xff = no character
 bool key_is_down(int key);            // 0x509f00 (returns the state byte key_down_state[key])
-void key_init(int layout, int fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
+// decomp72: fix_numlock is a bool (stored as a byte and compared with 1, 0x5097c5; was int, D5312).
+void key_init(int layout, bool fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
 
 // The DirectInput key names, indexed by scan code (256 pointers, 0x5a68c0-0x5a6cbf; [1] is "Esc").
 // No name in sum.symbols; label ours.
@@ -80,5 +82,27 @@ float key_down_time(int key);         // 0x509bb0
 #define KEY_DEBUGGED  0x8000
 void key_flush();                     // 0x509ab0 clears the queue and key states
 int  key_get_press_count(int key);    // 0x509e20 returns and clears key_press_counts[key]
+
+// ---- decomp72: the rest of the keyboard unit (vsdk/unnamed_key_0x5093a0.cpp, 0x5093a0-0x509f57) --------
+// A key event from the window messages: (scan code, 1 down / 0 up, latency in ms).
+void key_mark(int code, int state, int latency);      // 0x5093a0
+int  key_remap_layout(int code);                      // 0x509560 key_layout 1-4 scan code swaps
+void key_numlock_off();                               // 0x509630
+void key_on_keydown(int vk, int lparam, int latency); // 0x509660 WM_KEYDOWN / WM_SYSKEYDOWN
+void key_on_keyup(int vk, int lparam, int latency);   // 0x5096e0 WM_KEYUP / WM_SYSKEYUP
+void key_close();                                     // 0x509810 atexit handler of key_init
+void key_numlock_on();                                // 0x509850
+void key_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam);   // 0x509880 (os_add_msg_handler)
+int  key_numlock_fix();                               // 0x509a00 -1 on Windows NT, else 0
+bool key_numlock_is_on();                             // 0x509a50
+int  key_getch();                                     // 0x509a80 waits for a key; 0 when not initialised
+void key_clear(int key);                              // 0x509b50
+void key_putkey(int code);                            // 0x509d40 (no full-queue check)
+int  key_get_shift_status();                          // 0x509d90 KEY_SHIFTED / KEY_ALTED / KEY_CTRLED, 0x800
+int  key_get_release_count(int key);                  // 0x509e70 returns and clears key_release_counts[key]
+int  key_queue_not_empty();                           // 0x509ec0
+void key_enable_debug_modifier();                     // 0x509f10
+void key_disable_debug_modifier();                    // 0x509f20
+bool key_is_modifier(int code);                       // 0x509f30 the shift, ctrl, alt and ` scan codes
 
 #endif

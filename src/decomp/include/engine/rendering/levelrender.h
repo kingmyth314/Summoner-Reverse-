@@ -389,8 +389,9 @@ void lobj_get_bounding_sphere(int index, vector3 *centre, float *radius);   // 0
 // distance of its own).
 void fog_set_high_camera_default();   // 0x487080 (camera_view_high)
 void fog_set_low_camera_default();    // 0x4870b0 (camera_view_low)
-// Ken Perlin's reference noise over a vector (unit not known; the vfx code calls it too).
-float perlin_noise3(vector3 v);       // 0x5470e0
+// Ken Perlin's reference noise over a vector (the vfx code calls it too). decomp69: the declaration
+// (0x5470e0) moved to the noise unit's header.
+#include "vsdk/math/unnamed_perlin_0x546d00.h"
 
 // ---- decomp42 (gameplay.cpp's calls; units not known) ---------------------------------------------------
 void door_find_floor_point(lobj *door);               // 0x476ab0 (level_restore_doors)

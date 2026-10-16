@@ -784,8 +784,19 @@ bool gr_d3d_set_bump_env(float lscale, float loffset, float m00, float m01, floa
     return true;
 }
 
-// Out-of-line header inlines at the end of the object (not source here): gr::Mode 0x5368a0-0x536930
-// (gr.h, D1300) and
+// Out-of-line header inlines at the end of the object (not source here; the bodies are gr::Mode inline members in
+// gr.h, D1300, checked in decomp69):
+// 0x5368a0 gr__Mode__Mode_invalid: gr::Mode::Mode(), value = -1, returns this. Confidence: exact.
+// 0x5368b0 gr__Mode__operator_eq: gr::Mode::operator==(const Mode &), compares the dwords (sete, ret 4).
+// Confidence: exact.
+// 0x5368c0 gr__Mode__get_texture_source: value & 0x1f. Confidence: exact.
+// 0x5368d0 gr__Mode__get_color_source: (value >> 5) & 0x1f. Confidence: exact.
+// 0x5368e0 gr__Mode__get_alpha_source: (value >> 10) & 0x1f. Confidence: exact.
+// 0x5368f0 gr__Mode__get_alpha_blend: (value >> 15) & 0x1f. Confidence: exact.
+// 0x536900 gr__Mode__get_zbuffer_type: (value >> 20) & 0x1f. Confidence: exact.
+// 0x536910 gr__Mode__get_fog_type: (value >> 25) & 0x1f. Confidence: exact.
+// 0x536920 gr__Mode__invalidate: value = -1. Confidence: exact.
+// 0x536930 gr__Mode__is_multitexture: get_texture_source() >= 4 (called out of line, setge). Confidence: exact.
 // 0x536940 d3d_f2dw (gr_direct3d.h: the DirectX SDK's F2DW).  Confidence: exact.
 
 // =====================================================================================================

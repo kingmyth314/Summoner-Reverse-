@@ -382,6 +382,9 @@ extern "C" const GUID IID_IDirectDraw7;               // 0x583380 {15e65ec0-3b9c
 #define DDSD_WIDTH                      0x00000004
 #define DDSD_BACKBUFFERCOUNT            0x00000020
 #define DDSD_PIXELFORMAT                0x00001000
+#define DDSD_MIPMAPCOUNT                0x00020000   // decomp69 (the Direct3D texture cache)
+#define DDSCAPS_MIPMAP                  0x00400000   // decomp69
+#define DDSCAPS2_TEXTUREMANAGE          0x00000010   // decomp69
 #define DDSCAPS_BACKBUFFER              0x00000004
 #define DDSCAPS_COMPLEX                 0x00000008
 #define DDSCAPS_FLIP                    0x00000010
@@ -588,5 +591,9 @@ extern "C" const GUID IID_IDirectDraw7;               // 0x583380 {15e65ec0-3b9c
 #define IDirect3DDevice7_DrawPrimitiveVB(p, a, b, c, d, e) (p)->lpVtbl->DrawPrimitiveVB(p, a, b, c, d, e)
 #define IDirect3DDevice7_DrawIndexedPrimitiveVB(p, a, b, c, d, e, f, g) (p)->lpVtbl->DrawIndexedPrimitiveVB(p, a, b, c, d, e, f, g)
 #define IDirect3DDevice7_SetTextureStageState(p, a, b, c) (p)->lpVtbl->SetTextureStageState(p, a, b, c)
+// decomp69 (the Direct3D texture cache).
+#define IDirect3DDevice7_SetTexture(p, a, b)            (p)->lpVtbl->SetTexture(p, a, b)
+#define IDirect3D7_EvictManagedTextures(p)              (p)->lpVtbl->EvictManagedTextures(p)
+#define IDirectDrawSurface7_AddRef(p)                   (p)->lpVtbl->AddRef(p)
 
 #endif

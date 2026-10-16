@@ -4044,3 +4044,270 @@ under VC6 (the int members pad the struct to 4): the code now uses `SAVEGAME_TWO
 counts, hashes and the 0x607 bit bytes. `spell_spawn_hit_fx` (0x47e590) takes (caster, pos, owner, orient): the
 fourth argument goes to `fx_add_effect` as the orientation (`[esp + 0x50]` at 0x47e5a0) and the third into the
 avoidance owner (`[esp + 0x4c]` at 0x47e62a); its caller at 0x47cd93 pushes the object's orientation (+0x38) last.
+
+## decomp69 (the 3D drawing helpers 0x53e520-0x54080f, the File array helpers 0x544e50-0x5450bb, the polygon builder 0x5450c0-0x54614a, the sound emitters 0x546150-0x546cf0, Perlin noise 0x546d00-0x54738e, the Direct3D texture cache 0x54bb30-0x54d5b5; all placeholders; gr::Mode inlines 0x5368a0-0x536930)
+
+**D5000 (unit boundaries).** Six new objects, one file each, all `unnamed_<what>_<first address>.cpp` in
+src/decomp/vsdk (no path string, no strings.tbl block, no module evidence beyond the folders): the 3D
+drawing helpers (0x53e520, after cmdline.cpp's last function 0x53e4e0, up to the gr::Vertex assignment
+COMDAT 0x540790; character.cpp opens at 0x540810 with its initialiser), the File arrays (0x544e50, after
+stringpool.cpp's SetLength 0x544e30; no data, no initialiser), the polygon builder (0x5450c0, opening with its
+two initialisers 0x5889fc / 0x588a00; .data 0x5aca38-0x5aca47, .bss 0x2ee45d8-0x2f076eb), the sound emitters
+(0x546150, two initialisers 0x588a04 / 0x588a08; the message 0x5aca48, .bss 0x2f076f0-0x2f0b16f), the noise
+(0x546d00, .data 0x5aca88, .bss 0x2f0b170-0x2f0dd9b; gr_glide.cpp follows at 0x547390 with .data 0x5aca8c)
+and the Direct3D texture cache (0x54bb30, initialiser 0x588a18; the message 0x5ad7a4, .bss
+0x2f132d8-0x2f13317; gr_opengl.cpp follows at 0x54d5c0). Each .data / .bss block sits between its
+neighbours' in the same order as the code, and each object starts with its own initialisers or ends with its
+own COMDATs, which is the boundary evidence. The gr::Mode accessors 0x5368a0-0x536930 belong to part 1 of
+gr_direct3d.cpp (D1601); their markers are in gr_direct3d_additions_0x5368a0.cpp for the lead to fold in.
+
+**D5001 (unnamed_gr_line_0x53e520.cpp). gr_line_3d and gr_line_3d_world are in the same object as the console
+command.** The command's initialiser (0x53e670) follows them instead of opening the object: VC6 emits a
+dynamic initialiser where its global is defined, as in gr_glide.cpp (ccmd_whee), so the command is defined
+after the two functions. They are vsdk\gr like the rest, and cmdline.cpp (vsdk\os) ends before them.
+
+**D5002 (gr.h). gr_vertex keeps no constructor and no vector3 member (D1605 stays open).** This range adds
+more evidence for the original's gr::Vertex: every local vertex is constructed with gr__Vertex__Vertex
+(0x5081c0), the polygon builder's 64 clip vertices have an initialiser (0x5450c0), and gr_draw_sphere's
+vertex assignments call the implicit operator= COMDAT 0x540790, which assigns +0 through
+vector3::operator= (0x413190, a hidden-pointer copy) and the other fields one by one. Giving gr_vertex a
+`vector3 pos` would change the x / y / z accesses of 80 call sites in other units; as in D4703 the
+definitions stay plain and the functions concerned are marked likely.
+
+**D5003 (gr.h). gr_poly is (n, verts, gr::Mode mode, bool fixed_depth, float depth) and returns bool.** It
+calls gr__Mode__get_alpha_source with ecx = its argument slot (0x53e773), so the mode is a gr::Mode object;
+the last two go unchanged to gr_poly_begin's fixed_depth / depth; it ends with `call gr_poly_end` and
+gr_bitmap_3d_projected returns that EAX. Was (int n, gr_vertex **, unsigned int flags, int a, int b), void.
+The decals call (0x118c21, 0, 0) still compiles through Mode(gr_mode) (the optimised unit folded the inline
+six-field constructor to the constant in the binary).
+
+**D5004 (gr.h). gr_bitmap_3d, gr_draw_sphere, gr_draw_arrow_3d and gr_line_quad_3d return bool.** gr_bitmap_3d
+returns gr_bitmap_3d_projected's result or `xor al, al`; the other three end with `mov al, 1`. Were void;
+no caller reads the result. sum.symbols' gr_draw_arrow_3d is a wire box (8 corners, 12 edges); the name is
+kept.
+
+**D5005 (unnamed_gr_line_0x53e520.cpp). `!pnt->flags & 1`.** gr_bitmap_3d_projected and
+gr_bitmap_3d_oriented_quad test the projected point with `test cl, cl; sete dl; test dl, 1` (0x53eb3a,
+0x53ee2a): the logical not of the whole byte, then & 1, VC6's code for the precedence slip of
+`!(pnt->flags & 1)`. Written as the slip.
+
+**D5006 (unnamed_gr_line_0x53e520.h). The three dead arrow / line helpers take nine scalars.** Each builds its
+points with vector3(x, y, z) (0x43b580) from six float arguments, and gr_draw_axes_3d pushes the raw
+components and the gr_color bytes; a by-value vector3 would have been copied with vector3's copy
+constructor (0x410cd0, out of line in this object, as gr_draw_axes_3d's own copy shows). sum.symbols says
+"(a, b by value)".
+
+**D5010 (gr.h). The polygon builder's signatures.** gr_poly_begin(bool buffered, float z, int a2, bool
+fixed_depth, float depth): the byte test of the first (0x545151), the float of the second as the buffered
+sort key, the third stored as a dword (0x54522b) and pushed as a byte when recorded, the fourth a byte
+(0x54524b), the fifth stored to gr_poly_depth. gr_poly_set_texture(gr::Mode, int bm, ubyte r, ubyte g,
+ubyte b, ubyte a, int stage): the colours are masked with 0xff before the tint sum (0x54535f-0x545364) and
+the last is the pass's stage byte (+0x0b). gr_poly_end returns bool (`mov al, 1` / `xor al, al`). Were
+(int, int, int, int, int), (gr::Mode, int, int, int, int, int, int flags) and void. The shadow unit's calls
+compile unchanged.
+
+**D5011 (unnamed_gr_poly_0x5450c0.h). The builder's vertex records are their own 0x34-byte type.** The vertex,
+clip and cursor arrays step by 0x34 (four passes of 12 bytes after the gr_vertex pointer), while gr.h's
+gr_multipass_vertex is declared with one pass (0x10) and other units index past it. gr_poly_vertex_rec has the
+same layout with four passes; the lists handed to gr_tmapper_multipass / the clipper are cast to
+gr_multipass_vertex **. gr_poly_texture_slots is a gr_tmapper_pass[4] (the 0x14-byte record of gr.h: mode,
+bitmap, enabled, vertex_color, vertex_alpha, stage, sectioned, r g b, a); its initialiser runs the implicit
+constructor 0x546110 (gr::Mode() on +0), sum.symbols' gr_mode_slot__ctor.
+
+**D5012 (unnamed_gr_poly_0x5450c0.cpp). gr_poly_rgb's tint.** The red result is computed and dropped
+(`fstp st(0)` after float_min, no _ftol, 0x54567b), the green result goes to the r argument (0x5456bb) and g
+keeps its value: VC6's code for `r = ...tint_r...; r = ...tint_g...;` (the first store is dead, the float
+calls stay). Written so; gr_poly_set_texture has all three.
+
+**D5013 (unnamed_gr_poly_0x5450c0.h, unnamed_poly_split_0x55f110.h). gr_poly_free_clip_verts and
+gr_poly_alloc_clip_vertex are header inlines.** They follow the pass record's implicit constructor COMDAT
+(0x546110) after the last regular function, in the order of their first use, as the clipper's
+gr_clip_free_temp_verts does (D4500). The split unit's declaration of gr_poly_alloc_clip_vertex is replaced by
+an include of the new header (no second declaration).
+
+**D5014 (unnamed_gr_poly_0x5450c0.cpp). The buffer helpers and the replay.** put_vector / get_vector copy 12
+bytes with the cursor update between the moves, as put_data / get_data's memcpy (rep movsd, cursor store,
+rep movsb): memcpy with sizeof(vector3). The replay loop is a do / while on the opcode around the switch: the
+default case (an unknown byte) reads the next byte, case 8 leaves; each case's locals are block-scoped (case
+4's gr::Mode is constructed inside it, 0x545efa).
+
+**D5020 (gr.h). tcache_slot's four members are header inlines.** Their copies (0x54d490 init_stage, 0x54d4b0
+reset, 0x54d4f0 is_bound, 0x54d5a0 invalidate_bitmap) lie after the texture cache's last regular function,
+interleaved with the Direct3D slot's own members in the order of first use there; gr_glide.cpp's calls of
+is_bound / invalidate_bitmap reach the same copies. Declared out of line before; the bodies are now in the
+class. D2502 (no tcache_slot constructor) is unchanged.
+
+**D5021 (gr_direct3d.h). d3d_tcache_slot.** The two stage records (0x2f132d8, 0x18 bytes each) are built by a
+constructor (0x54d470: initialized 0, bitmap / section -1, scales 0, stage untouched) that the Glide record
+does not call, so they are a class of their own deriving from tcache_slot, with the constructor and the
+Direct3D bind / unbind as inline members (0x54d4c0, 0x54d530). sum.symbols names the constructor
+opengl_record__ctor and its initialiser init_opengl_records_2f132d8; the OpenGL back end has its own cache
+(gl_tcache_entries) and does not use it. d3d_unbind skips SetTexture while d3d_s3_depth (0x2dc6c30) is set.
+
+**D5022 (gr_direct3d.h). gr_d3d_tcache_set's last argument is bool bind.** It is tested as a byte
+(`mov al, [esp + 0x28]; test al, al`, 0x54d0f3) and only decides whether the section is bound; a missing or
+dirty texture is created either way. Was int fail_on_full; the callers pass 0 / 1.
+
+**D5023 (gr_direct3d.h). The cache records.** d3d_tcache_entry (0x10: bitmap handle, section count, dirty
+byte, section array) and d3d_tcache_section (0x20: surface, byte size, u / v scale, x, y, w, h) from
+gr_d3d_create_texture, gr_d3d_create_texture_section and gr_d3d_get_section_rect; names ours (the Glide
+cache's names where they match). The two dwords 0x2f1330c / 0x2f13310 have no reference.
+
+**D5024 (unnamed_d3d_tcache_0x54bb30.cpp). gr_d3d_copy_bitmap_to_surface.** One branch per bitmap format in
+the order of the binary (8 alpha, paletted, 888, 4444, 1555, 565, 8888, 88), as gr_glide_create_texture_section;
+the row tails and the rows below the bitmap are cleared with loops (rep stosd / adc / rep stosw after a
+`count > 0` test, the shape gr_glide.cpp also writes as loops). The or'ed channel terms are in the binary's
+order. The loops run over bm_w x bm_h (the arguments the section function passes: the whole bitmap's size)
+from the section's corner, not over the section's w x h: written as the binary does (bug, NOTES.md).
+
+**D5030 (snd.h). sound_create_emitter's second argument is the update interval.** It is stored at +0x48 and
+sound_emitter_update_position re-arms the record's RealtimeTimer with it (0x546911); nothing treats it as a
+volume. Renamed update_ms (was volume); the callers pass 100.
+
+**D5031 (snd.h). sound_emitters_init and sound_emitter_delete return int.** Both paths of sound_emitters_init
+end with `xor eax, eax`; sound_emitter_delete returns -1 (emitters off) or 0. Were void; no caller reads them.
+
+**D5032 (snd.h). Emitter flag 8.** sound_emitter_stop, sound_emitter_play (after a successful start) and
+sound_emitter_delete clear bit 3 of +0x50 and sound_emitter_update_volume / update_position only restart a
+sound while it is clear, but nothing sets it: kept as SOUND_EMITTER_FLAG8 with no meaning given.
+
+**D5033 (snd.h, vector.h). The emitter record and vector3::operator!=.** sound_emitter (0x74 bytes) has no
+user constructor: 0x546c80 constructs exactly the five vector3, the RealtimeTimer and the GameTimer members,
+the implicit constructor, emitted as a COMDAT after the unit's functions. vector3::operator!= (0x546cc0,
+exact compare of the three components, ret 4) is a new inline member of vector3; its only copy is this
+object's COMDAT.
+
+**D5034 (snd.h). sound_emitter_set_pos_vel is (emitter, a, b, vel, scale).** It stores the segment ends +0x5c /
++0x68 (each only when not NULL) and calls sound_emitter_update_position(emitter, &seg_a, vel, scale); the
+sum.symbols comment "(idx, pos, vel)" and "+0x5c and +0x68 vectors" describe the same stores. No caller.
+
+**D5040 (unnamed_perlin_0x546d00.h, levelrender.h). The noise unit.** The float version of Perlin's reference
+noise: noise1 takes and returns a float (fld dword, no double), noise2 / noise3 take their vector by value
+(the callers of noise3 store three floats on the stack; noise2 reads two). perlin_noise3's declaration moves
+from engine/rendering/levelrender.h to the new header, which levelrender.h includes, so its callers compile
+unchanged.
+
+**D5050 (file.h). The File array helpers return the first File::error.** The readers and writers return the
+error (`test eax, eax; jne` to the exit with EAX kept) or 0 after the last element, so they are int; the two
+syncs end with the callee's EAX and no caller reads it, so they stay void. 0x544f80 (an int array reader
+with no symbol and no caller) is file_read_int_array (name ours).
+
+## decomp72 (the keyboard 0x5093a0-0x509ffb, the debug stubs / debug.cpp / free movement 0x531c10-0x532353, the time formatter / timer.cpp / vif particles 0x532660-0x533dae, the dialogue table 0x4feb50-0x500a22, the cutscene scripts 0x4ed050-0x4ed7be, eleven level-script units)
+
+**D5300 (game/level_script_*.cpp). File names of the level scripts without a strings.tbl block.** lenele2d,
+lenele2ab, IonaExt, rand-forestnite1, rand-forest01, rand-hills01, IkaemosBottomInt, masad and test read no id of
+a `// level_script_*.cpp` block of strings.tbl and no path string names them (lenele2d's refusal reuses id 502 of
+the lenele2aa block, the same English line). They are named level_script_<record>.cpp after the convention of the
+tagged units (lower case, the record's '-' as '_'), which the lead asked for; the names are not proven and are not
+in modules.txt. The random-encounter records (0x28-0x2f: Rand-HillsNite01 .. Rand-GrasslandNite01) have no single
+level name, so their code (0x4ee840-0x4eee32) is the placeholder game/unnamed_rand_levels_0x4ee840.cpp; whether it
+is one file, seven, or lenele2d's tail is not decidable (no .bss, literals without a gap).
+
+**D5301 (unit boundaries). A 4-byte step in .bss between two runs of bools is taken as a unit boundary.** A unit's
+bool globals are packed byte by byte (eleh 0x257e9ec-0x257e9ef, templeint 0x257ea6c-0x257ea76); each object's .bss
+starts 4-aligned. rand-forestnite1's bools end at 0x257ea65 and rand-forest01's start at 0x257ea68; masad's end at
+0x257ed5d and test's start at 0x257ed60; liangshan's end at 0x257ea61 before rand-forestnite1's 0x257ea64. So
+rand-forestnite1 / rand-forest01 and masad / test are two units each (source-map.md had them as one run). A hint,
+not a proof: units with no bools in .bss (lenele2d, ikaemosbottomint, the random levels) cannot be cut this way.
+
+**D5302 (level scripts). Two bool stores of the same constant are written as two statements.** The code stores
+some pairs from AL (mov al, 1 / two byte stores: ls_rand_forestnite1_init, the cutscene ends) and others as two
+immediates (ls_rand_forest01_init, ls_rand_hills01_init). level_script_temple_inside.cpp writes the AL form as two
+statements and calls it exact (ls_templeint_tiger_intro_cs_end 0x4f62b0); the same here. The init whose two paths
+both use AL is marked likely.
+
+**D5303 (game/level_script_ikaemosbottomint.cpp). IkaemosBottomInt's init is a unit of its own.** It has no data and
+no own literal; it lies between level_script_ikaemosu.cpp (IkaemosTopInt) and rand-hills01 and could be either's.
+By the pair ikaemosu.cpp / ikaemosl2.cpp (IkaemosBottomInt2's file) its original may have been
+level_script_ikaemosl.cpp; that is a guess, so the D5300 convention is used.
+
+**D5304 (level_script_rand_hills01.cpp). 0x4fa6f0 is a function: ls_rand_hills01_goto_khosanistrng (name ours).**
+No sum.symbols entry. ls_rand_hills01_frame reaches it only by a tail jump and it sits after the three cutscene
+callbacks with its own push esi / edi and ret, so it is a separate function defined after them (rand-forest01 has
+the same level change inline in its frame).
+
+**D5305 (level_script_masad.cpp). ls_masad_init's three door blocks are written out.** Each is lobj_find_by_name,
+door_from_lobj, two_stage_get / two_stage_set and the snap to the open pose, as new_tutorial.cpp's
+tutorial_cond_combat_part2 writes the same code. They may have been a macro; a function would be a call under /Ob1.
+
+**D5306 (game/unnamed_cutscene_script_0x4ed050.cpp). The cutscene-script unit owns the cutscene tables.** The unit
+(initialiser entries 474-476) has no name; its .bss 0x256b750-0x257e997 holds cutscene_navpoints,
+cutscene_script_stringpool and its 0x2800-byte buffer, cutscene_script_objects (the implicit array constructor is
+init_cutscene_object_timers), the two counts, cutscene_time and cutscene_script_name; they are defined there (no
+other unit defined them). The declaration order follows the three initialisers (script objects, the empty
+initialiser, the string pool), the same three as level_scripts.cpp's 0x4d4ff0-0x4d5080. The empty initialiser
+0x4ed090 is taken to be the navpoint array's (navpoint holds a vector3, whose constructor is inline and empty);
+likely, not visible in the code.
+
+**D5307 (levelscripts/level_scripts.h). SIGNATURE: cutscene_script_load returns bool (was void).** It returns AL 0
+or 1 (0x4ed239 / 0x4ed36d). Its callers (cutscene_play, script_editor_load_selected_script) ignore the result and
+compile unchanged.
+
+**D5308 (levelscripts/level_scripts.h). MAX_CUTSCENE_NAVPOINTS is 0x200 (was 0x2d6).** sum.symbols sizes
+cutscene_navpoints 0x8818 bytes, the distance to cutscene_script_objects, but cutscene_script_stringpool (0x2571750)
+and its buffer (0x2571764-0x2573f63) lie in between: the table is 0x6000 bytes, 0x200 records, and the script
+editor caps the count at 0x200 (cmp dword ptr [0x257e96c], 0x200 at 0x4e5d59). cutscene_script_load does not check
+it (see NOTES).
+
+**D5309 (levelscripts/conversation.h). conversation_topic::add_line has no address of its own.** parse_table appends
+a line with mov ecx, topic / call 0x4fec50, conv_speaker__add_topic: the topic's lines (+0x10 / +0x14, next +0)
+and the speaker's topics have the same layout, so the two identical members were folded into one copy. The member
+is declared (with no address, "folded with conversation_speaker::add_topic") and defined after add_topic. Also
+declared: dialogue_action::init (0x500990, dialogue_rec__init4) and conversation::parse_cflags (0x4fed30,
+dialogue_parse_cflags; thiscall with an unused this, ret 4) with class TextFile forward-declared.
+
+**D5310 (game/unnamed_dialogue_table_0x4feb50.cpp). The dialogue table unit is a placeholder.** No path string, no
+strings.tbl block, no reference name for 0x4feb50-0x500a22 (the record members and conversation::parse_table);
+conversation.cpp (0x4d7b30-) is another unit.
+
+**D5311 (unnamed_dialogue_table_0x4feb50.cpp). The shape of conversation::parse_table.** The line-kind test
+(+PCText: .. +JekharText:) and the topic-reference test (+Add topic: .. +Set hail topic:) each appear twice in the
+code, before the first pass and after each, both ending in the same blocks: a rotated while loop over an inline
+helper (dialogue_accept_line_kind / dialogue_accept_ref_kind, names ours). The reference loop's no_arg flag is
+cleared once before the outer loop (the second copy of the test has no store). Every error inside the file is
+{ tf.Close(); return -1; } (merged by the compiler into 0x5008c3), the errors after the Close return -1. The
+function has no return statement at its end: the good path returns whatever EAX holds after the destructors,
+which is 0 (the TextFile destructor's Close loads the already-NULL buffer pointer). Marked unsure as a whole.
+
+**D5312 (vsdk/os/key.h). SIGNATURE: key_init(int layout, bool fix_numlock) (was int fix_numlock).** key_init stores
+the argument as a byte and compares it with 1 (0x5097c5-0x5097cb). The caller (summoner.cpp, key_init(0, 1))
+compiles unchanged. Also declared in key.h: the rest of the unit's functions (with windows.h for key_msg_handler).
+
+**D5313 (vsdk/unnamed_key_0x5093a0.cpp). The keyboard unit is a placeholder; its data is defined there.** No path
+string or assert. Its .data is key_repeat_enabled (0x5a64bc, name ours), two int[128] ASCII tables (0x5a64c0,
+0x5a66c0: key_to_ascii reads 127 of each) and key_names[256] (0x5a68c0, window.cpp's hotkey parser reads it); its
+literals are not pooled ("Shift" and "Alt" twice), and each "" of key_names points to a separate 4-byte .bss slot
+(0x25daa7c-0x25dace4), zero-filled literals placed in .bss. The time arrays and timestamps are unsigned (key_mark
+compares with jae, key_down_time with ja); key_last_released / key_last_pressed (0x25da948 / 0x25daa4c, written
+only) are named here.
+
+**D5314 (vsdk/unnamed_debug_stubs_0x531c10.cpp, vsdk/debug.cpp). The stubs before DebugError are a unit of their
+own.** sum.symbols tags only DebugError and its helper debug_error_deactivate_gr with debug.cpp. stricmp_wrapper and
+the seven bare-ret / return-0 hooks (0x531c10-0x531c90, module -) may be debug.cpp's head or the tail of
+unnamed_os_0x531bf0.cpp's object; nothing says which, so they get a placeholder. debug.cpp holds the two tagged
+functions; it is a new file (the include tree had only debug.h).
+
+**D5315 (vsdk/unnamed_movement_0x531d20.cpp). The free-movement unit.** A placeholder (no name evidence). It calls
+the vector3 constructors and operators out of line, as /Ob0 builds do. sum.symbols' movement_velocity (0x2cbff68) is
+the velocity the keys ask for and movement_rotvel (0x2cbff98) the smoothed linear velocity (smooth_approach_exp
+writes it); the names are kept. Names ours: movement_rot_tau (0x2cbff30), movement_turn_rate (0x2cbff38),
+movement_turn_target (0x2cbff48), movement_tau (0x2cbff84), movement_inited (0x2cbffa4). smooth_approach_exp's
+second argument is the wanted value and the third the current one (the code: new = second + (third - second) * e);
+sum.symbols' comment has them the other way round.
+
+**D5316 (vsdk/timer.cpp, vsdk/unnamed_time_format_0x532660.cpp). timer.cpp holds the four tagged functions and the
+TSC conversion.** time_format_hms (0x532660, module -) precedes timer_close but has literals and timer.cpp has none,
+so nothing ties it to timer.cpp: a placeholder. 0x5329c1 (no sum.symbols entry, no caller: ticks / timer_tsc_ticks
+* 0.25) is written as timer_tsc_to_seconds (name ours). timer_get and read_tsc keep their __asm blocks (the EBP
+frames show inline assembly), with a non-MSVC branch for the syntax check as in unnamed_floatmath_0x542500.cpp.
+
+**D5317 (vsdk/geom/vfx.h, vsdk/unnamed_vif_0x5329f0.cpp). The vif records' layouts.** vfx_desc21c is filled in
+(orient +0x14, size, spreads, speeds, the size / alpha ramps, count +0x68, bitmap +0x6c / name +0x70, the attract
+offset, the force direction, two vif_curve key curves +0x90 / +0xf4 and the vif_spawn_path +0x158; was _unk14 /
+_unk54 / _unk6c). vfx_inst21c gets emit_pos / emit_orient (+0x30 / +0x3c), time, interval, count, spawn_timer, first,
+particles and the two list sentinels (+0x80 live, +0xb0 free; was _unk30 / _unk70 / _unk74) and a LAYOUT_CHECK of
+0xe8. vif_particle (0x30) uses plain floats: the record constructor 0x533c70 builds only the two vectors and two
+matrices, so the sentinels have no constructed members. Every existing user (unnamed_vfx_0x536950.cpp,
+unnamed_render_scene_0x481680.cpp) reads only fields that kept their names and offsets. vif_emitter_update keeps
+D4704's int last argument (the effect time's raw dword) and reads it as a float. The unit is a placeholder, built
+with the inline members out of line (/Ob0).
