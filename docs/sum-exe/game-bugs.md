@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 50 | 25 | 12 |
+| Gameplay | 50 | 25 | 13 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -976,7 +976,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G251 | Latent: a tentacle swipe that hits five party members at once makes that tentacle unkillable: at 0 HP it never plays its death move or counts as lost | `tentacle_collect_area_hits` `0x4c77c0`, `tentacle_beast_check_stage` `0x4c7360` | **Observed** code, *inferred* effect | No |
 | G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
-| G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code, *inferred* effect | No |
+| G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] AreaCasterGone`) |
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
 | G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
@@ -1630,6 +1630,14 @@ loop then cures status 14 (firewall), 15 (blizzard) and 17 (dark wall) unless an
 (`0x48b5a1`..`0x48b5db`). So one area whose caster is gone switches off all areas after it in the effect list
 for every character, and their statuses end at once. *Inferred:* a caster is "gone" when its object is removed
 (a summon that leaves, a removed corpse), not merely dead; the list order is creation order.
+
+**Reproduced 2026-10-17** (agent mode, a test save in the Ikaemos swamp with Rosalind leading): `summon golem`,
+then `firewall 1 30 summon` (one wall cast by the golem, away from the party) and `firewall 5 -6` (five walls cast
+by Rosalind across the party). Joseph burned for 72 HP every 2 s; after `kill_summon` he stopped burning at once
+although he stood in Rosalind's walls. A wall does not burn its own caster, which is why Joseph was measured.
+**Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] AreaCasterGone`): the `je` at `0x48b40a` goes to the next
+area (`0x48b581`) instead of the end of the loop. With the fix Joseph kept burning after the golem was removed
+(3000 -> 2928 -> 2856, then 2784 -> 2712 -> 2640). This also confirms that the list follows creation order.
 
 **G271. `fx_new` keeps the slot's spell.** `fx_new` sets the kind, flags, `+0xa0`, `+0xc0`, `+0xe0`, `+0x100`
 and `+0x108` (`0x48c3f4`..`0x48c461`) but not the spell `+0xa8`, and neither does `fx_obj_destroy` nor

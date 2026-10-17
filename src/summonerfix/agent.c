@@ -140,31 +140,35 @@ static void GoldPileOnGameThread(void *unused)
     Log("agent: goldpile %d at %.2f %.2f %.2f: object %p", g_goldAmount, pos[0], pos[1], pos[2], obj);
 }
 
-// N wall of fire areas (spell 0x1d) in a row 3 units apart, starting 6 units beside the current character, cast
-// by it, as spell_cast_execute places them (game-bugs C270: fx_frame lists burning areas without a bound).
+// N wall of fire areas (spell 0x1d) in a row 3 units apart, starting START units (default 6) beside the current
+// character, as spell_cast_execute places them. The caster is the current character, or the active summon
+// (cur_summon) with "summon" (game-bugs C270: how many areas can burn; G270: an area whose caster is gone).
 #define VA_SPELL_PLACE_GROUND_EFFECT 0x47e100u // cdecl (spell, caster handle, pos, layer, orient) -> fx handle
-static volatile int g_fireWalls;
+#define VA_CUR_SUMMON 0x5fcc8cu                // Character *
+static volatile int g_fireWalls, g_fireWallsBySummon;
+static volatile float g_fireWallStart = 6.0f;
 
 static void FireWallsOnGameThread(void *unused)
 {
     (void)unused;
     static const float ident[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
     BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
-    if (!ch) {
-        Log("agent: firewall: no character");
+    BYTE *caster = g_fireWallsBySummon ? *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_SUMMON) : ch;
+    if (!ch || !caster) {
+        Log("agent: firewall: no character or no summon");
         return;
     }
     int made = 0;
     for (int i = 0; i < g_fireWalls; i++) {
         float pos[3];
         memcpy(pos, ch + 0x10, sizeof pos);
-        pos[0] += 6.0f + 3.0f * (float)i;
+        pos[0] += g_fireWallStart + 3.0f * (float)i;
         int h = ((int(__cdecl *)(int, int, const float *, int, const float *))(UINT_PTR)SumVa(VA_SPELL_PLACE_GROUND_EFFECT))(
-            0x1d, *(int *)(ch + 0x80), pos, *(int *)(ch + 0x68c), ident);
+            0x1d, *(int *)(caster + 0x80), pos, *(int *)(ch + 0x68c), ident);
         if (h != -1)
             made++;
     }
-    Log("agent: firewall: %d of %d areas placed", made, g_fireWalls);
+    Log("agent: firewall: %d of %d areas placed (caster %s)", made, g_fireWalls, g_fireWallsBySummon ? "summon" : "leader");
 }
 
 // "callstr ADDR STRING [ARG]": cdecl fn(string, arg) on the game thread, eax logged. ARG with a '.' is passed as a
@@ -375,8 +379,11 @@ static void RunLine(char *line)
         }
         Out("callstr %06lX %s: %s", g_callAddr, g_callStr, KeysAgentRun(CallStrOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "firewall") && argc >= 2) {
-        // firewall N: N wall of fire areas beside the current character (game thread; result in the log).
+        // firewall N [START] [summon]: N wall of fire areas beside the current character (game thread; result in
+        // the log), the first START units away, cast by the leader or by the active summon.
         g_fireWalls = atoi(argv[1]);
+        g_fireWallStart = argc >= 3 ? (float)atof(argv[2]) : 6.0f;
+        g_fireWallsBySummon = argc >= 4 && !_stricmp(argv[3], "summon");
         Out("firewall %d: %s", g_fireWalls, KeysAgentRun(FireWallsOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "goldpile") && argc >= 2) {
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).

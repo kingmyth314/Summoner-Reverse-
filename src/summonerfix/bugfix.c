@@ -105,6 +105,12 @@
 // casts Protect, so two needy members were enough. Seen 2026-10-17 with [Debug] TraceBlessCount: count 5 with 4
 // members. Fix ([Fixes] AiBlessCount): the first inc becomes a nop, so each member with a positive score counts once
 // and the count stays within the members (at most six records).
+//
+// One burning area whose caster is gone switches off the rest (not a crash; game-bugs G270). For each living
+// character fx_frame walks the burning areas; when an area's caster no longer resolves (living_from_handle of
+// +0xb0) it leaves the loop (je 0x48b5a1 at 0x48b40a) instead of going to the next area (0x48b581), and the code
+// after the loop cures the fire / blizzard / dark wall status unless an area of that kind was seen. Fix ([Fixes]
+// AreaCasterGone): the je goes to 0x48b581, so that area is skipped and the later ones still count.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -132,7 +138,8 @@
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
-#define VA_AI_BLESS_COUNT_INC 0x49395cu    // the first inc ebx in ai_group_think_caster's Bless pass
+#define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
+#define VA_AI_BLESS_COUNT_INC 0x49395cu   // the first inc ebx in ai_group_think_caster's Bless pass
 #define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
 #define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
 #define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
@@ -408,6 +415,12 @@ void BugFixesInstall(void)
     if (FixOn("AiBlessCount")) {
         static const BYTE o[1] = {0x43}, r[1] = {0x90}; // inc ebx -> nop
         PatchBytes(VA_AI_BLESS_COUNT_INC, o, r, 1, "AI Bless candidates counted once (C210, G212)");
+    }
+
+    if (FixOn("AreaCasterGone")) {
+        static const BYTE o[6] = {0x0F, 0x84, 0x91, 0x01, 0x00, 0x00}; // je 0x48b5a1 (end of the area loop)
+        static const BYTE r[6] = {0x0F, 0x84, 0x71, 0x01, 0x00, 0x00}; // je 0x48b581 (next area)
+        PatchBytes(VA_AREA_CASTER_GONE_JE, o, r, 6, "burning area with its caster gone skipped, not the rest (G270)");
     }
 
     if (FixOn("PhoenixInferno")) {

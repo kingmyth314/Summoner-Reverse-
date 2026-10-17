@@ -271,8 +271,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `skeleton_read_tag_record` (2026-10-17);
 - `goldpile N` leaves a loose gold pile of N gold 2 units beside the current character (`item_create_by_name("Gold")`,
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
-- `firewall N` places N walls of fire (spell `0x1d`, `spell_place_ground_effect`) in a row beside the current
-  character, cast by it (game thread; the count placed is in the log). Used to show that C270 cannot happen;
+- `firewall N [START] [summon]` places N walls of fire (spell `0x1d`, `spell_place_ground_effect`) in a row, the first START units (default 6) beside the current
+  character, cast by it or with `summon` by the active summon (game thread; the count placed is in the log). Used to show that C270 cannot happen and to reproduce G270;
 - `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or
   a float's bits when ARG contains a dot) on the game thread and logs the returned eax. For example `callstr 4f95a0
   puzzle-flippers31` (the Khosani lab's use hook) or `callstr 4773d0 puzzle-flippers32 0.01`

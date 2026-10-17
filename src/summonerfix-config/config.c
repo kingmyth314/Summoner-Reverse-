@@ -83,6 +83,7 @@ static const FixOption k_fixes[] = {
     {"MessageBoxPause", "Warnings keep the game paused"},
     {"CanisTenGold", "Canis takes 10 gold, as offered"},
     {"AiBlessCount", "AI healer counts members once"},
+    {"AreaCasterGone", "Fire walls burn after a caster goes"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
