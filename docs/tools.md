@@ -262,14 +262,21 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `poke ADDR BYTE` (one byte of writable game
   data, hex; used to test the script editor flag), `quit`;
 - `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
-  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`). Testing only;
+  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`),
+  `npcgoto NAME` puts it 4 units from a level script character (`script_object_find_character`, for example
+  `Luminar`) and prints where that character is. Testing only;
+- `level NAME SCRIPT` changes level as a level exit does (`game_change_level`, run on the game thread), for example
+  `level IonaEXT02 IonaEXT02_v2`. Unlike the `play_and_load_cutscene` warp it loads the level's own script
+  characters, so story bosses are there. Start it from a loaded save: from a cutscene warp the load crashed in
+  `skeleton_read_tag_record` (2026-10-17);
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
   and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters.
 
 For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material
 and the hit effect spawned, `[Debug] TracePhoenixInferno=1` logs each Phoenix Inferno hit with the party member
-the loop was on (G215), and the HUD's Solo button keeps the other party members out of a fight.
+the loop was on (G215), `[Debug] LuminarBeamTargetGone=1` makes the Luminar's beam lose its target before the
+hit and counts those frames (C250), and the HUD's Solo button keeps the other party members out of a fight.
 The inventory equips by drag only when the button is held about 0.4 s before the mouse moves (`down left; wait
 400; move ...; up left`); `drag` is too fast. The console cheat `Give_all_items` does nothing in retail levels (only
 the test level's script writes it, nothing reads it); add items with `savedit.mjs --add-item` instead.

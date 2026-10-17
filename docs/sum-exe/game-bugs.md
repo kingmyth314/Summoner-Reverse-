@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 82 | 2 |
+| Crash or hang | 7 | 82 | 3 |
 | Gameplay | 51 | 25 | 6 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
@@ -100,7 +100,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C220 | Latent: three script editor actions crash the game: adding an action that takes a navpoint while the Cutscene Script button is latched and the cutscene script has no navpoints; choosing the Die action for a character type without a death move; and Save while the Cutscene Script button is still latched after the cutscene script was unloaded | `script_make_filename` `0x4e8cf0`, `script_editor_apply_action_params` `0x4e84b0`, `script_editor_show_script_dialog` `0x4e6fe0` | **Observed** code, *inferred* crash | No |
 | C221 | Latent: the script editor's Save hangs (and fills the disk with one repeated line) when the level table has no line that is exactly `#Ambient Sounds`, or when `level_items.tbl` has neither the level's own `#Level:` line nor `#End` | `script_write_level_table` `0x4ea1e0`, `level_items_write_table` `0x4ea500` | **Observed** code and retail data, *inferred* hang | No |
 | C222 | Latent: in the script editor's Camera mode, New adds a `$camera` navpoint with no check against the 750-entry navpoint table; the 751st overwrites the memory after it | `script_editor_delete_navpoint` `0x4e6a30` (adds, despite the name) | **Observed** code, *inferred* effect | No |
-| C250 | In the Luminar fight, the game crashes when the target of the Luminar's lightning beam dies (or is gone) between the start of the beam and its hit | `luminar_beam_hit` `0x4ca3a0`, `luminar_ai_frame` `0x4c95f0` | **Observed** code and retail data, *inferred* crash | No |
+| C250 | In the Luminar fight, the game crashes when the target of the Luminar's lightning beam dies (or is gone) between the start of the beam and its hit | `luminar_beam_hit` `0x4ca3a0`, `luminar_ai_frame` `0x4c95f0` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] LuminarBeamTarget`) |
 | C251 | Latent: an effects array (`.arr`) line longer than 1023 characters overflows the stack of the effects loader | `File__read_line` `0x525f60`, `effects_parse_arr_line` `0x51ca60` | **Observed** code and retail data, *inferred* effect | No |
 | C252 | Latent: drawing an arrow button whose inner height or width is exactly 5 pixels divides by zero | `ui_button__draw_arrow` `0x527440` | **Observed** code, *inferred* crash | No |
 | C253 | Latent: `file_make_path` called with the "any path" id reads far past the path table | `file_make_path` `0x512b30` | **Observed** code, *inferred* crash | No |
@@ -679,6 +679,15 @@ for the turn toward the target (`test esi, esi` at `0x4ca3b4`). When trigger 7 f
 `character_add_hp` reads `[ecx + 0x320]` first (`0x45085c`). `luminar_ai_beam_move_end` does test the target
 for flag `0x8` before a new beam (`0x4ca206`..`0x4ca211`). *Inferred:* a party member who dies of other damage,
 or a summon that disappears, during the beam's 88 frames crashes the game at the impact frame.
+
+**Reproduced 2026-10-17** (agent mode: a test save, then `level IonaEXT02 IonaEXT02_v2` and `npcgoto Luminar`
+to start the fight, `[Debug] LuminarBeamTargetGone=1` to make the target lookup return NULL while the beam
+charges, as when the target dies). The game crashed at the impact: access violation reading `0x320` at
+`0x45085c` in `character_add_hp`, return address `0x4ca507` on the stack. **Fixed** in SummonerFix (`bugfix.c`,
+switch `[Fixes] LuminarBeamTarget`): the call at `0x4ca502` goes through a stub that skips `character_add_hp`
+when ECX is NULL and returns 0, so the flinch and the hit effect that follow are skipped too. With the fix and
+the same forced NULL target, 1,517 beam frames ran over about 10 minutes of the fight without a crash. A beam
+whose target is still there hits as before.
 
 **C251. A line reader that ignores its size.** `File::read_line(buf, size, min_ver)` copies bytes until NUL, CR
 or LF and never looks at `size` (`0x525f81`..`0x525fab`). `effects_parse_arr_line` reads into a 0x404-byte

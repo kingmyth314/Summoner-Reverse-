@@ -35,6 +35,7 @@
 #define VA_CUR_LEVEL_INDEX 0x59f120u
 #define VA_NAVPOINT_GET_POSITION 0x4dc600u // cdecl (name, vector3 *pos, matrix *orient) -> bool
 #define VA_CUR_CHARACTER 0x5fcc88u         // Character *; position at +0x10
+#define VA_SCRIPT_OBJECT_FIND_CHARACTER 0x4cde70u // cdecl (name) -> Character * of a level script object
 
 static char g_dir[MAX_PATH];
 static char g_out[16384];
@@ -255,6 +256,27 @@ static void RunLine(char *line)
             memcpy(ch + 0x10, pos, sizeof pos);
             Out("navgoto %s: %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
         }
+    } else if (!_stricmp(c, "npcgoto") && argc >= 2) {
+        // npcgoto NAME: put the current character 4 units from a level script NPC (e.g. Luminar), as
+        // script_object_find_character finds it. Testing only.
+        typedef BYTE *(__cdecl * FindChar)(const char *);
+        BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        BYTE *npc = ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(argv[1]);
+        if (!ch || !npc) {
+            Out("npcgoto %s: no character or no such NPC", argv[1]);
+        } else {
+            float pos[3];
+            memcpy(pos, npc + 0x10, sizeof pos);
+            Out("npcgoto %s: NPC at %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
+            pos[0] += 4.0f;
+            memcpy(ch + 0x10, pos, sizeof pos);
+        }
+    } else if (!_stricmp(c, "level") && argc >= 3) {
+        // level NAME SCRIPT: change level as a level exit does (game_change_level), e.g.
+        // "level IonaEXT02 IonaEXT02_v2". Loads the level's own script objects, which the
+        // play_and_load_cutscene warp does not. Testing only.
+        // Runs on the game thread (KeysAgentChangeLevel): from this thread the load crashed mid-frame.
+        Out("level %s %s: %s", argv[1], argv[2], KeysAgentChangeLevel(argv[1], argv[2]) ? "requested" : "no window");
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

@@ -59,6 +59,13 @@
 // Inferno, Flece hit four times). Fix ([Fixes] PhoenixInferno): the three distance loads (0x499900 / 0x499906 /
 // 0x49990c), the effect's target handle (0x499933) and the hit's this (0x499951) use ebx, so each member within
 // the spell's distance is hit and knocked down once.
+//
+// Luminar beam crash (game-bugs C250). luminar_ai_frame drops the target when it is gone or dying, but
+// luminar_beam_hit's impact (trigger 7) calls character_add_hp(-125) on it with no NULL test (ecx = esi at
+// 0x4ca4fa, call at 0x4ca502), and character_add_hp reads [ecx+0x320] first: a target that dies or disappears
+// during the 88-frame beam crashes the game at the impact frame. Fix ([Fixes] LuminarBeamTarget): the call goes
+// through a stub that, for a NULL target, returns 0 ("no damage", so the flinch and effect after it are skipped)
+// and pops the four arguments as character_add_hp would.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -76,7 +83,9 @@
 #define VA_INFERNO_DIST_X 0x499900u         // fld [esi+0x10] in phoenix_special_strike (also +0x14 at 0x499906, +0x18 at 0x49990c)
 #define VA_INFERNO_FX_TARGET 0x499933u      // mov ecx, [esi+0x80]: the effect's target handle
 #define VA_INFERNO_HIT_THIS 0x499951u       // mov ecx, esi: this of living_entity_get_hit_by_spell
-#define VA_SAVE_OVERWRITE_ROW 0x426340u    // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
+#define VA_LUMINAR_BEAM_ADD_HP 0x4ca502u    // call character_add_hp (thiscall, 4 args) in luminar_beam_hit
+#define VA_CHARACTER_ADD_HP 0x450850u
+#define VA_SAVE_OVERWRITE_ROW 0x426340u   // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
 #define VA_SAVELOAD_SELECTED_ROW 0x5e360cu  // int saveload_selected_row
 #define VA_SAVELOAD_SCROLL_POS 0x5c5b9cu    // int saveload_scroll_pos (first visible row)
 
@@ -137,6 +146,17 @@ __asm__(".text\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
         "    ret\n");
+
+// character_add_hp(this = ecx, 4 args, ret 0x10) unless ecx is NULL: then al = 0 and the arguments are popped.
+__attribute__((used)) DWORD g_characterAddHp;
+void LuminarBeamAddHpStub(void);
+__asm__(".text\n"
+        "_LuminarBeamAddHpStub:\n"
+        "    testl %ecx, %ecx\n"
+        "    je 1f\n"
+        "    jmp *_g_characterAddHp\n"
+        "1:  xorl %eax, %eax\n"
+        "    ret $0x10\n");
 
 // [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
 static BOOL FixOn(const char *key)
@@ -209,6 +229,16 @@ void BugFixesInstall(void)
         DWORD rowRel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (rowSite + 5);
         memcpy(rowRepl + 1, &rowRel, 4);
         PatchBytes(VA_SAVE_OVERWRITE_ROW, rowOrig, rowRepl, 5, "save overwrite question on a scrolled list (G4)");
+    }
+
+    if (FixOn("LuminarBeamTarget")) {
+        g_characterAddHp = SumVa(VA_CHARACTER_ADD_HP);
+        DWORD s = SumVa(VA_LUMINAR_BEAM_ADD_HP);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = g_characterAddHp - (s + 5), rn = (DWORD)(UINT_PTR)LuminarBeamAddHpStub - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(VA_LUMINAR_BEAM_ADD_HP, o, r, 5, "Luminar beam hit on a target that is gone (C250)");
     }
 
     if (FixOn("PhoenixInferno")) {

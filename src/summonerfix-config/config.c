@@ -76,6 +76,7 @@ static const FixOption k_fixes[] = {
     {"PopupRowOffset", "Popup rows light up under the cursor"},
     {"SaveOverwriteQuestion", "Ask before overwriting a save"},
     {"PhoenixInferno", "Phoenix Inferno hits each member once"},
+    {"LuminarBeamTarget", "No Luminar beam crash"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

@@ -167,9 +167,41 @@ static void TraceInfernoInstall(void)
     PatchBytes(VA_INFERNO_HIT_CALL, orig, repl, 5, "trace Phoenix Inferno hits (TracePhoenixInferno)");
 }
 
+// Testing only ([Debug] LuminarBeamTargetGone=1, game-bugs C250): while the Luminar's beam charges (AI sub-mode
+// 0x32), luminar_ai_frame's target lookup (the call living_from_handle at 0x4c95fc, esi = ai_state) returns NULL,
+// as when the target dies or a summon disappears during the beam. Without the C250 fix the impact frame crashes.
+#define VA_LUMINAR_TARGET_LOOKUP 0x4c95fcu
+#define VA_LIVING_FROM_HANDLE2 0x46b1a0u
+__attribute__((used)) DWORD g_livingFromHandle;
+__attribute__((used)) volatile DWORD g_luminarBeamFrames; // frames with the target forced gone (agent peek)
+void LuminarTargetGoneStub(void);
+__asm__(".text\n"
+        "_LuminarTargetGoneStub:\n"
+        "    cmpl $0x32, 4(%esi)\n" // ai_state +4 sub-mode: 0x32 = the beam
+        "    jne 1f\n"
+        "    incl _g_luminarBeamFrames\n"
+        "    xorl %eax, %eax\n"
+        "    ret\n"
+        "1:  jmp *_g_livingFromHandle\n");
+
+static void LuminarTestInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "LuminarBeamTargetGone", 0, g_cfg.iniPath))
+        return;
+    g_livingFromHandle = SumVa(VA_LIVING_FROM_HANDLE2);
+    DWORD s = SumVa(VA_LUMINAR_TARGET_LOOKUP);
+    BYTE orig[5] = {0xE8}, repl[5] = {0xE8};
+    DWORD ro = g_livingFromHandle - (s + 5), rn = (DWORD)(UINT_PTR)LuminarTargetGoneStub - (s + 5);
+    memcpy(orig + 1, &ro, 4);
+    memcpy(repl + 1, &rn, 4);
+    if (PatchBytes(VA_LUMINAR_TARGET_LOOKUP, orig, repl, 5, "test: Luminar beam target gone (LuminarBeamTargetGone)"))
+        Log("LuminarBeamTargetGone: beam frame counter at %p", (void *)&g_luminarBeamFrames);
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
+    LuminarTestInstall();
     TraceInfernoInstall();
     if (!GetPrivateProfileIntA("Debug", "TraceArmourSpells", 0, g_cfg.iniPath))
         return;

@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4 and G215 (2026-10-17, SummonerFix `bugfix.c`, both reproduced and checked in game; G215 can be switched off with `[Fixes] PhoenixInferno`).
+**Fixed since the ranking:** G4, G215 and C250 (2026-10-17, SummonerFix `bugfix.c`, all reproduced and checked in game; G215 and C250 can be switched off with `[Fixes] PhoenixInferno` and `[Fixes] LuminarBeamTarget`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method
