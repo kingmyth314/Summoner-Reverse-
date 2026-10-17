@@ -117,6 +117,11 @@
 // (0x49355f), whose order replaces the first; the enemy list is shuffled every think, so the target is random. Fix
 // ([Fixes] SupportAiTarget): the add esp, 0x10 after the first order (0x49354a) becomes jmp 0x493564, the fallback's
 // own add esp, 0x10 before the function's epilogue, so the fallback runs only when no target was picked.
+//
+// Detection cone the wrong way round (not a crash; game-bugs G210). Beyond $Detection range, ai_group_collect_enemies
+// accepts an enemy in field of view range and line of sight when the dot of the direction to it with the member's
+// forward vector is below 0.71 (jne after fcomp [0x581ae0], 0x493c5c), i.e. outside the 45-degree cone ahead.
+// Fix ([Fixes] DetectionCone): jne -> je, so enemies ahead are noticed and those behind are not.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -145,7 +150,8 @@
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
 #define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
-#define VA_STYLE1_AFTER_ORDER 0x49354au     // add esp, 0x10 after the chosen-target order in ai_group_think_style1
+#define VA_DETECT_CONE_JCC 0x493c5cu        // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
+#define VA_STYLE1_AFTER_ORDER 0x49354au    // add esp, 0x10 after the chosen-target order in ai_group_think_style1
 #define VA_AI_BLESS_COUNT_INC 0x49395cu  // the first inc ebx in ai_group_think_caster's Bless pass
 #define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
 #define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
@@ -433,6 +439,11 @@ void BugFixesInstall(void)
     if (FixOn("SupportAiTarget")) {
         static const BYTE o[3] = {0x83, 0xC4, 0x10}, r[3] = {0xEB, 0x18, 0x90}; // add esp, 0x10 -> jmp 0x493564
         PatchBytes(VA_STYLE1_AFTER_ORDER, o, r, 3, "support AI keeps the target it picked (G211)");
+    }
+
+    if (FixOn("DetectionCone")) {
+        static const BYTE o[1] = {0x75}, r[1] = {0x74}; // jne -> je (rel8 0x13 to 0x493c71 kept)
+        PatchBytes(VA_DETECT_CONE_JCC, o, r, 1, "enemies seen inside the forward cone, not outside (G210)");
     }
 
     if (FixOn("PhoenixInferno")) {

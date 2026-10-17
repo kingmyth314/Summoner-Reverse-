@@ -273,6 +273,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
 - `firewall N [START] [summon]` places N walls of fire (spell `0x1d`, `spell_place_ground_effect`) in a row, the first START units (default 6) beside the current
   character, cast by it or with `summon` by the active summon (game thread; the count placed is in the log). Used to show that C270 cannot happen and to reproduce G270;
+- `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
+  a monster group's detection range;
 - `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or
   a float's bits when ARG contains a dot) on the game thread and logs the returned eax. For example `callstr 4f95a0
   puzzle-flippers31` (the Khosani lab's use hook) or `callstr 4773d0 puzzle-flippers32 0.01`
@@ -284,7 +286,7 @@ For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the 
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material
 and the hit effect spawned, `[Debug] TracePhoenixInferno=1` logs each Phoenix Inferno hit with the party member
 the loop was on (G215), `[Debug] LuminarBeamTargetGone=1` makes the Luminar's beam lose its target before the
-hit and counts those frames (C250), `[Debug] TraceBlessCount=1` logs the AI healer's Bless candidate count and `BlessPassAlways=1` makes that pass run in any fight (C210), `[Debug] TraceGroupAttack=1` logs the Support-style attack orders (G211), `[Debug] TraceSupportPick=1` logs AI support spell picks (G229), and the HUD's Solo button keeps the other party members out of a fight.
+hit and counts those frames (C250), `[Debug] TraceBlessCount=1` logs the AI healer's Bless candidate count and `BlessPassAlways=1` makes that pass run in any fight (C210), `[Debug] TraceGroupAttack=1` logs the Support-style attack orders (G211), `[Debug] TraceSupportPick=1` logs AI support spell picks (G229), `[Debug] TraceDetectCone=1` logs the party AI's detection cone tests (G210), and the HUD's Solo button keeps the other party members out of a fight.
 The inventory equips by drag only when the button is held about 0.4 s before the mouse moves (`down left; wait
 400; move ...; up left`); `drag` is too fast. The console cheat `Give_all_items` does nothing in retail levels (only
 the test level's script writes it, nothing reads it); add items with `savedit.mjs --add-item` instead.

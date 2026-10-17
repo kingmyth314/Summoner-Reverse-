@@ -389,6 +389,14 @@ static void RunLine(char *line)
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);
         Out("goldpile %d: %s", g_goldAmount, KeysAgentRun(GoldPileOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "nudge") && argc >= 3) {
+        // nudge DX DZ: move the current character by DX, DZ world units (after a navgoto, to stand at a distance).
+        BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        if (ch) {
+            *(float *)(ch + 0x10) += (float)atof(argv[1]);
+            *(float *)(ch + 0x18) += (float)atof(argv[2]);
+            Out("nudge: %.2f %.2f %.2f", *(float *)(ch + 0x10), *(float *)(ch + 0x14), *(float *)(ch + 0x18));
+        }
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

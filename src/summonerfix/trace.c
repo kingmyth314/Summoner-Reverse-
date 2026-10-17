@@ -348,10 +348,54 @@ static void TraceSupportPickInstall(void)
     PatchBytes(VA_SUPPORT_PICK_FRAND, o, r, 5, "trace AI support spell picks (TraceSupportPick)");
 }
 
+// Testing only ([Debug] TraceDetectCone=1, game-bugs G210): ai_group_collect_enemies tests an enemy beyond detection
+// range against a 45-degree cone (dot of the direction to it with the member's forward vector against 0.71,
+// fcomp [0x581ae0] at 0x493c51). The hook logs the dot and the outcome; the game accepts the enemy when the
+// following jne (C0 set, dot < 0.71) is taken unless [Fixes] DetectionCone flips it.
+#define VA_DETECT_CONE_FCOMP 0x493c51u
+#define VA_CONE_LIMIT 0x581ae0u
+__attribute__((used)) float g_coneDot;
+__attribute__((used)) DWORD g_coneLimit;
+__attribute__((used)) static void __cdecl TraceDetectCone(void *member, void *enemy)
+{
+    BYTE j = *(volatile BYTE *)(UINT_PTR)SumVa(0x493c5cu); // 0x75 jne (original) or 0x74 je (fixed)
+    int behindLimit = g_coneDot < 0.71f;
+    int accepted = j == 0x75 ? behindLimit : !behindLimit;
+    Log("trace detect cone: member %p enemy %p dot %d/1000 (%s the cone) -> %s", member, enemy, (int)(g_coneDot * 1000.0f),
+        behindLimit ? "outside" : "inside", accepted ? "accepted" : "not accepted");
+}
+void TraceDetectConeStub(void);
+__asm__(".text\n"
+        "_TraceDetectConeStub:\n"
+        "    fsts _g_coneDot\n"
+        "    pushal\n"
+        "    pushl %ebp\n" // the enemy
+        "    pushl (%esi)\n" // the member (ai_think_members[i])
+        "    call _TraceDetectCone\n"
+        "    addl $8, %esp\n"
+        "    popal\n"
+        "    movl _g_coneLimit, %eax\n"
+        "    fcomps (%eax)\n"
+        "    ret\n");
+
+static void TraceDetectConeInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceDetectCone", 0, g_cfg.iniPath))
+        return;
+    g_coneLimit = SumVa(VA_CONE_LIMIT);
+    static const BYTE o[6] = {0xD8, 0x1D, 0xE0, 0x1A, 0x58, 0x00}; // fcomp dword [0x581ae0]
+    BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+    DWORD s = SumVa(VA_DETECT_CONE_FCOMP);
+    DWORD rel = (DWORD)(UINT_PTR)TraceDetectConeStub - (s + 5);
+    memcpy(r + 1, &rel, 4);
+    PatchBytes(VA_DETECT_CONE_FCOMP, o, r, 6, "trace detection cone (TraceDetectCone)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
     TraceGroupAttackInstall();
+    TraceDetectConeInstall();
     TraceSupportPickInstall();
     LuminarTestInstall();
     TraceInfernoInstall();

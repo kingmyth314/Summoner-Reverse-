@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 50 | 25 | 14 |
+| Gameplay | 50 | 25 | 15 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -950,7 +950,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G180 | Latent: in multiplayer, a reliable packet from an address with no link (for example a machine whose link has timed out) that comes after a connected machine's packet in the same update is handled as that machine's: an ACK can free its unacknowledged packets, and data enters its stream | `nw_work_reliable` `0x517e00` | **Observed** code, *inferred* effect | No |
 | G181 | Latent: in multiplayer, once a link's receive sequence number reaches 0xffb6, a resent copy of a packet already delivered is stored again, and it is delivered in place of the real packet with that number when the sequence comes round (about 65,536 packets later) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
 | G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
-| G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code and retail data, *inferred* effect | No |
+| G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] DetectionCone`) |
 | G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SupportAiTarget`) |
 | G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code; the doubled count seen in game (2026-10-17) | Fixed with C210 (`[Fixes] AiBlessCount`) |
 | G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
@@ -1404,6 +1404,15 @@ the 45-degree cone ahead. `script_guard_sees_player` uses the same constant the 
 false (`0x4ce882`..`0x4ce893`). Retail characters have, for example, field of view 10 and detection 3
 (`Archlich.tbl`); most detection ranges are 4-5. *Inferred:* in game, monsters ahead of the party between those
 ranges are not put in their group's enemy list until the party is inside detection range.
+
+**Who it affects (checked 2026-10-17).** AI groups are made only for party characters (`living_entity` type 7,
+`ai_group_create` / `ai_group_add_member`; monsters fight on their own AI), so `ai_group_collect_enemies` decides
+what the *party's* AI members notice. The four heroes have field of view 5 and detection 5, so the cone is never
+reached for them; it matters for summons whose field of view is wider, for example the Blackfire Elemental (10 / 3),
+the Wraith and the dragons (15 / 4) and the Jade Golem (20 / 5). **Reproduced** in agent mode (IkaemosExt2, `summon
+blackfire`, the leader placed 7 units from a monster group with `navgoto` and `nudge`, `[Debug] TraceDetectCone=1`):
+two enemies behind the summon (dot -0.61 and -0.46) were accepted. **Fixed** in SummonerFix (`bugfix.c`, switch
+`[Fixes] DetectionCone`): `jne` -> `je` at `0x493c5c`. With the fix an enemy straight ahead (dot 0.98) was accepted.
 
 **G211. A missing return.** [notes 3] After the "protect a Range / Healer / Caster member" loop (which returns
 properly at `0x49344c`), `ai_group_think_style1` picks the nearest enemy nobody attacks, else the enemy of the most
@@ -3815,6 +3824,7 @@ the tables above; the rest are below.
 - `character_create_base` does not test `ca_preload_alloc_slot`'s NULL (`mov [eax], ebx` at `0x5415da`; 205 slots). The peak number of loaded meshes in retail play was not measured.
 - `character_unload` frees slot `+0x28` but never the shadow mesh at `+0x2c` (`0x5413b0`..`0x5413c0`). This matters only outside a mempool (flag `0x8`, `0x541372`). `charinfo_create_character_instance` sets a mempool first (`0x448e0e`), but whether `charinfo_select_mempool` can return none was not traced.
 - `skeleton::read` reads each trigger name as 255 raw bytes and runs `strlen` on them. The retail `.mvf` files were not checked for a name with no NUL.
+- The developer console's `summon blackfire` at the main menu (after a game over) crashed the game: `cmd_summon` reads `cur_character`, which is NULL there (access violation reading `0x10` at `0x47f7cd`, 2026-10-17). It has no `calling_a_command_function` or game-state test.
 - The developer console's `summon golem` while a golem was already out crashed the game (2026-10-17, agent mode: access violation at `0x519c14` in `character_instance__build_bone_matrices`). Seen once, cause not traced; summoning with the spell was not tried this way. The console is not reachable in the retail game.
 - `cmd_summon` has no `calling_a_command_function` test (`0x47f730`). What it does during the console's help pass depends on `next_arg` at that time, which was not traced.
 - From the notes, not checked again: `container_spawn_loot` reading `+0xe0` of a gold item_obj (`0x4890c3`), `mp_handle_it_addi` / `mp_handle_item_drop` trusting the peer's counts (needs a modified peer), `level_free_s3d` keeping the navpoint and colour counts, `levelrender_wave_lobj`'s arrays that are never cleared or read, `tga_read_bitmap` not decoding grey images (types 3, 11), `tga_rle_encode_row` comparing `dst_bpp` bytes of pixels `src_bpp` apart, `ca_load_preload_index` without bounds, `skills_mouse_mode` staying 2 after identify / pick lock / banish, and the "mach_killed" summon gate.

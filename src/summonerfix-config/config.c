@@ -85,6 +85,7 @@ static const FixOption k_fixes[] = {
     {"AiBlessCount", "AI healer counts members once"},
     {"AreaCasterGone", "Fire walls burn after a caster goes"},
     {"SupportAiTarget", "Support AI keeps its chosen enemy"},
+    {"DetectionCone", "Summons notice enemies ahead"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
