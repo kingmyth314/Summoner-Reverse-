@@ -298,7 +298,7 @@ int pickup_handle_click(int key)
     return key;
 }
 
-// 0x420d20. Confidence: exact
+// 0x420d20. Confidence: likely (the max(x, 0) AND register, D7506).
 void pickup_page_up()
 {
     if (pickup_scroll_pos > 0) {

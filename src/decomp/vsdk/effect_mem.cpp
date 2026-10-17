@@ -221,7 +221,8 @@ int rfx_preload(int index)
     int num_nodes, table_size, size, version;
     unsigned int buf_size, offset, total;
     Mempool *pool;
-    int slot, i;
+    int slot;
+    unsigned int i;
 
     if (b->resident)
         return 0;
@@ -342,7 +343,7 @@ int rfx_preload(int index)
     return 0;
 }
 
-// 0x51c370  Confidence: likely (the saved-slot loops are pointer loops with signed compares, as VC6
+// 0x51c370  Confidence: exact (VC6 byte match, match31; was likely) (the saved-slot loops are pointer loops with signed compares, as VC6
 // makes of index loops). When the last cutscene base goes, the saved stream bases are reloaded and
 // the bitmaps of every resident base flagged bitmaps_pending are loaded.
 void effect_base_release(int index)
@@ -364,8 +365,8 @@ void effect_base_release(int index)
         }
         bm_set_preload_on_load(1);
         for (i = 0; i < effects_num_names; i++) {
-            b = &effect_bases[effect_base_record_index[i]];
-            if (b->resident && b->bitmaps_pending) {
+            if (effect_bases[effect_base_record_index[i]].resident
+                && effect_bases[effect_base_record_index[i]].bitmaps_pending) {
                 v = effect_get_base(i);
                 if (v != NULL)
                     v->load_bitmaps(-1);
@@ -488,14 +489,13 @@ int effect_base_queue_stream(int index, unsigned int *out_size, unsigned int *ou
     return -1;
 }
 
-// 0x51c720  Confidence: likely. The node index of an effect name is cached in effect_base_slot.
+// 0x51c720  Confidence: exact (VC6 byte match, match31; was likely). The node index of an effect name is cached in effect_base_slot.
 // The node pointer is loaded before the range tests, and the pointer test is signed (JLE), so the
 // pointers were compared as ints.
 vfx_base *effect_get_base(int id)
 {
     int index = effect_base_record_index[id];
     effect_base *b = &effect_bases[index];
-    vfx_node_entry *nodes;
     vfx_base *v;
     unsigned int i;
     int hash, slot;
@@ -508,9 +508,8 @@ vfx_base *effect_get_base(int id)
     }
     if (effect_base_slot[id] == 0xff) {
         hash = effects_hash_name(effect_base_names[id]);
-        nodes = (vfx_node_entry *)b->data;
         for (i = 0; i < b->num_nodes; i++) {
-            if (nodes[i].hash == hash) {
+            if (((vfx_node_entry *)b->data)[i].hash == hash) {
                 effect_base_slot[id] = (ubyte)i;
                 break;
             }
@@ -1031,7 +1030,8 @@ int vfx_all_resident(const char **names)
     return 1;
 }
 
-// 0x51dd00  Confidence: likely (the prefix test is written as a chain of ||; the copy of the base's two
+// 0x51dd00  Confidence: likely (the result in vi, NULL when the base or the instance is missing, as the
+// binary's shared epilogue, match31; still differs in the copy of the base's two flag bits; the prefix test is written as a chain of ||; the copy of the base's two
 // flag bits into the instance is a guess at the source shape). An instance of a named effect: effects
 // whose names start with "nar-", "mi-" or "worl" pass flag 1 to vfx_instance_create. The base's
 // bitmaps are loaded with preload-on-load set.
@@ -1049,22 +1049,23 @@ vfx_instance *vfx_load(const char *name, int a)
     _strlwr(prefix);
     flag = !strncmp(prefix, "nar-", 4) || !strncmp(prefix, "mi-", 3) || !strncmp(prefix, "worl", 4);
     base = vfx_preload(name, &index);
-    if (base == NULL)
-        return NULL;
-    vi = vfx_instance_create(base, a, flag);
-    if (vi == NULL)
-        return vi;
-    b = &effect_bases[effect_base_record_index[index]];
-    vi->id_bits = (vi->id_bits & 0x1ff) | (index << 9);
-    vi->pos = base->pos;
-    vi->_unk3c = base->_unk54;
-    vi->category = b->category;
-    vi->id_bits = (vi->id_bits & ~0x190) | ((((base->flags & 4) ? 4 : 0) | ((base->flags & 2) ? 2 : 0)) << 6);
-    bm_set_preload_on_load(1);
-    base->load_bitmaps(-1);
-    bm_set_preload_on_load(0);
-    effect_base_stream_users[effect_base_record_index[index]]++;
-    b->bitmaps_pending = 0;
+    vi = NULL;
+    if (base != NULL) {
+        vi = vfx_instance_create(base, a, flag);
+        if (vi != NULL) {
+            b = &effect_bases[effect_base_record_index[index]];
+            vi->id_bits = (vi->id_bits & 0x1ff) | (index << 9);
+            vi->pos = base->pos;
+            vi->_unk3c = base->_unk54;
+            vi->category = b->category;
+            vi->id_bits = (vi->id_bits & ~0x190) | ((((base->flags & 4) ? 4 : 0) | ((base->flags & 2) ? 2 : 0)) << 6);
+            bm_set_preload_on_load(1);
+            base->load_bitmaps(-1);
+            bm_set_preload_on_load(0);
+            effect_base_stream_users[effect_base_record_index[index]]++;
+            b->bitmaps_pending = 0;
+        }
+    }
     return vi;
 }
 

@@ -171,13 +171,13 @@ void Mempool::Copy(char *dest, int size, const char *name)
     offset = 0;
 }
 
-// 0x5127c0  Confidence: exact. Only the size is rounded to 16 bytes; the offset is assumed aligned.
+// 0x5127c0  Confidence: exact (the rounded size kept in the argument). Only the size is rounded to 16 bytes; the offset is assumed aligned.
 void *Mempool::allocate_in_mempool(unsigned int size)
 {
-    unsigned int new_offset = offset + ((size + 15) & ~15);
-
-    if (new_offset > this->size)
+    size = (size + 15) & ~15;
+    if (offset + size > this->size)
         return NULL;
+    unsigned int new_offset = offset + size;
 
     char *p = destination + offset;
     offset = new_offset;

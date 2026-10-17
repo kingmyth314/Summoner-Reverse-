@@ -286,7 +286,7 @@ void lobj_raycast_bsp(s3d_geom_block *block, void *root, s3d_geometry *g, int lo
     }
 }
 
-// 0x4af2c0  Confidence: likely (the object count is read once: a local copy). Flag 1 stops at the first
+// 0x4af2c0  Confidence: exact (VC6 byte match, match24; was likely) (the object count is read once: a local copy). Flag 1 stops at the first
 // object with a hit, flag 4 at a hit nearer than ray->stop_t.
 void lobj_raycast_all(lobj_ray *ray, lobj_hit *hit)
 {

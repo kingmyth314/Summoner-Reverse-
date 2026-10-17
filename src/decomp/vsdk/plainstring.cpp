@@ -99,7 +99,7 @@ void trim_whitespace(char *dest, const char *src, int max_length)
     dest[count] = '\0';
 }
 
-// 0x515030  Confidence: likely (local names ours). "" literals 0x26b6390 / 0x26b6394, " " 0x5a78e8 /
+// 0x515030  Confidence: exact (VC6 byte match, match23; was likely; local names ours). "" literals 0x26b6390 / 0x26b6394, " " 0x5a78e8 /
 // 0x5a78ec. At least one space separates the label from the text.
 void format_indented_column(char *dest, int indent, int width, const char *label, const char *fmt, ...)
 {
@@ -119,17 +119,17 @@ void format_indented_column(char *dest, int indent, int width, const char *label
 
     int len = strlen(dest);
     int pad;
-    if (width > len + text_len)
-        pad = width - len - text_len;
-    else
+    if (width <= len + text_len)
         pad = 1;
+    else
+        pad = width - len - text_len;
     for (i = 0; i < pad; i++)
         strcat(dest, " ");
 
     strcat(dest, text);
 }
 
-// 0x515170  Confidence: likely. As format_indented_column, but the text length does not count:
+// 0x515170  Confidence: exact (VC6 byte match, match23; was likely). As format_indented_column, but the text length does not count:
 // the label alone is padded to width. "" 0x26b6398 / 0x26b639c, " " 0x5a78f0 / 0x5a78f4.
 void format_indented_column_b(char *dest, int indent, int width, const char *label, const char *fmt, ...)
 {
@@ -148,10 +148,10 @@ void format_indented_column_b(char *dest, int indent, int width, const char *lab
 
     int len = strlen(dest);
     int pad;
-    if (width > len)
-        pad = width - len;
-    else
+    if (width <= len)
         pad = 1;
+    else
+        pad = width - len;
     for (i = 0; i < pad; i++)
         strcat(dest, " ");
 
@@ -191,7 +191,7 @@ char *int_to_string_with_commas(char *dest, int size, int value)
     return dest;
 }
 
-// 0x5153b0  Confidence: likely. The first two measurements pass `font` in gr_get_string_size's length
+// 0x5153b0  Confidence: exact (VC6 byte match, match23; was likely). The first two measurements pass `font` in gr_get_string_size's length
 // slot and -1 as the font; the loop passes -1 twice (it reuses EBX, so it cannot be the argument).
 // Every caller passes -1, so all three measure the whole string in the current font (decomp22 D204).
 char *gr_string_truncate_ellipsis(char *dest, const char *s, int max_w, int font)
@@ -210,7 +210,8 @@ char *gr_string_truncate_ellipsis(char *dest, const char *s, int max_w, int font
             gr_get_string_size(&w, &h, buf, -1, -1);
         }
     }
-    return strcpy(dest, buf);
+    strcpy(dest, buf);
+    return dest;
 }
 
 // 0x5154d0  Confidence: exact.
@@ -335,33 +336,43 @@ char *ptr_to_hex_string(char *dest, int size, const void *value)
     return dest;
 }
 
-// 0x5158d0  Confidence: likely (loop shape). Stops at the first char outside 0x20..0x75.
+// 0x5158d0  Confidence: exact (VC6 byte match, match23; was likely; loop shape). Stops at the first char outside 0x20..0x75.
 void string_to_wide_charmap(ushort *dest, const char *src)
 {
     int i;
 
-    for (i = 0; src[i] != '\0'; i++) {
-        int c = src[i] - 0x20;
+    i = 0;
+    while (1) {
+        int c = src[i];
+        if ((char)c == 0)
+            break;
+        c -= 0x20;
         if (c < 0 || c >= 86)
             break;
         dest[i] = wide_charmap_table[c];
+        i++;
     }
     dest[i] = 0;
 }
 
-// 0x515910  Confidence: likely (the inner loop is a pointer walk to &wide_charmap_table[86]).
+// 0x515910  Confidence: exact (VC6 byte match, match23; was likely; the inner loop is a pointer walk to &wide_charmap_table[86]).
 // Defect: a wide char that is not in the table leaves its byte of dest unwritten.
 void wide_charmap_to_string(char *dest, const ushort *src)
 {
     int i;
 
-    for (i = 0; *src != 0; i++, src++) {
+    i = 0;
+    while (1) {
+        if (*src == 0)
+            break;
         for (int j = 0; j < 86; j++) {
             if (*src == wide_charmap_table[j]) {
                 dest[i] = (char)(j + 0x20);
                 break;
             }
         }
+        i++;
+        src++;
     }
     dest[i] = '\0';
 }

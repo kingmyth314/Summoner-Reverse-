@@ -304,7 +304,7 @@ struct vfx_material {                         // 0x4c bytes, vfx_base +0x44 (cou
                                               //       decomp66: bit 6 additive particles, bits 7-15 the curve rate
         struct {
             short curve34_mode : 3;           //       decomp66 (D4608): read signed (shl 13 / sar 13)
-            short blend : 3;
+            unsigned short blend : 3;         //       match23 (D8202): unsigned (reset's and eax, 0xffc7)
             short additive : 1;
             unsigned short rate : 9;
         };

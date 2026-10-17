@@ -123,7 +123,7 @@ int bm_calc_num_pixels(int w, int h, int num_levels)
     return total;
 }
 
-// 0x501d20  Confidence: likely (a byte match under /Ox /Ow, D7502).
+// 0x501d20  Confidence: exact.
 // "VBM " signature, version, width, height, format (0 1555, 1 4444, other 565), fps, frame count and
 // the number of extra mip levels. Without Load_mipmaps only the first level is used.
 void bm_read_vbm_header(const char *name, int *w, int *h, int *format, int *num_frames, int *num_levels,
@@ -282,7 +282,7 @@ void bm_set_reduce_textures(bool reduce)
         bm_set_reduced(e - bm_bitmaps, reduce);
 }
 
-// 0x502240  Confidence: exact. Only unlocked single bitmaps with mip levels; total_bytes is not updated.
+// 0x502240  Confidence: likely (differs under cl 8966 in match26). Only unlocked single bitmaps with mip levels; total_bytes is not updated.
 void bm_set_reduced(int bm, bool reduce)
 {
     bitmap_entry *e = &bm_bitmaps[bm_handle_to_index(bm)];
@@ -351,7 +351,7 @@ void bm_init()
     bm_inited = true;
 }
 
-// 0x5023e0  Confidence: likely (a byte match under /Ox /Ow, D7502).
+// 0x5023e0  Confidence: exact.
 // anim_type, num_frames, frames_per_ms, path_id and reduced are left as they were.
 void bm_free_entry(int index)
 {
@@ -469,16 +469,13 @@ int bm_find(const char *name)
 int bm_hash_name(const char *name)
 {
     unsigned int hash;
-    char c;
+    const char *p;
 
     if (name == NULL)
         return -1;
     hash = 0;
-    while (*name) {
-        c = tolower(*name);
-        hash = ((hash << 6) | (hash >> 26)) ^ c;
-        name++;
-    }
+    for (p = name; *p; p++)
+        hash = _rotl(hash, 6) ^ (char)tolower(*p);
     return abs((int)hash);
 }
 
@@ -736,7 +733,7 @@ bitmap_entry *bm_alloc_entry()
     return e;
 }
 
-// 0x502ee0  Confidence: likely (a byte match under /Ox /Ow, D7502). The first run of count entries with type 0,
+// 0x502ee0  Confidence: exact. The first run of count entries with type 0,
 // moved to the end of the used list; NULL when there is none (bm_load_internal does not test it).
 bitmap_entry *bm_alloc_entries(int count)
 {
@@ -810,7 +807,7 @@ int bm_load_animation_path(const char *name, int *num_frames, int *fps, int path
 
     if (bm_bitmaps[i].anim_type == BM_ANIM_HEADER) {
         *num_frames = bm_bitmaps[i].num_frames;
-        *fps = (int)ceil(bm_bitmaps[i].frames_per_ms * 1000.0f);
+        *fps = (int)ceil((double)(bm_bitmaps[i].frames_per_ms * 1000.0f));
         return bm;
     }
     *num_frames = 1;
@@ -917,8 +914,9 @@ int bm_load_animation(const char *name, int *num_frames, int *fps)
         return bm;
     }
     *num_frames = bm_bitmaps[i].num_frames;
-    *fps = (int)ceil(bm_bitmaps[i].frames_per_ms * 1000.0f);
+    *fps = (int)ceil((double)(bm_bitmaps[i].frames_per_ms * 1000.0f));
     return bm + 1;
+
 }
 
 // 0x503500  Confidence: exact.
@@ -976,8 +974,8 @@ int bm_get_data(int bm, void **data, void **palette)
     return e->format;
 }
 
-// 0x503650  Confidence: likely (a byte match under /Ox /Ow, D7502; type 3 is tested before the switch: its jump table slot 0x5036f0 + 8 is
-// the error). Loads the pixels every time (no test for data already present, except an animation's shared
+// 0x503650  Confidence: exact. Type 3 is tested before the switch: its jump table slot 0x5036f0 + 8 is
+// the error. Loads the pixels every time (no test for data already present, except an animation's shared
 // block in bm_lock_vbm); returns the format, 0 when a loader fails.
 int bm_lock(int bm, ubyte **data, ubyte **palette)
 {
@@ -1095,7 +1093,7 @@ void bm_lock_vbm(int index)
     }
 }
 
-// 0x503aa0  Confidence: exact (no entry pointer: every field is indexed from bm_bitmaps).
+// 0x503aa0  Confidence: likely (differs under cl 8966 in match26; no entry pointer: every field is indexed from bm_bitmaps).
 bool bm_lock_pcx(int index)
 {
     bm_bitmaps[index].data = new ubyte[bm_bitmaps[index].num_pixels * bm_bytes_per_pixel(bm_bitmaps[index].format)];

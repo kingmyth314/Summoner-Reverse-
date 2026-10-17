@@ -1419,34 +1419,36 @@ void ai_state::enter_hiding(int enter)
 }
 
 // ---- savegame (the LENT record, character_save_state / _load_state) ---------------------------------
-// 0x4746d0  Confidence: likely (the floats go through a stack temporary: fld / fstp / mov, so the
+// 0x4746d0  Confidence: exact (VC6 byte match, match30; was likely; D8902: goals[i] indexed directly, `f = (g->time);` parenthesised float copies, the name hash as an if / else of two calls). Earlier note: (the floats go through a stack temporary: fld / fstp / mov, so the
 // copy is written through a float local). The combat style, and for NPCs and monsters the five goals
 // (0x30 bytes each; the target as the name hash of the character, "" when none; the path not saved).
 int ai_state::save(ubyte *out)
 {
     int n = 4;
     int i;
-    ai_goal *g;
     Character *t;
     float f;
 
     *(int *)out = combat_style;
     if (owner->type == CHAR_TYPE_MONSTER || owner->type == CHAR_TYPE_NPC) {
         for (i = 0; i < 5; i++) {
-            g = &goals[i];
-            *(int *)(out + n) = g->type;      n += 4;
-            *(int *)(out + n) = g->flags;     n += 4;
-            *(int *)(out + n) = g->id;        n += 4;
-            f = g->time;  *(int *)(out + n) = *(int *)&f; n += 4;
-            *(int *)(out + n) = g->priority;  n += 4;
-            f = g->pos.x; *(int *)(out + n) = *(int *)&f; n += 4;
-            f = g->pos.y; *(int *)(out + n) = *(int *)&f; n += 4;
-            f = g->pos.z; *(int *)(out + n) = *(int *)&f; n += 4;
-            *(int *)(out + n) = g->layer;     n += 4;
-            *(int *)(out + n) = g->spell;     n += 4;
-            t = living_from_handle(g->target);
-            *(int *)(out + n) = name_hash_nocase(t ? t->get_name() : ""); n += 4;
-            f = g->arg;   *(int *)(out + n) = *(int *)&f; n += 4;
+            *(int *)(out + n) = goals[i].type;      n += 4;
+            *(int *)(out + n) = goals[i].flags;     n += 4;
+            *(int *)(out + n) = goals[i].id;        n += 4;
+            f = (goals[i].time);  *(int *)(out + n) = *(int *)&f; n += 4;
+            *(int *)(out + n) = goals[i].priority;  n += 4;
+            f = (goals[i].pos.x); *(int *)(out + n) = *(int *)&f; n += 4;
+            f = (goals[i].pos.y); *(int *)(out + n) = *(int *)&f; n += 4;
+            f = (goals[i].pos.z); *(int *)(out + n) = *(int *)&f; n += 4;
+            *(int *)(out + n) = goals[i].layer;     n += 4;
+            *(int *)(out + n) = goals[i].spell;     n += 4;
+            t = living_from_handle(goals[i].target);
+            if (t)
+                *(int *)(out + n) = name_hash_nocase(t->get_name());
+            else
+                *(int *)(out + n) = name_hash_nocase("");
+            n += 4;
+            f = (goals[i].arg);   *(int *)(out + n) = *(int *)&f; n += 4;
         }
     }
     return n;
@@ -1458,32 +1460,31 @@ int ai_state::load(const ubyte *in)
 {
     int n = 4;
     int i, hash;
-    ai_goal *g;
     Character *c;
 
     combat_style = *(const int *)in;
-    if (owner->type == CHAR_TYPE_MONSTER || owner->type == CHAR_TYPE_NPC) {
+    Character *o = owner;
+    if (o->type == CHAR_TYPE_MONSTER || o->type == CHAR_TYPE_NPC) {
         for (i = 0; i < 5; i++) {
-            g = &goals[i];
-            g->type = *(const int *)(in + n);            n += 4;
-            g->flags = *(const unsigned int *)(in + n);  n += 4;
-            g->id = *(const int *)(in + n);              n += 4;
-            g->time = *(const float *)(in + n);          n += 4;
-            g->priority = *(const int *)(in + n);        n += 4;
-            g->pos.x = *(const float *)(in + n);         n += 4;
-            g->pos.y = *(const float *)(in + n);         n += 4;
-            g->pos.z = *(const float *)(in + n);         n += 4;
-            g->layer = *(const int *)(in + n);           n += 4;
-            g->spell = *(const int *)(in + n);           n += 4;
+            goals[i].type = *(const int *)(in + n);            n += 4;
+            goals[i].flags = *(const unsigned int *)(in + n);  n += 4;
+            goals[i].id = *(const int *)(in + n);              n += 4;
+            goals[i].time = *(const float *)(in + n);          n += 4;
+            goals[i].priority = *(const int *)(in + n);        n += 4;
+            goals[i].pos.x = *(const float *)(in + n);         n += 4;
+            goals[i].pos.y = *(const float *)(in + n);         n += 4;
+            goals[i].pos.z = *(const float *)(in + n);         n += 4;
+            goals[i].layer = *(const int *)(in + n);           n += 4;
+            goals[i].spell = *(const int *)(in + n);           n += 4;
             hash = *(const int *)(in + n);               n += 4;
             for (c = living_list.live_next; c != &living_list; c = c->live_next)
                 if (name_hash_nocase(c->get_name()) == hash)
                     break;
             if (c != &living_list)
-                g->target = c->handle;
+                goals[i].target = c->handle;
             else
-                g->target = -1;
-            g->arg = *(const float *)(in + n);           n += 4;
+                goals[i].target = -1;
+            goals[i].arg = *(const float *)(in + n);           n += 4;
         }
     }
     return n;

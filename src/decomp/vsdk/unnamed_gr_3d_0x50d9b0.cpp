@@ -396,10 +396,11 @@ ubyte gr_code_vertex(gr_vertex *v)
     return codes;
 }
 
-// 0x50e910  Confidence: exact.
+// 0x50e910  Confidence: exact (VC6 byte match, match30; D8902: the difference in a named local).
 ubyte gr_rotate_vertex(gr_vertex *out, const vector3 *p)
 {
-    *(vector3 *)out = (*p - gr_view_pos).rotated(gr_view_matrix);
+    vector3 d = *p - gr_view_pos;
+    *(vector3 *)out = d.rotated(gr_view_matrix);
     out->flags = 0;
     return gr_code_vertex(out);
 }
@@ -410,11 +411,12 @@ void gr_rotate_delta_vec(vector3 *out, const vector3 *in)
     *out = in->rotated(gr_view_matrix);
 }
 
-// 0x50e990  Confidence: exact.
+// 0x50e990  Confidence: exact (VC6 byte match, match30; D8902: the difference in a named local).
 void gr_rotate_vertices(gr_vertex *out, const vector3 *in, int count)
 {
     while (count--) {
-        *(vector3 *)out = (*in - gr_view_pos).rotated(gr_view_matrix);
+        vector3 d = *in - gr_view_pos;
+        *(vector3 *)out = d.rotated(gr_view_matrix);
         out->flags = 0;
         gr_code_vertex(out);
         in++;
@@ -483,15 +485,15 @@ float gr_get_normal_facing_dot(const vector3 *normal, const vector3 *point)
     return v.dot(*normal);
 }
 
-// 0x50ebe0  Confidence: likely (statement order; the screen point is not offset by the clip origin).
+// 0x50ebe0  Confidence: exact (VC6 byte match, match30; was likely; D8902: x computed into dir.x). Earlier note: (statement order; the screen point is not offset by the clip origin).
 void gr_screen_to_world_ray(ix_ray *out, float sx, float sy)
 {
     vector3 dir;
 
     dir.z = 1.0f;
-    float x = (sx - gr_projection_xmul) / gr_projection_xmul;
+    dir.x = (sx - gr_projection_xmul) / gr_projection_xmul;
     dir.y = -((sy - gr_projection_ymul) / gr_projection_ymul);
-    dir.x = gr_matrix_scale.z * x / gr_matrix_scale.x;
+    dir.x = gr_matrix_scale.z * dir.x / gr_matrix_scale.x;
     dir.y = gr_matrix_scale.z * dir.y / gr_matrix_scale.y;
     dir.normalize();
     dir.unrotate(gr_eye_matrix);
@@ -698,11 +700,15 @@ void matrix43_compose(const matrix *orient_a, const vector3 *pos_a, matrix *orie
     *pos_b += *pos_a;
 }
 
-// 0x50f3e0  Confidence: likely. The binary first runs vector3() on +0xc (a vector3 member there, which
-// gr.h splits into _unk0c / appearance / f14 because the callers store a pointer at +0x10); that call
-// is missing here.
+// 0x50f3e0  Confidence: exact (VC6 byte match, match30; was likely). The binary first runs vector3() on +0xc
+// (a vector3 member there, which gr.h splits into _unk0c / appearance / f14 because the callers store a
+// pointer at +0x10). D8900: the constructor is called explicitly on +0xc under _MSC_VER (as D7805); the
+// /Ob0 unit calls it out of line as the binary does. Other compilers skip it (vector3() does nothing).
 gr_light_desc::gr_light_desc()
 {
+#ifdef _MSC_VER
+    ((vector3 *)&_unk0c)->vector3::vector3();
+#endif
     reset();
 }
 

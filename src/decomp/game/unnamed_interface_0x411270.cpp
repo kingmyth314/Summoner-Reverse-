@@ -216,28 +216,58 @@ int   ui_hires;                                         // 0x5bd318
 int   ui_tooltip_rect_x;                                // 0x5bd31c
 int   ui_tooltip_rect_y;                                // 0x5bd320
 char  hud_message_text[68];                             // 0x5bd32c
-char  ui_message_box_title[0x21];                       // 0x5bd370
-char  ui_message_box_text[0x100];                       // 0x5bd391
-int   ui_message_box_x;                                 // 0x5bd494
-int   ui_message_box_y;                                 // 0x5bd498
-int   ui_message_box_button_count;                      // 0x5bd49c
-char  ui_message_box_button_labels[UI_MESSAGE_BOX_BUTTONS][32];   // 0x5bd4a0
-int   ui_message_box_hover_button;                      // 0x5bd500
+// The message box's state is one object too (D8603): ui_message_box_show re-reads the button count after
+// each label copy (0x413e8b), as the choice popup. ui_message_box_flags (0x5bd504, declared in interface.h)
+// would be its next field; it stays a separate global here. Struct and field names ours.
+struct ui_message_box_state {
+    char  title[0x21];                                  // 0x5bd370
+    char  text[0x100];                                  // 0x5bd391
+    int   x;                                            // 0x5bd494
+    int   y;                                            // 0x5bd498
+    int   button_count;                                 // 0x5bd49c
+    char  button_labels[UI_MESSAGE_BOX_BUTTONS][32];    // 0x5bd4a0
+    int   hover_button;                                 // 0x5bd500
+};
+ui_message_box_state ui_message_box;                    // 0x5bd370
+#define ui_message_box_title         ui_message_box.title
+#define ui_message_box_text          ui_message_box.text
+#define ui_message_box_x             ui_message_box.x
+#define ui_message_box_y             ui_message_box.y
+#define ui_message_box_button_count  ui_message_box.button_count
+#define ui_message_box_button_labels ui_message_box.button_labels
+#define ui_message_box_hover_button  ui_message_box.hover_button
 unsigned int ui_message_box_flags;                      // 0x5bd504
 void (*ui_message_box_callback)(int);                   // 0x5bd508
 bool  ui_using_equipped_item;                           // 0x5bd50c
 int   cutscene_loading_total;                           // 0x5bd510
 party_inventory_entry *ui_using_list_item_entry;        // 0x5bd514
-char  ui_choice_popup_title[0x201];                     // 0x5bd518 (strncpy 0x200 and the terminator at 0x5bd718)
-int   ui_choice_popup_x;                                // 0x5bd71c
-int   ui_choice_popup_y;                                // 0x5bd720
-int   ui_choice_popup_w;                                // 0x5bd724
-int   ui_choice_popup_h;                                // 0x5bd728
-int   ui_choice_popup_count;                            // 0x5bd72c
-char *ui_choice_popup_choices[UI_CHOICE_MAX];           // 0x5bd730
-int  *ui_choice_popup_values;                           // 0x5bd770
-bool *ui_choice_popup_enabled;                          // 0x5bd774
-int   ui_choice_popup_hover;                            // 0x5bd778
+// The choice popup's state is one object (D8603): ui_choice_popup_show re-reads the count after each store
+// into the choice table (0x413706-0x413717), which 8966 does for fields of one object only (as D7201).
+// Struct and field names ours; the old names are macros.
+struct ui_choice_popup_state {
+    char  title[0x201];                                 // 0x5bd518 (strncpy 0x200 and the terminator at 0x5bd718)
+    int   x;                                            // 0x5bd71c
+    int   y;                                            // 0x5bd720
+    int   w;                                            // 0x5bd724
+    int   h;                                            // 0x5bd728
+    int   count;                                        // 0x5bd72c
+    char *choices[UI_CHOICE_MAX];                       // 0x5bd730
+    int  *values;                                       // 0x5bd770
+    bool *enabled;                                      // 0x5bd774
+    int   hover;                                        // 0x5bd778
+};
+LAYOUT_CHECK(ui_choice_popup_state, sizeof(ui_choice_popup_state) == 0x264);
+ui_choice_popup_state ui_choice_popup;                  // 0x5bd518
+#define ui_choice_popup_title   ui_choice_popup.title
+#define ui_choice_popup_x       ui_choice_popup.x
+#define ui_choice_popup_y       ui_choice_popup.y
+#define ui_choice_popup_w       ui_choice_popup.w
+#define ui_choice_popup_h       ui_choice_popup.h
+#define ui_choice_popup_count   ui_choice_popup.count
+#define ui_choice_popup_choices ui_choice_popup.choices
+#define ui_choice_popup_values  ui_choice_popup.values
+#define ui_choice_popup_enabled ui_choice_popup.enabled
+#define ui_choice_popup_hover   ui_choice_popup.hover
 unsigned int ui_choice_popup_flags;                     // 0x5bd77c
 int   ui_choice_popup_mouse_mode;                       // 0x5bd78c (after ccmd_show_ui 0x5bd780)
 int   ui_tooltip_x;                                     // 0x5bd798
@@ -280,15 +310,18 @@ void interface_init_global()
     float h_fov;
 
     switch (resolution_index) {
-    case 0:
-    case 1:
-    default:
-        ui_hires = 0;
-        base_w = 640.0f;
-        break;
     case 2:
         ui_hires = 1;
         base_w = 1024.0f;
+        break;
+    case 0:
+    case 1:
+        ui_hires = 0;
+        base_w = 640.0f;
+        break;
+    default:
+        ui_hires = 0;
+        base_w = 640.0f;
         break;
     }
     screen_w = 640.0f;
@@ -1052,7 +1085,7 @@ void statscreen_refresh_anim(Character *c)
     interface_refresh_cur_screen();
 }
 
-// 0x412f20  Confidence: likely (the copy is character_instance's implicit operator=, expanded member by
+// 0x412f20  Confidence: exact (VC6 byte match with the three tint members, D8604) (the copy is character_instance's implicit operator=, expanded member by
 // member; its vector3 members come out three ways: plain dwords, dwords plus the inline operator='s
 // return copy through vector3__vector3_copy, and the out-of-line COMDAT below).
 void statscreen_clone_instance(int loco_anim)
@@ -1083,7 +1116,7 @@ void statscreen_restore_instance()
     status_character->instance->process(0.0f, false, 0);
 }
 
-// 0x413200  Confidence: exact.
+// 0x413200  Confidence: likely (marked exact; differs under VC6 8966, match27).
 Character *party_find_next_member(bool skip_summon)
 {
     Character *c = status_character;
@@ -1108,7 +1141,7 @@ Character *party_find_next_member(bool skip_summon)
     return c;
 }
 
-// 0x413290  Confidence: exact.
+// 0x413290  Confidence: likely (marked exact; differs under VC6 8966, match27).
 Character *party_find_prev_member(bool skip_summon)
 {
     Character *c = status_character;
@@ -1198,7 +1231,7 @@ float ui_get_scale()
     return ui_scale;
 }
 
-// 0x4134b0  Confidence: exact. A shadow rectangle offset by the inset, a border of ui_frame_border + 1
+// 0x4134b0  Confidence: likely (marked exact; differs under VC6 8966, match27). A shadow rectangle offset by the inset, a border of ui_frame_border + 1
 // rectangles cut at the corners, and the inner panel.
 void ui_draw_panel_frame(int x, int y, int w, int h)
 {
@@ -1412,7 +1445,7 @@ int ui_choice_popup_wait_release()
     return -1;
 }
 
-// 0x413c70  Confidence: exact.
+// 0x413c70  Confidence: likely (marked exact; differs under VC6 8966, match27).
 void ui_choice_popup_draw()
 {
     int w, h;
@@ -1554,7 +1587,7 @@ int ui_message_box_handle_click(int key)
     return -1;
 }
 
-// 0x414110  Confidence: exact. The buttons are spread evenly over the box width, on the last text line.
+// 0x414110  Confidence: likely (marked exact; differs under VC6 8966, match27). The buttons are spread evenly over the box width, on the last text line.
 int ui_message_box_hit_test()
 {
     int w, h;
@@ -1744,11 +1777,15 @@ void ui_tooltip_set(int x, int y, int w, int h, const char *text)
     gr_get_string_size(&ui_tooltip_text_w, &ui_tooltip_text_h, text, -1, -1);
     ui_tooltip_x = max(game_mouse_x - ui_tooltip_text_w / 2 - ui_tooltip_pad_left - 1, 0);
     lim = gr_screen_width() - ui_tooltip_pad_right - ui_tooltip_pad_left - ui_tooltip_text_w - 3;
-    ui_tooltip_x = ui_tooltip_x < lim ? ui_tooltip_x : lim;
-    ui_tooltip_y = max(game_mouse_y + ui_tooltip_offset_y[resolution_index] - ui_tooltip_pad_bottom - ui_tooltip_pad_top
-                       - ui_tooltip_text_h - 2, 0);
+    if (ui_tooltip_x < lim)
+        lim = ui_tooltip_x;
+    ui_tooltip_x = lim;
+    ui_tooltip_y = max(ui_tooltip_offset_y[resolution_index] - ui_tooltip_pad_bottom - ui_tooltip_pad_top - ui_tooltip_text_h
+                       + game_mouse_y - 2, 0);
     lim = gr_screen_height() - ui_tooltip_pad_bottom - ui_tooltip_pad_top - ui_tooltip_text_h - 3;
-    ui_tooltip_y = ui_tooltip_y < lim ? ui_tooltip_y : lim;
+    if (ui_tooltip_y < lim)
+        lim = ui_tooltip_y;
+    ui_tooltip_y = lim;
     strcpy(ui_tooltip_text, text);
     ui_tooltip_visible = true;
 }

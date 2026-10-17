@@ -79,7 +79,7 @@ void mp_client_check_connection()
         mp_player_disconnected(MP_DISCONNECT_LOST, false);
 }
 
-// 0x440c40  Confidence: likely (the next pointer is read before the end test: a "safe" list walk). A
+// 0x440c40  Confidence: exact (VC6 byte match, match23; was likely; the next pointer is read before the end test: a "safe" list walk). A
 // player without a socket is dropped, except the pending join until its timer runs out; a player whose
 // socket closed or failed is removed (with the leave message).
 void mp_server_check_clients()
@@ -227,28 +227,32 @@ void multi_set_netgame_state(bool send_now)
         mp_broadcast_packet_buffered(data, packet_size, true);
 }
 
-// 0x441000  Confidence: likely (jump table on the current state - 1; the change-level and report tails are
+// 0x441000  Confidence: exact (VC6 byte match, match23; was likely; jump table on the current state - 1; the change-level and report tails are
 // shared). A client takes the host's state only one step on from its own: 1 -> 2 changes the level, 2 -> 3
 // sends its PLY_DAT, 3 -> 4 and 4 -> 5 advance its status; while playing it follows the pause and a level
 // change (state 1 or 2 again).
 void mp_handle_gm_stat(ubyte *data, void *from)
 {
     int state;
-    int level = -1;
-    int entry = -1;
-    ubyte paused = 0;
+    int level;
+    int entry;
+    ubyte paused;
 
     if (!MP_IS_CLIENT())
         return;
+    paused = 0;
+    level = -1;
+    entry = -1;
     state = ((int *)data)[0];
     mp_netgame_num_players = ((int *)data)[1];
     if (state > 0) {
-        if (state <= 2) {
+        if (state > 2) {
+            if (state == 5)
+                paused = data[8];
+        } else {
             level = ((int *)data)[2];
             entry = ((int *)data)[3];
             mp_netgame_host_level = ((int *)data)[4];
-        } else if (state == 5) {
-            paused = data[8];
         }
     }
     switch (mp_netgame_state) {
@@ -340,7 +344,7 @@ void mp_handle_ct_stat(ubyte *data, void *from)
         mp_forward_cur_packet(from);
 }
 
-// 0x4412a0  Confidence: likely (the owner search is an inline loop; empty_function is a folded call of an
+// 0x4412a0  Confidence: exact (VC6 byte match, match23; was likely; the owner search is an inline loop; empty_function is a folded call of an
 // unknown empty function). The in-game multiplayer frame: autosave, receive, the local OBJ_UPDs, the trade
 // timeouts; the host dismisses summons whose owner left; then everything buffered is flushed.
 void mp_game_frame()
@@ -383,7 +387,7 @@ void mp_game_frame()
     }
 }
 
-// 0x4413d0  Confidence: likely (the two status checks are a switch on 6 / 8 with inline list walks). The
+// 0x4413d0  Confidence: exact (VC6 byte match, match23; was likely; the two status checks are a switch on 6 / 8 with inline list walks). The
 // frame pump of every multiplayer state: tracker, receive, the loading steps 6 -> 7 (every player's data is
 // in) and 8 -> 9 (every character has a net handle), then the host or client frame.
 void multi_do_frame()
@@ -490,7 +494,7 @@ void mp_set_local_status(int status)
         multi_process_client_status(mp_local_player, true);
 }
 
-// 0x441610  Confidence: exact.
+// 0x441610  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 mp_player *mp_player_alloc()
 {
     mp_player *p = mp_player_free_list.next;

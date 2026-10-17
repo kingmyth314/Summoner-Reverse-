@@ -22,9 +22,9 @@ void character_instance::render(vector3 *pos, matrix *orient, gr_light_desc *lig
     if (light->_unk08 == 0)
         return;
     setup_matrices_b();
-    light->tint[0] = tint[0];
-    light->tint[1] = tint[1];
-    light->tint[2] = tint[2];
+    light->tint[0] = tint_r;
+    light->tint[1] = tint_g;
+    light->tint[2] = tint_b;
     ca_render_set_instance(character, this);
     if (light->_unk00 & 1)
         return;

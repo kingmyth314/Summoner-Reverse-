@@ -358,7 +358,7 @@ void gr_d3d_page_in(int bm)
         gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_u[0], &gr_d3d_texture_scale_v[0], 0);
 }
 
-// 0x535550  Confidence: exact.
+// 0x535550  Confidence: likely (differs under cl 8966 in match26).
 // Clears the clip rectangle to black (gr_clear).
 void gr_d3d_clear()
 {
@@ -371,7 +371,7 @@ void gr_d3d_clear()
     IDirect3DDevice7_Clear(d3d_device, 1, &rect, D3DCLEAR_TARGET, 0, 0.0f, 0);
 }
 
-// 0x5355e0  Confidence: exact.
+// 0x5355e0  Confidence: likely (differs under cl 8966 in match26).
 // The same rectangle without the + 1, so the last column and row of the clip area keep their depth.
 void gr_d3d_zbuffer_clear()
 {
@@ -613,7 +613,7 @@ void gr_d3d_line_3d(gr_vertex *v0, gr_vertex *v1, gr::Mode mode)
     gr_d3d_draw_primitive(D3DPT_LINELIST, D3DFVF_TLVERTEX2, v, 2, 0);
 }
 
-// 0x5361a0  Confidence: likely (the vertex pointer is reloaded from verts[] for the flag tests).
+// 0x5361a0  Confidence: exact.
 // One textured fan of projected vertices (at most 32). Vertex flags (+0x1a): 1 uv, 4 colour, 8 alpha.
 void gr_d3d_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
 {
@@ -1064,7 +1064,7 @@ void gr_d3d_set_window(HWND hwnd)
     }
 }
 
-// 0x538c70  Confidence: likely (the compare tree is VC6's; case order = order of the bodies).
+// 0x538c70  Confidence: exact.
 // The DirectX SDK samples' error text table (117 codes). Written with the values; the source surely used
 // the DDERR_ / D3DERR_ names.
 const char *ddraw_error_string(HRESULT hr)

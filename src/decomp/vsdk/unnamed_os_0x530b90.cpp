@@ -82,12 +82,12 @@ void os_add_msg_handler(os_msg_handler handler)
     os_msg_handlers[os_num_msg_handlers++] = handler;
 }
 
-// 0x530c40  Confidence: likely (bare ret; no reference, so the signature is unknown).
+// 0x530c40  Confidence: exact (VC6 byte match, match23; was likely; bare ret; no reference, so the signature is unknown).
 void os_stub_ret_530c40()
 {
 }
 
-// 0x530c50  Confidence: likely (bare ret; no reference).
+// 0x530c50  Confidence: exact (VC6 byte match, match23; was likely; bare ret; no reference).
 void os_stub_ret_530c50()
 {
 }
@@ -105,7 +105,7 @@ void os_poll()
     os_pump_messages(0);
 }
 
-// 0x530cb0  Confidence: likely (the return value: 0 on both paths, the loop's from PeekMessage's 0). Every
+// 0x530cb0  Confidence: exact (VC6 byte match, match23; was likely; the return value: 0 on both paths, the loop's from PeekMessage's 0). Every
 // waiting message is translated and dispatched; the argument is not read (decomp76).
 int os_pump_messages(int unused)
 {
@@ -150,7 +150,7 @@ void os_init(const char *name, const char *title)
     atexit(os_atexit_nop);
 }
 
-// 0x530e40  Confidence: likely (the backward scan: VC6 folded the first '\\' test against the NUL it had just
+// 0x530e40  Confidence: exact (VC6 byte match, match23; was likely; the backward scan: VC6 folded the first '\\' test against the NUL it had just
 // stored, so the loop tests '/' and ':' first).
 // Looks for a window titled "[run] - <exe name> -"; the result (os_prev_instance_found) is never read.
 void os_find_previous_instance()
@@ -269,7 +269,7 @@ LRESULT CALLBACK os_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     return DefWindowProcA(hwnd, msg, wparam, lparam);
 }
 
-// 0x531250  Confidence: likely (bare ret; os_init registers it with atexit; no sum.symbols entry, name ours).
+// 0x531250  Confidence: exact (VC6 byte match, match23; was likely; bare ret; os_init registers it with atexit; no sum.symbols entry, name ours).
 static void os_atexit_nop()
 {
 }
@@ -314,7 +314,7 @@ unsigned int cpu_read_tsc()
     return t;
 }
 
-// 0x5312d6  Confidence: likely (/Od; locals renamed and declared in reverse so that the /Od frame order
+// 0x5312d6  Confidence: exact (VC6 byte match, match23; was likely; /Od; locals renamed and declared in reverse so that the /Od frame order
 // (D6101 hash buckets, the same under 8966) gives the binary's slots, D7003; the zeroed CPUID result as a struct
 // whose first member is stored
 // with an immediate, the rest from EAX; the brand string buffer cleared with memset). (family, mmx, 3dnow,

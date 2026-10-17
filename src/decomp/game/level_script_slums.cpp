@@ -30,7 +30,7 @@ void lsf_lenele_slums_flag_prost1_speaks();
 void lsf_lenele_slums_flag_prost2_speaks();
 void lsf_lenele_slums_flag_ken_speaks();
 
-// 0x4fad90  Confidence: exact. level_script_table init. Coming up from the sewer opens the grate for good;
+// 0x4fad90  Confidence: likely (differs under cl 8966, match24; was exact). level_script_table init. Coming up from the sewer opens the grate for good;
 // the exits v11-v33 by stage as in the other Lenele quarters; from stage 1 Starvus the Skulk offers
 // Tancred's key while the party does not hold it.
 void ls_lenele1b_init()
@@ -163,15 +163,25 @@ void ls_lenele1b_action(dialogue_action *action)
     } else {
         script_topic_toggle_by_item("Forged Document", "Gorbus the Guard", "Give him the release order.");
     }
-    if (!_stricmp(action->name, "CheckGold"))
-        conversation_db.set_topic_available("Gorbus the Guard", "Give him 20 gold.", party_gold >= 20);
-    if (!_stricmp(action->name, "CheckGold2"))
-        conversation_db.set_topic_available("Dagis the Forger", "Pay 25 gold.", party_gold >= 25);
-    if (!_stricmp(action->name, "CheckShards"))
-        conversation_db.set_topic_available("Varyssa", "Give her the shards.",
-                                            party_count_item_by_name("Blue Glass Shard")
-                                            && party_count_item_by_name("Green Glass Shard")
-                                            && party_count_item_by_name("Red Glass Shard"));
+    if (!_stricmp(action->name, "CheckGold")) {
+        if (party_gold >= 20)
+            conversation_db.set_topic_available("Gorbus the Guard", "Give him 20 gold.", true);
+        else
+            conversation_db.set_topic_available("Gorbus the Guard", "Give him 20 gold.", false);
+    }
+    if (!_stricmp(action->name, "CheckGold2")) {
+        if (party_gold >= 25)
+            conversation_db.set_topic_available("Dagis the Forger", "Pay 25 gold.", true);
+        else
+            conversation_db.set_topic_available("Dagis the Forger", "Pay 25 gold.", false);
+    }
+    if (!_stricmp(action->name, "CheckShards")) {
+        if (party_count_item_by_name("Blue Glass Shard") && party_count_item_by_name("Green Glass Shard")
+            && party_count_item_by_name("Red Glass Shard"))
+            conversation_db.set_topic_available("Varyssa", "Give her the shards.", true);
+        else
+            conversation_db.set_topic_available("Varyssa", "Give her the shards.", false);
+    }
     if (!_stricmp(action->name, "CheckCrate")
         && (savegame_state.get_flag(LEVEL_SEWER, "sewer_flag_found_crate") || party_count_item_by_name("Chunk of Salt"))) {
         conversation_db.set_topic_available("Pedrog", "Tell him what you found in the sewers.", true);

@@ -56,7 +56,7 @@ int ls_sewerboss_avoid_spline;                       // 0x257e9a0
 // 1 first visit (comments), 2 sewer_v2, 3 sewer_v3 (ls_sewer_init).
 int ls_sewer_arrival;                                // 0x257e9a4
 
-// 0x4ed7e0  Confidence: likely (the first visit: the _stricmp against level_prev_filename "lenele1d" is
+// 0x4ed7e0  Confidence: exact (each stage branch writes the whole v11-v52 list, which 8966 tail-merges with the stack pops; the first visit: the _stricmp against level_prev_filename "lenele1d" is
 // called and its result tested (0x4ed88b), then both ways call game_stage_set(0); written as an if / else
 // with equal bodies that the compiler merged). level_script_table init. The gate and wheel triggers by game
 // stage: from stage 9 everything is open but $GateC3; stage 7-8 the second visit's layout.
@@ -147,31 +147,42 @@ void ls_sewer_init()
         level_trigger_set_exit_by_refname("v31");
         level_trigger_set_exit_by_refname("v32");
         level_trigger_set_exit_by_refname("v33");
-    } else {
-        if (game_stage_get() >= 4) {
-            level_trigger_set_script_use_by_refname("v11");
-            level_trigger_set_script_use_by_refname("v12");
-            level_trigger_set_script_use_by_refname("v13");
-            level_trigger_set_exit_by_refname("v21");
-            level_trigger_set_exit_by_refname("v22");
-            level_trigger_set_exit_by_refname("v23");
-        } else {
-            level_trigger_set_exit_by_refname("v11");
-            level_trigger_set_exit_by_refname("v12");
-            level_trigger_set_exit_by_refname("v13");
-            level_trigger_set_script_use_by_refname("v21");
-            level_trigger_set_script_use_by_refname("v22");
-            level_trigger_set_script_use_by_refname("v23");
-        }
+        level_trigger_set_script_use_by_refname("v41");
+        level_trigger_set_script_use_by_refname("v42");
+        level_trigger_set_script_use_by_refname("v43");
+        level_trigger_set_script_use_by_refname("v51");
+        level_trigger_set_script_use_by_refname("v52");
+    } else if (game_stage_get() >= 4) {
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v12");
+        level_trigger_set_script_use_by_refname("v13");
+        level_trigger_set_exit_by_refname("v21");
+        level_trigger_set_exit_by_refname("v22");
+        level_trigger_set_exit_by_refname("v23");
         level_trigger_set_script_use_by_refname("v31");
         level_trigger_set_script_use_by_refname("v32");
         level_trigger_set_script_use_by_refname("v33");
+        level_trigger_set_script_use_by_refname("v41");
+        level_trigger_set_script_use_by_refname("v42");
+        level_trigger_set_script_use_by_refname("v43");
+        level_trigger_set_script_use_by_refname("v51");
+        level_trigger_set_script_use_by_refname("v52");
+    } else {
+        level_trigger_set_exit_by_refname("v11");
+        level_trigger_set_exit_by_refname("v12");
+        level_trigger_set_exit_by_refname("v13");
+        level_trigger_set_script_use_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v22");
+        level_trigger_set_script_use_by_refname("v23");
+        level_trigger_set_script_use_by_refname("v31");
+        level_trigger_set_script_use_by_refname("v32");
+        level_trigger_set_script_use_by_refname("v33");
+        level_trigger_set_script_use_by_refname("v41");
+        level_trigger_set_script_use_by_refname("v42");
+        level_trigger_set_script_use_by_refname("v43");
+        level_trigger_set_script_use_by_refname("v51");
+        level_trigger_set_script_use_by_refname("v52");
     }
-    level_trigger_set_script_use_by_refname("v41");
-    level_trigger_set_script_use_by_refname("v42");
-    level_trigger_set_script_use_by_refname("v43");
-    level_trigger_set_script_use_by_refname("v51");
-    level_trigger_set_script_use_by_refname("v52");
 }
 
 // 0x4edc30  Confidence: exact. level_script_table init of "sewerboss". The two exits are script-use

@@ -297,7 +297,7 @@ savegame_party_state savegame::read_party_state(int *off)
     return ps;
 }
 
-// 0x4cf6c0  Confidence: exact. Party members (type 7) also save their Player's +0x178 and skill points.
+// 0x4cf6c0  Confidence: likely (differs under cl 8966 in match26). Party members (type 7) also save their Player's +0x178 and skill points.
 int savegame::write_character(Character *c, int *off)
 {
     unsigned int hash = name_hash_nocase(c->get_name());
@@ -458,7 +458,7 @@ void savegame::init_buffer(ubyte *buf, int size)
     clear_buffer();
 }
 
-// 0x4cfbd0  Confidence: exact (two switches with fall-through; the second is the jump table 0x4cfc30).
+// 0x4cfbd0  Confidence: likely (differs under cl 8966 in match26; two switches with fall-through; the second is the jump table 0x4cfc30).
 // The bit offset of entry index of the given type in the level's block: 0 flag, 1 automap bit, 2 int,
 // 3 float (the variables start at the next whole byte, 32 bits each).
 int savegame::data_offset(int level, int type, int index)
@@ -611,7 +611,7 @@ int savegame::get_bit(int level, int index)
     return (levels[level].data[index >> 3] & (1 << (index & 7))) != 0;
 }
 
-// 0x4cff80  Confidence: exact.
+// 0x4cff80  Confidence: likely (differs under cl 8966 in match26).
 void savegame::set_bit(int level, int index, bool value)
 {
     int offset, byte;
@@ -631,7 +631,7 @@ void savegame::set_bit(int level, int index, bool value)
         levels[level].data[byte] &= ~(1 << (offset & 7));
 }
 
-// 0x4d0030  Confidence: exact.
+// 0x4d0030  Confidence: likely (differs under cl 8966 in match26).
 int savegame::get_int(int level, const char *name)
 {
     unsigned int hash;
@@ -811,7 +811,7 @@ void savegame::init_conversation_slot(int level, int slot, conversation_speaker 
     }
 }
 
-// 0x4d0590  Confidence: exact.
+// 0x4d0590  Confidence: likely (differs under cl 8966 in match26).
 bool savegame::has_conversation_data(int level, int slot)
 {
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
@@ -821,7 +821,7 @@ bool savegame::has_conversation_data(int level, int slot)
     return *(int *)conversations[level][slot].data != 0;
 }
 
-// 0x4d05f0  Confidence: exact. Nothing is read before the level has been entered once.
+// 0x4d05f0  Confidence: likely (differs under cl 8966 in match26). Nothing is read before the level has been entered once.
 int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind)
 {
     conversation_save_info *info;
@@ -851,7 +851,7 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
     return (data[bits_off + (i >> 3)] & (1 << (i & 7))) != 0;
 }
 
-// 0x4d06e0  Confidence: exact. propagate copies the bit to the level's other non-"_m1" slots that have data.
+// 0x4d06e0  Confidence: likely (differs under cl 8966 in match26). propagate copies the bit to the level's other non-"_m1" slots that have data.
 void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kind, bool value, bool propagate)
 {
     conversation_save_info *info;
@@ -898,7 +898,7 @@ void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kin
     }
 }
 
-// 0x4d0870  Confidence: exact.
+// 0x4d0870  Confidence: likely (differs under cl 8966 in match26).
 int savegame::get_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind)
 {
     conversation_save_info *info;
@@ -941,7 +941,7 @@ int savegame::get_topic_bit(int level, int slot, const char *speaker, const char
     return (data[bits_off + (i >> 3)] & (1 << (i & 7))) != 0;
 }
 
-// 0x4d09e0  Confidence: exact.
+// 0x4d09e0  Confidence: likely (differs under cl 8966 in match26).
 void savegame::set_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind, bool value,
                              bool propagate)
 {
@@ -1036,7 +1036,7 @@ void savegame::quest_evaluate(unsigned int flag_hash)
     }
 }
 
-// 0x4d0d00  Confidence: exact.
+// 0x4d0d00  Confidence: likely (differs under cl 8966 in match26).
 int savegame::level_item_add(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
@@ -1054,7 +1054,7 @@ int savegame::level_item_add(const char *name)
     return 1;
 }
 
-// 0x4d0d60  Confidence: exact.
+// 0x4d0d60  Confidence: likely (differs under cl 8966 in match26).
 int savegame::level_item_remove(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
@@ -1074,7 +1074,7 @@ int savegame::level_item_remove(const char *name)
     return 1;
 }
 
-// 0x4d0dd0  Confidence: exact.
+// 0x4d0dd0  Confidence: likely (differs under cl 8966 in match26).
 int savegame::level_item_has(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
@@ -1212,7 +1212,7 @@ void savegame::two_stage_get(bool *open, bool *locked, lobj *obj)
 }
 
 // ---- automap labels ------------------------------------------------------------------------------------
-// 0x4d12b0  Confidence: exact.
+// 0x4d12b0  Confidence: likely (differs under cl 8966 in match26).
 void savegame::automap_label_add(int level, int script, automap_label *label)
 {
     int count, off;
@@ -1361,7 +1361,7 @@ void savegame::hot_button_set(int kind, int id, int member, int slot)
     }
 }
 
-// 0x4d1770  Confidence: exact.
+// 0x4d1770  Confidence: likely (differs under cl 8966 in match26).
 bool savegame::hot_button_get(int *kind, int *id, int member, int slot)
 {
     int off;
@@ -1677,7 +1677,7 @@ int savegame::write_inventory()
     return off + 4 <= inventory.size;
 }
 
-// 0x4d2150  Confidence: exact. The inactive list contributes the entities that are not summons, or that
+// 0x4d2150  Confidence: likely (differs under cl 8966 in match26). The inactive list contributes the entities that are not summons, or that
 // have flag 0x40000.
 int savegame::write_living()
 {
@@ -1731,7 +1731,7 @@ int savegame::write_camera()
     return camera.size >= 0x28;
 }
 
-// 0x4d2370  Confidence: exact. Containers in use whose first item is not a level item, then up to 32 loose
+// 0x4d2370  Confidence: likely (differs under cl 8966 in match26). Containers in use whose first item is not a level item, then up to 32 loose
 // gold piles of the object list.
 int savegame::write_item_objects()
 {
@@ -1953,7 +1953,7 @@ int savegame::read_header(char *level_name, char *script_name, int *unk_a8, floa
     return off == stored;
 }
 
-// 0x4d2b70  Confidence: exact.
+// 0x4d2b70  Confidence: likely (differs under cl 8966 in match26).
 int savegame::read_items()
 {
     int bits_off, i, index;
@@ -1977,7 +1977,7 @@ int savegame::read_items()
     return 1;
 }
 
-// 0x4d2c90  Confidence: exact.
+// 0x4d2c90  Confidence: likely (differs under cl 8966 in match26).
 int savegame::read_inventory()
 {
     int off, n, i, count, charges, type, size;
@@ -2133,7 +2133,7 @@ int savegame::read_item_objects()
     vector3 u(0.0f, 1.0f, 0.0f);
     vector3 f(0.0f, 0.0f, 1.0f);
     matrix orient(r, u, f);
-    vector3 pos, gold_pos;
+    vector3 pos;
     int off, n, i, count, j, type, num, piles;
     ubyte lock;
     container *c;
@@ -2145,11 +2145,11 @@ int savegame::read_item_objects()
     n = *(int *)(item_objects.data + 4);
     off = 8;
     for (i = 0; i < n; i++) {
-        pos.x = *(float *)(item_objects.data + off);
+        *(int *)&pos.x = *(int *)(item_objects.data + off);
         off += 4;
-        pos.y = *(float *)(item_objects.data + off);
+        *(int *)&pos.y = *(int *)(item_objects.data + off);
         off += 4;
-        pos.z = *(float *)(item_objects.data + off);
+        *(int *)&pos.z = *(int *)(item_objects.data + off);
         off += 4;
         c = container_obj_create(&pos, 0);
         if (!c)
@@ -2176,16 +2176,17 @@ int savegame::read_item_objects()
     piles = *(int *)(item_objects.data + off);
     off += 4;
     for (i = 0; i < piles; i++) {
-        gold_pos.x = *(float *)(item_objects.data + off);
+        *(int *)&pos.x = *(int *)(item_objects.data + off);
         off += 4;
-        gold_pos.y = *(float *)(item_objects.data + off);
+        *(int *)&pos.y = *(int *)(item_objects.data + off);
         off += 4;
-        gold_pos.z = *(float *)(item_objects.data + off);
+        *(int *)&pos.z = *(int *)(item_objects.data + off);
         off += 8;                    // and the amount, not read
         item = item_create_by_name("Gold");
         if (!item)
             return 0;
-        item_obj_spawn(item, &gold_pos, &orient, 1, -1, -1);
+        item_obj_spawn(item, &pos, &orient, 1, -1, -1);
+
     }
     return 1;
 }
@@ -2282,7 +2283,7 @@ int savegame::read_two_stage()
     return 1;
 }
 
-// 0x4d3740  Confidence: exact. The current level's labels become custom map labels.
+// 0x4d3740  Confidence: likely (differs under cl 8966 in match26). The current level's labels become custom map labels.
 int savegame::read_automap_labels()
 {
     int script = level_script_find_index(cur_level_index, level_script_name);
@@ -2297,9 +2298,10 @@ int savegame::read_automap_labels()
         off += 4;
         rscript = *(int *)(map_labels.data + off);
         off += 4;
-        x = *(float *)(map_labels.data + off);
+        *(int *)&x = *(int *)(map_labels.data + off);
         off += 4;
-        z = *(float *)(map_labels.data + off);
+        *(int *)&z = *(int *)(map_labels.data + off);
+
         off += 4;
         layer = *(int *)(map_labels.data + off);
         off += 4;
@@ -2729,7 +2731,7 @@ int game_stage_get()
     return savegame_state.get_flag(6, "lenele1c_flag_found_flece") != 0;
 }
 
-// 0x4d4a50  Confidence: exact (byte-indexed jump table 0x4d4b98 / 0x4d4b7c over cur_level_index + 1). 0 the
+// 0x4d4a50  Confidence: likely (differs under cl 8966 in match26; byte-indexed jump table 0x4d4b98 / 0x4d4b7c over cur_level_index + 1). 0 the
 // game may be saved, 1 a level-script event or a monster fighting the party, 2 not in this area, 3 the
 // summon is emerging (or inactive).
 int savegame_location_allowed()
@@ -3083,7 +3085,7 @@ bool level_add_navpoint(s3d_navpoint *src)
     np->pos = src->pos;
     src->orient.extract_angles(&p, &b, &h);
     np->heading = h;
-    np->_unk24 = 0;
+    np->ground_height = 0;
     np->layer = 0;
     ray.start.x = src->pos.x;
     ray.start.y = src->pos.y + 1.0f;
@@ -3381,7 +3383,7 @@ int quest_get_current_step(int quest)
     return step;
 }
 
-// 0x4d6100  Confidence: exact. Up to 7 +Script: names per level with their +Dialogue: speaker and topic
+// 0x4d6100  Confidence: likely (differs under cl 8966 in match26). Up to 7 +Script: names per level with their +Dialogue: speaker and topic
 // counts (the conversation save block sizes) and +Levelcap: (100).
 void script_filenames_parse_table()
 {

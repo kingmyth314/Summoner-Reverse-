@@ -134,26 +134,31 @@ void cmdline_match_params()
     }
 }
 
-// 0x53e250  Confidence: likely.
+// 0x53e250  Confidence: likely (8966 stores is_done after the inline strcpy, the binary inside it).
 // The message is formatted into a local buffer and then dropped (the debug print is compiled out),
 // so a parameter followed by another option just gets no argument.
 // After operator new the argument pointer is reloaded from cmdline_args, so the source reads the
-// array each time rather than keeping a local. is_done is stored before the inline strcpy.
+// array each time rather than keeping a local; the length is a signed int (`jle`), the next index a local.
 void cmdline_take_argument(CmdLineParam *param, int index)
 {
     cmdline_args[index].is_done = true;
 
-    if (param->has_argument && index + 1 < cmdline_num_args) {
-        if (cmdline_args[index + 1].arg[0] == '-') {
-            char msg[256];
-            sprintf(msg, "Command line parameter %s requires argument, but next argument appears to be option (%s)\n",
-                    cmdline_args[index].arg, cmdline_args[index + 1].arg);
-            return;
-        }
-        if (strlen(cmdline_args[index + 1].arg) > 0) {
-            param->arg = new char[strlen(cmdline_args[index + 1].arg) + 1];
-            cmdline_args[index + 1].is_done = true;
-            strcpy(param->arg, cmdline_args[index + 1].arg);
+    if (param->has_argument) {
+        int next = index + 1;
+        if (next < cmdline_num_args) {
+            char *a = cmdline_args[next].arg;
+            if (a[0] == '-') {
+                char msg[256];
+                sprintf(msg, "Command line parameter %s requires argument, but next argument appears to be option (%s)\n",
+                        cmdline_args[index].arg, a);
+                return;
+            }
+            int len = strlen(a);
+            if (len > 0) {
+                param->arg = new char[len + 1];
+                strcpy(param->arg, cmdline_args[next].arg);
+                cmdline_args[next].is_done = true;
+            }
         }
     }
 }

@@ -38,8 +38,8 @@ static char gr_font_empty_rest[4];  // 0x25d94d8
 // gr_num_fonts is not reset.
 void gr_close_fonts()
 {
-    for (int i = 0; i < gr_num_fonts; i++) {
-        Font *f = &gr_fonts[i];
+    Font *f = gr_fonts;
+    for (int i = 0; i < gr_num_fonts; f++, i++) {
         if (f->signature) {
             f->filename[0] = 0;
             if (f->kern_data) {
@@ -121,7 +121,7 @@ int gr_get_font_height2(int font)
     return 16;
 }
 
-// 0x508360  Confidence: likely (loop rotation; the compiler keeps c and the spacing in the
+// 0x508360  Confidence: exact (VC6 byte match, match23; was likely; loop rotation; the compiler keeps c and the spacing in the
 // dead argument slots).
 // Width of the widest line and the height of all lines; len < 0 means the whole string.
 void gr_get_string_size(int *out_w, int *out_h, const char *s, int len, int font)
@@ -154,8 +154,8 @@ void gr_get_string_size(int *out_w, int *out_h, const char *s, int len, int font
                 max_w = x;
         }
     }
-    *out_w = max_w;
     *out_h = h;
+    *out_w = max_w;
 }
 
 // 0x508440  Confidence: likely (the final spacing: the binary adds the kern offset to the cached
@@ -221,11 +221,11 @@ int gr_load_font(const char *name, int height2)
 // are signed, so the result is an int.
 int gr_font_create(const char *name)
 {
+    Font *f = gr_fonts;
     int free_slot = -1;
     int i;
-    Font *f = gr_fonts;
 
-    for (i = 0; i < gr_num_fonts; i++, f++) {
+    for (i = 0; i < gr_num_fonts; f++, i++) {
         if (f->signature) {
             if (!strcmp(f->filename, name))
                 return i;
@@ -332,7 +332,7 @@ int gr_font_create(const char *name)
     return i;
 }
 
-// 0x508970  Confidence: likely (kern pair addressing, see the loop).
+// 0x508970  Confidence: exact (VC6 byte match, match23; was likely; kern pair addressing, see the loop).
 // Version 0 files have no format field (4-bit alpha) and two extra ints after the kern count;
 // versions above 1 are fatal. Each kern pair is two read_int8 and one raw 1-byte File::read.
 // In the kern loop the binary loads kern_data after the first read and keeps &pair[1] across the

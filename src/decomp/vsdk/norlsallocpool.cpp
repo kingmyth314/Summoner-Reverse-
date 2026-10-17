@@ -146,7 +146,7 @@ int NoRlsAllocPool::GetUsed()
     return used;
 }
 
-// 0x532570  Confidence: likely (the two "fits in place" tests share one tail). Only the last allocation
+// 0x532570  Confidence: exact (the two "fits in place" tests share one tail; memcpy written before the last_allocation store). Only the last allocation
 // can be resized. It grows in place while the block has room; otherwise a growing pool starts a new
 // block and copies the old bytes (old size = current - ptr) into a fresh allocation. No caller.
 void *NoRlsAllocPool::Grow(void *ptr, int size)
@@ -170,11 +170,11 @@ void *NoRlsAllocPool::Grow(void *ptr, int size)
     if (remaining < (unsigned int)size)
         return NULL;
 
-    void *p = Alloc(size);
+    char *p = (char *)Alloc(size);
     if (p == NULL)
         return NULL;
-    last_allocation = (char *)p;
     memcpy(p, ptr, old_size);
+    last_allocation = p;
     return p;
 }
 

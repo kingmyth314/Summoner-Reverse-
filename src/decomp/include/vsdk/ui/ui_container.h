@@ -29,8 +29,8 @@ public:
     void set_label(const char *label);                       // 0x553680
     void load_mask_bitmap(const char *name);                 // 0x5536b0
     void set_mask_bitmap(int bm, const char *name);          // 0x553710
-    // decomp62 (D4206): inline; COMDAT copy 0x530b70 from the UI manager unit (ui_draw).
-    ubyte *get_mask_buffer() { return mask_data; }           // 0x530b70 ui_container__get_mask_buffer
+    // D8403 (amends D4206): not inline; defined in the UI manager unit, whose ui_draw calls 0x530b70.
+    ubyte *get_mask_buffer();                                // 0x530b70 ui_container__get_mask_buffer
 
     char   label[0x100];      // +0x274 $Label:, "" = no frame
     int    flags;             // +0x374 bit 0: draw the bevel when there is no label

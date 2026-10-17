@@ -68,7 +68,7 @@ InetGetFile::InetGetFile(const char *url, const char *local_file)
     Sleep(1000);
 }
 
-// 0x51b960  Confidence: likely (the original calls the scalar deleting destructors 0x51bb30 / 0x51bb50 with
+// 0x51b960  Confidence: exact (unit /Ob0, D8402; the original calls the scalar deleting destructors 0x51bb30 / 0x51bb50 with
 // 1; VC6 here expands each delete into the destructor and operator delete, D5611). Neither getter deletes
 // the downloaded file.
 InetGetFile::~InetGetFile()

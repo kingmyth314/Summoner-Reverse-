@@ -64,9 +64,9 @@ public:
     int  get_mask_pixel(int x, int y);                // 0x52be90
     bool is_hidden();                                 // 0x52bee0
     bool is_shown();                                  // 0x52bf30
-    // decomp62 (D4206): inline; the COMDAT copy 0x530b80 is emitted by the UI manager unit (built without
-    // inline expansion; ui_draw calls it), the last function before the os unit.
-    ubyte *get_mask_data() { return mask_data; }      // 0x530b80 ui_window__get_mask_data
+    // D8403 (amends D4206): not inline; defined at the end of the UI manager unit (ui_draw calls 0x530b80),
+    // the last function before the os unit.
+    ubyte *get_mask_data();                           // 0x530b80 ui_window__get_mask_data
 
     int flags;                    // +0x248 UI_WINDOW_*
     int group;                    // +0x24C ui_group_depth when created (ui_window__is_disabled)

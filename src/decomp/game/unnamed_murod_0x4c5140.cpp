@@ -63,7 +63,8 @@ GameTimer murod_spell_timer;          // 0x248bfec
 // 0x4c5150  Confidence: likely. init_murod_timers: the GameTimer constructor for the five threat records,
 // then the attack, leap, heal and spell timers.
 
-// 0x4c51a0  Confidence: likely (the frame is 8-aligned for floor's double; the party list local holds 5).
+// 0x4c51a0  Confidence: likely (match31: the direction built with the vector3 constructor, z's frand first;
+// the frame is 8-aligned for floor's double; the party list local holds 5).
 // Five tries: a random living party member and a point 15 away from it in a random horizontal direction
 // that is navigable for its size; then the vanish move (8, 0x8a), sub-mode AIS_MUROD_LEAP, the member
 // becomes the target and the next leap waits 20 s. Without a point: 5 s.
@@ -89,16 +90,10 @@ bool ai_state::murod_start_leap()
     tries = 4;
     do {
         t = members[(int)floor(frand() * fcount)];
-        dir.z = frand() - 0.5f;
-        dir.y = 0.0f;
-        dir.x = frand() - 0.5f;
+        dir = vector3(frand() - 0.5f, 0.0f, frand() - 0.5f);
         if (dir.normalize_length() != 0.0f) {
-            dir.x *= 15.0f;
-            dir.y *= 15.0f;
-            dir.z *= 15.0f;
-            dir.x += t->pos.x;
-            dir.y += t->pos.y;
-            dir.z += t->pos.z;
+            dir *= 15.0f;
+            dir += t->pos;
             if (pf_point_is_navigable(&dir, t->info->size, t->layer))
                 goto found;
         }

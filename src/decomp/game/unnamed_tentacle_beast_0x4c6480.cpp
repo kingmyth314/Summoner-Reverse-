@@ -178,7 +178,7 @@ void ai_state::tentacle_beast_start_grab()
     tentacle_beast_grab_timer.invalidate();
 }
 
-// 0x4c6850  Confidence: likely. Sub-mode AIS_TENTACLE_GRAB: at the move's trigger 7 the victim plays its
+// 0x4c6850  Confidence: exact (VC6 byte match, match23; was likely). Sub-mode AIS_TENTACLE_GRAB: at the move's trigger 7 the victim plays its
 // held pose (0xe, 0x8c), is held for 30 s or until it has lost a quarter of its HP, and loses its stance;
 // the tentacle switches to its holding anims (0xe, 0x8d) and the party lead goes to the first other member.
 void ai_state::tentacle_beast_ai_grab(Character *victim)
@@ -280,7 +280,7 @@ void tentacle_begin_rise(tentacle_info *t)
     t->flags |= TENTACLE_RISING;
 }
 
-// 0x4c6c50  Confidence: likely. A tentacle that holds someone releases first; one whose thrown victim is
+// 0x4c6c50  Confidence: exact (VC6 byte match, match23; was likely). A tentacle that holds someone releases first; one whose thrown victim is
 // still flying stays up. The party members stop attacking it.
 void tentacle_begin_sink(tentacle_info *t, int ms)
 {
@@ -542,7 +542,7 @@ void tentacle_beast_tentacle_submerge(tentacle_info *t)
     t->splash_fx = fx_attach_to_character("splash.vfx", t->character->handle, -1, -1, 0, 0);
 }
 
-// 0x4c7570  Confidence: likely (the HP copy is a local). Back into combat with a splash; the HP mark is the
+// 0x4c7570  Confidence: exact (VC6 byte match, match23; was likely; the HP copy is a local). Back into combat with a splash; the HP mark is the
 // current fraction - 0.3, not below 0.
 void tentacle_beast_tentacle_resurface(tentacle_info *t)
 {
@@ -560,7 +560,7 @@ void tentacle_beast_tentacle_resurface(tentacle_info *t)
     t->splash_fx = fx_attach_to_character("splash.vfx", t->character->handle, -1, -1, 0, 0);
 }
 
-// 0x4c7640  Confidence: likely. The level script's frame call: the test mode only cycles the tentacles;
+// 0x4c7640  Confidence: exact (VC6 byte match, match23; was likely). The level script's frame call: the test mode only cycles the tentacles;
 // in the battle the grab is allowed again when its timer runs out, and never while only one party member
 // lives. The living_from_handle results are not NULL-checked.
 void tentacle_beast_battle_update()
@@ -585,7 +585,7 @@ void tentacle_beast_battle_update()
         tentacle_beast_grab_ready = 0;
 }
 
-// 0x4c76d0  Confidence: likely (the counters are registers). tentacle_test: while none is rising or
+// 0x4c76d0  Confidence: exact (VC6 byte match, match23; was likely; the counters are registers). tentacle_test: while none is rising or
 // sinking, the last tentacle that is up dives (5 s); with all down, the one after the last cycled rises.
 void tentacle_beast_cycle_tentacles()
 {

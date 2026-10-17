@@ -164,7 +164,7 @@ void ui_listbox::update_hscrollbar()
         hscrollbar->set_range(get_content_width());
 }
 
-// 0x52cd90  Confidence: likely (a byte match under /Ox /Ow, D7502). F6203: an empty list
+// 0x52cd90  Confidence: exact (VC6 byte match, match29; was likely) (a byte match under /Ox /Ow, D7502). F6203: an empty list
 // ends with content_height = -entry_spacing.
 void ui_listbox::recalc_content_size()
 {
@@ -545,7 +545,7 @@ void ui_listbox::create(ui_element *window, int x, int y, int w, int h, int cont
     }
 }
 
-// 0x52d7e0  Confidence: likely (a byte match under /Ox /Ow, D7502). Replaces the first tooltip (F6206: the old node is
+// 0x52d7e0  Confidence: exact (VC6 byte match, match29; was likely) (a byte match under /Ox /Ow, D7502). Replaces the first tooltip (F6206: the old node is
 // unlinked but not deleted, as in ui_button::set_tooltip).
 void ui_listbox::set_tooltip(const char *text, int x, int y, int delay)
 {
@@ -1191,7 +1191,7 @@ void ui_listbox::set_vscroll(int pos, bool force)
         vscrollbar->set_pos(pos);
 }
 
-// 0x52eb20  Confidence: likely (loop shapes). The top of the first line (or entry) at or below y.
+// 0x52eb20  Confidence: exact (VC6 byte match, match29; was likely) (loop shapes). The top of the first line (or entry) at or below y.
 int ui_listbox::snap_scroll_top(int y)
 {
     int result = y;
@@ -1213,19 +1213,22 @@ int ui_listbox::snap_scroll_top(int y)
 
     ui_listbox_entry *p = e->prev;
     int fh = gr_get_font_height(p->font);
+    int n = p->num_lines;
     int i = 0;
-    if (p->num_lines > 0) {
+    if (n > 0) {
         int line_h = p->line_spacing + fh;
         int top = p->y;
-        for (; i < p->num_lines; ) {
+        while (1) {
             result = top;
             if (top >= y)
                 break;
             i++;
             top += line_h;
+            if (i >= n)
+                break;
         }
     }
-    if (i == p->num_lines)
+    if (i == n)
         return p->next->y;
     return result;
 }
@@ -1322,13 +1325,19 @@ void ui_listbox::set_vscroll_fraction(float f, bool unused)
         last = entries.prev;
         lo = 0;
         if (!(flags & UI_LISTBOX_BY_ENTRY))
-            hi = (last->num_lines - 1) * gr_get_font_height(last->font) + last->y;
+        {
+            fh = gr_get_font_height(last->font);
+            hi = (last->num_lines - 1) * fh + last->y;
+        }
         else
             hi = last->y;
     }
 
     float v = (hi - lo) * f + lo;
-    vscroll = (int)(v < 0.0f ? v - 0.5f : v + 0.5f);
+    if (v >= 0.0f)
+        vscroll = (int)(v + 0.5f);
+    else
+        vscroll = (int)(v - 0.5f);
 
     if (flags & UI_LISTBOX_ALIGN_BOTTOM) {
         e = entry_at(0, get_view_height() + vscroll - 1, true);

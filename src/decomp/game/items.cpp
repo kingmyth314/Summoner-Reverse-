@@ -597,7 +597,7 @@ void item_free(item_info *item)
     items_num_allocated--;
 }
 
-// 0x44b2d0  Confidence: exact (the switch value starts from the zeroed EAX, which is also the NULL
+// 0x44b2d0  Confidence: likely (differs under cl 8966, match24; was exact) (the switch value starts from the zeroed EAX, which is also the NULL
 // returned for other kinds).
 item_info *item_create(int type)
 {
@@ -741,7 +741,7 @@ bool character_can_equip_item(Character *c, item_info *item)
     return character_meets_item_requirements(c, item->type);
 }
 
-// 0x44b550  Confidence: exact. Skill 8 is Heavy Arms; party members (type 7 without flag 0x100) also
+// 0x44b550  Confidence: likely (differs under cl 8966, match24; was exact). Skill 8 is Heavy Arms; party members (type 7 without flag 0x100) also
 // need the species, the weapon class bit and the weapon skill.
 bool character_meets_item_requirements(Character *c, ItemType *type)
 {

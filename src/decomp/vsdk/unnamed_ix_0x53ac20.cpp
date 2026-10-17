@@ -413,13 +413,12 @@ bool ix_sphere_polygon(vector3 *hit, const vector3 *p0, const vector3 *d, float 
     float te;                                         // the binary keeps it in r's argument slot (r stays in EDI)
     int i;
 
-    for (i = 0; i < n; ) {
+    for (i = 0; i < n; i++) {
         edge_a = *verts[i];
-        i++;
-        if (i == n)
+        if (i + 1 == n)
             edge_b = *verts[0];
         else
-            edge_b = *verts[i];
+            edge_b = *verts[i + 1];
         static vector3 hit_pt;                        // 0x2dc6e68 ix_sphere_polygon_tmp_c
         static vector3 box_min;                       // 0x2dc6d88 ix_sphere_polygon_bbox_min
         static vector3 box_max;                       // 0x2dc6d98 ix_sphere_polygon_bbox_max
@@ -859,7 +858,7 @@ int ix_slab_clip(const vector3 *min, const vector3 *max, const vector3 *p)
     return code;
 }
 
-// 0x53d7a0  Confidence: likely (the label is built after the first three statements). The ray length is
+// 0x53d7a0  Confidence: exact (VC6 byte match, match29; was likely) (the label is built after the first three statements). The ray length is
 // not read; t is not written when the origin is inside the sphere (hit = origin).
 bool ix_ray_sphere(vector3 *hit, float *t, ix_ray *ray, float length, const vector3 *centre, float radius)
 {
@@ -945,7 +944,7 @@ float ix_point_linesegment(const vector3 *p, const vector3 *a, const vector3 *b,
     return t;
 }
 
-// 0x53dbb0  Confidence: likely. No caller.
+// 0x53dbb0  Confidence: exact (VC6 byte match, match29; was likely). No caller.
 float ix_linesegment_sphere_chord_length(const vector3 *a, const vector3 *b, const vector3 *centre, float r)
 {
     float result = 0.0f;
@@ -955,20 +954,20 @@ float ix_linesegment_sphere_chord_length(const vector3 *a, const vector3 *b, con
     float proj = dir.dot(to);
     float r2, disc, s, lo;
 
-    if (-r > proj)
-        return result;
-    if (len + r <= proj)
-        return result;
-    r2 = r * r;
-    disc = r2 - (to.dot(to) - proj * proj);
-    if (disc <= 0.0f)
-        return result;
-    s = (float)sqrt(disc);
-    lo = float_min(float_max(proj - s, 0.0f), len);
-    return float_min(float_max(s + proj, 0.0f), len) - lo;
+    if (!(-r > proj) && len + r > proj) {
+        r2 = r * r;
+        disc = r2 - (to.dot(to) - proj * proj);
+        if (disc > 0.0f) {
+            s = (float)sqrt(disc);
+            lo = float_min(float_max(proj - s, 0.0f), len);
+            result = float_min(float_max(s + proj, 0.0f), len);
+            result -= lo;
+        }
+    }
+    return result;
 }
 
-// 0x53dcd0  Confidence: likely. No caller. With k = |a - b| / r: x = r sqrt(k^2 - 1) / k, y = r / k and the
+// 0x53dcd0  Confidence: exact (VC6 byte match, match29; was likely). No caller. With k = |a - b| / r: x = r sqrt(k^2 - 1) / k, y = r / k and the
 // angle twice the one at (0, k) between the tangent point (x, y) and (0, y).
 bool ix_point_sphere_tangent(const vector3 *a, const vector3 *b, float r, float *x, float *angle, float *y)
 {

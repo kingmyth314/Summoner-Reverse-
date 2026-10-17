@@ -488,7 +488,7 @@ void cmd_script()
         print_to_console("Usage: script <scriptfilename>\n", 0);
 }
 
-// 0x50acd0  Confidence: likely (the comment logic; the order of the two buffers). Path: the install
+// 0x50acd0  Confidence: exact (unit /Ob0, D8402; the comment logic; the order of the two buffers). Path: the install
 // directory, "\", the name cut at its first '.', ".vcs". The cut uses strchr over the whole path, so a
 // '.' anywhere in the install directory truncates the path (strrchr was meant). "//" lines and lines
 // inside /* */ are skipped without counting; a "/*" and "*/" on the same line opens a comment that the

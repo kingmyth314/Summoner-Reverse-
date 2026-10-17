@@ -24,7 +24,7 @@ long build_stamp_expiry = 0x02020202;    // 0x5a9608
 // 0x5a960c. The size is 69 to 72 (the first literal follows at 0x5a9654, 4-aligned); 72 assumed (D4204).
 char build_stamp_name[72] = "Read the Foundation Novels from Asimov.  I liked them.";
 
-// 0x52f450  Confidence: likely (the memcmp / strlen intrinsics on the placeholder literals, each written
+// 0x52f450  Confidence: likely (only the "not stamped" return differs: the binary loads 3 into EDX before the test and returns it from a tail block; the memcmp / strlen intrinsics on the placeholder literals, each written
 // twice as the two copies in .data show; the rotate written with a carry variable). 3 = not stamped,
 // 2 = expired, 1 = the name does not match its checksum, 0 = valid.
 int build_stamp_check()
@@ -33,27 +33,31 @@ int build_stamp_check()
     int sum;
     int i;
 
-    if (memcmp(&build_stamp_checksum, "\x01\x01\x01\x01", strlen("\x01\x01\x01\x01")) == 0)
-        return 3;
+    if (memcmp(&build_stamp_checksum, "\x01\x01\x01\x01", strlen("\x01\x01\x01\x01")) != 0) {
+        result = 0;
+        sum = 0;
+        for (i = 0; i < (int)strlen(build_stamp_name); i++) {
+            int carry;
+            sum += build_stamp_name[i];
+            carry = 0;
+            if (sum & 1)
+                carry = 1;
+            sum >>= 1;
+            if (carry)
+                sum |= 0x80000000;
+        }
+        sum |= 0x80000000;
+        if (sum != build_stamp_checksum)
+            result = 1;
 
-    result = 0;
-    sum = 0;
-    for (i = 0; i < (int)strlen(build_stamp_name); i++) {
-        int carry;
-        sum += build_stamp_name[i];
-        carry = (sum & 1) ? 1 : 0;
-        sum >>= 1;
-        if (carry)
-            sum |= 0x80000000;
+        if (memcmp(&build_stamp_expiry, "\x02\x02\x02\x02", strlen("\x02\x02\x02\x02")) != 0) {
+            long expiry = build_stamp_expiry;
+            if (time(NULL) > expiry)
+                return 2;
+        }
+        return result;
     }
-    sum |= 0x80000000;
-    if (sum != build_stamp_checksum)
-        result = 1;
-
-    if (memcmp(&build_stamp_expiry, "\x02\x02\x02\x02", strlen("\x02\x02\x02\x02")) != 0 &&
-        time(NULL) > build_stamp_expiry)
-        return 2;
-    return result;
+    return 3;
 }
 
 // 0x52f530  Confidence: exact. No caller.

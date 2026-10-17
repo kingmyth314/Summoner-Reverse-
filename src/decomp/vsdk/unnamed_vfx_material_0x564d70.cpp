@@ -55,7 +55,7 @@ int vfx_tex_layer::get_frame_bitmap(float t)
     return bitmap;
 }
 
-// 0x564e40  Confidence: likely. The frame at fraction f of a particle's life (all frames over the life),
+// 0x564e40  Confidence: exact (VC6 byte match, match23; was likely). The frame at fraction f of a particle's life (all frames over the life),
 // counted from the first frame; negative frames wrap once, then clamp to 0.
 int vfx_tex_layer::get_frame_bitmap_frac(float frac)
 {
@@ -79,12 +79,11 @@ int vfx_tex_layer::get_frame_bitmap_frac(float frac)
                 f = n - 1;
             break;
         }
-        if (f < 0) {
+        if (f < 0)
             f += n;
-            if (f < 0)
-                f = 0;
-        }
-        if (f >= n)
+        if (f < 0)
+            f = 0;
+        else if (f >= n)
             f = n - 1;
         return bitmap + f + 1;
     }
@@ -107,19 +106,19 @@ vfx_zero_record18::vfx_zero_record18()
     v[5] = 0;
 }
 
-// 0x564f10 sum.symbols vfx_stub_ret_564f10: an empty function (`ret`), no caller. Confidence: unsure.
+// 0x564f10 sum.symbols vfx_stub_ret_564f10: an empty function (`ret`), no caller. Confidence: exact (VC6 byte match, match23; was unsure).
 void vfx_stub_564f10()
 {
 }
 
-// 0x564f20  Confidence: likely (the EH state numbering). No caller: bases are loaded from the files and
+// 0x564f20  Confidence: exact (VC6 byte match, match23; was likely; the EH state numbering). No caller: bases are loaded from the files and
 // relocated, never constructed.
 vfx_material::vfx_material()
 {
     reset();
 }
 
-// 0x564f80  Confidence: likely (VC6 merges the bit-field stores of flags differently from the field
+// 0x564f80  Confidence: exact (VC6 byte match, match23; was likely; VC6 merges the bit-field stores of flags differently from the field
 // order here).
 void vfx_material::reset()
 {
@@ -147,42 +146,44 @@ void vfx_material::reset()
 
 // The curve sampler of the three eval functions (written out in each; the object has no inline
 // expansion, so it was no function).
-#define VFX_EVAL_CURVE(num, data)                                                                  \
-    {                                                                                              \
-        float f;                                                                                   \
-        int i;                                                                                     \
-        float v;                                                                                   \
-        f = rate * t * (1.0f / 15.0f);                                                             \
-        i = (int)floor(f);                                                                         \
-        f -= i;                                                                                    \
-        if (i + 1 >= num)                                                                          \
-            v = data[num - 1] * (1.0f / 255.0f);                                                   \
-        else                                                                                       \
-            v = (data[i] * (1.0f - f) + data[i + 1] * f) * (1.0f / 255.0f);                       \
+#define VFX_EVAL_CURVE(num, data)                                                               \
+    {                                                                                           \
+        float f;                                                                                \
+        int i;                                                                                  \
+        int j;                                                                                  \
+        float v;                                                                                \
+        f = rate * t * (1.0f / 15.0f);                                                          \
+        i = (int)floor(f);                                                                      \
+        f -= i;                                                                                 \
+        j = i + 1;                                                                              \
+        if (j >= num)                                                                           \
+            v = data[num - 1] * (1.0f / 255.0f);                                                \
+        else                                                                                    \
+            v = (data[i] * (1.0f - f) + data[j] * f) * (1.0f / 255.0f);                         \
         return float_min(float_max(v, 0.0f), 1.0f);                                                \
     }
 
-// 0x564ff0  Confidence: likely (the switch: modes 0 and 2 are separate cases in the binary).
+// 0x564ff0  Confidence: exact (VC6 byte match, match23; was likely; the switch: modes 0 and 2 are separate cases in the binary).
 float vfx_material::eval_curve34(float t)
 {
     switch (curve34_mode) {
     case 0:
-        break;
+        return 0.0f;
     case 1:
         VFX_EVAL_CURVE(num34, curve34)
     case 2:
-        break;
+        return 0.0f;
     }
     return 0.0f;
 }
 
-// 0x5650e0  Confidence: likely.
+// 0x5650e0  Confidence: exact (VC6 byte match, match23; was likely).
 float vfx_material::eval_curve44(float t)
 {
     VFX_EVAL_CURVE(num44, curve44)
 }
 
-// 0x5651b0  Confidence: likely.
+// 0x5651b0  Confidence: exact (VC6 byte match, match23; was likely).
 float vfx_material::eval_curve48(float t)
 {
     VFX_EVAL_CURVE(num48, curve48)
@@ -202,7 +203,7 @@ void vfx_material::relocate(char *header_base, char *base)
     bitmap = 0;
 }
 
-// 0x5652e0  Confidence: likely (strlen is the inline `repne scasb`). The material's own bitmap: none for
+// 0x5652e0  Confidence: exact (VC6 byte match, match23; was likely; strlen is the inline `repne scasb`). The material's own bitmap: none for
 // an empty name or a "$" name; with the flags, else retried without.
 void vfx_material::load_bitmaps(int flags)
 {
@@ -226,7 +227,7 @@ void vfx_tex_layer::relocate(char *header_base)
     bitmap = 0;
 }
 
-// 0x565380  Confidence: likely (as vfx_material::load_bitmaps).
+// 0x565380  Confidence: exact (VC6 byte match, match23; was likely; as vfx_material::load_bitmaps).
 void vfx_tex_layer::load_bitmap(int flags)
 {
     if (name != NULL && strlen(name) != 0 && name[0] != '$') {
@@ -267,7 +268,7 @@ void vfx_base_tag::relocate(char *header_base, char *base)
 }
 // 0x565450 vfx_group_entry__relocate = vfx_tag_ref::relocate (vfx.h, inline). Confidence: exact.
 
-// 0x565470  Confidence: likely (t reused for the fraction). The position (4.12) and rotation blended
+// 0x565470  Confidence: exact (VC6 byte match, match23; was likely; t reused for the fraction). The position (4.12) and rotation blended
 // between the two frames around t, frames counted from start_frame; false outside start..end - 1.
 bool vfx_camera_desc::get_transform(float t, vector3 *pos, quaternion *rot)
 {

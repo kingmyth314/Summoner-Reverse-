@@ -808,9 +808,9 @@ void cmd_remove_nav()
     script_remove_redundant_npc_navpoints();
 }
 
-// 0x4e0080  Confidence: likely (an 8168 byte match; differs under 8966, D7807). Every "$npc" level navpoint that no live or inactive character uses loses
-// its name (it is emptied, not removed: the record stays in the table and is still written by
-// script_write_level_script with an empty name).
+// 0x4e0080  Confidence: exact (the element pointer taken from the index, D8701). Every "$npc" level
+// navpoint that no live or inactive character uses loses its name (it is emptied, not removed: the
+// record stays in the table and is still written by script_write_level_script with an empty name).
 void script_remove_redundant_npc_navpoints()
 {
     int i;
@@ -818,7 +818,8 @@ void script_remove_redundant_npc_navpoints()
     Character *c;
     bool used;
 
-    for (i = 0, np = navpoints; i < navpoint_count; i++, np++) {
+    for (i = 0; i < navpoint_count; i++) {
+        np = &navpoints[i];
         used = false;
         if (_strnicmp(np->name, "$npc", 4) != 0)
             continue;
@@ -2742,7 +2743,7 @@ void script_editor_add_navpoint(int type)
         }
         np->pos = pos;
         np->heading = 0.0f;
-        np->_unk24 = 0;
+        np->ground_height = 0;
         np->layer = layer;
         np->type = type;
         i = 1;
@@ -2779,7 +2780,7 @@ void script_editor_add_navpoint(int type)
         np = &navpoints[navpoint_count++];
         np->pos = pos;
         np->heading = 0.0f;
-        np->_unk24 = 0;
+        np->ground_height = 0;
         np->layer = -1;
         np->type = type;
         i = 1;
@@ -3134,7 +3135,7 @@ void script_editor_add_camera_navpoint()
     np->pos = camera_view_pos;
     np->heading = 0.0f;
     np->layer = -1;
-    np->_unk24 = 0;
+    np->ground_height = 0;
     np->type = NAVPOINT_TYPE_CAMERA;
     i = 1;
     do {
@@ -3144,9 +3145,10 @@ void script_editor_add_camera_navpoint()
     strcpy(np->name, name);
 }
 
-// 0x4e6ad0  Confidence: likely (jump tables 0x4e6d5c over the navpoint type, 0x4e6d6c over the character
-// type). Del: a navpoint nobody uses (script_editor_navpoint_in_use) is removed from its table, the later
-// records moving down one with their references (an ambient navpoint also loses its emitter); a monster,
+// 0x4e6ad0  Confidence: exact (one exit, D8701; the record copies need D8703's navpoint; jump tables
+// 0x4e6d5c over the navpoint type, 0x4e6d6c over the character type). Del: a navpoint nobody uses
+// (script_editor_navpoint_in_use) is removed from its table, the later records moving down one with
+// their references (an ambient navpoint also loses its emitter); a monster,
 // NPC or boss is removed (the camera goes back to the player, its level script entry is emptied).
 // Game bugs: the move loop copies record [count] into [count - 1] (one past the live records; with 750
 // level navpoints that reads past the table), and level_items[].navpoint pointers and cutscene script
@@ -3158,63 +3160,62 @@ bool script_editor_on_delete(int event, int value)
     Character *c;
     int i, index;
 
-    if (value != script_editor_delete_button.id || event != UI_EVENT_PRESSED)
-        return false;
-    if (script_editor_sel.kind == SE_PICK_NAVPOINT) {
-        if (script_editor_navpoint_in_use())
-            return true;
-        np = (navpoint *)script_editor_sel.object;
-        if (script_editor_hover.kind == SE_PICK_NAVPOINT && script_editor_hover.object == np)
-            script_editor_hover.kind = SE_PICK_NONE;
-        switch (np->type) {
-        case NAVPOINT_TYPE_CUTSCENE:
-            for (i = np - cutscene_navpoints; i < cutscene_navpoint_count; i++) {
-                script_replace_navpoint_references(&cutscene_navpoints[i + 1], &cutscene_navpoints[i]);
-                cutscene_navpoints[i] = cutscene_navpoints[i + 1];
+    if (value == script_editor_delete_button.id && event == UI_EVENT_PRESSED) {
+        if (script_editor_sel.kind == SE_PICK_NAVPOINT) {
+            if (!script_editor_navpoint_in_use()) {
+                if (script_editor_hover.kind == SE_PICK_NAVPOINT
+                    && script_editor_hover.object == script_editor_sel.object)
+                    script_editor_hover.kind = SE_PICK_NONE;
+                np = (navpoint *)script_editor_sel.object;
+                switch (np->type) {
+                case NAVPOINT_TYPE_CUTSCENE:
+                    for (i = np - cutscene_navpoints; i < cutscene_navpoint_count; i++) {
+                        script_replace_navpoint_references(&cutscene_navpoints[i + 1], &cutscene_navpoints[i]);
+                        cutscene_navpoints[i] = cutscene_navpoints[i + 1];
+                    }
+                    cutscene_navpoint_count--;
+                    break;
+                case NAVPOINT_TYPE_AMBIENT:
+                    index = level_ambient_find_at(&np->pos);
+                    if (index >= 0)
+                        level_ambient_remove(index);
+                    // fall through
+                case NAVPOINT_TYPE_LEVEL:
+                case NAVPOINT_TYPE_CAMERA:
+                    for (i = (navpoint *)script_editor_sel.object - navpoints; i < navpoint_count; i++) {
+                        script_replace_navpoint_references(&navpoints[i + 1], &navpoints[i]);
+                        navpoints[i] = navpoints[i + 1];
+                    }
+                    navpoint_count--;
+                    break;
+                }
+                script_editor_sel.kind = SE_PICK_NONE;
             }
-            cutscene_navpoint_count--;
-            script_editor_sel.kind = SE_PICK_NONE;
-            return true;
-        case NAVPOINT_TYPE_AMBIENT:
-            index = level_ambient_find_at(&np->pos);
-            if (index >= 0)
-                level_ambient_remove(index);
-            // fall through
-        case NAVPOINT_TYPE_LEVEL:
-        case NAVPOINT_TYPE_CAMERA:
-            for (i = (navpoint *)script_editor_sel.object - navpoints; i < navpoint_count; i++) {
-                script_replace_navpoint_references(&navpoints[i + 1], &navpoints[i]);
-                navpoints[i] = navpoints[i + 1];
+        } else if (script_editor_sel.kind == SE_PICK_CHARACTER) {
+            c = (Character *)script_editor_sel.object;
+            if (script_editor_hover.kind == SE_PICK_CHARACTER && script_editor_hover.object == c)
+                script_editor_hover.kind = SE_PICK_NONE;
+            switch (c->type) {
+            case 7:
+                script_editor_set_status("Can't delete players.");
+                break;
+            case 4:
+            case 5:
+            case 9:
+                if (game_camera.target == c)
+                    game_camera.set_target(cur_character);
+                index = script_object_find(((Character *)script_editor_sel.object)->get_name());
+                if (index != -1)
+                    script_objects[index].num_actions = 0;
+                ((Character *)script_editor_sel.object)->deinit();
+                script_editor_sel.object = NULL;
+                script_editor_sel.kind = SE_PICK_NONE;
+                break;
             }
-            navpoint_count--;
-            break;
         }
-        script_editor_sel.kind = SE_PICK_NONE;
         return true;
     }
-    if (script_editor_sel.kind == SE_PICK_CHARACTER) {
-        c = (Character *)script_editor_sel.object;
-        if (script_editor_hover.kind == SE_PICK_CHARACTER && script_editor_hover.object == c)
-            script_editor_hover.kind = SE_PICK_NONE;
-        switch (c->type) {
-        case 7:
-            script_editor_set_status("Can't delete players.");
-            return true;
-        case 4:
-        case 5:
-        case 9:
-            if (game_camera.target == c)
-                game_camera.set_target(cur_character);
-            index = script_object_find(((Character *)script_editor_sel.object)->get_name());
-            if (index != -1)
-                script_objects[index].num_actions = 0;
-            ((Character *)script_editor_sel.object)->deinit();
-            script_editor_sel.object = NULL;
-            script_editor_sel.kind = SE_PICK_NONE;
-            break;
-        }
-    }
-    return true;
+    return false;
 }
 
 // 0x4e6d90  Confidence: exact. Whether the selected navpoint is in use (status text says by what): a live
@@ -3353,26 +3354,27 @@ void script_editor_list_scripts()
     SE_FREE_FILE_LIST(list);
 }
 
-// 0x4e71e0  Confidence: likely (an 8168 byte match; differs under 8966, D7807). The file_find_files filter: with Level scripts the level's own
-// "<level>_script.tbl" only; with Cutscene scripts every "*_cscript.tbl" whose "$Level:" is this level.
+// 0x4e71e0  Confidence: exact (name is 0x24 bytes: the frame is 0xb4; the cutscene test as a positive if,
+// D8701). The file_find_files filter: with Level scripts the level's own "<level>_script.tbl" only;
+// with Cutscene scripts every "*_cscript.tbl" whose "$Level:" is this level.
 bool script_editor_list_scripts_filter_cb(file_find_node *node)
 {
-    char name[0x40];
+    char name[0x24];
     char level[0x40];
 
     if (script_editor_load_level_radio.is_checked()) {
         str_copy_append_32(name, level_script_name ? level_script_name : level_filename, "_script.tbl");
         return _stricmp(node->name, name) == 0;
     }
-    if (!filename_has_cscript_suffix(node->name))
-        return false;
-    TextFile tf;
-    if (tf.Open(node->name, path_scripts) != 0)
-        return false;
-    if (!tf.Accept("$Level:"))
-        return false;
-    tf.ParseString(level, 0x40, '"', '"');
-    return _stricmp(level, level_filename) == 0;
+    if (filename_has_cscript_suffix(node->name)) {
+        TextFile tf;
+
+        if (tf.Open(node->name, path_scripts) == 0 && tf.Accept("$Level:")) {
+            tf.ParseString(level, 0x40, '"', '"');
+            return _stricmp(level, level_filename) == 0;
+        }
+    }
+    return false;
 }
 
 // 0x4e7340  Confidence: exact.
@@ -4214,7 +4216,10 @@ void script_create()
 // action starts with: the last level navpoint, or in a cutscene script the last cutscene navpoint. Game
 // bugs: without cutscene navpoints the search over the level table tests the type through a pointer that
 // is still NULL (the binary reads address 0x28: an access violation whenever there is a level navpoint),
-// and with no level navpoint at all the level case returns &navpoints[-1].
+// and with no level navpoint at all the level case returns &navpoints[-1]. LOGIC FIX (D8702): when the
+// search loop runs to its end the binary returns the last level navpoint too (0x4e8d41 returns EAX), not
+// NULL; only an empty table gives NULL (the binary keeps that NULL in ESI, which the source here does not
+// reproduce).
 navpoint *script_editor_default_action_navpoint()
 {
     navpoint *np = NULL;
@@ -4228,6 +4233,7 @@ navpoint *script_editor_default_action_navpoint()
                 if (np->type == NAVPOINT_TYPE_LEVEL)
                     return &navpoints[navpoint_count - 1];
             }
+            return &navpoints[navpoint_count - 1];
         }
         return np;
     }
@@ -4907,39 +4913,45 @@ bool script_editor_save_cancel_cb(int event, int value)
 
 // The type-ahead of the editor's name boxes (event 0x15, "__complete" in sum.symbols): the first line that
 // starts with the text is scrolled to, the line equal to it (or the last tried) selected; no match clears
-// the selection. Written out in every callback in the binary.
+// the selection. Written out in every callback in the binary. `first` is the caller's function-scope
+// `ui_listbox_entry *first = NULL;` (the binary clears it in the prologue, D7803 / D8701), and the case has
+// one exit (`goto complete_done`): with two `return true;` cl 8966 saves EBX / ESI / EDI at the function's
+// entry, with one it saves them only on the 0x15 path, as Sum.exe (shrink-wrapping, D8701).
 #define SE_COMPLETE(box, list, found_stmt, none_stmt)                                       \
     do {                                                                                    \
         const char *text_ = (box).get_text();                                               \
         int len_ = strlen(text_);                                                           \
-        ui_listbox_entry *e_, *first_ = NULL;                                               \
+        ui_listbox_entry *e_;                                                               \
         if (len_ > 0) {                                                                     \
             for (e_ = (list).entries.next; e_ != &(list).entries; e_ = e_->next) {          \
                 if (_strnicmp(text_, e_->text, len_) == 0) {                                \
-                    if (first_ == NULL)                                                     \
-                        first_ = e_;                                                        \
+                    if (first == NULL)                                                      \
+                        first = e_;                                                         \
                     if (_stricmp(text_, e_->text) == 0)                                     \
                         break;                                                              \
                 }                                                                           \
             }                                                                               \
-            if (first_ != NULL)                                                             \
-                (list).set_vscroll(first_->y, false);                                       \
+            if (first != NULL)                                                              \
+                (list).set_vscroll(first->y, false);                                        \
             if (e_ != &(list).entries) {                                                    \
                 (list).select_entry(e_, true);                                              \
                 found_stmt;                                                                 \
-                return true;                                                                \
+                goto complete_done;                                                         \
             }                                                                               \
         }                                                                                   \
         (list).clear_selection();                                                           \
         none_stmt;                                                                          \
+    complete_done:                                                                          \
         return true;                                                                        \
     } while (0)
 
-// 0x4eaf70  Confidence: likely (the type-ahead as a macro). 0x4eaf87 script_editor_script_name_cb__complete:
+// 0x4eaf70  Confidence: exact (the type-ahead as a macro, D8701). 0x4eaf87 script_editor_script_name_cb__complete:
 // 0x4eaf87  script_editor_script_name_cb__complete: the label of the event 0x15 (type-ahead) case inside the callback described here, not a function. Confidence: exact.
 // a label inside (the event 0x15 case), not a function. The load window's name box.
 bool script_editor_script_name_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
+
     switch (event) {
     case 0x14:
         if (ui_key == KEY_ENTER && script_editor_load_ok_button.is_shown() && script_editor_load_selected_script())
@@ -5020,11 +5032,13 @@ bool script_editor_load_cancel_cb(int event, int value)
     return false;
 }
 
-// 0x4eb1c0  Confidence: likely (as script_editor_script_name_cb). 0x4eb1d7 script_editor_ambient_name_cb__complete
+// 0x4eb1c0  Confidence: exact (as script_editor_script_name_cb). 0x4eb1d7 script_editor_ambient_name_cb__complete
 // 0x4eb1d7  script_editor_ambient_name_cb__complete: the label of the event 0x15 (type-ahead) case inside the callback described here, not a function. Confidence: exact.
 // is a label inside. Tab goes on to Min range, Enter leaves the box.
 bool script_editor_ambient_name_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
+
     switch (event) {
     case 0x14:
         if (ui_key == KEY_TAB) {
@@ -5305,6 +5319,7 @@ bool script_editor_door_sound_radio_cb(int event, int value)
 // key item box, not of this box.
 bool script_editor_door_sound_inputbox_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
     ui_listbox *list;
 
     if (value != script_editor_door_sound_inputbox.id)
@@ -5481,11 +5496,13 @@ bool script_editor_door_skill_cb(int event, int value)
     return false;
 }
 
-// 0x4ec000  Confidence: likely (the type-ahead as a macro). 0x4ec029 script_editor_door_key_cb__complete is a
+// 0x4ec000  Confidence: exact (the type-ahead as a macro, D8701). 0x4ec029 script_editor_door_key_cb__complete is a
 // 0x4ec029  script_editor_door_key_cb__complete: the label of the event 0x15 (type-ahead) case inside the callback described here, not a function. Confidence: exact.
 // label inside. The key item box of the door window.
 bool script_editor_door_key_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
+
     if (value != script_editor_door_key_inputbox.id)
         return false;
     switch (event) {
@@ -5503,11 +5520,13 @@ bool script_editor_door_key_cb(int event, int value)
     return false;
 }
 
-// 0x4ec100  Confidence: likely (as script_editor_door_key_cb). 0x4ec129 script_editor_door_item_cb__complete
+// 0x4ec100  Confidence: exact (as script_editor_door_key_cb). 0x4ec129 script_editor_door_item_cb__complete
 // 0x4ec129  script_editor_door_item_cb__complete: the label of the event 0x15 (type-ahead) case inside the callback described here, not a function. Confidence: exact.
 // is a label inside. The text box of the door lock / clickable object window.
 bool script_editor_door_item_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
+
     if (value != script_editor_door_lock_item_inputbox.id)
         return false;
     switch (event) {
@@ -5600,15 +5619,17 @@ bool script_editor_door_ok(int event, int value)
     return true;
 }
 
-// 0x4ec570  Confidence: likely (an 8168 byte match; differs under 8966, D7807). OK of the door lock / clickable object window: the text (the "+Messagebox:"
-// of #Clicks) and the gold ("+Give:"). The window says "Give item", but what is given is gold.
+// 0x4ec570  Confidence: exact (`rec = NULL` after the early return, D8701). OK of the door lock /
+// clickable object window: the text (the "+Messagebox:" of #Clicks) and the gold ("+Give:"). The window
+// says "Give item", but what is given is gold.
 bool script_editor_door_lock_ok_cb(int event, int value)
 {
-    lc_entry *rec = NULL;
+    lc_entry *rec;
     int i;
 
     if (value != script_editor_door_lock_ok_button.id || event != UI_EVENT_PRESSED)
         return false;
+    rec = NULL;
     for (i = 0; i < lc_entry_count; i++) {
         if (lc_entries[i].object == script_editor_sel.object)
             rec = &lc_entries[i];
@@ -5739,11 +5760,13 @@ bool script_editor_creature_cancel_cb(int event, int value)
     return false;
 }
 
-// 0x4eca00  Confidence: likely (the type-ahead as a macro). 0x4eca29 script_editor_level_item_cb__complete
+// 0x4eca00  Confidence: exact (the type-ahead as a macro, D8701). 0x4eca29 script_editor_level_item_cb__complete
 // 0x4eca29  script_editor_level_item_cb__complete: the label of the event 0x15 (type-ahead) case inside the callback described here, not a function. Confidence: exact.
 // is a label inside. The item name box of the level item window.
 bool script_editor_level_item_cb(int event, int value)
 {
+    ui_listbox_entry *first = NULL;
+
     if (value != script_editor_level_item_name_inputbox.id)
         return false;
     switch (event) {

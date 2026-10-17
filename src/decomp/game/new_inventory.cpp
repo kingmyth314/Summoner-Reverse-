@@ -896,7 +896,7 @@ bool inventory_can_identify()
     return false;
 }
 
-// 0x416290  Confidence: exact (jump table 0x416500 for button - 18). Hot spots show the equipped item's name,
+// 0x416290  Confidence: likely (marked exact; differs under VC6 8966, match27) (jump table 0x416500 for button - 18). Hot spots show the equipped item's name,
 // the category hot spots the category name; nothing is drawn here.
 void inventory_hover_tooltips(int button)
 {
@@ -985,7 +985,7 @@ void inventory_show_item_info()
         item_info_popup_open_item(item);
 }
 
-// 0x4165c0  Confidence: exact.
+// 0x4165c0  Confidence: likely (marked exact; differs under VC6 8966, match27).
 void inventory_page_up()
 {
     if (inventory_scroll_pos > 0) {

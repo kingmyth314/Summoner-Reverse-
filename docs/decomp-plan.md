@@ -118,8 +118,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 6,089 match the
-disassembly exactly as far as can be read, 1,336 likely, 109 unsure. All 259 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 6,237 match the
+disassembly exactly as far as can be read, 1,196 likely, 103 unsure. All 259 files compile against one header tree
 (`src/decomp/include`; decisions in its `DECISIONS.md`, one numbered block per pilot, last D5703). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.
@@ -374,19 +374,24 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
    Fourth round (17 files): game 187 -> 241 of 296, engine 125 -> 143 of 198, no match lost; over all 259 files VC6
    now matches 4,179 functions (4,107 before). The Pyrul's globals became one `pyrul_boss` struct like the other
    bosses (D6701); `bbox_straddles_plane` takes (min, max, plane) (D6802). No flag set from D6602 gains without a loss.
-   Fifth round (2026-10-16, the first under SP5's build 8966; twelve agents and the main session, every unit
-   worked): 4,231 -> 4,763 matching functions over all 259 files, none lost (address by address against the 8966
-   baseline). The 144 units no round had touched went through first, then a second batch of the most-differing
-   ones. What it took is in DECISIONS.md D6900-D8199 and the per-agent notes `src/decomp/game/NOTES-match-r5-*.md`:
-   the vsdk flags (D7502), source shapes 8966 needs (D7401, D7001, D6900, D7301, D7700, D7800, D7901, D8001, D8102),
-   and a few header facts: `gr_vertex` derives from `vector3` (D7100), the level name / entry point globals are one
-   `level_info` struct (D7201), the Titus state is one object (D8100), `light::enabled` and `vfx_dummy_desc` are
-   bit-fields (D7904, D7600). The rewrite also fixed decomp logic errors (D6901-D6903, D7302, D7504, D7604, D7701,
-   D8101) and found three bugs in the original game, to be added to [Bugs](sum-exe/game-bugs.md) after the matching
-   work: giant_salamanka_set_flinch loops forever on a move with no action (D6901), characterinfo_find_multi_slot
-   loops on its error when all four multiplayer slots are used (D7604), and avoid_area_rebuild copies up to eight
-   obstacle indices into a three-entry stack array (D7503). Of the 5,923 compared functions 1,160 still differ;
-   the round continues.
+   Fifth round (2026-10-16, the first under SP5's build 8966; 21 agents and the main session): 4,231 -> 4,956
+   matching functions of 5,925 compared over all 259 files, none lost (address by address against the 8966
+   baseline). The 144 units no round had touched went first, then every other unit, then second passes on the
+   most-differing ones. What it took is in DECISIONS.md D6900-D9099 and the per-agent notes
+   `src/decomp/game/NOTES-match-r5-*.md`: the vsdk flags (D7502), source shapes 8966 needs (D7401, D7001, D6900,
+   D7301, D7700, D7800, D7901, D8001, D8102, D8302 packet reads through memcpy, D8501, D8701 register saves delayed
+   only into single-exit blocks), and header facts: `gr_vertex` derives from `vector3` (D7100), the level name /
+   entry point globals are one `level_info` struct (D7201), the Titus state is one object (D8100), `light::enabled`,
+   `vfx_dummy_desc` and vfx_material's blend are bit-fields (D7904, D7600, D8202), `character_instance`'s tint is three
+   members (D8604), navpoint +0x24 / +0x28 are plain members (D8703), `snd_play_looping` takes five arguments (D8400).
+   The rewrite also fixed decomp logic errors (among them D6901-D6903, D7302, D7504, D7604, D7701, D8101, D8200,
+   D8600, D8702, D8706, D8801, D8901) and found four bugs in the original game, to be added to
+   [Bugs](sum-exe/game-bugs.md) after the matching work: giant_salamanka_set_flinch loops forever on a move with no
+   action (D6901), characterinfo_find_multi_slot loops on its error when all four multiplayer slots are used (D7604),
+   avoid_area_rebuild copies up to eight obstacle indices into a three-entry stack array (D7503), and
+   script_object_receive_go never advances its action pointer (D8602). 969 compared functions still differ; what is
+   left is mostly register choice, frame-slot reuse, prologue placement and FPU scheduling (the "still differs"
+   blocks of each pass list the forms tried).
 
 **The analysed Sum.exe is not byte-clean (2026-10-15).** The copy in `Summoner/` carries a no-CD edit in `cd_find_drive` / `cd_set_root` that no compiler emits: `jne +0` (`0f 85 00 00 00 00`) at `0x43e6b0` and `0x43e6e3`, `75 00` at `0x43e872`, a forced `.` drive letter at `0x43e695` and `0x43e914`, and the strings at `0x594f50` / `0x594f70` changed from `A:\` / `%c:\` to `.\\` and `.\` (bytes `2e 5c 5c 00`, `2e 5c 00 00`). This is separate from Timeslip's patch (`0x43e9cb`, [Timeslip](patches/timeslip.md)). `src/decomp/game/summoner_cd.cpp` is written as the unpatched code (D2600), so a byte-matching build will differ at these bytes unless it is compared against an unmodified v1.40 executable.
 

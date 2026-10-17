@@ -154,7 +154,7 @@ void serpent_rider_set_flinch(move_info *moves)
     serpent.flinch_status[2] = serpent.flinch_status[1];
 }
 
-// 0x4955e0  Confidence: likely (the two spawn positions as vector3 temporaries). Mounted: the ride
+// 0x4955e0  Confidence: exact (VC6 byte match, match31; was likely; one vector3 local assigned twice, `front = c->pos + fvec` for the binary's fvec-first sum, D9001). Mounted: the ride
 // animations, the Fangsickle, the timers reset, and the two illusion parts in front of and behind it
 // (species 0x59, inactive and hidden until the illusion).
 void serpent_spawn_rider(Character *c)
@@ -196,7 +196,8 @@ void serpent_spawn_rider(Character *c)
     serpent_num_extra_parts = 0;
 
     int info = charinfo_index_from_species(SPECIES_SERPENT_RIDER);
-    vector3 front = c->orient.fvec + c->pos;
+    vector3 front;
+    front = c->pos + c->orient.fvec;
     Character *p = living_entity_create(CHAR_TYPE_BOSS, info, &front, &c->orient, true, c->layer, 0, 0, false);
     if (p) {
         serpent_part_handles[serpent_num_extra_parts] = p->handle;
@@ -204,8 +205,8 @@ void serpent_spawn_rider(Character *c)
         p->set_ai_active(0);
         p->flags |= CF_HIDDEN;
     }
-    vector3 back = c->pos - c->orient.fvec;
-    p = living_entity_create(CHAR_TYPE_BOSS, info, &back, &c->orient, true, c->layer, 0, 0, false);
+    front = c->pos - c->orient.fvec;
+    p = living_entity_create(CHAR_TYPE_BOSS, info, &front, &c->orient, true, c->layer, 0, 0, false);
     if (p) {
         serpent_part_handles[serpent_num_extra_parts] = p->handle;
         serpent_num_extra_parts++;
@@ -258,7 +259,7 @@ void serpent_deactivate_parts(Character *c)
     }
 }
 
-// 0x495960  Confidence: likely (the has_rider test written as one if / else). The first load of a
+// 0x495960  Confidence: exact (VC6 byte match, match31; was likely; the has_rider test written as one if / else; the handle stored before the part count, D9001). The first load of a
 // level clears the whole state; Liangshan and Jadetemple start on foot in stage 3. has_rider is set
 // before the clear, so the clear always leaves it false (NOTES.md).
 void ai_state::serpent_boss_load()
@@ -274,8 +275,8 @@ void ai_state::serpent_boss_load()
 
     serpent_boss_needs_setup = false;
     memset((void *)&serpent, 0, sizeof(serpent));
-    serpent_num_extra_parts = 0;
     serpent_handle = owner->handle;
+    serpent_num_extra_parts = 0;
     if (stricmp(level_filename, "Liangshan") == 0 || stricmp(level_filename, "Jadetemple") == 0) {
         serpent_stage = 3;
         serpent_target_stage = 3;
@@ -540,7 +541,7 @@ void serpent_timer_b_set_random(int lo, int hi)
     serpent_timer_b.SetTimeout((int)(frand() * (hi - lo)) + lo);
 }
 
-// 0x4961b0  Confidence: likely (the dot products are written in the binary's z, y, x order). The
+// 0x4961b0  Confidence: exact (VC6 byte match, match31; was likely; dir = target - boss with y cleared, the facing tests through the inline vector3::dot, D9001). The
 // statuses, and in stage 3 the facing and whip tests (the whip is attacks[2][0]).
 void serpent_evaluate_target(Character *boss, boss_target *t)
 {
@@ -562,14 +563,14 @@ void serpent_evaluate_target(Character *boss, boss_target *t)
 
     if (t->character->ai.is_mode(AI_STATE_DISABLED, 0x2d))
         t->flags |= SERPENT_TF_DISABLED;
-    c = t->character;
-    vector3 dir(c->pos.x - boss->pos.x, 0, c->pos.z - boss->pos.z);
+    vector3 dir = t->character->pos - boss->pos;
+    dir.y = 0;
     dir.normalize_safe();
-    if (-(dir.z * c->orient.fvec.z + dir.y * c->orient.fvec.y + dir.x * c->orient.fvec.x) > 0.707f
-        && dir.z * boss->orient.fvec.z + dir.y * boss->orient.fvec.y + dir.x * boss->orient.fvec.x > 0.0f)
+    if (-(dir.dot(t->character->orient.fvec)) > 0.707f
+        && dir.dot(boss->orient.fvec) > 0.0f)
         t->flags |= SERPENT_TF_BEHIND;
-    if (boss->distance_between_edges(c, true, -1) < serpent_whip_reach
-        && dir.z * boss->orient.fvec.z + dir.y * boss->orient.fvec.y + dir.x * boss->orient.fvec.x
+    if (boss->distance_between_edges(t->character, true, -1) < serpent_whip_reach
+        && dir.dot(boss->orient.fvec)
                > serpent_attack_table[2][0].cos_max_angle)
         t->flags |= SERPENT_TF_WHIP;
 }

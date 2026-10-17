@@ -243,9 +243,10 @@ int gr_clip_and_project_poly(int n, gr_vertex **verts)
         }
     }
     for (i = 0; i < n; i++) {
-        if (!(list[i]->flags & 1))
-            gr_project_vertex(list[i]);
-        if (list[i]->flags & 2)
+        gr_vertex *v = list[i];
+        if (!(v->flags & 1))
+            gr_project_vertex(v);
+        if (v->flags & 2)
             return 0;
         verts[i] = list[i];
     }

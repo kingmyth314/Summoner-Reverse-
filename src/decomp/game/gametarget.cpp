@@ -134,7 +134,8 @@ void party_order_attack(Character *target)
 // array member, the code tests its address too). Not while a conversation runs or the NPC is dead; on
 // level 0x1d not while a type 5 / 9 entity in AI mode 3 targets a party member; then within 5 m between
 // the body edges and 0.5 m of height, and a speaker of the conversation file (single player) or a
-// shopkeeper (network game).
+// shopkeeper (network game). D8901 (LOGIC FIX, match30): the shopkeeper lookup takes npc->name itself
+// (0x43a5d2 `push ecx`, ECX = npc + 0x2f4), not the info-name fallback the speaker test uses.
 int character_can_talk_to(Character *npc)
 {
     if (!conversation_active.is_idle())
@@ -167,7 +168,7 @@ int character_can_talk_to(Character *npc)
         if (conversation_db.has_speaker(name))
             return 1;
     } else {
-        if (level_shopkeeper_find(name))
+        if (level_shopkeeper_find(npc->name))
             return 1;
     }
     }
@@ -199,7 +200,7 @@ void world_hover_tint_object(obj *o, float r, float g, float b)
     hover_tint_set_object(o, (pr + 1.0f) * r * 0.5f, (pg + 1.0f) * g * 0.5f, (pb + 1.0f) * b * 0.5f);
 }
 
-// 0x43a6e0  Confidence: likely (the request record's third field is not written). A client asks the
+// 0x43a6e0  Confidence: exact (VC6 byte match, match30; was likely; D8902: the screen argument through a block-scope copy, D7004). Earlier note: (the request record's third field is not written). A client asks the
 // host (service request 3 with the container's net handle) and returns; the host tells the others,
 // then the pickup screen (4) opens on the container.
 void object_open_pickup(obj *o)
@@ -214,7 +215,10 @@ void object_open_pickup(obj *o)
     }
     if (MP_IS_HOST())
         mp_send_container_open(mp_local_player->id, o->handle);
-    interface_set_screen(4, &o);
+    {
+        obj *open = o;
+        interface_set_screen(4, &open);
+    }
 }
 
 // 0x43a770  Confidence: likely (the loop and the hit test as one condition). The level object the mouse
@@ -349,9 +353,8 @@ void world_mouse_frame(unsigned int *input, vector3 *eye)
                 picked = NULL;
                 target = NULL;
             } else {
-                vector3 d = cur_character->pos - target->pos;
                 if (!(~game_camera.flags & 1)
-                    && (d.len() >= 15.0f || fabs(cur_character->pos.y - target->pos.y) >= 3.0f)) {
+                    && ((cur_character->pos - target->pos).len() >= 15.0f || fabs(cur_character->pos.y - target->pos.y) >= 3.0f)) {
                     picked = NULL;
                     target = NULL;
                 }
@@ -703,7 +706,11 @@ int world_mouse_hover_target(unsigned int *input, lobj *l, lobj *door, int face,
     return WORLD_CLICK_NONE;
 }
 
-// 0x43bba0  Confidence: likely (the else-first order of the validity test; min / max of the decal scale).
+// D8902: by-value inline float min / max (as the camera unit, D7500); names ours.
+static inline float pick_min(float a, float b) { return a < b ? a : b; }
+static inline float pick_max(float a, float b) { return a > b ? a : b; }
+
+// 0x43bba0  Confidence: exact (VC6 byte match, match30; was likely; D8902: by-value inline float min / max, the eye distance unnamed, the lobj index local). Earlier note: (the else-first order of the validity test; min / max of the decal scale).
 // Places the target decal at pos, sized by the view (tan of the smaller fov times the eye distance) and,
 // with check, valid only on a lobj with flag 0x40, navigable, within 5 m of height and 3..13 m away
 // horizontally, on a surface the pick filter allows and in sight. The decal is turned towards the script
@@ -724,9 +731,8 @@ bool world_pick_ground_point(int ok_cursor, int bad_cursor, lobj *l, int face, v
         world_pick_filter = world_pick_default_filter;
     gr_get_eye(&eye_pos, &eye_orient);
     gr_get_view_fov(&h_fov, &v_fov);
-    float fov = min(h_fov, v_fov);
-    vector3 to_eye = eye_pos - *pos;
-    size = (float)tan(fov * 0.017453292f) * to_eye.len() * 0.2f;
+    float fov = pick_min(h_fov, v_fov);
+    size = (float)tan(fov * 0.017453292f) * (eye_pos - *pos).len() * 0.2f;
 
     if (check) {
         float dx = pos->x - cur_character->pos.x;
@@ -752,7 +758,8 @@ bool world_pick_ground_point(int ok_cursor, int bad_cursor, lobj *l, int face, v
     }
 
     if (check && valid) {
-        if (!world_pick_filter[lobj_face_get_surface(l - lobjs, face)]
+        int index = l - lobjs;
+        if (!world_pick_filter[lobj_face_get_surface(index, face)]
             || !cur_character->has_line_of_sight_to_point(pos))
             valid = false;
     }
@@ -761,8 +768,8 @@ bool world_pick_ground_point(int ok_cursor, int bad_cursor, lobj *l, int face, v
         sy = 1.0f;
         sx = 1.0f;
     }
-    float scale = min(size / sx, size / sy);
-    scale = min(max(scale, 0.05f), 1.0f);
+    float scale = pick_min(size / sx, size / sy);
+    scale = pick_min(pick_max(scale, 0.05f), 1.0f);
     place_ground_decal(valid ? ok_cursor : bad_cursor, pos, angle * 57.295776f, scale * sx, scale * sy);
     return valid;
 }

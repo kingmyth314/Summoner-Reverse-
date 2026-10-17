@@ -274,7 +274,7 @@ bool character_is_locally_controlled(Character *c)
         if (p && p->mp_owner == mp_local_player)
             return true;
     }
-    if (MP_IS_HOST() && ((c->type >= 4 && c->type <= 5) || c->type == 9))
+    if (MP_IS_HOST() && c->type >= 4 && (c->type <= 5 || c->type == 9))
         return true;
     return false;
 }
@@ -585,7 +585,7 @@ unsigned int ai_goal_type_fields(int type)
     return fields;
 }
 
-// 0x476020  Confidence: likely (the slot search keeps a pointer to the best priority). The free or
+// 0x476020  Confidence: exact (VC6 byte match, match29; was likely) (the slot search keeps a pointer to the best priority). The free or
 // lowest-priority slot without flag 1; a goal only replaces it with a higher priority or flag 1. The
 // leader of the party gets flag 0x100 and loses its hold mode outside conversations. ret 0x1c.
 // GAME BUGS (NOTES): the chosen slot is returned even when the priority was too low and nothing was
@@ -605,19 +605,18 @@ int ai_state::goal_alloc(int type, int priority, unsigned int flags, int target,
             best = i;
     }
     if (best >= 0 && ((flags & 1) || priority > goals[best].priority)) {
-        ai_goal *g = &goals[best];
-        g->type = type;
-        g->priority = priority;
-        g->flags = flags;
-        g->id = ai_goal_next_id;
+        goals[best].type = type;
+        goals[best].priority = priority;
+        goals[best].flags = flags;
+        goals[best].id = ai_goal_next_id;
         ai_goal_next_id++;
-        g->time = level_session_time;
-        g->path = NULL;
-        g->target = target;
+        goals[best].time = level_session_time;
+        goals[best].path = NULL;
+        goals[best].target = target;
         if (pos)
-            g->pos = *pos;
-        g->layer = layer;
-        g->spell = spell;
+            goals[best].pos = *pos;
+        goals[best].layer = layer;
+        goals[best].spell = spell;
     }
     if (owner->type == 7) {
         p = player_from_handle(owner->handle);
@@ -708,6 +707,8 @@ void ai_state::goals_clear()
 // 0x4763a0  Confidence: exact (jump table 0x4765c4 over types 1..17; each case returns).
 void ai_state::process_goals()
 {
+    bool walk;
+
     if (is_mode(AI_STATE_SUMMONING, -1) == true)
         return;
     ai_goals_validate(this);
@@ -751,20 +752,26 @@ void ai_state::process_goals()
         goal_do_nothing();
         return;
     case AI_GOAL_GOTO_NAVPOINT:
-        goal_do_move_to(&goals[0].pos, goals[0].layer, (goals[0].flags & 0x10) != 0, goals[0].path);
+        walk = false;
+        if (goals[0].flags & 0x10)
+            walk = true;
+        goal_do_move_to(&goals[0].pos, goals[0].layer, walk, goals[0].path);
         goals[0].path = NULL;
         return;
     case AI_GOAL_WANDER:
-        goal_do_move_to_timed(&goals[0].pos, goals[0].layer, goals[0].arg, (goals[0].flags & 0x10) != 0);
+        walk = false;
+        if (goals[0].flags & 0x10)
+            walk = true;
+        goal_do_move_to_timed(&goals[0].pos, goals[0].layer, goals[0].arg, walk);
         return;
-    case AI_GOAL_BACKSTAB:
-        goal_do_special_attack(goals[0].target);
+    case AI_GOAL_HIDE:
+        goal_do_hide();
         return;
     case AI_GOAL_SNEAK:
         goal_do_sneak();
         return;
-    case AI_GOAL_HIDE:
-        goal_do_hide();
+    case AI_GOAL_BACKSTAB:
+        goal_do_special_attack(goals[0].target);
         return;
     case AI_GOAL_PICKUP_ITEM:
         goal_do_pickup(goals[0].target);
@@ -838,9 +845,10 @@ void ai_service_request(ai_service_req *req)
 
     if (!MP_IS_CLIENT())
         return;
+    int type = req->type;
     MP_BUILD_HEADER(MP_SRV_REQ);
-    MP_ADD_DATA(req->type);
-    switch (req->type) {
+    MP_ADD_DATA(type);
+    switch (type) {
     case 2:
     case 3:
     case 6:
@@ -862,11 +870,12 @@ void ai_service_request(ai_service_req *req)
 // argument). The unknown type is only formatted into string_buffer, never printed.
 void mp_handle_srv_req(ubyte *data, void *from)
 {
-    int *req = (int *)data;
+    int type, a, b;
 
     if (!MP_IS_HOST())
         return;
-    switch (req[0]) {
+    memcpy(&type, data, 4);
+    switch (type) {
     case 0:
         game_pause(0, 1);
         return;
@@ -874,26 +883,36 @@ void mp_handle_srv_req(ubyte *data, void *from)
         game_unpause();
         return;
     case 2:
-        container_take_gold_server(req[1], req[2]);
+        memcpy(&a, data + 4, 4);
+        memcpy(&b, data + 8, 4);
+        container_take_gold_server(a, b);
         return;
     case 3:
-        container_request_open(req[1], req[2]);
+        memcpy(&a, data + 4, 4);
+        memcpy(&b, data + 8, 4);
+        container_request_open(a, b);
+        return;
+    case 6:
+        memcpy(&a, data + 4, 4);
+        memcpy(&b, data + 8, 4);
+        container_lockpick(a, b);
         return;
     case 4:
     case 5:
-        if (req[0] == 4)
-            door_find_by_mesh(req[1], req[2], 1);
+        memcpy(&a, data + 4, 4);
+        memcpy(&b, data + 8, 4);
+        if (type == 4)
+            door_find_by_mesh(a, b, 1);
         else
-            door_find_by_mesh(req[1], req[2], 0);
-        return;
-    case 6:
-        container_lockpick(req[1], req[2]);
+            door_find_by_mesh(a, b, 0);
         return;
     case 7:
-        door_pick_by_mesh(req[1], req[2]);
+        memcpy(&a, data + 4, 4);
+        memcpy(&b, data + 8, 4);
+        door_pick_by_mesh(a, b);
         return;
     default:
-        sprintf(string_buffer, "WARNING: unknown service request type -- %d\n", req[0]);
+        sprintf(string_buffer, "WARNING: unknown service request type -- %d\n", type);
         return;
     }
 }
@@ -1107,7 +1126,7 @@ bool door_toggle_state(lobj *l, bool force)
     return moved;
 }
 
-// 0x476f30  Confidence: likely (the bit-field stores; `open` reuses the lobj argument slot). A locked door
+// 0x476f30  Confidence: exact (VC6 byte match, match29; was likely) (the bit-field stores; `open` reuses the lobj argument slot). A locked door
 // moves only when forced. A move reverses a running one from where it is (the timer gets the remaining
 // part of the duration).
 bool door_start_move(lobj *l, float close_delay, bool force, bool sound)
@@ -1128,14 +1147,14 @@ bool door_start_move(lobj *l, float close_delay, bool force, bool sound)
     else
         d->close_delay = 0;
     duration = (int)(d->duration * 1000.0f);
-    savegame_state.two_stage_set(!open, locked, l);
     elapsed = 0;
+    savegame_state.two_stage_set(!open, locked, l);
     if (d->moving && !d->close_wait) {
-        d->opening = !d->opening;
+        d->opening = 1 - d->opening;
         elapsed = d->timer.GetElapsedTime();
     } else {
-        d->moving = 1;
         d->opening = !open;
+        d->moving = 1;
     }
     if (sound) {
         if (d->opening) {
@@ -1154,7 +1173,7 @@ bool door_start_move(lobj *l, float close_delay, bool force, bool sound)
     return true;
 }
 
-// 0x477080  Confidence: likely (the vector expression's temporaries; the easing as in door_is_open, with
+// 0x477080  Confidence: exact (VC6 byte match, match29; was likely) (the vector expression's temporaries; the easing as in door_is_open, with
 // the direction reversed: e is the weight of the closed pose). Called for every door object each frame.
 void door_update(lobj *l)
 {
@@ -1187,7 +1206,7 @@ void door_update(lobj *l)
             e = t * 4.0f - (t * t + t * t) - 1.0f;
         else
             e = t * t + t * t;
-        l->pos = d->open_pos * (1.0f - e) + d->closed_pos * e;
+        l->pos = d->closed_pos * e + d->open_pos * (1.0f - e);
         quaternion_slerp(&q, &d->open_orient, &d->closed_orient, e);
         q.to_matrix_b(&l->orient);
         return;

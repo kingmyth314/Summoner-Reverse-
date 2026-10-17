@@ -138,7 +138,7 @@ void state6_frame()
     timer_wait(10);
 }
 
-// 0x43fc90  Confidence: likely (the switch on the type is a jump table 4..9 with 6 and 8 skipped). File:
+// 0x43fc90  Confidence: exact (VC6 byte match, match24; was likely) (the switch on the type is a jump table 4..9 with 6 and 8 skipped). File:
 // "" (an empty header string), version 1, the level file name, then per living entity of types 4, 5, 7 and
 // 9 (type, the character name, position, orientation), ended by a 0 type.
 int monster_layout_save(const char *filename)
@@ -239,7 +239,7 @@ int monster_layout_load(const char *filename)
 // exact (compiler-generated).
 console_command ccmd_load_mlayout("load_mlayout", "Load a monster layout file", cmd_load_mlayout);   // 0x60f928
 
-// 0x4401a0  Confidence: likely (the words are joined with inline strcat; process_command(3) reads the next
+// 0x4401a0  Confidence: exact (VC6 byte match, match24; was likely) (the words are joined with inline strcat; process_command(3) reads the next
 // word). The file name may have spaces: every word is appended with a space and the last space is cut
 // (with no argument, filename[-1] is cleared: one byte below the buffer). A failed load returns before
 // the help text; a good one pauses the game.
@@ -273,7 +273,7 @@ void cmd_load_mlayout()
 // exact (compiler-generated).
 console_command ccmd_save_mlayout("save_mlayout", "Save a monster layout file", cmd_save_mlayout);   // 0x60f4f0
 
-// 0x4402f0  Confidence: likely (as cmd_load_mlayout; a failed save falls through to the help test).
+// 0x4402f0  Confidence: exact (VC6 byte match, match24; was likely) (as cmd_load_mlayout; a failed save falls through to the help test).
 void cmd_save_mlayout()
 {
     char filename[MLO_CMD_LINE_LEN];

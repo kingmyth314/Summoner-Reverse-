@@ -158,11 +158,12 @@ int packfile_hash(const char *name)
 void packfile_assign_offsets(Packfile *pf, int first_sector)
 {
     int i;
+    int sector = first_sector;
 
     for (i = 0; i < pf->num_files; i++) {
-        pf->entries[i].sector = first_sector;
+        pf->entries[i].sector = sector;
         pf->entries[i].cd_file = NULL;
-        first_sector += (pf->entries[i].size + PACKFILE_SECTOR_SIZE - 1) >> 11;
+        sector += (pf->entries[i].size + PACKFILE_SECTOR_SIZE - 1) >> 11;
     }
 }
 
@@ -398,31 +399,29 @@ int packfile_fseek(PackfileEntry *entry, int offset, int origin)
 {
     if (entry == NULL || entry->packfile == NULL)
         return 0;
-    if (entry->packfile->flags & PACKFILE_ON_CD)
-        return fseek(entry->cd_file, offset + entry->sector * PACKFILE_SECTOR_SIZE, origin) == 0;
+    if (entry->packfile->flags & PACKFILE_ON_CD) {
+        offset += entry->sector * PACKFILE_SECTOR_SIZE;
+        return fseek(entry->cd_file, offset, origin) == 0;
+    }
     if (entry->hdd_file == NULL)
         return 0;
-    return fseek(entry->hdd_file, offset + entry->sector * PACKFILE_SECTOR_SIZE, origin) == 0;
+    offset += entry->sector * PACKFILE_SECTOR_SIZE;
+    return fseek(entry->hdd_file, offset, origin) == 0;
 }
 
 // 0x5348a0  Confidence: exact. "FREAD BAIL" is printed for a NULL entry or packfile, not for a short read;
 // a hard drive entry that is not open returns 0 silently.
 int packfile_fread(void *buf, int size, int count, PackfileEntry *entry, int unused)
 {
-    FILE *fp;
-
     if (entry == NULL || entry->packfile == NULL) {
         printf("FREAD BAIL\n");
         return 0;
     }
-    if (entry->packfile->flags & PACKFILE_ON_CD) {
-        fp = entry->cd_file;
-    } else {
-        fp = entry->hdd_file;
-        if (fp == NULL)
-            return 0;
-    }
-    return fread(buf, size, count, fp);
+    if (entry->packfile->flags & PACKFILE_ON_CD)
+        return fread(buf, size, count, entry->cd_file);
+    if (entry->hdd_file == NULL)
+        return 0;
+    return fread(buf, size, count, entry->hdd_file);
 }
 
 // 0x5348f0  Confidence: exact. File__get_async_status calls it only for CD entries.

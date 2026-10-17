@@ -1,13 +1,13 @@
 # Compiler flags per unit for tools/vc6-compare.mjs, for Visual C++ 6.0 SP5 (c2.dll 12.00.8966). Units not
 # listed use the default /O2 /GX /MT (the game units). The vsdk engine library was built with /Ox /Ow (D7502),
-# some units also /Ob0 (their inline members are called out of line); gr_glide and unnamed_net match better with
+# some units also /Ob0 (their inline members are called out of line); unnamed_net matches better with
 # /O2. living_entity.cpp and the cutscene file are /O2 units that switch optimisation off with #pragma optimize
 # (D3201, D6100); objects.cpp is unoptimised throughout (/Od /Ob1, D6101). Format: <path under src/decomp> <flags>
 vsdk/character.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/character_instance.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/effect_mem.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/gr_direct3d.cpp /Ox /Ob0 /GX /MT /Ow
-vsdk/gr_glide.cpp /O2 /Ob0 /GX /MT
+vsdk/gr_glide.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/gr_opengl.cpp /Ox /Ob0 /GX /MT /Ow
 game/living_entity.cpp /O2 /GX /MT
 vsdk/matrix.cpp /Ox /Ob0 /GX /MT /Ow
@@ -46,7 +46,7 @@ vsdk/unnamed_poly_clip_0x5519c0.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_gr_line_0x53e520.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/bmpman.cpp /Ox /GX /MT /Ow
 vsdk/cmdline.cpp /Ox /GX /MT /Ow
-vsdk/console.cpp /Ox /GX /MT /Ow
+vsdk/console.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/debug.cpp /Ox /GX /MT /Ow
 vsdk/file_packfile.cpp /Ox /GX /MT /Ow
 vsdk/frametime.cpp /Ox /GX /MT /Ow
@@ -74,7 +74,7 @@ vsdk/unnamed_ftp_0x559ea0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_gadget_0x52bfe0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_gr_poly_0x5450c0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_http_0x55a8e0.cpp /Ox /GX /MT /Ow
-vsdk/unnamed_inetgetfile_0x51b760.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_inetgetfile_0x51b760.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_inputbox_0x5521a0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_jpeg_write_0x5565e0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_key_0x5093a0.cpp /Ox /GX /MT /Ow
@@ -91,11 +91,11 @@ vsdk/unnamed_sndstream_0x566560.cpp /O2 /GX /MT /Ow
 vsdk/unnamed_string_0x5566e0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_time_format_0x532660.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_ui_button_0x526940.cpp /Ox /GX /MT /Ow
-vsdk/unnamed_ui_element_0x542cd0.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_ui_element_0x542cd0.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_ui_manager_0x52f570.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_ui_slider_0x55e040.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_ui_static_0x527e20.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfile_0x5128b0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfile_array_0x544e50.cpp /Ox /GX /MT /Ow
-vsdk/unnamed_vfx_dummy_0x55fc70.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_vfx_dummy_0x55fc70.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_vif_0x5329f0.cpp /Ox /GX /MT /Ow

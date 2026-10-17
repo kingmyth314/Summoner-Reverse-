@@ -244,10 +244,12 @@ void mp_handle_acpt_jn(ubyte *data, void *from)
     gameseq_set_state(14);
 }
 
-// 0x470b60  Confidence: likely (VC6 loads the reason into ecx, the original into eax). DENY_JN {reason}.
+// 0x470b60  Confidence: exact (VC6 byte match, match24; was likely) (the reason is read with memcpy into a local, D8302). DENY_JN {reason}.
 void mp_handle_deny_jn(ubyte *data, void *from)
 {
-    mp_join_result = *(int *)data;
+    int reason;
+    memcpy(&reason, data, 4);
+    mp_join_result = reason;
     mp_join_reset();
 }
 

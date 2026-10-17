@@ -41,7 +41,7 @@ void ui_gadget::unlink()
     }
 }
 
-// 0x52c040  Confidence: likely (store order of the window list append).
+// 0x52c040  Confidence: exact (VC6 byte match, match23; owned stored before gadget_type in the source).
 void ui_gadget::init(ui_element *window, int type, int x, int y, int w, int h, int id, bool owned)
 {
     ui_window *win;
@@ -58,8 +58,8 @@ void ui_gadget::init(ui_element *window, int type, int x, int y, int w, int h, i
     next_sibling = NULL;
     parent = NULL;
     set_parent(NULL);
-    gadget_type = type;
     this->owned = owned;
+    gadget_type = type;
     clear_hotkeys();
     hotspot = 0;
 }
@@ -172,7 +172,7 @@ void ui_gadget::find_nearest_right(int x, int y)
         next_sibling->find_nearest_right(x, y);
 }
 
-// 0x52c330  vtable slot 1. Confidence: exact. The callback first; unhandled events go to the parent
+// 0x52c330  vtable slot 1. Confidence: likely (differs under cl 12.00.8966, match23; was exact). The callback first; unhandled events go to the parent
 // container, else to the window.
 bool ui_gadget::send_event(int event, int value)
 {
@@ -188,12 +188,19 @@ bool ui_gadget::send_event(int event, int value)
     return window->send_event(event, value);
 }
 
-// 0x52c390  vtable slot 5. Confidence: exact. The children's results are ignored.
+// 0x52c390  vtable slot 5. Confidence: likely (D8200: the binary reloads key from its argument slot for each
+// child; 8966 caches it in EDI). LOGIC FIX (D8200): with at least one child the result is the last child's
+// result (0x52c3bc returns EAX from the last call); hidden or childless gadgets return key.
 int ui_gadget::process(int key)
 {
     if (!is_hidden()) {
-        for (ui_gadget *g = first_child; g; g = g->next_sibling)
-            g->process(key);
+        ui_gadget *g = first_child;
+        if (g) {
+            int r;
+            for (; g; g = g->next_sibling)
+                r = g->process(key);
+            return r;
+        }
     }
     return key;
 }

@@ -85,7 +85,7 @@ conversation_slot *conversation_controller::topic_talker(conversation_topic *top
     return add_talker(cur_character, 0);
 }
 
-// 0x4d8940  Confidence: exact (switch through the table at 0x4d8a6c). The party lines go to the first
+// 0x4d8940  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31) (switch through the table at 0x4d8a6c). The party lines go to the first
 // living entity of that species.
 conversation_slot *conversation_controller::line_talker(conversation_line *line)
 {

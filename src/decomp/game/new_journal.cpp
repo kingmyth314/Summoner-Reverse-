@@ -327,18 +327,19 @@ int journal_handle_click(int key)
     journal_hover_quest = 0;
 
     for (i = 0; i < JOURNAL_NUM_BUTTONS; i++) {
-        if (!(journal_buttons[i].flags & 4) && (journal_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, journal_buttons[i].x, journal_buttons[i].y,
-                             journal_buttons[i].w, journal_buttons[i].h)) {
+        const ui_button_def *d = &journal_button_defs[i];
+        ui_button_state *b = &journal_buttons[i];
+
+        if (!(b->flags & 4) && (d->flags & 3) && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             journal_pressed_button = i;
-            journal_buttons[i].flags |= 2;
-            if (journal_button_defs[i].flags & 1) {
+            b->flags |= 2;
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     journal_mouse_mode = 1;
                     journal_repeat_timer.invalidate();
                     return key;
                 }
-            } else if (journal_button_defs[i].flags & 2) {
+            } else if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     journal_mouse_mode = 1;
                     journal_button_action(journal_pressed_button + 1);
@@ -501,7 +502,7 @@ void journal_list_page_down(int list)
     }
 }
 
-// 0x41b570  Confidence: exact (single store; tail call).
+// 0x41b570  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31) (single store; tail call).
 void journal_desc_page_up()
 {
     if (journal_desc_first_line > 0) {

@@ -1585,50 +1585,94 @@ bool character_can_use_summon(int skill, Character *c)
         if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental"))
             return false;
     }
-    if (!_stricmp(summon_skill_creature_name(skill), "Blackfire Elemental"))
-        return party_count_item_by_name("Ring of Darkness") != 0;
-    if (!_stricmp(summon_skill_creature_name(skill), "Mist Elemental"))
-        return party_count_item_by_name("Ring of Light") != 0;
-    if (!_stricmp(summon_skill_creature_name(skill), "Red Minotaur"))
-        return party_count_item_by_name("Ring of Fire") != 0;
-    if (!_stricmp(summon_skill_creature_name(skill), "Golem"))
-        return party_count_item_by_name("Ring of Stone") != 0;
+    if (!_stricmp(summon_skill_creature_name(skill), "Blackfire Elemental")) {
+        if (party_count_item_by_name("Ring of Darkness"))
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Mist Elemental")) {
+        if (party_count_item_by_name("Ring of Light"))
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Red Minotaur")) {
+        if (party_count_item_by_name("Ring of Fire"))
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Golem")) {
+        if (party_count_item_by_name("Ring of Stone"))
+            return true;
+        return false;
+    }
     if (!_stricmp(summon_skill_creature_name(skill), "Blue Imp")) {
         if (savegame_state.get_flag(0x10, "got_ring_of_water"))
             return true;
-        return party_count_item_by_name("Ring of Water") != 0;
+        if (party_count_item_by_name("Ring of Water"))
+            return true;
+        return false;
     }
     if (!_stricmp(summon_skill_creature_name(skill), "Poison Elemental")) {
         if (savegame_state.get_flag(0x14, "got_ring_of_forest"))
             return true;
-        return party_count_item_by_name("Ring of Forest") != 0;
+        if (party_count_item_by_name("Ring of Forest"))
+            return true;
+        return false;
     }
     if (!_stricmp(summon_skill_creature_name(skill), "Jade Golem")) {
         if (savegame_state.get_flag(0x22, "got_ring_of_jade"))
             return true;
-        return party_count_item_by_name("Ring of Jade") != 0;
+        if (party_count_item_by_name("Ring of Jade"))
+            return true;
+        return false;
     }
     if (!_stricmp(summon_skill_creature_name(skill), "Celestial Samurai")) {
         if (savegame_state.get_flag(0x1c, "got_ring_of_wind"))
             return true;
-        return party_count_item_by_name("Ring of Four Winds") != 0;
+        if (party_count_item_by_name("Ring of Four Winds"))
+            return true;
+        return false;
     }
-    if (!_stricmp(summon_skill_creature_name(skill), "Spirit of Laharah"))
-        return savegame_state.get_flag(0x22, "got_laharah_spirit") != 0;
-    if (!_stricmp(summon_skill_creature_name(skill), "Wraith"))
-        return party_count_item_by_name("Ring of Light") && savegame_state.get_int(4, "light_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental"))
-        return party_count_item_by_name("Ring of Fire") && savegame_state.get_int(4, "fire_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Blade of Urath"))
-        return party_count_item_by_name("Ring of Stone") && savegame_state.get_int(4, "stone_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Water Dragon"))
-        return party_count_item_by_name("Ring of Water") && savegame_state.get_int(4, "water_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Four Winds Dragon"))
-        return party_count_item_by_name("Ring of Four Winds") && savegame_state.get_int(4, "wind_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Forest Dragon"))
-        return party_count_item_by_name("Ring of Forest") && savegame_state.get_int(4, "forest_ring_xp") > 60000;
-    if (!_stricmp(summon_skill_creature_name(skill), "Jade Dragon"))
-        return party_count_item_by_name("Ring of Jade") && savegame_state.get_int(4, "jade_ring_xp") > 60000;
+    if (!_stricmp(summon_skill_creature_name(skill), "Spirit of Laharah")) {
+        if (savegame_state.get_flag(0x22, "got_laharah_spirit"))
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Wraith")) {
+        if (party_count_item_by_name("Ring of Light") && savegame_state.get_int(4, "light_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental")) {
+        if (party_count_item_by_name("Ring of Fire") && savegame_state.get_int(4, "fire_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Blade of Urath")) {
+        if (party_count_item_by_name("Ring of Stone") && savegame_state.get_int(4, "stone_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Water Dragon")) {
+        if (party_count_item_by_name("Ring of Water") && savegame_state.get_int(4, "water_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Four Winds Dragon")) {
+        if (party_count_item_by_name("Ring of Four Winds") && savegame_state.get_int(4, "wind_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Forest Dragon")) {
+        if (party_count_item_by_name("Ring of Forest") && savegame_state.get_int(4, "forest_ring_xp") > 60000)
+            return true;
+        return false;
+    }
+    if (!_stricmp(summon_skill_creature_name(skill), "Jade Dragon")) {
+        if (party_count_item_by_name("Ring of Jade") && savegame_state.get_int(4, "jade_ring_xp") > 60000)
+            return true;
+        return false;
+    }
     return false;
 }
 
@@ -1915,7 +1959,7 @@ void level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *
     set_current_mempool(NULL);
 }
 
-// 0x447e80  Confidence: exact.
+// 0x447e80  Confidence: likely (marked exact; differs under VC6 8966, match27).
 unsigned int str_hash_nocase_rol6(const char *s)
 {
     unsigned int h;
@@ -1978,22 +2022,12 @@ void summon_stash_for_cutscene()
     move_info *mv;
     int i;
 
-    summon_stash_level_offset = level_mempool.offset;
     stashed_summon = NULL;
     stashed_summon_player = NULL;
-    if (!s) {
-        for (c = living_list_inactive.live_next, next = c->live_next; c != &living_list_inactive;
-             c = next, next = next->live_next) {
-            if ((c->flags & 0x80) && (c->flags & CF_SUMMON) && !(c->flags & 0x40000)) {
-                fx_end_owned(c->handle, true);
-                c->deinit();
-            }
-        }
-        summon_mempool.offset = 0;
-        return;
-    }
-    if (s->flags & 0x800)
-        return;
+    summon_stash_level_offset = level_mempool.offset;
+    if (s) {
+        if (s->flags & 0x800)
+            return;
     if (!(s->obj_flags & 1)) {
         if (!s->ai.is_mode(6, -1)) {
             cur_summon->ai.begin_emerge();
@@ -2031,6 +2065,16 @@ void summon_stash_for_cutscene()
     cur_summon->instance->clear_state_anims();
     fx_end_owned(cur_summon->handle, true);
     summon_mempool.offset = 0;
+    } else {
+        for (c = living_list_inactive.live_next, next = c->live_next; c != &living_list_inactive;
+             c = next, next = next->live_next) {
+            if ((c->flags & 0x80) && (c->flags & CF_SUMMON) && !(c->flags & 0x40000)) {
+                fx_end_owned(c->handle, true);
+                c->deinit();
+            }
+        }
+        summon_mempool.offset = 0;
+    }
 }
 
 // 0x4482a0  Confidence: likely. A script anim: a move of the script list (15) with the anim file as its
@@ -2768,9 +2812,10 @@ int species_is_hero(int species)
     return species <= SPECIES_ROSALIND;
 }
 
-// 0x449a30  Confidence: likely (only the order of the two return blocks differs under VC6 8966; D7604:
-// with no free slot the error repeats for ever, as in the binary). In multiplayer a hero record is copied into a free slot (so each
-// player's hero can load its own weapon anims and textures); everything else uses the record itself.
+// 0x449a30  Confidence: exact (VC6 byte match, match27; was likely: one return of the result local, set to
+// the record itself in an else; D7604: with no free slot the error repeats for ever, as in the binary). In
+// multiplayer a hero record is copied into a free slot (so each player's hero can load its own weapon anims
+// and textures); everything else uses the record itself.
 char_info *characterinfo_find_multi_slot(int index)
 {
     char_info *info = NULL;
@@ -2788,9 +2833,9 @@ char_info *characterinfo_find_multi_slot(int index)
         }
         while (i == 4)      // no free slot: the error repeats for ever (0x449adc jumps back)
             VSDK_ERROR(CHARACTERINFO_CPP, 0x14be, "Unable to find multiplayer character info slot");
-        return info;
-    }
-    return &char_infos[index];
+    } else
+        info = &char_infos[index];
+    return info;
 }
 
 // 0x449b00  Confidence: exact.
@@ -2838,8 +2883,9 @@ console_command ccmd_charinfo("charinfo", "dump info on all characters in the ga
 // 0x449be0 init_ccmd_levelchars (console_command constructor). Confidence: exact.
 console_command ccmd_levelchars("levelchars", "dump info on all characters in the level", cmd_levelchars);   // 0x8b3c38
 
-// 0x449c00  Confidence: likely (the shared `push 0` of print_to_console / time). Appends a count of the
-// living characters per species to levelchars.txt in the install directory.
+// 0x449c00  Confidence: exact (VC6 byte match under 8966, match27 survey; was likely: the shared `push 0` of
+// print_to_console / time). Appends a count of the living characters per species to levelchars.txt in the
+// install directory.
 void cmd_levelchars()
 {
     char path[0x100];

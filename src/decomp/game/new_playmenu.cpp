@@ -58,41 +58,43 @@ void playmenu_load_bitmaps()
     int i;
 
     for (i = 0; i < PLAYMENU_NUM_BUTTONS; i++) {
-        playmenu_buttons[i].flags = 0;
-        playmenu_buttons[i].bitmap = -1;
-        playmenu_buttons[i].x = 0;
-        playmenu_buttons[i].y = 0;
-        playmenu_buttons[i].w = 0;
-        playmenu_buttons[i].h = 0;
+        ui_button_state *b = &playmenu_buttons[i];
+        ui_button_def *d = &playmenu_button_table[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(playmenu_button_table[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
-            strcpy(filename, playmenu_button_table[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            playmenu_buttons[i].bitmap = bm_load(filename, path_interface, -1);
+            b->bitmap = bm_load(filename, path_interface, -1);
         } else {
-            playmenu_buttons[i].bitmap = -1;
+            b->bitmap = -1;
         }
 
-        playmenu_buttons[i].x = playmenu_button_table[i].pos[resolution_index][0];
-        playmenu_buttons[i].y = playmenu_button_table[i].pos[resolution_index][1];
+        b->x = d->pos[resolution_index][0];
+        b->y = d->pos[resolution_index][1];
 
-        if (playmenu_buttons[i].bitmap >= 0) {
-            bm_get_dimensions(playmenu_buttons[i].bitmap, &playmenu_buttons[i].w, &playmenu_buttons[i].h);
-            playmenu_buttons[i].w = (int)(playmenu_buttons[i].w * scale + 0.5f);
-            playmenu_buttons[i].h = (int)(playmenu_buttons[i].h * scale + 0.5f);
+        if (b->bitmap >= 0) {
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
         } else {
-            playmenu_buttons[i].w = 0;
-            playmenu_buttons[i].h = 0;
+            b->w = 0;
+            b->h = 0;
         }
 
         if (i == 0)
-            playmenu_buttons[i].flags |= 1;
+            b->flags |= 1;
     }
 }
 
-// 0x4216f0  Confidence: likely. Both branches of the multiplayer test store playmenu_mouse_mode first;
+// 0x4216f0  Confidence: exact (VC6 byte match, match24; was likely). Both branches of the multiplayer test store playmenu_mouse_mode first;
 // written once after the if/else here (the stores may also have been inside each branch). The order of
 // the three button stores (3, 4, 2 in the binary) is scheduling.
 void playmenu_init()
@@ -128,7 +130,7 @@ void playmenu_leave()
         game_unpause();
 }
 
-// 0x4217c0  Confidence: exact. Key 1 (Esc) is handled in playmenu_handle_click.
+// 0x4217c0  Confidence: likely (differs under cl 8966, match24; was exact). Key 1 (Esc) is handled in playmenu_handle_click.
 int playmenu_frame(int key)
 {
     int i;
@@ -154,18 +156,18 @@ int playmenu_handle_click(int key)
 {
     int i;
 
-    playmenu_buttons[0].flags |= 2;
     playmenu_pressed_button = -1;
+    playmenu_buttons[0].flags |= 2;
 
     for (i = 0; i < PLAYMENU_NUM_BUTTONS; i++) {
-        if (!(playmenu_buttons[i].flags & 4) && (playmenu_button_table[i].flags & 7)
-            && point_in_rect(game_mouse_x, game_mouse_y, playmenu_buttons[i].x, playmenu_buttons[i].y,
-                             playmenu_buttons[i].w, playmenu_buttons[i].h)) {
-            playmenu_buttons[i].flags |= 2;
+        ui_button_def *d = &playmenu_button_table[i];
+        ui_button_state *b = &playmenu_buttons[i];
+        if (!(b->flags & 4) && (d->flags & 7) && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             playmenu_pressed_button = i;
+            b->flags |= 2;
             if (i >= 2 && i <= 4)           // New / Save / Load also light the "Game" heading
                 playmenu_buttons[1].flags |= 2;
-            if ((playmenu_button_table[i].flags & 6) && mouse_was_pressed(0)) {
+            if ((d->flags & 6) && mouse_was_pressed(0)) {
                 playmenu_mouse_mode = 1;
                 return key;
             }
@@ -173,7 +175,8 @@ int playmenu_handle_click(int key)
         }
     }
 
-    if (key == KEY_ESC) {
+    switch (key) {
+    case KEY_ESC:
         interface_close_screen();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
@@ -346,7 +349,7 @@ bool playmenu_mouse_in_panel(int x, int y)
                          playmenu_buttons[0].w, playmenu_buttons[0].h);
 }
 
-// 0x421d70  Confidence: likely (untagged in sum.symbols; placed here because it sits right after
+// 0x421d70  Confidence: exact (VC6 byte match, match24; was likely) (untagged in sum.symbols; placed here because it sits right after
 // playmenu_mouse_in_panel and its only caller is mainmenu_confirm_quit_cb). A dead party leader pays the
 // XP penalty; in multiplayer the local player leaves (reason 2 when hosting), else back to state 1.
 void game_abandon_to_menu()

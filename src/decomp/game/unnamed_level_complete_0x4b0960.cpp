@@ -50,7 +50,11 @@ void mp_send_level_complete(int level)
 void mp_handle_level_complete(ubyte *data, void *from)
 {
     if (MP_IS_CLIENT())
-        mp_mark_level_complete(*(int *)data);
+    {
+        int level;
+        memcpy(&level, data, 4);
+        mp_mark_level_complete(level);
+    }
 }
 
 // 0x4b09f0  Confidence: exact.
@@ -84,7 +88,11 @@ void mp_send_difficulty_complete(int difficulty)
 void mp_handle_difficulty_complete(ubyte *data, void *from)
 {
     if (MP_IS_CLIENT())
-        mp_mark_difficulty_complete(*(int *)data);
+    {
+        int difficulty;
+        memcpy(&difficulty, data, 4);
+        mp_mark_difficulty_complete(difficulty);
+    }
 }
 
 // 0x4b0ae0  Confidence: exact. The flags word is replaced by the difficulty bits, not or-ed with them

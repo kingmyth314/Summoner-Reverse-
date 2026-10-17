@@ -147,7 +147,7 @@ bool ls_khosanilab_flippers[10][7];                          // 0x257ecb4
 
 // ---- the beam path through the flipper grid -----------------------------------------------------------
 
-// 0x4f77e0  Confidence: likely (the loop variables: x runs 2..7 and the left neighbour is computed).
+// 0x4f77e0  Confidence: exact (VC6 byte match, match23; was likely; the loop variables: x runs 2..7 and the left neighbour is computed).
 // 0x4f77fa  Confidence: likely. ls_khosanilab_puzzle_update__trace: the tail of the same function (Ghidra
 // starts a function after its first ret). The beam enters at cell (0, 2) going in direction 1; every closed cell whose left
 // neighbour is open, not yet passed on its right side and connected to the lit path starts a second beam.
@@ -206,7 +206,7 @@ void ls_khosanilab_puzzle_clear_paths()
     ls_khosanilab_path_len = 0;
 }
 
-// 0x4f7930  Confidence: likely (the cell is taken by value: the neighbours are built in the argument slots,
+// 0x4f7930  Confidence: exact (VC6 byte match, match23; was likely; the cell is taken by value: the neighbours are built in the argument slots,
 // `n = c` then one coordinate changed, 0x4f7964-0x4f7973). True when the open region around the cell
 // touches a cell the beam has passed. sum.symbols: (x, y), the same two dwords.
 bool ls_khosanilab_puzzle_flood_connected(ls_khosanilab_cell c)
@@ -377,7 +377,7 @@ void ls_khosanilab_puzzle_turn_dirs(ls_khosanilab_cell *a, ls_khosanilab_cell *b
     fc->y = y;
 }
 
-// 0x4f7fb0  Confidence: likely (setne / sete from the conditional expressions). The direction code of a
+// 0x4f7fb0  Confidence: exact (VC6 byte match, match23; was likely; setne / sete from the conditional expressions). The direction code of a
 // unit vector (inverse of turn_dirs' b).
 void ls_khosanilab_puzzle_reflect_dir(int *out, const ls_khosanilab_cell *d)
 {
@@ -587,7 +587,7 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
         ls_khosanilab_puzzle_add_point(&a, &b);
 }
 
-// 0x4f8810  Confidence: likely (the origin is stored first, then the computed values use the constants, not
+// 0x4f8810  Confidence: exact (VC6 byte match, match23; was likely; the origin is stored first, then the computed values use the constants, not
 // a reload). Grid (x, y) to world (x, z): (-136.284 - 2.348 x, -34.044 - 2.151 y), 0x581cc0..0x581ccc.
 void ls_khosanilab_puzzle_cell_to_world(const vector2 *cell, vector2 *out)
 {

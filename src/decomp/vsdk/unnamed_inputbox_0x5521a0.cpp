@@ -162,7 +162,7 @@ void ui_inputbox::create(ui_element *window, int x, int y, int w, int h, int id,
     colors = &ui_inputbox_colors.g0.c0;
 }
 
-// 0x5527b0  Confidence: likely (the unlink is written with locals: the NULL stores come before the
+// 0x5527b0  Confidence: exact (the unlink is written with locals: the NULL stores come before the
 // neighbours' updates). Replaces the first tooltip, as ui_button::set_tooltip.
 void ui_inputbox::set_tooltip(const char *text, int x, int y, int delay)
 {
@@ -179,15 +179,16 @@ void ui_inputbox::set_tooltip(const char *text, int x, int y, int delay)
     t = new ui_tooltip;
     t->owner = this;
     strcpy(t->text, text);
-    t->x = x;
     t->delay = delay;
+    t->x = x;
+    ui_tooltip *last = tooltips.prev;
     t->next = &tooltips;
+    tooltips.prev = t;
     t->colors = &ui_tooltip_colors.c0;
     t->y = y;
     t->font = -1;
-    t->prev = tooltips.prev;
-    tooltips.prev = t;
-    t->prev->next = t;
+    t->prev = last;
+    last->next = t;
 }
 
 // The range a-b of a set (either order).

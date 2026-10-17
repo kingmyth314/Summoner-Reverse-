@@ -96,7 +96,7 @@ void irc_chat_reset()
     irc_unused_ae40 = 0;
 }
 
-// 0x4abc10  Confidence: likely (the local sizes: host 0x34, buf 0x64 bytes from the frame; the -1 of a
+// 0x4abc10  Confidence: exact (VC6 byte match, match23; was likely; the local sizes: host 0x34, buf 0x64 bytes from the frame; the -1 of a
 // failed socket() is returned through the register, "or eax, eax"). A connect() error other than
 // WSAEWOULDBLOCK returns 0 without setting irc_connecting, so the next call starts over.
 int irc_connect(char *server, char *nick, char *user_info)
@@ -150,25 +150,25 @@ int irc_connect(char *server, char *nick, char *user_info)
 
     if (irc_logged_in)
         return 1;
-    if (irc_connected)
-        return 0;
-
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-    FD_ZERO(&write_fds);
-    FD_SET(irc_socket, &write_fds);
-    if (select(0, NULL, &write_fds, NULL, &timeout)) {
-        irc_connected = 1;
-        sprintf(buf, "/USER %s %s %s :%s", "user", "user", "user", irc_user_info);
-        irc_process_input(buf, 1);
-        sprintf(buf, "/NICK %s", irc_nick);
-        irc_process_input(buf, 1);
+    if (!irc_connected) {
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
+        FD_ZERO(&write_fds);
+        FD_SET(irc_socket, &write_fds);
+        if (select(0, NULL, &write_fds, NULL, &timeout)) {
+            irc_connected = 1;
+            sprintf(buf, "/USER %s %s %s :%s", "user", "user", "user", irc_user_info);
+            irc_process_input(buf, 1);
+            sprintf(buf, "/NICK %s", irc_nick);
+            irc_process_input(buf, 1);
+            return 0;
+        }
+        FD_ZERO(&error_fds);
+        FD_SET(irc_socket, &error_fds);
+        if (select(0, NULL, NULL, &error_fds, &timeout))
+            return -1;
         return 0;
     }
-    FD_ZERO(&error_fds);
-    FD_SET(irc_socket, &error_fds);
-    if (select(0, NULL, NULL, &error_fds, &timeout))
-        return -1;
     return 0;
 }
 
@@ -228,7 +228,7 @@ void irc_remove_all_users()
     irc_user_list = NULL;
 }
 
-// 0x4ac020  Confidence: likely (command as int, stored as a short; the else-branch tails are the
+// 0x4ac020  Confidence: exact (VC6 byte match, match23; was likely; command as int, stored as a short; the else-branch tails are the
 // compiler's duplicates of the final next = NULL).
 void irc_queue_command(int command, void *data, int len)
 {
@@ -270,25 +270,23 @@ char *irc_read_line()
     timeout.tv_usec = 0;
     FD_ZERO(&read_fds);
     FD_SET(irc_socket, &read_fds);
-    if (select(0, &read_fds, NULL, NULL, &timeout)) {
-        do {
-            if (recv(irc_socket, ch, 1, 0) <= 0) {
-                irc_queue_command(IRC_CMD_DISCONNECTED, NULL, 0);
+    while (select(0, &read_fds, NULL, NULL, &timeout)) {
+        if (recv(irc_socket, ch, 1, 0) <= 0) {
+            irc_queue_command(IRC_CMD_DISCONNECTED, NULL, 0);
+            return NULL;
+        }
+        ch[1] = 0;
+        if (ch[0] == '\n' || ch[0] == '\r') {
+            if (!irc_line_buf[0])
                 return NULL;
-            }
-            ch[1] = 0;
-            if (ch[0] == '\n' || ch[0] == '\r') {
-                if (!irc_line_buf[0])
-                    return NULL;
-                strcpy(irc_message, irc_line_buf);
-                irc_line_buf[0] = 0;
-                return chat_process_irc_message(irc_message, 0);
-            }
-            if (strlen(irc_line_buf) < sizeof(irc_line_buf) - 1)
-                strcat(irc_line_buf, ch);
-            else
-                irc_line_buf[sizeof(irc_line_buf) - 1] = 0;
-        } while (select(0, &read_fds, NULL, NULL, &timeout));
+            strcpy(irc_message, irc_line_buf);
+            irc_line_buf[0] = 0;
+            return chat_process_irc_message(irc_message, 0);
+        }
+        if ((int)strlen(irc_line_buf) < (int)sizeof(irc_line_buf) - 1)
+            strcat(irc_line_buf, ch);
+        else
+            irc_line_buf[sizeof(irc_line_buf) - 1] = 0;
     }
     return NULL;
 }
@@ -609,7 +607,7 @@ char *chat_process_irc_message(char *line, int mode)
     return NULL;
 }
 
-// 0x4ad8b0  Confidence: likely (the word loop counts n down; the separator array is 10 bytes, 5 of them
+// 0x4ad8b0  Confidence: exact (VC6 byte match, match23; was likely; the word loop counts n down; the separator array is 10 bytes, 5 of them
 // from the literal). A word starting with ':' is the rest of the line.
 char *irc_get_word(int n, char *text)
 {
@@ -620,12 +618,13 @@ char *irc_get_word(int n, char *text)
     tok = strtok(irc_get_word_line, seps);
     for (; n; n--)
         tok = strtok(NULL, seps);
-    if (!tok)
-        return "";
-    strcpy(irc_word_buf, tok);
-    if (*tok == ':')
-        strcpy(irc_word_buf, text + (tok - irc_get_word_line) + 1);
-    return irc_word_buf;
+    if (tok) {
+        strcpy(irc_word_buf, tok);
+        if (*tok == ':')
+            strcpy(irc_word_buf, text + (tok - irc_get_word_line) + 1);
+        return irc_word_buf;
+    }
+    return "";
 }
 
 // 0x4ad9a0  Confidence: exact.
@@ -642,7 +641,7 @@ void irc_flush_channel_list()
     irc_channel_list = NULL;
 }
 
-// 0x4ad9e0  Confidence: likely (the first-record branch stores next twice: its own store, then the common
+// 0x4ad9e0  Confidence: exact (VC6 byte match, match23; was likely; the first-record branch stores next twice: its own store, then the common
 // one after the if).
 void irc_add_channel(char *name, short users, char *topic)
 {

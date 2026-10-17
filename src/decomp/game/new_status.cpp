@@ -689,7 +689,7 @@ void status_confirm_skills_cb(int button)
     status_goto_pending_screen();
 }
 
-// 0x42c0e0  Confidence: exact.
+// 0x42c0e0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
 void status_page_up()
 {
     if (status_scroll_pos > 0) {

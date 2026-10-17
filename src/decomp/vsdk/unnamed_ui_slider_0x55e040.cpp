@@ -90,7 +90,7 @@ void ui_gadget::draw_sunken(Color *colors, int width)
     ui_draw_bevel(sx, sy, w, h, &colors[1], &colors[0], width, 0);
 }
 
-// 0x55e420  Confidence: exact.
+// 0x55e420  Confidence: likely (differs under 8966: register and store scheduling).
 void ui_slider_base::get_marker_rect(int *mx, int *my, int *mw, int *mh)
 {
     float f = (float)pos / (count - 1);
@@ -113,14 +113,13 @@ void ui_slider_base::get_marker_rect(int *mx, int *my, int *mw, int *mh)
     }
 }
 
-// 0x55e4c0  Confidence: likely (the page repeat's flow). A press on the marker drags it, a press before
+// 0x55e4c0  Confidence: exact. A press on the marker drags it, a press before
 // or after it pages, held presses repeat every 150 ms after 450 ms; the right button cancels a drag.
 int ui_slider_base::process(int key)
 {
     bool clicked = false;
     int mx, my, mw, mh;
     int cx, cy;
-    int state;
 
     if (is_disabled())
         return key;
@@ -142,19 +141,17 @@ int ui_slider_base::process(int key)
     if (ui_left_pressed && is_mouse_over()) {
         repeat_timer.SetTimeout(450);
         clicked = true;
-        if (cx < mx) {
-            drag_state = UI_SLIDER_PAGE_DOWN;
-        } else if (cx < mx + mw && cy >= my && cy < my + mh) {
+        if (cx >= mx && cx < mx + mw && cy >= my && cy < my + mh) {
             drag_state = UI_SLIDER_DRAGGING;
             drag_pos = pos;
             if (horizontal)
                 drag_start = cx;
             else
                 drag_start = cy;
-        } else if (cy < my) {
-            drag_state = UI_SLIDER_PAGE_DOWN;
-        } else {
+        } else if (cx >= mx && cy >= my) {
             drag_state = UI_SLIDER_PAGE_UP;
+        } else {
+            drag_state = UI_SLIDER_PAGE_DOWN;
         }
     }
     if (mouse_is_down(0) && is_mouse_over() && repeat_timer.elapsed()) {
@@ -167,26 +164,25 @@ int ui_slider_base::process(int key)
         if (drag_state == UI_SLIDER_PAGE_UP)
             pos += page_size;
     }
-    state = drag_state;
-    if (state == UI_SLIDER_DRAGGING) {
+    if (drag_state == UI_SLIDER_DRAGGING) {
         int d;
         int len;
         int num;
 
         if (horizontal) {
             d = cx - drag_start;
-            len = w;
+            len = w - marker_size;
         } else {
             d = cy - drag_start;
-            len = h;
+            len = h - marker_size;
         }
-        len -= marker_size;
         if (len != 0) {
             num = (count - 1) * d;
-            pos = (num + (num < 0 ? -(len / 2) : len / 2)) / len + drag_pos;
+            if (num < 0) num -= len / 2; else num += len / 2;
+            pos = num / len + drag_pos;
         }
     }
-    if (state == UI_SLIDER_DRAGGING && ui_right_pressed) {
+    if (drag_state == UI_SLIDER_DRAGGING && ui_right_pressed) {
         drag_state = UI_SLIDER_IDLE;
         pos = drag_pos;
     }
@@ -247,7 +243,7 @@ void ui_slider_base::create(ui_element *window, int x, int y, int w, int h, bool
     colors = &ui_slider_colors.c0;
 }
 
-// 0x55ea50  Confidence: likely (store order; as ui_button::set_tooltip, the first tooltip is unlinked
+// 0x55ea50  Confidence: exact (store order: owner, strcpy, delay, x; as ui_button::set_tooltip, the first tooltip is unlinked
 // and leaked).
 void ui_slider_base::set_tooltip(const char *text, int x, int y, int delay)
 {
@@ -262,11 +258,11 @@ void ui_slider_base::set_tooltip(const char *text, int x, int y, int delay)
         next->prev = prev;
     }
     t = new ui_tooltip;
-    strcpy(t->text, text);
     t->owner = this;
+    strcpy(t->text, text);
+    t->delay = delay;
     t->x = x;
     ui_tooltip *last = tooltips.prev;
-    t->delay = delay;
     t->next = (ui_tooltip *)&tooltips;
     tooltips.prev = t;
     t->colors = &ui_tooltip_colors.c0;

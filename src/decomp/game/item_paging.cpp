@@ -241,7 +241,7 @@ int item_type_is_paged_in(int type)
     return item_types[type].mesh != NULL;
 }
 
-// 0x46cb50  Confidence: likely (case order: the jump table 0x46cc50 maps 0,1,2,3 to bodies laid
+// 0x46cb50  Confidence: exact (VC6 byte match, match24; was likely) (case order: the jump table 0x46cc50 maps 0,1,2,3 to bodies laid
 // out as 0,1,3,2, so the source lists case 3 before case 2). Two slots per hero: single player by
 // species (Joseph 0, Jekhar 1, Flece 2, Rosalind 3, the feedback.tbl order), multiplayer by
 // position in party_list. Error line 671 (0x29f). With an empty party list the code skips the
@@ -280,12 +280,13 @@ void item_paging_find_player_slot(Character *character, int *slot1, int *slot2)
                 break;
             i++;
         }
-        if (i >= 4)
-            for (;;)
-                DebugError(ITEM_PAGING_CPP, 671, "Unable to find paging slot for player\n");
-        *slot1 = i * 2;
-        *slot2 = i * 2 + 1;
-        return;
+        if (i < 4) {
+            *slot1 = i * 2;
+            *slot2 = i * 2 + 1;
+            return;
+        }
+        for (;;)
+            DebugError(ITEM_PAGING_CPP, 671, "Unable to find paging slot for player\n");
     }
 
     *slot1 = -1;

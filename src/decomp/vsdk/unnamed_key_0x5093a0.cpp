@@ -364,7 +364,7 @@ int key_getch()
     return key_inkey();
 }
 
-// 0x509ab0  Confidence: exact. Empties the queue and every key's state and counters.
+// 0x509ab0  Confidence: likely (8966 turns the zeroing loops into rep stosd, the binary keeps them). Empties the queue and every key's state and counters.
 void key_flush()
 {
     unsigned int now;
@@ -391,7 +391,7 @@ void key_flush()
     LeaveCriticalSection(&key_lock);
 }
 
-// 0x509b50  Confidence: exact. One key's state (no bounds check).
+// 0x509b50  Confidence: likely (8966 schedules the lock push between the stores differently). One key's state (no bounds check).
 void key_clear(int key)
 {
     unsigned int now;

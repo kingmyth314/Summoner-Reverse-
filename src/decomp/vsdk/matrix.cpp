@@ -721,7 +721,7 @@ matrix43 matrix43_interpolate(const matrix43 &from, const matrix43 &to, float t)
     return r;
 }
 
-// 0x511920  Confidence: exact.
+// 0x511920  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
 matrix43 matrix43_interpolate_quat(const quaternion &qa, const quaternion &qb,
                                    const vector3 &pa, const vector3 &pb, float t)
 {

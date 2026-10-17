@@ -115,7 +115,7 @@ static inline void lobby_try_connect()
     }
 }
 
-// 0x43f080  Confidence: likely (the connect block is the inline function above; the last two cases end in
+// 0x43f080  Confidence: exact (VC6 byte match, match24; was likely) (the connect block is the inline function above; the last two cases end in
 // jumps to lobby_request_channel_list / lobby_query_all_channels). Once logged in: connect, ask for the
 // channel list, finish a pending join, join the first channel, then refresh the list every 10 s.
 void state_mp_lobby_frame()
@@ -159,7 +159,7 @@ void lobby_query_all_channels()
         lobby_query_channel(i);
 }
 
-// 0x43f220  Confidence: likely (the zero store is scheduled inside the strcpy; source order guessed). The
+// 0x43f220  Confidence: exact (VC6 byte match, match24; was likely) (the zero store is scheduled inside the strcpy; source order guessed). The
 // game tracker's user count of the channel.
 void lobby_query_channel(int index)
 {
@@ -201,7 +201,7 @@ void lobby_handle_chat_line(char *line)
         pxochat_add_chat_line(line, CHAT_KIND_TEXT);
 }
 
-// 0x43f360  Confidence: likely (the prefix length is computed first: a local or a strlen of the literal).
+// 0x43f360  Confidence: exact (VC6 byte match, match24; was likely) (the prefix length is computed first: a local or a strlen of the literal).
 bool chat_is_motd(const char *line)
 {
     int len = strlen(MOTD_PREFIX);
@@ -211,7 +211,7 @@ bool chat_is_motd(const char *line)
     return false;
 }
 
-// 0x43f3b0  Confidence: likely (as chat_is_motd).
+// 0x43f3b0  Confidence: exact (VC6 byte match, match24; was likely) (as chat_is_motd).
 bool chat_is_emotd(const char *line)
 {
     int len = strlen(EMOTD_PREFIX);
@@ -239,7 +239,7 @@ bool chat_is_server_line(const char *line)
     return line[0] == '<';
 }
 
-// 0x43f450  Confidence: likely (only the first name skips its '$': each topic's strtok(.., "$") eats the
+// 0x43f450  Confidence: exact (VC6 byte match, match24; was likely) (only the first name skips its '$': each topic's strtok(.., "$") eats the
 // next record's '$'). Each "$name users topic " record updates a known channel's user count or adds the
 // channel; a record cut short returns without the list refresh.
 void lobby_parse_channel_list(const char *text)
@@ -265,8 +265,8 @@ void lobby_parse_channel_list(const char *text)
         if (topic == NULL)
             return;
         trim_whitespace(ch.name, name, -1);
-        trim_whitespace(ch.topic, topic, -1);
         ch.num_users = num_users;
+        trim_whitespace(ch.topic, topic, -1);
         index = lobby_find_channel_index(ch.name);
         if (index >= 0)
             lobby_channels[index].num_users = num_users;
@@ -337,7 +337,7 @@ int lobby_add_user(const char *name)
     return -1;
 }
 
-// 0x43f6f0  Confidence: likely (the size is the distance of two row addresses: both products are formed).
+// 0x43f6f0  Confidence: exact (VC6 byte match, match24; was likely) (the size is the distance of two row addresses: both products are formed).
 void lobby_remove_user(int index)
 {
     if (index >= 0 && index < lobby_num_users) {
@@ -362,7 +362,7 @@ void state_mp_lobby_leave()
     mp_local_player = NULL;
 }
 
-// 0x43f7d0  Confidence: likely (the global is the loop index: its stores follow each step). With a name:
+// 0x43f7d0  Confidence: exact (VC6 byte match, match24; was likely) (the global is the loop index: its stores follow each step). With a name:
 // find it, clear the user list and start the join; with NULL (state_mp_lobby_frame while joining): poll the
 // pending join. irc_join_channel: 1 joined, 0 still joining, else failed (error 2).
 void lobby_join_channel(const char *name)

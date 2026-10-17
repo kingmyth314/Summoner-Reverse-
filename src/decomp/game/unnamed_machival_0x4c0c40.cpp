@@ -242,7 +242,7 @@ void ai_state::machival_ai_frame()
     }
 }
 
-// 0x4c11c0  Confidence: likely (the candidates' direction is normalised although only the cone tests use
+// 0x4c11c0  Confidence: exact (VC6 byte match, match31; was likely) (the candidates' direction is normalised although only the cone tests use
 // it). Counts the candidates inside move 3's range, inside the melee cone and inside move 1's cone; the
 // cones are measured around the direction from the boss to its current target, not the offense points.
 void machival_count_targets_in_reach(Character *boss, int *in_reach, int *in_melee, int *in_move1,
@@ -266,18 +266,18 @@ void machival_count_targets_in_reach(Character *boss, int *in_reach, int *in_mel
     for (i = 0; i < count; i++, list++) {
         if (list->character == NULL)
             continue;
-        d = vector3(list->character->pos.x - boss->pos.x, 0.0f, list->character->pos.z - boss->pos.z);
         dist = list->dist;
+        d = vector3(list->character->pos.x - boss->pos.x, 0.0f, list->character->pos.z - boss->pos.z);
         d.normalize_safe();
         if (dist < machival_move_3->range_max)
             (*in_reach)++;
         if (dist < machival_move_melee->range_max) {
-            dot = dir.z * d.z + d.x * dir.x + d.y * dir.y;
+            dot = dir.y * d.y + dir.x * d.x + d.z * dir.z;
             if (dot > machival_move_melee->cos_max_angle)
                 (*in_melee)++;
         }
         if (dist < machival_move_1->range_max) {
-            dot = dir.z * d.z + d.x * dir.x + d.y * dir.y;
+            dot = dir.y * d.y + dir.x * d.x + d.z * dir.z;
             if (dot > machival_move_1->cos_max_angle)
                 (*in_move1)++;
         }

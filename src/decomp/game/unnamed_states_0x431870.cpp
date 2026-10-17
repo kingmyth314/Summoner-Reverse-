@@ -116,7 +116,7 @@ static inline void loadgame_fill_save_list(const char *level_name)
     }
 }
 
-// 0x431a40  Confidence: likely (the three copies into level_script_name: the binary has two inline strcpy
+// 0x431a40  Confidence: exact (VC6 byte match, match24; was likely) (the three copies into level_script_name: the binary has two inline strcpy
 // expansions of level_filename, one shared with the other sources). (level file name, script name or NULL
 // = the first conversation_save_table slot of the level, or the level name when it has none / is not in
 // level_script_table). The second parameter stays `void *` as summoner.h declares it (D3105).
@@ -131,9 +131,7 @@ void game_change_level(const char *filename, void *arg)
     strcpy(level_filename, filename);
     if (script) {
         strcpy(level_script_name, script);
-    } else if (level == -1) {
-        strcpy(level_script_name, level_filename);
-    } else {
+    } else if (level != -1) {
         for (i = 0; i < LEVEL_SCRIPTS_PER_LEVEL; i++) {
             if (LEVEL_SCRIPT_SLOT_NAME(level, i))
                 break;
@@ -142,6 +140,8 @@ void game_change_level(const char *filename, void *arg)
             strcpy(level_script_name, LEVEL_SCRIPT_SLOT_NAME(level, i));
         else
             strcpy(level_script_name, level_filename);
+    } else {
+        strcpy(level_script_name, level_filename);
     }
 
     // A pending savegame, or a new game's first script, counts as "entered by load" (the tutorial runs).
@@ -360,24 +360,21 @@ bool loadgame_list_dblclick_cb(int event, int value)
 // Cancel (id 1) goes back to state 1.
 bool loadgame_load_cb(int event, int value)
 {
-    if (event != UI_EVENT_PRESSED)
-        return false;
-    if (value == 0) {
-        ui_listbox_entry *level = loadgame_level_listbox.get_selected();
-        ui_listbox_entry *save = loadgame_save_listbox.get_selected();
-        if (level) {
-            loadgame_debug_hook(level->text);
-            gr_set_vsync(false);
-            if (save)
-                game_change_level(level->text, save->text);
-            else
-                game_change_level(level->text, NULL);
-            return true;
+    if (event == UI_EVENT_PRESSED) {
+        if (value == 0) {
+            ui_listbox_entry *level = loadgame_level_listbox.get_selected();
+            ui_listbox_entry *save = loadgame_save_listbox.get_selected();
+            if (level) {
+                loadgame_debug_hook(level->text);
+                gr_set_vsync(false);
+                game_change_level(level->text, save ? save->text : NULL);
+            }
+        } else if (value == 1) {
+            gameseq_set_state(STATE_BOOT);
         }
-    } else if (value == 1) {
-        gameseq_set_state(STATE_BOOT);
+        return true;
     }
-    return true;
+    return false;
 }
 
 // 0x432370  Confidence: exact. State 8 frame: Esc back to state 1, Enter presses Load.

@@ -173,7 +173,7 @@ void ai_state::evil_joseph_boss_load()
     evil_joseph_248bcec = -1;
 }
 
-// 0x4c3720  Confidence: likely (the numbers are a local array). Teleport points 1..4 (by HP band) are
+// 0x4c3720  Confidence: exact (VC6 byte match, match24; was likely) (the numbers are a local array). Teleport points 1..4 (by HP band) are
 // "$tele_03", "$tele_01", "$tele_05", "$tele_06"; index 0 ("$tele_02") is never used.
 void evil_joseph_find_teleports()
 {
@@ -467,7 +467,7 @@ void evil_joseph_pick_helper_summon(Character *boss)
     }
 }
 
-// 0x4c3f20  Confidence: likely. boss_ai_check_stage case 0xc9: a dead helper that is not active is revived
+// 0x4c3f20  Confidence: exact (VC6 byte match, match24; was likely). boss_ai_check_stage case 0xc9: a dead helper that is not active is revived
 // once its death effect has ended (or it has none); each revival lowers the summon count, so the boss
 // summons again only when every summoned helper has been revived (bosses.md "Helper revive").
 void ai_state::evil_joseph_check_stage()
@@ -536,7 +536,7 @@ int evil_joseph_get_attack_move_id()
     return evil_joseph_current_move->variation;
 }
 
-// 0x4c40d0  Confidence: likely (the next pointer is read before the test). Hides and deactivates the
+// 0x4c40d0  Confidence: exact (VC6 byte match, match24; was likely) (the next pointer is read before the test). Hides and deactivates the
 // helpers and destroys their kind-8 effects (the level scripts' call).
 void evil_joseph_destroy_effects()
 {

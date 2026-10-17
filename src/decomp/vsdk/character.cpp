@@ -182,14 +182,15 @@ int ca_character::add_skeleton(const char *filename, const char *name, bool is_s
         reader.attach_memory(ca_preload_data + offset, size);
         s->read(&reader, filename, PATH_ANY);
     } else {
-        if (f.open(filename, 1, PATH_ANY)) {
+        if (!f.open(filename, 1, PATH_ANY)) {
+            reader.attach_file(&f);
+            s->read(&reader, filename, PATH_ANY);
+            f.close();
+        } else {
             char buf[0x80];
             sprintf(buf, "Error opening : %s\n", filename);
             VSDK_ERROR(CHARACTER_CPP, 692, buf);
         }
-        reader.attach_file(&f);
-        s->read(&reader, filename, PATH_ANY);
-        f.close();
     }
     skeletons[num_anims] = s;
     num_anims++;
@@ -287,7 +288,7 @@ void ca_character::set_skeleton_trigger_time(int anim, const char *name, float f
     }
 }
 
-// 0x540df0  Confidence: likely (the printf of the two shadow messages: if / else or a ternary).
+// 0x540df0  Confidence: exact (VC6 byte match, match23; was likely; the printf of the two shadow messages: if / else or a ternary).
 // Loads the mesh name.vim into the slot and, unless the char_info of this character has flag 1, the
 // shadow mesh name_shadow.vim.
 bool ca_character::load_shadow(const char *name, ca_mesh *m)
@@ -524,7 +525,7 @@ ca_character *character_load(char **names, int num_names, bool keep_loaded, int 
     return c;
 }
 
-// 0x541500  Confidence: likely (the LOD loop's register / stack use). Never returns NULL (the table full
+// 0x541500  Confidence: exact (VC6 byte match, match23; was likely; the LOD loop's register / stack use). Never returns NULL (the table full
 // is a fatal error). Only names[0] is loaded; the other names only get a mesh slot with their file name.
 // Neither the slot allocations nor the number of names are checked (NOTES.md).
 ca_character *character_create_base(char **names, int num_names, Mempool *model_pool,
@@ -640,7 +641,7 @@ void ca_load_preload_index(const char *name)
     }
 }
 
-// 0x5418f0  Confidence: likely (the entry names addressed through the header at the start of
+// 0x5418f0  Confidence: exact (VC6 byte match, match23; was likely; the entry names addressed through the header at the start of
 // ca_preload_data: the code uses the constant 0x2de20d4).
 int ca_preload_find(const char *name, int *offset, int *size)
 {

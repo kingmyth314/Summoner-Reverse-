@@ -98,20 +98,20 @@ int nw_buffer_receive(ubyte *data, int max_len, int flags, net_addr *from, int t
     return size;
 }
 
-// 0x5175e0  Confidence: likely (the empty SOCKET_ERROR branch; FD_ZERO / FD_SET of <winsock.h> fold to two
+// 0x5175e0  Confidence: exact (VC6 byte match, match30; was likely; D8902: `return ret;` in the error branch, the timeout stored first). Earlier note: (the empty SOCKET_ERROR branch; FD_ZERO / FD_SET of <winsock.h> fold to two
 // stores).
 int nw_can_write()
 {
     fd_set write_fds;
     struct timeval timeout;
 
-    FD_ZERO(&write_fds);
-    FD_SET(nw_udp_socket, &write_fds);
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
+    FD_ZERO(&write_fds);
+    FD_SET(nw_udp_socket, &write_fds);
     int ret = select(-1, NULL, &write_fds, NULL, &timeout);
     if (ret == SOCKET_ERROR)
-        NW_DEBUG_CHECK(ret);
+        return ret;
     return ret;
 }
 

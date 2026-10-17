@@ -176,7 +176,7 @@ void gamecreate_set_difficulty(int difficulty)
     }
 }
 
-// 0x409cd0  Confidence: exact. A click outside a focused text field takes the focus away.
+// 0x409cd0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). A click outside a focused text field takes the focus away.
 int gamecreate_frame(int key)
 {
     int i;

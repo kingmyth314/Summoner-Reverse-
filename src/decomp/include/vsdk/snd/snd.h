@@ -22,7 +22,7 @@ int  snd_get_handle(const char *name, float min_range, float volume, float rollo
 int  snd_load(int handle, int streamed);                                    // 0x5209c0 the ds buffer, -1
 // (handle, volume, pan, a, unused): a goes to ds_play's last argument (decomp60).
 int  snd_play(int handle, float volume, float pan, int a, int unused);      // 0x520d50
-int  snd_play_looping(int handle, float volume, float pan, int a);          // 0x520e10
+int  snd_play_looping(int handle, float volume, float pan, int a, int unused); // 0x520e10 (D8400)
 // decomp66 (D4603): the third argument is the pan ds_play_streamed reads as a float (was int arg).
 int  snd_play_streamed(int handle, float volume, float pan);                // 0x520ea0
 int  snd_play_streamed_looping(int handle, float volume, float pan);        // 0x520f20

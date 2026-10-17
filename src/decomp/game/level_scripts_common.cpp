@@ -292,7 +292,7 @@ void level_check_triggers()
     game_frozen = false;
 }
 
-// 0x4caed0  Confidence: exact. The previous position is passed but not read.
+// 0x4caed0  Confidence: likely (marked exact; differs under VC6 8966, match27). The previous position is passed but not read.
 int level_trigger_point_left_of_line(s3d_named_path *path, const vector3 *prev, const vector3 *cur)
 {
     vector2 a, b, p;
@@ -370,7 +370,7 @@ void level_script_restart()
         if (c->info->species == 0x59 && character_is_serpent_part(c))
             continue;
         navpoint *np = (navpoint *)c->start_navpoint;
-        if (!np || np->_unk28 != 0)
+        if (!np || np->type != 0)
             continue;
         c->pos = np->pos;
         c->orient.set_from_angles(0.0f, 0.0f, ((navpoint *)c->start_navpoint)->heading);
@@ -1277,7 +1277,7 @@ void level_ambient_remove(int index)
     level_ambient_count--;
 }
 
-// 0x4cd330  Confidence: exact.
+// 0x4cd330  Confidence: likely (marked exact; differs under VC6 8966, match27).
 int level_ambient_find_at(const vector3 *pos)
 {
     int i;
@@ -1290,7 +1290,9 @@ int level_ambient_find_at(const vector3 *pos)
     return -1;
 }
 
-// 0x4cd390  Confidence: likely (two copies of the record set-up: the reused slot and the appended one).
+// 0x4cd390  Confidence: exact (VC6 byte match, match27; was likely: the flags byte stored before the
+// name's strcpy, which 8966 schedules into the copy; two copies of the record set-up: the reused slot and
+// the appended one).
 void lc_entry_add(lobj *object)
 {
     int i;
@@ -1298,14 +1300,14 @@ void lc_entry_add(lobj *object)
     for (i = 0; i < lc_entry_count; i++)
         if (lc_entries[i].object == NULL) {
             lc_entries[i].object = object;
-            strcpy(lc_entries[i].name, "");
             lc_entries[i].flags = 0;
+            strcpy(lc_entries[i].name, "");
             lc_entries[i].gold = 0;
             return;
         }
     lc_entries[lc_entry_count].object = object;
-    strcpy(lc_entries[lc_entry_count].name, "");
     lc_entries[lc_entry_count].flags = 0;
+    strcpy(lc_entries[lc_entry_count].name, "");
     lc_entries[lc_entry_count++].gold = 0;
 }
 
@@ -1655,11 +1657,16 @@ bool script_object_is_type5(int obj)
     return c->type == 5;
 }
 
-// 0x4ce220  Confidence: exact. Ends the object's "wait for go": the first waiting action from the current
-// one on (4 / 0x19: the AI goal 0xd / 2 is removed and the script advances; 0xb: its flag is set).
+// 0x4ce220  Confidence: exact (VC6 byte match, match27; was marked exact but differed). Ends the object's
+// "wait for go" (4 / 0x19: the AI goal 0xd / 2 is removed and the script advances; 0xb: its flag is set).
+// LOGIC FIX + GAME BUG (D8602): the action pointer is taken once from cur_action and never advanced
+// (0x4ce283 lea ebp before the loop; the loop end 0x4ce2b8-0x4ce2c1 only increments the index), so only the
+// current action is tested, num_actions - cur_action times. The source walked the actions. The goal lookup
+// is two calls with a selected constant (the binary's push 2 / push 0xd).
 void script_object_receive_go(int index)
 {
     script_object *so;
+    script_action *a;
     Character *c;
     int i;
 
@@ -1673,17 +1680,24 @@ void script_object_receive_go(int index)
         c->frametime = reported_frametime;
         c->ai.flags &= ~0x40;
     }
-    for (i = so->cur_action; i < so->num_actions; i++) {
-        script_action *a = &so->actions[i];
-
-        if (a->type == 4 || a->type == 0x19) {
+    for (i = so->cur_action, a = &so->actions[i]; i < so->num_actions; i++) {
+        switch (a->type) {
+        case 4:
+        case 0x19: {
             Character *sc = living_from_handle(so->handle);
             if (sc) {
-                sc->ai.goal_remove(sc->ai.goal_find(1, a->type == 0x19 ? 2 : 0xd, 0, 0, -1, 0, 0, 0x6c));
+                int g;
+                if (a->type == 0x19)
+                    g = sc->ai.goal_find(1, 2, 0, 0, -1, 0, 0, 0x6c);
+                else
+                    g = sc->ai.goal_find(1, 0xd, 0, 0, -1, 0, 0, 0x6c);
+                sc->ai.goal_remove(g);
                 script_entry_advance(so, sc);
                 return;
             }
-        } else if (a->type == SCRIPT_ACTION_WAIT_GO) {
+            break;
+        }
+        case SCRIPT_ACTION_WAIT_GO:
             a->arg0c = 1;
             return;
         }

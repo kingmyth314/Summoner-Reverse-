@@ -79,7 +79,7 @@ void mp_handle_game_query(ubyte *data, void *from)
         mp_build_game_info((net_addr *)from);
 }
 
-// 0x4ab1f0  Confidence: likely (the two version bytes are separate stores; the order of the trailing
+// 0x4ab1f0  Confidence: exact (VC6 byte match, match29; was likely) (the two version bytes are separate stores; the order of the trailing
 // fields is the binary's). ACTV_GM {version 9, 9, name\0, level, players, max players, difficulty, lowest
 // and highest character level, session state (byte), nw_network_status (byte)}.
 void mp_build_game_info(net_addr *to)
@@ -88,6 +88,8 @@ void mp_build_game_info(net_addr *to)
     ushort packet_size;
     ushort len;
     int lo, hi;
+    ubyte state = (ubyte)mp_netgame_state;
+    ubyte status = (ubyte)nw_network_status;
 
     MP_BUILD_HEADER(MP_ACTV_GM);
     data[packet_size++] = MP_GAME_INFO_VERSION;
@@ -104,19 +106,19 @@ void mp_build_game_info(net_addr *to)
     MP_ADD_DATA(lo);
     hi = mp_netgame_host_level + mp_netgame_level_above;
     MP_ADD_DATA(hi);
-    data[packet_size++] = (ubyte)mp_netgame_state;
-    data[packet_size++] = (ubyte)nw_network_status;
+    data[packet_size++] = state;
+    data[packet_size++] = status;
     MP_END_PACKET();
     mp_send_tracked(data, packet_size, *to);
 }
 
-// 0x4ab350  Confidence: likely (the deny reasons share one call through a variable; the string offsets are
+// 0x4ab350  Confidence: exact (VC6 byte match, match29; was likely) (the reason is chosen by an if / else chain and sent by one call, D8800; the string offsets are
 // 16-bit, the integer reads are not masked). JN_RQST on the host: version, open, full, difficulty unlocked,
 // level available, character level range, a join already pending, password; then accepted.
 void mp_handle_join_request(ubyte *data, void *from)
 {
     mp_join_request req;
-    ushort len;
+    int len;
     int off;
     int reason;
     int i;
@@ -125,63 +127,49 @@ void mp_handle_join_request(ubyte *data, void *from)
     len = (ushort)(strlen((char *)data) + 1);
     strcpy(req.password, (char *)data + len);
     off = (ushort)(strlen((char *)data + len) + len + 1);
-    req.char_info = *(int *)(data + off);
-    req.profile_flags = *(int *)(data + off + 4);
+    memcpy(&req.char_info, data + off, 4);
     off += 4;
+    memcpy(&req.profile_flags, data + off, 4);
     off += 4;
-    req.level = *(int *)(data + off);
-    req._unk3c = *(int *)(data + off + 4);
+    memcpy(&req.level, data + off, 4);
     off += 4;
+    memcpy(&req._unk3c, data + off, 4);
     off += 4;
-    req._unk40 = *(int *)(data + off);
-    req.checksum = *(unsigned int *)(data + off + 4);
+    memcpy(&req._unk40, data + off, 4);
+    off += 4;
+    memcpy(&req.checksum, data + off, 4);
 
+    reason = 0;
     if (req.checksum != items_table_checksum) {
         for (i = 0; i < mp_join_num_accepted_checksums; i++) {
             if (req.checksum == mp_join_accepted_checksums[i])
                 break;
         }
-        if (i == mp_join_num_accepted_checksums) {
+        if (i == mp_join_num_accepted_checksums)
             reason = MP_DENY_VERSION;
-            goto deny;
+    }
+    if (reason == 0) {
+        if (mp_netgame_state != 1)
+            reason = MP_DENY_NOT_OPEN;
+        else if (mp_netgame_num_players == mp_netgame_max_players)
+            reason = MP_DENY_FULL;
+        else if (mp_game_difficulty > 0 && !(req.profile_flags & (1 << (mp_game_difficulty + 25))))
+            reason = MP_DENY_DIFFICULTY;
+        else if (!mp_player_level_available(req.profile_flags, mp_netgame_level, mp_game_difficulty))
+            reason = MP_DENY_LEVEL_LOCKED;
+        else if (req.level < max(mp_netgame_host_level - mp_netgame_level_below, 1))
+            reason = MP_DENY_LEVEL_LOW;
+        else if (req.level > mp_netgame_host_level + mp_netgame_level_above)
+            reason = MP_DENY_LEVEL_HIGH;
+        else if (mp_netgame_flags & MP_NETGAME_JOIN_PENDING)
+            reason = MP_DENY_JOIN_PENDING;
+        else if (strcmp(req.password, mp_netgame_password) != 0)
+            reason = MP_DENY_PASSWORD;
+        else {
+            mp_accept_join_request(req, *(net_addr *)from);
+            return;
         }
     }
-    if (mp_netgame_state != 1) {
-        reason = MP_DENY_NOT_OPEN;
-        goto deny;
-    }
-    if (mp_netgame_num_players == mp_netgame_max_players) {
-        reason = MP_DENY_FULL;
-        goto deny;
-    }
-    if (mp_game_difficulty > 0 && !(req.profile_flags & (1 << (mp_game_difficulty + 25)))) {
-        reason = MP_DENY_DIFFICULTY;
-        goto deny;
-    }
-    if (!mp_player_level_available(req.profile_flags, mp_netgame_level, mp_game_difficulty)) {
-        reason = MP_DENY_LEVEL_LOCKED;
-        goto deny;
-    }
-    if (req.level < max(mp_netgame_host_level - mp_netgame_level_below, 1)) {
-        reason = MP_DENY_LEVEL_LOW;
-        goto deny;
-    }
-    if (req.level > mp_netgame_host_level + mp_netgame_level_above) {
-        reason = MP_DENY_LEVEL_HIGH;
-        goto deny;
-    }
-    if (mp_netgame_flags & MP_NETGAME_JOIN_PENDING) {
-        reason = MP_DENY_JOIN_PENDING;
-        goto deny;
-    }
-    if (strcmp(req.password, mp_netgame_password) != 0) {
-        reason = MP_DENY_PASSWORD;
-        goto deny;
-    }
-    mp_accept_join_request(req, *(net_addr *)from);
-    return;
-
-deny:
     mp_send_deny_join(reason, *(net_addr *)from);
 }
 
@@ -259,7 +247,7 @@ void mp_send_accept_join(mp_player *p)
     multi_send_packet_buffered(data, packet_size, p, true);
 }
 
-// 0x4ab780  Confidence: likely (the slot search's result is never used, D5211). Saves the characters, then
+// 0x4ab780  Confidence: exact (VC6 byte match, match29; was likely) (the slot search's result is never used, D5211). Saves the characters, then
 // loads the level of mp_netgame_level with the "<level>_m1" script: through game_change_level, or (game_flags
 // 0x200) straight into state 4. No level: the wait state.
 void mp_change_level(int entry_point)
@@ -274,8 +262,8 @@ void mp_change_level(int entry_point)
         return;
     }
     level = level_table[mp_netgame_level].id;
+    sprintf(script, "%s_m1", level_script_table[level].name);
     ls = &level_script_table[level];
-    sprintf(script, "%s_m1", ls->name);
     for (slot = 0; slot < 7; slot++) {
         conversation_save_info *c = CONVERSATION_SAVE_INFO(level, slot);
         if (!c->name || _stricmp(c->name, script) == 0)

@@ -2858,12 +2858,14 @@ void Character::update_locomotion_anim()
         instance->set_state_weight(set.anim[i], set.weight[i]);
 }
 
-// 0x45a6e0  Confidence: likely (d at ebp-4, the block's diff at -0x18, this -0x1c). Maps a speed to
+// 0x45a6e0  Confidence: exact (d at ebp-4, 16 unused bytes, the block's diff at -0x18, this -0x1c; the
+// first case returns, D8707). Maps a speed to
 // loco_blend: up to the walk speed 0..0.5 (0..1 when walk and run speeds are within 0.01), above it
 // 0.5..1 between walk and run speed.
 void Character::set_locomotion_speed(float speed)
 {
     float d;
+    float spare[4];     // unused: the binary's frame is 0x1c (D8707)
 
     if (run_speed - 0.01f <= speed)
         speed = run_speed;
@@ -2876,12 +2878,12 @@ void Character::set_locomotion_speed(float speed)
                 loco_blend = 0.0f;
             else
                 loco_blend = speed / walk_speed;
-        } else {
-            if (walk_speed <= 0.0f)
-                loco_blend = 0.0f;
-            else
-                loco_blend = speed / walk_speed / 2.0f;
+            return;
         }
+        if (walk_speed <= 0.0f)
+            loco_blend = 0.0f;
+        else
+            loco_blend = speed / walk_speed / 2.0f;
     } else {
         speed -= walk_speed;
         d = run_speed - walk_speed;
@@ -3058,39 +3060,41 @@ bool Character::clip_move_to_navmesh(vector3 *move)
 // 0x45b6b0 vector3::operator-(const vector3 &) const: the COMDAT as above. Confidence: exact
 // (compiler-generated from the header).
 
-// 0x45b6e0  Confidence: likely. Frame: invisible -4, count -8, any -0xc, i -0x10, paralyzed -0x14, v
-// -0x18, res -0x1c / -0x20, src -0x24, fx -0x28, self -0x2c, this -0x30, the switch values -0x34 ..
-// -0x40. Per frame: the item statuses (not on a multiplayer client), then per active status the tint,
-// the effect handle, the periodic effect (regen / poison add the value as HP, firewall / blizzard deal
+// 0x45b6e0  Confidence: exact (D8707: locals named for their D6101 buckets, the expiry code inside the
+// `case 0: case 2:` of the kind switch, the magic clamp in one expression). Frame: invis -4, n_active
+// -8, some -0xc, s -0x10, petrified -0x14, v -0x18, res -0x1c, res_magic -0x20, src -0x24, aura -0x28,
+// me -0x2c, this -0x30, the switch values -0x34 .. -0x40. Per frame: the item statuses (not on a
+// multiplayer client), then per active status the tint, the effect handle, the periodic effect (regen /
+// poison add the value as HP, firewall / blizzard deal
 // it resisted by the spell's damage type and by magic, the dark wall casts spells 7, 8 and 0x17 on the
 // character: through spell_cast_execute in multiplayer), and the expiry. The ice coffin (16) ends when
 // its value (the coffin's HP) is used up. Invisibility (8) fades the character (instance +0xb4 = 20)
 // unless an effect of kind 5 / 6 is attached; paralysis (10) shows the stone effect.
 void Character::update_status_effects()
 {
-    bool invisible;
-    int count;
-    bool any;
-    int i;
-    bool paralyzed;
-    float v;
+    int n_active;
+    bool invis;
+    bool some;
+    int s;
     float res;
+    float v;
+    bool petrified;
     float res_magic;
     Character *src;
-    effect_object *fx;
-    Character *self;
+    effect_object *aura;
+    Character *me;
 
-    any = false;
+    some = false;
     if (!MP_IS_CLIENT())
         refresh_item_status_effects();
     if (game_flags & GF_CUTSCENE)
         return;
-    count = 0;
-    for (i = 0; i < NUM_STATUS_EFFECTS; i++) {
-        if (status[i].kind == -1)
+    n_active = 0;
+    for (s = 0; s < NUM_STATUS_EFFECTS; s++) {
+        if (status[s].kind == -1)
             continue;
-        any = true;
-        switch (i) {
+        some = true;
+        switch (s) {
         case STATUS_BLIND:
             instance->set_tint(0, 0, 0);
             break;
@@ -3125,99 +3129,99 @@ void Character::update_status_effects()
             instance->set_tint(0x80, 0x37, 0);
             break;
         }
-        if (status[i].fx != -1 && fx_is_finished(status[i].fx, 0))
-            status[i].fx = -1;
-        if (status[i].kind == 1 || status[i].timer.valid()) {
-            if (!MP_IS_CLIENT() && status[i].tick_timer.elapsed() && status[i].tick_ms > 0) {
-                switch (i) {
+        if (status[s].fx != -1 && fx_is_finished(status[s].fx, 0))
+            status[s].fx = -1;
+        if (status[s].kind == 1 || status[s].timer.valid()) {
+            if (!MP_IS_CLIENT() && status[s].tick_timer.elapsed() && status[s].tick_ms > 0) {
+                switch (s) {
                 case STATUS_REGEN:
                 case STATUS_POISON:
-                    add_hp(status[i].value, status[i].source, 0, false);
+                    add_hp(status[s].value, status[s].source, 0, false);
                     break;
                 case STATUS_FIREWALL:
                 case STATUS_BLIZZARD:
-                    v = status[i].value;
+                    v = status[s].value;
                     if (!No_resist) {
                         if (v < 0.0f) {
-                            res = get_resistance(spells[status[i].spell].damage_type);
+                            res = get_resistance(spells[status[s].spell].damage_type);
                             v = (1.0f - res) * v;
                         }
                         if (v < 0.0f) {
                             res_magic = get_resistance(3);
-                            v = (1.0f - res_magic) * v;
-                            ASSIGN_MIN(v, v, 0.0f);
+                            if ((v = (1.0f - res_magic) * v) < 0.0f)
+                                v = v;
+                            else
+                                v = 0.0f;
                         }
                     }
-                    add_hp(v, status[i].source, 0, false);
+                    add_hp(v, status[s].source, 0, false);
                     break;
                 case STATUS_DARK_WALL:
                     if (game_flags & GF_MULTIPLAYER) {
-                        src = living_from_handle(status[i].source);
+                        src = living_from_handle(status[s].source);
                         spell_cast_execute(src, 7, handle, NULL, -1, 0, 0, 0);
                         spell_cast_execute(src, 8, handle, NULL, -1, 0, 0, 0);
                         spell_cast_execute(src, 0x17, handle, NULL, -1, 0, 0, 0);
                     } else {
-                        get_hit_by_spell(7, status[i].source, 0, 0, 8, 0, 0, 0);
-                        get_hit_by_spell(8, status[i].source, 0, 0, 8, 0, 0, 0);
-                        get_hit_by_spell(0x17, status[i].source, 0, 0, 8, 0, 0, 0);
+                        get_hit_by_spell(7, status[s].source, 0, 0, 8, 0, 0, 0);
+                        get_hit_by_spell(8, status[s].source, 0, 0, 8, 0, 0, 0);
+                        get_hit_by_spell(0x17, status[s].source, 0, 0, 8, 0, 0, 0);
                     }
                     break;
                 }
-                status[i].tick_timer.SetTimeout(status[i].tick_ms);
+                status[s].tick_timer.SetTimeout(status[s].tick_ms);
             }
-            switch (status[i].kind) {
+            switch (status[s].kind) {
             case 0:
             case 2:
-                break;
-            default:
-                continue;
-            }
-            if (i == STATUS_ICE_COFFIN) {
-                if (!MP_IS_CLIENT() && status[i].timer.valid() && status[i].value <= 0.0f)
-                    status_effect_cure(i, true, true);
-                else
-                    count++;
-            } else if (!MP_IS_CLIENT() && status[i].timer.elapsed()) {
-                status_effect_cure(i, true, true);
-                if (i == STATUS_SILENCE)
-                    ai.flags &= ~0x80;
-            } else {
-                switch (i) {
-                case STATUS_INVISIBLE:
-                case STATUS_PARALYZE:
-                case STATUS_FIREWALL:
-                case STATUS_BLIZZARD:
-                    break;
-                default:
-                    count++;
-                    break;
+                if (s == STATUS_ICE_COFFIN) {
+                    if (!MP_IS_CLIENT() && status[s].timer.valid() && status[s].value <= 0.0f)
+                        status_effect_cure(s, true, true);
+                    else
+                        n_active++;
+                } else if (!MP_IS_CLIENT() && status[s].timer.elapsed()) {
+                    status_effect_cure(s, true, true);
+                    if (s == STATUS_SILENCE)
+                        ai.flags &= ~0x80;
+                } else {
+                    switch (s) {
+                    case STATUS_INVISIBLE:
+                    case STATUS_PARALYZE:
+                    case STATUS_FIREWALL:
+                    case STATUS_BLIZZARD:
+                        break;
+                    default:
+                        n_active++;
+                        break;
+                    }
                 }
+                break;
             }
         }
     }
-    paralyzed = status[STATUS_PARALYZE].kind != -1;
-    invisible = status[STATUS_INVISIBLE].kind != -1;
-    if (!paralyzed && invisible) {
-        for (fx = fx_active_list.fx_next; fx != &fx_active_list; fx = fx->fx_next) {
-            if ((fx->kind == 6 || fx->kind == 5) && fx->owner == handle)
+    petrified = status[STATUS_PARALYZE].kind != -1;
+    invis = status[STATUS_INVISIBLE].kind != -1;
+    if (!petrified && invis) {
+        for (aura = fx_active_list.fx_next; aura != &fx_active_list; aura = aura->fx_next) {
+            if ((aura->kind == 6 || aura->kind == 5) && aura->owner == handle)
                 break;
         }
-        if (fx == &fx_active_list)
+        if (aura == &fx_active_list)
             instance->_unkb4 = 0x14;
     } else if (!(flags & 0x400) && !ai.is_mode(AI_STATE_HIDING, -1)) {
         instance->_unkb4 = 0xff;
     }
-    if (paralyzed) {
+    if (petrified) {
         instance->set_tint(0xff, 0xff, 0xff);
-        self = living_from_handle(handle);
-        if (self == NULL || !(self->flags & 0x80000))
+        me = living_from_handle(handle);
+        if (me == NULL || !(me->flags & 0x80000))
             status_stone_fx(handle);
     } else {
         fx_stop_status_aura(handle);
     }
-    if (count <= 0)
+    if (n_active <= 0)
         fx_stop_status_effects(handle);
-    else if (!paralyzed && !invisible)
+    else if (!petrified && !invis)
         fx_get_status_holder(handle);
 }
 
@@ -3515,16 +3519,17 @@ void Character::play_footstep(vector3 *at, bool left_foot)
     }
 }
 
-// 0x45d690  Confidence: likely (p -0xc, value -0x1c, w -0x18, this -0x70; the rest inline
-// temporaries). A foot's animation trigger plays its footstep at the foot tag; the left foot first.
+// 0x45d690  Confidence: exact (p -0xc, tag_value -0x1c (named for its D6101 bucket, D8707), w -0x18,
+// this -0x70; the rest inline temporaries). A foot's animation trigger plays its footstep at the foot
+// tag; the left foot first.
 void Character::update_footsteps()
 {
     vector3 p;
     vector3 w;
-    int value;
+    int tag_value;
 
     if (foot_tag_l != -1) {
-        instance->get_tag_pos(&p, &value, foot_tag_l);
+        instance->get_tag_pos(&p, &tag_value, foot_tag_l);
         w = p + pos;
         if (instance->anim_trigger_hit("left-foot")) {
             play_footstep(&w, true);
@@ -3532,7 +3537,7 @@ void Character::update_footsteps()
         }
     }
     if (foot_tag_r != -1) {
-        instance->get_tag_pos(&p, &value, foot_tag_r);
+        instance->get_tag_pos(&p, &tag_value, foot_tag_r);
         w = p + pos;
         if (instance->anim_trigger_hit("right-foot"))
             play_footstep(&w, false);
@@ -3586,28 +3591,29 @@ bool Character::can_cast_spell(int spell)
     return get_skill(spell_group_skill[group]) >= spells[spell].skill;
 }
 
-// 0x45da60  Confidence: likely. Frame: effect -4, fx -8, move -0xc, anim -0x10, recovery -0x14, base
-// -0x18, fx_obj -0x1c, inst -0x20, this -0x24, the switch value -0x28. Plays the cast move (bosses keep
+// 0x45da60  Confidence: exact (locals named for their D6101 buckets, D8707). Frame: spell_fx -4, fx_id -8,
+// mi -0xc, anim -0x10, recovery -0x14, fx_base -0x18, fx_obj -0x1c, vi -0x20, this -0x24, the switch
+// value -0x28. Plays the cast move (bosses keep
 // their current animation), attaches the cast effect (Pyrul, species 0xc4, at its missile bone),
 // launches the missile spells, starts the recovery (the effect's length / 15 plus the +Recovery time:
 // field) and takes the AP: the summon spells 0x26-0x35 cost their skill's AP, the others the spell
 // cost. Returns the animation or -1.
 int Character::perform_spell_cast(int spell, bool arg)
 {
-    const char *effect;
-    int fx;
-    move_info *move;
+    int fx_id;
+    const char *spell_fx;
     int anim;
+    move_info *mi;
     int recovery;
-    vfx_base *base;
     effect_object *fx_obj;
-    vfx_instance *inst;
+    vfx_base *fx_base;
+    vfx_instance *vi;
 
     if (type != 9) {
-        move = find_move(7, spells[spell].variation);
-        if (move == NULL)
+        mi = find_move(7, spells[spell].variation);
+        if (mi == NULL)
             return -1;
-        anim = play_move((int)move, 1.0f, 0, 0, arg);
+        anim = play_move((int)mi, 1.0f, 0, 0, arg);
         if (anim == -1)
             return -1;
     } else {
@@ -3615,13 +3621,13 @@ int Character::perform_spell_cast(int spell, bool arg)
     }
     if (type == 7 && (spells[spell].flags & SPELL_FADE_PROPS))
         character_start_move_fade(this, anim);
-    effect = spell_get_cast_effect(spell);
-    if (effect != NULL) {
+    spell_fx = spell_get_cast_effect(spell);
+    if (spell_fx != NULL) {
         if (info->species == 0xc4)
-            fx = fx_attach_to_character(effect, handle, pyrul_missile_bone, anim, 0, 0);
+            fx_id = fx_attach_to_character(spell_fx, handle, pyrul_missile_bone, anim, 0, 0);
         else
-            fx = fx_attach_to_character(effect, handle, -1, anim, 0, 0);
-        if (fx == -1)
+            fx_id = fx_attach_to_character(spell_fx, handle, -1, anim, 0, 0);
+        if (fx_id == -1)
             return -1;
         spell_play_cast_sound(spell, this);
         switch (spell) {
@@ -3632,21 +3638,21 @@ int Character::perform_spell_cast(int spell, bool arg)
         case 0x4d:
         case 0x4e:
         case 0x5b:
-            spell_launch_missile(this, fx);
+            spell_launch_missile(this, fx_id);
             break;
         }
-        fx_obj = (effect_object *)obj_from_handle(fx);
+        fx_obj = (effect_object *)obj_from_handle(fx_id);
         if (fx_obj == NULL)
             return -1;
         fx_obj->spell = spell;
         fx_obj->fx_flags |= 0x100;
-        inst = fx_obj->instance;
-        base = effect_get_base(inst->id_bits >> 9);
-        if (base == NULL)
+        vi = fx_obj->instance;
+        fx_base = effect_get_base((vi->id_bits >> 9) & 0x7fffff);   // the 23-bit id field, read unoptimised
+        if (fx_base == NULL)
             return -1;
-        recovery = (int)(base->num_frames / 15.0f);
+        recovery = (int)(fx_base->num_frames / 15.0f);
         start_spell_recovery(spell, recovery, spells[spell].recovery_time);
-        cast_effect_track_add(spell, fx);
+        cast_effect_track_add(spell, fx_id);
     }
     if (Use_spell_ap && !MP_IS_CLIENT()) {
         if (spell >= 0x26 && spell < 0x36)
@@ -5042,7 +5048,7 @@ void Character::say(const char *text, float seconds)
 {
     int lens[5];
     int offsets[5];
-    char quoted[240];
+    char quoted[256];
     character_speech_record *r;
     float best;
     int total;
@@ -5050,6 +5056,7 @@ void Character::say(const char *text, float seconds)
     int n;
     int i;
 
+    best = 100.0f;
     slot = -1;
     for (i = 0; i < MAX_CHARACTER_SPEECH; i++) {
         if (character_speech[i].speaker == handle) {
@@ -5058,7 +5065,6 @@ void Character::say(const char *text, float seconds)
         }
     }
     if (slot == -1) {
-        best = 100.0f;
         for (i = 0; i < MAX_CHARACTER_SPEECH; i++) {
             if (character_speech[i].speaker == -1) {
                 slot = i;
@@ -5072,10 +5078,10 @@ void Character::say(const char *text, float seconds)
         if (slot == -1)
             return;
     }
+    character_speech[slot].time_left = seconds;
+    memset(character_speech[slot].text, 0, 0xff);
+    character_speech[slot].speaker = handle;
     r = &character_speech[slot];
-    r->time_left = seconds;
-    memset(r->text, 0, 0xff);
-    r->speaker = handle;
     strcpy(quoted, "\"");
     strcat(quoted, text);
     strcat(quoted, "\"");
@@ -5353,7 +5359,7 @@ float Character::get_resistance(int type)
     return resistance_level_damage_mult(info->resistance.level[type]) + resist_equip_bonus(type);
 }
 
-// 0x4627c0  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
+// 0x4627c0  Confidence: exact (8966: the item type through a local, D8700).
 int Character::equip_bonus(int stat)
 {
     int sum;
@@ -5363,8 +5369,10 @@ int Character::equip_bonus(int stat)
     sum = 0;
     for (i = 0; i < 10; i++) {
         if (equipment[i] != NULL) {
+            ItemType *t = equipment[i]->type;
+
             for (j = 0; j < 2; j++) {
-                item_stat_mod *m = equipment[i]->type->stat_mods[j];
+                item_stat_mod *m = t->stat_mods[j];
 
                 if (m != NULL && m->stat == stat)
                     sum += m->value;
@@ -5464,17 +5472,12 @@ void Character::apply_hero_model(int heavy)
         set_underwear_textures(i, tex[i]);
 }
 
-// 0x462a20  Confidence: likely (both tables are locals built at every call). Puts a part's texture (or
-// the underwear default; Joseph's arms with the alternate cloak flag get "Arms_Underwear1A") on the hero
-// model's texture slot; in multiplayer on the appearance bitmap instead. Joseph and Jekhar have no cape.
+// 0x462a20  Confidence: exact (both tables are locals built at every call; defaults declared first,
+// D8700). Puts a part's texture (or the underwear default; Joseph's arms with the alternate cloak flag
+// get "Arms_Underwear1A") on the hero model's texture slot; in multiplayer on the appearance bitmap
+// instead. Joseph and Jekhar have no cape.
 void Character::set_underwear_textures(int part, const char *texture)
 {
-    int slots[4][6] = {
-        { 4, 0, -1, 1, 2, 3 },
-        { 1, 0, -1, 3, 4, 2 },
-        { 5, 2, 0, 1, 4, 3 },
-        { 5, 1, 0, 3, 4, 2 },
-    };
     const char *defaults[4][6] = {
         { "Joseph05.tga", "Torso_Uwear_Josp.tga", NULL, "Thigh_Uwear_Josp.tga", "Leg_Uwear_Josp.tga",
           "Arms_Uwear_Josp.tga" },
@@ -5484,6 +5487,12 @@ void Character::set_underwear_textures(int part, const char *texture)
           "Leg_Uwear_Flec.tga", "Arms_Uwear_Flec.tga" },
         { "Rosal06.tga", "Torso_Uwear_Ros.tga", "Cape_Uwear_Ros.tga", "Thigh_Uwear_Ros.tga",
           "Leg_Uwear_Ros.tga", "Arms_Uwear_Ros.tga" },
+    };
+    int slots[4][6] = {
+        { 4, 0, -1, 1, 2, 3 },
+        { 1, 0, -1, 3, 4, 2 },
+        { 5, 2, 0, 1, 4, 3 },
+        { 5, 1, 0, 3, 4, 2 },
     };
     int species;
     int *app;
@@ -5508,23 +5517,18 @@ void Character::set_underwear_textures(int part, const char *texture)
         bm_replace_file(app[slots[info->species][part]], texture, -1);
 }
 
-// 0x462c80  Confidence: likely. Joseph's alternate cloak texture (CF 0x2000000); `force` re-applies it
-// unchanged.
+// 0x462c80  Confidence: exact (one else-if chain shares the force test, D8700). Joseph's alternate cloak
+// texture (CF 0x2000000); `force` re-applies it unchanged.
 void Character::set_armour_alt_texture(bool on, bool force)
 {
     if (info->species != SPECIES_JOSEPH)
         return;
-    if (on) {
-        if (!(flags & 0x2000000))
-            flags |= 0x2000000;
-        else if (!force)
-            return;
-    } else {
-        if (flags & 0x2000000)
-            flags &= ~0x2000000;
-        else if (!force)
-            return;
-    }
+    if (on && !(flags & 0x2000000))
+        flags |= 0x2000000;
+    else if (!on && (flags & 0x2000000))
+        flags &= ~0x2000000;
+    else if (!force)
+        return;
     if (equipment[3] != NULL) {
         char **t = equipment[3]->type->armour_textures[0][info->species];
 
@@ -5559,16 +5563,21 @@ Character *Character::get_rider()
     return NULL;
 }
 
-// 0x462d60  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
+// 0x462d60  Confidence: exact. The binary tests the low byte of the flags loaded as a dword (`shr al`,
+// D8700: a register copy narrowed to ubyte).
 bool Character::is_mount()
 {
-    return (mount_flags >> 1) & 1;
+    unsigned int f = mount_flags;
+
+    return ((ubyte)f & 2) ? true : false;
 }
 
-// 0x462d70  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
+// 0x462d70  Confidence: exact (as is_mount, D8700).
 bool Character::is_rider()
 {
-    return mount_flags & 1;
+    unsigned int f = mount_flags;
+
+    return ((ubyte)f & 1) ? true : false;
 }
 
 // 0x462d80  Confidence: exact.

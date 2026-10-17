@@ -204,7 +204,7 @@ void glide_unload_dll()
     }
 }
 
-// 0x5473b0  Confidence: exact. The order of the GetProcAddress calls is the order of the stores; the
+// 0x5473b0  Confidence: likely (differs under cl 8966 in match26). The order of the GetProcAddress calls is the order of the stores; the
 // addresses of grCheckForRoom (0x2f0e9a8) and guTexGetMipMapInfo (0x2f0e9ac) are out of line with it.
 int glide_load_dll()
 {
@@ -355,8 +355,7 @@ int glide_load_dll()
 // 0x5479a0 (body): `vector constructor iterator`(glide_tmus, 0x48, 2, glide_record::glide_record). Confidence: exact.
 glide_record glide_tmus[2];                           // 0x2f0eb70
 
-// 0x5479c0  Confidence: likely (the KB / MB value is kept on the FPU stack: a local float or the
-// expression twice).
+// 0x5479c0  Confidence: exact (a byte match under /Ox /Ob0 /Ow, D8500).
 void gr_glide_tcache_init()
 {
     int i;
@@ -380,40 +379,41 @@ void gr_glide_tcache_init()
     glide_texture_mem_used = 0;
 }
 
-// 0x547a90  Confidence: likely (the empty-entry branch at the top; the four per-TMU stores written out).
+// 0x547a90  Confidence: exact.
 void gr_glide_tcache_free_entry(glide_tcache_entry *entry, bool release_tmus, bool free_sections)
 {
     int i;
-    if (entry->num_sections == 0) {
-        entry->num_sections = 0;
-        entry->sections = NULL;
-        return;
-    }
-    if (release_tmus) {
-        for (i = 0; i < 2; i++)
-            glide_tmus[i].free_texture_thunk(entry - glide_tcache_entries);
-    }
-    if (free_sections) {
-        for (i = 0; i < entry->num_sections; i++) {
-            if (entry->sections[i].data) {
-                delete entry->sections[i].data;
-                entry->sections[i].data = NULL;
-                glide_texture_mem_used -= entry->sections[i].size;
-                entry->sections[i].size = 0;
+    if (entry->num_sections != 0) {
+        if (release_tmus) {
+            for (i = 0; i < 2; i++)
+                glide_tmus[i].free_texture_thunk(entry - glide_tcache_entries);
+        }
+        if (free_sections) {
+            for (i = 0; i < entry->num_sections; i++) {
+                if (entry->sections[i].data) {
+                    delete entry->sections[i].data;
+                    entry->sections[i].data = NULL;
+                    glide_texture_mem_used -= entry->sections[i].size;
+                    entry->sections[i].size = 0;
+                }
+            }
+            entry->num_sections = 0;
+            delete entry->sections;
+            entry->sections = NULL;
+        } else {
+            for (i = 0; i < entry->num_sections; i++) {
+                entry->sections[i].tmu_addr[0] = 0;
+                entry->sections[i].tmu_size[0] = 0;
+                entry->sections[i].tmu_addr[1] = 0;
+                entry->sections[i].tmu_size[1] = 0;
             }
         }
-        entry->num_sections = 0;
-        delete entry->sections;
-        entry->sections = NULL;
     } else {
-        for (i = 0; i < entry->num_sections; i++) {
-            entry->sections[i].tmu_addr[0] = 0;
-            entry->sections[i].tmu_size[0] = 0;
-            entry->sections[i].tmu_addr[1] = 0;
-            entry->sections[i].tmu_size[1] = 0;
-        }
+        entry->num_sections = 0;
+        entry->sections = NULL;
     }
 }
+
 
 // 0x547b60  Confidence: exact.
 void gr_glide_tcache_close()
@@ -959,7 +959,7 @@ int gr_glide_get_section_count(int bm)
     return glide_tcache_entries[bm_get_current_frame(bm)].num_sections;
 }
 
-// 0x549500  Confidence: exact.
+// 0x549500  Confidence: likely (differs under cl 8966 in match26).
 void gr_glide_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h)
 {
     glide_section *sec = &glide_tcache_entries[bm_get_current_frame(bm)].sections[section];
@@ -1117,7 +1117,7 @@ void glide_record::free_texture(int texture)
     }
 }
 
-// 0x549950  Confidence: exact. The owner's section loses this TMU's copy; the block stays in its list.
+// 0x549950  Confidence: likely (differs under cl 8966 in match26). The owner's section loses this TMU's copy; the block stays in its list.
 void glide_record::evict_block(int index)
 {
     glide_block *b = &blocks[index];
@@ -1246,9 +1246,8 @@ int glide_record::new_block()
         used_head = index;
         used_tail = index;
     } else {
-        glide_block *tail = &blocks[used_tail];
-        b->next = tail->next;
-        tail->next = index;
+        b->next = blocks[used_tail].next;
+        blocks[used_tail].next = index;
         used_tail = index;
     }
     return index;
@@ -1941,15 +1940,15 @@ void gr_glide_line_3d(gr_vertex *v0, gr_vertex *v1, gr::Mode mode)
     glide_grDrawLine(&a, &b);
 }
 
-// 0x54b240  Confidence: likely (the order of the uv products). The vertex flags (+0x1a): 8 own alpha,
+// 0x54b240  Confidence: exact. The vertex flags (+0x1a): 8 own alpha,
 // 4 own colour (through gr_color_gamma_lut), 1 uv. No check of nv against the 25 vertices.
 void gr_glide_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
 {
     if (GLIDE_WINDOW_CLOSED)
         return;
     gr_glide_set_bitmap(mode, gr_texture);
-    for (int i = 0; i < nv; i++) {
-        GrVertex *gv = &glide_poly_vertices[i];
+    GrVertex *gv = glide_poly_vertices;
+    for (int i = 0; i < nv; i++, gv++) {
         ubyte flags = verts[i]->_unk1a;
         if (flags & 8)
             gv->a = (float)verts[i]->a;
@@ -1971,11 +1970,12 @@ void gr_glide_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
         gv->oow = verts[i]->sw;
         if (verts[i]->_unk1a & 1) {
             gv->tmuvtx[0].sow = gv->oow * verts[i]->u * gr_glide_texture_scale_u;
-            gv->tmuvtx[0].tow = gr_glide_texture_scale_v * verts[i]->v * gv->oow;
+            gv->tmuvtx[0].tow = gv->oow * (gr_glide_texture_scale_v * verts[i]->v);
         }
     }
     glide_grDrawPolygonVertexList(nv, glide_poly_vertices);
 }
+
 
 // 0x54b3a0  Confidence: likely (the loops over the vertices strength-reduced to running offsets;
 // vlist is filled and never read). One polygon per pass; a multitexture pass takes the next pass as the

@@ -82,7 +82,7 @@ navpoint ls_worldmap1_start;                                 // 0x257ed20
 // 0x4fb500  Confidence: exact. init_ls_worldmap1_timer: "mov ecx, 0x257ed08 / jmp GameTimer::GameTimer".
 GameTimer ls_worldmap1_encounter_timer;                      // 0x257ed08
 
-// 0x4fb510  Confidence: likely (the discarded first game_stage_get call). level_script_table init.
+// 0x4fb510  Confidence: exact (VC6 byte match, match24; was likely) (the discarded first game_stage_get call). level_script_table init.
 void ls_worldmap1_init()
 {
     Character *c;
@@ -306,7 +306,7 @@ void ls_worldmap1_setup_liangshan()
 
 // ---- random encounters -----------------------------------------------------------------------------
 
-// 0x4fbd80  Confidence: exact. level_script_table frame. On an encounter the leader's position, plane and
+// 0x4fbd80  Confidence: likely (differs under cl 8966, match24; was exact). level_script_table frame. On an encounter the leader's position, plane and
 // heading are saved, a picker sets level_filename / level_script_name, and the level is changed.
 void ls_worldmap1_frame()
 {
@@ -501,7 +501,7 @@ navpoint *ls_worldmap1_nearest_grass_nav(float *out_dist)
     return &navpoints[found];
 }
 
-// 0x4fc4b0  Confidence: likely (shared tails; the Zane case has no return and is overwritten by the general
+// 0x4fc4b0  Confidence: exact (VC6 byte match, match24; was likely) (shared tails; the Zane case has no return and is overwritten by the general
 // rolls below it, see NOTES). Stage 4..8: the ring bosses first (each also remembers the map in
 // level_prev_filename), then by terrain.
 void ls_worldmap1_pick_encounter_stage4()

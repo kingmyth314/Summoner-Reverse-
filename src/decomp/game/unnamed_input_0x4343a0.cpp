@@ -56,13 +56,21 @@ bool player_mouse_held;               // 0x5fccb6
 bool camera_edge_mouse_held;          // 0x5fccb7 (name ours)
 bool camera_edge_turn_blocked;        // 0x5fccb8 (name ours)
 
-// 0x4343d0  Confidence: likely (the two `not al; test al, 1` tests are written as slew_mode_on()).
+// 0x4343d0  Confidence: exact (VC6 byte match, match24; was likely) (the two `not al; test al, 1` tests are slew_mode_on(), each an if / else of two calls, D8304).
 void cmd_slew()
 {
-    if (calling_a_command_function)
-        slew_set_enabled(!slew_mode_on());
-    if (checking_status_for_command)
-        print_to_console(slew_mode_on() ? "Slew mode is on\n" : "Slew mode is off\n", 0);
+    if (calling_a_command_function) {
+        if (slew_mode_on())
+            slew_set_enabled(0);
+        else
+            slew_set_enabled(1);
+    }
+    if (checking_status_for_command) {
+        if (slew_mode_on())
+            print_to_console("Slew mode is on\n", 0);
+        else
+            print_to_console("Slew mode is off\n", 0);
+    }
     if (doing_help_for_comand)
         print_to_console("Usage: slew\n", 0);
 }
@@ -145,7 +153,7 @@ void player_read_mouse_input(unsigned int *in)
 // this unit after its first user and kept by the linker for all 91 callers (identical bare RETs folded).
 // Compiler-generated from the header; nothing to write. Confidence: exact.
 
-// 0x434660  Confidence: likely (local order; the dead edge test below is reproduced as the code has it).
+// 0x434660  Confidence: exact (VC6 byte match, match24; was likely) (local order; the dead edge test below is reproduced as the code has it).
 // Left / Right (and the screen edges) turn, Up / Down and the wheel zoom; on the world map (level 4) only
 // the turn. GAME BUG (latent, NOTES.md B1): camera_edge_mouse_held is set from PI_LEFT_HELD just before the test
 // `camera_edge_mouse_held && !(in[0] & PI_LEFT_HELD)`, which can never be true, so
@@ -169,9 +177,13 @@ void camera_process_input(unsigned int *in)
     }
     if (config_invert_camera)
         yaw = -yaw;
-    camera_edge_mouse_held = (in[0] & PI_LEFT_HELD) != 0;
+    // D8303: the binary loads the whole word and shifts AL (mov eax, [esi]; shr al, 4; and al, 1): a one-bit
+    // bool field of a copied input word. Reproduced through a local copy read as bool bit-fields (device).
+    struct bits { bool b0 : 1; bool b1 : 1; bool b2 : 1; bool b3 : 1; bool left_held : 1; };
+    unsigned int v = in[0];
+    camera_edge_mouse_held = ((bits *)&v)->left_held;
     if (game_mouse_x < 3 || game_mouse_x > gr_screen_width() - 4) {
-        if (camera_edge_mouse_held && !(in[0] & PI_LEFT_HELD)) {
+        if (camera_edge_mouse_held & (~in[0] >> 4) & 1) {
             camera_edge_mouse_held = false;
             camera_edge_turn_blocked = true;
         } else if (!camera_edge_turn_blocked && !mouse_is_down(0) && !mouse_is_down(1)) {
@@ -191,7 +203,7 @@ void camera_process_input(unsigned int *in)
     }
     if (camera_edge_turn_blocked == true && game_mouse_x > 2 && game_mouse_x < gr_screen_width() - 3)
         camera_edge_turn_blocked = false;
-    int extra = camera_key_extra_axis();
+    float extra = camera_key_extra_axis();
     game_camera.set_input(config_camera_speed * yaw, config_camera_speed * zoom,
                           config_camera_speed * extra);
 }

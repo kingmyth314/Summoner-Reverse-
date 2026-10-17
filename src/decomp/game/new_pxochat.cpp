@@ -1209,12 +1209,30 @@ void pxochat_goto_charselect()
     gameseq_set_state(10);
 }
 
-// 0x4241d0  Confidence: likely (byte table 0x424300 over button - 2, 0..31, into the jump table 0x4242c4;
+// 0x4241d0  Confidence: exact (VC6 byte match, match27; was likely: the case bodies in the binary's block
+// order 14, 16, 29, 31, 2 ... 12, 18, 20, 22, 26; byte table 0x424300 over button - 2, 0..31, jump table 0x4242c4;
 // the scroll cases share one sound call; 22 and 24 share the exit case, 31 and 33 the close case; 29 / 31 /
 // 33 play the sound before the tail-called action). The banner (26) acts only when it has a link.
 void pxochat_button_action(int button)
 {
     switch (button) {
+    case 14:
+        pxochat_join_selected_channel();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        break;
+    case 16:
+        pxochat_input_begin();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        break;
+    case 29:
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        pxochat_join_typed_channel();
+        break;
+    case 31:
+    case 33:
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        pxochat_input_cancel();
+        break;
     case 2:
         pxochat_scroll_up(0);
         game_play_sound(0x25, 1.0f, 0, 0, 0);
@@ -1239,14 +1257,6 @@ void pxochat_button_action(int button)
         pxochat_scroll_down(2);
         game_play_sound(0x25, 1.0f, 0, 0, 0);
         break;
-    case 14:
-        pxochat_join_selected_channel();
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
-        break;
-    case 16:
-        pxochat_input_begin();
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
-        break;
     case 18:
         pxochat_goto_gamelist();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
@@ -1265,15 +1275,6 @@ void pxochat_button_action(int button)
             pxochat_open_banner_url();
             game_play_sound(0x23, 1.0f, 0, 0, 0);
         }
-        break;
-    case 29:
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
-        pxochat_join_typed_channel();
-        break;
-    case 31:
-    case 33:
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
-        pxochat_input_cancel();
         break;
     }
 }
@@ -1520,9 +1521,9 @@ void pxochat_draw_user_list()
     }
 }
 
-// 0x424b80  Confidence: likely (jump table 0x424de0 over type - 1, 0..5: case labels 1 and 6 exist, 5 is
-// handled before; two separate name buffers). Types 0 / 5: the text up to and with the first space is the
-// speaker, drawn blue (0) or highlighted (5).
+// 0x424b80  Confidence: exact (VC6 byte match, match27; was likely: jump table 0x424de0 over type - 1, 0..5,
+// cases 1 and 6 with their own bodies beside the default; two block-scope 64-byte name buffers, frame 0x94). Types 0 / 5: the text up to and with the first space
+// is the speaker, drawn blue (0) or highlighted (5).
 void pxochat_draw_chat_lines()
 {
     int font_h = gr_get_font_height(-1);
@@ -1541,7 +1542,7 @@ void pxochat_draw_chat_lines()
         if (line->type == 0) {
             char *space = strchr(line->text, ' ');
             if (space) {
-                char name[72];
+                char name[64];
                 int len = space - line->text + 1;
 
                 strncpy(name, line->text, len);
@@ -1558,7 +1559,7 @@ void pxochat_draw_chat_lines()
         } else if (line->type == 5) {
             char *space = strchr(line->text, ' ');
             if (space) {
-                char name[72];
+                char name[64];
                 int len = space - line->text + 1;
 
                 strncpy(name, line->text, len);
@@ -1584,7 +1585,11 @@ void pxochat_draw_chat_lines()
                 gr_set_color_ptr(&ui_color_green);
                 break;
             case 1:
+                gr_set_color_ptr(&ui_color_text);
+                break;
             case 6:
+                gr_set_color_ptr(&ui_color_text);
+                break;
             default:
                 gr_set_color_ptr(&ui_color_text);
                 break;

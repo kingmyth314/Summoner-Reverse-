@@ -59,31 +59,33 @@ void ui_static::create(ui_element *window, int x, int y, int w, int h, int id, b
     colors = ui_static_colors;
 }
 
-// 0x527fa0  Confidence: likely. The same code as ui_button::set_tooltip (the first tooltip is unlinked
+// 0x527fa0  Confidence: exact. The same code as ui_button::set_tooltip (the first tooltip is unlinked
 // and leaked).
 void ui_static::set_tooltip(const char *text, int x, int y, int delay)
 {
     ui_tooltip *t = tooltips.next;
 
     if (t != (ui_tooltip *)&tooltips) {
-        t->prev->next = t->next;
-        t->next->prev = t->prev;
+        ui_tooltip *prev = t->prev;
+        ui_tooltip *next = t->next;
         t->next = NULL;
         t->prev = NULL;
+        prev->next = next;
+        next->prev = prev;
     }
     t = new ui_tooltip;
     t->owner = this;
     strcpy(t->text, text);
-    t->x = x;
     t->delay = delay;
+    t->x = x;
+    ui_tooltip *last = tooltips.prev;
+    t->next = (ui_tooltip *)&tooltips;
+    tooltips.prev = t;
     t->colors = ui_tooltip_colors;
     t->y = y;
     t->font = -1;
-
-    t->next = (ui_tooltip *)&tooltips;
-    t->prev = tooltips.prev;
-    tooltips.prev->next = t;
-    tooltips.prev = t;
+    t->prev = last;
+    last->next = t;
 }
 
 // 0x528060  Confidence: exact.

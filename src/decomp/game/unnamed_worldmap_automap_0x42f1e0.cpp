@@ -256,7 +256,8 @@ int worldmap_frame(int key)
         if (!(loc->flags & 1))
             continue;
         if (gr_cull_sphere(&loc->nav->pos, 1.0f, false)) {
-            vector3 d = loc->nav->pos - cur_character->pos;
+            vector3 d;
+            d = loc->nav->pos - cur_character->pos;
             loc->scale = worldmap_marker_scale_for_distance(d.len());
             d.normalize_safe();
             d += cur_character->pos;

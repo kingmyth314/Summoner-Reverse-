@@ -124,9 +124,9 @@ character_instance::character_instance(ca_character *ch)
     motion_prev = motion_cur;
     root_offset = vector3(0.0f, 0.0f, 0.0f);
     motion_valid = false;
-    tint[0] = 0xff;
-    tint[1] = 0xff;
-    tint[2] = 0xff;
+    tint_r = 0xff;
+    tint_g = 0xff;
+    tint_b = 0xff;
     for (int i = 0; i < CI_NUM_ANIM_SPEEDS; i++) {
         speeds[i].anim = -1;
         speeds[i].scale = 1.0f;
@@ -558,7 +558,7 @@ void character_instance::process(float frametime, bool is_culled, int new_lod)
     ca_noop_1arg(frametime);
 }
 
-// 0x51a950  Confidence: likely (two different 0.1f constants: 0x5819a8 here, 0x580214 in
+// 0x51a950  Confidence: exact (VC6 byte match, match23; was likely; two different 0.1f constants: 0x5819a8 here, 0x580214 in
 // build_bone_matrices; see NOTES).
 // Weighted root velocity of the anims; the held anim counts only until its end. While an action anim
 // plays, the state anims are faded by its root blend weight.
@@ -701,7 +701,7 @@ void character_instance::set_state_weight(int anim, float weight)
     }
 }
 
-// 0x51aee0  Confidence: likely.
+// 0x51aee0  Confidence: exact (VC6 byte match, match23; was likely).
 // Starts an anim from its first tick. A speed other than 1 is written into every free speed slot (there
 // is no break in the loop).
 void character_instance::start_anim(int anim, float weight, bool held, float speed)
@@ -963,9 +963,9 @@ void ca_system_close()
 // 0x51b590  Confidence: exact.
 void character_instance::set_tint(ubyte r, ubyte g, ubyte b)
 {
-    tint[0] = r;
-    tint[1] = g;
-    tint[2] = b;
+    tint_r = r;
+    tint_g = g;
+    tint_b = b;
 }
 
 // 0x51b5f0  Confidence: exact. Expansion of the console's bool command macro (as player.cpp).

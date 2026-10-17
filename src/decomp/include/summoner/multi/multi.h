@@ -159,8 +159,9 @@ LAYOUT_CHECK(mp_packet_info, sizeof(mp_packet_info) == 0x1c);
 #define MP_ADD_DATA(v)     (memcpy(data + packet_size, &(v), sizeof(v)), packet_size += sizeof(v))
 #define MP_END_PACKET()    (*(ushort *)(data + 1) = (ushort)(packet_size - MP_HEADER_SIZE))
 // A float goes through a stack temporary (mp_send_player_data 0x4af8c6: `mov [esp+8], edx / mov esi,
-// [esp+8]` before the store into the packet; decomp47, macro ours).
-#define MP_ADD_FLOAT(v)    do { float mp_tmp_f = (v); memcpy(data + packet_size, &mp_tmp_f, 4); \
+// [esp+8]` before the store into the packet; decomp47, macro ours). `v` is not parenthesised (D8301):
+// cl 8966 copies `float t = (c->hp);` through fld / fstp, `float t = c->hp;` with integer moves as Sum.exe.
+#define MP_ADD_FLOAT(v)    do { float mp_tmp_f = v; memcpy(data + packet_size, &mp_tmp_f, 4); \
                                 packet_size += 4; } while (0)
 
 int  mp_handle_to_net(int handle);                                         // 0x4752c0

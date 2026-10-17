@@ -35,11 +35,12 @@
 
 #define LOBJ_FLAG_DOOR 0x100
 
-// 0x4aa780  Confidence: exact. DOOR_TG on the other machines. No range or NULL check of the index.
+// 0x4aa780  Confidence: exact (the two ints read with memcpy, D8302). DOOR_TG on the other machines. No range or NULL check of the index.
 void mp_handle_door_toggle(ubyte *data, void *from)
 {
-    int index = ((int *)data)[0];
-    int open = ((int *)data)[1];
+    int index, open;
+    memcpy(&index, data, 4);
+    memcpy(&open, data + 4, 4);
     lobj *l = &lobjs[index];
 
     if (l->flags & LOBJ_FLAG_DOOR) {
@@ -50,7 +51,7 @@ void mp_handle_door_toggle(ubyte *data, void *from)
     }
 }
 
-// 0x4aa7d0  Confidence: likely (if-chain over the result; `locked` is kept in the dead argument slot).
+// 0x4aa7d0  Confidence: exact (VC6 byte match, match24; was likely) (if-chain over the result; `locked` is kept in the dead argument slot).
 // DOR_PCK: the result of the host's roll (door_pick_by_mesh). A success unlocks the door in the two-stage
 // state and runs the level's use hook, as on the host; a failure plays the sound without the feedback.
 void mp_handle_door_lockpick(ubyte *data, void *from)
@@ -83,7 +84,7 @@ void mp_handle_door_lockpick(ubyte *data, void *from)
     }
 }
 
-// 0x4aa8e0  Confidence: likely (the local `open` is overwritten for the local player and reloaded
+// 0x4aa8e0  Confidence: exact (VC6 byte match, match24; was likely) (the local `open` is overwritten for the local player and reloaded
 // otherwise). For the host's own click the door has been toggled already (door_toggle_state), so the saved
 // state is replaced by the state before the click and the door is started again (here with door_set_open's
 // third argument 0, where the DOOR_TG handler passes 1). A closed, unlocked door opens; an open door

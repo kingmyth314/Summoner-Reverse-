@@ -283,7 +283,7 @@ int item_info_popup_handle_click(int key)
     return key;
 }
 
-// 0x418ba0  Confidence: exact.
+// 0x418ba0  Confidence: likely (the max(x, 0) AND register, D7506).
 void item_info_popup_page_up()
 {
     if (item_info_popup_scroll_pos > 0) {

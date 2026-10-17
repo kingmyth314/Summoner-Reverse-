@@ -146,57 +146,60 @@ int  skills_list[SKILLS_MAX_ROWS];                            // 0x5f4fcc active
 int  skills_icon_bms[SKILLS_NUM_ICONS][4];                    // 0x5f4fe8
 bool skills_popup_enabled[SKILLS_MAX_POPUP];                  // 0x5f5368
 
-// 0x427240  Confidence: likely (two filename buffers in two scopes: the frame is 0x10c bytes with the second
-// at +0xa0; their sizes are a guess). Names with '#' get the resolution between the base and the state
+// 0x427240  Confidence: exact (VC6 byte match, match31; was likely; the icon buffer at function scope beside the button
+// buffer, both 128 bytes: frame 0x10c; element pointers b / d, D9003). Names with '#' get the resolution between the base and the state
 // letter: "Skillicon-CombatA#" -> "Skillicon-Combat640A.tga".
 void skills_load_bitmaps()
 {
     float scale = ui_get_scale();
     int i, j;
+    char filename2[128];
 
     for (i = 0; i < SKILLS_NUM_BUTTONS; i++) {
-        skills_buttons[i].flags = 0;
-        skills_buttons[i].bitmap = -1;
-        skills_buttons[i].x = 0;
-        skills_buttons[i].y = 0;
-        skills_buttons[i].w = 0;
-        skills_buttons[i].h = 0;
+        ui_button_state *b = &skills_buttons[i];
+        const ui_button_def *d = &skills_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(skills_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, skills_button_defs[i].name);
+            strcpy(filename, d->name);
             if (strchr(filename, '#')) {
-                int len = strlen(skills_button_defs[i].name);
+                int len = strlen(d->name);
 
                 filename[len - 2] = 0;
                 strcat(filename, ui_bitmap_suffix[ui_hires]);
-                strncat(filename, &skills_button_defs[i].name[len - 2], 1);
+                strncat(filename, &d->name[len - 2], 1);
                 strcat(filename, ".tga");
             } else if (!strchr(filename, '.')) {
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
             }
-            skills_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            skills_buttons[i].x = skills_button_defs[i].pos[resolution_index][0];
-            skills_buttons[i].y = skills_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(skills_buttons[i].bitmap, &skills_buttons[i].w, &skills_buttons[i].h);
-            skills_buttons[i].w = (int)(skills_buttons[i].w * scale + 0.5f);
-            skills_buttons[i].h = (int)(skills_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                skills_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
     for (i = 0; i < SKILLS_NUM_ICONS; i++) {
         for (j = 0; j < 4; j++) {
             if (skills_icon_names[i]) {
-                char filename[124];
                 char *q;
 
                 progress_update(0);
-                strcpy(filename, skills_icon_names[i]);
-                q = strchr(filename, '?');
+                strcpy(filename2, skills_icon_names[i]);
+                q = strchr(filename2, '?');
                 if (q) {
                     switch (j) {
                     case 0: *q = 'a'; break;
@@ -204,7 +207,7 @@ void skills_load_bitmaps()
                     case 2: *q = 'c'; break;
                     case 3: *q = 'd'; break;
                     }
-                    skills_icon_bms[i][j] = bm_load(filename, path_interface, -1);
+                    skills_icon_bms[i][j] = bm_load(filename2, path_interface, -1);
                 } else {
                     skills_icon_bms[i][j] = -1;
                 }
@@ -519,7 +522,7 @@ void skills_update_member_buttons()
     }
 }
 
-// 0x427f30  Confidence: likely (as spells_handle_click; key switch: byte table 0x4281a8 over key - 1 into the
+// 0x427f30  Confidence: exact (VC6 byte match, match31; was likely) (as spells_handle_click; key switch: byte table 0x4281a8 over key - 1 into the
 // jump table 0x428194). The passive rows only show tooltips.
 int skills_handle_click(int key)
 {
@@ -529,14 +532,15 @@ int skills_handle_click(int key)
     skills_hover_row = -1;
 
     for (i = 0; i < SKILLS_NUM_BUTTONS; i++) {
-        if ((skills_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, skills_buttons[i].x, skills_buttons[i].y,
-                             skills_buttons[i].w, skills_buttons[i].h)) {
-            if ((skills_button_defs[i].flags & 2) && interface_input_ready())
+        const ui_button_def *d = &skills_button_defs[i];
+        ui_button_state *b = &skills_buttons[i];
+
+        if ((d->flags & 3) && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            if ((d->flags & 2) && interface_input_ready())
                 skills_category_tooltip(i);
-            if (!(skills_buttons[i].flags & 4)) {
+            if (!(b->flags & 4)) {
                 skills_pressed_button = i;
-                skills_buttons[i].flags |= 2;
+                b->flags |= 2;
                 if (mouse_was_pressed(0)) {
                     skills_mouse_mode = 1;
                     return key;
@@ -591,9 +595,9 @@ int skills_handle_click(int key)
         interface_set_screen(0, 0);
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
-    case KEY_R:
-        interface_set_screen(2, 0);
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
+    case KEY_C:
+        interface_set_screen(5, 0);
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     case KEY_I: {
         bool flag = false;
@@ -602,9 +606,9 @@ int skills_handle_click(int key)
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
     }
-    case KEY_C:
-        interface_set_screen(5, 0);
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
+    case KEY_R:
+        interface_set_screen(2, 0);
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
     }
     return key;
@@ -964,20 +968,19 @@ void skills_draw()
     gr::set_clip(x, y, w, h);
 }
 
-// 0x428cf0  Confidence: likely (as spells_draw_list; the level text buffer is 8 bytes in the frame). Level =
+// 0x428cf0  Confidence: exact (VC6 byte match, match31; was likely) (as spells_draw_list; the level text buffer is 8 bytes in the frame). Level =
 // skill * 10, right-aligned at skills_text_width; the passive rows use icon state 3 and the disabled colour.
 void skills_draw_list()
 {
-    int x = skills_list_pos[resolution_index][0];
     int y = skills_list_pos[resolution_index][1];
+    int x = skills_list_pos[resolution_index][0];
     int i, w, h;
     char text[8];
 
     for (i = 0; i < skills_list_count; i++) {
-        int skill = skills_list[i];
         int state;
 
-        if (skill_is_usable(skill, 0) && skill_is_available(skill, 0)) {
+        if (skill_is_usable(skills_list[i], 0) && skill_is_available(skills_list[i], 0)) {
             if (i == skills_hover_row) {
                 if (skills_mouse_mode == 2)
                     state = skills_row_hit(i) ? 2 : 0;
@@ -990,9 +993,9 @@ void skills_draw_list()
             state = 3;
         }
 
-        if (skills_icon_bms[skill][state] >= 0) {
+        if (skills_icon_bms[skills_list[i]][state] >= 0) {
             gr_set_color(255, 255, 255, 255);
-            ui_bitmap_scaled(skills_icon_bms[skill][state], x, y, gr_bitmap_wrap_mode);
+            ui_bitmap_scaled(skills_icon_bms[skills_list[i]][state], x, y, gr_bitmap_wrap_mode);
         }
         switch (state) {
         case 1:
@@ -1003,13 +1006,15 @@ void skills_draw_list()
             gr_set_color_ptr(&ui_color_disabled);
             break;
         case 0:
+            gr_set_color_ptr(&ui_color_text);
+            break;
         default:
             gr_set_color_ptr(&ui_color_text);
             break;
         }
         gr_string(skills_text_offset[resolution_index][0] + x, skills_text_offset[resolution_index][1] + y,
-                  localize_string_or_invalid(skill_table[skill].name), -1, gr_string_mode);
-        sprintf(text, "%d", (int)(cur_character->get_skill(skill) * 10.0f + 0.5f));
+                  localize_string_or_invalid(skill_table[skills_list[i]].name), -1, gr_string_mode);
+        sprintf(text, "%d", (int)(cur_character->get_skill(skills_list[i]) * 10.0f + 0.5f));
         gr_get_string_size(&w, &h, text, -1, -1);
         gr_string(skills_text_width[resolution_index] - w + x, skills_text_offset[resolution_index][1] + y, text,
                   -1, gr_string_mode);
@@ -1017,16 +1022,14 @@ void skills_draw_list()
     }
 
     for (i = 0; i < skills_group_count; i++) {
-        int skill = skills_groups[i];
-
-        if (skills_icon_bms[skill][3] >= 0) {
+        if (skills_icon_bms[skills_groups[i]][3] >= 0) {
             gr_set_color(255, 255, 255, 255);
-            ui_bitmap_scaled(skills_icon_bms[skill][3], x, y, gr_bitmap_wrap_mode);
+            ui_bitmap_scaled(skills_icon_bms[skills_groups[i]][3], x, y, gr_bitmap_wrap_mode);
         }
         gr_set_color_ptr(&ui_color_disabled);
         gr_string(skills_text_offset[resolution_index][0] + x, skills_text_offset[resolution_index][1] + y,
-                  localize_string_or_invalid(skill_table[skill].name), -1, gr_string_mode);
-        sprintf(text, "%d", (int)(cur_character->get_skill(skill) * 10.0f + 0.5f));
+                  localize_string_or_invalid(skill_table[skills_groups[i]].name), -1, gr_string_mode);
+        sprintf(text, "%d", (int)(cur_character->get_skill(skills_groups[i]) * 10.0f + 0.5f));
         gr_get_string_size(&w, &h, text, -1, -1);
         gr_string(skills_text_width[resolution_index] - w + x, skills_text_offset[resolution_index][1] + y, text,
                   -1, gr_string_mode);
@@ -1104,7 +1107,7 @@ bool skill_is_usable(int skill, Character *c)
     return true;
 }
 
-// 0x4291d0  Confidence: likely (the comparison results return through mov eax, 1 / xor eax, eax). Whether the
+// 0x4291d0  Confidence: exact (VC6 byte match, match31; was likely) (the comparison results return through mov eax, 1 / xor eax, eax). Whether the
 // character has the skill ready: the summoning ring gates of the story (single player), no identify / pick
 // lock in multiplayer, enough AP, the cooldown (the summon skills share skill 0x1b's, the aimed attacks 0x11's),
 // a dagger (weapon class 8) for backstab when not already attacking from behind, sneak / hide only after
@@ -1145,19 +1148,20 @@ bool skill_is_available(int skill, Character *c)
     }
     if (!p->skill_cooldown[skill].elapsed())
         return false;
-    if (skill == SKILL_BACKSTAB) {
-        if (c->ai.is_mode(AI_STATE_COMBAT, 0x11))
-            return false;
-        if (!c->equipment[5])
-            return false;
-        return c->equipment[5]->type->weapon_class == 8;
+    if (skill != SKILL_BACKSTAB) {
+        if (skill > SKILL_PICK_LOCK && skill <= SKILL_HIDE)
+            return Max_skills || savegame_state.get_flag(0x18, "lpalaceint_yago_found") || (game_flags & 2);
+        return Max_skills || c->get_skill(skill) > 0.0f;
     }
-    if (skill > SKILL_PICK_LOCK && skill <= SKILL_HIDE)
-        return Max_skills || savegame_state.get_flag(0x18, "lpalaceint_yago_found") || (game_flags & 2);
-    return Max_skills || c->get_skill(skill) > 0.0f;
+    if (c->ai.is_mode(AI_STATE_COMBAT, 0x11))
+        return false;
+    if (!c->equipment[5])
+        return false;
+    return c->equipment[5]->type->weapon_class == 8 ? true : false;
 }
 
-// 0x429410  Confidence: likely (the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
+// 0x429410  Confidence: likely (match31: the hide / sneak test as if / else-if with a goto past the payment;
+// still differs at the appraise root, which the binary keeps as a dead store in the target slot; the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
 // 0x4297fc / 0x42981c are written as switches; the identify root goes through a dead float store; the
 // two_stage out-values live in the dead argument slots). Pays the AP (not when hide / sneak are toggled off,
 // not for backstab / assess / the summons, which pay later), then: summon skills and backstab / assess wait for a
@@ -1172,8 +1176,13 @@ bool character_use_skill(int skill, void *target, Character *user)
     if (!skill_is_usable(skill, user) || !skill_is_available(skill, user))
         return false;
 
-    if (skill == SKILL_HIDE ? !user->ai.is_mode(AI_STATE_HIDING, -1)
-                            : !(skill == SKILL_SNEAK && (user->flags & 0x400))) {
+    if (skill == SKILL_HIDE) {
+        if (user->ai.is_mode(AI_STATE_HIDING, -1))
+            goto paid;
+    } else if (skill == SKILL_SNEAK && (user->flags & 0x400)) {
+        goto paid;
+    }
+    {
         if (user->ap < skill_table[skill].ap_cost)
             return false;
         switch (skill) {
@@ -1191,7 +1200,7 @@ bool character_use_skill(int skill, void *target, Character *user)
             break;
         }
     }
-
+paid:
     ui_clear_pick_overrides();
     if (skill_is_summon(skill)) {
         hud_target_mode = 1;

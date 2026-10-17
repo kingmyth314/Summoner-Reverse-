@@ -507,15 +507,17 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
 // 0x4a7720  Confidence: exact.
 avoid_link_block *avoid_link_block_alloc()
 {
+    avoid_link_block *b = NULL;
     int i;
 
     for (i = 0; i < AVOID_NUM_LINK_BLOCKS; i++) {
         if (!(avoid_link_blocks[i].flags & 1)) {
             avoid_link_blocks[i].flags |= 1;
-            return &avoid_link_blocks[i];
+            b = &avoid_link_blocks[i];
+            break;
         }
     }
-    return NULL;
+    return b;
 }
 
 // 0x4a7760  Confidence: exact.
@@ -539,7 +541,7 @@ avoid_spline_point *avoid_spline_point_alloc()
     return NULL;
 }
 
-// 0x4a77d0  Confidence: exact.
+// 0x4a77d0  Confidence: likely (differs under cl 8966 in match26).
 avoid_spline_point *avoid_spline_point_get(int i)
 {
     if (i >= 0 && i < AVOID_NUM_SPLINE_POINTS)
@@ -563,7 +565,7 @@ avoid_spline *avoid_spline_alloc()
     return NULL;
 }
 
-// 0x4a7830  Confidence: exact.
+// 0x4a7830  Confidence: likely (differs under cl 8966 in match26).
 avoid_spline *avoid_spline_get(int i)
 {
     if (i >= 0 && i < AVOID_NUM_SPLINES)
@@ -1903,7 +1905,7 @@ bool avoid_point_blocked(const vector3 *pos, int layer, int size)
 
     for (i = 0; i < AVOID_NUM_OBSTACLES; i++) {
         avoid_obstacle *ob = &avoid_obstacles[i];
-        if ((ob->flags & AVOID_OB_USED) && (ob->flags & AVOID_OB_PROHIBIT) && ob->layer == layer
+        if (((ubyte)ob->flags & AVOID_OB_USED) && ((ubyte)ob->flags & AVOID_OB_PROHIBIT) && ob->layer == layer
             && ob->size == size && avoid_prim_test(&p, ob, 0.05f))
             return true;
     }
@@ -1916,11 +1918,9 @@ bool avoid_area_contains_point(const vector3 *pos, int layer, int size, int area
 {
     avoid_area *aa;
     avoid_obstacle *ob;
-    vector2 p;
     int i;
 
-    p.x = pos->x;
-    p.y = pos->z;
+    vector2 p(pos->x, pos->z);
     aa = &avoid_areas[area];
     if (!(aa->flags & 1))
         return false;

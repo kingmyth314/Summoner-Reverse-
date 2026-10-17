@@ -74,7 +74,7 @@ void fx_rec98::init(vfx_node_desc *desc)
     glow = 0;
 }
 
-// 0x562b90  Confidence: unsure (an empty function with four stack arguments, ret 0x10; no caller).
+// 0x562b90  Confidence: exact (VC6 byte match, match23; was unsure; an empty function with four stack arguments, ret 0x10; no caller).
 void fx_rec98::stub_ret10(int a, int b, int c, int d)
 {
 }

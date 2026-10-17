@@ -24,7 +24,7 @@ void fx_rec2c::reset()
     q14.make_identity();
 }
 
-// 0x55fc90  Confidence: likely (the two unused-looking locals constructed before the bone test; their
+// 0x55fc90  Confidence: exact (unit /Ob0, D8402; the two unused-looking locals constructed before the bone test; their
 // order). Game bug (decomp66 NOTES.md): on a bone the rotation is never turned into the bone's frame:
 // the product is built in m, then q14.to_matrix(&m) overwrites it, q14 stays the effect-frame rotation
 // (the emitter unit makes the quaternion from the product, 0x56164f). The descriptor is read as a vfx_node

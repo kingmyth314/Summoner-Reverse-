@@ -210,7 +210,7 @@ void credits_finish()
     credits_timer.SetTimeout(800);
 }
 
-// 0x408ac0, screen 21 draw. Confidence: likely
+// 0x408ac0, screen 21 draw. Confidence: exact (VC6 byte match, match24; was likely)
 void credits_draw()
 {
     gr_set_color(255, 255, 255, 255);

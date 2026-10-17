@@ -379,8 +379,8 @@ float snd_get_volume(int handle, float scale)
     return snd_group_volumes[s->group] * s->volume * scale;
 }
 
-// 0x520e10  Confidence: exact.
-int snd_play_looping(int handle, float volume, float pan, int a)
+// 0x520e10  Confidence: exact. Five arguments, the last unused (both callers push five, D8400).
+int snd_play_looping(int handle, float volume, float pan, int a, int unused)
 {
     float v;
 
@@ -596,7 +596,7 @@ int snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused)
     if (s->volume != 0.0f)
         v /= s->volume;
     if (looping == true)
-        return snd_play_looping(handle, v, pan, 0);
+        return snd_play_looping(handle, v, pan, 0, 0);
     return snd_play(handle, v, pan, a, 0);
 }
 

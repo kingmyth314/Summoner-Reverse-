@@ -1593,8 +1593,9 @@ void combat_spawn_spark_vfx(Character *attacker, Character *defender)
     }
 }
 
-// 0x466f00  Confidence: likely (an 8168 byte match; differs under 8966, D7807). (dword jump table 0x467008 for states 0..3). One-sided attack, at most
-// every 3 / (10 x speed) seconds.
+// 0x466f00  Confidence: exact (dword jump table 0x467008 for states 0..3). One-sided attack, at most
+// every 3 / (10 x speed) seconds. LOGIC FIX (D8706): the table sends HIT (2) and DEFENCE (3) straight to
+// `state = COMBAT_IDLE` (0x466fff); only states above 3 wait for move trigger 6 (0x466ff0).
 void living_combat::update_attack()
 {
     int r;
@@ -1622,6 +1623,9 @@ void living_combat::update_attack()
         if (r == -1)
             state = COMBAT_IDLE;
         return;
+    case COMBAT_HIT:
+    case COMBAT_DEFENCE:
+        break;
     default:
         if (!owner->move_trigger_fired(6, 1))
             return;

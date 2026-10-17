@@ -310,11 +310,11 @@ int ftp_get::send_command(const char *cmd)
     return read_server_reply();
 }
 
-// 0x55a6a0  Confidence: likely (the restart of a "nnn-" continuation line).
+// 0x55a6a0  Confidence: exact (memcpy of the three digits; the code buffer is 5 to 8 bytes by the frame, 8 taken). Restarts on a "nnn-" continuation line.
 int ftp_get::read_server_reply()
 {
     char ch[2];
-    char code[4];
+    char code[8];
     int got_line;
 
     for (;;) {
@@ -338,14 +338,12 @@ int ftp_get::read_server_reply()
     }
     if (recv_buffer[3] != ' ')
         return 999;
-    code[0] = recv_buffer[0];
-    code[1] = recv_buffer[1];
-    code[2] = recv_buffer[2];
+    memcpy(code, recv_buffer, 3);
     code[3] = '\0';
     return atoi(code);
 }
 
-// 0x55a780  Confidence: likely. bytes_in also takes the -1 of a failed recv.
+// 0x55a780  Confidence: exact (a do / while (true) loop). bytes_in also takes the -1 of a failed recv.
 int ftp_get::read_data_channel()
 {
     char buf[4096];
@@ -354,7 +352,7 @@ int ftp_get::read_data_channel()
     state = FTP_STATE_RECEIVING;
     if (aborting)
         return 0;
-    for (;;) {
+    do {
         n = recv(data_socket, buf, sizeof(buf), 0);
         bytes_in += n;
         if (n > 0)
@@ -364,7 +362,7 @@ int ftp_get::read_data_channel()
             break;
         if (aborting)
             return 0;
-    }
+    } while (true);
     fclose(file);
     if (n == SOCKET_ERROR) {
         state = FTP_STATE_RECV_FAILED;
@@ -374,7 +372,7 @@ int ftp_get::read_data_channel()
     return 1;
 }
 
-// 0x55a850  Confidence: likely (the fd_set is filled by hand: count 1, the control socket).
+// 0x55a850  Confidence: exact (the fd_set is filled by hand: the control socket, then count 1).
 void ftp_get::read_control_channel()
 {
     fd_set fds;
@@ -383,8 +381,8 @@ void ftp_get::read_control_channel()
 
     tv.tv_sec = 0;
     tv.tv_usec = 0;
-    fds.fd_count = 1;
     fds.fd_array[0] = control_socket;
+    fds.fd_count = 1;
     while (select(0, &fds, NULL, NULL, &tv) != 0) {
         recv(control_socket, c, 1, 0);
         Sleep(1);

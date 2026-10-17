@@ -37,7 +37,7 @@ void timer_close()
     }
 }
 
-// 0x532840  Confidence: likely (the order of the last two stores is scheduled). Only the low dword of the
+// 0x532840  Confidence: exact (the flag stored after the tick count). Only the low dword of the
 // frequency is kept (a counter above 4 GHz breaks it; see NOTES). The TSC is read three times 250 ms apart;
 // the middle reading is not used, so timer_tsc_ticks is the ticks in 500 ms halved.
 void timer_init()
@@ -56,33 +56,35 @@ void timer_init()
     Sleep(250);
     read_tsc();
     Sleep(250);
-    timer_initialized = true;
     timer_tsc_ticks = (read_tsc() - tsc) / 2;
+    timer_initialized = true;
     atexit(timer_close);
 }
 
-// 0x5328d0  Confidence: likely (the copy of the counter into the elapsed time on the backwards path is a
+#pragma optimize("", off)  // timer_get is unoptimised code in Sum.exe (D8401)
+
+// 0x5328d0  Confidence: exact (unoptimised, D8401; locals named and declared for the /Od frame). The copy of the counter into the elapsed time on the backwards path is a
 // dead store in the code; its source form is a guess). A counter that went backwards becomes the new base.
 // The 64-bit product is divided by the 32-bit frequency in __asm: the high dword is reduced by subtracting
 // the frequency until it goes negative (an endless loop when the frequency is 0), so only the low 32 bits of
 // the quotient come back.
 int timer_get(int scale)
 {
-    LARGE_INTEGER now;
-    __int64 elapsed;
     __int64 ticks;
+    __int64 elapsed;
+    LARGE_INTEGER reading;
     int result;
 
     if (!timer_initialized)
         return 0;
     EnterCriticalSection(&timer_lock);
-    QueryPerformanceCounter(&now);
-    if (now.QuadPart < timer_qpc_last) {
-        timer_qpc_base = now.QuadPart;
-        elapsed = now.QuadPart;
+    QueryPerformanceCounter(&reading);
+    if (reading.QuadPart < timer_qpc_last) {
+        timer_qpc_base = reading.QuadPart;
+        elapsed = reading.QuadPart;
     }
-    elapsed = now.QuadPart - timer_qpc_base;
-    timer_qpc_last = now.QuadPart;
+    elapsed = reading.QuadPart - timer_qpc_base;
+    timer_qpc_last = reading.QuadPart;
     ticks = elapsed;
     LeaveCriticalSection(&timer_lock);
     ticks = ticks * scale;
@@ -103,6 +105,7 @@ int timer_get(int scale)
 #endif
     return result;
 }
+#pragma optimize("", on)
 
 // 0x5329b1  Confidence: exact. The low dword of the time stamp counter.
 int read_tsc()

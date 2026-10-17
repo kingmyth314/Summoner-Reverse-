@@ -36,7 +36,7 @@ static const int bbox_silhouette_table[27][8] = {
     { 1, 0, 3, 7, 4, 5, 0, 0 }, { 3, 7, 4, 5, 1, 2, 0, 0 }, { 0, 3, 7, 6, 5, 1, 0, 0 },
 };
 
-// 0x5590e0  Confidence: likely (the side planes put the crossing on z = +-x or +-y; the colour lerps
+// 0x5590e0  Confidence: exact (VC6 byte match, match23; was likely; the side planes put the crossing on z = +-x or +-y; the colour lerps
 // convert the near vertex's bytes to float first).
 gr_vertex *gr_clip_edge(int plane, gr_vertex *on, gr_vertex *off)
 {
@@ -119,7 +119,7 @@ gr_vertex *gr_clip_alloc_temp_vertex()
     return v;
 }
 
-// 0x559350  Confidence: exact.
+// 0x559350  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
 {
     int bit;
@@ -139,7 +139,7 @@ void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
     }
 }
 
-// 0x5593a0  Confidence: exact. src has room for n + 2 entries (the first two are repeated at the end).
+// 0x5593a0  Confidence: likely (differs under cl 12.00.8966, match23; was exact). src has room for n + 2 entries (the first two are repeated at the end).
 int gr_clip_plane(int plane, gr_vertex **src, gr_vertex **dst, int *nv, ubyte *codes)
 {
     gr_vertex **start = dst;
@@ -313,7 +313,7 @@ void bbox_expand_by_vector(vector3 *min, vector3 *max, const vector3 *v)
         max->z += v->z;
 }
 
-// 0x559890  Confidence: exact.
+// 0x559890  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, const vector3 *max)
 {
     int code = 0;

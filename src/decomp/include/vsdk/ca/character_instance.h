@@ -117,7 +117,7 @@ public:
     int _unkc0;                       // +0xC0 -1 from the constructor
     float _unkc4;                     // +0xC4 0.8 from the constructor
     bool culled;                      // +0xC8 setup_matrices_b does nothing when set
-    ubyte tint[3];                    // +0xC9 r, g, b (character_instance__render)
+    ubyte tint_r, tint_g, tint_b;     // +0xC9 r, g, b (character_instance__render); three members, not an array: the implicit operator= copies them as three byte moves (D8604)
 };
 LAYOUT_CHECK(character_instance, sizeof(character_instance) == 0xcc);
 

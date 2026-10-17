@@ -548,14 +548,14 @@ void s3d_read_meshes(s3d_level *level, lobj *mesh, File *f)
     }
 }
 
-// 0x46f100  Confidence: likely. The lightmaps: (w, h) int16 then w * h 16-bit texels, read through the
+// 0x46f100  Confidence: exact (VC6 byte match, match31; was likely). The lightmaps: (w, h) int16 then w * h 16-bit texels, read through the
 // 128 KB buffer into a format-5 bitmap and paged in, or skipped when S3d_load_lightmaps is off. The
 // size check is the vsdk error loop (line 0xa7b).
 void s3d_load_lightmap(s3d_level *level, File *f)
 {
     int i;
-    int w;
-    int h;
+    short w;
+    short h;
     int size;
 
     if (level->num_lightmaps == 0) {
@@ -869,14 +869,13 @@ void s3d_alloc_level_arrays(s3d_level *level)
 // 0x46fdb0 s3d_geometry__ctor: the compiler's constructor of s3d_geometry (s3d_geom_block() on +0x38,
 // returns this). Confidence: exact (compiler-generated).
 
-// 0x46fdc0  Confidence: likely. Caller level_unload. The arrays are not freed one by one: they live in
+// 0x46fdc0  Confidence: exact (VC6 byte match, match31; was likely). Caller level_unload. The arrays are not freed one by one: they live in
 // level_mempool, which s3d_alloc_level_arrays resets. Note that the navpoint pointer (+0x3c) is cleared
 // but not the navpoint count (+0x38), and the colour-record pointer but not its count (NOTES).
 void level_free_s3d(s3d_level *level)
 {
     int i;
     int bm;
-    void *data;
     void *palette;
 
     if (level_vis_base_built && level_vis_base_count) {
@@ -888,6 +887,7 @@ void level_free_s3d(s3d_level *level)
     if (level->texture_bms) {
         for (i = 0; i < level->num_lights; i++) {
             if (level->lights[i].texture >= 0) {
+                void *data;
                 bm = level->texture_bms[level->lights[i].texture];
                 bm_get_data(bm, &data, &palette);
                 if (data)

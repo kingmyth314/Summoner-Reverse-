@@ -51,12 +51,12 @@ void ui_button::toggle_latched()
         flags |= UI_BUTTON_LATCHED;
 }
 
-// 0x5269e0  Confidence: exact. Reads the element's own hidden byte (not is_hidden()).
+// 0x5269e0  Confidence: exact (`? true : false` for the shr / and al, 1). Reads the element's own hidden byte (not is_hidden()).
 bool ui_button::is_latched()
 {
     if (hidden)
         return false;
-    return (flags >> 5) & 1;
+    return (flags & UI_BUTTON_LATCHED) ? true : false;
 }
 
 // 0x526a00  Confidence: exact. A drag is going on, this button takes drops, the types match and the
@@ -310,7 +310,7 @@ void ui_button::create_in_parent(ui_gadget *parent, int x, int y, int w, int h, 
     set_parent(parent);
 }
 
-// 0x5271c0  Confidence: likely (store order). The first tooltip is unlinked (and leaked, not deleted)
+// 0x5271c0  Confidence: exact (store order: owner, strcpy, delay, x). The first tooltip is unlinked (and leaked, not deleted)
 // before the new one is appended.
 void ui_button::set_tooltip(const char *text, int x, int y, int delay)
 {
@@ -325,11 +325,11 @@ void ui_button::set_tooltip(const char *text, int x, int y, int delay)
         next->prev = prev;
     }
     t = new ui_tooltip;
-    strcpy(t->text, text);
     t->owner = this;
+    strcpy(t->text, text);
+    t->delay = delay;
     t->x = x;
     ui_tooltip *last = tooltips.prev;
-    t->delay = delay;
     t->next = (ui_tooltip *)&tooltips;
     tooltips.prev = t;
     t->colors = ui_tooltip_colors;

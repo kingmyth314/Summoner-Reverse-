@@ -745,9 +745,9 @@ int hud_handle_keys(int key)
                 if (hud_hover_button >= 0)
                     hud_draw_tooltips(hud_hover_button, false);
                 for (i = 0; i < HUD_NUM_BUTTONS && interface_input_ready(); i++) {
-                    if ((hud_buttons[i].flags & 3) &&
-                        point_in_rect(game_mouse_x, game_mouse_y, hud_buttons[i].x, hud_buttons[i].y,
-                                      hud_buttons[i].w, hud_buttons[i].h))
+                    ui_button_state *b = &hud_buttons[i];
+
+                    if ((b->flags & 3) && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
                         hud_draw_tooltips(i, false);
                 }
             }
@@ -1426,9 +1426,11 @@ void hud_update_buttons()
     hud_mouse_mode = 0;
 }
 
-// 0x40eeb0  Confidence: likely (switch 0x40f0a8 / byte table 0x40f0e8 on button - 21; the bodies ending in
-// sound 0x27 are tail-merged). With an item waiting for a target (hud_target_mode 0) a portrait click picks
-// that portrait instead.
+// 0x40eeb0  Confidence: exact (VC6 byte match, match27; was likely: switch 0x40f0a8 / byte table 0x40f0e8 on
+// button - 21, 0..40; the bodies ending in sound 0x27 are tail-merged; case 32 laid out after 39 as in the
+// binary). LOGIC FIX (D8600): the panel buttons are the Press entries 43 / 46 / 49 / 52 / 55 / 58 / 61 (the
+// byte table), not 42 ... 60 (Hilite + 0), which never ran. With an item waiting for a target
+// (hud_target_mode 0) a portrait click picks that portrait instead.
 void hud_button_action(int button)
 {
     switch (button) {
@@ -1467,10 +1469,6 @@ void hud_button_action(int button)
         }
         hud_select_party_member(4);
         break;
-    case 32:
-        hud_key_pause();
-        game_play_sound(0x26, 1.0f, 0, 0, 0);
-        break;
     case 34:
         hud_key_playmenu();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
@@ -1483,28 +1481,32 @@ void hud_button_action(int button)
         hud_toggle_solo_mode();
         game_play_sound(0x2a, 1.0f, 0, 0, 0);
         break;
-    case 42:
-    case 45:
+    case 32:
+        hud_key_pause();
+        game_play_sound(0x26, 1.0f, 0, 0, 0);
+        break;
+    case 43:
+    case 46:
         hud_toggle_combat_mode();
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         break;
-    case 48:
+    case 49:
         hud_key_status();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
-    case 51:
+    case 52:
         hud_key_spells();
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         break;
-    case 54:
+    case 55:
         hud_key_journal();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
-    case 57:
+    case 58:
         hud_key_inventory();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
-    case 60:
+    case 61:
         hud_key_skills();
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         break;
@@ -1532,32 +1534,39 @@ void hud_portraits_handle_click()
     hud_mouse_mode = 0;
 }
 
-// 0x40f1b0  Confidence: likely (jump table 0x40f200; the cases share the call). Right click on a portrait:
-// select the member and open its Character screen.
+// 0x40f1b0  Confidence: exact (VC6 byte match, match27; was likely: jump table 0x40f200; each case has the
+// whole select / status / sound sequence, which 8966 tail-merges down to the pushed slot). Right click on a
+// portrait: select the member and open its Character screen.
 void hud_portrait_action(int button)
 {
     hud_target_mode = -1;
     switch (button) {
     case 21:
         hud_select_party_member(0);
+        hud_key_status();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
     case 23:
         hud_select_party_member(1);
+        hud_key_status();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
     case 25:
         hud_select_party_member(2);
+        hud_key_status();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
     case 27:
         hud_select_party_member(3);
+        hud_key_status();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
     case 29:
         hud_select_party_member(4);
+        hud_key_status();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         break;
-    default:
-        return;
     }
-    hud_key_status();
-    game_play_sound(0x23, 1.0f, 0, 0, 0);
 }
 
 // 0x40f230  Confidence: exact. Mode 3: a hot button is held; on release over it, it is used.
@@ -1984,8 +1993,9 @@ void hud_draw_animated_icons()
                          gr_bitmap_wrap_mode);
 }
 
-// 0x410020  Confidence: likely (frame: id 0x0, kind 0x4). Icon frames: 0 normal, 1 hovered, 2 used,
-// 3 not usable now.
+// 0x410020  Confidence: exact (VC6 byte match, match27; was likely: the skill icon frame through a local as
+// for spells, whose lookup 8966 copies into each branch; frame: id 0x0, kind 0x4). Icon frames: 0 normal,
+// 1 hovered, 2 used, 3 not usable now.
 void hud_draw_hot_buttons()
 {
     int slot;
@@ -2007,16 +2017,19 @@ void hud_draw_hot_buttons()
             y = hud_hot_button_origin[resolution_index][1] + hud_hot_button_spacing[resolution_index][1];
         }
         if (kind) {
+            int frame;
+
             if (skill_is_usable(id, 0) && skill_is_available(id, 0)) {
                 if (slot == hud_hot_button_used)
-                    bm = skills_icon_bms[id][2];
+                    frame = 2;
                 else if (slot == hud_hot_button_hover)
-                    bm = skills_icon_bms[id][hud_mouse_mode != 3];
+                    frame = hud_mouse_mode != 3;
                 else
-                    bm = skills_icon_bms[id][0];
+                    frame = 0;
             } else {
-                bm = skills_icon_bms[id][3];
+                frame = 3;
             }
+            bm = skills_icon_bms[id][frame];
         } else {
             int frame;
 

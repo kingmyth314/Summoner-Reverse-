@@ -60,7 +60,7 @@ void ls_ionaext_init()
         script_npc_set_disabled("Sister Qelah", true);
 }
 
-// 0x4f7270  Confidence: exact. Rosalind is looked for only on a frame on which the intro did not start.
+// 0x4f7270  Confidence: likely (the binary materialises the negated bool with sete; 8966 folds it). Rosalind is looked for only on a frame on which the intro did not start.
 // "GoHome" is cleared outside conversations and has no other effect (see NOTES).
 void ls_ionaext_frame()
 {

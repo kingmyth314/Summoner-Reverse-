@@ -668,7 +668,7 @@ int FileReader::read(void *buf, int len)
     return file->read(buf, len, 0, 0);
 }
 
-// 0x513bb0  Confidence: exact.
+// 0x513bb0  Confidence: likely (differs under cl 8966 in match26).
 int FileReader::read_int()
 {
     if (mode != 0) {
@@ -681,7 +681,7 @@ int FileReader::read_int()
     return file->read_int(0, 0);
 }
 
-// 0x513bf0  Confidence: exact (0.0f is the constant 0x57eb84).
+// 0x513bf0  Confidence: likely (differs under cl 8966 in match26; 0.0f is the constant 0x57eb84).
 float FileReader::read_float()
 {
     if (mode != 0) {
@@ -694,7 +694,7 @@ float FileReader::read_float()
     return file->read_float(0, 0.0f);
 }
 
-// 0x513c40  Confidence: exact.
+// 0x513c40  Confidence: likely (differs under cl 8966 in match26).
 short FileReader::read_int16()
 {
     if (mode != 0) {
@@ -707,7 +707,7 @@ short FileReader::read_int16()
     return file->read_int16(0, 0);
 }
 
-// 0x513c80  Confidence: exact.
+// 0x513c80  Confidence: likely (differs under cl 8966 in match26).
 ushort FileReader::read_uint16()
 {
     if (mode != 0) {
@@ -720,7 +720,7 @@ ushort FileReader::read_uint16()
     return file->read_uint16(0, 0);
 }
 
-// 0x513cc0  Confidence: exact.
+// 0x513cc0  Confidence: likely (differs under cl 8966 in match26).
 char FileReader::read_int8()
 {
     if (mode != 0) {
@@ -733,7 +733,7 @@ char FileReader::read_int8()
     return file->read_int8(0, 0);
 }
 
-// 0x513d00  Confidence: exact.
+// 0x513d00  Confidence: likely (differs under cl 8966 in match26).
 ubyte FileReader::read_uint8()
 {
     if (mode != 0) {
@@ -781,7 +781,7 @@ void FileReader::read_quaternion(quaternion *out)
     file->read_quaternion(out, 0, &file_identity_quaternion);
 }
 
-// 0x513e00  Confidence: exact. Copies up to max chars and then terminates at buf[max] (one byte past a
+// 0x513e00  Confidence: likely (differs under cl 8966 in match26). Copies up to max chars and then terminates at buf[max] (one byte past a
 // max-sized buffer, as File::read_string).
 void FileReader::read_string(char *buf, int max)
 {
@@ -1014,7 +1014,7 @@ void File::set_cipher_key(unsigned int key)
     s->cipher.set_key(k);
 }
 
-// 0x514460  Confidence: likely (a byte match under /Ox /Ow, D7502). Opens the file find found: write mode
+// 0x514460  Confidence: exact. Opens the file find found: write mode
 // creates the path's directories and fopens "wt" (FILE_TEXT) or "wb"; read mode needs found and opens the
 // packfile entry or fopens "rb" unbuffered. 0, -4 not found, -6 no free slot, -99999 open failed.
 int File::open_found(int mode)
@@ -1109,7 +1109,7 @@ int File::open(const char *name, int mode, int path_id)
     return r;
 }
 
-// 0x514740  Confidence: likely (a byte match under /Ox /Ow, D7502). A packfile close counts as success (ebx = 0); a failed fclose sets
+// 0x514740  Confidence: exact. A packfile close counts as success (ebx = 0); a failed fclose sets
 // -99999 unless an error is already set. Returns the slot's error.
 int File::close()
 {
@@ -1132,7 +1132,7 @@ int File::close()
     return err;
 }
 
-// 0x5147c0  Confidence: exact. Asks the owner's packfile entry, not this File's (the same object).
+// 0x5147c0  Confidence: likely (differs under cl 8966 in match26). Asks the owner's packfile entry, not this File's (the same object).
 int File::get_async_status()
 {
     if (slot >= 0) {

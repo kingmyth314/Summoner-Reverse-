@@ -236,7 +236,7 @@ void itemtrade_update_scrollbar()
     }
 }
 
-// 0x419530  Confidence: exact.
+// 0x419530  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
 void itemtrade_count_party_rows()
 {
     itemtrade_party_row_count = party_inventory_count;
@@ -462,7 +462,7 @@ int itemtrade_handle_click(int key)
     return key;
 }
 
-// 0x419bb0  Confidence: exact.
+// 0x419bb0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
 void itemtrade_party_page_up()
 {
     if (itemtrade_party_scroll_pos > 0) {

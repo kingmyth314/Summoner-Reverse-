@@ -45,7 +45,7 @@ IDirectSound3DBuffer *ds_eax_buffer3d;            // 0x2f8f738
 bool ds_initialized;                              // 0x2f8f73c
 int ds_next_signature;                            // 0x2f8f740
 
-// 0x55bfc0  Confidence: exact.
+// 0x55bfc0  Confidence: likely (differs under cl 8966 in match26).
 bool ds_is_3d_buffer(IDirectSoundBuffer *buf)
 {
     DSBCAPS caps;
@@ -60,20 +60,19 @@ bool ds_is_3d_buffer(IDirectSoundBuffer *buf)
 int ds_duplicate_buffer(IDirectSoundBuffer *src, int channel)
 {
     char msg[256];
-    ds_channel *c = &ds_channels[channel];
     HRESULT hr;
 
-    hr = ds_direct_sound->DuplicateSoundBuffer(src, &c->pdsb);
+    hr = ds_direct_sound->DuplicateSoundBuffer(src, &ds_channels[channel].pdsb);
     if (hr < 0) {
         sprintf(msg, "DuplicateSoundBuffer failed because: %s\n", ds_error_string(hr));
-        c->pdsb = NULL;
-        c->pds3db = NULL;
+        ds_channels[channel].pdsb = NULL;
+        ds_channels[channel].pds3db = NULL;
         return -1;
     }
     return 0;
 }
 
-// 0x55c080  Confidence: likely (the order of the format stores). A small 3D buffer whose property set
+// 0x55c080  Confidence: exact. A small 3D buffer whose property set
 // carries the EAX listener settings (22050 Hz, 16-bit mono, 32 bytes).
 int ds_eax_init()
 {
@@ -110,7 +109,7 @@ int ds_eax_init()
     return -1;
 }
 
-// 0x55c1a0  Confidence: likely (the format stores' order). The retry without 3D after a failed primary
+// 0x55c1a0  Confidence: exact. The retry without 3D after a failed primary
 // buffer reads through ds_direct_sound after setting it to NULL (sound.md; a crash on that path).
 int ds_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use_eax, bool dsinit)
 {
@@ -131,10 +130,10 @@ int ds_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use
     ds_eax_enabled = use_eax;
     if (use_eax)
         ds3d_enabled = true;
-    if (dsinit)
-        hr = DirectSoundCreate(NULL, &ds_direct_sound, NULL);
-    else
+    if (!dsinit)
         hr = EAXDirectSoundCreate(NULL, &ds_direct_sound, NULL);
+    else
+        hr = DirectSoundCreate(NULL, &ds_direct_sound, NULL);
     if (hr < 0) {
         sprintf(msg, "DirectSoundCreate() failed with return value: %s\n", ds_error_string(hr));
         return -1;
@@ -162,12 +161,12 @@ int ds_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use
             }
         }
     }
-    wfx.wBitsPerSample = (WORD)bits;
-    wfx.nBlockAlign = (WORD)((WORD)bits / 8 * channels);
-    wfx.nSamplesPerSec = rate;
-    wfx.nAvgBytesPerSec = wfx.nBlockAlign * rate;
     wfx.wFormatTag = WAVE_FORMAT_PCM;
     wfx.nChannels = (WORD)channels;
+    wfx.nSamplesPerSec = rate;
+    wfx.wBitsPerSample = (WORD)bits;
+    wfx.nBlockAlign = (WORD)(wfx.wBitsPerSample / 8 * wfx.nChannels);
+    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
     wfx.cbSize = 0;
     ds_primary_buffer->SetFormat(&wfx);
     ds_init_buffers();
@@ -282,8 +281,8 @@ void ds_close_channels()
         ds_channel_release(i);
 }
 
-// 0x55c5b0  Confidence: likely (the Release retry loops: up to ten tries while Release reports an
-// error, which a reference count never does). A fading channel is left alone: its fade releases it.
+// 0x55c5b0  Confidence: exact. The Release retry loops try up to ten times while Release reports an
+// error, which a reference count never does. A fading channel is left alone: its fade releases it.
 void ds_channel_release(int channel)
 {
     char msg[256];
@@ -304,20 +303,24 @@ void ds_channel_release(int channel)
             sprintf(msg, "c->pdsb->Stop() failed with return value %s\n", ds_error_string(hr));
         if (c->pds3db != NULL) {
             tries = 1;
-            do {
+            while (1) {
                 hr = c->pds3db->Release();
                 if (hr >= 0)
                     break;
                 sprintf(msg, "c->pds3db->Release() failed with return value %s\n", ds_error_string(hr));
-            } while (tries++ < 10);
+                if (tries++ >= 10)
+                    break;
+            }
         }
         tries = 1;
-        do {
+        while (1) {
             hr = c->pdsb->Release();
             if (hr >= 0)
                 break;
             sprintf(msg, "c->pdsb->Release() failed with return value %s\n", ds_error_string(hr));
-        } while (tries++ < 10);
+            if (tries++ >= 10)
+                break;
+        }
     }
     ds_channel_init(channel);
 }
@@ -331,7 +334,7 @@ void ds_close_buffers()
         ds_sound_release(i);
 }
 
-// 0x55c6e0  Confidence: likely (as ds_channel_release; the second pdsb test is in the source).
+// 0x55c6e0  Confidence: exact.
 void ds_sound_release(int buffer)
 {
     char msg[256];
@@ -366,22 +369,27 @@ void ds_sound_release(int buffer)
             sprintf(msg, "s->pdsb->Stop() failed with return value %s\n", ds_error_string(hr));
         if (b->pds3db != NULL) {
             tries = 1;
-            do {
+            while (1) {
                 hr = b->pds3db->Release();
                 if (hr >= 0)
                     break;
                 sprintf(msg, "s->pds3db->Release() failed with return value %s\n", ds_error_string(hr));
-            } while (tries++ < 10);
+                if (tries++ >= 10)
+                    break;
+            }
             b->pds3db = NULL;
         }
         if (b->pdsb != NULL) {
             tries = 1;
-            do {
+            while (1) {
                 hr = b->pdsb->Release();
                 if (hr >= 0)
                     break;
                 sprintf(msg, "s->pdsb->Release() failed with return value %s\n", ds_error_string(hr));
-            } while (tries++ < 10);
+                if (tries++ >= 10)
+                    break;
+            }
+
             b->pdsb = NULL;
         }
     }
@@ -421,26 +429,28 @@ int ds_load_buffer(const char *name, const char *path, int offset, int group, in
 // 0x55c990  Confidence: exact. A streamed sound keeps its file open.
 int ds_load_buffer_data(int buffer, bool streamed)
 {
+    ds_buffer *b;
     int r = 0;
 
     if (ds_wav_open(buffer) != 0)
         return -1;
     if (streamed == true)
         return 0;
-    switch (ds_buffers[buffer].format->wFormatTag) {
-    case WAVE_FORMAT_PCM:
-        if (ds_create_buffer(buffer) != 0)
-            r = -1;
-        break;
+    b = &ds_buffers[buffer];
+    switch (b->format->wFormatTag) {
     case WAVE_FORMAT_ADPCM:
         if (ds_load_buffer_acm(buffer) != 0)
-            r = -1;
+            goto fail;
         break;
+    case WAVE_FORMAT_PCM:
+        if (ds_create_buffer(buffer) == 0)
+            break;
     default:
+    fail:
         r = -1;
         break;
     }
-    wav_close(&ds_buffers[buffer].hmmio);
+    wav_close(&b->hmmio);
     return r;
 }
 
@@ -614,7 +624,7 @@ void ds_unload_buffer(int buffer)
         ds_sound_release(buffer);
 }
 
-// 0x55cf00  Confidence: likely. The failures after ds_duplicate_buffer leave the duplicate in the channel
+// 0x55cf00  Confidence: exact. The failures after ds_duplicate_buffer leave the duplicate in the channel
 // (it is released when the channel is next taken).
 int ds_play_3d(int buffer, const vector3 *pos, const vector3 *vel, float min_range, float max_range,
                float volume, bool looping, int a)
@@ -647,7 +657,11 @@ int ds_play_3d(int buffer, const vector3 *pos, const vector3 *vel, float min_ran
         c->flags |= DS_CHANNEL_LOOPING;
     c->volume = volume;
     c->buffer = buffer;
-    if (c->pdsb->Play(0, 0, looping == true ? DSBPLAY_LOOPING : 0) < 0) {
+    DWORD play_flags = 0;
+    if (looping == true)
+        play_flags = DSBPLAY_LOOPING;
+    if (c->pdsb->Play(0, 0, play_flags) < 0) {
+
         ds_channel_release(ch);
         return -1;
     }
@@ -669,26 +683,30 @@ int ds_volume_to_attenuation(float volume)
     return ds_volume_table[v];
 }
 
-// 0x55d0a0  Confidence: likely (the returns). A channel without a buffer, or a stopped one that is
+// 0x55d0a0  Confidence: exact. A channel without a buffer, or a stopped one that is
 // neither looping nor streamed (released first). The argument is not read.
 int ds_find_free_channel(int priority)
 {
     DWORD status;
+    int free_channel = -1;
     int i;
 
     for (i = 0; i < DS_MAX_CHANNELS; i++) {
-        if (ds_channels[i].pdsb == NULL)
-            return i;
+        if (ds_channels[i].pdsb == NULL) {
+            free_channel = i;
+            break;
+        }
         if (!(ds_channels[i].flags & (DS_CHANNEL_LOOPING | DS_CHANNEL_STREAMED))) {
             if (ds_channels[i].pdsb->GetStatus(&status) < 0)
                 return -1;
             if (!(status & DSBSTATUS_PLAYING)) {
+                free_channel = i;
                 ds_channel_release(i);
-                return i;
+                break;
             }
         }
     }
-    return -1;
+    return free_channel;
 }
 
 // 0x55d110  Confidence: likely. A 3D buffer played in 2D has its 3D processing switched off.
@@ -1184,16 +1202,16 @@ void ds_set_group_volume(int group, float volume)
     }
 }
 
-// 0x55dd10  Confidence: likely. The RIFF chunk size over bytes per sample and the rate: the channel
+// 0x55dd10  Confidence: exact. The RIFF chunk size over bytes per sample and the rate: the channel
 // count is left out (stereo files read twice as long).
 float ds_estimate_duration(int buffer)
 {
-    WAVEFORMATEX *fmt;
+    ds_buffer *b;
 
     if (buffer < 0 || buffer >= DS_MAX_BUFFERS)
         return 0.0f;
-    fmt = ds_buffers[buffer].pcm_format;
-    return (float)(ds_buffers[buffer].riff_ck.cksize / (fmt->wBitsPerSample * 0.125f) / (int)fmt->nSamplesPerSec);
+    b = &ds_buffers[buffer];
+    return b->riff_ck.cksize / (b->pcm_format->wBitsPerSample * 0.125f) / b->pcm_format->nSamplesPerSec;
 }
 
 // 0x55dd80  Confidence: exact.

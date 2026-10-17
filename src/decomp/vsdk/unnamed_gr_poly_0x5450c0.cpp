@@ -157,7 +157,7 @@ void gr_poly_buffer_put_vector(const vector3 *v)
     gr_poly_buffer_ptr = (ubyte *)p;
 }
 
-// 0x545340  Confidence: exact. The tint is applied to the colour (grey = r + g + b times each tint
+// 0x545340  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). The tint is applied to the colour (grey = r + g + b times each tint
 // factor, as gr_glide_apply_tint); a bitmap larger than the largest texture marks the pass sectioned.
 void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte a, int stage)
 {

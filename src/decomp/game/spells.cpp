@@ -1710,15 +1710,24 @@ void spell_play_sound_34(int spell, const vector3 *pos)
     }
 }
 
+// The x / z pair of an avoidance description, through float arguments: the binary copies the six floats
+// with fld / fstp (an inline with float parameters; plain member copies are integer moves). Name ours.
+static inline void set_xz(float *d, float x, float z)
+{
+    d[0] = x;
+    d[1] = z;
+}
+
 // 0x47e100  Confidence: likely (the two ground points are copied into x / z pairs first: the stores
-// 0x47e17f-0x47e18f). The effect gets an avoidance box from the middle of ground points 7..1 and 8..13
+// 0x47e17f-0x47e18f; match27: through the vector2 constructor and operators, now to +0x105 of 0x175, the rest
+// is the scheduling of the avoidance stores: the original's description probably has vector2 members). The effect gets an avoidance box from the middle of ground points 7..1 and 8..13
 // along their direction.
 int spell_place_ground_effect(int spell, int caster, const vector3 *pos, int owner, const matrix *orient)
 {
     int h;
     effect_object *fx;
     vector3 p1, p2;
-    vector2 centre, end, dir;
+    vector2 centre, dir;
     float len;
     avoid_area_desc aa;
 
@@ -1731,21 +1740,19 @@ int spell_place_ground_effect(int spell, int caster, const vector3 *pos, int own
     fx->instance->process(0, &fx->pos, &fx->orient);
     spell_find_ground_points(&p1, 7, 0, fx);
     spell_find_ground_points(&p2, 8, 0xe, fx);
-    centre.x = p1.x;
-    centre.y = p1.z;
-    end.x = p2.x;
-    end.y = p2.z;
-    centre.x = (centre.x + end.x) * 0.5f;
-    centre.y = (centre.y + end.y) * 0.5f;
-    dir.x = end.x - centre.x;
-    dir.y = end.y - centre.y;
+    vector2 a(p1.x, p1.z);
+    vector2 b(p2.x, p2.z);
+
+    centre = 0.5f * (a + b);
+    dir = b - centre;
     len = dir.normalize() + 1.5f;
+    vector2 perp(-dir.y, dir.x);
     aa.cx = centre.x;
     aa.cz = centre.y;
     aa.ax = dir.x;
     aa.az = dir.y;
-    aa.bx = -dir.y;
-    aa.bz = dir.x;
+    aa.bx = perp.x;
+    aa.bz = perp.y;
     aa.shape = 0;
     aa.extent_a = len;
     aa._unk00 = 0;
@@ -1828,8 +1835,8 @@ bool spell_probe_ground_point(effect_object *fx, int node, vector3 *point)
     return false;
 }
 
-// 0x47e4d0  Confidence: exact. Marks the object as a fireball (spell 0x1a) ground effect with an
-// avoidance box of 2 x 2 m.
+// 0x47e4d0  Confidence: exact (VC6 byte match, match27; marked exact before without one: the pairs through
+// set_xz). Marks the object as a fireball (spell 0x1a) ground effect with an avoidance box of 2 x 2 m.
 void spell_effect_obj_set_timer(int caster, int handle, const vector3 *pos, int owner, const matrix *orient)
 {
     effect_object *fx = (effect_object *)obj_from_handle_b(handle);
@@ -1840,12 +1847,9 @@ void spell_effect_obj_set_timer(int caster, int handle, const vector3 *pos, int 
         fx->timer.SetTimeout(0);
         fx->caster = caster;
         fx->spell = SPELL_FIREBALL;
-        aa.cx = pos->x;
-        aa.cz = pos->z;
-        aa.ax = orient->rvec.x;
-        aa.az = orient->rvec.z;
-        aa.bx = orient->fvec.x;
-        aa.bz = orient->fvec.z;
+        set_xz(&aa.cx, pos->x, pos->z);
+        set_xz(&aa.ax, orient->rvec.x, orient->rvec.z);
+        set_xz(&aa.bx, orient->fvec.x, orient->fvec.z);
         aa.shape = 0;
         aa._unk00 = 0;
         aa.extent_a = 2.0f;
@@ -1951,7 +1955,7 @@ void spell_launch_missile(Character *caster, int handle)
     spell_missiles[i].orient.fvec.z = orient.fvec.z;
 }
 
-// 0x47e830  Confidence: exact. An explicit start / orientation wins; otherwise a recorded missile slot
+// 0x47e830  Confidence: likely (marked exact; differs under VC6 8966, match27). An explicit start / orientation wins; otherwise a recorded missile slot
 // is used (and freed) when there is a target.
 int spell_fire_missile(int spell, int missile, Character *caster, Character *target,
                        const vector3 *start, const matrix *orient)
@@ -2291,19 +2295,20 @@ spell_effect *spell_effect_add(const spell_effect *rec)
     return e;
 }
 
-// 0x47f690  Confidence: likely (the two bit-field stores are one `or 0x7f`).
+// 0x47f690  Confidence: exact (VC6 byte match, match27: the found record breaks out to one `return e`; was likely).
 spell_effect *spell_effect_alloc()
 {
     int i;
+    spell_effect *e = NULL;
 
     for (i = 0; i < MAX_SPELL_EFFECTS; i++)
         if (!spell_effects[i].used) {
-            spell_effect *e = &spell_effects[i];
+            e = &spell_effects[i];
             e->used = 1;
             e->slot = 0x3f;
-            return e;
+            break;
         }
-    return NULL;
+    return e;
 }
 
 // 0x47f6d0  Confidence: exact (signed pointer difference by 0x34; no lower bound check).

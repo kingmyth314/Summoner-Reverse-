@@ -41,7 +41,7 @@ int effect_stream_state;                                      // 0x65139c
 int effect_stream_queue_count;                                // 0x6513a0
 int effect_stream_cur;                                        // 0x6513a4
 
-// 0x440440  Confidence: likely (the four out values are locals whose order is a guess).
+// 0x440440  Confidence: exact (VC6 byte match, match24; was likely) (the four out values are locals whose order is a guess).
 void effects_read_all_bases()
 {
     int num_nodes;
@@ -62,7 +62,7 @@ void effect_stream_init()
     effect_stream_state = EFFECT_STREAM_IDLE;
 }
 
-// 0x4404a0  Confidence: likely (the target is stored before the strncpy call, the pool after it; that is
+// 0x4404a0  Confidence: exact (VC6 byte match, match24; was likely) (the target is stored before the strncpy call, the pool after it; that is
 // the source order, a store does not move across the call). Only while idle or reading.
 int effect_stream_queue_add(const char *name, Mempool *pool, void *target)
 {
@@ -90,7 +90,7 @@ int effect_stream_queue_contains(const char *name)
     return 0;
 }
 
-// 0x440560  Confidence: exact. effect_stream_next never returns a negative value, so its test is dead.
+// 0x440560  Confidence: likely (differs under cl 8966, match24; was exact). effect_stream_next never returns a negative value, so its test is dead.
 int effect_stream_start()
 {
     if (effect_stream_state != EFFECT_STREAM_IDLE)
@@ -204,7 +204,7 @@ void effect_stream_pop_mempool()
     effect_stream_saved_mempool = NULL;
 }
 
-// 0x4408a0  Confidence: exact (the 1 / 2 choice after the next open is neg / sbb / add 2). The state.
+// 0x4408a0  Confidence: likely (differs under cl 8966, match24; was exact) (the 1 / 2 choice after the next open is neg / sbb / add 2). The state.
 int effect_stream_update()
 {
     if (effect_stream_state != EFFECT_STREAM_READING)

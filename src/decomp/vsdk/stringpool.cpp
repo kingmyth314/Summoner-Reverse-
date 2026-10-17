@@ -80,7 +80,7 @@ char *StringPool::GetBuffer()
     return pool;
 }
 
-// 0x544c40  Confidence: exact. Error line 233 (0xe9).
+// 0x544c40  Confidence: likely (register choice under 8966). Error line 233 (0xe9).
 char *StringPool::Add(const char *s)
 {
     if (s == NULL)

@@ -42,15 +42,15 @@ void Crc32::init()
     value = 0;
 }
 
-// 0x552130  Confidence: exact.
+// 0x552130  Confidence: likely (8966 keeps the table word in its own register; the binary XORs into the shifted value).
 unsigned int Crc32::update(const void *buf, int len)
 {
-    const unsigned char *p = (const unsigned char *)buf;
+    int i;
 
     if (!crc32_table_inited)
         init_table();
-    while (len--)
-        value = crc32_table[(value & 0xff) ^ *p++] ^ (value >> 8);
+    for (i = 0; len--; i++)
+        value = crc32_table[(value & 0xff) ^ ((const unsigned char *)buf)[i]] ^ (value >> 8);
     return value;
 }
 

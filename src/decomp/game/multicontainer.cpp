@@ -49,8 +49,10 @@ void mp_broadcast_container_gold(int player_id, int handle)
 void mp_handle_item_get(ubyte *data, void *from)
 {
     char buf[32];
-    int player_id = ((int *)data)[0];
-    item_obj *it = (item_obj *)mp_obj_from_net_handle(((int *)data)[1]);
+    int player_id, net;
+    memcpy(&player_id, data, 4);
+    memcpy(&net, data + 4, 4);
+    item_obj *it = (item_obj *)mp_obj_from_net_handle(net);
 
     if (!it)
         return;
@@ -133,7 +135,7 @@ void mp_send_container_close(int handle, int num_taken, int num_items, item_obj 
         c->user = -1;
 }
 
-// 0x488eb0  Confidence: likely (the copy of the remaining items into a local array that nothing reads is
+// 0x488eb0  Confidence: exact (VC6 byte match, match24; was likely) (the copy of the remaining items into a local array that nothing reads is
 // kept). Game bug: the taken items are looked up from the container's net handle (data + 4) every time,
 // not from the handles after the count (data + 12 ...), so remove_item gets the container itself and the
 // other machines never remove the taken items (an emptied container is not deleted either).
@@ -141,9 +143,10 @@ void mp_handle_container_close(ubyte *data, void *from)
 {
     item_obj *taken[MP_MAX_DROP_ITEMS];
     item_obj *items[MAX_CONTAINER_ITEMS];
-    int player_id = ((int *)data)[0];
-    int net = ((int *)data)[1];
-    int num_taken = ((int *)data)[2];
+    int player_id, net, num_taken;
+    memcpy(&player_id, data, 4);
+    memcpy(&net, data + 4, 4);
+    memcpy(&num_taken, data + 8, 4);
     int i;
 
     if (player_id == mp_local_player->id)
@@ -168,7 +171,7 @@ void mp_handle_container_close(ubyte *data, void *from)
         mp_forward_cur_packet(from);
 }
 
-// 0x488fc0  Confidence: likely (MP_ADD_DATA of the argument: the code also copies it to an unused local).
+// 0x488fc0  Confidence: exact (VC6 byte match, match29; was likely) (the lock goes through MP_ADD_FLOAT's temporary, D8800).
 // ITM_DRP (count, container_obj_create argument, host handle of the drop, quantized position, then per
 // item its type and, for gold, the amount, then the mesh type of the container when the handle is set).
 // The type is looked up by name again. For a single gold drop the handle is the gold item, whose +0xe0
@@ -183,7 +186,7 @@ void container_spawn_loot(int count, item_obj **items, int handle, float lock, c
     mp_quantize_position(&x, &y, &z, *pos);
     MP_BUILD_HEADER(MP_ITM_DRP);
     MP_ADD_DATA(count);
-    MP_ADD_DATA(lock);
+    MP_ADD_FLOAT(lock);
     MP_ADD_DATA(handle);
     MP_ADD_DATA(x);
     MP_ADD_DATA(y);
@@ -205,7 +208,10 @@ void container_spawn_loot(int count, item_obj **items, int handle, float lock, c
     mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x489120  Confidence: unsure (the three vectors are plain stores, i.e. inline vector3 constructors, and
+// 0x489120  Confidence: unsure (match29, D8801: LOGIC FIX, the second packet field is the container lock as a float
+// (container_spawn_loot sends it with MP_ADD_FLOAT); it was read as an int and converted. The orientation is
+// assigned from a matrix temporary (operator=, nine dword moves as the binary). Still differs: the vectors'
+// store order and register choice). (the three vectors are plain stores, i.e. inline vector3 constructors, and
 // the matrix goes through a temporary copied member by member; the spawned items are stored through a
 // running pointer, so the skipped invalid types leave the later slots unset). A single gold drop becomes
 // the gold item itself, anything else a container at the first item (0.2 higher) holding the items.
@@ -216,10 +222,11 @@ void mp_handle_item_drop(ubyte *data, void *from)
     vector3 rvec(1.0f, 0.0f, 0.0f);
     vector3 uvec(0.0f, 1.0f, 0.0f);
     vector3 fvec(0.0f, 0.0f, 1.0f);
-    matrix orient = matrix(rvec, uvec, fvec);
+    matrix orient;
+    orient = matrix(rvec, uvec, fvec);
     int gold = item_type_find("Gold");
     int count = ((int *)data)[0];
-    int arg = ((int *)data)[1];
+    float lock = ((float *)data)[1];
     int net = ((int *)data)[2];
     vector3 pos = mp_dequantize_position(*(short *)(data + 0xc), *(short *)(data + 0xe),
                                          *(short *)(data + 0x10));
@@ -245,7 +252,7 @@ void mp_handle_item_drop(ubyte *data, void *from)
         if (count == 1)
             mp_map_net_handle(net, items[0]->handle);
     } else {
-        container *c = container_obj_create(&pos, arg);
+        container *c = container_obj_create(&pos, lock);
         if (c) {
             for (i = 0; i < count; i++)
                 c->add_item(items[i]);
@@ -346,7 +353,7 @@ void mp_send_lockpick_result(mp_player *p, int handle, int result)
         multi_send_packet(data, packet_size, p, 0);
 }
 
-// 0x489660  Confidence: likely (if-chain over the result). The container is looked up with obj_from_handle,
+// 0x489660  Confidence: exact (VC6 byte match, match24; was likely) (if-chain over the result). The container is looked up with obj_from_handle,
 // not mp_obj_from_net_handle, although the handle is the host's (see NOTES). A failure plays the sound
 // without the feedback line the host played.
 void mp_handle_container_lockpick(ubyte *data, void *from)

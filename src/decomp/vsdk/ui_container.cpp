@@ -61,7 +61,7 @@ void ui_container::create(ui_element *window, int x, int y, int w, int h, int id
     colors = ui_container_colors;
 }
 
-// 0x5535f0  Confidence: likely (store order of the node fields). Appends a node to the tooltip list;
+// 0x5535f0  Confidence: exact (store order: delay, x, y, font). Appends a node to the tooltip list;
 // unlike ui_button__set_tooltip it does not remove an existing one first.
 void ui_container::set_tooltip(const char *text, int font, int x, int y, int delay)
 {
@@ -69,10 +69,10 @@ void ui_container::set_tooltip(const char *text, int font, int x, int y, int del
 
     t->owner = this;
     strcpy(t->text, text);
-    t->x = x;
     t->delay = delay;
-    t->font = font;
+    t->x = x;
     t->y = y;
+    t->font = font;
     t->colors = ui_tooltip_colors;
 
     t->next = (ui_tooltip *)&tooltips;

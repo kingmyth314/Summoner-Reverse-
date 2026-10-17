@@ -471,7 +471,7 @@ int gr_d3d_get_section_count(int bm)
     return d3d_tcache_entries[bm_get_current_frame(bm)].num_sections;
 }
 
-// 0x54d000  Confidence: exact.
+// 0x54d000  Confidence: likely (differs under 8966).
 void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h)
 {
     d3d_tcache_entry *e = &d3d_tcache_entries[bm_get_current_frame(bm)];

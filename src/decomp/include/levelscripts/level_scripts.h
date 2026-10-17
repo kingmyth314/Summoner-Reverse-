@@ -385,14 +385,15 @@ struct navpoint {
     float heading;                   // +0x10 matrix3::extract_angles h of the level-file navpoint
     vector3 pos;                     // +0x14 dropped onto the geometry below
     int layer;                       // +0x20 lobj_get_layer_n of the floor, 0 when invalid
-    union {                          // +0x24 zeroed by level_add_navpoint; the script parsers store
-        int _unk24;                  //        the height above the ground found below (0 when it was
-        float ground_height;         //        below the ground: then pos is moved onto it; decomp44)
-    };
-    union {                          // +0x28 level_script_restart only moves characters whose start
-        int _unk28;                  //        navpoint has 0 here (decomp41): the script parsers' $Type:
-        int type;                    //        (script_navpoint_type_names: 0 level, 1 cutscene, 2 camera,
-    };                               //        3 ambient sound; by name $npc / $player 0, $c_npc 1, $camera 2)
+    // +0x24 / +0x28 are plain members, not anonymous unions (D8703: VC6 copies every member of an
+    // anonymous union, and the script editor's record moves copy each dword once).
+    float ground_height;             // +0x24 zeroed by level_add_navpoint; the script parsers store
+                                     //        the height above the ground found below (0 when it was
+                                     //        below the ground: then pos is moved onto it; decomp44)
+    int type;                        // +0x28 level_script_restart only moves characters whose start
+                                     //        navpoint has 0 here (decomp41): the script parsers' $Type:
+                                     //        (script_navpoint_type_names: 0 level, 1 cutscene, 2 camera,
+                                     //        3 ambient sound; by name $npc / $player 0, $c_npc 1, $camera 2)
     int level_item;                  // +0x2c level_items index placed here (level_items_parse_table; D2102)
 };
 LAYOUT_CHECK(navpoint, sizeof(navpoint) == 0x30);

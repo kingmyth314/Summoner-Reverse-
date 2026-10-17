@@ -202,7 +202,7 @@ void decal_recycle(decal_record *d, decal_node *n)
     d->in_use = 0;
 }
 
-// 0x4bc640  Confidence: exact.
+// 0x4bc640  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 void decals_reset()
 {
     decal_record *d;
@@ -368,7 +368,7 @@ s3d_geom_block::s3d_geom_block()
     clear();
 }
 
-// 0x4bcd50  Confidence: likely (delete[] calls 0x512570 like the other units' array deletes, D200).
+// 0x4bcd50  Confidence: exact (VC6 byte match, match23; was likely; delete[] calls 0x512570 like the other units' array deletes, D200).
 // 0x4bcd90  Confidence: unsure (its origin). s3d_geom_block__dtor_thunk: "jmp 0x4bcd50", the address the
 // eh vector iterator of s3d_alloc_level_arrays receives; no source of its own.
 s3d_geom_block::~s3d_geom_block()
@@ -393,7 +393,7 @@ void s3d_geom_block::clear()
     _unk10 = 0;
 }
 
-// 0x4bcdc0  Confidence: likely. Reads once (+0x04 still NULL): three counts, then _unk08 12-byte entries
+// 0x4bcdc0  Confidence: exact (VC6 byte match, match23; was likely). Reads once (+0x04 still NULL): three counts, then _unk08 12-byte entries
 // and _unk10 ushorts.
 void s3d_geom_block::read(File *f)
 {

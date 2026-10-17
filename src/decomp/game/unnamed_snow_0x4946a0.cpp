@@ -163,7 +163,7 @@ bool snow_cell::update()
     return flakes == NULL;
 }
 
-// 0x494ab0  Confidence: exact (the 13-byte clear is memset expanded: three dwords and a byte).
+// 0x494ab0  Confidence: likely (differs under cl 12.00.8966, match23; was exact; the 13-byte clear is memset expanded: three dwords and a byte).
 // ls_lenele3d_init, ls_lenele3a_init, ls_ionaext02_init.
 void snow_start()
 {

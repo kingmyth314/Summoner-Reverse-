@@ -330,8 +330,8 @@ void level_unload(bool leaving_game)
     snd_level_release();
 }
 
-// 0x437e50  Confidence: likely (living_from_handle is called twice for a party object: the second call
-// is written as its own variable). Leaving the game: every party record and every object goes. A level
+// 0x437e50  Confidence: exact (VC6 byte match, match24; was likely) (living_from_handle is called twice for a party object: the second result
+// goes into the same local; the two summon stores are the shared tail, D8304). Leaving the game: every party record and every object goes. A level
 // change: the objects go except the party members, whose effects are cleared and AI reset; a summon
 // (CF_SUMMON) goes too, after giving back the borrowed HP. In a town (or the world map) the party is
 // then revived and healed.
@@ -345,19 +345,15 @@ void party_level_reset(bool leaving_game)
         while (obj_active_list.next != &obj_active_list)
             obj_active_list.next->deinit();
         cur_character = NULL;
-        cur_summon = NULL;
-        summon_player = NULL;
-        return;
-    }
-
+    } else {
     obj *o, *next;
     for (o = obj_active_list.next, next = o->next; o != &obj_active_list; o = next, next = next->next) {
         Character *c = living_from_handle(o->handle);
         if (o->type == OBJ_TYPE_PARTY) {
-            Character *member = living_from_handle(o->handle);
-            member->clear_all_effects();
-            if (!(member->flags & CF_SUMMON)) {
-                member->ai.reset_party_member();
+            c = living_from_handle(o->handle);
+            c->clear_all_effects();
+            if (!(c->flags & CF_SUMMON)) {
+                c->ai.reset_party_member();
                 continue;
             }
         }
@@ -384,6 +380,7 @@ void party_level_reset(bool leaving_game)
             c->flags &= ~(CF_SUMMONLIKE | 0x400);
             c->clear_all_effects();
         }
+    }
     }
     cur_summon = NULL;
     summon_player = NULL;
@@ -544,7 +541,7 @@ void state_game_enter()
     }
 }
 
-// 0x438570  Confidence: likely (the eight counter stores are in the binary's order; the comparison
+// 0x438570  Confidence: exact (VC6 byte match, match24; was likely) (the eight counter stores are in the binary's order; the comparison
 // `== true` gives the cmp al, 1 / sete of 0x438683). Adds the level packfiles when they are not on the
 // hard disk (asking for disc 2 when levelm.vpp is missing), sets the bitmap mark, starts the loading
 // screen and loads the level.
@@ -675,7 +672,7 @@ void level_load_layers()
     }
 }
 
-// 0x4389f0  Confidence: likely (two_stage_get's results are not used). Every door (lobj flag 0x100)
+// 0x4389f0  Confidence: exact (VC6 byte match, match24; was likely) (two_stage_get's results are not used). Every door (lobj flag 0x100)
 // finds its floor point; in a multiplayer game the doors are also opened at once and stored as
 // "open, locked" in the two-stage table. Single player restores nothing here.
 void level_restore_doors()
@@ -694,7 +691,7 @@ void level_restore_doors()
     }
 }
 
-// 0x438a90  Confidence: likely (the loop head). Single player, new game (previous state 2, no load
+// 0x438a90  Confidence: exact (VC6 byte match, match24; was likely) (the loop head). Single player, new game (previous state 2, no load
 // pending): Joseph joins as leader at level 1; with Full_party (except in masad, which clears it) Rosalind,
 // Jekhar and Flece join too. Multiplayer, new game: each player's character joins (the local one is the
 // leader and reads its .plr); later levels only take the existing characters. Then every character gets
@@ -754,7 +751,7 @@ void level_spawn_party()
     combat_mode = true;
 }
 
-// 0x438c80  Confidence: likely (the unpause test is two branches in the binary). State 4 leave. Going to
+// 0x438c80  Confidence: exact (VC6 byte match, match24; was likely) (the unpause test is two branches in the binary). State 4 leave. Going to
 // state 5 (help) or 6 keeps the level. Otherwise the level is unloaded; a next state other than 4 (a
 // level change) ends the game: the party records and the inventory count go as well.
 void state_game_leave()
@@ -1172,7 +1169,7 @@ void cmd_character();
 // 0x439910 init_ccmd_character (console_command constructor). Confidence: exact.
 console_command ccmd_character("character", "Set the current main character", cmd_character);   // 0x60a420
 
-// 0x439930  Confidence: likely (the copies of the position and orientation are expanded: a default
+// 0x439930  Confidence: exact (VC6 byte match, match24; was likely) (the copies of the position and orientation are expanded: a default
 // matrix plus assignment). Replaces the leader's character with a new one of the named char_infos record
 // at the same place; the words of the argument are joined with spaces. Without an argument the name is
 // empty and name[strlen(name) - 1] writes the byte before the buffer.
@@ -1348,7 +1345,7 @@ void (*help_page_draw_funcs[NUM_HELP_PAGES])(int y) = {      // 0x59412c
     help_controls_window_draw,
 };
 
-// 0x439e80  Confidence: likely (the three loops' shape; the camera loop's y step h + 2 is computed once).
+// 0x439e80  Confidence: exact (VC6 byte match, match24; was likely) (the three loops' shape; the camera loop's y step h + 2 is computed once).
 // Keys at x 10, actions right-aligned at 630 (640-wide coordinates at every resolution).
 void help_controls_window_draw(int y)
 {

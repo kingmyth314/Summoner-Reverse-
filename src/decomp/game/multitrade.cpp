@@ -130,13 +130,14 @@ void mp_send_it_rqst(Player *partner)
     mp_trade_request_timer.invalidate();
 }
 
-// 0x471040  Confidence: likely (interface_set_screen's second argument is pushed from the register that
-// holds the screen, known 0 there: read as a literal 0). Accepts only while not trading, not in AI mode 3
+// 0x471040  Confidence: exact (VC6 byte match, match29; was likely) (the packet fields read with memcpy, D8302 / D8800; interface_set_screen's second
+// argument is a literal 0). Accepts only while not trading, not in AI mode 3
 // and with no screen open.
 void mp_handle_it_rqst(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int sender = ((int *)data)[1];
+    int target, sender;
+    memcpy(&target, data, 4);
+    memcpy(&sender, data + 4, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -177,11 +178,12 @@ void mp_send_it_deny(Player *partner, int reason)
         multi_send_packet(data, packet_size, NULL, 1);
 }
 
-// 0x4711c0  Confidence: likely (switch: the default body directly follows the two tests).
+// 0x4711c0  Confidence: exact (VC6 byte match, match29; was likely) (switch: the default body directly follows the two tests).
 void mp_handle_it_deny(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int reason = ((int *)data)[1];
+    int target, reason;
+    memcpy(&target, data, 4);
+    memcpy(&reason, data + 4, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -225,7 +227,8 @@ void mp_send_it_acpt(Player *partner)
 // 0x4712f0  Confidence: exact. The partner was set by mp_send_it_rqst.
 void mp_handle_it_acpt(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
+    int target;
+    memcpy(&target, data, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -280,13 +283,14 @@ void mp_send_it_addi(item_info *item, int count)
         mp_trade_set_state(MP_TRADE_OPEN, NULL);
 }
 
-// 0x4714a0  Confidence: likely (as mp_send_it_addi). No bound check on the remote list (16 entries).
+// 0x4714a0  Confidence: exact (VC6 byte match, match29; was likely) (as mp_send_it_addi). No bound check on the remote list (16 entries).
 void mp_handle_it_addi(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int type = ((int *)data)[1];
-    int count = ((int *)data)[2];
-    int charges = ((int *)data)[3];
+    int target, type, count, charges;
+    memcpy(&target, data, 4);
+    memcpy(&type, data + 4, 4);
+    memcpy(&count, data + 8, 4);
+    memcpy(&charges, data + 12, 4);
     int i;
 
     if (cur_character->net_handle != target) {
@@ -297,7 +301,7 @@ void mp_handle_it_addi(ubyte *data, void *from)
 
     ItemType *t = &item_types[type];
     for (i = 0; i < mp_trade_remote_count; i++) {
-        if (mp_trade_remote_items[i].type == t) {
+        if (t == mp_trade_remote_items[i].type) {
             mp_trade_remote_items[i].count += count;
             break;
         }
@@ -354,11 +358,12 @@ void mp_send_it_rmvi(ItemType *type)
         mp_trade_set_state(MP_TRADE_OPEN, NULL);
 }
 
-// 0x4716f0  Confidence: likely (as mp_send_it_rmvi).
+// 0x4716f0  Confidence: exact (VC6 byte match, match29; was likely) (as mp_send_it_rmvi).
 void mp_handle_it_rmvi(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int type = ((int *)data)[1];
+    int target, type;
+    memcpy(&target, data, 4);
+    memcpy(&type, data + 4, 4);
     int i;
 
     if (cur_character->net_handle != target) {
@@ -453,7 +458,8 @@ void mp_trade_complete()
 // 0x4719e0  Confidence: likely (the nested state test: state 3 tail-jumps to mp_trade_complete).
 void mp_handle_it_okay(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
+    int target;
+    memcpy(&target, data, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -498,7 +504,8 @@ void mp_trade_cancel()
 // 0x471b30  Confidence: exact. A cancel during the request (state 1) is ignored.
 void mp_handle_it_cncl(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
+    int target;
+    memcpy(&target, data, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -537,8 +544,9 @@ void mp_send_it_qury()
 // 0x471c50  Confidence: exact. Only the partner's query is answered.
 void mp_handle_it_qury(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int sender = ((int *)data)[1];
+    int target, sender;
+    memcpy(&target, data, 4);
+    memcpy(&sender, data + 4, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())
@@ -577,8 +585,9 @@ void mp_send_it_stat()
 // 0x471d70  Confidence: exact. The partner's state (data + 8) is not read.
 void mp_handle_it_stat(ubyte *data, void *from)
 {
-    int target = ((int *)data)[0];
-    int sender = ((int *)data)[1];
+    int target, sender;
+    memcpy(&target, data, 4);
+    memcpy(&sender, data + 4, 4);
 
     if (cur_character->net_handle != target) {
         if (MP_IS_HOST())

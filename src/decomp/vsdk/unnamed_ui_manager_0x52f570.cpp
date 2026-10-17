@@ -1,8 +1,8 @@
 // unnamed_ui_manager_0x52f570.cpp - Sum.exe v1.40, code 0x52f570-0x530b86 (vsdk\ui; the unit's file name
 // is not in the binary, so the name is a placeholder). Written from the Sum.exe disassembly
-// (tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966), /O2 without inline expansion (it calls COMDAT copies
-// of inline functions: Color() 0x505530 from the colour set constructors, ui_container::get_mask_buffer
-// and ui_window::get_mask_data). Confidence per function: exact = expect identical code, likely = same
+// (tools/asm.mjs). Target: VC++ 6.0 (cl 12.00.8966), /Ox /Ow (D7502). ui_container::get_mask_buffer and
+// ui_window::get_mask_data are defined at the end of this file, not inline (ui_draw calls them, D8403); the
+// colour set constructors call the COMDAT Color() 0x505530. Confidence per function: exact = expect identical code, likely = same
 // semantics, small layout or scheduling risk, unsure = the source shape is a guess.
 //
 // The UI manager: the window list (ui_window_sentinel), the per-frame input pass (ui_process: mouse
@@ -213,7 +213,7 @@ void ui_init()
     ui_inited = 1;
 }
 
-// 0x52ff30  Confidence: likely (the tooltip selection written with t = NULL for the "none" cases; the
+// 0x52ff30  Confidence: exact (the mask getters are out-of-line calls, D8403; the tooltip selection written with t = NULL for the "none" cases; the
 // code jumps past the final test there). Windows from the first to the last, the caller's overlay, the
 // hovered element's tooltip (containers and windows pick the one whose value matches the mask pixel under
 // the mouse; statics and input boxes show none), then the dragged button under the mouse.
@@ -542,5 +542,15 @@ ui_window *ui_get_top_modal_window()
 // 0x530b10  ui_colors2_x3::ui_colors2_x3 (ui_colors2_x3__ctor).
 // 0x530b30  ui_colors2::ui_colors2 (ui_colors2__ctor).
 // 0x530b50  ui_colors8::ui_colors8 (ui_colors8__ctor).
-// 0x530b70  ui_container::get_mask_buffer, the inline getter (vsdk/ui/ui_container.h; ui_draw).
-// 0x530b80  ui_window::get_mask_data, the inline getter (vsdk/ui/window.h; ui_draw).
+
+// 0x530b70  Confidence: exact. Not inline: ui_draw calls it (D8403).
+ubyte *ui_container::get_mask_buffer()
+{
+    return mask_data;
+}
+
+// 0x530b80  Confidence: exact. Not inline: ui_draw calls it (D8403).
+ubyte *ui_window::get_mask_data()
+{
+    return mask_data;
+}

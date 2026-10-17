@@ -72,7 +72,7 @@ float gl_scale_2f13360;                               // 0x2f13360
 // of the power-of-two texture (tex_w x tex_h) and the rest is zero. Two styles: the per-texel test
 // (x < bm_w && y < bm_h) and the 16.16 "resampling" loops whose step is a whole texel.
 
-// 0x54d5c0  Confidence: exact.
+// 0x54d5c0  Confidence: likely (differs under cl 8966 in match26).
 // BM_FORMAT_8_ALPHA: white with the gamma-corrected alpha.
 void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -155,13 +155,14 @@ void gl_convert_565_to_rgb888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *s
 // BM_FORMAT_888 (B, G, R) to R, G, B bytes.
 void gl_convert_888_to_rgb888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
+    ubyte *s = src;
     for (int y = 0; y < tex_h; y++) {
         for (int x = 0; x < tex_w; x++) {
             if (x < bm_w && y < bm_h) {
-                *dst++ = src[2];
-                *dst++ = src[1];
-                *dst++ = src[0];
-                src += 3;
+                *dst++ = s[2];
+                *dst++ = s[1];
+                *dst++ = s[0];
+                s += 3;
             } else {
                 *dst++ = 0;
                 *dst++ = 0;
@@ -298,7 +299,7 @@ void gl_convert_8888_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54deb0  Confidence: exact.
+// 0x54deb0  Confidence: likely (differs under cl 8966 in match26).
 // BM_FORMAT_4444 with packed pixels: ARGB4444 rotated to RGBA4444 (GL_UNSIGNED_SHORT_4_4_4_4).
 void gl_convert_4444_to_rgba4444(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -317,7 +318,7 @@ void gl_convert_4444_to_rgba4444(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54df20  Confidence: exact.
+// 0x54df20  Confidence: likely (differs under cl 8966 in match26).
 // BM_FORMAT_1555 with packed pixels: colour bits up one, the inverted alpha bit at bit 0 (5551).
 void gl_convert_1555_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -336,7 +337,7 @@ void gl_convert_1555_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54df90  Confidence: exact.
+// 0x54df90  Confidence: likely (differs under cl 8966 in match26).
 // BM_FORMAT_888 with packed pixels: 5551 with alpha 1; pure green is transparent.
 void gl_convert_888_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -365,7 +366,7 @@ void gl_convert_888_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte 
     }
 }
 
-// 0x54e050  Confidence: exact.
+// 0x54e050  Confidence: likely (differs under cl 8966 in match26).
 // BM_FORMAT_8888 with packed pixels: the top nibbles as RGBA4444.
 void gl_convert_8888_to_rgba4444(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -855,7 +856,7 @@ bool gr_opengl_vertex_alpha = true;                   // 0x5ad859
 float gr_opengl_texture_u_scale = 1.0f;               // 0x5ad85c
 float gr_opengl_texture_v_scale = 1.0f;               // 0x5ad860
 
-// 0x54efe0  Confidence: exact.
+// 0x54efe0  Confidence: likely (differs under cl 8966 in match26).
 // Field values as Dash Faction's gr::Mode enums: texture source 0 none, 1 wrap, 2 clamp, 3 clamp without
 // filtering, 4+ two textures; colour source 0 vertex, 1 texture, 2 vertex * texture; alpha source 0
 // vertex, 1 none, 2 texture, 3 vertex * texture; zbuffer 0 none, 1 read, 2 read equal, 3 write, 4 full;
@@ -1183,7 +1184,7 @@ void gr_opengl_zbuffer_clear()
     glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-// 0x54f8c0  Confidence: exact.
+// 0x54f8c0  Confidence: likely (differs under cl 8966 in match26).
 // Pixel-space projection of the clip rectangle (gr::set_clip). SummonerFix's glViewport hook rescales it.
 void gr_opengl_set_viewport()
 {

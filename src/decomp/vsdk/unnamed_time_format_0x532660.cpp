@@ -14,12 +14,12 @@
 
 void time_format_hms(int seconds, char *buf);
 
-// 0x532660  Confidence: likely (the hours test is `> 0` twice and `!= 0` once in the code; the temporary
-// buffer's size, 16, from the frame). The hours part is "%d:" and the minutes get a leading zero only after
+// 0x532660  Confidence: exact (seconds and minutes from one int; the hours test is `> 0` twice and `!= 0` once in the code; the temporary
+// buffer is 9 to 12 bytes by the frame, 12 taken). The hours part is "%d:" and the minutes get a leading zero only after
 // hours; the seconds always get one.
 void time_format_hms(int seconds, char *buf)
 {
-    char part[16];
+    char part[12];
     float t = (float)seconds;
     int hours = (int)(t * (1.0f / 3600.0f));
     int minutes;
@@ -27,9 +27,9 @@ void time_format_hms(int seconds, char *buf)
 
     if (hours > 0)
         t -= hours * 3600.0f;
-    secs = (int)t;
-    minutes = secs / 60;
-    secs = secs % 60;
+    int total = (int)t;
+    secs = total % 60;
+    minutes = total / 60;
     if (hours > 0) {
         sprintf(buf, "%d:", hours);
         if (minutes < 10) {

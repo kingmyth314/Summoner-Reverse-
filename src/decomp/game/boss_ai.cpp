@@ -913,14 +913,20 @@ void boss_set_foot_anims(Character *c)
     }
 }
 
-// 0x4a2420  Confidence: exact. script_entry_check_done / script_entry_jump_to_sequence.
+// The three rider dismounts are one function in Sum.exe (0x49c610, boss_dismount): the linker folded identical
+// copies (D7603 (2)); the dispatcher has one call per case, so they are named apart here (as D7903; names ours).
+void serpent_dismount(Character *c);
+void tiger_dismount(Character *c);
+void phoenix_dismount(Character *c);
+
+// 0x4a2420  Confidence: exact (VC6 byte match, match30; D8902: three named dismount callees). script_entry_check_done / script_entry_jump_to_sequence.
 void boss_dismount_dispatch(Character *c)
 {
     if (c->type == CHAR_TYPE_BOSS) {
         switch (c->info->species) {
-        case SPECIES_SERPENT_RIDER: boss_dismount(c); break;
-        case SPECIES_TIGER_RIDER:   boss_dismount(c); break;
-        case SPECIES_PHOENIX_RIDER: boss_dismount(c); break;
+        case SPECIES_SERPENT_RIDER: serpent_dismount(c); break;
+        case SPECIES_TIGER_RIDER:   tiger_dismount(c); break;
+        case SPECIES_PHOENIX_RIDER: phoenix_dismount(c); break;
         case SPECIES_GHOST_RIDER:   ghost_dismount(c); break;
         }
     }
@@ -1247,13 +1253,13 @@ bool boss_hook_dispatch_51_c1(Character *boss, Character *target)
     return false;
 }
 
-// 0x4a2de0  Confidence: exact.
+// 0x4a2de0  Confidence: exact (VC6 byte match, match30; D8902: table[i] indexed).
 int boss_threat_find(int handle, boss_threat *table)
 {
     int i;
 
-    for (i = 0; i < BOSS_MAX_THREATS; i++, table++)
-        if (table->handle == handle)
+    for (i = 0; i < BOSS_MAX_THREATS; i++)
+        if (table[i].handle == handle)
             return i;
     return -1;
 }

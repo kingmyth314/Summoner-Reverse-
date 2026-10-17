@@ -285,7 +285,7 @@ void spells_count_page()
 #undef SPELLS_GROUP_BUTTONS
 }
 
-// 0x42a030  Confidence: exact (jump table 0x42a130 over the classes 0..5). The rows ignore the AP cost
+// 0x42a030  Confidence: likely (differs under cl 8966, match24; was exact) (jump table 0x42a130 over the classes 0..5). The rows ignore the AP cost
 // (spell_is_usable's third argument), so a spell without AP is listed greyed.
 void spells_set_page(int page)
 {

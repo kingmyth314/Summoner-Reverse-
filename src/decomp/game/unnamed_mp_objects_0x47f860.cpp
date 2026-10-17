@@ -233,7 +233,7 @@ void mp_send_new_lep(Character *c)
         mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x47ff10  Confidence: likely. The entity is created where the sender has it; a failed create ends the
+// 0x47ff10  Confidence: exact (VC6 byte match, match29; was likely). The entity is created where the sender has it; a failed create ends the
 // game for this machine (reason 3), but the map and HP stores still go through the NULL pointer (latent,
 // D5810).
 void mp_handle_new_lep(ubyte *data, void *from)
@@ -253,11 +253,7 @@ void mp_handle_new_lep(ubyte *data, void *from)
     pos.y = ((float *)data)[5];
     pos.z = ((float *)data)[6];
     data += 0x1c;
-    packed.r0 = ((float *)data)[0];
-    packed.r1 = ((float *)data)[1];
-    packed.u0 = ((float *)data)[2];
-    packed.u1 = ((float *)data)[3];
-    packed.signs = data[0x10];
+    memcpy(&packed, data, 17);
     matrix3_unpack_orientation(&packed, &orient);
     c = living_entity_create(type, info, &pos, &orient, true, 0, 0, 0, false);
     if (!c)
@@ -284,7 +280,7 @@ void mp_handle_delete_entity(ubyte *data, void *from)
         mp_forward_cur_packet(from);
 }
 
-// 0x480070  Confidence: likely. NEW_PTH {handle, target, node count, x, z and layer per node, the last
+// 0x480070  Confidence: exact (VC6 byte match, match29; was likely). NEW_PTH {handle, target, node count, x, z and layer per node, the last
 // node's cost as a byte} of a locally controlled character's AI path.
 void mp_send_new_path(Character *c)
 {
@@ -312,11 +308,12 @@ void mp_send_new_path(Character *c)
         n++;
     data[packet_size++] = n;
     for (p = c->ai.path; p; p = p->next) {
+        ubyte layer = (ubyte)p->layer;
         x = p->pos.x;
         MP_ADD_DATA(x);
         z = p->pos.z;
         MP_ADD_DATA(z);
-        data[packet_size++] = (ubyte)p->layer;
+        data[packet_size++] = layer;
         if (!p->next)
             data[packet_size++] = (ubyte)(int)p->cost;
     }
@@ -327,7 +324,8 @@ void mp_send_new_path(Character *c)
         mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x4801f0  Confidence: unsure (the node loops' shapes). multi_path_type 0 (full path): the nodes are
+// 0x4801f0  Confidence: likely (match29, D8800: n is a ubyte, each node read through a vector2 with memcpy, the
+// direction loop without a second path test; still differs: the vector2 is stored to the stack before the call). multi_path_type 0 (full path): the nodes are
 // rebuilt as sent, with their directions and the remaining cost counted back from the last node's;
 // 1 (generate): the AI searches from its position to the first node and appends a search to the last.
 void mp_handle_new_path(ubyte *data, void *from)
@@ -335,7 +333,8 @@ void mp_handle_new_path(ubyte *data, void *from)
     int h, t;
     int ch, th;
     Character *c;
-    int n, i;
+    ubyte n;
+    int i;
     int off;
     ubyte layer;
     float cost;
@@ -363,19 +362,22 @@ void mp_handle_new_path(ubyte *data, void *from)
     for (i = 0; i < n; i++) {
         vector3 v;
         v.zero();
-        v.x = *(float *)(data + off);
+        vector2 p;
+        memcpy(&p.x, data + off, 4);
         off += 4;
-        v.z = *(float *)(data + off);
+        memcpy(&p.y, data + off, 4);
         off += 4;
+        v.x = p.x;
+        v.z = p.y;
         layer = data[off++];
         if (multi_path_type == 0) {
             if (i == 0) {
-                last = ai_path_node_create(vector2(v.x, v.z), layer, NULL);
+                last = ai_path_node_create(p, layer, NULL);
                 c->ai.path = last;
                 if (last)
                     c->ai.path_start = last->pos;
             } else {
-                node = ai_path_node_create(vector2(v.x, v.z), layer, NULL);
+                node = ai_path_node_create(p, layer, NULL);
                 last->next = node;
                 if (node) {
                     cost += (node->pos - last->pos).len();
@@ -390,7 +392,7 @@ void mp_handle_new_path(ubyte *data, void *from)
         }
     }
     cost += (signed char)data[off];
-    if (multi_path_type == 0 && c->ai.path) {
+    if (multi_path_type == 0) {
         prev = NULL;
         for (p = c->ai.path; p; prev = p, p = p->next) {
             if (p == c->ai.path) {
@@ -450,7 +452,9 @@ void mp_send_obj_update(Character *c, int a)
         mp_broadcast_packet_buffered(data, packet_size, false);
 }
 
-// 0x4806a0  Confidence: unsure (the decision tree). The target speed is always taken. A traveling party
+// 0x4806a0  Confidence: likely (match29, D8800: the decision tree with goto set / done, the position assigned
+// from the call, the target speed read with memcpy; instruction-identical, the frame differs: the binary keeps
+// ch / traveling in the dead data slot). The target speed is always taken. A traveling party
 // member walks through mp_remote_travel_update. The position is set (and the path searched again from it)
 // when the sender says it travels, when a traveling member is more than 10 units off, or otherwise when
 // the distance is above half the forward speed plus 1.5 or the heading differs by more than 10 degrees.
@@ -477,9 +481,10 @@ void mp_handle_obj_update(ubyte *data, void *from)
     z = *(ushort *)(data + 9);
     heading = *(ushort *)(data + 0xb);
     layer = *(ushort *)(data + 0xd);
-    target_speed = *(float *)(data + 0xf);
+    memcpy(&target_speed, data + 0xf, 4);
     forward_speed = *(float *)(data + 0x13);
-    vector3 pos = mp_dequantize_position(x, y, z);
+    vector3 pos;
+    pos = mp_dequantize_position(x, y, z);
     new_h = heading * MP_HEADING_UNSCALE - MP_PI;
     c->set_6ac(target_speed);
     remote = false;
@@ -492,14 +497,17 @@ void mp_handle_obj_update(ubyte *data, void *from)
     }
     if (!traveling) {
         if (remote) {
-            if (!(distance(&c->pos, &pos) > 10.0f))
-                goto done;
-        } else if (!(distance(&c->pos, &pos) > forward_speed * 0.5f + 1.5f)) {
+            if (distance(&c->pos, &pos) > 10.0f)
+                goto set;
+            goto done;
+        }
+        if (!(distance(&c->pos, &pos) > forward_speed * 0.5f + 1.5f)) {
             c->orient.extract_angles(&cp, &cb, &ch);
             if (!(fabsf(ch - new_h) > 0.17453292f))
                 goto done;
         }
     }
+set:
     c->pos = pos;
     c->orient.set_from_angles(0.0f, 0.0f, new_h);
     c->layer = layer;
@@ -540,7 +548,7 @@ void mp_broadcast_hp(Character *c, int source)
     mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x4809b0  Confidence: likely. Client: the HP before the overflow, then the overflow added from the net.
+// 0x4809b0  Confidence: exact (VC6 byte match, match29; was likely). Client: the HP before the overflow, then the overflow added from the net.
 void mp_handle_adjust_hp(ubyte *data, void *from)
 {
     int h;
@@ -550,10 +558,10 @@ void mp_handle_adjust_hp(ubyte *data, void *from)
 
     if (!MP_IS_CLIENT())
         return;
-    h = ((int *)data)[0];
-    hp = ((float *)data)[1];
-    overflow = ((float *)data)[2];
-    source = ((int *)data)[3];
+    memcpy(&h, data, 4);
+    memcpy(&hp, data + 4, 4);
+    memcpy(&overflow, data + 8, 4);
+    memcpy(&source, data + 12, 4);
     c = (Character *)mp_obj_from_net_handle(h);
     if (!c)
         return;
@@ -647,7 +655,7 @@ void mp_send_character_skills(Character *c)
         multi_send_packet(data, packet_size, NULL, true);
 }
 
-// 0x480c60  Confidence: likely.
+// 0x480c60  Confidence: exact (VC6 byte match, match29; was likely).
 void mp_handle_character_skills(ubyte *data, void *from)
 {
     Character *c = (Character *)mp_obj_from_net_handle(*(int *)data);
@@ -655,8 +663,9 @@ void mp_handle_character_skills(ubyte *data, void *from)
 
     if (!c)
         return;
+    int offset = 4;
     for (i = 0; i < MP_NUM_SKILL_BYTES; i++)
-        c->skill[i] = data[4 + i];
+        c->skill[i] = data[offset++];
     if (MP_IS_HOST())
         mp_forward_cur_packet_buffered(from);
 }
@@ -720,7 +729,7 @@ void mp_broadcast_status_cure(Character *c, int status, bool restore_fx)
     mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x480e60  Confidence: likely.
+// 0x480e60  Confidence: exact (VC6 byte match, match29; was likely).
 void mp_handle_status_cure(ubyte *data, void *from)
 {
     Character *c;
@@ -728,8 +737,11 @@ void mp_handle_status_cure(ubyte *data, void *from)
     if (!MP_IS_CLIENT())
         return;
     c = (Character *)mp_obj_from_net_handle(((int *)data)[0]);
-    if (c)
-        c->status_effect_cure(((int *)data)[1], false, data[8] != 0);
+    if (c) {
+        int status;
+        memcpy(&status, data + 4, 4);
+        c->status_effect_cure(status, false, data[8] != 0);
+    }
 }
 
 // 0x480eb0  Confidence: exact (VC6 byte match). DISABLD {handle, kind, the knock-down time for kind 0}: the host
@@ -762,7 +774,11 @@ void mp_handle_ai_disable(ubyte *data, void *from)
         return;
     switch (data[4]) {
     case 0:
-        c->ai.knock_down_local(*(ushort *)(data + 5));
+        {
+            ushort t;
+            memcpy(&t, data + 5, 2);
+            c->ai.knock_down_local(t);
+        }
         break;
     case 1:
         c->ai.disable_2f_local();
@@ -787,10 +803,12 @@ void mp_send_respawn(int id)
         multi_send_packet(data, packet_size, NULL, true);
 }
 
-// 0x481050  Confidence: likely (VC6 loads the id into ecx, the original into eax; D5810).
+// 0x481050  Confidence: exact (VC6 byte match, match29; was likely) (the id read with memcpy, D8302 / D8800).
 void mp_handle_respawn(ubyte *data, void *from)
 {
-    mp_respawn_player(*(int *)data);
+    int id;
+    memcpy(&id, data, 4);
+    mp_respawn_player(id);
     if (MP_IS_HOST())
         mp_forward_cur_packet(from);
 }
@@ -824,14 +842,16 @@ void mp_respawn_and_notify(int id)
     mp_send_respawn(id);
 }
 
-// 0x481150  Confidence: likely (VC6 loads the handle into ecx, the original into eax). Host: FORCEPR {handle}: AI flag 0x400 and the frame time.
+// 0x481150  Confidence: exact (VC6 byte match, match29; was likely) (the handle read with memcpy, D8302 / D8800). Host: FORCEPR {handle}: AI flag 0x400 and the frame time.
 void mp_handle_forcepr(ubyte *data, void *from)
 {
     Character *c;
+    int h;
 
     if (!MP_IS_HOST())
         return;
-    c = living_from_handle(*(int *)data);
+    memcpy(&h, data, 4);
+    c = living_from_handle(h);
     if (c) {
         c->ai.flags |= 0x400;
         c->frametime = reported_frametime;

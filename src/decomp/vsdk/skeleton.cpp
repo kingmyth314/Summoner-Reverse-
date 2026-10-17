@@ -326,22 +326,22 @@ void vim_reload_bitmaps(const char *name, vim *mesh)
     }
 }
 
-// 0x543bb0  Confidence: likely (the binary's dword rep movsd with a count test: memcpy of n * 4 bytes
-// behind an n > 0 test gives the same instructions; build 8966 loads dst before the pushes, D6600).
+// 0x543bb0  Confidence: exact (VC6 byte match, match31; was likely; an element loop, which 8966 turns into the
+// binary's count test and dword rep movsd; the memcpy form loads dst after the pushes, D9002).
 void vim_copy_bitmaps(vim *dst, const vim *src)
 {
-    int n = src->num_textures;
-    if (n > 0)
-        memcpy(dst->textures, src->textures, n * sizeof(dst->textures[0]));
+    int i;
+    for (i = 0; i < src->num_textures; i++)
+        dst->textures[i] = src->textures[i];
 }
 
-// 0x543bd0  Confidence: likely (as vim_copy_bitmaps).
+// 0x543bd0  Confidence: exact (VC6 byte match, match31; was likely; as vim_copy_bitmaps, D9002).
 void vim_save_bitmaps(const vim *mesh)
 {
-    int n = mesh->num_textures;
-    if (n > 0)
-        memcpy(vim_saved_bitmaps, mesh->textures, n * sizeof(vim_saved_bitmaps[0]));
-    vim_saved_bitmap_count = n;
+    int i;
+    for (i = 0; i < mesh->num_textures; i++)
+        vim_saved_bitmaps[i] = mesh->textures[i];
+    vim_saved_bitmap_count = mesh->num_textures;
 }
 
 // 0x543c00  Confidence: exact (as vim_copy_bitmaps).
@@ -435,9 +435,9 @@ skeleton::skeleton(const char *filename, const char *name, bool is_state, int un
 // 0x543e10  Confidence: exact (called by the compiler's scalar deleting destructor 0x541980).
 skeleton::~skeleton()
 {
-    list_remove(this);
     skeleton_count--;
     skeleton_mem_used -= sizeof(skeleton);
+    list_remove(this);
     if (bone_weights) {
         delete[] bone_weights;
         skeleton_mem_used -= num_bones;

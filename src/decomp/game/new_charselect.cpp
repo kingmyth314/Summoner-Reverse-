@@ -385,7 +385,7 @@ void mp_charselect_update_button_states()
     }
 }
 
-// 0x406bb0  Confidence: exact. Create (15) needs a name and a class.
+// 0x406bb0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). Create (15) needs a name and a class.
 void mp_charselect_update_create_button()
 {
     if (strlen(mp_charselect_name) && mp_charselect_species >= 0)

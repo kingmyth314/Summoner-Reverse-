@@ -98,7 +98,7 @@ void ui_checkbox::create(ui_element *window, int x, int y, int box_w, int box_h,
     colors = &ui_checkbox_colors.g0.c0;
 }
 
-// 0x553e00  Confidence: likely (as ui_inputbox::set_tooltip, the same code).
+// 0x553e00  Confidence: exact (as ui_inputbox::set_tooltip, the same code).
 void ui_checkbox::set_tooltip(const char *text, int x, int y, int delay)
 {
     ui_tooltip *t = tooltips.next;
@@ -114,15 +114,16 @@ void ui_checkbox::set_tooltip(const char *text, int x, int y, int delay)
     t = new ui_tooltip;
     t->owner = this;
     strcpy(t->text, text);
-    t->x = x;
     t->delay = delay;
+    t->x = x;
+    ui_tooltip *last = tooltips.prev;
     t->next = &tooltips;
+    tooltips.prev = t;
     t->colors = &ui_tooltip_colors.c0;
     t->y = y;
     t->font = -1;
-    t->prev = tooltips.prev;
-    tooltips.prev = t;
-    t->prev->next = t;
+    t->prev = last;
+    last->next = t;
 }
 
 // 0x553ec0  Confidence: exact.

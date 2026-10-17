@@ -89,7 +89,7 @@ void BitArray::free()
     }
 }
 
-// 0x55bf20  Confidence: likely. As written: the whole bytes must be 0 for either value, and the tail
+// 0x55bf20  Confidence: exact (the wanted bit in an int local after the bounds). As written: the whole bytes must be 0 for either value, and the tail
 // loop runs from bits & ~7 to (bits & ~7) + bits, mod 8 (empty past the first byte); no caller.
 bool BitArray::all_equal(unsigned int bits, bool value)
 {
@@ -105,8 +105,9 @@ bool BitArray::all_equal(unsigned int bits, bool value)
     }
     start = bits & ~7;
     end = (start + bits) & 7;
+    int want = value != 0;
     for (i = start; i < end; i++) {
-        if (get(i) != (value != 0))
+        if (get(i) != want)
             return false;
     }
     return true;

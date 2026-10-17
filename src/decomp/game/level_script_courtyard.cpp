@@ -77,14 +77,13 @@ void ls_lenele1d_init()
         level_trigger_set_script_use_by_refname("v11");
         level_trigger_set_script_use_by_refname("v21");
         level_trigger_set_exit_by_refname("v31");
+    } else if (game_stage_get() >= 4) {
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_exit_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v31");
     } else {
-        if (game_stage_get() >= 4) {
-            level_trigger_set_script_use_by_refname("v11");
-            level_trigger_set_exit_by_refname("v21");
-        } else {
-            level_trigger_set_exit_by_refname("v11");
-            level_trigger_set_script_use_by_refname("v21");
-        }
+        level_trigger_set_exit_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v21");
         level_trigger_set_script_use_by_refname("v31");
     }
     if (savegame_state.get_flag(cur_level_index, "lenele1d_mq_talked_to_captain"))
@@ -125,14 +124,13 @@ void ls_lenele1c_init()
         level_trigger_set_script_use_by_refname("v11");
         level_trigger_set_script_use_by_refname("v21");
         level_trigger_set_exit_by_refname("v31");
+    } else if (game_stage_get() >= 4) {
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_exit_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v31");
     } else {
-        if (game_stage_get() >= 4) {
-            level_trigger_set_script_use_by_refname("v11");
-            level_trigger_set_exit_by_refname("v21");
-        } else {
-            level_trigger_set_exit_by_refname("v11");
-            level_trigger_set_script_use_by_refname("v21");
-        }
+        level_trigger_set_exit_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v21");
         level_trigger_set_script_use_by_refname("v31");
     }
     if (game_stage_get() >= 2) {

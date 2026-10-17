@@ -30,8 +30,8 @@
 void lsf_lenele_flag_cart_played();
 void lsf_lenele1aa_jekhar_talk();
 
-// 0x4efa30  Confidence: likely (the first visit's flag test written as an early return; the >= 4 and < 4
-// branches share the tail of eight _v3 script-use calls, 0x4efd75 jmp 0x4efc83). level_script_table init.
+// 0x4efa30  Confidence: exact (the first visit's flag test written as an early return; the >= 4 and < 4
+// branches each end in the eight _v3 script-use calls, which 8966 tail-merges: 0x4efd75 jmp 0x4efc83). level_script_table init.
 // On the first visit, once Jekhar has talked or the Ring of Darkness is in hand, Jekhar is gone and
 // nothing else is set up: no game stage and no triggers.
 void ls_lenele1aa_init()
@@ -100,6 +100,14 @@ void ls_lenele1aa_init()
         level_trigger_set_exit_by_refname("ab2_v2");
         level_trigger_set_exit_by_refname("ab3_v2");
         level_trigger_set_exit_by_refname("ab4_v2");
+        level_trigger_set_script_use_by_refname("d1_v3");
+        level_trigger_set_script_use_by_refname("b1_v3");
+        level_trigger_set_script_use_by_refname("b2_v3");
+        level_trigger_set_script_use_by_refname("b3_v3");
+        level_trigger_set_script_use_by_refname("ab1_v3");
+        level_trigger_set_script_use_by_refname("ab2_v3");
+        level_trigger_set_script_use_by_refname("ab3_v3");
+        level_trigger_set_script_use_by_refname("ab4_v3");
     } else {
         level_trigger_set_exit_by_refname("d1");
         level_trigger_set_exit_by_refname("b1");
@@ -117,15 +125,15 @@ void ls_lenele1aa_init()
         level_trigger_set_script_use_by_refname("ab2_v2");
         level_trigger_set_script_use_by_refname("ab3_v2");
         level_trigger_set_script_use_by_refname("ab4_v2");
+        level_trigger_set_script_use_by_refname("d1_v3");
+        level_trigger_set_script_use_by_refname("b1_v3");
+        level_trigger_set_script_use_by_refname("b2_v3");
+        level_trigger_set_script_use_by_refname("b3_v3");
+        level_trigger_set_script_use_by_refname("ab1_v3");
+        level_trigger_set_script_use_by_refname("ab2_v3");
+        level_trigger_set_script_use_by_refname("ab3_v3");
+        level_trigger_set_script_use_by_refname("ab4_v3");
     }
-    level_trigger_set_script_use_by_refname("d1_v3");
-    level_trigger_set_script_use_by_refname("b1_v3");
-    level_trigger_set_script_use_by_refname("b2_v3");
-    level_trigger_set_script_use_by_refname("b3_v3");
-    level_trigger_set_script_use_by_refname("ab1_v3");
-    level_trigger_set_script_use_by_refname("ab2_v3");
-    level_trigger_set_script_use_by_refname("ab3_v3");
-    level_trigger_set_script_use_by_refname("ab4_v3");
 }
 
 // 0x4efdb0  Confidence: exact (ends in a tail jump to lsf_lenele1aa_jekhar_talk). level_script_table frame:

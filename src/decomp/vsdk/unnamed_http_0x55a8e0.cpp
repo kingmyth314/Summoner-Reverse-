@@ -338,7 +338,7 @@ char *http_get::get_line()
     return recv_buffer;
 }
 
-// 0x55b1c0  Confidence: likely (the would-block retry jumps back to the loop head with n = 1).
+// 0x55b1c0  Confidence: exact (VC6 byte match, match23; was likely; the would-block retry jumps back to the loop head with n = 1).
 int http_get::read_data_channel()
 {
     char buf[4096];

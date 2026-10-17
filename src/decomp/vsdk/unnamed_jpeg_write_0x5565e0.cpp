@@ -14,7 +14,7 @@
 #include "vsdk/bmpman/targautils.h"
 #include "vsdk/bmpman/jpeg_min.h"
 
-// 0x5565e0  Confidence: likely (the row table is the 4 KB array at the top of the 0x11fc frame; the
+// 0x5565e0  Confidence: exact (rows[i] = &rgb[i * w * 3], strength-reduced; the row table is the 4 KB array at the top of the 0x11fc frame; the
 // _chkstk call is the compiler's for a frame above one page).
 // (name, rgb, w, h): R, G, B bytes, w * 3 per row, top-down. Default quality, the float DCT.
 // The row table holds 1024 rows: a screen taller than 1024 lines overruns it (game bug, NOTES.md).
@@ -29,10 +29,8 @@ void jpeg_write_file(const char *name, ubyte *rgb, int w, int h)
     fp = fopen(name, "wb");
     if (fp == NULL)
         return;
-    for (i = 0; i < h; i++) {
-        rows[i] = rgb;
-        rgb += w * 3;
-    }
+    for (i = 0; i < h; i++)
+        rows[i] = &rgb[i * w * 3];
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
     jpeg_stdio_dest(&cinfo, fp);

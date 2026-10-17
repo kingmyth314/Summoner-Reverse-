@@ -147,7 +147,7 @@ void script_parse_navpoint(navpoint *np, TextFile *tf)
     tf->ParseMatrix(&orient);
     orient.extract_angles(&p, &b, &h);
     np->heading = h;
-    np->_unk24 = 0;
+    np->ground_height = 0;
 
     switch (np->type) {
     case NAVPOINT_TYPE_LEVEL:
@@ -231,7 +231,7 @@ void script_parse_navpoints(TextFile *tf)
     tf->ParseMatrix(&orient);
     orient.extract_angles(&p, &b, &h);
     np->heading = h;
-    np->_unk24 = 0;
+    np->ground_height = 0;
 
     switch (np->type) {
     case NAVPOINT_TYPE_LEVEL:

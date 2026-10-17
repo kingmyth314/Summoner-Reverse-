@@ -158,17 +158,18 @@ obj *obj_from_handle_b(int handle)
 int shadow_create_blob_bitmap()
 {
     unsigned int i;
-    int x, y;
+    unsigned int x;
+    int y;
     int row;
     ubyte *p;
     int *bm;
     float scale;
     float v;
 
-    for (i = 0, p = shadow_blob_palette; p < &shadow_blob_palette[768]; i++, p += 3) {
-        p[0] = (ubyte)i;
-        p[1] = (ubyte)i;
-        p[2] = (ubyte)i;
+    for (i = 0; i < 256; i++) {
+        shadow_blob_palette[i * 3] = (ubyte)i;
+        shadow_blob_palette[i * 3 + 1] = (ubyte)i;
+        shadow_blob_palette[i * 3 + 2] = (ubyte)i;
     }
     p = shadow_blob_pixels[0];
     i = 0;

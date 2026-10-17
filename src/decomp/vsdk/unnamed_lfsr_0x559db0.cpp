@@ -43,15 +43,15 @@ void lfsr_cipher::get_key(unsigned int *key)
     key[2] = regs[2];
 }
 
-// 0x559e10  Confidence: likely (the signed shifts: the registers are shifted with SAR).
+// 0x559e10  Confidence: exact (an index into buf; the registers are shifted with SAR).
 void lfsr_cipher::crypt(void *buf, int len)
 {
-    ubyte *p = (ubyte *)buf;
+    int n;
     ubyte key = 0;
     int bit;
     int i;
 
-    while (len-- != 0) {
+    for (n = 0; len-- != 0; n++) {
         for (i = 8; i != 0; i--) {
             bit = 0;
             if (regs[0] & 1) {
@@ -73,6 +73,6 @@ void lfsr_cipher::crypt(void *buf, int len)
             }
             key = (key << 1) | bit;
         }
-        *p++ ^= key;
+        ((ubyte *)buf)[n] ^= key;
     }
 }

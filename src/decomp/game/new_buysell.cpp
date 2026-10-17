@@ -469,21 +469,22 @@ int buysell_handle_click(int key)
     buysell_hover_row = -1;
 
     for (i = 0; i < BUYSELL_NUM_BUTTONS; i++) {
-        if ((buysell_button_defs[i].flags & 7)
-            && point_in_rect(game_mouse_x, game_mouse_y, buysell_buttons[i].x, buysell_buttons[i].y,
-                             buysell_buttons[i].w, buysell_buttons[i].h)) {
-            if ((buysell_button_defs[i].flags & 4) && interface_input_ready())
+        ui_button_def *d = &buysell_button_defs[i];
+        ui_button_state *b = &buysell_buttons[i];
+        if ((d->flags & 7)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            if ((d->flags & 4) && interface_input_ready())
                 buysell_category_tooltip(i);
-            if (!(buysell_buttons[i].flags & 4)) {
-                buysell_buttons[i].flags |= 2;
+            if (!(b->flags & 4)) {
+                b->flags |= 2;
                 buysell_pressed_button = i;
-                if (buysell_button_defs[i].flags & 1) {
+                if (d->flags & 1) {
                     if (mouse_was_pressed(0)) {
                         buysell_mouse_mode = 1;
                         buysell_repeat_timer.invalidate();
                         return key;
                     }
-                } else if (buysell_button_defs[i].flags & 2) {
+                } else if (d->flags & 2) {
                     if (mouse_was_pressed(0)) {
                         buysell_mouse_mode = 1;
                         buysell_button_action(buysell_pressed_button + 1);
@@ -608,7 +609,7 @@ void buysell_category_tooltip(int button)
     ui_tooltip_set(b->x, b->y, b->w, b->h, text);
 }
 
-// 0x405790  Confidence: exact (the test is "jl": a position of 0 still pages, to 0).
+// 0x405790  Confidence: likely (differs under cl 8966, match24; was exact) (the test is "jl": a position of 0 still pages, to 0).
 void buysell_page_up()
 {
     if (buysell_scroll_pos >= 0) {
@@ -770,8 +771,9 @@ void buysell_goto_inventory()
     if (game_flags & 1) {
         interface_set_screen(10, 0);
     } else {
-        char page = 0;
-        interface_set_screen(1, &page);
+        char page[4]; // D8300: the byte sits at the bottom of its dword slot (as D7200's save[4])
+        page[0] = 0;
+        interface_set_screen(1, page);
     }
 }
 

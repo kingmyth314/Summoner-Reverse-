@@ -31,7 +31,7 @@ void experience_parse_table()
     tf.Close();
 }
 
-// 0x4899d0  Confidence: exact. One line after the level number: xp, skill points, skill cap, then per
+// 0x4899d0  Confidence: likely (differs under cl 8966, match24; was exact). One line after the level number: xp, skill points, skill cap, then per
 // species group the HP+ and AP+ gains.
 void experience_parse_level(TextFile *tf, xp_level *level)
 {

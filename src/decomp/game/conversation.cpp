@@ -129,7 +129,7 @@ int conversation::set_speaker(const char *name)
     return 0;
 }
 
-// 0x4d7e10  Confidence: exact.
+// 0x4d7e10  Confidence: likely (differs under cl 8966, match24; was exact).
 void conversation::clear_speaker()
 {
     if (speaker) {

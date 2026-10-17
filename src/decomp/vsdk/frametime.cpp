@@ -62,7 +62,7 @@ void frametime_initialize()
     total_history_frametime = 0.0f;
 }
 
-// 0x501510  Confidence: likely.
+// 0x501510  Confidence: exact (delta = now before the negative test).
 // Known defect (docs/sum-exe/timing-bugs.md #3): previous_done_time is taken before the
 // timer_wait sleep, so the next frame counts the sleep again.
 // Layout notes:
@@ -88,10 +88,9 @@ void FrameDone()
         int delta;
 
         if (now < previous_done_time) {     // signed compare (JGE)
+            delta = now;
             if (now < 0)
                 delta = (int)(reported_frametime * 1000000.0f);
-            else
-                delta = now;
         } else {
             delta = now - previous_done_time;
         }
@@ -147,7 +146,7 @@ float frametime_get_divisor()
     return frametime_divisor;
 }
 
-// 0x5016f0  Confidence: exact. FLD a / FCOM b; the smaller value becomes the minimum.
+// 0x5016f0  Confidence: likely (8966 loads b on the FPU; the binary copies it as an integer, D6905). FLD a / FCOM b; the smaller value becomes the minimum.
 void frametime_set_limits(float a, float b)
 {
     if (a < b) {

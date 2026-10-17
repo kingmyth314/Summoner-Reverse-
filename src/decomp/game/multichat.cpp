@@ -97,7 +97,7 @@ void chat_cmd_list(const char *unused)
     chat_process_command(-1, buf);
 }
 
-// 0x487db0  Confidence: likely ("jmp chat_history_clear": a function that only calls it, mp_session_reset's
+// 0x487db0  Confidence: exact (VC6 byte match, match24; was likely) ("jmp chat_history_clear": a function that only calls it, mp_session_reset's
 // entry; name from sum.symbols).
 void chat_history_clear_thunk()
 {
@@ -111,7 +111,7 @@ void chat_history_clear()
     chat_history_write = 0;
 }
 
-// 0x487dd0  Confidence: likely (the same shape, mp_leave_game's entry).
+// 0x487dd0  Confidence: exact (VC6 byte match, match24; was likely) (the same shape, mp_leave_game's entry).
 void chat_history_clear_thunk2()
 {
     chat_history_clear();

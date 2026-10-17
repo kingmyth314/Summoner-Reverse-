@@ -195,7 +195,7 @@ void mp_send_cast_anim(Character *caster, int spell, bool flag)
         mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4b0210  Confidence: likely (if / else for the two lookups). The host's net handles are its local
+// 0x4b0210  Confidence: exact (VC6 byte match, match23; was likely; if / else for the two lookups). The host's net handles are its local
 // handles (living_from_handle); a client maps them.
 void mp_handle_cast_anim(ubyte *data, void *from)
 {
@@ -328,7 +328,7 @@ void mp_broadcast_summon_allowed(int player_id)
     mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4b06a0  Confidence: exact.
+// 0x4b06a0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 void mp_handle_summon_allowed(ubyte *data, void *from)
 {
     mp_summon_owner = ((int *)data)[0];
@@ -436,7 +436,7 @@ void mp_send_summon_quick(int handle)
         mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4b08f0  Confidence: exact.
+// 0x4b08f0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 void mp_handle_summon_quick(ubyte *data, void *from)
 {
     Character *c = living_from_handle(mp_local_handle_from_net(((int *)data)[0]));

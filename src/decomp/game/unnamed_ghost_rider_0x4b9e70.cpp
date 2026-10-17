@@ -157,7 +157,8 @@ void cmd_ghost_solo()
 // initialiser for the definitions above; it comes after the command objects', so the timers are defined
 // after them in the original, unlike the order of the .bss).
 
-// 0x4ba0d0  Confidence: likely (the ray is a local whose inline constructor clears +0x30 at entry). Casts
+// 0x4ba0d0  Confidence: likely (the ray is a local whose inline constructor clears +0x30 at entry; the
+// start point is a vector3 local whose y is reused for the hit height, match31: frame now 0x94). Casts
 // a 40-long ray down from 20 above the point against the level objects of the layer (the layer list, or
 // every object with that layer in one of its first two layer bytes) and moves the point to the highest
 // hit above pos->y - 20.
@@ -168,7 +169,6 @@ void ghost_find_floor_below(Character *unused, int layer, vector3 *pos)
     layer_lobj_list *list;
     float best;
     float y;
-    float top;
     bool found;
     int count;
     int i;
@@ -190,10 +190,8 @@ void ghost_find_floor_below(Character *unused, int layer, vector3 *pos)
             if (lobjs[i].get_layer_n(0) != layer && lobjs[i].get_layer_n(1) != layer)
                 continue;
         }
-        top = pos->y + 20.0f;
-        ray.start.x = pos->x;
-        ray.start.y = top;
-        ray.start.z = pos->z;
+        vector3 start(pos->x, pos->y + 20.0f, pos->z);
+        ray.start = start;
         ray.dir.x = 0.0f;
         ray.dir.y = -40.0f;
         ray.dir.z = 0.0f;
@@ -203,7 +201,7 @@ void ghost_find_floor_below(Character *unused, int layer, vector3 *pos)
         ray.exclude_flags = 0;
         lobj_raycast(index, &ray, &hit, true);
         if (hit.num_hits > 0) {
-            y = hit.t * ray.dir.y + top;
+            y = hit.t * ray.dir.y + start.y;
             if (y > best) {
                 best = y;
                 found = true;
@@ -214,7 +212,7 @@ void ghost_find_floor_below(Character *unused, int layer, vector3 *pos)
         pos->y = best;
 }
 
-// 0x4ba260  Confidence: likely (the weapon swap and the three minion loops; the minion positions are one
+// 0x4ba260  Confidence: exact (VC6 byte match, match31; was likely) (the weapon swap and the three minion loops; the minion positions are one
 // forward vector ahead of the boss). Runs once per level (ghost_loaded). Liangshan and Jadetemple start at
 // stage 3 on foot, the other levels at stage 1 mounted. Masad has no minions; in jadetemple the mage and
 // undead slots repeat the two servants.
@@ -249,7 +247,9 @@ void ai_state::ghost_rider_boss_load()
         ghost_rider_threat_table[i].handle = -1;
     ghost_num_offense_points = 0;
     for (i = 0; i < 10; i++) {
-        tag = owner->instance->character->find_mesh_tag(offense_point_name(i));
+        const char *name = offense_point_name(i);
+        ca_character *ch = owner->instance->character;
+        tag = ch->find_mesh_tag(name);
         if (tag != -1) {
             ghost_offense_points[ghost_num_offense_points].tag = tag;
             ghost_num_offense_points++;
@@ -280,9 +280,7 @@ void ai_state::ghost_rider_boss_load()
         return;
     info = charinfo_find_by_species(SPECIES_BONE_SERVANT);
     for (i = 0; i < 2; i++) {
-        pos.x = owner->orient.fvec.x + owner->pos.x;
-        pos.y = owner->orient.fvec.y + owner->pos.y;
-        pos.z = owner->orient.fvec.z + owner->pos.z;
+        pos = owner->pos + owner->orient.fvec;
         c = living_entity_create(5, info, &pos, &owner->orient, true, owner->layer, 0, 0, false);
         if (c) {
             ghost_bone_servants[i] = c->handle;
@@ -298,9 +296,7 @@ void ai_state::ghost_rider_boss_load()
     } else {
         info = charinfo_find_by_species(SPECIES_BONE_MAGE);
         for (i = 0; i < 2; i++) {
-            pos.x = owner->pos.x + owner->orient.fvec.x;
-            pos.y = owner->orient.fvec.y + owner->pos.y;
-            pos.z = owner->orient.fvec.z + owner->pos.z;
+            pos = owner->pos + owner->orient.fvec;
             c = living_entity_create(5, info, &pos, &owner->orient, true, owner->layer, 0, 0, false);
             if (c) {
                 ghost_bone_mages[i] = c->handle;
@@ -310,9 +306,7 @@ void ai_state::ghost_rider_boss_load()
         }
         info = charinfo_find_by_species(SPECIES_UNDEAD);
         for (i = 0; i < 2; i++) {
-            pos.x = owner->pos.x + owner->orient.fvec.x;
-            pos.y = owner->orient.fvec.y + owner->pos.y;
-            pos.z = owner->orient.fvec.z + owner->pos.z;
+            pos = owner->pos + owner->orient.fvec;
             c = living_entity_create(5, info, &pos, &owner->orient, true, owner->layer, 0, 0, false);
             if (c) {
                 ghost_undead[i] = c->handle;
@@ -514,7 +508,7 @@ bool ai_state::ghost_wander_start()
     return false;
 }
 
-// 0x4bac20  Confidence: unsure (the three stage blocks; the tails are shared). Returns 0 (no target), 1
+// 0x4bac20  Confidence: exact (VC6 byte match, match31; was unsure) (the three stage blocks; the tails are shared). Returns 0 (no target), 1
 // (stage 1, more than one attacker: wander, ghost_pending_submode = AIS_SAFETY), 3 (new move) or 5 (the
 // current move goes on). The summon move needs fewer than 2 minions out; paralysing fear goes to a
 // target that is not paralysed (filter flag 1).
@@ -556,7 +550,7 @@ int ai_state::ghost_choose_attack()
             ghost_target = handle;
             target = living_from_handle(handle);
             if (handle == -1)
-                return 0;
+                goto none;
             ghost_timer2_set_random(20000, 30000);
         }
         if (ghost_think_timer.elapsed()) {
@@ -591,7 +585,7 @@ int ai_state::ghost_choose_attack()
             handle = boss_target_list_pick(list, count, ghost_rider_threat_table, ghost_target, false, 0);
             ghost_target = handle;
             if (handle == -1)
-                return 0;
+                goto none;
             ghost_timer2_set_random(20000, 30000);
         }
         if (ghost_minions_raised < 2 && ghost_summon_timer.elapsed()) {
@@ -611,9 +605,10 @@ int ai_state::ghost_choose_attack()
         if (timer_up || !target) {
             handle = boss_target_list_pick(list, count, ghost_rider_threat_table, ghost_target, false, 0);
             ghost_target = handle;
-            if (handle == -1)
-                return 0;
-            ghost_timer2_set_random(20000, 30000);
+            if (handle != -1)
+                ghost_timer2_set_random(20000, 30000);
+            else
+                goto none;
         }
         if (frand() > 0.7f && ghost_fear_timer.elapsed()) {
             handle = ghost_target;
@@ -629,6 +624,8 @@ int ai_state::ghost_choose_attack()
         ghost_cur_move = ghost_move_3_2;
         return 3;
     }
+none:
+    return 0;
 }
 
 // 0x4bb050  Confidence: exact.
@@ -653,7 +650,7 @@ void ghost_update_attack_points(Character *c)
     }
 }
 
-// 0x4bb120  Confidence: likely. The summon move of the stage (stage 3: servants 33 %, mages 33 %, undead
+// 0x4bb120  Confidence: exact (VC6 byte match, match31; was likely). The summon move of the stage (stage 3: servants 33 %, mages 33 %, undead
 // 34 %) and the first minion of its pair that is inactive and not dead; the summon point is halfway to the
 // target (cur_character without one), or, when that is nearer than 4 to the target, a navigable point 4-8
 // from the boss (10 tries), dropped onto the floor.
@@ -663,10 +660,8 @@ void ghost_choose_move_target(Character *boss)
     int *slots;
     int i;
     float f;
-    float r;
     Character *c;
     Character *t;
-    vector3 p;
 
     ghost_summon_minion = -1;
     ghost_cur_move = NULL;
@@ -694,8 +689,8 @@ void ghost_choose_move_target(Character *boss)
         if (!c)
             return;
         if (!(c->obj_flags & 1) && !(c->flags & CF_DEAD)) {
-            ghost_cur_move = move;
             ghost_summon_minion = slots[i];
+            ghost_cur_move = move;
             break;
         }
     }
@@ -710,15 +705,14 @@ void ghost_choose_move_target(Character *boss)
     }
     ghost_summon_pos = (t->pos + boss->pos) * 0.5f;
     if (distance(&ghost_summon_pos, &t->pos) < 4.0f) {
+        float r;
+        vector3 p;
         for (i = 0; i < 10; i++) {
             r = frand_range(4.0f, 8.0f);
             p.random_direction();
-            p.x *= r;
             p.y = 0.0f;
-            p.z *= r;
-            p.x += boss->pos.x;
-            p.y += boss->pos.y;
-            p.z += boss->pos.z;
+            p *= r;
+            p += boss->pos;
             if (pf_point_is_navigable(&p, t->info->size, boss->layer) == true)
                 break;
         }

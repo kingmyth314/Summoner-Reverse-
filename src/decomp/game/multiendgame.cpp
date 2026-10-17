@@ -38,7 +38,7 @@ int multi_path_type = 1;                                     // 0x59bca8
 console_command ccmd_Multi_path_type("Multi_path_type",
     "Sets the method used to generate paths on multiplayer machiens", cmd_Multi_path_type);   // 0x22e94e8
 
-// 0x4811d0  Confidence: likely (the name switch: case bodies laid out default, 1, 0). A valid value
+// 0x4811d0  Confidence: exact (VC6 byte match, match24; was likely) (the name switch: case bodies laid out default, 1, 0). A valid value
 // turns on the status print, an invalid one the usage; 2 is accepted but prints "Unknown".
 void cmd_Multi_path_type()
 {
@@ -83,7 +83,7 @@ void mp_send_player_left(int reason)
     mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4812a0  Confidence: likely (the player list walk keeps the next pointer before the call, written as
+// 0x4812a0  Confidence: exact (VC6 byte match, match24; was likely) (the player list walk keeps the next pointer before the call, written as
 // a for loop with a saved next; the party test is the list-empty test of party_list).
 void mp_leave_game(bool quit)
 {
@@ -106,7 +106,7 @@ void mp_leave_game(bool quit)
         gameseq_set_state(GS_LAN_GAMELIST);
 }
 
-// 0x481340  Confidence: likely (jump table 0x481430 over reasons 1-6; the bodies are laid out 1, 2, 3, 4,
+// 0x481340  Confidence: exact (VC6 byte match, match24; was likely) (jump table 0x481430 over reasons 1-6; the bodies are laid out 1, 2, 3, 4,
 // 6, 5, so case 6 is written before case 5). Reason 0 (and anything above 6) leaves the text empty: no box.
 bool mp_show_disconnect_popup(int reason)
 {
@@ -162,7 +162,7 @@ void mp_send_player_removed(int reason, int id)
         multi_send_packet(data, packet_size, NULL, 1);
 }
 
-// 0x4814e0  Confidence: likely (the reason test `== 1 || (> 4 && <= 6)`, as in mp_handle_leave_game). Runs
+// 0x4814e0  Confidence: exact (VC6 byte match, match24; was likely) (the reason test `== 1 || (> 4 && <= 6)`, as in mp_handle_leave_game). Runs
 // once (MP_PF_LEAVING). A client sends LV_GAME except when it was kicked or dropped by the server (1, 5,
 // 6: the host knows), closes its socket and leaves at once when no box was shown.
 void mp_player_disconnected(int reason, bool quit)
@@ -174,16 +174,16 @@ void mp_player_disconnected(int reason, bool quit)
     mp_local_player->flags |= MP_PF_LEAVING;
     if (MP_IS_HOST()) {
         mp_send_player_left(reason);
-        mp_leave_game(quit);
-        return;
+    } else {
+        shown = mp_show_disconnect_popup(reason);
+        if (!(reason == MP_LEAVE_KICKED || (reason > 4 && reason <= 6)))
+            mp_send_player_removed(reason, mp_local_player->id);
+        nw_NewCloseSocket(&mp_local_player->socket);
+        mp_local_player->socket = -1;
+        if (shown)
+            return;
     }
-    shown = mp_show_disconnect_popup(reason);
-    if (!(reason == MP_LEAVE_KICKED || (reason > 4 && reason <= 6)))
-        mp_send_player_removed(reason, mp_local_player->id);
-    nw_NewCloseSocket(&mp_local_player->socket);
-    mp_local_player->socket = -1;
-    if (!shown)
-        mp_leave_game(quit);
+    mp_leave_game(quit);
 }
 
 // 0x481590  Confidence: exact. The packet's reason word is not read.
@@ -194,13 +194,15 @@ void mp_handle_game_over(ubyte *data, void *from)
     mp_local_player->socket = -1;
 }
 
-// 0x4815c0  Confidence: likely (three sprintf calls whose common tail is merged; bodies laid out dropped,
+// 0x4815c0  Confidence: exact (VC6 byte match, match24; was likely) (three sprintf calls whose common tail is merged; bodies laid out dropped,
 // left, kicked). The host forwards the packet to the others before the chat line.
 void mp_handle_leave_game(ubyte *data, void *from)
 {
     char text[256];
-    int reason = ((int *)data)[0];
-    mp_player *p = mp_player_find_by_id(((int *)data)[1]);
+    int reason, id;
+    memcpy(&reason, data, 4);
+    memcpy(&id, data + 4, 4);
+    mp_player *p = mp_player_find_by_id(id);
 
     if (!p)
         return;

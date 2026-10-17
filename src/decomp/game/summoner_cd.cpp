@@ -117,7 +117,7 @@ int cd_select_drive()
     return ok;
 }
 
-// 0x43e8e0  Confidence: exact (unpatched format "%c:\", see the file comment).
+// 0x43e8e0  Confidence: likely (differs under cl 8966, match24; was exact) (unpatched format "%c:\", see the file comment).
 int cd_set_root(int drive)
 {
     if (drive < 0) {
@@ -146,7 +146,7 @@ int cd_has_level_data()
     return 0;
 }
 
-// 0x43e9b0  Confidence: likely (the while loop is rotated: the first test before it, `jl` back at its
+// 0x43e9b0  Confidence: exact (VC6 byte match, match24; was likely) (the while loop is rotated: the first test before it, `jl` back at its
 // end). MB_OKCANCEL | MB_SETFOREGROUND | MB_TOPMOST (0x50001); Cancel (IDCANCEL) exits. Timeslip's
 // dinput.dll turns the jge at 0x43e9cb into a jmp (docs/patches/timeslip.md).
 void CdCheck()

@@ -126,21 +126,15 @@ int chat_input_handle_key(int key)
 
     if (key == 0)
         return key;
-
-    c = key_to_ascii(key);
-    if (c != 0xff) {
-        chat_input_add_char_wrap((char)c);
-    } else {
-        switch (key) {
-        case KEY_ESC:
-            chat_input_cancel();
+    {
+        c = key_to_ascii(key);
+        if (c != 0xff) {
+            chat_input_add_char_wrap((char)c);
+            chat_cursor_timer.SetTimeout(500);
+            chat_cursor_visible = true;
             return 0;
-        case KEY_BACKSPACE:
-            len = strlen(chat_input_text);
-            if (len <= 0)
-                return key;
-            chat_input_text[len - 1] = '\0';
-            break;
+        }
+        switch (key) {
         case KEY_ENTER:
             if (strlen(chat_input_text) == 0) {
                 chat_input_cancel();
@@ -151,13 +145,21 @@ int chat_input_handle_key(int key)
                 chat_send_line(line);
             chat_input_text[0] = '\0';
             return 0;
-        default:
-            return key;
+        case KEY_ESC:
+            chat_input_cancel();
+            return 0;
+        case KEY_BACKSPACE:
+            len = strlen(chat_input_text);
+            if (len > 0) {
+                chat_input_text[len - 1] = '\0';
+                chat_cursor_timer.SetTimeout(500);
+                chat_cursor_visible = true;
+                return 0;
+            }
+            break;
         }
     }
-    chat_cursor_timer.SetTimeout(500);
-    chat_cursor_visible = true;
-    return 0;
+    return key;
 }
 
 // 0x41e6b0  Confidence: likely (the order of the /msg branches). Appends c; when the line already holds

@@ -103,7 +103,7 @@ void sound_emitter_stop(int emitter, int fade_ms)
     }
 }
 
-// 0x546320  Confidence: likely (the four play calls; the record copy of snd_get_sound_info is only read
+// 0x546320  Confidence: exact (the volume through a float local; snd_play_looping takes five arguments, D8400; the record copy of snd_get_sound_info is only read
 // for its volume). Steals the quietest voice when 16 play and it is not louder than this one.
 void sound_emitter_play(int emitter)
 {
@@ -121,13 +121,17 @@ void sound_emitter_play(int emitter)
     if (e->repeat_delay > 0) {
         if (sound_emitter_stub_false() == true)
             e->sig = snd_play_3d(e->sound, &e->pos, false, 0, 0);
-        else
-            e->sig = snd_play(e->sound, e->volume / info.volume, 0.0f, 0, 0);
+        else {
+            float vol = e->volume / info.volume;
+            e->sig = snd_play(e->sound, vol, 0.0f, 0, 0);
+        }
     } else {
         if (sound_emitter_stub_false() == true)
             e->sig = snd_play_3d(e->sound, &e->pos, true, 0, 0);
-        else
-            e->sig = snd_play_looping(e->sound, e->volume / info.volume, 0.0f, 0);
+        else {
+            float vol = e->volume / info.volume;
+            e->sig = snd_play_looping(e->sound, vol, 0.0f, 0, 0);
+        }
     }
     if (e->sig >= 0) {
         e->flags &= ~SOUND_EMITTER_FLAG8;

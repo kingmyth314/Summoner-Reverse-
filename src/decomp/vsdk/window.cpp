@@ -1039,7 +1039,7 @@ void ui_stub_ret_52afe0()
 {
 }
 
-// 0x52aff0  Confidence: exact (if the callback returns int, the declaration differs, not the code).
+// 0x52aff0  Confidence: likely (differs under cl 12.00.8966, match23; was exact; if the callback returns int, the declaration differs, not the code).
 // Vtable slot 1. -99999 means "use the window's id".
 bool ui_window::send_event(int event, int value)
 {
@@ -1086,7 +1086,7 @@ void ui_window::init(int x, int y, int w, int h, int id, int flags)
     first_gadget = NULL;
     mouse_over = NULL;
     selected = NULL;
-    colors = ui_window_colors;
+    colors = &ui_window_colors.c0;
 
     if (flags & UI_WINDOW_MODAL) {
         next = &ui_window_sentinel;
@@ -1110,9 +1110,10 @@ void ui_window::init(int x, int y, int w, int h, int id, int flags)
             win = win->next;
         }
     }
-    prev = win->prev;
+    ui_window *p = win->prev;
+    prev = p;
     win->prev = this;
-    prev->next = this;
+    p->next = this;
     next = win;
 }
 
@@ -1242,22 +1243,22 @@ int ui_window::get_flags()
     return flags;
 }
 
-// 0x52b710  Confidence: likely (store order).
+// 0x52b710  Confidence: exact (VC6 byte match, match23; was likely; store order).
 // Appends a tooltip to the window's list (same node layout as the gadget set_tooltip functions).
 void ui_window::set_tooltip(const char *text, int font, int x, int y, int delay)
 {
     ui_tooltip *t = new ui_tooltip;
     t->owner = this;
     strcpy(t->text, text);
-    t->x = x;
     t->delay = delay;
-    t->font = font;
+    t->x = x;
     t->y = y;
+    t->font = font;
+    t->colors = &ui_tooltip_colors.c0;
     t->next = (ui_tooltip *)&tooltips;
     t->prev = tooltips.prev;
     tooltips.prev->next = t;
     tooltips.prev = t;
-    t->colors = ui_tooltip_colors;
 }
 
 // 0x52b7a0  Confidence: exact.

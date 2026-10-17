@@ -232,7 +232,7 @@ void options_set_music_volume(float volume)
                          - options_buttons[2].w / 2;
 }
 
-// 0x41f300  Confidence: likely (the clamp tests: fcom + test ah, 0x41 is "<=", test ah, 1 / jne is ">=";
+// 0x41f300  Confidence: exact (VC6 byte match, match24; was likely) (the clamp tests: fcom + test ah, 0x41 is "<=", test ah, 1 / jne is ">=";
 // the clamped value stays on the FPU stack for the knob). Range 1.0..2.0.
 void options_set_camera_speed(float speed)
 {
@@ -263,7 +263,7 @@ void options_apply_gamma(float gamma)
                           - options_buttons[70].w / 2;
 }
 
-// 0x41f410  Confidence: likely (order of the two buttons in the no-EAX branch). Without EAX both radio
+// 0x41f410  Confidence: exact (VC6 byte match, match24; was likely) (order of the two buttons in the no-EAX branch). Without EAX both radio
 // buttons are unticked and disabled; nothing here enables them again.
 void options_set_eax(bool on)
 {
@@ -310,7 +310,7 @@ void options_set_invert_camera(bool on)
     }
 }
 
-// 0x41f510  Confidence: likely (statement order inside the cases).
+// 0x41f510  Confidence: exact (VC6 byte match, match24; was likely) (statement order inside the cases).
 void options_set_dialogue_camera(int mode)
 {
     options_edit.dialogue_camera = mode;
@@ -359,7 +359,7 @@ void options_set_combat_flag(bool on)
     }
 }
 
-// 0x41f640  Confidence: likely (as options_set_dialogue_camera).
+// 0x41f640  Confidence: exact (VC6 byte match, match24; was likely) (as options_set_dialogue_camera).
 void options_set_party_model_detail(int level)
 {
     options_edit.detail_14 = level;
@@ -382,7 +382,7 @@ void options_set_party_model_detail(int level)
     }
 }
 
-// 0x41f6f0  Confidence: likely (as options_set_dialogue_camera).
+// 0x41f6f0  Confidence: exact (VC6 byte match, match24; was likely) (as options_set_dialogue_camera).
 void options_set_model_detail(int level)
 {
     options_edit.detail_18 = level;
@@ -450,7 +450,7 @@ void options_set_cfg_21(bool on)
         options_buttons[48].flags &= ~1;
 }
 
-// 0x41f870  Confidence: likely (as options_set_dialogue_camera).
+// 0x41f870  Confidence: exact (VC6 byte match, match24; was likely) (as options_set_dialogue_camera).
 void options_set_detail_24(int level)
 {
     options_edit.detail_24 = level;
@@ -473,7 +473,7 @@ void options_set_detail_24(int level)
     }
 }
 
-// 0x41f920  Confidence: likely (as options_set_dialogue_camera).
+// 0x41f920  Confidence: exact (VC6 byte match, match24; was likely) (as options_set_dialogue_camera).
 void options_set_fog_quality(int quality)
 {
     options_edit.fog_quality = quality;
@@ -496,7 +496,7 @@ void options_set_fog_quality(int quality)
     }
 }
 
-// 0x41f9d0  Confidence: likely (neg / sbb / and is VC6's form of "c ? x : 0").
+// 0x41f9d0  Confidence: exact (VC6 byte match, match24; was likely) (neg / sbb / and is VC6's form of "c ? x : 0").
 void options_set_antialias(bool on)
 {
     options_edit.antialias = gr_antialias_enabled ? on : false;
@@ -651,7 +651,7 @@ void options_update_buttons()
     options_mouse_mode = 0;
 }
 
-// 0x41fd20  Confidence: likely (byte table 0x41ff9c over button-4, 0..70, into the jump table 0x41ff0c).
+// 0x41fd20  Confidence: exact (VC6 byte match, match24; was likely) (byte table 0x41ff9c over button-4, 0..70, into the jump table 0x41ff0c).
 // Every box case has its own sound call; VC6 cross-jumped the identical tails into the last copy (cfg_34
 // off), which also explains why that tail sits before the accept / cancel cases. The case order is the
 // code order (the combat flag cases come after cfg_3c). Sounds: 0x28 boxes, 0x23 accept, 0x24 cancel.

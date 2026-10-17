@@ -31,7 +31,7 @@ bool ls_ikaemostopint_found_boss_done;               // 0x257ecfc
 bool ls_ikaemostopint_boss_killed_done;              // 0x257ecfd
 bool ls_ikaemostopint_joseph_spoke;                  // 0x257ecfe
 
-// 0x4f9ec0  Confidence: exact. level_script_table init (stage 5). Both music flags are set to 1 on every
+// 0x4f9ec0  Confidence: likely (the binary keeps the constant 1 in EBX; 8966 uses immediates). level_script_table init (stage 5). Both music flags are set to 1 on every
 // entry (`mov ebx, 1` before the flag tests, stored as bl at 0x4f9f2e), so the boss music of
 // lsf_ikaemos_found_boss and the restore of lsf_ikaemos_boss_killed never run (see NOTES).
 void ls_ikaemostopint_init()

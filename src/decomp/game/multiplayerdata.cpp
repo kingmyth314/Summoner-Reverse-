@@ -28,7 +28,7 @@
 
 #define MP_NAME_WIDTH 50              // pixels of mp_player::display_name (push 0x32)
 
-// 0x4af340  Confidence: likely (the flag store is scheduled before the size store; source order guessed).
+// 0x4af340  Confidence: exact (VC6 byte match, match24; was likely) (MP_END_PACKET before the flag store, D8304).
 void mp_broadcast_new_info(mp_player *p)
 {
     ubyte data[MP_MAX_PACKET];
@@ -36,8 +36,8 @@ void mp_broadcast_new_info(mp_player *p)
 
     MP_BUILD_HEADER(MP_NEW_INF);
     mp_pack_player_info(p, data, &packet_size);
-    p->flags |= MP_PF_INFO_SENT;
     MP_END_PACKET();
+    p->flags |= MP_PF_INFO_SENT;
     mp_broadcast_packet(data, packet_size, 1);
     mp_announce_player_joined(p);
 }
@@ -55,6 +55,7 @@ void mp_announce_player_joined(mp_player *p)
 void mp_pack_player_info(mp_player *p, ubyte *data, ushort *offset)
 {
     ushort len;
+    int type = p->type;
 
     *(int *)(data + *offset) = p->id;
     *offset += 4;
@@ -62,7 +63,7 @@ void mp_pack_player_info(mp_player *p, ubyte *data, ushort *offset)
     *offset += 4;
     *(int *)(data + *offset) = p->profile_flags;
     *offset += 4;
-    *(int *)(data + *offset) = p->type;
+    *(int *)(data + *offset) = type;
     *offset += 4;
     len = (ushort)strlen(p->name);
     memcpy(data + *offset, p->name, len);
@@ -81,7 +82,7 @@ void mp_handle_new_info(ubyte *data, void *from)
         mp_announce_player_joined(p);
 }
 
-// 0x4af4e0  Confidence: likely (the local name buffer's size: the frame has 0x40 bytes after the four
+// 0x4af4e0  Confidence: exact (VC6 byte match, match24; was likely) (the local name buffer's size: the frame has 0x40 bytes after the four
 // ints). A known id only writes the message to string_buffer (the print is compiled out) and returns the
 // existing record, so its "has entered" line is shown again. Out of records: the local player leaves with
 // "Insufficient memory" (reason 3; the second argument is the NULL in eax).
@@ -128,7 +129,7 @@ mp_player *mp_add_new_player(ubyte *data, ushort *offset)
     return p;
 }
 
-// 0x4af670  Confidence: likely (the `> 0` test of the pending packet; nw_addr_equal is 0 for a match, so the
+// 0x4af670  Confidence: exact (VC6 byte match, match24; was likely) (the `> 0` test of the pending packet; nw_addr_equal is 0 for a match, so the
 // test keeps the players at another address than `to`). Each packet is closed with MP_NET_INF_MORE when
 // the next one is started, the last with MP_NET_INF_LAST; all go reliably to `to`.
 void mp_send_net_info(mp_player *to)
@@ -166,11 +167,12 @@ void mp_handle_net_info(ubyte *data, void *from)
     mp_announce_player_joined(p);
     if (p->id == mp_server_player_id)
         memcpy(p->addr, mp_server_addr, sizeof(mp_server_addr));
-    if (data[offset++] == MP_NET_INF_LAST)
+    ubyte last = data[offset++];
+    if (last == MP_NET_INF_LAST)
         mp_set_local_status(3);
 }
 
-// 0x4af7d0  Confidence: likely (the equipment ternary; the two floats go through a stack temporary,
+// 0x4af7d0  Confidence: exact (VC6 byte match, match24; was likely) (the equipment ternary; the two floats go through a stack temporary,
 // MP_ADD_FLOAT). {player id, character handle, 9 equipment type indices (-1 empty), 0x54 skill bytes,
 // skill points, level (short), xp, base max HP, HP, base max AP (short), AP (short)}. A client sends it
 // unreliably.
@@ -215,14 +217,13 @@ void mp_send_player_data(mp_player *p)
         multi_send_packet(data, packet_size, NULL, 0);
 }
 
-// 0x4af990  Confidence: likely (the two out slots of character_equip_item: the first is the dead `data`
-// argument slot; the clamps are max() expansions after the plain stores). For our own character only the
+// 0x4af990  Confidence: exact (VC6 byte match, match24; was likely) (the two out slots of character_equip_item: the first is the dead `data`
+// argument slot; the header ints read with memcpy, the clamps after the plain stores; D8302, D8304). For our own character only the
 // handle mapping is kept. The host answers with the PLY_DAT of its copy (to every player).
 void mp_handle_player_data(ubyte *data, void *from)
 {
-    int id = ((int *)data)[0];
-    int net_handle = ((int *)data)[1];
-    ushort offset = 8;
+    int id, net_handle;
+    ushort offset = 0;
     mp_player *mp;
     Player *pl;
     Character *c;
@@ -231,6 +232,10 @@ void mp_handle_player_data(ubyte *data, void *from)
     int i;
     int type;
 
+    memcpy(&id, data + offset, 4);
+    offset += 4;
+    memcpy(&net_handle, data + offset, 4);
+    offset += 4;
     mp = mp_player_find_by_id(id);
     if (!mp)
         return;
@@ -273,22 +278,20 @@ void mp_handle_player_data(ubyte *data, void *from)
     offset += 4;
     c->hp = *(float *)(data + offset);
     offset += 4;
-    c->hp = max(c->hp, 0.0f);
+    { float h = c->hp; c->hp = h > 0.0f ? h : 0.0f; }
     c->base_max_ap = *(short *)(data + offset);
     offset += 2;
     c->ap = *(short *)(data + offset);
-    c->ap = max(c->ap, 0);
+    c->ap = max(c->ap, (short)0);
 
-    if (MP_IS_CLIENT()) {
+    if (MP_IS_CLIENT())
         mp_map_net_handle(net_handle, c->handle);
-        pl->mp_owner->flags |= MP_PF_DATA_RECEIVED;
-    } else {
+    else
         mp_send_player_data(pl->mp_owner);
-        pl->mp_owner->flags |= MP_PF_DATA_RECEIVED;
-    }
+    pl->mp_owner->flags |= MP_PF_DATA_RECEIVED;
 }
 
-// 0x4afbe0  Confidence: likely (`slot1` lives in the dead argument slot; the i != 5 / 6 tests are pointer
+// 0x4afbe0  Confidence: exact (VC6 byte match, match24; was likely) (`slot1` lives in the dead argument slot; the i != 5 / 6 tests are pointer
 // compares against equip_page_slots + 5 / + 6). The weapon (5) and shield (6) take the player's two
 // paging slots, the rest the fixed slot of their equipment index.
 void mp_page_in_player_items(Character *c)

@@ -75,9 +75,9 @@ int party_inventory_count;                                    // 0x97186c
 // 0x46b460  Confidence: exact. The next entry after start whose item is in the category, -1 none.
 int party_inventory_find_next_in_category(int start, int category, party_inventory_entry *list, int count)
 {
-    for (int i = start + 1; i < count; i++) {
-        if (item_type_shop_category(list[i].item->type - item_types) == category)
-            return i;
+    for (start++; start < count; start++) {
+        if (item_type_shop_category(list[start].item->type - item_types) == category)
+            return start;
     }
     return -1;
 }
@@ -85,14 +85,14 @@ int party_inventory_find_next_in_category(int start, int category, party_invento
 // 0x46b4b0  Confidence: exact.
 int shop_inventory_find_next_in_category(int start, int category, shop_item *list, int count)
 {
-    for (int i = start + 1; i < count; i++) {
-        if (item_type_shop_category(list[i].item_type) == category)
-            return i;
+    for (start++; start < count; start++) {
+        if (item_type_shop_category(list[start].item_type) == category)
+            return start;
     }
     return -1;
 }
 
-// 0x46b500  Confidence: likely (VC6 schedules the second index computation around the first call; the
+// 0x46b500  Confidence: exact (VC6 byte match, match24; was likely) (VC6 schedules the second index computation around the first call; the
 // order of the two locals is a guess). qsort comparator: category, then item type index; never 0.
 int party_inventory_compare(const void *pa, const void *pb)
 {

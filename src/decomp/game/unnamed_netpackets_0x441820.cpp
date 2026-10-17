@@ -207,7 +207,7 @@ void mp_broadcast_packet(ubyte *data, int len, bool skip_flagged)
     }
 }
 
-// 0x441b10  Confidence: likely (the "safe" walk of the player list reads next before the end test; the
+// 0x441b10  Confidence: exact (VC6 byte match, match23; was likely; the "safe" walk of the player list reads next before the end test; the
 // reliable loops are rotated `while (socket != -1 && receive > 0)`). The buffer index nests the calls (a
 // handler may receive again); the per-second statistics roll at the outermost call.
 void multi_process_incoming()
@@ -244,7 +244,7 @@ void multi_process_incoming()
     multi_recv_buffer_index--;
 }
 
-// 0x441ca0  Confidence: likely (the three sums share one loop; the divisions by 10 are magic multiplies).
+// 0x441ca0  Confidence: exact (VC6 byte match, match23; was likely; the three sums share one loop; the divisions by 10 are magic multiplies).
 // Once a second: this second's counts into the 10-slot histories, the averages, and the counters reset.
 // The byte averages are stored crosswise (D3307).
 void mp_net_stats_update()

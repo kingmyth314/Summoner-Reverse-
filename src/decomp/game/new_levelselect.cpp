@@ -290,7 +290,7 @@ void mp_levelselect_sync_selection()
     }
 }
 
-// 0x41c380  Confidence: likely (the bool local for "a name is selected"). Forgets a selected player who
+// 0x41c380  Confidence: exact (VC6 byte match, match24; was likely) (the bool local for "a name is selected"). Forgets a selected player who
 // has left; Kick (11) is for the host, with another player selected.
 void mp_levelselect_update_kick_button()
 {
@@ -330,18 +330,20 @@ int mp_levelselect_handle_click(int key)
     mp_levelselect_hover_player = -1;
 
     for (i = 0; i < LEVELSELECT_NUM_BUTTONS; i++) {
-        if (!(mp_levelselect_buttons[i].flags & 4) && (mp_levelselect_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_buttons[i].x, mp_levelselect_buttons[i].y,
-                             mp_levelselect_buttons[i].w, mp_levelselect_buttons[i].h)) {
+        ui_button_state *b = &mp_levelselect_buttons[i];
+        ui_button_def *d = &mp_levelselect_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 3)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y,
+                             b->w, b->h)) {
             mp_levelselect_pressed_button = i;
-            mp_levelselect_buttons[i].flags |= 2;
-            if (mp_levelselect_button_defs[i].flags & 1) {
+            b->flags |= 2;
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     mp_levelselect_mouse_mode = 1;
                     mp_levelselect_button_timer.invalidate();
                     return key;
                 }
-            } else if (mp_levelselect_button_defs[i].flags & 2) {
+            } else if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     mp_levelselect_mouse_mode = 1;
                     mp_levelselect_button_action(mp_levelselect_pressed_button + 1);
@@ -498,7 +500,7 @@ int mp_levelselect_handle_click(int key)
     return key;
 }
 
-// 0x41cad0  Confidence: likely (two calls merged by the compiler, or one call with a ?: argument).
+// 0x41cad0  Confidence: exact (VC6 byte match, match24; was likely) (two calls merged by the compiler, or one call with a ?: argument).
 // Leaves the game (the host passes 2) and returns to state 11 or 12 like mp_charselect_save_choice.
 void mp_levelselect_back()
 {
@@ -512,7 +514,7 @@ void mp_levelselect_back()
         gameseq_set_state(12);
 }
 
-// 0x41cb20  Confidence: likely (two stores of the element, as journal_list_page_up).
+// 0x41cb20  Confidence: exact (VC6 byte match, match24; was likely) (two stores of the element, as journal_list_page_up).
 void mp_levelselect_page_up(int list)
 {
     if (list == -1)
@@ -524,7 +526,7 @@ void mp_levelselect_page_up(int list)
     }
 }
 
-// 0x41cb70  Confidence: likely (as journal_list_page_down).
+// 0x41cb70  Confidence: exact (VC6 byte match, match24; was likely) (as journal_list_page_down).
 void mp_levelselect_page_down(int list)
 {
     if (list == -1)
@@ -678,7 +680,7 @@ void mp_levelselect_draw()
     mp_levelselect_draw_players();
 }
 
-// 0x41cf80  Confidence: unsure (the colour switch of the other line types: the binary tests 1 and 3
+// 0x41cf80  Confidence: exact (VC6 byte match, match24; was unsure) (the colour switch of the other line types: the binary tests 1 and 3
 // explicitly and gives them and the default the text colour, 4 magenta; written as a switch with those
 // cases. The two name buffers are separate stack slots, 0x14 and 0x54, so each branch declares its own).
 // A first line is split after the first space: the name part (space included) in blue or the highlight
@@ -788,7 +790,7 @@ void mp_levelselect_draw_levels()
     }
 }
 
-// 0x41d2d0  Confidence: likely (as mp_charselect_draw_scrollbar).
+// 0x41d2d0  Confidence: exact (VC6 byte match, match24; was likely) (as mp_charselect_draw_scrollbar).
 void mp_levelselect_draw_scrollbar(int list)
 {
     int tiles, i;
@@ -806,7 +808,7 @@ void mp_levelselect_draw_scrollbar(int list)
                      gr_bitmap_wrap_mode);
 }
 
-// 0x41d390  Confidence: likely (local order: clip y 0x00, w 0x04, clip x 0x08, clip w 0x0c, clip h 0x10,
+// 0x41d390  Confidence: exact (VC6 byte match, match24; was likely) (local order: clip y 0x00, w 0x04, clip x 0x08, clip w 0x0c, clip h 0x10,
 // h 0x14, buf 0x18). Drawn only while the box has the focus; "|" is always appended, the blink chooses
 // between the copy with it and the bare text.
 void mp_levelselect_draw_chat_input()
@@ -840,7 +842,7 @@ void mp_levelselect_draw_chat_input()
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x41d4e0  Confidence: likely (local order: row 0x00, font_h 0x04, text 0x08). The type-3 players, the
+// 0x41d4e0  Confidence: exact (VC6 byte match, match24; was likely) (local order: row 0x00, font_h 0x04, text 0x08). The type-3 players, the
 // one under the mouse or selected in the highlight colour.
 void mp_levelselect_draw_players()
 {

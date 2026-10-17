@@ -162,7 +162,7 @@ bool String::is_blank() const
     return true;
 }
 
-// 0x556950  Confidence: likely (an unused copy of buf in the frame).
+// 0x556950  Confidence: exact (VC6 byte match, match23; was likely; an unused copy of buf in the frame).
 void String::to_lower()
 {
     int i;
@@ -171,7 +171,7 @@ void String::to_lower()
         buf[i] = tolower(buf[i]);
 }
 
-// 0x556990  Confidence: likely (as to_lower).
+// 0x556990  Confidence: exact (VC6 byte match, match23; was likely; as to_lower).
 void String::to_upper()
 {
     int i;
@@ -371,7 +371,7 @@ String operator+(const String &a, const String &b)
 {
     String r(a.max_len + b.max_len);
 
-    if (r.buf != NULL) {
+    if (r.max_len != 0) {
         if (a.max_len > 0) {
             strcpy(r.buf, a.buf);
             if (b.max_len > 0)
@@ -389,7 +389,7 @@ String operator+(const String &a, const char *s)
     if (s == NULL)
         return a;
     String r((int)strlen(s) + a.max_len);
-    if (r.buf != NULL) {
+    if (r.max_len != 0) {
         if (a.buf != NULL)
             strcpy(r.buf, a.buf);
         strcat(r.buf, s);
@@ -403,7 +403,7 @@ String operator+(const char *s, const String &b)
     if (s == NULL)
         return b;
     String r((int)strlen(s) + b.max_len);
-    if (r.buf != NULL) {
+    if (r.max_len != 0) {
         strcpy(r.buf, s);
         if (b.buf != NULL)
             strcat(r.buf, b.buf);

@@ -142,7 +142,12 @@ void cmd_mlook_sensitivity()
 }
 
 // ---- the camera -------------------------------------------------------------------------------------
-// 0x477af0  Confidence: likely (both branches of the zoom floor clamp to 0.3: the code tests the
+// D8902: float clamps through by-value inline functions (D7500): the value stays on the FPU (`fcom`, then
+// `fstp st(0); fld c` when it is clamped), which the vsdk.h min / max macros do not give. Names ours.
+static inline float cam_max(float a, float b) { return a > b ? a : b; }
+static inline float cam_min(float a, float b) { return a < b ? a : b; }
+
+// 0x477af0  Confidence: exact (VC6 byte match, match30; was likely; D8902: by-value inline float min / max). Earlier note: (both branches of the zoom floor clamp to 0.3: the code tests the
 // elevation and then does the same thing twice). A full turn takes 6 s in the low view, 7.5 s in the high
 // view. On the world map the elevation is fixed at 12 and the zoom at 1.
 void camera::apply_input_deltas()
@@ -159,18 +164,18 @@ void camera::apply_input_deltas()
     else if (yaw < -CAM_TWO_PI)
         yaw += CAM_TWO_PI;
     if (elevation < 4.0f)
-        zoom = max(zoom, 0.3f);
+        zoom = cam_max(zoom, 0.3f);
     else
-        zoom = max(zoom, 0.3f);
-    zoom = min(zoom, camera_zoom_max);
+        zoom = cam_max(zoom, 0.3f);
+    zoom = cam_min(zoom, camera_zoom_max);
     if (cur_level_index == 4) {
-        elevation = max(elevation, 12.0f);
-        elevation = min(elevation, 12.0f);
+        elevation = cam_max(elevation, 12.0f);
+        elevation = cam_min(elevation, 12.0f);
         zoom = 1.0f;
         return;
     }
-    elevation = max(elevation, -2.0f);
-    elevation = min(elevation, 9.0f);
+    elevation = cam_max(elevation, -2.0f);
+    elevation = cam_min(elevation, 9.0f);
 }
 
 // 0x477ca0  Confidence: exact (VC6 byte match) (the two quadrant fix-ups are the code's, odd as they are). Turns the yaw

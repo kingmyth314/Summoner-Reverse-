@@ -173,7 +173,9 @@ bool ai_state::phoenix_reposition_update()
         }
         if (n > 1) {
             vector3 a = down[0]->pos;
-            vector3 mid = (a + down[1]->pos) * 0.5f;
+            vector3 b = down[1]->pos;
+            vector3 mid;
+            mid = (a + b) * 0.5f;
             vector3 dir(-(a.z - mid.z), 0, a.x - mid.x);
             dir.normalize();
             vector3 dest = mid + dir * 4.5f;
@@ -295,7 +297,7 @@ bool ai_state::phoenix_seat_rider()
 }
 
 // ---- setup -----------------------------------------------------------------------------------------
-// 0x498420  Confidence: likely (the has_rider default before the loaded test). Once per level (until
+// 0x498420  Confidence: exact (VC6 byte match, match31; was likely) (the has_rider default before the loaded test). Once per level (until
 // phoenix_unload): the stage (3 on foot in Liangshan / Jadetemple), the timers, the table, the named
 // attack records, the Phoenix Bow, the flinch moves, the seat.
 void ai_state::phoenix_boss_load()
@@ -332,7 +334,9 @@ void ai_state::phoenix_boss_load()
 
     phoenix_num_offense_points = 0;
     for (int k = 0; k < 10; k++) {
-        int tag = owner->instance->character->find_mesh_tag(offense_point_name(k));
+        const char *name = offense_point_name(k);
+        ca_character *ch = owner->instance->character;
+        int tag = ch->find_mesh_tag(name);
         if (tag != -1) {
             phoenix.offense_points[phoenix_num_offense_points].tag = tag;
             phoenix_num_offense_points++;

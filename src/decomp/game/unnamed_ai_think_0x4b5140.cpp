@@ -1054,14 +1054,14 @@ void ai_state::think_travel_wait() {}
 void ai_state::think_travel_escort() {}
 void ai_state::think_combat() {}
 
-// 0x4b7610  Confidence: likely. The think interval: a party member 500 ms while following the leader,
+// 0x4b7610  Confidence: exact (VC6 byte match, match30; was likely; D8902: the travel sub-mode as an if-chain, t_party declared first). The think interval: a party member 500 ms while following the leader,
 // else 50-100 ms; any other character 50 ms in combat, else 250-500 ms. A multiplayer client thinks only
 // for its own characters' goals.
 void ai_state::think()
 {
     profile_label label("ai_think");
-    int t_goals = 0;
     int t_party = 0;
+    int t_goals = 0;
     int t0, t1;
 
     if (owner->flags & 0xa)
@@ -1091,23 +1091,15 @@ void ai_state::think()
         think_idle();
         break;
     case AI_STATE_TRAVELING:
-        switch (submode) {
-        case AIS_TRAVEL_PATH:
+        // D8902: an if-chain (the binary compares 0, 3 / 5 / 4, 6 / 7, 0x2b in turn; a switch is a table).
+        if (submode == AIS_TRAVEL_PATH)
             think_travel_wait();
-            break;
-        case AIS_TRAVEL_FOLLOW:
-        case AIS_TRAVEL_WAIT:
-        case AIS_TRAVEL_FOLLOW_SLOW:
+        else if (submode == AIS_TRAVEL_FOLLOW || submode == AIS_TRAVEL_WAIT || submode == AIS_TRAVEL_FOLLOW_SLOW)
             party_follow_think();
-            break;
-        case AIS_TRAVEL_GOTO:
-        case AIS_TRAVEL_ESCORT:
+        else if (submode == AIS_TRAVEL_GOTO || submode == AIS_TRAVEL_ESCORT)
             think_travel_escort();
-            break;
-        case AIS_TRAVEL_ASIDE:
+        else if (submode == AIS_TRAVEL_ASIDE)
             clear_target_and_idle();
-            break;
-        }
         break;
     case AI_STATE_COMBAT:
         think_combat();

@@ -229,7 +229,7 @@ void pf_read_edge_list(File *f, pf_grid_cell *cell)
         cell->walls[i] = &pf_edges[f->read_int(0, 0)];
 }
 
-// 0x49cc50  Confidence: exact. The wall grid of a graph.
+// 0x49cc50  Confidence: likely (marked exact; differs under VC6 8966, match27). The wall grid of a graph.
 void pf_read_region(File *f, pf_grid *grid)
 {
     pf_grid_row *row;
@@ -552,12 +552,10 @@ int pf_next_search_id()
     return ++pf_search_id;
 }
 
-// 0x49d980  Confidence: exact (the store order of the pointers is the code's; the atexit argument is
-// pushed before them).
+// 0x49d980  Confidence: exact (VC6 byte match, match27: the pointer stores written before the two memsets,
+// which 8966 schedules after them with the memsets' zero EAX; the atexit argument is pushed before them).
 void pathfinding_init()
 {
-    memset(pf_graphs, 0, sizeof(pf_graphs));
-    memset(pf_layer_links, 0, sizeof(pf_layer_links));
     pf_nodes = NULL;
     pf_unk_cac = NULL;
     pf_border_edges = NULL;
@@ -572,6 +570,8 @@ void pathfinding_init()
     pf_edge_ref_pool = NULL;
     pf_grid_cell_pool = NULL;
     pf_grid_row_pool = NULL;
+    memset(pf_graphs, 0, sizeof(pf_graphs));
+    memset(pf_layer_links, 0, sizeof(pf_layer_links));
     atexit(pathfinding_atexit_free);
 }
 
@@ -749,13 +749,15 @@ bool pf_sweep_test_wall(pf_sweep *s)
     return false;
 }
 
-// 0x49e050  Confidence: likely (the end points are loaded into temporaries first). The unit normal of
-// the wall's open side.
+// 0x49e050  Confidence: exact (VC6 byte match, match27: the end points copied into vector2 locals through the
+// float constructor; was likely). The unit normal of the wall's open side.
 void pf_wall_normal(pf_edge *wall, vector2 *out)
 {
+    vector2 a(wall->a->x, wall->a->y);
+    vector2 b(wall->b->x, wall->b->y);
     vector2 d;
 
-    d = *wall->b - *wall->a;
+    d = b - a;
     d.normalize();
     out->x = d.y;
     out->y = -d.x;
@@ -855,20 +857,27 @@ bool pf_sweep_segment(pf_sweep *s)
     return true;
 }
 
-// 0x49e470  Confidence: likely (the slide expression's operand order). Sweeps the x / z move; on a hit
+// The x / z of a position into a vector2 through float arguments: the binary copies them with fld / fstp
+// (an inline with float parameters, perhaps a vector2 member in the original; plain member copies are
+// integer moves). Name ours.
+static inline void pf_set_xz(vector2 *v, float x, float z)
+{
+    v->x = x;
+    v->y = z;
+}
+
+// 0x49e470  Confidence: exact (VC6 byte match, match27; was likely: the ends through pf_set_xz, the slide
+// written with the vector2 operators, size stored before layer, out written x, y, z). Sweeps the x / z move; on a hit
 // slides the rest of it along the wall (or round the corner) and sweeps again.
 bool pf_slide_move(const vector3 *from, const vector3 *to, vector3 *out, int size, int layer)
 {
     pf_sweep s;
     vector2 n, d, push, proj;
-    float dot;
 
-    s.from.x = from->x;
-    s.from.y = from->z;
-    s.to.x = to->x;
-    s.to.y = to->z;
-    s.layer = layer;
+    pf_set_xz(&s.from, from->x, from->z);
+    pf_set_xz(&s.to, to->x, to->z);
     s.size = size;
+    s.layer = layer;
     s.last_corner = NULL;
     s.hit_corner = NULL;
     s.search_id = pf_next_search_id();
@@ -877,30 +886,24 @@ bool pf_slide_move(const vector3 *from, const vector3 *to, vector3 *out, int siz
     if (s.hit_kind == 0) {
         pf_wall_normal(&s.hit_wall, &n);
     } else {
-        n.x = s.hit.x - s.last_corner->x;
-        n.y = s.hit.y - s.last_corner->y;
+        n = s.hit - *s.last_corner;
         n.normalize();
     }
-    d.x = s.to.x - s.hit.x;
-    d.y = s.to.y - s.hit.y;
+    d = s.to - s.hit;
     s.from = s.hit;
-    push.x = n.x * 0.015f;
-    push.y = n.y * 0.015f;
-    dot = n.y * d.y + d.x * n.x;
-    proj.x = dot * n.x;
-    proj.y = n.y * dot;
-    s.to.x = d.x + s.hit.x - proj.x + push.x;
-    s.to.y = d.y + s.hit.y - proj.y + push.y;
+    push = 0.015f * n;
+    proj = n.dot(d) * n;
+    s.to = d + s.hit - proj + push;
     s.search_id = pf_next_search_id();
     if (!pf_sweep_segment(&s)) {
         out->x = s.to.x;
-        out->z = s.to.y;
         out->y = from->y;
+        out->z = s.to.y;
         return true;
     }
     out->x = s.hit.x;
-    out->z = s.hit.y;
     out->y = from->y;
+    out->z = s.hit.y;
     return true;
 }
 

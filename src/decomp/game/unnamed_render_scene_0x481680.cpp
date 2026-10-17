@@ -179,15 +179,13 @@ bool Cull_ground;                         // 0x22fb716
 bool levelrender_fade_in;                 // 0x22fb717
 bool levelrender_layer_fog_applied;       // 0x22fb718
 
-// The bump allocator of the draw entries (inline; the cursor moves on even when the pool is full).
-static inline levelrender_entry *levelrender_alloc_entry(int size)
-{
-    ubyte *e = levelrender_entry_pool_cursor;
-    levelrender_entry_pool_cursor += size;
-    if (levelrender_entry_pool_cursor - levelrender_entry_pool > LEVELRENDER_POOL_SIZE)
-        return NULL;
-    return (levelrender_entry *)e;
-}
+// The bump allocator of the draw entries (the cursor moves on even when the pool is full). A macro that
+// gives the success of the allocation, not an inline function returning NULL (D8705): Sum.exe stores the
+// entry right after the pool test, with no NULL test of the new pointer, and an inline function's NULL
+// return makes cl 8966 test the pointer again.
+#define LEVELRENDER_ALLOC(e, type)                                                              \
+    ((e) = (type *)levelrender_entry_pool_cursor, levelrender_entry_pool_cursor += sizeof(type),  \
+     levelrender_entry_pool_cursor - levelrender_entry_pool <= LEVELRENDER_POOL_SIZE)
 
 // ---- console commands --------------------------------------------------------------------------------
 // 0x4816e0 init_ccmd_lod_dist_thunk: jmp init_ccmd_lod_dist (static initialiser entry 242). Confidence: exact.
@@ -319,7 +317,7 @@ void cmd_set_fog()
                          "near distance is optional.", 0);
 }
 
-// 0x481c40  Confidence: likely (the || chain; the vertex copy). The bitmap is centred on the projected
+// 0x481c40  Confidence: exact (the fallback tag lookup as its own if, D8704). The bitmap is centred on the projected
 // head tag, its bottom 25 pixels above it; x is made relative to the clip origin, y is not.
 void character_draw_overhead_bitmap(Character *c, int bm)
 {
@@ -334,7 +332,9 @@ void character_draw_overhead_bitmap(Character *c, int bm)
         || (fabsf(cur_character->pos.y - c->pos.y) <= 4.0f && distance_squared(&cur_character->pos, &c->pos) <= 2500.0f
             && (c->obj_flags & 2))) {
         tag = c->instance->character->find_mesh_tag("BDBN-Head");
-        if (tag >= 0 || (tag = c->instance->character->find_mesh_tag("Head")) >= 0) {
+        if (tag < 0)
+            tag = c->instance->character->find_mesh_tag("Head");
+        if (tag >= 0) {
             c->instance->get_bone_transform(&pos, &orient, tag);
             pos.rotate(c->orient);
             pos += c->pos;
@@ -900,8 +900,7 @@ void levelrender_build_draw_lists()
             } else if (!(dist_sq < 50625.0f)) {
                 break;
             }
-            e = levelrender_alloc_entry(sizeof(levelrender_entry));
-            if (e == NULL)
+            if (!LEVELRENDER_ALLOC(e, levelrender_entry))
                 break;
             if (c->instance->_unkb4 != 0xff)
                 levelrender_sort_list[levelrender_sort_count++] = e;
@@ -982,8 +981,7 @@ void levelrender_push_attachment(ItemType *item, Character *c, const vector3 *po
 
     if (!item || !c || !item->mesh)
         return;
-    e = (levelrender_attach_entry *)levelrender_alloc_entry(sizeof(levelrender_attach_entry));
-    if (e == NULL)
+    if (!LEVELRENDER_ALLOC(e, levelrender_attach_entry))
         return;
     levelrender_attach_list[levelrender_attach_count++] = e;
     e->light = light;
@@ -1026,8 +1024,7 @@ void levelrender_add_items(item_obj *it)
         it->obj_flags |= 8;
     else
         it->obj_flags &= ~8;
-    e = levelrender_alloc_entry(sizeof(levelrender_entry));
-    if (e == NULL)
+    if (!LEVELRENDER_ALLOC(e, levelrender_entry))
         return;
     levelrender_attach_list[levelrender_attach_count++] = e;
     e->type = LRE_ITEM;
@@ -1064,8 +1061,7 @@ void levelrender_add_containers(container *ct)
         ct->obj_flags |= 8;
     else
         ct->obj_flags &= ~8;
-    e = levelrender_alloc_entry(sizeof(levelrender_entry));
-    if (e == NULL)
+    if (!LEVELRENDER_ALLOC(e, levelrender_entry))
         return;
     levelrender_attach_list[levelrender_attach_count++] = e;
     e->type = LRE_CONTAINER;
@@ -1139,8 +1135,7 @@ void levelrender_add_lobj(lobj *l, int index)
                 return;
         }
     }
-    e = levelrender_alloc_entry(sizeof(levelrender_entry));
-    if (e == NULL)
+    if (!LEVELRENDER_ALLOC(e, levelrender_entry))
         return;
     if ((levelrender_lobj_states[index].flags & LRS_ALPHA_MASK) != LRS_ALPHA_MASK)
         levelrender_sort_list[levelrender_sort_count++] = e;
@@ -1329,20 +1324,18 @@ bool levelrender_add_effect_entry(vector3 pos, float cull_radius, float sort_rad
             if (owner && (!(owner->flags & CF_SUMMON) || fx->timer.elapsed())) {
                 if (!(owner->obj_flags & 2))
                     return false;
-                goto add;
-            }
-        }
-        if (gr_cull_sphere(&pos, cull_radius, 0))
+            } else if (gr_cull_sphere(&pos, cull_radius, 0))
+                return false;
+        } else if (gr_cull_sphere(&pos, cull_radius, 0))
             return false;
     }
-add:
-    e = (levelrender_effect_entry *)levelrender_alloc_entry(sizeof(levelrender_effect_entry));
-    if (e) {
+    if (LEVELRENDER_ALLOC(e, levelrender_effect_entry)) {
         if ((fx->bits & 2) && !(ubyte)kind)
             levelrender_opaque_list[levelrender_opaque_count++] = e;
         else
             levelrender_sort_list[levelrender_sort_count++] = e;
-    }
+    } else
+        e = NULL;
     if (!e)
         return false;
     float dx = pos.x - levelrender_eye_pos.x;

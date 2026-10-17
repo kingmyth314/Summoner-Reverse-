@@ -223,7 +223,7 @@ void make_initial_edge_tree(const vector2 *pt)
     pathvis_tree_cycles = read_tsc() - pathvis_tree_cycles;
 }
 
-// 0x4b7d30  Confidence: exact. Line 296 (0x128).
+// 0x4b7d30  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). Line 296 (0x128).
 pathvis_edge *pathvis_add_edge_node()
 {
     pathvis_edge *e;

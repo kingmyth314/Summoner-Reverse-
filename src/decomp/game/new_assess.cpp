@@ -308,7 +308,7 @@ int assess_handle_click(int key)
     return key;
 }
 
-// 0x401a20. Confidence: exact
+// 0x401a20. Confidence: likely (the max(x, 0) AND register, D7506).
 void assess_page_up()
 {
     if (assess_scroll_pos > 0) {

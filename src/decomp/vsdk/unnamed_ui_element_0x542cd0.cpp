@@ -16,7 +16,7 @@
 // The next automatic id (init with id < 0): -1, -2, ...; back to -1 should it ever turn positive (label ours).
 int ui_next_auto_id = -1;                             // 0x5ac8dc
 
-// 0x542cd0  vtable 0x581ea0 slot 0 (sum.symbols ui_element__free_tooltips). Confidence: likely (the
+// 0x542cd0  vtable 0x581ea0 slot 0 (sum.symbols ui_element__free_tooltips). Confidence: exact (unit /Ob0, D8402; the
 // unlink order). Frees every tooltip; the element counts as not initialised afterwards.
 // 0x543010 ui_tooltip__scalar_deleting_dtor: the `delete t` helper (compiler-generated). Confidence: exact.
 void ui_element::dtor()

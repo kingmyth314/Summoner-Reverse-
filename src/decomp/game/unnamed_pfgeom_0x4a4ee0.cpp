@@ -81,7 +81,7 @@ void pf_select_graph(int size, int layer)
     pf_cur_graph = &pf_graphs[size][layer];
 }
 
-// 0x4a4f60  Confidence: exact. The flags argument is not read.
+// 0x4a4f60  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). The flags argument is not read.
 bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags)
 {
     float dy = s->b->y - s->a->y;

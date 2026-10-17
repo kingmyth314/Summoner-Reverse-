@@ -270,7 +270,7 @@ void automap_select_label(int index)
     }
 }
 
-// 0x4023b0  Confidence: exact.
+// 0x4023b0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
 void automap_center_on_player()
 {
     float zoom = automap_get_zoom();
