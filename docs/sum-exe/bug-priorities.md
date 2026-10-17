@@ -26,6 +26,9 @@ A score changes when a bug is reproduced or a new tool makes one easier to reach
 (avoidance area index overflow) and G311 (scripted "go" lost), found while byte-matching. All four are latent (no
 known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 might reach impact 4 if five
 overlapping spell areas turn out to be reachable in a retail fight).
+
+{: .note }
+**Fixed since the ranking:** G4 (2026-10-17, SummonerFix `bugfix.c`, reproduced and checked in game).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method

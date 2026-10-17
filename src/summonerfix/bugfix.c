@@ -42,6 +42,14 @@
 // 2026-10-16 with [Debug] TraceHitVfx in the sewer boss room). Fix: cmp edi, 1 ; jne at 0x466a0c becomes
 // cmp edi, 2 ; ja (blood for 1 and 2), and the stone / ice test at 0x466a2f becomes a jmp to the spark spawn, so
 // every skin that got a name now gets the effect stone golems already show. Flesh, stone and ice are unchanged.
+//
+// Save over an existing save without the question (not a crash; game-bugs G4). saveload_try_save asks "Overwrite
+// existing savegame?" when the selected entry is a save, but reads saveload_entries[selected_row] without the
+// scroll position (0x426340..0x426352). Entry 0 is "<New Savegame>", so with the list scrolled the top visible row
+// skips the question, and saveload_save_to_slot, which does add the scroll position, writes over that save
+// (reproduced 2026-10-17: scrolled 3 rows, Save on the top row overwrote "G4 test save 12" with no question). Fix:
+// the mov eax, [saveload_selected_row] at 0x426340 becomes a call that returns selected_row + scroll_pos, so the
+// test looks at the entry the save goes to. The rows below the top one now ask about the right save too.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -56,6 +64,9 @@
 #define VA_POPUP_HIT_TITLE 0x4139b3u       // mov esi, [4*edx + 0x57ef70] ; add esi, ecx ; jmp 0x4139cf
 #define VA_POPUP_MARGIN_Y 0x57ef70u         // int ui_choice_popup_margin_y[3]
 #define VA_POPUP_TITLE_GAP 0x57ef7cu        // int ui_choice_popup_title_gap[3] = {5, 5, 5}
+#define VA_SAVE_OVERWRITE_ROW 0x426340u     // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
+#define VA_SAVELOAD_SELECTED_ROW 0x5e360cu  // int saveload_selected_row
+#define VA_SAVELOAD_SCROLL_POS 0x5c5b9cu    // int saveload_scroll_pos (first visible row)
 
 __attribute__((used)) volatile BYTE *g_dsInited;
 void DsChannelStreamGuard(void);
@@ -102,6 +113,19 @@ __asm__(".text\n"
         "    popl %ecx\n"
         "    ret\n");
 
+// eax = saveload_selected_row + saveload_scroll_pos (flags are recomputed by the test eax, eax that follows).
+__attribute__((used)) DWORD g_saveSelectedRow, g_saveScrollPos;
+void SaveOverwriteRowStub(void);
+__asm__(".text\n"
+        "_SaveOverwriteRowStub:\n"
+        "    movl _g_saveSelectedRow, %eax\n"
+        "    movl (%eax), %eax\n"
+        "    pushl %ecx\n"
+        "    movl _g_saveScrollPos, %ecx\n"
+        "    addl (%ecx), %eax\n"
+        "    popl %ecx\n"
+        "    ret\n");
+
 void BugFixesInstall(void)
 {
     g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
@@ -144,4 +168,13 @@ void BugFixesInstall(void)
     static const BYTE sparkOrig[10] = {0x83, 0xFF, 0x03, 0x74, 0x05, 0x83, 0xFF, 0x09, 0x75, 0x1B};
     static const BYTE sparkRepl[10] = {0xEB, 0x08, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // jmp 0x466a39
     PatchBytes(VA_HIT_VFX_SPARK_TEST, sparkOrig, sparkRepl, 10, "spark hit effect for metal characters (K20)");
+
+    g_saveSelectedRow = SumVa(VA_SAVELOAD_SELECTED_ROW);
+    g_saveScrollPos = SumVa(VA_SAVELOAD_SCROLL_POS);
+    static const BYTE rowOrig[5] = {0xA1, 0x0C, 0x36, 0x5E, 0x00}; // mov eax, [0x5e360c]
+    BYTE rowRepl[5] = {0xE8};
+    DWORD rowSite = SumVa(VA_SAVE_OVERWRITE_ROW);
+    DWORD rowRel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (rowSite + 5);
+    memcpy(rowRepl + 1, &rowRel, 4);
+    PatchBytes(VA_SAVE_OVERWRITE_ROW, rowOrig, rowRepl, 5, "save overwrite question on a scrolled list (G4)");
 }

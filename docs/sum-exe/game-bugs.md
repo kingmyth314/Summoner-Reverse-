@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 2 |
-| Gameplay | 51 | 25 | 4 |
+| Gameplay | 51 | 25 | 5 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -906,7 +906,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G1 | The game runs at double speed on modern PCs | `FrameTimer` `0x501510` | **Observed** at runtime | Fixed |
 | G2 | The game runs many times too fast when the QPC frequency is 4.29 GHz or more | `timer_init` `0x532840` | **Observed** code | No (Timeslip's patch fixes it) |
 | G3 | Cutscenes skip almost at once after about 24.9 days of Windows uptime | `cutscene_sequence_update` `0x436a90` | **Observed**, reproduced | Fixed |
-| G4 | With the save list scrolled, saving on the top row overwrites a save without asking | `saveload_try_save` `0x426320` | **Observed** code, *inferred* effect | No |
+| G4 | With the save list scrolled, saving on the top row overwrites a save without asking | `saveload_try_save` `0x426320` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`) |
 | G5 | Buying with a full inventory takes the gold and gives no item | `buysell_buy_item` `0x4057f0` | **Observed** code, *inferred* effect | No |
 | G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code, *inferred* effect | No |
 | G7 | If a cutscene's data fails to load, input stays locked and the music stays off | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
@@ -996,7 +996,12 @@ not affected. See [Timing bugs](timing-bugs.md#1-qpc-frequency-truncation-4-ghz-
 `saveload_entries[selected_row].level` (`cmp [edx+0x5e3640], -1` at `0x426352`) without adding
 `saveload_scroll_pos`. Entry 0 is the `<New Savegame>` row, so when the list is scrolled the top visible
 row skips the "Overwrite existing savegame?" box. `saveload_save_to_slot` does add the scroll position
-(`0x4263a0`), so it writes over the real save. See [Interface screens](interface.md).
+(`0x4263a0`), so it writes over the real save. See [Interface screens](interface.md). The rows below the top one
+ask, but about the entry `selected_row` rows from the top of the list, not the one they overwrite.
+**Reproduced 2026-10-17** in agent mode with 14 test saves: scrolled 3 rows, Save on the top row showed "Game
+Saved" at once and rewrote `summoner12.sav` ("G4 test save 12"). **Fixed** in SummonerFix (`bugfix.c`): the
+`mov eax, [saveload_selected_row]` at `0x426340` becomes a call that returns `selected_row + scroll_pos`. After the
+fix the same steps showed the question; No left every file unchanged, and `<New Savegame>` still saved without one.
 
 **G5. Gold first, item second.** `buysell_buy_item` subtracts the price (`0x4058b7`) and then calls
 `party_inventory_add_type`. That function returns without adding a new item type when the inventory
