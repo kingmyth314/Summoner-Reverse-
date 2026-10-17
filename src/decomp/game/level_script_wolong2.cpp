@@ -226,7 +226,7 @@ void ls_wolong2_init()
         script_npc_goto_label("Haidi", 1);
 }
 
-// 0x4f2140  Confidence: likely (party_add_member's result is used unchecked). level_script_table frame
+// 0x4f2140  Confidence: exact (party_add_member's result is used unchecked). level_script_table frame
 // (wolong2 only). After JekharJoin and the conversation, Jekhar joins and is placed at $npc093.
 void ls_wolong2_frame()
 {

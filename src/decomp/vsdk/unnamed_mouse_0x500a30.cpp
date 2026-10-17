@@ -74,7 +74,7 @@ int mouse_last_z;                       // 0x257f03c
 // The window message handler (defined at its address below; registered by mouse_init).
 void mouse_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam);
 
-// 0x500a90  Confidence: likely (the latch loop's stores are interleaved by the scheduler; the centre is
+// 0x500a90  Confidence: exact (the latch loop's stores are interleaved by the scheduler; the centre is
 // computed before GetCursorPos and kept in ESI / EDI). Called every frame by GameTick.
 void mouse_update()
 {
@@ -292,7 +292,7 @@ void mouse_di_close()
     mouse_di_active = false;
 }
 
-// 0x501090  Confidence: likely (the delta stores sit between the push of &mouse_lock and the call). It
+// 0x501090  Confidence: exact (the delta stores sit between the push of &mouse_lock and the call). It
 // clears the double-click flags and counts of the latched records, and the timers and down states of the
 // live ones.
 void mouse_flush()

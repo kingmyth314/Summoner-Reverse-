@@ -126,7 +126,7 @@ conversation_slot *conversation_controller::line_talker(conversation_line *line)
     return NULL;
 }
 
-// 0x4d8a90  Confidence: likely (the loops match; `(first + i) % 64` is written in the operand order of
+// 0x4d8a90  Confidence: exact (the loops match; `(first + i) % 64` is written in the operand order of
 // each loop's lea). The first talker is retired when its move ended; every talker of a line up to the last
 // visible one starts talking; the talkers before the one of the first visible line are retired when they
 // play nothing; the first talker gets a new talk move when it has none.
@@ -209,7 +209,7 @@ void conversation_slot::reset()
     kind = -1;
 }
 
-// 0x4d8ce0  Confidence: likely (members built in order: the two GameTimers, the heads, the slot array
+// 0x4d8ce0  Confidence: exact (members built in order: the two GameTimers, the heads, the slot array
 // through `eh vector constructor iterator`; then the body).
 conversation_controller::conversation_controller()
 {
@@ -703,7 +703,7 @@ int conversation_controller::camera_begin(const char *name, Character *character
     return 0;
 }
 
-// 0x4daa70  Confidence: likely (the two pose copies are expanded in place; the shop branch closes the
+// 0x4daa70  Confidence: exact (the two pose copies are expanded in place; the shop branch closes the
 // dialogue screen itself and returns).
 void conversation_controller::end_cleanup(bool open_shop)
 {
@@ -839,7 +839,7 @@ void conversation_controller::select_topic(conversation_topic *topic)
     }
 }
 
-// 0x4daef0  Confidence: likely (the slot record's speaker count is read as an int through the void*
+// 0x4daef0  Confidence: exact (the slot record's speaker count is read as an int through the void*
 // table). From state_game_enter with (level_filename, level_script_name).
 int conversation_controller::load_for_level(const char *level_name, const char *script_name)
 {
@@ -875,7 +875,7 @@ console_command ccmd_dialogue_make_topic_available("dialogue_make_topic_availabl
                                                    "mark a specific dialogue topic as available.",
                                                    cmd_dialogue_make_topic_available);   // 0x2546740
 
-// 0x4db010  Confidence: likely (_alloca of the argument copy, frame pointer; the two usage prints are one
+// 0x4db010  Confidence: exact (_alloca of the argument copy, frame pointer; the two usage prints are one
 // call in the binary).
 void cmd_dialogue_make_topic_available()
 {
@@ -905,7 +905,7 @@ console_command ccmd_dialogue_make_topic_unavailable("dialogue_make_topic_unavai
                                                      "mark a specific dialogue topic as unavailable.",
                                                      cmd_dialogue_make_topic_unavailable);   // 0x2546730
 
-// 0x4db100  Confidence: likely (as cmd_dialogue_make_topic_available; the false is the zero of the
+// 0x4db100  Confidence: exact (as cmd_dialogue_make_topic_available; the false is the zero of the
 // strtok test, `push eax`).
 void cmd_dialogue_make_topic_unavailable()
 {
@@ -932,7 +932,7 @@ void cmd_dialogue_make_topic_unavailable()
 // 0x4db1d0 init_ccmd_dcamera. Confidence: exact.
 console_command ccmd_dcamera("dcamera", "Change the dialog camera options.", cmd_dcamera);   // 0x2546750
 
-// 0x4db1f0  Confidence: likely (an out-of-range value sets doing_help_for_comand, and the compiler jumps
+// 0x4db1f0  Confidence: exact (an out-of-range value sets doing_help_for_comand, and the compiler jumps
 // straight to the print).
 void cmd_dcamera()
 {

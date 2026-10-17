@@ -475,7 +475,7 @@ void gamecreate_draw()
     gamecreate_draw_limits();
 }
 
-// 0x40a380  Confidence: likely (the "min(0, w - text w)" spelling; setg/dec/and). The text is drawn
+// 0x40a380  Confidence: exact (the "min(0, w - text w)" spelling; setg/dec/and). The text is drawn
 // right-aligned once it is wider than the field, with "|" appended while the field has the focus; the
 // cursor blink chooses between the copy with "|" and the bare buffer.
 void gamecreate_draw_text_field(int field)

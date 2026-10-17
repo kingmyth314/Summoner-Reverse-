@@ -70,7 +70,7 @@ int __stdcall float_to_int_round(float x)
     return i;
 }
 
-// 0x5425f0  Confidence: likely. 1 / sqrt and sqrt of 1 + i / 1024, keeping mantissa bits 13-22; 1.0 maps
+// 0x5425f0  Confidence: exact. 1 / sqrt and sqrt of 1 + i / 1024, keeping mantissa bits 13-22; 1.0 maps
 // to the largest mantissa (1 / sqrt) or 0 (sqrt).
 void fast_sqrt_tables_init()
 {
@@ -106,7 +106,7 @@ float frand()
     return rand() * (1.0f / 32768.0f);
 }
 
-// 0x542700  Confidence: likely.
+// 0x542700  Confidence: exact.
 int frand_chance_in_n_tries(float p, float n)
 {
     while ((n -= 1.0f) > 0.0f) {
@@ -122,7 +122,7 @@ float frand_range(float lo, float hi)
     return frand() * (hi - lo) + lo;
 }
 
-// 0x542790  Confidence: likely (atan is the fld1 / fpatan intrinsic).
+// 0x542790  Confidence: exact (atan is the fld1 / fpatan intrinsic).
 float atan2_fast(float y, float x)
 {
     float a;
@@ -274,14 +274,14 @@ int float_ptrs_not_near_equal(const float *a, const float *b)
     return d > 0.0001f || d < -0.0001f;
 }
 
-// 0x542cb0  Confidence: likely (out of line here; whether they are header inlines is not known).
+// 0x542cb0  Confidence: exact (out of line here; whether they are header inlines is not known).
 float_wrapper *float_wrapper::set(float v)
 {
     value = v;
     return this;
 }
 
-// 0x542cc0  Confidence: likely.
+// 0x542cc0  Confidence: exact.
 float float_wrapper::get()
 {
     return value;

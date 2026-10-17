@@ -73,7 +73,7 @@ void gr_d3d_tcache_close()
     d3d_tcache_entries = NULL;
 }
 
-// 0x54bbf0  Confidence: likely (the two exits clear the count and the pointer separately).
+// 0x54bbf0  Confidence: exact (the two exits clear the count and the pointer separately).
 void gr_d3d_tcache_free_entry(d3d_tcache_entry *e)
 {
     int i;

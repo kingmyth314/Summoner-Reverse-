@@ -13,7 +13,7 @@ int Timestamp_realtime_ticker = 1;  // 0x5a575c  only this file uses it
 // ---- .bss ----------------------------------------------------------------------------------
 static int Timestamp_paused;        // 0x257f0ac
 
-// 0x5017f0  Confidence: likely (the "room" local may instead be written out twice; same code).
+// 0x5017f0  Confidence: exact (the "room" local may instead be written out twice; same code).
 // Called once per frame by FrameDone with the frame's milliseconds.
 void UpdateTicker(int ms)
 {
@@ -58,7 +58,7 @@ void GameTimer::reset()
     value = -1;
 }
 
-// 0x501880  Confidence: likely. Negative timeouts are allowed and wrap below 0.
+// 0x501880  Confidence: exact. Negative timeouts are allowed and wrap below 0.
 void GameTimer::SetTimeout(int ms)
 {
     if (ms >= 0) {
@@ -151,7 +151,7 @@ void RealtimeTimer::reset()
     value = -1;
 }
 
-// 0x501a00  Confidence: likely (same shape as GameTimer::SetTimeout).
+// 0x501a00  Confidence: exact (same shape as GameTimer::SetTimeout).
 void RealtimeTimer::SetTimeout(int ms)
 {
     if (ms >= 0) {

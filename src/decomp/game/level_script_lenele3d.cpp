@@ -63,7 +63,7 @@ void ls_lenele3d_init()
     ls_lenele3d_timer.SetTimeout(1000);
 }
 
-// 0x4f0eb0  Confidence: likely (the trailing game_stage_get, a tail jump whose result nobody uses: an
+// 0x4f0eb0  Confidence: exact (the trailing game_stage_get, a tail jump whose result nobody uses: an
 // emptied statement of the original). level_script_table frame: Nar-LeneleAct4 once from stage 16.
 void ls_lenele3d_frame()
 {

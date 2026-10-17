@@ -92,7 +92,7 @@ void atexit_nop_52f710()
 {
 }
 
-// 0x52f720  Confidence: likely (the local for the handle). Missing sounds above index 1 fall back to
+// 0x52f720  Confidence: exact (the local for the handle). Missing sounds above index 1 fall back to
 // sound 1.
 void ui_play_sound(int index)
 {

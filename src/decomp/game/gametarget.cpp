@@ -774,7 +774,7 @@ bool world_pick_ground_point(int ok_cursor, int bad_cursor, lobj *l, int face, v
     return valid;
 }
 
-// 0x43be80  Confidence: likely (the flag form of the navigability result). A click on the ground: no
+// 0x43be80  Confidence: exact (the flag form of the navigability result). A click on the ground: no
 // move in a conversation (game flag 0x100) or while an attack must finish; a point off the nav mesh is
 // moved to the nearest navigable one, 1.5 m back towards the character; an avoidance obstacle refuses
 // the click with the bad sound.
@@ -1017,7 +1017,7 @@ obj *pick_test_character(vector3 *hit)
     return best;
 }
 
-// 0x43c830  Confidence: likely (the three float tests after the messages are kept as written; -100 and
+// 0x43c830  Confidence: exact (the three float tests after the messages are kept as written; -100 and
 // 100 are chain_check_window's "not in a chain" results). On a right click outside the 1 s timer: the
 // chain slot from the held key (Shift 1, Ctrl 2, Alt 3, CapsLock 0, none: the leader's default, which then
 // cycles); in the window "Chain <skill>!" and the count, else "Too slow!" / "Too fast!". The chain marker

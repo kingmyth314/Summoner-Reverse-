@@ -55,7 +55,7 @@ void ls_masad_reset_fire()
     door_apply_saved_state("invis-door03", true);
 }
 
-// 0x4fd750  Confidence: likely (the three door blocks as written out; they may be a macro or a local helper
+// 0x4fd750  Confidence: exact (the three door blocks as written out; they may be a macro or a local helper
 // the compiler would not have expanded under /Ob1, D5305). level_script_table init. The three invisible doors
 // are snapped to their open pose; door01's saved "open" bit is the combat tutorial's part 2, doors 02 and 03
 // are saved open, the locked bits are kept. The first fire door's effect goes out unconditionally, then again

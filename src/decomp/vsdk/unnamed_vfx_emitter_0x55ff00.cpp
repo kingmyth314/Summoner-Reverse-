@@ -463,7 +463,7 @@ void fx_recb0::get_transform(vfx_emitter_desc *desc, float t, bool wrapped)
     }
 }
 
-// 0x561670  Confidence: likely. (desc, frame, position, orientation, wrapped): the emission points
+// 0x561670  Confidence: exact. (desc, frame, position, orientation, wrapped): the emission points
 // before and after, the transform and the forces (skipped while bound and stopped), the ages (a
 // particle past its lifetime is freed), then the moves and the new particles.
 void fx_recb0::update(vfx_emitter_desc *desc, float t, const vector3 *pos, const matrix *orient, bool wrapped)

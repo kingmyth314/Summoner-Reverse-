@@ -166,7 +166,7 @@ void ftp_get::worker_thread()
     }
 }
 
-// 0x55a220  Confidence: likely. The size parse tests strchr's result after adding 1 (never NULL), so a RETR
+// 0x55a220  Confidence: exact. The size parse tests strchr's result after adding 1 (never NULL), so a RETR
 // reply without "(" makes it read and write at address 1 (a crash; NOTES.md).
 int ftp_get::get_file()
 {
@@ -223,7 +223,7 @@ int ftp_get::get_file()
     return 1;
 }
 
-// 0x55a3f0  Confidence: likely (the byte order of the PORT arguments: the address bytes, then the port
+// 0x55a3f0  Confidence: exact (the byte order of the PORT arguments: the address bytes, then the port
 // word's low and high byte).
 int ftp_get::send_port()
 {

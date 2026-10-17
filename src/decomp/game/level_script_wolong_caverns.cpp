@@ -189,7 +189,7 @@ void ls_wolongcaverns_trap1_fire()
     }
 }
 
-// 0x4f6aa0  Confidence: likely (as trap1_frame). A party character within 2 of $poisontrap.
+// 0x4f6aa0  Confidence: exact (as trap1_frame). A party character within 2 of $poisontrap.
 void ls_wolongcaverns_ptrap_frame()
 {
     Character *c;
@@ -203,7 +203,7 @@ void ls_wolongcaverns_ptrap_frame()
     }
 }
 
-// 0x4f6b20  Confidence: likely (the three-pass loop over one invariant distance, hoisted into a stack
+// 0x4f6b20  Confidence: exact (the three-pass loop over one invariant distance, hoisted into a stack
 // temporary: copied from the spear traps, see NOTES). Poison mist (2 s rearm): everything within 2 takes
 // 15 and gets status 3 (Curse, value 0.5, 40 min), not Poison.
 void ls_wolongcaverns_ptrap_fire()

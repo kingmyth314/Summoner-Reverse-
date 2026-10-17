@@ -44,7 +44,7 @@ net_addr gtrack_addr;                       // 0x247c420
 gtrack_game_list gtrack_lists[GTRACK_NUM_LISTS];   // 0x247c428
 gtrack_packet gtrack_heartbeat_packet;      // 0x247e228
 
-// 0x4ae330  Confidence: likely (the byte stores of the game type use the constant the compare left in al;
+// 0x4ae330  Confidence: exact (the byte stores of the game type use the constant the compare left in al;
 // the source may store game_type). Builds the four outgoing packet headers and resolves the server
 // (dotted address or host name). 0 for another game type or an unknown host.
 int gtrack_init(int game_type)
@@ -210,7 +210,7 @@ void gtrack_send_ack(unsigned int sig)
     nw_send_packet(&gtrack_ack_packet, gtrack_ack_packet.len, 0, &gtrack_addr, 3);
 }
 
-// 0x4ae7d0  Confidence: likely (VC6 duplicated the two stores after the copy into both paths). The first
+// 0x4ae7d0  Confidence: exact (VC6 duplicated the two stores after the copy into both paths). The first
 // heartbeat goes out on the next gtrack_send_heartbeat (last update -10 s).
 void gtrack_start_game(gtrack_game_info *game)
 {

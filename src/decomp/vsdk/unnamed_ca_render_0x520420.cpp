@@ -13,7 +13,7 @@
 #include "vsdk/ca/character.h"
 #include "vsdk/gr/gr.h"
 
-// 0x520420  Confidence: likely (thiscall, ret 0xc). Skips everything when light->_unk08 is 0; sets the
+// 0x520420  Confidence: exact (thiscall, ret 0xc). Skips everything when light->_unk08 is 0; sets the
 // matrices, copies the tint into the light record and makes this instance current; then (unless bit 0
 // of light->_unk00, which returns with the instance still current) draws the current LOD's mesh, or
 // its shadow mesh when light->_unk04 is neither 0 nor -1 and there is one.

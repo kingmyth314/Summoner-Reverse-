@@ -430,7 +430,7 @@ void camera::smooth_height(float h)
     }
 }
 
-// 0x4787b0  Confidence: exact. Mode 2 only, once a second: high at once while an enemy is near, low
+// 0x4787b0  Confidence: likely. Mode 2 only, once a second: high at once while an enemy is near, low
 // again 5 s after the last one.
 void camera::auto_view_update()
 {

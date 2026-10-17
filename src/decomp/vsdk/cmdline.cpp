@@ -31,7 +31,7 @@ int cmdline_num_args;                           // 0x2dc7054
 // Label and size are ours (4 bytes up to the next unit's 0x2dc7060 ccmd object, minus padding).
 static char cmdline_no_options[4];              // 0x2dc7058
 
-// 0x53df10  Confidence: likely (the two 1 KB buffers: frame order cmd_line at +0, options at +0x400).
+// 0x53df10  Confidence: exact (the two 1 KB buffers: frame order cmd_line at +0, options at +0x400).
 // The second argument is pushed by the only caller (cmdline_read_params, push 0 / push 0) but never
 // read. strcpy/strcat are the inline intrinsics (rep movsd/movsb, repne scasb; " " is a 2-byte word
 // copy from 0x5abf08).
@@ -76,7 +76,7 @@ void cmdline_parse(char *cmd_line, bool check_unknown, bool skip_first)
         cmdline_check_unknown(cmd_line);
 }
 
-// 0x53e060  Confidence: likely.
+// 0x53e060  Confidence: exact.
 // strtok on " \t"; a token holding exactly one '"' (strchr == strrchr) toggles the quoted state, and
 // tokens are joined with " " until the closing one. Each finished argument goes into cmdline_args.
 // There is no check against MAX_CMDLINE_ARGS (more than 50 arguments overflow the array).
@@ -194,7 +194,7 @@ void cmdline_reparse(char *cmd_line, bool check_unknown)
     cmdline_parse(cmd_line, check_unknown, false);
 }
 
-// 0x53e3e0  Confidence: likely (store order: the binary writes help and has_argument, reads
+// 0x53e3e0  Confidence: exact (store order: the binary writes help and has_argument, reads
 // cmdline_params_initialized, then writes name, arg, name_found; VC6 scheduling).
 // The first constructor to run (any file's) sets up the circular list head; named parameters
 // append themselves at the tail. The head itself has no name and stays unlinked.

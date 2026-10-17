@@ -78,7 +78,7 @@ void cmd_movement_vel_change()
     }
 }
 
-// 0x531ed0  Confidence: likely (the order of the six limit stores is scheduled). (maximum speed, maximum turn
+// 0x531ed0  Confidence: exact (the order of the six limit stores is scheduled). (maximum speed, maximum turn
 // rate, the two smoothing times): the input unit (0x4343a0) passes 10, 1, 0.1, 0.1.
 void movement_init(float max_vel, float max_rotvel, float a3, float a4)
 {
@@ -145,7 +145,7 @@ void movement_read_controls(vector3 *pos, matrix *orient, float dt)
     orient->orthogonalize();
 }
 
-// 0x5322c0  Confidence: likely (exp is the inline x87 intrinsic, f2xm1 / fscale). (time constant, wanted
+// 0x5322c0  Confidence: exact (exp is the inline x87 intrinsic, f2xm1 / fscale). (time constant, wanted
 // value, current value, dt, out new value, out integral over dt): new = wanted + (current - wanted) *
 // exp(-dt / tau), integral = wanted * dt + (current - wanted) * (1 - exp(-dt / tau)) * tau; with tau below
 // 0.0001 the value jumps to the wanted one. Either output may be NULL. (sum.symbols lists the second and

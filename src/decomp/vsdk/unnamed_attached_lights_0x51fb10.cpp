@@ -35,7 +35,7 @@ void vfx_light_track::relocate(char *header_base, char *base)
     b.relocate(base);
 }
 
-// 0x51fb90  Confidence: likely (the four bitfield stores are merged into AND 0x7fffff / OR 0x1f800000).
+// 0x51fb90  Confidence: exact (the four bitfield stores are merged into AND 0x7fffff / OR 0x1f800000).
 // Places the light at the track's first frame and, unless no_light, gives it an attached light with the
 // first frame's colour. The range is passed unscaled here (the 8.8 value), update_light scales it.
 void vfx_light_desc::create_light(vfx_light_track *track, bool no_light)
@@ -61,7 +61,7 @@ void vfx_light_desc::free_light()
         attached_light_free(slot);
 }
 
-// 0x51fcb0  Confidence: likely (thiscall, ret 0x10). Samples the track, then moves the attached light:
+// 0x51fcb0  Confidence: exact (thiscall, ret 0x10). Samples the track, then moves the attached light:
 // position (unrotated by orient, plus the offset), range, on / off as intensity 1 / 0, colour.
 void vfx_light_desc::update_light(void *track, float t, const vector3 *offset, const matrix *orient)
 {
@@ -85,7 +85,7 @@ void vfx_light_desc::update_light(void *track, float t, const vector3 *offset, c
     }
 }
 
-// 0x51fdc0  Confidence: likely (floor is called twice, as written; the weights are 0..255 integers).
+// 0x51fdc0  Confidence: exact (floor is called twice, as written; the weights are 0..255 integers).
 // Linear interpolation between frame floor(t) and the next one (the same at the last frame): position
 // (unless fixed), range and colour; the on / off bit of the next frame; then, for a light on a bone,
 // the position through the owner's bone matrix.
@@ -139,7 +139,7 @@ void attached_lights_clear_slots()
         attached_light_slots[i].type = -1;
 }
 
-// 0x5200b0  Confidence: likely (the slot search returns -1 straight from the loop's normal exit, as
+// 0x5200b0  Confidence: exact (the slot search returns -1 straight from the loop's normal exit, as
 // light_alloc). No caller found.
 int attached_light_create_b(const vector3 *pos, float intensity, float angle_a, float angle_b,
                             float range_near, float range_far, float r, float g, float b, bool kind)
@@ -168,7 +168,7 @@ int attached_light_create_b(const vector3 *pos, float intensity, float angle_a, 
     return i;
 }
 
-// 0x520160  Confidence: likely (as attached_light_create_b).
+// 0x520160  Confidence: exact (as attached_light_create_b).
 int attached_light_create(const vector3 *pos, float intensity, float range_near, float range_far,
                           float r, float g, float b)
 {

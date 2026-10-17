@@ -82,7 +82,7 @@ void handle_slot_release(int handle)
     }
 }
 
-// 0x4a36f0  Confidence: likely (a tail call). GameInit.
+// 0x4a36f0  Confidence: exact (a tail call). GameInit.
 void handle_slots_reset_thunk()
 {
     handle_slots_reset();

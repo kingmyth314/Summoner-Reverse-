@@ -153,7 +153,7 @@ void pickup_init(container *c)
     pickup_update_scrollbar();
 }
 
-// 0x420850. Unlike the assess bar the thumb keeps the full track height. Confidence: likely
+// 0x420850. Unlike the assess bar the thumb keeps the full track height. Confidence: exact
 void pickup_update_scrollbar()
 {
     if (pickup_container->num_items <= pickup_page_size[resolution_index]) {

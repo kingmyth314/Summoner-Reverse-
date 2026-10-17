@@ -641,7 +641,7 @@ void s3d_read_named_path(s3d_level *level, s3d_named_path *rec, File *f)
     file_sync_vector_array(f, rec->points, rec->count, 0, &file_zero_vector);
 }
 
-// 0x46f460  Confidence: likely (the type goes through a local int and back, so the field is probably
+// 0x46f460  Confidence: exact (the type goes through a local int and back, so the field is probably
 // not a plain int in the original: an enum or a narrower type stored as a dword).
 void s3d_read_light(s3d_light *rec, File *f)
 {
@@ -665,7 +665,7 @@ void s3d_read_light(s3d_light *rec, File *f)
     f->sync_int(&rec->texture, 0, 0);
 }
 
-// 0x46f560  Confidence: likely. The count goes through an int local (the dead file-argument slot); the
+// 0x46f560  Confidence: exact. The count goes through an int local (the dead file-argument slot); the
 // indices are read with read_int, not sync_int.
 void s3d_read_vis_set(s3d_level *level, s3d_vis_set *rec, File *f)
 {
@@ -736,7 +736,7 @@ bool s3d_read_header(s3d_level *level, File *f)
     return false;
 }
 
-// 0x46f870  Confidence: likely (the face flag is set with a byte or: the field may be a byte in the
+// 0x46f870  Confidence: exact (the face flag is set with a byte or: the field may be a byte in the
 // original). A face whose texture has alpha gets flag 0x20 in the shared geometry, its object 0x10.
 void s3d_mark_alpha_meshes(s3d_level *level)
 {
@@ -778,7 +778,7 @@ void s3d_load_textures(s3d_level *level)
     }
 }
 
-// 0x46f990  Confidence: likely. Every array of the level, in the level mempool (reset to its start).
+// 0x46f990  Confidence: exact. Every array of the level, in the level mempool (reset to its start).
 // EH states 0-2 are the compiler's for the three `new T[n]` whose constructors are out of line
 // (s3d_geometry: eh vector constructor iterator with the count cookie; lobj and door_info: inline
 // loops). The other element types have empty inline constructors (the loop counter survives as the
@@ -1021,7 +1021,7 @@ int s3d_read_mesh_refs(File *f, lobj *mesh, lobj_face *refs, unsigned int count)
     return 0;
 }
 
-// 0x470190  Confidence: likely (the component loops over a vector: the original may index the vector
+// 0x470190  Confidence: exact (the component loops over a vector: the original may index the vector
 // through an inline operator[]).
 int s3d_read_box(File *f, s3d_box *box)
 {

@@ -78,7 +78,7 @@ void gr_poly_reset_clip_verts()
     }
 }
 
-// 0x545150  Confidence: likely (the cleared flag before the flush is what is left of a first-time
+// 0x545150  Confidence: exact (the cleared flag before the flush is what is left of a first-time
 // message).
 void gr_poly_begin(bool buffered, float z, int a2, bool fixed_depth, float depth)
 {

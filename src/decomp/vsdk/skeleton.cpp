@@ -284,7 +284,7 @@ vim *vim_load_file(FileReader *r, int bm_arg)
     return vim_read(r, mesh, 0, bm_arg, &hdr) ? mesh : NULL;
 }
 
-// 0x543920  Confidence: likely (the error text is formatted into a local buffer and never shown; the
+// 0x543920  Confidence: exact (the error text is formatted into a local buffer and never shown; the
 // message call of the original was probably compiled out).
 vim *vim_load(const char *name, int bm_arg)
 {
@@ -412,7 +412,7 @@ skeleton::skeleton()
     memset(this, 0, sizeof(skeleton));
 }
 
-// 0x543d50 (sum.symbols: skeleton_add)  Confidence: likely (store order; the fourth argument is not read).
+// 0x543d50 (sum.symbols: skeleton_add)  Confidence: exact (store order; the fourth argument is not read).
 skeleton::skeleton(const char *filename, const char *name, bool is_state, int unused, bool root_rotation)
 {
     skeleton_count++;

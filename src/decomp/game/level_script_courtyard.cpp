@@ -157,7 +157,7 @@ void ls_lenele1c_frame()
     lsf_lenele1c_flag_found_flece();
 }
 
-// 0x4fab90  Confidence: likely (not in sum.symbols; name ours, after its flag; the order of the
+// 0x4fab90  Confidence: exact (not in sum.symbols; name ours, after its flag; the order of the
 // flece_joined store and the cutscene call is the compiler's). At $fleceintro (6), outside a
 // conversation: Flece joins at level 4 (the result is used unchecked), gets a Cloth Shirt (what it replaces
 // goes to the party inventory), Flece-Intro plays and the four gate guards go.

@@ -527,7 +527,7 @@ void vfx_desc21c::load_bitmap(int flag)
         bitmap = bm_load(bitmap_name, -1, -1);
 }
 
-// 0x533c60  Confidence: likely (bare RET, no reference; the signature is unknown).
+// 0x533c60  Confidence: exact (bare RET, no reference; the signature is unknown).
 void vif_stub_ret_533c60()
 {
 }

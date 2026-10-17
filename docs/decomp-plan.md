@@ -118,8 +118,15 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 6,237 match the
-disassembly exactly as far as can be read, 1,196 likely, 103 unsure. All 259 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result (2026-10-17): 7,725 functions written (89.4%). 5,905 of them are
+compiled and compared by VC6 SP5, and 4,937 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 4,956: 19 compared functions are not `func` lines in sum.symbols). The
+`Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
+`exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
+about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit
+registration, destructor), written as comments above the object's definition; the rest are notes and functions a
+macro defines. Their markers (6,387 exact, 1,047 likely, 102 unsure in all) come from reading the code, not from the
+compiler. All 259 files compile against one header tree
 (`src/decomp/include`; decisions in its `DECISIONS.md`, one numbered block per pilot, last D5703). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.

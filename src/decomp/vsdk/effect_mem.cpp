@@ -117,7 +117,7 @@ void cmd_show_effect_mem()
     effects_show_memory_usage();
 }
 
-// 0x51bda0  Confidence: likely (the limit is a nested conditional: NEG/SBB for the big_slot choice).
+// 0x51bda0  Confidence: exact (the limit is a nested conditional: NEG/SBB for the big_slot choice).
 // Allocates the buffer of a streamed base and points the Effects mempool behind its aligned data.
 char *effect_base_alloc_stream_buffer(int index)
 {
@@ -163,7 +163,7 @@ int align_up_64(int value)
     return value;
 }
 
-// 0x51bea0  Confidence: likely (the two flag stores are merged into AND 0x3effffff / OR 0x81000000).
+// 0x51bea0  Confidence: exact (the two flag stores are merged into AND 0x3effffff / OR 0x81000000).
 void effect_base_finish_stream(int index)
 {
     effect_base *b = &effect_bases[index];
@@ -471,7 +471,7 @@ char *effects_stream_slot_ptr(int slot)
     return effects_stream_buffer + slot * STREAM_SLOT_SIZE;
 }
 
-// 0x51c6a0  Confidence: likely. *out_offset is always 0 here.
+// 0x51c6a0  Confidence: exact. *out_offset is always 0 here.
 int effect_base_queue_stream(int index, unsigned int *out_size, unsigned int *out_offset, bool queue, Mempool *pool)
 {
     effect_base *b;
@@ -677,7 +677,7 @@ void effects_reset_level()
     effects_init_pools();
 }
 
-// 0x51cd40  Confidence: likely (the first five heads stay in registers through their loops, the
+// 0x51cd40  Confidence: exact (the first five heads stay in registers through their loops, the
 // last two are read and written in memory each pass: register pressure, same macro).
 void effects_init_pools()
 {
@@ -890,7 +890,7 @@ vfx_instance *vfx_instance_create(vfx_base *base, int a, bool flag)
     return vi;
 }
 
-// 0x51d7b0  Confidence: likely. Every list of a live instance goes back to its pool (lights after
+// 0x51d7b0  Confidence: exact. Every list of a live instance goes back to its pool (lights after
 // unlinking free their attached light, emitters return their particles); the last user of a streamed
 // cutscene base (not marked for the level) or of a cutscene-category base while preloads exist
 // releases it.

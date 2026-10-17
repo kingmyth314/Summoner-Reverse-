@@ -195,7 +195,7 @@ void pyrul_init_move_ptrs()
     pyrul_move_3_3 = &pyrul_attack_table[2][3];
 }
 
-// 0x4b8b90  Confidence: likely (the forced-stage switch bodies are laid out 3, 2, 1 after the default and
+// 0x4b8b90  Confidence: exact (the forced-stage switch bodies are laid out 3, 2, 1 after the default and
 // are written in that order; the HP branches share the stage store through EDI). A forced stage is
 // applied once; otherwise HP / max below 0.3 is stage 3, below 0.66 stage 2. Then, at HP <= 0 while a
 // cutscene runs (GF_CUTSCENE), the boss goes idle and gets CF_HIDDEN (once).
@@ -535,7 +535,7 @@ bool pyrul_cast_special(Character *c, int anim)
     return false;
 }
 
-// 0x4b95f0  Confidence: likely. Without the "$missile01" tag the boss's own frame is copied, but the bone
+// 0x4b95f0  Confidence: exact. Without the "$missile01" tag the boss's own frame is copied, but the bone
 // call follows anyway with tag -1 (no else; NOTES.md, game bugs).
 void pyrul_get_missile_origin(Character *c, matrix *orient, vector3 *pos)
 {

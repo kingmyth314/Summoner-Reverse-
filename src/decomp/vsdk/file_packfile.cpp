@@ -42,7 +42,7 @@ int packfile_num_entries;                               // 0x2d90ec8
 int Num_packfiles;                                      // 0x2d90ecc
 int packfile_initialized;                               // 0x2d90ed0
 
-// 0x533df0  Confidence: likely (the load time is an int local converted with fild; the two timer_get
+// 0x533df0  Confidence: exact (the load time is an int local converted with fild; the two timer_get
 // arguments are left on the stack and the double is stored over them, which is the compiler's).
 void packfile_init()
 {
@@ -97,7 +97,7 @@ void packfile_lookup_insert(PackfileEntry *entry)
     }
 }
 
-// 0x533f60  Confidence: likely (the success value is the file count still in EAX; written as a return of
+// 0x533f60  Confidence: exact (the success value is the file count still in EAX; written as a return of
 // pf->num_files). A packfile with no files fails like a bad header.
 int packfile_check_header(Packfile *pf, packfile_header *header)
 {
@@ -167,7 +167,7 @@ void packfile_assign_offsets(Packfile *pf, int first_sector)
     }
 }
 
-// 0x534110  Confidence: likely (the count is stored before the pointer is formed). Error line 423 (0x1a7).
+// 0x534110  Confidence: exact (the count is stored before the pointer is formed). Error line 423 (0x1a7).
 // The result tests the pointer, which is never NULL.
 int packfile_alloc_directory(Packfile *pf)
 {
@@ -264,7 +264,7 @@ int packfile_load_hdd(Packfile *pf)
     return 1;
 }
 
-// 0x534420  Confidence: likely (the open test is shared by both fopen calls: where is set on each path and
+// 0x534420  Confidence: exact (the open test is shared by both fopen calls: where is set on each path and
 // one fclose follows; the three checks as one condition give the shared `return 0` block, D6803). The hard
 // drive wins over the CD. The NULL test of name comes after name was already
 // used by _stricmp, sprintf and fopen, and a name of 32 characters or more is refused only after the file

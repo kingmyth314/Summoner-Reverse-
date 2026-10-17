@@ -142,7 +142,7 @@ ui_inputbox::ui_inputbox()
     bm_disabled = -1;
 }
 
-// 0x552700  Confidence: likely (the store order of the defaults).
+// 0x552700  Confidence: exact (the store order of the defaults).
 void ui_inputbox::create(ui_element *window, int x, int y, int w, int h, int id, int flags, bool owned)
 {
     init(window, UI_TYPE_INPUTBOX, x, y, w, h, id, owned);

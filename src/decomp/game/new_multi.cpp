@@ -58,7 +58,7 @@ void elevator_offer_ride()
                             elevator_go_down_cb, 0);
 }
 
-// 0x41dec0  Confidence: likely (the ternary: `neg / sbb / add 4`; here the start group is looked up before
+// 0x41dec0  Confidence: exact (the ternary: `neg / sbb / add 4`; here the start group is looked up before
 // the party_cycle test, in the other callbacks after it). Yes = start group 4, No = 3.
 void elevator_go_up_cb(int button)
 {
@@ -92,7 +92,7 @@ void elevator_move_party(int player_id)
     cur_summon->start_navpoint = NULL;
 }
 
-// 0x41dfb0  Confidence: likely (`setne / add 3`). Yes = start group 3, No = 4.
+// 0x41dfb0  Confidence: exact (`setne / add 3`). Yes = start group 3, No = 4.
 void elevator_go_down_cb(int button)
 {
     int saved_entry = level_entry_point;
@@ -116,7 +116,7 @@ void elevator_go_down_cb(int button)
         party_cycle(1);
 }
 
-// 0x41e060  Confidence: likely (the three tables are one 9-entry frame at esp, +0xc, +0x18; written as
+// 0x41e060  Confidence: exact (the three tables are one 9-entry frame at esp, +0xc, +0x18; written as
 // three arrays in that order; the stores interleave, the shared ui_message_box_show call is tail-merged).
 // $npc106 is the ground floor, $npclg2 the lower, $npclg3 the upper one.
 void elevator_choose_floor()
@@ -147,7 +147,7 @@ void elevator_choose_floor()
                             elevator_floor_cb_c, 0);
 }
 
-// 0x41e140  Confidence: likely (the ternary: `dec / neg / sbb / add 4`). Upper 5, Lower 4, Cancel 3 (the
+// 0x41e140  Confidence: exact (the ternary: `dec / neg / sbb / add 4`). Upper 5, Lower 4, Cancel 3 (the
 // ground floor's own start: Cancel also moves the party).
 void elevator_floor_cb_a(int button)
 {
@@ -175,7 +175,7 @@ void elevator_floor_cb_a(int button)
         party_cycle(1);
 }
 
-// 0x41e200  Confidence: likely (`cmp 1 / setne / add 3`). Upper 5, Ground 3, Cancel 4.
+// 0x41e200  Confidence: exact (`cmp 1 / setne / add 3`). Upper 5, Ground 3, Cancel 4.
 void elevator_floor_cb_b(int button)
 {
     int saved_entry = level_entry_point;
@@ -202,7 +202,7 @@ void elevator_floor_cb_b(int button)
         party_cycle(1);
 }
 
-// 0x41e2c0  Confidence: likely (`cmp 1 / setne / add 4`). Ground 3, Lower 4, Cancel 5.
+// 0x41e2c0  Confidence: exact (`cmp 1 / setne / add 4`). Ground 3, Lower 4, Cancel 5.
 void elevator_floor_cb_c(int button)
 {
     int saved_entry = level_entry_point;

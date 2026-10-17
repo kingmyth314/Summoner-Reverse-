@@ -20,14 +20,14 @@
 
 void debug_error_deactivate_gr();
 
-// 0x531ca0  Confidence: likely (a function of its own that only tail-jumps to gr_deactivate; name ours from
+// 0x531ca0  Confidence: exact (a function of its own that only tail-jumps to gr_deactivate; name ours from
 // sum.symbols; whether it is a debug.cpp helper or a separately compiled inline is not visible).
 void debug_error_deactivate_gr()
 {
     gr_deactivate();
 }
 
-// 0x531cb0  Confidence: likely (the size of the text buffer: the frame is 0x418 bytes). (file, line,
+// 0x531cb0  Confidence: exact (the size of the text buffer: the frame is 0x418 bytes). (file, line,
 // message): "Error: <message> / File: <file> - Line: <line>" and the fixed advice, in a task-modal box.
 void DebugError(const char *file, int line, const char *msg)
 {

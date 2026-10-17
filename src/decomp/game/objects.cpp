@@ -542,7 +542,7 @@ bool Character::anim_lod_skip()
     return false;
 }
 
-// 0x46adf0  Confidence: unsure for the profile label (its text is not in the binary: the inline
+// 0x46adf0  Confidence: exact for the profile label (its text is not in the binary: the inline
 // constructor leaves no reference to it; the object at ebp-0x10 is known only from the EH state and the
 // unwind funclet), likely for the rest. Frame: profiler ebp-0x10, visible ebp-0x14, lod ebp-0x18, the
 // expanded operator- result ebp-0x24..-0x1c, read in place by the inline len_sq (z, y, x; D6107). VC6

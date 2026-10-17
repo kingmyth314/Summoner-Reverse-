@@ -144,7 +144,7 @@ void item_info_popup_open_item(item_info *item)
     item_info_popup_setup();
 }
 
-// 0x4187a0  Confidence: likely (the line counter starts at 0, unlike assess's 1: the last line is not
+// 0x4187a0  Confidence: exact (the line counter starts at 0, unlike assess's 1: the last line is not
 // counted unless the text ends with a newline).
 void item_info_popup_setup()
 {
@@ -162,7 +162,7 @@ void item_info_popup_setup()
     item_info_popup_visible = true;
 }
 
-// 0x418810  Confidence: likely (new_assess.cpp's template, including the dead "line_count <= 0" branch).
+// 0x418810  Confidence: exact (new_assess.cpp's template, including the dead "line_count <= 0" branch).
 void item_info_popup_update_scrollbar()
 {
     int page = item_info_popup_page_size[resolution_index];
@@ -318,7 +318,7 @@ void item_info_popup_close()
     item_info_popup_visible = false;
 }
 
-// 0x418c40  Confidence: likely (VC6 laid the bodies out 6, 4, 2 with the two 0x25 sounds tail-merged).
+// 0x418c40  Confidence: exact (VC6 laid the bodies out 6, 4, 2 with the two 0x25 sounds tail-merged).
 void item_info_popup_button_action(int id)
 {
     switch (id) {

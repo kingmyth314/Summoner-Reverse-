@@ -60,7 +60,7 @@ void vfx_base::clear()
     _unk40 = NULL;
 }
 
-// 0x5369f0  Confidence: likely. Frees the lights' attached lights and the vif records, and drops the
+// 0x5369f0  Confidence: exact. Frees the lights' attached lights and the vif records, and drops the
 // effect camera when this instance owns it.
 void vfx_instance::release_nodes()
 {
@@ -370,7 +370,7 @@ void vfx_instance::set_stopped(bool stopped)
     id_bits = (id_bits & ~1) | (stopped & 1);
 }
 
-// 0x5372a0  Confidence: likely (the emitter loop's shape). The flat tag index runs over the meshes, the
+// 0x5372a0  Confidence: exact (the emitter loop's shape). The flat tag index runs over the meshes, the
 // emitters' sub-tags, the vif records, the lights, the dummies, then the emitters themselves; `sub` is
 // written for the emitter sub-tags only.
 void vfx_base::decode_tag(int index, int *kind, int *list, int *sub)
@@ -418,7 +418,7 @@ void vfx_base::decode_tag(int index, int *kind, int *list, int *sub)
     *list = index - num_rec2c;
 }
 
-// 0x5373a0  Confidence: likely (jump table 0x537470; cases 1 and 4 share the emitter code). The name of
+// 0x5373a0  Confidence: exact (jump table 0x537470; cases 1 and 4 share the emitter code). The name of
 // the node's parent; fx_bind_character_tags compares it with "Scene Root".
 const char *vfx_instance::get_node_name(int node)
 {
@@ -443,7 +443,7 @@ const char *vfx_instance::get_node_name(int node)
     return NULL;
 }
 
-// 0x537490  Confidence: likely (jump table 0x53755c).
+// 0x537490  Confidence: exact (jump table 0x53755c).
 const char *vfx_instance::get_tag_name(int tag)
 {
     vfx_base *base;
@@ -467,7 +467,7 @@ const char *vfx_instance::get_tag_name(int tag)
     return NULL;
 }
 
-// 0x537580  Confidence: likely (jump table 0x5376e0). Binds the node to a mesh tag of a model.
+// 0x537580  Confidence: exact (jump table 0x5376e0). Binds the node to a mesh tag of a model.
 void vfx_instance::bind_node(int node, character_instance *ci, int tag)
 {
     vfx_base *base;
@@ -527,7 +527,7 @@ void vfx_instance::bind_node(int node, character_instance *ci, int tag)
     }
 }
 
-// 0x537700  Confidence: likely (jump table 0x5377e4).
+// 0x537700  Confidence: exact (jump table 0x5377e4).
 bool vfx_instance::node_can_bind(int node)
 {
     vfx_base *base;
@@ -806,7 +806,7 @@ void vfx_instance::get_tag_transform(int tag, bool a, bool b)
     }
 }
 
-// 0x538260  Confidence: likely (D6304: the mesh case is the else branch; the index is read unsigned, as
+// 0x538260  Confidence: exact (D6304: the mesh case is the else branch; the index is read unsigned, as
 // render_scene casts it). A done instance is drawn only with bit 8; a stopped mesh likewise. An
 // emitter is updated here before it is drawn.
 void vfx_instance::render_node(vfx_node_ref *ref, const vector3 *pos, const matrix *orient)
@@ -869,7 +869,7 @@ void vfx_get_camera(vector3 *pos, quaternion *rot)
     }
 }
 
-// 0x538430  Confidence: likely. sum.symbols: vfx_instance__setup_render_state (a cdecl function).
+// 0x538430  Confidence: exact. sum.symbols: vfx_instance__setup_render_state (a cdecl function).
 void vfx_instance__setup_render_state(ubyte *out, vfx_instance *vi)
 {
     vfx_base *base;

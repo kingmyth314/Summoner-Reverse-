@@ -301,7 +301,7 @@ void key_numlock_on()
     SetKeyboardState(state);
 }
 
-// 0x509880  Confidence: likely (GetMessageTime is called before timeGetTime; the order the two calls of the
+// 0x509880  Confidence: exact (GetMessageTime is called before timeGetTime; the order the two calls of the
 // subtraction are written in is a guess). The latency of the message (never negative); focus changes flush
 // the key states (two identical cases).
 void key_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
@@ -409,7 +409,7 @@ void key_clear(int key)
     LeaveCriticalSection(&key_lock);
 }
 
-// 0x509bb0  Confidence: likely (the unsigned to float conversions: the code loads the held time as a 64-bit
+// 0x509bb0  Confidence: exact (the unsigned to float conversions: the code loads the held time as a 64-bit
 // integer and divides by the low dword of the elapsed time). The fraction of the time since the last call
 // the key was down: within 1 ms of the last call 1.0 while down, else 0.0; a released key returns its
 // collected time (cleared), a held one the time since its timestamp (moved to now).

@@ -329,7 +329,7 @@ BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, DWORD instance, DWORD su
     return TRUE;
 }
 
-// 0x566e20  Confidence: likely (the order of the format stores).
+// 0x566e20  Confidence: exact (the order of the format stores).
 int acm_stream_open(WAVEFORMATEX *src, WAVEFORMATEX *dst, HACMSTREAM *out, int bits)
 {
     if (!acm_initialized && acm_init() != 0)

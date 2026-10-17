@@ -53,7 +53,7 @@ bool ls_jadetemple_place_pending;                    // 0x257e9cc
 // declaration with two declarators). init_ls_jadetemple_timers.
 GameTimer ls_jadetemple_fade_timer, ls_jadetemple_tiger2_timer;   // 0x257e9c8, 0x257e9c0
 
-// 0x4effe0  Confidence: likely (the two preset pairs are written as if / else with constant stores; the
+// 0x4effe0  Confidence: exact (the two preset pairs are written as if / else with constant stores; the
 // code stores 1 or a zero register). level_script_table init.
 void ls_jadetemple_init()
 {

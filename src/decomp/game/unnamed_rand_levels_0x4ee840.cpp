@@ -69,7 +69,7 @@ void ls_rand_orenia01_init()
         script_npc_set_disabled("Ahlang", true);
 }
 
-// 0x4ee940  Confidence: likely (the order of the two old-item checks after each equip and of the skill
+// 0x4ee940  Confidence: exact (the order of the two old-item checks after each equip and of the skill
 // stores is from the code; the if / else-if chain of the _v3 part could be three ifs with returns, the same
 // code). The US Open demo starts here with a level 15 party: Rosalind and Jekhar join (equipped, heal / ice
 // resp. 80), and a Joseph hero gets studded armour and heal / fire 80. On the _v3 script one of three

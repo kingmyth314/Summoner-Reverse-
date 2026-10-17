@@ -116,7 +116,7 @@ bool titus_target_list_any_within(boss_target *list, int count, float range)
     return false;
 }
 
-// 0x4c22e0  Confidence: likely (the 1 is stored before the compare result is tested). While move 11 or 23
+// 0x4c22e0  Confidence: exact (the 1 is stored before the compare result is tested). While move 11 or 23
 // (the grabs) plays a move with id 5 and its trigger 1 has passed, the boss does not turn
 // (ai_combat_face_target, titus_get_attack_reach).
 void titus_update_turn_lock(Character *c)
@@ -194,7 +194,7 @@ void titus_init_move_tables()
     titus_move_23 = &titus_moves[2][3];
 }
 
-// 0x4c24c0  Confidence: likely (as pyrul_check_stage: the forced-stage bodies laid out 3, 2, 1; the HP
+// 0x4c24c0  Confidence: exact (as pyrul_check_stage: the forced-stage bodies laid out 3, 2, 1; the HP
 // branches share the stage store). HP below 30 % is stage 3, below 66 % stage 2. At HP <= 0 while a
 // cutscene runs, the boss goes idle and gets CF_HIDDEN.
 void ai_state::titus_check_stage()

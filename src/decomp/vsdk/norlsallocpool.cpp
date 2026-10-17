@@ -121,7 +121,7 @@ void *NoRlsAllocPool::AllocZeroed(int size)
     return p;
 }
 
-// 0x532510  Confidence: likely (the clamp: sets / dec / and is `r < 0 ? 0 : r`).
+// 0x532510  Confidence: exact (the clamp: sets / dec / and is `r < 0 ? 0 : r`).
 void NoRlsAllocPool::Align()
 {
     int misalign = (int)current & 3;
@@ -132,7 +132,7 @@ void NoRlsAllocPool::Align()
     remaining = r < 0 ? 0 : r;
 }
 
-// 0x532540  Confidence: likely (loop shape). The current block counts its used bytes, every older block
+// 0x532540  Confidence: exact (loop shape). The current block counts its used bytes, every older block
 // counts in full (its tail is not known any more).
 int NoRlsAllocPool::GetUsed()
 {
@@ -178,7 +178,7 @@ void *NoRlsAllocPool::Grow(void *ptr, int size)
     return p;
 }
 
-// 0x532620  Confidence: likely (a second member whose body is the GetUsed call: jmp GetUsed). No caller.
+// 0x532620  Confidence: exact (a second member whose body is the GetUsed call: jmp GetUsed). No caller.
 int NoRlsAllocPool::GetUsed_thunk()
 {
     return GetUsed();

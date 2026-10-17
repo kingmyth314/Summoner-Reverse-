@@ -39,7 +39,7 @@ int file_write_vector_array(File *f, const vector3 *v, int count)
     return 0;
 }
 
-// 0x544ee0  Confidence: likely (void or the callee's int; the callers ignore it).
+// 0x544ee0  Confidence: exact (void or the callee's int; the callers ignore it).
 void file_sync_vector_array(File *f, vector3 *v, int count, int min_ver, const vector3 *def)
 {
     if (f->check_flags(1))
@@ -111,7 +111,7 @@ int file_write_int16_array(File *f, const short *v, int count)
     return 0;
 }
 
-// 0x545080  Confidence: likely (as file_sync_vector_array).
+// 0x545080  Confidence: exact (as file_sync_vector_array).
 void file_sync_int16_array(File *f, short *v, int count)
 {
     if (f->check_flags(1))

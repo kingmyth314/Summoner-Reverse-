@@ -126,7 +126,7 @@ void cmd_max_skills()
     }
 }
 
-// 0x4334f0  Confidence: likely (mp_owner is cleared before the input_reset call, the other fields
+// 0x4334f0  Confidence: exact (mp_owner is cleared before the input_reset call, the other fields
 // after it; the source order of the field stores is read from the code).
 Player *player_alloc_slot()
 {
@@ -200,7 +200,7 @@ void party_remove_player(Player *p, bool delete_obj)
         summon_player = NULL;
 }
 
-// 0x4336b0  Confidence: likely (the "next" pointer is read before the end test, as a safe-iterate
+// 0x4336b0  Confidence: exact (the "next" pointer is read before the end test, as a safe-iterate
 // macro would; the mp loop leaves 0 in ECX, which is then reused for party_leader).
 void party_remove_all()
 {
@@ -387,7 +387,7 @@ int Player::skill_unlocked_at_level(int skill)
     return 0;
 }
 
-// 0x433b70  Confidence: likely. Unlike Player::create the progression counts are constants here
+// 0x433b70  Confidence: exact. Unlike Player::create the progression counts are constants here
 // (0x11, 0xd, 0x10, 0xe), so the array sizes were used, not the count variables.
 void Player::init_from_character(Character *c)
 {
@@ -463,7 +463,7 @@ static void party_lists_atexit_cleanup()
         party_remove_player(p, true);
 }
 
-// 0x433d60  Confidence: likely (when p already leads, ECX is the reloaded party_leader, the same
+// 0x433d60  Confidence: exact (when p already leads, ECX is the reloaded party_leader, the same
 // record; hud_target_mode is stored between the push and the camera call).
 void party_set_leader(Player *p)
 {
@@ -630,7 +630,7 @@ Player *party_add_member(const char *name)
     return p;
 }
 
-// 0x434270  Confidence: likely (switch through the jump table 0x434338; the zeroed array may be
+// 0x434270  Confidence: exact (switch through the jump table 0x434338; the zeroed array may be
 // five assignments or an initialiser list).
 void party_sort_by_species()
 {

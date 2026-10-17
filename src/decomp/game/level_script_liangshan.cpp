@@ -48,7 +48,7 @@ void ls_liangshan_start_wave1();
 bool ls_liangshan_phoenix_serpent_done;              // 0x257ea60
 bool ls_liangshan_phoenix_dead_done;                 // 0x257ea61
 
-// 0x4f4930  Confidence: likely (the phoenix_serpent preset as if / else). level_script_table init (stage
+// 0x4f4930  Confidence: exact (the phoenix_serpent preset as if / else). level_script_table init (stage
 // 13). ls_liangshan_phoenix_dead_done is set on every entry, so the level music never comes back after the
 // two riders (see NOTES).
 void ls_liangshan_init()

@@ -63,7 +63,7 @@ void lsf_lenele2aa_flag_vengence_done()
     }
 }
 
-// 0x4f13e0  Confidence: likely (that this unit's copy is the one the linker kept: the address lies between
+// 0x4f13e0  Confidence: exact (that this unit's copy is the one the linker kept: the address lies between
 // lsf_lenele2aa_flag_vengence_done and ls_lenele2aa_action; which empty function of the unit it was, most
 // likely lenele2aa's leave hook, is not visible, D2701). The bare RET of every folded empty function.
 void empty_function()

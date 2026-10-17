@@ -543,7 +543,7 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
     }
 }
 
-// 0x51f0d0  Confidence: likely. (u, v) wrapped onto the bitmap; locked when it has no data (and never
+// 0x51f0d0  Confidence: exact. (u, v) wrapped onto the bitmap; locked when it has no data (and never
 // unlocked here). Formats 1 and 3-7; any other leaves the colour uninitialised (game bug, NOTES.md).
 vector3 light_sample_projected_bitmap(float u, float v, int bm)
 {

@@ -437,7 +437,7 @@ void gr_offset_point_depth(gr_vertex *v, float d)
     }
 }
 
-// 0x50ea50  Confidence: exact. Screen x / y clamped to the 0..2 range of the normalised position.
+// 0x50ea50  Confidence: likely. Screen x / y clamped to the 0..2 range of the normalised position.
 ubyte gr_project_vertex(gr_vertex *v)
 {
     if (v->flags & 3)
@@ -539,7 +539,7 @@ bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
     return false;
 }
 
-// 0x50ed60  Confidence: exact.
+// 0x50ed60  Confidence: likely.
 void gr_get_frustum_planes(plane *out, ubyte *flags)
 {
     int i, n;

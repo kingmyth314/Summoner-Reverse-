@@ -1159,7 +1159,7 @@ void status_model_view_end()
     gr_screen.offset_y = status_saved_gr_offset_y;
 }
 
-// 0x42cd80  Confidence: likely (the clamp of the bar fraction as if / else if; the operand order of the
+// 0x42cd80  Confidence: exact (the clamp of the bar fraction as if / else if; the operand order of the
 // right-aligned x). Values right-aligned at x + status_level_value_right.
 void status_draw_level()
 {
@@ -1204,7 +1204,7 @@ void status_draw_level()
             gr_rect_mode, 1.0f);
 }
 
-// 0x42cff0  Confidence: likely (the stack slot of max_hp is reused for the AP fraction; statement order of the
+// 0x42cff0  Confidence: exact (the stack slot of max_hp is reused for the AP fraction; statement order of the
 // value computations follows the calls). HP and AP are drawn as "cur/" in the text colour, then the maximum
 // coloured by its equipment bonus, the whole "cur/max" right-aligned. Speed is skill 2 * 1000 (%), its bonus
 // the difference to the unequipped byte * 10. Damage is the weapon's (slot 5), 0 unarmed.

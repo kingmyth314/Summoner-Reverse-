@@ -40,7 +40,7 @@ quaternion file_identity_quaternion;       // 0x2cbf4c8
 matrix file_default_matrix;                // 0x2cbf518
 matrix43 file_default_matrix43;            // 0x2cbf4e8
 
-// 0x5257a0  Confidence: likely (cdecl: a static member). uint16 length, then the text.
+// 0x5257a0  Confidence: exact (cdecl: a static member). uint16 length, then the text.
 void File::read_String_raw(File *f, String *s)
 {
     s->free();
@@ -137,7 +137,7 @@ unsigned int File::read_uint(int min_ver, unsigned int def)
     return error() ? def : v;
 }
 
-// 0x525a30  Confidence: likely (two fld returns, as with read_bool's if).
+// 0x525a30  Confidence: exact (two fld returns, as with read_bool's if).
 float File::read_float(int min_ver, float def)
 {
     float v;
@@ -226,7 +226,7 @@ void File::read_String(String *s, int min_ver, const char *def)
     read_String_raw(this, s);
 }
 
-// 0x525ce0  Confidence: likely. Not length-prefixed (sum.symbols says int8 length): bytes up to and with
+// 0x525ce0  Confidence: exact. Not length-prefixed (sum.symbols says int8 length): bytes up to and with
 // the NUL, into a 256-byte stack buffer without a bound. No caller.
 void File::read_String8(String *s, int min_ver, const char *def)
 {
@@ -251,7 +251,7 @@ void File::read_String8(String *s, int min_ver, const char *def)
     *s = buf;
 }
 
-// 0x525d80  Confidence: likely. One line into s; every CR / LF after it is skipped (blank lines too) and
+// 0x525d80  Confidence: exact. One line into s; every CR / LF after it is skipped (blank lines too) and
 // the first byte of the next line is pushed back with seek(-1, 1). Returns the length. No caller.
 int File::read_line_String(String *s, int min_ver)
 {
@@ -510,7 +510,7 @@ void File::write_string_z(const char *s)
     write(s, strlen(s) + 1);
 }
 
-// 0x526410  Confidence: likely (the key copy's stack slot). An encrypted slot encrypts the caller's
+// 0x526410  Confidence: exact (the key copy's stack slot). An encrypted slot encrypts the caller's
 // buffer in place for the fwrite and then restores the key and decrypts it again.
 void File::write(const void *buf, int len)
 {
@@ -537,7 +537,7 @@ void File::write(const void *buf, int len)
     s->error = FILE_ERR_WRITE;
 }
 
-// 0x5264e0  Confidence: likely. Straight to the FILE (no count, no cipher): text mode files.
+// 0x5264e0  Confidence: exact. Straight to the FILE (no count, no cipher): text mode files.
 void File::write_line(const char *text, int len)
 {
     file_slot *s = &file_slots[slot];

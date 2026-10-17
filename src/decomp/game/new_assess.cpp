@@ -195,7 +195,7 @@ void assess_format_info(Character *target)
 }
 
 // 0x4016d0. Disables the arrow buttons when everything fits, else places and sizes the thumb.
-// Confidence: likely (the if / else polarity is read from the block order; the inner test is on
+// Confidence: exact (the if / else polarity is read from the block order; the inner test is on
 // assess_line_count, which is always > 0 there)
 void assess_update_scrollbar()
 {
@@ -254,7 +254,7 @@ int assess_frame(int key)
 }
 
 // 0x401840, mouse idle: button hover / press, thumb drag start, ESC and the mouse wheel.
-// Confidence: likely
+// Confidence: exact
 int assess_handle_click(int key)
 {
     assess_pressed_button = -1;
@@ -423,7 +423,7 @@ void assess_draw()
     assess_draw_scrollbar();
 }
 
-// 0x401ce0. Confidence: likely (the second gr_get_font_height call is in the binary; the source
+// 0x401ce0. Confidence: exact (the second gr_get_font_height call is in the binary; the source
 // probably called it once per expression)
 void assess_draw_text()
 {

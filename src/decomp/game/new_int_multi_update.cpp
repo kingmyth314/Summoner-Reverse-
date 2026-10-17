@@ -38,7 +38,7 @@ char version_check_status_text[512];    // 0x5bd0d4
 InetGetFile *version_check_download;    // 0x5bd2d4
 int version_check_done;                 // 0x5bd2d8
 
-// 0x410cf0  Confidence: likely (the EH frame is the one `new` with a constructor needs; the two buffers are
+// 0x410cf0  Confidence: exact (the EH frame is the one `new` with a constructor needs; the two buffers are
 // cleared in this order). Downloads into multicache. The NULL test only catches a failed allocation:
 // a getter that cannot connect is reported later by version_check_poll_download.
 int version_check_fetch()
@@ -56,7 +56,7 @@ int version_check_fetch()
     return 0;
 }
 
-// 0x410e20  Confidence: likely (the connecting / receiving tests decide nothing: both ways return 0).
+// 0x410e20  Confidence: exact (the connecting / receiving tests decide nothing: both ways return 0).
 int version_check_poll_download()
 {
     if (version_check_download == NULL) {

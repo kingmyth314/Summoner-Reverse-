@@ -100,7 +100,7 @@ int pxo_login_request(utrack_login_request *req, char *reply)
     return 0;
 }
 
-// 0x48da00  Confidence: likely (the length test: the packet's length is decremented in place, then
+// 0x48da00  Confidence: exact (the length test: the packet's length is decremented in place, then
 // compared). A reply of the right length is acknowledged whatever its type; 0xf (accepted, the 10-byte
 // reply copied out) and 0xe (refused) end the wait. While waiting: give up after 30 s, resend every 3.5 s.
 void pxo_login_poll()

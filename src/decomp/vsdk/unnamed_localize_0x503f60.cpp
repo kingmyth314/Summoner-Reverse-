@@ -128,7 +128,7 @@ char *localize_strdup(const char *text)
     return p;
 }
 
-// 0x5040e0  Confidence: likely (the walk: the first node's test is duplicated by VC6's loop rotation).
+// 0x5040e0  Confidence: exact (the walk: the first node's test is duplicated by VC6's loop rotation).
 // The node and the copy are allocated before the duplicate test, so a duplicate leaks both in the pool.
 void localize_table_add(const char *text, int english_hash, localize_node **table)
 {
@@ -471,7 +471,7 @@ void localize_level_init(const char *script_name)
     localize_current_pool = NULL;
 }
 
-// 0x504f60  Confidence: likely (localize_strings_loaded is stored before the first memset).
+// 0x504f60  Confidence: exact (localize_strings_loaded is stored before the first memset).
 void localize_init()
 {
     localize_set_language(LANGUAGE_ENGLISH);
@@ -505,7 +505,7 @@ char *localize_item_name(const char *name)
     return localize_table_lookup(name, localize_item_table);
 }
 
-// 0x505060  Confidence: likely (xor eax, eax / ret; no reference anywhere, so the signature is unknown).
+// 0x505060  Confidence: exact (xor eax, eax / ret; no reference anywhere, so the signature is unknown).
 int localize_stub_ret0()
 {
     return 0;

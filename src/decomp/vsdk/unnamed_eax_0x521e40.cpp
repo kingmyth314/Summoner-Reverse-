@@ -156,7 +156,7 @@ bool eax_is_reverb_muted()
     return false;
 }
 
-// 0x5220e0  Confidence: likely (8-aligned frame for the double arguments). One value per line in
+// 0x5220e0  Confidence: exact (8-aligned frame for the double arguments). One value per line in
 // EAXLISTENERPROPERTIES order; 1 = written, 0 = the file did not open.
 int eax_save_props(const char *filename)
 {
@@ -207,7 +207,7 @@ void eax_get_listener_props(EAXLISTENERPROPERTIES *props)
     eax_property_set->Get(DSPROPSETID_EAX20_ListenerProperties, 14, NULL, 0, &props->dwFlags, 4, &returned);
 }
 
-// 0x522420  Confidence: likely. 0 when EAX is off or the file does not open, else 1; the values are
+// 0x522420  Confidence: exact. 0 when EAX is off or the file does not open, else 1; the values are
 // not checked.
 int eax_load_props(const char *filename)
 {

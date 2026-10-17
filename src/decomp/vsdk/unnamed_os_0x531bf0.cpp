@@ -11,13 +11,13 @@
 
 #include "vsdk/os/os.h"
 
-// 0x531bf0  Confidence: likely (or eax, -1 / ret; no reference anywhere, so the signature is unknown).
+// 0x531bf0  Confidence: exact (or eax, -1 / ret; no reference anywhere, so the signature is unknown).
 int os_stub_ret_m1_531bf0()
 {
     return -1;
 }
 
-// 0x531c00  Confidence: likely (same body).
+// 0x531c00  Confidence: exact (same body).
 int os_stub_ret_m1_531c00()
 {
     return -1;

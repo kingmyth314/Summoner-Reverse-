@@ -23,7 +23,7 @@
 bool ls_test_saved_max_skills;                       // 0x257ed60
 bool ls_test_saved_all_summons;                      // 0x257ed61
 
-// 0x4fdde0  Confidence: likely (the GF_SINGLE_PLAYER test is compiled as `mov al, 1; test al, cl`, which
+// 0x4fdde0  Confidence: exact (the GF_SINGLE_PLAYER test is compiled as `mov al, 1; test al, cl`, which
 // keeps the 1 in AL for the stores; the source form that gives this is a guess). level_script_table init:
 // single player only, the two console toggles are saved and set, Give_all_items is set (never read), stage 22.
 void ls_test_init()

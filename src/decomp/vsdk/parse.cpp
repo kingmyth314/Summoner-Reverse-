@@ -80,7 +80,7 @@ void TextFile::SkipBlockComment()
         cursor += 2;
 }
 
-// 0x515a20  Confidence: likely (a byte match under /Ox /Ow, D7502).
+// 0x515a20  Confidence: exact (a byte match under /Ox /Ow, D7502).
 // Space and 0x09-0x0c; a CR stops it, so a // comment ends on its CR.
 void TextFile::SkipSpaces()
 {
@@ -101,7 +101,7 @@ void TextFile::SkipSpaces()
     }
 }
 
-// 0x515a80  Confidence: likely (a byte match under /Ox /Ow, D7502). A CR is skipped and counted.
+// 0x515a80  Confidence: exact (a byte match under /Ox /Ow, D7502). A CR is skipped and counted.
 void TextFile::SkipWhitespace()
 {
     while (1) {
@@ -222,7 +222,7 @@ void TextFile::SetPosition(TextFilePosition *pos)
     cursor = pos->cursor;
 }
 
-// 0x515d20  Confidence: likely (a byte match under /Ox /Ow, D7502). With a blasted packfile the
+// 0x515d20  Confidence: exact (a byte match under /Ox /Ow, D7502). With a blasted packfile the
 // table must be in it (1 = not found, no disk fallback); else the file is read into the common block
 // (one byte more for the terminator).
 int TextFile::Open(const char *name, int path_id)
@@ -329,7 +329,7 @@ bool TextFile::SkipLine(String *out)
     return true;
 }
 
-// 0x516010  Confidence: likely (a byte match under /Ox /Ow, D7502). Fails without moving
+// 0x516010  Confidence: exact (a byte match under /Ox /Ow, D7502). Fails without moving
 // when the line does not fit (len >= dest_size).
 bool TextFile::ReadLine(char *dest, int dest_size)
 {

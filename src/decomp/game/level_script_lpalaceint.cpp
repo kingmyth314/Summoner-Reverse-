@@ -328,7 +328,7 @@ void ls_lpalaceint_sneak_frame()
     }
 }
 
-// 0x4f34a0  Confidence: likely (the list and count as two conditionals; the code builds the count
+// 0x4f34a0  Confidence: exact (the list and count as two conditionals; the code builds the count
 // branch-free: `neg al / sbb / and -3 / add 7`). A palace guard (type 4, species 0x22) named in the upper
 // list (4) or the lower list (7).
 bool ls_lpalaceint_guard_in_group(Character *c, bool upper)
@@ -348,7 +348,7 @@ bool ls_lpalaceint_guard_in_group(Character *c, bool upper)
 }
 // 0x4f3510  Confidence: exact. atexit_nop_4f3510: the compiler's empty atexit handler of the static timer.
 
-// 0x4f3520  Confidence: likely (the cases are written with their own calls; the code shares one call per
+// 0x4f3520  Confidence: exact (the cases are written with their own calls; the code shares one call per
 // stage, jump tables 0x4f36a0 / 0x4f36b0). After a capture: Joseph (stage 1) and Flece (stage 2, 5 s later)
 // comment, by the attempt count.
 void ls_lpalaceint_sneak_remark()

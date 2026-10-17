@@ -651,7 +651,7 @@ bool snd_is_playing(int sig)
     return rval;
 }
 
-// 0x521680  Confidence: exact (the clamp writes the argument).
+// 0x521680  Confidence: likely (the clamp writes the argument).
 void snd_set_volume(int sig, float volume)
 {
     if (snd_disabled)
@@ -667,7 +667,7 @@ void snd_set_volume(int sig, float volume)
     }
 }
 
-// 0x5216e0  Confidence: exact. The playing channel sig of sound handle at its group volume.
+// 0x5216e0  Confidence: likely. The playing channel sig of sound handle at its group volume.
 void snd_set_volume_in_group(int handle, int sig, float volume)
 {
     if (snd_disabled || sig < 0 || handle < 0)
@@ -684,7 +684,7 @@ void snd_set_volume_in_group(int handle, int sig, float volume)
     }
 }
 
-// 0x521760  Confidence: exact.
+// 0x521760  Confidence: likely.
 void snd_set_pan(int sig, float pan)
 {
     if (snd_disabled)
@@ -746,7 +746,7 @@ void snd_set_group(int handle, int group)
         sounds[handle].group = group;
 }
 
-// 0x5218e0  Confidence: exact. The table is written also while sound is disabled.
+// 0x5218e0  Confidence: likely. The table is written also while sound is disabled.
 void snd_set_group_volume(int group, float volume)
 {
     if (volume <= 0.0f)
@@ -807,7 +807,7 @@ int snd_get_sound_info(int handle, snd_sound *out)
     return 0;
 }
 
-// 0x521a60  Confidence: exact (EH frame for the TextFile).
+// 0x521a60  Confidence: likely (EH frame for the TextFile).
 void sounds_parse_table()
 {
     TextFile tf;

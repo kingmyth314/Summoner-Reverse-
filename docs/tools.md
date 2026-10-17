@@ -221,6 +221,8 @@ Pack 5 `VC98` folder ([Setup](setup.md)) and run from PowerShell or cmd.
 |---|---|
 | `tools/vc6-sweep.mjs [--root DIR] [--out FILE] [--only REGEX] [--jobs N] [--check LIST]` | Runs `vc6-compare.mjs` on every unit of a tree (the repo's `src/decomp` by default, or a merge stage / worker copy with its own `include/` and `vc6-flags.txt`) and writes `<file> <address> <match\|differs\|not_found>` lines. `--check src/decomp/vc6-matches.txt` lists every address that matched there and no longer does, and exits 1 if there is one: the "no match lost" check before every commit. |
 | `src/decomp/vc6-matches.txt` | The committed per-address result of the last full strict sweep (2026-10-17: 4,956 of 5,925 match, call and data targets included). Regenerate with `--out src/decomp/vc6-matches.txt` after a strict sweep that `--check` passed. |
+| `tools/decomp-confidence.mjs [list] [--apply]` | Sets the `Confidence:` marker of every compared function from the sweep list: match -> `exact`, an `exact` that differs -> `likely`. Without `--apply` it lists the changes. Run after each committed sweep. |
+| `tools/decomp-uncompared.mjs <list> [--list]` | Written functions (a sum.symbols address in a `// 0xADDR` comment) that the sweep never compared, by reason: inside another marker's comment block (mostly compiler-generated initialisers and destructors of globals), a note, or not a definition. |
 | `tools/vc6-targets.mjs <sweep list>` | For a strict sweep list, every function marked `target` and which reference is wrong (symbol, the address or bytes ours expects, what Sum.exe has). |
 | `tools/vc6-side.mjs <listing.cod> <name> <address>` | One function's VC6 output next to Sum.exe's disassembly, differing mnemonics marked `*`. The listing comes from `vc6-compare.mjs --keep` (or `--json`'s `tmp`). |
 | `tools/vc6-try.mjs [--root DIR] <file> <address> <variants.json> [--side NAME]` | Tries source variants (`[{"name", "from", "to"}]`, exact text replacements) one at a time and reports whether the function then matches and the file's match count; the file is always restored. `--side` prints each failing variant's first differing lines. |
@@ -232,7 +234,7 @@ The round workflow (2026-10-16): snapshot the tree for each worker, let it work 
 stage with `decomp-merge.mjs` against its snapshot, compile everything with mingw
 (`i686-w64-mingw32-g++ -fsyntax-only -std=c++98 -w -Iinclude`), run `decomp-sigcheck.mjs`, check for duplicate
 `// 0xADDR` markers, run `vc6-sweep.mjs --root <stage> --check src/decomp/vc6-matches.txt` with `VC6_STRICT=1`, then copy the stage
-into `src/decomp`, rewrite `vc6-matches.txt`, run `decomp-progress.mjs` and commit.
+into `src/decomp`, rewrite `vc6-matches.txt`, run `decomp-confidence.mjs --apply` and `decomp-progress.mjs`, and commit.
 
 ## `tools/agent.mjs` (agent mode)
 
@@ -393,7 +395,9 @@ node tools/tu-split2.mjs --score
 ## `tools/decomp-progress.mjs`
 
 Counts which functions of each original source file have rewritten source in `src/decomp/` (by the `// 0xADDR` comments)
-and their confidence (exact / likely / unsure). `--md` prints a Markdown table.
+and their confidence (exact / likely / unsure). Since 2026-10-17 it also reads `src/decomp/vc6-matches.txt` and
+shows, per file and in total, how many written functions VC6 compares and how many of those byte-match; on functions
+VC6 does not compare, the marker is a reading of the code, not a compiler check. `--md` prints a Markdown table.
 
 ```
 node tools/decomp-progress.mjs

@@ -61,7 +61,7 @@ GameTimer boss_rider_sound_timer;     // 0x245c9e0
 // 0x4a04c0  Confidence: exact. init_boss_rider_sound_timer: "mov ecx, 0x245c9e0 / jmp GameTimer::GameTimer".
 // Both compiler-generated from the definition above; GameTimer has no destructor, so no atexit helper.
 
-// 0x4a04d0  Confidence: exact. Per-boss cleanup (ai_state_shutdown). Every case is a tail jump with ECX
+// 0x4a04d0  Confidence: likely. Per-boss cleanup (ai_state_shutdown). Every case is a tail jump with ECX
 // unchanged; the per-boss functions do not read it, so they are written as plain functions.
 void ai_state::boss_ai_unload()
 {

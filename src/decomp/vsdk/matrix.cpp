@@ -70,7 +70,7 @@ matrix::matrix(float p, float b, float h)
     set_from_angles(p, b, h);
 }
 
-// 0x50fbc0  Confidence: likely (the term order of each sum is the compiler's, see the file comment).
+// 0x50fbc0  Confidence: exact (the term order of each sum is the compiler's, see the file comment).
 // result.R.c = m.R.x * rvec.c + m.R.y * uvec.c + m.R.z * fvec.c: each row of m transformed by this
 // ("m, then this" in the row convention). The row temporaries are built f, u, r (arguments right to
 // left).
@@ -87,7 +87,7 @@ matrix matrix::operator*(const matrix &m) const
                           m.fvec.x * rvec.z + m.fvec.y * uvec.z + m.fvec.z * fvec.z));
 }
 
-// 0x50fcf0  Confidence: likely (term order). result[i][c] = column c of this . column i of m (m^T * this).
+// 0x50fcf0  Confidence: exact (term order). result[i][c] = column c of this . column i of m (m^T * this).
 // Only caller rotate_between.
 matrix matrix::multiply_by_transpose(const matrix &m) const
 {
@@ -102,7 +102,7 @@ matrix matrix::multiply_by_transpose(const matrix &m) const
                           rvec.z * m.rvec.z + uvec.z * m.uvec.z + fvec.z * m.fvec.z));
 }
 
-// 0x50fe20  Confidence: likely (term order). result[i][c] = m row i . this row c (m * this^T); caller
+// 0x50fe20  Confidence: exact (term order). result[i][c] = m row i . this row c (m * this^T); caller
 // gr_start_instance.
 matrix matrix::multiply_transposed(const matrix &m) const
 {
@@ -233,7 +233,7 @@ void matrix::extract_angles(float *p, float *b, float *h) const
     *b = atan2_fast(sinb, cosb);
 }
 
-// 0x510390  Confidence: likely (the order of the index tests and of the case blocks).
+// 0x510390  Confidence: exact (the order of the index tests and of the case blocks).
 // The rotation axis and angle. Near the identity: axis (1, 0, 0), angle 0. Near a half turn the axis
 // comes from the largest diagonal element (angle pi); otherwise from the antisymmetric part and acos.
 void matrix::get_axis_angle(vector3 *axis, float *angle) const
@@ -673,7 +673,7 @@ bool matrix43::equals(const matrix43 &o) const
     return (vector3(o.m[3][0], o.m[3][1], o.m[3][2]) == vector3(m[3][0], m[3][1], m[3][2])) ? true : false;
 }
 
-// 0x5116f0  Confidence: likely (the transpose is a nested loop; -position goes through 0x524340, the
+// 0x5116f0  Confidence: exact (the transpose is a nested loop; -position goes through 0x524340, the
 // out-of-line negation of the vector unit).
 // Inverse of a rigid transform: transposed rotation, position -p rotated.
 matrix43 matrix43::inverse() const

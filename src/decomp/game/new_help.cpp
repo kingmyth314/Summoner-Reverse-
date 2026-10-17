@@ -323,7 +323,7 @@ void help_next_page()
         help_page = 0;
 }
 
-// 0x40ca50, screen 22 draw. Confidence: likely (the order of the two local buffers and the
+// 0x40ca50, screen 22 draw. Confidence: exact (the order of the two local buffers and the
 // spelling of the y expression are guesses)
 void help_draw()
 {

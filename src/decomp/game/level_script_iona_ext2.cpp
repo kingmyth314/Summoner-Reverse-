@@ -35,7 +35,7 @@ GameTimer ls_ionaext02_timer;                        // 0x257ea58
 bool ls_ionaext02_trapped_luminar_done;              // 0x257ea5c
 bool ls_ionaext02_luminar_intro_done;                // 0x257ea5d
 
-// 0x4f4570  Confidence: likely (the 20 s SetTimeout is emitted at the end of both trapped_luminar paths, at
+// 0x4f4570  Confidence: exact (the 20 s SetTimeout is emitted at the end of both trapped_luminar paths, at
 // 0x4f45e2 and at 0x4f4614: written once after the if / else, tail-duplicated). level_script_table init.
 // Ionaext02_v2 (stage 16): until Luminar is trapped his intro is forgotten (luminar_intro cleared, as Titus's in ikaemosl2); the first remark in 20 s. The
 // first visit (stage 15): Yago is there only once open_yago is set in KhosaniStrng.

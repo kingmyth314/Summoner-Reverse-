@@ -50,7 +50,7 @@ void state14_frame()
     interface_draw();
 }
 
-// 0x43eb60  Confidence: likely (a function of its own whose only statement is a call of an empty function:
+// 0x43eb60  Confidence: exact (a function of its own whose only statement is a call of an empty function:
 // "jmp empty_function"; the callee's name is not known, empty_function is the folded copy).
 void state14_leave()
 {

@@ -166,7 +166,7 @@ void lsf_mach_killed()
     }
 }
 
-// 0x4ef4d0  Confidence: likely (the summon loop: the next pointer is read before the body). End of
+// 0x4ef4d0  Confidence: exact (the summon loop: the next pointer is read before the body). End of
 // Machival-Death: Jekhar, Flece and Rosalind leave the party (their NPC copies take label 2), every summon is
 // dismissed, and the party (Joseph) is placed at entry 2.
 void ls_templeint2_machival_death_cs_end()
@@ -230,7 +230,7 @@ void goto_credits()
     gameseq_set_state(9);
 }
 
-// 0x4ef6b0  Confidence: likely (the selection keeps the last match of the list walk). A dead Black Knight
+// 0x4ef6b0  Confidence: exact (the selection keeps the last match of the list walk). A dead Black Knight
 // in view gets up again with a chance of 0.1 per second of frame time (frand() < frametime * 0.1).
 void ls_templeint2_black_knight_revive()
 {

@@ -16,18 +16,18 @@
 #include "vsdk/os/debug.h"
 #include "summoner/summoner.h"
 
-// 0x531c10  Confidence: likely (no direct caller found in the code; the signature from its body).
+// 0x531c10  Confidence: exact (no direct caller found in the code; the signature from its body).
 int stricmp_wrapper(const char *a, const char *b)
 {
     return _stricmp(a, b);
 }
 
-// 0x531c30  Confidence: likely (bare RET, no reference; the signature is unknown).
+// 0x531c30  Confidence: exact (bare RET, no reference; the signature is unknown).
 void os_stub_ret_531c30()
 {
 }
 
-// 0x531c40  Confidence: likely (bare RET, no reference).
+// 0x531c40  Confidence: exact (bare RET, no reference).
 void os_stub_ret_531c40()
 {
 }

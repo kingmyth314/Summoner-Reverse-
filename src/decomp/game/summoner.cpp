@@ -248,7 +248,7 @@ void cmd_gamma()
 void cmd_play_sound();
 console_command ccmd_play_sound("play_sound", "Streams a wav file from disk", cmd_play_sound);   // 0x60ac20
 
-// 0x43d5e0  Confidence: likely (stack order of name / File / msg: 0x40-byte name at esp+0, the File at
+// 0x43d5e0  Confidence: exact (stack order of name / File / msg: 0x40-byte name at esp+0, the File at
 // +0x40, the message at +0x154). The File is built before process_command (EH state 0 at 0x43d613).
 void cmd_play_sound()
 {
@@ -655,7 +655,7 @@ void summoner_cfg_save()
     }
 }
 
-// 0x43e4a0  Confidence: likely (the order of the dir / STARTUPINFO clears). Starts the PXO updater
+// 0x43e4a0  Confidence: exact (the order of the dir / STARTUPINFO clears). Starts the PXO updater
 // (Summoner.exe in the install directory) when game_cleanup is told to; the process handles are not
 // closed.
 void launch_updater()

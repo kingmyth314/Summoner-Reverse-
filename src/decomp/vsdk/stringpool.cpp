@@ -162,7 +162,7 @@ StringPool::~StringPool()
     Release();
 }
 
-// 0x544e30  Confidence: likely (the compare is unsigned: ja). Truncates back to a saved length.
+// 0x544e30  Confidence: exact (the compare is unsigned: ja). Truncates back to a saved length.
 void StringPool::SetLength(unsigned int length)
 {
     if (length <= (unsigned int)max_length)

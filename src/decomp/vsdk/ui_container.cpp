@@ -37,7 +37,7 @@ void ui_container::dtor()
     ui_gadget::dtor();
 }
 
-// 0x553560  Confidence: likely (the three stores follow the vtable store in this order: +0x37c, +0x274,
+// 0x553560  Confidence: exact (the three stores follow the vtable store in this order: +0x37c, +0x274,
 // +0x378; an initialiser list would give the same code if the members were declared in that order,
 // which they are not).
 ui_container::ui_container()
@@ -47,7 +47,7 @@ ui_container::ui_container()
     mask_bm = -1;
 }
 
-// 0x553590  Confidence: likely. The eighth argument (1 from ui_parse_container, 0 from
+// 0x553590  Confidence: exact. The eighth argument (1 from ui_parse_container, 0 from
 // script_editor_create_ui) is never read: ui_gadget::init gets the member `owned` (byte +0x248) instead,
 // presumably a name clash in the original (see NOTES.md). flags is stored at +0x374, the font at +0x380
 // and the colour set at +0x384; mask_bm is not touched (the constructor set it).
@@ -101,7 +101,7 @@ void ui_container::load_mask_bitmap(const char *name)
     set_mask_bitmap(bm, name);
 }
 
-// 0x553710  Confidence: likely (mask_bm is stored between the pushes for bm_get_dimensions, which
+// 0x553710  Confidence: exact (mask_bm is stored between the pushes for bm_get_dimensions, which
 // gets the argument; the width and height are not used). The message is formatted and never shown.
 void ui_container::set_mask_bitmap(int bm, const char *name)
 {

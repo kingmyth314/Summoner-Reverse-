@@ -61,7 +61,7 @@ void vector2::negate()
     y = -y;
 }
 
-// 0x524010  Confidence: likely (the |x| of the local copy stays in a register).
+// 0x524010  Confidence: exact (the |x| of the local copy stays in a register).
 void vector3::get_major_axis(int *axis, int *u, int *v) const
 {
     vector3 a;
@@ -144,7 +144,7 @@ int vector3::is_valid() const
     return 0;
 }
 
-// 0x524270  Confidence: likely.
+// 0x524270  Confidence: exact.
 vector3 vector3::normalized() const
 {
     float s = 1.0f / (float)sqrt(x * x + y * y + z * z);
@@ -152,7 +152,7 @@ vector3 vector3::normalized() const
     return vector3(x * s, y * s, z * s);
 }
 
-// 0x5242c0  Confidence: likely.
+// 0x5242c0  Confidence: exact.
 vector3 vector3::normalized_or_x() const
 {
     float l = (float)sqrt(x * x + y * y + z * z);
@@ -181,7 +181,7 @@ vector3 vector3::rotated(const matrix &m) const
                    x * f.x + y * f.y + z * f.z);
 }
 
-// 0x5243d0  Confidence: exact. The transpose: the dot product with each column.
+// 0x5243d0  Confidence: likely. The transpose: the dot product with each column.
 vector3 vector3::unrotated(const matrix &m) const
 {
     return vector3(x * m.rvec.x + y * m.uvec.x + z * m.fvec.x,

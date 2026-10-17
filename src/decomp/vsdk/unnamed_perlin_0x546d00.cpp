@@ -40,7 +40,7 @@ float perlin_g1[PERLIN_B + PERLIN_B + 2];               // 0x2f0b978
 float perlin_g2[PERLIN_B + PERLIN_B + 2][2];            // 0x2f0c180
 float perlin_g3[PERLIN_B + PERLIN_B + 2][3];            // 0x2f0d190
 
-// 0x546d00  Confidence: likely (the order of the s-curve products). No caller.
+// 0x546d00  Confidence: exact (the order of the s-curve products). No caller.
 float perlin_noise1(float arg)
 {
     int bx0, bx1;
@@ -108,7 +108,7 @@ void perlin_normalize3(float v[3])
     v[2] = v[2] / s;
 }
 
-// 0x546f70  Confidence: likely (ry0 is formed with fild / fsubr instead of fisub; the dot products sum the
+// 0x546f70  Confidence: exact (ry0 is formed with fild / fsubr instead of fisub; the dot products sum the
 // y term first). No caller.
 float perlin_noise2(vector2 vec)
 {
@@ -143,7 +143,7 @@ float perlin_noise2(vector2 vec)
     return PERLIN_LERP(sy, a, b);
 }
 
-// 0x5470e0  Confidence: likely (as perlin_noise2; the z dot term is summed first).
+// 0x5470e0  Confidence: exact (as perlin_noise2; the z dot term is summed first).
 float perlin_noise3(vector3 vec)
 {
     int bx0, bx1, by0, by1, bz0, bz1, b00, b10, b01, b11;
