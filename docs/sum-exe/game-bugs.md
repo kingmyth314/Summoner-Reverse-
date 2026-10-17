@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 49 | 25 | 16 |
-| Cosmetic | 58 | 36 | 7 |
+| Cosmetic | 58 | 36 | 8 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1800,7 +1800,7 @@ retail script sends a go that early was not checked. D8602.
 | K280 | With SummonerFix's widescreen output (a game width above 1024), the black strip right of the centred main menu showed old frames of the last level in turn with black after a cutscene had run (seen after the console cutscene viewer and after skipping story cutscenes) | SummonerFix `display.c` (`Hook_SwapBuffers`), not the game | **Observed** by the user and in agent-mode captures (2026-10-16) | Fixed (`display.c`) |
 | K290 | Animated characters are lit as if their normals leaned towards each bone's position: the skinning moves the normals by the bone translation too | `gr_glide_render_character_mesh` `0x50b4c0`, `gr_d3d_render_character_mesh` `0x50c130`, `gr_opengl_render_character_mesh` `0x50cd00` | **Observed** code, *inferred* effect | No |
 | K291 | With Direct3D in a fogged level, character vertices on texture seams are not fogged while the vertices around them fade | `gr_d3d_render_character_mesh` `0x50c130` | **Observed** code, *inferred* effect | No |
-| K292 | In a conversation, the "more" and "end" entries light up for the wrong mouse positions | `dialogue_topic_entry__draw` `0x4d6e70` | **Observed** code, *inferred* effect | No |
+| K292 | In a conversation, the "more" and "end" entries light up for the wrong mouse positions | `dialogue_topic_entry__draw` `0x4d6e70` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ConversationHover`) |
 | K293 | In a conversation of more than 64 text lines and spacers, the later lines play no talk animation | `dialogue_box__add_text` `0x4d7190` | **Observed** code, *inferred* effect | No |
 | K294 | A sound that is fading out and ends during the fade leaves its channel marked as fading; the next sound put on that channel is cut off within 75 ms, and the old sound buffer is not released | `ds_channel_update_fade` `0x55d6f0`, `ds_channel_release` `0x55c5b0`, `ds_find_free_channel` `0x55d0a0` | **Observed** code, *inferred* effect | No |
 | K295 | Effect particles pushed by forces (gravity, wind) move by at most 1/30 of the step per update, so they move slower when updates are long | `vfx_emitter_instance__move_particles` `0x560a00` | **Observed** code, *inferred* effect | No |
@@ -2536,6 +2536,13 @@ bound on the mouse y. The click test in `dialogue_frame` uses `point_in_rect` wi
 (`0x4094d3`..`0x4094f0`, `0x409560`..`0x40957d`). *Inferred:* the highlight colour shows anywhere below the entry
 within its width (or never, if the box's x is beyond its y plus the text height), while clicks work only on the
 text. Found in the `NOTES-unnamed-ai-move-think-dialogue.md` notes.
+
+**Reproduced 2026-10-17** (agent mode, Canis's conversation in Lenele2ab at "Tavern?", whose answer ends in "More"):
+with the mouse far below the conversation panel "More" was drawn in the highlight colour, and grey with the mouse to
+its right. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] ConversationHover`): the last test's
+`mov edx, [esp+h]; add ecx, edx; cmp eax, ecx` becomes `add ecx, [esp+h]; cmp [esp+y], ecx`, the mouse y (`0x4d6fe8`
+for "more", `0x4d707c` for "end"). With the fix "More" stayed grey below the panel and lit with the mouse on it.
+"End" uses the same code and was not tried separately.
 
 **K293. The full ring drops the speaker.** `dialogue_box__add_text` keeps 64 lines (`cmp eax, 0x40` at `0x4d7262`).
 While the ring is not full it passes the speaker (its fourth argument) to `dialogue_line__init` (`0x4d73cc`..`0x4d73ea`),

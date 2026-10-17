@@ -87,6 +87,7 @@ static const FixOption k_fixes[] = {
     {"SupportAiTarget", "Support AI keeps its chosen enemy"},
     {"DetectionCone", "Summons notice enemies ahead"},
     {"LeechDrain", "Leech drains HP"},
+    {"ConversationHover", "Conversation more/end hover"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

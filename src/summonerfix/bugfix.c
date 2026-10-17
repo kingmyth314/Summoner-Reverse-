@@ -129,6 +129,11 @@
 // drains): the fstp + jmp at 0x45f47d jump to a stub that takes the amount from the character hit
 // (character_add_hp(-amount, source)) and gives it to the source (character_add_hp(+amount)), stores -amount and
 // continues after the roll and add_hp (0x45fed8), so the target flinches as for other damage.
+//
+// Conversation "more" / "end" lit for the wrong mouse positions (cosmetic; game-bugs K292). dialogue_topic_entry__draw
+// tests the mouse against the entry's box, but its last test compares the mouse x with box y + text height
+// (mov edx, [esp+h] ; add ecx, edx ; cmp eax, ecx with eax the x; "more" 0x4d6fe8, "end" 0x4d707c). Fix ([Fixes]
+// ConversationHover): add ecx, [esp+h] ; cmp [esp+y], ecx, the mouse y as the click test does.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -157,7 +162,9 @@
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
 #define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
-#define VA_LEECH_STORE 0x45f47du            // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
+#define VA_DIALOGUE_MORE_HOVER 0x4d6fe8u    // last hover test of the "more" entry in dialogue_topic_entry__draw
+#define VA_DIALOGUE_END_HOVER 0x4d707cu     // the same for "end"
+#define VA_LEECH_STORE 0x45f47du           // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
 #define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
 #define VA_LIVING_FROM_HANDLE_FIX 0x46b1a0u
 #define VA_DETECT_CONE_JCC 0x493c5cu       // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
@@ -492,6 +499,16 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)LeechDrainStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_LEECH_STORE, o, r, 8, "leech drains the target into the attacker (G100)");
+    }
+
+    if (FixOn("ConversationHover")) {
+        // "more": height [esp+0x18], mouse y [esp+0x1c]; "end": height [esp+0x10], mouse y [esp+0x14]
+        static const BYTE mo[8] = {0x8B, 0x54, 0x24, 0x18, 0x03, 0xCA, 0x3B, 0xC1};
+        static const BYTE mr[8] = {0x03, 0x4C, 0x24, 0x18, 0x39, 0x4C, 0x24, 0x1C};
+        static const BYTE eo[8] = {0x8B, 0x54, 0x24, 0x10, 0x03, 0xCA, 0x3B, 0xC1};
+        static const BYTE er[8] = {0x03, 0x4C, 0x24, 0x10, 0x39, 0x4C, 0x24, 0x14};
+        PatchBytes(VA_DIALOGUE_MORE_HOVER, mo, mr, 8, "conversation more / end highlight under the mouse (K292)");
+        PatchBytes(VA_DIALOGUE_END_HOVER, eo, er, 8, "conversation more / end highlight under the mouse (K292)");
     }
 
     if (FixOn("PhoenixInferno")) {
