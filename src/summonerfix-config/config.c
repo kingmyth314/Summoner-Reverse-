@@ -86,6 +86,7 @@ static const FixOption k_fixes[] = {
     {"AreaCasterGone", "Fire walls burn after a caster goes"},
     {"SupportAiTarget", "Support AI keeps its chosen enemy"},
     {"DetectionCone", "Summons notice enemies ahead"},
+    {"LeechDrain", "Leech drains HP"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
@@ -608,7 +609,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         SendMessageA(ce, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
-        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
+        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 610, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
         LoadConsoleKeys();
@@ -660,7 +661,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpszClassName = "SummonerFixConfig";
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     RegisterClassA(&wc);
-    RECT r = {0, 0, 1010, 540};
+    RECT r = {0, 0, 1010, 640};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings and options", style, CW_USEDEFAULT, CW_USEDEFAULT,

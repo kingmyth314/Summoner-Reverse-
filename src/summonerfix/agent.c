@@ -184,6 +184,28 @@ static void CallStrOnGameThread(void *unused)
     Log("agent: callstr %06lX(\"%s\", 0x%lX) = 0x%lX", g_callAddr, g_callStr, g_callArg, r);
 }
 
+// "spellhit TARGET SPELL POWER": living_entity_get_hit_by_spell (0x45dea0, thiscall) on the character at TARGET
+// (hex address) with the current character as the source and source type 6, as combat_trigger_special_ability and
+// the self-cast abilities call it. Testing only (game-bugs G100: spell 0x3e "leech").
+#define VA_GET_HIT_BY_SPELL 0x45dea0u
+static DWORD g_hitTarget;
+static int g_hitSpell;
+static float g_hitPower;
+
+static void SpellHitOnGameThread(void *unused)
+{
+    (void)unused;
+    typedef void(__attribute__((thiscall)) * HitBySpell)(void *, int, int, void *, void *, int, void *, float, int);
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!ch || !g_hitTarget) {
+        Log("agent: spellhit: no character or target");
+        return;
+    }
+    ((HitBySpell)(UINT_PTR)SumVa(VA_GET_HIT_BY_SPELL))((void *)(UINT_PTR)g_hitTarget, g_hitSpell, *(int *)(ch + 0x80), NULL,
+                                                        NULL, 6, NULL, g_hitPower, 0);
+    Log("agent: spellhit %06lX spell 0x%x power %.1f from %p", g_hitTarget, g_hitSpell, (double)g_hitPower, (void *)ch);
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -378,6 +400,12 @@ static void RunLine(char *line)
             }
         }
         Out("callstr %06lX %s: %s", g_callAddr, g_callStr, KeysAgentRun(CallStrOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "spellhit") && argc >= 4) {
+        // spellhit TARGET SPELL POWER: e.g. "spellhit 90a4e8 3e 100" (leech on Joseph from the leader).
+        g_hitTarget = (DWORD)strtoul(argv[1], NULL, 16);
+        g_hitSpell = (int)strtol(argv[2], NULL, 16);
+        g_hitPower = (float)atof(argv[3]);
+        Out("spellhit: %s", KeysAgentRun(SpellHitOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "firewall") && argc >= 2) {
         // firewall N [START] [summon]: N wall of fire areas beside the current character (game thread; result in
         // the log), the first START units away, cast by the leader or by the active summon.

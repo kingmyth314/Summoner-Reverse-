@@ -122,6 +122,13 @@
 // accepts an enemy in field of view range and line of sight when the dot of the direction to it with the member's
 // forward vector is below 0.71 (jne after fcomp [0x581ae0], 0x493c5c), i.e. outside the 45-degree cone ahead.
 // Fix ([Fixes] DetectionCone): jne -> je, so enemies ahead are noticed and those behind are not.
+//
+// Leech does nothing in single player (not a crash; game-bugs G100). Case 0x3e of living_entity_get_hit_by_spell
+// computes power x 0.05 x level into amount (fstp [ebp-0x24] at 0x45f47d) and jumps to the common tail, where
+// spell_roll_amount with dice count 0 overwrites it with 0. Fix ([Fixes] LeechDrain; decided 2026-10-17: leech
+// drains): the fstp + jmp at 0x45f47d jump to a stub that takes the amount from the character hit
+// (character_add_hp(-amount, source)) and gives it to the source (character_add_hp(+amount)), stores -amount and
+// continues after the roll and add_hp (0x45fed8), so the target flinches as for other damage.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -150,7 +157,10 @@
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
 #define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
-#define VA_DETECT_CONE_JCC 0x493c5cu        // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
+#define VA_LEECH_STORE 0x45f47du            // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
+#define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
+#define VA_LIVING_FROM_HANDLE_FIX 0x46b1a0u
+#define VA_DETECT_CONE_JCC 0x493c5cu       // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
 #define VA_STYLE1_AFTER_ORDER 0x49354au    // add esp, 0x10 after the chosen-target order in ai_group_think_style1
 #define VA_AI_BLESS_COUNT_INC 0x49395cu  // the first inc ebx in ai_group_think_caster's Bless pass
 #define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
@@ -263,6 +273,32 @@ __asm__(".text\n"
         "    movb $0, _g_boxPaused\n"
         "    jmp *_g_gameUnpause\n"
         "1:  ret\n");
+
+// Leech drain (G100). Entered by jmp with the amount in st0 and get_hit_by_spell's frame in ebp: this at
+// [ebp-0x1a0], the source handle at [ebp+0xc]. Leaves -amount in [ebp-0x24] and jumps past the roll (0x45fed8).
+__attribute__((used)) DWORD g_leechResume, g_livingFromHandleFix, g_characterAddHpFix;
+typedef char(__attribute__((thiscall)) * AddHpFn)(void *, float, int, int, int);
+__attribute__((used)) static float __cdecl LeechDrain(void *self, int source, float amount)
+{
+    if (amount <= 0.0f)
+        return 0.0f;
+    ((AddHpFn)(UINT_PTR)g_characterAddHpFix)(self, -amount, source, 0, 0);
+    void *src = ((void *(__cdecl *)(int))(UINT_PTR)g_livingFromHandleFix)(source);
+    if (src && src != self)
+        ((AddHpFn)(UINT_PTR)g_characterAddHpFix)(src, amount, source, 0, 0);
+    return -amount;
+}
+void LeechDrainStub(void);
+__asm__(".text\n"
+        "_LeechDrainStub:\n"
+        "    subl $4, %esp\n"
+        "    fstps (%esp)\n"          // amount (third argument)
+        "    pushl 0xc(%ebp)\n"       // source handle
+        "    pushl -0x1a0(%ebp)\n"    // the character hit
+        "    call _LeechDrain\n"
+        "    addl $12, %esp\n"
+        "    fstps -0x24(%ebp)\n"     // amount = -drained (0 if none), read by the flinch test
+        "    jmp *_g_leechResume\n");
 
 // esi = the removed Player. edi = party_list.next as before, or &party_list (loop skipped) in single player while
 // a leader other than esi is set. eax is reloaded before its next use; it is kept anyway.
@@ -444,6 +480,18 @@ void BugFixesInstall(void)
     if (FixOn("DetectionCone")) {
         static const BYTE o[1] = {0x75}, r[1] = {0x74}; // jne -> je (rel8 0x13 to 0x493c71 kept)
         PatchBytes(VA_DETECT_CONE_JCC, o, r, 1, "enemies seen inside the forward cone, not outside (G210)");
+    }
+
+    if (FixOn("LeechDrain")) {
+        g_leechResume = SumVa(VA_LEECH_RESUME);
+        g_livingFromHandleFix = SumVa(VA_LIVING_FROM_HANDLE_FIX);
+        g_characterAddHpFix = SumVa(VA_CHARACTER_ADD_HP);
+        static const BYTE o[8] = {0xD9, 0x5D, 0xDC, 0xE9, 0xF6, 0x09, 0x00, 0x00}; // fstp [ebp-0x24] ; jmp 0x45fe7b
+        BYTE r[8] = {0xE9, 0, 0, 0, 0, 0x90, 0x90, 0x90};
+        DWORD s = SumVa(VA_LEECH_STORE);
+        DWORD rel = (DWORD)(UINT_PTR)LeechDrainStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_LEECH_STORE, o, r, 8, "leech drains the target into the attacker (G100)");
     }
 
     if (FixOn("PhoenixInferno")) {

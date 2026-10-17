@@ -273,6 +273,9 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
 - `firewall N [START] [summon]` places N walls of fire (spell `0x1d`, `spell_place_ground_effect`) in a row, the first START units (default 6) beside the current
   character, cast by it or with `summon` by the active summon (game thread; the count placed is in the log). Used to show that C270 cannot happen and to reproduce G270;
+- `spellhit TARGET SPELL POWER` runs `living_entity_get_hit_by_spell` on the character at TARGET (hex address,
+  from `peek 5fcc88` after selecting it) with spell SPELL (hex) and POWER, cast by the current character with source
+  type 6, as special abilities are applied (game thread). For G100, `spellhit 90a4e8 3e 100`;
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
 - `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or

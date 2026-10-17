@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 50 | 25 | 15 |
+| Gameplay | 50 | 25 | 16 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -922,7 +922,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SpellRecoveryTimes`) |
 | G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code, *inferred* effect | No |
 | G14 | Multiplayer: when a player closes a container after taking some items, the other machines drop the container's last entries instead of the taken ones | `mp_handle_container_close` `0x488eb0` | **Observed** code, *inferred* effect | No |
-| G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No |
+| G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No: left as it is (decided 2026-10-17) |
 | G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
 | G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 | G18 | Multiplayer: a lock picked through the host can stay locked on the other machines, or another container unlocks there | `mp_handle_container_lockpick` `0x489660` | **Observed** code, *inferred* effect | No |
@@ -938,7 +938,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G70 | If a cutscene starts while a summon is still waiting to emerge, every later summon of that creature type ends its emerge at once, until the game is closed | `summon_stash_for_cutscene` `0x448000` | **Observed** code, *inferred* effect | No |
 | G71 | Latent: a misspelled `$Skill:` name in a character table overwrites the record's up-direction skill; a misspelled direction skill becomes id `0x54`, past the skill table | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data | No |
 | G72 | Latent: a character with more than two `$Default Weapon:` lines gets wrong materials on its first weapons and, from the eighth line on, junk weapons | `characterinfo_parse_table` `0x4452f0` | **Observed** code and retail data, *inferred* effect | No |
-| G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code and retail data, *inferred* effect | No |
+| G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] LeechDrain`) |
 | G110 | Latent: a `#Clicks` name that is not a level object makes level object 0 clickable with that entry's message and gold | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G130 | Latent (the game refuses saving there, tested): after loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0`, `savegame_location_allowed` `0x4d4b5e` | **Observed** code and in game (save refused) | No |
@@ -1101,7 +1101,7 @@ there and as many untaken ones vanish from the list.
 **G15. Negated die.** For damage the handlers pass the table's die negated (`neg eax` at `0x45e4d6` for
 lightning; nine `neg` sites in all), and `spell_roll_amount` rolls `floor(frand() x die + 1)` per die
 (`0x47f51e`..`0x47f549`). With die 6 that is 1..6 for a heal but 0..-5 for damage. Lightning (d6) and the other
-damage spells with a `+Die:` in retail `spells.tbl` lose one point per die on average. A designer may have tuned the tables to this, so the intent is *inferred*. See
+damage spells with a `+Die:` in retail `spells.tbl` lose one point per die on average. A designer may have tuned the tables to this, so the intent is *inferred*. **Decision 2026-10-17:** SummonerFix leaves this as it is; the extra point on healing stays and damage is not raised. See
 [Combat](combat.md#spell-hits).
 
 **G16. Both exits return.** When the free-slot search fails (`0x47e705`..`0x47e716`), the function clears the
@@ -1270,6 +1270,14 @@ single-player path through `living_entity_get_hit_by_spell` (`test dl, 2` at `0x
 `+Special Ability: "leech"` in `Blood Elemental.tbl` (100 10), `Crystal Rokhul.tbl` (40) and `Wraith.tbl` (100).
 *Inferred:* what leech was meant to do (drain the target or heal the caster) is not known; `spells.tbl` marks it
 `+Beneficial`, `+Target character`, `+Hit only`.
+
+**Reproduced 2026-10-17** (agent mode: new command `spellhit 90a4e8 3e 100`, `living_entity_get_hit_by_spell` with
+spell `0x3e`, power 100 and source type 6 on Joseph, Rosalind leading as the source, as
+`combat_trigger_special_ability` calls it): three hits left Joseph at 3000 HP and Rosalind at 100. **Fixed** in
+SummonerFix (`bugfix.c`, switch `[Fixes] LeechDrain`) as a drain, the behaviour chosen on 2026-10-17: the end of the
+case (`0x45f47d`) jumps to a stub that takes the computed amount from the character hit (`character_add_hp(-amount,
+source)`), gives it to the source, and continues after the roll (`0x45fed8`) with `-amount`, so the target flinches.
+With the fix the same three hits took 75 HP from Joseph (25 each) and gave Rosalind 75.
 
 **G110. Index 0 for "not found".** `lobj_find_by_name` returns -1 for an unknown name, and the parser then
 pushes 0 instead of the index (`push ebx` with `ebx = 0` at `0x4cdbb6`) and stores `lobj_from_index(0)` as the entry's
