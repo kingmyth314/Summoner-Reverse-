@@ -1817,7 +1817,13 @@ retail script sends a go that early was not checked. D8602.
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
 `hud_handle_keys` sets for 100 ms (`0x40dd1c`) is gone on the next frame. It was probably meant to be
-`!valid() || elapsed()`.
+`!valid() || elapsed()`. `GameTimer__valid` (`0x501990`) is `value >= 0`, true for a running timer.
+
+**Not reproduced yet (2026-10-17).** In agent mode Bless was put in Rosalind's first hot button (`poke` of
+`savegame_state +0x105c` data, the slot showed the icon) and 1 was pressed with `keydown` and with a posted
+`WM_KEYDOWN`, sampling `hud_hot_button_used` (`0x5bd028`) every 15-40 ms; it stayed -1 with and without a test
+fix, so the press did not reach `0x40dd1c` (the slot was probably refused by `spell_is_usable`). Not fixed until
+the highlight path is seen running.
 
 **K2. Two buttons, one case.** The case table at `0x407630` maps button 31 (up) and button 33 (down) to the
 same body, `mp_charselect_scroll_down(2)` (`0x4075d0`). There is no `scroll_up(2)` case. See
