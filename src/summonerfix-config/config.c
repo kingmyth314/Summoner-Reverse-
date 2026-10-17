@@ -79,6 +79,7 @@ static const FixOption k_fixes[] = {
     {"LuminarBeamTarget", "No Luminar beam crash"},
     {"SummonKeepsLeader", "Control stays when a summon goes"},
     {"SpellRecoveryTimes", "Spell cooldowns from spells.tbl"},
+    {"GoldPileAmount", "Gold piles keep their amount on load"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

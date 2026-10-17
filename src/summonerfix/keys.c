@@ -178,27 +178,21 @@ static void ToggleScriptEditor(void)
     Log("script editor %s", (*flags & 0x80) ? "on" : "off");
 }
 
-// Agent mode "level NAME SCRIPT": the agent thread stores the names and posts WM_AGENT_LEVEL; the handler
-// below calls game_change_level (0x431a40, cdecl (level, script)) on the game thread, as a level exit does.
-#define WM_AGENT_LEVEL (WM_APP + 0x53)
-#define VA_GAME_CHANGE_LEVEL 0x431a40u
-static char g_agentLevel[32], g_agentScript[32];
+// Agent mode commands that call into the game (level, goldpile): the agent thread posts WM_AGENT_RUN with a
+// function and its argument, and the handler below runs it on the game thread, between frames. From the agent
+// thread a level change crashed mid-frame (2026-10-17).
+#define WM_AGENT_RUN (WM_APP + 0x53)
 
-BOOL KeysAgentChangeLevel(const char *level, const char *script)
+BOOL KeysAgentRun(void (*fn)(void *), void *arg)
 {
     HWND wnd = *(volatile HWND *)(UINT_PTR)SumVa(0x2cbff10);
-    if (!wnd)
-        return FALSE;
-    lstrcpynA(g_agentLevel, level, sizeof g_agentLevel);
-    lstrcpynA(g_agentScript, script, sizeof g_agentScript);
-    return PostMessageA(wnd, WM_AGENT_LEVEL, 0, 0);
+    return wnd && PostMessageA(wnd, WM_AGENT_RUN, (WPARAM)fn, (LPARAM)arg);
 }
 
 static void __cdecl MsgHandler(UINT msg, WPARAM wp, LPARAM lp)
 {
-    if (msg == WM_AGENT_LEVEL) {
-        Log("agent: game_change_level(%s, %s)", g_agentLevel, g_agentScript);
-        ((void(__cdecl *)(const char *, const char *))(UINT_PTR)SumVa(VA_GAME_CHANGE_LEVEL))(g_agentLevel, g_agentScript);
+    if (msg == WM_AGENT_RUN) {
+        ((void (*)(void *))wp)((void *)lp);
         return;
     }
     if ((msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) && !(lp & 0x40000000)) {

@@ -107,6 +107,39 @@ static void Peek(DWORD va, int n)
     Out("%s", line);
 }
 
+// Game-thread bodies of "level" and "goldpile" (run through KeysAgentRun).
+#define VA_GAME_CHANGE_LEVEL 0x431a40u  // cdecl (level, script)
+#define VA_ITEM_CREATE_BY_NAME 0x44b320u // cdecl (name) -> item
+#define VA_ITEM_OBJ_SPAWN 0x46a1b0u      // cdecl (item, pos, matrix, amount, -1, -1) -> item object
+static char g_level[32], g_script[32];
+static volatile int g_goldAmount;
+
+static void ChangeLevelOnGameThread(void *unused)
+{
+    (void)unused;
+    Log("agent: game_change_level(%s, %s)", g_level, g_script);
+    ((void(__cdecl *)(const char *, const char *))(UINT_PTR)SumVa(VA_GAME_CHANGE_LEVEL))(g_level, g_script);
+}
+
+// A loose gold pile 2 units beside the current character, as monster_drop_loot leaves one (game-bugs G40).
+static void GoldPileOnGameThread(void *unused)
+{
+    (void)unused;
+    static const float ident[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    void *item = ch ? ((void *(__cdecl *)(const char *))(UINT_PTR)SumVa(VA_ITEM_CREATE_BY_NAME))("Gold") : NULL;
+    if (!item) {
+        Log("agent: goldpile: no character or no Gold item");
+        return;
+    }
+    float pos[3];
+    memcpy(pos, ch + 0x10, sizeof pos);
+    pos[0] += 2.0f;
+    void *obj = ((void *(__cdecl *)(void *, const float *, const float *, int, int, int))(UINT_PTR)SumVa(VA_ITEM_OBJ_SPAWN))(
+        item, pos, ident, g_goldAmount, -1, -1);
+    Log("agent: goldpile %d at %.2f %.2f %.2f: object %p", g_goldAmount, pos[0], pos[1], pos[2], obj);
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -275,8 +308,14 @@ static void RunLine(char *line)
         // level NAME SCRIPT: change level as a level exit does (game_change_level), e.g.
         // "level IonaEXT02 IonaEXT02_v2". Loads the level's own script objects, which the
         // play_and_load_cutscene warp does not. Testing only.
-        // Runs on the game thread (KeysAgentChangeLevel): from this thread the load crashed mid-frame.
-        Out("level %s %s: %s", argv[1], argv[2], KeysAgentChangeLevel(argv[1], argv[2]) ? "requested" : "no window");
+        // Runs on the game thread (KeysAgentRun): from this thread the load crashed mid-frame.
+        lstrcpynA(g_level, argv[1], sizeof g_level);
+        lstrcpynA(g_script, argv[2], sizeof g_script);
+        Out("level %s %s: %s", argv[1], argv[2], KeysAgentRun(ChangeLevelOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "goldpile") && argc >= 2) {
+        // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
+        g_goldAmount = atoi(argv[1]);
+        Out("goldpile %d: %s", g_goldAmount, KeysAgentRun(GoldPileOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4, G215, C250, G8 and G12 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first; each can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`).
+**Fixed since the ranking:** G4, G215, C250, G8, G12 and G40 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first; each can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method

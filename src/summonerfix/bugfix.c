@@ -80,6 +80,12 @@
 // bp, the record index (0x47a49c, 0x47a4c1, 0x47a50b), so fireball (record 26) recovers in 26 s, not the table's
 // 20. Fix ([Fixes] SpellRecoveryTimes): mov [esi-N], bp becomes mov [esi-N], ax at all three. The table is read
 // at start-up, after this DLL's DllMain has patched the code. Spells without the lines are unchanged.
+//
+// A loose gold pile holds 1 gold after a load (not a crash; game-bugs G40). savegame_write_item_objects saves each
+// loose gold pile as x, y, z and its amount; savegame_read_item_objects reads x, y, z, skips the amount (add esi, 8
+// at 0x4d33a7) and spawns the pile with item_obj_spawn(item, pos, matrix, 1, -1, -1) (push 1 at 0x4d33c2). Fix
+// ([Fixes] GoldPileAmount): the lea ecx, [esp+0x50] ; push 1 at 0x4d33be becomes a call to a stub that does the
+// lea and pushes the saved amount ([save buffer + esi - 4], buffer = [edi+0x1034]), or 1 if it is not positive.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -106,6 +112,7 @@
 #define VA_PARTY_LIST 0x5fc350u             // Player party_list (list head; +0 = first record)
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
+#define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
 
 __attribute__((used)) volatile BYTE *g_dsInited;
 void DsChannelStreamGuard(void);
@@ -175,6 +182,21 @@ __asm__(".text\n"
         "    jmp *_g_characterAddHp\n"
         "1:  xorl %eax, %eax\n"
         "    ret $0x10\n");
+
+// Replaces lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects: pops our return address into edx (edx is
+// loaded right after), pushes the pile's saved amount where push 1 went, sets ecx, and returns by jmp.
+void GoldPileAmountStub(void);
+__asm__(".text\n"
+        "_GoldPileAmountStub:\n"
+        "    popl %edx\n"
+        "    movl 0x1034(%edi), %ecx\n" // the save buffer
+        "    movl -4(%ecx,%esi), %ecx\n" // the amount saved after z
+        "    testl %ecx, %ecx\n"
+        "    jg 1f\n"
+        "    movl $1, %ecx\n"
+        "1:  pushl %ecx\n"
+        "    leal 0x54(%esp), %ecx\n" // the caller's [esp+0x50] before the push
+        "    jmp *%edx\n");
 
 // esi = the removed Player. edi = party_list.next as before, or &party_list (loop skipped) in single player while
 // a leader other than esi is set. eax is reloaded before its next use; it is kept anyway.
@@ -303,6 +325,15 @@ void BugFixesInstall(void)
             BYTE r[4] = {0x66, 0x89, 0x46, disp[i]}; // mov [esi-N], ax (the parsed value)
             PatchBytes(sites[i], o, r, 4, "spell recovery times from spells.tbl (G12)");
         }
+    }
+
+    if (FixOn("GoldPileAmount")) {
+        static const BYTE o[6] = {0x8D, 0x4C, 0x24, 0x50, 0x6A, 0x01}; // lea ecx, [esp+0x50] ; push 1
+        BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+        DWORD s = SumVa(VA_GOLD_PILE_SPAWN_AMOUNT);
+        DWORD rel = (DWORD)(UINT_PTR)GoldPileAmountStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_GOLD_PILE_SPAWN_AMOUNT, o, r, 6, "loose gold pile keeps its amount after a load (G40)");
     }
 
     if (FixOn("PhoenixInferno")) {

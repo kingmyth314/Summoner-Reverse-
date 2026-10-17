@@ -352,7 +352,8 @@ The gold piles are **not** restored with their amount: after x, y and z the read
 (`add esi, 8` at `0x4d33a7`) and spawns every pile with a count of 1 (`push 1` at `0x4d33c2`). `item_obj_spawn`
 stores that argument at `+0x9c` (`0x46a619`..`0x46a622`), and `item_obj_pickup` adds `+0x9c` to `party_gold`
 (`0x46b6ff`..`0x46b70d`). A loose pile comes from a monster whose only loot is gold (`monster_drop_loot`,
-`0x452e38`..`0x452e48`). Piles beyond the 32nd are not saved at all. All eight saves have no containers
+`0x452e38`..`0x452e48`). Reproduced in game, game bug G40; SummonerFix restores the saved amount
+(`[Fixes] GoldPileAmount`). Piles beyond the 32nd are not saved at all. All eight saves have no containers
 (count 0).
 
 ## Quest bits (observed)

@@ -269,6 +269,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `level IonaEXT02 IonaEXT02_v2`. Unlike the `play_and_load_cutscene` warp it loads the level's own script
   characters, so story bosses are there. Start it from a loaded save: from a cutscene warp the load crashed in
   `skeleton_read_tag_record` (2026-10-17);
+- `goldpile N` leaves a loose gold pile of N gold 2 units beside the current character (`item_create_by_name("Gold")`,
+  `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
   and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters.
 

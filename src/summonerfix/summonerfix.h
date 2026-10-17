@@ -67,7 +67,7 @@ void KeyBindInstall(void);
 void KeysInjectKey(int code, int down);
 void KeysInjectMouse(int button, int down);
 void KeysAgentSpeed(int on);  // agent mode: switch fast mode on/off
-BOOL KeysAgentChangeLevel(const char *level, const char *script); // agent mode: game_change_level on the game thread
+BOOL KeysAgentRun(void (*fn)(void *), void *arg); // agent mode: run fn(arg) on the game thread (posted message)
 float KeysSpeedActive(void);   // current speed factor while fast mode is on, else 0
 
 // display.c (agent mode)

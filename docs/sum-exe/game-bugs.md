@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 8 |
+| Gameplay | 51 | 25 | 9 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -933,7 +933,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G30 | Boss moves aimed by offense point are measured from about the world origin: Pyrul's slash and fire breath, Machival's area attacks and every Giant Salamanka melee hit should rarely land; the Ghost's sweep hits only its main target | `boss_ai_parse_table` `0x4a1790` | **Observed** code and retail data, *inferred* effect | No |
 | G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code, *inferred* effect | No |
 | G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code, *inferred* effect | No |
-| G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code, *inferred* effect | No |
+| G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
 | G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
 | G42 | Latent: a door whose name plus the level script name has 64 characters or more makes every save of that level fail to load | `savegame_read_two_stage` `0x4d34e0` | **Observed** code, *inferred* effect | No |
 | G50 | After a reload or a second visit to the Khosani lab, the flipper puzzle's board no longer matches the flippers: raised flippers show no lava platform, and the next presses move the wrong flippers | `ls_khosanilab_init` `0x4f8920`, `ls_khosanilab_set_flippers` `0x4f9ca0` | **Observed** code, *inferred* effect | No |
@@ -1187,6 +1187,12 @@ what `monster_drop_loot` leaves when gold is the monster's only loot (`0x452e38`
 1 gold after loading. Gold inside a container keeps its amount, because the container items are read with their
 saved count (`0x4d3307`, `0x4d3326`). The loaded pile is also dropped to the floor again by `item_obj_spawn`'s
 probe.
+
+**Reproduced 2026-10-17** (agent mode, a test save in the Ikaemos swamp): agent command `goldpile 37` left a loose
+pile of 37 gold beside Rosalind, the save written from the menu held it (x, y, z, then 37), and after
+`loadgame` picking it up with X raised the party's gold from 30 to 31. **Fixed** in SummonerFix (`bugfix.c`,
+switch `[Fixes] GoldPileAmount`): the `lea ecx, [esp+0x50]; push 1` at `0x4d33be` goes through a stub that pushes
+the saved amount (1 if it is not positive). After the fix the same save gave 30 -> 67.
 
 **G41. A silent limit of 32.** The gold-pile loop stops at 32 (`cmp ebp, 0x20; jge` at `0x4d24e3`) and the save still
 succeeds. The level does not recreate monster drops, so piles 33 and later are lost on load.
