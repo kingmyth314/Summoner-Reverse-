@@ -392,8 +392,8 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
    `vfx_dummy_desc` and vfx_material's blend are bit-fields (D7904, D7600, D8202), `character_instance`'s tint is three
    members (D8604), navpoint +0x24 / +0x28 are plain members (D8703), `snd_play_looping` takes five arguments (D8400).
    The rewrite also fixed decomp logic errors (among them D6901-D6903, D7302, D7504, D7604, D7701, D8101, D8200,
-   D8600, D8702, D8706, D8801, D8901) and found four bugs in the original game, to be added to
-   [Bugs](sum-exe/game-bugs.md) after the matching work: giant_salamanka_set_flinch loops forever on a move with no
+   D8600, D8702, D8706, D8801, D8901) and found four bugs in the original game, filed 2026-10-17 in
+   [Bugs](sum-exe/game-bugs.md) as C314, C315, C316 and G311: giant_salamanka_set_flinch loops forever on a move with no
    action (D6901), characterinfo_find_multi_slot loops on its error when all four multiplayer slots are used (D7604),
    avoid_area_rebuild copies up to eight obstacle indices into a three-entry stack array (D7503), and
    script_object_receive_go never advances its action pointer (D8602). 969 compared functions still differ; what is

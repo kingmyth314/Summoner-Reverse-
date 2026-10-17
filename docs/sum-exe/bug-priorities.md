@@ -20,11 +20,17 @@ Rider's Inferno hitting once per party member (G215) and a crash in the Luminar 
 **Draft.** The scores are a judgement made from the bug paragraphs on 2026-10-16 (*Inferred*). They do not
 re-verify any bug. The ease scores assume the agent-mode setup in [Tools](../tools.md#toolsagentmjs-agent-mode).
 A score changes when a bug is reproduced or a new tool makes one easier to reach.
+
+{: .note }
+**Added after the ranking (2026-10-17):** C314 (Salamanka flinch hang), C315 (multiplayer slot error loop), C316
+(avoidance area index overflow) and G311 (scripted "go" lost), found while byte-matching. All four are latent (no
+known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 might reach impact 4 if five
+overlapping spell areas turn out to be reachable in a retail fight).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method
 
-**Scope.** All 355 bugs on the bugs page, minus 26 that SummonerFix players never meet (see
+**Scope.** All 355 bugs on the bugs page as of 2026-10-16, minus 26 that SummonerFix players never meet (see
 [Not ranked](#not-ranked)). Those are the 14 that SummonerFix fixes or avoids, and 12 that need the Direct3D or
 Glide renderer. SummonerFix always runs the game on OpenGL, so OpenGL-only bugs (C50, C90, K50, K51, K310, V50,
 V51) stay in the list.

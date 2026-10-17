@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 359 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,8 +26,8 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 79 | 2 |
-| Gameplay | 51 | 24 | 4 |
+| Crash or hang | 7 | 82 | 2 |
+| Gameplay | 51 | 25 | 4 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -124,6 +124,9 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C311 | Latent: in multiplayer, a new character from the host that the client cannot create (for example with all living-entity slots in use) crashes the client | `mp_handle_new_lep` `0x47ff10` | **Observed** code, *inferred* crash | No |
 | C312 | Latent: in multiplayer, a respawn packet for a player id the machine does not know crashes it | `mp_respawn_player` `0x481090` | **Observed** code, *inferred* crash | No |
 | C313 | Latent: the `save_map_labels` console command hangs the game when `automap_labels.tbl` has no `#End` line | `automap_labels_save` `0x430580` | **Observed** code and retail data, *inferred* hang | No |
+| C314 | Latent: the Giant Salamanka hangs the game when it flinches while one of its moves has no action | `giant_salamanka_set_flinch` `0x4c8280` | **Observed** code, *inferred* hang | No |
+| C315 | Latent: in multiplayer, a fifth character asking for a character-info slot shows an error that repeats for ever | `characterinfo_find_multi_slot` `0x449a30` | **Observed** code, *inferred* hang | No |
+| C316 | Latent: removing a spell's avoidance area from a merged area of five or more overwrites saved registers of the caller (memory corruption, probably a crash) | `avoid_area_rebuild` `0x4a7cb0` | **Observed** code, *inferred* effect | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -878,6 +881,24 @@ It never tests whether ReadLine read anything, so a file without `#End` makes it
 The only caller is the `save_map_labels` console command (`cmd_save_map_labels`). Retail: the shipped
 `automap_labels.tbl` is just `#Automap Labels` and `#End`, so it is latent.
 
+**C314. The loop skips its own step.** `giant_salamanka_set_flinch` walks the Salamanka's moves with a
+`while` loop. A move without an action jumps from the skip test (`0x4c829d`) straight to the loop test (`0x4c8384`),
+past the load of the next move (`0x4c8381` `mov ebx, [ebx + 0x40]`), so the same move is tested again for ever.
+Whether a retail move of the Giant Salamanka can have no action was not checked. Found while byte-matching the
+function (src/decomp DECISIONS.md D6901).
+
+**C315. The error never returns.** `characterinfo_find_multi_slot` looks for a free one of the four multiplayer
+character-info slots. When all four are used it calls the debug error and jumps back to the call
+(`0x449adc` `jmp 0x449ac5`), so the error repeats for ever. Four slots serve at most four players, so no
+retail game reaches it. D7604.
+
+**C316. Three slots for up to seven indices.** When an obstacle leaves a merged avoidance polygon,
+`avoid_area_rebuild` copies the indices of the other obstacles into a local array of three ints (frame 0x18 bytes,
+array at +0xc, dword stores at `0x4a7d5d`), but a polygon merges up to eight obstacles. With five or more, the
+fourth to seventh index overwrite the saved EDI, ESI, EBP and EBX, which the caller then uses. The obstacles are
+the avoidance areas of spells (`avoid_area_add`), one per size class, so it takes five or more overlapping spell
+areas; whether a retail fight reaches that was not checked. D7503.
+
 ## Gameplay
 
 | # | What the player sees | Function | Evidence | SummonerFix |
@@ -957,6 +978,7 @@ The only caller is the `save_map_labels` console command (`cmd_save_map_labels`)
 | G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code and retail data | No |
 | G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
+| G311 | Latent: a scripted "go" for a character that has not reached its "wait for go" action yet is lost, so the character can wait there for ever | `script_object_receive_go` `0x4ce220` | **Observed** code, *inferred* effect | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1627,6 +1649,14 @@ locally controlled and its own timer at `+0x784` must have run out. It then push
 from here. The other callers of `mp_send_obj_update` are the AI frame (only for `cur_character`, `0x472db1`),
 the elevators and two boss releases. *Inferred:* the summon's position and heading on the other machines are not
 corrected every second, so they drift from the owner's view.
+
+**G311. The pointer never moves.** `script_object_receive_go` ends a script object's "wait for go" action
+(types 4 and 0x19 remove the wait goal and advance the script; type 0xb sets its flag). It loops from the current
+action to the last, but takes the action pointer once before the loop (`0x4ce280`..`0x4ce283`) and never advances
+it (the loop end `0x4ce2b8`..`0x4ce2c1` increments only the index), so it tests the current action again and
+again. A "go" that arrives while the object is still on an earlier action (walking to its place, for example) is
+therefore lost, and the object waits at the later "wait for go" for ever unless another go comes. Whether a
+retail script sends a go that early was not checked. D8602.
 
 ## Cosmetic
 
@@ -4224,5 +4254,9 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C311 new LEP NULL | `mp_handle_new_lep` `0x47ff88`..`0x47ffc1`; `living_entity_create` `0x461b80` |
 | C312 respawn NULL | `mp_respawn_player` `0x481097`..`0x4810cb`; callers `0x481057`, `0x481136` |
 | C313 labels save loop | `automap_labels_save` `0x430780`..`0x4307ff`, `0x43082a`; retail `automap_labels.tbl` |
+| C314 Salamanka flinch loop | `giant_salamanka_set_flinch` `0x4c829d`, `0x4c8381`, `0x4c8384` |
+| C315 multi slot error | `characterinfo_find_multi_slot` `0x449ac5`..`0x449adc` |
+| C316 avoid area indices | `avoid_area_rebuild` `0x4a7cb0`, frame and stores `0x4a7d5d`; `avoid_area_add` |
 | G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
+| G311 receive go | `script_object_receive_go` `0x4ce280`..`0x4ce283`, `0x4ce2b8`..`0x4ce2c1` |
 | K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |
