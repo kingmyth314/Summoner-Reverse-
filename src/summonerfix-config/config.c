@@ -88,6 +88,7 @@ static const FixOption k_fixes[] = {
     {"DetectionCone", "Summons notice enemies ahead"},
     {"LeechDrain", "Leech drains HP"},
     {"ConversationHover", "Conversation more/end hover"},
+    {"SaveListThumbnail", "Scrolled save list pictures"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

@@ -130,6 +130,13 @@
 // (character_add_hp(-amount, source)) and gives it to the source (character_add_hp(+amount)), stores -amount and
 // continues after the roll and add_hp (0x45fed8), so the target flinches as for other damage.
 //
+// Scrolled save list shows the current scene for its top row (cosmetic; game-bugs K5). In save mode
+// saveload_load_thumbnail loads no file for row 0 (test ebx, ebx ; jle at 0x425c65) and saveload_draw_thumbnail
+// draws the current scene for row 0 (0x426fda), both by the visible row, so with the list scrolled the top row's
+// save shows the scene. Entry 0 is "<New Savegame>". Fix ([Fixes] SaveListThumbnail): the load test looks at the
+// entry the row points to (edx, saveload_entries + 0x130 x (scroll + row)), and the draw test reads
+// selected_row + scroll_pos (the G4 stub).
+//
 // Conversation "more" / "end" lit for the wrong mouse positions (cosmetic; game-bugs K292). dialogue_topic_entry__draw
 // tests the mouse against the entry's box, but its last test compares the mouse x with box y + text height
 // (mov edx, [esp+h] ; add ecx, edx ; cmp eax, ecx with eax the x; "more" 0x4d6fe8, "end" 0x4d707c). Fix ([Fixes]
@@ -164,7 +171,10 @@
 #define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
 #define VA_DIALOGUE_MORE_HOVER 0x4d6fe8u    // last hover test of the "more" entry in dialogue_topic_entry__draw
 #define VA_DIALOGUE_END_HOVER 0x4d707cu     // the same for "end"
-#define VA_LEECH_STORE 0x45f47du           // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
+#define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
+#define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
+#define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
+#define VA_LEECH_STORE 0x45f47du          // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
 #define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
 #define VA_LIVING_FROM_HANDLE_FIX 0x46b1a0u
 #define VA_DETECT_CONE_JCC 0x493c5cu       // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
@@ -233,6 +243,22 @@ __asm__(".text\n"
         "    movl _g_saveScrollPos, %ecx\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
+        "    ret\n");
+
+// Replaces test al, al ; je ; test ebx, ebx in saveload_load_thumbnail (al = save mode, edx = the entry); the jle
+// after the call skips the file when this sets "less or equal": in save mode for entry 0 only.
+__attribute__((used)) DWORD g_saveEntries;
+void SaveThumbEntryStub(void);
+__asm__(".text\n"
+        "_SaveThumbEntryStub:\n"
+        "    testb %al, %al\n"
+        "    je 1f\n"
+        "    cmpl _g_saveEntries, %edx\n" // equal for entry 0 -> jle taken
+        "    ret\n"
+        "1:  pushl %eax\n"
+        "    movl $1, %eax\n"
+        "    cmpl $0, %eax\n"            // greater -> jle not taken (load mode: always load)
+        "    popl %eax\n"
         "    ret\n");
 
 // character_add_hp(this = ecx, 4 args, ret 0x10) unless ecx is NULL: then al = 0 and the arguments are popped.
@@ -509,6 +535,24 @@ void BugFixesInstall(void)
         static const BYTE er[8] = {0x03, 0x4C, 0x24, 0x10, 0x39, 0x4C, 0x24, 0x14};
         PatchBytes(VA_DIALOGUE_MORE_HOVER, mo, mr, 8, "conversation more / end highlight under the mouse (K292)");
         PatchBytes(VA_DIALOGUE_END_HOVER, eo, er, 8, "conversation more / end highlight under the mouse (K292)");
+    }
+
+    if (FixOn("SaveListThumbnail")) {
+        g_saveSelectedRow = SumVa(VA_SAVELOAD_SELECTED_ROW);
+        g_saveScrollPos = SumVa(VA_SAVELOAD_SCROLL_POS);
+        g_saveEntries = SumVa(VA_SAVELOAD_ENTRIES);
+        static const BYTE lo[8] = {0x84, 0xC0, 0x74, 0x04, 0x85, 0xDB, 0x7E, 0x0D}; // test al,al; je; test ebx,ebx; jle
+        BYTE lr[8] = {0xE8, 0, 0, 0, 0, 0x7E, 0x0E, 0x90};                         // call stub; jle 0x425c76
+        DWORD s = SumVa(VA_SAVE_THUMB_LOAD_TEST);
+        DWORD rel = (DWORD)(UINT_PTR)SaveThumbEntryStub - (s + 5);
+        memcpy(lr + 1, &rel, 4);
+        PatchBytes(VA_SAVE_THUMB_LOAD_TEST, lo, lr, 8, "scrolled save list thumbnails (K5)");
+        static const BYTE dor[5] = {0xA1, 0x0C, 0x36, 0x5E, 0x00}; // mov eax, [saveload_selected_row]
+        BYTE drr[5] = {0xE8};
+        s = SumVa(VA_SAVE_THUMB_DRAW_ROW);
+        rel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (s + 5);
+        memcpy(drr + 1, &rel, 4);
+        PatchBytes(VA_SAVE_THUMB_DRAW_ROW, dor, drr, 5, "scrolled save list thumbnails (K5)");
     }
 
     if (FixOn("PhoenixInferno")) {

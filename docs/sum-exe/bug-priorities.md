@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100 and K292 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50 and G30 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`).
+**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292 and K5 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50 and G30 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method

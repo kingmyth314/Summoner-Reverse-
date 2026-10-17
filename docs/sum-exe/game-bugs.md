@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 49 | 25 | 16 |
-| Cosmetic | 58 | 36 | 8 |
+| Cosmetic | 58 | 36 | 9 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1723,7 +1723,7 @@ retail script sends a go that early was not checked. D8602.
 | K2 | In the multiplayer character screen, the info panel's up arrow scrolls down | `mp_charselect_button_action` `0x4074e0` | **Observed** code | No |
 | K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code | No |
 | K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code | No |
-| K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code, *inferred* effect | No |
+| K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
 | K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code, *inferred* effect | No |
 | K7 | A character missing from the font is drawn as a garbage glyph | `gr_string` `0x508c60` | **Observed** code, *inferred* effect | No |
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
@@ -1837,6 +1837,13 @@ party-inventory order (`buysell_get_list_item` `0x40497d`). The jump returns an 
 **K5. Row index again.** In save mode `saveload_load_thumbnail` loads no file for row 0 (`test ebx, ebx;
 jle` at `0x425c65`). `saveload_draw_thumbnail` then shows the current scene for row 0 (`0x426fe5`). Both
 use the row, not scroll + row, so a scrolled top row shows the scene instead of its save.
+
+**Reproduced 2026-10-17** (agent mode, TestSaves with 18 saves; the party moved with `nudge` so the scene differs from
+every save picture): in the Save screen, scrolled two rows, the top row's save ("C210 test") showed the current
+scene. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SaveListThumbnail`): the load test at `0x425c61`
+checks the entry the row points to (entry 0 is `<New Savegame>`), and the draw test at `0x426fda` reads
+`selected_row + scroll_pos` (the G4 stub). After the fix the same row showed its save's picture, and
+`<New Savegame>` still showed the current scene.
 
 **K6. Full returns 0.** With 32 labels, `automap_label_alloc` returns 0 (`xor eax, eax` at `0x430245`)
 instead of -1. `automap_add_label_at_mouse` tests for a negative result (`jl` at `0x403180`), so it
