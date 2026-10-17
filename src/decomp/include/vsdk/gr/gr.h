@@ -282,11 +282,11 @@ float rgb_to_lightened_grey(float r, float g, float b);  // 0x508090 (avg + (255
 
 // A 3D pipeline vertex (0x30 bytes; symbols/types.h gr_Vertex, +0x1a.. from levelrender_face_vertex_colors).
 // +0x1a: what the vertex supplies besides the position (gr_tmapper_multipass: 1 uv, 4 rgb, 8 alpha;
-// gr_bitmap_float sets 1, gr_rect 0, levelrender 0xf). The original has a default constructor
-// (gr__Vertex__Vertex 0x5081c0, a COMDAT at the end of gr.cpp, constructs a vector3 at +0), which gr_rect
-// and gr_bitmap_float run through `vector constructor iterator`; not declared here (D1605, still open).
-struct gr_vertex {
-    float x, y, z;                    // +0x00 view space
+// gr_bitmap_float sets 1, gr_rect 0, levelrender 0xf). D7100: the position is a vector3 base, so the implicit
+// constructor (gr__Vertex__Vertex 0x5081c0, constructs the vector3 at +0) and operator= (0x540790, through
+// vector3::operator=) are the original's; the /Ob0 units call them out of line (amends D1605).
+struct gr_vertex : vector3 {
+                                      // +0x00 x, y, z view space (the vector3)
     float sx, sy, sw;                 // +0x0c screen x / y and 1/z (gr_project_vertex)
     ubyte codes;                      // +0x18 clip codes
     ubyte flags;                      // +0x19 1 projected, 2 behind the viewer, 4 temporary

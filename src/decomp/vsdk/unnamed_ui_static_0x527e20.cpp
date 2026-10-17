@@ -41,7 +41,7 @@ ui_static::ui_static()
     text[0] = '\0';
 }
 
-// 0x527f10  Confidence: likely (store order). The bitmap window is the whole gadget at offset 0, 0;
+// 0x527f10  Confidence: exact (VC6 byte match, match11; was likely) (store order). The bitmap window is the whole gadget at offset 0, 0;
 // the text is left aligned, vertically centred.
 void ui_static::create(ui_element *window, int x, int y, int w, int h, int id, bool owned)
 {

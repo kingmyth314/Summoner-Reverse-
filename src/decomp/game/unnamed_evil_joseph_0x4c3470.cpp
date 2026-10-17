@@ -112,7 +112,7 @@ void cmd_darkjo_combat()
 void evil_joseph_spawn_helpers(Character *boss)
 {
     int species[4];
-    int *handle = evil_joseph_helpers;
+    int *handle;
     Character *c;
     int i;
 
@@ -120,10 +120,10 @@ void evil_joseph_spawn_helpers(Character *boss)
     species[1] = SPECIES_EJ_HELPER_1;
     species[2] = SPECIES_EJ_HELPER_2;
     species[3] = SPECIES_EJ_HELPER_3;
+    handle = evil_joseph_helpers;
     for (i = 0; i < 4; i++) {
         int info = charinfo_find_by_species(species[i]);
-        vector3 pos(boss->pos.x + boss->orient.fvec.x, boss->pos.y + boss->orient.fvec.y,
-                    boss->pos.z + boss->orient.fvec.z);
+        vector3 pos = boss->pos + boss->orient.fvec;
         c = living_entity_create(5, info, &pos, &boss->orient, true, boss->layer, 0, 0, false);
         if (c) {
             *handle++ = c->handle;
@@ -407,33 +407,26 @@ void evil_joseph_pick_helper_summon(Character *boss)
     Character *c;
     Character *t;
     vector3 dir;
-    vector3 mid;
     float r;
     int tries;
     int i;
-    int handle;
 
     evil_joseph_summon_handle = -1;
     evil_joseph_current_move = NULL;
     evil_joseph_helper_index++;
     if (evil_joseph_helper_index < 4) {
-        handle = evil_joseph_helpers[evil_joseph_helper_index];
+        evil_joseph_summon_handle = evil_joseph_helpers[evil_joseph_helper_index];
     } else {
-        handle = evil_joseph_summon_handle;
         for (tries = 0; tries < 5; tries++) {
             i = rand() % 4;
             c = living_from_handle(evil_joseph_helpers[i]);
             if (c && !(c->obj_flags & 1) && !(c->flags & CF_DEAD) && evil_joseph_summon_handle != evil_joseph_helpers[i]) {
-                handle = evil_joseph_helpers[i];
+                evil_joseph_summon_handle = evil_joseph_helpers[i];
                 break;
             }
         }
-        if (tries == 5)
-            goto check;
     }
-    evil_joseph_summon_handle = handle;
-check:
-    if (handle == -1)
+    if (evil_joseph_summon_handle == -1)
         return;
     evil_joseph_summon_pos = boss->pos;
     t = living_from_handle(evil_joseph_target_handle);
@@ -442,12 +435,12 @@ check:
         if (t == NULL)
             return;
     }
-    mid.x = boss->pos.x + t->pos.x;
-    mid.y = t->pos.y + boss->pos.y;
-    mid.z = t->pos.z + boss->pos.z;
-    evil_joseph_summon_pos.x = mid.x * 0.5f;
-    evil_joseph_summon_pos.y = mid.y * 0.5f;
-    evil_joseph_summon_pos.z = mid.z * 0.5f;
+    dir.x = boss->pos.x + t->pos.x;
+    dir.y = t->pos.y + boss->pos.y;
+    dir.z = t->pos.z + boss->pos.z;
+    evil_joseph_summon_pos.x = dir.x * 0.5f;
+    evil_joseph_summon_pos.y = dir.y * 0.5f;
+    evil_joseph_summon_pos.z = dir.z * 0.5f;
     float dx = evil_joseph_summon_pos.x - t->pos.x;
     float dz = evil_joseph_summon_pos.z - t->pos.z;
     if ((float)sqrt(dx * dx + dz * dz) < 4.0f) {
@@ -456,15 +449,15 @@ check:
             dir.random_direction();
             dir.y = 0.0f;
             dir.normalize_safe();
-            mid.x = dir.x * r + boss->pos.x;
-            mid.y = dir.y * r + boss->pos.y;
-            mid.z = dir.z * r + boss->pos.z;
-            if (pf_point_is_navigable(&mid, t->info->size, boss->layer) == true)
+            dir.x = dir.x * r + boss->pos.x;
+            dir.y = dir.y * r + boss->pos.y;
+            dir.z = dir.z * r + boss->pos.z;
+            if (pf_point_is_navigable(&dir, t->info->size, boss->layer) == true)
                 break;
         }
         if (tries == 10)
             return;
-        evil_joseph_summon_pos = mid;
+        evil_joseph_summon_pos = dir;
     }
     for (i = 0; i < 4; i++) {
         if (evil_joseph_summon_handle == evil_joseph_helpers[i]) {

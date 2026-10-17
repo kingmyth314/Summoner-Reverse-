@@ -33,7 +33,7 @@ ushort wide_charmap_table[86] = {                // 0x5a783c
     0x8170, 0x8150,
 };
 
-// 0x514ec0  Confidence: likely (the length is tested twice: an explicit empty test before the loop).
+// 0x514ec0  Confidence: exact (VC6 byte match, match11; was likely) (the length is tested twice: an explicit empty test before the loop).
 bool is_blank(const char *s)
 {
     int len = strlen(s);
@@ -295,7 +295,7 @@ char *float_to_string(char *dest, int size, float value, int precision)
     return dest;
 }
 
-// 0x515760  Confidence: likely (VC6 turns the divisions by 1024 into the multiplications by 1/1024
+// 0x515760  Confidence: exact (VC6 byte match, match11; was likely) (VC6 turns the divisions by 1024 into the multiplications by 1/1024
 // at 0x581d54; the KB limit is 999.99f at 0x581d50). size unused.
 char *byte_count_to_string(char *dest, int size, int bytes)
 {

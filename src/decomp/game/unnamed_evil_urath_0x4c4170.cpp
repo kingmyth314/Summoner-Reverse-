@@ -151,7 +151,9 @@ void evil_urath_pick_teleport_point()
 // 0x4c43f0  Confidence: exact (as machival_cast_spell with category 7 only).
 void ai_state::evil_urath_cast_spell(int spell, Character *target)
 {
-    move_info *move = owner->find_move(7, spells[spell].variation);
+    Character *c = owner;
+    int variation = spells[spell].variation;
+    move_info *move = c->find_move(7, variation);
 
     if (move == NULL)
         return;
@@ -159,11 +161,11 @@ void ai_state::evil_urath_cast_spell(int spell, Character *target)
     if (owner->cur_anim == -1)
         return;
     add_cast_at_target(spell, target, 5000);
-    evil_urath_casting_spell = spell;
     evil_urath_cast_anim = owner->cur_anim;
+    evil_urath_casting_spell = spell;
 }
 
-// 0x4c4470  Confidence: likely. boss_target_filter_dispatch case 0xb1. Flags: 0x20 paralysed, 0x10
+// 0x4c4470  Confidence: exact. boss_target_filter_dispatch case 0xb1. Flags: 0x20 paralysed, 0x10
 // poisoned, 2 blind, 4 silenced, 8 cursed, 0x40 farther than 3.5, 1 its threat record's [2] / [3] above
 // 0.25. The threat search reads the candidate's handle before the NULL test (NOTES, game bugs).
 void evil_urath_filter_target(Character *boss, boss_target *t)
@@ -189,9 +191,8 @@ void evil_urath_filter_target(Character *boss, boss_target *t)
         t->flags |= 4;
     if (t->character->has_status(STATUS_CURSE))
         t->flags |= 8;
-    vector3 d(t->character->pos.x - boss->pos.x, t->character->pos.y - boss->pos.y,
-              t->character->pos.z - boss->pos.z);
-    if ((float)sqrt(d.z * d.z + d.y * d.y + d.x * d.x) > 3.5f)
+    vector3 d = t->character->pos - boss->pos;
+    if ((float)sqrt(d.x * d.x + d.y * d.y + d.z * d.z) > 3.5f)
         t->flags |= 0x40;
     if (threat && threat->threat[2] / threat->threat[3] > 0.25f)
         t->flags |= 1;
@@ -285,7 +286,7 @@ void ai_state::evil_urath_ai_idle()
     }
 }
 
-// 0x4c4760  Confidence: likely (the sub-mode switch is a plain table of 4, 0x4c47d0).
+// 0x4c4760  Confidence: exact (the sub-mode switch is a plain table of 4, 0x4c47d0).
 void ai_state::evil_urath_ai_frame()
 {
     int result = evil_urath_ai_select_action();
@@ -495,18 +496,19 @@ int ai_state::evil_urath_ai_select_action()
 {
     boss_target list[BOSS_MAX_THREATS];
     float weights[7];
-    int spell = -1;
+    int spell;
     Character *target;
     Character *t;
     bool timer_up;
     int count;
     int index;
-    unsigned int flags;
+    boss_target *e;
     float frac;
 
     if (evil_urath_casting_spell != -1 || submode == AIS_URATH_LEAP_START || submode == AIS_URATH_LEAP_RISE
         || submode == AIS_URATH_LEAP_TRAVEL || submode == AIS_URATH_LEAP_LAND)
         return 5;
+    spell = -1;
     target = living_from_handle(evil_urath_target_handle);
     if (target && (target->flags & CF_HIDDEN))
         target = NULL;
@@ -544,19 +546,28 @@ int ai_state::evil_urath_ai_select_action()
         return 0;
     if ((float)fabs(owner->pos.y - t->pos.y) > 7.0f)
         return 4;
-    flags = list[index].flags;
-    weights[0] = (flags & 2) ? 0.1f : 1.0f / 7.0f;
-    if (flags & 4)
+    e = &list[index];
+    weights[0] = 1.0f / 7.0f;
+    if (e->flags & 2)
+        weights[0] = 0.1f;
+    weights[1] = 1.0f / 7.0f;
+    if (e->flags & 4)
         weights[1] = 0.2f;
-    else if (flags & 1)
-        weights[1] = 6.0f / 7.0f;
-    else
-        weights[1] = 1.0f / 7.0f;
+    else if (e->flags & 1)
+        weights[1] = 0.8571429f;
     weights[2] = 1.0f / 7.0f;
-    weights[3] = (flags & 8) ? 0.2f : 1.0f / 7.0f;
-    weights[4] = (flags & 0x10) ? 0.2f : 1.0f / 7.0f;
-    weights[5] = (flags & 0x20) ? 0.2f : 1.0f / 7.0f;
-    weights[6] = (flags & 0x40) ? 1.0f : 1.0f / 7.0f;
+    weights[3] = 1.0f / 7.0f;
+    if (e->flags & 8)
+        weights[3] = 0.2f;
+    weights[4] = 1.0f / 7.0f;
+    if (e->flags & 0x10)
+        weights[4] = 0.2f;
+    weights[5] = 1.0f / 7.0f;
+    if (e->flags & 0x20)
+        weights[5] = 0.2f;
+    weights[6] = 1.0f / 7.0f;
+    if (e->flags & 0x40)
+        weights[6] = 1.0f;
     index = rand_weighted_index(weights, 7);
     if (index == -1)
         index = rand() % 6;

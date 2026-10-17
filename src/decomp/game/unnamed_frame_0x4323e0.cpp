@@ -188,7 +188,8 @@ void game_unpause()
         multi_set_netgame_state(true);
 }
 
-// 0x432710  Confidence: likely (the debug key block: the second `if` on the flag is folded into the store's
+// 0x432710  Confidence: exact (VC6 byte match, cl 8966; was likely: the debug key block: the second `if` on the
+// flag is folded into the store's
 // branch). Waits while the window is in the background (timers paused), then takes one key: Print Screen
 // requests a screenshot, Shift+Esc quits (in multiplayer: leaves the game unless paused), and the debug
 // Backspace (KEY_DEBUGGED is 0x8000 here but key_mark sets 0x800, so it never matches; D3103) flushes the
@@ -223,7 +224,8 @@ int PollInputEvents()
     switch (key) {
     case KEY_SYSRQ:
         game_flags |= GF_SCREENSHOT;
-        return 0;
+        key = 0;
+        break;
     case KEY_SHIFTED | KEY_ESC:
         if (game_flags & GF_MULTIPLAYER) {
             if (!game_is_paused()) {
@@ -235,10 +237,12 @@ int PollInputEvents()
         } else {
             gameseq_set_state(STATE_QUIT);
         }
-        return 0;
+        key = 0;
+        break;
     case KEY_DEBUGGED | KEY_BACKSPACE:
         key_flush();
-        return 0;
+        key = 0;
+        break;
     }
     return key;
 }
@@ -402,11 +406,14 @@ void cursor_draw(int x, int y)
 
     gr_set_color(255, 255, 255, 255);
     switch (resolution_index) {
+    case 2:
+        scale = 1.6f;
+        break;
     case 1:
         scale = 1.25f;
         break;
-    case 2:
-        scale = 1.6f;
+    case 0:
+        scale = 1.0f;
         break;
     default:
         scale = 1.0f;

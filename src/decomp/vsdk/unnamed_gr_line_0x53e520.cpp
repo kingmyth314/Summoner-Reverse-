@@ -13,8 +13,8 @@
 // literals 0x5abfe0-0x5ac0dd and .bss 0x2dc7060-0x2dc706f (after cmdline.cpp's 0x2dc7054).
 //
 // Like the other vsdk objects this one calls the header inlines out of line (vector3 and matrix
-// operators, gr::Mode, gr_clip_free_temp_verts), so it was built without inline expansion. gr_vertex has
-// no constructor and no vector3 member here (D1605, still open): the binary runs gr__Vertex__Vertex
+// operators, gr::Mode, gr_clip_free_temp_verts), so it was built without inline expansion (/Ob0 in
+// vc6-flags.txt, D7101). gr_vertex's position is a vector3 base (D7100): the binary runs gr__Vertex__Vertex
 // (0x5081c0) on every local vertex and the vertex assignments of gr_draw_sphere call the implicit
 // operator= COMDAT 0x540790 (which assigns the vector3 at +0 through vector3::operator=).
 //
@@ -79,7 +79,7 @@ bool gr_line_3d(gr_vertex *p0, gr_vertex *p1, gr::Mode mode)
     return ret;
 }
 
-// 0x53e610  Confidence: likely (the two vertices are constructed in the binary, D1605).
+// 0x53e610  Confidence: exact (the two vertices are constructed in the binary, D1605).
 void gr_line_3d_world(const vector3 *a, const vector3 *b, gr::Mode mode)
 {
     gr_vertex p0, p1;
@@ -442,7 +442,7 @@ bool gr_bitmap_3d_oriented_quad_facing(const vector3 *pos, const matrix *orient,
     return gr_poly(4, list, mode, false, 0.0f);
 }
 
-// 0x53f3b0  Confidence: likely (the binary constructs the vertex, D1605; the rest matches).
+// 0x53f3b0  Confidence: exact (the binary constructs the vertex, D1605; the rest matches).
 bool gr_bitmap_3d(vector3 *pos, float angle, float size, gr::Mode mode)
 {
     gr_vertex pnt;
@@ -454,7 +454,7 @@ bool gr_bitmap_3d(vector3 *pos, float angle, float size, gr::Mode mode)
     return false;
 }
 
-// 0x53f410  Confidence: likely (the binary constructs the vertex, D1605; the rest matches).
+// 0x53f410  Confidence: exact (the binary constructs the vertex, D1605; the rest matches).
 bool gr_bitmap_3d_oriented(const vector3 *pos, float angle, float width, float height, gr::Mode mode)
 {
     gr_vertex pnt;
@@ -466,7 +466,7 @@ bool gr_bitmap_3d_oriented(const vector3 *pos, float angle, float width, float h
     return false;
 }
 
-// 0x53f470  Confidence: likely (the order of the vertex declarations). A quad of the given width along
+// 0x53f470  Confidence: exact (the order of the vertex declarations). A quad of the given width along
 // p0 - p1, facing the viewer; always buffered, sorted by the view z of its centre.
 bool gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode mode)
 {
@@ -562,7 +562,7 @@ bool gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode)
     return true;
 }
 
-// 0x53faf0  Confidence: likely (the binary constructs the eight vertices, D1605; the rest matches). sum.symbols' "arrow" is a wire
+// 0x53faf0  Confidence: exact (the binary constructs the eight vertices, D1605; the rest matches). sum.symbols' "arrow" is a wire
 // box: the corners pos +- half the size along the three axes of orient, the bottom face, the top face and
 // the four sides.
 bool gr_draw_arrow_3d(const vector3 *pos, const matrix *orient, const vector3 *size, gr::Mode mode)
@@ -597,7 +597,7 @@ bool gr_draw_arrow_3d(const vector3 *pos, const matrix *orient, const vector3 *s
     return true;
 }
 
-// 0x53fff0  Confidence: likely (void or gr_line_3d's result; no caller). The points come as six floats
+// 0x53fff0  Confidence: exact (void or gr_line_3d's result; no caller). The points come as six floats
 // and are rebuilt with vector3(x, y, z).
 void gr_line_3d_points(float x0, float y0, float z0, float x1, float y1, float z1, int r, int g, int b)
 {
@@ -611,7 +611,7 @@ void gr_line_3d_points(float x0, float y0, float z0, float x1, float y1, float z
     gr_line_3d(&v0, &v1, gr_line_3d_mode);
 }
 
-// 0x5400a0  Confidence: likely (as gr_line_3d_points). The shaft, then two head lines from
+// 0x5400a0  Confidence: exact (as gr_line_3d_points). The shaft, then two head lines from
 // mid + dir * |d| / 8 to mid +- side * |d| / 16, mid being the middle of the shaft (so the head sits on the
 // middle, not at the end). No caller.
 void gr_draw_arrow_3d_points(float x0, float y0, float z0, float x1, float y1, float z1, int r, int g, int b)
@@ -644,7 +644,7 @@ void gr_draw_arrow_3d_points(float x0, float y0, float z0, float x1, float y1, f
     gr_line_3d(&v0, &v1, gr_line_3d_mode);
 }
 
-// 0x540330  Confidence: likely (q is constructed and never used; d is normalised and not used again). The
+// 0x540330  Confidence: exact (VC6 byte match, match22; the head length in its own local; was likely) (q is constructed and never used; d is normalised and not used again). The
 // shaft a - b and a head from b back to a + 0.9 (b - a) +- side * |b - a| / 16; nothing when both ends
 // project to the same view x / y.
 void gr_draw_arrow_3d_between(float x0, float y0, float z0, float x1, float y1, float z1, int r, int g, int b)
@@ -664,7 +664,8 @@ void gr_draw_arrow_3d_between(float x0, float y0, float z0, float x1, float y1, 
     gr_set_color(r, g, b, 255);
     gr_line_3d(&v0, &v1, gr_line_3d_mode);
     vector3 p, q;
-    float len = d.len() * 0.125f * 0.5f;
+    float head_len = d.len() * 0.125f;
+    float len = head_len * 0.5f;
     d.normalize();
     p = head + side * len;
     gr_rotate_vertex(&v0, &p);

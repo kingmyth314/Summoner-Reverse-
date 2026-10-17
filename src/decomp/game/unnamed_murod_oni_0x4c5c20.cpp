@@ -189,9 +189,7 @@ void murod_oni_update_offense_points(Character *c)
         pt = &murod_oni_offense_points[i];
         c->instance->get_bone_world_transform(pt->tag, &c->orient, &c->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + c->centre_offset.x;
-        pt->pos.y = pos.y + c->centre_offset.y;
-        pt->pos.z = pos.z + c->centre_offset.z;
+        pt->pos = pos + c->centre_offset;
     }
 }
 
@@ -201,7 +199,7 @@ void murod_oni_set_attack_timer(int min_ms, int max_ms)
     murod_oni_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c60e0  Confidence: likely (the sub-mode switch: case -1 has its own slot, byte table 0x4c6174).
+// 0x4c60e0  Confidence: exact (the sub-mode switch: case -1 has its own slot, byte table 0x4c6174).
 void ai_state::murod_oni_ai_frame()
 {
     int result;
@@ -222,7 +220,7 @@ void ai_state::murod_oni_ai_frame()
         combat_approach(target);
     switch (submode) {
     case -1:
-        break;
+        return;
     case AIS_CLOSE_COMBAT:
         combat_melee_attack(target);
         break;
@@ -250,18 +248,15 @@ void murod_oni_evaluate_target(Character *boss, boss_target *t)
         t->flags |= 4;
 }
 
-// 0x4c6230  Confidence: likely (as machival_offense_point_reaches).
+// 0x4c6230  Confidence: exact (as machival_offense_point_reaches).
 bool murod_oni_offense_point_reaches(Character *c, boss_attack *move)
 {
     boss_offense_point *pt = &murod_oni_offense_points[move->offense_point];
-    vector3 d;
+    vector3 d(c->pos.x - pt->pos.x, 0.0f, c->pos.z - pt->pos.z);
 
-    d.x = c->pos.x - pt->pos.x;
-    d.y = 0.0f;
-    d.z = c->pos.z - pt->pos.z;
     if (d.normalize_safe_length() > move->range_max)
         return false;
-    if (d.z * pt->dir.z + d.y * pt->dir.y + d.x * pt->dir.x < move->cos_max_angle)
+    if (d.dot(pt->dir) < move->cos_max_angle)
         return false;
     return true;
 }
@@ -288,7 +283,6 @@ bool murod_oni_collect_area_hits(Character *c)
 {
     ai_group *group;
     Character *t;
-    vector3 d;
     int i;
 
     murod_oni_area_hit_count = 0;
@@ -298,9 +292,7 @@ bool murod_oni_collect_area_hits(Character *c)
             t = living_from_handle(group->members[i]);
             if (t == NULL)
                 continue;
-            d.x = t->pos.x - c->pos.x;
-            d.y = 0.0f;
-            d.z = t->pos.z - c->pos.z;
+            vector3 d(t->pos.x - c->pos.x, 0.0f, t->pos.z - c->pos.z);
             if (d.normalize_safe_length() <= murod_oni_current_move->range_max
                 && living_combat_test_defense(&c->combat, &t->combat))
                 murod_oni_area_hits[murod_oni_area_hit_count++] = group->members[i];
@@ -325,7 +317,7 @@ void murod_oni_apply_area_hits(Character *c)
 // 0x4c6460  Confidence: exact. boss_attack_stuns_dispatch case 0xb8: move 3 stuns.
 bool murod_oni_move_is_kick()
 {
-    return murod_oni_current_move == murod_oni_move_3;
+    return murod_oni_current_move == murod_oni_move_3 ? true : false;
 }
 
 // folded (0x4f13e0, empty_function)  Confidence: likely. boss_ai_unload case 0xb8 (boss_ai.h: folded).

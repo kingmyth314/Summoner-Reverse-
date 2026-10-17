@@ -68,7 +68,7 @@ void BitArray::fill(bool on)
 // 0x55be80  Confidence: exact.
 int BitArray::get(int bit)
 {
-    return (data[bit >> 3] & (1 << (bit & 7))) != 0;
+    return ((ubyte)data[bit >> 3] & (1 << (bit & 7))) != 0;
 }
 
 // 0x55beb0  Confidence: exact.

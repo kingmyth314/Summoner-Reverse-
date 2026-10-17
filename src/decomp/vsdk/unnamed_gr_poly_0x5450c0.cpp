@@ -72,8 +72,9 @@ void gr_poly_reset_clip_verts()
 
     gr_poly_clip_vertex_count = 0;
     for (i = 0; i < GR_POLY_MAX_CLIP_VERTS; i++) {
-        gr_poly_clip_vertex_ptrs[i] = &gr_poly_clip_records[i];
-        gr_poly_clip_records[i].v = &gr_poly_clip_vertices[i];
+        gr_poly_vertex_rec *r = &gr_poly_clip_records[i];
+        gr_poly_clip_vertex_ptrs[i] = r;
+        r->v = &gr_poly_clip_vertices[i];
     }
 }
 
@@ -107,7 +108,7 @@ void gr_poly_begin(bool buffered, float z, int a2, bool fixed_depth, float depth
     gr_poly_num_vertices = 0;
     gr_poly_num_textures = 0;
     gr_poly_arg2 = a2;
-    gr_poly_alpha_cursor = gr_poly_rgb_cursor = gr_poly_uv_cursor = gr_poly_vertices;
+    gr_poly_uv_cursor = gr_poly_rgb_cursor = gr_poly_alpha_cursor = gr_poly_vertices;
     gr_poly_multitexture = false;
     gr_poly_fixed_depth = fixed_depth;
     gr_poly_depth = depth;
@@ -125,7 +126,7 @@ void gr_poly_buffer_put_byte(ubyte b)
     *gr_poly_buffer_ptr++ = b;
 }
 
-// 0x5452a0  Confidence: exact.
+// 0x5452a0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_buffer_put_float(float f)
 {
     *(float *)gr_poly_buffer_ptr = f;
@@ -142,14 +143,18 @@ void gr_poly_vertex(gr_vertex *v)
         gr_poly_buffer_put_vector((vector3 *)&v->x);
         return;
     }
-    gr_poly_vertices[gr_poly_num_vertices++].v = v;
+    gr_poly_vertex_rec *rec = &gr_poly_vertices[gr_poly_num_vertices++];
+    rec->v = v;
 }
 
-// 0x545310  Confidence: likely (memcpy of 12 bytes, the cursor stored first, as gr_poly_buffer_put_data).
+// 0x545310  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21; was likely; a vector3 copy through a walking pointer, as gr_poly_buffer_get_vector,
+// which matches; the cursor store before the three dwords is what /Ow gives, D8000).
 void gr_poly_buffer_put_vector(const vector3 *v)
 {
-    memcpy(gr_poly_buffer_ptr, v, sizeof(vector3));
-    gr_poly_buffer_ptr += sizeof(vector3);
+    vector3 *p = (vector3 *)gr_poly_buffer_ptr;
+
+    *p++ = *v;
+    gr_poly_buffer_ptr = (ubyte *)p;
 }
 
 // 0x545340  Confidence: exact. The tint is applied to the colour (grey = r + g + b times each tint
@@ -197,7 +202,7 @@ void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte
     gr_poly_cur_texture->g = g;
     gr_poly_cur_texture->b = b;
     gr_poly_cur_texture->a = a;
-    gr_poly_alpha_cursor = gr_poly_rgb_cursor = gr_poly_uv_cursor = gr_poly_vertices;
+    gr_poly_uv_cursor = gr_poly_rgb_cursor = gr_poly_alpha_cursor = gr_poly_vertices;
 }
 
 // 0x545550  Confidence: exact.
@@ -207,14 +212,14 @@ void gr_poly_buffer_put_int(int i)
     gr_poly_buffer_ptr += 4;
 }
 
-// 0x545570  Confidence: exact.
+// 0x545570  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_buffer_put_data(const void *src, int n)
 {
     memcpy(gr_poly_buffer_ptr, src, n);
     gr_poly_buffer_ptr += n;
 }
 
-// 0x5455a0  Confidence: exact.
+// 0x5455a0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_uv(float u, float v)
 {
     gr_poly_vertex_rec *rec;
@@ -227,9 +232,9 @@ void gr_poly_uv(float u, float v)
         return;
     }
     gr_poly_cur_texture->enabled = true;
-    rec = gr_poly_uv_cursor++;
-    rec->pass[gr_poly_cur_texture_index].u = u;
-    rec->pass[gr_poly_cur_texture_index].v = v;
+    gr_poly_uv_cursor->pass[gr_poly_cur_texture_index].u = u;
+    gr_poly_uv_cursor->pass[gr_poly_cur_texture_index].v = v;
+    gr_poly_uv_cursor++;
 }
 
 // 0x545610  Confidence: likely (the copy-and-paste slip that the dead first result shows: the red tint is
@@ -259,7 +264,7 @@ void gr_poly_rgb(ubyte r, ubyte g, ubyte b)
     rec->pass[gr_poly_cur_texture_index].b = b;
 }
 
-// 0x545760  Confidence: exact.
+// 0x545760  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_alpha(ubyte a)
 {
     if (gr_poly_active) {
@@ -288,9 +293,9 @@ bool gr_poly_end()
         return true;
     }
     n = gr_poly_num_vertices;
+    gr_poly_in_progress = false;
     codes[0] = 0;
     codes[1] = 0xff;
-    gr_poly_in_progress = false;
     for (i = 0; i < n; i++)
         list[i] = (gr_multipass_vertex *)&gr_poly_vertices[i];
     for (i = 0; i < n; i++) {
@@ -359,30 +364,33 @@ gr_multipass_vertex **gr_poly_clip_planes(gr_multipass_vertex **src, gr_multipas
     return src;
 }
 
-// 0x5459d0  Confidence: exact. As gr_clip_plane on the multipass vertices.
+// 0x5459d0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21). As gr_clip_plane on the multipass vertices.
 int gr_poly_clip_plane(int plane, gr_multipass_vertex **src, gr_multipass_vertex **dst, int *nv, ubyte *codes)
 {
     gr_multipass_vertex **start = dst;
     gr_multipass_vertex *t;
-    int i;
+    int i, n;
 
-    src[*nv] = src[0];
-    src[*nv + 1] = src[1];
+    n = *nv;
+    src[n] = src[0];
+    src[n + 1] = src[1];
     codes[1] = 0xff;
     codes[0] = 0;
     for (i = 1; i <= *nv; i++) {
         if (src[i]->v->codes & plane) {
             if (!(src[i - 1]->v->codes & plane)) {
                 t = gr_poly_clip_edge(plane, src[i - 1], src[i]);
-                *dst++ = t;
+                *dst = t;
                 codes[0] |= t->v->codes;
                 codes[1] &= t->v->codes;
+                dst++;
             }
             if (!(src[i + 1]->v->codes & plane)) {
                 t = gr_poly_clip_edge(plane, src[i + 1], src[i]);
-                *dst++ = t;
+                *dst = t;
                 codes[0] |= t->v->codes;
                 codes[1] &= t->v->codes;
+                dst++;
             }
         } else {
             *dst++ = src[i];
@@ -595,14 +603,16 @@ int gr_poly_buffer_get_int()
     return i;
 }
 
-// 0x5460b0  Confidence: likely (as gr_poly_buffer_put_vector).
+// 0x5460b0  Confidence: exact (VC6 byte match, cl 8966; a vector3 copy through a walking pointer, D7002).
 void gr_poly_buffer_get_vector(vector3 *out)
 {
-    memcpy(out, gr_poly_buffer_ptr, sizeof(vector3));
-    gr_poly_buffer_ptr += sizeof(vector3);
+    vector3 *p = (vector3 *)gr_poly_buffer_ptr;
+
+    *out = *p++;
+    gr_poly_buffer_ptr = (ubyte *)p;
 }
 
-// 0x5460e0  Confidence: exact.
+// 0x5460e0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_buffer_get_data(void *dst, int n)
 {
     memcpy(dst, gr_poly_buffer_ptr, n);

@@ -313,7 +313,7 @@ int MainLoop()
     return 0;
 }
 
-// 0x43d7f0  Confidence: likely (the empty branches of the sound card and video card tests: see
+// 0x43d7f0  Confidence: exact (VC6 byte match, match14; was likely) (the empty branches of the sound card and video card tests: see
 // NOTES.md; frame 0x99c bytes). width / height are only compared for equality (DWORD); card is an int
 // passed as DWORD * (printed with %d, compared with -1). The registry may hold any size: one that is
 // not in resolution_table leaves resolution_index at 0 (640x480) but the -800 / -1024 switches win.
@@ -348,8 +348,9 @@ void LoadSettings()
         width = 1024;
         height = 768;
     }
-    for (i = 0; i < 3; i++) {
-        if (width == resolution_table[i][0] && height == resolution_table[i][1]) {
+    const uint *h;
+    for (i = 0, h = &resolution_table[0][1]; h < &resolution_table[3][1]; h += 2, i++) {
+        if (width == h[-1] && height == *h) {
             resolution_index = i;
             break;
         }
@@ -391,6 +392,7 @@ void LoadSettings()
         os_registry_read_string(NULL, card_key, card_name, "None");
         if (_stricmp(card_name, "None")) {
             if (strstr(card_name, "3DFX")) {
+                renderer = GR_GLIDE;
             } else if (strstr(card_name, "Direct 3D")) {
                 renderer = GR_DIRECT3D;
             }
@@ -400,7 +402,7 @@ void LoadSettings()
         renderer = GR_DIRECT3D;
 
     gr_init(resolution_table[resolution_index][0], resolution_table[resolution_index][1], renderer, 201,
-            os_get_main_wnd(), Summoner_options.cfg_34, false);
+            os_get_main_wnd(), Summoner_options.cfg_34 ? true : false, false);
     ui_init();
     gr_load_reflection_map();
     mouse_move_to(resolution_table[resolution_index][0] / 2, resolution_table[resolution_index][1] / 2);
@@ -479,7 +481,7 @@ void game_shutdown_systems()
     os_close_main_window();
 }
 
-// 0x43df40  Confidence: likely (the ComputerSpeed clamp shape; the font switch's case 0 shares the
+// 0x43df40  Confidence: exact (VC6 byte match, match14; was likely) (the ComputerSpeed clamp shape; the font switch's case 0 shares the
 // default). The ComputerSpeed presets are dead: summoner_cfg_load resets every field right after.
 void GameInit()
 {
@@ -489,13 +491,15 @@ void GameInit()
 
     os_seed_random(-1);
     switch (resolution_index) {
-    case 1:
-        font_name = "sumbones800.vf";
-        break;
     case 2:
         font_name = "sumbones1024.vf";
         break;
+    case 1:
+        font_name = "sumbones800.vf";
+        break;
     case 0:
+        font_name = "sumbones640.vf";
+        break;
     default:
         font_name = "sumbones640.vf";
         break;

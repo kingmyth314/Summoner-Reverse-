@@ -434,7 +434,7 @@ int wav_open(const char *path, int offset, HMMIO *out, WAVEFORMATEX **fmt, WAVEF
     MMCKINFO ck;
     PCMWAVEFORMAT pcmwf;
     WORD extra;
-    int rc;
+    int rc = 0;
 
     *pcm = NULL;
     h = mmioOpen((LPSTR)path, NULL, MMIO_ALLOCBUF);
@@ -484,10 +484,9 @@ int wav_open(const char *path, int offset, HMMIO *out, WAVEFORMATEX **fmt, WAVEF
     (*pcm)->cbSize = 0;
     (*pcm)->nBlockAlign = (WORD)(((*pcm)->wBitsPerSample * (*pcm)->nChannels) / 8);
     (*pcm)->nAvgBytesPerSec = (*pcm)->nBlockAlign * (*pcm)->nSamplesPerSec;
-    if (mmioAscend(h, &ck, 0) == 0) {
-        *out = h;
-        return 0;
-    }
+    if (mmioAscend(h, &ck, 0) != 0)
+        goto fail;
+    goto done;
 fail:
     rc = -1;
     if (*pcm != NULL) {
@@ -500,11 +499,12 @@ fail:
     }
     if (h != NULL) {
         mmioClose(h, 0);
-        *out = NULL;
-        return rc;
+        h = NULL;
     }
+done:
     *out = h;
     return rc;
+
 }
 
 // 0x567300  Confidence: exact.
@@ -521,6 +521,7 @@ int wav_read(HMMIO h, UINT bytes, BYTE *dest, MMCKINFO *ck, UINT *read)
 {
     MMIOINFO info;
     UINT i;
+    int err = 0;
 
     if (mmioGetInfo(h, &info, 0) != 0)
         goto fail;
@@ -538,11 +539,14 @@ int wav_read(HMMIO h, UINT bytes, BYTE *dest, MMCKINFO *ck, UINT *read)
     }
     if (mmioSetInfo(h, &info, 0) != 0)
         goto fail;
-    *read = bytes;
-    return 0;
+    *read = i;
+    goto done;
 fail:
+    err = -1;
     *read = 0;
-    return -1;
+done:
+    return err;
+
 }
 
 // 0x567410  Confidence: exact.

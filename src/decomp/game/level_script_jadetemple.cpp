@@ -104,14 +104,15 @@ void ls_jadetemple_frame()
     }
 }
 
-// 0x4f0160  Confidence: exact. The Tiger Rider and the Ghost Rider: boss music after the intro, the level
+// 0x4f0160  Confidence: exact (VC6 byte match, match14; was exact). The Tiger Rider and the Ghost Rider: boss music after the intro, the level
 // music and FrontDoor once both are dead; Tiger-Ghost-Intro at $tgtrigger (24).
 void lsf_tg_intro()
 {
     if (!ls_jadetemple_tg_intro_done && savegame_state.get_flag(cur_level_index, "tg_intro")
         && !(game_flags & GF_CUTSCENE)) {
         ls_jadetemple_tg_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_jadetemple_tiger_dead_done && savegame_state.get_flag(cur_level_index, "tiger_dead")
         && savegame_state.get_flag(cur_level_index, "ghost_dead") && !(game_flags & GF_CUTSCENE)) {
@@ -147,7 +148,7 @@ void ls_jadetemple_tiger_ghost_intro_cs_end()
     level_script_event_active = true;
 }
 
-// 0x4f0360  Confidence: likely (the else-if chain after got_laharah_spirit; each branch ends in a ret).
+// 0x4f0360  Confidence: exact (VC6 byte match, match14; was likely) (the else-if chain after got_laharah_spirit; each branch ends in a ret).
 // jadetemple_v2: the four riders; with all four dead the Spirit of Laharah, then 8 s, a 5 s fade, and the
 // world map (entry 5, game sequence state 4). The inventory screen (4) is closed during the fade.
 void lsf_tiger2_dead()
@@ -197,14 +198,15 @@ void lsf_tiger2_dead()
     }
 }
 
-// 0x4f0680  Confidence: exact. Murod: boss music after Murod-Intro, the level music after the death; the
+// 0x4f0680  Confidence: exact (VC6 byte match, match14; was exact). Murod: boss music after Murod-Intro, the level music after the death; the
 // three cutscenes ($murodtrigger within 8, Murod dead -> Murod-Trans, Murod Oni dead -> Murod-Death).
 void lsf_murod_intro()
 {
     if (!ls_jadetemple_murod_intro_done && savegame_state.get_flag(cur_level_index, "murod_intro")
         && !(game_flags & GF_CUTSCENE)) {
         ls_jadetemple_murod_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_jadetemple_murod_dead_done && savegame_state.get_flag(cur_level_index, "murod_dead")
         && !(game_flags & GF_CUTSCENE)) {
@@ -274,7 +276,7 @@ void ls_jadetemple_murod_death_cs_end()
     script_npc_goto_label("Jade Temple Soldier#6", 1);
 }
 
-// 0x4f0990  Confidence: exact. After the EndCutscene action: the companions rejoin, and the level changes
+// 0x4f0990  Confidence: exact (VC6 byte match, match14; was exact). After the EndCutscene action: the companions rejoin, and the level changes
 // to khosanistrng (script khosanistrng_v3, entry 1; game sequence state 4).
 void ls_jadetemple_finish()
 {

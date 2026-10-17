@@ -1131,8 +1131,8 @@ int fx_create_missile(int spell, const vector3 *start, const matrix *orient, int
     return fx->handle;
 }
 
-// 0x48c3e0  Confidence: likely (the order of the stores). An object without instance, linked last. The
-// spell and owner keep the values of the slot's last use.
+// 0x48c3e0  Confidence: exact (the order of the stores: spell_effect last, D7700). An object without
+// instance, linked last. The spell and owner keep the values of the slot's last use.
 effect_object *fx_new(int kind)
 {
     effect_object *fx = fx_alloc();
@@ -1144,12 +1144,12 @@ effect_object *fx_new(int kind)
     fx->target = 0;
     fx->obj_flags |= 1;
     fx->kind = kind;
-    fx->spell_effect = NULL;
     fx->fx_flags = 1;
     fx->_bits20 = 0;
     fx->_bits24 = -1;
     fx->sound = -1;
     fx->avoid_area = -1;
+    fx->spell_effect = NULL;
     return fx;
 }
 
@@ -1383,7 +1383,8 @@ int fx_create_spell_effect_at(int spell, int caster, int owner, int ms, const ve
     return fx->handle;
 }
 
-// 0x48cb40  Confidence: likely (the order of the record stores). summon_create: the appearance effect
+// 0x48cb40  Confidence: exact (the order of the record stores; the two extents in one chained assignment,
+// D7700). summon_create: the appearance effect
 // (kind 8) linked to the summon; with a radius, a prohibited circle (first field 1) for the avoidance code
 // around it on the given layer.
 int summon_spawn_effect(const char *effect, const vector3 *pos, const matrix *orient, Character *c, int ms,
@@ -1412,8 +1413,7 @@ int summon_spawn_effect(const char *effect, const vector3 *pos, const matrix *or
         d.az = orient->rvec.z;
         d.bx = orient->fvec.x;
         d.bz = orient->fvec.z;
-        d.extent_a = radius;
-        d.extent_b = radius;
+        d.extent_a = d.extent_b = radius;
         d._unk28 = 0.5f;
         d.owner = layer;
         fx->avoid_area = avoid_area_add(&d);
@@ -1616,7 +1616,7 @@ void fx_end_owned(int handle, int destroy)
 // 0x48d180  Confidence: exact. levelrender_setup_level_lights.
 attached_light *level_light_get(int i)
 {
-    return attached_light_slots[i].type != 0xff ? &attached_light_slots[i] : NULL;
+    return attached_light_slots[i].type != -1 ? &attached_light_slots[i] : NULL;
 }
 
 // 0x48d1b0  Confidence: exact. summon_create.

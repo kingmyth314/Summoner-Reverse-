@@ -223,7 +223,8 @@ ai_state::ai_state()
 {
 }
 
-// 0x472380  Confidence: exact (the attack point list is a memset with 0xff: `rep stosd` of -1).
+// 0x472380  Confidence: exact (the attack point loop becomes `rep stosd` of -1 under 8966; a memset sets the
+// registers in another order).
 void ai_state::init()
 {
     int i;
@@ -249,7 +250,8 @@ void ai_state::init()
     _unk7c = -1;
     for (i = 0; i < 5; i++)
         attackers[i].handle = -1;
-    memset(attack_point_users, -1, sizeof(attack_point_users));
+    for (i = 0; i < 8; i++)
+        attack_point_users[i] = -1;
 }
 
 // 0x472420  Confidence: exact.
@@ -260,7 +262,7 @@ void ai_state::shutdown()
         boss_ai_unload();
 }
 
-// 0x472450  Confidence: likely (the species loop's form; the owner is reloaded for every store as in the
+// 0x472450  Confidence: exact (the species loop's form; the owner is reloaded for every store as in the
 // binary, so each statement goes through owner).
 void ai_state::reset()
 {
@@ -280,7 +282,8 @@ void ai_state::reset()
         attackers[i].handle = -1;
         attackers[i].timer.reset();
     }
-    memset(attack_point_users, -1, sizeof(attack_point_users));
+    for (i = 0; i < 8; i++)
+        attack_point_users[i] = -1;
     ai_path_free(path);
     path = NULL;
     _unk204 = 0;
@@ -364,7 +367,7 @@ int ai_state::pick_attack_slot(Character *attacker)
     dir.z = him.z - me.z;
     for (i = 0; i < 5; i++) {
         attack_slot_direction(&s, i);
-        dot = s.z * dir.z + s.y * dir.y + dir.x * s.x;
+        dot = s.dot(dir);
         if (dot > best) {
             best = dot;
             best_slot = i;
@@ -921,7 +924,7 @@ int ai_state::count_attackers()
     return n;
 }
 
-// 0x4737a0  Confidence: likely (the dot product's operand order, as combat.cpp). An enemy that can be
+// 0x4737a0  Confidence: exact (the inline vector3::dot gives the product order). An enemy that can be
 // backstabbed, within 2 m edge to edge, with the owner behind it (cos 45 degrees).
 bool ai_state::can_backstab_target(Character *t)
 {
@@ -936,7 +939,7 @@ bool ai_state::can_backstab_target(Character *t)
     d = owner->pos - t->pos;
     d.normalize();
     back = -t->orient.fvec;
-    if (d.z * back.z + d.y * back.y + d.x * back.x > 0.707f)
+    if (d.dot(back) > 0.707f)
         return true;
     return false;
 }
@@ -1707,17 +1710,9 @@ bool ai_state::is_disabled_any()
 // 0x475030  Confidence: exact.
 bool ai_state::can_be_knocked_down()
 {
-    if (owner->info->flags & CIF_NO_TRIP)
-        return false;
-    if (is_combat_e_or_sneak_attack() == true)
-        return false;
-    if (owner->has_status(STATUS_PARALYZE) == true)
-        return false;
-    if (owner->get_mount())
-        return false;
-    if (is_knocked_down() == true)
-        return false;
-    if (is_disabled_2e() == true)
+    if ((owner->info->flags & CIF_NO_TRIP) || is_combat_e_or_sneak_attack() == true ||
+        owner->has_status(STATUS_PARALYZE) == true || owner->get_mount() || is_knocked_down() == true ||
+        is_disabled_2e() == true)
         return false;
     return true;
 }

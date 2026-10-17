@@ -41,18 +41,20 @@ bool lights_dynamic_enabled;                      // 0x2cb45c1
 int lights_shade_calls;                           // 0x2cb45c4
 int lights_shade_light_total;                     // 0x2cb45c8
 
-// 0x51e0c0  Confidence: exact (memset as REP STOSD of 0x39d0 dwords).
+// 0x51e0c0  Confidence: exact (memset as REP STOSD of 0x39d0 dwords; light_count = 0 written before it, VC6
+// stores the constant after).
 void light_reset_all()
 {
     light_change_count++;
     list_init(&light_list_head);
-    memset(lights, 0, sizeof(lights));
     light_count = 0;
+    memset(lights, 0, sizeof(lights));
     lights_collect_enabled();
 }
 
-// 0x51e100  Confidence: likely (the AND 1 of the store says the argument is not a bool, D4006).
-void light_set_all_enabled(int on)
+// 0x51e100  Confidence: exact (a bool argument into the signed one-bit field: `and cl, 1 / movzx cx, cl`, and
+// `and dh, -0x41` for the clear; D7904 amends D4006).
+void light_set_all_enabled(bool on)
 {
     light *l;
 
@@ -128,7 +130,7 @@ light *light_get(int index)
     return &lights[index];
 }
 
-// 0x51e380  Confidence: likely (the loop's normal exit returns -1 directly; the >= 400 test after it
+// 0x51e380  Confidence: exact (the loop's normal exit returns -1 directly; the >= 400 test after it
 // only guards the break).
 int light_alloc()
 {
@@ -175,7 +177,7 @@ int light_create_spot(const vector3 *pos, const vector3 *dir, float angle_a, flo
     return i;
 }
 
-// 0x51e540  Confidence: likely. Unlocks the bitmap only for types 1 and 4, which this unit never makes:
+// 0x51e540  Confidence: exact. Unlocks the bitmap only for types 1 and 4, which this unit never makes:
 // a spot light's projected bitmap (type 3, locked by light_sample_projected_bitmap) stays locked.
 void light_delete(int index)
 {
@@ -213,8 +215,8 @@ void light_get_pos(int index, vector3 *pos)
     *pos = light_get(index)->pos;
 }
 
-// 0x51e650  Confidence: likely (AND 1 on the stored byte: an int argument, D4006).
-void light_set_enabled(int index, int on)
+// 0x51e650  Confidence: exact (bool argument, signed field: D7904 amends D4006).
+void light_set_enabled(int index, bool on)
 {
     light *l = light_get(index);
 
@@ -223,10 +225,10 @@ void light_set_enabled(int index, int on)
         light_change_count++;
 }
 
-// 0x51e690  Confidence: exact.
+// 0x51e690  Confidence: exact (`? true : false` for the `shr / and al, 1` of the signed field, D7904).
 bool light_is_enabled(int index)
 {
-    return light_get(index)->enabled;
+    return light_get(index)->enabled ? true : false;
 }
 
 // 0x51e6b0  Confidence: exact.
@@ -328,7 +330,7 @@ void light_get_spot_angles(int index, float *a, float *b)
     }
 }
 
-// 0x51e910  Confidence: likely (the count is kept in a register and stored at the end). Selection
+// 0x51e910  Confidence: exact (the count is kept in a register and stored at the end). Selection
 // level 0: every light with a type and the enabled bit; one level is in use afterwards.
 void lights_collect_enabled()
 {
@@ -749,10 +751,12 @@ void gr_env_map_uv(float *u, float *v, const vector3 *pos, const vector3 *normal
     *v = (1.0f - r.y) * 0.5f;
 }
 
-// 0x51fa20  Confidence: exact (no AND 1: a bool argument).
+// 0x51fa20  Confidence: exact (no AND 1: a bool argument; the light pointer in a local).
 void light_set_dynamic(int index, bool dynamic)
 {
-    light_get(index)->dynamic = dynamic;
+    light *l = light_get(index);
+
+    l->dynamic = dynamic;
 }
 
 // 0x51fa50  Confidence: exact.

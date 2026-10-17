@@ -766,23 +766,22 @@ bool conversation_controller::is_idle()
 void conversation_controller::end()
 {
     state = 1;
-    if (conversation_db.topic->farewell) {
-        end_cleanup(false);
-        return;
+    if (!(bool)conversation_db.topic->farewell) {
+        if ((bool)conversation_db.topic->shop) {
+            end_cleanup(true);
+            return;
+        }
+        if (conversation_db.first_topic() != NULL) {
+            dialogue_topic_box_reset();
+            conversation_db.build_topic_list();
+            conversation_db.farewell();
+            if (dialogue_topic_box.count > 0)
+                dialogue_selected_topic = 0;
+            return;
+        }
     }
-    if (conversation_db.topic->shop) {
-        end_cleanup(true);
-        return;
-    }
-    if (conversation_db.first_topic() == NULL) {
-        end_cleanup(false);
-        return;
-    }
-    dialogue_topic_box_reset();
-    conversation_db.build_topic_list();
-    conversation_db.farewell();
-    if (dialogue_topic_box.count > 0)
-        dialogue_selected_topic = 0;
+    end_cleanup(false);
+
 }
 
 // 0x4dacb0  Confidence: likely (the clamp is imin(imax(..)): the setge / dec / and of the inline imin;
@@ -842,7 +841,7 @@ void conversation_controller::select_topic(conversation_topic *topic)
 
 // 0x4daef0  Confidence: likely (the slot record's speaker count is read as an int through the void*
 // table). From state_game_enter with (level_filename, level_script_name).
-int conversation_controller::load_for_level(const char *level_filename, const char *script_name)
+int conversation_controller::load_for_level(const char *level_name, const char *script_name)
 {
     int slot;
 
@@ -850,7 +849,7 @@ int conversation_controller::load_for_level(const char *level_filename, const ch
     conversation_db.clear();
     slot = level_script_find_index(cur_level_index, level_script_name);
     if ((int)conversation_save_table[(cur_level_index * 7 + slot) * 4 + 1] > 0)
-        return conversation_db.load(level_filename, script_name);
+        return conversation_db.load(level_name, script_name);
     return 0;
 }
 

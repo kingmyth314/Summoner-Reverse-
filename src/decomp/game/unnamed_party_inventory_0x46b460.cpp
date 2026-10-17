@@ -171,7 +171,7 @@ void party_inventory_zero_count()
     party_inventory_count = 0;
 }
 
-// 0x46b6b0  Confidence: likely (the shared tails: VC6 merged "it->item = NULL; deinit" of the full and the
+// 0x46b6b0  Confidence: exact (VC6 byte match, match14; was likely) (the shared tails: VC6 merged "it->item = NULL; deinit" of the full and the
 // append paths). Takes an item object into the party: gold into party_gold, a known type merged into its
 // entry, otherwise appended (or freed when the list is full). The object is deinitialised in every case.
 // Only the append and full paths sort.
@@ -193,21 +193,20 @@ void item_obj_pickup(item_obj *it, int sort)
     }
 
     for (i = 0; i < party_inventory_count; i++) {
-        if (items_same_type(party_inventory[i].item, it->item))
-            break;
-    }
-    if (i < party_inventory_count) {
-        if (item_type_is_stackable(it->item->type)) {
-            party_inventory[i].count += it->count;
-        } else if (party_inventory[i].item->type->charge_effect) {
-            party_inventory[i].item->charges += it->item->charges;
-            party_inventory[i].item->charges = min(party_inventory[i].item->charges,
-                                                   party_inventory[i].item->type->charge_effect->max_charges);
+        if (items_same_type(party_inventory[i].item, it->item)) {
+            if (item_type_is_stackable(it->item->type)) {
+                party_inventory[i].count += it->count;
+            } else if (party_inventory[i].item->type->charge_effect) {
+                party_inventory[i].item->charges += it->item->charges;
+                item_info *e = party_inventory[i].item;
+                int m = e->type->charge_effect->max_charges;
+                e->charges = min(e->charges, m);
+            }
+            item_free(it->item);
+            it->item = NULL;
+            it->deinit();
+            return;
         }
-        item_free(it->item);
-        it->item = NULL;
-        it->deinit();
-        return;
     }
 
     if (party_inventory_count >= MAX_PARTY_INVENTORY) {
@@ -223,7 +222,7 @@ void item_obj_pickup(item_obj *it, int sort)
         party_inventory_sort(party_inventory, party_inventory_count);
 }
 
-// 0x46b870  Confidence: likely (as item_obj_pickup). The item is freed whenever it was merged.
+// 0x46b870  Confidence: exact (VC6 byte match, match14; was likely) (as item_obj_pickup). The item is freed whenever it was merged.
 void party_inventory_add_item(item_info *item, int count, int sort)
 {
     int i;
@@ -231,22 +230,18 @@ void party_inventory_add_item(item_info *item, int count, int sort)
     if (!item || count <= 0)
         return;
     for (i = 0; i < party_inventory_count; i++) {
-        if (items_same_type(party_inventory[i].item, item))
-            break;
-    }
-    if (i < party_inventory_count) {
-        if (item_type_is_stackable(item->type)) {
-            party_inventory[i].count += count;
+        if (items_same_type(party_inventory[i].item, item)) {
+            if (item_type_is_stackable(item->type)) {
+                party_inventory[i].count += count;
+            } else if (party_inventory[i].item->type->charge_effect) {
+                party_inventory[i].item->charges += item->charges;
+                item_info *e = party_inventory[i].item;
+                int m = e->type->charge_effect->max_charges;
+                e->charges = min(e->charges, m);
+            }
             item_free(item);
             return;
         }
-        if (party_inventory[i].item->type->charge_effect) {
-            party_inventory[i].item->charges += item->charges;
-            party_inventory[i].item->charges = min(party_inventory[i].item->charges,
-                                                   party_inventory[i].item->type->charge_effect->max_charges);
-        }
-        item_free(item);
-        return;
     }
     if (party_inventory_count >= MAX_PARTY_INVENTORY) {
         item_free(item);
@@ -259,7 +254,7 @@ void party_inventory_add_item(item_info *item, int count, int sort)
         party_inventory_sort(party_inventory, party_inventory_count);
 }
 
-// 0x46b980  Confidence: likely (the two clamps are written as the min() macro; the found test compares
+// 0x46b980  Confidence: exact (VC6 byte match, match14; was likely) (the two clamps are written as the min() macro; the found test compares
 // ItemType pointers, not items_same_type). Adds count of an item type; a type with more than one charge
 // is always added once. charges < 0 means "full" (the charge effect's maximum).
 void party_inventory_add_type(int type, int count, int charges, int sort)
@@ -275,22 +270,21 @@ void party_inventory_add_type(int type, int count, int charges, int sort)
         count = 1;
 
     for (i = 0; i < party_inventory_count; i++) {
-        if (party_inventory[i].item->type == t)
-            break;
-    }
-    if (i < party_inventory_count) {
-        if (item_type_is_stackable(t)) {
-            party_inventory[i].count += count;
+        if (party_inventory[i].item->type == t) {
+            if (item_type_is_stackable(t)) {
+                party_inventory[i].count += count;
+                return;
+            }
+            item_info *item = party_inventory[i].item;
+            item_charge_effect *ce = item->type->charge_effect;
+            if (!ce)
+                return;
+            item->charges += charges >= 0 ? charges : ce->max_charges;
+            item_info *e = party_inventory[i].item;
+            int m = e->type->charge_effect->max_charges;
+            e->charges = min(e->charges, m);
             return;
         }
-        item_info *item = party_inventory[i].item;
-        item_charge_effect *ce = item->type->charge_effect;
-        if (!ce)
-            return;
-        item->charges += charges >= 0 ? charges : ce->max_charges;
-        party_inventory[i].item->charges = min(party_inventory[i].item->charges,
-                                               party_inventory[i].item->type->charge_effect->max_charges);
-        return;
     }
 
     if (party_inventory_count >= MAX_PARTY_INVENTORY)
@@ -303,8 +297,9 @@ void party_inventory_add_type(int type, int count, int charges, int sort)
     if (item->type->charge_effect) {
         party_inventory[party_inventory_count].item->charges =
             charges >= 0 ? charges : item->type->charge_effect->max_charges;
-        party_inventory[party_inventory_count].item->charges =
-            min(party_inventory[party_inventory_count].item->charges, item->type->charge_effect->max_charges);
+        int m = item->type->charge_effect->max_charges;
+        item_info *e = party_inventory[party_inventory_count].item;
+        e->charges = min(e->charges, m);
     } else {
         party_inventory[party_inventory_count].item->charges = 0;
     }
@@ -321,12 +316,12 @@ void party_inventory_add_by_name(const char *name, int count, int charges, int s
         party_inventory_add_type(type, count, charges, sort);
 }
 
-// 0x46bb30  Confidence: exact (free_item is a byte: `mov al, [esp + 8]`, D5203).
+// 0x46bb30  Confidence: exact (VC6 byte match, match14; was exact) (free_item is a byte: `mov al, [esp + 8]`, D5203).
 void party_inventory_remove(int slot, bool free_item, int sort)
 {
     if (free_item)
         item_free(party_inventory[slot].item);
-    if (slot + 1 < party_inventory_count)
+    if (party_inventory_count > slot + 1)
         memmove(&party_inventory[slot], &party_inventory[slot + 1],
                 (party_inventory_count - (slot + 1)) * sizeof(party_inventory_entry));
     party_inventory_count--;
@@ -361,17 +356,18 @@ bool character_use_inventory_item(Character *c, party_inventory_entry *entry, in
     if (ce->disposable >= 1.0f) {
         if (item_type_is_stackable(entry->item->type)) {
             if (--entry->count > 0)
-                return true;
+                goto done;
         } else {
             entry->item->charges--;
             if (entry->item->charges > 0)
-                return true;
+                goto done;
         }
     } else if (ce->disposable <= 0.0f || !(frand() < entry->item->type->charge_effect->disposable)) {
         entry->item->charges--;
-        return true;
+        goto done;
     }
     party_inventory_remove(entry - party_inventory, true, 1);
+done:
     return true;
 }
 
@@ -612,7 +608,7 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
         item->_unk0c = -1;
 }
 
-// 0x46c240  Confidence: likely (the Rosalind-to-Joseph species switch is four cases on one call, as
+// 0x46c240  Confidence: exact (VC6 byte match, match14; was likely) (the Rosalind-to-Joseph species switch is four cases on one call, as
 // in the jump table 0x46c39c). Takes the item off and returns it; HP / AP drop to the new maxima of the
 // item's stat mods; the item's effect stops.
 item_info *character_unequip_slot(Character *c, int slot, bool update_model)
@@ -624,12 +620,6 @@ item_info *character_unequip_slot(Character *c, int slot, bool update_model)
 
     if (update_model && c->is_main_hero()) {
         switch (item->type->slot) {
-        case ITEM_SLOT_HANDS:
-            c->set_underwear_textures(5, NULL);
-            break;
-        case ITEM_SLOT_FEET:
-            c->set_underwear_textures(4, NULL);
-            break;
         case ITEM_SLOT_TORSO:
             c->set_underwear_textures(1, NULL);
             c->set_underwear_textures(0, NULL);
@@ -638,11 +628,23 @@ item_info *character_unequip_slot(Character *c, int slot, bool update_model)
         case ITEM_SLOT_LEGS:
             c->set_underwear_textures(3, NULL);
             break;
+        case ITEM_SLOT_FEET:
+            c->set_underwear_textures(4, NULL);
+            break;
+        case ITEM_SLOT_HANDS:
+            c->set_underwear_textures(5, NULL);
+            break;
         case ITEM_SLOT_HEAVY:
             switch (c->info->species) {
             case SPECIES_JOSEPH:
+                c->apply_hero_model(0);
+                break;
             case SPECIES_JEKHAR:
+                c->apply_hero_model(0);
+                break;
             case SPECIES_FLECE:
+                c->apply_hero_model(0);
+                break;
             case SPECIES_ROSALIND:
                 c->apply_hero_model(0);
                 break;
@@ -696,7 +698,7 @@ int items_same_type(item_info *a, item_info *b)
     return a->type == b->type;
 }
 
-// 0x46c410  Confidence: likely (as character_use_inventory_item). An item that breaks or runs out is
+// 0x46c410  Confidence: exact (VC6 byte match, match14; was likely) (as character_use_inventory_item). An item that breaks or runs out is
 // taken off with the model update and freed.
 bool character_use_equipped_item(Character *c, int slot, int target_handle, void *point, int arg)
 {
@@ -710,12 +712,13 @@ bool character_use_equipped_item(Character *c, int slot, int target_handle, void
     item_charge_effect *ce = item->type->charge_effect;
     if (ce->disposable >= 1.0f) {
         if (--item->charges > 0)
-            return true;
+            goto done;
     } else if (ce->disposable <= 0.0f || !(frand() < item->type->charge_effect->disposable)) {
         item->charges--;
-        return true;
+        goto done;
     }
     item_free(character_unequip_slot(c, slot, true));
+done:
     return true;
 }
 

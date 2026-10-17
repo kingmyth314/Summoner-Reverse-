@@ -81,8 +81,10 @@ void lsf_ball1_used()
     door_apply_saved_state("Puzzle-Ball01", true);
     if (ls_catacombs_ball1_fx == -1) {
         ls_catacombs_ball1_fx = fx_create_world("CatacombsEffect.vfx", false);
-        if (ls_catacombs_ball1_fx != -1)
-            obj_from_handle(ls_catacombs_ball1_fx)->pos = ls_catacombs_ball1_lobj->pos;
+        if (ls_catacombs_ball1_fx != -1) {
+            obj *o = obj_from_handle(ls_catacombs_ball1_fx);
+            o->pos = ls_catacombs_ball1_lobj->pos;
+        }
     }
 }
 
@@ -93,8 +95,10 @@ void lsf_ball2_used()
     door_apply_saved_state("Puzzle-Ball02", true);
     if (ls_catacombs_ball2_fx == -1) {
         ls_catacombs_ball2_fx = fx_create_world("CatacombsEffect.vfx", false);
-        if (ls_catacombs_ball2_fx != -1)
-            obj_from_handle(ls_catacombs_ball2_fx)->pos = ls_catacombs_ball2_lobj->pos;
+        if (ls_catacombs_ball2_fx != -1) {
+            obj *o = obj_from_handle(ls_catacombs_ball2_fx);
+            o->pos = ls_catacombs_ball2_lobj->pos;
+        }
     }
 }
 
@@ -197,10 +201,14 @@ void lsf_catacombs_flag_iona_comment()
 // 0x4fe460  Confidence: exact. The ball effects follow the (moving) ball objects.
 void ls_catacombs_sync_object_positions()
 {
-    if (ls_catacombs_ball1_fx != -1)
-        obj_from_handle(ls_catacombs_ball1_fx)->pos = ls_catacombs_ball1_lobj->pos;
-    if (ls_catacombs_ball2_fx != -1)
-        obj_from_handle(ls_catacombs_ball2_fx)->pos = ls_catacombs_ball2_lobj->pos;
+    if (ls_catacombs_ball1_fx != -1) {
+        obj *o = obj_from_handle(ls_catacombs_ball1_fx);
+        o->pos = ls_catacombs_ball1_lobj->pos;
+    }
+    if (ls_catacombs_ball2_fx != -1) {
+        obj *o = obj_from_handle(ls_catacombs_ball2_fx);
+        o->pos = ls_catacombs_ball2_lobj->pos;
+    }
 }
 
 // 0x4fe4c0  Confidence: exact. Boss music after Carados-Intro; the intro at $ctrigger (4) once the skull
@@ -210,7 +218,8 @@ void lsf_carados_cutscene()
     if (!ls_catacombs_carados_cutscene_done && savegame_state.get_flag(cur_level_index, "carados_cutscene")
         && !(game_flags & GF_CUTSCENE)) {
         ls_catacombs_carados_cutscene_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!savegame_state.get_flag(cur_level_index, "carados_cutscene")
         && savegame_state.get_flag(cur_level_index, "maindoor_open")
@@ -229,7 +238,7 @@ void ls_carados_intro_cs_end()
     level_script_event_active = true;
 }
 
-// 0x4fe5b0  Confidence: likely (the open flag lives in the argument's stack slot: VC6 reuses the dead
+// 0x4fe5b0  Confidence: exact (VC6 byte match, match11; was likely) (the open flag lives in the argument's stack slot: VC6 reuses the dead
 // parameter's slot for the local). The saved open state of a level object.
 bool ls_catacombs_lobj_state(const char *name)
 {

@@ -91,19 +91,21 @@ int snd_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool us
     return -1;
 }
 
-// 0x520680  Confidence: likely (the three bitfield clears are one AND 0x7ffffff).
+// 0x520680  Confidence: exact (the three bitfield clears are one AND 0x7ffffff; a record pointer and a count
+// down, the binary's `dec ecx / jne`).
 void snd_init_sounds()
 {
+    snd_sound *s;
     int i;
 
     if (snd_sounds_initialized == true)
         return;
-    for (i = 0; i < SND_MAX_SOUNDS; i++) {
-        sounds[i].handle = -1;
-        sounds[i].name[0] = '\0';
-        sounds[i].loaded = 0;
-        sounds[i].level_refs = 0;
-        sounds[i].load_failed = 0;
+    for (s = sounds, i = SND_MAX_SOUNDS; i != 0; i--, s++) {
+        s->handle = -1;
+        s->name[0] = '\0';
+        s->loaded = 0;
+        s->level_refs = 0;
+        s->load_failed = 0;
     }
     snd_sounds_initialized = true;
 }
@@ -227,7 +229,7 @@ int snd_get_handle(const char *name, float min_range, float volume, float rollof
     return free_slot;
 }
 
-// 0x5209c0  Confidence: likely (EH frame for the File). Loads a used record once (a failure is kept
+// 0x5209c0  Confidence: exact (EH frame for the File). Loads a used record once (a failure is kept
 // in load_failed): the file is found by its stripped name, then loaded from its packfile's path and
 // offset. `loaded` is set even when ds_load_buffer fails.
 int snd_load(int handle, int streamed)
@@ -327,21 +329,22 @@ void snd_level_page_in()
     }
 }
 
-// 0x520ce0  Confidence: likely. Frees the records no level uses any more, counts the others down.
+// 0x520ce0  Confidence: exact. Frees the records no level uses any more, counts the others down.
 void snd_level_release()
 {
+    snd_sound *s;
     int i;
 
-    for (i = 0; i < SND_MAX_SOUNDS; i++) {
-        if (sounds[i].level_refs == 0) {
-            sounds[i].name[0] = '\0';
-            sounds[i].loaded = 0;
-            sounds[i].load_failed = 0;
-            if (sounds[i].handle != -1)
+    for (i = 0, s = sounds; i < SND_MAX_SOUNDS; i++, s++) {
+        if (s->level_refs == 0) {
+            s->name[0] = '\0';
+            s->loaded = 0;
+            s->load_failed = 0;
+            if (s->handle != -1)
                 snd_free(i);
-            sounds[i].handle = -1;
+            s->handle = -1;
         } else {
-            sounds[i].level_refs--;
+            s->level_refs--;
         }
     }
 }

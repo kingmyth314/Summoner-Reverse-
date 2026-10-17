@@ -57,17 +57,19 @@ void state14_leave()
     empty_function();
 }
 
-// 0x43eb70  Confidence: likely (the loop runs a pointer over level_table[i].mp_flags; written with the
+// 0x43eb70  Confidence: exact (the loop runs a pointer over level_table[i].mp_flags; written with the
 // index). The completed difficulties (mask >> 26, signed) at or above 1 << difficulty open every level;
 // else every level whose mp_flags share a bit with the level's prerequisite word (+0xc) must be completed.
 bool mp_player_level_available(int mask, int level, int difficulty)
 {
     int i;
+    int need;
 
     if ((mask >> MP_DIFFICULTY_SHIFT) >= (1 << difficulty))
         return true;
+    need = level_table[level].unk0c;
     for (i = 0; i < MP_LEVEL_TABLE_SIZE; i++) {
-        if ((level_table[i].mp_flags & level_table[level].unk0c) && !(mask & (1 << i)))
+        if ((level_table[i].mp_flags & need) && !(mask & (1 << i)))
             return false;
     }
     return true;

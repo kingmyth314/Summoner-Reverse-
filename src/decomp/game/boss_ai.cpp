@@ -205,14 +205,19 @@ void ai_state::boss_ai_frame()
     }
 }
 
-// 0x4a0b40  Confidence: likely (the Luminar case only bounds the jump table 0x4a0bf8 / 0x4a0c20 at
-// 0x51; it shares the default body). The spell part of a boss move (living_combat_update_boss_attack:
+// 0x4a0b40  Confidence: exact (VC6 8966 byte match: the bosses without a spell part are explicit cases
+// returning false, which give the table 0x4a0bf8 / 0x4a0c20 its index 0 over 0x51..0xc9). The spell part of a boss move (living_combat_update_boss_attack:
 // true sets the combat state 6). A serpent part's move counts when it has +Spell Only:.
 bool boss_cast_special_dispatch(Character *c, int anim)
 {
     switch (c->info->species) {
     case SPECIES_LUMINAR:
-        break;
+    case SPECIES_TIGER_RIDER:
+    case SPECIES_TENTACLE_BEAST:
+    case SPECIES_EVIL_URATH:
+    case SPECIES_MUROD:
+    case SPECIES_MACHIVAL:
+        return false;
     case SPECIES_TITUS:
         return titus_cast_special(c, anim);
     case SPECIES_PYRUL:
@@ -311,14 +316,24 @@ bool boss_move_in_range_dispatch(Character *boss, Character *target)
     return false;
 }
 
-// 0x4a1090  Confidence: likely (the table 0x4a10b8 / 0x4a10c8 spans 0x51..0xc9: the bounding species are
-// written as cases sharing the default). living_combat_resolve_hit then plays the type-9 move 0x91.
+// 0x4a1090  Confidence: exact (VC6 8966 byte match: the table 0x4a10b8 / 0x4a10c8 spans 0x51..0xc9; the
+// other bosses are explicit cases returning false, index 0 of the byte table). living_combat_resolve_hit then plays the type-9 move 0x91.
 bool boss_attack_stuns_dispatch(int species)
 {
     switch (species) {
     case SPECIES_LUMINAR:
+    case SPECIES_TIGER_RIDER:
+    case SPECIES_PHOENIX_RIDER:
+    case SPECIES_SERPENT_RIDER:
+    case SPECIES_GHOST_RIDER:
+    case SPECIES_TENTACLE_BEAST:
+    case SPECIES_EVIL_URATH:
+    case SPECIES_MUROD:
+    case SPECIES_TITUS:
+    case SPECIES_PYRUL:
+    case SPECIES_MACHIVAL:
     case SPECIES_EVIL_JOSEPH:
-        break;
+        return false;
     case SPECIES_MUROD_ONI:
         return murod_oni_move_is_kick();
     case SPECIES_GIANT_SALAMANKA:
@@ -327,14 +342,25 @@ bool boss_attack_stuns_dispatch(int species)
     return false;
 }
 
-// 0x4a1150  Confidence: likely (table 0x4a1174 / 0x4a1180 over 0x51..0xc9, as above). A knock-down of
+// 0x4a1150  Confidence: exact (VC6 8966 byte match; table 0x4a1174 / 0x4a1180 over 0x51..0xc9, as above). A knock-down of
 // 3-7 s follows in living_combat_resolve_hit.
 bool boss_attack_knocks_down_dispatch(int species)
 {
     switch (species) {
     case SPECIES_LUMINAR:
+    case SPECIES_TIGER_RIDER:
+    case SPECIES_PHOENIX_RIDER:
+    case SPECIES_SERPENT_RIDER:
+    case SPECIES_GHOST_RIDER:
+    case SPECIES_TENTACLE_BEAST:
+    case SPECIES_EVIL_URATH:
+    case SPECIES_MUROD:
+    case SPECIES_MUROD_ONI:
+    case SPECIES_TITUS:
+    case SPECIES_PYRUL:
+    case SPECIES_MACHIVAL:
     case SPECIES_EVIL_JOSEPH:
-        break;
+        return false;
     case SPECIES_GIANT_SALAMANKA:
         return giant_salamanka_move_knocks_down();
     }
@@ -592,14 +618,24 @@ void boss_ai_parse_table(const char *filename, int num_stages, boss_attack table
     tf.Close();
 }
 
-// 0x4a1ac0  Confidence: likely (table 0x4a1aec / 0x4a1af8 over 0x51..0xc5; the bounding species written
-// as cases sharing the default). Per-stage attack enables (ai_approach_target_point).
+// 0x4a1ac0  Confidence: exact (VC6 8966 byte match; table 0x4a1aec / 0x4a1af8 over 0x51..0xc5, the other
+// bosses explicit cases returning true). Per-stage attack enables (ai_approach_target_point).
 bool boss_stage_attack_enabled_dispatch(int species, int index)
 {
     switch (species) {
     case SPECIES_LUMINAR:
+    case SPECIES_TIGER_RIDER:
+    case SPECIES_PHOENIX_RIDER:
+    case SPECIES_SERPENT_RIDER:
+    case SPECIES_GHOST_RIDER:
+    case SPECIES_TENTACLE_BEAST:
+    case SPECIES_EVIL_URATH:
+    case SPECIES_MUROD:
+    case SPECIES_MUROD_ONI:
+    case SPECIES_TITUS:
+    case SPECIES_PYRUL:
     case SPECIES_MACHIVAL:
-        break;
+        return true;
     case SPECIES_GIANT_SALAMANKA:
         return giant_salamanka_stage_attack_enabled(index);
     }

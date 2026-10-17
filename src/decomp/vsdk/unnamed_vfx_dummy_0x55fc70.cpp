@@ -14,7 +14,7 @@
 #include "vsdk/geom/vfx.h"
 #include "vsdk/ca/character_instance.h"
 
-// 0x55fc70  Confidence: likely (one AND 0x1fffffff for the three bit clears).
+// 0x55fc70  Confidence: exact (one AND 0x1fffffff for the three bit clears).
 void fx_rec2c::reset()
 {
     bound = 0;

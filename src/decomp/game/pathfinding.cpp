@@ -535,11 +535,11 @@ int pathfinding_load_graph(const char *level_name)
 void ai_path_pool_init()
 {
     ai_path *prev = NULL;
-    ai_path *n;
+    int i;
 
-    for (n = ai_path_nodes; n < &ai_path_nodes[AI_PATH_MAX_NODES]; n++) {
-        n->next = prev;
-        prev = n;
+    for (i = 0; i < AI_PATH_MAX_NODES; i++) {
+        ai_path_nodes[i].next = prev;
+        prev = &ai_path_nodes[i];
     }
     ai_path_free_list = prev;
     ai_path_used = 0;
@@ -1690,7 +1690,8 @@ ai_path *ai_path_node_create_b(vector3 pos, int layer, ai_path *next)
     n->next = next;
     n->flags = 0;
     if (next) {
-        vector3 d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.z);
+        vector3 d;
+        d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.z);
 
         n->cost += d.length_quick() + next->cost;
     }
@@ -1712,7 +1713,8 @@ ai_path *ai_path_node_create(vector2 pos, int layer, ai_path *next)
     n->pos.x = pos.x;
     n->pos.z = pos.y;
     if (next) {
-        vector3 d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.y);
+        vector3 d;
+        d = vector3(next->pos.x - pos.x, 0.0f, next->pos.z - pos.y);
 
         n->cost += d.length_quick() + next->cost;
     }

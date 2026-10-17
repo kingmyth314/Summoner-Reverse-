@@ -44,7 +44,7 @@
 // ---- .bss --------------------------------------------------------------------------------------------
 int mp_net_handle_map[MP_NET_HANDLE_MAP_SIZE];          // 0x22e94f4
 
-// 0x47f860  Confidence: likely (one byte: a short jump that is near in the original). From mp_handle_obj_update for a traveling party member that is not the
+// 0x47f860  Confidence: exact (VC6 byte match, match14; was likely) (one byte: a short jump that is near in the original). From mp_handle_obj_update for a traveling party member that is not the
 // local leader: when the time since the last update over the mean sampled interval (100 ms with no
 // samples) is positive, the AI walks to the received point; the interval is pushed into the samples, the
 // timer restarted and the position kept.
@@ -73,8 +73,7 @@ void mp_remote_travel_update(mp_player *p, const vector3 *pos)
                 (p->swi_num_samples > 15 ? 15 : p->swi_num_samples) * sizeof(int));
         p->swi_samples[0] = p->swi_timer.GetElapsedTime();
         p->swi_num_samples++;
-        if (p->swi_num_samples >= MP_TRAVEL_SAMPLES)
-            p->swi_num_samples = MP_TRAVEL_SAMPLES;
+        p->swi_num_samples = p->swi_num_samples < MP_TRAVEL_SAMPLES ? p->swi_num_samples : MP_TRAVEL_SAMPLES;
         p->swi_timer.SetTimeout(0);
         *(vector3 *)p->swi_pos = c->pos;
     }
@@ -253,11 +252,12 @@ void mp_handle_new_lep(ubyte *data, void *from)
     pos.x = ((float *)data)[4];
     pos.y = ((float *)data)[5];
     pos.z = ((float *)data)[6];
-    packed.r0 = ((float *)(data + 0x1c))[0];
-    packed.r1 = ((float *)(data + 0x1c))[1];
-    packed.u0 = ((float *)(data + 0x1c))[2];
-    packed.u1 = ((float *)(data + 0x1c))[3];
-    packed.signs = data[0x2c];
+    data += 0x1c;
+    packed.r0 = ((float *)data)[0];
+    packed.r1 = ((float *)data)[1];
+    packed.u0 = ((float *)data)[2];
+    packed.u1 = ((float *)data)[3];
+    packed.signs = data[0x10];
     matrix3_unpack_orientation(&packed, &orient);
     c = living_entity_create(type, info, &pos, &orient, true, 0, 0, 0, false);
     if (!c)
@@ -414,6 +414,7 @@ void mp_send_obj_update(Character *c, int a)
 {
     ushort qx, qy, qz;
     float p, b, h;
+    float t;
     ubyte data[MP_MAX_PACKET];
     ushort packet_size;
     int handle;
@@ -423,7 +424,8 @@ void mp_send_obj_update(Character *c, int a)
 
     mp_quantize_position((short *)&qx, (short *)&qy, (short *)&qz, c->pos);
     c->orient.extract_angles(&p, &b, &h);
-    heading = (ushort)(int)((h + MP_PI) * MP_HEADING_SCALE * 65535.0f);
+    t = (h + MP_PI) * MP_HEADING_SCALE;
+    heading = (ushort)(int)(t * 65535.0f);
     layer = (ushort)c->layer;
     MP_BUILD_HEADER(MP_OBJ_UPD);
     if (MP_IS_HOST())
@@ -492,9 +494,9 @@ void mp_handle_obj_update(ubyte *data, void *from)
         if (remote) {
             if (!(distance(&c->pos, &pos) > 10.0f))
                 goto done;
-        } else if (!(forward_speed * 0.5f + 1.5f < distance(&c->pos, &pos))) {
+        } else if (!(distance(&c->pos, &pos) > forward_speed * 0.5f + 1.5f)) {
             c->orient.extract_angles(&cp, &cb, &ch);
-            if (!(fabs(ch - new_h) > 0.17453292f))
+            if (!(fabsf(ch - new_h) > 0.17453292f))
                 goto done;
         }
     }

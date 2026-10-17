@@ -9,6 +9,7 @@
 #include "vsdk/vsdk.h"
 #include "vsdk/os/timestamp.h"
 #include "vsdk/math/vector.h"
+#include "summoner/level_info.h"
 
 struct dialogue_action;                              // levelscripts/conversation.h
 
@@ -397,7 +398,7 @@ struct navpoint {
 LAYOUT_CHECK(navpoint, sizeof(navpoint) == 0x30);
 #define MAX_NAVPOINTS 750
 extern navpoint navpoints[MAX_NAVPOINTS];            // 0x24e4950
-extern navpoint *level_player_starts[4];             // 0x60a32c (level_find_player_starts; decomp37)
+// level_player_starts (0x60a32c, level_find_player_starts; decomp37) is a member of level_info (D7201).
 extern int navpoint_count;                           // 0x2539f2c
 // conversation_save_table (levelscripts/conversation.h) as records: one per (level, slot).
 struct conversation_save_info {

@@ -123,7 +123,7 @@ int bm_calc_num_pixels(int w, int h, int num_levels)
     return total;
 }
 
-// 0x501d20  Confidence: likely (the format mapping may be a switch; the version int is read and dropped).
+// 0x501d20  Confidence: likely (a byte match under /Ox /Ow, D7502).
 // "VBM " signature, version, width, height, format (0 1555, 1 4444, other 565), fps, frame count and
 // the number of extra mip levels. Without Load_mipmaps only the first level is used.
 void bm_read_vbm_header(const char *name, int *w, int *h, int *format, int *num_frames, int *num_levels,
@@ -310,7 +310,8 @@ void bm_set_reduced(int bm, bool reduce)
 // 0x502300  Confidence: exact (a dead lea of the entry address stays in the code).
 bool bm_is_reduced(int bm)
 {
-    return bm_bitmaps[bm_get_current_frame(bm)].reduced;
+    bitmap_entry *e = &bm_bitmaps[bm_get_current_frame(bm)];
+    return e->reduced;
 }
 
 // 0x502320  Confidence: exact (the list macros: VC6 keeps bm_used_list.prev in a register through the
@@ -350,7 +351,7 @@ void bm_init()
     bm_inited = true;
 }
 
-// 0x5023e0  Confidence: likely (list_remove's NULL stores are dead before list_append; field order).
+// 0x5023e0  Confidence: likely (a byte match under /Ox /Ow, D7502).
 // anim_type, num_frames, frames_per_ms, path_id and reduced are left as they were.
 void bm_free_entry(int index)
 {
@@ -735,7 +736,7 @@ bitmap_entry *bm_alloc_entry()
     return e;
 }
 
-// 0x502ee0  Confidence: likely (loop shape of the search). The first run of count entries with type 0,
+// 0x502ee0  Confidence: likely (a byte match under /Ox /Ow, D7502). The first run of count entries with type 0,
 // moved to the end of the used list; NULL when there is none (bm_load_internal does not test it).
 bitmap_entry *bm_alloc_entries(int count)
 {
@@ -975,7 +976,7 @@ int bm_get_data(int bm, void **data, void **palette)
     return e->format;
 }
 
-// 0x503650  Confidence: likely (type 3 is tested before the switch: its jump table slot 0x5036f0 + 8 is
+// 0x503650  Confidence: likely (a byte match under /Ox /Ow, D7502; type 3 is tested before the switch: its jump table slot 0x5036f0 + 8 is
 // the error). Loads the pixels every time (no test for data already present, except an animation's shared
 // block in bm_lock_vbm); returns the format, 0 when a loader fails.
 int bm_lock(int bm, ubyte **data, ubyte **palette)

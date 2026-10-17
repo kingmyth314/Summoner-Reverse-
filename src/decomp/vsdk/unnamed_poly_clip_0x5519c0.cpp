@@ -196,7 +196,7 @@ int polygon_clip_to_planes(int n, const vector3 *in, vector3 *out, const plane *
     return n;
 }
 
-// 0x551f90  Confidence: likely (the exit test after the inner loop). False when every point lies on or
+// 0x551f90  Confidence: exact (the exit test after the inner loop). False when every point lies on or
 // in front of some plane.
 int polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int num_planes, float offset)
 {
@@ -210,17 +210,16 @@ int polygon_touches_planes(int n, const vector3 *pts, const plane *planes, int n
         if (i == n)
             break;
     }
-    if (p < num_planes)
-        return 0;
-    return 1;
+    if (p >= num_planes)
+        return 1;
+    return 0;
 }
 
 // 0x552010  Confidence: exact. No caller.
 bool sphere_intersects_plane_volume(const vector3 *p, float radius, plane *planes, int num_planes, float offset)
 {
-    float limit = radius + offset - POLY_EPSILON;
     for (int i = 0; i < num_planes; i++) {
-        if (!(planes[i].distance_to_point(p) < limit))
+        if (!(planes[i].distance_to_point(p) < radius + offset - POLY_EPSILON))
             return false;
     }
     return true;
@@ -229,9 +228,8 @@ bool sphere_intersects_plane_volume(const vector3 *p, float radius, plane *plane
 // 0x552070  Confidence: exact. No caller.
 bool sphere_inside_plane_volume(const vector3 *p, float radius, plane *planes, int num_planes, float offset)
 {
-    float limit = offset - POLY_EPSILON - radius;
     for (int i = 0; i < num_planes; i++) {
-        if (!(planes[i].distance_to_point(p) < limit))
+        if (!(planes[i].distance_to_point(p) < offset - POLY_EPSILON - radius))
             return false;
     }
     return true;

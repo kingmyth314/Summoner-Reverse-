@@ -156,7 +156,7 @@ void journal_load_bitmaps()
     journal_scrollbar_bm_h = (int)(journal_scrollbar_bm_h * scale);
 }
 
-// 0x41ab10  Confidence: likely (the two pairs of zero stores use two registers, read as two chained
+// 0x41ab10  Confidence: exact (VC6 byte match, match22; the two lists cleared in a loop; was likely) (the two pairs of zero stores use two registers, read as two chained
 // assignments).
 void journal_init()
 {
@@ -174,8 +174,10 @@ void journal_init()
     journal_hover_quest = 0;
     journal_select_quest(0);
 
-    journal_list_count[0] = journal_list_count[1] = 0;
-    journal_list_scroll_pos[0] = journal_list_scroll_pos[1] = 0;
+    for (i = 0; i < 2; i++) {
+        journal_list_scroll_pos[i] = 0;
+        journal_list_count[i] = 0;
+    }
 
     for (i = 0; i < quest_count; i++) {
         if (savegame_state.get_quest_bit(i)) {
@@ -190,7 +192,7 @@ void journal_init()
         journal_update_list_scrollbar(i);
 }
 
-// 0x41abf0  Confidence: likely (count and page are locals because fild needs them in memory: count goes
+// 0x41abf0  Confidence: exact (VC6 byte match, match22; count <= 0 branch first; was likely) (count and page are locals because fild needs them in memory: count goes
 // to the dead argument slot; the count > 0 guard of the else branch can never fail here).
 void journal_update_list_scrollbar(int list)
 {
@@ -211,7 +213,12 @@ void journal_update_list_scrollbar(int list)
     journal_buttons[5 + list * 4].flags &= ~4;
     journal_buttons[7 + list * 4].flags &= ~4;
 
-    if (count > 0) {
+    if (count <= 0) {
+        journal_thumb_pos[list][0] = journal_list_track_pos[resolution_index][list][0];
+        journal_thumb_pos[list][1] = journal_list_track_pos[resolution_index][list][1];
+        journal_list_scrollbar_size[list][0] = journal_scrollbar_bm_w;
+        journal_list_scrollbar_size[list][1] = journal_list_track_h[resolution_index];
+    } else {
         journal_thumb_pos[list][0] = journal_list_track_pos[resolution_index][list][0];
         journal_thumb_pos[list][1] = (int)((float)journal_list_scroll_pos[list] / count
                                            * journal_list_track_h[resolution_index] + 0.5f)
@@ -219,11 +226,6 @@ void journal_update_list_scrollbar(int list)
         journal_list_scrollbar_size[list][0] = journal_scrollbar_bm_w;
         journal_list_scrollbar_size[list][1] = (int)((float)page / count * journal_list_track_h[resolution_index]
                                                      + 0.5f);
-    } else {
-        journal_thumb_pos[list][0] = journal_list_track_pos[resolution_index][list][0];
-        journal_thumb_pos[list][1] = journal_list_track_pos[resolution_index][list][1];
-        journal_list_scrollbar_size[list][0] = journal_scrollbar_bm_w;
-        journal_list_scrollbar_size[list][1] = journal_list_track_h[resolution_index];
     }
 }
 
@@ -247,7 +249,7 @@ void journal_select_quest(quest_info *quest)
     journal_update_desc_scrollbar();
 }
 
-// 0x41ade0  Confidence: likely (same shape as journal_update_list_scrollbar).
+// 0x41ade0  Confidence: exact (VC6 byte match, match22; count <= 0 branch first; was likely) (same shape as journal_update_list_scrollbar).
 void journal_update_desc_scrollbar()
 {
     int count = journal_desc_line_count;
@@ -264,7 +266,12 @@ void journal_update_desc_scrollbar()
     journal_desc_scrollbar_visible = true;
     journal_buttons[15].flags &= ~4;
 
-    if (count > 0) {
+    if (count <= 0) {
+        journal_desc_scrollbar_x = journal_desc_track_pos[resolution_index][0];
+        journal_desc_scrollbar_y = journal_desc_track_pos[resolution_index][1];
+        journal_desc_scrollbar_w = journal_scrollbar_bm_w;
+        journal_desc_scrollbar_h = journal_desc_track_h[resolution_index];
+    } else {
         journal_desc_scrollbar_x = journal_desc_track_pos[resolution_index][0];
         journal_desc_scrollbar_y = (int)((float)journal_desc_first_line / journal_desc_line_count
                                          * journal_desc_track_h[resolution_index] + 0.5f)
@@ -272,11 +279,6 @@ void journal_update_desc_scrollbar()
         journal_desc_scrollbar_w = journal_scrollbar_bm_w;
         journal_desc_scrollbar_h = (int)((float)page / journal_desc_line_count
                                          * journal_desc_track_h[resolution_index] + 0.5f);
-    } else {
-        journal_desc_scrollbar_x = journal_desc_track_pos[resolution_index][0];
-        journal_desc_scrollbar_y = journal_desc_track_pos[resolution_index][1];
-        journal_desc_scrollbar_w = journal_scrollbar_bm_w;
-        journal_desc_scrollbar_h = journal_desc_track_h[resolution_index];
     }
 }
 
@@ -581,10 +583,11 @@ void journal_goto_shop_or_status()
 // 0x41b720  Confidence: exact. Inventory (1) with a zero byte argument (page 0).
 void journal_goto_inventory()
 {
-    char page = 0;
+    char page[4];
 
     journal_leave_flags &= ~6;
-    interface_set_screen(1, &page);
+    page[0] = 0;
+    interface_set_screen(1, page);
 }
 
 // 0x41b750  Confidence: exact.
@@ -654,7 +657,7 @@ void journal_update_buttons()
     journal_mouse_mode = 0;
 }
 
-// 0x41b8e0  Confidence: likely (the list branch stores the element three times, the description branch
+// 0x41b8e0  Confidence: exact (VC6 byte match, match22; the max before the last-line difference; was likely) (the list branch stores the element three times, the description branch
 // once: written as three assignments and one nested clamp).
 void journal_drag_scrollbar()
 {
@@ -663,8 +666,8 @@ void journal_drag_scrollbar()
     if (journal_drag_scrollbar_index == 3) {
         int line = (int)((float)(y - journal_desc_track_pos[resolution_index][1])
                          / journal_desc_track_h[resolution_index] * journal_desc_line_count + 0.5f);
-        int last = journal_desc_line_count - journal_desc_page[resolution_index];
         line = line > 0 ? line : 0;
+        int last = journal_desc_line_count - journal_desc_page[resolution_index];
         if (line < last)
             last = line;
         journal_desc_first_line = last;
@@ -703,13 +706,18 @@ void journal_draw()
     journal_draw_desc_scrollbar();
 }
 
-// 0x41ba60  Confidence: likely (the struct copy of the two row origins; the early exit once both lists
+// 0x41ba60  Confidence: exact (VC6 byte match, match22; the origins copied element by element; was likely) (the struct copy of the two row origins; the early exit once both lists
 // are past their page). Rows before the scroll position are counted but not drawn.
 void journal_draw_quest_list()
 {
     char buf[128];
     int font_h = gr_get_font_height(-1);
-    journal_list_origins pos = journal_list_pos[resolution_index];
+    journal_list_origins pos;
+    const journal_list_origins *src = &journal_list_pos[resolution_index];
+    pos.pos[0][0] = src->pos[0][0];
+    pos.pos[0][1] = src->pos[0][1];
+    pos.pos[1][0] = src->pos[1][0];
+    pos.pos[1][1] = src->pos[1][1];
     int row[2];
     int i, k;
 

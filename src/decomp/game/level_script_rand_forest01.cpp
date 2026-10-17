@@ -36,7 +36,7 @@ bool ls_rand_forest01_serpent_intro_done;            // 0x257ea68
 bool ls_rand_forest01_serpent_killed_done;           // 0x257ea69
 bool ls_rand_forest01_exit_pending;                  // 0x257ea6a "EnterTome": to jadetemple_v2
 
-// 0x4f5910  Confidence: likely (the five-way choice of the _v6 script: the shared tails of the disable lists
+// 0x4f5910  Confidence: exact (VC6 byte match, match11; was likely) (the five-way choice of the _v6 script: the shared tails of the disable lists
 // are the compiler's tail merging of this if / else-if chain; the order of the tests is from the code).
 // level_script_table init. _v6: with page 8 of the Tome the King, the Crone, the traders and Gesualdo's first
 // self go; with pages 1-6 but not 7 his second self instead; else, at a 50 % chance unless the party talked to
@@ -116,7 +116,8 @@ void ls_rand_forest01_frame()
     if (!ls_rand_forest01_serpent_intro_done && savegame_state.get_flag(cur_level_index, "serpent_intro_played")
         && !(game_flags & GF_CUTSCENE)) {
         ls_rand_forest01_serpent_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_rand_forest01_serpent_killed_done && savegame_state.get_flag(cur_level_index, "serpent_killed")
         && !(game_flags & GF_CUTSCENE)) {

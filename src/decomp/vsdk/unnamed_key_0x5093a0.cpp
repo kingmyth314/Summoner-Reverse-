@@ -99,7 +99,7 @@ int key_release_counts[256];                         // 0x25da540
 int key_queue_head;                                  // 0x25da940
 int key_queue_tail;                                  // 0x25da944
 int key_last_released;                               // 0x25da948 (written only; name ours)
-ubyte key_down_state[256];                           // 0x25da94c
+bool key_down_state[256];                           // 0x25da94c
 int key_last_pressed;                                // 0x25daa4c (written only; name ours)
 int key_layout;                                      // 0x25daa50
 CRITICAL_SECTION key_lock;                           // 0x25daa58
@@ -212,7 +212,7 @@ void key_numlock_off()
     SetKeyboardState(state);
 }
 
-// 0x509660  Confidence: likely (the three key_mark calls are the compiler's tail copies of one). The scan
+// 0x509660  Confidence: exact (the three key_mark calls are the compiler's tail copies of one). The scan
 // code from lParam bits 16-23 (+0x80 for extended keys); Print Screen (VK_SNAPSHOT) is KEY_SYSRQ, the right
 // shift and alt keys count as the left ones.
 void key_on_keydown(int vk, int lparam, int latency)
@@ -221,7 +221,7 @@ void key_on_keydown(int vk, int lparam, int latency)
 
     if (!key_inited)
         return;
-    scancode = (ubyte)(lparam >> 16);
+    scancode = (lparam >> 16) & 0xff;
     if (lparam & 0x1000000)
         scancode += 0x80;
     if (vk == VK_SNAPSHOT)
@@ -233,7 +233,7 @@ void key_on_keydown(int vk, int lparam, int latency)
     key_mark(scancode, 1, latency);
 }
 
-// 0x5096e0  Confidence: likely (as key_on_keydown). Windows sends Print Screen only on the way up, so it is
+// 0x5096e0  Confidence: exact (as key_on_keydown). Windows sends Print Screen only on the way up, so it is
 // marked down and up here.
 void key_on_keyup(int vk, int lparam, int latency)
 {
@@ -241,7 +241,7 @@ void key_on_keyup(int vk, int lparam, int latency)
 
     if (!key_inited)
         return;
-    scancode = (ubyte)(lparam >> 16);
+    scancode = (lparam >> 16) & 0xff;
     if (lparam & 0x1000000)
         scancode += 0x80;
     if (vk == VK_SNAPSHOT)
@@ -351,7 +351,7 @@ bool key_numlock_is_on()
     BYTE state[256];
 
     GetKeyboardState(state);
-    return state[VK_NUMLOCK] != 0;
+    return state[VK_NUMLOCK] ? true : false;
 }
 
 // 0x509a80  Confidence: exact (a tail jump to key_inkey). Spins until a key is queued.

@@ -680,9 +680,9 @@ bool script_action_walk_to(Character *c, script_object *so)
     return true;
 }
 
-// 0x4dc860  Confidence: likely (the target is the navpoint's forward vector plus the character's own
-// position, as the code adds them; vector3's copy constructor is called out of line for the by-value
-// argument). The wait time is the action's seconds.
+// 0x4dc860  Confidence: exact (the target is the navpoint's forward vector plus the character's own
+// position, as the code adds them, stored back into pos, D7700; vector3's copy constructor is called out
+// of line for the by-value argument). The wait time is the action's seconds.
 bool script_action_wait_at(Character *c, script_object *so)
 {
     vector3 pos;
@@ -691,7 +691,8 @@ bool script_action_wait_at(Character *c, script_object *so)
 
     so->timer.SetTimeout(a->arg0c * 1000);
     navpoint_get_position(a->nav->name, &pos, &orient);
-    c->walk_to_point(orient.fvec + c->pos, 100);
+    pos = orient.fvec + c->pos;
+    c->walk_to_point(pos, 100);
     return true;
 }
 
@@ -731,11 +732,11 @@ bool script_action_die(Character *c, script_action *a)
             c->play_move((int)m, 1.0f, false, false, true);
             c->kill(m->id);
             c->flags |= 0x80;
-            return true;
+        } else {
+            if (c->type == 9)
+                c->type = 5;
+            c->kill(m->id);
         }
-        if (c->type == 9)
-            c->type = 5;
-        c->kill(m->id);
         return true;
     }
     return false;
@@ -765,8 +766,8 @@ bool script_action_goto(Character *c, script_action *a, script_object *so)
     return false;
 }
 
-// 0x4dca90  Confidence: exact. Actions 4-5: a timed move-to goal (the int argument as its float) at the
-// navpoint, walking unless the script said "run".
+// 0x4dca90  Confidence: likely (under 8966 the &pos / this registers swap, D7702). Actions 4-5: a timed
+// move-to goal (the int argument as its float) at the navpoint, walking unless the script said "run".
 bool script_action_wander(Character *c, script_action *a, bool walk)
 {
     navpoint *np = a->nav;
@@ -1330,8 +1331,7 @@ bool script_object_near_player_dist(Character *c, float dist)
         return false;
     if (cur_character == NULL)
         return false;
-    vector3 d = c->pos - cur_character->pos;
-    return d.x * d.x + d.y * d.y + d.z * d.z <= dist * dist;
+    return (c->pos - cur_character->pos).len_sq() <= dist * dist;
 }
 
 // 0x4dda90  Confidence: exact (VC6 byte match) (as above).
@@ -1339,8 +1339,7 @@ bool script_navpoint_near_player_dist(navpoint *np, float dist)
 {
     if (cur_character == NULL)
         return false;
-    vector3 d = cur_character->pos - np->pos;
-    return d.x * d.x + d.y * d.y + d.z * d.z <= dist * dist;
+    return (cur_character->pos - np->pos).len_sq() <= dist * dist;
 }
 
 // 0x4ddaf0  Confidence: exact.

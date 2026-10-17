@@ -55,14 +55,20 @@ bool Snow_enabled = true;                                     // 0x59c5e8
 bool Snow_render = true;                                      // 0x59c5e9
 int snow_flake_bm = -1;                                       // 0x59c5ec
 
-// 0x4946e0  Confidence: likely (the two loop guards on the block index). The first free pool block.
+// 0x4946e0  Confidence: exact (VC6 byte match, cl 8966; was likely: the two loop guards on the block index). The
+// first free pool block.
 snow_flake *snow_cell_alloc()
 {
     int idx = 0;
-    for (int b = 0; idx < SNOW_POOL_BLOCKS && b < 13; b++) {
-        for (int bit = 0; idx < SNOW_POOL_BLOCKS && bit < 8; bit++, idx++) {
-            if (!(snow_cell_used[b] & (1 << bit))) {
-                snow_cell_used[b] |= 1 << bit;
+    for (int b = 0; b < 13; b++) {
+        if (idx >= SNOW_POOL_BLOCKS)
+            break;
+        for (int bit = 0; bit < 8; idx++, bit++) {
+            if (idx >= SNOW_POOL_BLOCKS)
+                break;
+            int mask = 1 << bit;
+            if (!(snow_cell_used[b] & mask)) {
+                snow_cell_used[b] |= mask;
                 return snow_cell_pool[idx];
             }
         }
@@ -76,7 +82,9 @@ void snow_cell_free(snow_flake *block)
     if (block == NULL)
         return;
     int idx = (block - &snow_cell_pool[0][0]) / SNOW_FLAKES;
-    snow_cell_used[idx >> 3] &= ~(1 << (idx & 7));
+    ubyte mask = 1 << (idx & 7);
+    int i = idx >> 3;
+    snow_cell_used[i] = snow_cell_used[i] & ~mask;
 }
 
 // Folded: identical-code folding merged this body with conversation_reset_state (0x4dac10); snow_start
@@ -86,20 +94,25 @@ void snow_cell::reset()
     flakes = NULL;
 }
 
-// 0x494770  Confidence: likely (the origin as a vector3 local). The 32 flakes from the top of the
+// 0x494770  Confidence: exact (VC6 byte match, cl 8966; was likely: the origin as a vector3 local). The 32 flakes
+// from the top of the
 // visible range downwards along their fall direction (12 s to 0.375 s of fall), jittered +-5 m.
 void snow_cell::fill()
 {
     if (flakes == NULL)
         return;
-    float t = 12.0f;
-    vector3 origin((float)x * SNOW_CELL_SIZE, snow_base_y, (float)z * SNOW_CELL_SIZE);
+    vector3 origin;
+    float t;
+    origin.x = (float)x * SNOW_CELL_SIZE;
+    origin.y = snow_base_y;
+    t = 12.0f;
+    origin.z = (float)z * SNOW_CELL_SIZE;
     for (int i = 0; i < SNOW_FLAKES; i++) {
-        snow_flake *f = &flakes[(snow_scroll_row + i) % SNOW_FLAKES];
-        f->dir = (ubyte)(int)(frand() * 32.0f);
-        f->pos = snow_offsets[f->dir] * t + origin;
-        f->pos.x += frand_range(-5.0f, 5.0f);
-        f->pos.z += frand_range(-5.0f, 5.0f);
+        int k = (snow_scroll_row + i) % SNOW_FLAKES;
+        flakes[k].dir = (ubyte)(int)(frand() * 32.0f);
+        flakes[k].pos = snow_offsets[flakes[k].dir] * t + origin;
+        flakes[k].pos.x += frand_range(-5.0f, 5.0f);
+        flakes[k].pos.z += frand_range(-5.0f, 5.0f);
         t -= 0.375f;
     }
 }
@@ -110,25 +123,34 @@ void snow_cell::fill_count(int n)
 {
     if (flakes == NULL)
         return;
-    vector3 origin((float)x * SNOW_CELL_SIZE, snow_base_y, (float)z * SNOW_CELL_SIZE);
+    vector3 origin;
+    origin.x = (float)x * SNOW_CELL_SIZE;
+    origin.y = snow_base_y;
+    origin.z = (float)z * SNOW_CELL_SIZE;
     float t = n / SNOW_FALL_RATE;
     float step = t / n;
     for (int i = 0; i < n; i++) {
-        snow_flake *f = &flakes[(snow_scroll_row + i) % SNOW_FLAKES];
-        f->dir = (ubyte)(int)(frand() * 32.0f);
-        f->pos = snow_offsets[f->dir] * t + origin;
-        f->pos.x += frand_range(-5.0f, 5.0f);
-        f->pos.z += frand_range(-5.0f, 5.0f);
+        int k = (snow_scroll_row + i) % SNOW_FLAKES;
+        flakes[k].dir = (ubyte)(int)(frand() * 32.0f);
+        flakes[k].pos = snow_offsets[flakes[k].dir] * t + origin;
+        flakes[k].pos.x += frand_range(-5.0f, 5.0f);
+        flakes[k].pos.z += frand_range(-5.0f, 5.0f);
         t -= step;
     }
 }
 
-// 0x4949f0  Confidence: likely (the box corners as two vector3 locals). A cell outside the view gives
+// 0x4949f0  Confidence: exact (VC6 byte match, cl 8966; was likely: the box corners as two vector3 locals). A cell
+// outside the view gives
 // its block back; a visible one gets a block. True when the cell has no block afterwards.
 bool snow_cell::update()
 {
-    vector3 mins(((float)x - 0.5f) * SNOW_CELL_SIZE, snow_camera_y, ((float)z - 0.5f) * SNOW_CELL_SIZE);
-    vector3 maxs(((float)x + 0.5f) * SNOW_CELL_SIZE, snow_base_y, ((float)z + 0.5f) * SNOW_CELL_SIZE);
+    vector3 mins, maxs;
+    mins.x = ((float)x - 0.5f) * SNOW_CELL_SIZE;
+    mins.y = snow_camera_y;
+    mins.z = ((float)z - 0.5f) * SNOW_CELL_SIZE;
+    maxs.x = ((float)x + 0.5f) * SNOW_CELL_SIZE;
+    maxs.y = snow_base_y;
+    maxs.z = ((float)z + 0.5f) * SNOW_CELL_SIZE;
     if (gr_cull_bounding_box(&mins, &maxs)) {
         if (flakes) {
             snow_cell_free(flakes);
@@ -149,8 +171,9 @@ void snow_start()
 
     snow_flake_bm = bm_load("SnowFlake.tga", -1, -1);
     for (i = 0; i < SNOW_GRID; i++) {
+        snow_cell *rec = snow_cell_records[i];
         for (j = 0; j < SNOW_GRID; j++) {
-            snow_cells[i][j] = &snow_cell_records[i][j];
+            snow_cells[i][j] = rec++;
             snow_cells[i][j]->reset();
         }
     }
@@ -190,7 +213,7 @@ void snow_update(float frametime)
 
     float fog_far = fog_get_far_current();
     vector3 &fvec = camera_view_orient.fvec;
-    float horiz = (float)sqrt(fvec.x * fvec.x + fvec.z * fvec.z);
+    float horiz = (float)sqrt(fvec.z * fvec.z + fvec.x * fvec.x);
     if (horiz == 0.0f) {
         if (fvec.y >= 0.0f) {
             snow_base_y = camera_view_pos.y + fog_far;
@@ -203,7 +226,7 @@ void snow_update(float frametime)
         float h_fov, v_fov;
         float pitch = (float)atan(fvec.y / horiz);
         gr_get_view_fov(&h_fov, &v_fov);
-        float half = v_fov * 0.017453292f * 0.5f;
+        float half = (float)(v_fov * 0.017453292f) * 0.5f;
         float top = (float)sin(half + pitch) * fog_far + camera_view_pos.y;
         if (!(top > camera_view_pos.y))
             top = camera_view_pos.y;
@@ -283,19 +306,18 @@ void snow_update(float frametime)
     int n = (int)snow_scroll_accum;
     for (i = 0; i < SNOW_GRID; i++) {
         for (j = 0; j < SNOW_GRID; j++) {
-            c = snow_cells[i][j];
-            bool was_empty = c->flakes == NULL;
-            if (c->update())
+            bool was_empty = snow_cells[i][j]->flakes == NULL;
+            if (snow_cells[i][j]->update())
                 continue;
             if (was_empty) {
-                c->fill();
+                snow_cells[i][j]->fill();
             } else {
                 for (int k = 0; k < SNOW_FLAKES; k++) {
-                    snow_flake *f = &c->flakes[k];
+                    snow_flake *f = &snow_cells[i][j]->flakes[k];
                     f->pos += snow_offsets[f->dir] * frametime;
                 }
                 if (n > 0)
-                    c->fill_count(n);
+                    snow_cells[i][j]->fill_count(n);
             }
         }
     }

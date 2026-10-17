@@ -151,7 +151,8 @@ void ls_wolong2_pijian_death_cs_end()
 // 0x4f1e20  Confidence: exact. End of PIJN-Intro.
 void ls_wolong2_pijian_intro_cs_end()
 {
-    music_play(music_find_by_name("Boss"), true);
+    int music = music_find_by_name("Boss");
+    music_play(music, true);
 }
 
 // 0x4f1e40  Confidence: exact. $npc004 within 4: the alert soldier talks.

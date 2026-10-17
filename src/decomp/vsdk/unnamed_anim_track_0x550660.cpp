@@ -39,7 +39,13 @@ void anim_track::calc_rot_tangents(int key, bool loop)
     float adj_in, adj_out, half;
 
     if (key >= 0) {
-        prev_q = *rot_key_quat(key == 0 ? (loop ? num_rot_keys - 1 : 0) : key - 1);
+        if (key == 0) {
+            if (loop)
+                prev_q = *rot_key_quat(num_rot_keys - 1);
+            else
+                prev_q = *rot_key_quat(0);
+        } else
+            prev_q = *rot_key_quat(key - 1);
         if (cquat_dot(&prev_q, rot_key_quat(key)) < 0.0f)
             prev_q = -prev_q;
         log_prev = cquat_log_of_delta(&prev_q, rot_key_quat(key));
@@ -122,8 +128,9 @@ void anim_track::eval_scale_bezier(vector3 *out, int k0, int k1, float t)
 // 0x550f60  Confidence: exact.
 void anim_track::get_rot_time_range(int *first, int *last)
 {
-    *first = rot_keys[0].time;
-    *last = rot_keys[num_rot_keys - 1].time;
+    anim_rot_key *k = rot_keys;
+    *first = k[0].time;
+    *last = k[num_rot_keys - 1].time;
 }
 
 // 0x550f90  Confidence: exact. Turns the stored tangents into absolute control points (key out = b,
@@ -163,7 +170,7 @@ vector3 anim_track::get_position(int time)
     int i;
     for (i = 0; i < num_pos_keys && pos_keys[i].time <= time; i++)
         ;
-    float t = (float)(time - pos_keys[i - 1].time) / (float)(pos_keys[i].time - pos_keys[i - 1].time);
+    float t = (float)((float)(time - pos_keys[i - 1].time) / (double)(pos_keys[i].time - pos_keys[i - 1].time));
     vector3 v;
     anim_track_eval_pos_bezier(this, &v, i - 1, i, t);
     return v;
@@ -250,7 +257,7 @@ vector3 anim_track::get_scale(int time)
     return v;
 }
 
-// 0x551610  Confidence: likely (t + t for 2t). 3D Studio's ease: t unchanged at 0 and 1 or without ease; the two ease
+// 0x551610  Confidence: exact (t + t for 2t). 3D Studio's ease: t unchanged at 0 and 1 or without ease; the two ease
 // fractions are scaled down when they add up to more than 1; quadratic in the ease ranges, linear
 // between.
 float tcb_ease(float t, float ease_from, float ease_to)

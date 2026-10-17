@@ -21,14 +21,14 @@
 // Original __FILE__ of this unit (literal 0x5aca04).
 #define STRINGPOOL_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\os\\stringpool.cpp"
 
-// 0x544b80  Confidence: likely (store order allocated, max_length, length, pool is the scheduler's).
+// 0x544b80  Confidence: exact (VC6 byte match, match14; was likely) (store order allocated, max_length, length, pool is the scheduler's).
 // count is not cleared.
 void StringPool::Init(char *pool, int max_length, bool allocated)
 {
-    this->pool = pool;
     this->allocated = allocated;
     this->max_length = max_length;
     length = 0;
+    this->pool = pool;
 }
 
 // 0x544ba0  Confidence: exact. new char[] reaches operator new (0x512550).
@@ -134,13 +134,13 @@ const char *StringPool::AddUniqueQuoted(TextFile *tf)
     return AddUnique(buf);
 }
 
-// 0x544dc0  Confidence: exact.
+// 0x544dc0  Confidence: exact (VC6 byte match, match14; was exact).
 StringPool::StringPool()
 {
-    pool = NULL;
     allocated = false;
-    max_length = 0;
     length = 0;
+    max_length = 0;
+    pool = NULL;
     count = 0;
 }
 

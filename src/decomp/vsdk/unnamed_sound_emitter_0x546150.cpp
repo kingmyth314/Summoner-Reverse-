@@ -166,7 +166,7 @@ void sound_emitter_update_volume(int emitter, float scale)
         sound_emitter_play(emitter);
 }
 
-// 0x546500  Confidence: exact.
+// 0x546500  Confidence: exact (VC6 byte match, match14; was exact).
 void sound_emitter_update_pan(int emitter)
 {
     sound_emitter *e = &sound_emitters[emitter];
@@ -176,7 +176,7 @@ void sound_emitter_update_pan(int emitter)
         pan = sound_emitter_calc_pan(&e->seg_a, &e->seg_b);
     else
         pan = snd_calc_pan(&e->pos);
-    if (fabs(e->pan - pan) > 0.1f) {
+    if ((float)fabs(e->pan - pan) > 0.1f) {
         snd_set_pan(e->sig, pan);
         e->pan = pan;
     }
@@ -222,7 +222,7 @@ void sound_emitters_close()
     }
 }
 
-// 0x546670  Confidence: exact. No caller in the game code read so far (sum.symbols lists none).
+// 0x546670  Confidence: exact (VC6 byte match, match14; was exact). No caller in the game code read so far (sum.symbols lists none).
 int sound_emitter_create_segment(int sound, const vector3 *a, const vector3 *b, int update_ms, int delay_ms)
 {
     sound_emitter *e;
@@ -243,6 +243,7 @@ int sound_emitter_create_segment(int sound, const vector3 *a, const vector3 *b, 
 int sound_create_emitter(int sound, int update_ms, int delay_ms)
 {
     sound_emitter *e;
+    sound_emitter *prev;
     snd_sound *s;
     int emitter;
 
@@ -265,9 +266,10 @@ int sound_create_emitter(int sound, int update_ms, int delay_ms)
     e->repeat_delay = delay_ms;
     e->repeat_timer.invalidate();
     snd_get_format(sound, &e->frequency, NULL, NULL);
-    e->prev = sound_emitter_list_head.prev;
+    prev = sound_emitter_list_head.prev;
+    e->prev = prev;
     e->next = &sound_emitter_list_head;
-    sound_emitter_list_head.prev->next = e;
+    prev->next = e;
     sound_emitter_list_head.prev = e;
     return emitter;
 }
@@ -275,26 +277,25 @@ int sound_create_emitter(int sound, int update_ms, int delay_ms)
 // 0x5467c0  Confidence: likely (the order of the link stores). No range check of the index.
 int sound_emitter_delete(int emitter, int fade)
 {
-    sound_emitter *e, *prev, *next;
+    sound_emitter *prev, *next;
 
     if (!sound_emitters_enabled)
         return -1;
-    e = &sound_emitters[emitter];
-    if (e->flags & SOUND_EMITTER_USED) {
+    if (sound_emitters[emitter].flags & SOUND_EMITTER_USED) {
         sound_emitter_stop(emitter, fade);
-        prev = e->prev;
-        next = e->next;
-        e->next = NULL;
-        e->prev = NULL;
+        prev = sound_emitters[emitter].prev;
+        next = sound_emitters[emitter].next;
+        sound_emitters[emitter].next = NULL;
+        sound_emitters[emitter].prev = NULL;
         prev->next = next;
         next->prev = prev;
-        e->flags &= ~SOUND_EMITTER_FLAG8;
+        sound_emitters[emitter].flags &= ~SOUND_EMITTER_FLAG8;
         sound_emitter_reset(emitter);
     }
     return 0;
 }
 
-// 0x546840  Confidence: exact. No caller.
+// 0x546840  Confidence: exact (VC6 byte match, match14; was exact). No caller.
 void sound_emitter_set_pos_vel(int emitter, const vector3 *a, const vector3 *b, const vector3 *vel, float scale)
 {
     sound_emitter *e;
@@ -309,7 +310,7 @@ void sound_emitter_set_pos_vel(int emitter, const vector3 *a, const vector3 *b, 
     sound_emitter_update_position(emitter, &e->seg_a, vel, scale);
 }
 
-// 0x5468c0  Confidence: likely (the repeat-delay condition is one expression here; the 3D branch is dead).
+// 0x5468c0  Confidence: exact (VC6 byte match, match14; was likely) (the repeat-delay condition is one expression here; the 3D branch is dead).
 // Once per update interval: stores the position and velocity; a sound that finished waits for the repeat
 // delay, otherwise the volume, pan and Doppler frequency follow the listener.
 void sound_emitter_update_position(int emitter, const vector3 *pos, const vector3 *vel, float scale)

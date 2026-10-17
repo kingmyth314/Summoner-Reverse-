@@ -88,24 +88,24 @@ void handle_slots_reset_thunk()
     handle_slots_reset();
 }
 
-// 0x4a3700  Confidence: likely (the order of the clears). state_game_leave.
+// 0x4a3700  Confidence: exact (VC6 byte match, cl 8966; was likely: the order of the clears). state_game_leave.
 void handle_slots_reset()
 {
-    handle_slot *s;
+    int i;
 
     effect_stream_flush();
-    for (s = handle_slots; s < &handle_slots[NUM_HANDLE_SLOTS]; s++) {
-        s->handle = -1;
-        s->active = 0;
-        s->timer.invalidate();
+    for (i = 0; i < NUM_HANDLE_SLOTS; i++) {
+        handle_slots[i].handle = -1;
+        handle_slots[i].active = 0;
+        handle_slots[i].timer.invalidate();
     }
+    strcpy(handle_slot_name_c, "");
     handle_slot_cd74 = 0;
     handle_slot_cd78 = 0;
     handle_slot_cd28 = 0;
     handle_slot_cd2c = 0;
-    strcpy(handle_slot_name_c, "");
     memset(handle_slot_table, 0, sizeof(handle_slot_table));
-    handle_slot_current = -1;
     strcpy(handle_slot_name_a, "");
+    handle_slot_current = -1;
     strcpy(handle_slot_name_b, "");
 }

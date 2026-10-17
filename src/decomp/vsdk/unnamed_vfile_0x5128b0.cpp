@@ -527,7 +527,7 @@ bool file_chdrive(int drive)
     return false;
 }
 
-// 0x513900  Confidence: likely (root is initialised after the drive switch, so it is declared there).
+// 0x513900  Confidence: exact.
 // A "x:" prefix switches the drive first; an empty rest changes to the root of that drive.
 int file_chdir(const char *path)
 {
@@ -536,11 +536,12 @@ int file_chdir(const char *path)
     strcpy(buf, path);
     _strlwr(buf);
     int drive = _getdrive();
-    char *p = strchr(buf, ':');
-    if (p) {
-        if (!file_chdrive(p[-1] - 'a' + 1))
+    char *colon = strchr(buf, ':');
+    char *p;
+    if (colon) {
+        if (!file_chdrive(colon[-1] - 'a' + 1))
             return 1;
-        p++;
+        p = colon + 1;
     } else {
         p = buf;
     }
@@ -1013,7 +1014,7 @@ void File::set_cipher_key(unsigned int key)
     s->cipher.set_key(k);
 }
 
-// 0x514460  Confidence: likely (the slot field store order). Opens the file find found: write mode
+// 0x514460  Confidence: likely (a byte match under /Ox /Ow, D7502). Opens the file find found: write mode
 // creates the path's directories and fopens "wt" (FILE_TEXT) or "wb"; read mode needs found and opens the
 // packfile entry or fopens "rb" unbuffered. 0, -4 not found, -6 no free slot, -99999 open failed.
 int File::open_found(int mode)
@@ -1108,7 +1109,7 @@ int File::open(const char *name, int mode, int path_id)
     return r;
 }
 
-// 0x514740  Confidence: likely. A packfile close counts as success (ebx = 0); a failed fclose sets
+// 0x514740  Confidence: likely (a byte match under /Ox /Ow, D7502). A packfile close counts as success (ebx = 0); a failed fclose sets
 // -99999 unless an error is already set. Returns the slot's error.
 int File::close()
 {
@@ -1126,8 +1127,9 @@ int File::close()
     if (r && s->error == 0)
         s->error = FILE_ERR_IO;
     s->mode = 0;
+    int err = s->error;
     slot = -1;
-    return s->error;
+    return err;
 }
 
 // 0x5147c0  Confidence: exact. Asks the owner's packfile entry, not this File's (the same object).

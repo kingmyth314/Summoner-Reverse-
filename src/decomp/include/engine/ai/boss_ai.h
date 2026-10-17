@@ -349,8 +349,8 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 // engine/ai/unnamed_giant_salamanka_0x4c8030.h).
 // The bosses' "combat enabled" bytes (their console commands set them; level_script_init sets them for
 // the multiplayer levels 0x15 / 0x13 / 0x19; decomp41). The last two names are ours.
-extern bool titus_turn_lock;                         // 0x248b914 titus_update_turn_lock (decomp56: ai_combat_face_target)
-extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle engages when 1
+// titus_turn_lock (0x248b914, titus_update_turn_lock; decomp56: ai_combat_face_target) and titus_combat_enabled
+// (0x248b3b4, titus_ai_idle engages when 1): fields of the Titus's state object (D8100).
 // pyrul_combat_enabled (0x247fd38): a field of the Pyrul's state object (D6701).
 // machival_combat_enabled (0x248b034): a field of the machival's state object (D6510).
 // The Giant Salamanka's stage handshake with the Khosani lab script (decomp34, D1407): giant_salamanka_combat_enabled
@@ -360,7 +360,7 @@ extern bool titus_combat_enabled;                     // 0x248b3b4 titus_ai_idle
 // serpent_threat_table (0x24522e8): a field of the serpent's state object (D3403, unnamed_serpent_0x495290.h).
 // phoenix_threat_table (0x2452938): a field of the phoenix's state object (D3403, unnamed_phoenix_0x497ac0.h).
 // ghost_rider_threat_table (0x248081c): a field of the ghost rider's state object (D6511).
-extern boss_threat titus_threat_table[BOSS_MAX_THREATS];             // 0x248b3b8
+// titus_threat_table (0x248b3b8): a field of the Titus's state object (D8100).
 // pyrul_threat_table (0x247fd3c): a field of the Pyrul's state object (D6701).
 extern boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];         // 0x248c008
 extern boss_threat murod_threat_table[BOSS_MAX_THREATS];             // 0x248bf3c
@@ -369,7 +369,7 @@ extern boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];       // 0x248b9b
 // tiger_cur_move (0x2452c40): a field of the tiger's state object (D3403).
 // phoenix_cur_attack (0x2452920): a field of the phoenix's state object (D3403).
 // ghost_cur_move (0x2480810): a field of the ghost rider's state object (D6511).
-extern boss_attack *titus_current_move;               // 0x248b90c
+// titus_current_move (0x248b90c): a field of the Titus's state object (D8100).
 // pyrul_cur_move (0x2480290): a field of the Pyrul's state object (D6701).
 extern boss_attack *murod_oni_current_move;           // 0x248c2dc
 extern boss_attack *evil_urath_current_move;          // 0x248bec8
@@ -693,25 +693,62 @@ extern boss_attack *titus_move_23;                    // 0x248b39c grab (turn lo
 extern boss_attack *titus_move_10;                    // 0x248b3a0
 extern boss_attack *titus_move_22;                    // 0x248b3a4
 extern boss_attack *titus_move_20;                    // 0x248b964
-extern int  titus_stage;                              // 0x248b3a8 1..3
-extern int  titus_forced_stage;                       // 0x248b3ac cmd_titus_stage (0 = by HP)
-extern unsigned int titus_flags;                      // 0x248b3b0 bit 0: the move 10 follow-up is next
-extern int  titus_offense_point_count;                // 0x248b430
-extern boss_offense_point titus_offense_points[10];   // 0x248b434
-extern boss_attack titus_moves[3][BOSS_MAX_OFFENSE_POINTS];   // 0x248b54c "titus_boss.tbl"
-extern GameTimer titus_action_timer;                  // 0x248b910
-extern int  titus_target_handle;                      // 0x248b918
-extern GameTimer titus_attack_timer;                  // 0x248b91c
-extern GameTimer titus_move10_timer;                  // 0x248b920
-extern GameTimer titus_move13_timer;                  // 0x248b924
-extern GameTimer titus_stage_timer_a;                 // 0x248b928 move 20
-extern GameTimer titus_stage_timer_b;                 // 0x248b92c move 21
-extern int  titus_pending_mode;                       // 0x248b930 0x3c
-extern int  titus_area_hit_count;                     // 0x248b934
-extern int  titus_area_hits[5];                       // 0x248b938
-extern move_info *titus_rock_erupt_move;              // 0x248b94c find_move(9, 1)
-extern int  titus_248b950;                            // 0x248b950 never accessed
-extern int  titus_rock_erupt_fx_handle;               // 0x248b954
+// The Titus's state 0x248b3a8-0x248b957 is one object (D8100, as the Pyrul's D6701: init_titus_timers 0x4c20f0
+// constructs the threat timers and the six state timers in one function; the binary reloads
+// titus_offense_point_count / titus_area_hit_count after the array stores). Field names ours, the old names
+// are macros. The move pointers (0x248b380-0x248b3a4, 0x248b964) stay separate globals.
+struct titus_boss {
+    int stage;                                        // +0x000 0x248b3a8 1..3
+    int forced_stage;                                 // +0x004 0x248b3ac cmd_titus_stage (0 = by HP)
+    unsigned int flags;                               // +0x008 0x248b3b0 bit 0: the move 10 follow-up is next
+    bool combat_enabled;                              // +0x00c 0x248b3b4 cmd_titus_combat, titus_ai_idle
+    ubyte _pad3b5[3];
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x010 0x248b3b8
+    int num_offense_points;                           // +0x088 0x248b430
+    boss_offense_point offense_points[10];            // +0x08c 0x248b434
+    boss_attack moves[3][BOSS_MAX_OFFENSE_POINTS];    // +0x1a4 0x248b54c "titus_boss.tbl"
+    boss_attack *current_move;                        // +0x564 0x248b90c
+    GameTimer action_timer;                           // +0x568 0x248b910
+    bool turn_lock;                                   // +0x56c 0x248b914 titus_update_turn_lock
+    ubyte _pad915[3];
+    int target_handle;                                // +0x570 0x248b918
+    GameTimer attack_timer;                           // +0x574 0x248b91c
+    GameTimer move10_timer;                           // +0x578 0x248b920
+    GameTimer move13_timer;                           // +0x57c 0x248b924
+    GameTimer stage_timer_a;                          // +0x580 0x248b928 move 20
+    GameTimer stage_timer_b;                          // +0x584 0x248b92c move 21
+    int pending_mode;                                 // +0x588 0x248b930 0x3c
+    int area_hit_count;                               // +0x58c 0x248b934
+    int area_hits[5];                                 // +0x590 0x248b938
+    move_info *rock_erupt_move;                       // +0x5a4 0x248b94c find_move(9, 1)
+    int _unk950;                                      // +0x5a8 0x248b950 never accessed
+    int rock_erupt_fx_handle;                         // +0x5ac 0x248b954
+};
+LAYOUT_CHECK(titus_boss, sizeof(titus_boss) == 0x5b0);
+extern titus_boss titus;                              // 0x248b3a8 (name ours)
+#define titus_stage                (titus.stage)
+#define titus_forced_stage         (titus.forced_stage)
+#define titus_flags                (titus.flags)
+#define titus_combat_enabled       (titus.combat_enabled)
+#define titus_threat_table         (titus.threat)
+#define titus_offense_point_count  (titus.num_offense_points)
+#define titus_offense_points       (titus.offense_points)
+#define titus_moves                (titus.moves)
+#define titus_current_move         (titus.current_move)
+#define titus_action_timer         (titus.action_timer)
+#define titus_turn_lock            (titus.turn_lock)
+#define titus_target_handle        (titus.target_handle)
+#define titus_attack_timer         (titus.attack_timer)
+#define titus_move10_timer         (titus.move10_timer)
+#define titus_move13_timer         (titus.move13_timer)
+#define titus_stage_timer_a        (titus.stage_timer_a)
+#define titus_stage_timer_b        (titus.stage_timer_b)
+#define titus_pending_mode         (titus.pending_mode)
+#define titus_area_hit_count       (titus.area_hit_count)
+#define titus_area_hits            (titus.area_hits)
+#define titus_rock_erupt_move      (titus.rock_erupt_move)
+#define titus_248b950              (titus._unk950)
+#define titus_rock_erupt_fx_handle (titus.rock_erupt_fx_handle)
 bool  titus_target_list_any_within(boss_target *list, int count, float range);   // 0x4c22a0
 void  titus_update_turn_lock(Character *c);            // 0x4c22e0
 void  titus_reset_attack_timers(Character *c);         // 0x4c2330 stage 2 entry (argument not read)

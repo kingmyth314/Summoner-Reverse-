@@ -60,7 +60,8 @@ void cmd_dump_mesh_frames()
     }
 }
 
-// 0x562b20  Confidence: likely (the three flag bits are one AND / OR in the code). Hidden until the first update_frame; not bound, not placed.
+// 0x562b20  Confidence: exact (VC6 byte match, cl 8966; was likely: the three flag bits are one AND / OR in the
+// code). Hidden until the first update_frame; not bound, not placed.
 void fx_rec98::init(vfx_node_desc *desc)
 {
     v00 = desc->pos;
@@ -107,7 +108,8 @@ void fx_rec98::render(vfx_node_desc *desc, float t, const vector3 *pos, const ma
     }
 }
 
-// 0x562ca0  Confidence: likely (the order of the two pass blocks). The face material is the mesh's first
+// 0x562ca0  Confidence: exact (VC6 byte match, cl 8966; was likely: the order of the two pass blocks). The face
+// material is the mesh's first
 // material. A sprite is drawn as an oriented bitmap of width x height, a line as a quad of that width
 // along the axis (always additive); material curve 34 adds a second layer pass.
 void fx_rec98::render_billboards(vfx_node_desc *desc, float t)

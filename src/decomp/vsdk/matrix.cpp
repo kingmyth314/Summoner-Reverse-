@@ -347,7 +347,8 @@ matrix matrix::orthogonalized_from_fvec() const
     return m;
 }
 
-// 0x510830  Confidence: likely (block order; no caller).
+// 0x510830  Confidence: exact (VC6 8966 byte match: the zero-length test first, as the binary lays it
+// out; no caller).
 // orthogonalize_b on a copy of this.
 matrix matrix::orthogonalized() const
 {
@@ -356,17 +357,19 @@ matrix matrix::orthogonalized() const
     float flen = m.fvec.len();
     float ulen = m.uvec.len();
     float rlen = m.rvec.len();
-    if (flen > 0.0f) {
-        m.fvec.normalize();
-    } else if (ulen > 0.0f) {
-        if (rlen > 0.0f && !vector3_near_equal(&m.uvec, &m.rvec)) {
-            m.fvec = m.uvec.cross(m.rvec);
-            m.fvec.normalize();
-        } else if (m.uvec.x == 0.0f && m.uvec.y == 0.0f && m.uvec.z != 0.0f) {
-            m.fvec.set(1.0f, 0.0f, 0.0f);
-        } else {
-            m.fvec.set(0.0f, 0.0f, 1.0f);
+    if (flen <= 0.0f) {
+        if (ulen > 0.0f) {
+            if (rlen > 0.0f && !vector3_near_equal(&m.uvec, &m.rvec)) {
+                m.fvec = m.uvec.cross(m.rvec);
+                m.fvec.normalize();
+            } else if (m.uvec.x == 0.0f && m.uvec.y == 0.0f && m.uvec.z != 0.0f) {
+                m.fvec.set(1.0f, 0.0f, 0.0f);
+            } else {
+                m.fvec.set(0.0f, 0.0f, 1.0f);
+            }
         }
+    } else {
+        m.fvec.normalize();
     }
     if (ulen > 0.0f && !vector3_near_equal(&m.fvec, &m.uvec)) {
         m.uvec.normalize();
@@ -384,13 +387,13 @@ matrix matrix::orthogonalized() const
     return m;
 }
 
-// 0x510a80  Confidence: likely (the nine stores are scheduled u, r, f by the compiler).
+// 0x510a80  Confidence: exact (VC6 8966 byte match with the stores written u, r, f).
 matrix matrix::transpose() const
 {
     vector3 r, u, f;
 
-    r.x = rvec.x; r.y = uvec.x; r.z = fvec.x;
     u.x = rvec.y; u.y = uvec.y; u.z = fvec.y;
+    r.x = rvec.x; r.y = uvec.x; r.z = fvec.x;
     f.x = rvec.z; f.y = uvec.z; f.z = fvec.z;
     return matrix(r, u, f);
 }
@@ -431,7 +434,7 @@ void matrix::orthogonalize()
     *this = m;
 }
 
-// 0x510c90  Confidence: likely (block order; no caller).
+// 0x510c90  Confidence: exact (VC6 8966 byte match: the zero-length test first; no caller).
 // In place: fvec from itself (or u x r, or a world axis), uvec from itself unless parallel to fvec (or
 // f x r, or a world axis), then rvec = u x f normalized and uvec = f x r. With fvec and uvec both zero
 // fvec stays zero.
@@ -440,17 +443,19 @@ void matrix::orthogonalize_b()
     float flen = fvec.len();
     float ulen = uvec.len();
     float rlen = rvec.len();
-    if (flen > 0.0f) {
-        fvec.normalize();
-    } else if (ulen > 0.0f) {
-        if (rlen > 0.0f && !vector3_near_equal(&uvec, &rvec)) {
-            fvec = uvec.cross(rvec);
-            fvec.normalize();
-        } else if (uvec.x == 0.0f && uvec.y == 0.0f && uvec.z != 0.0f) {
-            fvec.set(1.0f, 0.0f, 0.0f);
-        } else {
-            fvec.set(0.0f, 0.0f, 1.0f);
+    if (flen <= 0.0f) {
+        if (ulen > 0.0f) {
+            if (rlen > 0.0f && !vector3_near_equal(&uvec, &rvec)) {
+                fvec = uvec.cross(rvec);
+                fvec.normalize();
+            } else if (uvec.x == 0.0f && uvec.y == 0.0f && uvec.z != 0.0f) {
+                fvec.set(1.0f, 0.0f, 0.0f);
+            } else {
+                fvec.set(0.0f, 0.0f, 1.0f);
+            }
         }
+    } else {
+        fvec.normalize();
     }
     if (ulen > 0.0f && !vector3_near_equal(&fvec, &uvec)) {
         uvec.normalize();

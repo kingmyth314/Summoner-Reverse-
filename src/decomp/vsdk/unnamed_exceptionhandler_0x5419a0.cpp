@@ -192,7 +192,7 @@ static void hprintf(HANDLE file, const char *format, ...)
     WriteFile(file, buffer, lstrlenA(buffer), &written, NULL);
 }
 
-// 0x541f10  Confidence: likely (`mov esi, 0` instead of xor for the page number). Walks the low 4 GB of the
+// 0x541f10  Confidence: exact (`mov esi, 0` instead of xor for the page number). Walks the low 4 GB of the
 // address space page region by page region and prints every committed allocation base (each module once).
 static void RecordModuleList(HANDLE file)
 {

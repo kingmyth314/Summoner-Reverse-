@@ -82,7 +82,7 @@ int gtrack_init(int game_type)
     return 1;
 }
 
-// 0x4ae410  Confidence: likely (the received length is compared with len - 1, which is also stored back
+// 0x4ae410  Confidence: exact (the received length is compared with len - 1, which is also stored back
 // into the packet: D5214). Sends the heartbeat when due (or resends it), resends a pending game over every
 // 2 s, then handles one packet from the tracker: an ack ends the game over and marks the heartbeat seen,
 // a game list goes into the first free slot, a channel count updates the lobby's channel row.
@@ -104,8 +104,9 @@ void gtrack_send_heartbeat()
             gtrack_last_heartbeat_time = now_ms;
             printf("Sending update\n");
         } else if (!gtrack_acked && now_ms - gtrack_last_heartbeat_time > GTRACK_RESEND_TIME) {
+            int len = gtrack_heartbeat_packet.len;
             printf("Sending update because no ack\n");
-            nw_send_packet(&gtrack_heartbeat_packet, gtrack_heartbeat_packet.len, 0, &gtrack_addr, 3);
+            nw_send_packet(&gtrack_heartbeat_packet, len, 0, &gtrack_addr, 3);
             gtrack_acked = 0;
             gtrack_last_update = now_s;
             gtrack_last_heartbeat_time = now_ms;

@@ -184,25 +184,26 @@ int os_init_window(int unused)
     return 0;
 }
 
-// 0x530ef0  Confidence: likely (the WNDCLASSEX field stores are scheduled; the source order is a guess).
+// 0x530ef0  Confidence: exact (VC6 byte match, cl 8966; was likely: the WNDCLASSEX field stores are scheduled; the
+// source order is a guess).
 // A 32x32 WS_POPUP window in the screen centre; the renderers resize it.
 int os_create_window()
 {
     WNDCLASSEXA wc;
     HINSTANCE instance = GetModuleHandleA(NULL);
 
-    wc.cbSize = sizeof(wc);
-    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC | CS_BYTEALIGNCLIENT;
+    wc.hInstance = instance;
+    wc.lpszClassName = os_window_class;
     wc.lpfnWndProc = os_wndproc;
+    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC | CS_BYTEALIGNCLIENT;
+    wc.cbSize = sizeof(wc);
+    wc.hIcon = LoadIconA(instance, "APP_ICON");
+    wc.hIconSm = NULL;
+    wc.hCursor = LoadCursorA(NULL, IDC_ARROW);
+    wc.lpszMenuName = NULL;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
-    wc.hInstance = instance;
-    wc.hIcon = LoadIconA(instance, "APP_ICON");
-    wc.hCursor = LoadCursorA(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = os_window_class;
-    wc.hIconSm = NULL;
     if (!RegisterClassExA(&wc))
         return 0;
 
@@ -313,7 +314,9 @@ unsigned int cpu_read_tsc()
     return t;
 }
 
-// 0x5312d6  Confidence: likely (/Od; the zeroed CPUID result as a struct whose first member is stored
+// 0x5312d6  Confidence: likely (/Od; locals renamed and declared in reverse so that the /Od frame order
+// (D6101 hash buckets, the same under 8966) gives the binary's slots, D7003; the zeroed CPUID result as a struct
+// whose first member is stored
 // with an immediate, the rest from EAX; the brand string buffer cleared with memset). (family, mmx, 3dnow,
 // katmai, tsc, name, mhz): CPUID level 1 gives the family and the feature bits (without CPUID: a 486, no
 // features); AMD's extended levels give 3DNow! and the brand string; the speed is the TSC over 100 ms at
@@ -322,22 +325,18 @@ unsigned int cpu_read_tsc()
 // so they change nothing.
 void cpu_identify(int *family, int *mmx, int *amd3dnow, int *katmai, int *tsc, char *name, int *mhz)
 {
-    unsigned int signature;
-    unsigned int features;
-    int mmx_ok = 1;
-    struct {
-        unsigned int max_level;
-        char vendor[16];
-    } id = { 0 };
-    char brand[64];
-    DWORD old_class;
-    int mhz_60;
-    int old_priority;
-    unsigned int tsc_start;
-    int ticks;
-    unsigned int tsc_end;
-    DWORD time_start;
     DWORD time_end;
+    DWORD begin;
+    unsigned int tsc_end;
+    int tsc_diff;
+    unsigned int tsc0;
+    int prev_priority;
+    int rate;
+    DWORD saved_pclass;
+    char brand_text[64];
+    unsigned int eax1;
+    int mmx_ok = 1;
+    unsigned int features;
 
     *family = 0;
     *mmx = 0;
@@ -346,6 +345,10 @@ void cpu_identify(int *family, int *mmx, int *amd3dnow, int *katmai, int *tsc, c
     *katmai = 0;
     if (mhz)
         *mhz = 0;
+    struct {
+        unsigned int max_level;
+        char vendor[16];
+    } regs = { 0 };
 
 #if defined(_MSC_VER)
     __asm {
@@ -365,17 +368,17 @@ void cpu_identify(int *family, int *mmx, int *amd3dnow, int *katmai, int *tsc, c
         je no_cpuid
         mov eax, 0
         cpuid
-        mov id.max_level, eax
-        mov dword ptr [id + 4], ebx
-        mov dword ptr [id + 8], edx
-        mov dword ptr [id + 12], ecx
+        mov regs.max_level, eax
+        mov dword ptr [regs + 4], ebx
+        mov dword ptr [regs + 8], edx
+        mov dword ptr [regs + 12], ecx
         mov eax, 1
         cpuid
-        mov signature, eax
+        mov eax1, eax
         mov features, edx
         jmp done
 no_cpuid:
-        mov signature, 0x400
+        mov eax1, 0x400
         mov features, 0
 done:
         pop edx
@@ -384,11 +387,11 @@ done:
         pop eax
     }
 #else
-    signature = 0x400;                               // (syntax check only)
+    eax1 = 0x400;                               // (syntax check only)
     features = 0;
 #endif
 
-    *family = (signature >> 8) & 0xf;
+    *family = (eax1 >> 8) & 0xf;
     if (*family < 5) {
         *family = 4;
         if (name)
@@ -408,15 +411,15 @@ done:
     if (*family > 5 && (features & 0x2000000))
         *katmai = 1;
 
-    if (!_stricmp(id.vendor, "AuthenticAMD")) {
+    if (!_stricmp(regs.vendor, "AuthenticAMD")) {
 #if defined(_MSC_VER)
         __asm {
             mov eax, 0x80000000
             cpuid
-            mov signature, eax
+            mov eax1, eax
         }
 #endif
-        if (signature < 0x80000005) {
+        if (eax1 < 0x80000005) {
             if (name)
                 sprintf(name, "AMD-K%d, MMX:%s", *family, mmx ? "Yes" : "No");
         } else {
@@ -424,40 +427,40 @@ done:
             __asm {
                 mov eax, 0x80000001
                 cpuid
-                mov signature, eax
+                mov eax1, eax
                 mov features, edx
             }
 #endif
             if (features & 0x80000000)
                 *amd3dnow = 1;
             if (name) {
-                memset(brand, 0, sizeof(brand));
+                memset(brand_text, 0, sizeof(brand_text));
 #if defined(_MSC_VER)
                 __asm {
                     mov eax, 0x80000002
                     cpuid
-                    mov dword ptr brand[0], eax
-                    mov dword ptr brand[4], ebx
-                    mov dword ptr brand[8], ecx
-                    mov dword ptr brand[12], edx
+                    mov dword ptr brand_text[0], eax
+                    mov dword ptr brand_text[4], ebx
+                    mov dword ptr brand_text[8], ecx
+                    mov dword ptr brand_text[12], edx
                     mov eax, 0x80000003
                     cpuid
-                    mov dword ptr brand[16], eax
-                    mov dword ptr brand[20], ebx
-                    mov dword ptr brand[24], ecx
-                    mov dword ptr brand[28], edx
+                    mov dword ptr brand_text[16], eax
+                    mov dword ptr brand_text[20], ebx
+                    mov dword ptr brand_text[24], ecx
+                    mov dword ptr brand_text[28], edx
                     mov eax, 0x80000004
                     cpuid
-                    mov dword ptr brand[32], eax
-                    mov dword ptr brand[36], ebx
-                    mov dword ptr brand[40], ecx
-                    mov dword ptr brand[44], edx
+                    mov dword ptr brand_text[32], eax
+                    mov dword ptr brand_text[36], ebx
+                    mov dword ptr brand_text[40], ecx
+                    mov dword ptr brand_text[44], edx
                 }
 #endif
-                strcpy(name, brand);
+                strcpy(name, brand_text);
             }
         }
-    } else if (!_stricmp(id.vendor, "GenuineIntel")) {
+    } else if (!_stricmp(regs.vendor, "GenuineIntel")) {
         if (name) {
             switch (*family) {
             case 5:
@@ -488,24 +491,24 @@ done:
     if (mhz) {
         *mhz = 0;
         if (*tsc) {
-            old_class = GetPriorityClass(0);
-            old_priority = GetThreadPriority(0);
+            saved_pclass = GetPriorityClass(0);
+            prev_priority = GetThreadPriority(0);
             SetPriorityClass(0, REALTIME_PRIORITY_CLASS);
             SetThreadPriority(0, THREAD_PRIORITY_TIME_CRITICAL);
             Sleep(100);
             do {
-                time_start = timeGetTime();
-                tsc_start = cpu_read_tsc();
-                while (timeGetTime() < time_start + 100)
+                begin = timeGetTime();
+                tsc0 = cpu_read_tsc();
+                while (timeGetTime() < begin + 100)
                     ;
                 tsc_end = cpu_read_tsc();
                 time_end = timeGetTime();
-            } while (tsc_start > tsc_end);
-            ticks = tsc_end - tsc_start;
-            mhz_60 = (ticks + 833333) / 1666667;
-            *mhz = mhz_60 * 1666667 / 100000;
-            SetPriorityClass(0, old_class);
-            SetThreadPriority(0, old_priority);
+            } while (tsc0 > tsc_end);
+            tsc_diff = tsc_end - tsc0;
+            rate = (tsc_diff + 833333) / 1666667;
+            *mhz = rate * 1666667 / 100000;
+            SetPriorityClass(0, saved_pclass);
+            SetThreadPriority(0, prev_priority);
         }
     }
 }
@@ -611,12 +614,13 @@ void cmd_sysinfo()
         print_to_console("Shows system info", 0);
 }
 
-// 0x531b44  Confidence: likely (/Od code: frame pointer, locals h -4, text -8, i -0xc, len -0x10).
+// 0x531b44  Confidence: exact (VC6 byte match, cl 8966; was likely: /Od code: frame pointer, locals h -4, text -8,
+// i -0xc, len -0x10).
 // Both failure returns skip CloseClipboard, leaving the clipboard open; buf needs max_len + 1 bytes.
 void os_clipboard_get_text(char *buf, int max_len)
 {
-    HANDLE h;
     char *text;
+    HANDLE h;
     int i;
     int len;
 

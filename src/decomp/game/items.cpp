@@ -575,7 +575,7 @@ void item_types_reset_identified()
     }
 }
 
-// 0x44b280  Confidence: likely (the list head is kept in ECX and stored once after the loop, so the
+// 0x44b280  Confidence: exact (VC6 byte match, match11; was likely) (the list head is kept in ECX and stored once after the loop, so the
 // records end up in reverse order: the last record is the first free one).
 void items_init_pool()
 {
@@ -721,7 +721,8 @@ int item_type_find_by_hash(int hash)
 // 0x44b4f0  Confidence: exact (callers pass &type->weapon, ItemType +0x68).
 bool weapon_is_ranged(weapon_info *w)
 {
-    return w->flags & 1;
+    bool r = w->flags & 1;
+    return r;
 }
 
 // 0x44b500  Confidence: exact. 0x57e990 = 1.0f.
@@ -800,7 +801,7 @@ bool item_has_magic_info(item_info *item)
 {
     if (!item_is_identified(item))
         return false;
-    return item->type->charge_effect != NULL;
+    return item->type->charge_effect ? true : false;
 }
 
 // 0x44b700  Confidence: exact.
@@ -1237,7 +1238,7 @@ char *ring_format_info(item_info *item)
     return ring_info_text;
 }
 
-// 0x44d540  Confidence: likely (the third loop passes its two slot variables in the other order than
+// 0x44d540  Confidence: exact (VC6 byte match, match11; was likely) (the third loop passes its two slot variables in the other order than
 // the second, (c, &[esp+0xc], &[esp+8]) against (c, &[esp+8], &[esp+0xc]): written as separate block
 // locals). Literal: the slot-9 page-in of a hired / scripted character uses equipment[5]'s type.
 // Species 0x57 also pages the "TigerAxe"; species 0xce pages its first attachment's item type.

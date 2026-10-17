@@ -448,7 +448,7 @@ public:
     bool is_idle();                                               // 0x4dac20 conversation_is_idle
     void end();                                                   // 0x4dac30 conversation_end
     void select_topic(conversation_topic *topic);                 // 0x4dacb0 conversation_select_topic
-    int  load_for_level(const char *level_filename, const char *script_name);   // 0x4daef0
+    int  load_for_level(const char *level_name, const char *script_name);   // 0x4daef0
 
     Character *speaker;                  // +0x00 the character talked to
     GameTimer timer;                     // +0x04 4 s to walk up (conversation_camera_begin)

@@ -52,7 +52,7 @@ bool ls_templeint_play_urathmyth2c;                  // 0x257ea74
 bool ls_templeint_play_urathmyth2d;                  // 0x257ea75
 bool ls_templeint_eavesdrop_pending;                 // 0x257ea76
 
-// 0x4f5e90  Confidence: likely (the music presets as if / else with the door call after it: the binary has
+// 0x4f5e90  Confidence: exact (the music presets as if / else with the door call after it: the binary has
 // the door call at the end of both paths). level_script_table init. templeint_v2: stage 8, the way back to
 // lenele1c closed, Jekhar and Rosalind out of the party, Eavesdropping pending. The first visit: stage 0
 // and, with the dagger quest of the palace, the Hierophant's Blade of Tarun-Khor topic.
@@ -125,7 +125,8 @@ void ls_templeint_frame()
     if (!ls_templeint_tiger_intro_done && savegame_state.get_flag(cur_level_index, "tiger_intro_played")
         && !(game_flags & GF_CUTSCENE)) {
         ls_templeint_tiger_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_templeint_tiger_killed_done && savegame_state.get_flag(cur_level_index, "tiger_killed")
         && !(game_flags & GF_CUTSCENE)) {
@@ -184,7 +185,7 @@ void ls_templeint_tiger_escape_cs_end()
     }
 }
 
-// 0x4f6340  Confidence: exact (the three strcpy are inline rep movs). End of Act2-Outro: the next level is
+// 0x4f6340  Confidence: exact (VC6 byte match, match14; was exact) (the three strcpy are inline rep movs). End of Act2-Outro: the next level is
 // eleh (entry 1) with the gear stripped and Joseph out of the party; every party member left is made the
 // leader in turn, resurrected at full HP, its animations reset and its AI handed back to the player
 // (debug printf for each); then game sequence state 4 (the level change).

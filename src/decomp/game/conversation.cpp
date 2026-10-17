@@ -31,7 +31,7 @@
 // NoRlsAllocPool__dtor: the pool is the only member with a destructor). Confidence: exact.
 conversation conversation_db;                        // 0x25461a0 (tagged new_saveload.cpp in sum.symbols)
 
-// 0x4d7b80  Confidence: likely (EH frame for the pool member; the two list heads' prev stores come first in
+// 0x4d7b80  Confidence: exact (VC6 byte match, match11; was likely) (EH frame for the pool member; the two list heads' prev stores come first in
 // the binary, list_init writes next first - scheduling).
 conversation::conversation()
 {
@@ -90,7 +90,7 @@ conversation_speaker *conversation::alloc_speaker(const char *name)
     return s;
 }
 
-// 0x4d7d10  Confidence: likely (`cmp byte ptr [esp+0x10], 1`: the bool is compared with true).
+// 0x4d7d10  Confidence: exact (VC6 byte match, match11; was likely) (`cmp byte ptr [esp+0x10], 1`: the bool is compared with true).
 conversation_topic *conversation::alloc_topic(const char *name, const char *text, bool listed)
 {
     conversation_topic *t = (conversation_topic *)pool.Alloc(sizeof(conversation_topic));
@@ -100,7 +100,7 @@ conversation_topic *conversation::alloc_topic(const char *name, const char *text
     return t;
 }
 
-// 0x4d7d50  Confidence: likely (the two stores between the list test are scheduled; the loop moving the
+// 0x4d7d50  Confidence: exact (VC6 byte match, match11; was likely) (the two stores between the list test are scheduled; the loop moving the
 // offered entries back to the free list is written with the list macros).
 int conversation::set_speaker(const char *name)
 {
@@ -114,7 +114,7 @@ int conversation::set_speaker(const char *name)
         speaker = NULL;
         return -1;
     }
-    if (s->greeting->hidden) {
+    if ((bool)s->greeting->hidden) {
         speaker = NULL;
         return -1;
     }
@@ -142,7 +142,7 @@ void conversation::clear_speaker()
 // 0x4d7e40  Confidence: exact.
 void conversation::set_topic(conversation_topic *t)
 {
-    if (t && t->listed && !t->hidden) {
+    if (t && (bool)t->listed && !(bool)t->hidden) {
         t->listed = 0;
         topic = t;
         apply_topic_effects();
@@ -159,7 +159,7 @@ conversation_topic *conversation::select_greeting()
     return t;
 }
 
-// 0x4d7eb0  Confidence: likely (the loop order and bit operations match; the constants held in
+// 0x4d7eb0  Confidence: exact (VC6 byte match, match11; was likely) (the loop order and bit operations match; the constants held in
 // registers are the compiler's). Game bug kept: the inner loop of +Remove initial topic: steps with the
 // OUTER entry's next pointer (`mov ecx, [eax + 8]` with eax = the outer entry), so when the removed topic
 // is its speaker's hail topic and the topic also has +Add initial topic: entries, the loop never ends unless
@@ -252,7 +252,7 @@ conversation_topic *conversation::first_topic()
     conversation_topic *t;
 
     for (t = speaker->topics; t; t = t->next) {
-        if (t->listed && !t->hidden)
+        if ((bool)t->listed && !(bool)t->hidden)
             return t;
     }
     return NULL;
@@ -262,13 +262,13 @@ conversation_topic *conversation::first_topic()
 conversation_topic *conversation::next_topic(conversation_topic *t)
 {
     for (t = t->next; t; t = t->next) {
-        if (t->listed && !t->hidden)
+        if ((bool)t->listed && !(bool)t->hidden)
             return t;
     }
     return NULL;
 }
 
-// 0x4d81a0  Confidence: likely (the count is reloaded after the store; `name_count++` then `- 1`).
+// 0x4d81a0  Confidence: exact (VC6 byte match, match11; was likely) (the count is reloaded after the store; `name_count++` then `- 1`).
 int conversation::add_name(char *name)
 {
     names[name_count] = name;
@@ -308,7 +308,7 @@ int conversation::set_topic_available(const char *speaker_name, const char *topi
     t->hidden = 1;
     if (t == s->greeting) {
         for (g = s->topics; g; g = g->next) {
-            if (!g->hidden && g->initial) {
+            if (!(bool)g->hidden && (bool)g->initial) {
                 s->greeting = g;
                 break;
             }
@@ -329,7 +329,7 @@ conversation_speaker *conversation::find_speaker(const char *name)
     return NULL;
 }
 
-// 0x4d82f0  Confidence: likely (the three returns are separate epilogues in the binary).
+// 0x4d82f0  Confidence: exact (VC6 byte match, match11; was likely) (the three returns are separate epilogues in the binary).
 int conversation::load(const char *level_name, const char *script_name)
 {
     int result = parse_table(script_name);
@@ -354,7 +354,7 @@ void conversation::save_state()
         save_topics();
 }
 
-// 0x4d83a0  Confidence: likely (the speaker bits are read from the 16-bit flag word as `>> n & 1`; the
+// 0x4d83a0  Confidence: exact (VC6 byte match, match11; was likely) (the speaker bits are read from the 16-bit flag word as `>> n & 1`; the
 // topic bits as bitfields). One speaker bit (important) and four topic bits: 0 flag0, 1 initial,
 // 2 hidden, 3 the hail topic. Persistent speakers write to the level's other slots too.
 void conversation::save_topics()
@@ -409,7 +409,7 @@ void conversation::restore_state()
     }
 }
 
-// 0x4d8620  Confidence: likely (inline strcmp; list_insert's last two stores are swapped in the binary).
+// 0x4d8620  Confidence: exact (VC6 byte match, match11; was likely) (inline strcmp; list_insert's last two stores are swapped in the binary).
 // Every fresh topic takes a free entry; the "Farewell." topic goes to the end, the others to the front.
 void conversation::build_topic_list()
 {
@@ -417,12 +417,17 @@ void conversation::build_topic_list()
     conversation_topic_entry *e;
 
     for (t = first_topic(); t; t = next_topic(t)) {
-        if (t->fresh) {
+        if ((bool)t->fresh) {
             e = free_entries.next;
             list_remove(e);
             e->topic = t;
             if (strcmp(t->name, "\"Farewell.\"") != 0)
-                list_insert(&topic_list, e);
+            {
+                e->next = topic_list.next;
+                topic_list.next->prev = e;
+                topic_list.next = e;
+                e->prev = &topic_list;
+            }
             else
                 list_append(&topic_list, e);
         }

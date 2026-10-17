@@ -265,10 +265,13 @@ void living_combat::play_flinch(int variant)
 void living_combat::pick_parry()
 {
     if (opponent && opponent->owner && opponent->owner->cur_move) {
-        defense_move = owner->find_move_alt(2, opponent->owner->cur_move->variant);
-        if (!defense_move)
-            defense_move = owner->find_move(2, 0);
-        if (defense_move) {
+        move_info *m = owner->find_move_alt(2, opponent->owner->cur_move->variant);
+        defense_move = m;
+        if (!m) {
+            m = owner->find_move(2, 0);
+            defense_move = m;
+        }
+        if (m) {
             state = COMBAT_DEFENCE;
             return;
         }
@@ -399,7 +402,7 @@ float living_combat::speed_share(living_combat *other)
     return mine / (theirs + mine);
 }
 
-// 0x463d00  Confidence: exact. Not for the player's character; with a 20 % chance a party member uses
+// 0x463d00  Confidence: likely (an 8168 byte match; differs under 8966, D7807). Not for the player's character; with a 20 % chance a party member uses
 // double attack and a monster a random combat special it knows (kick only on its own target, trip not on
 // knocked-down or untrippable targets, push not on char_info flag 0x10 targets).
 void living_combat::ai_choose_special()
@@ -702,17 +705,14 @@ void living_combat::play_skill_attack()
     move_info *m;
 
     switch (chain_skill) {
-    case SKILL_COUNTER_ATTACK: case SKILL_DOUBLE_ATTACK:
-        m = owner->find_move(1, 0x69);
-        break;
-    case SKILL_PUSH:
-        m = owner->find_move(1, 0x68);
-        break;
     case SKILL_KICK:
         m = owner->find_move(1, 0x66);
         break;
     case SKILL_TRIP:
         m = owner->find_move(1, 0x67);
+        break;
+    case SKILL_PUSH:
+        m = owner->find_move(1, 0x68);
         break;
     case SKILL_AXESPIN:
         m = owner->find_move(0, 0x77);
@@ -724,6 +724,9 @@ void living_combat::play_skill_attack()
     case SKILL_PRAYER:
         m = owner->find_move(0, 0x79);
         break;
+    case SKILL_COUNTER_ATTACK: case SKILL_DOUBLE_ATTACK:
+        m = owner->find_move(1, 0x69);
+        break;
     case SKILL_AIMED_ATTACK_EYES: case SKILL_AIMED_ATTACK_ARMS: case SKILL_AIMED_ATTACK_LEGS:
     case SKILL_BLINDNESS_STAB: case SKILL_ARM_SLICE: case SKILL_LEG_SWIPE: case SKILL_DESPERATION:
     case SKILL_STAMINA_BURST: case SKILL_ADDED_BLOW: case SKILL_LIFE_LEECH: case SKILL_MIND_DRAIN:
@@ -732,8 +735,8 @@ void living_combat::play_skill_attack()
         m = pick_attack_move(0);
         break;
     default:
-        state = COMBAT_IDLE;
-        return;
+        m = NULL;
+        break;
     }
     if (!m) {
         state = COMBAT_IDLE;
@@ -866,14 +869,10 @@ bool living_combat::defense_in_time()
     float mine = move_get_trigger_time(defense_move, 7);
     float theirs = opponent->owner->move_trigger_time_left(7);
 
-    if (theirs < 0.0f)
-        return true;
-    if (mine < theirs)
-        return false;
-    return true;
+    return theirs < 0.0f || !(mine < theirs);
 }
 
-// 0x464d00  Confidence: exact. +0.25 from 0.25 m above, -0.25 from below, +0.5 against a knocked-down
+// 0x464d00  Confidence: likely (an 8168 byte match; differs under 8966, D7807). +0.25 from 0.25 m above, -0.25 from below, +0.5 against a knocked-down
 // defender, +0.15 from behind.
 float combat_position_modifier(Character *attacker, Character *defender)
 {
@@ -1437,11 +1436,13 @@ void combat_play_weapon_hit_sound(Character *attacker, Character *defender)
 {
     int mat = attacker->equipment[5] ? attacker->equipment[5]->type->material : attacker->info->skin;
 
-    if (defender->equipment[7])
-        surface_play_sound(mat, defender->equipment[7]->type->material, &defender->pos);
-    else
-        surface_play_sound(mat, defender->info->skin, &defender->pos);
+    surface_play_sound(mat, defender->equipment[7] ? defender->equipment[7]->type->material : defender->info->skin, &defender->pos);
 }
+
+// The base chain window per point of speed skill (.rdata 0x5819ac, read by chain_check_window only): a
+// const float of this unit (D7806; name ours). VC6 loads a const float from memory instead of folding it,
+// so a literal `* 2.0f` would compile to fadd st, st.
+const float chain_window_per_speed = 2.0f;
 
 // 0x466ae0  Confidence: likely (dword jump table 0x466d04: only state 1 does work; the tail after the
 // window test is written once, the binary has it twice). The chain-attack timing window of the player's
@@ -1454,7 +1455,7 @@ float living_combat::chain_check_window(int skill_id)
 
     switch (state) {
     case COMBAT_ATTACKING:
-        window = owner->get_skill(SKILL_SPEED) * 2.0f;
+        window = owner->get_skill(SKILL_SPEED) * chain_window_per_speed;
         for (i = 0; i < chain_count; i++) {
             if (i < chain_index)
                 window *= 0.95f;
@@ -1486,28 +1487,46 @@ float living_combat::chain_check_window(int skill_id)
             break;
         if (owner->move_trigger_time_left(7) <= 0.0f) {
             t = -owner->move_trigger_time_left(7);
-            if (!(t < window))
-                return window - t;
+            if (t < window) {
+                if (skill_id == SKILL_NONE)
+                    return 0.0f;
+                if (skill_id == last_chain_skill)
+                    return 100.0f;
+                chain_learn = true;
+                if (++chain_count == 1)
+                    chain_index = 0;
+                chain_skill = skill_id;
+                last_chain_skill = skill_id;
+                return 0.0f;
+            }
+            return window - t;
         } else {
             t = owner->move_trigger_time_left(7);
-            if (!(t < window))
-                return -(window - t);
+            if (t < window) {
+                if (skill_id == SKILL_NONE)
+                    return 0.0f;
+                if (skill_id == last_chain_skill)
+                    return 100.0f;
+                chain_learn = true;
+                if (++chain_count == 1)
+                    chain_index = 0;
+                chain_skill = skill_id;
+                last_chain_skill = skill_id;
+                return 0.0f;
+            }
+            return -(window - t);
         }
-        if (skill_id == SKILL_NONE)
-            return 0.0f;
-        if (skill_id == last_chain_skill)
-            return 100.0f;
-        chain_learn = true;
-        if (++chain_count == 1)
-            chain_index = 0;
-        chain_skill = skill_id;
-        last_chain_skill = skill_id;
-        return 0.0f;
+    case COMBAT_IDLE:
+    case COMBAT_HIT:
+    case COMBAT_DEFENCE:
+    case COMBAT_REACTING:
+    case COMBAT_SPECIAL:
+        return -100.0f;
     }
     return -100.0f;
 }
 
-// 0x466d20  Confidence: likely (dword jump table 0x466e70 for states 0..5). Both sides attack each other.
+// 0x466d20  Confidence: exact (dword jump table 0x466e70 for states 0..5). Both sides attack each other.
 void living_combat::update_exchange()
 {
     switch (state) {
@@ -1522,14 +1541,18 @@ void living_combat::update_exchange()
             return;
         if (species_is_hero(owner->info->species))
             feedback_play(owner->info->species, 1, &owner->pos);
-        if (opponent->state == COMBAT_HIT) {
-            apply_melee_hit(true);
+        if (opponent->state != COMBAT_HIT) {
+            if (opponent->defense_move && opponent->defense_move->category == 2) {
+                combat_spawn_spark_vfx(owner, opponent->owner);
+                trigger_reflex_ability(0.0f);
+            }
             return;
         }
-        if (opponent->defense_move && opponent->defense_move->category == 2) {
-            combat_spawn_spark_vfx(owner, opponent->owner);
-            trigger_reflex_ability(0.0f);
-        }
+        apply_melee_hit(true);
+        return;
+    case COMBAT_REACTING:
+        if (owner->move_trigger_fired(6, 1))
+            state = COMBAT_IDLE;
         return;
     case COMBAT_HIT:
         if (opponent->state == COMBAT_IDLE)
@@ -1545,10 +1568,6 @@ void living_combat::update_exchange()
         play_defense();
         if (state == COMBAT_REACTING && defense_move->category == 2)
             queue_counter_attack();
-        return;
-    case COMBAT_REACTING:
-        if (owner->move_trigger_fired(6, 1))
-            state = COMBAT_IDLE;
         return;
     case COMBAT_SPECIAL:
         if (!owner->move_trigger_fired(6, 1))
@@ -1574,7 +1593,7 @@ void combat_spawn_spark_vfx(Character *attacker, Character *defender)
     }
 }
 
-// 0x466f00  Confidence: exact (dword jump table 0x467008 for states 0..3). One-sided attack, at most
+// 0x466f00  Confidence: likely (an 8168 byte match; differs under 8966, D7807). (dword jump table 0x467008 for states 0..3). One-sided attack, at most
 // every 3 / (10 x speed) seconds.
 void living_combat::update_attack()
 {
@@ -1611,7 +1630,7 @@ void living_combat::update_attack()
     state = COMBAT_IDLE;
 }
 
-// 0x467020  Confidence: likely (switch lowered to sub / dec tests). Ranged attack (AI combat sub 0x10).
+// 0x467020  Confidence: exact (switch lowered to sub / dec tests). Ranged attack (AI combat sub 0x10).
 void living_combat::update_ranged()
 {
     switch (state) {
@@ -1627,13 +1646,18 @@ void living_combat::update_ranged()
         }
         return;
     case COMBAT_REACTING:
-        if (!owner->move_finished(anim))
-            return;
-        break;
+        if (owner->move_finished(anim)) {
+            state = COMBAT_IDLE;
+            if (owner->type == 9)
+                boss_clear_current_move(owner);
+        }
+        return;
+    default:
+        state = COMBAT_IDLE;
+        if (owner->type == 9)
+            boss_clear_current_move(owner);
+        return;
     }
-    state = COMBAT_IDLE;
-    if (owner->type == 9)
-        boss_clear_current_move(owner);
 }
 
 // One cast of a triggered spell by `c` (the defender) for combat_trigger_reflex_ability: on the
@@ -1875,7 +1899,13 @@ void living_combat::flinch_if_idle(int variant)
 // living_combat::living_combat().
 living_combat *living_combat::construct()
 {
+#ifdef _MSC_VER
+    // An explicit constructor call (D7805): a placement new makes VC6 /GX open an EH frame for the
+    // matching placement delete, which the binary does not have.
+    ((GameTimer *)&timer)->GameTimer::GameTimer();
+#else
     new (&timer) GameTimer;
+#endif
     reset();
     return this;
 }
@@ -1899,7 +1929,7 @@ void living_combat::set_target(int unused, Character *c)
     target = c->handle;
 }
 
-// 0x468210  Confidence: likely. Per-frame dispatch; true when the record is idle. A melee exchange needs
+// 0x468210  Confidence: exact. Per-frame dispatch; true when the record is idle. A melee exchange needs
 // both sides attacking each other and facing (dot of the forward vectors below -0.95).
 bool living_combat::update(int move_id)
 {
@@ -1911,27 +1941,38 @@ bool living_combat::update(int move_id)
         return true;
     }
     opponent = &t->combat;
-    facing = t->orient.fvec.z * owner->orient.fvec.z + t->orient.fvec.y * owner->orient.fvec.y +
-             t->orient.fvec.x * owner->orient.fvec.x;
+    opponent = &t->combat;
+    facing = owner->orient.fvec.dot(t->orient.fvec);
     if (owner->ai.is_attacking() == true) {
-        if (owner->type == 9)
+        if (owner->type == 9) {
             update_boss_attack(move_id);
-        else if (opponent->owner->type == 9)
-            update_attack();
-        else if (!opponent->owner->ai.is_attacking() || opponent->target != owner->handle ||
-                 !(facing < -0.95f))
-            update_attack();
-        else {
-            opponent->opponent = this;
-            update_exchange();
+            return state == COMBAT_IDLE ? true : false;
         }
-        return state == COMBAT_IDLE;
+        if (opponent->owner->type == 9) {
+            update_attack();
+            return state == COMBAT_IDLE ? true : false;
+        }
+        if (!opponent->owner->ai.is_attacking()) {
+            update_attack();
+            return state == COMBAT_IDLE ? true : false;
+        }
+        if (opponent->target != owner->handle || !(facing < -0.95f)) {
+            update_attack();
+            return state == COMBAT_IDLE ? true : false;
+        }
+        opponent->opponent = this;
+        update_exchange();
+        return state == COMBAT_IDLE ? true : false;
     }
-    if (owner->ai.is_combat_sub10() == true)
+    if (owner->ai.is_combat_sub10() == true) {
         update_ranged();
-    else if (owner->ai.is_combat_sub11() == true)
+        return state == COMBAT_IDLE ? true : false;
+    }
+    if (owner->ai.is_combat_sub11() == true) {
         update_special();
-    return state == COMBAT_IDLE;
+        return state == COMBAT_IDLE ? true : false;
+    }
+    return state == COMBAT_IDLE ? true : false;
 }
 
 // 0x468360  Confidence: exact (VC6 byte match; the jump table: 0, 1, 2-3, 6, the rest; the trigger-7 test as
@@ -2009,7 +2050,7 @@ void living_combat::update_boss_attack(int move_id)
     }
 }
 
-// 0x4685c0  Confidence: likely. Replays an exchange sent by another machine (living_combat_send_net):
+// 0x4685c0  Confidence: exact. Replays an exchange sent by another machine (living_combat_send_net):
 // hit = 0 makes the defender (the target's record) pick its parry / dodge or take the hit.
 void living_combat::apply_net_exchange(int hit, int move, int defence, int skill_id, bool special)
 {
@@ -2018,9 +2059,11 @@ void living_combat::apply_net_exchange(int hit, int move, int defence, int skill
     if (!t)
         return;
     opponent = &t->combat;
-    if (skill_id == SKILL_BACKSTAB) {
+    switch (skill_id) {
+    case SKILL_BACKSTAB: {
         chain_skill = SKILL_BACKSTAB;
-        owner->ai.emerge_move = owner->play_move((int)owner->find_move(0, 0x6c), 1.0f, 1, 1, 0);
+        move_info *m = owner->find_move(0, 0x6c);
+        owner->ai.emerge_move = owner->play_move((int)m, 1.0f, 1, 1, 0);
         if (MP_HOST) {
             state = COMBAT_ATTACKING;
             skill = SKILL_BACKSTAB;
@@ -2030,15 +2073,19 @@ void living_combat::apply_net_exchange(int hit, int move, int defence, int skill
                 backstab_full = true;
             opponent->roll_defense(this, true);
         }
-    } else if (skill_id != SKILL_NONE) {
-        chain_skill = skill_id;
-        play_skill_attack();
-    } else {
+        break;
+    }
+    case SKILL_NONE:
         skill = SKILL_NONE;
         if (special)
             play_special(owner->find_move(0xb, move));
         else
             play_attack(owner->find_move(0, move));
+        break;
+    default:
+        chain_skill = skill_id;
+        play_skill_attack();
+        break;
     }
     if (hit) {
         if (special) {
@@ -2052,10 +2099,14 @@ void living_combat::apply_net_exchange(int hit, int move, int defence, int skill
     opponent->state = COMBAT_HIT;
     if (defence != -1) {
         opponent->opponent = this;
-        if (defence == 2)
+        switch (defence) {
+        case 2:
             opponent->pick_parry();
-        else if (defence == 3)
+            break;
+        case 3:
             opponent->pick_dodge();
+            break;
+        }
     }
     if (opponent->state == COMBAT_HIT)
         hits = 1;
@@ -2064,7 +2115,7 @@ void living_combat::apply_net_exchange(int hit, int move, int defence, int skill
 // 0x468740  Confidence: exact.
 bool living_combat::is_busy()
 {
-    return state != COMBAT_IDLE;
+    return state != COMBAT_IDLE ? true : false;
 }
 
 // 0x468750  Confidence: exact.
@@ -2129,16 +2180,11 @@ void living_combat::blood_splot_place(int size, float grey)
     decal_place(bm, &pos, &u, &v, 2000, true, *(int *)&grey, 0.25f);
 }
 
-// 0x468a90  Confidence: likely (an out-of-line vector operator whose COMDAT landed in this unit; 16
+// 0x468a90  Confidence: exact (an out-of-line vector operator whose COMDAT landed in this unit; 16
 // other callers). s * v.
 vector3 operator*(float s, const vector3 &v)
 {
-    vector3 r;
-
-    r.x = s * v.x;
-    r.y = s * v.y;
-    r.z = s * v.z;
-    return r;
+    return vector3(s * v.x, s * v.y, s * v.z);
 }
 
 // 0x468ac0  Confidence: exact (the colour bytes are read as `mov eax, [mem]; and eax, 0xff`, i.e.

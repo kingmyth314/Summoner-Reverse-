@@ -136,14 +136,14 @@ float vif_min_nonzero_float(const vif_curve *c)
     return best;
 }
 
-// 0x532e80  Confidence: exact. LoadSettings: every record unused.
+// 0x532e80  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21). LoadSettings: every record unused.
 void vif_records_reset()
 {
-    for (vfx_inst21c *r = vif_records; r < &vif_records[VIF_NUM_RECORDS]; r++)
-        r->flags = 0;
+    for (int i = 0; i < VIF_NUM_RECORDS; i++)
+        vif_records[i].flags = 0;
 }
 
-// 0x532ea0  Confidence: likely (the ring append as written; the list head is kept in a register).
+// 0x532ea0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21; was likely; the ring append as written; the list head is kept in a register).
 // level_load: all records back on the free ring in order, the pool empty, every particle dead.
 void vif_reset_all()
 {
@@ -152,18 +152,10 @@ void vif_reset_all()
 
     vif_data_top = 0;
     vif_record_list = NULL;
-    for (r = vif_records; r < &vif_records[VIF_NUM_RECORDS]; r++) {
+    for (i = 0; i < VIF_NUM_RECORDS; i++) {
+        r = &vif_records[i];
         r->flags = 0;
-        if (!vif_record_list) {
-            r->next = r;
-            r->prev = r;
-            vif_record_list = r;
-        } else {
-            r->prev = vif_record_list->prev;
-            r->next = vif_record_list;
-            vif_record_list->prev->next = r;
-            vif_record_list->prev = r;
-        }
+        plist_append(vif_record_list, r);
     }
     vif_particle_used = 0;
     vif_particle_half = 0;
@@ -463,7 +455,7 @@ vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level)
     return r;
 }
 
-// 0x5339b0  Confidence: likely (the ring append as in vif_reset_all). Every particle of the record dead, the
+// 0x5339b0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21; was likely; the ring append as in vif_reset_all). Every particle of the record dead, the
 // lists empty, the record unused and (when it is one of the 100) back at the end of the free ring. A level
 // record only takes its bytes off vif_data_top; its heap particles are not freed.
 void vif_record_release(vfx_inst21c *em, vfx_desc21c *desc)
@@ -486,16 +478,7 @@ void vif_record_release(vfx_inst21c *em, vfx_desc21c *desc)
     index = em - vif_records;
     if (index < 0 || index >= VIF_NUM_RECORDS)
         return;
-    if (!vif_record_list) {
-        em->next = em;
-        em->prev = em;
-        vif_record_list = em;
-    } else {
-        em->next = vif_record_list;
-        em->prev = vif_record_list->prev;
-        vif_record_list->prev = em;
-        em->prev->next = em;
-    }
+    plist_append(vif_record_list, em);
 }
 
 // 0x533aa0  Confidence: likely (the box radius expression). (desc, out centre, out radius): the spawn area
@@ -558,11 +541,11 @@ void vif_stub_ret_533c60()
 // the reciprocal it just computed (a game bug, see NOTES); written as the code computes it.
 float vif_curve__evaluate(const vif_curve *c, float t, bool reciprocal)
 {
-    int n = c->count;
-    int i;
+    int n, i;
 
-    if (n == 1)
+    if (c->count == 1)
         return c->values[0];
+    n = c->count;
     for (i = 0; i < n - 1; i++)
         if (t >= c->times[i] && t <= c->times[i + 1])
             break;

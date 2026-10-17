@@ -225,11 +225,9 @@ GameTimer hud_camera_mode_timer;                              // 0x5bd0cc (init_
 // 0x40cc00 init_gametimer_5bd090 (hud_death_timer). Confidence: exact.
 
 // The member whose hot buttons are shown (the selected portrait's species). Inline: every use loads
-// hud_selected_portrait and reads +0xc of its record.
-static inline int hud_member()
-{
-    return hud_portrait_slots[hud_selected_portrait].species;
-}
+// hud_selected_portrait and reads +0xc of its record. A macro, not an inline function (D7501): build 8966
+// evaluates an argument that is a call before the others, and the binary loads the slot argument first.
+#define hud_member() (hud_portrait_slots[hud_selected_portrait].species)
 
 // 0x40cc10  Confidence: likely (status_load_bitmaps shape plus the '.' test; filename is 0x70 bytes in the
 // frame; the flag switch is the jump table 0x40cea4 / byte table 0x40ceac over i <= 59).
@@ -726,8 +724,9 @@ int hud_handle_keys(int key)
                         x = hud_hot_button_origin[resolution_index][0] + hud_hot_button_spacing[resolution_index][0] * (slot - 3);
                         y = hud_hot_button_origin[resolution_index][1] + hud_hot_button_spacing[resolution_index][1];
                     }
-                    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, hud_hot_button_size[resolution_index][0],
-                                      hud_hot_button_size[resolution_index][1])) {
+                    int w = hud_hot_button_size[resolution_index][0];
+                    int h = hud_hot_button_size[resolution_index][1];
+                    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h)) {
                         hud_hot_button_hover = slot;
                         if (mouse_was_pressed(0)) {
                             hud_mouse_mode = 3;
@@ -928,20 +927,20 @@ int hud_handle_keys(int key)
     return key;
 }
 
-// 0x40e0d0  Confidence: likely (switch through the jump table 0x40e1d8; frame: buttons 0x0, the screen
+// 0x40e0d0  Confidence: exact (switch through the jump table 0x40e1d8; frame: buttons 0x0, the screen
 // argument 0x4, text 0x8, name 0x48). F3: the save/load screen in save mode, or why saving is not allowed.
 void hud_key_save()
 {
     char *buttons[1];
-    bool save_mode;
+    bool save_mode[4];
     char text[64];
     char name[128];
 
     buttons[0] = XSTR("OK", 231);
     switch (savegame_location_allowed()) {
     case 0:
-        save_mode = true;
-        interface_set_screen(8, &save_mode);
+        save_mode[0] = true;
+        interface_set_screen(8, save_mode);
         return;
     case 1:
         strcpy(text, XSTR("Cannot save in combat.", 657));
@@ -1080,12 +1079,14 @@ void hud_key_journal()
 }
 
 // 0x40e430  Confidence: exact. The argument false: plain inventory (hud_use_hot_button passes true for
-// Appraise).
+// Appraise). The flag is the first byte of a 4-byte block at the bottom of the frame (D7501: a lone bool
+// would sit in the top byte of its slot).
 void hud_key_inventory()
 {
-    bool identify = false;
+    bool identify[4];
 
-    interface_set_screen(1, &identify);
+    identify[0] = false;
+    interface_set_screen(1, identify);
 }
 
 // 0x40e450  Confidence: exact.
@@ -1279,7 +1280,7 @@ void hud_key_camera()
     }
 }
 
-// 0x40e9d0  Confidence: likely (VC6 put id in the dead stack slot of slot; the sound calls are tail-merged).
+// 0x40e9d0  Confidence: exact.
 // Appraise opens the inventory in identify mode, Pick Lock waits for a target (hud_target_mode 2), Banish
 // Summon acts on cur_summon; spells go through character_cast_spell.
 void hud_use_hot_button(int slot)
@@ -1298,16 +1299,11 @@ void hud_use_hot_button(int slot)
 
     if (kind) {
         switch (id) {
-        case SKILL_APPRAISE: {
-            bool identify = true;
-
-            interface_set_screen(1, &identify);
-            game_play_sound(0x23, 1.0f, 0, 0, 0);
-            return;
-        }
-        case SKILL_PICK_LOCK:
-            hud_target_mode = 2;
-            game_play_sound(0x27, 1.0f, 0, 0, 0);
+        default:
+            if (character_use_skill(id, 0, 0))
+                game_play_sound(0x23, 1.0f, 0, 0, 0);
+            else
+                game_play_sound(0x24, 1.0f, 0, 0, 0);
             return;
         case SKILL_BANISH_SUMMON:
             if (character_use_skill(SKILL_BANISH_SUMMON, cur_summon, 0))
@@ -1315,11 +1311,17 @@ void hud_use_hot_button(int slot)
             else
                 game_play_sound(0x24, 1.0f, 0, 0, 0);
             return;
-        default:
-            if (character_use_skill(id, 0, 0))
-                game_play_sound(0x23, 1.0f, 0, 0, 0);
-            else
-                game_play_sound(0x24, 1.0f, 0, 0, 0);
+        case SKILL_APPRAISE: {
+            bool identify[4];
+
+            identify[0] = true;
+            interface_set_screen(1, identify);
+            game_play_sound(0x23, 1.0f, 0, 0, 0);
+            return;
+        }
+        case SKILL_PICK_LOCK:
+            hud_target_mode = 2;
+            game_play_sound(0x27, 1.0f, 0, 0, 0);
             return;
         }
     }
@@ -1574,8 +1576,9 @@ void hud_hot_buttons_handle_click()
             x = hud_hot_button_origin[resolution_index][0] + hud_hot_button_spacing[resolution_index][0] * (hud_hot_button_hover - 3);
             y = hud_hot_button_origin[resolution_index][1] + hud_hot_button_spacing[resolution_index][1];
         }
-        if (point_in_rect(game_mouse_x, game_mouse_y, x, y, hud_hot_button_size[resolution_index][0],
-                          hud_hot_button_size[resolution_index][1]))
+        int w = hud_hot_button_size[resolution_index][0];
+        int h = hud_hot_button_size[resolution_index][1];
+        if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h))
             hud_hot_button_used = hud_hot_button_hover;
         if (mouse_is_down(0))
             return;
@@ -1615,8 +1618,9 @@ void hud_hot_buttons_drag()
                 x = hud_hot_button_origin[resolution_index][0] + hud_hot_button_spacing[resolution_index][0] * (slot - 3);
                 y = hud_hot_button_origin[resolution_index][1] + hud_hot_button_spacing[resolution_index][1];
             }
-            if (point_in_rect(game_mouse_x, game_mouse_y, x, y, hud_hot_button_size[resolution_index][0],
-                              hud_hot_button_size[resolution_index][1])) {
+            int w = hud_hot_button_size[resolution_index][0];
+            int h = hud_hot_button_size[resolution_index][1];
+            if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h)) {
                 hud_hot_button_hover = slot;
                 break;
             }
@@ -1714,7 +1718,7 @@ void death_popup()
     ui_choice_popup_show(XSTR("You have died.", 680), -1, hud_death_popup_y[resolution_index], 2, items, 11, 0, 0);
 }
 
-// 0x40f6e0  Confidence: likely (frame: Color 0x0, pulse temp 0x4, clip h/w/y/x 0x8-0x14). Drawn by
+// 0x40f6e0  Confidence: exact. Drawn by
 // interface_draw with the full screen as clip. Entry 31 ("Main-HUD-PauseHiLite") first draws the animated
 // pause icons, so they lie under the pause highlight.
 void hud_draw()

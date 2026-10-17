@@ -200,8 +200,8 @@ void ai_state::murod_cast_spell(int spell, Character *target)
     if (owner->cur_anim == -1)
         return;
     add_cast_at_target(spell, target, 5000);
-    murod_casting_spell = spell;
     murod_move_anim = owner->cur_anim;
+    murod_casting_spell = spell;
 }
 
 // 0x4c5680  Confidence: exact. boss_ai_idle_dispatch case 0xb7: murod_engaged is set at load, so the boss
@@ -328,47 +328,46 @@ void murod_set_attack_timer(int min_ms, int max_ms)
     murod_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c5a60  Confidence: likely (the sub-mode switch: case -1 has its own slot, byte table 0x4c5b2c).
+// 0x4c5a60  Confidence: exact (the sub-mode switch: case -1 has its own slot, byte table 0x4c5b2c; both
+// go_idle paths share the one call placed last, D7700).
 void ai_state::murod_ai_frame()
 {
     int result;
     Character *target;
 
     result = murod_ai_select_action();
-    if (result == 0) {
-        go_idle();
-        return;
+    if (result != 0) {
+        target = living_from_handle(murod_target_handle);
+        owner->combat.target = murod_target_handle;
+        if (target && (target->flags & CF_HIDDEN))
+            target = NULL;
+        if (submode == AIS_MUROD_LEAP || submode == AIS_MUROD_ARRIVE || target != NULL) {
+            if (result == 3)
+                combat_approach(target);
+            switch (submode) {
+            case -1:
+                return;
+            case AIS_CLOSE_COMBAT:
+                combat_melee_attack(target);
+                return;
+            case AIS_GET_CLOSE:
+            case AIS_GET_FAR:
+                combat_close_in(target);
+                return;
+            case AIS_MUROD_LEAP:
+                murod_ai_leap();
+                return;
+            case AIS_MUROD_ARRIVE:
+                murod_end_move();
+                return;
+            }
+            return;
+        }
     }
-    target = living_from_handle(murod_target_handle);
-    owner->combat.target = murod_target_handle;
-    if (target && (target->flags & CF_HIDDEN))
-        target = NULL;
-    if (submode != AIS_MUROD_LEAP && submode != AIS_MUROD_ARRIVE && target == NULL) {
-        go_idle();
-        return;
-    }
-    if (result == 3)
-        combat_approach(target);
-    switch (submode) {
-    case -1:
-        break;
-    case AIS_CLOSE_COMBAT:
-        combat_melee_attack(target);
-        break;
-    case AIS_GET_CLOSE:
-    case AIS_GET_FAR:
-        combat_close_in(target);
-        break;
-    case AIS_MUROD_LEAP:
-        murod_ai_leap();
-        break;
-    case AIS_MUROD_ARRIVE:
-        murod_end_move();
-        break;
-    }
+    go_idle();
 }
 
-// 0x4c5b70  Confidence: likely. boss_target_filter_dispatch case 0xb7. Flags: 2 paralysed, 4 status 14
+// 0x4c5b70  Confidence: exact. boss_target_filter_dispatch case 0xb7. Flags: 2 paralysed, 4 status 14
 // (fire wall), 0x10 blind, 8 silenced, 1 the threat ratio [2] / [3] above 0.25. As in Evil Urath's filter
 // the handle is read before the NULL test.
 void murod_filter_target(Character *boss, boss_target *t)

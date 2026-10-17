@@ -55,37 +55,37 @@ int mainmenu_pressed_button;                                 // 0x5c30d4
 void mainmenu_load_bitmaps()
 {
     float scale = ui_get_scale();
-    int i;
+    char filename[128];
+    bool scaled;
 
-    for (i = 0; i < MAINMENU_NUM_BUTTONS; i++) {
-        mainmenu_buttons[i].flags = 0;
-        mainmenu_buttons[i].bitmap = -1;
-        mainmenu_buttons[i].x = 0;
-        mainmenu_buttons[i].y = 0;
-        mainmenu_buttons[i].w = 0;
-        mainmenu_buttons[i].h = 0;
+    for (int i = 0; i < MAINMENU_NUM_BUTTONS; i++) {
+        ui_button_state *b = &mainmenu_buttons[i];
+        ui_button_def *d = &mainmenu_button_table[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
-        if (strlen(mainmenu_button_table[i].name)) {
-            char filename[128];
-            bool scaled;
-
-            strcpy(filename, mainmenu_button_table[i].name);
+        if (strlen(d->name)) {
+            strcpy(filename, d->name);
             if (!strchr(filename, '.')) {
                 scaled = true;
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
             } else {
                 scaled = false;
             }
-            mainmenu_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            mainmenu_buttons[i].x = mainmenu_button_table[i].pos[resolution_index][0];
-            mainmenu_buttons[i].y = mainmenu_button_table[i].pos[resolution_index][1];
-            bm_get_dimensions(mainmenu_buttons[i].bitmap, &mainmenu_buttons[i].w, &mainmenu_buttons[i].h);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
             if (scaled) {
-                mainmenu_buttons[i].w = (int)(mainmenu_buttons[i].w * scale + 0.5f);
-                mainmenu_buttons[i].h = (int)(mainmenu_buttons[i].h * scale + 0.5f);
+                b->w = (int)(b->w * scale + 0.5f);
+                b->h = (int)(b->h * scale + 0.5f);
             }
             if (i == 0)
-                mainmenu_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 }
@@ -119,7 +119,7 @@ int mainmenu_frame(int key)
         return mainmenu_handle_click(key);
     case 1:
         mainmenu_update_buttons();
-        break;
+        return key;
     case 2:
         empty_frame_hook_40acc0();
         break;
@@ -127,7 +127,7 @@ int mainmenu_frame(int key)
     return key;
 }
 
-// 0x41d960  Confidence: likely. Key switch: byte table 0x41da78 over key-1 (0..0x3b) into the jump
+// 0x41d960  Confidence: exact. Key switch: byte table 0x41da78 over key-1 (0..0x3b) into the jump
 // table 0x41da5c. N/S and L share the click sound tail (cross-jumping), so they are written separately.
 int mainmenu_handle_click(int key)
 {
@@ -136,10 +136,10 @@ int mainmenu_handle_click(int key)
     mainmenu_pressed_button = -1;
 
     for (i = 0; i < MAINMENU_NUM_BUTTONS; i++) {
-        if (!(mainmenu_buttons[i].flags & 4) && (mainmenu_button_table[i].flags & 1)
-            && point_in_rect(game_mouse_x, game_mouse_y, mainmenu_buttons[i].x, mainmenu_buttons[i].y,
-                             mainmenu_buttons[i].w, mainmenu_buttons[i].h)) {
-            mainmenu_buttons[i].flags |= 2;
+        ui_button_state *b = &mainmenu_buttons[i];
+        ui_button_def *d = &mainmenu_button_table[i];
+        if (!(b->flags & 4) && (d->flags & 1) && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             mainmenu_pressed_button = i;
             if (mouse_was_pressed(0)) {
                 mainmenu_mouse_mode = 1;
@@ -176,7 +176,7 @@ int mainmenu_handle_click(int key)
     return key;
 }
 
-// 0x41dac0  Confidence: likely. Starts level_script_table[3] (0x59f1e8). The second argument is the
+// 0x41dac0  Confidence: exact. Starts level_script_table[3] (0x59f1e8). The second argument is the
 // dword at 0x2538a10, which sum.symbols places inside conversation_save_table (entry 84); its real
 // name and type are unknown.
 void mainmenu_start_new_game()
@@ -184,7 +184,7 @@ void mainmenu_start_new_game()
     game_change_level(level_script_table[3].name, conversation_save_table[84]);
 }
 
-// 0x41dae0  Confidence: likely (the three message boxes share one call; the mouse mode store after it is
+// 0x41dae0  Confidence: exact (the three message boxes share one call; the mouse mode store after it is
 // common to all three, the winsock path returns before it).
 void mainmenu_check_network()
 {
@@ -240,28 +240,24 @@ void mainmenu_quit()
     gameseq_set_state(3);
 }
 
-// 0x41dc10  Confidence: likely. Tests and acts on the Press entry after the pressed HiLite entry. The two
+// 0x41dc10  Confidence: exact. Tests and acts on the Press entry after the pressed HiLite entry. The two
 // "mode = 0" exits are one store in the binary; written as the early return plus the mode-1 test.
 void mainmenu_update_buttons()
 {
-    int button;
+    int button = mainmenu_pressed_button + 1;
 
-    if (mainmenu_pressed_button < 0 || mainmenu_pressed_button >= MAINMENU_NUM_BUTTONS) {
-        mainmenu_mouse_mode = 0;
-        return;
-    }
-
-    button = mainmenu_pressed_button + 1;
-    if (point_in_rect(game_mouse_x, game_mouse_y, mainmenu_buttons[button].x, mainmenu_buttons[button].y,
-                      mainmenu_buttons[button].w, mainmenu_buttons[button].h))
-        mainmenu_buttons[button].flags |= 2;
-
-    if (!mouse_is_down(0)) {
-        if (mainmenu_buttons[button].flags & 2)
+    if (mainmenu_pressed_button >= 0 && mainmenu_pressed_button < MAINMENU_NUM_BUTTONS) {
+        ui_button_state *b = &mainmenu_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
+        if (mouse_is_down(0))
+            return;
+        if (b->flags & 2)
             mainmenu_button_action(button);
-        if (mainmenu_mouse_mode == 1)       // mainmenu_check_network may have set 2
-            mainmenu_mouse_mode = 0;
+        if (mainmenu_mouse_mode != 1)       // mainmenu_check_network may have set 2
+            return;
     }
+    mainmenu_mouse_mode = 0;
 }
 
 // 0x41dca0  Confidence: exact (jump table 0x41dd5c over button-2, 0..10; the odd entries are HiLites).
@@ -302,8 +298,8 @@ void mainmenu_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < MAINMENU_NUM_BUTTONS; i++) {
-        if (mainmenu_buttons[i].flags & 3)
-            ui_bitmap_scaled(mainmenu_buttons[i].bitmap, mainmenu_buttons[i].x, mainmenu_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &mainmenu_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
 }

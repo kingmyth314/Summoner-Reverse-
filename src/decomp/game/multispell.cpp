@@ -41,20 +41,26 @@ int mp_summon_request_pending;                                // 0x247e82c
 // 0x4afca0  Confidence: likely (the stack temporaries).
 void mp_write_spell_target_point(spell_cast_request *req, ubyte *data, ushort *offset)
 {
-    if (req->spell == SPELL_TARGET_POINT_A || req->spell == SPELL_TARGET_POINT_B) {
+    switch (req->spell) {
+    case SPELL_TARGET_POINT_A:
+    case SPELL_TARGET_POINT_B:
         MP_PUT_INT(data, offset, req->_unk1c[0]);
         MP_PUT_INT(data, offset, req->_unk1c[1]);
         MP_PUT_INT(data, offset, req->_unk1c[2]);
+        break;
     }
 }
 
-// 0x4afd10  Confidence: exact. The spell is passed separately (the request's copy is the same value).
+// 0x4afd10  Confidence: exact (VC6 byte match, match14; was exact). The spell is passed separately (the request's copy is the same value).
 void mp_read_spell_target_point(spell_cast_request *req, ubyte *data, int *offset, int spell)
 {
-    if (spell == SPELL_TARGET_POINT_A || spell == SPELL_TARGET_POINT_B) {
+    switch (spell) {
+    case SPELL_TARGET_POINT_A:
+    case SPELL_TARGET_POINT_B:
         MP_GET_INT(data, offset, req->_unk1c[0]);
         MP_GET_INT(data, offset, req->_unk1c[1]);
         MP_GET_INT(data, offset, req->_unk1c[2]);
+        break;
     }
 }
 
@@ -121,16 +127,6 @@ void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset)
     case 1:
         MP_GET_INT(data, offset, p->target[0]);
         break;
-    case 2:
-    case 9:
-        MP_GET_INT(data, offset, p->target[0]);
-        break;
-    case 3:
-    case 6:
-    case 7:
-        MP_GET_INT(data, offset, p->target[0]);
-        MP_GET_INT(data, offset, p->target[1]);
-        break;
     case 4:
         for (i = 0; i < 6; i++) {
             MP_GET_INT(data, offset, net);
@@ -146,13 +142,23 @@ void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset)
         MP_GET_INT(data, offset, p->target[6]);
         MP_GET_INT(data, offset, p->target[7]);
         break;
-    case 8:
+    case 3:
+    case 6:
+    case 7:
+        MP_GET_INT(data, offset, p->target[0]);
+        MP_GET_INT(data, offset, p->target[1]);
+        break;
+    case 2:
+    case 9:
+        MP_GET_INT(data, offset, p->target[0]);
         break;
     case 10:
         for (i = 0; i < 5; i++) {
             MP_GET_INT(data, offset, p->target[i]);
             MP_GET_INT(data, offset, p->target[5 + i]);
         }
+        break;
+    case 8:
         break;
     }
 }
@@ -362,25 +368,25 @@ void mp_summon_claim_reset()
     mp_summon_net_handle = -1;
 }
 
-// 0x4b0750  Confidence: exact. Called again each frame of the cast until it returns 1 (the claim came
+// 0x4b0750  Confidence: exact (VC6 byte match, match14; was exact). Called again each frame of the cast until it returns 1 (the claim came
 // back as ours) or the deny / another owner stops the cast.
 int mp_summon_try_claim()
 {
     if (mp_summon_owner != -1) {
         mp_summon_request_pending = 0;
-        if (mp_summon_owner == mp_local_player->id)
-            return 1;
-        hud_show_message(XSTR("Another summon already active", 238));
-        cur_character->ai.go_idle();
+        if (mp_summon_owner != mp_local_player->id) {
+            hud_show_message(XSTR("Another summon already active", 238));
+            cur_character->ai.go_idle();
+            return 0;
+        }
+    } else if (MP_IS_HOST()) {
+        mp_summon_owner = mp_local_player->id;
+    } else {
+        if (!mp_summon_request_pending)
+            mp_send_summon_request();
         return 0;
     }
-    if (MP_IS_HOST()) {
-        mp_summon_owner = mp_local_player->id;
-        return 1;
-    }
-    if (!mp_summon_request_pending)
-        mp_send_summon_request();
-    return 0;
+    return 1;
 }
 
 // 0x4b07d0  Confidence: exact.

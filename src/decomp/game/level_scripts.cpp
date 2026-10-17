@@ -593,7 +593,10 @@ void savegame_refresh_character_flags()
             continue;
         if (script_objects[so].trigger_level == -1)
             continue;
-        c->set_ai_active(savegame_state.get_flag(script_objects[so].trigger_level, script_objects[so].trigger) ? 1 : 0);
+        if (savegame_state.get_flag(script_objects[so].trigger_level, script_objects[so].trigger))
+            c->set_ai_active(1);
+        else
+            c->set_ai_active(0);
     }
 }
 
@@ -687,7 +690,9 @@ void savegame::set_float(int level, const char *name, float value)
     index = savegame_find_hash(level_script_table[level].float_hashes, level_script_table[level].num_floats, hash);
     if (index < 0)
         return;
-    *(int *)(levels[level].data + (data_offset(level, 3, index) >> 3)) = *(int *)&value;
+    int off = data_offset(level, 3, index) >> 3;
+    float v = value;
+    *(int *)(levels[level].data + off) = *(int *)&v;
 }
 
 // 0x4d0240  Confidence: likely (the found index is kept across the levels in EBX, set to -1 once before the
@@ -1269,8 +1274,9 @@ void savegame::automap_label_remove(int level, int script, automap_label *label)
     }
 }
 
-// 0x4d14f0  Confidence: likely (count * 0x34 and (i + 1) * 0x34 are kept as running values in the binary).
-// Only caller cmd_reset_map_labels.
+// 0x4d14f0  Confidence: exact (count * 0x34 and (i + 1) * 0x34 are kept as running values in the binary).
+// Only caller cmd_reset_map_labels. Record layout as savegame_automap_label: level, script, x, z, layer
+// (0xc bytes), text at +0x14 (D7504: the old source skipped 0x10 there and walked 0x38-byte records).
 void savegame::automap_labels_reset_level(int level, int script)
 {
     int count, off, start, i, rlevel, rscript;
@@ -1278,17 +1284,17 @@ void savegame::automap_labels_reset_level(int level, int script)
 
     if (level == -1 || script < 0)
         return;
+    off = 4;
     count = *(int *)map_labels.data;
     if (count >= SAVEGAME_MAX_LABELS)
         return;
-    off = 4;
     for (i = 0; i < count; ) {
         start = off;
         rlevel = *(int *)(map_labels.data + off);
         off += 4;
         rscript = *(int *)(map_labels.data + off);
         off += 4;
-        off += 0x10;                 // x, z, layer
+        off += 0xc;                  // x, z, layer
         strcpy(text, (char *)(map_labels.data + off));
         off += 0x20;
         if (rlevel == level && rscript == script) {
@@ -1875,7 +1881,8 @@ int savegame::read(const char *filename, int unk)
     return 1;
 }
 
-// 0x4d2800  Confidence: exact. Reads the header part of the file into the buffer and checks it.
+// 0x4d2800  Confidence: exact. Reads the header part of the file into the buffer and checks it. The version
+// argument is not passed on: read_header gets NULL (0x4d2866 `push 0`, D7504; every caller passes NULL).
 int savegame::read_info(const char *filename, char *level_name, char *script_name, int *unk_a8,
                         float *level_time, char *description, int *version)
 {
@@ -1887,7 +1894,7 @@ int savegame::read_info(const char *filename, char *level_name, char *script_nam
     f.read(buffer, header.size, 0, 0);
     if (f.close())
         return 0;
-    result = read_header(level_name, script_name, unk_a8, level_time, description, version);
+    result = read_header(level_name, script_name, unk_a8, level_time, description, NULL);
     return result;
 }
 
@@ -1941,7 +1948,9 @@ int savegame::read_header(char *level_name, char *script_name, int *unk_a8, floa
     off += 0x100;
     if (!report_read_sizes(&off))
         return 0;
-    return *(int *)(header.data + off) == off + 4;
+    int stored = *(int *)(header.data + off);
+    off += 4;
+    return off == stored;
 }
 
 // 0x4d2b70  Confidence: exact.
@@ -2090,7 +2099,7 @@ int savegame::read_living()
     return 1;
 }
 
-// 0x4d3100  Confidence: likely (camera.mode = -1 is scheduled after the load of the saved mode).
+// 0x4d3100  Confidence: exact. The follow test reads the low byte of the camera flags (`not cl / test cl, 1`).
 int savegame::read_camera()
 {
     uint state[9];
@@ -2107,7 +2116,7 @@ int savegame::read_camera()
     game_camera.set_mode(state[7]);
     game_camera.prev_mode = state[8];
     game_camera.snap_to_target(1, 1);
-    if (~game_camera.flags & 1) {
+    if ((ubyte)~game_camera.flags & 1) {
         game_camera.set_target(cur_character);
         game_camera.resume_follow();
         game_camera.sync_yaw_to_target();
@@ -3009,13 +3018,13 @@ void level_create_world_effects()
         level_effects[i].handle = fx_create_world(level_effects[i].name, level_effects[i].flag);
 }
 
-// 0x4d5570  Confidence: likely (the multiplayer test is jump-threaded past the sprintf). Without a script
+// 0x4d5570  Confidence: exact. Without a script
 // (or in multiplayer) "<level>.vfx" is written into the next effect record, which level_effect_count does
 // not cover (see NOTES); in multiplayer the music comes from the table.
 void level_script_select()
 {
     char buf[0x100];
-    level_script_info *ls;
+
 
     level_script_init_fn = NULL;
     level_script_frame_fn = NULL;
@@ -3026,13 +3035,12 @@ void level_script_select()
     cur_level_index = level_script_find(level_filename);
     if (cur_level_index != -1 && level_script_table[cur_level_index].init != NULL &&
         !(game_flags & GF_MULTIPLAYER)) {
-        ls = &level_script_table[cur_level_index];
-        level_script_init_fn = ls->init;
-        level_script_leave_fn = ls->leave;
-        level_script_frame_fn = ls->frame;
-        level_script_use_fn = ls->use;
-        level_script_unk14_fn = ls->unused14;
-        level_script_action_fn = ls->action;
+        level_script_init_fn = level_script_table[cur_level_index].init;
+        level_script_frame_fn = level_script_table[cur_level_index].frame;
+        level_script_leave_fn = level_script_table[cur_level_index].leave;
+        level_script_use_fn = level_script_table[cur_level_index].use;
+        level_script_unk14_fn = level_script_table[cur_level_index].unused14;
+        level_script_action_fn = level_script_table[cur_level_index].action;
     } else {
         if (!(game_flags & GF_MULTIPLAYER))
             sprintf(buf, "Unable to locate level script info for %s\n", level_filename);
@@ -3343,7 +3351,10 @@ void quest_journal_set_entry(int quest, int value)
 {
     if (quest < 0 || quest >= MAX_QUESTS)
         return;
-    savegame_state.set_quest_bit(quest, value ? true : false);
+    if (value)
+        savegame_state.set_quest_bit(quest, true);
+    else
+        savegame_state.set_quest_bit(quest, false);
     hud_show_message(XSTR("Quest Journal Updated", 476));
 }
 

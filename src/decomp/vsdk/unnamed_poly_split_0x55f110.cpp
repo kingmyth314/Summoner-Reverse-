@@ -221,8 +221,9 @@ bool float_strictly_between(float a, float b, float x)
 {
     float lo = float_min(a, b);
     float hi = float_max(a, b);
-
-    return x > lo && x < hi;
+    if (x > lo && x < hi)
+        return true;
+    return false;
 }
 
 // 0x55f900  Confidence: likely (the colour bytes are converted to float before the lerps, as in

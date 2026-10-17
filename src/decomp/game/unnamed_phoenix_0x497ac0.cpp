@@ -774,8 +774,9 @@ int phoenix_threat_find(int handle)
     return -1;
 }
 
-// 0x499410  Confidence: likely (case order from the bodies: 15, 22/23, 0x3a, 0x3b, 0x20, 16; the table
-// starts at -1). Nothing while the rebirth move plays.
+// 0x499410  Confidence: exact (the choose result is a switch; the new handle is a local, D7700; case order
+// from the bodies: 15, 22/23, 0x3a, 0x3b, 0x20, 16; the table starts at -1). Nothing while the rebirth
+// move plays.
 void ai_state::phoenix_ai_frame()
 {
     if (phoenix_flags & PHOENIX_F_REBIRTH)
@@ -784,11 +785,11 @@ void ai_state::phoenix_ai_frame()
     if (t && (t->flags & CF_HIDDEN))
         t = NULL;
     int r = phoenix_choose_attack();
-    if (r == 0) {
+    switch (r) {
+    case 0:
         go_idle();
         return;
-    }
-    if (r == 1) {
+    case 1: {
         int pending = phoenix.pending_submode;
         if (pending == 0x20) {
             if (!phoenix_reposition_update())
@@ -798,10 +799,13 @@ void ai_state::phoenix_ai_frame()
         } else if (pending == 0x3a || pending == 0x3b) {
             set_mode(AI_STATE_COMBAT, pending);
         }
+        break;
     }
-    if (phoenix_target_handle != target) {
-        target = phoenix_target_handle;
-        owner->combat.target = target;
+    }
+    int h = phoenix_target_handle;
+    if (h != target) {
+        target = h;
+        owner->combat.target = h;
         flags |= 0x10;
         t = living_from_handle(target);
     }
@@ -832,7 +836,7 @@ void ai_state::phoenix_ai_frame()
         combat_ranged_attack(t);
         return;
     case -1:
-        break;
+        return;
     }
 }
 
@@ -964,7 +968,7 @@ void phoenix_special_strike(Character *boss, Character *target)
             if (c == NULL)
                 continue;
             vector3 d = target->pos - boss->pos;
-            if (d.x * d.x + d.y * d.y + d.z * d.z < r2) {
+            if (d.y * d.y + d.x * d.x + d.z * d.z < r2) {
                 fx_create_spell_effect_facing(SPELL_PHOENIX_BLAST, boss->handle, target->handle);
                 target->get_hit_by_spell(SPELL_PHOENIX_BLAST, boss->handle, NULL, NULL, 0, NULL, 0.0f, false);
                 c->ai.knock_down((int)(frand_range(5.0f, 10.0f) * 1000.0f));
@@ -973,7 +977,8 @@ void phoenix_special_strike(Character *boss, Character *target)
         break;
     }
     case SPELL_PHOENIX_GROUND: {
-        vector3 dir = vector3(boss->ai.cast_point.x - boss->pos.x, 0, boss->ai.cast_point.z - boss->pos.z);
+        vector3 dir;
+        dir = vector3(boss->ai.cast_point.x - boss->pos.x, 0, boss->ai.cast_point.z - boss->pos.z);
         dir.normalize();
         matrix m;
         m.set_from_forward_up(dir, boss->orient.uvec);
@@ -1033,7 +1038,8 @@ void phoenix_anim_remap_in(Character *c, int *anims)
     }
 }
 
-// 0x499b80  Confidence: exact.
+// 0x499b80  Confidence: exact. LOGIC FIX (D7701, as D6400): the slots get the character's own loco anims (EBX,
+// the argument, at 0x499bb9); the mount is only tested for NULL. The source copied mount->loco_anims.
 void phoenix_anim_remap_out(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -1041,7 +1047,7 @@ void phoenix_anim_remap_out(Character *c, int *anims)
     if (mount == NULL)
         return;
     for (int i = 0; i < phoenix_anim_remap_count; i++) {
-        set->anim[i] = mount->loco_anims[phoenix.remap_slot[i]];
+        set->anim[i] = c->loco_anims[phoenix.remap_slot[i]];
         set->weight[i] = phoenix.remap_weight[i];
     }
 }

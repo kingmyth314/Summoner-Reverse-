@@ -229,7 +229,7 @@ char *cutscene_script_table()
     return cutscene_script_name;
 }
 
-// 0x4ed770  Confidence: likely (the result is built in EAX, `mov eax, 1` / the strcmp result 0; the
+// 0x4ed770  Confidence: exact (the result is built in EAX, `mov eax, 1` / the strcmp result 0; the
 // callers test AL). A cutscene runs or a cutscene script is loaded (the inline strcmp against "").
 bool cutscene_script_is_active()
 {

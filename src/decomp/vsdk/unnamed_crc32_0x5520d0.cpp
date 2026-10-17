@@ -19,7 +19,7 @@ bool crc32_table_inited;              // 0x2f13ae8
 // 0x5520d0  Confidence: exact. value is the scratch register of the table build (stored every step).
 void Crc32::init_table()
 {
-    unsigned int i;
+    int i;
     int bit;
 
     for (i = 0; i < 256; i++) {

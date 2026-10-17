@@ -592,7 +592,9 @@ void interface_pulse_update(float frametime)
     ui_pulse_rgb_phase = (sinf(interface_pulse_time * 9.424778f) + 1.0f) * 0.5f;
 }
 
-// 0x412220  Confidence: likely (the input-locked and default cases may be one tail-merged block). The 3D
+// 0x412220  Confidence: exact (every screen 0..22 has a case, the whole-screen ones beside default: the jump
+// table has six entries, the whole-screen block second; it is cross-jumped with default and the input-locked
+// branch). The 3D
 // view: letterboxed to 2:1 during a cutscene; minus the HUD bar on the HUD-type screens; minus the side
 // panel and the HUD bar for the automap, spells, skills and item trade; the whole screen otherwise.
 void interface_set_view_clip()
@@ -645,6 +647,25 @@ void interface_set_view_clip()
             y = 0;
             w = gr_screen_width() - x;
             h = gr_screen_height() - hud_get_panel_height();
+            break;
+        case 1:
+        case 2:
+        case 7:
+        case 8:
+        case 10:
+        case 11:
+        case 12:
+        case 14:
+        case 15:
+        case 16:
+        case 17:
+        case 18:
+        case 21:
+        case 22:
+            x = 0;
+            y = 0;
+            w = gr_screen_width();
+            h = gr_screen_height();
             break;
         default:
             x = 0;
@@ -731,23 +752,35 @@ int interface_get_screen()
     return interface_cur_screen;
 }
 
-// 0x412620  Confidence: likely (the two `interface_set_screen(0, 0); return;` are compiled as jumps back
+// The empty leave functions of these screens, each in its own unit, folded by the linker into empty_function
+// (0x4f13e0). Named apart: calls to one function in several cases are merged by VC6 (D7903). Not yet defined
+// in their units.
+void hud_leave();
+void automap_leave();
+void spells_leave();
+void mainmenu_leave();
+void gamelist_leave();
+void charselect_leave();
+void gamecreate_leave();
+void levelselect_leave();
+
+// 0x412620  Confidence: exact (the two `interface_set_screen(0, 0); return;` are compiled as jumps back
 // to the top with id = arg = 0, VC6's self tail call; each case of the second switch ends in its own copy
 // of the interface_start_input_delay tail). Leaves the current screen, picks the character of the
 // inventory / status / buy-sell / journal screens when the current screen is not full-screen, then
-// enters the new one. The leave functions of screens 0, 3, 5 and 14-18 are empty (folded).
+// enters the new one. The leave functions of screens 0, 3, 5 and 14-18 are empty (folded into empty_function).
 void interface_set_screen(int id, void *arg)
 {
     int prev = interface_cur_screen;
     Character *c;
 
     switch (interface_cur_screen) {
-    case 0:  empty_function(); break;   // new_hud.cpp's leave (empty)
+    case 0:  hud_leave(); break;   // empty, folded
     case 1:  inventory_leave(); break;
     case 2:  status_leave(); break;
-    case 3:  empty_function(); break;   // automap (empty)
+    case 3:  automap_leave(); break;   // empty, folded
     case 4:  pickup_leave(); break;
-    case 5:  empty_function(); break;   // spells (empty)
+    case 5:  spells_leave(); break;   // empty, folded
     case 6:  skills_leave(); break;
     case 7:  buysell_leave(); break;
     case 8:  saveload_leave(); break;
@@ -756,11 +789,11 @@ void interface_set_screen(int id, void *arg)
     case 11: pxochat_leave_thunk(); break;
     case 12: options_leave(); break;
     case 13: dialogue_leave(); break;
-    case 14: empty_function(); break;   // main menu (empty)
-    case 15: empty_function(); break;   // game list (empty)
-    case 16: empty_function(); break;   // character select (empty)
-    case 17: empty_function(); break;   // game create (empty)
-    case 18: empty_function(); break;   // level select (empty)
+    case 14: mainmenu_leave(); break;   // empty, folded
+    case 15: gamelist_leave(); break;   // empty, folded
+    case 16: charselect_leave(); break;   // empty, folded
+    case 17: gamecreate_leave(); break;   // empty, folded
+    case 18: levelselect_leave(); break;   // empty, folded
     case 19: itemtrade_leave(); break;
     case 20: assess_leave(); break;
     case 21: credits_leave(); break;
@@ -904,40 +937,59 @@ bool interface_screen_is_fullscreen()
     }
 }
 
+// The screens without a panel of their own have a mouse_in_panel each that returns true; the linker folds
+// them into one copy, 0x4063a0 (identical-code folding; ui_return_true in new_buysell.cpp, the buy / sell
+// screen's). The calls name them apart: with one callee VC6 merges the call sites into one (D7903).
+// Their units do not define them yet.
+bool inventory_mouse_in_panel(int x, int y);
+bool status_mouse_in_panel(int x, int y);
+bool saveload_mouse_in_panel(int x, int y);
+bool journal_mouse_in_panel(int x, int y);
+bool pxochat_mouse_in_panel(int x, int y);
+bool options_mouse_in_panel(int x, int y);
+bool mainmenu_mouse_in_panel(int x, int y);
+bool gamelist_mouse_in_panel(int x, int y);
+bool charselect_mouse_in_panel(int x, int y);
+bool gamecreate_mouse_in_panel(int x, int y);
+bool levelselect_mouse_in_panel(int x, int y);
+bool credits_mouse_in_panel(int x, int y);
+bool help_mouse_in_panel(int x, int y);
+
 // 0x412af0  Confidence: exact. The screens without a panel test of their own call a mouse_in_panel that
-// returns true (identical-code folded into ui_return_true, new_buysell.cpp).
+// returns true (identical-code folded into ui_return_true, new_buysell.cpp); the result is normalised with
+// `? true : false` (`mov al, 1` on the true path).
 bool interface_mouse_over_panel()
 {
     bool over = false;
 
     switch (interface_cur_screen) {
-    case 1:  over = ui_return_true(game_mouse_x, game_mouse_y); break;          // inventory
-    case 2:  over = ui_return_true(game_mouse_x, game_mouse_y); break;          // status
+    case 1:  over = inventory_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 2:  over = status_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 3:  over = automap_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 4:  over = pickup_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 5:  over = spells_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 6:  over = skills_mouse_in_panel(game_mouse_x, game_mouse_y); break;
-    case 7:  over = ui_return_true(game_mouse_x, game_mouse_y); break;          // buy / sell
-    case 8:  over = ui_return_true(game_mouse_x, game_mouse_y); break;          // save / load
+    case 7:  over = ui_return_true(game_mouse_x, game_mouse_y); break;
+    case 8:  over = saveload_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 9:  over = playmenu_mouse_in_panel(game_mouse_x, game_mouse_y); break;
-    case 10: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // journal
-    case 11: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // PXO chat
-    case 12: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // options
+    case 10: over = journal_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 11: over = pxochat_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 12: over = options_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 13: over = dialogue_mouse_in_panel(game_mouse_x, game_mouse_y); break;
-    case 14: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // main menu
-    case 15: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // game list
-    case 16: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // character select
-    case 17: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // game create
-    case 18: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // level select
+    case 14: over = mainmenu_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 15: over = gamelist_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 16: over = charselect_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 17: over = gamecreate_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 18: over = levelselect_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 19: over = itemtrade_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     case 20: over = assess_mouse_in_panel(game_mouse_x, game_mouse_y); break;
-    case 21: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // credits
-    case 22: over = ui_return_true(game_mouse_x, game_mouse_y); break;          // help
+    case 21: over = credits_mouse_in_panel(game_mouse_x, game_mouse_y); break;
+    case 22: over = help_mouse_in_panel(game_mouse_x, game_mouse_y); break;
     }
     if (tutorial_is_active())
         over |= tutorial_mouse_in_panel(game_mouse_x, game_mouse_y);
     if (!ui_input_locked && !interface_screen_is_fullscreen())
-        return over || hud_mouse_in_panel(game_mouse_x, game_mouse_y);
+        return (over || hud_mouse_in_panel(game_mouse_x, game_mouse_y)) ? true : false;
     return over;
 }
 

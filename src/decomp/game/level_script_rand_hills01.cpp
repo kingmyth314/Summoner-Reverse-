@@ -63,7 +63,8 @@ void ls_rand_hills01_frame()
     if (!ls_rand_hills01_phoenix_intro_done && savegame_state.get_flag(cur_level_index, "phoenix_intro_played")
         && !(game_flags & GF_CUTSCENE)) {
         ls_rand_hills01_phoenix_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_rand_hills01_phoenix_killed_done && savegame_state.get_flag(cur_level_index, "phoenix_killed")
         && !(game_flags & GF_CUTSCENE)) {
@@ -116,7 +117,7 @@ void ls_rand_hills01_phoenix_escape_cs_end()
     }
 }
 
-// 0x4fa6f0  Confidence: likely (no sum.symbols entry; a function of its own, reached only by the frame's tail
+// 0x4fa6f0  Confidence: exact (VC6 byte match, match14; was likely) (no sum.symbols entry; a function of its own, reached only by the frame's tail
 // jump and placed after the cutscene callbacks; name ours, D5304). The level change to khosanistrng (entry
 // 1), game sequence state 4. ls_rand_hills01_found_khosani is not cleared here (the next init clears it).
 void ls_rand_hills01_goto_khosanistrng()

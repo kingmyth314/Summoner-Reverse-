@@ -120,18 +120,18 @@ void decal_record::set_frame(const plane &p)
     proj.set(&pos, radius, p);
 }
 
-// 0x4bc2e0  Confidence: exact.
+// 0x4bc2e0  Confidence: exact (VC6 byte match, match14; was exact).
 void decal_record::set_u_axis(float scale)
 {
-    u_scale = scale;
     u_plane = proj.num_planes - 1;
+    u_scale = scale;
 }
 
-// 0x4bc300  Confidence: exact.
+// 0x4bc300  Confidence: exact (VC6 byte match, match14; was exact).
 void decal_record::set_v_axis(float scale)
 {
-    v_scale = scale;
     v_plane = proj.num_planes - 1;
+    v_scale = scale;
 }
 
 // 0x4bc320  Confidence: likely (the age-ring insertion loop). Takes a free record (with none free, the

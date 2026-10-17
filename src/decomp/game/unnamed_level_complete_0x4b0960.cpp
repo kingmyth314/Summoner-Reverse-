@@ -244,7 +244,7 @@ void mp_level_complete_check()
         mp_mark_difficulty_complete(mp_game_difficulty);
 }
 
-// 0x4b11a0  Confidence: likely (the send is buffered: the host to everyone, a client to the host).
+// 0x4b11a0  Confidence: exact (the send is buffered: the host to everyone, a client to the host).
 void mp_send_living_combat(int attacker, int defender, ubyte variant, move_info *defence, ubyte hit,
                            ubyte skill, bool special)
 {

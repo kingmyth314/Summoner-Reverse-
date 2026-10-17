@@ -158,7 +158,7 @@ void cmdline_take_argument(CmdLineParam *param, int index)
     }
 }
 
-// 0x53e310  Confidence: likely (the found-branch re-tests p against the list head; VC6 may emit
+// 0x53e310  Confidence: exact (VC6 byte match, match11; was likely) (the found-branch re-tests p against the list head; VC6 may emit
 // that from this shape or from a found flag). cmd_line is not used.
 // A parameter that takes an argument skips the next entry. Anything else starting with '-' is
 // fatal: DebugError(cmdline.cpp, 260).
@@ -253,7 +253,7 @@ int CmdLineParam::get_arg_int()
     return atoi(arg);
 }
 
-// 0x53e4c0  Confidence: likely (float or double return: both leave atof's ST0 untouched).
+// 0x53e4c0  Confidence: exact (VC6 byte match, match11; was likely) (float or double return: both leave atof's ST0 untouched).
 // No reference in the image.
 float CmdLineParam::get_arg_float()
 {

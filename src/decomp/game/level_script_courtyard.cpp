@@ -193,7 +193,7 @@ void ls_lenele1c_flece_intro_cs_end()
     script_play_cutscene("Flece-Intro-p2", ls_lenele1c_flece_intro_p2_cs_end);
 }
 
-// 0x4facc0  Confidence: exact (the three strcpy are inline rep movs). End of Flece-Intro-p2: on to the
+// 0x4facc0  Confidence: exact (VC6 byte match, match14; was exact) (the three strcpy are inline rep movs). End of Flece-Intro-p2: on to the
 // sewer, entry point 1 (game sequence state 4).
 void ls_lenele1c_flece_intro_p2_cs_end()
 {

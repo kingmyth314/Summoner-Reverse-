@@ -82,8 +82,13 @@ void credits_parse_table()
 
     strcpy(section, "#");
     strcat(section, localize_get_language_name());
-    for (char *p = section; *p; p++)
-        *p = tolower(*p);
+    if (section[0]) {
+        char *p = section;
+        do {
+            *p = tolower(*p);
+            p++;
+        } while (*p);
+    }
 
     tf.Rewind();
     tf.SkipTo(section, 0);
@@ -156,7 +161,7 @@ void credits_leave()
     music_play(music_find_by_name("Title"), 1);
 }
 
-// 0x4089f0, screen 21 per-frame input. Confidence: likely (the switch might have been written
+// 0x4089f0, screen 21 per-frame input. Confidence: exact (the switch might have been written
 // with case 0 as its own case rather than merged with default; same code either way)
 int credits_frame(int key)
 {
@@ -172,20 +177,23 @@ int credits_frame(int key)
 
     float scale;
     switch (resolution_index) {
-    case 0:
-    default:
-        scale = 1.0f;
+    case 2:
+        scale = 1.6f;
         break;
     case 1:
         scale = 1.25f;
         break;
-    case 2:
-        scale = 1.6f;
+    case 0:
+        scale = 1.0f;
+        break;
+    default:
+        scale = 1.0f;
         break;
     }
-    credits_scroll_y -= reported_frametime * credits_scroll_speed * scale;
+    credits_scroll_y -= credits_scroll_speed * reported_frametime * scale;
 
-    if (key == KEY_ESC) {
+    switch (key) {
+    case KEY_ESC:
         credits_finish();
         return 0;
     }
@@ -272,11 +280,11 @@ int credits_draw_lines(int w, int y, char *s)
     int mid = gr_get_font_height(-1) / 2 + y;
     float alpha = 1.0f;
     if (mid < credits_fade_top_end[resolution_index]) {
-        alpha = (float)(mid - credits_fade_top_start[resolution_index]) /
-                (float)(credits_fade_top_end[resolution_index] - credits_fade_top_start[resolution_index]);
+        alpha = (float)((float)(mid - credits_fade_top_start[resolution_index]) /
+                (double)(credits_fade_top_end[resolution_index] - credits_fade_top_start[resolution_index]));
     } else if (mid > credits_fade_bottom_start[resolution_index]) {
-        alpha = (float)(credits_fade_bottom_end[resolution_index] - mid) /
-                (float)(credits_fade_bottom_end[resolution_index] - credits_fade_bottom_start[resolution_index]);
+        alpha = (float)((float)(credits_fade_bottom_end[resolution_index] - mid) /
+                (double)(credits_fade_bottom_end[resolution_index] - credits_fade_bottom_start[resolution_index]));
     }
     gr_set_alpha((int)((alpha > 0.0f ? (alpha < 1.0f ? alpha : 1.0f) : 0.0f) * 255.0f));
 

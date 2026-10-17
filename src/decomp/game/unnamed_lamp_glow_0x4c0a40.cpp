@@ -67,26 +67,24 @@ void lamp_glow_draw(int index)
     }
 }
 
-// 0x4c0ba0  Confidence: exact.
+// 0x4c0ba0  Confidence: exact (VC6 byte match, match14; was exact).
 void lamp_glow_fade_out(int index, float frametime)
 {
     lamp_glow *g = &lamp_glows[index];
 
     if (g->alpha > 0.0f) {
         g->alpha -= frametime * 3.0f;
-        if (g->alpha <= 0.0f)
-            g->alpha = 0.0f;
+        g->alpha = g->alpha <= 0.0f ? 0.0f : g->alpha;
     }
 }
 
-// 0x4c0bf0  Confidence: exact.
+// 0x4c0bf0  Confidence: exact (VC6 byte match, match14; was exact).
 void lamp_glow_fade_in(int index, float frametime)
 {
     lamp_glow *g = &lamp_glows[index];
 
     if (g->alpha < 1.0f) {
         g->alpha += frametime * 6.0f;
-        if (g->alpha >= 1.0f)
-            g->alpha = 1.0f;
+        g->alpha = g->alpha >= 1.0f ? 1.0f : g->alpha;
     }
 }

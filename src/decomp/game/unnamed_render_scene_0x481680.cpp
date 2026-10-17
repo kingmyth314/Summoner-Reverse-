@@ -1501,7 +1501,7 @@ void levelrender_sort_back_to_front(int count, levelrender_entry **list)
 }
 
 // ---- overhead texts -----------------------------------------------------------------------------------
-// 0x4848c0  Confidence: likely. The hovered monster (with a team), party member or type-9 entity within
+// 0x4848c0  Confidence: exact. The hovered monster (with a team), party member or type-9 entity within
 // 50 m: a 32 x 5 bar 16 pixels left of the head, dark red, the HP fraction in red.
 void levelrender_draw_health_bars(levelrender_entry *e)
 {
@@ -1510,8 +1510,14 @@ void levelrender_draw_health_bars(levelrender_entry *e)
     gr_vertex v;
     int clip_x, clip_y, clip_w, clip_h;
 
-    if (c->type != 5 && c->type != 7 && c->type != 9)
+    switch (e->object->type) {
+    case 5:
+    case 7:
+    case 9:
+        break;
+    default:
         return;
+    }
     if (game_flags & 0x20)
         return;
     if (c->type == 5 && !c->get_team())
@@ -1849,7 +1855,7 @@ void levelrender_draw_float_text(levelrender_entry *e)
     }
 }
 
-// 0x485810  Confidence: likely. Outside cutscenes and game flag 0x100: the quest icon over every visible
+// 0x485810  Confidence: exact. Outside cutscenes and game flag 0x100: the quest icon over every visible
 // living entity (not dead, not a monster or type 9) within 10 m that is an important speaker of the
 // level's conversation file.
 void levelrender_draw_speaker_icons()
@@ -1869,10 +1875,7 @@ void levelrender_draw_speaker_icons()
             continue;
         if (!(conversation_db.find_speaker(c->get_name())->flags & CFLAG_IMPORTANT))
             continue;
-        float dx = c->pos.x - cur_character->pos.x;
-        float dy = c->pos.y - cur_character->pos.y;
-        float dz = c->pos.z - cur_character->pos.z;
-        if (dz * dz + dx * dx + dy * dy < 100.0f)
+        if ((c->pos - cur_character->pos).len_sq() < 100.0f)
             character_draw_overhead_bitmap(c, cursoricon_quest_bm);
     }
 }
@@ -2411,14 +2414,14 @@ float fog_get_far_current()
 // ---- the .vis file ------------------------------------------------------------------------------------
 // 0x486c60  Confidence: exact (the TextFile scope). "<level>.vis" from data\internal; without one every
 // layer sees the $vis_base set. Always 0.
-int level_vis_load(const char *level_filename)
+int level_vis_load(const char *level_name)
 {
     char name[0x101];
 
     level_vis_cache_key[0] = 0;
     level_vis_cache_key[1] = 0;
     level_rendered_layer = -1;
-    strncpy(name, level_filename, 0x100);
+    strncpy(name, level_name, 0x100);
     strncat(name, ".vis", 0x100);
     name[0x100] = 0;
     {
@@ -2514,7 +2517,7 @@ void level_vis_parse(TextFile *tf)
     }
 }
 
-// 0x487030  Confidence: exact. Both lists of every layer point at the one $vis_base entry.
+// 0x487030  Confidence: likely (an 8168 byte match; differs under 8966, D7807). Both lists of every layer point at the one $vis_base entry.
 void level_vis_reset()
 {
     level_layer_vis_rec *v;

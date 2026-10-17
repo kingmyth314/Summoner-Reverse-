@@ -55,7 +55,8 @@ void chat_cmd_kick(const char *name)
     chat_process_command(-1, buf);
 }
 
-// 0x487c10  Confidence: likely (the host / client split as MP_IS_HOST() with else-if: a multiplayer game
+// 0x487c10  Confidence: exact (VC6 byte match, cl 8966; was likely: the host / client split as MP_IS_HOST() with
+// else-if: a multiplayer game
 // without a local player prints nothing, a client pings the server).
 void chat_cmd_ping(const char *name)
 {
@@ -66,12 +67,14 @@ void chat_cmd_ping(const char *name)
 
     if (MP_IS_HOST()) {
         mp_player *p = mp_player_find_by_name(name);
-        if (!p)
+        if (p) {
+            if (p == mp_local_player)
+                sprintf(buf, XSTR("Ping to %s: 0 ms", 219), p->name);
+            else
+                sprintf(buf, XSTR("Ping to %s: %d ms", 220), p->name, net_get_reliable_socket_ping(p->socket));
+        } else {
             sprintf(buf, XSTR("Can't find player \"%s\"", 218), name);
-        else if (p == mp_local_player)
-            sprintf(buf, XSTR("Ping to %s: 0 ms", 219), p->name);
-        else
-            sprintf(buf, XSTR("Ping to %s: %d ms", 220), p->name, net_get_reliable_socket_ping(p->socket));
+        }
     } else if (mp_local_player) {
         sprintf(buf, XSTR("Ping to server: %d ms", 221), net_get_reliable_socket_ping(mp_local_player->socket));
     }
@@ -136,15 +139,18 @@ char *chat_format_entry(char *out, int size, chat_entry *e)
 
     mp_player *p = mp_player_find_by_id(e->sender);
     if (p) {
-        if (e->flags & CHAT_FLAG_WHISPER)
+        if (e->flags & CHAT_FLAG_WHISPER) {
             sprintf(out, "<%s> %s", p->name, e->text);
-        else
-            sprintf(out, "[%s] %s", p->name, e->text);
+            return out;
+        }
+        sprintf(out, "[%s] %s", p->name, e->text);
+        return out;
     }
     return out;
 }
 
-// 0x487ea0  Confidence: likely (the whisper flag is a bool cleared at the top; "/msg" to a missing player
+// 0x487ea0  Confidence: exact (VC6 byte match, cl 8966; was likely: the whisper flag is a bool cleared at the top;
+// "/msg" to a missing player
 // returns true, the line is dropped). The game's own lines (sender -1) skip the command parse and are
 // flagged CHAT_FLAG_SYSTEM. Returns true when the line was a command.
 bool chat_process_command(int sender, const char *text)
@@ -165,12 +171,14 @@ bool chat_process_command(int sender, const char *text)
         }
         if (!_stricmp(word, "/msg")) {
             mp_player *p = mp_player_find_by_name(strtok(NULL, " "));
-            if (!p)
+            if (p) {
+                if (p != mp_local_player && sender != mp_local_player->id)
+                    return false;
+                whisper = true;
+                line = strtok(NULL, "");
+            } else {
                 return true;
-            if (p != mp_local_player && sender != mp_local_player->id)
-                return false;
-            whisper = true;
-            line = strtok(NULL, "");
+            }
         } else {
             line = text;
         }
@@ -230,7 +238,7 @@ void chat_build_packet(ubyte *data, ushort *size, int sender, const char *text)
 {
     *(int *)(data + *size) = sender;
     *size += 4;
-    int len = strlen(text);
+    ushort len = (ushort)strlen(text);
     memcpy(data + *size, text, len);
     *size += len;
     data[*size] = 0;

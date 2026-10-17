@@ -50,7 +50,7 @@ int pxo_chat_banner_bm;                       // 0x5c3e84 -1 none
 int pxo_chat_banner_state;                    // 0x5c3e88
 InetGetFile *pxo_chat_banner_inet;            // 0x5c3e8c
 
-// 0x421e70  Confidence: likely (the null test of the array address: VC6 did not fold it, so the source
+// 0x421e70  Confidence: exact (VC6 byte match, match11; was likely) (the null test of the array address: VC6 did not fold it, so the source
 // tested a pointer; written with a local).
 void pxochat_open_banner_url()
 {
@@ -60,7 +60,7 @@ void pxochat_open_banner_url()
         open_url(pxo_chat_banner_link_url);
 }
 
-// 0x421ea0  Confidence: likely (the order of the clears). With ChatBanners set, the small (failed)
+// 0x421ea0  Confidence: exact (VC6 byte match, match11; was likely) (the order of the clears). With ChatBanners set, the small (failed)
 // downloads are deleted and the cfg is fetched again (state 0); otherwise the banners on disk are used.
 void pxo_find_chat_banners()
 {
@@ -87,7 +87,7 @@ void pxo_find_chat_banners()
     strcpy(pxo_chat_banner_link_url, "");
 }
 
-// 0x421fa0  Confidence: likely (jump table 0x422354 over the state, 0..6; the EH frame is the one of the
+// 0x421fa0  Confidence: exact (VC6 byte match, match11; was likely) (jump table 0x422354 over the state, 0..6; the EH frame is the one of the
 // two "new InetGetFile"; the two 512-byte buffers are "" initialised, their declaration order is a guess).
 void pxo_load_chat_banners()
 {
@@ -254,7 +254,9 @@ void pxo_parse_chat_banners_cfg(int downloaded_only)
 // 0x422790  Confidence: exact.
 bool pxochat_banner_has_url()
 {
-    return pxo_chat_banner_bm != -1 && strlen(pxo_chat_banner_link_url) > 1;
+    if (pxo_chat_banner_bm != -1 && strlen(pxo_chat_banner_link_url) > 1)
+        return true;
+    return false;
 }
 
 // ==== the screen ======================================================================================
@@ -531,7 +533,7 @@ void pxochat_update_banner_cursor()
         cursor_set_type(cursor_walk_bm);
 }
 
-// 0x422dd0  Confidence: likely (flags = 4 written as a store, not an or; the order of the x / y stores
+// 0x422dd0  Confidence: exact (VC6 byte match, match11; was likely) (flags = 4 written as a store, not an or; the order of the x / y stores
 // before the bitmap load). The close button (23 / 24) exists only at 1024; the banner entry (25) gets its
 // position here and its bitmap and size from pxochat_update_banner.
 void pxochat_load_bitmaps()
@@ -540,33 +542,35 @@ void pxochat_load_bitmaps()
     int i;
 
     for (i = 0; i < PXOCHAT_NUM_BUTTONS; i++) {
-        pxochat_buttons[i].flags = 0;
-        pxochat_buttons[i].bitmap = -1;
-        pxochat_buttons[i].x = 0;
-        pxochat_buttons[i].y = 0;
-        pxochat_buttons[i].w = 0;
-        pxochat_buttons[i].h = 0;
+        ui_button_state *b = &pxochat_buttons[i];
+        ui_button_def *d = &pxochat_button_defs[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
         if ((i == 23 || i == 24) && resolution_index != 2) {
-            pxochat_buttons[i].flags = 4;
+            b->flags = 4;
             continue;
         }
 
-        if (strlen(pxochat_button_defs[i].name) || i == 25) {
-            pxochat_buttons[i].x = pxochat_button_defs[i].pos[resolution_index][0];
-            pxochat_buttons[i].y = pxochat_button_defs[i].pos[resolution_index][1];
+        if (strlen(d->name) || i == 25) {
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
             if (i != 25) {
                 char filename[128];
 
-                strcpy(filename, pxochat_button_defs[i].name);
+                strcpy(filename, d->name);
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-                pxochat_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-                bm_get_dimensions(pxochat_buttons[i].bitmap, &pxochat_buttons[i].w, &pxochat_buttons[i].h);
-                pxochat_buttons[i].w = (int)(pxochat_buttons[i].w * scale + 0.5f);
-                pxochat_buttons[i].h = (int)(pxochat_buttons[i].h * scale + 0.5f);
+                b->bitmap = bm_load(filename, path_interface, -1);
+                bm_get_dimensions(b->bitmap, &b->w, &b->h);
+                b->w = (int)(b->w * scale + 0.5f);
+                b->h = (int)(b->h * scale + 0.5f);
             }
             if (i == 0 || i == 25 || i == 27)
-                pxochat_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -641,7 +645,7 @@ void pxochat_update_scrollbar(int list)
     }
 }
 
-// 0x4231a0  Confidence: likely (a one-call function, tail jump; the name of the source function is not
+// 0x4231a0  Confidence: exact (VC6 byte match, match11; was likely) (a one-call function, tail jump; the name of the source function is not
 // known). Reached from interface_set_screen as screen 11's leave.
 void pxochat_leave_thunk()
 {
@@ -666,7 +670,7 @@ void pxochat_update_banner()
     }
 }
 
-// 0x423220  Confidence: likely (jump table 0x42334c over state - 3, 0..6). Version check first, then the
+// 0x423220  Confidence: exact (VC6 byte match, match11; was likely) (jump table 0x42334c over state - 3, 0..6). Version check first, then the
 // login; while a popup is up its frame function owns the keys.
 int pxochat_frame(int key)
 {
@@ -819,14 +823,14 @@ int pxochat_login_error_popup_frame(int key)
     return key;
 }
 
-// 0x423530  Confidence: likely (local order of the button names; the tail test after the result 1 path
+// 0x423530  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; local order of the button names; the tail test after the result 1 path
 // returns early). version_check_run: 1 done, 2 new version (Yes / Update Later), 3 error (Ok), 4 still
 // checking (Cancel).
 void pxochat_version_check_frame()
 {
-    char *cancel = XSTR("Cancel", 696);
     char *ok = XSTR("Ok", 213);
     char *yes_later[2] = { XSTR("Yes", 654), XSTR("Update Later", 766) };
+    char *cancel = XSTR("Cancel", 696);
     char text[1024];
 
     if (!pxochat_version_checked) {
@@ -865,7 +869,7 @@ void pxochat_version_check_frame()
         gameseq_set_state(1);
 }
 
-// 0x4236c0  Confidence: likely (jump table 0x4238ac over pxo_login_step's result 0..4; outside states 0
+// 0x4236c0  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; jump table 0x4238ac over pxo_login_step's result 0..4; outside states 0
 // and 6 the step is skipped and the "validating" case runs, which then does nothing).
 void pxochat_login_frame()
 {
@@ -885,11 +889,11 @@ void pxochat_login_frame()
             pxochat_login_checked = 1;
             pxochat_state = 0;
             return;
-        case 1:
-            if (pxochat_state != 7) {
-                pxochat_state = 7;
+        case 4:
+            if (pxochat_state != 8) {
+                pxochat_state = 8;
                 pxochat_build_popup_text(localize_string_or_invalid(&pxochat_str_validation_error),
-                                         localize_string_or_invalid(&pxochat_str_need_account), text);
+                                         localize_string_or_invalid(&pxochat_str_invalid_user), text);
                 ui_choice_popup_show(text, -1, -1, 1, &ok, 0xb, 0, 0);
             }
             break;
@@ -901,20 +905,20 @@ void pxochat_login_frame()
                 ui_choice_popup_show(text, -1, -1, 1, &ok, 0xb, 0, 0);
             }
             break;
+        case 1:
+            if (pxochat_state != 7) {
+                pxochat_state = 7;
+                pxochat_build_popup_text(localize_string_or_invalid(&pxochat_str_validation_error),
+                                         localize_string_or_invalid(&pxochat_str_need_account), text);
+                ui_choice_popup_show(text, -1, -1, 1, &ok, 0xb, 0, 0);
+            }
+            break;
         case 3:
             if (pxochat_state == 0) {
                 pxochat_state = 6;
                 pxochat_build_popup_text(localize_string_or_invalid(&pxochat_str_validating_user),
                                          localize_string_or_invalid(&pxochat_str_blank_login), text);
                 ui_choice_popup_show(text, -1, -1, 1, &cancel, 3, 0, 0);
-            }
-            break;
-        case 4:
-            if (pxochat_state != 8) {
-                pxochat_state = 8;
-                pxochat_build_popup_text(localize_string_or_invalid(&pxochat_str_validation_error),
-                                         localize_string_or_invalid(&pxochat_str_invalid_user), text);
-                ui_choice_popup_show(text, -1, -1, 1, &ok, 0xb, 0, 0);
             }
             break;
         }
@@ -938,7 +942,7 @@ void pxochat_update_join_buttons()
         pxochat_buttons[17].flags &= ~4;
 }
 
-// 0x423920  Confidence: likely. Esc leaves at once while the lobby is not connected with channels (or
+// 0x423920  Confidence: exact (VC6 byte match, match11; was likely). Esc leaves at once while the lobby is not connected with channels (or
 // is joining one).
 int pxochat_escape_leaves(int key)
 {
@@ -947,7 +951,7 @@ int pxochat_escape_leaves(int key)
     return 0;
 }
 
-// 0x423950  Confidence: likely (three of the strcpy calls share one tail in the binary).
+// 0x423950  Confidence: exact (VC6 byte match, match11; was likely) (three of the strcpy calls share one tail in the binary).
 void pxochat_update_status_text()
 {
     if (lobby_flags & 0x80000000) {
@@ -981,14 +985,15 @@ int pxochat_handle_click(int key)
     pxochat_hover_row = -1;
 
     for (i = 0; i < PXOCHAT_NUM_BUTTONS; i++) {
-        if (((pxochat_button_defs[i].flags >> 2) & 1) == pxochat_channel_input_active
-            && !(pxochat_buttons[i].flags & 4)
-            && (pxochat_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, pxochat_buttons[i].x, pxochat_buttons[i].y,
-                             pxochat_buttons[i].w, pxochat_buttons[i].h)) {
-            pxochat_buttons[i].flags |= 2;
+        ui_button_def *d = &pxochat_button_defs[i];
+        ui_button_state *b = &pxochat_buttons[i];
+        if (((d->flags >> 2) & 1) == pxochat_channel_input_active
+            && !(b->flags & 4)
+            && (d->flags & 3)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             pxochat_pressed_button = i;
-            if (pxochat_button_defs[i].flags & 1) {
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     pxochat_state = 1;
                     pxochat_button_timer.invalidate();
@@ -1164,18 +1169,16 @@ int pxochat_handle_click(int key)
         return 0;
     }
 
-    {
-        int dx, dy, dz;
-        mouse_get_delta(&dx, &dy, &dz);
-        if (dz > 0)
-            pxochat_page_up(pxochat_active_list);
-        else if (dz < 0)
-            pxochat_page_down(pxochat_active_list);
-    }
+    int dx, dy, dz;
+    mouse_get_delta(&dx, &dy, &dz);
+    if (dz > 0)
+        pxochat_page_up(pxochat_active_list);
+    else if (dz < 0)
+        pxochat_page_down(pxochat_active_list);
     return key;
 }
 
-// 0x424120  Confidence: likely (two stores of the element, as mp_charselect_page_up).
+// 0x424120  Confidence: exact (VC6 byte match, match11; was likely) (two stores of the element, as mp_charselect_page_up).
 void pxochat_page_up(int list)
 {
     if (list == -1)
@@ -1275,7 +1278,7 @@ void pxochat_button_action(int button)
     }
 }
 
-// 0x424320  Confidence: likely (store order around the timer call). Opens the channel-name popup; the
+// 0x424320  Confidence: exact (VC6 byte match, match11; was likely) (store order around the timer call). Opens the channel-name popup; the
 // chat line's focus is saved and given back by pxochat_input_cancel.
 void pxochat_input_begin()
 {
@@ -1323,7 +1326,7 @@ void pxochat_show_motd()
     pxochat_add_chat_line(pxochat_motd, 2);
 }
 
-// 0x424410  Confidence: likely (the banner entry 25 is its own hit area, so the state entry is the pressed
+// 0x424410  Confidence: exact (VC6 byte match, match11; was likely) (the banner entry 25 is its own hit area, so the state entry is the pressed
 // one for 25 and the next one otherwise; the action always gets pressed + 1). As gamelist_update_buttons.
 void pxochat_update_buttons()
 {
@@ -1331,21 +1334,24 @@ void pxochat_update_buttons()
     int button = pressed + 1;
 
     if (pressed >= 0 && pressed < PXOCHAT_NUM_BUTTONS) {
-        ui_button_state *b = &pxochat_buttons[button + (pressed == 25 ? -1 : 0)];
+        int off = 0;
+        if (pressed == 25)
+            off = -1;
+        ui_button_state *b = &pxochat_buttons[button + off];
 
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
 
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !pxochat_button_timer.valid())
+                pxochat_button_action(button);
+        } else {
             if (pxochat_button_timer.valid() && pxochat_button_timer.elapsed() && (b->flags & 2)) {
                 pxochat_button_action(button);
                 pxochat_button_timer.SetTimeout(100);
             }
             return;
         }
-
-        if ((b->flags & 2) && !pxochat_button_timer.valid())
-            pxochat_button_action(button);
     }
     pxochat_state = 0;
 }
@@ -1380,7 +1386,7 @@ void pxochat_on_channel_joined()
     }
 }
 
-// 0x424600  Confidence: likely (the cursor blink chooses the string in an if / else, as
+// 0x424600  Confidence: exact (VC6 byte match, match11; was likely) (the cursor blink chooses the string in an if / else, as
 // gamecreate_draw_text_field; 36-byte buffer).
 void pxochat_draw_channel_input()
 {
@@ -1397,7 +1403,7 @@ void pxochat_draw_channel_input()
         gr_string(x, y, pxochat_channel_input, -1, gr_string_mode);
 }
 
-// 0x4246d0  Confidence: likely (the second channel_input_active test is written as its own if). The popup
+// 0x4246d0  Confidence: exact (VC6 byte match, match11; was likely) (the second channel_input_active test is written as its own if). The popup
 // entries are drawn again on top of the lists while the popup is open; the choice popup over everything
 // in states 3..9.
 void pxochat_draw()
@@ -1406,10 +1412,10 @@ void pxochat_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < PXOCHAT_NUM_BUTTONS; i++) {
-        if ((pxochat_channel_input_active || !(pxochat_button_defs[i].flags & 4))
-            && (pxochat_buttons[i].flags & 3))
-            ui_bitmap_scaled(pxochat_buttons[i].bitmap, pxochat_buttons[i].x, pxochat_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &pxochat_buttons[i];
+        ui_button_def *d = &pxochat_button_defs[i];
+        if ((pxochat_channel_input_active || !(d->flags & 4)) && (b->flags & 3))
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     pxochat_draw_banner_highlight();
     pxochat_draw_channel_list();
@@ -1422,9 +1428,10 @@ void pxochat_draw()
 
     if (pxochat_channel_input_active) {
         for (i = 0; i < PXOCHAT_NUM_BUTTONS; i++) {
-            if ((pxochat_button_defs[i].flags & 4) && (pxochat_buttons[i].flags & 3))
-                ui_bitmap_scaled(pxochat_buttons[i].bitmap, pxochat_buttons[i].x, pxochat_buttons[i].y,
-                                 gr_bitmap_wrap_mode);
+            ui_button_state *b = &pxochat_buttons[i];
+            ui_button_def *d = &pxochat_button_defs[i];
+            if ((d->flags & 4) && (b->flags & 3))
+                ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
         }
     }
     if (pxochat_channel_input_active)
@@ -1588,7 +1595,7 @@ void pxochat_draw_chat_lines()
     }
 }
 
-// 0x424e00  Confidence: likely (as mp_charselect_draw_scrollbar).
+// 0x424e00  Confidence: exact (VC6 byte match, match11; was likely) (as mp_charselect_draw_scrollbar).
 void pxochat_draw_scrollbar(int list)
 {
     int tiles, i;
@@ -1606,7 +1613,7 @@ void pxochat_draw_scrollbar(int list)
                      gr_bitmap_wrap_mode);
 }
 
-// 0x424ec0  Confidence: likely (as gamelist_draw_password_input; 260-byte buffer).
+// 0x424ec0  Confidence: exact (VC6 byte match, match11; was likely) (as gamelist_draw_password_input; 260-byte buffer).
 void pxochat_draw_chat_input()
 {
     int clip_x, clip_y, clip_w, clip_h;
@@ -1627,7 +1634,10 @@ void pxochat_draw_chat_input()
     x = pxochat_chat_input_size[resolution_index][0] - w;
     x = x > 0 ? 0 : x;
     gr_set_color_ptr(&ui_color_text);
-    gr_string(x, 0, pxochat_chat_cursor_visible ? buf : pxochat_chat_input, -1, gr_string_mode);
+    if (pxochat_chat_cursor_visible)
+        gr_string(x, 0, buf, -1, gr_string_mode);
+    else
+        gr_string(x, 0, pxochat_chat_input, -1, gr_string_mode);
 
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
@@ -1638,12 +1648,13 @@ void pxochat_draw_caption()
     int w, h;
 
     gr_get_string_size(&w, &h, pxochat_status_text, -1, -1);
+    int x = pxochat_caption_pos[resolution_index][0] - w / 2;
+    int y = pxochat_caption_pos[resolution_index][1];
     gr_set_color_ptr(&ui_color_text);
-    gr_string(pxochat_caption_pos[resolution_index][0] - w / 2, pxochat_caption_pos[resolution_index][1],
-              pxochat_status_text, -1, gr_string_mode);
+    gr_string(x, y, pxochat_status_text, -1, gr_string_mode);
 }
 
-// 0x425080  Confidence: likely (VC6 duplicates the clear at the end). Drops the selection when its
+// 0x425080  Confidence: exact (VC6 byte match, match11; was likely) (VC6 duplicates the clear at the end). Drops the selection when its
 // channel is gone.
 void pxochat_sync_channel_list()
 {
@@ -1659,7 +1670,7 @@ void pxochat_sync_channel_list()
         pxochat_selected_channel[0] = 0;
 }
 
-// 0x425110  Confidence: likely (as pxochat_sync_channel_list).
+// 0x425110  Confidence: exact (VC6 byte match, match11; was likely) (as pxochat_sync_channel_list).
 void pxochat_sync_user_list()
 {
     int i;
@@ -1674,7 +1685,7 @@ void pxochat_sync_user_list()
         pxochat_selected_user[0] = 0;
 }
 
-// 0x4251a0  Confidence: likely (the bound spelling "< 1024"). Appends the text after "!MOTD$#!" and one
+// 0x4251a0  Confidence: exact (VC6 byte match, match11; was likely) (the bound spelling "< 1024"). Appends the text after "!MOTD$#!" and one
 // separator character, with a newline, while it fits.
 void pxochat_append_motd(const char *line)
 {
@@ -1684,13 +1695,13 @@ void pxochat_append_motd(const char *line)
         return;
     prefix = strlen(PXO_MOTD_PREFIX);
     len = strlen(line) - prefix - 1;
-    if (len > 0 && strlen(pxochat_motd) + len < 1024) {
+    if (len > 0 && (int)strlen(pxochat_motd) + len <= 1023) {
         strcat(pxochat_motd, line + prefix + 1);
         strcat(pxochat_motd, "\n");
     }
 }
 
-// 0x425250  Confidence: likely (a one-call function, tail jump; name of the source function not known).
+// 0x425250  Confidence: exact (VC6 byte match, match11; was likely) (a one-call function, tail jump; name of the source function not known).
 void pxochat_show_motd_thunk()
 {
     pxochat_show_motd();

@@ -206,12 +206,14 @@ void mp_handle_leave_game(ubyte *data, void *from)
         return;
     if (MP_IS_HOST())
         mp_forward_cur_packet(from);
-    if (reason == MP_LEAVE_KICKED)
+    if (reason != MP_LEAVE_KICKED) {
+        if (reason > 4 && reason <= 6)
+            sprintf(text, XSTR("%s was dropped from the game.", 234), p->name);
+        else
+            sprintf(text, XSTR("%s has left the game.", 235), p->name);
+    } else {
         sprintf(text, XSTR("%s was kicked from the game.", 233), p->name);
-    else if (reason > 4 && reason <= 6)
-        sprintf(text, XSTR("%s was dropped from the game.", 234), p->name);
-    else
-        sprintf(text, XSTR("%s has left the game.", 235), p->name);
+    }
     chat_process_command(-1, text);
     mp_player_disconnect(p);
     mp_netgame_num_players--;

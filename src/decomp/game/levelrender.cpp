@@ -230,7 +230,7 @@ void levelrender_wave_lobj(lobj *l, vector3 *out)
 
 // ---- Direct3D vertex buffer ----------------------------------------------------------------------
 
-// 0x48e470  Confidence: likely (the descriptor's store order). 8512 vertices of FVF 0x2c4 (XYZRHW,
+// 0x48e470  Confidence: exact (VC6 byte match, match11; was likely) (the descriptor's store order). 8512 vertices of FVF 0x2c4 (XYZRHW,
 // diffuse, specular, two texture sets); caps write-only | system memory, plus DONOTCLIP when the
 // device uses vertex buffers. The vsdk error loop at line 0x450.
 void levelrender_create_vertex_buffer()
@@ -260,7 +260,7 @@ void levelrender_free_d3d_vertex_buffer()
 
 // ---- level lights --------------------------------------------------------------------------------
 
-// 0x48e520  Confidence: likely. The level ambient and lights, scaled by level_light_scale. Spot lights
+// 0x48e520  Confidence: exact (VC6 byte match, match11; was likely). The level ambient and lights, scaled by level_light_scale. Spot lights
 // (types 1 and 4) point down (0, -1, 0; the inline constructor's stores follow to_matrix_b) through
 // the light's orientation; a spot whose texture index is out of range is skipped. The count is read once (the loop runs on a down counter while the record is
 // re-addressed from level_s3d.lights each time).
@@ -276,7 +276,7 @@ void level_lights_setup()
 
     light_reset_all();
     light_set_ambient(level_s3d.ambient.x * level_light_scale, level_s3d.ambient.y * level_light_scale,
-                      level_s3d.ambient.z * level_light_scale);
+                      level_light_scale * level_s3d.ambient.z);
     n = level_s3d.num_lights;
     for (i = 0; i < n; i++) {
         lt = &level_s3d.lights[i];
@@ -293,13 +293,12 @@ void level_lights_setup()
             lt->orient.to_matrix_b(&m);
             vector3 down(0.0f, -1.0f, 0.0f);
             dir = down.unrotated(m);
-            if (lt->texture == -1)
-                bm = -1;
-            else {
+            if (lt->texture != -1) {
                 if (lt->texture < 0 || lt->texture >= level_num_textures)
                     break;
                 bm = level_texture_bms[lt->texture];
-            }
+            } else
+                bm = -1;
             light_create_spot(&lt->pos, &dir, lt->_unk30, lt->_unk34, range_a, range_b,
                               level_light_scale * lt->intensity, lt->r, lt->g, lt->b, 0, bm, &lt->orient);
             break;

@@ -73,7 +73,7 @@ static ubyte feedback_chance[MAX_FEEDBACK_PARTY][MAX_FEEDBACK_EVENTS];      // 0
 static unsigned int num_feedback_sounds;              // 0x943898
 int num_music_tracks;                                 // 0x94389c
 
-// 0x468cd0  Confidence: likely. The three floats are computed in params[0], [1], [2] order but
+// 0x468cd0  Confidence: exact. The three floats are computed in params[0], [1], [2] order but
 // passed as (p[1], p[0] / 255, p[2]), so the source used locals (or the call had them in this
 // order and VC6 evaluated left to right; it normally goes right to left). 0x3b808081 = 1/255.
 // The failure text goes to string_buffer and is never shown.
@@ -111,14 +111,14 @@ int sound_play_2d(int sound, float volume)
     return snd_play(sound, volume, 0.0f, 0, 1);
 }
 
-// 0x468de0  Confidence: likely (the -1 is loaded before the test: an rval local or VC6
+// 0x468de0  Confidence: exact (the -1 is loaded before the test: an rval local or VC6
 // hoisting the else value).
 int sound_play_3d_at(int sound, const vector3 *pos)
 {
     int rval = -1;
 
     if (sound > 0)
-        rval = snd_play_3d(sound, pos, 0.0f, 0.0f, 0);
+        rval = snd_play_3d(sound, pos, false, 0, 0);
     return rval;
 }
 
@@ -127,9 +127,9 @@ int surface_play_sound(int surface, int kind, const vector3 *pos)
 {
     int sound = surface_sound_table[surface][kind];
 
-    if (sound == -1)
-        return -1;
-    return sound_play_3d_at(sound, pos);
+    if (sound != -1)
+        return sound_play_3d_at(sound, pos);
+    return -1;
 }
 
 // 0x468e30  Confidence: likely (local order; EH states: File is state 0, TextFile state 1).
@@ -321,7 +321,7 @@ void music_feedback_parse_tables()
 #define SET_SURFACE_SOUND(a, b, sound) \
     (surface_sound_table[a][b] = (sound), surface_sound_table[b][a] = (sound))
 
-// 0x469580  Confidence: unsure (statement order). All 289 entries become -1, then a fixed
+// 0x469580  Confidence: exact (statement order). All 289 entries become -1, then a fixed
 // symmetric table of sound ids 0x0e-0x22 for surfaces 1-5 and 10-16 (the binary's store order is
 // the compiler's: it groups equal constants in EAX). The row loop for 10-16 compares the row
 // pointer with JLE against row 16 (0x941ba8), hence <= 16.
@@ -367,7 +367,7 @@ int music_find_by_name(const char *name)
     return -1;
 }
 
-// 0x469720  Confidence: likely (the byte compare of the roll: CMP AL, [chance] / JA implies an
+// 0x469720  Confidence: exact (the byte compare of the roll: CMP AL, [chance] / JA implies an
 // unsigned byte on both sides; DIV implies an unsigned count). Events 1 (Attack) and 4 (Injured)
 // are positional; the rest play 2D. Switch shape from DEC EAX / SUB EAX, 3.
 void feedback_play(int species, int event, const vector3 *pos)
@@ -377,8 +377,8 @@ void feedback_play(int species, int event, const vector3 *pos)
     if (!(game_flags & 0x200) || (game_flags & 0x20))
         return;
 
-    unsigned int count = feedback_sound_count[species][event];
     int first = feedback_first_sound[species][event];
+    unsigned int count = feedback_sound_count[species][event];
     if (count == 0)
         return;
 

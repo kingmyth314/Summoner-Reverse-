@@ -685,7 +685,13 @@ struct vfx_dummy_desc {                       // 0x64 bytes, vfx_base +0x30 (cou
     const char *name;                         // +0x00
     const char *parent;                       // +0x04
     ubyte _unk08[0x04];
-    ushort flags;                             // +0x0c 0x8000: can be bound; decomp66: bits 0-14 the frame count
+    union {                                   // +0x0c
+        ushort flags;                         //       0x8000: can be bound; decomp66: bits 0-14 the frame count
+        struct {                              //       match17 (D7600): node_can_bind reads bit 15 as a 16-bit
+            ushort num_frames : 15;           //       bitfield (`mov ax, [..]; shr ax, 15`)
+            ushort can_bind : 1;
+        };
+    };
     ubyte _unk0e[0x10 - 0x0e];
     vfx_vec_channel pos;                      // +0x10 decomp66
     vfx_quat_channel orient;                  // +0x34
@@ -961,7 +967,7 @@ class attached_light {
 public:
     attached_light() { reset(); }             // 0x520280 attached_light__ctor (COMDAT)
     void reset();                             // 0x520210 attached_light__reset (identity orientation, defaults)
-    ubyte type;                               // +0x00 -1 free slot, 0 point (attached_light_create), 1 / 4 (create_b)
+    char type;                                // +0x00 -1 free slot (signed: `or cl, -1`, D7202), 0 point (attached_light_create), 1 / 4 (create_b)
     ubyte _pad01[3];
     quaternion orient;                        // +0x04 identity
     vector3 pos;                              // +0x14

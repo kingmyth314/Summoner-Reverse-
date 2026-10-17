@@ -85,17 +85,21 @@ void mp_send_container_open(int player_id, int handle)
     }
 }
 
-// 0x488d50  Confidence: likely (c is a local whose address is passed; the code keeps it in the dead
-// argument slot). The user opens the container screen.
+// 0x488d50  Confidence: exact (VC6 byte match, cl 8966: both packet ints read before the lookup, and the
+// pointer whose address is passed is a block-scope copy, which 8966 places in the dead data slot, D7004).
+// The user opens the container screen.
 void mp_handle_container_open(ubyte *data, void *from)
 {
-    container *c = (container *)mp_obj_from_net_handle(((int *)data)[0]);
+    int handle = ((int *)data)[0];
     int user = ((int *)data)[1];
+    container *c = (container *)mp_obj_from_net_handle(handle);
 
     if (c && c->type == OBJ_TYPE_CONTAINER) {
         c->user = user;
-        if (user == mp_local_player->id)
-            interface_set_screen(CONTAINER_SCREEN, &c);
+        if (user == mp_local_player->id) {
+            container *open = c;
+            interface_set_screen(CONTAINER_SCREEN, &open);
+        }
     }
 }
 

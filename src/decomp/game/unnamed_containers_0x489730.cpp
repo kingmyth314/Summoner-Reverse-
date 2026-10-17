@@ -25,12 +25,12 @@ container containers[MAX_CONTAINERS];                 // 0x2302fe0
 // 0x489790  Confidence: exact. state_game_enter, level_script_restart.
 void containers_reset()
 {
-    container *c;
+    int i;
 
-    for (c = containers; c < &containers[MAX_CONTAINERS]; c++) {
-        c->num_items = 0;
-        c->type = OBJ_TYPE_NONE;
-        c->lock = 0.0f;
+    for (i = 0; i < MAX_CONTAINERS; i++) {
+        containers[i].num_items = 0;
+        containers[i].type = OBJ_TYPE_NONE;
+        containers[i].lock = 0.0f;
     }
 }
 
@@ -38,15 +38,15 @@ void containers_reset()
 // (container_deinit 0x46a920): the elements are objects, not pointers.
 void containers_free_all()
 {
-    container *c;
+    int i;
 
-    for (c = containers; c < &containers[MAX_CONTAINERS]; c++) {
-        if (c->type)
-            c->deinit();
+    for (i = 0; i < MAX_CONTAINERS; i++) {
+        if (containers[i].type)
+            containers[i].deinit();
     }
 }
 
-// 0x4897f0  Confidence: likely (the not-found exit returns the NULL pointer without testing it; the type
+// 0x4897f0  Confidence: exact (VC6 byte match, match11; was likely) (the not-found exit returns the NULL pointer without testing it; the type
 // is stored before obj_link_new stores it again). A loot container at pos: a "leather bag" or a "backpack"
 // (coin flip), a random yaw, the given lock value.
 container *container_obj_create(const vector3 *pos, float lock)
@@ -62,7 +62,10 @@ container *container_obj_create(const vector3 *pos, float lock)
     }
     if (c) {
         c->num_items = 0;
-        c->mesh_item_type = item_type_find(frand_range(-1.0f, 1.0f) < 0.0f ? "leather bag" : "backpack");
+        if (frand_range(-1.0f, 1.0f) < 0.0f)
+            c->mesh_item_type = item_type_find("leather bag");
+        else
+            c->mesh_item_type = item_type_find("backpack");
         if (c->mesh_item_type == -1)
             return NULL;
         c->type = OBJ_TYPE_CONTAINER;

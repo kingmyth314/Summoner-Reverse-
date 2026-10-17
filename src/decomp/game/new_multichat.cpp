@@ -48,7 +48,7 @@ void chat_reset()
     chat_input_mode = 0;
 }
 
-// 0x41e430  Confidence: likely (switch over the input mode, `sub eax, 0` / `dec eax`). Returns the key
+// 0x41e430  Confidence: exact (switch over the input mode, `sub eax, 0` / `dec eax`). Returns the key
 // unused, or what the input handlers return. Nothing is read while a message box is open.
 int chat_input_frame(int key)
 {
@@ -68,7 +68,7 @@ int chat_input_frame(int key)
     return key;
 }
 
-// 0x41e4a0  Confidence: likely (the scan keeps the index of the last elapsed line). The oldest lines whose
+// 0x41e4a0  Confidence: exact (the scan keeps the index of the last elapsed line). The oldest lines whose
 // timers have elapsed are dropped (the scan stops at the first live one), then every queued entry of
 // multichat.cpp's ring is formatted and added: "** text **" as a system line, "<name> text" as a
 // whisper, the rest as a normal line.
@@ -351,7 +351,7 @@ void chat_input_cancel()
     chat_input_mode = 0;
 }
 
-// 0x41ed60  Confidence: likely (switch 0x41ee7c inside the loop; the line pointer is computed before
+// 0x41ed60  Confidence: exact (switch 0x41ee7c inside the loop; the line pointer is computed before
 // it). Wraps the text to the chat width (at most 16 pieces) and drops it whole when a piece is longer
 // than 63 characters. Older lines are scrolled out to make room. A message of more than six pieces
 // would make the scroll size negative and write past chat_lines (the received text is up to 255

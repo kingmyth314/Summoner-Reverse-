@@ -8,6 +8,7 @@
 
 #include "vsdk/vsdk.h"
 #include "vsdk/math/vector.h"
+#include "summoner/level_info.h"
 
 class Character;
 class Player;
@@ -43,19 +44,15 @@ extern bool Full_party;                        // 0x609fe0 console "full_party"
 extern bool Dump_sound_usage;                  // 0x609fe1 console "dump_sound_usage" (never read)
 extern bool Give_all_items;                    // 0x609fec console "Give_all_items" (never read)
 // The current level's names and layer maps (set by game_change_level / level_parse_table).
-extern char level_filename[32];                // 0x60a2c8 (game_cleanup clears all three)
-extern char level_script_name[32];             // 0x60a2e8
-extern char level_prev_filename[32];           // 0x60a308
+// level_filename, level_script_name, level_prev_filename (0x60a2c8-0x60a327), level_session_time, the party
+// starts, level_entry_point and the layer maps are members of level_info (summoner/level_info.h, D7201).
 extern float level_time;                       // 0x60a654 unpaused seconds since state_game_enter (savegame header +0xac; decomp27)
-extern float level_session_time;               // 0x60a328 seconds in the level, not counting pauses
 // The party start markers level_find_player_starts fills ("$player%d-%02d", index level_entry_point);
 // character_place_at_party_start reads them. sum.symbols types the array void*[4]; the records are
 // navpoints (level_scripts.h; ls_worldmap1_init points all four at its own record; D1405).
-extern navpoint *level_player_starts[4];       // 0x60a32c
-extern int level_entry_point;                  // 0x60a33c (1 after game_change_level; 3 in ls_khosanilab_puzzle_use)
-extern int  level_num_layers;                  // 0x60a340
-extern int  level_layer_maps[10];              // 0x60a344 automap bitmap of each layer
-extern int  level_layer_automap_index[40];     // 0x60a36c
+// level_player_starts 0x60a32c, level_entry_point 0x60a33c (1 after game_change_level; 3 in
+// ls_khosanilab_puzzle_use), level_num_layers 0x60a340, level_layer_maps 0x60a344, level_layer_automap_index
+// 0x60a36c: level_info members (D7201).
 extern int  gameplay_no_render_60a630;         // 0x60a630 never written: 1 would skip game_render_frame (name ours)
 extern bool move_target_decal_visible;         // 0x60a664 player_read_mouse_input; game_render_frame draws the decal (name ours)
 extern bool Render_3d_obstacles;               // 0x60a665 console "render_3d_obstacles"

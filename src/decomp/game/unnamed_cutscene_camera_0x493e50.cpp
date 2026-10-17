@@ -57,6 +57,7 @@ camera_sequence::camera_sequence(int state)
 
 // 0x493f40 camera_sequence__scalar_deleting_dtor (compiler-generated: dtor, operator delete when bit 0).
 // Confidence: exact.
+
 // 0x493f60  Confidence: exact.
 camera_sequence::~camera_sequence()
 {
@@ -75,6 +76,7 @@ cutscene_camera_sequence::cutscene_camera_sequence() : camera_sequence(0)
 }
 
 // 0x493fa0 cutscene_camera_sequence__scalar_deleting_dtor (compiler-generated). Confidence: exact.
+
 // 0x493fc0  Confidence: exact (the vtable store and the jump to the base destructor are generated).
 cutscene_camera_sequence::~cutscene_camera_sequence()
 {

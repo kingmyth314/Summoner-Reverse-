@@ -143,7 +143,7 @@ void ls_templeint2_machival_trans2_cs_end()
     machival_combat_enabled = true;
 }
 
-// 0x4ef3f0  Confidence: exact. Before mach_killed: Machival dead -> four Black Knights disabled,
+// 0x4ef3f0  Confidence: exact (VC6 byte match, match14; was exact). Before mach_killed: Machival dead -> four Black Knights disabled,
 // Machival-Death. After: the Questions music once no cutscene runs (the flag test is repeated).
 void lsf_mach_killed()
 {
@@ -151,7 +151,8 @@ void lsf_mach_killed()
         if (!ls_templeint2_mach_killed_done && savegame_state.get_flag(cur_level_index, "mach_killed")
             && !(game_flags & GF_CUTSCENE)) {
             ls_templeint2_mach_killed_done = true;
-            music_play(music_find_by_name("Questions"), true);
+            int music = music_find_by_name("Questions");
+            music_play(music, true);
         }
         return;
     }

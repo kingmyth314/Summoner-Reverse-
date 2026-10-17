@@ -102,6 +102,7 @@ void item_info_popup_load_bitmaps()
 
     for (int i = 0; i < POPUP_NUM_BUTTONS; i++) {
         ui_button_state *b = &item_info_popup_buttons[i];
+        ui_button_def *d = &item_info_popup_button_defs[i];
         b->flags = 0;
         b->bitmap = -1;
         b->x = 0;
@@ -109,7 +110,6 @@ void item_info_popup_load_bitmaps()
         b->w = 0;
         b->h = 0;
         progress_update(0);
-        ui_button_def *d = &item_info_popup_button_defs[i];
         if (strlen(d->name) == 0)
             continue;
         strcpy(name, d->name);
@@ -211,8 +211,8 @@ int item_info_popup_frame(int key)
 {
     if (!item_info_popup_visible)
         return key;
-    for (ui_button_state *b = item_info_popup_buttons; b < item_info_popup_buttons + POPUP_NUM_BUTTONS; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < POPUP_NUM_BUTTONS; i++)
+        item_info_popup_buttons[i].flags &= ~2;
 
     switch (item_info_popup_mouse_mode) {
     case 0:
@@ -228,24 +228,25 @@ int item_info_popup_frame(int key)
     return key;
 }
 
-// 0x4189c0  Confidence: likely (new_assess.cpp's template with def flag 2 for "act on release"; ESC closes
+// 0x4189c0  Confidence: exact (new_assess.cpp's template with def flag 2 for "act on release"; ESC closes
 // the popup only).
 int item_info_popup_handle_click(int key)
 {
     item_info_popup_pressed_button = -1;
     for (int i = 0; i < POPUP_NUM_BUTTONS; i++) {
         ui_button_state *b = &item_info_popup_buttons[i];
-        if (!(b->flags & 4) && (item_info_popup_button_defs[i].flags & 6)
+        ui_button_def *d = &item_info_popup_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 6)
             && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             b->flags |= 2;
             item_info_popup_pressed_button = i;
-            if (item_info_popup_button_defs[i].flags & 2) {
+            if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     item_info_popup_mouse_mode = 1;
                     item_info_popup_repeat_timer.invalidate();
                     return key;
                 }
-            } else if (item_info_popup_button_defs[i].flags & 4) {
+            } else if (d->flags & 4) {
                 if (mouse_was_pressed(0)) {
                     item_info_popup_mouse_mode = 1;
                     item_info_popup_button_action(item_info_popup_pressed_button + 1);
@@ -286,7 +287,8 @@ int item_info_popup_handle_click(int key)
 void item_info_popup_page_up()
 {
     if (item_info_popup_scroll_pos > 0) {
-        item_info_popup_scroll_pos = max(item_info_popup_scroll_pos - item_info_popup_page_size[resolution_index], 0);
+        int page = item_info_popup_page_size[resolution_index];
+        item_info_popup_scroll_pos = max(item_info_popup_scroll_pos - page, 0);
         item_info_popup_update_scrollbar();
     }
 }
@@ -294,10 +296,14 @@ void item_info_popup_page_up()
 // 0x418bd0  Confidence: exact.
 void item_info_popup_page_down()
 {
-    if (item_info_popup_scroll_pos < item_info_popup_line_count - item_info_popup_page_size[resolution_index]) {
-        item_info_popup_scroll_pos =
-            min(item_info_popup_scroll_pos + item_info_popup_page_size[resolution_index],
-                item_info_popup_line_count - item_info_popup_page_size[resolution_index]);
+    int pos = item_info_popup_scroll_pos;
+    int page = item_info_popup_page_size[resolution_index];
+    int last = item_info_popup_line_count - page;
+    if (pos < last) {
+        pos += page;
+        if (pos < last)
+            last = pos;
+        item_info_popup_scroll_pos = last;
         item_info_popup_update_scrollbar();
     }
 }
@@ -349,7 +355,7 @@ void item_info_popup_scroll_down()
     }
 }
 
-// 0x418ce0  Confidence: likely (new_assess.cpp's template).
+// 0x418ce0  Confidence: exact (new_assess.cpp's template).
 void item_info_popup_update_buttons()
 {
     int id = item_info_popup_pressed_button + 1;
@@ -357,7 +363,10 @@ void item_info_popup_update_buttons()
         ui_button_state *b = &item_info_popup_buttons[id];
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !item_info_popup_repeat_timer.valid())
+                item_info_popup_button_action(id);
+        } else {
             if (item_info_popup_repeat_timer.valid() && item_info_popup_repeat_timer.elapsed()
                 && (b->flags & 2)) {
                 item_info_popup_button_action(id);
@@ -365,8 +374,6 @@ void item_info_popup_update_buttons()
             }
             return;
         }
-        if ((b->flags & 2) && !item_info_popup_repeat_timer.valid())
-            item_info_popup_button_action(id);
     }
     item_info_popup_mouse_mode = 0;
 }
@@ -379,7 +386,10 @@ void item_info_popup_drag_scrollbar()
     int pos = (int)((float)offset / item_info_popup_scrollbar_track_h[resolution_index]
                     * item_info_popup_line_count + 0.5f);
     pos = max(pos, 0);
-    item_info_popup_scroll_pos = min(pos, item_info_popup_line_count - item_info_popup_page_size[resolution_index]);
+    int last = item_info_popup_line_count - item_info_popup_page_size[resolution_index];
+    if (pos < last)
+        last = pos;
+    item_info_popup_scroll_pos = last;
     item_info_popup_update_scrollbar();
     if (!mouse_is_down(0))
         item_info_popup_mouse_mode = 0;
@@ -393,7 +403,8 @@ void item_info_popup_render()
     gr_set_color_ptr(&ui_color_text_box_bg);
     gr_rect(0, 0, gr_screen_width(), gr_screen_height(), gr_rect_mode, 1.0f);
     gr_set_color(255, 255, 255, 255);
-    for (ui_button_state *b = item_info_popup_buttons; b < item_info_popup_buttons + POPUP_NUM_BUTTONS; b++) {
+    for (int i = 0; i < POPUP_NUM_BUTTONS; i++) {
+        ui_button_state *b = &item_info_popup_buttons[i];
         if (b->flags & 3)
             ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
@@ -414,13 +425,13 @@ void item_info_popup_draw_title()
               name, -1, gr_string_mode);
 }
 
-// 0x418f30  Confidence: likely (new_assess.cpp's template: two gr_get_font_height calls).
+// 0x418f30  Confidence: exact (new_assess.cpp's template: two gr_get_font_height calls).
 void item_info_popup_draw_text()
 {
     int clip_h, clip_w, clip_y, clip_x;
     int fh = gr_get_font_height(-1);
-    int y = -(gr_get_font_height(-1) * item_info_popup_scroll_pos);
-    int h = item_info_popup_page_size[resolution_index] * fh;
+    int h = gr_get_font_height(-1) * item_info_popup_page_size[resolution_index];
+    int y = -(item_info_popup_scroll_pos * fh);
 
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     gr::set_clip(item_info_popup_text_pos[resolution_index][0], item_info_popup_text_pos[resolution_index][1],

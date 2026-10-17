@@ -147,12 +147,12 @@ void localize_table_add(const char *text, int english_hash, localize_node **tabl
         table[bucket] = node;
         return;
     }
-    for (;;) {
+    if (p->hash == english_hash && _stricmp(p->text, text) == 0)
+        return;
+    while (p->next != NULL) {
+        p = p->next;
         if (p->hash == english_hash && _stricmp(p->text, text) == 0)
             return;
-        if (p->next == NULL)
-            break;
-        p = p->next;
     }
     p->next = node;
 }
@@ -190,18 +190,17 @@ int localize_hash(const char *text)
     return (int)hash;
 }
 
-// 0x504230  Confidence: likely (local order; the "#<language>" section name is lowered with a pointer loop).
+// 0x504230  Confidence: exact (VC6 byte match, match22; index loop for the lower-casing; was likely) (local order; the "#<language>" section name is lowered with a pointer loop).
 // The unused ids after the last one all point at the "NULL Format String" entry.
 void localize_load_strings()
 {
     char section[64];
     char filename[128];
-    char *p;
 
     strcpy(section, "#");
     strcat(section, localize_language_names[localize_language].name);
-    for (p = section; *p; p++)
-        *p = tolower(*p);
+    for (int k = 0; section[k]; k++)
+        section[k] = tolower(section[k]);
     strcpy(filename, "strings.tbl");
 
     TextFile tf;

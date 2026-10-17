@@ -30,7 +30,7 @@
 
 void lsf_khosani_strng_talked_to_portal();
 
-// 0x4f3a80  Confidence: likely (one stack cleanup before the v4 printf is scheduled differently by VC6, D5612;
+// 0x4f3a80  Confidence: exact (VC6 byte match, match11; was likely) (one stack cleanup before the v4 printf is scheduled differently by VC6, D5612;
 // the v2 branch ends in a jump into the v5 branch's identical tail, 0x4f3d10
 // jmp 0x4f3b44: tail merging; each branch's own calls are written out). level_script_table init. The script
 // version sets the stage (v6 20, v5 18, v4 17, v3 15, v2 6, else 5), the two flip-labyrinth doors, the

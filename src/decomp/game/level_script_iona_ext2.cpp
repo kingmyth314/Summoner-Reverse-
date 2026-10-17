@@ -75,7 +75,8 @@ void ls_ionaext02_frame()
     if (!ls_ionaext02_luminar_intro_done && savegame_state.get_flag(cur_level_index, "luminar_intro")
         && !(game_flags & GF_CUTSCENE)) {
         ls_ionaext02_luminar_intro_done = true;
-        music_play(music_find_by_name("Luminar"), true);
+        int music = music_find_by_name("Luminar");
+        music_play(music, true);
     }
     if (!savegame_state.get_flag(cur_level_index, "trapped_luminar")) {
         if (savegame_state.get_flag(cur_level_index, "luminar_intro") && !party_count_item_by_name("Ring of Light")) {

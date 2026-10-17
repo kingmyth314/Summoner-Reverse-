@@ -67,6 +67,12 @@ int avoidance_no_remove = 0;                              // 0x59ce8c
 int avoidance_area_type = 1;                              // 0x59ce90
 int avoidance_prohibit = 1;                               // 0x59ce94
 
+// The float min / max of the original are inline functions with by-value arguments (D7500): the binary keeps
+// the field value in a stack temporary (fst / fcomp st(1)), which the min / max macros do not give
+// (rect2d_add_point matches with them; avoid_merge_obstacle_polys and avoid_add_primitive use them too).
+static inline float min_f(float a, float b) { return a < b ? a : b; }
+static inline float max_f(float a, float b) { return a > b ? a : b; }
+
 // 0x4a6810  Confidence: likely (the empty buffer gets the argument through strcat, as the code does).
 void cmd_avoidance()
 {
@@ -145,10 +151,10 @@ void cmd_avoidance()
 // 0x4a6b40  Confidence: exact. Drops the avoidance marks of every nav wall a used segment list refers to.
 void avoid_clear_segment_flags()
 {
-    avoid_seglist *sl;
-    int i;
+    int k, i;
 
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (k = 0; k < AVOID_NUM_SEGLISTS; k++) {
+        avoid_seglist *sl = &avoid_seglists[k];
         if (!(sl->flags & AVOID_SEGLIST_USED))
             continue;
         for (i = 0; i < sl->num_segs; i++) {
@@ -488,10 +494,10 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
         poly->points[i].x = out[i].x;
         poly->points[i].y = out[i].y;
     }
-    poly->bounds.max_y = max(poly->bounds.max_y, other.bounds.max_y);
-    poly->bounds.min_y = min(poly->bounds.min_y, other.bounds.min_y);
-    poly->bounds.max_x = max(poly->bounds.max_x, other.bounds.max_x);
-    poly->bounds.min_x = min(poly->bounds.min_x, other.bounds.min_x);
+    poly->bounds.max_y = max_f(poly->bounds.max_y, other.bounds.max_y);
+    poly->bounds.min_y = min_f(poly->bounds.min_y, other.bounds.min_y);
+    poly->bounds.max_x = max_f(poly->bounds.max_x, other.bounds.max_x);
+    poly->bounds.min_x = min_f(poly->bounds.min_x, other.bounds.min_x);
     poly->obstacles[poly->count] = (char)(ob - avoid_obstacles);
     poly->count++;
     poly->num_points = (short)count;
@@ -728,10 +734,10 @@ void avoid_area_free(void *slot)
 // 0x4a7b90  Confidence: exact. pathfinding_free_graph: the walls go away with the graph.
 void avoid_seglists_clear_refs()
 {
-    avoid_seglist *sl;
-    int i;
+    int k, i;
 
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (k = 0; k < AVOID_NUM_SEGLISTS; k++) {
+        avoid_seglist *sl = &avoid_seglists[k];
         if (!(sl->flags & AVOID_SEGLIST_USED))
             continue;
         for (i = 0; i < sl->num_segs; i++) {
@@ -773,21 +779,24 @@ void avoid_poly_release(avoid_poly *poly)
 // 0x4a7cb0  Confidence: likely. Takes an obstacle out of its polygon: frees the polygon, its segment
 // list and the obstacle, re-adds the polygon's other obstacles one by one, then relinks the segment
 // lists of the size class and layer (the timer_get(1000) results are discarded).
+// GAME BUG (D7503): `others` holds 3 indices in the binary (frame 0x18, the array at +0xc), but a polygon
+// merges up to 8 obstacles: removing one from a polygon of 5 or more writes the extra indices over the
+// saved EDI / ESI / EBP / EBX of the caller (0x4a7d5d `mov [ebp], eax` in the copy loop).
 void avoid_area_rebuild(avoid_obstacle *ob)
 {
     avoid_poly *poly;
-    avoid_seglist *sl;
-    int others[14];
-    int index, size, layer, n, i, k;
+    int others[3];
+    int index, size, layer, n, i, k, p;
 
     index = ob - avoid_obstacles;
-    layer = ob->layer;
     size = ob->size;
-    for (poly = avoid_polys; poly < &avoid_polys[AVOID_NUM_POLYS]; poly++) {
+    layer = ob->layer;
+    for (p = 0; p < AVOID_NUM_POLYS; p++) {
+        poly = &avoid_polys[p];
         if (!(poly->flags & 1) || poly->size != ob->size || poly->layer != ob->layer)
             continue;
         for (k = 0; k < poly->count; k++) {
-            if (poly->obstacles[k] == index)
+            if (index == poly->obstacles[k])
                 goto found;
         }
     }
@@ -804,7 +813,8 @@ found:
     for (i = 0; i < n; i++)
         avoid_create_obstacle_polys(&avoid_obstacles[others[i]], false);
     timer_get(1000);
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (k = 0; k < AVOID_NUM_SEGLISTS; k++) {
+        avoid_seglist *sl = &avoid_seglists[k];
         if ((sl->flags & AVOID_SEGLIST_USED) && sl->size == size && sl->layer == layer)
             avoid_do_poly_seg_list_links(sl);
     }
@@ -1055,10 +1065,10 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
 // 0x4a8600  Confidence: exact.
 void rect2d_add_point(rect2d *r, const vector2 *p)
 {
-    r->min_x = min(r->min_x, p->x);
-    r->max_x = max(r->max_x, p->x);
-    r->max_y = max(r->max_y, p->y);
-    r->min_y = min(r->min_y, p->y);
+    r->min_x = min_f(r->min_x, p->x);
+    r->max_x = max_f(r->max_x, p->x);
+    r->max_y = max_f(r->max_y, p->y);
+    r->min_y = min_f(r->min_y, p->y);
 }
 
 // 0x4a8680  Confidence: likely (the reuse of sl's argument slot for b's corner index). Appends the
@@ -1168,18 +1178,18 @@ bool ptr_array_contains(const void *value, void *const *array, int count)
 // that ends on `wall`.
 void avoid_collect_segment_refs(int *count, avoid_seg_ref_entry *refs, const pf_edge *wall, int size, int layer)
 {
-    avoid_seglist *sl;
-    int i;
+    int k, i;
 
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (k = 0; k < AVOID_NUM_SEGLISTS; k++) {
+        avoid_seglist *sl = &avoid_seglists[k];
         if (!(sl->flags & AVOID_SEGLIST_USED) || !(sl->flags & AVOID_SEGLIST_DOOR) || (sl->flags & AVOID_SEGLIST_OFF)
             || sl->layer != layer || sl->size != size)
             continue;
         for (i = 0; i < sl->num_segs; i++) {
             if (sl->segs[i].wall == wall) {
-                refs[*count].index = i;
-                refs[*count].list = sl;
-                (*count)++;
+                avoid_seg_ref_entry *r = &refs[(*count)++];
+                r->index = i;
+                r->list = sl;
             }
         }
     }
@@ -1689,12 +1699,14 @@ void avoid_area_remove(int slot)
 // 0x4a9e60  Confidence: exact.
 bool avoid_obstacles_overlap(const avoid_obstacle *a, const avoid_obstacle *b)
 {
-    if (a->flags & AVOID_OB_BOX) {
-        if (b->flags & AVOID_OB_BOX)
-            return avoid_box_box_overlap(a, b);
+    int a_box = a->flags & AVOID_OB_BOX;
+    int b_box = b->flags & AVOID_OB_BOX;
+
+    if (a_box && b_box)
+        return avoid_box_box_overlap(a, b);
+    if (a_box)
         return avoid_poly_points_in_box(a, b);
-    }
-    if (b->flags & AVOID_OB_BOX)
+    if (b_box)
         return avoid_poly_points_in_box(b, a);
     return avoid_poly_points_in_circle(a, b);
 }
@@ -1790,10 +1802,10 @@ int avoid_add_primitive(const vector2 *centre, int flags, const vector2 *a, cons
     r.min_x = FLT_MAX;
     r.min_y = FLT_MAX;
     for (i = 0; i < ob->num_points; i++) {
-        r.max_x = max(r.max_x, ob->points[i].x);
-        r.min_x = min(r.min_x, ob->points[i].x);
-        r.max_y = max(r.max_y, ob->points[i].y);
-        r.min_y = min(r.min_y, ob->points[i].y);
+        r.max_x = max_f(r.max_x, ob->points[i].x);
+        r.min_x = min_f(r.min_x, ob->points[i].x);
+        r.max_y = max_f(r.max_y, ob->points[i].y);
+        r.min_y = min_f(r.min_y, ob->points[i].y);
     }
     ob->bounds.max_y = r.max_y;
     ob->bounds.min_y = r.min_y;
@@ -1886,12 +1898,11 @@ float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *o
 // layer and size class (margin 0.05).
 bool avoid_point_blocked(const vector3 *pos, int layer, int size)
 {
-    avoid_obstacle *ob;
-    vector2 p;
+    int i;
+    vector2 p(pos->x, pos->z);
 
-    p.x = pos->x;
-    p.y = pos->z;
-    for (ob = avoid_obstacles; ob < &avoid_obstacles[AVOID_NUM_OBSTACLES]; ob++) {
+    for (i = 0; i < AVOID_NUM_OBSTACLES; i++) {
+        avoid_obstacle *ob = &avoid_obstacles[i];
         if ((ob->flags & AVOID_OB_USED) && (ob->flags & AVOID_OB_PROHIBIT) && ob->layer == layer
             && ob->size == size && avoid_prim_test(&p, ob, 0.05f))
             return true;

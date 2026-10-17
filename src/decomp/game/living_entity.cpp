@@ -73,6 +73,23 @@
 #undef XSTR
 #define XSTR(text, id) (0 ? (char *)(text) : localize_strings[id])
 
+// D7800: in the unoptimised code a clamp of a variable into itself (`x = max(x, 0)`) is two direct stores
+// in Sum.exe, one per branch; cl 12.00.8966 builds a ?: temporary and copies it. Written as if / else,
+// which gives the binary's code. A reproduction device (as D6101's renames): the original source may well
+// have used min / max. Other conditionals (`f = c ? 1 : 0`, `(short)min(v, 0x7fff)`, XSTR) do go through
+// a temporary in the binary and stay as they are.
+#define ASSIGN_MAX(x, a, b) if ((a) > (b)) (x) = (a); else (x) = (b)
+#define ASSIGN_MIN(x, a, b) if ((a) < (b)) (x) = (a); else (x) = (b)
+
+// D7802: the unoptimised calls of character_find_mesh_tag on instance->character store the model pointer
+// (and a non-constant name) in compiler temporaries before the push: the code of an inline wrapper
+// expanded at /Od (a simple local such as update_head_look's ch is used directly, as the binary does).
+// The wrapper is the original's in some form (ca_character member or free function); name ours.
+inline int mesh_tag(ca_character *ch, const char *name)
+{
+    return ch->find_mesh_tag(name);
+}
+
 // Original __FILE__ of this unit (literal 0x599b50, used by character_update_layer and
 // living_entity_create; "Objects" with a capital O as in objects.cpp's).
 #define LIVING_ENTITY_CPP "D:\\projects\\Summoner\\pccode\\Engine\\Objects\\living_entity.cpp"
@@ -194,9 +211,12 @@ int Character::spell_on_cooldown(int spell)
     return 0;
 }
 
-// Rounding to a step (the code multiplies the step by 0.5 at run time, so it is not a folded constant:
-// a macro of the original, name ours).
-#define ROUND_TO_STEP(x, step) ((float)(int)(((step) * 0.5f + (x)) / (step)) * (step))
+// Rounding to a step. An inline function of the original (name ours): the step is multiplied by 0.5 at
+// run time (an inline argument is not folded with the constant; D7801), before x is computed.
+inline float round_to_step(float x, float step)
+{
+    return (float)(int)((x + step * 0.5f) / step) * step;
+}
 
 // 0x44ddb0  Confidence: likely (the min / max ?: temporaries at ebp-0x18 / -0x1c; the skill copy is a
 // struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult -4, v -8, hp_mult -0xc, i -0x10,
@@ -219,8 +239,8 @@ void Character::scale_stats_to_level()
         else
             ap_mult = (float)sqrt(hp_mult) * hp_mult;
     }
-    base_max_hp = ROUND_TO_STEP(info->max_hp * hp_mult, 1.0f);
-    hp = ROUND_TO_STEP(info->hp * hp_mult, 1.0f);
+    base_max_hp = round_to_step(info->max_hp * hp_mult, 1.0f);
+    hp = round_to_step(info->hp * hp_mult, 1.0f);
     v = (int)(info->max_ap * ap_mult + 0.5f);
     base_max_ap = (short)min(v, 0x7fff);
     v = (int)(info->ap * ap_mult + 0.5f);
@@ -236,8 +256,8 @@ void Character::scale_stats_to_level()
         if (i == SKILL_PROTECTION)
             continue;
         sk = skill[i] * hp_mult;
-        sk = max(0.0f, sk);
-        sk = min(100.0f, sk);
+        ASSIGN_MAX(sk, 0.0f, sk);
+        ASSIGN_MIN(sk, 100.0f, sk);
         skill[i] = (ubyte)(int)(sk + 0.5f);
     }
 }
@@ -409,7 +429,7 @@ void Character::init(int type, int info_index, const vector3 *pos, const matrix 
     r = frand() * t;
     instance->process(r, false, 1);
     if (this->info->has_light) {
-        bone = instance->character->find_mesh_tag(this->info->light_pos);
+        bone = mesh_tag(instance->character, this->info->light_pos);
         instance->get_bone_transform(&light_pos, &light_orient, bone);
         light_pos.unrotate(*orient);
         light_pos += this->pos;
@@ -438,7 +458,7 @@ void Character::set_name(const char *name)
     strcpy(this->name, name);
 }
 
-// 0x44edf0 living_entity__vfunc0 (vtable slot 0)  Confidence: likely. p at ebp-4, c at ebp-8, this
+// 0x44edf0 living_entity__vfunc0 (vtable slot 0)  Confidence: exact. p at ebp-4, c at ebp-8, this
 // at ebp-0xc. The model is released when no other living entity uses the same ca_character.
 void Character::deinit()
 {
@@ -479,7 +499,7 @@ void Character::deinit()
     type = 0;
 }
 
-// 0x44f020  Confidence: likely. Frame: centre -0xc, r -0x10, far -0x14, d -0x20, this -0x38;
+// 0x44f020  Confidence: exact. Frame: centre -0xc, r -0x10, far -0x14, d -0x20, this -0x38;
 // the rest inline temporaries. Type 0x79 (in a cutscene, game_flags 0x20) adds the centre offset;
 // species 0x58 culls with a 1.5 x larger sphere.
 bool Character::is_in_view(float radius_scale)
@@ -487,7 +507,6 @@ bool Character::is_in_view(float radius_scale)
     vector3 centre;
     float far_dist;
     float r;
-    vector3 d;
 
     instance->get_bounding_sphere(&centre, &r);
     centre.unrotate(orient);
@@ -496,8 +515,8 @@ bool Character::is_in_view(float radius_scale)
         centre += centre_offset;
     far_dist = char_fog_get_far();
     if (far_dist > 0.0f) {
-        d = camera_view_pos - centre;
-        if (far_dist * far_dist < d.len_sq() - r * r * radius_scale)
+        vector3 d = camera_view_pos - centre;
+        if (d.len_sq() - r * r * radius_scale > far_dist * far_dist)
             return true;
     }
     if (info != NULL && info->species == 0x58)
@@ -557,7 +576,7 @@ void Character::place_at_marker(navpoint *marker)
     }
 }
 
-// 0x44f880  Confidence: likely. Frame: hit -0x2c, hidden -0x30, eye_pt -0x3c, ray -0x88 (its inline
+// 0x44f880  Confidence: exact. Frame: hit -0x2c, hidden -0x30, eye_pt -0x3c, ray -0x88 (its inline
 // constructor's store at -0x58 is the first instruction), li -0x8c, this -0xd0.
 bool Character::has_line_of_sight_to_point(vector3 *point)
 {
@@ -679,7 +698,7 @@ void Character::add_xp(int xp, bool quiet, bool from_net)
     }
 }
 
-// 0x44ffc0  Confidence: likely (key at ebp-0x1c, total -0x20, old -0x24; strcpy expanded). The ring's
+// 0x44ffc0  Confidence: exact (key at ebp-0x1c, total -0x20, old -0x24; strcpy expanded). The ring's
 // experience is kept as a level-4 savegame integer, capped at `cap`.
 void ring_add_xp(const char *ring, int xp, int cap)
 {
@@ -707,7 +726,7 @@ void ring_add_xp(const char *ring, int xp, int cap)
         return;
     old = savegame_state.get_int(4, key);
     total = old + xp;
-    total = min(total, cap);
+    ASSIGN_MIN(total, total, cap);
     savegame_state.set_int(4, key, total);
     ring_check_summon_unlock(ring, old, total);
 }
@@ -743,10 +762,10 @@ void ring_check_summon_unlock(const char *ring, int old_xp, int new_xp)
     total = savegame_state.get_int(4, key);                  \
     oldv = total;                                            \
     total = total + xp;                                      \
-    total = min(total, cap);                                 \
+    ASSIGN_MIN(total, total, cap);                                 \
     savegame_state.set_int(4, key, total)
 
-// 0x450420  Confidence: likely (oldv -4, key -0x20, total -0x24). Every ring gets the share, worn or
+// 0x450420  Confidence: exact (oldv -4, key -0x20, total -0x24). Every ring gets the share, worn or
 // not; the darkness ring has no unlock check.
 void rings_add_xp_all(int xp, int cap)
 {
@@ -851,7 +870,7 @@ bool Character::add_hp(float delta, int source, int a, bool from_net)
     return true;
 }
 
-// 0x450c70  Confidence: likely. Frame: buf -0x10, new_ap -0x14, max_ap -0x18, this -0x1c, the XSTR
+// 0x450c70  Confidence: exact. Frame: buf -0x10, new_ap -0x14, max_ap -0x18, this -0x1c, the XSTR
 // temporary -0x20.
 void Character::add_ap(float delta)
 {
@@ -864,9 +883,9 @@ void Character::add_ap(float delta)
     if (delta == 0.0f)
         return;
     new_ap = ap + (int)delta;
-    new_ap = max(new_ap, 0);
+    ASSIGN_MAX(new_ap, new_ap, 0);
     max_ap = get_max_stat(1);
-    new_ap = min(new_ap, max_ap);
+    ASSIGN_MIN(new_ap, new_ap, max_ap);
     sprintf(buf, XSTR("%d AP", 323), (int)delta);
     set_floating_text(buf, 2.0f, 100, 100, 0xb4);
     if (MP_IS_HOST())
@@ -1312,7 +1331,7 @@ void Character::on_death()
             xp_total = mp_netgame_num_players * xp_total;
         if (n > 0) {
             share = xp_total / n;
-            share = min(share, 2147483648.0f);
+            ASSIGN_MIN(share, share, 2147483648.0f);
             sprintf(text, XSTR("+%.f xp", 324), (double)(int)(n * share + 0.5f));
             set_floating_text(text, 2.0f, 0x32, 0xb4, 0x32);
             if (!MP_IS_CLIENT()) {
@@ -1430,7 +1449,7 @@ float Character::size_height()
     return character_size_heights[info->size];
 }
 
-// 0x454330  Confidence: likely (the radius ?: temporaries at ebp-0xa4 / -0xa8; the NULL test is made
+// 0x454330  Confidence: exact (the radius ?: temporaries at ebp-0xa4 / -0xa8; the NULL test is made
 // twice, as in the code). Frame: result -4, a -0x10, b -0x1c, m -0x40, this -0xa0. Centre to centre, minus
 // both radii; with a target point (char_info +0x18a bone) the distance to that bone, radii not taken
 // off. `flat` drops the heights.
@@ -1980,18 +1999,16 @@ void Character::ai_travel_offset(vector3 offset)
     ai.travel_to_xyz(offset + pos);
 }
 
-// 0x455e70  Confidence: likely. Frame: dirn -0xc, delta -0x18, this -0x40. The normalised direction is
+// 0x455e70  Confidence: exact. Frame: dirn -0xc, to_target -0x18, this -0x40 (both vectors built in place
+// from the inline operator- under 8966; to_target named for its hash bucket, D6101 / D7803). The normalised direction is
 // computed and not used: the test is on the raw difference, so a travel order is skipped only when that
 // dot product is exactly 1.
 void Character::walk_to_point(vector3 p, int priority)
 {
-    vector3 delta;
-    vector3 dirn;
-
-    dirn = p - pos;
+    vector3 dirn = p - pos;
     dirn.normalize_safe();
-    delta = p - pos;
-    if (delta.x * orient.fvec.x + delta.y * orient.fvec.y + delta.z * orient.fvec.z != 1.0f)
+    vector3 to_target = p - pos;
+    if (to_target.dot(orient.fvec) != 1.0f)
         ai.travel_to_point(&p, priority);
 }
 
@@ -2292,7 +2309,7 @@ float Character::get_698()
     return forward_speed;
 }
 
-// 0x456fb0  Confidence: likely (an output pointer, not a returned vector3: EAX is not set).
+// 0x456fb0  Confidence: exact (an output pointer, not a returned vector3: EAX is not set).
 void Character::get_forward_velocity(vector3 *out)
 {
     if (ai_suspended()) {
@@ -2514,13 +2531,13 @@ int character_save_state_size()
             LE_GET(ubyte, b);                                                           \
             status[id].spell = b;                                                       \
             LE_GET(int, v);                                                             \
-            v = max(v, 0);                                                              \
+            ASSIGN_MAX(v, v, 0);                                                              \
             if (v == MAX_TIME)                                                          \
                 status[id].timer.invalidate();                                          \
             else                                                                        \
                 status[id].timer.SetTimeout(v);                                         \
             LE_GET(int, v);                                                             \
-            v = max(v, 0);                                                              \
+            ASSIGN_MAX(v, v, 0);                                                              \
             if (v == MAX_TIME)                                                          \
                 status[id].tick_timer.invalidate();                                     \
             else                                                                        \
@@ -3128,7 +3145,7 @@ void Character::update_status_effects()
                         if (v < 0.0f) {
                             res_magic = get_resistance(3);
                             v = (1.0f - res_magic) * v;
-                            v = min(v, 0.0f);
+                            ASSIGN_MIN(v, v, 0.0f);
                         }
                     }
                     add_hp(v, status[i].source, 0, false);
@@ -3254,7 +3271,7 @@ void Character::update_regen_and_status()
     if (timer2ec.valid() && timer2ec.elapsed()) {
         mult = ap_regen_mult() * 0.05f;
         regen = (int)(get_max_stat(1) * mult);
-        regen = max(1, regen);
+        ASSIGN_MAX(regen, 1, regen);
         if (game_flags & GF_MULTIPLAYER)
             regen *= 2;
         ap += regen;
@@ -3452,7 +3469,7 @@ void Character::move_frame()
         find_ground();
 }
 
-// 0x45d4c0  Confidence: likely (left_tag -4, right_tag -8, the ca_character copies -0xc / -0x10 are the
+// 0x45d4c0  Confidence: exact (left_tag -4, right_tag -8, the ca_character copies -0xc / -0x10 are the
 // returns of an inline accessor, written here as the member read; this -0x14).
 void Character::find_foot_bones()
 {
@@ -3461,8 +3478,8 @@ void Character::find_foot_bones()
 
     left_tag = 0;
     right_tag = 0;
-    left_tag = instance->character->find_mesh_tag("BDBN-Foot-L");
-    right_tag = instance->character->find_mesh_tag("BDBN-Foot-R");
+    left_tag = mesh_tag(instance->character, "BDBN-Foot-L");
+    right_tag = mesh_tag(instance->character, "BDBN-Foot-R");
     foot_tag_l = (short)left_tag;
     foot_tag_r = (short)right_tag;
 }
@@ -4199,14 +4216,14 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         roll = frand();
         if (roll < 0.05f) {
             drained = ap;
-            drained = max(drained, 0);
+            ASSIGN_MAX(drained, drained, 0);
         } else {
             drained = (int)(ap * (level * 0.01f) + 0.5f);
-            drained = max(drained, 0);
+            ASSIGN_MAX(drained, drained, 0);
         }
         add_ap((float)-drained);
         gain = (float)drained;
-        gain = min(gain, 20.0f);
+        ASSIGN_MIN(gain, gain, 20.0f);
         src->add_ap(gain);
         play_flinch(0x82);
         break;
@@ -4226,9 +4243,9 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             } else if (spell == 0x69) {
                 heal = src->level * 2.0f;
                 cur = hp;
-                heal = max(heal, cur);
+                ASSIGN_MAX(heal, heal, cur);
                 max_hp = (float)get_max_stat(0);
-                heal = min(heal, max_hp);
+                ASSIGN_MIN(heal, heal, max_hp);
                 hp = heal;
             } else {
                 hp = 1.0f;
@@ -4598,7 +4615,7 @@ void Character::spell_apply_hit_effects(spell_hit *h)
 
                 add_ap((float)-h->iamount);
                 gain = (float)h->iamount;
-                gain = min(gain, 20.0f);
+                ASSIGN_MIN(gain, gain, 20.0f);
                 src->add_ap(gain);
             }
             if (h->flinch)
@@ -5336,7 +5353,7 @@ float Character::get_resistance(int type)
     return resistance_level_damage_mult(info->resistance.level[type]) + resist_equip_bonus(type);
 }
 
-// 0x4627c0  Confidence: exact.
+// 0x4627c0  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
 int Character::equip_bonus(int stat)
 {
     int sum;
@@ -5387,7 +5404,7 @@ int Character::get_max_stat(int stat)
     return 0;
 }
 
-// 0x4628a0  Confidence: likely. Reloads a hero's mesh (Joseph, Jekhar and Flece have a heavy model 1,
+// 0x4628a0  Confidence: exact. Reloads a hero's mesh (Joseph, Jekhar and Flece have a heavy model 1,
 // Rosalind none) and sets the six underwear / armour textures: helmet (equipment 7: head, body, arms; a
 // heavy helmet also its leg texture), cuirass (4), cloak (3, alternate texture with CF 0x2000000) and
 // leggings (8).
@@ -5400,7 +5417,13 @@ void Character::apply_hero_model(int heavy)
         return;
     switch (info->species) {
     case SPECIES_JOSEPH:
+        if (heavy >= 2)
+            return;
+        break;
     case SPECIES_JEKHAR:
+        if (heavy >= 2)
+            return;
+        break;
     case SPECIES_FLECE:
         if (heavy >= 2)
             return;
@@ -5417,10 +5440,12 @@ void Character::apply_hero_model(int heavy)
     if (equipment[4] != NULL)
         tex[4] = equipment[4]->type->armour_textures[heavy][info->species][0];
     if (equipment[3] != NULL) {
+        ItemType *t = equipment[3]->type;
+
         if (flags & 0x2000000)
-            tex[5] = equipment[3]->type->armour_textures[heavy][info->species][1];
+            tex[5] = t->armour_textures[heavy][info->species][1];
         else
-            tex[5] = equipment[3]->type->armour_textures[heavy][info->species][0];
+            tex[5] = t->armour_textures[heavy][info->species][0];
     }
     if (equipment[7] != NULL) {
         ItemType *t = equipment[7]->type;
@@ -5534,13 +5559,13 @@ Character *Character::get_rider()
     return NULL;
 }
 
-// 0x462d60  Confidence: exact.
+// 0x462d60  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
 bool Character::is_mount()
 {
     return (mount_flags >> 1) & 1;
 }
 
-// 0x462d70  Confidence: exact.
+// 0x462d70  Confidence: likely (an 8168 byte match; differs under 8966, D7807).
 bool Character::is_rider()
 {
     return mount_flags & 1;

@@ -377,7 +377,7 @@ void mp_player_save_on_leave()
     mp_player_autosave_timer.invalidate();
 }
 
-// 0x46da80  Confidence: likely (the clear of each string before its strcpy is read as a separate memset
+// 0x46da80  Confidence: exact (VC6 byte match, match11; was likely) (the clear of each string before its strcpy is read as a separate memset
 // of the field: rep stosd 0x40 each). The defaults, then multi.cfg (any path) may name the three servers.
 // Bit 1 of the flags is cleared only when the file was read.
 void pxo_read_config()

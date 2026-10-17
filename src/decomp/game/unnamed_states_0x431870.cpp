@@ -271,7 +271,7 @@ void loadgame_debug_hook(const char *level)
 // are none, with "catacombs" selected) and the selected level's save slots.
 void state_loadgame_enter()
 {
-    file_find_list list;
+    file_find_node list;
     file_find_node *node;
     ui_listbox_entry *e;
     int count, i;

@@ -141,7 +141,7 @@ int file_type_from_ext(const char *name)
     return _stricmp(ext, ".vim") ? -1 : EFFECT_FILE_VIM;
 }
 
-// 0x4406d0  Confidence: likely (jump table on type + 1; the shared failure tail closes the file only when it
+// 0x4406d0  Confidence: exact (VC6 byte match, match14; was likely) (jump table on type + 1; the shared failure tail closes the file only when it
 // is open). An .rfx base is read straight into its own buffer behind the 0x14-byte header; an .mvf / .vim
 // file (at most 0x40000 bytes) into effect_stream_buffer. A .peg starts a read of nothing.
 int effect_stream_open_current()
@@ -154,7 +154,7 @@ int effect_stream_open_current()
         return 0;
     case EFFECT_FILE_RFX:
         if (effect_stream_file.open(effect_stream_queue[effect_stream_cur].name, 1, PATH_ANY))
-            return 0;
+            goto none;
         effect_stream_push_mempool(effect_stream_queue[effect_stream_cur].pool);
         effect_stream_base = effects_find_base(effect_stream_queue[effect_stream_cur].name);
         if (effect_stream_base < 0) {
@@ -186,6 +186,7 @@ int effect_stream_open_current()
 fail:
     if (effect_stream_file.is_open())
         effect_stream_file.close();
+none:
     return 0;
 }
 
@@ -209,17 +210,17 @@ int effect_stream_update()
     if (effect_stream_state != EFFECT_STREAM_READING)
         return effect_stream_state;
     switch (effect_stream_file.get_async_status()) {
-    case -1:
-        effect_stream_file.close();
-        return effect_stream_state = EFFECT_STREAM_ERROR;
-    case 0:
-        return effect_stream_state = EFFECT_STREAM_READING;
     case 1:
         if (!effect_stream_finish_entry())
             return effect_stream_state = EFFECT_STREAM_ERROR;
         if (effect_stream_cur >= effect_stream_queue_count)
             return effect_stream_state = EFFECT_STREAM_DONE;
         return effect_stream_state = effect_stream_open_current() ? EFFECT_STREAM_READING : EFFECT_STREAM_ERROR;
+    case 0:
+        return effect_stream_state = EFFECT_STREAM_READING;
+    case -1:
+        effect_stream_file.close();
+        return effect_stream_state = EFFECT_STREAM_ERROR;
     }
     return effect_stream_state;
 }
@@ -283,10 +284,10 @@ void effect_stream_reset()
     effect_stream_state = EFFECT_STREAM_IDLE;
 }
 
-// 0x440b30  Confidence: exact (handle_slots_reset): reads the rest of the queue synchronously.
+// 0x440b30  Confidence: exact (VC6 byte match, match14; was exact) (handle_slots_reset): reads the rest of the queue synchronously.
 void effect_stream_flush()
 {
-    while (effect_stream_update() == EFFECT_STREAM_READING)
-        ;
+    do {
+    } while (effect_stream_update() == EFFECT_STREAM_READING);
     effect_stream_reset();
 }

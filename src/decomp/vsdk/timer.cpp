@@ -120,7 +120,7 @@ int read_tsc()
     return t;
 }
 
-// 0x5329c1  Confidence: likely (no sum.symbols entry and no caller: name and use ours). TSC ticks to seconds.
+// 0x5329c1  Confidence: exact (no sum.symbols entry and no caller: name and use ours). TSC ticks to seconds.
 float timer_tsc_to_seconds(int ticks)
 {
     return (float)ticks / timer_tsc_ticks * 0.25f;

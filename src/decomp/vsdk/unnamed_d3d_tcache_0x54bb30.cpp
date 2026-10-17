@@ -48,12 +48,14 @@ int d3d_texture_mem_used;                               // 0x2f13314
 void gr_d3d_tcache_init()
 {
     int i;
+    d3d_tcache_entry *e;
 
-    d3d_tcache_entries = (d3d_tcache_entry *)operator new(MAX_BITMAPS * sizeof(d3d_tcache_entry));
+    e = (d3d_tcache_entry *)operator new(MAX_BITMAPS * sizeof(d3d_tcache_entry));
+    d3d_tcache_entries = e;
     for (i = 0; i < MAX_BITMAPS; i++) {
-        d3d_tcache_entries[i].bitmap = -1;
-        d3d_tcache_entries[i].num_sections = 0;
-        d3d_tcache_entries[i].sections = NULL;
+        e[i].bitmap = -1;
+        e[i].num_sections = 0;
+        e[i].sections = NULL;
     }
     d3d_tcache_slots[0].init_stage(0);
     d3d_tcache_slots[1].init_stage(1);
@@ -472,7 +474,8 @@ int gr_d3d_get_section_count(int bm)
 // 0x54d000  Confidence: exact.
 void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h)
 {
-    d3d_tcache_section *s = &d3d_tcache_entries[bm_get_current_frame(bm)].sections[section];
+    d3d_tcache_entry *e = &d3d_tcache_entries[bm_get_current_frame(bm)];
+    d3d_tcache_section *s = &e->sections[section];
 
     *x = s->x;
     *y = s->y;
@@ -517,7 +520,7 @@ int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
     int w, h, num_pixels, num_levels;
     ubyte *data;
     ubyte *palette;
-    int i, nx, ny, x, y, row, col, sh, section, format;
+    int i, n, nx, ny, x, y, row, col, sh, section, format;
     d3d_tcache_section *s;
     Mempool *old_pool;
 
@@ -529,9 +532,11 @@ int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
     nx = (gr_screen.max_bitmap_w + w - 1) / gr_screen.max_bitmap_w;
     ny = (gr_screen.max_bitmap_h + h - 1) / gr_screen.max_bitmap_h;
     e->num_sections = ny * nx;
-    e->sections = new d3d_tcache_section[e->num_sections];
-    for (i = 0; i < e->num_sections; i++)
-        e->sections[i].surface = NULL;
+    s = new d3d_tcache_section[e->num_sections];
+    n = e->num_sections;
+    e->sections = s;
+    for (i = 0; i < n; i++)
+        s[i].surface = NULL;
     if (num_levels > 1 && (!gr_d3d_is_texture_size(w, h) || e->num_sections > 1)) {
         sprintf(string_buffer, "D3D: Not drawing %dx%d bitmap '%s'\n", w, h, bm_get_filename(bm));
         set_current_mempool(old_pool);
@@ -594,7 +599,9 @@ bool gr_d3d_is_texture_size(int w, int h)
         th = 128;
     else
         th = 256;
-    return tw == w && th == h;
+    if (tw == w && th == h)
+        return true;
+    return false;
 }
 
 // 0x54d3f0  Confidence: exact.

@@ -112,29 +112,29 @@ bool gamelist_cursor_on;                                      // 0x5bc918
 void gamelist_load_bitmaps()
 {
     float scale = ui_get_scale();
-    int i;
+    char filename[128];
 
-    for (i = 0; i < GAMELIST_NUM_BUTTONS; i++) {
-        gamelist_buttons[i].flags = 0;
-        gamelist_buttons[i].bitmap = -1;
-        gamelist_buttons[i].x = 0;
-        gamelist_buttons[i].y = 0;
-        gamelist_buttons[i].w = 0;
-        gamelist_buttons[i].h = 0;
+    for (int i = 0; i < GAMELIST_NUM_BUTTONS; i++) {
+        ui_button_state *b = &gamelist_buttons[i];
+        ui_button_def *d = &gamelist_button_defs[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
-        if (strlen(gamelist_button_defs[i].name)) {
-            char filename[128];
-
-            strcpy(filename, gamelist_button_defs[i].name);
+        if (strlen(d->name)) {
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            gamelist_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            gamelist_buttons[i].x = gamelist_button_defs[i].pos[resolution_index][0];
-            gamelist_buttons[i].y = gamelist_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(gamelist_buttons[i].bitmap, &gamelist_buttons[i].w, &gamelist_buttons[i].h);
-            gamelist_buttons[i].w = (int)(gamelist_buttons[i].w * scale + 0.5f);
-            gamelist_buttons[i].h = (int)(gamelist_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0 || i == 13)
-                gamelist_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -145,7 +145,7 @@ void gamelist_load_bitmaps()
     gamelist_scrollbar_bm_h = (int)(gamelist_scrollbar_bm_h * scale);
 }
 
-// 0x40a850  Confidence: likely (store order: VC6 keeps the source order for these globals).
+// 0x40a850  Confidence: exact (store order: VC6 keeps the source order for these globals).
 void gamelist_init()
 {
     gamelist_scroll_pos = 0;
@@ -157,7 +157,7 @@ void gamelist_init()
     gamelist_selected_game = 0;
 }
 
-// 0x40a880  Confidence: likely (the join-result switch: jump table 0x40a94c over 0..4, cases 0 and 2 empty,
+// 0x40a880  Confidence: exact (the join-result switch: jump table 0x40a94c over 0..4, cases 0 and 2 empty,
 // 3 = default; case 4 with the popup already open pushes the constant 4 into the default's call, read as
 // show_join_error(result) folded by VC6). While the join request is pending (1) the screen ignores input.
 int gamelist_frame(int key)
@@ -216,7 +216,7 @@ int gamelist_frame(int key)
     return key;
 }
 
-// 0x40a970  Confidence: likely (the first game becomes the selection when there is none; VC6 threads the
+// 0x40a970  Confidence: exact (the first game becomes the selection when there is none; VC6 threads the
 // "list empty" test straight to the disable branch). Join (entry 7) needs a selected game.
 void gamelist_update_join_button()
 {
@@ -229,7 +229,7 @@ void gamelist_update_join_button()
         gamelist_buttons[7].flags |= 4;
 }
 
-// 0x40a9b0  Confidence: likely (jump table 0x40ab50 over code - 3, 0..10). The first six texts are copied
+// 0x40a9b0  Confidence: exact (jump table 0x40ab50 over code - 3, 0..10). The first six texts are copied
 // with strcpy, the last five with sprintf(buf, text) (no arguments; kept as in the binary). Other codes
 // show nothing.
 void gamelist_show_join_error(int code)
@@ -278,7 +278,7 @@ void gamelist_show_join_error(int code)
     ui_message_box_show(XSTR("Join failure", 799), buf, -1, -1, 1, &ok, 0, 0);
 }
 
-// 0x40ab80  Confidence: likely (the page size lives in the spare argument slot for fild; the order of the
+// 0x40ab80  Confidence: exact (the page size lives in the spare argument slot for fild; the order of the
 // four stores of the count <= 0 branch). Same as mp_charselect_update_scrollbar for one list; entries 1 / 3
 // are the arrows.
 void gamelist_update_scrollbar()
@@ -297,18 +297,18 @@ void gamelist_update_scrollbar()
     gamelist_buttons[1].flags &= ~4;
     gamelist_buttons[3].flags &= ~4;
 
-    if (count > 0) {
+    if (count <= 0) {
+        gamelist_scrollbar_x = gamelist_track_pos[resolution_index][0];
+        gamelist_scrollbar_y = gamelist_track_pos[resolution_index][1];
+        gamelist_scrollbar_w = gamelist_scrollbar_bm_w;
+        gamelist_scrollbar_h = gamelist_track_h[resolution_index];
+    } else {
         gamelist_scrollbar_x = gamelist_track_pos[resolution_index][0];
         gamelist_scrollbar_y = (int)((float)gamelist_scroll_pos / mp_gamelist_count
                                      * gamelist_track_h[resolution_index] + 0.5f)
                                + gamelist_track_pos[resolution_index][1];
         gamelist_scrollbar_w = gamelist_scrollbar_bm_w;
         gamelist_scrollbar_h = (int)((float)page / mp_gamelist_count * gamelist_track_h[resolution_index] + 0.5f);
-    } else {
-        gamelist_scrollbar_x = gamelist_track_pos[resolution_index][0];
-        gamelist_scrollbar_y = gamelist_track_pos[resolution_index][1];
-        gamelist_scrollbar_w = gamelist_scrollbar_bm_w;
-        gamelist_scrollbar_h = gamelist_track_h[resolution_index];
     }
 }
 
@@ -336,27 +336,29 @@ int gamelist_handle_click(int key)
     int rows;
     int font_h;
     int i;
+    int dx, dy, dz;
 
     gamelist_pressed_button = -1;
     gamelist_hover_row = -1;
 
     for (i = 0; i < GAMELIST_NUM_BUTTONS; i++) {
-        if (((gamelist_button_defs[i].flags >> 2) & 1) == gamelist_password_input_active
-            && (gamelist_button_defs[i].flags & 0xb)
-            && point_in_rect(game_mouse_x, game_mouse_y, gamelist_buttons[i].x, gamelist_buttons[i].y,
-                             gamelist_buttons[i].w, gamelist_buttons[i].h)) {
-            if ((gamelist_button_defs[i].flags & 8) && interface_input_ready())
+        ui_button_def *d = &gamelist_button_defs[i];
+        ui_button_state *b = &gamelist_buttons[i];
+        if (gamelist_password_input_active == (((unsigned)d->flags >> 2) & 1)
+            && (d->flags & 0xb)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            if ((d->flags & 8) && interface_input_ready())
                 gamelist_refresh_tooltip(i);
-            if (!(gamelist_buttons[i].flags & 4)) {
-                gamelist_buttons[i].flags |= 2;
+            if (!(b->flags & 4)) {
+                b->flags |= 2;
                 gamelist_pressed_button = i;
-                if (gamelist_button_defs[i].flags & 1) {
+                if (d->flags & 1) {
                     if (mouse_was_pressed(0)) {
                         gamelist_mouse_mode = 1;
                         gamelist_repeat_timer.invalidate();
                         return key;
                     }
-                } else if (gamelist_button_defs[i].flags & 2) {
+                } else if (d->flags & 2) {
                     if (mouse_was_pressed(0)) {
                         gamelist_mouse_mode = 1;
                         gamelist_button_action(gamelist_pressed_button + 1);
@@ -445,24 +447,22 @@ int gamelist_handle_click(int key)
         }
     }
 
-    if (key == KEY_ESC) {
+    switch (key) {
+    case KEY_ESC:
         gamelist_back();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
     }
 
-    {
-        int dx, dy, dz;
-        mouse_get_delta(&dx, &dy, &dz);
-        if (dz > 0)
-            gamelist_page_up();
-        else if (dz < 0)
-            gamelist_page_down();
-    }
+    mouse_get_delta(&dx, &dy, &dz);
+    if (dz > 0)
+        gamelist_page_up();
+    else if (dz < 0)
+        gamelist_page_down();
     return key;
 }
 
-// 0x40b0b0  Confidence: likely (loop shape). The index-th received game, NULL past the end.
+// 0x40b0b0  Confidence: exact (loop shape). The index-th received game, NULL past the end.
 mp_gamelist_entry *mp_server_list_get(int index)
 {
     mp_gamelist_entry *game;
@@ -493,14 +493,18 @@ void gamelist_page_up()
     }
 }
 
-// 0x40b150  Confidence: likely (as gamelist_page_up).
+// 0x40b150  Confidence: exact (as gamelist_page_up).
 void gamelist_page_down()
 {
-    int last = mp_gamelist_count - gamelist_page_rows[resolution_index];
+    int pos = gamelist_scroll_pos;
+    int page = gamelist_page_rows[resolution_index];
+    int last = mp_gamelist_count - page;
 
-    if (gamelist_scroll_pos < last) {
-        int pos = gamelist_scroll_pos + gamelist_page_rows[resolution_index];
-        gamelist_scroll_pos = pos < last ? pos : last;
+    if (pos < last) {
+        pos += page;
+        if (pos < last)
+            last = pos;
+        gamelist_scroll_pos = last;
         gamelist_update_scrollbar();
     }
 }
@@ -532,7 +536,7 @@ void gamelist_password_input_cancel()
     gamelist_password[0] = 0;
 }
 
-// 0x40b1e0  Confidence: likely (byte table 0x40b32c over button - 2, 0..15, into the jump table 0x40b30c;
+// 0x40b1e0  Confidence: exact (byte table 0x40b32c over button - 2, 0..15, into the jump table 0x40b30c;
 // 8 and 15 share the join case; the Create case reuses the argument slot for "ok"; the back / close cases
 // share the sound call). Create warns modem players first (nw_network_status 1 below 56k, 2 56k): the
 // message box calls gamelist_create_game_cb, mouse mode 3 until then.
@@ -636,26 +640,25 @@ void gamelist_update_buttons()
     int button = pressed + 1;
 
     if (pressed >= 0 && pressed < GAMELIST_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, gamelist_buttons[button].x, gamelist_buttons[button].y,
-                          gamelist_buttons[button].w, gamelist_buttons[button].h))
-            gamelist_buttons[button].flags |= 2;
+        ui_button_state *b = &gamelist_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
-        if (mouse_is_down(0)) {
-            if (gamelist_repeat_timer.valid() && gamelist_repeat_timer.elapsed()
-                && (gamelist_buttons[button].flags & 2)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !gamelist_repeat_timer.valid())
+                gamelist_button_action(button);
+        } else {
+            if (gamelist_repeat_timer.valid() && gamelist_repeat_timer.elapsed() && (b->flags & 2)) {
                 gamelist_button_action(button);
                 gamelist_repeat_timer.SetTimeout(100);
             }
             return;
         }
-
-        if ((gamelist_buttons[button].flags & 2) && !gamelist_repeat_timer.valid())
-            gamelist_button_action(button);
     }
     gamelist_mouse_mode = 0;
 }
 
-// 0x40b4a0  Confidence: likely (as mp_charselect_drag_scrollbar, but the position is clamped in a
+// 0x40b4a0  Confidence: exact (as mp_charselect_drag_scrollbar, but the position is clamped in a
 // register and stored once).
 void gamelist_drag_scrollbar()
 {
@@ -666,7 +669,9 @@ void gamelist_drag_scrollbar()
 
     pos = pos > 0 ? pos : 0;
     last = mp_gamelist_count - gamelist_page_rows[resolution_index];
-    gamelist_scroll_pos = pos < last ? pos : last;
+    if (pos < last)
+        last = pos;
+    gamelist_scroll_pos = last;
     gamelist_update_scrollbar();
 
     if (!mouse_is_down(0))
@@ -681,10 +686,10 @@ void gamelist_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < GAMELIST_NUM_BUTTONS; i++) {
-        if ((gamelist_password_input_active || !(gamelist_button_defs[i].flags & 4))
-            && (gamelist_buttons[i].flags & 3))
-            ui_bitmap_scaled(gamelist_buttons[i].bitmap, gamelist_buttons[i].x, gamelist_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &gamelist_buttons[i];
+        ui_button_def *d = &gamelist_button_defs[i];
+        if ((gamelist_password_input_active || !(d->flags & 4)) && (b->flags & 3))
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     mp_server_list_draw();
     gamelist_draw_scrollbar();
@@ -854,7 +859,7 @@ void mp_server_list_draw()
     }
 }
 
-// 0x40bca0  Confidence: likely (as mp_charselect_draw_scrollbar: whole tiles, then one tile flush with the
+// 0x40bca0  Confidence: exact (as mp_charselect_draw_scrollbar: whole tiles, then one tile flush with the
 // bottom).
 void gamelist_draw_scrollbar()
 {
@@ -872,7 +877,7 @@ void gamelist_draw_scrollbar()
                      gamelist_scrollbar_y - gamelist_scrollbar_bm_h + gamelist_scrollbar_h, gr_bitmap_wrap_mode);
 }
 
-// 0x40bd50  Confidence: likely (the min(0, w - text w) spelling, as gamecreate_draw_text_field; here the
+// 0x40bd50  Confidence: exact (the min(0, w - text w) spelling, as gamecreate_draw_text_field; here the
 // "|" is always appended and the blink picks the string as an argument). The buffer is 20 bytes on the
 // stack.
 void gamelist_draw_password_input()
@@ -893,12 +898,15 @@ void gamelist_draw_password_input()
 
     x = gamelist_password_size[resolution_index][0] - w;
     x = x > 0 ? 0 : x;
-    gr_string(x, 0, gamelist_cursor_on ? buf : gamelist_password, -1, gr_string_mode);
+    if (gamelist_cursor_on)
+        gr_string(x, 0, buf, -1, gr_string_mode);
+    else
+        gr_string(x, 0, gamelist_password, -1, gr_string_mode);
 
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x40be80  Confidence: likely (the halving is signed: cdq / sub / sar). A centred box with
+// 0x40be80  Confidence: exact (the halving is signed: cdq / sub / sar). A centred box with
 // "Joining game..." while the join request is pending.
 void mp_draw_join_help()
 {

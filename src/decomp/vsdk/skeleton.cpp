@@ -471,23 +471,26 @@ skeleton::~skeleton()
     filename[0] = 0;
 }
 
-// 0x543fc0  Confidence: likely (the product's temporary is copied out with the copy constructor; the
-// time constants are two multiplies, not folded, D6600; build 8966 passes the temporary's address).
+// 0x543fc0  Confidence: exact (VC6 8966 byte match: the product goes into a named local that is
+// returned; the time constants are two multiplies, not folded, D6600).
 // Root displacement per second.
 vector3 skeleton::get_root_velocity()
 {
     float t = (float)(end - start) * (1.0f / 160.0f);
-    return root_disp * (1.0f / (t * (1.0f / 30.0f)));
+    vector3 v = root_disp * (1.0f / (t * (1.0f / 30.0f)));
+    return v;
 }
 
-// 0x544010  Confidence: likely. No direct call.
+// 0x544010  Confidence: exact (VC6 8966 byte match with the frame count through a float local, so the
+// two time constants stay unfolded as in get_root_velocity). No direct call.
 // Game bug (latent): the slerp starts from a default-constructed quaternion, i.e. uninitialised stack
 // (quaternion() is empty), not from the identity.
 quaternion skeleton::get_root_rotation(float t)
 {
     quaternion q;
+    float d = (float)(end - start) * (1.0f / 160.0f);
 
-    quaternion_slerp(&q, &(const quaternion &)quaternion(), &root_rot, (1.0f / MVF_SECONDS(end - start)) * t);
+    quaternion_slerp(&q, &(const quaternion &)quaternion(), &root_rot, (1.0f / (d * (1.0f / 30.0f))) * t);
     q.normalize();
     return q;
 }

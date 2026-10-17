@@ -473,7 +473,8 @@ bool ai_state::tiger_wander_start(int target_handle)
         return false;
     if (tiger_stage == 3)
         return false;
-    vector3 dir = t->pos - owner->pos;
+    vector3 dir;
+    dir = t->pos - owner->pos;
     dir.normalize_safe_length();
     bool ok = false;
     for (int i = 0; i < 3; i++) {
@@ -614,32 +615,33 @@ void tiger_unload()
         item_free(tiger_axe);
 }
 
-// 0x49aeb0  Confidence: likely. As serpent_seat_rider.
+// 0x49aeb0  Confidence: exact. As serpent_seat_rider (D7700).
 bool ai_state::tiger_seat_rider()
 {
     if (tiger_mount)
         boss_rider_random_sound(&tiger_mount->pos);
-    if (!tiger_has_rider)
-        return false;
-    Character *m = owner->get_mount();
-    if (m == NULL)
-        return false;
-    m->ai.target = target;
-    float t;
-    m->instance->get_set_time(&t, false);
-    owner->instance->get_set_time(&t, true);
-    int tag = m->instance->character->find_mesh_tag("$sit");
-    if (tag != -1) {
-        vector3 pos;
-        matrix orient;
-        m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
-        owner->pos = pos;
-        owner->orient = orient;
-        return true;
+    if (tiger_has_rider) {
+        Character *m = owner->get_mount();
+        if (m != NULL) {
+            m->ai.target = target;
+            float t;
+            m->instance->get_set_time(&t, false);
+            owner->instance->get_set_time(&t, true);
+            int tag = m->instance->character->find_mesh_tag("$sit");
+            if (tag != -1) {
+                vector3 pos;
+                matrix orient;
+                m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
+                owner->pos = pos;
+                owner->orient = orient;
+                return true;
+            }
+            owner->pos = m->pos;
+            owner->orient = m->orient;
+            return true;
+        }
     }
-    owner->pos = m->pos;
-    owner->orient = m->orient;
-    return true;
+    return false;
 }
 
 // ---- target and attack choice -------------------------------------------------------------------------
@@ -1001,9 +1003,10 @@ void ai_state::tiger_wander_update()
     }
 }
 
-// 0x49bce0  Confidence: likely. Sub-mode 0x20: a wander point (three tries), the travel, then the next
-// move (the weapon move 0xe when the weapon is not in hand, the charge approach for move 1, else the
-// normal approach); after three failed reposition rounds the wander sub-mode 0x21.
+// 0x49bce0  Confidence: exact (the -1 reset before the state test; a found path jumps past the failure
+// count, which follows the loop unconditionally, D7700). Sub-mode 0x20: a wander point (three tries),
+// the travel, then the next move (the weapon move 0xe when the weapon is not in hand, the charge approach
+// for move 1, else the normal approach); after three failed reposition rounds the wander sub-mode 0x21.
 void ai_state::tiger_reposition_update(Character *t)
 {
     int s = tiger.reposition_state;
@@ -1011,9 +1014,9 @@ void ai_state::tiger_reposition_update(Character *t)
         tiger_cur_move = NULL;
         return;
     }
+    if (s == -1)
+        tiger.reposition_state = 0;
     if (s == -1 || s == 0) {
-        if (s == -1)
-            tiger.reposition_state = 0;
         int i;
         for (i = 0; i < 3; i++) {
             if (tiger_pick_wander_point(owner, t, 10, 8.0f, 12.0f, -0.707f, -0.1f, 5.0f)
@@ -1022,12 +1025,12 @@ void ai_state::tiger_reposition_update(Character *t)
                 if (m)
                     m->ai.set_mode(AI_STATE_MOUNT_TRAVEL, -1);
                 tiger.reposition_state = 1;
-                break;
+                goto picked;
             }
         }
-        if (i == 3)
-            tiger.reposition_failures++;
+        tiger.reposition_failures++;
     }
+picked:
     int idx = tiger_current_move_index();
     if (tiger.reposition_state == 0) {
         if (tiger.reposition_failures < 3)
@@ -1095,17 +1098,11 @@ void ai_state::tiger_ai_frame()
         return;
     }
     int idx;
-    int r = tiger_choose_attack();
-    if (r == 0) {
+    switch (tiger_choose_attack()) {
+    case 0:
         go_idle();
         return;
-    }
-    if (r == 1) {
-        if (tiger.pending_submode == 0x21)
-            goto wander;
-        if (tiger.pending_submode == 0xe)
-            set_mode(AI_STATE_COMBAT, 0xe);
-    } else if (r == 3) {
+    case 3:
         idx = tiger_current_move_index();
         if (idx == 0) {
 wander:
@@ -1113,17 +1110,28 @@ wander:
             tiger_reposition_timer.SetTimeout(0);
             tiger.wander_state = 0;
             set_mode(AI_STATE_COMBAT, 0x21);
-        } else if (idx == 1 || (idx == 2 && !tiger.weapon_ready)) {
+        } else if (idx == 1) {
+            tiger_reset_b58();
+            set_mode(AI_STATE_COMBAT, 0x20);
+        } else if (idx == 2 && !tiger.weapon_ready) {
             tiger_reset_b58();
             set_mode(AI_STATE_COMBAT, 0x20);
         } else {
             combat_approach(t);
         }
+        break;
+    case 1:
+        if (tiger.pending_submode == 0x21)
+            goto wander;
+        if (tiger.pending_submode == 0xe)
+            set_mode(AI_STATE_COMBAT, 0xe);
+        break;
     }
     if (tiger_target == -1)
         tiger_target = target;
     target = tiger_target;
-    owner->combat.target = target = tiger_target;
+    target = tiger_target;
+    owner->combat.target = target;
     t = living_from_handle(target);
     if (t == NULL || (t->flags & CF_HIDDEN)) {
         go_idle();

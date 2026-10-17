@@ -441,7 +441,7 @@ void saveload_update_select_button()
 // needs a row, and not the "<New Savegame>" row.
 void saveload_update_delete_button()
 {
-    int index = saveload_scroll_pos + saveload_selected_row;
+    int index = saveload_selected_row + saveload_scroll_pos;
 
     if (saveload_save_mode) {
         if (index < 0 || (index == 0 && saveload_entries[0].level == -1)) {
@@ -672,7 +672,7 @@ int saveload_try_save()
     return saveload_save_to_slot();
 }
 
-// 0x426370  Confidence: likely (declaration order of the two locals). The new row gets the first unused
+// 0x426370  Confidence: exact (VC6 byte match, match22; the write result in a local, selected_row + scroll_pos; was likely) (declaration order of the two locals). The new row gets the first unused
 // summoner<n>.sav. Returns 0 when savegame_write succeeded.
 int saveload_save_to_slot()
 {
@@ -690,7 +690,8 @@ int saveload_save_to_slot()
     }
 
     conversation_db.save_state();
-    return !savegame_state.write(filename, 0, saveload_name_input);
+    int ok = savegame_state.write(filename, 0, saveload_name_input);
+    return ok == 0;
 }
 
 // 0x426480  Confidence: exact. The level starts; savegame_load_pending reads the file once it is loaded.
@@ -848,8 +849,8 @@ void saveload_hover_thumbnail()
 // 0x426930  Confidence: exact (VC6 byte match) (the y difference goes through a stack int for the fild).
 void saveload_drag_scrollbar()
 {
-    int y = game_mouse_y - saveload_track_pos[resolution_index][1] - saveload_drag_start_mouse_y
-          + saveload_drag_start_thumb_y;
+    int y = saveload_drag_start_thumb_y - saveload_track_pos[resolution_index][1] - saveload_drag_start_mouse_y
+          + game_mouse_y;
     int pos = (int)((float)y / saveload_track_h[resolution_index] * saveload_num_saves + 0.5f);
     int max;
 

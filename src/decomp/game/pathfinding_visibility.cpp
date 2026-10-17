@@ -239,44 +239,45 @@ pathvis_edge *pathvis_add_edge_node()
     return e;
 }
 
-// 0x4b7da0  Confidence: likely (the tail is a register: written as a local, the head's prev is stored
+// 0x4b7da0  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; the tail is a register: written as a local, the head's prev is stored
 // once after the loop; the head's own prev store of list_init is absent).
 void pathvis_edge_pool_init()
 {
-    pathvis_edge *e, *tail;
+    pathvis_edge *tail;
+    int i;
 
     if (pathvis_edge_pool_inited)
         return;
     pathvis_free_edges.next = &pathvis_free_edges;
     tail = &pathvis_free_edges;
-    for (e = pathvis_edge_pool; e < pathvis_edge_pool + PATHVIS_MAX_EDGES; e++) {
-        e->prev = tail;
-        e->next = &pathvis_free_edges;
-        tail->next = e;
-        tail = e;
+    for (i = 0; i < PATHVIS_MAX_EDGES; i++) {
+        pathvis_edge_pool[i].prev = tail;
+        pathvis_edge_pool[i].next = &pathvis_free_edges;
+        tail->next = &pathvis_edge_pool[i];
+        tail = &pathvis_edge_pool[i];
     }
     pathvis_free_edges.prev = tail;
     pathvis_edge_pool_inited = 1;
 }
 
-// 0x4b7df0  Confidence: likely (the empty-list append before the loop; the loop's first test is kept as a
+// 0x4b7df0  Confidence: exact (VC6 byte match, cl 8966; was likely: the empty-list append before the loop; the
+// loop's first test is kept as a
 // dead `je`). (edge, layer): before the first entry that is not nearer.
 void pathvis_insert_sorted(pathvis_edge *e, int layer)
 {
-    pathvis_edge *head = &pathvis_edge_lists[layer];
     pathvis_edge *p;
 
-    if (head->next == head) {
-        list_append(head, e);
+    if (pathvis_edge_lists[layer].next == &pathvis_edge_lists[layer]) {
+        list_append(&pathvis_edge_lists[layer], e);
         return;
     }
-    for (p = head->next; p != head; p = p->next) {
+    for (p = pathvis_edge_lists[layer].next; p != &pathvis_edge_lists[layer]; p = p->next) {
         if (e->dist <= p->dist) {
             pathvis_list_insert_before(p, e);
             return;
         }
     }
-    list_append(head, e);
+    list_append(&pathvis_edge_lists[layer], e);
 }
 
 #ifdef _MSC_VER
@@ -353,24 +354,24 @@ void pathvis_free_edge_node(pathvis_edge *e)
     list_append(&pathvis_free_edges, e);
 }
 
-// 0x4b8190  Confidence: likely (as pathvis_insert_sorted). (edge, layer): before the first entry that has
+// 0x4b8190  Confidence: exact (VC6 byte match, cl 8966; was likely: as pathvis_insert_sorted). (edge, layer):
+// before the first entry that has
 // the edge's a on its left (seg2d_point_left_of).
 void pathvis_insert_by_side(pathvis_edge *e, int layer)
 {
-    pathvis_edge *head = &pathvis_edge_lists[layer];
     pathvis_edge *p;
 
-    if (head->next == head) {
-        list_append(head, e);
+    if (pathvis_edge_lists[layer].next == &pathvis_edge_lists[layer]) {
+        list_append(&pathvis_edge_lists[layer], e);
         return;
     }
-    for (p = head->next; p != head; p = p->next) {
+    for (p = pathvis_edge_lists[layer].next; p != &pathvis_edge_lists[layer]; p = p->next) {
         if (seg2d_point_left_of(e->a, p, 0)) {
             pathvis_list_insert_before(p, e);
             return;
         }
     }
-    list_append(head, e);
+    list_append(&pathvis_edge_lists[layer], e);
 }
 
 // 0x4b8230  Confidence: likely (the `all` test after the first edge as a break). Returns 1 = blocked (the
@@ -381,8 +382,8 @@ int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
 {
     profile_label label("do_single_vis_check");
     vector2 a, b, mid;
-    seg2d seg;
-    pathvis_edge *head, *e;
+    pf_edge seg;
+    pathvis_edge *e;
     int layer;
 
     if (!pathvis_ray_clear)
@@ -396,8 +397,7 @@ int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
     mid.y = (b.y + a.y) * 0.5f;
     if (pathvis_bsp_contains(&mid, pf_graphs[pf_cur_size][layer].bsp))
         return 1;
-    head = &pathvis_edge_lists[layer];
-    for (e = head->next; e != head; e = e->next) {
+    for (e = pathvis_edge_lists[layer].next; e != &pathvis_edge_lists[layer]; e = e->next) {
         if (seg2d_segment_intersect(&seg, e, NULL) == 1)
             return 1;
         if (!all)

@@ -76,7 +76,7 @@ void ds3d_release_listener()
     }
 }
 
-// 0x55df30  Confidence: likely (the support test). With EAX the card must support the EAX 1.0 reverb
+// 0x55df30  Confidence: exact (the support test). With EAX the card must support the EAX 1.0 reverb
 // set: the test is `(support & KSPROPERTY_SUPPORT_SET | KSPROPERTY_SUPPORT_GET) != 3` (the OR binds
 // last), so only the SET bit is checked; then property 0 is set to 1.
 int ds3d_init(bool eax)

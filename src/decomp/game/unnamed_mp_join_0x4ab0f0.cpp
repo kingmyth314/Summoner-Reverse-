@@ -197,7 +197,7 @@ void mp_send_deny_join(int reason, net_addr to)
     mp_send_tracked(data, packet_size, to);
 }
 
-// 0x4ab5d0  Confidence: likely (the free id search is a separate loop over the mask). A request from an
+// 0x4ab5d0  Confidence: exact (VC6 byte match, match11; was likely) (the free id search is a separate loop over the mask). A request from an
 // address already in the list is ignored (the warning goes to string_buffer only). The new record gets
 // the lowest free id; the host marks a join pending for 15 s (mp_server_check_clients).
 void mp_accept_join_request(mp_join_request req, net_addr from)
@@ -243,7 +243,7 @@ void mp_accept_join_request(mp_join_request req, net_addr from)
     mp_send_accept_join(p);
 }
 
-// 0x4ab710  Confidence: likely (the float goes through the MP_ADD_FLOAT temporary). The game info, then
+// 0x4ab710  Confidence: exact (VC6 byte match, match11; was likely) (the float goes through the MP_ADD_FLOAT temporary). The game info, then
 // ACPT_JN {the new id, the host's id, the level scale}, buffered and flushed.
 void mp_send_accept_join(mp_player *p)
 {
@@ -322,7 +322,7 @@ void tracker_init()
         tracker_initialized = 1;
 }
 
-// 0x4ab960  Confidence: likely (the three zero stores after the memset are in the binary). The channel is
+// 0x4ab960  Confidence: exact (VC6 byte match, match11; was likely) (the three zero stores after the memset are in the binary). The channel is
 // copied into a 0x24-byte field from a 0x100-byte buffer (D5212).
 void tracker_start_game()
 {

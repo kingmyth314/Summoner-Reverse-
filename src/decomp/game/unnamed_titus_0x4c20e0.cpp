@@ -52,29 +52,7 @@ boss_attack *titus_move_11;           // 0x248b398 [1][1]
 boss_attack *titus_move_23;           // 0x248b39c [2][3]
 boss_attack *titus_move_10;           // 0x248b3a0 [1][0]
 boss_attack *titus_move_22;           // 0x248b3a4 [2][2]
-int  titus_stage;                     // 0x248b3a8
-int  titus_forced_stage;              // 0x248b3ac
-unsigned int titus_flags;             // 0x248b3b0 bit 0: move 10 played, the follow-up comes next
-bool titus_combat_enabled;            // 0x248b3b4
-boss_threat titus_threat_table[BOSS_MAX_THREATS];      // 0x248b3b8
-int  titus_offense_point_count;       // 0x248b430
-boss_offense_point titus_offense_points[10];           // 0x248b434
-boss_attack titus_moves[3][BOSS_MAX_OFFENSE_POINTS];   // 0x248b54c "titus_boss.tbl"
-boss_attack *titus_current_move;      // 0x248b90c
-GameTimer titus_action_timer;         // 0x248b910
-bool titus_turn_lock;                 // 0x248b914
-int  titus_target_handle;             // 0x248b918
-GameTimer titus_attack_timer;         // 0x248b91c
-GameTimer titus_move10_timer;         // 0x248b920
-GameTimer titus_move13_timer;         // 0x248b924
-GameTimer titus_stage_timer_a;        // 0x248b928
-GameTimer titus_stage_timer_b;        // 0x248b92c
-int  titus_pending_mode;              // 0x248b930
-int  titus_area_hit_count;            // 0x248b934
-int  titus_area_hits[5];              // 0x248b938
-move_info *titus_rock_erupt_move;     // 0x248b94c
-int  titus_248b950;                   // 0x248b950 never accessed
-int  titus_rock_erupt_fx_handle;      // 0x248b954
+titus_boss titus;                     // 0x248b3a8-0x248b957: stage .. rock_erupt_fx_handle (D8100; fields in boss_ai.h)
 // ccmd_titus_combat 0x248b958, titus_move_20 0x248b964 and ccmd_titus_stage 0x248b968: below.
 
 // 0x4c20e0  Confidence: exact. static_init_titus_timers: "jmp 0x4c20f0" (initialiser entry 320).
@@ -175,7 +153,7 @@ void titus_unload()
 {
 }
 
-// 0x4c2380  Confidence: likely (the offense-point packing loop as in the other loaders).
+// 0x4c2380  Confidence: exact (VC6 byte match, match22; state object D8100; was likely) (the offense-point packing loop as in the other loaders).
 void ai_state::titus_boss_load()
 {
     int i;
@@ -275,7 +253,7 @@ void titus_end_attack(Character *c)
     c->ai.go_idle();
 }
 
-// 0x4c2630  Confidence: likely (the sub-mode switch: case -1 has its own slot, byte table 0x4c2744; the
+// 0x4c2630  Confidence: exact (VC6 byte match, match22; result switch, case -1: return; was likely) (the sub-mode switch: case -1 has its own slot, byte table 0x4c2744; the
 // bodies are laid out 15, 22/23, 60, 61, 62). The eruption (move 21) goes on without a target.
 void ai_state::titus_ai_frame()
 {
@@ -283,14 +261,17 @@ void ai_state::titus_ai_frame()
     Character *target;
 
     result = titus_ai_select_action();
-    if (result == 0) {
+    switch (result) {
+    case 0:
         titus_end_attack(owner);
         go_idle();
         return;
-    }
-    if (result == 1 && titus_pending_mode == AIS_TITUS_ROCK_ERUPT) {
-        disable_timer.invalidate();
-        set_mode(AI_STATE_COMBAT, AIS_TITUS_ROCK_ERUPT);
+    case 1:
+        if (titus_pending_mode == AIS_TITUS_ROCK_ERUPT) {
+            disable_timer.invalidate();
+            set_mode(AI_STATE_COMBAT, AIS_TITUS_ROCK_ERUPT);
+        }
+        break;
     }
     target = living_from_handle(titus_target_handle);
     owner->combat.target = titus_target_handle;
@@ -305,7 +286,7 @@ void ai_state::titus_ai_frame()
     titus_update_turn_lock(owner);
     switch (submode) {
     case -1:
-        break;
+        return;
     case AIS_CLOSE_COMBAT:
         combat_melee_attack(target);
         break;
@@ -380,14 +361,15 @@ int ai_state::titus_ai_select_action()
     count = boss_target_list_build(owner, list, titus_threat_table);
 
     if (titus_stage == 1) {
+        handle = titus_target_handle;
         if (timer_up || !target) {
-            handle = boss_target_list_pick(list, count, titus_threat_table, titus_target_handle, false, 0);
+            handle = boss_target_list_pick(list, count, titus_threat_table, handle, false, 0);
             if (handle == -1)
                 return 0;
             titus_target_handle = handle;
             titus_set_attack_timer(20000, 30000);
         } else if (retarget) {
-            handle = boss_target_list_pick(list, count, titus_threat_table, titus_target_handle, false, 0x80000000);
+            handle = boss_target_list_pick(list, count, titus_threat_table, handle, false, 0x80000000);
             if (handle == -1)
                 return 0;
             titus_target_handle = handle;
@@ -526,7 +508,7 @@ void titus_set_attack_timer(int min_ms, int max_ms)
     titus_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c2dc0  Confidence: likely, as pyrul_update_attack_points.
+// 0x4c2dc0  Confidence: exact (VC6 byte match, match22; state object D8100, vector sum; was likely), as pyrul_update_attack_points.
 void titus_update_offense_points(Character *c)
 {
     int i;
@@ -538,9 +520,7 @@ void titus_update_offense_points(Character *c)
         pt = &titus_offense_points[i];
         c->instance->get_bone_world_transform(pt->tag, &c->orient, &c->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + c->centre_offset.x;
-        pt->pos.y = pos.y + c->centre_offset.y;
-        pt->pos.z = pos.z + c->centre_offset.z;
+        pt->pos = pos + c->centre_offset;
     }
 }
 
@@ -568,7 +548,8 @@ float titus_get_attack_reach(Character *c)
     return c->info->attack_radius;
 }
 
-// 0x4c2ef0  Confidence: likely. boss_attack_trigger_dispatch case 0xc1. Spell 0x4c casts at the target;
+// 0x4c2ef0  Confidence: exact (VC6 byte match, cl 8966). boss_attack_trigger_dispatch case 0xc1. Spell 0x4c casts
+// at the target;
 // spell 0x3b: moves 10 / 22 knock down the party members within 6 (chance 0.8, the target always) for 2-3
 // s, moves 11 / 23 the target alone for 6-9 s.
 void titus_knock_down_party(Character *boss, Character *target)
@@ -578,22 +559,23 @@ void titus_knock_down_party(Character *boss, Character *target)
 
     if (titus_current_move == NULL || titus_current_move->spell == -1)
         return;
-    if (titus_current_move->spell == SPELL_KNOCKDOWN_MOVE) {
-        if (titus_current_move == titus_move_10 || titus_current_move == titus_move_22) {
-            for (p = party_list.next; p != &party_list; p = p->next) {
-                c = living_from_handle(p->handle);
-                if (c == NULL)
-                    continue;
-                vector3 d(c->pos.x - boss->pos.x, c->pos.y - boss->pos.y, c->pos.z - boss->pos.z);
-                if (d.len_sq() < 36.0f && (frand() < 0.8f || c == target) && c->ai.can_be_knocked_down() == true)
-                    c->ai.knock_down(rand_int_range(2000, 3000));
-            }
-        } else if (titus_current_move == titus_move_11 || titus_current_move == titus_move_23) {
+    if (titus_current_move->spell != SPELL_KNOCKDOWN_MOVE) {
+        if (titus_current_move->spell == SPELL_TITUS_CAST)
+            spell_cast_execute(boss, SPELL_TITUS_CAST, target->handle, NULL, -1, 0, 0, 0);
+    } else if (titus_current_move != titus_move_10 && titus_current_move != titus_move_22) {
+        if (titus_current_move == titus_move_11 || titus_current_move == titus_move_23) {
             if (target->ai.can_be_knocked_down() == true)
                 target->ai.knock_down(rand_int_range(6000, 9000));
         }
-    } else if (titus_current_move->spell == SPELL_TITUS_CAST) {
-        spell_cast_execute(boss, SPELL_TITUS_CAST, target->handle, NULL, -1, 0, 0, 0);
+    } else {
+        for (p = party_list.next; p != &party_list; p = p->next) {
+            c = living_from_handle(p->handle);
+            if (c == NULL)
+                continue;
+            vector3 d(c->pos.x - boss->pos.x, c->pos.y - boss->pos.y, c->pos.z - boss->pos.z);
+            if (d.y * d.y + d.x * d.x + d.z * d.z < 36.0f && (frand() < 0.8f || c == target) && c->ai.can_be_knocked_down() == true)
+                c->ai.knock_down(rand_int_range(2000, 3000));
+        }
     }
 }
 
@@ -672,14 +654,15 @@ void titus_apply_area_hits(Character *c)
 // "Titus-RockErrupt.VFX" effect at the boss; either failing ends the attack.
 void ai_state::titus_ai_rock_erupt()
 {
-    if (owner->play_move((int)titus_rock_erupt_move, 1.0f, true, true, false) != -1) {
-        titus_rock_erupt_fx_handle = titus_rock_erupt_fx(owner->handle);
-        if (titus_rock_erupt_fx_handle != -1) {
-            set_mode(AI_STATE_COMBAT, AIS_TITUS_ERUPT_NEXT);
-            return;
-        }
+    if (owner->play_move((int)titus_rock_erupt_move, 1.0f, true, true, false) == -1)
+        goto fail;
+    titus_rock_erupt_fx_handle = titus_rock_erupt_fx(owner->handle);
+    if (titus_rock_erupt_fx_handle == -1) {
+fail:
+        titus_end_attack(owner);
+        return;
     }
-    titus_end_attack(owner);
+    set_mode(AI_STATE_COMBAT, AIS_TITUS_ERUPT_NEXT);
 }
 
 // 0x4c32a0  Confidence: exact. Sub-mode AIS_TITUS_ERUPT_NEXT.
@@ -729,16 +712,20 @@ void titus_rock_erupt_damage(const vector3 *pos, int source)
             c = living_from_handle(group->members[i]);
             float dx = c->pos.x - pos->x;
             float dz = c->pos.z - pos->z;
-            if (dz * dz + dx * dx < 64.0f)
-                c->add_hp(-((frand() * 0.6f + 0.7f) * 120.0f), source, 1, false);
+            if (dz * dz + dx * dx < 64.0f) {
+                float damage = (frand() * 0.6f + 0.7f) * 120.0f;
+                c->add_hp(-damage, source, 1, false);
+            }
         }
     } else {
         for (p = party_list.next; p != &party_list; p = p->next) {
             c = living_from_handle(p->handle);
             float dx = c->pos.x - pos->x;
             float dz = c->pos.z - pos->z;
-            if (dz * dz + dx * dx < 64.0f)
-                c->add_hp(-((frand() * 0.6f + 0.7f) * 120.0f), source, 1, false);
+            if (dz * dz + dx * dx < 64.0f) {
+                float damage = (frand() * 0.6f + 0.7f) * 120.0f;
+                c->add_hp(-damage, source, 1, false);
+            }
         }
     }
 }

@@ -119,7 +119,7 @@ void bezier::set_points_array(int n, const vector3 *pts)
         points[i] = pts[i];
 }
 
-// 0x558d10  Confidence: likely (the two pow results go through float locals).
+// 0x558d10  Confidence: exact (VC6 byte match, match11; was likely) (the two pow results go through float locals).
 float bezier::blend(int i, int n, float t)
 {
     float coef;

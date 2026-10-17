@@ -113,7 +113,7 @@ void *alt_textures_find(const char *base, int *count)
     return NULL;
 }
 
-// 0x4ab050  Confidence: likely (the base pointer lives in a stack slot, [esp + 0x10]). The set of that name
+// 0x4ab050  Confidence: exact (VC6 byte match, match11; was likely) (the base pointer lives in a stack slot, [esp + 0x10]). The set of that name
 // in the base's array; every base of that name is searched.
 void *alt_textures_find_entry(const char *base, const char *name)
 {

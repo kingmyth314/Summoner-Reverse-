@@ -248,35 +248,35 @@ void ai_state::pyrul_check_stage()
     }
 }
 
-// 0x4b8ce0  Confidence: likely (the sub-mode switch: an explicit case -1 has its own table slot, 0x4b8d78
-// byte 0; the bodies are laid out 15, 22/23).
+// 0x4b8ce0  Confidence: exact (the sub-mode switch: an explicit case -1 has its own table slot, 0x4b8d78
+// byte 0; the bodies are laid out 15, 22/23; go_idle is the else branch, placed last and falling into the
+// shared epilogue, D7700).
 void ai_state::pyrul_ai_frame()
 {
     int result;
     Character *target;
 
     result = pyrul_choose_attack();
-    if (result == 0) {
+    if (result != 0) {
+        target = living_from_handle(pyrul_target);
+        owner->combat.target = pyrul_target;
+        if (target && (target->flags & CF_HIDDEN))
+            target = NULL;
+        if (result == 3)
+            combat_approach(target);
+        switch (submode) {
+        case -1:
+            return;
+        case AIS_CLOSE_COMBAT:
+            combat_melee_attack(target);
+            return;
+        case AIS_GET_CLOSE:
+        case AIS_GET_FAR:
+            combat_close_in(target);
+            return;
+        }
+    } else
         go_idle();
-        return;
-    }
-    target = living_from_handle(pyrul_target);
-    owner->combat.target = pyrul_target;
-    if (target && (target->flags & CF_HIDDEN))
-        target = NULL;
-    if (result == 3)
-        combat_approach(target);
-    switch (submode) {
-    case -1:
-        break;
-    case AIS_CLOSE_COMBAT:
-        combat_melee_attack(target);
-        break;
-    case AIS_GET_CLOSE:
-    case AIS_GET_FAR:
-        combat_close_in(target);
-        break;
-    }
 }
 
 // 0x4b8da0  Confidence: unsure (the shape of the three stage blocks: the pick / retarget code is the same

@@ -1074,7 +1074,10 @@ bool effects_base_is_resident(const char *name)
     int i = effects_find_base(name);
 
     if (i >= 0 && (unsigned int)i < (unsigned int)effects_num_bases)
-        return effect_bases[i].resident;
+    {
+        bool r = effect_bases[i].resident;
+        return r;
+    }
     return true;
 }
 
@@ -1084,7 +1087,10 @@ bool effect_is_cutscene_base(int name_index)
     int i = effect_base_record_index[name_index];
 
     if (i >= 0 && i < effects_num_bases)
-        return effect_bases[i].cutscene;
+    {
+        bool r = effect_bases[i].cutscene;
+        return r;
+    }
     return false;
 }
 

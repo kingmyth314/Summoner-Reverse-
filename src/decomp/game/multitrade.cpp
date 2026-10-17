@@ -58,7 +58,7 @@ void mp_trade_reset()
     mp_trade_request_timer.invalidate();
 }
 
-// 0x470e90  Confidence: likely (the case bodies are laid out 2, 1, 0 after the decrement chain). State 2
+// 0x470e90  Confidence: exact (VC6 byte match, match11; was likely) (the case bodies are laid out 2, 1, 0 after the decrement chain). State 2
 // keeps the partner when none is given.
 void mp_trade_set_state(int state, Player *partner)
 {
@@ -79,7 +79,7 @@ void mp_trade_set_state(int state, Player *partner)
     }
 }
 
-// 0x470ed0  Confidence: likely (if / else form of the 1 and 2..4 tests; the three conditions are bools,
+// 0x470ed0  Confidence: exact (VC6 byte match, match11; was likely) (if / else form of the 1 and 2..4 tests; the three conditions are bools,
 // busy starts false and is only computed while trading). Cancels on the timeout, when cur_character is
 // dead or hidden, or (trading) when it is not in AI mode 1; else sends the keep-alive query.
 void mp_trade_frame()
@@ -88,15 +88,16 @@ void mp_trade_frame()
     bool unavailable;
     bool busy = false;
 
-    if (mp_trade_state == MP_TRADE_REQUESTED) {
-        timed_out = mp_trade_timeout_timer.elapsed();
-        unavailable = (cur_character->flags & MP_TRADE_UNAVAILABLE_FLAGS) != 0;
-    } else if (mp_trade_state > MP_TRADE_REQUESTED && mp_trade_state <= MP_TRADE_PARTNER_ACCEPTED) {
-        timed_out = mp_trade_timeout_timer.elapsed();
-        unavailable = (cur_character->flags & MP_TRADE_UNAVAILABLE_FLAGS) != 0;
-        busy = !cur_character->ai.is_mode(1, -1);
+    if (mp_trade_state != MP_TRADE_REQUESTED) {
+        if (mp_trade_state > MP_TRADE_REQUESTED && mp_trade_state <= MP_TRADE_PARTNER_ACCEPTED) {
+            timed_out = mp_trade_timeout_timer.elapsed();
+            unavailable = (cur_character->flags & MP_TRADE_UNAVAILABLE_FLAGS) != 0;
+            busy = !cur_character->ai.is_mode(1, -1);
+        } else
+            return;
     } else {
-        return;
+        timed_out = mp_trade_timeout_timer.elapsed();
+        unavailable = (cur_character->flags & MP_TRADE_UNAVAILABLE_FLAGS) != 0;
     }
 
     if (timed_out || unavailable || busy)
@@ -238,7 +239,7 @@ void mp_handle_it_acpt(ubyte *data, void *from)
     interface_set_screen(MP_TRADE_SCREEN, 0);
 }
 
-// 0x471370  Confidence: likely (the merge loop: break after adding, append when the loop ran out). (partner
+// 0x471370  Confidence: exact (VC6 byte match, match11; was likely) (the merge loop: break after adding, append when the loop ran out). (partner
 // net handle, item type, count, charges). Sent unreliably by a client. The local list keeps type and
 // count only.
 void mp_send_it_addi(item_info *item, int count)
@@ -314,7 +315,7 @@ void mp_handle_it_addi(ubyte *data, void *from)
     mp_trade_request_timer.SetTimeout(MP_TRADE_QUERY_PERIOD);
 }
 
-// 0x4715a0  Confidence: likely (the second i < count test after the search loop). Takes back one of the
+// 0x4715a0  Confidence: exact (VC6 byte match, match11; was likely) (the second i < count test after the search loop). Takes back one of the
 // offered items, or all the offered gold. (partner net handle, item type)
 void mp_send_it_rmvi(ItemType *type)
 {
@@ -412,7 +413,7 @@ void mp_send_it_okay()
     }
 }
 
-// 0x4718d0  Confidence: likely (party_inventory[slot].count is updated in place and re-read for the test).
+// 0x4718d0  Confidence: exact (VC6 byte match, match11; was likely) (party_inventory[slot].count is updated in place and re-read for the test).
 // Gives the offered items away and takes the partner's; the partner's items are new items with the
 // charges it sent. The local slot is not checked for -1 (see NOTES).
 void mp_trade_complete()

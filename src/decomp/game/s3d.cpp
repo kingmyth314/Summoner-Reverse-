@@ -598,9 +598,9 @@ void s3d_read_vertex_set(s3d_level *level, s3d_vertex_set *rec, File *f)
     file_sync_vector_array(f, rec->verts, rec->count, 0, &file_zero_vector);
 }
 
-// 0x46f2c0  Confidence: likely. The orientation is a quaternion in the file. In write mode the
-// quaternion is built as a temporary (the pointer constructor 0x522790, D806) and copied into q with
-// the inline operator= before writing.
+// 0x46f2c0  Confidence: exact (D7700). The orientation is a quaternion in the file. In write mode the
+// quaternion is built in a local (the pointer constructor 0x522790, D806) and copied into q with the
+// inline operator= before writing.
 void s3d_read_navpoint(s3d_level *level, s3d_navpoint *np, File *f)
 {
     quaternion q;
@@ -615,7 +615,8 @@ void s3d_read_navpoint(s3d_level *level, s3d_navpoint *np, File *f)
         f->read_quaternion(&q, 0, &file_identity_quaternion);
         q.to_matrix_b(&np->orient);
     } else {
-        q = quaternion(&np->orient);
+        quaternion t(&np->orient);
+        q = t;
         f->write_quaternion(&q);
     }
     f->sync_vector(&np->pos, 0, &file_zero_vector);
@@ -1100,7 +1101,8 @@ void s3d_read_color_record(File *f, s3d_color_record *rec)
     rec->b = (v > 0.0f) ? ((v < 0.998f) ? v : 0.998f) : 0.0f;
 }
 
-// 0x470410  Confidence: likely. The bitmap is stored by name (empty = none).
+// 0x470410  Confidence: exact (the name write as an if / else of two calls, D7700). The bitmap is stored by
+// name (empty = none).
 int s3d_read_textured_record(File *f, s3d_textured_record *rec)
 {
     char name[0xdc];
@@ -1118,7 +1120,10 @@ int s3d_read_textured_record(File *f, s3d_textured_record *rec)
         else
             rec->bm = -1;
     } else
-        f->write_string(rec->bm != -1 ? bm_get_filename(rec->bm) : "", -1);
+        if (rec->bm != -1)
+            f->write_string(bm_get_filename(rec->bm), -1);
+        else
+            f->write_string("", -1);
     f->sync_uint(&rec->num_weights, 0, 0);
     if (f->check_flags(1)) {
         rec->weights = new float[rec->num_weights];

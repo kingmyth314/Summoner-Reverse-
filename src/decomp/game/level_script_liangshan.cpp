@@ -72,7 +72,7 @@ void ls_liangshan_init()
         script_npc_set_disabled("Piaobo#oni", true);
 }
 
-// 0x4f4a20  Confidence: exact. level_script_table frame. The riders (boss music, the intro, their deaths),
+// 0x4f4a20  Confidence: exact (VC6 byte match, match14; was exact). level_script_table frame. The riders (boss music, the intro, their deaths),
 // the wounded soldier and the guardian talk by themselves when the player comes near, the marsh poison is
 // renewed on every party member, and the guardian's death with the ring in the party ends the quest.
 void ls_liangshan_frame()
@@ -98,7 +98,8 @@ void ls_liangshan_frame()
         && !(game_flags & GF_CUTSCENE)) {
         ls_liangshan_phoenix_serpent_done = true;
         level_script_event_active = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_liangshan_phoenix_dead_done && savegame_state.get_flag(cur_level_index, "phoenix_dead")
         && savegame_state.get_flag(cur_level_index, "serpent_dead") && !(game_flags & GF_CUTSCENE)) {

@@ -73,28 +73,30 @@ int state6_selection;                                         // 0x60fe24
 // 0x43fa90  Confidence: exact. The button opens the list (window 100 x 400) on the current entry.
 bool state6_button_cb(int event, int value)
 {
-    if (event != UI_EVENT_PRESSED)
-        return false;
-    state6_button.set_disabled(true);
-    state6_listbox.set_enabled(true);
-    state6_listbox.select_by_data(state6_selection, true);
-    state6_listbox.set_focus();
-    state6_window.set_size(100, 400);
-    return true;
+    if (event == UI_EVENT_PRESSED) {
+        state6_button.set_disabled(true);
+        state6_listbox.set_enabled(true);
+        state6_listbox.select_by_data(state6_selection, true);
+        state6_listbox.set_focus();
+        state6_window.set_size(100, 400);
+        return true;
+    }
+    return false;
 }
 
 // 0x43faf0  Confidence: exact. A double click picks the entry, closes the list (window 100 x 15) and
 // shows its name on the button.
 bool state6_listbox_cb(int event, int value)
 {
-    if (event != UI_EVENT_LIST_DBLCLICK)
-        return false;
-    state6_selection = state6_listbox.get_selected()->data;
-    state6_listbox.set_disabled(true);
-    state6_button.set_enabled(true);
-    state6_window.set_size(100, 15);
-    state6_button.set_text(char_infos[state6_selection].name);
-    return true;
+    if (event == UI_EVENT_LIST_DBLCLICK) {
+        state6_selection = state6_listbox.get_selected()->data;
+        state6_listbox.set_disabled(true);
+        state6_button.set_enabled(true);
+        state6_window.set_size(100, 15);
+        state6_button.set_text(char_infos[state6_selection].name);
+        return true;
+    }
+    return false;
 }
 
 // 0x43fb60  Confidence: likely (the first entry is kept in a register: `if (!first) first = e`). The list

@@ -305,7 +305,7 @@ void lsf_sewers_flag_smell_comment()
 // exits open, the spline goes and every tentacle sinks for 7 s.
 void ls_sewerboss_frame()
 {
-    tentacle_info *t;
+    int i;
 
     lsf_sewer_found_tb();
     tentacle_beast_battle_update();
@@ -329,8 +329,8 @@ void ls_sewerboss_frame()
             avoid_spline_free(ls_sewerboss_avoid_spline);
             ls_sewerboss_avoid_spline = -1;
         }
-        for (t = tentacle_beast_tentacles; t < &tentacle_beast_tentacles[NUM_TENTACLES]; t++)
-            tentacle_begin_sink(t, 7000);
+        for (i = 0; i < NUM_TENTACLES; i++)
+            tentacle_begin_sink(&tentacle_beast_tentacles[i], 7000);
         tentacle_beast_battle_started = false;
     }
 }
@@ -355,17 +355,17 @@ void lsf_sewer_found_tb()
     }
 }
 
-// 0x4ee2d0  Confidence: likely (the two loops' form). End of TB-Intro: the four tentacles go to their ready
+// 0x4ee2d0  Confidence: exact (the two loops' form). End of TB-Intro: the four tentacles go to their ready
 // stance and idle, the battle starts with all four up, every party member drops its prop and gets ready, the
 // boss music follows in 0.5 s, the avoidance spline and the golems' first labels.
 void ls_sewer_tb_intro_cs_end()
 {
-    tentacle_info *t;
+    int i;
     Player *p;
     Character *c;
 
-    for (t = tentacle_beast_tentacles; t < &tentacle_beast_tentacles[NUM_TENTACLES]; t++) {
-        c = t->character;
+    for (i = 0; i < NUM_TENTACLES; i++) {
+        c = tentacle_beast_tentacles[i].character;
         c->flags |= CF_COMBAT_READY;
         c->ai.go_idle();
     }

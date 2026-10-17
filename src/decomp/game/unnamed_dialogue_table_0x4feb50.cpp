@@ -50,14 +50,14 @@ struct dialogue_pending_speaker {        // 0xc bytes, pool at esp+0xc0
 // 0x4feb50  Confidence: exact. Move-in 3 s, move-out 1.5 s, no flags, no topics.
 void conversation_speaker::init(const char *name)
 {
-    next = NULL;
-    flags = 0;
     move_in_time = 3000;
-    move_out_time = 1500;
     this->name = name;
     topics = NULL;
     topics_tail = NULL;
     greeting = NULL;
+    next = NULL;
+    flags = 0;
+    move_out_time = 1500;
 }
 
 // 0x4feb80  Confidence: exact (the inline strcmp). The topic of that label, NULL.
@@ -74,7 +74,7 @@ conversation_topic *conversation_speaker::find_topic(const char *name)
 void conversation_speaker::refresh_topic_flags()
 {
     for (conversation_topic *t = topics; t; t = t->next) {
-        if (t == greeting || t->initial)
+        if (t == greeting || (bool)t->initial)
             t->flags |= CTOPIC_LISTED | CTOPIC_FRESH;
         else
             t->flags &= ~(CTOPIC_LISTED | CTOPIC_FRESH);

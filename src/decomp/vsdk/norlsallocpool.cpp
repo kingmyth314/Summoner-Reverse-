@@ -17,11 +17,11 @@
 #include <string.h>
 #include "vsdk/os/norlsallocpool.h"
 
-// 0x532360  Confidence: likely (store order start, blocks, the two bits, last_allocation).
+// 0x532360  Confidence: exact (VC6 byte match, match14; was likely) (store order start, blocks, the two bits, last_allocation).
 NoRlsAllocPool::NoRlsAllocPool()
 {
-    blocks = NULL;
     start = NULL;
+    blocks = NULL;
     owns_blocks = 0;
     can_grow = 0;
     last_allocation = NULL;
@@ -49,7 +49,7 @@ void NoRlsAllocPool::Release()
     }
 }
 
-// 0x5323d0  Confidence: exact. 0 = a new block is current, 1 = not owned or out of memory.
+// 0x5323d0  Confidence: exact (VC6 byte match, match14; was exact). 0 = a new block is current, 1 = not owned or out of memory.
 int NoRlsAllocPool::AddBlock()
 {
     if (!owns_blocks)
@@ -59,18 +59,19 @@ int NoRlsAllocPool::AddBlock()
     if (block == NULL)
         return 1;
 
-    block[0] = blocks;
+    void *prev = blocks;
     blocks = block;
+    block[0] = prev;
     start = (char *)(block + 1);
     Reset();
     return 0;
 }
 
-// 0x532420  Confidence: exact (neg / sbb / neg is the != 0).
+// 0x532420  Confidence: exact (VC6 byte match, match14; was exact) (neg / sbb / neg is the != 0).
 int NoRlsAllocPool::InitBlocks(int block_size, bool can_grow)
 {
     this->block_size = block_size;
-    this->can_grow = can_grow;
+    this->can_grow = can_grow != 0;
     owns_blocks = 1;
     return AddBlock() != 0;
 }

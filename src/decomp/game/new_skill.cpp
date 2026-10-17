@@ -230,7 +230,8 @@ void skills_init()
         skills_set_page(skills_page);
 }
 
-// 0x427570  Confidence: likely (the summon branch's spell test is a for loop with the found test after it).
+// 0x427570  Confidence: exact (the summon branch's spell test is a for loop with the found test after it; the
+// two branches as if / else with the one `return count` at the end, D7700).
 // A party member counts the skills of its progression reached at its level, but the table walked is
 // party_leader's (see NOTES); a summon counts its passive skills. The spells group needs a castable spell.
 int skills_count_in_group(int group)
@@ -243,50 +244,62 @@ int skills_count_in_group(int group)
     count = 0;
 
     if (cur_character->flags & 0x100) {
-        if (group != 0 && (group <= 3 || group > 5))
-            return count;
-        for (i = 0; i < SKILLS_NUM_LISTED; i++) {
-            if (skill_table[i].group == group && (skill_table[i].flags & 1)
-                && cur_character->get_skill(i) > 0.0f) {
-                if (group == 5) {
-                    int k;
+        if (group == 0 || (group > 3 && group <= 5)) {
+            for (i = 0; i < SKILLS_NUM_LISTED; i++) {
+                if (skill_table[i].group == group && (skill_table[i].flags & 1)
+                    && cur_character->get_skill(i) > 0.0f) {
+                    if (group == 5) {
+                        int k;
 
-                    for (k = 0; k < 8; k++) {
-                        if (spells_count_in_group(k) > 0)
-                            break;
+                        for (k = 0; k < 8; k++) {
+                            if (spells_count_in_group(k) > 0)
+                                break;
+                        }
+                        if (k >= 8)
+                            continue;
                     }
-                    if (k >= 8)
-                        continue;
+                    count++;
                 }
-                count++;
             }
         }
-        return count;
-    }
+    } else {
+        for (i = 0; i < party_leader->num_progression; i++) {
+            const skill_progression *p = &party_leader->progression[i];
+            int skill;
 
-    for (i = 0; i < party_leader->num_progression; i++) {
-        const skill_progression *p = &party_leader->progression[i];
-        int skill;
-
-        if (cur_character->level < p->level)
-            break;
-        skill = p->skill;
-        if (skill_table[skill].group == group
-            && !((game_flags & 2) && (skill == SKILL_PICK_LOCK || skill == SKILL_APPRAISE))
-            && cur_character->get_skill(skill) > 0.0f)
-            count++;
+            if (cur_character->level < p->level)
+                break;
+            skill = p->skill;
+            if (skill_table[skill].group == group
+                && !((game_flags & 2) && (skill == SKILL_PICK_LOCK || skill == SKILL_APPRAISE))
+                && cur_character->get_skill(skill) > 0.0f)
+                count++;
+        }
     }
     return count;
 }
 
 // 0x4276a0  Confidence: exact (byte table 0x427874 over the species 0..0xce into the jump table 0x427830;
-// the same mapping as spells_update_species_tab).
+// the same mapping as spells_update_species_tab). The 16 flag clears are written out: cl 8966 keeps a
+// loop as a loop, the binary has 16 and / store pairs (D7700).
 void skills_update_species_tab()
 {
-    int i;
-
-    for (i = 1; i <= 16; i++)
-        skills_buttons[i].flags &= ~1;
+    skills_buttons[1].flags &= ~1;
+    skills_buttons[2].flags &= ~1;
+    skills_buttons[3].flags &= ~1;
+    skills_buttons[4].flags &= ~1;
+    skills_buttons[5].flags &= ~1;
+    skills_buttons[6].flags &= ~1;
+    skills_buttons[7].flags &= ~1;
+    skills_buttons[8].flags &= ~1;
+    skills_buttons[9].flags &= ~1;
+    skills_buttons[10].flags &= ~1;
+    skills_buttons[11].flags &= ~1;
+    skills_buttons[12].flags &= ~1;
+    skills_buttons[13].flags &= ~1;
+    skills_buttons[14].flags &= ~1;
+    skills_buttons[15].flags &= ~1;
+    skills_buttons[16].flags &= ~1;
 
     if (cur_character) {
         int tab;
@@ -315,44 +328,49 @@ void skills_update_species_tab()
     }
 }
 
-// 0x427950  Confidence: likely (as spells_count_page; byte table 0x427b3c over i - 23).
+// 0x427950  Confidence: exact (byte table 0x427b3c over i - 23; each case body written out, D7700).
 void skills_count_page()
 {
     int i;
 
-    for (i = 0; i < SKILLS_NUM_BUTTONS; i++) {
-        int group;
+// One group's tab: shown with its arrow when the group has a skill (the case bodies are the same code
+// with constant indices, so the original wrote them out; a macro here).
+#define SKILLS_GROUP_TAB(btn, group)                       \
+    if (skills_count_in_group(group) > 0) {                \
+        skills_buttons[btn].flags |= 1;                    \
+        skills_buttons[(btn) + 1].flags &= ~4;             \
+    } else {                                               \
+        skills_buttons[btn].flags &= ~1;                   \
+        skills_buttons[(btn) + 1].flags |= 4;              \
+    }
 
+    for (i = 0; i < SKILLS_NUM_BUTTONS; i++) {
         switch (i) {
-        case 23: group = 0; break;
-        case 26: group = 1; break;
-        case 29: group = 2; break;
-        case 32: group = 3; break;
-        case 35: group = 4; break;
-        case 38: group = 5; break;
-        default:
-            continue;
-        }
-        if (skills_count_in_group(group) > 0) {
-            skills_buttons[i].flags |= 1;
-            skills_buttons[i + 1].flags &= ~4;
-        } else {
-            skills_buttons[i].flags &= ~1;
-            skills_buttons[i + 1].flags |= 4;
+        case 23: SKILLS_GROUP_TAB(23, 0); break;
+        case 26: SKILLS_GROUP_TAB(26, 1); break;
+        case 29: SKILLS_GROUP_TAB(29, 2); break;
+        case 32: SKILLS_GROUP_TAB(32, 3); break;
+        case 35: SKILLS_GROUP_TAB(35, 4); break;
+        case 38: SKILLS_GROUP_TAB(38, 5); break;
         }
     }
+#undef SKILLS_GROUP_TAB
 }
 
-// 0x427b50  Confidence: likely (byte table 0x427d80 over skill - 1 into the jump table 0x427d5c; the
-// protection and speed attributes are never listed). With a summon out the Creation page holds only
+// 0x427b50  Confidence: exact (byte table 0x427d80 over skill - 1 into the jump table 0x427d5c; the six
+// tab clears written out, D7700; the protection and speed attributes are never listed). With a summon out the Creation page holds only
 // Banish summon.
 void skills_set_page(int page)
 {
     int i;
 
     skills_page = page;
-    for (i = 41; i <= 46; i++)
-        skills_buttons[i].flags &= ~1;
+    skills_buttons[41].flags &= ~1;
+    skills_buttons[42].flags &= ~1;
+    skills_buttons[43].flags &= ~1;
+    skills_buttons[44].flags &= ~1;
+    skills_buttons[45].flags &= ~1;
+    skills_buttons[46].flags &= ~1;
     switch (page) {
     case 0: skills_buttons[41].flags |= 1; break;
     case 1: skills_buttons[42].flags |= 1; break;
@@ -752,7 +770,7 @@ void skills_page4() { skills_set_page(4); }
 // 0x428700  Confidence: exact.
 void skills_page5() { skills_set_page(5); }
 
-// 0x428710  Confidence: likely (skills_list[skills_hover_row] is read before the hit test, also when the row
+// 0x428710  Confidence: exact (skills_list[skills_hover_row] is read before the hit test, also when the row
 // is -1; the jump table 0x428938 over skill - 0x11 through the byte table 0x428950). Released on the row: aimed
 // attack and summon open their popups, identify opens the inventory in identify mode, pick lock waits for a
 // world pick (hud_target_mode 2), the rest is used at once. Dragged off from the icon: the icon goes to the hot
@@ -773,8 +791,9 @@ void skills_handle_mouse()
                 skills_mouse_mode = 5;
                 break;
             case SKILL_APPRAISE: {
-                bool identify = true;
+                int identify;   // a dword slot; the byte at +0 is set (the binary's [esp + 4], D7700)
 
+                *(bool *)&identify = true;
                 interface_set_screen(1, &identify);
                 break;
             }

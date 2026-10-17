@@ -428,21 +428,23 @@ dialogue_line *dialogue_box::add_text(const char *text, int kind, bool spacer, c
     return l;
 }
 
-// 0x4d7410  Confidence: exact. Returns the position in the ring order, not the ring index.
+// 0x4d7410  Confidence: exact (VC6 8966: the ring index as (first + i) % 64 and line[idx] fields, D7700).
+// Returns the position in the ring order, not the ring index.
 int dialogue_box::first_visible_line()
 {
     int top_y = -(int)scroll;
-    int i, j;
+    int i;
 
-    for (i = 0, j = first; i < count; i++, j++) {
-        dialogue_line *l = &line[j % DIALOGUE_RING];
-        if (l->text && l->top + l->height > top_y)
+    for (i = 0; i < count; i++) {
+        int idx = (first + i) % DIALOGUE_RING;
+        if (line[idx].text && line[idx].height + line[idx].top > top_y)
             return i;
     }
     return -1;
 }
 
-// 0x4d7480  Confidence: exact. Returns the ring index of the last line that starts above the bottom.
+// 0x4d7480  Confidence: likely (under 8966 EBX / EBP swap, D7702). Returns the ring index of the last line
+// that starts above the bottom.
 int dialogue_box::last_visible_line()
 {
     int bottom = gr_get_font_height(-1) * lines - (int)scroll;
@@ -532,7 +534,7 @@ void dialogue_box::draw()
     gr::set_clip(cx, cy, cw, ch);
 }
 
-// 0x4d7800  Confidence: exact.
+// 0x4d7800  Confidence: likely (under 8966 the argument loads are scheduled differently, D7702).
 dialogue_topic_entry *dialogue_topic_list::add(conversation_topic *topic, int kind)
 {
     dialogue_topic_entry *e;

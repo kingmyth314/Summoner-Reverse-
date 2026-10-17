@@ -202,7 +202,7 @@ void ls_lpalaceint_frame()
     lsf_lpalaceint_talked_to_joe();
 }
 
-// 0x4f2f00  Confidence: likely (the case order and the loop forms). The sneak sequence. State 0: in the
+// 0x4f2f00  Confidence: exact (the case order and the loop forms). The sneak sequence. State 0: in the
 // servant's disguise the upper guards who see Flece (cone 0.71) block her with an avoidance spline and
 // pause their script until they lose sight of her (cone 0), the lower guards only grumble; without it the
 // first guard who sees her shouts, walks to where she will be in 0.5 s, input goes off (state 1). State 1:
@@ -217,6 +217,7 @@ void ls_lpalaceint_sneak_frame()
     navpoint *np;
     vector3 pos;
     int i;
+    int r;
 
     switch (ls_lpalaceint_sneak_state) {
     case 0:
@@ -242,13 +243,15 @@ void ls_lpalaceint_sneak_frame()
                                 script_object_resume_index(c->script_object);
                         }
                     } else if (script_guard_sees_player(c, 0.71f)) {
-                        c->say(localize_string_or_invalid(ls_lpalaceint_guard_servant_lines[rand() % 5]), 2.0f);
+                        r = rand();
+                        c->say(localize_string_or_invalid(ls_lpalaceint_guard_servant_lines[r % 5]), 2.0f);
                         script_alloc_avoid_spline(c->handle, cur_character->handle);
                         if (c->script_object >= 0)
                             script_object_suspend(c->script_object);
                     }
                 } else if (ls_lpalaceint_guard_in_group(c, false) && script_guard_sees_player(c, 0.71f)) {
-                    c->say(localize_string_or_invalid(ls_lpalaceint_guard_servant_line[rand() % 1]), 2.0f);
+                    r = rand();
+                    c->say(localize_string_or_invalid(ls_lpalaceint_guard_servant_line[r % 1]), 2.0f);
                 }
             }
             break;
@@ -260,7 +263,8 @@ void ls_lpalaceint_sneak_frame()
         }
         if (c == &living_list)
             break;
-        c->say(localize_string_or_invalid(ls_lpalaceint_guard_halt_lines[rand() % 7]), 2.0f);
+        r = rand();
+        c->say(localize_string_or_invalid(ls_lpalaceint_guard_halt_lines[r % 7]), 2.0f);
         ls_lpalaceint_caught_counts = _stricmp(c->get_name(), "Palace Guard#1a") != 0;
         cur_character->ai.predict_owner_position(&pos, 0.5f);
         c->ai_add_goal9(&pos, cur_character->layer, 999999, false);

@@ -84,6 +84,7 @@ void assess_load_bitmaps()
 
     for (int i = 0; i < 7; i++) {
         screen_button *b = &assess_buttons[i];
+        const screen_button_def *d = &assess_button_defs[i];
         b->flags = 0;
         b->bitmap = -1;
         b->x = 0;
@@ -91,7 +92,6 @@ void assess_load_bitmaps()
         b->w = 0;
         b->h = 0;
         progress_update(0);
-        const screen_button_def *d = &assess_button_defs[i];
         if (strlen(d->name) == 0)
             continue;
         strcpy(name, d->name);
@@ -233,19 +233,19 @@ void assess_leave()
         game_unpause();
 }
 
-// 0x4017f0, screen 20 per-frame input. Confidence: likely (case 1 returns on its own; probably
+// 0x4017f0, screen 20 per-frame input. Confidence: exact (case 1 returns on its own; probably
 // tail duplication of the common return)
 int assess_frame(int key)
 {
-    for (screen_button *b = assess_buttons; b < assess_buttons + 7; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < 7; i++)
+        assess_buttons[i].flags &= ~2;
 
     switch (assess_mouse_mode) {
     case 0:
         return assess_handle_click(key);
     case 1:
         assess_update_buttons();
-        break;
+        return key;
     case 2:
         assess_drag_scrollbar();
         break;
@@ -260,17 +260,18 @@ int assess_handle_click(int key)
     assess_pressed_button = -1;
     for (int i = 0; i < 7; i++) {
         screen_button *b = &assess_buttons[i];
-        if (!(b->flags & 4) && (assess_button_defs[i].flags & 5)
+        const screen_button_def *d = &assess_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 5)
             && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             b->flags |= 2;
             assess_pressed_button = i;
-            if (assess_button_defs[i].flags & 1) {
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     assess_mouse_mode = 1;
                     assess_repeat_timer.invalidate();
                     return key;
                 }
-            } else if (assess_button_defs[i].flags & 4) {
+            } else if (d->flags & 4) {
                 if (mouse_was_pressed(0)) {
                     assess_mouse_mode = 1;
                     assess_button_action(assess_pressed_button + 1);
@@ -319,14 +320,19 @@ void assess_page_up()
 // 0x401a50. Confidence: exact
 void assess_page_down()
 {
-    if (assess_scroll_pos < assess_line_count - assess_page_size[resolution_index]) {
-        assess_scroll_pos = min(assess_scroll_pos + assess_page_size[resolution_index],
-                                assess_line_count - assess_page_size[resolution_index]);
+    int pos = assess_scroll_pos;
+    int page = assess_page_size[resolution_index];
+    int last = assess_line_count - page;
+    if (pos < last) {
+        pos += page;
+        if (pos < last)
+            last = pos;
+        assess_scroll_pos = last;
         assess_update_scrollbar();
     }
 }
 
-// 0x401a80, id = button index + 1 (2 up, 4 down, 6 close). Confidence: likely (VC6 laid the
+// 0x401a80, id = button index + 1 (2 up, 4 down, 6 close). Confidence: exact (VC6 laid the
 // bodies out 6, 4, 2 with the two 0x25 sounds tail-merged; the source order may differ)
 void assess_button_action(int id)
 {
@@ -374,15 +380,16 @@ void assess_update_buttons()
         screen_button *b = &assess_buttons[id];
         if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
             b->flags |= 2;
-        if (mouse_is_down(0)) {
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !assess_repeat_timer.valid())
+                assess_button_action(id);
+        } else {
             if (assess_repeat_timer.valid() && assess_repeat_timer.elapsed() && (b->flags & 2)) {
                 assess_button_action(id);
                 assess_repeat_timer.SetTimeout(100);
             }
             return;
         }
-        if ((b->flags & 2) && !assess_repeat_timer.valid())
-            assess_button_action(id);
     }
     assess_mouse_mode = 0;
 }
@@ -395,7 +402,10 @@ void assess_drag_scrollbar()
     int pos = (int)((float)offset / assess_scrollbar_track_height[resolution_index]
                     * assess_line_count + 0.5f);
     pos = max(pos, 0);
-    assess_scroll_pos = min(pos, assess_line_count - assess_page_size[resolution_index]);
+    int last = assess_line_count - assess_page_size[resolution_index];
+    if (pos < last)
+        last = pos;
+    assess_scroll_pos = last;
     assess_update_scrollbar();
     if (!mouse_is_down(0))
         assess_mouse_mode = 0;
@@ -405,7 +415,8 @@ void assess_drag_scrollbar()
 void assess_draw()
 {
     gr_set_color(255, 255, 255, 255);
-    for (screen_button *b = assess_buttons; b < assess_buttons + 7; b++) {
+    for (int i = 0; i < 7; i++) {
+        screen_button *b = &assess_buttons[i];
         if (b->flags & 3)
             ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }

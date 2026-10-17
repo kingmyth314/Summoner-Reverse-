@@ -601,8 +601,8 @@ void inventory_leave()
 // 0x4158f0  Confidence: exact (jump table 0x415984). Screen 1 per-frame input.
 int inventory_frame(int key)
 {
-    for (ui_button_state *b = inventory_buttons; b < inventory_buttons + INVENTORY_NUM_BUTTONS; b++)
-        b->flags &= ~2;
+    for (int i = 0; i < INVENTORY_NUM_BUTTONS; i++)
+        inventory_buttons[i].flags &= ~2;
 
     if (ui_message_box_is_active())
         return key;
@@ -970,7 +970,8 @@ void inventory_show_item_info()
     item_info *item;
 
     if (inventory_selection_is_list_row) {
-        party_inventory_entry *entry = inventory_get_list_item(inventory_scroll_pos + inventory_selected_row);
+        int row = inventory_scroll_pos + inventory_selected_row;
+        party_inventory_entry *entry = inventory_get_list_item(row);
         if (!entry)
             return;
         item = entry->item;
@@ -1196,16 +1197,18 @@ void inventory_update_buttons()
     inventory_mouse_mode = 0;
 }
 
-// 0x416af0  Confidence: likely (one store to the scroll position, so the clamp is one expression). The
+// 0x416af0  Confidence: exact. The
 // stored start values: see NOTES (the two sum.symbols names are swapped).
 void inventory_drag_scrollbar()
 {
-    int offset = game_mouse_y - inventory_scrollbar_track[resolution_index][1] - inventory_drag_start_mouse_y
-               + inventory_drag_start_thumb_y;
+    int offset = inventory_drag_start_thumb_y + (game_mouse_y - inventory_scrollbar_track[resolution_index][1] - inventory_drag_start_mouse_y);
     int pos = (int)((float)offset / inventory_scrollbar_track_h[resolution_index] * inventory_row_count + 0.5f);
 
     pos = max(pos, 0);
-    inventory_scroll_pos = min(pos, inventory_row_count - inventory_page_size[resolution_index]);
+    int last = inventory_row_count - inventory_page_size[resolution_index];
+    if (pos < last)
+        last = pos;
+    inventory_scroll_pos = last;
     inventory_update_scrollbar();
     if (!mouse_is_down(0))
         inventory_mouse_mode = 0;
@@ -1399,7 +1402,8 @@ void inventory_identify_item()
 
     if (!inventory_selection_is_list_row)
         return;
-    party_inventory_entry *entry = inventory_get_list_item(inventory_scroll_pos + inventory_selected_row);
+    int row = inventory_scroll_pos + inventory_selected_row;
+    party_inventory_entry *entry = inventory_get_list_item(row);
     if (!entry)
         return;
 
@@ -1582,12 +1586,12 @@ void inventory_drag_to_equip()
 void inventory_equip_item(int slot, party_inventory_entry *entry)
 {
     item_info *old1, *old2;
-    bool remove = false;
 
     if (slot == -1)
         return;
     if (items_same_type(INV_EQUIP(status_character, slot), entry->item))
         return;
+    bool remove = false;
 
     if (entry->count > 1) {
         character_equip_item(&old1, &old2, status_character, slot, item_create_by_name(entry->item->type->name));
@@ -1698,7 +1702,8 @@ void inventory_draw()
     char gold[16];
 
     gr_set_color(255, 255, 255, 255);
-    for (ui_button_state *b = inventory_buttons; b < inventory_buttons + INVENTORY_NUM_BUTTONS; b++) {
+    for (int i = 0; i < INVENTORY_NUM_BUTTONS; i++) {
+        ui_button_state *b = &inventory_buttons[i];
         if (b->flags & 3)
             ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
@@ -1875,7 +1880,7 @@ void inventory_model_view_end()
     gr_screen.offset_y = inventory_saved_view_y;
 }
 
-// 0x417e10  Confidence: likely (local order). The character (animated in single player), then the weapon at
+// 0x417e10  Confidence: exact. The character (animated in single player), then the weapon at
 // char_info prop bone [0] and the shield at bone [15] (else [1]); not in the servant disguise on level 0x18.
 void inventory_draw_character()
 {
@@ -1908,8 +1913,8 @@ void inventory_draw_character()
         }
     }
     if (status_character->equipment[6]) {
-        int bone = status_character->info->_unk168[15] >= 0 ? status_character->info->_unk168[15]
-                                                            : status_character->info->_unk168[1];
+        int bone = status_character->info->_unk168[15] >= 0 ? (int)status_character->info->_unk168[15]
+                                                            : (int)status_character->info->_unk168[1];
         if (bone >= 0) {
             CHARINST_M(status_character)->get_bone_world_transform(bone, &cam_orient, &cam_pos, &bone_orient,
                                                                    &bone_pos);

@@ -25,7 +25,7 @@ public:
     light *next;                      // +0x00 active list (light_list_head)
     light *prev;                      // +0x04
     short type : 14;                  // +0x08 LIGHT_TYPE_* (signed field: SHL 2 / SAR 2)
-    ushort enabled : 1;               //       bit 14
+    short enabled : 1;                //       bit 14 (signed: the stores clear it with `and dh, -0x41`, D7904)
     short dynamic : 1;                //       bit 15: changes do not count in light_change_count (signed, D6002)
     short _pad0a;
     vector3 pos;                      // +0x0c
@@ -69,7 +69,7 @@ extern matrix gr_light_matrix;                        // 0x2692800
 extern int gr_instance_depth;                         // 0x2692e94
 
 void light_reset_all();                               // 0x51e0c0
-void light_set_all_enabled(int on);                   // 0x51e100 bit 14 of every light's flags (+8); D4006
+void light_set_all_enabled(bool on);                  // 0x51e100 bit 14 of every light's flags (+8); D4006, D7904
 void light_transform_to_instance(light *l);           // 0x51e140
 void light_set_ambient(float r, float g, float b);    // 0x51e230
 void light_get_ambient(float *r, float *g, float *b); // 0x51e260
@@ -86,7 +86,7 @@ int  light_create_spot(const vector3 *pos, const vector3 *dir, float angle_a, fl
 void light_delete(int index);                         // 0x51e540
 void light_set_pos(int index, const vector3 *pos);    // 0x51e5e0
 void light_get_pos(int index, vector3 *pos);          // 0x51e620
-void light_set_enabled(int index, int on);            // 0x51e650
+void light_set_enabled(int index, bool on);           // 0x51e650 (D7904)
 bool light_is_enabled(int index);                     // 0x51e690
 void light_set_radius(int index, float inner, float outer);     // 0x51e6b0
 void light_get_radius(int index, float *inner, float *outer);   // 0x51e700

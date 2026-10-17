@@ -24,16 +24,21 @@
 
 #define ELEVATOR_RANGE 2.0f           // script_player_near_navpoint distance (push 0x40000000)
 
-// 0x41dde0  Confidence: likely (if / else if against a two-case switch; both give the cmp / je chain, the
+// 0x41dde0  Confidence: exact (VC6 byte match, cl 8966; was likely: if / else if against a two-case switch; both
+// give the cmp / je chain, the
 // two calls are tail jumps).
 void elevator_popup_frame()
 {
     if (!(game_flags & GF_MULTIPLAYER))
         return;
-    if (cur_level_index == ELEVATOR_LEVEL_IONAEXT)
+    switch (cur_level_index) {
+    case ELEVATOR_LEVEL_IONAEXT:
         elevator_offer_ride();
-    else if (cur_level_index == ELEVATOR_LEVEL_ELEH)
+        break;
+    case ELEVATOR_LEVEL_ELEH:
         elevator_choose_floor();
+        break;
+    }
 }
 
 // 0x41de10  Confidence: exact.

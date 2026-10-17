@@ -201,29 +201,33 @@ void status_load_bitmaps()
     int i;
 
     for (i = 0; i < STATUS_NUM_BUTTONS; i++) {
-        status_buttons[i].flags = 0;
-        status_buttons[i].bitmap = -1;
-        status_buttons[i].x = 0;
-        status_buttons[i].y = 0;
-        status_buttons[i].w = 0;
-        status_buttons[i].h = 0;
+        ui_button_state *b = &status_buttons[i];
+        const ui_button_def *d = &status_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(status_button_defs[i].name)) {
-            char filename[112];
+        if (strlen(d->name)) {
+            char filename[128];
 
-            strcpy(filename, status_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            status_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            status_buttons[i].x = status_button_defs[i].pos[resolution_index][0];
-            status_buttons[i].y = status_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(status_buttons[i].bitmap, &status_buttons[i].w, &status_buttons[i].h);
-            status_buttons[i].w = (int)(status_buttons[i].w * scale + 0.5f);
-            status_buttons[i].h = (int)(status_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                status_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
+
 
     status_skill_row_bm = bm_load(status_skill_row_names[ui_hires], path_interface, -1);
     bm_get_dimensions(status_skill_row_bm, &status_skill_row_bm_w, &status_skill_row_bm_h);
@@ -507,18 +511,20 @@ int status_handle_click(int key)
     status_pressed_button = -1;
 
     for (i = 0; i < STATUS_NUM_BUTTONS; i++) {
-        if (!(status_buttons[i].flags & 4) && (status_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, status_buttons[i].x, status_buttons[i].y,
-                             status_buttons[i].w, status_buttons[i].h)) {
+        ui_button_state *b = &status_buttons[i];
+        const ui_button_def *d = &status_button_defs[i];
+
+        if (!(b->flags & 4) && (d->flags & 3)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             status_pressed_button = i;
-            status_buttons[i].flags |= 2;
-            if (status_button_defs[i].flags & 1) {
+            b->flags |= 2;
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     status_mouse_mode = 1;
                     status_button_timer.invalidate();
                     return key;
                 }
-            } else if (status_button_defs[i].flags & 2) {
+            } else if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     status_mouse_mode = 1;
                     status_button_action(status_pressed_button + 1);
@@ -529,6 +535,7 @@ int status_handle_click(int key)
             break;
         }
     }
+
 
     if (point_in_rect(game_mouse_x, game_mouse_y, status_thumb_x, status_thumb_y, status_thumb_w, status_thumb_h)
         && mouse_was_pressed(0)) {
@@ -663,8 +670,9 @@ void status_goto_pending_screen()
     if (status_pending_screen)
         status_flags &= ~6;
     if (status_pending_screen == 1) {
-        char page = 0;
-        interface_set_screen(1, &page);
+        char page[4];
+        page[0] = 0;
+        interface_set_screen(1, page);
     } else {
         interface_set_screen(status_pending_screen, 0);
     }
@@ -694,11 +702,14 @@ void status_page_up()
 // 0x42c110  Confidence: exact.
 void status_page_down()
 {
+    int pos = status_scroll_pos;
     int last = status_num_skills - status_page_size[resolution_index];
 
-    if (status_scroll_pos < last) {
-        int pos = status_scroll_pos + status_page_size[resolution_index];
-        status_scroll_pos = pos < last ? pos : last;
+    if (pos < last) {
+        pos += status_page_size[resolution_index];
+        if (pos < last)
+            last = pos;
+        status_scroll_pos = last;
         status_update_scrollbar();
     }
 }
@@ -884,7 +895,7 @@ void status_show_skill_tooltip(int row)
     ui_tooltip_set(x, y, w, font_h, localize_string_or_invalid(skill_table[e->skill].description));
 }
 
-// 0x42c540  Confidence: likely (journal_update_buttons shape, but the release path ends in its own mode store:
+// 0x42c540  Confidence: exact (VC6 byte match, match22; release / held template, element pointer; was likely) (journal_update_buttons shape, but the release path ends in its own mode store:
 // 3 while the choice popup is up, written as a conditional on ui_choice_popup_flags, the inline form of
 // ui_choice_popup_is_active).
 void status_update_buttons()
@@ -892,38 +903,39 @@ void status_update_buttons()
     int button = status_pressed_button + 1;
 
     if (status_pressed_button >= 0 && status_pressed_button < STATUS_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, status_buttons[button].x, status_buttons[button].y,
-                          status_buttons[button].w, status_buttons[button].h))
-            status_buttons[button].flags |= 2;
+        ui_button_state *b = &status_buttons[button];
 
-        if (mouse_is_down(0)) {
-            if (status_button_timer.valid() && status_button_timer.elapsed()
-                && (status_buttons[button].flags & 2)) {
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
+
+        if (!mouse_is_down(0)) {
+            if ((b->flags & 2) && !status_button_timer.valid())
+                status_button_action(button);
+            status_mouse_mode = (ui_choice_popup_flags & 0x80000000) ? 3 : 0;
+        } else {
+            if (status_button_timer.valid() && status_button_timer.elapsed() && (b->flags & 2)) {
                 status_button_action(button);
                 status_button_timer.SetTimeout(100);
             }
-            return;
         }
-        if ((status_buttons[button].flags & 2) && !status_button_timer.valid())
-            status_button_action(button);
-        status_mouse_mode = (ui_choice_popup_flags & 0x80000000) ? 3 : 0;
         return;
     }
     status_mouse_mode = 0;
 }
 
-// 0x42c630  Confidence: likely (order of the three terms of y; the clamp written as two conditionals on a
+// 0x42c630  Confidence: exact (VC6 byte match, match22; clamp through last; was likely) (order of the three terms of y; the clamp written as two conditionals on a
 // local, one store).
 void status_drag_scrollbar()
 {
-    int y = game_mouse_y - status_scrollbar_track[resolution_index][1] - status_drag_start_mouse_y
-            + status_drag_start_thumb_y;
+    int y = status_drag_start_thumb_y - status_scrollbar_track[resolution_index][1] - status_drag_start_mouse_y + game_mouse_y;
     int pos = (int)((float)y / status_scrollbar_track_height[resolution_index] * status_num_skills + 0.5f);
     int last;
 
     pos = pos > 0 ? pos : 0;
     last = status_num_skills - status_page_size[resolution_index];
-    status_scroll_pos = pos < last ? pos : last;
+    if (pos < last)
+        last = pos;
+    status_scroll_pos = last;
     status_update_scrollbar();
 
     if (!mouse_is_down(0))

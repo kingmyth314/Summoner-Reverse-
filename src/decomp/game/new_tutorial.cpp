@@ -196,7 +196,7 @@ bool tutorial_cond_combat_part1()
     return false;
 }
 
-// 0x42ead0  Confidence: likely (the found test after the loop is duplicated as in status_init; the two
+// 0x42ead0  Confidence: exact (VC6 byte match, match11; was likely) (the found test after the loop is duplicated as in status_init; the two
 // out-arguments of two_stage_get are bools by their stack slots +3 / +4). When the dead scout has finished
 // his death move, the door "invis-door01" is opened for good (two-stage state open, the lobj moved to the
 // door's open pose) and the fire effect in front of it is switched off.
@@ -232,7 +232,7 @@ bool tutorial_cond_combat_part2()
     return true;
 }
 
-// 0x42ec00  Confidence: likely (loop exit duplicated as above).
+// 0x42ec00  Confidence: exact (VC6 byte match, match11; was likely) (loop exit duplicated as above).
 bool tutorial_cond_sewer_flece()
 {
     Player *p;
@@ -326,7 +326,7 @@ bool tutorial_ok_hit_test()
     return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
 }
 
-// 0x42ef00  Confidence: likely (the Space test goes through a bool: sete / test).
+// 0x42ef00  Confidence: exact (VC6 byte match, match11; was likely) (the Space test goes through a bool: sete / test).
 bool tutorial_frame(int key)
 {
     bool used = false;
@@ -346,26 +346,30 @@ bool tutorial_frame(int key)
         }
     }
 
-    if (tutorial_current && tutorial_current->pages) {
-        bool next = key == KEY_SPACE;
-
+    if (tutorial_current) {
         used = true;
-        if (next || (mouse_was_pressed(0) && tutorial_ok_hit_test())) {
-            sound_play_2d(0x23, 1.0f);
-            if (++tutorial_page >= tutorial_current->num_pages) {
+        if (tutorial_current->pages) {
+            bool next = key == KEY_SPACE;
+
+            if (!next)
+                next = mouse_was_pressed(0) && tutorial_ok_hit_test();
+            if (next) {
+                sound_play_2d(0x23, 1.0f);
+                if (++tutorial_page >= tutorial_current->num_pages) {
+                    tutorial_close();
+                    mouse_flush();
+                }
+            } else if (key == KEY_ESC) {
+                sound_play_2d(0x24, 1.0f);
                 tutorial_close();
                 mouse_flush();
             }
-        } else if (key == KEY_ESC) {
-            sound_play_2d(0x24, 1.0f);
-            tutorial_close();
-            mouse_flush();
         }
     }
     return used;
 }
 
-// 0x42f020  Confidence: likely (tutorial_layout's code inlined by hand, not a call; line buffer size from
+// 0x42f020  Confidence: exact (VC6 byte match, match11; was likely) (tutorial_layout's code inlined by hand, not a call; line buffer size from
 // the frame).
 void tutorial_draw()
 {
@@ -380,17 +384,17 @@ void tutorial_draw()
                                  tutorial_current->w - 2 * ui_frame_border[resolution_index]
                                      - ui_frame_inset_x[resolution_index],
                                  TUTORIAL_MAX_LINES, 0, -1);
-        int i, dy;
+        int i;
 
         ui_draw_text_box(tutorial_current->x, tutorial_current->y, tutorial_current->w,
                          lines * font_h + 2 * (ui_frame_inset_y[resolution_index] + ui_frame_border[resolution_index]));
         gr_set_color(220, 220, 220, 220);
-        for (i = 0, dy = 0; i < lines; i++, dy += font_h) {
+        for (i = 0; i < lines; i++) {
             strncpy(line, localize_string_or_invalid(&tutorial_current->pages[tutorial_page].s) + offsets[i],
                     lengths[i]);
             line[lengths[i]] = 0;
             gr_string(tutorial_current->x + ui_frame_inset_x[resolution_index] + ui_frame_border[resolution_index],
-                      tutorial_current->y + ui_frame_inset_y[resolution_index] + dy + ui_frame_border[resolution_index],
+                      tutorial_current->y + ui_frame_inset_y[resolution_index] + i * font_h + ui_frame_border[resolution_index],
                       line, -1, gr_string_mode);
         }
         tutorial_drawn = true;

@@ -117,15 +117,7 @@ int  level_load_time_script_done;                             // 0x609f84
 int  level_load_time_page_in;                                 // 0x609fa0
 int  level_load_time_page_in_done;                            // 0x609f9c
 int  level_load_time_end;                                     // 0x609f44
-char level_filename[32];                                      // 0x60a2c8
-char level_script_name[32];                                   // 0x60a2e8
-char level_prev_filename[32];                                 // 0x60a308
-float level_session_time;                                     // 0x60a328
-navpoint *level_player_starts[4];                             // 0x60a32c
-int  level_entry_point;                                       // 0x60a33c
-int  level_num_layers;                                        // 0x60a340
-int  level_layer_maps[10];                                    // 0x60a344
-int  level_layer_automap_index[40];                           // 0x60a36c
+level_info_block level_info;                                  // 0x60a2c8-0x60a40b (names, starts, layer maps; D7201)
 bool level_is_town;                                           // 0x60a40c (levelscripts/level_scripts.h)
 int  gameplay_no_render_60a630;                               // 0x60a630 never written
 float level_time;                                             // 0x60a654

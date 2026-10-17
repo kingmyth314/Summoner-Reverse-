@@ -541,12 +541,6 @@ void level_parse_table()
     TextFile tf;
     char filename[256];
     char fxname[0x20];
-    char script[0x80];
-    char pc_layer[0x80], pc_bitmap[0x80];
-    char psx_layer[0x80], psx_bitmap[0x80];
-    char fog_layer[0x100];
-    char eax_name[0x40];
-    char eax_path[0x180];
     int i;
 
     level_num_layers = 0;
@@ -559,6 +553,7 @@ void level_parse_table()
             tf.Open(filename, path_tables_levels);
             tf.Expect("#Effects");
             while (tf.Accept("$Level_fx:")) {
+                char script[0x80];
                 int use;
 
                 tf.ParseString(fxname, 0x20, '"', '"');
@@ -588,6 +583,8 @@ void level_parse_table()
             tf.Expect("#Automap");
             while (!tf.Peek("#Fog")) {
                 if (tf.Accept("$AutomapPSX:")) {
+                    char psx_layer[0x80], psx_bitmap[0x80];
+
                     tf.ParseString(psx_layer, 0x7f, '"', '"');
                     if (_strnicmp(psx_layer, "$layer", 6))
                         VSDK_ERROR(LEVEL_SCRIPTS_COMMON_FILE, 882, "Layer name is invalid.");
@@ -596,6 +593,7 @@ void level_parse_table()
                     tf.ParseInt();
                     tf.ParseString(psx_bitmap, 0x7f, '"', '"');
                 } else if (tf.Accept("$AutomapPC:")) {
+                    char pc_layer[0x80], pc_bitmap[0x80];
                     int layer, map;
 
                     tf.ParseString(pc_layer, 0x7f, '"', '"');
@@ -644,6 +642,7 @@ void level_parse_table()
             fog_set_color(r, g, b);
             if (tf.Accept("+Distance:")) {
                 do {
+                    char fog_layer[0x100];
                     float far_dist, near_dist;
                     int layer, lr, lg, lb;
 
@@ -698,10 +697,15 @@ void level_parse_table()
             tf.Close();
         }
     }
-    snd_set_eax_environment("generic");
-    sprintf(eax_name, "%s.eax", level_filename);
-    file_make_path(path_internal_copy, eax_name, eax_path);
-    eax_load_props(eax_path);
+    {
+        char eax_name[0x40];
+        char eax_path[0x180];
+
+        snd_set_eax_environment("generic");
+        sprintf(eax_name, "%s.eax", level_filename);
+        file_make_path(path_internal_copy, eax_name, eax_path);
+        eax_load_props(eax_path);
+    }
     level_create_world_effects();
 }
 
@@ -1732,8 +1736,7 @@ bool script_check_navpoint(int index, const char *navpoint, float dist)
     if (!c)
         return false;
     if (navpoint_get_position(navpoint, &pos, &orient)) {
-        vector3 d = c->pos - pos;
-        if (d.len() < dist)
+        if ((c->pos - pos).len() < dist)
             return true;
     } else
         printf("WARNING: Script trying to check navpoint that doesn't exist!\n");
@@ -1750,8 +1753,7 @@ bool script_object_near_player(int index, float dist)
     c = living_from_handle(script_objects[index].handle);
     if (!c || !cur_character)
         return false;
-    vector3 d = c->pos - cur_character->pos;
-    if (d.len() < dist)
+    if ((c->pos - cur_character->pos).len() < dist)
         return true;
     return false;
 }
@@ -1766,8 +1768,7 @@ bool script_player_near_navpoint(const char *navpoint, float dist)
         return false;
     if (!navpoint_get_position(navpoint, &pos, &orient))
         return false;
-    vector3 d = cur_character->pos - pos;
-    if (d.len() < dist)
+    if ((cur_character->pos - pos).len() < dist)
         return true;
     return false;
 }

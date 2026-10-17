@@ -138,11 +138,11 @@ int playmenu_frame(int key)
 
     if (!(player_input[0] & 0x10) && !ui_message_box_is_active()) {
         switch (playmenu_mouse_mode) {
-        case 0:
-            key = playmenu_handle_click(key);
-            break;
         case 1:
             playmenu_update_buttons();
+            break;
+        case 0:
+            key = playmenu_handle_click(key);
             break;
         }
     }
@@ -300,11 +300,12 @@ void playmenu_open_save()
     }
 }
 
-// 0x421c80  Confidence: exact. The screen argument is a pointer to a "save" byte (0 = load).
+// 0x421c80  Confidence: exact (VC6 byte match, match14; was exact). The screen argument is a pointer to a "save" byte (0 = load).
 void open_saveload_screen()
 {
-    bool save = false;
-    interface_set_screen(8, &save);
+    bool save[4];                  // only save[0] is written; the byte sits at the bottom of its dword slot (D7200)
+    save[0] = false;
+    interface_set_screen(8, save);
 }
 
 // 0x421ca0  Confidence: exact.
@@ -325,16 +326,16 @@ void mainmenu_confirm_quit_cb(int button)
         game_abandon_to_menu();
 }
 
-// 0x421cf0  Confidence: exact.
+// 0x421cf0  Confidence: exact (VC6 byte match, match14; was exact).
 void playmenu_draw()
 {
     int i;
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < PLAYMENU_NUM_BUTTONS; i++) {
-        if (playmenu_buttons[i].flags & 3)
-            ui_bitmap_scaled(playmenu_buttons[i].bitmap, playmenu_buttons[i].x, playmenu_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &playmenu_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
 }
 

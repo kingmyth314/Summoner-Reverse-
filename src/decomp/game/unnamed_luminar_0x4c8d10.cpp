@@ -108,6 +108,8 @@ void ai_state::luminar_boss_load()
     vector3 back;
     vector3 swing;
     int tag;
+    ca_character *ch;
+    float x, z;
 
     luminar_stage = 1;
     luminar_forced_stage = 0;
@@ -119,20 +121,21 @@ void ai_state::luminar_boss_load()
     luminar_teleport_timer.SetTimeout(0);
     owner->type = 9;
     owner->flags |= CF_COMBAT_READY;
-    tag = owner->instance->character->find_mesh_tag("$tag-30-bite");
+    ch = owner->instance->character;
+    tag = ch->find_mesh_tag("$tag-30-bite");
     owner->instance->get_bone_world_transform(tag, &identity, &zero, &out, &luminar_bite_tag_pos);
-    tag = owner->instance->character->find_mesh_tag("$tag-22-pickup");
+    tag = ch->find_mesh_tag("$tag-22-pickup");
     owner->instance->get_bone_world_transform(tag, &identity, &zero, &out, &luminar_pickup_tag_pos);
-    luminar_pickup_reach = (float)sqrt(luminar_pickup_tag_pos.z * luminar_pickup_tag_pos.z
-                                       + luminar_pickup_tag_pos.x * luminar_pickup_tag_pos.x) + 0.02f;
-    tag = owner->instance->character->find_mesh_tag("$tag-28-backswing-l");
+    x = luminar_pickup_tag_pos.x;
+    z = luminar_pickup_tag_pos.z;
+    luminar_pickup_reach = (float)sqrt(z * z + x * x) + 0.02f;
+    tag = ch->find_mesh_tag("$tag-28-backswing-l");
     owner->instance->get_bone_world_transform(tag, &identity, &zero, &out, &back);
-    tag = owner->instance->character->find_mesh_tag("$tag-24-swing-r");
+    tag = ch->find_mesh_tag("$tag-24-swing-r");
     owner->instance->get_bone_world_transform(tag, &identity, &zero, &out, &swing);
     swing.y = 0.0f;
     back.y = 0.0f;
-    luminar_melee_reach = ((float)sqrt(back.z * back.z + back.x * back.x)
-                           + (float)sqrt(swing.x * swing.x + swing.z * swing.z)) * 0.5f;
+    luminar_melee_reach = (back.len() + swing.len()) * 0.5f;
     if (luminar_beam_bm < 0)
         luminar_beam_bm = bm_load("GlowLuminarSkin02.vbm", -1, -1);
     owner->combat.set_owner(owner);
@@ -286,7 +289,7 @@ void ai_state::luminar_ai_idle()
         luminar_ai_select_action(NULL);
 }
 
-// 0x4c95f0  Confidence: likely (the sub-mode switch from 0xf, byte table 0x4c977c). Melee and the approach
+// 0x4c95f0  Confidence: exact (VC6 byte match, match22; the edge offset in a float local; was likely) (the sub-mode switch from 0xf, byte table 0x4c977c). Melee and the approach
 // tell the frame whether to choose afterwards; the scripted sub-modes do not. The close-in range is the
 // melee reach measured from the centre (the edge distance's difference added back).
 void ai_state::luminar_ai_frame()
@@ -308,7 +311,8 @@ void ai_state::luminar_ai_frame()
         if (living_from_handle(luminar_grabbed_handle) == NULL && luminar_stage != 3) {
             if (t) {
                 float d = distance(&owner->pos, &t->pos);
-                attack_range = luminar_melee_reach - (d - owner->distance_between_edges(t, false, -1));
+                float off = d - owner->distance_between_edges(t, false, -1);
+                attack_range = luminar_melee_reach - off;
             }
             combat_close_in(t);
         } else if (t && !(owner->distance_between_edges(t, true, -1) > attack_range)) {
@@ -362,12 +366,12 @@ int ai_state::luminar_choose_melee_move(Character *t)
     if (d > -0.5f)
         moves[count++] = 0x85;
     vector3 v = t->pos - owner->pos - luminar_bite_tag_pos;
-    if (v.z * v.z + v.x * v.x < 0.15f)
+    if (v.x * v.x + v.z * v.z < 0.15f)
         moves[count++] = 0x83;
     return moves[(int)(frand() * count)];
 }
 
-// 0x4c98a0  Confidence: likely. Sub-mode AIS_CLOSE_COMBAT: out of reach (+0.19) back to closing in; once
+// 0x4c98a0  Confidence: exact (VC6 byte match, match22; the edge distance compared first; was likely). Sub-mode AIS_CLOSE_COMBAT: out of reach (+0.19) back to closing in; once
 // facing, the combat update with the chosen move (its result is returned), both attack slots and the
 // guards. The current move's progress is read and dropped.
 bool ai_state::luminar_ai_melee(Character *t)
@@ -379,7 +383,7 @@ bool ai_state::luminar_ai_melee(Character *t)
         go_idle();
         return true;
     }
-    if (owner->info->attack_radius + 0.19f < owner->distance_between_edges(t, true, -1)) {
+    if (owner->distance_between_edges(t, true, -1) > owner->info->attack_radius + 0.19f) {
         set_mode(AI_STATE_COMBAT, AIS_GET_CLOSE);
         return false;
     }
@@ -494,12 +498,14 @@ void ai_state::luminar_start_release()
     }
 }
 
-// 0x4c9cd0  Confidence: likely. Sub-mode AIS_LUMINAR_RELEASE: at trigger 8 the carried character is thrown
-// (luminar_frame_hook flies it with the measured velocity), the boss goes back to its anims (0xe, 0x93 /
-// 0x95) and the camera follows a thrown cur_character.
+// 0x4c9cd0  Confidence: exact (VC6 byte match, match22; logic fix D8101; was likely). Sub-mode AIS_LUMINAR_RELEASE: at trigger 8 the carried character is thrown
+// (luminar_frame_hook flies it with the measured velocity), the boss goes back to its anims (move 0xe, 0x93
+// for both the ready and the ready-hurt anim: one charinfo_find_move, D8101) and the camera follows a thrown
+// cur_character.
 void ai_state::luminar_ai_release()
 {
     Character *h;
+    move_info *m;
 
     ai_move_flags |= 4;
     if (owner->move_finished(luminar_move_anim)) {
@@ -511,8 +517,9 @@ void ai_state::luminar_ai_release()
     luminar_thrown_handle = luminar_grabbed_handle;
     luminar_grabbed_handle = -1;
     luminar_release_timer.SetTimeout(10000);
-    owner->anim_ready = charinfo_find_move(owner->info, 0xe, 0x93, true)->anim;
-    owner->anim_ready_hurt = charinfo_find_move(owner->info, 0xe, 0x95, true)->anim;
+    m = charinfo_find_move(owner->info, 0xe, 0x93, true);
+    owner->anim_ready = m->anim;
+    owner->anim_ready_hurt = m->anim;
     owner->update_locomotion_anim();
     h = living_from_handle(luminar_thrown_handle);
     if (h == cur_character)
@@ -551,7 +558,10 @@ bool ai_state::luminar_teleport_out()
             i = rand() & 7;
         } while (i >= count);
         t = list[i];
-        d = vector3(frand() - 0.5f, 0.0f, frand() - 0.5f);
+        float z = frand() - 0.5f;
+        d.x = frand() - 0.5f;
+        d.y = 0.0f;
+        d.z = z;
         if (d.normalize_length() != 0.0f) {
             d.x *= 14.0f;
             d.y *= 14.0f;
@@ -681,20 +691,20 @@ bool ai_state::luminar_beam_start(Character *t)
     return true;
 }
 
-// 0x4ca3a0  Confidence: likely. Sub-mode AIS_LUMINAR_BEAM: until it hits, the boss turns to a point 1.05 to
+// 0x4ca3a0  Confidence: exact (VC6 byte match, match22; side vector, else-block scope; was likely). Sub-mode AIS_LUMINAR_BEAM: until it hits, the boss turns to a point 1.05 to
 // the side of the target; trigger 11 calls the instance's empty skin hook with the glow skin; trigger 7 hits
 // once for 125 HP (a surviving target flinches and gets the target effect: the bolt, or the beam effect
 // facing back along the boss's facing). The trigger-7 branch does not test the target for NULL (NOTES, game
 // bugs). At the end, stage 3 rearms the beam for 20 s.
 void ai_state::luminar_beam_hit(Character *t)
 {
+    vector3 d;
+
     ai_move_flags |= 4;
     if (t && !luminar_beam_hit_done) {
-        vector3 d(t->pos.x - owner->pos.x, t->pos.y - owner->pos.y, t->pos.z - owner->pos.z);
+        d = t->pos - owner->pos;
         d.normalize();
-        travel_dest.x = -d.z * 1.05f + t->pos.x;
-        travel_dest.y = t->pos.y;
-        travel_dest.z = d.x * 1.05f + t->pos.z;
+        travel_dest = vector3(-d.z, 0.0f, d.x) * 1.05f + t->pos;
         turn_towards(&travel_dest, 0);
     }
     if (owner->move_finished(luminar_move_anim)) {
@@ -716,12 +726,12 @@ void ai_state::luminar_beam_hit(Character *t)
     t->combat.play_flinch(2);
     if (luminar_beam_fx_variant) {
         fx_attach_to_character("spell-lbolt-target.vfx", t->handle, -1, -1, 0, 0);
-        return;
+    } else {
+        matrix m;
+        vector3 back(-owner->orient.fvec.x, -owner->orient.fvec.y, -owner->orient.fvec.z);
+        m.set_from_forward_up(back, owner->orient.uvec);
+        fx_add_effect("LuminarBeam-target.vfx", &t->pos, &m, 1);
     }
-    matrix m;
-    vector3 back(-owner->orient.fvec.x, -owner->orient.fvec.y, -owner->orient.fvec.z);
-    m.set_from_forward_up(back, owner->orient.uvec);
-    fx_add_effect("LuminarBeam-target.vfx", &t->pos, &m, 1);
 }
 
 // 0x4ca5a0  Confidence: exact. boss_hook_dispatch_51_c1 case 0x51: hold while a move plays or the attack

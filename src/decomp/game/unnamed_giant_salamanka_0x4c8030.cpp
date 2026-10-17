@@ -124,10 +124,12 @@ void giant_salamanka_place_boss3(Character *c)
     }
 }
 
-// 0x4c8280  Confidence: likely (the stage digit goes through a two-byte local for atoi). For each move
+// 0x4c8280  Confidence: exact (VC6 byte match, match11; was likely). For each move
 // "stage<N>_flinch_<kind>": kind area / status / left / right / front fills the table of stage N. The
 // action is not checked to start with "stage"; a bad kind is formatted into a local buffer that is never
-// shown (NOTES, game bugs).
+// shown (NOTES, game bugs). GAME BUG (D6901): a move without an action never advances the list (the
+// `continue` jumps from 0x4c829d straight to the `test ebx, ebx` at 0x4c8384, past the next-link load), so
+// such a move hangs the loop; the source had a for loop that stepped past it.
 void giant_salamanka_set_flinch(move_info *moves)
 {
     char msg[128];
@@ -136,7 +138,8 @@ void giant_salamanka_set_flinch(move_info *moves)
     move_info *m;
     int stage;
 
-    for (m = moves; m; m = m->next) {
+    m = moves;
+    while (m) {
         if (m->action == NULL)
             continue;
         p = m->action + strlen("stage");
@@ -156,10 +159,11 @@ void giant_salamanka_set_flinch(move_info *moves)
             gsal.flinch_front[stage] = m;
         else
             sprintf(msg, "Unable to set Giant Salamanka flinch for %s -- bad $Action\n", m->anim_file);
+        m = m->next;
     }
 }
 
-// 0x4c83a0  Confidence: likely (the byte stores after the memset are in the binary too). Three stages of
+// 0x4c83a0  Confidence: exact (VC6 byte match, match11; was likely) (the byte stores after the memset are in the binary too). Three stages of
 // moves; each stage enables some of its eight moves (stage 1: 0-4, 6; stage 2: 0, 2, 3, 5, 7; stage 3: 0,
 // 2, 5, 6, 7) for boss_stage_attack_enabled_dispatch.
 void ai_state::giant_salamanka_boss_load()
@@ -221,7 +225,7 @@ void giant_salamanka_free_bitmap()
     }
 }
 
-// 0x4c8560  Confidence: likely (the forced-stage switch bodies are laid out 1, 3, 2 and shared with the HP
+// 0x4c8560  Confidence: exact (VC6 byte match, match11; was likely) (the forced-stage switch bodies are laid out 1, 3, 2 and shared with the HP
 // branches). The HP thresholds 2/3 and 1/3 only arm the "reached" byte; the stage changes when the level
 // script has acknowledged it (the Trans cutscenes), and never skips one. A forced stage outside 1-3 would
 // set the stage to 0 (cmd_gs_stage cannot store one). At HP <= 0 in a cutscene: idle and CF_HIDDEN.
@@ -495,19 +499,19 @@ bool giant_salamanka_move_knocks_down()
     return false;
 }
 
-// 0x4c8c40  Confidence: likely (an int return: mov eax, 1 / xor eax, eax; D3905). The current move's range +
+// 0x4c8c40  Confidence: exact (VC6 byte match, match11; was likely) (an int return: mov eax, 1 / xor eax, eax; D3905). The current move's range +
 // 1 from its offense point (horizontal), or without a move the char_info attack radius by the edges.
 int giant_salamanka_target_in_reach(Character *boss, Character *target)
 {
-    boss_offense_point *pt;
+    vector3 *pt;
     float reach;
     float dist;
 
     if (giant_salamanka_current_move) {
         reach = giant_salamanka_current_move->range_max + 1.0f;
-        pt = &gsal.offense_points[giant_salamanka_current_move->offense_point];
-        float dx = target->pos.x - pt->pos.x;
-        float dz = target->pos.z - pt->pos.z;
+        pt = &gsal.offense_points[giant_salamanka_current_move->offense_point].pos;
+        float dx = target->pos.x - pt->x;
+        float dz = target->pos.z - pt->z;
         dist = (float)sqrt(dz * dz + dx * dx);
     } else {
         reach = boss->info->attack_radius;

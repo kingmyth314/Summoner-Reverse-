@@ -506,7 +506,7 @@ int shadow_collect_for_lobj(lobj *l, shadow_record **list, int *count)
     s = blob_shadows;
     for (i = num_blob_shadows; i > 0; i--, s++) {
         s->proj.test_bounds(l);
-        if (s->proj.inside) {
+        if ((bool)s->proj.inside) {
             if ((uint)*count < 0x40) {
                 list[*count] = &s->proj;
                 (*count)++;
@@ -618,9 +618,7 @@ bool vector2::nearly_equal(const vector2 *a, const vector2 *b)
 {
     float dx = a->x - b->x;
     float dy = a->y - b->y;
-    if (dx < 0.001f && dx > -0.001f && dy < 0.001f && dy > -0.001f)
-        return true;
-    return false;
+    return dx < 0.001f && dx > -0.001f && dy < 0.001f && dy > -0.001f;
 }
 
 // 0x4a4ec0  Confidence: exact. COMDAT of the member (thiscall, hidden result).

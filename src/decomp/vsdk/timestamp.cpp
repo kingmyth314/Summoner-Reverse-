@@ -86,17 +86,17 @@ void GameTimer::invalidate()
     value = -1;
 }
 
-// 0x501910  Confidence: exact. Invalid timers never elapse; half the wrap range decides the side.
+// 0x501910  Confidence: exact (VC6 byte match, match14; was exact). Invalid timers never elapse; half the wrap range decides the side.
 bool GameTimer::elapsed()
 {
     if (value < 0)
         return false;
     if (value > Timestamp_ticker)
-        return value - Timestamp_ticker > HALF_MAX_TIME;
-    return Timestamp_ticker - value <= HALF_MAX_TIME;
+        return value - Timestamp_ticker > HALF_MAX_TIME ? true : false;
+    return Timestamp_ticker - value <= HALF_MAX_TIME ? true : false;
 }
 
-// 0x501940  Confidence: likely (VC6 CSEs the differences; the final "return value - ticker" is
+// 0x501940  Confidence: exact (VC6 byte match, match14; was likely) (VC6 CSEs the differences; the final "return value - ticker" is
 // emitted as NEG of ticker - value).
 int GameTimer::GetRemainingTime()
 {
@@ -107,9 +107,10 @@ int GameTimer::GetRemainingTime()
             return value - Timestamp_ticker - MAX_TIME;
         return value - Timestamp_ticker;
     }
-    if (Timestamp_ticker - value > HALF_MAX_TIME)
+    int d = Timestamp_ticker - value;
+    if (d > HALF_MAX_TIME)
         return value - Timestamp_ticker + MAX_TIME;
-    return value - Timestamp_ticker;
+    return -d;
 }
 
 // 0x501980  Confidence: exact (a call, not inlined).
@@ -118,10 +119,10 @@ int GameTimer::GetElapsedTime()
     return -GetRemainingTime();
 }
 
-// 0x501990  Confidence: exact.
+// 0x501990  Confidence: exact (VC6 byte match, match14; was exact).
 bool GameTimer::valid()
 {
-    return value >= 0;
+    return value >= 0 ? true : false;
 }
 
 // 0x5019a0  Confidence: exact. Savegame load: the stored remaining time becomes a new timeout.
@@ -178,17 +179,17 @@ void RealtimeTimer::invalidate()
     value = -1;
 }
 
-// 0x501a90  Confidence: exact.
+// 0x501a90  Confidence: exact (VC6 byte match, match14; was exact).
 bool RealtimeTimer::elapsed()
 {
     if (value < 0)
         return false;
     if (value > Timestamp_realtime_ticker)
-        return value - Timestamp_realtime_ticker > HALF_MAX_TIME;
-    return Timestamp_realtime_ticker - value <= HALF_MAX_TIME;
+        return value - Timestamp_realtime_ticker > HALF_MAX_TIME ? true : false;
+    return Timestamp_realtime_ticker - value <= HALF_MAX_TIME ? true : false;
 }
 
-// 0x501ac0  Confidence: likely.
+// 0x501ac0  Confidence: exact (VC6 byte match, match14; was likely).
 int RealtimeTimer::GetRemainingTime()
 {
     if (value < 0)
@@ -198,9 +199,10 @@ int RealtimeTimer::GetRemainingTime()
             return value - Timestamp_realtime_ticker - MAX_TIME;
         return value - Timestamp_realtime_ticker;
     }
-    if (Timestamp_realtime_ticker - value > HALF_MAX_TIME)
+    int d = Timestamp_realtime_ticker - value;
+    if (d > HALF_MAX_TIME)
         return value - Timestamp_realtime_ticker + MAX_TIME;
-    return value - Timestamp_realtime_ticker;
+    return -d;
 }
 
 // 0x501b00  Confidence: exact.
@@ -209,8 +211,8 @@ int RealtimeTimer::GetElapsedTime()
     return -GetRemainingTime();
 }
 
-// 0x501b10  Confidence: exact.
+// 0x501b10  Confidence: exact (VC6 byte match, match14; was exact).
 bool RealtimeTimer::valid()
 {
-    return value >= 0;
+    return value >= 0 ? true : false;
 }

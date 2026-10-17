@@ -403,7 +403,7 @@ int  levelrender_level_load();                        // 0x4865a0
 void levelrender_level_unload();                      // 0x486ab0
 bool levelrender_get_flag_22fb6f7();                  // 0x486be0 (game_render_frame's fog text)
 float fog_get_near_current();                          // 0x486bf0
-int  level_vis_load(const char *level_filename);      // 0x486c60 nonzero = failure
+int  level_vis_load(const char *level_name);      // 0x486c60 nonzero = failure
 void move_target_set_bitmap(int bm);                  // 0x487750 move_target_bm (0x59c124)
 void move_target_draw_decal();                        // 0x487760
 

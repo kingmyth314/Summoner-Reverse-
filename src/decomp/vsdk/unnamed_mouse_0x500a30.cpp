@@ -146,7 +146,7 @@ void mouse_set_pos(int x, int y)
     }
 }
 
-// 0x500cd0  Confidence: likely (the retry loop's shape: a failed Acquire falls into the FAILED test with
+// 0x500cd0  Confidence: exact (the retry loop's shape: a failed Acquire falls into the FAILED test with
 // its own result). Dead in v1.40 (mouse_use_cursor). z is not clamped.
 void mouse_di_read()
 {
@@ -167,12 +167,12 @@ void mouse_di_read()
         if (FAILED(hr))
             break;
     }
-    if (FAILED(hr)) {
-        mouse_dx = mouse_dy = mouse_dz = 0;
-    } else {
+    if (SUCCEEDED(hr)) {
         mouse_dx = state.lX;
         mouse_dy = state.lY;
         mouse_dz = state.lZ;
+    } else {
+        mouse_dx = mouse_dy = mouse_dz = 0;
     }
 
     mouse_x += mouse_dx;

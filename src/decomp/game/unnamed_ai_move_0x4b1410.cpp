@@ -475,9 +475,9 @@ steer:
 // 0x4b2510  Confidence: likely (the clamps reflect the overshoot back into the band).
 void ai_state::steer_jitter(float dt)
 {
-    profile_label label("ai_steer_jitter");
     float limit = dt * 0.05f;
     float decay = 0.025f / dt;
+    profile_label label("ai_steer_jitter");
 
     steer_offset *= 1.0f - decay;
     steer_offset = frand_range(-0.015f, 0.015f) + steer_offset;
@@ -1155,7 +1155,7 @@ void ai_state::mode_cast_spell_frame()
     cast_spell_update();
 }
 
-// 0x4b4660  Confidence: likely (the species tests as an if chain; jump table 0x4b48f4 / 0x4b4908 for
+// 0x4b4660  Confidence: exact (a switch on the species, the cases in the order of their spells 0x68..0x6b; jump table 0x4b48f4 / 0x4b4908 for
 // the four emerging bosses 0xb5, 0xb6, 0xc2, 0xc3). A summon's emerge move: species 0x90 takes its weapon
 // at trigger 7, species 0xce shows its prop at trigger 2 and drops the prop tag at trigger 3; a boss
 // emerging from its effect (owner flag 0x800) casts its entrance spell once the effect is over. When the
@@ -1183,14 +1183,14 @@ void ai_state::summon_emerge_update()
             owner->obj_flags |= 4;
             o = owner;
             switch (o->info->species) {
+            case 0xc2:
+                spell_cast_execute(o, 0x68, -1, &o->pos, o->layer, 0, 0, 0);
+                return;
             case 0xb5:
                 spell_cast_execute(o, 0x69, -1, &o->pos, o->layer, 0, 0, 0);
                 return;
             case 0xb6:
                 spell_cast_execute(o, 0x6a, -1, &o->pos, o->layer, 0, 0, 0);
-                return;
-            case 0xc2:
-                spell_cast_execute(o, 0x68, -1, &o->pos, o->layer, 0, 0, 0);
                 return;
             case 0xc3:
                 spell_cast_execute(o, 0x6b, -1, &o->pos, o->layer, 0, 0, 0);
@@ -1335,7 +1335,7 @@ void ai_state::mode_disabled_frame()
     go_idle();
 }
 
-// 0x4b4d80  Confidence: likely (t stays on the FPU stack across the switch). The stance blend fades
+// 0x4b4d80  Confidence: exact (t stays on the FPU stack across the switch; t = 1 before the flag). The stance blend fades
 // over 500 ms; the instance alpha goes from 255 (visible) to 127 (hidden).
 void ai_state::mode_hiding_frame()
 {
@@ -1356,8 +1356,8 @@ void ai_state::mode_hiding_frame()
     case AIS_LEAVE_HIDING:
         t = timer.GetElapsedTime() * 0.002f;
         if (t >= 1.0f) {
-            flags &= ~2;
             t = 1.0f;
+            flags &= ~2;
             set_mode(pending_mode, pending_submode);
             goal_remove(goal_find(1, AI_GOAL_HIDE, 0, 0, -1, 0, 0, AI_NO_SPELL));
         }

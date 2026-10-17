@@ -118,8 +118,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 5,799 match the
-disassembly exactly as far as can be read, 1,624 likely, 111 unsure. All 259 files compile against one header tree
+`node tools/decomp-progress.mjs` counts the result: 7,725 functions written (89.4%). Of these, 6,089 match the
+disassembly exactly as far as can be read, 1,336 likely, 109 unsure. All 259 files compile against one header tree
 (`src/decomp/include`; decisions in its `DECISIONS.md`, one numbered block per pilot, last D5703). Pilots written in parallel each changed a copy of the
 headers; they were merged with a three-way merge against the common base. Only list layouts and a few signatures
 needed hand resolution.
@@ -374,6 +374,19 @@ Now 10 symbols are **I**, 11,253 **O** and 187 **V**.
    Fourth round (17 files): game 187 -> 241 of 296, engine 125 -> 143 of 198, no match lost; over all 259 files VC6
    now matches 4,179 functions (4,107 before). The Pyrul's globals became one `pyrul_boss` struct like the other
    bosses (D6701); `bbox_straddles_plane` takes (min, max, plane) (D6802). No flag set from D6602 gains without a loss.
+   Fifth round (2026-10-16, the first under SP5's build 8966; twelve agents and the main session, every unit
+   worked): 4,231 -> 4,763 matching functions over all 259 files, none lost (address by address against the 8966
+   baseline). The 144 units no round had touched went through first, then a second batch of the most-differing
+   ones. What it took is in DECISIONS.md D6900-D8199 and the per-agent notes `src/decomp/game/NOTES-match-r5-*.md`:
+   the vsdk flags (D7502), source shapes 8966 needs (D7401, D7001, D6900, D7301, D7700, D7800, D7901, D8001, D8102),
+   and a few header facts: `gr_vertex` derives from `vector3` (D7100), the level name / entry point globals are one
+   `level_info` struct (D7201), the Titus state is one object (D8100), `light::enabled` and `vfx_dummy_desc` are
+   bit-fields (D7904, D7600). The rewrite also fixed decomp logic errors (D6901-D6903, D7302, D7504, D7604, D7701,
+   D8101) and found three bugs in the original game, to be added to [Bugs](sum-exe/game-bugs.md) after the matching
+   work: giant_salamanka_set_flinch loops forever on a move with no action (D6901), characterinfo_find_multi_slot
+   loops on its error when all four multiplayer slots are used (D7604), and avoid_area_rebuild copies up to eight
+   obstacle indices into a three-entry stack array (D7503). Of the 5,923 compared functions 1,160 still differ;
+   the round continues.
 
 **The analysed Sum.exe is not byte-clean (2026-10-15).** The copy in `Summoner/` carries a no-CD edit in `cd_find_drive` / `cd_set_root` that no compiler emits: `jne +0` (`0f 85 00 00 00 00`) at `0x43e6b0` and `0x43e6e3`, `75 00` at `0x43e872`, a forced `.` drive letter at `0x43e695` and `0x43e914`, and the strings at `0x594f50` / `0x594f70` changed from `A:\` / `%c:\` to `.\\` and `.\` (bytes `2e 5c 5c 00`, `2e 5c 00 00`). This is separate from Timeslip's patch (`0x43e9cb`, [Timeslip](patches/timeslip.md)). `src/decomp/game/summoner_cd.cpp` is written as the unpatched code (D2600), so a byte-matching build will differ at these bytes unless it is compared against an unmodified v1.40 executable.
 
@@ -424,3 +437,24 @@ order, the order of x87 operations and constants (a few `double` literals where 
 the unoptimised units, the stack frame size and the order of the locals (declaration order) and exception frames.
 **Inferred:** most are source shape (one pattern, `return strcpy(..)`, turned six functions into matches, D4905);
 some may be the 8168 / 8966 compiler difference, which can't be told apart until build 8966 is found.
+
+**Build 8966 is Visual Studio 6.0 Service Pack 5 (found 2026-10-16).** The `@comp.id` record that the Rich header
+counts is written by the code generator, `c2.dll`, so its build is the one to find. SP5 (`vs6sp5.exe`, February
+2001; the copy used is archive.org item `vcpp5`, MD5 971e5b1791ee90e6f397ec7fae520ba9, extracted with 7-Zip, never
+installed) ships `c2.dll` 12.00.8966 under the name `msvcep.dll`. Its setup script (`sp598ent.inf` / `.stf`) renames it
+to `c2.dll` for the Professional and Enterprise editions; the other `c2.dll` variants in the package are for the
+Learning and introductory editions (11.99.8966, 11.98.8798) and for the Processor Pack (13.00.9044). SP5 also has
+`c1xx.dll` 12.00.8964, `c1.dll` 12.00.8867, `cl.exe` 12.00.8804 and `link.exe` 6.00.8447, the linker build Sum.exe
+records. A test object compiled with these files carries `Utc12_CPP` build 8966, as the 348 C++ objects of Sum.exe
+do (**observed**). The Visual C++ 6.0 Processor Pack is not it: its `c2.dll` is 13.00.9044.
+
+All VC6 comparisons from this point use a `VC98` folder with SP5's `BIN` files (`cl.exe`, `c1.dll`, `c1xx.dll`,
+`link.exe`, and `msvcep.dll` copied as `c2.dll`) over the Professional Edition's. Over all 259 files the same
+source gave 4,179 matching functions under 8168 and 4,231 under 8966 (65 gained, 13 lost: source shapes tuned to the
+release build's quirks, D7400 / D7401).
+
+**Compiler options.** The game units are `/O2 /GX /MT`. The vsdk engine library was built with `/Ox /Ow` (no string
+pooling, aliasing assumed only across calls), not `/O2` (D7502). Compiled per file both ways, 90 vsdk units gain or
+stay level under `/Ox /Ow` (102 more matches, none lost) and two (gr_glide, unnamed_net) keep `/O2`. Several patterns
+earlier rounds listed as impossible (a `strcat` of a short literal, loads kept ahead of stores through pointers)
+were this flag. `src/decomp/vc6-flags.txt` holds the line for each unit that does not use the default.

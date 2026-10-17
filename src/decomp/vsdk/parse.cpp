@@ -80,11 +80,13 @@ void TextFile::SkipBlockComment()
         cursor += 2;
 }
 
-// 0x515a20  Confidence: likely (the second '/' test is repeated in the code: two separate else-ifs).
+// 0x515a20  Confidence: likely (a byte match under /Ox /Ow, D7502).
 // Space and 0x09-0x0c; a CR stops it, so a // comment ends on its CR.
 void TextFile::SkipSpaces()
 {
-    while (*cursor != '\0') {
+    while (1) {
+        if (*cursor == '\0')
+            break;
         if (*cursor == ' ' || (*cursor >= '\t' && *cursor < '\r')) {
             cursor++;
         } else if (cursor[0] == '/' && cursor[1] == '/') {
@@ -99,10 +101,12 @@ void TextFile::SkipSpaces()
     }
 }
 
-// 0x515a80  Confidence: likely (as SkipSpaces). A CR is skipped and counted.
+// 0x515a80  Confidence: likely (a byte match under /Ox /Ow, D7502). A CR is skipped and counted.
 void TextFile::SkipWhitespace()
 {
-    while (*cursor != '\0') {
+    while (1) {
+        if (*cursor == '\0')
+            break;
         if (*cursor == ' ' || (*cursor >= '\t' && *cursor < '\r')) {
             cursor++;
         } else if (*cursor == '\r') {
@@ -218,7 +222,7 @@ void TextFile::SetPosition(TextFilePosition *pos)
     cursor = pos->cursor;
 }
 
-// 0x515d20  Confidence: likely (EH frame for the File; return paths). With a blasted packfile the
+// 0x515d20  Confidence: likely (a byte match under /Ox /Ow, D7502). With a blasted packfile the
 // table must be in it (1 = not found, no disk fallback); else the file is read into the common block
 // (one byte more for the terminator).
 int TextFile::Open(const char *name, int path_id)
@@ -325,7 +329,7 @@ bool TextFile::SkipLine(String *out)
     return true;
 }
 
-// 0x516010  Confidence: likely (store order of the terminator and the cursor). Fails without moving
+// 0x516010  Confidence: likely (a byte match under /Ox /Ow, D7502). Fails without moving
 // when the line does not fit (len >= dest_size).
 bool TextFile::ReadLine(char *dest, int dest_size)
 {
@@ -682,16 +686,14 @@ void TextFile::ParseMultilineJoined(String *out, const char *terminator)
 // 0x5168b0  Confidence: exact. ( "a" "b" ... ); max_count is not checked.
 int TextFile::ParseStringList(String *list, int max_count)
 {
-    int count = 0;
-
     SkipWhitespace();
     if (*cursor != '(')
         Error("a string list");
     cursor++;
     SkipWhitespace();
+    int count = 0;
     while (*cursor != '\0' && *cursor != ')') {
-        ParseDelimitedString(&list[count], '"', '"');
-        count++;
+        ParseDelimitedString(&list[count++], '"', '"');
         SkipWhitespace();
     }
     if (*cursor != ')')
@@ -700,19 +702,18 @@ int TextFile::ParseStringList(String *list, int max_count)
     return count;
 }
 
-// 0x516940  Confidence: likely (frame order of pos and name). Integers, or quoted names resolved by
+// 0x516940  Confidence: exact. Integers, or quoted names resolved by
 // lookup(&list[i], i, name); max_count is not checked.
 int TextFile::ParseIntList(int *list, int max_count, TextFileIntLookup lookup)
 {
     TextFilePosition pos;
     char name[256];
-    int count = 0;
-
     SkipWhitespace();
     if (*cursor != '(')
         Error("an integer list");
     cursor++;
     SkipWhitespace();
+    int count = 0;
     while (*cursor != '\0' && *cursor != ')') {
         if (*cursor == '"') {
             GetPosition(&pos);
@@ -736,13 +737,12 @@ int TextFile::ParseIntList(int *list, int max_count, TextFileIntLookup lookup)
 // 0x516a30  Confidence: exact. max_count is not checked.
 int TextFile::ParseFloatList(float *list, int max_count)
 {
-    int count = 0;
-
     SkipWhitespace();
     if (*cursor != '(')
         Error("a float list");
     cursor++;
     SkipWhitespace();
+    int count = 0;
     while (*cursor != '\0' && *cursor != ')') {
         list[count] = ParseFloat();
         count++;

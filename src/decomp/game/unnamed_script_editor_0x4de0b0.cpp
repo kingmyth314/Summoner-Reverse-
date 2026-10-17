@@ -808,7 +808,7 @@ void cmd_remove_nav()
     script_remove_redundant_npc_navpoints();
 }
 
-// 0x4e0080  Confidence: exact. Every "$npc" level navpoint that no live or inactive character uses loses
+// 0x4e0080  Confidence: likely (an 8168 byte match; differs under 8966, D7807). Every "$npc" level navpoint that no live or inactive character uses loses
 // its name (it is emptied, not removed: the record stays in the table and is still written by
 // script_write_level_script with an empty name).
 void script_remove_redundant_npc_navpoints()
@@ -1838,7 +1838,7 @@ void script_editor_draw_navpoints()
     }
 }
 
-// 0x4e3700  Confidence: likely (the five points as array assignments; VC6 expands some of the inline vector3
+// 0x4e3700  Confidence: exact (the five points as array assignments; VC6 expands some of the inline vector3
 // operators and calls others out of line, which the source does not show). An arrow head of size `size`
 // along the forward axis at pos (lines 0-1, 0-2, 2-3, 3-0, 0-4, 4-1), and a drop line down `height` to
 // the ground when the navpoint floats.
@@ -2429,24 +2429,24 @@ void script_editor_show_level_item(navpoint *np)
     }
 }
 
-// 0x4e50f0  Confidence: likely (the four defaults: 1.0 min range, volume and roll-off, 0 delay). The ambient
+// 0x4e50f0  Confidence: exact (the four defaults: 1.0 min range, volume and roll-off, 0 delay). The ambient
 // window for an ambient navpoint: the emitter's sound and parameters (repeat delay in seconds), the .wav
 // files of data\sounds\ambient, the current one selected; focus on the name box.
 void script_editor_list_ambient_sounds(navpoint *np)
 {
     char path[0x100];
     char name[0x100] = "";
-    char buf[0x58];
+    char buf[0x20];
     float min_range = 1.0f, volume = 1.0f, rolloff = 1.0f, delay = 0.0f;
-    file_find_list list;
+    file_find_node list;
     file_find_node *node;
     ui_listbox_entry *e;
     int index, path_id;
 
     index = level_ambient_find_at(&np->pos);
     if (index >= 0) {
+        snd_sound *s = &sounds[sound_emitter_get_sound(level_ambients[index].emitter)];
         level_ambient *amb = &level_ambients[index];
-        snd_sound *s = &sounds[sound_emitter_get_sound(amb->emitter)];
         strcpy(path, s->name);
         file_get_filename(name, path);
         min_range = s->min_range;
@@ -2483,7 +2483,8 @@ void script_editor_list_ambient_sounds(navpoint *np)
         list.next = list.next->next;
         delete list.prev;
     }
-    list.next = list.prev = (file_find_node *)&list;
+    list.next = (file_find_node *)&list;
+    list.prev = (file_find_node *)&list;
     script_editor_ambient_name_inputbox.set_focus();
 }
 
@@ -2494,8 +2495,8 @@ void script_editor_list_ambient_sounds(navpoint *np)
 // and the next stack slot, so the fields show garbage (script_editor_door_ok writes them back with atof).
 void script_editor_list_door_sounds(lobj *l)
 {
-    char buf[0x40];
-    file_find_list list;
+    char buf[24];
+    file_find_node list;
     file_find_node *node;
     ui_listbox_entry *e;
     door_info *d;
@@ -2518,7 +2519,8 @@ void script_editor_list_door_sounds(lobj *l)
         list.next = list.next->next;
         delete list.prev;
     }
-    list.next = list.prev = (file_find_node *)&list;
+    list.next = (file_find_node *)&list;
+    list.prev = (file_find_node *)&list;
 
     script_editor_door_opening_radio.set_checked(true);
     script_editor_door_open_sound_listbox.set_enabled(true);
@@ -2532,7 +2534,8 @@ void script_editor_list_door_sounds(lobj *l)
     script_editor_door_close_rolloff_inputbox.set_disabled(true);
 
     if (d->open_sound.name != NULL) {
-        script_editor_door_open_sound_listbox.select_by_text(strchr(d->open_sound.name, '\\') + 1, true);
+        const char *file = strchr(d->open_sound.name, '\\') + 1;
+        script_editor_door_open_sound_listbox.select_by_text(file, true);
         script_editor_door_sound_inputbox.set_text(d->open_sound.name);
         sprintf(buf, "%.1f", d->open_sound.params[1]);
         script_editor_door_open_min_range_inputbox.set_text(buf);
@@ -2547,7 +2550,8 @@ void script_editor_list_door_sounds(lobj *l)
         script_editor_door_open_rolloff_inputbox.set_text("1.0");
     }
     if (d->close_sound.name != NULL) {
-        script_editor_door_close_sound_listbox.select_by_text(strchr(d->close_sound.name, '\\') + 1, true);
+        const char *file = strchr(d->close_sound.name, '\\') + 1;
+        script_editor_door_close_sound_listbox.select_by_text(file, true);
         sprintf(buf, "%.1f", d->close_sound.params[1]);
         script_editor_door_close_min_range_inputbox.set_text(buf);
         sprintf(buf, "%.1f", d->close_sound.params[0]);
@@ -2588,12 +2592,13 @@ void script_editor_list_door_sounds(lobj *l)
 // record (none: script_editor_handle_input adds one first) would read the record at NULL.
 void script_editor_show_door_lock(lobj *l)
 {
-    char buf[12];
-    lc_entry *rec = NULL;
+    char buf[16];
+    lc_entry *rec;
     int i;
 
     script_editor_door_lock_name_inputbox.set_text(l->name);
     script_editor_door_lock_name_inputbox.set_hidden(true);
+    rec = NULL;
     for (i = 0; i < lc_entry_count; i++) {
         if (lc_entries[i].object == l)
             rec = &lc_entries[i];
@@ -2914,7 +2919,7 @@ void script_editor_fill_action_lists()
     script_action *a;
     ui_listbox_entry *e;
     move_info *m;
-    file_find_list list;
+    file_find_node list;
     file_find_node *node;
     int i;
 
@@ -3333,7 +3338,7 @@ bool script_editor_on_load(int event, int value)
 // accepts into the load list.
 void script_editor_list_scripts()
 {
-    file_find_list list;
+    file_find_node list;
     file_find_node *node;
     ui_listbox_entry *e;
 
@@ -3348,7 +3353,7 @@ void script_editor_list_scripts()
     SE_FREE_FILE_LIST(list);
 }
 
-// 0x4e71e0  Confidence: exact. The file_find_files filter: with Level scripts the level's own
+// 0x4e71e0  Confidence: likely (an 8168 byte match; differs under 8966, D7807). The file_find_files filter: with Level scripts the level's own
 // "<level>_script.tbl" only; with Cutscene scripts every "*_cscript.tbl" whose "$Level:" is this level.
 bool script_editor_list_scripts_filter_cb(file_find_node *node)
 {
@@ -3548,7 +3553,7 @@ void script_editor_select_first()
     }
 }
 
-// 0x4e7800  Confidence: likely (jump table 0x4e7908). The next living object (no serpent check, unlike
+// 0x4e7800  Confidence: exact (jump table 0x4e7908). The next living object (no serpent check, unlike
 // select_prev) or the next navpoint, from the end of one table to the start of the other.
 void script_editor_select_next()
 {
@@ -3559,9 +3564,9 @@ void script_editor_select_next()
         return;
     }
     if (script_editor_sel.kind == SE_PICK_CHARACTER) {
-        do {
+        script_editor_sel.object = ((Character *)script_editor_sel.object)->live_next;
+        while (!((Character *)script_editor_sel.object)->is_living())
             script_editor_sel.object = ((Character *)script_editor_sel.object)->live_next;
-        } while (!((Character *)script_editor_sel.object)->is_living());
         script_editor_focus_selection();
         return;
     }
@@ -3651,7 +3656,7 @@ bool script_editor_add_action_cb(int event, int value)
 // for species 0x57-0x5a and one hand for Joseph (species 0), both in cutscene scripts only.
 bool script_editor_action_type_allowed(int type, Character *c)
 {
-    file_find_list list;
+    file_find_node list;
     bool found;
     int i;
 
@@ -4093,7 +4098,7 @@ void script_create()
     script_action *a;
     script_action tmp;
     move_info *m;
-    file_find_list list;
+    file_find_node list;
 
     cutscene = script_editor_cutscene_button.is_latched();
     type = script_editor_action_type_listbox.get_selected()->data;
@@ -5051,7 +5056,7 @@ bool script_editor_ambient_field_cb(int event, int value)
 {
     char buf[0x20];
     ui_inputbox *g, *next;
-    double v;
+    float v;
 
     g = (ui_inputbox *)script_editor_ambient_window.find_gadget_by_id(value);
     if (g == &script_editor_ambient_min_range_inputbox)
@@ -5121,7 +5126,7 @@ bool script_editor_ambient_cancel_cb(int event, int value)
     return false;
 }
 
-// 0x4eb530  Confidence: likely (the search loop's form). The parameter window's keys: Enter presses Ok, Esc
+// 0x4eb530  Confidence: exact (the search loop's form). The parameter window's keys: Enter presses Ok, Esc
 // Cancel, Tab moves to the next shown box.
 bool script_editor_params_window_cb(int event, int value)
 {
@@ -5351,7 +5356,7 @@ bool script_editor_door_field_cb(int event, int value)
 {
     char buf[0x20];
     ui_inputbox *g, *next;
-    double v;
+    float v;
 
     g = (ui_inputbox *)script_editor_door_window.find_gadget_by_id(value);
     if (g == &script_editor_door_open_min_range_inputbox)
@@ -5595,7 +5600,7 @@ bool script_editor_door_ok(int event, int value)
     return true;
 }
 
-// 0x4ec570  Confidence: exact. OK of the door lock / clickable object window: the text (the "+Messagebox:"
+// 0x4ec570  Confidence: likely (an 8168 byte match; differs under 8966, D7807). OK of the door lock / clickable object window: the text (the "+Messagebox:"
 // of #Clicks) and the gold ("+Give:"). The window says "Give item", but what is given is gold.
 bool script_editor_door_lock_ok_cb(int event, int value)
 {

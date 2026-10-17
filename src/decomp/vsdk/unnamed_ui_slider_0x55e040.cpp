@@ -94,17 +94,22 @@ void ui_gadget::draw_sunken(Color *colors, int width)
 void ui_slider_base::get_marker_rect(int *mx, int *my, int *mw, int *mh)
 {
     float f = (float)pos / (count - 1);
+    int height = h;
+    int size;
+    int width;
 
-    *mh = h;
+    *mh = height;
+    size = marker_size;
     *my = 0;
     *mx = 0;
-    *mw = w;
+    width = w;
+    *mw = width;
     if (horizontal) {
-        *mx = (int)((w - marker_size) * f);
-        *mw = marker_size;
+        *mx = (int)((width - size) * f);
+        *mw = size;
     } else {
-        *my = (int)((h - marker_size) * f);
-        *mh = marker_size;
+        *my = (int)((height - size) * f);
+        *mh = size;
     }
 }
 
@@ -198,7 +203,7 @@ ui_slider_base::ui_slider_base()
     drag_state = UI_SLIDER_IDLE;
 }
 
-// 0x55e7e0  Confidence: likely (the arrow buttons' rectangles; the flag words of ui_button::create are
+// 0x55e7e0  Confidence: exact (the arrow buttons' rectangles; the flag words of ui_button::create are
 // 0x102 / 0x202 left / right, 0x42 / 0x82 up / down).
 void ui_slider_base::create(ui_element *window, int x, int y, int w, int h, bool horiz, int msize,
                             int positions, int id, int flags, bool owned)
@@ -249,23 +254,26 @@ void ui_slider_base::set_tooltip(const char *text, int x, int y, int delay)
     ui_tooltip *t = tooltips.next;
 
     if (t != (ui_tooltip *)&tooltips) {
-        t->prev->next = t->next;
-        t->next->prev = t->prev;
+        ui_tooltip *prev = t->prev;
+        ui_tooltip *next = t->next;
         t->next = NULL;
         t->prev = NULL;
+        prev->next = next;
+        next->prev = prev;
     }
     t = new ui_tooltip;
     strcpy(t->text, text);
     t->owner = this;
     t->x = x;
+    ui_tooltip *last = tooltips.prev;
     t->delay = delay;
     t->next = (ui_tooltip *)&tooltips;
-    t->prev = tooltips.prev;
     tooltips.prev = t;
     t->colors = &ui_tooltip_colors.c0;
     t->y = y;
     t->font = -1;
-    t->prev->next = t;
+    t->prev = last;
+    last->next = t;
 }
 
 // 0x55eb10  Confidence: exact.
@@ -304,7 +312,7 @@ void ui_slider_base::set_page_size(int size)
     page_size = size;
 }
 
-// 0x55eb70  Confidence: likely (the clip rectangles' arithmetic order). The two parts of the track
+// 0x55eb70  Confidence: exact (the clip rectangles' arithmetic order). The two parts of the track
 // around the marker in colours [3] and [4], then the raised marker.
 void ui_slider_base::draw()
 {
@@ -426,7 +434,10 @@ void ui_slider::update_marker()
         f = 0.0f;
     else if (f > 1.0f)
         f = 1.0f;
-    size = (int)((horizontal ? w : h) * f);
+    if (horizontal)
+        size = (int)(w * f);
+    else
+        size = (int)(h * f);
     if (size < 7)
         size = 7;
     set_marker_size(size);
@@ -437,7 +448,7 @@ ui_tooltip::~ui_tooltip()
 {
 }
 
-// 0x55ef60  Confidence: likely (an owner of another kind leaves the position unset). The box is kept
+// 0x55ef60  Confidence: exact (an owner of another kind leaves the position unset). The box is kept
 // two pixels inside the screen; colours [0] box, [2] shadow (when its alpha is not 0), [1] text.
 void ui_tooltip::draw()
 {

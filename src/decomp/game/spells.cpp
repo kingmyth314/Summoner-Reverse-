@@ -407,18 +407,15 @@ int damage_type_to_status(int spell)
     return -1;
 }
 
-// 0x47a9c0  Confidence: exact (dword jump table 0x47aa2c for 0..0x11).
+// 0x47a9c0  Confidence: exact (dword jump table 0x47aa2c for 0..0x11: every status has a case; the bodies in
+// the binary's order, case 8 last; `(level * 4.0f) * 0.01f` keeps both multiplies).
 float status_effect_modifier(int status, int level)
 {
     switch (status) {
     case STATUS_FAITH: case STATUS_CURSE: case STATUS_BLESS:
-        return level * 4.0f * 0.01f;
+        return (level * 4.0f) * 0.01f;
     case STATUS_REGEN:
         return level * 2.0f;
-    case 8:
-        if (level >= 50)
-            return 1.0f;
-        break;
     case STATUS_POISON:
         return -(level * 2.0f);
     case 0xe:
@@ -427,9 +424,12 @@ float status_effect_modifier(int status, int level)
         return -(level * 4.0f);
     case 0x10:
         return level * 10.0f;
-    case 0:
-    case 0x11:
+    case 8:
+        if (level >= 50)
+            return 1.0f;
         break;
+    case 0: case 1: case 6: case 7: case 9: case 0xa: case 0xc: case 0xd: case 0x11:
+        return 0.0f;
     }
     return 0.0f;
 }
@@ -457,17 +457,18 @@ int spell_get_duration_ms(int spell, int level)
     return 0;
 }
 
-// 0x47ab60  Confidence: exact (byte-indexed jump table 0x47abc0 for 0..0x11). Status 8 (invisible)
+// 0x47ab60  Confidence: exact (byte-indexed jump table 0x47abc0 for 0..0x11: every status has a case). Status 8 (invisible)
 // lasts invisibility's +Loop Time: seconds, which spells_parse_table sets to the record index (11).
 int status_effect_duration(int status)
 {
     switch (status) {
     case STATUS_REGEN: return 20000;
-    case 8:            return spells[0x0b].loop_time * 1000;
     case STATUS_POISON: return 10000;
     case 0xe: case 0xf: return 2000;
     case 0x11:         return 5000;
-    case 0:            break;
+    case 8:            return spells[0x0b].loop_time * 1000;
+    case 0: case 1: case 2: case 3: case 4: case 6: case 7: case 9: case 0xa: case 0xc: case 0xd: case 0x10:
+        return 0;
     }
     return 0;
 }
@@ -1872,14 +1873,14 @@ int spell_spawn_hit_fx(int caster, const vector3 *pos, int owner, const matrix *
     fx->caster = caster;
     fx->spell = SPELL_BLIZZARD;
     fx->instance->process(0, &fx->pos, &fx->orient);
+    aa._unk00 = 0;
+    aa.shape = 1;
     aa.cx = pos->x;
     aa.cz = pos->z;
     aa.ax = orient->rvec.x;
     aa.az = orient->rvec.z;
     aa.bx = orient->fvec.x;
     aa.bz = orient->fvec.z;
-    aa._unk00 = 0;
-    aa.shape = 1;
     aa._unk28 = 0.5f;
     aa.extent_b = 3.3f;
     aa.extent_a = 3.3f;
@@ -2212,16 +2213,16 @@ float spell_target_value(Character *target, int spell)
     case 0x08:                                            // silence
         if (target->info->flags & 0x100)
             return 0.0f;
-        goto not_boss;
-    case 0x0d:                                            // Life Drain
-        if (target->level > 1)
-            goto not_boss;
-        return 0.0f;
+        // fall through
     case 0x0c: case 0x17: case 0x22: case 0x24: case 0x25: case 0x3d: case 0x43:
     not_boss:
         if (target->type == 9 || (target->flags & 0x40))
             return 0.0f;
         return 1.0f;
+    case 0x0d:                                            // Life Drain
+        if (target->level > 1)
+            goto not_boss;
+        return 0.0f;
     case 0x0f:                                            // lightning
         return 1.0f - target->get_resistance(2);
     case 0x11:                                            // power leech
@@ -2316,13 +2317,13 @@ void spell_effect_free(spell_effect *e)
 // 0x47f710 init_ccmd_summon (console_command constructor). Confidence: exact.
 console_command ccmd_summon("summon", "Summon a creature", cmd_summon);   // 0x22e9240
 
-// 0x47f730  Confidence: likely. Only "golem" and "blackfire" are known; there is no
+// 0x47f730  Confidence: exact. Only "golem" and "blackfire" are known; there is no
 // calling_a_command_function test, so the help and status passes of the console also summon.
 void cmd_summon()
 {
     int spell = -1;
     Character *c;
-    vector3 pos, ofs;
+    vector3 pos;
 
     process_command(ARG_STRING);
     if (!strcmp(next_arg, "golem"))
@@ -2334,14 +2335,7 @@ void cmd_summon()
         return;
     }
     c = cur_character;
-    pos.x = c->pos.x;
-    pos.y = c->pos.y;
-    pos.z = c->pos.z;
-    ofs.x = c->orient.fvec.x * 4.0f;
-    ofs.y = c->orient.fvec.y * 4.0f;
-    ofs.z = c->orient.fvec.z * 4.0f;
-    pos.x += ofs.x;
-    pos.y += ofs.y;
-    pos.z += ofs.z;
+    pos = c->pos;
+    pos += c->orient.fvec * 4.0f;
     summon_create(c, &pos, 0, spell, -1);
 }

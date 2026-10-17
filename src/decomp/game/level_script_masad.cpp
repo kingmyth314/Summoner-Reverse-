@@ -183,7 +183,8 @@ void lsf_masad_barb()
     if (savegame_state.get_flag(cur_level_index, "masad_barb")) {
         if (!ls_masad_barb_music_done && !(game_flags & GF_CUTSCENE)) {
             ls_masad_barb_music_done = true;
-            music_play(music_find_by_name("Boss"), true);
+            int music = music_find_by_name("Boss");
+            music_play(music, true);
         }
     } else if (!(game_flags & GF_CONVERSATION) && savegame_state.get_flag(cur_level_index, "masad_talked_to_nath")
                && script_player_near_navpoint("$cuttrig", 2.5f)) {
@@ -209,7 +210,7 @@ char ls_masad_use(const char *name)
     return 0;
 }
 
-// 0x4fdcd0  Confidence: exact (the three strcpy are inline rep movs). End of Nar-Leaving-Masad: to the world
+// 0x4fdcd0  Confidence: exact (VC6 byte match, match14; was exact) (the three strcpy are inline rep movs). End of Nar-Leaving-Masad: to the world
 // map (entry 2), game sequence state 4.
 void ls_masad_leaving_cs_end()
 {

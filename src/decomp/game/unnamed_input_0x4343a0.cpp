@@ -94,7 +94,7 @@ void player_input_frame()
     game_camera.frame();
 }
 
-// 0x4344b0  Confidence: likely (the profile_label text is ours: the inline constructor leaves only the EH
+// 0x4344b0  Confidence: exact (the profile_label text is ours: the inline constructor leaves only the EH
 // state store, the unwind funclet 0x57c020 calls ~profile_label at 0x434650, as in pathfinding.cpp).
 // in = {flags, mouse x, mouse y}. The left click ASSIGNS 4, so the Shift, Alt and right-button bits set
 // above are dropped on the frame of a left click (observed; whether any reader needs them then is open).
@@ -105,9 +105,7 @@ void player_read_mouse_input(unsigned int *in)
 
     if ((game_flags & (GF_CONVERSATION | GF_PARTY_DEAD)) || ui_message_box_is_active())
         return;
-    in[0] = 0;
-    in[1] = 0;
-    in[2] = 0;
+    memset(in, 0, 12);
     in[1] = game_mouse_x;
     in[2] = game_mouse_y;
     if (key_is_down(DIK_LSHIFT) || key_is_down(DIK_RSHIFT))

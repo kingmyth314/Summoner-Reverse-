@@ -80,7 +80,7 @@ inline vfx_material *fx_recb0::get_bitmaps(vfx_emitter_desc *desc, fx_rec28 *p, 
     return mat;
 }
 
-// 0x562600 vfx_particle_get_color  Confidence: likely (v kept on the FPU). White, or the material's
+// 0x562600 vfx_particle_get_color  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21; was likely; v kept on the FPU). White, or the material's
 // curve 44 at t raised to the ambient light per channel.
 inline void fx_recb0::get_color(vfx_emitter_desc *desc, vfx_material *mat, float t, ubyte *r, ubyte *g, ubyte *b)
 {

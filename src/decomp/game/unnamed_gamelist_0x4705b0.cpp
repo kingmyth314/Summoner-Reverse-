@@ -251,16 +251,17 @@ void mp_handle_deny_jn(ubyte *data, void *from)
     mp_join_reset();
 }
 
-// 0x470b70  Confidence: likely (the order of the header stores and the counter). GM_QURY (no data) to one address
+// 0x470b70  Confidence: exact (VC6 byte match, cl 8966; was likely: the order of the header stores and the
+// counter). GM_QURY (no data) to one address
 // (the tracker's listed games).
 void mp_send_gm_qury(net_addr *to)
 {
     ubyte data[MP_MAX_PACKET];
+    ushort packet_size;
 
-    mp_packet_table[MP_GM_QURY].sent++;
-    data[0] = MP_GM_QURY;
-    *(ushort *)(data + 1) = 0;
-    nw_send(to, data, MP_HEADER_SIZE);
+    MP_BUILD_HEADER(MP_GM_QURY);
+    MP_END_PACKET();
+    nw_send(to, data, packet_size);
 }
 
 // 0x470bb0  Confidence: exact.
@@ -269,7 +270,8 @@ void mp_gamelist_request_refresh()
     mp_gamelist_refresh_pending = true;
 }
 
-// 0x470bc0  Confidence: likely (VC6 loads game after the memset setup; same size). JN_RQST {name\0, password\0,
+// 0x470bc0  Confidence: exact (VC6 byte match, cl 8966; was likely: VC6 loads game after the memset setup; same
+// size). JN_RQST {name\0, password\0,
 // char_info, profile
 // flags, character level, the player's +0x20, the int at 0x68e1bc, the checksum 0xf174baca} to the game's
 // server. The character and the password are kept for the resends (mp_gamelist_refresh passes NULL);
@@ -288,8 +290,8 @@ void mp_send_jn_rqst(mp_gamelist_entry *game, const void *character, const char 
         mp_join_password[0xf] = 0;
     }
     mp_join_result = 1;
-    memset(&req, 0, sizeof(req));
     mp_join_target = game;
+    memset(&req, 0, sizeof(req));
     strcpy(req.name, mp_local_player->name);
     strcpy(req.password, mp_join_password);
     req.char_info = mp_local_player->char_info;

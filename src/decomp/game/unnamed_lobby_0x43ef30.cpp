@@ -55,13 +55,14 @@ lobby_channel lobby_channels[LOBBY_MAX_CHANNELS];             // 0x60eef8
 // 0x43ef50  Confidence: exact. The index of the new record; the second count starts at 0.
 int lobby_add_channel(lobby_channel *ch)
 {
-    if (lobby_num_channels >= LOBBY_MAX_CHANNELS)
-        return -1;
-    strcpy(lobby_channels[lobby_num_channels].name, ch->name);
-    strcpy(lobby_channels[lobby_num_channels].topic, ch->topic);
-    lobby_channels[lobby_num_channels].num_users = ch->num_users;
-    lobby_channels[lobby_num_channels].unk8c = 0;
-    return lobby_num_channels++;
+    if (lobby_num_channels < LOBBY_MAX_CHANNELS) {
+        strcpy(lobby_channels[lobby_num_channels].name, ch->name);
+        strcpy(lobby_channels[lobby_num_channels].topic, ch->topic);
+        lobby_channels[lobby_num_channels].num_users = ch->num_users;
+        lobby_channels[lobby_num_channels].unk8c = 0;
+        return lobby_num_channels++;
+    }
+    return -1;
 }
 
 // 0x43eff0  Confidence: exact. Back from the game list (state 12) only the list refresh is due; else a
@@ -329,10 +330,11 @@ int lobby_find_user(const char *name)
 // 0x43f6a0  Confidence: exact.
 int lobby_add_user(const char *name)
 {
-    if (lobby_num_users >= LOBBY_MAX_USERS)
-        return -1;
-    strcpy(lobby_users[lobby_num_users], name);
-    return lobby_num_users++;
+    if (lobby_num_users < LOBBY_MAX_USERS) {
+        strcpy(lobby_users[lobby_num_users], name);
+        return lobby_num_users++;
+    }
+    return -1;
 }
 
 // 0x43f6f0  Confidence: likely (the size is the distance of two row addresses: both products are formed).

@@ -53,7 +53,8 @@ void File::read_String_raw(File *f, String *s)
     }
 }
 
-// 0x525800  Confidence: likely (the byte is read into the dead min_ver slot, as in the readers below).
+// 0x525800  Confidence: exact (VC6 byte match, cl 8966; was likely: the byte is read into the dead min_ver slot, as
+// in the readers below).
 bool File::read_bool(int min_ver, bool def)
 {
     char v;
@@ -63,7 +64,7 @@ bool File::read_bool(int min_ver, bool def)
     read(&v, 1, 0, 0);
     if (error())
         return def;
-    return v != 0;
+    return v ? true : false;
 }
 
 // 0x525850  Confidence: exact.
@@ -96,7 +97,9 @@ short File::read_int16(int min_ver, short def)
     if (!check_version(min_ver))
         return def;
     read(&v, 2, 0, 0);
-    return error() ? def : v;
+    if (error())
+        return def;
+    return v;
 }
 
 // 0x525940  Confidence: exact.
@@ -107,7 +110,9 @@ ushort File::read_uint16(int min_ver, ushort def)
     if (!check_version(min_ver))
         return def;
     read(&v, 2, 0, 0);
-    return error() ? def : v;
+    if (error())
+        return def;
+    return v;
 }
 
 // 0x525990  Confidence: exact.
@@ -279,19 +284,19 @@ void File::read_string_buf(char *buf, int max, int min_ver, const char *def)
         return;
     }
     int len = read_uint16(0, 0);
-    if (len == 0) {
-        buf[0] = '\0';
+    if (len != 0) {
+        if (len < max) {
+            read(buf, len, 0, 0);
+            buf[len] = '\0';
+            return;
+        }
+        read(buf, max - 1, 0, 0);
+        buf[max - 1] = '\0';
+        for (int skip = len - max + 1; skip > 0; skip--)
+            read_int8(0, 0);
         return;
     }
-    if (len < max) {
-        read(buf, len, 0, 0);
-        buf[len] = '\0';
-        return;
-    }
-    read(buf, max - 1, 0, 0);
-    buf[max - 1] = '\0';
-    for (int skip = len - max + 1; skip > 0; skip--)
-        read_int8(0, 0);
+    buf[0] = '\0';
 }
 
 // 0x525ee0  Confidence: exact. NUL-terminated; up to max chars are kept and the terminator then goes to
@@ -306,7 +311,7 @@ void File::read_string(char *buf, int max, int min_ver, const char *def)
         return;
     }
     int i = 0;
-    for (;;) {
+    while (1) {
         int c = read_int8(0, 0);
         if (c == 0)
             break;
@@ -524,12 +529,12 @@ void File::write(const void *buf, int len)
         s->cipher.set_key(key);
         s->cipher.crypt((void *)buf, len);
     }
-    if (n == 0) {
-        s->error = FILE_ERR_WRITE;
+    if (n != 0) {
+        s->pos += len;
+        s->num_bytes += len;
         return;
     }
-    s->pos += len;
-    s->num_bytes += len;
+    s->error = FILE_ERR_WRITE;
 }
 
 // 0x5264e0  Confidence: likely. Straight to the FILE (no count, no cipher): text mode files.

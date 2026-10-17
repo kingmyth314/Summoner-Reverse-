@@ -142,8 +142,8 @@ void ai_state::machival_ai_idle()
     }
 }
 
-// 0x4c0f60  Confidence: likely (the offense-point packing loop as in the other loaders). One stage in the
-// table.
+// 0x4c0f60  Confidence: exact (the offense-point packing loop as in the other loaders; the tag name and the
+// ca_character in locals, D7700). One stage in the table.
 void ai_state::machival_boss_load()
 {
     int i;
@@ -154,7 +154,9 @@ void ai_state::machival_boss_load()
         machival_threat_table[i].handle = -1;
     machival_num_offense_points = 0;
     for (i = 0; i < 10; i++) {
-        tag = owner->instance->character->find_mesh_tag(offense_point_name(i));
+        const char *name = offense_point_name(i);
+        ca_character *ch = owner->instance->character;
+        tag = ch->find_mesh_tag(name);
         if (tag != -1) {
             machival_offense_points[machival_num_offense_points].tag = tag;
             machival_num_offense_points++;
@@ -181,9 +183,9 @@ void machival_init_move_tables()
     machival_move_5 = &machival_attack_table[0][5];
 }
 
-// 0x4c1070  Confidence: likely (the sub-mode switch: case -1 has its own slot, byte table 0x4c1180; the
-// bodies are laid out 15, 22/23, 51, 52). A multiplayer client only plays the teleport sub-modes; the
-// host and single player think first.
+// 0x4c1070  Confidence: exact (the action result is a switch, D7700; the sub-mode switch: case -1 has its own
+// slot, byte table 0x4c1180; the bodies are laid out 15, 22/23, 51, 52). A multiplayer client only plays
+// the teleport sub-modes; the host and single player think first.
 void ai_state::machival_ai_frame()
 {
     Character *target = NULL;
@@ -201,12 +203,14 @@ void ai_state::machival_ai_frame()
         return;
     }
     action = machival_ai_select_action();
-    if (action == 0) {
+    switch (action) {
+    case 0:
         go_idle();
         return;
-    }
-    if (action == 1 || action == 4)
+    case 1:
+    case 4:
         return;
+    }
     if (machival_casting_spell != -1)
         return;
     if (submode != AIS_MACHIVAL_TELEPORT && submode != AIS_MACHIVAL_ARRIVE) {
@@ -221,7 +225,7 @@ void ai_state::machival_ai_frame()
     }
     switch (submode) {
     case -1:
-        break;
+        return;
     case AIS_CLOSE_COMBAT:
         machival_ai_melee(target);
         break;

@@ -199,7 +199,7 @@ Mempool *get_current_mempool()
 // 0x512810  Confidence: exact.
 bool is_mempool_active()
 {
-    return Pool != NULL;
+    return Pool ? true : false;
 }
 
 // 0x512820  Confidence: exact. Lines 598 (0x256) and 600 (0x258). The pointer stays in EAX as the

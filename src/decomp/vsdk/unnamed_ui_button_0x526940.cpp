@@ -245,7 +245,7 @@ int ui_button::process(int key)
     }
 }
 
-// 0x526f30  vtable slot 0. Confidence: likely (the clear order; the drag bitmap is not cleared).
+// 0x526f30  vtable slot 0. Confidence: exact (the clear order; the drag bitmap is not cleared).
 void ui_button::dtor()
 {
     state_normal.clear();
@@ -255,7 +255,7 @@ void ui_button::dtor()
     ui_gadget::dtor();
 }
 
-// 0x526f70  Confidence: likely. The four state bitmaps are linked into one ring (the drag bitmap stays
+// 0x526f70  Confidence: exact. The four state bitmaps are linked into one ring (the drag bitmap stays
 // alone).
 ui_button::ui_button()
 {
@@ -265,7 +265,7 @@ ui_button::ui_button()
     state_disabled.link(&state_pressed);
 }
 
-// 0x527050  Confidence: likely (store order).
+// 0x527050  Confidence: exact (store order).
 void ui_button::create(ui_element *window, int x, int y, int w, int h, int id, int flags, bool owned)
 {
     init(window, UI_TYPE_BUTTON, x, y, w, h, id, owned);
@@ -286,7 +286,7 @@ void ui_button::create(ui_element *window, int x, int y, int w, int h, int id, i
     drag_data = this;
 }
 
-// 0x527100  Confidence: likely. As create, in the parent's window, and always with UI_BUTTON_REPEATS
+// 0x527100  Confidence: exact. As create, in the parent's window, and always with UI_BUTTON_REPEATS
 // (or al, 2; NOTES.md).
 void ui_button::create_in_parent(ui_gadget *parent, int x, int y, int w, int h, int id, int flags,
                                  bool owned)
@@ -317,24 +317,26 @@ void ui_button::set_tooltip(const char *text, int x, int y, int delay)
     ui_tooltip *t = tooltips.next;
 
     if (t != (ui_tooltip *)&tooltips) {
-        t->prev->next = t->next;
-        t->next->prev = t->prev;
+        ui_tooltip *prev = t->prev;
+        ui_tooltip *next = t->next;
         t->next = NULL;
         t->prev = NULL;
+        prev->next = next;
+        next->prev = prev;
     }
     t = new ui_tooltip;
-    t->owner = this;
     strcpy(t->text, text);
+    t->owner = this;
     t->x = x;
+    ui_tooltip *last = tooltips.prev;
     t->delay = delay;
+    t->next = (ui_tooltip *)&tooltips;
+    tooltips.prev = t;
     t->colors = ui_tooltip_colors;
     t->y = y;
     t->font = -1;
-
-    t->next = (ui_tooltip *)&tooltips;
-    t->prev = tooltips.prev;
-    tooltips.prev->next = t;
-    tooltips.prev = t;
+    t->prev = last;
+    last->next = t;
 }
 
 // 0x527280  Confidence: exact. No caller.
@@ -379,13 +381,8 @@ bool ui_button::was_double_clicked()
 // 0x527370  Confidence: exact.
 bool ui_button::is_pressed()
 {
-    if (state == 1)
-        return true;
-    if ((state == 2 || state == 3) && is_mouse_over())
-        return true;
-    if ((flags & UI_BUTTON_REPEATS) && (state == 6 || state == 7))
-        return true;
-    return false;
+    return state == 1 || ((state == 2 || state == 3) && is_mouse_over())
+        || ((flags & UI_BUTTON_REPEATS) && (state == 6 || state == 7));
 }
 
 // 0x5273c0  Confidence: exact.
@@ -464,7 +461,7 @@ void ui_button::draw_arrow()
     }
 }
 
-// 0x527690  vtable slot 7. Confidence: likely (the four copies of the label code, each with its own
+// 0x527690  vtable slot 7. Confidence: exact (the four copies of the label code, each with its own
 // locals, are in the binary; they share only the final gr_string call).
 // A disabled button is not drawn at all; a hidden one (sic) is drawn with the disabled bitmap and colour
 // set 2 (NOTES.md). Otherwise pressed (or being dragged) uses the pressed bitmap and colour set 1,

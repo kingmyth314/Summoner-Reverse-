@@ -30,7 +30,7 @@ void ls_rand_forestnite1_ghost_escape_cs_end();
 bool ls_rand_forestnite1_ghost_intro_done;           // 0x257ea64
 bool ls_rand_forestnite1_ghost_killed_done;          // 0x257ea65
 
-// 0x4f5670  Confidence: likely (the two flags are stored from AL on both paths, ls_rand_forest01_init's
+// 0x4f5670  Confidence: exact (the two flags are stored from AL on both paths, ls_rand_forest01_init's
 // same statements as immediates; which source form gives which is not known, D5302). level_script_table
 // init (stage 4 on the _v2 script).
 void ls_rand_forestnite1_init()
@@ -56,7 +56,8 @@ void ls_rand_forestnite1_frame()
     if (!ls_rand_forestnite1_ghost_intro_done && savegame_state.get_flag(cur_level_index, "ghost_intro_played")
         && !(game_flags & GF_CUTSCENE)) {
         ls_rand_forestnite1_ghost_intro_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_rand_forestnite1_ghost_killed_done && savegame_state.get_flag(cur_level_index, "ghost_killed")
         && !(game_flags & GF_CUTSCENE)) {

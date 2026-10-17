@@ -46,7 +46,7 @@ float shadow_far = 5.0f;              // 0x59c134 (name ours)
 shadow_entry shadow_entries[MAX_SHADOW_ENTRIES];   // 0x22fb720 (name ours)
 int shadows_num_entries;              // 0x22fedd0
 
-// 0x487440  Confidence: likely (the order of the position statements). The root bone of the current
+// 0x487440  Confidence: exact (the order of the position statements). The root bone of the current
 // mesh, an identity orientation whose uvec points down.
 void shadow_get_character_anchor(Character *c, vector3 *pos, matrix *orient)
 {
@@ -61,7 +61,7 @@ void shadow_get_character_anchor(Character *c, vector3 *pos, matrix *orient)
     pos->y = shadow_anchor_height + pos->y;
 }
 
-// 0x4874c0  Confidence: likely (where the flags byte is cleared). "#Object Shadow info", then records
+// 0x4874c0  Confidence: exact (where the flags byte is cleared). "#Object Shadow info", then records
 // "$Object:" "name" "$Radius:" r "$Scale:" s ["+Prop:"] up to "#End"; at most 0xaf are kept. Nothing reads
 // the table back (shadow_entries is referenced only here).
 void shadows_parse_table()
@@ -132,7 +132,7 @@ void move_target_set_bitmap(int bm)
     move_target_bm = bm;
 }
 
-// 0x487760  Confidence: likely (the two axis vectors are built after the pushes, as inline constructors).
+// 0x487760  Confidence: exact (the two axis vectors are built after the pushes, as inline constructors).
 // While cur_character walks to a clicked point (goal priority 999999), a one-frame 1 x 1 m decal at the
 // path's destination.
 void move_target_draw_decal()
@@ -150,14 +150,15 @@ void move_target_draw_decal()
     decal_place(move_target_bm, &dest, &u, &v, 0, false, 0, 0.75f);
 }
 
-// 0x487800  Confidence: likely (the inline vector products). A one-frame decal turned by -yaw degrees:
+// 0x487800  Confidence: exact (the inline vector products). A one-frame decal turned by -yaw degrees:
 // u = fvec * w, v = rvec * h.
 void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h)
 {
     matrix m;
 
     m.make_identity();
-    m.set_from_angles(0.0f, 0.0f, -yaw * SHADOW_DEG_TO_RAD);
+    yaw = -yaw;
+    m.set_from_angles(0.0f, 0.0f, yaw * SHADOW_DEG_TO_RAD);
     vector3 v = m.rvec * h;
     vector3 u = m.fvec * w;
     decal_place(bm, pos, &u, &v, 0, false, 0, 0.75f);

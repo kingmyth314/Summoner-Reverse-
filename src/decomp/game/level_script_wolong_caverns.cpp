@@ -144,29 +144,30 @@ void ls_wolongcaverns_frame()
     lsf_wc_nali_used();
 }
 
-// 0x4f6910  Confidence: likely (the squared distance as vector3 - and len_sq, expanded). A party character
+// 0x4f6910  Confidence: exact (the squared distance as vector3 - and len_sq, expanded). A party character
 // (type 7) within 3 of a trap 1 spike fires the trap.
 void ls_wolongcaverns_trap1_frame()
 {
     Character *c;
-    vector3 *spike;
+    int i;
 
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         if (c->type == 7 && !(c->flags & WC_TRAP_IGNORE_FLAG)) {
-            for (spike = &ls_wolongcaverns_spike_pos[0]; spike < &ls_wolongcaverns_spike_pos[3]; spike++) {
-                if ((c->pos - *spike).len_sq() < 9.0f)
+            for (i = 0; i < 3; i++) {
+                vector3 d = c->pos - ls_wolongcaverns_spike_pos[i];
+                if (d.len_sq() < 9.0f)
                     ls_wolongcaverns_trap1_fire();
             }
         }
     }
 }
 
-// 0x4f6990  Confidence: likely (the inner loop's break). Spear trap 1 (6 s rearm): the effect, the sound,
+// 0x4f6990  Confidence: exact (the inner loop's break). Spear trap 1 (6 s rearm): the effect, the sound,
 // and every living thing within 3 of a spike takes 140, flinches and is slowed (40 min).
 void ls_wolongcaverns_trap1_fire()
 {
     Character *c;
-    vector3 *spike;
+    int i;
 
     if (ls_wolongcaverns_trap1_timer.elapsed())
         ls_wolongcaverns_trap1_timer.invalidate();
@@ -176,8 +177,9 @@ void ls_wolongcaverns_trap1_fire()
     ls_wolongcaverns_trap1_fx = fx_create_world("wc-trap1.vfx", true);
     snd_play(ls_wolongcaverns_speartrap_sound, 1.0f, 0, 0, 0);
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        for (spike = &ls_wolongcaverns_spike_pos[0]; spike < &ls_wolongcaverns_spike_pos[3]; spike++) {
-            if ((c->pos - *spike).len_sq() < 9.0f) {
+        for (i = 0; i < 3; i++) {
+            vector3 d = c->pos - ls_wolongcaverns_spike_pos[i];
+            if (d.len_sq() < 9.0f) {
                 c->add_hp(-140.0f, -1, 1, false);
                 c->play_flinch(0);
                 c->status_effect_add(STATUS_SLOW, 2400000, -1, 0, -1, true);
@@ -193,9 +195,11 @@ void ls_wolongcaverns_ptrap_frame()
     Character *c;
 
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        if (c->type == 7 && !(c->flags & WC_TRAP_IGNORE_FLAG)
-            && (c->pos - ls_wolongcaverns_ptrap_pos).len_sq() < 4.0f)
-            ls_wolongcaverns_ptrap_fire();
+        if (c->type == 7 && !(c->flags & WC_TRAP_IGNORE_FLAG)) {
+            vector3 d = c->pos - ls_wolongcaverns_ptrap_pos;
+            if (d.len_sq() < 4.0f)
+                ls_wolongcaverns_ptrap_fire();
+        }
     }
 }
 
@@ -216,7 +220,8 @@ void ls_wolongcaverns_ptrap_fire()
     snd_play(ls_wolongcaverns_poisonmist_sound, 1.0f, 0, 0, 0);
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         for (i = 0; i < 3; i++) {
-            if ((c->pos - ls_wolongcaverns_ptrap_pos).len_sq() < 4.0f) {
+            vector3 d = c->pos - ls_wolongcaverns_ptrap_pos;
+            if (d.len_sq() < 4.0f) {
                 c->add_hp(-15.0f, -1, 1, false);
                 c->status_effect_add(STATUS_CURSE, 2400000, -1, 0.5f, -1, true);
                 break;
@@ -353,11 +358,11 @@ char ls_wolongcaverns_use(const char *name)
     return 0;
 }
 
-// 0x4f7110  Confidence: likely (as trap1_fire). Spear trap 2 (6 s): 150 damage within 4 of a $spike2 point.
+// 0x4f7110  Confidence: exact (as trap1_fire). Spear trap 2 (6 s): 150 damage within 4 of a $spike2 point.
 void ls_wolongcaverns_trap2_fire()
 {
     Character *c;
-    vector3 *spike;
+    int i;
 
     if (ls_wolongcaverns_trap2_timer.elapsed())
         ls_wolongcaverns_trap2_timer.invalidate();
@@ -367,8 +372,9 @@ void ls_wolongcaverns_trap2_fire()
     ls_wolongcaverns_trap2_fx = fx_create_world("wc-trap2.vfx", true);
     snd_play(ls_wolongcaverns_speartrap_sound, 1.0f, 0, 0, 0);
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        for (spike = &ls_wolongcaverns_spike_pos[3]; spike < &ls_wolongcaverns_spike_pos[6]; spike++) {
-            if ((c->pos - *spike).len_sq() < 16.0f) {
+        for (i = 3; i < 6; i++) {
+            vector3 d = c->pos - ls_wolongcaverns_spike_pos[i];
+            if (d.len_sq() < 16.0f) {
                 c->add_hp(-150.0f, -1, 1, false);
                 c->play_flinch(0);
                 c->status_effect_add(STATUS_SLOW, 2400000, -1, 0, -1, true);

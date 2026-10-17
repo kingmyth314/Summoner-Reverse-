@@ -47,7 +47,8 @@ bool dialogue_topic_box_built;                               // 0x5bc488
 int  dialogue_mode;                                          // 0x5bc48c  0 closed, 1 text, 2 text scrolling,
                                                              //           3 topics, 4 topics scrolling
 
-// 0x408d80  Confidence: likely (the loop is exact; the set_rect width is written as b1.x - 2*dx + b1.w,
+// 0x408d80  Confidence: exact (VC6 byte match, cl 8966; was likely: the loop is exact; the set_rect width is
+// written as b1.x - 2*dx + b1.w,
 // the order the binary computes it in).
 void dialogue_load_bitmaps()
 {
@@ -55,35 +56,37 @@ void dialogue_load_bitmaps()
     int i;
 
     for (i = 0; i < DIALOGUE_NUM_BUTTONS; i++) {
-        dialogue_buttons[i].flags = 0;
-        dialogue_buttons[i].bitmap = -1;
-        dialogue_buttons[i].x = 0;
-        dialogue_buttons[i].y = 0;
-        dialogue_buttons[i].w = 0;
-        dialogue_buttons[i].h = 0;
+        ui_button_state *b = &dialogue_buttons[i];
+        ui_button_def *d = &dialogue_button_table[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(dialogue_button_table[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
             bool scaled;
 
-            strcpy(filename, dialogue_button_table[i].name);
+            strcpy(filename, d->name);
             if (!strchr(filename, '.')) {
                 scaled = true;
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
             } else {
                 scaled = false;
             }
-            dialogue_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            dialogue_buttons[i].x = dialogue_button_table[i].pos[resolution_index][0];
-            dialogue_buttons[i].y = dialogue_button_table[i].pos[resolution_index][1];
-            bm_get_dimensions(dialogue_buttons[i].bitmap, &dialogue_buttons[i].w, &dialogue_buttons[i].h);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
             if (scaled) {
-                dialogue_buttons[i].w = (int)(dialogue_buttons[i].w * scale + 0.5f);
-                dialogue_buttons[i].h = (int)(dialogue_buttons[i].h * scale + 0.5f);
+                b->w = (int)(b->w * scale + 0.5f);
+                b->h = (int)(b->h * scale + 0.5f);
             }
             if (i == 0)
-                dialogue_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -280,9 +283,9 @@ void dialogue_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < DIALOGUE_NUM_BUTTONS; i++) {
-        if (dialogue_buttons[i].flags & 3)
-            ui_bitmap_scaled(dialogue_buttons[i].bitmap, dialogue_buttons[i].x, dialogue_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &dialogue_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
 
     gr_string(dialogue_title_pos[resolution_index][0] + dialogue_buttons[0].x,

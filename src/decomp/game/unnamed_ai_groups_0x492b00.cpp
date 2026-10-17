@@ -144,7 +144,8 @@ void ai_group_remove_member(Character *c)
 // 0x492d30  Confidence: exact. ai_do_frame (skipped while a cutscene script runs).
 void ai_groups_frame()
 {
-    for (ai_group *g = ai_groups; g < ai_groups + 10; g++) {
+    for (int i = 0; i < 10; i++) {
+        ai_group *g = &ai_groups[i];
         if (!g->timer.elapsed())
             continue;
         if ((game_flags & GF_MULTIPLAYER) && !(g->flags & AI_GROUP_LOCAL))
@@ -152,10 +153,10 @@ void ai_groups_frame()
         g->flags &= ~AI_GROUP_COMBAT_SET;
         ai_group_collect_enemies(g);
         ai_group_combat_think(g);
-        if (g->flags & AI_GROUP_FIGHTING)
-            g->timer.SetTimeout(1000);
-        else
+        if (!(g->flags & AI_GROUP_FIGHTING))
             g->timer.SetRandomTimeout(1500, 2500);
+        else
+            g->timer.SetTimeout(1000);
     }
 }
 
@@ -233,12 +234,12 @@ int ai_group_count_helpless(ai_group *g)
 // 0x493040  Confidence: exact (an int result: mov eax, 1).
 int character_is_helpless(Character *c)
 {
-    if (c && (c->has_status(STATUS_SLEEP) || c->has_status(STATUS_PARALYZE) || c->has_status(STATUS_ICE_COFFIN)))
+    if (!c || c->has_status(STATUS_SLEEP) || c->has_status(STATUS_PARALYZE) || c->has_status(STATUS_ICE_COFFIN))
         return 1;
     return 0;
 }
 
-// 0x493080  Confidence: likely (the bit test is `shr eax, 8; and al, 1`, written as a shift). True for a
+// 0x493080  Confidence: exact (VC6 byte match, match11; was likely) (the bit test is `shr eax, 8; and al, 1`, written as a shift). True for a
 // player-controlled party member (AI flag 1, or Player flag 4) and for a character whose first goal
 // slot has flag 0x100.
 bool ai_member_skips_group_orders(Character *c)
@@ -250,7 +251,8 @@ bool ai_member_skips_group_orders(Character *c)
         if (p && (p->flags & 4))
             return true;
     }
-    return (c->ai.goals[0].flags >> 8) & 1;
+    bool r = (c->ai.goals[0].flags >> 8) & 1;
+    return r;
 }
 
 // 0x4930d0  Confidence: exact. Melee: the nearest enemy that is not helpless.

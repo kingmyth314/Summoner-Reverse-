@@ -241,13 +241,15 @@ void mp_quantize_position(short *x, short *y, short *z, vector3 pos)
     *z = (short)((pos.z - pf_bounds_min_z) / dz * 65535.0f);
 }
 
-// 0x4756e0  Confidence: exact (the y constant 2048 / 65535 is folded; the z store goes through a temporary).
+// 0x4756e0  Confidence: exact (VC6 byte match under 8966: a local filled field by field; the y constant 2048 / 65535 is folded).
 vector3 mp_dequantize_position(ushort x, ushort y, ushort z)
 {
+    vector3 v;
     float fx = x, fz = z;
-    return vector3((pf_bounds_max_x - pf_bounds_min_x) * fx * (1.0f / 65535.0f) + pf_bounds_min_x,
-                   y * (2048.0f / 65535.0f) - 1024.0f,
-                   (pf_bounds_max_z - pf_bounds_min_z) * fz * (1.0f / 65535.0f) + pf_bounds_min_z);
+    v.x = (pf_bounds_max_x - pf_bounds_min_x) * fx * (1.0f / 65535.0f) + pf_bounds_min_x;
+    v.y = y * (2048.0f / 65535.0f) - 1024.0f;
+    v.z = (pf_bounds_max_z - pf_bounds_min_z) * fz * (1.0f / 65535.0f) + pf_bounds_min_z;
+    return v;
 }
 
 // 0x475780  Confidence: exact (jump table 0x47580c over types 4..9). Single player: every NPC, monster
@@ -544,14 +546,13 @@ int ai_state::goal_find(int mask, int type, int a, int b, int c, vector3 *d, int
             continue;
         if (!match)
             continue;
-        if ((m & AI_GF_NOT_CUR) && g->id == cur_goal)
-            continue;
-        return i;
+        if (!(m & AI_GF_NOT_CUR) || g->id != cur_goal)
+            return i;
     }
     return -1;
 }
 
-// 0x475fb0  Confidence: exact (byte table 0x476008 into 0x475ff8).
+// 0x475fb0  Confidence: exact (VC6 byte match, cl 8966, match21; byte table 0x476008 into 0x475ff8).
 unsigned int ai_goal_type_fields(int type)
 {
     unsigned int fields = 0;
@@ -574,10 +575,13 @@ unsigned int ai_goal_type_fields(int type)
         fields = AI_GF_POS | AI_GF_ARG;
         break;
     }
-    if (type == AI_GOAL_CAST_LOCATION)
-        fields |= AI_GF_POS;
-    if (type >= AI_GOAL_CAST_SPELL && type <= AI_GOAL_CAST_LOCATION)
+    switch (type) {
+    case AI_GOAL_CAST_LOCATION:
+        fields |= AI_GF_POS;    // falls through: a located cast also carries the spell
+    case AI_GOAL_CAST_SPELL:
+    case AI_GOAL_CAST_TARGETED:
         fields |= AI_GF_SPELL;
+    }
     return fields;
 }
 
@@ -677,18 +681,17 @@ int ai_state::goal_add(int type, int priority, unsigned int flags, int target, v
     return i;
 }
 
-// 0x476300  Confidence: exact. ret 4.
+// 0x476300  Confidence: exact (VC6 byte match, cl 8966, match21). ret 4.
 bool ai_state::goal_remove(int slot)
 {
     if (slot < 0 || slot >= 5)
         return false;
-    ai_goal *g = &goals[slot];
-    g->type = 0;
-    g->priority = -1;
-    g->flags = 0;
-    ai_path_free(g->path);
-    g->path = NULL;
-    if (g->id == cur_goal)
+    goals[slot].type = 0;
+    goals[slot].priority = -1;
+    goals[slot].flags = 0;
+    ai_path_free(goals[slot].path);
+    goals[slot].path = NULL;
+    if (goals[slot].id == cur_goal)
         cur_goal = -1;
     return true;
 }
@@ -919,7 +922,7 @@ door_info *door_from_lobj(lobj *l)
     return (door_info *)bsearch(&key, doors, num_doors, sizeof(door_info), lobj_index_compare);
 }
 
-// 0x476940  Confidence: likely (the easing is written out; `open` reuses the argument slot of d). While
+// 0x476940  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; the easing is written out; `open` reuses the argument slot of d). While
 // the door moves, the eased progress toward open (smoothstep in two halves) is compared with fraction.
 bool door_is_open(door_info *d, float fraction)
 {
@@ -937,9 +940,7 @@ bool door_is_open(door_info *d, float fraction)
             t = t * t + t * t;
         if (t > fraction)
             return true;
-        return false;
-    }
-    if (open)
+    } else if (open)
         return true;
     return false;
 }

@@ -91,31 +91,33 @@ void gamecreate_load_bitmaps()
     int i;
 
     for (i = 0; i < GAMECREATE_NUM_BUTTONS; i++) {
-        gamecreate_buttons[i].flags = 0;
-        gamecreate_buttons[i].bitmap = -1;
-        gamecreate_buttons[i].x = 0;
-        gamecreate_buttons[i].y = 0;
-        gamecreate_buttons[i].w = 0;
-        gamecreate_buttons[i].h = 0;
+        ui_button_state *b = &gamecreate_buttons[i];
+        ui_button_def *d = &gamecreate_button_defs[i];
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
 
-        if (strlen(gamecreate_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, gamecreate_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            gamecreate_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            gamecreate_buttons[i].x = gamecreate_button_defs[i].pos[resolution_index][0];
-            gamecreate_buttons[i].y = gamecreate_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(gamecreate_buttons[i].bitmap, &gamecreate_buttons[i].w, &gamecreate_buttons[i].h);
-            gamecreate_buttons[i].w = (int)(gamecreate_buttons[i].w * scale + 0.5f);
-            gamecreate_buttons[i].h = (int)(gamecreate_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                gamecreate_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 }
 
-// 0x409b10  Confidence: likely. The word store "mov word [0x5bc494], 0" is read as an inlined
+// 0x409b10  Confidence: exact (VC6 byte match, match22; (int)strlen for the signed compare; was likely). The word store "mov word [0x5bc494], 0" is read as an inlined
 // memset of the two flags (two byte stores would not be merged by VC6). L"'s Game" is localize_strings[819].
 void gamecreate_init()
 {
@@ -135,7 +137,7 @@ void gamecreate_init()
 
     strcpy(name, MP_PLAYER_NAME(mp_local_player));
     strcat(name, localize_strings[819]);
-    if (strlen(name) <= 31) {
+    if ((int)strlen(name) <= 31) {
         strcpy(gamecreate_game_name, name);
     } else {
         strncpy(gamecreate_game_name, name, 31);
@@ -151,12 +153,13 @@ void gamecreate_init()
     gamecreate_pressed_button = -1;
 }
 
-// 0x409c60  Confidence: likely (where the store of gamecreate_difficulty sits among the three clears).
+// 0x409c60  Confidence: exact (VC6 byte match, cl 8966; was likely: where the store of gamecreate_difficulty sits
+// among the three clears).
 // Bit 0 of the tick entries 5 / 7 / 9 shows which difficulty is chosen.
 void gamecreate_set_difficulty(int difficulty)
 {
-    gamecreate_buttons[5].flags &= ~1;
     gamecreate_difficulty = difficulty;
+    gamecreate_buttons[5].flags &= ~1;
     gamecreate_buttons[7].flags &= ~1;
     gamecreate_buttons[9].flags &= ~1;
 
@@ -230,10 +233,11 @@ int gamecreate_handle_click(int key)
     gamecreate_pressed_button = -1;
 
     for (i = 0; i < GAMECREATE_NUM_BUTTONS; i++) {
-        if (!(gamecreate_buttons[i].flags & 4) && (gamecreate_button_defs[i].flags & 3)
-            && point_in_rect(game_mouse_x, game_mouse_y, gamecreate_buttons[i].x, gamecreate_buttons[i].y,
-                             gamecreate_buttons[i].w, gamecreate_buttons[i].h)) {
-            gamecreate_buttons[i].flags |= 2;
+        ui_button_state *b = &gamecreate_buttons[i];
+        ui_button_def *d = &gamecreate_button_defs[i];
+        if (!(b->flags & 4) && (d->flags & 3)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             gamecreate_pressed_button = i;
             if (mouse_was_pressed(0)) {
                 gamecreate_mouse_mode = 1;
@@ -244,11 +248,8 @@ int gamecreate_handle_click(int key)
     }
 
     for (i = 0; i < 2; i++) {
-        if (gamecreate_field_active[i])
-            break;
-    }
-
-    if (i < 2) {
+        if (!gamecreate_field_active[i])
+            continue;
         char *text;
         int max_len;
 
@@ -268,7 +269,15 @@ int gamecreate_handle_click(int key)
 
         if (key) {
             int c = key_to_ascii(key);
-            if (c == 0xff) {
+            if (c != 0xff) {
+                int len = strlen(text);
+                if (len < max_len) {
+                    text[len] = (char)c;
+                    text[len + 1] = 0;
+                    gamecreate_cursor_timer.SetTimeout(500);
+                    gamecreate_cursor_on = true;
+                }
+            } else {
                 switch (key) {
                 case KEY_ESC:
                     text[0] = 0;
@@ -287,19 +296,12 @@ int gamecreate_handle_click(int key)
                     gamecreate_field_active[i] = false;
                     return 0;
                 }
-            } else {
-                int len = strlen(text);
-                if (len < max_len) {
-                    text[len] = (char)c;
-                    text[len + 1] = 0;
-                    gamecreate_cursor_timer.SetTimeout(500);
-                    gamecreate_cursor_on = true;
-                }
             }
         }
 
         if (!gamecreate_field_active[i])
             return 0;
+        break;
     }
 
     if (mouse_was_pressed(0)) {
@@ -318,12 +320,11 @@ int gamecreate_handle_click(int key)
         }
     }
 
-    if (key == KEY_ESC) {
-        gamecreate_cancel();
-        game_play_sound(0x24, 1.0f, 0, 0, 0);
-        return 0;
-    }
-    return key;
+    if (key != KEY_ESC)
+        return key;
+    gamecreate_cancel();
+    game_play_sound(0x24, 1.0f, 0, 0, 0);
+    return 0;
 }
 
 // 0x40a020  Confidence: exact. Back to the game list (state 12).
@@ -343,13 +344,13 @@ void gamecreate_update_buttons()
         button = pressed + 1;
 
     if (pressed >= 0 && pressed < GAMECREATE_NUM_BUTTONS) {
-        if (point_in_rect(game_mouse_x, game_mouse_y, gamecreate_buttons[button].x, gamecreate_buttons[button].y,
-                          gamecreate_buttons[button].w, gamecreate_buttons[button].h))
-            gamecreate_buttons[button].flags |= 2;
+        ui_button_state *b = &gamecreate_buttons[button];
+        if (point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h))
+            b->flags |= 2;
 
         if (mouse_is_down(0))
             return;
-        if (gamecreate_buttons[button].flags & 2)
+        if (b->flags & 2)
             gamecreate_button_action(button);
     }
     gamecreate_mouse_mode = 0;
@@ -464,9 +465,9 @@ void gamecreate_draw()
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < GAMECREATE_NUM_BUTTONS; i++) {
-        if (gamecreate_buttons[i].flags & 3)
-            ui_bitmap_scaled(gamecreate_buttons[i].bitmap, gamecreate_buttons[i].x, gamecreate_buttons[i].y,
-                             gr_bitmap_wrap_mode);
+        ui_button_state *b = &gamecreate_buttons[i];
+        if (b->flags & 3)
+            ui_bitmap_scaled(b->bitmap, b->x, b->y, gr_bitmap_wrap_mode);
     }
     for (i = 0; i < 2; i++)
         gamecreate_draw_text_field(i);

@@ -483,24 +483,23 @@ void ai_state::ghost_wander_update()
     }
 }
 
-// 0x4baae0  Confidence: likely (8 tries: the counter is tested before its decrement). A navigable point
-// 10 away in a random direction, more than 7 away horizontally, with a path; the mount travels.
+// 0x4baae0  Confidence: exact (8 tries, `while (tries--)` from 8; the horizontal distance is a vector
+// difference with y cleared and len_sq, D7700). A navigable point 10 away in a random direction, more
+// than 7 away horizontally, with a path; the mount travels.
 bool ai_state::ghost_wander_start()
 {
-    int tries = 7;
-    vector3 p;
-    float dx;
-    float dz;
+    int tries = 8;
     Character *mount;
 
-    do {
+    while (tries--) {
+        vector3 p;
         p.random_direction();
         p *= 10.0f;
         p += owner->pos;
         if (pf_point_is_navigable(&p, owner->info->size, owner->layer)) {
-            dx = p.x - owner->pos.x;
-            dz = p.z - owner->pos.z;
-            if (dx * dx + dz * dz > 49.0f
+            vector3 d = p - owner->pos;
+            d.y = 0.0f;
+            if (d.len_sq() > 49.0f
                 && path_find_new(&owner->pos, owner->layer, &p, owner->layer, owner->info->size, 0.0f)) {
                 mount = owner->get_mount();
                 if (mount) {
@@ -510,7 +509,7 @@ bool ai_state::ghost_wander_start()
                 }
             }
         }
-    } while (tries--);
+    }
     ghost_think_timer.SetTimeout(500);
     return false;
 }
@@ -730,12 +729,13 @@ void ghost_choose_move_target(Character *boss)
     }
 }
 
-// 0x4bb380  Confidence: likely (the sub-mode switch: case -1 has its own slot, 0x4bb498 byte 0; bodies
-// laid out 15, 22/23, 32, 16).
+// 0x4bb380  Confidence: exact (the sub-mode switch: case -1 has its own slot, 0x4bb498 byte 0; bodies
+// laid out 15, 22/23, 32, 16; the new target handle is a local, D7700).
 void ai_state::ghost_ai_frame()
 {
     Character *t;
     int result;
+    int h;
 
     t = living_from_handle(target);
     if (t && (t->flags & CF_HIDDEN))
@@ -754,9 +754,10 @@ void ai_state::ghost_ai_frame()
         }
         break;
     }
-    if (ghost_target != target) {
-        target = ghost_target;
-        owner->combat.target = ghost_target;
+    h = ghost_target;
+    if (h != target) {
+        target = h;
+        owner->combat.target = h;
         flags |= 0x10;
         t = living_from_handle(target);
     }
@@ -768,7 +769,7 @@ void ai_state::ghost_ai_frame()
         combat_approach(t);
     switch (submode) {
     case -1:
-        break;
+        return;
     case AIS_CLOSE_COMBAT:
         combat_melee_attack(t);
         break;

@@ -64,7 +64,8 @@ void ls_lpalaceint02_frame()
         && !(game_flags & GF_CUTSCENE)) {
         ls_lpalaceint02_sgintro_done = true;
         level_script_event_active = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!ls_lpalaceint02_bothdead_done && savegame_state.get_flag(cur_level_index, "bothdead")
         && !(game_flags & GF_CUTSCENE)) {

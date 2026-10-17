@@ -692,7 +692,7 @@ StringPool charinfo_script_anim_pool(charinfo_script_anim_pool_buffer, sizeof(ch
 
 // ---- functions -----------------------------------------------------------------------------------------
 
-// 0x444bb0  Confidence: likely. 1 = the move need not be loaded here: the parry / flinch low moves, the
+// 0x444bb0  Confidence: exact (VC6 8966 byte match). 1 = the move need not be loaded here: the parry / flinch low moves, the
 // non-combat flinch moves, the multiplayer hero cut moves, in towns (and templeint unless full_set) every
 // combat list, and on masad / Liangshan / JadeTemple the boss rider moves. The town test is written out
 // twice (once per level, as in the binary); `m->category == 4 && m->id == 0x82` repeats the category
@@ -727,9 +727,7 @@ int move_skip_on_level(char_info *info, move_info *m, bool full_set)
             return 1;
         if (m->id == 0x24)
             return 1;
-        if (m->id == 0x25)
-            return 1;
-        if (m->id == 0x26)
+        if (m->id == 0x25 || m->id == 0x26)
             return 1;
         return 0;
     }
@@ -2570,29 +2568,28 @@ void character_set_chain_skill(Player *p, int slot, int skill)
     chain_config_set(species, slot, skill);
 }
 
-// 0x449440  Confidence: likely (an if / else chain on the slot; a switch would compile the same way
+// 0x449440  Confidence: exact (VC6 byte match; an if / else chain on the slot; a switch would compile the same way
 // at four cases). Non-heroes use their record's skills; no AP means no chain.
 int character_get_chain_skill(Player *p, int slot)
 {
-    char_info *info = &char_infos[p->char_info];
     Character *c;
     int skill;
 
-    if (info->species >= 4) {
+    if (char_infos[p->char_info].species >= 4) {
         if (slot == 0)
-            skill = info->up_skill;
+            skill = char_infos[p->char_info].up_skill;
         else if (slot == 1)
-            skill = info->down_skill;
+            skill = char_infos[p->char_info].down_skill;
         else if (slot == 2)
-            skill = info->left_skill;
+            skill = char_infos[p->char_info].left_skill;
         else if (slot == 3)
-            skill = info->right_skill;
+            skill = char_infos[p->char_info].right_skill;
         else {
             hud_show_message(XSTR("No chain skill configured!", 210));
             skill = SKILL_NONE;
         }
     } else {
-        skill = chain_config_get(info->species, slot);
+        skill = chain_config_get(char_infos[p->char_info].species, slot);
     }
     c = living_from_handle(p->handle);
     if (c && c->ap >= 1)
@@ -2771,25 +2768,29 @@ int species_is_hero(int species)
     return species <= SPECIES_ROSALIND;
 }
 
-// 0x449a30  Confidence: likely. In multiplayer a hero record is copied into a free slot (so each
+// 0x449a30  Confidence: likely (only the order of the two return blocks differs under VC6 8966; D7604:
+// with no free slot the error repeats for ever, as in the binary). In multiplayer a hero record is copied into a free slot (so each
 // player's hero can load its own weapon anims and textures); everything else uses the record itself.
 char_info *characterinfo_find_multi_slot(int index)
 {
+    char_info *info = NULL;
     int i;
 
-    if (!(game_flags & 2) || !species_is_hero(char_infos[index].species))
-        return &char_infos[index];
-    for (i = 0; i < 4; i++) {
-        if (!multi_charinfo_slots[i].used) {
-            multi_charinfo_slots[i].info = char_infos[index];
-            multi_charinfo_slots[i].used = 1;
-            multi_charinfo_slots[i].info.flags |= CIF_MULTI_SLOT;
-            break;
+    if ((game_flags & 2) && species_is_hero(char_infos[index].species)) {
+        for (i = 0; i < 4; i++) {
+            if (!multi_charinfo_slots[i].used) {
+                info = &multi_charinfo_slots[i].info;
+                *info = char_infos[index];
+                multi_charinfo_slots[i].used = 1;
+                multi_charinfo_slots[i].info.flags |= CIF_MULTI_SLOT;
+                break;
+            }
         }
+        while (i == 4)      // no free slot: the error repeats for ever (0x449adc jumps back)
+            VSDK_ERROR(CHARACTERINFO_CPP, 0x14be, "Unable to find multiplayer character info slot");
+        return info;
     }
-    if (i == 4)
-        VSDK_ERROR(CHARACTERINFO_CPP, 0x14be, "Unable to find multiplayer character info slot");
-    return &multi_charinfo_slots[i].info;
+    return &char_infos[index];
 }
 
 // 0x449b00  Confidence: exact.

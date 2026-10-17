@@ -194,7 +194,8 @@ void mp_client_frame()
     }
 }
 
-// 0x440f20  Confidence: likely (the packet offsets are constants: the size counter is folded; the pause
+// 0x440f20  Confidence: exact (VC6 byte match, cl 8966; was likely: the packet offsets are constants: the size
+// counter is folded; the pause
 // flag is read first). GM_STAT: state, players, then (states 1 and 2) level, entry point and host level,
 // or (state 5) the pause byte.
 void multi_set_netgame_state(bool send_now)
@@ -210,12 +211,13 @@ void multi_set_netgame_state(bool send_now)
     MP_ADD_DATA(mp_netgame_state);
     MP_ADD_DATA(mp_netgame_num_players);
     if (mp_netgame_state > 0) {
-        if (mp_netgame_state <= 2) {
+        if (mp_netgame_state > 2) {
+            if (mp_netgame_state == 5)
+                MP_ADD_DATA(paused);
+        } else {
             MP_ADD_DATA(mp_netgame_level);
             MP_ADD_DATA(level_entry_point);
             MP_ADD_DATA(mp_netgame_host_level);
-        } else if (mp_netgame_state == 5) {
-            MP_ADD_DATA(paused);
         }
     }
     MP_END_PACKET();
@@ -428,8 +430,8 @@ void mp_session_reset()
     tracker_init();
     mp_update_timer.SetTimeout(0);
     list_init(&mp_player_list);
-    memset((void *)mp_players, 0, sizeof(mp_players));
     mp_local_player = NULL;
+    memset((void *)mp_players, 0, sizeof(mp_players));
     list_init(&mp_player_free_list);
     for (i = 0; i < MP_MAX_PLAYERS; i++) {
         mp_players[i].socket = -1;
@@ -524,8 +526,9 @@ void mp_player_disconnect(mp_player *p)
     }
     if (p->next && p->prev)
         list_remove(p);
+    mp_player *last = mp_player_free_list.prev;
     p->next = &mp_player_free_list;
-    p->prev = mp_player_free_list.prev;
+    p->prev = last;
     mp_player_free_list.prev->next = p;
     mp_player_free_list.prev = p;
 }

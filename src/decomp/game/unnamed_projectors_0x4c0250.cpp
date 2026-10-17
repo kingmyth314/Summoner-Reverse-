@@ -14,6 +14,7 @@
 
 #include <math.h>
 #include <string.h>
+#include "vsdk/os/profile.h"
 #include "engine/rendering/unnamed_projectors_0x4c0250.h"
 #include "engine/rendering/levelrender.h"
 #include "engine/s3d/s3d.h"
@@ -158,7 +159,7 @@ void projector_record::set(const vector3 *pos, float radius, const plane &p)
 {
     this->pos = *pos;
     this->radius = radius;
-    clear_planes();
+    num_planes = 0;
     add_plane(p);
 }
 
@@ -197,15 +198,14 @@ void projector_record::to_lobj_space(lobj *lo)
     }
 }
 
-// 0x4c0870  Confidence: likely (one exit per outcome in the binary). Flag 0x10 stays set unless the level
+// 0x4c0870  Confidence: exact (one exit per outcome in the binary). Flag 0x10 stays set unless the level
 // object's bounding sphere (centre +0x44, the geometry's radius +0x30) lies wholly in front of a plane.
 void projector_record::test_bounds(lobj *lo)
 {
     unsigned int i;
 
     for (i = 0; i < num_planes; i++) {
-        if (planes[i].normal.z * lo->centre.z + planes[i].normal.x * lo->centre.x
-            + planes[i].normal.y * lo->centre.y + planes[i].d > lo->mesh->_unk30) {
+        if (planes[i].normal.dot(lo->centre) + planes[i].d > lo->mesh->_unk30) {
             inside = 0;
             return;
         }
@@ -213,11 +213,12 @@ void projector_record::test_bounds(lobj *lo)
     inside = 1;
 }
 
-// 0x4c08d0  Confidence: unsure (the function has an exception frame, trylevel 0 for the whole body, with no
-// visible object that needs it; the loop counters are unsigned: jbe). Called per level object with the
+// 0x4c08d0  Confidence: exact. The exception frame (trylevel 0 for the whole body) is a profile_label scope
+// (D6102, D7304; its text is ours); the loop counters are unsigned (jbe). Called per level object with the
 // shadow and decal records that may touch it (levelrender_lobj_collect_projections).
 void lobj_project_records(int lobj_index, projector_record **recs, unsigned int count)
 {
+    profile_label label("lobj_project_records");
     lobj *lo = &lobjs[lobj_index];
     unsigned int i;
 
@@ -247,8 +248,9 @@ void lobj_face_marks_init()
 
     for (i = 0; i < num_lobjs; i++) {
         if (lobjs[i].flags & 0x440) {
+            int faces = lobjs[i].mesh->num_faces;
             lobj_face_mark_offsets[i] = (short)offset;
-            offset += (lobjs[i].mesh->num_faces + 7) / 8;
+            offset += (faces + 7) / 8;
         } else {
             lobj_face_mark_offsets[i] = -1;
         }

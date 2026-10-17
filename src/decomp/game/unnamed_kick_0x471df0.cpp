@@ -17,7 +17,7 @@
 #include "summoner/multi/unnamed_netpackets_0x441820.h"
 #include "summoner/multi/unnamed_netsession_0x440b40.h"
 
-// 0x471df0  Confidence: likely (VC6 pops the arguments of the three calls of a case at once; the original
+// 0x471df0  Confidence: exact (VC6 byte match, match11; was likely) (VC6 pops the arguments of the three calls of a case at once; the original
 // pops after the first). The host drops another player: the player is told
 // (KICK_PL), unlinked and counted out, the others get GM_OVER with the matching reason (0 -> 6, 1 kicked
 // -> 1, 2 -> 5) and the chat shows "%s was kicked / dropped from the game.".

@@ -468,7 +468,7 @@ void gr_string_at_text_pos(const char *s, int font, int mode)
     gr_string(gr_text_pos_x, gr_text_pos_y, s, font, mode);
 }
 
-// 0x508df0  Confidence: likely (EH states and the returned-object flag come from the String
+// 0x508df0  Confidence: exact (VC6 byte match, match11; was likely) (EH states and the returned-object flag come from the String
 // temporaries; the shape of the space-skipping loop: the binary increments split_at once before
 // testing, unlike gr_font_fit_string).
 // String version of gr_font_fit_string, no direct callers: returns the first line that fits in
@@ -519,7 +519,7 @@ String gr_fit_string_String(String &str, int max_w, int font)
     return line;
 }
 
-// 0x509030  Confidence: likely (loop rotation of the space skip).
+// 0x509030  Confidence: exact (VC6 byte match, match11; was likely) (loop rotation of the space skip).
 // How much of s fits in max_w: *split_at gets the length of the first line, the result points at
 // the start of the next one (NULL when s fits or nothing is left). A '\n' inside the fitting part
 // returns the text after it without updating *split_at (left at -1 or the last break).

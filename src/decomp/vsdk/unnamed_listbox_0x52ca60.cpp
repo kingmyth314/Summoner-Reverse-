@@ -164,7 +164,7 @@ void ui_listbox::update_hscrollbar()
         hscrollbar->set_range(get_content_width());
 }
 
-// 0x52cd90  Confidence: likely (the two zero stores in the order height, width). F6203: an empty list
+// 0x52cd90  Confidence: likely (a byte match under /Ox /Ow, D7502). F6203: an empty list
 // ends with content_height = -entry_spacing.
 void ui_listbox::recalc_content_size()
 {
@@ -185,13 +185,13 @@ void ui_listbox::recalc_content_size()
 // entry or in the spacing between entries gives the entry below it.
 ui_listbox_entry *ui_listbox::entry_at(int x, int y, bool clamp)
 {
-    ui_listbox_entry *e = entries.next;
+    ui_listbox_entry *e;
 
-    if (e == &entries || x < 0 || x >= content_width || y >= content_height)
+    if (entries.next == &entries || x < 0 || x >= content_width || y >= content_height)
         return NULL;
     if (y < 0)
-        return clamp ? e : NULL;
-    for (; e != &entries; e = e->next) {
+        return clamp ? entries.next : NULL;
+    for (e = entries.next; e != &entries; e = e->next) {
         if ((y >= e->y || clamp) && y < e->height + e->y)
             return e;
     }
@@ -202,24 +202,26 @@ ui_listbox_entry *ui_listbox::entry_at(int x, int y, bool clamp)
 // last entry, when none does).
 ui_listbox_entry *ui_listbox::entry_above(int y)
 {
-    ui_listbox_entry *e = entries.next;
+    ui_listbox_entry *e;
 
-    if (e == &entries)
+    if (entries.next == &entries)
         return NULL;
     if (y < 0)
         return NULL;
-    while (e != &entries && e->y <= y)
-        e = e->next;
+    for (e = entries.next; e != &entries; e = e->next) {
+        if (e->y > y)
+            break;
+    }
     return e->prev;
 }
 
 // 0x52ced0  Confidence: exact. The first entry whose bottom is below y.
 ui_listbox_entry *ui_listbox::entry_at_y(int y)
 {
-    ui_listbox_entry *e = entries.next;
+    ui_listbox_entry *e;
 
-    if (e != &entries && y < content_height) {
-        for (; e != &entries; e = e->next) {
+    if (entries.next != &entries && y < content_height) {
+        for (e = entries.next; e != &entries; e = e->next) {
             if (e->height + e->y > y)
                 return e;
         }
@@ -406,7 +408,7 @@ int ui_listbox::process(int key)
     return key;
 }
 
-// 0x52d420  vtable slot 0 (ui_listbox__destroy). Confidence: likely (the head's prev as the temporary,
+// 0x52d420  vtable slot 0 (ui_listbox__destroy). Confidence: exact (the head's prev as the temporary,
 // as the code does). Every entry is deleted as a base entry (non-virtual destructor; operator delete
 // does not need the size).
 void ui_listbox::dtor()
@@ -427,7 +429,7 @@ ui_listbox_text_entry::ui_listbox_text_entry()
     text = buffer;
 }
 
-// 0x52d4a0  vtable slot 0 of 0x581e2c. Confidence: likely (the two copies share one inline strcpy in
+// 0x52d4a0  vtable slot 0 of 0x581e2c. Confidence: exact (the two copies share one inline strcpy in
 // the code; an if / else of two strcpy calls tail-merges to it). Does not set dirty.
 void ui_listbox_text_entry::set_text(const char *s)
 {
@@ -543,7 +545,7 @@ void ui_listbox::create(ui_element *window, int x, int y, int w, int h, int cont
     }
 }
 
-// 0x52d7e0  Confidence: likely (store order). Replaces the first tooltip (F6206: the old node is
+// 0x52d7e0  Confidence: likely (a byte match under /Ox /Ow, D7502). Replaces the first tooltip (F6206: the old node is
 // unlinked but not deleted, as in ui_button::set_tooltip).
 void ui_listbox::set_tooltip(const char *text, int x, int y, int delay)
 {
@@ -562,9 +564,9 @@ void ui_listbox::set_tooltip(const char *text, int x, int y, int delay)
     t->x = x;
     t->y = y;
     t->font = -1;
-    strcpy(t->text, text);
     t->owner = this;
     t->colors = &ui_tooltip_colors.c0;
+    strcpy(t->text, text);
     ui_tooltip *last = tooltips.prev;
     tooltips.prev = t;
     t->next = (ui_tooltip *)&tooltips;
@@ -895,7 +897,7 @@ void ui_listbox::select_page_down()
     }
 }
 
-// 0x52e110  Confidence: likely (the shared returns). One line (or one entry) up; bottom-aligned lists
+// 0x52e110  Confidence: exact. One line (or one entry) up; bottom-aligned lists
 // move the view's bottom edge.
 void ui_listbox::scroll_line_up()
 {
@@ -941,7 +943,8 @@ void ui_listbox::scroll_line_up()
         set_vscroll(e->y, false);
         return;
     }
-    set_vscroll(e->line_top(e->line_at_y(vscroll - 1)), false);
+    int line = e->line_at_y(vscroll - 1);
+    set_vscroll(e->line_top(line), false);
 }
 
 // 0x52e290  Confidence: exact. Top-aligned lists step one pixel and let set_vscroll snap.
@@ -1011,13 +1014,12 @@ void ui_listbox::scroll_page_up()
             } else {
                 int line = e->line_at_y_or_none(vscroll);
                 int top = line * fh + e->y;
-                if (vscroll != top) {
-                    if (line == e->num_lines - 1)
-                        top = e->next->y;
-                    else
-                        top = (line + 1) * fh + e->y;
-                }
-                vscroll = top;
+                if (vscroll == top)
+                    vscroll = top;
+                else if (line == e->num_lines - 1)
+                    vscroll = e->next->y;
+                else
+                    vscroll = (line + 1) * fh + e->y;
             }
         }
     } else {
@@ -1193,13 +1195,12 @@ void ui_listbox::set_vscroll(int pos, bool force)
 int ui_listbox::snap_scroll_top(int y)
 {
     int result = y;
-    ui_listbox_entry *first = entries.next;
     ui_listbox_entry *e;
 
-    if (first == &entries)
+    if (entries.next == &entries)
         return y;
 
-    for (e = first; e != &entries; e = e->next) {
+    for (e = entries.next; e != &entries; e = e->next) {
         if (e->y >= y)
             break;
     }
@@ -1207,7 +1208,7 @@ int ui_listbox::snap_scroll_top(int y)
         return entries.prev->y;
     if (flags & UI_LISTBOX_BY_ENTRY)
         return e->y;
-    if (e == first)
+    if (e == entries.next)
         return e->y;
 
     ui_listbox_entry *p = e->prev;
@@ -1216,13 +1217,13 @@ int ui_listbox::snap_scroll_top(int y)
     if (p->num_lines > 0) {
         int line_h = p->line_spacing + fh;
         int top = p->y;
-        do {
+        for (; i < p->num_lines; ) {
             result = top;
             if (top >= y)
                 break;
             i++;
             top += line_h;
-        } while (i < p->num_lines);
+        }
     }
     if (i == p->num_lines)
         return p->next->y;

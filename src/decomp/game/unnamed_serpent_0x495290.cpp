@@ -420,34 +420,36 @@ void serpent_anim_remap_out(Character *c, int *anims)
     }
 }
 
-// 0x495e10  Confidence: likely (the matrix copy is matrix::operator= expanded). Every frame: the mount's
-// random sound, then the rider at the mount's "$sit" tag (or at the mount's origin); the mount gets the
-// rider's target and the rider's animation time.
+// 0x495e10  Confidence: exact (the matrix copy is matrix::operator= expanded; the success path nested, the
+// shared `return false` last, D7700). Every frame: the mount's random sound, then the rider at the
+// mount's "$sit" tag (or at the mount's origin); the mount gets the rider's target and the rider's
+// animation time.
 bool ai_state::serpent_seat_rider()
 {
     if (serpent_mount)
         boss_rider_random_sound(&serpent_mount->pos);
-    if (!serpent_has_rider)
-        return false;
-    Character *m = owner->get_mount();
-    if (m == NULL)
-        return false;
-    m->ai.target = target;
-    float t;
-    m->instance->get_set_time(&t, false);
-    owner->instance->get_set_time(&t, true);
-    int tag = m->instance->character->find_mesh_tag("$sit");
-    if (tag != -1) {
-        vector3 pos;
-        matrix orient;
-        m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
-        owner->pos = pos;
-        owner->orient = orient;
-        return true;
+    if (serpent_has_rider) {
+        Character *m = owner->get_mount();
+        if (m != NULL) {
+            m->ai.target = target;
+            float t;
+            m->instance->get_set_time(&t, false);
+            owner->instance->get_set_time(&t, true);
+            int tag = m->instance->character->find_mesh_tag("$sit");
+            if (tag != -1) {
+                vector3 pos;
+                matrix orient;
+                m->instance->get_bone_world_transform(tag, &m->orient, &m->pos, &orient, &pos);
+                owner->pos = pos;
+                owner->orient = orient;
+                return true;
+            }
+            owner->pos = m->pos;
+            owner->orient = m->orient;
+            return true;
+        }
     }
-    owner->pos = m->pos;
-    owner->orient = m->orient;
-    return true;
+    return false;
 }
 
 // ---- attack choice ---------------------------------------------------------------------------------
@@ -922,62 +924,61 @@ void ai_state::serpent_illusion_update()
     go_idle();
 }
 
-// 0x4970a0  Confidence: likely (the retry loop). Sub-mode 0x38 setup: a point within 4 m of the serpent
-// for each of the three, at least 2.5 m from the earlier ones (four retries each).
+// 0x4970a0  Confidence: exact (the retry loop; the success test first, the inner index from i - 1, the
+// distance as a vector difference with y cleared, D7700). Sub-mode 0x38 setup: a point within 4 m of the
+// serpent for each of the three, at least 2.5 m from the earlier ones (four retries each).
 bool ai_state::serpent_place_parts()
 {
     bool ok = true;
-    int i = 0;
+    int i;
 
-    if (serpent_num_extra_parts + 1 > 0) {
-        for (; i < serpent_num_extra_parts + 1; i++) {
-            int tries = 4;
-            int first = i - 1;
-            bool placed;
-            do {
-                int j;
-                placed = true;
-                vector3 p;
-                p.random_direction();
-                p *= 4.0f;
-                p += owner->pos;
-                pf_find_nearest_navigable_point(&p, owner->info->size, owner->layer);
-                serpent.part_pos[i] = p;
-                for (j = first; j >= 0; j--) {
-                    float dx = p.x - serpent.part_pos[j].x;
-                    float dz = p.z - serpent.part_pos[j].z;
-                    if (dz * dz + dx * dx < 6.25f) {
-                        placed = false;
-                        break;
-                    }
+    for (i = 0; i < serpent_num_extra_parts + 1; i++) {
+        int tries = 4;
+        bool placed;
+        do {
+            int j;
+            placed = true;
+            vector3 p;
+            p.random_direction();
+            p *= 4.0f;
+            p += owner->pos;
+            pf_find_nearest_navigable_point(&p, owner->info->size, owner->layer);
+            serpent.part_pos[i] = p;
+            for (j = i - 1; j >= 0; j--) {
+                vector3 d = p - serpent.part_pos[j];
+                d.y = 0.0f;
+                if (d.len_sq() < 6.25f) {
+                    placed = false;
+                    break;
                 }
-            } while (!placed && tries-- != 0);
-            ok &= placed;
-        }
-        if (!ok) {
-            serpent_place_timer.SetTimeout(500);
-            return false;
-        }
+            }
+        } while (!placed && tries-- != 0);
+        ok &= placed;
     }
-    serpent_illusion_active_timer.invalidate();
-    serpent_place_timer.SetTimeout(10000);
-    return true;
+    if (ok) {
+        serpent_illusion_active_timer.invalidate();
+        serpent_place_timer.SetTimeout(10000);
+        return true;
+    }
+    serpent_place_timer.SetTimeout(500);
+    return false;
 }
 
-// 0x497230  Confidence: likely (the retry loop runs eight times: `while (tries-- != 0)` from 7). A
-// navigable point 7-10 m away with a path; the mount travels it (AI mode 11).
+// 0x497230  Confidence: exact (the retry loop runs eight times: `while (tries--)` from 8; the horizontal
+// distance is a vector difference with y cleared and len_sq, D7700). A navigable point 7-10 m away with a
+// path; the mount travels it (AI mode 11).
 bool ai_state::serpent_wander_start()
 {
-    int tries = 7;
-    do {
+    int tries = 8;
+    while (tries--) {
         vector3 p;
         p.random_direction();
         p *= 10.0f;
         p += owner->pos;
         if (pf_point_is_navigable(&p, owner->info->size, owner->layer)) {
-            float dx = p.x - owner->pos.x;
-            float dz = p.z - owner->pos.z;
-            if (dx * dx + dz * dz > 49.0f
+            vector3 d = p - owner->pos;
+            d.y = 0.0f;
+            if (d.len_sq() > 49.0f
                 && path_find_new(&owner->pos, owner->layer, &p, owner->layer, owner->info->size, 0.0f)) {
                 Character *m = owner->get_mount();
                 if (m) {
@@ -987,7 +988,7 @@ bool ai_state::serpent_wander_start()
                 }
             }
         }
-    } while (tries-- != 0);
+    }
     serpent_timer_b.SetTimeout(500);
     return false;
 }
@@ -1004,19 +1005,19 @@ void serpent_part_update_alpha(Character *c)
     c->instance->_unkb4 = character_is_serpent_part(c) ? 230 : 255;
 }
 
-// 0x4973e0  Confidence: likely (case order from the bodies: 15, 22/23, 0x20, 16, 0x38, 0x39; the table
-// starts at -1, which has the default body). Every frame of a serpent part in combat.
+// 0x4973e0  Confidence: exact (the choose result is a switch, D7700; case order from the bodies: 15, 22/23,
+// 0x20, 16, 0x38, 0x39; the table starts at -1, which has the default body). Every frame of a serpent part in combat.
 void ai_state::serpent_ai_frame()
 {
     Character *t = living_from_handle(target);
     if (t && (t->flags & CF_HIDDEN))
         t = NULL;
     int r = serpent_choose_attack();
-    if (r == 0) {
+    switch (r) {
+    case 0:
         go_idle();
         return;
-    }
-    if (r == 1) {
+    case 1:
         if (serpent.pending_submode == 0x38) {
             if (!serpent_place_parts())
                 return;
@@ -1027,6 +1028,7 @@ void ai_state::serpent_ai_frame()
             serpent_timer_b_set_random(15000, 25000);
             set_mode(AI_STATE_COMBAT, 0x20);
         }
+        break;
     }
     int part_target = serpent_part_target[serpent_part_index(owner)];
     if (part_target != target) {
@@ -1064,7 +1066,7 @@ void ai_state::serpent_ai_frame()
         serpent_illusion_update();
         return;
     case -1:
-        break;
+        return;
     }
 }
 

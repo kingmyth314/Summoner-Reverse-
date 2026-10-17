@@ -57,7 +57,8 @@ struct bitmap_entry {
     ubyte _pad35[3];
     int  total_bytes;        // +0x38
     int  path_id;            // +0x3C
-    ubyte reduced;           // +0x40 half size, one mip level dropped (bm_set_reduced)
+    bool reduced;            // +0x40 half size, one mip level dropped (bm_set_reduced; bool: bm_is_reduced
+                             //       returns the byte unnormalised, D7505)
     ubyte _pad41[3];
     int  mark_count;         // +0x44 bm_set_mark nesting: > 0 survives bm_release_from_mark
 };

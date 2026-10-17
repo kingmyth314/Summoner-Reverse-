@@ -127,7 +127,7 @@ void attached_lights_init_slots()
     int i;
 
     for (i = 0; i < MAX_ATTACHED_LIGHTS; i++)
-        attached_light_slots[i].type = 0xff;
+        attached_light_slots[i].type = -1;
 }
 
 // 0x520090  Confidence: exact (the same body as attached_lights_init_slots; not folded).
@@ -136,7 +136,7 @@ void attached_lights_clear_slots()
     int i;
 
     for (i = 0; i < MAX_ATTACHED_LIGHTS; i++)
-        attached_light_slots[i].type = 0xff;
+        attached_light_slots[i].type = -1;
 }
 
 // 0x5200b0  Confidence: likely (the slot search returns -1 straight from the loop's normal exit, as
@@ -148,7 +148,7 @@ int attached_light_create_b(const vector3 *pos, float intensity, float angle_a, 
     attached_light *a;
 
     for (i = 0; i < MAX_ATTACHED_LIGHTS; i++) {
-        if (attached_light_slots[i].type == 0xff)
+        if (attached_light_slots[i].type == -1)
             break;
     }
     if (i >= MAX_ATTACHED_LIGHTS)
@@ -176,7 +176,7 @@ int attached_light_create(const vector3 *pos, float intensity, float range_near,
     attached_light *a;
 
     for (i = 0; i < MAX_ATTACHED_LIGHTS; i++) {
-        if (attached_light_slots[i].type == 0xff)
+        if (attached_light_slots[i].type == -1)
             break;
     }
     if (i >= MAX_ATTACHED_LIGHTS)
@@ -194,11 +194,11 @@ int attached_light_create(const vector3 *pos, float intensity, float range_near,
     return i;
 }
 
-// 0x5201f0  Confidence: exact.
+// 0x5201f0  Confidence: exact (VC6 byte match, match14; was exact).
 void attached_light_free(int index)
 {
-    if (attached_light_slots[index].type != 0xff)
-        attached_light_slots[index].type = 0xff;
+    if (attached_light_slots[index].type != -1)
+        attached_light_slots[index].type = -1;
 }
 
 // 0x520210  Confidence: exact (the quaternion and the vector are built as temporaries and assigned

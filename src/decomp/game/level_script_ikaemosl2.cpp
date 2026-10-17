@@ -50,7 +50,7 @@ void ls_ikaemosbottomint2_init()
     ls_ikaemosbottomint2_trapped_titus_done = true;
 }
 
-// 0x4eeef0  Confidence: exact. level_script_table frame. Titus-Intro plays at once (no navpoint), the
+// 0x4eeef0  Confidence: exact (VC6 byte match, match14; was exact). level_script_table frame. Titus-Intro plays at once (no navpoint), the
 // Titus music after it; without the Ring of Stone Jekhar repeats his remark every 25 s; Titus dead with the
 // ring in the party: his loot, Titus-Death, trapped_titus, and the palace music back.
 void ls_ikaemosbottomint2_frame()
@@ -62,7 +62,8 @@ void ls_ikaemosbottomint2_frame()
     if (!ls_ikaemosbottomint2_titus_intro_done && savegame_state.get_flag(cur_level_index, "titus_intro")
         && !(game_flags & GF_CUTSCENE)) {
         ls_ikaemosbottomint2_titus_intro_done = true;
-        music_play(music_find_by_name("Titus"), true);
+        int music = music_find_by_name("Titus");
+        music_play(music, true);
     }
     if (!savegame_state.get_flag(cur_level_index, "trapped_titus")) {
         if (savegame_state.get_flag(cur_level_index, "titus_intro") && !party_count_item_by_name("Ring of Stone")) {

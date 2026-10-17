@@ -12,7 +12,8 @@
 //
 // Build flags: no inline expansion for the class members (vector3 cross / scaled / + / dot, the
 // quaternion constructor are called); the length computations are written out in the source (FSQRT
-// inline, so /Oi).
+// inline, so /Oi). vc6-flags.txt: /Ox /Ob0 /GX /MT /Ow (the library's /Ox /Ow, D7502; /Ob0 for this unit,
+// D7900).
 
 #include <math.h>
 #include "vsdk/math/quaternion.h"
@@ -21,10 +22,7 @@
 #define QUAT_EPSILON 1.0e-6f          // 0x581b80 (slerp) and the w floor of slerp / squad
 #define QUAT_HALF_PI 1.5707964f       // 0x581920
 
-// 0x5225b0 init_cquat_identity (jmp 0x5225c0: cquat(0, 0, 0, 16383)). Confidence: exact.
-cquat cquat_identity(0, 0, 0, CQUAT_ONE);         // 0x2cbf498
-// 0x5225e0 init_quaternion_identity (jmp 0x5225f0: quaternion(0, 0, 0, 1)). Confidence: exact.
-quaternion quaternion_identity(0.0f, 0.0f, 0.0f, 1.0f);   // 0x2cbf4a0
+// The identity constants (0x5225b0 / 0x5225e0) are defined at the end of the file (D7900).
 
 // 0x522610  Confidence: exact (the case order of the switch; m.uvec.y + m.fvec.z is kept for case 0).
 // Shoemake's conversion: from the trace when it is >= 0, else from the largest diagonal element.
@@ -145,9 +143,10 @@ quaternion quaternion::multiply(const quaternion &q) const
     v2.x = q.x;
     v2.y = q.y;
     v2.z = q.z;
-    w2 = q.w;
     w1 = w;
-    vector3 v = v2 * w1 + v1 * w2 + v1.cross(v2);
+    w2 = q.w;
+    vector3 c = v1.cross(v2);
+    vector3 v = v2 * w1 + v1 * w2 + c;
     quaternion r;
     r.w = w1 * w2 - v1.dot(v2);
     r.x = v.x;
@@ -235,7 +234,7 @@ void quaternion::to_matrix_b(matrix *out) const
     out->fvec.z = xx - yy2;
 }
 
-// 0x522d90  Confidence: likely.
+// 0x522d90  Confidence: exact.
 quaternion quaternion::normalized() const
 {
     float s = (float)sqrt(1.0f / (x * x + y * y + z * z + w * w));
@@ -249,7 +248,7 @@ quaternion quaternion::conjugate() const
     return quaternion(-x, -y, -z, w);
 }
 
-// 0x522e30  Confidence: likely (atan2 as the FPATAN intrinsic).
+// 0x522e30  Confidence: exact (atan2 as the FPATAN intrinsic).
 quaternion quaternion::log() const
 {
     float s = (float)sqrt(x * x + y * y + z * z);
@@ -320,12 +319,12 @@ void quaternion::exp_in_place()
     w = (float)cos(a);
 }
 
-// 0x523050  Confidence: likely. The scale is sqrt(16383^2 / |q|^2) with an integer division, so it
+// 0x523050  Confidence: exact. The scale is sqrt(16383^2 / |q|^2) with an integer division, so it
 // is the square root of a whole number: 0 for any |q| above one unit (a cquat slightly too long
 // collapses to zero), 1 near one unit, never a fine correction (D4012; game bug, NOTES.md).
 cquat cquat::normalized() const
 {
-    int ix = x, iy = y, iz = z, iw = w;
+    int iw = w, iz = z, iy = y, ix = x;
     float s = (float)sqrt((float)((CQUAT_ONE * CQUAT_ONE) / (ix * ix + iy * iy + iz * iz + iw * iw)));
 
     return cquat((short)(ix * s), (short)(iy * s), (short)(iz * s), (short)(iw * s));
@@ -439,7 +438,7 @@ float cquat_dot(const cquat *a, const cquat *b)
     return (a->x * b->x + a->y * b->y + a->z * b->z + a->w * b->w) * (1.0f / (16383.0f * 16383.0f));
 }
 
-// 0x5235a0  Confidence: likely. t wrapped into 0..1; b or -b, whichever is nearer a; nearly equal
+// 0x5235a0  Confidence: exact. t wrapped into 0..1; b or -b, whichever is nearer a; nearly equal
 // quaternions give b itself (weights 0 / 1, not a lerp), nearly opposite ones go through the
 // perpendicular (-b.y, b.x, -b.w, b.z). A w of exactly 0 becomes 1e-6.
 void quaternion_slerp(quaternion *out, const quaternion *a, const quaternion *b, float t)
@@ -461,14 +460,14 @@ void quaternion_slerp(quaternion *out, const quaternion *a, const quaternion *b,
         q = -*b;
     cosom = quaternion_dot(a, &q);
     if (1.0f + cosom > QUAT_EPSILON) {
-        if (1.0f - cosom > QUAT_EPSILON) {
+        if (1.0f - cosom <= QUAT_EPSILON) {
+            scale0 = 0.0f;
+            scale1 = 1.0f;
+        } else {
             omega = (float)acos(cosom);
             sinom_inv = 1.0f / (float)sin(omega);
             scale0 = (float)sin((1.0f - t) * omega) * sinom_inv;
             scale1 = (float)sin(omega * t) * sinom_inv;
-        } else {
-            scale0 = 0.0f;
-            scale1 = 1.0f;
         }
         out->x = scale0 * a->x + q.x * scale1;
         out->y = scale0 * a->y + q.y * scale1;
@@ -486,7 +485,7 @@ void quaternion_slerp(quaternion *out, const quaternion *a, const quaternion *b,
         out->w = QUAT_EPSILON;
 }
 
-// 0x5237c0  Confidence: likely. The same on cquats (the result rounded per component; w 0 becomes 1).
+// 0x5237c0  Confidence: exact. The same on cquats (the result rounded per component; w 0 becomes 1).
 void cquat_slerp(cquat *out, const cquat *a, const cquat *b, float t)
 {
     float d_diff, cosom, omega, sinom_inv, scale0, scale1;
@@ -505,14 +504,14 @@ void cquat_slerp(cquat *out, const cquat *a, const cquat *b, float t)
         q = -*b;
     cosom = cquat_dot(a, &q);
     if (1.0f + cosom > QUAT_EPSILON) {
-        if (1.0f - cosom > QUAT_EPSILON) {
+        if (1.0f - cosom <= QUAT_EPSILON) {
+            scale0 = 0.0f;
+            scale1 = 1.0f;
+        } else {
             omega = (float)acos(cosom);
             sinom_inv = 1.0f / (float)sin(omega);
             scale0 = (float)sin((1.0f - t) * omega) * sinom_inv;
             scale1 = (float)sin(omega * t) * sinom_inv;
-        } else {
-            scale0 = 0.0f;
-            scale1 = 1.0f;
         }
         out->x = (short)(a->x * scale0 + q.x * scale1);
         out->y = (short)(a->y * scale0 + q.y * scale1);
@@ -561,21 +560,23 @@ void cquat_squad(quaternion *out, const cquat *p, const cquat *a, const cquat *b
         out->w = r.w * CQUAT_TO_FLOAT;
 }
 
-// 0x523c00  Confidence: likely (no constructor call for the local in the binary: the inline empty one).
+// 0x523c00  Confidence: exact (r is constructed from the conjugate, the normalized quaternion is a named local).
 quaternion quaternion_log_of_delta(const quaternion *a, const quaternion *b)
 {
-    quaternion r;
+    quaternion r = a->conjugate();
+    quaternion n = r.normalized();
 
-    r = a->conjugate().normalized().multiply(*b).log();
+    r = n.multiply(*b).log();
     return quaternion(r);
 }
 
-// 0x523c60  Confidence: likely.
+// 0x523c60  Confidence: exact.
 cquat cquat_log_of_delta(const cquat *a, const cquat *b)
 {
-    cquat r;
+    cquat r = a->conjugate();
+    cquat n = r.normalized();
 
-    r = a->conjugate().normalized().multiply(*b).log();
+    r = n.multiply(*b).log();
     return cquat(r);
 }
 
@@ -587,6 +588,14 @@ void cquat::set(const quaternion &q)
     z = (short)(q.z * 16383.0f);
     w = (short)(q.w * 16383.0f);
 }
+
+// The two static initialisers open the object in Sum.exe (0x5225b0, 0x5225e0). They are defined here, after
+// the functions, so that the out-of-line quaternion(x, y, z, w) COMDAT is not the first compiled
+// quaternion::quaternion: vc6-compare pairs same-named functions in compile order (D7900).
+// 0x5225b0 init_cquat_identity (jmp 0x5225c0: cquat(0, 0, 0, 16383)). Confidence: exact.
+cquat cquat_identity(0, 0, 0, CQUAT_ONE);         // 0x2cbf498
+// 0x5225e0 init_quaternion_identity (jmp 0x5225f0: quaternion(0, 0, 0, 1)). Confidence: exact.
+quaternion quaternion_identity(0.0f, 0.0f, 0.0f, 1.0f);   // 0x2cbf4a0
 
 // ---- COMDATs at the end of the object (bodies in vsdk/math/quaternion.h) ---------------------------
 // 0x523d20 cquat__cquat_copy. Confidence: exact.

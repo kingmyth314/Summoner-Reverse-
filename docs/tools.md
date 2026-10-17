@@ -172,12 +172,15 @@ Compiles a `src/decomp` unit with Visual C++ 6.0 and compares each function that
 Sum.exe's bytes at that address. Relocated fields (call / jmp targets, absolute addresses) are masked, using the
 relocations of the `.obj`; the `/FAsc` listing gives the demangled names and the instruction text. Object and
 listing go to a temporary folder outside the repository. It needs `VC6_DIR`, the `VC98` folder of an extracted
-VC6 Professional or Enterprise (Standard Edition has no optimiser), and runs from PowerShell or cmd (Git Bash
-rewrites `/switches`). `DECOMP_INCLUDE` points it at another header tree (a merge stage) instead of
-`src/decomp/include`.
-Without `--flags`, each file is compiled with its line in `src/decomp/vc6-flags.txt` (the best flags from the
-2026-10-16 survey: `/O2 /Ob0 /GX /MT` for 31 units, `/Od /Ob1 /GX /MT` for the unoptimised ones), otherwise
-`/O2 /GX /MT`.
+VC6 Professional or Enterprise (Standard Edition has no optimiser) with **Service Pack 5's compiler files** in `BIN`
+(Sum.exe's build, `c2.dll` 12.00.8966; see [Decompilation plan](decomp-plan.md), "Build 8966 is Visual Studio 6.0
+Service Pack 5", for which files and how to get them without installing). With the release build (8168) the
+results differ in register choice and branch layout. It runs from PowerShell or cmd (Git Bash rewrites
+`/switches`). `DECOMP_INCLUDE` points it at another header tree (a merge stage) instead of `src/decomp/include`, and
+`VC6_FLAGS_FILE` at that tree's flags file instead of `src/decomp/vc6-flags.txt`.
+Without `--flags`, each file is compiled with its line in `src/decomp/vc6-flags.txt` (game units `/O2 /GX /MT` by
+default; the vsdk library `/Ox /Ow /GX /MT`, some with `/Ob0`, D7502; `/Od /Ob1 /GX /MT` for the unoptimised unit),
+otherwise `/O2 /GX /MT`.
 
 ```powershell
 $env:VC6_DIR = 'C:\path\to\VC98'

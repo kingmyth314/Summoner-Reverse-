@@ -15,7 +15,10 @@ Setup performed on 2026-10-12 on Windows 11 Pro (10.0.26100), x64.
 The real compiler, Visual C++ 6.0 Professional (cl 12.00.8168), is used from an extracted copy outside the
 repository, never installed or committed; `tools/vc6-compare.mjs` needs its `VC98` folder in `VC6_DIR` (see
 [Tools](tools.md) and the toolchain notes in the [decompilation plan](decomp-plan.md)). Standard Edition has no
-optimiser and cannot be used for the optimised code.
+optimiser and cannot be used for the optimised code. Since 2026-10-16 that folder has Visual Studio 6.0 Service
+Pack 5's compiler files in `BIN`, which give Sum.exe's build 8966: from the SP5 package (`vs6sp5.exe`, extracted with
+7-Zip, its multi-volume `VS6sp5*.cab` set too, never run), copy `vc98\bin\cl.exe`, `c1.dll`, `c1xx.dll`, `link.exe`
+and the root file `msvcep.dll` renamed to `c2.dll` over the Professional Edition's `VC98\BIN`.
 
 ## Components
 

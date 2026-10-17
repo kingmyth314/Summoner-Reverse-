@@ -2,9 +2,12 @@
 // with Sum.exe's bytes at that address (relocated fields masked).
 //
 //   node tools/vc6-compare.mjs <file.cpp>... [--flags "/O2"] [--json] [--keep] [-v]
-// Without --flags each file uses its line in src/decomp/vc6-flags.txt, else the default /O2 /GX /MT.
+// Without --flags each file uses its line in src/decomp/vc6-flags.txt (or the file VC6_FLAGS_FILE names, for a
+// tree outside the repository), else the default /O2 /GX /MT.
 //
-// VC6_DIR must name the VC98 folder of an extracted Visual C++ 6.0 (the one with BIN\CL.EXE and INCLUDE). The
+// VC6_DIR must name the VC98 folder of an extracted Visual C++ 6.0 (the one with BIN\CL.EXE and INCLUDE). Sum.exe
+// was built with Service Pack 5 (c2.dll 12.00.8966, shipped in vs6sp5.exe as msvcep.dll); use a VC98 folder with
+// SP5's BIN files, or results differ in register and branch layout (docs/decomp-plan.md, "Toolchain"). The
 // object and the /FAsc listing go to a temporary folder outside the repository (--keep prints it and leaves it).
 //
 // Per function: match / differs (first differing offset, sizes, instruction counts, the two instructions there) /
@@ -167,7 +170,8 @@ function sourceFunctions(src) {
 const DEFAULT_FLAGS = "/O2 /GX /MT";
 const unitFlags = new Map();
 try {
-  for (const l of readFileSync(join(repoRoot, "src", "decomp", "vc6-flags.txt"), "utf8").split(/\r?\n/)) {
+  const flagsFile = process.env.VC6_FLAGS_FILE || join(repoRoot, "src", "decomp", "vc6-flags.txt");
+  for (const l of readFileSync(flagsFile, "utf8").split(/\r?\n/)) {
     const m = /^([^#\s]\S*)\s+(\S.*?)\s*$/.exec(l);
     if (m) unitFlags.set(m[1].toLowerCase(), m[2]);
   }

@@ -170,12 +170,15 @@ vector3 vector3::negated_b() const
     return vector3(-x, -y, -z);
 }
 
-// 0x524370  Confidence: exact. The dot product with each row.
+// 0x524370  Confidence: exact (VC6 8966 byte match with the rows bound to references: 8966 orders the
+// terms of each dot product as an inlined dot() does). The dot product with each row.
 vector3 vector3::rotated(const matrix &m) const
 {
-    return vector3(x * m.rvec.x + y * m.rvec.y + z * m.rvec.z,
-                   x * m.uvec.x + y * m.uvec.y + z * m.uvec.z,
-                   x * m.fvec.x + y * m.fvec.y + z * m.fvec.z);
+    const vector3 &r = m.rvec, &u = m.uvec, &f = m.fvec;
+
+    return vector3(x * r.x + y * r.y + z * r.z,
+                   x * u.x + y * u.y + z * u.z,
+                   x * f.x + y * f.y + z * f.z);
 }
 
 // 0x5243d0  Confidence: exact. The transpose: the dot product with each column.
@@ -421,14 +424,16 @@ float direction_dot(const vector3 *dir, const vector3 *from, const vector3 *to)
     return dir->dot((*to - *from).normalized());
 }
 
-// 0x524ae0  Confidence: likely (the plane distance lives in the n argument's slot).
+// 0x524ae0  Confidence: exact (VC6 8966 byte match: the distance is negated in place before the
+// scale; it lives in the n argument's slot).
 void project_onto_plane(vector3 *out, const vector3 *v, const vector3 *n, const vector3 *p)
 {
     float d = -p->dot(*n);
 
     d = v->dot(*n) + d;
     *out = *v;
-    *out += *n * -d;
+    d = -d;
+    *out += *n * d;
 }
 
 // 0x524b50  Confidence: likely (the second vector is constructed but not used). Into the frame of a
@@ -460,7 +465,8 @@ void vector3_rotate_towards(vector3 *out, const vector3 *from, const vector3 *to
     vector3_rotate_towards_unit(out, &a, &b, t);
 }
 
-// 0x524c80  Confidence: likely (the angle lives in the to argument's slot).
+// 0x524c80  Confidence: exact (VC6 8966 byte match: the origin is a temporary, not a named local; the
+// angle lives in the to argument's slot).
 void vector3_rotate_towards_unit(vector3 *out, const vector3 *from, const vector3 *to, float t)
 {
     vector3 axis;
@@ -469,8 +475,7 @@ void vector3_rotate_towards_unit(vector3 *out, const vector3 *from, const vector
     axis = from->cross(*to);
     axis.normalize();
     angle = -(float)acos(from->dot(*to));
-    vector3 origin(0.0f, 0.0f, 0.0f);
-    vector3_rotate_about_axis(out, from, angle * t, &origin, &axis);
+    vector3_rotate_about_axis(out, from, angle * t, &(const vector3 &)vector3(0.0f, 0.0f, 0.0f), &axis);
 }
 
 // 0x524d10  Confidence: exact (the assignment temporaries). Ritter's sphere: the widest of the

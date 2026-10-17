@@ -221,22 +221,24 @@ void camera::auto_rotate_update()
     wanted_dir.set(0.0f, 0.0f, 0.0f);
 }
 
-// 0x477ea0  Confidence: likely (x, z, y are computed in that order). ret 4 (hidden result).
+// 0x477ea0  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; x, z, y are computed in that order). ret 4 (hidden result).
 vector3 camera::compute_eye_pos()
 {
-    float x = (float)sin(yaw) * distance * zoom + look_at.x;
-    float z = (float)cos(yaw) * distance * zoom + look_at.z;
-    float y = elevation * zoom + height[0] + eye_offset;
-    return vector3(x, y, z);
+    vector3 v;
+    v.x = (float)sin(yaw) * distance * zoom + look_at.x;
+    v.z = (float)cos(yaw) * distance * zoom + look_at.z;
+    v.y = elevation * zoom + height[0] + eye_offset;
+    return v;
 }
 
-// 0x477f10  Confidence: likely (as compute_eye_pos). ret 4 (hidden result).
+// 0x477f10  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; as compute_eye_pos). ret 4 (hidden result).
 vector3 camera::get_target_offset()
 {
-    float x = look_at.x - eye_pos.x;
-    float z = look_at.z - eye_pos.z;
-    float y = height[0] - eye_pos.y + eye_offset;
-    return vector3(x, y, z);
+    vector3 v;
+    v.x = look_at.x - eye_pos.x;
+    v.z = look_at.z - eye_pos.z;
+    v.y = height[0] - eye_pos.y + eye_offset;
+    return v;
 }
 
 // 0x477f60  Confidence: likely (the three ring walks). Outside orient mode 2 the view looks straight at
@@ -314,13 +316,13 @@ void camera::update_eye_position()
     camera_approach_value(&eye_pos.x, &eye_velocity.x, accel.x, reported_frametime, wanted.x);
     camera_approach_value(&eye_pos.y, &eye_velocity.y, accel.y, reported_frametime, wanted.y);
     camera_approach_value(&eye_pos.z, &eye_velocity.z, accel.z, reported_frametime, wanted.z);
-    if (eye_offset_wanted - eye_offset < 0.0f) {
-        eye_offset -= camera_eye_offset_speed * reported_frametime;
-        if (eye_offset < eye_offset_wanted)
-            eye_offset = eye_offset_wanted;
-    } else {
+    if (eye_offset_wanted - eye_offset >= 0.0f) {
         eye_offset += camera_eye_offset_speed * reported_frametime;
         if (eye_offset > eye_offset_wanted)
+            eye_offset = eye_offset_wanted;
+    } else {
+        eye_offset -= camera_eye_offset_speed * reported_frametime;
+        if (eye_offset < eye_offset_wanted)
             eye_offset = eye_offset_wanted;
     }
     if (target) {
@@ -975,28 +977,25 @@ void camera::set_mode(int m)
         zoom = zoom_high;
 }
 
-// 0x479a60  Confidence: likely (each branch stores prev_mode = mode after set_mode). F12: 0 -> 1 -> 2 -> 0;
+// 0x479a60  Confidence: exact (VC6 byte match, cl 8966, match21; was likely; each branch stores prev_mode = mode after set_mode). F12: 0 -> 1 -> 2 -> 0;
 // a suppressed forced-high mode 3 counts as 1.
 bool camera::cycle_mode()
 {
     if (cur_level_index == 4)
         return false;
-    if (mode == 0) {
-        set_mode(1);
-        prev_mode = mode;
-        return true;
-    }
-    if (mode == 1 || (high_view_suppressed && mode == 3)) {
-        set_mode(2);
-        prev_mode = mode;
-        return true;
-    }
-    if (mode == 2) {
-        set_mode(0);
-        prev_mode = mode;
-        return true;
-    }
-    return false;
+    int m;
+
+    if (mode == 0)
+        m = 1;
+    else if (mode == 1 || (high_view_suppressed && mode == 3))
+        m = 2;
+    else if (mode == 2)
+        m = 0;
+    else
+        return false;
+    set_mode(m);
+    prev_mode = mode;
+    return true;
 }
 
 // 0x479ad0  Confidence: exact. ret 8.

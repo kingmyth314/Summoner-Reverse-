@@ -158,7 +158,7 @@ void player_clear_handle_of(int handle)
         p->handle = -1;
 }
 
-// 0x4335a0  Confidence: likely. A new leader is picked whether or not p led: in single player the
+// 0x4335a0  Confidence: exact. A new leader is picked whether or not p led: in single player the
 // first living other member (then stop), in multiplayer every other member owned by this machine
 // (no break, so the last one wins). The deleting call is the one virtual of the object, not a
 // destructor (no flag is pushed). `delete_obj == true` because the test is CMP byte, 1.
@@ -184,13 +184,11 @@ void party_remove_player(Player *p, bool delete_obj)
     }
 
     if (p->handle != -1) {
-        c = living_from_handle(p->handle);
-        if (c != NULL) {
-            ai_group_remove_member(c);
-            o = c;
-        } else {
+        o = living_from_handle(p->handle);
+        if (o != NULL)
+            ai_group_remove_member((Character *)o);
+        else
             o = obj_from_handle(p->handle);
-        }
         if (delete_obj == true) {
             o->deinit();
             if (p == summon_player)
@@ -286,11 +284,12 @@ Character *Player::create(const vector3 *pos, const matrix *orient, const char *
             c->skill[i] = 0;
     }
     for (i = 0; i < num_progression; i++) {
-        if (Max_skills) {
+        if (!Max_skills) {
+            if (c->level >= progression[i].level)
+                c->skill[progression[i].skill] = (ubyte)progression[i].value;
+        } else {
             c->skill[progression[i].skill] = 100;
             progression[i].level = 1;
-        } else if (c->level >= progression[i].level) {
-            c->skill[progression[i].skill] = (ubyte)progression[i].value;
         }
     }
     default_chain = 0;
@@ -298,7 +297,10 @@ Character *Player::create(const vector3 *pos, const matrix *orient, const char *
         skill_cooldown[i].SetTimeout(0);
 
     c->set_name(name);
-    set_ai_control(((game_flags & GF_MULTIPLAYER) || leader == true) ? false : true);
+    if (!(game_flags & GF_MULTIPLAYER) && leader != true)
+        set_ai_control(true);
+    else
+        set_ai_control(false);
     c->ai.reset();
     c->set_team(0);
     if ((game_flags & GF_SINGLE_PLAYER) && leader != true)
@@ -320,19 +322,20 @@ bool Player::make_leader()
     return true;
 }
 
-// 0x4339a0  Confidence: likely (two set_ai_control call sites: VC6 tail duplication or two source
+// 0x4339a0  Confidence: exact (two set_ai_control call sites: VC6 tail duplication or two source
 // branches each ending in the call).
 bool Player::drop_leader()
 {
-    if (!(flags & PF_LEADER))
-        return false;
-    flags &= ~PF_LEADER;
-    if (game_flags & GF_SOLO_MODE)
-        flags |= PF_HOLD;
-    else
-        flags &= ~PF_HOLD;
-    set_ai_control(true);
-    return true;
+    if (flags & PF_LEADER) {
+        flags &= ~PF_LEADER;
+        if (game_flags & GF_SOLO_MODE)
+            flags |= PF_HOLD;
+        else
+            flags &= ~PF_HOLD;
+        set_ai_control(true);
+        return true;
+    }
+    return false;
 }
 
 // 0x4339e0  Confidence: likely (SHR AL, 3 / AND AL, 1: VC6 for a bool from one bit, or a bitfield).
@@ -341,7 +344,7 @@ bool Player::is_leader()
     return (flags & PF_LEADER) != 0;
 }
 
-// 0x4339f0  Confidence: likely. Skill 0x34 and the summon skills are Joseph's only. skill_is_summon
+// 0x4339f0  Confidence: exact. Skill 0x34 and the summon skills are Joseph's only. skill_is_summon
 // is called a second time in the ring check although it is known false there, so the source tested
 // it in both conditions. Levels: 0x18, 0x11, 0x10 are level_script_table indices.
 bool Player::skill_unlocked(int skill)
@@ -350,24 +353,21 @@ bool Player::skill_unlocked(int skill)
 
     if (skill >= 0 && skill <= 2)
         return true;
-    if (skill == 0x34 || skill_is_summon(skill))
-        return char_infos[char_info].species == SPECIES_JOSEPH;
+    if (skill != 0x34 && !skill_is_summon(skill)) {
+        if ((!All_summons && (skill == 0x1b || skill_is_summon(skill)) && (game_flags & GF_SINGLE_PLAYER)
+             && (!savegame_state.get_flag(0x18, "got_ring_of_darkness")
+                 || (savegame_state.get_flag(0x11, "act2_done") && !savegame_state.get_flag(0x10, "got_ring_of_water"))))
+            || (!Max_skills && (game_flags & GF_SINGLE_PLAYER) && (skill == 0x16 || skill == 0x17)
+                && !savegame_state.get_flag(0x18, "lpalaceint_yago_found")))
+            return false;
 
-    if (!All_summons && (skill == 0x1b || skill_is_summon(skill)) && (game_flags & GF_SINGLE_PLAYER)) {
-        if (!savegame_state.get_flag(0x18, "got_ring_of_darkness"))
-            return false;
-        if (savegame_state.get_flag(0x11, "act2_done") && !savegame_state.get_flag(0x10, "got_ring_of_water"))
-            return false;
-    }
-    if (!Max_skills && (game_flags & GF_SINGLE_PLAYER) && (skill == 0x16 || skill == 0x17)
-        && !savegame_state.get_flag(0x18, "lpalaceint_yago_found"))
+        for (i = 0; i < num_progression; i++) {
+            if (skill == progression[i].skill)
+                return true;
+        }
         return false;
-
-    for (i = 0; i < num_progression; i++) {
-        if (progression[i].skill == skill)
-            return true;
     }
-    return false;
+    return char_infos[char_info].species == SPECIES_JOSEPH;
 }
 
 // 0x433b10  Confidence: exact (MOV EAX, 1: int, not bool).
@@ -431,7 +431,7 @@ void Player::init_from_character(Character *c)
 
 static void party_lists_atexit_cleanup();
 
-// 0x433ca0  Confidence: likely (party_list.next / player_free_list.next stay in registers through
+// 0x433ca0  Confidence: exact (party_list.next / player_free_list.next stay in registers through
 // the loop; the five records are inserted at the head, so the free list runs Players[4]..[0]).
 void party_lists_init()
 {
@@ -439,8 +439,12 @@ void party_lists_init()
 
     list_init(&party_list);
     list_init(&player_free_list);
-    for (i = 0; i < MAX_PLAYERS; i++)
-        list_insert(&player_free_list, &Players[i]);
+    for (i = 0; i < MAX_PLAYERS; i++) {
+        Players[i].next = player_free_list.next;
+        player_free_list.next->prev = &Players[i];
+        player_free_list.next = &Players[i];
+        Players[i].prev = &player_free_list;
+    }
     list_init(&player_list_other);
     party_lists_initialized = true;
     party_leader = NULL;
@@ -528,7 +532,7 @@ void player_start_skill_cooldown(Character *c, int skill)
         p->skill_cooldown[skill].SetTimeout(skill_table[skill].recovery * 1000);
 }
 
-// 0x433f40  Confidence: likely. Unlinks the character from the active object and living lists by
+// 0x433f40  Confidence: exact. Unlinks the character from the active object and living lists by
 // hand (the obj_link_new pair is not called). The first member that is neither dead nor gone becomes
 // leader, whoever led before.
 bool party_remove_member(const char *name)
@@ -550,15 +554,18 @@ bool party_remove_member(const char *name)
     list_append(&player_list_other, p);
     ai_group_remove_member(c);
     list_remove(c);
-    c->live_prev->live_next = c->live_next;
-    c->live_next->live_prev = c->live_prev;
-    c->live_next = NULL;
-    c->live_prev = NULL;
+    do {
+        c->live_prev->live_next = c->live_next;
+        c->live_next->live_prev = c->live_prev;
+        c->live_next = NULL;
+        c->live_prev = NULL;
+    } while (0);
     c->flags |= CF_LEFT_PARTY;
 
     species = c->info->species;
     if (species >= SPECIES_JOSEPH && species <= SPECIES_ROSALIND) {
-        sprintf(buf, XSTR("%s has left the party!\n", 934), c->get_name());
+        char *fmt = XSTR("%s has left the party!\n", 934);
+        sprintf(buf, fmt, c->get_name());
         hud_show_message(buf);
     }
 
@@ -572,9 +579,9 @@ bool party_remove_member(const char *name)
     return true;
 }
 
-// 0x4340d0  Confidence: likely (the HP store goes through an int temporary: FILD of the
-// get_max_stat result). Relinks the character into obj_active_list (next stored first, unlike
-// list_append) and, unless dead, into living_list.
+// 0x4340d0  Confidence: exact (the HP store goes through an int temporary: FILD of the
+// get_max_stat result). Relinks the character into obj_active_list and, unless dead, into living_list (prev
+// first, as list_append; D7108).
 Player *party_add_member(const char *name)
 {
     char buf[256];
@@ -594,8 +601,8 @@ Player *party_add_member(const char *name)
     list_append(&party_list, p);
     ai_group_add_member(cur_character->ai.group, c);
 
-    c->next = &obj_active_list;
     c->prev = obj_active_list.prev;
+    c->next = &obj_active_list;
     obj_active_list.prev->next = c;
     obj_active_list.prev = c;
 
@@ -603,8 +610,8 @@ Player *party_add_member(const char *name)
     if (c->flags & CF_DEAD) {
         c->resurrect();
     } else {
-        c->live_next = &living_list;
         c->live_prev = living_list.live_prev;
+        c->live_next = &living_list;
         living_list.live_prev->live_next = c;
         living_list.live_prev = c;
     }
@@ -616,7 +623,8 @@ Player *party_add_member(const char *name)
 
     species = c->info->species;
     if (species >= SPECIES_JOSEPH && species <= SPECIES_ROSALIND) {
-        sprintf(buf, XSTR("%s has joined the party!\n", 622), c->get_name());
+        char *fmt = XSTR("%s has joined the party!\n", 622);
+        sprintf(buf, fmt, c->get_name());
         hud_show_message(buf);
     }
     return p;

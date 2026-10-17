@@ -78,14 +78,14 @@ void vfx_instance::release_nodes()
     }
     if (insts21c != NULL) {
         base = get_base();
-        rec = insts21c;
+        next = insts21c;
         i = 0;
         do {
-            next = rec->next;
+            rec = next;
+            next = next->next;
             vif_record_release(rec, &base->descs21c[i]);
             i++;
-            rec = next;
-        } while (rec != insts21c);
+        } while (next != insts21c);
         insts21c = NULL;
     }
     if (vfx_active_instance == this)
@@ -430,15 +430,15 @@ const char *vfx_instance::get_node_name(int node)
     switch (kind) {
     case VFX_TAG_MESH:
         return base->node_descs[list].parent;
+    case VFX_TAG_LIGHT:
+        return (const char *)((vfx_light_track *)base->light_tracks)[list].header.link;
     case VFX_TAG_EMITTER_PART:
     case VFX_TAG_EMITTER:
         return base->emitters[list].parent;
-    case VFX_TAG_LIGHT:
-        return (const char *)((vfx_light_track *)base->light_tracks)[list].header.link;
-    case VFX_TAG_DUMMY:
-        return base->dummies[list].parent;
     case VFX_TAG_VIF:
         return base->descs21c[list].parent;
+    case VFX_TAG_DUMMY:
+        return base->dummies[list].parent;
     }
     return NULL;
 }
@@ -454,15 +454,15 @@ const char *vfx_instance::get_tag_name(int tag)
     switch (kind) {
     case VFX_TAG_MESH:
         return base->node_descs[list].name;
+    case VFX_TAG_LIGHT:
+        return (const char *)((vfx_light_track *)base->light_tracks)[list].header.name;
     case VFX_TAG_EMITTER_PART:
     case VFX_TAG_EMITTER:
         return base->emitters[list].name;
-    case VFX_TAG_LIGHT:
-        return (const char *)((vfx_light_track *)base->light_tracks)[list].header.name;
-    case VFX_TAG_DUMMY:
-        return base->dummies[list].name;
     case VFX_TAG_VIF:
         return base->descs21c[list].name;
+    case VFX_TAG_DUMMY:
+        return base->dummies[list].name;
     }
     return NULL;
 }
@@ -486,34 +486,26 @@ void vfx_instance::bind_node(int node, character_instance *ci, int tag)
     case VFX_TAG_MESH:
         m = list18_item(list);
         if (m != NULL) {
-            m->ci = ci;
             m->bound = 1;
+            m->ci = ci;
             m->tag = tag;
+        }
+        break;
+    case VFX_TAG_LIGHT:
+        l = list1c_item(list);
+        if (l != NULL) {
+            l->on_bone = 1;
+            l->owner = ci;
+            l->bone = tag;
         }
         break;
     case VFX_TAG_EMITTER_PART:
     case VFX_TAG_EMITTER:
         e = list20_item(list);
         if (e != NULL) {
-            e->ci = ci;
             e->bound = 1;
+            e->ci = ci;
             e->tag = tag;
-        }
-        break;
-    case VFX_TAG_LIGHT:
-        l = list1c_item(list);
-        if (l != NULL) {
-            l->owner = ci;
-            l->on_bone = 1;
-            l->bone = tag;
-        }
-        break;
-    case VFX_TAG_DUMMY:
-        d = list28_item(list);
-        if (d != NULL) {
-            d->ci = ci;
-            d->bound = 1;
-            d->tag = tag;
         }
         break;
     case VFX_TAG_VIF:
@@ -522,6 +514,14 @@ void vfx_instance::bind_node(int node, character_instance *ci, int tag)
             v->flags |= 4;
             v->ci = ci;
             v->tag = tag;
+        }
+        break;
+    case VFX_TAG_DUMMY:
+        d = list28_item(list);
+        if (d != NULL) {
+            d->bound = 1;
+            d->ci = ci;
+            d->tag = tag;
         }
         break;
     }
@@ -536,17 +536,25 @@ bool vfx_instance::node_can_bind(int node)
     base = get_base();
     base->decode_tag(node, &kind, &list, &sub);
     switch (kind) {
-    case VFX_TAG_MESH:
-        return base->node_descs[list].bind_flags & 1;
+    case VFX_TAG_MESH: {
+        bool r = base->node_descs[list].bind_flags & 1;
+        return r;
+    }
+    case VFX_TAG_LIGHT: {
+        bool r = ((vfx_light_track *)base->light_tracks)[list].header._bit0;
+        return r;
+    }
     case VFX_TAG_EMITTER_PART:
-    case VFX_TAG_EMITTER:
-        return base->emitters[list]._bit31;
-    case VFX_TAG_LIGHT:
-        return ((vfx_light_track *)base->light_tracks)[list].header._bit0;
+    case VFX_TAG_EMITTER: {
+        bool r = base->emitters[list]._bit31;
+        return r;
+    }
+    case VFX_TAG_VIF: {
+        bool r = (base->descs21c[list].vis_flags >> 9) & 1;
+        return r;
+    }
     case VFX_TAG_DUMMY:
-        return base->dummies[list].flags >> 15;
-    case VFX_TAG_VIF:
-        return (base->descs21c[list].vis_flags >> 9) & 1;
+        return base->dummies[list].can_bind;
     }
     return false;
 }

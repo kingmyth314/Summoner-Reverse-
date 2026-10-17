@@ -72,14 +72,15 @@ void ls_ikaemostopint_main_door()
     }
 }
 
-// 0x4fa050  Confidence: exact. The boss music after IkmsPKing-Intro; the intro at $ipktrigger (3) once the
+// 0x4fa050  Confidence: exact (VC6 byte match, match14; was exact). The boss music after IkmsPKing-Intro; the intro at $ipktrigger (3) once the
 // main door is open.
 void lsf_ikaemos_found_boss()
 {
     if (!ls_ikaemostopint_found_boss_done && savegame_state.get_flag(cur_level_index, "ikaemos_found_boss")
         && !(game_flags & GF_CUTSCENE)) {
         ls_ikaemostopint_found_boss_done = true;
-        music_play(music_find_by_name("Boss"), true);
+        int music = music_find_by_name("Boss");
+        music_play(music, true);
     }
     if (!savegame_state.get_flag(cur_level_index, "ikaemos_found_boss")
         && script_player_near_navpoint("$ipktrigger", 3.0f)

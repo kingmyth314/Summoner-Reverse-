@@ -405,7 +405,8 @@ int ai_state::follow_character(Character *t)
             float d2 = distance_squared(&slot, &owner->pos);
             float thr;
             if (t->get_698() > 0.0f) {
-                vector3 to = slot - owner->pos;
+                vector3 to;
+                to = slot - owner->pos;
                 to.normalize();
                 if (to.x * fwd->x + to.y * fwd->y + to.z * fwd->z < 0.0f) {
                     ai_path_free(path);
@@ -732,8 +733,7 @@ void ai_state::goal_do_pickup(int target_handle)
     goal_remove(0);
     o = obj_from_handle(target_handle);
     if (o && (o->type == 3 || o->type == 0xb)) {
-        vector3 d = o->pos - owner->pos;
-        if (d.len() <= 2.25f)
+        if ((o->pos - owner->pos).len() <= 2.25f)
             item_obj_pickup((item_obj *)o, 1);
     }
 }
