@@ -167,6 +167,19 @@ static void FireWallsOnGameThread(void *unused)
     Log("agent: firewall: %d of %d areas placed", made, g_fireWalls);
 }
 
+// "callstr ADDR STRING [ARG]": cdecl fn(string, arg) on the game thread, eax logged. ARG with a '.' is passed as a
+// float's bits (e.g. a fraction), otherwise as an int. Testing only: the caller must know the function takes that.
+static DWORD g_callAddr;
+static char g_callStr[64];
+static DWORD g_callArg;
+
+static void CallStrOnGameThread(void *unused)
+{
+    (void)unused;
+    DWORD r = ((DWORD(__cdecl *)(const char *, DWORD))(UINT_PTR)SumVa(g_callAddr))(g_callStr, g_callArg);
+    Log("agent: callstr %06lX(\"%s\", 0x%lX) = 0x%lX", g_callAddr, g_callStr, g_callArg, r);
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -346,6 +359,21 @@ static void RunLine(char *line)
         lstrcpynA(g_level, argv[1], sizeof g_level);
         lstrcpynA(g_script, argv[2], sizeof g_script);
         Out("level %s %s: %s", argv[1], argv[2], KeysAgentRun(ChangeLevelOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "callstr") && argc >= 3) {
+        // callstr ADDR STRING [ARG]: e.g. "callstr 4f95a0 puzzle-flippers31" (ls_khosanilab_use) or
+        // "callstr 4773d0 puzzle-flippers31 0.01" (door_is_open_by_name). Result in the log.
+        g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
+        lstrcpynA(g_callStr, argv[2], sizeof g_callStr);
+        g_callArg = 0;
+        if (argc >= 4) {
+            if (strchr(argv[3], '.')) {
+                float f = (float)atof(argv[3]);
+                memcpy(&g_callArg, &f, 4);
+            } else {
+                g_callArg = (DWORD)strtol(argv[3], NULL, 0);
+            }
+        }
+        Out("callstr %06lX %s: %s", g_callAddr, g_callStr, KeysAgentRun(CallStrOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "firewall") && argc >= 2) {
         // firewall N: N wall of fire areas beside the current character (game thread; result in the log).
         g_fireWalls = atoi(argv[1]);

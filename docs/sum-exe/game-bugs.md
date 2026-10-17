@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 358 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 357 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 51 | 25 | 12 |
+| Gameplay | 50 | 25 | 12 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -932,7 +932,6 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
 | G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
 | G42 | Latent: a door whose name plus the level script name has 64 characters or more makes every save of that level fail to load | `savegame_read_two_stage` `0x4d34e0` | **Observed** code, *inferred* effect | No |
-| G50 | After a reload or a second visit to the Khosani lab, the flipper puzzle's board no longer matches the flippers: raised flippers show no lava platform, and the next presses move the wrong flippers | `ls_khosanilab_init` `0x4f8920`, `ls_khosanilab_set_flippers` `0x4f9ca0` | **Observed** code, *inferred* effect | No |
 | G51 | Latent: once the 1000 path nodes run out, every failed path search keeps its nodes until the next level load | `pf_graph_search` `0x49fa70` | **Observed** code, *inferred* effect | No |
 | G52 | Latent: a path to a goal outside the walkable area usually fails instead of ending at the area's edge | `pf_find_cell_crossing` `0x49ecb0` | **Observed** code, *inferred* effect | No |
 | G60 | Latent: when the chat server connection fails at once (any error except "would block"), the multiplayer lobby never reports it, retries every frame and opens a new socket each time | `irc_connect` `0x4abc10` | **Observed** code, *inferred* effect | No |
@@ -1200,17 +1199,6 @@ combined length and returns 0 when it is 64 or more (`cmp ebx, 0x40; jae 0x4d373
 `0x438211`). The test runs for every door it compares, not only the matching one, and only when the level has at
 least one saved two-stage entry. `savegame_two_stage_get` and `savegame_two_stage_set` build the same string with
 `strncpy` / `strncat` and no test. We did not check the retail door names.
-
-**G50. The board is cleared, the doors are not.** `ls_khosanilab_init` clears the 10 x 7 board `ls_khosanilab_flippers` on every
-entry (`rep stosd` of 0x46 bytes, `0x4f895c`..`0x4f897e`) and then hides the platform of every cell
-(`ls_khosanilab_apply_lava_platforms`, `0x4f8980`). The flippers are doors, and a door's state is its two-stage bit in
-`savegame_state`, which `door_start_move` flips (`savegame_two_stage_set` at `0x476fe4`). That bit is kept across level changes
-and saved. A press toggles the used cell (`0x4f9b66`..`0x4f9b79`) and its four neighbours through `set_flippers`, which
-toggles the cell and calls `door_apply_saved_state(name, cell)` (`0x4f9cc4`..`0x4f9cf4`). That moves the door only when its
-bit differs from the new value (`0x47739f`..`0x4773ad`). So after a reload, a flipper that was raised keeps its door raised
-while its cell reads 0: its platform stays hidden, the beam grid (`ls_khosanilab_puzzle_build_grid`) is built from the board
-and not from the doors, and the first press on a neighbour leaves that door where it is while the cell becomes 1. The board
-catches up only as cells are toggled. *Inferred:* how far this blocks the crossing was not tested; it needs agent mode.
 
 **G51. `ai_path_free(NULL)`.** When the graph search has found the goal, it builds the path from the goal backwards with
 `path = ai_path_node_create(x, z, layer, path)` (`0x4a0180`..`0x4a019b`). When the pool is empty `ai_path_alloc_node` returns 0
@@ -3463,6 +3451,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | After a container close the other machines keep the taken items and never delete an emptied container | `src/decomp/game/NOTES-multi.md` bug 1 | `container_remove_item` decrements the count even on a miss, so the last entries go and an emptied container is deleted (G14) |
 | Life leech is `0x450c70` with -0.1 / 0.1 of the damage | [Combat](combat.md) | `0x450c70` is `character_add_ap`, used by mind drain; life leech heals with `character_add_hp` (corrected on the page) |
 | C270 (withdrawn 2026-10-17): more than ten burning fireball, wall of fire, dark wall, blizzard or Pyrul fireball areas overflow `fx_frame`'s ten-entry stack list (`mov [esp+4*eax+0x230], ebp` at `0x48a40e`, no compare) and crash | This page, then [Bug fix priorities](bug-priorities.md) rank 11 | The list takes only effects that own an avoidance area (`+0x100` != -1). `avoid_area_add` (`0x4a9b40`) gives each area two of the 14 avoidance obstacles (`AVOID_NUM_OBSTACLES`, `avoid_add_primitive` twice) and frees an area that got none, so at most seven areas exist at once (fewer when other obstacles are in use). Tested in agent mode: `firewall 16` placed 16 walls of fire, and the area pool held 7 used areas with obstacles 0..13; the game ran on. The missing bound is real but cannot be reached |
+| G50 (withdrawn 2026-10-17): after a reload or a second visit the Khosani lab flipper board (cleared by `ls_khosanilab_init`, `0x4f895c`..`0x4f8980`) no longer matches flipper doors kept raised by their saved two-stage bits | This page, then [Bug fix priorities](bug-priorities.md) rank 13 | A reload cannot happen inside the lab: saving there gives "Cannot save in Labyrinth of the Khosani." (agent mode, 2026-10-17). For a second visit, agent mode raised flippers 32, 16 and 30 (`callstr 4f95a0 puzzle-flippers31`, the level's use hook; `door_is_open_by_name` then returned 1 for each), went to KhosaniLab2 and back with `level`, and found the board all 0 and the three doors down again. So the doors do not come back raised on re-entry. Why the saved two-stage bit does not raise them was not traced |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -3818,7 +3807,6 @@ the tables above; the rest are below.
 - `INVT` entry count is not clamped on load (`0x4d2cd5`); only a hand-edited save could exceed 0x209.
 - G52: which retail callers pass `ai_path_find` a goal outside every cell. `world_click_move`, `ai_follow_character`, `conversation_frame` and `ai_approach_attack_slot` clamp with `pf_find_nearest_navigable_point` first; `script_action_walk_to` (`0x4dc760`, `0x4dc7b3`), `ai_path_find_new` / `_append` (`0x473cc6`, `0x473dbe`, `0x473e40`) and `mp_handle_swi_ndir` (`0x48885a`) were not traced.
 - K51: whether any 2D bitmap, line or `gr_tmapper` draw runs while `gr_set_tint(1)` is in effect under OpenGL (none found; the tints we traced go through clamped mesh and level paths).
-- G50: the in-game effect (whether the hidden platforms or the out-of-step board block the crossing) needs agent mode.
 - V60: `cmp eax, 8; jg` at `0x43e374` is a signed compare. With Direct3D, a driver that reports 2 GiB or more of free texture memory (`0x80000000` or above) would read as negative, and a first start would switch on the low-resolution textures as in K64. What modern Windows reports through DirectDraw's `GetAvailableVidMem` for large cards was not measured.
 - K60: whether the one-pixel edge is visible depends on what the colour buffer holds there (the frame's `gr_clear`, `state_game_frame` `0x43905a`) and on the clip area that `gr_setup_3d` sets; needs a Direct3D run.
 - K61: that dropped items reach `gr_d3d_render_character_mesh` / `gr_opengl_render_character_mesh` through `ca_render_set_mesh` (`0x4862b7`) was read from `levelrender_draw_list`, not traced per object type. The Glide mesh path (`0x50bba3`) and level geometry (`levelrender_face_vertex_colors` `0x48fa11`) were not checked for the same conversion.
@@ -4047,7 +4035,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C51 multitexture | `gl_init_multitexture` `0x54f382`..`0x54f3e0`, `0x54f39e`; `gl_setup_multitexture_state` `0x54ffa2`..`0x54ffb2` |
 | C52 room 4 prisoners | `ls_khosanilab_room4_frame` `0x4f8e0b`..`0x4f8e9a`; `script_object_find` `0x4cde54`..`0x4cde57`; `ls_khosanilab_frame` `0x4f8b4a`..`0x4f8b64`; `events_string_pool` `0x24f6218` (buffer `0x24ede14`, 0x8400) |
 | C53 hills navpoint | `ls_worldmap1_nearest_hills_nav` `0x4fc2ad`, `0x4fc327`..`0x4fc337`; `ls_worldmap1_pick_encounter_stage4` `0x4fc672`..`0x4fc6e8` |
-| G50 flipper board | `ls_khosanilab_init` `0x4f895c`..`0x4f8980`; `ls_khosanilab_puzzle_use` `0x4f9b66`..`0x4f9b97`; `ls_khosanilab_set_flippers` `0x4f9cc4`..`0x4f9cf4`; `door_apply_saved_state` `0x47737d`..`0x4773ad`; `door_start_move` `0x476fd3`..`0x476fe4`; `ls_khosanilab_use` `0x4f95d4`..`0x4f95dc`; `ls_khosanilab_apply_lava_platforms` `0x4f89e4`..`0x4f89ff` |
 | G51 path leak | `pf_graph_search` `0x4a0180`..`0x4a019b`, `0x4a01b5`..`0x4a01b7`, `0x49fbec`; `ai_path_free` `0x4a0484`; `ai_path_alloc_node` `0x4a02d7`..`0x4a02f2`; `pathfinding_load_graph` `0x49ce04` |
 | G52 cell crossing | `pf_find_cell_crossing` `0x49ed02`..`0x49ed84`; `pf_compute_graph_bounds` `0x49cb17`..`0x49cb74`; `pf_find_nearest_navigable_point` `0x49e972`..`0x49e9ad`; `pf_graph_search` `0x49fae6`..`0x49fb3d`; `world_click_move` `0x43bf26` |
 | K50 565 mipmaps | `gl_build_mipmaps` `0x54e4f9`..`0x54e5cb`, `0x54e49f`..`0x54e4af`, `0x54e348`; `gr_opengl_create_texture` `0x54e9df`..`0x54ea00`, `0x54ebed`..`0x54ec0b`; `bm_read_vbm_header` `0x501df8`..`0x501e68`; `bm_read_header` `0x502b4a`..`0x502b99`; retail VBMs in the `.vpp` files |
