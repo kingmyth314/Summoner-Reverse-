@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 9 |
+| Gameplay | 51 | 25 | 10 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -951,7 +951,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 | G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
-| G170 | A "Cannot save..." warning shown while the player has paused the game resumes the game when it is closed | `ui_message_box_show` `0x413e40`, `ClearFrameFlag5bd504` `0x414020` | **Observed** code, *inferred* trigger | No |
+| G170 | A "Cannot save..." warning shown while the player has paused the game resumes the game when it is closed | `ui_message_box_show` `0x413e40`, `ClearFrameFlag5bd504` `0x414020` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] MessageBoxPause`) |
 | G180 | Latent: in multiplayer, a reliable packet from an address with no link (for example a machine whose link has timed out) that comes after a connected machine's packet in the same update is handled as that machine's: an ACK can free its unacknowledged packets, and data enters its stream | `nw_work_reliable` `0x517e00` | **Observed** code, *inferred* effect | No |
 | G181 | Latent: in multiplayer, once a link's receive sequence number reaches 0xffb6, a resent copy of a packet already delivered is stored again, and it is delivered in place of the real packet with that number when the sequence comes round (about 65,536 packets later) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
 | G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
@@ -1371,6 +1371,14 @@ through the same `hud_handle_keys`, `0x40deea`), and the save key and the quick-
 summon.", "Cannot save now.", "No more savegame slots." and the other quick-save errors use flag 1 (`push 0x1` at
 `0x40e1af`, `0x40e862`, `0x40e910`, `0x40e92b`). So a player who pauses a fight and presses the save key gets the
 warning, and the fight goes on as soon as it is closed.
+
+**Reproduced 2026-10-17** (agent mode, a test save; `summon golem` from a console key so that the summon is
+still emerging, Space to pause, Ctrl+S, which is the quick-save key): "Cannot save while summon is emerging." came
+up over the paused game (`game_flags` `0x05`), and OK left it running (`0x01`). **Fixed** in SummonerFix
+(`bugfix.c`, switch `[Fixes] MessageBoxPause`): the `game_pause` call at `0x413f96` goes through a stub that notes
+whether the game was running, and the `game_unpause` call at `0x414034` runs only when the box paused it. After
+the fix the paused game stayed paused when the box closed, and a box over a running game still paused it and
+resumed it on close.
 
 **G180. A peer pointer kept from the last packet.** `nw_work_reliable` clears its link pointer (`ebx`) once, before
 the packet loop (`xor ebx, ebx` at `0x517e14`). For each packet that is not a connection request it searches the nine
@@ -3793,6 +3801,7 @@ the tables above; the rest are below.
 - `character_create_base` does not test `ca_preload_alloc_slot`'s NULL (`mov [eax], ebx` at `0x5415da`; 205 slots). The peak number of loaded meshes in retail play was not measured.
 - `character_unload` frees slot `+0x28` but never the shadow mesh at `+0x2c` (`0x5413b0`..`0x5413c0`). This matters only outside a mempool (flag `0x8`, `0x541372`). `charinfo_create_character_instance` sets a mempool first (`0x448e0e`), but whether `charinfo_select_mempool` can return none was not traced.
 - `skeleton::read` reads each trigger name as 255 raw bytes and runs `strlen` on them. The retail `.mvf` files were not checked for a name with no NUL.
+- The developer console's `summon golem` while a golem was already out crashed the game (2026-10-17, agent mode: access violation at `0x519c14` in `character_instance__build_bone_matrices`). Seen once, cause not traced; summoning with the spell was not tried this way. The console is not reachable in the retail game.
 - `cmd_summon` has no `calling_a_command_function` test (`0x47f730`). What it does during the console's help pass depends on `next_arg` at that time, which was not traced.
 - From the notes, not checked again: `container_spawn_loot` reading `+0xe0` of a gold item_obj (`0x4890c3`), `mp_handle_it_addi` / `mp_handle_item_drop` trusting the peer's counts (needs a modified peer), `level_free_s3d` keeping the navpoint and colour counts, `levelrender_wave_lobj`'s arrays that are never cleared or read, `tga_read_bitmap` not decoding grey images (types 3, 11), `tga_rle_encode_row` comparing `dst_bpp` bytes of pixels `src_bpp` apart, `ca_load_preload_index` without bounds, `skills_mouse_mode` staying 2 after identify / pick lock / banish, and the "mach_killed" summon gate.
 - `character_create_base` not testing `ca_preload_alloc_slot`'s NULL (`0x5415da`): already listed. The slots are freed by `character_unload` (`mov [eax], 0` at `0x5413e1`), so the 205 slots must be held at once; the peak was not measured.

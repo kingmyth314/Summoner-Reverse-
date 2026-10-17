@@ -86,6 +86,13 @@
 // at 0x4d33a7) and spawns the pile with item_obj_spawn(item, pos, matrix, 1, -1, -1) (push 1 at 0x4d33c2). Fix
 // ([Fixes] GoldPileAmount): the lea ecx, [esp+0x50] ; push 1 at 0x4d33be becomes a call to a stub that does the
 // lea and pushes the saved amount ([save buffer + esi - 4], buffer = [edi+0x1034]), or 1 if it is not positive.
+//
+// A warning box unpauses a game the player had paused (not a crash; game-bugs G170). A message box with flag 1
+// pauses a single-player game (ui_message_box_show calls game_pause at 0x413f96, which does nothing when the game is
+// already paused), and closing it calls game_unpause (ClearFrameFlag5bd504, 0x414034) whether or not its pause took
+// effect: pausing a fight and pressing the save key gave "Cannot save in combat." and the fight went on once it was
+// closed. Fix ([Fixes] MessageBoxPause): the game_pause call notes whether the game was running, and the
+// game_unpause call is skipped when the box did not pause it.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -113,6 +120,11 @@
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
+#define VA_BOX_PAUSE_CALL 0x413f96u         // call game_pause in ui_message_box_show
+#define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
+#define VA_GAME_IS_PAUSED 0x432da0u
+#define VA_GAME_PAUSE 0x432660u
+#define VA_GAME_UNPAUSE 0x4326c0u
 
 __attribute__((used)) volatile BYTE *g_dsInited;
 void DsChannelStreamGuard(void);
@@ -197,6 +209,26 @@ __asm__(".text\n"
         "1:  pushl %ecx\n"
         "    leal 0x54(%esp), %ecx\n" // the caller's [esp+0x50] before the push
         "    jmp *%edx\n");
+
+// game_pause (cdecl, 2 args left on the stack for it) from ui_message_box_show: g_boxPaused |= the game was running.
+// game_unpause from ClearFrameFlag5bd504: only when g_boxPaused, which it clears. Both callers ignore eax.
+__attribute__((used)) DWORD g_gameIsPaused, g_gamePause, g_gameUnpause;
+__attribute__((used)) BYTE g_boxPaused;
+void BoxPauseStub(void);
+void BoxUnpauseStub(void);
+__asm__(".text\n"
+        "_BoxPauseStub:\n"
+        "    call *_g_gameIsPaused\n"
+        "    testb %al, %al\n"
+        "    jne 1f\n"
+        "    movb $1, _g_boxPaused\n"
+        "1:  jmp *_g_gamePause\n"
+        "_BoxUnpauseStub:\n"
+        "    cmpb $0, _g_boxPaused\n"
+        "    je 1f\n"
+        "    movb $0, _g_boxPaused\n"
+        "    jmp *_g_gameUnpause\n"
+        "1:  ret\n");
 
 // esi = the removed Player. edi = party_list.next as before, or &party_list (loop skipped) in single player while
 // a leader other than esi is set. eax is reloaded before its next use; it is kept anyway.
@@ -334,6 +366,24 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)GoldPileAmountStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_GOLD_PILE_SPAWN_AMOUNT, o, r, 6, "loose gold pile keeps its amount after a load (G40)");
+    }
+
+    if (FixOn("MessageBoxPause")) {
+        g_gameIsPaused = SumVa(VA_GAME_IS_PAUSED);
+        g_gamePause = SumVa(VA_GAME_PAUSE);
+        g_gameUnpause = SumVa(VA_GAME_UNPAUSE);
+        static const struct { DWORD va, target; void (*stub)(void); } calls[2] = {
+            {VA_BOX_PAUSE_CALL, VA_GAME_PAUSE, BoxPauseStub},
+            {VA_BOX_UNPAUSE_CALL, VA_GAME_UNPAUSE, BoxUnpauseStub},
+        };
+        for (int i = 0; i < 2; i++) {
+            DWORD s = SumVa(calls[i].va);
+            BYTE o[5] = {0xE8}, r[5] = {0xE8};
+            DWORD ro = SumVa(calls[i].target) - (s + 5), rn = (DWORD)(UINT_PTR)calls[i].stub - (s + 5);
+            memcpy(o + 1, &ro, 4);
+            memcpy(r + 1, &rn, 4);
+            PatchBytes(calls[i].va, o, r, 5, "message box unpauses only what it paused (G170)");
+        }
     }
 
     if (FixOn("PhoenixInferno")) {

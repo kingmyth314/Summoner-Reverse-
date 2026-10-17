@@ -65,7 +65,7 @@ so `mouse_di_init` returns -1 before it reaches `DirectInputCreateA` (`0x500e90`
 | F2 | `0x3c` | Options (screen 12) | inline |
 | F5-F9 | `0x3f`-`0x43` | Select party member 1-5 | `hud_select_party_member` |
 | F12 | `0x58` | Cycle camera mode (0, 1, 2) | `hud_key_camera` → `camera_cycle_mode` |
-| Q, Enter, F3, F4, Ctrl+S, Ctrl+L | | Single player only (`game_flags & 1`; bit `0x1` means single player, set by `state_boot_enter` at `0x431c65`, not "debug"). These include the journal (`hud_key_journal`), the combat-mode toggle (`hud_toggle_combat_mode`) and save (`hud_key_save`) (**observed** in `hud_handle_keys`); which key does which is not mapped yet | `hud_handle_keys` |
+| Q, Enter, F3, F4, Ctrl+S, Ctrl+L | | Single player only (`game_flags & 1`; bit `0x1` means single player, set by `state_boot_enter` at `0x431c65`, not "debug"). These include the journal (`hud_key_journal`), the combat-mode toggle (`hud_toggle_combat_mode`) and save (`hud_key_save`) (**observed** in `hud_handle_keys`); which key does which is not mapped yet, except Ctrl+S: quick save (seen in game 2026-10-17, "Quick save successful.") | `hud_handle_keys` |
 
 Confirmed from in-game frame captures (2026-10-13).
 
