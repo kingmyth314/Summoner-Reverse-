@@ -128,12 +128,16 @@ See the [Decompilation plan](decomp-plan.md): map the whole binary first (engine
 first), structured so it can become a byte-matching decompilation later.
 
 **Status 2026-10-17.** Mapping is done (every function named) and all game and engine code is rewritten in C++
-(7,725 functions; the C runtime and libjpeg are left to the VC6 libraries). The compiler is identified (VC6 SP5, build
-8966) and 4,956 of the 5,925 compiled functions give byte-identical code. What is left of the per-function matching
-is mostly register choice, frame slots and instruction scheduling. Next steps, in order: make the match check
-stricter (data and call targets must resolve to the right symbol), let a script set the Confidence markers from the
-sweep, then a first **link** of a rebuilt executable against the VC6 libraries, the step the post-recompile
-projects below need.
+(7,725 functions; the C runtime and libjpeg 6b are not rewritten). The compiler is identified (VC6 SP5, build 8966)
+and 4,956 of the 5,925 compiled functions give the original bytes apart from relocated addresses (calls and data
+references are masked; checking that they point at the right symbol is the next step and may lower the count). What
+is left of the per-function matching is mostly register choice, frame slots and instruction scheduling.
+
+Proposed next steps (2026-10-17 review, not decided yet): make the match check stricter (relocation targets must
+resolve to the right symbol), let a script set the Confidence markers from the sweep, then try a first **link** of a
+rebuilt executable, the step the post-recompile projects below need. For a link, the C runtime can come from VC6's
+own `LIBCMT.LIB` (Sum.exe links the multithreaded CRT); VC6 ships no libjpeg, so libjpeg 6b would have to be built
+from the Independent JPEG Group's source with the same compiler.
 
 ## Future projects
 
