@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 50 | 25 | 13 |
+| Gameplay | 50 | 25 | 14 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -951,7 +951,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G181 | Latent: in multiplayer, once a link's receive sequence number reaches 0xffb6, a resent copy of a packet already delivered is stored again, and it is delivered in place of the real packet with that number when the sequence comes round (about 65,536 packets later) | `nw_work_reliable` `0x517e00`, `nw_NewReceiveReliable` `0x518bb0` | **Observed** code, *inferred* effect | No |
 | G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
 | G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code and retail data, *inferred* effect | No |
-| G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code, *inferred* effect | No |
+| G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SupportAiTarget`) |
 | G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code; the doubled count seen in game (2026-10-17) | Fixed with C210 (`[Fixes] AiBlessCount`) |
 | G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
 | G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
@@ -1414,6 +1414,14 @@ fallback. `ai_goal_add_attack` adds a type-1 goal and `ai_goal_add` removes the 
 (`0x493ce0`), so the first enemy is a random one. The member then keeps that target (the function returns early
 while it has a living target). Species 2 (Flece) gets style 1 by default (`living_entity_init`, see
 [Party](party.md#combat-behaviour)).
+
+**Seen in game 2026-10-17** (agent mode, IkaemosExt2's Onyx golems and gargoyles with Joseph leading; `[Debug]
+TraceGroupAttack=1` logs both orders). The path runs only with two or more enemies and when no enemy targets a
+style 2-5 member, so Rosalind's style was set to 0 with `poke` for the test. The style-1 member got the chosen order
+and, in the same think, the fallback order (`chosen ... -> 008EE890`, then `fallback (first enemy) ... -> 008EE890`;
+in this sample the shuffled first enemy happened to be the same one). **Fixed** in SummonerFix (`bugfix.c`, switch
+`[Fixes] SupportAiTarget`): the `add esp, 0x10` after the first order (`0x49354a`) becomes `jmp 0x493564`, so the
+fallback runs only when no target was picked. With the fix the same test logged the chosen order alone.
 
 **G212. Protect at two.** [notes 4] The doubled count of C210 also decides the group spell: `cmp ebx, 2; jle` at
 `0x4939c5`. One member that is not blessed and hurt (or attacked) already gives 2; two such members, or one plus

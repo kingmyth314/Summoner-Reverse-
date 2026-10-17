@@ -284,7 +284,7 @@ For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the 
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material
 and the hit effect spawned, `[Debug] TracePhoenixInferno=1` logs each Phoenix Inferno hit with the party member
 the loop was on (G215), `[Debug] LuminarBeamTargetGone=1` makes the Luminar's beam lose its target before the
-hit and counts those frames (C250), `[Debug] TraceBlessCount=1` logs the AI healer's Bless candidate count and `BlessPassAlways=1` makes that pass run in any fight (C210), and the HUD's Solo button keeps the other party members out of a fight.
+hit and counts those frames (C250), `[Debug] TraceBlessCount=1` logs the AI healer's Bless candidate count and `BlessPassAlways=1` makes that pass run in any fight (C210), `[Debug] TraceGroupAttack=1` logs the Support-style attack orders (G211), and the HUD's Solo button keeps the other party members out of a fight.
 The inventory equips by drag only when the button is held about 0.4 s before the mouse moves (`down left; wait
 400; move ...; up left`); `drag` is too fast. The console cheat `Give_all_items` does nothing in retail levels (only
 the test level's script writes it, nothing reads it); add items with `savedit.mjs --add-item` instead.

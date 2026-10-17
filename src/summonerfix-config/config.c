@@ -84,6 +84,7 @@ static const FixOption k_fixes[] = {
     {"CanisTenGold", "Canis takes 10 gold, as offered"},
     {"AiBlessCount", "AI healer counts members once"},
     {"AreaCasterGone", "Fire walls burn after a caster goes"},
+    {"SupportAiTarget", "Support AI keeps its chosen enemy"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

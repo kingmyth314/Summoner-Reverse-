@@ -246,9 +246,60 @@ static void TraceBlessInstall(void)
     PatchBytes(VA_BLESS_COUNT_USE, o, r, 6, "trace AI Bless candidate count (TraceBlessCount)");
 }
 
+// Testing only ([Debug] TraceGroupAttack=1, game-bugs G211): logs the two ai_group_order_attack calls at the end of
+// ai_group_think_style1 (0x493545: the chosen target; 0x49355f: the "first enemy" fallback that follows it), with
+// the member and the target, so a chosen target that the fallback replaces shows as two lines in a row.
+#define VA_STYLE1_ORDER_CHOSEN 0x493545u
+#define VA_STYLE1_ORDER_FALLBACK 0x49355fu
+#define VA_AI_GROUP_ORDER_ATTACK 0x493220u
+__attribute__((used)) DWORD g_aiGroupOrderAttack;
+__attribute__((used)) static void __cdecl TraceGroupAttack(int site, void *member, void *target)
+{
+    Log("trace style1 %s: member %p -> target %p", site ? "fallback (first enemy)" : "chosen", member, target);
+}
+void TraceGroupAttackChosenStub(void);
+void TraceGroupAttackFallbackStub(void);
+__asm__(".text\n"
+        "_TraceGroupAttackChosenStub:\n"
+        "    pushal\n"
+        "    pushl 0x28(%esp)\n" // target (arg 2; 32 pushal + 4 ret + 4)
+        "    pushl 0x28(%esp)\n" // member (arg 1, now 4 bytes further)
+        "    pushl $0\n"
+        "    call _TraceGroupAttack\n"
+        "    addl $12, %esp\n"
+        "    popal\n"
+        "    jmp *_g_aiGroupOrderAttack\n"
+        "_TraceGroupAttackFallbackStub:\n"
+        "    pushal\n"
+        "    pushl 0x28(%esp)\n"
+        "    pushl 0x28(%esp)\n"
+        "    pushl $1\n"
+        "    call _TraceGroupAttack\n"
+        "    addl $12, %esp\n"
+        "    popal\n"
+        "    jmp *_g_aiGroupOrderAttack\n");
+
+static void TraceGroupAttackInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceGroupAttack", 0, g_cfg.iniPath))
+        return;
+    g_aiGroupOrderAttack = SumVa(VA_AI_GROUP_ORDER_ATTACK);
+    static const DWORD sites[2] = {VA_STYLE1_ORDER_CHOSEN, VA_STYLE1_ORDER_FALLBACK};
+    void (*stubs[2])(void) = {TraceGroupAttackChosenStub, TraceGroupAttackFallbackStub};
+    for (int i = 0; i < 2; i++) {
+        DWORD s = SumVa(sites[i]);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = g_aiGroupOrderAttack - (s + 5), rn = (DWORD)(UINT_PTR)stubs[i] - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(sites[i], o, r, 5, "trace style-1 attack orders (TraceGroupAttack)");
+    }
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
+    TraceGroupAttackInstall();
     LuminarTestInstall();
     TraceInfernoInstall();
     TraceBlessInstall();

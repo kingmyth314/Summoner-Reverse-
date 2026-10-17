@@ -111,6 +111,12 @@
 // +0xb0) it leaves the loop (je 0x48b5a1 at 0x48b40a) instead of going to the next area (0x48b581), and the code
 // after the loop cures the fire / blizzard / dark wall status unless an area of that kind was seen. Fix ([Fixes]
 // AreaCasterGone): the je goes to 0x48b581, so that area is skipped and the later ones still count.
+//
+// Support-style AI drops its chosen target (not a crash; game-bugs G211). ai_group_think_style1 (Flece's default
+// style) orders an attack on the target it picked (0x493545) and then falls through to the "first enemy" fallback
+// (0x49355f), whose order replaces the first; the enemy list is shuffled every think, so the target is random. Fix
+// ([Fixes] SupportAiTarget): the add esp, 0x10 after the first order (0x49354a) becomes jmp 0x493564, the fallback's
+// own add esp, 0x10 before the function's epilogue, so the fallback runs only when no target was picked.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -139,7 +145,8 @@
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
 #define VA_AREA_CASTER_GONE_JE 0x48b40au    // je 0x48b5a1 after living_from_handle(area caster) in fx_frame
-#define VA_AI_BLESS_COUNT_INC 0x49395cu   // the first inc ebx in ai_group_think_caster's Bless pass
+#define VA_STYLE1_AFTER_ORDER 0x49354au     // add esp, 0x10 after the chosen-target order in ai_group_think_style1
+#define VA_AI_BLESS_COUNT_INC 0x49395cu  // the first inc ebx in ai_group_think_caster's Bless pass
 #define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
 #define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
 #define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
@@ -421,6 +428,11 @@ void BugFixesInstall(void)
         static const BYTE o[6] = {0x0F, 0x84, 0x91, 0x01, 0x00, 0x00}; // je 0x48b5a1 (end of the area loop)
         static const BYTE r[6] = {0x0F, 0x84, 0x71, 0x01, 0x00, 0x00}; // je 0x48b581 (next area)
         PatchBytes(VA_AREA_CASTER_GONE_JE, o, r, 6, "burning area with its caster gone skipped, not the rest (G270)");
+    }
+
+    if (FixOn("SupportAiTarget")) {
+        static const BYTE o[3] = {0x83, 0xC4, 0x10}, r[3] = {0xEB, 0x18, 0x90}; // add esp, 0x10 -> jmp 0x493564
+        PatchBytes(VA_STYLE1_AFTER_ORDER, o, r, 3, "support AI keeps the target it picked (G211)");
     }
 
     if (FixOn("PhoenixInferno")) {
