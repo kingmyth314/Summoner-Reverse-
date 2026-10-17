@@ -1567,6 +1567,11 @@ then takes the first candidate whose share is at least one random number (`frand
 time, with three a third, and a lone candidate always. `ai_consider_blind_or_silence` in the same unit builds the
 running sum correctly. Callers: `ai_group_think_caster` (`0x4937f7`) and `ai_combat_cast_frame` (`0x4bfce2`).
 
+**Not seen in game yet (2026-10-17).** `[Debug] TraceSupportPick=1` logs each pick with the shares, the random
+number, what the game takes and what a running sum would take. In two fights in IkaemosExt2 with Rosalind on AI,
+all 12 logged picks had a single candidate with a non-zero share (for example `shares 1000 0 0 0`), so both rules chose the
+same and the bug did not show. Not fixed until a pick with two or more non-zero shares is seen.
+
 **G240. Scores that are added to, not set.** `ai_consider_life_drain` (Wraith, species `0xb9`) adds the running
 total to each record's `+0x08` (`fld st(0); fadd [eax+8]; fstp [eax+8]` at `0x4bf66f`..`0x4bf674`) where the other
 tests first store 0 (`ai_consider_blind_or_silence` `0x4beee9`). `ai_choose_offensive_spell` runs it on the same list

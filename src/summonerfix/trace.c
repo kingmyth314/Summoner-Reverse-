@@ -296,10 +296,63 @@ static void TraceGroupAttackInstall(void)
     }
 }
 
+// Testing only ([Debug] TraceSupportPick=1, game-bugs G229): ai_choose_support_spell draws one random number (call
+// frand at 0x4beb3d) and takes the first candidate whose share is at least that number. The hook calls frand itself,
+// then logs the candidates' shares (list at edi+8, 0x10 bytes each, count esi), the number, the candidate the game
+// takes and the one a running sum would take (-1 = none).
+#define VA_SUPPORT_PICK_FRAND 0x4beb3du
+#define VA_FRAND 0x5426e0u
+__attribute__((used)) DWORD g_frand;
+__attribute__((used)) float g_supportPickR;
+__attribute__((used)) static void __cdecl TraceSupportPick(const BYTE *list, int n)
+{
+    char buf[256];
+    int len = 0, game = -1, sum = -1;
+    float cum = 0.0f;
+    for (int i = 0; i < n && i < 8; i++) {
+        float s = *(const float *)(list + 8 + 16 * i);
+        len += wsprintfA(buf + len, " %d", (int)(s * 1000.0f));
+        if (game < 0 && g_supportPickR <= s)
+            game = i;
+        cum += s;
+        if (sum < 0 && g_supportPickR <= cum)
+            sum = i;
+    }
+    Log("trace support pick: %d candidates, shares x1000:%s, random x1000 %d -> game takes %d, running sum %d", n, buf,
+        (int)(g_supportPickR * 1000.0f), game, sum);
+}
+void TraceSupportPickStub(void);
+__asm__(".text\n"
+        "_TraceSupportPickStub:\n"
+        "    call *_g_frand\n"
+        "    fstps _g_supportPickR\n"
+        "    pushal\n"
+        "    pushl %esi\n"
+        "    pushl %edi\n"
+        "    call _TraceSupportPick\n"
+        "    addl $8, %esp\n"
+        "    popal\n"
+        "    flds _g_supportPickR\n"
+        "    ret\n");
+
+static void TraceSupportPickInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceSupportPick", 0, g_cfg.iniPath))
+        return;
+    g_frand = SumVa(VA_FRAND);
+    DWORD s = SumVa(VA_SUPPORT_PICK_FRAND);
+    BYTE o[5] = {0xE8}, r[5] = {0xE8};
+    DWORD ro = g_frand - (s + 5), rn = (DWORD)(UINT_PTR)TraceSupportPickStub - (s + 5);
+    memcpy(o + 1, &ro, 4);
+    memcpy(r + 1, &rn, 4);
+    PatchBytes(VA_SUPPORT_PICK_FRAND, o, r, 5, "trace AI support spell picks (TraceSupportPick)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
     TraceGroupAttackInstall();
+    TraceSupportPickInstall();
     LuminarTestInstall();
     TraceInfernoInstall();
     TraceBlessInstall();
