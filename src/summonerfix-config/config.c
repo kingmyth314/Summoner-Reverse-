@@ -77,6 +77,7 @@ static const FixOption k_fixes[] = {
     {"SaveOverwriteQuestion", "Ask before overwriting a save"},
     {"PhoenixInferno", "Phoenix Inferno hits each member once"},
     {"LuminarBeamTarget", "No Luminar beam crash"},
+    {"SummonKeepsLeader", "Control stays when a summon goes"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

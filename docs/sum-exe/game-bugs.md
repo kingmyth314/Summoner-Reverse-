@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 6 |
+| Gameplay | 51 | 25 | 7 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -919,7 +919,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G5 | Buying with a full inventory takes the gold and gives no item | `buysell_buy_item` `0x4057f0` | **Observed** code, *inferred* effect | No |
 | G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code, *inferred* effect | No |
 | G7 | If a cutscene's data fails to load, input stays locked and the music stays off | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
-| G8 | When any party record is removed (for example a summon dies), control may jump to the first member | `party_remove_player` `0x4335a0` | **Observed** code, *inferred* effect | No |
+| G8 | When any party record is removed (for example a summon dies), control may jump to the first member | `party_remove_player` `0x4335a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SummonKeepsLeader`) |
 | G9 | Alt+Tab does not work: the game takes the focus straight back | `os_wndproc` `0x530ff0` | **Observed** at runtime | Fixed |
 | G10 | Latent: adding gold to a container that already holds gold loses the gold and leaves a stale slot | `container_add_item` `0x46aa30` | **Observed** code, *inferred* effect | No |
 | G11 | Latent: using aimed attack (or forge, mine, enchant) as a skill takes the AP and does nothing | `character_use_skill` `0x429410` | **Observed** code, *inferred* effect | No |
@@ -1031,6 +1031,15 @@ files are all present, so this needs a missing or broken `.csc` file. See
 first living member of `party_list` (`call party_set_leader` at `0x433638`), whether or not the removed
 record led. In multiplayer it calls `party_set_leader` for every local member (no break, `0x433623`).
 The intent is unknown. See [Party](party.md#leaving-and-coming-back).
+
+**Reproduced 2026-10-17** (agent mode, a test save in the Ikaemos swamp, `[ConsoleKeys]` with `summon golem` and
+`kill_summon`): with Rosalind selected (F7), summoning kept her in control, and removing the golem gave control to
+Joseph. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SummonKeepsLeader`): the `mov edi, [party_list]`
+at `0x4335d9` that starts the loop goes through a stub that, in single player while a record other than the
+removed one leads, returns the list head, so the loop is skipped. After the fix Rosalind stayed in control when
+the golem went. When the removed record led, or none does, the leader is re-picked as before; that branch is the
+original code and was not tried in game, because Tab does not select the summon and `kill_summon` skips a leading
+record. Multiplayer is unchanged.
 
 **G9. Focus loss re-activates the window.** The `WM_ACTIVATE` handler calls `SetWindowPos` with flags 0
 on losing focus too (`0x5310e9`), and flags 0 include activation. See

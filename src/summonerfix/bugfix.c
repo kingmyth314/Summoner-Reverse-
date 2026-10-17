@@ -66,6 +66,14 @@
 // during the 88-frame beam crashes the game at the impact frame. Fix ([Fixes] LuminarBeamTarget): the call goes
 // through a stub that, for a NULL target, returns 0 ("no damage", so the flinch and effect after it are skipped)
 // and pops the four arguments as character_add_hp would.
+//
+// Control jumps to the first party member when a summon goes (not a crash; game-bugs G8). After unlinking any
+// party record, party_remove_player hands the leadership in single player to the first living member of party_list
+// (0x4335d9..0x43363d), whether or not the removed record led (reproduced 2026-10-17: Rosalind selected, summon
+// golem, kill_summon: Joseph took control). Fix ([Fixes] SummonKeepsLeader): the mov edi, [party_list] that starts
+// the loop becomes a call that, in single player while another record leads, returns the list head, so the
+// loop's empty-list test skips it. When the removed record led (or none does) the leader is re-picked as before.
+// Multiplayer is unchanged.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -88,6 +96,10 @@
 #define VA_SAVE_OVERWRITE_ROW 0x426340u   // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
 #define VA_SAVELOAD_SELECTED_ROW 0x5e360cu  // int saveload_selected_row
 #define VA_SAVELOAD_SCROLL_POS 0x5c5b9cu    // int saveload_scroll_pos (first visible row)
+#define VA_PARTY_REMOVE_LEADER_LOOP 0x4335d9u // mov edi, [party_list] in party_remove_player (8B 3D 50 C3 5F 00)
+#define VA_PARTY_LIST 0x5fc350u             // Player party_list (list head; +0 = first record)
+#define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
+#define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 
 __attribute__((used)) volatile BYTE *g_dsInited;
 void DsChannelStreamGuard(void);
@@ -157,6 +169,29 @@ __asm__(".text\n"
         "    jmp *_g_characterAddHp\n"
         "1:  xorl %eax, %eax\n"
         "    ret $0x10\n");
+
+// esi = the removed Player. edi = party_list.next as before, or &party_list (loop skipped) in single player while
+// a leader other than esi is set. eax is reloaded before its next use; it is kept anyway.
+__attribute__((used)) DWORD g_partyList, g_partyLeader, g_gameFlags;
+void PartyRemoveLeaderStub(void);
+__asm__(".text\n"
+        "_PartyRemoveLeaderStub:\n"
+        "    movl _g_partyList, %edi\n"
+        "    pushl %eax\n"
+        "    movl _g_gameFlags, %eax\n"
+        "    testb $1, (%eax)\n"
+        "    je 1f\n"
+        "    movl _g_partyLeader, %eax\n"
+        "    movl (%eax), %eax\n"
+        "    testl %eax, %eax\n"
+        "    je 1f\n"
+        "    cmpl %esi, %eax\n"
+        "    je 1f\n"
+        "    popl %eax\n"
+        "    ret\n"
+        "1:  movl (%edi), %edi\n"
+        "    popl %eax\n"
+        "    ret\n");
 
 // [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
 static BOOL FixOn(const char *key)
@@ -239,6 +274,18 @@ void BugFixesInstall(void)
         memcpy(o + 1, &ro, 4);
         memcpy(r + 1, &rn, 4);
         PatchBytes(VA_LUMINAR_BEAM_ADD_HP, o, r, 5, "Luminar beam hit on a target that is gone (C250)");
+    }
+
+    if (FixOn("SummonKeepsLeader")) {
+        g_partyList = SumVa(VA_PARTY_LIST);
+        g_partyLeader = SumVa(VA_PARTY_LEADER);
+        g_gameFlags = SumVa(VA_GAME_FLAGS);
+        static const BYTE o[6] = {0x8B, 0x3D, 0x50, 0xC3, 0x5F, 0x00}; // mov edi, [party_list]
+        BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+        DWORD s = SumVa(VA_PARTY_REMOVE_LEADER_LOOP);
+        DWORD rel = (DWORD)(UINT_PTR)PartyRemoveLeaderStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_PARTY_REMOVE_LEADER_LOOP, o, r, 6, "party leader kept when another record is removed (G8)");
     }
 
     if (FixOn("PhoenixInferno")) {

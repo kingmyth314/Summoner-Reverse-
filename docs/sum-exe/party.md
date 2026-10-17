@@ -128,8 +128,9 @@ the constant arguments.
 
 `party_remove_member` (`0x433f40`, by name) moves the record to `player_list_other`, removes the
 character from its AI group, the active object list and the living list, and sets `0x800000`. It shows
-"%s has left the party!". If the leader left, the first living member still in the party becomes
-leader. **Observed.** The character is not deleted, so it keeps its level, items and skills.
+"%s has left the party!". The first living member still in the party then becomes leader, in single
+player even when someone else led (`party_remove_player`; game bug G8, also hit when a summon goes; SummonerFix
+keeps the leader then). **Observed.** The character is not deleted, so it keeps its level, items and skills.
 *Inferred.*
 
 `party_add_member` (`0x4340d0`, by name) reverses this. It searches `player_list_other`, relinks the
