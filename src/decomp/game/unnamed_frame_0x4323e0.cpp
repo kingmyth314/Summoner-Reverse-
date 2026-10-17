@@ -101,7 +101,7 @@ void cmd_show_framerate()
             Gamewide_show_framerate ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "show_framerate", "Gamewide_show_framerate");
         print_to_console(string_buffer, 0);
     }
@@ -457,7 +457,7 @@ void cmd_show_hud_info()
             Gamewide_show_hud_info ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "show_hud_info", "Gamewide_show_hud_info");
         print_to_console(string_buffer, 0);
     }
@@ -484,7 +484,7 @@ void cmd_targa()
             Print_screen_as_targa ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "targa", "Print_screen_as_targa");
         print_to_console(string_buffer, 0);
     }
@@ -511,7 +511,7 @@ void cmd_net_stats()
             Gamewide_show_net_stats ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "net_stats", "Gamewide_show_net_stats");
         print_to_console(string_buffer, 0);
     }
@@ -538,7 +538,7 @@ void cmd_gr_info()
             Gamewide_show_gr_info ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "gr_info", "Gamewide_show_gr_info");
         print_to_console(string_buffer, 0);
     }

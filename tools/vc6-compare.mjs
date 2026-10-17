@@ -12,10 +12,12 @@
 //
 // Per function: match / differs (first differing offset, sizes, instruction counts, the two instructions there) /
 // not found (no compiled function for the comment). A relocated field (call / jmp rel32, absolute address) is
-// masked in both; when its target is a function of the same file with an address comment, or a name that
-// symbols/sum.symbols knows (`a::b` looked up as `a__b`), the original's target is checked too and a different
-// one is reported as a warning only: overloads share a sum.symbols name and the linker folds identical COMDATs
-// (/OPT:ICF), so a different target is a hint, not proof.
+// masked in both, and the original's target is checked against the address the name should have: a function of
+// the same file with an address comment, then any function or global of the decomp tree (every `// 0xADDR` marker
+// and every global defined with a trailing `// 0xADDR` comment, by qualified name; an overloaded name may match any
+// of its addresses), then a name symbols/sum.symbols knows (`a::b` looked up as `a__b`). A target that resolves to
+// another address is a warning by default; with --strict (or VC6_STRICT=1) a function whose bytes match but with
+// a wrong target counts as `target`, not `match`. Targets no map knows stay unchecked (counted with -v).
 import { readFileSync, existsSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
@@ -31,9 +33,10 @@ const includeDir = process.env.DECOMP_INCLUDE || join(repoRoot, "src", "decomp",
 // ---- arguments -----------------------------------------------------------------------------------------
 const args = process.argv.slice(2);
 const files = [];
-let flags = null, json = false, keep = false, verbose = false;
+let flags = null, json = false, keep = false, verbose = false, strict = !!process.env.VC6_STRICT;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--flags") flags = args[++i];
+  else if (args[i] === "--strict") strict = true;
   else if (args[i] === "--json") json = true;
   else if (args[i] === "--keep") keep = true;
   else if (args[i] === "-v") verbose = true;
@@ -68,6 +71,35 @@ function exeBytes(va, len) {
 }
 const { symbols } = loadSymbols();
 const symByName = new Map(symbols.map((s) => [s.name, s.addr]));
+const symByAddr = new Map(symbols.map((s) => [s.addr, s.name]));
+// Addresses the decomp tree itself gives names: function markers and globals with a trailing address comment.
+let decompMap = null;
+function decompAddrs() {
+  if (decompMap) return decompMap;
+  decompMap = { func: new Map(), data: new Map() };
+  const root = dirname(includeDir);
+  const add = (m, name, addr) => { if (!m.has(name)) m.set(name, new Set()); m.get(name).add(addr); };
+  for (const d of ["game", "vsdk"]) {
+    let list = [];
+    try { list = readdirSync(join(root, d)); } catch {}
+    for (const f of list) {
+      if (!f.endsWith(".cpp")) continue;
+      const text = readFileSync(join(root, d, f), "latin1");
+      for (const s of sourceFunctions(text)) add(decompMap.func, s.name, s.addr);
+      // The address comment must be on the definition's own line.
+      const re = /^(?!\s)(?!return\b|typedef\b|#|\/\/)[A-Za-z_][^(;=\n]*?\b((?:[A-Za-z_]\w*::)*[A-Za-z_]\w*)[ \t]*(?:\[[^\]\n]*\])*[ \t]*(?:=[^;\n]*)?;[ \t]*\/\/[ \t]*(0x[0-9a-f]{6,7})\b[^\n]*/gm;
+      for (const m of text.matchAll(re)) {
+        // `T a, b;   // 0xA, 0xB`: several declarators, their addresses in the same order.
+        const decl = m[0].slice(0, m[0].indexOf(";"));
+        const addrs = [...m[0].slice(m[0].indexOf("//")).matchAll(/^[^a-z(]*?((?:0x[0-9a-f]{6,7}\b[ ,]*)+)/g)][0]?.[1].match(/0x[0-9a-f]{6,7}/g).map((x) => parseInt(x, 16)) ?? [];
+        const names = !decl.includes("=") && decl.includes(",") ? decl.split(",").map((p) => (/((?:[A-Za-z_]\w*::)*[A-Za-z_]\w*)\s*(?:\[[^\]]*\])*\s*$/.exec(p) || [])[1]) : null;
+        if (names && names.every(Boolean) && names.length === addrs.length) names.forEach((n, i) => add(decompMap.data, n, addrs[i]));
+        else add(decompMap.data, m[1], parseInt(m[2], 16));
+      }
+    }
+  }
+  return decompMap;
+}
 const starts = [...new Set([...(loadFunctions() ?? []).map((f) => f.addr), ...symbols.filter((s) => s.kind === "func").map((s) => s.addr)])].sort((a, b) => a - b);
 const nextStart = (va) => { let lo = 0, hi = starts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (starts[m] <= va) lo = m + 1; else hi = m; } return lo < starts.length ? starts[lo] : va + 0x1000; };
 // Instructions of build/sum.asm (tools/asm.mjs's llvm-objdump cache), for counts and the text at a difference.
@@ -211,6 +243,19 @@ function compareFile(cpp) {
       f.size = next - f.value;
       f.demangled = demangledOf(cod, f.name);
     }
+    // Does Sum.exe have, at va, a function with the same bytes as our compiled `sym` (relocated fields masked)?
+    const sameBodyAt = (sym, va) => {
+      const g = sym && funcs.find((x) => x.name === sym.name);
+      if (!g) return false;
+      const gs = coff.sections[g.sec - 1];
+      let len = g.size;
+      while (len > 1 && (gs.data[g.value + len - 1] === 0x90 || gs.data[g.value + len - 1] === 0xcc)) len--;
+      const t = exeBytes(va, len);
+      if (!t || t.length !== len) return false;
+      const ours = Buffer.from(gs.data.subarray(g.value, g.value + len)), theirs = Buffer.from(t);
+      for (const r of gs.relocs) if (r.off >= g.value && r.off < g.value + len) { const q = r.off - g.value; ours.fill(0, q, q + 4); theirs.fill(0, q, q + 4); }
+      return ours.equals(theirs);
+    };
     const src = sourceFunctions(readFileSync(cpp, "latin1"));
     // The k-th source definition of a name is the k-th compiled function of that name (VC6 emits in source order).
     const byName = new Map();
@@ -242,24 +287,70 @@ function compareFile(cpp) {
       const orig0 = exeBytes(s.addr, origLen);
       if (!orig0) { r.status = "not found"; r.reason = "address not in Sum.exe"; result.functions.push(r); continue; }
       const orig = Buffer.from(orig0);
-      const wrongTargets = [];
+      const wrongTargets = [], unchecked = [];
+      let checked = 0;
       for (const rel of sec.relocs) {
         if (rel.off < f.value || rel.off >= f.value + f.size) continue;
         const o = rel.off - f.value, sym = coff.syms[rel.sym];
         if (![6, 7, 0x14].includes(rel.type) || o + 4 > orig.length) continue;
         const addend = mine.readInt32LE(o);
-        // Expected target: a function of this file with an address comment, or a sum.symbols name.
-        let want = sym ? addrOfSym.get(sym.name) : undefined;
-        if (want === undefined && sym) {
-          const d = demangledOf(cod, sym.name);
+        // Expected target(s): a function of this file with an address comment; a function or global of the decomp
+        // tree with that (qualified) name; a sum.symbols name.
+        let wants = null;
+        const d = sym ? demangledOf(cod, sym.name).replace(/\s+/g, "") : "";
+        if (sym && addrOfSym.has(sym.name)) wants = [addrOfSym.get(sym.name)];
+        // A call names a function; an address operand names a global first (or a function, for pointer tables).
+        const isFunc = rel.type === 0x14 || (sym && (sym.type & 0x20));
+        const order = isFunc ? ["func"] : ["data"];
+        for (const k of order) if (!wants && d && decompAddrs()[k].has(d)) wants = [...decompAddrs()[k].get(d)];
+        if (!wants && d) {
           const key = /^[A-Za-z_][\w:]*$/.test(d) ? d.replace(/::/g, "__") : null;
-          if (key && symByName.has(key)) want = symByName.get(key);
+          if (key && symByName.has(key)) wants = [symByName.get(key)];
         }
-        if (want !== undefined) {
-          const got = rel.type === 0x14 ? (s.addr + o + 4 + orig.readInt32LE(o)) >>> 0 : orig.readUInt32LE(o);
-          const exp = rel.type === 0x14 ? want : (want + addend) >>> 0;
-          if (got !== exp) wrongTargets.push({ offset: o, symbol: demangledOf(cod, sym.name), expected: "0x" + exp.toString(16), found: "0x" + got.toString(16) });
+        const got = rel.type === 0x14 ? (s.addr + o + 4 + orig.readInt32LE(o)) >>> 0 : orig.readUInt32LE(o);
+        // No name to look up: a label of this function (jump tables, case targets), an absolute symbol, or a
+        // constant of this object (string literal, float constant, initialised table): then the original's target
+        // must hold the same bytes as ours, up to the next symbol of that section.
+        if (!wants && sym && sym.sec === f.sec) wants = [s.addr + (sym.value - f.value)];
+        if (!wants && sym && sym.sec === -1) wants = [sym.value];
+        if (!wants && sym && sym.sec > 0 && rel.type !== 0x14) {
+          const ds = coff.sections[sym.sec - 1];
+          if (ds.raw && /^\.(rdata|data)/.test(ds.name)) {
+            const start = sym.value + addend;
+            let end = ds.size;
+            for (const t of coff.syms) if (t && t.sec === sym.sec && t.value > sym.value && t.value < end) end = t.value;
+            end = Math.min(end, start + 256);
+            // A string literal (??_C@...) ends at its NUL.
+            if (/^\?\?_C@/.test(sym.name)) { const z = ds.data.indexOf(0, start); if (z >= 0 && z < end) end = z + 1; }
+            const ourData = Buffer.from(ds.data.subarray(start, end)), t0 = exeBytes(got, end - start);
+            if (ourData.length && t0 && t0.length === ourData.length) {
+              const theirs = Buffer.from(t0);
+              // Addresses inside the data (pointer tables) are relocated: mask them as in code.
+              for (const dr of ds.relocs) if (dr.off + 4 > start && dr.off < end) {
+                const a = Math.max(dr.off, start) - start, b = Math.min(dr.off + 4, end) - start;
+                ourData.fill(0, a, b); theirs.fill(0, a, b);
+              }
+              checked++;
+              if (!theirs.equals(ourData)) wrongTargets.push({ offset: o, symbol: (d || sym.name) + " (contents)", expected: ourData.subarray(0, 16).toString("hex"), found: theirs.subarray(0, 16).toString("hex") });
+              mine.fill(0, o, o + 4); orig.fill(0, o, o + 4);
+              continue;
+            }
+          }
         }
+        if (wants) {
+          checked++;
+          const exps = wants.map((w) => (rel.type === 0x14 ? w : (w + addend) >>> 0));
+          // Overloads share a demangled name: a call to an address whose sum.symbols name is that name or that name
+          // plus a suffix (vector3__vector3_default, ..._copy) is the right function, another overload of it.
+          const key = d.replace(/::/g, "__"), there = symByAddr.get(got);
+          const overload = isFunc && there && (there === key || there.startsWith(key + "_"));
+          // The linker folds identical functions (/OPT:ICF): when the callee is compiled in this object, a call to
+          // an original function with the same bytes is right. A call to a one-instruction `jmp expected` thunk is too.
+          const folded = isFunc && !exps.includes(got) && !overload && sameBodyAt(sym, got);
+          const tb = isFunc ? exeBytes(got, 5) : null;
+          const thunk = tb && tb.length === 5 && tb[0] === 0xe9 && exps.includes((got + 5 + tb.readInt32LE(1)) >>> 0);
+          if (!exps.includes(got) && !overload && !folded && !thunk) wrongTargets.push({ offset: o, symbol: d, expected: exps.map((e) => "0x" + e.toString(16)).join("|"), found: "0x" + got.toString(16) });
+        } else unchecked.push({ offset: o, symbol: d || "?", found: "0x" + got.toString(16) });
         mine.fill(0, o, o + 4); orig.fill(0, o, o + 4);
       }
       let diff = -1;
@@ -277,7 +368,9 @@ function compareFile(cpp) {
       const theirs = sumRange(s.addr, s.addr + origSize);
       r.size = mine.length; r.origSize = origSize;
       r.instructions = ours.length; r.origInstructions = theirs ? theirs.length : null;
-      if (diff < 0) r.status = "match";
+      r.relocsChecked = checked; r.relocsUnchecked = unchecked.length;
+      if (unchecked.length) r.unchecked = unchecked;
+      if (diff < 0) r.status = strict && wrongTargets.length ? "target" : "match";
       else {
         r.status = "differs";
         if (diff >= 0) {
@@ -301,8 +394,8 @@ const results = files.map(compareFile);
 if (json) {
   console.log(JSON.stringify(results, null, 1));
 } else {
-  const total = { match: 0, differs: 0, "not found": 0 };
-  let warned = 0;
+  const total = { match: 0, target: 0, differs: 0, "not found": 0 };
+  let warned = 0, relChecked = 0, relUnchecked = 0;
   for (const res of results) {
     console.log(`${res.file} (${res.flags})${res.tmp ? "  [" + res.tmp + "]" : ""}`);
     if (res.error) { console.log("  compile failed:\n    " + res.error.split("\n").join("\n    ")); continue; }
@@ -312,14 +405,17 @@ if (json) {
       if (f.status !== "not found") line += `  (${f.size}/${f.origSize} bytes, ${f.instructions}/${f.origInstructions ?? "?"} ins)`;
       if (f.offset) line += `  at +${f.offset}: ${f.ours ?? "?"}  |  orig: ${f.orig ?? "?"}`;
       if (f.targetWarnings) warned++;
-      if (f.targetWarnings && verbose) line += `  target?: ` + f.targetWarnings.map((t) => `+0x${t.offset.toString(16)} ${t.symbol} ${t.expected}, orig ${t.found}`).join("; ");
+      relChecked += f.relocsChecked || 0; relUnchecked += f.relocsUnchecked || 0;
+      if (f.targetWarnings && (verbose || f.status === "target")) line += `  target?: ` + f.targetWarnings.map((t) => `+0x${t.offset.toString(16)} ${t.symbol} ${t.expected}, orig ${t.found}`).join("; ");
+      if (f.unchecked && verbose) line += `  unchecked: ` + f.unchecked.map((t) => `+0x${t.offset.toString(16)} ${t.symbol}`).join("; ");
       if (f.reason) line += `  (${f.reason})`;
       if (f.note && verbose) line += `  [${f.note}]`;
       console.log(line);
     }
   }
-  const n = total.match + total.differs + total["not found"];
-  console.log(`summary: ${total.match} match, ${total.differs} differ, ${total["not found"]} not found, of ${n} functions` +
+  const n = total.match + total.target + total.differs + total["not found"];
+  console.log(`summary: ${total.match} match, ${total.target ? total.target + " wrong target, " : ""}${total.differs} differ, ${total["not found"]} not found, of ${n} functions` +
     (n ? ` (${((100 * total.match) / n).toFixed(1)}% match)` : "") +
-    (warned ? `; ${warned} with a relocation target that differs from the expected address (-v lists them)` : ""));
+    (warned ? `; ${warned} with a relocation target that differs from the expected address (-v lists them)` : "") +
+    `; relocation targets checked ${relChecked}, unchecked ${relUnchecked}`);
 }

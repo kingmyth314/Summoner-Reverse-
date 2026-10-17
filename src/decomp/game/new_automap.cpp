@@ -266,7 +266,7 @@ void automap_select_label(int index)
                               - automap_label_margin.left + 1;
         automap_label_box_y = automap_label_screen_pos[automap_selected_label][1]
                               - automap_label_box_gap[resolution_index] - automap_label_bm_h / 2
-                              - automap_label_margin.bottom - automap_label_margin.top - automap_label_h - 2;
+                              - automap_label_margin.top - automap_label_margin.bottom - automap_label_h - 2;
     }
 }
 
@@ -768,8 +768,8 @@ void automap_label_box_hover()
 {
     if (automap_selected_label < 0 || mouse_is_down(0))
         return;
-    int x = automap_view_pos[resolution_index][0] + automap_label_box_x + automap_scroll_x;
-    int y = automap_view_pos[resolution_index][1] + automap_label_box_y + automap_scroll_y;
+    int x = automap_view_pos[resolution_index][0] + automap_scroll_x + automap_label_box_x;
+    int y = automap_view_pos[resolution_index][1] + automap_scroll_y + automap_label_box_y;
 
     if (point_in_rect(game_mouse_x, game_mouse_y, x, y, automap_label_w, automap_label_h)) {
         automap_mouse_mode = 4;
@@ -991,8 +991,8 @@ void automap_draw_label(int index)
         strcpy(text, automap_label_text);
         strcat(text, "|");
         gr_get_string_size(&w, &h, text, -1, -1);
-        w = w + (automap_label_margin.right + automap_label_margin.left) + 2;
-        h = h + (automap_label_margin.bottom + automap_label_margin.top) + 2;
+        w = w + (automap_label_margin.left + automap_label_margin.right) + 2;
+        h = h + (automap_label_margin.top + automap_label_margin.bottom) + 2;
         x = automap_label_screen_pos[automap_selected_label][0] - w / 2 + automap_scroll_x;
         y = automap_label_box_y + automap_scroll_y;
         ui_draw_text_box(x, y, w, h);
@@ -1023,8 +1023,8 @@ void automap_draw_label(int index)
     } else {
         x = automap_label_box_x + automap_scroll_x;
         y = automap_label_box_y + automap_scroll_y;
-        w = automap_label_w + automap_label_margin.right + automap_label_margin.left + 2;
-        h = automap_label_h + automap_label_margin.bottom + automap_label_margin.top + 2;
+        w = automap_label_w + automap_label_margin.left + automap_label_margin.right + 2;
+        h = automap_label_h + automap_label_margin.top + automap_label_margin.bottom + 2;
         ui_draw_text_box(x, y, w, h);
         gr_set_color_ptr(&automap_label_type_colors[type]);
         gr_string(automap_label_margin.left + x + 1, automap_label_margin.left + y + 1, automap_label_text, -1,
@@ -1094,7 +1094,7 @@ void cmd_map_mask()
             Map_mask ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "map_mask", "Map_mask");
         print_to_console(string_buffer, 0);
     }
@@ -1120,7 +1120,7 @@ void cmd_map_grid()
             Map_grid ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "map_grid", "Map_grid");
         print_to_console(string_buffer, 0);
     }
@@ -1146,7 +1146,7 @@ void cmd_show_coordinates()
             Show_coordinates ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "show_coordinates", "Show_coordinates");
         print_to_console(string_buffer, 0);
     }

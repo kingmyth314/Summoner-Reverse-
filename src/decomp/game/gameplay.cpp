@@ -164,7 +164,7 @@ void cmd_full_party()
             Full_party ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "full_party", "Full_party");
         print_to_console(string_buffer, 0);
     }
@@ -191,7 +191,7 @@ void cmd_dump_sound_usage()
             Dump_sound_usage ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "dump_sound_usage", "Dump_sound_usage");
         print_to_console(string_buffer, 0);
     }
@@ -405,7 +405,7 @@ void cmd_Give_all_items()
             Give_all_items ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Give_all_items", "Give_all_items");
         print_to_console(string_buffer, 0);
     }
@@ -1153,7 +1153,7 @@ void cmd_render_3d_obstacles()
             Render_3d_obstacles ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "render_3d_obstacles", "Render_3d_obstacles");
         print_to_console(string_buffer, 0);
     }

@@ -96,7 +96,7 @@ void cmd_bloodspots()
             Bloodspots ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "bloodspots", "Bloodspots");
         print_to_console(string_buffer, 0);
     }
@@ -123,7 +123,7 @@ void cmd_death()
             Debug_death ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "death", "Debug_death");
         print_to_console(string_buffer, 0);
     }
@@ -556,7 +556,7 @@ void cmd_Super_power()
             Super_power ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Super_power", "Super_power");
         print_to_console(string_buffer, 0);
     }

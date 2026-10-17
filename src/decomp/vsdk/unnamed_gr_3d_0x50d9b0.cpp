@@ -28,8 +28,8 @@
 #include "vsdk/gr/gr.h"
 #include "vsdk/gr/directx/gr_direct3d.h"
 
-#define GR_DEG_TO_RAD 0.0174533f                      // 0x580e30
-#define GR_RAD_TO_DEG 57.2958f                        // 0x580e24
+#define GR_DEG_TO_RAD 0.017453292f                     // 0x580e30 (pi / 180 as a float; strict check D9100)
+#define GR_RAD_TO_DEG 57.295776f                       // 0x580e24 (180 / pi as a float)
 
 // ---- .data (0x5a7294-0x5a72ab) ------------------------------------------------------------------------
 float Gr_far_min = 31.25f;                            // 0x5a7294 console "far_min"
@@ -504,7 +504,7 @@ void gr_screen_to_world_ray(ix_ray *out, float sx, float sy)
 // 0x50ec90  Confidence: exact.
 float gr_project_size(const gr_vertex *v, const float *size)
 {
-    return gr_projection_xmul * *size * gr_matrix_scale.x / v->z;
+    return gr_matrix_scale.x * *size * gr_projection_xmul / v->z;
 }
 
 // 0x50ecb0  Confidence: exact.

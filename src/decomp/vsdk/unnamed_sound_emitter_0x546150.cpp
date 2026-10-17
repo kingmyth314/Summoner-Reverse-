@@ -209,7 +209,7 @@ int sound_emitters_init()
 
     if (sound_emitters_enabled == true)
         return 0;
-    sound_emitter_list_head.next = sound_emitter_list_head.prev = &sound_emitter_list_head;
+    sound_emitter_list_head.prev = sound_emitter_list_head.next = &sound_emitter_list_head;
     for (i = 0; i < SOUND_MAX_EMITTERS; i++)
         sound_emitter_reset(i);
     sound_emitters_num_playing = 0;

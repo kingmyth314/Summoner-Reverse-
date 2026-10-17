@@ -50,7 +50,7 @@ void cmd_dump_mesh_frames()
             Dump_mesh_frames ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "dump_mesh_frames", "Dump_mesh_frames");
         print_to_console(string_buffer, 0);
     }

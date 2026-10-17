@@ -185,8 +185,8 @@ void worldmap_init_locations()
         loc->nav = navpoint_find(worldmap_location_tags[i]);
         loc->name = worldmap_location_names[i];
         gr_get_string_size(&w, &h, loc->name, -1, -1);
-        loc->label_w = worldmap_label_margin.right + worldmap_label_margin.left + w + 2;
-        loc->label_h = worldmap_label_margin.bottom + worldmap_label_margin.top + h + 2;
+        loc->label_w = worldmap_label_margin.left + worldmap_label_margin.right + w + 2;
+        loc->label_h = worldmap_label_margin.top + worldmap_label_margin.bottom + h + 2;
         switch (i) {
         case 0:
             if (early)

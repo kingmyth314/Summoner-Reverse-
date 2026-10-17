@@ -108,7 +108,7 @@ void cmd_precalc_vis_method()
             Precalc_vis_method ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "precalc_vis_method", "Precalc_vis_method");
         print_to_console(string_buffer, 0);
     }

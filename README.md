@@ -35,7 +35,7 @@ GitHub Pages site.
 | Level scripts | Per-level story logic through a 51-entry handler table | [Level scripts](docs/sum-exe/level-scripts.md) |
 | Interface | All 23 interface screens and their functions; UI widget classes | [Interface](docs/sum-exe/interface.md), [UI](docs/sum-exe/vsdk-ui.md) |
 | Decompilation | About 11,500 symbols in `symbols/sum.symbols`: every function (8,642, including about 2,300 that Ghidra misses and the whole C runtime) and 2,840 data globals; under 2% are still marked inferred | [Decompilation plan](docs/decomp-plan.md) |
-| Matching decompilation | `src/decomp`: 7,725 functions rewritten in C++ (all game and engine code); Sum.exe was built with Visual C++ 6.0 Service Pack 5 (`c2.dll` build 8966, identified 2026-10-16), and with that compiler 4,956 of the 5,925 compiled functions give the original bytes apart from relocated addresses (a check that calls and data references point at the right symbol is pending) | [Decompilation plan](docs/decomp-plan.md) |
+| Matching decompilation | `src/decomp`: 7,725 functions rewritten in C++ (all game and engine code); Sum.exe was built with Visual C++ 6.0 Service Pack 5 (`c2.dll` build 8966, identified 2026-10-16), and with that compiler 4,956 of the 5,925 compiled functions give the original bytes exactly, with every checkable call and data reference pointing at the same place | [Decompilation plan](docs/decomp-plan.md) |
 | Timeslip's patch (v3) | Hooks QPC/QPF through the import table, adds a virtual-clock speed control and removes the CD check | [Timeslip's patch](docs/patches/timeslip.md) |
 
 ## Repository layout

@@ -880,8 +880,7 @@ void buysell_update_buttons()
 // 0x405e80  Confidence: exact (VC6 byte match) (one store to buysell_scroll_pos, so the clamp is one expression).
 void buysell_drag_scrollbar()
 {
-    int offset = game_mouse_y - buysell_scrollbar_track[resolution_index][1] - buysell_drag_start_y
-               + buysell_drag_start_thumb;
+    int offset = buysell_drag_start_thumb + (game_mouse_y - buysell_scrollbar_track[resolution_index][1] - buysell_drag_start_y);
     int pos = (int)((float)offset / buysell_scrollbar_track_h[resolution_index] * buysell_row_count + 0.5f);
 
     int limit;

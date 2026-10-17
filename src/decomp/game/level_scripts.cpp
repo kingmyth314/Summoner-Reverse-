@@ -166,7 +166,7 @@ void cmd_Preparse_scripts()
             Preparse_scripts ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Preparse_scripts", "Preparse_scripts");
         print_to_console(string_buffer, 0);
     }

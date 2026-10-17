@@ -112,13 +112,13 @@ void playmenu_init()
 
     // New, Save and Load are disabled in multiplayer.
     if (game_flags & 2) {
-        playmenu_buttons[2].flags |= 4;
         playmenu_buttons[3].flags |= 4;
         playmenu_buttons[4].flags |= 4;
+        playmenu_buttons[2].flags |= 4;
     } else {
-        playmenu_buttons[2].flags &= ~4;
         playmenu_buttons[3].flags &= ~4;
         playmenu_buttons[4].flags &= ~4;
+        playmenu_buttons[2].flags &= ~4;
     }
     playmenu_mouse_mode = 0;
 }

@@ -132,7 +132,7 @@ void cmd_dont_load_fx()
             Dont_load_fx ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "dont_load_fx", "Dont_load_fx");
         print_to_console(string_buffer, 0);
     }
@@ -160,7 +160,7 @@ void cmd_do_frame_callback()
             Do_frame_callback ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "do_frame_callback", "Do_frame_callback");
         print_to_console(string_buffer, 0);
     }
@@ -1128,7 +1128,7 @@ void cmd_No_cutscenes()
             No_cutscenes ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "No_cutscenes", "No_cutscenes");
         print_to_console(string_buffer, 0);
     }

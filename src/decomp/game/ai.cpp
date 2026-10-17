@@ -1040,7 +1040,7 @@ void ai_state::path_begin()
     if (path && !path->next) {
         dx = path_start.x - path->pos.x;
         dz = path_start.z - path->pos.z;
-        if (dz * dz + dx * dx < 0.0025f && submode != 8) {
+        if (dz * dz + dx * dx < 0.0025000002f && submode != 8) {
             ai_path_free(path);
             path = NULL;
         }
@@ -1639,7 +1639,7 @@ void cmd_pause_ai()
             Ai_paused ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "pause_ai", "Ai_paused");
         print_to_console(string_buffer, 0);
     }
@@ -1666,7 +1666,7 @@ void cmd_ai_wander()
             Ai_path_wandering_enabled ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "ai_wander", "Ai_path_wandering_enabled");
         print_to_console(string_buffer, 0);
     }

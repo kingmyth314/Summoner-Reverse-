@@ -669,7 +669,7 @@ void cmd_All_summons()
             All_summons ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "All_summons", "All_summons");
         print_to_console(string_buffer, 0);
     }
@@ -1344,7 +1344,7 @@ void characterinfo_parse_name(TextFile *tf, char_info *info)
     }
     if (i == NUM_SPECIES_TABLE) {
         char msg[0x100];
-        sprintf(msg, "Character type %s doesn't have a species type. Please add one to Characterinfo.h", info->name);
+        sprintf(msg, "Character type %s doesn't have a species type. Please add one to CharacterInfo.cpp.\n", info->name);
         VSDK_ERROR(CHARACTERINFO_CPP, 0x60b, msg);
     }
 }
@@ -2672,7 +2672,7 @@ void cmd_Quick_combo()
             Quick_combo ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Quick_combo", "Quick_combo");
         print_to_console(string_buffer, 0);
     }

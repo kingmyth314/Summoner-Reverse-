@@ -725,7 +725,7 @@ int phoenix_pick_weighted_move(boss_target *list, int count, int cur_target, boo
         if (list[i].character) {
             k = phoenix_threat_find(list[i].character->handle);
             if (k != -1)
-                threat_sum -= phoenix_threat_table[k].threat[1] + phoenix_threat_table[k].threat[0];
+                threat_sum -= phoenix_threat_table[k].threat[0] + phoenix_threat_table[k].threat[1];
         }
     }
     for (i = 0; i < count; i++) {

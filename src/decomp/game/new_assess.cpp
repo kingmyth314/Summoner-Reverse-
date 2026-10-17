@@ -397,8 +397,7 @@ void assess_update_buttons()
 // 0x401bf0, mouse mode 2. Confidence: exact
 void assess_drag_scrollbar()
 {
-    int offset = game_mouse_y - assess_scrollbar_track[resolution_index].y - assess_drag_start_y
-               + assess_drag_start_thumb;
+    int offset = assess_drag_start_thumb + (game_mouse_y - assess_scrollbar_track[resolution_index].y - assess_drag_start_y);
     int pos = (int)((float)offset / assess_scrollbar_track_height[resolution_index]
                     * assess_line_count + 0.5f);
     pos = max(pos, 0);

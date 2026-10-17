@@ -320,10 +320,10 @@ void key_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
     case WM_SYSKEYUP:
         key_on_keyup(wparam, lparam, latency);
         break;
-    case WM_SETFOCUS:
+    case WM_KILLFOCUS:
         key_flush();
         break;
-    case WM_KILLFOCUS:
+    case WM_SETFOCUS:
         key_flush();
         break;
     }

@@ -92,7 +92,7 @@ void dialogue_load_bitmaps()
 
     dialogue_text_box.set_rect(dialogue_text_pos[resolution_index][0] + dialogue_buttons[0].x,
                                dialogue_text_pos[resolution_index][1] + dialogue_buttons[0].y,
-                               dialogue_buttons[1].x - 2 * dialogue_text_pos[resolution_index][0] + dialogue_buttons[1].w,
+                               dialogue_buttons[1].w - 2 * dialogue_text_pos[resolution_index][0] + dialogue_buttons[1].x,
                                dialogue_text_lines[resolution_index]);
     dialogue_topic_box.set_rect(dialogue_topic_pos[resolution_index][0] + dialogue_buttons[0].x,
                                 dialogue_topic_pos[resolution_index][1] + dialogue_buttons[0].y,

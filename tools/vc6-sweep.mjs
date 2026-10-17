@@ -40,7 +40,7 @@ function worker() {
     execFile("node", [join(repo, "tools", "vc6-compare.mjs"), join(root, f)], { cwd: repo, env, maxBuffer: 1 << 28 }, (err, stdout, stderr) => {
       const lines = [];
       for (const l of (stdout || "").split(/\r?\n/)) {
-        const m = /^\s+(0x[0-9a-f]+)\s+(match|differs|not found)/.exec(l);
+        const m = /^\s+(0x[0-9a-f]+)\s+(match|target|differs|not found)/.exec(l);
         if (m) lines.push(`${f} ${m[1]} ${m[2].replace(" ", "_")}`);
       }
       if (!lines.length) lines.push(`${f} ERROR ${((stdout || "") + (stderr || "")).split(/\r?\n/).filter((x) => /error/i.test(x)).slice(0, 2).join(" | ")}`);
@@ -55,7 +55,7 @@ const all = todo.flatMap((f) => res[f]);
 if (out) writeFileSync(out, all.join("\n") + "\n");
 const count = (k) => all.filter((l) => l.endsWith(" " + k)).length;
 const errors = all.filter((l) => / ERROR /.test(l));
-console.log(`${todo.length} units: ${count("match")} match, ${count("differs")} differ, ${count("not_found")} not found, ${errors.length} errors`);
+console.log(`${todo.length} units: ${count("match")} match, ${count("target")} wrong target, ${count("differs")} differ, ${count("not_found")} not found, ${errors.length} errors`);
 for (const e of errors) console.log("  " + e);
 
 if (check) {

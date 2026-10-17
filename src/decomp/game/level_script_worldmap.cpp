@@ -830,7 +830,7 @@ void cmd_random_encounters()
             Random_encounters_enabled ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "random_encounters", "Random_encounters_enabled");
         print_to_console(string_buffer, 0);
     }

@@ -113,7 +113,7 @@ void cmd_test_meshes_on_load()
             Test_meshes_on_load ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "test_meshes_on_load", "Test_meshes_on_load");
         print_to_console(string_buffer, 0);
     }
@@ -141,7 +141,7 @@ void cmd_load_lightmaps()
             S3d_load_lightmaps ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "load_lightmaps", "S3d_load_lightmaps");
         print_to_console(string_buffer, 0);
     }
@@ -168,7 +168,7 @@ void cmd_p3d_files()
             P3D_files ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "p3d_files", "P3D_files");
         print_to_console(string_buffer, 0);
     }

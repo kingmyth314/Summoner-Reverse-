@@ -629,8 +629,8 @@ bool skills_row_hit_icon(int row)
 bool skills_row_hit_text(int row)
 {
     int x = skills_list_pos[resolution_index][0] + skills_text_offset[resolution_index][0];
-    int y = skills_row_height[resolution_index] * row + skills_text_offset[resolution_index][1]
-            + skills_list_pos[resolution_index][1];
+    int y = skills_row_height[resolution_index] * row + skills_list_pos[resolution_index][1]
+            + skills_text_offset[resolution_index][1];
     int w = skills_text_width[resolution_index] - skills_text_offset[resolution_index][0];
 
     return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, gr_get_font_height(-1));

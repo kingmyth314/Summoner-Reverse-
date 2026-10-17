@@ -381,8 +381,8 @@ void item_info_popup_update_buttons()
 // 0x418db0  Confidence: exact.
 void item_info_popup_drag_scrollbar()
 {
-    int offset = game_mouse_y - item_info_popup_scrollbar_track[resolution_index][1]
-               - item_info_popup_drag_start_y + item_info_popup_drag_start_thumb;
+    int offset = item_info_popup_drag_start_thumb
+               + (game_mouse_y - item_info_popup_scrollbar_track[resolution_index][1] - item_info_popup_drag_start_y);
     int pos = (int)((float)offset / item_info_popup_scrollbar_track_h[resolution_index]
                     * item_info_popup_line_count + 0.5f);
     pos = max(pos, 0);

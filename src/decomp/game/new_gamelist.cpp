@@ -662,8 +662,8 @@ void gamelist_update_buttons()
 // register and stored once).
 void gamelist_drag_scrollbar()
 {
-    int pos = (int)((float)(game_mouse_y - gamelist_track_pos[resolution_index][1] - gamelist_drag_start_y
-                            + gamelist_drag_start_thumb)
+    int pos = (int)((float)(gamelist_drag_start_thumb
+                            + (game_mouse_y - gamelist_track_pos[resolution_index][1] - gamelist_drag_start_y))
                     / gamelist_track_h[resolution_index] * mp_gamelist_count + 0.5f);
     int last;
 

@@ -116,7 +116,7 @@ void cmd_max_skills()
             Max_skills ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "max_skills", "Max_skills");
         print_to_console(string_buffer, 0);
     }
@@ -643,11 +643,13 @@ void party_sort_by_species()
         c = living_from_handle(p->handle);
         if (c == NULL)
             continue;
+        // The order is Joseph, Flece, Rosalind, Jekhar (jump table 0x434338: species 1 -> slot 3, 2 -> 1, 3 -> 2;
+        // found by the strict relocation check, D9100).
         switch (c->info->species) {
         case SPECIES_JOSEPH:   i = 0; break;
-        case SPECIES_JEKHAR:   i = 1; break;
-        case SPECIES_FLECE:    i = 2; break;
-        case SPECIES_ROSALIND: i = 3; break;
+        case SPECIES_FLECE:    i = 1; break;
+        case SPECIES_ROSALIND: i = 2; break;
+        case SPECIES_JEKHAR:   i = 3; break;
         default:               i = 4; break;
         }
         sorted[i] = p;

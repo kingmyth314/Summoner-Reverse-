@@ -207,7 +207,7 @@ void camera::auto_rotate_update()
     while (yaw - a < -CAM_PI)
         a -= CAM_TWO_PI;
     d = yaw - a;
-    if (fabsf(d) > 0.174533f) {
+    if (fabsf(d) > 0.17453294f) {
         if (elevation < 4.0f && zoom < 0.8f) {
             if (!was_blocked) {
                 saved_zoom = zoom;

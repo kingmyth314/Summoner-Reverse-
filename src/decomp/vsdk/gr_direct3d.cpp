@@ -388,8 +388,8 @@ void gr_d3d_zbuffer_clear()
 void gr_d3d_set_viewport()
 {
     D3DVIEWPORT7 vp;
-    vp.dwX = gr_screen.offset_x + gr_screen.clip_left;
-    vp.dwY = gr_screen.offset_y + gr_screen.clip_top;
+    vp.dwX = gr_screen.clip_left + gr_screen.offset_x;
+    vp.dwY = gr_screen.clip_top + gr_screen.offset_y;
     vp.dwWidth = gr_screen.clip_width;
     vp.dwHeight = gr_screen.clip_height;
     vp.dvMinZ = 0.0f;

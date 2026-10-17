@@ -470,8 +470,7 @@ void pickup_list_handle_click()
 // Confidence: exact (VC6 byte match, match9; was likely)
 void pickup_drag_scrollbar()
 {
-    int offset = game_mouse_y - pickup_scrollbar_track[resolution_index].y - pickup_drag_start_mouse_y
-               + pickup_drag_start_thumb_y;
+    int offset = pickup_drag_start_thumb_y + (game_mouse_y - pickup_scrollbar_track[resolution_index].y - pickup_drag_start_mouse_y);
     int pos = (int)((float)offset / pickup_scrollbar_track_height[resolution_index]
                     * pickup_container->num_items + 0.5f);
     pickup_scroll_pos = max(pos, 0);

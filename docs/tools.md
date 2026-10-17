@@ -202,10 +202,14 @@ on a definition), then a summary line. The k-th definition of a name in the sour
 function of that name. A function is a match when its bytes equal the original's up to its length and the
 original has only padding (nop / int3) before the next known function start.
 
-Relocation targets are checked only as a hint: when the target is a function of the same file with an address
-comment, or a name `symbols/sum.symbols` knows (`a::b` as `a__b`), a different target in the original is counted
-in the summary (`-v` lists them). Overloads share a sum.symbols name and the linker folds identical functions, so
-these are not counted as differences. The original's instruction counts come from `build/sum.asm`
+Relocation targets (calls, global addresses, constants) are checked too (2026-10-17, DECISIONS.md D9100): each is
+resolved through the file's own markers, every function marker and global with an address comment in the tree,
+`symbols/sum.symbols`, labels of the same function, or, for constants, the bytes at the original's target. With
+`--strict` (or `VC6_STRICT=1`, which `vc6-sweep.mjs` passes on) a function whose bytes match but whose target is
+wrong counts as `target`, not `match`; other overloads of the same name, byte-identical folded functions and `jmp`
+thunks are accepted. The summary counts checked and unchecked targets (`-v` lists the unchecked ones).
+`tools/vc6-targets.mjs <sweep list>` lists every wrong target of a strict sweep. Strict mode is the standard since
+2026-10-17: `src/decomp/vc6-matches.txt` holds strict results. The original's instruction counts come from `build/sum.asm`
 (`tools/asm.mjs`'s cache; run that once first).
 
 ## Byte-matching workflow tools
@@ -216,7 +220,8 @@ Pack 5 `VC98` folder ([Setup](setup.md)) and run from PowerShell or cmd.
 | Tool | What it does |
 |---|---|
 | `tools/vc6-sweep.mjs [--root DIR] [--out FILE] [--only REGEX] [--jobs N] [--check LIST]` | Runs `vc6-compare.mjs` on every unit of a tree (the repo's `src/decomp` by default, or a merge stage / worker copy with its own `include/` and `vc6-flags.txt`) and writes `<file> <address> <match\|differs\|not_found>` lines. `--check src/decomp/vc6-matches.txt` lists every address that matched there and no longer does, and exits 1 if there is one: the "no match lost" check before every commit. |
-| `src/decomp/vc6-matches.txt` | The committed per-address result of the last full sweep (2026-10-17: 4,956 of 5,925 match). Regenerate with `--out src/decomp/vc6-matches.txt` after a sweep that `--check` passed. |
+| `src/decomp/vc6-matches.txt` | The committed per-address result of the last full strict sweep (2026-10-17: 4,956 of 5,925 match, call and data targets included). Regenerate with `--out src/decomp/vc6-matches.txt` after a strict sweep that `--check` passed. |
+| `tools/vc6-targets.mjs <sweep list>` | For a strict sweep list, every function marked `target` and which reference is wrong (symbol, the address or bytes ours expects, what Sum.exe has). |
 | `tools/vc6-side.mjs <listing.cod> <name> <address>` | One function's VC6 output next to Sum.exe's disassembly, differing mnemonics marked `*`. The listing comes from `vc6-compare.mjs --keep` (or `--json`'s `tmp`). |
 | `tools/vc6-try.mjs [--root DIR] <file> <address> <variants.json> [--side NAME]` | Tries source variants (`[{"name", "from", "to"}]`, exact text replacements) one at a time and reports whether the function then matches and the file's match count; the file is always restored. `--side` prints each failing variant's first differing lines. |
 | `tools/vc6-flagsweep.mjs <root> <out.json> [dir]` | Compiles every unit of `dir` (default `vsdk`) with its flags, with `/O2` -> `/Ox /Ow` and with `/Ow` added, and records each match set. A unit switches only when the new set contains every old match (DECISIONS.md D7502). |
@@ -226,7 +231,7 @@ Pack 5 `VC98` folder ([Setup](setup.md)) and run from PowerShell or cmd.
 The round workflow (2026-10-16): snapshot the tree for each worker, let it work in its own copy, merge it into a
 stage with `decomp-merge.mjs` against its snapshot, compile everything with mingw
 (`i686-w64-mingw32-g++ -fsyntax-only -std=c++98 -w -Iinclude`), run `decomp-sigcheck.mjs`, check for duplicate
-`// 0xADDR` markers, run `vc6-sweep.mjs --root <stage> --check src/decomp/vc6-matches.txt`, then copy the stage
+`// 0xADDR` markers, run `vc6-sweep.mjs --root <stage> --check src/decomp/vc6-matches.txt` with `VC6_STRICT=1`, then copy the stage
 into `src/decomp`, rewrite `vc6-matches.txt`, run `decomp-progress.mjs` and commit.
 
 ## `tools/agent.mjs` (agent mode)

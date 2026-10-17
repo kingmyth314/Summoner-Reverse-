@@ -105,7 +105,7 @@ void new_icam_load(void *table_arg, const char *filename)
                 table->pbh[table->count].z = h;
                 table->count++;
             } else {
-                sprintf(msg, "Unable to parse item \"%s\" in new_icam_load()", name);
+                sprintf(msg, "Unable to parse item \"%s\" in new_icam_load()\n", name);
             }
         }
     }
@@ -143,7 +143,7 @@ void new_icam_get(void *table_arg, const char *name, matrix *orient, vector3 *po
 
     if (idx < 0) {
         char msg[64];
-        sprintf(msg, "DIDN'T FIND %s in new_icam_get()", name);
+        sprintf(msg, "DIDN'T FIND %s in new_icam_get()\n", name);
         return;
     }
     float p = table->pbh[idx].x;

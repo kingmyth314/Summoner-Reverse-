@@ -159,7 +159,7 @@ void cmd_Ignore_tutorial()
             Ignore_tutorial ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Ignore_tutorial", "Ignore_tutorial");
         print_to_console(string_buffer, 0);
     }

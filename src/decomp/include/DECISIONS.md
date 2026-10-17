@@ -6994,3 +6994,28 @@ load order).
 markers that said exact and differ under 8966 lowered to "likely (marked exact earlier; differs under cl
 12.00.8966, match31)": 0x4d8940, 0x406bb0, 0x409cd0, 0x419530, 0x419bb0, 0x41b570, 0x42c0e0, 0x4b7d30,
 0x4a4f60, 0x511920, 0x545340.
+
+**D9100 (tools/vc6-compare.mjs; 2026-10-17). Relocation targets are checked; `--strict` / VC6_STRICT=1 fails a
+function whose bytes match but whose call or data reference resolves to the wrong place.** Before this, relocated
+fields were masked and only same-file calls and sum.symbols names were checked, as a warning. Now every relocated
+field is resolved: a function of the file with an address comment; any function marker or global defined with an
+address comment on its own line anywhere in the tree (functions and globals kept apart; `T a, b; // 0xA, 0xB`
+read in order); sum.symbols; a label of the same function (jump tables); an absolute symbol; or, for constants of
+the object (string literals up to their NUL, float constants, initialised tables with their own relocations
+masked), the bytes at the original's target. Accepted as right: another overload of the same name (sum.symbols
+name plus a suffix), a byte-identical function the linker folded (/OPT:ICF, when the callee is compiled in the
+object), a `jmp expected` thunk. About 96% of relocated fields resolve; the rest (function-local statics, inline
+helpers without markers) stay unchecked and are counted.
+First strict sweep: 4,956 byte matches -> 4,931 strict. The 25, all fixed here:
+- string literals that differ from the binary (45 copies): the console usage text ends "toggles it\n", not
+  "toggles it.\n"; characterinfo_parse_name's message names "CharacterInfo.cpp." and ends in a newline;
+  new_icam_load / new_icam_get's messages end in a newline;
+- party_sort_by_species puts the party in the order Joseph, Flece, Rosalind, Jekhar (jump table 0x434338; the
+  decomp had Joseph, Jekhar, Flece, Rosalind): a behaviour difference;
+- float constants one unit in the last place off: 0.0025000002f (0.05 squared), 0.17453294f, GR_DEG_TO_RAD
+  0.017453292f and GR_RAD_TO_DEG 57.295776f (pi / 180 and 180 / pi as floats);
+- operand order where the bytes matched with the operands swapped (same value): the automap and world map label
+  margins (left + right, top + bottom), automap_label_box_hover, gr_project_size, the skills / spells / status
+  row positions, help_draw's footer y, dialogue_load_bitmaps' text box width, phoenix_pick_weighted_move's threat
+  sum, gr_d3d_set_viewport, sound_emitters_init's list head, the play menu's button order (3, 4, 2), the five
+  scrollbar drags (`thumb + (mouse - track - start)`), and key_msg_handler's two focus cases (KILLFOCUS first).

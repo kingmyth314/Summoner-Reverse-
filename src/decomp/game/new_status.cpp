@@ -964,8 +964,8 @@ int status_ai_popup_frame(int key)
 void status_handle_skill_buttons()
 {
     int font_h = gr_get_font_height(-1);
-    int x = status_skill_button_pos[resolution_index][0] + status_skill_list_pos[resolution_index][0];
-    int y = status_skill_button_pos[resolution_index][1] + status_skill_list_pos[resolution_index][1]
+    int x = status_skill_list_pos[resolution_index][0] + status_skill_button_pos[resolution_index][0];
+    int y = status_skill_list_pos[resolution_index][1] + status_skill_button_pos[resolution_index][1]
             + status_hover_row * font_h;
     int half = (int)((status_skill_row_bm_w + 1.0f) * 0.5f);
 

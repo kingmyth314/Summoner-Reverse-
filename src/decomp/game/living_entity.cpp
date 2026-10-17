@@ -4901,7 +4901,7 @@ void cmd_immortal()
             Players_immortal ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "immortal", "Players_immortal");
         print_to_console(string_buffer, 0);
     }
@@ -5721,7 +5721,7 @@ void cmd_no_resist()
             No_resist ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "no_resist", "No_resist");
         print_to_console(string_buffer, 0);
     }
@@ -5748,7 +5748,7 @@ void cmd_Spell_ap()
             Use_spell_ap ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "Spell_ap", "Use_spell_ap");
         print_to_console(string_buffer, 0);
     }

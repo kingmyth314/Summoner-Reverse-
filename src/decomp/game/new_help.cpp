@@ -336,7 +336,7 @@ void help_draw()
     if (help_page >= 0 && help_page < 4)
         help_page_draw_table[help_page]();
 
-    int y = help_size[resolution_index].h - (fh * 2 + 2) + help_origin[resolution_index].y;
+    int y = help_origin[resolution_index].y + help_size[resolution_index].h - (fh * 2 + 2);
     gr_set_color_ptr(&ui_color_text);
     strcpy(text, XSTR("Press Left or Right arrow key to change pages", 911));
     gr_string(0x8000, y, text, -1, gr_string_mode);

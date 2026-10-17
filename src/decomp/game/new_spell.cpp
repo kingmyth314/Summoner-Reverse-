@@ -479,8 +479,8 @@ bool spells_row_hit_text(int row)
     if (row < 0 || row >= spells_list_count)
         return false;
     int x = spells_list_pos[resolution_index][0] + spells_text_offset[resolution_index][0];
-    int y = spells_row_height[resolution_index] * row + spells_text_offset[resolution_index][1]
-            + spells_list_pos[resolution_index][1];
+    int y = spells_row_height[resolution_index] * row + spells_list_pos[resolution_index][1]
+            + spells_text_offset[resolution_index][1];
     gr_get_string_size(&w, &h, localize_string_or_invalid(spell_display_names[spells_list[row]]), -1, -1);
     return point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
 }

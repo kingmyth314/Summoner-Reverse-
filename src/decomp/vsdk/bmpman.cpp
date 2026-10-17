@@ -73,7 +73,7 @@ void cmd_load_mipmaps()
             Load_mipmaps ^= 1;
     }
     if (doing_help_for_comand) {
-        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it.\n",
+        sprintf(string_buffer, "Usage: %s [bool]\nSets %s to true or false. If nothing passed, then toggles it\n",
                 "load_mipmaps", "Load_mipmaps");
         print_to_console(string_buffer, 0);
     }
