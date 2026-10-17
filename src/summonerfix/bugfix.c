@@ -51,6 +51,14 @@
 // (reproduced 2026-10-17: scrolled 3 rows, Save on the top row overwrote "G4 test save 12" with no question). Fix:
 // the mov eax, [saveload_selected_row] at 0x426340 becomes a call that returns selected_row + scroll_pos, so the
 // test looks at the entry the save goes to. The rows below the top one now ask about the right save too.
+//
+// Phoenix Rider's Inferno hits its target once per party member (not a crash; game-bugs G215). For spell 0x1e,
+// phoenix_special_strike loops over party_list (ebx = the member) but tests the distance from the boss to the
+// target (esi) and hits the target, then knocks the member down, so the target takes the hit once for every member
+// and the whole party falls wherever it stands (reproduced 2026-10-17 with [Debug] TracePhoenixInferno: one
+// Inferno, Flece hit four times). Fix ([Fixes] PhoenixInferno): the three distance loads (0x499900 / 0x499906 /
+// 0x49990c), the effect's target handle (0x499933) and the hit's this (0x499951) use ebx, so each member within
+// the spell's distance is hit and knocked down once.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -65,7 +73,10 @@
 #define VA_POPUP_HIT_TITLE 0x4139b3u       // mov esi, [4*edx + 0x57ef70] ; add esi, ecx ; jmp 0x4139cf
 #define VA_POPUP_MARGIN_Y 0x57ef70u         // int ui_choice_popup_margin_y[3]
 #define VA_POPUP_TITLE_GAP 0x57ef7cu        // int ui_choice_popup_title_gap[3] = {5, 5, 5}
-#define VA_SAVE_OVERWRITE_ROW 0x426340u     // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
+#define VA_INFERNO_DIST_X 0x499900u         // fld [esi+0x10] in phoenix_special_strike (also +0x14 at 0x499906, +0x18 at 0x49990c)
+#define VA_INFERNO_FX_TARGET 0x499933u      // mov ecx, [esi+0x80]: the effect's target handle
+#define VA_INFERNO_HIT_THIS 0x499951u       // mov ecx, esi: this of living_entity_get_hit_by_spell
+#define VA_SAVE_OVERWRITE_ROW 0x426340u    // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
 #define VA_SAVELOAD_SELECTED_ROW 0x5e360cu  // int saveload_selected_row
 #define VA_SAVELOAD_SCROLL_POS 0x5c5b9cu    // int saveload_scroll_pos (first visible row)
 
@@ -198,5 +209,18 @@ void BugFixesInstall(void)
         DWORD rowRel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (rowSite + 5);
         memcpy(rowRepl + 1, &rowRel, 4);
         PatchBytes(VA_SAVE_OVERWRITE_ROW, rowOrig, rowRepl, 5, "save overwrite question on a scrolled list (G4)");
+    }
+
+    if (FixOn("PhoenixInferno")) {
+        static const BYTE dOrig[3][3] = {{0xD9, 0x46, 0x10}, {0xD9, 0x46, 0x14}, {0xD9, 0x46, 0x18}}; // fld [esi+N]
+        static const BYTE dRepl[3][3] = {{0xD9, 0x43, 0x10}, {0xD9, 0x43, 0x14}, {0xD9, 0x43, 0x18}}; // fld [ebx+N]
+        for (int i = 0; i < 3; i++)
+            PatchBytes(VA_INFERNO_DIST_X + 6 * i, dOrig[i], dRepl[i], 3, "Phoenix Inferno distance per party member (G215)");
+        static const BYTE fxOrig[6] = {0x8B, 0x8E, 0x80, 0x00, 0x00, 0x00}; // mov ecx, [esi+0x80]
+        static const BYTE fxRepl[6] = {0x8B, 0x8B, 0x80, 0x00, 0x00, 0x00}; // mov ecx, [ebx+0x80]
+        PatchBytes(VA_INFERNO_FX_TARGET, fxOrig, fxRepl, 6, "Phoenix Inferno effect on each member (G215)");
+        static const BYTE thisOrig[2] = {0x8B, 0xCE}; // mov ecx, esi
+        static const BYTE thisRepl[2] = {0x8B, 0xCB}; // mov ecx, ebx
+        PatchBytes(VA_INFERNO_HIT_THIS, thisOrig, thisRepl, 2, "Phoenix Inferno hits each member once (G215)");
     }
 }

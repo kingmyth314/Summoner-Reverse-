@@ -75,6 +75,7 @@ static const FixOption k_fixes[] = {
     {"MetalHitEffects", "Hit effects on metal golems"},
     {"PopupRowOffset", "Popup rows light up under the cursor"},
     {"SaveOverwriteQuestion", "Ask before overwriting a save"},
+    {"PhoenixInferno", "Phoenix Inferno hits each member once"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

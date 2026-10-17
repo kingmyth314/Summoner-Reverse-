@@ -130,9 +130,47 @@ static void TraceHitVfxInstall(void)
     }
 }
 
+// Testing only ([Debug] TracePhoenixInferno=1, game-bugs G215): log each Inferno hit of phoenix_special_strike.
+// The call living_entity_get_hit_by_spell at 0x499962 (ecx = the Character hit, ebx = the party member the loop is
+// on) becomes a call to a stub that logs both and continues in the original function.
+#define VA_INFERNO_HIT_CALL 0x499962u
+#define VA_GET_HIT_BY_SPELL 0x45dea0u
+__attribute__((used)) DWORD g_getHitBySpell;
+__attribute__((used)) static void __cdecl TraceInferno(const BYTE *hit, const BYTE *member)
+{
+    char a[96], b[96];
+    Describe(a, sizeof a, hit);
+    Describe(b, sizeof b, member);
+    Log("inferno: hits %s (loop member %s)", a, b);
+}
+void TraceInfernoStub(void);
+__asm__(".text\n"
+        "_TraceInfernoStub:\n"
+        "    pushal\n"
+        "    pushl %ebx\n"
+        "    pushl %ecx\n"
+        "    call _TraceInferno\n"
+        "    addl $8, %esp\n"
+        "    popal\n"
+        "    jmp *_g_getHitBySpell\n");
+
+static void TraceInfernoInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TracePhoenixInferno", 0, g_cfg.iniPath))
+        return;
+    g_getHitBySpell = SumVa(VA_GET_HIT_BY_SPELL);
+    DWORD s = SumVa(VA_INFERNO_HIT_CALL);
+    BYTE orig[5] = {0xE8}, repl[5] = {0xE8};
+    DWORD ro = g_getHitBySpell - (s + 5), rn = (DWORD)(UINT_PTR)TraceInfernoStub - (s + 5);
+    memcpy(orig + 1, &ro, 4);
+    memcpy(repl + 1, &rn, 4);
+    PatchBytes(VA_INFERNO_HIT_CALL, orig, repl, 5, "trace Phoenix Inferno hits (TracePhoenixInferno)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
+    TraceInfernoInstall();
     if (!GetPrivateProfileIntA("Debug", "TraceArmourSpells", 0, g_cfg.iniPath))
         return;
     g_spellCastExecute = SumVa(VA_SPELL_CAST_EXECUTE);

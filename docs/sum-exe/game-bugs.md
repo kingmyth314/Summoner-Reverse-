@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 2 |
-| Gameplay | 51 | 25 | 5 |
+| Gameplay | 51 | 25 | 6 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -951,7 +951,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code, *inferred* effect | No |
 | G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
 | G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
-| G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code and retail data, *inferred* effect | No |
+| G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] PhoenixInferno`) |
 | G216 | The Tiger Rider's choice among several heroes it sees uses only the last hero's threat as the common base of the weights, not the sum, so it leans harder toward the heroes that hurt it than the other boss pickers do | `tiger_pick_target` `0x49b0a0` | **Observed** code, *inferred* effect | No |
 | G230 | Latent: when all five goal slots of a character are in use, a new order whose priority is not above the lowest one is not stored but overwrites that order's target, point, spell or radius, so the character can attack, follow or walk to the wrong place | `ai_goal_alloc` `0x476020`, `ai_goal_add` `0x476190` | **Observed** code, *inferred* effect | No |
 | G220 | Latent: the script editor's Save writes a character's actions without its `$Name:` record when the character starts on a navpoint of the other kind (a camera, ambient or cutscene navpoint in a level script; a camera or ambient one in a cutscene script); on the next load those actions belong to the character before it in the file | `script_write_objects` `0x4e9ce0` | **Observed** code, *inferred* effect | No |
@@ -1421,6 +1421,12 @@ two members down at once a common case.
 1 and 3 ("phoenix inferno1", "stage3 inferno"), so the test always passes: the target takes the hit once per
 party member (up to five with the summon) and the whole party is knocked down. Members on a mount or already down
 are refused by `ai_can_be_knocked_down`. *Inferred:* each member's own distance and one hit each were meant.
+**Reproduced 2026-10-17** (agent mode, `full_party` then `play_and_load_cutscene PHNX-Intro`, `[Debug]
+TracePhoenixInferno`): one Inferno hit Flece four times, once for each loop member, and the whole party was
+knocked down. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] PhoenixInferno`): the distance loads, the
+effect target and the hit use the loop's member (`esi` -> `ebx` at `0x499900`, `0x499906`, `0x49990c`,
+`0x499933`, `0x499951`). After the fix one Inferno hit Flece and Jekhar once each, the two members within its
+distance; Joseph and Rosalind, farther away, were not hit. This makes the fight easier than the original game.
 
 **G216. Assigned, not summed.** [notes 14] With two or more candidates, `tiger_pick_target` starts the base at
 10.0 (`0x49b205`) and, for every candidate with a threat record, sets it to `-(threat[1] + threat[0])`
