@@ -127,6 +127,14 @@ skills the character may have (2026-10-14). The intro credit position against a 
 See the [Decompilation plan](decomp-plan.md): map the whole binary first (engine core
 first), structured so it can become a byte-matching decompilation later.
 
+**Status 2026-10-17.** Mapping is done (every function named) and all game and engine code is rewritten in C++
+(7,725 functions; the C runtime and libjpeg are left to the VC6 libraries). The compiler is identified (VC6 SP5, build
+8966) and 4,956 of the 5,925 compiled functions give byte-identical code. What is left of the per-function matching
+is mostly register choice, frame slots and instruction scheduling. Next steps, in order: make the match check
+stricter (data and call targets must resolve to the right symbol), let a script set the Confidence markers from the
+sweep, then a first **link** of a rebuilt executable against the VC6 libraries, the step the post-recompile
+projects below need.
+
 ## Future projects
 
 Added 2026-10-16 at the user's request.

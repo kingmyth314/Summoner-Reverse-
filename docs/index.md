@@ -19,7 +19,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Bug fix priorities](sum-exe/bug-priorities.md) - the unfixed bugs ranked by gameplay impact and how easily we can reproduce them.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
-- [Decompilation plan](decomp-plan.md) - how the binary is being mapped: symbol file, phases, where we start.
+- [Decompilation plan](decomp-plan.md) - the symbol file, the C++ rewrite in `src/decomp`, and the byte matching: Sum.exe was built with Visual C++ 6.0 SP5 (build 8966), and 4,956 of 5,925 compiled functions now match exactly.
 - [Roadmap](roadmap.md) - planned work: custom key bindings, a fast-travel speed control, widescreen.
 - [Address map](reference/address-map.md) - every address and label used in these notes.
 - [Documentation standard](contributing.md) - how new findings are written up.

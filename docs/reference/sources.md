@@ -14,6 +14,18 @@ nav_order: 2
 - [Bug report: desktop app cancels stdio MCP tool calls at ~60 s and ignores MCP_TOOL_TIMEOUT](https://claudeissues.com/issue/63379-bug-desktop-app-cancels-stdio-mcp-tool-calls-at-60s-and-ignores-mcp-tool-timeout)
 - [Bug report: timeout field in claude_desktop_config.json not honored](https://claudeissues.com/issue/43791-bug-timeout-field-in-claude-desktop-config-json-not-honored-for-mcp-servers)
 
+## Compiler (Visual C++ 6.0)
+
+- [Internet Archive: Microsoft Visual C++ 6 Processor Pack + Service Pack 5](https://archive.org/details/vcpp5) (item
+  `vcpp5`, community upload 2020) - downloaded 2026-10-16 with the owner's approval: `vs6sp5.exe` (136,410,832 bytes,
+  MD5 971e5b1791ee90e6f397ec7fae520ba9) and `vcpp5.exe` (1,180,896 bytes, MD5 574e04a0bc863e8e1e8e28606da9d12f).
+  Extracted with 7-Zip, never run. SP5's `msvcep.dll` is the `c2.dll` 12.00.8966 that built Sum.exe
+  ([Decompilation plan](../decomp-plan.md)). Kept outside the repository ([Setup](../setup.md)).
+- The base Visual C++ 6.0 Standard (Japanese) and Professional (German, X04-63216) editions are the owner's own
+  discs, placed in the project folder as archives (git-ignored).
+- [MCPmag: Microsoft Releases Visual Studio 6.0 SP5](https://mcpmag.com/articles/2001/02/26/microsoft-releases-visual-studio-60-sp5.aspx) - SP5's release date (February 2001)
+- [Microsoft Learn: MSVC compiler versioning](https://learn.microsoft.com/en-us/cpp/overview/compiler-versions?view=msvc-170)
+
 ## Engine reference projects
 
 - [mikegoforth/summoner-2-decomp](https://github.com/mikegoforth/summoner-2-decomp) - matching decompilation of Summoner 2 (PS2); no license stated, local reference only
