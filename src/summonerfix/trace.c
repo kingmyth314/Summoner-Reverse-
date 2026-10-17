@@ -391,10 +391,50 @@ static void TraceDetectConeInstall(void)
     PatchBytes(VA_DETECT_CONE_FCOMP, o, r, 6, "trace detection cone (TraceDetectCone)");
 }
 
+// Testing only ([Debug] TraceBossReach=1, game-bugs G30): wraps the giant_salamanka_target_in_reach call in
+// boss_move_in_range_dispatch (0x4a0f8c) and logs the current move's offense point (giant_salamanka_current_move +0)
+// and the result, so the -1 points and the reach answers can be seen in a fight.
+#define VA_SAL_REACH_CALL 0x4a0f8cu
+#define VA_SAL_REACH 0x4c8c40u
+#define VA_SAL_CURRENT_MOVE 0x248cd50u
+__attribute__((used)) DWORD g_salReach;
+__attribute__((used)) static void __cdecl TraceBossReach(int result)
+{
+    const int *move = *(const int *volatile *)(UINT_PTR)SumVa(VA_SAL_CURRENT_MOVE);
+    Log("trace boss reach: Giant Salamanka move offense point %d -> %s", move ? move[0] : -99, (result & 0xff) ? "in reach" : "out of reach");
+}
+void TraceBossReachStub(void);
+__asm__(".text\n"
+        "_TraceBossReachStub:\n"
+        "    pushl 8(%esp)\n" // target
+        "    pushl 8(%esp)\n" // boss
+        "    call *_g_salReach\n"
+        "    addl $8, %esp\n"
+        "    pushal\n"
+        "    pushl %eax\n"
+        "    call _TraceBossReach\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    ret\n");
+
+static void TraceBossReachInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceBossReach", 0, g_cfg.iniPath))
+        return;
+    g_salReach = SumVa(VA_SAL_REACH);
+    DWORD s = SumVa(VA_SAL_REACH_CALL);
+    BYTE o[5] = {0xE8}, r[5] = {0xE8};
+    DWORD ro = g_salReach - (s + 5), rn = (DWORD)(UINT_PTR)TraceBossReachStub - (s + 5);
+    memcpy(o + 1, &ro, 4);
+    memcpy(r + 1, &rn, 4);
+    PatchBytes(VA_SAL_REACH_CALL, o, r, 5, "trace Giant Salamanka reach (TraceBossReach)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
     TraceGroupAttackInstall();
+    TraceBossReachInstall();
     TraceDetectConeInstall();
     TraceSupportPickInstall();
     LuminarTestInstall();

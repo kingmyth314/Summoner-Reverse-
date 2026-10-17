@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 357 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 356 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 50 | 25 | 16 |
+| Gameplay | 49 | 25 | 16 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -926,7 +926,6 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
 | G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 | G18 | Multiplayer: a lock picked through the host can stay locked on the other machines, or another container unlocks there | `mp_handle_container_lockpick` `0x489660` | **Observed** code, *inferred* effect | No |
-| G30 | Boss moves aimed by offense point are measured from about the world origin: Pyrul's slash and fire breath, Machival's area attacks and every Giant Salamanka melee hit should rarely land; the Ghost's sweep hits only its main target | `boss_ai_parse_table` `0x4a1790` | **Observed** code and retail data, *inferred* effect | No |
 | G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code, *inferred* effect | No |
 | G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code, *inferred* effect | No |
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
@@ -1130,27 +1129,6 @@ and the lock stays on that machine, or it finds another container (type test `0x
 one's lock (`0x4896ce`). `object_use_container` tests the local lock (`fld [ecx+0xe4]` at `0x43cc7c`), so on that
 machine the container still reports itself locked. *Inferred:* how often host and client handles differ was not
 measured. Found in the `NOTES-multi.md` notes (bug 3).
-
-**G30. Tag names parsed as numbers.** `boss_ai_parse_table` reads `$Offense point:` as a string and stores
-`atoi(string) - 1` in the move record (`0x4a18b7`..`0x4a18c4`). All 89 records of the nine loaded retail
-tables give a tag name (`"$offense01"`..`"$offense07"`), so `atoi` returns 0 and every move has point -1.
-The loaders keep the found `$offenseNN` tags in packed 0x1c-byte records, with the count just before the array
-(Pyrul `0x247fdb4`). The point tests index that array with the move's number and no check (`lea ecx,
-[8*eax]; sub ecx, eax` at `0x4b9c2b` and in the four other tests below). Point -1 is therefore the 0x1c bytes
-before the array: its position `+0x10` / `+0x18` is a word nobody writes and the count (an integer read as a
-float, about 0); for Pyrul it is the fifth threat record. Its direction is near zero. The tests are
-`pyrul_point_in_attack_cone` (Pyrul move classes 0 and 2, slash and fire breath), `ghost_point_in_attack_cone`
-(Ghost class 4), `machival_offense_point_reaches` (Machival's filter and kinds 3 and 7),
-`giant_salamanka_target_in_reach` (every Giant Salamanka single-target hit, through
-`boss_move_in_range_dispatch`, and its action choice at `0x4c8a32`) and `murod_oni_offense_point_reaches`
-(only Murod Oni's "in reach" target flag). For the cone tests, the target must be within the move's range of
-about (0, 0) and, with a zero direction, the move needs a max angle of 90 degrees or more (`dot >= cos`). When
-the test finds nobody, the resolver still returns true for Pyrul (`0x4a2c36`) and Machival (`0x4a2c9d`), so no
-fallback hit is made. The Ghost's resolver returns false (`0x4a2be1`), so its main target is still hit through
-`living_combat_resolve_hit` with the plain edge distance (`boss_move_target_in_range`); only the extra victims
-are lost. *Inferred:* the Pyrul, Machival and Giant Salamanka moves deal no melee damage unless the target
-stands near the world origin. This needs a
-runtime check (agent mode). See [Bosses](bosses.md#boss-table-files).
 
 **G31. Spell before the range test.** `living_combat_resolve_hit` calls `boss_counter_hit_dispatch(attacker,
 defender)` at `0x467e93` and only then, for a type-9 attacker, `boss_move_in_range_dispatch` (`0x467ea8`),
@@ -1640,8 +1618,7 @@ heroes and a summon fight in the sewer boss room and one swipe hits all five.
 target with flag 4 exists, switches to it with `murod_oni_move_2` on `frand() < 0.3` (`0x4c5efa`..`0x4c5f27`), but
 never sets the timer again. The crowd timer next to it is re-armed for 20 s (`0x4c5ea5`..`0x4c5eb5`). Flag 4 means
 "in reach of move 2" (`murod_oni_evaluate_target` `0x4c6205`..`0x4c621e`); move 2 is the third
-`murod_oni_boss.tbl` entry, "bite backward" (`$offense02`). Because of G30 that flag is rarely set, so the effect
-shows less often than the code allows.
+`murod_oni_boss.tbl` entry, "bite backward" (`$offense02`).
 
 **G253. Anchors without a life test.** `murod_start_leap` collects every party record's character with only a NULL
 test (`0x4c51cb`..`0x4c51e9`), picks one at random and tries up to five points 15 units away in a random horizontal
@@ -3490,6 +3467,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | Life leech is `0x450c70` with -0.1 / 0.1 of the damage | [Combat](combat.md) | `0x450c70` is `character_add_ap`, used by mind drain; life leech heals with `character_add_hp` (corrected on the page) |
 | C270 (withdrawn 2026-10-17): more than ten burning fireball, wall of fire, dark wall, blizzard or Pyrul fireball areas overflow `fx_frame`'s ten-entry stack list (`mov [esp+4*eax+0x230], ebp` at `0x48a40e`, no compare) and crash | This page, then [Bug fix priorities](bug-priorities.md) rank 11 | The list takes only effects that own an avoidance area (`+0x100` != -1). `avoid_area_add` (`0x4a9b40`) gives each area two of the 14 avoidance obstacles (`AVOID_NUM_OBSTACLES`, `avoid_add_primitive` twice) and frees an area that got none, so at most seven areas exist at once (fewer when other obstacles are in use). Tested in agent mode: `firewall 16` placed 16 walls of fire, and the area pool held 7 used areas with obstacles 0..13; the game ran on. The missing bound is real but cannot be reached |
 | G50 (withdrawn 2026-10-17): after a reload or a second visit the Khosani lab flipper board (cleared by `ls_khosanilab_init`, `0x4f895c`..`0x4f8980`) no longer matches flipper doors kept raised by their saved two-stage bits | This page, then [Bug fix priorities](bug-priorities.md) rank 13 | A reload cannot happen inside the lab: saving there gives "Cannot save in Labyrinth of the Khosani." (agent mode, 2026-10-17). For a second visit, agent mode raised flippers 32, 16 and 30 (`callstr 4f95a0 puzzle-flippers31`, the level's use hook; `door_is_open_by_name` then returned 1 for each), went to KhosaniLab2 and back with `level`, and found the board all 0 and the three doors down again. So the doors do not come back raised on re-entry. Why the saved two-stage bit does not raise them was not traced |
+| G30 (withdrawn 2026-10-17): `boss_ai_parse_table` stores `atoi("$offenseNN") - 1` = -1 as every boss move's offense point, so offense-point attacks aim from near the world origin | This page, [Bosses](bosses.md), the decompiled `boss_ai.cpp`, then [Bug fix priorities](bug-priorities.md) rank 14 | `TextFile__ParseString` gets `lea edx, [esp+0x68]` after two pushes (the buffer is at frame `+0x60`), and `atoi` gets `lea eax, [esp+0x68]` with nothing pushed (`0x4a18b2`), 8 bytes further on: `atoi("NN")` after the 8 characters of `$offense`. The game's `atoi("$offense03")` is 0 (agent `callstr 56e311`), but the parsed Giant Salamanka moves held 0, 0, 1, 2, 3, 4, 5 for `$offense01`, 01, 02 .. 06 (agent `peek 248c984`), and `[Debug] TraceBossReach` logged points 2 and 5 with targets in reach. The decompilation read the call as `atoi(point_name)`; it is `atoi(point_name + 8)` (corrected) |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -3837,7 +3815,7 @@ the tables above; the rest are below.
 - `cmd_summon` has no `calling_a_command_function` test (`0x47f730`). What it does during the console's help pass depends on `next_arg` at that time, which was not traced.
 - From the notes, not checked again: `container_spawn_loot` reading `+0xe0` of a gold item_obj (`0x4890c3`), `mp_handle_it_addi` / `mp_handle_item_drop` trusting the peer's counts (needs a modified peer), `level_free_s3d` keeping the navpoint and colour counts, `levelrender_wave_lobj`'s arrays that are never cleared or read, `tga_read_bitmap` not decoding grey images (types 3, 11), `tga_rle_encode_row` comparing `dst_bpp` bytes of pixels `src_bpp` apart, `ca_load_preload_index` without bounds, `skills_mouse_mode` staying 2 after identify / pick lock / banish, and the "mach_killed" summon gate.
 - `character_create_base` not testing `ca_preload_alloc_slot`'s NULL (`0x5415da`): already listed. The slots are freed by `character_unload` (`mov [eax], 0` at `0x5413e1`), so the 205 slots must be held at once; the peak was not measured.
-- The Ghost's class-4 moves: `boss_attack_resolve_dispatch` runs `ghost_resolve_hit` on the cone victims and then returns false (`0x4a2bd9`..`0x4a2be1`), so `living_combat_resolve_hit` also hits the main target. Whether that is a second hit on a target already in the cone list (`living_combat_resolve_hit_vs` and `living_combat_resolve_hit` both dealing damage) was not traced. With G30 the cone list is usually empty anyway.
+- The Ghost's class-4 moves: `boss_attack_resolve_dispatch` runs `ghost_resolve_hit` on the cone victims and then returns false (`0x4a2bd9`..`0x4a2be1`), so `living_combat_resolve_hit` also hits the main target. Whether that is a second hit on a target already in the cone list (`living_combat_resolve_hit_vs` and `living_combat_resolve_hit` both dealing damage) was not traced.
 - Evil Urath's fallback `rand() % 6` when `rand_weighted_index` fails (`0x4c5064`..`0x4c5071`) never picks the seventh spell (`0x5b`). When the weighted choice can fail was not traced (all weights are positive, so probably never).
 - Dead party members: `character_save_state` and `character_load_state` have no case for type 8 (tables `0x4587d7`, `0x45a103`), so a party member who is dead at save time keeps no level, XP, HP, equipment, skills or AI state in the save. What the member has after the load and a resurrection was not traced (the party bits create a fresh type-7 entity, `0x4d2e48`..`0x4d2eb5`).
 - `savegame_read_character` matches records only against `living_list` (`0x4cf7ac`), but the writer also saves dead characters from `living_list_inactive`. Whether the level always recreates those by name in the active list (else the load fails with `"7a"`) was not checked.
@@ -4057,7 +4035,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V21 textures | `vim_read` `0x543835`..`0x543896` |
 | V22 colour clamp | `s3d_read_color_record` `0x4703bf`..`0x4703f2`; `level_load_s3d` `0x46e6f5`..`0x46e70d`; `level_free_s3d` `0x46fed0` |
 | C30 preload index | `ca_load_preload_index` `0x54180e`..`0x541894`, `0x5418b0`..`0x5418c2`; retail `chars.vpp` `evil7724.svf` (61 entries, 626,685 bytes) |
-| G30 offense point | `boss_ai_parse_table` `0x4a18ad`..`0x4a18c4`; `pyrul_boss_load` `0x4b8a5a`..`0x4b8a9f`; `pyrul_point_in_attack_cone` `0x4b9c29`..`0x4b9c4c`; `ghost_point_in_attack_cone` `0x4bbb89`; `machival_offense_point_reaches` `0x4c0dd9`; `murod_oni_offense_point_reaches` `0x4c6239`; `giant_salamanka_target_in_reach` `0x4c8c4c`..`0x4c8c61`; `boss_attack_resolve_dispatch` `0x4a2c1e`..`0x4a2c58`; retail `tables.vpp` `*_boss.tbl` |
 | G31 plus spell | `living_combat_resolve_hit` `0x467e8a`..`0x467eb8`; `boss_counter_hit_dispatch` `0x4a2254`..`0x4a22ea`; `living_combat_update_boss_attack` `0x4683ea`..`0x4683fc` |
 | G32 mounted test | `boss_species_mounted_stage` `0x4a2484`..`0x4a249e`; `ai_get_combat_style` `0x473644`..`0x473653`; `character_target_point_count` `0x4a21e8` |
 | K30 boss height | `character_size_height` `0x45430a`..`0x454323`; `character_size_radius` `0x4542ca`..`0x4542d2`; `charinfo_boss_height` `0x4a15a0`, case bytes `0x4a1620` |

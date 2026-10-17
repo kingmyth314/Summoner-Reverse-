@@ -15,7 +15,7 @@ this is **observed** in the disassembly unless marked otherwise. Nothing here wa
 
 {: .important }
 **Corrected 2026-10-15.** The `+Plus Spell:` hit goes to the boss's target, not to its attacker. The table's
-offense point is parsed as a number, so the retail tables (which give tag names) leave every move on point -1.
+offense point is read from the number after `$offense` (corrected again 2026-10-17: the earlier note that every move stays on point -1 was wrong).
 Boss heights are computed and then thrown away. See "Changes (2026-10-15)" at the end.
 
 See [AI](ai.md) for `ai_state`, modes and goals, [Combat](combat.md) for damage,
@@ -107,24 +107,22 @@ $Stage: ...
   count sits just before the array (Pyrul `0x247fdb4`, Ghost `0x2480334`, Machival `0x248b0b0`, Murod Oni
   `0x248c080`, Giant Salamanka `0x248c868`). Each frame the boss updates the positions from the bones
   (for example `pyrul_update_attack_points`, `0x4b9400`). **Observed.**
-- A move names its point by number: `$Offense point:` is read as a string and stored as `atoi(string) - 1`
-  (`0x4a18b7`..`0x4a18c4`). Every retail record gives a tag name instead (`"$offense01"`..`"$offense07"`,
-  all 89 records of the 9 loaded tables), and `atoi("$offense02")` is 0. So every retail move has offense point **-1**.
-  **Observed** in code and data.
+- A move names its point by tag: `$Offense point:` is read as a string (`"$offense01"`..`"$offense07"` in all 89
+  retail records) and stored as `atoi(name + 8) - 1`, the number after `$offense` minus 1 (`0x4a18b2`..`0x4a18c4`: the
+  `atoi` argument is 8 bytes past the buffer `TextFile__ParseString` filled). **Observed** in code and in game: the
+  Giant Salamanka's stage 1 moves held points 0, 0, 1, 2, 3, 4, 5 (2026-10-17, game-bugs "Claims that did not hold", G30).
 - The point tests index the array with that number and no check: `pyrul_point_in_attack_cone` (`0x4b9c20`),
   `ghost_point_in_attack_cone` (`0x4bbb80`), `machival_offense_point_reaches` (`0x4c0dd0`),
   `murod_oni_offense_point_reaches` (`0x4c6230`), `giant_salamanka_target_in_reach` (`0x4c8c40`) and a reach
-  test in `giant_salamanka_ai_select_action` (`0x4c8a32`). Point -1 is the 0x1c bytes before the array.
-  Its "position" is a word nobody writes (or, for Pyrul, the fifth threat record) and the count, so the
-  horizontal test is measured from about the world origin. Its "direction" is near zero, so a cone test
-  passes only for moves whose max angle is 90 degrees or more. **Observed** for the reads; *inferred* for the
-  effect in game. See [game bugs](game-bugs.md).
+  test in `giant_salamanka_ai_select_action` (`0x4c8a32`). A tag number beyond the points the model has would
+  read past them; the retail tables stay within them as far as checked (Giant Salamanka: 7 points, tags 01..07).
 
 ```
-4a18a5: push edx                           ; buffer
+4a189d: lea edx, [esp + 0x68]               ; buffer (two pushes pending: frame +0x60)
 4a18ad: call 0x5166b0                      ; TextFile__ParseString -> "$offense02"
-4a18b7: call 0x56e311                      ; atoi -> 0
-4a18bf: dec eax                            ; -1
+4a18b2: lea eax, [esp + 0x68]               ; nothing pending: frame +0x68 = buffer + 8 -> "02"
+4a18b7: call 0x56e311                      ; atoi -> 2
+4a18bf: dec eax                            ; 1
 4a18c4: mov dword ptr [esi], eax           ; record +0x00
 ...
 4b9c29: mov eax, dword ptr [edi]           ; pyrul_point_in_attack_cone: record +0x00
@@ -390,8 +388,6 @@ range ends.
 ## Open questions
 
 - What each `$Variation:` name selects (a move variation of the boss's animation set is *inferred*).
-- Whether the bosses that rely on offense points (Pyrul, Ghost, Machival, Murod Oni, Giant Salamanka) really
-  miss in game, or whether some arena lies near the world origin. A runtime check in agent mode would settle it.
 - Whether the Ghost's class-4 moves hit the main target twice (its own resolver, then `living_combat_resolve_hit`).
 - Whether anything reaches the riders' per-stage flinch tables through a pointer; no direct reference outside the three `*_rider_set_flinch` functions was found (2026-10-15).
 - The names of the ghost minion species `0x43`, `0x45`, `0x9c` and the Evil Joseph helpers.
@@ -409,7 +405,7 @@ This page lists function addresses instead of REA evidence ids. All were read wi
 | stage dispatch table (13 cases, Murod Oni empty) | `boss_ai_check_stage` `0x4a0730`, tables `0x4a080c` / `0x4a0844` |
 | check-stage runs each frame for type 9 | `ai_frame` `0x472bd4` |
 | table format keywords | `boss_ai_parse_table` `0x4a1790` |
-| offense point = `atoi - 1`, stage stride 0x140, args 2 and 4 unused | `boss_ai_parse_table` `0x4a1889`..`0x4a18c4` |
+| offense point = `atoi(name + 8) - 1`, stage stride 0x140, args 2 and 4 unused | `boss_ai_parse_table` `0x4a1889`..`0x4a18c4` |
 | offense tags packed, count before the array | `pyrul_boss_load` `0x4b8a5a`..`0x4b8a9f`; same in the eight other loaders |
 | index -1 used unchecked | `pyrul_point_in_attack_cone` `0x4b9c29`, `ghost_point_in_attack_cone` `0x4bbb89`, `machival_offense_point_reaches` `0x4c0dd9`, `murod_oni_offense_point_reaches` `0x4c6239`, `giant_salamanka_target_in_reach` `0x4c8c4c` |
 | retail tables give tag names | `tables.vpp`: the nine loaded `*_boss.tbl` files (`$offense01`..`$offense07`) |
@@ -440,8 +436,8 @@ This page lists function addresses instead of REA evidence ids. All were read wi
 
 - `+Plus Spell:` ("counter hit"): the spell goes to the boss's target on the boss's own hit, and it lands
   before the range test. It is not a counter on the melee attacker.
-- Table format: every record starts with `$Offense point:`, which is parsed with `atoi`. The retail tag names
-  give point -1 for every move. `$Num Stages:` and `+Debug:` are dropped; `+Projectile:`, `+Spell Only:` and
+- Table format: every record starts with `$Offense point:`, whose number after `$offense` is parsed with
+  `atoi` (the point index is that number minus 1). `$Num Stages:` and `+Debug:` are dropped; `+Projectile:`, `+Spell Only:` and
   `+Plus Spell:` count only after `+Spell:`. `murod_boss.tbl` exists but is never loaded.
 - Boss heights are never used; only the radius is. `ai_retaliate_on_hit` does not skip the Serpent Rider,
   Giant Salamanka or (fully) Luminar.

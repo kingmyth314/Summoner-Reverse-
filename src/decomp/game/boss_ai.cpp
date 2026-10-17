@@ -583,7 +583,7 @@ void boss_ai_parse_table(const char *filename, int num_stages, boss_attack table
             a = table[stage - 1];
             do {
                 tf.ParseString(point_name, 0x20, '"', '"');
-                a->offense_point = atoi(point_name) - 1;
+                a->offense_point = atoi(point_name + 8) - 1;      // the number after "$offense" (0x4a18b2: [esp+0x68], 8 past the buffer)
                 a->enabled = 1;
                 tf.Expect("$Range:");
                 a->range_min = tf.ParseFloat();

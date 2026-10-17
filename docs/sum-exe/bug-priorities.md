@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210 and G100 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270 and G50 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`).
+**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210 and G100 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50 and G30 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method
@@ -83,7 +83,7 @@ for those the fix also needs a decision on what the game should do.
 | 11 | C270 | **Withdrawn 2026-10-17: cannot happen** (at most seven areas exist; see game-bugs, "Claims that did not hold"). Was: More than ten burning fire, blizzard or dark wall areas overflow a stack array in the effect update: crash from the 15th | 4 | 3 | Party casters with `max_skills`, cast fireball / wall of fire repeatedly in one fight; count areas with `peek` | small | 12 |
 | 12 | G100 | The "leech" special ability (Blood Elemental, Crystal Rokhul, Joseph's Wraith) does nothing to HP in single player | 3 | 4 | Summon the Wraith (skills via `savedit.mjs`), fight, log HP | small | 12 |
 | 13 | G50 | **Withdrawn 2026-10-17: did not happen in game** (the lab cannot be saved in, and the doors come back down on re-entry; see game-bugs, "Claims that did not hold"). Was: After a reload or second visit, the Khosani lab flipper board no longer matches the raised flippers | 4 | 3 | Warp to KhosaniLab, raise flippers, save and load, try the crossing | medium | 12 |
-| 14 | G30 | Boss `$Offense point:` tag names parse as -1, so several boss attacks aim from near the world origin and rarely land | 3 | 4 | Warp to a boss (Pyrul, Machival, Giant Salamanka), boss `_stage` command, watch slash / breath hits | medium | 12 |
+| 14 | G30 | **Withdrawn 2026-10-17: not a bug** (the parser reads the number after `$offense`; the decompilation had misread the call; see game-bugs, "Claims that did not hold"). Was: Boss `$Offense point:` tag names parse as -1, so several boss attacks aim from near the world origin and rarely land | 3 | 4 | Warp to a boss (Pyrul, Machival, Giant Salamanka), boss `_stage` command, watch slash / breath hits | medium | 12 |
 | 15 | K1 | A hot button used by number key lights up for one frame instead of 100 ms | 2 | 5 | Press 1 in a level; capture frames | tiny | 10 |
 | 16 | K292 | Conversation "more" and "end" highlight anywhere below the entry | 2 | 5 | Open a long conversation, hover below "more" | tiny | 10 |
 | 17 | K3 | Shop sell list category buttons jump to the wrong row | 2 | 5 | Open a shop in sell mode, click a category button | small | 10 |
@@ -415,7 +415,7 @@ for those the fix also needs a decision on what the game should do.
 11. **C270**: withdrawn 2026-10-17. The avoidance pool allows at most seven areas, so the ten-entry list cannot overflow.
 12. **G100**: Joseph's Wraith summon and two monsters have a special ability that does nothing; settle what "leech" should do.
 13. **G50**: withdrawn 2026-10-17. Saving is refused in the lab, and on a second visit the flipper doors were down like the board.
-14. **G30**: most boss offense-point attacks rarely land, so several boss fights are easier than designed; fixing it makes them harder, so test balance with it.
+14. **G30**: withdrawn 2026-10-17. The offense points are parsed correctly (the game passes the name 8 bytes in), as the Giant Salamanka's moves showed in game.
 15. **K1**: the cheapest visible fix (one flipped jump) and a good first patch to check the before / after capture workflow.
 
 C280 (Start New Game crashes after `play_and_load_cutscene` returns to the menu) has impact 1 for players, but it
