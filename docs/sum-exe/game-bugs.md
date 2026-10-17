@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 7 |
+| Gameplay | 51 | 25 | 8 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -923,7 +923,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G9 | Alt+Tab does not work: the game takes the focus straight back | `os_wndproc` `0x530ff0` | **Observed** at runtime | Fixed |
 | G10 | Latent: adding gold to a container that already holds gold loses the gold and leaves a stale slot | `container_add_item` `0x46aa30` | **Observed** code, *inferred* effect | No |
 | G11 | Latent: using aimed attack (or forge, mine, enchant) as a skill takes the AP and does nothing | `character_use_skill` `0x429410` | **Observed** code, *inferred* effect | No |
-| G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code and retail data, *inferred* effect | No |
+| G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SpellRecoveryTimes`) |
 | G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code, *inferred* effect | No |
 | G14 | Multiplayer: when a player closes a container after taking some items, the other machines drop the container's last entries instead of the taken ones | `mp_handle_container_close` `0x488eb0` | **Observed** code, *inferred* effect | No |
 | G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No |
@@ -1078,6 +1078,14 @@ Spells without the line keep their `+Duration:` (or -1, no cooldown) as before. 
 10 -> 11 s). That is the tick period of the status, and `character_update_status_effects` has no tick action
 for status 8 (case byte 3 at `0x45bf3c + 3`), so this part has no effect. See
 [Spells](game-tables.md#spells).
+
+**Reproduced 2026-10-17** (agent mode, `peek` of the parsed table at `0x22e4f28`, `0x80` bytes per spell): fireball
+(record 26) held 26 in `+0x66` and `+0x68`, though `spells.tbl` gives 20 for both, and vitalize (record 4) held 4 in
+`+0x68` instead of 10. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SpellRecoveryTimes`): the three stores
+use `ax`, the parsed value (`66 89 6E` -> `66 89 46` at `0x47a49c`, `0x47a4c1`, `0x47a50b`). With the fix the same
+fields held 20, 20 and 10. The cooldown itself was not timed in game; that it is cast length plus `+0x66` comes
+from the code above. This changes the balance: fireball, wall of fire, dark wall and blizzard come back sooner, and
+of the monster spells some come back sooner and some later.
 
 **G13. `cur_character` instead of the attacker.** The three status branches load `mov ecx, [0x5fcc88]` before
 `character_get_skill(0x11)` (`0x4663c0`, `0x466468`, `0x466510`) and compare the result with `frand()`. The

@@ -74,6 +74,12 @@
 // the loop becomes a call that, in single player while another record leads, returns the list head, so the
 // loop's empty-list test skips it. When the removed record led (or none does) the leader is re-picked as before.
 // Multiplayer is unchanged.
+//
+// Spell recovery times are the spell's record number (not a crash; game-bugs G12). spells_parse_table parses
+// "+Recovery time:", "+AI Recovery time:" and "+Loop Time:" with TextFile__ParseInt (value in eax) and then stores
+// bp, the record index (0x47a49c, 0x47a4c1, 0x47a50b), so fireball (record 26) recovers in 26 s, not the table's
+// 20. Fix ([Fixes] SpellRecoveryTimes): mov [esi-N], bp becomes mov [esi-N], ax at all three. The table is read
+// at start-up, after this DLL's DllMain has patched the code. Spells without the lines are unchanged.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -286,6 +292,17 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)PartyRemoveLeaderStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_PARTY_REMOVE_LEADER_LOOP, o, r, 6, "party leader kept when another record is removed (G8)");
+    }
+
+    if (FixOn("SpellRecoveryTimes")) {
+        // mov [esi-0x12], bp (+Recovery time), [esi-0x10] (+AI Recovery time), [esi-0xe] (+Loop Time)
+        static const DWORD sites[3] = {0x47a49cu, 0x47a4c1u, 0x47a50bu};
+        static const BYTE disp[3] = {0xEE, 0xF0, 0xF2};
+        for (int i = 0; i < 3; i++) {
+            BYTE o[4] = {0x66, 0x89, 0x6E, disp[i]}; // mov [esi-N], bp
+            BYTE r[4] = {0x66, 0x89, 0x46, disp[i]}; // mov [esi-N], ax (the parsed value)
+            PatchBytes(sites[i], o, r, 4, "spell recovery times from spells.tbl (G12)");
+        }
     }
 
     if (FixOn("PhoenixInferno")) {

@@ -78,6 +78,7 @@ static const FixOption k_fixes[] = {
     {"PhoenixInferno", "Phoenix Inferno hits each member once"},
     {"LuminarBeamTarget", "No Luminar beam crash"},
     {"SummonKeepsLeader", "Control stays when a summon goes"},
+    {"SpellRecoveryTimes", "Spell cooldowns from spells.tbl"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
