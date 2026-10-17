@@ -1,4 +1,5 @@
-// Fixes for crashes in the original game. Always on: each only changes behaviour in a case that would crash.
+// Fixes for bugs in the original game (docs/sum-exe/game-bugs.md). The crash fix (no sound device) is always on;
+// each other fix changes how the game behaves or looks and has an on/off key in [Fixes] (default on, FixOn()).
 //
 // No-sound new game crash. When DirectSound cannot start (DirectSoundCreate fails, e.g. no audio output device
 // is connected), ds_init (0x55c1a0) returns before ds_init_channels and snd_stream_init, so the channel records
@@ -126,6 +127,15 @@ __asm__(".text\n"
         "    popl %ecx\n"
         "    ret\n");
 
+// [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
+static BOOL FixOn(const char *key)
+{
+    if (GetPrivateProfileIntA("Fixes", key, 1, g_cfg.iniPath))
+        return TRUE;
+    Log("fix %s is off ([Fixes] %s=0)", key, key);
+    return FALSE;
+}
+
 void BugFixesInstall(void)
 {
     g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
@@ -136,45 +146,57 @@ void BugFixesInstall(void)
     memcpy(repl + 1, &rel, 4);
     PatchBytes(VA_DS_CHANNEL_STREAM_CHECK, orig, repl, 5, "no-sound new game crash (ds_channel_release stream check)");
 
-    static const BYTE glMemOrig[5] = {0xB8, 0x08, 0x00, 0x00, 0x00}; // mov eax, 8
-    static const BYTE glMemRepl[5] = {0xB8, 0x40, 0x00, 0x00, 0x00}; // mov eax, 64
-    PatchBytes(VA_GL_VIDEO_MEMORY_MB, glMemOrig, glMemRepl, 5, "OpenGL video memory reported as 8 MB (low textures on a fresh install)");
+    if (FixOn("OpenGLTextures")) {
+        static const BYTE glMemOrig[5] = {0xB8, 0x08, 0x00, 0x00, 0x00}; // mov eax, 8
+        static const BYTE glMemRepl[5] = {0xB8, 0x40, 0x00, 0x00, 0x00}; // mov eax, 64
+        PatchBytes(VA_GL_VIDEO_MEMORY_MB, glMemOrig, glMemRepl, 5, "OpenGL video memory reported as 8 MB (low textures on a fresh install)");
+    }
 
-    static const BYTE robeOrig[3] = {0x8B, 0x4D, 0x00}; // mov ecx, [ebp]
-    static const BYTE robeRepl[3] = {0x8B, 0xC8, 0x90}; // mov ecx, eax ; nop
-    PatchBytes(VA_ARMOUR_SPELL_TARGET, robeOrig, robeRepl, 3, "armour heal aimed at the attacker (G300, Robe of Restoration)");
+    if (FixOn("RobeOfRestoration")) {
+        static const BYTE robeOrig[3] = {0x8B, 0x4D, 0x00}; // mov ecx, [ebp]
+        static const BYTE robeRepl[3] = {0x8B, 0xC8, 0x90}; // mov ecx, eax ; nop
+        PatchBytes(VA_ARMOUR_SPELL_TARGET, robeOrig, robeRepl, 3, "armour heal aimed at the attacker (G300, Robe of Restoration)");
+    }
 
-    // eax, ecx and edx are reloaded before their next use in snd_play_3d; the FPU stack is empty here.
-    g_sndGroupVolumes = (volatile float *)(UINT_PTR)SumVa(VA_SND_GROUP_VOLUMES);
-    static const BYTE sndOrig[11] = {0xD9, 0x44, 0x24, 0x1C, 0xD8, 0x76, 0x28, 0xD9, 0x5C, 0x24, 0x1C};
-    BYTE sndRepl[11] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
-    DWORD sndSite = SumVa(VA_SND_PLAY_3D_DIVIDE);
-    DWORD sndRel = (DWORD)(UINT_PTR)SndPlay3dUnscaleStub - (sndSite + 5);
-    memcpy(sndRepl + 1, &sndRel, 4);
-    PatchBytes(VA_SND_PLAY_3D_DIVIDE, sndOrig, sndRepl, 11, "world sounds at the sfx volume squared without DS3D (snd_play_3d)");
+    if (FixOn("WorldSoundVolume")) {
+        // eax, ecx and edx are reloaded before their next use in snd_play_3d; the FPU stack is empty here.
+        g_sndGroupVolumes = (volatile float *)(UINT_PTR)SumVa(VA_SND_GROUP_VOLUMES);
+        static const BYTE sndOrig[11] = {0xD9, 0x44, 0x24, 0x1C, 0xD8, 0x76, 0x28, 0xD9, 0x5C, 0x24, 0x1C};
+        BYTE sndRepl[11] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        DWORD sndSite = SumVa(VA_SND_PLAY_3D_DIVIDE);
+        DWORD sndRel = (DWORD)(UINT_PTR)SndPlay3dUnscaleStub - (sndSite + 5);
+        memcpy(sndRepl + 1, &sndRel, 4);
+        PatchBytes(VA_SND_PLAY_3D_DIVIDE, sndOrig, sndRepl, 11, "world sounds at the sfx volume squared without DS3D (snd_play_3d)");
+    }
 
-    g_popupMarginY = SumVa(VA_POPUP_MARGIN_Y);
-    g_popupTitleGap = SumVa(VA_POPUP_TITLE_GAP);
-    static const BYTE popOrig[11] = {0x8B, 0x34, 0x95, 0x70, 0xEF, 0x57, 0x00, 0x03, 0xF1, 0xEB, 0x11};
-    BYTE popRepl[11] = {0xE8, 0, 0, 0, 0, 0xEB, 0x15, 0x90, 0x90, 0x90, 0x90}; // call stub ; jmp 0x4139cf
-    DWORD popSite = SumVa(VA_POPUP_HIT_TITLE);
-    DWORD popRel = (DWORD)(UINT_PTR)PopupHitTitleStub - (popSite + 5);
-    memcpy(popRepl + 1, &popRel, 4);
-    PatchBytes(VA_POPUP_HIT_TITLE, popOrig, popRepl, 11, "choice popup rows 5 px above their text (K170)");
+    if (FixOn("PopupRowOffset")) {
+        g_popupMarginY = SumVa(VA_POPUP_MARGIN_Y);
+        g_popupTitleGap = SumVa(VA_POPUP_TITLE_GAP);
+        static const BYTE popOrig[11] = {0x8B, 0x34, 0x95, 0x70, 0xEF, 0x57, 0x00, 0x03, 0xF1, 0xEB, 0x11};
+        BYTE popRepl[11] = {0xE8, 0, 0, 0, 0, 0xEB, 0x15, 0x90, 0x90, 0x90, 0x90}; // call stub ; jmp 0x4139cf
+        DWORD popSite = SumVa(VA_POPUP_HIT_TITLE);
+        DWORD popRel = (DWORD)(UINT_PTR)PopupHitTitleStub - (popSite + 5);
+        memcpy(popRepl + 1, &popRel, 4);
+        PatchBytes(VA_POPUP_HIT_TITLE, popOrig, popRepl, 11, "choice popup rows 5 px above their text (K170)");
+    }
 
-    static const BYTE bloodOrig[5] = {0x83, 0xFF, 0x01, 0x75, 0x1E}; // cmp edi, 1 ; jne 0x466a2f
-    static const BYTE bloodRepl[5] = {0x83, 0xFF, 0x02, 0x77, 0x1E}; // cmp edi, 2 ; ja 0x466a2f
-    PatchBytes(VA_HIT_VFX_BLOOD_TEST, bloodOrig, bloodRepl, 5, "blood hit effect for leather (K20)");
-    static const BYTE sparkOrig[10] = {0x83, 0xFF, 0x03, 0x74, 0x05, 0x83, 0xFF, 0x09, 0x75, 0x1B};
-    static const BYTE sparkRepl[10] = {0xEB, 0x08, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // jmp 0x466a39
-    PatchBytes(VA_HIT_VFX_SPARK_TEST, sparkOrig, sparkRepl, 10, "spark hit effect for metal characters (K20)");
+    if (FixOn("MetalHitEffects")) {
+        static const BYTE bloodOrig[5] = {0x83, 0xFF, 0x01, 0x75, 0x1E}; // cmp edi, 1 ; jne 0x466a2f
+        static const BYTE bloodRepl[5] = {0x83, 0xFF, 0x02, 0x77, 0x1E}; // cmp edi, 2 ; ja 0x466a2f
+        PatchBytes(VA_HIT_VFX_BLOOD_TEST, bloodOrig, bloodRepl, 5, "blood hit effect for leather (K20)");
+        static const BYTE sparkOrig[10] = {0x83, 0xFF, 0x03, 0x74, 0x05, 0x83, 0xFF, 0x09, 0x75, 0x1B};
+        static const BYTE sparkRepl[10] = {0xEB, 0x08, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // jmp 0x466a39
+        PatchBytes(VA_HIT_VFX_SPARK_TEST, sparkOrig, sparkRepl, 10, "spark hit effect for metal characters (K20)");
+    }
 
-    g_saveSelectedRow = SumVa(VA_SAVELOAD_SELECTED_ROW);
-    g_saveScrollPos = SumVa(VA_SAVELOAD_SCROLL_POS);
-    static const BYTE rowOrig[5] = {0xA1, 0x0C, 0x36, 0x5E, 0x00}; // mov eax, [0x5e360c]
-    BYTE rowRepl[5] = {0xE8};
-    DWORD rowSite = SumVa(VA_SAVE_OVERWRITE_ROW);
-    DWORD rowRel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (rowSite + 5);
-    memcpy(rowRepl + 1, &rowRel, 4);
-    PatchBytes(VA_SAVE_OVERWRITE_ROW, rowOrig, rowRepl, 5, "save overwrite question on a scrolled list (G4)");
+    if (FixOn("SaveOverwriteQuestion")) {
+        g_saveSelectedRow = SumVa(VA_SAVELOAD_SELECTED_ROW);
+        g_saveScrollPos = SumVa(VA_SAVELOAD_SCROLL_POS);
+        static const BYTE rowOrig[5] = {0xA1, 0x0C, 0x36, 0x5E, 0x00}; // mov eax, [0x5e360c]
+        BYTE rowRepl[5] = {0xE8};
+        DWORD rowSite = SumVa(VA_SAVE_OVERWRITE_ROW);
+        DWORD rowRel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (rowSite + 5);
+        memcpy(rowRepl + 1, &rowRel, 4);
+        PatchBytes(VA_SAVE_OVERWRITE_ROW, rowOrig, rowRepl, 5, "save overwrite question on a scrolled list (G4)");
+    }
 }

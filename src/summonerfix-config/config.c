@@ -65,6 +65,19 @@ static const NumOption k_numOptions[] = {
 };
 #define NUM_OPTION_COUNT (int)(sizeof k_numOptions / sizeof k_numOptions[0])
 
+// [Fixes] Key=0|1 (src/summonerfix/bugfix.c FixOn): fixes for original-game bugs, default on, read at game start.
+#define ID_FIX0 300
+typedef struct { const char *iniKey, *label; } FixOption;
+static const FixOption k_fixes[] = {
+    {"RobeOfRestoration", "Robe of Restoration heals its wearer"},
+    {"WorldSoundVolume", "World sounds follow the volume slider"},
+    {"OpenGLTextures", "Full textures on a fresh install"},
+    {"MetalHitEffects", "Hit effects on metal golems"},
+    {"PopupRowOffset", "Popup rows light up under the cursor"},
+    {"SaveOverwriteQuestion", "Ask before overwriting a save"},
+};
+#define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
+
 static char g_ini[MAX_PATH];
 static Bindings g_b; // physical key/button -> game key/button
 static HWND g_wnd, g_list, g_status;
@@ -485,6 +498,8 @@ static void LoadOptions(void)
         GetPrivateProfileStringA("Game", k_numOptions[i].iniKey, "", v, sizeof v, g_ini);
         SetDlgItemTextA(g_wnd, k_numOptions[i].id, v);
     }
+    for (int i = 0; i < FIX_COUNT; i++)
+        CheckDlgButton(g_wnd, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void ApplyOptions(void)
@@ -500,6 +515,8 @@ static void ApplyOptions(void)
         }
         WritePrivateProfileStringA("Game", k_numOptions[i].iniKey, v, g_ini);
     }
+    for (int i = 0; i < FIX_COUNT; i++)
+        WritePrivateProfileStringA("Fixes", k_fixes[i].iniKey, IsDlgButtonChecked(g_wnd, ID_FIX0 + i) ? "1" : "0", g_ini);
     SetStatus("Options saved. The speed key mode applies at once; the others the next time the game starts.");
 }
 
@@ -566,6 +583,13 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             SendMessageA(e, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
             Label(w, k_numOptions[i].hint, 606, y + 19, 140);
         }
+        Label(w, "Bug fixes (next game start):", 770, 125, 230);
+        for (int i = 0; i < FIX_COUNT; i++) {
+            HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 770, 143 + i * 20,
+                                    230, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
+            SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        }
+        Label(w, "Off = as the original game.", 770, 147 + FIX_COUNT * 20, 230);
         Button(w, ID_APPLY, "Save &options", 540, 320, 120);
         Label(w, "Console command for a key:", 540, 372, 200);
         HWND ce = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, 390, 200, 22,
@@ -573,7 +597,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         SendMessageA(ce, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
-        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 740, 20, w, (HMENU)ID_STATUS, NULL, NULL);
+        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
         LoadConsoleKeys();
@@ -625,7 +649,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpszClassName = "SummonerFixConfig";
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     RegisterClassA(&wc);
-    RECT r = {0, 0, 760, 540};
+    RECT r = {0, 0, 1010, 540};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings and options", style, CW_USEDEFAULT, CW_USEDEFAULT,

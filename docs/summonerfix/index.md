@@ -80,6 +80,25 @@ to get the proxy loaded.
 | Alt+Tab works | `SetWindowPos` hook: the call from the game's focus-loss handler (return address `0x5310ef`) becomes `HWND_BOTTOM` + `SWP_NOACTIVATE`, and `SWP_NOACTIVATE` is added to the focus-gain call (`0x5310b7`). The F10 hotkey (`[Game] ConfigKey`) opens the key binding app, which is topmost | The game re-activated itself on losing focus, so other programs (such as `SummonerFixConfig.exe`) could not be brought forward; see [Controls](../sum-exe/controls.md#switching-away-from-the-game-alttab). Tested 2026-10-13 |
 | Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
+### Switching original-game fixes off (`[Fixes]`)
+
+Added 2026-10-17 (owner's decision). Every fix in `bugfix.c` that changes how the game plays, sounds or looks
+has a line in `summonerfix.ini [Fixes]`: 1 (the default, also when the line or the section is missing) applies the
+fix, 0 leaves the original game's behaviour. They are read when the game starts; `summonerfix.log` notes each
+one that is off. The no-sound-device crash fix is always on. `SummonerFixConfig.exe` shows them as checkboxes in a
+"Bug fixes" column (saved with **Save options**).
+
+| Key | Fix |
+|---|---|
+| `RobeOfRestoration` | The Robe of Restoration heals its wearer ([G300](../sum-exe/game-bugs.md)) |
+| `WorldSoundVolume` | World sounds follow the sound-effects slider linearly ([K260](../sum-exe/game-bugs.md)) |
+| `OpenGLTextures` | Full-detail textures on a fresh OpenGL install ([K64](../sum-exe/game-bugs.md)) |
+| `MetalHitEffects` | Hit effects on metal golems ([K20](../sum-exe/game-bugs.md)) |
+| `PopupRowOffset` | Popup rows light up under the cursor ([K170](../sum-exe/game-bugs.md)) |
+| `SaveOverwriteQuestion` | Saving on the top row of a scrolled save list asks first ([G4](../sum-exe/game-bugs.md)) |
+
+Tested 2026-10-17: with `MetalHitEffects=0` the log shows that fix off and the others applied.
+
 ## Problems found and fixed
 
 ### OpenGL: "can only be used in windowed modes for now"
