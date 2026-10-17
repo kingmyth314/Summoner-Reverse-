@@ -292,15 +292,22 @@ static void RunLine(char *line)
     } else if (!_stricmp(c, "npcgoto") && argc >= 2) {
         // npcgoto NAME: put the current character 4 units from a level script NPC (e.g. Luminar), as
         // script_object_find_character finds it. Testing only.
+        // The words after npcgoto are joined with spaces, so "npcgoto Canis the Mercenary" works.
         typedef BYTE *(__cdecl * FindChar)(const char *);
+        char name[64] = "";
+        for (int i = 1; i < argc; i++) {
+            if (i > 1)
+                strncat(name, " ", sizeof name - strlen(name) - 1);
+            strncat(name, argv[i], sizeof name - strlen(name) - 1);
+        }
         BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
-        BYTE *npc = ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(argv[1]);
+        BYTE *npc = ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(name);
         if (!ch || !npc) {
-            Out("npcgoto %s: no character or no such NPC", argv[1]);
+            Out("npcgoto %s: no character or no such NPC", name);
         } else {
             float pos[3];
             memcpy(pos, npc + 0x10, sizeof pos);
-            Out("npcgoto %s: NPC at %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
+            Out("npcgoto %s: NPC at %.2f %.2f %.2f", name, pos[0], pos[1], pos[2]);
             pos[0] += 4.0f;
             memcpy(ch + 0x10, pos, sizeof pos);
         }

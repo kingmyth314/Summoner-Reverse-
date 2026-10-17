@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 10 |
+| Gameplay | 51 | 25 | 11 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -985,7 +985,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
 | G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
-| G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code and retail data | No |
+| G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] CanisTenGold`) |
 | G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
 | G311 | Latent: a scripted "go" for a character that has not reached its "wait for go" action yet is lost, so the character can wait there for ever | `script_object_receive_go` `0x4ce220` | **Observed** code, *inferred* effect | No |
 
@@ -1692,6 +1692,12 @@ Rosalind".
 party's gold at 0 (`0x4f1255`..`0x4f1257`). The topic has no other line. The table's own
 comment after the topic ("Need to provide for the transfer of funds here.") suggests the amount was never matched up.
 Found in the `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
+
+**Reproduced 2026-10-17** (agent mode: a test save, `level Lenele2ab Lenele2ab`, `navgoto $npc002`, the topics
+Hail ... "Massacre?" with Canis, party gold set to 500 with `poke`): "Give him 10 gold pieces." left 400. **Fixed**
+in SummonerFix (`bugfix.c`, switch `[Fixes] CanisTenGold`): `sub eax, 0x64` -> `sub eax, 0x0a` at `0x4f124d`, the
+amount the topic offers; the same conversation then left 490. Which amount the designers meant is not known; the
+fix follows the text the player chooses.
 
 **G310. The leader is pushed twice.** `mp_send_local_updates` sends an OBJ_UPD for the local leader (`esi`) when its
 timer has run out (`mp_send_obj_update` at `0x47fa00`). The second block tests `cur_summon`: it must be

@@ -263,7 +263,7 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   data, hex; used to test the script editor flag), `quit`;
 - `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
   `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`),
-  `npcgoto NAME` puts it 4 units from a level script character (`script_object_find_character`, for example
+  `npcgoto NAME` puts it 4 units from a level script character (`script_object_find_character`; the name may contain spaces, for example
   `Luminar`) and prints where that character is. Testing only;
 - `level NAME SCRIPT` changes level as a level exit does (`game_change_level`, run on the game thread), for example
   `level IonaEXT02 IonaEXT02_v2`. Unlike the `play_and_load_cutscene` warp it loads the level's own script

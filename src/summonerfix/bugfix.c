@@ -93,6 +93,10 @@
 // effect: pausing a fight and pressing the save key gave "Cannot save in combat." and the fight went on once it was
 // closed. Fix ([Fixes] MessageBoxPause): the game_pause call notes whether the game was running, and the
 // game_unpause call is skipped when the box did not pause it.
+//
+// "Give him 10 gold pieces." takes 100 (not a crash; game-bugs G301). In occupied Lenele (Lenele2ab) the topic
+// triggers "payoff", and ls_lenele2ab_action subtracts 100 from party_gold (sub eax, 0x64 at 0x4f124d), clamped at
+// 0. Fix ([Fixes] CanisTenGold): sub eax, 10, the amount the topic offers.
 #include "summonerfix.h"
 #include <string.h>
 
@@ -120,7 +124,8 @@
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
-#define VA_BOX_PAUSE_CALL 0x413f96u         // call game_pause in ui_message_box_show
+#define VA_CANIS_PAYOFF_SUB 0x4f124du       // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
+#define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
 #define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
 #define VA_GAME_IS_PAUSED 0x432da0u
 #define VA_GAME_PAUSE 0x432660u
@@ -384,6 +389,11 @@ void BugFixesInstall(void)
             memcpy(r + 1, &rn, 4);
             PatchBytes(calls[i].va, o, r, 5, "message box unpauses only what it paused (G170)");
         }
+    }
+
+    if (FixOn("CanisTenGold")) {
+        static const BYTE o[3] = {0x83, 0xE8, 0x64}, r[3] = {0x83, 0xE8, 0x0A}; // sub eax, 100 -> sub eax, 10
+        PatchBytes(VA_CANIS_PAYOFF_SUB, o, r, 3, "Canis's payoff takes 10 gold, as offered (G301)");
     }
 
     if (FixOn("PhoenixInferno")) {

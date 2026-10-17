@@ -81,6 +81,7 @@ static const FixOption k_fixes[] = {
     {"SpellRecoveryTimes", "Spell cooldowns from spells.tbl"},
     {"GoldPileAmount", "Gold piles keep their amount on load"},
     {"MessageBoxPause", "Warnings keep the game paused"},
+    {"CanisTenGold", "Canis takes 10 gold, as offered"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
