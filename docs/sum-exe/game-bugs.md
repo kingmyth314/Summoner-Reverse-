@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 359 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 358 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 82 | 4 |
+| Crash or hang | 6 | 82 | 4 |
 | Gameplay | 51 | 25 | 12 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
@@ -108,7 +108,6 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C260 | Latent: with all 400 lights in use, a new point or spot light is written over the end of the light selection table; if it was one of the inventory model's lights, closing that screen can crash in `light_delete` | `light_create_point` `0x51e290`, `light_create_spot` `0x51e3f0`, `light_alloc` `0x51e380` | **Observed** code and retail data, *inferred* crash | No |
 | C261 | Latent: a list box entry that wraps into more than 20 lines overwrites the list box line tables and, from line 22, the UI manager's mouse flags; the next draw copies the first line with a pointer as its length and crashes | `ui_listbox_entry__wrap_text` `0x52ca60`, `ui_listbox__draw` `0x52f080` | **Observed** code, *inferred* crash | No |
 | C262 | Latent: a cutscene camera rotation key of (0, 0, 0, 0) divides by zero when the camera tangents are built; a key whose packed length is above one unit makes them zero | `cquat__normalized` `0x523050`, `cquat_log_of_delta` `0x523c60`, `anim_track__calc_rot_tangents` `0x5506e0` | **Observed** code and retail data, *inferred* effect | No |
-| C270 | In a fight where more than ten fireball, wall of fire, Pyrul fireball, blizzard or dark wall areas burn at the same time, the effect update overwrites its own saved registers and, from the fifteenth area, its return address (a crash) | `fx_frame` `0x48a230` | **Observed** code, *inferred* crash; not reproduced, and whether a retail fight reaches eleven areas was not measured | No |
 | C271 | Latent: a level or cutscene that creates a sixth world effect whose name contains "sky" writes past the five-entry sky list; the frame then draws a pointer built from the effect counter (a likely crash) | `fx_create_world` `0x48cea0`, `levelrender_render_scene` `0x482200` | **Observed** code and retail data, *inferred* effect | No |
 | C272 | Latent: in the Masad combat tutorial, the "part 2" step (after the Orenian Scout is defeated) crashes if an arrow is in flight, a spell area is burning or any character's status effect holder exists at that moment; the level-start callers crash the same way if such an effect already exists | `fx_disable_by_effect_name` `0x48d660`, `tutorial_cond_combat_part2` `0x42ead0` | **Observed** code and retail data, *inferred* crash | No |
 | C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
@@ -749,18 +748,6 @@ squad inner quaternions. Only cutscene camera tracks reach it: `cutscene_camera_
 `.mvf` files are version 5 or 8. The 1,744 rotation keys of the 94 retail `.csc` files pack to a squared length of
 at most 0x3fff squared (exactly that for the identity keys), and none is zero, so the division never fails and never
 yields 0. `cquat__normalize` (`0x5232b0`, same `idiv` at `0x5232f7`) has no caller.
-
-**C270. No bound on the area list.** In its first pass `fx_frame` collects every effect object whose spell
-(`+0xa8`) is 0x1a, 0x1d, 0x1f, 0x23 or 0x4e (fireball, wall of fire, dark wall, blizzard, Pyrul fireball; case
-table `0x48b64c`) and that owns an avoidance area (`+0x100` != -1) into a stack array at `esp+0x230`
-(`mov [esp + 4*eax + 0x230], ebp; inc eax` at `0x48a40a`..`0x48a416`). There is no compare. The array has room
-for ten entries (`esp+0x230`..`0x257`); the eleventh lands on the saved `edi`, the next three on `esi`, `ebp` and
-`ebx`, the fifteenth on the return address (`0x268`) and the sixteenth on the frame time argument. The areas
-come from wall of fire (`spell_place_ground_effect` `0x47e100`), blizzard (`spell_spawn_hit_fx` `0x47e590`) and
-every fireball hit on a character (`living_entity_get_hit_by_spell` `0x45efe7`..`0x45f022` ->
-`spell_effect_obj_set_timer` `0x47e4d0`, kind 7). The effect pool holds 48 objects (`fx_alloc` `0x489cf9`), so
-up to 48 can be listed. *Inferred:* several casters with wall of fire or fireball (party AI, Fire Imps, Pyrul)
-can reach eleven in a long fight; how long each area lives (its vfx length) was not measured.
 
 **C271. No bound on the sky list.** `fx_create_world` stores every effect whose name contains "sky"
 (`stristr` at `0x48cef3`) at `fx_sky_list[fx_num_sky++]` (`0x48ceff`..`0x48cf33`). The list has five entries
@@ -1649,7 +1636,7 @@ AI target (`mov [esi + 0x60], ecx` at `0x4c9f9f`). After the teleport the beam t
 None.
 
 **G270. `break` instead of `continue`.** For each living character, the second pass walks the collected areas
-(C270). When the area's caster no longer resolves (`living_from_handle` of `+0xb0`), the loop ends
+(the list of at most seven areas, see C270 under "Claims that did not hold"). When the area's caster no longer resolves (`living_from_handle` of `+0xb0`), the loop ends
 (`test ebx, ebx; je 0x48b5a1` at `0x48b408`) instead of going to the next area (`0x48b581`). The code after the
 loop then cures status 14 (firewall), 15 (blizzard) and 17 (dark wall) unless an area of that kind was seen
 (`0x48b5a1`..`0x48b5db`). So one area whose caster is gone switches off all areas after it in the effect list
@@ -3475,6 +3462,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | Invisibility lasts 11 s instead of 10 because of the parser | `src/decomp/game/NOTES-spells-combat.md`, `spells.cpp` comment at `status_effect_duration` | `+Loop Time:` sets status 8's tick period (`0x454b29`..`0x454b3a`), not its length, and status 8 has no tick action. The real effect of the parser slip is on cooldowns (G12) |
 | After a container close the other machines keep the taken items and never delete an emptied container | `src/decomp/game/NOTES-multi.md` bug 1 | `container_remove_item` decrements the count even on a miss, so the last entries go and an emptied container is deleted (G14) |
 | Life leech is `0x450c70` with -0.1 / 0.1 of the damage | [Combat](combat.md) | `0x450c70` is `character_add_ap`, used by mind drain; life leech heals with `character_add_hp` (corrected on the page) |
+| C270 (withdrawn 2026-10-17): more than ten burning fireball, wall of fire, dark wall, blizzard or Pyrul fireball areas overflow `fx_frame`'s ten-entry stack list (`mov [esp+4*eax+0x230], ebp` at `0x48a40e`, no compare) and crash | This page, then [Bug fix priorities](bug-priorities.md) rank 11 | The list takes only effects that own an avoidance area (`+0x100` != -1). `avoid_area_add` (`0x4a9b40`) gives each area two of the 14 avoidance obstacles (`AVOID_NUM_OBSTACLES`, `avoid_add_primitive` twice) and frees an area that got none, so at most seven areas exist at once (fewer when other obstacles are in use). Tested in agent mode: `firewall 16` placed 16 walls of fire, and the area pool held 7 used areas with obstacles 0..13; the game ran on. The missing bound is real but cannot be reached |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -3942,7 +3930,6 @@ the tables above; the rest are below.
 - Game flag 8 widening the Luminar's teleport and grab candidates to every living entity (the boss included, `0x4c9dcb`): what sets flag 8 is not known.
 - L10 `vfx_node_create_light` passes the size channel as a raw int16 (8.8 fixed, `fild` at `0x51fc51`) as the range (`attached_light_create` `+0x50`), 256 times too large; `vfx_node_update_light` overwrites `+0x50` with `fixed8_to_float` of the sampled value (`0x51fd45`..`0x51fd4d`). Whether any frame renders an effect light between `vfx_instance_init_nodes` and its first `vfx_instance_process` (`0x53717b`) was not traced, so whether a one-frame light flash is visible is unknown.
 - L11 `character_instance__render` returns with its instance still set through `ca_render_set_instance` when bit 0 of the parameter byte is set (`test al, 0x1; jne` at `0x520462`). Who sets that bit (callers `inventory_render_character` `0x41807d`, `status_draw_model` `0x42ccab`, `levelrender_draw_list` `0x4860ad`) and whether anything reads the stale `0x268298c` / `0x2682990` before the next set was not traced.
-- C270: how long a fireball, wall of fire or blizzard area lives (the vfx length decides how many can burn at once); a test with several fire casters would settle whether the crash is live.
 - K270: what the Ghost Rider's attachment list (`+0x728`) holds in Ghost-Escape / Ghost-Dismount, so whether the drawn props are visibly wrong.
 - K274: whether any retail cutscene shows floating text.
 - C274: whether a loaded save can restore containers before `level_items_parse_table` places the level items.
@@ -4276,7 +4263,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V263 dead light helpers | `lights_debug_draw` `0x51fa84`..`0x51fab2`; `lights_calc_point_specular_color` `0x51f69d`, `0x51f701`; `vfx_all_resident` `0x51dcbf`..`0x51dcce`; no reference to `0x51fa70`, `0x51f560`, `0x51dcb0` |
 | V264 dirty flag | `ui_listbox_entry__set_font` `0x52d5a4`; `ui_listbox_entry__ui_listbox_entry` `0x52d55c`; `ui_listbox__relayout_dirty` `0x52cf2a`..`0x52cf66`; `ui_listbox__process` `0x52d09a`; `ui_listbox__draw` `0x52f098`; `script_editor_create_ui` `0x4e10c2` |
 | V265 unreachable UI slips | `ui_listbox__set_tooltip` `0x52d7f6`..`0x52d812`; `ui_parse_listbox` `0x529b36`, `0x529b58`, `0x529d15`; `ui_state_bitmap__draw` `0x52ca00`..`0x52ca0d`; `ui_listbox__remove_entry` `0x52ddab`, `0x52ddba`; `ui_listbox__add_entry` `0x52db57`, `0x52dbbd`; `ui_listbox__sync_scrollbars` `0x52d03f`..`0x52d062`; `ui_process` `0x530587`..`0x530652`; `ui_listbox__process` `0x52d108`..`0x52d13d`; `ui_init` `0x52f7a5` |
-| C270 area list | `fx_frame` `0x48a3e4`..`0x48a416`, case table `0x48b644` / `0x48b64c`; `living_entity_get_hit_by_spell` `0x45efe7`..`0x45f022`; `spell_effect_obj_set_timer` `0x47e4f3`..`0x47e583`; `spell_spawn_hit_fx` `0x47e5f6`, `0x47e66b`; `fx_alloc` `0x489cf9` |
 | C271 sky list | `fx_create_world` `0x48ced2`..`0x48cf33`; `fx_sky_list_clear` `0x48a1a0`..`0x48a1bb`; `levelrender_render_scene` `0x482429`, `0x48243a`; `fx_alloc` `0x489d01`; `pxo_login_request` `0x48d938` |
 | C272 effect name search | `fx_disable_by_effect_name` `0x48d674`..`0x48d691`; `fx_new` `0x48c41b`; `fx_create_missile` `0x48c2bf`; `tutorial_cond_combat_part2` `0x42eb43`..`0x42ebe2`; `character_update_status_effects` `0x45bee8` |
 | C273 spell record | `fx_frame` `0x48a925`..`0x48a92d`, `0x48abcf`..`0x48ac03`, `0x48ae06`..`0x48aeb9`, `0x48af99`..`0x48afcd`, jump table `0x48b600`; `spell_effect_add` `0x47f660`..`0x47f667`; `spell_effect_alloc` `0x47f694`..`0x47f6aa`; `boss_counter_hit_dispatch` `0x4a2293`..`0x4a22ab`; `fx_obj_destroy` `0x489dda` |

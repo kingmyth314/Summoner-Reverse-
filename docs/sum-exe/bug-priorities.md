@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301 and C210 with G212 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); each can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`).
+**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301 and C210 with G212 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270 was withdrawn instead (it cannot happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method
@@ -80,7 +80,7 @@ for those the fix also needs a decision on what the game should do.
 | 8 | G170 | A "Cannot save" warning shown while paused unpauses the game when closed | 3 | 5 | Pause in a fight, press the save key, close the warning | small | 15 |
 | 9 | G301 | Giving Canis "10 gold" in occupied Lenele takes 100 | 3 | 4 | Warp to Lenele2ab, take the payoff topic, compare gold | tiny | 12 |
 | 10 | C210 | AI healer counts some Bless candidates twice and writes past its 6-entry list into saved registers and the return address | 4 | 3 | Fight with Rosalind on AI, no Protect, four hurt unblessed members (`poke` HP); `immortal` off, watch for the crash | small | 12 |
-| 11 | C270 | More than ten burning fire, blizzard or dark wall areas overflow a stack array in the effect update: crash from the 15th | 4 | 3 | Party casters with `max_skills`, cast fireball / wall of fire repeatedly in one fight; count areas with `peek` | small | 12 |
+| 11 | C270 | **Withdrawn 2026-10-17: cannot happen** (at most seven areas exist; see game-bugs, "Claims that did not hold"). Was: More than ten burning fire, blizzard or dark wall areas overflow a stack array in the effect update: crash from the 15th | 4 | 3 | Party casters with `max_skills`, cast fireball / wall of fire repeatedly in one fight; count areas with `peek` | small | 12 |
 | 12 | G100 | The "leech" special ability (Blood Elemental, Crystal Rokhul, Joseph's Wraith) does nothing to HP in single player | 3 | 4 | Summon the Wraith (skills via `savedit.mjs`), fight, log HP | small | 12 |
 | 13 | G50 | After a reload or second visit, the Khosani lab flipper board no longer matches the raised flippers | 4 | 3 | Warp to KhosaniLab, raise flippers, save and load, try the crossing | medium | 12 |
 | 14 | G30 | Boss `$Offense point:` tag names parse as -1, so several boss attacks aim from near the world origin and rarely land | 3 | 4 | Warp to a boss (Pyrul, Machival, Giant Salamanka), boss `_stage` command, watch slash / breath hits | medium | 12 |
@@ -412,7 +412,7 @@ for those the fix also needs a decision on what the game should do.
 8. **G170**: a fight the player paused starts again behind a warning box, so the player can die without input.
 9. **G301**: a dialogue choice takes ten times the gold it names; a one-byte constant.
 10. **C210**: a live crash in hard fights with Rosalind on AI; the same doubled count causes G212, so one fix covers both.
-11. **C270**: a stack overflow in fire-heavy fights; a bound check in `fx_frame` removes a crash path.
+11. **C270**: withdrawn 2026-10-17. The avoidance pool allows at most seven areas, so the ten-entry list cannot overflow.
 12. **G100**: Joseph's Wraith summon and two monsters have a special ability that does nothing; settle what "leech" should do.
 13. **G50**: the Khosani lab puzzle can fall out of step with its flippers after a load, which may block a story crossing.
 14. **G30**: most boss offense-point attacks rarely land, so several boss fights are easier than designed; fixing it makes them harder, so test balance with it.

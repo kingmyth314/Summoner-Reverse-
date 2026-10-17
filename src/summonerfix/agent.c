@@ -140,6 +140,33 @@ static void GoldPileOnGameThread(void *unused)
     Log("agent: goldpile %d at %.2f %.2f %.2f: object %p", g_goldAmount, pos[0], pos[1], pos[2], obj);
 }
 
+// N wall of fire areas (spell 0x1d) in a row 3 units apart, starting 6 units beside the current character, cast
+// by it, as spell_cast_execute places them (game-bugs C270: fx_frame lists burning areas without a bound).
+#define VA_SPELL_PLACE_GROUND_EFFECT 0x47e100u // cdecl (spell, caster handle, pos, layer, orient) -> fx handle
+static volatile int g_fireWalls;
+
+static void FireWallsOnGameThread(void *unused)
+{
+    (void)unused;
+    static const float ident[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!ch) {
+        Log("agent: firewall: no character");
+        return;
+    }
+    int made = 0;
+    for (int i = 0; i < g_fireWalls; i++) {
+        float pos[3];
+        memcpy(pos, ch + 0x10, sizeof pos);
+        pos[0] += 6.0f + 3.0f * (float)i;
+        int h = ((int(__cdecl *)(int, int, const float *, int, const float *))(UINT_PTR)SumVa(VA_SPELL_PLACE_GROUND_EFFECT))(
+            0x1d, *(int *)(ch + 0x80), pos, *(int *)(ch + 0x68c), ident);
+        if (h != -1)
+            made++;
+    }
+    Log("agent: firewall: %d of %d areas placed", made, g_fireWalls);
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -319,6 +346,10 @@ static void RunLine(char *line)
         lstrcpynA(g_level, argv[1], sizeof g_level);
         lstrcpynA(g_script, argv[2], sizeof g_script);
         Out("level %s %s: %s", argv[1], argv[2], KeysAgentRun(ChangeLevelOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "firewall") && argc >= 2) {
+        // firewall N: N wall of fire areas beside the current character (game thread; result in the log).
+        g_fireWalls = atoi(argv[1]);
+        Out("firewall %d: %s", g_fireWalls, KeysAgentRun(FireWallsOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "goldpile") && argc >= 2) {
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);

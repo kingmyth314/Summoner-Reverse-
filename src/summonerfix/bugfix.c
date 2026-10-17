@@ -132,7 +132,7 @@
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
-#define VA_AI_BLESS_COUNT_INC 0x49395cu     // the first inc ebx in ai_group_think_caster's Bless pass
+#define VA_AI_BLESS_COUNT_INC 0x49395cu    // the first inc ebx in ai_group_think_caster's Bless pass
 #define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
 #define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
 #define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
