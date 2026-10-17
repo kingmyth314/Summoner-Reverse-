@@ -26,8 +26,8 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 7 | 82 | 3 |
-| Gameplay | 51 | 25 | 11 |
+| Crash or hang | 7 | 82 | 4 |
+| Gameplay | 51 | 25 | 12 |
 | Cosmetic | 58 | 36 | 7 |
 | Invisible | 42 | 58 | 0 |
 
@@ -92,7 +92,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C201 | Latent: in multiplayer, one forged packet of type 0x42 crashes the receiving machine whoever sends it, and one of type 0x40 (DMY_PCK) from a machine in the game does the same; the game's own senders never use either type | `multi_process_packet` `0x441820` | **Observed** code and data, *inferred* crash | No |
 | C202 | Latent: entering the multiplayer game list or lobby when the chosen character's `.plr` file can no longer be read writes through a NULL pointer and crashes | `mp_local_player_create` `0x441760`; lobby connect step in `state_mp_lobby_frame` `0x43f080` | **Observed** code, *inferred* crash | No |
 | C203 | Latent: the `load_mlayout` console command creates every monster of the layout with character type -1 (the map name looked up as a character type), so the memory before `char_infos` is used as its type. No console in v1.40: only a patch or a `.vcs` script can run it | `monster_layout_load` `0x43fe00` | **Observed** code, *inferred* effect | No |
-| C210 | In a hard fight, an AI-controlled Healer or Healer/Caster party member (Rosalind by default) who can cast Bless but not Protect can crash the game when four or five party members are unblessed and hurt or under attack: its candidate count runs past its six-entry list and overwrites the caller's saved registers and return address | `ai_group_think_caster` `0x4936c0`, `ai_group_combat_think` `0x492db0`, `ai_groups_frame` `0x492d30` | **Observed** code, *inferred* crash | No |
+| C210 | In a hard fight, an AI-controlled Healer or Healer/Caster party member (Rosalind by default) who can cast Bless but not Protect can crash the game when four or five party members are unblessed and hurt or under attack: its candidate count runs past its six-entry list and overwrites the caller's saved registers and return address | `ai_group_think_caster` `0x4936c0`, `ai_group_combat_think` `0x492db0`, `ai_groups_frame` `0x492d30` | **Observed** code; the doubled count seen in game (2026-10-17), the crash not | Fixed (`bugfix.c`, `[Fixes] AiBlessCount`) |
 | C211 | Latent: a cutscene whose camera files hold more than 250 position keys or 250 rotation keys in all overwrites the next key pool, and past the last pool the snow state (largest retail: Machival-Death, 179 rotation keys) | `cutscene_camera_read_track` `0x493fd0` | **Observed** code and retail data, *inferred* effect | No |
 | C230 | Latent: a monster or party member that has a cast-at-target order waiting behind another order crashes the game when that order's target no longer exists while a level cutscene script runs | `ai_goal_evaluate` `0x475830` | **Observed** code, *inferred* crash | No |
 | C231 | Latent: a door with five or more navigation edges loses its fifth edge when the level's door floor points are restored, and one with 36 or more overwrites the return address of `door_find_floor_point` (a crash) | `door_find_floor_point` `0x476ab0` | **Observed** code, *inferred* effect; retail navigation data not counted | No |
@@ -594,6 +594,15 @@ attacked themselves, have more than 25 % AP and got no spell from `ai_choose_sup
 Healer/Caster by default ([Party](party.md#combat-behaviour)). *Inferred:* the crash (or heap write) in game; not
 reproduced. G212 is the everyday side of the same count.
 
+**Seen in game 2026-10-17** (agent mode: a test save with Rosalind's holy skill set to 20 with `savedit.mjs`, so
+Bless but not Protect; the Luminar fight with Joseph leading; `[Debug] TraceBlessCount=1` logs the count where it is
+first used, and the test switch `[Debug] BlessPassAlways=1` lowers the 3x attack-rating threshold to 0, because the
+Luminar alone does not reach it against this party): in two fights the pass logged a candidate count of 5 for 4
+members, which only the double count can give. The crash itself (7 or more) was not reached; the party died first.
+**Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] AiBlessCount`): the first `inc ebx` (`0x49395c`) becomes a
+`nop`, so a member counts once, when its score is above 0, and the count cannot pass the number of members. With the
+fix the same fight logged 1 for 4 members. This also fixes G212.
+
 **C211. Camera key pools without a bound.** `cutscene_camera_read_track` takes each shot's keys from four pools
 that `cutscene_camera_tracks_clear` (`0x494680`, called by `cutscene_load_files` at `0x434ba8`) empties once per
 cutscene: 250 position keys of 0x28 bytes (`cutscene_cam_keys40` `0x243e3e8`, count `0x243e3dc`), 250 rotation
@@ -957,7 +966,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G182 | Latent: in multiplayer, when the first IAMHERE send of a join fails, the link is cleared but the joining machine carries on as connected | `nw_ConnectToServer` `0x518f30`, `mp_handle_acpt_jn` `0x470a80` | **Observed** code, *inferred* effect | No |
 | G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code and retail data, *inferred* effect | No |
 | G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code, *inferred* effect | No |
-| G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code, *inferred* effect | No |
+| G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code; the doubled count seen in game (2026-10-17) | Fixed with C210 (`[Fixes] AiBlessCount`) |
 | G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
 | G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
 | G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] PhoenixInferno`) |
@@ -1434,7 +1443,8 @@ while it has a living target). Species 2 (Flece) gets style 1 by default (`livin
 **G212. Protect at two.** [notes 4] The doubled count of C210 also decides the group spell: `cmp ebx, 2; jle` at
 `0x4939c5`. One member that is not blessed and hurt (or attacked) already gives 2; two such members, or one plus
 one unhurt, give 3 or more, and the healer casts Protect (`0x15`) instead of Bless on one member. *Inferred:* the
-test was meant as "more than two members".
+test was meant as "more than two members". Fixed together with C210 (`[Fixes] AiBlessCount`): with each member
+counted once, Protect needs three members that need it. Protect itself was not watched in game after the fix.
 
 **G213. An index that is a flag.** [notes 7] In stage 1, on the normal-attack path, a target re-pick by
 `boss_target_list_pick` is followed by `boss_target_list_find_b` for the new index (`0x496678`) and then

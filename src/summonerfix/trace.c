@@ -198,11 +198,60 @@ static void LuminarTestInstall(void)
         Log("LuminarBeamTargetGone: beam frame counter at %p", (void *)&g_luminarBeamFrames);
 }
 
+// Testing only ([Debug] TraceBlessCount=1, game-bugs C210 / G212): logs the Bless candidate count (ebx) of
+// ai_group_think_caster's second pass where it is first used (mov eax, [esp+0x2c] ; test eax, eax at 0x4939bd,
+// reached when the count is above 0) next to the number of group members (ai_think_num_members). The list holds
+// six records; a count above six writes past it.
+#define VA_BLESS_COUNT_USE 0x4939bdu
+#define VA_AI_THINK_NUM_MEMBERS 0x243e3bcu
+__attribute__((used)) static void __cdecl TraceBlessCount(int count)
+{
+    int members = *(volatile int *)(UINT_PTR)SumVa(VA_AI_THINK_NUM_MEMBERS);
+    Log("trace bless: candidate count %d, %d members%s", count, members, count > 6 ? " (past the 6-entry list)" : "");
+}
+void TraceBlessCountStub(void);
+__asm__(".text\n"
+        "_TraceBlessCountStub:\n"
+        "    pushal\n"
+        "    pushl %ebx\n"
+        "    call _TraceBlessCount\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    movl 0x30(%esp), %eax\n" // the caller's [esp+0x2c] (our return address is on top)
+        "    testl %eax, %eax\n"
+        "    ret\n");
+
+// Testing only ([Debug] BlessPassAlways=1): the second pass needs the enemies' summed attack rating above three times
+// the group's (fcomp [0x57ef1c] = 3.0 at 0x4938cf); this points the compare at 0.0, so the pass runs in any fight
+// where the first pass chose no spell.
+#define VA_BLESS_PASS_THRESHOLD 0x4938cfu
+static const float g_zeroThreshold = 0.0f;
+
+static void TraceBlessInstall(void)
+{
+    if (GetPrivateProfileIntA("Debug", "BlessPassAlways", 0, g_cfg.iniPath)) {
+        static const BYTE to[6] = {0xD8, 0x1D, 0x1C, 0xEF, 0x57, 0x00}; // fcomp dword [0x57ef1c]
+        BYTE tr[6] = {0xD8, 0x1D};
+        DWORD a = (DWORD)(UINT_PTR)&g_zeroThreshold;
+        memcpy(tr + 2, &a, 4);
+        PatchBytes(VA_BLESS_PASS_THRESHOLD, to, tr, 6, "test: AI Bless pass in every fight (BlessPassAlways)");
+    }
+    if (!GetPrivateProfileIntA("Debug", "TraceBlessCount", 0, g_cfg.iniPath))
+        return;
+    static const BYTE o[6] = {0x8B, 0x44, 0x24, 0x2C, 0x85, 0xC0};
+    BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+    DWORD s = SumVa(VA_BLESS_COUNT_USE);
+    DWORD rel = (DWORD)(UINT_PTR)TraceBlessCountStub - (s + 5);
+    memcpy(r + 1, &rel, 4);
+    PatchBytes(VA_BLESS_COUNT_USE, o, r, 6, "trace AI Bless candidate count (TraceBlessCount)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
     LuminarTestInstall();
     TraceInfernoInstall();
+    TraceBlessInstall();
     if (!GetPrivateProfileIntA("Debug", "TraceArmourSpells", 0, g_cfg.iniPath))
         return;
     g_spellCastExecute = SumVa(VA_SPELL_CAST_EXECUTE);

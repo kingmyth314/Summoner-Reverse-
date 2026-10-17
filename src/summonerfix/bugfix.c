@@ -97,6 +97,14 @@
 // "Give him 10 gold pieces." takes 100 (not a crash; game-bugs G301). In occupied Lenele (Lenele2ab) the topic
 // triggers "payoff", and ls_lenele2ab_action subtracts 100 from party_gold (sub eax, 0x64 at 0x4f124d), clamped at
 // 0. Fix ([Fixes] CanisTenGold): sub eax, 10, the amount the topic offers.
+//
+// AI healer's Bless candidates counted twice (game-bugs C210, and G212 its everyday side). ai_group_think_caster's
+// second pass increments its candidate count once for every unblessed member (inc ebx at 0x49395c) and again when
+// that member's score is above 0 (0x493988). The count then indexes a six-record list on the stack: past six it
+// overwrites the function's argument, ai_group_combat_think's saved ebp and its return address; at three or more it
+// casts Protect, so two needy members were enough. Seen 2026-10-17 with [Debug] TraceBlessCount: count 5 with 4
+// members. Fix ([Fixes] AiBlessCount): the first inc becomes a nop, so each member with a positive score counts once
+// and the count stays within the members (at most six records).
 #include "summonerfix.h"
 #include <string.h>
 
@@ -124,7 +132,8 @@
 #define VA_PARTY_LEADER 0x5fcc80u           // Player *party_leader
 #define VA_GAME_FLAGS 0x5fbfd8u             // bit 0x1 = single player
 #define VA_GOLD_PILE_SPAWN_AMOUNT 0x4d33beu // lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects
-#define VA_CANIS_PAYOFF_SUB 0x4f124du       // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
+#define VA_AI_BLESS_COUNT_INC 0x49395cu     // the first inc ebx in ai_group_think_caster's Bless pass
+#define VA_CANIS_PAYOFF_SUB 0x4f124du      // sub eax, 0x64 (party_gold) in ls_lenele2ab_action "payoff"
 #define VA_BOX_PAUSE_CALL 0x413f96u        // call game_pause in ui_message_box_show
 #define VA_BOX_UNPAUSE_CALL 0x414034u       // call game_unpause in ClearFrameFlag5bd504
 #define VA_GAME_IS_PAUSED 0x432da0u
@@ -394,6 +403,11 @@ void BugFixesInstall(void)
     if (FixOn("CanisTenGold")) {
         static const BYTE o[3] = {0x83, 0xE8, 0x64}, r[3] = {0x83, 0xE8, 0x0A}; // sub eax, 100 -> sub eax, 10
         PatchBytes(VA_CANIS_PAYOFF_SUB, o, r, 3, "Canis's payoff takes 10 gold, as offered (G301)");
+    }
+
+    if (FixOn("AiBlessCount")) {
+        static const BYTE o[1] = {0x43}, r[1] = {0x90}; // inc ebx -> nop
+        PatchBytes(VA_AI_BLESS_COUNT_INC, o, r, 1, "AI Bless candidates counted once (C210, G212)");
     }
 
     if (FixOn("PhoenixInferno")) {
