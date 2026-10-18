@@ -565,7 +565,10 @@ static HWND Button(HWND parent, int id, const char *text, int x, int y, int w)
 }
 
 // The "Choose fixes" window: one checkbox per [Fixes] key, saved with its own Save button.
-#define FIX_WND_W 330
+// Two columns of check boxes, filled top to bottom.
+#define FIX_COL_W 300
+#define FIX_ROWS ((FIX_COUNT + 1) / 2)
+#define FIX_WND_W (2 * FIX_COL_W + 20)
 static LRESULT CALLBACK FixWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
     (void)lp;
@@ -574,12 +577,12 @@ static LRESULT CALLBACK FixWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Label(w, "Fixes for bugs in the original game. Unticked = as the", 10, 10, FIX_WND_W - 20);
         Label(w, "original game. Read when the game starts.", 10, 26, FIX_WND_W - 20);
         for (int i = 0; i < FIX_COUNT; i++) {
-            HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, 50 + i * 20,
-                                    FIX_WND_W - 20, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
+            HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
+                                    10 + (i / FIX_ROWS) * FIX_COL_W, 50 + (i % FIX_ROWS) * 20, FIX_COL_W - 10, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
             SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
             CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
         }
-        int y = 56 + FIX_COUNT * 20;
+        int y = 56 + FIX_ROWS * 20;
         if (!IsDlgButtonChecked(g_wnd, ID_FIXALL))
             Label(w, "\"Fix bugs in the original game\" is off: none apply.", 10, y, FIX_WND_W - 20);
         Button(w, ID_FIXSAVE, "&Save", 10, y + 22, 100);
@@ -609,7 +612,7 @@ static void OpenFixWindow(void)
         SetForegroundWindow(g_fixWnd);
         return;
     }
-    RECT r = {0, 0, FIX_WND_W, 56 + FIX_COUNT * 20 + 60};
+    RECT r = {0, 0, FIX_WND_W, 56 + FIX_ROWS * 20 + 60};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
     AdjustWindowRect(&r, style, FALSE);
     RECT m;
