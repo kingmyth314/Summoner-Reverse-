@@ -136,6 +136,12 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
+// Shop category buttons in sell mode jump to the wrong row (cosmetic; game-bugs K3). The sell list shows the party's
+// items that the shop buys (buysell_get_list_item), but buysell_category_first_index's sell branch (0x404f98) returns
+// the index of the first item of the category in the shop's buy list, and enables the button when the shop buys
+// that category at all. Fix ([Fixes] ShopCategoryButtons): the branch jumps to a stub that returns the first row of
+// the shown list in that category (item_type_shop_category of each row's item), or -1.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -205,7 +211,10 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_MAP_LABEL_FULL 0x430245u         // xor eax, eax ; ret (+ nop) in automap_label_alloc
+#define VA_BUYSELL_SELL_CATEGORY 0x404f98u  // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
+#define VA_BUYSELL_GET_LIST_ITEM 0x404960u  // cdecl (row) -> shop_item * of the shown list, NULL past the end
+#define VA_ITEM_TYPE_SHOP_CATEGORY 0x46b5f0u // cdecl (item type index) -> 0 weapons .. 4 misc
+#define VA_MAP_LABEL_FULL 0x430245u        // xor eax, eax ; ret (+ nop) in automap_label_alloc
 #define VA_CAN_USE_SUMMON_60K 0x447390u    // jle after cmp eax, 60000 in character_can_use_summon
 #define VA_SUMMON_UNLOCK_60K 0x45023au      // jle after cmp [new total], 60000 in ring_check_summon_unlock
 #define VA_LIANGSHAN_PRESET 0x4f49beu      // mov byte [ls_liangshan_phoenix_dead_done], 1 in ls_liangshan_init
@@ -291,6 +300,33 @@ __asm__(".text\n"
         "    movl _g_saveScrollPos, %ecx\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
+        "    ret\n");
+
+// The first row of the shop's sell list whose item is in category cat, or -1 (K3).
+__attribute__((used)) static int __cdecl SellCategoryFirstRow(int cat)
+{
+    typedef const int *(__cdecl * GetListItem)(int);
+    typedef int(__cdecl * ShopCategory)(int);
+    GetListItem item = (GetListItem)(UINT_PTR)SumVa(VA_BUYSELL_GET_LIST_ITEM);
+    ShopCategory category = (ShopCategory)(UINT_PTR)SumVa(VA_ITEM_TYPE_SHOP_CATEGORY);
+    for (int row = 0; row < 0x209; row++) {
+        const int *e = item(row);
+        if (!e)
+            break;
+        if (category(e[0]) == cat)
+            return row;
+    }
+    return -1;
+}
+// Entered by jmp at buysell_category_first_index's sell branch (esi and edi pushed, the category at [esp+0xc]).
+void SellCategoryStub(void);
+__asm__(".text\n"
+        "_SellCategoryStub:\n"
+        "    pushl 0xc(%esp)\n"
+        "    call _SellCategoryFirstRow\n"
+        "    addl $4, %esp\n"
+        "    popl %edi\n"
+        "    popl %esi\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -701,6 +737,15 @@ void BugFixesInstall(void)
     if (FixOn("MapLabelLimit")) {
         static const BYTE o[4] = {0x33, 0xC0, 0xC3, 0x90}, r[4] = {0x83, 0xC8, 0xFF, 0xC3}; // xor eax,eax; ret -> or eax,-1; ret
         PatchBytes(VA_MAP_LABEL_FULL, o, r, 4, "a 33rd map label is refused, not written over the first (K6)");
+    }
+
+    if (FixOn("ShopCategoryButtons")) {
+        static const BYTE o[5] = {0xA1, 0x00, 0x64, 0x5B, 0x00}; // mov eax, [buysell_list_count]
+        BYTE r[5] = {0xE9};
+        DWORD s = SumVa(VA_BUYSELL_SELL_CATEGORY);
+        DWORD rel = (DWORD)(UINT_PTR)SellCategoryStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_BUYSELL_SELL_CATEGORY, o, r, 5, "shop sell list category buttons use the shown rows (K3)");
     }
 
     if (FixOn("PhoenixInferno")) {

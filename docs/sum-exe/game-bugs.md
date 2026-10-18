@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 13 |
+| Cosmetic | 58 | 36 | 14 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1737,7 +1737,7 @@ retail script sends a go that early was not checked. D8602.
 |---|---|---|---|---|
 | K1 | A hot button used with a number key lights up for one frame instead of 100 ms | `hud_frame` `0x40cf40` | **Observed** code | No |
 | K2 | In the multiplayer character screen, the info panel's up arrow scrolls down | `mp_charselect_button_action` `0x4074e0` | **Observed** code | No |
-| K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code | No |
+| K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ShopCategoryButtons`) |
 | K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code | No |
 | K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
 | K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MapLabelLimit`) |
@@ -1849,6 +1849,15 @@ same body, `mp_charselect_scroll_down(2)` (`0x4075d0`). There is no `scroll_up(2
 party-inventory order (`buysell_get_list_item` `0x40497d`). The jump returns an index into the shop's buy list
 (`0x404f98`..`0x404fcc`). In identify mode the inventory shows only unidentified items, but
 `inventory_category_first_index` returns a party-inventory index (`mov eax, esi` at `0x41543e`).
+
+**K3 reproduced 2026-10-17** (agent mode: a copy of a Lenele docks save with 10 scrolls, 10 rings and a Buckler added by
+`savedit.mjs`; the trader's shop opened with `level_shopkeeper_find("Trader#dock1")` written to `buysell_shop` and
+`interface_set_screen(7)`; `item_type_shop_category` gives 1 armour, 2 magic (potions and scrolls), 3 jewellery,
+4 misc (gems)). In sell mode the misc button was enabled and scrolled the list although the party had no gems: the
+trader's buy list has gems at index 18. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] ShopCategoryButtons`):
+the sell branch (`0x404f98`) jumps to a stub that walks the shown rows (`buysell_get_list_item`) and returns the first
+one in the category, or -1. With the fix the misc button was disabled and did nothing, and the magic button still went
+to Revive Scroll (row 1). K4 (identify mode) is not fixed yet.
 
 **K5. Row index again.** In save mode `saveload_load_thumbnail` loads no file for row 0 (`test ebx, ebx;
 jle` at `0x425c65`). `saveload_draw_thumbnail` then shows the current scene for row 0 (`0x426fe5`). Both
