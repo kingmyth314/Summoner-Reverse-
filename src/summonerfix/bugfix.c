@@ -136,6 +136,13 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
+// Boss music never switched (cosmetic; game-bugs K130, K150). Two level scripts preset their "done" bytes to 1 on every
+// entry, so the branches they guard never run: Liangshan's ls_liangshan_phoenix_dead_done (0x4f49be), which puts
+// the level music back once both riders are dead, and the Ikaemos upper hall's found_boss_done / boss_killed_done
+// (0x4f9f2e, 0x4f9f34), which start the Boss music for the Priest King and put the level music back after him.
+// Fix ([Fixes] BossMusic): the bytes are preset from the saved flags instead, as LPalaceInt02 does: Liangshan's
+// to phoenix_dead && serpent_dead, the Ikaemos pair to ikaemos_boss_killed.
+//
 // Mounted-rider test reads the wrong stage (not a crash; game-bugs G32). boss_species_mounted_stage tells the party
 // AI that its target is a mounted rider (it then fights at range, ai_get_combat_style). It tests tiger_stage 1-2 for
 // the Tiger, but serpent_stage == 1 for both the Phoenix and the Serpent, and nothing for the Ghost. Fix ([Fixes]
@@ -187,7 +194,14 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_MOUNTED_STAGE 0x4a2480u          // boss_species_mounted_stage
+#define VA_LIANGSHAN_PRESET 0x4f49beu       // mov byte [ls_liangshan_phoenix_dead_done], 1 in ls_liangshan_init
+#define VA_LIANGSHAN_DEAD_DONE 0x257ea61u
+#define VA_IKAEMOS_PRESET 0x4f9f2eu         // the two mov byte [..._done], bl in ls_ikaemostopint_init
+#define VA_IKAEMOS_FOUND_DONE 0x257ecfcu    // found_boss_done; boss_killed_done follows
+#define VA_SAVEGAME_STATE_FIX 0x2493a38u
+#define VA_SAVEGAME_GET_FLAG_FIX 0x4cfca0u  // thiscall (level, name) -> int
+#define VA_CUR_LEVEL_INDEX_FIX 0x59f120u
+#define VA_MOUNTED_STAGE 0x4a2480u         // boss_species_mounted_stage
 #define VA_TIGER_STAGE 0x2452a90u
 #define VA_PHOENIX_STAGE 0x2452420u
 #define VA_SERPENT_STAGE 0x2451d98u
@@ -263,6 +277,32 @@ __asm__(".text\n"
         "    movl _g_saveScrollPos, %ecx\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
+        "    ret\n");
+
+// Boss music presets (K130, K150), called from the two level inits.
+typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
+static int CurLevelFlag(const char *name)
+{
+    int level = *(volatile int *)(UINT_PTR)SumVa(VA_CUR_LEVEL_INDEX_FIX);
+    return ((GetFlagFn)(UINT_PTR)SumVa(VA_SAVEGAME_GET_FLAG_FIX))((void *)(UINT_PTR)SumVa(VA_SAVEGAME_STATE_FIX), level, name);
+}
+__attribute__((used)) static void __cdecl LiangshanMusicPreset(void)
+{
+    *(volatile BYTE *)(UINT_PTR)SumVa(VA_LIANGSHAN_DEAD_DONE) = CurLevelFlag("phoenix_dead") && CurLevelFlag("serpent_dead");
+}
+__attribute__((used)) static void __cdecl IkaemosMusicPreset(void)
+{
+    BYTE killed = CurLevelFlag("ikaemos_boss_killed") != 0;
+    *(volatile BYTE *)(UINT_PTR)SumVa(VA_IKAEMOS_FOUND_DONE) = killed;
+    *(volatile BYTE *)(UINT_PTR)SumVa(VA_IKAEMOS_FOUND_DONE + 1) = killed;
+}
+// Liangshan's preset sits between the pushed arguments of a get_flag call (ecx = savegame_state): all registers kept.
+void LiangshanMusicStub(void);
+__asm__(".text\n"
+        "_LiangshanMusicStub:\n"
+        "    pushal\n"
+        "    call _LiangshanMusicPreset\n"
+        "    popal\n"
         "    ret\n");
 
 // Replaces boss_species_mounted_stage (cdecl (species) -> bool in al) (G32).
@@ -620,6 +660,21 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)MountedStage - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_MOUNTED_STAGE, o, r, 5, "each rider's own stage in the mounted test (G32)");
+    }
+
+    if (FixOn("BossMusic")) {
+        static const BYTE lo[7] = {0xC6, 0x05, 0x61, 0xEA, 0x57, 0x02, 0x01}; // mov byte [phoenix_dead_done], 1
+        BYTE lr[7] = {0xE8, 0, 0, 0, 0, 0x90, 0x90};
+        DWORD s = SumVa(VA_LIANGSHAN_PRESET);
+        DWORD rel = (DWORD)(UINT_PTR)LiangshanMusicStub - (s + 5);
+        memcpy(lr + 1, &rel, 4);
+        PatchBytes(VA_LIANGSHAN_PRESET, lo, lr, 7, "boss music presets from the saved flags (K130)");
+        static const BYTE io[12] = {0x88, 0x1D, 0xFC, 0xEC, 0x57, 0x02, 0x88, 0x1D, 0xFD, 0xEC, 0x57, 0x02}; // mov [..], bl x2
+        BYTE ir[12] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        s = SumVa(VA_IKAEMOS_PRESET);
+        rel = (DWORD)(UINT_PTR)IkaemosMusicPreset - (s + 5);
+        memcpy(ir + 1, &rel, 4);
+        PatchBytes(VA_IKAEMOS_PRESET, io, ir, 12, "boss music presets from the saved flags (K150)");
     }
 
     if (FixOn("PhoenixInferno")) {

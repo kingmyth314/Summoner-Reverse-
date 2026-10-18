@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 9 |
+| Cosmetic | 58 | 36 | 11 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1765,10 +1765,10 @@ retail script sends a go that early was not checked. D8602.
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
 | K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code, *inferred* effect | No |
 | K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
-| K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code and retail data, *inferred* effect | No |
+| K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
 | K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
 | K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
-| K150 | In the Ikaemos palace's upper hall the Priest King fight keeps the level's "IkaemosPalace" music; the "Boss" track never plays | `ls_ikaemostopint_init` `0x4f9ec0`, `lsf_ikaemos_found_boss` `0x4fa050`, `lsf_ikaemos_boss_killed` `0x4fa140` | **Observed** code and retail data, *inferred* effect | No |
+| K150 | In the Ikaemos palace's upper hall the Priest King fight keeps the level's "IkaemosPalace" music; the "Boss" track never plays | `ls_ikaemostopint_init` `0x4f9ec0`, `lsf_ikaemos_found_boss` `0x4fa050`, `lsf_ikaemos_boss_killed` `0x4fa140` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
 | K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
 | K160 | In multiplayer, a player who joins while another join is still going on can see "%s has entered the game." twice for the other new player | `mp_add_new_player` `0x4af4e0`, `mp_handle_new_info` `0x4af4b0`, `mp_handle_net_info` `0x4af760` | **Observed** code, *inferred* trigger | No |
 | K161 | The "Insert Summoner CD #2" box is centred across the screen but starts at the middle, so it sits in the lower half | `cd_prompt_disc2` `0x43ea20` | **Observed** code | No |
@@ -2200,6 +2200,14 @@ with the Ring of Stone in the party gives "Joseph acquired Summon Golem!" (`0x4f
 "IkaemosPalace" (`0x4f9ec1`). Same pattern as K130 (Liangshan), where only one byte is preset; LPalaceInt02 presets
 its two bytes from the saved `bothdead` flag instead (`ls_lpalaceint02_init` `0x4f2519`..`0x4f2543`). *Inferred:* the
 player hears the level track through the Priest King fight.
+
+**K130 and K150 reproduced 2026-10-17** (agent mode, `level` to each level, the story flags set with `flag` in the
+order the scripts set them, `[Debug] TraceMusic=1` logging every `music_play`). Ikaemos upper hall: setting
+`ikaemos_found_boss` and then `ikaemos_boss_killed` played nothing. Liangshan: `phoenix_serpent` started "Boss", and
+`phoenix_dead` + `serpent_dead` left it playing (`ls_liangshan_phoenix_dead_done` read 1 right after entry).
+**Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] BossMusic`): the presets come from the saved flags, as in
+LPalaceInt02 (Liangshan: both riders dead; Ikaemos: `ikaemos_boss_killed`). With the fix the same steps played
+"Boss" then "IkaemosPalace", and "Boss" then "Liangshan".
 
 **K151. The alpha path ignores the section position.** `gr_glide_create_texture` cuts a bitmap into 256 x 256
 sections and passes each one's rectangle in the section record (`+0x30` x, `+0x32` y, `+0x34` w, `+0x36` h,

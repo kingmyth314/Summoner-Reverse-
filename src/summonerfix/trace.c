@@ -430,10 +430,49 @@ static void TraceBossReachInstall(void)
     PatchBytes(VA_SAL_REACH_CALL, o, r, 5, "trace Giant Salamanka reach (TraceBossReach)");
 }
 
+// Testing only ([Debug] TraceMusic=1, game-bugs K130 / K150): logs every music_play (0x469080) with the track's
+// music.tbl name. The prologue (push ebx ; push esi ; mov esi, [esp+0xc]) moves into the stub.
+#define VA_MUSIC_PLAY 0x469080u
+#define VA_MUSIC_TRACKS 0x9421d8u // char *[64][2] (name, file)
+__attribute__((used)) DWORD g_musicPlayBody;
+__attribute__((used)) static void __cdecl TraceMusic(int index)
+{
+    const char *name = "(none)";
+    if (index >= 0 && index < 64)
+        name = *(const char *const *)(UINT_PTR)(SumVa(VA_MUSIC_TRACKS) + 8 * (DWORD)index);
+    Log("trace music: music_play(%d) %s", index, name ? name : "?");
+}
+void TraceMusicStub(void);
+__asm__(".text\n"
+        "_TraceMusicStub:\n"
+        "    pushal\n"
+        "    pushl 0x24(%esp)\n" // the track index (music_play's first argument)
+        "    call _TraceMusic\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    pushl %ebx\n"
+        "    pushl %esi\n"
+        "    movl 0xc(%esp), %esi\n"
+        "    jmp *_g_musicPlayBody\n");
+
+static void TraceMusicInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceMusic", 0, g_cfg.iniPath))
+        return;
+    g_musicPlayBody = SumVa(VA_MUSIC_PLAY + 6);
+    static const BYTE o[6] = {0x53, 0x56, 0x8B, 0x74, 0x24, 0x0C};
+    BYTE r[6] = {0xE9, 0, 0, 0, 0, 0x90};
+    DWORD s = SumVa(VA_MUSIC_PLAY);
+    DWORD rel = (DWORD)(UINT_PTR)TraceMusicStub - (s + 5);
+    memcpy(r + 1, &rel, 4);
+    PatchBytes(VA_MUSIC_PLAY, o, r, 6, "trace music_play (TraceMusic)");
+}
+
 void TraceInstall(void)
 {
     TraceHitVfxInstall();
     TraceGroupAttackInstall();
+    TraceMusicInstall();
     TraceBossReachInstall();
     TraceDetectConeInstall();
     TraceSupportPickInstall();
