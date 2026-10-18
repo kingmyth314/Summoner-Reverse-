@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 82 | 5 |
+| Crash or hang | 6 | 82 | 6 |
 | Gameplay | 48 | 25 | 21 |
 | Cosmetic | 56 | 36 | 22 |
 | Invisible | 43 | 58 | 0 |
@@ -39,7 +39,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | # | What the player sees | Function | Evidence | SummonerFix |
 |---|---|---|---|---|
 | C1 | Start New Game crashes when Windows has no audio output device | `snd_init` `0x5205b0`, `ds_channel_release` `0x55c5b0` | **Observed**, reproduced in agent mode | Fixed (`bugfix.c`) |
-| C2 | Crash at start-up when the 3D primary sound buffer cannot be created | `ds_init` `0x55c1a0` | **Observed** code, *inferred* crash | No |
+| C2 | Crash at start-up when the 3D primary sound buffer cannot be created | `ds_init` `0x55c1a0` | **Observed** code and in game with a faked failure (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] PrimarySoundBuffer`) |
 | C3 | "Failed to allocate 1073741824 bytes" with the OpenGL renderer | `GlTextureInit` `0x54e690` | **Observed** at runtime | Fixed |
 | C4 | Latent: more than 300 lamp glows corrupt memory | `lamp_glow_add` `0x4c0a90` | **Observed** code, *inferred* effect | No |
 | C5 | Latent: a cutscene with more than 175 living characters overwrites memory | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
@@ -136,6 +136,14 @@ setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cb
 stores 0 (`mov [0x2f79e3c], eax` with `eax = 0` at `0x55c2eb`). It then calls the next method through
 that pointer (`mov edx, [eax]` at `0x55c2fa`). Without DS3D, the same failure goes on to `SetFormat` on the
 primary buffer that was never created (`jne 0x55c337` at `0x55c2f0`). See [Sound](sound.md#start-up).
+
+**Reproduced 2026-10-18** with a faked failure (`[Debug] FakePrimaryBufferFailure=1` makes the first primary
+`CreateSoundBuffer` return `E_FAIL`; no sound card here refuses it). With `Soundcard=EAX` (3D on) the game crashed at
+start-up reading through NULL at `0x55c2fa`; with plain DirectSound it crashed at `0x55c38b`, in `SetFormat` on the
+missing buffer. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] PrimarySoundBuffer`): the failure branch
+(`0x55c2d5`) jumps to a stub that retries without 3D on the same DirectSound object, and otherwise releases it and
+returns -1. With the fix the 3D case started with the primary buffer made without 3D ("using the primary buffer
+without 3D sound" in the log), and the plain case started without sound and loaded a save.
 
 **C3. Texture buffer sized from the driver.** The OpenGL init allocates `size x size x 4` bytes, where
 `size` is `GL_MAX_TEXTURE_SIZE` (`imul ecx, eax; shl ecx, 2` at `0x54e71c`). A driver that reports 16384

@@ -97,8 +97,9 @@ in [SummonerFix](../summonerfix/index.md) ("Crash on Start New Game without soun
 **Primary-buffer retry bug.** If creating the 3D primary buffer fails, `ds_init` releases
 the DirectSound object, sets its pointer to 0 and then reads the vtable through that NULL
 pointer to retry without 3D (**observed**: `mov dword [0x2f79e3c], eax` with `eax = 0` at
-`0x55c2eb`, then `mov edx, [eax]` at `0x55c2fa`). *Inferred:* this path crashes; it has not
-been triggered.
+`0x55c2eb`, then `mov edx, [eax]` at `0x55c2fa`). With a faked failure (2026-10-18) it crashed there at start-up, and
+without 3D it crashed in `SetFormat` on the missing buffer (`0x55c38b`). SummonerFix `[Fixes] PrimarySoundBuffer`
+retries without 3D on the live object or starts without sound ([game bug C2](game-bugs.md)).
 
 ## Sound table and groups
 

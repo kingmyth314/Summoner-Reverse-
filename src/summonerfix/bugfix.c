@@ -212,6 +212,13 @@
 // that compares the number with the running sum of the shares, as ai_consider_blind_or_silence does, so a candidate
 // is always chosen when there is one, each with the chance of its share.
 //
+// Start-up crash when the primary sound buffer cannot be created (crash; game-bugs C2). ds_init's failure branch
+// releases DirectSound, stores NULL and, with 3D sound, retries CreateSoundBuffer through that NULL pointer
+// (0x55c2fa); without 3D it goes on to SetFormat on the buffer that was never made (0x55c38b). Fix ([Fixes]
+// PrimarySoundBuffer): the branch (0x55c2d5) jumps to a stub that retries without 3D on the same DirectSound object,
+// and otherwise releases it and makes ds_init return -1, so the game runs without sound. [Debug]
+// FakePrimaryBufferFailure=1 makes the first attempt fail, for testing.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -306,6 +313,14 @@
 #define VA_LABEL_REMOVE_FULL 0x4d13cau      // jge (count >= 128) in savegame_automap_label_remove
 #define VA_LABEL_RESET_FULL 0x4d1526u       // jge (count >= 128) in savegame_automap_labels_reset_level
 #define VA_SUPPORT_PICK_LOOP 0x4beb46u      // xor ecx, ecx ; test esi, esi ; jle in ai_choose_support_spell
+#define VA_DS_PRIMARY_FAIL 0x55c2d5u        // ds_init: the primary CreateSoundBuffer failed (mov eax, [ds_direct_sound])
+#define VA_DS_PRIMARY_CREATE 0x55c2cdu      // call [ecx+0xc] ; test eax, eax (the primary CreateSoundBuffer)
+#define VA_DS_INIT_CONTINUE 0x55c337u       // the primary buffer exists: SetFormat and the rest of ds_init
+#define VA_DS_INIT_FAIL 0x55c32cu           // or eax, -1 ; pop ebx ; add esp, 0x138 ; ret
+#define VA_DS_DIRECT_SOUND 0x2f79e3cu
+#define VA_DS_PRIMARY_BUFFER 0x2f79e38u
+#define VA_DS3D_ENABLED 0x2f8f72cu
+#define VA_DS_EAX_ENABLED 0x2f798b4u
 #define VA_SUPPORT_PICK_TAKE 0x4beb6eu      // cmp ecx, -1 (the pick, or none)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
@@ -643,6 +658,56 @@ __asm__(".text\n"
         "    popal\n"
         "    movl _g_supportPick, %ecx\n"
         "    jmp *_g_supportTakeVa\n");
+
+// Primary sound buffer failure (C2). ds_init's failure branch (0x55c2d5) jumps here with its own esp: the sound
+// description is at [esp+0x18]. With 3D sound asked for, the primary buffer is created again without 3D on the same
+// DirectSound object (the game had released that object and called through the NULL pointer); otherwise, or if that
+// fails too, DirectSound is released and ds_init returns -1 (no sound) instead of going on to SetFormat on a buffer
+// that does not exist.
+__attribute__((used)) static volatile DWORD g_dsInitContinueVa, g_dsInitFailVa;
+__attribute__((used)) static int __cdecl DsPrimaryRetry(BYTE *desc)
+{
+    typedef HRESULT(__stdcall * CreateBufferFn)(void *, void *, void **, void *);
+    typedef ULONG(__stdcall * ReleaseFn)(void *);
+    void **ds = (void **)(UINT_PTR)SumVa(VA_DS_DIRECT_SOUND);
+    BYTE *ds3d = (BYTE *)(UINT_PTR)SumVa(VA_DS3D_ENABLED), *eax = (BYTE *)(UINT_PTR)SumVa(VA_DS_EAX_ENABLED);
+    if (*ds && *ds3d == 1) {
+        *ds3d = 0;
+        *eax = 0;
+        *(DWORD *)(desc + 4) = 1; // DSBCAPS_PRIMARYBUFFER, no DSBCAPS_CTRL3D
+        void **vtbl = *(void ***)*ds;
+        HRESULT hr = ((CreateBufferFn)vtbl[3])(*ds, desc, (void **)(UINT_PTR)SumVa(VA_DS_PRIMARY_BUFFER), NULL);
+        if (hr >= 0) {
+            Log("sound: the 3D primary buffer could not be created; using the primary buffer without 3D sound (C2)");
+            return 1;
+        }
+    }
+    if (*ds) {
+        ((ReleaseFn)(*(void ***)*ds)[2])(*ds);
+        *ds = NULL;
+    }
+    Log("sound: the primary buffer could not be created; the game runs without sound (C2)");
+    return 0;
+}
+void DsPrimaryRetryStub(void);
+__asm__(".text\n"
+        "_DsPrimaryRetryStub:\n"
+        "    leal 0x18(%esp), %eax\n"
+        "    pushl %eax\n"
+        "    call _DsPrimaryRetry\n"
+        "    addl $4, %esp\n"
+        "    testl %eax, %eax\n"
+        "    jz 1f\n"
+        "    jmp *_g_dsInitContinueVa\n"
+        "1:\n"
+        "    jmp *_g_dsInitFailVa\n");
+// [Debug] FakePrimaryBufferFailure=1 (testing C2): the first CreateSoundBuffer of the primary buffer returns E_FAIL.
+void FakeCreateBufferFailStub(void);
+__asm__(".text\n"
+        "_FakeCreateBufferFailStub:\n"
+        "    movl $0x80004005, %eax\n"
+        "    testl %eax, %eax\n"
+        "    ret $16\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
@@ -1164,6 +1229,23 @@ void BugFixesInstall(void)
         g_supportTakeVa = SumVa(VA_SUPPORT_PICK_TAKE);
         g_supportPickTrace = GetPrivateProfileIntA("Debug", "TraceSupportPick", 0, g_cfg.iniPath) != 0;
         PatchBytes(VA_SUPPORT_PICK_LOOP, o, r, 6, "AI healers pick a support target by running sum (G229)");
+    }
+
+    if (FixOn("PrimarySoundBuffer")) {
+        static const BYTE o[5] = {0xA1, 0x3C, 0x9E, 0xF7, 0x02}; // mov eax, [ds_direct_sound]
+        BYTE r[5] = {0xE9};
+        DWORD rel = (DWORD)(UINT_PTR)DsPrimaryRetryStub - (SumVa(VA_DS_PRIMARY_FAIL) + 5);
+        memcpy(r + 1, &rel, 4);
+        g_dsInitContinueVa = SumVa(VA_DS_INIT_CONTINUE);
+        g_dsInitFailVa = SumVa(VA_DS_INIT_FAIL);
+        PatchBytes(VA_DS_PRIMARY_FAIL, o, r, 5, "a failed primary sound buffer is retried without 3D, or sound is off (C2)");
+    }
+    if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
+        static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax
+        BYTE r[5] = {0xE8};
+        DWORD rel = (DWORD)(UINT_PTR)FakeCreateBufferFailStub - (SumVa(VA_DS_PRIMARY_CREATE) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_DS_PRIMARY_CREATE, o, r, 5, "testing: the primary CreateSoundBuffer fails (FakePrimaryBufferFailure)");
     }
 
     if (FixOn("PhoenixInferno")) {
