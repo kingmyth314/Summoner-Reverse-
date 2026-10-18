@@ -73,7 +73,7 @@ bool Ignore_tutorial;                                         // 0x5f9625
 
 // 0x42e630 init_strptrs_5f9628_thunk (jmp, static_initializers entry 83). Confidence: exact.
 // 0x42e640 init_strptrs_5f9628: the slot stores of the table below (0x5f9628). Confidence: likely (as new_help.cpp).
-tutorial_str_ref tutorial_controls_pages[4] = {                                     // (*new*)
+tutorial_str_ref tutorial_controls_pages[4] = {                                     // 0x5f9628 (*new*)
     { XSTR("Basic Controls\n\nWelcome to Summoner! This tutorial explain...", 913) },
     { XSTR("There are two ways to move in the world of Summoner. You can...", 915) },
     { XSTR("The second mode of travel is called direct travel and you ca...", 916) },

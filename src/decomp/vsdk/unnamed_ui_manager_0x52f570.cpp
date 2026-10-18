@@ -84,8 +84,8 @@ static int ui_inited;                           // 0x2cbfcd0 ui_init's guard (na
 ui_gadget *ui_last_gadget;                      // 0x2cbfcd4
 // 0x2cbfcd8 / 0x2cbfcd9: a press may count as a double click (cleared after a double click so the third
 // click starts over). Names ours.
-static bool ui_left_double_click_ok;
-static bool ui_right_double_click_ok;
+static bool ui_left_double_click_ok;            // 0x2cbfcd8
+static bool ui_right_double_click_ok;           // 0x2cbfcd9
 
 // 0x52f710  Confidence: exact. The empty function ui_init registers with atexit.
 void atexit_nop_52f710()

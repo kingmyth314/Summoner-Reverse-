@@ -273,7 +273,7 @@ How the objects are rewritten (all in the COFF symbol table; the code is VC6's a
 | an undefined name (another file's function or global, a CRT function) | absolute, with its Sum.exe address: the tree's address comments (sources and headers, `// folded (0x...)` and folded-declaration comment blocks), else `symbols/sum.symbols`, else Sum.exe's import table (`__imp__Name@N` -> the IAT slot) |
 | a name another object of the same build defines | left alone: the linker joins them |
 | a global, function-local static (`static T x;  // 0xADDR`) or its construction guard (`(guard 0xADDR)`), a table whose comment block starts with its address, a global named after its address | absolute: the game's own variable |
-| in a function that byte-matches (`vc6-matches.txt`), every reference to data (strings, floats, globals) | the address the original has at the same offset: the game's own data, including data SummonerFix patched |
+| in a function that byte-matches (listed in `vc6-matches.txt` and checked again against Sum.exe at build time), every reference to data (strings, floats, globals) | the address the original has at the same offset: the game's own data, including data SummonerFix patched. A listed function that no longer matches is reported and keeps its data in the DLL |
 | other constants (strings, floats of non-matching functions; jump tables) | stay in the DLL |
 
 Functions the shipped Sum.exe has edited in the file stay original: the no-CD edit in `cd_find_drive` and
@@ -290,7 +290,7 @@ Three linker facts it works around (**observed** with LINK 6.00):
 The DLL has no entry point, no imports, no C runtime and no relocations (`/FIXED /BASE:0x50000000`; `binkw32.dll`
 sits at `0x30000000` in Sum.exe). The build reports names with no address (the link fails unless `--force`), globals
 that keep a copy in the DLL (`hybrid-globals.txt`: harmless for a constant table, a divergence for a variable), and
-names that got an address of the wrong kind (a function outside the code, data inside it). Originals shorter than
+names that got an address of the wrong kind (a function outside the code, data inside it), and global variables (`.bss`, not function-local statics) that have no address: replaced and original functions would each use their own copy, so give them one. Originals shorter than
 5 bytes stay original.
 
 ## `tools/agent.mjs` (agent mode)

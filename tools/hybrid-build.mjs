@@ -261,7 +261,7 @@ const definedHere = new Set();
 for (const u of units) for (const s of u.coff.syms) if (s && s.sec > 0 && s.cls === 2) definedHere.add(s.name);
 
 // ---- pass 2: make every symbol mean the original program unless injected -----------------------------------
-const exports = [], report = [], unresolved = new Map(), exported = new Set(), kept = [], shortOnes = [], suspicious = [];
+const exports = [], report = [], unresolved = new Map(), exported = new Set(), kept = [], shortOnes = [], suspicious = [], stale = [];
 // Which functions are injected. Every reference to one (calls from other injected functions too) uses its original
 // address and so goes through the loader's jmp: [Hybrid] Skip / Only then decide for each function on its own. Only
 // the export alias names the compiled code. (The function's own symbol stays: an inline function's COMDAT section
@@ -385,10 +385,22 @@ for (const { stem, objPath, buf, coff, cod, funcAddr, locals, tables, inject } o
   const matchedRanges = new Map();
   coff.syms.forEach((s, idx) => {
     if (!s || !funcAddr.has(idx) || !matched.has(funcAddr.get(idx))) return;
-    let end = coff.sections[s.sec - 1].size;
+    const sec = coff.sections[s.sec - 1], addr = funcAddr.get(idx);
+    let end = sec.size;
     for (const t of coff.syms) if (t && t.sec === s.sec && (t.type & 0x20) && t.value > s.value && t.value < end) end = t.value;
+    // The list may be older than the source: check the bytes now, relocated fields masked. Trailing padding of the
+    // compiled function is not compared.
+    const masked = new Set();
+    for (const r of sec.relocs) if (r.off >= s.value && r.off < end) for (let k = 0; k < 4; k++) masked.add(r.off + k);
+    let last = end;
+    while (last > s.value && (sec.data[last - 1] === 0x90 || sec.data[last - 1] === 0xcc) && !masked.has(last - 1)) last--;
+    for (let o = s.value; o < last; o++) {
+      if (masked.has(o)) continue;
+      const fo = peOff(addr + (o - s.value) - imageBase);
+      if (fo < 0 || pe[fo] !== sec.data[o]) { stale.push(`0x${addr.toString(16)} ${demangledOf(cod, s.name)}`); return; }
+    }
     if (!matchedRanges.has(s.sec)) matchedRanges.set(s.sec, []);
-    matchedRanges.get(s.sec).push([s.value, end, funcAddr.get(idx)]);
+    matchedRanges.get(s.sec).push([s.value, end, addr]);
   });
   let constantsMoved = 0;
   for (let i = 0, o = 20 + buf.readUInt16LE(16); i < buf.readUInt16LE(2); i++, o += 40) {
@@ -470,6 +482,15 @@ if (unresolved.size) {
   for (const [m, d] of unresolved) console.log(`  ${d}   (${m})`);
 }
 for (const r of report) console.log(r);
+if (stale.length)
+  console.log(`\n${stale.length} functions vc6-matches.txt lists as matching differ now; their data stays in the DLL` +
+    ` (run a strict sweep):\n  ` + stale.join("\n  "));
+// A variable the game also has (not a function-local static: `?name@?N??function`, nor a guard) that stays in the
+// DLL splits the state between replaced and original functions: give it its address.
+const keptVars = kept.filter((k) => k.bss && !/^\?/.test(k.name));
+if (keptVars.length)
+  console.log(`\n${keptVars.length} global variables keep a copy in the DLL (no address in the source); replaced and original` +
+    ` functions would each see their own copy:\n  ` + keptVars.map((k) => `${k.stem}: ${k.name}`).join("\n  "));
 if (suspicious.length) console.log(`\n${suspicious.length} names got an address of the wrong kind (a function outside the code, data inside it):\n  ` + suspicious.join("\n  "));
 if (shortOnes.length)
   console.log(`\n${shortOnes.length} originals are shorter than a jmp and stay original` + (verbose ? ":\n  " + shortOnes.join("\n  ") : ""));

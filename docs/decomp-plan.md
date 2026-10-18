@@ -115,6 +115,10 @@ of the pixels differ, the same as between two runs of the original). Walking, th
 (**observed**, agent mode). 5,736 functions are replaced; 186 stay original because SummonerFix patches them.
 Tools: [`tools/hybrid-build.mjs`](tools.md#toolshybrid-buildmjs-the-hybrid-game) and `src/summonerfix/hybrid.c`.
 
+Not covered: the about 1,130 compiler-generated initialisers and destructors of global objects (written as
+comments, not compared). The DLL has no entry point, so its own static initialisers never run; the game's run as
+before, and the decompiled globals are the game's own.
+
 This is the first link experiment, done as a hybrid rather than a whole new executable. The rest of the program
 (the C runtime, the import table, the data, the functions not yet written) stays the original. Each decompiled
 function can therefore be tested in the real game on its own, including the about 970 that compile but do not
@@ -135,6 +139,20 @@ How a failure is found: build the whole tree once, then run the game with `[Hybr
 loads the newest test save and compares the screen with the original game's capture; a message box, an access
 violation, no frames or more than 3% of the pixels different count as failures. Each startup failure above was
 found that way in 10-20 game starts.
+
+**Review (2026-10-18, advisor).** Checked after the first results:
+- Globals that stay in the DLL: two game variables with no address on their line got one
+  (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept
+  separately, and `tutorial_controls_pages` 0x5f9628, which only the game's initialiser fills). The build now
+  lists any such variable; 12 constant tables and three function-local statics remain, which is harmless.
+- The rule "a byte-matching function uses the original's data" no longer trusts `vc6-matches.txt` alone: the build
+  compares each listed function's bytes with Sum.exe (relocated fields masked) and lists any that no longer match
+  (tested by changing one argument of `credits_init`).
+- No code outside a replaced function branches into its first 5 bytes (18 hits in the disassembly: 14 loops back
+  to the function's own start, 4 switch jump tables decoded as instructions).
+- Sum.exe never compares vtable pointers (the comparisons with read-only data are loop ends over tables).
+- With `[Fixes] Enabled=0` 5,783 functions are replaced (139 stay original for the display, timing and key hooks)
+  and the loaded save still matches the original game with fixes off (0.17%). The skills and spells panels work.
 
 Next: run the game further on the hybrid (combat, spells, a level change, saving to TestSaves) and search each new
 difference the same way; every function found to differ is a decompilation bug with a test case.
