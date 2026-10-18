@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 16 |
+| Cosmetic | 58 | 36 | 17 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1746,7 +1746,7 @@ retail script sends a go that early was not checked. D8602.
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
 | K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code, *inferred* effect | No |
-| K12 | In a container's pickup list, the scrollbar thumb fills the whole track and runs past its end | `pickup_update_scrollbar` `0x420850` | **Observed** code | No |
+| K12 | In a container's pickup list, the scrollbar thumb fills the whole track and runs past its end | `pickup_update_scrollbar` `0x420850` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] PickupScrollbar`) |
 | K13 | In the multiplayer level select, the player list's hover and click rows drift from the drawn names | `mp_levelselect_handle_click` `0x41c450` | **Observed** code | No |
 | K14 | The PXO chat banner is never clickable | `pxo_parse_chat_banners_cfg` `0x4223d0` | **Observed** code | No |
 | K15 | Latent: Print Screen saved as TGA (console `targa`) from a 32-bit back buffer gives garbled colours | `tga_convert_pixels` `0x555020` | **Observed** code, *inferred* effect | No |
@@ -1921,6 +1921,13 @@ the thumb down by `scroll_pos / num_items x track` (`0x420901`..`0x420941`). `pi
 tiles the thumb bitmap over that height, so once the list is scrolled the thumb runs past the bottom of the track.
 The hit area grows with it. The assess screen scales the height with `page / count` (`0x4017a6`..`0x4017d7`).
 This shows for any container with more items than one page.
+
+**Reproduced 2026-10-18** (agent mode: `bag 12` made a loot bag of 12 Health Tonics as `monster_drop_loot` builds one,
+and `interface_set_screen(4, &container)` opened it; the page is 7 rows, the track 56 px at 1024 x 768). Scrolled 5
+rows, the thumb started 23 px down the track (`pickup_thumb_y` 0x166, track top 0x14f) and was still 56 px tall, so
+it ran 23 px past the bottom over the down arrow. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+PickupScrollbar`): both height stores call a stub that sets track x page / items (32 px here), as the assess screen
+does. With the fix the thumb ended at 390, inside the track (335..391).
 
 **K13. Row counter steps for every player.** The click loop adds the font height for every entry of
 `mp_player_list` (`add ebp, esi` at `0x41c7e0`), but tests only type-3 players (`cmp [edi+0x14], 3` at

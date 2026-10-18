@@ -153,6 +153,12 @@
 // visits to the big towns, and then new ambient and ground-effect sounds are dropped. Fix ([Fixes] AmbientSounds):
 // the loop's inc esi (0x4cccc9) becomes a nop, so it removes record 0 until the table is empty.
 //
+// Pickup scrollbar thumb runs past its track (cosmetic; game-bugs K12). pickup_update_scrollbar moves the thumb down
+// by scroll / items x track but always makes it as tall as the track (0x4208f8, 0x420943), so a scrolled container
+// list draws the thumb past the bottom. Fix ([Fixes] PickupScrollbar): both stores call a stub that sets the height
+// to track x page / items, as the assess screen sizes its thumb; pickup_drag_scrollbar already maps the thumb top
+// the same way.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -224,6 +230,13 @@
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
 #define VA_INVENTORY_CATEGORY_RET 0x41543eu // mov eax, esi (identify-mode result) in inventory_category_first_index
 #define VA_AMBIENT_REMOVE_INC 0x4cccc6u     // add esp, 4 ; inc esi in level_script_leave's ambient removal loop
+#define VA_PICKUP_THUMB_H_TOP 0x4208f8u     // mov [pickup_thumb_h], edx (list at the top) in pickup_update_scrollbar
+#define VA_PICKUP_THUMB_H_SCROLLED 0x420943u // mov [pickup_thumb_h], edi (list scrolled)
+#define VA_PICKUP_THUMB_H 0x5c3b34u
+#define VA_PICKUP_CONTAINER 0x5c3b6cu       // container *; item count at +0xd8
+#define VA_PICKUP_TRACK_HEIGHT 0x58f3f4u    // int[3] by resolution_index
+#define VA_PICKUP_PAGE_SIZE 0x58f400u       // int[3] by resolution_index
+#define VA_RESOLUTION_INDEX_FIX 0x60ad68u
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -367,6 +380,26 @@ __asm__(".text\n"
         "    popl %edi\n"
         "    popl %esi\n"
         "    popl %ebx\n"
+        "    ret\n");
+
+// Pickup scrollbar thumb height (K12): the track height scaled by page / items, as the assess screen does.
+__attribute__((used)) static void __cdecl PickupThumbHeight(void)
+{
+    int res = *(volatile int *)(UINT_PTR)SumVa(VA_RESOLUTION_INDEX_FIX);
+    int track = ((const int *)(UINT_PTR)SumVa(VA_PICKUP_TRACK_HEIGHT))[res];
+    int page = ((const int *)(UINT_PTR)SumVa(VA_PICKUP_PAGE_SIZE))[res];
+    const BYTE *container = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_PICKUP_CONTAINER);
+    int count = container ? *(const int *)(container + 0xd8) : 0;
+    int h = count > page ? track * page / count : track;
+    *(volatile int *)(UINT_PTR)SumVa(VA_PICKUP_THUMB_H) = h;
+}
+// Replaces mov [pickup_thumb_h], reg (6 bytes, entered by call + nop): all registers kept.
+void PickupThumbStub(void);
+__asm__(".text\n"
+        "_PickupThumbStub:\n"
+        "    pushal\n"
+        "    call _PickupThumbHeight\n"
+        "    popal\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -800,6 +833,19 @@ void BugFixesInstall(void)
     if (FixOn("AmbientSounds")) {
         static const BYTE o[4] = {0x83, 0xC4, 0x04, 0x46}, r[4] = {0x83, 0xC4, 0x04, 0x90}; // inc esi -> nop
         PatchBytes(VA_AMBIENT_REMOVE_INC, o, r, 4, "leaving a level frees all its ambient sounds (K110)");
+    }
+
+    if (FixOn("PickupScrollbar")) {
+        static const BYTE oTop[6] = {0x89, 0x15, 0x34, 0x3B, 0x5C, 0x00};      // mov [0x5c3b34], edx
+        static const BYTE oScrolled[6] = {0x89, 0x3D, 0x34, 0x3B, 0x5C, 0x00}; // mov [0x5c3b34], edi
+        const DWORD at[2] = {VA_PICKUP_THUMB_H_TOP, VA_PICKUP_THUMB_H_SCROLLED};
+        const BYTE *orig[2] = {oTop, oScrolled};
+        for (int i = 0; i < 2; i++) {
+            BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+            DWORD rel = (DWORD)(UINT_PTR)PickupThumbStub - (SumVa(at[i]) + 5);
+            memcpy(r + 1, &rel, 4);
+            PatchBytes(at[i], orig[i], r, 6, "pickup scrollbar thumb sized by page / items (K12)");
+        }
     }
 
     if (FixOn("PhoenixInferno")) {

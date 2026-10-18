@@ -140,6 +140,39 @@ static void GoldPileOnGameThread(void *unused)
     Log("agent: goldpile %d at %.2f %.2f %.2f: object %p", g_goldAmount, pos[0], pos[1], pos[2], obj);
 }
 
+// A loot bag with N items 2 units beside the current character, built as monster_drop_loot builds one: item objects
+// from item_obj_spawn, then container_obj_create (unlocked) and container_add_item (game-bugs K12).
+#define VA_CONTAINER_OBJ_CREATE 0x4897f0u // cdecl (pos, lock) -> container
+#define VA_CONTAINER_ADD_ITEM 0x46aa30u   // thiscall (container, item object)
+static volatile int g_bagCount;
+static char g_bagItem[48] = "Health Tonic";
+
+static void BagOnGameThread(void *unused)
+{
+    (void)unused;
+    static const float ident[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!ch) {
+        Log("agent: bag: no character");
+        return;
+    }
+    float pos[3];
+    memcpy(pos, ch + 0x10, sizeof pos);
+    pos[0] += 2.0f;
+    void *bag = ((void *(__cdecl *)(const float *, float))(UINT_PTR)SumVa(VA_CONTAINER_OBJ_CREATE))(pos, 0.0f);
+    for (int i = 0; bag && i < g_bagCount; i++) {
+        void *item = ((void *(__cdecl *)(const char *))(UINT_PTR)SumVa(VA_ITEM_CREATE_BY_NAME))(g_bagItem);
+        void *obj = item ? ((void *(__cdecl *)(void *, const float *, const float *, int, int, int))(UINT_PTR)SumVa(
+                               VA_ITEM_OBJ_SPAWN))(item, pos, ident, 1, -1, -1)
+                         : NULL;
+        if (!obj)
+            break;
+        ((void(__attribute__((thiscall)) *)(void *, void *))(UINT_PTR)SumVa(VA_CONTAINER_ADD_ITEM))(bag, obj);
+    }
+    Log("agent: bag of %d x %s at %.2f %.2f %.2f: container %p, %d items", g_bagCount, g_bagItem, pos[0], pos[1], pos[2],
+        bag, bag ? *(int *)((BYTE *)bag + 0xd8) : 0);
+}
+
 // N wall of fire areas (spell 0x1d) in a row 3 units apart, starting START units (default 6) beside the current
 // character, as spell_cast_execute places them. The caster is the current character, or the active summon
 // (cur_summon) with "summon" (game-bugs C270: how many areas can burn; G270: an area whose caster is gone).
@@ -498,6 +531,17 @@ static void RunLine(char *line)
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);
         Out("goldpile %d: %s", g_goldAmount, KeysAgentRun(GoldPileOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "bag") && argc >= 2) {
+        // bag N [ITEM]: an unlocked loot bag with N items (default Health Tonic, ~ for spaces) beside the current
+        // character (game thread; result in the log).
+        g_bagCount = atoi(argv[1]);
+        if (argc >= 3) {
+            lstrcpynA(g_bagItem, argv[2], sizeof g_bagItem);
+            for (char *p = g_bagItem; *p; p++)
+                if (*p == '~')
+                    *p = ' ';
+        }
+        Out("bag %d: %s", g_bagCount, KeysAgentRun(BagOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "nudge") && argc >= 3) {
         // nudge DX DZ: move the current character by DX, DZ world units (after a navgoto, to stand at a distance).
         BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);

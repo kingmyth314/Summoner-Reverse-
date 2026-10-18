@@ -24,7 +24,7 @@ strings confirm it; **I** means it is placed by position.
 | 1 | `0x414fc0` | `0x4158b0` | Inventory: full-screen panel, "Inventory", "Party Items". `arg` points to the open-mode byte (1 = identify, from the shop); with a NULL `arg` the init is skipped (`0x41281a`) | `new_inventory.cpp` | O |
 | 2 | `0x42b480` | `0x42b910` | Character (status): full-screen panel, "Character", "Skills", "Resistances" | `new_status.cpp` | O |
 | 3 | `0x402250` | – | Map: left side panel with the automap | `new_automap.cpp` | O |
-| 4 | `0x4207d0` | `0x420960` | Pickup | `new_pickup.cpp` | I |
+| 4 | `0x4207d0` | `0x420960` | Pickup: a container's contents. `arg` points to the container pointer (`0x412863`) | `new_pickup.cpp` | I |
 | 5 | `0x429b30` | – | Spells: left side panel | `new_spell.cpp` | O |
 | 6 | `0x427520` | `0x427df0` | Skills: left side panel, "Combat" | `new_skill.cpp` | O |
 | 7 | `0x404bd0` | `0x4051a0` | Buy/sell | `new_buysell.cpp` | I |

@@ -294,7 +294,11 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
   and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters;
 - `count ADDR STRIDE N MASK` counts the records of a table (N records, STRIDE bytes apart, hex) whose first byte has a
-  bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110).
+  bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);
+- `bag N [ITEM]` leaves an unlocked loot bag with N items (default Health Tonic, `~` for spaces) beside the current
+  character, built as `monster_drop_loot` builds one; the log gives the container address. Open it with
+  `interface_set_screen(4, &container)`: write the address into `pickup_container` (`0x5c3b6c`) with `poke` and run
+  `calli 412620 4 0x5c3b6c` (K12).
 
 For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material
