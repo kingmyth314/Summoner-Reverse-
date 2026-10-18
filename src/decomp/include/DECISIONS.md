@@ -7041,3 +7041,11 @@ gets a `"Farewell."` topic only when none of its topics has the `+Farewell` bit 
 with its own farewell topic got a second one. After a level change to the Jade Temple and the sewer boss level,
 the conversation state in the hybrid's quicksave had one more topic for those speakers; the search over
 `[Hybrid] Only` named this function (`unsure`, 6,348 against 6,976 bytes, so the byte sweep could not see it).
+
+**D9203 (2026-10-18, blood_splot_place 0x468760: x87 precision, found by dual calls).** Each size case is
+`fld radius; fmul k; fst [radius]` and then multiplies `u` by the value still on the FPU stack (80-bit, not
+rounded), while `v` uses the stored float (`0x4688df`..`0x46890a`). Written as `radius *= k;` then `u = u *
+radius;` the product used the rounded radius, so a decal's half-axis was one bit off in about 4 of 10 calls
+(`[Hybrid] Dual`, compared against the original on the game's own calls). `u = u * (radius *= k);` keeps the
+assignment's value on the stack: 8 of 8 calls the same. The function still differs from the original in its frame
+size; the file keeps its 47 matches.

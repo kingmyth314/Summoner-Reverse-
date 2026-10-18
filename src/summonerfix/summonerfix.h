@@ -69,6 +69,10 @@ void TentacleGrabInstall(void);
 void HybridInstall(void);
 int HybridWriteCoverage(const char *path); // [Hybrid] Coverage: the call counts of the replaced functions
 
+// dualcall.c ([Hybrid] Dual: a decompiled function checked against the original on the game's own calls)
+BYTE *DualTarget(DWORD va, BYTE *dll, const char *list);
+void DualSummary(void);
+
 // keys.c
 void KeyBindInstall(void);
 

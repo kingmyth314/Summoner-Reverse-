@@ -2129,7 +2129,7 @@ void living_combat::set_38(int s)
 }
 
 // 0x468760  Confidence: likely (VC6 expands the vector operators less in each later case, which this
-// source order reproduces only if the original's matches; D5701). A blood splot decal (2 s, lit, depth
+// source order reproduces only if the original's matches; D5701; u takes the unrounded radius, D9203). A blood splot decal (2 s, lit, depth
 // 0.25) under the target: at a random point of its size radius on the ground plane, with a random
 // horizontal direction (length at least 0.03 before normalising) and its perpendicular as the half-axes,
 // scaled by 0.2 / 0.3 / 0.45 of the radius for size 0 / 1 / 2. Another size places the decal with bitmap
@@ -2160,22 +2160,19 @@ void living_combat::blood_splot_place(int size, float grey)
     bm = -1;
     switch (size) {
     case 0:
-        radius *= 0.2f;
-        u = u * radius;
+        u = u * (radius *= 0.2f);
         v = v * radius;
         rand();
         bm = bm_load("BloodSplot-small02.tga", -1, -1);
         break;
     case 1:
-        radius *= 0.3f;
-        u = u * radius;
+        u = u * (radius *= 0.3f);
         v = v * radius;
         rand();
         bm = bm_load("BloodSplot-med02.tga", -1, -1);
         break;
     case 2:
-        radius *= 0.45f;
-        u = u * radius;
+        u = u * (radius *= 0.45f);
         v = radius * v;
         rand();
         bm = bm_load("BloodSplot-large02.tga", -1, -1);

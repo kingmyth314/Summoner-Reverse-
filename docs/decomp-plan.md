@@ -192,6 +192,20 @@ original apart from NPC positions. With the thirteen levels rerun with coverage,
 rest are mostly combat (no quicksave in a fight), the script editor, the Direct3D and Glide renderers,
 multiplayer and screens not yet opened.
 
+**Combat by dual calls (2026-10-18).** A fight cannot be compared run against run, so the combat functions are
+checked call by call: `[Hybrid] Dual` runs the original and the decompiled function on the same copy of the
+game's data, with the caller's real arguments, and compares the results (docs: [Tools](tools.md)). In the Murod
+fight, ten calls each: `living_combat_pick_attack_move`, `living_combat_roll_defense`, `combat_resolve_exchange`,
+`combat_position_modifier`, `character_get_protection`, `combat_melee_damage`, `combat_apply_melee_hit` and
+`chain_attack_check_window` (none of them a byte match) give the same memory, return value and `rand` state as
+the original in every checked call; so do the byte-matching controls (`combat_attack_rating`,
+`combat_weapon_skill`, `character_get_bone_world_matrix`). `blood_splot_place` differed in about 4 of 10 calls by
+one bit of a decal axis: the original multiplies by the unrounded 80-bit radius (D9203); fixed, 8 of 8 the same.
+Making the checker trustworthy took three corrections, each shown by a byte-matching control that "differed": sound
+switched off during the calls (DirectSound state is outside the copy, and the restore crashed it), the sound
+thread's streaming buffers left out of the comparison and of the restore, and still copies compared instead of
+the live data.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept

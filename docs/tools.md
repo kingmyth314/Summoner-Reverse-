@@ -270,6 +270,18 @@ recognise their callers by (`KeepOriginal`, display.c) stay original, so no fix 
 one or more of these files with `src/decomp/vc6-matches.txt`: of the functions that do not match byte for byte,
 which a run executed (tested in the game when the run's checks passed) and which none did (the scenarios to find).
 
+**Dual calls** (`src/summonerfix/dualcall.c`). `[Hybrid] Dual=<file>` lists functions to check against the
+original on the game's own calls, for code where a whole run cannot be compared (a fight never plays out the same
+twice). For the first `DualSamples` calls of each, the checker copies the game's data (Sum.exe's `.data`/`.bss`,
+44 MB), the caller's stack above the arguments and the C runtime's `rand` state; calls the original (its first
+5 bytes restored for the call) with the caller's registers and arguments; keeps the result (memory, `eax`, `st0`,
+the bytes the callee popped, `rand`); puts the copies back and calls the decompiled function the same way; and logs
+each difference as `dual: 0xADDR call N differs` with the memory ranges, or `... same`. The game continues with the
+decompiled result. Sound is switched off for the two calls (`snd_disabled`), and state the two calls cannot share
+(open files, OpenGL texture ids, the sound and music streaming that another thread writes) is left out of the
+comparison and of the restore; `DualIgnore=ADDR:LEN,...` adds ranges. Heap memory is not copied, so a function
+that frees memory must not be listed. A check costs about 20 ms.
+
 How the objects are rewritten (all in the COFF symbol table; the code is VC6's as compiled):
 
 | Symbol | Becomes |

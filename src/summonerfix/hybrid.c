@@ -91,6 +91,16 @@ void HybridInstall(void)
         if (!only)
             return;
     }
+    // [Hybrid] Dual: a file of the addresses to check against the original on the game's own calls (dualcall.c).
+    char *dual = NULL;
+    GetPrivateProfileStringA("Hybrid", "Dual", "", path, sizeof path, g_cfg.iniPath);
+    if (path[0]) {
+        char full[MAX_PATH];
+        _snprintf(full, MAX_PATH, "%s\\%s", g_cfg.installPath, path);
+        full[MAX_PATH - 1] = 0;
+        if (!(dual = ReadText(full)))
+            Log("hybrid: cannot read the Dual list %s", full);
+    }
     _snprintf(path, MAX_PATH, "%s\\%s", g_cfg.installPath, rel);
     path[MAX_PATH - 1] = 0;
 
@@ -179,6 +189,7 @@ void HybridInstall(void)
             *(DWORD *)(stub + 7) = (DWORD)(target - (stub + 11));
             target = stub;
         }
+        target = DualTarget(va, target, dual);
         BYTE jmp[5] = {0xE9};
         *(DWORD *)(jmp + 1) = (DWORD)(target - (at + 5));
         DWORD old;
