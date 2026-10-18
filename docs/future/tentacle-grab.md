@@ -4,8 +4,15 @@ title: Tentacle Beast grab and throw (future project)
 
 # Tentacle Beast grab and throw (future project, G250)
 
-**Status:** analysis done 2026-10-18 (by a research agent, checked against the disassembly and the retail tables;
-nothing run in game yet). The grab is switched off in the shipped game, probably on purpose. The goal is to get
+**Status (2026-10-18):** implemented as an experimental SummonerFix switch, off by default
+(`src/summonerfix/tentacle.c`; `summonerfix.ini` `[Experimental] TentacleGrab=1`, `TentacleGrabChance=10` percent per
+decision; `[Debug] TraceTentacle=1` logs every step), and tested in game in the sewer boss room with a full party
+(chance 100 for the test). Seen working: grab, 30 s hold dealing 3 damage every 6 s, throw, landing on the floor,
+one grab at a time with the 10 s cooldown, the battle ending mid-hold (the hero is put down and gets its AI back), a
+held hero dying (put down at once), no crashes. Not yet tried in game: a throw over the water, a summon as target,
+the chance-10 feel over a long fight. The analysis below was done first (by a research agent, checked against the
+disassembly and the retail tables); the code follows its section 7.3, with the changes listed at the top of
+`tentacle.c` (for example the release tests 0x80, not 0x88, because the grab itself sets 0x8). The grab is switched off in the shipped game, probably on purpose. The goal is to get
 every part of it working and offer it as an experimental SummonerFix switch, off by default. Linked from the
 [Roadmap](../roadmap.md#future-projects); the bug entries are G250 and G251 in
 [Bugs in the original game](../sum-exe/game-bugs.md).

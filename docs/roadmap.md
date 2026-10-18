@@ -165,7 +165,8 @@ Added 2026-10-16 at the user's request.
   6-second hold tick heals the victim by 3 instead of hurting it (`push 0x40400000` at `0x4c714b`), and the release
   uses the victim without a NULL test (`0x4c6b53`). The project: work out how the mechanic was meant to play (grab
   chance, hold, throw, release on death, level end, cutscene and load), get every part working, and offer it as an
-  experimental SummonerFix switch, off by default. The analysis and enable plan:
+  experimental SummonerFix switch, off by default. **Done 2026-10-18:** `[Experimental] TentacleGrab=1` in
+  `summonerfix.ini` turns it on (tested in game). The analysis, enable plan and test results:
   [Tentacle Beast grab and throw](future/tentacle-grab.md) (two edits switched it off; the gate meant to allow one
   grab at a time is never read; a hero held when the battle ends would stay stuck; the hold heals; the release
   mixes up the tentacle's and the victim's HP).

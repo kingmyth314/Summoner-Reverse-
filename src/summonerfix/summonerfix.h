@@ -60,6 +60,9 @@ void GameOptionsInstall(void);
 // bugfix.c
 void BugFixesInstall(void);
 
+// tentacle.c (experimental, [Experimental] TentacleGrab)
+void TentacleGrabInstall(void);
+
 // keys.c
 void KeyBindInstall(void);
 

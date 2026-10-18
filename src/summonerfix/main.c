@@ -138,6 +138,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     TimingFixInstall();
     GameOptionsInstall();
     BugFixesInstall();
+    TentacleGrabInstall();
     KeyBindInstall();
     if (g_cfg.renderer == RENDERER_OPENGL)
         WidescreenInstall();
