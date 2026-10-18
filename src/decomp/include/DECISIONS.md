@@ -7034,3 +7034,10 @@ the **same** (or in multiplayer): `cmp ecx, [eax+0x5b8]; je 0x44e800` jumps into
 (decomp37) read it as "different". After a level change with the full party every monster in Iona's exterior had
 the bit set in the original's quicksave and clear in the hybrid's; the search over `[Hybrid] Only` named this
 function, which differs in its frame size too, so the byte sweep could not see the error.
+
+**D9202 (2026-10-18, conversation::parse_table 0x4fee50: the farewell test found by the hybrid game).** A speaker
+gets a `"Farewell."` topic only when none of its topics has the `+Farewell` bit (bit 2 of the topic flags:
+`shr ecx, 2; test cl, 1` at `0x50066d`). The decomp tested bit 0, which the table never sets, so every speaker
+with its own farewell topic got a second one. After a level change to the Jade Temple and the sewer boss level,
+the conversation state in the hybrid's quicksave had one more topic for those speakers; the search over
+`[Hybrid] Only` named this function (`unsure`, 6,348 against 6,976 bytes, so the byte sweep could not see it).

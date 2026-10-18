@@ -149,6 +149,21 @@ in every run. The same halving search with a quicksave as the test named `levelr
 original in its frame set-up as well, so the byte sweep could not see the error. After the fix the hybrid's
 quicksave matches the original's.
 
+The same test after a level change with the full party (`level`, wait, quicksave) needs a value-aware comparison:
+timers count from the level start and some fields depend on timing, so a dword that varies between three runs of
+the original may vary by as much in the hybrid; one that never varies must be equal. Three more levels found
+two more errors, each the same in every run:
+
+| Level | Hybrid's save | Function | Error |
+|---|---|---|---|
+| Lenele (the test save itself) | one NPC's position, heading and a timer | `levelrender_build_draw_lists` `0x482e20` | AI flag 0x40 for near instead of far culled NPCs (D9200) |
+| Iona exterior | bit 0 of `+0x320` clear on all 29 monsters | `Character::init` `0x44e1c0` | `CF_COMBAT_READY` when the stand and ready animations differ instead of when they are the same (D9201) |
+| Jade Temple, sewer boss | one more topic for some speakers in the conversation state | `conversation::parse_table` `0x4fee50` | the "has a farewell topic" test read bit 0 instead of the `+Farewell` bit 2, so speakers got a second "Farewell." (D9202) |
+
+None of the three functions matches byte for byte, so the byte sweep could not see them. With the fixes, the four
+levels' quicksaves match the original's apart from run-to-run variation. Rand-forest01 could not be compared:
+the original refuses a quicksave there right after arriving.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept

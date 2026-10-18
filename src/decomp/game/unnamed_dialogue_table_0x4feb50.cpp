@@ -300,7 +300,7 @@ static inline bool dialogue_accept_ref_kind(TextFile *tf, int *kind, bool *no_ar
 // chains; the calls, constants, record layouts and the order of every check are from the code, D5311).
 // Reads <script_name>_dlg.tbl into this conversation: $Character: blocks (speaker name, move times, +Flags:,
 // +Topic: blocks with +Shop / +Hidden, the lines with their actions, the topic references, +Farewell),
-// a "Farewell." topic when no topic has bit 0, $Initial topics: (the first is the greeting), $End. Returns
+// a "Farewell." topic when no topic has +Farewell, $Initial topics: (the first is the greeting), $End. Returns
 // TextFile::Open's error, -1 for a bad table and 0 for a good one (xor eax, eax at 0x5008a6, after the
 // destructors; conversation::load treats 0 as success).
 int conversation::parse_table(const char *script_name)
@@ -731,9 +731,10 @@ int conversation::parse_table(const char *script_name)
             num_topics++;
         }
 
-        // Without a topic of bit 0 the speaker gets (or turns into initial farewells) "Farewell.".
+        // Without a +Farewell topic the speaker gets (or turns into initial farewells) "Farewell.".
+        // (shr ecx, 2; test cl, 1 at 0x50066d: the farewell bit, D9202 found by the hybrid game)
         for (topic = speaker->topics; topic; topic = topic->next)
-            if (topic->flag0)
+            if (topic->farewell)
                 break;
         if (!topic) {
             topic = speaker->find_topic("\"Farewell.\"");
