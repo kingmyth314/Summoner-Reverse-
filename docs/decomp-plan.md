@@ -184,6 +184,14 @@ therefore exercised about 40% of the non-matching functions; the others are list
 multiplayer last). The quicksaves themselves are written by the DLL's `savegame_write*` chain, and no level
 showed a whole-section difference, so those writers are checked as well.
 
+Two UI scenarios, saved and compared the same way: the inventory (unequip the weapon, destroy and use from the
+list through the screen's own functions) and a conversation with the dock trader in Lenele that buys a Recovery
+Draught and sells a Fire Arrow Rune (`player_talk_to`, then clicks; both games end with 58 gold). Both match the
+original apart from NPC positions. With the thirteen levels rerun with coverage, the scenarios have now executed
+**403 of the 895 non-matching functions** (and 1,809 of the matching ones) with saves that match the original. The
+rest are mostly combat (no quicksave in a fight), the script editor, the Direct3D and Glide renderers,
+multiplayer and screens not yet opened.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept
