@@ -28,8 +28,8 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
 | Gameplay | 48 | 25 | 20 |
-| Cosmetic | 57 | 36 | 22 |
-| Invisible | 42 | 58 | 0 |
+| Cosmetic | 56 | 36 | 22 |
+| Invisible | 43 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -1764,7 +1764,6 @@ retail script sends a go that early was not checked. D8602.
 | K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] InventoryCategoryButtons`) |
 | K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
 | K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MapLabelLimit`) |
-| K7 | A character missing from the font is drawn as a garbage glyph | `gr_string` `0x508c60` | **Observed** code, *inferred* effect | No |
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
@@ -1917,6 +1916,10 @@ and every caller refuses the label. Adding 33 labels through the map screen was 
 
 **K7. No check for -1.** `gr_font_get_char` returns -1 for a character outside the font (`or eax, -1` at
 `0x508503`). `gr_string` uses the result as an index without a test (`mov edx, [edx+4*eax]` at `0x508d21`).
+
+**Checked in game 2026-10-18** (a test save whose description is "K7 test: Café naïve", made with `savedit.mjs`,
+shown on the Load screen): é and ï were drawn as blanks the width of a space, with no stray glyph. The read before
+the tables is real, but it did not show, so K7 moved from Cosmetic to Invisible. Not fixed.
 
 **K8. Wrong buffer.** For wrapped lines the `&` (right column) test reads `credits_lines[start]`, the
 output buffer at the input offset (`cmp byte [edx+esi], 0x26` at `0x408862`). It was probably meant to
@@ -2826,6 +2829,7 @@ the faulty branch. Filed as latent: real in the code, but not reached in any sce
 | V6 | Latent: the ring of small streamed-effect slots restarts at slot 0, 1, 4 or 5 only | `effects_find_stream_slot` `0x51c5c0` | **Observed** code |
 | V7 | Latent: the registry helpers read past an "HKEY_..." string without a backslash; delete formats its error with NULL | `os_registry_resolve_key` `0x511e50`, `os_registry_delete` `0x5123e0` | **Observed** code |
 | V8 | Freed font slots are not reused, and the kerning search can apply another character's pair | `gr_font_create` `0x508560`, `gr_font_get_char` `0x508440` | **Observed** code and retail data |
+| K7 | A character outside the font's range (for example é in a save description) is drawn with the glyph data at index -1, before the tables; in game this showed as a blank (moved here from Cosmetic, 2026-10-18) | `gr_string` `0x508c60` | **Observed** code and in game |
 | V9 | The UI table loader has no caller; it also ignores a missing file, never sets window mask data and drops several button options | `ui_load_table` `0x52b200`, `ui_window__set_mask_bitmap` `0x52b930`, `ui_parse_button` `0x528530` | **Observed**; no caller |
 | V10 | Every line skipped by `SkipToNextLine` is counted twice in parser line numbers | `TextFile__SkipToNextLine` `0x515af0` | **Observed** code |
 | V11 | Latent: a negative number with 3k digits is printed as "-,123,456" | `int_to_string_with_commas` `0x5152a0` | **Observed** code |

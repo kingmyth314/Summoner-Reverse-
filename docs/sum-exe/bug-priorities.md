@@ -119,7 +119,7 @@ for those the fix also needs a decision on what the game should do.
 | 47 | G70 | A cutscene starting while a summon waits to emerge rewrites the shared move; that creature skips its emerge until restart | 2 | 3 | Cast a summon right before a scripted cutscene trigger (`navgoto` onto it) | small | 6 |
 | 48 | G252 | Murod Oni's backward-bite timer is armed once, so after 5 s it may switch every think | 2 | 3 | Murod Oni fight, stand behind it; log switches | small | 6 |
 | 49 | G253 | Murod's leap and the Luminar's teleport can anchor on a dead party member | 2 | 3 | Murod or Luminar fight with a dead member | small | 6 |
-| 50 | K7 | A character missing from the font draws a garbage glyph | 2 | 3 | Type a non-font character into a save name | small | 6 |
+| 50 | K7 | **Effect did not show 2026-10-18** (an é in a save description drew a blank; K7 moved to Invisible in game-bugs). Was: A character missing from the font draws a garbage glyph | 2 | 3 | Type a non-font character into a save name | small | 6 |
 | 51 | K40 | With 128 saved map labels, deleting or editing a label is not saved | 2 | 3 | Make 128 labels (scripted), delete one, save and load | small | 6 |
 | 52 | K80 | "Knocked Down!" is shown for a casting character who stays standing | 2 | 3 | Get knocked down while casting (boss knock-down move) | small | 6 |
 | 53 | K190 | A dragon summon cutscene after a story cutscene streams a freed soundtrack handle, sometimes restarting music | 2 | 3 | Boss intro then dragon summon; log the stream | small | 6 |
