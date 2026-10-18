@@ -277,6 +277,8 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   from `peek 5fcc88` after selecting it) with spell SPELL (hex) and POWER, cast by the current character with source
   type 6, as special abilities are applied (game thread). For G100, `spellhit 90a4e8 3e 100`;
 - `flagl LEVEL NAME [0|1]` reads or sets a story flag of any level (the `level_script_table` index, as in savedit);
+- `calli ADDR A [B]` calls a cdecl game function with integer arguments on the game thread and logs eax (G32:
+  `calli 4a2480 0x58`, `boss_species_mounted_stage`);
 - `call0 ADDR [N]` calls a void game function with no arguments N times on the game thread and logs
   `level_filename` / `level_script_name` after each call, then restores the three level names (for the world map
   encounter pickers, G6: `call0 4fc4b0 40`);

@@ -136,6 +136,13 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
+// Mounted-rider test reads the wrong stage (not a crash; game-bugs G32). boss_species_mounted_stage tells the party
+// AI that its target is a mounted rider (it then fights at range, ai_get_combat_style). It tests tiger_stage 1-2 for
+// the Tiger, but serpent_stage == 1 for both the Phoenix and the Serpent, and nothing for the Ghost. Fix ([Fixes]
+// MountedRiders): its entry (0x4a2480) jumps to MountedStage, which reads each rider's own stage: Tiger 1-2,
+// Phoenix (phoenix_stage), Serpent (serpent_stage) and Ghost (0x2480310) 1, as the stage tables in bosses.md give
+// the mounted stages and character_target_point_count reads them.
+//
 // Scrolled save list shows the current scene for its top row (cosmetic; game-bugs K5). In save mode
 // saveload_load_thumbnail loads no file for row 0 (test ebx, ebx ; jle at 0x425c65) and saveload_draw_thumbnail
 // draws the current scene for row 0 (0x426fda), both by the visible row, so with the list scrolled the top row's
@@ -180,7 +187,12 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_ZANE_COPY_END 0x4fca1bu          // end of the Zane script-name copy in ls_worldmap1_pick_encounter_stage4
+#define VA_MOUNTED_STAGE 0x4a2480u          // boss_species_mounted_stage
+#define VA_TIGER_STAGE 0x2452a90u
+#define VA_PHOENIX_STAGE 0x2452420u
+#define VA_SERPENT_STAGE 0x2451d98u
+#define VA_GHOST_STAGE 0x2480310u
+#define VA_ZANE_COPY_END 0x4fca1bu         // end of the Zane script-name copy in ls_worldmap1_pick_encounter_stage4
 #define VA_ZANE_EXIT 0x4fcae1u              // the picker's epilogue (pop edi ; pop esi ; add esp, 0xc ; ret)
 #define VA_LEECH_STORE 0x45f47du         // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
 #define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
@@ -252,6 +264,19 @@ __asm__(".text\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
         "    ret\n");
+
+// Replaces boss_species_mounted_stage (cdecl (species) -> bool in al) (G32).
+__attribute__((used)) static int __cdecl MountedStage(int species)
+{
+    int stage;
+    switch (species) {
+    case 0x57: stage = *(volatile int *)(UINT_PTR)SumVa(VA_TIGER_STAGE); return stage == 1 || stage == 2;
+    case 0x58: return *(volatile int *)(UINT_PTR)SumVa(VA_PHOENIX_STAGE) == 1;
+    case 0x59: return *(volatile int *)(UINT_PTR)SumVa(VA_SERPENT_STAGE) == 1;
+    case 0x5a: return *(volatile int *)(UINT_PTR)SumVa(VA_GHOST_STAGE) == 1;
+    }
+    return 0;
+}
 
 // The rest of the Zane script-name copy, then the picker's epilogue (G6). Entered by jmp.
 __attribute__((used)) DWORD g_zaneExit;
@@ -586,6 +611,15 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)ZaneEncounterStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_ZANE_COPY_END, o, r, 7, "Zane's encounter kept, not overwritten by the general rolls (G6)");
+    }
+
+    if (FixOn("MountedRiders")) {
+        static const BYTE o[5] = {0x8B, 0x44, 0x24, 0x04, 0x83}; // mov eax, [esp+4] ; (cmp eax, 0x57)
+        BYTE r[5] = {0xE9};
+        DWORD s = SumVa(VA_MOUNTED_STAGE);
+        DWORD rel = (DWORD)(UINT_PTR)MountedStage - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_MOUNTED_STAGE, o, r, 5, "each rider's own stage in the mounted test (G32)");
     }
 
     if (FixOn("PhoenixInferno")) {

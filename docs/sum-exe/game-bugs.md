@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 48 | 25 | 17 |
+| Gameplay | 48 | 25 | 18 |
 | Cosmetic | 58 | 36 | 9 |
 | Invisible | 42 | 58 | 0 |
 
@@ -926,7 +926,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 | G18 | Multiplayer: a lock picked through the host can stay locked on the other machines, or another container unlocks there | `mp_handle_container_lockpick` `0x489660` | **Observed** code, *inferred* effect | No |
 | G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code, *inferred* effect | No |
-| G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code, *inferred* effect | No |
+| G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MountedRiders`) |
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
 | G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
 | G42 | Latent: a door whose name plus the level script name has 64 characters or more makes every save of that level fail to load | `savegame_read_two_stage` `0x4d34e0` | **Observed** code, *inferred* effect | No |
@@ -1150,6 +1150,14 @@ fight (`rand-hills01`, stage 1) the result depends on whatever `serpent_stage` h
 fight, and the Ghost is never treated as mounted. In `Liangshan` both riders are on foot (forced stage 3), so
 the result is right there. The callers include the group orders, `ai_score_target`, `ai_combat_approach` and
 `character_get_attack_range`.
+
+**Reproduced 2026-10-17** in agent mode by calling the function directly (`calli 4a2480 SPECIES` after setting the
+stage variables with `poke`): with `phoenix_stage` 1 and `serpent_stage` 0 the Phoenix (`0x58`) was "not mounted";
+the Ghost (`0x5a`) with its stage (`0x2480310`) at 1 was "not mounted"; with `phoenix_stage` 2 and `serpent_stage` 1
+the Phoenix was "mounted". **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] MountedRiders`): the function's
+entry jumps to a replacement that reads each rider's own stage (Tiger 1-2; Phoenix, Serpent and Ghost 1, the
+mounted stages in [Bosses](bosses.md)). With the fix the same four calls answered mounted, mounted, mounted and not
+mounted. The party's fighting style in a real Phoenix or Ghost fight was not watched.
 
 **G40. The amount is skipped.** `savegame_write_item_objects` saves each loose gold pile as x, y, z and its amount
 `+0x9c` (`0x4d2550`..`0x4d2559`). The reader takes x, y and z, then skips z and the amount together (`add esi, 8` at

@@ -222,7 +222,8 @@ comes before the range test, so the spell lands even when the range test then dr
 - **Combat style against riders.** `ai_get_combat_style` (`0x473620`) turns a character's style 0 (Melee) into
   2 (Range) while its target is a mounted rider, by `boss_species_mounted_stage` (`0x4a2480`). That function
   tests `tiger_stage` 1 or 2 for the Tiger, but `serpent_stage` (`0x2451d98`) == 1 for **both** the Serpent and
-  the Phoenix, and returns false for the Ghost Rider. **Observed.** See [game bugs](game-bugs.md).
+  the Phoenix, and returns false for the Ghost Rider. **Observed**, and seen in game (G32); SummonerFix reads each rider's own
+  stage (`[Fixes] MountedRiders`). See [game bugs](game-bugs.md).
 - `character_target_point_count` (`0x4a21b0`) returns `char_info +0x188` but 0 for a rider **on foot**
   (`tiger_stage` 3, or the other riders' stage above 1). **Observed.**
 

@@ -206,6 +206,15 @@ static void SpellHitOnGameThread(void *unused)
     Log("agent: spellhit %06lX spell 0x%x power %.1f from %p", g_hitTarget, g_hitSpell, (double)g_hitPower, (void *)ch);
 }
 
+// "calli ADDR A [B]": cdecl fn(A, B) with two integer arguments; eax logged.
+static DWORD g_callIntA, g_callIntB;
+static void CallIntOnGameThread(void *unused)
+{
+    (void)unused;
+    DWORD r = ((DWORD(__cdecl *)(DWORD, DWORD))(UINT_PTR)SumVa(g_callAddr))(g_callIntA, g_callIntB);
+    Log("agent: calli %06lX(0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callIntA, g_callIntB, r);
+}
+
 // "call0 ADDR [N]": a void cdecl game function with no arguments, N times; after each call level_filename and
 // level_script_name are logged (the encounter pickers write them; game-bugs G6).
 static int g_call0Count;
@@ -369,6 +378,12 @@ static void RunLine(char *line)
         if (argc >= 4)
             ((SetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_SET_FLAG))(state, level, argv[2], atoi(argv[3]) != 0);
         Out("flag %s (level %d) = %d", argv[2], level, ((GetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_GET_FLAG))(state, level, argv[2]));
+    } else if (!_stricmp(c, "calli") && argc >= 3) {
+        // calli ADDR A [B]: cdecl fn(A, B) with integer arguments (hex with 0x), on the game thread; eax logged.
+        g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
+        g_callIntA = (DWORD)strtoul(argv[2], NULL, 0);
+        g_callIntB = argc >= 4 ? (DWORD)strtoul(argv[3], NULL, 0) : 0;
+        Out("calli %06lX: %s", g_callAddr, KeysAgentRun(CallIntOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "call0") && argc >= 2) {
         // call0 ADDR [N]: call the cdecl void game function at ADDR with no arguments, N times, on the game thread.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);

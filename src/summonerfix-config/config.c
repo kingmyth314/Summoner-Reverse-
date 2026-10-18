@@ -92,6 +92,7 @@ static const FixOption k_fixes[] = {
     {"ConversationHover", "Conversation more/end hover"},
     {"SaveListThumbnail", "Scrolled save list pictures"},
     {"ZaneEncounter", "Zane's encounters as intended"},
+    {"MountedRiders", "AI sees mounted Phoenix / Ghost"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
