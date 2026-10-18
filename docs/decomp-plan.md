@@ -248,8 +248,12 @@ sit 8 or 16 bytes further on. That is the checker's limit, not a difference in t
 - With `[Fixes] Enabled=0` 5,783 functions are replaced (139 stay original for the display, timing and key hooks)
   and the loaded save still matches the original game with fixes off (0.17%). The skills and spells panels work.
 
-Next: run the game further on the hybrid (combat, spells, a level change, saving to TestSaves) and search each new
-difference the same way; every function found to differ is a decompilation bug with a test case.
+**State (2026-10-18, evening).** Done since: the save test over 18 levels, the inventory and trader scenarios,
+coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Five decompilation errors found and
+fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls. 466 of
+the 895 non-matching functions have run in a checked scenario. Next: scenarios for what has not run yet
+(`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`), and the x87 precision cases through byte
+matching.
 
 ## Phase 3 status (2026-10-16)
 

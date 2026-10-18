@@ -19,7 +19,7 @@
 //   - constants (strings, floats, jump tables) stay in the DLL.
 // The objects are linked with /DLL /FIXED /NOENTRY /NODEFAULTLIB (no C runtime of its own: the game's is used),
 // exporting each injected function as f_<address>_<size>; the loader writes a jmp at each address.
-// Writes <out>/hybrid.dll, hybrid.map and hybrid.txt (the injected functions).
+// Writes <out>/hybrid.dll, hybrid.map and hybrid.txt (the injected functions: address, return kind, name).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
