@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 82 | 4 |
+| Crash or hang | 6 | 82 | 5 |
 | Gameplay | 48 | 25 | 18 |
 | Cosmetic | 57 | 36 | 20 |
 | Invisible | 42 | 58 | 0 |
@@ -119,7 +119,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C300 | Latent: with the Direct3D renderer on a card whose largest texture is smaller than a bitmap (256 on Voodoo-class cards; current cards take 8192 or more), loading that bitmap writes past the locked texture surface and reads past the bitmap | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0`, `gr_d3d_create_texture_section` `0x54bca0` | **Observed** code, *inferred* effect | No |
 | C301 | Latent: a cutscene script with more than 512 navpoints overwrites the cutscene string pool, and a level script with more than 750 navpoints overwrites the `door_toggle` console command and the memory after it | `cutscene_script_load` `0x4ed0f0`, `script_parse_navpoints` `0x4db700` | **Observed** code and retail data, *inferred* effect | No |
 | C302 | Latent: in `Rand-ForestNite1_v2` and `rand-hills01_v2`, a Ghost Rider or Phoenix Rider missing from the level crashes the game on the first frame | `ls_rand_forestnite1_frame` `0x4f56e0`, `ls_rand_hills01_frame` `0x4fa4a0` | **Observed** code and retail data, *inferred* crash | No |
-| C310 | Latent: a game folder whose path is 116 characters or longer crashes the game at start-up | `packfile_add` `0x534420`, `packfile_fopen` `0x534690` | **Observed** code, *inferred* crash | No |
+| C310 | Latent: a game folder whose path is 116 characters or longer crashes the game at start-up | `packfile_add` `0x534420`, `packfile_fopen` `0x534690` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] LongInstallPath`) |
 | C311 | Latent: in multiplayer, a new character from the host that the client cannot create (for example with all living-entity slots in use) crashes the client | `mp_handle_new_lep` `0x47ff10` | **Observed** code, *inferred* crash | No |
 | C312 | Latent: in multiplayer, a respawn packet for a player id the machine does not know crashes it | `mp_respawn_player` `0x481090` | **Observed** code, *inferred* crash | No |
 | C313 | Latent: the `save_map_labels` console command hangs the game when `automap_labels.tbl` has no `#End` line | `automap_labels_save` `0x430580` | **Observed** code and retail data, *inferred* hang | No |
@@ -867,6 +867,14 @@ terminating zero, or the rest of the path, then lands on the saved return addres
 copy for every packed file it opens, with no check, into its own 128-byte buffer (`sub esp, 0x80` at
 `0x534690`, copies `0x534741`..`0x534796`). `file_init` accepts up to 255 characters for the folder (`push 0xff`
 at `0x512dc6`). Latent: typical install folders are much shorter.
+
+**Reproduced 2026-10-18** (the game folder reached through a directory junction whose path, with the trailing
+``, is 125 characters; Sum.exe started from it). The game closed during start-up: an access violation at address
+`0x2e73656c`, the bytes "les." of the path, reached from `file_init`'s call to `packfile_init` (`0x512e42` on the
+stack). **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] LongInstallPath`): at `0x512e0b`, where `file_init` has
+set `install_path`, a path of 64 characters or more is replaced by its 8.3 short form (`GetShortPathNameA`). With the
+fix the same start logged "install path shortened from 125 to 44 characters", reached the main menu and loaded a
+save. On a volume without 8.3 names the long path stays (and the log says so).
 
 **C311. The NULL entity is used.** When `living_entity_create` fails (`0x47ff88`; it returns 0, for example with
 "No more space for living entities"), `mp_handle_new_lep` calls `mp_player_disconnected(3, 0)` (`0x47ff96`) and

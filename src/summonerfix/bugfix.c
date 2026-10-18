@@ -176,6 +176,12 @@
 // before the "is it the current character" test (0x47431b) call a stub that makes the test fail when ai_set_mode
 // returned 0. The function's own result (1) is unchanged.
 //
+// A long game folder crashes at start-up (crash; game-bugs C310). packfile_add, packfile_fopen and others join
+// install_path and a file name with sprintf into 128-byte stack buffers, so a folder path of 116 characters or more
+// overwrites a return address. Fix ([Fixes] LongInstallPath): where file_init has set install_path (0x512e0b), a
+// path of 64 characters or more is replaced by its 8.3 short form (GetShortPathNameA), the same folder. Volumes
+// without 8.3 names keep the long path (logged).
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -260,6 +266,9 @@
 #define VA_GOLD_TINT_BLUE 0x43a62eu         // mov ecx, [0x594430] (blue) in world_tint_gold_object
 #define VA_KNOCK_MESSAGE_TEST 0x47431bu     // mov eax, [esi+0x4c] ; mov ecx, [cur_character] in ai_knock_down_local
 #define VA_CUR_CHARACTER_FIX 0x5fcc88u
+#define VA_FILE_INIT_PATH_SET 0x512e0bu     // mov ecx, file_zero_vector, after file_init has set install_path
+#define VA_FILE_ZERO_VECTOR 0x2cbf4d8u
+#define VA_INSTALL_PATH 0x26b4168u          // char[], ends with a backslash
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -467,6 +476,41 @@ __asm__(".text\n"
         "1:\n"
         "    xorl %eax, %eax\n"
         "    movl $1, %ecx\n"
+        "    ret\n");
+
+// Long install folder (C310): file_init has just set install_path (with its trailing backslash). The game joins it
+// with file names in 128-byte stack buffers (packfile_add, packfile_fopen, snd_load ...), so a long path is replaced
+// by its 8.3 short form, which names the same folder.
+__attribute__((used)) static volatile DWORD g_fileZeroVectorVa;
+__attribute__((used)) static void __cdecl ShortenInstallPath(void)
+{
+    char *path = (char *)(UINT_PTR)SumVa(VA_INSTALL_PATH);
+    size_t len = strlen(path);
+    if (len < 64)
+        return;
+    char shortPath[MAX_PATH];
+    DWORD n = GetShortPathNameA(path, shortPath, sizeof shortPath);
+    if (n == 0 || n >= sizeof shortPath - 1 || n >= len) {
+        Log("install path is %u characters and has no shorter 8.3 form: names longer than 127 characters will crash "
+            "the game (game-bugs C310)",
+            (unsigned)len);
+        return;
+    }
+    if (shortPath[n - 1] != '\\') {
+        shortPath[n++] = '\\';
+        shortPath[n] = 0;
+    }
+    Log("install path shortened from %u to %u characters: %s", (unsigned)len, (unsigned)n, shortPath);
+    memcpy(path, shortPath, n + 1);
+}
+// Replaces mov ecx, file_zero_vector (5 bytes, entered by call) where file_init's two path branches meet.
+void InstallPathStub(void);
+__asm__(".text\n"
+        "_InstallPathStub:\n"
+        "    pushal\n"
+        "    call _ShortenInstallPath\n"
+        "    popal\n"
+        "    movl _g_fileZeroVectorVa, %ecx\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -938,6 +982,15 @@ void BugFixesInstall(void)
         memcpy(r + 1, &rel, 4);
         g_curCharacterVa = SumVa(VA_CUR_CHARACTER_FIX);
         PatchBytes(VA_KNOCK_MESSAGE_TEST, o, r, 9, "\"Knocked Down!\" only when the character fell (K80)");
+    }
+
+    if (FixOn("LongInstallPath")) {
+        static const BYTE o[5] = {0xB9, 0xD8, 0xF4, 0xCB, 0x02}; // mov ecx, 0x2cbf4d8
+        BYTE r[5] = {0xE8};
+        DWORD rel = (DWORD)(UINT_PTR)InstallPathStub - (SumVa(VA_FILE_INIT_PATH_SET) + 5);
+        memcpy(r + 1, &rel, 4);
+        g_fileZeroVectorVa = SumVa(VA_FILE_ZERO_VECTOR);
+        PatchBytes(VA_FILE_INIT_PATH_SET, o, r, 5, "a long game folder path is shortened to its 8.3 form (C310)");
     }
 
     if (FixOn("PhoenixInferno")) {

@@ -103,6 +103,7 @@ static const FixOption k_fixes[] = {
     {"EdgeTurnAfterDrag", "No edge turn right after a drag"},
     {"LootHighlightColour", "Loot flashes pale gold, not yellow"},
     {"KnockDownMessage", "No \"Knocked Down!\" while casting"},
+    {"LongInstallPath", "Game folder with a long path starts"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
