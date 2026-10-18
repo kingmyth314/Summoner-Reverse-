@@ -2630,6 +2630,10 @@ to draw, only the second `je` returns). One name cannot equal both, so the list 
 `+0x72c`, slot 0x11 skipped) is always drawn. *Inferred* intent: or. Both scripts are in `tables.vpp`
 (`$Level: "Rand-ForestNite1"`). Whether the drawn props look wrong in those two cutscenes was not checked.
 
+**Played 2026-10-18** (`play_and_load_cutscene Ghost-Escape` from a console key, captures every 1.5 s, then again
+with the test turned into the intended "or" by `pokecode` at `0x483352`). The mounted Ghost Rider looked the same in
+both runs; no extra or misplaced prop could be seen. Not fixed: the change would not be visible.
+
 **K271. Index of the wrong list.** `lamp_glow_update_lobjs` skips the occluder whose attach-list index equals
 its own (`cmp edi, [esp + 0x14]` at `0x48451f`). `lamp_glow_update_effects` copies the test
 (`cmp edi, [esp + 0x20]` at `0x484785`), but its outer index walks the sorted list (`levelrender_sort_list`,
