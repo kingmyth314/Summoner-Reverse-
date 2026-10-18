@@ -269,7 +269,8 @@ call; `ai_choose_attack_slot` still differs in the 7th digit.
 **The never-run review (2026-10-18, five agents, read-only).** The 429 non-matching functions that no scenario
 had run were split by area and each one read against the original: VC6 listing beside `asm.mjs fn`, with scripts
 comparing calls, constants, masks, struct offsets, jump kinds and relocation targets, jump tables decoded from
-Sum.exe, and every remaining difference read by hand. Each agent also listed how its functions can be reached.
+Sum.exe, and every remaining difference read by hand. Each agent also listed how its functions can be reached
+([the reports](hybrid-review.md)).
 
 | Group | Functions | Errors found | Reachable in single player |
 |---|---|---|---|
