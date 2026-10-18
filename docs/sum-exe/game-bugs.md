@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
 | Gameplay | 48 | 25 | 20 |
-| Cosmetic | 57 | 36 | 20 |
+| Cosmetic | 57 | 36 | 21 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1846,7 +1846,7 @@ retail script sends a go that early was not checked. D8602.
 | K297 | Latent: in the script editor, check boxes and radio buttons are clickable only over the first few characters of their label, and input boxes place the scroll and cursor with the wrong font | `ui_checkbox__create` `0x553d00`, `ui_radio_button__create` `0x5548a0`, `ui_inputbox__draw` `0x5530b0` | **Observed** code, *inferred* effect | No |
 | K298 | Latent: velocity-aligned (streak) particles have a length that ignores one of their size factors | `vfx_particle_get_billboard_axes` `0x562840` | **Observed** code, *inferred* effect | No |
 | K299 | Latent: lit effect meshes get vertex normals that all point into the negative octant, because face normals are unpacked as signed bytes with the unsigned mapping | `vfx_unpack_vector_s8` `0x564a20`, `vfx_mesh_render` `0x562f60` | **Observed** code, *inferred* effect | No |
-| K300 | The hit sound of many spells (Black Cloud, Recall, Destroy Undead, Wrath of God, Burning Hands, Curse, the Meteor Storms, Banish Summon and others) plays at a leftover stack position, so it can come from the wrong place or be out of earshot | `spell_cast_execute` `0x47c5d0` | **Observed** code, *inferred* effect | No |
+| K300 | The hit sound of many spells (Black Cloud, Recall, Destroy Undead, Wrath of God, Burning Hands, Curse, the Meteor Storms, Banish Summon and others) plays at a leftover stack position, so it can come from the wrong place or be out of earshot | `spell_cast_execute` `0x47c5d0` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] SpellHitSoundPosition`) |
 | K301 | Latent: a `+Set Important:` or `+Clear Important:` line naming a speaker defined later in the same `_dlg.tbl` does nothing, so that character's quest icon is not shown or not removed | `dialogue_parse_table` `0x4fee50` | **Observed** code and retail data | No |
 | K302 | Latent: an effect whose particle interval curve has two or more non-zero keys spawns at the wrong rate between the keys | `vif_curve__evaluate` `0x533ca0` | **Observed** code, *inferred* effect | No |
 | K303 | Latent: the `sysinfo` console command always reports MMX, and shows the RAM speed four times too high | `cpu_identify` `0x5312d6`, `PrintSystemInfo` `0x53171f` | **Observed** code | No |
@@ -2728,6 +2728,15 @@ curse / Urath curse (`0x47ca5b`), the three meteor storms (`0x47ced2`), banish s
 (`0x47d08c`), and vitalize, protect and faith cast by a character outside the party when there is no current
 character or group (`0x47c8c6`, `0x47c8d4`). The slot then holds whatever an earlier call left there. Not checked in
 play. Found in the `NOTES-sweep-below-0x4a0000.md` notes (their K301).
+
+**Reproduced 2026-10-18** (agent mode, Lenele; Joseph given skills with `max_skills` and made to cast through his AI
+(`ai_goal_add_cast_at_target` / `ai_goal_add_cast_spell`); `[Debug] TraceHitSound` logs the position
+`spell_play_hit_sound` gets). Curse at Joseph and curse with no target both played their hit sound at (1.3e-38,
+2.5e-39, 9.1e33) while Joseph stood at (-302, 0, 15). **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+SpellHitSoundPosition`): at the start of the single-player path (`0x47c74c`) the position is set to the target
+character's position (third argument, a handle), else the cast's target point (fourth argument) unless it is the
+unset 0, 0, 0, else the caster's position. With the fix: curse at Joseph (-302.14, 0.02, 14.79), curse with no
+target at Joseph, meteor storm at the caster, each where Joseph stood.
 
 **K301. Pending speakers are only checked.** `+Set Important:` / `+Clear Important:` with a quoted name look the speaker
 up while parsing (`conversation_find_speaker` at `0x5000dc`) and store the result in the reference (`0x5000e3`). When

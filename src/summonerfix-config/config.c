@@ -106,6 +106,7 @@ static const FixOption k_fixes[] = {
     {"LongInstallPath", "Game folder with a long path starts"},
     {"EffectSlotSpell", "AI fireball not blocked by old effects"},
     {"AreaSpellDistances", "Enemy area spells use real distances"},
+    {"SpellHitSoundPosition", "Spell hit sounds where spells land"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

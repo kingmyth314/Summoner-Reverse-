@@ -522,8 +522,51 @@ static void TraceAreaSpellInstall(void)
     PatchBytes(VA_AI_CONSIDER_AREA_SPELL, o, r, 5, "trace ai_consider_area_spell (TraceAreaSpell)");
 }
 
+// Testing only ([Debug] TraceHitSound=1, game-bugs K300): logs spell_play_hit_sound (0x47e020), the position its
+// sound plays at, and the current character's position. The prologue (push esi ; push edi ; mov edi, [esp+0xc])
+// moves into the stub.
+#define VA_SPELL_PLAY_HIT_SOUND 0x47e020u
+__attribute__((used)) DWORD g_hitSoundBody;
+__attribute__((used)) static void __cdecl TraceHitSound(int spell, const float *pos)
+{
+    static volatile LONG logged;
+    if (InterlockedIncrement(&logged) > 200)
+        return;
+    const BYTE *ch = *(const BYTE *const *)(UINT_PTR)SumVa(0x5fcc88u);
+    const float *cp = ch ? (const float *)(ch + 0x10) : NULL;
+    Log("trace hit sound: spell %d at %g %g %g; current character at %.2f %.2f %.2f", spell, (double)pos[0], (double)pos[1],
+        (double)pos[2], cp ? (double)cp[0] : 0.0, cp ? (double)cp[1] : 0.0, cp ? (double)cp[2] : 0.0);
+}
+void TraceHitSoundStub(void);
+__asm__(".text\n"
+        "_TraceHitSoundStub:\n"
+        "    pushal\n"
+        "    pushl 0x28(%esp)\n" // pos
+        "    pushl 0x28(%esp)\n" // spell
+        "    call _TraceHitSound\n"
+        "    addl $8, %esp\n"
+        "    popal\n"
+        "    pushl %esi\n"
+        "    pushl %edi\n"
+        "    movl 0xc(%esp), %edi\n"
+        "    jmp *_g_hitSoundBody\n");
+
+static void TraceHitSoundInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceHitSound", 0, g_cfg.iniPath))
+        return;
+    g_hitSoundBody = SumVa(VA_SPELL_PLAY_HIT_SOUND + 6);
+    static const BYTE o[6] = {0x56, 0x57, 0x8B, 0x7C, 0x24, 0x0C};
+    BYTE r[6] = {0xE9, 0, 0, 0, 0, 0x90};
+    DWORD s = SumVa(VA_SPELL_PLAY_HIT_SOUND);
+    DWORD rel = (DWORD)(UINT_PTR)TraceHitSoundStub - (s + 5);
+    memcpy(r + 1, &rel, 4);
+    PatchBytes(VA_SPELL_PLAY_HIT_SOUND, o, r, 6, "trace spell_play_hit_sound (TraceHitSound)");
+}
+
 void TraceInstall(void)
 {
+    TraceHitSoundInstall();
     TraceAreaSpellInstall();
     TraceHitVfxInstall();
     TraceGroupAttackInstall();

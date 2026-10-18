@@ -194,6 +194,13 @@
 // holds whatever the stack had. Fix ([Fixes] AreaSpellDistances): the store calls a stub that also writes
 // distance(caster, target), as the healer branch above does for its list.
 //
+// Spell hit sounds at a leftover position (cosmetic; game-bugs K300). In single player spell_cast_execute ends with
+// spell_play_hit_sound(spell, &pos), but pos ([esp+0x10]) is written only on some paths (summons, dragons, a target
+// character ...); curse, wrath of god, the meteor storms, banish summon and others play the sound at whatever the
+// stack held, often far from the listener. Fix ([Fixes] SpellHitSoundPosition): at the start of the single-player
+// path (0x47c74c) pos is set to the target character's position, else the target point, else the caster's position;
+// the paths that wrote it still do.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -284,6 +291,7 @@
 #define VA_FX_NEW_TAIL 0x48c461u            // mov [eax+0x100], edx ; ret ; 8 x nop at the end of fx_new (edx = -1)
 #define VA_AREA_CANDIDATE_STORE 0x4bfdbdu   // mov ecx, [esp+0x10] ; mov [ebp], eax in ai_combat_cast_frame (enemy loop)
 #define VA_DISTANCE 0x524810u               // cdecl (vector3 *, vector3 *) -> float (st0)
+#define VA_SPELL_CAST_SP_START 0x47c74cu    // mov ebx, [esp+0x150] (the spell) in spell_cast_execute, single player
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -549,6 +557,43 @@ __asm__(".text\n"
         "    popl %edx\n"
         "    popl %eax\n"
         "    movl 0x14(%esp), %ecx\n" // the replaced mov ecx, [esp+0x10] (+4 for the return address)
+        "    ret\n");
+
+// Spell hit sound position (K300). Replaces mov ebx, [esp+0x150] (7 bytes, entered by call + 2 nops) at the start of
+// spell_cast_execute's single-player path. The sound position [esp+0x10] starts as the target character's position
+// (the third argument is its handle), else the cast's target point (fourth argument), else the caster's position
+// (first argument +0x10). All registers and flags are kept.
+__attribute__((used)) static void __cdecl HitSoundStartPos(DWORD *frame)
+{
+    // frame = spell_cast_execute's esp at the patch site: pos at +0x10, arguments from +0x14c.
+    typedef BYTE *(__cdecl * FromHandle)(int);
+    const float *src = NULL;
+    int handle = (int)frame[0x154 / 4];
+    if (handle != -1) {
+        BYTE *target = ((FromHandle)(UINT_PTR)SumVa(VA_LIVING_FROM_HANDLE_FIX))(handle);
+        if (target)
+            src = (const float *)(target + 0x10);
+    }
+    const float *point = (const float *)(UINT_PTR)frame[0x158 / 4];
+    if (!src && point && (point[0] != 0.0f || point[1] != 0.0f || point[2] != 0.0f)) // an unset AI target point is 0, 0, 0
+        src = point;
+    if (!src && frame[0x14c / 4])
+        src = (const float *)(UINT_PTR)(frame[0x14c / 4] + 0x10);
+    if (src)
+        memcpy(frame + 0x10 / 4, src, 12);
+}
+void HitSoundPosStub(void);
+__asm__(".text\n"
+        "_HitSoundPosStub:\n"
+        "    pushfl\n"
+        "    pushal\n"
+        "    leal 0x28(%esp), %eax\n" // spell_cast_execute's esp: past pushal (0x20), pushfl and the return address
+        "    pushl %eax\n"
+        "    call _HitSoundStartPos\n"
+        "    addl $4, %esp\n"
+        "    popal\n"
+        "    popfl\n"
+        "    movl 0x154(%esp), %ebx\n" // the replaced mov ebx, [esp+0x150] (+4 for the return address)
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -1046,6 +1091,14 @@ void BugFixesInstall(void)
         memcpy(r + 1, &rel, 4);
         g_distanceVa = SumVa(VA_DISTANCE);
         PatchBytes(VA_AREA_CANDIDATE_STORE, o, r, 7, "enemy casters' area-spell targets carry their distance (G241)");
+    }
+
+    if (FixOn("SpellHitSoundPosition")) {
+        static const BYTE o[7] = {0x8B, 0x9C, 0x24, 0x50, 0x01, 0x00, 0x00}; // mov ebx, [esp+0x150]
+        BYTE r[7] = {0xE8, 0, 0, 0, 0, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)HitSoundPosStub - (SumVa(VA_SPELL_CAST_SP_START) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_SPELL_CAST_SP_START, o, r, 7, "spell hit sounds play where the spell lands (K300)");
     }
 
     if (FixOn("PhoenixInferno")) {
