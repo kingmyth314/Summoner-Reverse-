@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 7 |
-| Gameplay | 48 | 25 | 23 |
+| Gameplay | 48 | 25 | 24 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
 
@@ -995,7 +995,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G243 | Latent: when a new avoidance obstacle that merges two or three avoidance polygons cannot be clipped against the walls, all but the first merged polygon keep their corners switched off, so paths no longer go around those areas until they are rebuilt | `avoid_create_obstacle_polys` `0x4a9440` | **Observed** code, *inferred* effect | No |
 | G250 | The Tentacle Beast's tentacles never pick up and throw a party member, although the move ("Luminar grab" / "Luminar throw") is in `Tentacle Beast.tbl`; they only swipe and squeeze | `tentacle_beast_ai_select_action` `0x4c6520` | **Observed** code and retail data, *inferred* effect | No (likely disabled on purpose; a future project, see [Roadmap](../roadmap.md#future-projects)) |
 | G251 | Latent: a tentacle swipe that hits five party members at once makes that tentacle unkillable: at 0 HP it never plays its death move or counts as lost | `tentacle_collect_area_hits` `0x4c77c0`, `tentacle_beast_check_stage` `0x4c7360` | **Observed** code, *inferred* effect | No |
-| G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
+| G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] MurodBackBiteTimer`) |
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code and in game (2026-10-18; Murod) | Fixed (`bugfix.c`, `[Fixes] BossAnchorsAlive`) |
 | G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] AreaCasterGone`) |
 | G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] EffectSlotSpell`) |
@@ -1686,6 +1686,13 @@ target with flag 4 exists, switches to it with `murod_oni_move_2` on `frand() < 
 never sets the timer again. The crowd timer next to it is re-armed for 20 s (`0x4c5ea5`..`0x4c5eb5`). Flag 4 means
 "in reach of move 2" (`murod_oni_evaluate_target` `0x4c6205`..`0x4c621e`); move 2 is the third
 `murod_oni_boss.tbl` entry, "bite backward" (`$offense02`).
+
+**Reproduced 2026-10-18** (agent mode: full party to the Jade Temple, Murod's intro, `npckill Murod` brings Murod Oni;
+`immortal` on; `[Debug] TraceMurodOni` logs each switch to the backward bite). In two minutes: 8 switches, gaps
+2.0, 5.3, 5.4, 6.7, 7.4, 8.9 and 34.8 s. The think rate keeps most gaps near 5 s anyway, so the effect is mild; the
+2.0 s gap is one a re-armed timer would have stopped. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+MurodBackBiteTimer`): the switch (`0x4c5f27`) calls a stub that arms `murod_oni_timer_b` for 5 s again, as
+`murod_oni_init_timers` does. With the fix, 2.5 minutes gave 5 switches, gaps 12.5 s and more.
 
 **G253. Anchors without a life test.** `murod_start_leap` collects every party record's character with only a NULL
 test (`0x4c51cb`..`0x4c51e9`), picks one at random and tries up to five points 15 units away in a random horizontal

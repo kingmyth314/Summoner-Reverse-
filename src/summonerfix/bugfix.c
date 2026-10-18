@@ -344,6 +344,10 @@
 #define VA_DS_EAX_ENABLED 0x2f798b4u
 #define VA_MUROD_LEAP_TAKE 0x4c51dbu        // mov [edi], eax ; inc ebx ; add edi, 4 in murod_start_leap
 #define VA_LUMINAR_TELEPORT_TAKE 0x4c9dd0u  // the same in luminar_teleport_out
+#define VA_MUROD_BACKBITE_STORE 0x4c5f27u   // mov [murod_oni_current_move], edx (the backward-bite switch)
+#define VA_MUROD_ONI_CURRENT_MOVE 0x248c2dcu
+#define VA_MUROD_ONI_TIMER_B 0x248c2f4u     // GameTimer
+#define VA_GAMETIMER_SET_TIMEOUT 0x501880u  // thiscall (GameTimer *, ms)
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
@@ -893,6 +897,34 @@ __asm__(".text\n"
         "    incl %ebx\n"
         "    addl $4, %edi\n"
         "1:\n"
+        "    ret\n");
+
+// Murod Oni's backward-bite timer (gameplay; game-bugs G252; seen: a 2 s gap between switches). Replaces mov [murod_oni_current_move], edx (6 bytes, entered by call + nop)
+// where murod_oni_ai_select_action switches to the backward bite: with the fix timer_b is armed again for 5 s, as
+// murod_oni_init_timers arms it and as the crowd timer next to it is re-armed. [Debug] TraceMurodOni logs each switch.
+__attribute__((used)) static volatile int g_murodFix, g_murodTrace;
+__attribute__((used)) static void __cdecl MurodBackBite(int move)
+{
+    *(volatile int *)(UINT_PTR)SumVa(VA_MUROD_ONI_CURRENT_MOVE) = move;
+    if (g_murodTrace)
+        Log("trace Murod Oni: backward bite switch at %lu ms%s", (unsigned long)GetTickCount(),
+            g_murodFix ? " (timer armed for 5 s)" : "");
+    if (g_murodFix)
+        ((void(__attribute__((thiscall)) *)(void *, int))(UINT_PTR)SumVa(VA_GAMETIMER_SET_TIMEOUT))(
+            (void *)(UINT_PTR)SumVa(VA_MUROD_ONI_TIMER_B), 5000);
+}
+void MurodBackBiteStub(void);
+__asm__(".text\n"
+        "_MurodBackBiteStub:\n"
+        "    pushl %eax\n"
+        "    pushl %ecx\n"
+        "    pushl %edx\n"
+        "    pushl %edx\n"
+        "    call _MurodBackBite\n"
+        "    addl $4, %esp\n"
+        "    popl %edx\n"
+        "    popl %ecx\n"
+        "    popl %eax\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -1455,6 +1487,16 @@ void BugFixesInstall(void)
             PatchBytes(at[i], o, r, 6,
                        g_anchorFix ? "Murod's leap and the Luminar's teleport skip dead heroes (G253)" : "trace boss anchors");
         }
+    }
+    g_murodFix = FixOn("MurodBackBiteTimer");
+    g_murodTrace = GetPrivateProfileIntA("Debug", "TraceMurodOni", 0, g_cfg.iniPath) != 0;
+    if (g_murodFix || g_murodTrace) {
+        static const BYTE o[6] = {0x89, 0x15, 0xDC, 0xC2, 0x48, 0x02}; // mov [0x248c2dc], edx
+        BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)MurodBackBiteStub - (SumVa(VA_MUROD_BACKBITE_STORE) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_MUROD_BACKBITE_STORE, o, r, 6,
+                   g_murodFix ? "Murod Oni's backward bite waits 5 s between switches (G252)" : "trace Murod Oni switches");
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax

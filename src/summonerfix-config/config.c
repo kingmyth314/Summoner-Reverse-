@@ -114,6 +114,7 @@ static const FixOption k_fixes[] = {
     {"ScreenshotNumbers", "Screenshots never overwrite each other"},
     {"EffectSearchGuard", "No crash in the Masad tutorial step"},
     {"BossAnchorsAlive", "Murod leaps beside living heroes only"},
+    {"MurodBackBiteTimer", "Murod Oni back bite on its 5 s timer"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
