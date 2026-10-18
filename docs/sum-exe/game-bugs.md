@@ -2194,6 +2194,8 @@ slip.
 (`0x47431b`) call a stub that fails the test when `ai_set_mode` returned 0. With the fix the same knock during the
 cast showed no message; a knock while idle still went to mode 8, sub-mode `0x2c`, with the message and the fall.
 The return value, and so the multiplayer broadcast, is unchanged.
+`ai_set_mode` also returns 0 when the character is already knocked down (`0x47332d`), so a second knock-down that
+only restarts the timer no longer shows the message again (code review 2026-10-18; accepted).
 
 **K90. No gamma under OpenGL.** `gr_set_gamma` builds `gr_gamma_ramp` with the curve
 `255 * (i/255)^(1/gamma)` (`0x506ac1`-`0x506b10`). The second table, `gr_color_gamma_lut`, gets only `i` clamped

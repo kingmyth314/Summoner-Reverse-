@@ -313,6 +313,7 @@
 #define VA_PICKUP_THUMB_H_TOP 0x4208f8u     // mov [pickup_thumb_h], edx (list at the top) in pickup_update_scrollbar
 #define VA_PICKUP_THUMB_H_SCROLLED 0x420943u // mov [pickup_thumb_h], edi (list scrolled)
 #define VA_PICKUP_THUMB_H 0x5c3b34u
+#define VA_PICKUP_THUMB_BM_H 0x5c3b4cu      // int, height of the thumb bitmap
 #define VA_PICKUP_CONTAINER 0x5c3b6cu       // container *; item count at +0xd8
 #define VA_PICKUP_TRACK_HEIGHT 0x58f3f4u    // int[3] by resolution_index
 #define VA_PICKUP_PAGE_SIZE 0x58f400u       // int[3] by resolution_index
@@ -501,6 +502,9 @@ __attribute__((used)) static void __cdecl PickupThumbHeight(void)
     const BYTE *container = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_PICKUP_CONTAINER);
     int count = container ? *(const int *)(container + 0xd8) : 0;
     int h = count > page ? track * page / count : track;
+    int bitmapH = *(volatile int *)(UINT_PTR)SumVa(VA_PICKUP_THUMB_BM_H);
+    if (h < bitmapH && bitmapH <= track) // the draw puts its last tile at top + h - bitmap height
+        h = bitmapH;
     *(volatile int *)(UINT_PTR)SumVa(VA_PICKUP_THUMB_H) = h;
 }
 // Replaces mov [pickup_thumb_h], reg (6 bytes, entered by call + nop): all registers kept.
@@ -579,6 +583,9 @@ __attribute__((used)) static void __cdecl ShortenInstallPath(void)
         shortPath[n] = 0;
     }
     Log("install path shortened from %u to %u characters: %s", (unsigned)len, (unsigned)n, shortPath);
+    if (n >= 116)
+        Log("the short install path is still %u characters: file names longer than 127 characters will crash the game "
+            "(game-bugs C310); move the game to a shorter folder", (unsigned)n);
     memcpy(path, shortPath, n + 1);
 }
 // Replaces mov ecx, file_zero_vector (5 bytes, entered by call) where file_init's two path branches meet.
@@ -663,7 +670,7 @@ __attribute__((used)) static void __cdecl SupportPickRunning(const BYTE *list, i
     // healer is on the player's side: it gets the running sum. An enemy healer keeps the game's own pick and, when
     // that picks nobody, gets the running-sum pick only half of the time (a smaller gain than the player's).
     float sum = 0.0f;
-    int running = -1, original = -1;
+    int running = -1, original = -1, lastPositive = -1;
     for (int i = 0; i < n; i++) {
         float share = *(const float *)(list + 8 + 16 * i);
         sum += share;
@@ -671,7 +678,11 @@ __attribute__((used)) static void __cdecl SupportPickRunning(const BYTE *list, i
             running = i;
         if (original < 0 && r <= share)
             original = i;
+        if (share > 0.0f)
+            lastPositive = i;
     }
+    if (running < 0)
+        running = lastPositive; // the shares can sum to just under 1.0
     const BYTE *first = n > 0 ? *(const BYTE *const *)list : NULL;
     BOOL partySide = first && *(const int *)(first + 0xc) == 7;
     if (partySide || original >= 0) {

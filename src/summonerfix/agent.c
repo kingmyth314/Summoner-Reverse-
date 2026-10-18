@@ -58,6 +58,8 @@ static BOOL AgentRunSync(void (*fn)(void *), void *arg)
         return FALSE;
     for (int i = 0; i < 2000 && !g_syncDone; i++)
         Sleep(5);
+    if (!g_syncDone)
+        Log("agent: a game-thread call has not run after 10 s; the next command may change its arguments");
     return TRUE;
 }
 
@@ -312,7 +314,7 @@ static void CallIntOnGameThread(void *unused)
 // arguments, however many it takes, so esp is saved around the call.
 static DWORD g_callThis;
 static int g_callArgc;
-static DWORD g_callArgs[6];
+__attribute__((used)) static DWORD g_callArgs[6]; // named in CallThisRaw's asm
 static DWORD CallThisRaw(DWORD fn, DWORD self)
 {
     // The arguments are read from the globals (absolute addresses), not from the stack frame, because esp moves
