@@ -87,9 +87,10 @@ see [Game tables](game-tables.md)):
 - **Observed:** selling does not check identification. An unidentified item sells for the same
   price. Unidentified types are drawn in blue, and items your selected character cannot use in red
   (`buysell_draw_item_list`, `0x405fd0`). The item-info button needs an identified type.
-- **Observed:** gold is subtracted before the item is added. If the inventory is full (0x209 =
-  521 entries), `party_inventory_add_type` returns without adding, and the gold is lost. *Inferred:*
-  hard to reach in practice.
+- **Observed:** gold is subtracted before the item is added. `party_inventory_add_type` refuses a new type
+  when the inventory holds 0x209 = 521 entries, but there are exactly 521 item types, so a full inventory
+  already has an entry for whatever is bought and the item is added to it. The gold cannot be lost this way
+  (game-bugs, "Claims that did not hold", G5; checked 2026-10-17).
 
 ### Recharging
 

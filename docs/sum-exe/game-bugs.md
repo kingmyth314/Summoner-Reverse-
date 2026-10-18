@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 356 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 49 | 25 | 16 |
+| Gameplay | 48 | 25 | 16 |
 | Cosmetic | 58 | 36 | 9 |
 | Invisible | 42 | 58 | 0 |
 
@@ -912,7 +912,6 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G2 | The game runs many times too fast when the QPC frequency is 4.29 GHz or more | `timer_init` `0x532840` | **Observed** code | No (Timeslip's patch fixes it) |
 | G3 | Cutscenes skip almost at once after about 24.9 days of Windows uptime | `cutscene_sequence_update` `0x436a90` | **Observed**, reproduced | Fixed |
 | G4 | With the save list scrolled, saving on the top row overwrites a save without asking | `saveload_try_save` `0x426320` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`) |
-| G5 | Buying with a full inventory takes the gold and gives no item | `buysell_buy_item` `0x4057f0` | **Observed** code, *inferred* effect | No |
 | G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code, *inferred* effect | No |
 | G7 | If a cutscene's data fails to load, input stays locked and the music stays off | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
 | G8 | When any party record is removed (for example a summon dies), control may jump to the first member | `party_remove_player` `0x4335a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SummonKeepsLeader`) |
@@ -1005,11 +1004,6 @@ ask, but about the entry `selected_row` rows from the top of the list, not the o
 Saved" at once and rewrote `summoner12.sav` ("G4 test save 12"). **Fixed** in SummonerFix (`bugfix.c`): the
 `mov eax, [saveload_selected_row]` at `0x426340` becomes a call that returns `selected_row + scroll_pos`. After the
 fix the same steps showed the question; No left every file unchanged, and `<New Savegame>` still saved without one.
-
-**G5. Gold first, item second.** `buysell_buy_item` subtracts the price (`0x4058b7`) and then calls
-`party_inventory_add_type`. That function returns without adding a new item type when the inventory
-has 0x209 entries (`cmp edx, 0x209` at `0x46b9e4`). Hard to reach. See
-[Shops and loot](shops-loot.md#buying-and-selling).
 
 **G6. Missing jump.** The Zane case copies `rand-grassland01` and script `_v3` (`0x4fc9d8`..`0x4fca20`)
 and then falls through into the general rolls at `0x4fca22`, which overwrite both names. See
@@ -3481,7 +3475,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 |---|---|---|
 | A load sets `level_time` from header field `0xa8` (always 0) | [Savegame](savegame.md#header-observed) note | `savegame_read` pushes `&level_time` as the **fourth** argument (`push 0x60a654` at `0x4d2627`). `savegame_read_header` copies field `0xa8` into the third (a local, `[esp+0x20]` at `0x4d2ad7`) and field `0xac`, the saved time, into `&level_time` (`[esp+0x24]` at `0x4d2aea`). No swap; the savegame page needs a correction |
 | `hud_portrait_get_color` case 3 computes red from green | HUD decompilation notes | True (`0x40f987`, `0x40f98b`), but `color_pulse_scale` (`0x414ae0`) scales three equal 1.0 inputs the same way, so the result does not change. Not counted |
-| Loot gold is lost when the inventory is full | earlier notes | The gold loss is in the shop **buy** path (G5), not in loot pickup |
+| Loot gold is lost when the inventory is full | earlier notes | Not in loot pickup. The shop buy path (G5, also withdrawn) cannot lose gold either |
 | Level select button 31 scrolls the wrong way | earlier notes | The button is in the multiplayer **character** select screen (K2) |
 | Only slots 0, 1, 4 and 5 of the 8-entry stream ring are reachable | [`src/decomp` notes](../../src/decomp/README.md) | True for the 6-slot ring (V2). The 8-slot ring reaches all 8 (V6) |
 | Invisibility lasts 11 s instead of 10 because of the parser | `src/decomp/game/NOTES-spells-combat.md`, `spells.cpp` comment at `status_effect_duration` | `+Loop Time:` sets status 8's tick period (`0x454b29`..`0x454b3a`), not its length, and status 8 has no tick action. The real effect of the parser slip is on cooldowns (G12) |
@@ -3490,6 +3484,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | C270 (withdrawn 2026-10-17): more than ten burning fireball, wall of fire, dark wall, blizzard or Pyrul fireball areas overflow `fx_frame`'s ten-entry stack list (`mov [esp+4*eax+0x230], ebp` at `0x48a40e`, no compare) and crash | This page, then [Bug fix priorities](bug-priorities.md) rank 11 | The list takes only effects that own an avoidance area (`+0x100` != -1). `avoid_area_add` (`0x4a9b40`) gives each area two of the 14 avoidance obstacles (`AVOID_NUM_OBSTACLES`, `avoid_add_primitive` twice) and frees an area that got none, so at most seven areas exist at once (fewer when other obstacles are in use). Tested in agent mode: `firewall 16` placed 16 walls of fire, and the area pool held 7 used areas with obstacles 0..13; the game ran on. The missing bound is real but cannot be reached |
 | G50 (withdrawn 2026-10-17): after a reload or a second visit the Khosani lab flipper board (cleared by `ls_khosanilab_init`, `0x4f895c`..`0x4f8980`) no longer matches flipper doors kept raised by their saved two-stage bits | This page, then [Bug fix priorities](bug-priorities.md) rank 13 | A reload cannot happen inside the lab: saving there gives "Cannot save in Labyrinth of the Khosani." (agent mode, 2026-10-17). For a second visit, agent mode raised flippers 32, 16 and 30 (`callstr 4f95a0 puzzle-flippers31`, the level's use hook; `door_is_open_by_name` then returned 1 for each), went to KhosaniLab2 and back with `level`, and found the board all 0 and the three doors down again. So the doors do not come back raised on re-entry. Why the saved two-stage bit does not raise them was not traced |
 | G30 (withdrawn 2026-10-17): `boss_ai_parse_table` stores `atoi("$offenseNN") - 1` = -1 as every boss move's offense point, so offense-point attacks aim from near the world origin | This page, [Bosses](bosses.md), the decompiled `boss_ai.cpp`, then [Bug fix priorities](bug-priorities.md) rank 14 | `TextFile__ParseString` gets `lea edx, [esp+0x68]` after two pushes (the buffer is at frame `+0x60`), and `atoi` gets `lea eax, [esp+0x68]` with nothing pushed (`0x4a18b2`), 8 bytes further on: `atoi("NN")` after the 8 characters of `$offense`. The game's `atoi("$offense03")` is 0 (agent `callstr 56e311`), but the parsed Giant Salamanka moves held 0, 0, 1, 2, 3, 4, 5 for `$offense01`, 01, 02 .. 06 (agent `peek 248c984`), and `[Debug] TraceBossReach` logged points 2 and 5 with targets in reach. The decompilation read the call as `atoi(point_name)`; it is `atoi(point_name + 8)` (corrected) |
+| G5 (withdrawn 2026-10-17): buying with a full inventory (0x209 entries) takes the gold and gives nothing, because `buysell_buy_item` subtracts the price before `party_inventory_add_type` refuses a new type (`cmp edx, 0x209` at `0x46b9e4`) | This page, [Shops and loot](shops-loot.md), then [Bug fix priorities](bug-priorities.md) rank 30 | There are exactly 0x209 = 521 item types (`num_item_types`, capped by `items_parse_table`; every save's `ITEM` chunk lists 521), and `party_inventory_add_type` first looks for an entry of the same type and adds to its count (stackable) or its charges, before the count test. A full inventory therefore already holds every type, and a bought item always finds its entry. A held type that is neither stackable nor chargeable cannot exist: `item_type_is_stackable` is false only with a charge effect |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -3996,7 +3991,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | G2 QPC | `timer_init` `0x532853`..`0x532868` |
 | G3 cutscene timer | `cutscene_sequence_update` `0x436ad9`..`0x436aff` |
 | G4 overwrite test | `saveload_try_save` `0x426340`..`0x42635b`; `saveload_save_to_slot` `0x426395`..`0x4263a0` |
-| G5 buy | `buysell_buy_item` `0x4058aa`..`0x4058c4`; `party_inventory_add_type` `0x46b9e4` |
 | G6 Zane | `0x4fc99c`..`0x4fca22` |
 | G7 load failure | `cutscene_play` `0x4362d7`..`0x43634c`; `cutscene_cleanup` `0x436626`..`0x43663b` |
 | G8 leader | `party_remove_player` `0x4335d9`..`0x43363d` |

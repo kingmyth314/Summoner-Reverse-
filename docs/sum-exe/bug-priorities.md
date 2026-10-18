@@ -28,7 +28,7 @@ known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 mi
 overlapping spell areas turn out to be reachable in a retail fight).
 
 {: .note }
-**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292 and K5 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50 and G30 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`).
+**Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292 and K5 (2026-10-17, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50, G30 and G5 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
 ## Method
@@ -99,7 +99,7 @@ for those the fix also needs a decision on what the game should do.
 | 27 | K30 | Tall bosses use their size class height: health bar and text too low, upper body not clickable | 2 | 4 | Warp to the Luminar or Machival; look at the health bar, click high | tiny | 8 |
 | 28 | K100 | A ring total of exactly 60,000 never shows the summon message, and the pop-up lists the summon early | 2 | 4 | Set a ring total to 59,999 / 60,000 by memory, gain power | tiny | 8 |
 | 29 | C200 | LAN game list leaks a player record per visit; the fifth visit after four Create Game / Cancel rounds crashes | 2 | 4 | Options: LAN; Multiplayer, then Create Game and Cancel four times. Menus only, no second machine | small | 8 |
-| 30 | G5 | Buying with a full inventory (521 item types) takes the gold and gives nothing | 2 | 4 | Fill the inventory with `savedit.mjs`, buy an item type not yet held | small | 8 |
+| 30 | G5 | **Withdrawn 2026-10-17: cannot happen** (521 item types, 521 inventory entries: a full inventory holds every type). Was: Buying with a full inventory (521 item types) takes the gold and gives nothing | 2 | 4 | Fill the inventory with `savedit.mjs`, buy an item type not yet held | small | 8 |
 | 31 | K12 | Container pickup list scrollbar thumb is full height and runs past the track when scrolled | 2 | 4 | Open a container with more than a page of items | small | 8 |
 | 32 | K63 | Character click radius compares a squared distance with a plain radius | 2 | 4 | Click beside small and large characters; log picks | small | 8 |
 | 33 | K110 | Each level leave frees only half the ambient emitters; after enough changes levels lose ambient sounds | 2 | 4 | Change levels repeatedly; count used `sound_emitters` with `peek` | small | 8 |
