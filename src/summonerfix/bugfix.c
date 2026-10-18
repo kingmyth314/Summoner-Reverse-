@@ -219,6 +219,12 @@
 // and otherwise releases it and makes ds_init return -1, so the game runs without sound. [Debug]
 // FakePrimaryBufferFailure=1 makes the first attempt fail, for testing.
 //
+// Game far too fast with a timer of 2^32 Hz or more (gameplay; game-bugs G2). timer_init keeps only the low 32 bits of
+// QueryPerformanceFrequency (0x532859), so at 4.5 GHz the game thinks the clock ticks at about 205 MHz and runs 22
+// times too fast. Fix ([Fixes] QpcFrequency): when the frequency is 2^31 or more, the game's QueryPerformanceFrequency
+// and QueryPerformanceCounter imports return both values shifted right by the same number of bits. On a PC with a
+// lower frequency (Windows 10 and later report 10 MHz) nothing is hooked. [Debug] FakeQpcFrequency=N tests it.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -709,6 +715,59 @@ __asm__(".text\n"
         "    testl %eax, %eax\n"
         "    ret $16\n");
 
+// QPC frequency of 2^32 Hz or more (G2): the game's QueryPerformanceFrequency / QueryPerformanceCounter imports come
+// here. With the fix both values are shifted right by the same number of bits until the frequency is below 2^31, so
+// the ratio the game computes is unchanged but timer_init's 32-bit copy of the frequency is whole. [Debug]
+// FakeQpcFrequency=N (testing) scales the counter as if it ticked at N Hz.
+static BOOL FixOn(const char *key);
+typedef BOOL(WINAPI *PFN_QpcFn)(LARGE_INTEGER *);
+static PFN_QpcFn g_realQpf, g_realQpc;
+static LONGLONG g_qpcRealFreq, g_qpcFakeFreq;
+static int g_qpcShift;
+static BOOL WINAPI Fix_QueryPerformanceFrequency(LARGE_INTEGER *f)
+{
+    BOOL ok = g_realQpf(f);
+    if (ok && g_qpcFakeFreq)
+        f->QuadPart = g_qpcFakeFreq;
+    if (ok)
+        f->QuadPart >>= g_qpcShift;
+    return ok;
+}
+static BOOL WINAPI Fix_QueryPerformanceCounter(LARGE_INTEGER *c)
+{
+    BOOL ok = g_realQpc(c);
+    if (ok && g_qpcFakeFreq) {
+        LONGLONG whole = c->QuadPart / g_qpcRealFreq, rest = c->QuadPart % g_qpcRealFreq;
+        c->QuadPart = whole * g_qpcFakeFreq + rest * g_qpcFakeFreq / g_qpcRealFreq;
+    }
+    if (ok)
+        c->QuadPart >>= g_qpcShift;
+    return ok;
+}
+static void QpcFrequencyInstall(void)
+{
+    char buf[32];
+    GetPrivateProfileStringA("Debug", "FakeQpcFrequency", "", buf, sizeof buf, g_cfg.iniPath);
+    g_qpcFakeFreq = _atoi64(buf);
+    BOOL fix = FixOn("QpcFrequency");
+    LARGE_INTEGER f;
+    QueryPerformanceFrequency(&f);
+    g_qpcRealFreq = f.QuadPart;
+    LONGLONG used = g_qpcFakeFreq ? g_qpcFakeFreq : g_qpcRealFreq;
+    if (fix)
+        while ((used >> g_qpcShift) >= 0x80000000LL)
+            g_qpcShift++;
+    if (!g_qpcFakeFreq && !g_qpcShift)
+        return; // nothing to do on this PC
+    HMODULE exe = GetModuleHandleA(NULL);
+    g_realQpf = (PFN_QpcFn)HookImport(exe, "KERNEL32.dll", "QueryPerformanceFrequency", Fix_QueryPerformanceFrequency);
+    g_realQpc = (PFN_QpcFn)HookImport(exe, "KERNEL32.dll", "QueryPerformanceCounter", Fix_QueryPerformanceCounter);
+    if (!g_realQpf || !g_realQpc)
+        Log("QPC hooks failed");
+    Log("QPC frequency %lld Hz%s; the game sees it shifted right by %d bits (G2)", (long long)used,
+        g_qpcFakeFreq ? " (faked for testing)" : "", g_qpcShift);
+}
+
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
 static int CurLevelFlag(const char *name)
@@ -885,6 +944,7 @@ static BOOL FixOn(const char *key)
 
 void BugFixesInstall(void)
 {
+    QpcFrequencyInstall();
     g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
     DWORD site = SumVa(VA_DS_CHANNEL_STREAM_CHECK);
     static const BYTE orig[5] = {0x8B, 0x46, 0x0C, 0x85, 0xC0};

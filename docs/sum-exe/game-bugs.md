@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 6 |
-| Gameplay | 48 | 25 | 21 |
+| Gameplay | 48 | 25 | 22 |
 | Cosmetic | 56 | 36 | 22 |
 | Invisible | 43 | 58 | 0 |
 
@@ -925,7 +925,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | # | What the player sees | Function | Evidence | SummonerFix |
 |---|---|---|---|---|
 | G1 | The game runs at double speed on modern PCs | `FrameTimer` `0x501510` | **Observed** at runtime | Fixed |
-| G2 | The game runs many times too fast when the QPC frequency is 4.29 GHz or more | `timer_init` `0x532840` | **Observed** code | No (Timeslip's patch fixes it) |
+| G2 | The game runs many times too fast when the QPC frequency is 4.29 GHz or more | `timer_init` `0x532840` | **Observed** code and in game with a faked frequency (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] QpcFrequency`; Timeslip's patch fixes it too) |
 | G3 | Cutscenes skip almost at once after about 24.9 days of Windows uptime | `cutscene_sequence_update` `0x436a90` | **Observed**, reproduced | Fixed |
 | G4 | With the save list scrolled, saving on the top row overwrites a save without asking | `saveload_try_save` `0x426320` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`) |
 | G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ZaneEncounter`) |
@@ -1005,6 +1005,12 @@ next frame counts the same sleep again. See
 **G2. QPC frequency.** `timer_init` keeps only the low 32 bits of `QueryPerformanceFrequency`
 (`mov ecx, [esp+8]` at `0x532859`, stored at `0x532868`). Modern Windows reports 10 MHz, so most PCs are
 not affected. See [Timing bugs](timing-bugs.md#1-qpc-frequency-truncation-4-ghz-bug).
+
+**Reproduced 2026-10-18** with a faked frequency (`[Debug] FakeQpcFrequency=4500000000` scales the game's
+`QueryPerformanceCounter` as if it ticked at 4.5 GHz; this PC reports 10 MHz). The Diagnostics clock check logged the
+game's clock moving 109,770 ms per 5,001 ms of real time: 22 times too fast. **Fixed** in SummonerFix (`bugfix.c`,
+switch `[Fixes] QpcFrequency`): when the frequency is 2^31 or more, the game's two QPC imports return values shifted
+right by the same number of bits. With the fix the same set-up logged 5,001.1 ms against 5,001.1 ms.
 
 **G3. Signed subtract.** The start time is subtracted as a signed 32-bit value (`fisub dword` at
 `0x436afc`). After 2^31 ms of uptime every shot looks overdue. See

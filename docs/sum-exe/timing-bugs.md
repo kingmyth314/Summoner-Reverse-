@@ -12,7 +12,8 @@ nav_order: 2
 
 ## 1. QPC frequency truncation (">4 GHz" bug)
 
-**Status:** Observed in the code. Timeslip's patch fixes it (see
+**Status:** Observed in the code, and reproduced with a faked 4.5 GHz frequency (2026-10-18: the game clock ran 22
+times too fast). SummonerFix fixes it (`[Fixes] QpcFrequency`, [game bug G2](game-bugs.md)). Timeslip's patch fixes it too (see
 [Timeslip's patch](../patches/timeslip.md#the-4-ghz-fix)).
 
 ### The defect
