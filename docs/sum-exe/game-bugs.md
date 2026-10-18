@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 7 |
-| Gameplay | 48 | 25 | 24 |
+| Gameplay | 48 | 25 | 25 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
 
@@ -948,7 +948,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
 | G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 | G18 | Multiplayer: a lock picked through the host can stay locked on the other machines, or another container unlocks there | `mp_handle_container_lockpick` `0x489660` | **Observed** code, *inferred* effect | No |
-| G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code, *inferred* effect | No |
+| G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] BossSpellInRange`) |
 | G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MountedRiders`) |
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
 | G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
@@ -1169,6 +1169,13 @@ hit count `+0x40` is set when the swing starts (`living_combat_roll_defense` `0x
 tested at the hit frame, so a target that steps out of range during the swing still gets the spell. Retail
 moves with the flag: Serpent stage 1 sickle ("poison"), Ghost stage 3 scythe ("ghost paralyzing fear") and
 claw ("ghost death").
+
+**Reproduced 2026-10-18** (agent mode: full party, `immortal`, `level rand-forest01 Rand-Forest01_v2`, the Serpent
+fight; `[Debug] TraceBossPlusSpell` logs each `boss_counter_hit_dispatch` with the range test the game makes next
+and whether the move carries a spell). In three minutes, 2 of 14 dispatches of a spell move came with the hit out of
+range: the poison was cast and the hit dropped. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+BossSpellInRange`): the call at `0x467e93` goes through a wrapper that skips the dispatch for a boss whose move is
+out of range. With the fix, in four minutes one out-of-range spell move was skipped and 8 in range were cast.
 
 **G32. Wrong stage variable.** `ai_get_combat_style` returns style 2 (Range) instead of 0 (Melee) while the
 character's target is a mounted rider (`0x473644`). `boss_species_mounted_stage` tests `tiger_stage == 1 or 2`

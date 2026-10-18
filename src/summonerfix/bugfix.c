@@ -348,6 +348,12 @@
 #define VA_MUROD_ONI_CURRENT_MOVE 0x248c2dcu
 #define VA_MUROD_ONI_TIMER_B 0x248c2f4u     // GameTimer
 #define VA_GAMETIMER_SET_TIMEOUT 0x501880u  // thiscall (GameTimer *, ms)
+#define VA_COUNTER_HIT_CALL 0x467e93u       // call boss_counter_hit_dispatch in living_combat_resolve_hit
+#define VA_BOSS_COUNTER_HIT_DISPATCH 0x4a2230u // cdecl (boss, defender)
+#define VA_BOSS_MOVE_IN_RANGE 0x4a0ea0u     // cdecl (boss, target) -> bool in al
+#define VA_SERPENT_PART_INDEX 0x4975a0u     // cdecl (character) -> part index
+#define VA_SERPENT_PART_BUSY 0x2452384u     // move_info *[] by part
+#define VA_GHOST_CURRENT_MOVE 0x2480810u    // move_info *
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
@@ -927,6 +933,40 @@ __asm__(".text\n"
         "    popl %eax\n"
         "    ret\n");
 
+// Boss +Plus Spell before the range test (gameplay; game-bugs G31; seen with the Serpent's poison). living_combat_resolve_hit's call of boss_counter_hit_dispatch
+// (0x467e93) comes here: for a boss attacker (type 9) whose move is out of range (boss_move_in_range_dispatch, the
+// test the game makes right after and that drops the hit), the move's spell is not cast. [Debug] TraceBossPlusSpell
+// logs each dispatch with the range result.
+__attribute__((used)) static volatile int g_plusSpellFix, g_plusSpellTrace;
+__attribute__((used)) static int __cdecl BossCounterHitWrap(BYTE *attacker, BYTE *defender)
+{
+    typedef int(__cdecl * Pair)(BYTE *, BYTE *);
+    if (attacker && *(const int *)(attacker + 0xc) == 9) {
+        int inRange = (BYTE)((Pair)(UINT_PTR)SumVa(VA_BOSS_MOVE_IN_RANGE))(attacker, defender);
+        if (g_plusSpellTrace) {
+            static volatile LONG logged;
+            // The move whose +Plus Spell the dispatcher casts (flag 0x10 at +0x1c): the Serpent part's busy move, or
+            // the Ghost's current move.
+            int species = *(const int *)(*(const BYTE *const *)(attacker + 0x71c) + 0x10);
+            const BYTE *move = NULL;
+            if (species == 0x59) {
+                int part = ((int(__cdecl *)(BYTE *))(UINT_PTR)SumVa(VA_SERPENT_PART_INDEX))(attacker);
+                if (part >= 0)
+                    move = ((const BYTE *const *)(UINT_PTR)SumVa(VA_SERPENT_PART_BUSY))[part];
+            } else if (species == 0x5a) {
+                move = *(const BYTE *const *)(UINT_PTR)SumVa(VA_GHOST_CURRENT_MOVE);
+            }
+            int spellMove = move && (move[0x1c] & 0x10);
+            if (InterlockedIncrement(&logged) <= 200)
+                Log("trace boss plus spell: boss %p -> %p, in range %d, spell move %d%s", (void *)attacker, (void *)defender,
+                    inRange, spellMove, !inRange && g_plusSpellFix ? ", spell skipped" : "");
+        }
+        if (!inRange && g_plusSpellFix)
+            return 0;
+    }
+    return ((Pair)(UINT_PTR)SumVa(VA_BOSS_COUNTER_HIT_DISPATCH))(attacker, defender);
+}
+
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
 static int CurLevelFlag(const char *name)
@@ -1497,6 +1537,17 @@ void BugFixesInstall(void)
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_MUROD_BACKBITE_STORE, o, r, 6,
                    g_murodFix ? "Murod Oni's backward bite waits 5 s between switches (G252)" : "trace Murod Oni switches");
+    }
+    g_plusSpellFix = FixOn("BossSpellInRange");
+    g_plusSpellTrace = GetPrivateProfileIntA("Debug", "TraceBossPlusSpell", 0, g_cfg.iniPath) != 0;
+    if (g_plusSpellFix || g_plusSpellTrace) {
+        DWORD s = SumVa(VA_COUNTER_HIT_CALL);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = SumVa(VA_BOSS_COUNTER_HIT_DISPATCH) - (s + 5), rn = (DWORD)(UINT_PTR)BossCounterHitWrap - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(VA_COUNTER_HIT_CALL, o, r, 5,
+                   g_plusSpellFix ? "a boss move's spell needs the hit in range (G31)" : "trace boss plus spells");
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax
