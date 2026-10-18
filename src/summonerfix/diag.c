@@ -147,6 +147,35 @@ void FpsLoggerStart(void)
     CloseHandle(CreateThread(NULL, 0, FpsLoggerThread, NULL, 0, NULL));
 }
 
+// Access violations: log where they happen (the game's CRT turns them into a silent ExitProcess(0xC0000005)).
+// First chance, so one the game would handle itself is logged too; at most 8 per run.
+static LONG CALLBACK Diag_Exception(PEXCEPTION_POINTERS ep)
+{
+    static volatile LONG logged;
+    const EXCEPTION_RECORD *er = ep->ExceptionRecord;
+    if (er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || InterlockedIncrement(&logged) > 8)
+        return EXCEPTION_CONTINUE_SEARCH;
+    const CONTEXT *c = ep->ContextRecord;
+    HMODULE mod = NULL;
+    char name[MAX_PATH] = "?";
+    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       (LPCSTR)er->ExceptionAddress, &mod);
+    if (mod)
+        GetModuleFileNameA(mod, name, sizeof name);
+    const char *base = strrchr(name, '\\');
+    DWORD at = (DWORD)(UINT_PTR)er->ExceptionAddress;
+    if (mod == GetModuleHandleA(NULL))
+        at = at - (DWORD)(UINT_PTR)mod + SUM_IMAGE_BASE;
+    else if (mod)
+        at -= (DWORD)(UINT_PTR)mod;
+    Log("access violation (%s 0x%08lX) at %s+0x%06lX: eax %08lX ebx %08lX ecx %08lX edx %08lX esi %08lX edi %08lX "
+        "ebp %08lX esp %08lX",
+        er->ExceptionInformation[0] ? "write" : "read", (unsigned long)er->ExceptionInformation[1],
+        base ? base + 1 : name, (unsigned long)at, c->Eax, c->Ebx, c->Ecx, c->Edx, c->Esi, c->Edi, c->Ebp, c->Esp);
+    LogStackTrace((const void *)(UINT_PTR)c->Esp);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
 void DiagInstall(HMODULE exe)
 {
     real_MessageBoxA = HookImport(exe, "USER32.dll", "MessageBoxA", Diag_MessageBoxA);
@@ -156,4 +185,5 @@ void DiagInstall(HMODULE exe)
     real_GlobalMemoryStatus = HookImport(exe, "KERNEL32.dll", "GlobalMemoryStatus", Diag_GlobalMemoryStatus);
     QueryPerformanceFrequency(&g_qpf);
     real_Sleep = HookImport(exe, "KERNEL32.dll", "Sleep", Diag_Sleep);
+    AddVectoredExceptionHandler(1, Diag_Exception);
 }

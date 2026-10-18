@@ -82,6 +82,7 @@ to get the proxy loaded.
 | Ring power of exactly 60,000 (`bugfix.c`, `[Fixes] RingSixtyThousand`) | `jle` -> `jl` at `0x447390` (`character_can_use_summon`) and `0x45023a` (`ring_check_summon_unlock`) | A ring that reached exactly 60,000 never announced its new summon, and its pop-up listed the summon one gain before it could be cast ([K100](../sum-exe/game-bugs.md)). Reproduced and checked in game (the unlock message) |
 | The 33rd map label overwrites the first (`bugfix.c`, `[Fixes] MapLabelLimit`) | `xor eax, eax; ret` -> `or eax, -1; ret` at `0x430245` in `automap_label_alloc` | With all 32 labels used, the allocator returned label 0 instead of "none", so a new label replaced the first one ([K6](../sum-exe/game-bugs.md)). Checked by calling the allocator in game |
 | Shop category buttons in sell mode (`bugfix.c`, `[Fixes] ShopCategoryButtons`) | `mov eax, [buysell_list_count]` at `0x404f98` (sell branch of `buysell_category_first_index`) -> `jmp` to a stub that returns the first shown row of the category | In sell mode the category buttons used the shop's buy list: they jumped to the wrong row and stayed enabled for categories the party had nothing in ([K3](../sum-exe/game-bugs.md)). Reproduced and checked in game |
+| Inventory category buttons in identify mode (`bugfix.c`, `[Fixes] InventoryCategoryButtons`) | `mov eax, esi` at `0x41543e` (identify branch of `inventory_category_first_index`) -> `jmp` to a stub that turns the party-inventory index into its row among the unidentified items | In identify mode the category buttons used the party-inventory index as a row of the shorter unidentified list, so they jumped too far down ([K4](../sum-exe/game-bugs.md)). Reproduced and checked in game |
 | Testing: Giant Salamanka reach (`trace.c`) | `[Debug] TraceBossReach=1` wraps the `giant_salamanka_target_in_reach` call at `0x4a0f8c` and logs the current move's offense point and the answer | Used to check G30 (withdrawn: the points are right); off by default |
 | Testing: detection cone (`trace.c`) | `[Debug] TraceDetectCone=1` turns `fcomp [0x581ae0]` at `0x493c51` into a call that logs the dot product and whether the enemy is accepted | Used for G210; off by default |
 | Testing: AI support spell picks (`trace.c`) | `[Debug] TraceSupportPick=1` turns the `frand` call at `0x4beb3d` in `ai_choose_support_spell` into a call that draws the number itself and logs the shares, the number, the game's pick and a running-sum pick | For G229; off by default |
@@ -106,7 +107,7 @@ to get the proxy loaded.
 | Agent mode (`[Debug] Agent=1`) | `agent.c`: commands from `Summoner\agent\cmd.txt` inject game keys/mouse buttons, set the cursor, take screenshots, report state; keeps the game from pausing | Lets scripts (`tools/agent.mjs`) play and test the game; tested 2026-10-13 (menu, load, inventory) |
 | Typing ignores key bindings | `key_to_ascii` (`0x509ca0`) -> `KeyToAscii`: `KeyRemap` records which physical key produced each game key code; text entry translates back before the character lookup | With `E=I` bound, typing a save name with E gave "i" (user report 2026-10-13). Tested 2026-10-14 in agent mode: with W, A, D and E all rebound, posted key presses typed "wade" in the save description (cancelled, nothing saved) |
 | Alt+Tab works | `SetWindowPos` hook: the call from the game's focus-loss handler (return address `0x5310ef`) becomes `HWND_BOTTOM` + `SWP_NOACTIVATE`, and `SWP_NOACTIVATE` is added to the focus-gain call (`0x5310b7`). The F10 hotkey (`[Game] ConfigKey`) opens the key binding app, which is topmost | The game re-activated itself on losing focus, so other programs (such as `SummonerFixConfig.exe`) could not be brought forward; see [Controls](../sum-exe/controls.md#switching-away-from-the-game-alttab). Tested 2026-10-13 |
-| Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
+| Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs access violations (address, registers, stack; the CRT otherwise exits silently with code 0xC0000005); logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ### Switching original-game fixes off (`[Fixes]`)
 
@@ -148,6 +149,7 @@ saving options wrote `Enabled=0`, and the game then applied none of the 20 fixes
 | `RingSixtyThousand` | A ring's higher summon is usable and announced from a power of 60,000 on, as its pop-up lists it ([K100](../sum-exe/game-bugs.md)) |
 | `MapLabelLimit` | A 33rd label on a map is refused instead of replacing the first ([K6](../sum-exe/game-bugs.md)) |
 | `ShopCategoryButtons` | In a shop's sell list the category buttons jump to your own items of that category, and are off when you have none ([K3](../sum-exe/game-bugs.md)) |
+| `InventoryCategoryButtons` | When identifying items, the category buttons jump to the unidentified items of that category ([K4](../sum-exe/game-bugs.md)) |
 | `GoldPileAmount` | A gold pile left on the ground keeps its amount after a load ([G40](../sum-exe/game-bugs.md)) |
 | `SpellRecoveryTimes` | Spell cooldowns use the recovery times in `spells.tbl` (fireball 20 s, not 26); this changes the balance ([G12](../sum-exe/game-bugs.md)) |
 
@@ -254,7 +256,7 @@ A binding adds a key; the default key keeps working. If the new key already belo
 | `[Display] MaxTextureSize` | 2048 | OpenGL texture-size cap |
 | `[Display] Brightness` | Auto | OpenGL: how the brightness slider is applied (`Auto` shader pass, else monitor ramp; `Shader`; `Ramp`; `Off`) |
 | `[Sound] Soundcard` | `DirectSound` | or `No Sound` |
-| `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits, large allocations, FPS and sleep statistics |
+| `[Debug] Diagnostics` | 0 | 1 = log dialogs, exits, access violations, large allocations, FPS and sleep statistics |
 | `[Debug] CaptureEvery` | 0 | Seconds between back-buffer captures (`summonerfix-capture-N.bmp`) |
 | `[Debug] FakeUptimeDays` | 0 | Testing only: the game sees this many days of Windows uptime (25+ reproduces the cutscene timer bug) |
 | `[Debug] TestSaves` | 0 | Testing: 1 = save and load in `Summoner/savetest` (the `"savegame"` folder name at `0x594b00` becomes `"savetest"`), so the player's saves are never touched |

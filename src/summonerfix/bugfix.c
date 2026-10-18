@@ -142,6 +142,11 @@
 // that category at all. Fix ([Fixes] ShopCategoryButtons): the branch jumps to a stub that returns the first row of
 // the shown list in that category (item_type_shop_category of each row's item), or -1.
 //
+// Inventory category buttons in identify mode jump to the wrong row (cosmetic; game-bugs K4). In identify mode the list
+// shows only unidentified items, but inventory_category_first_index returns the party-inventory index of the first
+// unidentified item of the category (mov eax, esi at 0x41543e). Fix ([Fixes] InventoryCategoryButtons): that return
+// goes through a stub that turns the index into the row of the shown list (the unidentified items before it).
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -211,7 +216,10 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_BUYSELL_SELL_CATEGORY 0x404f98u  // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
+#define VA_INVENTORY_CATEGORY_RET 0x41543eu // mov eax, esi (identify-mode result) in inventory_category_first_index
+#define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
+#define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
+#define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
 #define VA_BUYSELL_GET_LIST_ITEM 0x404960u  // cdecl (row) -> shop_item * of the shown list, NULL past the end
 #define VA_ITEM_TYPE_SHOP_CATEGORY 0x46b5f0u // cdecl (item type index) -> 0 weapons .. 4 misc
 #define VA_MAP_LABEL_FULL 0x430245u        // xor eax, eax ; ret (+ nop) in automap_label_alloc
@@ -327,6 +335,31 @@ __asm__(".text\n"
         "    addl $4, %esp\n"
         "    popl %edi\n"
         "    popl %esi\n"
+        "    ret\n");
+
+// Party-inventory index -> row of the identify-mode list: the unidentified entries before it (K4). party_inventory
+// is 8-byte records with the item pointer first (0x970824); item_is_identified (0x44b690) takes the item.
+__attribute__((used)) static int __cdecl IdentifyRowOf(int index)
+{
+    typedef char(__cdecl * IsIdentified)(void *);
+    IsIdentified identified = (IsIdentified)(UINT_PTR)SumVa(VA_ITEM_IS_IDENTIFIED);
+    void *const *inv = (void *const *)(UINT_PTR)SumVa(VA_PARTY_INVENTORY);
+    int row = 0;
+    for (int i = 0; i < index; i++)
+        if (!identified(inv[2 * i]))
+            row++;
+    return row;
+}
+// Replaces mov eax, esi ; pop edi ; pop esi ; pop ebx ; ret at 0x41543e (entered by jmp).
+void IdentifyRowStub(void);
+__asm__(".text\n"
+        "_IdentifyRowStub:\n"
+        "    pushl %esi\n"
+        "    call _IdentifyRowOf\n"
+        "    addl $4, %esp\n"
+        "    popl %edi\n"
+        "    popl %esi\n"
+        "    popl %ebx\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -746,6 +779,15 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)SellCategoryStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_BUYSELL_SELL_CATEGORY, o, r, 5, "shop sell list category buttons use the shown rows (K3)");
+    }
+
+    if (FixOn("InventoryCategoryButtons")) {
+        static const BYTE o[6] = {0x8B, 0xC6, 0x5F, 0x5E, 0x5B, 0xC3}; // mov eax, esi ; pop edi ; pop esi ; pop ebx ; ret
+        BYTE r[6] = {0xE9, 0, 0, 0, 0, 0x90};
+        DWORD s = SumVa(VA_INVENTORY_CATEGORY_RET);
+        DWORD rel = (DWORD)(UINT_PTR)IdentifyRowStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_INVENTORY_CATEGORY_RET, o, r, 6, "identify-mode category buttons use the shown rows (K4)");
     }
 
     if (FixOn("PhoenixInferno")) {

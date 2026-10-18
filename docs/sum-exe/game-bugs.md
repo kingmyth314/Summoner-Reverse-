@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 14 |
+| Cosmetic | 58 | 36 | 15 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1738,7 +1738,7 @@ retail script sends a go that early was not checked. D8602.
 | K1 | A hot button used with a number key lights up for one frame instead of 100 ms | `hud_frame` `0x40cf40` | **Observed** code | No |
 | K2 | In the multiplayer character screen, the info panel's up arrow scrolls down | `mp_charselect_button_action` `0x4074e0` | **Observed** code | No |
 | K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ShopCategoryButtons`) |
-| K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code | No |
+| K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] InventoryCategoryButtons`) |
 | K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
 | K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MapLabelLimit`) |
 | K7 | A character missing from the font is drawn as a garbage glyph | `gr_string` `0x508c60` | **Observed** code, *inferred* effect | No |
@@ -1857,7 +1857,18 @@ party-inventory order (`buysell_get_list_item` `0x40497d`). The jump returns an 
 trader's buy list has gems at index 18. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] ShopCategoryButtons`):
 the sell branch (`0x404f98`) jumps to a stub that walks the shown rows (`buysell_get_list_item`) and returns the first
 one in the category, or -1. With the fix the misc button was disabled and did nothing, and the magic button still went
-to Revive Scroll (row 1). K4 (identify mode) is not fixed yet.
+to Revive Scroll (row 1).
+
+**K4 reproduced 2026-10-17** (the same save; the 20 scroll and ring types marked unidentified by setting bit 0 of
+item type `+0x5c`; identify mode opened with `interface_set_screen(1, &mode)` where `mode` is 1, the byte
+`inventory_init` reads). The list showed the 20 unidentified items. Scrolled to the bottom (row 3), the magic button
+left the list at row 3: the first unidentified magic item is party-inventory index 3, which is row 0 of the shown
+list. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] InventoryCategoryButtons`): `mov eax, esi` at
+`0x41543e` jumps to a stub that turns the index into its row by counting the unidentified items before it. With the
+fix the magic button went back to Revive Scroll (row 0), and jewellery went as far down as the list scrolls (the
+`inventory_goto_category*` callers clamp to the last full page). Opening the screen with a null mode pointer
+(`interface_set_screen(1, 0)`) skips `inventory_init`, so the row count
+stays stale; that only happens through a direct call, not in the game.
 
 **K5. Row index again.** In save mode `saveload_load_thumbnail` loads no file for row 0 (`test ebx, ebx;
 jle` at `0x425c65`). `saveload_draw_thumbnail` then shows the current scene for row 0 (`0x426fe5`). Both

@@ -21,7 +21,7 @@ strings confirm it; **I** means it is placed by position.
 | Id | Init | Leave | Screen | File | Conf. |
 |---|---|---|---|---|---|
 | 0 | `0x40cef0` | – | HUD (no menu) | `new_hud.cpp` | I |
-| 1 | `0x414fc0` | `0x4158b0` | Inventory: full-screen panel, "Inventory", "Party Items" | `new_inventory.cpp` | O |
+| 1 | `0x414fc0` | `0x4158b0` | Inventory: full-screen panel, "Inventory", "Party Items". `arg` points to the open-mode byte (1 = identify, from the shop); with a NULL `arg` the init is skipped (`0x41281a`) | `new_inventory.cpp` | O |
 | 2 | `0x42b480` | `0x42b910` | Character (status): full-screen panel, "Character", "Skills", "Resistances" | `new_status.cpp` | O |
 | 3 | `0x402250` | – | Map: left side panel with the automap | `new_automap.cpp` | O |
 | 4 | `0x4207d0` | `0x420960` | Pickup | `new_pickup.cpp` | I |
