@@ -206,6 +206,27 @@ static void SpellHitOnGameThread(void *unused)
     Log("agent: spellhit %06lX spell 0x%x power %.1f from %p", g_hitTarget, g_hitSpell, (double)g_hitPower, (void *)ch);
 }
 
+// "npckill NAME": the character takes 1,000,000 damage through character_add_hp (thiscall (amount, source, 0, 0)).
+static void NpcKillOnGameThread(void *arg)
+{
+    char *name = (char *)arg; // a copy per request: several kills can be queued before the game thread runs
+    typedef BYTE *(__cdecl * FindChar)(const char *);
+    typedef char(__attribute__((thiscall)) * AddHp)(void *, float, int, int, int);
+    BYTE *npc = ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(name);
+    if (!npc) {
+        Log("agent: npckill %s: no such character", name);
+    } else {
+        // character_add_hp ignores type 4 (non-hostile NPCs; wave enemies stay type 4 until "turn hostile"), so such a
+        // character becomes type 5 (monster) first and then dies through the normal death handling.
+        if (*(int *)(npc + 0xc) == 4)
+            *(int *)(npc + 0xc) = 5;
+        ((AddHp)(UINT_PTR)SumVa(0x450850u))(npc, -1000000.0f, -1, 0, 0);
+        Log("agent: npckill %s: %p, hp %.0f, flags %08lX", name, (void *)npc, (double)*(float *)(npc + 0x5f8),
+            *(DWORD *)(npc + 0x320));
+    }
+    HeapFree(GetProcessHeap(), 0, name);
+}
+
 // "calli ADDR A [B]": cdecl fn(A, B) with two integer arguments; eax logged.
 static DWORD g_callIntA, g_callIntB;
 static void CallIntOnGameThread(void *unused)
@@ -470,6 +491,27 @@ static void RunLine(char *line)
             *(float *)(ch + 0x18) += (float)atof(argv[2]);
             Out("nudge: %.2f %.2f %.2f", *(float *)(ch + 0x10), *(float *)(ch + 0x14), *(float *)(ch + 0x18));
         }
+    } else if (!_stricmp(c, "npckill") && argc >= 2) {
+        // npckill NAME: character_add_hp(-1000000) on a level script character (name may contain spaces), on the
+        // game thread, so it dies as from damage (a type 4 NPC is made type 5 first). Testing only (G132).
+        char *name = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 64); // freed on the game thread
+        for (int i = 1; i < argc; i++) {
+            if (i > 1)
+                strncat(name, " ", 63 - strlen(name));
+            strncat(name, argv[i], 63 - strlen(name));
+        }
+        Out("npckill %s: %s", name, KeysAgentRun(NpcKillOnGameThread, name) ? "requested" : "no window");
+    } else if (!_stricmp(c, "npcdead") && argc >= 2) {
+        // npcdead NAME: script_object_find (0x4cddf0) and script_npc_is_dead (0x4ce600) for a script character.
+        char name[64] = "";
+        for (int i = 1; i < argc; i++) {
+            if (i > 1)
+                strncat(name, " ", sizeof name - strlen(name) - 1);
+            strncat(name, argv[i], sizeof name - strlen(name) - 1);
+        }
+        int index = ((int(__cdecl *)(const char *))(UINT_PTR)SumVa(0x4cddf0u))(name);
+        int dead = ((char(__cdecl *)(const char *))(UINT_PTR)SumVa(0x4ce600u))(name);
+        Out("npcdead %s: script object %d, dead %d", name, index, dead);
     } else if (!_stricmp(c, "quit")) {
         ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(3);
         Out("quit: requested");

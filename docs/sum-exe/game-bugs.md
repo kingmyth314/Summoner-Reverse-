@@ -1323,6 +1323,13 @@ runs to `$npc197` on "go", like `#w3b`. *Inferred:* when the player kills `#w3b`
 a fight that is still going on, and the end-of-quest remark can come with `#w3a` still alive. Found in the
 `NOTES-level-scripts-8.md` notes (bug 3).
 
+**Not reproduced yet (2026-10-17).** The defence starts from the Guardian's "EnemyAttack" conversation action
+(`ls_liangshan_action` -> `ls_liangshan_start_wave1` `0x4f55f0`). In agent mode, calling `ls_liangshan_start_wave1`
+directly set `liangshan_flag_wave1`, but `Orenian Soldier#w1` stayed hidden at its start point, and a soldier killed
+with the test command `npckill` stayed "dying" (`+0x320` bit `0x8`) without reaching dead (`0x80`, which
+`script_object_is_dead` tests), so wave 2 never began. A real test needs the level played up to the defence (the
+temple and the ring). Not fixed until then.
+
 **G140. A stale slot.** When a cutscene takes off an item, the record's slot is set from the item type's slot:
 weapon 4 or two-handed 9 goes back to hand 5, shield 5 to hand 6 (`0x4dcd55`..`0x4dcd87`); torso 6 or heavy 8
 to body slot 7, legs 7 to slot 8 (`0x4dcf94`..`0x4dcfb9`, `0x4dcffe`..`0x4dd023`). Any other type slot leaves

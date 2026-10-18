@@ -282,6 +282,9 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `call0 ADDR [N]` calls a void game function with no arguments N times on the game thread and logs
   `level_filename` / `level_script_name` after each call, then restores the three level names (for the world map
   encounter pickers, G6: `call0 4fc4b0 40`);
+- `npckill NAME` gives a level script character 1,000,000 damage through `character_add_hp` (a type 4 NPC is made
+  type 5 first, since type 4 ignores damage); `npcdead NAME` prints `script_object_find` and `script_npc_is_dead`
+  for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`);
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
 - `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or
