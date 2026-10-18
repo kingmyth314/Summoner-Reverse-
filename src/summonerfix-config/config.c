@@ -94,6 +94,7 @@ static const FixOption k_fixes[] = {
     {"ZaneEncounter", "Zane's encounters as intended"},
     {"MountedRiders", "AI sees mounted Phoenix / Ghost"},
     {"BossMusic", "Boss music starts and ends"},
+    {"RingSixtyThousand", "Ring summons from 60,000 power"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

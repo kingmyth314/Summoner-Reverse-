@@ -287,7 +287,7 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`);
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
-- `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or
+- `callstr ADDR STRING [ARG [ARG2]]` calls the cdecl game function at ADDR with a string (`~` stands for a space) and up to two more arguments (ints; the first may also be
   a float's bits when ARG contains a dot) on the game thread and logs the returned eax. For example `callstr 4f95a0
   puzzle-flippers31` (the Khosani lab's use hook) or `callstr 4773d0 puzzle-flippers32 0.01`
   (`door_is_open_by_name`). The caller must know the function's arguments;

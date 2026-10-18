@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 11 |
+| Cosmetic | 58 | 36 | 12 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1770,7 +1770,7 @@ retail script sends a go that early was not checked. D8602.
 | K91 | With the Direct3D renderer and a hardware gamma ramp, lit polygons get the gamma curve twice | `gr_d3d_tmapper` `0x5361a0`, `gr_d3d_tmapper_multipass` `0x536360`, `gr_d3d_set_gamma` `0x53ab20` | **Observed** code, *inferred* effect | No |
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
-| K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code, *inferred* effect | No |
+| K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] RingSixtyThousand`) |
 | K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
 | K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
 | K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
@@ -2154,6 +2154,13 @@ summon under "Available Summons:" from 60,000 on (`cmp eax, 0xea60; jl` at `0x44
 exactly 60,000 the pop-up offers a summon that cannot be cast yet. Ring gains are integers
 (`(int)(xp x 2 x summon skill)` and its eighth), capped at twice the character's experience, so landing on
 60,000 is possible but rare.
+
+**Reproduced 2026-10-17** (agent mode, `callstr 450220 Ring~of~Light 59000 60000`, which calls
+`ring_check_summon_unlock` as `ring_add_xp` does): no message for a gain from 59,000 to exactly 60,000; the same call
+to 60,001 showed "Joseph acquired Summon Wraith!". **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+RingSixtyThousand`): `jle` -> `jl` at `0x447390` (`character_can_use_summon`) and `0x45023a` (the new total in
+`ring_check_summon_unlock`), so the summon is usable, announced and listed from 60,000 on. With the fix the call to
+exactly 60,000 showed the message. `character_can_use_summon` itself was not called in game.
 
 **K110. Removing by index from a table that shrinks.** `level_script_leave` runs
 `for (i = 0; i < level_ambient_count; i++) level_ambient_remove(i)` (`0x4cccbb`..`0x4ccccc`).

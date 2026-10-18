@@ -171,17 +171,17 @@ static void FireWallsOnGameThread(void *unused)
     Log("agent: firewall: %d of %d areas placed (caster %s)", made, g_fireWalls, g_fireWallsBySummon ? "summon" : "leader");
 }
 
-// "callstr ADDR STRING [ARG]": cdecl fn(string, arg) on the game thread, eax logged. ARG with a '.' is passed as a
+// "callstr ADDR STRING [ARG [ARG2]]": cdecl fn(string, arg, arg2) (a ~ in STRING stands for a space) on the game thread, eax logged. ARG with a '.' is passed as a
 // float's bits (e.g. a fraction), otherwise as an int. Testing only: the caller must know the function takes that.
 static DWORD g_callAddr;
 static char g_callStr[64];
-static DWORD g_callArg;
+static DWORD g_callArg, g_callArg2;
 
 static void CallStrOnGameThread(void *unused)
 {
     (void)unused;
-    DWORD r = ((DWORD(__cdecl *)(const char *, DWORD))(UINT_PTR)SumVa(g_callAddr))(g_callStr, g_callArg);
-    Log("agent: callstr %06lX(\"%s\", 0x%lX) = 0x%lX", g_callAddr, g_callStr, g_callArg, r);
+    DWORD r = ((DWORD(__cdecl *)(const char *, DWORD, DWORD))(UINT_PTR)SumVa(g_callAddr))(g_callStr, g_callArg, g_callArg2);
+    Log("agent: callstr %06lX(\"%s\", 0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callStr, g_callArg, g_callArg2, r);
 }
 
 // "spellhit TARGET SPELL POWER": living_entity_get_hit_by_spell (0x45dea0, thiscall) on the character at TARGET
@@ -456,7 +456,11 @@ static void RunLine(char *line)
         // "callstr 4773d0 puzzle-flippers31 0.01" (door_is_open_by_name). Result in the log.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
         lstrcpynA(g_callStr, argv[2], sizeof g_callStr);
+        for (char *p = g_callStr; *p; p++)
+            if (*p == '~')
+                *p = ' ';
         g_callArg = 0;
+        g_callArg2 = argc >= 5 ? (DWORD)strtol(argv[4], NULL, 0) : 0;
         if (argc >= 4) {
             if (strchr(argv[3], '.')) {
                 float f = (float)atof(argv[3]);

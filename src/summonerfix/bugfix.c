@@ -136,6 +136,12 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
+// A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
+// above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
+// 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
+// next gain starts at 60,000, so none ever comes), and the pop-up offers a summon that cannot be cast. Fix ([Fixes]
+// RingSixtyThousand): both jle become jl, so all three agree on 60,000 or more.
+//
 // Boss music never switched (cosmetic; game-bugs K130, K150). Two level scripts preset their "done" bytes to 1 on every
 // entry, so the branches they guard never run: Liangshan's ls_liangshan_phoenix_dead_done (0x4f49be), which puts
 // the level music back once both riders are dead, and the Ikaemos upper hall's found_boss_done / boss_killed_done
@@ -194,7 +200,9 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_LIANGSHAN_PRESET 0x4f49beu       // mov byte [ls_liangshan_phoenix_dead_done], 1 in ls_liangshan_init
+#define VA_CAN_USE_SUMMON_60K 0x447390u     // jle after cmp eax, 60000 in character_can_use_summon
+#define VA_SUMMON_UNLOCK_60K 0x45023au      // jle after cmp [new total], 60000 in ring_check_summon_unlock
+#define VA_LIANGSHAN_PRESET 0x4f49beu      // mov byte [ls_liangshan_phoenix_dead_done], 1 in ls_liangshan_init
 #define VA_LIANGSHAN_DEAD_DONE 0x257ea61u
 #define VA_IKAEMOS_PRESET 0x4f9f2eu         // the two mov byte [..._done], bl in ls_ikaemostopint_init
 #define VA_IKAEMOS_FOUND_DONE 0x257ecfcu    // found_boss_done; boss_killed_done follows
@@ -675,6 +683,13 @@ void BugFixesInstall(void)
         rel = (DWORD)(UINT_PTR)IkaemosMusicPreset - (s + 5);
         memcpy(ir + 1, &rel, 4);
         PatchBytes(VA_IKAEMOS_PRESET, io, ir, 12, "boss music presets from the saved flags (K150)");
+    }
+
+    if (FixOn("RingSixtyThousand")) {
+        static const BYTE co[2] = {0x7E, 0x04}, cr[2] = {0x7C, 0x04};                  // jle -> jl (character_can_use_summon)
+        static const BYTE uo[2] = {0x0F, 0x8E}, ur[2] = {0x0F, 0x8C};                  // jle -> jl (ring_check_summon_unlock)
+        PatchBytes(VA_CAN_USE_SUMMON_60K, co, cr, 2, "ring summons from 60,000 on (K100)");
+        PatchBytes(VA_SUMMON_UNLOCK_60K, uo, ur, 2, "ring summons from 60,000 on (K100)");
     }
 
     if (FixOn("PhoenixInferno")) {
