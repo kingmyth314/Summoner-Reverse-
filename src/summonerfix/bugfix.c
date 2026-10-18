@@ -354,6 +354,9 @@
 #define VA_SERPENT_PART_INDEX 0x4975a0u     // cdecl (character) -> part index
 #define VA_SERPENT_PART_BUSY 0x2452384u     // move_info *[] by part
 #define VA_GHOST_CURRENT_MOVE 0x2480810u    // move_info *
+#define VA_SERPENT_ASLEEP_ARG 0x49667fu     // mov eax, [esp+0x2c] ; and eax, 0xff ; push eax (the index argument)
+#define VA_SERPENT_ASLEEP_CALL 0x49668eu    // call serpent_part_is_asleep
+#define VA_SERPENT_PART_IS_ASLEEP 0x496060u
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
@@ -967,6 +970,30 @@ __attribute__((used)) static int __cdecl BossCounterHitWrap(BYTE *attacker, BYTE
     return ((Pair)(UINT_PTR)SumVa(VA_BOSS_COUNTER_HIT_DISPATCH))(attacker, defender);
 }
 
+// Serpent asleep test after a target change (gameplay; game-bugs G213). serpent_choose_attack re-picks a target and
+// then passes serpent_part_is_asleep the previous asleep flag (mov eax, [esp+0x2c] ; and eax, 0xff ; push eax at
+// 0x49667f) instead of the new candidate's index in esi, so it tests candidate 0 or 1. Fix ([Fixes] SerpentSleepTest):
+// push esi plus nops. [Debug] TraceSerpentAsleep: the serpent_part_is_asleep call at
+// 0x49668e comes here and logs the index it gets next to the newly picked candidate (esi).
+__attribute__((used)) static volatile DWORD g_serpentAsleepVa;
+__attribute__((used)) static void __cdecl SerpentAsleepTrace(int passed, int picked)
+{
+    static volatile LONG logged;
+    if (InterlockedIncrement(&logged) <= 200)
+        Log("trace Serpent asleep test: index passed %d, new candidate %d%s", passed, picked,
+            passed != picked ? " (mismatch)" : "");
+}
+void SerpentAsleepTraceStub(void);
+__asm__(".text\n"
+        "_SerpentAsleepTraceStub:\n"
+        "    pushal\n"
+        "    pushl %esi\n"       // the new candidate index
+        "    pushl 0x2c(%esp)\n" // the index argument: [esp+8] at entry, +0x20 pushal, +4 the push above
+        "    call _SerpentAsleepTrace\n"
+        "    addl $8, %esp\n"
+        "    popal\n"
+        "    jmp *_g_serpentAsleepVa\n");
+
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
 static int CurLevelFlag(const char *name)
@@ -1548,6 +1575,20 @@ void BugFixesInstall(void)
         memcpy(r + 1, &rn, 4);
         PatchBytes(VA_COUNTER_HIT_CALL, o, r, 5,
                    g_plusSpellFix ? "a boss move's spell needs the hit in range (G31)" : "trace boss plus spells");
+    }
+    if (FixOn("SerpentSleepTest")) {
+        static const BYTE o[10] = {0x8B, 0x44, 0x24, 0x2C, 0x25, 0xFF, 0x00, 0x00, 0x00, 0x50};
+        static const BYTE r[10] = {0x56, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // push esi
+        PatchBytes(VA_SERPENT_ASLEEP_ARG, o, r, 10, "the Serpent's asleep test looks at its new target (G213)");
+    }
+    if (GetPrivateProfileIntA("Debug", "TraceSerpentAsleep", 0, g_cfg.iniPath)) {
+        DWORD s = SumVa(VA_SERPENT_ASLEEP_CALL);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = SumVa(VA_SERPENT_PART_IS_ASLEEP) - (s + 5), rn = (DWORD)(UINT_PTR)SerpentAsleepTraceStub - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        g_serpentAsleepVa = SumVa(VA_SERPENT_PART_IS_ASLEEP);
+        PatchBytes(VA_SERPENT_ASLEEP_CALL, o, r, 5, "trace the Serpent's asleep test");
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax

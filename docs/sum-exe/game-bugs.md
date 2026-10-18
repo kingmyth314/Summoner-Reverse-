@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 7 |
-| Gameplay | 48 | 25 | 25 |
+| Gameplay | 48 | 25 | 26 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
 
@@ -974,7 +974,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G210 | Monster groups (and the party's group) notice a foe beyond their detection range only when it is to the side of or behind a member, never when it is straight ahead: a party walking up to monsters head-on is noticed later (Archlich: within 3 m instead of 10 m) | `ai_group_collect_enemies` `0x493ac0` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] DetectionCone`) |
 | G211 | A party member on the Support combat style (Flece by default) ends up attacking a random enemy: its group order always adds an attack on the first enemy of the shuffled list after the target it chose | `ai_group_think_style1` `0x493290` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SupportAiTarget`) |
 | G212 | An AI healer casts Protect on the party as soon as two members are unblessed and one of them is hurt or attacked, not when more than two need it | `ai_group_think_caster` `0x4936c0` | **Observed** code; the doubled count seen in game (2026-10-17) | Fixed with C210 (`[Fixes] AiBlessCount`) |
-| G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and retail data, *inferred* effect | No |
+| G213 | In the mounted Serpent fight (stage 1), after the Serpent changes target its "is this target asleep" test looks at the first or second hero in its list instead, so it may knock back a sleeping new target or leave an awake one for another | `serpent_choose_attack` `0x496330` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] SerpentSleepTest`) |
 | G214 | In the on-foot Phoenix fight (stage 3), when two party members lie knocked down and the point beside them has no path, the Phoenix walks for up to 5 s toward the mirror image of that point through the level origin | `phoenix_reposition_update` `0x497da0` | **Observed** code, *inferred* effect | No |
 | G215 | The Phoenix Rider's Inferno (stages 1 and 3) hits its target once for every party member, and knocks every party member down for 5-10 s wherever they stand | `phoenix_special_strike` `0x499890` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] PhoenixInferno`) |
 | G216 | The Tiger Rider's choice among several heroes it sees uses only the last hero's threat as the common base of the weights, not the sum, so it leans harder toward the heroes that hurt it than the other boss pickers do | `tiger_pick_target` `0x49b0a0` | **Observed** code, *inferred* effect | No |
@@ -1484,6 +1484,11 @@ result feeds `serpent_part_is_busy` (`0x4966a2`) and the choice between the stag
 Stun", only when not busy, `0x4966ce`) and the sickle (`0xbb`), and whether it re-picks away from a sleeping
 target (`0x496706`..`0x496751`). Asleep means sleep with more than 10 s left and no poison; the Serpent's own
 stage-1 Nightmare (`serp_boss.tbl` "stage1 nightmare", spell "Nightmare") is what puts heroes to sleep.
+
+**Reproduced 2026-10-18** (the Serpent fight in `Rand-Forest01_v2` with a full party; `[Debug] TraceSerpentAsleep` logs
+the index the call at `0x49668e` gets and the new candidate in `esi`): after a re-pick the test got index 0 while the
+new candidate was 2. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SerpentSleepTest`): the 10 bytes at
+`0x49667f` become `push esi` and nops. With the fix the two re-picks seen passed 1 / 1 and 2 / 2.
 
 **G214. A negated point.** [notes 10] With the dive flag (`phoenix_flags` 2) in stage 3, when two or more party
 members are knocked down (AI sub-mode `0x2d`), `phoenix_reposition_update` paths to a point 4.5 m beside their
