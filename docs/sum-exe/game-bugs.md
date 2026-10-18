@@ -1497,6 +1497,13 @@ world point (`fchs` at `0x497f5f`, `0x497f65`, `0x497f75`) and paths there (`0x4
 travel mode and a 5 s wander timer. The mirrored side point (`mid - dir x 4.5`) was presumably meant. G215 makes
 two members down at once a common case.
 
+**Not reproduced yet (2026-10-18).** With the four `rand-hills01` flags cleared (`flagl 10 phoenix_intro_played 0`
+and the three others) and a full party, `level rand-hills01 rand-hills01_v2` brought the mounted Phoenix Rider, but it
+stayed idle with a "loading" sign on screen, and `phoenix_stage 3` did not bring the on-foot stage. Two members were
+kept knocked down and the first path forced to fail (`pokecode 497f49 eb`); the fallback never ran. A fix is ready in
+principle: at `0x497f5b` compute `2 x mid - point` (point at `[esp+0x1c]`, midpoint at `[esp+0x34]`) instead of the
+negation.
+
 **G215. One distance for everyone.** [notes 12] For spell `0x1e` (`inferno`) the move trigger walks
 `party_list`, and for every living member compares the squared distance **between the target and the boss**
 (`[esi+0x10]` minus `[edi+0x10]`, `0x499900`..`0x49992f`) with the spell's distance squared (`spells[0x1e]`
