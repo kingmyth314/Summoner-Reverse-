@@ -270,6 +270,19 @@ recognise their callers by (`KeepOriginal`, display.c) stay original, so no fix 
 one or more of these files with `src/decomp/vc6-matches.txt`: of the functions that do not match byte for byte,
 which a run executed (tested in the game when the run's checks passed) and which none did (the scenarios to find).
 
+**`tools/hybrid-test.mjs`** runs the checks the hybrid work uses. It needs `SUMMONERFIX_INI_BACKUP` (or
+`--ini-backup`) naming a copy of the game's `summonerfix.ini`, which it puts back after each run, and works only in
+`Summoner/savetest` (`[Debug] TestSaves=1`); the player's own saves are never touched.
+
+| Command | What it does |
+|---|---|
+| `session [KEY=VALUE@Section ...]` | start the game in agent mode on the newest test save with those ini keys (the stale `agent\cmd.txt` of a killed session is removed first: it would run at the next start) |
+| `scenario <dir> <tag> [--runs 3] [--level NAME:SCRIPT \| --steps "..."]` | the scenario (a level change with the full party by default, or agent commands) on the original game `--runs` times and on the hybrid once with coverage; a quicksave after each (`savetest/quicksave.sav`, back-dated so the next session loads the same save), copied to `<dir>/<tag>-orig<N>.sav` / `-hyb.sav`, then `compare` |
+| `compare <dir> <tag> [--runs 3] [--show 25]` | the hybrid's save against the original runs, dword by dword after the thumbnail: a value that varies between the original runs may vary as much in the hybrid; LENT records are walked (party members' records are 8 bytes longer) and named by record, type and name hash |
+| `search <orig.sav> --level NAME:SCRIPT --region lo-hi\|a,b,c [--majority]` | the halving search over `[Hybrid] Only` for the functions that change the given save bytes; `--majority` counts a step as failing on two of three runs (for a difference that comes and goes) |
+
+Three original runs are the minimum: NPC positions and timers vary between runs of the original.
+
 **Dual calls** (`src/summonerfix/dualcall.c`). `[Hybrid] Dual=<file>` lists functions to check against the
 original on the game's own calls, for code where a whole run cannot be compared (a fight never plays out the same
 twice). For the first `DualSamples` calls of each, the checker copies the game's data (Sum.exe's `.data`/`.bss`,
