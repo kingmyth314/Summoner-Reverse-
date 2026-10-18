@@ -5,7 +5,7 @@ title: Tentacle Beast grab and throw (future project)
 # Tentacle Beast grab and throw (future project, G250)
 
 **Status (2026-10-18):** implemented as an experimental SummonerFix switch, off by default
-(`src/summonerfix/tentacle.c`; `summonerfix.ini` `[Experimental] TentacleGrab=1`, `TentacleGrabChance=10` percent per
+(`src/summonerfix/tentacle.c`; in SummonerFixConfig under "Experimental", or `summonerfix.ini` `[Experimental] TentacleGrab=1`, `TentacleGrabChance=10` percent per
 decision; `[Debug] TraceTentacle=1` logs every step), and tested in game in the sewer boss room with a full party
 (chance 100 for the test). Seen working: grab, 30 s hold dealing 3 damage every 6 s, throw, landing on the floor,
 one grab at a time with the 10 s cooldown, the battle ending mid-hold (the hero is put down and gets its AI back), a

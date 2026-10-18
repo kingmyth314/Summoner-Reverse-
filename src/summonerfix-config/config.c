@@ -45,7 +45,7 @@ static const Hotkey k_hotkeys[] = {
 #define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
 
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
-       ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE };
+       ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -541,6 +541,10 @@ static void LoadOptions(void)
         SetDlgItemTextA(g_wnd, k_numOptions[i].id, v);
     }
     CheckDlgButton(g_wnd, ID_FIXALL, GetPrivateProfileIntA("Fixes", "Enabled", 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(g_wnd, ID_TENTACLE, GetPrivateProfileIntA("Experimental", "TentacleGrab", 0, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+    char chance[16];
+    GetPrivateProfileStringA("Experimental", "TentacleGrabChance", "10", chance, sizeof chance, g_ini);
+    SetDlgItemTextA(g_wnd, ID_TENTCHANCE, chance);
 }
 
 static void ApplyOptions(void)
@@ -557,6 +561,15 @@ static void ApplyOptions(void)
         WritePrivateProfileStringA("Game", k_numOptions[i].iniKey, v, g_ini);
     }
     WritePrivateProfileStringA("Fixes", "Enabled", IsDlgButtonChecked(g_wnd, ID_FIXALL) ? "1" : "0", g_ini);
+    char chance[16];
+    GetDlgItemTextA(g_wnd, ID_TENTCHANCE, chance, sizeof chance);
+    int c = atoi(chance);
+    if (c < 0 || c > 100 || !chance[0]) {
+        SetStatus("\"Grab chance\" must be a number from 0 to 100.");
+        return;
+    }
+    WritePrivateProfileStringA("Experimental", "TentacleGrab", IsDlgButtonChecked(g_wnd, ID_TENTACLE) ? "1" : "0", g_ini);
+    WritePrivateProfileStringA("Experimental", "TentacleGrabChance", chance, g_ini);
     SetStatus("Options saved. The speed key mode applies at once; the others the next time the game starts.");
 }
 
@@ -688,6 +701,16 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Button(w, ID_FIXLIST, "C&hoose fixes...", 770, 168, 120);
         Label(w, "Off = as the original game. Saved with", 770, 202, 230);
         Label(w, "Save options.", 770, 218, 230);
+        Label(w, "Experimental (next game start):", 770, 250, 230);
+        cb = CreateWindowA("BUTTON", "Tentacle Beast grabs and throws", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 770, 268, 230, 20,
+                           w, (HMENU)(INT_PTR)ID_TENTACLE, NULL, NULL);
+        SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        Label(w, "Grab chance (%):", 770, 296, 100);
+        HWND te = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER, 870, 293, 40, 22,
+                                  w, (HMENU)(INT_PTR)ID_TENTCHANCE, NULL, NULL);
+        SendMessageA(te, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        Label(w, "Off = as the original game (the", 770, 322, 230);
+        Label(w, "developers switched it off).", 770, 338, 230);
         Button(w, ID_APPLY, "Save &options", 540, 320, 120);
         Label(w, "Console command for a key:", 540, 372, 200);
         HWND ce = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, 390, 200, 22,
