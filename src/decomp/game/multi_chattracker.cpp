@@ -643,7 +643,7 @@ void irc_flush_channel_list()
 
 // 0x4ad9e0  Confidence: exact (VC6 byte match, match23; was likely; the first-record branch stores next twice: its own store, then the common
 // one after the if).
-void irc_add_channel(char *name, short users, char *topic)
+void irc_add_channel(char *name, unsigned short users, char *topic)
 {
     irc_channel_cur = irc_channel_list;
     if (!irc_channel_cur) {
@@ -822,7 +822,7 @@ int irc_join_channel(char *name)
     return 0;
 }
 
-// 0x4ae120  Confidence: likely (the length sum's operand order). Once per LIST: the text, then the
+// 0x4ae120  Confidence: exact (the length sum's operand order). Once per LIST: the text, then the
 // records are freed and the state goes back to 0.
 char *irc_get_channel_list()
 {

@@ -850,7 +850,9 @@ void options_drag_sliders()
         w = (float)options_gamma_slider_size[resolution_index][0];
         if (x >= w)
             x = w;
-        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f * 1.5f + 0.7f;
+        // Two statements: in one, VC6 folds 0.1f * 1.5f into 0.15f (D9801).
+        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f;
+        v = v * 1.5f + 0.7f;
         if (options_edit.gamma_correction != v)
             options_apply_gamma(v);
         break;

@@ -7210,3 +7210,22 @@ the COMDAT 0x4aa3c0 computes y first and stores both after, which is that form (
 the old `vector2 r; r.x = ...; r.y = ...; return r;` form left everything else identical. Tried without
 success (about 30 variants): an owner local, `const avoid_area_desc *`, `if ((ob = ...) >= 0)`, a vector2
 `operator*(float)` member, ea / eb locals, perp as a temporary, perp in a block, declaration orders.
+
+**D9800 (2026-10-18, script_editor_create_ui 0x4e0690: a loop bound found by reviewing never-run functions).** The
+original fills the editor's size table for size classes 0-2 only: `mov eax, 0x255e9ac` (&char_sizes[0][1]),
+`add eax, 0xc` per pass and `cmp eax, 0x255e9d0; jl` (0x4e06c0..0x4e0710), so char_sizes[3] (0x255e9cc) and
+char_size_radii[3] (0x255a7d0) stay zero. The decomp looped `i < 4`, giving size class 3 ("huge") a pick box and a
+radius of about 300. No shipped creature is huge, so the retail game shows nothing; a modded one would be picked
+from anywhere in the editor. Now `i < 3`. The function differed before and still does (layout).
+
+**D9801 (2026-10-18, options_drag_sliders 0x41fff0: the gamma constants, x87 precision).** The original multiplies
+the gamma step by 0.1f and then by 1.5f (`fild; fmul [0x580214]; fmul [0x580210]; fadd [0x58020c]`,
+0x420261..0x420271). Written as one expression, `n * 0.1f * 1.5f + 0.7f`, VC6 folds the two constants into one
+`fmul 0.15f`, which differs in the last bit for steps 1 and 8 at 53/64-bit FPU precision. Split into
+`v = n * 0.1f; v = v * 1.5f + 0.7f;` VC6 emits the original's sequence (v stays on the FPU stack). The function
+still differs elsewhere.
+
+**D9802 (2026-10-18, irc_channel::users +0x22: unsigned).** irc_get_channel_list reads the count with
+`mov ax, [ecx+0x22]` into an eax already zero (0x4ae25e), which VC6 does for an unsigned 16-bit field; `short`
+gave `movsx`. With `unsigned short users` (and irc_add_channel's parameter) irc_get_channel_list 0x4ae120 byte-matches.
+Only a channel of 32,768 users or more printed differently.

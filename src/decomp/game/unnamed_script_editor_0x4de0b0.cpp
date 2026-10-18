@@ -968,7 +968,8 @@ void script_editor_create_ui()
     script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, 0x800);
     script_editor_mode = SE_MODE_CREATURE;
     script_editor_pick_filter = 1;
-    for (i = 0; i < 4; i++) {
+    // Only size classes 0-2: [3] (huge) stays zero (cmp eax, 0x255e9d0 at 0x4e06db; D9800).
+    for (i = 0; i < 3; i++) {
         script_editor_char_sizes[i][0] = script_editor_char_sizes[i][2] = character_size_radii[i] * 2.0f;
         script_editor_char_sizes[i][1] = character_size_heights[i];
         script_editor_char_size_radii[i] = (float)sqrt(

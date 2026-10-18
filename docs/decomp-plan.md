@@ -266,11 +266,32 @@ call; `ai_choose_attack_slot` still differs in the 7th digit.
 - With `[Fixes] Enabled=0` 5,783 functions are replaced (139 stay original for the display, timing and key hooks)
   and the loaded save still matches the original game with fixes off (0.17%). The skills and spells panels work.
 
+**The never-run review (2026-10-18, five agents, read-only).** The 429 non-matching functions that no scenario
+had run were split by area and each one read against the original: VC6 listing beside `asm.mjs fn`, with scripts
+comparing calls, constants, masks, struct offsets, jump kinds and relocation targets, jump tables decoded from
+Sum.exe, and every remaining difference read by hand. Each agent also listed how its functions can be reached.
+
+| Group | Functions | Errors found | Reachable in single player |
+|---|---|---|---|
+| Multiplayer, network | 86 | `irc_channel::users` signed instead of unsigned (D9802; `irc_get_channel_list` now byte-matches) | 4 plain, 17 more through the LAN menus on one machine, about 15 more hosting a LAN game alone; the rest need a peer or the old PXO hosts |
+| Graphics | 96 | none (six last-bit x87 notes, four in functions with no caller) | 37 (17 of them only with particular content or settings); 32 Direct3D / Glide only, 26 never called |
+| UI, HUD, maps, script editor | 90 | the editor's size table filled four size classes instead of three (D9800); the gamma slider's 0.1f * 1.5f folded into 0.15f (D9801) | 79, 40 of them only in the debug script editor |
+| Game logic | 113 | none (three x87 notes) | most, through 23 proposed scenarios (bosses by stage, level scripts, console commands); 13 multiplayer or dead |
+| Engine | 44 | none (`float_format_buf`'s early-exit value; no caller) | 22; 13 by direct call only; 9 not (PCM sound paths: every shipped WAV is ADPCM) |
+
+None of the three changes the retail game: the size class is unused by the shipped creatures, the gamma value moves
+one bit at 53/64-bit FPU precision, and the user count only for an IRC channel of 32,768 users. No variable without
+an address (the D9204 kind) turned up. The quicksave chain (`quicksave`, `savegame_location_allowed`, five `savegame::write_*` and
+`Character::save_state` functions) had in fact run in every save test: `hybrid-test.mjs` dumped coverage before the
+quicksave; it now dumps after it.
+
 **State (2026-10-18, evening).** Done since: the save test over 18 levels, the inventory and trader scenarios,
-coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Five decompilation errors found and
-fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls. 466 of
-the 895 non-matching functions have run in a checked scenario. The x87 precision cases were then taken through byte matching (the precision round below): one left. Next: scenarios
-for what has not run yet (`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`).
+coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Eight decompilation errors found and
+fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls,
+D9800-D9802 by reviewing the functions no scenario had run. 466 of the 895 non-matching functions have run in a
+checked scenario (474 counting the quicksave chain). The x87 precision cases were taken through byte matching (the
+precision round above): one left. Next: the review's scenarios in the game, one at a time, with coverage and dual
+calls (`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`).
 
 ## Phase 3 status (2026-10-16)
 
@@ -285,8 +306,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result (2026-10-18): 7,725 functions written (89.4%). 5,905 of them are
-compiled and compared by VC6 SP5, and 4,941 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 4,960: 19 compared functions are not `func` lines in sum.symbols). The
+compiled and compared by VC6 SP5, and 4,942 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 4,961: 19 compared functions are not `func` lines in sum.symbols). The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

@@ -1154,7 +1154,7 @@ game/multi_chattracker.cpp 0x4adcd0 differs
 game/multi_chattracker.cpp 0x4adfb0 match
 game/multi_chattracker.cpp 0x4adfd0 match
 game/multi_chattracker.cpp 0x4ae010 match
-game/multi_chattracker.cpp 0x4ae120 differs
+game/multi_chattracker.cpp 0x4ae120 match
 game/multi_door.cpp 0x4aa780 match
 game/multi_door.cpp 0x4aa7d0 match
 game/multi_door.cpp 0x4aa8e0 match

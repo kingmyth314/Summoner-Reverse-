@@ -33,7 +33,7 @@ LAYOUT_CHECK(irc_user, sizeof(irc_user) == 0x28);
 // One RPL_LIST (322) entry (0x8c bytes; list irc_channel_list, rebuilt per LIST). Type and field names ours.
 struct irc_channel {
     char  name[0x22];                 // +0x00
-    short users;                      // +0x22
+    unsigned short users;             // +0x22 (unsigned: D9802)
     char  topic[0x64];                // +0x24
     irc_channel *next;                // +0x88
 };
@@ -53,7 +53,7 @@ char *irc_read_line();                                   // 0x4ac100
 char *chat_process_irc_message(char *line, int mode);    // 0x4ac240
 char *irc_get_word(int n, char *text);                   // 0x4ad8b0 word n, or the rest of the line after a ':'
 void  irc_flush_channel_list();                          // 0x4ad9a0
-void  irc_add_channel(char *name, short users, char *topic);    // 0x4ad9e0
+void  irc_add_channel(char *name, unsigned short users, char *topic);    // 0x4ad9e0
 int   irc_add_user(char *nick);                          // 0x4adb40 0 when already listed
 int   irc_remove_user(char *nick);                       // 0x4adc40 0 when not listed
 // (typed line, quiet): a slash command or a channel message. quiet passes unknown commands to the server.

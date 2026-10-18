@@ -71,7 +71,8 @@ function runOnce(steps, hybrid, out, tag) {
   utimesSync(quicksave, OLD, OLD);
   const before = readFileSync(quicksave);
   session(hybrid ? ["Dll=hybrid.dll@Hybrid", "Coverage=1@Hybrid", "Diagnostics=1@Debug"] : ["Diagnostics=1@Debug"]);
-  const res = agent(`${steps}; ${hybrid ? `hybridcov cov_${tag}; ` : ""}call0 40e7c0; wait 3000`);
+  // Coverage after the quicksave, so the save chain counts as run.
+  const res = agent(`${steps}; call0 40e7c0; wait 3000${hybrid ? `; hybridcov cov_${tag}` : ""}`);
   kill();
   const log = readFileSync(join(game, "summonerfix.log"), "latin1");
   const after = readFileSync(quicksave);
