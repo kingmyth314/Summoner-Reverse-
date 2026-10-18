@@ -838,7 +838,7 @@ public:
 // doing so stops the whole pass.
 void ai_state::party_spread_attackers()
 {
-    static spread_timer timer;
+    static spread_timer timer;                       // 0x247e91c (guard 0x247e95c)
     struct { int handle; float slot; } list[6];
     int targets[6];
     ai_group *g;

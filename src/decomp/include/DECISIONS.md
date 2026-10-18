@@ -7049,3 +7049,9 @@ radius;` the product used the rounded radius, so a decal's half-axis was one bit
 (`[Hybrid] Dual`, compared against the original on the game's own calls). `u = u * (radius *= k);` keeps the
 assignment's value on the stack: 8 of 8 calls the same. The function still differs from the original in its frame
 size; the file keeps its 47 matches.
+
+**D9204 (2026-10-18, party_spread_attackers 0x4b6c10: the function-static timer's address, found by dual calls).**
+`static spread_timer timer` is the GameTimer at `0x247e91c` with its construction guard byte at `0x247e95c`
+(`mov al, [0x247e95c]` at `0x4b6c1c`, `mov ecx, 0x247e91c` four times). Without the address comment the hybrid
+game kept a second timer in the DLL, so the decompiled function and the original each had their own 2-second
+pacing; the dual-call check showed the original's timer and guard changing and the DLL's not.

@@ -206,6 +206,20 @@ switched off during the calls (DirectSound state is outside the copy, and the re
 thread's streaming buffers left out of the comparison and of the restore, and still copies compared instead of
 the live data.
 
+Then every non-matching function that ran in the fight, from the gameplay files (combat, avoidance, pathfinding,
+AI, bosses, targeting, spells, the camera, vectors), 126 functions with loaders and constructors left out: five
+calls each, through the Jade Temple level change and the Murod fight. More corrections first: a virtual clock for
+the two calls (timers set from the clock differed), return values compared as the mangled name says they are
+returned (void functions leave junk in eax), the C runtime's heap bookkeeping left alone (restoring it corrupted
+the heap), the frame clock's state put back after a check. Result: 114 functions give the same memory and return
+value as the original in every checked call. One real difference: `party_spread_attackers` kept its 2-second
+timer in the DLL because the function-static had no address comment (D9204). The rest are x87 precision, a value
+one unit off in its last bits where the original keeps an 80-bit intermediate and the decompiled code rounds it
+to a float or the other way round: `blood_splot_place` (the decal position), `camera::start_sequence` and
+`update_sequence`, `closest_approach_time`, `ai_choose_attack_slot` (about 1 in 3 million), an avoidance area
+and two approach functions. Those need the original's instruction order to disappear (byte matching), and do not
+change what the game does in any way a player could see.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept

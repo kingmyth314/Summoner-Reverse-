@@ -403,10 +403,49 @@ for (const { stem, objPath, buf, coff, cod, funcAddr, locals, tables, inject } o
     matchedRanges.get(s.sec).push([s.value, end, addr]);
   });
   let constantsMoved = 0;
+  // What the byte-matching functions teach: the original address of each named data symbol they use (a vtable, a
+  // string, a constant). Every other reference to that symbol in this object, in a function that does not match,
+  // is pointed there too (the address plus that reference's own addend), so replaced and original code share one
+  // copy (a constructor that does not match then installs the game's vtable, not the DLL's). Section symbols
+  // (.data + offset) are left alone: their layout in the DLL need not be the original's.
+  const learned = new Map(); // symbol index -> original address (null when two references disagree)
+  for (let i = 0, o = 20 + buf.readUInt16LE(16); i < buf.readUInt16LE(2); i++, o += 40) {
+    const rp = buf.readUInt32LE(o + 24), nr = buf.readUInt16LE(o + 32), raw = buf.readUInt32LE(o + 20);
+    for (let r = 0; r < nr; r++) {
+      const ro = rp + r * 10, sym = buf.readUInt32LE(ro + 4), type = buf.readUInt16LE(ro + 8);
+      const tsec = buf.readInt16LE(symPtr + sym * 18 + 12), tname = coff.syms[sym]?.name ?? ".";
+      if (type !== 0x06 || tsec <= 0 || /^\.text/.test(coff.sections[tsec - 1].name) || tname.startsWith(".")) continue;
+      const roff = buf.readUInt32LE(ro);
+      const f = (matchedRanges.get(i + 1) ?? []).find(([a, b]) => roff >= a && roff < b);
+      const va = f ? origDword(f[2] + roff - f[0]) : null;
+      if (va == null || va < 0x57e000 || va >= 0x3000000) continue;
+      const base = (va - buf.readUInt32LE(raw + roff)) >>> 0;
+      learned.set(sym, learned.has(sym) && learned.get(sym) !== base ? null : base);
+    }
+  }
   for (let i = 0, o = 20 + buf.readUInt16LE(16); i < buf.readUInt16LE(2); i++, o += 40) {
     const rp = buf.readUInt32LE(o + 24), nr = buf.readUInt16LE(o + 32);
     for (let r = 0; r < nr; r++) {
       const ro = rp + r * 10, sym = buf.readUInt32LE(ro + 4), type = buf.readUInt16LE(ro + 8);
+      // A reference outside the matching functions to a symbol they taught: its original address (addend kept).
+      if (type === 0x06 && learned.get(sym) != null) {
+        const roff = buf.readUInt32LE(ro);
+        if (!(matchedRanges.get(i + 1) ?? []).some(([a, b]) => roff >= a && roff < b)) {
+          const base = learned.get(sym), key = `l${base}`;
+          if (!shadows.has(key)) {
+            const e = Buffer.alloc(18);
+            e.writeUInt32LE(addString(`$hybrid_${stem}_l${shadows.size}`), 4);
+            e.writeUInt32LE(base, 8);
+            e.writeInt16LE(-1, 12);
+            e.writeUInt8(2, 16);
+            shadows.set(key, nSym + extra.length);
+            extra.push(e);
+          }
+          buf.writeUInt32LE(shadows.get(key), ro + 4);
+          constantsMoved++;
+          continue;
+        }
+      }
       // In a byte-matching function, a dir32 reference to data in this object (a string, a float, a global with no
       // address): the address the original has at the same place.
       const tsec = buf.readInt16LE(symPtr + sym * 18 + 12);
@@ -520,5 +559,19 @@ try {
     process.exit(1);
   }
 }
-writeFileSync(join(outDir, "hybrid.txt"), exports.map((e) => `0x${e.addr.toString(16)} ${e.name}`).join("\n") + "\n");
+// What a function returns, from its mangled name (for dual calls, src/summonerfix/dualcall.c): v nothing (void, a
+// constructor or destructor), f a float in st0, b a bool or char in al, s a short in ax, i a value in eax; C names
+// (no mangling): i.
+const returnKind = (m) => {
+  const r = /@@(?:Y[AGI]|S[AGI]|[A-Z][AB][AEGI])(.*)$/.exec(m);
+  if (!r) return "i";
+  const t = r[1];
+  if (t.startsWith("X") || t.startsWith("@")) return "v";
+  if (/^[MNO]/.test(t)) return "f";
+  if (t.startsWith("_N") || /^[DE]/.test(t)) return "b"; // bool, char: al
+  if (/^[FG]/.test(t)) return "s"; // short: ax
+  return "i";
+};
+// hybrid.txt: address, return kind, name.
+writeFileSync(join(outDir, "hybrid.txt"), exports.map((e) => `0x${e.addr.toString(16)} ${returnKind(e.mangled)} ${e.name}`).join("\n") + "\n");
 console.log(`\n${join(outDir, "hybrid.dll")}: ${exports.length} functions from ${units.length} files (list in hybrid.txt)`);

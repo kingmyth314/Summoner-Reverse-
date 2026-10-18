@@ -28,9 +28,16 @@ static DWORD g_ignore[32][2] = {
     {0x5ad7ec, 4},        // gr_opengl_next_texture_id
     {0x2f13328, 8},       // gl_texture_mem_used, gl_texture_mem_frame
     {0x2f54720, 0x69450}, // ds_buffers .. snd_streams: the sound and music streaming the sound thread writes
-    {0x2fbdc0c, 4},       // _cflush: the C runtime's open-file count
+    {0x2cbffa8, 0x30},    // timer_qpc_last .. timer_qpc_base: the frame clock reads the counter through
+                          // SummonerFix's own import
+    {0x22e48e4, 0x4c},    // ai_prof (averages), ai_prof_timer, ai_prof_*_us: the AI's timing counters (microseconds)
+    // The C runtime's own state: its heap (small-block headers, the old heap, _crtheap), locks, FILE table and
+    // atexit table. Putting it back after the original's call would rewind the heap's bookkeeping under blocks
+    // that were allocated or freed meanwhile (on any thread).
+    {0x5af4f0, 0x2cd0},   // crt_app_type .. crt_days (initialised data)
+    {0x2fbdbc0, 0x1738},  // _environ .. the end of .bss (with _cflush, the sbh headers, __onexitend)
 };
-static int g_numIgnore = 5;
+static int g_numIgnore = 8;
 
 typedef struct {
     DWORD edi, esi, ebp, esp, ebx, edx, ecx, eax; // pushad order, lowest address first
@@ -47,8 +54,52 @@ static struct {
     BYTE orig[5];   // the original's first 5 bytes
     BYTE jmp[5];    // the loader's jmp
     BYTE stub[16];  // push i; jmp DualEntry
+    char kind;      // what it returns (the list's second column, from hybrid.txt): v nothing, f st0, b al, s ax, i eax
     int calls, differ;
 } g_dual[DUAL_MAX];
+
+// Both calls see the same clock, so timers set from it and the AI's timing counters agree: during a check,
+// QueryPerformanceCounter, timeGetTime and GetTickCount run a virtual clock that starts where the real one stood
+// when the check began and advances one step per read (a wait loop still ends), restarted for the second call.
+typedef BOOL(WINAPI *PFN_Qpc)(LARGE_INTEGER *);
+typedef DWORD(WINAPI *PFN_Ticks)(void);
+static PFN_Qpc g_realQpc;
+static PFN_Ticks g_realTgt, g_realTick;
+static volatile int g_freeze;
+static LARGE_INTEGER g_startQpc;
+static DWORD g_startTgt, g_startTick, g_steps;
+
+static BOOL WINAPI Freeze_Qpc(LARGE_INTEGER *t)
+{
+    if (g_freeze && GetCurrentThreadId() == (DWORD)g_freeze) {
+        t->QuadPart = g_startQpc.QuadPart + ++g_steps;
+        return TRUE;
+    }
+    return g_realQpc(t);
+}
+static DWORD WINAPI Freeze_timeGetTime(void)
+{
+    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTgt + ++g_steps : g_realTgt();
+}
+static DWORD WINAPI Freeze_GetTickCount(void)
+{
+    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTick + ++g_steps : g_realTick();
+}
+
+// Start the virtual clock (first call) or restart it at the same point (second call).
+static void FreezeTime(BOOL restart)
+{
+    if (!restart) {
+        if (g_realQpc)
+            g_realQpc(&g_startQpc);
+        if (g_realTgt)
+            g_startTgt = g_realTgt();
+        if (g_realTick)
+            g_startTick = g_realTick();
+    }
+    g_steps = 0;
+    g_freeze = (int)GetCurrentThreadId();
+}
 static int g_numDual, g_samples;
 static BYTE *g_pre, *g_post;
 static BYTE *g_data;
@@ -148,6 +199,17 @@ static DWORD *Holdrand(void)
     return (DWORD *)(getptd() + 0x14);
 }
 
+// An 80-bit st0 value as text: the number and its 10 bytes (which = 0 or 1: two buffers for one log line).
+static const char *St0Text(const BYTE *st0, int which)
+{
+    static char text[2][64];
+    long double v;
+    memcpy(&v, st0, 10);
+    double d = (double)v;
+    _snprintf(text[which], sizeof text[which], "%.9g (%02X%02X..%02X%02X)", d, st0[9], st0[8], st0[1], st0[0]);
+    return text[which];
+}
+
 // Log the ranges where a and b differ (at most 8), as Sum.exe addresses from base; returns the byte count.
 static DWORD LogRanges(const char *what, const BYTE *a, const BYTE *b, DWORD n, DWORD base)
 {
@@ -183,6 +245,8 @@ __attribute__((used)) void __cdecl DualRun(int i, DualRegs *regs, DWORD *args)
     }
     g_inDual = 1;
     int n = ++g_dual[i].calls;
+    if (GetPrivateProfileIntA("Debug", "TraceDual", 0, g_cfg.iniPath))
+        Log("dual: 0x%06lX call %d begins", g_dual[i].va, n);
     BYTE stackPre[DUAL_STACK], stackPost[DUAL_STACK];
     // The copied stack stops at the top of the thread's stack.
     MEMORY_BASIC_INFORMATION mbi;
@@ -197,6 +261,11 @@ __attribute__((used)) void __cdecl DualRun(int i, DualRegs *regs, DWORD *args)
 
     volatile BYTE *sndOff = (volatile BYTE *)(UINT_PTR)SumVa(VA_SND_DISABLED);
     BYTE sndWas = *sndOff;
+    // The frame clock's state (timer_qpc_last .. timer_qpc_base): the calls run on the virtual clock, so it is put
+    // back as it was when they are done, and the game's clock goes on from there.
+    BYTE *timers = (BYTE *)(UINT_PTR)SumVa(0x2cbffa8), timerSave[0x30];
+    memcpy(timerSave, timers, sizeof timerSave);
+    FreezeTime(FALSE);
     memcpy(g_pre, g_data, g_dataSize);
     memcpy(stackPre, args, stackLen);
     *sndOff = 1;
@@ -226,10 +295,13 @@ __attribute__((used)) void __cdecl DualRun(int i, DualRegs *regs, DWORD *args)
     memcpy(args, stackPre, stackLen);
     *hold = holdPre;
     *sndOff = 1;
+    FreezeTime(TRUE);
     DualCallWith(g_dual[i].dll, regs, args, &g_dualOut);
     // A still copy of the data after the decompiled call (the sound thread keeps writing the live data), into
     // the buffer the restore no longer needs; the two copies are compared.
     memcpy(g_pre, g_data, g_dataSize);
+    g_freeze = 0;
+    memcpy(timers, timerSave, sizeof timerSave); // the game's clock state as before the check
     *sndOff = sndWas;
     BYTE *after = g_pre;
     g_post[VA_SND_DISABLED - 0x588000] = after[VA_SND_DISABLED - 0x588000];
@@ -237,9 +309,15 @@ __attribute__((used)) void __cdecl DualRun(int i, DualRegs *regs, DWORD *args)
         memcpy(g_post + (g_ignore[k][0] - 0x588000), after + (g_ignore[k][0] - 0x588000), g_ignore[k][1]);
 
     DWORD dataDiff = 0, stackDiff = 0;
-    // (edx is not compared: a function that returns no 64-bit value leaves whatever it last held there)
-    BOOL regDiff = orig.eax != g_dualOut.eax || orig.popped != g_dualOut.popped ||
-                   orig.has_st0 != g_dualOut.has_st0 || (orig.has_st0 && memcmp(orig.st0, g_dualOut.st0, 10) != 0);
+    // The return value as the function returns one: nothing (v), st0 (f), al (b) or eax (i). edx is never compared:
+    // a function that returns no 64-bit value leaves whatever it last held there.
+    char k = g_dual[i].kind;
+    BOOL retDiff = k == 'b' ? (orig.eax & 0xff) != (g_dualOut.eax & 0xff)
+                 : k == 's' ? (orig.eax & 0xffff) != (g_dualOut.eax & 0xffff)
+                 : k == 'i' ? orig.eax != g_dualOut.eax
+                 : k == 'f' ? orig.has_st0 && g_dualOut.has_st0 && memcmp(orig.st0, g_dualOut.st0, 10) != 0
+                            : FALSE;
+    BOOL regDiff = retDiff || orig.popped != g_dualOut.popped || orig.has_st0 != g_dualOut.has_st0;
     if (memcmp(g_post, after, g_dataSize) != 0 || memcmp(stackPost, args, stackLen) != 0 || regDiff ||
         holdOrig != *hold) {
         g_dual[i].differ++;
@@ -248,9 +326,9 @@ __attribute__((used)) void __cdecl DualRun(int i, DualRegs *regs, DWORD *args)
         dataDiff = LogRanges("data", g_post, after, g_dataSize, 0x588000);
         stackDiff = LogRanges("stack", stackPost, (BYTE *)args, stackLen, (DWORD)(UINT_PTR)args);
         if (regDiff)
-            Log("dual:   eax %08lX / %08lX, edx %08lX / %08lX, popped %lu / %lu, st0 %s / %s", orig.eax,
-                g_dualOut.eax, orig.edx, g_dualOut.edx, orig.popped, g_dualOut.popped, orig.has_st0 ? "yes" : "no",
-                g_dualOut.has_st0 ? "yes" : "no");
+            Log("dual:   eax %08lX / %08lX, popped %lu / %lu, st0 %s / %s", orig.eax, g_dualOut.eax, orig.popped,
+                g_dualOut.popped, orig.has_st0 ? St0Text(orig.st0, 0) : "no",
+                g_dualOut.has_st0 ? St0Text(g_dualOut.st0, 1) : "no");
         if (holdOrig != *hold)
             Log("dual:   rand state %08lX / %08lX", holdOrig, *hold);
         Log("dual:   %lu data bytes, %lu stack bytes", dataDiff, stackDiff);
@@ -267,22 +345,24 @@ BYTE *DualTarget(DWORD va, BYTE *dll, const char *list)
 {
     if (!list || g_numDual >= DUAL_MAX)
         return dll;
-    // the list holds this address?
-    BOOL listed = FALSE;
+    // The list holds this address? One per line: "0xADDRESS [kind]" (kind v / f / b / i as in hybrid.txt).
+    char kind = 0;
     for (const char *p = list; *p;) {
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+            p++;
         char *end;
         DWORD v = strtoul(p, &end, 16);
-        if (end == p) {
-            p++;
-            continue;
-        }
-        if (v == va) {
-            listed = TRUE;
+        const char *q = end;
+        while (*q == ' ' || *q == '\t')
+            q++;
+        if (v == va && end != p) {
+            kind = (*q == 'v' || *q == 'f' || *q == 'b' || *q == 's' || *q == 'i') ? *q : 'i';
             break;
         }
-        p = end;
+        while (*p && *p != '\n')
+            p++;
     }
-    if (!listed)
+    if (!kind)
         return dll;
     if (!g_pre) {
         IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)((BYTE *)GetModuleHandleA(NULL) +
@@ -316,11 +396,16 @@ BYTE *DualTarget(DWORD va, BYTE *dll, const char *list)
             return dll;
         }
         Log("dual: data 0x%08lX, %lu bytes; %d calls per function", (DWORD)(UINT_PTR)g_data, g_dataSize, g_samples);
+        HMODULE exe = GetModuleHandleA(NULL);
+        g_realQpc = (PFN_Qpc)HookImport(exe, "KERNEL32.dll", "QueryPerformanceCounter", (void *)Freeze_Qpc);
+        g_realTgt = (PFN_Ticks)HookImport(exe, "WINMM.dll", "timeGetTime", (void *)Freeze_timeGetTime);
+        g_realTick = (PFN_Ticks)HookImport(exe, "KERNEL32.dll", "GetTickCount", (void *)Freeze_GetTickCount);
     }
     int i = g_numDual++;
     BYTE *at = (BYTE *)(UINT_PTR)SumVa(va);
     g_dual[i].va = va;
     g_dual[i].dll = dll;
+    g_dual[i].kind = kind;
     memcpy(g_dual[i].orig, at, 5);
     BYTE *stub = g_dual[i].stub;
     stub[0] = 0x68; // push i

@@ -278,9 +278,18 @@ twice). For the first `DualSamples` calls of each, the checker copies the game's
 the bytes the callee popped, `rand`); puts the copies back and calls the decompiled function the same way; and logs
 each difference as `dual: 0xADDR call N differs` with the memory ranges, or `... same`. The game continues with the
 decompiled result. Sound is switched off for the two calls (`snd_disabled`), and state the two calls cannot share
-(open files, OpenGL texture ids, the sound and music streaming that another thread writes) is left out of the
-comparison and of the restore; `DualIgnore=ADDR:LEN,...` adds ranges. Heap memory is not copied, so a function
-that frees memory must not be listed. A check costs about 20 ms.
+is left out of the comparison and of the restore: open files, OpenGL texture ids, the sound and music streaming
+that another thread writes, the C runtime's own data (its heap bookkeeping, locks, FILE and atexit tables: putting
+it back would rewind the heap under blocks allocated meanwhile), the frame clock and the AI profiler.
+`DualIgnore=ADDR:LEN,...` adds ranges. Both calls run on a virtual clock (`QueryPerformanceCounter`,
+`timeGetTime`, `GetTickCount` start where the real clock stood and advance one step per read, restarted for the
+second call), and the frame clock's state is put back afterwards. The list file has one function per line,
+`0xADDRESS kind`, the kind from `hybrid.txt`'s second column (what the function returns, from its mangled name:
+`v` nothing, `f` a float in st0, `b` a bool or char in al, `s` a short in ax, `i` eax), so only the real return
+value is compared. Heap memory is not copied: functions that load files, construct or destroy objects, or
+allocate or free memory must not be listed (a constructor and a level loader hung or corrupted the heap in
+tests). `[Debug] TraceDual=1` logs the start of each check, which names a call that never returns. A check costs
+about 20 ms.
 
 How the objects are rewritten (all in the COFF symbol table; the code is VC6's as compiled):
 
