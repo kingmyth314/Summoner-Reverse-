@@ -2684,6 +2684,11 @@ volume and releases the channel when it reaches 0. `character_play_move` fades t
 the next sound on it at once. *Inferred:* now and then a sound effect is missing. Found in the
 `NOTES-unnamed-vsdk-tail.md` notes.
 
+**Not reproduced (2026-10-18).** A temporary hook on `ds_do_frame`'s call of `ds_channel_update_fade` logged every
+fading channel during a level change and 40 s of fighting Orenian Mages: only channel 0 (the music stream, at the level
+change) faded, and it was still playing each time. No move sound faded, so the window the paragraph describes did not
+open. Not fixed until it is seen.
+
 **K295. The sub-step counter advances by 0.5.** `vfx_emitter_instance__move_particles` integrates the force records in
 steps: total = elapsed effect time x 1/15 (`[0x581a08]`, `0x560b85`..`0x560b9e`), each step min(total - done, 1/30)
 (`[0x582338]`, `0x560bb7`..`0x560bde`), then done += 0.5 (`[0x57e6b0]`, `0x560c16`..`0x560c2d`). So one step runs and
