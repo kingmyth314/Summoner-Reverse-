@@ -5,6 +5,7 @@
 // passes the attacker's handle as the target). The call is redirected to a stub that logs caster, spell and target
 // (handle, name, team) and then continues in spell_cast_execute (0x47c5d0) with the stack unchanged.
 #include "summonerfix.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -468,8 +469,62 @@ static void TraceMusicInstall(void)
     PatchBytes(VA_MUSIC_PLAY, o, r, 6, "trace music_play (TraceMusic)");
 }
 
+// Testing only ([Debug] TraceAreaSpell=1, game-bugs G241): logs ai_consider_area_spell (0x4befe0) for casters outside
+// the party: the spell, its +Distance, and the distance field (+4) of each candidate record (16 bytes each), which
+// is what the function compares. The prologue (mov ecx, [ecx+0x4c] ; push ebx ; push esi) moves into the stub.
+#define VA_AI_CONSIDER_AREA_SPELL 0x4befe0u
+#define VA_SPELL_DISTANCE 0x22e4f98u // float, spells[i] +0x70 (0x80 per spell)
+__attribute__((used)) DWORD g_areaSpellBody;
+__attribute__((used)) static void __cdecl TraceAreaSpell(const BYTE *ai, int spell, const BYTE *records, int count)
+{
+    static volatile LONG logged;
+    const BYTE *owner = *(const BYTE *const *)(ai + 0x4c);
+    if (!owner || *(const int *)(owner + 0xc) == 7 || InterlockedIncrement(&logged) > 60)
+        return;
+    char line[512];
+    int n = _snprintf(line, sizeof line, "trace area spell: caster %p spell 0x%x range %.1f, %d candidates:", (const void *)owner,
+                      spell, (double)*(const float *)(UINT_PTR)(SumVa(VA_SPELL_DISTANCE) + 0x80 * (DWORD)spell), count);
+    for (int i = 0; i < count && i < 10 && n > 0 && n < (int)sizeof line - 40; i++) {
+        const BYTE *target = *(const BYTE *const *)(records + 16 * i);
+        const float *tp = (const float *)(target + 0x10), *op = (const float *)(owner + 0x10);
+        float dx = tp[0] - op[0], dz = tp[2] - op[2];
+        n += _snprintf(line + n, sizeof line - n, " [%g, real %.1f]", (double)*(const float *)(records + 16 * i + 4),
+                       sqrt((double)(dx * dx + dz * dz)));
+    }
+    Log("%s", line);
+}
+void TraceAreaSpellStub(void);
+__asm__(".text\n"
+        "_TraceAreaSpellStub:\n"
+        "    pushal\n"
+        "    pushl 0x2c(%esp)\n" // count
+        "    pushl 0x2c(%esp)\n" // records
+        "    pushl 0x2c(%esp)\n" // spell
+        "    pushl %ecx\n"       // ai_state
+        "    call _TraceAreaSpell\n"
+        "    addl $16, %esp\n"
+        "    popal\n"
+        "    movl 0x4c(%ecx), %ecx\n"
+        "    pushl %ebx\n"
+        "    pushl %esi\n"
+        "    jmp *_g_areaSpellBody\n");
+
+static void TraceAreaSpellInstall(void)
+{
+    if (!GetPrivateProfileIntA("Debug", "TraceAreaSpell", 0, g_cfg.iniPath))
+        return;
+    g_areaSpellBody = SumVa(VA_AI_CONSIDER_AREA_SPELL + 5);
+    static const BYTE o[5] = {0x8B, 0x49, 0x4C, 0x53, 0x56};
+    BYTE r[5] = {0xE9};
+    DWORD s = SumVa(VA_AI_CONSIDER_AREA_SPELL);
+    DWORD rel = (DWORD)(UINT_PTR)TraceAreaSpellStub - (s + 5);
+    memcpy(r + 1, &rel, 4);
+    PatchBytes(VA_AI_CONSIDER_AREA_SPELL, o, r, 5, "trace ai_consider_area_spell (TraceAreaSpell)");
+}
+
 void TraceInstall(void)
 {
+    TraceAreaSpellInstall();
     TraceHitVfxInstall();
     TraceGroupAttackInstall();
     TraceMusicInstall();

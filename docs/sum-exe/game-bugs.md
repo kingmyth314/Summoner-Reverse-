@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
-| Gameplay | 48 | 25 | 19 |
+| Gameplay | 48 | 25 | 20 |
 | Cosmetic | 57 | 36 | 20 |
 | Invisible | 42 | 58 | 0 |
 
@@ -975,7 +975,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G228 | In multiplayer, Pyrul's wall of fire is always followed by a meteor storm | `pyrul_fire_attack` `0x4b9670` | **Observed** code and data, *inferred* effect | No |
 | G229 | An AI healer (party Healer / Healer-Caster members and enemy healers) casts a support spell only with a chance equal to the largest single share of the scores, and prefers the first candidates in its list | `ai_choose_support_spell` `0x4bea80` | **Observed** code, *inferred* effect | No |
 | G240 | Wraiths choose the target of Life Drain from scores that still hold the previous spell test's values, which pushes the choice towards the first candidates | `ai_consider_life_drain` `0x4bf5a0` | **Observed** code, *inferred* effect | No |
-| G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code, *inferred* effect | No |
+| G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code and in game (2026-10-18), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] AreaSpellDistances`) |
 | G242 | When a straight move crosses more than one layer-transition edge, the game takes the crossing nearest in x only, which can put a path, a walk test or a scripted avoid spline on the wrong floor layer | `pf_first_edge_crossing` `0x4a53d0` | **Observed** code, *inferred* effect | No |
 | G243 | Latent: when a new avoidance obstacle that merges two or three avoidance polygons cannot be clipped against the walls, all but the first merged polygon keep their corners switched off, so paths no longer go around those areas until they are rebuilt | `avoid_create_obstacle_polys` `0x4a9440` | **Observed** code, *inferred* effect | No |
 | G250 | The Tentacle Beast's tentacles never pick up and throw a party member, although the move ("Luminar grab" / "Luminar throw") is in `Tentacle Beast.tbl`; they only swipe and squeeze | `tentacle_beast_ai_select_action` `0x4c6520` | **Observed** code and retail data, *inferred* effect | No |
@@ -1604,6 +1604,14 @@ the offensive candidates from `cur_character`'s group and stores only the charac
 (`0x4bf019`..`0x4bf040`); it is called for spells `0x1c` (meteor storm) and `0x1e` (inferno) (`0x4bf862`..`0x4bf87c`)
 and only for non-party casters (`0x4befe6`). The values are whatever the stack frame held, or an enemy healer's
 distances to its own allies.
+
+**Reproduced 2026-10-18** (agent mode: Joseph, immortal, put next to an Orenian Mage ("Generic Mage", which knows
+meteor storm and inferno) in Rand-Forest01 v4; `[Debug] TraceAreaSpell` logs each candidate's distance field and
+the real distance). Each time the mage weighed meteor storm (range 10) and inferno (range 6), Joseph's field held
+6.11e-41, an unwritten stack value, while he stood 0.0 to 0.1 units away. Only Joseph was in the party there, so the
+two-target test was not reached; with two members any such value decides the spell. **Fixed** in SummonerFix
+(`bugfix.c`, switch `[Fixes] AreaSpellDistances`): the enemy-candidate store (`0x4bfdbd`) calls a stub that also
+writes `distance(caster, target)` at `+4`. With the fix the same trace showed 0.03 and 0.18, the real distances.
 
 **G242. x twice.** `pf_first_edge_crossing` keeps the crossing with the smallest "squared distance" from the
 segment start, computed as `dx * dx + dx * dx` (`fsub [esp+0x14]; fst [esp+0x38]; fld st(0); fmulp; fld [esp+0x38];

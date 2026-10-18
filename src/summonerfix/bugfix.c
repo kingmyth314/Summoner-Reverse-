@@ -188,6 +188,12 @@
 // and Pyrul and Murod read the same count. Fix ([Fixes] EffectSlotSpell): fx_new also stores -1 (no spell, as
 // fx_create_instance does) in +0xa8, in the padding after its ret (0x48c467).
 //
+// Enemy casters judge area spells by unwritten distances (gameplay; game-bugs G241). For a caster outside the party,
+// ai_combat_cast_frame lists the party targets with only the character (0x4bfdc1); ai_consider_area_spell then counts
+// the targets whose distance field (+4) is within meteor storm's or inferno's range and casts when two are. The field
+// holds whatever the stack had. Fix ([Fixes] AreaSpellDistances): the store calls a stub that also writes
+// distance(caster, target), as the healer branch above does for its list.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -276,6 +282,8 @@
 #define VA_FILE_ZERO_VECTOR 0x2cbf4d8u
 #define VA_INSTALL_PATH 0x26b4168u          // char[], ends with a backslash
 #define VA_FX_NEW_TAIL 0x48c461u            // mov [eax+0x100], edx ; ret ; 8 x nop at the end of fx_new (edx = -1)
+#define VA_AREA_CANDIDATE_STORE 0x4bfdbdu   // mov ecx, [esp+0x10] ; mov [ebp], eax in ai_combat_cast_frame (enemy loop)
+#define VA_DISTANCE 0x524810u               // cdecl (vector3 *, vector3 *) -> float (st0)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -518,6 +526,29 @@ __asm__(".text\n"
         "    call _ShortenInstallPath\n"
         "    popal\n"
         "    movl _g_fileZeroVectorVa, %ecx\n"
+        "    ret\n");
+
+// Area-spell candidates get their distance (G241). Replaces mov ecx, [esp+0x10] ; mov [ebp], eax (7 bytes, entered by
+// call + 2 nops) in ai_combat_cast_frame's enemy-candidate loop: stores the candidate (eax) and, at +4, its distance
+// from the caster (ai_state +0x4c, esi), as the healer loop does with distance(caster pos, target pos).
+__attribute__((used)) static volatile DWORD g_distanceVa;
+void AreaCandidateStub(void);
+__asm__(".text\n"
+        "_AreaCandidateStub:\n"
+        "    movl %eax, (%ebp)\n"
+        "    pushl %eax\n"
+        "    pushl %edx\n"
+        "    leal 0x10(%eax), %edx\n"
+        "    movl 0x4c(%esi), %ecx\n"
+        "    addl $0x10, %ecx\n"
+        "    pushl %edx\n"
+        "    pushl %ecx\n"
+        "    call *_g_distanceVa\n"
+        "    addl $8, %esp\n"
+        "    fstps 4(%ebp)\n"
+        "    popl %edx\n"
+        "    popl %eax\n"
+        "    movl 0x14(%esp), %ecx\n" // the replaced mov ecx, [esp+0x10] (+4 for the return address)
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -1006,6 +1037,15 @@ void BugFixesInstall(void)
         static const BYTE r[15] = {0x89, 0x90, 0x00, 0x01, 0x00, 0x00, 0x89, 0x90,
                                    0xA8, 0x00, 0x00, 0x00, 0xC3, 0x90, 0x90}; // + mov [eax+0xa8], edx
         PatchBytes(VA_FX_NEW_TAIL, o, r, 15, "a new effect object starts with no spell (G271)");
+    }
+
+    if (FixOn("AreaSpellDistances")) {
+        static const BYTE o[7] = {0x8B, 0x4C, 0x24, 0x10, 0x89, 0x45, 0x00}; // mov ecx, [esp+0x10] ; mov [ebp], eax
+        BYTE r[7] = {0xE8, 0, 0, 0, 0, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)AreaCandidateStub - (SumVa(VA_AREA_CANDIDATE_STORE) + 5);
+        memcpy(r + 1, &rel, 4);
+        g_distanceVa = SumVa(VA_DISTANCE);
+        PatchBytes(VA_AREA_CANDIDATE_STORE, o, r, 7, "enemy casters' area-spell targets carry their distance (G241)");
     }
 
     if (FixOn("PhoenixInferno")) {
