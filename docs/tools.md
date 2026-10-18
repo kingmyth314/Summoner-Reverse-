@@ -296,6 +296,13 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - Commands that run on the game thread (`level`, `calli`, `callt`, `bag`, `knock` ...) now wait until it has run them
   (up to 10 s), so the next command cannot change their arguments first (a `calli` straight after a `callt` used to
   run with the `callt` address);
+- **Boss fights with the whole party (2026-10-18).** `level` goes through `game_change_level`, which removes the party
+  and spawns only Joseph unless `Full_party` (`0x609fe0`) is 1: `poke 609fe0 1` before `level` brings all four (fresh,
+  at the level the script's story stage gives). Murod: `level jadetemple jadetemple`, then `navgoto $murodtrigger`.
+  Luminar: `level IonaEXT02 IonaEXT02_v2`. To kill a member properly, `callt 450850 CHAR 0xC9742400 -1 0 0`
+  (`character_add_hp(-1000000)`) and then write `FF FF FF FF` to its current move (`+0x6cc`): the death waits for the
+  move otherwise, and the member stays "dying" (`0x8`). Switch `immortal` off first. Dead heroes leave the living
+  list but stay in `party_list`;
 - `count ADDR STRIDE N MASK` counts the records of a table (N records, STRIDE bytes apart, hex) whose first byte has a
   bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);
 - `bag N [ITEM]` leaves an unlocked loot bag with N items (default Health Tonic, `~` for spaces) beside the current
