@@ -94,6 +94,7 @@ to get the proxy loaded.
 | Testing: enemy area spells (`trace.c`) | `[Debug] TraceAreaSpell=1` moves `ai_consider_area_spell`'s prologue (`0x4befe0`) into a stub that logs, for casters outside the party, the spell, its range and each candidate's distance field next to the real distance | Used for G241; off by default |
 | Spell hit sound position (`bugfix.c`, `[Fixes] SpellHitSoundPosition`) | `mov ebx, [esp+0x150]` at `0x47c74c` in `spell_cast_execute` -> `call` a stub that first sets the hit-sound position to the target character, the target point or the caster | Curse, wrath of god, the meteor storms, banish summon and other spells played their hit sound at a leftover stack position ([K300](../sum-exe/game-bugs.md)). Reproduced (traced) and checked in game |
 | Testing: spell hit sounds (`trace.c`) | `[Debug] TraceHitSound=1` moves `spell_play_hit_sound`'s prologue (`0x47e020`) into a stub that logs the spell, the sound's position and the current character's position | Used for K300; off by default |
+| Map labels at 128 (`bugfix.c`, `[Fixes] MapLabelsFull`) | `jge` at `0x4d13ca` (`savegame_automap_label_remove`) and `0x4d1526` (`savegame_automap_labels_reset_level`) -> `nop` | With 128 labels saved over all levels, removing a label returned at once, so deletes and edits were not saved ([K40](../sum-exe/game-bugs.md)). Checked by function call |
 | Testing: Giant Salamanka reach (`trace.c`) | `[Debug] TraceBossReach=1` wraps the `giant_salamanka_target_in_reach` call at `0x4a0f8c` and logs the current move's offense point and the answer | Used to check G30 (withdrawn: the points are right); off by default |
 | Testing: detection cone (`trace.c`) | `[Debug] TraceDetectCone=1` turns `fcomp [0x581ae0]` at `0x493c51` into a call that logs the dot product and whether the enemy is accepted | Used for G210; off by default |
 | Testing: AI support spell picks (`trace.c`) | `[Debug] TraceSupportPick=1` turns the `frand` call at `0x4beb3d` in `ai_choose_support_spell` into a call that draws the number itself and logs the shares, the number, the game's pick and a running-sum pick | For G229; off by default |
@@ -170,6 +171,7 @@ saving options wrote `Enabled=0`, and the game then applied none of the 20 fixes
 | `EffectSlotSpell` | A status effect's glow no longer counts as a burning fireball, so party AI casters keep choosing fireball ([G271](../sum-exe/game-bugs.md)) |
 | `AreaSpellDistances` | Enemy mages cast meteor storm and inferno only when two of your party are really within reach ([G241](../sum-exe/game-bugs.md)) |
 | `SpellHitSoundPosition` | Curse, wrath of god, meteor storm and other spells play their hit sound where they land, not at a stray spot ([K300](../sum-exe/game-bugs.md)) |
+| `MapLabelsFull` | With 128 map labels saved, deleting or editing a label is still saved ([K40](../sum-exe/game-bugs.md)) |
 | `GoldPileAmount` | A gold pile left on the ground keeps its amount after a load ([G40](../sum-exe/game-bugs.md)) |
 | `SpellRecoveryTimes` | Spell cooldowns use the recovery times in `spells.tbl` (fireball 20 s, not 26); this changes the balance ([G12](../sum-exe/game-bugs.md)) |
 

@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
 | Gameplay | 48 | 25 | 20 |
-| Cosmetic | 57 | 36 | 21 |
+| Cosmetic | 57 | 36 | 22 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1779,7 +1779,7 @@ retail script sends a go that early was not checked. D8602.
 | K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | No |
 | K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code, retail data and in game (2026-10-16, `[Debug] TraceHitVfx`) | Fixed (`bugfix.c`) |
 | K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No: left as it is (decided 2026-10-17) |
-| K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code, *inferred* effect | No |
+| K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code and by function call (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] MapLabelsFull`) |
 | K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
 | K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
 | K52 | Latent: `help change_texture_res` (or `? change_texture_res`) switches the low-resolution textures on or off | `cmd_change_texture_res` `0x501c90` | **Observed** code | No |
@@ -2036,6 +2036,12 @@ probably meant for the add. Deleting a label (`automap_handle_click`, `0x402bf3`
 `savegame_read_automap_labels` rebuilds the level's labels from the saved list after a load and on every level entry
 (`state_game_enter`, `0x438233`), so the deleted label or the old text comes back. The list counts the labels of all
 levels together, and the editor refuses new labels at 128 (`0x40316c`), so the player can reach the limit.
+
+**Reproduced 2026-10-18 by function call** (agent mode, `callt`; not by placing 128 labels by hand):
+`savegame_automap_label_add` called 130 times on `savegame_state` filled the saved list to 128 (the add refuses
+more), and `savegame_automap_label_remove` for one of them left the count at 128. **Fixed** in SummonerFix
+(`bugfix.c`, switch `[Fixes] MapLabelsFull`): the two count tests (`0x4d13ca`, `0x4d1526`) become `nop`s. With the fix
+the same calls removed labels: 128, then 127, then 126.
 
 **K50. The 565 filter never skips a row.** Each generated 565 texel averages `src[0]`, `src[1]`, `src[w]` and `src[w + 1]`
 (`0x54e4f9`..`0x54e50d`) and the source pointer then moves on by two pixels (`add eax, 4` at `0x54e5a8`). At the end of an

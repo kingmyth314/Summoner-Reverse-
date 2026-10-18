@@ -201,6 +201,11 @@
 // path (0x47c74c) pos is set to the target character's position, else the target point, else the caster's position;
 // the paths that wrote it still do.
 //
+// Map label deletes and edits not saved at 128 labels (cosmetic; game-bugs K40). The saved label list holds 128 labels
+// for all levels together; savegame_automap_label_remove and savegame_automap_labels_reset_level return at once when
+// it is full (jge at 0x4d13ca, 0x4d1526), a test meant for the add, so a deleted label comes back on the next visit or
+// load and an edit (remove, then add) loses its new text. Fix ([Fixes] MapLabelsFull): both tests become nops.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -292,6 +297,8 @@
 #define VA_AREA_CANDIDATE_STORE 0x4bfdbdu   // mov ecx, [esp+0x10] ; mov [ebp], eax in ai_combat_cast_frame (enemy loop)
 #define VA_DISTANCE 0x524810u               // cdecl (vector3 *, vector3 *) -> float (st0)
 #define VA_SPELL_CAST_SP_START 0x47c74cu    // mov ebx, [esp+0x150] (the spell) in spell_cast_execute, single player
+#define VA_LABEL_REMOVE_FULL 0x4d13cau      // jge (count >= 128) in savegame_automap_label_remove
+#define VA_LABEL_RESET_FULL 0x4d1526u       // jge (count >= 128) in savegame_automap_labels_reset_level
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -1099,6 +1106,13 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)HitSoundPosStub - (SumVa(VA_SPELL_CAST_SP_START) + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_SPELL_CAST_SP_START, o, r, 7, "spell hit sounds play where the spell lands (K300)");
+    }
+
+    if (FixOn("MapLabelsFull")) {
+        static const BYTE ro[6] = {0x0F, 0x8D, 0x0F, 0x01, 0x00, 0x00}, so[6] = {0x0F, 0x8D, 0xED, 0x00, 0x00, 0x00};
+        static const BYTE nops[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        PatchBytes(VA_LABEL_REMOVE_FULL, ro, nops, 6, "a saved map label can be removed with 128 labels saved (K40)");
+        PatchBytes(VA_LABEL_RESET_FULL, so, nops, 6, "a level's saved map labels can be reset with 128 saved (K40)");
     }
 
     if (FixOn("PhoenixInferno")) {
