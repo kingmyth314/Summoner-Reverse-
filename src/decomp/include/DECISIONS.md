@@ -7027,3 +7027,10 @@ smaller or equal. The decomp had the test the other way round. It compiles to th
 frame set-up), so the byte sweep could not see it; a quicksave made on the hybrid game right after loading
 differed from the original's in one NPC's record (position, heading, a timer -1 vs 100) in every run, and the
 save-state search (`[Hybrid] Only`, half the functions at a time) named this function.
+
+**D9201 (2026-10-18, Character::init 0x44e1c0: an inverted animation test found by the hybrid game).** Bit 0 of
+`+0x320` (`CF_COMBAT_READY`) is set, and the prop tag cleared, when the stand and ready locomotion animations are
+the **same** (or in multiplayer): `cmp ecx, [eax+0x5b8]; je 0x44e800` jumps into the `or ecx, 1` block. The decomp
+(decomp37) read it as "different". After a level change with the full party every monster in Iona's exterior had
+the bit set in the original's quicksave and clear in the hybrid's; the search over `[Hybrid] Only` named this
+function, which differs in its frame size too, so the byte sweep could not see the error.

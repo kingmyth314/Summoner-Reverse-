@@ -29,7 +29,7 @@ class console_command;
 #define NUM_LOCO_ANIMS 18             // locomotion_anim_names, Character +0x5ac..+0x5f0
 
 // Character +0x320 flags
-#define CF_COMBAT_READY  0x1          // ready stance (living_entity_init: stand != ready or multiplayer; decomp37)
+#define CF_COMBAT_READY  0x1          // ready stance (living_entity_init: stand == ready or multiplayer; decomp37, corrected D9201)
 #define CF_SUMMONLIKE    0x2          // cleared by party_add_member (party_cycle skips it); set while disabled
 #define CF_HIDDEN        0x8          // dying (character_kill) or hidden
 #define CF_DEAD          0x80

@@ -362,7 +362,8 @@ void Character::init(int type, int info_index, const vector3 *pos, const matrix 
     living_entity_setup_head(this->info, instance);
     prop_tag = this->info->prop_tag;
     default_prop_tag = prop_tag;
-    if (anim_stand != anim_ready || (game_flags & GF_MULTIPLAYER)) {
+    // (cmp [+0x5ac], [+0x5b8]; je: set when equal, D9201 found by the hybrid game)
+    if (anim_stand == anim_ready || (game_flags & GF_MULTIPLAYER)) {
         flags |= CF_COMBAT_READY;
         prop_tag = 0;
     }
