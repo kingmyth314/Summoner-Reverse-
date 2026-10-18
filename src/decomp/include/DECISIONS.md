@@ -7019,3 +7019,11 @@ First strict sweep: 4,956 byte matches -> 4,931 strict. The 25, all fixed here:
   row positions, help_draw's footer y, dialogue_load_bitmaps' text box width, phoenix_pick_weighted_move's threat
   sum, gr_d3d_set_viewport, sound_emitters_init's list head, the play menu's button order (3, 4, 2), the five
   scrollbar drags (`thumb + (mouse - track - start)`), and key_msg_handler's two focus cases (KILLFOCUS first).
+
+**D9200 (2026-10-18, levelrender_build_draw_lists 0x482e20: an inverted distance test found by the hybrid game).**
+A culled monster or NPC (type 4 or 5) gets AI flag 0x40 when it is **farther** than 1200 (squared, about 34.6 m)
+from the current character: `fcomp [0x581aa0]; test ah, 0x41; jne` skips the `or al, 0x40` when the distance is
+smaller or equal. The decomp had the test the other way round. It compiles to the same size and still differs (the
+frame set-up), so the byte sweep could not see it; a quicksave made on the hybrid game right after loading
+differed from the original's in one NPC's record (position, heading, a timer -1 vs 100) in every run, and the
+save-state search (`[Hybrid] Only`, half the functions at a time) named this function.

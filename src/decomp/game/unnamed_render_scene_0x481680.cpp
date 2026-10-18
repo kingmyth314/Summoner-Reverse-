@@ -825,7 +825,7 @@ void levelrender_setup_level_lights()
 
 // 0x482e20  Confidence: likely (the case grouping; the distance tests). Living entities (types 4-10):
 // the visibility bit 2 moves to bit 8 (previous frame) and bits 2 / 0x20 are cleared; a culled monster
-// or NPC within 34.6 m gets AI flag 0x40 and a culled corpse beyond 20 m is deactivated. Outside a
+// or NPC beyond 34.6 m gets AI flag 0x40 and a culled corpse beyond 20 m is deactivated. Outside a
 // cutscene an entity is drawn only within the fog distance, on a level object that is drawn this frame
 // (flag 0x2000) and, when small (radius < 2), within 75 m; a living one beyond 40 m (or the fog distance
 // for type 9 / species 0x55) gets flag 0x20. In a cutscene the limit is 225 m and only the cutscene's
@@ -866,7 +866,8 @@ void levelrender_build_draw_lists()
             if (!(game_flags & 0x20) || c->cutscene_object < 0) {
                 if (c->is_in_view(1.0f)) {
                     if (c->type == 5 || c->type == 4) {
-                        if ((c->pos - cur_character->pos).len_sq() <= 1200.0f)
+                        // (fcomp; test ah, 0x41; jne skip: set beyond 1200, D9200 found by the hybrid game)
+                        if (!((c->pos - cur_character->pos).len_sq() <= 1200.0f))
                             c->ai.flags |= 0x40;
                     }
                     if (c->type != 7 && (c->flags & CF_DEAD) && !((c->pos - cur_character->pos).len_sq() <= 400.0f))

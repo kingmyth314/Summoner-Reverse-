@@ -140,6 +140,15 @@ loads the newest test save and compares the screen with the original game's capt
 violation, no frames or more than 3% of the pixels different count as failures. Each startup failure above was
 found that way in 10-20 game starts.
 
+**The first decompilation error found by playing (2026-10-18).** A level change with the full party, the Murod
+cutscene and fight run on the hybrid without errors, but a fight never plays out the same twice. Saving is exact:
+load the test save, quicksave at once, and compare the file with the original game's. Six runs of the original
+vary in 140 bytes (NPC timing); outside those, the hybrid's save differed in 13 bytes of one NPC's record, the same
+in every run. The same halving search with a quicksave as the test named `levelrender_build_draw_lists`
+(`0x482e20`): its distance test for AI flag 0x40 was inverted (DECISIONS.md D9200). The function differs from the
+original in its frame set-up as well, so the byte sweep could not see the error. After the fix the hybrid's
+quicksave matches the original's.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept
