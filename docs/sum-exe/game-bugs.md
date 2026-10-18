@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 17 |
+| Cosmetic | 58 | 36 | 18 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1784,7 +1784,7 @@ retail script sends a go that early was not checked. D8602.
 | K180 | Latent: when a `strings.tbl` language section has more than 40 KB of text, each string that does not fit shows the text of the next string that does (or nothing) | `localize_set_string` `0x504400` | **Observed** code and retail data, *inferred* effect | No |
 | K181 | Latent: French text would show `Ä` as `É`; v1.40 never selects French | `localize_remap_charset` `0x5051a0` | **Observed** code and retail data | No |
 | K190 | A dragon summon's cutscene, cast after any story cutscene, streams a stale soundtrack handle: usually silence as intended, but when a music track has since taken that sound slot (for example boss music started right after a boss intro), that track restarts under the dragon scene and its slot is freed when the scene ends | `cutscene_unload` `0x4351e0`, `cutscene_load_sounds` `0x435000`, `cutscene_sequence_update` `0x436a90` | **Observed** code and retail data, *inferred* effect | No |
-| K191 | Releasing a long left-button drag with the cursor at the left or right screen edge starts the edge camera turn at once; the code meant to hold it back until the cursor leaves the edge never engages | `camera_process_input` `0x434660` | **Observed** code, *inferred* effect | No |
+| K191 | Releasing a long left-button drag with the cursor at the left or right screen edge starts the edge camera turn at once; the code meant to hold it back until the cursor leaves the edge never engages | `camera_process_input` `0x434660` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] EdgeTurnAfterDrag`) |
 | K192 | Latent: a `+Minitrack:` sound in `cutscene.tbl` never plays | `cutscene_load_sounds` `0x435000`, `cutscene_events_frame` `0x436c00` | **Observed** code and retail data | No |
 | K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code, *inferred* effect | No |
 | K194 | Latent: the help of the `play_and_load_cutscene` console command prints `play_cutscene`'s usage line. No console in v1.40 | `cmd_play_and_load_cutscene` `0x437590` | **Observed** code | No |
@@ -2353,6 +2353,14 @@ its test (`0x43472d`) and its reset when the cursor leaves the edge (`0x4347c2`.
 test was evidently "held last frame, not held now". *Inferred:* holding the left button to walk with the cursor at
 the screen edge, then letting go, turns the camera at once, because the edge turn needs only that no mouse button is
 down (`0x434736`..`0x434750`).
+
+**Reproduced 2026-10-18** (agent mode: left button held in the world, cursor moved to the left edge, button
+released there; camera yaw read at `game_camera + 0x180`, `0x60a198`). After the release the yaw went -2.86, -3.27,
+-3.69 over 0.8 s with the cursor still at the edge, and `0x5fccb8` stayed 0. **Fixed** in SummonerFix (`bugfix.c`,
+switch `[Fixes] EdgeTurnAfterDrag`): the store at `0x4346f1` calls a stub that swaps the byte and returns last
+frame's bit, and the right-edge reload at `0x43470a` reads that copy, so the test is "held last frame, not held
+now". With the fix `0x5fccb8` was 1 after the release and the yaw stayed at -2.80; once the cursor had left the
+edge and come back, the edge turn ran as before.
 
 **K192. Minitrack handles stay -1.** `cutscene_load_sounds` sets `minitrack_sounds[i]` (`0x60349c`, 4 slots) to -1 for
 every `+Minitrack` (`0x43508a`..`0x435090`) and never loads the file. `cutscene_events_frame` passes that value to

@@ -159,6 +159,13 @@
 // to track x page / items, as the assess screen sizes its thumb; pickup_drag_scrollbar already maps the thumb top
 // the same way.
 //
+// Edge turn right after a drag (cosmetic; game-bugs K191). camera_process_input stores this frame's held-drag bit in
+// 0x5fccb7 and then, with the cursor at a screen edge, tests "not held now and 0x5fccb7", which is always false, so
+// the block byte 0x5fccb8 that should hold the edge turn back after a drag released at the edge is never set: the
+// camera starts turning as soon as the button comes up. Fix ([Fixes] EdgeTurnAfterDrag): the store (0x4346f1)
+// calls a stub that swaps the byte and hands back last frame's bit, and the right-edge reload (0x43470a) reads that
+// copy, so the test is "held last frame, not held now" and the turn waits until the cursor leaves the edge.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -237,6 +244,9 @@
 #define VA_PICKUP_TRACK_HEIGHT 0x58f3f4u    // int[3] by resolution_index
 #define VA_PICKUP_PAGE_SIZE 0x58f400u       // int[3] by resolution_index
 #define VA_RESOLUTION_INDEX_FIX 0x60ad68u
+#define VA_CAMERA_EDGE_STORE 0x4346f1u      // mov [0x5fccb7], al in camera_process_input
+#define VA_CAMERA_EDGE_RELOAD 0x43470au     // mov al, [0x5fccb7] (right-edge path, after gr_screen_width)
+#define VA_CAMERA_EDGE_HELD 0x5fccb7u       // byte: left button held for a drag, last stored
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -400,6 +410,33 @@ __asm__(".text\n"
         "    pushal\n"
         "    call _PickupThumbHeight\n"
         "    popal\n"
+        "    ret\n");
+
+// Edge-turn block (K191): camera_process_input's held-drag byte is swapped, so the release test sees last frame's bit.
+__attribute__((used)) static BYTE g_edgePrevHeld;
+__attribute__((used)) static int __cdecl EdgeHeldSwap(int held)
+{
+    volatile BYTE *store = (volatile BYTE *)(UINT_PTR)SumVa(VA_CAMERA_EDGE_HELD);
+    BYTE prev = *store;
+    *store = (BYTE)held;
+    g_edgePrevHeld = prev;
+    return prev;
+}
+// Replaces mov [0x5fccb7], al (5 bytes, entered by call) between cmp ecx, 3 and jl: keeps the flags and ecx, edx;
+// returns last frame's bit in eax.
+void EdgeHeldStub(void);
+__asm__(".text\n"
+        "_EdgeHeldStub:\n"
+        "    pushfl\n"
+        "    pushl %ecx\n"
+        "    pushl %edx\n"
+        "    movzbl %al, %eax\n"
+        "    pushl %eax\n"
+        "    call _EdgeHeldSwap\n"
+        "    addl $4, %esp\n"
+        "    popl %edx\n"
+        "    popl %ecx\n"
+        "    popfl\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -846,6 +883,17 @@ void BugFixesInstall(void)
             memcpy(r + 1, &rel, 4);
             PatchBytes(at[i], orig[i], r, 6, "pickup scrollbar thumb sized by page / items (K12)");
         }
+    }
+
+    if (FixOn("EdgeTurnAfterDrag")) {
+        static const BYTE so[5] = {0xA2, 0xB7, 0xCC, 0x5F, 0x00}; // mov [0x5fccb7], al
+        static const BYTE ro[5] = {0xA0, 0xB7, 0xCC, 0x5F, 0x00}; // mov al, [0x5fccb7]
+        BYTE sr[5] = {0xE8}, rr[5] = {0xA0};
+        DWORD rel = (DWORD)(UINT_PTR)EdgeHeldStub - (SumVa(VA_CAMERA_EDGE_STORE) + 5), prev = (DWORD)(UINT_PTR)&g_edgePrevHeld;
+        memcpy(sr + 1, &rel, 4);
+        memcpy(rr + 1, &prev, 4);
+        if (PatchBytes(VA_CAMERA_EDGE_STORE, so, sr, 5, "edge turn held back after a drag ends at the edge (K191)"))
+            PatchBytes(VA_CAMERA_EDGE_RELOAD, ro, rr, 5, "edge turn: right edge reads last frame's drag bit (K191)");
     }
 
     if (FixOn("PhoenixInferno")) {

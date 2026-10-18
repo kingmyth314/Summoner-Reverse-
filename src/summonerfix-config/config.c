@@ -100,6 +100,7 @@ static const FixOption k_fixes[] = {
     {"InventoryCategoryButtons", "Identify list category buttons"},
     {"AmbientSounds", "Ambient sounds survive level changes"},
     {"PickupScrollbar", "Container scrollbar stays in its track"},
+    {"EdgeTurnAfterDrag", "No edge turn right after a drag"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
