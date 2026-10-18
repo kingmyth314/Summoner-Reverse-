@@ -2305,7 +2305,7 @@ game/unnamed_ai_move_0x4b1410.cpp 0x4b1440 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b1530 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b15a0 differs
 game/unnamed_ai_move_0x4b1410.cpp 0x4b18e0 match
-game/unnamed_ai_move_0x4b1410.cpp 0x4b1a00 differs
+game/unnamed_ai_move_0x4b1410.cpp 0x4b1a00 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b1aa0 differs
 game/unnamed_ai_move_0x4b1410.cpp 0x4b2510 differs
 game/unnamed_ai_move_0x4b1410.cpp 0x4b2670 differs
@@ -2410,7 +2410,7 @@ game/unnamed_avoidance_0x4a6710.cpp 0x4a8df0 differs
 game/unnamed_avoidance_0x4a6710.cpp 0x4a93c0 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a9400 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a9440 differs
-game/unnamed_avoidance_0x4a6710.cpp 0x4a9b40 differs
+game/unnamed_avoidance_0x4a6710.cpp 0x4a9b40 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a9d60 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a9df0 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a9e60 match
@@ -2451,10 +2451,10 @@ game/unnamed_camera_0x4778b0.cpp 0x478ff0 match
 game/unnamed_camera_0x4778b0.cpp 0x4790d0 match
 game/unnamed_camera_0x4778b0.cpp 0x479170 match
 game/unnamed_camera_0x4778b0.cpp 0x4791a0 match
-game/unnamed_camera_0x4778b0.cpp 0x4792c0 differs
+game/unnamed_camera_0x4778b0.cpp 0x4792c0 match
 game/unnamed_camera_0x4778b0.cpp 0x479430 match
 game/unnamed_camera_0x4778b0.cpp 0x479440 match
-game/unnamed_camera_0x4778b0.cpp 0x479480 differs
+game/unnamed_camera_0x4778b0.cpp 0x479480 match
 game/unnamed_camera_0x4778b0.cpp 0x4796a0 match
 game/unnamed_camera_0x4778b0.cpp 0x479740 match
 game/unnamed_camera_0x4778b0.cpp 0x479790 match

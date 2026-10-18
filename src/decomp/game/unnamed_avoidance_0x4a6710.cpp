@@ -1601,15 +1601,24 @@ clip_failed:
     return false;
 }
 
-// 0x4a9b40  Confidence: likely (the random jitter of the first copy). Registers an avoidance area: one
-// obstacle for size class 1 (centre jittered by up to 0.3, first axis by up to 0.1, a square frame) and
-// one for size class 2 (the description's axes, half sizes + _unk28). Returns the slot or -1.
+// The x / z of a vector3 into a vector2 through float arguments: avoid_area_add copies them with fld / fstp
+// (an inline with float parameters, as pathfinding.cpp's pf_set_xz, D8601; plain member copies are integer
+// moves, a vector2(x, z) temporary is copied through EAX). Name ours.
+static inline void avoid_set_xz(vector2 *v, float x, float z)
+{
+    v->x = x;
+    v->y = z;
+}
+
+// 0x4a9b40  Confidence: exact (VC6 byte match, D9701: vector2 operators; the descriptor's centre and axes
+// are read as vector2s, D8601). Registers an avoidance area: one obstacle for size class 1 (centre
+// jittered by up to 0.3, first axis by up to 0.1, a square frame) and one for size class 2 (the
+// description's axes, half sizes + _unk28). Returns the slot or -1.
 int avoid_area_add(avoid_area_desc *d)
 {
     avoid_area *area;
     vector3 rv;
     vector2 r, centre, axis, ha, hb;
-    float ea, eb;
     int flags, ob;
 
     area = avoid_area_alloc();
@@ -1621,33 +1630,24 @@ int avoid_area_add(avoid_area_desc *d)
     else
         flags |= 4;
     rv.random_direction();
-    r.x = rv.x;
-    r.y = rv.z;
+    avoid_set_xz(&r, rv.x, rv.z);
     r.normalize();
-    centre.x = r.x * 0.3f + d->cx;
-    centre.y = r.y * 0.3f + d->cz;
+    centre = 0.3f * r + *(vector2 *)&d->cx;
     rv.random_direction();
-    r.x = rv.x;
-    r.y = rv.z;
+    avoid_set_xz(&r, rv.x, rv.z);
     r.normalize();
-    axis.x = r.x * 0.1f + d->ax;
-    axis.y = r.y * 0.1f + d->az;
+    axis = 0.1f * r + *(vector2 *)&d->ax;
     axis.normalize();
-    ea = d->extent_a;
-    eb = d->extent_b;
-    ha.x = ea * axis.x;
-    ha.y = ea * axis.y;
-    hb.x = -axis.y * eb;
-    hb.y = axis.x * eb;
+    vector2 perp(-axis.y, axis.x);
+    ha = d->extent_a * axis;
+    hb = d->extent_b * perp;
     ob = avoid_add_primitive(&centre, flags, &ha, &hb, 1, d->owner);
     if (ob >= 0)
         area->obstacles[area->count++] = (char)ob;
     else
         printf("AA - primative not added!!\n");
-    ha.x = (d->_unk28 + d->extent_a) * d->ax;
-    ha.y = (d->_unk28 + d->extent_a) * d->az;
-    hb.x = (d->_unk28 + d->extent_b) * d->bx;
-    hb.y = (d->_unk28 + d->extent_b) * d->bz;
+    ha = (d->_unk28 + d->extent_a) * *(vector2 *)&d->ax;
+    hb = (d->_unk28 + d->extent_b) * *(vector2 *)&d->bx;
     ob = avoid_add_primitive(&centre, flags, &ha, &hb, 2, d->owner);
     if (ob >= 0)
         area->obstacles[area->count++] = (char)ob;

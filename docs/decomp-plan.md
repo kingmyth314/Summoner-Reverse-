@@ -234,6 +234,24 @@ functions differ in pointers inside freshly built paths (`approach_random_offset
 and its allocations come from the C runtime heap, which the checker leaves running, so the second call's blocks
 sit 8 or 16 bytes further on. That is the checker's limit, not a difference in the code.
 
+**The precision round (2026-10-18, five agents, one file each).** For each of the eight functions with a last-bit
+difference, the agent first pinned the instruction where the original keeps or rounds a value differently, then
+searched for source with a strict byte match (no `volatile` or casts to force rounding; about 40 variants each):
+
+| Function | Site | Result |
+|---|---|---|
+| `camera::start_sequence`, `camera::update_sequence` | not precision: the constant `0.3183099f` rounds one bit above the original's 1/pi `0x3ea2f983` | byte match (D9400) |
+| `closest_approach_time` | the squares are stored as floats and summed twice; written on the products in the test and on the named squares in the division, VC6 no longer merges the two sums | byte match (D9500) |
+| `avoid_area_add` | the vector2 operators round the y product before the add and keep x; needs `vector2::operator+` as a constructor return (shared header) | byte match (D9700, D9701) |
+| `path_closest_point` | `q = path->pos - path->dir * 50` through `operator=` rounded x instead of z; declared with its initialiser it follows the original | same values, frame still differs (D9510) |
+| `approach_attack_slot` | the slot points and the mid waypoint written per component kept y and z unrounded; vector operators give the original's sequence | same values, registers differ (D9610, D9611) |
+| `blood_splot_place` | after D9203, the small case: `v` takes the rounded radius after the copy constructor; a cross product for `v` gives the original's frame and the small and medium cases | same values in 20 checked calls; the large case loses an inline (D9300, D9301) |
+| `ai_choose_attack_slot` | the attacker's centre goes through an out-of-line `vector3` constructor that rounds `d.x`; no source form made VC6 call it out of line | still differs (D9600, D9601) |
+
+The strict sweep after the merge: 4,960 matches (4,956 before), none lost; every unit compiles with mingw. In the
+Murod and Tentacle Beast fights, ten dual calls each, seven of the eight give the original's results in every
+call; `ai_choose_attack_slot` still differs in the 7th digit.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept
@@ -251,9 +269,8 @@ sit 8 or 16 bytes further on. That is the checker's limit, not a difference in t
 **State (2026-10-18, evening).** Done since: the save test over 18 levels, the inventory and trader scenarios,
 coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Five decompilation errors found and
 fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls. 466 of
-the 895 non-matching functions have run in a checked scenario. Next: scenarios for what has not run yet
-(`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`), and the x87 precision cases through byte
-matching.
+the 895 non-matching functions have run in a checked scenario. The x87 precision cases were then taken through byte matching (the precision round below): one left. Next: scenarios
+for what has not run yet (`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`).
 
 ## Phase 3 status (2026-10-16)
 
@@ -267,9 +284,9 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result (2026-10-17): 7,725 functions written (89.4%). 5,905 of them are
-compiled and compared by VC6 SP5, and 4,937 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 4,956: 19 compared functions are not `func` lines in sum.symbols). The
+`node tools/decomp-progress.mjs` counts the result (2026-10-18): 7,725 functions written (89.4%). 5,905 of them are
+compiled and compared by VC6 SP5, and 4,941 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 4,960: 19 compared functions are not `func` lines in sum.symbols). The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

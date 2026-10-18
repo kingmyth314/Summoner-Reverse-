@@ -7055,3 +7055,158 @@ size; the file keeps its 47 matches.
 (`mov al, [0x247e95c]` at `0x4b6c1c`, `mov ecx, 0x247e91c` four times). Without the address comment the hybrid
 game kept a second timer in the DLL, so the decompiled function and the original each had their own 2-second
 pacing; the dual-call check showed the original's timer and guard changing and the DLL's not.
+
+**D9300 (2026-10-18, blood_splot_place 0x468760: the remaining x87 rounding site).** After D9203 the small case
+(size 0, `0x46899d`..`0x468a14`) still differed. The original stores the scaled radius (`fst dword ptr [esp+4]` at
+`0x4689ac`), multiplies `u` by the 80-bit value left on the stack (`fmul` at `0x4689b2` / `0x4689b8` / `0x4689c4`),
+calls the copy constructor of `u = ...`'s returned copy (`0x4689e7`, which empties the FPU stack) and only then
+reloads the rounded float for `v` (`fld dword ptr [esp]` at `0x4689ec`, `fmul st, st(1)` at `0x4689f4` /
+`0x4689fe` / `0x468a08`). With the D9203 source VC6 expanded that case's vector operators completely (no copy
+constructor call), never stored the radius and multiplied `v` by the unrounded value (`fld st(0); fld st(0)` then
+`fmul st(0), st(1)` / `st(2)` on `v`), so `v` was one bit off whenever rounding the radius to float changed the
+product: the decal half-axis written by decal_place (`0x2480ab4` / `0x2480bdc`). The large and medium cases already
+agreed in value (stored radius for `v` in both).
+
+**D9301 (2026-10-18, blood_splot_place 0x468760: no byte match; source shape found, 29 variants).** Found in the
+original and now in the source: (1) `vector3 v = u.cross(vector3(0.0f, 1.0f, 0.0f));` gives the original's frame
+(`sub esp, 0xb8`, two more temporaries than the written-out `0 - u.z, 0, u.x - 0`) and the same expansion in the
+small and medium cases (the copy constructor calls at `0x468933` / `0x468985` / `0x4689e7` / `0x468a3d`); (2) `off *=
+radius; off.y = 0.0f;` (y cleared after the scaling) lets VC6 carry y = 0 into `pos += off`, which gives the
+original's `mov eax, [pos.y]; mov [pos.y], eax` (`0x46879f` / `0x4687ab`); with y cleared first, `pos.y + off.y` is
+computed. The code up to the switch then matches except `fld st(0); fsub u.z` where the original has `fld u.z; fsubr
+st, st(1)` (`0x46881b`, same value). Still different: (a) with the cross product VC6 calls `vector3::operator*(float)`
+out of line in the large case (the stored, rounded radius is passed), while the original expands it (`0x46885a`..
+`0x468888`, the unrounded value as in D9203). The case order decides which case loses its expansions (2, 1, 0 and 1,
+2, 0 orders tried: the first case written gets the most), and writing `pos += off` out per component frees enough
+for the large case to expand, but then x is `pos.x + off.x` where the original has `off.x + pos.x` (`0x4687c0`), so
+the original used `pos += off` and saves its inline budget elsewhere (not found: per-component `off *= radius`, a
+named `up` vector, `int bm = -1`, `vector3 v(...)`, a len() written out). (b) The original loads the radius once for
+`v = v * radius` (`fld [esp]`, then `fld v.z; fmul st, st(1)`, `0x468938` / `0x4689ec`; this load-once pattern occurs
+nowhere else in Sum.exe with a stack local); VC6 here multiplies by the memory operand three times. Not changed by
+`(float)radius`, a comma expression, `radius *= k;` as its own statement, a scoped or function-level `s` (VC6 gives
+`s` the radius's slot, but still memory operands), `vector3(v.x * radius, ...)` or taking `&radius`. In value the
+source is now the original's in the small and medium cases and differs in the large case (u with the rounded
+radius); with the per-component `pos` addition it would agree in all three (814 against 810 bytes), not adopted
+because of (a)'s operand order. The file keeps its 47 matches.
+
+**D9400 (2026-10-18, camera::start_sequence 0x4792c0 and camera::update_sequence 0x479480: the fov constant, found
+by dual calls).** Both store `fov` (`game_camera+0x18c`) as `fld dword ptr [seq + 0x08]; fmul dword ptr [0x581a58];
+fstp dword ptr [esi + 0x18c]` (`0x479401`..`0x479414`, `0x4795f5`..`0x479603`), the same three instructions in
+ours: no intermediate is kept or rounded differently. The one-bit difference was the constant: `0x581a58` holds
+`0x3ea2f983` (0.31830987, the float nearest 1/pi), while the decomp's `0.3183099f` rounds to `0x3ea2f984`.
+Written as `0.31830987f` (as in unnamed_lights, `* 0.31830987f`; `(1.0f / CAM_PI)` gives the same bytes). With the
+right constant both functions are byte matches once their layout is: start_sequence computes the fov before
+`flags |= CAMF_SEQUENCE` (the `fld`/`fmul` come before the flag's `mov`/`or`/`mov`), and update_sequence has no
+local copy of the shot pointer (the original reloads `[esi + 0x13c]` for `sample`, `get_state` and the fov read and
+saves `ebp` only inside the transform branch), so the member is cast at each use. The file goes from 39 to 41
+matches (strict).
+
+**D9500 (2026-10-18, closest_approach_time 0x4b1a00: x87 precision, matched).** The original keeps dv's three
+components on the x87 stack, forms the squares z, y, x and stores each as a float in a dead slot (`fstp [esp]` z²,
+`fstp [esp+8]` y² in va's argument slot, `fst [esp+0xc]` x² in vb's, hence `push ecx`; `0x4b1a19`..`0x4b1a2d`).
+The test adds the unrounded x² still in st0 to the two stored floats (`fadd [esp+8]; fadd [esp]`, `0x4b1a31`), the
+division forms the sum again from the three stored floats (`fld [esp+0xc]; fadd [esp+8]; fadd [esp]`,
+`0x4b1a7c`). With the test and the division both on the named squares, VC6 treated the two sums as one common
+subexpression, computed it once and kept the squares in registers, so the test's sum and the denominator were
+both the 80-bit value (the denominator rounded once at `fst`). Matching source: the test is written on the
+products, `if (dv.x * dv.x + dv.y * dv.y + dv.z * dv.z < 0.0001f)`, and the division on the named squares,
+`/ (xx + yy + zz)`. The two sums are then different expressions; the squares (CSEs of the products) are stored
+because the second sum reads the named floats. Strict match; the file goes from 8 to 9 matches. Not tried this
+round: none of the earlier 23 order permutations. Also not matching: `dv.len_sq()` / `dv.dot(dv)` in both
+places, a `float d = dv.len_sq()` local, products in both places, `dv.len_sq()` in the test with the named
+squares in the division (stores x² instead of keeping it), a `vector3 sq` of the squares.
+
+**D9510 (2026-10-18, ai_state::path_closest_point 0x4b2670: x87 precision at the path start point, fixed; no
+byte match).** The rounding site is `q = path->pos - path->dir * 50.0f` (`0x4b275d`..`0x4b279f`): the original
+stores dir.x*50 and dir.y*50 as floats and keeps dir.z*50 unrounded (`fmul [0x580de8]; fsubr [eax+8]`), so q.x
+uses the rounded product and q.z the unrounded one. Written as `vector3 q; ... q = path->pos - path->dir * 50.0f;`
+VC6 went through `operator=` (which returns a copy) and kept dir.x*50 unrounded and rounded dir.z*50 instead
+(`fsubr [eax]`), so `prev` (from_xz of q) could differ by one unit in the last place in x or z, and with it the
+closest point and `travel_dest.x` / `.z` (`[edi+0x54]` / `[edi+0x5c]`; the hybrid game's differing floats
+0x245F3A4 / 0x245F3AC are 8 apart, as these two fields are). `vector3 q = path->pos - path->dir * 50.0f;`
+(initialised in its declaration) gives the original's x87 sequence instruction for instruction. Setting
+`seg.b = &cur` inside the loop after `cur.from_xz` gives the original's store (`mov [esp+0x64], ecx` in the loop;
+`seg.a` alone before it). The look-ahead point `p` already rounded the same way (T.z unrounded in both).
+
+Still differing (about 32 variants, none a match): (1) the frame is 8 bytes larger in the original (`sub esp, 0x60`
+against 0x58; original slots from the frame base: best_d -108, closest -104, best -96, look -88, cur -80, prev -72,
+the fvec * ahead temporary -64 (the label's unwind slot, `lea ecx, [ebp-0x40]` at 0x57c990), get_center's c -52,
+p / q / the dir * 50 temporary -40, seg -28, 8 unexplained bytes at -20; ours puts seg before the temporaries
+and has no gap); (2) p.z is `fld c.z; fadd st, st(1)` with T.z popped afterwards (`fstp st(0)` at 0x4b2747), ours
+`fadd c.z` consuming T.z: same value, other bytes; (3) the prologue stores `found` / `n` before `push 1000000`
+(declaring them before the profile_label gives that order, but no other function here puts anything before the
+label, so it is not applied), and zeroes best.y, best.x, closest.y, closest.x in that order (ours closest first).
+Tried for p without a match: a named t / c in either order and either operand order, `p += ...`, one expression
+with the divide inline, `fvec * ahead + get_center()` (evaluates c first), a temporary argument to from_xz; for
+the frame: seg declared after the block, no block, `vector2 diff = look - closest`. The file keeps its 9 matches.
+
+**D9600 (2026-10-18, ai_choose_attack_slot 0x4b6a90: where the x87 precision differs).** The attacker's centre
+is built by an out-of-line call of vector3(x, y, z) (`0x4b6ad8`..`0x4b6af9`: the three sums are rounded to float
+when pushed as arguments, `call 0x43b580`), the target's centre is stored to a float local (`fstp [esp+0x34]`
+.. `[esp+0x3c]`), and `d` is the difference of the two stored vectors (`0x4b6afe`..`0x4b6b2e`). VC6 expands the
+constructor in every source form tried, keeps the x sums of both centres on the FPU stack and subtracts them
+unrounded (`fsub st(0), st(1)`); y and z are rounded in both. So `d.x` (and after `normalize_safe` the whole
+direction) differs in the last bits, and from there the cross product and the asin. The tail is the same in both:
+`fabs; fst [s]; call _CIasin` on the 80-bit value, `fmul 0.7957747f`, `fimul sign`, `fiadd best`, the result
+returned in st0 without a float store (VC6 puts the exact `fimul` by +-1 before the `fmul`; the value is the same).
+The dot products: the binary sums `sd.z*d.z + sd.y*d.y` first, then `sd.x*d.x` (`0x4b6b50`); the source's
+`sd.z * d.z + sd.y * d.y + sd.x * d.x` compiled as x + y + z. `sd.dot(d)` (vector.h: VC6 sums the z term first,
+D504) gives the binary's order; applied. The frame (0x44 against 0x2c) is the two vector temporaries of the
+constructor call and of operator-.
+
+**D9601 (notes only). ai_choose_attack_slot is still different (28 forms tried).** No form makes VC6 SP5 call
+the constructor out of line here: `(a->pos + a->centre_offset) - tc`, the same without `tc`, `get_center()` on
+both, `vector3(sums) - tc` (temporary or named), operator= instead of the copy, a local inline helper returning
+`vector3(...)` or `pos + centre_offset`; `#pragma inline_depth(1)`, `(2)`, `(3)` and `auto_inline(off)` change
+nothing, `inline_depth(0)` calls every inline (and costs the file a match). Same symptom as
+conversation_controller::camera_capture (D9007). Unless that is found, the decompiled function's result differs
+from the original's in about the 7th digit (dual calls), from `d.x` only. Not forced with casts or float
+temporaries.
+
+**D9610 (2026-10-18, ai_state::approach_attack_slot 0x4bd2a0: vector expressions decide the rounding).** The slot
+points are `dir * reach + dest` (`0x4bd488`..`0x4bd4e5`): `dir.y * reach` and `dir.z * reach` are stored as floats
+(`fstp [esp+0x20]`, `[esp+0x24]`, operator*'s temporary) before `dest` is added, `dir.x * reach + dest.x` stays on
+the FPU stack; the sums go through a temporary into `slot_pos[n]`. The mid waypoint (`0x4bd60a`..`0x4bd673`) is
+filled in place: `attack_slot_direction(&mid, ..)`, `mid *= reach` (y and z stored, x kept), then
+`mid += target->pos + target->centre_offset` with the centre's y and z in a float temporary (`fstp [esp+0x4c]`,
+`[esp+0x50]`) and x added from the stack (`fadd st, st(1)`). The source wrote each component as
+`dir.y * reach + dest.y` (all 80-bit), so slot y / z (the path destination: the floats around 0xCC497C) and mid
+y / z were one unit off in the low byte now and then. Now `slot_pos[n] = dir * reach + dest;`,
+`mid *= reach; mid += target->pos + target->centre_offset;` and `dest = target->pos + target->centre_offset;`
+(the first 119 instructions are then the binary's except for register choice and the prologue's order; `lea ebx, [esi+0x10]` is &pos), plus
+`int h = target->ai.attackers[i].handle;` (the binary keeps the handle in a local, `[esp+0x58]`). The FPU
+sequences of all three points are now the binary's instruction for instruction; the values are the same.
+
+**D9611 (notes only). approach_attack_slot is still different (16 forms tried).** Left: register allocation (the
+binary keeps `this` in EDI and reloads `target` from its argument slot in the loops, VC6 keeps it in EBX), the
+loops' pointer induction (`slot_ids` / `slot_pos` pointers in EBP / EBX, `found` and `direct` as stack bytes) and
+the frame (0xb8 against 0xc8: the binary shares the vector temporaries with `mid`). `mid = dir * reach;
+slot_pos[n] = mid + dest;`, `dest + dir * reach`, `mid = mid * reach + (..)` and `mid = dir * reach; mid += ..`
+were tried and are further off or the same. The file keeps its 19 matches.
+
+**D9700 (2026-10-18, avoid_area_add 0x4a9b40: x87 precision, the rounding site).** The jittered centre and
+first axis are `0.3f * r + c` and `0.1f * r + a` through the vector2 operators: the product's y is stored to a
+float temporary and reloaded (`fstp [esp+0x38]` at `0x4a9bb2`, `fld [esp+0x38]; fadd [esi+0xc]` at
+`0x4a9bb9`; for the axis `0x4a9c04` / `0x4a9c0b`), while its x stays on the FPU stack (80-bit) and gets `d->cx` /
+`d->ax` added directly (`fadd [esi+0x8]` at `0x4a9bb6`, `fadd [esi+0x10]` at `0x4a9c08`). The decomp's
+component-wise `centre.y = r.y * 0.3f + d->cz` kept y unrounded too, so centre.y and axis.y (and through the
+normalised axis the half axes written to avoid_obstacles) were one bit off in some calls (`[Hybrid] Dual`).
+The rest of the first obstacle follows the same shape: `perp = vector2(-axis.y, axis.x)` with its y stored
+(`0x4a9c37`), `ea * axis` and `eb * perp` (eb copied into the dead argument slot `[esp+0x54]`, the inline's
+float parameter).
+
+**D9701 (2026-10-18, avoid_area_add 0x4a9b40: the matching source shape).** Strict byte match (file 44 -> 45
+matches; full strict sweep 4,956 -> 4,957, none lost) with: `centre = 0.3f * r + *(vector2 *)&d->cx;`,
+`axis = 0.1f * r + *(vector2 *)&d->ax;`, a named `vector2 perp(-axis.y, axis.x);` before
+`ha = d->extent_a * axis; hb = d->extent_b * perp;`, the size class 2 copy as
+`(d->_unk28 + d->extent_a) * *(vector2 *)&d->ax` (likewise b), and r filled through a file-local float-argument
+inline `avoid_set_xz(&r, rv.x, rv.z)` (fld / fstp copies; a function-scope r at `[esp+0xc]`, the frame's lowest
+slot; block-scoped `vector2 r(rv.x, rv.z)` shared its slot with the temporaries and gave a 0x3c frame, and
+`r = vector2(rv.x, rv.z)` copies through EAX). The casts stand for vector2 members of avoid_area_desc (D8601:
+the original probably had them; the header keeps float pairs because spells.cpp and the fx unit fill them).
+The last difference, `mov edx, [esi+0x2c]` (the owner argument) scheduled before `fstp [esp+0x1c]` (hb.x) at
+`0x4a9c75`, went away only with `vector2::operator+` written `{ return vector2(x + v.x, y + v.y); }` (vsdk/math/vector.h):
+the COMDAT 0x4aa3c0 computes y first and stores both after, which is that form (arguments right to left);
+the old `vector2 r; r.x = ...; r.y = ...; return r;` form left everything else identical. Tried without
+success (about 30 variants): an owner local, `const avoid_area_desc *`, `if ((ob = ...) >= 0)`, a vector2
+`operator*(float)` member, ea / eb locals, perp as a temporary, perp in a block, declaration orders.

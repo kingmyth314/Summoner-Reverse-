@@ -192,8 +192,10 @@ public:
     // ret 4), operator+ returns through the hidden pointer (ret 8).
     void operator=(const vector2 &v)                  // 0x4aa3a0 vector2__assign
     { x = v.x; y = v.y; }
+    // Through the float constructor (D9701): the COMDAT computes y first (arguments right to left) and
+    // stores both after; avoid_area_add's inline copies match only in this form.
     vector2 operator+(const vector2 &v) const         // 0x4aa3c0 vector2__operator_add
-    { vector2 r; r.x = x + v.x; r.y = y + v.y; return r; }
+    { return vector2(x + v.x, y + v.y); }
     float len() const;                                // 0x523f80 vector2__len
     float normalize();                                // 0x523fc0 vector2__normalize: returns the length, (1, 0) at 0
     float len_sq() const;                             // 0x523fa0 vector2__len_sq (in the vector unit, so out of line; decomp29)

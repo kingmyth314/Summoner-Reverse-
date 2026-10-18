@@ -290,7 +290,8 @@ bool ai_probe_move_for_walls(vector3 *pos, vector3 *move, int size, int layer, b
     return ai_find_nearest_wall_hit(&a, &b, move, size, layer, obstacles);
 }
 
-// 0x4b1a00  Confidence: likely (the squares are kept for the division; their sum is formed z first).
+// 0x4b1a00  Confidence: exact (the test sums the products, the division the named squares: two expressions,
+// so VC6 stores the squares and forms the sum twice; D9500).
 float closest_approach_time(vector3 *va, vector3 *vb, obj *a, obj *b)
 {
     vector3 dv = *vb - *va;
@@ -299,10 +300,10 @@ float closest_approach_time(vector3 *va, vector3 *vb, obj *a, obj *b)
     float zz = dv.z * dv.z;
     vector3 dp;
 
-    if (zz + yy + xx < 0.0001f)
+    if (dv.x * dv.x + dv.y * dv.y + dv.z * dv.z < 0.0001f)
         return 0.0f;
     dp = a->pos - b->pos;
-    return (dp.z * dv.z + dp.y * dv.y + dp.x * dv.x) / (zz + yy + xx);
+    return (dp.z * dv.z + dp.y * dv.y + dp.x * dv.x) / (xx + yy + zz);
 }
 
 // ---- steering ----------------------------------------------------------------------------------------
@@ -490,7 +491,8 @@ void ai_state::steer_jitter(float dt)
 
 // 0x4b2670  Confidence: likely. The look-ahead point is two seconds of the forward speed along the facing;
 // the closest point on the first five path segments (from 50 units behind the first node) replaces
-// travel_dest's x / z when it is farther than max_dist.
+// travel_dest's x / z when it is farther than max_dist. q is initialised in its declaration (an assignment
+// went through operator= and rounded the other component of dir * 50) and seg.b is set in the loop (D9510).
 void ai_state::path_closest_point(float max_dist)
 {
     profile_label label("ai_path_closest_point");
@@ -509,18 +511,17 @@ void ai_state::path_closest_point(float max_dist)
     {
         float ahead = owner->forward_speed * 2.0f / owner->speed_scale;
         vector3 p = owner->get_center() + owner->orient.fvec * ahead;
-        vector3 q;
         look.from_xz(&p);
-        q = path->pos - path->dir * 50.0f;
+        vector3 q = path->pos - path->dir * 50.0f;
         prev.from_xz(&q);
     }
     seg.a = &prev;
-    seg.b = &cur;
     for (node = path; node; node = node->next) {
         float dx, dy, d;
         if (n-- == 0)
             break;
         cur.from_xz(&node->pos);
+        seg.b = &cur;
         seg2d_closest_point(&look, &seg, &closest);
         dx = look.x - closest.x;
         dy = look.y - closest.y;

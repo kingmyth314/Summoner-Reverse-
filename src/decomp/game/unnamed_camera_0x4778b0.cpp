@@ -735,7 +735,8 @@ void camera::free_look_update()
     movement_read_controls(&view_pos, &view_orient, dt);
 }
 
-// 0x4792c0  Confidence: likely (the two negated rows; the shot axes are (right, -forward, -up)). ret 4.
+// 0x4792c0  Confidence: exact (VC6 byte match) (the two negated rows; the shot axes are (right, -forward, -up); the fov
+// before the flag, D9400). ret 4.
 // Ends a running shot (with the pop), pushes the state, then takes the shot's first view; the shot's
 // +0x08 times 1/pi is the fov.
 void camera::start_sequence(cutscene_camera_sequence *seq)
@@ -758,8 +759,8 @@ void camera::start_sequence(cutscene_camera_sequence *seq)
         view_pos += seq_origin;
         view_orient = seq_orient * view_orient;
     }
+    fov = seq->fov * 0.31830987f;     // 1/pi, 0x3ea2f983 (D9400)
     flags |= CAMF_SEQUENCE;
-    fov = seq->fov * 0.3183099f;
 }
 
 // 0x479430  Confidence: exact. ret 0x14.
@@ -783,25 +784,23 @@ void camera::free_sequence()
     }
 }
 
-// 0x479480  Confidence: likely (the row copies of the second case are expanded with the vector3 copy
-// constructor 0x410cd0 and the assignment 0x413190 out of line, the first case's inline). Frozen while
-// the game is paused. State 0: the shot's first view (as camera_start_sequence); state 1 (a blend,
+// 0x479480  Confidence: exact (VC6 byte match) (the member reloaded for each use, no local, D9400; the
+// row copies of the second case are expanded with the vector3 copy constructor 0x410cd0 and the
+// assignment 0x413190 out of line, the first case's inline). Frozen while the game is paused. State 0: the shot's first view (as camera_start_sequence); state 1 (a blend,
 // camera_blend_sequence, D3806): advance, then copy its view.
 void camera::update_sequence()
 {
-    cutscene_camera_sequence *seq = (cutscene_camera_sequence *)sequence;
-
     if (!sequence || !(flags & CAMF_SEQUENCE) || (game_flags & GF_PAUSED))
         return;
     switch (sequence->get_state()) {
     case 0: {
-        seq->sample();
+        ((cutscene_camera_sequence *)sequence)->sample();
         matrix m(*sequence->get_orient());
         vector3 up = -m.fvec;
         vector3 fwd = -m.uvec;
         view_orient.set_from_forward_up(fwd, up);
         view_pos = *sequence->get_pos();
-        fov = seq->fov * 0.3183099f;
+        fov = ((cutscene_camera_sequence *)sequence)->fov * 0.31830987f;   // D9400
         if (flags & CAMF_SEQ_TRANSFORM) {
             view_pos.unrotate(seq_orient);
             view_pos += seq_origin;

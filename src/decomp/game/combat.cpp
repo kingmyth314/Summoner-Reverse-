@@ -2129,7 +2129,9 @@ void living_combat::set_38(int s)
 }
 
 // 0x468760  Confidence: likely (VC6 expands the vector operators less in each later case, which this
-// source order reproduces only if the original's matches; D5701; u takes the unrounded radius, D9203). A blood splot decal (2 s, lit, depth
+// source order reproduces only if the original's matches; D5701; u takes the unrounded radius, D9203; v is u x
+// (0, 1, 0) and y is cleared after the scaling, which give the original's frame and its code up to the switch,
+// D9300-D9301; here VC6 still calls the large case's u * radius out of line, the original expands it). A blood splot decal (2 s, lit, depth
 // 0.25) under the target: at a random point of its size radius on the ground plane, with a random
 // horizontal direction (length at least 0.03 before normalising) and its perpendicular as the half-axes,
 // scaled by 0.2 / 0.3 / 0.45 of the radius for size 0 / 1 / 2. Another size places the decal with bitmap
@@ -2145,18 +2147,15 @@ void living_combat::blood_splot_place(int size, float grey)
     int bm;
 
     off.random_unit_vector();
-    off.y = 0.0f;
     off *= radius;
+    off.y = 0.0f;
     pos += off;
     do {
         u.random_unit_vector();
         u.y = 0.0f;
     } while (u.len() < 0.03f);
     u.normalize_safe();
-    vector3 v;
-    v.x = 0.0f - u.z;
-    v.y = 0.0f;
-    v.z = u.x - 0.0f;
+    vector3 v = u.cross(vector3(0.0f, 1.0f, 0.0f));
     bm = -1;
     switch (size) {
     case 0:

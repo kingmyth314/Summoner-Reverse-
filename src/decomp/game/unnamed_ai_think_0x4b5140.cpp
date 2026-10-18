@@ -787,7 +787,8 @@ static int qsort_cmp_float_field4(const void *a, const void *b)
 
 // 0x4b6a90  Confidence: likely. The two slot directions nearest the attacker's side; the result is the
 // best slot plus the fraction toward the second (asin of the cross product, 5 / (2 pi) slots per radian),
-// wrapped into 0..5.
+// wrapped into 0..5. The binary calls vector3(x, y, z) 0x43b580 out of line for the attacker's centre, so
+// both centres are rounded to float before the subtraction; ours keeps x at 80 bits (D9600, D9601).
 float ai_choose_attack_slot(Character *attacker, Character *target)
 {
     int best = -1, second = -1;
@@ -802,7 +803,7 @@ float ai_choose_attack_slot(Character *attacker, Character *target)
     for (i = 0; i < 5; i++) {
         float dot;
         target->ai.attack_slot_direction(&sd, i);
-        dot = sd.z * d.z + sd.y * d.y + sd.x * d.x;
+        dot = sd.dot(d);
         if (dot > best_dot) {
             second_dot = best_dot;
             second = best;

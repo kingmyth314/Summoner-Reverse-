@@ -188,7 +188,8 @@ bool ai_state::approach_target_point(Character *target)
 // its predicted position when it moves and is 5 or more away). When the chosen slot is two steps from the
 // one the target would hand out, a waypoint at the slot between is put in front of the path if both legs
 // are straight walks. Slots that are not navigable are dropped and the choice repeats. No slot: a path to
-// the (nearest navigable) centre, slot -1 claimed for 1 s.
+// the (nearest navigable) centre, slot -1 claimed for 1 s. The slot and mid points are vector expressions
+// (y and z of dir * reach rounded to float, x kept on the FPU stack, D9610).
 bool ai_state::approach_attack_slot(Character *target)
 {
     vector3 dest;
@@ -221,9 +222,7 @@ bool ai_state::approach_attack_slot(Character *target)
     dist = owner->distance_between_edges(target, true, _unk7c);
     if (within_attack_radius(dist))
         return false;
-    dest.x = target->pos.x + target->centre_offset.x;
-    dest.y = target->centre_offset.y + target->pos.y;
-    dest.z = target->centre_offset.z + target->pos.z;
+    dest = target->pos + target->centre_offset;
     dest_layer = target->layer;
     if (target->forward_speed > 0.0f) {
         if (owner->forward_speed < 0.1f)
@@ -250,13 +249,11 @@ bool ai_state::approach_attack_slot(Character *target)
     best_index = 0;
     best = 0.0f;
     for (i = 0; i < 5; i++) {
-        if (obj_from_handle(target->ai.attackers[i].handle) == NULL
-            || target->ai.attackers[i].handle == owner->handle) {
+        int h = target->ai.attackers[i].handle;
+        if (obj_from_handle(h) == NULL || h == owner->handle) {
             target->ai.attack_slot_direction(&dir, i);
             slot_ids[n] = i;
-            slot_pos[n].x = dir.x * reach + dest.x;
-            slot_pos[n].y = dir.y * reach + dest.y;
-            slot_pos[n].z = dir.z * reach + dest.z;
+            slot_pos[n] = dir * reach + dest;
             n++;
         }
     }
@@ -299,10 +296,9 @@ bool ai_state::approach_attack_slot(Character *target)
                     mid_slot = 0;
                     break;
                 }
-                target->ai.attack_slot_direction(&dir, mid_slot);
-                mid.x = dir.x * reach + (target->pos.x + target->centre_offset.x);
-                mid.y = dir.y * reach + (target->centre_offset.y + target->pos.y);
-                mid.z = dir.z * reach + (target->centre_offset.z + target->pos.z);
+                target->ai.attack_slot_direction(&mid, mid_slot);
+                mid *= reach;
+                mid += target->pos + target->centre_offset;
                 if (pf_point_is_navigable(&mid, owner->info->size, dest_layer) == true) {
                     a.from_xz(&owner->pos);
                     b.from_xz(&mid);
