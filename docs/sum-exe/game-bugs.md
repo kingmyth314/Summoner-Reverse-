@@ -1940,6 +1940,13 @@ its x and z (`[esp+0x54]` and `[esp+0x5c]`, `0x4d8fcb`..`0x4d8fd7`), never y (`[
 (`vector3__normalize_safe` at `0x4d8fe4`). Whatever the stack held decides how much of the camera offset goes up
 instead of sideways. *Inferred:* the value is often the same from call to call, so this may not show.
 
+**Reproduced 2026-10-18** (agent mode, a temporary hook at the normalize, `0x4d8fe0`; talking to the Trader in
+Lenele's docks): in every frame of the shot the side vector was about (-0.85, -0.995, -1.37), and in a second session
+(-1.07, -1.0, -1.22). So the y is steadily about -1, and after the normalize roughly a third to a half of the
+side offset goes downward: the over-the-shoulder camera sits lower than the code intends. Setting y to 0 moved
+the camera a little sideways and up (captured). **Not fixed:** every player has seen this framing, and the
+shots were probably tuned with it, so whether to change it is left to the project owner (as for K30).
+
 **K12. Full-height thumb.** Both branches set the thumb height to the full track height
 (`mov [0x5c3b34], edx` at `0x4208f8` and `mov [0x5c3b34], edi` at `0x420943`). The scrolled branch still moves
 the thumb down by `scroll_pos / num_items x track` (`0x420901`..`0x420941`). `pickup_draw_scrollbar` (`0x4212c0`)
