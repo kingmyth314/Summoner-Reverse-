@@ -293,15 +293,19 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   (`door_is_open_by_name`). The caller must know the function's arguments;
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
   and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters;
+- Commands that run on the game thread (`level`, `calli`, `callt`, `bag`, `knock` ...) now wait until it has run them
+  (up to 10 s), so the next command cannot change their arguments first (a `calli` straight after a `callt` used to
+  run with the `callt` address);
 - `count ADDR STRIDE N MASK` counts the records of a table (N records, STRIDE bytes apart, hex) whose first byte has a
   bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);
 - `bag N [ITEM]` leaves an unlocked loot bag with N items (default Health Tonic, `~` for spaces) beside the current
   character, built as `monster_drop_loot` builds one; the log gives the container address. Open it with
   `interface_set_screen(4, &container)`: write the address into `pickup_container` (`0x5c3b6c`) with `poke` and run
   `calli 412620 4 0x5c3b6c` (K12).
-- `callt ADDR THIS [A [B]]` calls a thiscall game function with up to two int arguments on the game thread and logs
-  eax (esp is restored after the call, so the argument count need not match); for example `callt 4740c0 0x91208c 0 5`
-  queues a heal on the current character's AI (`ai_goal_add_cast_spell` on Character `+0x324`);
+- `callt ADDR THIS [ARG ...]` calls a thiscall game function with up to six int arguments on the game thread and
+  logs eax (esp is restored after the call, so a wrong argument count does not unbalance the stack); for example
+  `callt 4740c0 0x91208c 0 5` queues a heal on the current character's AI (`ai_goal_add_cast_spell` on Character
+  `+0x324`), and `callt 454700 0x911d68 0 15000 -1 0 HANDLE 0` adds a 15 s status as a melee status hit does (G271);
 - `knock MS` knocks the current character down for MS ms through `ai_knock_down_local` and logs the AI mode before
   and after and the result (K80).
 

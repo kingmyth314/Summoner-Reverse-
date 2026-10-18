@@ -182,6 +182,12 @@
 // path of 64 characters or more is replaced by its 8.3 short form (GetShortPathNameA), the same folder. Volumes
 // without 8.3 names keep the long path (logged).
 //
+// Effect slots keep their old spell (gameplay; game-bugs G271). fx_new sets up a reused effect object but not its
+// spell (+0xa8), and status holders and item effects set none, so a holder that takes the slot of a burnt-out fireball
+// or wall of fire still counts as that spell in fx_count_spells_1a_1d_4e: the party AI then does not rate fireball,
+// and Pyrul and Murod read the same count. Fix ([Fixes] EffectSlotSpell): fx_new also stores -1 (no spell, as
+// fx_create_instance does) in +0xa8, in the padding after its ret (0x48c467).
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -269,6 +275,7 @@
 #define VA_FILE_INIT_PATH_SET 0x512e0bu     // mov ecx, file_zero_vector, after file_init has set install_path
 #define VA_FILE_ZERO_VECTOR 0x2cbf4d8u
 #define VA_INSTALL_PATH 0x26b4168u          // char[], ends with a backslash
+#define VA_FX_NEW_TAIL 0x48c461u            // mov [eax+0x100], edx ; ret ; 8 x nop at the end of fx_new (edx = -1)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -991,6 +998,14 @@ void BugFixesInstall(void)
         memcpy(r + 1, &rel, 4);
         g_fileZeroVectorVa = SumVa(VA_FILE_ZERO_VECTOR);
         PatchBytes(VA_FILE_INIT_PATH_SET, o, r, 5, "a long game folder path is shortened to its 8.3 form (C310)");
+    }
+
+    if (FixOn("EffectSlotSpell")) {
+        static const BYTE o[15] = {0x89, 0x90, 0x00, 0x01, 0x00, 0x00, 0xC3, 0x90,
+                                   0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90}; // mov [eax+0x100], edx ; ret ; nops
+        static const BYTE r[15] = {0x89, 0x90, 0x00, 0x01, 0x00, 0x00, 0x89, 0x90,
+                                   0xA8, 0x00, 0x00, 0x00, 0xC3, 0x90, 0x90}; // + mov [eax+0xa8], edx
+        PatchBytes(VA_FX_NEW_TAIL, o, r, 15, "a new effect object starts with no spell (G271)");
     }
 
     if (FixOn("PhoenixInferno")) {

@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
-| Gameplay | 48 | 25 | 18 |
+| Gameplay | 48 | 25 | 19 |
 | Cosmetic | 57 | 36 | 20 |
 | Invisible | 42 | 58 | 0 |
 
@@ -983,7 +983,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
 | G270 | When the caster of a fire wall, fireball fire, blizzard or dark wall is gone, a character standing in that area stops being burnt or frozen by it, and by every area listed after it; their burning, freezing or dark wall statuses are cured at once | `fx_frame` `0x48a230` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] AreaCasterGone`) |
-| G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code, *inferred* effect | No |
+| G271 | AI casters often skip fireball although no fire spell is burning: a status effect holder or an item effect that reuses the slot of an earlier fireball, wall of fire or Pyrul fireball effect still carries that spell | `fx_new` `0x48c3e0`, `fx_count_spells_1a_1d_4e` `0x48bd40`, `ai_choose_offensive_spell` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] EffectSlotSpell`) |
 | G290 | Latent: a ray against a level object whose geometry tree has more than 128 pending crossed nodes misses the faces under the next node | `lobj_raycast_bsp` `0x4aeef0` | **Observed** code, *inferred* effect | No |
 | G300 | In single player, the Robe of Restoration's Heal (20% when Rosalind is hit or parries) heals the enemy who hit her, not Rosalind | `combat_trigger_reflex_ability` `0x467670` | **Observed** code and retail data, *inferred* effect | Fixed (`bugfix.c`) |
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] CanisTenGold`) |
@@ -1682,6 +1682,13 @@ right after a fireball area ended often gets its slot. *Inferred* effect, not me
 makes `fx_destroy_spell_effects` (cutscene start, `0x48d733`) destroy status holders, which
 `character_update_status_effects` recreates (harmless), and item effects, which only an equip recreates; no
 retail item has `+Animation:` (the item effect file, `items_parse_table` `0x44a402`), so that part is latent.
+
+**Reproduced 2026-10-18** (agent mode, Lenele: `firewall 1` placed a wall of fire, spell `0x1d`; once it had burnt out,
+`fx_count_spells_1a_1d_4e` returned 0. Then `status_effect_add` gave Joseph a 15 s status as a melee status hit does,
+and `character_update_status_effects` made his status holder.) The holder, kind 9, took the wall's object
+(`0x2305ee4`) and kept spell `0x1d`, and the count returned 1 with no fire burning. **Fixed** in SummonerFix (`bugfix.c`,
+switch `[Fixes] EffectSlotSpell`): `fx_new` also stores -1 in `+0xa8`, in the padding after its `ret`. With the fix
+the same steps gave the holder in the same object spell -1, and the count stayed 0.
 
 **G290. A full node stack drops the subtree.** `lobj_raycast_bsp` keeps the crossed nodes on a 128-entry stack. When
 it is full (`cmp edx, 0x80; jae` at `0x4af0a5`..`0x4af0ab`) the current node is neither pushed nor descended, so its

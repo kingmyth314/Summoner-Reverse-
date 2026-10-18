@@ -41,6 +41,26 @@ static char g_dir[MAX_PATH];
 static char g_out[16384];
 static size_t g_outLen;
 
+// Game-thread calls: KeysAgentRun posts fn to the game window, and this waits (up to 10 s) until it has run, so the
+// next command cannot change the shared arguments (g_callAddr ...) before the game thread reads them.
+static void (*volatile g_syncFn)(void *);
+static volatile LONG g_syncDone;
+static void SyncTrampoline(void *arg)
+{
+    g_syncFn(arg);
+    InterlockedExchange(&g_syncDone, 1);
+}
+static BOOL AgentRunSync(void (*fn)(void *), void *arg)
+{
+    g_syncFn = fn;
+    InterlockedExchange(&g_syncDone, 0);
+    if (!KeysAgentRun(SyncTrampoline, arg))
+        return FALSE;
+    for (int i = 0; i < 2000 && !g_syncDone; i++)
+        Sleep(5);
+    return TRUE;
+}
+
 static void Out(const char *fmt, ...)
 {
     va_list ap;
@@ -288,28 +308,29 @@ static void CallIntOnGameThread(void *unused)
     Log("agent: calli %06lX(0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callIntA, g_callIntB, r);
 }
 
-// "callt ADDR THIS [A [B]]": a thiscall game function with up to two int arguments. The callee pops its own
+// "callt ADDR THIS [ARG ...]": a thiscall game function with up to six int arguments. The callee pops its own
 // arguments, however many it takes, so esp is saved around the call.
 static DWORD g_callThis;
 static int g_callArgc;
+static DWORD g_callArgs[6];
 static DWORD CallThisRaw(DWORD fn, DWORD self)
 {
-    // The argument count and values are read from the globals (absolute addresses), not from the stack frame,
-    // because esp moves with each push.
+    // The arguments are read from the globals (absolute addresses), not from the stack frame, because esp moves
+    // with each push.
     DWORD r, ecxOut;
     __asm__ volatile("movl %%esp, %%esi\n\t"
-                     "cmpl $2, %4\n\t"
-                     "jl 1f\n\t"
-                     "pushl %6\n"
+                     "movl %3, %%edx\n"
                      "1:\n\t"
-                     "cmpl $1, %4\n\t"
-                     "jl 2f\n\t"
-                     "pushl %5\n"
+                     "testl %%edx, %%edx\n\t"
+                     "jz 2f\n\t"
+                     "decl %%edx\n\t"
+                     "pushl _g_callArgs(,%%edx,4)\n\t"
+                     "jmp 1b\n"
                      "2:\n\t"
-                     "call *%2\n\t"
+                     "call *%%eax\n\t"
                      "movl %%esi, %%esp\n\t"
                      : "=a"(r), "=c"(ecxOut)
-                     : "0"(fn), "1"(self), "m"(g_callArgc), "m"(g_callIntA), "m"(g_callIntB)
+                     : "0"(fn), "m"(g_callArgc), "1"(self)
                      : "esi", "edx", "memory", "cc");
     (void)ecxOut;
     return r;
@@ -318,8 +339,8 @@ static void CallThisOnGameThread(void *unused)
 {
     (void)unused;
     DWORD r = CallThisRaw(SumVa(g_callAddr), g_callThis);
-    Log("agent: callt %06lX(this 0x%lX, %d args: 0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callThis, g_callArgc, g_callIntA,
-        g_callIntB, r);
+    Log("agent: callt %06lX(this 0x%lX, %d args: 0x%lX 0x%lX 0x%lX ...) = 0x%lX", g_callAddr, g_callThis, g_callArgc,
+        g_callArgs[0], g_callArgs[1], g_callArgs[2], r);
 }
 
 // "call0 ADDR [N]": a void cdecl game function with no arguments, N times; after each call level_filename and
@@ -354,9 +375,9 @@ static void Poke(DWORD va, unsigned value)
 
 static void RunLine(char *line)
 {
-    char *argv[8];
+    char *argv[12];
     int argc = 0;
-    for (char *t = strtok(line, " \t\r\n"); t && argc < 8; t = strtok(NULL, " \t\r\n"))
+    for (char *t = strtok(line, " \t\r\n"); t && argc < 12; t = strtok(NULL, " \t\r\n"))
         argv[argc++] = t;
     if (!argc || argv[0][0] == '#')
         return;
@@ -501,20 +522,20 @@ static void RunLine(char *line)
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
         g_callIntA = (DWORD)strtoul(argv[2], NULL, 0);
         g_callIntB = argc >= 4 ? (DWORD)strtoul(argv[3], NULL, 0) : 0;
-        Out("calli %06lX: %s", g_callAddr, KeysAgentRun(CallIntOnGameThread, NULL) ? "requested" : "no window");
+        Out("calli %06lX: %s", g_callAddr, AgentRunSync(CallIntOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "callt") && argc >= 3) {
-        // callt ADDR THIS [A [B]]: thiscall fn(THIS, A, B) with 0-2 integer arguments, on the game thread; eax logged.
+        // callt ADDR THIS [ARG ...]: thiscall fn(THIS, ARG...) with 0-6 integer arguments, on the game thread; eax logged.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
         g_callThis = (DWORD)strtoul(argv[2], NULL, 0);
-        g_callArgc = argc - 3;
-        g_callIntA = argc >= 4 ? (DWORD)strtoul(argv[3], NULL, 0) : 0;
-        g_callIntB = argc >= 5 ? (DWORD)strtoul(argv[4], NULL, 0) : 0;
-        Out("callt %06lX: %s", g_callAddr, KeysAgentRun(CallThisOnGameThread, NULL) ? "requested" : "no window");
+        g_callArgc = argc - 3 > 6 ? 6 : argc - 3;
+        for (int i = 0; i < g_callArgc; i++)
+            g_callArgs[i] = (DWORD)strtoul(argv[3 + i], NULL, 0);
+        Out("callt %06lX: %s", g_callAddr, AgentRunSync(CallThisOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "call0") && argc >= 2) {
         // call0 ADDR [N]: call the cdecl void game function at ADDR with no arguments, N times, on the game thread.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
         g_call0Count = argc >= 3 ? atoi(argv[2]) : 1;
-        Out("call0 %06lX x%d: %s", g_callAddr, g_call0Count, KeysAgentRun(Call0OnGameThread, NULL) ? "requested" : "no window");
+        Out("call0 %06lX x%d: %s", g_callAddr, g_call0Count, AgentRunSync(Call0OnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "navgoto") && argc >= 2) {
         // navgoto NAVPOINT: put the current character on a level navpoint (e.g. $end2trig). Testing only.
         float pos[3], orient[9];
@@ -555,7 +576,7 @@ static void RunLine(char *line)
         // Runs on the game thread (KeysAgentRun): from this thread the load crashed mid-frame.
         lstrcpynA(g_level, argv[1], sizeof g_level);
         lstrcpynA(g_script, argv[2], sizeof g_script);
-        Out("level %s %s: %s", argv[1], argv[2], KeysAgentRun(ChangeLevelOnGameThread, NULL) ? "requested" : "no window");
+        Out("level %s %s: %s", argv[1], argv[2], AgentRunSync(ChangeLevelOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "callstr") && argc >= 3) {
         // callstr ADDR STRING [ARG]: e.g. "callstr 4f95a0 puzzle-flippers31" (ls_khosanilab_use) or
         // "callstr 4773d0 puzzle-flippers31 0.01" (door_is_open_by_name). Result in the log.
@@ -574,28 +595,28 @@ static void RunLine(char *line)
                 g_callArg = (DWORD)strtol(argv[3], NULL, 0);
             }
         }
-        Out("callstr %06lX %s: %s", g_callAddr, g_callStr, KeysAgentRun(CallStrOnGameThread, NULL) ? "requested" : "no window");
+        Out("callstr %06lX %s: %s", g_callAddr, g_callStr, AgentRunSync(CallStrOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "spellhit") && argc >= 4) {
         // spellhit TARGET SPELL POWER: e.g. "spellhit 90a4e8 3e 100" (leech on Joseph from the leader).
         g_hitTarget = (DWORD)strtoul(argv[1], NULL, 16);
         g_hitSpell = (int)strtol(argv[2], NULL, 16);
         g_hitPower = (float)atof(argv[3]);
-        Out("spellhit: %s", KeysAgentRun(SpellHitOnGameThread, NULL) ? "requested" : "no window");
+        Out("spellhit: %s", AgentRunSync(SpellHitOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "firewall") && argc >= 2) {
         // firewall N [START] [summon]: N wall of fire areas beside the current character (game thread; result in
         // the log), the first START units away, cast by the leader or by the active summon.
         g_fireWalls = atoi(argv[1]);
         g_fireWallStart = argc >= 3 ? (float)atof(argv[2]) : 6.0f;
         g_fireWallsBySummon = argc >= 4 && !_stricmp(argv[3], "summon");
-        Out("firewall %d: %s", g_fireWalls, KeysAgentRun(FireWallsOnGameThread, NULL) ? "requested" : "no window");
+        Out("firewall %d: %s", g_fireWalls, AgentRunSync(FireWallsOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "goldpile") && argc >= 2) {
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);
-        Out("goldpile %d: %s", g_goldAmount, KeysAgentRun(GoldPileOnGameThread, NULL) ? "requested" : "no window");
+        Out("goldpile %d: %s", g_goldAmount, AgentRunSync(GoldPileOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
         // knock MS: knock the current character down for MS ms (game thread; mode and result in the log).
         g_knockMs = atoi(argv[1]);
-        Out("knock %d: %s", g_knockMs, KeysAgentRun(KnockOnGameThread, NULL) ? "requested" : "no window");
+        Out("knock %d: %s", g_knockMs, AgentRunSync(KnockOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "bag") && argc >= 2) {
         // bag N [ITEM]: an unlocked loot bag with N items (default Health Tonic, ~ for spaces) beside the current
         // character (game thread; result in the log).
@@ -606,7 +627,7 @@ static void RunLine(char *line)
                 if (*p == '~')
                     *p = ' ';
         }
-        Out("bag %d: %s", g_bagCount, KeysAgentRun(BagOnGameThread, NULL) ? "requested" : "no window");
+        Out("bag %d: %s", g_bagCount, AgentRunSync(BagOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "nudge") && argc >= 3) {
         // nudge DX DZ: move the current character by DX, DZ world units (after a navgoto, to stand at a distance).
         BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
@@ -624,7 +645,7 @@ static void RunLine(char *line)
                 strncat(name, " ", 63 - strlen(name));
             strncat(name, argv[i], 63 - strlen(name));
         }
-        Out("npckill %s: %s", name, KeysAgentRun(NpcKillOnGameThread, name) ? "requested" : "no window");
+        Out("npckill %s: %s", name, AgentRunSync(NpcKillOnGameThread, name) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         // npcdead NAME: script_object_find (0x4cddf0) and script_npc_is_dead (0x4ce600) for a script character.
         char name[64] = "";
