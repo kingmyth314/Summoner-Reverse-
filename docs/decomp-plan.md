@@ -164,6 +164,15 @@ None of the three functions matches byte for byte, so the byte sweep could not s
 levels' quicksaves match the original's apart from run-to-run variation. Rand-forest01 could not be compared:
 the original refuses a quicksave there right after arriving.
 
+Thirteen more levels, three original runs each (2026-10-18): Catacombs, Masad, the sewer, TempleInt, Liangshan,
+Eleh, WolongCaverns, IkaemosBottomInt and Wolong match apart from run-to-run variation (in Wolong the party's
+timers are about 200 ms later: the hybrid saved later on that large level, a timing effect). lenele3a and
+KhosaniLab could not be compared (the original refuses the quicksave). Open:
+- `lenele2aa`: a dword of six NPC records (`+0x88` on the record grid) is 8 instead of 7 in about three of four
+  hybrid runs and in none of ten original runs, but also in two of four runs where only one function that never
+  runs here is replaced, so the search cannot attribute it (timing-sensitive state). Not resolved.
+- `tancredhouse`: one bit in one NPC's record, seen once; not checked for repeats yet.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept
