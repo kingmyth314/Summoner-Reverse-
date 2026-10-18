@@ -236,6 +236,63 @@ stage with `decomp-merge.mjs` against its snapshot, compile everything with ming
 `// 0xADDR` markers, run `vc6-sweep.mjs --root <stage> --check src/decomp/vc6-matches.txt` with `VC6_STRICT=1`, then copy the stage
 into `src/decomp`, rewrite `vc6-matches.txt`, run `decomp-confidence.mjs --apply` and `decomp-progress.mjs`, and commit.
 
+## `tools/hybrid-build.mjs` (the hybrid game)
+
+Added 2026-10-18. It compiles `src/decomp` files with VC6 into a DLL whose functions replace the original ones
+inside the running Sum.exe, so decompiled code runs in the real game one file, or one function, at a time. SummonerFix
+loads the DLL when `[Hybrid] Dll` names it (`src/summonerfix/hybrid.c`) and writes a `jmp` at the start of each
+replaced original. Everything else (the other functions, the globals, the C runtime) stays the game's own. See
+[Decompilation plan](decomp-plan.md), "The hybrid game".
+
+```powershell
+$env:VC6_DIR = 'C:\path\to\VC98'
+node tools/hybrid-build.mjs src/decomp/game/new_credits.cpp            # one file -> build/hybrid/hybrid.dll
+node tools/hybrid-build.mjs src/decomp/game/*.cpp src/decomp/vsdk/*.cpp --out build/hybrid-all
+node tools/hybrid-build.mjs src/decomp/game/new_credits.cpp --only 0x408620   # inject one function
+```
+
+Copy `hybrid.dll` into the game folder and set `[Hybrid] Dll=hybrid.dll`. Without rebuilding, `Skip=0x408620,...`
+leaves functions original and `Only=<file>` replaces only the addresses the file lists (for a search: build the
+whole tree once, then halve the list until the one function that breaks something is left). The log says how
+many functions were replaced. Functions SummonerFix patches (any `PatchBytes` inside them) and ranges its hooks
+recognise their callers by (`KeepOriginal`, display.c) stay original, so no fix is lost.
+
+| Option | Meaning |
+|---|---|
+| `--only 0xADDR,...` | inject only these functions; the others of the files stay the original |
+| `--out DIR` | output folder (default `build/hybrid`) |
+| `--force` | link even with names that have no address (calls to them jump to 0; for experiments only) |
+| `-v` | list every global kept in the DLL and every function too short for the jmp |
+
+How the objects are rewritten (all in the COFF symbol table; the code is VC6's as compiled):
+
+| Symbol | Becomes |
+|---|---|
+| a decompiled function (`// 0xADDR` marker) | kept, and exported through an alias `f_<address>_<size>` (the size of the original, so the loader can see SummonerFix patches inside it) |
+| every reference to a decompiled function, from any object | its **original** address: the call goes through the loader's jmp, so `Skip` / `Only` decide for each function on its own (the function's own symbol stays: an inline function's COMDAT section needs it) |
+| an undefined name (another file's function or global, a CRT function) | absolute, with its Sum.exe address: the tree's address comments (sources and headers, `// folded (0x...)` and folded-declaration comment blocks), else `symbols/sum.symbols`, else Sum.exe's import table (`__imp__Name@N` -> the IAT slot) |
+| a name another object of the same build defines | left alone: the linker joins them |
+| a global, function-local static (`static T x;  // 0xADDR`) or its construction guard (`(guard 0xADDR)`), a table whose comment block starts with its address, a global named after its address | absolute: the game's own variable |
+| in a function that byte-matches (`vc6-matches.txt`), every reference to data (strings, floats, globals) | the address the original has at the same offset: the game's own data, including data SummonerFix patched |
+| other constants (strings, floats of non-matching functions; jump tables) | stay in the DLL |
+
+Functions the shipped Sum.exe has edited in the file stay original: the no-CD edit in `cd_find_drive` and
+`cd_set_root` (DECISIONS.md D2600), which the decomp writes unpatched, so their decompiled form asks for the disc.
+
+Three linker facts it works around (**observed** with LINK 6.00):
+- LINK adds the image base to an absolute symbol in a `rel32` relocation (a call), as if it were an RVA. Each such
+  call is pointed at a shadow symbol of value `address - base`.
+- LINK reads an absolute symbol that is static (storage class 3) as 0, in `dir32` relocations too. Those symbols are
+  made external under a unique name.
+- A static function cannot be exported by name, and thousands of `/EXPORT` options overflow the command line: every
+  injected function gets an external alias `_f_<address>_<size>`, listed in a `.def` file.
+
+The DLL has no entry point, no imports, no C runtime and no relocations (`/FIXED /BASE:0x50000000`; `binkw32.dll`
+sits at `0x30000000` in Sum.exe). The build reports names with no address (the link fails unless `--force`), globals
+that keep a copy in the DLL (`hybrid-globals.txt`: harmless for a constant table, a divergence for a variable), and
+names that got an address of the wrong kind (a function outside the code, data inside it). Originals shorter than
+5 bytes stay original.
+
 ## `tools/agent.mjs` (agent mode)
 
 Plays the game from scripts, through SummonerFix's agent mode (`[Debug] Agent=1`,

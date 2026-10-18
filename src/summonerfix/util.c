@@ -39,6 +39,36 @@ DWORD SumVa(DWORD va)
     return va - SUM_IMAGE_BASE + (DWORD)(UINT_PTR)GetModuleHandleA(NULL);
 }
 
+// Every range PatchBytes changed, and ranges a hook recognises its caller by (KeepOriginal), so the hybrid loader
+// (hybrid.c) leaves the functions they are in original.
+static struct { DWORD va, n; } *g_patches;
+static int g_numPatches, g_maxPatches;
+
+void KeepOriginal(DWORD va, DWORD n)
+{
+    if (g_numPatches == g_maxPatches) {
+        int max = g_maxPatches ? g_maxPatches * 2 : 1024;
+        void *p = g_patches ? HeapReAlloc(GetProcessHeap(), 0, g_patches, max * sizeof *g_patches)
+                            : HeapAlloc(GetProcessHeap(), 0, max * sizeof *g_patches);
+        if (!p)
+            return;
+        g_patches = p;
+        g_maxPatches = max;
+    }
+    g_patches[g_numPatches].va = va;
+    g_patches[g_numPatches].n = n;
+    g_numPatches++;
+}
+
+// The first patched address in [va, va + n), or 0.
+DWORD PatchedWithin(DWORD va, DWORD n)
+{
+    for (int i = 0; i < g_numPatches; i++)
+        if (g_patches[i].va < va + n && va < g_patches[i].va + g_patches[i].n)
+            return g_patches[i].va > va ? g_patches[i].va : va;
+    return 0;
+}
+
 // Write `repl` over `n` bytes at a Sum.exe address, but only if the current bytes equal `expect`.
 // A mismatch means a different game build (or another patch) and the change is skipped.
 // what == NULL: bulk patch, only failures are logged.
@@ -60,6 +90,7 @@ BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const 
     memcpy(p, repl, n);
     VirtualProtect(p, n, old, &old);
     FlushInstructionCache(GetCurrentProcess(), p, n);
+    KeepOriginal(va, (DWORD)n);
     if (quiet)
         Log("patched %s at 0x%06lX (%u bytes)", what, va, (unsigned)n);
     return TRUE;

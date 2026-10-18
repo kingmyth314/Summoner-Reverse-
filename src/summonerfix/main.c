@@ -145,6 +145,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     AgentInstall();
     TraceInstall();
     TraceGlLightInstall();
+    HybridInstall();
     Log("startup fixes applied.");
     return TRUE;
 }

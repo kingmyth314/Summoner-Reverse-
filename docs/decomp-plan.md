@@ -106,6 +106,39 @@ When a small translation unit is fully mapped (for example `frametime.cpp`):
   bytes function by function (objdiff, as the Summoner 2 project does).
 - If it matches, set up the project layout and progress tracking for the rest.
 
+## The hybrid game (link experiment, 2026-10-18)
+
+**The whole decompiled source runs inside the game.** All 259 files are compiled with VC6 SP5 and linked into one DLL
+of 5,922 functions. SummonerFix loads it (`[Hybrid] Dll=hybrid.dll`) and writes a `jmp` at each original function,
+so the game runs the decompiled code instead. A test save loads and looks the same as in the original game (0.17%
+of the pixels differ, the same as between two runs of the original). Walking, the inventory and the automap work
+(**observed**, agent mode). 5,736 functions are replaced; 186 stay original because SummonerFix patches them.
+Tools: [`tools/hybrid-build.mjs`](tools.md#toolshybrid-buildmjs-the-hybrid-game) and `src/summonerfix/hybrid.c`.
+
+This is the first link experiment, done as a hybrid rather than a whole new executable. The rest of the program
+(the C runtime, the import table, the data, the functions not yet written) stays the original. Each decompiled
+function can therefore be tested in the real game on its own, including the about 970 that compile but do not
+match byte for byte. The first one, `new_credits.cpp`, ran the credits screen correctly.
+
+What the experiment found:
+
+| Finding | Kind |
+|---|---|
+| `cd_find_drive` and `cd_set_root` ask for the disc: the decomp writes them unpatched, and the shipped Sum.exe has a no-CD edit in exactly those bytes (D2600) | not a decomp error: the build leaves them original |
+| SummonerFix's display hooks recognise their callers by return address (GrInit's windowed branch, the mouse poll, the window procedure): with those functions replaced, the game window was not found and nothing was captured | handled: those ranges stay original (`KeepOriginal`) |
+| Every SummonerFix patch inside a replaced function would be lost (for example C310's short install path in `file_init`) | handled: the loader leaves any patched function original |
+| `setup_data_paths` (a byte match) used its own copy of `"savegame"`, which TestSaves patches in the game's data: the hybrid game read the player's real save folder (read only; nothing was written) | handled: in byte-matching functions every data reference uses the original's address |
+| LINK 6.00 mishandles absolute symbols (rel32 gets the image base added, static ones read as 0) | worked around in the build |
+
+How a failure is found: build the whole tree once, then run the game with `[Hybrid] Only=<list>` and halve the list
+(a delta-debugging search: when neither half fails alone, each half is searched with the other present). A test
+loads the newest test save and compares the screen with the original game's capture; a message box, an access
+violation, no frames or more than 3% of the pixels different count as failures. Each startup failure above was
+found that way in 10-20 game starts.
+
+Next: run the game further on the hybrid (combat, spells, a level change, saving to TestSaves) and search each new
+difference the same way; every function found to differ is a decompilation bug with a test case.
+
 ## Phase 3 status (2026-10-16)
 
 The source half of the pilot has started without the compiler. Agents rewrote whole translation units in C++ from

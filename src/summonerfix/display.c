@@ -504,6 +504,11 @@ static int WINAPI Hook_GetSystemMetrics(int index)
 
 void DisplayInstall(HMODULE exe)
 {
+    // These hooks recognise their callers by return address: the hybrid game must leave those functions original.
+    KeepOriginal(0x505e00, 0x310); // GrInit's windowed branch (CallerIsGrInit)
+    KeepOriginal(0x500b00, 0x200); // the mouse poll and warp
+    KeepOriginal(VA_WNDPROC_SETPOS_ACTIVATE, 1);
+    KeepOriginal(VA_WNDPROC_SETPOS_DEACTIVATE, 1);
     HMODULE gl = LoadLibraryA("opengl32.dll");
     p_glScissor = (PFN_glScissor)GetProcAddress(gl, "glScissor");
     p_glClear = (PFN_glClear)GetProcAddress(gl, "glClear");

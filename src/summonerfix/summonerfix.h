@@ -33,6 +33,8 @@ void LogInit(const char *path);
 void Log(const char *fmt, ...);
 DWORD SumVa(DWORD va); // Sum.exe virtual address -> address in this process
 BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const char *what);
+DWORD PatchedWithin(DWORD va, DWORD n); // the first address PatchBytes changed in [va, va + n), or 0
+void KeepOriginal(DWORD va, DWORD n);   // the hybrid loader must not replace the function(s) here (a hook checks its caller)
 BOOL WriteDword(DWORD va, DWORD expect, DWORD value, const char *what);
 void *HookImport(HMODULE module, const char *dll, const char *func, void *replacement);
 
@@ -62,6 +64,9 @@ void BugFixesInstall(void);
 
 // tentacle.c (experimental, [Experimental] TentacleGrab)
 void TentacleGrabInstall(void);
+
+// hybrid.c (the link experiment, [Hybrid] Dll)
+void HybridInstall(void);
 
 // keys.c
 void KeyBindInstall(void);
