@@ -461,6 +461,17 @@ static void RunLine(char *line)
         Sleep((DWORD)atoi(argv[1]));
     } else if (!_stricmp(c, "capture") && argc >= 2) {
         Capture(argv[1]);
+    } else if (!_stricmp(c, "hybridcov") && argc >= 2) {
+        // hybridcov NAME: the call counts of the hybrid game's replaced functions ([Hybrid] Coverage=1) to NAME.txt
+        char path[MAX_PATH], file[MAX_PATH];
+        _snprintf(file, sizeof file, "%s.txt", argv[1]);
+        file[sizeof file - 1] = 0;
+        Path(path, file);
+        int ran = HybridWriteCoverage(path);
+        if (ran < 0)
+            Out("hybridcov %s: no coverage (needs [Hybrid] Dll and Coverage=1)", file);
+        else
+            Out("hybridcov %s: %d functions ran", file, ran);
     } else if (!_stricmp(c, "info")) {
         Info();
     } else if (!_stricmp(c, "peek") && argc >= 2) {

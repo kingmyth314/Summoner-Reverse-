@@ -67,6 +67,7 @@ void TentacleGrabInstall(void);
 
 // hybrid.c (the link experiment, [Hybrid] Dll)
 void HybridInstall(void);
+int HybridWriteCoverage(const char *path); // [Hybrid] Coverage: the call counts of the replaced functions
 
 // keys.c
 void KeyBindInstall(void);

@@ -167,11 +167,22 @@ the original refuses a quicksave there right after arriving.
 Thirteen more levels, three original runs each (2026-10-18): Catacombs, Masad, the sewer, TempleInt, Liangshan,
 Eleh, WolongCaverns, IkaemosBottomInt and Wolong match apart from run-to-run variation (in Wolong the party's
 timers are about 200 ms later: the hybrid saved later on that large level, a timing effect). lenele3a and
-KhosaniLab could not be compared (the original refuses the quicksave). Open:
-- `lenele2aa`: a dword of six NPC records (`+0x88` on the record grid) is 8 instead of 7 in about three of four
-  hybrid runs and in none of ten original runs, but also in two of four runs where only one function that never
-  runs here is replaced, so the search cannot attribute it (timing-sensitive state). Not resolved.
-- `tancredhouse`: one bit in one NPC's record, seen once; not checked for repeats yet.
+KhosaniLab could not be compared (the original refuses the quicksave). Two candidates turned out to be
+run-to-run variation:
+- `lenele2aa`: six NPCs' base max AP (type-5 record `+0x78`) was 8 instead of 7 in about half the hybrid runs and
+  in none of the first ten original runs, but then in three of the next four original runs too;
+- `tancredhouse`: one flag bit in one NPC's record, seen once and not in two more runs.
+
+Lesson for the method: an intermittent field needs more than a handful of original runs before a difference
+counts, and a search step should count as failing only on a majority of repeated runs.
+
+**Coverage (2026-10-18).** `[Hybrid] Coverage=1` counts the calls of every replaced function
+(`tools/hybrid-coverage.mjs`). Loading the test save runs 1,536 of the 5,736 replaced functions (288 of the 895
+that do not match byte for byte); after the Iona level change 1,765 (343 non-matching). The save tests above
+therefore exercised about 40% of the non-matching functions; the others are listed by
+`hybrid-coverage.mjs <file> --list never` and need other scenarios (combat, shops, conversations, the world map,
+multiplayer last). The quicksaves themselves are written by the DLL's `savegame_write*` chain, and no level
+showed a whole-section difference, so those writers are checked as well.
 
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one

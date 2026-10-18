@@ -12,6 +12,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+// [Hybrid] Coverage=1: every replaced function is reached through a counting stub (inc [counter]; jmp function);
+// HybridWriteCoverage (agent command hybridcov) writes the counts.
+static BYTE *g_covStubs;
+static DWORD *g_covCounts, *g_covAddr;
+static DWORD g_covCount;
+
+// "0xADDRESS calls" for every replaced function, to a file. Returns the number of functions that ran, or -1.
+int HybridWriteCoverage(const char *path)
+{
+    if (!g_covCount)
+        return -1;
+    HANDLE f = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE)
+        return -1;
+    int ran = 0;
+    char line[32];
+    for (DWORD i = 0; i < g_covCount; i++) {
+        DWORD n = g_covCounts[i], written;
+        if (n)
+            ran++;
+        int len = _snprintf(line, sizeof line, "0x%06lx %lu\r\n", g_covAddr[i], n);
+        WriteFile(f, line, len, &written, NULL);
+    }
+    CloseHandle(f);
+    return ran;
+}
+
 // The whole text of a file, or NULL.
 static char *ReadText(const char *path)
 {
@@ -105,6 +132,16 @@ void HybridInstall(void)
     DWORD *names = (DWORD *)(base + ex->AddressOfNames), *funcs = (DWORD *)(base + ex->AddressOfFunctions);
     WORD *ords = (WORD *)(base + ex->AddressOfNameOrdinals);
     int done = 0, skipped = 0;
+    BOOL coverage = GetPrivateProfileIntA("Hybrid", "Coverage", 0, g_cfg.iniPath);
+    if (coverage) {
+        g_covStubs = VirtualAlloc(NULL, ex->NumberOfNames * 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        g_covCounts = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, ex->NumberOfNames * sizeof *g_covCounts);
+        g_covAddr = HeapAlloc(GetProcessHeap(), 0, ex->NumberOfNames * sizeof *g_covAddr);
+        if (!g_covStubs || !g_covCounts || !g_covAddr) {
+            Log("hybrid: no memory for the coverage counters: coverage off");
+            coverage = FALSE;
+        }
+    }
     for (DWORD i = 0; i < ex->NumberOfNames; i++) {
         const char *name = (const char *)(base + names[i]);
         if (strncmp(name, "f_", 2) != 0)
@@ -130,6 +167,18 @@ void HybridInstall(void)
             continue;
         }
         BYTE *at = (BYTE *)(UINT_PTR)SumVa(va);
+        // Coverage: the jmp goes to a stub that counts the call, then jumps on to the decompiled function.
+        if (coverage && g_covCount < ex->NumberOfNames) {
+            BYTE *stub = g_covStubs + g_covCount * 16;
+            DWORD *counter = &g_covCounts[g_covCount];
+            g_covAddr[g_covCount++] = va;
+            stub[0] = 0xFF; // inc dword ptr [counter]
+            stub[1] = 0x05;
+            *(DWORD *)(stub + 2) = (DWORD)(UINT_PTR)counter;
+            stub[6] = 0xE9; // jmp target
+            *(DWORD *)(stub + 7) = (DWORD)(target - (stub + 11));
+            target = stub;
+        }
         BYTE jmp[5] = {0xE9};
         *(DWORD *)(jmp + 1) = (DWORD)(target - (at + 5));
         DWORD old;

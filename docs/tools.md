@@ -264,6 +264,12 @@ recognise their callers by (`KeepOriginal`, display.c) stay original, so no fix 
 | `--force` | link even with names that have no address (calls to them jump to 0; for experiments only) |
 | `-v` | list every global kept in the DLL and every function too short for the jmp |
 
+**Coverage.** With `[Hybrid] Coverage=1` the loader sends each replaced function through an 11-byte stub
+(`inc dword [counter]; jmp function`), and the agent command `hybridcov NAME` writes `agent\NAME.txt` with
+`0xADDRESS calls` for every replaced function. `node tools/hybrid-coverage.mjs <file>... [--list ran|never]` joins
+one or more of these files with `src/decomp/vc6-matches.txt`: of the functions that do not match byte for byte,
+which a run executed (tested in the game when the run's checks passed) and which none did (the scenarios to find).
+
 How the objects are rewritten (all in the COFF symbol table; the code is VC6's as compiled):
 
 | Symbol | Becomes |
