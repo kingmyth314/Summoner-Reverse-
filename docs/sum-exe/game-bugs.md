@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
-| Gameplay | 48 | 25 | 16 |
+| Gameplay | 48 | 25 | 17 |
 | Cosmetic | 58 | 36 | 9 |
 | Invisible | 42 | 58 | 0 |
 
@@ -912,7 +912,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G2 | The game runs many times too fast when the QPC frequency is 4.29 GHz or more | `timer_init` `0x532840` | **Observed** code | No (Timeslip's patch fixes it) |
 | G3 | Cutscenes skip almost at once after about 24.9 days of Windows uptime | `cutscene_sequence_update` `0x436a90` | **Observed**, reproduced | Fixed |
 | G4 | With the save list scrolled, saving on the top row overwrites a save without asking | `saveload_try_save` `0x426320` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`) |
-| G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code, *inferred* effect | No |
+| G6 | At game stages 4 to 8, the Zane grassland encounter gets no extra chance | `0x4fc4b0` (grass picker) | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ZaneEncounter`) |
 | G7 | If a cutscene's data fails to load, input stays locked and the music stays off | `cutscene_play` `0x4361d0` | **Observed** code, *inferred* effect | No |
 | G8 | When any party record is removed (for example a summon dies), control may jump to the first member | `party_remove_player` `0x4335a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SummonKeepsLeader`) |
 | G9 | Alt+Tab does not work: the game takes the focus straight back | `os_wndproc` `0x530ff0` | **Observed** at runtime | Fixed |
@@ -1008,6 +1008,13 @@ fix the same steps showed the question; No left every file unchanged, and `<New 
 **G6. Missing jump.** The Zane case copies `rand-grassland01` and script `_v3` (`0x4fc9d8`..`0x4fca20`)
 and then falls through into the general rolls at `0x4fca22`, which overwrite both names. See
 [World map](worldmap.md#encounter-table).
+
+**Reproduced 2026-10-17** (agent mode: `level worldmap1 worldmap1`, `navgoto $grassland001`, `flagl` to set
+`unhide_zane` and to clear the ring-boss and Korel cases, then `call0 4fc4b0 40`, which calls the picker 40 times and
+logs the names it writes): with Zane active the picker chose `rand-grassland01` / `_v3` 4 times in 40, the general
+roll's 10 %. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] ZaneEncounter`): the end of the Zane copy
+(`0x4fca1b`) jumps to a stub that finishes it and leaves through the picker's epilogue (`0x4fcae1`), as the Korel case
+returns. With the fix: 19 in 40 (expected 55 %); with Zane inactive still 4 in 40.
 
 **G7. Early return.** `cutscene_play` locks input and stops the music, then returns when
 `cutscene_load_data` fails (`jmp 0x4365d9` at `0x43634c`) without setting `game_flags` bit `0x20`.

@@ -219,7 +219,8 @@ Notes:
   gives iceland maps, because there is no `$iceland` search.
 - **Observed** (a bug in the stage 4..8 grass branch): the Zane case (`0x4fc9d8`) copies
   `rand-grassland01_v3` and then falls through to the general rolls at `0x4fca22`, which overwrite it.
-  *Inferred:* at stages 4..8 Zane gets no extra chance; only Korel's 50% branch is used.
+  Seen in game (2026-10-17): with Zane active 4 of 40 picks were his encounter, the general 10 %. Game bug G6;
+  SummonerFix restores his 50 % (`[Fixes] ZaneEncounter`, 19 of 40 in the same test).
 - *Unknown:* what each `_vN` variant spawns. The `ls_rand_*` handlers (`ls_rand_hills01_frame` and
   others) run the ring-boss fights (`PHNX-Intro`, `Serpent-Intro`, `Ghost-Intro` cutscenes).
 

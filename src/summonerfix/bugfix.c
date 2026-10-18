@@ -130,6 +130,12 @@
 // (character_add_hp(-amount, source)) and gives it to the source (character_add_hp(+amount)), stores -amount and
 // continues after the roll and add_hp (0x45fed8), so the target flinches as for other damage.
 //
+// Zane's encounter overwritten (not a crash; game-bugs G6). At game stages 4-8 on grassland, when Zane is active
+// (unhide_zane, not no_more_zane) ls_worldmap1_pick_encounter_stage4 picks rand-grassland01 / _v3 half of the time
+// (0x4fc9d8..0x4fca20) but has no return, so the general rolls that follow overwrite both names. Fix ([Fixes]
+// ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
+// finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
+//
 // Scrolled save list shows the current scene for its top row (cosmetic; game-bugs K5). In save mode
 // saveload_load_thumbnail loads no file for row 0 (test ebx, ebx ; jle at 0x425c65) and saveload_draw_thumbnail
 // draws the current scene for row 0 (0x426fda), both by the visible row, so with the list scrolled the top row's
@@ -174,7 +180,9 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_LEECH_STORE 0x45f47du          // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
+#define VA_ZANE_COPY_END 0x4fca1bu          // end of the Zane script-name copy in ls_worldmap1_pick_encounter_stage4
+#define VA_ZANE_EXIT 0x4fcae1u              // the picker's epilogue (pop edi ; pop esi ; add esp, 0xc ; ret)
+#define VA_LEECH_STORE 0x45f47du         // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
 #define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
 #define VA_LIVING_FROM_HANDLE_FIX 0x46b1a0u
 #define VA_DETECT_CONE_JCC 0x493c5cu       // jne 0x493c71 after the 0.71 cone compare in ai_group_collect_enemies
@@ -244,6 +252,16 @@ __asm__(".text\n"
         "    addl (%ecx), %eax\n"
         "    popl %ecx\n"
         "    ret\n");
+
+// The rest of the Zane script-name copy, then the picker's epilogue (G6). Entered by jmp.
+__attribute__((used)) DWORD g_zaneExit;
+void ZaneEncounterStub(void);
+__asm__(".text\n"
+        "_ZaneEncounterStub:\n"
+        "    movl %edx, %ecx\n"
+        "    andl $3, %ecx\n"
+        "    rep movsb\n"
+        "    jmp *_g_zaneExit\n");
 
 // Replaces test al, al ; je ; test ebx, ebx in saveload_load_thumbnail (al = save mode, edx = the entry); the jle
 // after the call skips the file when this sets "less or equal": in save mode for entry 0 only.
@@ -558,6 +576,16 @@ void BugFixesInstall(void)
         rel = (DWORD)(UINT_PTR)SaveOverwriteRowStub - (s + 5);
         memcpy(drr + 1, &rel, 4);
         PatchBytes(VA_SAVE_THUMB_DRAW_ROW, dor, drr, 5, "scrolled save list thumbnails (K5)");
+    }
+
+    if (FixOn("ZaneEncounter")) {
+        g_zaneExit = SumVa(VA_ZANE_EXIT);
+        static const BYTE o[7] = {0x8B, 0xCA, 0x83, 0xE1, 0x03, 0xF3, 0xA4}; // mov ecx, edx ; and ecx, 3 ; rep movsb
+        BYTE r[7] = {0xE9, 0, 0, 0, 0, 0x90, 0x90};
+        DWORD s = SumVa(VA_ZANE_COPY_END);
+        DWORD rel = (DWORD)(UINT_PTR)ZaneEncounterStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_ZANE_COPY_END, o, r, 7, "Zane's encounter kept, not overwritten by the general rolls (G6)");
     }
 
     if (FixOn("PhoenixInferno")) {

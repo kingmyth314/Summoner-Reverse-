@@ -276,6 +276,10 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
 - `spellhit TARGET SPELL POWER` runs `living_entity_get_hit_by_spell` on the character at TARGET (hex address,
   from `peek 5fcc88` after selecting it) with spell SPELL (hex) and POWER, cast by the current character with source
   type 6, as special abilities are applied (game thread). For G100, `spellhit 90a4e8 3e 100`;
+- `flagl LEVEL NAME [0|1]` reads or sets a story flag of any level (the `level_script_table` index, as in savedit);
+- `call0 ADDR [N]` calls a void game function with no arguments N times on the game thread and logs
+  `level_filename` / `level_script_name` after each call, then restores the three level names (for the world map
+  encounter pickers, G6: `call0 4fc4b0 40`);
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
 - `callstr ADDR STRING [ARG]` calls the cdecl game function at ADDR with a string and one more argument (an int, or

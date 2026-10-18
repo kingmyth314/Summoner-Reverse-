@@ -206,6 +206,22 @@ static void SpellHitOnGameThread(void *unused)
     Log("agent: spellhit %06lX spell 0x%x power %.1f from %p", g_hitTarget, g_hitSpell, (double)g_hitPower, (void *)ch);
 }
 
+// "call0 ADDR [N]": a void cdecl game function with no arguments, N times; after each call level_filename and
+// level_script_name are logged (the encounter pickers write them; game-bugs G6).
+static int g_call0Count;
+static void Call0OnGameThread(void *unused)
+{
+    (void)unused;
+    char *names = (char *)(UINT_PTR)SumVa(0x60a2c8u); // level_filename, level_script_name, level_prev_filename (3 x 32)
+    char saved[0x60];
+    memcpy(saved, names, sizeof saved);
+    for (int i = 0; i < g_call0Count; i++) {
+        ((void(__cdecl *)(void))(UINT_PTR)SumVa(g_callAddr))();
+        Log("agent: call0 %06lX #%d: level %s script %s", g_callAddr, i + 1, names, names + 0x20);
+    }
+    memcpy(names, saved, sizeof saved); // the pickers change the current level's names; put them back
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -344,6 +360,20 @@ static void RunLine(char *line)
         if (argc >= 3)
             ((SetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_SET_FLAG))(state, level, argv[1], atoi(argv[2]) != 0);
         Out("flag %s (level %d) = %d", argv[1], level, ((GetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_GET_FLAG))(state, level, argv[1]));
+    } else if (!_stricmp(c, "flagl") && argc >= 3) {
+        // flagl LEVEL NAME [0|1]: a story flag of another level (level_script_table index, as savedit's LEVEL).
+        typedef int(__attribute__((thiscall)) * GetFlag)(void *, int, const char *);
+        typedef void(__attribute__((thiscall)) * SetFlag)(void *, int, const char *, int);
+        void *state = (void *)(UINT_PTR)SumVa(VA_SAVEGAME_STATE);
+        int level = atoi(argv[1]);
+        if (argc >= 4)
+            ((SetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_SET_FLAG))(state, level, argv[2], atoi(argv[3]) != 0);
+        Out("flag %s (level %d) = %d", argv[2], level, ((GetFlag)(UINT_PTR)SumVa(VA_SAVEGAME_GET_FLAG))(state, level, argv[2]));
+    } else if (!_stricmp(c, "call0") && argc >= 2) {
+        // call0 ADDR [N]: call the cdecl void game function at ADDR with no arguments, N times, on the game thread.
+        g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
+        g_call0Count = argc >= 3 ? atoi(argv[2]) : 1;
+        Out("call0 %06lX x%d: %s", g_callAddr, g_call0Count, KeysAgentRun(Call0OnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "navgoto") && argc >= 2) {
         // navgoto NAVPOINT: put the current character on a level navpoint (e.g. $end2trig). Testing only.
         float pos[3], orient[9];
