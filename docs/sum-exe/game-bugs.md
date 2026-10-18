@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 5 |
-| Gameplay | 48 | 25 | 20 |
+| Gameplay | 48 | 25 | 21 |
 | Cosmetic | 56 | 36 | 22 |
 | Invisible | 43 | 58 | 0 |
 
@@ -973,7 +973,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G226 | The script editor's creature window sets every skill except skill 2 to 100 on OK, whatever the level, and with level 0 ("party leader's level") sets the creature's base HP and AP to 0 | `script_editor_creature_ok` `0x4ec730` | **Observed** code, *inferred* effect | No |
 | G227 | The script editor's Save drops every `+Prop:` line (the item a scripted character holds): 18 lines in 7 retail scripts (`sewer`, `IonaEXT`, `lenele2aa`, `lenele2aa_m1`, `Rand-grassland01_v3`, `_v4`, `_v5`) | `script_write_objects` `0x4e9ce0`, `script_parse_objects` `0x4dba30` | **Observed** code and retail data | No |
 | G228 | In multiplayer, Pyrul's wall of fire is always followed by a meteor storm | `pyrul_fire_attack` `0x4b9670` | **Observed** code and data, *inferred* effect | No |
-| G229 | An AI healer (party Healer / Healer-Caster members and enemy healers) casts a support spell only with a chance equal to the largest single share of the scores, and prefers the first candidates in its list | `ai_choose_support_spell` `0x4bea80` | **Observed** code, *inferred* effect | No |
+| G229 | An AI healer (party Healer / Healer-Caster members and enemy healers) casts a support spell only with a chance equal to the largest single share of the scores, and prefers the first candidates in its list | `ai_choose_support_spell` `0x4bea80` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] SupportSpellPick`) |
 | G240 | Wraiths choose the target of Life Drain from scores that still hold the previous spell test's values, which pushes the choice towards the first candidates | `ai_consider_life_drain` `0x4bf5a0` | **Observed** code, *inferred* effect | No |
 | G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code and in game (2026-10-18), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] AreaSpellDistances`) |
 | G242 | When a straight move crosses more than one layer-transition edge, the game takes the crossing nearest in x only, which can put a path, a walk test or a scripted avoid spline on the wrong floor layer | `pf_first_edge_crossing` `0x4a53d0` | **Observed** code, *inferred* effect | No |
@@ -1590,6 +1590,15 @@ running sum correctly. Callers: `ai_group_think_caster` (`0x4937f7`) and `ai_com
 number, what the game takes and what a running sum would take. In two fights in IkaemosExt2 with Rosalind on AI,
 all 12 logged picks had a single candidate with a non-zero share (for example `shares 1000 0 0 0`), so both rules chose the
 same and the bug did not show. Not fixed until a pick with two or more non-zero shares is seen.
+
+**Reproduced 2026-10-18** (the C210 test save: Joseph, Rosalind, Flece and Jekhar with 3000 HP each in IkaemosExt; a
+fight with a monster, two of the four set to 800 HP by `poke`. With all four hurt the healer takes the vitalize
+branch before the pick, so two is the case that reaches it.) In 19 logged picks with shares like 0.5 / 0.5 or
+0.41 / 0.59, the game cast nothing 6 times (random 0.51 to 0.84, above both shares), where a running sum heals one
+of the two. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SupportSpellPick`): the pick loop (`0x4beb46`)
+jumps to a stub that compares the number with the running sum. With the fix, 13 picks in the same set-up each
+chose a candidate ("the fix takes 1" / "3"), including the 7 where the original rule takes none. AI healers,
+Rosalind on AI and enemy healers alike, now heal more often than in the original game.
 
 **G240. Scores that are added to, not set.** `ai_consider_life_drain` (Wraith, species `0xb9`) adds the running
 total to each record's `+0x08` (`fld st(0); fadd [eax+8]; fstp [eax+8]` at `0x4bf66f`..`0x4bf674`) where the other

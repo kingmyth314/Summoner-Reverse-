@@ -206,6 +206,12 @@
 // it is full (jge at 0x4d13ca, 0x4d1526), a test meant for the add, so a deleted label comes back on the next visit or
 // load and an edit (remove, then add) loses its new text. Fix ([Fixes] MapLabelsFull): both tests become nops.
 //
+// AI healers often cast nothing (gameplay; game-bugs G229). ai_choose_support_spell turns the candidates' scores into
+// shares and takes the first candidate whose own share is at least one random number, so with two equal candidates
+// it heals half the time, with three a third. Fix ([Fixes] SupportSpellPick): the pick loop (0x4beb46) jumps to a stub
+// that compares the number with the running sum of the shares, as ai_consider_blind_or_silence does, so a candidate
+// is always chosen when there is one, each with the chance of its share.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -299,6 +305,8 @@
 #define VA_SPELL_CAST_SP_START 0x47c74cu    // mov ebx, [esp+0x150] (the spell) in spell_cast_execute, single player
 #define VA_LABEL_REMOVE_FULL 0x4d13cau      // jge (count >= 128) in savegame_automap_label_remove
 #define VA_LABEL_RESET_FULL 0x4d1526u       // jge (count >= 128) in savegame_automap_labels_reset_level
+#define VA_SUPPORT_PICK_LOOP 0x4beb46u      // xor ecx, ecx ; test esi, esi ; jle in ai_choose_support_spell
+#define VA_SUPPORT_PICK_TAKE 0x4beb6eu      // cmp ecx, -1 (the pick, or none)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -602,6 +610,39 @@ __asm__(".text\n"
         "    popfl\n"
         "    movl 0x154(%esp), %ebx\n" // the replaced mov ebx, [esp+0x150] (+4 for the return address)
         "    ret\n");
+
+// AI support pick by running sum (G229). ai_choose_support_spell's pick loop (from xor ecx, ecx at 0x4beb46) is
+// entered by jmp: the random number [esp+0x18] is compared with the running sum of the shares (list at edi+8, 0x10
+// bytes per candidate, esi candidates), and the index (or -1) goes to the take branch at 0x4beb6e in ecx.
+__attribute__((used)) static volatile DWORD g_supportTakeVa;
+__attribute__((used)) static volatile int g_supportPick;
+static BOOL g_supportPickTrace;
+__attribute__((used)) static void __cdecl SupportPickRunning(const BYTE *list, int n, float r)
+{
+    float sum = 0.0f;
+    g_supportPick = -1;
+    for (int i = 0; i < n; i++) {
+        sum += *(const float *)(list + 8 + 16 * i);
+        if (r <= sum) {
+            g_supportPick = i;
+            break;
+        }
+    }
+    if (g_supportPickTrace)
+        Log("trace support pick: the fix takes %d", g_supportPick);
+}
+void SupportPickStub(void);
+__asm__(".text\n"
+        "_SupportPickStub:\n"
+        "    pushal\n"
+        "    pushl 0x38(%esp)\n" // r: the function's [esp+0x18], +0x20 for pushal
+        "    pushl %esi\n"
+        "    pushl %edi\n"
+        "    call _SupportPickRunning\n"
+        "    addl $12, %esp\n"
+        "    popal\n"
+        "    movl _g_supportPick, %ecx\n"
+        "    jmp *_g_supportTakeVa\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
@@ -1113,6 +1154,16 @@ void BugFixesInstall(void)
         static const BYTE nops[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
         PatchBytes(VA_LABEL_REMOVE_FULL, ro, nops, 6, "a saved map label can be removed with 128 labels saved (K40)");
         PatchBytes(VA_LABEL_RESET_FULL, so, nops, 6, "a level's saved map labels can be reset with 128 saved (K40)");
+    }
+
+    if (FixOn("SupportSpellPick")) {
+        static const BYTE o[6] = {0x33, 0xC9, 0x85, 0xF6, 0x7E, 0x18}; // xor ecx, ecx ; test esi, esi ; jle 0x4beb64
+        BYTE r[6] = {0xE9, 0, 0, 0, 0, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)SupportPickStub - (SumVa(VA_SUPPORT_PICK_LOOP) + 5);
+        memcpy(r + 1, &rel, 4);
+        g_supportTakeVa = SumVa(VA_SUPPORT_PICK_TAKE);
+        g_supportPickTrace = GetPrivateProfileIntA("Debug", "TraceSupportPick", 0, g_cfg.iniPath) != 0;
+        PatchBytes(VA_SUPPORT_PICK_LOOP, o, r, 6, "AI healers pick a support target by running sum (G229)");
     }
 
     if (FixOn("PhoenixInferno")) {

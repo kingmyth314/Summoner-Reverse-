@@ -108,6 +108,7 @@ static const FixOption k_fixes[] = {
     {"AreaSpellDistances", "Enemy area spells use real distances"},
     {"SpellHitSoundPosition", "Spell hit sounds where spells land"},
     {"MapLabelsFull", "Map label edits saved at 128 labels"},
+    {"SupportSpellPick", "AI healers heal when they should"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
