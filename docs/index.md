@@ -17,6 +17,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
 - [Bugs in the original game](sum-exe/game-bugs.md) - 354 defects found in the code, and which ones SummonerFix fixes.
 - [Bug fix priorities](sum-exe/bug-priorities.md) - the unfixed bugs ranked by gameplay impact and how easily we can reproduce them.
+- [Tentacle Beast grab and throw](future/tentacle-grab.md) - a future project: the grab the developers switched off, and how to make it work.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
 - [Decompilation plan](decomp-plan.md) - the symbol file, the C++ rewrite in `src/decomp`, and the byte matching: Sum.exe was built with Visual C++ 6.0 SP5 (build 8966), and 4,956 of 5,925 compiled functions match byte for byte, calls and data references included.
