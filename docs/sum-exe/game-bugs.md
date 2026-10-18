@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 57 | 36 | 19 |
+| Cosmetic | 57 | 36 | 20 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1765,7 +1765,7 @@ retail script sends a go that early was not checked. D8602.
 | K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
 | K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
-| K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code, *inferred* effect | No |
+| K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] KnockDownMessage`) |
 | K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | Fixed (`gamma.c`) |
 | K91 | With the Direct3D renderer and a hardware gamma ramp, lit polygons get the gamma curve twice | `gr_d3d_tmapper` `0x5361a0`, `gr_d3d_tmapper_multipass` `0x536360`, `gr_d3d_set_gamma` `0x53ab20` | **Observed** code, *inferred* effect | No |
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
@@ -2112,6 +2112,14 @@ Melee knock-downs come from `combat_apply_melee_hit` (3000-7000 ms, `0x466286`..
 Titus and Machival party knock-downs. Pushes (`ai_disable_2f_local`) and stuns (`ai_disable_31`) are dropped the
 same way, without a message. Whether the game means casting to be uninterruptible is *unknown*; the message is the
 slip.
+
+**Reproduced 2026-10-18** (agent mode: Joseph given skills with `max_skills`, a heal queued on his AI with
+`ai_goal_add_cast_spell` (AI mode 4, sub-mode `0x27`), then `ai_knock_down_local(5000)` called as a melee hit calls it).
+"Knocked Down!" appeared, the function returned 1, and the AI stayed in mode 4: Joseph finished the heal on his feet.
+**Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] KnockDownMessage`): the loads before the current-character test
+(`0x47431b`) call a stub that fails the test when `ai_set_mode` returned 0. With the fix the same knock during the
+cast showed no message; a knock while idle still went to mode 8, sub-mode `0x2c`, with the message and the fall.
+The return value, and so the multiplayer broadcast, is unchanged.
 
 **K90. No gamma under OpenGL.** `gr_set_gamma` builds `gr_gamma_ramp` with the curve
 `255 * (i/255)^(1/gamma)` (`0x506ac1`-`0x506b10`). The second table, `gr_color_gamma_lut`, gets only `i` clamped

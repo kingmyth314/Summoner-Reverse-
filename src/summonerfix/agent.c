@@ -173,6 +173,25 @@ static void BagOnGameThread(void *unused)
         bag, bag ? *(int *)((BYTE *)bag + 0xd8) : 0);
 }
 
+// Knock the current character down for MS milliseconds as a melee hit does (ai_knock_down_local on its ai_state at
+// +0x324), logging the AI mode before and after and the result (game-bugs K80: knocked down while casting).
+#define VA_AI_KNOCK_DOWN_LOCAL 0x4742b0u // thiscall (ai_state, ms) -> int
+static volatile int g_knockMs;
+
+static void KnockOnGameThread(void *unused)
+{
+    (void)unused;
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!ch) {
+        Log("agent: knock: no character");
+        return;
+    }
+    int before = *(int *)(ch + 0x324);
+    int r = ((int(__attribute__((thiscall)) *)(void *, int))(UINT_PTR)SumVa(VA_AI_KNOCK_DOWN_LOCAL))(ch + 0x324, g_knockMs);
+    Log("agent: knock %d ms: ai mode %d -> %d (sub %d), result %d", g_knockMs, before, *(int *)(ch + 0x324),
+        *(int *)(ch + 0x328), r);
+}
+
 // N wall of fire areas (spell 0x1d) in a row 3 units apart, starting START units (default 6) beside the current
 // character, as spell_cast_execute places them. The caster is the current character, or the active summon
 // (cur_summon) with "summon" (game-bugs C270: how many areas can burn; G270: an area whose caster is gone).
@@ -267,6 +286,40 @@ static void CallIntOnGameThread(void *unused)
     (void)unused;
     DWORD r = ((DWORD(__cdecl *)(DWORD, DWORD))(UINT_PTR)SumVa(g_callAddr))(g_callIntA, g_callIntB);
     Log("agent: calli %06lX(0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callIntA, g_callIntB, r);
+}
+
+// "callt ADDR THIS [A [B]]": a thiscall game function with up to two int arguments. The callee pops its own
+// arguments, however many it takes, so esp is saved around the call.
+static DWORD g_callThis;
+static int g_callArgc;
+static DWORD CallThisRaw(DWORD fn, DWORD self)
+{
+    // The argument count and values are read from the globals (absolute addresses), not from the stack frame,
+    // because esp moves with each push.
+    DWORD r, ecxOut;
+    __asm__ volatile("movl %%esp, %%esi\n\t"
+                     "cmpl $2, %4\n\t"
+                     "jl 1f\n\t"
+                     "pushl %6\n"
+                     "1:\n\t"
+                     "cmpl $1, %4\n\t"
+                     "jl 2f\n\t"
+                     "pushl %5\n"
+                     "2:\n\t"
+                     "call *%2\n\t"
+                     "movl %%esi, %%esp\n\t"
+                     : "=a"(r), "=c"(ecxOut)
+                     : "0"(fn), "1"(self), "m"(g_callArgc), "m"(g_callIntA), "m"(g_callIntB)
+                     : "esi", "edx", "memory", "cc");
+    (void)ecxOut;
+    return r;
+}
+static void CallThisOnGameThread(void *unused)
+{
+    (void)unused;
+    DWORD r = CallThisRaw(SumVa(g_callAddr), g_callThis);
+    Log("agent: callt %06lX(this 0x%lX, %d args: 0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callThis, g_callArgc, g_callIntA,
+        g_callIntB, r);
 }
 
 // "call0 ADDR [N]": a void cdecl game function with no arguments, N times; after each call level_filename and
@@ -449,6 +502,14 @@ static void RunLine(char *line)
         g_callIntA = (DWORD)strtoul(argv[2], NULL, 0);
         g_callIntB = argc >= 4 ? (DWORD)strtoul(argv[3], NULL, 0) : 0;
         Out("calli %06lX: %s", g_callAddr, KeysAgentRun(CallIntOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "callt") && argc >= 3) {
+        // callt ADDR THIS [A [B]]: thiscall fn(THIS, A, B) with 0-2 integer arguments, on the game thread; eax logged.
+        g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
+        g_callThis = (DWORD)strtoul(argv[2], NULL, 0);
+        g_callArgc = argc - 3;
+        g_callIntA = argc >= 4 ? (DWORD)strtoul(argv[3], NULL, 0) : 0;
+        g_callIntB = argc >= 5 ? (DWORD)strtoul(argv[4], NULL, 0) : 0;
+        Out("callt %06lX: %s", g_callAddr, KeysAgentRun(CallThisOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "call0") && argc >= 2) {
         // call0 ADDR [N]: call the cdecl void game function at ADDR with no arguments, N times, on the game thread.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);
@@ -531,6 +592,10 @@ static void RunLine(char *line)
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);
         Out("goldpile %d: %s", g_goldAmount, KeysAgentRun(GoldPileOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "knock") && argc >= 2) {
+        // knock MS: knock the current character down for MS ms (game thread; mode and result in the log).
+        g_knockMs = atoi(argv[1]);
+        Out("knock %d: %s", g_knockMs, KeysAgentRun(KnockOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "bag") && argc >= 2) {
         // bag N [ITEM]: an unlocked loot bag with N items (default Health Tonic, ~ for spaces) beside the current
         // character (game thread; result in the log).

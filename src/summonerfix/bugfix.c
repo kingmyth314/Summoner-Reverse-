@@ -170,6 +170,12 @@
 // 1.0, 0.51) but reads blue from 0x594430, the string "gold" (about 1.7e22 as a float), which the mesh renderers turn
 // into 0. Fix ([Fixes] LootHighlightColour): mov ecx, [0x594430] at 0x43a62e reads 0x59442c.
 //
+// "Knocked Down!" for a character who stays up (cosmetic; game-bugs K80). ai_knock_down_local shows the message for
+// the current character without looking at ai_set_mode's result, and ai_set_mode refuses the disabled state while
+// the character casts (or fights in combat sub-mode 0xe / sneak-attacks). Fix ([Fixes] KnockDownMessage): the loads
+// before the "is it the current character" test (0x47431b) call a stub that makes the test fail when ai_set_mode
+// returned 0. The function's own result (1) is unchanged.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -252,6 +258,8 @@
 #define VA_CAMERA_EDGE_RELOAD 0x43470au     // mov al, [0x5fccb7] (right-edge path, after gr_screen_width)
 #define VA_CAMERA_EDGE_HELD 0x5fccb7u       // byte: left button held for a drag, last stored
 #define VA_GOLD_TINT_BLUE 0x43a62eu         // mov ecx, [0x594430] (blue) in world_tint_gold_object
+#define VA_KNOCK_MESSAGE_TEST 0x47431bu     // mov eax, [esi+0x4c] ; mov ecx, [cur_character] in ai_knock_down_local
+#define VA_CUR_CHARACTER_FIX 0x5fcc88u
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -442,6 +450,23 @@ __asm__(".text\n"
         "    popl %edx\n"
         "    popl %ecx\n"
         "    popfl\n"
+        "    ret\n");
+
+// "Knocked Down!" only when the knock-down happened (K80). Replaces mov eax, [esi+0x4c] ; mov ecx, [cur_character]
+// (9 bytes, entered by call + 4 nops) before cmp eax, ecx ; jne: with ai_set_mode's result 0 in eax the two differ.
+__attribute__((used)) static volatile DWORD g_curCharacterVa;
+void KnockMessageStub(void);
+__asm__(".text\n"
+        "_KnockMessageStub:\n"
+        "    testl %eax, %eax\n"
+        "    jz 1f\n"
+        "    movl 0x4c(%esi), %eax\n"
+        "    movl _g_curCharacterVa, %ecx\n"
+        "    movl (%ecx), %ecx\n"
+        "    ret\n"
+        "1:\n"
+        "    xorl %eax, %eax\n"
+        "    movl $1, %ecx\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -904,6 +929,15 @@ void BugFixesInstall(void)
     if (FixOn("LootHighlightColour")) {
         static const BYTE o[6] = {0x8B, 0x0D, 0x30, 0x44, 0x59, 0x00}, r[6] = {0x8B, 0x0D, 0x2C, 0x44, 0x59, 0x00};
         PatchBytes(VA_GOLD_TINT_BLUE, o, r, 6, "loot highlight reads its blue, not the string \"gold\" (K61)");
+    }
+
+    if (FixOn("KnockDownMessage")) {
+        static const BYTE o[9] = {0x8B, 0x46, 0x4C, 0x8B, 0x0D, 0x88, 0xCC, 0x5F, 0x00};
+        BYTE r[9] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)KnockMessageStub - (SumVa(VA_KNOCK_MESSAGE_TEST) + 5);
+        memcpy(r + 1, &rel, 4);
+        g_curCharacterVa = SumVa(VA_CUR_CHARACTER_FIX);
+        PatchBytes(VA_KNOCK_MESSAGE_TEST, o, r, 9, "\"Knocked Down!\" only when the character fell (K80)");
     }
 
     if (FixOn("PhoenixInferno")) {

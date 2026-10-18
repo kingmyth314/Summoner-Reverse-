@@ -299,6 +299,11 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   character, built as `monster_drop_loot` builds one; the log gives the container address. Open it with
   `interface_set_screen(4, &container)`: write the address into `pickup_container` (`0x5c3b6c`) with `poke` and run
   `calli 412620 4 0x5c3b6c` (K12).
+- `callt ADDR THIS [A [B]]` calls a thiscall game function with up to two int arguments on the game thread and logs
+  eax (esp is restored after the call, so the argument count need not match); for example `callt 4740c0 0x91208c 0 5`
+  queues a heal on the current character's AI (`ai_goal_add_cast_spell` on Character `+0x324`);
+- `knock MS` knocks the current character down for MS ms through `ai_knock_down_local` and logs the AI mode before
+  and after and the result (K80).
 
 For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material
