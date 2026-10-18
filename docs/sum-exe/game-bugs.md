@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 6 |
 | Gameplay | 48 | 25 | 22 |
-| Cosmetic | 56 | 36 | 22 |
+| Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1830,7 +1830,7 @@ retail script sends a go that early was not checked. D8602.
 | K190 | A dragon summon's cutscene, cast after any story cutscene, streams a stale soundtrack handle: usually silence as intended, but when a music track has since taken that sound slot (for example boss music started right after a boss intro), that track restarts under the dragon scene and its slot is freed when the scene ends | `cutscene_unload` `0x4351e0`, `cutscene_load_sounds` `0x435000`, `cutscene_sequence_update` `0x436a90` | **Observed** code and retail data, *inferred* effect | No |
 | K191 | Releasing a long left-button drag with the cursor at the left or right screen edge starts the edge camera turn at once; the code meant to hold it back until the cursor leaves the edge never engages | `camera_process_input` `0x434660` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] EdgeTurnAfterDrag`) |
 | K192 | Latent: a `+Minitrack:` sound in `cutscene.tbl` never plays | `cutscene_load_sounds` `0x435000`, `cutscene_events_frame` `0x436c00` | **Observed** code and retail data | No |
-| K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code, *inferred* effect | No |
+| K193 | Latent: after `screen999`, every Print Screen writes `screen1000` again over the last one; a `screen*.jpg` (or `.tga`) whose name sorts after the numbered ones, such as `screenshot.jpg`, makes the number random | `screenshot_save` `0x4324f0` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] ScreenshotNumbers`) |
 | K194 | Latent: the help of the `play_and_load_cutscene` console command prints `play_cutscene`'s usage line. No console in v1.40 | `cmd_play_and_load_cutscene` `0x437590` | **Observed** code | No |
 | K200 | Latent: in the PXO lobby, a channel list reply with a cut-short record leaves the channel list unchanged on screen until the next refresh 10 s later | `lobby_parse_channel_list` `0x43f450` | **Observed** code | No |
 | K210 | In the snowy levels (`lenele3a`, `lenele3d`, `ionaext02`), when the camera moves one 5 m cell toward +x the new row of cells at the +x edge keeps the flakes of the row that left on the far side, so that edge has thin or misplaced snow for up to 12 s | `snow_update` `0x494ba0` | **Observed** code, *inferred* effect | No |
@@ -2440,6 +2440,13 @@ Up to `screen999` that is the highest number. `screen1000` sorts before `screen9
 `screen1000` and replaces the previous one. A matching name that sorts last and does not parse as `screen%d` (for
 example `screenshot`) leaves the number uninitialised: `sscanf` writes nothing into the stack slot `[esp]`
 (`0x43258e`..`0x4325a9`).
+
+**Reproduced 2026-10-18** (agent mode, Print Screen as scan code `0xb7`). With a `screenshot.jpg` in the game folder,
+three presses left one file, `screen001.jpg`, rewritten each time, and later the same with `screen002`/`003` present;
+without it the presses gave `screen002`, `screen003`. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+ScreenshotNumbers`): the number (`0x4325ad`) comes from a stub that takes 1 + the largest `screenN` in the folder and
+ignores other names. With the fix: `screen004` to `006` beside `screenshot.jpg`, and `screen1000`, `screen1001` after
+a `screen999`.
 
 **K194. Copied usage line.** `cmd_play_and_load_cutscene` prints the same literal as `cmd_play_cutscene`, "Usage:
 play_cutscene <cutscene name>" (`push 0x593b90` at `0x43753d` and `0x4375fd`).

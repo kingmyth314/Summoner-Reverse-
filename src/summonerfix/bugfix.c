@@ -225,6 +225,11 @@
 // and QueryPerformanceCounter imports return both values shifted right by the same number of bits. On a PC with a
 // lower frequency (Windows 10 and later report 10 MHz) nothing is hooked. [Debug] FakeQpcFrequency=N tests it.
 //
+// Screenshots overwrite each other (cosmetic; game-bugs K193). screenshot_save numbers a new screenshot from the name
+// that sorts last among screen*.jpg (or .tga): from screen1000 on that is screen999 again, and a name such as
+// screenshot.jpg leaves the number uninitialised, so every shot overwrote screen001 in a test. Fix ([Fixes]
+// ScreenshotNumbers): the number (0x4325ad) comes from a stub that takes 1 + the largest screenN in the folder.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -262,6 +267,7 @@
 // (mov edx, [esp+h] ; add ecx, edx ; cmp eax, ecx with eax the x; "more" 0x4d6fe8, "end" 0x4d707c). Fix ([Fixes]
 // ConversationHover): add ecx, [esp+h] ; cmp [esp+y], ecx, the mouse y as the click test does.
 #include "summonerfix.h"
+#include <stdio.h>
 #include <string.h>
 
 #define VA_DS_CHANNEL_STREAM_CHECK 0x55c5dbu // mov eax, [esi+0xc] ; test eax, eax  (8B 46 0C 85 C0)
@@ -327,6 +333,8 @@
 #define VA_DS_PRIMARY_BUFFER 0x2f79e38u
 #define VA_DS3D_ENABLED 0x2f8f72cu
 #define VA_DS_EAX_ENABLED 0x2f798b4u
+#define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
+#define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_SUPPORT_PICK_TAKE 0x4beb6eu      // cmp ecx, -1 (the pick, or none)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
@@ -767,6 +775,41 @@ static void QpcFrequencyInstall(void)
     Log("QPC frequency %lld Hz%s; the game sees it shifted right by %d bits (G2)", (long long)used,
         g_qpcFakeFreq ? " (faked for testing)" : "", g_qpcShift);
 }
+
+// Screenshot number (K193). Replaces mov eax, [esp] ; lea ecx, [esp+0x258] (11 bytes, entered by call + 6 nops) in
+// screenshot_save, after its own search: the number is 1 + the largest N of the screenN.jpg (or .tga) files in the
+// game folder, and names that are not screen + a number are ignored.
+__attribute__((used)) static int __cdecl NextScreenshotNumber(void)
+{
+    const char *dir = (const char *)(UINT_PTR)SumVa(VA_INSTALL_PATH);
+    BOOL targa = *(volatile BYTE *)(UINT_PTR)SumVa(VA_PRINT_SCREEN_AS_TARGA) != 0;
+    char pattern[MAX_PATH + 16];
+    _snprintf(pattern, sizeof pattern, "%sscreen*.%s", dir, targa ? "tga" : "jpg");
+    pattern[sizeof pattern - 1] = 0;
+    int next = 0;
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            const char *p = fd.cFileName + 6, *q = p;
+            int n = 0;
+            while (*q >= '0' && *q <= '9' && n < 100000000)
+                n = n * 10 + (*q++ - '0');
+            if (q > p && *q == '.' && n + 1 > next)
+                next = n + 1;
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+    return next;
+}
+void ScreenshotNumberStub(void);
+__asm__(".text\n"
+        "_ScreenshotNumberStub:\n"
+        "    pushl %edx\n"
+        "    call _NextScreenshotNumber\n"
+        "    popl %edx\n"
+        "    leal 0x25c(%esp), %ecx\n" // the replaced lea ecx, [esp+0x258] (+4 for the return address)
+        "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
@@ -1299,6 +1342,13 @@ void BugFixesInstall(void)
         g_dsInitContinueVa = SumVa(VA_DS_INIT_CONTINUE);
         g_dsInitFailVa = SumVa(VA_DS_INIT_FAIL);
         PatchBytes(VA_DS_PRIMARY_FAIL, o, r, 5, "a failed primary sound buffer is retried without 3D, or sound is off (C2)");
+    }
+    if (FixOn("ScreenshotNumbers")) {
+        static const BYTE o[11] = {0x8B, 0x44, 0x24, 0x00, 0x8D, 0x8C, 0x24, 0x58, 0x02, 0x00, 0x00};
+        BYTE r[11] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)ScreenshotNumberStub - (SumVa(VA_SCREENSHOT_NUMBER) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_SCREENSHOT_NUMBER, o, r, 11, "screenshots take the next free number (K193)");
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax

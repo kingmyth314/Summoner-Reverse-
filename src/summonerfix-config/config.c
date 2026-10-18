@@ -111,6 +111,7 @@ static const FixOption k_fixes[] = {
     {"SupportSpellPick", "AI healers heal when they should"},
     {"PrimarySoundBuffer", "No crash when 3D sound fails"},
     {"QpcFrequency", "Normal speed with a 4+ GHz timer"},
+    {"ScreenshotNumbers", "Screenshots never overwrite each other"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
