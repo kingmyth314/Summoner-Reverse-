@@ -173,6 +173,11 @@ run-to-run variation:
   in none of the first ten original runs, but then in three of the next four original runs too;
 - `tancredhouse`: one flag bit in one NPC's record, seen once and not in two more runs.
 
+After the never-run fixes (2026-10-18, rebuilt DLL): in Jade Temple the hybrid's monsters had level 17 in two
+runs and 18 in a third, against 18 in the first three original runs. Six more original runs gave 21, 22, 22, 22,
+18 and 18, so the monster level there varies by several levels from run to run (**Observed**; what it depends on is
+**Unknown**). The full-set step of the halving search matched, and with nine original runs the comparison passes.
+
 Lesson for the method: an intermittent field needs more than a handful of original runs before a difference
 counts, and a search step should count as failing only on a majority of repeated runs.
 
