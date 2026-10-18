@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 354 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 18 |
+| Cosmetic | 57 | 36 | 18 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1773,7 +1773,6 @@ retail script sends a go that early was not checked. D8602.
 | K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] RingSixtyThousand`) |
 | K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code, retail data and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] AmbientSounds`) |
 | K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
-| K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
 | K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
 | K150 | In the Ikaemos palace's upper hall the Priest King fight keeps the level's "IkaemosPalace" music; the "Boss" track never plays | `ls_ikaemostopint_init` `0x4f9ec0`, `lsf_ikaemos_found_boss` `0x4fa050`, `lsf_ikaemos_boss_killed` `0x4fa140` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
 | K151 | Latent: with the Glide renderer (a 3dfx card or a Glide wrapper), an 8-bit alpha bitmap wider or taller than 256 texels would repeat its top-left corner in every 256 x 256 section; no bitmap loader in v1.40 produces that format | `gr_glide_create_texture_section` `0x5484f0` | **Observed** code, *inferred* effect | No |
@@ -2223,15 +2222,6 @@ again when `phoenix_dead` and `serpent_dead` are both set runs only while `ls_li
 (`level_script_frame`, `level_music_stop_timer`) runs once after the level load, and the riders die without a
 cutscene (`script_npc_goto_label(..., 2)`, `0x4f4b9e`, `0x4f4bf0`). *Inferred:* the boss music plays on until the player
 leaves Liangshan. Found in the `NOTES-level-scripts-8.md` notes (bug 2).
-
-**K131. "Played" kept in .bss.** `ls_templeint2_frame` plays "Nar-TempleAct4" while `ls_templeint2_act4_played`
-(`0x257e9b7`) is 0 (`0x4ef1e0`..`0x4ef1fb`), and `ls_templeint2_init` clears it on every entry (`0x4ef1c3`). There is no
-saved flag for it (events.tbl lists only `mach_intro`, `urath_killed`, `joseph_killed` and `mach_killed` for
-templeint2). The end callback replays Machival-intro only when `mach_intro` is not set (`0x4ef230`..`0x4ef237`), so
-only the narration repeats. In cutscene.tbl it is a 29 s camera flight with its own soundtrack
-(`Temple_Urath_Act_4.wav`, fade out at 27.3 s). Saving is allowed in the level (see G130). *Inferred:* each load
-inside the temple, before or after the Machival fight, starts with the act 4 narration again. Found in the
-`NOTES-level-scripts-8.md` notes (oddity 9).
 
 **K140. `item_types[-1]`.** The parser stores -1 for "(none)", and `item_type_find` returns -1 for an unknown
 name. With body armour in slot 7, `script_action_replace_armor` first reads
@@ -3567,6 +3557,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | G50 (withdrawn 2026-10-17): after a reload or a second visit the Khosani lab flipper board (cleared by `ls_khosanilab_init`, `0x4f895c`..`0x4f8980`) no longer matches flipper doors kept raised by their saved two-stage bits | This page, then [Bug fix priorities](bug-priorities.md) rank 13 | A reload cannot happen inside the lab: saving there gives "Cannot save in Labyrinth of the Khosani." (agent mode, 2026-10-17). For a second visit, agent mode raised flippers 32, 16 and 30 (`callstr 4f95a0 puzzle-flippers31`, the level's use hook; `door_is_open_by_name` then returned 1 for each), went to KhosaniLab2 and back with `level`, and found the board all 0 and the three doors down again. So the doors do not come back raised on re-entry. Why the saved two-stage bit does not raise them was not traced |
 | G30 (withdrawn 2026-10-17): `boss_ai_parse_table` stores `atoi("$offenseNN") - 1` = -1 as every boss move's offense point, so offense-point attacks aim from near the world origin | This page, [Bosses](bosses.md), the decompiled `boss_ai.cpp`, then [Bug fix priorities](bug-priorities.md) rank 14 | `TextFile__ParseString` gets `lea edx, [esp+0x68]` after two pushes (the buffer is at frame `+0x60`), and `atoi` gets `lea eax, [esp+0x68]` with nothing pushed (`0x4a18b2`), 8 bytes further on: `atoi("NN")` after the 8 characters of `$offense`. The game's `atoi("$offense03")` is 0 (agent `callstr 56e311`), but the parsed Giant Salamanka moves held 0, 0, 1, 2, 3, 4, 5 for `$offense01`, 01, 02 .. 06 (agent `peek 248c984`), and `[Debug] TraceBossReach` logged points 2 and 5 with targets in reach. The decompilation read the call as `atoi(point_name)`; it is `atoi(point_name + 8)` (corrected) |
 | G5 (withdrawn 2026-10-17): buying with a full inventory (0x209 entries) takes the gold and gives nothing, because `buysell_buy_item` subtracts the price before `party_inventory_add_type` refuses a new type (`cmp edx, 0x209` at `0x46b9e4`) | This page, [Shops and loot](shops-loot.md), then [Bug fix priorities](bug-priorities.md) rank 30 | There are exactly 0x209 = 521 item types (`num_item_types`, capped by `items_parse_table`; every save's `ITEM` chunk lists 521), and `party_inventory_add_type` first looks for an entry of the same type and adds to its count (stackable) or its charges, before the count test. A full inventory therefore already holds every type, and a bought item always finds its entry. A held type that is neither stackable nor chargeable cannot exist: `item_type_is_stackable` is false only with a charge effect |
+| K131 (withdrawn 2026-10-18): every load of a game saved in the last temple level (TempleInt2) replays the 29 s "Nar-TempleAct4" narration, because `ls_templeint2_init` clears `ls_templeint2_act4_played` (`0x4ef1c3`) and no saved flag records it | This page ("saving is allowed in the level"), then [Bug fix priorities](bug-priorities.md) rank 34 | No such save can be made. The narration plays on the level's first frame, and its end callback sets the saved flag `mach_intro` at once (`0x4ef275`..`0x4ef282`). `savegame_location_allowed` refuses saving in TempleInt2 while `mach_intro` is set (`0x4d4b5e`..`0x4d4b73`; the refusal was seen in game for G130), and the cutscene itself cannot be saved in. A save from before the level cannot load into it |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -4212,7 +4203,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | G131 Laharah fade | `lsf_tiger2_dead` `0x4f053e`..`0x4f0574`, `0x4f057c`..`0x4f05a8`, `0x4f05d9`..`0x4f0670`; `ls_jadetemple_init` `0x4f0049`..`0x4f0058`; `GameTimer__elapsed` `0x501914`; retail `Jadetemple.tbl` `#Triggers` empty |
 | G132 wave 4 | `lsf_liangshan_flag_wave3` `0x4f5248`..`0x4f5261`; `lsf_liangshan_flag_wave4` `0x4f5299`..`0x4f52b9`; `lsf_liangshan_flag_finished_quest` `0x4f533d`..`0x4f5383`; retail `Liangshan_script.tbl` `Orenian Samurai#w3a` |
 | K130 boss music | `ls_liangshan_init` `0x4f49be`; `ls_liangshan_frame` `0x4f4a91`..`0x4f4aac`, `0x4f4ab4`..`0x4f4b09`; `level_script_frame` `0x4ccabe`..`0x4ccaf4` |
-| K131 act 4 narration | `ls_templeint2_init` `0x4ef1c3`; `ls_templeint2_frame` `0x4ef1e0`..`0x4ef1fb`; `ls_templeint2_act4_cs_end` `0x4ef230`..`0x4ef237`; retail cutscene.tbl "Nar-TempleAct4", events.tbl templeint2 flags |
 | V130 cryptintro | `ls_catacombs_frame` `0x4fe1e6`..`0x4fe227`; only reference to `0x5fc014` is `0x4fe1e6`; retail cutscene.tbl (no "cryptintro") |
 | V131 wolong2_charge | `ls_wolong2_init` `0x4f208c`..`0x4f209e`; `ls_wolong2_force_alert_action` `0x4f1ef2`..`0x4f1f17`; references to `0x5a26e0`: `0x4f1f0c`, `0x4f2093`; retail `wolong2_dlg.tbl` "Charge" trigger |
 | C140 console tokens | `read_word` `0x50aacd`..`0x50aadf`; `read_quoted_string` `0x50ab00`; `make_lowercase_token` `0x50aa52`..`0x50aa75`; `execute_command_line` `0x50a22b`..`0x50a244`, `0x50a3d8`..`0x50a406`; `process_command` `0x50a985`; `cmd_character` `0x43995e`..`0x4399c9`; `src/summonerfix/keys.c` `CONSOLE_CMD_LEN` 96 |
