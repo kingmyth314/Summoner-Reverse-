@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 82 | 6 |
+| Crash or hang | 6 | 82 | 7 |
 | Gameplay | 48 | 25 | 22 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
@@ -109,7 +109,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C261 | Latent: a list box entry that wraps into more than 20 lines overwrites the list box line tables and, from line 22, the UI manager's mouse flags; the next draw copies the first line with a pointer as its length and crashes | `ui_listbox_entry__wrap_text` `0x52ca60`, `ui_listbox__draw` `0x52f080` | **Observed** code, *inferred* crash | No |
 | C262 | Latent: a cutscene camera rotation key of (0, 0, 0, 0) divides by zero when the camera tangents are built; a key whose packed length is above one unit makes them zero | `cquat__normalized` `0x523050`, `cquat_log_of_delta` `0x523c60`, `anim_track__calc_rot_tangents` `0x5506e0` | **Observed** code and retail data, *inferred* effect | No |
 | C271 | Latent: a level or cutscene that creates a sixth world effect whose name contains "sky" writes past the five-entry sky list; the frame then draws a pointer built from the effect counter (a likely crash) | `fx_create_world` `0x48cea0`, `levelrender_render_scene` `0x482200` | **Observed** code and retail data, *inferred* effect | No |
-| C272 | Latent: in the Masad combat tutorial, the "part 2" step (after the Orenian Scout is defeated) crashes if an arrow is in flight, a spell area is burning or any character's status effect holder exists at that moment; the level-start callers crash the same way if such an effect already exists | `fx_disable_by_effect_name` `0x48d660`, `tutorial_cond_combat_part2` `0x42ead0` | **Observed** code and retail data, *inferred* crash | No |
+| C272 | Latent: in the Masad combat tutorial, the "part 2" step (after the Orenian Scout is defeated) crashes if an arrow is in flight, a spell area is burning or any character's status effect holder exists at that moment; the level-start callers crash the same way if such an effect already exists | `fx_disable_by_effect_name` `0x48d660`, `tutorial_cond_combat_part2` `0x42ead0` | **Observed** code and retail data, *inferred* crash and by function call (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] EffectSearchGuard`) |
 | C273 | Latent: in a network game, a spell "near" or "at" hit effect with no spell record crashes every machine that updates it: the Ghost Rider's stage-3 scythe hit (no retail multiplayer script has a Ghost Rider), or any such cast while all 64 spell records are in use | `fx_frame` `0x48a230` (kinds 12 and 14), `boss_counter_hit_dispatch` `0x4a2230`, `spell_effect_add` `0x47f660` | **Observed** code and retail data, *inferred* crash | No |
 | C274 | Latent: a level item placed while all 40 containers are in use crashes the level load | `level_item_spawn` `0x46a640`, `container_obj_create` `0x4897f0` | **Observed** code and retail data, *inferred* crash | No |
 | C280 | Latent (console only): after `play_and_load_cutscene` returns to the main menu, Start New Game crashes (access violation) | `cmd_play_and_load_cutscene` `0x437590`, `cutscene_change_level_for` `0x437400` | **Observed** in game once, cause not analysed | No |
@@ -776,6 +776,13 @@ mid-level when the Masad Scout `"Orenian Scout#$npc002"` is in the inactive list
 holder exists for every character with an active status (`character_update_status_effects` `0x45bee8`).
 *Inferred:* Joseph alone in the first fight rarely has a status, so we know of no retail run that hits it. A
 second slip: an effect without a base (`effect_get_base` 0, `0x48d691`) ends the whole search instead of skipping.
+
+**Reproduced 2026-10-18 by function call** (agent mode, Lenele: `status_effect_add` gave Joseph a status, so he had a
+status holder, then `callstr 48d660 masad-firedoor2.vfx` ran the tutorial's call): access violation reading `0x8` at
+`0x48d67a`, on the holder (`esi` `0x2305ee4`). **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes]
+EffectSearchGuard`): objects without an instance are skipped (a stub at `0x48d674`), and an effect without a base no
+longer ends the search (`je` at `0x48d691` goes to the next object). With the fix the same call returned and the game
+ran on.
 
 **C273. Spell record not checked.** In a network game (`game_flags` `0x2`) kinds 12 and 14 copy 13 dwords from
 the spell record at `+0x108` with `rep movsd` (`0x48abcf`, `0x48ae06`, `0x48af99`); kind 11 tests it first

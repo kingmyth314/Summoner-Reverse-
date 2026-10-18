@@ -230,6 +230,12 @@
 // screenshot.jpg leaves the number uninitialised, so every shot overwrote screen001 in a test. Fix ([Fixes]
 // ScreenshotNumbers): the number (0x4325ad) comes from a stub that takes 1 + the largest screenN in the folder.
 //
+// Effect search through a NULL instance (crash; game-bugs C272). fx_disable_by_effect_name reads each active effect
+// object's instance (+0xa0) without a NULL test, but arrows, spell areas, status holders and item effects have none,
+// so the Masad tutorial's part 2 (and level starts that run it with such an effect around) crash; an effect without
+// a base also ends the search early. Fix ([Fixes] EffectSearchGuard): objects without an instance are skipped (stub
+// at 0x48d674), and the no-base case goes on to the next object (je at 0x48d691).
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -335,6 +341,8 @@
 #define VA_DS_EAX_ENABLED 0x2f798b4u
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
+#define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
+#define VA_FX_DISABLE_NO_BASE 0x48d691u     // je 0x48d6bf (no effect base: ends the search)
 #define VA_SUPPORT_PICK_TAKE 0x4beb6eu      // cmp ecx, -1 (the pick, or none)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
@@ -809,6 +817,21 @@ __asm__(".text\n"
         "    call _NextScreenshotNumber\n"
         "    popl %edx\n"
         "    leal 0x25c(%esp), %ecx\n" // the replaced lea ecx, [esp+0x258] (+4 for the return address)
+        "    ret\n");
+
+// Effect objects without an instance (C272). Replaces mov eax, [esi+0xa0] ; mov ecx, [eax+8] (9 bytes, entered by
+// call + 4 nops) in fx_disable_by_effect_name: with no instance, ecx is made non-zero so the following test skips
+// the object.
+void FxInstanceGuardStub(void);
+__asm__(".text\n"
+        "_FxInstanceGuardStub:\n"
+        "    movl 0xa0(%esi), %eax\n"
+        "    testl %eax, %eax\n"
+        "    jz 1f\n"
+        "    movl 8(%eax), %ecx\n"
+        "    ret\n"
+        "1:\n"
+        "    movl $1, %ecx\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -1349,6 +1372,15 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)ScreenshotNumberStub - (SumVa(VA_SCREENSHOT_NUMBER) + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_SCREENSHOT_NUMBER, o, r, 11, "screenshots take the next free number (K193)");
+    }
+    if (FixOn("EffectSearchGuard")) {
+        static const BYTE o[9] = {0x8B, 0x86, 0xA0, 0x00, 0x00, 0x00, 0x8B, 0x48, 0x08};
+        BYTE r[9] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)FxInstanceGuardStub - (SumVa(VA_FX_DISABLE_INSTANCE) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_FX_DISABLE_INSTANCE, o, r, 9, "effect search skips objects without an instance (C272)");
+        static const BYTE jo[2] = {0x74, 0x2C}, jr[2] = {0x74, 0x1E}; // je 0x48d6bf -> je 0x48d6b1 (next object)
+        PatchBytes(VA_FX_DISABLE_NO_BASE, jo, jr, 2, "effect search goes on past an effect without a base (C272)");
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax
