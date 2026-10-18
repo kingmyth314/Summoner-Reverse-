@@ -98,6 +98,7 @@ static const FixOption k_fixes[] = {
     {"MapLabelLimit", "33rd map label is refused"},
     {"ShopCategoryButtons", "Shop sell list category buttons"},
     {"InventoryCategoryButtons", "Identify list category buttons"},
+    {"AmbientSounds", "Ambient sounds survive level changes"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

@@ -147,6 +147,12 @@
 // unidentified item of the category (mov eax, esi at 0x41543e). Fix ([Fixes] InventoryCategoryButtons): that return
 // goes through a stub that turns the index into the row of the shown list (the unidentified items before it).
 //
+// Ambient sounds leak on every level change (gameplay; game-bugs K110). level_script_leave removes the level's ambient
+// sounds with for (i = 0; i < level_ambient_count; i++) level_ambient_remove(i), but each removal moves the later
+// records down and lowers the count, so only every other emitter is freed. The 128 sound_emitters fill after a few
+// visits to the big towns, and then new ambient and ground-effect sounds are dropped. Fix ([Fixes] AmbientSounds):
+// the loop's inc esi (0x4cccc9) becomes a nop, so it removes record 0 until the table is empty.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -217,6 +223,7 @@
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
 #define VA_INVENTORY_CATEGORY_RET 0x41543eu // mov eax, esi (identify-mode result) in inventory_category_first_index
+#define VA_AMBIENT_REMOVE_INC 0x4cccc6u     // add esp, 4 ; inc esi in level_script_leave's ambient removal loop
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -788,6 +795,11 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)IdentifyRowStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_INVENTORY_CATEGORY_RET, o, r, 6, "identify-mode category buttons use the shown rows (K4)");
+    }
+
+    if (FixOn("AmbientSounds")) {
+        static const BYTE o[4] = {0x83, 0xC4, 0x04, 0x46}, r[4] = {0x83, 0xC4, 0x04, 0x90}; // inc esi -> nop
+        PatchBytes(VA_AMBIENT_REMOVE_INC, o, r, 4, "leaving a level frees all its ambient sounds (K110)");
     }
 
     if (FixOn("PhoenixInferno")) {

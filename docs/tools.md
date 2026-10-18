@@ -292,7 +292,9 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   puzzle-flippers31` (the Khosani lab's use hook) or `callstr 4773d0 puzzle-flippers32 0.01`
   (`door_is_open_by_name`). The caller must know the function's arguments;
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
-  and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters.
+  and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters;
+- `count ADDR STRIDE N MASK` counts the records of a table (N records, STRIDE bytes apart, hex) whose first byte has a
+  bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110).
 
 For combat tests: `[Debug] TraceArmourSpells=1` logs every hit that reaches the armour roll and every spell an
 armour casts (caster, target, team), `[Debug] TraceHitVfx=1` logs each melee hit's target with its skin material

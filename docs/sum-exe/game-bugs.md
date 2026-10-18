@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 15 |
+| Cosmetic | 58 | 36 | 16 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1771,7 +1771,7 @@ retail script sends a go that early was not checked. D8602.
 | K92 | Latent: a fog update with a negative near distance or a far distance below the near one keeps the old fog distances | `gr_set_fog` `0x507db0` | **Observed** code, *inferred* effect | No |
 | K93 | Latent: when anti-aliasing is on in the options, the first `antialiasing` console command reports "antialiasing toggled!" but changes nothing | `cmd_antialiasing` `0x505db0` | **Observed** code | No |
 | K100 | A ring whose power lands on exactly 60,000 never shows "Joseph acquired Summon ...!", and its pop-up lists the summon one gain before it can be cast | `ring_check_summon_unlock` `0x450220`, `ring_format_info` `0x44b7a0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] RingSixtyThousand`) |
-| K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code and retail data, *inferred* effect | No |
+| K110 | After enough level changes, levels lose their ambient sounds (and ground effects their sound), until the game is restarted: every level leave frees only half of the ambient sound emitters | `level_script_leave` `0x4ccc70`, `level_ambient_remove` `0x4cd2c0` | **Observed** code, retail data and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] AmbientSounds`) |
 | K130 | In Liangshan the "Boss" music keeps playing after the Serpent and Phoenix Riders are dead, until the level is left or a game is loaded | `ls_liangshan_init` `0x4f4930`, `ls_liangshan_frame` `0x4f4a20` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] BossMusic`) |
 | K131 | Every load of a game saved in the last temple level replays the 29 s "Nar-TempleAct4" narration | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_frame` `0x4ef1e0` | **Observed** code and retail data, *inferred* effect | No |
 | K140 | Latent: a cutscene "replace armor" with "(none)" or an unknown item name, on a character wearing armour, decides whether to act from the memory just before the item table, so the armour may stay on | `script_action_replace_armor` `0x4dce60` | **Observed** code and retail data, *inferred* effect | No |
@@ -2198,8 +2198,13 @@ levels have up to 44 `$Ambient:` lines (`Lenele1aa.tbl`; `sewer.tbl` and `Liangs
 to the big towns fill the pool. After that `sound_emitter_find_free` returns -1, `sound_create_emitter`
 fails and `level_ambient_add` drops the sound (`0x4cd2a2`), and so does every ground effect sound
 (`fx_create_ground_effect` `0x48c584`). *Inferred:* loading a save leaves the level through the same
-`state_game_leave`, so it does not help. Not seen at runtime;
-an agent-mode test can watch `level_ambient_count` (`0x2491a58`) after entering Lenele1aa a few times.
+`state_game_leave`, so it does not help.
+
+**Reproduced 2026-10-18** (agent mode, a Lenele save; `level` between lenele1d (8 ambient sounds) and lenele1aa (44);
+the used emitters counted with `count 2f077b8 74 128 1`). Used emitters after each change: 48, 34, 74, 60, 100, 86,
+126, 112, then 128 with lenele1aa holding only 20 of its 44 ambient sounds (`level_ambient_count` 0x14). **Fixed** in
+SummonerFix (`bugfix.c`, switch `[Fixes] AmbientSounds`): the loop's `inc esi` (`0x4cccc9`) becomes a `nop`, so it
+removes record 0 until the table is empty. With the fix the same changes gave 44, 8, 44, 8, 44, 8.
 
 None.
 

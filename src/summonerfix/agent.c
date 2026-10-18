@@ -356,6 +356,17 @@ static void RunLine(char *line)
         Info();
     } else if (!_stricmp(c, "peek") && argc >= 2) {
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
+    } else if (!_stricmp(c, "count") && argc >= 5) {
+        // count ADDR STRIDE N MASK: how many of N records (STRIDE bytes apart, hex) have (first byte & MASK) != 0,
+        // e.g. count 2f077b8 74 128 1 for the used sound emitters.
+        const BYTE *p = (const BYTE *)(UINT_PTR)SumVa((DWORD)strtoul(argv[1], NULL, 16));
+        DWORD stride = (DWORD)strtoul(argv[2], NULL, 16);
+        int n = atoi(argv[3]), used = 0;
+        BYTE mask = (BYTE)strtoul(argv[4], NULL, 16);
+        for (int i = 0; i < n; i++)
+            if (p[i * stride] & mask)
+                used++;
+        Out("count %s: %d of %d", argv[1], used, n);
     } else if (!_stricmp(c, "k310")) {
         // k310: the TraceGlLights counters (faces on the unclipped lightmap path, how many had a coloured light).
         long faces, coloured;
