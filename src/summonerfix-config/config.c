@@ -113,6 +113,7 @@ static const FixOption k_fixes[] = {
     {"QpcFrequency", "Normal speed with a 4+ GHz timer"},
     {"ScreenshotNumbers", "Screenshots never overwrite each other"},
     {"EffectSearchGuard", "No crash in the Masad tutorial step"},
+    {"BossAnchorsAlive", "Murod leaps beside living heroes only"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

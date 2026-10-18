@@ -342,6 +342,8 @@
 #define VA_DS_PRIMARY_BUFFER 0x2f79e38u
 #define VA_DS3D_ENABLED 0x2f8f72cu
 #define VA_DS_EAX_ENABLED 0x2f798b4u
+#define VA_MUROD_LEAP_TAKE 0x4c51dbu        // mov [edi], eax ; inc ebx ; add edi, 4 in murod_start_leap
+#define VA_LUMINAR_TELEPORT_TAKE 0x4c9dd0u  // the same in luminar_teleport_out
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
@@ -858,6 +860,39 @@ __asm__(".text\n"
         "    ret\n"
         "1:\n"
         "    movl $1, %ecx\n"
+        "    ret\n");
+
+// Boss anchors on dead heroes (gameplay; game-bugs G253): Murod's leap picks among the party records with only a NULL
+// test, so it can land beside a dead hero (seen in game). The Luminar's list comes from the living list, which dead
+// heroes leave, so there only a dying one (0x8) can be taken. Replaces mov [edi], eax ; inc ebx ; add edi, 4 (6 bytes, entered by call + nop)
+// where murod_start_leap (0x4c51db) and luminar_teleport_out (0x4c9dd0) add a character to their candidate list:
+// with the fix a dead or dying character (+0x320 & 0x88) is left out. [Debug] TraceDeadAnchors logs those.
+__attribute__((used)) static volatile int g_anchorFix, g_anchorTrace;
+__attribute__((used)) static int __cdecl AnchorTake(const BYTE *ch)
+{
+    static volatile LONG logged;
+    BOOL dead = (*(const DWORD *)(ch + 0x320) & 0x88) != 0;
+    if (dead && g_anchorTrace && InterlockedIncrement(&logged) <= 40)
+        Log("trace boss anchors: candidate %p is dead or dying (flags 0x%lx)%s", (const void *)ch,
+            (unsigned long)*(const DWORD *)(ch + 0x320), g_anchorFix ? ", left out" : ", taken");
+    return !(dead && g_anchorFix);
+}
+void AnchorTakeStub(void);
+__asm__(".text\n"
+        "_AnchorTakeStub:\n"
+        "    pushl %ecx\n"
+        "    pushl %edx\n"
+        "    pushl %eax\n"
+        "    call _AnchorTake\n"
+        "    testl %eax, %eax\n"
+        "    popl %eax\n"
+        "    popl %edx\n"
+        "    popl %ecx\n"
+        "    jz 1f\n"
+        "    movl %eax, (%edi)\n"
+        "    incl %ebx\n"
+        "    addl $4, %edi\n"
+        "1:\n"
         "    ret\n");
 
 // Boss music presets (K130, K150), called from the two level inits.
@@ -1407,6 +1442,19 @@ void BugFixesInstall(void)
         PatchBytes(VA_FX_DISABLE_INSTANCE, o, r, 9, "effect search skips objects without an instance (C272)");
         static const BYTE jo[2] = {0x74, 0x2C}, jr[2] = {0x74, 0x1E}; // je 0x48d6bf -> je 0x48d6b1 (next object)
         PatchBytes(VA_FX_DISABLE_NO_BASE, jo, jr, 2, "effect search goes on past an effect without a base (C272)");
+    }
+    g_anchorFix = FixOn("BossAnchorsAlive");
+    g_anchorTrace = GetPrivateProfileIntA("Debug", "TraceDeadAnchors", 0, g_cfg.iniPath) != 0;
+    if (g_anchorFix || g_anchorTrace) {
+        static const BYTE o[6] = {0x89, 0x07, 0x43, 0x83, 0xC7, 0x04}; // mov [edi], eax ; inc ebx ; add edi, 4
+        const DWORD at[2] = {VA_MUROD_LEAP_TAKE, VA_LUMINAR_TELEPORT_TAKE};
+        for (int i = 0; i < 2; i++) {
+            BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+            DWORD rel = (DWORD)(UINT_PTR)AnchorTakeStub - (SumVa(at[i]) + 5);
+            memcpy(r + 1, &rel, 4);
+            PatchBytes(at[i], o, r, 6,
+                       g_anchorFix ? "Murod's leap and the Luminar's teleport skip dead heroes (G253)" : "trace boss anchors");
+        }
     }
     if (GetPrivateProfileIntA("Debug", "FakePrimaryBufferFailure", 0, g_cfg.iniPath)) {
         static const BYTE o[5] = {0xFF, 0x51, 0x0C, 0x85, 0xC0}; // call [ecx+0xc] ; test eax, eax
