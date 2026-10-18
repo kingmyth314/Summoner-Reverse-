@@ -220,6 +220,20 @@ to a float or the other way round: `blood_splot_place` (the decal position), `ca
 and two approach functions. Those need the original's instruction order to disappear (byte matching), and do not
 change what the game does in any way a player could see.
 
+**Bosses and spells (2026-10-18).** Three more fights with the party immortal (`poke 8ed970 1`): Luminar
+(`level IonaEXT02 IonaEXT02_v2`), the Serpent (`level rand-forest01 Rand-Forest01_v2`) and the Tentacle Beast
+(`level Sewerboss sewerboss`, `flag sewer_found_tb 0`, `navgoto $tbintro`). With coverage they brought the
+non-matching functions that have run to 466 of 895. Dual calls over the earlier 126 plus 20 functions these
+fights reach (the boss hooks and AI: `luminar_frame_hook`, `serpent_anim_remap_in`,
+`tentacle_beast_ai_select_action`, `tentacle_beast_ai_frame`, `tentacle_beast_frame_hook`,
+`boss_move_in_range_dispatch`; movement, head look, the avoidance splines, `character_equip_item`, the cutscene
+camera sampler, the snow effect, CRC, animation tangents, polygon clipping): 93, 84 and 116 functions the same in
+every checked call, every one of the 19 new ones that was called included. Besides the precision cases above, two
+functions differ in pointers inside freshly built paths (`approach_random_offset` in the Tentacle fight,
+`pf_graph_search` once in the Luminar fight): both call the path builder with the same arguments as the original,
+and its allocations come from the C runtime heap, which the checker leaves running, so the second call's blocks
+sit 8 or 16 bytes further on. That is the checker's limit, not a difference in the code.
+
 **Review (2026-10-18, advisor).** Checked after the first results:
 - Globals that stay in the DLL: two game variables with no address on their line got one
   (`ui_right_double_click_ok` 0x2cbfcd9, which replaced and original functions would otherwise each have kept

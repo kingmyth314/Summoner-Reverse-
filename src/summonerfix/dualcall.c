@@ -60,7 +60,8 @@ static struct {
 
 // Both calls see the same clock, so timers set from it and the AI's timing counters agree: during a check,
 // QueryPerformanceCounter, timeGetTime and GetTickCount run a virtual clock that starts where the real one stood
-// when the check began and advances one step per read (a wait loop still ends), restarted for the second call.
+// when the check began and advances with every read (the counter by one, the millisecond clocks by one per 256
+// reads, so a time budget does not run out early; a wait loop still ends), restarted for the second call.
 typedef BOOL(WINAPI *PFN_Qpc)(LARGE_INTEGER *);
 typedef DWORD(WINAPI *PFN_Ticks)(void);
 static PFN_Qpc g_realQpc;
@@ -79,11 +80,11 @@ static BOOL WINAPI Freeze_Qpc(LARGE_INTEGER *t)
 }
 static DWORD WINAPI Freeze_timeGetTime(void)
 {
-    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTgt + ++g_steps : g_realTgt();
+    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTgt + (++g_steps >> 8) : g_realTgt();
 }
 static DWORD WINAPI Freeze_GetTickCount(void)
 {
-    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTick + ++g_steps : g_realTick();
+    return g_freeze && GetCurrentThreadId() == (DWORD)g_freeze ? g_startTick + (++g_steps >> 8) : g_realTick();
 }
 
 // Start the virtual clock (first call) or restart it at the same point (second call).
