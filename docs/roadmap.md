@@ -156,6 +156,18 @@ Added 2026-10-16 at the user's request.
   game's own output, a cheats page in the config app, and a level-warp menu (`play_and_load_cutscene` with the
   return-to-menu bit cleared, see [Tools](tools.md)).
 
+### Game mechanics the developers left switched off
+
+- **The Tentacle Beast's grab and throw (G250).** Added 2026-10-18 at the user's request. The tentacles have a
+  complete grab, hold and throw in `Sum.exe` and in `Tentacle Beast.tbl` ("Luminar grab" / "Luminar throw"), but
+  the selection can never pick it (`frand() < 0` at `0x4c666d`..`0x4c667f`) and the pick would be discarded anyway
+  (`0x4c66a5`). The user suspects the developers switched it off on purpose. The dead code has its own slips: the
+  6-second hold tick heals the victim by 3 instead of hurting it (`push 0x40400000` at `0x4c714b`), and the release
+  uses the victim without a NULL test (`0x4c6b53`). The project: work out how the mechanic was meant to play (grab
+  chance, hold, throw, release on death, level end, cutscene and load), get every part working, and offer it as an
+  experimental SummonerFix switch, off by default. A detailed analysis is in progress; see
+  [Bugs in the original game](sum-exe/game-bugs.md) G250 and G251.
+
 ### After the code fully recompiles
 
 Once `src/decomp` builds a working `Sum.exe`, these become source changes instead of byte patches:
@@ -182,7 +194,11 @@ Once `src/decomp` builds a working `Sum.exe`, these become source changes instea
 - **World sounds too quiet with the default sound setting: done 2026-10-16** (SummonerFix `bugfix.c`, K260; the slider is now linear).
 - **Story state lost on load: no fix needed (2026-10-16).** G130 and G131 cannot happen in retail play: the game refuses saving in TempleINT2 once `mach_intro` is set and in the Jade Temple once `got_laharah_spirit` is set (`savegame_location_allowed`, tested in agent mode). See [Bugs](sum-exe/game-bugs.md).
 - **Flickering right bar after cutscenes: fixed 2026-10-16** (a SummonerFix bug, K280: the strip right of the centred menus was never cleared).
-- **Sounds cut off after a fade (candidate for SummonerFix, K294).** A sound that ends during its fade leaves the fade flag on its channel; the next sound on that channel is cut within 75 ms and the old DirectSound buffer leaks. `character_play_move`'s 100 ms fade makes it happen in normal play. A fix: wrap the `ds_channel_is_playing` call in `ds_channel_update_fade` (`0x55d6f8`) so a stopped channel also clears flag 8 and is released. To reproduce before fixing (the user's rule for fixes).
+- **Sounds cut off after a fade (candidate for SummonerFix, K294): not reproduced 2026-10-18** (only the music stream faded in 80 s of play and fighting; see the bug page). A sound that ends during its fade leaves the fade flag on its channel; the next sound on that channel is cut within 75 ms and the old DirectSound buffer leaks. `character_play_move`'s 100 ms fade makes it happen in normal play. A fix: wrap the `ds_channel_is_playing` call in `ds_channel_update_fade` (`0x55d6f8`) so a stopped channel also clears flag 8 and is released. To reproduce before fixing (the user's rule for fixes).
+- **Bug-fix pass 2026-10-17/18:** 42 fixes in SummonerFix `[Fixes]`, each with its own switch; the list is in
+  [SummonerFix](summonerfix/index.md) and [Bug fix priorities](sum-exe/bug-priorities.md). Decisions: G15 dice and K30
+  boss bars kept, leech drains (G100), party healers always heal and enemy healers a little more than before (G229),
+  K11 camera angle and K63 click reach kept, G250 moved to Future projects.
 - **Robe of Restoration heals the attacker: fixed 2026-10-16** (G300, reproduced in game first; SummonerFix `bugfix.c`).
 - **Print Screen above 1024 rows (C290): avoided 2026-10-16.** With `GameHeight` above 1024 SummonerFix switches screenshots to Targa. Not tested in game.
 - **Brightness under OpenGL: done 2026-10-16** (SummonerFix `gamma.c`, K90): a shader pass, with the monitor gamma ramp as the fallback; the user chose the most compatible option with a small cost.

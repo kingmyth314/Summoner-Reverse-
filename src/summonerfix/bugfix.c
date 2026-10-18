@@ -209,8 +209,10 @@
 // AI healers often cast nothing (gameplay; game-bugs G229). ai_choose_support_spell turns the candidates' scores into
 // shares and takes the first candidate whose own share is at least one random number, so with two equal candidates
 // it heals half the time, with three a third. Fix ([Fixes] SupportSpellPick): the pick loop (0x4beb46) jumps to a stub
-// that compares the number with the running sum of the shares, as ai_consider_blind_or_silence does, so a candidate
-// is always chosen when there is one, each with the chance of its share.
+// that compares the number with the running sum of the shares, as ai_consider_blind_or_silence does, so a party
+// healer always chooses a candidate when there is one, each with the chance of its share. Enemy healers (the project
+// owner's choice, 2026-10-18) get a smaller gain: the game's own pick, and when that picks nobody the running-sum pick
+// half of the time.
 //
 // Start-up crash when the primary sound buffer cannot be created (crash; game-bugs C2). ds_init's failure branch
 // releases DirectSound, stores NULL and, with 3D sound, retries CreateSoundBuffer through that NULL pointer
@@ -344,6 +346,7 @@
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
 #define VA_FX_DISABLE_NO_BASE 0x48d691u     // je 0x48d6bf (no effect base: ends the search)
 #define VA_SUPPORT_PICK_TAKE 0x4beb6eu      // cmp ecx, -1 (the pick, or none)
+#define VA_FRAND_FIX 0x5426e0u              // cdecl () -> float in [0, 1)
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -656,17 +659,29 @@ __attribute__((used)) static volatile int g_supportPick;
 static BOOL g_supportPickTrace;
 __attribute__((used)) static void __cdecl SupportPickRunning(const BYTE *list, int n, float r)
 {
+    // Each candidate record is 0x10 bytes: the character at +0, the share at +8. Party members (type 7) mean the
+    // healer is on the player's side: it gets the running sum. An enemy healer keeps the game's own pick and, when
+    // that picks nobody, gets the running-sum pick only half of the time (a smaller gain than the player's).
     float sum = 0.0f;
-    g_supportPick = -1;
+    int running = -1, original = -1;
     for (int i = 0; i < n; i++) {
-        sum += *(const float *)(list + 8 + 16 * i);
-        if (r <= sum) {
-            g_supportPick = i;
-            break;
-        }
+        float share = *(const float *)(list + 8 + 16 * i);
+        sum += share;
+        if (running < 0 && r <= sum)
+            running = i;
+        if (original < 0 && r <= share)
+            original = i;
+    }
+    const BYTE *first = n > 0 ? *(const BYTE *const *)list : NULL;
+    BOOL partySide = first && *(const int *)(first + 0xc) == 7;
+    if (partySide || original >= 0) {
+        g_supportPick = partySide ? running : original;
+    } else {
+        float coin = ((float(__cdecl *)(void))(UINT_PTR)SumVa(VA_FRAND_FIX))();
+        g_supportPick = coin < 0.5f ? running : -1;
     }
     if (g_supportPickTrace)
-        Log("trace support pick: the fix takes %d", g_supportPick);
+        Log("trace support pick: the fix takes %d (%s)", g_supportPick, partySide ? "party healer" : "enemy healer");
 }
 void SupportPickStub(void);
 __asm__(".text\n"

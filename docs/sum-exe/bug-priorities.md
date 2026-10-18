@@ -101,11 +101,11 @@ for those the fix also needs a decision on what the game should do.
 | 29 | C200 | LAN game list leaks a player record per visit; the fifth visit after four Create Game / Cancel rounds crashes | 2 | 4 | Options: LAN; Multiplayer, then Create Game and Cancel four times. Menus only, no second machine | small | 8 |
 | 30 | G5 | **Withdrawn 2026-10-17: cannot happen** (521 item types, 521 inventory entries: a full inventory holds every type). Was: Buying with a full inventory (521 item types) takes the gold and gives nothing | 2 | 4 | Fill the inventory with `savedit.mjs`, buy an item type not yet held | small | 8 |
 | 31 | K12 | Container pickup list scrollbar thumb is full height and runs past the track when scrolled | 2 | 4 | Open a container with more than a page of items | small | 8 |
-| 32 | K63 | Character click radius compares a squared distance with a plain radius | 2 | 4 | Click beside small and large characters; log picks | small | 8 |
+| 32 | K63 | **Kept by decision 2026-10-18** (the longer reach is fine). Character click radius compares a squared distance with a plain radius | 2 | 4 | Click beside small and large characters; log picks | small | 8 |
 | 33 | K110 | Each level leave frees only half the ambient emitters; after enough changes levels lose ambient sounds | 2 | 4 | Change levels repeatedly; count used `sound_emitters` with `peek` | small | 8 |
 | 34 | K131 | **Withdrawn 2026-10-18: cannot happen** (the game refuses saving in the last temple level once the narration has ended; see game-bugs, "Claims that did not hold"). Was: Each load of a save in the last temple level replays the 29 s narration | 2 | 4 | Warp to the last temple level, save, load | small | 8 |
 | 35 | K191 | Releasing a drag at the screen edge starts the edge camera turn at once | 2 | 4 | Drag with the left button to the edge, release | small | 8 |
-| 36 | G250 | Tentacle Beast never grabs or throws (chance below zero, pick discarded); the dead code has more slips | 2 | 4 | Warp to the Tentacle Beast; confirm no grab in a long fight | medium | 8 |
+| 36 | G250 | **Future project 2026-10-18** (probably disabled on purpose; see Roadmap). Tentacle Beast never grabs or throws (chance below zero, pick discarded); the dead code has more slips | 2 | 4 | Warp to the Tentacle Beast; confirm no grab in a long fight | medium | 8 |
 | 37 | G6 | At game stages 4-8 the Zane grassland encounter case falls through and is overwritten | 2 | 3 | `gamestage` 4-8, roll world map encounters; check the chosen level by `peek` | tiny | 6 |
 | 38 | G32 | Mounted-rider test reads the Serpent's stage for the Phoenix and never sees the Ghost as mounted | 2 | 3 | Phoenix fight on `rand-hills01`; set `serpent_stage` by `poke`, watch party styles | tiny | 6 |
 | 39 | G132 | Liangshan's wave 4 tests only two of the three wave-3 enemies | 2 | 3 | Warp to Liangshan, kill #w3b and the mage first | tiny | 6 |
@@ -159,7 +159,7 @@ for those the fix also needs a decision on what the game should do.
 | 87 | G241 | Enemy casters decide meteor storm / inferno from unwritten stack distances | 2 | 2 | Fight an enemy caster with meteor storm; log the area-spell test | small | 4 |
 | 88 | G242 | Layer-crossing search uses dx twice (no dz), so paths can pick the wrong floor layer | 2 | 2 | Needs a level with stacked layers and a move across two edges | small | 4 |
 | 89 | G271 | Effect slots keep their old spell number, so AI skips fireball while no fire spell burns | 2 | 2 | Needs a status holder to reuse a fireball slot; log `fx` slots | small | 4 |
-| 90 | K11 | Dialogue camera side offset uses an uninitialised y | 2 | 2 | Talk to NPCs; compare camera positions | small | 4 |
+| 90 | K11 | **Kept by decision 2026-10-18** (the camera angle stays). Dialogue camera side offset uses an uninitialised y | 2 | 2 | Talk to NPCs; compare camera positions | small | 4 |
 | 91 | K294 | A sound that ends during a fade leaves the channel flagged; the next sound there is cut off | 2 | 2 | Needs a fade that outlives its sound; log channels | small | 4 |
 | 92 | C4 | No bound on the 300-entry lamp glow table | 1 | 4 | `poke` `lamp_glow_count` near 300, then enter a level with glowing effects | small | 4 |
 | 93 | C5 | No bound on the 175-entry cutscene saved-actor table | 1 | 4 | Spawn many characters (memory) before a cutscene, or a modded level | small | 4 |

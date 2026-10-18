@@ -993,7 +993,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G241 | Enemy casters decide whether to cast meteor storm or inferno from stale stack values instead of the party members' distances | `ai_combat_cast_frame` `0x4bfaa0`, `ai_consider_area_spell` `0x4befe0` | **Observed** code and in game (2026-10-18), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] AreaSpellDistances`) |
 | G242 | When a straight move crosses more than one layer-transition edge, the game takes the crossing nearest in x only, which can put a path, a walk test or a scripted avoid spline on the wrong floor layer | `pf_first_edge_crossing` `0x4a53d0` | **Observed** code, *inferred* effect | No |
 | G243 | Latent: when a new avoidance obstacle that merges two or three avoidance polygons cannot be clipped against the walls, all but the first merged polygon keep their corners switched off, so paths no longer go around those areas until they are rebuilt | `avoid_create_obstacle_polys` `0x4a9440` | **Observed** code, *inferred* effect | No |
-| G250 | The Tentacle Beast's tentacles never pick up and throw a party member, although the move ("Luminar grab" / "Luminar throw") is in `Tentacle Beast.tbl`; they only swipe and squeeze | `tentacle_beast_ai_select_action` `0x4c6520` | **Observed** code and retail data, *inferred* effect | No |
+| G250 | The Tentacle Beast's tentacles never pick up and throw a party member, although the move ("Luminar grab" / "Luminar throw") is in `Tentacle Beast.tbl`; they only swipe and squeeze | `tentacle_beast_ai_select_action` `0x4c6520` | **Observed** code and retail data, *inferred* effect | No (likely disabled on purpose; a future project, see [Roadmap](../roadmap.md#future-projects)) |
 | G251 | Latent: a tentacle swipe that hits five party members at once makes that tentacle unkillable: at 0 HP it never plays its death move or counts as lost | `tentacle_collect_area_hits` `0x4c77c0`, `tentacle_beast_check_stage` `0x4c7360` | **Observed** code, *inferred* effect | No |
 | G252 | After the first 5 s of the fight, Murod Oni may switch to a backward bite at a hero behind it on every think (30% each time), not once per timer period | `murod_oni_ai_select_action` `0x4c5de0` | **Observed** code and retail data, *inferred* effect | No |
 | G253 | Murod's leap can land him beside a dead party member, and the Luminar's teleport can bring it next to a dead hero and make that hero its target | `murod_start_leap` `0x4c51a0`, `luminar_teleport_out` `0x4c9da0` | **Observed** code, *inferred* effect | No |
@@ -1619,7 +1619,12 @@ branch before the pick, so two is the case that reaches it.) In 19 logged picks 
 of the two. **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] SupportSpellPick`): the pick loop (`0x4beb46`)
 jumps to a stub that compares the number with the running sum. With the fix, 13 picks in the same set-up each
 chose a candidate ("the fix takes 1" / "3"), including the 7 where the original rule takes none. AI healers,
-Rosalind on AI and enemy healers alike, now heal more often than in the original game.
+Rosalind on AI, now heal whenever they decide to.
+
+**Enemy healers (2026-10-18, the project owner's choice):** players keep the full fix, enemies get a smaller gain. The
+stub tells the sides apart by the candidates (party members are type 7): an enemy healer keeps the game's own pick,
+and when that picks nobody it takes the running-sum pick half of the time (`frand() < 0.5`). In a re-run of the same
+fight all 11 picks were recognised as the party healer's; an enemy healer's pick has not been seen in game yet.
 
 **G240. Scores that are added to, not set.** `ai_consider_life_drain` (Wraith, species `0xb9`) adds the running
 total to each record's `+0x08` (`fld st(0); fadd [eax+8]; fstp [eax+8]` at `0x4bf66f`..`0x4bf674`) where the other
@@ -1797,7 +1802,7 @@ retail script sends a go that early was not checked. D8602.
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
-| K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code and in game (2026-10-18) | No (left as the players know it; ask) |
+| K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code and in game (2026-10-18) | No (kept: the project owner keeps the camera angle, 2026-10-18) |
 | K12 | In a container's pickup list, the scrollbar thumb fills the whole track and runs past its end | `pickup_update_scrollbar` `0x420850` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] PickupScrollbar`) |
 | K13 | In the multiplayer level select, the player list's hover and click rows drift from the drawn names | `mp_levelselect_handle_click` `0x41c450` | **Observed** code | No |
 | K14 | The PXO chat banner is never clickable | `pxo_parse_chat_banners_cfg` `0x4223d0` | **Observed** code | No |
@@ -1815,7 +1820,7 @@ retail script sends a go that early was not checked. D8602.
 | K60 | With the Direct3D renderer, the depth clear misses the last column and the last row of the clip area, so those pixels keep the previous frame's depth | `gr_d3d_zbuffer_clear` `0x5355e0` | **Observed** code, *inferred* effect | No |
 | K61 | A dropped item's 5-second highlight gets no blue at all: it is yellow instead of the pale gold in the data | `world_tint_gold_object` `0x43a600` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] LootHighlightColour`) |
 | K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
-| K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
+| K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No (kept: the project owner finds the longer reach fine, 2026-10-18) |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 | K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] KnockDownMessage`) |
 | K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | Fixed (`gamma.c`) |
