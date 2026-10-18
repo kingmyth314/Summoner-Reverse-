@@ -101,6 +101,7 @@ static const FixOption k_fixes[] = {
     {"AmbientSounds", "Ambient sounds survive level changes"},
     {"PickupScrollbar", "Container scrollbar stays in its track"},
     {"EdgeTurnAfterDrag", "No edge turn right after a drag"},
+    {"LootHighlightColour", "Loot flashes pale gold, not yellow"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

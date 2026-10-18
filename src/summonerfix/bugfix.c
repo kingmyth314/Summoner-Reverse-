@@ -166,6 +166,10 @@
 // calls a stub that swaps the byte and hands back last frame's bit, and the right-edge reload (0x43470a) reads that
 // copy, so the test is "held last frame, not held now" and the turn waits until the cursor leaves the edge.
 //
+// Loot highlight has no blue (cosmetic; game-bugs K61). world_tint_gold_object passes the colour at 0x594424 (0.98,
+// 1.0, 0.51) but reads blue from 0x594430, the string "gold" (about 1.7e22 as a float), which the mesh renderers turn
+// into 0. Fix ([Fixes] LootHighlightColour): mov ecx, [0x594430] at 0x43a62e reads 0x59442c.
+//
 // A ring power of exactly 60,000 (cosmetic; game-bugs K100). character_can_use_summon unlocks a ring's higher summon
 // above 60,000 (jle at 0x447390), ring_check_summon_unlock announces it when the new total is above 60,000 (jle at
 // 0x45023a), and ring_format_info lists it from 60,000 on. A gain landing on exactly 60,000 gets no message (and the
@@ -247,6 +251,7 @@
 #define VA_CAMERA_EDGE_STORE 0x4346f1u      // mov [0x5fccb7], al in camera_process_input
 #define VA_CAMERA_EDGE_RELOAD 0x43470au     // mov al, [0x5fccb7] (right-edge path, after gr_screen_width)
 #define VA_CAMERA_EDGE_HELD 0x5fccb7u       // byte: left button held for a drag, last stored
+#define VA_GOLD_TINT_BLUE 0x43a62eu         // mov ecx, [0x594430] (blue) in world_tint_gold_object
 #define VA_ITEM_IS_IDENTIFIED 0x44b690u     // cdecl (item) -> bool
 #define VA_PARTY_INVENTORY 0x970824u        // 8-byte records, item pointer first
 #define VA_BUYSELL_SELL_CATEGORY 0x404f98u // sell branch of buysell_category_first_index (mov eax, [buysell_list_count])
@@ -894,6 +899,11 @@ void BugFixesInstall(void)
         memcpy(rr + 1, &prev, 4);
         if (PatchBytes(VA_CAMERA_EDGE_STORE, so, sr, 5, "edge turn held back after a drag ends at the edge (K191)"))
             PatchBytes(VA_CAMERA_EDGE_RELOAD, ro, rr, 5, "edge turn: right edge reads last frame's drag bit (K191)");
+    }
+
+    if (FixOn("LootHighlightColour")) {
+        static const BYTE o[6] = {0x8B, 0x0D, 0x30, 0x44, 0x59, 0x00}, r[6] = {0x8B, 0x0D, 0x2C, 0x44, 0x59, 0x00};
+        PatchBytes(VA_GOLD_TINT_BLUE, o, r, 6, "loot highlight reads its blue, not the string \"gold\" (K61)");
     }
 
     if (FixOn("PhoenixInferno")) {

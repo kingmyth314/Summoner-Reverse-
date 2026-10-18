@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 57 | 36 | 18 |
+| Cosmetic | 57 | 36 | 19 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1761,7 +1761,7 @@ retail script sends a go that early was not checked. D8602.
 | K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
 | K52 | Latent: `help change_texture_res` (or `? change_texture_res`) switches the low-resolution textures on or off | `cmd_change_texture_res` `0x501c90` | **Observed** code | No |
 | K60 | With the Direct3D renderer, the depth clear misses the last column and the last row of the clip area, so those pixels keep the previous frame's depth | `gr_d3d_zbuffer_clear` `0x5355e0` | **Observed** code, *inferred* effect | No |
-| K61 | A dropped item's 5-second highlight gets no blue at all: it is yellow instead of the pale gold in the data | `world_tint_gold_object` `0x43a600` | **Observed** code, *inferred* effect | No |
+| K61 | A dropped item's 5-second highlight gets no blue at all: it is yellow instead of the pale gold in the data | `world_tint_gold_object` `0x43a600` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] LootHighlightColour`) |
 | K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
 | K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
@@ -2066,6 +2066,13 @@ without a clamp (Direct3D `0x50c8f2`..`0x50c90c`, OpenGL `0x50d3f3`..`0x50d40e`)
 is 0. The highlight is started for 5 s by `hud_set_timed_highlight`, whose only caller is `monster_drop_loot`
 (`0x45306f`). *Inferred:* every loot drop flashes yellow (red and green only) instead of a pale gold. Any renderer
 that goes through these mesh paths. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**Reproduced 2026-10-18** (agent mode, OpenGL: a loot bag from `bag 3`, its highlight started with
+`hud_set_timed_highlight(handle)`, the mouse away from it; mean colour of the bag's pixels in frame captures). Unlit
+by the highlight the bag was R 66.6 G 51.6 B 33.8. Highlighted, blue fell to 0.1 in every capture while red and
+green pulsed (R 55.6..93.9). **Fixed** in SummonerFix (`bugfix.c`, switch `[Fixes] LootHighlightColour`): the load
+at `0x43a62e` reads `0x59442c`. With the fix the highlighted bag kept its blue at the data's ratio (for example R
+82.1 G 65.2 B 22.1: B / R 0.27 against 0.51 unlit, times the colour's 0.51).
 
 **K62. The reason pointer is a shared buffer.** For `KICK <channel> <nick> :<reason>`, the parser copies word 0
 (channel) and word 1 (nick) into stack buffers (`0x4ace72`..`0x4ace9b`, `0x4acea4`..`0x4acecd`) but keeps word 2
