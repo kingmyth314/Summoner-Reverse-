@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 6 | 82 | 4 |
 | Gameplay | 48 | 25 | 18 |
-| Cosmetic | 58 | 36 | 12 |
+| Cosmetic | 58 | 36 | 13 |
 | Invisible | 42 | 58 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -1740,7 +1740,7 @@ retail script sends a go that early was not checked. D8602.
 | K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code | No |
 | K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code | No |
 | K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
-| K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code, *inferred* effect | No |
+| K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MapLabelLimit`) |
 | K7 | A character missing from the font is drawn as a garbage glyph | `gr_string` `0x508c60` | **Observed** code, *inferred* effect | No |
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
 | K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
@@ -1867,6 +1867,11 @@ writes over label 0. The other three callers make the same test: `automap_labels
 every label after the 32nd in `automap_labels.tbl` goes into label 0; the retail table has none),
 `automap_labels_reset_default` (`0x430342`, console command `reset_map_labels` only) and
 `savegame_read_automap_labels` (`0x4d3806`).
+
+**Reproduced 2026-10-17** in agent mode by calling `automap_label_alloc` directly (`calli 430230 0`) with
+`automap_num_labels` set to 31 by `poke`: the 32nd call returned 31 and the 33rd returned 0. **Fixed** in SummonerFix
+(`bugfix.c`, switch `[Fixes] MapLabelLimit`): `xor eax, eax` -> `or eax, -1` at `0x430245`, so the 33rd returned -1
+and every caller refuses the label. Adding 33 labels through the map screen was not tried.
 
 **K7. No check for -1.** `gr_font_get_char` returns -1 for a character outside the font (`or eax, -1` at
 `0x508503`). `gr_string` uses the result as an index without a test (`mov edx, [edx+4*eax]` at `0x508d21`).

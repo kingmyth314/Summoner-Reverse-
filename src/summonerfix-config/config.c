@@ -95,6 +95,7 @@ static const FixOption k_fixes[] = {
     {"MountedRiders", "AI sees mounted Phoenix / Ghost"},
     {"BossMusic", "Boss music starts and ends"},
     {"RingSixtyThousand", "Ring summons from 60,000 power"},
+    {"MapLabelLimit", "33rd map label is refused"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 

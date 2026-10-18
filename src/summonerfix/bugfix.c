@@ -142,6 +142,11 @@
 // next gain starts at 60,000, so none ever comes), and the pop-up offers a summon that cannot be cast. Fix ([Fixes]
 // RingSixtyThousand): both jle become jl, so all three agree on 60,000 or more.
 //
+// The 33rd map label overwrites the first (cosmetic; game-bugs K6). automap_label_alloc returns 0 instead of -1 when all
+// 32 labels are used (xor eax, eax at 0x430245); its four callers test for a negative result, so they write over
+// label 0. Fix ([Fixes] MapLabelLimit): or eax, -1 ; ret (the padding after the function takes the extra byte), so a
+// 33rd label is refused instead.
+//
 // Boss music never switched (cosmetic; game-bugs K130, K150). Two level scripts preset their "done" bytes to 1 on every
 // entry, so the branches they guard never run: Liangshan's ls_liangshan_phoenix_dead_done (0x4f49be), which puts
 // the level music back once both riders are dead, and the Ikaemos upper hall's found_boss_done / boss_killed_done
@@ -200,7 +205,8 @@
 #define VA_SAVELOAD_ENTRIES 0x5e3620u       // saveload_entries (0x130 bytes each)
 #define VA_SAVE_THUMB_LOAD_TEST 0x425c61u   // test al, al ; je ; test ebx, ebx ; jle in saveload_load_thumbnail
 #define VA_SAVE_THUMB_DRAW_ROW 0x426fdau    // mov eax, [saveload_selected_row] in saveload_draw_thumbnail
-#define VA_CAN_USE_SUMMON_60K 0x447390u     // jle after cmp eax, 60000 in character_can_use_summon
+#define VA_MAP_LABEL_FULL 0x430245u         // xor eax, eax ; ret (+ nop) in automap_label_alloc
+#define VA_CAN_USE_SUMMON_60K 0x447390u    // jle after cmp eax, 60000 in character_can_use_summon
 #define VA_SUMMON_UNLOCK_60K 0x45023au      // jle after cmp [new total], 60000 in ring_check_summon_unlock
 #define VA_LIANGSHAN_PRESET 0x4f49beu      // mov byte [ls_liangshan_phoenix_dead_done], 1 in ls_liangshan_init
 #define VA_LIANGSHAN_DEAD_DONE 0x257ea61u
@@ -690,6 +696,11 @@ void BugFixesInstall(void)
         static const BYTE uo[2] = {0x0F, 0x8E}, ur[2] = {0x0F, 0x8C};                  // jle -> jl (ring_check_summon_unlock)
         PatchBytes(VA_CAN_USE_SUMMON_60K, co, cr, 2, "ring summons from 60,000 on (K100)");
         PatchBytes(VA_SUMMON_UNLOCK_60K, uo, ur, 2, "ring summons from 60,000 on (K100)");
+    }
+
+    if (FixOn("MapLabelLimit")) {
+        static const BYTE o[4] = {0x33, 0xC0, 0xC3, 0x90}, r[4] = {0x83, 0xC8, 0xFF, 0xC3}; // xor eax,eax; ret -> or eax,-1; ret
+        PatchBytes(VA_MAP_LABEL_FULL, o, r, 4, "a 33rd map label is refused, not written over the first (K6)");
     }
 
     if (FixOn("PhoenixInferno")) {
