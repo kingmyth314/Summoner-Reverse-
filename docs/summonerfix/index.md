@@ -106,11 +106,17 @@ to get the proxy loaded.
 Added 2026-10-17 (owner's decision). Every fix in `bugfix.c` that changes how the game plays, sounds or looks
 has a line in `summonerfix.ini [Fixes]`: 1 (the default, also when the line or the section is missing) applies the
 fix, 0 leaves the original game's behaviour. They are read when the game starts; `summonerfix.log` notes each
-one that is off. The no-sound-device crash fix is always on. `SummonerFixConfig.exe` shows them as checkboxes in a
-"Bug fixes" column (saved with **Save options**).
+one that is off. The no-sound-device crash fix is always on. `Enabled=0` turns all of them off at once, whatever
+their own lines say (added 2026-10-17, owner's design).
+
+`SummonerFixConfig.exe` shows one checkbox, **Fix bugs in the original game** (`Enabled`, saved with **Save
+options**), and a **Choose fixes...** button. That opens a second window with a checkbox per fix, saved with its own
+**Save** button. Tested 2026-10-17: unticking one fix and saving wrote its key as 0, unticking the main box and
+saving options wrote `Enabled=0`, and the game then applied none of the 20 fixes (the crash fix still patched).
 
 | Key | Fix |
 |---|---|
+| `Enabled` | 0 = none of the fixes below (default 1) |
 | `RobeOfRestoration` | The Robe of Restoration heals its wearer ([G300](../sum-exe/game-bugs.md)) |
 | `WorldSoundVolume` | World sounds follow the sound-effects slider linearly ([K260](../sum-exe/game-bugs.md)) |
 | `OpenGLTextures` | Full-detail textures on a fresh OpenGL install ([K64](../sum-exe/game-bugs.md)) |

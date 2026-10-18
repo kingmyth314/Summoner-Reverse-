@@ -45,7 +45,7 @@ static const Hotkey k_hotkeys[] = {
 #define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
 
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
-       ID_CONSOLE_CMD, ID_CONSOLE_BIND };
+       ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -66,6 +66,8 @@ static const NumOption k_numOptions[] = {
 #define NUM_OPTION_COUNT (int)(sizeof k_numOptions / sizeof k_numOptions[0])
 
 // [Fixes] Key=0|1 (src/summonerfix/bugfix.c FixOn): fixes for original-game bugs, default on, read at game start.
+// [Fixes] Enabled=0 turns them all off at once (the main window's checkbox); the second window (Choose fixes...)
+// switches single fixes.
 #define ID_FIX0 300
 typedef struct { const char *iniKey, *label; } FixOption;
 static const FixOption k_fixes[] = {
@@ -94,7 +96,7 @@ static const FixOption k_fixes[] = {
 
 static char g_ini[MAX_PATH];
 static Bindings g_b; // physical key/button -> game key/button
-static HWND g_wnd, g_list, g_status;
+static HWND g_wnd, g_list, g_status, g_fixWnd;
 static HHOOK g_hook, g_mouseHook;
 static int g_capturing = -1; // action row waiting for a key
 
@@ -512,8 +514,7 @@ static void LoadOptions(void)
         GetPrivateProfileStringA("Game", k_numOptions[i].iniKey, "", v, sizeof v, g_ini);
         SetDlgItemTextA(g_wnd, k_numOptions[i].id, v);
     }
-    for (int i = 0; i < FIX_COUNT; i++)
-        CheckDlgButton(g_wnd, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(g_wnd, ID_FIXALL, GetPrivateProfileIntA("Fixes", "Enabled", 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void ApplyOptions(void)
@@ -529,8 +530,7 @@ static void ApplyOptions(void)
         }
         WritePrivateProfileStringA("Game", k_numOptions[i].iniKey, v, g_ini);
     }
-    for (int i = 0; i < FIX_COUNT; i++)
-        WritePrivateProfileStringA("Fixes", k_fixes[i].iniKey, IsDlgButtonChecked(g_wnd, ID_FIX0 + i) ? "1" : "0", g_ini);
+    WritePrivateProfileStringA("Fixes", "Enabled", IsDlgButtonChecked(g_wnd, ID_FIXALL) ? "1" : "0", g_ini);
     SetStatus("Options saved. The speed key mode applies at once; the others the next time the game starts.");
 }
 
@@ -547,6 +547,61 @@ static HWND Button(HWND parent, int id, const char *text, int x, int y, int w)
                            (HMENU)(INT_PTR)id, NULL, NULL);
     SendMessageA(b, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
     return b;
+}
+
+// The "Choose fixes" window: one checkbox per [Fixes] key, saved with its own Save button.
+#define FIX_WND_W 330
+static LRESULT CALLBACK FixWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    (void)lp;
+    switch (msg) {
+    case WM_CREATE: {
+        Label(w, "Fixes for bugs in the original game. Unticked = as the", 10, 10, FIX_WND_W - 20);
+        Label(w, "original game. Read when the game starts.", 10, 26, FIX_WND_W - 20);
+        for (int i = 0; i < FIX_COUNT; i++) {
+            HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, 50 + i * 20,
+                                    FIX_WND_W - 20, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
+            SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+            CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+        }
+        int y = 56 + FIX_COUNT * 20;
+        if (!IsDlgButtonChecked(g_wnd, ID_FIXALL))
+            Label(w, "\"Fix bugs in the original game\" is off: none apply.", 10, y, FIX_WND_W - 20);
+        Button(w, ID_FIXSAVE, "&Save", 10, y + 22, 100);
+        Button(w, ID_FIXCLOSE, "Close", 120, y + 22, 100);
+        return 0;
+    }
+    case WM_COMMAND:
+        if (LOWORD(wp) == ID_FIXSAVE) {
+            for (int i = 0; i < FIX_COUNT; i++)
+                WritePrivateProfileStringA("Fixes", k_fixes[i].iniKey, IsDlgButtonChecked(w, ID_FIX0 + i) ? "1" : "0", g_ini);
+            SetStatus("Bug fix choices saved. They apply the next time the game starts.");
+            DestroyWindow(w);
+        } else if (LOWORD(wp) == ID_FIXCLOSE) {
+            DestroyWindow(w);
+        }
+        return 0;
+    case WM_DESTROY:
+        g_fixWnd = NULL;
+        return 0;
+    }
+    return DefWindowProcA(w, msg, wp, lp);
+}
+
+static void OpenFixWindow(void)
+{
+    if (g_fixWnd) {
+        SetForegroundWindow(g_fixWnd);
+        return;
+    }
+    RECT r = {0, 0, FIX_WND_W, 56 + FIX_COUNT * 20 + 60};
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    AdjustWindowRect(&r, style, FALSE);
+    RECT m;
+    GetWindowRect(g_wnd, &m);
+    g_fixWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixFixes", "SummonerFix - Bug fixes", style, m.left + 40, m.top + 40,
+                               r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
+    ShowWindow(g_fixWnd, SW_SHOW);
 }
 
 static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
@@ -598,12 +653,12 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             Label(w, k_numOptions[i].hint, 606, y + 19, 140);
         }
         Label(w, "Bug fixes (next game start):", 770, 125, 230);
-        for (int i = 0; i < FIX_COUNT; i++) {
-            HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 770, 143 + i * 20,
-                                    230, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
-            SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-        }
-        Label(w, "Off = as the original game.", 770, 147 + FIX_COUNT * 20, 230);
+        cb = CreateWindowA("BUTTON", "Fix bugs in the original game", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 770, 143, 230, 20,
+                           w, (HMENU)(INT_PTR)ID_FIXALL, NULL, NULL);
+        SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        Button(w, ID_FIXLIST, "C&hoose fixes...", 770, 168, 120);
+        Label(w, "Off = as the original game. Saved with", 770, 202, 230);
+        Label(w, "Save options.", 770, 218, 230);
         Button(w, ID_APPLY, "Save &options", 540, 320, 120);
         Label(w, "Console command for a key:", 540, 372, 200);
         HWND ce = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 540, 390, 200, 22,
@@ -611,7 +666,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         SendMessageA(ce, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
-        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 610, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
+        g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
         LoadConsoleKeys();
@@ -634,6 +689,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_CLEAR: ClearRow(); break;
         case ID_RESET: ResetAll(); break;
         case ID_APPLY: ApplyOptions(); break;
+        case ID_FIXLIST: OpenFixWindow(); break;
         case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
         }
@@ -663,7 +719,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpszClassName = "SummonerFixConfig";
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     RegisterClassA(&wc);
-    RECT r = {0, 0, 1010, 640};
+    wc.lpfnWndProc = FixWndProc;
+    wc.lpszClassName = "SummonerFixFixes";
+    RegisterClassA(&wc);
+    wc.lpszClassName = "SummonerFixConfig"; // the main window below is created by this name
+    RECT r = {0, 0, 1010, 540};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     g_wnd = CreateWindowExA(WS_EX_TOPMOST, wc.lpszClassName, "SummonerFix - Key bindings and options", style, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -671,7 +731,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     ShowWindow(g_wnd, show);
     MSG m;
     while (GetMessageA(&m, NULL, 0, 0) > 0) {
-        if (!IsDialogMessageA(g_wnd, &m)) {
+        if (!IsDialogMessageA(g_wnd, &m) && !(g_fixWnd && IsDialogMessageA(g_fixWnd, &m))) {
             TranslateMessage(&m);
             DispatchMessageA(&m);
         }

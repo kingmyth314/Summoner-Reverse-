@@ -1739,7 +1739,7 @@ retail script sends a go that early was not checked. D8602.
 | K18 | Latent: paging out the popup model slot 18 can drop another slot's item model | `item_page_out_all` `0x46ca50` | **Observed** code, *inferred* effect | No |
 | K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | No |
 | K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code, retail data and in game (2026-10-16, `[Debug] TraceHitVfx`) | Fixed (`bugfix.c`) |
-| K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No |
+| K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No: left as it is (decided 2026-10-17) |
 | K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code, *inferred* effect | No |
 | K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
 | K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
@@ -1955,6 +1955,8 @@ Titus and Pyrul 3 (the riders, Murod, Murod Oni and Evil Joseph return the size 
 `character_has_line_of_sight_to` / `_to_point`, `character_find_overlap`, `script_guard_sees_player`, the
 conversation camera and the script editor. *Inferred:* the visible part is the bar and text placement and
 picking; the line-of-sight and overlap use may also change what a boss can see or touch, which was not traced.
+**Decision 2026-10-17:** SummonerFix leaves this as it is. The low bar may be deliberate (it keeps tall bosses' health
+bars on screen), and a fix would also change line of sight and overlap.
 
 **K40. Remove returns at the limit.** `savegame_automap_label_remove` returns at once when the list holds 128 labels
 (`cmp eax, 0x80; jge` at `0x4d13ca`), and so does `savegame_automap_labels_reset_level` (`0x4d1526`). The test was

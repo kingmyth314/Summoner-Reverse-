@@ -357,8 +357,13 @@ __asm__(".text\n"
         "    ret\n");
 
 // [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
+// [Fixes] Enabled=0 (the config app's "Fix bugs in the original game") turns every one of them off.
 static BOOL FixOn(const char *key)
 {
+    if (!GetPrivateProfileIntA("Fixes", "Enabled", 1, g_cfg.iniPath)) {
+        Log("fix %s is off ([Fixes] Enabled=0)", key);
+        return FALSE;
+    }
     if (GetPrivateProfileIntA("Fixes", key, 1, g_cfg.iniPath))
         return TRUE;
     Log("fix %s is off ([Fixes] %s=0)", key, key);
