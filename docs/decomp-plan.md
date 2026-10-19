@@ -348,7 +348,7 @@ golem fight; saving and loading (8 saves). No crash, hang or `errorlog.txt`. Eve
 - The frame rate read lower in the rebuilt exe (75-88 against 105-120 fps at the same places; not visible as
   stutter). Not investigated yet.
 
-The other 46 functions that first ran decompiled in the standalone exe are being reviewed against the disassembly.
+A read-through of the other 46 functions that first ran decompiled in the standalone exe, against the disassembly, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
 
 ## Phase 3 status (2026-10-16)
 

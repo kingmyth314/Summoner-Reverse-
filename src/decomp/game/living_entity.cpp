@@ -4364,7 +4364,7 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         roll = frand();
         if (!No_resist && roll < resist)
             break;
-        if (level > 1) {
+        if (this->level > 1) {   // the target's level, not the local spell level (D9816)
             this->level -= 1;
             scale_stats_to_level();
         }

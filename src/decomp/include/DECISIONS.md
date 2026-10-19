@@ -7375,3 +7375,16 @@ sunset shot. fx_frame is one of the 47 functions that SummonerFix's fixes patch,
 and this was its first run as decompiled code. Found with the agent: the shot, the cutscene clock and the fx
 handles matched the original, and a hybrid with `[Fixes] Enabled=0` showed the stall; skipping fx_frame alone
 (`[Hybrid] Skip=0x48a230`) restored it. Still non-matching (the unit's 47 matches unchanged).
+
+**D9816 (2026-10-19, two errors in functions that first ran decompiled in the standalone exe).** A read-through
+against the disassembly of the 47 functions that the hybrid kept original only because the bug-fix module
+patches them (fx_frame's other cases included) found two, both checked in the listing:
+- Character::get_hit_by_spell (0x45dea0), spell 0xd (level drain): the original tests the target's level
+  (0x45fe40: `movsx edx, word [this+0x600]; cmp edx, 1; jle`); the source's `if (level > 1)` read the function's
+  local spell level, which hides the member. Now `this->level`.
+- living_combat::trigger_reflex_ability (0x467670), a beneficial armour-triggered spell in single player: the
+  original passes the attacker's handle (`[ebp]` = owner, +0x80; 0x467b0f-0x467b17) as spell_cast_execute's
+  target, the source the defender's. The two single-player item calls cross their targets in the binary (the
+  offensive one's was already noted, D5506).
+The other 45 and the rest of fx_frame read as equivalent. Both functions still differ (no match lost). Not
+reproduced in play: both branches are rare.

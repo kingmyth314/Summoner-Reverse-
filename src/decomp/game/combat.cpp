@@ -1730,9 +1730,9 @@ void living_combat::trigger_special_ability(float damage)
 // casts that spell (source type 2); then every worn item whose type has an armour triggered effect
 // casts that effect's spell with its chance (source type 4, the item type as the item). A beneficial
 // spell goes to the defender itself (at its position + 1.2 up), any other to the attacker (owner). The
-// single-player spell_cast_execute call of the item effects passes the defender's own handle as the
-// target of an offensive spell (with the attacker's position and layer), unlike every other branch
-// (bug K300 candidate, D5506).
+// single-player spell_cast_execute calls of the item effects cross their targets: an offensive spell gets the
+// defender's own handle (with the attacker's position and layer), a beneficial one the attacker's handle
+// (with the defender's position and layer) (bug K300 candidate, D5506; the second found in D9816).
 void living_combat::trigger_reflex_ability(float damage)
 {
     vector3 self_pos = opponent->owner->pos;
@@ -1759,7 +1759,7 @@ void living_combat::trigger_reflex_ability(float damage)
             if (spells[spell].flags & SPELL_BENEFICIAL)
                 COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
                                     opponent->owner->layer, opponent->owner->equipment[i]->type, 4,
-                                    opponent->owner, opponent->owner->handle);
+                                    opponent->owner, owner->handle);
             else
                 COMBAT_TRIGGER_CAST(opponent->owner, spell, owner->handle, &attacker_pos, owner->layer,
                                     opponent->owner->equipment[i]->type, 4, owner,
