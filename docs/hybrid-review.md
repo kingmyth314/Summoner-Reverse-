@@ -87,9 +87,15 @@ every call. The rest:
 |---|---|---|
 | `projector_record::to_lobj_space` `0x4c0740` | 10/10, 10/10 | x87 rounding of the local planes' d: **fixed (D9804)**, 30/30 the same afterwards |
 | `conversation_controller::camera_compute_shot` `0x4d8f50` | 10/10 | the original never sets `side.y` (a game bug the decomp keeps), so normalising it reads stack bytes, which differ between the builds |
-| `conversation_controller::camera_blend`, `decal_build_clip_planes`, `decals_draw_for_lobj` | 3/10, 2/10 and 1/10, 4/10 | the last bits of floats: precision, being worked on |
-| `levelrender_draw_list`, `fx_missile_hit` | 4/10, 1/10 | one more lock on a decal's bitmap within the frame (0 again between frames on both builds): follows from the decal precision |
+| `conversation_controller::camera_blend` | 3/10 | x87 rounding of the axis blend (`1 - t` shared and unrounded, the sum z first): **fixed (D9807)**, 30/30 the same |
+| `decal_build_clip_planes` | 2/10, 1/10 | the radius was summed at 80 bits: **fixed (D9805)**, 30/30 the same |
+| `decals_draw_for_lobj` | 4/10, 4/10 | not floats: `gr_poly_vertices` holds pointers into a callee's stack array, shifted because the decompiled function lacked the original's exception frame (a `profile_label`): **fixed (D9806)**, 30/30 the same |
+| `levelrender_draw_list`, `fx_missile_hit` | 4/10 (9/30 after the decal fixes), 1/10 | the frame count of an animated bitmap (`bm_bitmaps` +0x34): the original's call uploads an animation frame and frees its data (`bm_free_data` decrements the count); the second call finds the texture state the checker cannot put back. Texture paging inside the checked call, as with the first-call bitmap loads; not an error |
 | `ai_state::follow_repath` | 4/10, 8/8 | path-node pointers from `path_find_new`'s allocation (the known checker artifact) |
+
+A regression run of 315 functions (everything that had run, minus the same exclusions), five calls each, in the
+Phoenix and Murod Oni fights found nothing new: only the known precision cases `ai_choose_attack_slot` (D9600) and
+`blood_splot_place`'s large case (D9301), and the artifacts above.
 
 Across all runs, 628 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
 Multiplayer is left out at the user's request (2026-10-19): the LAN screens would need networking switched on.

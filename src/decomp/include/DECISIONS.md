@@ -7244,3 +7244,38 @@ after the sum, z stays on the FPU stack (0x4c07a0..0x4c07d8), and the dot produc
 per-component constructor kept the x product unrounded and the sums at 80 bits. `vector3 pt = n * d; pt += lo->pos;`
 with the dot product written out gives the original's roundings (vector3::dot summed z first). The function still
 differs (frame 0x34 against 0x44); the file keeps its 9 matches.
+
+**D9805 (2026-10-19, decal_build_clip_planes 0x4bbf10: x87 precision, found by dual calls).** Two of ten calls
+differed by one unit in the last place in `d->radius` (+0x14) and the projector's copy of it (proj +4, decal +0x3c;
+`projector_record::set` 0x4c06c0). The original rounds `u + v` and `+ depth` to float through out-of-line
+`vector3(float, float, float)` calls (0x4bc0b1..0x4bc0fe), then reloads the floats and sums (z^2 + y^2) + x^2
+before `fsqrt; fstp [ebp+0x14]` (0x4bc103..0x4bc122). The decomp's per-component `diag` / `corner` locals let VC6
+keep corner at 80 bits. `vector3 corner = *u + *v + depth; d->radius = corner.len();` reproduces the rounding;
+`d->normal = u->cross(*v)`, `depth = d->normal * (...)` and planes built from temporaries
+(`plane(&(-1.0f * un), &(d->pos - *u))`, 0x4bc184..0x4bc1a6) give the original's constructor calls. Not a byte
+match (frame 0x58 against 0x50): VC6 expands the first `plane::plane` and `u->len()`, which the original calls
+(0x4bc157, 0x4bc166); the expanded len() sums (z^2 + y^2) + x^2 where 0x4bc290 sums (x^2 + y^2) + z^2, the one
+place the values could still differ. File: 9 matches before and after. (Agent work, merged and checked.)
+
+**D9806 (2026-10-19, decals_draw_for_lobj 0x4bc6b0: the exception frame is a profile_label).** Four of ten dual
+calls differed in `gr_poly_vertices[].v` (0x2ee6f38 +0): those are pointers, into `gr_poly_buffer_flush`'s stack
+array `verts[25]` (0x545d70), shifted because the decompiled function had no SEH record (12 bytes) and so a
+shallower frame; the x87 code (0x4bc9a7..0x4bc9dd, 0x4bca23..0x4bca8a) was already the original's. The prologue
+0x4bc6b0..0x4bc6c5 is an EH frame, handler 0x57cbd8 -> FuncInfo 0x584580, whose one unwind action (state 0, set at
+0x4bc6e4) is funclet 0x57cbd0 calling `~profile_label` 0x434650: a `profile_label label("decals_draw_for_lobj")`
+as in the shadow unit. Also: the mode argument `gr::Mode(1, 1, 3, 3, 1, 0)` (the constant 0x118c21 at 0x4bcb1b
+instead of the out-of-line Mode(int) constructor), `(bool)d->proj.inside` (0x4bc80e..0x4bc814), `1.0f < fade`. Same
+length (1268 bytes), identical up to +0x25b; two scheduling differences left (the tri[2].z store at 0x4bc90b, the
+operands of one commutative fmul at 0x4bca40). File: 9 matches. (Agent work, merged and checked.)
+
+**D9807 (2026-10-19, conversation_controller::camera_blend 0x4d9ad0: x87 precision, found by dual calls).** Three of
+ten calls differed in the last bits of the blended direction. `1 - t` is one shared subexpression, not a named
+local: unrounded for the three axis_b products (`fst; fld st(0); fmul ...; fmul st, st(1); fmul`,
+0x4d9c29..0x4d9c4f), read rounded for the angle (0x4d9ca4) and the position (0x4d9d30). The axis sum's
+`vector3(float, float, float)` is called out of line (0x43b580, arguments pushed z, y, x, 0x4d9c53..0x4d9c9f), so z
+adds the two unrounded products and x and y the rounded temporaries; 8966 expands that constructor and sums x
+first, so the source writes the sum out z first with named products. The direction is
+`matrix43(m).transform((0, 0, 1))`, folded to m[3] + m[2] off the constructor's result (0x4d9cdc..0x4d9cff, frame
+0xd8); the angle compare is `fabsf` (`fcomp dword [0x57f028]`, 0x4d9bf7). Not a byte match: the binary calls the
+copy constructor out of line for the flip's `operator=` result (0x4d9bde), which 8966 expands (the inlining budget
+of D8708). File: 19 matches before and after. (Agent work, merged and checked.)

@@ -12,7 +12,7 @@
 // The vector code here calls the vector3 constructor, copy constructor, operator=, +, - and the scale
 // function out of line (0x43b580, 0x410cd0, 0x413190, 0x45b680, 0x45b6b0, 0x468a90), unlike most optimised
 // units; vector3::len is called once (the COMDAT 0x4bc290 sits in this unit) and expanded once.
-// decals_draw_for_lobj has an exception frame (a local with a destructor that the code does not show).
+// decals_draw_for_lobj has an exception frame: a profile_label (vsdk/os/profile.h), as in the shadow unit.
 // The rings are vsdk.h's plist_* lists (head pointer, NULL when empty); decal_recycle's body is expanded
 // again in decals_draw_for_lobj and decals_recycle_unused.
 
@@ -23,6 +23,7 @@
 #include "engine/s3d/s3d.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/os/timestamp.h"
+#include "vsdk/os/profile.h"
 #include "vsdk/math/vector.h"
 #include "vsdk/math/ix.h"
 #include "vsdk/vfile/file.h"
@@ -66,7 +67,7 @@ decal_record::decal_record()
     in_use = 0;
 }
 
-// 0x4bbf10  Confidence: unsure (the vector temporaries; the operators are called out of line here). The
+// 0x4bbf10  Confidence: likely (the vector temporaries; the radius through vector3 operators, D9805). The
 // decal frame: normal u x v; depth = normal * sqrt(larger of |u|^2, |v|^2) * depth; six planes: +u (the
 // frame plane, v coordinate), -u, +v (u coordinate), -v, +depth, -depth.
 void decal_build_clip_planes(decal_record *d, const vector3 *pos, const vector3 *u, const vector3 *v)
@@ -78,37 +79,25 @@ void decal_build_clip_planes(decal_record *d, const vector3 *pos, const vector3 
     d->pos = *pos;
     vector3 un = u->normalized();
     vector3 vn = v->normalized();
-    d->normal = vector3(v->z * u->y - v->y * u->z, u->z * v->x - v->z * u->x, v->y * u->x - u->y * v->x);
+    d->normal = u->cross(*v);
     d->normal.normalize();
     lu = u->len_sq();
     lv = v->len_sq();
     if (lu > lv)
-        depth = vector3(d->normal.x * ((float)sqrt(lu) * d->depth), d->normal.y * ((float)sqrt(lu) * d->depth),
-                        d->normal.z * ((float)sqrt(lu) * d->depth));
+        depth = d->normal * ((float)sqrt(lu) * d->depth);
     else
-        depth = vector3(d->normal.x * ((float)sqrt(lv) * d->depth), d->normal.y * ((float)sqrt(lv) * d->depth),
-                        d->normal.z * ((float)sqrt(lv) * d->depth));
-    vector3 diag(u->x + v->x, u->y + v->y, u->z + v->z);
-    vector3 corner(diag.x + depth.x, diag.y + depth.y, diag.z + depth.z);
-    d->radius = (float)sqrt(corner.x * corner.x + corner.y * corner.y + corner.z * corner.z);
+        depth = d->normal * ((float)sqrt(lv) * d->depth);
+    vector3 corner = *u + *v + depth;
+    d->radius = corner.len();
 
-    vector3 p(d->pos.x + u->x, d->pos.y + u->y, d->pos.z + u->z);
-    d->set_frame(plane(&un, &p));
+    d->set_frame(plane(&un, &(d->pos + *u)));
     d->set_v_axis(0.5f / u->len());
-    p = d->pos - *u;
-    vector3 n = -1.0f * un;
-    d->proj.add_plane(plane(&n, &p));
-    p = d->pos + *v;
-    d->proj.add_plane(plane(&vn, &p));
+    d->proj.add_plane(plane(&(-1.0f * un), &(d->pos - *u)));
+    d->proj.add_plane(plane(&vn, &(d->pos + *v)));
     d->set_u_axis(0.5f / v->len());
-    p = d->pos - *v;
-    n = -1.0f * vn;
-    d->proj.add_plane(plane(&n, &p));
-    p = d->pos + depth;
-    d->proj.add_plane(plane(&d->normal, &p));
-    p = d->pos - depth;
-    n = -1.0f * d->normal;
-    d->proj.add_plane(plane(&n, &p));
+    d->proj.add_plane(plane(&(-1.0f * vn), &(d->pos - *v)));
+    d->proj.add_plane(plane(&d->normal, &(d->pos + depth)));
+    d->proj.add_plane(plane(&(-1.0f * d->normal), &(d->pos - depth)));
 }
 
 // 0x4bc290  Confidence: exact. vector3__len: the COMDAT of the inline vector3::len (vsdk/math/vector.h),
@@ -216,13 +205,16 @@ void decals_reset()
     }
 }
 
-// 0x4bc6b0  Confidence: unsure (the exception frame's local is not known; the loops' shape is). For every
+// 0x4bc6b0  Confidence: likely (D9806; VC6: same length, the frame and every x87 instruction as the binary; two
+// scheduling differences left: the tri[2].z store and the operands of one commutative fmul). The exception
+// frame is a profile_label (FuncInfo 0x584580, one unwind action: funclet 0x57cbd0 calls 0x434650). For every
 // active decal (expired ones are recycled first): when it touches the level object and is clipped, each
 // marked face of the object (lobj_face_marks) that the decal's planes touch is clipped to them, gets u / v
 // from the two axis planes (scaled), white or light-shaded colours, a fade-out over the last second of
 // the lifetime, and is drawn with a small depth bias.
 void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
 {
+    profile_label label("decals_draw_for_lobj");
     lobj *lo = &lobjs[lobj_index];
     decal_record *d;
     decal_record *next;
@@ -244,7 +236,7 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
     vector3 clipped[MAX_DECALS];
 
     d = decal_active;
-    if (d == NULL)
+    if (decal_active == NULL)
         return;
     do {
         next = d->next != decal_active ? d->next : NULL;
@@ -255,7 +247,7 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
             plist_append(decal_free, d);
             d->in_use = 0;
         }
-        if (d->proj.inside && d->clipped) {
+        if ((bool)d->proj.inside && d->clipped) {
             marks = &lobj_face_marks[lobj_face_mark_offsets[lobj_index]];
             g = lo->mesh;
             num_bytes = (g->num_faces + 7) / 8;
@@ -279,10 +271,10 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
                     if (d->lit)
                         lights_select_nearest(-1, &d->pos, d->radius);
                     if (d->lifetime && elapsed > d->lifetime - 1000) {
-                        fade = (float)(elapsed - d->lifetime + 1000) * 0.001f;
-                        if (fade > 1.0f)
-                            fade = 1.0f;
                         vert_flags = 0xd;
+                        fade = (float)(elapsed - d->lifetime + 1000) * 0.001f;
+                        if (1.0f < fade)
+                            fade = 1.0f;
                         alpha = (ubyte)(int)((1.0f - fade) * 255.0f);
                         for (i = 0; i < n; i++)
                             decal_verts[i].a = alpha;
@@ -310,7 +302,7 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
                     for (i = 0; i < n; i++)
                         gr_offset_point_depth(&decal_verts[i], -0.25f);
                     gr_set_texture(d->bitmap, -1);
-                    gr_poly(n, decal_vert_ptrs, 0x118c21, 0, 0);
+                    gr_poly(n, decal_vert_ptrs, gr::Mode(1, 1, 3, 3, 1, 0), 0, 0);
                     gr_poly_buffer_flush();
                     if (d->lit)
                         lights_pop_selection();

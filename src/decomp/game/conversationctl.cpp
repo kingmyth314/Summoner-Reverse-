@@ -367,14 +367,18 @@ void conversation_controller::camera_compute_shot()
 
 // 0x4d9ad0  Confidence: likely (thiscall, `this` not used). out = a * t + b * (1 - t) with t eased
 // (2t^2 below one half, 4t - 2t^2 - 1 above); the direction is interpolated as axis and angle, the axis of
-// b flipped to a's side and the angles kept less than pi apart.
+// b flipped to a's side and the angles kept less than pi apart. Precision as the binary (D9807): 1 - t is one
+// unrounded value for the three axis_b products (0x4d9c29..0x4d9c4f) and rounded for the angle and the
+// position; the binary sums the axis in z, y, x order (the operator+ constructor is called out of line,
+// 0x4d9c53..0x4d9c9f), so z adds the two unrounded products and x, y the rounded ones. With 8966 the
+// constructor expands and sums x first, hence the sum written out z first. The direction is
+// transform((0, 0, 1)) of the rotation, folded to m[3] + m[2] (0x4d9cdc).
 void conversation_controller::camera_blend(dialog_camera_pose *out, dialog_camera_pose *a,
                                            dialog_camera_pose *b, float t)
 {
     matrix m, mb;
-    matrix43 m43;
-    vector3 axis_a, axis_b, axis, fwd;
-    float angle_a, angle_b, angle, u;
+    vector3 axis_a, axis_b;
+    float angle_a, angle_b;
 
     if (t > 0.5f)
         t = t * 4.0f - t * t * 2.0f - 1.0f;
@@ -390,23 +394,22 @@ void conversation_controller::camera_blend(dialog_camera_pose *out, dialog_camer
         axis_b = axis_b * -1.0f;
         angle_b = -angle_b;
     }
-    if (fabs(angle_a - angle_b) > PI) {
+    if (fabsf(angle_a - angle_b) > PI) {
         if (angle_b > angle_a)
             angle_b -= 2 * PI;
         else
             angle_b += 2 * PI;
     }
 
-    u = 1.0f - t;
-    axis = axis_a * t + axis_b * u;
-    angle = angle_a * t + angle_b * u;
-    m.set_from_axis_angle(axis, angle);
-    m43 = matrix43(m);
-    fwd.x = m43.m[3][0] + m43.m[2][0];
-    fwd.y = m43.m[3][1] + m43.m[2][1];
-    fwd.z = m43.m[3][2] + m43.m[2][2];
-    out->dir = fwd;
-    out->pos = t * a->pos + u * b->pos;
+    vector3 tb = axis_b * (1.0f - t);
+    vector3 ta = axis_a * t;
+    vector3 axis;
+    axis.z = ta.z + tb.z;
+    axis.y = ta.y + tb.y;
+    axis.x = ta.x + tb.x;
+    m.set_from_axis_angle(axis, angle_a * t + angle_b * (1.0f - t));
+    out->dir = matrix43(m).transform(vector3(0.0f, 0.0f, 1.0f));
+    out->pos = t * a->pos + (1.0f - t) * b->pos;
 }
 
 // 0x4d9d90  Confidence: likely (the `cam_mode == 3` test of the no-zoom branch is reached through two
