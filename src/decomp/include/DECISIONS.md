@@ -6326,7 +6326,7 @@ match; details in the match22 NOTES.md):
 **D8103 (notes only; match22). Still different under 8966** (forms tried in the match22 NOTES.md): max(x, 0)'s
 AND register in status_page_up (12 forms, as D7305); the multitrade handlers' first loads (D6905 / D7203);
 itemtrade_count_party_rows (the binary re-reads party_gold after the row-count store and increments in memory);
-gamecreate_draw_player_count / _limits (h / 2 computed twice in the binary); titus_ai_select_action's stage-1
+gamecreate_draw_player_count / _limits (h / 2 computed twice in the binary; wrong, D9817); titus_ai_select_action's stage-1
 block order; luminar_teleport_out's loop exit and luminar_boss_load's second length (closer: `ch` local, float
 locals for the pickup reach, `back.len() + swing.len()`); saveload_capture_thumbnail loads camera_fov through the
 FPU (an inline float accessor in the original?); packfile_check_header (two loads, then the stores swapped);
@@ -7388,3 +7388,14 @@ patches them (fx_frame's other cases included) found two, both checked in the li
   offensive one's was already noted, D5506).
 The other 45 and the rest of fx_frame read as equivalent. Both functions still differ (no match lost). Not
 reproduced in play: both branches are rare.
+
+**D9817 (2026-10-19, the Create Game numbers are centred by width and height; game bug K9 withdrawn).** A
+read-through against the disassembly of the 49 non-matching functions that the hybrid keeps original even with
+`[Fixes] Enabled=0` (display, widescreen and key-binding patch sites: gr_init, key_mark, os_wndproc, ui_process,
+world_mouse_frame, the UI and dialogue drawing) found one error, in gamecreate_draw_player_count (0x40a4f0) and
+gamecreate_draw_limits (0x40a570). The sprintf arguments stay on the stack until the final `add esp`, so after
+gr_get_string_size and three pushes `[esp+0x30]` (0x40a541) is the height, for y, and `[esp+0x34]` (0x40a553) the
+width, for x. The source (and game bug K9) had read both as the height. Now `x - w / 2`, `y - h / 2`; K9 is
+withdrawn (docs/sum-exe/game-bugs.md, "Claims that did not hold"). Both functions still differ. The other 48 read
+as equivalent, so all 71 non-matching functions that the hybrid never ran have now been read against the listing
+(the 22 of D9816's review and these 49).

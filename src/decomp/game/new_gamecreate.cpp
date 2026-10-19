@@ -531,8 +531,8 @@ void gamecreate_draw_text_field(int field)
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x40a4f0  Confidence: likely. Both coordinates are centred with the string HEIGHT (the second
-// gr_get_string_size output, [esp+4]); the width ([esp+8]) is never read. Kept as the binary does it.
+// 0x40a4f0  Confidence: exact. Centred on the position: x by half the width, y by half the height (0x40a541 reads
+// h, 0x40a553 w; the sprintf arguments are still on the stack, D9817).
 void gamecreate_draw_player_count()
 {
     char buf[4];
@@ -541,11 +541,11 @@ void gamecreate_draw_player_count()
     gr_set_color_ptr(&ui_color_text);
     sprintf(buf, "%d", gamecreate_max_players);
     gr_get_string_size(&w, &h, buf, -1, -1);
-    gr_string(gamecreate_players_pos[resolution_index][0] - h / 2,
+    gr_string(gamecreate_players_pos[resolution_index][0] - w / 2,
               gamecreate_players_pos[resolution_index][1] - h / 2, buf, -1, gr_string_mode);
 }
 
-// 0x40a570  Confidence: likely (same centring by the height as gamecreate_draw_player_count).
+// 0x40a570  Confidence: exact (centred as gamecreate_draw_player_count).
 void gamecreate_draw_limits()
 {
     char buf[4];
@@ -554,11 +554,11 @@ void gamecreate_draw_limits()
     gr_set_color_ptr(&ui_color_text);
     sprintf(buf, "%d", gamecreate_levels_above);
     gr_get_string_size(&w, &h, buf, -1, -1);
-    gr_string(gamecreate_levels_above_pos[resolution_index][0] - h / 2,
+    gr_string(gamecreate_levels_above_pos[resolution_index][0] - w / 2,
               gamecreate_levels_above_pos[resolution_index][1] - h / 2, buf, -1, gr_string_mode);
 
     sprintf(buf, "%d", gamecreate_levels_below);
     gr_get_string_size(&w, &h, buf, -1, -1);
-    gr_string(gamecreate_levels_below_pos[resolution_index][0] - h / 2,
+    gr_string(gamecreate_levels_below_pos[resolution_index][0] - w / 2,
               gamecreate_levels_below_pos[resolution_index][1] - h / 2, buf, -1, gr_string_mode);
 }

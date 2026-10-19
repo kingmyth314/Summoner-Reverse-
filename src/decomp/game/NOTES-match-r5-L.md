@@ -74,7 +74,7 @@ gamecreate, conversationctl); none lost in boss_ai.cpp, the level scripts, ai_co
   row loop's registers still differ.
 - multitrade handlers: first-load registers (D6905 / D7203); mp_handle_it_okay's unthreaded state test.
 - itemtrade_count_party_rows: the binary re-reads party_gold after storing the row count and increments in memory.
-- gamecreate_draw_player_count / _limits: h / 2 computed twice in the binary (no CSE); gamecreate_frame /
+- gamecreate_draw_player_count / _limits: h / 2 computed twice in the binary (no CSE) [wrong, D9817: w / 2 and h / 2]; gamecreate_frame /
   handle_click unchanged.
 - saveload_capture_thumbnail: camera_fov goes through fld / fstp (an inline float accessor in the original?).
 - choose_support_spell, mp_charselect page_down / drag_scrollbar, line_talker: register choice only.

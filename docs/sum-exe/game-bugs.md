@@ -1837,7 +1837,6 @@ retail script sends a go that early was not checked. D8602.
 | K5 | With the save list scrolled, the top row shows the wrong thumbnail | `saveload_load_thumbnail` `0x425c10`, `saveload_draw_thumbnail` `0x426fd0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SaveListThumbnail`) |
 | K6 | Adding a 33rd label to a level's map replaces the first label | `automap_label_alloc` `0x430230` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MapLabelLimit`) |
 | K8 | The credits line count can be off when a long line wraps | `credits_parse_table` `0x408620` | **Observed** code, *inferred* effect | No |
-| K9 | The player count and level limits on the Create Game screen are a few pixels off centre | `gamecreate_draw_player_count` `0x40a4f0` | **Observed** code | No |
 | K10 | Windowed mode stretches the 3D view to the desktop's aspect ratio | `gr_init` `0x505e00` | **Observed** code and at runtime | Fixed |
 | K11 | The dialogue camera's side offset depends on an uninitialised value | `conversation_camera_compute_shot` `0x4d8f50` | **Observed** code and in game (2026-10-18) | No (kept: the project owner keeps the camera angle, 2026-10-18) |
 | K12 | In a container's pickup list, the scrollbar thumb fills the whole track and runs past its end | `pickup_update_scrollbar` `0x420850` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] PickupScrollbar`) |
@@ -1996,11 +1995,6 @@ the tables is real, but it did not show, so K7 moved from Cosmetic to Invisible.
 **K8. Wrong buffer.** For wrapped lines the `&` (right column) test reads `credits_lines[start]`, the
 output buffer at the input offset (`cmp byte [edx+esi], 0x26` at `0x408862`). It was probably meant to
 read `line[start]`. Only the line count changes.
-
-**K9. Height used twice.** `gr_get_string_size` returns the width and the height, but both centring
-offsets read the height (`mov eax, [esp+0x30]` at `0x40a541` and `mov eax, [esp+0x34]` at `0x40a553`
-are the same local after one push). The width is never read. `gamecreate_draw_limits` (`0x40a570`) does
-the same.
 
 **K10. Desktop aspect.** In windowed mode `gr_init` takes the aspect ratio from
 `GetSystemMetrics(SM_CXSCREEN) / GetSystemMetrics(SM_CYSCREEN)` (`0x505ef5`..`0x505f0f`), not from the
@@ -3712,6 +3706,7 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | G30 (withdrawn 2026-10-17): `boss_ai_parse_table` stores `atoi("$offenseNN") - 1` = -1 as every boss move's offense point, so offense-point attacks aim from near the world origin | This page, [Bosses](bosses.md), the decompiled `boss_ai.cpp`, then [Bug fix priorities](bug-priorities.md) rank 14 | `TextFile__ParseString` gets `lea edx, [esp+0x68]` after two pushes (the buffer is at frame `+0x60`), and `atoi` gets `lea eax, [esp+0x68]` with nothing pushed (`0x4a18b2`), 8 bytes further on: `atoi("NN")` after the 8 characters of `$offense`. The game's `atoi("$offense03")` is 0 (agent `callstr 56e311`), but the parsed Giant Salamanka moves held 0, 0, 1, 2, 3, 4, 5 for `$offense01`, 01, 02 .. 06 (agent `peek 248c984`), and `[Debug] TraceBossReach` logged points 2 and 5 with targets in reach. The decompilation read the call as `atoi(point_name)`; it is `atoi(point_name + 8)` (corrected) |
 | G5 (withdrawn 2026-10-17): buying with a full inventory (0x209 entries) takes the gold and gives nothing, because `buysell_buy_item` subtracts the price before `party_inventory_add_type` refuses a new type (`cmp edx, 0x209` at `0x46b9e4`) | This page, [Shops and loot](shops-loot.md), then [Bug fix priorities](bug-priorities.md) rank 30 | There are exactly 0x209 = 521 item types (`num_item_types`, capped by `items_parse_table`; every save's `ITEM` chunk lists 521), and `party_inventory_add_type` first looks for an entry of the same type and adds to its count (stackable) or its charges, before the count test. A full inventory therefore already holds every type, and a bought item always finds its entry. A held type that is neither stackable nor chargeable cannot exist: `item_type_is_stackable` is false only with a charge effect |
 | K131 (withdrawn 2026-10-18): every load of a game saved in the last temple level (TempleInt2) replays the 29 s "Nar-TempleAct4" narration, because `ls_templeint2_init` clears `ls_templeint2_act4_played` (`0x4ef1c3`) and no saved flag records it | This page ("saving is allowed in the level"), then [Bug fix priorities](bug-priorities.md) rank 34 | No such save can be made. The narration plays on the level's first frame, and its end callback sets the saved flag `mach_intro` at once (`0x4ef275`..`0x4ef282`). `savegame_location_allowed` refuses saving in TempleInt2 while `mach_intro` is set (`0x4d4b5e`..`0x4d4b73`; the refusal was seen in game for G130), and the cutscene itself cannot be saved in. A save from before the level cannot load into it |
+| K9 (withdrawn 2026-10-19): the Create Game screen's player count and level limits are centred with the string height twice, the width never read | This page, then [Bug fix priorities](bug-priorities.md) rank 81 | Not a bug. The three `sprintf` arguments are still on the stack (popped with the rest at the end), so after `gr_get_string_size` and three pushes `[esp+0x30]` (`0x40a541`) is the height, for y, and `[esp+0x34]` (`0x40a553`) the width, for x: two different locals, with no push between the reads. `gamecreate_draw_limits` (`0x40a5c1`/`0x40a5d3`, `0x40a631`/`0x40a643`) is the same. The decompilation had copied the claim (corrected, D9817) |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
@@ -4230,7 +4225,6 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | K6 labels | `automap_label_alloc` `0x430236`..`0x430245`; `automap_add_label_at_mouse` `0x40317e`; `automap_labels_parse_table` `0x42fe12`..`0x42fe19`; `automap_labels_reset_default` `0x43033b`..`0x430342`; `savegame_read_automap_labels` `0x4d37ff`..`0x4d3806` |
 | K7 glyph | `gr_font_get_char` `0x5084ee`..`0x508503`; `gr_string` `0x508d0e`..`0x508d36` |
 | K8 credits | `credits_parse_table` `0x408858`..`0x408868` |
-| K9 centring | `gamecreate_draw_player_count` `0x40a515`..`0x40a564` |
 | K10 aspect | `gr_init` `0x505eee`..`0x505f0f` |
 | K11 side vector | `conversation_camera_compute_shot` `0x4d8fbd`..`0x4d8fe4` |
 | V1 trigger time | `character_set_skeleton_trigger_time` `0x540dbc`..`0x540ddb` |

@@ -1415,8 +1415,8 @@ game/new_gamecreate.cpp 0x40a2b0 match
 game/new_gamecreate.cpp 0x40a2d0 match
 game/new_gamecreate.cpp 0x40a310 match
 game/new_gamecreate.cpp 0x40a380 match
-game/new_gamecreate.cpp 0x40a4f0 differs
-game/new_gamecreate.cpp 0x40a570 differs
+game/new_gamecreate.cpp 0x40a4f0 match
+game/new_gamecreate.cpp 0x40a570 match
 game/new_gamelist.cpp 0x40a6a0 match
 game/new_gamelist.cpp 0x40a850 match
 game/new_gamelist.cpp 0x40a880 match

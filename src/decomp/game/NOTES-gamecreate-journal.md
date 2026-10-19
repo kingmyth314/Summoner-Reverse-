@@ -114,7 +114,7 @@ Facts:
    and returns 0 when it is clear; every path that clears it already returned. The surrounding shape (search
    loop then `if (i < 2)`, or an inline function, or a goto) is a guess, and the default case of the field
    switch (key = 0) jumps straight past the `if (key)` test.
-2. gamecreate_draw_player_count / draw_limits centre the number with the string height on both axes (the
+2. [Wrong, D9817: x is centred by the width, y by the height.] gamecreate_draw_player_count / draw_limits centre the number with the string height on both axes (the
    width output is never read). Either the source had this slip or gr_get_string_size's parameter order is
    (h, w); credits_get_line_size suggests (w, h).
 3. Order of the key cases in journal_handle_click (Esc/Q, B, I, R) and whether the zero byte passed to

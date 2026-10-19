@@ -370,7 +370,7 @@ current-character pointer did not show it. HP does not come back over time in th
 later areas, Jekhar's own join, the sewer quests and boss.
 
 A read-through against the disassembly of the 47 functions that `[Fixes] Enabled=0` replaces (the 22 non-matching
-ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
+ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed). The same read-through of the other 49, kept original even with `[Fixes] Enabled=0` (display, widescreen and key-binding patch sites), found one more: the multiplayer Create Game numbers were centred with the height on both axes, which the original does not do (game bug K9 withdrawn); with the fix both functions now match byte for byte (D9817). All 71 non-matching functions the hybrid never ran have now been read against the listing.
 
 ## Phase 3 status (2026-10-16)
 
@@ -385,8 +385,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result (2026-10-18): 7,725 functions written (89.4%). 5,905 of them are
-compiled and compared by VC6 SP5, and 4,942 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 4,961: 19 compared functions are not `func` lines in sum.symbols). The
+compiled and compared by VC6 SP5, and 4,944 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 4,963, two more since D9817: 19 compared functions are not `func` lines in sum.symbols). The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit
