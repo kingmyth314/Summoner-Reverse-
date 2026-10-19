@@ -292,9 +292,9 @@ an address (the D9204 kind) turned up. The quicksave chain (`quicksave`, `savega
 quicksave; it now dumps after it.
 
 **State (2026-10-18, evening).** Done since: the save test over 18 levels, the inventory and trader scenarios,
-coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Nine decompilation errors found and
+coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Ten decompilation errors found and
 fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls,
-D9800-D9802 by reviewing the functions no scenario had run, D9803 by dual calls in the review's boss scenarios
+D9800-D9802 by reviewing the functions no scenario had run, D9803 and D9804 by dual calls in the review's scenarios
 ([in-game checks](hybrid-review.md#in-game-checks)). 628 of the 890 non-matching functions have run in a checked
 scenario. The x87 precision cases were taken through byte matching (the precision round above): one left. The
 single-player scenarios are done apart from a few rare branches (listed in the review); multiplayer is left out at

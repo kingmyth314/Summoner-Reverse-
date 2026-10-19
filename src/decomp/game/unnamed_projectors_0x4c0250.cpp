@@ -176,7 +176,8 @@ void projector_record::add_plane(const plane &p)
 // copies its normal once more through the vector3 copy constructor (operator='s returned copy) and moves it
 // through a second temporary with the out-of-line plane::operator= 0x4c0a20). The position goes into the
 // object's frame (rows of the orientation); each plane keeps its normal rotated, and d becomes
-// dot(n * d + lo->pos, n) = d + dot(n, lo->pos) (the normals are unit length).
+// dot(n * d + lo->pos, n) = d + dot(n, lo->pos) (the normals are unit length). The point goes through the
+// vector3 operators (x and y rounded, z kept), the dot product summed x, y, then z (D9804).
 void projector_record::to_lobj_space(lobj *lo)
 {
     unsigned int i;
@@ -186,11 +187,8 @@ void projector_record::to_lobj_space(lobj *lo)
 
     local_pos = rel.rotated(lo->orient);
     for (i = 0; i < num_planes; i++) {
-        vector3 pt(planes[i].normal.x * planes[i].d, planes[i].normal.y * planes[i].d,
-                   planes[i].normal.z * planes[i].d);
-        pt.x += lo->pos.x;
-        pt.y += lo->pos.y;
-        pt.z += lo->pos.z;
+        vector3 pt = planes[i].normal * planes[i].d;
+        pt += lo->pos;
         lp.d = pt.x * planes[i].normal.x + pt.y * planes[i].normal.y + pt.z * planes[i].normal.z;
         lp.normal = planes[i].normal.rotated(lo->orient);
         tmp = lp;

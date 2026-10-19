@@ -7236,3 +7236,11 @@ crossing as `(b - a) * t + a` through vector2 temporaries: `b.y - a.y` and its p
 (`fstp [esp+0x2c]`, `[esp+0x34]`), x stays on the FPU stack (0x4aa517..0x4aa558). The decomp's per-component
 `dx * t + a->x` / `dy * t + a->y` kept both unrounded. `hits[nhits] = t * (*b - *a) + *a;` compiles to the
 original's sequence. The function still differs (frame 0x44 against 0x40); file 45 matches before and after.
+
+**D9804 (2026-10-19, projector_record::to_lobj_space 0x4c0740: x87 precision found by dual calls).** In Jade Temple
+all 10 checked calls differed in the low byte of each local plane's d (this +0x8c, +0x9c, ...). The original builds
+`pt = n * d` and `pt += lo->pos` through the vector3 operators: x and y are stored as floats after the product and
+after the sum, z stays on the FPU stack (0x4c07a0..0x4c07d8), and the dot product adds x and y, then z. The decomp's
+per-component constructor kept the x product unrounded and the sums at 80 bits. `vector3 pt = n * d; pt += lo->pos;`
+with the dot product written out gives the original's roundings (vector3::dot summed z first). The function still
+differs (frame 0x34 against 0x44); the file keeps its 9 matches.
