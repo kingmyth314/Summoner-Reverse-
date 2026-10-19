@@ -7365,3 +7365,13 @@ pxochat_channel_users_right (0x590038) is {211, 0x108, 0x152} and pxochat_channe
 0x165}: the source had the hex digits as decimal (108, 152, 117, 165). levelrender_fan4 (0x59c368) is {0, 1, 2,
 2, 3, 0}, not {0, 1, 2, 0, 2, 3} (the same two triangles in another vertex order). The functions reading them
 byte-match, so the hybrid used Sum.exe's own tables; only the standalone exe used the source's.
+
+**D9815 (2026-10-19, fx_frame turns a camera effect around wrongly: the prologue stall).** fx_frame (0x48a230)
+case 3, an effect at the camera (fx_create_at_camera, the cutscenes' "...camera.vfx" shot effects): the original
+(0x48a6c6-0x48a7df) copies camera_view_pos and camera_view_orient, then negates rvec and sets uvec = -(old fvec)
+and fvec = -(old uvec). The source negated all three rows, so the effect faced away from the camera, and the
+prologue's narration panels ("Nar-PRE-INTRO-camera.vfx") were not seen: the new game's opening showed one still
+sunset shot. fx_frame is one of the 47 functions that SummonerFix's fixes patch, so the hybrid kept it original
+and this was its first run as decompiled code. Found with the agent: the shot, the cutscene clock and the fx
+handles matched the original, and a hybrid with `[Fixes] Enabled=0` showed the stall; skipping fx_frame alone
+(`[Hybrid] Skip=0x48a230`) restored it. Still non-matching (the unit's 47 matches unchanged).

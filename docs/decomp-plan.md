@@ -333,9 +333,22 @@ exe through an address table, so agent mode drives it like the original ([Summon
   then keeps them original (`gr_init`, `os_wndproc`, `key_mark`, `world_mouse_frame`, `spell_cast_execute`,
   `living_combat::resolve_hit`, `fx_frame`, the dialogue and list drawing...). The standalone exe runs them.
 
-A new game now reaches Masad. **Open:** the prologue cinematic (young Joseph) stalls on its first shot in the
-rebuilt exe while its clock advances (the original plays it); Escape skips it. A play-testing agent is going
-through Act 1 with the rebuilt exe and the original side by side.
+A new game now reaches Masad.
+
+**Play-test (2026-10-19).** An agent played the rebuilt exe for 75 minutes, replaying anything doubtful in the
+original: Masad from the start to the boat (dialogue, the tutorials, scout and barbarian fights, loot, inventory,
+the character screen and levelling, the Heal spell, map, journal, game over), the boat cutscene, the world map and a
+random encounter, Lenele Outskirts (a quest accepted), the Lenele Marketplace trader (buy and sell) and the sewer
+golem fight; saving and loading (8 saves). No crash, hang or `errorlog.txt`. Everything matched the original except:
+- The prologue cinematic stalled on one sunset shot (the original shows the painted narration panels). The camera
+  shot, the cutscene clock and the effect handles were the same as in the original; a hybrid with
+  `[Fixes] Enabled=0` (which also replaces the 47 functions only the bug-fix module patches) showed the stall, and
+  keeping `fx_frame` original alone (`[Hybrid] Skip=0x48a230`) removed it. Its camera-effect case turned the
+  effect the wrong way (D9815, fixed); the prologue now plays in the rebuilt exe.
+- The frame rate read lower in the rebuilt exe (75-88 against 105-120 fps at the same places; not visible as
+  stutter). Not investigated yet.
+
+The other 46 functions that first ran decompiled in the standalone exe are being reviewed against the disassembly.
 
 ## Phase 3 status (2026-10-16)
 

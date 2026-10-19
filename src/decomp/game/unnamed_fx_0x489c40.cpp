@@ -383,19 +383,23 @@ void fx_frame(float frametime, bool paused)
                 continue;
             }
             break;
-        case 3:
-            // at the camera, turned around
+        case 3: {
+            // at the camera, turned around: right negated, up and forward swapped and negated (0x48a6c6-0x48a7df:
+            // the old up and forward are copied first; D9815)
             fx->pos = camera_view_pos;
             fx->orient = camera_view_orient;
+            vector3 u(fx->orient.uvec);
+            vector3 f(fx->orient.fvec);
             fx->orient.rvec = -fx->orient.rvec;
-            fx->orient.uvec = -fx->orient.uvec;
-            fx->orient.fvec = -fx->orient.fvec;
+            fx->orient.uvec = -f;
+            fx->orient.fvec = -u;
             done = fx_update_instance(fx, frametime);
             if (done == true) {
                 fx_stop(fx->handle);
                 continue;
             }
             break;
+        }
         case 4:
             done = fx_update_missile(fx, frametime);
             if (done == true) {
