@@ -785,10 +785,14 @@ static int qsort_cmp_float_field4(const void *a, const void *b)
     return 1;
 }
 
+#pragma inline_depth(0)
 // 0x4b6a90  Confidence: likely. The two slot directions nearest the attacker's side; the result is the
 // best slot plus the fraction toward the second (asin of the cross product, 5 / (2 pi) slots per radian),
 // wrapped into 0..5. The binary calls vector3(x, y, z) 0x43b580 out of line for the attacker's centre, so
-// both centres are rounded to float before the subtraction; ours keeps x at 80 bits (D9600, D9601).
+// both centres are rounded to float before the subtraction (D9600, D9601). 8966 expands that constructor
+// and keeps both x sums on the FPU stack in every source form; inline_depth(0) here makes get_center,
+// operator+, operator- and dot calls, which round every component through memory as the binary does, and
+// gives the same values (not the same bytes; D9810).
 float ai_choose_attack_slot(Character *attacker, Character *target)
 {
     int best = -1, second = -1;
@@ -822,6 +826,7 @@ float ai_choose_attack_slot(Character *attacker, Character *target)
         r += 5.0f;
     return r;
 }
+#pragma inline_depth()
 
 // A GameTimer with an empty destructor (name ours, D4806): ai_party_spread_attackers' function-static
 // timer registers an atexit destructor (0x4b71b0, a bare RET), which GameTimer itself does not have (as

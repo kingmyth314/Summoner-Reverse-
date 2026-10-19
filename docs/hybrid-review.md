@@ -94,8 +94,12 @@ every call. The rest:
 | `ai_state::follow_repath` | 4/10, 8/8 | path-node pointers from `path_find_new`'s allocation (the known checker artifact) |
 
 A regression run of 315 functions (everything that had run, minus the same exclusions), five calls each, in the
-Phoenix and Murod Oni fights found nothing new: only the known precision cases `ai_choose_attack_slot` (D9600) and
-`blood_splot_place`'s large case (D9301), and the artifacts above.
+Phoenix, Murod Oni, Luminar, Serpent and Tiger fights found nothing new: only the known precision cases
+`ai_choose_attack_slot` (D9600) and `blood_splot_place`'s large case (D9301), and the artifacts above. Both were
+then closed in value by agents in scratch copies: D9809 (30/30 the same) and D9810 (18/18 the same).
+
+Also: a search over all compared functions for an exception frame the original has and VC6 did not produce (the
+D9806 case) found one more in single player, `script_editor_ray_hit_object` (a `profile_label`, D9808).
 
 Across all runs, 628 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
 Multiplayer is left out at the user's request (2026-10-19): the LAN screens would need networking switched on.

@@ -7288,3 +7288,29 @@ VC6 output does not (after D9806): the handler 0x57ce38 -> FuncInfo 0x584870 has
 +0x0); the file keeps its 92 matches. The only other function with a missing frame is the multiplayer
 `mp_levelselect_draw_levels` 0x41d1d0 (left out with multiplayer). No compared function has a frame the
 original lacks.
+
+**D9809 (2026-10-19, blood_splot_place 0x468760: the large case's precision, closes D9301 in value).** Dual calls
+still showed one-bit differences in the decal's half-axes (1 to 3 of 5 calls). D9301's cause (a): VC6 called
+`vector3::operator*(float)` out of line in the large case with the stored, rounded radius, where the original
+expands it (0x46885a..0x468888: `fld [esp]; fmul [0x5819bc]; fst [radius]`, then z, y, x as `u.c * st` each
+`fstp dword` into the arguments of the out-of-line `vector3(float, float, float)` 0x43b580). Writing `pos += off`
+out per component, `pos.x = pos.x + off.x; pos.y = off.y + pos.y; pos.z = off.z + pos.z;` (VC6 reverses the
+operands as written, giving the original's `fld off.x; fadd pos.x` and `fld pos.z; fadd off.z`, 0x4687c0..0x4687d4)
+frees the inline budget: the large case (0x46885a..0x4688da) is then the original's apart from relocations.
+Remaining, same values: 0 - u.z as `fld st(0); fsub` against `fld u.z; fsubr` (0x46881b), and v in the medium and
+small cases multiplied by the radius from memory against one reload (0x4688df..0x46890a, 0x46899d..0x468a14).
+814/814 bytes; combat.cpp keeps its 47 matches; in the Serpent fight 30/30 dual calls the same. (Agent work.)
+
+**D9810 (2026-10-19, ai_choose_attack_slot 0x4b6a90: the original's values through `#pragma inline_depth(0)`;
+closes D9600/D9601 in value).** The binary rounds both centres and their difference to float: the target per
+component (0x4b6a9f..0x4b6ad4), the attacker's sums as the arguments of the out-of-line `vector3(float, float,
+float)` (0x4b6ad8..0x4b6af9), d from both reloaded (0x4b6afe..0x4b6b2e). Under 8966 every source form (named float
+temporaries, z-first sums, `d -= tc`, per-component stores) keeps the first sum of each centre on the FPU stack and
+drops its store, so d.x was computed from unrounded values; component order cannot help because the original
+rounds all six sums. `#pragma inline_depth(0)` around this one function (above its address comment; between the
+comment and the definition the compare tool loses the function) makes get_center (as 0x4da830), operator+
+(0x45b680), operator- (0x45b6b0) and dot (0x4b24f0) calls that round through memory as the binary does; dot sums
+z, y, x as at 0x4b6b50. This is a compiler directive rather than the original's source form (the original's
+inlining choices under its build are not reproduced by 8966 here, D8708); it is used because it gives the
+original's values: in the Murod Oni fight 18/18 dual calls the same (0/5 before). Not a byte match (301/381 bytes,
+frame 0x38 against 0x44); the file keeps its 20 matches. (Agent work.)

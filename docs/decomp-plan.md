@@ -250,8 +250,8 @@ searched for source with a strict byte match (no `volatile` or casts to force ro
 | `avoid_area_add` | the vector2 operators round the y product before the add and keep x; needs `vector2::operator+` as a constructor return (shared header) | byte match (D9700, D9701) |
 | `path_closest_point` | `q = path->pos - path->dir * 50` through `operator=` rounded x instead of z; declared with its initialiser it follows the original | same values, frame still differs (D9510) |
 | `approach_attack_slot` | the slot points and the mid waypoint written per component kept y and z unrounded; vector operators give the original's sequence | same values, registers differ (D9610, D9611) |
-| `blood_splot_place` | after D9203, the small case: `v` takes the rounded radius after the copy constructor; a cross product for `v` gives the original's frame and the small and medium cases | same values in 20 checked calls; the large case loses an inline (D9300, D9301) |
-| `ai_choose_attack_slot` | the attacker's centre goes through an out-of-line `vector3` constructor that rounds `d.x`; no source form made VC6 call it out of line | still differs (D9600, D9601) |
+| `blood_splot_place` | after D9203, the small case: `v` takes the rounded radius after the copy constructor; a cross product for `v` gives the original's frame and the small and medium cases | same values in 20 checked calls; the large case loses an inline (D9300, D9301). Later (2026-10-19): `pos += off` written per component frees the inline budget, the large case is the original's; 30/30 the same (D9809) |
+| `ai_choose_attack_slot` | the attacker's centre goes through an out-of-line `vector3` constructor that rounds `d.x`; no source form made VC6 call it out of line | still differs (D9600, D9601). Later (2026-10-19): `#pragma inline_depth(0)` around the function makes the operators calls that round as the original; 18/18 the same (D9810) |
 
 The strict sweep after the merge: 4,960 matches (4,956 before), none lost; every unit compiles with mingw. In the
 Murod and Tentacle Beast fights, ten dual calls each, seven of the eight give the original's results in every
@@ -296,7 +296,7 @@ coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). 
 fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls,
 D9800-D9802 by reviewing the functions no scenario had run, D9803-D9807 by dual calls in the review's scenarios and a broad round
 ([in-game checks](hybrid-review.md#in-game-checks)). 628 of the 890 non-matching functions have run in a checked
-scenario. The x87 precision cases were taken through byte matching (the precision round above): one left. The
+scenario. The x87 precision cases were taken through byte matching (the precision round above); the last two were closed in value on 2026-10-19 (D9809, D9810). The
 single-player scenarios are done apart from a few rare branches (listed in the review); multiplayer is left out at
 the user's request. Method rule from these runs: never dual-check a function together with its callees.
 
