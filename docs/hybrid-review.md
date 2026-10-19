@@ -63,12 +63,22 @@ function gave the original's memory, return value and `rand` state on each check
 | Summon and quicksave (save comparison) | `summon_create`, the summon branch of the save | - | two runs flag different records, all time-dependent (NPC positions, timers 70-120 ms behind): timing, not an error |
 | Sewer boss, console `tentacle_test` | - | - | the original crashes too (`navpoint_find("$npc034")` returns NULL in this script; `0x4c7ee2`) |
 | Multiplayer character screen (`interface_set_screen` 16 from the main menu; create a character, Select) | 19 | `mp_charselect_init`, `update_create_button`, `handle_click` 10/10, `wrap_text_input` 8/8, `mp_player_alloc` same | Select opened the PXO lobby (Options are set to Internet), so the version check and the IRC list functions ran; no traffic: WinSock is never started while the connection speed reads "None" (SummonerFix answers that registry value from its `[Registry]` section), so the HTTP socket cannot open. The test's `.plr` file was removed |
-| Script editor's "< Time" button | - | - | the editor's buttons ignore the agent's clicks and posted mouse messages; `level_script_restart`, `level_ambient_find_at` not reached |
+| Script editor's "< Time" button | - | - | the editor's buttons and hotkeys ignore the agent's clicks, keys (`key`, `postkey`, held `keydown`/`keyup`) and posted mouse messages; `level_script_restart`, `level_ambient_find_at`, `select_prev`, `focus_selection` not reached |
+| Inventory (Info on a ring, drag to the paper doll, hover) | 7 | `inventory_popup_result`, `inventory_drag_to_equip`, `inventory_preview_view_begin`, `inventory_hover_tooltips` 10/10, `ring_format_info` 1/1 | `inventory_equip_item` ran once, unchecked; later drops did not equip |
+| Options sliders (gamma, sound; left with Cancel) | 1 | `options_drag_sliders` 10/10 | D9801 confirmed in the game |
+| World map (`worldmap1`) | 6 | `worldmap_frame`, `worldmap_marker_clamp_to_edge`, `vector3_angle_and_axis`, `ls_worldmap1_frame` 10/10; both encounter pickers 1/1 (direct calls; the `rand` state is compared too) | |
+| Texture detail (`change_texture_res` twice), `key_clear` by direct call, a console `.vcs` script | 5 | `bm_set_reduced` 10/10, `key_clear` 2/2 | the script (mixed CRLF / LF line ends, comments, a 200-character line) ran through `LineFile::detect_eol` and `read_line` without error; file reading cannot be dual-checked (the file position is not rewound); the test file was removed |
+| Eleh: the locked Tomb portcullis and an examinable crate (direct calls with the level objects) | 2 | `object_try_unlock_or_open` 2/2, `container_examine` 1/1 | |
+| Items and skills by direct call: a Health Tonic, Appraise (Flece, a created Haste Ring), Assess on Gongji, Backstab's behind test | 5 | `character_use_inventory_item` (call 2; call 1 differs only in `bm_bitmaps`, the heal effect's bitmap the original's call loads), `character_use_skill` 2/2, `character_use_skill_on` 2/2, `add_skill_from_behind` 1/1, `character_learn_chain_skill` 1/1 | Appraise left the AP unchanged and Assess did not open its screen, so both may have stopped at a skill check |
+| LPalaceInt guards | 2 | `script_guard_sees_player` 10/10, `script_build_avoid_spline` 1/1 | the spline built by a direct call of `script_alloc_avoid_spline` |
+| Jade Temple: Gongji's reply paged, the automap dragged | 3 | `dialogue_box::scroll_next_page` 1/1, `automap_drag_scroll` 10/10 | the label input and the journal's quest-step lookup were not reached |
+| Giant Salamanka (`KhosaniLab`: walk into `$salstart`, its intro) and the KhosaniLab beam puzzle (flippers 28, 27, 26) | 8 | `giant_salamanka_ai_frame`, `giant_salamanka_ai_select_action` 10/10; `trace_beam` 1/1 and its five corner and turn helpers | setting `salstart` first skips the intro, which is what shows the boss and switches its combat on |
+| Evil Joseph and Machival (`TempleInt2`: `npckill` Evil Urath, then Evil Joseph) | 6 | `evil_joseph_ai_frame`, `evil_joseph_ai_select_action`, `machival_ai_select_action` 10/10; `evil_joseph_pick_helper_summon` 1/1; `spell_spawn_creature` (Machival's Meteor Storm targets) 1/1 | |
+| Frames and helpers that had run unchecked | 9 | `tiger_ai_frame` 10/10, `vector3_rotate_about_axis` 10/10, `script_editor_handle_input`, `ix_ray_boundingbox`, `gr_line_3d`, `ui_gadget::send_event` 10/10, `ui_message_box_hit_test` 10/10, `level_trigger_point_left_of_line` 1/1, `cmd_sysinfo` 1/1 | |
+| Not reached | - | - | the Tiger's charge (`tiger_path_to_target`, `tiger_combat_update`: a 30 % stage-2 pick), Pyrul's spell moves, Life Drain (no Wraith appeared from a direct `summon_create`), the level item pickup, the hover tint, particle compaction |
 
-Across all runs, 582 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
-The rest of the LAN screens need networking switched on for a session (`[Registry] ConnectionSpeed=sz:Fast`:
-WinSock, a UDP socket, broadcasts on the local network) and the Multiplayer option set to LAN, or the PXO hosts
-would be contacted; that is left for the user to decide.
+Across all runs, 628 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
+Multiplayer is left out at the user's request (2026-10-19): the LAN screens would need networking switched on.
 
 One more decompilation error came out of these runs and is fixed: **D9803**, `avoid_poly_add_search_nodes`
 `0x4aa400` computed the obstacle crossing per component at 80 bits where the original rounds the y difference and
