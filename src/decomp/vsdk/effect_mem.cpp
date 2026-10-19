@@ -101,9 +101,12 @@ fx_recb0 *fx_recb0_list;                          // 0x2c9f990
 bool effects_preload_done;                        // 0x2c9f994 set by effects_load_preload_rfx
 int effects_num_bases;                            // 0x2c9f998
 int effects_num_names;                            // 0x2c9f99c
-// Not placed: 0x2c90a70-0x2c98a6f and 0x2c98a8c-0x2c9f1af lie inside this unit's .bss; none of this
-// unit's functions uses them (0x2c98a90 is read by vfx_mesh_render / vfx_mesh_instance__update_frame
-// in another vsdk\geom unit).
+// Not placed: 0x2c90a70-0x2c98a6f and 0x2c98a8c-0x2c98a8f lie inside this unit's .bss; none of this
+// unit's functions uses them.
+// The mesh object's face-uv scratch array fills 0x2c98a90-0x2c9f1af (2200 x 0xc bytes) of this unit's .bss;
+// only vfx_mesh_render / vfx_mesh_instance__update_frame (another vsdk\geom unit) use it (D5110). No
+// constructor, so no initialiser.
+vfx_face_uv vfx_mesh_face_uvs[2200];              // 0x2c98a90
 
 // Append to a circular list given by a head pointer (NULL = empty).
 #define fx_list_append(head, rec) \

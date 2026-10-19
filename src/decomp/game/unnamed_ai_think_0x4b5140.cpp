@@ -10,7 +10,7 @@
 // Unit range: the initialiser run 0x4b5140-0x4b5150 (table entry 305, 0x5884c8: an empty initialiser)
 // after ai_mode_sneaking_frame (0x4b4eb0, the AI movement unit), to ai_think's RET (0x4b77eb);
 // pathfinding_visibility.cpp starts at 0x4b77f0 (sort_points_clockwise, assert path 0x59d7d8).
-// Data: no .data; .rdata 0x581bb0 (the team priority table, file-static here) and the float literals
+// Data: .data 0x59d7c8-0x59d7d7 (character_size_radii, by address); .rdata 0x581bb0 (the team priority table, file-static here) and the float literals
 // after it (-4 0x581bf0, 0.0005, 7, 1/3000, 5/(2 pi), 3.2; the others pooled). .bss 0x247e8c8-0x247e963.
 //
 // Profiling: ai_pick_attack_target, ai_party_follow_think, ai_clear_target_and_idle,
@@ -68,6 +68,12 @@ static const int ai_team_attack_priority[4][4] = {
     { 100, 60, 10, 25 },
     { 100, 80, 60, 40 },
 };
+
+// ---- .data -------------------------------------------------------------------------------------------
+// The per-size radii (character_size_radius, character_distance_between_edges, charinfo_boss_radius). By
+// address the only .data between the movement unit's literals (to 0x59d7c4) and pathfinding_visibility.cpp's
+// (from 0x59d7d8), so this unit's; no function here reads it (the movement unit's tail is the other reading).
+float character_size_radii[4] = { 0.15f, 0.47f, 1.0f, 99.9f };   // 0x59d7c8
 
 // ---- .bss --------------------------------------------------------------------------------------------
 int ai_formation_slot[AI_FORMATION_SLOTS];                    // 0x247e8c8

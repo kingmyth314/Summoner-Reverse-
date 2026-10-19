@@ -374,6 +374,7 @@ extern SummonerOptions Summoner_options;                             // 0x60acc8
 void summoner_cfg_save();                                            // 0x43e410
 
 // The combat option under its sum.symbols name (decomp23: living_combat_speed_share, combat_resolve_exchange).
-extern bool config_combat_flag;                                      // 0x60acd4 (= Summoner_options.combat_flag)
+// A macro as config_solo_confirm (D604): 0x60acd4 is Summoner_options + 0xc, not a variable of its own.
+#define config_combat_flag (Summoner_options.combat_flag)            // 0x60acd4
 
 #endif

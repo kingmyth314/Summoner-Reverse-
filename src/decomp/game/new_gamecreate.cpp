@@ -153,6 +153,20 @@ void gamecreate_init()
     gamecreate_pressed_button = -1;
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void gamecreate_leave()
+{
+}
+
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool gamecreate_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x409c60  Confidence: exact (VC6 byte match, cl 8966; was likely: where the store of gamecreate_difficulty sits
 // among the three clears).
 // Bit 0 of the tick entries 5 / 7 / 9 shows which difficulty is chosen.

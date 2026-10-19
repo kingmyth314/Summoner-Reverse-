@@ -1141,6 +1141,28 @@ void serpent_set_foot_anims(Character *c)
     serpent_target_stage = 3;
 }
 
+// folded (0x4f13e0, empty_function)  Confidence: likely. boss_script_hook_stub case 0x59 (boss_ai.h: folded).
+void serpent_script_hook(Character *c)
+{
+}
+
+// folded (0x49c610, boss_dismount)  Confidence: likely. boss_dismount_dispatch case 0x59: the serpent's copy of
+// the rider dismount, identical to the tiger's and the phoenix's; the linker folded the three into the
+// tiger unit's copy (D7603 (2), D8902). Body as boss_dismount.
+void serpent_dismount(Character *c)
+{
+    Character *m = c->get_mount();
+    if (m == NULL)
+        return;
+    m->mount_flags = 0;
+    m->mount_link = -1;
+    m->ai.target = -1;
+    m->flags &= ~0x20;
+    c->mount_flags = 0;
+    c->mount_link = -1;
+    c->flags |= CF_COMBAT_READY;
+}
+
 // 0x497750  Confidence: exact. boss_set_ride_anims: back on the mount, stage 1.
 void serpent_set_ride_anims(Character *c)
 {

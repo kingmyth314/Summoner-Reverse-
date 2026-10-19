@@ -124,7 +124,9 @@ float level_time;                                             // 0x60a654
 bool move_target_decal_visible;                               // 0x60a664
 bool Render_3d_obstacles;                                     // 0x60a665
 int  state_help_return_state;                                // 0x60a668
-int  help_page;                                       // 0x60a66c
+// The help state's page (sum.symbols: loading_help_page). Not new_help.cpp's help_page (0x5bc920, screen 22):
+// two variables, so a name of its own; both were help_page, which the link defined twice.
+int  state_help_page;                                 // 0x60a66c
 int  state_help_active;                                    // 0x60ab5c
 
 void cmd_full_party();
@@ -1390,9 +1392,9 @@ void help_draw_page()
     gr_set_color(0, 255, 0, 128);
     gr_string(GR_CENTER_X, 20, "Summoner Help", font_bones_small, gr_string_mode);
     int y = gr_get_font_height(font_bones_small) + line_h + 20;
-    sprintf(string_buffer, "Page %d of %d", help_page + 1, NUM_HELP_PAGES);
+    sprintf(string_buffer, "Page %d of %d", state_help_page + 1, NUM_HELP_PAGES);
     gr_string(GR_CENTER_X, y, string_buffer, font_main, gr_string_mode);
-    help_page_draw_funcs[help_page](76);
+    help_page_draw_funcs[state_help_page](76);
     gr_string(GR_CENTER_X, (160 - line_h) * 3, "ESC to exit this screen", font_main, gr_string_mode);
 }
 
@@ -1406,13 +1408,13 @@ void state_help_key_handler(int key)
         break;
     case KEY_PAD4:
     case KEY_LEFT:
-        if (--help_page < 0)
-            help_page = 0;
+        if (--state_help_page < 0)
+            state_help_page = 0;
         break;
     case KEY_PAD6:
     case KEY_RIGHT:
-        if (++help_page == NUM_HELP_PAGES)
-            help_page = 0;
+        if (++state_help_page == NUM_HELP_PAGES)
+            state_help_page = 0;
         break;
     }
 }
@@ -1421,7 +1423,7 @@ void state_help_key_handler(int key)
 // (state 4) the game stays paused while it is up.
 void state_help_enter()
 {
-    help_page = 0;
+    state_help_page = 0;
     state_help_return_state = gameseq_get_prev_state();
     if (state_help_return_state == 4)
         game_pause_count_inc();

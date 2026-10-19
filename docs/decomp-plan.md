@@ -300,6 +300,30 @@ scenario. The x87 precision cases were taken through byte matching (the precisio
 single-player scenarios are done apart from a few rare branches (listed in the review); multiplayer is left out at
 the user's request. Method rule from these runs: never dual-check a function together with its callees.
 
+## The standalone link (2026-10-19)
+
+The whole decompiled source now links into an executable of its own, `Sum-rebuilt.exe`
+(`tools/link-build.mjs`), with VC6 SP5's libraries and no part of the original Sum.exe. **Observed:** it starts,
+opens its window and reaches the main menu, in OpenGL in a window (`REBUILT_OPENGL`) with the shipped no-CD
+behaviour (`SHIPPED_NOCD`).
+
+What it took:
+- A first link of all 259 units left only 52 C++ symbols declared and defined nowhere, all of them functions the
+  original linker folded into one copy and data whose definition no unit held (the hybrid had resolved them to
+  Sum.exe's addresses). They are defined now, with the original's values (D9811). One pair, `help_page`, turned
+  out to be two different variables.
+- Outside the decomp (`src/link`): the DirectX 7 GUIDs, import libraries for binkw32.dll and EAX.DLL built from
+  stubs, MSACM32 from VC6, and a temporary no-op libjpeg (JPEG screenshots write nothing until libjpeg 6b is
+  built from the IJG source).
+- Two test-build options (D9812), off by default so the default build stays the shipped code: the shipped exe's
+  no-CD edit, and the OpenGL renderer as SummonerFix selects it, including SummonerFix's cap on the reported
+  maximum texture size: with a modern driver the game's 16384^2 * 4-byte scratch buffer is 1 GB and fails.
+- It runs from a separate folder (hard links to the archives, copies of the data and a save), because
+  SummonerFix's patches assume Sum.exe's addresses.
+
+Next for the standalone exe: play it (it has no agent mode, which lives in SummonerFix), build libjpeg 6b, and
+compare its behaviour with the original's.
+
 ## Phase 3 status (2026-10-16)
 
 The source half of the pilot has started without the compiler. Agents rewrote whole translation units in C++ from

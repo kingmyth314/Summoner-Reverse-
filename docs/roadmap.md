@@ -147,6 +147,11 @@ single-player scenario; what has not run is mostly multiplayer (left out for now
 functions with no caller, and a few rare branches. Details: [the hybrid game](decomp-plan.md) and
 [never-run function review](hybrid-review.md).
 
+**Status 2026-10-19: the first standalone link.** The decompiled source also links into an executable of its own
+(`tools/link-build.mjs`, VC6 SP5 and its libraries, nothing from the original Sum.exe), which starts and reaches the
+main menu. Still to do for it: libjpeg 6b from the IJG source, a play-through, and a behaviour comparison with the
+original. See [the standalone link](decomp-plan.md).
+
 ## Future projects
 
 Added 2026-10-16 at the user's request.

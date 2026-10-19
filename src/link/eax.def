@@ -1,0 +1,3 @@
+LIBRARY EAX.DLL
+EXPORTS
+  EAXDirectSoundCreate @5 NONAME

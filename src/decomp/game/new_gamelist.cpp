@@ -157,6 +157,20 @@ void gamelist_init()
     gamelist_selected_game = 0;
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void gamelist_leave()
+{
+}
+
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool gamelist_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x40a880  Confidence: exact (the join-result switch: jump table 0x40a94c over 0..4, cases 0 and 2 empty,
 // 3 = default; case 4 with the popup already open pushes the constant 4 into the default's call, read as
 // show_join_error(result) folded by VC6). While the join request is pending (1) the screen ignores input.

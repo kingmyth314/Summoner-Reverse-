@@ -208,6 +208,12 @@ void spells_init()
         spells_set_page(spells_page);
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void spells_leave()
+{
+}
+
 // 0x429b80  Confidence: exact (byte table 0x429d54 over the species 0..0xce into the jump table 0x429d10).
 // The tab of cur_character's species; the summon species ids are those of char_infos (names from the
 // bitmaps).

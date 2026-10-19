@@ -236,6 +236,35 @@ stage with `decomp-merge.mjs` against its snapshot, compile everything with ming
 `// 0xADDR` markers, run `vc6-sweep.mjs --root <stage> --check src/decomp/vc6-matches.txt` with `VC6_STRICT=1`, then copy the stage
 into `src/decomp`, rewrite `vc6-matches.txt`, run `decomp-confidence.mjs --apply` and `decomp-progress.mjs`, and commit.
 
+## `tools/link-build.mjs` (the standalone rebuilt exe)
+
+Added 2026-10-19. Compiles every unit of `src/decomp` with its VC6 flags (`vc6-flags.txt`) and links them, with
+the link support in `src/link`, into `build/link/Sum-rebuilt.exe`: an executable built entirely from the
+decompiled source and VC6 SP5's own libraries (LIBCMT, the Windows and DirectX import libraries, MSACM32).
+
+```powershell
+$env:VC6_DIR = 'C:path	oVC98'
+node tools/link-build.mjs --define SHIPPED_NOCD --define REBUILT_OPENGL
+```
+
+| Option | Meaning |
+|---|---|
+| `--define NAME` | a `/D` for every unit. `SHIPPED_NOCD`: the no-CD edit the shipped exe carries (D2600, D9812). `REBUILT_OPENGL`: the game's OpenGL renderer in a window, with SummonerFix's texture-size cap (D9812) |
+| `--force` | link with unresolved symbols (`/FORCE:UNRESOLVED`), to list what is missing |
+| `--recompile` | compile every unit again (objects are cached in `build/link/obj` by date; a header change needs this) |
+| `--out DIR` | output folder (default `build/link`) |
+
+`src/link` holds what Sum.exe takes from outside its own code: the three DirectX 7 GUIDs (from the DX7 SDK's
+dxguid.lib; VC6's is older), stub sources whose only use is an import library with the right names for
+binkw32.dll (decorated stdcall names) and EAX.DLL (ordinal 5), and for now a no-op libjpeg stub (Sum.exe links
+libjpeg 6b statically; the IJG source is not in the repository). Nothing of these is a third-party binary.
+
+The exe does not load SummonerFix's patches (they assume Sum.exe's addresses), so it runs from a separate folder
+holding hard links to the `.vpp` archives and the Bink and EAX DLLs, and copies of `data`, `summoner.cfg` and
+a save: the game folder's `dinput.dll` (SummonerFix) must not be next to it. Without SummonerFix it reads the
+real registry, so `ConnectionSpeed` there decides whether it starts WinSock (Windows Firewall then asks about
+the new exe).
+
 ## `tools/hybrid-build.mjs` (the hybrid game)
 
 Added 2026-10-18. It compiles `src/decomp` files with VC6 into a DLL whose functions replace the original ones

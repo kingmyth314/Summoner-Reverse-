@@ -424,6 +424,14 @@ void status_leave()
         shop_set_shopkeeper_from_char(0);
 }
 
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool status_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x42b970  Confidence: exact (VC6 byte match) (the binary sums the pending points in EDI and never reads the sum, written as
 // the dead local `spent`; the pending counts are not cleared). One level is 10 in the skill byte.
 void status_apply_skill_points()

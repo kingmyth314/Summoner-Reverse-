@@ -101,11 +101,13 @@ inline int mesh_tag(ca_character *ch, const char *name)
 #endif
 
 // ---- .rdata --------------------------------------------------------------------------------------
-// At 0x581914 living_entity__vtable (one slot, Character::deinit 0x44edf0), then this unit's float
+// team_enemy_masks first (0x581904-0x581913, right after characterinfo.cpp's float constants; read by
+// character_set_team). At 0x581914 living_entity__vtable (one slot, Character::deinit 0x44edf0), then this unit's float
 // constants 0x581918-0x58197c (1.8, 0.98, pi/2, -pi/2, 2^31, 400, 0.0001, 999999, 0.001, 0.0005,
 // -0.01, 0.55, 0.9, -8, -10, -20, -7, 20, 0.04, 0.15, 0.77, 0.3, 20, 0.025, -999999). The other
 // constants are shared __real@ constants of earlier units (0.5 0x57e6b0, 100 0x57e6b4, 1.0 0x57e990,
 // 10 0x57eb7c, 0 0x57eb84, ...).
+const unsigned int team_enemy_masks[4] = { 0xc, 0, 0xb, 7 };   // 0x581904
 
 // ---- .data (0x599644-0x5996b3, the literals follow from 0x5996b4) --------------------------------
 int Character_los_enabled = 1;        // 0x599644 (label ours; only character_has_line_of_sight_to_point reads it)

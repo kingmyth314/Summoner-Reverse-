@@ -385,7 +385,14 @@ void LoadSettings()
     ci_root_to_position = false;
     init_char_types(0);
 
+#ifdef REBUILT_OPENGL
+    // Standalone test builds (tools/link-build.mjs --define REBUILT_OPENGL): the game's own, never-selected
+    // OpenGL renderer in a window, as SummonerFix patches it in the shipped exe (0x43da64, 0x43db45). Not the
+    // shipped behaviour, which defaults to Glide fullscreen.
+    renderer = GR_OPENGL;
+#else
     renderer = GR_GLIDE;
+#endif
     os_registry_read_dword(NULL, "Selected Video Card", (DWORD *)&card, (DWORD)-1);
     if (card != -1) {
         sprintf(card_key, "Video Card %d", card);
@@ -401,8 +408,13 @@ void LoadSettings()
     if (cmdline_param_direct3d.found())
         renderer = GR_DIRECT3D;
 
+#ifdef REBUILT_OPENGL
+    gr_init(resolution_table[resolution_index][0], resolution_table[resolution_index][1], renderer, 200,
+            os_get_main_wnd(), Summoner_options.cfg_34 ? true : false, false);
+#else
     gr_init(resolution_table[resolution_index][0], resolution_table[resolution_index][1], renderer, 201,
             os_get_main_wnd(), Summoner_options.cfg_34 ? true : false, false);
+#endif
     ui_init();
     gr_load_reflection_map();
     mouse_move_to(resolution_table[resolution_index][0] / 2, resolution_table[resolution_index][1] / 2);

@@ -1378,6 +1378,28 @@ void boss_dismount(Character *c)
     c->flags |= CF_COMBAT_READY;
 }
 
+// folded (0x49c610, boss_dismount)  Confidence: likely. boss_dismount_dispatch case 0x57: the name the dispatcher
+// calls for the tiger (D7603 (2), D8902). In Sum.exe it is the copy above, the one the linker kept of the three
+// identical rider dismounts; boss_dismount keeps its marker, so this is a second copy of the same body.
+void tiger_dismount(Character *c)
+{
+    Character *m = c->get_mount();
+    if (m == NULL)
+        return;
+    m->mount_flags = 0;
+    m->mount_link = -1;
+    m->ai.target = -1;
+    m->flags &= ~0x20;
+    c->mount_flags = 0;
+    c->mount_link = -1;
+    c->flags |= CF_COMBAT_READY;
+}
+
+// folded (0x4f13e0, empty_function)  Confidence: likely. boss_script_hook_stub case 0x57 (boss_ai.h: folded).
+void tiger_script_hook(Character *c)
+{
+}
+
 // 0x49c670  Confidence: exact. After a spear move (move 0): one use less, the weapon to be drawn again.
 void tiger_move_done_hook(Character *c)
 {

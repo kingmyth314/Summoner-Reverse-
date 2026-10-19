@@ -15,6 +15,14 @@
 #include "vsdk/snd/snd.h"
 #include "vsdk/math/vector.h"
 
+// ---- GUIDs (ds.h) ------------------------------------------------------------------------------------
+// The EAX 2.0 property sets. In Sum.exe library .rdata at the end of the GUID run 0x5832c8-0x5833cf (see
+// unnamed_ds_0x55bf90.cpp), not this unit's data; defined here as C++ names (ds.h), values read from Sum.exe.
+extern const GUID DSPROPSETID_EAX20_ListenerProperties = // 0x5833b0 {0306a6a8-b224-11d2-99e5-0000e8d8c722}
+    { 0x0306a6a8, 0xb224, 0x11d2, { 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22 } };
+extern const GUID DSPROPSETID_EAX20_BufferProperties =   // 0x5833c0 {0306a6a7-b224-11d2-99e5-0000e8d8c722}
+    { 0x0306a6a7, 0xb224, 0x11d2, { 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22 } };
+
 // ---- .bss --------------------------------------------------------------------------------------------
 int eax_reverb_muted;                             // 0x2cbf488
 long eax_saved_reverb;                            // 0x2cbf48c

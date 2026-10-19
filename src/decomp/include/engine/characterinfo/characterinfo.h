@@ -380,9 +380,9 @@ void characterinfo_load_party(int path_id);           // 0x4450c0 (GameInit pass
 
 // ---- decomp38: the rest of characterinfo.cpp (0x4425b0-0x449d88) ----------------------------------------
 
-// One entry of species_table (0x580e60, 223 entries, .rdata of an unknown unit): $Character: names map to
-// species ids through it (characterinfo_parse_name); characterinfo_load_party parses "<name>.tbl" for every
-// entry with load set.
+// One entry of species_table (0x580e60, 223 entries, .rdata: const; defined in characterinfo.cpp, whose
+// literals hold its names): $Character: names map to species ids through it (characterinfo_parse_name);
+// characterinfo_load_party parses "<name>.tbl" for every entry with load set.
 struct species_info {
     const char *name;                 // +0x0
     int species;                      // +0x4
@@ -391,7 +391,7 @@ struct species_info {
 };
 LAYOUT_CHECK(species_info, sizeof(species_info) == 0xc);
 #define NUM_SPECIES_TABLE 223
-extern species_info species_table[NUM_SPECIES_TABLE];  // 0x580e60
+extern const species_info species_table[NUM_SPECIES_TABLE];  // 0x580e60
 
 // A chain attack entry (0x14 bytes, chain_skill_table 0x8b3c68, 40 entries, init_chain_skill_names).
 // Per hero, the chain slot (0 added blow, 1..3 the up / down / left-right chains of chainpts) and the

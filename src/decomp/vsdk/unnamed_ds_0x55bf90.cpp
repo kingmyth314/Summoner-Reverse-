@@ -26,6 +26,18 @@
 #include "vsdk/snd/unnamed_sndstream_0x566560.h"
 #include "vsdk/math/vector.h"
 
+// ---- GUIDs (ds.h) ------------------------------------------------------------------------------------
+// In Sum.exe these are library .rdata, in the run of GUIDs at 0x5832c8-0x5833cf (with dinput.lib's
+// c_dfDIMouse, dxguid.lib's GUID_SysMouse, IID_IDirect3D7 and IID_IDirectDraw7, and the two EAX property
+// sets, defined in the EAX unit): an initguid object, not this unit's data. ds.h declares them as C++
+// names, so the libraries' C symbols do not resolve them; defined here, values read from Sum.exe.
+extern const GUID IID_IKsPropertySet =                   // 0x5832e0 {31efac30-515c-11d0-a9aa-00aa0061be93}
+    { 0x31efac30, 0x515c, 0x11d0, { 0xa9, 0xaa, 0x00, 0xaa, 0x00, 0x61, 0xbe, 0x93 } };
+extern const GUID IID_IDirectSound3DBuffer =             // 0x5832f0 {279afa86-4981-11ce-a521-0020af0be560}
+    { 0x279afa86, 0x4981, 0x11ce, { 0xa5, 0x21, 0x00, 0x20, 0xaf, 0x0b, 0xe5, 0x60 } };
+extern const GUID IID_IDirectSound3DListener =           // 0x583300 {279afa84-4981-11ce-a521-0020af0be560}
+    { 0x279afa84, 0x4981, 0x11ce, { 0xa5, 0x21, 0x00, 0x20, 0xaf, 0x0b, 0xe5, 0x60 } };
+
 // ---- .bss -------------------------------------------------------------------------------------------
 // 0x55bf90  init_ds_channels (jmp 0x55bfa0). Confidence: exact (compiler-generated).
 // 0x55bfa0  the initialiser body: `vector constructor iterator` (0x404880) over the 32 channels with

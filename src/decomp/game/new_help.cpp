@@ -257,6 +257,14 @@ void help_leave()
         game_unpause();
 }
 
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool help_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x40c860, screen 22 per-frame input. Jump table 0x40c928 (4 targets), index bytes 0x40c938
 // for key - 1 in 0..0xd0. Case bodies are laid out ESC, previous, next, which gives the source
 // order; the ESC screen is an if / else of two calls (D6501). Confidence: exact (VC6 byte match)

@@ -177,6 +177,14 @@ void pxochat_leave()
     }
 }
 
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool pxochat_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x4223d0  Confidence: likely (the "found" fill is rep stosd of -1, read as memset; local order). The
 // cfg: "$Base_url:" "url", then up to 10 of "$Pcx_name:" "name" [+Link: "url"], "#End". One banner is
 // picked at random (only among those on disk with downloaded_only). Note: the +Link: string is parsed

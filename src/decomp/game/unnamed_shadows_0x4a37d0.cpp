@@ -76,6 +76,14 @@ void frame_sleep_when_inactive(int active, int a)
         timer_wait(10);
 }
 
+// folded (0x4f13e0, empty_function)  Confidence: likely. pf_graph_search's per-step debug hook (pathfinding.h):
+// empty in this build, so the linker folded it into empty_function. Placed with pf_debug_mode and
+// pf_debug_path, the other pathfinding debug items this unit defines (D3711; unit not proven).
+void pf_debug_search_step(float sx, float sy, float gx, float gy, pf_vis_node *to, pf_vis_node *from,
+                          int unused, float range)
+{
+}
+
 // Draws one nav segment at the debug height (the shared tail of obstacles_debug_render's loops).
 #define OBSTACLE_LINE(pa, pb)                                                                           \
     do {                                                                                                \

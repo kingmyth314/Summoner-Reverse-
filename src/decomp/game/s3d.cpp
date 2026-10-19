@@ -40,7 +40,11 @@
 // 0.03f (0x5819c0, the orientation check) and 0.998f (0x5819f8, s3d_read_color_record) sit next to
 // objects.cpp's constants; 1.0f (0x57e990) and 0.0f (0x57eb84) are shared __real@ constants.
 
-// ---- .data (0x59aa58; the literals 0x59aa5c-0x59ad5f follow) ---------------------------------------
+// ---- .data (0x59aa54; the literals 0x59aa5c-0x59ad5f follow) ---------------------------------------
+// The file_add_path id of data\models\levels: setup_data_paths stores it, state_loadgame_enter lists the
+// level .s3d files with it. Placed here by address (multisave.cpp's .data ends at 0x59aa53). Initially
+// 9999999 (0x98967f in Sum.exe), the path id the TextFile::Open callers pass.
+int path_models_levels = 9999999;         // 0x59aa54
 bool S3d_load_lightmaps = true;           // 0x59aa58
 
 // ---- .bss (0xa5a2a0-0x22e4425) -----------------------------------------------------------------------

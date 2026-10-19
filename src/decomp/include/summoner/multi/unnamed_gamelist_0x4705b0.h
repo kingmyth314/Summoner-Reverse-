@@ -28,7 +28,7 @@ extern RealtimeTimer mp_join_retry_timer;               // 0x22e45c0 28 s: give 
 extern mp_gamelist_entry mp_gamelist_free_list;         // 0x22e45c8 head
 extern bool mp_gamelist_active;                         // 0x22e461c ACTV_GM is ignored while false
 extern char mp_join_password[0x10];                     // 0x22e4620 (name ours)
-// The int the join request sends in its +0x40 field (no sum.symbols entry; no written unit defines it).
+// The int the join request sends in its +0x40 field (no sum.symbols entry; characterinfo.cpp's .bss by address).
 extern int mp_join_unk_68e1bc;                          // 0x68e1bc (name ours)
 
 void mp_gamelist_refresh();                             // 0x470600 (the tail of mp_gamelist_net_frame)

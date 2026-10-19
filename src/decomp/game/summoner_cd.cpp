@@ -19,7 +19,8 @@
 //   0x594f50  ".\\" + NUL     was "A:\" (the root template)
 //   0x594f70  ".\" + NULs     was "%c:\" (cd_set_root's format; the pushed letter is ignored)
 // With the patch every drive index finds the files under the current directory, so drive 0 is chosen and
-// cd_root is ".\".
+// cd_root is ".\". SHIPPED_NOCD (tools/link-build.mjs --define SHIPPED_NOCD) compiles the shipped behaviour for a
+// standalone build: the drive tests still run and are ignored, and both root strings are ".\".
 
 #include <stdio.h>
 #include <string.h>
@@ -60,6 +61,15 @@ int cd_find_drive(const char *volume)
     found = 0;
     GetCurrentDirectoryA(MAX_PATH, cwd);
     for (i = 0; i < CD_NUM_DRIVES; i++) {
+#ifdef SHIPPED_NOCD
+        char root[] = ".\\\\";
+        char path[512] = "";
+
+        root[0] = '.';
+        GetDriveTypeA(root);
+        result = -3;
+        GetVolumeInformationA(root, label, sizeof(label), NULL, NULL, NULL, NULL, 0);
+#else
         char root[] = "A:\\";
         char path[512] = "";
 
@@ -69,6 +79,7 @@ int cd_find_drive(const char *volume)
         result = -3;
         if (GetVolumeInformationA(root, label, sizeof(label), NULL, NULL, NULL, NULL, 0) != TRUE)
             continue;
+#endif
 
         has_setup = 0;
         has_levelm = 0;
@@ -96,8 +107,13 @@ int cd_find_drive(const char *volume)
             found = 1;
         }
         if (found) {
+#ifdef SHIPPED_NOCD
+            GetDriveTypeA(root);
+            result = i;
+#else
             if (!has_levelm || GetDriveTypeA(root) == DRIVE_CDROM)
                 result = i;
+#endif
             break;
         }
     }
@@ -124,7 +140,11 @@ int cd_set_root(int drive)
         strcpy(cd_root, "");
         return 0;
     }
+#ifdef SHIPPED_NOCD
+    sprintf(cd_root, ".\\", drive + 'A');
+#else
     sprintf(cd_root, "%c:\\", drive + 'A');
+#endif
     file_set_cd_root(cd_root);
     return 1;
 }

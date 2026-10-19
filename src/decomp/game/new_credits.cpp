@@ -161,6 +161,14 @@ void credits_leave()
     music_play(music_find_by_name("Title"), 1);
 }
 
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool credits_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x4089f0, screen 21 per-frame input. Confidence: exact (the switch might have been written
 // with case 0 as its own case rather than merged with default; same code either way)
 int credits_frame(int key)

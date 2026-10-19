@@ -513,6 +513,12 @@ void gr_opengl_texture_init()
     gl_texture_mem_frame = 0;
     gr_opengl_next_texture_id = 1;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
+#ifdef REBUILT_OPENGL
+    // Standalone test builds only, as SummonerFix's glfix.c: a modern driver's 16384 makes the scratch buffer
+    // below 1 GB, which fails in a 32-bit process; the game's textures are far smaller.
+    if (max_size > 2048)
+        max_size = 2048;
+#endif
     gr_screen.max_bitmap_w = max_size;
     gr_screen.max_bitmap_h = max_size;
     gl_convert_buffer = (ubyte *)operator new(max_size * max_size * 4);

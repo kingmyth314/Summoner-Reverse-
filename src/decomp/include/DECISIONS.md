@@ -7314,3 +7314,37 @@ z, y, x as at 0x4b6b50. This is a compiler directive rather than the original's 
 inlining choices under its build are not reproduced by 8966 here, D8708); it is used because it gives the
 original's values: in the Murod Oni fight 18/18 dual calls the same (0/5 before). Not a byte match (301/381 bytes,
 frame 0x38 against 0x44); the file keeps its 20 matches. (Agent work.)
+
+**D9811 (2026-10-19, the definitions a standalone link needs).** A link of all 259 units into an EXE
+(tools/link-build.mjs) left 52 C++ symbols declared and defined nowhere; the hybrid resolved them to Sum.exe
+addresses. Now defined (agent work, checked; full strict sweep 4,961, none lost):
+- Folded functions (the original linker kept one copy of identical code; the decomp names the callers' targets
+  apart): the 13 `*_mouse_in_panel(int, int)` (`return true`, folded into 0x4063a0), the 8 `*_leave()`, the three
+  rider `*_script_hook`, `pf_debug_search_step` and `ai_state::~ai_state` (empty, folded into 0x4f13e0), and
+  `serpent_` / `phoenix_` / `tiger_dismount` (boss_dismount's body, 0x49c610). Each is in its own unit with a
+  `// folded (0xADDR, name)` comment and no address marker, so the compare tools and hybrid-build do not treat it as
+  a second function at that address; `/OPT:ICF` folds them again in the standalone link.
+- Data, with the original's values read from Sum.exe: species_table (0x580e60, 223 x 12 bytes, .rdata, now
+  `const`) and character_size_heights (0x5818d8) in characterinfo.cpp; team_enemy_masks (0x581904) in
+  living_entity.cpp; character_size_radii (0x59d7c8, .data) in unnamed_ai_think_0x4b5140.cpp; equip_page_slots
+  (0x5819d4) in item_paging.cpp; path_models_levels (0x59aa54, 9999999) in s3d.cpp; mp_join_unk_68e1bc in
+  characterinfo.cpp (.bss); the seven gr_info_*_time in levelrender.cpp (.bss); string_buffer (0x257ed80, 0x200
+  bytes) and game_mouse_z (0x257ef80) in unnamed_dialogue_table_0x4feb50.cpp (the only unit between the
+  neighbouring .bss ranges); vfx_mesh_face_uvs (0x2c98a90) in effect_mem.cpp. config_combat_flag is
+  Summoner_options + 0xc (0x60acd4), now a macro on the field as D604 did for config_solo_confirm.
+- GUIDs (library .rdata in Sum.exe): IID_IKsPropertySet, IID_IDirectSound3DBuffer, IID_IDirectSound3DListener
+  (0x5832e0..0x583300) in unnamed_ds_0x55bf90.cpp, the two DSPROPSETID_EAX20 GUIDs (0x5833b0, 0x5833c0) in
+  unnamed_eax_0x521e40.cpp.
+- `help_page` was defined twice: new_help.cpp's is the help screen's page (0x5bc920), gameplay.cpp's the help
+  state's (0x60a66c, sum.symbols loading_help_page), two variables; gameplay.cpp's is now `state_help_page`.
+
+**D9812 (2026-10-19, build options for the standalone test exe; both off by default, so the default build is
+the source of the shipped code and byte matching is unchanged).** `SHIPPED_NOCD` compiles the no-CD edit the shipped
+Sum.exe carries (D2600) in summoner_cd.cpp: the drive tests still run and are ignored, and both root strings are
+".\" (the patched bytes listed in the file comment). `REBUILT_OPENGL` selects the game's own, never-selected OpenGL
+renderer (0x68) in a window (200), as SummonerFix patches the shipped exe (0x43da64, 0x43db45), and caps
+GL_MAX_TEXTURE_SIZE at 2048 in gr_opengl_texture_init as SummonerFix's glfix.c does (a modern driver's 16384 makes
+the max_size^2 * 4 scratch buffer 1 GB, "Failed to allocate 1073741824 bytes", memory.cpp line 223). The
+standalone link also needs, outside the decomp (src/link): the three DirectX 7 GUIDs Sum.exe takes from the DX7
+SDK's dxguid.lib (0x583360..0x583380), import-library stubs for binkw32.dll (decorated stdcall names) and EAX.DLL
+(ordinal 5), and for now a no-op libjpeg stub (libjpeg 6b is linked statically in Sum.exe and not rewritten).

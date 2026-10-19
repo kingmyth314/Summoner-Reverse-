@@ -24,6 +24,14 @@
 // Original __FILE__ of this unit (literal 0x59a914).
 #define ITEM_PAGING_CPP "D:\\projects\\Summoner\\pccode\\Engine\\objects\\item_paging.cpp"
 
+// ---- .rdata ------------------------------------------------------------------------------------------
+// The item_page_slots index of each equipment slot (objects.h; [5] / [6], weapon and shield, use
+// item_paging_find_player_slot instead). .rdata 0x5819d4-0x5819f7, between objects.cpp's 225.0f and
+// s3d.cpp's 0.998f: the party-inventory unit's or this one's (D5208); placed here, the unit of the paging
+// slots it indexes. Read by inventory_page_in_equipped and mp_page_in_player_items. extern: objects.h is
+// not included here.
+extern const int equip_page_slots[9] = { 10, 13, 14, 15, 12, -1, -1, 16, 11 };   // 0x5819d4
+
 // ---- .bss, in address order ----------------------------------------------------------------
 // Buffer labels are ours. The general buffers have room for 19 pools (0x9a9870 + 19 * 0x8000 =
 // 0xa41870, where the popup buffer starts) but only 17 are used: 0xa31870-0xa41870 is never

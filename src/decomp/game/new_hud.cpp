@@ -324,6 +324,12 @@ void hud_init()
     statscreen_refresh_anim(0);
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void hud_leave()
+{
+}
+
 // 0x40cf40  Confidence: exact (the hot button timer test reads "valid || elapsed": the highlight set by
 // hud_handle_keys is cleared on the next frame, not after 100 ms; reproduced as is). In a multiplayer game
 // that is still loading only the host's F key does something: it drops every player still at state 4.

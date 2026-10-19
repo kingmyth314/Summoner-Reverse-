@@ -223,6 +223,12 @@ ai_state::ai_state()
 {
 }
 
+// folded (0x4f13e0, empty_function)  Confidence: likely. The destructor has nothing to do (the GameTimer members
+// have none); Character::~Character calls it, and the linker folded it into empty_function (ai.h).
+ai_state::~ai_state()
+{
+}
+
 // 0x472380  Confidence: exact (the attack point loop becomes `rep stosd` of -1 under 8966; a memset sets the
 // registers in another order).
 void ai_state::init()

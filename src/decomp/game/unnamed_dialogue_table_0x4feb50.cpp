@@ -25,6 +25,14 @@
 #include "levelscripts/savegame.h"
 #include "levelscripts/conversation.h"
 
+// ---- .bss (0x257ed80-0x257ef83) ----------------------------------------------------------------------
+// By address this unit's: after level_script_wolong.cpp's .bss (0x257ed7c) and before the mouse unit's
+// (0x257ef84), the only unit between them in link order. This unit's functions use neither: the shared
+// sprintf buffer of the console commands (console.h; sum.symbols' name, 0x200 bytes up to the next item)
+// and the mouse wheel output of GameTick's mouse_get_pos (vsdk/os/mouse.h; sum.symbols tags it vsdk\ui).
+char string_buffer[0x200];                // 0x257ed80
+int game_mouse_z;                         // 0x257ef80
+
 // Topic references whose target is not known yet while the table is read (names ours). The topic of the
 // current speaker named before its +Topic: (resolved after the speaker), a topic of another speaker (and
 // a speaker) resolved at the end, and a speaker named before its $Character: (only checked at the end).

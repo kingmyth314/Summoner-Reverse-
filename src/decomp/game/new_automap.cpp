@@ -238,6 +238,12 @@ void automap_init()
     automap_select_label(-1);
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void automap_leave()
+{
+}
+
 // 0x402280  Confidence: exact (VC6 byte match) (the store of the terminating 0 is scheduled between the pushes of the
 // gr_get_string_size call; the expression order of the two box coordinates is read from the code).
 // Wraps the label text into at most four lines and places the text box above the marker.

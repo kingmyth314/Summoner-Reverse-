@@ -62,6 +62,17 @@ float levelrender_wave_vertex_face_count[LEVELRENDER_MAX_WAVE_NORMALS];   // 0x2
 gr_vertex levelrender_face_verts[3];          // 0x23c5aa8 (name ours)
 gr_vertex *levelrender_face_vert_list[10];    // 0x23ec630
 void *levelrender_d3d_vertex_buffer;          // 0x243e03c
+// The gr_info timing counters FrameEnd prints and resets (summoner.h; D3104): this unit's .bss by address,
+// five right after levelrender_gl_vert_lit (0x2395cf0 + 4000) and two right after levelrender_gl_vertex_array
+// (0x2419570 + 4512 * 12). Only the reset writes the first five; the last two are written as esi-indexed
+// elements by levelrender_draw_list_opengl (game-bugs.md).
+int gr_info_total_time;                       // 0x2396c90
+int gr_info_backface_time;                    // 0x2396c94
+int gr_info_point_rotation_time;              // 0x2396c98
+int gr_info_everything_else_time;             // 0x2396c9c
+int gr_info_polygon_time;                     // 0x2396ca0
+int gr_info_smooth_lighting_time;             // 0x24268f0
+int gr_info_zsort_time;                       // 0x24268f4
 
 // The inline constructor of attached_light (reset()) over the 16 records (D805).
 // 0x48db30 init_array_23df188_thunk (jmp, static initialiser entry 253). Confidence: exact.

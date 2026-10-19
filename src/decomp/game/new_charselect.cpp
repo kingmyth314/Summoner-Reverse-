@@ -230,6 +230,20 @@ void mp_charselect_init()
     mp_charselect_info_open = false;
 }
 
+// folded (0x4f13e0, empty_function): the screen's leave function is empty; the linker folded it into
+// empty_function (identical-code folding). interface_set_screen calls each by name (D7903); name ours.
+void charselect_leave()
+{
+}
+
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool charselect_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x406710  Confidence: exact (VC6 byte match) (the list free loop: the head's prev field is the temporary, read as the
 // three statements below; a list macro or inline in the original is likely). At most 64 records; a file
 // whose header cannot be read is skipped (its slot is reused). A directory failure leaves the selection.

@@ -390,6 +390,14 @@ void saveload_leave()
         game_unpause();
 }
 
+// folded (0x4063a0, ui_return_true): the screen has no panel of its own, so its mouse_in_panel returns true;
+// the linker folded the identical copies into one (identical-code folding). interface_mouse_over_panel
+// calls each by name (D7903); name ours.
+bool saveload_mouse_in_panel(int x, int y)
+{
+    return true;
+}
+
 // 0x425c90  Confidence: exact (jump table 0x425d50). A click outside the description box ends the editing.
 int saveload_frame(int key)
 {
