@@ -331,11 +331,14 @@ exe through an address table, so agent mode drives it like the original ([Summon
   read only by byte-matching functions, which in the hybrid used Sum.exe's own copies (D9814).
 - 71 non-matching functions never ran decompiled in the hybrid, because SummonerFix patches them and the hybrid
   then keeps them original (`gr_init`, `os_wndproc`, `key_mark`, `world_mouse_frame`, `spell_cast_execute`,
-  `living_combat::resolve_hit`, `fx_frame`, the dialogue and list drawing...). The standalone exe runs them.
+  `living_combat::resolve_hit`, `fx_frame`, the dialogue and list drawing...). The standalone exe runs them. With
+  the user's settings, 22 of them are kept only for the bug-fix module (`[Fixes] Enabled=0` replaces them) and 49 for
+  the display, widescreen, key-binding and other patches (kept original even then).
 
 A new game now reaches Masad.
 
-**Play-test (2026-10-19).** An agent played the rebuilt exe for 75 minutes, replaying anything doubtful in the
+**Play-test (2026-10-19).** An agent played the rebuilt exe for 75 minutes (still under the original's
+double-speed frame limiter, see below, so its timing observations are not comparable; its crash results stand), replaying anything doubtful in the
 original: Masad from the start to the boat (dialogue, the tutorials, scout and barbarian fights, loot, inventory,
 the character screen and levelling, the Heal spell, map, journal, game over), the boat cutscene, the world map and a
 random encounter, Lenele Outskirts (a quest accepted), the Lenele Marketplace trader (buy and sell) and the sewer
@@ -361,11 +364,13 @@ the Abbot Laurent conversation), a four-member fight, the first summon (Blackfir
 Darkness, its portal and HUD portrait), the Ghost-Dismount cutscene and boss fight, and 8 more saves loaded in both
 exes. No crash, hang or `errorlog.txt`; the character sheets matched the original number for number. One
 unconfirmed observation: control seemed to pass from Joseph to Jekhar in a grassland fight once; a rerun watching the
-current-character pointer did not show it. HP does not come back over time in either exe; the game only
-regenerates AP (Character::update_regen_and_status, every 7.5 s). Not yet covered: shops and XP levelling in the
+current-character pointer did not show it. HP does not come back over time in the rebuilt exe, and not in the original either (checked: Joseph's HP set to
+32 of 64 in Sum-orig stayed at 32 over 60 s of play); the game only regenerates AP
+(Character::update_regen_and_status, every 7.5 s). Not yet covered: shops and XP levelling in the
 later areas, Jekhar's own join, the sewer quests and boss.
 
-A read-through of the other 46 functions that first ran decompiled in the standalone exe, against the disassembly, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
+A read-through against the disassembly of the 47 functions that `[Fixes] Enabled=0` replaces (the 22 non-matching
+ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
 
 ## Phase 3 status (2026-10-16)
 
