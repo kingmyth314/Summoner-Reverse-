@@ -138,6 +138,15 @@ rebuilt executable, the step the post-recompile projects below need. For a link,
 own `LIBCMT.LIB` (Sum.exe links the multithreaded CRT); VC6 ships no libjpeg, so libjpeg 6b would have to be built
 from the Independent JPEG Group's source with the same compiler.
 
+**Status 2026-10-19: the hybrid game.** Instead of a full link, the whole decompiled source (5,922 functions) runs
+inside the real game as a DLL that replaces the original functions, so each one can be tested in play: save
+comparisons, and dual calls that run the original and the decompiled function on the same live inputs and compare
+the results. This has found thirteen decompilation errors byte matching could not see, all fixed (DECISIONS
+D9200-D9204, D9800-D9810). 628 of the 890 functions that do not match byte for byte have run in a checked
+single-player scenario; what has not run is mostly multiplayer (left out for now), the Direct3D and Glide renderers,
+functions with no caller, and a few rare branches. Details: [the hybrid game](decomp-plan.md) and
+[never-run function review](hybrid-review.md).
+
 ## Future projects
 
 Added 2026-10-16 at the user's request.
