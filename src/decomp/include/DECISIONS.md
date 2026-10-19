@@ -7279,3 +7279,12 @@ first, so the source writes the sum out z first with named products. The directi
 0xd8); the angle compare is `fabsf` (`fcomp dword [0x57f028]`, 0x4d9bf7). Not a byte match: the binary calls the
 copy constructor out of line for the flip's `operator=` result (0x4d9bde), which 8966 expands (the inlining budget
 of D8708). File: 19 matches before and after. (Agent work, merged and checked.)
+
+**D9808 (2026-10-19, script_editor_ray_hit_object 0x4e2f30: the exception frame is a profile_label).** Found by
+listing every compared function whose original starts with the SEH prologue (`push -1; push handler`) and whose
+VC6 output does not (after D9806): the handler 0x57ce38 -> FuncInfo 0x584870 has one unwind action, funclet
+0x57ce30 calling `~profile_label` 0x434650 on `[ebp-0x20]`, the D9806 pattern. With
+`profile_label label("script_editor_ray_hit_object")` the function is identical up to +0x4e (it differed from
++0x0); the file keeps its 92 matches. The only other function with a missing frame is the multiplayer
+`mp_levelselect_draw_levels` 0x41d1d0 (left out with multiplayer). No compared function has a frame the
+original lacks.

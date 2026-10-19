@@ -65,6 +65,7 @@
 #include "levelscripts/script_internal.h"
 #include "levelscripts/savegame.h"
 #include "engine/ai/pathfinding.h"
+#include "vsdk/os/profile.h"
 
 // ---- .data (0x5a08a8) ----------------------------------------------------------------------------------
 const char *script_editor_mode_names[SE_NUM_MODES] = {          // 0x5a08a8
@@ -1709,13 +1710,13 @@ void script_editor_pick_hover()
     }
 }
 
-// 0x4e2f30  Confidence: likely (the function has an exception frame with nothing to unwind, so a local
-// of a class with a destructor may be missing; and t: the sphere test's second output is written into
-// the stack slot of the radius argument, as if t were the parameter itself). The mouse ray hits the
+// 0x4e2f30  Confidence: likely (the exception frame is a profile_label, D9808; and t: the sphere test's
+// second output is written into the stack slot of the radius argument, as if t were the parameter itself). The mouse ray hits the
 // bounding sphere (within 1000 units) and the box (its centre half the box height up the up axis), nearer
 // than the best hit so far: the hover record takes the object's position, orientation and size.
 bool script_editor_ray_hit_object(vector3 *pos, matrix *orient, vector3 *size, float radius)
 {
+    profile_label label("script_editor_ray_hit_object");
     vector3 hit;
     float d;
 
