@@ -337,8 +337,9 @@ Added 2026-10-19. When `<exe name>.addr` sits next to the running exe (the addre
 writes for `Sum-rebuilt.exe`, the exe built from the decompiled source), SummonerFix runs in that exe
 (`rebuilt.c`): every Sum.exe address it uses is translated through the table (`SumVa`, and `OrigVa` for return
 addresses), and it installs only the registry layer, the OpenGL texture-size fix, the display module, the timing
-fixes (frame limiter and cutscene timer; FrameTimer byte-matches, so its sleep call site is the same), the key
-bindings, agent mode and the bug-fix module. Code patches apply only where the rebuilt code has the original's bytes
+fixes (frame limiter and cutscene timer; FrameTimer byte-matches, so its sleep call site is the same), `[Debug]
+TestSaves` (the rebuilt exe orders its string literals differently, so the `"savegame"` string is found by
+searching its data, where it occurs once), the key bindings, agent mode and the bug-fix module. Code patches apply only where the rebuilt code has the original's bytes
 (byte-matching functions; `PatchBytes` checks), so with `[Fixes] Enabled=0` the rebuilt game runs without gameplay
 fixes, with the no-sound crash guard. Agent mode works there as in Sum.exe, so the rebuilt game can be driven and
 play-tested with `tools/agent.mjs` ([tools](../tools.md), [decompilation plan](../decomp-plan.md)).

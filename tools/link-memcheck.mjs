@@ -4,7 +4,11 @@
 // a Sum.exe address counts as equal when the address table translates it to the rebuilt value, or when both point to
 // the same string (read from the two exe files); values outside both images (heap, stack) count as equal.
 //
-//   node tools/link-memcheck.mjs <original dump> <rebuilt dump> [--show 60]
+//   node tools/link-memcheck.mjs <original dump> <rebuilt dump> [--also orig2,orig3] [--show 60]
+// With --also (more dumps of the original at the same point), a symbol counts only when the rebuilt value differs
+// from every original dump and the original dumps agree in it; symbols that vary between original runs are counted
+// apart. A byte that both processes still hold as their exe file has it is skipped (the static data is
+// tools/link-datacheck.mjs's job; string literals sit in another order next to named data); --static keeps them.
 import { readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +16,8 @@ import { fileURLToPath } from "node:url";
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const [dumpA, dumpB] = process.argv.slice(2);
 const show = Number(process.argv[process.argv.indexOf("--show") + 1] || 60);
+const alsoAt = process.argv.indexOf("--also");
+const also = alsoAt > 0 ? process.argv[alsoAt + 1].split(",") : [];
 const out = join(repo, "build", "link");
 
 function pe(path) {
@@ -66,28 +72,46 @@ const read = (path) => {
   }
   return map;
 };
-const A = read(dumpA), B = read(dumpB);
+const A = read(dumpA), B = read(dumpB), more = also.map(read);
 const image = (v) => v >= 0x400000 && v < 0x3000000;
-let compared = 0, bad = 0;
+// Differing bytes of an original dump x against y over len bytes; y is the rebuilt dump (addresses translated) or,
+// with raw, another original dump (compared as bytes).
+const keepStatic = process.argv.includes("--static");
+// Two image pointers with no table row (vtables, compiler tables): the same when the first dword they point at
+// translates (a vtable's first slot).
+const sameTable = (p, q) => {
+  const a = orig.read(p, 4), b = now.read(q, 4);
+  if (!a || !b) return false;
+  const t = translate(a.readUInt32LE(0));
+  return t !== null && t === b.readUInt32LE(0);
+};
+const diff = (x, y, len, raw, va, rva) => {
+  const fx = !raw && !keepStatic ? orig.read(va, len) : null, fy = fx ? now.read(rva, len) : null;
+  let first = -1, count = 0;
+  for (let i = 0; i < len; ) {
+    if (i + 4 <= len) {
+      const p = x.readUInt32LE(i), q = y.readUInt32LE(i);
+      if (p === q || (!raw && image(p) && (translate(p) === q || sameString(p, q) || (image(q) && sameTable(p, q)))) || (!image(p) && !image(q) && p > 0x10000 && q > 0x10000)) { i += 4; continue; }
+    }
+    if (x[i] !== y[i] && !(fx && fy && x[i] === fx[i] && y[i] === fy[i])) { if (first < 0) first = i; count++; }
+    i++;
+  }
+  return { first, count };
+};
+let compared = 0, bad = 0, varies = 0;
 const lines = [];
 for (const [va, x] of A) {
   const y = B.get(va), r = rowOf.get(va);
   if (!y || !r) continue;
   compared++;
   const len = Math.min(x.length, y.length, after(starts, va) - va, after(mapStarts, r[2]) - r[2]);
-  let first = -1, count = 0;
-  for (let i = 0; i < len; ) {
-    if (i + 4 <= len) {
-      const p = x.readUInt32LE(i), q = y.readUInt32LE(i);
-      if (p === q || (image(p) && (translate(p) === q || sameString(p, q))) || (!image(p) && !image(q) && p > 0x10000 && q > 0x10000)) { i += 4; continue; }
-    }
-    if (x[i] !== y[i]) { if (first < 0) first = i; count++; }
-    i++;
-  }
-  if (count) {
-    bad++;
-    lines.push(`0x${va.toString(16)} ${names.get(va) ?? "?"}: ${count} bytes differ, first +0x${first.toString(16)} of 0x${len.toString(16)}: original ${x.subarray(first, first + 8).toString("hex")} rebuilt ${y.subarray(first, first + 8).toString("hex")}`);
-  }
+  const { first, count } = diff(x, y, len, false, va, r[2]);
+  if (!count) continue;
+  const others = more.map((m) => m.get(va)).filter(Boolean);
+  if (others.some((o) => !diff(o, y, Math.min(len, o.length), false, va, r[2]).count)) continue;
+  if (others.some((o) => diff(x, o, Math.min(len, o.length), true).count)) { varies++; continue; }
+  bad++;
+  lines.push(`0x${va.toString(16)} ${names.get(va) ?? "?"}: ${count} bytes differ, first +0x${first.toString(16)} of 0x${len.toString(16)}: original ${x.subarray(first, first + 8).toString("hex")} rebuilt ${y.subarray(first, first + 8).toString("hex")}`);
 }
-console.log(`${compared} symbols compared, ${bad} differ`);
+console.log(`${compared} symbols compared, ${bad} differ${more.length ? `, ${varies} more vary between the original runs` : ""}`);
 for (const l of lines.slice(0, show)) console.log("  " + l);

@@ -63,6 +63,7 @@ void TimingFixInstall(void);
 
 // gameopts.c
 void GameOptionsInstall(void);
+void TestSavesInstall(void);
 
 // bugfix.c
 void BugFixesInstall(void);

@@ -122,7 +122,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     LoadConfig();
     if (RebuiltInit()) {
         // The standalone rebuilt exe (rebuilt.c): only what works without code patches, through the address table.
-        Log("rebuilt exe: registry, OpenGL, display, timing, keys, agent mode, and the fixes whose patch site matches.");
+        Log("rebuilt exe: registry, OpenGL, display, timing, test saves, keys, agent mode, and the fixes whose patch site matches.");
         if (GetPrivateProfileIntA("Debug", "Diagnostics", 0, g_cfg.iniPath))
             DiagInstall(GetModuleHandleA(NULL));
         RegHookInstall(GetModuleHandleA(NULL));
@@ -132,6 +132,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         // The frame limiter and cutscene timer fixes: FrameTimer (0x501510) byte-matches, so its sleep call site
         // does too; without them the rebuilt exe runs at the original's double speed and is not comparable.
         TimingFixInstall();
+        TestSavesInstall();
         KeyBindInstall();
         // Fixes whose patch site is byte-identical in the rebuilt code apply (PatchBytes checks the original bytes);
         // the unconditional no-sound crash guard is one. [Fixes] Enabled=0 keeps the gameplay fixes off.

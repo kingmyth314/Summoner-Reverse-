@@ -22,6 +22,7 @@
 #include "summonerfix.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define VA_CAMERA_ZOOM_MAX 0x59b800u
 #define VA_PLAY_INTRO_MOVIES 0x5930bdu
@@ -71,12 +72,42 @@ void GameOptionsInstall(void)
         BYTE off = 0, on = 1;
         PatchBytes(VA_PRINT_SCREEN_AS_TARGA, &off, &on, 1, "Print Screen as Targa (GameHeight above 1024, C290)");
     }
+    TestSavesInstall();
+}
 
+// Also installed in the standalone rebuilt exe (main.c): the string is data, reached through the address table.
+void TestSavesInstall(void)
+{
     if (GetPrivateProfileIntA("Debug", "TestSaves", 0, g_cfg.iniPath)) {
         char dir[MAX_PATH];
         _snprintf(dir, sizeof dir, "%s%csavetest", g_cfg.installPath, 92);
         dir[sizeof dir - 1] = 0;
         CreateDirectoryA(dir, NULL);
-        PatchBytes(VA_SAVEGAME_DIR_NAME, "savegame", "savetest", 8, "save folder -> savetest (TestSaves)");
+        if (!g_rebuilt) {
+            PatchBytes(VA_SAVEGAME_DIR_NAME, "savegame", "savetest", 8, "save folder -> savetest (TestSaves)");
+            return;
+        }
+        // The rebuilt exe orders its string literals differently, so the address table cannot place this one: find
+        // the string itself (it occurs once, as a whole string, in both exes).
+        BYTE *base = (BYTE *)GetModuleHandleA(NULL);
+        IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)(base + ((IMAGE_DOS_HEADER *)base)->e_lfanew);
+        IMAGE_SECTION_HEADER *sec = IMAGE_FIRST_SECTION(nt);
+        for (int i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
+            if (sec->Characteristics & IMAGE_SCN_MEM_EXECUTE)
+                continue;
+            BYTE *p = base + sec->VirtualAddress, *end = p + sec->Misc.VirtualSize - 10;
+            for (; p < end; p++) {
+                if (p[0] == 0 && memcmp(p + 1, "savegame", 9) == 0) {
+                    DWORD prot;
+                    if (VirtualProtect(p + 1, 8, PAGE_READWRITE, &prot)) {
+                        memcpy(p + 1, "savetest", 8);
+                        VirtualProtect(p + 1, 8, prot, &prot);
+                        Log("patched save folder -> savetest (TestSaves) at 0x%08lX (rebuilt exe)", (DWORD)(UINT_PTR)(p + 1));
+                    }
+                    return;
+                }
+            }
+        }
+        Log("SKIP save folder -> savetest (TestSaves): \"savegame\" not found in the rebuilt exe");
     }
 }
