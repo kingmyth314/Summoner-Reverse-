@@ -120,6 +120,22 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         return TRUE;
     DisableThreadLibraryCalls(inst);
     LoadConfig();
+    if (RebuiltInit()) {
+        // The standalone rebuilt exe (rebuilt.c): only what works without code patches, through the address table.
+        Log("rebuilt exe: registry, OpenGL, display, keys, agent mode, and the fixes whose patch site matches.");
+        if (GetPrivateProfileIntA("Debug", "Diagnostics", 0, g_cfg.iniPath))
+            DiagInstall(GetModuleHandleA(NULL));
+        RegHookInstall(GetModuleHandleA(NULL));
+        GlFixInstall(GetModuleHandleA(NULL));
+        if (g_cfg.renderer == RENDERER_OPENGL)
+            DisplayInstall(GetModuleHandleA(NULL));
+        KeyBindInstall();
+        // Fixes whose patch site is byte-identical in the rebuilt code apply (PatchBytes checks the original bytes);
+        // the unconditional no-sound crash guard is one. [Fixes] Enabled=0 keeps the gameplay fixes off.
+        BugFixesInstall();
+        AgentInstall();
+        return TRUE;
+    }
     if (!IsSupportedBuild()) {
         Log("Not Sum.exe v1.40 (signature mismatch at 0x%06X); no fixes applied, DirectInput proxy only.",
             SUM140_SIGNATURE_VA);

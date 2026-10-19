@@ -64,9 +64,8 @@ int s3d_byte_cursor;                      // 0x22e43bc level +0xcc
 int s3d_uv_cursor;                        // 0x22e43dc level +0xb8
 int s3d_mesh_face_cursor;                 // 0x22e43e0 level +0xb0
 // 0x22e43e8 ccmd_test_meshes_on_load
-const char *level_vis_base_name;          // 0x22e43f8
-ushort level_vis_base_count;              // 0x22e43fc
-int *level_vis_base_lobjs;                // 0x22e4400
+// The $vis_base set: one s3d_vis_set (name, count, level objects), used as a set by the vis lists (D9813).
+s3d_vis_set level_vis_base;               // 0x22e43f8
 // 0x22e4408 ccmd_lmap_off
 int s3d_cursor_22e4414;                   // 0x22e4414 reset only
 int s3d_face_cursor;                      // 0x22e4418 level +0xac
@@ -372,24 +371,24 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
 
     // $vis_base: the level objects that no $vis set names. The old list is freed only when it was
     // built; otherwise the name is set (the else is the code's).
-    if (level_vis_base_built && level_vis_base_lobjs)
-        delete level_vis_base_lobjs;
+    if (level_vis_base_built && level_vis_base.indices)
+        delete level_vis_base.indices;
     else
-        level_vis_base_name = "$vis_base";
-    level_vis_base_count = 0;
+        level_vis_base.name = "$vis_base";
+    level_vis_base.count = 0;
     for (i = 0; i < level->num_meshes; i++) {
         if (!(level->meshes[i].flags & 0x4000))
-            level_vis_base_count++;
+            level_vis_base.count++;
     }
-    if (level_vis_base_count) {
-        level_vis_base_lobjs = new int[level_vis_base_count];
-        if (!level_vis_base_lobjs)
+    if (level_vis_base.count) {
+        level_vis_base.indices = new int[level_vis_base.count];
+        if (!level_vis_base.indices)
             return -1;
     }
     level_vis_base_built = true;
     for (i = 0, j = 0; i < level->num_meshes; i++) {
         if (!(level->meshes[i].flags & 0x4000))
-            level_vis_base_lobjs[j++] = i;
+            level_vis_base.indices[j++] = i;
         level->meshes[i].flags &= ~0x6000;
     }
     level->flags |= 1;
@@ -882,9 +881,9 @@ void level_free_s3d(s3d_level *level)
     int bm;
     void *palette;
 
-    if (level_vis_base_built && level_vis_base_count) {
-        delete level_vis_base_lobjs;
-        level_vis_base_lobjs = NULL;
+    if (level_vis_base_built && level_vis_base.count) {
+        delete level_vis_base.indices;
+        level_vis_base.indices = NULL;
         level_vis_base_built = false;
     }
     level->names.Release();

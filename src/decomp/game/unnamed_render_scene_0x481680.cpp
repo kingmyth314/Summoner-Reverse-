@@ -2468,9 +2468,9 @@ void level_vis_parse(TextFile *tf)
         level_layer_vis_rec *rec = &level_layer_vis[layer];
         rec->count = 1;
         rec->sets = &level_vis_set_lists[level_num_vis_sets];
-        level_vis_set_lists[level_num_vis_sets] = (s3d_vis_set *)&level_vis_base_name;
+        level_vis_set_lists[level_num_vis_sets] = &level_vis_base;
         rec->sets_high = &level_vis_set_records[level_num_vis_sets];
-        level_vis_set_records[level_num_vis_sets] = (s3d_vis_set *)&level_vis_base_name;
+        level_vis_set_records[level_num_vis_sets] = &level_vis_base;
         level_num_vis_sets++;
         while (tf->Peek("\"")) {
             tf->ParseString(set_name, 0x40, '"', '"');
@@ -2499,8 +2499,8 @@ void level_vis_parse(TextFile *tf)
     tf->Expect("$end");
     if (level_num_vis_sets == 0) {
         level_num_vis_sets = 1;
-        level_vis_set_lists[0] = (s3d_vis_set *)&level_vis_base_name;
-        level_vis_set_records[0] = (s3d_vis_set *)&level_vis_base_name;
+        level_vis_set_lists[0] = &level_vis_base;
+        level_vis_set_records[0] = &level_vis_base;
     }
     for (i = 0; i < LEVEL_NUM_LAYERS; i++) {
         if (level_layer_vis[i].count == 0) {
@@ -2518,7 +2518,7 @@ void level_vis_reset()
 
     memset(level_layer_vis_flags, 0, sizeof(level_layer_vis_flags));
     level_num_vis_sets = 1;
-    level_vis_set_lists[0] = (s3d_vis_set *)&level_vis_base_name;
+    level_vis_set_lists[0] = &level_vis_base;
     for (v = level_layer_vis; v < &level_layer_vis[LEVEL_NUM_LAYERS]; v++) {
         v->count = 1;
         v->sets = level_vis_set_lists;
@@ -2567,7 +2567,7 @@ void fog_set_layer(int layer, float a, float b, int r, int g, int bl)
 // 0x487150  Confidence: exact (the tail jump is level_vis_invalidate).
 void level_vis_force_begin()
 {
-    level_vis_force_list[0] = (s3d_vis_set *)&level_vis_base_name;
+    level_vis_force_list[0] = &level_vis_base;
     level_vis_forced = true;
     level_vis_force_count = 1;
     level_vis_invalidate();
@@ -2586,7 +2586,7 @@ void level_vis_invalidate()
 void level_vis_force_reset()
 {
     level_vis_force_count = 1;
-    level_vis_force_list[0] = (s3d_vis_set *)&level_vis_base_name;
+    level_vis_force_list[0] = &level_vis_base;
     level_vis_invalidate();
 }
 

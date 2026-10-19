@@ -279,6 +279,9 @@ for (const l of readFileSync(join(decompRoot, "vc6-matches.txt"), "latin1").spli
 // The no-CD edit (summoner_cd.cpp, DECISIONS.md D2600): the decompiled ones would ask for the disc.
 const shippedPatched = new Set([0x43e660 /* cd_find_drive */, 0x43e8e0 /* cd_set_root */]);
 const decompNames = new Map(); // external name of every decompiled function -> its original address
+// Every symbol given an original address (name, object, address, static): hybrid-addrs.txt, which
+// tools/link-build.mjs joins with the standalone exe's map into the address table SummonerFix's agent mode uses there.
+const addrDump = [];
 for (const u of units) {
   u.inject = new Map(); // symbol index -> original address
   for (const [idx, addr] of u.funcAddr) {
@@ -317,6 +320,7 @@ for (const { stem, objPath, buf, coff, cod, funcAddr, locals, tables, inject } o
   // rename: also an external one (a reference to an injected function: its own name is the DLL's code).
   const makeAbsolute = (idx, addr, rename = false) => {
     const o = symPtr + idx * 18;
+    addrDump.push([coff.syms[idx].name, stem, addr, buf.readUInt8(o + 16) === 3]);
     // A function that lands outside the code, or data inside it, means a wrong address: report it.
     const fn = (buf.readUInt16LE(o + 14) & 0x20) !== 0, inCode = addr >= 0x401000 && addr < 0x57db40;
     if (addr !== 0 && fn !== inCode && !/^__imp_/.test(coff.syms[idx].name)) suspicious.push(`${stem}: ${demangledOf(cod, coff.syms[idx].name)} -> 0x${addr.toString(16)}`);
@@ -336,6 +340,7 @@ for (const { stem, objPath, buf, coff, cod, funcAddr, locals, tables, inject } o
     const sec = s.sec > 0 ? coff.sections[s.sec - 1] : null;
     if (funcAddr.has(idx)) {
       const addr = funcAddr.get(idx);
+      addrDump.push([s.name, stem, addr, s.cls === 3]);
       if (inject.has(idx)) {
         aliases.push([idx, addr, s.sec, s.value]);
         injected++;
@@ -573,5 +578,6 @@ const returnKind = (m) => {
   return "i";
 };
 // hybrid.txt: address, return kind, name.
+writeFileSync(join(outDir, "hybrid-addrs.txt"), [...new Set(addrDump.filter((a) => a[2]).map(([n, s, a, st]) => `${n}\t${st ? s : ""}\t0x${a.toString(16)}`))].join("\n") + "\n");
 writeFileSync(join(outDir, "hybrid.txt"), exports.map((e) => `0x${e.addr.toString(16)} ${returnKind(e.mangled)} ${e.name}`).join("\n") + "\n");
 console.log(`\n${join(outDir, "hybrid.dll")}: ${exports.length} functions from ${units.length} files (list in hybrid.txt)`);

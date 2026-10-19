@@ -43,7 +43,7 @@ float level_light_scale = 1.0f;               // 0x59c358
 // Fan triangulations of 3- to 8-sided polygons, three corner indices per triangle, read by the D3D and
 // OpenGL draw lists through levelrender_fan_tables[n] (names ours).
 int levelrender_fan3[3] = { 0, 1, 2 };                                            // 0x59c35c
-int levelrender_fan4[6] = { 0, 1, 2, 0, 2, 3 };                                   // 0x59c368
+int levelrender_fan4[6] = { 0, 1, 2, 2, 3, 0 };                                   // 0x59c368 (D9814)
 int levelrender_fan5[9] = { 0, 1, 2, 2, 3, 4, 2, 4, 0 };                          // 0x59c380
 int levelrender_fan6[12] = { 0, 1, 2, 2, 3, 4, 2, 4, 0, 4, 5, 0 };                // 0x59c3a4
 int levelrender_fan7[15] = { 0, 1, 2, 2, 3, 4, 4, 5, 6, 0, 2, 6, 2, 4, 6 };       // 0x59c3d4

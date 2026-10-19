@@ -32,6 +32,11 @@ extern Config g_cfg;
 void LogInit(const char *path);
 void Log(const char *fmt, ...);
 DWORD SumVa(DWORD va); // Sum.exe virtual address -> address in this process
+BOOL RebuiltInit(void);  // rebuilt.c: in the standalone rebuilt exe, load its address table
+DWORD RebuiltVa(DWORD va);
+DWORD RebuiltOrigVa(DWORD now);
+DWORD OrigVa(DWORD addr); // an address in this process (a return address) -> its Sum.exe address
+extern BOOL g_rebuilt;
 BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const char *what);
 DWORD PatchedWithin(DWORD va, DWORD n); // the first address PatchBytes changed in [va, va + n), or 0
 void KeepOriginal(DWORD va, DWORD n);   // the hybrid loader must not replace the function(s) here (a hook checks its caller)

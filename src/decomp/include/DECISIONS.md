@@ -7348,3 +7348,20 @@ the max_size^2 * 4 scratch buffer 1 GB, "Failed to allocate 1073741824 bytes", m
 standalone link also needs, outside the decomp (src/link): the three DirectX 7 GUIDs Sum.exe takes from the DX7
 SDK's dxguid.lib (0x583360..0x583380), import-library stubs for binkw32.dll (decorated stdcall names) and EAX.DLL
 (ordinal 5), and for now a no-op libjpeg stub (libjpeg 6b is linked statically in Sum.exe and not rewritten).
+
+**D9813 (2026-10-19, the $vis_base set is one s3d_vis_set: found by the standalone link).** s3d.cpp declared the
+three words at 0x22e43f8 as separate globals (`level_vis_base_name`, `_count`, `_lobjs`), while level_vis_parse /
+level_vis_reset / the forced lists store `(s3d_vis_set *)&level_vis_base_name` as a visibility set and
+levelrender_fade_occluders reads its count (+4) and level objects (+8) through it. In Sum.exe and in the hybrid
+the three sit together at 0x22e43f8..0x22e4403; in the standalone exe the linker placed them apart, so the "set"
+read another variable's bytes as its count and index pointer, and the first level render crashed
+(levelrender_fade_occluders +0x58, a level object index of 0x12bef80). Now `s3d_vis_set level_vis_base` (name,
+count, indices); the code bytes are the same (s3d.cpp 28 matches, the render-scene unit 51, before and after).
+Lesson: globals that the code uses as one record must be one object in the source; the hybrid cannot see this
+(its globals are Sum.exe's addresses).
+
+**D9814 (2026-10-19, three data tables wrong in the source, found by tools/link-datacheck.mjs).**
+pxochat_channel_users_right (0x590038) is {211, 0x108, 0x152} and pxochat_channel_count_x (0x590044) {223, 0x117,
+0x165}: the source had the hex digits as decimal (108, 152, 117, 165). levelrender_fan4 (0x59c368) is {0, 1, 2,
+2, 3, 0}, not {0, 1, 2, 0, 2, 3} (the same two triangles in another vertex order). The functions reading them
+byte-match, so the hybrid used Sum.exe's own tables; only the standalone exe used the source's.

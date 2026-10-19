@@ -52,9 +52,34 @@ for (const u of units) {
   compiled++;
   if (/error C\d+|\(exit/.test(text)) { failed++; console.log(`compile failed: ${u}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
 }
+// libjpeg 6b (Sum.exe links it statically): built from the IJG source when it is in third_party/jpeg6b/jpeg-6b
+// (jpegsrc.v6b.tar.gz, not in the repository; docs/reference/sources.md), its common and compression objects as
+// the IJG's makefile.vc lists them, with jconfig.vc as jconfig.h. Without it the no-op stub is linked.
+const jpegSrc = resolve(opt("--jpeg", join(repo, "third_party", "jpeg6b", "jpeg-6b")));
+const jpegObjs = ["jcomapi", "jutils", "jerror", "jmemmgr", "jmemnobs", "jcapimin", "jcapistd", "jctrans", "jcparam",
+  "jdatadst", "jcinit", "jcmaster", "jcmarker", "jcmainct", "jcprepct", "jccoefct", "jccolor", "jcsample", "jchuff",
+  "jcphuff", "jcdctmgr", "jfdctfst", "jfdctflt", "jfdctint"];
+const haveJpeg = existsSync(join(jpegSrc, "jcapimin.c"));
+const stubs = ["dx7guids.c"];
+if (haveJpeg) {
+  const jdir = join(out, "jpeg");
+  mkdirSync(jdir, { recursive: true });
+  writeFileSync(join(jdir, "jconfig.h"), readFileSync(join(jpegSrc, "jconfig.vc")));
+  const jenv = { ...env, INCLUDE: `${jdir};${jpegSrc};${join(VC, "INCLUDE")}` };
+  for (const n of jpegObjs) {
+    const obj = join(jdir, n + ".obj");
+    objs.push(obj);
+    if (fresh(obj, join(jpegSrc, n + ".c"))) continue;
+    try { execFileSync(join(VC, "BIN", "CL.EXE"), ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(jpegSrc, n + ".c")], { env: jenv, cwd: jdir, encoding: "latin1" }); }
+    catch (e) { failed++; console.log(`libjpeg compile failed: ${n}.c\n${e.stdout}`); }
+  }
+} else {
+  stubs.push("jpeg_stub.c");
+  console.log("libjpeg 6b source not found: linking the no-op stub (JPEG screenshots write nothing)");
+}
 // Link support: plain C files; the import-library stubs become DLLs only for their .lib.
 const support = join(repo, "src", "link");
-for (const c of ["dx7guids.c", "jpeg_stub.c"]) {
+for (const c of stubs) {
   const obj = join(objDir, c.replace(/\.c$/, ".obj"));
   objs.push(obj);
   if (!fresh(obj, join(support, c))) run("CL.EXE", ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(support, c)]);
@@ -83,4 +108,42 @@ console.log(`${units.length} units (${compiled} compiled, ${failed} failed); unr
 for (const n of unres) console.log(`  unresolved ${n}`);
 for (const n of multi) console.log(`  multiple ${n}`);
 const exe = join(out, "Sum-rebuilt.exe");
+
+// The address table SummonerFix's agent mode uses in the rebuilt exe (src/summonerfix/rebuilt.c): Sum.exe address,
+// size (up to the next sum.symbols entry) and the rebuilt address of every symbol both builds know, joined through
+// the names hybrid-build resolved (build/hybrid-all/hybrid-addrs.txt; run a full hybrid build first).
+const dump = join(repo, "build", "hybrid-all", "hybrid-addrs.txt");
+const mapPath = join(out, "Sum-rebuilt.map");
+if (existsSync(dump) && existsSync(mapPath)) {
+  const pub = new Map(), stat = new Map();
+  let statics = false;
+  for (const l of readFileSync(mapPath, "latin1").split(/\r?\n/)) {
+    if (/Static symbols/.test(l)) statics = true;
+    const m = /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+(\S+)\s+([0-9a-f]{8})\s+(?:f\s+)?(?:i\s+)?(\S+)\s*$/.exec(l);
+    if (!m) continue;
+    const va = parseInt(m[2], 16), obj = m[3].replace(/^.*:/, "").replace(/\.obj$/i, "");
+    if (statics) stat.set(`${m[1]}\t${obj}`, va); else if (!pub.has(m[1])) pub.set(m[1], va);
+  }
+  // Object stems: link-build names objects <dir>_<stem>; hybrid-build by <stem>.
+  const statByStem = new Map();
+  for (const [k, va] of stat) { const [n, o] = k.split("\t"); statByStem.set(`${n}\t${o.replace(/^(game|vsdk)_/, "")}`, va); }
+  const starts = readFileSync(join(repo, "symbols", "sum.symbols"), "latin1").split(/\r?\n/).map((l) => /^0x([0-9a-f]+)\s/i.exec(l)).filter(Boolean)
+    .map((m) => parseInt(m[1], 16)).sort((a, b) => a - b);
+  const nextStart = (a) => { let lo = 0, hi = starts.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (starts[mid] <= a) lo = mid + 1; else hi = mid; } return starts[lo] ?? a + 4; };
+  const rows = new Map();
+  for (const l of readFileSync(dump, "latin1").split(/\r?\n/)) {
+    const [name, stem, a] = l.split("\t");
+    if (!name) continue;
+    const orig = parseInt(a, 16);
+    const va = stem ? statByStem.get(`${name}\t${stem}`) : pub.get(name);
+    if (va == null || rows.has(orig)) continue;
+    rows.set(orig, va);
+  }
+  // Size: up to the next row (a struct's fields are not rows of their own), at most up to the next sum.symbols
+  // entry that starts a different top-level object is not known here, so code rows use sum.symbols.
+  const sorted = [...rows].sort((x, y) => x[0] - y[0]);
+  const lines = sorted.map(([o, v], i) => { const next = i + 1 < sorted.length ? sorted[i + 1][0] : o + 4; const size = o < 0x57db40 ? nextStart(o) - o : next - o; return `${o.toString(16)} ${size.toString(16)} ${v.toString(16)}`; });
+  writeFileSync(join(out, "Sum-rebuilt.addr"), lines.join("\n") + "\n");
+  console.log(`address table: ${lines.length} symbols (Sum-rebuilt.addr)`);
+} else console.log("no address table: build/hybrid-all/hybrid-addrs.txt missing (run a full hybrid-build first)");
 console.log(existsSync(exe) && !/fatal error|\(exit [^0]/.test(text) ? `-> ${exe}` : "link failed (build/link/link.txt)");

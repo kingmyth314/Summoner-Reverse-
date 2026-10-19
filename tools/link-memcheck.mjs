@@ -1,0 +1,93 @@
+// Run-time memory of the standalone rebuilt exe against the original's, symbol by symbol: two dumps written by
+// SummonerFix's agent command `dumpdata OUT TABLE` at the same point of the game (for example the main menu), compared
+// as tools/link-datacheck.mjs compares the files: each object up to the next symbol in either build; a dword that is
+// a Sum.exe address counts as equal when the address table translates it to the rebuilt value, or when both point to
+// the same string (read from the two exe files); values outside both images (heap, stack) count as equal.
+//
+//   node tools/link-memcheck.mjs <original dump> <rebuilt dump> [--show 60]
+import { readFileSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const [dumpA, dumpB] = process.argv.slice(2);
+const show = Number(process.argv[process.argv.indexOf("--show") + 1] || 60);
+const out = join(repo, "build", "link");
+
+function pe(path) {
+  const b = readFileSync(path);
+  const o = b.readUInt32LE(0x3c), n = b.readUInt16LE(o + 6), so = o + 24 + b.readUInt16LE(o + 20), base = b.readUInt32LE(o + 52);
+  const secs = [];
+  for (let i = 0; i < n; i++) {
+    const s = so + i * 40;
+    secs.push({ va: base + b.readUInt32LE(s + 12), vsize: b.readUInt32LE(s + 8), raw: b.readUInt32LE(s + 20), rawSize: b.readUInt32LE(s + 16) });
+  }
+  const read = (va, len) => {
+    for (const s of secs) if (va >= s.va && va < s.va + s.vsize) {
+      const off = va - s.va;
+      if (off >= s.rawSize) return Buffer.alloc(len);
+      if (off + len > s.rawSize) return Buffer.concat([b.subarray(s.raw + off, s.raw + s.rawSize), Buffer.alloc(off + len - s.rawSize)]);
+      return b.subarray(s.raw + off, s.raw + off + len);
+    }
+    return null;
+  };
+  return { read, base, end: Math.max(...secs.map((s) => s.va + s.vsize)) };
+}
+const orig = pe(join(repo, "Summoner", "Sum.exe")), now = pe(join(out, "Sum-rebuilt.exe"));
+const rows = readFileSync(join(out, "Sum-rebuilt.addr"), "latin1").trim().split(/\n/).map((l) => l.split(" ").map((x) => parseInt(x, 16)));
+const rowOf = new Map(rows.map((r) => [r[0], r]));
+const translate = (va) => {
+  let lo = 0, hi = rows.length - 1, best = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (rows[m][0] <= va) { best = m; lo = m + 1; } else hi = m - 1; }
+  if (best < 0 || va - rows[best][0] >= rows[best][1]) return null;
+  return rows[best][2] + (va - rows[best][0]);
+};
+const names = new Map(), starts = [];
+for (const l of readFileSync(join(repo, "symbols", "sum.symbols"), "latin1").split(/\r?\n/)) {
+  const m = /^0x([0-9a-f]+)\s+(\S+)/i.exec(l);
+  if (m) { names.set(parseInt(m[1], 16), m[2]); starts.push(parseInt(m[1], 16)); }
+}
+starts.sort((a, b) => a - b);
+const mapStarts = [...new Set(readFileSync(join(out, "Sum-rebuilt.map"), "latin1").split(/\r?\n/)
+  .map((l) => /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+\S+\s+([0-9a-f]{8})\s/.exec(l)).filter(Boolean).map((m) => parseInt(m[1], 16)))].sort((a, b) => a - b);
+const after = (list, a) => { let lo = 0, hi = list.length; while (lo < hi) { const m = (lo + hi) >> 1; if (list[m] <= a) lo = m + 1; else hi = m; } return list[lo] ?? a + 4; };
+const sameString = (p, q) => {
+  const sa = orig.read(p, 64), sb = now.read(q, 64);
+  if (!sa || !sb) return false;
+  const za = sa.indexOf(0), zb = sb.indexOf(0);
+  return za >= 0 && za === zb && sa.subarray(0, za).equals(sb.subarray(0, zb));
+};
+const read = (path) => {
+  const buf = readFileSync(path), map = new Map();
+  for (let o = 0; o + 8 <= buf.length;) {
+    const va = buf.readUInt32LE(o), n = buf.readUInt32LE(o + 4);
+    map.set(va, buf.subarray(o + 8, o + 8 + n));
+    o += 8 + n;
+  }
+  return map;
+};
+const A = read(dumpA), B = read(dumpB);
+const image = (v) => v >= 0x400000 && v < 0x3000000;
+let compared = 0, bad = 0;
+const lines = [];
+for (const [va, x] of A) {
+  const y = B.get(va), r = rowOf.get(va);
+  if (!y || !r) continue;
+  compared++;
+  const len = Math.min(x.length, y.length, after(starts, va) - va, after(mapStarts, r[2]) - r[2]);
+  let first = -1, count = 0;
+  for (let i = 0; i < len; ) {
+    if (i + 4 <= len) {
+      const p = x.readUInt32LE(i), q = y.readUInt32LE(i);
+      if (p === q || (image(p) && (translate(p) === q || sameString(p, q))) || (!image(p) && !image(q) && p > 0x10000 && q > 0x10000)) { i += 4; continue; }
+    }
+    if (x[i] !== y[i]) { if (first < 0) first = i; count++; }
+    i++;
+  }
+  if (count) {
+    bad++;
+    lines.push(`0x${va.toString(16)} ${names.get(va) ?? "?"}: ${count} bytes differ, first +0x${first.toString(16)} of 0x${len.toString(16)}: original ${x.subarray(first, first + 8).toString("hex")} rebuilt ${y.subarray(first, first + 8).toString("hex")}`);
+  }
+}
+console.log(`${compared} symbols compared, ${bad} differ`);
+for (const l of lines.slice(0, show)) console.log("  " + l);

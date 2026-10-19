@@ -241,9 +241,7 @@ extern bool s3d_version_flag;         // 0x22e4425 set while loading "ionaext.s3
 extern bool s3d_lightmaps_loaded;     // 0x22e4420 (name ours)
 
 // The $vis_base set: every level object that no "$vis" set names.
-extern const char *level_vis_base_name;   // 0x22e43f8
-extern ushort level_vis_base_count;       // 0x22e43fc
-extern int *level_vis_base_lobjs;         // 0x22e4400
+extern s3d_vis_set level_vis_base;       // 0x22e43f8 the $vis_base set (name +0, count +4, level objects +8; D9813)
 extern bool level_vis_base_built;         // 0x22e4422
 
 int  level_load_s3d(const char *filename, s3d_level *level, int names_size);  // 0x46e1b0 -1 on failure

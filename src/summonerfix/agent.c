@@ -474,6 +474,42 @@ static void RunLine(char *line)
             Out("hybridcov %s: %d functions ran", file, ran);
     } else if (!_stricmp(c, "info")) {
         Info();
+    } else if (!_stricmp(c, "dumpdata") && argc >= 3) {
+        // dumpdata OUT TABLE: the current bytes of every data symbol of an address table (tools/link-build.mjs's
+        // Sum-rebuilt.addr: "orig size rebuilt" lines) to OUT, as records (Sum.exe address, size, bytes), read in this
+        // process at the symbol's own address (through SumVa, so in Sum.exe or the rebuilt exe alike). For comparing
+        // the hybrid's and the rebuilt exe's memory (tools/link-memcheck.mjs).
+        HANDLE in = CreateFileA(argv[2], GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+        HANDLE out = CreateFileA(argv[1], GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+        int rows = 0;
+        if (in != INVALID_HANDLE_VALUE && out != INVALID_HANDLE_VALUE) {
+            DWORD size = GetFileSize(in, NULL), got = 0, w;
+            char *text = (char *)HeapAlloc(GetProcessHeap(), 0, size + 1);
+            ReadFile(in, text, size, &got, NULL);
+            text[got] = 0;
+            for (char *p = text; *p;) {
+                char *end;
+                DWORD orig = strtoul(p, &end, 16), n = strtoul(end, &end, 16);
+                while (*end && *end != '\n')
+                    end++;
+                p = *end ? end + 1 : end;
+                if (orig < 0x57db40 || n == 0 || n > 0x10000)
+                    continue; // code, or too large to be worth comparing
+                const BYTE *src = (const BYTE *)(UINT_PTR)SumVa(orig);
+                if (!src || IsBadReadPtr(src, n))
+                    continue;
+                WriteFile(out, &orig, 4, &w, NULL);
+                WriteFile(out, &n, 4, &w, NULL);
+                WriteFile(out, src, n, &w, NULL);
+                rows++;
+            }
+            HeapFree(GetProcessHeap(), 0, text);
+        }
+        if (in != INVALID_HANDLE_VALUE)
+            CloseHandle(in);
+        if (out != INVALID_HANDLE_VALUE)
+            CloseHandle(out);
+        Out("dumpdata: %d symbols", rows);
     } else if (!_stricmp(c, "peek") && argc >= 2) {
         Peek((DWORD)strtoul(argv[1], NULL, 16), argc > 2 ? atoi(argv[2]) : 16);
     } else if (!_stricmp(c, "count") && argc >= 5) {

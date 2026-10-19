@@ -34,8 +34,17 @@ void Log(const char *fmt, ...)
     CloseHandle(f);
 }
 
+DWORD OrigVa(DWORD addr)
+{
+    if (g_rebuilt)
+        return RebuiltOrigVa(addr);
+    return addr - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE;
+}
+
 DWORD SumVa(DWORD va)
 {
+    if (g_rebuilt)
+        return RebuiltVa(va);
     return va - SUM_IMAGE_BASE + (DWORD)(UINT_PTR)GetModuleHandleA(NULL);
 }
 

@@ -388,7 +388,7 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
 // resolution. Replace that with our output window.
 static BOOL CallerIsGrInit(void *ret)
 {
-    DWORD va = (DWORD)(UINT_PTR)ret - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE;
+    DWORD va = OrigVa((DWORD)(UINT_PTR)ret);
     return va >= 0x505e00 && va < 0x506110;
 }
 
@@ -420,7 +420,7 @@ static LONG WINAPI Hook_SetWindowLongA(HWND w, int index, LONG value)
 
 static DWORD ReturnVa(void *ret)
 {
-    return (DWORD)(UINT_PTR)ret - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE;
+    return OrigVa((DWORD)(UINT_PTR)ret);
 }
 
 static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, int cy, UINT flags)
@@ -479,7 +479,7 @@ static BOOL WINAPI Hook_ScreenToClient(HWND w, LPPOINT p)
 static BOOL WINAPI Hook_ClientToScreen(HWND w, LPPOINT p)
 {
     Map m;
-    DWORD va = (DWORD)(UINT_PTR)__builtin_return_address(0) - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE;
+    DWORD va = OrigVa((DWORD)(UINT_PTR)__builtin_return_address(0));
     if (w == g_wnd && va >= 0x500b00 && va < 0x500d00 && GetMap(&m)) {
         p->x = m.offX + Round(p->x * m.scale);
         p->y = m.offY + Round(p->y * m.scale);

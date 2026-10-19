@@ -18,7 +18,7 @@ static PFN_HeapAlloc real_HeapAlloc;
 static PFN_VirtualAlloc real_VirtualAlloc;
 static PFN_GlobalMemoryStatus real_GlobalMemoryStatus;
 
-#define CALLER() ((DWORD)(UINT_PTR)__builtin_return_address(0) - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE)
+#define CALLER() OrigVa((DWORD)(UINT_PTR)__builtin_return_address(0))
 
 // Heuristic stack trace: scan the stack for values that point into Sum.exe's .text right after a
 // CALL instruction (E8 rel32, FF 15 [mem], FF D0-D7 reg, FF 50-57 disp8, FF 90-97 disp32).

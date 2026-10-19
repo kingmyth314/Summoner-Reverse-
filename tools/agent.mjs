@@ -13,7 +13,10 @@ import { spawn, execFileSync } from "node:child_process";
 import { deflateSync, crc32 } from "node:zlib";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const game = join(repo, "Summoner");
+// SUMMONER_GAME / SUMMONER_EXE: another game folder and exe, e.g. the standalone rebuilt exe's test folder
+// (docs/tools.md, tools/link-build.mjs).
+const game = process.env.SUMMONER_GAME || join(repo, "Summoner");
+const exe = process.env.SUMMONER_EXE || "Sum.exe";
 const dir = join(game, "agent");
 const ini = join(game, "summonerfix.ini");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -34,7 +37,7 @@ function setIni(section, key, value) {
 
 function running() {
   try {
-    return execFileSync("tasklist", ["/FI", "IMAGENAME eq Sum.exe", "/NH"], { encoding: "utf8" }).includes("Sum.exe");
+    return execFileSync("tasklist", ["/FI", `IMAGENAME eq ${exe}`, "/NH"], { encoding: "utf8" }).toLowerCase().includes(exe.toLowerCase());
   } catch {
     return false;
   }
@@ -99,7 +102,7 @@ if (cmd === "start") {
   setIni("Debug", "CaptureEvery", "0");
   const width = opt("width");
   if (width) setIni("Display", "GameWidth", width);
-  spawn(join(game, "Sum.exe"), [], { cwd: game, detached: true, stdio: "ignore" }).unref();
+  spawn(join(game, exe), [], { cwd: game, detached: true, stdio: "ignore" }).unref();
   const limit = Date.now() + Number(opt("wait", "60")) * 1000;
   while (!existsSync(join(dir, "ready.txt")) && Date.now() < limit) await sleep(250);
   console.log(existsSync(join(dir, "ready.txt")) ? "agent ready" : "agent not ready (check summonerfix.log)");
@@ -116,7 +119,7 @@ if (cmd === "start") {
   if (running()) {
     try { await run("quit", 5000); } catch {}
     for (let i = 0; i < 30 && running(); i++) await sleep(500);
-    if (running()) { execFileSync("taskkill", ["/IM", "Sum.exe", "/F"]); console.log("killed Sum.exe"); }
+    if (running()) { execFileSync("taskkill", ["/IM", exe, "/F"]); console.log("killed Sum.exe"); }
     else console.log("Sum.exe exited");
   } else console.log("not running");
   if (existsSync(join(dir, "ready.txt"))) unlinkSync(join(dir, "ready.txt"));
