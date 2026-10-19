@@ -369,6 +369,14 @@ current-character pointer did not show it. HP does not come back over time in th
 (Character::update_regen_and_status, every 7.5 s). Not yet covered: shops and XP levelling in the
 later areas, Jekhar's own join, the sewer quests and boss.
 
+**Third play-test (2026-10-19, after D9817).** Two more shops (the Shady Trader's weapons, the Ghimaadi rune and
+scroll trader: lists, item info, category buttons, buying and selling), the inventory and the character screen in
+two saves, and a sewer switch golem's dialogue, compared with the original capture by capture (a pixel difference,
+not by eye): the menus, prices, gold changes, sell offers and character-sheet numbers were identical; only the
+animated portraits and paper doll differed. No crash or `errorlog.txt`. Still not covered in later areas: XP
+levelling (done in Masad in the first play-test), Jekhar's own join, the sewer quests and boss, which the agent
+could not reach by teleport (long `npcgoto` jumps snap back in both exes).
+
 A read-through against the disassembly of the 47 functions that `[Fixes] Enabled=0` replaces (the 22 non-matching
 ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed). The same read-through of the other 49, kept original even with `[Fixes] Enabled=0` (display, widescreen and key-binding patch sites), found one more: the multiplayer Create Game numbers were centred with the height on both axes, which the original does not do (game bug K9 withdrawn); with the fix both functions now match byte for byte (D9817). All 71 non-matching functions the hybrid never ran have now been read against the listing.
 
