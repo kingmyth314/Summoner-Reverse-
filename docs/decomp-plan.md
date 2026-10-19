@@ -354,6 +354,17 @@ A run-time data difference at the main menu (`spells`, spell 4's AI recovery tim
 the rebuilt exe) was the same kind of thing: the original's dump had SummonerFix's SpellRecoveryTimes fix on; with
 fixes off both hold the record index the unfixed parser stores.
 
+**Second play-test (2026-10-19, after D9815/D9816 and the timing fix).** About an hour further into Act 1 in the
+rebuilt exe, partly by level warps and story-stage settings: Flece joining in the sewer and her AI in a golem fight,
+party control (Tab, AI modes), Heal and other spells, the Rosalind arrival in Iona (Nar-Iona, IonaIntro, ROSL-Intro,
+the Abbot Laurent conversation), a four-member fight, the first summon (Blackfire Elemental from the Ring of
+Darkness, its portal and HUD portrait), the Ghost-Dismount cutscene and boss fight, and 8 more saves loaded in both
+exes. No crash, hang or `errorlog.txt`; the character sheets matched the original number for number. One
+unconfirmed observation: control seemed to pass from Joseph to Jekhar in a grassland fight once; a rerun watching the
+current-character pointer did not show it. HP does not come back over time in either exe; the game only
+regenerates AP (Character::update_regen_and_status, every 7.5 s). Not yet covered: shops and XP levelling in the
+later areas, Jekhar's own join, the sewer quests and boss.
+
 A read-through of the other 46 functions that first ran decompiled in the standalone exe, against the disassembly, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
 
 ## Phase 3 status (2026-10-16)
