@@ -101,6 +101,10 @@ then closed in value by agents in scratch copies: D9809 (30/30 the same) and D98
 Also: a search over all compared functions for an exception frame the original has and VC6 did not produce (the
 D9806 case) found one more in single player, `script_editor_ray_hit_object` (a `profile_label`, D9808).
 
+After all of these fixes the save comparison was run again (2026-10-19): Iona exterior and the sewer match the
+original apart from run-to-run variation; on the test save's own level two runs flagged one walking NPC's position
+each (a different NPC and field each time; the second run's hybrid matched the first run's flagged value exactly).
+
 Across all runs, 628 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
 Multiplayer is left out at the user's request (2026-10-19): the LAN screens would need networking switched on.
 
