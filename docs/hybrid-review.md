@@ -8,8 +8,9 @@ nav_order: 6.45
 
 Five agents read the 429 non-matching decompiled functions that no hybrid-game scenario had run, each against the
 original Sum.exe code. They found three decompilation errors, all fixed and none visible in the retail game
-(D9800-D9802), and for each function they worked out whether and how it can be reached. This page keeps their
-reports as the plan for the in-game checks. Background: [Decompilation plan, the hybrid game](decomp-plan.md).
+(D9800-D9802); the in-game checks that followed found a fourth (D9803). For each function they worked out
+whether and how it can be reached. This page keeps their reports as the plan for the in-game checks, and the
+results of those checks. Background: [Decompilation plan, the hybrid game](decomp-plan.md).
 
 1. TOC
 {:toc}
@@ -37,6 +38,27 @@ by hand. The scratch scripts were not kept. The group reports below are the agen
 {: .note }
 Since the review: the quicksave chain counted as never run only because `tools/hybrid-test.mjs` wrote its coverage
 file before the quicksave; it now writes it afterwards.
+
+## In-game checks
+
+The proposed scenarios played on the hybrid game, one session each (coverage on, dual calls on the never-run
+functions expected to run; [tools](tools.md)). All **Observed**. A dual result `same n/n` means the decompiled
+function gave the original's memory, return value and `rand` state on each checked call.
+
+| Scenario | Never-run functions that ran | Dual calls | Notes |
+|---|---|---|---|
+| Script editor (`[Debug] ScriptEditorKey`, `,` `.`) | about 60 (editor UI, vsdk list boxes and buttons, `gr_clip_line`, `gr_line_3d`) | `pick_hover`, `update_buttons`, `ray_hit_object` same 10/10 | D9800 confirmed: size class 3's entries (`0x255e9cc`, `0x255a7d0`) stay 0. `draw_navpoints` differs only in the clipper's scratch vertex (`gr_clip_temp_verts` +0x1a..+0x30): the editor's marker vertices never set the attribute byte at +0x1a in either build, so the clipper copies stack bytes; lines do not read them |
+| Phoenix (`rand-hills01_v2`, `phoenix_combat 1`, `phoenix_stage 3`) | 9 | `phoenix_choose_attack` 10/10, `phoenix_reposition_update` 1/1, `vif_emitter_spawn_point` 10/10, `spell_probe_ground_point` 2/2; `avoid_poly_add_search_nodes` 8/10, then 10/10 after D9803 | `fire_weapon_missile` and `spell_place_ground_effect` differ on their first call only, in `bm_bitmaps`: the original's call loads the missile or effect bitmap from file, which the second call cannot repeat (a loader in the checked call). Calls 2-10 the same |
+| Tiger (`TempleInt_v2`, `tiger_combat 1`, `tiger_stage 3`) | 8 | `tiger_pick_target`, `tiger_choose_attack`, `tiger_wander_update`, `tiger_stage_move_update`, `tiger_pick_wander_point` same | `tiger_combat_update`, `tiger_path_to_target` not reached |
+| Evil Urath (`TempleInt2`, `urath_combat 1`) | 11 | the four leap functions and `evil_urath_ai_select_action` same; `pf_find_cell_crossing` 10/10 | one select call differed only in the keyboard state of Escape (`key_down_state`), pressed by the agent during the check. Joseph and Machival did not fight |
+| Pyrul (`KhosaniLab2`, flag `pyrulstart`, `$npc002`) | 3 | `pyrul_choose_attack` 10/10 | `pyrul_cast_special`, `pyrul_fire_attack` not reached |
+| Titus (`IkaemosBottomInt2`, `$npc001`, `titus_combat 1`) | 3 | `titus_ai_select_action` 10/10 | |
+| Murod Oni (`jadetemple`, `npckill Murod`) | 2 | `murod_oni_update_offense_points` 10/10, `murod_oni_collect_area_hits` 1/1 | |
+| Ghost Rider, Serpent, Luminar stage 2 | 6 | `ghost_find_floor_below` 1/1, `approach_target_point` 10/10, `boss_mount_pick_flee_point` 1/1, `offset_point_sideways` 10/10 | the Serpent illusion stays unreached (dead in v1.40, K213); the Giant Salamanka did not appear |
+
+One more decompilation error came out of these runs and is fixed: **D9803**, `avoid_poly_add_search_nodes`
+`0x4aa400` computed the obstacle crossing per component at 80 bits where the original rounds the y difference and
+product through `vector2` temporaries (one bit in the 7th digit of the returned length).
 
 ## Group A: multiplayer and network (86 functions)
 

@@ -7229,3 +7229,10 @@ still differs elsewhere.
 `mov ax, [ecx+0x22]` into an eax already zero (0x4ae25e), which VC6 does for an unsigned 16-bit field; `short`
 gave `movsx`. With `unsigned short users` (and irc_add_channel's parameter) irc_get_channel_list 0x4ae120 byte-matches.
 Only a channel of 32,768 users or more printed differently.
+
+**D9803 (2026-10-18, avoid_poly_add_search_nodes 0x4aa400: the hit point, x87 precision found by dual calls).** In
+the Phoenix fight two of ten calls returned a length one bit off in the 7th digit. The original computes the
+crossing as `(b - a) * t + a` through vector2 temporaries: `b.y - a.y` and its product with t are stored as floats
+(`fstp [esp+0x2c]`, `[esp+0x34]`), x stays on the FPU stack (0x4aa517..0x4aa558). The decomp's per-component
+`dx * t + a->x` / `dy * t + a->y` kept both unrounded. `hits[nhits] = t * (*b - *a) + *a;` compiles to the
+original's sequence. The function still differs (frame 0x44 against 0x40); file 45 matches before and after.

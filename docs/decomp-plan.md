@@ -292,12 +292,12 @@ an address (the D9204 kind) turned up. The quicksave chain (`quicksave`, `savega
 quicksave; it now dumps after it.
 
 **State (2026-10-18, evening).** Done since: the save test over 18 levels, the inventory and trader scenarios,
-coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Eight decompilation errors found and
+coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Nine decompilation errors found and
 fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls,
-D9800-D9802 by reviewing the functions no scenario had run. 466 of the 895 non-matching functions have run in a
-checked scenario (474 counting the quicksave chain). The x87 precision cases were taken through byte matching (the
-precision round above): one left. Next: the review's scenarios in the game, one at a time, with coverage and dual
-calls (`node tools/hybrid-coverage.mjs Summoner/agent/cov_*.txt --list never`).
+D9800-D9802 by reviewing the functions no scenario had run, D9803 by dual calls in the review's boss scenarios
+([in-game checks](hybrid-review.md#in-game-checks)). 535 of the 895 non-matching functions have run in a checked
+scenario. The x87 precision cases were taken through byte matching (the precision round above): one left. Next:
+the rest of the review's scenarios (level scripts, UI screens, console commands, the LAN menus).
 
 ## Phase 3 status (2026-10-16)
 

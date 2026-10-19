@@ -1833,15 +1833,16 @@ avoid_poly *avoid_poly_get(avoid_seglist *s)
     return &avoid_polys[s->poly];
 }
 
-// 0x4aa400  Confidence: likely (the hit count and the early exits). The extra path length of an A* edge
-// through an obstacle: the whole edge when both ends are inside, else the length of the part inside (two
-// outline crossings, or the inside end to the one crossing); 0 when the edge misses the obstacle.
+// 0x4aa400  Confidence: likely (the hit count and the early exits; the hit point as vector2 operators,
+// D9803). The extra path length of an A* edge through an obstacle: the whole edge when both ends are inside,
+// else the length of the part inside (two outline crossings, or the inside end to the one crossing); 0 when
+// the edge misses the obstacle.
 float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *ob)
 {
     vector2 hits[2];
     vector2 d;
     const vector2 *a, *b, *prev;
-    float t, u, dx, dy;
+    float t, u;
     int inside, nhits, i;
     bool a_inside;
 
@@ -1865,10 +1866,7 @@ float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *o
         for (i = 0; i < ob->num_points; i++) {
             if (seg2d_intersect_params(a, b, prev, &ob->points[i], &t, &u) && u >= 0.0f && u <= 1.0f
                 && t >= 0.0f && t <= 1.0f) {
-                dx = b->x - a->x;
-                dy = b->y - a->y;
-                hits[nhits].x = dx * t + a->x;
-                hits[nhits].y = dy * t + a->y;
+                hits[nhits] = t * (*b - *a) + *a;
                 nhits++;
                 if (nhits == 2)
                     break;
