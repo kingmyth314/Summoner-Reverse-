@@ -62,8 +62,13 @@ function gave the original's memory, return value and `rand` state on each check
 | Console graphics (`render_3d_obstacles`, `map_grid`, `sysinfo`, Print Screen as JPEG and TGA, `slew`) | 8 | `gr_clip_line`, `gr_line`, `tga_rle_encode_row` 10/10 | `movement_read_controls` (slew) differs only in clock values stored in the key bookkeeping (`key_down_timestamps`, `key_down_time_checked`); the camera position and orientation it writes are the same, and `key_down_time` alone matches 10/10. Not explained (**Unknown**) |
 | Summon and quicksave (save comparison) | `summon_create`, the summon branch of the save | - | two runs flag different records, all time-dependent (NPC positions, timers 70-120 ms behind): timing, not an error |
 | Sewer boss, console `tentacle_test` | - | - | the original crashes too (`navpoint_find("$npc034")` returns NULL in this script; `0x4c7ee2`) |
+| Multiplayer character screen (`interface_set_screen` 16 from the main menu; create a character, Select) | 19 | `mp_charselect_init`, `update_create_button`, `handle_click` 10/10, `wrap_text_input` 8/8, `mp_player_alloc` same | Select opened the PXO lobby (Options are set to Internet), so the version check and the IRC list functions ran; no traffic: WinSock is never started while the connection speed reads "None" (SummonerFix answers that registry value from its `[Registry]` section), so the HTTP socket cannot open. The test's `.plr` file was removed |
+| Script editor's "< Time" button | - | - | the editor's buttons ignore the agent's clicks and posted mouse messages; `level_script_restart`, `level_ambient_find_at` not reached |
 
-Across all runs, 563 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
+Across all runs, 582 of the 890 non-matching functions have now run in a checked scenario (466 before the review).
+The rest of the LAN screens need networking switched on for a session (`[Registry] ConnectionSpeed=sz:Fast`:
+WinSock, a UDP socket, broadcasts on the local network) and the Multiplayer option set to LAN, or the PXO hosts
+would be contacted; that is left for the user to decide.
 
 One more decompilation error came out of these runs and is fixed: **D9803**, `avoid_poly_add_search_nodes`
 `0x4aa400` computed the obstacle crossing per component at 80 bits where the original rounds the y difference and

@@ -295,7 +295,7 @@ quicksave; it now dumps after it.
 coverage, dual calls over combat, AI, bosses and spells (the paragraphs above). Nine decompilation errors found and
 fixed, none of them in a byte-matching function: D9200-D9202 by comparing saves, D9203-D9204 by dual calls,
 D9800-D9802 by reviewing the functions no scenario had run, D9803 by dual calls in the review's boss scenarios
-([in-game checks](hybrid-review.md#in-game-checks)). 563 of the 890 non-matching functions have run in a checked
+([in-game checks](hybrid-review.md#in-game-checks)). 582 of the 890 non-matching functions have run in a checked
 scenario. The x87 precision cases were taken through byte matching (the precision round above): one left. Next: the
 LAN menus on one machine, the rest of the game-logic scenarios (doors, chain learning, items, guards) and the
 script editor's remaining windows. Method rule from these runs: never dual-check a function together with its callees.
