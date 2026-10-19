@@ -346,7 +346,13 @@ golem fight; saving and loading (8 saves). No crash, hang or `errorlog.txt`. Eve
   keeping `fx_frame` original alone (`[Hybrid] Skip=0x48a230`) removed it. Its camera-effect case turned the
   effect the wrong way (D9815, fixed); the prologue now plays in the rebuilt exe.
 - The frame rate read lower in the rebuilt exe (75-88 against 105-120 fps at the same places; not visible as
-  stutter). Not investigated yet.
+  stutter). Not the code: SummonerFix's rebuilt mode did not install the frame-limiter fix, so the rebuilt exe ran
+  with the original game's double-speed limiter while Sum-orig had the fix. With the timing fixes installed in
+  rebuilt mode too, both hold 120 fps in Lenele and in Masad.
+
+A run-time data difference at the main menu (`spells`, spell 4's AI recovery time: 0x0a in the original, 4 in
+the rebuilt exe) was the same kind of thing: the original's dump had SummonerFix's SpellRecoveryTimes fix on; with
+fixes off both hold the record index the unfixed parser stores.
 
 A read-through of the other 46 functions that first ran decompiled in the standalone exe, against the disassembly, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed).
 
