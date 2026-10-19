@@ -148,9 +148,11 @@ functions with no caller, and a few rare branches. Details: [the hybrid game](de
 [never-run function review](hybrid-review.md).
 
 **Status 2026-10-19: the first standalone link.** The decompiled source also links into an executable of its own
-(`tools/link-build.mjs`, VC6 SP5 and its libraries, nothing from the original Sum.exe), which starts and reaches the
-main menu. Still to do for it: libjpeg 6b from the IJG source, a play-through, and a behaviour comparison with the
-original. See [the standalone link](decomp-plan.md).
+(`tools/link-build.mjs`, VC6 SP5 and its libraries, nothing from the original Sum.exe), with libjpeg 6b built from the IJG source.
+SummonerFix's agent mode drives it through an address table. Comparing its data with the original's found three more
+errors that the hybrid could not see, because there the byte-matched functions used Sum.exe's own data (D9811,
+D9813, D9814). A new game reaches Masad and plays. Still open: the prologue cinematic stalls on its first shot, and a
+longer play-through is in progress. See [the standalone link](decomp-plan.md).
 
 ## Future projects
 
