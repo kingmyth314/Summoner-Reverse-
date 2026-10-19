@@ -26,6 +26,14 @@ nav_order: 2
 - [MCPmag: Microsoft Releases Visual Studio 6.0 SP5](https://mcpmag.com/articles/2001/02/26/microsoft-releases-visual-studio-60-sp5.aspx) - SP5's release date (February 2001)
 - [Microsoft Learn: MSVC compiler versioning](https://learn.microsoft.com/en-us/cpp/overview/compiler-versions?view=msvc-170)
 
+## libjpeg 6b (the standalone link)
+
+- [Independent JPEG Group: jpegsrc.v6b.tar.gz](https://www.ijg.org/files/jpegsrc.v6b.tar.gz) - downloaded
+  2026-10-19 with the owner's approval (613,261 bytes, SHA-256
+  75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d, the published value; dated 1998-03-27).
+  Sum.exe links libjpeg 6b statically; `tools/link-build.mjs` builds its common and compression objects with VC6 from
+  `third_party/jpeg6b/jpeg-6b` (git-ignored, not in the repository).
+
 ## Engine reference projects
 
 - [mikegoforth/summoner-2-decomp](https://github.com/mikegoforth/summoner-2-decomp) - matching decompilation of Summoner 2 (PS2); no license stated, local reference only

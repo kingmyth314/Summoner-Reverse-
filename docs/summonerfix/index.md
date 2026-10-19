@@ -331,6 +331,18 @@ The game uses its defaults for these.
 | 2026-10-13 | Key bindings (E=I, A=Left, WASD camera, CapsLock/Home remaps) | Bindings work, including chain-attack modifiers (hold + right-click) |
 | 2026-10-13 | Alt+Tab and F10 to `SummonerFixConfig.exe` while playing; rebind live | Works: the app comes forward and new bindings apply on return |
 
+## In the standalone rebuilt exe
+
+Added 2026-10-19. When `<exe name>.addr` sits next to the running exe (the address table `tools/link-build.mjs`
+writes for `Sum-rebuilt.exe`, the exe built from the decompiled source), SummonerFix runs in that exe
+(`rebuilt.c`): every Sum.exe address it uses is translated through the table (`SumVa`, and `OrigVa` for return
+addresses), and it installs only the registry layer, the OpenGL texture-size fix, the display module, the key
+bindings, agent mode and the bug-fix module. Code patches apply only where the rebuilt code has the original's bytes
+(byte-matching functions; `PatchBytes` checks), so with `[Fixes] Enabled=0` the rebuilt game runs without gameplay
+fixes, with the no-sound crash guard. Agent mode works there as in Sum.exe, so the rebuilt game can be driven and
+play-tested with `tools/agent.mjs` ([tools](../tools.md), [decompilation plan](../decomp-plan.md)).
+
 ## Still to do
 
 See the [Roadmap](../roadmap.md).
+

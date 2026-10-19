@@ -321,8 +321,21 @@ What it took:
 - It runs from a separate folder (hard links to the archives, copies of the data and a save), because
   SummonerFix's patches assume Sum.exe's addresses.
 
-Next for the standalone exe: play it (it has no agent mode, which lives in SummonerFix), build libjpeg 6b, and
-compare its behaviour with the original's.
+**Later the same day.** libjpeg 6b is built from the IJG source into the link. SummonerFix runs inside the rebuilt
+exe through an address table, so agent mode drives it like the original ([SummonerFix](summonerfix/index.md),
+[tools](tools.md)). Starting a new game then showed what the hybrid could not:
+- The first level render crashed (`levelrender_fade_occluders`, a garbage level object index). The `$vis_base`
+  visibility set was declared as three separate globals; the code uses them as one `s3d_vis_set`, and the
+  standalone link placed them apart (D9813). The hybrid used Sum.exe's addresses, where they are together.
+- A static comparison of the initial data (`tools/link-datacheck.mjs`) found three tables with wrong values,
+  read only by byte-matching functions, which in the hybrid used Sum.exe's own copies (D9814).
+- 71 non-matching functions never ran decompiled in the hybrid, because SummonerFix patches them and the hybrid
+  then keeps them original (`gr_init`, `os_wndproc`, `key_mark`, `world_mouse_frame`, `spell_cast_execute`,
+  `living_combat::resolve_hit`, `fx_frame`, the dialogue and list drawing...). The standalone exe runs them.
+
+A new game now reaches Masad. **Open:** the prologue cinematic (young Joseph) stalls on its first shot in the
+rebuilt exe while its clock advances (the original plays it); Escape skips it. A play-testing agent is going
+through Act 1 with the rebuilt exe and the original side by side.
 
 ## Phase 3 status (2026-10-16)
 

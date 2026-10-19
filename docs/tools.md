@@ -256,14 +256,32 @@ node tools/link-build.mjs --define SHIPPED_NOCD --define REBUILT_OPENGL
 
 `src/link` holds what Sum.exe takes from outside its own code: the three DirectX 7 GUIDs (from the DX7 SDK's
 dxguid.lib; VC6's is older), stub sources whose only use is an import library with the right names for
-binkw32.dll (decorated stdcall names) and EAX.DLL (ordinal 5), and for now a no-op libjpeg stub (Sum.exe links
-libjpeg 6b statically; the IJG source is not in the repository). Nothing of these is a third-party binary.
+binkw32.dll (decorated stdcall names) and EAX.DLL (ordinal 5), and a no-op libjpeg stub. Sum.exe links libjpeg 6b
+statically: when the IJG source is in `third_party/jpeg6b/jpeg-6b` (git-ignored; [sources](reference/sources.md))
+the tool builds its common and compression objects with VC6 instead (`--jpeg DIR` for another place). Nothing of
+these is a third-party binary in the repository.
 
-The exe does not load SummonerFix's patches (they assume Sum.exe's addresses), so it runs from a separate folder
-holding hard links to the `.vpp` archives and the Bink and EAX DLLs, and copies of `data`, `summoner.cfg` and
-a save: the game folder's `dinput.dll` (SummonerFix) must not be next to it. Without SummonerFix it reads the
-real registry, so `ConnectionSpeed` there decides whether it starts WinSock (Windows Firewall then asks about
-the new exe).
+After a full `hybrid-build` (which writes `build/hybrid-all/hybrid-addrs.txt`, every name it resolved to a Sum.exe
+address) the tool also writes `Sum-rebuilt.addr`: Sum.exe address, size and rebuilt address of every symbol both
+builds know. **SummonerFix runs in the rebuilt exe through it** (`src/summonerfix/rebuilt.c`): when `<exe>.addr`
+sits next to the exe, `SumVa` translates Sum.exe addresses (an address inside a symbol keeps its offset) and
+`OrigVa` translates return addresses back, and only the registry layer, the OpenGL texture-size fix, the display
+module, the key bindings, agent mode and the bug-fix module are installed. `PatchBytes` checks the original bytes
+first, so only patch sites in byte-identical code apply; `[Fixes] Enabled=0` keeps the gameplay fixes off and leaves
+the unconditional no-sound crash guard (DirectSound fails on a machine without a sound device, in the original too).
+Run it from a separate folder holding hard links to the `.vpp` archives and the Bink and EAX DLLs, copies of
+`data`, `summoner.cfg` and a save, SummonerFix's `dinput.dll` and an ini, and the exe with its `.addr` file;
+`tools/agent.mjs` drives it with `SUMMONER_GAME=<folder>` and `SUMMONER_EXE=Sum-rebuilt.exe`. Without SummonerFix
+the exe reads the real registry (`ConnectionSpeed` there decides whether it starts WinSock, and Windows Firewall then
+asks about the new exe).
+
+| Tool | What it compares |
+|---|---|
+| `tools/link-datacheck.mjs [--show N]` | the rebuilt exe's initial data against Sum.exe's, symbol by symbol through the address table: pointers count as equal when they translate, or point to the same string; each object up to the next symbol in either build. Found D9814 |
+| `tools/link-memcheck.mjs A B` | two run-time dumps written by the agent command `dumpdata OUT TABLE` (every data symbol of an address table, read at its own address) at the same point in both games, compared the same way |
+
+The hybrid cannot see data errors in byte-matching functions (they use Sum.exe's own data there) or globals that
+the code uses as one record but the source declares apart (D9813); the standalone exe shows both.
 
 ## `tools/hybrid-build.mjs` (the hybrid game)
 
