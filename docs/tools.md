@@ -302,7 +302,10 @@ second call), and the frame clock's state is put back afterwards. The list file 
 value is compared. Heap memory is not copied: functions that load files, construct or destroy objects, or
 allocate or free memory must not be listed (a constructor and a level loader hung or corrupted the heap in
 tests). `[Debug] TraceDual=1` logs the start of each check, which names a call that never returns. A check costs
-about 20 ms.
+about 20 ms. Calls made inside a check run unchecked (no nesting), so a callee listed with its caller is checked
+only where something else calls it; listing both also produced a false difference once (`spell_probe_ground_point`
+with `get_node_world_transform`, 2026-10-18): check a function and its callees in separate runs. Keys the agent
+presses during a check can land in one of the two calls (`key_down_state` and its counters differ): not an error.
 
 How the objects are rewritten (all in the COFF symbol table; the code is VC6's as compiled):
 
