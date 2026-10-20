@@ -92,6 +92,8 @@ void version_check_set_error_text()
 // keeps the table and the zero in ESI; the "up to date" tail is shared with the SkipVerify path; two error tails
 // store version_check_done differently, so they are two statements). A download that fails after the
 // first frame and a version.nfo that cannot be read both give 3; a newer version gives 2.
+// D15403: the download status is a switch too (the binary's -1 / 0 / 1 compare chain with the error code
+// after it inline and case -1 shared with the fetch error at the end); still differs in the up-to-date tail.
 int version_check_run()
 {
     DWORD skip;
@@ -119,14 +121,14 @@ int version_check_run()
     }
 
     status = version_check_poll_download();
-    if (status == -1) {
+    switch (status) {
+    case -1:
         version_check_done = 1;
         version_check_result = 3;
         return 3;
-    }
-    if (status == 0)
+    case 0:
         return 4;
-    if (status == 1) {
+    case 1: {
         char path[512] = "";
         file_make_path(path_multicache, VERSION_FILE, path);
         switch (version_read_nfo_file(path)) {
@@ -145,10 +147,11 @@ int version_check_run()
             version_check_done = 1;
             return 3;
         }
-        version_check_set_error_text();     // any other value: the same error path (D13903)
+        version_check_set_error_text();
         version_check_result = 3;
         version_check_done = 1;
         return 3;
+    }
     }
     version_check_done = 1;
     version_check_result = 3;

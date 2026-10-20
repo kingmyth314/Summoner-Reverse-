@@ -860,8 +860,9 @@ bool character_species_can_use_type(Character *c, ItemType *type)
 #define RING_ROUND10(x) ((int)(float)(int)((x) * 10.0f + 0.5f))
 #define RING_ROUND10_NEG(x) ((int)(float)(int)(0.5f - (x) * 10.0f))
 
-// 0x44b7a0  Confidence: likely (7.5 KB, every block checked against the code; the inline strcat /
-// strcpy expansions and the merged sprintf tails make statement-level order the main risk). Builds the
+// 0x44b7a0  Confidence: exact (D14000: the speed tests as `!= 0` with the 1.00 text in the else, the
+// multiplayer skill remap as a switch, the resist and charge / effect format strings hoisted into locals,
+// two flags in the weapon requirement (comma, has), block-scoped values in the stat lines). Builds the
 // item info popup text in ring_info_text (name from sum.symbols; it formats every item kind, not only
 // rings). widths are the popup text widths per resolution (0x124, 0x16d, 0x1d3). The buffers: text at
 // esp+0x20 (also the status / "Equippable by" line), lens / offs at 0x120 / 0x160, num / req at 0x1a0.
@@ -1017,10 +1018,10 @@ char *ring_format_info(item_info *item)
         strcat(ring_info_text, XSTR(" gp\n", 275));
         sprintf(text, XSTR("Protection: %d\n", 280), (int)(item->type->protection * 100.0f + 0.5f));
         strcat(ring_info_text, text);
-        if (item->type->armour_speed == 0.0f)
-            sprintf(text, XSTR("Speed: 1.00\n", 279));
-        else
+        if (item->type->armour_speed != 0.0f)
             sprintf(text, XSTR("Speed: %3.2f\n", 278), 1.0f / item->type->armour_speed);
+        else
+            sprintf(text, XSTR("Speed: 1.00\n", 279));
         strcat(ring_info_text, text);
         break;
     }
@@ -1032,10 +1033,10 @@ char *ring_format_info(item_info *item)
         strcat(ring_info_text, XSTR(" gp\n", 275));
         sprintf(text, XSTR("Damage: %d\n", 277), item->type->damage);
         strcat(ring_info_text, text);
-        if (item->type->speed == 0.0f)
-            sprintf(text, XSTR("Speed: 1.00\n", 279));
-        else
+        if (item->type->speed != 0.0f)
             sprintf(text, XSTR("Speed: %3.2f\n", 278), 1.0f / item->type->speed);
+        else
+            sprintf(text, XSTR("Speed: 1.00\n", 279));
         strcat(ring_info_text, text);
         break;
     }
@@ -1049,10 +1050,14 @@ char *ring_format_info(item_info *item)
         if (m) {
             int skill = m->id;
             if (game_flags & GF_MULTIPLAYER) {
-                if (skill == 0x14)
+                switch (skill) {
+                case 0x14:
                     skill = 0x11;
-                else if (skill == 0x15)
+                    break;
+                case 0x15:
                     skill = 0x1d;
+                    break;
+                }
             }
             if (m->value >= 0.0f)
                 sprintf(text, "%s: +%d\n", localize_string_or_invalid(skill_table[skill].name),
@@ -1066,22 +1071,28 @@ char *ring_format_info(item_info *item)
     for (i = 0; i < 4; i++) {
         item_mod *m = item->type->resist_mods[i];
         if (m) {
-            if (m->value >= 0.0f)
-                sprintf(text, XSTR("Resist %s: +%d\n", 299), localize_string_or_invalid(damage_type_loc_names[m->id]),
-                        RING_ROUND10(m->value));
-            else
-                sprintf(text, XSTR("Resist %s: -%d\n", 300), localize_string_or_invalid(damage_type_loc_names[m->id]),
-                        RING_ROUND10_NEG(m->value));
+            const char *fmt;
+            if (m->value >= 0.0f) {
+                n = RING_ROUND10(m->value);
+                fmt = XSTR("Resist %s: +%d\n", 299);
+            } else {
+                n = RING_ROUND10_NEG(m->value);
+                fmt = XSTR("Resist %s: -%d\n", 300);
+            }
+            sprintf(text, fmt, localize_string_or_invalid(damage_type_loc_names[m->id]), n);
             strcat(ring_info_text, text);
         }
     }
     for (i = 0; i < 2; i++) {
         item_stat_mod *m = item->type->stat_mods[i];
         if (m) {
-            if (m->value >= 0.0f)
-                sprintf(text, "%s: +%d\n", localize_string_or_invalid(ring_stat_names[m->stat]), m->value);
-            else
-                sprintf(text, "%s: -%d\n", localize_string_or_invalid(ring_stat_names[m->stat]), -m->value);
+            if (m->value >= 0.0f) {
+                int v = m->value;
+                sprintf(text, "%s: +%d\n", localize_string_or_invalid(ring_stat_names[m->stat]), v);
+            } else {
+                int v = -m->value;
+                sprintf(text, "%s: -%d\n", localize_string_or_invalid(ring_stat_names[m->stat]), v);
+            }
             strcat(ring_info_text, text);
         }
     }
@@ -1121,7 +1132,8 @@ char *ring_format_info(item_info *item)
     // Charges.
     if (item->type->charge_effect) {
         item_charge_effect *ce = item->type->charge_effect;
-        sprintf(text, XSTR("Charges: %s (%d/%d)", 303), localize_string_or_invalid(spell_display_names[ce->spell]),
+        const char *fmt = XSTR("Charges: %s (%d/%d)", 303);
+        sprintf(text, fmt, localize_string_or_invalid(spell_display_names[ce->spell]),
                 item->charges, ce->max_charges);
         n = gr_split_str(lens, offs, text, widths[resolution_index], 16, 0, -1);
         for (i = 0; i < n; i++) {
@@ -1134,15 +1146,15 @@ char *ring_format_info(item_info *item)
     switch (item->type->kind) {
     case 1:
         if (item->type->armour_triggered_effect) {
-            sprintf(text, XSTR("Effect: %s\n", 304),
-                    localize_string_or_invalid(spell_display_names[item->type->armour_triggered_effect->spell]));
+            const char *fmt = XSTR("Effect: %s\n", 304);
+            sprintf(text, fmt, localize_string_or_invalid(spell_display_names[item->type->armour_triggered_effect->spell]));
             strcat(ring_info_text, text);
         }
         break;
     case 0:
         if (item->type->weapon_triggered_effect) {
-            sprintf(text, XSTR("Effect: %s\n", 304),
-                    localize_string_or_invalid(spell_display_names[item->type->weapon_triggered_effect->spell]));
+            const char *fmt = XSTR("Effect: %s\n", 304);
+            sprintf(text, fmt, localize_string_or_invalid(spell_display_names[item->type->weapon_triggered_effect->spell]));
             strcat(ring_info_text, text);
         }
         break;
@@ -1164,32 +1176,41 @@ char *ring_format_info(item_info *item)
         }
         break;
     case 0: {
-        char req[0x100] = "";
         bool has = false;
+        char req[0x100] = "";
+        bool comma = false;
         switch (item->type->weapon_skill) {
         case 3:
             strcat(req, XSTR("Skill Req: Sword", 305));
+            comma = true;
             has = true;
             break;
         case 4:
             strcat(req, XSTR("Skill Req: Axe", 306));
+            comma = true;
             has = true;
             break;
         case 5:
             strcat(req, XSTR("Skill Req: Blunt", 307));
+            comma = true;
             has = true;
             break;
         case 6:
             strcat(req, XSTR("Skill Req: Staff", 308));
+            comma = true;
             has = true;
             break;
         case 7:
             strcat(req, XSTR("Skill Req: Bow", 309));
+            comma = true;
             has = true;
             break;
         }
         if (item->type->weight > 0.0f) {
-            strcat(req, has ? ", " : XSTR("Skill Req: ", 310));
+            if (comma)
+                strcat(req, ", ");
+            else
+                strcat(req, XSTR("Skill Req: ", 310));
             sprintf(text, XSTR("Heavy Arms %d", 311), (int)(item->type->weight * 10.0f + 0.5f));
             strcat(req, text);
             has = true;

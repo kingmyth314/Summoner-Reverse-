@@ -148,15 +148,16 @@ float sqrt_abs(float x)
     return (float)sqrt(x);
 }
 
-// 0x542830  Confidence: likely (the digit conversion: floor, _ftol to int, back to float, _ftol to char).
+// 0x542830  Confidence: likely (the digit conversion: floor, _ftol to int, back to float, _ftol to char;
+// D14605: n declared first, so digit[1] takes the zero from n's EBX as in the binary).
 // The integer digits go from the largest power of ten down; each fraction digit subtracts digit / 10^k.
 int float_format_buf(char *buf, float value, int size)
 {
+    int n = 0;
     char digit[2] = "";
     float a, rem, p, x, d;
-    int n, e, i;
+    int e, i;
 
-    n = 0;
     if (buf == NULL)
         return 0;
     strcpy(buf, "");

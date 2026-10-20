@@ -1820,20 +1820,20 @@ void character_break_paralysis_on_hit(Character *c)
         c->status_effect_cure(STATUS_PARALYZE, 1, 0);
 }
 
-// 0x467df0  Confidence: likely. Hit resolution: running targets are slowed, bosses test their move
+// 0x467df0  Confidence: exact (D14601: no_flinch an int held in EDI, opponent->owner read in place, no
+// cached target pointer). Hit resolution: running targets are slowed, bosses test their move
 // range, others need the target in reach (x 2.25 when it moves); then the damage, and the knock-down /
 // stun / flinch reactions. Returns false when the hit did not happen or the target died.
 bool living_combat::resolve_hit()
 {
     bool boss = owner->type == 9;
-    bool no_flinch;
-    Character *t;
+    int no_flinch;
 
     if (owner->ai.is_combat_sub10() == true)
         opponent->owner->ai.retaliate_on_hit(owner->handle);
     if (!hits)
         return false;
-    no_flinch = false;
+    no_flinch = 0;
     if (!opponent)
         return false;
     if (opponent->owner->loco_blend > 0.5f && (game_flags & 1))
@@ -1851,18 +1851,16 @@ bool living_combat::resolve_hit()
             reach *= 2.25f;
         if (dist > reach)
             return false;
-        t = opponent->owner;
-        if ((t->ai.target == owner->handle && t->ai.is_mode(AI_STATE_COMBAT, -1) && (t->ai.flags & 0x20) &&
+        if ((opponent->owner->ai.target == owner->handle && opponent->owner->ai.is_mode(AI_STATE_COMBAT, -1) && (opponent->owner->ai.flags & 0x20) &&
              reach * 1.2f > dist) ||
             opponent->owner->ai.is_mode(AI_STATE_COMBAT, 0x11))
-            no_flinch = true;
+            no_flinch = 1;
     }
     apply_melee_hit(false);
-    t = opponent->owner;
-    if (t->hp <= 0.0f)
+    if (opponent->owner->hp <= 0.0f)
         return false;
     if (boss) {
-        if (t->ai.is_mode(AI_STATE_DISABLED, -1))
+        if (opponent->owner->ai.is_mode(AI_STATE_DISABLED, -1))
             return true;
         if (opponent->owner->find_move(9, 0x8e) && boss_attack_knocks_down_dispatch(owner->info->species)) {
             opponent->owner->ai.knock_down(rand_int_range(3000, 7000));
@@ -1881,8 +1879,7 @@ bool living_combat::resolve_hit()
             return true;
         }
     }
-    t = opponent->owner;
-    if (t->type == 9 || t->ai.get_mode() == AI_STATE_DISABLED || opponent->owner->ai.is_attacking())
+    if (opponent->owner->type == 9 || opponent->owner->ai.get_mode() == AI_STATE_DISABLED || opponent->owner->ai.is_attacking())
         return true;
     if (!owner || !owner->cur_move || no_flinch)
         return true;

@@ -246,8 +246,8 @@ void credits_draw()
 //   then '&' right column on the previous row, '^' right column on this row
 //   then '*' heading colour and half a line of extra space after it.
 // Lines fade in and out near the top and bottom of the screen. Returns the y used.
-// Confidence: likely (the clamp expression: VC6 threads the constant 1.0 past the first test,
-// which matches the observed jump from the middle case straight to the "< 1.0" test)
+// Confidence: exact (D14602: the clamp is float_min(float_max(alpha, 0), 1), vector.h's inline helpers,
+// whose by-value argument keeps alpha in the dead y argument slot)
 int credits_draw_lines(int w, int y, char *s)
 {
     char *p = s;
@@ -294,7 +294,7 @@ int credits_draw_lines(int w, int y, char *s)
         alpha = (float)((float)(credits_fade_bottom_end[resolution_index] - mid) /
                 (double)(credits_fade_bottom_end[resolution_index] - credits_fade_bottom_start[resolution_index]));
     }
-    gr_set_alpha((int)((alpha > 0.0f ? (alpha < 1.0f ? alpha : 1.0f) : 0.0f) * 255.0f));
+    gr_set_alpha((int)(float_min(float_max(alpha, 0.0f), 1.0f) * 255.0f));
 
     if (y > -20)
         gr_string(x, y, p, -1, gr_string_mode);

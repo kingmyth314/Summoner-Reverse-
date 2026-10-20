@@ -288,14 +288,6 @@ public:
 };
 LAYOUT_CHECK(ui_listbox_text_entry, sizeof(ui_listbox_text_entry) == 0x13c);
 
-// decomp62 (D4201): the list box's ring head. ui_listbox() stores the head's next / prev before its own
-// vtable, i.e. while its members are constructed: the head is a member whose (inline) constructor runs
-// list_init after ui_listbox_entry(). Name ours.
-class ui_listbox_entry_head : public ui_listbox_entry {
-public:
-    ui_listbox_entry_head() { list_init(this); }
-};
-
 // The wrapped lines of the last entry laid out (ui_listbox_entry::wrap_text), read by ui_listbox::draw.
 // sum.symbols types the first int[20]; it holds char pointers. No bounds check (F6202).
 extern char *ui_listbox_line_starts[20];   // 0x2cbf584
@@ -399,7 +391,7 @@ public:
     int vscroll;                      // +0x2C8 vertical scroll position (set_vscroll; decomp55)
     int entry_spacing;                // +0x2CC
     int hscroll_step;                 // +0x2D0 10 pixels per left / right key (decomp62: was _unk2d0)
-    ui_listbox_entry_head entries;    // +0x2D4 entry ring head (D3100; decomp62 D4201: the head type)
+    ui_listbox_entry entries;         // +0x2D4 entry ring head (D3100; ui_listbox() list_inits it, D14300)
     ui_slider *vscrollbar;            // +0x310 (decomp62: was _unk310; set by ui_slider::create_scrollbar)
     ui_slider *hscrollbar;            // +0x314
     Color *colors;                    // +0x318 ui_listbox_colors: [0..2] face, [3..5] hidden face, [6] hidden text

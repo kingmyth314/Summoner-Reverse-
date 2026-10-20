@@ -473,7 +473,9 @@ steer:
     return true;
 }
 
-// 0x4b2510  Confidence: likely (the clamps reflect the overshoot back into the band).
+// 0x4b2510  Confidence: exact (the clamps reflect the overshoot back into the band). The centre is written
+// as pos + centre_offset through vector3's operator+ (D15100), not get_center(): the inline's local c
+// orders the y / z additions the other way round.
 void ai_state::steer_jitter(float dt)
 {
     float limit = dt * 0.05f;
@@ -486,7 +488,7 @@ void ai_state::steer_jitter(float dt)
         steer_offset = limit - (steer_offset - limit);
     if (-limit > steer_offset)
         steer_offset = -limit - (limit + steer_offset);
-    travel_dest = owner->get_center() + owner->orient.fvec * 2.0f + owner->orient.rvec * steer_offset;
+    travel_dest = owner->pos + owner->centre_offset + owner->orient.fvec * 2.0f + owner->orient.rvec * steer_offset;
 }
 
 // 0x4b2670  Confidence: likely. The look-ahead point is two seconds of the forward speed along the facing;
@@ -510,7 +512,7 @@ void ai_state::path_closest_point(float max_dist)
         return;
     {
         float ahead = owner->forward_speed * 2.0f / owner->speed_scale;
-        vector3 p = owner->get_center() + owner->orient.fvec * ahead;
+        vector3 p = owner->centre_offset + owner->pos + owner->orient.fvec * ahead;
         look.from_xz(&p);
         vector3 q = path->pos - path->dir * 50.0f;
         prev.from_xz(&q);
@@ -539,56 +541,59 @@ void ai_state::path_closest_point(float max_dist)
     }
 }
 
-// 0x4b2890  Confidence: likely (m-1020 w11, D12008: the centre through vector3::set, evaluated z, y, x as the
-// binary). A wall nearer than the next path node turns the owner away from it:
-// steer_side is +-1 / (d + 1)^2 times the moving turn rate, and the timer 0x224 keeps the steering for
-// 500 ms (path_flags bit 1).
+// 0x4b2890  Confidence: exact (D15101: owner read through the member, no Character * local, so EDI is
+// pushed only around the probe; the centre as centre_offset + pos; the side vector as
+// path->pos - owner->pos - owner->centre_offset; one block from the probe to the end so that the side
+// vector's temporary does not take the centre's slot; one exit). A wall nearer than the next path node
+// turns the owner away from it: steer_side is +-1 / (d + 1)^2 times the moving turn rate, and the timer
+// 0x224 keeps the steering for 500 ms (path_flags bit 1).
 void ai_state::wall_avoid_steer()
 {
     profile_label label("ai_wall_avoid_steer");
-    Character *o;
-    float look, d2, k;
-    vector3 move, center;
+    float d2, k;
+    bool hit;
+    vector3 move;
 
     if (owner->forward_speed < 0.01f)
         goto clear;
-    o = owner;
-    look = o->get_speed() / o->speed_scale * 2.5f + 0.1f;
-    look = min(look, 2.0f);
-    move = o->orient.fvec * look;
-    center.set(o->pos.x + o->centre_offset.x, o->pos.y + o->centre_offset.y, o->pos.z + o->centre_offset.z);
     {
-        bool hit = ai_probe_move_for_walls(&center, &move, o->info->size, o->layer, false);
+        float look = owner->get_speed() / owner->speed_scale * 2.5f + 0.1f;
+        look = min(look, 2.0f);
+        move = owner->orient.fvec * look;
+        vector3 center = owner->centre_offset + owner->pos;
+        hit = ai_probe_move_for_walls(&center, &move, owner->info->size, owner->layer, false);
         d2 = ai_wall_hit_dist;
-        if (!hit)
+        if (!hit || ai_path_remaining * ai_path_remaining <= d2)
             goto clear;
-    }
-    if (ai_path_remaining * ai_path_remaining <= d2)
-        goto clear;
-    travel_dest = path->pos;
-    if (!(path_flags & 2)) {
-        float tx = path->pos.x - owner->pos.x - owner->centre_offset.x;
-        float tz = path->pos.z - owner->pos.z - owner->centre_offset.z;
-        float side = tx * owner->orient.fvec.z - tz * owner->orient.fvec.x;
-        if (side == 0.0f) {
-            path_flags &= ~2;
-            return;
+        travel_dest = path->pos;
+        if (!(path_flags & 2)) {
+            vector3 d = path->pos - owner->pos - owner->centre_offset;
+            float side = d.x * owner->orient.fvec.z - d.z * owner->orient.fvec.x;
+            if (side == 0.0f) {
+                path_flags &= ~2;
+                goto done;
+            }
+            if (side < 0.0f)
+                steer_side = -1.0f;
+            else
+                steer_side = 1.0f;
         }
-        steer_side = side < 0.0f ? -1.0f : 1.0f;
+        k = 1.0f / ((d2 + 1.0f) * (d2 + 1.0f)) * owner->info->moving_turn_rate;
+        if (steer_side < 0.0f)
+            k = -k;
+        steer_side = k;
+        if (d2 < 1.0f)
+            path_flags |= 1;
+        steer_offset = 0.0f;
+        path_flags |= 2;
+        timer224.SetTimeout(500);
+        goto done;
     }
-    k = 1.0f / ((d2 + 1.0f) * (d2 + 1.0f)) * owner->info->moving_turn_rate;
-    if (steer_side < 0.0f)
-        k = -k;
-    steer_side = k;
-    if (d2 < 1.0f)
-        path_flags |= 1;
-    steer_offset = 0.0f;
-    path_flags |= 2;
-    timer224.SetTimeout(500);
-    return;
 
 clear:
     path_flags &= ~2;
+done:
+    ;
 }
 
 // 0x4b2af0  Confidence: likely (the three rotations use one zeroed origin each; `want` is turned by the
@@ -612,9 +617,8 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
         max_turn = dt * steer_side;
         goto apply;
     }
-    d.x = point->x - owner->pos.x + owner->centre_offset.x;
+    d = *point - owner->pos + owner->centre_offset;
     d.y = 0.0f;
-    d.z = point->z - owner->pos.z + owner->centre_offset.z;
     if (d.normalize_length() == 0.0f)
         return false;
     want = d;
@@ -652,8 +656,8 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
             max_turn = dt * info->slow_turn_rate;
         if (Use_turn_anims == true && cos_a < 0.707f) {
             if (owner->move_playing(turn_move, NULL)) {
-                int id = owner->get_current_move()->id;
-                if ((id == MOVE_TURN_LEFT && side >= 0.0f) || (id == MOVE_TURN_RIGHT && side < 0.0f)) {
+                move_info *cm = owner->get_current_move();
+                if ((cm->id == MOVE_TURN_LEFT && side >= 0.0f) || (cm->id == MOVE_TURN_RIGHT && side < 0.0f)) {
                     owner->instance->clear_action_anims();
                     turn_move = -1;
                 }
@@ -1033,6 +1037,7 @@ void ai_state::mode_traveling_frame()
     Character *mount;
     Character *leader;
     float s;
+    bool done = false;
 
     if (owner->handle == world_mouse_target_handle)
         ai_mode_frame_counts[AI_STATE_TRAVELING]++;
@@ -1041,17 +1046,16 @@ void ai_state::mode_traveling_frame()
         return;
     switch (submode) {
     case AIS_TRAVEL_PATH:
-        if (follow_path(0.0f))
-            return;
+        done = follow_path(0.0f);
         break;
+    case AIS_TRAVEL_GOTO:
+    case AIS_TRAVEL_ESCORT:
+    case AIS_TRAVEL_ASIDE:
+        follow_path(0.0f);
+        return;
     case AIS_TRAVEL_STEER:
         travel_steer_update();
         return;
-    case AIS_TRAVEL_TURN:
-        ai_move_flags = 6;
-        if (turn_towards(&travel_dest, false))
-            return;
-        break;
     case AIS_TRAVEL_FOLLOW:
     case AIS_TRAVEL_FOLLOW_SLOW:
         if (!group)
@@ -1070,8 +1074,10 @@ void ai_state::mode_traveling_frame()
         }
         travel_dest = owner->pos + leader->orient.fvec;
         turn_towards(&travel_dest, false);
-        s = min(s, owner->speed_scale);
-        owner->set_6ac(s);
+        {
+            float v = s < owner->speed_scale ? s : owner->speed_scale;
+            owner->set_6ac(v);
+        }
         return;
     case AIS_TRAVEL_WAIT:
         if (!group)
@@ -1086,11 +1092,6 @@ void ai_state::mode_traveling_frame()
             turn_towards(&travel_dest, false);
         }
         owner->set_6ac(0.0f);
-        return;
-    case AIS_TRAVEL_GOTO:
-    case AIS_TRAVEL_ESCORT:
-    case AIS_TRAVEL_ASIDE:
-        follow_path(0.0f);
         return;
     case AIS_TRAVEL_WANDER:
         if (timer40.valid() && timer40.elapsed()) {
@@ -1121,11 +1122,17 @@ void ai_state::mode_traveling_frame()
         if (!timer40.valid())
             timer40.SetRandomTimeout(15000, 20000);
         return;
+
+    case AIS_TRAVEL_TURN:
+        ai_move_flags = 6;
+        done = turn_towards(&travel_dest, false);
+        break;
     }
+    if (done)
+        return;
 idle:
     go_idle();
 }
-
 // 0x4b4590  Confidence: exact (dec chain over 0x27..0x29).
 void ai_state::mode_cast_spell_frame()
 {

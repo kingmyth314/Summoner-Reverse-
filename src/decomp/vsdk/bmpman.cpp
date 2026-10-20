@@ -765,8 +765,9 @@ bitmap_entry *bm_alloc_entries(int count)
     return NULL;
 }
 
-// 0x502f70  Confidence: likely (the memcpy / strcat intrinsics). For a .tga name, switches to name.vbm
-// when that bitmap is loaded (*handle = its handle) or the file exists (*handle = -1).
+// 0x502f70  Confidence: exact (the memcpy / strcat intrinsics; the not-found case returns from inside the
+// File block, D15102, so that 8966 pushes ESI / EDI at the entry as the binary does). For a .tga name,
+// switches to name.vbm when that bitmap is loaded (*handle = its handle) or the file exists (*handle = -1).
 void bm_prefer_vbm(char *name, int *handle, int path_id)
 {
     *handle = -1;
@@ -782,10 +783,10 @@ void bm_prefer_vbm(char *name, int *handle, int path_id)
     vbm_name[ext - name] = 0;
     strcat(vbm_name, ".vbm");
     bm = bm_find(vbm_name);
-    if (bm >= 0 || f.find(vbm_name, path_id)) {
-        *handle = bm;
-        strcpy(name, vbm_name);
-    }
+    if (bm < 0 && !f.find(vbm_name, path_id))
+        return;
+    *handle = bm;
+    strcpy(name, vbm_name);
 }
 
 // 0x5030a0  Confidence: exact. The flag is set but never stops the creation: every missing name gets its

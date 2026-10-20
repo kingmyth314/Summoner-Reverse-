@@ -7,9 +7,10 @@
 // --side <mangled-name substring>: for a variant that still differs, also print the first differing lines
 // (tools/vc6-side.mjs), N lines (default 12).
 // Uses VC6_DIR (the SP5 VC98 folder) and the tree's include/ and vc6-flags.txt. Run from PowerShell or cmd.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { resolve, dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { resolve, dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,6 +41,10 @@ function run(label) {
     const first = s.findIndex((l) => l.startsWith("*"));
     console.log(s.slice(Math.max(0, first - 2), first + nlines).join("\n"));
   }
+  // --side keeps vc6-compare's folder for the listing; remove it once read (only a vc6cmp- folder directly in the
+  // temp folder: a run per variant otherwise leaves thousands behind).
+  if (r.tmp && /^vc6cmp-[A-Za-z0-9]{6}$/.test(basename(r.tmp)) && resolve(dirname(r.tmp)) === resolve(tmpdir()))
+    rmSync(r.tmp, { recursive: true, force: true });
 }
 try {
   run("base");

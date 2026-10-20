@@ -423,8 +423,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result (2026-10-20): 7,726 functions written (89.4%). 5,906 of them are
-compiled and compared by VC6 SP5, and 5,298 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 5,317: 19 compared functions are not `func` lines in sum.symbols).
+compiled and compared by VC6 SP5, and 5,385 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 5,404: 19 compared functions are not `func` lines in sum.symbols).
 
 **Byte-match round 2026-10-19 (ten workers, D10000-D10999).** The 962 functions that still differed, split by file
 over ten agents, each in its own copy, merged with `decomp-merge.mjs` and swept strictly: 4,963 -> 5,077 matches,
@@ -472,7 +472,19 @@ now forbid recursive deletes on paths built from variables or globs.
 `tools/asm.mjs fn` showed a wrong start for 90 of the 7,866 game functions: the whole-file linear disassembly ran
 through data placed before them (jump tables) and swallowed their first bytes (0x465df0's `push ecx`). `fn` now
 disassembles such a function's own range. The byte comparison was never affected (it reads the exe), but listings
-read by the workers were, so those 90 are worth another look. The
+read by the workers were, so those 90 are worth another look.
+
+**Byte-match round 2026-10-20, third (fifteen workers, D14000-D15499).** 5,317 -> 5,404, none lost (notes in
+`src/decomp/NOTES-match-2026-10-20c.md`). Of the 13 still-differing functions whose listing asm.mjs had misread,
+`inventory_use_selected_item`, `ring_format_info` and two in boss_ai now match. Also matched: `key_mark` (the key
+unit is complete: the key queue, its times, counts and head / tail are one `key_tables` object at 0x25d94e0, D14001),
+`living_combat::resolve_hit`, the chat line and input drawing, the save state writer and reader
+(`Character::save_state` / `load_state`) and `write_header` (which confirms D12302's reading). Devices, each recorded
+as one: `ui_window::send_event` without its final `return false` (the binary returns the tested pointer's zero in
+EAX, D15400); `#pragma optimize("w", on)` from 0x518ce0 to the end of the net unit (D14204); the footstep sound table
+as two arrays, as the binary indexes it from two bases (D14305). No behaviour error was found. The leftover
+`vc6cmp-*` compile folders (5,974, 2.2 GB in Temp, mostly from `vc6-try --side`, which kept one per variant) were
+removed by exact name; `vc6-try` now removes its own, and `vc6-side` reads up to 5,000 instructions. The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

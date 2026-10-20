@@ -906,18 +906,19 @@ void ui_window::clear_bitmaps()
         background_bm = -1;
 }
 
-// 0x52abf0  Confidence: likely (the distance expressions: the binary computes y - g->h - g->y + h).
+// 0x52abf0  Confidence: likely (the distance expressions: the binary computes y - g->h - g->y + h; D15407: one
+// sw / sh pair for both branches gives the binary's frame slots; the registers of the left case still differ).
 // Arrow keys move the keyboard selection to the nearest gadget in that direction (ui_gadget find_nearest_*
 // from the selection's edge). Without a selection the gadget nearest the window's opposite edge is taken;
 // that pass reads the gadget's own rectangle and throws away the get_screen_* / get_size results. Returns
 // the key if it was not an arrow, else 0.
 int ui_window::handle_arrow_key(int key)
 {
+    int sw, sh;
     ui_nav_best_distance = 999999999;
     ui_nav_best_gadget = NULL;
 
     if (selected) {
-        int sw, sh;
         selected->get_size(&sw, &sh);
         int sx = selected->get_screen_x(0);
         int sy = selected->get_screen_y(0);
@@ -943,12 +944,12 @@ int ui_window::handle_arrow_key(int key)
         }
     } else {
         ui_gadget *g;
-        int gw, gh, d;
+        int d;
         switch (key) {
         case KEY_UP:
             for (g = gadgets.window_next; g != &gadgets; g = g->window_next) {
                 g->get_screen_y(0);
-                g->get_size(&gw, &gh);
+                g->get_size(&sw, &sh);
                 d = (y + h) - (g->y + g->h);
                 if (d < ui_nav_best_distance) {
                     ui_nav_best_distance = d;
@@ -969,7 +970,7 @@ int ui_window::handle_arrow_key(int key)
         case KEY_LEFT:
             for (g = gadgets.window_next; g != &gadgets; g = g->window_next) {
                 g->get_screen_x(0);
-                g->get_size(&gw, &gh);
+                g->get_size(&sw, &sh);
                 d = (x + w) - (g->x + g->w);
                 if (d < ui_nav_best_distance) {
                     ui_nav_best_distance = d;
@@ -1039,7 +1040,8 @@ void ui_stub_ret_52afe0()
 {
 }
 
-// 0x52aff0  Confidence: likely (differs under cl 12.00.8966, match23; was exact; if the callback returns int, the declaration differs, not the code).
+// 0x52aff0  Confidence: exact (VC6 byte match; D15400: no return after the if, so a NULL callback returns the
+// tested pointer's EAX, whose AL is 0 = false; VC6 warns C4715).
 // Vtable slot 1. -99999 means "use the window's id".
 bool ui_window::send_event(int event, int value)
 {
@@ -1047,7 +1049,6 @@ bool ui_window::send_event(int event, int value)
         value = id;
     if (callback)
         return callback(event, value);
-    return false;
 }
 
 // 0x52b020  Confidence: exact (store order: the vtable store sits between the list and the other

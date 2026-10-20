@@ -88,7 +88,6 @@ int ai_state::tentacle_beast_ai_select_action()
 {
     Character *list[5];
     Character *c;
-    tentacle_info *t;
     move_info *move;
     float best;
     float d;
@@ -101,13 +100,12 @@ int ai_state::tentacle_beast_ai_select_action()
         return 5;
     if (owner->move_playing(emerge_move, NULL))
         return 5;
-    t = tentacle_beast_active_tentacle;
-    t->move = NULL;
-    if (!t->think_timer.valid())
-        t->think_timer.SetRandomTimeout(2500, 5000);
-    if (!t->think_timer.elapsed())
+    tentacle_beast_active_tentacle->move = NULL;
+    if (!tentacle_beast_active_tentacle->think_timer.valid())
+        tentacle_beast_active_tentacle->think_timer.SetRandomTimeout(2500, 5000);
+    if (!tentacle_beast_active_tentacle->think_timer.elapsed())
         return 5;
-    t->think_timer.invalidate();
+    tentacle_beast_active_tentacle->think_timer.invalidate();
     count = 0;
     for (i = 0; i < 5; i++) {
         if (tentacle_beast_active_tentacle->slots[i].handle == -1)
@@ -124,13 +122,12 @@ int ai_state::tentacle_beast_ai_select_action()
             continue;
         for (j = 0; j < count; j++) {
             if (list[j] == c)
-                break;
+                goto next;
         }
-        if (j < count)
-            continue;
         list[count++] = c;
         if (count >= 5)
             break;
+    next:;
     }
     if (count == 0)
         return 4;
@@ -145,8 +142,10 @@ int ai_state::tentacle_beast_ai_select_action()
     if (move == tentacle_move_2) {
         best = 1000.0f;
         for (i = 0; i < count; i++) {
-            vector3 a(list[i]->pos.x, 0.0f, list[i]->pos.z);
-            vector3 b(tentacle_beast_active_tentacle->squeeze_pos.x, 0.0f, tentacle_beast_active_tentacle->squeeze_pos.z);
+            vector3 a = list[i]->pos;
+            vector3 b = tentacle_beast_active_tentacle->squeeze_pos;
+            a.y = 0.0f;
+            b.y = 0.0f;
             d = distance(&a, &b);
             if (d < 3.0f && d < best) {
                 best = d;

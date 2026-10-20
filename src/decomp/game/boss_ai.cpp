@@ -555,7 +555,7 @@ float charinfo_boss_radius(char_info *info)
     return 1.0f;
 }
 
-// 0x4a1790  Confidence: likely (the unused File: its constructor and destructor bracket the TextFile in
+// 0x4a1790  Confidence: exact (VC6 8966 byte match, D14200) (the unused File: its constructor and destructor bracket the TextFile in
 // the EH states 0 / 1, so it is a local here; the local buffer sizes and order from the frame:
 // File +0x1bc, debug text +0x17c, message / spell name +0x7c (shared), point name +0x5c, TextFile +0xc).
 // A *_boss.tbl: "#Boss Info", "$Num Stages:" (read, not kept), then per "$Stage:" N the offense point
@@ -570,6 +570,7 @@ void boss_ai_parse_table(const char *filename, int num_stages, boss_attack table
     TextFile tf;
     int stage;
     boss_attack *a;
+    boss_attack *next;
 
     if (tf.Open(filename, PATH_ANY)) {
         char msg[0x100];
@@ -583,8 +584,9 @@ void boss_ai_parse_table(const char *filename, int num_stages, boss_attack table
         tf.Expect("$Stage:");
         stage = tf.ParseInt();
         if (tf.Accept("$Offense point:")) {
-            a = table[stage - 1];
+            next = table[--stage];             // stage is 1-based (the binary: lea edi, [esi + 4*esi - 5])
             do {
+                a = next++;                    // the record pointer and the next one (ESI, EDI += 0x20)
                 tf.ParseString(point_name, 0x20, '"', '"');
                 a->offense_point = atoi(point_name + 8) - 1;      // the number after "$offense" (0x4a18b2: [esp+0x68], 8 past the buffer)
                 a->enabled = 1;
@@ -614,7 +616,6 @@ void boss_ai_parse_table(const char *filename, int num_stages, boss_attack table
                     if (tf.Accept("+Plus Spell:"))
                         a->flags |= BOSS_ATTACK_PLUS_SPELL;
                 }
-                a++;
             } while (!tf.Peek("$Stage:") && !tf.Peek("#End") && tf.Accept("$Offense point:"));
         }
     }
@@ -1284,17 +1285,19 @@ void boss_target_filter_dispatch(Character *boss, boss_target *t)
     }
 }
 
-// 0x4a2f60  Confidence: likely (the candidate block is written out twice, once per loop, as in the
+// 0x4a2f60  Confidence: exact (VC6 8966 byte match, D14201: n set in each branch, the list indexed by n) (the candidate block is written out twice, once per loop, as in the
 // binary; the order of the query field stores). The boss's candidates: in single player the members of
 // cur_character's AI group, in multiplayer every party record's character. A candidate is kept when
 // ai_score_target finds it within the fov range, or when it has threat whose 20 s timer runs.
 int boss_target_list_build(Character *boss, boss_target *list, boss_threat *table)
 {
-    int n = 0;
+    int n;
 
     if (game_flags & GF_SINGLE_PLAYER) {
         ai_group *g = cur_character->ai.group;
         int i;
+
+        n = 0;
 
         if (g) {
             for (i = 0; i < g->count; i++) {
@@ -1313,12 +1316,11 @@ int boss_target_list_build(Character *boss, boss_target *list, boss_threat *tabl
                     seen = q.best < boss->info->fov_range;
                     t = boss_threat_find(c->handle, table);
                     if ((t != -1 && !table[t].timer.elapsed()) || seen) {
-                        list->character = c;
-                        list->dist = boss->distance_between_edges(c, true, -1);
-                        list->flags = 0;
-                        boss_target_filter_dispatch(boss, list);
+                        list[n].character = c;
+                        list[n].dist = boss->distance_between_edges(c, true, -1);
+                        list[n].flags = 0;
+                        boss_target_filter_dispatch(boss, &list[n]);
                         n++;
-                        list++;
                     }
                 }
             }
@@ -1326,6 +1328,7 @@ int boss_target_list_build(Character *boss, boss_target *list, boss_threat *tabl
     } else {
         Player *p;
 
+        n = 0;
         for (p = party_list.next; p != &party_list; p = p->next) {
             Character *c = living_from_handle(p->handle);
             if (c) {
@@ -1342,12 +1345,11 @@ int boss_target_list_build(Character *boss, boss_target *list, boss_threat *tabl
                 seen = q.best < boss->info->fov_range;
                 t = boss_threat_find(c->handle, table);
                 if ((t != -1 && !table[t].timer.elapsed()) || seen) {
-                    list->character = c;
-                    list->dist = boss->distance_between_edges(c, true, -1);
-                    list->flags = 0;
-                    boss_target_filter_dispatch(boss, list);
+                    list[n].character = c;
+                    list[n].dist = boss->distance_between_edges(c, true, -1);
+                    list[n].flags = 0;
+                    boss_target_filter_dispatch(boss, &list[n]);
                     n++;
-                    list++;
                 }
             }
         }

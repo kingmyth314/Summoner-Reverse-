@@ -315,13 +315,12 @@ void bbox_expand_by_vector(vector3 *min, vector3 *max, const vector3 *v)
         max->z += v->z;
 }
 
-// 0x559890  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x559890  Confidence: exact (VC6 byte match; D15402: the table row indexed in place and out[n]).
 int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, const vector3 *max)
 {
     int code = 0;
     int n;
     int i;
-    const int *t;
 
     if (p->x < min->x)
         code = 9;
@@ -337,14 +336,12 @@ int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, 
         code += 2;
     if (code == 0)
         return 0;
-    t = bbox_silhouette_table[code];
     n = 0;
     for (i = 0; i < 6; i++) {
-        if (t[i] > 7)
+        if (bbox_silhouette_table[code][i] > 7)
             break;
-        bbox_get_corner(out, t[i], min, max);
+        bbox_get_corner(&out[n], bbox_silhouette_table[code][i], min, max);
         n++;
-        out++;
     }
     return n;
 }

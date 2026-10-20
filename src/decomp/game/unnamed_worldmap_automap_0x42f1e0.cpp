@@ -482,8 +482,8 @@ void automap_find_map_corners()
     automap_labels_parse_table();
 }
 
-// 0x42fd40  Confidence: likely (VC6 places the early-exit epilogue at the end and keeps -1 out of a register; the
-// original has it after the Open test). The section "#Script: "<level script>"" of
+// 0x42fd40  Confidence: exact (D15001: the two level tests as separate early returns put the shared
+// early-exit epilogue after the Open test, as the binary). The section "#Script: "<level script>"" of
 // automap_labels.tbl: $Label: "text" $Type: Permanent / Custom $Pos: x, z $Layer: n per label. The labels
 // are cleared first. automap_label_alloc returns 0 when the 32 labels are used, so the < 0 test never ends
 // the loop and later labels overwrite label 0 (latent).
@@ -494,7 +494,9 @@ void automap_labels_parse_table()
     int index;
     automap_label *lab;
 
-    if (cur_level_index == -1 || !automap_corners_found)
+    if (cur_level_index == -1)
+        return;
+    if (!automap_corners_found)
         return;
     automap_labels_clear();
     if (tf.Open("automap_labels.tbl", 0x98967f))
@@ -751,8 +753,8 @@ void cmd_save_map_labels()
     }
 }
 
-// 0x430580  Confidence: likely (VC6 places the File used for the delete after the line buffer in the frame, the
-// original before it; same size). Copies
+// 0x430580  Confidence: exact (D15000: the open results through a named local, compared with the zero register;
+// `while (1)` with the "#End" test's else-part last keeps the binary's unrotated loop). Copies
 // automap_labels.tbl into automap_labels_temp.tbl up to this level's "#Script:" line (or up to "#End",
 // where the section is appended), writes the permanent labels (type 0) instead of the section's old ones,
 // copies the rest (or writes "#End"), then replaces the table with the copy. The first loop does not test
@@ -767,28 +769,32 @@ int automap_labels_save()
     bool at_end;
     int i;
     automap_label *lab;
+    int err;
 
     if (cur_level_index == -1)
         return 1;
     if (!automap_corners_found)
         return 2;
-    if (tf.Open("automap_labels.tbl", path_tables) != 0)
+    err = tf.Open("automap_labels.tbl", path_tables);
+    if (err != 0)
         return 3;
-    if (out.open("automap_labels_temp.tbl", 0x80000002, path_tables) != 0)
+    err = out.open("automap_labels_temp.tbl", 0x80000002, path_tables);
+    if (err != 0)
         return 4;
     sprintf(header, "#Script: \"%s\"", level_script_name);
-    for (;;) {
+    while (1) {
         tf.ReadLine(line, 0x200);
-        if (strncmp(line, "#End", 4) == 0) {
+        if (strncmp(line, "#End", 4) != 0) {
+            out.write_line(line, -1);
+            if (strcmp(line, header) == 0) {
+                out.write_line(NULL, -1);
+                at_end = !tf.SkipTo("#Script:", "#End");
+                break;
+            }
+        } else {
             out.write_line(header, -1);
             out.write_line(NULL, -1);
             at_end = true;
-            break;
-        }
-        out.write_line(line, -1);
-        if (strcmp(line, header) == 0) {
-            out.write_line(NULL, -1);
-            at_end = !tf.SkipTo("#Script:", "#End");
             break;
         }
     }

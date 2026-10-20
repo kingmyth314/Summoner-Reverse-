@@ -24,7 +24,7 @@ for (const l of lines) {
   const m = /^(?:\s+[0-9a-f]{5})?\t[0-9a-f ]+\t\s*(\S.*)$/.exec(l);
   if (m) mine.push(m[1].replace(/\s+/g, " ").replace(/;.*$/, "").trim());
 }
-const dis = execFileSync("node", [join(repo, "tools", "asm.mjs"), "fn", addr, "400"], { cwd: repo }).toString().split(/\r?\n/)
+const dis = execFileSync("node", [join(repo, "tools", "asm.mjs"), "fn", addr, "5000"], { cwd: repo }).toString().split(/\r?\n/)
   .filter((l) => /^[0-9a-f]+: /.test(l)).map((l) => l.replace(/^[0-9a-f]+: /, "").replace(/;.*$/, "").replace(/\s+/g, " ").trim());
 const n = Math.max(mine.length, dis.length);
 for (let i = 0; i < n; i++) {

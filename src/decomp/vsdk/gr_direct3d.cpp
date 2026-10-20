@@ -907,31 +907,31 @@ void gr_d3d_set_render_state(DWORD state, DWORD value)
     IDirect3DDevice7_SetRenderState(d3d_device, state, value);
 }
 
-// 0x538760  Confidence: likely (the lock pointer lives in the count argument's slot).
+// 0x538760  Confidence: exact (VC6 8966 strict match, D15304: the position reset first, then one if / else on
+// pos == 0 for the lock flags; the function returns the draw call's HRESULT, which is why the binary keeps EAX
+// and adds the count in ECX. The lock pointer lives in the count argument's slot).
 // With the vertex buffer: appends the vertices (starting over at 1000) and draws from the buffer.
-void gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWORD flags)
+HRESULT gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWORD flags)
 {
     if (d3d_use_vertex_buffer) {
         DWORD lock_flags;
-        if (d3d_vertex_buffer_pos + count >= 1000) {
-            lock_flags = gr_d3d_lock_discard;
+        if (d3d_vertex_buffer_pos + count >= 1000)
             d3d_vertex_buffer_pos = 0;
-        } else if (d3d_vertex_buffer_pos != 0) {
-            lock_flags = gr_d3d_lock_nooverwrite;
-        } else {
+        if (d3d_vertex_buffer_pos == 0)
             lock_flags = gr_d3d_lock_discard;
-        }
+        else
+            lock_flags = gr_d3d_lock_nooverwrite;
         void *data = NULL;
         IDirect3DVertexBuffer7_Lock(d3d_vertex_buffer, lock_flags, &data, NULL);
         memcpy((ubyte *)data + d3d_vertex_buffer_pos * sizeof(d3d_tlvertex), verts,
                count * sizeof(d3d_tlvertex));
         IDirect3DVertexBuffer7_Unlock(d3d_vertex_buffer);
-        IDirect3DDevice7_DrawPrimitiveVB(d3d_device, type, d3d_vertex_buffer, d3d_vertex_buffer_pos, count,
-                                         flags);
+        HRESULT result = IDirect3DDevice7_DrawPrimitiveVB(d3d_device, type, d3d_vertex_buffer,
+                                                          d3d_vertex_buffer_pos, count, flags);
         d3d_vertex_buffer_pos += count;
-    } else {
-        IDirect3DDevice7_DrawPrimitive(d3d_device, type, fvf, verts, count, flags);
+        return result;
     }
+    return IDirect3DDevice7_DrawPrimitive(d3d_device, type, fvf, verts, count, flags);
 }
 
 // 0x538850  Confidence: exact (D12102: every failure is a goto to one return NULL after the device return).

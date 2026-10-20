@@ -220,8 +220,8 @@ inline float round_to_step(float x, float step)
     return (float)(int)((x + step * 0.5f) / step) * step;
 }
 
-// 0x44ddb0  Confidence: likely (D10701: only the hp_mult division differs, fild / fdivp in the binary,
-// fidiv from 8966; the skill copy is a struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult
+// 0x44ddb0  Confidence: exact (D14403: the divisor cast in its own parentheses gives the binary's fild /
+// fdivp, the bare cast fidiv; D10701; the skill copy is a struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult
 // -4, v -8, hp_mult -0xc, i -0x10, sk -0x14, ap_cap -0x18, cur_ap -0x1c (the two clamped AP values, named
 // locals written in both arms), this -0x20.
 void Character::scale_stats_to_level()
@@ -238,7 +238,7 @@ void Character::scale_stats_to_level()
         hp_mult = 1.0f;
         ap_mult = 1.0f;
     } else {
-        hp_mult = (float)level / (float)info->level;
+        hp_mult = (float)level / ((float)info->level);
         if (hp_mult < 1.0f)
             ap_mult = hp_mult;
         else
@@ -2399,7 +2399,7 @@ void Character::boss_anim_remap_out(int *anims)
         } while (0);                                                    \
     } while (0)
 #define LE_GET_VECTOR(v) do { LE_GET(float, (v).x); LE_GET(float, (v).y); LE_GET(float, (v).z); } while (0)
-#define LE_GET_BOOL(dst) do { ubyte le_b; LE_GET(ubyte, le_b); (dst) = (le_b != 0); } while (0)
+#define LE_GET_BOOL(dst) do { ubyte le_b; LE_GET(ubyte, le_b); (dst) = le_b != 0 ? true : false; } while (0)
 
 // The status part of a record: up to four active timed or permanent statuses, in the order of the
 // table, padded to four with empty records (kind 0xff). 19 bytes each.
@@ -2435,20 +2435,17 @@ void Character::boss_anim_remap_out(int *anims)
 // The script object part (types 4, 5, 9): its timer, action and suspended flag, or a blank.
 #define LE_PUT_SCRIPT()                                                                 \
     if (script_object >= 0) {                                                           \
-        do {                                                                            \
-            LE_PUT(int, script_objects[script_object].timer.GetRemainingTime());        \
-            LE_PUT(int, script_objects[script_object].cur_action);                      \
-            LE_PUT_BOOL(script_objects[script_object].suspended == 1);                  \
-        } while (0);                                                                    \
+        LE_PUT(int, script_objects[script_object].timer.GetRemainingTime());            \
+        LE_PUT(int, script_objects[script_object].cur_action);                          \
+        LE_PUT_BOOL(script_objects[script_object].suspended == 1 ? true : false);       \
     } else {                                                                            \
-        do {                                                                            \
-            LE_PUT(int, 0);                                                             \
-            LE_PUT(int, -1);                                                            \
-            LE_PUT_BOOL(false);                                                         \
-        } while (0);                                                                    \
+        LE_PUT(int, 0);                                                                 \
+        LE_PUT(int, -1);                                                                \
+        LE_PUT_BOOL(false);                                                             \
     }
 
-// 0x457150  Confidence: likely (statement order and widths are the code's; the macro shapes are ours,
+// 0x457150  Confidence: exact (D14407: the bool puts as `x == 1 ? true : false` (cmp / sete) in a do-while,
+// the script part without one; block locals id / play / n by the hash rule. Statement order and widths are the code's; the macro shapes are ours,
 // see above). Frame: p -4, b -8, sort_order -0x50 (18), ofs -0x54, h -0x58, i -0x5c, the per-put copies
 // -0x60 .. -0x1e8, this -0x1ec, the switch values -0x1f0 .. -0x1fc. Writes the LENT record of one living
 // entity (savegame_write_living) and returns its length: a 32-byte header (type, pos, heading, layer,
@@ -2492,8 +2489,8 @@ int Character::save_state(ubyte *out)
         break;
     }
     case 4: {
-        int n;
         int id;
+        int n;
 
         LE_PUT_STATUSES(n, id);
         LE_PUT(short, level);
@@ -2507,9 +2504,9 @@ int Character::save_state(ubyte *out)
         break;
     }
     case 7: {
-        int n;
-        Player *pl;
         int id;
+        Player *play;
+        int n;
 
         LE_PUT_STATUSES(n, id);
         for (i = 0; i < 9; i++) {
@@ -2518,9 +2515,9 @@ int Character::save_state(ubyte *out)
             else
                 LE_PUT(int, -1);
         }
-        pl = player_from_handle(handle);
+        play = player_from_handle(handle);
         for (i = 0; i < 36; i++)
-            LE_PUT(int, pl->skill_cooldown[i].GetRemainingTime());
+            LE_PUT(int, play->skill_cooldown[i].GetRemainingTime());
         for (i = 0; i < 36; i++) {
             ubyte s = skill[i];
 
@@ -2590,24 +2587,21 @@ int character_save_state_size()
 
 #define LE_GET_SCRIPT(ignored)                                                            \
     if (script_object >= 0) {                                                           \
-        do {                                                                            \
-            LE_GET(int, word);                                                             \
-            if (word == MAX_TIME)                                                          \
-                script_objects[script_object].timer.invalidate();                       \
-            else                                                                        \
-                script_objects[script_object].timer.SetTimeout(word);                      \
-            LE_GET(int, script_objects[script_object].cur_action);                      \
-            LE_GET_BOOL(script_objects[script_object].suspended);                       \
-        } while (0);                                                                    \
+        LE_GET(int, word);                                                              \
+        if (word == MAX_TIME)                                                           \
+            script_objects[script_object].timer.invalidate();                          \
+        else                                                                            \
+            script_objects[script_object].timer.SetTimeout(word);                      \
+        LE_GET(int, script_objects[script_object].cur_action);                          \
+        LE_GET_BOOL(script_objects[script_object].suspended);                           \
     } else {                                                                            \
-        do {                                                                            \
-            LE_GET(int, word);                                                             \
-            LE_GET(int, word);                                                             \
-            LE_GET_BOOL(ignored);                                                         \
-        } while (0);                                                                    \
+        LE_GET(int, word);                                                              \
+        LE_GET(int, word);                                                              \
+        LE_GET_BOOL(ignored);                                                           \
     }
 
-// 0x458800  Confidence: likely (as save_state). Frame: ignored -4 (bool), b -8, hp_f -0xc, ofs -0x10, i -0x14,
+// 0x458800  Confidence: exact (D14407: LE_GET_BOOL as `b != 0 ? true : false` in a do-while, the script part
+// without one; case 7's locals eid / pla / fx / old_a / prev_b by the hash rule; as save_state). Frame: ignored -4 (bool), b -8, hp_f -0xc, ofs -0x10, i -0x14,
 // word -0x18, this -0xa8, the switch value -0xac. The reverse of save_state; type 4 also recomputes xp
 // from the level (types 5 / 9 do not). A party member's empty slots are emptied (except the weapon slot
 // 5), the stats are rescaled before HP / AP are read (scale_stats_to_level), species 0xce sets
@@ -2672,35 +2666,35 @@ int Character::load_state(const ubyte *in)
         break;
     }
     case 7: {
-        Player *pl;
         ubyte eid;
+        Player *pla;
         int fx;
-        item_info *old_b;
         item_info *old_a;
+        item_info *prev_b;
 
         LE_GET_STATUSES(eid, fx);
         for (i = 0; i < 9; i++) {
             LE_GET(int, word);
             printf("%d %s\n", i, word >= 0 ? item_types[word].name : "nothing");
             if (word >= 0) {
-                character_equip_item(&old_a, &old_b, this, i, item_create(word));
+                character_equip_item(&old_a, &prev_b, this, i, item_create(word));
                 if (old_a != NULL)
                     item_free(old_a);
-                if (old_b != NULL)
-                    item_free(old_b);
+                if (prev_b != NULL)
+                    item_free(prev_b);
             } else if (i != 5) {
                 old_a = character_unequip_slot(this, i, 1);
                 if (old_a != NULL)
                     item_free(old_a);
             }
         }
-        pl = player_from_handle(handle);
+        pla = player_from_handle(handle);
         for (i = 0; i < 36; i++) {
             LE_GET(int, word);
             if (word == MAX_TIME)
-                pl->skill_cooldown[i].invalidate();
+                pla->skill_cooldown[i].invalidate();
             else
-                pl->skill_cooldown[i].SetTimeout(word);
+                pla->skill_cooldown[i].SetTimeout(word);
         }
         for (i = 0; i < 36; i++) {
             LE_GET(ubyte, b);

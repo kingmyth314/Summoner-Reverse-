@@ -454,7 +454,9 @@ bool gr_glide_round_texture_size(int w, int h)
     return false;
 }
 
-// 0x547cc0  Confidence: likely (if-else chain of the formats; the LOD and aspect switches are inline in
+// 0x547cc0  Confidence: exact (m-1020c w4, D14303: pointer stores for 1555 / 565 / 4444 / the palette, the
+// 8888 nibbles as ushorts, the zeroing orders, the LOD cases ascending and the LODs set before bm_unlock,
+// the section fields through entry->sections) (if-else chain of the formats; the LOD and aspect switches are inline in
 // the binary, two switches with shared tails). A mipmapped bitmap is one section with all its levels.
 int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
 {
@@ -495,9 +497,9 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
             int b = p[2];
             int a = 1;
             if (r == 0 && g == 255 && b == 0) {      // pure green is transparent
-                r = 0;
-                g = 0;
                 b = 0;
+                g = 0;
+                r = 0;
                 a = 0;
             }
             pal16[i] = (ushort)((((((a << 5) | (r / 8)) << 5) | (g / 8)) << 5) | (b / 8));
@@ -505,7 +507,7 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
         }
         ushort *d = (ushort *)buf;
         for (i = 0; i < num_pixels; i++)
-            d[i] = pal16[data[i]];
+            *d++ = pal16[data[i]];
     } else if (bm_format == BM_FORMAT_888) {
         format = GR_TEXFMT_ARGB_1555;
         size = num_pixels * 2;
@@ -515,9 +517,9 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
             ubyte *s = &data[i * 3];
             int r, g, b, a;
             if (s[0] == 0 && s[1] == 0xff && s[2] == 0) {
-                r = 0;
-                g = 0;
                 b = 0;
+                g = 0;
+                r = 0;
                 a = 0;
             } else {
                 r = s[2] >> 3;
@@ -531,20 +533,23 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
         format = GR_TEXFMT_ARGB_1555;
         size = num_pixels * 2;
         buf = new ubyte[size];
+        ushort *d = (ushort *)buf;
         for (i = 0; i < num_pixels; i++)
-            ((ushort *)buf)[i] = ((ushort *)data)[i] ^ 0x8000;   // the bitmaps' top bit means transparent
+            *d++ = ((ushort *)data)[i] ^ 0x8000;   // the bitmaps' top bit means transparent
     } else if (bm_format == BM_FORMAT_565) {
         format = GR_TEXFMT_RGB_565;
         size = num_pixels * 2;
         buf = new ubyte[size];
+        ushort *d = (ushort *)buf;
         for (i = 0; i < num_pixels; i++)
-            ((ushort *)buf)[i] = ((ushort *)data)[i];
+            *d++ = ((ushort *)data)[i];
     } else if (bm_format == BM_FORMAT_4444) {
         format = GR_TEXFMT_ARGB_4444;
         size = num_pixels * 2;
         buf = new ubyte[size];
+        ushort *d = (ushort *)buf;
         for (i = 0; i < num_pixels; i++)
-            ((ushort *)buf)[i] = ((ushort *)data)[i];
+            *d++ = ((ushort *)data)[i];
     } else if (bm_format == BM_FORMAT_8888) {
         format = GR_TEXFMT_ARGB_4444;
         size = num_pixels * 2;
@@ -552,34 +557,38 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
         ushort *d = (ushort *)buf;
         for (i = 0; i < num_pixels; i++) {
             ubyte *s = &data[i * 4];
-            *d++ = (ushort)((((((s[3] >> 4) << 4) | (s[2] >> 4)) << 4 | (s[1] >> 4)) << 4) | (s[0] >> 4));
+            ushort a = s[3] >> 4;
+            ushort r = s[2] >> 4;
+            ushort g = s[1] >> 4;
+            ushort b = s[0] >> 4;
+            *d++ = (ushort)((((((a << 4) | r) << 4) | g) << 4) | b);
         }
     }
+    GrLOD_t large_lod = GR_LOD_16, small_lod = GR_LOD_16;
     bm_unlock(bm);
 
-    GrLOD_t large_lod = GR_LOD_16, small_lod = GR_LOD_16;
     int max_dim = imax(w, h);
     switch (max_dim) {
-    case 256: large_lod = GR_LOD_256; break;
-    case 128: large_lod = GR_LOD_128; break;
-    case 64:  large_lod = GR_LOD_64; break;
-    case 32:  large_lod = GR_LOD_32; break;
-    case 16:  large_lod = GR_LOD_16; break;
-    case 8:   large_lod = GR_LOD_8; break;
-    case 4:   large_lod = GR_LOD_4; break;
-    case 2:   large_lod = GR_LOD_2; break;
     case 1:   large_lod = GR_LOD_1; break;
+    case 2:   large_lod = GR_LOD_2; break;
+    case 4:   large_lod = GR_LOD_4; break;
+    case 8:   large_lod = GR_LOD_8; break;
+    case 16:  large_lod = GR_LOD_16; break;
+    case 32:  large_lod = GR_LOD_32; break;
+    case 64:  large_lod = GR_LOD_64; break;
+    case 128: large_lod = GR_LOD_128; break;
+    case 256: large_lod = GR_LOD_256; break;
     }
     switch (max_dim >> (num_levels - 1)) {
-    case 256: small_lod = GR_LOD_256; break;
-    case 128: small_lod = GR_LOD_128; break;
-    case 64:  small_lod = GR_LOD_64; break;
-    case 32:  small_lod = GR_LOD_32; break;
-    case 16:  small_lod = GR_LOD_16; break;
-    case 8:   small_lod = GR_LOD_8; break;
-    case 4:   small_lod = GR_LOD_4; break;
-    case 2:   small_lod = GR_LOD_2; break;
     case 1:   small_lod = GR_LOD_1; break;
+    case 2:   small_lod = GR_LOD_2; break;
+    case 4:   small_lod = GR_LOD_4; break;
+    case 8:   small_lod = GR_LOD_8; break;
+    case 16:  small_lod = GR_LOD_16; break;
+    case 32:  small_lod = GR_LOD_32; break;
+    case 64:  small_lod = GR_LOD_64; break;
+    case 128: small_lod = GR_LOD_128; break;
+    case 256: small_lod = GR_LOD_256; break;
     }
     GrAspectRatio_t aspect = GR_ASPECT_1x1;
     if (w < h) {
@@ -598,14 +607,14 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
         }
     }
 
-    glide_section *sec = entry->sections;
-    sec->format = format;
-    sec->large_lod = large_lod;
-    sec->small_lod = small_lod;
-    sec->aspect = aspect;
-    sec->data = buf;
-    sec->size = size;
+    entry->sections->format = format;
+    entry->sections->large_lod = large_lod;
+    entry->sections->small_lod = small_lod;
+    entry->sections->aspect = aspect;
+    entry->sections->data = buf;
+    entry->sections->size = size;
     glide_texture_mem_used += size;
+    glide_section *sec = entry->sections;
     sec->u_scale = (float)w * 256.0f / (float)max_dim;
     sec->v_scale = (float)h * 256.0f / (float)max_dim;
     for (i = 0; i < GLIDE_NUM_TMU; i++) {
@@ -907,7 +916,8 @@ int gr_glide_create_texture_section(int bm, glide_tcache_entry *entry, int secti
     return 1;
 }
 
-// 0x5492f0  Confidence: likely (the 256 clamps as min(); the dirty flags cleared by one word store).
+// 0x5492f0  Confidence: exact (m-1020c w4, D14302: x before sh in the row, the width clamp as if / else
+// and x advanced before the height store; the dirty flags cleared by one word store).
 // Splits the bitmap into 256 x 256 sections (one section with all levels for a mipmapped bitmap), in
 // the system memory pool.
 int gr_glide_create_texture(int bm, glide_tcache_entry *entry)
@@ -935,15 +945,18 @@ int gr_glide_create_texture(int bm, glide_tcache_entry *entry)
     int section = 0;
     int y = 0;
     for (int row = 0; row < ny; row++) {
-        int sh = min(256, h - y);
         int x = 0;
+        int sh = min(256, h - y);
         for (int col = 0; col < nx; col++) {
             glide_section *sec = &entry->sections[section];
             sec->x = (ushort)x;
             sec->y = (ushort)y;
-            sec->w = (ushort)min(256, w - x);
-            sec->h = (ushort)sh;
+            if (w - x > 256)
+                sec->w = 256;
+            else
+                sec->w = (ushort)(w - x);
             x += sec->w;
+            sec->h = (ushort)sh;
             gr_glide_create_texture_section(bm, entry, section, data, palette, w, h, format);
             section++;
         }
@@ -1216,13 +1229,11 @@ FxU32 glide_record::alloc(int size, int texture, int section)
             index = new_block();
         } else {
             evict_block(head);
-            index = used_head;
+            index = used_tail = used_head;
             addr = start_addr;
-            used_tail = used_head;
         }
         int next = blocks[used_tail].next;
-        end = addr + size;
-        while (next >= 0 && end > blocks[next].addr) {
+        while (next >= 0 && addr + size > blocks[next].addr) {
             int after = blocks[next].next;
             release_block(next);
             next = after;
@@ -1729,7 +1740,6 @@ void gr_glide_set_bitmap(gr::Mode mode, int bm)
 void gr_glide_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw, int sh, gr::Mode mode)
 {
     GrVertex verts[4];
-    int bw, bh;
     int sec_x, sec_y, sec_w, sec_h;
     int unscaled;
 
@@ -1745,18 +1755,17 @@ void gr_glide_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw,
     float a = (float)gr_color.a;
     int num_sections = gr_glide_get_section_count(bm);
     if (num_sections == 1) {
+        int bw, bh;
         bm_get_dimensions(bm, &bw, &bh);
         float u0 = (float)sx * gr_glide_texture_scale_u / (float)bw;
         float fbh = (float)bh;
         float v0 = (float)sy * gr_glide_texture_scale_v / fbh;
         float u1 = (float)(sx + sw) * gr_glide_texture_scale_u / (float)bw;
         float v1 = (float)(sy + sh) * gr_glide_texture_scale_v / fbh;
-        int x0 = gr_screen.offset_x + x;
-        int y0 = gr_screen.offset_y + y;
-        float fx0 = (float)x0;
-        float fy0 = (float)y0;
-        float fx1 = (float)(x0 + w);
-        float fy1 = (float)(y0 + h);
+        float fx0 = (float)(gr_screen.offset_x + x);
+        float fy0 = (float)(gr_screen.offset_y + y);
+        float fx1 = (float)(gr_screen.offset_x + x + w);
+        float fy1 = (float)(gr_screen.offset_y + y + h);
 
         verts[0].x = fx0;
         verts[0].y = fy0;
@@ -1806,8 +1815,10 @@ void gr_glide_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw,
         return;
     }
 
-    float x_scale = (float)w / (float)sw;
-    float y_scale = (float)h / (float)sh;
+    float fw = (float)w, fsw = (float)sw;
+    float x_scale = fw / fsw;
+    float fh = (float)h, fsh = (float)sh;
+    float y_scale = fh / fsh;
     for (int i = 0; i < num_sections; i++) {
         gr_glide_tcache_set(GR_TMU0, bm, i, &gr_glide_texture_scale_u, &gr_glide_texture_scale_v, true);
         gr_glide_get_section_rect(bm, i, &sec_x, &sec_y, &sec_w, &sec_h);

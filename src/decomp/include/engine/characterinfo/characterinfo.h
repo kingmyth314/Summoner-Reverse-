@@ -423,7 +423,9 @@ extern const char *team_names[4];                     // 0x595cd0
 extern const char *skill_group_names[6];              // 0x595ce0 "Combat" .. "Spells" (no reader here; label ours)
 extern const char *hurt_variation_names[10];          // 0x596000 moves dropped for non-bosses (label ours)
 extern int num_hurt_variation_names;                  // 0x596028 10 (label ours)
-extern const char *default_footstep_sounds[2][5];     // 0x59602c left / right (label ours)
+// Two arrays, not one [2][5]: parse_table indexes them from two bases (0x445ef1, 0x445f17; D14305).
+extern const char *default_footstep_sounds_left[5];   // 0x59602c (label ours)
+extern const char *default_footstep_sounds_right[5];  // 0x596040 (label ours)
 extern const char *size_names[4];                     // 0x596054 $Size: (label ours)
 extern const char *move_type_names[NUM_MOVE_TYPES];   // 0x596064 (15 names; [15] NULL)
 extern const char *location_names[4];                 // 0x5960a4 $Location: "", low, medium, high (label ours)

@@ -89,15 +89,32 @@ char *key_names[256] = {                             // 0x5a68c0
 };
 
 // ---- .bss (0x25d94e0-0x25daa77) ------------------------------------------------------------------------
-ushort key_queue[16];                                // 0x25d94e0
-unsigned int key_queue_times[16];                    // 0x25d9500
-unsigned int key_down_timestamps[256];               // 0x25d9540 when the key went down / was last measured
-unsigned int key_down_time_total[256];               // 0x25d9940 down time collected on release
-unsigned int key_down_time_checked[256];             // 0x25d9d40 time of the last key_down_time call
-int key_press_counts[256];                           // 0x25da140
-int key_release_counts[256];                         // 0x25da540
-int key_queue_head;                                  // 0x25da940
-int key_queue_tail;                                  // 0x25da944
+// The queue, the per-key time and count tables and the queue indices are one object (D14001): key_flush
+// clears the five 256-entry tables through one pointer with fixed offsets, key_mark loads a press count
+// only after the timestamp store and re-reads the tail after the queue store, as 8966 does for fields of
+// one object. Struct, type and field names ours; the old names are macros.
+struct key_tables {
+    ushort queue[16];                  // 0x25d94e0
+    unsigned int queue_times[16];      // 0x25d9500
+    unsigned int timestamps[256];      // 0x25d9540 when the key went down / was last measured
+    unsigned int total[256];           // 0x25d9940 down time collected on release
+    unsigned int checked[256];         // 0x25d9d40 time of the last key_down_time call
+    int press_counts[256];             // 0x25da140
+    int release_counts[256];           // 0x25da540
+    int queue_head;                    // 0x25da940
+    int queue_tail;                    // 0x25da944
+};
+LAYOUT_CHECK(key_tables, sizeof(key_tables) == 0x1468);
+key_tables key_tab;                                  // 0x25d94e0
+#define key_queue key_tab.queue
+#define key_queue_times key_tab.queue_times
+#define key_down_timestamps key_tab.timestamps
+#define key_down_time_total key_tab.total
+#define key_down_time_checked key_tab.checked
+#define key_press_counts key_tab.press_counts
+#define key_release_counts key_tab.release_counts
+#define key_queue_head key_tab.queue_head
+#define key_queue_tail key_tab.queue_tail
 int key_last_released;                               // 0x25da948 (written only; name ours)
 bool key_down_state[256];                           // 0x25da94c
 int key_last_pressed;                                // 0x25daa4c (written only; name ours)
@@ -109,8 +126,8 @@ bool key_numlock_restore;                            // 0x25daa75
 bool key_numlock_fix_enabled;                        // 0x25daa76
 bool key_debug_modifier;                             // 0x25daa77
 
-// 0x5093a0  Confidence: likely (the repeat test as an else-if that leaves early; the compiler merged its
-// unlock with the common one). The layout swap first; scan code 0xc5 (Pause) turns NumLock off again when the
+// 0x5093a0  Confidence: exact (D14001: key_tab as one object). The repeat test as an else-if that leaves
+// early; the compiler merged its unlock with the common one. The layout swap first; scan code 0xc5 (Pause) turns NumLock off again when the
 // fix is on. A release counts and adds the held time (0 when the clock went backwards); a press counts once,
 // a held key (auto-repeat) only queues again when repeats are on and it is not Esc. 0xaa (the fake shift of
 // extended keys) is never queued. The queued word carries the modifier bits (0x800 for keys pressed with `
@@ -364,7 +381,8 @@ int key_getch()
     return key_inkey();
 }
 
-// 0x509ab0  Confidence: likely (8966 turns the zeroing loops into rep stosd, the binary keeps them). Empties the queue and every key's state and counters.
+// 0x509ab0  Confidence: exact (D14001: with key_tab one object the table loops stay loops; the key_down_state
+// clear inside the table loop, which 8966 moves out as rep stosd before it). Empties the queue and every key's state and counters.
 void key_flush()
 {
     unsigned int now;
@@ -380,8 +398,8 @@ void key_flush()
         key_queue_times[i] = 0;
     }
     now = timer_get(1000);
-    memset(key_down_state, 0, sizeof(key_down_state));
     for (i = 0; i < 256; i++) {
+        key_down_state[i] = 0;
         key_down_time_checked[i] = now;
         key_down_timestamps[i] = now;
         key_down_time_total[i] = 0;
@@ -391,7 +409,7 @@ void key_flush()
     LeaveCriticalSection(&key_lock);
 }
 
-// 0x509b50  Confidence: likely (8966 schedules the lock push between the stores differently). One key's state (no bounds check).
+// 0x509b50  Confidence: exact (D14001: key_tab as one object). One key's state (no bounds check).
 void key_clear(int key)
 {
     unsigned int now;

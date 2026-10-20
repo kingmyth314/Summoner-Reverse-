@@ -162,7 +162,8 @@ int chat_input_handle_key(int key)
     return key;
 }
 
-// 0x41e6b0  Confidence: likely (the order of the /msg branches). Appends c; when the line already holds
+// 0x41e6b0  Confidence: exact (D14402: nested if / else with the normal case first, as the binary lays
+// the blocks out, and the first token in a local so strtok runs before the XSTR load). Appends c; when the line already holds
 // 63 characters it is sent first, up to its last word, and the last word plus c stay in the input. For
 // "/msg <name> ..." the kept part gets the "/msg <name> " prefix back (L830 / L831 / L833) and the sent
 // part is rebuilt with L832. A NUL c is appended as it is.
@@ -173,56 +174,56 @@ void chat_input_add_char_wrap(char c)
     int len = strlen(chat_input_text);
     char *sp;
 
-    if (c == '\0' || len < CHAT_INPUT_SIZE - 1) {
+    if (c != '\0' && len >= CHAT_INPUT_SIZE - 1) {
+        trim_whitespace(trimmed, chat_input_text, -1);
+        if (strlen(trimmed) != 0) {
+            char *tok;
+
+            strcpy(copy, trimmed);
+            tok = strtok(copy, " ");
+            if (_stricmp(tok, XSTR("/msg", 829)) == 0) {
+                char *name = strtok(NULL, " ");
+
+                if (name != NULL) {
+                    char *rest = strtok(NULL, "");
+
+                    if (rest != NULL) {
+                        sp = strrchr(rest, ' ');
+                        if (sp != NULL) {
+                            *sp = '\0';
+                            sprintf(chat_input_text, XSTR("/msg %s %s%c", 830), name, sp + 1, c);
+                        } else {
+                            sprintf(chat_input_text, XSTR("/msg %s %c", 831), name, c);
+                        }
+                        sprintf(trimmed, XSTR("/msg %s %s", 832), name, rest);
+                        chat_send_line(trimmed);
+                    } else {
+                        sprintf(chat_input_text, XSTR("/msg %s %c", 831), name, c);
+                    }
+                } else {
+                    sprintf(chat_input_text, XSTR("/msg %c", 833), c);
+                }
+            } else {
+                sp = strrchr(trimmed, ' ');
+                if (sp != NULL) {
+                    strcpy(chat_input_text, sp + 1);
+                    len = strlen(chat_input_text);
+                    *sp = '\0';
+                } else {
+                    len = 0;
+                }
+                chat_send_line(trimmed);
+                chat_input_text[len] = c;
+                chat_input_text[len + 1] = '\0';
+            }
+        } else {
+            chat_input_text[0] = c;
+            chat_input_text[1] = '\0';
+        }
+    } else {
         chat_input_text[len] = c;
         chat_input_text[len + 1] = '\0';
-        return;
     }
-
-    trim_whitespace(trimmed, chat_input_text, -1);
-    if (strlen(trimmed) == 0) {
-        chat_input_text[0] = c;
-        chat_input_text[1] = '\0';
-        return;
-    }
-
-    strcpy(copy, trimmed);
-    if (_stricmp(strtok(copy, " "), XSTR("/msg", 829)) == 0) {
-        char *name = strtok(NULL, " ");
-        char *rest;
-
-        if (name == NULL) {
-            sprintf(chat_input_text, XSTR("/msg %c", 833), c);
-            return;
-        }
-        rest = strtok(NULL, "");
-        if (rest == NULL) {
-            sprintf(chat_input_text, XSTR("/msg %s %c", 831), name, c);
-            return;
-        }
-        sp = strrchr(rest, ' ');
-        if (sp != NULL) {
-            *sp = '\0';
-            sprintf(chat_input_text, XSTR("/msg %s %s%c", 830), name, sp + 1, c);
-        } else {
-            sprintf(chat_input_text, XSTR("/msg %s %c", 831), name, c);
-        }
-        sprintf(trimmed, XSTR("/msg %s %s", 832), name, rest);
-        chat_send_line(trimmed);
-        return;
-    }
-
-    sp = strrchr(trimmed, ' ');
-    if (sp != NULL) {
-        strcpy(chat_input_text, sp + 1);
-        len = strlen(chat_input_text);
-        *sp = '\0';
-    } else {
-        len = 0;
-    }
-    chat_send_line(trimmed);
-    chat_input_text[len] = c;
-    chat_input_text[len + 1] = '\0';
 }
 
 // 0x41e8e0  Confidence: exact (tail jump to chat_draw_input).
@@ -233,8 +234,9 @@ void chat_draw()
         chat_draw_input();
 }
 
-// 0x41e900  Confidence: likely (the colour choice of kinds 1 / 3 / 4 / others is one switch whose
-// targets share the gr_set_color_ptr call). Lines are stacked upwards from the origin, one line height
+// 0x41e900  Confidence: exact (D14400: the colour choice of kinds 1 / 3 / 4 / others is a switch with one
+// gr_set_color_ptr call per case, the default written apart from cases 1 / 3; 8966 merges the calls into
+// the binary's `push colour; jmp` shape, which keeps the gr_string calls apart). Lines are stacked upwards from the origin, one line height
 // higher while the input line is open. In kinds 0 and 2 the text up to and including the first space
 // (the "[name]" / "<name>" prefix) is drawn in blue / the highlight colour; a line without a space is
 // all blue, also for a whisper.
@@ -259,7 +261,6 @@ void chat_draw_lines()
         chat_line *line = &chat_lines[i];
         char *sp;
         int len;
-        Color *color;
 
         if (line->kind == 0) {
             sp = strchr(line->text, ' ');
@@ -295,14 +296,15 @@ void chat_draw_lines()
             switch (line->kind) {
             case 1:
             case 3:
-            default:
-                color = &ui_color_text;
+                gr_set_color_ptr(&ui_color_text);
                 break;
             case 4:
-                color = &ui_color_magenta;
+                gr_set_color_ptr(&ui_color_magenta);
+                break;
+            default:
+                gr_set_color_ptr(&ui_color_text);
                 break;
             }
-            gr_set_color_ptr(color);
             gr_string(x, y, line->text, -1, gr_string_mode);
         }
         y += line_h;
@@ -321,14 +323,14 @@ void chat_get_origin(int *x, int *y)
     }
 }
 
-// 0x41ebd0  Confidence: likely (the clamp `offset > 0 ? 0 : offset` is setg / dec / and; the buffer size
-// is a guess, 0x44 bytes in the frame). A text box at the origin, the text clipped to it and scrolled
+// 0x41ebd0  Confidence: exact (D14401: the scroll offset reuses x, whose address was taken, so the binary
+// stores it to x's slot; the clamp at 0 is `x &= (x > 0) - 1` (setg / dec / and); the two gr_string calls
+// are an if / else. The buffer size is a guess, 0x44 bytes in the frame). A text box at the origin, the text clipped to it and scrolled
 // left once it is wider; "|" is the blinking cursor.
 void chat_draw_input()
 {
     int x, h, y;
     int clip_y, clip_x, w, clip_h, clip_w;
-    int offset;
     char buf[68];
 
     strcpy(buf, chat_input_text);
@@ -340,10 +342,12 @@ void chat_draw_input()
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     gr::set_clip(clip_x + x, clip_y + y, chat_width[resolution_index], h);
     gr_set_color_ptr(&ui_color_text);
-    offset = chat_width[resolution_index] - w;
-    if (offset > 0)
-        offset = 0;
-    gr_string(offset, 0, chat_cursor_visible ? buf : chat_input_text, -1, gr_string_mode);
+    x = chat_width[resolution_index] - w;
+    x &= (x > 0) - 1;
+    if (chat_cursor_visible)
+        gr_string(x, 0, buf, -1, gr_string_mode);
+    else
+        gr_string(x, 0, chat_input_text, -1, gr_string_mode);
     gr::set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 

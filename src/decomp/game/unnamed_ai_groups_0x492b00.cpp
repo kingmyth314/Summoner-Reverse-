@@ -160,7 +160,8 @@ void ai_groups_frame()
     }
 }
 
-// 0x492db0  Confidence: likely (the AP fraction: the max-AP call before the AP load). First the
+// 0x492db0  Confidence: exact (D14506: the member read from ai_think_members[i] at each use in the
+// upkeep loop; the AP fraction as two float locals after the max-AP call). First the
 // per-member upkeep, then one pass per combat style: 0 melee, 1 support, 2 range / 4 caster, 3 healer
 // / 5 healer-caster (ai_combat_style_names).
 void ai_group_combat_think(ai_group *g)
@@ -168,22 +169,27 @@ void ai_group_combat_think(ai_group *g)
     int i;
 
     for (i = 0; i < ai_think_num_members; i++) {
-        Character *m = ai_think_members[i];
-        if (m == cur_character)
+        if (ai_think_members[i] == cur_character)
             continue;
-        if (ai_group_count_helpless(g) < g->num_enemies && !ai_member_skips_group_orders(m))
-            m->ai.flags &= ~0x10;
-        int style = m->ai.get_combat_style();
-        if ((style == 4 || style == 5) && !m->has_status(STATUS_SILENCE) && (m->ai.flags & 0x80)
-            && (float)m->ap / (float)m->get_max_stat(1) > 0.4f)
-            m->ai.flags &= ~0x80;
+        if (ai_group_count_helpless(g) < g->num_enemies
+            && !ai_member_skips_group_orders(ai_think_members[i]))
+            ai_think_members[i]->ai.flags &= ~0x10;
+        int style = ai_think_members[i]->ai.get_combat_style();
+        if ((style == 4 || style == 5) && !ai_think_members[i]->has_status(STATUS_SILENCE)
+            && (ai_think_members[i]->ai.flags & 0x80)) {
+            int max_ap = ai_think_members[i]->get_max_stat(1);
+            float a = ai_think_members[i]->ap;
+            float b = max_ap;
+            if (a / b > 0.4f)
+                ai_think_members[i]->ai.flags &= ~0x80;
+        }
         if (style == 3 || style == 5) {
-            ai_group_think_caster(m, g, 1);
-            if (m->ai.target != -1) {
-                Character *t = living_from_handle(m->ai.target);
-                if (t && !m->has_line_of_sight_to(t)) {
-                    m->ai.target = -1;
-                    m->ai.goals_remove_type1();
+            ai_group_think_caster(ai_think_members[i], g, 1);
+            if (ai_think_members[i]->ai.target != -1) {
+                Character *t = living_from_handle(ai_think_members[i]->ai.target);
+                if (t && !ai_think_members[i]->has_line_of_sight_to(t)) {
+                    ai_think_members[i]->ai.target = -1;
+                    ai_think_members[i]->ai.goals_remove_type1();
                 }
             }
         }
@@ -554,7 +560,9 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
         ai_group_think_style2(c, g);
 }
 
-// 0x493ac0  Confidence: likely (the cone test; see NOTES.md). The group's members go to
+// 0x493ac0  Confidence: exact (D14505: the member read from ai_think_members[i] at each use, the
+// direction assigned from a vector3 difference, the dot through a reference in x / z / y order, a hit
+// leaves the member loop by goto, fabsf). The group's members go to
 // ai_think_members and every active enemy of the leader that a member sees (within its fov range and
 // line of sight: inside the detection range, or, when not blind, at a dot product below 0.71 with its
 // forward vector) and that is within 3 m of the leader's height goes to the group's enemy list (10
@@ -583,22 +591,23 @@ void ai_group_collect_enemies(ai_group *g)
         if ((game_flags & GF_SINGLE_PLAYER) && (e->ai.flags & 0x40))
             continue;
         for (i = 0; i < ai_think_num_members; i++) {
-            Character *m = ai_think_members[i];
-            float d = distance(&e->pos, &m->pos);
-            if (d <= m->info->fov_range && m->has_line_of_sight_to(e)) {
-                if (d < m->info->detection_range)
-                    break;
-                if (m->has_status(STATUS_BLIND) != true) {
-                    vector3 dir = e->pos - m->pos;
+            float d = distance(&e->pos, &ai_think_members[i]->pos);
+            if (d <= ai_think_members[i]->info->fov_range && ai_think_members[i]->has_line_of_sight_to(e)) {
+                if (d < ai_think_members[i]->info->detection_range)
+                    goto found;
+                if (ai_think_members[i]->has_status(STATUS_BLIND) != true) {
+                    vector3 dir;
+                    dir = e->pos - ai_think_members[i]->pos;
                     dir.normalize();
-                    if (dir.y * m->orient.fvec.y + dir.z * m->orient.fvec.z + dir.x * m->orient.fvec.x < 0.71f)
-                        break;
+                    const vector3 &f = ai_think_members[i]->orient.fvec;
+                    if (dir.x * f.x + dir.z * f.z + dir.y * f.y < 0.71f)
+                        goto found;
                 }
             }
         }
-        if (i >= ai_think_num_members)
-            continue;
-        if (fabs(cur_character->pos.y - e->pos.y) <= 3.0f && g->num_enemies < 10) {
+        continue;
+    found:
+        if (fabsf(cur_character->pos.y - e->pos.y) <= 3.0f && g->num_enemies < 10) {
             g->enemies[g->num_enemies] = e->handle;
             ai_think_enemies[g->num_enemies] = e;
             g->num_enemies++;

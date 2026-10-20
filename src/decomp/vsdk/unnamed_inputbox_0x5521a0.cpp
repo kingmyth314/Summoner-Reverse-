@@ -500,7 +500,7 @@ char *ui_inputbox::get_text()
     return text;
 }
 
-// 0x5530b0  Confidence: likely (the tails the three justifications share). Not drawn when disabled.
+// 0x5530b0  Confidence: exact (D14104: the tail is measured as &buf[len - n]; 8966 strength-reduces it to the binary's pointer). Not drawn when disabled.
 // Text that does not fit is drawn from the longest tail that does. The widths are measured with the
 // default font (-1) although the text is drawn with the box's font (process measures with the box's
 // font). With a negative width left the tail pointer starts past the terminator (n stays 1).
@@ -547,11 +547,9 @@ void ui_inputbox::draw()
     if (tw > avail) {
         tw = 0;
         n = 1;
-        char *p = &buf[len - 1];
         while (tw <= avail) {
-            gr_get_string_size(&tw, &th, p, -1, -1);
+            gr_get_string_size(&tw, &th, &buf[len - n], -1, -1);
             n++;
-            p--;
         }
         s = &buf[len - n + 2];
         gr_get_string_size(&tw, &th, s, -1, -1);

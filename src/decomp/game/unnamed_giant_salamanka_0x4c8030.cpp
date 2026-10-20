@@ -339,14 +339,15 @@ void ai_state::giant_salamanka_ai_frame()
     }
 }
 
-// 0x4c87e0  Confidence: likely (the offense points are refreshed inline; the move list reuses the
-// candidate array in the binary). Candidates: the living threat records scored 5 - (3 * threat[0] +
+// 0x4c87e0  Confidence: exact (D14501: candidates written through an element pointer, the duplicate test
+// leaves by goto, the pick as -1 / found, vector3 sums for the offense point and the target offset).
+// Candidates: the living threat records scored 5 - (3 * threat[0] +
 // threat[1]), then party-type entities scored 5 (at most five); a weighted pick. Then one of the stage's
 // enabled moves whose offense point sees the target's centre inside its cone and range (spell 0x38 only
 // when attack_timer has run out), at random.
 int ai_state::giant_salamanka_ai_select_action()
 {
-    struct { int handle; float score; } cand[5];
+    struct cand_t { int handle; float score; } cand[5];
     float cum[5];
     int moves[10];
     matrix orient;
@@ -360,7 +361,7 @@ int ai_state::giant_salamanka_ai_select_action()
     float dx;
     float dz;
     float dist;
-    int count = 0;
+    int count;
     int num_moves;
     int handle;
     int pick;
@@ -369,30 +370,34 @@ int ai_state::giant_salamanka_ai_select_action()
 
     if (owner->combat.is_busy() == true)
         return 5;
+    count = 0;
     for (i = 0; i < BOSS_MAX_THREATS; i++) {
         if (giant_salamanka_threat_table[i].handle == -1)
             continue;
         if (living_from_handle(giant_salamanka_threat_table[i].handle)->flags & CF_DEAD)
             continue;
-        cand[count].score = 5.0f - (giant_salamanka_threat_table[i].threat[0] * 3.0f
-                                    + giant_salamanka_threat_table[i].threat[1]);
-        cand[count].handle = giant_salamanka_threat_table[i].handle;
-        count++;
+        {
+            cand_t *e = &cand[count++];
+            e->handle = giant_salamanka_threat_table[i].handle;
+            e->score = 5.0f - (giant_salamanka_threat_table[i].threat[0] * 3.0f
+                               + giant_salamanka_threat_table[i].threat[1]);
+        }
     }
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         if (c->type != 7)
             continue;
         for (j = 0; j < count; j++) {
             if (cand[j].handle == c->handle)
-                break;
+                goto next;
         }
-        if (j < count)
-            continue;
-        cand[count].handle = c->handle;
-        cand[count].score = 5.0f;
-        count++;
+        {
+            cand_t *e = &cand[count++];
+            e->handle = c->handle;
+            e->score = 5.0f;
+        }
         if (count >= 5)
             break;
+    next:;
     }
     if (count == 0)
         goto none;
@@ -404,18 +409,20 @@ int ai_state::giant_salamanka_ai_select_action()
     for (i = 0; i < count; i++)
         cum[i] /= sum;
     r = frand();
+    pick = -1;
     for (i = 0; i < count; i++) {
-        if (r <= cum[i])
+        if (r <= cum[i]) {
+            pick = i;
             break;
+        }
     }
-    pick = (i < count && i != -1) ? i : 0;
+    if (pick == -1)
+        pick = 0;
     for (i = 0; i < giant_salamanka_offense_point_count; i++) {
         pt = &gsal.offense_points[i];
         owner->instance->get_bone_world_transform(pt->tag, &owner->orient, &owner->pos, &orient, &pos);
         pt->dir = orient.uvec;
-        pt->pos.x = pos.x + owner->centre_offset.x;
-        pt->pos.y = pos.y + owner->centre_offset.y;
-        pt->pos.z = pos.z + owner->centre_offset.z;
+        pt->pos = pos + owner->centre_offset;
     }
     handle = cand[pick].handle;
     t = living_from_handle(handle);
@@ -430,9 +437,12 @@ int ai_state::giant_salamanka_ai_select_action()
             continue;
         if (m->spell == SPELL_GSAL_TIMED && !giant_salamanka_attack_timer.elapsed())
             continue;
+        {
+            vector3 d = t->pos + t->centre_offset - gsal.offense_points[m->offense_point].pos;
+            dx = d.x;
+            dz = d.z;
+        }
         pt = &gsal.offense_points[m->offense_point];
-        dx = t->pos.x + t->centre_offset.x - pt->pos.x;
-        dz = t->centre_offset.z + t->pos.z - pt->pos.z;
         dist = (float)sqrt(dz * dz + dx * dx);
         if ((dz * pt->dir.z + dx * pt->dir.x) / dist > m->cos_max_angle && dist < m->range_max
             && dist > m->range_min)
@@ -444,11 +454,11 @@ int ai_state::giant_salamanka_ai_select_action()
         pick = moves[0];
     else
         pick = moves[rand() % num_moves];
-    if (pick < 0)
-        goto none;
-    giant_salamanka_target_handle = handle;
-    giant_salamanka_current_move = &gsal.moves[giant_salamanka_stage - 1][pick];
-    return (giant_salamanka_current_move->spell == -1) + 2;
+    if (pick >= 0) {
+        giant_salamanka_target_handle = handle;
+        giant_salamanka_current_move = &gsal.moves[giant_salamanka_stage - 1][pick];
+        return (giant_salamanka_current_move->spell == -1) + 2;
+    }
 none:
     giant_salamanka_current_move = NULL;
     return 4;

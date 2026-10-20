@@ -725,7 +725,7 @@ int ds_find_free_channel(int priority)
     return free_channel;
 }
 
-// 0x55d110  Confidence: likely. A 3D buffer played in 2D has its 3D processing switched off.
+// 0x55d110  Confidence: likely (D14002: the binary addresses the channel as an offset from ds_channels). A 3D buffer played in 2D has its 3D processing switched off.
 int ds_play(int buffer, float volume, float pan, int looping, int a)
 {
     ds_buffer *b;
@@ -757,7 +757,10 @@ int ds_play(int buffer, float volume, float pan, int looping, int a)
     c->group = b->group;
     c->pdsb->SetPan((int)(pan * 1000.0f));
     c->buffer = buffer;
-    if (c->pdsb->Play(0, 0, (char)looping ? DSBPLAY_LOOPING : 0) < 0) {
+    int flags = 0;
+    if ((char)looping)
+        flags = DSBPLAY_LOOPING;
+    if (c->pdsb->Play(0, 0, flags) < 0) {
         ds_channel_release(ch);
         return -1;
     }

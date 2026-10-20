@@ -94,32 +94,34 @@ void vector3::get_major_axis(int *axis, int *u, int *v) const
     }
 }
 
-// 0x5240e0  Confidence: likely. The absolute components sorted a >= b >= c:
+// 0x5240e0  Confidence: exact (VC6 8966 byte match with t + t * 0.5f parenthesised, which keeps 8966 from
+// folding it to t * 1.5f, and a block-scoped temporary for each swap, which gives the binary frame: a, c, t; D15200).
+// The absolute components sorted a >= b >= c:
 // a + 1.5 (b / 4 + c / 8).
 float vector3::length_quick() const
 {
-    float a, b, c, t;
+    float a, b, c;
 
     a = x < 0.0f ? -x : x;
     b = y < 0.0f ? -y : y;
     c = z < 0.0f ? -z : z;
     if (a < b) {
-        t = a;
+        float t = a;
         a = b;
         b = t;
     }
     if (b < c) {
-        t = b;
+        float t = b;
         b = c;
         c = t;
         if (a < b) {
-            t = a;
+            float t = a;
             a = b;
             b = t;
         }
     }
-    t = c * 0.125f + b * 0.25f;
-    return t + t * 0.5f + a;
+    float t = c * 0.125f + b * 0.25f;
+    return (t + (t * 0.5f)) + a;
 }
 
 // 0x5241c0  Confidence: exact (the term order: y, z, x).
@@ -181,12 +183,13 @@ vector3 vector3::rotated(const matrix &m) const
                    x * f.x + y * f.y + z * f.z);
 }
 
-// 0x5243d0  Confidence: likely. The transpose: the dot product with each column.
+// 0x5243d0  Confidence: exact (VC6 8966 byte match with the last two terms grouped: the binary adds
+// z * f and y * u first, then x * r; D15200). The transpose: the dot product with each column.
 vector3 vector3::unrotated(const matrix &m) const
 {
-    return vector3(x * m.rvec.x + y * m.uvec.x + z * m.fvec.x,
-                   x * m.rvec.y + y * m.uvec.y + z * m.fvec.y,
-                   x * m.rvec.z + y * m.uvec.z + z * m.fvec.z);
+    return vector3(x * m.rvec.x + (y * m.uvec.x + z * m.fvec.x),
+                   x * m.rvec.y + (y * m.uvec.y + z * m.fvec.y),
+                   x * m.rvec.z + (y * m.uvec.z + z * m.fvec.z));
 }
 
 // 0x524430  Confidence: exact. No zero check.
@@ -606,26 +609,30 @@ float vector2_distance_squared(const vector2 *a, const vector2 *b)
     return (*b - *a).len_sq();
 }
 
-// 0x5253a0  Confidence: likely (the dot product written out; two results live in argument slots).
+// 0x5253a0  Confidence: exact (VC6 8966 byte match with the dot product written twice in the return over the
+// first product in d: 8966 computes it once and keeps the first product on the x87 stack, D15200; two results
+// live in argument slots).
 float vector2_dist_sq_to_line(const vector2 *p, const vector2 *a, const vector2 *b)
 {
     vector2 ab = *b - *a;
     vector2 ap = *p - *a;
-    float d = ab.x * ap.x + ab.y * ap.y;
-    float l = ap.len_sq();
+    float d = ap.x * ab.x;
 
-    d = d * d;
-    return l - d / ab.len_sq();
+    return ap.len_sq() - (d + ap.y * ab.y) * (d + ap.y * ab.y) / ab.len_sq();
 }
 
-// 0x525410  Confidence: likely (decomp32's description; the dot product written out).
+// 0x525410  Confidence: exact (VC6 8966 byte match with the dot product accumulated in t: the binary keeps the
+// first product on the x87 stack after the add and pops it, D15200; the two clamps as separate statements;
+// decomp32's description).
 float vector2_closest_point_on_segment(const vector2 *p, const vector2 *a, const vector2 *b, vector2 *out)
 {
     vector2 ab = *b - *a;
     vector2 ap = *p - *a;
-    float t = (ab.x * ap.x + ab.y * ap.y) / ab.len_sq();
+    float t = ap.x * ab.x;
 
-    t = float_min(float_max(t, 0.0f), 1.0f);
+    t = (t + ap.y * ab.y) / ab.len_sq();
+    t = float_max(t, 0.0f);
+    t = float_min(t, 1.0f);
     *out = *a + t * ab;
     return (*out - *p).len_sq();
 }

@@ -149,7 +149,8 @@ void vim_read_header(FileReader *r, vim_header *hdr)
     hdr->data_size = r->read_int();
 }
 
-// 0x543430  Confidence: likely (local order; the seven sizes are kept in locals before the stores).
+// 0x543430  Confidence: exact (D14003: the sizes stored and re-read through mesh->submeshes[i], the block
+// pointers through sm; the bone-name loop re-reads mesh->skin.num_ext). The seven sizes are kept in locals before the stores.
 // reload: the mesh is already set up; skip the data block and the counts, read the texture names again
 // (vim_reload_bitmaps). Otherwise the data block is read and the pointers into it are laid out.
 int vim_read(FileReader *r, vim *mesh, int reload, int bm_arg, vim_header *hdr)
@@ -191,32 +192,32 @@ int vim_read(FileReader *r, vim *mesh, int reload, int bm_arg, vim_header *hdr)
         ushort s5 = r->read_uint16();
         ushort s4 = r->read_uint16();
         if (!reload) {
+            mesh->submeshes[i].size0 = s0;
+            mesh->submeshes[i].size1 = s1;
+            mesh->submeshes[i].size2 = s2;
+            mesh->submeshes[i].size3 = s3;
+            mesh->submeshes[i].size6 = s6;
+            mesh->submeshes[i].size5 = s5;
+            mesh->submeshes[i].size4 = s4;
             vim_submesh *sm = &mesh->submeshes[i];
-            sm->size0 = s0;
-            sm->size1 = s1;
-            sm->size2 = s2;
-            sm->size3 = s3;
-            sm->size6 = s6;
-            sm->size5 = s5;
-            sm->size4 = s4;
             sm->block0 = mesh->data + offset;
-            offset += sm->size2;
+            offset += mesh->submeshes[i].size2;
             VIM_ALIGN16(offset);
             sm->block1 = mesh->data + offset;
-            offset += sm->size2;
+            offset += mesh->submeshes[i].size2;
             VIM_ALIGN16(offset);
             sm->block2 = mesh->data + offset;
-            offset += sm->size4;
+            offset += mesh->submeshes[i].size4;
             VIM_ALIGN16(offset);
             sm->block3 = mesh->data + offset;
-            offset += sm->size3;
+            offset += mesh->submeshes[i].size3;
             VIM_ALIGN16(offset);
             sm->block4 = mesh->data + offset;
-            offset += sm->size6;
+            offset += mesh->submeshes[i].size6;
             VIM_ALIGN16(offset);
-            if (sm->size5 > 0) {
+            if (mesh->submeshes[i].size5 > 0) {
                 sm->block5 = mesh->data + offset;
-                offset += sm->size5;
+                offset += mesh->submeshes[i].size5;
                 VIM_ALIGN16(offset);
             }
             sm->vertex_extra = NULL;
@@ -245,7 +246,7 @@ int vim_read(FileReader *r, vim *mesh, int reload, int bm_arg, vim_header *hdr)
         if (num_ext > 0) {
             mesh->skin.ext = (ca_bone_ext *)(mesh->data + offset);
             offset += num_ext * sizeof(ca_bone_ext);
-            for (i = 0; i < num_ext; i++) {
+            for (i = 0; i < mesh->skin.num_ext; i++) {
                 r->read_string(name, 0x7f);
                 mesh->skin.ext[i].name = ca_string_pool.AddUnique(name);
             }
@@ -495,7 +496,7 @@ quaternion skeleton::get_root_rotation(float t)
     return q;
 }
 
-// 0x544090 (sum.symbols: skeleton_read)  Confidence: likely (statement order in the key loops; the
+// 0x544090 (sum.symbols: skeleton_read)  Confidence: likely (D14004: 17 differing lines left; statement order in the key loops; the
 // common tails of the three rotation key formats are merged by the compiler).
 // Returns false only when a position key track fails to read.
 bool skeleton::read(FileReader *r, const char *name, int path_id)
@@ -514,19 +515,19 @@ bool skeleton::read(FileReader *r, const char *name, int path_id)
     end = r->read_int();
 
     r->read_quaternion(&root_rot);
-    if (fabs(root_rot.x) < MVF_ROOT_EPSILON)
+    if ((float)fabs(root_rot.x) < MVF_ROOT_EPSILON)
         root_rot.x = 0.0f;
-    if (fabs(root_rot.y) < MVF_ROOT_EPSILON)
+    if ((float)fabs(root_rot.y) < MVF_ROOT_EPSILON)
         root_rot.y = 0.0f;
-    if (fabs(root_rot.z) < MVF_ROOT_EPSILON)
+    if ((float)fabs(root_rot.z) < MVF_ROOT_EPSILON)
         root_rot.z = 0.0f;
     root_rot.normalize();
 
     r->read_vector(&root_disp);
-    if (fabs(root_disp.x) < MVF_ROOT_EPSILON)
+    if ((float)fabs(root_disp.x) < MVF_ROOT_EPSILON)
         root_disp.x = 0.0f;
     root_disp.y = 0.0f;
-    if (fabs(root_disp.z) < MVF_ROOT_EPSILON)
+    if ((float)fabs(root_disp.z) < MVF_ROOT_EPSILON)
         root_disp.z = 0.0f;
 
     num_bones = r->read_int();
@@ -545,7 +546,10 @@ bool skeleton::read(FileReader *r, const char *name, int path_id)
         for (i = 0; i < num_bones; i++) {
             r->read_uint8();
             int nrot = r->read_int();
-            r->seek((version >= 2) ? nrot * 0x24 : nrot * 0x28, 1);
+            if (version >= 2)
+                r->seek(nrot * 0x24, 1);
+            else
+                r->seek(nrot * 0x28, 1);
             anim_pos_key key;
             int key_size = key.get_size();
             int npos = r->read_int();
@@ -647,7 +651,7 @@ bool skeleton::read(FileReader *r, const char *name, int path_id)
                 morph_ids = new int[num_morphs];
                 morphs = new skeleton_morph[num_morphs];
                 skeleton_mem_used += num_morphs * (sizeof(int) + sizeof(skeleton_morph));
-                for (i = 0; i < num_morphs; i++) {
+                for (int i = 0; i < num_morphs; i++) {
                     if (version < 8)
                         morph_ids[i] = r->read_int();
                     else

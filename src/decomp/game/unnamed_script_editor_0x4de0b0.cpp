@@ -953,15 +953,16 @@ void script_editor_frame()
     }
 }
 
-// 0x4e0690  Confidence: likely (the order of the callback and font stores of each gadget: VC6 schedules the
-// two stores around the next call's pushes, sometimes font first; every argument, text, id, hotkey,
-// flag and the gadget order match). Builds every window and gadget once (script_editor_frame, first
+// 0x4e0690  Confidence: exact (VC6 byte match, m-1020c w10, D14902: the size radius through the inline
+// vector3::len of the size row, the height copied after the doubled radius, the parameter rows indexed
+// by i alone (y and id computed from it), and the open min range box's callback stored before its
+// font). Builds every window and gadget once (script_editor_frame, first
 // editor frame). Odd details kept from the binary: the ambient name box's font is set twice (the second
 // store, after the list box, was probably meant for the list box), and the door lock window's first two
 // input boxes both get id 3.
 void script_editor_create_ui()
 {
-    int i, y, id;
+    int i;
     ui_listbox_entry *e;
 
     script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, 0x800);
@@ -971,10 +972,7 @@ void script_editor_create_ui()
     for (i = 0; i < 3; i++) {
         script_editor_char_sizes[i][0] = script_editor_char_sizes[i][2] = character_size_radii[i] * 2.0f;
         script_editor_char_sizes[i][1] = character_size_heights[i];
-        script_editor_char_size_radii[i] = (float)sqrt(
-            script_editor_char_sizes[i][0] * script_editor_char_sizes[i][0]
-            + script_editor_char_sizes[i][2] * script_editor_char_sizes[i][2]
-            + script_editor_char_sizes[i][1] * script_editor_char_sizes[i][1]);
+        script_editor_char_size_radii[i] = ((vector3 *)script_editor_char_sizes[i])->len();
     }
     script_editor_status_timer.SetTimeout(0);
     ui_push_group();
@@ -1297,10 +1295,10 @@ void script_editor_create_ui()
     script_editor_params_cancel_button.set_text("Cancel");
     script_editor_params_cancel_button.callback = script_editor_params_cancel_cb;
     script_editor_params_cancel_button.font = font_small;
-    for (i = 0, y = 0x14, id = 4; id < 0xe; i++, y += 0xf, id += 2) {
-        script_editor_param_labels[i].create(&script_editor_params_window, 5, y, 0x6e, 0xf, id - 1, false);
+    for (i = 0; i < 5; i++) {
+        script_editor_param_labels[i].create(&script_editor_params_window, 5, 0x14 + i * 0xf, 0x6e, 0xf, i * 2 + 4 - 1, false);
         script_editor_param_labels[i].font = font_small;
-        script_editor_param_inputboxes[i].create(&script_editor_params_window, 0x6e, y, 0x55, 0xf, id, 0, false);
+        script_editor_param_inputboxes[i].create(&script_editor_params_window, 0x6e, 0x14 + i * 0xf, 0x55, 0xf, i * 2 + 4, 0, false);
         script_editor_param_inputboxes[i].font = font_small;
     }
 
@@ -1349,8 +1347,8 @@ void script_editor_create_ui()
     script_editor_door_min_range_label.font = font_small;
     script_editor_door_open_min_range_inputbox.create(&script_editor_door_window, 0x4b, 0x75, 0x32, 0x10, 7, 0, false);
     script_editor_door_open_min_range_inputbox.set_valid_chars("01234567890.");
-    script_editor_door_open_min_range_inputbox.font = font_small;
     script_editor_door_open_min_range_inputbox.callback = script_editor_door_field_cb;
+    script_editor_door_open_min_range_inputbox.font = font_small;
     script_editor_door_open_min_range_inputbox.char_filter = script_editor_decimal_filter_cb;
     script_editor_door_close_min_range_inputbox.create(&script_editor_door_window, 0x4b, 0x75, 0x32, 0x10, 8, 0, false);
     script_editor_door_close_min_range_inputbox.set_valid_chars("01234567890.");
@@ -1618,7 +1616,9 @@ void script_editor_close()
         the_cutscene.unload();
 }
 
-// 0x4e2bb0  Confidence: likely (the character box: the y / x / z order of the sum of squares; D12410: radius and face block-scoped give the 0x4c frame; the binary copies the size row with integer moves and stores the radius once after the two arms). The object
+// 0x4e2bb0  Confidence: exact (VC6 byte match, m-1020c w10, D14903: the size row copied as one vector3,
+// the navpoint loops index the table and take the element pointer in the body; D12410: radius and face
+// block-scoped give the 0x4c frame). The object
 // under the mouse ray, of the kind script_editor_pick_filter selects (jump table 0x4e2f18): characters
 // (summon-type objects, type 9, get a box from their own size), navpoints (a 0.8 x 0.4 x 0.8 box, level
 // table first, then the cutscene table), doors (level objects with flag 0x100) or any level object. Not
@@ -1647,9 +1647,7 @@ void script_editor_pick_hover()
                 size.y = c->size_height();
                 radius = (float)sqrt(size.y * size.y + size.x * size.x + size.z * size.z);
             } else {
-                size.x = script_editor_char_sizes[c->info->size][0];
-                size.y = script_editor_char_sizes[c->info->size][1];
-                size.z = script_editor_char_sizes[c->info->size][2];
+                size = *(vector3 *)script_editor_char_sizes[c->info->size];
                 radius = script_editor_char_size_radii[c->info->size];
             }
             if (script_editor_ray_hit_object(&c->pos, &c->orient, &size, radius)) {
@@ -1663,7 +1661,8 @@ void script_editor_pick_hover()
         size.x = 0.8f;
         size.y = 0.4f;
         size.z = 0.8f;
-        for (i = 0, np = navpoints; i < navpoint_count; i++, np++) {
+        for (i = 0; i < navpoint_count; i++) {
+            np = &navpoints[i];
             orient.set_from_angles(0, 0, np->heading);
             if (script_editor_ray_hit_object(&np->pos, &orient, &size, 0.693f)) {
                 script_editor_hover.object = np;
@@ -1673,7 +1672,8 @@ void script_editor_pick_hover()
         }
         if (script_editor_hover.kind == SE_PICK_NAVPOINT)
             return;
-        for (i = 0, np = cutscene_navpoints; i < cutscene_navpoint_count; i++, np++) {
+        for (i = 0; i < cutscene_navpoint_count; i++) {
+            np = &cutscene_navpoints[i];
             orient.set_from_angles(0, 0, np->heading);
             if (script_editor_ray_hit_object(&np->pos, &orient, &size, 0.693f)) {
                 script_editor_hover.object = np;
@@ -1899,10 +1899,8 @@ void script_editor_handle_input()
     navpoint *np;
     float *height;
     char args[0x104], name[0x104];
-    vector3 pos, n, hit, vel;
+    vector3 pos, hit;
     plane pl;
-    lobj_ray ray;
-    lobj_hit lhit;
     matrix rot;
 
     cutscene = script_editor_cutscene_button.is_latched();
@@ -1946,8 +1944,8 @@ void script_editor_handle_input()
         }
         if (script_editor_change_button.is_latched()) {
             if (script_editor_hover.kind == SE_PICK_NAVPOINT) {
-                np = (navpoint *)script_editor_hover.object;
                 index = script_editor_cur_action->data;
+                np = (navpoint *)script_editor_hover.object;
                 if (!cutscene && np->type == NAVPOINT_TYPE_CUTSCENE) {
                     script_editor_set_status("Cannot use a cutscene navpoint in a level script.");
                     return;
@@ -1966,9 +1964,10 @@ void script_editor_handle_input()
                 a->nav = np;
             } else if (script_editor_hover.kind == SE_PICK_CHARACTER) {
                 index = script_editor_cur_action->data;
-                a = &script_editor_cur_script->actions[index];
-                if (a->type == SCRIPT_ACTION_PASS_GO || a->type == SCRIPT_ACTION_FOLLOW)
-                    script_editor_store_string(a, ((Character *)script_editor_hover.object)->get_name());
+                if (script_editor_cur_script->actions[index].type == SCRIPT_ACTION_PASS_GO
+                    || script_editor_cur_script->actions[index].type == SCRIPT_ACTION_FOLLOW)
+                    script_editor_store_string(&script_editor_cur_script->actions[index],
+                                               ((Character *)script_editor_hover.object)->get_name());
             } else {
                 script_editor_change_button.set_latched(false);
                 return;
@@ -2063,6 +2062,7 @@ void script_editor_handle_input()
 
     if (script_editor_pos_button.is_latched()) {
         if (script_editor_y_button.is_latched()) {
+            vector3 n;
             pos = script_editor_sel.pos;
             height = NULL;
             if (script_editor_sel.kind == SE_PICK_NAVPOINT)
@@ -2083,10 +2083,10 @@ void script_editor_handle_input()
             } else {
                 pos.y = hit.y;
             }
-            np = (navpoint *)script_editor_sel.object;
-            if (np->type == NAVPOINT_TYPE_AMBIENT) {
-                index = level_ambient_find_at(&np->pos);
+            if (((navpoint *)script_editor_sel.object)->type == NAVPOINT_TYPE_AMBIENT) {
+                index = level_ambient_find_at(&((navpoint *)script_editor_sel.object)->pos);
                 if (index >= 0) {
+                    vector3 vel;
                     vel.x = 0.0f;
                     vel.y = 0.0f;
                     level_ambients[index].pos = pos;
@@ -2097,22 +2097,24 @@ void script_editor_handle_input()
             script_editor_sel.pos = pos;
             return;
         }
+        lobj_ray ray;
+        lobj_hit lhit;
         if (script_editor_sel.kind == SE_PICK_NAVPOINT) {
-            np = (navpoint *)script_editor_sel.object;
             ray.start = script_editor_mouse_ray.origin;
             ray.dir = script_editor_mouse_ray.dir * 1000.0f;
             ray._unk18 = 0.0f;
             ray.flags = 0;
-            ray.require_flags = np->type != NAVPOINT_TYPE_AMBIENT ? 0x40 : 0;
+            ray.require_flags = ((navpoint *)script_editor_sel.object)->type != NAVPOINT_TYPE_AMBIENT ? 0x40 : 0;
             ray.exclude_flags = 0;
             lobj_raycast_all(&ray, &lhit);
             if (lhit.num_hits == 0)
                 return;
             pos = ray.start + ray.dir * lhit.t;
-            pos.y = pos.y + np->ground_height;
-            if (np->type == NAVPOINT_TYPE_AMBIENT) {
-                index = level_ambient_find_at(&np->pos);
+            pos.y = pos.y + ((navpoint *)script_editor_sel.object)->ground_height;
+            if (((navpoint *)script_editor_sel.object)->type == NAVPOINT_TYPE_AMBIENT) {
+                index = level_ambient_find_at(&((navpoint *)script_editor_sel.object)->pos);
                 if (index >= 0) {
+                    vector3 vel;
                     vel.x = 0.0f;
                     vel.y = 0.0f;
                     level_ambients[index].pos = pos;
@@ -2125,12 +2127,11 @@ void script_editor_handle_input()
                 if (layer < 0 || layer >= 20)
                     return;
             }
-            np->pos = pos;
-            np->layer = layer;
+            ((navpoint *)script_editor_sel.object)->pos = pos;
+            ((navpoint *)script_editor_sel.object)->layer = layer;
             return;
         }
         if (script_editor_sel.kind == SE_PICK_CHARACTER) {
-            Character *c;
             ray.start = script_editor_mouse_ray.origin;
             ray.dir = script_editor_mouse_ray.dir * 1000.0f;
             ray._unk18 = 0.0f;
@@ -2142,9 +2143,8 @@ void script_editor_handle_input()
                 return;
             pos = ray.start + ray.dir * lhit.t;
             layer = lobj_from_index(lhit.face)->get_layer_n(0);
-            c = (Character *)script_editor_sel.object;
-            c->pos = pos;
-            c->layer = layer;
+            ((Character *)script_editor_sel.object)->pos = pos;
+            ((Character *)script_editor_sel.object)->layer = layer;
         }
         return;
     }
@@ -2159,18 +2159,15 @@ void script_editor_handle_input()
         }
         switch (script_editor_sel.kind) {
         case SE_PICK_CHARACTER:
-            if (!script_editor_y_button.is_latched()) {
-                Character *c = (Character *)script_editor_sel.object;
-                c->orient = c->orient * rot;
-            }
+            if (!script_editor_y_button.is_latched())
+                ((Character *)script_editor_sel.object)->orient = ((Character *)script_editor_sel.object)->orient * rot;
             break;
         case SE_PICK_NAVPOINT:
-            np = (navpoint *)script_editor_sel.object;
-            np->heading += dx * 0.008f;
-            if (np->heading > 3.1415927f)
-                np->heading -= 6.2831855f;
-            if (np->heading < -3.1415927f)
-                np->heading += 6.2831855f;
+            ((navpoint *)script_editor_sel.object)->heading += dx * 0.008f;
+            if (((navpoint *)script_editor_sel.object)->heading > 3.1415927f)
+                ((navpoint *)script_editor_sel.object)->heading -= 6.2831855f;
+            if (((navpoint *)script_editor_sel.object)->heading < -3.1415927f)
+                ((navpoint *)script_editor_sel.object)->heading += 6.2831855f;
             break;
         }
     }
@@ -2627,7 +2624,8 @@ void script_editor_show_door_lock(lobj *l)
     }
 }
 
-// 0x4e58a0  Confidence: likely (jump table 0x4e5afc over the char_info team; the empty loop). New creature
+// 0x4e58a0  Confidence: exact (VC6 byte match, m-1020c w10, D14901: the hovered navpoint read from
+// script_editor_hover.object at each use, no local; the length test signed). New creature
 // mode: a character of the type picked in the New window at the hovered navpoint, unless a character
 // already starts there or stands exactly there. Teams 0 / 1 make a type 4 (friendly), teams 2 / 3 a type 5
 // (monster, put on team 2), a boss species a type 9. The name is "<char_info>#<navpoint>", the char_info
@@ -2636,7 +2634,6 @@ void script_editor_show_door_lock(lobj *l)
 void script_editor_place_creature()
 {
     Character *c, *nc;
-    navpoint *np;
     matrix orient;
     char name[0x100];
     int type, n;
@@ -2644,16 +2641,18 @@ void script_editor_place_creature()
     type = 5;
     if (script_editor_hover.kind != SE_PICK_NAVPOINT || script_editor_hover.object == NULL)
         return;
-    np = (navpoint *)script_editor_hover.object;
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         if (c->info->species == 0x59 && character_is_serpent_part(c))
             continue;
-        if (c->start_navpoint == np) {
+        if (c->start_navpoint == ((navpoint *)script_editor_hover.object)) {
             sprintf(string_buffer, "That navpoint is already the start for creature \"%s\"", c->get_name());
             script_editor_set_status(string_buffer);
             return;
         }
-        if (c->pos.x == np->pos.x && c->pos.y == np->pos.y && c->pos.z == np->pos.z && c->layer == np->layer) {
+        if (c->pos.x == ((navpoint *)script_editor_hover.object)->pos.x
+            && c->pos.y == ((navpoint *)script_editor_hover.object)->pos.y
+            && c->pos.z == ((navpoint *)script_editor_hover.object)->pos.z
+            && c->layer == ((navpoint *)script_editor_hover.object)->layer) {
             sprintf(string_buffer, "Creature \"%s\" already occupies that point in space", c->get_name());
             script_editor_set_status(string_buffer);
             return;
@@ -2671,13 +2670,14 @@ void script_editor_place_creature()
     }
     if (species_is_boss(char_infos[script_editor_new_selection].species))
         type = 9;
-    orient.set_from_angles(0, 0, np->heading);
-    nc = living_entity_create(type, script_editor_new_selection, &np->pos, &orient, true, np->layer, 0, 0, false);
-    nc->start_navpoint = np;
+    orient.set_from_angles(0, 0, ((navpoint *)script_editor_hover.object)->heading);
+    nc = living_entity_create(type, script_editor_new_selection, &((navpoint *)script_editor_hover.object)->pos, &orient,
+                              true, ((navpoint *)script_editor_hover.object)->layer, 0, 0, false);
+    nc->start_navpoint = ((navpoint *)script_editor_hover.object);
     if (type == 5)
         nc->set_team(2);
     sprintf(name, "%s#%s", nc->info->name, ((navpoint *)nc->start_navpoint)->name);
-    if (strlen(name) > 0x1f) {
+    if ((int)strlen(name) > 0x1f) {
         n = 0x1e - strlen(((navpoint *)nc->start_navpoint)->name);
         strncpy(name, nc->info->name, n);
         name[n] = '#';
@@ -2742,7 +2742,8 @@ void script_editor_add_navpoint(int type)
         if (layer < 0 || layer >= 20)
             return;
         if (type == NAVPOINT_TYPE_LEVEL) {
-            int l = lobj_from_index(hit.face)->pick_layer(&pos, 1);
+            lobj *o = lobj_from_index(hit.face);
+            int l = o->pick_layer(&pos, 1);
             if (l == -1)
                 return;
             if (!pf_point_is_navigable(&pos, 1, l))
@@ -3680,7 +3681,7 @@ bool script_editor_action_type_allowed(int type, Character *c)
             if (c->loco_anims[i] >= 0)
                 return true;
         }
-        return false;
+        break;
     case SCRIPT_ACTION_PLAY_ACTION:
         for (i = 1; i <= 30; i++) {
             if (charinfo_find_move(c->info, 8, i, true) != NULL)
@@ -3689,14 +3690,14 @@ bool script_editor_action_type_allowed(int type, Character *c)
         return false;
     case SCRIPT_ACTION_PLAY_MVF:
         if (!script_editor_cutscene_button.is_latched())
-            return false;
+            break;
         file_find_files(&list, cutscene_path_id, "*.mvf", 5, 0);
         found = list.next != (file_find_node *)&list;
         SE_FREE_FILE_LIST(list);
         return found;
     case SCRIPT_ACTION_PLAY_EFFECT:
         if (!script_editor_cutscene_button.is_latched())
-            return false;
+            break;
         file_find_files(&list, cutscene_path_id, "*.vfx", 5, 0);
         found = list.next != (file_find_node *)&list;
         SE_FREE_FILE_LIST(list);
@@ -3708,19 +3709,20 @@ bool script_editor_action_type_allowed(int type, Character *c)
         return script_editor_cutscene_button.is_latched();
     case SCRIPT_ACTION_MOUNT_ANIM:
     case SCRIPT_ACTION_DISMOUNT_ANIM:
-        if (!script_editor_cutscene_button.is_latched())
+        if (script_editor_cutscene_button.is_latched()) {
+            if (c->info->species >= 0x57 && c->info->species <= 0x5a)
+                return true;
             return false;
-        if (c->info->species >= 0x57 && c->info->species <= 0x5a)
-            return true;
-        return false;
+        }
+        break;
     case SCRIPT_ACTION_GUARD_SPLINE:
         return !script_editor_cutscene_button.is_latched();
     case SCRIPT_ACTION_ONE_HAND:
-        if (script_editor_cutscene_button.is_latched() && c->info->species == 0)
-            return true;
-        return false;
+        return script_editor_cutscene_button.is_latched() && c->info->species == 0;
+    default:
+        return true;
     }
-    return true;
+    return false;
 }
 
 // 0x4e7c70  Confidence: exact. Del under the action list: removes the selected action
@@ -3870,8 +3872,6 @@ bool script_editor_edit_button_cb(int event, int value)
         }
         SE_PARAM_INT(n, "Walk?", a->flag14);
         n++;
-        if (n <= 0)
-            return true;
         break;
     case SCRIPT_ACTION_TURN_HOSTILE:
         SE_PARAM_INT(0, "npx(0), monster(1)", a->arg0c);
@@ -3937,13 +3937,15 @@ bool script_editor_edit_button_cb(int event, int value)
     default:
         return true;
     }
-    for (i = n; i < 5; i++)
-        script_editor_param_inputboxes[i].set_hidden(true);
-    for (i = 0; i < n; i++)
-        script_editor_param_inputboxes[i].set_visible(true);
-    script_editor_param_field_count = n;
-    script_editor_params_window.set_enabled(true);
-    script_editor_param_inputboxes[0].set_focus();
+    if (n > 0) {
+        for (i = n; i < 5; i++)
+            script_editor_param_inputboxes[i].set_hidden(true);
+        for (i = 0; i < n; i++)
+            script_editor_param_inputboxes[i].set_visible(true);
+        script_editor_param_field_count = n;
+        script_editor_params_window.set_enabled(true);
+        script_editor_param_inputboxes[0].set_focus();
+    }
     return true;
 }
 
@@ -4529,7 +4531,8 @@ void script_write_navpoint(File *f, navpoint *np)
     f->write_line(string_buffer, -1);
 }
 
-// 0x4e9ce0  Confidence: likely (jump table 0x4ea1c8 over type - 5; the move-through check's flag). One
+// 0x4e9ce0  Confidence: exact (VC6 byte match, m-1020c w10, D14900: the start-navpoint dispatch as one
+// header condition and an else-if for "+No create", the warning in its own msg[0x100]). One
 // #Objects record: the header for a character that starts at a navpoint of the script's own kind (level
 // script: type 0; cutscene script: type 1, and a level navpoint gives a "+No create" record when the
 // character has a cutscene script), then its actions. A dialog warns about "move through" actions that
@@ -4540,7 +4543,7 @@ void script_write_navpoint(File *f, navpoint *np)
 // the top of #Objects); and "+Trigger:" ends with its own "\n" before write_line's.
 bool script_write_objects(File *f, Character *c, bool level)
 {
-    char args[0x104], name[0x104];
+    char args[0x104], msg[0x100], name[0x104];
     script_object *so = NULL;
     navpoint *np;
     bool pending;
@@ -4570,12 +4573,44 @@ bool script_write_objects(File *f, Character *c, bool level)
     np = (navpoint *)c->start_navpoint;
     if (np == NULL)
         return false;
-    if (level == true) {
-        if (np->type != NAVPOINT_TYPE_LEVEL)
-            goto actions;
-    } else if (np->type != NAVPOINT_TYPE_CUTSCENE) {
-        if (np->type != NAVPOINT_TYPE_LEVEL)
-            goto actions;
+    if ((level == true && np->type == NAVPOINT_TYPE_LEVEL) || (level == false && np->type == NAVPOINT_TYPE_CUTSCENE)) {
+        sprintf(string_buffer, "$Name:\t\t\t\t\"%s\"", c->get_name());
+        f->write_line(string_buffer, -1);
+        sprintf(string_buffer, "$Character:\t\t\t\"%s\"", c->info->name);
+        f->write_line(string_buffer, -1);
+        switch (c->type) {
+        case 5:
+        case 6:
+            f->write_line("+Monster", -1);
+            break;
+        case 9:
+        case 10:
+            f->write_line("+Boss", -1);
+            break;
+        }
+        if (c->flags & 0x40)
+            f->write_line("+Miniboss", -1);
+        if (so != NULL) {
+            if (so->hidden) {
+                sprintf(string_buffer, "+Hidden");
+                f->write_line(string_buffer, -1);
+            }
+            if (so->trigger_level != -1) {
+                sprintf(string_buffer, "+Trigger: \"%s\" \"%s\"\n", level_script_table[so->trigger_level].name, so->trigger);
+                f->write_line(string_buffer, -1);
+            }
+        }
+        if (c->get_team() != c->info->team) {
+            sprintf(string_buffer, "+Team:\t\"%s\"", team_names[c->get_team()]);
+            f->write_line(string_buffer, -1);
+        }
+        if (c->type != 7 && (c->flags & 0x400000)) {
+            sprintf(string_buffer, "+Level:\t%d", c->level);
+            f->write_line(string_buffer, -1);
+        }
+        sprintf(string_buffer, "$Start position:\t\"%s\"", ((navpoint *)c->start_navpoint)->name);
+        f->write_line(string_buffer, -1);
+    } else if (level == false && np->type == NAVPOINT_TYPE_LEVEL) {
         if (so == NULL)
             return false;
         sprintf(string_buffer, "$Name:\t\t\t\t\"%s\"", c->get_name());
@@ -4583,45 +4618,7 @@ bool script_write_objects(File *f, Character *c, bool level)
         f->write_line("+No create", -1);
         sprintf(string_buffer, "$Start position:\t\"%s\"", ((navpoint *)c->start_navpoint)->name);
         f->write_line(string_buffer, -1);
-        goto actions;
     }
-    sprintf(string_buffer, "$Name:\t\t\t\t\"%s\"", c->get_name());
-    f->write_line(string_buffer, -1);
-    sprintf(string_buffer, "$Character:\t\t\t\"%s\"", c->info->name);
-    f->write_line(string_buffer, -1);
-    switch (c->type) {
-    case 5:
-    case 6:
-        f->write_line("+Monster", -1);
-        break;
-    case 9:
-    case 10:
-        f->write_line("+Boss", -1);
-        break;
-    }
-    if (c->flags & 0x40)
-        f->write_line("+Miniboss", -1);
-    if (so != NULL) {
-        if (so->hidden) {
-            sprintf(string_buffer, "+Hidden");
-            f->write_line(string_buffer, -1);
-        }
-        if (so->trigger_level != -1) {
-            sprintf(string_buffer, "+Trigger: \"%s\" \"%s\"\n", level_script_table[so->trigger_level].name, so->trigger);
-            f->write_line(string_buffer, -1);
-        }
-    }
-    if (c->get_team() != c->info->team) {
-        sprintf(string_buffer, "+Team:\t\"%s\"", team_names[c->get_team()]);
-        f->write_line(string_buffer, -1);
-    }
-    if (c->type != 7 && (c->flags & 0x400000)) {
-        sprintf(string_buffer, "+Level:\t%d", c->level);
-        f->write_line(string_buffer, -1);
-    }
-    sprintf(string_buffer, "$Start position:\t\"%s\"", ((navpoint *)c->start_navpoint)->name);
-    f->write_line(string_buffer, -1);
-actions:
     if (so == NULL)
         return true;
     pending = false;
@@ -4633,9 +4630,9 @@ actions:
             if (pending == true)
                 pending = false;
         } else if (pending) {
-            sprintf(name, "Script for %s contains walk/run through commands that don't terminate with a walk/run to command.",
+            sprintf(msg, "Script for %s contains walk/run through commands that don't terminate with a walk/run to command.",
                     c->get_name());
-            editor_dialog_show(400, "Warning!", name, EDITOR_DIALOG_OK, NULL, NULL, NULL, 0xb);
+            editor_dialog_show(400, "Warning!", msg, EDITOR_DIALOG_OK, NULL, NULL, NULL, 0xb);
             break;
         }
     }
@@ -5896,10 +5893,11 @@ bool script_editor_level_item_ok(int event, int value)
         } else if (level_item_count < MAX_LEVEL_ITEMS) {
             li = &level_items[level_item_count];
             sprintf(li->name, "%s-000", level_script_table[cur_level_index].name);
+        again:
             for (i = 0; i < level_item_count; i++) {
                 if (strcmp(li->name, level_items[i].name) == 0) {
                     sprintf(li->name, "%s-%.3d", level_script_table[cur_level_index].name, i + 1);
-                    i = -1;
+                    goto again;
                 }
             }
             strcpy(li->script, level_script_name);

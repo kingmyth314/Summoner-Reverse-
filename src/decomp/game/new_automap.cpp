@@ -415,10 +415,10 @@ int automap_handle_click(int key)
 
     automap_pressed_button = -1;
     for (i = 0; i < AUTOMAP_NUM_BUTTONS; i++) {
-        if (!(automap_buttons[i].flags & 4) && (automap_button_defs[i].flags & 1)
-            && point_in_rect(game_mouse_x, game_mouse_y, automap_buttons[i].x, automap_buttons[i].y,
-                             automap_buttons[i].w, automap_buttons[i].h)) {
-            automap_buttons[i].flags |= 2;
+        ui_button_state *b = &automap_buttons[i];
+        if (!(b->flags & 4) && (automap_button_defs[i].flags & 1)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             automap_pressed_button = i;
             if (mouse_was_pressed(0)) {
                 automap_mouse_mode = 1;
@@ -713,8 +713,8 @@ void automap_map_to_world(float *out_x, float *out_z, int mx, int my)
     *out_z = my * step_z + automap_upper_left.z;
 }
 
-// 0x403350  Confidence: likely (the cursor blink as if / else; Backspace shares the re-wrap with a typed
-// character). ESC / Enter keep the text, save a custom label again and leave typing.
+// 0x403350  Confidence: exact (the cursor blink as if / else; the re-wrap is one `if (changed)
+// automap_select_label` after the key block, which VC6 threads into both changing paths, D14504). ESC / Enter keep the text, save a custom label again and leave typing.
 int automap_label_text_input(int key)
 {
     bool changed = false;
@@ -737,7 +737,6 @@ int automap_label_text_input(int key)
             if ((int)strlen(label->text) < 0x1f) {
                 strcat(label->text, s);
                 changed = true;
-                automap_select_label(automap_selected_label);
             }
         } else {
             switch (key) {
@@ -757,13 +756,15 @@ int automap_label_text_input(int key)
                 if (len > 0) {
                     label->text[len - 1] = 0;
                     changed = true;
-                    automap_select_label(automap_selected_label);
                 }
                 break;
             }
             }
         }
     }
+
+    if (changed)
+        automap_select_label(automap_selected_label);
 
     if (automap_label_blink_timer.elapsed() || changed) {
         automap_label_blink_timer.SetTimeout(500);

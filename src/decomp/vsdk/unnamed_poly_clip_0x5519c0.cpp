@@ -107,7 +107,8 @@ int polygon_clip_2d(int num_edges, const vector2 *edges, int n, vector2 *verts, 
     return n;
 }
 
-// 0x551ca0  Confidence: likely (out is advanced as a pointer; the two classify flags as written). Keeps
+// 0x551ca0  Confidence: exact (D15007: out indexed by count, which 8966 strength-reduces into the out slot;
+// the clip block entered by a goto from the inside branch; i stepped with next at the loop end). Keeps
 // the vertices not in front of the plane and adds the crossing points.
 int polygon_clip_to_plane(int n, const vector3 *in, vector3 *out, const plane *pl)
 {
@@ -115,7 +116,7 @@ int polygon_clip_to_plane(int n, const vector3 *in, vector3 *out, const plane *p
     int count = 0;
     int i;
 
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < n; ) {
         int inside = 1;
         if (plane_classify_point(pl, &in[i], 0.0f) == 1)
             inside = 0;
@@ -123,23 +124,19 @@ int polygon_clip_to_plane(int n, const vector3 *in, vector3 *out, const plane *p
         if (plane_classify_point(pl, &in[next], 0.0f) == 1)
             next_inside = 0;
         if (inside) {
-            *out = in[i];
+            out[count] = in[i];
             count++;
-            out++;
-            if (next_inside)
-                goto advance;
-        } else if (!next_inside) {
-            goto advance;
-        }
-        {
+            if (!next_inside)
+                goto clip;
+        } else if (next_inside) {
+        clip:
             float d0 = -in[i].dot(pl->normal);
             float d1 = -in[next].dot(pl->normal);
             float t = (pl->d - d0) / (d1 - d0);
-            *out = in[i] + (in[next] - in[i]) * t;
+            out[count] = in[i] + (in[next] - in[i]) * t;
             count++;
-            out++;
         }
-    advance:
+        i++;
         next++;
         if (next == n)
             next = 0;

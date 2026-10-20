@@ -39,41 +39,47 @@
 // 2 pi as the float constant 0x580e28.
 #define GR_LINE_2PI 6.2831855f
 
-// 0x53e520  Confidence: likely (the result is kept in a variable; the clipped path frees the temporary
-// vertices). False when both points are outside one clip plane, or still outside after clipping.
+// 0x53e520  Confidence: exact (D15006: local copies v0 / v1 of the vertex pointers, clipped / ret set after
+// the trivial reject and the clip failure joining the common exit with a goto: one exit, so 8966 saves EBX
+// after the early return as the binary; the clipped path frees the temporary vertices). False when both
+// points are outside one clip plane, or still outside after clipping.
 bool gr_line_3d(gr_vertex *p0, gr_vertex *p1, gr::Mode mode)
 {
     ubyte codes;
-    bool clipped = false;
-    bool ret = true;
+    bool clipped;
+    bool ret;
+    gr_vertex *v0 = p0;
+    gr_vertex *v1 = p1;
 
-    if (p0->codes & p1->codes)
+    if (v0->codes & v1->codes)
         return false;
-    codes = p0->codes | p1->codes;
+    codes = v0->codes | v1->codes;
+    clipped = false;
+    ret = true;
     if (codes) {
-        gr_clip_line(&p0, &p1, codes);
+        gr_clip_line(&v0, &v1, codes);
         clipped = true;
-        if (p0->codes | p1->codes) {
+        if (v0->codes | v1->codes) {
             ret = false;
-            gr_clip_free_temp_verts();
-            return ret;
+            goto done;
         }
     }
-    if (!(p0->flags & 1))
-        gr_project_vertex(p0);
-    if (!(p1->flags & 1))
-        gr_project_vertex(p1);
+    if (!(v0->flags & 1))
+        gr_project_vertex(v0);
+    if (!(v1->flags & 1))
+        gr_project_vertex(v1);
     switch (gr_screen.mode) {
     case GR_DIRECT3D:
-        gr_d3d_line_3d(p0, p1, mode);
+        gr_d3d_line_3d(v0, v1, mode);
         break;
     case GR_GLIDE:
-        gr_glide_line_3d(p0, p1, mode);
+        gr_glide_line_3d(v0, v1, mode);
         break;
     case GR_OPENGL:
-        gr_opengl_line_3d(p0, p1, mode);
+        gr_opengl_line_3d(v0, v1, mode);
         break;
     }
+done:
     if (clipped)
         gr_clip_free_temp_verts();
     return ret;
@@ -128,7 +134,9 @@ void gr_set_use_buffered_alpha_polys(bool on)
     Use_buffered_alpha_polys = on;
 }
 
-// 0x53e770  Confidence: likely (the two unbuffered begin calls share their tail in the binary). With the
+// 0x53e770  Confidence: exact (D15005: the translucency scan in its own `if (Use_buffered_alpha_polys)`
+// block and the test repeated in the begin condition; the scan then is a one-exit region, 8966 saves EBP
+// inside it and the two unbuffered begin calls share one tail, as in the binary). With the
 // buffered alpha polygons on, a polygon with a translucent vertex alpha (or colour alpha) or an alpha
 // source 1 / 3 is recorded with its largest view z as the sort key.
 bool gr_poly(int n, gr_vertex **verts, gr::Mode mode, bool fixed_depth, float depth)
@@ -147,16 +155,14 @@ bool gr_poly(int n, gr_vertex **verts, gr::Mode mode, bool fixed_depth, float de
                 translucent = true;
             }
         }
-        if (translucent || alpha == 3 || alpha == 1) {
-            z = verts[0]->z;
-            for (i = 1; i < n; i++) {
-                if (verts[i]->z > z)
-                    z = verts[i]->z;
-            }
-            gr_poly_begin(true, z, gr_screen.poly_arg_a4, fixed_depth, depth);
-        } else {
-            gr_poly_begin(false, 0.0f, gr_screen.poly_arg_a4, fixed_depth, depth);
+    }
+    if (Use_buffered_alpha_polys && (translucent || alpha == 3 || alpha == 1)) {
+        z = verts[0]->z;
+        for (i = 1; i < n; i++) {
+            if (verts[i]->z > z)
+                z = verts[i]->z;
         }
+        gr_poly_begin(true, z, gr_screen.poly_arg_a4, fixed_depth, depth);
     } else {
         gr_poly_begin(false, 0.0f, gr_screen.poly_arg_a4, fixed_depth, depth);
     }
@@ -257,15 +263,17 @@ done:
     return n;
 }
 
-// 0x53eae0  Confidence: likely (FreeSpace's g3_draw_rotated_bitmap in shape; the larger side of the bitmap
-// is scaled up, the v coordinates are flipped and the list runs backwards). The depth is the centre's,
+// 0x53eae0  Confidence: exact (D15003: width / height set in each branch, bw / bh block-scoped, the divisors
+// as `bw * 1.0f`, codes_and set before the far-clip call and depth after it). FreeSpace's
+// g3_draw_rotated_bitmap in shape; the larger side of the bitmap is scaled up, the v coordinates are flipped
+// and the list runs backwards. The depth is the centre's,
 // pulled towards the viewer by the size scaled with gr_scale_by_far_clip.
 bool gr_bitmap_3d_projected(gr_vertex *pnt, float angle, float size, gr::Mode mode)
 {
     gr_vertex v[4];
     gr_vertex *list[4];
     float sa, ca, width, height, depth, off;
-    int bw, bh, i;
+    int i;
     ubyte codes_and;
 
     list[0] = &v[3];
@@ -278,15 +286,24 @@ bool gr_bitmap_3d_projected(gr_vertex *pnt, float angle, float size, gr::Mode mo
         return false;
     sa = (float)sin(angle);
     ca = (float)cos(angle);
-    width = height = size;
     if (gr_screen.current_bitmap > -1) {
+        int bw, bh;
         bm_get_dimensions(gr_screen.current_bitmap, &bw, &bh);
         if (bw == 0)
             return false;
-        if (bw < bh)
-            height = size * bh / bw;
-        else if (bw > bh)
-            width = size * bw / bh;
+        if (bw < bh) {
+            width = size;
+            height = size * bh / (bw * 1.0f);
+        } else if (bw > bh) {
+            height = size;
+            width = size * bw / (bh * 1.0f);
+        } else {
+            height = size;
+            width = size;
+        }
+    } else {
+        height = size;
+        width = size;
     }
     v[0].x = (height * sa - width * ca) * gr_matrix_scale.x + pnt->x;
     v[0].y = (-width * sa - height * ca) * gr_matrix_scale.y + pnt->y;
@@ -312,11 +329,11 @@ bool gr_bitmap_3d_projected(gr_vertex *pnt, float angle, float size, gr::Mode mo
     v[3].u = 0.0f;
     v[3].v = 0.0f;
     v[3]._unk1a = GR_VERTEX_UV;
-    depth = pnt->z;
+    codes_and = 0xff;
     off = gr_scale_by_far_clip(size);
+    depth = pnt->z;
     if (off < depth)
         depth -= off;
-    codes_and = 0xff;
     for (i = 0; i < 4; i++) {
         codes_and &= gr_code_vertex(&v[i]);
         v[i].flags = 0;
@@ -328,7 +345,7 @@ bool gr_bitmap_3d_projected(gr_vertex *pnt, float angle, float size, gr::Mode mo
 }
 
 // 0x53edd0  Confidence: likely (as gr_bitmap_3d_projected with the given size, halved in place; no bitmap
-// lookup).
+// lookup; D15003: codes_and before the far-clip call, one fstp of v[3] still scheduled differently).
 bool gr_bitmap_3d_oriented_quad(gr_vertex *pnt, float angle, float width, float height, gr::Mode mode)
 {
     gr_vertex v[4];
@@ -373,11 +390,11 @@ bool gr_bitmap_3d_oriented_quad(gr_vertex *pnt, float angle, float width, float 
     v[3].u = 0.0f;
     v[3].v = 0.0f;
     v[3]._unk1a = GR_VERTEX_UV;
-    depth = pnt->z;
+    codes_and = 0xff;
     off = gr_scale_by_far_clip(width);
+    depth = pnt->z;
     if (off < depth)
         depth -= off;
-    codes_and = 0xff;
     for (i = 0; i < 4; i++) {
         codes_and &= gr_code_vertex(&v[i]);
         v[i].flags = 0;
@@ -387,12 +404,12 @@ bool gr_bitmap_3d_oriented_quad(gr_vertex *pnt, float angle, float width, float 
     return gr_poly(4, list, mode, true, depth);
 }
 
-// 0x53f060  Confidence: likely (FreeSpace's g3_draw_polygon in shape: the corners pos +- rvec * w +- uvec
-// * h, w / h the size scaled by the bitmap's proportions). No caller.
+// 0x53f060  Confidence: exact (D15002: bw / bh block-scoped, so the binary reuses their slots for the -w
+// temporary; the divisors as `bw * 1.0f` give its fild / fdivp). FreeSpace's g3_draw_polygon in shape: the
+// corners pos +- rvec * w +- uvec * h, w / h the size scaled by the bitmap's proportions. No caller.
 bool gr_bitmap_3d_oriented_quad_facing(const vector3 *pos, const matrix *orient, float size, gr::Mode mode)
 {
     float w, h;
-    int bw, bh;
 
     if (!gr_check_normal_facing(&orient->fvec, pos))
         return false;
@@ -403,15 +420,16 @@ bool gr_bitmap_3d_oriented_quad_facing(const vector3 *pos, const matrix *orient,
     list[2] = &v[1];
     list[3] = &v[0];
     if (gr_screen.current_bitmap > -1) {
+        int bw, bh;
         bm_get_dimensions(gr_screen.current_bitmap, &bw, &bh);
         if (bw == 0)
             return false;
         if (bw < bh) {
             w = size;
-            h = size * bh / bw;
+            h = size * bh / (bw * 1.0f);
         } else if (bw > bh) {
             h = size;
-            w = size * bw / bh;
+            w = size * bw / (bh * 1.0f);
         } else {
             h = size;
             w = size;

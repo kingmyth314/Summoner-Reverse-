@@ -277,9 +277,10 @@ void saveload_update_mode_buttons()
     }
 }
 
-// 0x4258c0  Confidence: likely (the list is freed by hand: no destructor, since the function has no EH
+// 0x4258c0  Confidence: exact (D14503: the entry is indexed directly, not through a pointer, and the list
+// head is reset prev-first). The list is freed by hand: no destructor, since the function has no EH
 // frame; the 0xa8 header field goes to a dead local; level_time and now share one stack slot, so they
-// are declared in different blocks). Saves whose level or conversation slot no longer exists are skipped.
+// are declared in different blocks. Saves whose level or conversation slot no longer exists are skipped.
 void saveload_scan_saves()
 {
     file_find_node list;
@@ -287,11 +288,9 @@ void saveload_scan_saves()
 
     file_find_files(&list, path_savegame, "*.sav", 6, 0);
     saveload_num_saves = 0;
-
     for (node = list.next; node != (file_find_node *)&list; node = node->next) {
         if (saveload_num_saves >= SAVELOAD_MAX_SAVES)
             break;
-
         char level_name[0x80];
         char script_name[0x20];
         char description[0x100];
@@ -303,14 +302,12 @@ void saveload_scan_saves()
             if (level != -1) {
                 int script = level_script_find_index(level, script_name);
                 if (script >= 0) {
-                    saveload_entry *e = &saveload_entries[saveload_num_saves];
-
-                    strcpy(e->filename, node->name);
-                    e->level = level;
-                    e->script = script;
-                    e->level_time = level_time;
-                    strcpy(e->name, description);
-                    e->time = node->time;
+                    strcpy(saveload_entries[saveload_num_saves].filename, node->name);
+                    saveload_entries[saveload_num_saves].level = level;
+                    saveload_entries[saveload_num_saves].script = script;
+                    saveload_entries[saveload_num_saves].level_time = level_time;
+                    strcpy(saveload_entries[saveload_num_saves].name, description);
+                    saveload_entries[saveload_num_saves].time = node->time;
                     saveload_num_saves++;
                 }
             }
@@ -322,7 +319,7 @@ void saveload_scan_saves()
         list.next = list.next->next;
         delete list.prev;
     }
-    list.next = list.prev = (file_find_node *)&list;
+    list.prev = list.next = (file_find_node *)&list;
 
     if (saveload_save_mode && saveload_num_saves < SAVELOAD_MAX_SAVES) {
         time_t now;
@@ -962,8 +959,8 @@ void saveload_format_level_name(char *out, int level)
     gr_string_truncate_ellipsis(out, buf, saveload_level_name_w[resolution_index], -1);
 }
 
-// 0x426d10  Confidence: likely (stack order of the locals: w / ampm swapped and the 4 bytes between buf and
-// line; the am / pm copy as two strcpy calls makes every instruction but these slots the binary's, D13001). File time
+// 0x426d10  Confidence: exact (the am / pm copy as two strcpy calls, D13001; ampm is char[3] and buf char[260],
+// which give the binary's frame of 0x25c and its slot order, D14502). File time
 // as "h:mm am", date as "Mon. d, yyyy", then the description in up to 9 lines; while editing a "|" is
 // appended and hidden on the off phase of the blink by cutting the last line one character short.
 void saveload_draw_info()
@@ -973,8 +970,8 @@ void saveload_draw_info()
 
     saveload_entry *e = &saveload_entries[saveload_scroll_pos + saveload_selected_row];
     struct tm *t = localtime(&e->time);
-    char ampm[4];
-    char buf[256];
+    char ampm[3];
+    char buf[260];
     int lengths[9], starts[9];
     int w, h;
     int hour, x, y, font_h, n, i;

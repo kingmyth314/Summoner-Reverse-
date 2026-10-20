@@ -378,11 +378,13 @@ void game_pause_count_inc()
     game_pause_count++;
 }
 
-// 0x432da0  Confidence: likely (written as the shift the code does; `& GF_PAUSED` with a bool conversion
-// would be a test / setne).
+// 0x432da0  Confidence: exact. The if-form (D14500): 8966 turns `if (game_flags & 4) return true; return false;`
+// into `shr al, 2 / and al, 1`; the expression forms give test / setne or a 32-bit sar.
 bool game_is_paused()
 {
-    return (game_flags >> 2) & 1;
+    if (game_flags & 4)
+        return true;
+    return false;
 }
 
 // 0x432db0  Confidence: exact. GameInit.

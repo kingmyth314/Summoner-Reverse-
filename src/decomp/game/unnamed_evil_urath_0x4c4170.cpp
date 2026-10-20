@@ -515,17 +515,25 @@ int ai_state::evil_urath_ai_select_action()
     }
     frac = owner->hp / (float)owner->get_max_stat(0);
     if (frac < 0.2f) {
-        if (!(evil_urath_leap_flags & URATH_ON_FLOOR))
-            goto leap;
+        if (!(evil_urath_leap_flags & URATH_ON_FLOOR)) {
+            evil_urath_pending_mode = AIS_URATH_LEAP_START;
+            return 1;
+        }
     } else if (frac < 0.4f) {
-        if (!(evil_urath_leap_flags & URATH_ON_BALCONY))
-            goto leap;
+        if (!(evil_urath_leap_flags & URATH_ON_BALCONY)) {
+            evil_urath_pending_mode = AIS_URATH_LEAP_START;
+            return 1;
+        }
     } else if (frac < 0.6f) {
-        if (!(evil_urath_leap_flags & URATH_ON_FLOOR))
-            goto leap;
+        if (!(evil_urath_leap_flags & URATH_ON_FLOOR)) {
+            evil_urath_pending_mode = AIS_URATH_LEAP_START;
+            return 1;
+        }
     } else if (frac < 0.8f) {
-        if (!(evil_urath_leap_flags & URATH_ON_BALCONY))
-            goto leap;
+        if (!(evil_urath_leap_flags & URATH_ON_BALCONY)) {
+            evil_urath_pending_mode = AIS_URATH_LEAP_START;
+            return 1;
+        }
     }
     index = boss_target_list_find_b(list, count, evil_urath_target_handle);
     if (index == -1)
@@ -586,9 +594,6 @@ int ai_state::evil_urath_ai_select_action()
         break;
     }
     evil_urath_cast_spell(spell, t);
-    return 1;
-leap:
-    evil_urath_pending_mode = AIS_URATH_LEAP_START;
     return 1;
 }
 

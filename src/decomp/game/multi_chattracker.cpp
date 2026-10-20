@@ -666,7 +666,8 @@ void irc_add_channel(char *name, unsigned short users, char *topic)
     irc_channel_cur->next = NULL;
 }
 
-// 0x4adb40  Confidence: likely (the two branches end in the same next = NULL store, merged).
+// 0x4adb40  Confidence: exact (VC6 8966 byte match, D14202: the queue call and return in both paths; the
+// compiler cross-jumps the two identical tails, malloc's pop deferred into the shared add esp, 0x10).
 int irc_add_user(char *nick)
 {
     irc_user_cur = irc_user_list;
@@ -681,14 +682,15 @@ int irc_add_user(char *nick)
         irc_user_list = (irc_user *)malloc(sizeof(irc_user));
         strcpy(irc_user_list->nick, nick);
         irc_user_list->next = NULL;
-    } else {
-        while (irc_user_cur->next)
-            irc_user_cur = irc_user_cur->next;
-        irc_user_cur->next = (irc_user *)malloc(sizeof(irc_user));
-        irc_user_cur = irc_user_cur->next;
-        strcpy(irc_user_cur->nick, nick);
-        irc_user_cur->next = NULL;
+        irc_queue_command(IRC_CMD_USER_JOINED, nick, strlen(nick) + 1);
+        return 1;
     }
+    while (irc_user_cur->next)
+        irc_user_cur = irc_user_cur->next;
+    irc_user_cur->next = (irc_user *)malloc(sizeof(irc_user));
+    irc_user_cur = irc_user_cur->next;
+    strcpy(irc_user_cur->nick, nick);
+    irc_user_cur->next = NULL;
     irc_queue_command(IRC_CMD_USER_JOINED, nick, strlen(nick) + 1);
     return 1;
 }
@@ -715,7 +717,8 @@ int irc_remove_user(char *nick)
     return 0;
 }
 
-// 0x4adcd0  Confidence: likely (the word and the output share buf; target 0x34 bytes in the frame). Our
+// 0x4adcd0  Confidence: exact (VC6 8966 byte match, D14203: list and quiet fall through to the final
+// return NULL, so the cross-jump keeps the xyz copy) (the word and the output share buf; target 0x34 bytes in the frame). Our
 // own PRIVMSG lines are echoed through chat_process_irc_message (mode 1) without the CR LF.
 char *irc_process_input(char *line, int quiet)
 {
@@ -748,17 +751,12 @@ char *irc_process_input(char *line, int quiet)
         if (!stricmp(buf, "list")) {
             sprintf(buf, "%s\n\r", line + 1);
             irc_send_raw(buf, strlen(buf));
-            return NULL;
-        }
-        if (quiet) {
+        } else if (quiet) {
             sprintf(buf, "%s\n\r", line + 1);
             irc_send_raw(buf, strlen(buf));
-            return NULL;
-        }
-        return XSTR("Unrecognized command", 245);
-    }
-
-    if (irc_cur_channel[0]) {
+        } else
+            return XSTR("Unrecognized command", 245);
+    } else if (irc_cur_channel[0]) {
         sprintf(buf, "PRIVMSG %s :%s\n\r", irc_cur_channel, line);
         irc_send_raw(buf, strlen(buf));
         if (strlen(buf) >= 2) {

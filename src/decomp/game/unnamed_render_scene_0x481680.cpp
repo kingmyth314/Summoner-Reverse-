@@ -1259,7 +1259,8 @@ void levelrender_add_effects(s3d_vis_set **sets, int count)
     level_vis_dirty = false;
 }
 
-// 0x483f90  Confidence: likely (the "HIGH" name built in a 0x40-byte buffer). The $vis tags of the
+// 0x483f90  Confidence: exact (VC6 byte match; D15405: the tag count in its own later-declared local nt,
+// which puts the tag offset in the dead fx slot as the binary does) (the "HIGH" name built in a 0x40-byte buffer). The $vis tags of the
 // effect: everything not always shown is hidden, then the records of each tag named like one of the
 // visible sets (or its "$visHIGH..." variant written without HIGH) are shown again.
 void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int count)
@@ -1284,8 +1285,8 @@ void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int cou
         if (!(base->descs21c[i].vis_flags & 0x80))
             base->descs21c[i].vis_flags &= ~0x100;
     }
-    n = base->num_tags;
-    for (i = 0; i < n; i++) {
+    int nt = base->num_tags;
+    for (i = 0; i < nt; i++) {
         vfx_base_tag *tag = &base->tags[i];
         if (_strnicmp(tag->name, "$vis", 4) || count <= 0)
             continue;
@@ -1317,7 +1318,8 @@ void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int cou
 }
 
 // 0x4841e0  Confidence: likely (the list push comes before the NULL test of the new entry, as in the
-// code). The position is in the effect's frame. With `cull` (the nodes of instances without bit 0x80)
+// code; D15404: the depth is fvec.dot(d), which gives the binary's x87 order; only where POP ESI is scheduled
+// still differs). The position is in the effect's frame. With `cull` (the nodes of instances without bit 0x80)
 // an effect owned by a living entity is drawn exactly when the owner is (a summon's effects only after
 // the effect's timer has run out), any other effect when its sphere is in view; trails (bit 8) and
 // kind-4 effects are never culled. Opaque effects (bit 2) put their nodes into the opaque list.
@@ -1352,17 +1354,14 @@ bool levelrender_add_effect_entry(vector3 pos, float cull_radius, float sort_rad
         e = NULL;
     if (!e)
         return false;
-    float dx = pos.x - levelrender_eye_pos.x;
-    float dy = pos.y - levelrender_eye_pos.y;
-    float dz = pos.z - levelrender_eye_pos.z;
+    vector3 d = pos - levelrender_eye_pos;
     e->type = LRE_EFFECT;
     e->fx = fx;
+    e->depth = levelrender_eye_orient.fvec.dot(d);
+    e->dist = e->depth - sort_radius;
     e->ref.kind = (ubyte)kind;
     e->ref.index = (short)index;
     e->ref.inst = inst;
-    e->depth = dx * levelrender_eye_orient.fvec.x + levelrender_eye_orient.fvec.z * dz
-             + levelrender_eye_orient.fvec.y * dy;
-    e->dist = e->depth - sort_radius;
     return true;
 }
 
@@ -2443,7 +2442,8 @@ int level_vis_load(const char *level_name)
     return 0;
 }
 
-// 0x486d40  Confidence: likely (frame and compares as the binary, D10801; the "$layer" test inside the loop re-reads the outer name, as the code
+// 0x486d40  Confidence: likely (D15406: the first loop by unsigned index gives the binary's pointer biased to
+// .sets; the zero register and tf's register still differ) (frame and compares as the binary, D10801; the "$layer" test inside the loop re-reads the outer name, as the code
 // does). "$vis_set" "$layerN" [$high_camera | $low_camera] then quoted set names until the next
 // "$vis_set" or "$end". Each layer gets its sets ($vis_base first) and their "HIGH" variants (the set
 // itself when there is none); layers without sets get $vis_base. A name that is not "$layer1".."$layer20"
@@ -2455,10 +2455,10 @@ void level_vis_parse(TextFile *tf)
     char line[0x100];
     char high_name[0x4c];
 
-    for (level_layer_vis_rec *v = level_layer_vis; v < &level_layer_vis[LEVEL_NUM_LAYERS]; v++) {
-        v->count = 0;
-        v->sets = level_vis_set_lists;
-        v->sets_high = level_vis_set_records;
+    for (unsigned int i = 0; i < LEVEL_NUM_LAYERS; i++) {
+        level_layer_vis[i].count = 0;
+        level_layer_vis[i].sets = level_vis_set_lists;
+        level_layer_vis[i].sets_high = level_vis_set_records;
     }
     level_num_vis_sets = 0;
     while (tf->Accept("$vis_set")) {

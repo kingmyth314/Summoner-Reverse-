@@ -650,7 +650,7 @@ int inventory_frame(int key)
 }
 
 // 0x4159a0  Confidence: likely (the many return tails are VC6's; key jump table 0x415fd4, index bytes
-// 0x415fe8 for key - 1 in 0..0x2f). Buttons and paper-doll hot spots, thumb, list rows, keys, mouse wheel.
+// 0x415fe8 for key - 1 in 0..0x2f; d / b pointer locals: closer, not a match, D14801). Buttons and paper-doll hot spots, thumb, list rows, keys, mouse wheel.
 // Hot spot: double click shows the item info, press starts dragging it (mode 5; not the weapon), right click
 // opens the action popup. List row: double click shows the info of an identified item, press starts dragging
 // an equippable one (mode 4), right click opens the action popup.
@@ -662,16 +662,19 @@ int inventory_handle_click(int key)
     inventory_selected_row = -1;
 
     for (i = 0; i < INVENTORY_NUM_BUTTONS; i++) {
-        if ((inventory_button_defs[i].flags & 0xf)
-            && point_in_rect(game_mouse_x, game_mouse_y, inventory_buttons[i].x, inventory_buttons[i].y,
-                             inventory_buttons[i].w, inventory_buttons[i].h)) {
-            if ((inventory_button_defs[i].flags & 8) && interface_input_ready())
+        const ui_button_def *d = &inventory_button_defs[i];
+        ui_button_state *b = &inventory_buttons[i];
+
+        if ((d->flags & 0xf)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y,
+                             b->w, b->h)) {
+            if ((d->flags & 8) && interface_input_ready())
                 inventory_hover_tooltips(i);
-            if (!(inventory_buttons[i].flags & 4)
-                && (!inventory_open_mode || !(inventory_button_defs[i].flags & 0x10))) {
-                inventory_buttons[i].flags |= 2;
+            if (!(b->flags & 4)
+                && (!inventory_open_mode || !(d->flags & 0x10))) {
+                b->flags |= 2;
                 inventory_pressed_button = i;
-                if (inventory_button_defs[i].flags & 1) {
+                if (d->flags & 1) {
                     int slot = inventory_equip_index_for_button(i);
 
                     if (mouse_was_double_clicked(0)) {
@@ -707,13 +710,13 @@ int inventory_handle_click(int key)
                                              (int)inventory_item_action_enabled);
                         return key;
                     }
-                } else if (inventory_button_defs[i].flags & 2) {
+                } else if (d->flags & 2) {
                     if (mouse_was_pressed(0)) {
                         inventory_mouse_mode = 1;
                         inventory_repeat_timer.invalidate();
                         return key;
                     }
-                } else if (inventory_button_defs[i].flags & 4) {
+                } else if (d->flags & 4) {
                     if (mouse_was_pressed(0)) {
                         inventory_mouse_mode = 1;
                         inventory_button_action(inventory_pressed_button + 1);
@@ -1271,27 +1274,35 @@ int inventory_popup_result(int key)
     return key;
 }
 
-// 0x416c10  Confidence: likely (the slot switch of inventory_equip_index_for_button is written out again here,
-// jump table 0x416d98; the "flags & 4 || flags & 2" test is laid out differently in the two branches).
+// 0x416c10  Confidence: exact (the slot switch of inventory_equip_index_for_button is written out again here,
+// jump table 0x416d98; D14800: the list branch tests self_only first and then flags 4 / 2 as an if / else-if
+// chain without returns, like the equipped branch, and the row index is a local).
 // Items whose spell needs a target (spell flags 2 character / 4 location) start the world pick and close the
 // screen; others are used at once on the character (the screen closes when that succeeds).
 void inventory_use_selected_item()
 {
     if (inventory_selection_is_list_row) {
-        party_inventory_entry *entry = inventory_get_list_item(inventory_scroll_pos + inventory_selected_row);
+        int row = inventory_selected_row + inventory_scroll_pos;
+        party_inventory_entry *entry = inventory_get_list_item(row);
         if (!entry)
             return;
         item_charge_effect *charge = (item_charge_effect *)entry->item->type->charge_effect;
-        if (!charge->self_only) {
-            unsigned int flags = spells[charge->spell].flags;
-            if ((flags & 4) || (flags & 2)) {
-                inventory_use_list_item_begin(entry);
+        if (charge->self_only) {
+            if (character_use_inventory_item(status_character, entry, status_character->handle, 0, -1))
                 interface_set_screen(0, 0);
-                return;
-            }
+            return;
         }
-        if (character_use_inventory_item(status_character, entry, status_character->handle, 0, -1))
+        unsigned int flags = spells[charge->spell].flags;
+        if (flags & 4) {
+            inventory_use_list_item_begin(entry);
             interface_set_screen(0, 0);
+        } else if (flags & 2) {
+            inventory_use_list_item_begin(entry);
+            interface_set_screen(0, 0);
+        } else {
+            if (character_use_inventory_item(status_character, entry, status_character->handle, 0, -1))
+                interface_set_screen(0, 0);
+        }
         return;
     }
 

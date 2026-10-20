@@ -133,7 +133,8 @@ int mem_report_is_verbose()
     return mem_report_verbose;
 }
 
-// 0x512640  Confidence: likely (the label is copied to line + 3 * depth, computed from the depth rather
+// 0x512640  Confidence: exact (VC6 8966 byte match with the padding bound written in the loop test over a
+// text length local, D15202; the label is copied to line + 3 * depth, computed from the depth rather
 // than from strlen; strlen(line) is taken before the vsprintf). Both 2000-byte buffers are initialised
 // before the file test. The label and the padding to column 65 come first, then the formatted text.
 void mem_report_line(const char *label, const char *fmt, ...)
@@ -155,8 +156,8 @@ void mem_report_line(const char *label, const char *fmt, ...)
     vsprintf(text, fmt, args);
     va_end(args);
 
-    int pad = 65 - (int)strlen(text) - len;
-    for (i = 0; i < pad; i++)
+    int tl = strlen(text);
+    for (i = 0; i < 65 - tl - len; i++)
         strcat(line, " ");
 
     fprintf(mem_report_file, "%s%s\n", line, text);

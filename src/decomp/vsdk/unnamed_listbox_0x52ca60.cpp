@@ -497,10 +497,11 @@ void ui_listbox_entry::set_text(const char *s)
     text = (char *)s;
 }
 
-// 0x52d5c0  Confidence: likely (the members' constructors: ui_gadget, typeahead_timer, entries with
-// its inline list_init, D4201; then the body in the store order).
+// 0x52d5c0  Confidence: exact (the members' constructors: ui_gadget, typeahead_timer, entries; then
+// the body, whose list_init the scheduler puts ahead of the vtable store, D14300).
 ui_listbox::ui_listbox()
 {
+    list_init(&entries);
     flags = 0;
     vscrollbar = NULL;
     hscrollbar = NULL;
@@ -688,10 +689,7 @@ ui_listbox_entry *ui_listbox::add_entry(const char *text, int font, int indent, 
             }
         }
     }
-    e->next = &entries;
-    e->prev = entries.prev;
-    entries.prev = e;
-    e->prev->next = e;
+    list_append(&entries, e);   // the binary's store order (D14301)
 
 inserted:
     recalc_content_size();

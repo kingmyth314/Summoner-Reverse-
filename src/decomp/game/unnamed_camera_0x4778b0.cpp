@@ -376,10 +376,10 @@ void camera::add_occluder(vector3 *a, int lobj_index, int start_count, float rad
     camera_occluders[camera_num_occluders++] = lobj_index;
 }
 
-// 0x478520  Confidence: likely (the ray's constructor store comes after the cutscene test, so the ray is
-// declared there; the early return is `xor al, al`: the result is bool, D12407. The scalar ray fields first;
-// still differs in the store schedule: the binary stores min_radius (+0x30) as an immediate between the start
-// and require_flags stores, ours from the constructor first). Two rays: b -> a, then a -> b, each repeated
+// 0x478520  Confidence: exact (the ray's constructor store comes after the cutscene test, so the ray is
+// declared there; the early return is `xor al, al`: the result is bool, D12407. The scalar ray fields first.
+// D14802: the second ray resets index / blocked before its start and direction, and the result is returned as
+// the `||` expression, which 8966 materialises in EAX). Two rays: b -> a, then a -> b, each repeated
 // through the draw lists until nothing more is hit. ret 0xc.
 bool camera::find_occluders(vector3 *a, vector3 *b, float radius)
 {
@@ -403,19 +403,17 @@ bool camera::find_occluders(vector3 *a, vector3 *b, float radius)
             add_occluder(a, hit.face, start_count, radius);
     } while (hit.num_hits && camera_num_occluders < MAX_CAMERA_OCCLUDERS);
     if (camera_num_occluders < MAX_CAMERA_OCCLUDERS) {
-        ray.start = *a;
-        ray.dir = *b - *a;
         index = 0;
         blocked = false;
+        ray.start = *a;
+        ray.dir = *b - *a;
         do {
             lobj_raycast_draw_lists(&ray, &hit, &index, &blocked, 1);
             if (hit.num_hits > 0)
                 add_occluder(a, hit.face, start_count, radius);
         } while (hit.num_hits && camera_num_occluders < MAX_CAMERA_OCCLUDERS);
     }
-    if (camera_num_occluders > 0 || camera_occluders_unk > 0)
-        return 1;
-    return 0;
+    return camera_num_occluders > 0 || camera_occluders_unk > 0;
 }
 
 // 0x478700  Confidence: exact (VC6 byte match) (h's slot holds the difference). A new wanted height only past 0.3; the

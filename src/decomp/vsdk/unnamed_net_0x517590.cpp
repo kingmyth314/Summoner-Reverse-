@@ -817,7 +817,13 @@ int nw_NewReceiveReliable(int socket, void *buf, int size)
     return 0;
 }
 
-// 0x518ce0  Confidence: likely (the found branch inside the loop, the address through a local, D6803).
+// D14204: from here to the end of the object the binary is compiled as with /Ow (assume aliasing across
+// function calls): nw_accept_reliable, nw_NewSendReliable and nw_ConnectToServer match only so, and no
+// function after them changes. Before nw_buffer_pop it cannot start (nw_buffer_push 0x517780 needs /O2).
+#ifdef _MSC_VER
+#pragma optimize("w", on)
+#endif
+// 0x518ce0  Confidence: exact (VC6 8966 byte match under the /Ow pragma, D14204) (the found branch inside the loop, the address through a local, D6803).
 int nw_accept_reliable(net_addr *from)
 {
     char addr_text[64];
@@ -836,7 +842,7 @@ int nw_accept_reliable(net_addr *from)
     }
     return -1;}
 
-// 0x518d70  Confidence: likely (VC6: same size, the registers of the two copies differ). Sends one data packet on a
+// 0x518d70  Confidence: exact (VC6 8966 byte match under the /Ow pragma, D14204). Sends one data packet on a
 // connected link
 // and keeps a copy until it is acknowledged (nw_WorkReliable resends it). A send that would block is
 // back-dated by 3 s so that the first resend comes early. 0 without a socket, for a bad id, a link that
@@ -891,7 +897,7 @@ int nw_NewSendReliable(int socket, const void *data, int len)
     return 0;
 }
 
-// 0x518f30  Confidence: likely (the loop: the reply path skips the start-time wrap update).
+// 0x518f30  Confidence: exact (VC6 8966 byte match under the /Ow pragma, D14204) (the loop: the reply path skips the start-time wrap update).
 // Sends the connection request every 2 s until an ACK with NW_CONNECT_SEQ arrives or 100 s pass, then
 // opens a LIMBO link, sends IAMHERE and runs nw_WorkReliable for up to 2 s waiting for the ACK.
 // Defect: when the IAMHERE send fails the slot is cleared but nw_server_socket and *socket keep its index.
@@ -977,7 +983,7 @@ void nw_ConnectToServer(int *socket, net_addr *server)
     } while (nw_reliable_sockets[i].status != RNF_CONNECTED);
 }
 
-// 0x5191c0  Confidence: likely (VC6: same size; the socket pointer is not kept in ebx from the start). Frees the
+// 0x5191c0  Confidence: likely (D14205: the binary's layout; the socket pointer is not kept in ebx from the start). Frees the
 // link's buffers, tells the
 // peer (RNT_DISCONNECT with the connect sequence) and clears the record; *socket becomes -1. Without the
 // UDP socket only the buffers are freed. The send-buffer branch clears rsequence[i], not ssequence[i]
@@ -988,38 +994,37 @@ void nw_NewCloseSocket(int *socket)
     reliable_header close_packet;
     int i;
 
-    if ((unsigned int)*socket >= NW_MAX_RELIABLE_SOCKETS) {
+    if ((unsigned int)*socket < NW_MAX_RELIABLE_SOCKETS) {
+        sprintf(msg, "Closing socket %d\n", *socket);
+        Mempool *old_pool = get_current_mempool();
+        set_current_mempool(NULL);
+        for (i = 0; i < NW_MAX_NET_BUFFERS; i++) {
+            if (nw_reliable_sockets[*socket].rbuffers[i]) {
+                delete nw_reliable_sockets[*socket].rbuffers[i];
+                nw_reliable_sockets[*socket].rbuffers[i] = NULL;
+                nw_reliable_sockets[*socket].rsequence[i] = 0;
+            }
+            if (nw_reliable_sockets[*socket].sbuffers[i]) {
+                delete nw_reliable_sockets[*socket].sbuffers[i];
+                nw_reliable_sockets[*socket].sbuffers[i] = NULL;
+                nw_reliable_sockets[*socket].rsequence[i] = 0;
+            }
+        }
+        set_current_mempool(old_pool);
+        close_packet.type = RNT_DISCONNECT;
+        close_packet.seq = NW_CONNECT_SEQ;
+        close_packet.data_len = 0;
+        if (*socket == nw_server_socket)
+            nw_server_socket = -1;
+        if (nw_socket) {
+            nw_send_packet(&close_packet, NW_RELIABLE_HEADER_SIZE, 0, &nw_reliable_sockets[*socket].addr, NW_TYPE_RELIABLE);
+            i = *socket;
+            *socket = -1;
+            memset(&nw_reliable_sockets[i], 0, sizeof(reliable_socket));
+            nw_reliable_sockets[i].status = RNF_UNUSED;
+        }
+    } else
         sprintf(msg, "Invalid socket id passed to nw_NewCloseSocket() -- %d\n", *socket);
-        return;
-    }
-    sprintf(msg, "Closing socket %d\n", *socket);
-    Mempool *old_pool = get_current_mempool();
-    set_current_mempool(NULL);
-    for (i = 0; i < NW_MAX_NET_BUFFERS; i++) {
-        if (nw_reliable_sockets[*socket].rbuffers[i]) {
-            delete nw_reliable_sockets[*socket].rbuffers[i];
-            nw_reliable_sockets[*socket].rbuffers[i] = NULL;
-            nw_reliable_sockets[*socket].rsequence[i] = 0;
-        }
-        if (nw_reliable_sockets[*socket].sbuffers[i]) {
-            delete nw_reliable_sockets[*socket].sbuffers[i];
-            nw_reliable_sockets[*socket].sbuffers[i] = NULL;
-            nw_reliable_sockets[*socket].rsequence[i] = 0;
-        }
-    }
-    set_current_mempool(old_pool);
-    close_packet.type = RNT_DISCONNECT;
-    close_packet.seq = NW_CONNECT_SEQ;
-    close_packet.data_len = 0;
-    if (*socket == nw_server_socket)
-        nw_server_socket = -1;
-    if (!nw_socket)
-        return;
-    nw_send_packet(&close_packet, NW_RELIABLE_HEADER_SIZE, 0, &nw_reliable_sockets[*socket].addr, NW_TYPE_RELIABLE);
-    i = *socket;
-    *socket = -1;
-    memset(&nw_reliable_sockets[i], 0, sizeof(reliable_socket));
-    nw_reliable_sockets[i].status = RNF_UNUSED;
 }
 
 // 0x519370  Confidence: exact.

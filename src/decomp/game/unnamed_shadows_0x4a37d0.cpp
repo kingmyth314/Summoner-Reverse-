@@ -386,7 +386,8 @@ struct shadow_vertex_buffer {
     ~shadow_vertex_buffer() {}
 };
 
-// 0x4a46a0  Confidence: likely (the vertex buffer type). Clips the face to the frustum, then per vertex
+// 0x4a46a0  Confidence: likely (the vertex buffer type; D14603: pr and world built in place, the alpha clamp
+// through float_min / float_max give the binary's frame and clamp; the vertex pointer register differs). Clips the face to the frustum, then per vertex
 // the view-space vertex (pushed 0.07 towards the viewer), the projected uv and the alpha (255 in
 // full_alpha mode, else fading over the depth range). Returns the buffer and *count, NULL when clipped
 // away.
@@ -394,7 +395,7 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
 {
     static shadow_vertex_buffer buf;          // 0x245ed98 (guard byte 0x245ce10)
     vector3 clipped[32];
-    vector3 d, pr, world, w;
+    vector3 d;
     gr_vertex *v;
     float f;
     int i;
@@ -408,11 +409,8 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
         d.x = clipped[i].x - s->local_pos.x;
         d.y = clipped[i].y - s->local_pos.y;
         d.z = clipped[i].z - s->local_pos.z;
-        pr = d.rotated(s->local_orient);
-        w = clipped[i].unrotated(l->orient);
-        world.x = w.x + l->pos.x;
-        world.y = w.y + l->pos.y;
-        world.z = w.z + l->pos.z;
+        vector3 pr = d.rotated(s->local_orient);
+        vector3 world = clipped[i].unrotated(l->orient) + l->pos;
         gr_rotate_vertex(v, &world);
         gr_offset_point_depth(v, -0.07f);
         v->u = (pr.x / (pr.y * s->tan_fov) + 1.0f) * 0.5f;
@@ -421,13 +419,7 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
             v->a = 0xff;
         } else {
             f = 1.5f - (pr.y - s->near_dist) * 1.5f / (s->far_dist - s->near_dist);
-            if (f > 0.0f) {
-                if (f >= 1.0f)
-                    f = 1.0f;
-            } else {
-                f = 0.0f;
-            }
-            v->a = (ubyte)(sqrt(f) * 255.0f);
+            v->a = (ubyte)((float)sqrt(float_min(float_max(f, 0.0f), 1.0f)) * 255.0f);
         }
     }
     (void)face;
@@ -527,7 +519,8 @@ int shadow_collect_for_lobj(lobj *l, shadow_record **list, int *count)
     return n;
 }
 
-// 0x4a4bb0  Confidence: likely (the stage byte goes through a char pointer). Ray against the level
+// 0x4a4bb0  Confidence: likely (the stage byte goes through a char pointer; D14604: first is block-scoped so
+// 8966 keeps it in the dead hit argument slot, as the binary; ESI / EDI still swapped). Ray against the level
 // objects: with no attachment entries every object from *index on (unless attach_only); else the
 // attachment, opaque and sorted draw lists in turn (*stage 0, 1, 2), objects within the fog distance and
 // at least ray->min_radius big. On a hit *index is the next position to resume from; returns the hit
@@ -537,7 +530,6 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
     levelrender_entry *e;
     char local_stage;
     float fog_far;
-    bool first;
     int local_index, i;
 
     fog_far = fog_get_far_current();
@@ -549,10 +541,11 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
         local_stage = 0;
         blocked = (bool *)&local_stage;
     }
-    first = true;
     hit->num_hits = 0;
     hit->_unk20 = 0;
     hit->_unk28 = 0;
+    {
+    bool first = true;
     if (levelrender_attach_count <= 0) {
         if (attach_only)
             return 0;
@@ -619,6 +612,7 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
         }
     }
     return 0;
+    }
 }
 
 // 0x4a4e60  Confidence: exact. Static member, cdecl: both components within 0.001.

@@ -1006,7 +1006,7 @@ int pxochat_handle_click(int key)
     for (i = 0; i < PXOCHAT_NUM_BUTTONS; i++) {
         ui_button_def *d = &pxochat_button_defs[i];
         ui_button_state *b = &pxochat_buttons[i];
-        if (((d->flags >> 2) & 1) == pxochat_channel_input_active
+        if (pxochat_channel_input_active == (((unsigned)d->flags >> 2) & 1)
             && !(b->flags & 4)
             && (d->flags & 3)
             && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {

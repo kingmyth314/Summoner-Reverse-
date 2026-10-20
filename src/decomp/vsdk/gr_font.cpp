@@ -243,7 +243,7 @@ int gr_font_create(const char *name)
         return -1;
 
     int num_pixels;
-    switch (f->format) {
+    switch ((unsigned)f->format) {
     default:
         return -1;
     case FONT_FORMAT_RGB16:
@@ -270,8 +270,8 @@ int gr_font_create(const char *name)
     f->char_x_coords = new int[f->num_chars];
     f->char_y_coords = new int[f->num_chars];
 
-    int x = 0;
     int y = 0;
+    int x = 0;
     for (int c = 0; c < f->num_chars; c++) {
         if (f->chars[c].width + x >= f->bm_width) {
             y += f->height;
@@ -282,7 +282,7 @@ int gr_font_create(const char *name)
         f->char_x_coords[c] = x;
         f->char_y_coords[c] = y;
 
-        switch (f->format) {
+        switch ((unsigned)f->format) {
         case FONT_FORMAT_PAL8: {
             // Palette entry bytes 0..3 -> nibbles 8, 4, 0, 12 (low nibble of each byte), built as
             // ((a << 4 | b) << 4 | c) << 4 | d with 16-bit pieces (MOVZX r16 in the binary).
@@ -291,10 +291,10 @@ int gr_font_create(const char *name)
             for (int row = 0; row < f->height; row++) {
                 for (int col = 0; col < f->chars[c].width; col++) {
                     unsigned int color = pal[*src++];
-                    unsigned short pixel = (unsigned short)((color >> 24) & 0xf);
-                    pixel = (pixel << 4) | (unsigned short)(color & 0xf);
-                    pixel = (pixel << 4) | (unsigned short)((color >> 8) & 0xf);
-                    pixel = (pixel << 4) | (unsigned short)((color >> 16) & 0xf);
+                    unsigned short pixel = (unsigned char)((color >> 24) & 0xf);
+                    pixel = (pixel << 4) | (unsigned char)(color & 0xf);
+                    pixel = (pixel << 4) | (unsigned char)((color >> 8) & 0xf);
+                    pixel = (pixel << 4) | (unsigned char)((color >> 16) & 0xf);
                     f->bm_bits[(row + y) * f->bm_width + col + x] = pixel;
                 }
             }
@@ -565,9 +565,9 @@ char *gr_font_fit_string(int *split_at, char *s, int max_w, int font)
     return &s[i];
 }
 
-// 0x509130  Confidence: unsure (shape of the line break: the '\n' case and the overflow case
-// share one block in the binary, END in EAX; written with an end local, the original may have
-// duplicated the block or used a goto). Control flow, call order and constants follow the binary.
+// 0x509130  Confidence: exact (D14103: the '\n' case and the overflow case each have their own
+// line-end block, as FreeSpace's split_str; 8966 merges them into the binary's one block with END in
+// EAX; the overflow test is `w >= max_w` with the break-point case first).
 // Splits s into at most max_lines lines of width < max_w: offset_array[n] / len_array[n] are the
 // start and length of line n; returns the line count. Breaks at the last space run (not before
 // French : ? ! punctuation) or after a '-'. ignore_char starts a run that is skipped up to the next
@@ -610,48 +610,53 @@ int gr_split_str(int *len_array, int *offset_array, const char *s, int max_w, in
             continue;
         }
 
-        int end;
         if (s[i] == '\n') {
-            end = i;
-        } else {
-            if (s[i] == ignore_char) {
-                skipping = 1;
-                continue;
-            }
-            if (i > 0 && s[i - 1] == '-')
-                last_break = i;
-            if (gr_font_is_space(s[i]) && !gr_font_french_punct(s[i + 1])) {
-                if (!in_space)
-                    last_break = i;
-                in_space = 1;
-            } else {
-                in_space = 0;
-            }
-
-            buf[buf_len++] = s[i];
-            buf[buf_len] = 0;
-            gr_get_string_size(&w, &h, buf, -1, font);
-            if (w < max_w)
-                continue;
-
-            if (last_break < 0) {
-                end = i;
-                i--;                        // this character starts the next line
-            } else {
-                end = last_break;
-                if (last_break > 0 && s[last_break - 1] == '-')
-                    i = last_break - 1;     // keep the hyphen; the next line starts at last_break
-                else
-                    i = last_break;         // drop the space
-            }
+            len_array[num_lines] = i - offset_array[num_lines];
+            num_lines++;
+            offset_array[num_lines] = -1;
+            new_line = 1;
+            memset(buf, 0, sizeof(buf));
+            buf_len = 0;
+            continue;
         }
 
-        len_array[num_lines] = end - offset_array[num_lines];
-        num_lines++;
-        offset_array[num_lines] = -1;
-        new_line = 1;
-        memset(buf, 0, sizeof(buf));    // rep stosd after the two stores above
-        buf_len = 0;
+        if (s[i] == ignore_char) {
+            skipping = 1;
+            continue;
+        }
+        if (i > 0 && s[i - 1] == '-')
+            last_break = i;
+        if (gr_font_is_space(s[i]) && !gr_font_french_punct(s[i + 1])) {
+            if (!in_space)
+                last_break = i;
+            in_space = 1;
+        } else {
+            in_space = 0;
+        }
+
+        buf[buf_len++] = s[i];
+        buf[buf_len] = 0;
+        gr_get_string_size(&w, &h, buf, -1, font);
+        if (w >= max_w) {
+            int end;
+            if (last_break >= 0) {
+                end = last_break;
+                if (last_break > 0 && s[last_break - 1] == '-')
+                    i = last_break - 1;
+                else
+                    i = last_break;
+            } else {
+                end = i;
+                i--;
+            }
+            len_array[num_lines] = end - offset_array[num_lines];
+            num_lines++;
+            offset_array[num_lines] = -1;
+            new_line = 1;
+            memset(buf, 0, sizeof(buf));
+            buf_len = 0;
+            continue;
+        }
     }
 
     if (offset_array[num_lines] >= 0) {

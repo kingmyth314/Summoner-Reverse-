@@ -178,7 +178,11 @@ void spline::set_points(int n, const vector3 *pts)
     points[num_points + 1] = points[num_points] + (points[num_points] - points[num_points - 1]) * 0.1f;
 }
 
-// 0x558f40  Confidence: likely (VC6 commutes the first sum; the weights stay in the FPU / frame).
+// 0x558f40  Confidence: likely (VC6 commutes the first sum; the weights stay in the FPU / frame. D15303:
+// i incremented after u (the binary's `inc eax`), the x sum's two far points indexed from points, and the
+// products with negative constants parenthesised, so 8966 keeps the -0.5 / -2.5 / -1.5 multiplies instead
+// of folding them into subtractions; left: the two pops are scheduled before the y sum's last add in the
+// binary, after the z sum's in ours).
 void spline::eval(vector3 *out, float t)
 {
     int i;
@@ -196,14 +200,15 @@ void spline::eval(vector3 *out, float t)
     }
     i = (int)floor(t);
     u = t - i;
+    i++;
     u2 = u * u;
     u3 = u2 * u;
-    b0 = -0.5f * u3 + u2 - 0.5f * u;
-    b1 = 1.5f * u3 + -2.5f * u2 + 1.0f;
-    b2 = -1.5f * u3 + (u2 + u2) + 0.5f * u;
+    b0 = (-0.5f * u3) + u2 - 0.5f * u;
+    b1 = (1.5f * u3) + (-2.5f * u2) + 1.0f;
+    b2 = (-1.5f * u3) + (u2 + u2) + 0.5f * u;
     b3 = 0.5f * u3 - 0.5f * u2;
-    p = &points[i + 1];
-    out->x = b3 * p[2].x + b2 * p[1].x + b0 * p[-1].x + b1 * p[0].x;
+    p = &points[i];
+    out->x = b3 * points[i + 2].x + b2 * points[i + 1].x + b0 * p[-1].x + b1 * p[0].x;
     out->y = b3 * p[2].y + b2 * p[1].y + b1 * p[0].y + b0 * p[-1].y;
     out->z = b3 * p[2].z + b2 * p[1].z + b1 * p[0].z + b0 * p[-1].z;
 }

@@ -561,7 +561,8 @@ void ai_frame(Character *c)
     }
 }
 
-// 0x472e80  Confidence: likely (the early returns' order). True skips the rest of the character's AI
+// 0x472e80  Confidence: exact (m-1020c w4, D14306: the visible tail written out in the obj_flags 2 block and
+// at the end with `&=`, no goto, so 8966 cross-jumps the end into the first copy as Sum.exe does). True skips the rest of the character's AI
 // this frame (off-screen or inactive). In multiplayer the host runs only idle monsters' AI on a
 // 500-750 ms timer; offline, characters outside the view (sphere test with 5 x the bounding radius) or
 // not active skip it, and the frame time is reset whenever the AI runs.
@@ -596,8 +597,10 @@ bool ai_update_perception(Character *c)
     if ((game_flags & GF_CUTSCENE) && c->cutscene_object >= 0)
         return false;
     if (c->obj_flags & 2) {
-        if (f & 0x40)
-            goto visible;
+        if (f & 0x40) {
+            c->ai.flags = f & ~0x40;
+            c->frametime = reported_frametime;
+        }
         return false;
     }
     if (c->ai.is_mode(AI_STATE_COMBAT, -1))
@@ -628,13 +631,11 @@ bool ai_update_perception(Character *c)
     centre.z += c->pos.z;
     radius *= 5.0f;
     culled = gr_cull_sphere(&centre, radius, 0);
-    f = c->ai.flags;
     if (culled == true) {
-        c->ai.flags = f & ~8;
+        c->ai.flags &= ~8;
         return true;
     }
-visible:
-    c->ai.flags = f & ~0x40;
+    c->ai.flags &= ~0x40;
     c->frametime = reported_frametime;
     return false;
 skip:

@@ -72,15 +72,15 @@ float gl_scale_2f13360;                               // 0x2f13360
 // of the power-of-two texture (tex_w x tex_h) and the rest is zero. Two styles: the per-texel test
 // (x < bm_w && y < bm_h) and the 16.16 "resampling" loops whose step is a whole texel.
 
-// 0x54d5c0  Confidence: likely (D12601: one operand order left, [esi + ecx] against ours [ecx + esi]).
+// 0x54d5c0  Confidence: exact (D14100: the texel is src[y * bm_w + x]; 8966 strength-reduces it into the binary's [esi + ecx]).
 // BM_FORMAT_8_ALPHA: white with the gamma-corrected alpha.
 void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     uint *d = (uint *)dst;
-    for (int y = 0; y < tex_h; y++, src += bm_w) {
+    for (int y = 0; y < tex_h; y++) {
         for (int x = 0; x < tex_w; x++) {
             if (x < bm_w && y < bm_h)
-                *d++ = (gr_gamma_ramp[src[x]] << 24) | 0xffffff;
+                *d++ = (gr_gamma_ramp[src[y * bm_w + x]] << 24) | 0xffffff;
             else
                 *d++ = 0;
         }
@@ -167,7 +167,7 @@ void gl_convert_888_to_rgb888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *s
     }
 }
 
-// 0x54d8d0  Confidence: likely (loop shape as 0x54d630).
+// 0x54d8d0  Confidence: exact (D14105: each channel reads the texel through a pointer to it, *sp; loop shape as 0x54d630).
 // BM_FORMAT_4444 (A in the top nibble, then R, G, B) to RGBA bytes.
 void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -178,11 +178,11 @@ void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
         uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
-            uint p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
-            int a = (int)((p >> 12) * 255) / 15;
-            int b = (int)((p & 0xf) * 255) / 15;
-            int g = (int)(((p >> 4) & 0xf) * 255) / 15;
-            int r = (int)(((p >> 8) & 0xf) * 255) / 15;
+            ushort *sp = &s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
+            int a = (int)((*sp >> 12) * 255) / 15;
+            int b = (int)((*sp & 0xf) * 255) / 15;
+            int g = (int)(((*sp >> 4) & 0xf) * 255) / 15;
+            int r = (int)(((*sp >> 8) & 0xf) * 255) / 15;
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
@@ -197,7 +197,7 @@ void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54da80  Confidence: likely (loop shape as 0x54d630).
+// 0x54da80  Confidence: likely (D14105: closer with p and a pointer sp to the same texel; the alpha computation is scheduled later than in the binary).
 // BM_FORMAT_1555 to RGBA bytes. A set top bit means transparent (alpha 0), as in gl_convert_1555_to_rgba5551.
 void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -209,8 +209,9 @@ void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             ushort p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
-            int a = (p & 0x8000) ? 0 : 0xff;
-            int b = (int)((p & 0x1f) * 255) / 31;
+            ushort *sp = &s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
+            int a = (*sp & 0x8000) ? 0 : 0xff;
+            int b = (int)((*sp & 0x1f) * 255) / 31;
             int g = (int)(((p >> 5) & 0x1f) * 255) / 31;
             int r = (int)(((p >> 10) & 0x1f) * 255) / 31;
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
@@ -227,7 +228,7 @@ void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54dc20  Confidence: likely (loop shape as 0x54d630). No caller.
+// 0x54dc20  Confidence: exact (D14105: the texel read through *sp in each channel). No caller.
 // sum.symbols calls it the 1555 variant, but it decodes 565 (6-bit green at bit 5, red at bit 11) to
 // opaque RGBA (D1303).
 void gl_convert_1555_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
@@ -239,10 +240,10 @@ void gl_convert_1555_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w
         uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
-            uint p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
-            int g = (int)(((p >> 5) & 0x3f) * 255) / 63;
-            int b = (int)((p & 0x1f) * 255) / 31;
-            int r = (int)((p >> 11) * 255) / 31;
+            ushort *sp = &s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
+            int g = (int)(((*sp >> 5) & 0x3f) * 255) / 63;
+            int b = (int)((*sp & 0x1f) * 255) / 31;
+            int r = (int)((*sp >> 11) * 255) / 31;
             *d++ = (((((0xff << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
@@ -1211,12 +1212,12 @@ void gr_opengl_set_viewport()
 
 // ---- drawing ------------------------------------------------------------------------------------------
 
-// 0x54f9a0  Confidence: likely (operand order of the sum).
+// 0x54f9a0  Confidence: exact (D14102: the sum is an int; 8966 converts it once and keeps the float in the dead argument slot).
 // Each channel becomes (r + g + b) * tint factor. The result is truncated to a byte before
 // clamp_ubyte runs, so the clamp never changes anything and bright colours wrap around.
 void gr_opengl_apply_tint(ubyte *rgb)
 {
-    float sum = (float)(rgb[0] + rgb[2] + rgb[1]);
+    int sum = rgb[0] + rgb[2] + rgb[1];
     rgb[0] = (ubyte)(sum * gr_tint_r);
     clamp_ubyte(&rgb[0], 0, 255);
     rgb[1] = (ubyte)(sum * gr_tint_g);
@@ -1397,7 +1398,7 @@ void gl_setup_multitexture_state()
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
-// 0x550080  Confidence: likely (the texture coordinate statements' operand order).
+// 0x550080  Confidence: exact (D14101: per-vertex element pointers p, t, c; t[3] assigned inside the first product).
 // (nv, verts, mode) with gr_texture: one GL_POLYGON from up to 30 projected vertices. Vertex flags
 // (+0x1a): 1 texture coordinates (projective: u * w, v * w, 0, w), 4 vertex colour (through
 // gr_color_gamma_lut), 8 vertex alpha; otherwise gr_color. Coordinates of vertices without flag 1 are
@@ -1411,36 +1412,38 @@ void gr_opengl_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
     gr_opengl_set_bitmap(mode, gr_texture, 0);
     for (int i = 0; i < nv; i++) {
         gr_vertex *v = verts[i];
+        vector3 *p = &pts[i];
+        float *t = tc[i];
+        ubyte *c = colors[i];
         if (gr_opengl_vertex_alpha)
-            colors[i][3] = 255;
+            c[3] = 255;
         else if (v->_unk1a & 8)
-            colors[i][3] = v->a;
+            c[3] = v->a;
         else
-            colors[i][3] = gr_color.a;
+            c[3] = gr_color.a;
         if (gr_opengl_vertex_color) {
-            colors[i][0] = 255;
-            colors[i][1] = 255;
-            colors[i][2] = 255;
+            c[0] = 255;
+            c[1] = 255;
+            c[2] = 255;
         } else if (v->_unk1a & 4) {
-            colors[i][0] = (ubyte)gr_color_gamma_lut[v->r];
-            colors[i][1] = (ubyte)gr_color_gamma_lut[v->g];
-            colors[i][2] = (ubyte)gr_color_gamma_lut[v->b];
+            c[0] = (ubyte)gr_color_gamma_lut[v->r];
+            c[1] = (ubyte)gr_color_gamma_lut[v->g];
+            c[2] = (ubyte)gr_color_gamma_lut[v->b];
         } else {
-            colors[i][0] = gr_color.r;
-            colors[i][1] = gr_color.g;
-            colors[i][2] = gr_color.b;
+            c[0] = gr_color.r;
+            c[1] = gr_color.g;
+            c[2] = gr_color.b;
         }
         if (gr_tint_enabled)
-            gr_opengl_apply_tint(colors[i]);
+            gr_opengl_apply_tint(c);
         if (verts[i]->_unk1a & 1) {
-            tc[i][3] = v->sw;
-            tc[i][2] = 0.0f;
-            tc[i][0] = tc[i][3] * v->u * gr_opengl_texture_u_scale;
-            tc[i][1] = gr_opengl_texture_v_scale * v->v * tc[i][3];
+            t[2] = 0.0f;
+            t[0] = (t[3] = v->sw) * v->u * gr_opengl_texture_u_scale;
+            t[1] = t[3] * (gr_opengl_texture_v_scale * v->v);
         }
-        pts[i].x = v->sx;
-        pts[i].y = v->sy;
-        pts[i].z = gr_vertex_depth(v);
+        p->x = v->sx;
+        p->y = v->sy;
+        p->z = gr_vertex_depth(v);
     }
     gl_active_texture_arb(GL_TEXTURE0_ARB);
     gl_client_active_texture_arb(GL_TEXTURE0_ARB);

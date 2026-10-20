@@ -276,17 +276,17 @@ void ls_khosanilab_puzzle_trace_beam(const ls_khosanilab_cell *start, int dir, b
 {
     ls_khosanilab_cell cur, next, a, b, c;
     vector2 fb, fc, from, to;
-    int start_dir = dir;
-    int back_dir;
     bool first = true;
 
     ls_khosanilab_puzzle_turn_dirs(&a, &b, &c, &fb, &fc, dir);
+    int start_dir = dir;
     cur = *start;
     ls_khosanilab_puzzle_corner_nn(&from, &cur, &fb, &fc, state);
     while (cur.x != start->x || cur.y != start->y || dir != start_dir || first) {
         first = false;
-        next.x = cur.x + a.x;
-        next.y = cur.y + a.y;
+        next = cur;
+        next.x += a.x;
+        next.y += a.y;
         if (ls_khosanilab_puzzle_cell_open(&next, state)) {
             ls_khosanilab_puzzle_choose_turn(&cur, dir, 0, state);
             ls_khosanilab_puzzle_corner_nn(&to, &cur, &fb, &fc, state);
@@ -299,15 +299,17 @@ void ls_khosanilab_puzzle_trace_beam(const ls_khosanilab_cell *start, int dir, b
             cur = next;
             continue;
         }
-        next.x = cur.x + b.x;
-        next.y = cur.y + b.y;
+        next = cur;
+        next.x += b.x;
+        next.y += b.y;
         if (ls_khosanilab_puzzle_cell_open(&next, state)) {
             ls_khosanilab_puzzle_choose_turn(&cur, dir, 1, state);
             cur = next;
             continue;
         }
-        next.x = cur.x + c.x;
-        next.y = cur.y + c.y;
+        next = cur;
+        next.x += c.x;
+        next.y += c.y;
         if (ls_khosanilab_puzzle_cell_open(&next, state)) {
             ls_khosanilab_puzzle_choose_turn(&cur, dir, 2, state);
             ls_khosanilab_puzzle_corner_np(&to, &cur, &fb, &fc, state);
@@ -324,9 +326,12 @@ void ls_khosanilab_puzzle_trace_beam(const ls_khosanilab_cell *start, int dir, b
         ls_khosanilab_puzzle_choose_turn(&cur, dir, 3, state);
         ls_khosanilab_puzzle_corner_np(&to, &cur, &fb, &fc, state);
         ls_khosanilab_puzzle_emit_segment(&from, &to, state);
-        ls_khosanilab_puzzle_reflect_dir(&back_dir, &c);
-        if (cur.x == start->x && cur.y == start->y && back_dir == start_dir)
-            return;
+        {
+            int back_dir;
+            ls_khosanilab_puzzle_reflect_dir(&back_dir, &c);
+            if (cur.x == start->x && cur.y == start->y && back_dir == start_dir)
+                return;
+        }
         from = to;
         ls_khosanilab_puzzle_corner_pp(&to, &cur, &fb, &fc, state);
         ls_khosanilab_puzzle_emit_segment(&from, &to, state);
@@ -430,8 +435,8 @@ void ls_khosanilab_puzzle_corner_np(vector2 *out, const ls_khosanilab_cell *cell
     v2_set(out, out->x + t.x, out->y + t.y);
 }
 
-// 0x4f8100  Confidence: likely (as corner_nn, D12100; only the first y sum differs: the binary loads t.y
-// and adds the centre, 8966 keeps the centre first for every operand order and operator form tried). centre + s * d2 + s * d1.
+// 0x4f8100  Confidence: exact (as corner_nn, D12100; D14106: the first y sum reads t.y through a float
+// local, `ty + out->y`, which gives the binary's t.y-first load). centre + s * d2 + s * d1.
 void ls_khosanilab_puzzle_corner_pp(vector2 *out, const ls_khosanilab_cell *cell, const vector2 *d1,
                                     const vector2 *d2, bool inner)
 {
@@ -442,7 +447,8 @@ void ls_khosanilab_puzzle_corner_pp(vector2 *out, const ls_khosanilab_cell *cell
     if (!inner)
         s = 0.7f;
     vector2 t = s * *d2;
-    v2_set(out, out->x + t.x, out->y + t.y);
+    float ty = t.y;
+    v2_set(out, out->x + t.x, ty + out->y);
     t = s * *d1;
     v2_set(out, out->x + t.x, out->y + t.y);
 }

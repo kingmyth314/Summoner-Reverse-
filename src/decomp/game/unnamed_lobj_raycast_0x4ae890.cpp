@@ -40,7 +40,9 @@ struct lobj_bsp_node {
 s3d_face *lobj_last_hit_face;               // 0x247e81c
 int lobj_last_hit_index;                    // 0x247e820
 
-// 0x4ae890  Confidence: likely (the order of the two rotated temporaries). Tests one level object: its
+// 0x4ae890  Confidence: exact (VC6 8966 strict match, D15300: one local d for both rotated inputs, the
+// second assigned (temporary + copy) from dir + start - pos, and the second rotated result in a named
+// local r; frame 0x30 as the binary). Tests one level object: its
 // flags against the ray's require / exclude masks, then the one face of ray->face (flag 2) or the tree.
 // An object whose tree is empty (block +0x08 == 0) is skipped.
 void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear)
@@ -60,9 +62,11 @@ void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear)
     if (g->block._unk08 == 0)
         return;
 
-    ray->local_start = (ray->start - l->pos).rotated(l->orient);
-    vector3 end = ray->start + ray->dir;
-    ray->local_dir = (end - l->pos).rotated(l->orient) - ray->local_start;
+    vector3 d = ray->start - l->pos;
+    ray->local_start = d.rotated(l->orient);
+    d = ray->dir + ray->start - l->pos;
+    vector3 r = d.rotated(l->orient);
+    ray->local_dir = r - ray->local_start;
 
     if (ray->flags & 2)
         lobj_ray_test_geometry(ray->face, g, lobj_index, ray, hit);
@@ -79,8 +83,9 @@ void lobj_ray_test_geometry(s3d_face *face, s3d_geometry *g, int lobj_index, lob
         lobj_sphere_test_faces(face, g, lobj_index, ray, hit);
 }
 
-// 0x4aea50  Confidence: likely (the operand order of the dot product and of the centroid sum; the centroid
-// and the vertex list share stack slots, so they are in separate scopes). A face seen from behind counts
+// 0x4aea50  Confidence: exact (VC6 8966 strict match, D15302: the centroid set component by component,
+// x first, as the binary stores it; the centroid and the vertex list share stack slots, so they are in
+// separate scopes). A face seen from behind counts
 // only with face flag 0x200 (D5215), with the normal turned. Keeps the nearest hit.
 void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_ray *ray, lobj_hit *hit)
 {
@@ -98,8 +103,10 @@ void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_r
         vector3 *p0 = &g->vertices[face->v[0]];
         vector3 *p1 = &g->vertices[face->v[1]];
         vector3 *p2 = &g->vertices[face->v[2]];
-        vector3 centre((p2->x + p1->x + p0->x) * (1.0f / 3.0f), (p2->y + p1->y + p0->y) * (1.0f / 3.0f),
-                       (p2->z + p1->z + p0->z) * (1.0f / 3.0f));
+        vector3 centre;
+        centre.x = (p2->x + p1->x + p0->x) * (1.0f / 3.0f);
+        centre.y = (p2->y + p1->y + p0->y) * (1.0f / 3.0f);
+        centre.z = (p2->z + p1->z + p0->z) * (1.0f / 3.0f);
         if (!ix_ray_polygon(&ixh, &ray->local_start, &ray->local_dir, &centre, &n))
             return;
     }
@@ -124,7 +131,9 @@ void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_r
 }
 
 // 0x4aec20  Confidence: likely (the in-range flag: VC6 left a dead second compare of t with 1.0 in the
-// t < 0 path; the parameter slots are reused for t, span and the second t). The sphere against the face's
+// t < 0 path; the parameter slots are reused for t, span and the second t; D15302: the centre set
+// component by component, x first, as the binary stores it; left: that dead compare and the frame,
+// 0x38 against 0x34). The sphere against the face's
 // plane (inside the triangle), else against its edges and vertices (hit +0x20 = 1; no normal, the two
 // globals are not written). A plane hit that is farther than the best one falls through to the edge test;
 // an edge hit that is farther still counts (num_hits + 1).
@@ -146,8 +155,10 @@ void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lob
     vector3 *p0 = &g->vertices[face->v[0]];
     vector3 *p1 = &g->vertices[face->v[1]];
     vector3 *p2 = &g->vertices[face->v[2]];
-    vector3 centre((p2->x + p1->x + p0->x) * (1.0f / 3.0f), (p2->y + p1->y + p0->y) * (1.0f / 3.0f),
-                   (p2->z + p1->z + p0->z) * (1.0f / 3.0f));
+    vector3 centre;
+    centre.x = (p2->x + p1->x + p0->x) * (1.0f / 3.0f);
+    centre.y = (p2->y + p1->y + p0->y) * (1.0f / 3.0f);
+    centre.z = (p2->z + p1->z + p0->z) * (1.0f / 3.0f);
     if (!ix_sphere_polygon_plane(&touch, &ray->local_start, &ray->local_dir, ray->_unk18, &n, &centre, &t, &span))
         return;
 

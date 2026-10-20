@@ -1161,7 +1161,8 @@ bool skill_is_available(int skill, Character *c)
 }
 
 // 0x429410  Confidence: likely (match31: the hide / sneak test as if / else-if with a goto past the payment;
-// still differs at the appraise root, which the binary keeps as a dead store in the target slot; the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
+// the appraise root needs no variable: 8966 itself stores the sqrt in the dead target slot (D15203); still differs
+// at the pick-lock test (the binary loads door->lock and uses fcompp); the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
 // 0x4297fc / 0x42981c are written as switches; the identify root goes through a dead float store; the
 // two_stage out-values live in the dead argument slots). Pays the AP (not when hide / sneak are toggled off,
 // not for backstab / assess / the summons, which pay later), then: summon skills and backstab / assess wait for a
@@ -1237,13 +1238,12 @@ paid:
         break;
     case SKILL_APPRAISE: {
         ItemType *type;
-        float root;
 
         if (!target)
             return false;
         player_start_skill_cooldown(user, SKILL_APPRAISE);
         type = ((item_info *)target)->type;
-        if (user->get_skill(SKILL_APPRAISE) > (root = (float)sqrt((double)type->value)) * 0.0014084507f)
+        if (user->get_skill(SKILL_APPRAISE) > (float)sqrt((double)type->value) * 0.0014084507f)
             type->flags &= ~1;
         break;
     }

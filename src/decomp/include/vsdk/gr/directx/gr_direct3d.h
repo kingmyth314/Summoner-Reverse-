@@ -170,7 +170,8 @@ extern int d3d_num_ddraw_devices;                     // 0x2dc6cac
 extern int d3d_num_3d_devices;                        // 0x2dc6cb0
 
 void gr_d3d_set_render_state(DWORD state, DWORD value);   // 0x538740
-void gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWORD flags);   // 0x538760
+// D15304: returns the DrawPrimitiveVB / DrawPrimitive result (EAX kept through the epilogue); no caller reads it.
+HRESULT gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWORD flags);   // 0x538760
 d3d_device_record *d3d_enumerate_ddraw_devices();     // 0x538850 the last 3D device found, or NULL
 HRESULT CALLBACK d3d_enum_devices_callback(LPSTR description, LPSTR name, D3DDEVICEDESC7 *desc,
                                            LPVOID context);                  // 0x538920

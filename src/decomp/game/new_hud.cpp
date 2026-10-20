@@ -229,7 +229,8 @@ GameTimer hud_camera_mode_timer;                              // 0x5bd0cc (init_
 // evaluates an argument that is a call before the others, and the binary loads the slot argument first.
 #define hud_member() (hud_portrait_slots[hud_selected_portrait].species)
 
-// 0x40cc10  Confidence: likely (status_load_bitmaps shape plus the '.' test; filename is 0x80 bytes, the
+// 0x40cc10  Confidence: exact (VC6 8966 byte match with the button and its definition through pointers b and d,
+// D15201; status_load_bitmaps shape plus the '.' test; filename is 0x80 bytes, the
 // binary's frame 0x8c, D11901; the flag switch is the jump table 0x40cea4 / byte table 0x40ceac over i <= 59).
 void hud_load_bitmaps()
 {
@@ -237,42 +238,44 @@ void hud_load_bitmaps()
     int i;
 
     for (i = 0; i < HUD_NUM_BUTTONS; i++) {
+        ui_button_state *b = &hud_buttons[i];
+        ui_button_def *d = &hud_button_defs[i];
         bool scaled;
 
-        hud_buttons[i].flags = 0;
-        hud_buttons[i].bitmap = -1;
-        hud_buttons[i].x = 0;
-        hud_buttons[i].y = 0;
-        hud_buttons[i].w = 0;
-        hud_buttons[i].h = 0;
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(hud_button_defs[i].name)) {
-            scaled = strchr(hud_button_defs[i].name, '.') == NULL;
+        if (strlen(d->name)) {
+            scaled = strchr(d->name, '.') == NULL;
             if (scaled) {
                 char filename[128];
 
-                strcpy(filename, hud_button_defs[i].name);
+                strcpy(filename, d->name);
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-                hud_buttons[i].bitmap = bm_load(filename, path_interface, -1);
+                b->bitmap = bm_load(filename, path_interface, -1);
             } else {
-                hud_buttons[i].bitmap = bm_load(hud_button_defs[i].name, path_interface, -1);
+                b->bitmap = bm_load(d->name, path_interface, -1);
             }
         } else {
             scaled = false;
-            hud_buttons[i].bitmap = -1;
+            b->bitmap = -1;
         }
-        hud_buttons[i].x = hud_button_defs[i].pos[resolution_index][0];
-        hud_buttons[i].y = hud_button_defs[i].pos[resolution_index][1];
-        if (hud_buttons[i].bitmap >= 0) {
-            bm_get_dimensions(hud_buttons[i].bitmap, &hud_buttons[i].w, &hud_buttons[i].h);
+        b->x = d->pos[resolution_index][0];
+        b->y = d->pos[resolution_index][1];
+        if (b->bitmap >= 0) {
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
             if (scaled) {
-                hud_buttons[i].w = (int)(hud_buttons[i].w * scale + 0.5f);
-                hud_buttons[i].h = (int)(hud_buttons[i].h * scale + 0.5f);
+                b->w = (int)(b->w * scale + 0.5f);
+                b->h = (int)(b->h * scale + 0.5f);
             }
         } else {
-            hud_buttons[i].w = 0;
-            hud_buttons[i].h = 0;
+            b->w = 0;
+            b->h = 0;
         }
 
         // Always drawn: the bar, the portrait backgrounds, the pause and hot button backgrounds and the
@@ -280,7 +283,7 @@ void hud_load_bitmaps()
         switch (i) {
         case 0: case 1: case 2: case 3: case 4: case 5:
         case 30: case 40: case 47: case 50: case 53: case 56: case 59:
-            hud_buttons[i].flags |= 1;
+            b->flags |= 1;
             break;
         }
     }
@@ -428,7 +431,8 @@ int hud_frame(int key)
     return key;
 }
 
-// 0x40d160  Confidence: likely (p lives in a stack slot; the "not found" end of the species search jumps
+// 0x40d160  Confidence: exact (VC6 8966 byte match with the highlight button and the clearing loop buttons
+// through pointers, D15201; p lives in a stack slot; the "not found" end of the species search jumps
 // straight to the -1 store, read as a guarded i < 16 test). Portrait states: see hud_portrait_slot.
 void hud_update_portraits()
 {
@@ -483,7 +487,11 @@ void hud_update_portraits()
                 hud_portrait_slots[hud_portrait_count].species = 4;
         }
 
-        hud_buttons[HUD_BTN_PORT_HILITE + 2 * hud_portrait_count].flags &= ~4;
+        {
+            ui_button_state *h = &hud_buttons[HUD_BTN_PORT_HILITE + 2 * hud_portrait_count];
+
+            h->flags &= ~4;
+        }
         if (c == cur_character)
             hud_buttons[HUD_BTN_PORT_SELECTED + hud_portrait_count].flags |= 2;
         else
@@ -514,8 +522,11 @@ void hud_update_portraits()
     }
 
     for (i = hud_portrait_count; i < HUD_NUM_PORTRAITS; i++) {
-        hud_buttons[HUD_BTN_PORTRAIT + i].flags &= ~1;
-        hud_buttons[HUD_BTN_PORT_HILITE + 2 * i].flags |= 4;
+        ui_button_state *b = &hud_buttons[HUD_BTN_PORTRAIT + i];
+        ui_button_state *h = &hud_buttons[HUD_BTN_PORT_HILITE + 2 * i];
+
+        b->flags &= ~1;
+        h->flags |= 4;
         hud_portrait_slots[i].character = 0;
     }
 }
@@ -673,7 +684,9 @@ void hud_confirm_level_exit_cb(int button)
 
 // 0x40d930  Confidence: likely (one switch on the key: the jump table 0x40e02c with the byte table 0x40e064
 // for 0x01-0x39, the jump table 0x40e0a0 for 0x3c-0x45, compares for 0x3b, 0x58, 0x100f, 0x401f, 0x4026;
-// VC6 put id of the number-key case in the dead stack slot of key). The mouse part (hover, clicks starting
+// VC6 put id of the number-key case in the dead stack slot of key; the cases are in the binary's body order,
+// D15205, so it matches up to the Esc case, where the binary keeps the shared 0x23 sound tail and 8966 the
+// quicksave one). The mouse part (hover, clicks starting
 // hud_mouse_mode 1-3, tooltips) is skipped while the left button is held (player_input bit 0x10).
 // Keys: docs/sum-exe/controls.md. Q, Enter, F3, F4, Alt+S and Alt+L need single player (game_flags 1).
 int hud_handle_keys(int key)
@@ -771,15 +784,6 @@ int hud_handle_keys(int key)
     }
 
     switch (key) {
-    case KEY_ESC:
-        if (hud_target_mode != -1) {
-            hud_target_mode = -1;
-            return 0;
-        }
-        hud_key_playmenu();
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
-        return 0;
-
     case KEY_1: case KEY_1 + 1: case KEY_1 + 2: case KEY_1 + 3: case KEY_1 + 4: case KEY_6: {
         int slot, kind, id;
 
@@ -805,10 +809,28 @@ int hud_handle_keys(int key)
         return 0;
     }
 
-    case KEY_TAB:
+    case KEY_C:
         if (cur_level_index == 4)
             break;
-        party_cycle(1);
+        hud_key_spells();
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
+        return 0;
+
+    case KEY_H:
+        if (cur_level_index == 4)
+            break;
+        hud_toggle_solo_mode();
+        game_play_sound(0x2a, 1.0f, 0, 0, 0);
+        return 0;
+
+    case KEY_I:
+        hud_key_inventory();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        return 0;
+
+    case KEY_M:
+        hud_key_automap();
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
 
     case KEY_Q:
@@ -823,9 +845,22 @@ int hud_handle_keys(int key)
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
 
-    case KEY_I:
-        hud_key_inventory();
+    case KEY_S:
+        if (cur_level_index == 4)
+            break;
+        hud_key_skills();
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
+        return 0;
+
+    case KEY_X:
+        hud_interact_nearest();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
+        break;
+
+    case KEY_TAB:
+        if (cur_level_index == 4)
+            break;
+        party_cycle(1);
         return 0;
 
     case KEY_ENTER:
@@ -837,45 +872,23 @@ int hud_handle_keys(int key)
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
 
-    case KEY_S:
-        if (cur_level_index == 4)
-            break;
-        hud_key_skills();
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
-        return 0;
-
-    case KEY_H:
-        if (cur_level_index == 4)
-            break;
-        hud_toggle_solo_mode();
-        game_play_sound(0x2a, 1.0f, 0, 0, 0);
-        return 0;
-
-    case KEY_X:
-        hud_interact_nearest();
+    case KEY_ESC:
+        if (hud_target_mode != -1) {
+            hud_target_mode = -1;
+            return 0;
+        }
+        hud_key_playmenu();
         game_play_sound(0x23, 1.0f, 0, 0, 0);
-        break;
-
-    case KEY_C:
-        if (cur_level_index == 4)
-            break;
-        hud_key_spells();
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
 
-    case KEY_M:
-        hud_key_automap();
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
+    case KEY_F1:
+        hud_key_help();
         return 0;
 
     case KEY_SPACE:
     case KEY_NUMLOCK:
         hud_key_pause();
         game_play_sound(0x26, 1.0f, 0, 0, 0);
-        return 0;
-
-    case KEY_F1:
-        hud_key_help();
         return 0;
 
     case KEY_F2:
@@ -897,15 +910,19 @@ int hud_handle_keys(int key)
     case KEY_F5:
         hud_select_party_member(0);
         return 0;
+
     case KEY_F6:
         hud_select_party_member(1);
         return 0;
+
     case KEY_F7:
         hud_select_party_member(2);
         return 0;
+
     case KEY_F8:
         hud_select_party_member(3);
         return 0;
+
     case KEY_F9:
         hud_select_party_member(4);
         return 0;
@@ -914,10 +931,11 @@ int hud_handle_keys(int key)
         hud_key_camera();
         return 0;
 
-    case KEY_TAB | KEY_SHIFTED:
-        if (cur_level_index == 4)
+    case KEY_L | KEY_CTRLED:
+        if (!(game_flags & 1))
             break;
-        party_cycle(0);
+        quickload();
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
 
     case KEY_S | KEY_CTRLED:
@@ -927,11 +945,10 @@ int hud_handle_keys(int key)
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
 
-    case KEY_L | KEY_CTRLED:
-        if (!(game_flags & 1))
+    case KEY_TAB | KEY_SHIFTED:
+        if (cur_level_index == 4)
             break;
-        quickload();
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
+        party_cycle(0);
         return 0;
     }
     return key;
@@ -2077,8 +2094,8 @@ void draw_game_over()
     gr_string((screen_w - w) / 2, screen_h / 3, text, -1, gr_string_mode);
 }
 
-// 0x4102a0  Confidence: likely (switch 0x4104fc on state - 6; the panel size lives in slots that the string
-// sizes reuse later, read as scoped temporaries; frame: w 0x0, h 0x4, font height 0x8, name 0xc). While a
+// 0x4102a0  Confidence: exact (VC6 8966 byte match with the panel size held in w and h, which the string sizes
+// reuse later, D15201; switch 0x4104fc on state - 6; frame: w 0x0, h 0x4, font height 0x8, name 0xc). While a
 // multiplayer game loads: one line per player with its loading step, and for the host "'F' forces start".
 void mp_draw_loading_status()
 {
@@ -2095,16 +2112,17 @@ void mp_draw_loading_status()
         mp_player *local = mp_local_player;
         Player *p;
         int count = 0;
-        int panel_h, x, y;
+        int x, y;
 
         for (p = party_list.next; p != &party_list; p = p->next)
             count++;
-        panel_h = count * font_h + 2 * ui_choice_popup_margin_y[resolution_index];
+        w = mp_loading_panel_width[resolution_index];
+        h = count * font_h + 2 * ui_choice_popup_margin_y[resolution_index];
         if ((game_flags & 2) && local && (local->flags & 1))
-            panel_h = panel_h + font_h + 5;
-        x = (gr_screen_width() - mp_loading_panel_width[resolution_index]) / 2;
-        y = (gr_screen_height() - panel_h) / 3;
-        ui_draw_panel_frame(x, y, mp_loading_panel_width[resolution_index], panel_h);
+            h = h + font_h + 5;
+        x = (gr_screen_width() - w) / 2;
+        y = (gr_screen_height() - h) / 3;
+        ui_draw_panel_frame(x, y, w, h);
         y += ui_choice_popup_margin_y[resolution_index];
         gr_set_color_ptr(&ui_color_text);
 

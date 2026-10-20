@@ -630,7 +630,7 @@ bool navpoint_get_position(const char *name, vector3 *pos, matrix *orient)
     return false;
 }
 
-// 0x4dc6e0  Confidence: likely (the walk to the last path node). Actions 0-2. "move through" only
+// 0x4dc6e0  Confidence: likely (the walk to the last path node; D14205: closer, the binary keeps so in EBX). Actions 0-2. "move through" only
 // builds the path (appended to the one the previous move through left, flag 2 keeps the corner); the
 // walk / run hands the whole path to a goto-navpoint goal (flag 0x20, the script's goal).
 bool script_action_walk_to(Character *c, script_object *so)
@@ -658,13 +658,16 @@ bool script_action_walk_to(Character *c, script_object *so)
         path = (ai_path *)(so->path = ai_path_find(&c->pos, c->layer, &np->pos, np->layer, c->info->size, 0.0f));
 
     if (a->type == SCRIPT_ACTION_MOVE_THROUGH) {
-        if (path == NULL)
-            return false;
-        path->flags |= 2;
-        return true;
+        if (path != NULL) {
+            path->flags |= 2;
+            return true;
+        }
+        return false;
     }
 
-    walk = a->type == SCRIPT_ACTION_WALK_TO;
+    walk = false;
+    if (a->type == SCRIPT_ACTION_WALK_TO)
+        walk = true;
     g = c->ai.add_move_to(&np->pos, np->layer, walk, 100);
     if (g == -1)
         return false;
@@ -846,7 +849,7 @@ bool script_action_combat_mode(script_action *a, script_object *so, Character *c
     return true;
 }
 
-// 0x4dccb0  Confidence: likely (the slot mapping written as an if / else if after the record's first two
+// 0x4dccb0  Confidence: likely (D14205: only the c / count register pair differs; the slot mapping written as an if / else if after the record's first two
 // fields). Action 29 (cutscenes): equips a new weapon of the type (or empties slot 5 for "(none)"). The
 // items taken off are kept in cutscene_saved_equipment for the rewind, once per character (a second
 // replace frees them); an item whose ItemType slot is not 4, 5 or 9 is recorded with a stale slot. For
@@ -876,14 +879,13 @@ bool script_action_replace_weapon(script_action *a, Character *c)
 
     if (old1 != NULL) {
         if (save) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count];
-            rec->c = c;
-            rec->item = old1;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = old1;
             s = old1->type->slot;
             if (s == 4 || s == 9)
-                rec->slot = 5;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 5;
             else if (s == 5)
-                rec->slot = 6;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 6;
             cutscene_saved_equipment_count++;
         } else {
             item_free(old1);
@@ -891,14 +893,13 @@ bool script_action_replace_weapon(script_action *a, Character *c)
     }
     if (old2 != NULL) {
         if (save) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count];
-            rec->c = c;
-            rec->item = old2;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = old2;
             s = old2->type->slot;
             if (s == 4 || s == 9)
-                rec->slot = 5;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 5;
             else if (s == 5)
-                rec->slot = 6;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 6;
             cutscene_saved_equipment_count++;
         } else {
             item_free(old2);
@@ -907,10 +908,9 @@ bool script_action_replace_weapon(script_action *a, Character *c)
 
     if (a->arg0c < 0 && c->equipment[9] != NULL) {
         item_info *off = character_unequip_slot(c, 9, 1);
-        cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count];
-        rec->c = c;
-        rec->item = off;
-        rec->slot = 9;
+        cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+        cutscene_saved_equipment[cutscene_saved_equipment_count].item = off;
+        cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 9;
         cutscene_saved_equipment_count++;
     }
     return true;

@@ -337,6 +337,7 @@ int mp_levelselect_handle_click(int key)
     int list;
     int font_h;
     int i;
+    int dx, dy, dz;
 
     mp_levelselect_pressed_button = -1;
     mp_levelselect_drag_list = -1;
@@ -503,14 +504,11 @@ int mp_levelselect_handle_click(int key)
         }
     }
 
-    {
-        int dx, dy, dz;
-        mouse_get_delta(&dx, &dy, &dz);
-        if (dz > 0)
-            mp_levelselect_page_up(mp_levelselect_drag_list);
-        else if (dz < 0)
-            mp_levelselect_page_down(mp_levelselect_drag_list);
-    }
+    mouse_get_delta(&dx, &dy, &dz);
+    if (dz > 0)
+        mp_levelselect_page_up(mp_levelselect_drag_list);
+    else if (dz < 0)
+        mp_levelselect_page_down(mp_levelselect_drag_list);
     return key;
 }
 

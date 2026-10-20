@@ -158,7 +158,8 @@ char **spell_display_names[MAX_SPELLS] = {             // 0x22e9338
 // 0x47a170 init_empty_47a180_thunk (jmp, entry 235). Confidence: exact.
 // 0x47a180 init_empty_47a180 (a bare ret). Confidence: unsure (which object).
 
-// 0x47a190  Confidence: likely. One record per $Spell:, in table order. The effect block repeats until
+// 0x47a190  Confidence: likely (D14404, closer: the record indexed as spells[i] and prev_class set after
+// the pool reset; left: EBX / EDI swapped for cls and the record pointer). One record per $Spell:, in table order. The effect block repeats until
 // no effect or +Variation: line follows; +Misc effect: and +Banish effect: both take their $Sound: into
 // +0x34. The +Recovery time:, +AI Recovery time: and +Loop Time: values are parsed but the record index
 // is stored (`mov word ptr [esi-0x12], bp` with EBP = i, likewise -0x10 and -0xe): kept literally.
@@ -167,117 +168,117 @@ void spells_parse_table()
 {
     TextFile tf;
     int i;
-    int prev_class = NUM_SPELL_GROUPS;
+    int prev_class;
 
     spell_string_pool.Reset();
+    prev_class = NUM_SPELL_GROUPS;
     spell_sound_path = file_add_path("data\\sounds\\spells", ".wav");
     tf.Open("spells.tbl", path_tables);
     tf.Expect("#Spells");
     for (i = 0; i < MAX_SPELLS; i++) {
-        spell_info *s = &spells[i];
         int cls;
         sound_ref *sound;
 
-        s->index = i;
+        spells[i].index = i;
         tf.Expect("$Spell:");
         tf.Expect("+Name:");
-        s->name = spell_string_pool.AddQuoted(&tf);
+        spells[i].name = spell_string_pool.AddQuoted(&tf);
         tf.Expect("+Class:");
         cls = tf.ParseTypeString(spell_class_parse_names, NUM_SPELL_CLASSES);
-        s->spell_class = cls;
-        s->damage_type = -1;
+        spells[i].spell_class = cls;
+        spells[i].damage_type = -1;
         if (tf.Accept("+Damage type:"))
-            s->damage_type = tf.ParseTypeString(damage_type_names, 7);
-        s->hit_chance = 1.0f;
+            spells[i].damage_type = tf.ParseTypeString(damage_type_names, 7);
+        spells[i].hit_chance = 1.0f;
         if (tf.Accept("+Hit Chance:"))
-            s->hit_chance = tf.ParseInt() * 0.01f;
-        s->cast_effect = NULL;
-        s->hit_effect = NULL;
-        s->preloaded_hit_effect = NULL;
-        s->misc_effect = NULL;
-        s->banish_effect = NULL;
-        s->variation = 0;
+            spells[i].hit_chance = tf.ParseInt() * 0.01f;
+        spells[i].cast_effect = NULL;
+        spells[i].hit_effect = NULL;
+        spells[i].preloaded_hit_effect = NULL;
+        spells[i].misc_effect = NULL;
+        spells[i].banish_effect = NULL;
+        spells[i].variation = 0;
         for (;;) {
             if (tf.Accept("+Cast effect:")) {
-                s->cast_effect = spell_string_pool.AddQuoted(&tf);
-                sound = &s->cast_sound;
+                spells[i].cast_effect = spell_string_pool.AddQuoted(&tf);
+                sound = &spells[i].cast_sound;
             } else if (tf.Accept("+Hit effect:")) {
-                s->hit_effect = spell_string_pool.AddQuoted(&tf);
-                sound = &s->hit_sound;
+                spells[i].hit_effect = spell_string_pool.AddQuoted(&tf);
+                sound = &spells[i].hit_sound;
             } else if (tf.Accept("+Preloaded Hit effect:")) {
-                s->preloaded_hit_effect = spell_string_pool.AddQuoted(&tf);
-                sound = &s->hit_sound;
+                spells[i].preloaded_hit_effect = spell_string_pool.AddQuoted(&tf);
+                sound = &spells[i].hit_sound;
             } else if (tf.Accept("+Misc effect:")) {
-                s->misc_effect = spell_string_pool.AddQuoted(&tf);
-                sound = &s->misc_sound;
+                spells[i].misc_effect = spell_string_pool.AddQuoted(&tf);
+                sound = &spells[i].misc_sound;
             } else if (tf.Accept("+Banish effect:")) {
-                s->banish_effect = spell_string_pool.AddQuoted(&tf);
-                sound = &s->misc_sound;
+                spells[i].banish_effect = spell_string_pool.AddQuoted(&tf);
+                sound = &spells[i].misc_sound;
             } else if (tf.Accept("+Variation:")) {
-                s->variation = tf.ParseTypeString(variation_names, 0xc2);
+                spells[i].variation = tf.ParseTypeString(variation_names, 0xc2);
                 continue;
             } else
                 break;
-            spells_parse_sound(&tf, s, sound);
+            spells_parse_sound(&tf, &spells[i], sound);
         }
         tf.Expect("+Skill:");
-        s->skill = tf.ParseFloat() * 0.01f;
+        spells[i].skill = tf.ParseFloat() * 0.01f;
         tf.Expect("+Cost:");
-        s->cost = tf.ParseFloat();
+        spells[i].cost = tf.ParseFloat();
         tf.Expect("+Distance:");
-        s->distance = tf.ParseFloat();
-        s->die = 0;
+        spells[i].distance = tf.ParseFloat();
+        spells[i].die = 0;
         if (tf.Accept("+Die:"))
-            s->die = tf.ParseInt();
-        s->duration = -1;
+            spells[i].die = tf.ParseInt();
+        spells[i].duration = -1;
         if (tf.Accept("+Duration:"))
-            s->duration = (short)tf.ParseInt();
-        s->recovery_time = s->duration;
+            spells[i].duration = (short)tf.ParseInt();
+        spells[i].recovery_time = spells[i].duration;
         if (tf.Accept("+Recovery time:")) {
             tf.ParseInt();
-            s->recovery_time = (short)i;
+            spells[i].recovery_time = (short)i;
         }
-        s->ai_recovery_time = -1;
+        spells[i].ai_recovery_time = -1;
         if (tf.Accept("+AI Recovery time:")) {
             tf.ParseInt();
-            s->ai_recovery_time = (short)i;
+            spells[i].ai_recovery_time = (short)i;
         }
-        s->emerge_time = 0;
+        spells[i].emerge_time = 0;
         if (tf.Accept("+Emerge time:"))
-            s->emerge_time = tf.ParseInt();
-        s->loop_time = 0;
+            spells[i].emerge_time = tf.ParseInt();
+        spells[i].loop_time = 0;
         if (tf.Accept("+Loop Time:")) {
             tf.ParseInt();
-            s->loop_time = (short)i;
+            spells[i].loop_time = (short)i;
         }
-        s->target_radius = 0.0f;
+        spells[i].target_radius = 0.0f;
         if (tf.Accept("+Target radius:"))
-            s->target_radius = tf.ParseFloat();
-        s->flags = 0;
+            spells[i].target_radius = tf.ParseFloat();
+        spells[i].flags = 0;
         for (;;) {
             if (tf.Accept("+Offensive"))
-                s->flags |= SPELL_OFFENSIVE;
+                spells[i].flags |= SPELL_OFFENSIVE;
             else if (tf.Accept("+Beneficial"))
-                s->flags |= SPELL_BENEFICIAL;
+                spells[i].flags |= SPELL_BENEFICIAL;
             else if (tf.Accept("+Target character"))
-                s->flags |= SPELL_TARGET_CHARACTER;
+                spells[i].flags |= SPELL_TARGET_CHARACTER;
             else if (tf.Accept("+Target location"))
-                s->flags |= SPELL_TARGET_LOCATION;
+                spells[i].flags |= SPELL_TARGET_LOCATION;
             else if (tf.Accept("+Server authorize"))
-                s->flags |= SPELL_SERVER_AUTHORIZE;
+                spells[i].flags |= SPELL_SERVER_AUTHORIZE;
             else if (tf.Accept("+Fade Props"))
-                s->flags |= SPELL_FADE_PROPS;
+                spells[i].flags |= SPELL_FADE_PROPS;
             else if (tf.Accept("+Status change"))
-                s->flags |= SPELL_STATUS_CHANGE;
+                spells[i].flags |= SPELL_STATUS_CHANGE;
             else {
                 if (tf.Accept("+Hit only"))
-                    s->flags |= SPELL_HIT_ONLY;
+                    spells[i].flags |= SPELL_HIT_ONLY;
                 break;
             }
         }
         if (cls != prev_class) {
             spell_groups[cls].count = 0;
-            spell_groups[cls].first = s;
+            spell_groups[cls].first = &spells[i];
         }
         spell_groups[cls].count++;
         prev_class = cls;

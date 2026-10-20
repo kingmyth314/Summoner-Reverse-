@@ -1329,7 +1329,8 @@ int ai_state::choose_offensive_spell(boss_target *list, int count, boss_target *
     return -1;
 }
 
-// 0x4bfaa0  Confidence: likely. Sub-mode AIS_CHOOSE_SPELL. Gives up (flag 0x80, approach) after 7 s, for
+// 0x4bfaa0  Confidence: likely (D15009: the give-up blocks as inline copies; the zero register and the
+// frame still differ). Sub-mode AIS_CHOOSE_SPELL. Gives up (flag 0x80, approach) after 7 s, for
 // cur_character, without spells (flag 4), silenced, attacked or without a ranged reach. Waits while a cast
 // goal of the chosen spell exists, on multiplayer clients (and for party members on the host) and while
 // more than two cast effects are tracked. Healers (style 5, not party): heal / cure / vitalize among the
@@ -1354,8 +1355,11 @@ void ai_state::combat_cast_frame(Character *target)
     elapsed = timer.GetElapsedTime();
     if (elapsed < 0)
         return;
-    if (elapsed > 7000)
-        goto give_up;
+    if (elapsed > 7000) {
+        flags |= 0x80;
+        combat_approach(target);
+        return;
+    }
     if (owner == cur_character || (flags & 4)) {
         flags |= 0x80;
         combat_approach(target);
@@ -1376,8 +1380,11 @@ void ai_state::combat_cast_frame(Character *target)
         return;
     flags &= ~0x80;
     attackers = count_attackers();
-    if (owner->has_status(STATUS_SILENCE) || attackers > 0)
-        goto give_up;
+    if (owner->has_status(STATUS_SILENCE) || attackers > 0) {
+        flags |= 0x80;
+        combat_approach(target);
+        return;
+    }
     if (!owner->get_attack_range(&range)) {
         flags |= 0x80;
         combat_approach(target);
@@ -1436,8 +1443,11 @@ void ai_state::combat_cast_frame(Character *target)
         }
     }
     spell = choose_offensive_spell(list, count, &pick);
-    if (spell == -1)
-        goto give_up;
+    if (spell == -1) {
+        flags |= 0x80;
+        combat_approach(target);
+        return;
+    }
     mode_target = spell;
     if (owner->distance_between_edges(target, false, -1) > spells[mode_target].distance) {
         combat_approach(target);
@@ -1447,11 +1457,6 @@ void ai_state::combat_cast_frame(Character *target)
         add_cast_at_target(mode_target, pick->character, 999999);
     else
         add_cast_spell(mode_target, 999999);
-    return;
-
-give_up:
-    flags |= 0x80;
-    combat_approach(target);
 }
 
 // 0x4bfed0  Confidence: exact (VC6 byte match). On the victim's AI record (ai_combat_melee_attack and the boss melee
@@ -1470,11 +1475,12 @@ void ai_state::alert_guards_of_target(Character *attacker)
     }
 }
 
-// 0x4bff60  Confidence: likely (the sub-mode switch: bodies laid out 14, 15, 22/23, 16, 17, 21, 34, 63; the
-// byte table 0x4c0214 starts at 14). ai_state mode AI_STATE_COMBAT. During a cutscene only the stance
-// change runs. Bosses go to boss_ai_frame. A team-0 owner whose team-0 target is not in an ice coffin
-// goes idle (and goes on). Sleeping / ice-coffined targets end the attack unless the target just changed
-// (flag 0x10); inactive objects end it too. ai_combat_aim_point gets the target's attack point.
+// 0x4bff60  Confidence: exact (D15008: every go-idle exit is one `idle:` block, placed after
+// goals_remove_type1 as in the binary, reached by goto; the aim point as a vector sum; the goal loop as
+// while (1); the sub-mode switch bodies laid out 14, 15, 22/23, 16, 17, 21, 34, 63, table 0x4c0214 from 14).
+// ai_state mode AI_STATE_COMBAT. During a cutscene only the stance change runs. Bosses go to boss_ai_frame.
+// A team-0 owner whose team-0 target is not in an ice coffin goes idle (and goes on).
+// Sleeping / ice-coffined targets end the attack unless the target just changed (flag 0x10); inactive objects end it too. ai_combat_aim_point gets the target's attack point.
 void ai_state::mode_combat_frame()
 {
     Character *t;
@@ -1495,10 +1501,8 @@ void ai_state::mode_combat_frame()
         return;
     }
     t = living_from_handle(target);
-    if (submode != AIS_TRANSITION && (!t || (t->flags & CF_HIDDEN))) {
-        go_idle();
-        return;
-    }
+    if (submode != AIS_TRANSITION && (!t || (t->flags & CF_HIDDEN)))
+        goto idle;
     if (owner->get_team() == 0) {
         if (!t)
             goto check_owner;
@@ -1509,29 +1513,24 @@ void ai_state::mode_combat_frame()
         if (!(flags & 0x10)) {
             if (t->has_status(STATUS_SLEEP) || t->has_status(STATUS_ICE_COFFIN)) {
                 goals_remove_type1();
+            idle:
                 go_idle();
                 return;
             }
         }
-        if (!(t->obj_flags & 1)) {
-            go_idle();
-            return;
-        }
+        if (!(t->obj_flags & 1))
+            goto idle;
     }
 check_owner:
-    if (!(owner->obj_flags & 1)) {
-        go_idle();
-        return;
-    }
+    if (!(owner->obj_flags & 1))
+        goto idle;
     if (t) {
         if (_unk7c != -1 && character_target_point_count(t) == 0)
             _unk7c = -1;
         if (_unk7c != -1) {
             t->instance->get_bone_world_transform(t->info->target_points[_unk7c], &t->orient, &t->pos,
                                                   &bone_orient, &bone_pos);
-            ai_combat_aim_point.x = bone_pos.x + t->centre_offset.x;
-            ai_combat_aim_point.y = bone_pos.y + t->centre_offset.y;
-            ai_combat_aim_point.z = bone_pos.z + t->centre_offset.z;
+            ai_combat_aim_point = bone_pos + t->centre_offset;
         } else {
             ai_combat_aim_point = t->pos;
         }
@@ -1568,15 +1567,17 @@ check_owner:
         if (owner->type == CHAR_TYPE_PARTY)
             priority = 0;
         if (!(owner->flags & CF_COMBAT_READY)) {
-            while ((g = goal_find(1, AI_GOAL_ATTACK, 0, 0, -1, NULL, 0, AI_NO_SPELL)) != -1)
+            while (1) {
+                g = goal_find(1, AI_GOAL_ATTACK, 0, 0, -1, NULL, 0, AI_NO_SPELL);
+                if (g == -1)
+                    goto idle;
                 goal_remove(g);
-            go_idle();
+            }
+        }
+        if (t) {
+            combat_approach(t);
             return;
         }
-        if (!t) {
-            go_idle();
-            return;
-        }
-        combat_approach(t);
+        goto idle;
     }
 }

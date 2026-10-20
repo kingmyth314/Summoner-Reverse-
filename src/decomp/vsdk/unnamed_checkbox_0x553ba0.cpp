@@ -299,7 +299,8 @@ int ui_radio_button::process(int key)
     return key;
 }
 
-// 0x5548a0  Confidence: likely (the store order). In the parent's window, checked when it is the
+// 0x5548a0  Confidence: exact (m-1020c: the width in a local first, the height as an if / else of the two
+// values, font / label_x / label_y stored in ui_checkbox::create's order; D14701). In the parent's window, checked when it is the
 // parent's first child; the same measuring slip as ui_checkbox::create.
 void ui_radio_button::create(ui_gadget *parent, int x, int y, int box_w, int box_h, const char *label,
                              int label_x, int label_y, int font, int id, bool owned)
@@ -307,10 +308,13 @@ void ui_radio_button::create(ui_gadget *parent, int x, int y, int box_w, int box
     int tw, th;
 
     gr_get_string_size(&tw, &th, label, font, -1);
-    int h = label_y + th;
-    if (box_h > h)
+    int w = tw + box_w + label_x;
+    int h;
+    if (box_h > label_y + th)
         h = box_h;
-    init(parent->get_window(), UI_TYPE_RADIO, x, y, tw + box_w + label_x, h, id, owned);
+    else
+        h = label_y + th;
+    init(parent->get_window(), UI_TYPE_RADIO, x, y, w, h, id, owned);
     if (parent->get_first_child())
         checked = false;
     else
@@ -318,8 +322,8 @@ void ui_radio_button::create(ui_gadget *parent, int x, int y, int box_w, int box
     this->box_w = box_w;
     this->box_h = box_h;
     strcpy(this->label, label);
-    this->label_x = label_x;
     this->font = font;
+    this->label_x = label_x;
     this->label_y = label_y;
     bm_unchecked = -1;
     bm_checked = -1;

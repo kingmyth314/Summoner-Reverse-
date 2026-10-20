@@ -1305,7 +1305,7 @@ void ui_choice_popup_show(const char *title, int x, int y, int num, char **items
         gr_get_string_size(&ui_choice_popup_w, &ui_choice_popup_h, ui_choice_popup_title, -1, -1);
     for (i = 0; i < ui_choice_popup_count; i++) {
         gr_get_string_size(&w, &h, ui_choice_popup_choices[i], -1, -1);
-        ui_choice_popup_w = max(ui_choice_popup_w, w);
+        ui_choice_popup_w = max(w, ui_choice_popup_w);
         ui_choice_popup_h += h;
     }
     if (!ui_choice_popup_w)
@@ -1371,28 +1371,29 @@ int ui_choice_popup_handle_click(int key)
     return -1;
 }
 
-// 0x413970  Confidence: likely (the title branch: the common `+ y` is tail-merged). The entry rows start
+// 0x413970  Confidence: exact (VC6 8966 byte match with the row height and width held in h and w, the title
+// size's variables, and y stepped before i, D15204; the title branch: the common `+ y` is tail-merged). The entry rows start
 // below the title without the title gap that ui_choice_popup_draw adds (NOTES: game bug).
 int ui_choice_popup_hit_test()
 {
     int w, h;
-    int y, line_h, i, x, bw;
+    int y, i, x;
 
     if (strlen(ui_choice_popup_title)) {
         gr_get_string_size(&w, &h, ui_choice_popup_title, -1, -1);
         y = ui_choice_popup_margin_y[resolution_index] + ui_choice_popup_y + h;
     } else
         y = ui_choice_popup_margin_y[resolution_index] + ui_choice_popup_y;
-    line_h = gr_get_font_height(-1);
-    for (i = 0; i < ui_choice_popup_count; i++, y += line_h) {
+    h = gr_get_font_height(-1);
+    for (i = 0; i < ui_choice_popup_count; y += h, i++) {
         if (ui_choice_popup_enabled && !ui_choice_popup_enabled[i])
             continue;
-        bw = ui_choice_popup_w - 2 * ui_choice_popup_margin[resolution_index];
+        w = ui_choice_popup_w - 2 * ui_choice_popup_margin[resolution_index];
         if (ui_choice_popup_flags & 2)
-            x = (ui_choice_popup_w - bw) / 2 + ui_choice_popup_x;
+            x = (ui_choice_popup_w - w) / 2 + ui_choice_popup_x;
         else
             x = ui_choice_popup_x + ui_choice_popup_margin[resolution_index];
-        if (point_in_rect(game_mouse_x, game_mouse_y, x, y, bw, line_h))
+        if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h))
             return i;
     }
     return -1;

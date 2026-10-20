@@ -362,11 +362,13 @@ const species_info species_table[NUM_SPECIES_TABLE] = {   // 0x580e60
 // they are this unit's .rdata, not living_entity.cpp's (whose .rdata begins at 0x581904).
 const float character_size_heights[4] = { 0.9f, 1.8f, 2.5f, 99.9f };   // 0x5818d8
 
-const char *default_footstep_sounds[2][5] = { // 0x59602c (left, right)
-    { "footsteps\\left_wood_d.wav", "footsteps\\left_stone_h.wav", "footsteps\\left_grass_a.wav",
-      "footsteps\\left_sand_a.wav", "footsteps\\left_wet_a.wav" },
-    { "footsteps\\right_wood_d.wav", "footsteps\\right_stone_h.wav", "footsteps\\right_grass_a.wav",
-      "footsteps\\right_sand_a.wav", "footsteps\\right_wet_a.wav" },
+const char *default_footstep_sounds_left[5] = {      // 0x59602c
+    "footsteps\\left_wood_d.wav", "footsteps\\left_stone_h.wav", "footsteps\\left_grass_a.wav",
+    "footsteps\\left_sand_a.wav", "footsteps\\left_wet_a.wav"
+};
+const char *default_footstep_sounds_right[5] = {     // 0x596040
+    "footsteps\\right_wood_d.wav", "footsteps\\right_stone_h.wav", "footsteps\\right_grass_a.wav",
+    "footsteps\\right_sand_a.wav", "footsteps\\right_wet_a.wav"
 };
 const char *size_names[4] = {                 // 0x596054 ($Size:)
     "small", "medium", "large", "huge",
@@ -1100,7 +1102,9 @@ void characterinfo_load_party(int path_id)
     charinfo_party_loaded = true;
 }
 
-// 0x4452f0  Confidence: likely (control flow and stores checked block by block; the stack buffers are
+// 0x4452f0  Confidence: exact (m-1020c w4, D14305: default_weapons as one dword store, the move link read
+// before the category store, info->moves cleared by a loop, the two footstep arrays, 1/30 as 0x3d088888)
+// (control flow and stores checked block by block; the stack buffers are
 // separate block-scope arrays as in the frame). Notes:
 // - One record pointer is taken before the loop: every "$Character:" of the file is parsed into it (the
 //   species tables hold one each); "+Alternate character:" copies get their own records. Returns it.
@@ -1209,7 +1213,7 @@ char_info *characterinfo_parse_table(const char *filename)
         info->attack_radius = tf.ParseFloat();
 
         info->num_default_weapons = 0;
-        memset(info->default_weapons, -1, sizeof(info->default_weapons));
+        *(int *)info->default_weapons = -1;   // both slots, one dword store (as the binary, 0x445dxx)
         while (tf.Accept("$Default Weapon:")) {
             char name[0x100];
             tf.ParseString(name, 0x100, '"', '"');
@@ -1365,8 +1369,8 @@ char_info *characterinfo_parse_table(const char *filename)
         } else {
             info->num_footstep_sets = 1;
             for (i = 0; i < 5; i++) {
-                info->footstep_sounds_a[0][i] = snd_get_handle(default_footstep_sounds[0][i], 5.0f, 0.9f, 1.0f, 0, false);
-                info->footstep_sounds_b[0][i] = snd_get_handle(default_footstep_sounds[1][i], 5.0f, 0.9f, 1.0f, 0, false);
+                info->footstep_sounds_a[0][i] = snd_get_handle(default_footstep_sounds_left[i], 5.0f, 0.9f, 1.0f, 0, false);
+                info->footstep_sounds_b[0][i] = snd_get_handle(default_footstep_sounds_right[i], 5.0f, 0.9f, 1.0f, 0, false);
             }
         }
         if (tf.Accept("+Skin:"))
@@ -1374,7 +1378,8 @@ char_info *characterinfo_parse_table(const char *filename)
         else
             info->skin = 1;
 
-        memset(info->moves, 0, sizeof(info->moves));
+        for (i = 0; i < NUM_MOVE_TYPES; i++)   // a loop: VC6 turns it into the rep stosd, with the lea first
+            info->moves[i] = NULL;
         if (tf.Accept("+Allowed weapon classes:")) {
             char line[0x100];
             char *tok;
@@ -1411,8 +1416,8 @@ char_info *characterinfo_parse_table(const char *filename)
             char buf[0x100];
             m = characterinfo_add_move();
             type = tf.ParseTypeString(move_type_names, NUM_MOVE_TYPES);
-            m->category = type;
             m->next = (move_info *)info->moves[type];
+            m->category = type;
             info->moves[type] = m;
             tf.Expect("$Animation:");
             tf.ParseString(buf, 0x100, '"', '"');
@@ -1454,7 +1459,7 @@ char_info *characterinfo_parse_table(const char *filename)
                 n = 0;
                 do {
                     m->triggers[n].id = tf.ParseTypeString(anim_event_names, 0xe);
-                    m->triggers[n].time = tf.ParseFloat() * (1.0f / 30.0f);
+                    m->triggers[n].time = tf.ParseFloat() * 0.03333333f;   // 0x3d088888, one ulp below 1 / 30
                     n++;
                 } while (tf.Accept("$Trigger:"));
             }
@@ -1791,7 +1796,8 @@ bool skill_is_summon(int skill)
     return false;
 }
 
-// 0x446e90  Confidence: likely (switch on the summon skill, jump table 0x44739c; the case bodies are laid
+// 0x446e90  Confidence: exact (m-1020c w4, D14304: the ring checks are one else-if chain ending in a
+// single `return false`, so a failed ring test jumps there instead of 8966's setne) (switch on the summon skill, jump table 0x44739c; the case bodies are laid
 // out in level order, so the cases are written in that order). In multiplayer only Joseph summons, by
 // level; in single player by the party's rings (and the ring's savegame xp for the second summons).
 bool character_can_use_summon(int skill, Character *c)
@@ -1830,90 +1836,59 @@ bool character_can_use_summon(int skill, Character *c)
     if (!_stricmp(summon_skill_creature_name(skill), "Blackfire Elemental")) {
         if (party_count_item_by_name("Ring of Darkness"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Mist Elemental")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Mist Elemental")) {
         if (party_count_item_by_name("Ring of Light"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Red Minotaur")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Red Minotaur")) {
         if (party_count_item_by_name("Ring of Fire"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Golem")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Golem")) {
         if (party_count_item_by_name("Ring of Stone"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Blue Imp")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Blue Imp")) {
         if (savegame_state.get_flag(0x10, "got_ring_of_water"))
             return true;
         if (party_count_item_by_name("Ring of Water"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Poison Elemental")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Poison Elemental")) {
         if (savegame_state.get_flag(0x14, "got_ring_of_forest"))
             return true;
         if (party_count_item_by_name("Ring of Forest"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Jade Golem")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Jade Golem")) {
         if (savegame_state.get_flag(0x22, "got_ring_of_jade"))
             return true;
         if (party_count_item_by_name("Ring of Jade"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Celestial Samurai")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Celestial Samurai")) {
         if (savegame_state.get_flag(0x1c, "got_ring_of_wind"))
             return true;
         if (party_count_item_by_name("Ring of Four Winds"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Spirit of Laharah")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Spirit of Laharah")) {
         if (savegame_state.get_flag(0x22, "got_laharah_spirit"))
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Wraith")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Wraith")) {
         if (party_count_item_by_name("Ring of Light") && savegame_state.get_int(4, "light_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental")) {
         if (party_count_item_by_name("Ring of Fire") && savegame_state.get_int(4, "fire_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Blade of Urath")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Blade of Urath")) {
         if (party_count_item_by_name("Ring of Stone") && savegame_state.get_int(4, "stone_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Water Dragon")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Water Dragon")) {
         if (party_count_item_by_name("Ring of Water") && savegame_state.get_int(4, "water_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Four Winds Dragon")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Four Winds Dragon")) {
         if (party_count_item_by_name("Ring of Four Winds") && savegame_state.get_int(4, "wind_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Forest Dragon")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Forest Dragon")) {
         if (party_count_item_by_name("Ring of Forest") && savegame_state.get_int(4, "forest_ring_xp") > 60000)
             return true;
-        return false;
-    }
-    if (!_stricmp(summon_skill_creature_name(skill), "Jade Dragon")) {
+    } else if (!_stricmp(summon_skill_creature_name(skill), "Jade Dragon")) {
         if (party_count_item_by_name("Ring of Jade") && savegame_state.get_int(4, "jade_ring_xp") > 60000)
             return true;
-        return false;
     }
     return false;
 }

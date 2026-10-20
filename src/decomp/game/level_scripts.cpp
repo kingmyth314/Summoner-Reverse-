@@ -824,14 +824,16 @@ void savegame::init_conversation_slot(int level, int slot, conversation_speaker 
     }
 }
 
-// 0x4d0590  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d0590  Confidence: exact (the count read with a 4-byte memcpy: a load and test, not cmp [mem], 0; D14700).
 bool savegame::has_conversation_data(int level, int slot)
 {
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return false;
     if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return false;
-    return *(int *)conversations[level][slot].data != 0;
+    int v;
+    memcpy(&v, conversations[level][slot].data, 4);
+    return v != 0;
 }
 
 // 0x4d05f0  Confidence: likely (differs under cl 8966 in match26). Nothing is read before the level has been entered once.
@@ -1387,7 +1389,8 @@ void savegame::hot_button_set(int kind, int id, int member, int slot)
     }
 }
 
-// 0x4d1770  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d1770  Confidence: exact (the kind byte copied out with a 1-byte memcpy, so it sits in memory, in the
+// dead `member` slot, and is read back as a dword with `and 0xff`, as in the binary; D14700).
 bool savegame::hot_button_get(int *kind, int *id, int member, int slot)
 {
     int off;
@@ -1399,7 +1402,8 @@ bool savegame::hot_button_get(int *kind, int *id, int member, int slot)
     used = hot_buttons.data[off];
     off++;
     if (used) {
-        ubyte k = hot_buttons.data[off];
+        ubyte k;
+        memcpy(&k, hot_buttons.data + off, 1);
         *kind = k;
         *id = *(int *)(hot_buttons.data + off + 1);
     }
@@ -1616,11 +1620,12 @@ int savegame::write(const char *filename, int unk, const char *description)
     return 1;
 }
 
-// 0x4d1df0  Confidence: likely (D12302: the three strings are copied as memcpy(dst, src, strlen(src)) into the
+// 0x4d1df0  Confidence: exact (m-1020c: the closing `off += 4; return off <= header.size;` gives both
+// registers; D14705) (D12302: the three strings are copied as memcpy(dst, src, strlen(src)) into the
 // zeroed fields: the binary's `not ecx; dec ecx` count feeds rep movs, so no NUL is copied; a level file
 // name of exactly 0x80 or a script name of exactly 0x20 characters is left without one (the description is
 // guarded by the > 0xff test). level_time goes through a parenthesised float temporary, the binary's dead
-// local. Still differs: the register of off + 0x100 and of the final compare).
+// local.
 int savegame::write_header(const char *description)
 {
     int off = 0;
@@ -1647,7 +1652,8 @@ int savegame::write_header(const char *description)
     off += 0x100;
     report_sizes(&off);
     *(int *)(header.data + off) = off + 4;
-    return off + 4 <= header.size;
+    off += 4;
+    return off <= header.size;
 }
 
 // 0x4d1f80  Confidence: exact. The thumbnail saveload_capture_thumbnail rendered.
@@ -1708,7 +1714,8 @@ int savegame::write_inventory()
     return off + 4 <= inventory.size;
 }
 
-// 0x4d2150  Confidence: likely (differs under cl 8966 in match26). The inactive list contributes the entities that are not summons, or that
+// 0x4d2150  Confidence: exact (m-1020c: `off += 4; return off <= living.size;` at the end; with
+// `return off + 4 <= ...` 8966 kept the constant 4 in EDI for every `off += 4`; D14705). The inactive list contributes the entities that are not summons, or that
 // have flag 0x40000.
 int savegame::write_living()
 {
@@ -1750,7 +1757,8 @@ int savegame::write_living()
     }
     write_groups(&off);
     *(int *)(living.data + off) = off + 4;
-    return off + 4 <= living.size;
+    off += 4;
+    return off <= living.size;
 }
 
 // 0x4d2320  Confidence: exact.
@@ -2017,7 +2025,8 @@ int savegame::read_items()
     return 1;
 }
 
-// 0x4d2c90  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d2c90  Confidence: exact (m-1020c: the item rename written out in a block that changes hash in place,
+// not through savegame_remap_item_hash; the closing size read with a 4-byte memcpy; D14700, D14703).
 int savegame::read_inventory()
 {
     int off, n, i, count, charges, type, size;
@@ -2036,7 +2045,16 @@ int savegame::read_inventory()
         off += 4;
         charges = *(int *)(inventory.data + off);
         off += 4;
-        hash = savegame_remap_item_hash(hash);
+        {
+            unsigned int brown = name_hash_nocase("Brown Dragon Scale");
+            unsigned int gray = name_hash_nocase("Gray Dragon Scale");
+            unsigned int ring = name_hash_nocase("Ring of Preservation");
+            unsigned int pres = name_hash_nocase("Preservation Ring");
+            if (hash == brown)
+                hash = gray;
+            if (hash == ring)
+                hash = pres;
+        }
         type = item_type_find_by_hash(hash);
         if (type < 0) {
             printf("Couldn't find item type!!!\n");
@@ -2044,7 +2062,7 @@ int savegame::read_inventory()
         }
         party_inventory_add_type(type, count, charges, 1);
     }
-    size = *(int *)(inventory.data + off);
+    memcpy(&size, inventory.data + off, 4);
     off += 4;
     return off == size;
 }
@@ -2165,15 +2183,12 @@ int savegame::read_camera()
     return 1;
 }
 
-// 0x4d31e0  Confidence: likely (the vector locals share stack slots with the matrix arguments). The gold
-// piles are recreated with a count of 1: the saved amount is skipped (see NOTES).
+// 0x4d31e0  Confidence: exact (m-1020c: the three axes are temporaries of the matrix constructor and pos is
+// declared in each loop, so pos takes the slot of the last axis; the lock byte read with a 1-byte memcpy;
+// D14700, D14704). The gold piles are recreated with a count of 1: the saved amount is skipped (see NOTES).
 int savegame::read_item_objects()
 {
-    vector3 r(1.0f, 0.0f, 0.0f);
-    vector3 u(0.0f, 1.0f, 0.0f);
-    vector3 f(0.0f, 0.0f, 1.0f);
-    matrix orient(r, u, f);
-    vector3 pos;
+    matrix orient(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));
     int off, n, i, count, j, type, num, piles;
     ubyte lock;
     container *c;
@@ -2185,6 +2200,8 @@ int savegame::read_item_objects()
     n = *(int *)(item_objects.data + 4);
     off = 8;
     for (i = 0; i < n; i++) {
+        vector3 pos;
+
         *(int *)&pos.x = *(int *)(item_objects.data + off);
         off += 4;
         *(int *)&pos.y = *(int *)(item_objects.data + off);
@@ -2196,7 +2213,7 @@ int savegame::read_item_objects()
             return 0;
         count = *(int *)(item_objects.data + off);
         off += 4;
-        lock = item_objects.data[off];
+        memcpy(&lock, item_objects.data + off, 1);
         off++;
         c->lock = lock * 0.01f;
         for (j = 0; j < count; j++) {
@@ -2216,6 +2233,8 @@ int savegame::read_item_objects()
     piles = *(int *)(item_objects.data + off);
     off += 4;
     for (i = 0; i < piles; i++) {
+        vector3 pos;
+
         *(int *)&pos.x = *(int *)(item_objects.data + off);
         off += 4;
         *(int *)&pos.y = *(int *)(item_objects.data + off);
@@ -2357,11 +2376,12 @@ int savegame::read_automap_labels()
             index = automap_label_alloc();
             if (index < 0)
                 break;
-            ::automap_labels[index].x = x;
-            automap_labels[index].type = AUTOMAP_LABEL_CUSTOM;
-            automap_labels[index].z = z;
-            automap_labels[index].layer = layer;
-            strcpy(automap_labels[index].text, text);
+            automap_label *l = &::automap_labels[index];
+            l->x = x;
+            l->type = AUTOMAP_LABEL_CUSTOM;
+            l->z = z;
+            l->layer = layer;
+            strcpy(l->text, text);
         }
     }
     return 1;
@@ -2404,7 +2424,9 @@ void savegame_alloc()
 }
 
 // ---- events.tbl, the automap tables ----------------------------------------------------------------------
-// 0x4d39c0  Confidence: likely (loop rotation of the Peek tests). The language section ("#english", ...)
+// 0x4d39c0  Confidence: exact (m-1020c: the $Level: loop a top-tested `while (!Accept("#End"))`, the
+// language name lowered through an index, so 8966 makes the pointer after the first-character test; D14702).
+// The language section ("#english", ...)
 // holds, per $Level:, the flag / int / float names (counted, then hashed into events_int_pool, each name
 // only once over all levels), then the $Quest: records. +Float: names are checked against the int lists
 // (see NOTES); a line that is none of the three never advances the file.
@@ -2418,7 +2440,6 @@ void events_parse_table()
     quest_info *q;
     int i, num_flags, num_ints, num_floats;
     unsigned int hash;
-    char *p;
 
     for (i = 0; i < NUM_LEVEL_SCRIPTS; i++) {
         ls = &level_script_table[i];
@@ -2433,64 +2454,62 @@ void events_parse_table()
     events_tbl_checksum = tf.Checksum();
     strcpy(lang, "#");
     strcat(lang, localize_get_language_name());
-    for (p = lang; *p; p++)
-        *p = tolower(*p);
+    for (i = 0; lang[i]; i++)
+        lang[i] = tolower(lang[i]);
     tf.Rewind();
     tf.SkipTo(lang, NULL);
     tf.Expect(lang);
     events_int_pool_offset = 0;
-    if (!tf.Accept("#End")) {
-        do {
-            tf.Expect("$Level:");
-            tf.ParseString(buf, 0xff, '"', '"');
-            i = level_script_find(buf);
-            if (i == -1) {
-                tf.Close();
-                return;
+    while (!tf.Accept("#End")) {
+        tf.Expect("$Level:");
+        tf.ParseString(buf, 0xff, '"', '"');
+        i = level_script_find(buf);
+        if (i == -1) {
+            tf.Close();
+            return;
+        }
+        ls = &level_script_table[i];
+        tf.GetPosition(&pos);
+        num_flags = 0;
+        num_ints = 0;
+        num_floats = 0;
+        while (!tf.Peek("$Level:") && !tf.Peek("#End")) {
+            if (tf.Accept("+Flag:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                num_flags++;
+            } else if (tf.Accept("+Int:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                num_ints++;
+            } else if (tf.Accept("+Float:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                num_floats++;
             }
-            ls = &level_script_table[i];
-            tf.GetPosition(&pos);
-            num_flags = 0;
-            num_ints = 0;
-            num_floats = 0;
-            while (!tf.Peek("$Level:") && !tf.Peek("#End")) {
-                if (tf.Accept("+Flag:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    num_flags++;
-                } else if (tf.Accept("+Int:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    num_ints++;
-                } else if (tf.Accept("+Float:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    num_floats++;
-                }
+        }
+        ls->flag_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
+        events_int_pool_offset += num_flags * 4;
+        ls->int_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
+        events_int_pool_offset += num_ints * 4;
+        ls->float_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
+        events_int_pool_offset += num_floats * 4;
+        tf.SetPosition(&pos);
+        while (!tf.Peek("$Level:") && !tf.Peek("#End")) {
+            if (tf.Accept("+Flag:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                hash = name_hash_nocase(buf);
+                if (!level_script_flag_hash_known(hash))
+                    ls->flag_hashes[ls->num_flags++] = hash;
+            } else if (tf.Accept("+Int:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                hash = name_hash_nocase(buf);
+                if (!level_script_int_hash_known(hash))
+                    ls->int_hashes[ls->num_ints++] = hash;
+            } else if (tf.Accept("+Float:")) {
+                tf.ParseString(buf, 0xff, '"', '"');
+                hash = name_hash_nocase(buf);
+                if (!level_script_int_hash_known(hash))
+                    ls->float_hashes[ls->num_floats++] = hash;
             }
-            ls->flag_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
-            events_int_pool_offset += num_flags * 4;
-            ls->int_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
-            events_int_pool_offset += num_ints * 4;
-            ls->float_hashes = (unsigned int *)((ubyte *)events_int_pool + events_int_pool_offset);
-            events_int_pool_offset += num_floats * 4;
-            tf.SetPosition(&pos);
-            while (!tf.Peek("$Level:") && !tf.Peek("#End")) {
-                if (tf.Accept("+Flag:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    hash = name_hash_nocase(buf);
-                    if (!level_script_flag_hash_known(hash))
-                        ls->flag_hashes[ls->num_flags++] = hash;
-                } else if (tf.Accept("+Int:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    hash = name_hash_nocase(buf);
-                    if (!level_script_int_hash_known(hash))
-                        ls->int_hashes[ls->num_ints++] = hash;
-                } else if (tf.Accept("+Float:")) {
-                    tf.ParseString(buf, 0xff, '"', '"');
-                    hash = name_hash_nocase(buf);
-                    if (!level_script_int_hash_known(hash))
-                        ls->float_hashes[ls->num_floats++] = hash;
-                }
-            }
-        } while (!tf.Accept("#End"));
+        }
     }
     while (!tf.Accept("#End")) {
         tf.Expect("$Quest:");
@@ -3439,53 +3458,48 @@ int quest_get_current_step(int quest)
     return step;
 }
 
-// 0x4d6100  Confidence: likely (differs under cl 8966 in match26). Up to 7 +Script: names per level with their +Dialogue: speaker and topic
+// 0x4d6100  Confidence: exact (m-1020c: both loops are top-tested whiles, `while (!Accept("#End"))` and
+// `while (Accept("+Script:"))`, and every save info field goes through CONVERSATION_SAVE_INFO; D14702).
+// Up to 7 +Script: names per level with their +Dialogue: speaker and topic
 // counts (the conversation save block sizes) and +Levelcap: (100).
 void script_filenames_parse_table()
 {
     TextFile tf;
     char buf[0x100];
     int level, slot;
-    conversation_save_info *info;
 
     script_filenames_string_pool.Reset();
     for (level = 0; level < NUM_LEVEL_SCRIPTS; level++) {
         for (slot = 0; slot < SAVEGAME_NUM_SLOTS; slot++) {
-            info = CONVERSATION_SAVE_INFO(level, slot);
-            info->name = NULL;
-            info->num_speakers = 0;
-            info->num_topics = 0;
+            CONVERSATION_SAVE_INFO(level, slot)->name = NULL;
+            CONVERSATION_SAVE_INFO(level, slot)->num_speakers = 0;
+            CONVERSATION_SAVE_INFO(level, slot)->num_topics = 0;
         }
     }
     if (tf.Open("script_filenames.tbl", path_tables) == 0) {
         Script_filenames_tbl_checksum = tf.Checksum();
-        if (!tf.Accept("#End")) {
-            do {
-                tf.Expect("$Level:");
-                tf.ParseString(buf, 0x100, '"', '"');
-                level = level_script_find(buf);
-                if (level == -1)
+        while (!tf.Accept("#End")) {
+            tf.Expect("$Level:");
+            tf.ParseString(buf, 0x100, '"', '"');
+            level = level_script_find(buf);
+            if (level == -1)
+                break;
+            slot = 0;
+            while (tf.Accept("+Script:")) {
+                if (slot >= SAVEGAME_NUM_SLOTS)
                     break;
-                slot = 0;
-                if (tf.Accept("+Script:")) {
-                    do {
-                        if (slot >= SAVEGAME_NUM_SLOTS)
-                            break;
-                        tf.ParseString(buf, 0x100, '"', '"');
-                        info = CONVERSATION_SAVE_INFO(level, slot);
-                        info->name = script_filenames_string_pool.AddUnique(buf);
-                        if (tf.Accept("+Dialogue:")) {
-                            info->num_speakers = tf.ParseInt();
-                            info->num_topics = tf.ParseInt();
-                        }
-                        if (tf.Accept("+Levelcap:"))
-                            info->level_cap = tf.ParseInt();
-                        else
-                            info->level_cap = 100;
-                        slot++;
-                    } while (tf.Accept("+Script:"));
+                tf.ParseString(buf, 0x100, '"', '"');
+                CONVERSATION_SAVE_INFO(level, slot)->name = script_filenames_string_pool.AddUnique(buf);
+                if (tf.Accept("+Dialogue:")) {
+                    CONVERSATION_SAVE_INFO(level, slot)->num_speakers = tf.ParseInt();
+                    CONVERSATION_SAVE_INFO(level, slot)->num_topics = tf.ParseInt();
                 }
-            } while (!tf.Accept("#End"));
+                if (tf.Accept("+Levelcap:"))
+                    CONVERSATION_SAVE_INFO(level, slot)->level_cap = tf.ParseInt();
+                else
+                    CONVERSATION_SAVE_INFO(level, slot)->level_cap = 100;
+                slot++;
+            }
         }
         tf.Close();
     }

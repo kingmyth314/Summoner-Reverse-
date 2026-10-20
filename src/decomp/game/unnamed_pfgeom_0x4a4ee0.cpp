@@ -173,7 +173,8 @@ bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int fl
     return true;
 }
 
-// 0x4a53d0  Confidence: likely (the distance term). Nearest crossing of seg with a layer-transition
+// 0x4a53d0  Confidence: exact (VC6 byte match; D15401: dy is a copy of dx's line, which also gives the
+// binary's dx spill into the dead `hit` slot). Nearest crossing of seg with a layer-transition
 // edge (pf_walls) that leaves `layer` on seg's side: *hit and *hit_layer (the layer on the other side).
 // Game bug: the squared distance is dx*dx + dx*dx (x twice, the z term is missing), so "nearest" is by x
 // alone.
@@ -182,7 +183,7 @@ bool pf_first_edge_crossing(const seg2d *seg, int layer, vector2 *hit, int *hit_
     pf_wall *w;
     pf_edge ws;
     vector2 pt;
-    float best, d, dx;
+    float best, d, dx, dy;
     int from, to;
     bool found;
 
@@ -203,7 +204,8 @@ bool pf_first_edge_crossing(const seg2d *seg, int layer, vector2 *hit, int *hit_
         if (from != layer)
             continue;
         dx = seg->a->x - pt.x;
-        d = dx * dx + dx * dx;
+        dy = seg->a->x - pt.x;                     // sic: x again (copy of the line above)
+        d = dx * dx + dy * dy;
         if (!found || d < best) {
             best = d;
             *hit = pt;

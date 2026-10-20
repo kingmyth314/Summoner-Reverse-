@@ -561,8 +561,9 @@ void effect_base_set_info(unsigned int index, ushort num_nodes, int table_size, 
     }
 }
 
-// 0x51c8b0  Confidence: likely (EH frame for the File destructor; the header is read into an
-// effect_base-shaped local, 0x14 bytes).
+// 0x51c8b0  Confidence: exact (EH frame for the File destructor; the header is read into an
+// effect_base-shaped local, 0x14 bytes). The open and read failures return from inside the File block
+// (D15102): with two exits there 8966 pushes ESI at the entry, as the binary does.
 void effect_base_read(unsigned int index, int *out_nodes, int *out_table_size, int *out_size, int *out_version)
 {
     effect_base *b;
@@ -571,16 +572,18 @@ void effect_base_read(unsigned int index, int *out_nodes, int *out_table_size, i
     if (index < (unsigned int)effects_num_bases) {
         b = &effect_bases[index];
         File f;
-        if (f.open(b->name, 1, PATH_ANY) == 0 && f.read(&hdr, sizeof(hdr), 0, 0) == sizeof(hdr)) {
-            b->num_nodes = hdr.num_nodes;
-            *out_nodes = hdr.num_nodes;
-            b->table_size = hdr.table_size;
-            *out_table_size = hdr.table_size;
-            b->size = hdr.size;
-            *out_size = hdr.size;
-            b->version = hdr.version;
-            *out_version = hdr.version;
-        }
+        if (f.open(b->name, 1, PATH_ANY) != 0)
+            return;
+        if (f.read(&hdr, sizeof(hdr), 0, 0) != sizeof(hdr))
+            return;
+        b->num_nodes = hdr.num_nodes;
+        *out_nodes = hdr.num_nodes;
+        b->table_size = hdr.table_size;
+        *out_table_size = hdr.table_size;
+        b->size = hdr.size;
+        *out_size = hdr.size;
+        b->version = hdr.version;
+        *out_version = hdr.version;
     }
 }
 

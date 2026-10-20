@@ -389,7 +389,9 @@ void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
     }
 }
 
-// 0x5337a0  Confidence: likely (D12602: the static branch through used / total; the free-ring unlink as written). (desc, level effect): the next free record
+// 0x5337a0  Confidence: exact (D14405: total computed before used is read again; the particle append
+// indexes r->particles[i] at each use; the ring unlink through prev / next locals with r->next cleared
+// first, and the one-record case as the else branch). (desc, level effect): the next free record
 // with desc->count particles, for a level effect from operator new in level_mempool (emptied at the next level load) or from
 // the pool (compacted when full; NULL with a message when still short), all on the free list; the record
 // leaves the free ring. NULL when no record is free.
@@ -411,14 +413,13 @@ vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level)
         vif_data_top += desc->count * sizeof(vif_particle);
     } else {
         printf("VIF INSTANTIATE : STATIC\n");
-        int used = vif_particle_used;
-        if (desc->count + used > VIF_MAX_PARTICLES) {
+        if (desc->count + vif_particle_used > VIF_MAX_PARTICLES) {
             printf("COMPACTING VIF PARTICLES\n");
             vif_compact_particles();
             printf("DONE COMPACTING\n");
-            used = vif_particle_used;
         }
-        int total = desc->count + used;
+        int total = desc->count + vif_particle_used;
+        int used = vif_particle_used;
         if (total > VIF_MAX_PARTICLES) {
             printf("Skipping vif particle instantiation due to lack of static particles (needed : %d   available : %d)!\n",
                    desc->count, VIF_MAX_PARTICLES - used);
@@ -441,26 +442,31 @@ vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level)
     r->interval = 0.0f;
     r->time = 0.0f;
     for (i = 0; i < r->count; i++) {
-        vif_particle *p = &r->particles[i];
         vif_particle *last = r->free.prev;
-        r->free.prev = p;
-        p->prev = last;
-        p->next = &r->free;
-        last->next = p;
+        r->free.prev = &r->particles[i];
+        r->particles[i].prev = last;
+        r->particles[i].next = &r->free;
+        last->next = &r->particles[i];
     }
     if (vif_record_list == r) {
-        if (r->next == r) {
+        if (r->next != r) {
+            vif_record_list = r->next;
+        } else {
             r->next = NULL;
             r->prev = NULL;
             vif_record_list = NULL;
             return r;
         }
-        vif_record_list = r->next;
     }
-    r->prev->next = r->next;
-    r->next->prev = r->prev;
-    r->next = NULL;
-    r->prev = NULL;
+    {
+        vfx_inst21c *prev = r->prev;
+        vfx_inst21c *next = r->next;
+
+        r->next = NULL;
+        prev->next = next;
+        next->prev = prev;
+        r->prev = NULL;
+    }
     return r;
 }
 

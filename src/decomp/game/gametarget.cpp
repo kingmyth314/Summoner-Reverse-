@@ -221,7 +221,8 @@ void object_open_pickup(obj *o)
     }
 }
 
-// 0x43a770  Confidence: likely (the loop and the hit test as one condition). The level object the mouse
+// 0x43a770  Confidence: exact (the loop and the hit test as one condition; the four initialised locals in
+// store order, iter, index, flag, best: D14600). The level object the mouse
 // ray hits first, as far as the near fog distance, among the drawn opaque ones; *face is the face index
 // and *hit the point.
 int world_pick_lobj(vector3 *origin, vector3 *dir, vector3 *hit, int *face)
@@ -229,9 +230,9 @@ int world_pick_lobj(vector3 *origin, vector3 *dir, vector3 *hit, int *face)
     lobj_ray ray;
     lobj_hit h;
     int iter = 0;
+    int index = -1;
     bool flag = false;
     float best = 10000.0f;
-    int index = -1;
 
     do {
         ray.start = *origin;

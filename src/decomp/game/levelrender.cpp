@@ -723,7 +723,8 @@ void levelrender_draw_list_glide(lobj *l, int alpha, unsigned int num_lights, at
 
 // ---- face helpers ----------------------------------------------------------------------------------
 
-// 0x48f8c0  Confidence: likely. Fills levelrender_face_verts from a face: the view-space position and
+// 0x48f8c0  Confidence: likely (D14406, closer: each byte cast in its own parentheses gives the binary's
+// fild / faddp sum; left: register and frame layout of the vertex loop). Fills levelrender_face_verts from a face: the view-space position and
 // clip code by the vertex index copied into a local array, the texture uv, lightmap uv and colour by
 // the face's index read again. The colour: grey (sum of the object's vertex RGB, clamped to 0..255,
 // times the tint) when the tint is on; the light colour times 255 with a lightmap; without a lightmap
@@ -759,7 +760,7 @@ gr_vertex **levelrender_face_vertex_colors(lobj *l, s3d_face *face, int unused, 
         }
         if (gr_tint_enabled) {
             rgb = &l->vertex_rgb[v * 3];
-            sum = (float)rgb[2] + (float)rgb[1] + (float)rgb[0];
+            sum = ((float)rgb[2]) + ((float)rgb[1]) + ((float)rgb[0]);
             if (sum < 0.0f)
                 sum = 0.0f;
             else if (sum > 255.0f)
