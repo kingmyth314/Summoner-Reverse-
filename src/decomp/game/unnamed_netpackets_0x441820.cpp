@@ -430,7 +430,7 @@ console_command ccmd_disp_rate("disp_rate", "Toggle whether net rate info for a 
 void cmd_disp_rate()
 {
     char rate_name[MP_RATE_NAME_LEN];
-    mp_packet_info *t;
+
     int i;
 
     if (!(game_flags & GF_MULTIPLAYER)) {
@@ -448,19 +448,20 @@ void cmd_disp_rate()
                 print_to_console("Invalid packet abbreviation\n\n", 0);
                 doing_help_for_comand = 1;
             } else {
-                t = &mp_packet_table[i];
-                t->rate_flags[1] = !t->rate_flags[1];
-                strcpy(rate_name + MP_RATE_PREFIX_LEN, t->name);
+                mp_packet_table[i].rate_flags[1] = !mp_packet_table[i].rate_flags[1];
+                strcpy(rate_name + MP_RATE_PREFIX_LEN, mp_packet_table[i].name);
                 strncpy(rate_name, "OUT U ", MP_RATE_PREFIX_LEN);
-                debug_noop_disp_rate(0, rate_name, t->rate_flags[1]);
+                debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
                 strncpy(rate_name, "OUT R ", MP_RATE_PREFIX_LEN);
-                debug_noop_disp_rate(0, rate_name, t->rate_flags[1]);
+                debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
                 strncpy(rate_name, "INC U ", MP_RATE_PREFIX_LEN);
-                debug_noop_disp_rate(0, rate_name, t->rate_flags[1]);
+                debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
                 strncpy(rate_name, "INC R ", MP_RATE_PREFIX_LEN);
-                debug_noop_disp_rate(0, rate_name, t->rate_flags[1]);
-                sprintf(string_buffer, t->rate_flags[1] ? "Net rate info for %s is now ON."
-                                                        : "Net rate info for %s is now OFF.", t->name);
+                debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
+                if (mp_packet_table[i].rate_flags[1])
+                    sprintf(string_buffer, "Net rate info for %s is now ON.", mp_packet_table[i].name);
+                else
+                    sprintf(string_buffer, "Net rate info for %s is now OFF.", mp_packet_table[i].name);
                 print_to_console(string_buffer, 0);
             }
         } else {

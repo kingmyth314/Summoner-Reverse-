@@ -179,7 +179,7 @@ void mp_charcreate_load_bitmaps()
     mp_charselect_scrollbar_bm_h = (int)(mp_charselect_scrollbar_bm_h * scale);
 }
 
-// 0x406590  Confidence: likely (list 0 stores scroll 0 / selection -1 twice, before and after the strlen
+// 0x406590  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (list 0 stores scroll 0 / selection -1 twice, before and after the strlen
 // test; written out twice. The clamp is "> 0 ? s : 0" here and "< 0 ? 0 : s" in mp_char_create: setle vs
 // setl). Selects the character saved under "Multiplayer Char" and scrolls it into view.
 void mp_charselect_init()
@@ -204,20 +204,20 @@ void mp_charselect_init()
                 for (j = 0; j < mp_charselect_row_counts[0]; j++) {
                     if (!strcmp(mp_char_profiles[j].name, saved)) {
                         int first = mp_charselect_row_counts[0] - mp_charselect_list_page[resolution_index][0];
+                        mp_charselect_scroll_pos[0] = j < first ? j : first;
                         mp_charselect_selected[0] = j;
-                        if (j < first)
-                            first = j;
-                        mp_charselect_scroll_pos[0] = first > 0 ? first : 0;
+                        mp_charselect_scroll_pos[0] &= (mp_charselect_scroll_pos[0] <= 0) - 1;
                         break;
                     }
                 }
             }
+            mp_charselect_update_scrollbar(0);
         } else {
             mp_charselect_row_counts[i] = 0;
             mp_charselect_scroll_pos[i] = 0;
             mp_charselect_selected[i] = -1;
+            mp_charselect_update_scrollbar(i);
         }
-        mp_charselect_update_scrollbar(i);
     }
 
     mp_charselect_name[0] = 0;
@@ -399,12 +399,15 @@ void mp_charselect_update_button_states()
     }
 }
 
-// 0x406bb0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). Create (15) needs a name and a class.
+// 0x406bb0  Confidence: exact (VC6 byte match, m-1020 w9; was likely; nested tests with the |= written twice, D11802). Create (15) needs a name and a class.
 void mp_charselect_update_create_button()
 {
-    if (strlen(mp_charselect_name) && mp_charselect_species >= 0)
-        mp_charselect_buttons[15].flags &= ~4;
-    else
+    if (strlen(mp_charselect_name)) {
+        if (mp_charselect_species >= 0)
+            mp_charselect_buttons[15].flags &= ~4;
+        else
+            mp_charselect_buttons[15].flags |= 4;
+    } else
         mp_charselect_buttons[15].flags |= 4;
 }
 
@@ -802,7 +805,7 @@ void mp_charselect_scroll_down(int list)
     }
 }
 
-// 0x4076d0  Confidence: likely (the name is tested with strlen twice in the binary, written twice; the
+// 0x4076d0  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the name is tested with strlen twice in the binary, written twice; the
 // search loop breaks and is tested after, unlike mp_charselect_init). Writes the .plr file, rescans and
 // selects the new character, then clears the name, class and description.
 void mp_char_create()
@@ -834,9 +837,8 @@ void mp_char_create()
         if (i < mp_charselect_row_counts[0]) {
             int first = mp_charselect_row_counts[0] - mp_charselect_list_page[resolution_index][0];
             mp_charselect_selected[0] = i;
-            if (i < first)
-                first = i;
-            mp_charselect_scroll_pos[0] = first < 0 ? 0 : first;
+            mp_charselect_scroll_pos[0] = i < first ? i : first;
+            mp_charselect_scroll_pos[0] &= (mp_charselect_scroll_pos[0] < 0) - 1;
         }
         mp_charselect_update_scrollbar(0);
         mp_charselect_name[0] = 0;

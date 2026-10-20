@@ -208,7 +208,8 @@ void vfx_base::load_bitmaps(int flag)
         descs21c[i].load_bitmap(flag);
 }
 
-// 0x536ed0  Confidence: likely. Hides every mesh, emitter and vif record, then shows the members of
+// 0x536ed0  Confidence: exact (the mesh flags through the 16-bit vis_flags view, a tag pointer, the
+// reference indexed: D11701). Hides every mesh, emitter and vif record, then shows the members of
 // the groups whose names start with "$vis". No caller found.
 void vfx_base::init_vis_flags()
 {
@@ -216,18 +217,19 @@ void vfx_base::init_vis_flags()
     int i, j;
 
     for (i = 0; i < num_nodes; i++)
-        node_descs[i].flags |= 0x400;
+        node_descs[i].vis_flags |= 0x400;
     for (i = 0; i < num_emitters; i++)
         emitters[i].vis_flags |= 0x800000;
     for (i = 0; i < num_desc21c; i++)
         descs21c[i].vis_flags |= 0x80;
     for (i = 0; i < num_tags; i++) {
-        if (_strnicmp(tags[i].name, "$vis", 4) == 0) {
-            e = tags[i].refs;
-            for (j = 0; j < tags[i].count; j++, e++) {
+        vfx_base_tag *t = &tags[i];
+        if (_strnicmp(t->name, "$vis", 4) == 0) {
+            for (j = 0; j < t->count; j++) {
+                e = &t->refs[j];
                 switch (e->kind) {
                 case 0:
-                    ((vfx_node_desc *)e->rec)->flags &= ~0x400;
+                    ((vfx_node_desc *)e->rec)->vis_flags &= ~0x400;
                     break;
                 case 1:
                     ((vfx_emitter_desc *)e->rec)->vis_flags &= ~0x800000;
@@ -282,9 +284,10 @@ bool vfx_instance::process(float frametime, const vector3 *pos, const matrix *or
             vfx_active_instance = NULL;
         em = emitters;
         i = 0;
-        while (em != NULL) {
-            if (em->num_live > 0) {
-                em->update(&base->emitters[i], time, pos, orient, (id_bits >> 4) & 1);
+        if (em != NULL) {
+            while (1) {
+                if (em->num_live > 0) {
+                    em->update(&base->emitters[i], time, pos, orient, (id_bits >> 4) & 1);
                 rec = insts21c;
                 i = 0;
                 while (rec != NULL) {
@@ -296,11 +299,14 @@ bool vfx_instance::process(float frametime, const vector3 *pos, const matrix *or
                         break;
                 }
                 return true;
+                }
+                em = em->next;
+                i++;
+                if (em == emitters)
+                    break;
+                if (em == NULL)
+                    break;
             }
-            em = em->next;
-            i++;
-            if (em == emitters)
-                break;
         }
         id_bits |= 4;
         time = base->num_frames;

@@ -241,7 +241,7 @@ void Player::set_ai_control(bool on)
         c->ai.flags |= AI_FLAG_PLAYER_CONTROL;
 }
 
-// 0x433790  Confidence: likely. Species 0..3 through a jump table (0x433950). With Max_skills every
+// 0x433790  Confidence: exact. Species 0..3 through a jump table (0x433950). With Max_skills every
 // progression skill is set to 100 and its level rewritten to 1. The two `leader == true` tests are
 // CMP byte, 1; the cur_character one is TEST AL, AL.
 Character *Player::create(const vector3 *pos, const matrix *orient, const char *name, bool leader)
@@ -303,9 +303,13 @@ Character *Player::create(const vector3 *pos, const matrix *orient, const char *
         set_ai_control(false);
     c->ai.reset();
     c->set_team(0);
-    if ((game_flags & GF_SINGLE_PLAYER) && leader != true)
-        ai_group_add_member(cur_character->ai.group, c);
-    else
+    // Nested, with ai_group_create in both elses (D12400): the binary pushes c before the leader test.
+    if (game_flags & GF_SINGLE_PLAYER) {
+        if (leader != true)
+            ai_group_add_member(cur_character->ai.group, c);
+        else
+            ai_group_create(c);
+    } else
         ai_group_create(c);
     return c;
 }
@@ -338,10 +342,12 @@ bool Player::drop_leader()
     return false;
 }
 
-// 0x4339e0  Confidence: likely (SHR AL, 3 / AND AL, 1: VC6 for a bool from one bit, or a bitfield).
+// 0x4339e0  Confidence: exact. The if-form bool (D12400) gives the dword load and SHR AL, 3 / AND AL, 1.
 bool Player::is_leader()
 {
-    return (flags & PF_LEADER) != 0;
+    if (flags & PF_LEADER)
+        return true;
+    return false;
 }
 
 // 0x4339f0  Confidence: exact. Skill 0x34 and the summon skills are Joseph's only. skill_is_summon

@@ -308,11 +308,12 @@ int assess_handle_click(int key)
     return key;
 }
 
-// 0x401a20. Confidence: likely (the max(x, 0) AND register, D7506).
+// 0x401a20. Confidence: exact (the max(x, 0) clamp in place on the global, D10600 / D11300).
 void assess_page_up()
 {
     if (assess_scroll_pos > 0) {
-        assess_scroll_pos = max(assess_scroll_pos - assess_page_size[resolution_index], 0);
+        assess_scroll_pos -= assess_page_size[resolution_index];
+        assess_scroll_pos &= (assess_scroll_pos <= 0) - 1;
         assess_update_scrollbar();
     }
 }

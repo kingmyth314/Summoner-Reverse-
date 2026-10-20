@@ -112,7 +112,8 @@ int script_object_spawn_at_navpoint(int char_info, int type, navpoint *np, int l
     return c->handle;
 }
 
-// 0x4db420  Confidence: likely (the field order of the ray; jump table 0x4db6ec over the type). One
+// 0x4db420  Confidence: exact (D12109: the ray start and direction as vector copies, the hit record cleared
+// just before the raycast, the level object through a local; jump table 0x4db6ec over the type). One
 // $Name: record of a cutscene script's #Navpoints. Level and cutscene navpoints are dropped onto the
 // floor 2 units above them (a 1000-unit ray down, lobj flag 0x40 required): the height above it is kept,
 // a navpoint below the floor is moved onto it. A miss is a fatal DebugError.
@@ -124,6 +125,7 @@ void script_parse_navpoint(navpoint *np, TextFile *tf)
     lobj_hit hit;
     matrix orient;
     char buf[256];
+    lobj *l;
 
     tf->Expect("$Name:");
     tf->ParseString(np->name, 0xf, '"', '"');
@@ -152,17 +154,14 @@ void script_parse_navpoint(navpoint *np, TextFile *tf)
     switch (np->type) {
     case NAVPOINT_TYPE_LEVEL:
     case NAVPOINT_TYPE_CUTSCENE:
-        ray.start.x = np->pos.x;
-        ray.start.y = np->pos.y + 2.0f;
-        ray.start.z = np->pos.z;
-        memset((void *)&hit, 0, sizeof(hit));
-        ray.dir.x = 0.0f;
-        ray.dir.y = -1000.0f;
-        ray.dir.z = 0.0f;
+        ray.start = np->pos;
+        ray.start.y += 2.0f;
+        ray.dir = vector3(0.0f, -1000.0f, 0.0f);
         ray._unk18 = 0.0f;
         ray.flags = 0;
         ray.require_flags = 0x40;
         ray.exclude_flags = 0;
+        memset((void *)&hit, 0, sizeof(hit));
         lobj_raycast_all(&ray, &hit);
         if (hit.num_hits == 0) {
             sprintf(buf, "Couldn't collide navpoint %s with the ground -- chances are that\n"
@@ -171,7 +170,8 @@ void script_parse_navpoint(navpoint *np, TextFile *tf)
         }
         hit_pos = ray.start + ray.dir * hit.t;
         np->ground_height = np->pos.y - hit_pos.y;
-        np->layer = lobj_from_index(hit.face)->pick_layer(&hit_pos, 1);
+        l = lobj_from_index(hit.face);
+        np->layer = l->pick_layer(&hit_pos, 1);
         if (np->ground_height < 0.0f) {
             np->pos = hit_pos;
             np->ground_height = 0.0f;
@@ -185,7 +185,8 @@ void script_parse_navpoint(navpoint *np, TextFile *tf)
     np->level_item = -1;
 }
 
-// 0x4db700  Confidence: likely (as script_parse_navpoint; the name buffer size is a guess). One $Name:
+// 0x4db700  Confidence: exact (as script_parse_navpoint, D12109; the name buffer is 80 bytes, the binary's
+// frame, D12101). One $Name:
 // record of a level script's #Navpoints: an existing level navpoint of that name is updated (the last
 // match: the search does not stop), otherwise one is appended. There is no miss check: without a hit
 // the zeroed record gives the start point (2 units up) and level object 0.
@@ -196,9 +197,10 @@ void script_parse_navpoints(TextFile *tf)
     lobj_ray ray;
     lobj_hit hit;
     matrix orient;
-    char name[64];
+    char name[80];
     navpoint *np = NULL;
     int i;
+    lobj *l;
 
     tf->Expect("$Name:");
     tf->ParseString(name, 0xf, '"', '"');
@@ -236,21 +238,19 @@ void script_parse_navpoints(TextFile *tf)
     switch (np->type) {
     case NAVPOINT_TYPE_LEVEL:
     case NAVPOINT_TYPE_CUTSCENE:
-        ray.start.x = np->pos.x;
-        ray.start.y = np->pos.y + 2.0f;
-        ray.start.z = np->pos.z;
+        ray.start = np->pos;
+        ray.start.y += 2.0f;
         ray.flags = 0;
         ray.exclude_flags = 0;
-        memset((void *)&hit, 0, sizeof(hit));
-        ray.dir.x = 0.0f;
-        ray.dir.y = -1000.0f;
-        ray.dir.z = 0.0f;
+        ray.dir = vector3(0.0f, -1000.0f, 0.0f);
         ray._unk18 = 0.0f;
         ray.require_flags = 0x40;
+        memset((void *)&hit, 0, sizeof(hit));
         lobj_raycast_all(&ray, &hit);
         hit_pos = ray.start + ray.dir * hit.t;
         np->ground_height = np->pos.y - hit_pos.y;
-        np->layer = lobj_from_index(hit.face)->pick_layer(&hit_pos, 1);
+        l = lobj_from_index(hit.face);
+        np->layer = l->pick_layer(&hit_pos, 1);
         if (np->ground_height < 0.0f) {
             np->pos = hit_pos;
             np->ground_height = 0.0f;
@@ -766,7 +766,7 @@ bool script_action_goto(Character *c, script_action *a, script_object *so)
     return false;
 }
 
-// 0x4dca90  Confidence: likely (under 8966 the &pos / this registers swap, D7702). Actions 4-5: a timed
+// 0x4dca90  Confidence: exact (D12101: the layer read into a local before the call). Actions 4-5: a timed
 // move-to goal (the int argument as its float) at the navpoint, walking unless the script said "run".
 bool script_action_wander(Character *c, script_action *a, bool walk)
 {
@@ -776,7 +776,8 @@ bool script_action_wander(Character *c, script_action *a, bool walk)
 
     if (np != NULL) {
         pos = np->pos;
-        g = c->ai.add_move_to_timed(&pos, np->layer, (float)a->arg0c, walk, 100);
+        int layer = np->layer;
+        g = c->ai.add_move_to_timed(&pos, layer, (float)a->arg0c, walk, 100);
         if (g != -1) {
             c->ai.goals[g].flags |= 0x20;
             return true;
@@ -812,8 +813,8 @@ bool script_action_follow(script_object *so, Character *c, const char *leader, i
 // switched directly (flag 1 and the prop tag).
 bool script_action_combat_mode(script_action *a, script_object *so, Character *c)
 {
-    bool on = a->arg0c == 1;
     bool skip = false;
+    bool on = a->arg0c == 1;
     bool teleports_only = true;
     int i;
 
@@ -833,7 +834,7 @@ bool script_action_combat_mode(script_action *a, script_object *so, Character *c
         }
     }
     if (!teleports_only && !(c->ai.flags & 0x40) && !(c->flags & 8) && !skip)
-        return c->ai.set_combat_mode_goal(on, 100) != -1;
+        return c->ai.set_combat_mode_goal(on, 100) != -1 ? true : false;
 
     if (on == true) {
         c->flags |= 1;

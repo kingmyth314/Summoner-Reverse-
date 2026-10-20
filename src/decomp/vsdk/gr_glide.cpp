@@ -1119,13 +1119,15 @@ void glide_record::free_texture(int texture)
     }
 }
 
-// 0x549950  Confidence: likely (differs under cl 8966 in match26). The owner's section loses this TMU's copy; the block stays in its list.
+// 0x549950  Confidence: exact (texture and section read once into locals, D11302). The owner's section loses this TMU's copy; the block stays in its list.
 void glide_record::evict_block(int index)
 {
     glide_block *b = &blocks[index];
-    if (b->texture > -1) {
-        glide_tcache_entries[b->texture].sections[b->section].tmu_addr[stage] = 0;
-        glide_tcache_entries[b->texture].sections[b->section].tmu_size[stage] = 0;
+    int tex = b->texture;
+    if (tex > -1) {
+        int sec = b->section;
+        glide_tcache_entries[tex].sections[sec].tmu_addr[stage] = 0;
+        glide_tcache_entries[tex].sections[sec].tmu_size[stage] = 0;
         blocks[index].texture = -1;
         blocks[index].section = -1;
         mem_used -= blocks[index].size;
@@ -1160,8 +1162,8 @@ void glide_record::load_section(glide_tcache_entry *entry, int section, float *u
 {
     glide_section *sec = &entry->sections[section];
     GrTexInfo info;
-    info.smallLod = sec->small_lod;
     info.largeLod = sec->large_lod;
+    info.smallLod = sec->small_lod;
     info.aspectRatio = sec->aspect;
     info.format = sec->format;
     info.data = sec->data;
@@ -1177,12 +1179,14 @@ void glide_record::load_section(glide_tcache_entry *entry, int section, float *u
         entry->dirty[stage] = 0;
     }
     glide_grTexSource(stage, sec->tmu_addr[stage], GR_MIPMAPLEVELMASK_BOTH, &info);
+    float u = sec->u_scale;
+    float v = sec->v_scale;
     this->section = section;
-    *u_scale = sec->u_scale;
-    *v_scale = sec->v_scale;
-    this->u_scale = sec->u_scale;
+    *u_scale = u;
+    *v_scale = v;
+    this->u_scale = u;
     bitmap = entry - glide_tcache_entries;
-    this->v_scale = sec->v_scale;
+    this->v_scale = v;
 }
 
 // 0x549b50  Confidence: likely (the casts of the 2 MB bank compare: shr then a signed compare).
@@ -1278,7 +1282,9 @@ void glide_clip_cursor(int on)
         ClipCursor(NULL);
 }
 
-// 0x549d10  Confidence: likely (the switch over the window mode; the XSTR texts are the .data literals).
+// 0x549d10  Confidence: exact (the switch over the window mode; the XSTR texts are the .data literals; the
+// glide_init_done stores are volatile accesses: the binary keeps them, and the clip rectangle stores before
+// them, ahead of the next call's pushes, which 8966 does only for a volatile store, D11305).
 // Line numbers of the errors: 758, 762, 785, 813, 843.
 void gr_glide_init(HWND hwnd)
 {
@@ -1292,7 +1298,7 @@ void gr_glide_init(HWND hwnd)
     default:
         VSDK_ERROR(GR_GLIDE_CPP, 0x2fa, "Invalid window_mode passed to gr_direct3d_init\n");
     }
-    glide_init_done = 0;
+    *(volatile int *)&glide_init_done = 0;
     SetEnvironmentVariable("FX_GLIDE_NO_SPLASH", "1");
     glide_initialized = 1;
     if (!glide_load_dll())
@@ -1331,7 +1337,7 @@ void gr_glide_init(HWND hwnd)
     glide_cursor_clip_rect.top = 0;
     glide_cursor_clip_rect.right = gr_screen.max_w - 1;
     glide_cursor_clip_rect.bottom = gr_screen.max_h - 1;
-    glide_init_done = 1;
+    *(volatile int *)&glide_init_done = 1;
     glide_swap_enabled = 1;
     glide_grHints(GR_HINT_STWHINT, GR_STWHINT_ST_DIFF_TMU1);
     glide_grAlphaTestFunction(GR_CMP_GREATER);

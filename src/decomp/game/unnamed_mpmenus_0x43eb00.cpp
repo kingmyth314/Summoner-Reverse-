@@ -149,7 +149,7 @@ void state_mp_menu_frame()
     interface_draw();
 }
 
-// 0x43edc0  Confidence: likely (the max-players clamp is `>= 4` (jl past the store of 4); the netgame
+// 0x43edc0  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the max-players clamp is `>= 4` (jl past the store of 4); the netgame
 // block is cleared as one object, D3305). The host's session: host bit, player id 0, status 3, the game
 // settings, session state 1, the level scale and the tracker listing.
 void mp_host_game(const char *name, const char *password, int max_players, int difficulty,
@@ -163,9 +163,7 @@ void mp_host_game(const char *name, const char *password, int max_players, int d
     strcpy(mp_netgame_password, password);
     mp_netgame_level = 0;
     mp_netgame_num_players = 1;
-    mp_netgame_max_players = max_players;
-    if (max_players >= MP_MAX_PLAYERS)
-        mp_netgame_max_players = MP_MAX_PLAYERS;
+    mp_netgame_max_players = max_players < MP_MAX_PLAYERS ? max_players : MP_MAX_PLAYERS;
     mp_game_difficulty = difficulty;
     mp_netgame_level_below = levels_below;
     mp_netgame_level_above = levels_above;

@@ -27,13 +27,14 @@ void InetGetFile::AbortGet()
         ftp->abort_get();
 }
 
-// 0x51b780  Confidence: likely (EH states 0-2 for the three news). Makes the local file's directory, then
+// 0x51b780  Confidence: exact (VC6 8966 byte match, m-1020: dir is 256 bytes, D11904) (EH states 0-2 for the
+// three news). Makes the local file's directory, then
 // starts the getter for the URL's scheme ("http:" through the proxy when one is set), and gives the
 // connection a second. A NULL URL or file name sets INET_ERROR_BADPARMS but is still passed to strstr
 // (latent: no caller passes NULL).
 InetGetFile::InetGetFile(const char *url, const char *local_file)
 {
-    char dir[MAX_PATH];
+    char dir[256];       // 0x100 in the frame (sub esp, 0x104 with the new temporary), not MAX_PATH
     char *p;
 
     error = INET_ERROR_NO_ERROR;

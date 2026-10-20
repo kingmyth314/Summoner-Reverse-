@@ -756,7 +756,7 @@ bool boss_ensure_mount(Character *boss)
     return true;
 }
 
-// 0x4a1ef0  Confidence: likely (the out-vector stores: y = 0 between x and z). The point of the mount's
+// 0x4a1ef0  Confidence: exact (the result through vector3::set, D11700). The point of the mount's
 // size / layer list farthest from the mount (squared x / z distance), else the mount's own position.
 void boss_mount_pick_flee_point(Character *mount, vector3 *out)
 {
@@ -778,7 +778,7 @@ void boss_mount_pick_flee_point(Character *mount, vector3 *out)
     }
     if (best_i != -1) {
         vector2 *p = list->points[best_i].pos;
-        *out = vector3(p->x, 0.0f, p->y);
+        out->set(p->x, 0.0f, p->y);
     } else
         *out = mount->pos;
 }
@@ -1441,17 +1441,17 @@ int boss_target_list_pick(boss_target *list, int count, boss_threat *table, int 
     return -1;
 }
 
-// 0x4a33b0  Confidence: likely (store order). The *_set_solo console / script path: the mount is
+// 0x4a33b0  Confidence: exact (store order found by trying all 120, D11700). The *_set_solo console / script path: the mount is
 // unlinked, loses its target and is deleted (obj flags: active off, delete on).
 void rider_unlink_mount(Character *rider)
 {
     Character *mount = rider->get_mount();
 
     if (mount) {
-        mount->flags &= ~0x20;
         mount->mount_flags = 0;
         mount->mount_link = -1;
         mount->ai.target = -1;
+        mount->flags &= ~0x20;
         mount->obj_flags = (mount->obj_flags & ~1) | 4;
         rider->mount_flags = 0;
         rider->mount_link = -1;

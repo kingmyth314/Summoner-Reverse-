@@ -214,7 +214,7 @@ char *LineFile::read_line(char *buf, int size)
     return start;
 }
 
-// 0x5587c0  Confidence: likely (the line-end selection's branch order).
+// 0x5587c0  Confidence: exact (D11400: the line-end selection nested on cr != NULL, then lf != NULL).
 int LineFile::write(const char *s)
 {
     const char *cr;
@@ -228,17 +228,19 @@ int LineFile::write(const char *s)
         if (cr == NULL && lf == NULL)
             return fwrite(s, strlen(s), 1, fp) != 1;
         crlf = false;
-        if (cr == NULL)
+        if (cr != NULL) {
+            if (lf != NULL) {
+                if (lf == cr + 1) {
+                    crlf = true;
+                    eol = lf;
+                } else if (cr >= lf)
+                    eol = lf;
+                else
+                    eol = cr;
+            } else
+                eol = cr;
+        } else
             eol = lf;
-        else if (lf == NULL)
-            eol = cr;
-        else if (lf == cr + 1) {
-            crlf = true;
-            eol = lf;
-        } else if (cr >= lf)
-            eol = lf;
-        else
-            eol = cr;
         if (eol != s) {
             if (crlf) {
                 if (cr != s && fwrite(s, eol - s - 1, 1, fp) != 1)

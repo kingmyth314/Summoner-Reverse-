@@ -841,7 +841,8 @@ void ai_state::serpent_illusion_start()
     set_mode(AI_STATE_COMBAT, 0x39);
 }
 
-// 0x496d60  Confidence: likely (the alpha arithmetic divides by -1000 as the binary does). Sub-mode 0x39:
+// 0x496d60  Confidence: likely (m-1020, D11104: the alpha bases as `a = 255; if (i) a = 230`; left: 8966 turns
+// x / -1000 into base - x / 1000 and threads the rem <= 300 test; the alpha arithmetic divides by -1000 as the binary does). Sub-mode 0x39:
 // all three at serpent_place_parts' points, invisible for 1.4 s, fading in with the effect, then
 // targetable again; the copies vanish 8 s later (serpent_part_check_timeout).
 void ai_state::serpent_illusion_update()
@@ -889,8 +890,10 @@ void ai_state::serpent_illusion_update()
                 p = living_from_handle(serpent.handles[i]);
                 if (p) {
                     if (rem < 1300) {
-                        int base = (i == 0) ? 255 : 230;
-                        int a = base + (rem - 300) * base / -1000;
+                        int base = 255;
+                        if (i != 0)
+                            base = 230;
+                        int a = (rem - 300) * base / -1000 + base;
                         if (a < 1)
                             a = 1;
                         p->instance->_unkb4 = (ubyte)a;
@@ -905,7 +908,10 @@ void ai_state::serpent_illusion_update()
             for (i = 0; i < serpent_num_extra_parts + 1; i++) {
                 p = living_from_handle(serpent.handles[i]);
                 if (p) {
-                    p->instance->_unkb4 = (i == 0) ? 255 : 230;
+                    int a = 255;
+                    if (i != 0)
+                        a = 230;
+                    p->instance->_unkb4 = a;
                     p->flags &= ~(CF_UNTARGETABLE | CF_HIDDEN);
                 }
             }

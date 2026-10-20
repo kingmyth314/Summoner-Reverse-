@@ -531,11 +531,8 @@ bool pathvis_bsp_contains(const vector2 *pt, pf_bsp *node)
         switch (node->type) {
         case 2: {
             pf_edge *split = (pf_edge *)node->data;
-            vector2 *a = split->a;
-            vector2 *b = split->b;
-            float nx = b->y - a->y;
-            float ny = a->x - b->x;
-            float side = (pt->y - a->y) * ny + (pt->x - a->x) * nx;
+            vector2 n(split->b->y - split->a->y, split->a->x - split->b->x);
+            float side = (pt->y - split->a->y) * n.y + (pt->x - split->a->x) * n.x;
             if (side > -PATHVIS_EPSILON && side < PATHVIS_EPSILON) {
                 if (!pathvis_bsp_contains(pt, node->front))
                     return false;

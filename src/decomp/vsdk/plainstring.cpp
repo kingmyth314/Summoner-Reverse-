@@ -158,7 +158,8 @@ void format_indented_column_b(char *dest, int indent, int width, const char *lab
     strcat(dest, text);
 }
 
-// 0x5152a0  Confidence: likely (the second sign test is a setne of neg: `neg != 0`).
+// 0x5152a0  Confidence: exact (VC6 byte match, m-1020 w11: `first` is the loop index, D12000). The second sign
+// test is a setne of neg: `neg != 0`.
 // Defect: a negative number whose digit count is a multiple of 3 gets a comma after the sign
 // (-123456 -> "-,123,456"), and the size check counts one comma too few for it.
 char *int_to_string_with_commas(char *dest, int size, int value)
@@ -182,9 +183,10 @@ char *int_to_string_with_commas(char *dest, int size, int value)
     strncpy(dest, buf, first);
 
     int pos = first;
-    for (int i = first; i < len; i += 3) {
+    while (first < len) {
         dest[pos++] = ',';
-        strncpy(dest + pos, buf + i, 3);
+        strncpy(dest + pos, buf + first, 3);
+        first += 3;
         pos += 3;
     }
     dest[pos] = '\0';

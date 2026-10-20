@@ -928,7 +928,8 @@ void ai_state::tiger_approach_target(Character *t)
     combat_approach(t);
 }
 
-// 0x49ba70  Confidence: likely (the case order: the table starts at -1). Sub-mode 0x21 steps: start,
+// 0x49ba70  Confidence: exact (VC6 8966 byte match, m-1020: centre_offset + pos, the inline add's operand order,
+// D11905) (the case order: the table starts at -1). Sub-mode 0x21 steps: start,
 // pick a wander point (three failures end it), travel, roar, turn to the target, attack.
 void ai_state::tiger_wander_update()
 {
@@ -971,7 +972,7 @@ void ai_state::tiger_wander_update()
         tiger.wander_state = 4;
         tiger_reposition_timer.SetTimeout(0);
     case 4: {
-        vector3 centre = t->pos + t->centre_offset;
+        vector3 centre = t->centre_offset + t->pos;
         Character *m = owner->get_mount();
         bool turning;
         if (m)

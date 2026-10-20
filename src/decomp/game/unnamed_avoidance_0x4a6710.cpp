@@ -32,7 +32,7 @@
 #include "vsdk/os/timer.h"
 #include "vsdk/math/vector.h"
 
-#define PI_F 3.141593f                            // 0x57f028
+#define PI_F 3.14159265f                          // 0x57f028 (0x40490fdb)
 
 // ---- objects with static initialisers (entries 298-301) ------------------------------------------------
 // 0x4a6710 static_init_vector3_arrays_246a804 (jmp). Confidence: exact.
@@ -356,32 +356,25 @@ bool seg_params_in_range(const float *t, const float *u)
     return true;
 }
 
-// 0x4a7210  Confidence: likely (t and u live in the argument slots of q and poly; the hit point through the
-// vector2 operators, w10 D10901). Nearest crossing of
+// 0x4a7210  Confidence: exact (D11400: the polygon edge loop `j = i++`, no early return, `return best !=
+// FLT_MAX`; the hit point through the vector2 operators, w10 D10901). Nearest crossing of
 // p-q with an edge (points[i - 1], points[i]) of the polygon: *edge = i, *hit the point.
 bool avoid_poly_nearest_edge_hit(const vector2 *p, const vector2 *q, const avoid_poly *poly, int *edge,
                                  vector2 *hit)
 {
-    const vector2 *prev;
     float best, t, u;
-    int i;
+    int i, j;
 
     best = FLT_MAX;
-    if (poly->num_points <= 0)
-        return false;
-    prev = &poly->points[poly->num_points - 1];
-    for (i = 0; i < poly->num_points; i++) {
-        if (seg2d_intersect_params(p, q, prev, &poly->points[i], &t, &u) && seg_params_in_range(&t, &u)
+    for (i = 0, j = poly->num_points - 1; i < poly->num_points; j = i++) {
+        if (seg2d_intersect_params(p, q, &poly->points[j], &poly->points[i], &t, &u) && seg_params_in_range(&t, &u)
             && t < best) {
             best = t;
             *edge = i;
             *hit = *p + t * (*q - *p);
         }
-        prev = &poly->points[i];
     }
-    if (best != FLT_MAX)
-        return true;
-    return false;
+    return best != FLT_MAX;
 }
 
 // 0x4a7320  Confidence: exact. A one-obstacle polygon (boxes and circles only).
@@ -817,128 +810,111 @@ found:
     timer_get(1000);
 }
 
-// 0x4a7e30  Confidence: likely (the asin / sin expression). The miter offset at a corner where a list
+// 0x4a7e30  Confidence: exact (D11401: vector2 temporaries and in-place normals, one float for the cosine
+// and the scale, the angle in float, swap an int). The miter offset at a corner where a list
 // segment meets a nav wall: the bisector of the two normals scaled by 1 / sin(half the angle), clamped
 // to 1.01..5 (1 when the corner is convex). swap exchanges the roles of the segment and the wall.
 void avoid_seglist_calc_corner_offset(avoid_seglist *sl, avoid_seg_ref *seg, const pf_edge *wall, int corner,
-                                      bool swap)
+                                      int swap)
 {
-    vector2 d1, n1, d2, n2, dir, bis, tmp;
-    float dot, c, s;
+    vector2 d1, d2, tmp;
+    float dot, s;
 
-    d1.x = sl->corners[seg->b].pos.x - sl->corners[seg->a].pos.x;
-    d1.y = sl->corners[seg->b].pos.y - sl->corners[seg->a].pos.y;
+    d1 = sl->corners[seg->b].pos - sl->corners[seg->a].pos;
     d1.normalize();
-    n1.x = d1.y;
-    n1.y = -d1.x;
-    seg->normal.x = n1.x;
-    seg->normal.y = n1.y;
-    d2.x = wall->b->x - wall->a->x;
-    d2.y = wall->b->y - wall->a->y;
+    vector2 n1(d1.y, -d1.x);
+    seg->normal = n1;
+    d2 = *wall->b - *wall->a;
     d2.normalize();
     if (wall->flags & PF_EDGE_SIDE)
         d2.negate();
-    n2.x = d2.y;
-    n2.y = -d2.x;
-    dir.x = d1.x;
-    dir.y = d1.y;
+    vector2 n2(d2.y, -d2.x);
     if (swap) {
-        dir.x = d2.x;
-        dir.y = d2.y;
-        tmp.x = n1.x;
-        tmp.y = n1.y;
-        n1.x = n2.x;
-        n1.y = n2.y;
-        n2.x = tmp.x;
-        n2.y = tmp.y;
+        d1 = d2;
+        tmp = n1;
+        n1 = n2;
+        n2 = tmp;
     }
-    dot = n2.y * dir.y + n2.x * dir.x;
+    dot = n2.dot(d1);
     if (dot > 0.0f) {
         s = 1.0f;
     } else {
-        c = -dot;
-        if (c >= 1.0f)
-            c = 1.0f;
-        if (n2.y * n1.y + n2.x * n1.x > 0.0f)
-            s = 1.0f / (float)sin((PI_F - asin(c)) * 0.5f);
+        s = -dot;
+        if (s >= 1.0f)
+            s = 1.0f;
+        float ang;
+        if (n2.dot(n1) > 0.0f)
+            ang = PI_F - (float)asin(s);
         else
-            s = 1.0f / (float)sin(asin(c) * 0.5f);
+            ang = (float)asin(s);
+        s = 1.0f / (float)sin(ang * 0.5f);
         if (s >= 5.0f)
             s = 5.0f;
         else if (s <= 1.01f)
             s = 1.01f;
     }
-    bis.x = n2.x + n1.x;
-    bis.y = n2.y + n1.y;
+    vector2 bis = n2 + n1;
     bis.normalize();
-    sl->corners[corner].offset.x = bis.x * s;
-    sl->corners[corner].offset.y = bis.y * s;
+    bis.x = bis.x * s;
+    bis.y = bis.y * s;
+    sl->corners[corner].offset = bis;
     sl->corners[corner].offset_state = -1;
 }
 
-// 0x4a8060  Confidence: likely. The same miter for a corner two segments share (of one list or of two
+// 0x4a8060  Confidence: exact (D11401, as avoid_seglist_calc_corner_offset). The same miter for a corner two segments share (of one list or of two
 // lists): both corners get the offset and are marked done.
 void avoid_seglist_calc_shared_corner_offset(avoid_seglist *sla, avoid_seglist *slb, avoid_seg_ref *sega,
                                              avoid_seg_ref *segb, int corner_a, int corner_b)
 {
-    vector2 da, na, db, nb, bis;
-    float dot, c, s;
+    vector2 da, db;
+    float dot, s;
 
-    da.x = sla->corners[sega->b].pos.x - sla->corners[sega->a].pos.x;
-    da.y = sla->corners[sega->b].pos.y - sla->corners[sega->a].pos.y;
+    da = sla->corners[sega->b].pos - sla->corners[sega->a].pos;
     da.normalize();
-    na.x = da.y;
-    na.y = -da.x;
-    sega->normal.x = na.x;
-    sega->normal.y = na.y;
-    db.x = slb->corners[segb->b].pos.x - slb->corners[segb->a].pos.x;
-    db.y = slb->corners[segb->b].pos.y - slb->corners[segb->a].pos.y;
+    vector2 na(da.y, -da.x);
+    sega->normal = na;
+    db = slb->corners[segb->b].pos - slb->corners[segb->a].pos;
     db.normalize();
-    nb.x = db.y;
-    nb.y = -db.x;
-    segb->normal.x = nb.x;
-    segb->normal.y = nb.y;
-    dot = nb.y * da.y + nb.x * da.x;
+    vector2 nb(db.y, -db.x);
+    segb->normal = nb;
+    dot = nb.dot(da);
     if (dot > 0.0f) {
         s = 1.0f;
     } else {
-        c = -dot;
-        if (c >= 1.0f)
-            c = 1.0f;
-        if (nb.y * na.y + nb.x * na.x > 0.0f)
-            s = 1.0f / (float)sin((PI_F - asin(c)) * 0.5f);
+        s = -dot;
+        if (s >= 1.0f)
+            s = 1.0f;
+        float ang;
+        if (nb.dot(na) > 0.0f)
+            ang = PI_F - (float)asin(s);
         else
-            s = 1.0f / (float)sin(asin(c) * 0.5f);
+            ang = (float)asin(s);
+        s = 1.0f / (float)sin(ang * 0.5f);
         if (s >= 5.0f)
             s = 5.0f;
         else if (s <= 1.01f)
             s = 1.01f;
     }
-    bis.x = nb.x + na.x;
-    bis.y = nb.y + na.y;
+    vector2 bis = nb + na;
     bis.normalize();
     bis.x = bis.x * s;
     bis.y = bis.y * s;
-    sla->corners[corner_a].offset.x = bis.x;
-    sla->corners[corner_a].offset.y = bis.y;
-    slb->corners[corner_b].offset.y = bis.y;
-    slb->corners[corner_b].offset.x = bis.x;
+    sla->corners[corner_a].offset = bis;
+    slb->corners[corner_b].offset = bis;
     sla->corners[corner_a].offset_state = 1;
     slb->corners[corner_b].offset_state = 1;
 }
 
-// 0x4a82a0  Confidence: likely (the loop exit). A corner on one segment gets offset (1, 1) (the
+// 0x4a82a0  Confidence: exact (D11400: sl->corners[corner] indexed each time, no corner pointer). A corner on one segment gets offset (1, 1) (the
 // pf_node_index lookup of the wall's end point is discarded); one on two segments the shared miter.
 // Game bug: a corner on no segment reads segs[-1].
 void avoid_seglist_ensure_corner_offset(avoid_seglist *sl, int corner)
 {
-    avoid_corner *c;
     avoid_seg_ref *s1, *s2, *t;
     pf_edge *w;
     int first, second, i;
 
-    c = &sl->corners[corner];
-    if (c->offset_state == 1)
+    if (sl->corners[corner].offset_state == 1)
         return;
     first = -1;
     second = -1;
@@ -954,13 +930,13 @@ void avoid_seglist_ensure_corner_offset(avoid_seglist *sl, int corner)
     }
     if (second == -1) {
         w = sl->segs[first].wall;
-        if (c->pos.x == w->a->x && c->pos.y == w->a->y)
+        if (sl->corners[corner].pos.x == w->a->x && sl->corners[corner].pos.y == w->a->y)
             pf_node_index(w->a);
         else
             pf_node_index(w->b);
-        c->offset.x = 1.0f;
-        c->offset.y = 1.0f;
-        c->offset_state = 1;
+        sl->corners[corner].offset.x = 1.0f;
+        sl->corners[corner].offset.y = 1.0f;
+        sl->corners[corner].offset_state = 1;
         return;
     }
     s1 = &sl->segs[first];
@@ -1207,7 +1183,7 @@ avoid_seg_ref *avoid_ref_entry(const avoid_seg_ref_entry *e)
 
 // 0x4a8aa0  Confidence: likely. Sorts the references by where their wall-side corner lies along the
 // wall (major axis; reversed for walls with PF_EDGE_SIDE).
-void avoid_sort_refs_along_segment(avoid_seg_ref_entry *refs, int count)
+void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs)
 {
     avoid_seg_ref *s;
     pf_edge *w;
@@ -1219,7 +1195,7 @@ void avoid_sort_refs_along_segment(avoid_seg_ref_entry *refs, int count)
     use_x = 0;
     dx = w->b->x - w->a->x;
     dy = w->b->y - w->a->y;
-    if (fabsf(dy) < fabsf(dx))
+    if (fabsf(dx) > fabsf(dy))
         use_x = 1;
     for (i = 0; i < count; i++) {
         s = avoid_ref_entry(&refs[i]);
@@ -1257,7 +1233,7 @@ void avoid_merge_shared_segments(avoid_seglist *sl)
         count = 0;
         avoid_collect_segment_refs(&count, refs, w, sl->size, sl->layer);
         if (count != 1) {
-            avoid_sort_refs_along_segment(refs, count);
+            avoid_sort_refs_along_segment(count, refs);
             for (k = 0; k < count; k++) {
                 e = avoid_ref_entry(&refs[k]);
                 if (!e->side) {

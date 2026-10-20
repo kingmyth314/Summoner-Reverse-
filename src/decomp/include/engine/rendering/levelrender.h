@@ -56,9 +56,10 @@ LAYOUT_CHECK(lobj, sizeof(lobj) == 0x70);
 
 // A ray for lobj_raycast (0x4c bytes; layout from item_obj_spawn and lobj_raycast 0x4ae890; type and
 // field names ours). The inline constructor clears +0x30: item_obj_spawn stores 0 there before its first
-// statement.
+// statement. It clears it as the float min_radius (D11501, D12108): the binary stores an immediate 0 even where a
+// zero register is live, which 8966 does for a float constant only.
 struct lobj_ray {
-    lobj_ray() { _unk30 = 0; }
+    lobj_ray() { min_radius = 0.0f; }
     vector3 start;                    // +0x00
     vector3 dir;                      // +0x0C length = reach
     float _unk18;                     // +0x18 sphere radius: below 0.0001 a thin ray (lobj_ray_test_geometry; decomp71)

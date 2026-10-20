@@ -508,16 +508,16 @@ ui_listbox::ui_listbox()
     wrap_width_cb = NULL;
 }
 
-// 0x52d650  Confidence: likely (store order). Scroll bars are created here for flags 2 / 4
+// 0x52d650  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (store order). Scroll bars are created here for flags 2 / 4
 // (ui_slider::create_scrollbar stores them in vscrollbar / hscrollbar).
 void ui_listbox::create(ui_element *window, int x, int y, int w, int h, int content_w, int content_h,
                         int id, int flags, bool owned)
 {
     init(window, UI_TYPE_LISTBOX, x, y, w, h, id, owned);
-    max_content_h = content_h;
     this->flags = flags;
     bm_background = -1;
     max_content_w = content_w;
+    max_content_h = content_h;
     hscroll = 0;
     vscroll = 0;
     content_width = 0;
@@ -1032,7 +1032,7 @@ void ui_listbox::scroll_page_up()
     }
 }
 
-// 0x52e590  Confidence: likely. The inverse of scroll_page_up; does nothing when the view is already
+// 0x52e590  Confidence: exact (VC6 byte match, m-1020 w9; was likely). The inverse of scroll_page_up; does nothing when the view is already
 // past the end. In BY_ENTRY mode an entry taller than the view is stepped over as a whole.
 void ui_listbox::scroll_page_down()
 {
@@ -1075,14 +1075,15 @@ void ui_listbox::scroll_page_down()
             e = entry_at(0, get_view_height() + vscroll - 1, true);
             if (e->height > get_view_height() && e != entries.prev) {
                 e = e->next;
+                vscroll = e->height + e->y - get_view_height();
             } else {
                 vscroll += get_view_height();
                 last = entries.prev;
                 if (vscroll > last->y + last->height - get_view_height())
                     vscroll = last->y + last->height - get_view_height();
                 e = entry_at(0, get_view_height() + vscroll - 1, true);
+                vscroll = e->height + e->y - get_view_height();
             }
-            vscroll = e->height + e->y - get_view_height();
         } else {
             e = entry_at(0, vscroll, true);
             if (e->height > get_view_height() && e != entries.prev) {

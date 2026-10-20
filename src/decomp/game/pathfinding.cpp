@@ -1306,7 +1306,8 @@ void pf_compute_endpoint_visibility(const vector2 *start, int start_layer, const
     timer_get(1000);
 }
 
-// 0x49f650  Confidence: likely (the index arithmetic of the reversed array). Drops leading nodes while
+// 0x49f650  Confidence: exact (VC6 byte match, m-1020, D11100: the layer walk is a do-while, path being
+// non-NULL there; the index arithmetic of the reversed array). Drops leading nodes while
 // the start sees the next one, then the first node of every layer change that is not the last, then
 // (for paths of three or more) nodes before the goal while the goal is straight-walkable from further
 // back (last 32 nodes only). Nodes with flag 2 stop both walks.
@@ -1331,7 +1332,8 @@ ai_path *ai_path_smooth(ai_path *path, const vector3 *start, int start_layer)
     }
     layer = -1;
     prev = NULL;
-    for (n = path; n; n = n->next) {
+    n = path;
+    do {
         if (layer == -1 || n->layer == layer) {
             layer = n->layer;
         } else if (n->next) {
@@ -1341,7 +1343,8 @@ ai_path *ai_path_smooth(ai_path *path, const vector3 *start, int start_layer)
             n = prev->next;
         }
         prev = n;
-    }
+        n = n->next;
+    } while (n);
     count = 0;
     for (n = path; n; n = n->next)
         count++;

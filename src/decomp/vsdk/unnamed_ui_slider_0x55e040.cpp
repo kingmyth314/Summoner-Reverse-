@@ -378,11 +378,13 @@ void ui_slider::create_scrollbar(ui_gadget *listbox, bool horiz, int msize, int 
     set_parent(listbox);
     if (horiz) {
         lb->hscrollbar = this;
-        visible = view = lb->get_view_width();
+        visible = lb->get_view_width();
+        view = visible;
         count = lb->get_content_width() + (1 - view);
     } else {
         lb->vscrollbar = this;
-        visible = view = lb->get_view_height();
+        visible = lb->get_view_height();
+        view = visible;
         count = lb->get_content_height() + (1 - view);
     }
     set_page_size(view);

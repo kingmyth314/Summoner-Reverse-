@@ -969,7 +969,7 @@ void player_talk_to(Character *npc)
     game_play_sound(SOUND_CLICK_BAD, 1.0f, 0, 0, 0);
 }
 
-// 0x43c620  Confidence: likely (the order of the squared terms). The active, visible living entity, item
+// 0x43c620  Confidence: likely (D12404: off, closest and d at function scope, d = off - closest, the character offset stored y, z, x: frame and stores as the binary; still differs in dz2 + dx2, where the binary keeps dx2 on the FPU). The active, visible living entity, item
 // or container nearest to the segment from the camera to the picked point: within its radius (an item's
 // mesh sphere, 2 for a container, twice the character radius), horizontally within half of it (compared
 // squared against the unsquared value: a quirk), the nearest, and replacing an earlier one only when at
@@ -980,6 +980,7 @@ obj *pick_test_character(vector3 *hit)
     float best_d = 10000000.0f;
     float best_r = 0.0f;
     float r;
+    vector3 off, closest, d;
 
     for (obj *o = obj_active_list.next; o != &obj_active_list; o = o->next) {
         if (!o->is_living() && o->type != 3 && o->type != 11)
@@ -987,7 +988,6 @@ obj *pick_test_character(vector3 *hit)
         if (!(o->obj_flags & 1) || !(o->obj_flags & 2))
             continue;
 
-        vector3 off;
         if (o->type == 3) {
             off = ((item_obj *)o)->item->type->mesh->center;
             r = ((item_obj *)o)->item->type->mesh->radius;
@@ -998,20 +998,17 @@ obj *pick_test_character(vector3 *hit)
             off.z = 0.0f;
         } else {
             r = ((Character *)o)->size_radius() * 2.0f;
-            off.x = 0.0f;
             off.y = ((Character *)o)->size_height() * 0.5f;
             off.z = 0.0f;
+            off.x = 0.0f;
         }
         off += o->pos;
 
-        vector3 closest;
         ix_point_linesegment(&off, &camera_view_pos, hit, &closest);
-        float dx = off.x - closest.x;
-        float dy = off.y - closest.y;
-        float dz = off.z - closest.z;
-        float dz2 = dz * dz;
-        float dx2 = dx * dx;
-        float d2 = dy * dy + dz2 + dx2;
+        d = off - closest;
+        float dz2 = d.z * d.z;
+        float dx2 = d.x * d.x;
+        float d2 = d.y * d.y + dz2 + dx2;
         if (r * r > d2) {
             r *= 0.5f;
             if (dz2 + dx2 < r && d2 < best_d

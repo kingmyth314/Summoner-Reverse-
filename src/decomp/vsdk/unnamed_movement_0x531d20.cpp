@@ -97,22 +97,17 @@ void movement_init(float max_vel, float max_rotvel, float a3, float a4)
     movement_inited = true;
 }
 
-// 0x531f50  Confidence: likely (the key differences as written; the x87 code keeps each difference in st(1)
+// 0x531f50  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the key differences as written; the x87 code keeps each difference in st(1)
 // and multiplies the limit loaded after it). Nothing while a text box (gadget type 6) has the focus. The keys
 // (pad 3 / pad 1, pad + / pad Enter, A / Z) give the wanted velocity in the view's axes, the pad 8 / 2, 6 / 4,
 // 7 / 9 the turn rates (roll at 3/4); both approach their wanted values with movement_tau / movement_rot_tau,
 // the position moves by the integral and the orientation turns by rate * dt (angles p = x, b = z, h = y).
 void movement_read_controls(vector3 *pos, matrix *orient, float dt)
 {
-    vector3 max_vel;
-    vector3 max_rotvel;
-    vector3 v;
-    vector3 delta;
-
     if (ui_current_gadget && ui_current_gadget->get_type() == 6)
         return;
-    max_vel = movement_max_vel;
-    max_rotvel = movement_max_rotvel;
+    vector3 max_vel = movement_max_vel;
+    vector3 max_rotvel = movement_max_rotvel;
     if (Allow_movement_vel_change) {
         if (key_is_down(KEY_RSHIFT) | key_is_down(KEY_LSHIFT)) {
             max_vel *= 5.0f;
@@ -123,20 +118,29 @@ void movement_read_controls(vector3 *pos, matrix *orient, float dt)
             max_rotvel *= 0.25f;
         }
     }
-    v.x = (key_down_time(0x51) - key_down_time(0x4f)) * max_vel.x;
-    v.y = (key_down_time(0x4e) - key_down_time(0x9c)) * max_vel.y;
-    v.z = (key_down_time(0x1e) - key_down_time(0x2c)) * max_vel.z;
+    vector3 v;
+    float d = key_down_time(0x51) - key_down_time(0x4f);
+    v.x = d * max_vel.x;
+    d = key_down_time(0x4e) - key_down_time(0x9c);
+    v.y = d * max_vel.y;
+    d = key_down_time(0x1e) - key_down_time(0x2c);
+    v.z = d * max_vel.z;
     movement_velocity = orient->rvec * v.x;
     movement_velocity += orient->uvec * v.y;
     movement_velocity += orient->fvec * v.z;
+    vector3 delta;
     smooth_approach_exp(movement_tau, movement_velocity.x, movement_rotvel.x, dt, &movement_rotvel.x, &delta.x);
     smooth_approach_exp(movement_tau, movement_velocity.y, movement_rotvel.y, dt, &movement_rotvel.y, &delta.y);
     smooth_approach_exp(movement_tau, movement_velocity.z, movement_rotvel.z, dt, &movement_rotvel.z, &delta.z);
     *pos = *pos + delta;
 
-    movement_turn_target.x = (key_down_time(0x48) - key_down_time(0x50)) * max_rotvel.x;
-    movement_turn_target.y = (key_down_time(0x4d) - key_down_time(0x4b)) * max_rotvel.y;
-    movement_turn_target.z = (key_down_time(0x47) - key_down_time(0x49)) * max_rotvel.z * 0.75f;
+    float t;
+    t = key_down_time(0x48) - key_down_time(0x50);
+    movement_turn_target.x = t * max_rotvel.x;
+    t = key_down_time(0x4d) - key_down_time(0x4b);
+    movement_turn_target.y = t * max_rotvel.y;
+    t = key_down_time(0x47) - key_down_time(0x49);
+    movement_turn_target.z = t * max_rotvel.z * 0.75f;
     smooth_approach_exp(movement_rot_tau, movement_turn_target.x, movement_turn_rate.x, dt, &movement_turn_rate.x, NULL);
     smooth_approach_exp(movement_rot_tau, movement_turn_target.y, movement_turn_rate.y, dt, &movement_turn_rate.y, NULL);
     smooth_approach_exp(movement_rot_tau, movement_turn_target.z, movement_turn_rate.z, dt, &movement_turn_rate.z, NULL);

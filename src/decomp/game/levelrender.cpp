@@ -801,8 +801,8 @@ gr_vertex **levelrender_face_vertex_colors(lobj *l, s3d_face *face, int unused, 
     return levelrender_face_vert_list;
 }
 
-// 0x48fbb0  Confidence: likely (the code sums the z terms first: VC6 reordering, D504; the distance is
-// vector3::len expanded). Lights
+// 0x48fbb0  Confidence: exact (VC6 byte match, m-1020 w11, D12003: the binary sums z*z + x*x, then y*y; written
+// as y*y + (x*x + z*z), which VC6 emits in that order). Lights
 // closer than 1 count fully; otherwise by the cosine to the normal, faded between the light's near and
 // far range when it has one, times intensity * 0.75, each channel's contribution capped at 1, the sums
 // capped at 1.
@@ -825,7 +825,7 @@ int levelrender_sum_point_lights(vector3 *out, const vector3 *pos, const vector3
         d.x = lt->pos.x - pos->x;
         d.y = lt->pos.y - pos->y;
         d.z = lt->pos.z - pos->z;
-        dist = d.len();
+        dist = (float)sqrt(d.y * d.y + (d.x * d.x + d.z * d.z));
         if (lt->has_range && dist > lt->range_far)
             continue;
         if (dist < 1.0f)

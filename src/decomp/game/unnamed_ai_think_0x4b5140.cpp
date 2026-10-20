@@ -89,15 +89,15 @@ int ai_formation_count;                                       // 0x247e960
 // so none is written).
 
 // ---- formation -----------------------------------------------------------------------------------------
-// 0x4b5160  Confidence: likely (the group pointer is re-read from the owner and stored back). The leader
+// 0x4b5160  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the group pointer is re-read from the owner and stored back). The leader
 // hands its members the formation slots 1..n, each to the nearest free one in member order.
 void ai_state::group_assign_formation()
 {
     Character *members[AI_FORMATION_SLOTS];
     bool free_slot[AI_FORMATION_SLOTS];
     vector3 slots[AI_FORMATION_SLOTS];
-    float best_d = 0.0f;
     int n = 0;
+    float best_d = 0.0f;
     int i, m;
     Character *c;
 
@@ -122,8 +122,8 @@ void ai_state::group_assign_formation()
                 best = i;
             }
         }
-        free_slot[best] = false;
         members[m]->ai.formation_slot = best + 1;
+        free_slot[best] = false;
     }
     ai_formation_count = n;
     for (i = 0; i < n; i++) {
@@ -294,13 +294,14 @@ void ai_state::retaliate_on_hit(int attacker)
 void ai_state::pick_attack_target(int max_attackers)
 {
     profile_label label("ai_pick_attack_target");
-    Character *t = NULL;
+    Character *t;
     Character *best;
     int cur;
     ai_target_query q;
 
     if (!owner->combat.has_weapon_skill())
         return;
+    t = NULL;
     if (target != -1) {
         t = living_from_handle(target);
         if (!t || (t->flags & CF_DEAD))

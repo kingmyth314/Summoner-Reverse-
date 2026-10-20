@@ -39,7 +39,7 @@
 #define MP_PI 3.14159265f
 // The heading of OBJ_UPD: (h + pi) / (2 pi) * 65535 in a 16-bit word, back as w * (2 pi / 65535) - pi.
 #define MP_HEADING_SCALE (1.0f / (2.0f * MP_PI))
-#define MP_HEADING_UNSCALE 9.587526e-5f
+#define MP_HEADING_UNSCALE 9.5875264e-5f  // 0x38c910a4 (the binary's constant)
 
 // ---- .bss --------------------------------------------------------------------------------------------
 int mp_net_handle_map[MP_NET_HANDLE_MAP_SIZE];          // 0x22e94f4
@@ -339,6 +339,7 @@ void mp_handle_new_path(ubyte *data, void *from)
     ubyte layer;
     float cost;
     ai_path *last, *node, *prev, *p;
+    vector3 v;
 
     h = ((int *)data)[0];
     t = ((int *)data)[1];
@@ -360,7 +361,6 @@ void mp_handle_new_path(ubyte *data, void *from)
     off = 9;
     cost = 0.0f;
     for (i = 0; i < n; i++) {
-        vector3 v;
         v.zero();
         vector2 p;
         memcpy(&p.x, data + off, 4);
@@ -452,7 +452,8 @@ void mp_send_obj_update(Character *c, int a)
         mp_broadcast_packet_buffered(data, packet_size, false);
 }
 
-// 0x4806a0  Confidence: likely (match29, D8800: the decision tree with goto set / done, the position assigned
+// 0x4806a0  Confidence: exact (cp / cb / ch in the angle block, so they share the dead slots; the two float
+// constants are the binary's, 1 ulp off before. match29, D8800: the decision tree with goto set / done, the position assigned
 // from the call, the target speed read with memcpy; instruction-identical, the frame differs: the binary keeps
 // ch / traveling in the dead data slot). The target speed is always taken. A traveling party
 // member walks through mp_remote_travel_update. The position is set (and the path searched again from it)
@@ -466,7 +467,6 @@ void mp_handle_obj_update(ubyte *data, void *from)
     ushort x, y, z, heading, layer;
     float target_speed, forward_speed;
     float new_h;
-    float cp, cb, ch;
     bool remote;
     ai_path *path, *n;
 
@@ -502,8 +502,9 @@ void mp_handle_obj_update(ubyte *data, void *from)
             goto done;
         }
         if (!(distance(&c->pos, &pos) > forward_speed * 0.5f + 1.5f)) {
+            float cp, cb, ch;
             c->orient.extract_angles(&cp, &cb, &ch);
-            if (!(fabsf(ch - new_h) > 0.17453292f))
+            if (!(fabsf(ch - new_h) > 0.17453294f))
                 goto done;
         }
     }
@@ -710,7 +711,8 @@ void mp_handle_status_add(ubyte *data, void *from)
     spell = ((int *)data)[3];
     status = ((int *)data)[1];
     source = ((int *)data)[5];
-    c->status_effect_add(status, ms, spell, value, mp_local_handle_from_net(source), false);
+    source = mp_local_handle_from_net(source);
+    c->status_effect_add(status, ms, spell, value, source, false);
 }
 
 // 0x480de0  Confidence: exact (VC6 byte match). Host: CLR_STA {handle, status, restore_fx}.

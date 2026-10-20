@@ -188,7 +188,9 @@ void dialogue_line::init(const char *text, int width, int kind, conversation_slo
         height = gr_get_font_height(-1);
 }
 
-// 0x4d6b80  Confidence: likely (kinds 1 and 2 share the drawing loop after their colour, tail-merged here
+// 0x4d6b80  Confidence: likely (m-1020 w11, D12008: kind 0 apart, then a switch for the colour of kinds 1 / 2 and
+// one loop; the line y hoisted; the frame and dispatch now as the binary, the y sums still associate differently;
+// kinds 1 and 2 share the drawing loop after their colour, tail-merged here
 // from two cases; the line loop runs on a down-counter).
 void dialogue_line::draw(int scroll)
 {
@@ -208,8 +210,7 @@ void dialogue_line::draw(int scroll)
         strncpy(wrapped[i], text + offsets[i], lengths[i]);
         wrapped[i][lengths[i]] = 0;
     }
-    switch (kind) {
-    case 0: {
+    if (kind == 0) {
         // spoken text: the parts in quotes blue, the rest green; a quote can go on over the wrap
         bool in_quote = false;
         int y = 0;
@@ -218,31 +219,36 @@ void dialogue_line::draw(int scroll)
             int segs;
             int x;
             in_quote = split_quotes(&segs, seg_lengths, seg_starts, wrapped[i], 32, in_quote);
+            int line_y = y + scroll + top;
             x = 0;
             for (j = 0; j < segs; j++) {
                 int w, h;
                 strncpy(segment, wrapped[i] + seg_starts[j], seg_lengths[j]);
                 segment[seg_lengths[j]] = 0;
-                gr_set_color_ptr(quoted ? &dialogue_color_blue : &dialogue_color_green);
-                gr_string(x, y + scroll + top, segment, -1, gr_bitmap_wrap_mode);
+                if (quoted)
+                    gr_set_color_ptr(&dialogue_color_blue);
+                else
+                    gr_set_color_ptr(&dialogue_color_green);
+                gr_string(x, line_y, segment, -1, gr_bitmap_wrap_mode);
                 gr_get_string_size(&w, &h, segment, -1, -1);
                 x += w;
                 quoted = !quoted;
             }
             y += font_h;
         }
-        break;
-    }
-    case 1:
-        gr_set_color_ptr(&dialogue_color_red);
+    } else {
+        switch (kind) {
+        case 1:
+            gr_set_color_ptr(&dialogue_color_red);
+            break;
+        case 2:
+            gr_set_color_ptr(&dialogue_color_gray);
+            break;
+        default:
+            return;
+        }
         for (i = 0; i < n; i++)
             gr_string(0, i * font_h + scroll + top, wrapped[i], -1, gr_bitmap_wrap_mode);
-        break;
-    case 2:
-        gr_set_color_ptr(&dialogue_color_gray);
-        for (i = 0; i < n; i++)
-            gr_string(0, i * font_h + scroll + top, wrapped[i], -1, gr_bitmap_wrap_mode);
-        break;
     }
 }
 
@@ -264,7 +270,8 @@ void dialogue_topic_entry::init(conversation_topic *topic, int width, int state)
         height = gr_get_font_height(-1);
 }
 
-// 0x4d6e70  Confidence: likely (jump table 0x4d70d8 for states 3-6; the per-case locals). The "more" and
+// 0x4d6e70  Confidence: likely (m-1020 w11, D12008: the colour as an if / else of two calls; jump table 0x4d70d8
+// for states 3-6; the per-case locals). The "more" and
 // "end" buttons test the mouse against the topic box's top left and the text size, and the bottom test
 // compares the mouse x with y + h (game bug: `mx < box.y + h`, NOTES).
 void dialogue_topic_entry::draw(int scroll)
@@ -287,7 +294,10 @@ void dialogue_topic_entry::draw(int scroll)
             strncpy(wrapped[i], s + offsets[i], lengths[i]);
             wrapped[i][lengths[i]] = 0;
         }
-        gr_set_color_ptr(state == 3 ? &dialogue_color_gray : &dialogue_color_yellow);
+        if (state == 3)
+            gr_set_color_ptr(&dialogue_color_gray);
+        else
+            gr_set_color_ptr(&dialogue_color_yellow);
         for (i = 0, y = 0; i < n; i++, y += font_h)
             gr_string(0, y + top + scroll, wrapped[i], -1, gr_bitmap_wrap_mode);
         break;
@@ -460,13 +470,16 @@ int dialogue_box::last_visible_line()
     return last;
 }
 
-// 0x4d74f0  Confidence: likely (min / max as the vsdk.h macros: inline compares, no imin / imax calls).
+// 0x4d74f0  Confidence: exact (VC6 byte match, m-1020 w11, D12007: the lower bound is computed once into a local
+// before the max macro; the binary calls gr_get_font_height twice, not three times; min / max as the vsdk.h
+// macros: inline compares, no imin / imax calls).
 void dialogue_box::scroll_next_page()
 {
     int i;
 
     scroll_target = (int)scroll - gr_get_font_height(-1) * lines;
-    scroll_target = max(scroll_target, gr_get_font_height(-1) * lines - text_height);
+    int lim = gr_get_font_height(-1) * lines - text_height;
+    scroll_target = max(scroll_target, lim);
     scroll_target = min(scroll_target, 0);
     for (i = 0; i < count; i++) {
         int idx = (first + i) % DIALOGUE_RING;
@@ -534,7 +547,8 @@ void dialogue_box::draw()
     gr::set_clip(cx, cy, cw, ch);
 }
 
-// 0x4d7800  Confidence: likely (under 8966 the argument loads are scheduled differently, D7702).
+// 0x4d7800  Confidence: exact (VC6 byte match, m-1020 w11, D12005: if / else with one layout() and return
+// after both branches; the binary duplicates the tail).
 dialogue_topic_entry *dialogue_topic_list::add(conversation_topic *topic, int kind)
 {
     dialogue_topic_entry *e;
@@ -545,12 +559,11 @@ dialogue_topic_entry *dialogue_topic_list::add(conversation_topic *topic, int ki
         entry[first].init(topic, w, kind);
         e = &entry[first];
         first = (first + 1) % DIALOGUE_RING;
-        layout();
-        return e;
+    } else {
+        e = &entry[(first + count) % DIALOGUE_RING];
+        e->init(topic, w, kind);
+        count++;
     }
-    e = &entry[(first + count) % DIALOGUE_RING];
-    e->init(topic, w, kind);
-    count++;
     layout();
     return e;
 }

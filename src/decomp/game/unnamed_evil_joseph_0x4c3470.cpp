@@ -213,30 +213,28 @@ void ai_state::evil_joseph_ai_idle()
     }
 }
 
-// 0x4c3860  Confidence: likely (the sub-mode switch starts at 0xf: no case -1; byte table 0x4c3968).
+// 0x4c3860  Confidence: exact (D12406: the hidden test clears target before one combined idle test; the teleport navpoint indexed in the call). The sub-mode switch starts at 0xf (no case -1; byte table 0x4c3968).
 void ai_state::evil_joseph_ai_frame()
 {
     int result;
     Character *target;
-    navpoint *nav;
 
     result = evil_joseph_ai_select_action();
     target = living_from_handle(evil_joseph_target_handle);
     owner->combat.target = evil_joseph_target_handle;
-    if (target == NULL || (target->flags & CF_HIDDEN)) {
+    if (target != NULL && (target->flags & CF_HIDDEN))
         target = NULL;
-        if (submode != AIS_FOLLOW_PATH) {
-            go_idle();
-            return;
-        }
+    if (target == NULL && submode != AIS_FOLLOW_PATH) {
+        go_idle();
+        return;
     }
     if (result == 4)
         return;
     if (result == 3) {
         combat_approach(target);
     } else if (result == 1) {
-        nav = evil_joseph_teleports[evil_joseph_teleport_index];
-        path_find_new(&owner->pos, owner->layer, &nav->pos, nav->layer, owner->info->size, 0.0f);
+        path_find_new(&owner->pos, owner->layer, &evil_joseph_teleports[evil_joseph_teleport_index]->pos,
+                      evil_joseph_teleports[evil_joseph_teleport_index]->layer, owner->info->size, 0.0f);
         set_mode(AI_STATE_COMBAT, AIS_FOLLOW_PATH);
     }
     switch (submode) {
@@ -268,7 +266,7 @@ bool evil_joseph_cast_special(Character *c, int anim)
     return true;
 }
 
-// 0x4c39b0  Confidence: likely (the HP band ladder shares the "return 1" tails). Below 80 / 60 / 40 / 20 %
+// 0x4c39b0  Confidence: exact (D12406: the first target pick tests success with the failure return as the else; the HP band ladder shares the "return 1" tails). Below 80 / 60 / 40 / 20 %
 // HP the boss walks once to teleport point 1 / 2 / 3 / 4. Otherwise: while no helper summon is out, a
 // summon move for the next helper; else move 8 with a random move id 1..3.
 int ai_state::evil_joseph_ai_select_action()
@@ -309,10 +307,11 @@ int ai_state::evil_joseph_ai_select_action()
     if (timer_up || !target) {
         evil_joseph_target_handle = boss_target_list_pick(list, count, evil_joseph_threat_table,
                                                           evil_joseph_target_handle, false, 1);
-        if (evil_joseph_target_handle == -1)
+        if (evil_joseph_target_handle != -1) {
+            living_from_handle(evil_joseph_target_handle);
+            evil_joseph_set_attack_timer(20000, 30000);
+        } else
             return 0;
-        living_from_handle(evil_joseph_target_handle);
-        evil_joseph_set_attack_timer(20000, 30000);
     }
     frac = owner->hp / (float)owner->get_max_stat(0);
     if (frac < 0.2f) {
@@ -382,7 +381,7 @@ void evil_joseph_set_attack_timer(int min_ms, int max_ms)
     evil_joseph_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c3cd0  Confidence: likely. The next helper in turn (the first four calls), then a random one that is
+// 0x4c3cd0  Confidence: likely (D12406: the midpoint through vector3 operators, dir block-scoped so the temporaries share its slot; still differs in the FPU order of the length and the scaled direction). The next helper in turn (the first four calls), then a random one that is
 // alive, active and not the last one (five tries). The summon point is halfway to the target (or
 // cur_character); when that is within 4 of the target, a navigable point 4-8 from the boss in a random
 // direction (ten tries). The summon move is the helper's index in the move table.
@@ -390,7 +389,6 @@ void evil_joseph_pick_helper_summon(Character *boss)
 {
     Character *c;
     Character *t;
-    vector3 dir;
     float r;
     int tries;
     int i;
@@ -419,23 +417,18 @@ void evil_joseph_pick_helper_summon(Character *boss)
         if (t == NULL)
             return;
     }
-    dir.x = boss->pos.x + t->pos.x;
-    dir.y = t->pos.y + boss->pos.y;
-    dir.z = t->pos.z + boss->pos.z;
-    evil_joseph_summon_pos.x = dir.x * 0.5f;
-    evil_joseph_summon_pos.y = dir.y * 0.5f;
-    evil_joseph_summon_pos.z = dir.z * 0.5f;
+    evil_joseph_summon_pos = (boss->pos + t->pos) * 0.5f;
     float dx = evil_joseph_summon_pos.x - t->pos.x;
     float dz = evil_joseph_summon_pos.z - t->pos.z;
     if ((float)sqrt(dx * dx + dz * dz) < 4.0f) {
+        vector3 dir;
         for (tries = 0; tries < 10; tries++) {
             r = frand_range(4.0f, 8.0f);
             dir.random_direction();
             dir.y = 0.0f;
             dir.normalize_safe();
-            dir.x = dir.x * r + boss->pos.x;
-            dir.y = dir.y * r + boss->pos.y;
-            dir.z = dir.z * r + boss->pos.z;
+            dir *= r;
+            dir += boss->pos;
             if (pf_point_is_navigable(&dir, t->info->size, boss->layer) == true)
                 break;
         }

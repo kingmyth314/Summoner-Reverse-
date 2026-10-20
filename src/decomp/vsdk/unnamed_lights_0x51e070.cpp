@@ -344,7 +344,7 @@ void lights_collect_enabled()
     }
 }
 
-// 0x51e970  Confidence: likely. Rebuilds level 0, then pushes a level with the enabled point and spot
+// 0x51e970  Confidence: exact (D11203). Rebuilds level 0, then pushes a level with the enabled point and spot
 // lights (dynamic ones only when lights_dynamic_enabled) whose outer radius reaches pos, sorted by
 // their brightest channel at pos, cut to lights_max_per_object. a and radius are not read.
 int lights_select_nearest(int a, const vector3 *pos, float radius)
@@ -354,16 +354,18 @@ int lights_select_nearest(int a, const vector3 *pos, float radius)
     light *l;
 
     lights_collect_enabled();
+    int p = lights_selection_depth - 1;
     d = lights_selection_depth++;
     lights_selection_counts[d] = 0;
-    n = lights_selection_counts[d - 1];
+    n = lights_selection_counts[p];
     for (i = 0; i < n; i++) {
-        l = lights_selection[d - 1][i];
+        l = lights_selection[p][i];
         if (!l->enabled)
             continue;
         if (!lights_dynamic_enabled && l->dynamic)
             continue;
-        if (l->type < LIGHT_TYPE_POINT || l->type > LIGHT_TYPE_SPOT)
+        int type = l->type;
+        if (type < LIGHT_TYPE_POINT || type > LIGHT_TYPE_SPOT)
             continue;
         if ((l->pos - *pos).len_sq() < l->outer_sq)
             lights_selection[d][lights_selection_counts[d]++] = l;
@@ -462,7 +464,7 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
     switch (l->type) {
     case LIGHT_TYPE_POINT: {
         vector3 d = lp - *pos;
-        dot = normal ? normal->dot(d) : d.len();
+        dot = normal == NULL ? d.len() : normal->dot(d);
         if (dot <= 0.0f)
             return;
         dist = d.len();
@@ -482,7 +484,7 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
     }
     case LIGHT_TYPE_SPOT: {
         vector3 d = lp - *pos;
-        dot = normal ? normal->dot(d) : d.len();
+        dot = normal == NULL ? d.len() : normal->dot(d);
         if (dot <= 0.0f)
             return;
         dist = d.normalize_safe_length();
@@ -512,8 +514,8 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
             b = f * l->b;
         }
         if (l->bitmap != -1) {
-            vector3 v;
-            v = (*pos - lp).unrotated(gr_light_matrix);
+            vector3 t = *pos - lp;
+            vector3 v = t.unrotated(gr_light_matrix);
             v = v.rotated(l->orient);
             vector3 down(0.0f, -1.0f, 0.0f);
             vector3 h(v);
@@ -607,7 +609,7 @@ vector3 light_sample_projected_bitmap(float u, float v, int bm)
     return vector3(c);
 }
 
-// 0x51f3b0  Confidence: likely. The ambient light (unless dynamic_only) plus every enabled light of the
+// 0x51f3b0  Confidence: exact (D11203). The ambient light (unless dynamic_only) plus every enabled light of the
 // current selection: dynamic ones when `dynamic`, static ones unless `dynamic_only`; each channel
 // clamped to 0..1. colour is not read.
 void lights_shade_vertices(ubyte *r, ubyte *g, ubyte *b, const vector3 *pos, const vector3 *normal,
@@ -621,11 +623,12 @@ void lights_shade_vertices(ubyte *r, ubyte *g, ubyte *b, const vector3 *pos, con
         c.set(0.0f, 0.0f, 0.0f);
     else
         c.set(light_ambient_r, light_ambient_g, light_ambient_b);
-    n = lights_selection_counts[lights_selection_depth - 1];
-    lights_shade_calls++;
+    int cur = lights_selection_depth - 1;
+    n = lights_selection_counts[cur];
     lights_shade_light_total += n;
+    lights_shade_calls++;
     for (i = 0; i < n; i++) {
-        l = lights_selection[lights_selection_depth - 1][i];
+        l = lights_selection[cur][i];
         if (!l->enabled)
             continue;
         if (l->dynamic) {
@@ -680,11 +683,12 @@ bool lights_calc_point_specular_color(const vector3 *pos, const vector3 *normal,
     sr = 0.0f;
     sg = 0.0f;
     sb = 0.0f;
-    n = lights_selection_counts[lights_selection_depth - 1];
-    lights_shade_calls++;
+    int cur = lights_selection_depth - 1;
+    n = lights_selection_counts[cur];
     lights_shade_light_total += n;
+    lights_shade_calls++;
     for (i = 0; i < n; i++) {
-        l = lights_selection[lights_selection_depth - 1][i];
+        l = lights_selection[cur][i];
         if (!l->enabled)
             continue;
         if (l->dynamic && !dynamic)
@@ -694,18 +698,23 @@ bool lights_calc_point_specular_color(const vector3 *pos, const vector3 *normal,
             lp = l->pos;
         else
             lp = l->inst_pos;
-        if (l->type != LIGHT_TYPE_POINT)
+        switch (l->type) {
+        case LIGHT_TYPE_POINT:
+            break;
+        default:
             continue;
+        }
         vector3 d = lp - *pos;
         dist = d.len();
         if (!(dist < l->outer))
             continue;
-        if ((normal ? normal->dot(d) : dist * 0.1f) <= 0.0f)
+        if ((normal == NULL ? dist * 0.1f : normal->dot(d)) <= 0.0f)
             continue;
         if (dist < l->inner) {
             vector3 dn = d.normalized();
             s = ((2.0f * *normal) * normal->dot(dn) - dn).dot(eye);
-            s = float_max((s - threshold) * (1.0f / (1.0f - threshold)), 0.0f);
+            s = (s - threshold) * (1.0f / (1.0f - threshold));
+            s = float_max(s, 0.0f);
             if (s == 0.0f)
                 continue;
             f = float_min(s * s * intensity, 1.0f);
@@ -715,10 +724,11 @@ bool lights_calc_point_specular_color(const vector3 *pos, const vector3 *normal,
             atten = 1.0f - (dist - l->inner) / (l->outer - l->inner);
             vector3 dn = d.normalized();
             s = ((2.0f * *normal) * normal->dot(dn) - dn).dot(eye);
-            s = float_max((s - threshold) * (1.0f / (1.0f - threshold)), 0.0f);
+            s = (s - threshold) * (1.0f / (1.0f - threshold));
+            s = float_max(s, 0.0f);
             if (s == 0.0f)
                 continue;
-            f = s * s * atten * intensity;
+            f = (s * s) * atten * intensity;
         }
         sr += f * l->r;
         sg += f * l->g;

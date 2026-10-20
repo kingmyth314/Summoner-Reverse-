@@ -448,7 +448,8 @@ void conversation::remove_topic_entry(conversation_topic *t)
     }
 }
 
-// 0x4d8760  Confidence: likely (the localized word is a local: it is loaded once before both loops).
+// 0x4d8760  Confidence: exact (the localized word is a local, loaded once before both loops; the topic text
+// through a local in each loop gives the binary's register reuse).
 // Fills the topic box: the topics whose text does not contain "farewell" first, then those that do.
 void conversation::farewell()
 {
@@ -456,11 +457,13 @@ void conversation::farewell()
     conversation_topic_entry *e;
 
     for (e = topic_list.next; e != &topic_list; e = e->next) {
-        if (!stristr(e->topic->text, word))
+        const char *text = e->topic->text;
+        if (!stristr(text, word))
             dialogue_topic_box_add_kind3(e->topic);
     }
     for (e = topic_list.next; e != &topic_list; e = e->next) {
-        if (stristr(e->topic->text, word))
+        const char *text = e->topic->text;
+        if (stristr(text, word))
             dialogue_topic_box_add_kind3(e->topic);
     }
 }

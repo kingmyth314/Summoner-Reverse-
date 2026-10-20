@@ -77,7 +77,7 @@ float gl_scale_2f13360;                               // 0x2f13360
 void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     uint *d = (uint *)dst;
-    for (int y = 0; y < tex_h; y++) {
+    for (int y = 0; y < tex_h; y++, src += bm_w) {
         for (int x = 0; x < tex_w; x++) {
             if (x < bm_w && y < bm_h)
                 *d = (gr_gamma_ramp[src[x]] << 24) | 0xffffff;
@@ -85,27 +85,25 @@ void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *
                 *d = 0;
             d++;
         }
-        src += bm_w;
     }
 }
 
-// 0x54d630  Confidence: likely (loop shape). No caller.
+// 0x54d630  Confidence: exact (D11200: the row pointer from y, the padding from x = bm_w, the zeroes b, g, r, a). No caller.
 // 888 (B, G, R bytes) to RGBA; pure green (0, 255, 0) becomes transparent black.
 void gl_convert_888_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
-    uint *row = (uint *)dst;
     int x, y;
     int v = 0;
     for (y = 0; y < bm_h; y++) {
-        uint *d = row;
+        uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             ubyte *s = src + ((v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE) * 3;
             uint r, g, b, a;
             if (s[0] == 0 && s[1] == 0xff && s[2] == 0) {
-                r = 0;
-                g = 0;
                 b = 0;
+                g = 0;
+                r = 0;
                 a = 0;
             } else {
                 r = s[2];
@@ -116,16 +114,14 @@ void gl_convert_888_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w,
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
-        for (; x < tex_w; x++)
+        for (x = bm_w; x < tex_w; x++)
             *d++ = 0;
         v += GL_STEP_ONE;
-        row += tex_w;
     }
-    uint *pad = (uint *)dst + bm_h * tex_w;
     for (y = bm_h; y < tex_h; y++) {
+        uint *pad = (uint *)dst + y * tex_w;
         for (x = 0; x < tex_w; x++)
             pad[x] = 0;
-        pad += tex_w;
     }
 }
 
@@ -177,11 +173,10 @@ void gl_convert_888_to_rgb888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *s
 void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     ushort *s = (ushort *)src;
-    uint *row = (uint *)dst;
     int x, y;
     int v = 0;
     for (y = 0; y < bm_h; y++) {
-        uint *d = row;
+        uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             uint p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
@@ -192,16 +187,14 @@ void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
-        for (; x < tex_w; x++)
+        for (x = bm_w; x < tex_w; x++)
             *d++ = 0;
         v += GL_STEP_ONE;
-        row += tex_w;
     }
-    uint *pad = (uint *)dst + bm_h * tex_w;
     for (y = bm_h; y < tex_h; y++) {
+        uint *pad = (uint *)dst + y * tex_w;
         for (x = 0; x < tex_w; x++)
             pad[x] = 0;
-        pad += tex_w;
     }
 }
 
@@ -210,31 +203,28 @@ void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
 void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     ushort *s = (ushort *)src;
-    uint *row = (uint *)dst;
     int x, y;
     int v = 0;
     for (y = 0; y < bm_h; y++) {
-        uint *d = row;
+        uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             ushort p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
-            ubyte a = (p & 0x8000) ? 0 : 0xff;
+            int a = (p & 0x8000) ? 0 : 0xff;
             int b = (int)((p & 0x1f) * 255) / 31;
             int g = (int)(((p >> 5) & 0x1f) * 255) / 31;
             int r = (int)(((p >> 10) & 0x1f) * 255) / 31;
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
-        for (; x < tex_w; x++)
+        for (x = bm_w; x < tex_w; x++)
             *d++ = 0;
         v += GL_STEP_ONE;
-        row += tex_w;
     }
-    uint *pad = (uint *)dst + bm_h * tex_w;
     for (y = bm_h; y < tex_h; y++) {
+        uint *pad = (uint *)dst + y * tex_w;
         for (x = 0; x < tex_w; x++)
             pad[x] = 0;
-        pad += tex_w;
     }
 }
 
@@ -244,11 +234,10 @@ void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
 void gl_convert_1555_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     ushort *s = (ushort *)src;
-    uint *row = (uint *)dst;
     int x, y;
     int v = 0;
     for (y = 0; y < bm_h; y++) {
-        uint *d = row;
+        uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             uint p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
@@ -258,82 +247,85 @@ void gl_convert_1555_to_rgba8888_scaled(int tex_h, int tex_w, int bm_h, int bm_w
             *d++ = (((((0xff << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }
-        for (; x < tex_w; x++)
+        for (x = bm_w; x < tex_w; x++)
             *d++ = 0;
         v += GL_STEP_ONE;
-        row += tex_w;
     }
-    uint *pad = (uint *)dst + bm_h * tex_w;
     for (y = bm_h; y < tex_h; y++) {
+        uint *pad = (uint *)dst + y * tex_w;
         for (x = 0; x < tex_w; x++)
             pad[x] = 0;
-        pad += tex_w;
     }
 }
 
-// 0x54dda0  Confidence: likely (loop shape as 0x54d630).
+// 0x54dda0  Confidence: exact (loop shape as 0x54d630, D11200).
 // BM_FORMAT_8888 (B, G, R, A bytes) to RGBA bytes.
 void gl_convert_8888_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
-    uint *row = (uint *)dst;
     int x, y;
     int v = 0;
     for (y = 0; y < bm_h; y++) {
-        uint *d = row;
+        uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
             ubyte *s = src + ((v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE) * 4;
             *d++ = (((((s[3] << 8) | s[0]) << 8) | s[1]) << 8) | s[2];
             u += GL_STEP_ONE;
         }
-        for (; x < tex_w; x++)
+        for (x = bm_w; x < tex_w; x++)
             *d++ = 0;
         v += GL_STEP_ONE;
-        row += tex_w;
     }
-    uint *pad = (uint *)dst + bm_h * tex_w;
     for (y = bm_h; y < tex_h; y++) {
+        uint *pad = (uint *)dst + y * tex_w;
         for (x = 0; x < tex_w; x++)
             pad[x] = 0;
-        pad += tex_w;
     }
 }
 
-// 0x54deb0  Confidence: likely (differs under cl 8966 in match26).
+// 0x54deb0  Confidence: exact (D11201: the destination pointer is set after the row-count test).
 // BM_FORMAT_4444 with packed pixels: ARGB4444 rotated to RGBA4444 (GL_UNSIGNED_SHORT_4_4_4_4).
 void gl_convert_4444_to_rgba4444(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     ushort *s = (ushort *)src;
-    ushort *d = (ushort *)dst;
-    for (int y = 0; y < tex_h; y++) {
-        for (int x = 0; x < tex_w; x++) {
-            if (x < bm_w && y < bm_h) {
-                ushort p = *s;
-                *d++ = (ushort)((p >> 12) | (p << 4));
-                s++;
-            } else {
-                *d++ = 0;
+    int y = 0;
+    if (tex_h > 0) {
+        ushort *d = (ushort *)dst;
+        do {
+            for (int x = 0; x < tex_w; x++) {
+                if (x < bm_w && y < bm_h) {
+                    ushort p = *s;
+                    *d++ = (ushort)((p >> 12) | (p << 4));
+                    s++;
+                } else {
+                    *d++ = 0;
+                }
             }
-        }
+            y++;
+        } while (y < tex_h);
     }
 }
 
-// 0x54df20  Confidence: likely (differs under cl 8966 in match26).
+// 0x54df20  Confidence: exact (D11201, as 0x54deb0).
 // BM_FORMAT_1555 with packed pixels: colour bits up one, the inverted alpha bit at bit 0 (5551).
 void gl_convert_1555_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
     ushort *s = (ushort *)src;
-    ushort *d = (ushort *)dst;
-    for (int y = 0; y < tex_h; y++) {
-        for (int x = 0; x < tex_w; x++) {
-            if (x < bm_w && y < bm_h) {
-                ushort p = *s;
-                *d++ = (ushort)(((ushort)~p >> 15) | (p << 1));
-                s++;
-            } else {
-                *d++ = 0;
+    int y = 0;
+    if (tex_h > 0) {
+        ushort *d = (ushort *)dst;
+        do {
+            for (int x = 0; x < tex_w; x++) {
+                if (x < bm_w && y < bm_h) {
+                    ushort p = *s;
+                    *d++ = (ushort)(((ushort)~p >> 15) | (p << 1));
+                    s++;
+                } else {
+                    *d++ = 0;
+                }
             }
-        }
+            y++;
+        } while (y < tex_h);
     }
 }
 
@@ -1049,14 +1041,14 @@ bool gl_extension_supported(const char *name, const char *extensions)
 
 // ---- init / frame ----------------------------------------------------------------------------------------
 
-// 0x54f410  Confidence: likely (the ortho / viewport block is written out as in gr_opengl_set_viewport;
+// 0x54f410  Confidence: exact (D11202: pfd in its block, the glOrtho operand order; the ortho / viewport block is
+// written out as in gr_opengl_set_viewport;
 // the client rectangle is computed and never used).
 // Also reached from gr_init_context (0x5061b0) when the window changes. The first call sets up
 // multitexturing and the texture cache.
 void gr_opengl_init_context(HWND hwnd)
 {
     RECT rect;
-    PIXELFORMATDESCRIPTOR pfd;
 
     gr_opengl_current_mode.invalidate();
     if (gl_context_initialized) {
@@ -1081,9 +1073,9 @@ void gr_opengl_init_context(HWND hwnd)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(gr_screen.offset_x + gr_screen.clip_left,
-            gr_screen.clip_width + gr_screen.offset_x + gr_screen.clip_left,
+            gr_screen.clip_left + gr_screen.offset_x + gr_screen.clip_width,
             gr_screen.clip_height + gr_screen.offset_y + gr_screen.clip_top,
-            gr_screen.offset_y + gr_screen.clip_top, -1.0, 1.0);
+            gr_screen.clip_top + gr_screen.offset_y, -1.0, 1.0);
     glViewport(gr_screen.offset_x + gr_screen.clip_left,
                gr_screen.max_h - gr_screen.clip_height - gr_screen.offset_y - gr_screen.clip_top,
                gr_screen.clip_width, gr_screen.clip_height);
@@ -1102,6 +1094,7 @@ void gr_opengl_init_context(HWND hwnd)
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     if (!gl_context_initialized) {
         gl_init_multitexture();
+        PIXELFORMATDESCRIPTOR pfd;
         DescribePixelFormat(gl_hdc, gl_pixel_format, sizeof(pfd), &pfd);
         gl_context_initialized = true;
         gr_opengl_texture_init();
@@ -1190,16 +1183,16 @@ void gr_opengl_zbuffer_clear()
     glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-// 0x54f8c0  Confidence: likely (differs under cl 8966 in match26).
+// 0x54f8c0  Confidence: exact (D11202: the glOrtho operand order).
 // Pixel-space projection of the clip rectangle (gr::set_clip). SummonerFix's glViewport hook rescales it.
 void gr_opengl_set_viewport()
 {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(gr_screen.offset_x + gr_screen.clip_left,
-            gr_screen.clip_width + gr_screen.offset_x + gr_screen.clip_left,
+            gr_screen.clip_left + gr_screen.offset_x + gr_screen.clip_width,
             gr_screen.clip_height + gr_screen.offset_y + gr_screen.clip_top,
-            gr_screen.offset_y + gr_screen.clip_top, -1.0, 1.0);
+            gr_screen.clip_top + gr_screen.offset_y, -1.0, 1.0);
     glViewport(gr_screen.offset_x + gr_screen.clip_left,
                gr_screen.max_h - gr_screen.clip_height - gr_screen.offset_y - gr_screen.clip_top,
                gr_screen.clip_width, gr_screen.clip_height);

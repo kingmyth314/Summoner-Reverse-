@@ -38,7 +38,6 @@ int  num_alt_texture_bases;                                         // 0x24794b8
 // given 0x28 (D5207).
 void alt_textures_parse_table()
 {
-    TextFile tf;
     TextFilePosition pos;
     char skip[0x100];
     char texture[0x2c];
@@ -48,6 +47,8 @@ void alt_textures_parse_table()
     memset(alt_texture_lists, 0, sizeof(alt_texture_lists));
     for (i = 0; i < MAX_ALT_TEXTURE_BASES; i++)
         strcpy(alt_texture_bases[i], "");
+
+    TextFile tf;
 
     if (tf.Open("alt_textures.tbl", 9999999) == 0) {
         num_alt_texture_bases = 0;

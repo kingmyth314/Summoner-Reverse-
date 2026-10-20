@@ -157,18 +157,26 @@ void gr_poly_buffer_put_vector(const vector3 *v)
     gr_poly_buffer_ptr = (ubyte *)p;
 }
 
-// 0x545340  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). The tint is applied to the colour (grey = r + g + b times each tint
+// m-1020 (D11600): float_max / float_min are called out of line here (0x50d960, 0x51faf0), as in gr_poly_rgb.
+#pragma inline_depth(0)
+// 0x545340  Confidence: exact (VC6 byte match, m-1020, D11600: inline_depth(0), one float local per
+// channel, the size locals in their block so that the frame is 8 bytes as the binary). The tint is applied to the colour (grey = r + g + b times each tint
 // factor, as gr_glide_apply_tint); a bitmap larger than the largest texture marks the pass sectioned.
 void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte a, int stage)
 {
     float sum;
-    int w, h;
 
     if (gr_screen.tint_enabled) {
         sum = (float)(r + g + b);
-        r = (ubyte)float_min(float_max(gr_screen.tint_r * sum, 0.0f), 255.0f);
-        g = (ubyte)float_min(float_max(gr_screen.tint_g * sum, 0.0f), 255.0f);
-        b = (ubyte)float_min(float_max(gr_screen.tint_b * sum, 0.0f), 255.0f);
+        float tr = gr_screen.tint_r * sum;
+        tr = float_max(tr, 0.0f);
+        r = (ubyte)float_min(tr, 255.0f);
+        float tg = gr_screen.tint_g * sum;
+        tg = float_max(tg, 0.0f);
+        g = (ubyte)float_min(tg, 255.0f);
+        float tb = gr_screen.tint_b * sum;
+        tb = float_max(tb, 0.0f);
+        b = (ubyte)float_min(tb, 255.0f);
     }
     if (gr_poly_active) {
         gr_poly_buffer_put_byte(GR_POLY_OP_TEXTURE);
@@ -188,6 +196,7 @@ void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte
     gr_poly_cur_texture->bitmap = bm;
     gr_poly_cur_texture->sectioned = false;
     if (bm > -1) {
+        int w, h;
         bm_get_dimensions(bm, &w, &h);
         if (w > gr_screen.max_bitmap_w || h > gr_screen.max_bitmap_h) {
             gr_poly_multitexture = true;
@@ -204,6 +213,7 @@ void gr_poly_set_texture(gr::Mode mode, int bm, ubyte r, ubyte g, ubyte b, ubyte
     gr_poly_cur_texture->a = a;
     gr_poly_uv_cursor = gr_poly_rgb_cursor = gr_poly_alpha_cursor = gr_poly_vertices;
 }
+#pragma inline_depth()
 
 // 0x545550  Confidence: exact.
 void gr_poly_buffer_put_int(int i)
@@ -237,18 +247,28 @@ void gr_poly_uv(float u, float v)
     gr_poly_uv_cursor++;
 }
 
-// 0x545610  Confidence: likely (the copy-and-paste slip that the dead first result shows: the red tint is
-// computed and dropped, `fstp st(0)` instead of _ftol, and the green result is stored into r).
+// m-1020 (D11600): float_max / float_min are called out of line here, as in the binary (0x50d960,
+// 0x51faf0); this unit otherwise expands its inlines, so inline expansion is off for this function only.
+#pragma inline_depth(0)
+// 0x545610  Confidence: exact (VC6 byte match, m-1020, D11600: inline_depth(0), each clamp's inner
+// call and product through locals, the pass record through a pointer and the cursor advanced last).
+// The copy-and-paste slip that the dead first result shows: the red tint is computed and dropped
+// (`fstp st(0)` instead of _ftol), and the green result is stored into r.
 void gr_poly_rgb(ubyte r, ubyte g, ubyte b)
 {
-    gr_poly_vertex_rec *rec;
     float sum;
 
     if (gr_screen.tint_enabled) {
         sum = (float)(r + g + b);
-        r = (ubyte)float_min(float_max(gr_screen.tint_r * sum, 0.0f), 255.0f);
-        r = (ubyte)float_min(float_max(gr_screen.tint_g * sum, 0.0f), 255.0f);
-        b = (ubyte)float_min(float_max(gr_screen.tint_b * sum, 0.0f), 255.0f);
+        float prod = gr_screen.tint_r * sum;
+        float t = float_max(prod, 0.0f);
+        r = (ubyte)float_min(t, 255.0f);
+        prod = gr_screen.tint_g * sum;
+        t = float_max(prod, 0.0f);
+        r = (ubyte)float_min(t, 255.0f);
+        prod = gr_screen.tint_b * sum;
+        t = float_max(prod, 0.0f);
+        b = (ubyte)float_min(t, 255.0f);
     }
     if (gr_poly_active) {
         gr_poly_buffer_put_byte(GR_POLY_OP_RGB);
@@ -258,11 +278,13 @@ void gr_poly_rgb(ubyte r, ubyte g, ubyte b)
         return;
     }
     gr_poly_cur_texture->vertex_color = true;
-    rec = gr_poly_rgb_cursor++;
-    rec->pass[gr_poly_cur_texture_index].r = r;
-    rec->pass[gr_poly_cur_texture_index].g = g;
-    rec->pass[gr_poly_cur_texture_index].b = b;
+    gr_pass_vertex_data *p = &gr_poly_rgb_cursor->pass[gr_poly_cur_texture_index];
+    p->r = r;
+    p->g = g;
+    p->b = b;
+    gr_poly_rgb_cursor++;
 }
+#pragma inline_depth()
 
 // 0x545760  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ow (D8000), match21).
 void gr_poly_alpha(ubyte a)

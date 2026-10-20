@@ -278,21 +278,18 @@ int sound_create_emitter(int sound, int update_ms, int delay_ms)
     return emitter;
 }
 
-// 0x5467c0  Confidence: likely (the order of the link stores). No range check of the index.
+// 0x5467c0  Confidence: exact (VC6 8966 byte match, w1 / D11001: the unlink written through the element's own
+// fields, not prev / next locals). No range check of the index.
 int sound_emitter_delete(int emitter, int fade)
 {
-    sound_emitter *prev, *next;
-
     if (!sound_emitters_enabled)
         return -1;
     if (sound_emitters[emitter].flags & SOUND_EMITTER_USED) {
         sound_emitter_stop(emitter, fade);
-        prev = sound_emitters[emitter].prev;
-        next = sound_emitters[emitter].next;
+        sound_emitters[emitter].prev->next = sound_emitters[emitter].next;
+        sound_emitters[emitter].next->prev = sound_emitters[emitter].prev;
         sound_emitters[emitter].next = NULL;
         sound_emitters[emitter].prev = NULL;
-        prev->next = next;
-        next->prev = prev;
         sound_emitters[emitter].flags &= ~SOUND_EMITTER_FLAG8;
         sound_emitter_reset(emitter);
         return 0;

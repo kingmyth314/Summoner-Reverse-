@@ -204,8 +204,7 @@ void mp_handle_actv_gm(ubyte *data, void *from)
     e->min_level = (ubyte)min_level;
     memcpy(e->addr, from, 8);
     e->ping = timer_get(1000) - mp_gamelist_request_time;
-    if (e->ping <= 0)
-        e->ping = 0;
+    e->ping &= (e->ping <= 0) - 1;
     e->last_seen = timer_get(1000);
     if (version >= 7) {
         e->status = state;

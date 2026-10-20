@@ -328,7 +328,7 @@ void  characterinfo_load_party_anims(char_info *info, int anim_class, bool load_
 void  charinfo_unload_anims(char_info *info);        // 0x448710
 float resistance_level_damage_mult(int level);      // 0x448c80
 int   summon_skill_from_creature_name(const char *name);   // 0x448d00 -1 none
-character_instance *charinfo_create_character_instance(char_info *info, bool summon);   // 0x448de0
+character_instance *charinfo_create_character_instance(char_info *info, int summon);   // 0x448de0 (summon int, D11800)
 
 // experience.tbl (xp_level_table 0x2305420). decomp64: the unit is 0x489930-0x489c3f (source
 // game/unnamed_experience_0x489930.cpp, file name a placeholder; .data 0x59c248-0x59c25b, .bss

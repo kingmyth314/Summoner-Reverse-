@@ -343,7 +343,8 @@ int File::read_line(char *buf, int size, int min_ver)
     return n;
 }
 
-// 0x525fe0  Confidence: unsure (the refill block). The slot's 32 KB buffer first; the rest of a request of
+// 0x525fe0  Confidence: unsure (the refill block; m-1020 w11, D12008: len copied at entry and decremented, as the
+// binary's frame has it). The slot's 32 KB buffer first; the rest of a request of
 // 32 KB or more is read directly (the buffer is dropped), a smaller one refills the buffer from the
 // current position. After the fread refill buf_len is the requested count, not the count read (a short
 // read sets -99999 unless at end of file). Decrypts in place, counts, and sets -1 when fewer than len
@@ -357,20 +358,21 @@ int File::read(void *buf, int len, int min_ver, int unused)
         return 0;
 
     int n = imin(s->buf_len - s->buf_pos, len);
-    memcpy(buf, s->buffer + s->buf_pos, max(n, 0));
+    memcpy(buf, s->buffer + s->buf_pos, max(0, n));
     s->buf_pos += n;
-    int remaining = len - n;
-    if (remaining > 0) {
+    int total = len;
+    len -= n;
+    if (len > 0) {
         char *dst = (char *)buf + n;
         int got;
-        if (remaining >= FILE_BUFFER_SIZE) {
+        if (len >= FILE_BUFFER_SIZE) {
             s->buf_pos = 0;
             s->buf_len = 0;
             s->buf_start = -1;
             if (s->fp)
-                got = fread(dst, 1, remaining, s->fp);
+                got = fread(dst, 1, len, s->fp);
             else
-                got = packfile_fread(dst, 1, remaining, packentry, 0);
+                got = packfile_fread(dst, 1, len, packentry, 0);
         } else {
             int left = s->size - n - s->pos;
             int want = imin(left, FILE_BUFFER_SIZE);
@@ -384,7 +386,7 @@ int File::read(void *buf, int len, int min_ver, int unused)
             }
             s->buf_len = got;
             s->buf_start = n + s->pos;
-            got = imin(left, remaining);
+            got = imin(left, len);
             if (got < 0)
                 got = 0;
             memcpy(dst, s->buffer, got);
@@ -396,7 +398,7 @@ int File::read(void *buf, int len, int min_ver, int unused)
         s->cipher.crypt(buf, n);
     s->pos += n;
     s->num_bytes += n;
-    if (len != n)
+    if (total != n)
         s->error = FILE_ERR_SHORT;
     return n;
 }

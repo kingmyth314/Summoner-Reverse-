@@ -81,13 +81,12 @@ void pf_select_graph(int size, int layer)
     pf_cur_graph = &pf_graphs[size][layer];
 }
 
-// 0x4a4f60  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). The flags argument is not read.
+// 0x4a4f60  Confidence: exact (D11400: the edge normal as a vector2 built first, then the dot product). The flags argument is not read.
 bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags)
 {
-    float dy = s->b->y - s->a->y;
-    float dx = s->a->x - s->b->x;
+    vector2 n(s->b->y - s->a->y, s->a->x - s->b->x);
 
-    return (p->y - s->a->y) * dx + (p->x - s->a->x) * dy > 0.0f;
+    return (p->x - s->a->x) * n.x + (p->y - s->a->y) * n.y > 0.0f;
 }
 
 // 0x4a4fb0  Confidence: likely (the four corner sides are or-ed as 1 / 2; the obstacle counter is
@@ -423,7 +422,7 @@ void seg2d_line_intersect(const seg2d *s, const seg2d *line, vector2 *out, float
     out->y = seg2d_param * dy + s->a->y;
 }
 
-// 0x4a5c60  Confidence: likely (the loop / recursion split). Descends a navigation BSP to the leaf cell
+// 0x4a5c60  Confidence: exact (D11400: the line case through a vector2 edge normal). Descends a navigation BSP to the leaf cell
 // (type 3) holding pt; near a split (0.0001 in x, 0.003 for a line) the front side is searched first,
 // then the back. Another type loops on the same node.
 pf_bsp *pf_bsp_node_find(pf_bsp *node, const vector2 *pt)
@@ -432,6 +431,7 @@ pf_bsp *pf_bsp_node_find(pf_bsp *node, const vector2 *pt)
     vector2 *v;
     pf_edge *e;
     float d;
+    vector2 n;
 
     while (node) {
         switch (node->type) {
@@ -451,7 +451,8 @@ pf_bsp *pf_bsp_node_find(pf_bsp *node, const vector2 *pt)
             break;
         case 2:
             e = (pf_edge *)node->data;
-            d = (pt->y - e->a->y) * (e->a->x - e->b->x) + (pt->x - e->a->x) * (e->b->y - e->a->y);
+            n = vector2(e->b->y - e->a->y, e->a->x - e->b->x);
+            d = (pt->x - e->a->x) * n.x + (pt->y - e->a->y) * n.y;
             if (d > -0.003f && d < 0.003f) {
                 r = pf_bsp_node_find(node->front, pt);
                 if (r)

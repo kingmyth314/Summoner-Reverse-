@@ -174,7 +174,7 @@ int dialogue_frame(int key)
         bool fits = dialogue_text_box.line_fits((dialogue_text_box.first + dialogue_text_box.count - 1) % 64);
         bool end_after = conversation_db.cur_line->flag6;
         if (fits) {
-            if (!conversation_db.cur_line->flag2 && !end_after) {
+            if (!(bool)conversation_db.cur_line->flag2 && !end_after) {
                 conversation_active.request_end();
             } else {
                 gr_get_string_size(&w, &h, "more", -1, -1);
@@ -202,8 +202,8 @@ int dialogue_frame(int key)
     case 3:
         // Topics: hover / pick, and the two scroll arrows.
         if (dialogue_topic_box.scroll_target == dialogue_topic_box.scroll) {
-            int prev = dialogue_selected_topic;
             int first = -1;
+            int prev = dialogue_selected_topic;
             int last = -1;
 
             dialogue_selected_topic = -1;
@@ -212,9 +212,11 @@ int dialogue_frame(int key)
                     if (first < 0)
                         first = i;
                     last = i;
-                    if (point_in_rect(game_mouse_x, game_mouse_y, dialogue_topic_box.x,
-                                      dialogue_topic_box.item_y(i) + dialogue_topic_box.y,
-                                      dialogue_topic_box.w, dialogue_topic_box.entry[i].height)) {
+                    int x = dialogue_topic_box.x;
+                    int y = dialogue_topic_box.item_y(i) + dialogue_topic_box.y;
+                    w = dialogue_topic_box.w;
+                    h = dialogue_topic_box.entry[i].height;
+                    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h)) {
                         dialogue_selected_topic = i;
                         if (i != prev)
                             sound_play_2d(0x25, 1.0f);
@@ -227,9 +229,9 @@ int dialogue_frame(int key)
             }
 
             if (dialogue_topic_box.count > 0) {
-                int ax, ay, aw, ah;
-
                 if (dialogue_topic_box.scroll < 0.0f) {
+                    int ax, ay, aw, ah;
+
                     ax = dialogue_up_arrow_pos[resolution_index][0] + dialogue_buttons[0].x;
                     ay = dialogue_up_arrow_pos[resolution_index][1] + dialogue_buttons[0].y;
                     gr_get_string_size(&aw, &ah, dialogue_up_arrow, -1, -1);
@@ -241,14 +243,16 @@ int dialogue_frame(int key)
                 }
 
                 if (!dialogue_topic_box.item_visible((dialogue_topic_box.first + dialogue_topic_box.count - 1) % 64)) {
+                    int ax, ay, aw, ah;
+
                     ax = dialogue_down_arrow_pos[resolution_index][0] + dialogue_buttons[0].x;
                     ay = dialogue_down_arrow_pos[resolution_index][1] + dialogue_buttons[0].y;
                     gr_get_string_size(&aw, &ah, dialogue_down_arrow, -1, -1);
                     if (mouse_was_pressed(0) && point_in_rect(game_mouse_x, game_mouse_y, ax, ay, aw, ah)
                         && last < dialogue_topic_box.count - 1) {
+                        dialogue_topic_entry *e = &dialogue_topic_box.entry[last + 1];
                         dialogue_topic_box.scroll_target = gr_get_font_height(-1) * dialogue_topic_box.lines
-                                                         - dialogue_topic_box.entry[last + 1].height
-                                                         - dialogue_topic_box.entry[last + 1].top;
+                                                         - e->height - e->top;
                         sound_play_2d(0x25, 1.0f);
                     }
                 }
@@ -274,12 +278,11 @@ int dialogue_frame(int key)
     return key;
 }
 
-// 0x409650  Confidence: likely. Each arrow's position is kept for the hit test and written out again for
+// 0x409650  Confidence: likely (VC6 8966 byte match, m-1020 w6; was likely). Each arrow's position is kept for the hit test and written out again for
 // gr_string (the binary reloads it after gr_set_color_ptr).
 void dialogue_draw()
 {
     int i;
-    int w, h;
 
     gr_set_color(255, 255, 255, 255);
     for (i = 0; i < DIALOGUE_NUM_BUTTONS; i++) {
@@ -290,7 +293,7 @@ void dialogue_draw()
 
     gr_string(dialogue_title_pos[resolution_index][0] + dialogue_buttons[0].x,
               dialogue_title_pos[resolution_index][1] + dialogue_buttons[0].y,
-              dialogue_title, -1, gr_string_mode);
+              dialogue_title, -1, gr_string_mode.value);
     dialogue_text_box.draw();
 
     switch (dialogue_mode) {
@@ -298,9 +301,9 @@ void dialogue_draw()
         // When the text has stopped scrolling, put a "more" (kind 5) or end (kind 6) entry in the
         // topic box under the last line.
         if (dialogue_text_box.scroll_target == dialogue_text_box.scroll) {
-            if (dialogue_text_box.line_fits((dialogue_text_box.first + dialogue_text_box.count - 1) % 64)
-                && !conversation_db.cur_line->flag6) {
-                if (!conversation_db.cur_line->flag2)
+            if (dialogue_text_box.line_fits((dialogue_text_box.count + dialogue_text_box.first - 1) % 64)
+                && !(bool)conversation_db.cur_line->flag6) {
+                if (!(bool)conversation_db.cur_line->flag2)
                     break;
                 if (dialogue_topic_box.count == 0)
                     dialogue_topic_box.add(0, 6);
@@ -321,25 +324,31 @@ void dialogue_draw()
         dialogue_topic_box.draw();
 
         if (dialogue_topic_box.scroll < 0.0f) {
+            int w, h;
             x = dialogue_up_arrow_pos[resolution_index][0] + dialogue_buttons[0].x;
             y = dialogue_up_arrow_pos[resolution_index][1] + dialogue_buttons[0].y;
             gr_get_string_size(&w, &h, dialogue_up_arrow, -1, -1);
-            gr_set_color_ptr(point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h) ? &ui_color_highlight
-                                                                                   : &ui_color_text);
+            if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h))
+                gr_set_color_ptr(&ui_color_highlight);
+            else
+                gr_set_color_ptr(&ui_color_text);
             gr_string(dialogue_up_arrow_pos[resolution_index][0] + dialogue_buttons[0].x,
                       dialogue_up_arrow_pos[resolution_index][1] + dialogue_buttons[0].y,
-                      dialogue_up_arrow, -1, gr_string_mode);
+                      dialogue_up_arrow, -1, gr_string_mode.value);
         }
 
         if (!dialogue_topic_box.item_visible((dialogue_topic_box.first + dialogue_topic_box.count - 1) % 64)) {
+            int w, h;
             x = dialogue_down_arrow_pos[resolution_index][0] + dialogue_buttons[0].x;
             y = dialogue_down_arrow_pos[resolution_index][1] + dialogue_buttons[0].y;
             gr_get_string_size(&w, &h, dialogue_down_arrow, -1, -1);
-            gr_set_color_ptr(point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h) ? &ui_color_highlight
-                                                                                   : &ui_color_text);
+            if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h))
+                gr_set_color_ptr(&ui_color_highlight);
+            else
+                gr_set_color_ptr(&ui_color_text);
             gr_string(dialogue_down_arrow_pos[resolution_index][0] + dialogue_buttons[0].x,
                       dialogue_down_arrow_pos[resolution_index][1] + dialogue_buttons[0].y,
-                      dialogue_down_arrow, -1, gr_string_mode);
+                      dialogue_down_arrow, -1, gr_string_mode.value);
         }
         break;
     }

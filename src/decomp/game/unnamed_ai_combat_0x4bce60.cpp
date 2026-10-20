@@ -445,7 +445,8 @@ bool ai_state::combat_approach(Character *target)
     return combat_start_approach(target, ranged_approach);
 }
 
-// 0x4bdce0  Confidence: likely (the flag arithmetic). Sub-mode AIS_TRANSITION: switches between the normal
+// 0x4bdce0  Confidence: likely (m-1020, D11104: `flip` volatile keeps its frame slot and stores as in the
+// binary, the prop switch an if chain; left: the prologue order and ready held in AL, not BL; the flag arithmetic). Sub-mode AIS_TRANSITION: switches between the normal
 // and the ready stance. Same anims: just flips the flag. Otherwise, standing still: the stance move
 // (move category 10: 0x23 / 0x24 to / from ready, 0x25 / 0x26 the hurt ones) or, without one, a 0.5 s
 // cosine blend of stance_blend; the flag flips half way; the weapon prop is hidden / shown at trigger 10.
@@ -458,7 +459,7 @@ bool ai_state::combat_toggle_ready_stance()
     float s;
     int move;
     bool ready;
-    bool flip = false;
+    volatile bool flip = false;
 
     if (owner->anim_stand == owner->anim_ready) {
         owner->flags ^= CF_COMBAT_READY;
@@ -511,16 +512,11 @@ bool ai_state::combat_toggle_ready_stance()
             return true;
         }
         if (owner->move_trigger_fired(10, 1)) {
-            switch (owner->get_current_move()->id) {
-            case 0x23:
-            case 0x25:
+            int id = owner->get_current_move()->id;
+            if (id == 0x23 || id == 0x25)
                 owner->prop_tag = 0;
-                break;
-            case 0x24:
-            case 0x26:
+            else if (id == 0x24 || id == 0x26)
                 owner->prop_tag = owner->default_prop_tag;
-                break;
-            }
         }
         if (owner->move_progress(emerge_move) >= 0.5f && !(flags & 0x80000000)) {
             flags |= 0x80000000;
@@ -544,8 +540,8 @@ bool ai_state::combat_toggle_ready_stance()
     }
     ready = (owner->flags & CF_COMBAT_READY) ? true : flip;
     if (flags & 0x80000000) {
-        flip = !ready;
-        ready = flip;
+        ready = !ready;
+        flip = ready;
     }
     s = ((float)cos(t * 3.1415927f) + 1.0f) * 0.5f;
     if (ready)

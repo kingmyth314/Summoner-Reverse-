@@ -234,9 +234,8 @@ void pxo_parse_chat_banners_cfg(int downloaded_only)
         return;
 
     if (downloaded_only) {
-        int num_found = 0;
-
         memset(found, -1, sizeof(found));
+        int num_found = 0;
         for (i = 0; i < count; i++) {
             if (file_exists_on_disk(pcx_names[i], path_multicache))
                 found[num_found++] = i;
@@ -426,28 +425,30 @@ char *&pxochat_str_cannot_validate  = XSTR("Unable to contact THQMultiplay.net t
 // 0x422960 init_strptrs_5c5958_thunk (pxochat_str_cannot_validate). Confidence: exact.
 // 0x422970 init_strptrs_5c5958. Confidence: exact.
 
-// 0x422980  Confidence: likely (the second NULL test is missing: with text1 NULL and text2 set,
-// strlen(NULL) runs, as in the binary; the widths are a local array). Wraps both texts at 400 / 500 / 640
+// 0x422980  Confidence: exact (the second NULL test is missing: with text1 NULL and text2 set,
+// strlen(NULL) runs, as in the binary; the widths are a local array; len is set after the NULL test and
+// counts each line before its strncat, D11307). Wraps both texts at 400 / 500 / 640
 // pixels (at most 10 lines each), each block followed by an empty line.
 void pxochat_build_popup_text(const char *text1, const char *text2, char *out)
 {
     int widths[3] = { 400, 500, 640 };
     int lengths[10];
     int starts[10];
-    int len = 0;
+    int len;
     int n, i;
 
     if (!text1 && !text2) {
         strcpy(out, "");
         return;
     }
+    len = 0;
 
     if (strlen(text1)) {
         n = gr_split_str(lengths, starts, text1, widths[resolution_index], 10, 0, -1);
         strcpy(out, "");
         for (i = 0; i < n; i++) {
-            strncat(out, text1 + starts[i], lengths[i]);
             len += lengths[i];
+            strncat(out, text1 + starts[i], lengths[i]);
             out[len++] = '\n';
             out[len] = 0;
         }
@@ -458,8 +459,8 @@ void pxochat_build_popup_text(const char *text1, const char *text2, char *out)
     if (strlen(text2)) {
         n = gr_split_str(lengths, starts, text2, widths[resolution_index], 10, 0, -1);
         for (i = 0; i < n; i++) {
-            strncat(out, text2 + starts[i], lengths[i]);
             len += lengths[i];
+            strncat(out, text2 + starts[i], lengths[i]);
             out[len++] = '\n';
             out[len] = 0;
         }
@@ -467,8 +468,8 @@ void pxochat_build_popup_text(const char *text1, const char *text2, char *out)
     }
 }
 
-// 0x422b40  Confidence: likely (field-wise copy into the reused slot; the two count stores are in
-// +0x8c, +0x88 order). The typed name becomes "+name"; a channel slot that already holds a '+' channel is
+// 0x422b40  Confidence: exact (field-wise copy into the reused slot, done inside the search loop and
+// returning from it, D11307; the two count stores are in +0x8c, +0x88 order). The typed name becomes "+name"; a channel slot that already holds a '+' channel is
 // reused, else the record is appended.
 int pxochat_add_typed_channel()
 {
@@ -486,16 +487,14 @@ int pxochat_add_typed_channel()
     ch.num_users = 0;
 
     for (i = 0; i < lobby_num_channels; i++) {
-        if (lobby_channels[i].name[0] == '+')
-            break;
-    }
-    if (i < lobby_num_channels) {
-        strcpy(lobby_channels[i].name, ch.name);
-        strcpy(lobby_channels[i].topic, ch.topic);
-        lobby_channels[i].unk8c = 0;
-        lobby_channels[i].num_users = 0;
-        lobby_flags |= 8;
-        return 0;
+        if (lobby_channels[i].name[0] == '+') {
+            strcpy(lobby_channels[i].name, ch.name);
+            strcpy(lobby_channels[i].topic, ch.topic);
+            lobby_channels[i].unk8c = 0;
+            lobby_channels[i].num_users = 0;
+            lobby_flags |= 8;
+            return 0;
+        }
     }
 
     if (lobby_add_channel(&ch) < 0)
@@ -590,16 +589,16 @@ void pxochat_load_bitmaps()
     pxo_login_reset();
 }
 
-// 0x422fc0  Confidence: likely (the clamp spelling of the chat list's last page). The chat list keeps its
-// lines and shows its last page; the other lists scroll to the top.
+// 0x422fc0  Confidence: exact (the max(x, 0) clamp in place on the global, D10600 / D11300). The chat list
+// keeps its lines and shows its last page; the other lists scroll to the top.
 void pxochat_init()
 {
     int i;
 
     for (i = 0; i < 3; i++) {
         if (i == 2) {
-            int pos = pxochat_list_count[2] - pxochat_list_page[resolution_index][2];
-            pxochat_scroll_pos[2] = pos > 0 ? pos : 0;
+            pxochat_scroll_pos[2] = pxochat_list_count[2] - pxochat_list_page[resolution_index][2];
+            pxochat_scroll_pos[2] &= (pxochat_scroll_pos[2] <= 0) - 1;
         } else {
             pxochat_scroll_pos[i] = 0;
         }
@@ -617,15 +616,16 @@ void pxochat_init()
     pxo_find_chat_banners();
 }
 
-// 0x423050  Confidence: likely (as mp_charselect_update_scrollbar; count and page in spare stack slots).
+// 0x423050  Confidence: exact (count and page in spare stack slots; page read first, the empty-list case as
+// the then-block, the thumb position written track_h * (pos / count), D11309).
 // Buttons 1 + 4 * list / 3 + 4 * list are the list's arrows.
 void pxochat_update_scrollbar(int list)
 {
     if (list == -1)
         return;
 
-    int count = pxochat_list_count[list];
     int page = pxochat_list_page[resolution_index][list];
+    int count = pxochat_list_count[list];
 
     if (count <= page) {
         pxochat_scrollbar_visible[list] = false;
@@ -638,18 +638,17 @@ void pxochat_update_scrollbar(int list)
     pxochat_buttons[1 + list * 4].flags &= ~4;
     pxochat_buttons[3 + list * 4].flags &= ~4;
 
-    if (count > 0) {
-        pxochat_thumb_pos[list][0] = pxochat_track_pos[resolution_index][list][0];
-        pxochat_thumb_pos[list][1] = (int)((float)pxochat_scroll_pos[list] / count
-                                           * pxochat_track_h[resolution_index][list] + 0.5f)
-                                     + pxochat_track_pos[resolution_index][list][1];
-        pxochat_thumb_size[list][0] = pxochat_thumb_bm_w;
-        pxochat_thumb_size[list][1] = (int)((float)page / count * pxochat_track_h[resolution_index][list] + 0.5f);
-    } else {
+    if (count <= 0) {
         pxochat_thumb_pos[list][0] = pxochat_track_pos[resolution_index][list][0];
         pxochat_thumb_pos[list][1] = pxochat_track_pos[resolution_index][list][1];
         pxochat_thumb_size[list][0] = pxochat_thumb_bm_w;
         pxochat_thumb_size[list][1] = pxochat_track_h[resolution_index][list];
+    } else {
+        pxochat_thumb_pos[list][0] = pxochat_track_pos[resolution_index][list][0];
+        pxochat_thumb_pos[list][1] = (int)(pxochat_track_h[resolution_index][list] * ((float)pxochat_scroll_pos[list] / count) + 0.5f)
+                                     + pxochat_track_pos[resolution_index][list][1];
+        pxochat_thumb_size[list][0] = pxochat_thumb_bm_w;
+        pxochat_thumb_size[list][1] = (int)((float)page / count * pxochat_track_h[resolution_index][list] + 0.5f);
     }
 }
 
@@ -1481,16 +1480,18 @@ void pxochat_draw_banner_highlight()
     }
 }
 
-// 0x4248c0  Confidence: likely (local order; strcmp inlined). Topic, then the two counts.
+// 0x4248c0  Confidence: exact (strcmp inlined; the row count is an if / else of two assignments, D11308). Topic, then the two counts.
 void pxochat_draw_channel_list()
 {
     int font_h = gr_get_font_height(-1);
-    int rows = pxochat_list_count[0];
+    int rows;
     int x, y, row;
     char buf[16];
     int w, h;
 
-    if (rows >= pxochat_list_page[resolution_index][0])
+    if (pxochat_list_count[0] < pxochat_list_page[resolution_index][0])
+        rows = pxochat_list_count[0];
+    else
         rows = pxochat_list_page[resolution_index][0];
     x = pxochat_list_pos[resolution_index][0][0];
     y = pxochat_list_pos[resolution_index][0][1];
@@ -1515,15 +1516,17 @@ void pxochat_draw_channel_list()
     }
 }
 
-// 0x424a60  Confidence: likely (local order; strcmp inlined).
+// 0x424a60  Confidence: exact (strcmp inlined; the row count is an if / else of two assignments, D11308).
 void pxochat_draw_user_list()
 {
     int font_h = gr_get_font_height(-1);
-    int rows = pxochat_list_count[1];
+    int rows;
     int x, y, row;
     char buf[64];
 
-    if (rows >= pxochat_list_page[resolution_index][1])
+    if (pxochat_list_count[1] < pxochat_list_page[resolution_index][1])
+        rows = pxochat_list_count[1];
+    else
         rows = pxochat_list_page[resolution_index][1];
     x = pxochat_list_pos[resolution_index][1][0];
     y = pxochat_list_pos[resolution_index][1][1];
@@ -1738,15 +1741,16 @@ void pxochat_clear_motd()
     pxochat_motd[0] = 0;
 }
 
-// 0x425270  Confidence: likely (jump table 0x4253c0 over the type 0..6 inside the line loop; an unknown
-// type leaves without the scroll update). Wraps the text to the chat width (at most 16 lines, none longer
+// 0x425270  Confidence: exact (jump table 0x4253c0 over the type 0..6 inside the line loop; an unknown
+// type leaves without the scroll update; the clamp at 0 is `x &= (x < 0) - 1` in place on the global, the
+// binary's sets / dec / and, D11300). Wraps the text to the chat width (at most 16 lines, none longer
 // than 63 characters), drops the oldest lines beyond 64 and shows the last page. Continuation lines of
 // types 0 / 5 become 1 / 6.
 void pxochat_add_chat_line(const char *text, int type)
 {
     int lengths[16];
     int starts[16];
-    int n, i, excess, pos;
+    int n, i, excess;
 
     n = gr_split_str(lengths, starts, text, pxochat_list_width[resolution_index][2], 16, 0, -1);
     for (i = 0; i < n; i++) {
@@ -1786,8 +1790,8 @@ void pxochat_add_chat_line(const char *text, int type)
         pxochat_list_count[2]++;
     }
 
-    pos = pxochat_list_count[2] - pxochat_list_page[resolution_index][2];
-    pxochat_scroll_pos[2] = pos < 0 ? 0 : pos;
+    pxochat_scroll_pos[2] = pxochat_list_count[2] - pxochat_list_page[resolution_index][2];
+    pxochat_scroll_pos[2] &= (pxochat_scroll_pos[2] < 0) - 1;
     pxochat_update_scrollbar(2);
 }
 

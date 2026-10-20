@@ -727,7 +727,7 @@ void ui_model_lights_reset()
     ui_model_lights_vfx = NULL;
 }
 
-// 0x412400  Confidence: likely (the loop shape; the light position is built through the inline
+// 0x412400  Confidence: likely (the loop as if / do-while with the track step before the wrap test, D11910; the light position is built through the inline
 // vector3 operator+ and copy constructor, which leaves the temporary and the copy on the stack). The
 // UI model view: ambient 0.5, up to 10 lights per object, the world lights off and one point light per
 // light of "inv-lights1.vfx", placed relative to pos.
@@ -751,17 +751,21 @@ void ui_3d_begin(vector3 *pos)
     light_set_all_enabled(false);
     base = effect_get_base(ui_model_lights_vfx->id_bits >> 9);
     light = ui_model_lights_vfx->lights;
-    for (track = 0; light; track += 0x70) {
-        vector3 p;
-        p = light->pos + *pos;
-        light->sample(base->light_tracks + track, reported_frametime);
-        ui_3d_lights[ui_3d_light_count++] = light_create_point(&p, 0.0f, light->range * (1.0f / 256.0f), 0.5f,
-                                                               light->r * (1.0f / 255.0f),
-                                                               light->g * (1.0f / 255.0f),
-                                                               light->b * (1.0f / 255.0f), 0);
-        light = light->next;
-        if (light == ui_model_lights_vfx->lights)
-            break;
+    if (light) {
+        track = 0;
+        do {
+            vector3 p;
+            p = light->pos + *pos;
+            light->sample(base->light_tracks + track, reported_frametime);
+            ui_3d_lights[ui_3d_light_count++] = light_create_point(&p, 0.0f, light->range * (1.0f / 256.0f), 0.5f,
+                                                                   light->r * (1.0f / 255.0f),
+                                                                   light->g * (1.0f / 255.0f),
+                                                                   light->b * (1.0f / 255.0f), 0);
+            track += 0x70;
+            light = light->next;
+            if (light == ui_model_lights_vfx->lights)
+                break;
+        } while (light);
     }
 }
 
@@ -1117,16 +1121,17 @@ void statscreen_restore_instance()
     status_character->instance->process(0.0f, false, 0);
 }
 
-// 0x413200  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x413200  Confidence: exact (VC6 8966 byte match, m-1020: the null test and the handle read through the
+// global, D11900).
 Character *party_find_next_member(bool skip_summon)
 {
     Character *c = status_character;
     Player *start, *p;
     unsigned int skip;
 
-    if (!c)
-        return c;
-    p = player_from_handle(c->handle);
+    if (!status_character)
+        return NULL;
+    p = player_from_handle(status_character->handle);
     if (!p)
         return c;
     start = p;
@@ -1142,22 +1147,25 @@ Character *party_find_next_member(bool skip_summon)
     return c;
 }
 
-// 0x413290  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x413290  Confidence: exact (VC6 8966 byte match, m-1020: written as party_find_next_member, the skip
+// mask built by two ifs, D11900).
 Character *party_find_prev_member(bool skip_summon)
 {
     Character *c = status_character;
     Player *start, *p;
     unsigned int skip;
 
-    if (!c)
+    if (!status_character)
+        return NULL;
+    p = player_from_handle(status_character->handle);
+    if (!p)
         return c;
-    start = player_from_handle(c->handle);
-    if (!start)
-        return c;
-    skip = cur_level_index == 4 ? (CF_SUMMONLIKE | CF_DEAD) : (CF_SUMMONLIKE | CF_HIDDEN | CF_DEAD);
+    start = p;
+    skip = CF_SUMMONLIKE | CF_DEAD;
+    if (cur_level_index != 4)
+        skip |= CF_HIDDEN;
     if (skip_summon)
         skip |= CF_SUMMON;
-    p = start;
     do {
         p = p == party_list.next ? party_list.prev : p->prev;
         c = living_from_handle(p->handle);
@@ -1232,7 +1240,8 @@ float ui_get_scale()
     return ui_scale;
 }
 
-// 0x4134b0  Confidence: likely (marked exact; differs under VC6 8966, match27). A shadow rectangle offset by the inset, a border of ui_frame_border + 1
+// 0x4134b0  Confidence: exact (VC6 8966 byte match, m-1020: the border step's offset in a block local,
+// D11900). A shadow rectangle offset by the inset, a border of ui_frame_border + 1
 // rectangles cut at the corners, and the inner panel.
 void ui_draw_panel_frame(int x, int y, int w, int h)
 {
@@ -1241,9 +1250,10 @@ void ui_draw_panel_frame(int x, int y, int w, int h)
     gr_set_color_ptr(&ui_color_panel_shadow);
     gr_rect(x + ui_frame_inset_x[resolution_index], y + ui_frame_inset_y[resolution_index], w, h, gr_rect_mode, 1.0f);
     gr_set_color_ptr(&ui_color_panel_frame);
-    for (i = 0; i <= ui_frame_border[resolution_index]; i++)
-        gr_rect(x + i, y + (ui_frame_border[resolution_index] - i), w - 2 * i,
-                h - (ui_frame_border[resolution_index] - i) * 2, gr_rect_mode, 1.0f);
+    for (i = 0; i <= ui_frame_border[resolution_index]; i++) {
+        int d = ui_frame_border[resolution_index] - i;
+        gr_rect(x + i, y + d, w - 2 * i, h - d * 2, gr_rect_mode, 1.0f);
+    }
     gr_set_color_ptr(&ui_color_panel_inner);
     gr_rect(x + ui_frame_border[resolution_index], y + ui_frame_border[resolution_index],
             w - 2 * ui_frame_border[resolution_index], h - 2 * ui_frame_border[resolution_index], gr_rect_mode, 1.0f);
@@ -1759,8 +1769,9 @@ void options_draw_version()
     gr_string(gr_screen_width() - 10 - w, gr_screen_height() - 5 - gr_get_font_height(-1), buf, -1, gr_string_mode);
 }
 
-// 0x414750  Confidence: likely (the length test is in the binary twice, as in hud_show_message; the clamps
-// to 0 are the max macro, the clamps to the screen use a temporary). The tooltip is centred above the
+// 0x414750  Confidence: exact (VC6 8966 byte match, m-1020: the clamps at 0 as `x &= (x <= 0) - 1` on the
+// stored global, D10600; pad_top before pad_bottom in the y sums, D11900) (the length test is in the binary
+// twice, as in hud_show_message; the clamps to the screen use a temporary). The tooltip is centred above the
 // mouse and kept on the screen; (x, y, w, h) is the owner's rectangle (ui_tooltip_hide_on_mouse_activity).
 void ui_tooltip_set(int x, int y, int w, int h, const char *text)
 {
@@ -1775,14 +1786,16 @@ void ui_tooltip_set(int x, int y, int w, int h, const char *text)
     ui_tooltip_rect_w = w;
     ui_tooltip_rect_h = h;
     gr_get_string_size(&ui_tooltip_text_w, &ui_tooltip_text_h, text, -1, -1);
-    ui_tooltip_x = max(game_mouse_x - ui_tooltip_text_w / 2 - ui_tooltip_pad_left - 1, 0);
+    ui_tooltip_x = game_mouse_x - ui_tooltip_text_w / 2 - ui_tooltip_pad_left - 1;
+    ui_tooltip_x &= (ui_tooltip_x <= 0) - 1;
     lim = gr_screen_width() - ui_tooltip_pad_right - ui_tooltip_pad_left - ui_tooltip_text_w - 3;
     if (ui_tooltip_x < lim)
         lim = ui_tooltip_x;
     ui_tooltip_x = lim;
-    ui_tooltip_y = max(ui_tooltip_offset_y[resolution_index] - ui_tooltip_pad_bottom - ui_tooltip_pad_top - ui_tooltip_text_h
-                       + game_mouse_y - 2, 0);
-    lim = gr_screen_height() - ui_tooltip_pad_bottom - ui_tooltip_pad_top - ui_tooltip_text_h - 3;
+    ui_tooltip_y = ui_tooltip_offset_y[resolution_index] - ui_tooltip_pad_top - ui_tooltip_pad_bottom - ui_tooltip_text_h
+                   + game_mouse_y - 2;
+    ui_tooltip_y &= (ui_tooltip_y <= 0) - 1;
+    lim = gr_screen_height() - ui_tooltip_pad_top - ui_tooltip_pad_bottom - ui_tooltip_text_h - 3;
     if (ui_tooltip_y < lim)
         lim = ui_tooltip_y;
     ui_tooltip_y = lim;

@@ -72,10 +72,12 @@ bool cutscene_script_load(const char *name)
     if (!name || cutscene_path_id < 0)
         return false;
     strcpy(filename, name);
-    if (!strstr(filename, "_cscript.tbl"))
+    char *ext = strstr(filename, "_cscript.tbl");
+    if (ext == NULL)
         strcat(filename, "_cscript.tbl");
     cutscene_script_unload();
-    if (tf.Open(filename, path_scripts) != 0)
+    int err = tf.Open(filename, path_scripts);
+    if (err != 0)
         return false;
     tf.Expect("$Level: ");
     tf.ParseString(level, 0x100, '"', '"');

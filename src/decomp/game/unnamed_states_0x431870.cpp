@@ -98,10 +98,11 @@ bool US_open_demo;                    // 0x5fbf1a
 
 // The level's save slots into the second list box, the first one selected. Written out three times in
 // the binary (state_loadgame_enter twice, loadgame_level_list_cb), so an inline function (/Ob1 inlines
-// what is marked inline). Name ours. Confidence: likely.
-static inline void loadgame_fill_save_list(const char *level_name)
+// what is marked inline). Name ours. It takes the list entry and reads its text itself (D11907: with the name
+// passed in, the register choice of both expansions differs). Confidence: likely.
+static inline void loadgame_fill_save_list(ui_listbox_entry *e)
 {
-    int level = level_script_find(level_name);
+    int level = level_script_find(e->text);
     int i;
 
     loadgame_save_listbox.clear();
@@ -266,7 +267,8 @@ void loadgame_debug_hook(const char *level)
 {
 }
 
-// 0x431e80  Confidence: likely (the order of the font / callback stores). State 8 enter (never entered in
+// 0x431e80  Confidence: exact (VC6 8966 byte match, m-1020: loadgame_fill_save_list takes the entry; the list
+// head reset stores next first, D11907) (the order of the font / callback stores). State 8 enter (never entered in
 // v1.40): the debug "Load" screen, a list of the *.s3d levels (or all level_script_table names when there
 // are none, with "catacombs" selected) and the selected level's save slots.
 void state_loadgame_enter()
@@ -303,7 +305,7 @@ void state_loadgame_enter()
         if (count == 0) {
             loadgame_level_listbox.select_entry(e, true);
             loadgame_debug_hook(e->text);
-            loadgame_fill_save_list(e->text);
+            loadgame_fill_save_list(e);
         }
         count++;
     }
@@ -312,7 +314,7 @@ void state_loadgame_enter()
         list.next = list.next->next;
         delete list.prev;
     }
-    list.next = list.prev = (file_find_node *)&list;
+    list.prev = list.next = (file_find_node *)&list;
 
     if (count == 0) {
         for (i = 0; i < NUM_LEVEL_SCRIPTS; i++)
@@ -321,13 +323,14 @@ void state_loadgame_enter()
         if (e) {
             loadgame_level_listbox.select_entry(e, true);
             loadgame_debug_hook(e->text);
-            loadgame_fill_save_list(e->text);
+            loadgame_fill_save_list(e);
         }
     }
     cursor_visible = true;
 }
 
-// 0x432200  Confidence: likely (the shape around the null check). The level list box's callback: a new
+// 0x432200  Confidence: exact (VC6 8966 byte match, m-1020: loadgame_fill_save_list takes the entry, D11907)
+// (the shape around the null check). The level list box's callback: a new
 // selection refills the save slots, a double click presses Load. Game bug (state 8 only): the selected
 // entry is checked for NULL before the debug hook but dereferenced unchecked for the refill (0x43222c).
 bool loadgame_level_list_cb(int event, int value)
@@ -336,7 +339,7 @@ bool loadgame_level_list_cb(int event, int value)
         ui_listbox_entry *e = loadgame_level_listbox.get_selected();
         if (e)
             loadgame_debug_hook(e->text);
-        loadgame_fill_save_list(e->text);
+        loadgame_fill_save_list(e);
         return true;
     }
     if (event == UI_EVENT_LIST_DBLCLICK) {

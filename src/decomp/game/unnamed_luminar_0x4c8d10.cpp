@@ -526,8 +526,9 @@ void ai_state::luminar_ai_release()
         game_camera.set_target(h);
 }
 
-// 0x4c9da0  Confidence: likely (the candidate list holds 8; the index is drawn with rand() & 7 until it
-// fits). Five tries: a navigable point 14 from a random party-type entity (with game flag 8 any living
+// 0x4c9da0  Confidence: exact (VC6 byte match, m-1020, D11101: `ok` / `busy` flags instead of the goto pair,
+// so the no-point block comes before the found block and the busy return shares its tail; the candidate
+// list holds 8; the index is drawn with rand() & 7 until it fits). Five tries: a navigable point 14 from a random party-type entity (with game flag 8 any living
 // entity, the boss included) in a random horizontal direction; then the vanish move (8, 0x8a), its effect,
 // sub-mode AIS_LUMINAR_TELEPORT, that entity becomes the target and the next teleport waits 20 s
 // (0.5 s without a point).
@@ -548,35 +549,42 @@ bool ai_state::luminar_teleport_out()
                 break;
         }
     }
-    if (count == 0)
-        goto fail;
-    if (owner->get_current_move())
-        return false;
-    tries = 4;
-    do {
-        do {
-            i = rand() & 7;
-        } while (i >= count);
-        t = list[i];
-        float z = frand() - 0.5f;
-        d.x = frand() - 0.5f;
-        d.y = 0.0f;
-        d.z = z;
-        if (d.normalize_length() != 0.0f) {
-            d.x *= 14.0f;
-            d.y *= 14.0f;
-            d.z *= 14.0f;
-            d.x += t->pos.x;
-            d.y += t->pos.y;
-            d.z += t->pos.z;
-            if (pf_point_is_navigable(&d, t->info->size, t->layer))
-                goto found;
+    bool ok = false;
+    bool busy = false;
+    if (count != 0) {
+        if (owner->get_current_move())
+            busy = true;
+        else {
+            tries = 4;
+            do {
+                do {
+                    i = rand() & 7;
+                } while (i >= count);
+                t = list[i];
+                float z = frand() - 0.5f;
+                d.x = frand() - 0.5f;
+                d.y = 0.0f;
+                d.z = z;
+                if (d.normalize_length() != 0.0f) {
+                    d.x *= 14.0f;
+                    d.y *= 14.0f;
+                    d.z *= 14.0f;
+                    d.x += t->pos.x;
+                    d.y += t->pos.y;
+                    d.z += t->pos.z;
+                    if (pf_point_is_navigable(&d, t->info->size, t->layer)) {
+                        ok = true;
+                        break;
+                    }
+                }
+            } while (tries-- != 0);
         }
-    } while (tries-- != 0);
-fail:
-    luminar_teleport_timer.SetTimeout(500);
-    return false;
-found:
+    }
+    if (!ok) {
+        if (!busy)
+            luminar_teleport_timer.SetTimeout(500);
+        return false;
+    }
     luminar_teleport_dest = d;
     luminar_teleport_dir = t->pos - d;
     move_info *m = owner->find_move(8, 0x8a);

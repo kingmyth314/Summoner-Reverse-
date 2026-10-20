@@ -697,12 +697,12 @@ void status_confirm_skills_cb(int button)
     status_goto_pending_screen();
 }
 
-// 0x42c0e0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
+// 0x42c0e0  Confidence: exact (VC6 byte match, m-1020: the clamp as `&= (x <= 0) - 1`, D10600).
 void status_page_up()
 {
     if (status_scroll_pos > 0) {
-        int pos = status_scroll_pos - status_page_size[resolution_index];
-        status_scroll_pos = pos > 0 ? pos : 0;
+        status_scroll_pos -= status_page_size[resolution_index];
+        status_scroll_pos &= (status_scroll_pos <= 0) - 1;
         status_update_scrollbar();
     }
 }
@@ -1306,7 +1306,8 @@ void status_draw_stats()
             gr_rect_mode, 1.0f);
 }
 
-// 0x42d640  Confidence: likely (jump table 0x42d9f4 over the chain slot 0..3; the key names are read from
+// 0x42d640  Confidence: exact (VC6 byte match, m-1020: the row clamp as an if / else of two assignments
+// from the globals; jump table 0x42d9f4 over the chain slot 0..3; the key names are read from
 // localize_strings directly, not through status_modifier_key_names). Chain rows show their modifier key, skill
 // rows the level (with pending points) coloured by the equipment bonus and, when points can be spent, the +/-
 // pair (pressed halves while mode 4 holds on this row).
@@ -1320,10 +1321,11 @@ void status_draw_skills()
     if (status_num_skills <= 0)
         return;
 
-    rows = status_num_skills;
     x = status_skill_list_pos[resolution_index][0];
     y = status_skill_list_pos[resolution_index][1];
-    if (rows >= status_page_size[resolution_index])
+    if (status_num_skills < status_page_size[resolution_index])
+        rows = status_num_skills;
+    else
         rows = status_page_size[resolution_index];
     font_h = gr_get_font_height(-1);
     player = player_from_handle(status_character->handle);

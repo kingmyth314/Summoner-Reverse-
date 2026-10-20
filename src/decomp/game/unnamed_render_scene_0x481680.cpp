@@ -437,7 +437,7 @@ void hover_tint_set_character(lobj *l, float r, float g, float b)
     hover_tint_char_b = b;
 }
 
-// 0x482110  Confidence: likely (the case order of the switch). Once per layer change: the camera mode
+// 0x482110  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the case order of the switch). Once per layer change: the camera mode
 // of the layer (unless the follow view is off or a sequence runs) and its fog; without a fog of its own
 // the camera preset's defaults. The layer's far value goes to fog_near_distance (the same swap as
 // fog_set_level_default; see NOTES).
@@ -448,7 +448,7 @@ void level_set_current_layer(int layer)
         levelrender_layer_fog_applied = false;
     else if (levelrender_layer_fog_applied)
         return;
-    if (!(game_camera.flags & CAMF_FOLLOW_VIEW) || (game_camera.flags & CAMF_SEQUENCE))
+    if ((bool)(~game_camera.flags & CAMF_FOLLOW_VIEW) || (bool)((game_camera.flags >> 3) & 1))
         return;
     switch (level_layer_vis_flags[layer]) {
     case 0:
@@ -484,7 +484,6 @@ void level_set_current_layer(int layer)
 void levelrender_render_scene()
 {
     render_scope scope;
-    gr_light_desc light;
     s3d_vis_set **sets;
     int count;
     int i, j;
@@ -494,6 +493,7 @@ void levelrender_render_scene()
     lamp_glows_pending = false;
     if (!(game_flags & 0x120))
         Gr_3d_zmult = 1.0f;
+    gr_light_desc light;
     if (level_vis_forced) {
         count = level_vis_force_count;
         sets = level_vis_force_list;
@@ -561,11 +561,10 @@ void levelrender_render_scene()
         render_scope s2;
         levelrender_fog_disable();
         for (i = 0; i < fx_num_sky; i++) {
-            effect_object *fx = fx_sky_list[i];
-            if (fx == NULL || Cull_ground || levelrender_fade_alpha < 0xff)
+            if (fx_sky_list[i] == NULL || Cull_ground || levelrender_fade_alpha < 0xff)
                 continue;
             ref.kind = 0;
-            vfx_instance *vi = fx->instance;
+            vfx_instance *vi = fx_sky_list[i]->instance;
             if (vi == NULL)
                 continue;
             vfx_base *base = effect_get_base(vi->id_bits >> 9);
@@ -574,11 +573,11 @@ void levelrender_render_scene()
             if (n) {
                 do {
                     if (base->node_descs[k].vis_flags & 0x600) {
-                        vector3 pos = levelrender_eye_pos + fx->pos;
+                        vector3 pos = levelrender_eye_pos + fx_sky_list[i]->pos;
                         ref.index = (short)k;
                         ref.inst = n;
                         vi->render_alpha = 0xff;
-                        vi->render_node(&ref, &pos, &fx->orient);
+                        vi->render_node(&ref, &pos, &fx_sky_list[i]->orient);
                     }
                     n = n->next;
                     k++;
@@ -652,7 +651,7 @@ void levelrender_render_scene()
         Gr_3d_zmult = 0.2f;
 }
 
-// 0x482850  Confidence: likely (fps is loaded once for both compares). No fog when both distances are
+// 0x482850  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (fps is loaded once for both compares). No fog when both distances are
 // <= 0. fog_fading is never set, so the scaled branch is dead: it would shrink both distances by up to
 // 80% while the frame rate is below 15 and grow them back above 24.
 void levelrender_fog_enable()
@@ -665,18 +664,20 @@ void levelrender_fog_enable()
         return;
     }
     if (fog_fading) {
-        if (fps < 15.0f)
+        float f = fps;
+
+        if (f < 15.0f)
             fog_fade_amount += 0.02f;
-        if (fps > 24.0f)
+        if (f > 24.0f)
             fog_fade_amount -= 0.02f;
-        if (fog_fade_amount > 0.8f)
+        if (0.8f < fog_fade_amount)
             fog_fade_amount = 0.8f;
-        else if (fog_fade_amount < 0.0f)
+        else if (0.0f > fog_fade_amount)
             fog_fade_amount = 0.0f;
         scale = 1.0f - fog_fade_amount;
         near_dist = fog_near_distance * scale;
         far_dist = fog_far_distance * scale;
-        if (far_dist < 15.0f)
+        if (15.0f > far_dist)
             far_dist = 15.0f;
         gr_set_far_clip(far_dist);
         gr_set_fog(1, fog_color_r, fog_color_g, fog_color_b, near_dist, far_dist);
@@ -792,18 +793,20 @@ void levelrender_fog_disable()
     gr_set_far_clip(0.0f);
 }
 
-// 0x482d70  Confidence: likely (the delete loop's form). The point lights among the first 24 attached
+// 0x482d70  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the delete loop's form). The point lights among the first 24 attached
 // light slots that have ranges become gr lights for the frame (flag 1); deleted again the next frame.
 void levelrender_setup_level_lights()
 {
     int count = levelrender_num_level_lights;
     int i;
 
-    if (count) {
-        i = count;
-        while (i--)
-            light_delete(levelrender_level_light_handles[i]);
+    if (levelrender_num_level_lights) {
+        int *p = &levelrender_level_light_handles[levelrender_num_level_lights];
+        i = levelrender_num_level_lights;
         count = 0;
+        do
+            light_delete(*--p);
+        while (--i);
     }
     if (levelrender_no_lighting) {
         levelrender_num_level_lights = 0;
@@ -1262,36 +1265,41 @@ void levelrender_add_effects(s3d_vis_set **sets, int count)
 void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int count)
 {
     char name[0x40];
-    vfx_base *base = effect_get_base(fx->instance->id_bits >> 9);
-    int i, j, k;
+    vfx_instance *inst = fx->instance;
+    vfx_base *base = effect_get_base(inst->id_bits >> 9);
+    int i, j, k, n;
 
-    for (i = 0; i < base->num_emitters; i++) {
+    n = base->num_emitters;
+    for (i = 0; i < n; i++) {
         if (!(base->emitters[i].vis_flags & 0x800000))
             base->emitters[i].vis_flags &= ~0x400000;
     }
-    for (i = 0; i < base->num_nodes; i++) {
+    n = base->num_nodes;
+    for (i = 0; i < n; i++) {
         if (!(base->node_descs[i].vis_flags & 0x400))
             base->node_descs[i].vis_flags &= ~0x200;
     }
-    for (i = 0; i < base->num_desc21c; i++) {
+    n = base->num_desc21c;
+    for (i = 0; i < n; i++) {
         if (!(base->descs21c[i].vis_flags & 0x80))
             base->descs21c[i].vis_flags &= ~0x100;
     }
-    for (i = 0; i < base->num_tags; i++) {
+    n = base->num_tags;
+    for (i = 0; i < n; i++) {
         vfx_base_tag *tag = &base->tags[i];
         if (_strnicmp(tag->name, "$vis", 4) || count <= 0)
             continue;
         for (j = 0; j < count; j++) {
-            s3d_vis_set *set = sets[j];
-            if (!_strnicmp(set->name + 4, "high", 4)) {
+            if (!_strnicmp(sets[j]->name + 4, "high", 4)) {
                 strcpy(name, "$vis");
-                strcat(name, set->name + 8);
+                strcat(name, sets[j]->name + 8);
             } else {
-                strcpy(name, set->name);
+                strcpy(name, sets[j]->name);
             }
-            if (_stricmp(tag->name, set->name) && _stricmp(tag->name, name))
+            if (_stricmp(tag->name, sets[j]->name) && _stricmp(tag->name, name))
                 continue;
-            for (k = 0; k < tag->count; k++) {
+            int m = tag->count;
+            for (k = 0; k < m; k++) {
                 switch (tag->refs[k].kind) {
                 case 0:
                     ((vfx_node_desc *)tag->refs[k].rec)->vis_flags |= 0x200;
@@ -1370,7 +1378,7 @@ void lamp_glows_draw()
     lamp_glow_update_effects();
 }
 
-// 0x4843e0  Confidence: likely. For each lamp object in the attach list within 40 m of the eye: a ray
+// 0x4843e0  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely). For each lamp object in the attach list within 40 m of the eye: a ray
 // from its centre to the eye, against the object that hid it last, then (that one missing) every level
 // object of the attach list from the end; the hiding object is remembered. A free view fades the glow in.
 void lamp_glow_update_lobjs()
@@ -1387,11 +1395,9 @@ void lamp_glow_update_lobjs()
         lobj_hit hit;
         lobj_get_bounding_sphere(e->lobj, &centre, &radius);
         int occluder = levelrender_lobj_glow_map[e->lobj].occluder;
-        ray.dir.x = levelrender_eye_pos.x - centre.x;
-        ray.dir.y = levelrender_eye_pos.y - centre.y;
-        ray.dir.z = levelrender_eye_pos.z - centre.z;
+        ray.dir = levelrender_eye_pos - centre;
         ray.start = centre;
-        if (ray.dir.x * ray.dir.x + ray.dir.y * ray.dir.y + ray.dir.z * ray.dir.z > 1600.0f)
+        if (ray.dir.len_sq() > 1600.0f)
             continue;
         ray.flags = 1;
         ray.require_flags = 0;
@@ -1426,10 +1432,11 @@ void lamp_glow_update_lobjs()
     }
 }
 
-// 0x484600  Confidence: likely. The same for the glow nodes of effects in the sorted list (node entries
+// 0x484600  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely). The same for the glow nodes of effects in the sorted list (node entries
 // whose base node has flag 0x40, of effects without the trail bit), against every level object of the
 // attach list. The skipped index compares the attach-list index with the sorted-list index (a slip of
 // the original: one unrelated attach entry is not tested; NOTES).
+// D11502: the glow point is the vfx_base's pos (+0x48 of the base, 0x484690), not +0x48 of the node record.
 void lamp_glow_update_effects()
 {
     int i, j;
@@ -1438,22 +1445,19 @@ void lamp_glow_update_effects()
         levelrender_effect_entry *e = (levelrender_effect_entry *)levelrender_sort_list[i];
         if (e->type != LRE_EFFECT || (e->fx->bits & 8) || e->ref.kind)
             continue;
-        vfx_base *base = effect_get_base(e->fx->instance->id_bits >> 9);
-        vfx_node_desc *rec = &base->node_descs[(ushort)e->ref.index];
-        if (!(rec->flags & 0x40))
+        vfx_instance *inst = e->fx->instance;
+        vfx_base *base = effect_get_base(inst->id_bits >> 9);
+        if (!(base->node_descs[(ushort)e->ref.index].flags & 0x40))
             continue;
         lobj_ray ray;
         lobj_hit hit;
-        vector3 p = rec->glow_pos;
+        vector3 p;
+        p = vector3(base->pos);
         p.unrotate(e->fx->orient);
-        p.x += e->fx->pos.x;
-        p.y += e->fx->pos.y;
-        p.z += e->fx->pos.z;
+        p += e->fx->pos;
         ray.start = p;
-        ray.dir.x = levelrender_eye_pos.x - p.x;
-        ray.dir.y = levelrender_eye_pos.y - p.y;
-        ray.dir.z = levelrender_eye_pos.z - p.z;
-        if (ray.dir.x * ray.dir.x + ray.dir.y * ray.dir.y + ray.dir.z * ray.dir.z > 1600.0f)
+        ray.dir = levelrender_eye_pos - p;
+        if (ray.dir.len_sq() > 1600.0f)
             continue;
         ray.flags = 1;
         ray.require_flags = 0;
@@ -2289,13 +2293,13 @@ int levelrender_level_load()
     return 0;
 }
 
-// 0x4868f0  Confidence: likely (the if / else shape of the flag stores). Up to 41 records of
+// 0x4868f0  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the if / else shape of the flag stores). Up to 41 records of
 // "name" fog_multiplier [+UnlockMedium | +UnlockHigh] [+NoSmallMeshCulling].
 void detail_levels_parse_table()
 {
+    num_detail_levels = 0;
     TextFile tf;
 
-    num_detail_levels = 0;
     if (tf.Open("detail_levels.tbl", PATH_ANY))
         return;
     while (num_detail_levels < MAX_DETAIL_LEVELS && tf.Peek("\"")) {

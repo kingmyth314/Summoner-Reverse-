@@ -98,7 +98,7 @@ void murod_oni_init_timers(Character *c)
     murod_oni_timer_b.SetTimeout(5000);
 }
 
-// 0x4c5de0  Confidence: likely. With more than one attacker, move 4 every 20 s; once the 5 s timer has run
+// 0x4c5de0  Confidence: exact (D11400: the pick test positive, `else return 0`, puts the failure last). With more than one attacker, move 4 every 20 s; once the 5 s timer has run
 // out (it is never rearmed), at a flag-4 candidate (in move 2's cone) with chance 0.3, move 2 at it and the
 // old target is kept to come back to; otherwise move 1 / 3 / 0 at 30 / 30 / 40 %.
 int ai_state::murod_oni_ai_select_action()
@@ -150,9 +150,10 @@ int ai_state::murod_oni_ai_select_action()
     } else {
         murod_oni_target_handle = boss_target_list_pick(list, count, murod_oni_threat_table,
                                                         murod_oni_target_handle, false, 0);
-        if (murod_oni_target_handle == -1)
+        if (murod_oni_target_handle != -1)
+            murod_oni_set_attack_timer(10000, 20000);
+        else
             return 0;
-        murod_oni_set_attack_timer(10000, 20000);
     }
     r = frand();
     if (r < 0.3f)

@@ -34,7 +34,8 @@ void ftp_get::abort_get()
     fclose(file);
 }
 
-// 0x559ed0  Confidence: likely (the slash scan's form). The URL is "ftp://host/dir/file"; a ':' anywhere
+// 0x559ed0  Confidence: exact (VC6 byte match, m-1020 w11, D12001: if / else of two strcpy calls for the
+// defaults, last and first both set from p + i + 1 before the filename copy, last cleared first). The URL is "ftp://host/dir/file"; a ':' anywhere
 // (a port, "user:pass@") is a parse error. _beginthread's -1 is not caught (state 3 either way).
 ftp_get::ftp_get(const char *url, const char *local_file, const char *u, const char *pw)
 {
@@ -57,12 +58,14 @@ ftp_get::ftp_get(const char *url, const char *local_file, const char *u, const c
         state = FTP_STATE_CANT_WRITE_FILE;
         return;
     }
-    if (u == NULL)
-        u = "anonymous";
-    strcpy(user, u);
-    if (pw == NULL)
-        pw = "pxouser@pxo.net";
-    strcpy(password, pw);
+    if (u)
+        strcpy(user, u);
+    else
+        strcpy(user, "anonymous");
+    if (pw)
+        strcpy(password, pw);
+    else
+        strcpy(password, "pxouser@pxo.net");
     listen_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (listen_socket == INVALID_SOCKET) {
         state = FTP_STATE_SOCKET_ERROR;
@@ -94,14 +97,14 @@ ftp_get::ftp_get(const char *url, const char *local_file, const char *u, const c
         state = FTP_STATE_URL_PARSING_ERROR;
         return;
     }
-    first = NULL;
     last = NULL;
+    first = NULL;
     for (i = strlen(p); i >= 0; i--) {
         if (p[i] == '/') {
-            if (last == NULL) {
+            if (!last) {
                 last = p + i + 1;
+                first = p + i + 1;
                 strcpy(filename, last);
-                first = last;
             } else {
                 first = p + i + 1;
             }

@@ -329,6 +329,7 @@ int journal_handle_click(int key)
 {
     int i;
     int font_h;
+    int dx, dy, dz;
 
     journal_pressed_button = -1;
     journal_drag_scrollbar_index = -1;
@@ -448,7 +449,6 @@ int journal_handle_click(int key)
     }
 
     {
-        int dx, dy, dz;
         mouse_get_delta(&dx, &dy, &dz);
         if (dz > 0) {
             if (journal_drag_scrollbar_index == 3)
@@ -510,12 +510,12 @@ void journal_list_page_down(int list)
     }
 }
 
-// 0x41b570  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31) (single store; tail call).
+// 0x41b570  Confidence: exact (single store; tail call; the clamp at 0 in D10600's form, D11700).
 void journal_desc_page_up()
 {
     if (journal_desc_first_line > 0) {
-        int line = journal_desc_first_line - journal_desc_page[resolution_index];
-        journal_desc_first_line = line > 0 ? line : 0;
+        journal_desc_first_line -= journal_desc_page[resolution_index];
+        journal_desc_first_line &= (journal_desc_first_line <= 0) - 1;
         journal_update_desc_scrollbar();
     }
 }

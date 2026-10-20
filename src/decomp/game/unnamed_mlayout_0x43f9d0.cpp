@@ -169,7 +169,7 @@ int monster_layout_save(const char *filename)
     return f.close();
 }
 
-// 0x43fe00  Confidence: likely (the char_infos lookup of the map name is the order of the code: its result
+// 0x43fe00  Confidence: exact (VC6 byte match, m-1020; was likely) (the char_infos lookup of the map name is the order of the code: its result
 // stays in EBP for every living_entity_create; the source position of the call is a guess). An empty first
 // string is the versioned header ("obsolete" when check_version fails); an older file starts with the map
 // name directly. Every entity of types 4, 5 and 9 is deleted, the host tells the clients (NEW_MON), then
@@ -206,12 +206,15 @@ int monster_layout_load(const char *filename)
     }
     for (c = living_list.live_next; c != &living_list; c = next) {
         next = c->live_next;
-        if ((c->type >= MLO_TYPE_FIRST && c->type <= MLO_TYPE_SECOND) || c->type == MLO_TYPE_LAST)
+        if (c->type >= MLO_TYPE_FIRST && (c->type <= MLO_TYPE_SECOND || c->type == MLO_TYPE_LAST))
             delete c;
     }
     if (MP_IS_HOST())
         mp_broadcast_packet_3e();
-    while ((type = f.read_int(0, 0)) != 0) {
+    while (1) {
+        type = f.read_int(0, 0);
+        if (type == 0)
+            break;
         f.read_string_buf(name, MLO_NAME_LEN, 0, NULL);
         f.read_vector(&pos, 0, &file_zero_vector);
         f.read_matrix(&orient, 0, &file_default_matrix);

@@ -1304,9 +1304,8 @@ int fx_create_spell_effect_facing(int spell, int caster, int target)
     t = living_from_handle(target);
     if (!c || !t)
         return -1;
-    dir.z = c->pos.z - t->pos.z;
-    dir.x = c->pos.x - t->pos.x;
-    dir.y = 0.0f;
+    vector3 *tp = &t->pos;
+    dir.set(c->pos.x - tp->x, 0.0f, c->pos.z - tp->z);
     dir.normalize_safe();
     vector3 up(0.0f, 1.0f, 0.0f);
     vector3 right = dir.cross(up);

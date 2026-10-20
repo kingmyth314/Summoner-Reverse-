@@ -893,7 +893,8 @@ spell_cast_params spell_prepare_cast(Character *caster, int spell, int target, I
     return p;
 }
 
-// 0x47bd30  Confidence: likely (the list walks and the two-step pick as the binary does them; the EH states
+// 0x47bd30  Confidence: exact (VC6 byte match, m-1020 w11, D12006: each count cleared after its list head, and
+// n_others decremented after the append as n_friends is; the list walks and the two-step pick as the binary does them; the EH states
 // of the four local Character list heads; D5702). Spells 0x1c, 0x4f and 0x64 (the creature spells whose effect
 // strikes four times): every living entity within the spell's +Distance: of the caster that it can see (not
 // type 4, not team 1) is moved to a local list of friends (team 0 when the caster is team 0, and the caster
@@ -916,9 +917,9 @@ void spell_spawn_creature(Character **out, Character *caster, int spell)
 
         friends.live_next = &friends;
         friends.live_prev = &friends;
+        n_friends = 0;
         others.live_next = &others;
         others.live_prev = &others;
-        n_friends = 0;
         n_others = 0;
         team = caster->get_team();
         range_sq = spells[spell].distance * spells[spell].distance;
@@ -965,9 +966,9 @@ void spell_spawn_creature(Character **out, Character *caster, int spell)
                         for (c = others.live_next; c != &others && --r >= 0; c = c->live_next)
                             ;
                         got_others++;
-                        n_others--;
                         live_list_remove(c);
                         live_list_append(&picked_others, c);
+                        n_others--;
                     } else {
                         r = rand() % got_others;
                         for (c = picked_others.live_next; c != &picked_others && --r >= 0; c = c->live_next)
@@ -1718,9 +1719,8 @@ static inline void set_xz(float *d, float x, float z)
     d[1] = z;
 }
 
-// 0x47e100  Confidence: likely (the two ground points are copied into x / z pairs first: the stores
-// 0x47e17f-0x47e18f; match27: through the vector2 constructor and operators, now to +0x105 of 0x175, the rest
-// is the scheduling of the avoidance stores: the original's description probably has vector2 members). The effect gets an avoidance box from the middle of ground points 7..1 and 8..13
+// 0x47e100  Confidence: exact (VC6 byte match, m-1020 w11, D12004: the avoidance record is filled in the
+// binary's store order, cx cz ax bx shape extent_a _unk00 az bz ...). The effect gets an avoidance box from the middle of ground points 7..1 and 8..13
 // along their direction.
 int spell_place_ground_effect(int spell, int caster, const vector3 *pos, int owner, const matrix *orient)
 {
@@ -1750,12 +1750,12 @@ int spell_place_ground_effect(int spell, int caster, const vector3 *pos, int own
     aa.cx = centre.x;
     aa.cz = centre.y;
     aa.ax = dir.x;
-    aa.az = dir.y;
     aa.bx = perp.x;
-    aa.bz = perp.y;
     aa.shape = 0;
     aa.extent_a = len;
     aa._unk00 = 0;
+    aa.az = dir.y;
+    aa.bz = perp.y;
     aa.extent_b = 1.5f;
     aa._unk28 = 0.5f;
     aa.owner = owner;

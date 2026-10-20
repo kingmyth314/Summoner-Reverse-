@@ -288,30 +288,34 @@ Character::~Character()
     type = 0;
 }
 
-// 0x44e1c0 living_entity_init  Confidence: likely. Frame: summon -4, species -8, style -0xc, centre
+// 0x44e1c0 living_entity_init  Confidence: exact (a VC6 byte match once charinfo_create_character_instance
+// takes `int summon`, the m-1020 worker 9 header change; with the bool declaration only the setne differs;
+// D11703: locals renamed for the D6101 buckets, the mempool choice through a local, the hero test a switch,
+// attached_light_create_from_vfx, j unsigned). Frame: summon -4, species -8, style -0xc, centre
 // -0x18, weapon_type -0x1c, i -0x20, t -0x24 / r -0x28, j -0x2c, the equip outputs -0x30 / -0x34, slot
 // -0x38, item -0x3c, held -0x40, light orient -0x64, bone -0x68, light pos -0x74, the ?: temporary
 // -0x78, this -0xe0; the rest are inline-expansion temporaries. The fifth argument (a bool, D6105) is not read.
 void Character::init(int type, int info_index, const vector3 *pos, const matrix *orient, bool unused,
                      int level)
 {
-    int summon;
-    int species;
-    int style;
-    vector3 centre;
-    int weapon_type;
-    int i;
-    float t;
-    float r;
-    int j;
-    item_info *old_b;
-    item_info *old_a;
-    int slot;
-    item_info *item;
-    item_info *held;
+    Mempool *pool;
+    vector3 light_posk;
+    int bone5;
     matrix light_orient;
-    int bone;
-    vector3 light_pos;
+    item_info *held_;
+    item_info *item;
+    int slot;
+    item_info *old_a_;
+    item_info *old_bz;
+    unsigned int j4;
+    float r;
+    float t9;
+    int iv;
+    int weapon_typev;
+    vector3 centre;
+    int style_b;
+    int species0;
+    int summon_;
 
     live_list_append(&living_list, this);
     link_new(type);
@@ -328,20 +332,27 @@ void Character::init(int type, int info_index, const vector3 *pos, const matrix 
     this->orient = *orient;
     this->info = characterinfo_find_multi_slot(info_index);
     if (type == 7 && summon_skill_from_creature_name(this->info->name) != -1)
-        summon = 1;
+        summon_ = 1;
     else
-        summon = 0;
-    instance = charinfo_create_character_instance(this->info, summon);
-    if (this->info->species >= SPECIES_JOSEPH && this->info->species <= SPECIES_ROSALIND && type == 7)
-        apply_hero_model(0);
-    weapon_type = 0;
+        summon_ = 0;
+    instance = charinfo_create_character_instance(this->info, summon_);
+    switch (this->info->species) {
+    case SPECIES_JOSEPH:
+    case SPECIES_FLECE:
+    case SPECIES_JEKHAR:
+    case SPECIES_ROSALIND:
+        if (type == 7)
+            apply_hero_model(0);
+        break;
+    }
+    weapon_typev = 0;
     if (this->info->default_weapons[0] != -1)
-        weapon_type = item_types[this->info->default_weapons[0]].weapon_class;
-    characterinfo_load_party_anims(this->info, weapon_type, 1, summon);
+        weapon_typev = item_types[this->info->default_weapons[0]].weapon_class;
+    characterinfo_load_party_anims(this->info, weapon_typev, 1, summon_);
     equipment_clear(equipment);
     if (this->info->alt_parent != NULL) {
-        for (j = 0; j < this->info->alt_textures->count; j++)
-            this->info->alt_textures->bitmaps[j] = bm_load(this->info->alt_textures->names[j], -1, -1);
+        for (j4 = 0; j4 < this->info->alt_textures->count; j4++)
+            this->info->alt_textures->bitmaps[j4] = bm_load(this->info->alt_textures->names[j4], -1, -1);
     }
     flags = 0;
     loco_blend = 0.0f;
@@ -383,32 +394,32 @@ void Character::init(int type, int info_index, const vector3 *pos, const matrix 
     scale_stats_to_level();
     set_team(this->info->team);
     clear_all_effects();
-    for (i = 0; i < this->info->num_default_weapons; i++) {
-        item = item_create(this->info->default_weapons[i]);
+    for (iv = 0; iv < this->info->num_default_weapons; iv++) {
+        item = item_create(this->info->default_weapons[iv]);
         if (item == NULL)
             continue;
         if (item->type->kind == 1)
             slot = 6;
-        else if (i == 0)
+        else if (iv == 0)
             slot = 5;
         else
-            slot = i + 8;
-        character_equip_item(&old_a, &old_b, this, slot, item);
-        if (old_a != NULL)
-            item_free(old_a);
-        if (old_b != NULL)
-            item_free(old_b);
+            slot = iv + 8;
+        character_equip_item(&old_a_, &old_bz, this, slot, item);
+        if (old_a_ != NULL)
+            item_free(old_a_);
+        if (old_bz != NULL)
+            item_free(old_bz);
     }
     num_attachments = 0;
     if (this->info->species == 0xce) {
-        held = equipment[9];
-        item_page_in(held->type - item_types, 9, 0);
-        attachments[0].item_type = held->type - item_types;
+        held_ = equipment[9];
+        item_page_in(held_->type - item_types, 9, 0);
+        attachments[0].item_type = held_->type - item_types;
         attachments[0].slot = 4;
         num_attachments = 1;
-        held = character_unequip_slot(this, 9, 1);
-        if (held != NULL)
-            item_free(held);
+        held_ = character_unequip_slot(this, 9, 1);
+        if (held_ != NULL)
+            item_free(held_);
     }
     update_locomotion_anim();
     speed_scale = run_speed;
@@ -422,31 +433,35 @@ void Character::init(int type, int info_index, const vector3 *pos, const matrix 
     obj_flags |= 1;
     forward_speed = 0.0f;
     velocity.zero();
-    species = this->info->species;
-    style = 0;
-    if (species == SPECIES_JOSEPH)
-        style = 0;
-    else if (species == SPECIES_JEKHAR)
-        style = 0;
-    else if (species == SPECIES_ROSALIND)
-        style = 5;
-    else if (species == SPECIES_FLECE)
-        style = 1;
-    ai.set_18(style);
-    t = 10.0f;
-    r = frand() * t;
+    species0 = this->info->species;
+    style_b = 0;
+    if (species0 == SPECIES_JOSEPH)
+        style_b = 0;
+    else if (species0 == SPECIES_JEKHAR)
+        style_b = 0;
+    else if (species0 == SPECIES_ROSALIND)
+        style_b = 5;
+    else if (species0 == SPECIES_FLECE)
+        style_b = 1;
+    ai.set_18(style_b);
+    t9 = 10.0f;
+    r = frand() * t9;
     instance->process(r, false, 1);
     if (this->info->has_light) {
-        bone = mesh_tag(instance->character, this->info->light_pos);
-        instance->get_bone_transform(&light_pos, &light_orient, bone);
-        light_pos.unrotate(*orient);
-        light_pos += this->pos;
-        light = attached_light_create(&light_pos, 1.0f, 0, this->info->light_atten,
+        bone5 = mesh_tag(instance->character, this->info->light_pos);
+        instance->get_bone_transform(&light_posk, &light_orient, bone5);
+        light_posk.unrotate(*orient);
+        light_posk += this->pos;
+        light = attached_light_create_from_vfx(&light_posk, 1.0f, this->info->light_atten,
                                       this->info->light_color[0], this->info->light_color[1],
                                       this->info->light_color[2]);
     }
     if (this->info->vfx != NULL) {
-        set_current_mempool(summon ? &summon_mempool : &level_mempool);
+        if (summon_)
+            pool = &summon_mempool;
+        else
+            pool = &level_mempool;
+        set_current_mempool(pool);
         fx_attach_to_character(this->info->vfx, handle, -1, -1, 1, 0);
         set_current_mempool(NULL);
     }
@@ -928,13 +943,14 @@ bool Character::kill(int death_sub)
 
 // One named-character drop: the unique item of a quest character, never locked.
 #define LOOT_UNIQUE(item_name)                                                         \
-    unlocked = true;                                                                   \
-    LOOT_SCATTER(drop_pos);                                                            \
-    drops[n] = item_obj_spawn(item_create_by_name(item_name), &drop_pos, &orient, 1, -1, -1); \
-    if (drops[n] != NULL)                                                              \
-        n++
+    unlocked1 = true;                                                                   \
+    LOOT_SCATTER(drop_pos1);                                                            \
+    drops[nx] = item_obj_spawn(item_create_by_name(item_name), &drop_pos1, &orient, 1, -1, -1); \
+    if (drops[nx] != NULL)                                                             \
+        nx++
 
-// 0x450e30  Confidence: likely (statement order and frame; the many inline-expansion temporaries
+// 0x450e30  Confidence: exact (D11703: locals renamed and declared bottom first for the D6101 buckets;
+// the three difficulty tests are one condition; the many inline-expansion temporaries
 // -0xc0..-0x470 are not declared). Frame: j -4, lock -8, box -0xc, bone -0x10, drops -0x50 (16),
 // unlocked -0x54, bone_orient -0x78, i -0x7c, n -0x80, highlight -0x84, drop_pos -0x90, count -0x94,
 // chances -0x98, num -0x9c, items -0xa0, levels -0xa4, t -0xa8, roll -0xac, weapon -0xb0, shield
@@ -947,79 +963,77 @@ bool Character::kill(int death_sub)
 // table. The roll is frand() mirrored when (int)(frand() * 100) is odd, minus 0.01.
 void Character::monster_drop_loot()
 {
-    int j;
-    float lock;
-    container *box;
-    int bone;
-    item_obj *drops[16];
-    bool unlocked;
-    matrix bone_orient;
-    int i;
-    int n;
-    int highlight;
-    vector3 drop_pos;
-    int count;
-    float *chances;
-    int num;
-    int *items;
-    int *levels;
-    float t;
-    float roll;
-    item_info *weapon;
+    item_obj *firstx;
+    float lock_chance5;
     item_info *shield;
-    float lock_chance;
-    item_obj *first;
+    item_info *weapon7;
+    float roll_v;
+    float tv;
+    int *levels;
+    int *items_d;
+    int num;
+    float *chances;
+    int count5;
+    vector3 drop_pos1;
+    int highlight;
+    int nx;
+    int i_b;
+    matrix bone_orient4;
+    bool unlocked1;
+    item_obj *drops[16];
+    int bone;
+    container *box_c;
+    float lock;
+    int j2;
 
-    n = 0;
-    unlocked = (game_flags & GF_MULTIPLAYER) != 0;
+    nx = 0;
+    unlocked1 = (game_flags & GF_MULTIPLAYER) != 0;
     lock = 0.0f;
     if (frand() < Chance_to_drop_gold) {
-        drop_pos = pos;
-        drop_pos += orient.rvec * 0.5f;
-        count = (int)(frand() * level * 10.0f) + 1;
+        drop_pos1 = pos;
+        drop_pos1 += orient.rvec * 0.5f;
+        count5 = (int)(frand() * level * 10.0f) + 1;
         if (game_flags & GF_MULTIPLAYER)
-            count *= mp_netgame_num_players;
-        drops[n] = item_obj_spawn(item_create_misc_by_name("Gold"), &drop_pos, &orient, count, -1, -1);
-        if (drops[n] != NULL)
-            n++;
+            count5 *= mp_netgame_num_players;
+        drops[nx] = item_obj_spawn(item_create_misc_by_name("Gold"), &drop_pos1, &orient, count5, -1, -1);
+        if (drops[nx] != NULL)
+            nx++;
     }
     if (info->species == 0x23 || info->species == 0x24 || info->species == 0x25) {
         printf("No drop for Medevan Knights\n");
     } else {
         if (game_flags & GF_SINGLE_PLAYER) {
             num = info->num_drops;
-            items = info->drop_items;
+            items_d = info->drop_items;
             chances = info->drop_chances;
             levels = NULL;
         } else {
             num = info->num_mp_drops;
-            items = info->mp_drop_items;
+            items_d = info->mp_drop_items;
             chances = info->mp_drop_chances;
             levels = info->mp_drop_levels;
         }
-        for (i = 0; i < num; i++) {
-            if (levels != NULL && levels[i] > level)
+        for (i_b = 0; i_b < num; i_b++) {
+            if (levels != NULL && levels[i_b] > level)
                 continue;
-            if ((item_types[items[i]].flags & ITF_DIFFICULTY_EASY) && mp_game_difficulty != 0)
+            if (((item_types[items_d[i_b]].flags & ITF_DIFFICULTY_EASY) && mp_game_difficulty != 0)
+                || ((item_types[items_d[i_b]].flags & ITF_DIFFICULTY_NORMAL) && mp_game_difficulty != 1)
+                || ((item_types[items_d[i_b]].flags & ITF_DIFFICULTY_HARD) && mp_game_difficulty != 2))
                 continue;
-            if ((item_types[items[i]].flags & ITF_DIFFICULTY_NORMAL) && mp_game_difficulty != 1)
-                continue;
-            if ((item_types[items[i]].flags & ITF_DIFFICULTY_HARD) && mp_game_difficulty != 2)
-                continue;
-            roll = frand();
-            t = frand() * 100.0f;
-            if ((int)t % 2)
-                roll = 1.0f - roll;
-            roll -= 0.01f;
-            printf("Rolling %d %d\n", (int)(roll * 100.0f), (int)(chances[i] * 100.0f));
-            if (roll <= chances[i]) {
+            roll_v = frand();
+            tv = frand() * 100.0f;
+            if ((int)tv % 2)
+                roll_v = 1.0f - roll_v;
+            roll_v -= 0.01f;
+            printf("Rolling %d %d\n", (int)(roll_v * 100.0f), (int)(chances[i_b] * 100.0f));
+            if (roll_v <= chances[i_b]) {
                 printf("Dropping\n");
-                if (chances[i] > 0.98f)
-                    unlocked = true;
-                LOOT_SCATTER(drop_pos);
-                drops[n] = item_obj_spawn(item_create(items[i]), &drop_pos, &orient, 1, -1, -1);
-                if (drops[n] != NULL)
-                    n++;
+                if (chances[i_b] > 0.98f)
+                    unlocked1 = true;
+                LOOT_SCATTER(drop_pos1);
+                drops[nx] = item_obj_spawn(item_create(items_d[i_b]), &drop_pos1, &orient, 1, -1, -1);
+                if (drops[nx] != NULL)
+                    nx++;
             }
         }
     }
@@ -1027,31 +1041,31 @@ void Character::monster_drop_loot()
         if (equipment[5] != NULL && equipment[5]->type->kind == 0) {
             bone = info->prop_tag_bones[prop_tag];
             if (bone != -1) {
-                instance->get_bone_world_transform(bone, &orient, &pos, &bone_orient, &drop_pos);
+                instance->get_bone_world_transform(bone, &orient, &pos, &bone_orient4, &drop_pos1);
             } else {
-                drop_pos = pos;
-                drop_pos += orient.rvec + 0.5f;
+                drop_pos1 = pos;
+                drop_pos1 += orient.rvec + 0.5f;
             }
             if (!(equipment[5]->type->weapon_flags & 2)) {
-                weapon = character_unequip_slot(this, 5, 1);
-                drops[n] = item_obj_spawn(weapon, &drop_pos, &orient, 1, -1, -1);
-                if (drops[n] != NULL)
-                    n++;
+                weapon7 = character_unequip_slot(this, 5, 1);
+                drops[nx] = item_obj_spawn(weapon7, &drop_pos1, &orient, 1, -1, -1);
+                if (drops[nx] != NULL)
+                    nx++;
             }
         }
         if (equipment[9] != NULL && equipment[9]->type->kind == 0) {
             bone = info->prop_tag_bones[1];
             if (bone != -1) {
-                instance->get_bone_world_transform(bone, &orient, &pos, &bone_orient, &drop_pos);
+                instance->get_bone_world_transform(bone, &orient, &pos, &bone_orient4, &drop_pos1);
             } else {
-                drop_pos = pos;
-                drop_pos -= orient.rvec + 0.5f;
+                drop_pos1 = pos;
+                drop_pos1 -= orient.rvec + 0.5f;
             }
             if (!(equipment[9]->type->weapon_flags & 2)) {
                 shield = character_unequip_slot(this, 9, 1);
-                drops[n] = item_obj_spawn(shield, &drop_pos, &orient, 1, -1, -1);
-                if (drops[n] != NULL)
-                    n++;
+                drops[nx] = item_obj_spawn(shield, &drop_pos1, &orient, 1, -1, -1);
+                if (drops[nx] != NULL)
+                    nx++;
             }
         }
     }
@@ -1073,58 +1087,58 @@ void Character::monster_drop_loot()
         LOOT_UNIQUE("Ring of Forest");
     } else if (cur_level_index == 3 && _stricmp(level_script_name, "Masad") == 0
                && _stricmp(name, "Orenian Scout#$npc002") == 0) {
-        for (i = 0; i < n; i++) {
-            if (drops[i]->item->type - item_types == item_type_find("Worn Katana"))
+        for (i_b = 0; i_b < nx; i_b++) {
+            if (drops[i_b]->item->type - item_types == item_type_find("Worn Katana"))
                 break;
         }
-        if (i >= n) {
+        if (i_b >= nx) {
             LOOT_UNIQUE("Worn Katana");
         }
     }
-    if (n == 0)
+    if (nx == 0)
         return;
-    for (i = 0; i < n; i++) {
-        if (drops[i]->item->type->kind == 0) {
+    for (i_b = 0; i_b < nx; i_b++) {
+        if (drops[i_b]->item->type->kind == 0) {
             sound_play_3d_at(0xd, &pos);
             break;
         }
     }
-    if (i >= n)
+    if (i_b >= nx)
         sound_play_3d_at(0xc, &pos);
     lock = 0.0f;
     highlight = -1;
-    if (n > 1 || !drops[0]->is_gold()) {
-        if (unlocked) {
+    if (nx > 1 || !drops[0]->is_gold()) {
+        if (unlocked1) {
             lock = 0.0f;
         } else {
-            lock_chance = level / 100.0f;
-            if (frand() < lock_chance)
+            lock_chance5 = level / 100.0f;
+            if (frand() < lock_chance5)
                 lock = frand();
             else
                 lock = 0.0f;
         }
-        box = container_obj_create(&drop_pos, lock);
-        if (box != NULL) {
-            highlight = box->handle;
-            for (j = 0; j < n; j++)
-                box->add_item(drops[j]);
+        box_c = container_obj_create(&drop_pos1, lock);
+        if (box_c != NULL) {
+            highlight = box_c->handle;
+            for (j2 = 0; j2 < nx; j2++)
+                box_c->add_item(drops[j2]);
             do {
-                first = box->get_item(0);
-                if (first != NULL) {
-                    box->pos = first->pos;
-                    box->pos.y += 0.2f;
+                firstx = box_c->get_item(0);
+                if (firstx != NULL) {
+                    box_c->pos = firstx->pos;
+                    box_c->pos.y += 0.2f;
                 }
             } while (0);
-            printf("CONTAINER POS : (%f %f %f) (%f %f %f) (%f %f %f)\n", box->pos.x, box->pos.y,
-                   box->pos.z, box->get_item(0)->pos.x, box->get_item(0)->pos.y, box->get_item(0)->pos.z,
+            printf("CONTAINER POS : (%f %f %f) (%f %f %f) (%f %f %f)\n", box_c->pos.x, box_c->pos.y,
+                   box_c->pos.z, box_c->get_item(0)->pos.x, box_c->get_item(0)->pos.y, box_c->get_item(0)->pos.z,
                    cur_character->pos.x, cur_character->pos.y, cur_character->pos.z);
         }
-    } else if (n == 1) {
+    } else if (nx == 1) {
         highlight = drops[0]->handle;
     }
     hud_set_timed_highlight(highlight);
-    if (MP_IS_HOST() && n > 0)
-        container_spawn_loot(n, drops, highlight, lock, &drop_pos);
+    if (MP_IS_HOST() && nx > 0)
+        container_spawn_loot(nx, drops, highlight, lock, &drop_pos1);
 }
 
 // 0x4530d0  Confidence: likely. Frame: ray -0x4c (its inline constructor's store at -0x1c comes
@@ -1265,29 +1279,31 @@ void Character::summon_return_lent_max_hp()
     savegame_state.hot_buttons_clear_member(4);
 }
 
-// 0x4537f0  Confidence: likely. Frame: p -4, q -8, scale -0xc, xp_total -0x10, ratio -0x14, killers
+// 0x4537f0  Confidence: exact (D11703). Frame: p -4, q -8, scale -0xc, xp_total -0x10, ratio -0x14, killers
 // -0x24 (4), n -0x28, dist -0x2c, c -0x30, share -0x34, text -0xb4, i -0xb8, pl -0xbc, c2 -0xc0, this
-// -0xe4, the switch value -0x100. Experience goes to the living, visible, non-summon party members
+// -0xe4, the switch value -0x100 (locals renamed and declared bottom first for the D6101 buckets).
+// A dying character whose current move has a trigger 9 that is (nearly) reached is not processed
+// (0x4538b0: `fcomp 0.0001; test ah, 0x41; je go_on`, as play_move, D6104). Experience goes to the living, visible, non-summon party members
 // within 20 m (dist^2 < 400) when a party member hit the victim: char_info xp scaled by
 // (level / info level) (sqrt(sqrt(r)) * r above 1), times the players in multiplayer, split evenly.
 // When Joseph dies his summon turns hostile (team 3, type 5). The character then moves to the
 // inactive list; monsters (not summons) drop their loot unless this is a multiplayer client.
 void Character::on_death()
 {
-    Player *p;
-    Player *q;
-    float scale;
-    float xp_total;
-    float ratio;
-    Character *killers[4];
-    int n;
-    float dist;
-    Character *c;
-    float share;
-    char text[128];
+    Character *c2m;
+    Player *plz;
     int i;
-    Player *pl;
-    Character *c2;
+    char text[128];
+    float share;
+    Character *c;
+    float dist_;
+    int n4;
+    Character *killers[4];
+    float ratio_;
+    float xp_total4;
+    float scale;
+    Player *q5;
+    Player *p;
 
     if (flags & CF_DEAD)
         return;
@@ -1296,7 +1312,7 @@ void Character::on_death()
     ((GameTimer *)&combat.timer)->SetTimeout(0);
     flags |= CF_HIDDEN;
     if (cur_anim >= 0) {
-        if (move_has_trigger(9) && move_trigger_time_left(9) > 0.0001f)
+        if (move_has_trigger(9) && move_trigger_time_left(9) <= 0.0001f)
             return;
         fx_remove_missiles_from(cur_anim);
     }
@@ -1318,32 +1334,34 @@ void Character::on_death()
         if (p != NULL)
             party_remove_player(p, false);
     } else if (hit_by_party) {
-        n = 0;
-        for (q = party_list.next; q != &party_list; q = q->next) {
-            c = living_from_handle(q->handle);
+        n4 = 0;
+        for (q5 = party_list.next; q5 != &party_list; q5 = q5->next) {
+            c = living_from_handle(q5->handle);
             if (c == NULL)
                 continue;
             if ((c->flags & CF_DEAD) || (c->flags & CF_HIDDEN) || (c->flags & CF_SUMMON))
                 continue;
-            dist = (pos - c->pos).len_sq();
-            if (dist < 400.0f)
-                killers[n++] = c;
+            dist_ = (pos - c->pos).len_sq();
+            if (dist_ < 400.0f)
+                killers[n4++] = c;
         }
-        ratio = (float)level / info->level;
-        if (ratio < 1.0f)
-            scale = ratio;
+        ratio_ = (float)level / info->level;
+        if (ratio_ < 1.0f)
+            scale = ratio_;
         else
-            scale = (float)sqrt((float)sqrt(ratio)) * ratio;
-        xp_total = info->xp_gained * scale;
+            scale = (float)sqrt((float)sqrt(ratio_)) * ratio_;
+        xp_total4 = info->xp_gained * scale;
         if (game_flags & GF_MULTIPLAYER)
-            xp_total = mp_netgame_num_players * xp_total;
-        if (n > 0) {
-            share = xp_total / n;
-            ASSIGN_MIN(share, share, 2147483648.0f);
-            sprintf(text, XSTR("+%.f xp", 324), (double)(int)(n * share + 0.5f));
+            xp_total4 = mp_netgame_num_players * xp_total4;
+        if (n4 > 0) {
+            if ((share = xp_total4 / n4) < 2147483648.0f)    // the binary copies share onto itself (D10702)
+                share = share;
+            else
+                share = 2147483648.0f;
+            sprintf(text, XSTR("+%.f xp", 324), (double)(int)(n4 * share + 0.5f));
             set_floating_text(text, 2.0f, 0x32, 0xb4, 0x32);
             if (!MP_IS_CLIENT()) {
-                for (i = 0; i < n; i++)
+                for (i = 0; i < n4; i++)
                     killers[i]->add_xp((int)share, false, false);
             }
         }
@@ -1351,8 +1369,8 @@ void Character::on_death()
     if (species_is_hero(info->species))
         feedback_play(info->species, 0xf, &pos);
     if (info->species == SPECIES_JOSEPH && cur_summon != NULL && cur_summon->type == 7) {
-        pl = player_from_handle(handle);
-        if ((game_flags & GF_SINGLE_PLAYER) || (pl != NULL && summon_player->mp_owner == pl->mp_owner)) {
+        plz = player_from_handle(handle);
+        if ((game_flags & GF_SINGLE_PLAYER) || (plz != NULL && summon_player->mp_owner == plz->mp_owner)) {
             party_remove_player(summon_player, false);
             cur_summon->set_team(3);
             cur_summon->type = 5;
@@ -1363,9 +1381,9 @@ void Character::on_death()
     }
     if (this == cur_summon) {
         for (p = party_list.next; p != &party_list; p = p->next) {
-            c2 = living_from_handle(p->handle);
-            if (c2->info->species == SPECIES_JOSEPH) {
-                player_start_skill_cooldown(c2, SKILL_SUMMON);
+            c2m = living_from_handle(p->handle);
+            if (c2m->info->species == SPECIES_JOSEPH) {
+                player_start_skill_cooldown(c2m, SKILL_SUMMON);
                 break;
             }
         }
@@ -2028,7 +2046,9 @@ void Character::ai_add_goal9(vector3 *pos, int layer, int priority, bool a)
     ai.add_travel(pos, layer, priority, a);
 }
 
-// 0x455fb0  Confidence: likely for the logic, unsure for the frame. Three profile labels (the EH unwind
+// 0x455fb0  Confidence: exact (D11703: the frame by the D6101 buckets; the unused 0x2c-byte record at
+// -0x3c is a lobj_hit whose hit count is cleared; the ray, the list and the first label are initialised in
+// that order). Three profile labels (the EH unwind
 // map 0x583a80 destroys ebp-0x90 in state 0, ebp-0xb0 in state 1 and ebp-0xb8 in state 2; their text is
 // not in the binary, D66) and two locals the function initialises without using (ebp-0x5c, the
 // _unk30 store of an inline lobj_ray constructor, and ebp-0x3c). Frame: list -0x10, best_y -0x40, i
@@ -2039,18 +2059,18 @@ void Character::ai_add_goal9(vector3 *pos, int layer, int priority, bool a)
 // ground, CF 0x100000).
 void Character::find_ground()
 {
-    layer_lobj_list *list = NULL;
-    int unused3c;
-    float best_y;
+    bool hit_;
+    int counts;
+    vector3 probe_;
+    int skip9;
+    int i0;
     lobj_ray unused_ray;
+    layer_lobj_list *listx = NULL;
     profile_label label("character_find_ground");
-    int i;
-    int skip;
-    vector3 probe;
-    int count;
-    bool hit;
+    float best_y;
+    lobj_hit unused_hit;
 
-    unused3c = 0;
+    unused_hit.num_hits = 0;
     if (flags & CF_NO_GROUND)
         return;
     if (flags & 0x1000)
@@ -2058,46 +2078,46 @@ void Character::find_ground()
     if (!(obj_flags & 2))
         flags &= ~CF_ON_GROUND;
     best_y = -10000.0f;
-    skip = -1;
+    skip9 = -1;
     if (ground_face != -1) {
-        probe = pos;
+        probe_ = pos;
         if (!(flags & CF_ON_GROUND))
-            probe.y += 10.0f;
+            probe_.y += 10.0f;
         else
-            probe.y += 2.0f;
-        hit = character_probe_lobj_ground(flags, ground_lobj, &probe, &best_y, &ground_face, &ground_lobj,
+            probe_.y += 2.0f;
+        hit_ = character_probe_lobj_ground(flags, ground_lobj, &probe_, &best_y, &ground_face, &ground_lobj,
                                           (vector3 *)ground_hit, true);
-        if (hit)
-            skip = ground_lobj;
+        if (hit_)
+            skip9 = ground_lobj;
     }
-    if (skip == -1)
+    if (skip9 == -1)
         ground_face = -1;
     if (layer >= 0) {
         profile_label label1("character_find_ground layer");
 
-        list = level_layer_ground[layer];
-        if (list != NULL)
-            count = list->count;
+        listx = level_layer_ground[layer];
+        if (listx != NULL)
+            counts = listx->count;
         else
-            count = num_lobjs;
-        for (i = 0; i < count; i++) {
+            counts = num_lobjs;
+        for (i0 = 0; i0 < counts; i0++) {
             int idx;
 
-            if (list != NULL) {
-                idx = list->indices[i];
+            if (listx != NULL) {
+                idx = listx->indices[i0];
             } else {
-                idx = i;
+                idx = i0;
                 if (lobjs[idx].get_layer_n(0) != layer && lobjs[idx].get_layer_n(1) != layer)
                     continue;
             }
-            if (idx == skip)
+            if (idx == skip9)
                 continue;
-            probe = pos;
+            probe_ = pos;
             if (!(flags & CF_ON_GROUND))
-                probe.y += 10.0f;
+                probe_.y += 10.0f;
             else
-                probe.y += 2.0f;
-            character_probe_lobj_ground(flags, idx, &probe, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
+                probe_.y += 2.0f;
+            character_probe_lobj_ground(flags, idx, &probe_, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
                                         false);
         }
     }
@@ -2105,16 +2125,16 @@ void Character::find_ground()
         profile_label label2("character_find_ground floors");
 
         best_y = -10000.0f;
-        for (i = 0; i < num_lobjs; i++) {
-            if (!(lobjs[i].flags & 0x40))
+        for (i0 = 0; i0 < num_lobjs; i0++) {
+            if (!(lobjs[i0].flags & 0x40))
                 continue;
-            if (list != NULL) {
+            if (listx != NULL) {
                 bool listed;
-                int j;
+                int j2;
 
                 listed = false;
-                for (j = 0; j < list->count; j++) {
-                    if (list->indices[j] == i) {
+                for (j2 = 0; j2 < listx->count; j2++) {
+                    if (listx->indices[j2] == i0) {
                         listed = true;
                         break;
                     }
@@ -2122,28 +2142,28 @@ void Character::find_ground()
                 if (listed)
                     continue;
             }
-            if (i == skip)
+            if (i0 == skip9)
                 continue;
-            probe = pos;
+            probe_ = pos;
             if (!(flags & CF_ON_GROUND))
-                probe.y += 10.0f;
+                probe_.y += 10.0f;
             else
-                probe.y += 2.0f;
-            character_probe_lobj_ground(flags, i, &probe, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
+                probe_.y += 2.0f;
+            character_probe_lobj_ground(flags, i0, &probe_, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
                                         false);
         }
     }
     if (ground_face == -1) {
         best_y = -10000.0f;
-        for (i = 0; i < num_lobjs; i++) {
-            probe = pos;
+        for (i0 = 0; i0 < num_lobjs; i0++) {
+            probe_ = pos;
             if (!(flags & CF_ON_GROUND))
-                probe.y += 10.0f;
+                probe_.y += 10.0f;
             else
-                probe.y += 2.0f;
-            if (i == skip)
+                probe_.y += 2.0f;
+            if (i0 == skip9)
                 continue;
-            character_probe_lobj_ground(flags, i, &probe, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
+            character_probe_lobj_ground(flags, i0, &probe_, &best_y, &ground_face, &ground_lobj, (vector3 *)ground_hit,
                                         false);
         }
         if (ground_face == -1)
@@ -5342,7 +5362,7 @@ float Character::resist_equip_bonus(int type)
     return r;
 }
 
-// 0x4626b0  Confidence: likely. Magic (3): half the magic resist skill, the equipment, minus a curse,
+// 0x4626b0  Confidence: exact (the level and the factor through locals, D11700). Magic (3): half the magic resist skill, the equipment, minus a curse,
 // plus 2% per level, at least the faith value. The others: the char_info resistance level's factor plus
 // the equipment. The curse is tested with the type's register (3 = STATUS_CURSE).
 float Character::get_resistance(int type)
@@ -5373,7 +5393,9 @@ float Character::get_resistance(int type)
         }
         return r;
     }
-    return resistance_level_damage_mult(info->resistance.level[type]) + resist_equip_bonus(type);
+    int lv2 = info->resistance.level[type];
+    r = resistance_level_damage_mult(lv2);
+    return r + resist_equip_bonus(type);
 }
 
 // 0x4627c0  Confidence: exact (8966: the item type through a local, D8700).

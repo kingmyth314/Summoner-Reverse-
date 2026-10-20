@@ -104,11 +104,11 @@ char **status_effect_names[18] = {            // 0x8ec9e8
 // The table parsers copy every string into items_alloc_pool with strlen + 1 / strcpy, expanded inline
 // each time (repne scasb / rep movsd). Written as this macro; whether the original had a helper is not
 // visible. Name ours.
-#define ITEMS_STRDUP(dest, src) do { \
+#define ITEMS_STRDUP(dest, src) { \
         char *_s = (char *)items_alloc_pool.Alloc(strlen(src) + 1); \
         strcpy(_s, src); \
         (dest) = _s; \
-    } while (0)
+    }
 
 // 0x449f30  Confidence: exact (the checksum store is scheduled before the Init call; tail call).
 void items_init()
@@ -145,7 +145,8 @@ void materials_parse_table()
     tf.Close();
 }
 
-// 0x44a090  Confidence: likely (control flow and stores checked block by block; the order of a few
+// 0x44a090  Confidence: likely (m-1020, D11104: 888 -> 29 differing lines; left: the register choice of the
+// four armour-texture case blocks; control flow and stores checked block by block; the order of a few
 // independent stores is the scheduler's). Notes:
 // - The language section "#<language>" (lower case) is found with SkipTo and then Expect-ed.
 // - Past MAX_ITEM_TYPES records the parser keeps reading into a stack ItemType (esp+0x310).
@@ -172,17 +173,18 @@ void items_parse_table()
     items_table_checksum += tf.Checksum();
     strcpy(lang, "#");
     strcat(lang, localize_get_language_name());
-    for (p = lang; *p; p++)
-        *p = tolower(*p);
+    if (lang[0])
+        for (p = lang; *p; p++)
+            *p = tolower(*p);
     tf.Rewind();
     tf.SkipTo(lang, NULL);
     tf.Expect(lang);
     tf.Expect("#Items");
     while (!tf.Accept("#End")) {
-        if (num_item_types < MAX_ITEM_TYPES)
-            t = &item_types[num_item_types++];
-        else
+        if (num_item_types >= MAX_ITEM_TYPES)
             t = &dummy;
+        else
+            t = &item_types[num_item_types++];
         t->flags = 0;
         tf.Expect("$Name:");
         tf.ParseString(buf, 0x200, '"', '"');
@@ -242,9 +244,10 @@ void items_parse_table()
                         break;
                 }
                 value = tf.ParseInt();
+                float f = value * 0.01f;
                 t->skill_mods[n] = (item_mod *)items_alloc_pool.Alloc(sizeof(item_mod));
                 t->skill_mods[n]->id = i;
-                t->skill_mods[n]->value = value * 0.01f;
+                t->skill_mods[n]->value = f;
                 n++;
             } while (tf.Accept("+Skill Mod:"));
         }
@@ -256,9 +259,10 @@ void items_parse_table()
             do {
                 int type = tf.ParseTypeString(damage_type_names, 7);
                 int value = tf.ParseInt();
+                float f = value * 0.01f;
                 t->resist_mods[n] = (item_mod *)items_alloc_pool.Alloc(sizeof(item_mod));
                 t->resist_mods[n]->id = type;
-                t->resist_mods[n]->value = value * 0.01f;
+                t->resist_mods[n]->value = f;
                 n++;
             } while (tf.Accept("+Resist Mod:"));
         }
@@ -279,7 +283,8 @@ void items_parse_table()
         for (; n < 2; n++)
             t->stat_mods[n] = NULL;
 
-        memset(t->status_effects, -1, sizeof(t->status_effects));
+        for (i = 0; i < 9; i++)
+            t->status_effects[i] = -1;
         t->flags &= ~ITF_STEALTH;
         t->ap_regen = 1.0f;
         for (;;) {
@@ -291,8 +296,8 @@ void items_parse_table()
                 int spell, value;
                 tf.ParseString(buf, 0x200, '"', '"');
                 spell = spell_find_by_name(buf);
-                tf.ReadLine(buf, 0x200);
                 value = 0;
+                tf.ReadLine(buf, 0x200);
                 if (!is_blank(buf))
                     value = atoi(buf);
                 t->status_effects[damage_type_to_status(spell)] = (signed char)value;
@@ -302,11 +307,14 @@ void items_parse_table()
         }
 
         {
-            int charge = 0;
+            bool self_only;
+            bool charge = true;
             if (tf.Accept("+Charge Effect:"))
-                charge = 1;
+                self_only = false;
             else if (tf.Accept("+Self Only Charge Effect:"))
-                charge = 2;
+                self_only = true;
+            else
+                charge = false;
             if (charge) {
                 int spell, max_charges, b, c;
                 float disposable;
@@ -314,8 +322,8 @@ void items_parse_table()
                 spell = spell_find_by_name(buf);
                 max_charges = tf.ParseInt();
                 b = tf.ParseInt();
-                tf.ReadLine(buf, 0x200);
                 c = -1;
+                tf.ReadLine(buf, 0x200);
                 if (!is_blank(buf))
                     c = atoi(buf);
                 disposable = 0.0f;
@@ -330,7 +338,7 @@ void items_parse_table()
                 t->charge_effect->max_charges = max_charges;
                 t->charge_effect->_unk08 = b;
                 t->charge_effect->_unk0c = c;
-                t->charge_effect->self_only = (charge == 2);
+                t->charge_effect->self_only = self_only;
                 t->charge_effect->disposable = disposable;
             } else {
                 t->charge_effect = NULL;
@@ -357,7 +365,8 @@ void items_parse_table()
 
         switch (t->kind) {
         case 1:
-            memset(t->armour_textures, 0, sizeof(t->armour_textures));
+            for (i = 0; i < 32; i++)
+                (&t->armour_textures[0][0][0])[i] = NULL;
             for (;;) {
                 int hero, heavy, part;
                 bool ok;
@@ -380,14 +389,14 @@ void items_parse_table()
                 }
                 heavy = (tf.Accept("Heavy") || t->slot == 8) ? 1 : 0;
                 switch (t->slot) {
-                case 2:
-                case 3:
-                    ok = ok && !heavy;
-                    break;
                 case 6:
                 case 7:
                 case 8:
                     ok = ok && (!heavy || hero != 3);
+                    break;
+                case 2:
+                case 3:
+                    ok = ok && !heavy;
                     break;
                 default:
                     ok = false;
@@ -429,7 +438,8 @@ void items_parse_table()
                     break;
                 }
                 if (tex) {
-                    ITEMS_STRDUP(*tex, buf);
+                    *tex = (char *)items_alloc_pool.Alloc(strlen(buf) + 1);
+                    strcpy(*tex, buf);
                     if (t->slot == 2 || t->slot == 3) {
                         t->armour_textures[1][hero][0] = t->armour_textures[0][hero][0];
                         t->armour_textures[1][hero][1] = t->armour_textures[0][hero][1];
@@ -450,8 +460,8 @@ void items_parse_table()
                 tf.ParseString(buf, 0x200, '"', '"');
                 spell = spell_find_by_name(buf);
                 chance = tf.ParseInt() * 0.01f;
-                tf.ReadLine(buf, 0x200);
                 value = 0;
+                tf.ReadLine(buf, 0x200);
                 if (!is_blank(buf))
                     value = atoi(buf);
                 t->armour_triggered_effect =
@@ -512,8 +522,8 @@ void items_parse_table()
                 tf.ParseString(buf, 0x200, '"', '"');
                 spell = spell_find_by_name(buf);
                 chance = tf.ParseInt() * 0.01f;
-                tf.ReadLine(buf, 0x200);
                 value = 0;
+                tf.ReadLine(buf, 0x200);
                 if (!is_blank(buf))
                     value = atoi(buf);
                 t->weapon_triggered_effect =
@@ -531,7 +541,8 @@ void items_parse_table()
         if (tf.Accept("+Description:")) {
             tf.ParseString(buf, 0x200, '"', '"');
             localize_remap_charset(buf, 1);
-            ITEMS_STRDUP(t->description, buf);
+            t->description = (const char *)items_alloc_pool.Alloc(strlen(buf) + 1);
+            strcpy((char *)t->description, buf);
         }
         while (tf.Accept("+RenderMask:")) {
             int model_index, count;

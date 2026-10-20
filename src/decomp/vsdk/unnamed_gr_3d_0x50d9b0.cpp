@@ -199,9 +199,8 @@ void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5)
     gr_view_clip_height = gr_screen.clip_height;
     float w = (float)gr_screen.clip_width;
     gr_projection_xmul = w * 0.5f;
-    float h = (float)gr_screen.clip_height;
-    gr_projection_ymul = h * 0.5f;
-    float ratio = h * gr_screen.aspect / w;
+    gr_projection_ymul = (float)gr_screen.clip_height * 0.5f;
+    float ratio = (float)gr_screen.clip_height * gr_screen.aspect / w;
     gr_setup_3d_free_clip_verts();
     if (!gr_poly_clip_verts_ready) {
         gr_poly_clip_verts_ready = true;
@@ -213,7 +212,10 @@ void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5)
     if (fov < 2.0f)
         t = fov;
     else
-        t = (float)tan(fov * GR_DEG_TO_RAD * 0.5f);
+    {
+        float a = fov * GR_DEG_TO_RAD;
+        t = (float)tan(a * 0.5f);
+    }
 
     gr_view_pos = *pos;
     gr_view_matrix = *orient;
@@ -249,21 +251,25 @@ void gr_setup_3d(matrix *orient, vector3 *pos, float fov, bool zbuffer, int a5)
     gr_setup_frustum();
 }
 
-// 0x50e150  Confidence: likely. The four side planes through the eye and the corners of the view window
+// 0x50e150  Confidence: exact (D11400: z in a local, -hx / -hy as locals right after each quotient,
+// scale.z * far_clip_dist). The four side planes through the eye and the corners of the view window
 // one unit ahead, the plane behind the eye, and with far clipping the far plane (plus
 // gr_frustum_fog_plane, the far plane pulled in by Gr_level_fog_multiplier).
 void gr_setup_frustum()
 {
-    gr_far_clip_z = gr_far_clip_dist * gr_matrix_scale.z;
+    gr_far_clip_z = gr_matrix_scale.z * gr_far_clip_dist;
     vector3 eye, ul, ur, ll, lr;
     eye = gr_view_pos;
-    float hx = gr_matrix_scale.z / gr_matrix_scale.x;
-    float hy = gr_matrix_scale.z / gr_matrix_scale.y;
+    float z = gr_matrix_scale.z;
+    float hx = z / gr_matrix_scale.x;
+    float nhx = -hx;
+    float hy = z / gr_matrix_scale.y;
+    float nhy = -hy;
     vector3 c = gr_eye_matrix.fvec * 1.0f + gr_view_pos;
     ur = gr_eye_matrix.rvec * hx + gr_eye_matrix.uvec * hy + c;
-    ul = gr_eye_matrix.rvec * -hx + gr_eye_matrix.uvec * hy + c;
-    ll = gr_eye_matrix.rvec * -hx + gr_eye_matrix.uvec * -hy + c;
-    lr = gr_eye_matrix.rvec * hx + gr_eye_matrix.uvec * -hy + c;
+    ul = gr_eye_matrix.rvec * nhx + gr_eye_matrix.uvec * hy + c;
+    ll = gr_eye_matrix.rvec * nhx + gr_eye_matrix.uvec * nhy + c;
+    lr = gr_eye_matrix.rvec * hx + gr_eye_matrix.uvec * nhy + c;
 
     gr_num_frustum_planes = 1;
     gr_frustum_planes[0].set_from_points(2, eye, ll, ul);
@@ -424,11 +430,12 @@ void gr_rotate_vertices(gr_vertex *out, const vector3 *in, int count)
     }
 }
 
-// 0x50ea00  Confidence: likely (operand order of the new z).
+// 0x50ea00  Confidence: exact (D11400: the old z through a float local, loaded again for the divide).
 void gr_offset_point_depth(gr_vertex *v, float d)
 {
     float z = v->z / gr_vector_scaled_z(v) * d + v->z;
-    float s = z / v->z;
+    float oz = v->z;
+    float s = z / oz;
 
     if (z > 0.004f) {
         v->x = s * v->x;

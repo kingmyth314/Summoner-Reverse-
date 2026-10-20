@@ -539,7 +539,8 @@ void ai_state::path_closest_point(float max_dist)
     }
 }
 
-// 0x4b2890  Confidence: likely. A wall nearer than the next path node turns the owner away from it:
+// 0x4b2890  Confidence: likely (m-1020 w11, D12008: the centre through vector3::set, evaluated z, y, x as the
+// binary). A wall nearer than the next path node turns the owner away from it:
 // steer_side is +-1 / (d + 1)^2 times the moving turn rate, and the timer 0x224 keeps the steering for
 // 500 ms (path_flags bit 1).
 void ai_state::wall_avoid_steer()
@@ -555,7 +556,7 @@ void ai_state::wall_avoid_steer()
     look = o->get_speed() / o->speed_scale * 2.5f + 0.1f;
     look = min(look, 2.0f);
     move = o->orient.fvec * look;
-    center = o->get_center();
+    center.set(o->pos.x + o->centre_offset.x, o->pos.y + o->centre_offset.y, o->pos.z + o->centre_offset.z);
     {
         bool hit = ai_probe_move_for_walls(&center, &move, o->info->size, o->layer, false);
         d2 = ai_wall_hit_dist;

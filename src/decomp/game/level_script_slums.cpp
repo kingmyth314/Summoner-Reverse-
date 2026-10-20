@@ -30,7 +30,7 @@ void lsf_lenele_slums_flag_prost1_speaks();
 void lsf_lenele_slums_flag_prost2_speaks();
 void lsf_lenele_slums_flag_ken_speaks();
 
-// 0x4fad90  Confidence: likely (differs under cl 8966, match24; was exact). level_script_table init. Coming up from the sewer opens the grate for good;
+// 0x4fad90  Confidence: exact (8966: the stage tests as one if / else if / else chain with the v31-v33 calls in both lower arms, D12400). level_script_table init. Coming up from the sewer opens the grate for good;
 // the exits v11-v33 by stage as in the other Lenele quarters; from stage 1 Starvus the Skulk offers
 // Tancred's key while the party does not hold it.
 void ls_lenele1b_init()
@@ -60,22 +60,23 @@ void ls_lenele1b_init()
         level_trigger_set_exit_by_refname("v31");
         level_trigger_set_exit_by_refname("v32");
         level_trigger_set_exit_by_refname("v33");
+    } else if (game_stage_get() >= 4) {
+        level_trigger_set_script_use_by_refname("v11");
+        level_trigger_set_script_use_by_refname("v12");
+        level_trigger_set_script_use_by_refname("v13");
+        level_trigger_set_exit_by_refname("v21");
+        level_trigger_set_exit_by_refname("v22");
+        level_trigger_set_exit_by_refname("v23");
+        level_trigger_set_script_use_by_refname("v31");
+        level_trigger_set_script_use_by_refname("v32");
+        level_trigger_set_script_use_by_refname("v33");
     } else {
-        if (game_stage_get() >= 4) {
-            level_trigger_set_script_use_by_refname("v11");
-            level_trigger_set_script_use_by_refname("v12");
-            level_trigger_set_script_use_by_refname("v13");
-            level_trigger_set_exit_by_refname("v21");
-            level_trigger_set_exit_by_refname("v22");
-            level_trigger_set_exit_by_refname("v23");
-        } else {
-            level_trigger_set_exit_by_refname("v11");
-            level_trigger_set_exit_by_refname("v12");
-            level_trigger_set_exit_by_refname("v13");
-            level_trigger_set_script_use_by_refname("v21");
-            level_trigger_set_script_use_by_refname("v22");
-            level_trigger_set_script_use_by_refname("v23");
-        }
+        level_trigger_set_exit_by_refname("v11");
+        level_trigger_set_exit_by_refname("v12");
+        level_trigger_set_exit_by_refname("v13");
+        level_trigger_set_script_use_by_refname("v21");
+        level_trigger_set_script_use_by_refname("v22");
+        level_trigger_set_script_use_by_refname("v23");
         level_trigger_set_script_use_by_refname("v31");
         level_trigger_set_script_use_by_refname("v32");
         level_trigger_set_script_use_by_refname("v33");

@@ -387,7 +387,7 @@ void spells_update_member_buttons()
     }
 }
 
-// 0x42a270  Confidence: likely (pressed_button is stored before the flag, as in skills_handle_click; the
+// 0x42a270  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (pressed_button is stored before the flag, as in skills_handle_click; the
 // key switch is the byte table 0x42a474 over key - 1, 0..0x2d, into the jump table 0x42a460). The class
 // tooltip shows even over a disabled icon.
 int spells_handle_click(int key)
@@ -403,9 +403,10 @@ int spells_handle_click(int key)
                              spells_buttons[i].w, spells_buttons[i].h)) {
             if ((spells_button_defs[i].flags & 2) && interface_input_ready())
                 spells_category_tooltip(i);
-            if (!(spells_buttons[i].flags & 4)) {
+            ui_button_state *b = &spells_buttons[i];
+            if (!(b->flags & 4)) {
                 spells_pressed_button = i;
-                spells_buttons[i].flags |= 2;
+                b->flags |= 2;
                 if (mouse_was_pressed(0)) {
                     spells_mouse_mode = 1;
                     return key;
@@ -445,9 +446,9 @@ int spells_handle_click(int key)
         interface_set_screen(0, 0);
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
-    case KEY_R:
-        interface_set_screen(2, 0);
-        game_play_sound(0x23, 1.0f, 0, 0, 0);
+    case KEY_S:
+        interface_set_screen(6, 0);
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     case KEY_I: {
         bool flag = false;
@@ -456,9 +457,9 @@ int spells_handle_click(int key)
         game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
     }
-    case KEY_S:
-        interface_set_screen(6, 0);
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
+    case KEY_R:
+        interface_set_screen(2, 0);
+        game_play_sound(0x23, 1.0f, 0, 0, 0);
         return 0;
     }
     return key;

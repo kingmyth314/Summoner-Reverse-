@@ -50,7 +50,7 @@ vsdk/console.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/debug.cpp /Ox /GX /MT /Ow
 vsdk/file_packfile.cpp /Ox /GX /MT /Ow
 vsdk/frametime.cpp /Ox /GX /MT /Ow
-vsdk/gr.cpp /Ox /GX /MT /Ow
+vsdk/gr.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/gr_font.cpp /Ox /GX /MT /Ow
 vsdk/memory.cpp /Ox /GX /MT /Ow
 vsdk/norlsallocpool.cpp /Ox /GX /MT /Ow
@@ -80,7 +80,7 @@ vsdk/unnamed_jpeg_write_0x5565e0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_key_0x5093a0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_lfsr_0x559db0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_mouse_0x500a30.cpp /Ox /GX /MT /Ow
-vsdk/unnamed_movement_0x531d20.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_movement_0x531d20.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_movie_0x5172f0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_os_0x530b90.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_os_0x531bf0.cpp /Ox /GX /MT /Ow
@@ -95,7 +95,7 @@ vsdk/unnamed_ui_element_0x542cd0.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_ui_manager_0x52f570.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_ui_slider_0x55e040.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_ui_static_0x527e20.cpp /Ox /GX /MT /Ow
-vsdk/unnamed_vfile_0x5128b0.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_vfile_0x5128b0.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_vfile_array_0x544e50.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfx_dummy_0x55fc70.cpp /Ox /Ob0 /GX /MT /Ow
 vsdk/unnamed_vif_0x5329f0.cpp /Ox /Ob0 /GX /MT /Ow

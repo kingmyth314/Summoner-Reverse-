@@ -631,8 +631,11 @@ void summoner_cfg_load()
 
     Summoner_options.set_defaults();
     if (f.open("summoner.cfg", 1, path_root) == 0) {
-        int size = f.size(NULL, PATH_ANY);
-        if (size >= 0x40)
+        int n = f.size(NULL, PATH_ANY);
+        int size;
+        if (n < 0x40)
+            size = n;
+        else
             size = 0x40;
         f.read(&Summoner_options, size, 0, 0);
         f.close();

@@ -410,8 +410,9 @@ void ds_sound_release(int buffer)
     b->hash = -1;
 }
 
-// 0x55c890  Confidence: likely (the shared exits). A name already loaded gets one more reference.
-int ds_load_buffer(const char *name, const char *path, int offset, int group, int streamed)
+// 0x55c890  Confidence: exact (VC6 8966 byte match, m-1020: streamed is bool, passed on unconverted; the last
+// reference count through ds_buffers[i], which VC6 cross-jumps with the first, D11903) (the shared exits). A name already loaded gets one more reference.
+int ds_load_buffer(const char *name, const char *path, int offset, int group, bool streamed)
 {
     int i;
     ds_buffer *b;
@@ -434,7 +435,7 @@ int ds_load_buffer(const char *name, const char *path, int offset, int group, in
         return -1;
     }
     b->hash = ds_find_free_buffer(name);
-    b->ref_count++;
+    ds_buffers[i].ref_count++;
     return i;
 }
 
@@ -466,7 +467,8 @@ int ds_load_buffer_data(int buffer, bool streamed)
     return r;
 }
 
-// 0x55ca10  Confidence: likely (the flag selection is the `neg / sbb / and / add` of a ?:).
+// 0x55ca10  Confidence: exact (VC6 8966 byte match, m-1020: the store order size, flags, bytes, format found by
+// trying all 24, D11902) (the flag selection is the `neg / sbb / and / add` of a ?:).
 int ds_create_buffer(int buffer)
 {
     ds_buffer *b = &ds_buffers[buffer];
@@ -474,10 +476,10 @@ int ds_create_buffer(int buffer)
     int r = 0;
 
     memset(&desc, 0, sizeof(desc));
-    desc.dwBufferBytes = b->data_ck.cksize;
-    desc.lpwfxFormat = b->pcm_format;
     desc.dwSize = sizeof(desc);
     desc.dwFlags = ds3d_enabled == true ? 0x200d2 : 0xca;
+    desc.dwBufferBytes = b->data_ck.cksize;
+    desc.lpwfxFormat = b->pcm_format;
     if (ds_direct_sound->CreateSoundBuffer(&desc, &b->pdsb, NULL) < 0 || b->pdsb == NULL ||
         ds_fill_buffer(b->hmmio, &b->data_ck, b->pdsb, b->data_ck.cksize) != 0)
         r = -1;
@@ -486,22 +488,24 @@ int ds_create_buffer(int buffer)
     return r;
 }
 
-// 0x55cae0  Confidence: likely (the locals share the argument slots).
+// 0x55cae0  Confidence: exact (VC6 8966 byte match, m-1020: the success branch first, got local to it;
+// the locals share the argument slots, D11902).
 int ds_fill_buffer(HMMIO h, MMCKINFO *ck, IDirectSoundBuffer *buf, unsigned int size)
 {
     void *p1;
     DWORD n1;
-    UINT got;
     int r = 0;
 
-    if (buf->Lock(0, size, &p1, &n1, NULL, NULL, 0) < 0) {
-        buf->Release();
-        return -1;
+    if (buf->Lock(0, size, &p1, &n1, NULL, NULL, 0) >= 0) {
+        UINT got;
+
+        if (wav_read(h, n1, (BYTE *)p1, ck, &got) != 0)
+            r = -1;
+        buf->Unlock(p1, n1, NULL, 0);
+        return r;
     }
-    if (wav_read(h, n1, (BYTE *)p1, ck, &got) != 0)
-        r = -1;
-    buf->Unlock(p1, n1, NULL, 0);
-    return r;
+    buf->Release();
+    return -1;
 }
 
 // 0x55cb60  Confidence: exact.
@@ -826,7 +830,8 @@ int ds_stream_open(int buffer, int channel)
     return 0;
 }
 
-// 0x55d530  Confidence: likely. A failed conversion returns with the buffer still locked.
+// 0x55d530  Confidence: exact (VC6 8966 byte match, m-1020: the locked branch first with the size call hoisted,
+// the lock failure an else that sets r, D11902). A failed conversion returns with the buffer still locked.
 int ds_stream_read_chunk(HMMIO h, MMCKINFO *ck, HACMSTREAM s, IDirectSoundBuffer *buf, unsigned int size)
 {
     void *p1;
@@ -836,19 +841,22 @@ int ds_stream_read_chunk(HMMIO h, MMCKINFO *ck, HACMSTREAM s, IDirectSoundBuffer
     DWORD src_used;
     int r = 0;
 
-    if (buf->Lock(0, size, &p1, &n1, NULL, NULL, 0) < 0) {
+    if (buf->Lock(0, size, &p1, &n1, NULL, NULL, 0) >= 0) {
+        UINT want = acm_stream_size(s, n1);
+
+        if (wav_read(h, want, ds_stream_src_buffer, ck, &got) != 0)
+            r = -1;
+        if (got > 0) {
+            if (acm_convert(s, ds_stream_src_buffer, got, p1, n1, &dst_used, &src_used) == -1)
+                return -1;
+            if (src_used < got)
+                mmioSeek(h, src_used - got, SEEK_CUR);
+        }
+        buf->Unlock(p1, n1, NULL, 0);
+    } else {
         buf->Release();
-        return -1;
-    }
-    if (wav_read(h, acm_stream_size(s, n1), ds_stream_src_buffer, ck, &got) != 0)
         r = -1;
-    if (got > 0) {
-        if (acm_convert(s, ds_stream_src_buffer, got, p1, n1, &dst_used, &src_used) == -1)
-            return -1;
-        if (src_used < got)
-            mmioSeek(h, src_used - got, SEEK_CUR);
     }
-    buf->Unlock(p1, n1, NULL, 0);
     return r;
 }
 

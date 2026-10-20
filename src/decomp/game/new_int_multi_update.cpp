@@ -151,14 +151,14 @@ int version_check_run()
     return 3;
 }
 
-// 0x4110b0  Confidence: likely (frame 0x414: the two 512-byte lines, the three numbers and 8 bytes not
-// accounted for; strlen is recomputed for every test; the end test is the feof macro on _flag). The last
+// 0x4110b0  Confidence: exact (VC6 byte match, m-1020: frame 0x414 = the three numbers and two 513-byte
+// lines, each rounded up to 516 (line at +0xc, last at +0x210); fgets reads at most 511 characters; strlen is recomputed for every test; the end test is the feof macro on _flag). The last
 // line that is not empty and does not start with ';' is parsed. The comparison with 14000 is unsigned.
 int version_read_nfo_file(const char *path)
 {
     unsigned int build, major, minor;
-    char line[512];
-    char last[512];
+    char line[513];
+    char last[513];
 
     FILE *fp = fopen(path, "rt");
     if (fp == NULL)

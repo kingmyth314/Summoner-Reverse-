@@ -875,9 +875,8 @@ int nw_NewSendReliable(int socket, const void *data, int len)
             send_header.data_len = (ushort)len;
             send_header.type = RNT_DATA;
             memcpy(send_header.data, data, len);
-            rsocket->ssequence[i] = rsocket->oursequence;
+            send_header.seq = rsocket->ssequence[i] = rsocket->oursequence;
             memcpy(rsocket->sbuffers[i], data, len);
-            send_header.seq = rsocket->oursequence;
             bytesout = nw_send_packet(&send_header, rsocket->send_len[i] + NW_RELIABLE_HEADER_SIZE, 0,
                                       &rsocket->addr, NW_TYPE_RELIABLE);
             if (bytesout == -2)
@@ -955,19 +954,18 @@ void nw_ConnectToServer(int *socket, net_addr *server)
     }
     if (i == NW_MAX_RELIABLE_SOCKETS)
         return;
-    reliable_socket *rsocket = &nw_reliable_sockets[i];
-    rsocket->addr = *server;
-    rsocket->last_packet_received = timer_get(1000);
-    rsocket->status = RNF_LIMBO;
+    nw_reliable_sockets[i].addr = *server;
+    nw_reliable_sockets[i].last_packet_received = timer_get(1000);
+    nw_reliable_sockets[i].status = RNF_LIMBO;
     nw_server_socket = i;
     *socket = i;
-    if (nw_send_heartbeat(&rsocket->addr) == -1) {
-        rsocket->status = RNF_UNUSED;
-        memset(rsocket, 0, sizeof(reliable_socket));
+    if (nw_send_heartbeat(&nw_reliable_sockets[i].addr) == -1) {
+        nw_reliable_sockets[i].status = RNF_UNUSED;
+        memset(&nw_reliable_sockets[i], 0, sizeof(reliable_socket));
         return;
     }
     nw_reliable_resend_time = timer_get(1000);
-    rsocket->last_packet_sent = timer_get(1000);
+    nw_reliable_sockets[i].last_packet_sent = timer_get(1000);
     int wait_start = timer_get(1000);
     do {
         nw_WorkReliable();
@@ -976,7 +974,7 @@ void nw_ConnectToServer(int *socket, net_addr *server)
             wait_start = now;
         if (now - wait_start >= 2000)
             return;
-    } while (rsocket->status != RNF_CONNECTED);
+    } while (nw_reliable_sockets[i].status != RNF_CONNECTED);
 }
 
 // 0x5191c0  Confidence: likely (VC6: same size; the socket pointer is not kept in ebx from the start). Frees the

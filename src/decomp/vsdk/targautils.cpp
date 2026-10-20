@@ -318,7 +318,8 @@ int bytes_equal(ubyte *a, ubyte *b, int n)
 // File's path id by both TGA readers and never read (name ours).
 int tga_last_path_id = -1;
 
-// 0x555110  Confidence: likely (the order of the inline strcpy/strcat; the second open tests != 0, the
+// 0x555110  Confidence: exact (VC6 byte match, m-1020, D11101: an `opened` flag, so both failures share one
+// out-of-line `return 1`; the order of the inline strcpy/strcat; the second open tests == 0, the
 // first < 0, as in the binary). Without an extension ".tga" is appended; a name with a '.' fails at
 // once. Returns 0 on success, 1 on failure.
 int tga_read_header(const char *name, int *w, int *h, int *bpp, void *unused1, void *unused2,
@@ -329,11 +330,14 @@ int tga_read_header(const char *name, int *w, int *h, int *bpp, void *unused1, v
     char filename[512];
 
     if (f.open(name, 1, path_id) < 0) {
-        if (strchr(name, '.') != NULL)
-            return 1;
-        strcpy(filename, name);
-        strcat(filename, ".tga");
-        if (f.open(filename, 1, path_id) != 0)
+        bool opened = false;
+        if (strchr(name, '.') == NULL) {
+            strcpy(filename, name);
+            strcat(filename, ".tga");
+            if (f.open(filename, 1, path_id) == 0)
+                opened = true;
+        }
+        if (!opened)
             return 1;
     }
 

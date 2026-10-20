@@ -916,10 +916,10 @@ void gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWOR
         if (d3d_vertex_buffer_pos + count >= 1000) {
             lock_flags = gr_d3d_lock_discard;
             d3d_vertex_buffer_pos = 0;
-        } else if (d3d_vertex_buffer_pos == 0) {
-            lock_flags = gr_d3d_lock_discard;
-        } else {
+        } else if (d3d_vertex_buffer_pos != 0) {
             lock_flags = gr_d3d_lock_nooverwrite;
+        } else {
+            lock_flags = gr_d3d_lock_discard;
         }
         void *data = NULL;
         IDirect3DVertexBuffer7_Lock(d3d_vertex_buffer, lock_flags, &data, NULL);
@@ -934,29 +934,33 @@ void gr_d3d_draw_primitive(DWORD type, DWORD fvf, void *verts, DWORD count, DWOR
     }
 }
 
-// 0x538850  Confidence: likely.
+// 0x538850  Confidence: exact (D12102: every failure is a goto to one return NULL after the device return).
 // Lists the DirectDraw drivers, then the hardware (non-T&L) Direct3D devices of each; returns the last
 // one found.
 d3d_device_record *d3d_enumerate_ddraw_devices()
 {
+    int i;
+
     d3d_num_ddraw_devices = 0;
     d3d_num_3d_devices = 0;
     if (DirectDrawEnumerateA(d3d_ddraw_enum_callback, NULL) != DD_OK)
-        return NULL;
-    for (int i = 0; i < d3d_num_ddraw_devices; i++) {
+        goto fail;
+    for (i = 0; i < d3d_num_ddraw_devices; i++) {
         d3d_device_record *rec = &d3d_ddraw_devices[i];
         if (d3d_ddraw_enumerate_ex(rec->ddraw_guid_ptr, (void **)&d3d_ddraw, &IID_IDirectDraw7, NULL) != DD_OK)
-            return NULL;
+            goto fail;
         if (IDirectDraw7_QueryInterface(d3d_ddraw, &IID_IDirect3D7, &d3d_direct3d) != DD_OK)
-            return NULL;
+            goto fail;
         IDirect3D7_EnumDevices(D3D_DIRECT3D, d3d_enum_devices_callback, rec);
         IDirect3D7_Release(D3D_DIRECT3D);
         d3d_direct3d = NULL;
         IDirectDraw7_Release(d3d_ddraw);
         d3d_ddraw = NULL;
     }
-    if (d3d_num_3d_devices > 0)
-        return &d3d_3d_devices[d3d_num_3d_devices - 1];
+    if (d3d_num_3d_devices <= 0)
+        goto fail;
+    return &d3d_3d_devices[d3d_num_3d_devices - 1];
+fail:
     return NULL;
 }
 
@@ -1310,12 +1314,12 @@ const char *ddraw_error_string(HRESULT hr)
     return "Unrecognized error value.";
 }
 
-// 0x5394e0  Confidence: likely.
+// 0x5394e0  Confidence: exact (D12106: the init_done store through a volatile lvalue keeps it after the hwnd store, D11305).
 void gr_d3d_init(HWND hwnd)
 {
     D3DVERTEXBUFFERDESC desc;
     d3d_hwnd = hwnd;
-    d3d_init_done = 0;
+    *(volatile int *)&d3d_init_done = 0;
     gr_screen.bits_per_pixel = 16;
     gr_screen.bytes_per_pixel = 2;
     gr_d3d_init_device();

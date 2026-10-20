@@ -412,145 +412,147 @@ void cutscene::apply_vis_overrides()
     }
 }
 
-// 0x4355e0  Confidence: likely (the two short temporaries of the length expression: the record's length is
+// 0x4355e0  Confidence: likely (m-1020, D11104: locals renamed for D6101 buckets, short ternary temporaries;
+// left: a one-register shift of the /Od rotation from the $Fog count increment on; the two short temporaries of the length expression: the record's length is
 // written through ebp-0x292 / ebp-0x294). No bound is checked on any list except $VisSet, and the
 // $Camera / +Minitrack counts are not reset per entry (the constructor zeroes them once).
 // `length` is a short read with "%d" (sscanf writes four bytes into its four-byte slot; harmless).
 void cutscene_parse_table()
 {
-    TextFile tf;                      // ebp-0x5c
-    char buf[0x100];                  // ebp-0x15c
-    cutscene_entry *e;                // ebp-0x160
-    char line[0x100];                 // ebp-0x260
-    char *character;                  // ebp-0x264
-    int n;                            // ebp-0x268
-    int shot;                         // ebp-0x26c
-    short length;                     // ebp-0x270
-    char *effect;                     // ebp-0x274
-    char *track_name;                 // ebp-0x278
-    int track_shot;                   // ebp-0x27c
-    cutscene_fog *fog;                // ebp-0x280
-    int fade_shot;                    // ebp-0x284
-    int fade_out;                     // ebp-0x288
-    float fade_length;                // ebp-0x28c
-    float fade_time;                  // ebp-0x290
+    // Names chosen for D6101's buckets (non-decreasing from the top of the frame, declared bottom first; m-1020).
+    float start_time;                 // ebp-0x290  bucket 15
+    float fade_len;                   // ebp-0x28c  15
+    int fade_out2;                    // ebp-0x288  15
+    int shot_at;                      // ebp-0x284  13
+    cutscene_fog *fog;                // ebp-0x280  11
+    int tshot;                        // ebp-0x27c  9
+    char *track;                      // ebp-0x278  9
+    char *effect;                     // ebp-0x274  8
+    short length;                     // ebp-0x270  6
+    int shot_num;                     // ebp-0x26c  6
+    int count;                        // ebp-0x268  5
+    char *char_name;                  // ebp-0x264  4
+    char ln[0x100];                   // ebp-0x260  4
+    cutscene_entry *ent;              // ebp-0x160  4
+    char buf2[0x100];                 // ebp-0x15c  3
+    TextFile tbl;                     // ebp-0x5c   3
 
     cutscene_alloc_pool.Init(cutscene_pool_buffer, CUTSCENE_POOL_SIZE);
     cutscene_num_entries = 0;
-    tf.Open("cutscene.tbl", path_tables);
-    tf.Expect("#Cutscene Table");
-    while (tf.Accept("$Cutscene:")) {
-        e = &cutscene_entries[cutscene_num_entries];
-        tf.ParseString(buf, 0x100, '"', '"');
-        e->name = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-        strcpy(e->name, buf);
-        e->flags = 0;
+    tbl.Open("cutscene.tbl", path_tables);
+    tbl.Expect("#Cutscene Table");
+    while (tbl.Accept("$Cutscene:")) {
+        ent = &cutscene_entries[cutscene_num_entries];
+        tbl.ParseString(buf2, 0x100, '"', '"');
+        ent->name = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+        strcpy(ent->name, buf2);
+        ent->flags = 0;
         while (1) {
-            if (tf.Accept("+NoAbort"))
-                e->flags |= CUTSCENE_FLAG_NOABORT;
-            else if (tf.Accept("+HideUnscripted"))
-                e->flags |= CUTSCENE_FLAG_HIDEUNSCRIPTED;
+            if (tbl.Accept("+NoAbort"))
+                ent->flags |= CUTSCENE_FLAG_NOABORT;
+            else if (tbl.Accept("+HideUnscripted"))
+                ent->flags |= CUTSCENE_FLAG_HIDEUNSCRIPTED;
             else
                 break;
         }
-        tf.Expect("$Level:");
-        tf.ParseString(buf, 0x100, '"', '"');
-        e->level = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-        strcpy(e->level, buf);
-        if (tf.Accept("$Script:")) {
-            tf.ParseString(buf, 0x100, '"', '"');
-            e->script = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-            strcpy(e->script, buf);
+        tbl.Expect("$Level:");
+        tbl.ParseString(buf2, 0x100, '"', '"');
+        ent->level = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+        strcpy(ent->level, buf2);
+        if (tbl.Accept("$Script:")) {
+            tbl.ParseString(buf2, 0x100, '"', '"');
+            ent->script = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+            strcpy(ent->script, buf2);
         } else {
-            e->script = e->level;
+            ent->script = ent->level;
         }
-        e->num_cameras = 0;
-        while (tf.Accept("$Camera:")) {
-            tf.ParseString(buf, 0x100, '"', '"');
-            e->cameras[e->num_cameras] = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-            strcpy(e->cameras[e->num_cameras], buf);
-            e->num_cameras++;
+        ent->num_cameras = 0;
+        while (tbl.Accept("$Camera:")) {
+            tbl.ParseString(buf2, 0x100, '"', '"');
+            ent->cameras[ent->num_cameras] = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+            strcpy(ent->cameras[ent->num_cameras], buf2);
+            ent->num_cameras++;
         }
         while (1) {
-            if (tf.Accept("$Animation:")) {
-                character = NULL;
-            } else if (tf.Accept("$Character Animation:")) {
-                tf.ParseString(buf, 0x100, '"', '"');
-                character = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-                strcpy(character, buf);
+            if (tbl.Accept("$Animation:")) {
+                char_name = NULL;
+            } else if (tbl.Accept("$Character Animation:")) {
+                tbl.ParseString(buf2, 0x100, '"', '"');
+                char_name = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+                strcpy(char_name, buf2);
             } else {
                 break;
             }
-            tf.ParseString(buf, 0x100, '"', '"');
-            effect = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-            strcpy(effect, buf);
-            tf.ReadLine(line, 0x100);
-            n = sscanf(line, "%d %d", &shot, &length);
-            if (n > 0) {
-                e->shot_effects[e->num_shot_effects] = (cutscene_shot_effect *)cutscene_alloc_pool.Alloc(0x10);
-                e->shot_effects[e->num_shot_effects]->name = effect;
-                e->shot_effects[e->num_shot_effects]->shot = shot;
-                e->shot_effects[e->num_shot_effects]->character = character;
-                e->shot_effects[e->num_shot_effects]->length = n > 1 ? (length > 1 ? length : 1) : 0;
-                e->num_shot_effects++;
+            tbl.ParseString(buf2, 0x100, '"', '"');
+            effect = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+            strcpy(effect, buf2);
+            tbl.ReadLine(ln, 0x100);
+            count = sscanf(ln, "%d %d", &shot_num, &length);
+            if (count > 0) {
+                ent->shot_effects[ent->num_shot_effects] = (cutscene_shot_effect *)cutscene_alloc_pool.Alloc(0x10);
+                ent->shot_effects[ent->num_shot_effects]->name = effect;
+                ent->shot_effects[ent->num_shot_effects]->shot = shot_num;
+                ent->shot_effects[ent->num_shot_effects]->character = char_name;
+                ent->shot_effects[ent->num_shot_effects]->length = count > 1 ? (length > 1 ? length : (short)1) : (short)0;
+                ent->num_shot_effects++;
             } else {
-                e->effects[e->num_effects] = (cutscene_effect *)cutscene_alloc_pool.Alloc(8);
-                e->effects[e->num_effects]->name = effect;
-                e->effects[e->num_effects]->character = character;
-                e->num_effects++;
+                ent->effects[ent->num_effects] = (cutscene_effect *)cutscene_alloc_pool.Alloc(8);
+                ent->effects[ent->num_effects]->name = effect;
+                ent->effects[ent->num_effects]->character = char_name;
+                ent->num_effects++;
             }
         }
-        if (tf.Accept("$Soundtrack:")) {
-            tf.ParseString(buf, 0x100, '"', '"');
-            e->soundtrack = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-            strcpy(e->soundtrack, buf);
+        if (tbl.Accept("$Soundtrack:")) {
+            tbl.ParseString(buf2, 0x100, '"', '"');
+            ent->soundtrack = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+            strcpy(ent->soundtrack, buf2);
         }
-        while (tf.Accept("+Minitrack:")) {
-            tf.ParseString(buf, 0x100, '"', '"');
-            track_name = (char *)cutscene_alloc_pool.Alloc(strlen(buf) + 1);
-            strcpy(track_name, buf);
-            track_shot = tf.ParseInt();
-            e->minitracks[e->num_minitracks] = (cutscene_minitrack *)cutscene_alloc_pool.Alloc(8);
-            e->minitracks[e->num_minitracks]->name = track_name;
-            e->minitracks[e->num_minitracks]->shot = track_shot;
-            e->num_minitracks++;
+        while (tbl.Accept("+Minitrack:")) {
+            tbl.ParseString(buf2, 0x100, '"', '"');
+            track = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
+            strcpy(track, buf2);
+            tshot = tbl.ParseInt();
+            ent->minitracks[ent->num_minitracks] = (cutscene_minitrack *)cutscene_alloc_pool.Alloc(8);
+            ent->minitracks[ent->num_minitracks]->name = track;
+            ent->minitracks[ent->num_minitracks]->shot = tshot;
+            ent->num_minitracks++;
         }
-        e->num_fogs = 0;
-        while (tf.Accept("$Fog:")) {
+        ent->num_fogs = 0;
+        while (tbl.Accept("$Fog:")) {
             fog = (cutscene_fog *)cutscene_alloc_pool.Alloc(0xc);
-            e->fogs[e->num_fogs] = fog;
-            fog->near_dist = tf.ParseFloat();
-            fog->far_dist = tf.ParseFloat();
-            fog->shot = tf.ParseInt();
-            e->num_fogs++;
+            ent->fogs[ent->num_fogs] = fog;
+            fog->near_dist = tbl.ParseFloat();
+            fog->far_dist = tbl.ParseFloat();
+            fog->shot = tbl.ParseInt();
+            ent->num_fogs++;
         }
-        e->num_vissets = 0;
+        ent->num_vissets = 0;
         while (1) {
-            if (cutscene_parse_visset(e, &tf))
+            if (cutscene_parse_visset(ent, &tbl))
                 break;
         }
-        e->num_fades = 0;
+        ent->num_fades = 0;
         while (1) {
-            if (tf.Accept("$Fade Out:"))
-                fade_out = 1;
-            else if (tf.Accept("$Fade In:"))
-                fade_out = 0;
+            if (tbl.Accept("$Fade Out:"))
+                fade_out2 = 1;
+            else if (tbl.Accept("$Fade In:"))
+                fade_out2 = 0;
             else
                 break;
-            fade_time = tf.ParseFloat();
-            fade_length = tf.ParseFloat();
-            fade_shot = tf.ParseInt();
-            e->fades[e->num_fades] = (cutscene_fade *)cutscene_alloc_pool.Alloc(0x10);
-            e->fades[e->num_fades]->fade_out = fade_out;
-            e->fades[e->num_fades]->time = fade_time;
-            e->fades[e->num_fades]->length = fade_length;
-            e->fades[e->num_fades]->shot = fade_shot;
-            e->num_fades++;
+            start_time = tbl.ParseFloat();
+            fade_len = tbl.ParseFloat();
+            shot_at = tbl.ParseInt();
+            ent->fades[ent->num_fades] = (cutscene_fade *)cutscene_alloc_pool.Alloc(0x10);
+            ent->fades[ent->num_fades]->fade_out = fade_out2;
+            ent->fades[ent->num_fades]->time = start_time;
+            ent->fades[ent->num_fades]->length = fade_len;
+            ent->fades[ent->num_fades]->shot = shot_at;
+            ent->num_fades++;
         }
         cutscene_num_entries++;
     }
-    tf.Expect("#End");
-    tf.Close();
+    tbl.Expect("#End");
+    tbl.Close();
 }
 
 // 0x435ff0  Confidence: exact. idx ebp-4, ix ebp-8, vs ebp-0xc, buf ebp-0x10c, s ebp-0x110. 0 after one

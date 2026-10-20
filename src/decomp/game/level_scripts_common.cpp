@@ -224,9 +224,9 @@ void level_check_triggers()
             dir *= 0.3f;
             prev -= dir;
             cur += dir;
-            vector3 *points = level_triggers[i].path->points;
-            if (segments_intersect_xz(&prev, &cur, &points[0], &points[1]) == true
-                && level_trigger_point_left_of_line(level_triggers[i].path, &prev, &cur)) {
+            s3d_named_path *path = level_triggers[i].path;
+            if (segments_intersect_xz(&prev, &cur, &path->points[0], &path->points[1]) == true
+                && level_trigger_point_left_of_line(path, &prev, &cur)) {
                 if (level_triggers[i].flags & LEVEL_TRIGGER_SCRIPT_USE)
                     level_script_use(level_triggers[i].ref_name);
                 else {
@@ -346,7 +346,7 @@ void script_place_party_at_starts()
     camera_reset_to_player(0);
 }
 
-// 0x4cb060  Confidence: likely (the door bit expression; the item and avoid spline loops). The level's
+// 0x4cb060  Confidence: exact (D12105: the door loop through a door_info pointer). The level's
 // leave and init hooks run again, every character with a start navpoint goes back to it with its script
 // restarted, the doors close, the containers and the level items come back, and the avoid splines are
 // freed (their slots are not cleared; level_script_leave does the same).
@@ -397,10 +397,11 @@ void level_script_restart()
     }
 
     for (i = 0; i < num_doors; i++) {
-        lobj *l = &lobjs[doors[i].lobj_index];
-        l->pos = doors[i].closed_pos;
-        doors[i].closed_orient.to_matrix_b(&l->orient);
-        savegame_state.two_stage_set(false, (doors[i].state >> 3) & 1, l);
+        door_info *d = &doors[i];
+        lobj *l = &lobjs[d->lobj_index];
+        l->pos = d->closed_pos;
+        d->closed_orient.to_matrix_b(&l->orient);
+        savegame_state.two_stage_set(false, (d->state >> 3) & 1, l);
     }
     for (i = 0; i < lc_entry_count; i++)
         if (lc_entries[i].object)
@@ -1875,7 +1876,7 @@ void script_npc_talk(const char *name)
         script_object_talk(index);
 }
 
-// 0x4ce6f0  Confidence: likely (the dot product's term order follows the binary; the ray set-up). Not while
+// 0x4ce6f0  Confidence: exact (D12105, D12108: dir built in place, dir.dot(fvec), the ray constructor's float store). Not while
 // cur_character is in AI mode 9; beyond the guard's view range (scaled by the light level when
 // cur_character has flag 0x400) never; beyond its detection range only inside the view cone and when the
 // guard is not blind; status 8 (a positive value) hides; flag 0x400 or AI mode (3, 0x11) needs a narrower
@@ -1883,14 +1884,13 @@ void script_npc_talk(const char *name)
 bool script_guard_sees_player(Character *guard, float cone)
 {
     float dist, dot, view;
-    vector3 dir;
 
     if (cur_character->ai.is_mode(9, -1) == true)
         return false;
     dist = distance(&guard->pos, &cur_character->pos);
-    dir = cur_character->pos - guard->pos;
+    vector3 dir = cur_character->pos - guard->pos;
     dir.normalize();
-    dot = dir.z * guard->orient.fvec.z + dir.y * guard->orient.fvec.y + dir.x * guard->orient.fvec.x;
+    dot = dir.dot(guard->orient.fvec);
     view = guard->info->fov_range;
     if (cur_character->flags & 0x400)
         view *= cur_character->light_level;
@@ -1922,7 +1922,9 @@ bool script_guard_sees_player(Character *guard, float cone)
     ray.require_flags = 0;
     ray.exclude_flags = 0;
     lobj_raycast_all(&ray, &hit);
-    return hit.num_hits <= 0;
+    if (hit.num_hits > 0)
+        return false;
+    return true;
 }
 
 // 0x4ce950  Confidence: exact.
@@ -2052,9 +2054,15 @@ void party_set_level(int level)
             j = 0;
             while (p->skill_points > 0) {
                 skill_progression *sp = &p->progression[j];
-                if (c->level >= sp->level && c->skill[sp->skill] < 100) {
-                    c->skill[sp->skill] += c->info->species == 0 ? 20 : 10;
-                    p->skill_points--;
+                if (c->level >= sp->level) {
+                    int sk = sp->skill;
+                    if (c->skill[sk] < 100) {
+                        if (c->info->species == 0)
+                            c->skill[sk] += 20;
+                        else
+                            c->skill[sk] += 10;
+                        p->skill_points--;
+                    }
                 }
                 j = (j + 1) % p->num_progression;
             }

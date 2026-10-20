@@ -609,11 +609,13 @@ void buysell_category_tooltip(int button)
     ui_tooltip_set(b->x, b->y, b->w, b->h, text);
 }
 
-// 0x405790  Confidence: likely (differs under cl 8966, match24; was exact) (the test is "jl": a position of 0 still pages, to 0).
+// 0x405790  Confidence: exact (VC6 8966 byte match, w1 / D11005: `-=` then the clamp at 0 as `&= (pos <= 0) - 1`, as
+// inventory_page_up, D10600) (the test is "jl": a position of 0 still pages, to 0).
 void buysell_page_up()
 {
     if (buysell_scroll_pos >= 0) {
-        buysell_scroll_pos = max(buysell_scroll_pos - buysell_page_size[resolution_index], 0);
+        buysell_scroll_pos -= buysell_page_size[resolution_index];
+        buysell_scroll_pos &= (buysell_scroll_pos <= 0) - 1;
         buysell_update_scrollbar();
     }
 }
@@ -918,7 +920,8 @@ void buysell_draw()
         item_info_popup_render();
 }
 
-// 0x405fd0  Confidence: likely (local layout: one 64-byte buffer for the name and the price).
+// 0x405fd0  Confidence: exact (VC6 8966 byte match, w1 / D11005: rows as a ternary, `y += fh, i++` in the for
+// header; one 64-byte buffer for the name and the price).
 // Colours: highlight for the hovered / selected row, blue unidentified, red when status_character cannot
 // use it (misc items, kind 2, are never red), else the text colour. Price right-aligned at the row width.
 void buysell_draw_item_list()
@@ -928,12 +931,11 @@ void buysell_draw_item_list()
 
     int x = buysell_list_pos[resolution_index][0];
     int y = buysell_list_pos[resolution_index][1];
-    int rows = buysell_row_count;
-    if (rows >= buysell_page_size[resolution_index])
-        rows = buysell_page_size[resolution_index];
+    int rows = buysell_row_count < buysell_page_size[resolution_index] ? buysell_row_count
+                                                                       : buysell_page_size[resolution_index];
     int fh = gr_get_font_height(-1);
 
-    for (int i = 0; i < rows; i++) {
+    for (int i = 0; i < rows; y += fh, i++) {
         int row = buysell_scroll_pos + i;
         shop_item *entry = buysell_get_list_item(row);
         ItemType *type = &item_types[entry->item_type];
@@ -954,7 +956,6 @@ void buysell_draw_item_list()
         sprintf(buf, "%d", entry->price);
         gr_get_string_size(&w, &h, buf, -1, -1);
         gr_string(buysell_list_width[resolution_index] - w + x, y, buf, -1, gr_string_mode);
-        y += fh;
     }
 }
 

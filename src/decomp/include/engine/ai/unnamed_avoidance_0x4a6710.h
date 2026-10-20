@@ -234,7 +234,7 @@ void avoid_seglist_free(avoid_seglist *sl);                                // 0x
 void avoid_poly_release(avoid_poly *poly);                                 // 0x4a7c70
 void avoid_area_rebuild(avoid_obstacle *ob);                               // 0x4a7cb0
 void avoid_seglist_calc_corner_offset(avoid_seglist *sl, avoid_seg_ref *seg, const pf_edge *wall, int corner,
-                                      bool swap);                          // 0x4a7e30
+                                      int swap);                           // 0x4a7e30 (swap int: D11401)
 void avoid_seglist_calc_shared_corner_offset(avoid_seglist *sla, avoid_seglist *slb, avoid_seg_ref *sega,
                                              avoid_seg_ref *segb, int corner_a, int corner_b);   // 0x4a8060
 void avoid_seglist_ensure_corner_offset(avoid_seglist *sl, int corner);   // 0x4a82a0
@@ -252,7 +252,7 @@ struct avoid_seg_ref_entry {
 void avoid_collect_segment_refs(int *count, avoid_seg_ref_entry *refs, const pf_edge *wall, int size, int layer);   // 0x4a89e0
 int  qsort_cmp_float_asc(const void *a, const void *b);                   // 0x4a8a60
 avoid_seg_ref *avoid_ref_entry(const avoid_seg_ref_entry *e);             // 0x4a8a80
-void avoid_sort_refs_along_segment(avoid_seg_ref_entry *refs, int count); // 0x4a8aa0
+void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs); // 0x4a8aa0 (count first: D11402)
 void avoid_merge_shared_segments(avoid_seglist *sl);                      // 0x4a8b80
 int  avoid_clip_segments(avoid_poly *poly, bool link);                    // 0x4a8df0 seglist index or -1
 int  avoid_qsort_cmp_poly_word(const void *a, const void *b);             // 0x4a93c0

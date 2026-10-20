@@ -319,6 +319,7 @@ void ai_state::tentacle_beast_boss_load()
     tentacle_info *t;
     int i;
     int tag;
+    ca_character *ca;
 
     zero.zero();
     identity.make_identity();
@@ -351,22 +352,20 @@ void ai_state::tentacle_beast_boss_load()
     tentacle_beast_active_tentacle->death_anim = -1;
     tentacle_beast_active_tentacle->flags = 0;
     tentacle_beast_active_tentacle->target = -1;
-    tag = owner->instance->character->find_mesh_tag("$tag-27-swipe");
+    ca = owner->instance->character;
+    tag = ca->find_mesh_tag("$tag-27-swipe");
     owner->instance->get_bone_world_transform(tag, &owner->orient, &owner->pos, &out,
                                               &tentacle_beast_active_tentacle->swipe_pos);
     t = tentacle_beast_active_tentacle;
-    vector3 d(owner->pos.x - t->swipe_pos.x, owner->pos.y - t->swipe_pos.y, owner->pos.z - t->swipe_pos.z);
-    t->reach = (float)sqrt(d.z * d.z + d.y * d.y + d.x * d.x);
-    tag = owner->instance->character->find_mesh_tag("$tag-35-squeeze");
+    t->reach = (owner->pos - t->swipe_pos).len();
+    tag = ca->find_mesh_tag("$tag-35-squeeze");
     owner->instance->get_bone_world_transform(tag, &identity, &zero, &out,
                                               &tentacle_beast_active_tentacle->squeeze_pos);
-    tentacle_beast_active_tentacle->squeeze_pos.x += owner->pos.x;
-    tentacle_beast_active_tentacle->squeeze_pos.y += owner->pos.y;
-    tentacle_beast_active_tentacle->squeeze_pos.z += owner->pos.z;
-    tag = owner->instance->character->find_mesh_tag("$tag-26-pickup");
+    tentacle_beast_active_tentacle->squeeze_pos += owner->pos;
+    tag = ca->find_mesh_tag("$tag-26-pickup");
     owner->instance->get_bone_world_transform(tag, &owner->orient, &owner->pos, &out,
                                               &tentacle_beast_active_tentacle->pickup_pos);
-    tentacle_beast_active_tentacle->grab_tag = owner->instance->character->find_mesh_tag("$tag-grab-point");
+    tentacle_beast_active_tentacle->grab_tag = ca->find_mesh_tag("$tag-grab-point");
     tentacle_move_1 = owner->find_move(0, 1);
     tentacle_move_2 = owner->find_move(0, 2);
     tentacle_move_86 = owner->find_move(0, 0x86);
@@ -442,19 +441,18 @@ void ai_state::tentacle_beast_ai_frame()
         break;
     case 3:
         if (tentacle_beast_active_tentacle->target != this->target) {
-            this->target = tentacle_beast_active_tentacle->target;
-            owner->combat.target = tentacle_beast_active_tentacle->target;
+            owner->combat.target = this->target = tentacle_beast_active_tentacle->target;
             target = living_from_handle(this->target);
         }
         tentacle_beast_active_tentacle->hold_time = 0.0f;
-        if (tentacle_beast_active_tentacle->move == tentacle_move_86) {
-            tentacle_beast_start_grab();
-            return;
-        }
         break;
     case 4:
         tentacle_beast_active_tentacle->hold_time = reported_frametime + tentacle_beast_active_tentacle->hold_time;
         break;
+    }
+    if (result == 3 && tentacle_beast_active_tentacle->move == tentacle_move_86) {
+        tentacle_beast_start_grab();
+        return;
     }
     switch (submode) {
     case AIS_CLOSE_COMBAT:
@@ -758,7 +756,7 @@ void tentacle_beast_frame_hook(Character *c)
 // 0x4c7ca0  Confidence: exact. init_ccmd_tentacles (console_command constructor).
 console_command ccmd_tentacles("tentacles", "Start battle with tentacle beasts", cmd_tentacles);   // 0x248c788
 
-// 0x4c7cc0  Confidence: likely (the species switch is an if chain in the binary). Joseph and Flece are put
+// 0x4c7cc0  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the species switch is an if chain in the binary). Joseph and Flece are put
 // at "$npc034" (Flece 2 back on every axis; Joseph leads), Jekhar and Rosalind are hidden; the camera snaps
 // to cur_character; all four tentacles enter the stance, all but a random one dive (7 s); the battle starts.
 void cmd_tentacles()
@@ -781,11 +779,10 @@ void cmd_tentacles()
             c = living_from_handle(p->handle);
             c->pos = nav->pos;
             c->layer = nav->layer;
-            c->pos.x -= 2.0f;
-            c->pos.y -= 2.0f;
-            c->pos.z -= 2.0f;
+            c->pos -= vector3(2.0f, 2.0f, 2.0f);
         } else if (species == SPECIES_ROSALIND || species == SPECIES_JEKHAR) {
-            living_from_handle(p->handle)->flags |= CF_HIDDEN;
+            c = living_from_handle(p->handle);
+            c->flags |= CF_HIDDEN;
         }
     }
     game_camera.set_target(cur_character);
@@ -807,7 +804,7 @@ void cmd_tentacles()
 console_command ccmd_tentacle_test("tentacle_test", "Makes tentacles go in and out of water quickly -- no attacks",
                                    cmd_tentacle_test);   // 0x248c778
 
-// 0x4c7e90  Confidence: likely. As cmd_tentacles with the test mode on and the battle not started.
+// 0x4c7e90  Confidence: exact (VC6 byte match, m-1020 w9; was likely). As cmd_tentacles with the test mode on and the battle not started.
 void cmd_tentacle_test()
 {
     navpoint *nav;
@@ -830,11 +827,10 @@ void cmd_tentacle_test()
             c = living_from_handle(p->handle);
             c->pos = nav->pos;
             c->layer = nav->layer;
-            c->pos.x -= 2.0f;
-            c->pos.y -= 2.0f;
-            c->pos.z -= 2.0f;
+            c->pos -= vector3(2.0f, 2.0f, 2.0f);
         } else if (species == SPECIES_ROSALIND || species == SPECIES_JEKHAR) {
-            living_from_handle(p->handle)->flags |= CF_HIDDEN;
+            c = living_from_handle(p->handle);
+            c->flags |= CF_HIDDEN;
         }
     }
     game_camera.set_target(cur_character);

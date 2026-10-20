@@ -212,7 +212,8 @@ bool ix_linesegment_sphere(vector3 *out, const vector3 *a, const vector3 *b, con
     return true;
 }
 
-// 0x53b6f0  Confidence: likely (the local reuse; `inside` is only ever set by the last test). A fan
+// 0x53b6f0  Confidence: likely (the local reuse; `inside` is only ever set by the last test; D11602: a
+// do / while, the first triangle is tested before the count, as the binary). A fan
 // of triangles from verts[0], projected on the two axes ix_axis_pairs gives for the plane's largest
 // normal component; the parameters of p in each triangle.
 bool ix_point_in_polygon(const vector3 *p, int n, vector3 **verts, plane *pl)
@@ -248,7 +249,8 @@ bool ix_point_in_polygon(const vector3 *p, int n, vector3 **verts, plane *pl)
     v0 = &verts[0]->x;
     pu = (&p->x)[u] - v0[u];
     pv = (&p->x)[v] - v0[v];
-    for (i = 2; i < n; i++) {
+    i = 2;
+    do {
         v1 = &verts[i - 1]->x;
         e1u = v1[u] - v0[u];
         e1v = v1[v] - v0[v];
@@ -269,7 +271,7 @@ bool ix_point_in_polygon(const vector3 *p, int n, vector3 **verts, plane *pl)
         inside = alpha >= 0.0f && beta + alpha <= 1.0f;
         if (inside)
             break;
-    }
+    } while (++i < n);
     return inside;
 }
 
@@ -397,7 +399,8 @@ vertex:
     return true;
 }
 
-// 0x53bf60  Confidence: likely. Each edge whose swept box (ix_linesegment_boundingbox) the move can reach
+// 0x53bf60  Confidence: exact (VC6 byte match, m-1020: te is a loop-body local, which 8966 puts in r's dead
+// argument slot as the binary does). Each edge whose swept box (ix_linesegment_boundingbox) the move can reach
 // is tested; the earliest hit wins.
 // 0x53c1b0 atexit_nop_53c1b0: the atexit handler of box_max (compiler-generated). Confidence: exact.
 // 0x53c1c0 atexit_nop_53c1c0: the atexit handler of box_min (compiler-generated). Confidence: exact.
@@ -410,10 +413,10 @@ bool ix_sphere_polygon(vector3 *hit, const vector3 *p0, const vector3 *d, float 
     static vector3 edge_a;                            // 0x2dc6e98 ix_sphere_polygon_tmp_a (guard 0x2dc6cf4)
     static vector3 edge_b;                            // 0x2dc6d18 ix_sphere_polygon_tmp_b
     float best = 3.4028235e38f;
-    float te;                                         // the binary keeps it in r's argument slot (r stays in EDI)
     int i;
 
     for (i = 0; i < n; i++) {
+        float te;                                     // the binary keeps it in r's argument slot (r stays in EDI)
         edge_a = *verts[i];
         if (i + 1 == n)
             edge_b = *verts[0];
@@ -712,14 +715,15 @@ bool ix_ray_box_oriented(ix_ray *ray, const vector3 *centre, const matrix *orien
     return r;
 }
 
-// 0x53d2d0  Confidence: likely (the array indexing; the binary walks the components with pointer
+// 0x53d2d0  Confidence: exact (VC6 byte match, m-1020: `inside` is declared and set before the profile
+// label, the binary sets EDI before the constructor call; the array indexing; the binary walks the components with pointer
 // differences). Woo's test: the candidate planes of the outside axes, the largest parameter picks the
 // plane; no upper limit on the parameter.
 bool ix_ray_boundingbox(const vector3 *min, const vector3 *max, const vector3 *origin, const vector3 *dir,
                         vector3 *hit)
 {
-    profile_label label("ix_ray_boundingbox");
     int inside = 1;
+    profile_label label("ix_ray_boundingbox");
     int quadrant[3];
     float max_t[3];
     float candidate[3];

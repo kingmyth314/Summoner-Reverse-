@@ -462,11 +462,12 @@ int itemtrade_handle_click(int key)
     return key;
 }
 
-// 0x419bb0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
+// 0x419bb0  Confidence: exact (VC6 8966 byte match, w1 / D11005: `-=` then `&= (pos <= 0) - 1`, D10600).
 void itemtrade_party_page_up()
 {
     if (itemtrade_party_scroll_pos > 0) {
-        itemtrade_party_scroll_pos = max(itemtrade_party_scroll_pos - itemtrade_party_page[resolution_index], 0);
+        itemtrade_party_scroll_pos -= itemtrade_party_page[resolution_index];
+        itemtrade_party_scroll_pos &= (itemtrade_party_scroll_pos <= 0) - 1;
         itemtrade_update_scrollbar();
     }
 }
@@ -766,7 +767,8 @@ void itemtrade_draw()
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 
-// 0x41a360  Confidence: likely (local layout as in buysell_draw_item_list). Our offer: name, count
+// 0x41a360  Confidence: exact (VC6 8966 byte match, w1 / D11005: rows as a ternary, the row index in a local).
+// Our offer: name, count
 // right-aligned at the row width.
 void itemtrade_draw_list1()
 {
@@ -775,14 +777,14 @@ void itemtrade_draw_list1()
 
     int x = itemtrade_list1_pos[resolution_index][0];
     int y = itemtrade_list1_pos[resolution_index][1];
-    int rows = mp_trade_local_count;
-    if (rows >= itemtrade_list1_page[resolution_index])
-        rows = itemtrade_list1_page[resolution_index];
+    int rows = mp_trade_local_count < itemtrade_list1_page[resolution_index] ? mp_trade_local_count
+                                                                             : itemtrade_list1_page[resolution_index];
     int fh = gr_get_font_height(-1);
     gr_set_color_ptr(&ui_color_text);
 
     for (int i = 0; i < rows; i++) {
-        mp_trade_item *item = &mp_trade_local_items[itemtrade_list1_scroll_pos + i];
+        int row = itemtrade_list1_scroll_pos + i;
+        mp_trade_item *item = &mp_trade_local_items[row];
         char buf[64];
         int w, h;
 
@@ -799,7 +801,8 @@ void itemtrade_draw_list1()
     }
 }
 
-// 0x41a490  Confidence: likely. The partner's offer; no hover highlight.
+// 0x41a490  Confidence: exact (VC6 8966 byte match, w1 / D11005: as itemtrade_draw_list1). The partner's offer;
+// no hover highlight.
 void itemtrade_draw_list2()
 {
     if (mp_trade_remote_count <= 0)
@@ -807,14 +810,14 @@ void itemtrade_draw_list2()
 
     int x = itemtrade_list2_pos[resolution_index][0];
     int y = itemtrade_list2_pos[resolution_index][1];
-    int rows = mp_trade_remote_count;
-    if (rows >= itemtrade_list2_page[resolution_index])
-        rows = itemtrade_list2_page[resolution_index];
+    int rows = mp_trade_remote_count < itemtrade_list2_page[resolution_index] ? mp_trade_remote_count
+                                                                             : itemtrade_list2_page[resolution_index];
     int fh = gr_get_font_height(-1);
     gr_set_color_ptr(&ui_color_text);
 
     for (int i = 0; i < rows; i++) {
-        mp_trade_item *item = &mp_trade_remote_items[itemtrade_list2_scroll_pos + i];
+        int row = itemtrade_list2_scroll_pos + i;
+        mp_trade_item *item = &mp_trade_remote_items[row];
         char buf[64];
         int w, h;
 
@@ -827,7 +830,8 @@ void itemtrade_draw_list2()
     }
 }
 
-// 0x41a5a0  Confidence: likely. Party rows with the count not yet offered (the first matching offer).
+// 0x41a5a0  Confidence: exact (VC6 8966 byte match, w1 / D11005: rows as a ternary, the row index in a local).
+// Party rows with the count not yet offered (the first matching offer).
 // The gold row shows the party_gold copied by itemtrade_init.
 void itemtrade_draw_party_list()
 {
@@ -836,13 +840,13 @@ void itemtrade_draw_party_list()
 
     int x = itemtrade_party_pos[resolution_index][0];
     int y = itemtrade_party_pos[resolution_index][1];
-    int rows = itemtrade_party_row_count;
-    if (rows >= itemtrade_party_page[resolution_index])
-        rows = itemtrade_party_page[resolution_index];
+    int rows = itemtrade_party_row_count < itemtrade_party_page[resolution_index] ? itemtrade_party_row_count
+                                                                                    : itemtrade_party_page[resolution_index];
     int fh = gr_get_font_height(-1);
 
     for (int i = 0; i < rows; i++) {
-        party_inventory_entry *entry = itemtrade_get_party_row(itemtrade_party_scroll_pos + i);
+        int row = itemtrade_party_scroll_pos + i;
+        party_inventory_entry *entry = itemtrade_get_party_row(row);
         char buf[64];
         int w, h;
         int offered;

@@ -54,9 +54,8 @@ int os_registry_write(const char *subkey, const char *name, DWORD type, const vo
     return rval;
 }
 
-// 0x511e50  Confidence: likely (if/else nesting: the NULL case is laid out last, the "hkey"
-// case inline, the relative case in the middle; the copy loops are written with indexes because
-// the first one addresses name[] as (name - subkey) + p).
+// 0x511e50  Confidence: exact (D12104: one return of root, which the binary keeps in EBP; both copies walk
+// two pointers, the name copy as (name - subkey) + p after VC6 merges the induction variables).
 // The 256-byte name buffer is cleared with rep stosd using the 0 left in EAX by _strnicmp.
 // Known defect: an "HKEY_xxx" string without a backslash copies from past its terminator.
 HKEY os_registry_resolve_key(char *out_path, const char *subkey)
@@ -66,25 +65,24 @@ HKEY os_registry_resolve_key(char *out_path, const char *subkey)
     if (subkey != NULL) {
         if (_strnicmp(subkey, "hkey", 4) == 0) {
             char name[256];
-            int i, j;
+            const char *p;
+            char *d;
 
             memset(name, 0, sizeof(name));
-            for (i = 0; subkey[i] != '\0' && subkey[i] != '\\'; i++)
-                name[i] = subkey[i];
+            for (p = subkey, d = name; *p != '\0' && *p != '\\'; p++, d++)
+                *d = *p;
             root = os_registry_hkey_from_string(name);
-            i++;
-            for (j = 0; subkey[i] != '\0'; i++, j++)
-                out_path[j] = subkey[i];
-            out_path[j] = '\0';
-            return root;
+            d = out_path;
+            for (p++; *p != '\0'; p++)
+                *d++ = *p;
+            *d = '\0';
+        } else {
+            strcpy(out_path, os_registry_app_key);
+            strcat(out_path, "\\");
+            strcat(out_path, subkey);
         }
+    } else
         strcpy(out_path, os_registry_app_key);
-        strcat(out_path, "\\");
-        strcat(out_path, subkey);
-        return root;
-    }
-
-    strcpy(out_path, os_registry_app_key);
     return root;
 }
 

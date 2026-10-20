@@ -115,8 +115,16 @@ extern int ca_preload_loaded;                            // 0x2de20b8 (level_loa
 extern int ca_preload_count;                             // 0x2de20bc
 extern int ca_preload_size;                              // 0x2de20c0
 extern ubyte ca_preload_data[CA_PRELOAD_DATA_SIZE];      // 0x2de20c4
-extern int ca_preload_offsets[CA_MAX_PRELOAD];           // 0x2ee20c4 (name ours)
-extern int ca_preload_sizes[CA_MAX_PRELOAD];             // 0x2ee21dc (name ours)
+// D11801: the entry offsets and sizes are one object (ca_load_preload_index addresses offsets[i] as
+// sizes[i] - 0x118 from one walking pointer). Names ours; the old names are macros.
+struct ca_preload_table {
+    int offsets[CA_MAX_PRELOAD];      // +0x000 0x2ee20c4
+    int sizes[CA_MAX_PRELOAD];        // +0x118 0x2ee21dc
+};
+LAYOUT_CHECK(ca_preload_table, sizeof(ca_preload_table) == 0x230);
+extern ca_preload_table ca_preload_tbl;                 // 0x2ee20c4
+#define ca_preload_offsets (ca_preload_tbl.offsets)
+#define ca_preload_sizes (ca_preload_tbl.sizes)
 extern int ca_num_characters;                            // 0x2ee24f0
 extern ca_character *ca_current_character;               // 0x2ee45ac (name ours; written by add_skeleton only)
 

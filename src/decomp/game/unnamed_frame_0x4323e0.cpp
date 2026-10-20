@@ -123,7 +123,8 @@ void screenshot_debug_hook(const char *message)
 {
 }
 
-// 0x4324f0  Confidence: likely (the local array initialisers and the declaration order). Print Screen:
+// 0x4324f0  Confidence: exact (the pattern choice is an if / else of two file_find_files calls, which 8966
+// tail-merges into the binary's one call with the constant pushes first, D11304). Print Screen:
 // screenNNN.tga (targa on) or .jpg in the install directory, NNN one above the last file found. The
 // message goes to the empty debug hook, so "Screenshot written to" is never shown (D3104). Game bugs: the
 // file list is never freed (one leak per screenshot), and the number is read from the last file the
@@ -138,7 +139,10 @@ void screenshot_save()
     char message[256];
     char name[256];
 
-    file_find_files(&list, path_root, Print_screen_as_targa ? tga_pattern : jpg_pattern, 1, 0);
+    if (Print_screen_as_targa)
+        file_find_files(&list, path_root, tga_pattern, 1, 0);
+    else
+        file_find_files(&list, path_root, jpg_pattern, 1, 0);
     if (list.next == &list) {
         printf("EMPTY\n");
         n = 0;

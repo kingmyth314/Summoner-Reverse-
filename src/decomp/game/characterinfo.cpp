@@ -2052,7 +2052,7 @@ void charinfo_load_move_anim(char_info *info, ca_character *ca, move_info *m, bo
     }
 }
 
-// 0x447850  Confidence: likely (the town branch walks the lists in the binary's order 0-7, 10-13, 9,
+// 0x447850  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the town branch walks the lists in the binary's order 0-7, 10-13, 9,
 // one loop each, so they are written out; NOTES). In towns (and templeint without full_set) every combat
 // move plays the "movement" anim of id 1 and the listed state moves the anim of state move 0x92 (not
 // checked for NULL); elsewhere the low flinch / parry moves borrow the anims and sounds of the medium ones.
@@ -2098,9 +2098,11 @@ void charinfo_remap_town_moves(char_info *info, bool full_set)
                 m->sound = src->sound;
             }
         }
-        for (m = (move_info *)info->moves[5]; m; m = m->next) {
+        m = (move_info *)info->moves[5];
+        while (m) {
             m->anim = src->anim;
             m->sound = src->sound;
+            m = m->next;
         }
     }
     if (src2) {
@@ -2201,16 +2203,17 @@ void level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *
     set_current_mempool(NULL);
 }
 
-// 0x447e80  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x447e80  Confidence: exact (VC6 byte match, m-1020 w9; was likely; the string walked through a local pointer, D11802).
 unsigned int str_hash_nocase_rol6(const char *s)
 {
     unsigned int h;
+    const char *p;
 
     if (!s)
         return 0xffffffff;
     h = 0;
-    for (; *s; s++)
-        h = _rotl(h, 6) ^ tolower(*s);
+    for (p = s; *p; p++)
+        h = _rotl(h, 6) ^ tolower(*p);
     return h;
 }
 
@@ -2320,7 +2323,7 @@ void summon_stash_for_cutscene()
     }
 }
 
-// 0x4482a0  Confidence: likely. A script anim: a move of the script list (15) with the anim file as its
+// 0x4482a0  Confidence: exact (VC6 byte match, m-1020 w9; was likely). A script anim: a move of the script list (15) with the anim file as its
 // name, added to the record's skeleton set (in the summon pool when the file fits, else the level pool;
 // multiplayer 0x80 skips the pool choice). Returns the skeleton index, -1 during a summon cutscene.
 int charinfo_load_script_anim(char_info *info, const char *name, int path_id)
@@ -2366,7 +2369,7 @@ int charinfo_load_script_anim(char_info *info, const char *name, int path_id)
         if (ci->character == ca) {
             ci->reset_anims(false);
             ci->weights[m->anim] = 0.0f;
-            ci->times[m->anim] = ca->skeletons[m->anim]->start;
+            ci->times[m->anim] = ci->character->skeletons[m->anim]->start;
             c->update_locomotion_anim();
         }
     }
@@ -2666,11 +2669,11 @@ int charinfo_find_anim(char_info *info, const char *name)
     return -1;
 }
 
-// 0x448de0  Confidence: likely. Loads the skeleton set and mesh (the parent's for +Alternate character:
+// 0x448de0  Confidence: exact (VC6 byte match, m-1020 w9; was likely). Loads the skeleton set and mesh (the parent's for +Alternate character:
 // copies, with the copy's texture entry) into the record's pool and wraps it in a new instance; the
 // level pool use of non-hero, non-summon records is counted; multiplayer slot copies remember their
 // reloaded mesh textures.
-character_instance *charinfo_create_character_instance(char_info *info, bool summon)
+character_instance *charinfo_create_character_instance(char_info *info, int summon)
 {
     Mempool *pool;
     unsigned int start;
@@ -2689,8 +2692,9 @@ character_instance *charinfo_create_character_instance(char_info *info, bool sum
         ca = character_load((char **)&info->name, 1, false, 0, NULL, NULL);
     ci = new character_instance(ca);
     set_current_mempool(NULL);
+    unsigned int end = pool->offset;
     if (!summon && !species_is_hero(info->species))
-        charinfo_level_mem_used += pool->offset - start;
+        charinfo_level_mem_used += end - start;
     if ((game_flags & 2) && (slot = multi_charinfo_slot(info)) != NULL) {
         for (i = 0; i < ca->mesh->vim->num_textures; i++) {
             mesh = ca->mesh->vim;

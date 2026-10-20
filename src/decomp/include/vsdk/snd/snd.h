@@ -19,7 +19,7 @@ class TextFile;
 // The three floats of snd_get_handle are the three table parameters of a sound (sounds.tbl): min range
 // (1.0 when <= 0), volume, rolloff. group: 0 effects, 1 music. from_start: search from slot 0, not 8.
 int  snd_get_handle(const char *name, float min_range, float volume, float rolloff, int group, bool from_start); // 0x5207d0
-int  snd_load(int handle, int streamed);                                    // 0x5209c0 the ds buffer, -1
+int  snd_load(int handle, bool streamed);                                   // 0x5209c0 (D11903) the ds buffer, -1
 // (handle, volume, pan, a, unused): a goes to ds_play's last argument (decomp60).
 int  snd_play(int handle, float volume, float pan, int a, int unused);      // 0x520d50
 int  snd_play_looping(int handle, float volume, float pan, int a, int unused); // 0x520e10 (D8400)

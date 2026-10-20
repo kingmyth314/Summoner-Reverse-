@@ -191,7 +191,7 @@ void file_init(const char *path, int use_packfiles)
     atexit(file_shutdown);
 }
 
-// 0x512e60  Confidence: likely (local layout: ext 8 bytes, then the two 256-byte copies).
+// 0x512e60  Confidence: exact (an indexed signed loop over the table: VC6 strength-reduces it and keeps `jl`).
 // Registers a search path (lower case, '/' turned into '\') with its extension list (" " appended) and
 // returns its id; the empty directory is the root (id 0, only its extensions are stored). A directory
 // that is already registered returns its id; the loop over the new extensions looks each one up in the
@@ -222,11 +222,10 @@ int file_add_path(const char *dir, const char *exts)
         return 0;
     }
 
-    file_path_entry *p = &file_path_table[1];
-    for (i = 1; p < &file_path_table[FILE_MAX_PATHS]; p++, i++) {
-        if (p->dir == NULL && free_id < 0)
+    for (i = 1; i < FILE_MAX_PATHS; i++) {
+        if (file_path_table[i].dir == NULL && free_id < 0)
             free_id = i;
-        if (p->dir != NULL && _stricmp(p->dir, dir_buf) == 0) {
+        if (file_path_table[i].dir != NULL && _stricmp(file_path_table[i].dir, dir_buf) == 0) {
             const char *s = exts;
             while (s) {
                 const char *next = strstr(s, " .");
@@ -363,7 +362,7 @@ void vfile_lower_access_level()
     sprintf(string_buffer, "Group file access lowered to level %d.\n", --vfile_access_level);
 }
 
-// 0x5133b0  Confidence: likely (the sorted insert's loop shape).
+// 0x5133b0  Confidence: exact (each sort loop starts again from list->next; the splices go through a saved neighbour).
 // Fills list with the plain files of path_id matching pattern. Flags: 4 keeps the extension, 1 sorts
 // by name (_stricmp), else 2 sorts by time, newest first; neither appends in find order. The callback
 // sees the stack copy and can reject the file.
@@ -404,28 +403,30 @@ void file_find_files(file_find_list *list, int path_id, const char *pattern, int
         file_find_node *p = list->next;
         if (p != (file_find_node *)list && (flags & 3)) {
             if (flags & 1) {
-                for (; p != (file_find_node *)list; p = p->next) {
+                for (p = list->next; p != (file_find_node *)list; p = p->next) {
                     if (_stricmp(p->name, node->name) >= 0)
                         break;
                 }
             } else {
-                for (; p != (file_find_node *)list; p = p->next) {
+                for (p = list->next; p != (file_find_node *)list; p = p->next) {
                     if (p->time < node->time)
                         break;
                 }
             }
             if (p != (file_find_node *)list) {
-                node->prev = p->prev;
+                file_find_node *prev = p->prev;
                 p->prev = node;
-                node->prev->next = node;
+                node->prev = prev;
+                prev->next = node;
                 node->next = p;
                 continue;
             }
         }
+        file_find_node *last = list->prev;
         node->next = (file_find_node *)list;
-        node->prev = list->prev;
+        node->prev = last;
         list->prev = node;
-        node->prev->next = node;
+        last->next = node;
     } while (_findnext(handle, &fd) == 0);
     _findclose(handle);
 }
@@ -440,11 +441,11 @@ void file_list_files(file_find_list *list, const char *dir)
     file_find_node found;
     char full_dir[256];
     int i;
-    file_path_entry *p;
 
     list->next = (file_find_node *)list;
     list->prev = (file_find_node *)list;
-    for (i = 0, p = &file_path_table[0]; p < &file_path_table[FILE_MAX_PATHS]; p++, i++) {
+    for (i = 0; i < FILE_MAX_PATHS; i++) {
+        file_path_entry *p = &file_path_table[i];
         if (!file_path_id_valid(i))
             return;
         if (_strnicmp(file_get_full_dir(i, full_dir), dir, strlen(dir)) != 0)
@@ -782,13 +783,15 @@ void FileReader::read_quaternion(quaternion *out)
     file->read_quaternion(out, 0, &file_identity_quaternion);
 }
 
-// 0x513e00  Confidence: likely (differs under cl 8966 in match26). Copies up to max chars and then terminates at buf[max] (one byte past a
+// 0x513e00  Confidence: exact (`while (1)` with the end test first: VC6 keeps the test at the top). Copies up to max chars and then terminates at buf[max] (one byte past a
 // max-sized buffer, as File::read_string).
 void FileReader::read_string(char *buf, int max)
 {
     if (mode != 0) {
         int i = 0;
-        while (pos < size) {
+        while (1) {
+            if (pos >= size)
+                break;
             int c = buffer[pos++];
             if (c == 0)
                 break;
@@ -943,7 +946,8 @@ char *File::get_filename()
 int file_last_path_id = -1;           // 0x5a7814
 char file_last_ext[8] = "none";       // 0x5a7818
 
-// 0x5141c0  Confidence: likely (the loop shapes; ext is set only on the PATH_ANY path).
+// 0x5141c0  Confidence: exact (indexed path loops; the path_root flag as two calls; `? true : false` on find_at;
+// the fall-through of the last loop goes straight to path id 0, written as a goto; ext is set only on the PATH_ANY path).
 // An absolute name is looked up as it is (disk only). An explicit path id is tried (with the packfiles
 // only for path_root), then the root with the packfiles. PATH_ANY tries every path whose extension list
 // contains the name's extension, then the root. On failure full_path is the name in the first path that
@@ -953,7 +957,6 @@ bool File::find(const char *name, int path_id)
 {
     char ext[16];
     int i;
-    file_path_entry *p;
 
     if (name == NULL || *name == '\0')
         return false;
@@ -962,11 +965,14 @@ bool File::find(const char *name, int path_id)
     if (is_absolute_path(name)) {
         strcpy(full_path, name);
         this->path_id = -1;
-        return find_at(full_path, &packentry, false) != 0;
+        return find_at(full_path, &packentry, false) ? true : false;
     }
     if (path_id != PATH_ANY) {
         this->path_id = path_id;
-        if (find_in_path(name, path_id, &packentry, path_id == path_root))
+        if (path_id == path_root) {
+            if (find_in_path(name, path_id, &packentry, true))
+                return true;
+        } else if (find_in_path(name, path_id, &packentry, false))
             return true;
     } else {
         strcpy(full_path, name);
@@ -977,8 +983,8 @@ bool File::find(const char *name, int path_id)
             strcpy(ext, dot);
             strcat(ext, " ");
         }
-        for (i = 0, p = &file_path_table[0]; p < &file_path_table[FILE_MAX_PATHS]; p++, i++) {
-            if (file_path_id_valid(i) && stristr(p->exts, ext) &&
+        for (i = 0; i < FILE_MAX_PATHS; i++) {
+            if (file_path_id_valid(i) && stristr(file_path_table[i].exts, ext) &&
                 find_in_path(name, i, &packentry, false))
                 return true;
         }
@@ -986,13 +992,17 @@ bool File::find(const char *name, int path_id)
     if (find_in_path(name, 0, &packentry, true))
         return true;
 
-    for (i = 0, p = &file_path_table[0]; p < &file_path_table[FILE_MAX_PATHS]; p++, i++) {
-        if (file_path_id_valid(i) && stristr(p->exts, ext))
-            break;
+    for (i = 0; i < FILE_MAX_PATHS; i++) {
+        if (file_path_id_valid(i) && stristr(file_path_table[i].exts, ext))
+            goto have;
     }
+    this->path_id = 0;
+    goto make;
+have:
     this->path_id = i;
     if (i >= FILE_MAX_PATHS)
         this->path_id = 0;
+make:
     file_make_path(this->path_id, name, full_path);
     _unk10c = 0;
     return false;
@@ -1178,7 +1188,7 @@ bool File::is_in_packfile()
     return packentry && (packentry->packfile->flags & PACKFILE_ON_CD);
 }
 
-// 0x514910  Confidence: likely. A target inside the read buffer only moves the buffer position;
+// 0x514910  Confidence: exact (the origin is added to the pos argument itself). A target inside the read buffer only moves the buffer position;
 // otherwise the buffer is dropped and the stream is seeked.
 int File::seek(int pos, int origin)
 {
@@ -1186,11 +1196,10 @@ int File::seek(int pos, int origin)
     int target;
 
     if (origin == 1)
-        target = pos + s->pos;
+        pos += s->pos;
     else if (origin == 2)
-        target = pos + size(NULL, PATH_ANY);
-    else
-        target = pos;
+        pos += size(NULL, PATH_ANY);
+    target = pos;
     if (check_flags(FILE_READ) && s->buf_start != -1 && target >= s->buf_start &&
         target < s->buf_start + s->buf_len) {
         s->pos = target;
@@ -1328,7 +1337,7 @@ int File::clear_attributes(int flags, const char *name, int path_id)
     return SetFileAttributesA(full_path, a) ? 0 : FILE_ERR_IO;
 }
 
-// 0x514d60  Confidence: likely (the early returns share the epilogue; Crc32's constructor is not
+// 0x514d60  Confidence: exact (unit compiled /Ob0: Crc32's constructor is not
 // expanded: its COMDAT 0x514eb0 is called). CRC-32 of the whole file in 1 KB blocks. A file that was
 // not open is opened and closed again (the result is close()'s); an open one must be in read mode and
 // gets its position back (the result is error()). No caller.
@@ -1363,10 +1372,10 @@ int File::calc_crc32(unsigned int *crc, const char *name, int path_id)
     int total = size(NULL, PATH_ANY);
     do {
         int n;
-        if (done + 0x400 > total)
-            n = total - done;
-        else
+        if (done + 0x400 <= total)
             n = 0x400;
+        else
+            n = total - done;
         read(buf, n, 0, 0);
         if (error() < 0)
             break;

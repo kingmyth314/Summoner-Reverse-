@@ -270,7 +270,8 @@ void TextFile::Rewind()
     }
 }
 
-// 0x515ee0  Confidence: likely (the order of the three buffers in the frame). Error line 582
+// 0x515ee0  Confidence: exact (the found loop indexes cursor directly; the prior loop tests i < 40 first
+// and steps start before i, D11311). Error line 582
 // (0x246). Control chars show as 0x16. The "found" copy always takes 40 bytes, past the terminator
 // too (it reads beyond the end of the buffer near the end of the file).
 void TextFile::Error(const char *expected)
@@ -280,19 +281,18 @@ void TextFile::Error(const char *expected)
     char msg[256];
     int i;
 
-    char *p = cursor;
     for (i = 0; i < 40; i++) {
-        if (p[i] != '\0' && p[i] < ' ')
+        if (cursor[i] != '\0' && cursor[i] < ' ')
             found[i] = 0x16;
         else
-            found[i] = p[i];
+            found[i] = cursor[i];
     }
     found[i] = '\0';
 
     char *start = cursor - 40;
     if (start < buffer)
         start = buffer;
-    for (i = 0; start != cursor && i < 40; i++, start++) {
+    for (i = 0; i < 40 && start != cursor; start++, i++) {
         if (*start < ' ')
             prior[i] = 0x16;
         else

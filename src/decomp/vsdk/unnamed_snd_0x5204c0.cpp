@@ -232,7 +232,7 @@ int snd_get_handle(const char *name, float min_range, float volume, float rollof
 // 0x5209c0  Confidence: exact (EH frame for the File). Loads a used record once (a failure is kept
 // in load_failed): the file is found by its stripped name, then loaded from its packfile's path and
 // offset. `loaded` is set even when ds_load_buffer fails.
-int snd_load(int handle, int streamed)
+int snd_load(int handle, bool streamed)
 {
     snd_sound *s;
     const char *p;
@@ -446,14 +446,15 @@ int snd_play_streamed_looping(int handle, float volume, float pan)
     return rval;
 }
 
-// 0x520fa0  Confidence: likely (`zero` is a stack local in the binary, loaded when the divisor is 0).
+// 0x520fa0  Confidence: exact (`zero` is a stack local in the binary, loaded when the divisor is 0: an
+// int zero read as a float keeps it there, D11702; probably not the original's form).
 // Full volume (no scale cap, no clamp) at the listener; else the volume (times scale when scale < 1)
 // falls off beyond min_range as 1 / ((d / min - 1) * rolloff + 1), 0 beyond max_range, times the group
 // volume, at most 1.
 float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
 {
     snd_sound *s = &sounds[handle];
-    float zero = 0.0f;
+    int zero = 0;
     float dist, v, d;
 
     if (*pos == snd_listener_pos)
@@ -470,7 +471,7 @@ float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
         if (d != 0.0f)
             v /= d;
         else
-            v = zero;
+            v = *(float *)&zero;
     }
     v *= snd_group_volumes[s->group];
     if (v >= 1.0f)
@@ -478,12 +479,12 @@ float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
     return v;
 }
 
-// 0x5210b0  Confidence: likely. As snd_calc_volume_3d for the point of segment a-b nearest to the
+// 0x5210b0  Confidence: exact (the zero as in snd_calc_volume_3d, D11702). As snd_calc_volume_3d for the point of segment a-b nearest to the
 // listener; the scale always applies.
 float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, float scale)
 {
     snd_sound *s = &sounds[handle];
-    float zero = 0.0f;
+    int zero = 0;
     float dist, v, d;
     vector3 p;
     vector3 dir;
@@ -494,7 +495,8 @@ float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, 
     dir = p - snd_listener_pos;
     dist = dir.len();
     dir.normalize();
-    v = s->volume * scale;
+    v = s->volume;
+    v *= scale;
     if (dist > s->max_range)
         return 0.0f;
     if (dist > s->min_range) {
@@ -502,7 +504,7 @@ float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, 
         if (d != 0.0f)
             v /= d;
         else
-            v = zero;
+            v = *(float *)&zero;
     }
     v *= snd_group_volumes[s->group];
     if (v >= 1.0f)
@@ -570,7 +572,7 @@ int sound_emitter_calc_doppler_segment(int freq, const vector3 *a, const vector3
     return (int)((to_source.dot(snd_listener_vel) + 600.0f) / (600.0f - to_listener.dot(*vel)) * freq);
 }
 
-// 0x521480  Confidence: likely. DirectSound3D plays the sound with its ranges; otherwise the 2D
+// 0x521480  Confidence: exact (the backend switch with an rval result, as snd_play: D11702). DirectSound3D plays the sound with its ranges; otherwise the 2D
 // volume (at scale 1.75, divided by the sound's own volume, which snd_play applies again) and pan.
 int snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused)
 {
@@ -585,19 +587,26 @@ int snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused)
     v = snd_calc_volume_3d(handle, pos, 1.75f);
     if (v < 0.0f)
         return -1;
-    if (snd_backend != 1)
-        return -1;
-    if (snd_is_ds3d_enabled() == true) {
-        vector3 vel(0.0f, 0.0f, 0.0f);
-        return ds_play_3d(s->handle, pos, &vel, s->min_range, s->max_range,
-                          snd_group_volumes[s->group] * s->volume, looping, a);
+    int rval = -1;
+
+    switch (snd_backend) {
+    case 1:
+        if (snd_is_ds3d_enabled() == true) {
+            vector3 vel(0.0f, 0.0f, 0.0f);
+            rval = ds_play_3d(s->handle, pos, &vel, s->min_range, s->max_range,
+                              snd_group_volumes[s->group] * s->volume, looping, a);
+        } else {
+            pan = snd_calc_pan(pos);
+            if (s->volume != 0.0f)
+                v /= s->volume;
+            if (looping == true)
+                rval = snd_play_looping(handle, v, pan, 0, 0);
+            else
+                rval = snd_play(handle, v, pan, a, 0);
+        }
+        break;
     }
-    pan = snd_calc_pan(pos);
-    if (s->volume != 0.0f)
-        v /= s->volume;
-    if (looping == true)
-        return snd_play_looping(handle, v, pan, 0, 0);
-    return snd_play(handle, v, pan, a, 0);
+    return rval;
 }
 
 // 0x5215d0  Confidence: exact.

@@ -422,9 +422,9 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result (2026-10-19): 7,725 functions written (89.4%). 5,905 of them are
-compiled and compared by VC6 SP5, and 5,058 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 5,077: 19 compared functions are not `func` lines in sum.symbols).
+`node tools/decomp-progress.mjs` counts the result (2026-10-20): 7,726 functions written (89.4%). 5,906 of them are
+compiled and compared by VC6 SP5, and 5,236 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 5,255: 19 compared functions are not `func` lines in sum.symbols).
 
 **Byte-match round 2026-10-19 (ten workers, D10000-D10999).** The 962 functions that still differed, split by file
 over ten agents, each in its own copy, merged with `decomp-merge.mjs` and swept strictly: 4,963 -> 5,077 matches,
@@ -438,7 +438,22 @@ them as one record. Two behaviour errors were found and fixed, both checked in t
 had the open-mode button test inverted (D10601), and `ui_gadget::process` passed the original key to every child
 instead of chaining each child's result (D10700, now a byte match); `ui_container::process` ignores the children's
 result as the original does. Candidates for the bug list, not yet checked in game: the quicksave message buffer
-(64 bytes) and the script editor's door-sound text buffer (8 bytes). The
+(64 bytes) and the script editor's door-sound text buffer (8 bytes).
+
+**Byte-match round 2026-10-20 (fifteen workers, D11000-D12499).** The same method on the 848 that still differed:
+5,077 -> 5,255 strict matches, none lost (notes in `src/decomp/NOTES-match-2026-10-20.md`). New techniques: local
+names decide the slot order in SEH frames even at /Ox (the D6101 hash), so the exception handler took the local names
+of Bruce Dawson's published ExceptionHandler.cpp, which that unit follows (names only); `*(volatile int *)&g = v` keeps
+a global store above the next call's pushes; `#pragma inline_depth(0)` where the binary calls a small helper out of
+line; a parenthesised member in a float compare; `gr_string_mode.value` in /Ob0 units. Flags: `vfile`, `gr` and
+`movement` are now /Ob0 units. A hidden function reached only by a tail jump was found and matched
+(`build_char_types`, 0x50ab70, added to sum.symbols). Behaviour fixes, each checked: `Character::on_death`'s
+trigger-9 test was inverted (D11702) and `lamp_glow_update_effects` read the glow point from the wrong record
+(D11502), both now byte matches; `ix_point_in_polygon` tests the first triangle before the count (D11602) and
+`savegame_write_header` copies the level and script names without their NUL into the zeroed fields (D12302), both
+read in the listing; three float constants were one unit in the last place off the binary's (D11400, D12202, D12401).
+One device is a matching aid, not a claim about the original source: an int read as a float to keep a zero in a
+frame slot (D11703). Candidates for the bug list, not checked in game: InetGetFile's 256-byte directory buffer. The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

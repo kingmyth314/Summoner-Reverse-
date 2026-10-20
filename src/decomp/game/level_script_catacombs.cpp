@@ -248,23 +248,20 @@ bool ls_catacombs_lobj_state(const char *name)
     return open;
 }
 
-// 0x4fe5e0  Confidence: likely (the shared push of "cry_kingf" before the cry_kinge branch). level_script_table
+// 0x4fe5e0  Confidence: exact (VC6 8966 byte match, m-1020: the two ball 1 tests share one block placed before
+// the final return, D11906) (the shared push of "cry_kingf" before the cry_kinge branch). level_script_table
 // use. The two king tombs E and F open the central crypt when the other one is open; 2000 XP the first time
 // and only while every other king tomb (A-D, G-M) is closed.
 char ls_catacombs_use(const char *name)
 {
-    if (!_stricmp(name, "Puzzle-Ball01")) {
-        lsf_ball1_used();
-        return 0;
-    }
+    if (!_stricmp(name, "Puzzle-Ball01"))
+        goto ball1;
     if (!_stricmp(name, "Puzzle-Ball02")) {
         lsf_ball2_used();
         return 0;
     }
-    if (!_stricmp(name, "Puzzle-Pedestal01")) {
-        lsf_ball1_used();
-        return 0;
-    }
+    if (!_stricmp(name, "Puzzle-Pedestal01"))
+        goto ball1;
     if (!_stricmp(name, "Puzzle-Pedestal02")) {
         lsf_ball2_used();
         return 0;
@@ -300,6 +297,11 @@ char ls_catacombs_use(const char *name)
         door_apply_saved_state("cry_tombcen", true);
         savegame_state.set_flag(cur_level_index, "main_crypt_open", true);
         return 1;
+    }
+    if (0) {
+        // Ball01 and Pedestal01 jump here; the block falls into the shared return (0x4fe8dc), D11906.
+ball1:
+        lsf_ball1_used();
     }
     return 0;
 }

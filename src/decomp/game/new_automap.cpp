@@ -618,22 +618,34 @@ void automap_layer_up()
     }
 }
 
-// 0x403000  Confidence: likely (min / max macros; the half view size goes through memory for fild).
+// 0x403000  Confidence: exact (VC6 8966 byte match, m-1020: the min result in its own local, the two lower
+// bounds written as ifs (x keeps the bound, y the value), the sums start at the drag start, D11909) (the half view
+// size goes through memory for fild).
 // The scroll may not leave a gap: x stays within [half - map width, half] of the view.
 void automap_drag_scroll()
 {
     float zoom = automap_get_zoom();
-    int x, y, half;
+    int x, y, half, m;
 
-    x = game_mouse_x - automap_drag_start_mouse_x + automap_drag_start_scroll_x;
+    x = automap_drag_start_scroll_x - automap_drag_start_mouse_x + game_mouse_x;
     half = automap_view_size[resolution_index][0] / 2;
-    x = min(x, half);
-    automap_saved_scroll_x = max(x, (int)(half - automap_layer_w * zoom + 0.5f));
+    m = min(x, half);
+    {
+        int lim = (int)(half - automap_layer_w * zoom + 0.5f);
+        if (m > lim)
+            lim = m;
+        automap_saved_scroll_x = lim;
+    }
 
-    y = game_mouse_y - automap_drag_start_mouse_y + automap_drag_start_scroll_y;
+    y = automap_drag_start_scroll_y - automap_drag_start_mouse_y + game_mouse_y;
     half = automap_view_size[resolution_index][1] / 2;
-    y = min(y, half);
-    automap_saved_scroll_y = max(y, (int)(half - automap_layer_h * zoom + 0.5f));
+    m = min(y, half);
+    {
+        int lim = (int)(half - automap_layer_h * zoom + 0.5f);
+        if (m <= lim)
+            m = lim;
+        automap_saved_scroll_y = m;
+    }
 
     automap_centered = false;
     if (!mouse_is_down(1))

@@ -517,7 +517,8 @@ void ai_state::goals_remove_types_3_5()
     }
 }
 
-// 0x475eb0  Confidence: likely (`match` lives in BL and is also the bit-0 test constant). The mask picks
+// 0x475eb0  Confidence: exact (`while (1)` with the count test at the end: the binary's loop is not rotated;
+// the skips go to that test; `match` lives in BL and is also the bit-0 test constant). The mask picks
 // what is compared, limited to the type's fields (ai_goal_type_fields) plus type, flags and "not the
 // running goal". Follow goals never compare the target. The flags compare ignores 0x30e. ret 0x20.
 int ai_state::goal_find(int mask, int type, int a, int b, int c, vector3 *d, int e, int f)
@@ -525,29 +526,33 @@ int ai_state::goal_find(int mask, int type, int a, int b, int c, vector3 *d, int
     unsigned int flags = (unsigned int)b & ~0x30e;
     int i;
 
-    for (i = 0; i < 5; i++) {
+    i = 0;
+    while (1) {
         ai_goal *g = &goals[i];
         bool match = true;
         unsigned int m = (ai_goal_type_fields(type) | AI_GF_TYPE | AI_GF_FLAGS | AI_GF_NOT_CUR) & mask;
 
         if ((m & AI_GF_TYPE) && g->type != type)
-            continue;
+            goto next;
         if ((m & AI_GF_FLAGS) && (g->flags & ~0x30e) != flags)
-            continue;
+            goto next;
         if (type != AI_GOAL_FOLLOW && (m & AI_GF_TARGET) && g->target != c)
-            continue;
+            goto next;
         if (m & AI_GF_POS) {
             if (!(g->pos == *d))
                 match = false;
             if (g->layer != e || !match)
-                continue;
+                goto next;
         }
         if ((m & AI_GF_SPELL) && g->spell != f)
-            continue;
+            goto next;
         if (!match)
-            continue;
+            goto next;
         if (!(m & AI_GF_NOT_CUR) || g->id != cur_goal)
             return i;
+    next:
+        if (++i >= 5)
+            break;
     }
     return -1;
 }

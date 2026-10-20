@@ -263,7 +263,7 @@ void ds_channel_release(int channel);             // 0x55c5b0 nothing while fadi
 void ds_close_buffers();                          // 0x55c6c0
 void ds_sound_release(int buffer);                // 0x55c6e0
 // (sound name, file path, offset in the packfile, group, streamed) -> buffer, < 0 failed.
-int  ds_load_buffer(const char *name, const char *path, int offset, int group, int streamed);   // 0x55c890
+int  ds_load_buffer(const char *name, const char *path, int offset, int group, bool streamed);  // 0x55c890 (D11903)
 int  ds_load_buffer_data(int buffer, bool streamed);   // 0x55c990
 int  ds_create_buffer(int buffer);                // 0x55ca10 PCM data into a static buffer
 int  ds_fill_buffer(HMMIO h, MMCKINFO *ck, IDirectSoundBuffer *buf, unsigned int size);   // 0x55cae0

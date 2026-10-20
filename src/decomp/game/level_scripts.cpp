@@ -460,7 +460,7 @@ void savegame::init_buffer(ubyte *buf, int size)
     clear_buffer();
 }
 
-// 0x4cfbd0  Confidence: likely (differs under cl 8966 in match26; two switches with fall-through; the second is the jump table 0x4cfc30).
+// 0x4cfbd0  Confidence: exact (VC6 8966 byte match: the second switch assigns and breaks to one return, D12300; two switches with fall-through; the second is the jump table 0x4cfc30).
 // The bit offset of entry index of the given type in the level's block: 0 flag, 1 automap bit, 2 int,
 // 3 float (the variables start at the next whole byte, 32 bits each).
 int savegame::data_offset(int level, int type, int index)
@@ -478,10 +478,12 @@ int savegame::data_offset(int level, int type, int index)
     switch (type) {
     case 0:
     case 1:
-        return offset + index;
+        offset += index;
+        break;
     case 2:
     case 3:
-        return ((offset + 7) & ~7) + index * 32;
+        offset = ((offset + 7) & ~7) + index * 32;
+        break;
     }
     return offset;
 }
@@ -523,7 +525,7 @@ int savegame::get_flag(int level, const char *name)
     return (levels[level].data[index >> 3] & (1 << (index & 7))) != 0;
 }
 
-// 0x4cfd30  Confidence: likely (the two refresh calls are in both branches in the binary; whether the
+// 0x4cfd30  Confidence: exact (VC6 8966 byte match: byte and mask locals before the test, D12300; the two refresh calls are in both branches in the binary; whether the
 // source had them once after the if is not visible). Only setting a flag re-evaluates the quests.
 void savegame::set_flag(int level, const char *name, bool value)
 {
@@ -537,13 +539,15 @@ void savegame::set_flag(int level, const char *name, bool value)
     if (index < 0)
         return;
     index = data_offset(level, 0, index);
+    int byte = index >> 3;
+    int mask = 1 << (index & 7);
     if (value) {
-        levels[level].data[index >> 3] |= 1 << (index & 7);
+        levels[level].data[byte] |= mask;
         quest_evaluate(hash);
         savegame_refresh_object_flags();
         savegame_refresh_character_flags();
     } else {
-        levels[level].data[index >> 3] &= ~(1 << (index & 7));
+        levels[level].data[byte] &= ~mask;
         savegame_refresh_object_flags();
         savegame_refresh_character_flags();
     }
@@ -613,10 +617,10 @@ int savegame::get_bit(int level, int index)
     return (levels[level].data[index >> 3] & (1 << (index & 7))) != 0;
 }
 
-// 0x4cff80  Confidence: likely (differs under cl 8966 in match26).
+// 0x4cff80  Confidence: exact (VC6 8966 byte match: byte and mask computed before the size check, D12300).
 void savegame::set_bit(int level, int index, bool value)
 {
-    int offset, byte;
+    int offset, byte, mask;
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !levels[level].data)
         return;
@@ -624,13 +628,14 @@ void savegame::set_bit(int level, int index, bool value)
         return;
     offset = data_offset(level, 1, index);
     byte = offset >> 3;
+    mask = 1 << (offset & 7);
     if (byte >= levels[level].size)
         printf("bit_flag = %u, byte_number = %d, data_pointers[%d(%s)].size = %d\n", index, byte, level,
                level_script_table[level].name, levels[level].size);
     if (value)
-        levels[level].data[byte] |= 1 << (offset & 7);
+        levels[level].data[byte] |= mask;
     else
-        levels[level].data[byte] &= ~(1 << (offset & 7));
+        levels[level].data[byte] &= ~mask;
 }
 
 // 0x4d0030  Confidence: likely (differs under cl 8966 in match26).
@@ -1344,11 +1349,12 @@ void savegame::hot_button_set(int kind, int id, int member, int slot)
     if (member < 0 || member >= 5 || slot < 0 || slot >= 6)
         return;
     off = member * 6 * sizeof(savegame_hot_button);
+    bool has_kind = kind != 0;
     for (i = 0; i < 6; i++) {
         if (i == slot) {
             hot_buttons.data[off] = 1;
             off++;
-            hot_buttons.data[off] = kind != 0;
+            hot_buttons.data[off] = has_kind;
             off++;
             *(int *)(hot_buttons.data + off) = id;
             off += 4;
@@ -1594,7 +1600,11 @@ int savegame::write(const char *filename, int unk, const char *description)
     return 1;
 }
 
-// 0x4d1df0  Confidence: likely (level_time is also copied to a dead local in the binary).
+// 0x4d1df0  Confidence: likely (D12302: the three strings are copied as memcpy(dst, src, strlen(src)) into the
+// zeroed fields: the binary's `not ecx; dec ecx` count feeds rep movs, so no NUL is copied; a level file
+// name of exactly 0x80 or a script name of exactly 0x20 characters is left without one (the description is
+// guarded by the > 0xff test). level_time goes through a parenthesised float temporary, the binary's dead
+// local. Still differs: the register of off + 0x100 and of the final compare).
 int savegame::write_header(const char *description)
 {
     int off = 0;
@@ -1604,19 +1614,20 @@ int savegame::write_header(const char *description)
     *(int *)(header.data + off) = SAVEGAME_VERSION;
     off += 4;
     memset(header.data + off, 0, 0x80);
-    strcpy((char *)(header.data + off), level_filename);
+    memcpy(header.data + off, level_filename, strlen(level_filename));
     off += 0x80;
     memset(header.data + off, 0, 0x20);
-    strcpy((char *)(header.data + off), level_script_name);
+    memcpy(header.data + off, level_script_name, strlen(level_script_name));
     off += 0x20;
     *(int *)(header.data + off) = 0;
     off += 4;
-    *(float *)(header.data + off) = level_time;
+    float t = (level_time);
+    *(int *)(header.data + off) = *(int *)&t;
     off += 4;
     if (strlen(description) > 0xff)
         return 0;
     memset(header.data + off, 0, 0x100);
-    strcpy((char *)(header.data + off), description);
+    memcpy(header.data + off, description, strlen(description));
     off += 0x100;
     report_sizes(&off);
     *(int *)(header.data + off) = off + 4;
@@ -1716,9 +1727,11 @@ int savegame::write_living()
         if (!(c->flags & CF_SUMMON) || (c->flags & 0x40000))
             if (!write_character(c, &off))
                 return 0;
-    for (p = player_list_other.next; p != &player_list_other; p = p->next)
-        if (!write_character(living_from_handle(p->handle), &off))
+    for (p = player_list_other.next; p != &player_list_other; p = p->next) {
+        c = living_from_handle(p->handle);
+        if (!write_character(c, &off))
             return 0;
+    }
     write_groups(&off);
     *(int *)(living.data + off) = off + 4;
     return off + 4 <= living.size;

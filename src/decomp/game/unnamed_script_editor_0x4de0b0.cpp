@@ -866,22 +866,17 @@ bool script_editor_no_window_open()
     return false;
 }
 
-// The marker colour helper of script_editor_frame: one box arrow of a level object (the size is its
-// bounding box). Written out in the binary each time; a macro here.
-#define SE_DRAW_LOBJ_ARROW(l, mode)                                         \
-    do {                                                                    \
-        vector3 size_ = (l)->bbox_max - (l)->bbox_min;                      \
-        gr_draw_arrow_3d(&(l)->pos, &(l)->orient, &size_, (mode));          \
-    } while (0)
-
-// 0x4e01f0 script_editor_frame (declared in summoner/summoner.h). Confidence: likely (the arrow blocks:
-// each recomputes the box size; the order of the two draws per block is from the pushes). Game bug: the
+// 0x4e01f0 script_editor_frame (declared in summoner/summoner.h). Confidence: exact (D12405: size and p are
+// function-scope vectors assigned through temporaries; each object block computes the box size once for its
+// two draws; each time branch has its own gr_string call). Game bug: the
 // hover marker is drawn as a level object when the SELECTION is an object (it tests script_editor_sel.kind,
 // then reads the hover object's +0x14 / +0x20 / +0x50 / +0x5c), so hovering a character or a navpoint while
 // an object is selected draws a box from the wrong fields.
 void script_editor_frame()
 {
     int i;
+    vector3 size;
+    vector3 p;
 
     if (!(game_flags & 0x80)) {
         script_editor_close();
@@ -898,20 +893,21 @@ void script_editor_frame()
         for (i = 0; i < lc_entry_count; i++) {
             gr_set_color(0xff, 0, 0, 0xa0);
             lobj *l = lc_entries[i].object;
-            if (l != NULL)
-                SE_DRAW_LOBJ_ARROW(l, gr_line_mode);
+            if (l != NULL) {
+                size = l->bbox_max - l->bbox_min;
+                gr_draw_arrow_3d(&l->pos, &l->orient, &size, gr_line_mode);
+            }
         }
     }
 
     if (script_editor_hover.kind != SE_PICK_NONE) {
-        vector3 p = script_editor_hover.pos
-                  + script_editor_hover.orient.uvec * (script_editor_hover.size.y * 0.5f);
+        p = script_editor_hover.pos + script_editor_hover.orient.uvec * (script_editor_hover.size.y * 0.5f);
         if (script_editor_sel.kind == SE_PICK_OBJECT) {
-            lobj *l = (lobj *)script_editor_hover.object;
             gr_set_color(0xff, 0xff, 0xff, 0x80);
-            SE_DRAW_LOBJ_ARROW(l, gr_line_mode);
+            size = ((lobj *)script_editor_hover.object)->bbox_max - ((lobj *)script_editor_hover.object)->bbox_min;
+            gr_draw_arrow_3d(&((lobj *)script_editor_hover.object)->pos, &((lobj *)script_editor_hover.object)->orient, &size, gr_line_mode);
             gr_set_color(0xff, 0xff, 0xff, 0x20);
-            SE_DRAW_LOBJ_ARROW(l, gr_line_3d_mode);
+            gr_draw_arrow_3d(&((lobj *)script_editor_hover.object)->pos, &((lobj *)script_editor_hover.object)->orient, &size, gr_line_3d_mode);
         } else {
             gr_set_color(0xff, 0xff, 0xff, 0x80);
             gr_draw_arrow_3d(&p, &script_editor_hover.orient, &script_editor_hover.size, gr_line_3d_mode);
@@ -921,13 +917,13 @@ void script_editor_frame()
     }
 
     if (script_editor_sel.kind != SE_PICK_NONE) {
-        vector3 p = script_editor_sel.pos + script_editor_sel.orient.uvec * (script_editor_sel.size.y * 0.5f);
+        p = script_editor_sel.pos + script_editor_sel.orient.uvec * (script_editor_sel.size.y * 0.5f);
         if (script_editor_sel.kind == SE_PICK_OBJECT) {
-            lobj *l = (lobj *)script_editor_sel.object;
             gr_set_color(0xff, 0xff, 0, 0xa0);
-            SE_DRAW_LOBJ_ARROW(l, gr_line_mode);
+            size = ((lobj *)script_editor_sel.object)->bbox_max - ((lobj *)script_editor_sel.object)->bbox_min;
+            gr_draw_arrow_3d(&((lobj *)script_editor_sel.object)->pos, &((lobj *)script_editor_sel.object)->orient, &size, gr_line_mode);
             gr_set_color(0xff, 0xff, 0, 0x30);
-            SE_DRAW_LOBJ_ARROW(l, gr_line_3d_mode);
+            gr_draw_arrow_3d(&((lobj *)script_editor_sel.object)->pos, &((lobj *)script_editor_sel.object)->orient, &size, gr_line_3d_mode);
         } else {
             gr_set_color(0xff, 0xff, 0, 0xa0);
             gr_draw_arrow_3d(&p, &script_editor_sel.orient, &script_editor_sel.size, gr_line_3d_mode);
@@ -944,11 +940,13 @@ void script_editor_frame()
     script_editor_draw_navpoints();
     ui_draw(NULL);
     gr_set_color(0, 0xa0, 0x78, 0xff);
-    if (script_editor_cutscene_button.is_latched())
+    if (script_editor_cutscene_button.is_latched()) {
         sprintf(string_buffer, "Cutscene time: %.1f", cutscene_time);
-    else
+        gr_string(2, 0x195, string_buffer, -1, gr_string_mode);
+    } else {
         sprintf(string_buffer, "Level time: %.1f", level_session_time);
-    gr_string(2, 0x195, string_buffer, -1, gr_string_mode);
+        gr_string(2, 0x195, string_buffer, -1, gr_string_mode);
+    }
     if (!script_editor_status_timer.elapsed()) {
         gr_set_color(0xa0, 0xf0, 0xa0, 0xff);
         gr_string(2, 2, script_editor_status_text, -1, gr_string_mode);
@@ -1620,7 +1618,7 @@ void script_editor_close()
         the_cutscene.unload();
 }
 
-// 0x4e2bb0  Confidence: likely (the character box: the y / x / z order of the sum of squares). The object
+// 0x4e2bb0  Confidence: likely (the character box: the y / x / z order of the sum of squares; D12410: radius and face block-scoped give the 0x4c frame; the binary copies the size row with integer moves and stores the radius once after the two arms). The object
 // under the mouse ray, of the kind script_editor_pick_filter selects (jump table 0x4e2f18): characters
 // (summon-type objects, type 9, get a box from their own size), navpoints (a 0.8 x 0.4 x 0.8 box, level
 // table first, then the cutscene table), doors (level objects with flag 0x100) or any level object. Not
@@ -1632,15 +1630,15 @@ void script_editor_pick_hover()
     lobj *l;
     vector3 size, hit;
     matrix orient;
-    float radius;
-    int i, index, face;
+    int i, index;
 
     if (mouse_is_down(0))
         return;
     script_editor_pick_distance = 9.9e10f;
     script_editor_hover.kind = SE_PICK_NONE;
     switch (script_editor_pick_filter) {
-    case 1:
+    case 1: {
+        float radius;
         for (c = living_list.live_next; c != &living_list; c = c->live_next) {
             if (c->info->species == 0x59 && character_is_serpent_part(c))
                 continue;
@@ -1660,6 +1658,7 @@ void script_editor_pick_hover()
             }
         }
         return;
+    }
     case 2:
         size.x = 0.8f;
         size.y = 0.4f;
@@ -1683,7 +1682,8 @@ void script_editor_pick_hover()
             }
         }
         return;
-    case 3:
+    case 3: {
+        int face;
         index = world_pick_lobj(&camera_view_pos, &script_editor_mouse_ray.dir, &hit, &face);
         if (index < 0)
             return;
@@ -1696,7 +1696,9 @@ void script_editor_pick_hover()
             script_editor_hover.kind = SE_PICK_DOOR;
         }
         return;
-    case 4:
+    }
+    case 4: {
+        int face;
         index = world_pick_lobj(&camera_view_pos, &script_editor_mouse_ray.dir, &hit, &face);
         if (index < 0)
             return;
@@ -1708,21 +1710,22 @@ void script_editor_pick_hover()
         }
         return;
     }
+    }
 }
 
-// 0x4e2f30  Confidence: likely (the exception frame is a profile_label, D9808; and t: the sphere test's
+// 0x4e2f30  Confidence: likely (D12410: centre at function scope, assigned through a temporary: 75 -> 36 differing lines, the rest is the partly expanded matrix copy; the exception frame is a profile_label, D9808; and t: the sphere test's
 // second output is written into the stack slot of the radius argument, as if t were the parameter itself). The mouse ray hits the
 // bounding sphere (within 1000 units) and the box (its centre half the box height up the up axis), nearer
 // than the best hit so far: the hover record takes the object's position, orientation and size.
 bool script_editor_ray_hit_object(vector3 *pos, matrix *orient, vector3 *size, float radius)
 {
     profile_label label("script_editor_ray_hit_object");
-    vector3 hit;
+    vector3 centre, hit;
     float d;
 
     if (!ix_ray_sphere(&hit, &radius, &script_editor_mouse_ray, 1000.0f, pos, radius))
         return false;
-    vector3 centre = *pos + orient->uvec * (size->y * 0.5f);
+    centre = *pos + orient->uvec * (size->y * 0.5f);
     if (!ix_ray_box_oriented(&script_editor_mouse_ray, &centre, orient, size, &hit))
         return false;
     d = distance(pos, &hit);
@@ -4090,7 +4093,10 @@ void script_editor_apply_action_params()
     }
 }
 
-// 0x4e88a0  Confidence: likely (jump tables 0x4e8cb0 / 0x4e8cd0 over type - 7). Adds an action of the type
+// 0x4e88a0  Confidence: likely (jump tables 0x4e8cb0 / 0x4e8cd0 over type - 7; D12403: the action written
+// through script_editor_cur_script each time, the binary reloads the global after every store; the Die case
+// laid out first. Still differs in register choice: ours
+// caches 1 / NULL in registers and keeps n in the frame, frame 0x54 against 0x50). Adds an action of the type
 // picked in the action window to the selected character's script, creating the script first (32 cutscene
 // / 200 level scripts, 54 actions each). The defaults come from script_action_default_table; an action
 // that takes a navpoint gets the last one (script_editor_default_action_navpoint), some get a first argument (the first
@@ -4100,7 +4106,6 @@ void script_create()
 {
     bool cutscene;
     int type, n, i;
-    script_action *a;
     script_action tmp;
     move_info *m;
     file_find_node list;
@@ -4137,45 +4142,19 @@ void script_create()
         return;
     }
     script_editor_cur_script->num_actions = n + 1;
-    a = &script_editor_cur_script->actions[n];
-    a->type = type;
-    a->arg0c = script_action_default_table[type].arg0c;
-    a->arg10 = script_action_default_table[type].arg10;
-    a->flag14 = script_action_default_table[type].flag14;
+    script_editor_cur_script->actions[n].type = type;
+    script_editor_cur_script->actions[n].arg0c = script_action_default_table[type].arg0c;
+    script_editor_cur_script->actions[n].arg10 = script_action_default_table[type].arg10;
+    script_editor_cur_script->actions[n].flag14 = script_action_default_table[type].flag14;
     if (script_action_default_table[type].needs_nav) {
-        a->nav = script_editor_default_action_navpoint();
+        script_editor_cur_script->actions[n].nav = script_editor_default_action_navpoint();
         script_editor_lists_dirty = true;
     } else {
-        a->nav = NULL;
+        script_editor_cur_script->actions[n].nav = NULL;
     }
-    a->text = NULL;
+    script_editor_cur_script->actions[n].text = NULL;
     if (script_action_default_table[type].has_params) {
         switch (type) {
-        case SCRIPT_ACTION_PLAY_ACTION:
-            for (i = 1; i <= 30; i++) {
-                m = charinfo_find_move(((Character *)script_editor_sel.object)->info, 8, i, true);
-                if (m != NULL)
-                    break;
-            }
-            if (m != NULL)
-                a->arg0c = m->anim;
-            else
-                a->arg0c = -1;
-            script_editor_lists_dirty = true;
-            break;
-        case SCRIPT_ACTION_PLAY_MVF:
-        case SCRIPT_ACTION_REPLACE_WEAPON:
-        case SCRIPT_ACTION_REPLACE_ARMOR:
-            script_editor_lists_dirty = true;
-            break;
-        case SCRIPT_ACTION_PLAY_EFFECT:
-            file_find_files(&list, cutscene_path_id, "*.vfx", 5, 0);
-            script_editor_store_string(a, list.next->name);
-            SE_FREE_FILE_LIST(list);
-            break;
-        case SCRIPT_ACTION_SAY:
-            script_editor_store_string(a, "New Dialogue Text");
-            break;
         case SCRIPT_ACTION_DIE:
             m = charinfo_find_move(((Character *)script_editor_sel.object)->info, 6, 0x22, true);
             if (m == NULL) {
@@ -4185,19 +4164,44 @@ void script_create()
                         break;
                 }
                 if (m == NULL) {
-                    a->arg0c = -1;
+                    script_editor_cur_script->actions[n].arg0c = -1;
                     script_editor_lists_dirty = true;
                     break;
                 }
             }
-            a->arg0c = m->anim;
+            script_editor_cur_script->actions[n].arg0c = m->anim;
             script_editor_lists_dirty = true;
             break;
+        case SCRIPT_ACTION_PLAY_ACTION:
+            for (i = 1; i <= 30; i++) {
+                m = charinfo_find_move(((Character *)script_editor_sel.object)->info, 8, i, true);
+                if (m != NULL)
+                    break;
+            }
+            if (m != NULL)
+                script_editor_cur_script->actions[n].arg0c = m->anim;
+            else
+                script_editor_cur_script->actions[n].arg0c = -1;
+            script_editor_lists_dirty = true;
+            break;
+        case SCRIPT_ACTION_PLAY_MVF:
+        case SCRIPT_ACTION_REPLACE_WEAPON:
+        case SCRIPT_ACTION_REPLACE_ARMOR:
+            script_editor_lists_dirty = true;
+            break;
+        case SCRIPT_ACTION_PLAY_EFFECT:
+            file_find_files(&list, cutscene_path_id, "*.vfx", 5, 0);
+            script_editor_store_string(&script_editor_cur_script->actions[n], list.next->name);
+            SE_FREE_FILE_LIST(list);
+            break;
+        case SCRIPT_ACTION_SAY:
+            script_editor_store_string(&script_editor_cur_script->actions[n], "New Dialogue Text");
+            break;
         case SCRIPT_ACTION_PASS_GO:
-            script_editor_store_string(a, ((Character *)script_editor_sel.object)->get_name());
+            script_editor_store_string(&script_editor_cur_script->actions[n], ((Character *)script_editor_sel.object)->get_name());
             break;
         case SCRIPT_ACTION_FOLLOW:
-            script_editor_store_string(a, ((Character *)script_editor_sel.object)->get_name());
+            script_editor_store_string(&script_editor_cur_script->actions[n], ((Character *)script_editor_sel.object)->get_name());
             break;
         }
     }
@@ -5282,7 +5286,7 @@ bool script_editor_choice_listbox_cb(int event, int value)
     return true;
 }
 
-// 0x4eb9e0  Confidence: likely (the shared not-found tail). The Opening / Closing radios switch which set of
+// 0x4eb9e0  Confidence: exact (each branch has its own found test, the not-found tail is shared: D12402). The Opening / Closing radios switch which set of
 // sound fields is active and show that set's sound in the name box.
 bool script_editor_door_sound_radio_cb(int event, int value)
 {
@@ -5300,6 +5304,10 @@ bool script_editor_door_sound_radio_cb(int event, int value)
         script_editor_door_close_volume_inputbox.set_disabled(true);
         script_editor_door_close_rolloff_inputbox.set_disabled(true);
         e = script_editor_door_open_sound_listbox.get_selected();
+        if (e != NULL) {
+            script_editor_door_sound_inputbox.set_text(e->text);
+            return true;
+        }
     } else if (value == script_editor_door_closing_radio.id) {
         script_editor_door_open_sound_listbox.set_disabled(true);
         script_editor_door_open_min_range_inputbox.set_disabled(true);
@@ -5310,12 +5318,12 @@ bool script_editor_door_sound_radio_cb(int event, int value)
         script_editor_door_close_volume_inputbox.set_enabled(true);
         script_editor_door_close_rolloff_inputbox.set_enabled(true);
         e = script_editor_door_close_sound_listbox.get_selected();
+        if (e != NULL) {
+            script_editor_door_sound_inputbox.set_text(e->text);
+            return true;
+        }
     } else {
         return false;
-    }
-    if (e != NULL) {
-        script_editor_door_sound_inputbox.set_text(e->text);
-        return true;
     }
     script_editor_door_sound_inputbox.set_text("");
     return true;

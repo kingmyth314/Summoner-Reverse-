@@ -387,7 +387,16 @@ void ls_khosanilab_puzzle_reflect_dir(int *out, const ls_khosanilab_cell *d)
         *out = d->x == 1 ? 1 : 0;
 }
 
-// 0x4f7fe0  Confidence: likely (the products of d2 are formed before the subtraction). A corner of the
+// Sets both components from two arguments; the arguments are evaluated right to left (y first), as a call
+// would. The corners below store the centre that way (the binary computes y first).
+static inline void v2_set(vector2 *v, float x, float y)
+{
+    v->x = x;
+    v->y = y;
+}
+
+// 0x4f7fe0  Confidence: exact (D12100: the centre and each step through v2_set, s * d in a vector2, s set
+// to 0.3 and changed to 0.7 when not inner). A corner of the
 // cell: centre - s * d2 - s * d1, s = 0.3 (inner) or 0.7 (0x581970 / 0x58020c). sum.symbols' former name
 // was ls_khosanilab_puzzle_edge_point_a.
 void ls_khosanilab_puzzle_corner_nn(vector2 *out, const ls_khosanilab_cell *cell, const vector2 *d1,
@@ -395,43 +404,47 @@ void ls_khosanilab_puzzle_corner_nn(vector2 *out, const ls_khosanilab_cell *cell
 {
     float s;
 
-    out->x = cell->x + 0.5f;
-    out->y = cell->y + 0.5f;
-    s = inner ? 0.3f : 0.7f;
-    out->x -= s * d2->x;
-    out->y -= s * d2->y;
-    out->x -= s * d1->x;
-    out->y -= s * d1->y;
+    v2_set(out, cell->x + 0.5f, cell->y + 0.5f);
+    s = 0.3f;
+    if (!inner)
+        s = 0.7f;
+    vector2 t = s * *d2;
+    v2_set(out, out->x - t.x, out->y - t.y);
+    t = s * *d1;
+    v2_set(out, out->x - t.x, out->y - t.y);
 }
 
-// 0x4f8070  Confidence: likely (as corner_nn). centre - s * d2 + s * d1.
+// 0x4f8070  Confidence: exact (as corner_nn, D12100). centre - s * d2 + s * d1.
 void ls_khosanilab_puzzle_corner_np(vector2 *out, const ls_khosanilab_cell *cell, const vector2 *d1,
                                     const vector2 *d2, bool inner)
 {
     float s;
 
-    out->x = cell->x + 0.5f;
-    out->y = cell->y + 0.5f;
-    s = inner ? 0.3f : 0.7f;
-    out->x -= s * d2->x;
-    out->y -= s * d2->y;
-    out->x += s * d1->x;
-    out->y += s * d1->y;
+    v2_set(out, cell->x + 0.5f, cell->y + 0.5f);
+    s = 0.3f;
+    if (!inner)
+        s = 0.7f;
+    vector2 t = s * *d2;
+    v2_set(out, out->x - t.x, out->y - t.y);
+    t = s * *d1;
+    v2_set(out, out->x + t.x, out->y + t.y);
 }
 
-// 0x4f8100  Confidence: likely (as corner_nn). centre + s * d2 + s * d1.
+// 0x4f8100  Confidence: likely (as corner_nn, D12100; only the first y sum differs: the binary loads t.y
+// and adds the centre, 8966 keeps the centre first for every operand order and operator form tried). centre + s * d2 + s * d1.
 void ls_khosanilab_puzzle_corner_pp(vector2 *out, const ls_khosanilab_cell *cell, const vector2 *d1,
                                     const vector2 *d2, bool inner)
 {
     float s;
 
-    out->x = cell->x + 0.5f;
-    out->y = cell->y + 0.5f;
-    s = inner ? 0.3f : 0.7f;
-    out->x += s * d2->x;
-    out->y += s * d2->y;
-    out->x += s * d1->x;
-    out->y += s * d1->y;
+    v2_set(out, cell->x + 0.5f, cell->y + 0.5f);
+    s = 0.3f;
+    if (!inner)
+        s = 0.7f;
+    vector2 t = s * *d2;
+    v2_set(out, out->x + t.x, out->y + t.y);
+    t = s * *d1;
+    v2_set(out, out->x + t.x, out->y + t.y);
 }
 
 // 0x4f8190  Confidence: likely (two jump tables, 0x4f83b0 for state and 0x4f83c0 without; only the

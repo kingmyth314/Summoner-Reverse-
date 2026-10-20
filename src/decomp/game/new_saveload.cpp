@@ -282,7 +282,7 @@ void saveload_update_mode_buttons()
 // are declared in different blocks). Saves whose level or conversation slot no longer exists are skipped.
 void saveload_scan_saves()
 {
-    file_find_list list;
+    file_find_node list;
     file_find_node *node;
 
     file_find_files(&list, path_savegame, "*.sav", 6, 0);
@@ -611,12 +611,12 @@ int saveload_handle_input(int key)
     return key;
 }
 
-// 0x426260  Confidence: likely (setle / dec / and is VC6's "x > 0 ? x : 0").
+// 0x426260  Confidence: exact (VC6 8966 byte match: the clamp `x &= (x <= 0) - 1` on the global, D12300).
 void saveload_page_up()
 {
     if (saveload_scroll_pos >= 0) {
-        int pos = saveload_scroll_pos - saveload_list_page[resolution_index];
-        saveload_scroll_pos = pos > 0 ? pos : 0;
+        saveload_scroll_pos -= saveload_list_page[resolution_index];
+        saveload_scroll_pos &= (saveload_scroll_pos <= 0) - 1;
         saveload_update_scrollbar();
     }
 }
@@ -979,8 +979,8 @@ void saveload_draw_info()
 
     gr_set_color_ptr(&ui_color_text);
 
-    strcpy(ampm, t->tm_hour < 12 ? "am" : "pm");
     hour = t->tm_hour;
+    strcpy(ampm, hour < 12 ? "am" : "pm");
     if (hour == 0)
         hour = 12;
     else if (hour > 12)

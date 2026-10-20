@@ -71,7 +71,8 @@ void character_instance::free_buffers(int unused)
     }
 }
 
-// 0x519570  Confidence: likely (memset of the new arrays; the time/weight arrays are always 100 long).
+// 0x519570  Confidence: exact (memset of the new arrays; the time/weight arrays are always 100 long; the
+// times indexed through the member, no guard around the loop: D11700).
 // Only for a character with anims. The times start at each skeleton's first tick.
 void character_instance::alloc_buffers()
 {
@@ -87,11 +88,8 @@ void character_instance::alloc_buffers()
         memset(weights, 0, CI_MAX_ANIMS * sizeof(float));
         ca_character *ch = character;
         int n = ch->num_anims;
-        if (n > 0) {
-            int *t = times;
-            for (int i = 0; i < n; i++)
-                t[i] = ch->skeletons[i]->start;
-        }
+        for (int i = 0; i < n; i++)
+            times[i] = ch->skeletons[i]->start;
     }
 }
 
@@ -325,7 +323,8 @@ matrix43 character_instance::build_bone_matrices(int bone, int count, ubyte *ani
     return bone_cache[bone].m;
 }
 
-// 0x51a130  Confidence: likely (min(f, w) written as the binary's "f > w" test).
+// 0x51a130  Confidence: exact (min(f, w) written as the binary's "f > w" test; `time` made relative in
+// place, D11700).
 // Weight 0..10 of an anim on one bone at a time: the bone's weight byte (10 for an action anim with a
 // nonzero byte), ramped in over fade_in ticks from the start and out over fade_out ticks before the end.
 float skeleton_get_bone_blend_weight(skeleton *s, int bone, int time)
@@ -335,15 +334,15 @@ float skeleton_get_bone_blend_weight(skeleton *s, int bone, int time)
         return 0.0f;
     if (!s->is_state)
         w = 10;
-    int t = time - s->start;
+    time -= s->start;
     int len = s->end - s->start;
     int fade_in = s->fade_in;
     int fade_out = s->fade_out;
     float f;
-    if (t < fade_in)
-        f = (float)t / fade_in * w;
-    else if (t > len - fade_out)
-        f = (float)(len - t) / fade_out * w;
+    if (time < fade_in)
+        f = (float)time / fade_in * w;
+    else if (time > len - fade_out)
+        f = (float)(len - time) / fade_out * w;
     else
         f = (float)w;
     if (f > w)

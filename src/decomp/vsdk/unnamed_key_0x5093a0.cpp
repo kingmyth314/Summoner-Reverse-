@@ -172,32 +172,32 @@ void key_mark(int code, int state, int latency)
     LeaveCriticalSection(&key_lock);
 }
 
-// 0x509560  Confidence: likely (the four layouts as an if chain in the code's order 1, 4, 2, 3; a switch
-// would compare the same way only by chance). 1: the UK backslash 0x56 -> 0x2b; 2: AZERTY (A/Q, Z/W, M/;/,
+// 0x509560  Confidence: exact (D11400: the four layouts as an if chain in the code's order 1, 4, 2, 3, each
+// assigning code; layouts 2 and 3 are switches, layout 2's cases in the binary's block order). 1: the UK backslash 0x56 -> 0x2b; 2: AZERTY (A/Q, Z/W, M/;/,
 // rotated); 3: QWERTZ (Y/Z); 4: scan code 0 -> A (see NOTES).
 int key_remap_layout(int code)
 {
     if (key_layout == 1) {
         if (code == 0x56)
-            return 0x2b;
+            code = 0x2b;
     } else if (key_layout == 4) {
         if (code == 0)
-            return 0x1e;
+            code = 0x1e;
     } else if (key_layout == 2) {
         switch (code) {
-        case 0x10: return 0x1e;
-        case 0x11: return 0x2c;
-        case 0x1e: return 0x10;
-        case 0x27: return 0x32;
-        case 0x2c: return 0x11;
-        case 0x32: return 0x33;
-        case 0x33: return 0x27;
+        case 0x1e: code = 0x10; break;
+        case 0x32: code = 0x33; break;
+        case 0x2c: code = 0x11; break;
+        case 0x27: code = 0x32; break;
+        case 0x33: code = 0x27; break;
+        case 0x10: code = 0x1e; break;
+        case 0x11: code = 0x2c; break;
         }
     } else if (key_layout == 3) {
-        if (code == 0x15)
-            return 0x2c;
-        if (code == 0x2c)
-            return 0x15;
+        switch (code) {
+        case 0x15: code = 0x2c; break;
+        case 0x2c: code = 0x15; break;
+        }
     }
     return code;
 }

@@ -306,7 +306,8 @@ void ls_worldmap1_setup_liangshan()
 
 // ---- random encounters -----------------------------------------------------------------------------
 
-// 0x4fbd80  Confidence: likely (differs under cl 8966, match24; was exact). level_script_table frame. On an encounter the leader's position, plane and
+// 0x4fbd80  Confidence: exact (the position floats go through a parenthesised float temporary, fld / fstp
+// into the argument slot, D10402 / D11303). level_script_table frame. On an encounter the leader's position, plane and
 // heading are saved, a picker sets level_filename / level_script_name, and the level is changed.
 void ls_worldmap1_frame()
 {
@@ -316,9 +317,18 @@ void ls_worldmap1_frame()
         hud_show_message(XSTR("Encounter!", 568));
         cur_character->orient.extract_angles(&p, &b, &h);
         ls_worldmap1_start.heading = h;
-        savegame_state.set_float(cur_level_index, "worldmap_last_pos_x", cur_character->pos.x);
-        savegame_state.set_float(cur_level_index, "worldmap_last_pos_y", cur_character->pos.y);
-        savegame_state.set_float(cur_level_index, "worldmap_last_pos_z", cur_character->pos.z);
+        {
+            float t = (cur_character->pos.x);
+            savegame_state.set_float(cur_level_index, "worldmap_last_pos_x", t);
+        }
+        {
+            float t = (cur_character->pos.y);
+            savegame_state.set_float(cur_level_index, "worldmap_last_pos_y", t);
+        }
+        {
+            float t = (cur_character->pos.z);
+            savegame_state.set_float(cur_level_index, "worldmap_last_pos_z", t);
+        }
         savegame_state.set_int(cur_level_index, "worldmap_last_pos_plane", cur_character->layer);
         savegame_state.set_float(cur_level_index, "worldmap_last_pos_heading", h);
         if (game_stage_get() >= 15)

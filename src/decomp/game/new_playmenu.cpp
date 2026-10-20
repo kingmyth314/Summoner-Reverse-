@@ -130,7 +130,7 @@ void playmenu_leave()
         game_unpause();
 }
 
-// 0x4217c0  Confidence: likely (differs under cl 8966, match24; was exact). Key 1 (Esc) is handled in playmenu_handle_click.
+// 0x4217c0  Confidence: exact (VC6 8966 byte match: two early returns, D12300). Key 1 (Esc) is handled in playmenu_handle_click.
 int playmenu_frame(int key)
 {
     int i;
@@ -138,15 +138,17 @@ int playmenu_frame(int key)
     for (i = 0; i < PLAYMENU_NUM_BUTTONS; i++)
         playmenu_buttons[i].flags &= ~2;
 
-    if (!(player_input[0] & 0x10) && !ui_message_box_is_active()) {
-        switch (playmenu_mouse_mode) {
-        case 1:
-            playmenu_update_buttons();
-            break;
-        case 0:
-            key = playmenu_handle_click(key);
-            break;
-        }
+    if (player_input[0] & 0x10)
+        return key;
+    if (ui_message_box_is_active())
+        return key;
+    switch (playmenu_mouse_mode) {
+    case 1:
+        playmenu_update_buttons();
+        break;
+    case 0:
+        key = playmenu_handle_click(key);
+        break;
     }
     return key;
 }
@@ -259,27 +261,31 @@ void mainmenu_confirm_new_game_cb(int button)
     }
 }
 
-// 0x421b00  Confidence: likely (jump table 0x421c68 for 0..3). The button array store sits before
-// level_format_display_name in case 2, so it is written first in every case.
+// 0x421b00  Confidence: exact (VC6 8966 byte match: each case's locals in its own block, so they share the
+// frame from offset 0; save is bool[4] as in open_saveload_screen, D7200 / D12300). Jump table 0x421c68 for
+// 0..3. The button array store sits before level_format_display_name in case 2, so it is written first in
+// every case.
 void playmenu_open_save()
 {
-    char *buttons[1];
-    char level_name[128];
-    char text[128];
-    bool save;
-
     switch (savegame_location_allowed()) {
-    case 0:
-        save = true;
-        interface_set_screen(8, &save);
+    case 0: {
+        bool save[4];
+        save[0] = true;
+        interface_set_screen(8, save);
         break;
-    case 1:
+    }
+    case 1: {
+        char *buttons[1];
         buttons[0] = localize_strings[231];                          // "OK"
         ui_message_box_show(localize_strings[645],                   // "Warning"
                             localize_strings[657],                   // "Cannot save in combat."
                             -1, -1, 1, buttons, NULL, 0);
         break;
-    case 2:
+    }
+    case 2: {
+        char *buttons[1];
+        char level_name[128];
+        char text[128];
         buttons[0] = localize_strings[231];
         level_format_display_name(level_name, cur_level_index);
         if (!_stricmp(level_name, "unknown"))
@@ -288,18 +294,23 @@ void playmenu_open_save()
             sprintf(text, localize_strings[659], level_name);        // "Cannot save in %s."
         ui_message_box_show(localize_strings[645], text, -1, -1, 1, buttons, NULL, 0);
         break;
-    case 3:
+    }
+    case 3: {
+        char *buttons[1];
         buttons[0] = localize_strings[231];
         ui_message_box_show(localize_strings[645],
                             localize_strings[660],                   // "Cannot save during summon."
                             -1, -1, 1, buttons, NULL, 0);
         break;
-    default:
+    }
+    default: {
+        char *buttons[1];
         buttons[0] = localize_strings[231];
         ui_message_box_show(localize_strings[645],
                             localize_strings[661],                   // "Cannot save now."
                             -1, -1, 1, buttons, NULL, 0);
         break;
+    }
     }
 }
 

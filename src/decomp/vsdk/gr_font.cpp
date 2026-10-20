@@ -405,11 +405,12 @@ bool gr_font_read_file(const char *name, Font *f)
     return true;
 }
 
-// 0x508c60  Confidence: likely (if/else for the font: two stores in the binary).
+// 0x508c60  Confidence: exact (VC6 8966 byte match, w1 / D11003: mode is a gr::Mode passed by value, not an
+// int converted by the Mode constructor; if/else for the font: two stores in the binary).
 // x == GR_CENTER_X centres every line. Control characters other than '\n' are skipped. Known
 // defect: a character outside the font (index -1) still draws with chars[-1] and coords[-1].
 // The end position is saved for gr_string_at_text_pos.
-void gr_string(int x, int y, const char *s, int font, int mode)
+void gr_string(int x, int y, const char *s, int font, gr::Mode mode)
 {
     if (!s) {
         gr_text_pos_x = x;
@@ -463,7 +464,7 @@ int gr_font_center_x(const char *s)
 }
 
 // 0x508dc0  Confidence: exact. No direct callers.
-void gr_string_at_text_pos(const char *s, int font, int mode)
+void gr_string_at_text_pos(const char *s, int font, gr::Mode mode)
 {
     gr_string(gr_text_pos_x, gr_text_pos_y, s, font, mode);
 }

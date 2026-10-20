@@ -283,12 +283,12 @@ int item_info_popup_handle_click(int key)
     return key;
 }
 
-// 0x418ba0  Confidence: likely (the max(x, 0) AND register, D7506).
+// 0x418ba0  Confidence: exact (VC6 byte match, m-1020: the clamp as `&= (x <= 0) - 1`, D10600).
 void item_info_popup_page_up()
 {
     if (item_info_popup_scroll_pos > 0) {
-        int page = item_info_popup_page_size[resolution_index];
-        item_info_popup_scroll_pos = max(item_info_popup_scroll_pos - page, 0);
+        item_info_popup_scroll_pos -= item_info_popup_page_size[resolution_index];
+        item_info_popup_scroll_pos &= (item_info_popup_scroll_pos <= 0) - 1;
         item_info_popup_update_scrollbar();
     }
 }

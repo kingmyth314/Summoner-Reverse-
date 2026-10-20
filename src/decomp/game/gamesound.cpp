@@ -132,7 +132,8 @@ int surface_play_sound(int surface, int kind, const vector3 *pos)
     return -1;
 }
 
-// 0x468e30  Confidence: likely (local order; EH states: File is state 0, TextFile state 1).
+// 0x468e30  Confidence: exact (VC6 8966 byte match, w1 / D11001: the missing table is an early return, which
+// makes 8966 keep the zero in EBX to the end; EH states: File is state 0, TextFile state 1).
 // "<level>_surfaces.tbl": a default surface type, then (bitmap name, surface type) pairs.
 // Known defect: an unknown bitmap re-parses the type token with ParseString and size 0x100 into
 // the 64-byte name buffer.
@@ -147,23 +148,23 @@ void surfaces_parse_table(const char *level_name)
     surface_default = 2;
     file_strip_ext(filename, level_name);
     strcat(filename, "_surfaces.tbl");
-    if (file.find(filename, PATH_ANY)) {
-        tf.Open(filename, PATH_ANY);
-        tf.Expect("$Default:");
-        surface_default = tf.ParseTypeString(surface_type_names, 5);
-        while (!tf.Accept("#End")) {
-            tf.ParseString(name, 64, '"', '"');
-            int bm = bm_find(name);
-            if (bm == -1) {
-                tf.ParseString(name, 256, '"', '"');
-            } else {
-                surface_types[num_surface_types].bitmap = bm;
-                surface_types[num_surface_types].surface = tf.ParseTypeString(surface_type_names, 5);
-                num_surface_types++;
-            }
+    if (!file.find(filename, PATH_ANY))
+        return;
+    tf.Open(filename, PATH_ANY);
+    tf.Expect("$Default:");
+    surface_default = tf.ParseTypeString(surface_type_names, 5);
+    while (!tf.Accept("#End")) {
+        tf.ParseString(name, 64, '"', '"');
+        int bm = bm_find(name);
+        if (bm == -1) {
+            tf.ParseString(name, 256, '"', '"');
+        } else {
+            surface_types[num_surface_types].bitmap = bm;
+            surface_types[num_surface_types].surface = tf.ParseTypeString(surface_type_names, 5);
+            num_surface_types++;
         }
-        tf.Close();
     }
+    tf.Close();
 }
 
 // 0x469010  Confidence: exact. Face texture index is 1-based (level_texture_bms[tex - 1]).

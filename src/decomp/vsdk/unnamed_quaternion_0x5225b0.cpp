@@ -356,8 +356,12 @@ cquat cquat::log() const
 // 0x5231e0  Confidence: likely.
 cquat cquat::exp() const
 {
-    float fx = (float)x, fy = (float)y, fz = (float)z;
-    float sx = fx * CQUAT_TO_FLOAT, sy = fy * CQUAT_TO_FLOAT, sz = fz * CQUAT_TO_FLOAT;
+    float fx = (float)x;
+    float sx = fx * CQUAT_TO_FLOAT;
+    float fy = (float)y;
+    float sy = fy * CQUAT_TO_FLOAT;
+    float fz = (float)z;
+    float sz = fz * CQUAT_TO_FLOAT;
     float a = (float)sqrt(sx * sx + sy * sy + sz * sz);
     float s;
 
@@ -391,8 +395,12 @@ void cquat::negate_xyz()
 // 0x523370  Confidence: likely.
 void cquat::log_in_place()
 {
-    float fx = (float)x, fy = (float)y, fz = (float)z;
-    float sx = fx * CQUAT_TO_FLOAT, sy = fy * CQUAT_TO_FLOAT, sz = fz * CQUAT_TO_FLOAT;
+    float fx = (float)x;
+    float sx = fx * CQUAT_TO_FLOAT;
+    float fy = (float)y;
+    float sy = fy * CQUAT_TO_FLOAT;
+    float fz = (float)z;
+    float sz = fz * CQUAT_TO_FLOAT;
     float s = (float)sqrt(sx * sx + sy * sy + sz * sz);
 
     if (s > 0.0f)
@@ -406,8 +414,12 @@ void cquat::log_in_place()
 // 0x523430  Confidence: likely.
 void cquat::exp_in_place()
 {
-    float fx = (float)x, fy = (float)y, fz = (float)z;
-    float sx = fx * CQUAT_TO_FLOAT, sy = fy * CQUAT_TO_FLOAT, sz = fz * CQUAT_TO_FLOAT;
+    float fx = (float)x;
+    float sx = fx * CQUAT_TO_FLOAT;
+    float fy = (float)y;
+    float sy = fy * CQUAT_TO_FLOAT;
+    float fz = (float)z;
+    float sz = fz * CQUAT_TO_FLOAT;
     float a = (float)sqrt(sx * sx + sy * sy + sz * sz);
     float s;
 

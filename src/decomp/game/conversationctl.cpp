@@ -489,10 +489,8 @@ int conversation_controller::frame()
     if (state == 0 && cam_mode == 0)
         return -1;
     r = camera_update();
-    if (r != 0)
+    if (r != 0 || cam_mode == 3)
         return r;
-    if (cam_mode == 3)
-        return 0;
 
     dist = cur_character->distance_between_edges(speaker, false, -1);
     other_layer = cur_character->layer != speaker->layer;
@@ -787,18 +785,18 @@ void conversation_controller::end()
 
 }
 
-// 0x4dacb0  Confidence: likely (the clamp is imin(imax(..)): the setge / dec / and of the inline imin;
-// the scroll search uses the clamped value kept in a register).
+// 0x4dacb0  Confidence: exact (each flag read as its own bool, the binary's two shift-and-test reads of +4;
+// the clamp is the inline max then min macros through a local, min's setge / dec / and; the scroll search
+// indexes the line array without a pointer, D11306).
 // Shows the topic's text (unless it is the greeting, said first) and its lines, runs the lines' actions
 // and scrolls the text box to the topic text.
 void conversation_controller::select_topic(conversation_topic *topic)
 {
     conversation_line *line;
     dialogue_action *a;
-    dialogue_line *l;
     int i, idx;
 
-    if (topic == NULL || (topic->lines == NULL && (topic->farewell || topic->shop))) {
+    if (topic == NULL || (topic->lines == NULL && ((bool)topic->farewell || (bool)topic->shop))) {
         end();
         return;
     }
@@ -827,15 +825,14 @@ void conversation_controller::select_topic(conversation_topic *topic)
     if (topic->hide_quests || topic->unhide_quests)
         dialogue_show_line(XSTR("<Quest Journal Updated>", 468), 1, NULL);
 
-    dialogue_text_box.scroll_target = imin(imax(dialogue_text_box.scroll_target,
-                                                gr_get_font_height(-1) * dialogue_text_box.lines
-                                                - dialogue_text_box.text_height), 0);
+    int lim = gr_get_font_height(-1) * dialogue_text_box.lines - dialogue_text_box.text_height;
+    lim = max(dialogue_text_box.scroll_target, lim);
+    dialogue_text_box.scroll_target = min(lim, 0);
     for (i = 0; i < dialogue_text_box.count; i++) {
         idx = (i + dialogue_text_box.first) % 64;
-        l = &dialogue_text_box.line[idx];
-        if (-dialogue_text_box.scroll_target >= l->top
-            && -dialogue_text_box.scroll_target < l->top + l->height) {
-            if (l->_unk14 == 0)
+        if (-dialogue_text_box.scroll_target >= dialogue_text_box.line[idx].top
+            && -dialogue_text_box.scroll_target < dialogue_text_box.line[idx].top + dialogue_text_box.line[idx].height) {
+            if (dialogue_text_box.line[idx]._unk14 == 0)
                 dialogue_text_box.scroll_target = -dialogue_text_box.line[(idx + 1) % 64].top;
             return;
         }

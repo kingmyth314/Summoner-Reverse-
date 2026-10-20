@@ -148,15 +148,15 @@ void cutscene_camera_sequence::read_track(File *f, float shot_start)
     track.init_tangents(0);
 }
 
-// 0x494310  Confidence: likely (the clamp comparisons: `<=` for the start, `>=` for the end, as the
+// 0x494310  Confidence: exact (VC6 8966 byte match: the bounds parenthesised give fld / fld st(1) / fcompp, D12301; the clamp comparisons: `<=` for the start, `>=` for the end, as the
 // branch conditions give them). The cutscene clock has the cutscene file's signed FISUB (GAME BUG G3,
 // docs/sum-exe/timing-bugs.md).
 void cutscene_camera_sequence::sample()
 {
     float t = ((float)timeGetTime() - sequence_start_time) * 0.001f + cutscene_time_offset;
-    if (t <= start)
+    if (t <= (start))
         t = start;
-    if (t >= end)
+    if (t >= (end))
         t = end;
     int time = (int)(t * CAM_TICKS_PER_SECOND);
     pos = track.get_position(time);
@@ -223,7 +223,7 @@ void camera_blend_sequence::advance(float dt)
     else if (h1 - h0 > 3.1415927f)
         h1 -= 6.2831855f;
     orient.set_from_angles(p0 * u + p1 * w, b0 * u + b1 * w, h0 * u + h1 * w);
-    pos = cam->eye_pos * u + target_pos * w;
+    pos = target_pos * w + cam->eye_pos * u;
 }
 
 // 0x494680  Confidence: exact. cutscene::load_files, before the shots are read.

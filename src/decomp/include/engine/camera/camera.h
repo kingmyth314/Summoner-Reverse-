@@ -74,7 +74,7 @@ public:
     // (unused, level object index, unused, unused): thiscall, ret 0x10; only the index is read.
     void add_occluder(vector3 *a, int lobj_index, int start_count, float radius);   // 0x4784e0
     // (a, b, ray radius): two rays (b -> a, then a -> b) against the draw lists; 1 when anything was found.
-    int  find_occluders(vector3 *a, vector3 *b, float radius);  // 0x478520 camera_find_occluders (ret 0xc)
+    bool find_occluders(vector3 *a, vector3 *b, float radius);  // 0x478520 camera_find_occluders (ret 0xc; bool: D12407)
     void smooth_height(float h);      // 0x478700 camera_smooth_height
     void auto_view_update();          // 0x4787b0 camera_auto_view_update
     void view_high();                 // 0x478930 camera_view_high

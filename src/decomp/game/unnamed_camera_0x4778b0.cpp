@@ -53,6 +53,10 @@ public:
     cam_vec(float x, float y, float z) : vector3(x, y, z) {}
     cam_vec(const vector3 &v) : vector3(v) {}
     ~cam_vec() {}
+    // Assignment from a vector3 without a cam_vec temporary, and an empty default constructor for
+    // camera_frame's p (D12408).
+    void operator=(const vector3 &v) { x = v.x; y = v.y; z = v.z; }
+    cam_vec() {}
 };
 
 // ---- .data (0x59b7fc) -------------------------------------------------------------------------------
@@ -295,7 +299,7 @@ void camera::update_orientation()
     eye_orient.set_from_forward(avg);
 }
 
-// 0x478130  Confidence: likely (the acceleration expression; the length test's term order). The eye
+// 0x478130  Confidence: exact (D12401: zoom * elevation in a local h, fabsf, the 2.2573366 constant). The eye
 // moves toward the wanted eye with the acceleration that reaches it in k seconds (k 0.5, 0.3 in mode 5,
 // less for a steep high view). A moving living target sets orient mode 2; a settled eye mode 0, and
 // turning input mode 1.
@@ -311,11 +315,12 @@ void camera::update_eye_position()
     vector3 d = wanted - eye_pos;
     k = (mode == 5) ? 0.3f : 0.5f;
     if (elevation >= 4.0f) {
-        r = ((float)sqrt(d.x * d.x + d.z * d.z) + distance * zoom) / (zoom * elevation + d.y);
+        float h = zoom * elevation;
+        r = ((float)sqrt(d.x * d.x + d.z * d.z) + distance * zoom) / (h + d.y);
         if (r > 1.3f)
             k = 0.25f;
         else if (r >= 0.857f)
-            k = k - (r - 0.857f) * (k - 0.25f) * 2.25734f;
+            k = k - (r - 0.857f) * (k - 0.25f) * 2.2573366f; // 0x581a4c = 0x40107834, 1 / (1.3 - 0.857) (D12401)
     }
     vector3 accel = (d - eye_velocity * k) * 2.0f * (1.0f / (k * k));
     camera_approach_value(&eye_pos.x, &eye_velocity.x, accel.x, reported_frametime, wanted.x);
@@ -335,7 +340,7 @@ void camera::update_eye_position()
             orient_mode = 2;
         else if ((eye_pos - wanted).len() < 0.001f)
             orient_mode = 0;
-        if (orient_mode == 0 && fabs(input_yaw) > 0.0f)
+        if (orient_mode == 0 && fabsf(input_yaw) > 0.0f)
             orient_mode = 1;
     }
 }
@@ -372,9 +377,11 @@ void camera::add_occluder(vector3 *a, int lobj_index, int start_count, float rad
 }
 
 // 0x478520  Confidence: likely (the ray's constructor store comes after the cutscene test, so the ray is
-// declared there; the early return is `xor al, al`). Two rays: b -> a, then a -> b, each repeated
+// declared there; the early return is `xor al, al`: the result is bool, D12407. The scalar ray fields first;
+// still differs in the store schedule: the binary stores min_radius (+0x30) as an immediate between the start
+// and require_flags stores, ours from the constructor first). Two rays: b -> a, then a -> b, each repeated
 // through the draw lists until nothing more is hit. ret 0xc.
-int camera::find_occluders(vector3 *a, vector3 *b, float radius)
+bool camera::find_occluders(vector3 *a, vector3 *b, float radius)
 {
     int start_count = camera_num_occluders;
     int index = 0;
@@ -384,12 +391,12 @@ int camera::find_occluders(vector3 *a, vector3 *b, float radius)
     if (game_flags & GF_CUTSCENE)
         return 0;
     lobj_ray ray;
-    ray.start = *b;
-    ray.dir = *a - *b;
     ray._unk18 = radius;
     ray.flags = 0;
     ray.require_flags = 2;
     ray.exclude_flags = 0;
+    ray.start = *b;
+    ray.dir = *a - *b;
     do {
         lobj_raycast_draw_lists(&ray, &hit, &index, &blocked, 1);
         if (hit.num_hits > 0)
@@ -506,7 +513,7 @@ void camera::view_low()
     fog_set_low_camera_default();
 }
 
-// 0x478990  Confidence: likely (the static guards and the EH state come from cam_vec's empty destructor;
+// 0x478990  Confidence: exact (D12408: p declared first, the statics assigned through cam_vec::operator=(const vector3 &), the min as an if; the static guards and the EH state come from cam_vec's empty destructor;
 // see the class). Reads the target's position without a NULL test.
 // The two static destructors are compiler-generated (after the function, inside this comment block so
 // that the function keeps its own address):
@@ -517,6 +524,7 @@ void camera::frame()
 {
     static cam_vec last_pos(0.0f, 0.0f, 0.0f);          // 0x22e4ac0 (guard 0x22e4a38 bit 0)
     static cam_vec last_target_pos(0.0f, 0.0f, 0.0f);   // 0x22e4ad0 (guard bit 1)
+    cam_vec p;
 
     if (target && (flags & CAMF_FOLLOW_TARGET)) {
         update_target_pos();
@@ -530,10 +538,14 @@ void camera::frame()
         last_target_pos = target->pos;
     if ((eye_pos - last_pos).len_sq() > 0.0064f)
         last_pos = eye_pos;
-    cam_vec p = last_target_pos;
     camera_num_occluders = 0;
     camera_occluders_unk = 0;
-    p.y = last_target_pos.y + min(look_height, target->bound_radius * 0.8f);
+    p = last_target_pos;
+    float r = target->bound_radius * 0.8f;
+    float h = look_height;
+    if (h < r)
+        r = h;
+    p.y = last_target_pos.y + r;
     find_occluders(&p, &last_pos, 0.0f);
     if (elevation < 4.0f)
         zoom_low = zoom;

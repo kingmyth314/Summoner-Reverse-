@@ -7,6 +7,7 @@
 #include "vsdk/vsdk.h"
 
 class String;
+namespace gr { class Mode; }   // gr.h; gr_string takes it by value (D11003)
 
 // Bitmap font, gr_fonts[6] at 0x25d9238 (0x6C bytes; offsets observed in gr_font_create, gr_font_get_char,
 // gr_string).
@@ -67,9 +68,9 @@ int gr_font_get_char(char c, char next, int *width, int *spacing);
 int gr_load_font(const char *name, int height2);
 int gr_font_create(const char *name);
 bool gr_font_read_file(const char *name, Font *f);
-void gr_string(int x, int y, const char *s, int font, int mode);
+void gr_string(int x, int y, const char *s, int font, gr::Mode mode);
 int gr_font_center_x(const char *s);
-void gr_string_at_text_pos(const char *s, int font, int mode);
+void gr_string_at_text_pos(const char *s, int font, gr::Mode mode);
 String gr_fit_string_String(String &str, int max_w, int font);
 char *gr_font_fit_string(int *split_at, char *s, int max_w, int font);
 int gr_split_str(int *len_array, int *offset_array, const char *s, int max_w, int max_lines, char ignore_char, int font);

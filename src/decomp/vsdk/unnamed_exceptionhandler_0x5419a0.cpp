@@ -47,135 +47,128 @@ static void RecordSystemInformation(HANDLE file);
 static const char *GetExceptionDescription(DWORD code);
 static char *GetFilePart(char *path);
 
-// 0x5419a0  Confidence: likely (frame: the locals the __except blocks need stay in memory; the loop index of
-// the code-byte dump is reloaded from its slot after an exception; the 50-byte slack is a stored local).
+// 0x5419a0  Confidence: exact (VC6 8966 byte match, w1 / D11000: locals declared where they are first used, with
+// the names of the article the unit follows, which give the binary's frame slots; the locals the __except
+// blocks need stay in memory; the loop index of the code-byte dump is reloaded from its slot after an
+// exception; the 50-byte slack is a stored local).
 // Runs once: a second exception (also one raised while writing the report) returns at once. Always
 // returns EXCEPTION_CONTINUE_SEARCH (0), so WinMain's __except body never runs and the exception goes on to
 // the system handler.
 int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
 {
     static bool been_here = false;      // 0x2ee250c
-    char module_name[MAX_PATH] = "Unknown";
-    char file_name[MAX_PATH];
-    char *file_part;
-    char *dot;
-    HANDLE log_file;
-    PEXCEPTION_RECORD exception;
-    PCONTEXT context;
-    char crash_module_path[MAX_PATH];
-    const char *crash_module_name;
-    MEMORY_BASIC_INFORMATION mem_info;
-    unsigned char *code;
-    int code_byte;
-    DWORD *stack;
-    DWORD *stack_top;
 
     if (been_here)
         return EXCEPTION_CONTINUE_SEARCH;
     been_here = true;
 
-    if (GetModuleFileNameA(NULL, file_name, MAX_PATH) <= 0)
-        file_name[0] = '\0';
-    file_part = GetFilePart(file_name);
-    lstrcpyA(module_name, file_part);
-    dot = strrchr(module_name, '.');
-    if (dot)
-        *dot = '\0';
-    lstrcpyA(file_part, "errorlog.txt");
+    char ModuleName[MAX_PATH];
+    char FileName[MAX_PATH] = "Unknown";
+    if (GetModuleFileNameA(NULL, ModuleName, MAX_PATH) <= 0)
+        ModuleName[0] = '\0';
+    char *FilePart = GetFilePart(ModuleName);
+    lstrcpyA(FileName, FilePart);
+    char *lastperiod = strrchr(FileName, '.');
+    if (lastperiod)
+        *lastperiod = '\0';
+    lstrcpyA(FilePart, "errorlog.txt");
 
-    log_file = CreateFileA(file_name, GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
+    HANDLE LogFile = CreateFileA(ModuleName, GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
-    if (log_file == INVALID_HANDLE_VALUE) {
+    if (LogFile == INVALID_HANDLE_VALUE) {
         OutputDebugStringA("Error creating exception report");
         return EXCEPTION_CONTINUE_SEARCH;
     }
-    SetFilePointer(log_file, 0, NULL, FILE_END);
-    hprintf(log_file, "\r\n\r\n\r\n\r\n");
+    SetFilePointer(LogFile, 0, NULL, FILE_END);
+    hprintf(LogFile, "\r\n\r\n\r\n\r\n");
 
-    exception = data->ExceptionRecord;
-    context = data->ContextRecord;
+    PEXCEPTION_RECORD Exception = data->ExceptionRecord;
+    PCONTEXT Context = data->ContextRecord;
 
-    crash_module_name = "Unknown";
-    if (VirtualQuery((void *)context->Eip, &mem_info, sizeof(mem_info))
-        && GetModuleFileNameA((HINSTANCE)mem_info.AllocationBase, crash_module_path, MAX_PATH) > 0)
-        crash_module_name = GetFilePart(crash_module_path);
+    char CrashModulePathName[MAX_PATH];
+    const char *CrashModuleFileName = "Unknown";
+    MEMORY_BASIC_INFORMATION MemInfo;
+    if (VirtualQuery((void *)Context->Eip, &MemInfo, sizeof(MemInfo))
+        && GetModuleFileNameA((HINSTANCE)MemInfo.AllocationBase, CrashModulePathName, MAX_PATH) > 0)
+        CrashModuleFileName = GetFilePart(CrashModulePathName);
 
-    hprintf(log_file, "%s caused %s in module %s at %04x:%08x.\r\n", module_name,
-            GetExceptionDescription(exception->ExceptionCode), crash_module_name, context->SegCs, context->Eip);
-    hprintf(log_file, "Exception handler called in %s.\r\n", message);
-    RecordSystemInformation(log_file);
+    hprintf(LogFile, "%s caused %s in module %s at %04x:%08x.\r\n", FileName,
+            GetExceptionDescription(Exception->ExceptionCode), CrashModuleFileName, Context->SegCs, Context->Eip);
+    hprintf(LogFile, "Exception handler called in %s.\r\n", message);
+    RecordSystemInformation(LogFile);
 
-    if (exception->ExceptionCode == STATUS_ACCESS_VIOLATION && exception->NumberParameters >= 2) {
-        char text[1000];
-        const char *read_write = "Read from";
-        if (exception->ExceptionInformation[0])
-            read_write = "Write to";
-        wsprintfA(text, "%s location %08x caused an access violation.\r\n", read_write,
-                  exception->ExceptionInformation[1]);
-        hprintf(log_file, "%s", text);
+    if (Exception->ExceptionCode == STATUS_ACCESS_VIOLATION && Exception->NumberParameters >= 2) {
+        char DebugMessage[1000];
+        const char *readwrite = "Read from";
+        if (Exception->ExceptionInformation[0])
+            readwrite = "Write to";
+        wsprintfA(DebugMessage, "%s location %08x caused an access violation.\r\n", readwrite,
+                  Exception->ExceptionInformation[1]);
+        hprintf(LogFile, "%s", DebugMessage);
     }
 
-    hprintf(log_file, "\r\n");
-    hprintf(log_file, "Registers:\r\n");
-    hprintf(log_file, "EAX=%08x CS=%04x EIP=%08x EFLGS=%08x\r\n", context->Eax, context->SegCs, context->Eip,
-            context->EFlags);
-    hprintf(log_file, "EBX=%08x SS=%04x ESP=%08x EBP=%08x\r\n", context->Ebx, context->SegSs, context->Esp,
-            context->Ebp);
-    hprintf(log_file, "ECX=%08x DS=%04x ESI=%08x FS=%04x\r\n", context->Ecx, context->SegDs, context->Esi,
-            context->SegFs);
-    hprintf(log_file, "EDX=%08x ES=%04x EDI=%08x GS=%04x\r\n", context->Edx, context->SegEs, context->Edi,
-            context->SegGs);
+    hprintf(LogFile, "\r\n");
+    hprintf(LogFile, "Registers:\r\n");
+    hprintf(LogFile, "EAX=%08x CS=%04x EIP=%08x EFLGS=%08x\r\n", Context->Eax, Context->SegCs, Context->Eip,
+            Context->EFlags);
+    hprintf(LogFile, "EBX=%08x SS=%04x ESP=%08x EBP=%08x\r\n", Context->Ebx, Context->SegSs, Context->Esp,
+            Context->Ebp);
+    hprintf(LogFile, "ECX=%08x DS=%04x ESI=%08x FS=%04x\r\n", Context->Ecx, Context->SegDs, Context->Esi,
+            Context->SegFs);
+    hprintf(LogFile, "EDX=%08x ES=%04x EDI=%08x GS=%04x\r\n", Context->Edx, Context->SegEs, Context->Edi,
+            Context->SegGs);
 
-    hprintf(log_file, "Bytes at CS:EIP:\r\n");
-    code = (unsigned char *)context->Eip;
-    for (code_byte = 0; code_byte < NUM_CODE_BYTES; code_byte++) {
+    hprintf(LogFile, "Bytes at CS:EIP:\r\n");
+    unsigned char *code = (unsigned char *)Context->Eip;
+    for (int codebyte = 0; codebyte < NUM_CODE_BYTES; codebyte++) {
         __try {
-            hprintf(log_file, "%02x ", code[code_byte]);
+            hprintf(LogFile, "%02x ", code[codebyte]);
         } __except (EXCEPTION_EXECUTE_HANDLER) {
-            hprintf(log_file, "?? ");
+            hprintf(LogFile, "?? ");
         }
     }
 
-    hprintf(log_file, "\r\nStack dump:\r\n");
+    hprintf(LogFile, "\r\nStack dump:\r\n");
     __try {
-        stack = (DWORD *)context->Esp;
+        DWORD *pStack = (DWORD *)Context->Esp;
+        DWORD *pStackTop;
 #ifdef _MSC_VER
         __asm {
             mov eax, fs:[4]
-            mov stack_top, eax
+            mov pStackTop, eax
         }
 #else
-        stack_top = (DWORD *)__readfsdword(4);
+        pStackTop = (DWORD *)__readfsdword(4);
 #endif
-        if (stack_top > stack + MAX_STACK_DUMP)
-            stack_top = stack + MAX_STACK_DUMP;
+        if (pStackTop > pStack + MAX_STACK_DUMP)
+            pStackTop = pStack + MAX_STACK_DUMP;
 
-        int count = 0;
+        int Count = 0;
         char buffer[1000] = "";
-        const int slack = STACK_DUMP_SLACK;
-        char *near_end = buffer + sizeof(buffer) - slack;
+        const int safetyzone = STACK_DUMP_SLACK;
+        char *nearend = buffer + sizeof(buffer) - safetyzone;
         char *output = buffer;
-        while (stack + 1 <= stack_top) {
-            if ((count % 8) == 0)
-                output += wsprintfA(output, "%08x: ", stack);
-            const char *suffix = " ";
-            if ((++count % 8) == 0 || stack + 2 > stack_top)
-                suffix = "\r\n";
-            output += wsprintfA(output, "%08x%s", *stack, suffix);
-            stack++;
-            if (output > near_end) {
-                hprintf(log_file, "%s", buffer);
+        while (pStack + 1 <= pStackTop) {
+            if ((Count % 8) == 0)
+                output += wsprintfA(output, "%08x: ", pStack);
+            const char *Suffix = " ";
+            if ((++Count % 8) == 0 || pStack + 2 > pStackTop)
+                Suffix = "\r\n";
+            output += wsprintfA(output, "%08x%s", *pStack, Suffix);
+            pStack++;
+            if (output > nearend) {
+                hprintf(LogFile, "%s", buffer);
                 buffer[0] = '\0';
                 output = buffer;
             }
         }
-        hprintf(log_file, "%s", buffer);
+        hprintf(LogFile, "%s", buffer);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
-        hprintf(log_file, "Exception encountered during stack dump.\r\n");
+        hprintf(LogFile, "Exception encountered during stack dump.\r\n");
     }
 
-    RecordModuleList(log_file);
-    CloseHandle(log_file);
+    RecordModuleList(LogFile);
+    CloseHandle(LogFile);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -222,36 +215,37 @@ static void RecordModuleList(HANDLE file)
     }
 }
 
-// 0x541fb0  Confidence: likely (the returns inside the __try only reset the try level). Prints the module's
+// 0x541fb0  Confidence: exact (VC6 8966 byte match, w1 / D11000: the article's local names give the frame slots;
+// the returns inside the __try only reset the try level). Prints the module's
 // path, base, file size, link time stamp and file date; any fault while reading the headers is swallowed.
 static void ShowModuleInfo(HANDLE file, HINSTANCE module)
 {
-    char module_name[MAX_PATH];
+    char ModName[MAX_PATH];
 
     __try {
-        if (GetModuleFileNameA(module, module_name, sizeof(module_name)) > 0) {
-            IMAGE_DOS_HEADER *dos_header = (IMAGE_DOS_HEADER *)module;
-            if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+        if (GetModuleFileNameA(module, ModName, sizeof(ModName)) > 0) {
+            IMAGE_DOS_HEADER *DosHeader = (IMAGE_DOS_HEADER *)module;
+            if (DosHeader->e_magic != IMAGE_DOS_SIGNATURE)
                 return;
-            IMAGE_NT_HEADERS *nt_header = (IMAGE_NT_HEADERS *)((char *)dos_header + dos_header->e_lfanew);
-            if (nt_header->Signature != IMAGE_NT_SIGNATURE)
+            IMAGE_NT_HEADERS *NTHeader = (IMAGE_NT_HEADERS *)((char *)DosHeader + DosHeader->e_lfanew);
+            if (NTHeader->Signature != IMAGE_NT_SIGNATURE)
                 return;
 
-            HANDLE module_file = CreateFileA(module_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+            HANDLE ModuleFile = CreateFileA(ModName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                                              FILE_ATTRIBUTE_NORMAL, NULL);
-            char time_buffer[100] = "";
-            DWORD file_size = 0;
-            if (module_file != INVALID_HANDLE_VALUE) {
-                FILETIME last_write;
-                file_size = GetFileSize(module_file, NULL);
-                if (GetFileTime(module_file, NULL, NULL, &last_write)) {
-                    wsprintfA(time_buffer, " - file date is ");
-                    PrintTime(time_buffer + lstrlenA(time_buffer), last_write);
+            char TimeBuffer[100] = "";
+            DWORD FileSize = 0;
+            if (ModuleFile != INVALID_HANDLE_VALUE) {
+                FILETIME LastWriteTime;
+                FileSize = GetFileSize(ModuleFile, NULL);
+                if (GetFileTime(ModuleFile, NULL, NULL, &LastWriteTime)) {
+                    wsprintfA(TimeBuffer, " - file date is ");
+                    PrintTime(TimeBuffer + lstrlenA(TimeBuffer), LastWriteTime);
                 }
-                CloseHandle(module_file);
+                CloseHandle(ModuleFile);
             }
-            hprintf(file, "%s, loaded at 0x%08x - %d bytes - %08x%s\r\n", module_name, module, file_size,
-                    nt_header->FileHeader.TimeDateStamp, time_buffer);
+            hprintf(file, "%s, loaded at 0x%08x - %d bytes - %08x%s\r\n", ModName, module, FileSize,
+                    NTHeader->FileHeader.TimeDateStamp, TimeBuffer);
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
     }

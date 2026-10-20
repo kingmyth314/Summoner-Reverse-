@@ -191,7 +191,8 @@ void decal_recycle(decal_record *d, decal_node *n)
     d->in_use = 0;
 }
 
-// 0x4bc640  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x4bc640  Confidence: exact (VC6 byte match, m-1020, D11103: plist_append written out with the prev store
+// through a volatile lvalue, which keeps it above the next store as in the binary; D11305 device).
 void decals_reset()
 {
     decal_record *d;
@@ -200,7 +201,16 @@ void decals_reset()
     decal_free = NULL;
     decal_age = NULL;
     for (d = decal_records; d < &decal_records[MAX_DECALS]; d++) {
-        plist_append(decal_free, d);
+        if (decal_free == NULL) {
+            d->next = d;
+            d->prev = d;
+            decal_free = d;
+        } else {
+            *(decal_record * volatile *)&d->prev = decal_free->prev;
+            d->next = decal_free;
+            decal_free->prev->next = d;
+            decal_free->prev = d;
+        }
         d->in_use = 0;
     }
 }
@@ -313,36 +323,37 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
     } while (d);
 }
 
-// 0x4bcbb0  Confidence: likely (w10, D10902: unsigned count test and the bool bit read as the binary has them;
-// the registers of d and count still swap). Every touching decal counts, the list takes the first 0x40.
+// 0x4bcbb0  Confidence: exact (VC6 byte match, m-1020: a top-tested `while (d)` walk whose step is
+// `d = d->next != decal_active ? d->next : NULL`, as decals_recycle_unused, D11100; with D10902's unsigned
+// count test and bool bit read). Every touching decal counts, the list takes the first 0x40.
 int decals_collect_for_lobj(lobj *lo, projector_record **out, int *count)
 {
     decal_record *d = decal_active;
     int found = 0;
 
-    if (d != NULL) {
-        do {
-            d->proj.test_bounds(lo);
-            if ((bool)d->proj.inside) {
-                if ((uint)*count < 0x40) {
-                    out[*count] = &d->proj;
-                    (*count)++;
-                }
-                found++;
+    while (d) {
+        d->proj.test_bounds(lo);
+        if ((bool)d->proj.inside) {
+            if ((uint)*count < 0x40) {
+                out[*count] = &d->proj;
+                (*count)++;
             }
-            d = d->next;
-        } while (d != decal_active && d != NULL);
+            found++;
+        }
+        d = d->next != decal_active ? d->next : NULL;
     }
     return found;
 }
 
-// 0x4bcc20  Confidence: likely. The one-frame decals (lifetime 0) go back to the free ring after the draw.
+// 0x4bcc20  Confidence: exact (VC6 byte match, m-1020: the walk is guarded by a test of the list head,
+// `if (decal_active) while (d)`, D11100; the binary tests the loaded head before copying it to d).
+// The one-frame decals (lifetime 0) go back to the free ring after the draw.
 void decals_recycle_unused()
 {
     decal_record *d = decal_active;
     decal_record *next;
 
-    while (d) {
+    if (decal_active) while (d) {
         next = d->next != decal_active ? d->next : NULL;
         if (d->lifetime == 0) {
             decal_node *node = &decal_nodes[d - decal_records];

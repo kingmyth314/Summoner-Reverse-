@@ -54,24 +54,20 @@ void experience_parse_stat_gain(TextFile *tf, ubyte *value, ubyte *random)
     *value = (ubyte)tf->ParseInt();
 }
 
-// 0x489a60  Confidence: likely (the loop form; the second level test is the loop's entry check). Below 20
-// the table; from 20 on the level 19 value plus 50000, 60000, ... per level. Five times as much in a
-// network game.
+// 0x489a60  Confidence: exact (D11400: the per-level step written as 50000 + (i - 20) * 10000, which the
+// compiler strength-reduces into the binary's step register). Below 20 the table; from 20 on the level 19
+// value plus 50000, 60000, ... per level. Five times as much in a network game.
 int xp_for_level(int level)
 {
     int xp;
-    int step;
     int i;
 
     if (level < 20) {
         xp = xp_level_table[level].xp;
     } else {
         xp = xp_level_table[19].xp;
-        step = 50000;
-        for (i = 19; i < level; i++) {
-            xp += step;
-            step += 10000;
-        }
+        for (i = 20; i <= level; i++)
+            xp += 50000 + (i - 20) * 10000;
     }
     if (game_flags & 2)
         xp *= 5;

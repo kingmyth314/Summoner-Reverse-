@@ -501,12 +501,13 @@ void gamelist_refresh_tooltip(int button)
                        XSTR("Refresh list", 800));
 }
 
-// 0x40b120  Confidence: likely (one store of the clamped position, unlike mp_charselect_page_up).
+// 0x40b120  Confidence: exact (VC6 byte match, m-1020 w11, D12002: the global is decremented, then clamped with
+// `&= (x <= 0) - 1`).
 void gamelist_page_up()
 {
     if (gamelist_scroll_pos > 0) {
-        int pos = gamelist_scroll_pos - gamelist_page_rows[resolution_index];
-        gamelist_scroll_pos = pos > 0 ? pos : 0;
+        gamelist_scroll_pos -= gamelist_page_rows[resolution_index];
+        gamelist_scroll_pos &= (gamelist_scroll_pos <= 0) - 1;
         gamelist_update_scrollbar();
     }
 }

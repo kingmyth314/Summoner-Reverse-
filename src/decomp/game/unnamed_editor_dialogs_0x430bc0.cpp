@@ -235,7 +235,7 @@ bool editor_dialog_handle_event(int event, int value)
             d->closed = true;
             return true;
         }
-        return result;
+        break;
     }
     return result;
 }

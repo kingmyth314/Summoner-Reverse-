@@ -226,8 +226,9 @@ LRESULT CALLBACK os_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     char buf[256];
     int i;
 
-    for (i = 0; i < os_num_msg_handlers; i++)
-        os_msg_handlers[i](msg, wparam, lparam);
+    os_msg_handler *h = os_msg_handlers;
+    for (i = 0; i < os_num_msg_handlers; i++, h++)
+        (*h)(msg, wparam, lparam);
 
     switch (msg) {
     case WM_ACTIVATE:
@@ -513,67 +514,68 @@ done:
     }
 }
 
-// 0x53171f  Confidence: likely (/Od; the two buffers through new and delete temporaries). Appends the CPU
+// 0x53171f  Confidence: exact (/Od; the two buffers through new and delete temporaries; locals renamed and
+// declared so that the D6101 / D7003 bucket order gives the binary's frame, D11301). Appends the CPU
 // type, speed, extensions and RAM size to tb; with test_ram, copies 256 KB blocks for one second and
 // prints freq / (ticks per copy), the copies per second, as "MB/s" (four times the real rate, NOTES).
 void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
 {
-    int mhz;
+    int cpu_mhz;
     int katmai;
-    char ext[0x400];
-    int mmx;
-    int tsc;
-    int amd3dnow;
-    char name[0x80];
-    MEMORYSTATUS ms;
-    int family;
-    int mb;
-    char *dst;
-    int speed;
-    char *src;
-    int count;
-    LARGE_INTEGER freq;
-    __int64 per_copy;
-    DWORD end_time;
-    LARGE_INTEGER start;
-    LARGE_INTEGER stop;
+    char text_buf[0x400];
+    int tsc_val;
+    int mmx_flag;
+    int amd_val;
+    char name1[0x80];
+    MEMORYSTATUS memstat;
+    int fam;
+    int ram_val;
+    char *dst_v;
+    int speed3;
+    char *src_v;
+    LARGE_INTEGER freq8;
+    int copies_v;
+    DWORD end_time_;
+    __int64 per_copy2;
+    LARGE_INTEGER stop_b;
+    LARGE_INTEGER start7;
 
-    memset(name, 0, sizeof(name));
-    cpu_identify(&family, &mmx, &amd3dnow, &katmai, &tsc, name, &mhz);
-    TextBuffer_printf(tb, "CPU Type: %s\n", name);
-    TextBuffer_printf(tb, "CPU Speed: %d Mhz\n", mhz);
-    strcpy(ext, "");
-    if (family > 5)
-        strcat(ext, "[PPro] ");
-    if (mmx)
-        strcat(ext, "[MMX] ");
-    if (amd3dnow)
-        strcat(ext, "[3DNow] ");
+    memset(name1, 0, sizeof(name1));
+    cpu_identify(&fam, &mmx_flag, &amd_val, &katmai, &tsc_val, name1, &cpu_mhz);
+    TextBuffer_printf(tb, "CPU Type: %s\n", name1);
+    TextBuffer_printf(tb, "CPU Speed: %d Mhz\n", cpu_mhz);
+    strcpy(text_buf, "");
+    if (fam > 5)
+        strcat(text_buf, "[PPro] ");
+    if (mmx_flag)
+        strcat(text_buf, "[MMX] ");
+    if (amd_val)
+        strcat(text_buf, "[3DNow] ");
     if (katmai)
-        strcat(ext, "[Katmai] ");
-    TextBuffer_printf(tb, "CPU Extensions: %s\n", ext);
+        strcat(text_buf, "[Katmai] ");
+    TextBuffer_printf(tb, "CPU Extensions: %s\n", text_buf);
 
-    ms.dwLength = sizeof(ms);
-    GlobalMemoryStatus(&ms);
-    mb = (ms.dwTotalPhys + 0x200000) >> 22;
-    mb <<= 2;
-    sprintf(ext, "%d MB", mb);
-    TextBuffer_printf(tb, "Total RAM: %s\n", ext);
+    memstat.dwLength = sizeof(memstat);
+    GlobalMemoryStatus(&memstat);
+    ram_val = (memstat.dwTotalPhys + 0x200000) >> 22;
+    ram_val <<= 2;
+    sprintf(text_buf, "%d MB", ram_val);
+    TextBuffer_printf(tb, "Total RAM: %s\n", text_buf);
 
     if (test_ram) {
-        dst = new char[0x400000];
-        src = new char[0x400000];
-        QueryPerformanceCounter(&start);
-        count = 0;
-        end_time = timeGetTime() + 1000;
-        while (timeGetTime() < end_time) {
+        dst_v = new char[0x400000];
+        src_v = new char[0x400000];
+        QueryPerformanceCounter(&start7);
+        copies_v = 0;
+        end_time_ = timeGetTime() + 1000;
+        while (timeGetTime() < end_time_) {
 #if defined(_MSC_VER)
             __asm {
                 push esi
                 push edi
                 push ecx
-                mov esi, src
-                mov edi, dst
+                mov esi, src_v
+                mov edi, dst_v
                 mov ecx, 0x10000
                 rep movsd
                 pop ecx
@@ -581,15 +583,15 @@ void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
                 pop esi
             }
 #endif
-            count++;
+            copies_v++;
         }
-        QueryPerformanceCounter(&stop);
-        QueryPerformanceFrequency(&freq);
-        delete dst;
-        delete src;
-        per_copy = (stop.QuadPart - start.QuadPart) / count;
-        speed = (int)(freq.QuadPart / per_copy);
-        TextBuffer_printf(tb, "RAM Speed: %d MB/s\n", speed);
+        QueryPerformanceCounter(&stop_b);
+        QueryPerformanceFrequency(&freq8);
+        delete dst_v;
+        delete src_v;
+        per_copy2 = (stop_b.QuadPart - start7.QuadPart) / copies_v;
+        speed3 = (int)(freq8.QuadPart / per_copy2);
+        TextBuffer_printf(tb, "RAM Speed: %d MB/s\n", speed3);
     }
 }
 
@@ -599,13 +601,13 @@ void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
 void cmd_sysinfo();
 console_command ccmd_sysinfo("sysinfo", "Shows system info", cmd_sysinfo);   // 0x2cbff00
 
-// 0x531aa8  Confidence: likely (/Od; EH frame for the TextBuffer). The console's "sysinfo": the system
-// info through a 2 KB text buffer.
+// 0x531aa8  Confidence: exact (/Od; EH frame for the TextBuffer; `buffer` hashes after `tb`, so tb gets the
+// top slot as in the binary, D11301). The console's "sysinfo": the system info through a 2 KB text buffer.
 void cmd_sysinfo()
 {
     if (calling_a_command_function) {
-        char buf[0x800];
-        TextBuffer tb(buf, 0x800, 0);
+        char buffer[0x800];
+        TextBuffer tb(buffer, 0x800, 0);
 
         PrintSystemInfo(&tb, 1, true);
         print_to_console(tb.get_text(), 0);

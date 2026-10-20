@@ -70,7 +70,8 @@ ui_checkbox::ui_checkbox()
     label[0] = '\0';
 }
 
-// 0x553d00  Confidence: likely (the store order). The gadget is as wide as the box, the label offset and
+// 0x553d00  Confidence: exact (VC6 byte match, m-1020: the width in a local computed before the height; 8966
+// then keeps label / font in EDI / EBP and puts tw / th in their dead argument slots). The gadget is as wide as the box, the label offset and
 // the label, as high as the higher of the box and the label. The label is measured with
 // gr_get_string_size(.., label, font, -1): the font goes in as the length and -1 as the font, harmless
 // for the default font -1 (see NOTES.md).
@@ -80,10 +81,11 @@ void ui_checkbox::create(ui_element *window, int x, int y, int box_w, int box_h,
     int tw, th;
 
     gr_get_string_size(&tw, &th, label, font, -1);
+    int w = box_w + tw + label_x;
     int h = th + label_y;
     if (box_h > h)
         h = box_h;
-    init(window, UI_TYPE_CHECKBOX, x, y, box_w + tw + label_x, h, id, owned);
+    init(window, UI_TYPE_CHECKBOX, x, y, w, h, id, owned);
     this->checked = checked;
     this->box_w = box_w;
     this->box_h = box_h;

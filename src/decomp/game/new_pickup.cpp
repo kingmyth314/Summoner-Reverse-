@@ -298,11 +298,12 @@ int pickup_handle_click(int key)
     return key;
 }
 
-// 0x420d20. Confidence: likely (the max(x, 0) AND register, D7506).
+// 0x420d20. Confidence: exact (the max(x, 0) clamp written `x &= (x <= 0) - 1` on the global, D7506).
 void pickup_page_up()
 {
     if (pickup_scroll_pos > 0) {
-        pickup_scroll_pos = max(pickup_scroll_pos - pickup_page_size[resolution_index], 0);
+        pickup_scroll_pos -= pickup_page_size[resolution_index];
+        pickup_scroll_pos &= (pickup_scroll_pos <= 0) - 1;
         pickup_update_scrollbar();
     }
 }

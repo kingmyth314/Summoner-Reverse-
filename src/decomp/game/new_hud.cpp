@@ -229,8 +229,8 @@ GameTimer hud_camera_mode_timer;                              // 0x5bd0cc (init_
 // evaluates an argument that is a call before the others, and the binary loads the slot argument first.
 #define hud_member() (hud_portrait_slots[hud_selected_portrait].species)
 
-// 0x40cc10  Confidence: likely (status_load_bitmaps shape plus the '.' test; filename is 0x70 bytes in the
-// frame; the flag switch is the jump table 0x40cea4 / byte table 0x40ceac over i <= 59).
+// 0x40cc10  Confidence: likely (status_load_bitmaps shape plus the '.' test; filename is 0x80 bytes, the
+// binary's frame 0x8c, D11901; the flag switch is the jump table 0x40cea4 / byte table 0x40ceac over i <= 59).
 void hud_load_bitmaps()
 {
     float scale = ui_get_scale();
@@ -250,7 +250,7 @@ void hud_load_bitmaps()
         if (strlen(hud_button_defs[i].name)) {
             scaled = strchr(hud_button_defs[i].name, '.') == NULL;
             if (scaled) {
-                char filename[112];
+                char filename[128];
 
                 strcpy(filename, hud_button_defs[i].name);
                 strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
@@ -575,7 +575,8 @@ void hud_update_combat_buttons()
     }
 }
 
-// 0x40d640  Confidence: likely (frame: buttons 0x0, text 0x8, name 0x88). On the world map (level 4) the
+// 0x40d640  Confidence: exact (VC6 8966 byte match, m-1020: the multiplayer format string read into a local first,
+// D6205 / D11908) (frame: buttons 0x0, text 0x8, name 0x88). On the world map (level 4) the
 // prompt names the level; elsewhere "Exit to %s?" or "Exit level?" (multiplayer: through the endgame
 // table).
 void hud_confirm_level_exit()
@@ -622,8 +623,11 @@ void hud_confirm_level_exit()
 
         if (endgame == -1)
             sprintf(text, XSTR("Exit level?", 652));
-        else
-            sprintf(text, XSTR("Exit to %s?", 653), level_table_display_name(endgame));
+        else {
+            char *fmt = XSTR("Exit to %s?", 653);
+
+            sprintf(text, fmt, level_table_display_name(endgame));
+        }
     } else if (level >= 0 && level < 51) {
         level_format_display_name(name, level);
         sprintf(text, XSTR("Exit to %s?", 653), name);
@@ -1335,19 +1339,20 @@ void hud_use_hot_button(int slot)
     game_play_sound(0x23, 1.0f, 0, 0, 0);
 }
 
-// 0x40eb30  Confidence: likely (switch 0x40edbc / byte table 0x40ede0 on n - 1; frame: kind 0x0, w 0x4,
+// 0x40eb30  Confidence: exact (VC6 8966 byte match, m-1020: kind and id local to the hot-button block, D11901) (switch 0x40edbc / byte table 0x40ede0 on n - 1; frame: kind 0x0, w 0x4,
 // h 0x8, id 0xc, text 0x10, name 0x110). n is a hot button slot when hot_button, else a hud_buttons index:
 // 1-5 the portraits (name, HP, AP), 41-61 the panel icons.
 void hud_draw_tooltips(int n, bool hot_button)
 {
-    int kind;
     int w, h;
-    int id;
     char text[256];
     char name[64];
     int x, y;
 
     if (hot_button) {
+        int kind;
+        int id;
+
         if (!SAVEGAME_HM->hot_button_get(&kind, &id, hud_member(), n))
             return;
         if (n < 3) {

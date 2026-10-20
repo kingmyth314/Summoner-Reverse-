@@ -87,8 +87,7 @@ int ca_preload_loaded;
 int ca_preload_count;
 int ca_preload_size;
 ubyte ca_preload_data[CA_PRELOAD_DATA_SIZE];
-int ca_preload_offsets[CA_MAX_PRELOAD];
-int ca_preload_sizes[CA_MAX_PRELOAD];
+ca_preload_table ca_preload_tbl;     // 0x2ee20c4 offsets, 0x2ee21dc sizes (D11801)
 
 // Set by ca_init like skeleton.cpp's five counters (count, limit -1, used, peak, limit -1); only
 // ca_num_characters is used. Names ours except ca_num_characters.
@@ -613,7 +612,7 @@ void character_release_all()
 
 // ---- the preload index ------------------------------------------------------------------------------
 
-// 0x541790  Confidence: likely (one buffer for the entry names and the error text: both live at the same
+// 0x541790  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (one buffer for the entry names and the error text: both live at the same
 // stack slot). The entries are read for their offsets and sizes, then the whole file again into
 // ca_preload_data, where ca_preload_find looks up the names. An open failure is formatted and dropped.
 // Neither the entry count (70 slots) nor the size (1 MB) is checked.

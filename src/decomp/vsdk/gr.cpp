@@ -755,7 +755,8 @@ void gr_zbuffer_clear(bool enable)
     }
 }
 
-// 0x506a90  Confidence: exact (the exponent overwrites gamma, the binary's argument slot; powf for the
+// 0x506a90  Confidence: exact (the exponent overwrites gamma, the binary's argument slot; (float)pow, the inline
+// powf written out because the unit is /Ob0 (D12103); for the
 // float 255 multiplier, D6800). The reciprocal constants are written as multiplications (see NOTES).
 // gr_gamma_ramp[i] = 255 * (i / 255) ^ (1 / gamma), clamped; gr_color_gamma_lut[i] = i, clamped to
 // 0..255 (an identity table: no gamma is applied to it). Only Direct3D and Glide upload a ramp.
@@ -766,7 +767,7 @@ void gr_set_gamma(float gamma)
     gr_gamma_percent = (int)(gamma * 100.0f);
     gamma = 1.0f / gamma;
     for (i = 0; i < 256; i++) {
-        int v = (int)(powf(i * (1.0f / 255.0f), gamma) * 255.0f);
+        int v = (int)((float)pow(i * (1.0f / 255.0f), gamma) * 255.0f);
         if (v > 255)
             v = 255;
         else if (v < 0)
@@ -983,17 +984,18 @@ void gr_bitmap(int bm, int x, int y, gr::Mode mode)
     }
 }
 
-// 0x507100  Confidence: likely (the vertex constructor, D1605; expression order kept as computed).
+// 0x507100  Confidence: likely (the vertex array is built by the vector constructor iterator after
+// gr_set_texture, D12103; the FPU schedule of the corner sums still differs).
 // The bitmap as a quad of its size times scale, centred on (x, y) and rotated by angle, through
 // gr_tmapper (no clipping here). Only sx, sy, sw = 1, uv and the "uv given" flag are set. The polygon
 // is passed in the order 3, 2, 1, 0.
 void gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr::Mode mode)
 {
     gr_vertex *vlist[4];
-    gr_vertex verts[4];
     int w, h;
 
     gr_set_texture(bm, -1);
+    gr_vertex verts[4];
     vlist[0] = &verts[3];
     vlist[1] = &verts[2];
     vlist[2] = &verts[1];
@@ -1147,13 +1149,13 @@ void gr_circle(int x, int y, int radius, gr::Mode mode)
             (float)x + (float)sin(0.0) * (float)radius, (float)y + (float)cos(0.0) * (float)radius, mode);
 }
 
-// 0x5077d0  Confidence: likely (the vertex constructor, D1605; the order of the vertex stores). (x, y, w,
+// 0x5077d0  Confidence: exact (D12103: the unit is /Ob0, so the vertex array is built by the vector
+// constructor iterator; the array is declared after the clipping; each corner is vlist, sx, sy, sw, flag). (x, y, w,
 // h, mode, z): a negative w or h extends left / up; clipped to whole pixels, then one quad through
 // gr_tmapper with sw = z on every corner and no uv / colour given (the back end uses gr_color).
 void gr_rect(int x, int y, int w, int h, gr::Mode mode, float z)
 {
     gr_vertex *vlist[4];
-    gr_vertex verts[4];
     int x1 = x, y1 = y;
     int x2, y2;
     if (w > 0)
@@ -1185,31 +1187,31 @@ void gr_rect(int x, int y, int w, int h, gr::Mode mode, float z)
     if (y2 > gr_screen.clip_bottom)
         y2 = gr_screen.clip_bottom;
 
+    gr_vertex verts[4];
     memset(verts, 0, sizeof(verts));
     vlist[0] = &verts[0];
-    vlist[1] = &verts[1];
-    vlist[2] = &verts[2];
-    vlist[3] = &verts[3];
-
-    verts[0]._unk1a = 0;
     verts[0].sx = (float)(gr_screen.offset_x + x1);
     verts[0].sy = (float)(gr_screen.offset_y + y1);
     verts[0].sw = z;
+    verts[0]._unk1a = 0;
 
-    verts[1]._unk1a = 0;
+    vlist[1] = &verts[1];
     verts[1].sx = (float)(gr_screen.offset_x + x2 + 1);
     verts[1].sy = (float)(gr_screen.offset_y + y1);
     verts[1].sw = z;
+    verts[1]._unk1a = 0;
 
-    verts[2]._unk1a = 0;
+    vlist[2] = &verts[2];
     verts[2].sx = (float)(gr_screen.offset_x + x2 + 1);
     verts[2].sy = (float)(gr_screen.offset_y + y2 + 1);
     verts[2].sw = z;
+    verts[2]._unk1a = 0;
 
-    verts[3]._unk1a = 0;
+    vlist[3] = &verts[3];
     verts[3].sx = (float)(gr_screen.offset_x + x1);
     verts[3].sy = (float)(gr_screen.offset_y + y2 + 1);
     verts[3].sw = z;
+    verts[3]._unk1a = 0;
 
     gr_tmapper(4, vlist, mode);
 }

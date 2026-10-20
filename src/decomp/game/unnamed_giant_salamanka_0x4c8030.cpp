@@ -374,9 +374,9 @@ int ai_state::giant_salamanka_ai_select_action()
             continue;
         if (living_from_handle(giant_salamanka_threat_table[i].handle)->flags & CF_DEAD)
             continue;
-        cand[count].handle = giant_salamanka_threat_table[i].handle;
         cand[count].score = 5.0f - (giant_salamanka_threat_table[i].threat[0] * 3.0f
                                     + giant_salamanka_threat_table[i].threat[1]);
+        cand[count].handle = giant_salamanka_threat_table[i].handle;
         count++;
     }
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {

@@ -438,14 +438,24 @@ static void read_quoted_string()
     *p = '\0';
 }
 
-// 0x50ab60  Confidence: likely (the order of the nine single stores). The argument is not read
+static void build_char_types();
+
+// 0x50ab60  Confidence: exact (VC6 8966 byte match, w1 / D11002: the table is built by a separate function,
+// 0x50ab70, reached by a tail jump: `je` to the `ret`, then `jmp`). The argument is not read
 // (LoadSettings passes 0). char_types_initialized is never set, so a second call would rebuild the table.
 void init_char_types(int arg)
 {
-    int i;
-
     if (char_types_initialized == true)
         return;
+    build_char_types();
+}
+
+// 0x50ab70  Confidence: exact (VC6 8966 byte match, w1 / D11002). Not in sum.symbols (no call: init_char_types
+// jumps to it); name ours. Builds the character class table (the order of the nine single stores is the
+// binary's).
+static void build_char_types()
+{
+    int i;
 
     for (i = 0; i < 256; i++)
         char_types[(unsigned char)i] = CHAR_OTHER;

@@ -63,8 +63,10 @@ GameTimer murod_spell_timer;          // 0x248bfec
 // 0x4c5150  Confidence: likely. init_murod_timers: the GameTimer constructor for the five threat records,
 // then the attack, leap, heal and spell timers.
 
-// 0x4c51a0  Confidence: likely (match31: the direction built with the vector3 constructor, z's frand first;
-// the frame is 8-aligned for floor's double; the party list local holds 5).
+// 0x4c51a0  Confidence: exact (VC6 byte match, m-1020, D11101: a found flag set before `break` instead of
+// the goto pair, the direction written z's frand first then x, y, z, the leap direction as a vector3
+// difference and find_move's result in a local; the frame is 8-aligned for floor's double; the party list
+// local holds 5).
 // Five tries: a random living party member and a point 15 away from it in a random horizontal direction
 // that is navigable for its size; then the vanish move (8, 0x8a), sub-mode AIS_MUROD_LEAP, the member
 // becomes the target and the next leap waits 20 s. Without a point: 5 s.
@@ -84,29 +86,34 @@ bool ai_state::murod_start_leap()
         if (c)
             members[count++] = c;
     }
-    if (count == 0)
-        goto fail;
-    fcount = (float)count;
-    tries = 4;
-    do {
-        t = members[(int)floor(frand() * fcount)];
-        dir = vector3(frand() - 0.5f, 0.0f, frand() - 0.5f);
-        if (dir.normalize_length() != 0.0f) {
-            dir *= 15.0f;
-            dir += t->pos;
-            if (pf_point_is_navigable(&dir, t->info->size, t->layer))
-                goto found;
-        }
-    } while (tries-- != 0);
-fail:
-    murod_leap_timer.SetTimeout(5000);
-    return false;
-found:
+    bool ok = false;
+    if (count != 0) {
+        fcount = (float)count;
+        tries = 4;
+        do {
+            t = members[(int)floor(frand() * fcount)];
+            float z = frand() - 0.5f;
+            dir.x = frand() - 0.5f;
+            dir.y = 0.0f;
+            dir.z = z;
+            if (dir.normalize_length() != 0.0f) {
+                dir *= 15.0f;
+                dir += t->pos;
+                if (pf_point_is_navigable(&dir, t->info->size, t->layer)) {
+                    ok = true;
+                    break;
+                }
+            }
+        } while (tries-- != 0);
+    }
+    if (!ok) {
+        murod_leap_timer.SetTimeout(5000);
+        return false;
+    }
     murod_leap_dest = dir;
-    murod_leap_dir.x = t->pos.x - dir.x;
-    murod_leap_dir.y = t->pos.y - dir.y;
-    murod_leap_dir.z = t->pos.z - dir.z;
-    murod_move_anim = owner->play_move((int)owner->find_move(8, 0x8a), 1.0f, false, false, false);
+    murod_leap_dir = t->pos - dir;
+    move_info *m = owner->find_move(8, 0x8a);
+    murod_move_anim = owner->play_move((int)m, 1.0f, false, false, false);
     set_mode(AI_STATE_COMBAT, AIS_MUROD_LEAP);
     murod_target_handle = t->handle;
     murod_leap_timer.SetTimeout(20000);
@@ -246,7 +253,8 @@ void ai_state::murod_check_stage()
     murod_casting_spell = -1;
 }
 
-// 0x4c57b0  Confidence: likely. More than one attacker cuts the leap wait to 5 s. Order: leap, self heal,
+// 0x4c57b0  Confidence: exact (VC6 byte match, m-1020, D11101: the new target is taken in the then-branch,
+// `return 0` in the else, which the binary places out of line). More than one attacker cuts the leap wait to 5 s. Order: leap, self heal,
 // the 15 s spell (8 at a flag-1 target without flag 8, else 7 unless flag 0x10), then 0x1a (no fireball
 // out, 50 % / 60 %), 0x22 (60 %, at most twice in a row, not at a paralysed target) or 0xf.
 int ai_state::murod_ai_select_action()
@@ -272,10 +280,12 @@ int ai_state::murod_ai_select_action()
         murod_leap_timer.SetTimeout(5000);
     if (timer_up || !target) {
         murod_target_handle = boss_target_list_pick(list, count, murod_threat_table, murod_target_handle, false, 0);
-        if (murod_target_handle == -1)
+        if (murod_target_handle != -1) {
+            target = living_from_handle(murod_target_handle);
+            murod_set_attack_timer(5000, 15000);
+        } else {
             return 0;
-        target = living_from_handle(murod_target_handle);
-        murod_set_attack_timer(5000, 15000);
+        }
     }
     if (murod_leap_timer.elapsed() && murod_start_leap())
         return 1;

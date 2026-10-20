@@ -769,7 +769,7 @@ void mp_levelselect_draw_chat()
     }
 }
 
-// 0x41d1d0  Confidence: likely (the three-way colour and the "Unknown" fallback as if / else with
+// 0x41d1d0  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the three-way colour and the "Unknown" fallback as if / else with
 // merged calls). Levels some player may not play yet are greyed.
 void mp_levelselect_draw_levels()
 {
@@ -778,9 +778,7 @@ void mp_levelselect_draw_levels()
     int x, y, i;
 
     font_h = gr_get_font_height(-1);
-    rows = mp_levelselect_list_count[1];
-    if (rows >= mp_levelselect_list_page[resolution_index][1])
-        rows = mp_levelselect_list_page[resolution_index][1];
+    rows = mp_levelselect_list_count[1] < mp_levelselect_list_page[resolution_index][1] ? mp_levelselect_list_count[1] : mp_levelselect_list_page[resolution_index][1];
     x = mp_levelselect_list_pos[resolution_index][1][0];
     y = mp_levelselect_list_pos[resolution_index][1][1];
 
@@ -884,7 +882,7 @@ void mp_levelselect_draw_players()
     }
 }
 
-// 0x41d5e0  Confidence: likely (the memmove size, count * 0x44 - excess * 0x44 in the binary; the type
+// 0x41d5e0  Confidence: exact (VC6 byte match, m-1020 w9; was likely) (the memmove size, count * 0x44 - excess * 0x44 in the binary; the type
 // switch inside the loop). Called by chat_history_pump. A message with a wrapped line longer than 63
 // characters is dropped; the oldest lines make room; the view jumps to the newest lines.
 void mp_levelselect_add_chat_line(const char *text, int type)
@@ -929,9 +927,7 @@ void mp_levelselect_add_chat_line(const char *text, int type)
         mp_levelselect_list_count[0]++;
     }
 
-    {
-        int first = mp_levelselect_list_count[0] - mp_levelselect_list_page[resolution_index][0];
-        mp_levelselect_scroll_pos[0] = first < 0 ? 0 : first;
-    }
+    mp_levelselect_scroll_pos[0] = mp_levelselect_list_count[0] - mp_levelselect_list_page[resolution_index][0];
+    mp_levelselect_scroll_pos[0] &= (mp_levelselect_scroll_pos[0] < 0) - 1;
     mp_levelselect_update_scrollbar(0);
 }

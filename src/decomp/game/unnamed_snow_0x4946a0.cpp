@@ -199,7 +199,9 @@ void snow_stop()
         snow_active = false;
 }
 
-// 0x494ba0  Confidence: likely (the grid rounding as a conditional per axis; the scroll loops). From
+// 0x494ba0  Confidence: exact (VC6 8966 byte match, w1 / D11004: the centre cell snow_cells[7][7] is read again
+// for each test, not kept in a local; fvec.x / .z through float locals; the flake step indexes the cell
+// twice; the grid rounding as a conditional per axis). From
 // fx_frame with the frame time. The visible height range (the view's vertical fov around its pitch, out
 // to the fog distance), the camera cell, then the grid: re-centred by one row / column when the camera
 // moved one cell, rebuilt otherwise; the flakes fall and the scroll row is refilled.
@@ -216,7 +218,9 @@ void snow_update(float frametime)
 
     float fog_far = fog_get_far_current();
     vector3 &fvec = camera_view_orient.fvec;
-    float horiz = (float)sqrt(fvec.z * fvec.z + fvec.x * fvec.x);
+    float fx = fvec.x;
+    float fz = fvec.z;
+    float horiz = (float)sqrt(fx * fx + fz * fz);
     if (horiz == 0.0f) {
         if (fvec.y >= 0.0f) {
             snow_base_y = camera_view_pos.y + fog_far;
@@ -249,9 +253,8 @@ void snow_update(float frametime)
     else
         snow_grid_z = (int)(camera_view_pos.z * 0.2f + 0.5f) - 1;
 
-    snow_cell *centre = snow_cells[7][7];
-    if (!snow_reset_cells && abs(snow_grid_x - centre->x) <= 1 && abs(snow_grid_z - centre->z) <= 1) {
-        if (snow_grid_x > centre->x) {
+    if (!snow_reset_cells && abs(snow_grid_x - snow_cells[7][7]->x) <= 1 && abs(snow_grid_z - snow_cells[7][7]->z) <= 1) {
+        if (snow_grid_x > snow_cells[7][7]->x) {
             for (j = 0; j < SNOW_GRID; j++) {
                 c = snow_cells[0][j];
                 for (i = 0; i < SNOW_GRID - 1; i++)
@@ -261,7 +264,7 @@ void snow_update(float frametime)
                 if (c->update())
                     c->fill();
             }
-        } else if (snow_grid_x < centre->x) {
+        } else if (snow_grid_x < snow_cells[7][7]->x) {
             for (j = 0; j < SNOW_GRID; j++) {
                 c = snow_cells[SNOW_GRID - 1][j];
                 for (i = SNOW_GRID - 1; i > 0; i--)
@@ -272,7 +275,7 @@ void snow_update(float frametime)
                     c->fill();
             }
         }
-        if (snow_grid_z > centre->z) {
+        if (snow_grid_z > snow_cells[7][7]->z) {
             for (i = 0; i < SNOW_GRID; i++) {
                 c = snow_cells[i][0];
                 for (j = 0; j < SNOW_GRID - 1; j++)
@@ -282,7 +285,7 @@ void snow_update(float frametime)
                 if (!c->update())
                     c->fill();
             }
-        } else if (snow_grid_z < centre->z) {
+        } else if (snow_grid_z < snow_cells[7][7]->z) {
             for (i = 0; i < SNOW_GRID; i++) {
                 c = snow_cells[i][SNOW_GRID - 1];
                 for (j = SNOW_GRID - 1; j > 0; j--)
@@ -316,8 +319,7 @@ void snow_update(float frametime)
                 snow_cells[i][j]->fill();
             } else {
                 for (int k = 0; k < SNOW_FLAKES; k++) {
-                    snow_flake *f = &snow_cells[i][j]->flakes[k];
-                    f->pos += snow_offsets[f->dir] * frametime;
+                    snow_cells[i][j]->flakes[k].pos += snow_offsets[snow_cells[i][j]->flakes[k].dir] * frametime;
                 }
                 if (n > 0)
                     snow_cells[i][j]->fill_count(n);

@@ -499,7 +499,8 @@ void inventory_update_trade_buttons()
     }
 }
 
-// 0x4155f0  Confidence: likely (the store order with no character follows the equipment order; written as
+// 0x4155f0  Confidence: exact (VC6 byte match, m-1020: the equipment[8] test is written in both branches of the
+// equipment[7] test, the binary has two copies; the store order with no character follows the equipment order; written as
 // one statement per hot spot). An empty slot disables its hot spot. Heavy armour (ItemType slot 8 in
 // equipment 7) covers both armour and pants: it shows picture 17 and uses hot spot 27 instead of 18 / 19.
 void inventory_update_equip_slots()
@@ -561,15 +562,19 @@ void inventory_update_equip_slots()
         inventory_buttons[18].flags &= ~4;
         inventory_buttons[27].flags |= 4;
         inventory_buttons[17].flags &= ~1;
+        if (c->equipment[8])
+            inventory_buttons[19].flags &= ~4;
+        else
+            inventory_buttons[19].flags |= 4;
     } else {
         inventory_buttons[18].flags |= 4;
         inventory_buttons[27].flags |= 4;
         inventory_buttons[17].flags &= ~1;
+        if (c->equipment[8])
+            inventory_buttons[19].flags &= ~4;
+        else
+            inventory_buttons[19].flags |= 4;
     }
-    if (c->equipment[8])
-        inventory_buttons[19].flags &= ~4;
-    else
-        inventory_buttons[19].flags |= 4;
 }
 
 // 0x415850  Confidence: exact. Despite the name: the row count of the list (all items, or the unidentified
@@ -1244,12 +1249,17 @@ int inventory_popup_result(int key)
             break;
         case 1:
             inventory_identify_item();
-            break;
+            inventory_mouse_mode = 0;
+            return key;
         case 2:
             inventory_use_selected_item();
-            break;
+            inventory_mouse_mode = 0;
+            return key;
         case 3:
             inventory_confirm_destroy();      // resets the mouse mode itself
+            return key;
+        case 4:
+            inventory_mouse_mode = 0;
             return key;
         }
     }
@@ -1317,16 +1327,22 @@ void inventory_use_selected_item()
 
     Character *c = status_character;
     item_charge_effect *charge = (item_charge_effect *)INV_EQUIP(c, slot)->type->charge_effect;
-    if (!charge->self_only) {
+    if (charge->self_only) {
+        if (character_use_equipped_item(c, slot, c->handle, 0, -1))
+            interface_set_screen(0, 0);
+    } else {
         unsigned int flags = spells[charge->spell].flags;
-        if ((flags & 4) || (flags & 2)) {
+        if (flags & 4) {
             inventory_use_equipped_item_begin(slot);
             interface_set_screen(0, 0);
-            return;
+        } else if (flags & 2) {
+            inventory_use_equipped_item_begin(slot);
+            interface_set_screen(0, 0);
+        } else {
+            if (character_use_equipped_item(c, slot, c->handle, 0, -1))
+                interface_set_screen(0, 0);
         }
     }
-    if (character_use_equipped_item(c, slot, c->handle, 0, -1))
-        interface_set_screen(0, 0);
 }
 
 // 0x416dc0  Confidence: exact (the charge effect is re-read after ui_clear_pick_overrides, so it is not a
@@ -1743,21 +1759,25 @@ void inventory_draw()
         item_info_popup_render();
 }
 
-// 0x417950  Confidence: likely (local layout: one 64-byte buffer for the name and the count, as in
+// 0x417950  Confidence: exact (VC6 byte match, m-1020: the row clamp as an if / else of two assignments
+// from the globals; locals declared at the top; local layout: one 64-byte buffer for the name and the count, as in
 // buysell_draw_item_list). Despite the name: all visible rows, name left and stack count right-aligned.
 void inventory_draw_list_rows()
 {
+    int rows, x, y, fh, i;
+
     if (inventory_row_count <= 0)
         return;
 
-    int x = inventory_list_pos[resolution_index][0];
-    int y = inventory_list_pos[resolution_index][1];
-    int rows = inventory_row_count;
-    if (rows >= inventory_page_size[resolution_index])
+    x = inventory_list_pos[resolution_index][0];
+    y = inventory_list_pos[resolution_index][1];
+    if (inventory_row_count < inventory_page_size[resolution_index])
+        rows = inventory_row_count;
+    else
         rows = inventory_page_size[resolution_index];
-    int fh = gr_get_font_height(-1);
+    fh = gr_get_font_height(-1);
 
-    for (int i = 0; i < rows; i++) {
+    for (i = 0; i < rows; i++) {
         party_inventory_entry *entry = inventory_get_list_item(inventory_scroll_pos + i);
         char buf[64];
         int w, h;
@@ -1992,69 +2012,68 @@ void inventory_draw_item_preview(item_info *item)
     inventory_model_view_end();
 }
 
-// 0x4181d0  Confidence: likely (jump table 0x418408 on ItemType slot 0..9; cases 6 and 8 share their tail).
+// 0x4181d0  Confidence: exact (VC6 byte match, m-1020: the clip origin is moved in place, gr_screen.offset_x / _y +=,
+// not through x / y locals; jump table 0x418408 on ItemType slot 0..9; cases 6 and 8 share their tail).
 // Saves the clip origin and moves it so that the model drawn for the item's paper-doll hot spot lands on the
 // mouse: minus the hot spot centre, plus the slot's model offset and the mouse position.
 void inventory_preview_view_begin(int item_slot)
 {
-    int x = gr_screen.offset_x;
-    int y = gr_screen.offset_y;
     int index;
 
-    inventory_saved_view_x = x;
-    inventory_saved_view_y = y;
+    inventory_saved_view_x = gr_screen.offset_x;
+    inventory_saved_view_y = gr_screen.offset_y;
     switch (item_slot) {
     case 0:
-        x += -inventory_buttons[23].x - inventory_buttons[23].w / 2;
-        y += -inventory_buttons[23].y - inventory_buttons[23].h / 2;
+        gr_screen.offset_x += -inventory_buttons[23].x - inventory_buttons[23].w / 2;
+        gr_screen.offset_y += -inventory_buttons[23].y - inventory_buttons[23].h / 2;
         index = 0;
         break;
     case 1:
-        x += -inventory_buttons[21].x - inventory_buttons[21].w / 2;
-        y += -inventory_buttons[21].y - inventory_buttons[21].h / 2;
+        gr_screen.offset_x += -inventory_buttons[21].x - inventory_buttons[21].w / 2;
+        gr_screen.offset_y += -inventory_buttons[21].y - inventory_buttons[21].h / 2;
         index = 1;
         break;
     case 2:
-        x += -inventory_buttons[26].x - inventory_buttons[26].w / 2;
-        y += -inventory_buttons[26].y - inventory_buttons[26].h / 2;
+        gr_screen.offset_x += -inventory_buttons[26].x - inventory_buttons[26].w / 2;
+        gr_screen.offset_y += -inventory_buttons[26].y - inventory_buttons[26].h / 2;
         index = 3;
         break;
     case 3:
-        x += -inventory_buttons[20].x - inventory_buttons[20].w / 2;
-        y += -inventory_buttons[20].y - inventory_buttons[20].h / 2;
+        gr_screen.offset_x += -inventory_buttons[20].x - inventory_buttons[20].w / 2;
+        gr_screen.offset_y += -inventory_buttons[20].y - inventory_buttons[20].h / 2;
         index = 4;
         break;
     case 4:
     case 9:
-        x += -inventory_buttons[24].x - inventory_buttons[24].w / 2;
-        y += -inventory_buttons[24].y - inventory_buttons[24].h / 2;
+        gr_screen.offset_x += -inventory_buttons[24].x - inventory_buttons[24].w / 2;
+        gr_screen.offset_y += -inventory_buttons[24].y - inventory_buttons[24].h / 2;
         index = 5;
         break;
     case 5:
-        x += -inventory_buttons[25].x - inventory_buttons[25].w / 2;
-        y += -inventory_buttons[25].y - inventory_buttons[25].h / 2;
+        gr_screen.offset_x += -inventory_buttons[25].x - inventory_buttons[25].w / 2;
+        gr_screen.offset_y += -inventory_buttons[25].y - inventory_buttons[25].h / 2;
         index = 6;
         break;
     case 6:
-        x += -inventory_buttons[18].x - inventory_buttons[18].w / 2;
-        y += -inventory_buttons[18].y - inventory_buttons[18].h / 2;
+        gr_screen.offset_x += -inventory_buttons[18].x - inventory_buttons[18].w / 2;
+        gr_screen.offset_y += -inventory_buttons[18].y - inventory_buttons[18].h / 2;
         index = 7;
         break;
     case 7:
-        x += -inventory_buttons[19].x - inventory_buttons[19].w / 2;
-        y += -inventory_buttons[19].y - inventory_buttons[19].h / 2;
+        gr_screen.offset_x += -inventory_buttons[19].x - inventory_buttons[19].w / 2;
+        gr_screen.offset_y += -inventory_buttons[19].y - inventory_buttons[19].h / 2;
         index = 8;
         break;
     case 8:
-        x += -inventory_buttons[27].x - inventory_buttons[27].w / 2;
-        y += -inventory_buttons[27].y - inventory_buttons[27].h / 2;
+        gr_screen.offset_x += -inventory_buttons[27].x - inventory_buttons[27].w / 2;
+        gr_screen.offset_y += -inventory_buttons[27].y - inventory_buttons[27].h / 2;
         index = 7;
         break;
     default:
         return;
     }
-    gr_screen.offset_x = x + (inventory_model_view_offset[resolution_index][index][0] + game_mouse_x);
-    gr_screen.offset_y = y + (inventory_model_view_offset[resolution_index][index][1] + game_mouse_y);
+    gr_screen.offset_x += inventory_model_view_offset[resolution_index][index][0] + game_mouse_x;
+    gr_screen.offset_y += inventory_model_view_offset[resolution_index][index][1] + game_mouse_y;
 }
 
 // 0x418430  Confidence: exact. Mouse mode 5: the dragged equipped item's model once the mouse leaves its

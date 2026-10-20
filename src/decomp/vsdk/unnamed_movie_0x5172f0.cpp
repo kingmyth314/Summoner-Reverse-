@@ -57,39 +57,39 @@ int movie_blit_frame(HBINK bink);
 // ---- .bss ----------------------------------------------------------------------------------------------
 HBINK movie_bink_handle;                             // 0x26b63e4
 
-// 0x5172f0  Confidence: likely (the File object is constructed and destroyed but never used: the EH frame
-// is for it. VC6 places the File above the path buffer whatever the declaration order; the original has it
-// at [esp], D5607). Plays movies\<filename> until it ends or Escape is pressed, on a cleared screen,
+// 0x5172f0  Confidence: exact (VC6 8966 byte match, w1 / D11001: the missing window is an early return and the
+// path buffer is declared after it, which puts the File at [esp] as in the original; D5607). The File
+// object is constructed and destroyed but never used: the EH frame is for it. Plays movies\<filename> until it ends or Escape is pressed, on a cleared screen,
 // with Bink's DirectSound output. Nothing happens without a main window.
 void movie_play(const char *filename)
 {
-    char path[MAX_PATH];
     File unused;
     int done;
 
-    if (os_get_main_wnd() != NULL) {
-        file_make_path(path_movies, filename, path);
-        BinkSetSoundSystem(BinkOpenDirectSound, 0);
-        movie_bink_handle = BinkOpen(path, 0);
-        if (movie_bink_handle != NULL) {
-            gr::reset_clip();
-            gr_set_color(0, 0, 0, 255);
-            gr_clear();
-            gr_flip();
-            gr_clear();
-            gr_flip();
-            done = 0;
-            while (!done) {
-                os_poll();
-                if (key_inkey() == KEY_ESC)
-                    break;
-                if (!BinkWait(movie_bink_handle))
-                    done = movie_blit_frame(movie_bink_handle);
-            }
-            if (movie_bink_handle) {
-                BinkClose(movie_bink_handle);
-                movie_bink_handle = NULL;
-            }
+    if (os_get_main_wnd() == NULL)
+        return;
+    char path[MAX_PATH];
+    file_make_path(path_movies, filename, path);
+    BinkSetSoundSystem(BinkOpenDirectSound, 0);
+    movie_bink_handle = BinkOpen(path, 0);
+    if (movie_bink_handle != NULL) {
+        gr::reset_clip();
+        gr_set_color(0, 0, 0, 255);
+        gr_clear();
+        gr_flip();
+        gr_clear();
+        gr_flip();
+        done = 0;
+        while (!done) {
+            os_poll();
+            if (key_inkey() == KEY_ESC)
+                break;
+            if (!BinkWait(movie_bink_handle))
+                done = movie_blit_frame(movie_bink_handle);
+        }
+        if (movie_bink_handle) {
+            BinkClose(movie_bink_handle);
+            movie_bink_handle = NULL;
         }
     }
 }

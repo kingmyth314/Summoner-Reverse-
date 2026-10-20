@@ -57,7 +57,7 @@ http_get::http_get(const char *url, const char *local_file)
     init(url, local_file);
 }
 
-// 0x55a9a0  Confidence: likely (the slash scan's form). "http://host/path/file"; a ':' (a port) is a parse
+// 0x55a9a0  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the slash scan's form). "http://host/path/file"; a ':' (a port) is a parse
 // error. On success the state stays STARTUP until the worker connects.
 void http_get::init(const char *u, const char *local_file)
 {
@@ -102,9 +102,8 @@ void http_get::init(const char *u, const char *local_file)
     for (i = strlen(p); i >= 0; i--) {
         if (p[i] == '/') {
             if (last == NULL) {
-                last = p + i + 1;
+                first = last = p + i + 1;
                 strcpy(filename, last);
-                first = last;
             } else {
                 first = p + i + 1;
             }
@@ -217,7 +216,7 @@ void http_get::send_get()
     }
 }
 
-// 0x55ae20  Confidence: likely (the lookup and connect loops' forms). A failed lookup is never seen:
+// 0x55ae20  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely) (the lookup and connect loops' forms). A failed lookup is never seen:
 // http_resolve_host marks its own record, POLL reads the global copy (http_async_gethostbyname), so an
 // unknown host keeps this thread polling until the getter is aborted (game bug, NOTES.md).
 int http_get::connect_socket()
@@ -285,8 +284,8 @@ int http_get::connect_socket()
     err = WSAGetLastError();
     if (r != 0) {
         while (err == WSAEALREADY || err == WSAEINVAL || err == WSAEWOULDBLOCK) {
-            fds.fd_count = 1;
             fds.fd_array[0] = sock;
+            fds.fd_count = 1;
             if (select(0, NULL, &fds, NULL, &tv) != 0)
                 goto connected;
             if (aborting)
@@ -309,7 +308,7 @@ connected:
     return 1;
 }
 
-// 0x55b0d0  Confidence: likely. A line ends at '\r' (the byte after it is read and dropped); a lone '\n'
+// 0x55b0d0  Confidence: exact (VC6 8966 byte match, m-1020 w6; was likely). A line ends at '\r' (the byte after it is read and dropped); a lone '\n'
 // stays in the line.
 char *http_get::get_line()
 {
@@ -319,13 +318,17 @@ char *http_get::get_line()
     memset(recv_buffer, 0, sizeof(recv_buffer));
     do {
         ch[0] = '\0';
-        while (recv(sock, ch, 1, 0) == SOCKET_ERROR) {
+        while (1) {
+            if (recv(sock, ch, 1, 0) != SOCKET_ERROR)
+                break;
             if (WSAGetLastError() != WSAEWOULDBLOCK)
                 return NULL;
         }
         Sleep(1);
         if (ch[0] == '\r') {
-            while (recv(sock, ch, 1, 0) == SOCKET_ERROR) {
+            while (1) {
+                if (recv(sock, ch, 1, 0) != SOCKET_ERROR)
+                    break;
                 if (WSAGetLastError() != WSAEWOULDBLOCK)
                     return NULL;
             }

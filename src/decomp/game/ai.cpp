@@ -209,7 +209,7 @@ void ai_state::call_for_help()
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
         if (c == owner)
             continue;
-        if (c->get_team() == team && c->type == CHAR_TYPE_MONSTER) {
+        if ((c->get_team() == team) & (c->type == CHAR_TYPE_MONSTER)) {
             if (!c->ai.is_mode(AI_STATE_COMBAT, -1) && c->ai.target == -1 &&
                 distance(&owner->pos, &c->pos) < owner->info->detection_range)
                 c->ai_add_goal9(&owner->pos, owner->layer, 1000, 1);
@@ -368,9 +368,7 @@ int ai_state::pick_attack_slot(Character *attacker)
     int best_slot = 0;
     int i;
 
-    dir.x = him.x - me.x;
-    dir.y = him.y - me.y;
-    dir.z = him.z - me.z;
+    dir = him - me;
     for (i = 0; i < 5; i++) {
         attack_slot_direction(&s, i);
         dot = s.dot(dir);
@@ -1524,7 +1522,8 @@ void ai_global_init()
     atexit(ai_global_close);
 }
 
-// 0x474950  Confidence: likely (the order of the nine averages follows the binary; jump tables 0x474cac
+// 0x474950  Confidence: exact (VC6 byte match, m-1020: the end time t1 and `t1 - t0` written in each sum;
+// the order of the nine averages follows the binary; jump tables 0x474cac
 // and 0x474cc4 over the object types 4..9). Every frame every living entity gets ai_frame (type 4
 // always, the others while not dead); there is no time budget (NOTES.md). The RealtimeTimer only paces
 // the profiler averages. The pass's time is added to both the do_frame and the total counter.
@@ -1532,7 +1531,7 @@ void ai_do_frame()
 {
     obj *o, *next;
     Character *c;
-    int i, t0, dt;
+    int i, t0, t1;
 
     ai_do_frame_active = true;
     if (!ai_prof_timer.valid() || ai_prof_timer.elapsed()) {
@@ -1589,9 +1588,9 @@ void ai_do_frame()
     for (o = obj_active_list.next; o != &obj_active_list; o = o->next)
         if (o->type == CHAR_TYPE_BOSS)
             boss_ai_do_frame_hook((Character *)o);
-    dt = timer_get(1000000) - t0;
-    ai_prof_do_frame_us += dt;
-    ai_prof_path_us += dt;
+    t1 = timer_get(1000000);
+    ai_prof_do_frame_us += t1 - t0;
+    ai_prof_path_us += t1 - t0;
     ai_do_frame_active = false;
 }
 

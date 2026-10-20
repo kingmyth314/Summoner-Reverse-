@@ -83,9 +83,11 @@ void gr_load_reflection_map()
 // 0x50b150  Confidence: likely (the key search: the cached key +8 first, then from key 1).
 void ca_render_morph_vertices(vim_submesh *sm)
 {
-    int anim = ca_render_instance->action_anim;
+    int anim;
 
-    if (anim == -1)
+    if (ca_render_instance->action_anim != -1)
+        anim = ca_render_instance->action_anim;
+    else
         anim = ca_render_instance->state_anim;
     memcpy(ca_morph_vertices, sm->block0, sm->size0 * sizeof(vector3));
 

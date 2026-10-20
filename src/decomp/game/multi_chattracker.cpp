@@ -257,7 +257,7 @@ char *irc_get_chat_text()
     return irc_read_line();
 }
 
-// 0x4ac100  Confidence: likely (loop form). Reads what the socket has, one byte at a time, into
+// 0x4ac100  Confidence: exact (D12410: the received-byte branch first, the disconnect as its else). Reads what the socket has, one byte at a time, into
 // irc_line_buf; at CR or LF a non-empty line is parsed and its text returned. A line longer than 0x7ff
 // bytes is cut. recv() failing (connection closed) queues IRC_CMD_DISCONNECTED.
 char *irc_read_line()
@@ -271,22 +271,23 @@ char *irc_read_line()
     FD_ZERO(&read_fds);
     FD_SET(irc_socket, &read_fds);
     while (select(0, &read_fds, NULL, NULL, &timeout)) {
-        if (recv(irc_socket, ch, 1, 0) <= 0) {
+        if (recv(irc_socket, ch, 1, 0) > 0) {
+            ch[1] = 0;
+            if (ch[0] == '\n' || ch[0] == '\r') {
+                if (!irc_line_buf[0])
+                    return NULL;
+                strcpy(irc_message, irc_line_buf);
+                irc_line_buf[0] = 0;
+                return chat_process_irc_message(irc_message, 0);
+            }
+            if ((int)strlen(irc_line_buf) < (int)sizeof(irc_line_buf) - 1)
+                strcat(irc_line_buf, ch);
+            else
+                irc_line_buf[sizeof(irc_line_buf) - 1] = 0;
+        } else {
             irc_queue_command(IRC_CMD_DISCONNECTED, NULL, 0);
             return NULL;
         }
-        ch[1] = 0;
-        if (ch[0] == '\n' || ch[0] == '\r') {
-            if (!irc_line_buf[0])
-                return NULL;
-            strcpy(irc_message, irc_line_buf);
-            irc_line_buf[0] = 0;
-            return chat_process_irc_message(irc_message, 0);
-        }
-        if ((int)strlen(irc_line_buf) < (int)sizeof(irc_line_buf) - 1)
-            strcat(irc_line_buf, ch);
-        else
-            irc_line_buf[sizeof(irc_line_buf) - 1] = 0;
     }
     return NULL;
 }

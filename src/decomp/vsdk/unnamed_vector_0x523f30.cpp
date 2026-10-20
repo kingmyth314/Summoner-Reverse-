@@ -436,7 +436,8 @@ void project_onto_plane(vector3 *out, const vector3 *v, const vector3 *n, const 
     *out += *n * d;
 }
 
-// 0x524b50  Confidence: likely (the second vector is constructed but not used). Into the frame of a
+// 0x524b50  Confidence: exact (VC6 byte match, m-1020, D11102: the angle goes through a float local, fld /
+// fstp into the argument; the second vector is constructed but not used). Into the frame of a
 // matrix built on axis, rotated by a bank of angle, back out.
 void vector3_rotate_about_axis(vector3 *out, const vector3 *v, float angle, const vector3 *origin,
                                const vector3 *axis)
@@ -446,7 +447,8 @@ void vector3_rotate_about_axis(vector3 *out, const vector3 *v, float angle, cons
     matrix frame;
 
     frame.set_from_forward(*axis);
-    matrix spin(0.0f, angle, 0.0f);
+    float a = angle;
+    matrix spin(0.0f, a, 0.0f);
     p = *v - *origin;
     p.rotate(frame);
     p.rotate(spin);
