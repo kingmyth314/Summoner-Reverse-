@@ -162,35 +162,38 @@ bool Map_grid;                                                // 0x5b2db4
 // 0x401ea0 init_colors_5b29e0_thunk (jmp, entry 2). Confidence: exact.
 // 0x401eb0 init_colors_5b29e0 (two Color::Color calls). Confidence: exact.
 
-// 0x401ef0  Confidence: likely (the button loop is exact, as in the journal; the order of the two
-// max() sums and of the mask-scale quotient is a guess).
+// 0x401ef0  Confidence: exact (element pointers in the button loop, as in the journal; a float local for
+// the max() of the scales and for the first quotient, D13603).
 void automap_load_bitmaps()
 {
     float scale = ui_get_scale();
     int i;
 
     for (i = 0; i < AUTOMAP_NUM_BUTTONS; i++) {
-        automap_buttons[i].flags = 0;
-        automap_buttons[i].bitmap = -1;
-        automap_buttons[i].x = 0;
-        automap_buttons[i].y = 0;
-        automap_buttons[i].w = 0;
-        automap_buttons[i].h = 0;
+        ui_button_state *b = &automap_buttons[i];
+        const ui_button_def *d = &automap_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(automap_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, automap_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            automap_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            automap_buttons[i].x = automap_button_defs[i].pos[resolution_index][0];
-            automap_buttons[i].y = automap_button_defs[i].pos[resolution_index][1];
-            bm_get_dimensions(automap_buttons[i].bitmap, &automap_buttons[i].w, &automap_buttons[i].h);
-            automap_buttons[i].w = (int)(automap_buttons[i].w * scale + 0.5f);
-            automap_buttons[i].h = (int)(automap_buttons[i].h * scale + 0.5f);
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
+            bm_get_dimensions(b->bitmap, &b->w, &b->h);
+            b->w = (int)(b->w * scale + 0.5f);
+            b->h = (int)(b->h * scale + 0.5f);
             if (i == 0)
-                automap_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 
@@ -207,8 +210,10 @@ void automap_load_bitmaps()
 
     automap_mask_bm = bm_load(automap_mask_bm_name, path_interface, -1);
     bm_get_dimensions(automap_mask_bm, &automap_mask_w, &automap_mask_h);
-    automap_mask_tile_w = (int)(automap_scale_x + max(automap_scale_x, automap_scale_y) + 1.0f);
-    automap_mask_tile_h = (int)(automap_scale_y + max(automap_scale_x, automap_scale_y) + 1.0f);
+    float m = max(automap_scale_x, automap_scale_y);
+    automap_mask_tile_w = (int)(automap_scale_x + m + 1.0f);
+    m = max(automap_scale_x, automap_scale_y);
+    automap_mask_tile_h = (int)(automap_scale_y + m + 1.0f);
     progress_update(0);
 
     automap_label_bm = bm_load(automap_label_bm_names[ui_hires], path_interface, -1);
@@ -223,8 +228,8 @@ void automap_load_bitmaps()
 
     automap_you_are_here_bm = bm_load(automap_you_are_here_bm_name, path_interface, -1);
     bm_get_dimensions(automap_you_are_here_bm, &automap_you_are_here_w, &automap_you_are_here_h);
-    automap_mask_scale = ((float)automap_mask_tile_h / automap_mask_h
-                          + (float)automap_mask_tile_w / automap_mask_w) * 0.375f;
+    float sh = (float)automap_mask_tile_h / automap_mask_h;
+    automap_mask_scale = (sh + (float)automap_mask_tile_w / automap_mask_w) * 0.375f;
 }
 
 // 0x402250  Confidence: exact.

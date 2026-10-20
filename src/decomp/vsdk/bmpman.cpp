@@ -172,27 +172,30 @@ void bm_set_mark()
     memcpy(bm_hash_table_mark, bm_hash_table, sizeof(bm_hash_table));
 }
 
-// 0x501f20  Confidence: likely (the first loop reloads bm_used_list.next after each release, which the
-// second loop then starts from). Frees the bitmaps loaded since bm_set_mark, restores the hash table and
+// 0x501f20  Confidence: exact (the first loop reloads bm_used_list.next after each release, which the
+// second loop then starts from: a local `first`, D12705). Frees the bitmaps loaded since bm_set_mark, restores the hash table and
 // the name pool length, and re-adds the names that lay past the restored length (bm_replace_file renames).
 void bm_release_from_mark()
 {
     char name[256];
-    bitmap_entry *e, *next;
+    bitmap_entry *e, *next, *first;
 
     if (!bm_mark_active)
         VSDK_ERROR(BMPMAN_CPP, 0x52f, "bm_release_from_mark without bm_set_mark not allowed!");
     bm_mark_active = 0;
     bm_name_string_pool.SetLength(bm_mark_name_pool_length);
-    for (e = bm_used_list.next; e != &bm_used_list; e = next) {
+    first = bm_used_list.next;
+    for (e = first; e != &bm_used_list; e = next) {
         next = e->next;
-        if (e->mark_count > 0)
+        if (e->mark_count > 0) {
             e->mark_count--;
-        else
+        } else {
             bm_release(e - bm_bitmaps);
+            first = bm_used_list.next;
+        }
     }
     memcpy(bm_hash_table, bm_hash_table_mark, sizeof(bm_hash_table));
-    for (e = bm_used_list.next; e != &bm_used_list; e = e->next) {
+    for (e = first; e != &bm_used_list; e = e->next) {
         if (e->name - bm_name_pool >= bm_mark_name_pool_length) {
             strcpy(name, e->name);
             e->name = bm_name_string_pool.Add(name);
@@ -223,7 +226,8 @@ void bm_close()
     bm_name_string_pool.Reset();
 }
 
-// 0x5020f0  Confidence: likely (block order: VC6 places the single-bitmap branch first). Single bitmaps
+// 0x5020f0  Confidence: exact (block order: VC6 places the single-bitmap branch first; the frames are
+// cleared through a walking entry pointer, D12706). Single bitmaps
 // are freed at once (user bitmaps never); an animation's shared block is freed through its header when
 // the lock count runs out (or with force), and the frames' pointers are cleared.
 void bm_free_data(int bm, bool force)
@@ -246,9 +250,11 @@ void bm_free_data(int bm, bool force)
             delete[] (ubyte *)e->palette;
             e->palette = NULL;
         }
+        bitmap_entry *f = e;
         for (i = 0; i < e->num_frames; i++) {
-            e[i + 1].data = NULL;
-            e[i + 1].palette = NULL;
+            f++;
+            f->data = NULL;
+            f->palette = NULL;
         }
     } else {
         if (e->type == BM_TYPE_USER)

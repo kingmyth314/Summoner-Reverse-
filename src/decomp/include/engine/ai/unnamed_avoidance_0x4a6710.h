@@ -149,12 +149,18 @@ extern avoid_area avoid_areas[AVOID_NUM_AREAS];    // 0x246b928 (name ours)
 // The description avoid_spline_create reads: a count and per point the two cell bytes and two 2D end
 // points (avoid_spline_point_create(&p0[i], &p1[i], cell_x[i], cell_y[i]); decomp34, D1402). The cell
 // bytes are the size class and the layer of the spline wall (they index avoid_spline_point_counts).
+// D13300: the end points are a plain x / y pair without constructors (no `vector constructor iterator`
+// for the arrays in ls_sewer_create_avoid_spline 0x4ee3c0 or script_build_avoid_spline 0x4ddc60, and no
+// static initialiser for ls_khosanilab_path); same layout as vector2, which avoid_spline_point_create reads.
+struct avoid_spline_end {
+    float x, y;
+};
 struct avoid_spline_def {
     int count;                        // +0x00
     int cell_x[8];                    // +0x04
     int cell_y[8];                    // +0x24
-    vector2 p0[8];                    // +0x44
-    vector2 p1[8];                    // +0x84
+    avoid_spline_end p0[8];           // +0x44
+    avoid_spline_end p1[8];           // +0x84
 };
 LAYOUT_CHECK(avoid_spline_def, sizeof(avoid_spline_def) == 0xc4);
 struct avoid_spline {

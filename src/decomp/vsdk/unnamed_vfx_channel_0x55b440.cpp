@@ -40,7 +40,7 @@ void fx_rec4c::update(vfx_force_desc *f, float t)
         int f1 = f0 + 1;
         float frac;
 
-        if (f1 >= f->num_frames())
+        if (f1 >= f->header.frame_word >> 8)
             f1 = f0;
         frac = t - (int)floor(t);
         pos = f->get_pos(f0) * (1.0f - frac) + f->get_pos(f1) * frac;
@@ -60,21 +60,23 @@ void fx_rec4c::update(vfx_force_desc *f, float t)
             pos = world.transform(pos);
             rm.set(rot, pos);
             rm.set_product_4x4(world, rm);
-            rot = quaternion(*(matrix *)&rm);
+            quaternion rq(*(matrix *)&rm);
+            rot = rq;
         }
     }
     if (time <= 0.0f) {
         prev_pos = pos;
         prev_rot = rot;
     }
-    n = f->num_frames();
-    if ((float)n > t)
-        time = t;
-    else
+    n = f->header.frame_word >> 8;
+    if (!((float)n > t))
         time = (float)(n - 1);
+    else
+        time = t;
 }
 
-// 0x55b730  Confidence: likely (the order of the blends' two products).
+// 0x55b730  Confidence: exact (the order of the blends' two products; the frame count read from the header in
+// place: the binary has no call to num_frames in this /Ob0 unit, D12704).
 void fx_rec4c::get_transform(vfx_force_desc *f, vfx_force_params *out, float t)
 {
     int f0 = (int)floor(t);
@@ -84,7 +86,7 @@ void fx_rec4c::get_transform(vfx_force_desc *f, vfx_force_params *out, float t)
     float frac;
     float inv;
 
-    if (f1 >= f->num_frames())
+    if (f1 >= f->header.frame_word >> 8)
         f1 = f0;
     frac = t - (int)floor(t);
     inv = 1.0f - frac;

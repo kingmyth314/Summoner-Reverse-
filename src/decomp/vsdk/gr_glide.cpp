@@ -971,7 +971,9 @@ void gr_glide_get_section_rect(int bm, int section, int *x, int *y, int *w, int 
     *h = sec->h;
 }
 
-// 0x549560  Confidence: likely (the reload switch: case order from the binary). Builds the texture when
+// 0x549560  Confidence: likely (the reload switch: case order from the binary; m-1020b w13 D13701: glide_tmus[tmu]
+// in place and the switch on entry->sections[i].format give every instruction; Sum.exe keeps data in the
+// dead tmu argument slot, 8966 only). Builds the texture when
 // the entry does not hold this bitmap, copies the bitmap again when the TMU's dirty flag is set (never:
 // nothing in the unit sets it, D2505) and, with load, downloads and selects the section on the TMU.
 int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_scale, bool load)
@@ -980,8 +982,7 @@ int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_s
     ubyte *palette;
     if (bm >= 0) {
         int frame = bm_get_current_frame(bm);
-        glide_record *slot = &glide_tmus[tmu];
-        if (!slot->is_bound(frame, section, u_scale, v_scale)) {
+        if (!glide_tmus[tmu].is_bound(frame, section, u_scale, v_scale)) {
             glide_tcache_entry *entry = &glide_tcache_entries[frame];
             if (entry->num_sections < 1 || entry->bitmap != bm) {
                 if (!gr_glide_create_texture(bm, entry))
@@ -992,7 +993,7 @@ int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_s
                 bm_lock(bm, &data, &palette);
                 for (int i = 0; i < entry->num_sections; i++) {
                     glide_section *sec = &entry->sections[i];
-                    switch (sec->format) {
+                    switch (entry->sections[i].format) {
                     case GR_TEXFMT_ARGB_1555: {
                         ushort *d = (ushort *)sec->data;
                         ushort *s = (ushort *)data;
@@ -1010,7 +1011,7 @@ int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_s
                 bm_unlock(bm);
             }
             if (load)
-                slot->load_section(entry, section, u_scale, v_scale);
+                glide_tmus[tmu].load_section(entry, section, u_scale, v_scale);
         }
     }
     return 1;
@@ -1189,7 +1190,9 @@ void glide_record::load_section(glide_tcache_entry *entry, int section, float *u
     this->v_scale = v;
 }
 
-// 0x549b50  Confidence: likely (the casts of the 2 MB bank compare: shr then a signed compare).
+// 0x549b50  Confidence: likely (the casts of the 2 MB bank compare: shr then a signed compare; m-1020b w13
+// D13701: the bank local, end reused for the loop limit and used_tail = used_head leave one difference, the
+// limit add placed after the first next >= 0 test in Sum.exe).
 // Places a block after the last used one; a texture does not cross a 2 MB boundary. When the memory or
 // the blocks run out it starts again at the bottom and evicts the oldest blocks it overlaps.
 FxU32 glide_record::alloc(int size, int texture, int section)
@@ -1204,18 +1207,22 @@ FxU32 glide_record::alloc(int size, int texture, int section)
     } else {
         FxU32 addr = blocks[used_tail].addr + blocks[used_tail].size;
         FxU32 end = addr + size;
-        if (end < end_addr && (int)(end >> 21) > (int)(addr >> 21))
-            addr = (end >> 21) << 21;
+        if (end < end_addr) {
+            int bank = end >> 21;
+            if (bank > (int)(addr >> 21))
+                addr = bank << 21;
+        }
         if (addr + size <= end_addr && blocks[free_head].next >= 0) {
             index = new_block();
         } else {
             evict_block(head);
             index = used_head;
             addr = start_addr;
-            used_tail = index;
+            used_tail = used_head;
         }
         int next = blocks[used_tail].next;
-        while (next >= 0 && addr + size > blocks[next].addr) {
+        end = addr + size;
+        while (next >= 0 && end > blocks[next].addr) {
             int after = blocks[next].next;
             release_block(next);
             next = after;

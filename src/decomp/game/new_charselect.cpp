@@ -995,19 +995,23 @@ void mp_charselect_update_buttons()
     mp_charselect_mouse_mode = 0;
 }
 
-// 0x407e10  Confidence: likely (three stores of the element, as journal_drag_scrollbar).
+// 0x407e10  Confidence: exact (three stores of the element, as journal_drag_scrollbar; the list index read from
+// the global each time and the row count loaded again after the clamp to 0, D13100).
 void mp_charselect_drag_scrollbar()
 {
-    int list = mp_charselect_drag_scrollbar_index;
-    int count = mp_charselect_row_counts[list];
-
-    mp_charselect_scroll_pos[list] = (int)((float)(game_mouse_y - mp_charselect_track_pos[resolution_index][list][1]
-                                                   - mp_charselect_drag_start_y + mp_charselect_drag_start_thumb)
-                                           / mp_charselect_track_h[resolution_index][list] * count + 0.5f);
-    mp_charselect_scroll_pos[list] = mp_charselect_scroll_pos[list] > 0 ? mp_charselect_scroll_pos[list] : 0;
-    count -= mp_charselect_list_page[resolution_index][list];
-    mp_charselect_scroll_pos[list] = mp_charselect_scroll_pos[list] < count ? mp_charselect_scroll_pos[list] : count;
-    mp_charselect_update_scrollbar(list);
+    mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] =
+        (int)((float)(mp_charselect_drag_start_thumb
+                      + (game_mouse_y - mp_charselect_track_pos[resolution_index][mp_charselect_drag_scrollbar_index][1]
+                         - mp_charselect_drag_start_y))
+              / mp_charselect_track_h[resolution_index][mp_charselect_drag_scrollbar_index]
+              * mp_charselect_row_counts[mp_charselect_drag_scrollbar_index] + 0.5f);
+    mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] =
+        mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] > 0 ? mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] : 0;
+    int count = mp_charselect_row_counts[mp_charselect_drag_scrollbar_index];
+    count -= mp_charselect_list_page[resolution_index][mp_charselect_drag_scrollbar_index];
+    mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] =
+        mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] < count ? mp_charselect_scroll_pos[mp_charselect_drag_scrollbar_index] : count;
+    mp_charselect_update_scrollbar(mp_charselect_drag_scrollbar_index);
 
     if (!mouse_is_down(0))
         mp_charselect_mouse_mode = 0;

@@ -87,7 +87,7 @@ void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_r
     vector3 n;
     ix_hit ixh;
 
-    if (face->normal.dot(ray->local_dir) <= 0.0f) {
+    if (ray->local_dir.dot(face->normal) <= 0.0f) {
         n = face->normal;
     } else {
         if (!(face->flags & 0x200))
@@ -136,7 +136,7 @@ void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lob
     float t, span, t2;
     int inside;
 
-    if (face->normal.dot(ray->local_dir) <= 0.0f) {
+    if (ray->local_dir.dot(face->normal) <= 0.0f) {
         n = face->normal;
     } else {
         if (!(face->flags & 0x20))

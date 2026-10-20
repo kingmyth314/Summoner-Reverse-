@@ -874,35 +874,33 @@ void matrix3_to_cstr(char *dest, int size, const matrix *m, int precision)
     strcpy(dest, buf);
 }
 
-// 0x517180  Confidence: unsure (shape of the break search: the code tests the found case with
-// inc / jns). Lines of at most 70 chars: the last space or CR at index <= 69 ends the line (it is
+// 0x517180  Confidence: exact (D13400: one index for the search and the advance, `i = 70;
+// while (i--)`, then `if (i < 0)`; the found case tests the incremented index with inc / jns). Lines of at most 70 chars: the last space or CR at index <= 69 ends the line (it is
 // dropped), else the first one after index 70, else the rest. Then "$end text" and a bare newline.
 void file_write_text_block(const char *text, File *f)
 {
     while (*text != '\0') {
         int count = strlen(text);
-        int advance = count;
+        int i = count;
         if (count > 70) {
-            int i;
-            for (i = 69; i >= 0; i--) {
-                if (text[i] == '\r' || text[i] == ' ')
+            i = 70;
+            while (i--) {
+                if (text[i] == '\r' || text[i] == ' ') {
+                    count = i++;
                     break;
+                }
             }
-            if (i >= 0) {
-                count = i;
-                advance = i + 1;
-            } else {
+            if (i < 0) {
                 for (i = 70; i < count; i++) {
                     if (text[i] == '\r' || text[i] == ' ') {
-                        count = i;
-                        advance = i + 1;
+                        count = i++;
                         break;
                     }
                 }
             }
         }
         f->write_line(text, count);
-        text += advance;
+        text += i;
     }
     f->write_line("$end text", -1);
     f->write_line(NULL, -1);
@@ -914,7 +912,7 @@ int TextFile::AtEnd()
     return *cursor == '\0';
 }
 
-// 0x517220  Confidence: likely (file_blast_size is stored before the call). NULL forgets the
+// 0x517220  Confidence: exact (D13401: both stores written above the strcpy; the compiler schedules them after it). NULL forgets the
 // buffer; else the packfile is read into buf and TextFile::Open takes tables from it.
 // "" literals 0x26b63dc, 0x26b63e0.
 void file_blast_into_buffer(char *buf, int size, const char *name)
@@ -926,9 +924,9 @@ void file_blast_into_buffer(char *buf, int size, const char *name)
         return;
     }
 
-    strcpy(file_blast_filename, name);
     file_blast_buffer = buf;
     file_blast_size = size;
+    strcpy(file_blast_filename, name);
     if (!packfile_read_whole_file(buf, size, name)) {
         printf("************************************************ ERROR BLASTING FILE INTO BUFFER!\n");
         file_blast_size = -1;

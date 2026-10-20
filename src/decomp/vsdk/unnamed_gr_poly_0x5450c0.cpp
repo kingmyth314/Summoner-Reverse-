@@ -329,10 +329,14 @@ bool gr_poly_end()
     return gr_poly_clip_and_draw(codes, list, tmp);
 }
 
-// 0x545870  Confidence: likely (the exits). A vertex behind the viewer drops the polygon; fixed depth sets
+// m-1020b w8 (D13200): the binary calls the clip-vertex helpers out of line here and in gr_poly_clip_edge.
+#pragma inline_depth(0)
+// 0x545870  Confidence: likely (the exits; m-1020b w8, D13200: list copied to a local, an element pointer per
+// vertex; only the shrink-wrapped prologue differs). A vertex behind the viewer drops the polygon; fixed depth sets
 // every vertex's z and 1/z unless a pass is sectioned.
 bool gr_poly_clip_and_draw(ubyte *codes, gr_multipass_vertex **list, gr_multipass_vertex **tmp)
 {
+    gr_multipass_vertex **l = list;
     int nv = gr_poly_num_vertices;
     int i;
     gr_vertex *v;
@@ -340,14 +344,15 @@ bool gr_poly_clip_and_draw(ubyte *codes, gr_multipass_vertex **list, gr_multipas
     if (gr_poly_num_textures == 0)
         return false;
     if (codes[0]) {
-        list = gr_poly_clip_planes(list, tmp, &nv, codes);
+        l = gr_poly_clip_planes(l, tmp, &nv, codes);
         if (nv == 0 || codes[1])
             goto done;
     }
     for (i = 0; i < nv; i++) {
-        if (!(list[i]->v->flags & 1))
-            gr_project_vertex(list[i]->v);
-        v = list[i]->v;
+        gr_multipass_vertex *m = l[i];
+        if (!(m->v->flags & 1))
+            gr_project_vertex(m->v);
+        v = m->v;
         if (v->flags & 2)
             goto done;
         if (gr_poly_fixed_depth && !gr_poly_multitexture) {
@@ -356,16 +361,17 @@ bool gr_poly_clip_and_draw(ubyte *codes, gr_multipass_vertex **list, gr_multipas
         }
     }
     if (gr_poly_multitexture) {
-        gr_poly_split_sections_draw(nv, list, gr_poly_num_textures, gr_poly_texture_slots);
+        gr_poly_split_sections_draw(nv, l, gr_poly_num_textures, gr_poly_texture_slots);
         gr_poly_reset_clip_verts();
         gr_poly_free_clip_verts();
         return true;
     }
-    gr_tmapper_multipass(nv, list, gr_poly_num_textures, gr_poly_texture_slots);
+    gr_tmapper_multipass(nv, l, gr_poly_num_textures, gr_poly_texture_slots);
 done:
     gr_poly_free_clip_verts();
     return true;
 }
+#pragma inline_depth()
 
 // 0x545970  Confidence: exact. As gr_clip_polygon, but up to plane bit 0x20 (the behind plane included).
 gr_multipass_vertex **gr_poly_clip_planes(gr_multipass_vertex **src, gr_multipass_vertex **tmp, int *nv, ubyte *codes)
@@ -423,7 +429,8 @@ int gr_poly_clip_plane(int plane, gr_multipass_vertex **src, gr_multipass_vertex
     return dst - start;
 }
 
-// 0x545ac0  Confidence: likely (as gr_clip_edge; the far crossing stores z last). The pass values are
+#pragma inline_depth(0)
+// 0x545ac0  Confidence: likely (m-1020b w8, D13200: three uv addresses differ in base / index order only; as gr_clip_edge; the far crossing stores z last). The pass values are
 // interpolated for the passes that use them (uv, colour, alpha); the alpha is 0 at the far plane when
 // the outside vertex's is.
 gr_multipass_vertex *gr_poly_clip_edge(int plane, gr_multipass_vertex *on, gr_multipass_vertex *off)
@@ -498,15 +505,23 @@ gr_multipass_vertex *gr_poly_clip_edge(int plane, gr_multipass_vertex *on, gr_mu
     }
     return tmp;
 }
+#pragma inline_depth()
 
-// 0x545d70  Confidence: likely (the replay loop's shape; the sort and the opcodes match). Shell sort of the
+// m-1020b w8 (D13200): the binary builds verts with `vector constructor iterator` (0x404880) and gr_vertex's
+// implicit constructor, so inline expansion is off for this function too (as gr.cpp's /Ob0, D12103).
+#pragma inline_depth(0)
+// 0x545d70  Confidence: exact (VC6 byte match, m-1020b w8, D13200: inline_depth(0), nv cleared before the
+// array, one a2 / z for both begin opcodes (the binary cross-jumps their gr_poly_begin calls), the end opcode
+// leaves the endless replay loop by a goto, as the binary's other opcodes jump straight back). Shell sort of the
 // recorded polygons by their z, largest first, then each one is replayed into the immediate calls with
 // the tint off (the colours were tinted when recorded).
 void gr_poly_buffer_flush()
 {
     bool saved_tint;
-    int gap, i, j, k, nv, op;
+    int gap, i, j, k, nv;
     ubyte *t;
+    ubyte a2;
+    float z;
 
     if (gr_poly_buffer_ptr == gr_poly_buffer)
         return;
@@ -523,25 +538,23 @@ void gr_poly_buffer_flush()
             }
         }
     }
-    gr_vertex verts[25];
     nv = 0;
+    gr_vertex verts[25];
     for (k = 0; k < gr_poly_buffer_count; k++) {
         gr_poly_buffer_ptr = gr_poly_buffer_polys[k];
-        do {
-            op = gr_poly_buffer_get_byte();
-            switch (op) {
-            case GR_POLY_OP_BEGIN: {
-                ubyte a2 = gr_poly_buffer_get_byte();
+        for (;;) {
+            switch (gr_poly_buffer_get_byte()) {
+            case GR_POLY_OP_BEGIN:
+                a2 = gr_poly_buffer_get_byte();
                 gr_poly_buffer_skip(2);
-                float z = gr_poly_buffer_get_float();
+                z = gr_poly_buffer_get_float();
                 nv = 0;
                 gr_poly_begin(false, z, a2, false, 0.0f);
                 break;
-            }
             case GR_POLY_OP_BEGIN_DEPTH: {
-                ubyte a2 = gr_poly_buffer_get_byte();
+                a2 = gr_poly_buffer_get_byte();
                 gr_poly_buffer_skip(2);
-                float z = gr_poly_buffer_get_float();
+                z = gr_poly_buffer_get_float();
                 float depth = gr_poly_buffer_get_float();
                 nv = 0;
                 gr_poly_begin(false, z, a2, true, depth);
@@ -592,14 +605,16 @@ void gr_poly_buffer_flush()
             case GR_POLY_OP_END:
                 gr_poly_buffer_skip(3);
                 gr_poly_end();
-                break;
+                goto next;
             }
-        } while (op != GR_POLY_OP_END);
+        }
+    next:;
     }
     gr_screen.tint_enabled = saved_tint;
     gr_poly_buffer_ptr = gr_poly_buffer;
     gr_poly_buffer_count = 0;
 }
+#pragma inline_depth()
 
 // 0x546070  Confidence: exact.
 ubyte gr_poly_buffer_get_byte()

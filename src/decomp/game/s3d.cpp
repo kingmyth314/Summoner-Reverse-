@@ -256,7 +256,8 @@ void s3d_level_clear(s3d_level *level)
     memset((void *)level, 0, sizeof(s3d_level));
 }
 
-// 0x46e1b0  Confidence: likely. Caller level_load_files (filename, &level_s3d, 0x2d000). EH frame for
+// 0x46e1b0  Confidence: exact (VC6 byte match, m-1020b w15; D13904: the mesh and door-name entries through
+// pointer locals, the memory delta through a local). Caller level_load_files (filename, &level_s3d, 0x2d000). EH frame for
 // the File; every early return runs its destructor. The header and record readers are called in file
 // order; the doors are sorted by name afterwards and the $vis_base list is rebuilt. The return value is
 // File::close's (D804). Locals: File at esp+0x18, the id at esp+0x14, the start count at esp+0x10.
@@ -299,7 +300,8 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
         level->geometry[i].block.read(&f);
     set_current_mempool(NULL);
     for (i = 0; i < level->num_meshes; i++) {
-        s3d_read_meshes(level, &level->meshes[i], &f);
+        lobj *m = &level->meshes[i];
+        s3d_read_meshes(level, m, &f);
         progress_update(0);
     }
 
@@ -359,11 +361,12 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
 
     // Door name index for door_find_by_name: a door takes the name of its named path.
     for (i = 0; i < level->num_door_records; i++) {
-        level->door_names[i].door = i;
+        s3d_door_name *dn = &level->door_names[i];
+        dn->door = i;
         if (level->door_records[i].named_path >= 0)
-            level->door_names[i].name = level->named_paths[level->door_records[i].named_path].name;
+            dn->name = level->named_paths[level->door_records[i].named_path].name;
         else
-            level->door_names[i].name = "";
+            dn->name = "";
     }
     qsort(level->door_names, level->num_door_records, sizeof(s3d_door_name), name_ptr_stricmp_compare);
     s3d_load_textures(level);
@@ -392,11 +395,13 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
         level->meshes[i].flags &= ~0x6000;
     }
     level->flags |= 1;
-    level_s3d_mem += mem_bytes_allocated - start_mem;
+    int used = mem_bytes_allocated - start_mem;
+    level_s3d_mem += used;
     return result;
 }
 
-// 0x46e910  Confidence: likely. One geometry record: the arrays come from the level pools in read mode
+// 0x46e910  Confidence: exact (VC6 byte match, m-1020b w15; D13906: the face indexed as g->faces[i] throughout,
+// no face pointer). One geometry record: the arrays come from the level pools in read mode
 // (the int array from level_mempool), then the face normals are rebuilt from the vertices. The three
 // corners are copied into a local array (vector3's inline operator=, D500) before vector3_perp.
 void s3d_read_geometry(s3d_level *level, s3d_geometry *g, File *f)
@@ -442,11 +447,10 @@ void s3d_read_geometry(s3d_level *level, s3d_geometry *g, File *f)
         f->sync_bytes(g->_unk4c, g->_unk50 * 4, 0);
     if (f->check_flags(1)) {
         for (i = 0; i < g->num_faces; i++) {
-            s3d_face *face = &g->faces[i];
             vector3 v[3];
             for (j = 0; j < 3; j++)
-                v[j] = g->vertices[face->v[j]];
-            vector3_perp(&face->normal, &v[0], &v[1], &v[2]);
+                v[j] = g->vertices[g->faces[i].v[j]];
+            vector3_perp(&g->faces[i].normal, &v[0], &v[1], &v[2]);
             g->faces[i].normal.normalize();
         }
     }

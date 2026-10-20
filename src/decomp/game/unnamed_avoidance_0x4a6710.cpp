@@ -229,8 +229,13 @@ bool avoid_prim_test(const vector2 *p, const avoid_obstacle *ob, float margin)
     return false;
 }
 
-// 0x4a6d60  Confidence: likely (w10, D10901: the centre, axis and points through the vector2 operators give
-// the binary up to axis_b, which the binary constructs in place). A box of zero width
+// D13302: an inline setter with both values as arguments (as vector3::set; possibly the original's
+// vector2 member): the arguments are evaluated right to left and stored straight into the target, which
+// is the binary's `fld x / fld y / fchs / fstp / fstp` for axis_b. Name ours.
+static inline void vec2_set(vector2 &v, float x, float y) { v.x = x; v.y = y; }
+
+// 0x4a6d60  Confidence: exact (w10, D10901: the centre, axis and points through the vector2 operators;
+// axis_b through the setter, D13302). A box of zero width
 // around the segment a-b.
 void avoid_prim_from_segment(avoid_prim *out, const vector2 *a, const vector2 *b)
 {
@@ -238,7 +243,7 @@ void avoid_prim_from_segment(avoid_prim *out, const vector2 *a, const vector2 *b
     out->centre = 0.5f * (*a + *b);
     out->axis_a = *b - out->centre;
     out->half_a = out->axis_a.normalize();
-    out->axis_b = vector2(-out->axis_a.y, out->axis_a.x);
+    vec2_set(out->axis_b, -out->axis_a.y, out->axis_a.x);
     out->half_b = 0.0f;
     out->points[0] = *a;
     out->points[1] = *b;
@@ -259,17 +264,16 @@ bool avoid_prim_overlap(const avoid_obstacle *a, const avoid_prim *b, float marg
     v = &a->axis_b;
     u = &a->axis_a;
     for (pass = 0; pass < 2; pass++) {
-        ku = fabs(b->axis_a.y * u->y + u->x * b->axis_a.x);
-        if (ku * b->half_a + a->half_a - margin < fabs(d.x * u->x + d.y * u->y))
+        ku = fabs(b->axis_a.dot(*u));
+        if (fabs(d.x * u->x + d.y * u->y) > ku * b->half_a + a->half_a - margin)
             return false;
         kv = fabs(b->axis_a.y * v->y + b->axis_a.x * v->x);
-        if (kv * b->half_a + a->half_b - margin < fabs(d.x * v->x + d.y * v->y))
+        if (fabs(d.x * v->x + d.y * v->y) > kv * b->half_a + a->half_b - margin)
             return false;
-        if (fabs(b->axis_b.y * v->y + v->x * b->axis_b.x) * a->half_b
-                + fabs(b->axis_b.y * u->y + u->x * b->axis_b.x) * a->half_a - margin
-            < fabs(d.y * b->axis_b.y + d.x * b->axis_b.x))
+        if (fabs(d.y * b->axis_b.y + d.x * b->axis_b.x) > fabs(b->axis_b.y * v->y + v->x * b->axis_b.x) * a->half_b
+                + fabs(b->axis_b.y * u->y + u->x * b->axis_b.x) * a->half_a - margin)
             return false;
-        if (ku * a->half_a + kv * a->half_b + b->half_a - margin < fabs(d.y * b->axis_a.y + d.x * b->axis_a.x))
+        if (fabs(d.y * b->axis_a.y + d.x * b->axis_a.x) > ku * a->half_a + kv * a->half_b + b->half_a - margin)
             return false;
         if (a->flags & AVOID_OB_BOX)
             break;
@@ -299,13 +303,13 @@ bool avoid_box_box_overlap(const avoid_obstacle *a, const avoid_obstacle *b)
     k_ab = fabs(b->axis_a.y * a->axis_b.y + b->axis_a.x * a->axis_b.x);
     k_ba = fabs(b->axis_b.y * a->axis_a.y + b->axis_b.x * a->axis_a.x);
     k_aa = fabs(b->axis_a.y * a->axis_a.y + b->axis_a.x * a->axis_a.x);
-    if (k_bb * b->half_b + k_ab * b->half_a + a->half_b < fabs(dy * a->axis_b.y + dx * a->axis_b.x))
+    if (fabs(dy * a->axis_b.y + dx * a->axis_b.x) > k_bb * b->half_b + k_ab * b->half_a + a->half_b)
         return false;
-    if (k_ba * b->half_b + k_aa * b->half_a + a->half_a < fabs(dy * a->axis_a.y + dx * a->axis_a.x))
+    if (fabs(dy * a->axis_a.y + dx * a->axis_a.x) > k_ba * b->half_b + k_aa * b->half_a + a->half_a)
         return false;
-    if (k_ba * a->half_a + k_bb * a->half_b + b->half_b < fabs(dy * b->axis_b.y + dx * b->axis_b.x))
+    if (fabs(dy * b->axis_b.y + dx * b->axis_b.x) > k_ba * a->half_a + k_bb * a->half_b + b->half_b)
         return false;
-    if (k_aa * a->half_a + k_ab * a->half_b + b->half_a < fabs(dy * b->axis_a.y + dx * b->axis_a.x))
+    if (fabs(dy * b->axis_a.y + dx * b->axis_a.x) > k_aa * a->half_a + k_ab * a->half_b + b->half_a)
         return false;
     return true;
 }
@@ -625,7 +629,8 @@ int avoid_spline_create(avoid_spline_def *def)
         return -1;
     n = 0;
     for (i = 0; i < def->count; i++) {
-        r = avoid_spline_point_create(&def->p0[i], &def->p1[i], def->cell_x[i], def->cell_y[i]);
+        r = avoid_spline_point_create((const vector2 *)&def->p0[i], (const vector2 *)&def->p1[i], def->cell_x[i],
+                                      def->cell_y[i]);
         if (r != -1)
             sp->points[n++] = (char)r;
     }

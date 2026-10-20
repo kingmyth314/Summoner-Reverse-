@@ -236,7 +236,8 @@ void inv_cameras_parse_table()
     new_icam_load(&inventory_cameras, "inv_cameras.tbl");
 }
 
-// 0x414de0  Confidence: likely (journal_load_bitmaps shape; the i == 0 test is skipped from the i == 27
+// 0x414de0  Confidence: exact (VC6 byte match, m-1020b w15; D13901: journal_load_bitmaps' button and def
+// pointers b / d, which keep &b->w / &b->h in the frame; the i == 0 test is skipped from the i == 27
 // branch, read as jump threading of a test after the if / else). Hot spot 27 (the heavy armour outline) takes
 // its size from inventory_hvyarmr_size, unscaled, instead of from its bitmap.
 void inventory_load_bitmaps()
@@ -245,32 +246,35 @@ void inventory_load_bitmaps()
     int i;
 
     for (i = 0; i < INVENTORY_NUM_BUTTONS; i++) {
-        inventory_buttons[i].flags = 0;
-        inventory_buttons[i].bitmap = -1;
-        inventory_buttons[i].x = 0;
-        inventory_buttons[i].y = 0;
-        inventory_buttons[i].w = 0;
-        inventory_buttons[i].h = 0;
+        ui_button_state *b = &inventory_buttons[i];
+        const ui_button_def *d = &inventory_button_defs[i];
+
+        b->flags = 0;
+        b->bitmap = -1;
+        b->x = 0;
+        b->y = 0;
+        b->w = 0;
+        b->h = 0;
         progress_update(0);
 
-        if (strlen(inventory_button_defs[i].name)) {
+        if (strlen(d->name)) {
             char filename[128];
 
-            strcpy(filename, inventory_button_defs[i].name);
+            strcpy(filename, d->name);
             strcat(filename, ui_bitmap_suffix_tga[ui_hires]);
-            inventory_buttons[i].bitmap = bm_load(filename, path_interface, -1);
-            inventory_buttons[i].x = inventory_button_defs[i].pos[resolution_index][0];
-            inventory_buttons[i].y = inventory_button_defs[i].pos[resolution_index][1];
+            b->bitmap = bm_load(filename, path_interface, -1);
+            b->x = d->pos[resolution_index][0];
+            b->y = d->pos[resolution_index][1];
             if (i == 27) {
-                inventory_buttons[i].w = inventory_hvyarmr_size[resolution_index][0];
-                inventory_buttons[i].h = inventory_hvyarmr_size[resolution_index][1];
+                b->w = inventory_hvyarmr_size[resolution_index][0];
+                b->h = inventory_hvyarmr_size[resolution_index][1];
             } else {
-                bm_get_dimensions(inventory_buttons[i].bitmap, &inventory_buttons[i].w, &inventory_buttons[i].h);
-                inventory_buttons[i].w = (int)(inventory_buttons[i].w * scale + 0.5f);
-                inventory_buttons[i].h = (int)(inventory_buttons[i].h * scale + 0.5f);
+                bm_get_dimensions(b->bitmap, &b->w, &b->h);
+                b->w = (int)(b->w * scale + 0.5f);
+                b->h = (int)(b->h * scale + 0.5f);
             }
             if (i == 0)
-                inventory_buttons[i].flags |= 1;
+                b->flags |= 1;
         }
     }
 

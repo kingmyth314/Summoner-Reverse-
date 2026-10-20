@@ -1697,11 +1697,17 @@ void d3d_pixel_format_masks_valid(DDPIXELFORMAT *pf)
 
 // Bits set in a contiguous mask (0 for 0). A macro (name ours): the binary repeats the two loops for
 // every mask, and nothing in these objects is inlined, so it is not a function.
+// The count is cleared after the first loop, and a zero mask clears it in an else (D13600).
 #define D3D_MASK_BITS(mask, bits) \
-    do { DWORD m_ = (mask); (bits) = 0; \
-         if (m_) { while (!(m_ & 1)) m_ >>= 1; while (m_ & 1) { m_ >>= 1; (bits)++; } } } while (0)
+    do { DWORD m_ = (mask); \
+         if (m_) { while (!(m_ & 1)) m_ >>= 1; (bits) = 0; while (m_ & 1) { m_ >>= 1; (bits)++; } } \
+         else (bits) = 0; } while (0)
+// The same count into a variable already set to 0 (no else).
+#define D3D_MASK_COUNT(mask, bits) \
+    do { DWORD m_ = (mask); \
+         if (m_) { while (!(m_ & 1)) m_ >>= 1; (bits) = 0; while (m_ & 1) { m_ >>= 1; (bits)++; } } } while (0)
 
-// 0x53a1d0  Confidence: unsure (the bit counting is a macro of ours, D3D_MASK_BITS).
+// 0x53a1d0  Confidence: exact (the bit counting is a macro of ours, D3D_MASK_BITS / D3D_MASK_COUNT; D13600).
 // EnumTextureFormats callback. Keeps a 16-bit du/dv format with 8 + 8 bits (bump mapping), the 16-bit RGB
 // format with the most colour bits (a) and the format of at most 16 bits with the most alpha bits under
 // 8 (b).
@@ -1709,9 +1715,9 @@ HRESULT CALLBACK d3d_enum_texture_format_callback(DDPIXELFORMAT *pf, LPVOID cont
 {
     DWORD flags = pf->dwFlags;
     if (flags & DDPF_BUMPDUDV) {
-        int du, dv;
-        D3D_MASK_BITS(pf->dwRBitMask, du);
-        D3D_MASK_BITS(pf->dwGBitMask, dv);
+        int du = 0, dv = 0;
+        D3D_MASK_COUNT(pf->dwRBitMask, du);
+        D3D_MASK_COUNT(pf->dwGBitMask, dv);
         if (pf->dwRGBBitCount == 16 && du == 8 && dv == du) {
             d3d_texture_format_c = *pf;
             d3d_texture_format_c_found = true;
@@ -1727,9 +1733,8 @@ HRESULT CALLBACK d3d_enum_texture_format_callback(DDPIXELFORMAT *pf, LPVOID cont
         else
             a = 0;
         if (r > 0 && g > 0 && b > 0 && pf->dwRGBBitCount == 16) {
-            int total = r + g + b;
-            if (total > d3d_texture_format_a_bits) {
-                d3d_texture_format_a_bits = total;
+            if (r + g + b > d3d_texture_format_a_bits) {
+                d3d_texture_format_a_bits = r + g + b;
                 d3d_texture_format_a = *pf;
             }
         }

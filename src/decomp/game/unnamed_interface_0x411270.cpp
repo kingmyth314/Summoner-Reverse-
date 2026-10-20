@@ -1475,8 +1475,8 @@ void ui_choice_popup_draw()
     }
     for (i = 0; i < ui_choice_popup_count; i++) {
         gr_get_string_size(&w, &h, ui_choice_popup_choices[i], -1, -1);
-        x = ((ui_choice_popup_flags & 2) ? (ui_choice_popup_w - w) / 2 : ui_choice_popup_margin[resolution_index])
-            + ui_choice_popup_x;
+        x = (ui_choice_popup_flags & 2) ? (ui_choice_popup_w - w) / 2 : ui_choice_popup_margin[resolution_index];
+        x += ui_choice_popup_x;
         if (i == ui_choice_popup_hover && (ui_choice_popup_flags & 0x40000000))
             gr_set_color_ptr(&ui_color_highlight);
         else if (ui_choice_popup_enabled && !ui_choice_popup_enabled[i])
@@ -1636,9 +1636,9 @@ int ui_message_box_update_buttons()
     return -1;
 }
 
-// 0x414270  Confidence: likely (the line buffer's size: 64 bytes between the size locals and the split
-// arrays). The background bitmap, the title, the text wrapped to the text width (16 lines at most, each
-// centred) and the buttons.
+// 0x414270  Confidence: exact (the line buffer's size: 64 bytes between the size locals and the split
+// arrays; the title position computed before the colour call, D13101). The background bitmap, the title, the
+// text wrapped to the text width (16 lines at most, each centred) and the buttons.
 void ui_message_box_draw()
 {
     int w, h;
@@ -1652,10 +1652,10 @@ void ui_message_box_draw()
         return;
     gr_set_color(255, 255, 255, 255);
     ui_bitmap_scaled(message_popup_bkgrnd_bm, ui_message_box_x, ui_message_box_y, gr_bitmap_wrap_mode);
+    x = ui_message_box_title_pos[resolution_index][0] + ui_message_box_x;
+    y = ui_message_box_title_pos[resolution_index][1] + ui_message_box_y;
     gr_set_color_ptr(&ui_color_text);
-    gr_string(ui_message_box_title_pos[resolution_index][0] + ui_message_box_x,
-              ui_message_box_title_pos[resolution_index][1] + ui_message_box_y, ui_message_box_title, -1,
-              gr_string_mode);
+    gr_string(x, y, ui_message_box_title, -1, gr_string_mode);
     cx = ui_message_box_size[resolution_index][0] / 2 + ui_message_box_x;
     y = ui_message_box_text_pos[resolution_index][1] + ui_message_box_y;
     line_h = gr_get_font_height(-1);

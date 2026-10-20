@@ -639,7 +639,8 @@ void vfx_instance::get_node_transform(vector3 *pos, matrix *orient, int node)
     *orient = nodes->m5c;
 }
 
-// 0x537a10  Confidence: likely (jump table 0x537ef8; the name buffer is 0x44 bytes of the frame). Places
+// 0x537a10  Confidence: exact (VC6 byte match, w4 m-1020b D12802: the loop decodes each tag into its own
+// block-scope kind / list / sub; jump table 0x537ef8; the name buffer is 0x44 bytes of the frame). Places
 // a node at pos / orient; with c, every tag whose parent is this node follows it by the same move (a
 // mesh child gets the move itself, the others their own position moved; meshes have no recursion).
 // The vif case measures from the descriptor's position, before the record test.
@@ -717,6 +718,7 @@ void vfx_instance::get_node_world_transform(int node, vector3 pos, matrix orient
                 continue;
             if (strcmp(name, get_node_name(i)) != 0)
                 continue;
+            int kind, list, sub;
             vector3 cpos;
             matrix corient;
             get_node_transform(&cpos, &corient, i);

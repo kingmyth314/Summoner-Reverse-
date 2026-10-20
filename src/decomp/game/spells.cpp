@@ -1792,26 +1792,23 @@ void spell_find_ground_points(vector3 *out, int first, int last, effect_object *
     } while (i != last);
 }
 
-// 0x47e330  Confidence: likely (the vector temporaries; vector3's out-of-line operator= / copy
-// constructor are not called for the result copies, which are inline here). Moves the node's world
+// 0x47e330  Confidence: exact (D13502: `v += fx->pos` on the unrotated result, the ray declared where it is
+// set up). Moves the node's world
 // position onto the floor below it (ray from 1 m above the point, 2 m down) and writes the node back.
 bool spell_probe_ground_point(effect_object *fx, int node, vector3 *point)
 {
     vector3 v;
     vector3 pos;
-    lobj_ray ray;
     lobj_hit hit;
     matrix orient;
-    vector3 r;
 
     fx->instance->get_node_transform(&pos, &orient, node);
-    r = pos.unrotated(fx->orient);
-    v.x = r.x + fx->pos.x;
-    v.y = r.y + fx->pos.y;
-    v.z = r.z + fx->pos.z;
+    v = pos.unrotated(fx->orient);
+    v += fx->pos;
     point->x = v.x;
     point->z = v.z;
     point->y = point->y + 1.0f;
+    lobj_ray ray;
     ray.start.x = v.x;
     ray.start.y = point->y;
     ray.start.z = v.z;
@@ -1955,7 +1952,7 @@ void spell_launch_missile(Character *caster, int handle)
     spell_missiles[i].orient.fvec.z = orient.fvec.z;
 }
 
-// 0x47e830  Confidence: likely (marked exact; differs under VC6 8966, match27). An explicit start / orientation wins; otherwise a recorded missile slot
+// 0x47e830  Confidence: exact (D13501: the early return when there is no missile slot). An explicit start / orientation wins; otherwise a recorded missile slot
 // is used (and freed) when there is a target.
 int spell_fire_missile(int spell, int missile, Character *caster, Character *target,
                        const vector3 *start, const matrix *orient)
@@ -1967,13 +1964,13 @@ int spell_fire_missile(int spell, int missile, Character *caster, Character *tar
         h = fx_create_missile(spell, start, orient, caster->handle, target->handle);
         spell_play_sound_34(spell, start);
     }
-    if (missile != -1) {
-        i = spell_missile_remove(missile);
-        if (i != -1 && target && !start) {
-            h = fx_create_missile(spell, &spell_missiles[i].pos, &spell_missiles[i].orient, caster->handle,
-                                  target->handle);
-            spell_play_sound_34(spell, &spell_missiles[i].pos);
-        }
+    if (missile == -1)
+        return h;
+    i = spell_missile_remove(missile);
+    if (i != -1 && target && !start) {
+        h = fx_create_missile(spell, &spell_missiles[i].pos, &spell_missiles[i].orient, caster->handle,
+                              target->handle);
+        spell_play_sound_34(spell, &spell_missiles[i].pos);
     }
     return h;
 }

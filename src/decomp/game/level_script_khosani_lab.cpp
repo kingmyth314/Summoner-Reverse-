@@ -447,7 +447,8 @@ void ls_khosanilab_puzzle_corner_pp(vector2 *out, const ls_khosanilab_cell *cell
     v2_set(out, out->x + t.x, out->y + t.y);
 }
 
-// 0x4f8190  Confidence: likely (two jump tables, 0x4f83b0 for state and 0x4f83c0 without; only the
+// 0x4f8190  Confidence: exact (D13402: each offset cell is a block-local copy of *cell moved by += / -=, so x and
+// y are summed apart before 5 x + y; two jump tables, 0x4f83b0 for state and 0x4f83c0 without; the
 // state-0 kind-0 case keeps the cell address across both calls, so it is written with a pointer). Marks the
 // sides the beam passes in or next to the cell. kind: 0 turn a, 1 straight, 2 turn c, 3 dead end.
 void ls_khosanilab_puzzle_choose_turn(const ls_khosanilab_cell *cell, int dir, int kind, bool state)
@@ -460,10 +461,20 @@ void ls_khosanilab_puzzle_choose_turn(const ls_khosanilab_cell *cell, int dir, i
     if (state) {
         switch (kind) {
         case 0:
-            ls_khosanilab_puzzle_grid[cell->x - b.x][cell->y - b.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&a);
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x -= b.x;
+            n.y -= b.y;
+            ls_khosanilab_puzzle_grid[n.x][n.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&a);
+            }
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x += a.x;
+            n.y += a.y;
             back.x = -b.x;
             back.y = -b.y;
-            ls_khosanilab_puzzle_grid[cell->x + a.x][cell->y + a.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&back);
+            ls_khosanilab_puzzle_grid[n.x][n.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&back);
+            }
             break;
         case 1:
             ls_khosanilab_puzzle_grid[cell->x][cell->y] |= ls_khosanilab_puzzle_dir_to_side_bit(&a);
@@ -477,19 +488,41 @@ void ls_khosanilab_puzzle_choose_turn(const ls_khosanilab_cell *cell, int dir, i
     } else {
         switch (kind) {
         case 0:
-            p = &ls_khosanilab_puzzle_grid[cell->x - b.x + a.x][cell->y - b.y + a.y];
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x -= b.x;
+            n.y -= b.y;
+            n.x += a.x;
+            n.y += a.y;
+            p = &ls_khosanilab_puzzle_grid[n.x][n.y];
             *p |= ls_khosanilab_puzzle_dir_to_side_bit(&c);
             *p |= ls_khosanilab_puzzle_dir_to_side_bit(&b);
+            }
             break;
         case 1:
-            ls_khosanilab_puzzle_grid[cell->x + a.x][cell->y + a.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&c);
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x += a.x;
+            n.y += a.y;
+            ls_khosanilab_puzzle_grid[n.x][n.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&c);
+            }
             break;
         case 2:
         case 3:
-            ls_khosanilab_puzzle_grid[cell->x + a.x][cell->y + a.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&c);
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x += a.x;
+            n.y += a.y;
+            ls_khosanilab_puzzle_grid[n.x][n.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&c);
+            }
+            {
+            ls_khosanilab_cell n = *cell;
+            n.x += b.x;
+            n.y += b.y;
             back.x = -b.x;
             back.y = -b.y;
-            ls_khosanilab_puzzle_grid[cell->x + b.x][cell->y + b.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&back);
+            ls_khosanilab_puzzle_grid[n.x][n.y] |= ls_khosanilab_puzzle_dir_to_side_bit(&back);
+            }
             break;
         }
     }
@@ -503,7 +536,8 @@ int ls_khosanilab_puzzle_dir_to_side_bit(const ls_khosanilab_cell *d)
     return d->x > 0 ? 4 : 2;
 }
 
-// 0x4f8400  Confidence: likely (which of the four locals each value lands in). A beam segment in grid
+// 0x4f8400  Confidence: exact (D13403: the bend points through v2_set, so p0->y is copied with fld / fstp and the
+// two border cases cross-jump into the y = 0.2 case's tail as in the binary). A beam segment in grid
 // coordinates to world point pairs. Four segments along the grid border are bent round fixed world points
 // (the left edge x = 0.2, the right edge x = 7.8, the bottom edge y = 4.8 between x 2.5, the top edge
 // y = 0.2 at x 5.5); any other segment is one pair, in beam order when `state` is set, reversed when not.
@@ -536,26 +570,22 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
     if (fabsf(p0->y - 4.8f) < 0.001f && fabsf(p1->y - 4.8f) < 0.001f && p0->x <= 2.5f && p1->x >= 2.5f) {
         if (p0->x < 2.0f) {
             ls_khosanilab_puzzle_cell_to_world(p0, &b);
-            g.x = 2.2f;
-            g.y = p0->y;
+            v2_set(&g, 2.2f, p0->y);
             ls_khosanilab_puzzle_cell_to_world(&g, &a);
             ls_khosanilab_puzzle_add_point(&b, &a);
         }
         if (p1->x > 3.0f) {
-            g2.x = 2.8f;
-            g2.y = p0->y;
+            v2_set(&g2, 2.8f, p0->y);
             ls_khosanilab_puzzle_cell_to_world(&g2, &b);
             ls_khosanilab_puzzle_cell_to_world(p1, &a);
             ls_khosanilab_puzzle_add_point(&b, &a);
         }
-        g.x = 2.2f;
-        g.y = p0->y;
+        v2_set(&g, 2.2f, p0->y);
         ls_khosanilab_puzzle_cell_to_world(&g, &b);
         a.x = -140.9f;
         a.y = -45.9f;
         ls_khosanilab_puzzle_add_point(&b, &a);
-        g2.x = 2.8f;
-        g2.y = p0->y;
+        v2_set(&g2, 2.8f, p0->y);
         b.x = -143.3f;
         b.y = -45.7f;
         ls_khosanilab_puzzle_cell_to_world(&g2, &a);
@@ -566,26 +596,22 @@ void ls_khosanilab_puzzle_emit_segment(const vector2 *p0, const vector2 *p1, boo
     if (fabsf(p0->y - 0.2f) < 0.001f && p0->x >= 5.5f && p1->x <= 5.5f) {
         if (p0->x > 6.0f) {
             ls_khosanilab_puzzle_cell_to_world(p0, &b);
-            g.x = 5.8f;
-            g.y = p0->y;
+            v2_set(&g, 5.8f, p0->y);
             ls_khosanilab_puzzle_cell_to_world(&g, &a);
             ls_khosanilab_puzzle_add_point(&b, &a);
         }
         if (p1->x < 5.0f) {
-            g2.x = 5.2f;
-            g2.y = p0->y;
+            v2_set(&g2, 5.2f, p0->y);
             ls_khosanilab_puzzle_cell_to_world(&g2, &b);
             ls_khosanilab_puzzle_cell_to_world(p1, &a);
             ls_khosanilab_puzzle_add_point(&b, &a);
         }
-        g.x = 5.8f;
-        g.y = p0->y;
+        v2_set(&g, 5.8f, p0->y);
         ls_khosanilab_puzzle_cell_to_world(&g, &b);
         a.x = -150.6f;
         a.y = -32.1f;
         ls_khosanilab_puzzle_add_point(&b, &a);
-        g2.x = 5.2f;
-        g2.y = p0->y;
+        v2_set(&g2, 5.2f, p0->y);
         b.x = -148.0f;
         b.y = -32.1f;
         ls_khosanilab_puzzle_cell_to_world(&g2, &a);
@@ -616,8 +642,8 @@ void ls_khosanilab_puzzle_cell_to_world(const vector2 *cell, vector2 *out)
 void ls_khosanilab_puzzle_add_point(const vector2 *a, const vector2 *b)
 {
     int n = ls_khosanilab_path_len;
-    ls_khosanilab_path.p0[n] = *a;
-    ls_khosanilab_path.p1[n] = *b;
+    ls_khosanilab_path.p0[n] = *(const avoid_spline_end *)a;
+    ls_khosanilab_path.p1[n] = *(const avoid_spline_end *)b;
     ls_khosanilab_path.cell_x[n] = 1;
     ls_khosanilab_path.cell_y[n] = 2;
     n++;

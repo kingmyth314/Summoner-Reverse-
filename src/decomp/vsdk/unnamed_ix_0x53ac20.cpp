@@ -169,8 +169,10 @@ bool ix_ray_quad(ix_ray *ray, vector3 *p0, vector3 *p1, vector3 *p2, vector3 *p3
     return true;
 }
 
-// 0x53b400  Confidence: likely. No caller. The first point of a-b at distance r from the centre (a
-// itself when the sphere holds it); a zero-length segment only tests a.
+// 0x53b400  Confidence: exact (one shared false exit: the range test with ||, the hit test as an if
+// around the rest; the zero-length case measures into t, which takes t's slot as the binary, D12703).
+// No caller. The first point of a-b at distance r from the centre (a itself when the sphere holds it); a
+// zero-length segment only tests a.
 // 0x53b6b0 atexit_nop_53b6b0: the atexit handler of closest (compiler-generated). Confidence: exact.
 // 0x53b6c0 atexit_nop_53b6c0: the atexit handler of to_c (compiler-generated). Confidence: exact.
 // 0x53b6d0 atexit_nop_53b6d0: the atexit handler of unit (compiler-generated). Confidence: exact.
@@ -187,29 +189,28 @@ bool ix_linesegment_sphere(vector3 *out, const vector3 *a, const vector3 *b, con
     to_c = *centre - *a;
     len = dir.len();
     if (len <= 0.0f) {
-        d = to_c.len();
+        t = to_c.len();
         *out = *a;
-        return d < r;
+        return t < r;
     }
     unit.x = dir.x / len;
     unit.y = dir.y / len;
     unit.z = dir.z / len;
     proj = unit.dot(to_c);
-    if (-r > proj)
-        return false;
-    if (len + r < proj)
+    if (-r > proj || len + r < proj)
         return false;
     closest = *a + unit * proj;
     d = distance(&closest, centre);
-    if (!(d < r))
-        return false;
-    t = proj - (float)sqrt(r * r - d * d);
-    if (t <= len && t >= 0.0f) {
-        *out = *a + unit * t;
+    if (d < r) {
+        t = proj - (float)sqrt(r * r - d * d);
+        if (t <= len && t >= 0.0f) {
+            *out = *a + unit * t;
+            return true;
+        }
+        *out = *a;
         return true;
     }
-    *out = *a;
-    return true;
+    return false;
 }
 
 // 0x53b6f0  Confidence: likely (the local reuse; `inside` is only ever set by the last test; D11602: a
@@ -776,14 +777,14 @@ bool ix_ray_boundingbox(const vector3 *min, const vector3 *max, const vector3 *o
     return true;
 }
 
-// 0x53d4d0  Confidence: likely (D6305: the clip masks are unsigned, `> 0` gives the binary's test / ja;
-// the two differences are computed once, the faces chosen with if / else; build 8966 schedules the
-// out->z store between fcomp and fnstsw). Only the faces a lies outside of are tried.
+// 0x53d4d0  Confidence: exact (D6305: the clip masks are unsigned, `> 0` gives the binary's test / ja;
+// the two differences are computed once, the faces chosen with if / else; the two computed coordinates of
+// each face are the same two locals u, v, which take the binary's stack slots, D12702). Only the faces a lies outside of are tried.
 bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const vector3 *a, const vector3 *b,
                                 vector3 *out)
 {
     unsigned int ca, cb;
-    float y, z, x, d, s;
+    float u, v, d, s;
 
     ca = ix_slab_clip(min, max, a);
     if (ca == 0) {
@@ -804,11 +805,11 @@ bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const ve
             out->x = min->x;
         d = b->x - a->x;
         s = out->x - a->x;
-        y = (b->y - a->y) * s / d + a->y;
-        out->y = y;
-        z = (b->z - a->z) * s / d + a->z;
-        out->z = z;
-        if (y <= max->y && y >= min->y && z <= max->z && z >= min->z)
+        u = (b->y - a->y) * s / d + a->y;
+        out->y = u;
+        v = (b->z - a->z) * s / d + a->z;
+        out->z = v;
+        if (u <= max->y && u >= min->y && v <= max->z && v >= min->z)
             return true;
     }
     if (ca & 0xc) {
@@ -818,11 +819,11 @@ bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const ve
             out->y = min->y;
         d = b->y - a->y;
         s = out->y - a->y;
-        x = (b->x - a->x) * s / d + a->x;
-        out->x = x;
-        z = (b->z - a->z) * s / d + a->z;
-        out->z = z;
-        if (x <= max->x && x >= min->x && z <= max->z && z >= min->z)
+        u = (b->x - a->x) * s / d + a->x;
+        out->x = u;
+        v = (b->z - a->z) * s / d + a->z;
+        out->z = v;
+        if (u <= max->x && u >= min->x && v <= max->z && v >= min->z)
             return true;
     }
     if (ca & 0x30) {
@@ -832,11 +833,11 @@ bool ix_linesegment_boundingbox(const vector3 *min, const vector3 *max, const ve
             out->z = min->z;
         d = b->z - a->z;
         s = out->z - a->z;
-        x = (b->x - a->x) * s / d + a->x;
-        out->x = x;
-        y = (b->y - a->y) * s / d + a->y;
-        out->y = y;
-        if (x <= max->x && x >= min->x && y <= max->y && y >= min->y)
+        u = (b->x - a->x) * s / d + a->x;
+        out->x = u;
+        v = (b->y - a->y) * s / d + a->y;
+        out->y = v;
+        if (u <= max->x && u >= min->x && v <= max->y && v >= min->y)
             return true;
     }
     return false;

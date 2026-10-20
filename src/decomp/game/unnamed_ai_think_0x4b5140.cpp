@@ -156,7 +156,8 @@ void ai_state::formation_slot_position(vector3 *out, const vector3 *base, const 
 }
 
 // ---- targets -------------------------------------------------------------------------------------------
-// 0x4b53c0  Confidence: likely (two range tests: <= first, then < after the line of sight). A candidate
+// 0x4b53c0  Confidence: exact (D13301: q->self / q->candidate read through the query each time, the inline
+// dot; two range tests: <= first, then < after the line of sight). A candidate
 // passes when it is an awake, visible enemy in range (the range shrinks with a sneaking candidate's hide
 // skill), seen in front (dot > 0.71) when beyond the detection range or when sneaking / backstabbing,
 // within the height band (7.5 for a boss self, else 3), in sight and not already attacked by
@@ -164,83 +165,81 @@ void ai_state::formation_slot_position(vector3 *out, const vector3 *base, const 
 // 1.5 - intelligence; a candidate with status 9 scores the range itself.
 void ai_score_target(ai_target_query *q, bool boss_list)
 {
-    Character *c = q->candidate;
-    Character *self = q->self;
     float dist, facing, range, rating, score, maxdy;
     vector3 d;
     int style;
 
-    if (c == self || c->type == 4)
+    if (q->candidate == q->self || q->candidate->type == 4)
         return;
-    if (self->type == 9 && !boss_list && species_is_boss_b(self->info->species))
+    if (q->self->type == 9 && !boss_list && species_is_boss_b(q->self->info->species))
         return;
-    if (c->flags & 0x20000)
+    if (q->candidate->flags & 0x20000)
         return;
-    if (!(c->hp > 0.0f))
+    if (!(q->candidate->hp > 0.0f))
         return;
-    if (c->flags & CF_HIDDEN)
+    if (q->candidate->flags & CF_HIDDEN)
         return;
-    if (c->ai.is_mode(AI_STATE_HIDING, -1) == true)
+    if (q->candidate->ai.is_mode(AI_STATE_HIDING, -1) == true)
         return;
-    if (!self->is_enemy(c))
+    if (!q->self->is_enemy(q->candidate))
         return;
-    dist = distance(&self->pos, &c->pos);
-    d = c->pos - self->pos;
+    dist = distance(&q->self->pos, &q->candidate->pos);
+    d = q->candidate->pos - q->self->pos;
     d.normalize();
-    facing = d.z * self->orient.fvec.z + d.y * self->orient.fvec.y + d.x * self->orient.fvec.x;
-    range = self->info->fov_range;
-    if (c->flags & 0x400) {
-        if (c->has_status(8))
+    facing = d.dot(q->self->orient.fvec);
+    range = q->self->info->fov_range;
+    if (q->candidate->flags & 0x400) {
+        if (q->candidate->has_status(8))
             return;
-        if (self->has_status(0))
+        if (q->self->has_status(0))
             return;
-        range = (1.0f - c->get_skill(0x16) * 0.6f) * range;
+        range = (1.0f - q->candidate->get_skill(0x16) * 0.6f) * range;
     }
     if (dist > range)
         return;
-    if (dist > self->info->detection_range && facing < 0.71f)
+    if (dist > q->self->info->detection_range && facing < 0.71f)
         return;
-    if (self->has_status(0) == true && dist > self->info->detection_range)
+    if (q->self->has_status(0) == true && dist > q->self->info->detection_range)
         return;
-    if (c->has_status(8)) {
-        if (c->status_value(8) > 0.0f)
+    if (q->candidate->has_status(8)) {
+        if (q->candidate->status_value(8) > 0.0f)
             return;
-        if (dist > self->info->detection_range)
+        if (dist > q->self->info->detection_range)
             return;
     }
-    if ((c->flags & 0x400) || c->ai.is_mode(AI_STATE_COMBAT, AIS_COMBAT_BACKSTAB))
+    if ((q->candidate->flags & 0x400) || q->candidate->ai.is_mode(AI_STATE_COMBAT, AIS_COMBAT_BACKSTAB))
         if (facing < 0.71f)
             return;
-    if (cutscene_script_is_active() && c->type == 7)
+    if (cutscene_script_is_active() && q->candidate->type == 7)
         return;
-    if (c->flags & CF_SUMMON) {
-        if (c->ai.is_mode(AI_STATE_SUMMONING, -1))
+    if (q->candidate->flags & CF_SUMMON) {
+        if (q->candidate->ai.is_mode(AI_STATE_SUMMONING, -1))
             return;
-        if (!(c->obj_flags & 1))
+        if (!(q->candidate->obj_flags & 1))
             return;
     }
-    maxdy = self->type == 9 ? 7.5f : 3.0f;
-    if (fabsf(c->pos.y - self->pos.y) > maxdy)
+    maxdy = q->self->type == 9 ? 7.5f : 3.0f;
+    if (fabsf(q->candidate->pos.y - q->self->pos.y) > maxdy)
         return;
-    if (!self->has_line_of_sight_to(c))
+    if (!q->self->has_line_of_sight_to(q->candidate))
         return;
-    if (c->ai.count_engaged_attackers(true) >= q->max_attackers)
+    if (q->candidate->ai.count_engaged_attackers(true) >= q->max_attackers)
         return;
     if (!(dist < range))
         return;
-    rating = c->combat.attack_rating();
-    style = c->ai.get_combat_style();
+    rating = q->candidate->combat.attack_rating();
+    style = q->candidate->ai.get_combat_style();
     if (style == 4 || style == 5 || style == 3)
         rating *= 1.25f;
     score = dist;
     if (q->result) {
-        score = (1.5f - self->info->intelligence) * (dist * q->rating / rating);
-        if (c->has_status(9))
+        score = (1.5f - q->self->info->intelligence) * (dist * q->rating / rating);
+        if (q->candidate->has_status(9))
             score = range;
     }
     if (!q->result || score < q->best) {
         q->best = score;
-        q->result = c;
+        q->result = q->candidate;
         q->rating = rating;
     }
 }
@@ -309,7 +308,8 @@ void ai_state::pick_attack_target(int max_attackers)
     }
     cur = target;
     if (cur != -1) {
-        if (distance(&owner->pos, &t->pos) < owner->info->attack_radius * 1.5f + 2.0f)
+        float d = distance(&owner->pos, &t->pos);
+        if (d < owner->info->attack_radius * 1.5f + 2.0f)
             return;
         if (owner->type == 9)
             return;
@@ -988,7 +988,8 @@ void ai_state::party_spread_attackers()
     }
 }
 
-// 0x4b71c0  Confidence: likely (the GameTimer of living_combat +0xc is an int in combat.h, D300). Not for
+// 0x4b71c0  Confidence: exact (D13303: d assigned after its declaration, the inline dots, d reused for the
+// step-aside point; the GameTimer of living_combat +0xc is an int in combat.h, D300). Not for
 // types 1 and 4: the leader assigns the formation; stale attacker slots and attack points are freed; a
 // character that hit the owner in the last 200 ms from behind within 3.2 units makes it step aside;
 // neighbours within 2.5 claim slots on each other. A party member also follows the party leader (or drops
@@ -1020,15 +1021,14 @@ void ai_state::think_party_update()
             continue;
         hit_timer = (GameTimer *)&c->combat.timer;
         if (hit_timer->elapsed() && hit_timer->GetElapsedTime() < 200) {
-            vector3 d = owner->pos - c->pos;
-            if (d.normalize_length() < 3.2f
-                && d.z * c->orient.fvec.z + d.y * c->orient.fvec.y + d.x * c->orient.fvec.x < -0.5f) {
-                vector3 dest;
-                if (d.z * c->orient.rvec.z + d.y * c->orient.rvec.y + d.x * c->orient.rvec.x > 0.0f)
-                    dest = owner->pos + c->orient.rvec * 2.5f;
+            vector3 d;
+            d = owner->pos - c->pos;
+            if (d.normalize_length() < 3.2f && d.dot(c->orient.fvec) < -0.5f) {
+                if (d.dot(c->orient.rvec) > 0.0f)
+                    d = owner->pos + c->orient.rvec * 2.5f;
                 else
-                    dest = owner->pos - c->orient.rvec * 2.5f;
-                owner->ai_add_goal9(&dest, owner->layer, 5000, true);
+                    d = owner->pos - c->orient.rvec * 2.5f;
+                owner->ai_add_goal9(&d, owner->layer, 5000, true);
                 owner->ai.process_goals();
             }
         }

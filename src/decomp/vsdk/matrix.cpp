@@ -315,11 +315,17 @@ int matrix::is_valid() const
     return fvec.is_valid() && uvec.is_valid() && rvec.is_valid();
 }
 
-// 0x5106a0  Confidence: likely (term and factor order are the compiler's).
+// 0x5106a0  Confidence: exact (VC6 byte match, m-1020b w15; D13900: one local per product keeps the term order,
+// the factor order within a product is the compiler's).
 float matrix::determinant() const
 {
-    return rvec.x * uvec.y * fvec.z + rvec.z * uvec.x * fvec.y + rvec.y * uvec.z * fvec.x
-         - rvec.z * uvec.y * fvec.x - rvec.x * uvec.z * fvec.y - rvec.y * uvec.x * fvec.z;
+    float a = rvec.x * uvec.y * fvec.z;
+    float b = rvec.z * uvec.x * fvec.y;
+    float c = rvec.y * uvec.z * fvec.x;
+    float d = rvec.z * uvec.y * fvec.x;
+    float e = rvec.x * uvec.z * fvec.y;
+    float f = rvec.y * uvec.x * fvec.z;
+    return a + b + c - d - e - f;
 }
 
 // 0x5106e0  Confidence: exact (same body as orthogonalize below, returning the copy).
@@ -721,7 +727,8 @@ matrix43 matrix43_interpolate(const matrix43 &from, const matrix43 &to, float t)
     return r;
 }
 
-// 0x511920  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
+// 0x511920  Confidence: exact (VC6 byte match, m-1020b w15; D13900: each product of the position lerp in a
+// local, as matrix::determinant; marked exact earlier, differed under cl 12.00.8966, match31).
 matrix43 matrix43_interpolate_quat(const quaternion &qa, const quaternion &qb,
                                    const vector3 &pa, const vector3 &pb, float t)
 {
@@ -730,9 +737,12 @@ matrix43 matrix43_interpolate_quat(const quaternion &qa, const quaternion &qb,
 
     quaternion_slerp(&q, &qa, &qb, t);
     q.to_matrix((matrix *)&r);
-    r.m[3][0] = (1.0f - t) * pa.x + t * pb.x;
-    r.m[3][1] = (1.0f - t) * pa.y + t * pb.y;
-    r.m[3][2] = (1.0f - t) * pa.z + t * pb.z;
+    float ax = (1.0f - t) * pa.x, bx = t * pb.x;
+    float ay = (1.0f - t) * pa.y, by = t * pb.y;
+    float az = (1.0f - t) * pa.z, bz = t * pb.z;
+    r.m[3][0] = ax + bx;
+    r.m[3][1] = ay + by;
+    r.m[3][2] = az + bz;
     return r;
 }
 

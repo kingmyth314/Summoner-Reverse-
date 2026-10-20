@@ -379,7 +379,8 @@ void dialogue_box_base::set_rect(int x, int y, int w, int lines)
     reset();
 }
 
-// 0x4d7190  Confidence: likely (the two ring-full paths; the talker is not passed when the ring is full
+// 0x4d7190  Confidence: exact (VC6 byte match, m-1020b w8, D13201: one `return NULL` at the end of the label branch,
+// reached by a goto from the ring-full path: the binary shares that block). (The two ring-full paths; the talker is not passed when the ring is full
 // - game bug, NOTES).
 dialogue_line *dialogue_box::add_text(const char *text, int kind, bool spacer, conversation_slot *talker)
 {
@@ -409,7 +410,7 @@ dialogue_line *dialogue_box::add_text(const char *text, int kind, bool spacer, c
         if (kind == 1) {
             lb = alloc_label();
             if (!lb)
-                return NULL;
+                goto fail;
             strcpy(lb->text, text);
             lb->used = 1;
             line[first].init(lb->text, w, 1, NULL);
@@ -423,12 +424,15 @@ dialogue_line *dialogue_box::add_text(const char *text, int kind, bool spacer, c
     }
     if (kind == 1) {
         lb = alloc_label();
-        if (!lb)
+        if (lb) {
+            strcpy(lb->text, text);
+            lb->used = 1;
+            l = &line[(first + count) % DIALOGUE_RING];
+            l->init(lb->text, w, 1, talker);
+        } else {
+fail:
             return NULL;
-        strcpy(lb->text, text);
-        lb->used = 1;
-        l = &line[(first + count) % DIALOGUE_RING];
-        l->init(lb->text, w, 1, talker);
+        }
     } else {
         l = &line[(first + count) % DIALOGUE_RING];
         l->init(text, w, kind, talker);

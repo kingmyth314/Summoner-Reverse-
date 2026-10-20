@@ -39,7 +39,8 @@ pxo_config pxo_cfg;                                           // 0xa59a88 (0x610
 ushort inet_proxy_port;                                       // 0xa5a098 read by InetGetFile__InetGetFile only
 char inet_proxy_server[0x200];                                // 0xa5a09c (then 4 bytes to s3d.cpp's 0xa5a2a0)
 
-// 0x46cc80  Confidence: likely (the species switch: jump table 0x46d098 maps 0,1,2,3 to bodies laid out
+// 0x46cc80  Confidence: exact (D13503: the directory result through a local, compared with the zero register;
+// the default case clears the pointer first. The species switch: jump table 0x46d098 maps 0,1,2,3 to bodies laid out
 // as 0,2,3,1, so the source lists Jekhar last; the default stores only the pointer, the count register
 // is already 0). A new character: level 1, no experience, full base HP / AP of its char_info, the
 // default weapon in slot 5, 3 Health Tonics and a Book of Novices, 30 gold, the level-1 skills (Speed
@@ -52,7 +53,8 @@ int mp_player_file_create(const char *name, int char_info_index, const char *des
     file_change_ext(filename, name, ".plr");
     if (f.find(filename, path_players))
         return 1;
-    if (file_make_path_dirs(path_players))
+    int err = file_make_path_dirs(path_players);
+    if (err)
         return 2;
     if (f.open(filename, 2, path_players))
         return 3;
@@ -80,8 +82,8 @@ int mp_player_file_create(const char *name, int char_info_index, const char *des
         prog = jekhar_skill_progression;
         break;
     default:
-        num_prog = 0;
         prog = NULL;
+        num_prog = 0;
         break;
     }
 
@@ -302,17 +304,17 @@ int mp_player_file_load(Character *c, const char *filename)
 
     for (i = 0; i < MP_NUM_EQUIP_SLOTS; i++) {
         int type = f.read_int(0, 0);
+        item_info *old1, *old2;
         if (type >= 0) {
-            item_info *old1, *old2;
             character_equip_item(&old1, &old2, c, i, item_create(type));
             if (old1)
                 item_free(old1);
             if (old2)
                 item_free(old2);
         } else if (i != 5) {
-            item_info *old = character_unequip_slot(c, i, 1);
-            if (old)
-                item_free(old);
+            old1 = character_unequip_slot(c, i, 1);
+            if (old1)
+                item_free(old1);
         }
     }
 

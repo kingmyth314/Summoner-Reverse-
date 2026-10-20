@@ -412,9 +412,9 @@ int journal_handle_click(int key)
     }
 
     {
-        int lines = journal_desc_line_count;
-        if (lines >= journal_desc_page[resolution_index])
-            lines = journal_desc_page[resolution_index];
+        int lines = journal_desc_page[resolution_index];      // page first: the binary's cmp / jge (D13909)
+        if (journal_desc_line_count < lines)
+            lines = journal_desc_line_count;
         if (point_in_rect(game_mouse_x, game_mouse_y, journal_desc_pos[resolution_index][0],
                           journal_desc_pos[resolution_index][1], journal_desc_width[resolution_index],
                           lines * font_h))

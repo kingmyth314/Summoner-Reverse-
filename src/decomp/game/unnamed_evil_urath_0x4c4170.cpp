@@ -344,7 +344,8 @@ void ai_state::evil_urath_ai_leap_start()
     set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_RISE);
 }
 
-// 0x4c4870  Confidence: likely (the speed formulas follow the x87 order). The boss rises 2 units per second
+// 0x4c4870  Confidence: exact (the speed formulas follow the x87 order; if / else with the distance local in each
+// branch gives the binary's frame, D12701). The boss rises 2 units per second
 // (to 2 above the target, or above the floor it left) while it turns to the target. Going up, the
 // horizontal speed covers the free distance (to the first wall, less 3) in the time of the remaining rise,
 // at most 3 (1.5 without a wall). Coming down it waits for the full rise; then speed 3 and a fall speed
@@ -352,13 +353,11 @@ void ai_state::evil_urath_ai_leap_start()
 void ai_state::evil_urath_ai_leap_rise()
 {
     float top;
-    float dist;
-    float speed;
-    float a;
-    float b;
-    bool reached;
 
     if (evil_urath_leap_flags & URATH_GOING_UP) {
+        float dist;
+        float speed;
+
         top = evil_urath_leap_target->pos.y + 2.0f;
         evil_urath_leap_height = reported_frametime + reported_frametime + evil_urath_leap_height;
         if (evil_urath_leap_height > top)
@@ -375,41 +374,46 @@ void ai_state::evil_urath_ai_leap_rise()
             evil_urath_leap_rise_speed = 1.5f;
         }
         set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_TRAVEL);
-        return;
-    }
-    top = evil_urath_leap_start_y + 2.0f;
-    reached = false;
-    evil_urath_leap_height = reported_frametime + reported_frametime + evil_urath_leap_height;
-    if (evil_urath_leap_height > top) {
-        evil_urath_leap_height = top;
-        reached = true;
-    }
-    if (turn_towards(&evil_urath_leap_target->pos, 0))
-        return;
-    if (reached != true)
-        return;
-    if (evil_urath_leap_check_path(owner, owner->layer, &dist) == true) {
-        dist += 3.0f;
-        vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
-        evil_urath_leap_peak_y = d.len() - dist;
-        a = evil_urath_leap_peak_y * (1.0f / 3.0f);
-        b = (owner->pos.y - (evil_urath_leap_target->pos.y + 2.0f)) * 0.5f;
-        if (b > a) {
-            evil_urath_leap_rise_speed = 3.0f;
-            evil_urath_leap_fall_speed = a / b + a / b;
+    } else {
+        float dist;
+        float a;
+        float b;
+        bool reached;
+
+        top = evil_urath_leap_start_y + 2.0f;
+        reached = false;
+        evil_urath_leap_height = reported_frametime + reported_frametime + evil_urath_leap_height;
+        if (evil_urath_leap_height > top) {
+            evil_urath_leap_height = top;
+            reached = true;
+        }
+        if (turn_towards(&evil_urath_leap_target->pos, 0))
+            return;
+        if (reached != true)
+            return;
+        if (evil_urath_leap_check_path(owner, owner->layer, &dist) == true) {
+            dist += 3.0f;
+            vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
+            evil_urath_leap_peak_y = d.len() - dist;
+            a = evil_urath_leap_peak_y * (1.0f / 3.0f);
+            b = (owner->pos.y - (evil_urath_leap_target->pos.y + 2.0f)) * 0.5f;
+            if (b > a) {
+                evil_urath_leap_rise_speed = 3.0f;
+                evil_urath_leap_fall_speed = a / b + a / b;
+            } else {
+                evil_urath_leap_rise_speed = 3.0f;
+                evil_urath_leap_fall_speed = 2.0f;
+            }
         } else {
             evil_urath_leap_rise_speed = 3.0f;
-            evil_urath_leap_fall_speed = 2.0f;
+            evil_urath_leap_fall_speed = 1.0f;
         }
-    } else {
-        evil_urath_leap_rise_speed = 3.0f;
-        evil_urath_leap_fall_speed = 1.0f;
+        set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_TRAVEL);
     }
-    set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_TRAVEL);
 }
 
-// 0x4c4ad0  Confidence: likely. Forward at the horizontal speed; going up the height keeps rising to its
-// top, coming down it falls (at the fall speed, not below 2 above the target) once the remaining distance
+// 0x4c4ad0  Confidence: exact (if / else, not an early return: the binary's frame, D12701). Forward at the horizontal
+// speed; going up the height keeps rising to its top, coming down it falls (at the fall speed, not below 2 above the target) once the remaining distance
 // is under leap_peak_y. Past the target (behind the facing) the landing starts.
 void ai_state::evil_urath_ai_leap_travel()
 {
@@ -426,19 +430,19 @@ void ai_state::evil_urath_ai_leap_travel()
         owner->pos += owner->orient.fvec * step;
         if ((evil_urath_leap_target->pos - owner->pos).dot(owner->orient.fvec) < 0.0f)
             set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_LAND);
-        return;
-    }
-    vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
-    left = d.len();
-    step = evil_urath_leap_rise_speed * reported_frametime;
-    owner->pos += owner->orient.fvec * step;
-    if (left < evil_urath_leap_peak_y) {
-        top = evil_urath_leap_target->pos.y + 2.0f;
-        evil_urath_leap_height = evil_urath_leap_height - evil_urath_leap_fall_speed * reported_frametime;
-        if (evil_urath_leap_height < top)
-            evil_urath_leap_height = top;
-        if ((evil_urath_leap_target->pos - owner->pos).dot(owner->orient.fvec) < 0.0f)
-            set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_LAND);
+    } else {
+        vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
+        left = d.len();
+        step = evil_urath_leap_rise_speed * reported_frametime;
+        owner->pos += owner->orient.fvec * step;
+        if (left < evil_urath_leap_peak_y) {
+            top = evil_urath_leap_target->pos.y + 2.0f;
+            evil_urath_leap_height = evil_urath_leap_height - evil_urath_leap_fall_speed * reported_frametime;
+            if (evil_urath_leap_height < top)
+                evil_urath_leap_height = top;
+            if ((evil_urath_leap_target->pos - owner->pos).dot(owner->orient.fvec) < 0.0f)
+                set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_LAND);
+        }
     }
 }
 

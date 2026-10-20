@@ -147,8 +147,9 @@ int http_get::get_total_bytes()
     return total_bytes;
 }
 
-// 0x55abd0  Confidence: likely (w10, D10903: nested tests give the binary's block order; 8966 still merges the
-// loop-exit error into the final else). Through a proxy the request names the full URL.
+// 0x55abd0  Confidence: exact (VC6 byte match, m-1020b w15; D13905: the header loop as for (;;) with the
+// end-of-headers error inside it, so 8966 keeps it apart from the final else; w10, D10903: nested tests
+// give the binary's block order). Through a proxy the request names the full URL.
 void http_get::send_get()
 {
     char req[1000];
@@ -185,7 +186,12 @@ void http_get::send_get()
         }
         if (code == 200) {
             line = get_line();
-            while (line != NULL) {
+            for (;;) {
+                if (line == NULL) {
+                    state = HTTP_STATE_UNKNOWN_ERROR;
+                    fclose(file);
+                    return;
+                }
                 if (line[0] == '\0') {
                     read_data_channel();
                     return;
@@ -204,8 +210,6 @@ void http_get::send_get()
                 Sleep(1);
                 line = get_line();
             }
-            state = HTTP_STATE_UNKNOWN_ERROR;
-            fclose(file);
         } else {
             state = HTTP_STATE_FILE_NOT_FOUND;
             fclose(file);

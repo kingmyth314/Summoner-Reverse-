@@ -1039,7 +1039,8 @@ int move_skip_on_level(char_info *info, move_info *m, bool full_set)
     return 0;
 }
 
-// 0x4450c0  Confidence: likely. Copies the hero pools onto their static buffers, threads the move free
+// 0x4450c0  Confidence: exact (index loops: pointer loops compare unsigned, the binary signed; the species
+// read through the array after the two stores, D13102). Copies the hero pools onto their static buffers, threads the move free
 // list, parses "<species>.tbl" for every species_table entry marked for loading, then collects, for every
 // record that is neither a hero nor a boss, the spells of its "cast" moves into charinfo_cast_spells.
 // The argument is not read.
@@ -1065,13 +1066,14 @@ void characterinfo_load_party(int path_id)
     player_instance_mempool.Copy(player_instance_buffer, sizeof(player_instance_buffer), "Player instance");
     num_char_infos = 0;
     prev = NULL;
-    for (m = move_infos; m < &move_infos[MAX_TOTAL_MOVES]; m++) {
-        m->next = prev;
-        prev = m;
+    for (i = 0; i < MAX_TOTAL_MOVES; i++) {
+        move_infos[i].next = prev;
+        prev = &move_infos[i];
     }
     move_info_free_list = prev;
     charinfo_cast_spells_used = 0;
-    for (s = species_table; s < &species_table[NUM_SPECIES_TABLE]; s++) {
+    for (i = 0; i < NUM_SPECIES_TABLE; i++) {
+        s = &species_table[i];
         if (s->load == 1) {
             sprintf(filename, "%s.tbl", s->name);
             for (p = filename; *p; p++)
@@ -1081,9 +1083,10 @@ void characterinfo_load_party(int path_id)
     }
     for (i = 0; i < num_char_infos; i++) {
         info = &char_infos[i];
-        info->num_cast_spells = 0;
         info->cast_spells = &charinfo_cast_spells[charinfo_cast_spells_used];
-        if (species_is_hero(info->species) || species_is_boss(info->species))
+        info->num_cast_spells = 0;
+        int sp = char_infos[i].species;
+        if (species_is_hero(sp) || species_is_boss(sp))
             continue;
         for (m = (move_info *)info->moves[MOVE_TYPE_CAST]; m; m = m->next) {
             spell = spell_find_by_cast_id(m->id);

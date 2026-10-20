@@ -1190,15 +1190,15 @@ void levelrender_add_effects(s3d_vis_set **sets, int count)
             continue;
         if (fx->kind == 1 || fx->kind == 2) {
             Character *owner = living_from_handle(fx->owner);
-            if (owner && !(owner->obj_flags & 1) && owner->info->vfx && !_stricmp(base->name, owner->info->vfx))
-                continue;
+            if (owner && !(owner->obj_flags & 1) && owner->info->vfx) {
+                const char *nm = base->name;
+                if (!_stricmp(nm, owner->info->vfx))
+                    continue;
+            }
         }
         vfx_instance *vi = fx->instance;
         if (fx->bits & 2) {
-            vector3 c = vi->pos.unrotated(fx->orient);
-            c.x = fx->pos.x + c.x;
-            c.y = fx->pos.y + c.y;
-            c.z = fx->pos.z + c.z;
+            vector3 c = fx->pos + vi->pos.unrotated(fx->orient);
             if (gr_cull_sphere(&c, vi->_unk3c, 0))
                 continue;
         }

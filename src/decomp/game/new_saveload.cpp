@@ -889,7 +889,8 @@ void saveload_draw()
     saveload_draw_info();
 }
 
-// 0x426a20  Confidence: likely (the x of the time: list_w - w + x; the division by 3600 is a multiplication
+// 0x426a20  Confidence: exact (m-1020b w6: the clamp compares the global, so rows stays in its stack slot,
+// D13000; the x of the time: list_w - w + x; the division by 3600 is a multiplication
 // by the float 1/3600 in the binary, see NOTES). One buffer holds the level name and then the time.
 void saveload_draw_list()
 {
@@ -898,7 +899,7 @@ void saveload_draw_list()
     int i;
     int rows = saveload_num_saves;
 
-    if (rows >= saveload_list_page[resolution_index])
+    if (saveload_num_saves >= saveload_list_page[resolution_index])
         rows = saveload_list_page[resolution_index];
 
     int y = saveload_list_pos[resolution_index][1];
@@ -961,7 +962,8 @@ void saveload_format_level_name(char *out, int level)
     gr_string_truncate_ellipsis(out, buf, saveload_level_name_w[resolution_index], -1);
 }
 
-// 0x426d10  Confidence: likely (stack order of the locals; the 4 bytes between buf and line). File time
+// 0x426d10  Confidence: likely (stack order of the locals: w / ampm swapped and the 4 bytes between buf and
+// line; the am / pm copy as two strcpy calls makes every instruction but these slots the binary's, D13001). File time
 // as "h:mm am", date as "Mon. d, yyyy", then the description in up to 9 lines; while editing a "|" is
 // appended and hidden on the off phase of the blink by cutting the last line one character short.
 void saveload_draw_info()
@@ -980,7 +982,10 @@ void saveload_draw_info()
     gr_set_color_ptr(&ui_color_text);
 
     hour = t->tm_hour;
-    strcpy(ampm, hour < 12 ? "am" : "pm");
+    if (hour < 12)
+        strcpy(ampm, "am");
+    else
+        strcpy(ampm, "pm");
     if (hour == 0)
         hour = 12;
     else if (hour > 12)

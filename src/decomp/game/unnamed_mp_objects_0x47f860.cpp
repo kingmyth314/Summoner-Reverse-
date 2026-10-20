@@ -410,7 +410,7 @@ void mp_handle_new_path(ubyte *data, void *from)
         mp_forward_cur_packet(from);
 }
 
-// 0x480530  Confidence: likely. OBJ_UPD {handle, traveling, quantized position, heading, layer, target
+// 0x480530  Confidence: exact (VC6 byte match, m-1020b w8: the two speeds through MP_ADD_FLOAT). OBJ_UPD {handle, traveling, quantized position, heading, layer, target
 // and forward speed}, sent buffered.
 void mp_send_obj_update(Character *c, int a)
 {
@@ -422,7 +422,6 @@ void mp_send_obj_update(Character *c, int a)
     int handle;
     ushort heading;
     ushort layer;
-    float f;
 
     mp_quantize_position((short *)&qx, (short *)&qy, (short *)&qz, c->pos);
     c->orient.extract_angles(&p, &b, &h);
@@ -441,10 +440,8 @@ void mp_send_obj_update(Character *c, int a)
     MP_ADD_DATA(qz);
     MP_ADD_DATA(heading);
     MP_ADD_DATA(layer);
-    f = c->target_speed;
-    MP_ADD_DATA(f);
-    f = c->forward_speed;
-    MP_ADD_DATA(f);
+    MP_ADD_FLOAT(c->target_speed);
+    MP_ADD_FLOAT(c->forward_speed);
     MP_END_PACKET();
     if (MP_IS_CLIENT())
         multi_send_packet_buffered(data, packet_size, NULL, false);
@@ -694,7 +691,8 @@ void mp_broadcast_status_add(Character *c, int status, int ms, int spell, float 
     mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x480d70  Confidence: likely.
+// 0x480d70  Confidence: likely (m-1020b w8, D13204: the reads in the order that gives the binary's integer
+// registers; the value's register and the reload of c still differ).
 void mp_handle_status_add(ubyte *data, void *from)
 {
     Character *c;
@@ -707,9 +705,9 @@ void mp_handle_status_add(ubyte *data, void *from)
     if (!c)
         return;
     value = ((float *)data)[4];
+    status = ((int *)data)[1];
     ms = ((int *)data)[2];
     spell = ((int *)data)[3];
-    status = ((int *)data)[1];
     source = ((int *)data)[5];
     source = mp_local_handle_from_net(source);
     c->status_effect_add(status, ms, spell, value, source, false);

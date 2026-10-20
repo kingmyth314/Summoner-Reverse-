@@ -1217,23 +1217,29 @@ void ai_state::summon_emerge_update()
     ai_move_flags |= 4;
 }
 
-// 0x4b4920  Confidence: likely. A summon spell in a network game needs the summon claim first.
+// 0x4b4920  Confidence: exact (VC6 byte match, m-1020b w8, D13202: the summon test before the profile label, the
+// velocity assigned to a local (operator=), both failure tails written out: the binary cross-jumps them). A summon spell in a network game needs the summon claim first.
 void ai_state::cast_spell_update()
 {
-    profile_label label("ai_cast_spell_update");
     int summon = summon_find_charinfo(mode_target) >= 0;
+    profile_label label("ai_cast_spell_update");
 
     if ((game_flags & 2) && summon && !mp_summon_try_claim())
         return;
     ai_move_flags |= 4;
     owner->set_6ac(0.0f);
-    if (owner->instance->sum_root_velocity().len() > 0.1f)
+    vector3 vel;
+    vel = owner->instance->sum_root_velocity();
+    if (vel.len() > 0.1f)
         return;
     if (emerge_move < 0) {
         bool flag = summon != 0;
         emerge_move = owner->perform_spell_cast(mode_target, flag);
-        if (emerge_move == -1)
-            goto fail;
+        if (emerge_move == -1) {
+            target = -1;
+            set_mode(prev_mode, prev_submode);
+            return;
+        }
         if (game_flags & 2)
             mp_send_cast_anim(owner, mode_target, flag);
         _unk88 = mode_target;
@@ -1241,15 +1247,12 @@ void ai_state::cast_spell_update()
     }
     if (!owner->move_playing(emerge_move, NULL)) {
         flags &= ~2;
-        goto fail;
+        target = -1;
+        set_mode(prev_mode, prev_submode);
+        return;
     }
     if (owner->move_trigger_fired(7, 0))
         spell_cast_execute(owner, mode_target, target, &cast_point, cast_arg, 0, 0, 1);
-    return;
-
-fail:
-    target = -1;
-    set_mode(prev_mode, prev_submode);
 }
 
 // 0x4b4ad0  Confidence: exact (jump table 0x4b4d5c over sub-modes 0x2c..0x31). Knocked down (0x2c: fall,

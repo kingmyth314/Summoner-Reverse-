@@ -337,8 +337,9 @@ void party_inventory_clear()
     party_inventory_count = 0;
 }
 
-// 0x46bc00  Confidence: likely (statement split of the two decrements: the count one uses the
-// pre-decremented value, the charges one reloads). Casts the item's charge spell. A disposable value of
+// 0x46bc00  Confidence: exact (statement split of the two decrements: the count one uses the
+// pre-decremented value, the charges one reloads; the break roll in its own block with frand() in a
+// local, D12700). Casts the item's charge spell. A disposable value of
 // 1.0 (or more) uses up a unit (stack) or a charge; a fraction is the chance that the item breaks on this
 // use, otherwise one charge goes (the item stays at 0 charges, D5204).
 bool character_use_inventory_item(Character *c, party_inventory_entry *entry, int target_handle,
@@ -362,10 +363,16 @@ bool character_use_inventory_item(Character *c, party_inventory_entry *entry, in
             if (entry->item->charges > 0)
                 goto done;
         }
-    } else if (ce->disposable <= 0.0f || !(frand() < entry->item->type->charge_effect->disposable)) {
+    } else {
+        if (ce->disposable > 0.0f) {
+            float r = frand();
+            if (r < entry->item->type->charge_effect->disposable)
+                goto remove;
+        }
         entry->item->charges--;
         goto done;
     }
+remove:
     party_inventory_remove(entry - party_inventory, true, 1);
 done:
     return true;

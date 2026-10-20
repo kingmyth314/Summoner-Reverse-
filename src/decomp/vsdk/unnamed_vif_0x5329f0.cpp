@@ -90,32 +90,39 @@ void vif_compact_particles()
     }
 }
 
-// 0x532cb0  Confidence: likely (the segment search as a for loop with break, as in vif_curve__evaluate).
+// 0x532cb0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ob0 /Ow, D12600: the byte count tested in place,
+// n read after the single-point test, the found segment in `seg` (-1 when none), the index converted into a
+// float local, the line case as an else block with a named direction).
 // The spawn origin at time t: the single point; the last point outside the keys; a straight line between
 // two points; a spline through more (parameter = segment + fraction).
 void vif_emitter_spawn_point(vector3 *out, const vif_spawn_path *path, float t)
 {
-    int n = path->count;
     int i;
 
-    if (n == 1) {
+    if (path->count == 1) {
         *out = path->points[0];
         return;
     }
+    int n = path->count;
+    int seg = -1;
     for (i = 0; i < n - 1; i++)
-        if (t >= path->times[i] && t <= path->times[i + 1])
+        if (t >= path->times[i] && t <= path->times[i + 1]) {
+            seg = i;
             break;
-    if (i >= n - 1 || i < 0) {
+        }
+    if (seg < 0) {
         *out = path->points[n - 1];
         return;
     }
-    if (n > 2) {
-        spline s(n, path->points);
-        s.eval(out, i + (t - path->times[i]) / (path->times[i + 1] - path->times[i]));
-        return;
+    if (path->count > 2) {
+        spline s(path->count, path->points);
+        float fi = (float)i;
+        s.eval(out, (t - path->times[i]) / (path->times[i + 1] - path->times[i]) + fi);
+    } else {
+        float d = path->times[i + 1] - path->times[i];
+        vector3 dir = path->points[i + 1] - path->points[i];
+        *out = path->points[i] + dir * ((t - path->times[i]) / d);
     }
-    float d = path->times[i + 1] - path->times[i];
-    *out = path->points[i] + (path->points[i + 1] - path->points[i]) * ((t - path->times[i]) / d);
 }
 
 // 0x532e30  Confidence: exact. The smallest key value that is not 0 (0 when all are); the index it keeps is
@@ -339,7 +346,7 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
     em->time = elapsed;
 }
 
-// 0x533620  Confidence: likely (the two ramps as nested ifs; the second ramp's middle value 1.0 is loaded
+// 0x533620  Confidence: likely (D12602: the fog point as operator+'s result, args register rotation left; the two ramps as nested ifs; the second ramp's middle value 1.0 is loaded
 // after dropping the fraction). Each live particle as a bitmap of size * 2 scaled by the size ramp, white with
 // the alpha ramp * alpha * the point fog of the record (* 128), additive or alpha blended.
 void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
@@ -354,8 +361,7 @@ void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
     if (!(em->flags & 1))
         return;
     size = rec->size * 2.0f;
-    vector3 world = em->emit_pos + em->pos.unrotated(em->emit_orient);
-    fog = gr_get_point_fog_value(0xff, &world) * (1.0f / 255.0f);
+    fog = gr_get_point_fog_value(0xff, &static_cast<const vector3 &>(em->emit_pos + em->pos.unrotated(em->emit_orient))) * (1.0f / 255.0f);
     vector3 pt;
     for (p = em->live.next; p != &em->live; p = p->next) {
         if (!(p->flags & VIF_PARTICLE_ALIVE))
@@ -383,7 +389,7 @@ void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
     }
 }
 
-// 0x5337a0  Confidence: likely (the free-ring unlink as written). (desc, level effect): the next free record
+// 0x5337a0  Confidence: likely (D12602: the static branch through used / total; the free-ring unlink as written). (desc, level effect): the next free record
 // with desc->count particles, for a level effect from operator new in level_mempool (emptied at the next level load) or from
 // the pool (compacted when full; NULL with a message when still short), all on the free list; the record
 // leaves the free ring. NULL when no record is free.
@@ -405,19 +411,22 @@ vfx_inst21c *vif_instantiate_level(vfx_desc21c *desc, bool level)
         vif_data_top += desc->count * sizeof(vif_particle);
     } else {
         printf("VIF INSTANTIATE : STATIC\n");
-        if (desc->count + vif_particle_used > VIF_MAX_PARTICLES) {
+        int used = vif_particle_used;
+        if (desc->count + used > VIF_MAX_PARTICLES) {
             printf("COMPACTING VIF PARTICLES\n");
             vif_compact_particles();
             printf("DONE COMPACTING\n");
+            used = vif_particle_used;
         }
-        if (desc->count + vif_particle_used > VIF_MAX_PARTICLES) {
+        int total = desc->count + used;
+        if (total > VIF_MAX_PARTICLES) {
             printf("Skipping vif particle instantiation due to lack of static particles (needed : %d   available : %d)!\n",
-                   desc->count, VIF_MAX_PARTICLES - vif_particle_used);
+                   desc->count, VIF_MAX_PARTICLES - used);
             return NULL;
         }
-        r->first = vif_particle_used;
-        vif_particle_used += desc->count;
-        r->particles = &vif_particle_top[r->first];
+        r->first = used;
+        vif_particle_used = total;
+        r->particles = &vif_particle_top[used];
     }
     r->flags |= 1;
     r->live.next = &r->live;
@@ -481,7 +490,7 @@ void vif_record_release(vfx_inst21c *em, vfx_desc21c *desc)
     plist_append(vif_record_list, em);
 }
 
-// 0x533aa0  Confidence: likely (the box radius expression). (desc, out centre, out radius): the spawn area
+// 0x533aa0  Confidence: likely (D12602: one argument-slot choice left; the box radius expression). (desc, out centre, out radius): the spawn area
 // around the desc position; with a spawn path the centre of its points and the radius grown by the farthest.
 void vif_record_get_bounds(vfx_desc21c *rec, vector3 *centre, float *radius)
 {
@@ -503,8 +512,10 @@ void vif_record_get_bounds(vfx_desc21c *rec, vector3 *centre, float *radius)
             c += rec->path.points[i];
         c *= 1.0f / rec->path.count;
         farthest = 0.0f;
-        for (i = 0; i < rec->path.count; i++)
-            farthest = float_max(farthest, (rec->path.points[i] - c).len());
+        for (i = 0; i < rec->path.count; i++) {
+            float l = (rec->path.points[i] - c).len();
+            farthest = float_max(farthest, l);
+        }
         *centre = c;
         *radius += farthest;
     }
@@ -536,21 +547,26 @@ void vif_stub_ret_533c60()
 // constructors, called out of line), the function init_vif_records passes to the vector constructor
 // iterator. Generated by the compiler from the declaration of vif_records above; no source of its own.
 
-// 0x533ca0  Confidence: likely (the reciprocal branch's x87 order). (curve, t, reciprocal): see vfx.h. With
+// 0x533ca0  Confidence: exact (VC6 byte match, cl 8966, /Ox /Ob0 /Ow, D12600: the found segment in `seg`, -1
+// when none, so the loop's normal exit goes straight to the last key; that key indexed by c->count again).
+// (curve, t, reciprocal): see vfx.h. With
 // reciprocal set the fraction is (t - 1/v0) / (t1 - t0) instead of (t - t0) / (t1 - t0): the code subtracts
 // the reciprocal it just computed (a game bug, see NOTES); written as the code computes it.
 float vif_curve__evaluate(const vif_curve *c, float t, bool reciprocal)
 {
-    int n, i;
+    int i;
 
     if (c->count == 1)
         return c->values[0];
-    n = c->count;
+    int n = c->count;
+    int seg = -1;
     for (i = 0; i < n - 1; i++)
-        if (t >= c->times[i] && t <= c->times[i + 1])
+        if (t >= c->times[i] && t <= c->times[i + 1]) {
+            seg = i;
             break;
-    if (i >= n - 1 || i < 0)
-        return c->values[n - 1];
+        }
+    if (seg < 0)
+        return c->values[c->count - 1];
     if (c->values[i] == 0.0f || c->values[i + 1] == 0.0f)
         return 0.0f;
     float dt = c->times[i + 1] - c->times[i];

@@ -126,13 +126,13 @@ void mp_send_door_toggle(int lobj_index, int open)
     mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4aaa10  Confidence: likely (`open` reuses the stack slot of the door pointer). The host's lock pick for
+// 0x4aaa10  Confidence: exact (D13404: `open` / `locked` scoped to the success block, so `open` reuses the door
+// pointer's slot; the lock compared as a double, which loads it onto the FPU stack for fcompp). The host's lock pick for
 // a player: pick lock skill + 0.05 against the door's lock value, as container_lockpick. The error text is
 // formatted and never printed.
 void door_pick_by_mesh(int player_id, int lobj_index)
 {
     char error[256];
-    bool open, locked;
     lobj *l = &lobjs[lobj_index];
 
     if (!l || !(l->flags & LOBJ_FLAG_DOOR)) {
@@ -151,7 +151,8 @@ void door_pick_by_mesh(int player_id, int lobj_index)
         mp_send_door_lockpick(p, lobj_index, 2);
         return;
     }
-    if (ch->get_skill(SKILL_PICK_LOCK) + 0.05f >= d->lock) {
+    if (ch->get_skill(SKILL_PICK_LOCK) + 0.05f >= (double)d->lock) {
+        bool open, locked;
         savegame_state.two_stage_get(&open, &locked, l);
         savegame_state.two_stage_set(open, false, l);
         level_script_use(l->name);

@@ -157,7 +157,8 @@ void cmd_ghost_solo()
 // initialiser for the definitions above; it comes after the command objects', so the timers are defined
 // after them in the original, unlike the order of the .bss).
 
-// 0x4ba0d0  Confidence: likely (the ray is a local whose inline constructor clears +0x30 at entry; the
+// 0x4ba0d0  Confidence: exact (VC6 byte match, m-1020b w15; D13908: start set member by member, the ray's
+// flag words and _unk18 set before ray.start and the direction). (The ray is a local whose inline constructor clears +0x30 at entry; the
 // start point is a vector3 local whose y is reused for the hit height, match31: frame now 0x94). Casts
 // a 40-long ray down from 20 above the point against the level objects of the layer (the layer list, or
 // every object with that layer in one of its first two layer bytes) and moves the point to the highest
@@ -190,15 +191,18 @@ void ghost_find_floor_below(Character *unused, int layer, vector3 *pos)
             if (lobjs[i].get_layer_n(0) != layer && lobjs[i].get_layer_n(1) != layer)
                 continue;
         }
-        vector3 start(pos->x, pos->y + 20.0f, pos->z);
+        vector3 start;
+        start.x = pos->x;
+        start.y = pos->y + 20.0f;
+        start.z = pos->z;
+        ray.require_flags = 0;
+        ray.exclude_flags = 0;
+        ray.flags = 0;
+        ray._unk18 = 0.0f;
         ray.start = start;
         ray.dir.x = 0.0f;
         ray.dir.y = -40.0f;
         ray.dir.z = 0.0f;
-        ray._unk18 = 0.0f;
-        ray.flags = 0;
-        ray.require_flags = 0;
-        ray.exclude_flags = 0;
         lobj_raycast(index, &ray, &hit, true);
         if (hit.num_hits > 0) {
             y = hit.t * ray.dir.y + start.y;

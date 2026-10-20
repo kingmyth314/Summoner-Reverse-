@@ -74,7 +74,21 @@ if (cmd === "fn") {
   const va = parseTarget(arg), max = parseInt(maxArg ?? "3000", 10);
   const next = starts.find((s) => s > va) ?? Infinity;
   console.log(`; ${fname(va)}`);
-  for (let i = indexOf(va), n = 0; i < ins.length && ins[i].va < next && n < max; i++, n++) show(i);
+  if (ins[indexOf(va)]?.va === va) {
+    for (let i = indexOf(va), n = 0; i < ins.length && ins[i].va < next && n < max; i++, n++) show(i);
+  } else {
+    // The whole-file linear sweep ran through data (a jump table before the function) and did not land on its
+    // first byte (e.g. 0x465df0's `push ecx` was swallowed): disassemble the function's own range instead.
+    const stop = Number.isFinite(next) ? next : va + 0x4000;
+    const out = execFileSync("llvm-objdump", ["-d", "--no-show-raw-insn", "-M", "intel", `--start-address=0x${va.toString(16)}`,
+      `--stop-address=0x${stop.toString(16)}`, exePath], { maxBuffer: 1 << 26 }).toString("latin1");
+    let n = 0;
+    for (const line of out.split(/\r?\n/)) {
+      const m = /^\s+([0-9a-f]+):\s+(.*)$/.exec(line);
+      if (!m || n++ >= max) continue;
+      console.log(`${m[1]}: ${annotate(m[2].replace(/\s+<\.text\+0x[0-9a-f]+>/g, "").replace(/\s+/g, " ").trim())}`);
+    }
+  }
 } else if (cmd === "grep") {
   const re = new RegExp(arg, "i"), max = parseInt(maxArg ?? "200", 10);
   let n = 0;

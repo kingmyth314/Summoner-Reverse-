@@ -304,22 +304,25 @@ void shadow_record_add(const vector3 *pos, const matrix *orient, float fov, floa
 // 0x4a4320 matrix::operator= (matrix3__copy). Confidence: exact.
 // Both are COMDATs of inline members (vsdk/math/ix.h, vsdk/math/matrix.h) emitted with this unit.
 
-// 0x4a4360  Confidence: likely. levelrender_render_scene: every record over the faces of the level
-// objects it was projected into that are marked in the face bitmap.
+// 0x4a4360  Confidence: exact (D13500: the two counts read once, the shift in the loop increment).
+// levelrender_render_scene: every record over the faces of the level objects it was projected into that
+// are marked in the face bitmap.
 void shadows_render()
 {
     blob_shadow *s;
     lobj *l;
     s3d_geometry *g;
     ubyte *marks;
-    uint m;
-    int i, k, index, nbytes, b, bit;
+    uint m, k, n;
+    int i, count, index, nbytes, b, bit;
 
     if (!shadows_enabled || num_blob_shadows <= 0)
         return;
-    s = blob_shadows;
-    for (i = num_blob_shadows; i; i--, s++) {
-        for (k = 0; k < (int)s->proj.lobj_count; k++) {
+    count = num_blob_shadows;
+    for (i = 0; i < count; i++) {
+        s = &blob_shadows[i];
+        n = s->proj.lobj_count;
+        for (k = 0; k < n; k++) {
             l = s->proj.lobj_list[k];
             index = l - lobjs;
             shadow_transform_to_lobj(s, l);
@@ -330,10 +333,9 @@ void shadows_render()
                 m = *marks++;
                 if (!m)
                     continue;
-                for (bit = 0; bit < 8; bit++) {
+                for (bit = 0; bit < 8; bit++, m >>= 1) {
                     if (m & 1)
                         shadow_render_on_face(s, l, &g->faces[b * 8 + bit]);
-                    m >>= 1;
                 }
             }
         }
@@ -533,21 +535,19 @@ int shadow_collect_for_lobj(lobj *l, shadow_record **list, int *count)
 int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *blocked, bool attach_only)
 {
     levelrender_entry *e;
-    char *stage;
     char local_stage;
     float fog_far;
     bool first;
-    int local_index, n, i;
+    int local_index, i;
 
     fog_far = fog_get_far_current();
     if (!index) {
         local_index = 0;
         index = &local_index;
     }
-    stage = (char *)blocked;
-    if (!stage) {
+    if (!blocked) {
         local_stage = 0;
-        stage = &local_stage;
+        blocked = (bool *)&local_stage;
     }
     first = true;
     hit->num_hits = 0;
@@ -556,7 +556,7 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
     if (levelrender_attach_count <= 0) {
         if (attach_only)
             return 0;
-        n = lobj_get_count();
+        int n = lobj_get_count();
         hit->num_hits = 0;
         for (i = *index; i < n; i++) {
             if (lobj_from_index(i)->mesh->_unk30 < ray->min_radius)
@@ -571,7 +571,7 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
         return hit->num_hits;
     }
     first = true;
-    if (*stage == 0) {
+    if (*(char *)blocked == 0) {
         for (i = *index; i < levelrender_attach_count; i++) {
             e = levelrender_attach_list[i];
             if (e->type != 1 || e->dist > fog_far)
@@ -585,10 +585,10 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
                 return hit->num_hits;
             }
         }
-        *stage = 1;
+        *(char *)blocked = 1;
         *index = 0;
     }
-    if (*stage == 1) {
+    if (*(char *)blocked == 1) {
         for (i = *index; i < levelrender_opaque_count; i++) {
             e = levelrender_opaque_list[i];
             if (e->type != 1 || e->dist > fog_far)
@@ -602,7 +602,7 @@ int lobj_raycast_draw_lists(lobj_ray *ray, lobj_hit *hit, int *index, bool *bloc
                 return hit->num_hits;
             }
         }
-        *stage = 2;
+        *(char *)blocked = 2;
         *index = 0;
     }
     for (i = *index; i < levelrender_sort_count; i++) {

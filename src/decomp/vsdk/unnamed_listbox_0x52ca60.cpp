@@ -1122,7 +1122,8 @@ float ui_listbox::get_hscroll_fraction()
     return (float)hscroll / range;
 }
 
-// 0x52e920  Confidence: likely (float temporaries). No caller. The scroll position between the first and
+// 0x52e920  Confidence: exact (VC6 byte match, m-1020b w13: lo through a float temporary assigned after
+// last is read, the font height in a local; D13700). No caller. The scroll position between the first and
 // the last stop. F6209: the line stops use the font height without line_spacing.
 float ui_listbox::get_vscroll_fraction()
 {
@@ -1134,19 +1135,23 @@ float ui_listbox::get_vscroll_fraction()
         hi = 0.0f;
         lo = 0;
     } else if (flags & UI_LISTBOX_ALIGN_BOTTOM) {
+        float t;
         if (!(flags & UI_LISTBOX_BY_ENTRY))
-            lo = (float)(gr_get_font_height(first->font) - get_view_height());
+            t = (float)(gr_get_font_height(first->font) - get_view_height());
         else
-            lo = (float)(first->height - get_view_height());
+            t = (float)(first->height - get_view_height());
         last = entries.prev;
+        lo = t;
         hi = (float)(last->height + last->y - get_view_height());
     } else {
         last = entries.prev;
         lo = 0;
-        if (!(flags & UI_LISTBOX_BY_ENTRY))
-            hi = (float)((last->num_lines - 1) * gr_get_font_height(last->font) + last->y);
-        else
+        if (!(flags & UI_LISTBOX_BY_ENTRY)) {
+            int fh = gr_get_font_height(last->font);
+            hi = (float)((last->num_lines - 1) * fh + last->y);
+        } else {
             hi = (float)last->y;
+        }
     }
     return (vscroll - lo) / (hi - lo);
 }

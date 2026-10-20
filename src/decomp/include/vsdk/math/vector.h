@@ -66,8 +66,11 @@ public:
     // decomp25: cross product, a COMDAT after ca_render (0x50d7e0); matrix.cpp calls it.
     vector3 cross(const vector3 &v) const             // 0x50d7e0 vector3__cross
     { return vector3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); }
+    // D12900: rounded to float, then promoted and converted again for the return. The unoptimised
+    // living_entity callers store both (fst cast temporary, fst result); every plain float spelling
+    // gives one store. A device that reproduces the binary; the value is the plain float length.
     float len() const                                 // 0x4bc290
-    { return (float)sqrt(x * x + y * y + z * z); }
+    { return (double)(float)sqrt(x * x + y * y + z * z); }
     // Inline in the original header (decomp20, DECISIONS.md C3): expanded in conversation_frame, called
     // as the COMDAT 0x4d9a80 vector3__len_sq from conversation_camera_compute_shot.
     float len_sq() const { return x * x + y * y + z * z; }

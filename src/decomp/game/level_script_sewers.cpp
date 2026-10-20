@@ -399,22 +399,22 @@ void ls_sewer_tb_intro_cs_end()
     script_npc_goto_label("Iron Golem#boss", 1);
 }
 
-// 0x4ee3c0  Confidence: likely (the four corner locals and the store order are a guess). The avoidance
+// 0x4ee3c0  Confidence: exact (D13300: plain end-point pairs, corners set in use order). The avoidance
 // spline around the beast's pool: two segments (x 234.7 at z -155 .. -145, x 258 at z -145 .. -156) given
 // twice, with cell bytes (1, 2) and (2, 2).
 void ls_sewer_create_avoid_spline()
 {
     avoid_spline_def def;
-    vector2 a, b, c, d;
+    avoid_spline_end a, b, c, d;
 
-    a.x = 258.0f;
-    a.y = -145.0f;
-    b.x = 258.0f;
-    b.y = -156.0f;
     c.x = 234.7f;
     c.y = -155.0f;
     d.x = 234.7f;
     d.y = -145.0f;
+    a.x = 258.0f;
+    a.y = -145.0f;
+    b.x = 258.0f;
+    b.y = -156.0f;
     def.cell_x[0] = 1;
     def.cell_y[0] = 2;
     def.p0[0] = c;

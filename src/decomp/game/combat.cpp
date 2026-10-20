@@ -566,8 +566,8 @@ void cmd_Super_power()
     }
 }
 
-// 0x464100  Confidence: likely (byte-indexed jump table 0x4645a0 for 0xa..0x55; the shared status block
-// is written twice as in the binary). The defender (this) rolls parry (skill 9) and dodge (skill 0xb)
+// 0x464100  Confidence: exact (byte-indexed jump table 0x4645a0 for 0xa..0x55; the shared status block
+// is written twice as in the binary; the clamps at 0 as `0.0f > x`, dodge reduced in place, D13103). The defender (this) rolls parry (skill 9) and dodge (skill 0xb)
 // against the attacker's hit value; simulate = 1 only counts the hits and never parries.
 void living_combat::roll_defense(living_combat *att, bool simulate)
 {
@@ -607,7 +607,7 @@ void living_combat::roll_defense(living_combat *att, bool simulate)
             hit *= 0.5f;
         if (att->owner->has_status(STATUS_CRIPPLE))
             hit -= 0.2f;
-        if (hit < 0.0f)
+        if (0.0f > hit)
             hit = 0.0f;
         break;
     case SKILL_ICY_TOUCH:
@@ -658,14 +658,14 @@ void living_combat::roll_defense(living_combat *att, bool simulate)
     if (simulate == true)
         parry = 0.0f;
     if (owner->has_status(STATUS_SLOW) || owner->ai.is_disabled_any()) {
-        d = dodge - 0.2f;
-        if (d < 0.0f)
-            d = 0.0f;
-    } else
-        d = dodge;
-    d *= 0.5f;
+        dodge -= 0.2f;
+        if (0.0f > dodge)
+            dodge = 0.0f;
+    }
+    dodge *= 0.5f;
     if (owner->loco_blend > 0.5f)
-        d = 0.0f;
+        dodge = 0.0f;
+    d = dodge;
     total = hit + d + parry;
     if (total > 0.0f) {
         parry_chance = parry / total;
@@ -1171,8 +1171,8 @@ float living_combat::melee_damage(int unused)
     return (float)(int)floor(result);
 }
 
-// 0x465df0  Confidence: likely (byte-indexed jump table 0x46659c for 0xa..0x55; the per-case tails are
-// written out as in the binary). On a multiplayer client only the effects run (and only when the hit
+// 0x465df0  Confidence: exact (byte-indexed jump table 0x46659c for 0xa..0x55; the per-case tails are
+// written out as in the binary; spawn_blood called in each branch, the client's call cross-jumped, D13104). On a multiplayer client only the effects run (and only when the hit
 // would not kill). The aimed attacks' status chance uses cur_character's aimed attack skill, not the
 // attacker's (literal; NOTES.md).
 void living_combat::apply_melee_hit(bool flinch)
@@ -1186,6 +1186,7 @@ void living_combat::apply_melee_hit(bool flinch)
         dmg = melee_damage(0);
         if (opponent->owner->hp - dmg <= 0.0f)
             return;
+        spawn_blood(dmg);
     } else {
         if (serpent_part_on_hit(opponent->owner))
             return;
@@ -1212,8 +1213,8 @@ void living_combat::apply_melee_hit(bool flinch)
             }
             trigger_special_ability(dmg);
         }
+        spawn_blood(dmg);
     }
-    spawn_blood(dmg);
     switch (skill) {
     case SKILL_COUNTER_ATTACK: case SKILL_DOUBLE_ATTACK: case SKILL_ADDED_BLOW: case SKILL_AXESPIN:
     case SKILL_NONE:

@@ -278,7 +278,8 @@ int dialogue_frame(int key)
     return key;
 }
 
-// 0x409650  Confidence: likely (VC6 8966 byte match, m-1020 w6; was likely). Each arrow's position is kept for the hit test and written out again for
+// 0x409650  Confidence: exact (VC6 8966 byte match again: gr_string takes the gr::Mode by value since D11003,
+// so gr_string_mode is passed as the object, D12500). Each arrow's position is kept for the hit test and written out again for
 // gr_string (the binary reloads it after gr_set_color_ptr).
 void dialogue_draw()
 {
@@ -293,7 +294,7 @@ void dialogue_draw()
 
     gr_string(dialogue_title_pos[resolution_index][0] + dialogue_buttons[0].x,
               dialogue_title_pos[resolution_index][1] + dialogue_buttons[0].y,
-              dialogue_title, -1, gr_string_mode.value);
+              dialogue_title, -1, gr_string_mode);
     dialogue_text_box.draw();
 
     switch (dialogue_mode) {
@@ -334,7 +335,7 @@ void dialogue_draw()
                 gr_set_color_ptr(&ui_color_text);
             gr_string(dialogue_up_arrow_pos[resolution_index][0] + dialogue_buttons[0].x,
                       dialogue_up_arrow_pos[resolution_index][1] + dialogue_buttons[0].y,
-                      dialogue_up_arrow, -1, gr_string_mode.value);
+                      dialogue_up_arrow, -1, gr_string_mode);
         }
 
         if (!dialogue_topic_box.item_visible((dialogue_topic_box.first + dialogue_topic_box.count - 1) % 64)) {
@@ -348,7 +349,7 @@ void dialogue_draw()
                 gr_set_color_ptr(&ui_color_text);
             gr_string(dialogue_down_arrow_pos[resolution_index][0] + dialogue_buttons[0].x,
                       dialogue_down_arrow_pos[resolution_index][1] + dialogue_buttons[0].y,
-                      dialogue_down_arrow, -1, gr_string_mode.value);
+                      dialogue_down_arrow, -1, gr_string_mode);
         }
         break;
     }

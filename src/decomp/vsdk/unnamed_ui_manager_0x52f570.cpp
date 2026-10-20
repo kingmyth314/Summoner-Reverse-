@@ -310,8 +310,9 @@ void ui_draw(void (*callback)())
     }
 }
 
-// 0x530330  Confidence: likely (the order of the stores that restore the click flags; the two
-// "dropped" paths of the drag end). The input pass:
+// 0x530330  Confidence: exact (VC6 byte match, m-1020b w15; D13902: the three flags cleared by one chained
+// assignment, `win = prev` before the click-flag check, the restore stores in the binary's order, the drop
+// count added in place). The input pass:
 //  - the mouse buttons into ui_left_pressed .. ui_right_double_clicked (a right press only without a
 //    left one; a double click only when the previous press was not one), the mouse position;
 //  - on a press, the gadget under it in the topmost window that has one (a double click on another
@@ -327,12 +328,13 @@ void ui_draw(void (*callback)())
 //    button, then 0x10).
 int ui_process(int key, bool clear_clicks)
 {
-    bool any_click = false;
+    bool any_click;
     bool left_pressed, left_released, right_pressed, right_released;
     bool left_double, right_double;
-    bool restored = false;
-    bool hovered = false;
+    bool restored;
+    bool hovered;
     ui_gadget *g = NULL;
+    restored = any_click = hovered = false;
     ui_window *win;
     int dx, dy;
 
@@ -425,20 +427,20 @@ focus:
     while (win != &ui_window_sentinel) {
         ui_window *prev = win->prev;
         key = win->process(key);
+        win = prev;
         if (any_click) {
             if (ui_left_pressed != left_pressed || ui_left_released != left_released ||
                 ui_right_pressed != right_pressed || ui_right_released != right_released ||
                 ui_left_double_clicked != left_double || ui_right_double_clicked != right_double) {
                 ui_left_pressed = left_pressed;
-                ui_left_released = left_released;
                 ui_right_pressed = right_pressed;
                 ui_right_released = right_released;
+                restored = true;
+                ui_left_released = left_released;
                 ui_left_double_clicked = left_double;
                 ui_right_double_clicked = right_double;
-                restored = true;
             }
         }
-        win = prev;
     }
 
     if (ui_tooltip_gadget) {
@@ -466,11 +468,10 @@ focus:
                     ui_drag_gadget->send_event(0x10, UI_USE_ID);
                 }
             } else if (target != ui_drag_gadget) {
-                int n = target->count + ui_drag_gadget->drag_amount;
-                if (n <= target->capacity) {
+                if (target->count + ui_drag_gadget->drag_amount <= target->capacity) {
                     ui_drop_target = target;
                     if (target->capacity >= 0)
-                        target->count = n;
+                        target->count += ui_drag_gadget->drag_amount;
                     ui_drag_gadget->send_event(0x11, UI_USE_ID);
                     if (ui_drag_gadget->capacity >= 0)
                         ui_drag_gadget->count -= ui_drag_gadget->drag_amount;

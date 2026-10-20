@@ -2018,11 +2018,11 @@ void Character::refresh_item_status_effects()
     }
 }
 
-// 0x455e00  Confidence: likely (the offset is passed by value; the sum is built in the argument slot
-// through the inline copy constructor). this at ebp-0x1c.
+// 0x455e00  Confidence: exact (VC6 byte match with `pos + offset`, D12901: pos is the operator+ object,
+// the offset its argument; the sum is built in the argument slot through the inline copy constructor). this at ebp-0x1c.
 void Character::ai_travel_offset(vector3 offset)
 {
-    ai.travel_to_xyz(offset + pos);
+    ai.travel_to_xyz(pos + offset);
 }
 
 // 0x455e70  Confidence: exact. Frame: dirn -0xc, to_target -0x18, this -0x40 (both vectors built in place
@@ -2309,7 +2309,7 @@ bool Character::find_overlap(vector3 *move, int unused, bool relative)
     return false;
 }
 
-// 0x456ed0  Confidence: likely (speed -4, old -8, the returned vector -0x14, its pointer -0x18, the
+// 0x456ed0  Confidence: exact (VC6 byte match with vector3::len of D12900; speed -4, old -8, the returned vector -0x14, its pointer -0x18, the
 // sqrt cast temporary -0x20, this -0x1c). The root speed of the locomotion blend at `blend`, the
 // current blend restored afterwards.
 float Character::anim_speed_at_blend(float blend)
@@ -2348,7 +2348,8 @@ void Character::get_forward_velocity(vector3 *out)
     *out = orient.fvec * forward_speed;
 }
 
-// 0x457060  Confidence: likely (the two fst temporaries at ebp-0x10 / -8).
+// 0x457060  Confidence: exact (VC6 byte match with vector3::len of D12900: the cast temporary at
+// ebp-0x10, the inline return at -8).
 float Character::get_speed()
 {
     if (ai_suspended())
@@ -2924,32 +2925,34 @@ void Character::set_locomotion_speed(float speed)
     }
 }
 
-// 0x45a840  Confidence: likely (rate -4, len -8, vec -0x14, dst -0x18, the returned reference
-// -0x34, this -0x38). v^2 / (2 * deceleration) at the current root speed; the root velocity is
+// 0x45a840  Confidence: exact (VC6 byte match with vector3::len rounding then promoting, D12900; `l1` for
+// the length so the D6101 hash gives rate -4, l1 -8, vec -0x14, dst -0x18, the returned reference -0x34, this -0x38). v^2 / (2 * deceleration) at the current root speed; the root velocity is
 // copied to out_vel when given.
 float Character::stopping_distance(vector3 *out_vel)
 {
     float rate;
     vector3 vec;
     float dst;
-    float len;
+    float l1;
 
     if (speed_scale == 0.0f)
         return 0.0f;
     rate = slowdown_rate * speed_scale;
     vec = instance->get_root_velocity();
-    len = vec.len();
-    dst = len * len / (rate * 2.0f);
+    l1 = vec.len();
+    dst = l1 * l1 / (rate * 2.0f);
     if (out_vel != NULL)
         *out_vel = vec;
     return dst;
 }
 
-// 0x45a930  Confidence: likely (a -4, want_speed -8, t -0xc, vmag -0x10, vec -0x1c, this -0x34). The
+// 0x45a930  Confidence: exact (VC6 byte match, D12900: vector3::len, and the result through `dst`, which
+// the binary stores at -0x20; a -4, want_speed -8, t -0xc, vmag -0x10, vec -0x1c, this -0x34). The
 // distance covered while the root speed changes from now to the speed at `blend` (speed-up rate of
 // the char_info, or the slow-down rate).
 float Character::distance_to_reach_blend(float blend)
 {
+    float dst;
     float a;
     float want_speed;
     float t;
@@ -2964,12 +2967,14 @@ float Character::distance_to_reach_blend(float blend)
     else
         a = -slowdown_rate * speed_scale;
     t = (want_speed - vmag) / a;
-    return vmag * t + a * t * t / 2.0f;
+    dst = vmag * t + a * t * t / 2.0f;
+    return dst;
 }
 
-// 0x45aa20  Confidence: likely (as distance_to_reach_blend with the target speed given).
+// 0x45aa20  Confidence: exact (VC6 byte match; as distance_to_reach_blend with the target speed given).
 float Character::distance_to_reach_speed(float speed)
 {
+    float dst;
     float a;
     float t;
     float vmag;
@@ -2982,7 +2987,8 @@ float Character::distance_to_reach_speed(float speed)
     else
         a = -slowdown_rate * speed_scale;
     t = (speed - vmag) / a;
-    return vmag * t + a * t * t / 2.0f;
+    dst = vmag * t + a * t * t / 2.0f;
+    return dst;
 }
 
 // 0x45ab00  Confidence: likely for the flow, unsure for the temporaries (the inline budget runs out

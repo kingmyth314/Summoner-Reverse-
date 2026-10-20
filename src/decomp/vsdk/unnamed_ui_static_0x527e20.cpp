@@ -116,8 +116,9 @@ void ui_static::set_text_offset(int u, int v)
     }
 }
 
-// 0x5280e0  vtable slot 7. Confidence: likely (the two copies of the text code have their own locals in
-// the binary; the compiler merged their tails). Disabled: nothing. Hidden (sic, as ui_button::draw): the
+// 0x5280e0  vtable slot 7. Confidence: exact (VC6 8966 byte match: each branch has its own copy of the
+// whole text code, shadow and string included, and sets c itself; the compiler merges the two copies from
+// the shadow call on, D13801). Disabled: nothing. Hidden (sic, as ui_button::draw): the
 // disabled bitmap and colour set 1 ([3..5]). Without a bitmap the rectangle is filled with [0]; the text
 // is drawn with [1], its shadow with [2] when that alpha is not 0. Then the children (ui_gadget::draw).
 void ui_static::draw()
@@ -126,11 +127,11 @@ void ui_static::draw()
         return;
     int sx = get_screen_x(0);
     int sy = get_screen_y(0);
-    Color *c = colors;
+    Color *c;
     int tx, ty;
 
     if (is_hidden()) {
-        c += 3;
+        c = colors + 3;
         if (!state_disabled.draw(sx, sy, bm_w, bm_h, bm_u, bm_v)) {
             gr_set_color_ptr(c);
             gr_rect(sx, sy, w, h, gr_rect_mode, 1.0f);
@@ -170,7 +171,14 @@ void ui_static::draw()
                 break;
             }
         }
+        if (c[2].a) {
+            gr_set_color_ptr(&c[2]);
+            gr_string(tx + 1, ty + 1, text, font, gr_string_mode);
+        }
+        gr_set_color_ptr(&c[1]);
+        gr_string(tx, ty, text, font, gr_string_mode);
     } else {
+        c = colors;
         if (!state_normal.draw(sx, sy, bm_w, bm_h, bm_u, bm_v)) {
             gr_set_color_ptr(c);
             gr_rect(sx, sy, w, h, gr_rect_mode, 1.0f);
@@ -210,13 +218,13 @@ void ui_static::draw()
                 break;
             }
         }
+        if (c[2].a) {
+            gr_set_color_ptr(&c[2]);
+            gr_string(tx + 1, ty + 1, text, font, gr_string_mode);
+        }
+        gr_set_color_ptr(&c[1]);
+        gr_string(tx, ty, text, font, gr_string_mode);
     }
-    if (c[2].a) {
-        gr_set_color_ptr(&c[2]);
-        gr_string(tx + 1, ty + 1, text, font, gr_string_mode);
-    }
-    gr_set_color_ptr(&c[1]);
-    gr_string(tx, ty, text, font, gr_string_mode);
 done:
     gr::reset_clip();
     ui_gadget::draw();

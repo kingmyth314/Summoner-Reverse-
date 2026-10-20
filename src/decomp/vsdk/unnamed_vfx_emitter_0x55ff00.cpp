@@ -119,9 +119,10 @@ inline void fx_recb0::get_fade(vfx_emitter_desc *desc, float age, float life, fl
         *alpha *= (1.0f - age) / (1.0f - desc->get_fixed8_30());
 }
 
-// 0x562840 vfx_particle_get_billboard_axes  Confidence: likely. A flat particle's triangle: two corners
-// across the view at +-size / 4, the tip behind along the velocity. The first tip (scaled by the size)
-// is overwritten at once by one without it; fade is not read.
+// 0x562840 vfx_particle_get_billboard_axes  Confidence: exact. A flat particle's triangle: two corners
+// across the view at +-size / 4, the tip behind along the velocity. The first tip (scaled by fade: the
+// binary pushes [esp+0xc0], the last argument, 0x562947) is overwritten at once by one without it, so
+// fade has no effect (D13601).
 inline void fx_recb0::get_billboard_axes(vfx_emitter_desc *desc, fx_rec28 *p, vector3 *a, vector3 *b, vector3 *c,
                                          float size, float fade)
 {
@@ -135,13 +136,14 @@ inline void fx_recb0::get_billboard_axes(vfx_emitter_desc *desc, fx_rec28 *p, ve
     side.normalize_safe();
     *a = pos + side * size * 0.25f;
     *b = pos - side * size * 0.25f;
-    *c = pos - vel / 15.0f * 1.6f * size * desc->get_fixed8_32();
+    *c = pos - vel / 15.0f * 1.6f * fade * desc->get_fixed8_32();
     *c = pos - vel / 15.0f * 1.6f * desc->get_fixed8_32();
 }
 
 // ---- the emitter instance ---------------------------------------------------------------------------
 
-// 0x55ff30  Confidence: likely (the rate sums; prev copied once). Adds 320 * rate per frame passed since
+// 0x55ff30  Confidence: likely (prev is an integer copy of last_t, ceil reads last_t, a rate local in
+// three sums: D13604; the binary stores prev after the fstp of the ceil argument, ours before). Adds 320 * rate per frame passed since
 // last_t to spawn_accum (fractions of frames at the ends), then starts that many free particles, spread
 // over the step (frac) with their ages.
 void fx_recb0::spawn(vfx_emitter_desc *desc, float t, float dt, const vector3 &vel)
@@ -154,20 +156,26 @@ void fx_recb0::spawn(vfx_emitter_desc *desc, float t, float dt, const vector3 &v
     int count;
     float frac;
     fx_rec28 *p;
+    float rate;
 
     if (desc->end_frame > t && desc->start_frame < t) {
         prev = last_t;
-        first = (int)ceil(prev);
+        first = (int)ceil(last_t);
         last = (int)floor(t);
         if (prev < t && (first > t || last < prev)) {
-            spawn_accum += (t - prev) * desc->get_rate(max((int)floor(prev), 0)) * 320.0f;
+            rate = desc->get_rate(max((int)floor(prev), 0));
+            spawn_accum += (t - prev) * rate * 320.0f;
         } else {
-            if (prev < first)
-                spawn_accum += (first - prev) * desc->get_rate(max((int)floor(prev), 0)) * 320.0f;
+            if (prev < first) {
+                rate = desc->get_rate(max((int)floor(prev), 0));
+                spawn_accum += (first - prev) * rate * 320.0f;
+            }
             for (i = first % desc->end_frame; i < last % desc->end_frame; i = (i + 1) % desc->end_frame)
                 spawn_accum += desc->get_rate(max(i, 0)) * 320.0f;
-            if (last < t)
-                spawn_accum += (t - last) * desc->get_rate(max(last, 0)) * 320.0f;
+            if (last < t) {
+                rate = desc->get_rate(max(last, 0));
+                spawn_accum += (t - last) * rate * 320.0f;
+            }
         }
         n = (int)floor(spawn_accum);
         count = n;
@@ -250,8 +258,8 @@ void fx_recb0::init_particle(vfx_emitter_desc *desc, fx_rec28 *p, float frac, fl
     num_live++;
 }
 
-// 0x5605f0 vfx_particle_apply_forces  Confidence: likely (the plane force's temporary point is a named
-// local here; the original passes the address of the sum). Gravity, then each force: a point force
+// 0x5605f0 vfx_particle_apply_forces  Confidence: likely (the plane force's point is the address of the
+// sum, through a const reference: D13602). Gravity, then each force: a point force
 // pushes along the particle's offset from it, a plane force along its normal; both scaled by the
 // strength, damped by exp(-falloff * distance), plus Perlin turbulence; then a midpoint step.
 void fx_recb0::apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_params *forces, int count, float dt)
@@ -276,8 +284,7 @@ void fx_recb0::apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_param
                     f *= forces[i].strength;
                 } else {
                     plane pl(&forces[i].dir, &forces[i].pos);
-                    vector3 wp = pos + v64;
-                    dist = pl.distance_to_point(&wp);
+                    dist = pl.distance_to_point(&static_cast<const vector3 &>(pos + v64));
                     d = forces[i].dir * dist;
                     f = forces[i].dir * forces[i].strength;
                 }
@@ -530,7 +537,8 @@ void fx_recb0::update(vfx_emitter_desc *desc, float t, const vector3 *pos, const
 }
 
 // 0x561900  Confidence: unsure (the corner arithmetic is scheduled across the six vertices; the order of
-// the statements is a guess). No caller: the Direct3D batch path of render. Two triangles per particle
+// the statements is a guess; the lock flags test vb_pos == 0, D13605).
+// No caller: the Direct3D batch path of render. Two triangles per particle
 // into the shared vertex buffer, flushed every 1000 vertices. Game bugs (NOTES.md): particles in the top
 // 100 pixels are culled (the y test is against +100, x against -100); rhw ends up as the view z.
 void fx_recb0::render_d3d(vfx_emitter_desc *desc, float t)
@@ -563,7 +571,7 @@ void fx_recb0::render_d3d(vfx_emitter_desc *desc, float t)
     vb_pos = d3d_vertex_buffer_pos;
     while (p != NULL) {
         count = 0;
-        IDirect3DVertexBuffer7_Lock(d3d_vertex_buffer, vb_pos != 0 ? gr_d3d_lock_nooverwrite : gr_d3d_lock_discard,
+        IDirect3DVertexBuffer7_Lock(d3d_vertex_buffer, vb_pos == 0 ? gr_d3d_lock_discard : gr_d3d_lock_nooverwrite,
                                     &data, NULL);
         v = (d3d_tlvertex *)data + vb_pos;
         for (end = vb_pos + 6; end < 1000 && p != NULL; p = p->next != particles ? p->next : NULL) {

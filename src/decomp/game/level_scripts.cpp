@@ -702,23 +702,29 @@ void savegame::set_float(int level, const char *name, float value)
     *(int *)(levels[level].data + off) = *(int *)&v;
 }
 
-// 0x4d0240  Confidence: likely (the found index is kept across the levels in EBX, set to -1 once before the
-// loop). Returns the flag's bit in the first level whose list holds the hash (quest_get_current_step); no
-// data pointer check.
+// 0x4d0240  Confidence: exact (VC6 8966 byte match: the search loop written out, the index set only when
+// found and kept across the levels in EBX, set to -1 once before the loop; the found code inside the level
+// loop, D13800). Returns the flag's bit in the first level whose list holds the hash
+// (quest_get_current_step); no data pointer check.
 int savegame::find_flag_level(unsigned int hash)
 {
     int index = -1;
     int level;
 
     for (level = 0; level < SAVEGAME_NUM_LEVELS; level++) {
-        index = savegame_find_hash(level_script_table[level].flag_hashes, level_script_table[level].num_flags, hash);
-        if (index >= 0)
-            break;
+        int i;
+        for (i = 0; i < level_script_table[level].num_flags; i++) {
+            if (level_script_table[level].flag_hashes[i] == hash) {
+                index = i;
+                break;
+            }
+        }
+        if (index >= 0) {
+            index = data_offset(level, 0, index);
+            return (levels[level].data[index >> 3] & (1 << (index & 7))) != 0;
+        }
     }
-    if (index < 0)
-        return 0;
-    index = data_offset(level, 0, index);
-    return (levels[level].data[index >> 3] & (1 << (index & 7))) != 0;
+    return 0;
 }
 
 // ---- conversation blocks --------------------------------------------------------------------------------
@@ -838,20 +844,24 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return 0;
-    info = CONVERSATION_SAVE_INFO(level, slot);
-    if (!info->name)
+    if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return 0;
     if (get_visit_count(level) <= 0)
         return 0;
     data = conversations[level][slot].data;
-    bits_off = (info->num_topics + 2 * info->num_speakers) * 4 + 4;
+    bits_off = (CONVERSATION_SAVE_INFO(level, slot)->num_topics + 2 * CONVERSATION_SAVE_INFO(level, slot)->num_speakers) * 4 + 4;
     if (*(int *)data == 0)
         return 0;
     hash = name_hash_nocase(speaker);
-    n = info->num_speakers;
-    for (i = 0; i < n; i++)
-        if (hash == ((unsigned int *)(data + 4))[i])
-            break;
+    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
+    {
+        unsigned int *p = (unsigned int *)(data + 4);
+        for (i = 0; i < n; i++) {
+            unsigned int h = *p++;
+            if (hash == h)
+                break;
+        }
+    }
     if (i >= n)
         return 0;
     i += kind;
@@ -861,7 +871,6 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
 // 0x4d06e0  Confidence: likely (differs under cl 8966 in match26). propagate copies the bit to the level's other non-"_m1" slots that have data.
 void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kind, bool value, bool propagate)
 {
-    conversation_save_info *info;
     ubyte *data;
     const char *name;
     int bits_off, n, i, j;
@@ -869,17 +878,16 @@ void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kin
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return;
-    info = CONVERSATION_SAVE_INFO(level, slot);
-    if (!info->name)
+    if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return;
     if (get_visit_count(level) <= 0)
         return;
     data = conversations[level][slot].data;
-    bits_off = (info->num_topics + 2 * info->num_speakers) * 4 + 4;
+    bits_off = (CONVERSATION_SAVE_INFO(level, slot)->num_topics + 2 * CONVERSATION_SAVE_INFO(level, slot)->num_speakers) * 4 + 4;
     if (*(int *)data == 0)
         return;
     hash = name_hash_nocase(speaker);
-    n = info->num_speakers;
+    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
     for (i = 0; i < n; i++)
         if (hash == ((unsigned int *)(data + 4))[i])
             break;
@@ -908,26 +916,24 @@ void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kin
 // 0x4d0870  Confidence: likely (differs under cl 8966 in match26).
 int savegame::get_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind)
 {
-    conversation_save_info *info;
     ubyte *data;
     int counts_off, topics_off, bits_off, n, i, j, first, count;
     unsigned int hash;
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return 0;
-    info = CONVERSATION_SAVE_INFO(level, slot);
-    if (!info->name)
+    if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return 0;
     if (get_visit_count(level) <= 0)
         return 0;
     data = conversations[level][slot].data;
-    counts_off = info->num_speakers * 4 + 4;
-    topics_off = counts_off + info->num_speakers * 4;
-    bits_off = topics_off + ((info->num_speakers + 7) & ~7) + info->num_topics * 4;
+    counts_off = CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4 + 4;
+    topics_off = counts_off + CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4;
+    bits_off = topics_off + ((CONVERSATION_SAVE_INFO(level, slot)->num_speakers + 7) & ~7) + CONVERSATION_SAVE_INFO(level, slot)->num_topics * 4;
     if (*(int *)data == 0)
         return 0;
     hash = name_hash_nocase(speaker);
-    n = info->num_speakers;
+    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
     count = 0;
     first = 0;
     for (i = 0; i < n; i++) {
@@ -952,7 +958,6 @@ int savegame::get_topic_bit(int level, int slot, const char *speaker, const char
 void savegame::set_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind, bool value,
                              bool propagate)
 {
-    conversation_save_info *info;
     ubyte *data;
     const char *name;
     int counts_off, topics_off, bits_off, n, i, j, first, count;
@@ -960,19 +965,18 @@ void savegame::set_topic_bit(int level, int slot, const char *speaker, const cha
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return;
-    info = CONVERSATION_SAVE_INFO(level, slot);
-    if (!info->name)
+    if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return;
     if (get_visit_count(level) <= 0)
         return;
     data = conversations[level][slot].data;
-    counts_off = info->num_speakers * 4 + 4;
-    topics_off = counts_off + info->num_speakers * 4;
-    bits_off = topics_off + ((info->num_speakers + 7) & ~7) + info->num_topics * 4;
+    counts_off = CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4 + 4;
+    topics_off = counts_off + CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4;
+    bits_off = topics_off + ((CONVERSATION_SAVE_INFO(level, slot)->num_speakers + 7) & ~7) + CONVERSATION_SAVE_INFO(level, slot)->num_topics * 4;
     if (*(int *)data == 0)
         return;
     hash = name_hash_nocase(speaker);
-    n = info->num_speakers;
+    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
     count = 0;
     first = 0;
     for (i = 0; i < n; i++) {
@@ -1047,18 +1051,23 @@ void savegame::quest_evaluate(unsigned int flag_hash)
 int savegame::level_item_add(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
-    savegame_level_item_list *list = LEVEL_ITEM_LIST;
-    int count = list->count;
+    ubyte *data = level_item_hashes.data;
+    int count = *(int *)data;
     int i;
+    int off = 4;
 
-    for (i = 0; i < count; i++)
-        if (hash == list->hashes[i])
+    for (i = 0; i < count; i++) {
+        unsigned int h = *(unsigned int *)(data + off);
+        off += 4;
+        if (hash == h)
             return 1;
-    if (i >= SAVEGAME_MAX_LEVEL_ITEMS)
-        return 0;
-    list->hashes[i] = hash;
-    LEVEL_ITEM_LIST->count = count + 1;
-    return 1;
+    }
+    if (i < SAVEGAME_MAX_LEVEL_ITEMS) {
+        *(unsigned int *)(data + off) = hash;
+        *(int *)level_item_hashes.data = count + 1;
+        return 1;
+    }
+    return 0;
 }
 
 // 0x4d0d60  Confidence: likely (differs under cl 8966 in match26).
@@ -1069,13 +1078,20 @@ int savegame::level_item_remove(const char *name)
     int count = list->count;
     int i, n;
 
-    for (i = 0; i < count; i++)
-        if (list->hashes[i] == hash)
-            break;
+    {
+        unsigned int *p = list->hashes;
+        for (i = 0; i < count; i++) {
+            unsigned int h = *p++;
+            if (h == hash)
+                break;
+        }
+    }
     if (i != count) {
         n = count - i - 1;
-        if (n > 0)
-            memmove(&list->hashes[i], &list->hashes[i + 1], n * 4);
+        if (n > 0) {
+            unsigned int *dst = &list->hashes[i];
+            memmove(dst, dst + 1, n * 4);
+        }
         LEVEL_ITEM_LIST->count = count - 1;
     }
     return 1;
@@ -2232,10 +2248,16 @@ int savegame::read_level_items()
         if (it->level_item < 0)
             continue;
         hash = name_hash_nocase(level_items[it->level_item].name);
-        count = LEVEL_ITEM_LIST->count;
-        for (i = 0; i < count; i++)
-            if (hash == LEVEL_ITEM_LIST->hashes[i])
-                break;
+        savegame_level_item_list *list = LEVEL_ITEM_LIST;
+        count = list->count;
+        {
+            unsigned int *p = list->hashes;
+            for (i = 0; i < count; i++) {
+                unsigned int h = *p++;
+                if (hash == h)
+                    break;
+            }
+        }
         if (i != count)
             continue;
         c = it->in_container;
@@ -2755,7 +2777,9 @@ int game_stage_get()
     return savegame_state.get_flag(6, "lenele1c_flag_found_flece") != 0;
 }
 
-// 0x4d4a50  Confidence: likely (differs under cl 8966 in match26; byte-indexed jump table 0x4d4b98 / 0x4d4b7c over cur_level_index + 1). 0 the
+// 0x4d4a50  Confidence: exact (VC6 8966 byte match: each case assigns result and breaks, one return, so the
+// compiler duplicates the return into each case instead of merging the three flag cases, D13802; byte-indexed
+// jump table 0x4d4b98 / 0x4d4b7c over cur_level_index + 1). 0 the
 // game may be saved, 1 a level-script event or a monster fighting the party, 2 not in this area, 3 the
 // summon is emerging (or inactive).
 int savegame_location_allowed()
@@ -2773,21 +2797,31 @@ int savegame_location_allowed()
                 if (p->handle == c->ai.target)
                     return 1;
     }
+    int result;
     switch (cur_level_index) {
     case -1:
-        return 2;
+        result = 2;
+        break;
     case 9:
-        return 0;
+        result = 0;
+        break;
     case 14:
-        return savegame_state.get_flag(cur_level_index, "room8") ? 0 : 2;
+        result = savegame_state.get_flag(cur_level_index, "room8") ? 0 : 2;
+        break;
     case 27:
-        return savegame_state.get_flag(cur_level_index, "pyrulstart") ? 2 : 0;
+        result = savegame_state.get_flag(cur_level_index, "pyrulstart") ? 2 : 0;
+        break;
     case 34:
-        return savegame_state.get_flag(cur_level_index, "got_laharah_spirit") ? 2 : 0;
+        result = savegame_state.get_flag(cur_level_index, "got_laharah_spirit") ? 2 : 0;
+        break;
     case 37:
-        return savegame_state.get_flag(cur_level_index, "mach_intro") ? 2 : 0;
+        result = savegame_state.get_flag(cur_level_index, "mach_intro") ? 2 : 0;
+        break;
+    default:
+        result = 0;
+        break;
     }
-    return 0;
+    return result;
 }
 
 // 0x4d4bc0 static_init_ccmd_gamestage (jmp) /
@@ -3100,23 +3134,21 @@ bool level_add_navpoint(s3d_navpoint *src)
     lobj_hit hit;
     float p, b, h;
     vector3 hit_pos;
-    navpoint *np;
+    int n;
     int layer;
     char buf[0x100];
 
-    np = &navpoints[navpoint_count++];
-    strcpy(np->name, src->name);
-    np->pos = src->pos;
+    n = navpoint_count++;
+    strcpy(navpoints[n].name, src->name);
+    navpoints[n].pos = src->pos;
     src->orient.extract_angles(&p, &b, &h);
-    np->heading = h;
-    np->ground_height = 0;
-    np->layer = 0;
+    navpoints[n].heading = h;
+    navpoints[n].ground_height = 0;
+    navpoints[n].layer = 0;
     ray.start.x = src->pos.x;
     ray.start.y = src->pos.y + 1.0f;
     ray.start.z = src->pos.z;
-    ray.dir.x = 0.0f;
-    ray.dir.y = -1000.0f;
-    ray.dir.z = 0.0f;
+    ray.dir = vector3(0.0f, -1000.0f, 0.0f);
     ray._unk18 = 0.0f;
     ray.flags = 0;
     ray.require_flags = 0;
@@ -3130,8 +3162,8 @@ bool level_add_navpoint(s3d_navpoint *src)
                     src->name);
             layer = 0;
         }
-        np->layer = layer;
-        np->pos = hit_pos;
+        navpoints[n].layer = layer;
+        navpoints[n].pos = hit_pos;
     }
     return true;
 }
@@ -3190,6 +3222,37 @@ void conversation_execute_action(dialogue_action *a)
     case 0:
         if (level_script_action_fn)
             level_script_action_fn(a);
+        break;
+    case 6:
+        savegame_state.set_flag(cur_level_index, a->name, true);
+        break;
+    case 7:
+        if (party_count_item_by_name(item_types[a->value].name))
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
+        else
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
+        break;
+    case 8:
+        if (savegame_state.get_flag(a->value, a->flag))
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
+        break;
+    case 9:
+        if (party_count_item_by_name(item_types[a->value].name))
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
+        break;
+    case 10:
+        if (savegame_state.get_flag(a->value, a->flag))
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
+        break;
+    case 11:
+        if (party_gold < a->value)
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
+        else
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
+        break;
+    case 12:
+        if (party_gold >= a->value)
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
         break;
     case 1:
         for (p = party_list.next; p != &party_list; p = p->next) {
@@ -3253,37 +3316,6 @@ void conversation_execute_action(dialogue_action *a)
         item_get_display_name(item_name, &item_types[a->value]);
         sprintf(buf, XSTR("<lost item: \"%s\">", 475), item_name);
         dialogue_show_line(buf, 1, 0);
-        break;
-    case 6:
-        savegame_state.set_flag(cur_level_index, a->name, true);
-        break;
-    case 7:
-        if (party_count_item_by_name(item_types[a->value].name))
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
-        else
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
-        break;
-    case 8:
-        if (savegame_state.get_flag(a->value, a->flag))
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
-        break;
-    case 9:
-        if (party_count_item_by_name(item_types[a->value].name))
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
-        break;
-    case 10:
-        if (savegame_state.get_flag(a->value, a->flag))
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
-        break;
-    case 11:
-        if (party_gold < a->value)
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
-        else
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
-        break;
-    case 12:
-        if (party_gold >= a->value)
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
         break;
     }
 }

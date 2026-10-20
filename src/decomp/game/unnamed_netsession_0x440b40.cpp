@@ -300,16 +300,19 @@ void mp_handle_gm_stat(ubyte *data, void *from)
     mp_set_session_state(state);
 }
 
-// 0x441150  Confidence: likely (constant packet offsets as in multi_set_netgame_state). CT_STAT (id,
+// 0x441150  Confidence: exact (VC6 byte match, w4 m-1020b D12800: the status read into a local before the header;
+// constant packet offsets as in multi_set_netgame_state). CT_STAT (id,
 // status): a client sends it to the server (reliable or buffered, both flushed), the host broadcasts it.
 void multi_process_client_status(mp_player *p, bool reliable)
 {
     ubyte data[MP_MAX_PACKET];
     ushort packet_size;
 
+    int status = p->type;
+
     MP_BUILD_HEADER(MP_CT_STAT);
     MP_ADD_DATA(p->id);
-    MP_ADD_DATA(p->type);
+    MP_ADD_DATA(status);
     MP_END_PACKET();
     if (MP_IS_CLIENT()) {
         if (reliable)

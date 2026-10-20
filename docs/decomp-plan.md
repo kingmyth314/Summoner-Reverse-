@@ -423,8 +423,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result (2026-10-20): 7,726 functions written (89.4%). 5,906 of them are
-compiled and compared by VC6 SP5, and 5,236 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 5,255: 19 compared functions are not `func` lines in sum.symbols).
+compiled and compared by VC6 SP5, and 5,298 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 5,317: 19 compared functions are not `func` lines in sum.symbols).
 
 **Byte-match round 2026-10-19 (ten workers, D10000-D10999).** The 962 functions that still differed, split by file
 over ten agents, each in its own copy, merged with `decomp-merge.mjs` and swept strictly: 4,963 -> 5,077 matches,
@@ -453,7 +453,26 @@ trigger-9 test was inverted (D11702) and `lamp_glow_update_effects` read the glo
 `savegame_write_header` copies the level and script names without their NUL into the zeroed fields (D12302), both
 read in the listing; three float constants were one unit in the last place off the binary's (D11400, D12202, D12401).
 One device is a matching aid, not a claim about the original source: an int read as a float to keep a zero in a
-frame slot (D11703). Candidates for the bug list, not checked in game: InetGetFile's 256-byte directory buffer. The
+frame slot (D11703). Candidates for the bug list, not checked in game: InetGetFile's 256-byte directory buffer.
+
+**Byte-match round 2026-10-20, second (fifteen workers, D12500-D13999).** 5,255 -> 5,317, none lost (notes in
+`src/decomp/NOTES-match-2026-10-20b.md`); the hardest tail, so about a third of the previous round. `os_wndproc` and
+`ui_process`, two of the 49 functions the hybrid always kept original, now match. New devices: `vector3::len` returns
+`(double)(float)sqrt(...)`, which reproduces the double store of every unoptimised caller (D12900; a matching device,
+the value is the same); the avoidance spline ends are plain float pairs, as the binary never constructs them as
+vectors (D13300); a case group with several labels is compiled as a range test, separate labels give the compare tree;
+an error exit inside `for (;;)` keeps duplicated tails apart. No behaviour error was found.
+
+**Incident (2026-10-20, about 07:20).** A worker's throwaway compare script ran `rm -rf "$TEMP/$tmp"` with `$tmp`
+empty, which deleted the round's folder and most of the user's Temp folder (locked files survived; the repository,
+the game install and the toolchain were not touched). The workers rebuilt their copies from the round's base commit
+(ded7d0b) and redid their edits; every copy and the merged stage were checked to hold all 536 files. Worker prompts
+now forbid recursive deletes on paths built from variables or globs.
+
+`tools/asm.mjs fn` showed a wrong start for 90 of the 7,866 game functions: the whole-file linear disassembly ran
+through data placed before them (jump tables) and swallowed their first bytes (0x465df0's `push ecx`). `fn` now
+disassembles such a function's own range. The byte comparison was never affected (it reads the exe), but listings
+read by the workers were, so those 90 are worth another look. The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

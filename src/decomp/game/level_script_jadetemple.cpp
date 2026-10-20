@@ -290,13 +290,31 @@ void ls_jadetemple_finish()
     gameseq_set_state(4);
 }
 
-// 0x4f0a40  Confidence: likely (the four "lost item" blocks are written out: they are expanded in place,
-// with the item pointer formed before the index is checked). level_script_table action. CheckScales counts
+// m-1020b w8 (D13203): one "lost item" block, expanded in place four times (no copy in the binary). Its own
+// item_name buffer and the caller's line give the binary's frame (the line at esp+8, each name above it).
+static inline void jt_lose_item(const char *name, char *line)
+{
+    char item_name[256];
+    int type, slot;
+    type = item_type_find(name);
+    slot = party_inventory_find_type(&item_types[type]);
+    if (slot >= 0 && type >= 0) {
+        if (party_inventory[slot].count > 1)
+            party_inventory[slot].count--;
+        else
+            party_inventory_remove(slot, 1, 1);
+        item_get_display_name(item_name, &item_types[type]);
+        sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
+        dialogue_show_line(line, 1, NULL);
+    }
+}
+
+// 0x4f0a40  Confidence: exact (VC6 byte match, m-1020b w8, D13203: the four "lost item" blocks are the inline
+// jt_lose_item above, with the item pointer formed before the index is checked). level_script_table action. CheckScales counts
 // the four dragon scales the party holds and opens Gongji's matching topics; LoseScales takes one of each.
 void ls_jadetemple_action(dialogue_action *action)
 {
     char line[256];
-    char item_name[256];
     int scales, type, slot;
     ItemType *t;
 
@@ -326,49 +344,9 @@ void ls_jadetemple_action(dialogue_action *action)
             conversation_db.set_topic_available("Gongji", "Give him the four dragon scales.#4", true);
     }
     if (!_stricmp(action->name, "LoseScales")) {
-        type = item_type_find("Red Dragon Scale");
-        slot = party_inventory_find_type(&item_types[type]);
-        if (slot >= 0 && type >= 0) {
-            if (party_inventory[slot].count > 1)
-                party_inventory[slot].count--;
-            else
-                party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, &item_types[type]);
-            sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
-            dialogue_show_line(line, 1, NULL);
-        }
-        type = item_type_find("Green Dragon Scale");
-        slot = party_inventory_find_type(&item_types[type]);
-        if (slot >= 0 && type >= 0) {
-            if (party_inventory[slot].count > 1)
-                party_inventory[slot].count--;
-            else
-                party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, &item_types[type]);
-            sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
-            dialogue_show_line(line, 1, NULL);
-        }
-        type = item_type_find("Blue Dragon Scale");
-        slot = party_inventory_find_type(&item_types[type]);
-        if (slot >= 0 && type >= 0) {
-            if (party_inventory[slot].count > 1)
-                party_inventory[slot].count--;
-            else
-                party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, &item_types[type]);
-            sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
-            dialogue_show_line(line, 1, NULL);
-        }
-        type = item_type_find("Gray Dragon Scale");
-        slot = party_inventory_find_type(&item_types[type]);
-        if (slot >= 0 && type >= 0) {
-            if (party_inventory[slot].count > 1)
-                party_inventory[slot].count--;
-            else
-                party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, &item_types[type]);
-            sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
-            dialogue_show_line(line, 1, NULL);
-        }
+        jt_lose_item("Red Dragon Scale", line);
+        jt_lose_item("Green Dragon Scale", line);
+        jt_lose_item("Blue Dragon Scale", line);
+        jt_lose_item("Gray Dragon Scale", line);
     }
 }

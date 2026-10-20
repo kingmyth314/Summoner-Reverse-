@@ -72,7 +72,7 @@ float gl_scale_2f13360;                               // 0x2f13360
 // of the power-of-two texture (tex_w x tex_h) and the rest is zero. Two styles: the per-texel test
 // (x < bm_w && y < bm_h) and the 16.16 "resampling" loops whose step is a whole texel.
 
-// 0x54d5c0  Confidence: likely (differs under cl 8966 in match26).
+// 0x54d5c0  Confidence: likely (D12601: one operand order left, [esi + ecx] against ours [ecx + esi]).
 // BM_FORMAT_8_ALPHA: white with the gamma-corrected alpha.
 void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -80,10 +80,9 @@ void gl_convert_a8_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *
     for (int y = 0; y < tex_h; y++, src += bm_w) {
         for (int x = 0; x < tex_w; x++) {
             if (x < bm_w && y < bm_h)
-                *d = (gr_gamma_ramp[src[x]] << 24) | 0xffffff;
+                *d++ = (gr_gamma_ramp[src[x]] << 24) | 0xffffff;
             else
-                *d = 0;
-            d++;
+                *d++ = 0;
         }
     }
 }
@@ -329,52 +328,63 @@ void gl_convert_1555_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54df90  Confidence: likely (differs under cl 8966 in match26).
+// 0x54df90  Confidence: exact (VC6 byte match, cl 8966, D12601: as gl_convert_8888_to_rgba4444).
 // BM_FORMAT_888 with packed pixels: 5551 with alpha 1; pure green is transparent.
 void gl_convert_888_to_rgba5551(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
-    ushort *d = (ushort *)dst;
-    for (int y = 0; y < tex_h; y++) {
-        for (int x = 0; x < tex_w; x++) {
-            if (x < bm_w && y < bm_h) {
-                uint r, g, b, a;
-                if (src[0] == 0 && src[1] == 0xff && src[2] == 0) {
-                    b = 0;
-                    g = 0;
-                    r = 0;
-                    a = 0;
+    ubyte *s = src;
+    int y = 0;
+    if (tex_h > 0) {
+        ushort *d = (ushort *)dst;
+        do {
+            for (int x = 0; x < tex_w; x++) {
+                if (x < bm_w && y < bm_h) {
+                    uint r, g, b, a;
+                    if (s[0] == 0 && s[1] == 0xff && s[2] == 0) {
+                        b = 0;
+                        g = 0;
+                        r = 0;
+                        a = 0;
+                    } else {
+                        r = s[2] >> 3;
+                        g = s[1] >> 3;
+                        b = s[0] >> 3;
+                        a = 1;
+                    }
+                    *d++ = (ushort)((((((r << 5) | g) << 5) | b) << 1) | a);
+                    s += 3;
                 } else {
-                    r = src[2] >> 3;
-                    g = src[1] >> 3;
-                    b = src[0] >> 3;
-                    a = 1;
+                    *d++ = 0;
                 }
-                *d++ = (ushort)((((((r << 5) | g) << 5) | b) << 1) | a);
-                src += 3;
-            } else {
-                *d++ = 0;
             }
-        }
+            y++;
+        } while (y < tex_h);
     }
 }
 
-// 0x54e050  Confidence: likely (differs under cl 8966 in match26).
+// 0x54e050  Confidence: exact (VC6 byte match, cl 8966, D12601: the source walked through a copy `s` read
+// first, the destination pointer set inside the `tex_h > 0` guard of a do-while, as D11200).
 // BM_FORMAT_8888 with packed pixels: the top nibbles as RGBA4444.
 void gl_convert_8888_to_rgba4444(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
-    ushort *d = (ushort *)dst;
-    for (int y = 0; y < tex_h; y++) {
-        for (int x = 0; x < tex_w; x++) {
-            if (x < bm_w && y < bm_h) {
-                *d = (ushort)((((((((ushort)(src[2] >> 4) << 4) | (ushort)(src[1] >> 4)) << 4)
-                                 | (ushort)(src[0] >> 4)) << 4) | (ushort)(src[3] >> 4)));
-                d++;
-                src += 4;
-            } else {
-                *d = 0;
-                d++;
+    ubyte *s = src;
+    int y = 0;
+    if (tex_h > 0) {
+        ushort *d = (ushort *)dst;
+        do {
+            for (int x = 0; x < tex_w; x++) {
+                if (x < bm_w && y < bm_h) {
+                    *d = (ushort)((((((((ushort)(s[2] >> 4) << 4) | (ushort)(s[1] >> 4)) << 4)
+                                     | (ushort)(s[0] >> 4)) << 4) | (ushort)(s[3] >> 4)));
+                    d++;
+                    s += 4;
+                } else {
+                    *d = 0;
+                    d++;
+                }
             }
-        }
+            y++;
+        } while (y < tex_h);
     }
 }
 

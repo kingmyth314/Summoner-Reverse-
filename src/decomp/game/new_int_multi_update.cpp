@@ -88,7 +88,8 @@ void version_check_set_error_text()
 }
 
 // 0x410f40  Confidence: likely (switch with cases -1, 0, 1, 2 through the table at 0x4110a0, the error
-// case being the default too; the "up to date" tail is shared with the SkipVerify path; two error tails
+// case being the default too; D13903: case -1 and the code after the switch are written out twice, which
+// keeps the table and the zero in ESI; the "up to date" tail is shared with the SkipVerify path; two error tails
 // store version_check_done differently, so they are two statements). A download that fails after the
 // first frame and a version.nfo that cannot be read both give 3; a newer version gives 2.
 int version_check_run()
@@ -139,12 +140,15 @@ int version_check_run()
             version_check_result = 2;
             return 2;
         case -1:
-        default:
             version_check_set_error_text();
             version_check_result = 3;
             version_check_done = 1;
             return 3;
         }
+        version_check_set_error_text();     // any other value: the same error path (D13903)
+        version_check_result = 3;
+        version_check_done = 1;
+        return 3;
     }
     version_check_done = 1;
     version_check_result = 3;

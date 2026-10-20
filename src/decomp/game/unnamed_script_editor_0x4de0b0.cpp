@@ -2689,7 +2689,9 @@ void script_editor_place_creature()
     script_editor_new_button.set_latched(false);
 }
 
-// 0x4e5b10  Confidence: likely (the type tests: the binary checks the limit per type, then 0 / 1 and 3).
+// 0x4e5b10  Confidence: likely (the type dispatch is a second switch: `cmp 0 / jl`, `cmp 1 / jle`, `cmp 3 /
+// jne`, the ambient case laid out first; the first 0x365 bytes now match. Still differs: the level case's
+// `ray.start + ray.dir * hit.t` temporaries take each other's slots and operand order, D12502).
 // A navpoint where the mouse ray meets the level (1000 units): a level navpoint ("$npc%.3d", on a
 // layer-flagged floor the pathfinder can use), a cutscene navpoint ("$cut%.3d", 512 at most although the
 // table holds 726), or an ambient navpoint ("$ambient%.3d", on any geometry, no layer: the layer
@@ -2723,7 +2725,9 @@ void script_editor_add_navpoint(int type)
         }
         break;
     }
-    if (type == NAVPOINT_TYPE_LEVEL || type == NAVPOINT_TYPE_CUTSCENE) {
+    switch (type) {
+    case NAVPOINT_TYPE_LEVEL:
+    case NAVPOINT_TYPE_CUTSCENE:
         ray.start = script_editor_mouse_ray.origin;
         ray.dir = script_editor_mouse_ray.dir * 1000.0f;
         ray._unk18 = 0.0f;
@@ -2771,7 +2775,8 @@ void script_editor_add_navpoint(int type)
             script_editor_hover.object = np;
         }
         np->level_item = -1;
-    } else if (type == NAVPOINT_TYPE_AMBIENT) {
+        break;
+    case NAVPOINT_TYPE_AMBIENT:
         ray.start = script_editor_mouse_ray.origin;
         ray.dir = script_editor_mouse_ray.dir * 1000.0f;
         ray._unk18 = 0.0f;
@@ -2801,6 +2806,7 @@ void script_editor_add_navpoint(int type)
             script_editor_hover.object = np;
         }
         np->level_item = -1;
+        break;
     }
     script_editor_new_button.set_latched(false);
 }
@@ -4225,11 +4231,13 @@ void script_create()
 // is still NULL (the binary reads address 0x28: an access violation whenever there is a level navpoint),
 // and with no level navpoint at all the level case returns &navpoints[-1]. LOGIC FIX (D8702): when the
 // search loop runs to its end the binary returns the last level navpoint too (0x4e8d41 returns EAX), not
-// NULL; only an empty table gives NULL (the binary keeps that NULL in ESI, which the source here does not
-// reproduce).
+// NULL; only an empty table gives NULL. `found` (NULL before the button test, kept in ESI as in the binary,
+// then the loop-invariant &navpoints[navpoint_count - 1]) gives the binary's shape; still differs in
+// register choice (found's address in ESI, the binary's in EAX with the NULL left in ESI; D12501).
 navpoint *script_editor_default_action_navpoint()
 {
     navpoint *np = NULL;
+    navpoint *found = NULL;
     int i;
 
     if (script_editor_cutscene_button.is_latched()) {
@@ -4237,12 +4245,12 @@ navpoint *script_editor_default_action_navpoint()
             return &cutscene_navpoints[cutscene_navpoint_count - 1];
         if (navpoint_count > 0) {
             for (i = navpoint_count - 1; i >= 0; i--) {
+                found = &navpoints[navpoint_count - 1];
                 if (np->type == NAVPOINT_TYPE_LEVEL)
-                    return &navpoints[navpoint_count - 1];
+                    return found;
             }
-            return &navpoints[navpoint_count - 1];
         }
-        return np;
+        return found;
     }
     return &navpoints[navpoint_count - 1];
 }

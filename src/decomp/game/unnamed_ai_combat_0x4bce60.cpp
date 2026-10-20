@@ -375,6 +375,8 @@ bool ai_state::combat_start_approach(Character *target, bool random_offset)
 }
 
 // 0x4bda50  Confidence: likely (the reuse of the argument slot for the "use reach" byte is the compiler's).
+// D12902: the returns as `? true : false` give the binary's test / setne; still differs in the boss branch
+// (owner->info reloaded) and the goal_do_cast return (neg / sbb / inc, then test / setne).
 // The combat decision: no target -> idle; a remote multiplayer character does nothing (the return value is
 // what AL holds: false); a monster beyond its fov range drops the attack goal; in reach -> the cast goal,
 // the choose-spell sub-mode (combat styles 4 / 5), ranged or melee; else approach.
@@ -435,12 +437,12 @@ bool ai_state::combat_approach(Character *target)
     }
     if (within_attack_radius(dist) && !crowded) {
         if (mode_target != -1)
-            return goal_do_cast_at_target(mode_target, this->target) == 0;
+            return goal_do_cast_at_target(mode_target, this->target) == 0 ? true : false;
         if (!(flags & 0x80) && (style == 4 || style == 5))
-            return set_mode(AI_STATE_COMBAT, AIS_CHOOSE_SPELL) != 0;
+            return set_mode(AI_STATE_COMBAT, AIS_CHOOSE_SPELL) ? true : false;
         if (ranged)
-            return set_mode(AI_STATE_COMBAT, AIS_RANGED_COMBAT) != 0;
-        return set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT) != 0;
+            return set_mode(AI_STATE_COMBAT, AIS_RANGED_COMBAT) ? true : false;
+        return set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT) ? true : false;
     }
     return combat_start_approach(target, ranged_approach);
 }

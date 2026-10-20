@@ -218,7 +218,9 @@ int os_create_window()
     return 1;
 }
 
-// 0x530ff0  Confidence: likely (switch case order; the 256-byte buffer is the sprintf target).
+// 0x530ff0  Confidence: exact (VC6 byte match, m-1020b w15; D13907: the handled messages break to one
+// `return 0` after the switch, DefWindowProc is the default, and the four ignored messages are separate
+// cases (one case group makes 8966 test 0x310-0x311 as a range); the 256-byte buffer is the sprintf target).
 // Activation makes the window topmost with SetWindowPos flags 0 (so it also activates and resizes it to the
 // screen) and raises the thread priority of os_main_thread, which nothing sets. SC_SCREENSAVE is swallowed.
 LRESULT CALLBACK os_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -249,25 +251,30 @@ LRESULT CALLBACK os_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 SetThreadPriority(os_main_thread, THREAD_PRIORITY_NORMAL);
             }
         }
-        return 0;
+        break;
     }
     case WM_DESTROY:
         PostQuitMessage(0);
-        return 0;
+        break;
     case WM_SYSCOMMAND:
         sprintf(buf, "Sys command called '%d'\n", wparam);
         if (wparam == SC_SCREENSAVE)
-            return 0;
+            break;
         return DefWindowProcA(hwnd, WM_SYSCOMMAND, wparam, lparam);
     case WM_TIMER:
+        break;
     case WM_PALETTEISCHANGING:
+        break;
     case WM_PALETTECHANGED:
+        break;
     case WM_DISPLAYCHANGE:
-        return 0;
+        break;
     case WM_QUERYNEWPALETTE:
         return 1;
+    default:
+        return DefWindowProcA(hwnd, msg, wparam, lparam);
     }
-    return DefWindowProcA(hwnd, msg, wparam, lparam);
+    return 0;
 }
 
 // 0x531250  Confidence: exact (VC6 byte match, match23; was likely; bare ret; os_init registers it with atexit; no sum.symbols entry, name ours).
