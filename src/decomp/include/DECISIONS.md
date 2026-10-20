@@ -11048,3 +11048,64 @@ hover slot into ECX and copies it to EBP), lobj_sphere_test_faces (12 forms of t
 second compare comes from a duplicated test block), gr_poly_clip_edge (i[p] / pointer-sum forms: the strength-
 reduced address order does not follow the source), version_check_run (a goto into the SkipVerify tail is worse),
 levelrender_draw_name_labels (a vector3 copy of the label position: frame +4 only; the binary has 44 bytes more).
+
+## Behaviour review 2026-10-20 (D17000-)
+
+Read-only reviews of the functions that do not byte-match or were never compared (eight agents, about 66 functions
+each), every finding checked again in the listing before it was applied.
+
+**D17000 (game/unnamed_shadows_0x4a37d0.cpp; review r4; behaviour fix in the decomp, corrects D16702).
+obstacles_debug_render 0x4a3890: the normal tick is drawn through p0 / p1, and both keep the debug height.** In
+the binary's frame (offsets with no pushes outstanding) p0 is 0x1c-0x24 and p1 0x10-0x18. The first line stores the
+height into both y slots (`fst [esp+0x20]` / `fstp [esp+0x2c]` with three pushes, 0x4a3b55 / 0x4a3b59: 0x14 and
+0x20). The tick then writes m.y to 0x24 (0x4a3bae, three pushes), t.x to 0x10 (0x4a3bd4, four), m.x to 0x1c
+(0x4a3be5, five) and t.y to 0x18 (0x4a3be9, five), and passes 0x1c and 0x10 (0x4a3bed / 0x4a3bd8). So it runs from
+(m.x, h, m.y) to (t.x, h, t.y). D16702 had read a third point `mid` with an unwritten y; that was p0. Without
+`mid` the frame is the binary's size (D16702's 0xc bytes) and the instruction count matches (340 / 340); a register
+choice still differs. Debug drawing only (Render_3d_obstacles).
+
+**D17001 (game/unnamed_ai_move_0x4b1410.cpp; review r1; behaviour fix in the decomp). ai_turn_towards 0x4b2af0:
+the degrees-per-radian constant is 57.295776f.** 0x4b2ec4 multiplies by the float at 0x580e24, 0x42652ee0
+(57.2957763671875); `57.29578f` encodes as 0x42652ee1, one unit in the last place above it. It scales the turn
+animation's speed. The same constant was already right in gr_3d (GR_RAD_TO_DEG) and gametarget.cpp.
+
+**D17002 (game/level_scripts.cpp; review r8; behaviour fix in the decomp). savegame_init_conversation_slot
+0x4d02d0: the topic bits are written back to the source slot i, not to `slot`.** Frame F = esp after the four
+pushes: level F+0x2c, slot F+0x30, speakers F+0x34. The search loop keeps i in the dead `speakers` slot
+(0x4d0404, 0x4d0431, 0x4d0441). The speaker copy reads F+0x30 (0x4d0469, no pushes outstanding): `slot`. The
+topic copy reads `[esp+0x3c]` with two pushes outstanding (0x4d04e0): F+0x34, i. So
+`set_topic_bit(level, i, ...)` stores each bit where it was just read, and only the in-memory topic flags take
+the copied values. The decomp had `slot`. Game-bug candidate (not checked in game): a persistent speaker's topic
+bits never reach the new slot's save data; docs/sum-exe/savegame.md updated.
+
+**D17003 (game/level_scripts.cpp; review r8; behaviour fix in the decomp, answers NOTES-level-scripts open
+question 1). savegame_two_stage_set 0x4d0e20, existing container entry: bit 0 = open, bit 1 = 0.** Frame O = esp
+after the four pushes: open O+0x64, locked O+0x68, obj O+0x6c (reused for the shift, 0x4d1025). With the
+printf's push outstanding, 0x4d1035 zeroes O+0x68 (locked) and 0x4d1043 reads O+0x64 (open); after `add esp, 4`
+the fallback at 0x4d1050 reads O+0x68 (the zeroed locked). The stored value is `open ? 1 : locked`. The earlier
+reading took 0x4d1043 for locked and stored 0 always. Written `(open ? 1 : (int)locked)` after `locked = false`.
+The game-bugs.md entry ("stores both bits as 0") is withdrawn.
+
+**D17004 (game/multi_chattracker.cpp; review r7; behaviour fix in the decomp). chat_process_irc_message 0x4ac240,
+KICK: the user removed from the list is `nick`, the message's sender.** With the frame base B at 0x4acf11 (the
+`add esp, 0x28` at 0x4acef4 balances the earlier pushes), the sprintf's first `%s` is `lea edx, [esp+0x78c]` with
+two pushes outstanding, B+0x784, and the removal is `lea ecx, [esp+0x79c]` with six outstanding (0x4acf3a), also
+B+0x784, the buffer JOIN passes to irc_add_user (0x4acd10). The kicked nick (prefix_copy) is B+0xe8c. The decomp
+removed prefix_copy. Game-bug candidate (multiplayer chat, not checked): the kicker leaves the user list and the
+kicked user stays.
+
+**D17005 (game/unnamed_ai_think_0x4b5140.cpp; review r5; behaviour fix in the decomp). ai_choose_attack_slot
+0x4b6a90: a new second-best slot takes best_dot as its dot.** best_dot is [esp+0x10], second_dot [esp+0x14] (the
+first branch, 0x4b6b77-0x4b6b85, stores the dot into 0x10 and moves the old best's into 0x14). In the `else if`
+branch 0x4b6b89 pops the dot with `fcomp` without storing it, and 0x4b6b94-0x4b6b9a copy [esp+0x10] into
+[esp+0x14]: `second = i; second_dot = best_dot;`. The decomp stored dot. After that, only a dot above best_dot
+moves `second` again, so `second` (and the sign of the slot fraction) can differ: dots 0.9, 0.5, 0.8 give
+second = 1 in the binary, 2 in the old source. D9600 / D9810 had looked at precision only. Game-bug candidate
+(probably a slip for `= dot`), not checked in game.
+
+**D17006 (vsdk/unnamed_vfx_mesh_0x562a30.cpp; review r5; behaviour fix in the decomp).
+vfx_mesh_instance::update_frame 0x563a40: a billboard's height is scaled by z, not y.** Skinned branch: scale is
+at esp+0x4c/0x50/0x54 (vector3::assign into `lea ecx, [esp+0x54]` with two pushes, 0x563e94), rest_scale at
+esp+0x24/0x28/0x2c; the width multiplies 0x4c and 0x24 (x), the height 0x54 and 0x2c (0x563fc4 / 0x563fc8, z).
+Key-frame branch: the blended scale is at esp+0x24; the height multiplies 0x2c (0x56415f, z). The decomp used y
+in both. Whether z was meant (a Z-up exporter) is not known; the binary's choice is kept.

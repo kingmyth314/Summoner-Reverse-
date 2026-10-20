@@ -96,8 +96,8 @@ void pf_debug_search_step(float sx, float sy, float gx, float gy, pf_vis_node *t
     } while (0)
 
 // 0x4a3890  Confidence: likely (D16702: the segment loop in vector2 operators, the macro's points assigned
-// from named to_vector3 results; the frame is 0xc bytes larger than the binary's). The midpoint of the
-// normal tick keeps a stale y: the code never writes mid.y, so neither does this. game_render_frame when Render_3d_obstacles is set:
+// from named to_vector3 results). The normal tick runs from the segment's midpoint to midpoint + normal / 2,
+// both at the debug height (D17000: drawn through p0 / p1, there is no third point). game_render_frame when Render_3d_obstacles is set:
 // the cell walls of the debug size class (the highlighted layer, or all with obstacles_debug_all_layers),
 // the layer-transition edges, then for every used segment list of the highlighted layer its segments,
 // their normals and the corner offsets. With obstacles_debug_axis_lines the second corner's offset is
@@ -110,7 +110,7 @@ void obstacles_debug_render()
     avoid_seglist *sl;
     avoid_seg_ref *s;
     avoid_corner *ca, *cb;
-    vector3 p0, p1, mid;
+    vector3 p0, p1;
     int layer, i, j, k, n_segs, ia, ib;
 
     if (obstacles_debug_follow)
@@ -158,11 +158,11 @@ void obstacles_debug_render()
             vector2 m = 0.5f * (cb->pos + ca->pos);
             vector2 n = 0.5f * s->normal;
             vector2 t = m + n;
-            mid.x = m.x;
-            mid.z = m.y;
-            p0.x = t.x;
-            p0.z = t.y;
-            gr_line_3d_world(&mid, &p0, gr_line_3d_mode);
+            p0.x = m.x;   // p0.y / p1.y keep the debug height (D17000)
+            p0.z = m.y;
+            p1.x = t.x;
+            p1.z = t.y;
+            gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
             vector2 a, b;
             if (obstacles_debug_axis_lines) {
                 a = 0.5f * *avoid_record_axis_at(sl, ia) + ca->pos;

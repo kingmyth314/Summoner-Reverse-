@@ -450,7 +450,8 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
             }
         } else {
             width = (float)fabs(desc->sprite->get_w() * scale.x * rest_scale.x);
-            height = (float)fabs(desc->sprite->get_h() * scale.y * rest_scale.y);
+            // D17006: the height takes the z scales (0x563fc4 / 0x563fc8), not y
+            height = (float)fabs(desc->sprite->get_h() * scale.z * rest_scale.z);
         }
         v00.x = rest_scale.x * v00.x;
         v00.y = rest_scale.y * v00.y;
@@ -473,7 +474,7 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
         vector3 scale = desc->xform->get_scale(f0) * u + desc->xform->get_scale(f1) * frac;
         if (desc->is_billboard()) {
             width = (float)fabs(desc->sprite->get_w() * scale.x);
-            height = (float)fabs(desc->sprite->get_h() * scale.y);
+            height = (float)fabs(desc->sprite->get_h() * scale.z);   // D17006 (0x56415f)
             v00 = desc->sprite->get_pos();
         } else {
             v00 = desc->vertices->origin;

@@ -791,7 +791,10 @@ void savegame::init_conversation_slot(int level, int slot, conversation_speaker 
         for (t = s->topics; t; t = t->next) {
             for (kind = 0; kind < 4; kind++) {
                 bit = get_topic_bit(level, i, s->name, t->name, kind);
-                set_topic_bit(level, slot, s->name, t->name, kind, bit != 0, false);
+                // D17002: the binary passes the source slot i here (0x4d04e0 reads the dead `speakers`
+                // argument slot, which holds i), so the bit is written back where it was read; only the
+                // speaker bits above reach `slot`.
+                set_topic_bit(level, i, s->name, t->name, kind, bit != 0, false);
                 switch (kind) {
                 case 0:
                     if (bit)
@@ -1120,9 +1123,8 @@ int savegame::level_item_has(const char *name)
 // An entry is name_hash_nocase(level_script_name + object name) in the current level's list; its two bits
 // are bit 0 open, bit 1 locked (doors; for level containers bit 0 is "used").
 
-// 0x4d0e20  Confidence: unsure (the container path that finds an existing entry clears both bits: the
-// value it stores comes from the `locked` argument slot after a zero is written to it; written as such,
-// see NOTES). Doors (lobj flag 0x100) keep open and locked; a new container entry keeps open only.
+// 0x4d0e20  Confidence: likely (D17003: the container path that finds an existing entry stores open in
+// bit 0 and clears bit 1). Doors (lobj flag 0x100) keep open and locked; a new container entry keeps open only.
 void savegame::two_stage_set(bool open, bool locked, lobj *obj)
 {
     int level = cur_level_index;
@@ -1181,8 +1183,10 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
         shift = bit % 8;
         old = TWO_STAGE->bits[bit / 8] & ~(3 << shift);
         printf("stuffing flag\n");
+        // D17003: locked is zeroed (0x4d1035), but the test reads open (0x4d1043, one push outstanding), so
+        // bit 0 keeps open and bit 1 is cleared, as for a new container entry.
         locked = false;
-        TWO_STAGE->bits[bit / 8] = ((locked ? 1 : 0) << shift) | old;
+        TWO_STAGE->bits[bit / 8] = ((open ? 1 : (int)locked) << shift) | old;
         return;
     }
     printf(open ? "open 2\n" : "closed 2\n");

@@ -449,7 +449,9 @@ char *chat_process_irc_message(char *line, int mode)
         }
         sprintf(chat_irc_format_buf, XSTR("*** %s has kicked %s from channel %s (%s)", 241), nick,
                 prefix_copy, target, word);
-        irc_remove_user(prefix_copy);
+        // D17004: the binary removes nick, the sender (0x4acf3a: the sprintf's first %s buffer, as JOIN at
+        // 0x4acd10), not the kicked user.
+        irc_remove_user(nick);
         return chat_irc_format_buf;
     }
 

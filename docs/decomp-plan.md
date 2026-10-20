@@ -492,13 +492,56 @@ removed by exact name; `vc6-try` now removes its own, and `vc6-side` reads up to
 0x55fc3c; D16201, now a byte match); `fx_create_at_camera` negated all three rows of a copy that is never read (the
 same misreading as D9815; D16600, now a byte match); `pf_check_direct_walk` clips the move by a length built with
 `to->y` itself, not `to->y - from->y` (the binary never reads `from->y`: 0x49e663-0x49e667 copy `to->y` with no
-subtraction, while x and z subtract; D15600, read in the listing); `obstacles_debug_render` leaves the tick midpoint's y
-unset, as the binary does and as an earlier reading had already noted (debug drawing only). Game-bug candidate, not
+subtraction, while x and z subtract; D15600, read in the listing); `obstacles_debug_render` was
+changed to leave the tick midpoint's y unset (debug drawing only; the behaviour review below found that reading one
+slot off and undid it, D17000). Game-bug candidate, not
 checked in game: `pf_check_direct_walk`'s length is wrong whenever the start is not at height 0. New devices, each
 recorded: `&(a+b)` temporaries under `#ifdef _MSC_VER` (a VC6 extension, D15902), a volatile dword read to stop a
 byte narrowing (D16500), a `float *` view of a buffer (D16704). `vc6-try` writes each variant into the file itself;
 two workers' interrupted runs left a variant or an empty file in their copies, so it now keeps `<file>.vc6try-orig`
-until the restore and restores from it on the next start. The
+until the restore and restores from it on the next start.
+
+**Behaviour review 2026-10-20 (eight read-only agents, D17000-D17006).** Byte matching proves only the
+functions that match. So, on the advisor's advice, the 527 that do not (479 that differ and 46 that were never
+compared: out-of-line copies of inline helpers and functions written inside comments) were read against the
+listing for behaviour only, about 66 per agent. Each finding was checked again in the listing before it was
+applied. Seven were real, all decomp errors; the binary's behaviour is now written:
+
+| Decision | Function | What the decomp did wrong |
+|---|---|---|
+| D17000 | `obstacles_debug_render` | round 5's "unset midpoint y" (D16702) was one slot off: the tick is drawn through p0 / p1 at the debug height (debug drawing only) |
+| D17001 | `ai_turn_towards` | degrees-per-radian 57.29578f, one unit in the last place above the binary's 57.295776f (turn animation speed) |
+| D17002 | `savegame_init_conversation_slot` | wrote the persistent speakers' topic bits to the new slot; the binary writes them back to the source slot |
+| D17003 | `savegame_two_stage_set` | an existing container entry stored 0; the binary keeps `open` in bit 0 (the game-bugs entry built on the old reading is withdrawn) |
+| D17004 | `chat_process_irc_message` | KICK removed the kicked user; the binary removes the sender |
+| D17005 | `ai_choose_attack_slot` | a new second-best slot kept its own dot; the binary gives it best_dot |
+| D17006 | `vfx_mesh_instance::update_frame` | billboard height scaled by y; the binary scales it by z |
+
+The other 520 compute what the binary does; their remaining differences are register choice, scheduling and x87
+precision. No match was lost (strict sweep with `--check`: 5,445). Each fix was found by working out which frame
+slot an instruction reads with the pushes outstanding at that point, as in the earlier reviews. The rebuilt exe passes
+the screen and save smoke test (four screens, four levels, three original runs each). The differences outside the
+original runs' spread are the known kinds: monster levels drawn from a clock-seeded `frand` (record +0x90 one
+apart, in the other direction last round), positions of walking characters, and per-frame render and timer state
+at the moment of the dump.
+
+Game-bug candidates from the review (the original does each, the source keeps it; none checked in game, so none is
+in [game bugs](sum-exe/game-bugs.md) yet):
+
+- `savegame_init_conversation_slot` (D17002): a persistent speaker's topic bits never reach the new slot's save data.
+- `chat_process_irc_message` (D17004): a kick drops the kicker from the chat user list and keeps the kicked user.
+- `ai_choose_attack_slot` (D17005): `second_dot = best_dot` is probably a slip for `= dot`.
+- `evil_joseph_pick_helper_summon` (`0x4c3cd0`): the pick is meant to skip the previous helper, but the handle it
+  compares with is set to -1 first (`0x4c3cd8`), so the same helper can be picked again.
+- `gr_d3d_init_device`: the video-memory test rejects below 5 MB (`cmp eax, 0x500000` at `0x53a01f`), but the
+  message says 8 MB (L944).
+- Reported by the review, not yet re-read: `character_learn_chain_skill` (`0x449650`): a chain threshold message calls `get_display_name` on a character
+  that can be NULL (`0x4497b1`).
+- Reported by the review, not yet re-read: `script_parse_objects` (`0x4dba30`): the "+No create" path copies an unfilled stack `trigger` name.
+- `pf_check_direct_walk` (D15600): see the [roadmap](roadmap.md); the door look-ahead shrinks on levels far from
+  height 0.
+
+The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

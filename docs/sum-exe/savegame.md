@@ -232,8 +232,11 @@ The bit areas reserve a byte for every bit they need, so most of their space sta
 | topic, kind 3 | this topic is the speaker's hail topic (speaker `+0x18`) | sets speaker `+0x18` |
 
 For a speaker with `CFLAG_PERSISTENT` (`0x10`) the writer copies each bit to the level's other slots that
-have data and are not `_m1`. `savegame_init_conversation_slot` copies the persistent speakers' bits from the
-first other slot of the level that has data. The meaning of topic bit 0 is *unknown*.
+have data and are not `_m1`. `savegame_init_conversation_slot` reads the persistent speakers' bits from the
+first other slot of the level that has data and sets the speakers' and topics' flags in memory from them. Only the
+speaker bits are written into the new slot. Each topic bit is written back into the slot it came from (`0x4d04e0`
+passes the source slot, D17002), so the new slot's topic bits stay 0 until a later write. Whether a topic's state
+can be lost this way across a save and load was not checked in game. The meaning of topic bit 0 is *unknown*.
 
 ## `ITEM`: item-type flags (observed)
 

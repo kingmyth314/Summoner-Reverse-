@@ -198,6 +198,23 @@ Once `src/decomp` builds a working `Sum.exe`, these become source changes instea
 - **Auto-saving.** The game already has `quicksave` (`quicksave.sav`) and the rules for when saving is allowed
   (`savegame_location_allowed`, [Savegame](sum-exe/savegame.md#saving-and-loading)). An autosave could write a
   rotating slot on level change and every few minutes when saving is allowed.
+- **Undo the matching devices.** Added 2026-10-20 (advisor's review). Some source is written to make VC6 emit the
+  original's bytes, not because the original source read that way, and a build meant to fix things should read
+  plainly. Each one is recorded in `src/decomp/include/DECISIONS.md`. Examples: `vector3::len` returning
+  `(double)(float)sqrt(...)` (D12900), `ui_window::send_event` with no final `return false` (it relies on EAX
+  holding zero, D15400), an int read as a float to keep a zero in a frame slot (D11703), `&(a+b)` temporaries under
+  `#ifdef _MSC_VER` (D15902), a volatile dword read that stops a byte narrowing (D16500) and `#pragma optimize("w", on)`
+  over the net unit (D14204). A fixed build should replace them with plain C++ that does the same thing, keeping the
+  matching source as the reference.
+- **`pf_check_direct_walk`'s look-ahead (game-bug candidate, not yet seen in game).** The AI's check for a closed door
+  on the path ahead clips each step to a few units of look-ahead (stopping distance + head height + 2, in
+  `ai_follow_path`). The length it clips is `|(to.x - from.x, to.y, to.z - from.z)|`: the binary uses the node's
+  absolute height `to->y`, not `to->y - from->y` (0x49e663, D15600). In-between path nodes keep a stale y from the
+  node pool (`ai_path_node_create`). Party heights in the save checks' saves are about -29 in the Catacombs, +23 in the
+  sewer and +35 in parts of the Wolong Caverns. On such levels the check reaches only about look-ahead / |y| of its
+  intended distance, often under one unit, so a closed door ahead is noticed late or not at all. Near height 0 it works
+  as intended. To confirm in game before any fix: walk an AI character's path through a closed door on a high and on a
+  low level and compare.
 - **Wider display options.** Today: any `GameWidth` / `GameHeight` (resolution table slot 2), borderless or
   window output, centred menus and HUD, brightness. Candidates: a proper resolution list, exclusive fullscreen,
   vsync and frame-rate options, anti-aliasing, field of view, UI scale.

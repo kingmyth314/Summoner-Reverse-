@@ -230,10 +230,11 @@ SAVEGAME_CHECK_SIZE): the binary has the code expanded each time, the original s
 
 ## Open questions
 
-1. **two_stage_set, existing container entry** (0x4d0fdf-0x4d1070): after "stuffing flag" the stored bit
-   comes from the `locked` argument slot right after a zero was written to it, so both bits end up 0 and
-   `open` is ignored. Written as `locked = false; ... (locked ? 1 : 0)` (unsure). container_examine only
-   marks unused containers, so the path looks unreachable in practice.
+1. **two_stage_set, existing container entry** (0x4d0fdf-0x4d1070): answered 2026-10-20 (D17003). `locked` is
+   zeroed (0x4d1035), but the test after the printf reads `open` (0x4d1043, one push outstanding), so bit 0
+   keeps `open` and bit 1 is cleared, as for a new container entry. An earlier reading took the test for
+   `locked` and had both bits 0. container_examine only marks unused containers, so the path looks
+   unreachable in practice.
 2. **init_empty_4d5030** (entry 351): an empty dynamic initialiser between script_objects and the
    StringPools: an object with an inline empty constructor; which one is not known (as in spells.cpp).
 3. **level_script_select**: without a level script (or in multiplayer) "<level>.vfx" is copied into

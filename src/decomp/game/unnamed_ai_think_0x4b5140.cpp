@@ -821,7 +821,7 @@ float ai_choose_attack_slot(Character *attacker, Character *target)
             best_dot = dot;
             best = i;
         } else if (dot > second_dot) {
-            second_dot = dot;
+            second_dot = best_dot;   // D17005: the binary stores best_dot (0x4b6b94..0x4b6b9a), not dot
             second = i;
         }
     }

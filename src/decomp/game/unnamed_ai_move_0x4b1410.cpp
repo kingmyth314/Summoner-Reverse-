@@ -56,7 +56,7 @@
 #define AI_WALL_NONE       1.0e9f           // 0x4e6e6b28, ai_wall_hit_dist before a search
 #define AI_AVOID_RADIUS    1.25f            // 0x57e994: the radius scale of the collision tests
 #define AI_AVOID_SIDE      0.8f             // 0x5819b0
-#define AI_TURN_DEG        57.29578f        // 0x580e24
+#define AI_TURN_DEG        57.295776f       // 0x580e24 (0x42652ee0, D17001)
 #define AI_TURN_ANIM_TIME  120.0f           // 0x581bac (degrees per turn move at speed 1)
 #define AI_TURN_ANIM_SPEED 0.95f            // 0x581980
 
