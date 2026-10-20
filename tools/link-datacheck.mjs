@@ -81,7 +81,7 @@ for (const [o, size, n] of rows) {
         if (x >= orig.base && x < orig.end && translate(x) === y) { i += 4; continue; }
         // A pointer to unnamed data (a string literal): compare what both point to.
         if (x >= orig.base && x < orig.end && y >= now.base && y < now.end) {
-          const sa = orig.read(x, 64), sb = now.read(y, 64);
+          const sa = orig.read(x, 256), sb = now.read(y, 256);
           if (sa && sb) { const za = sa.indexOf(0), zb = sb.indexOf(0); if (za >= 0 && za === zb && sa.subarray(0, za).equals(sb.subarray(0, zb))) { i += 4; continue; } }
         }
       }

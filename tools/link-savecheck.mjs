@@ -6,7 +6,10 @@
 // against the original dumps (tools/link-memcheck.mjs --also). The save covers game state (positions, flags, stats,
 // inventory, script state), the dump the globals that never reach a save; neither sees rendering or timing.
 //
-//   node tools/link-savecheck.mjs <out dir> LEVEL:SCRIPT ... [--runs 3] [--game DIR] [--ini-backup FILE]
+//   node tools/link-savecheck.mjs <out dir> LEVEL:SCRIPT ... [--runs 3] [--rebuilt-runs 1] [--game DIR] [--ini-backup FILE]
+//
+// With --rebuilt-runs N the rebuilt exe also runs N times (reb.sav, reb1.sav ...; the first is the one compared), to see
+// whether a difference repeats.
 //
 // <out dir> must have no spaces (agent arguments are split on spaces). The test folder (default
 // SummonerToolchain/rebuilt-test) must hold savetest/ with the start save; [Debug] TestSaves=1 keeps every save there.
@@ -23,11 +26,12 @@ const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
 const game = opt("--game", join(repo, "..", "..", "SummonerToolchain", "rebuilt-test"));
 const runs = +opt("--runs", 3);
+const rebRuns = +opt("--rebuilt-runs", 1);
 const ini = join(game, "summonerfix.ini");
 const backup = opt("--ini-backup", join(game, "summonerfix.ini.savecheck"));
 const quicksave = join(game, "savetest", "quicksave.sav");
 const OLD = new Date("2000-01-01T00:00:00");
-const optArgs = new Set(["--runs", "--game", "--ini-backup"]);
+const optArgs = new Set(["--runs", "--rebuilt-runs", "--game", "--ini-backup"]);
 const positional = args.filter((a, i) => !a.startsWith("--") && !optArgs.has(args[i - 1]));
 const [out, ...levels] = positional;
 if (!out || !levels.length || /\s/.test(out)) {
@@ -96,7 +100,9 @@ try {
       if (why) problem = `original run ${i}: ${why}`;
     }
     if (problem) { note(`${level}: skipped, ${problem}`); continue; }
-    const why = runOnce("Sum-rebuilt.exe", level, p("reb.sav"), p("reb.bin"));
+    let why = "";
+    for (let i = 0; i < rebRuns && !why; i++)
+      why = runOnce("Sum-rebuilt.exe", level, p(i ? `reb${i}.sav` : "reb.sav"), p(i ? `reb${i}.bin` : "reb.bin"));
     if (why) { note(`${level}: REBUILT FAILED: ${why}`); continue; }
     const bad = compareSaves([...Array(runs).keys()].map((i) => p(`orig${i}.sav`)), p("reb.sav"));
     const also = runs > 1 ? ["--also", [...Array(runs - 1).keys()].map((i) => p(`orig${i + 1}.bin`)).join(",")] : [];

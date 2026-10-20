@@ -58,7 +58,7 @@ const mapStarts = [...new Set(readFileSync(join(out, "Sum-rebuilt.map"), "latin1
   .map((l) => /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+\S+\s+([0-9a-f]{8})\s/.exec(l)).filter(Boolean).map((m) => parseInt(m[1], 16)))].sort((a, b) => a - b);
 const after = (list, a) => { let lo = 0, hi = list.length; while (lo < hi) { const m = (lo + hi) >> 1; if (list[m] <= a) lo = m + 1; else hi = m; } return list[lo] ?? a + 4; };
 const sameString = (p, q) => {
-  const sa = orig.read(p, 64), sb = now.read(q, 64);
+  const sa = orig.read(p, 256), sb = now.read(q, 256);
   if (!sa || !sb) return false;
   const za = sa.indexOf(0), zb = sb.indexOf(0);
   return za >= 0 && za === zb && sa.subarray(0, za).equals(sb.subarray(0, zb));

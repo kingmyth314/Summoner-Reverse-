@@ -377,6 +377,27 @@ animated portraits and paper doll differed. No crash or `errorlog.txt`. Still no
 levelling (done in Masad in the first play-test), Jekhar's own join, the sewer quests and boss, which the agent
 could not reach by teleport (long `npcgoto` jumps snap back in both exes).
 
+**Level save check (2026-10-19, `tools/link-savecheck.mjs`).** The hybrid's save test, run on the standalone exe:
+33 levels, later acts first, each warped to with the full party from the same test save, three original runs and
+one rebuilt run, a quicksave and a dump of every global after each. 28 could be compared (the original refuses a
+quicksave in TempleInt2, IkaemosBottomInt2, the Jade Temple `_v2` variant, LPalaceInt02 and Rand-Iceland01). No
+decompilation error showed. What fell outside the original runs' spread:
+- positions and headings of walking characters, and expired skill cooldowns (TempleInt, IonaExt02: 36 per party
+  member, counting the time since level start), a few milliseconds beyond three runs' spread;
+- monster levels in lenele2d, IonaExt and lenele1b, lower in the rebuilt save each time. `level_script_init`
+  draws them from `frand_range(0.8, 1.2)` times the current character's level, with the random seed taken from
+  the clock at start-up (`os_seed_random(-1)`), and the three original runs had agreed by chance: five more runs of
+  each in lenele2d gave 11, 14, 14, 12, 12 (original) and 11, 12, 12, 12, 12 (rebuilt). The save comparison should
+  treat a monster's level, HP and AP after entry as random;
+- in Eleh nine NPCs' script-object timers were 8 ms lower, and in Wolong eight NPCs' AI goal times about 17 ms
+  lower, where the three original runs agree to the millisecond: one or two frames more of game time before the
+  level's opening pause. **Open** (timing, low priority).
+
+The memory dumps differed every time in a few symbols only through layout (the bytes past a variable's own size
+belong to an unnamed neighbour in one exe and another variable in the other) and in `install_path` (the exe
+names); one long help string had been compared over 64 bytes only (now 256, in `link-datacheck.mjs` too). As the
+docs of the tool say, this check cannot see rendering or timing errors: D9815 and D9817 would have passed it.
+
 A read-through against the disassembly of the 47 functions that `[Fixes] Enabled=0` replaces (the 22 non-matching
 ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed). The same read-through of the other 49, kept original even with `[Fixes] Enabled=0` (display, widescreen and key-binding patch sites), found one more: the multiplayer Create Game numbers were centred with the height on both axes, which the original does not do (game bug K9 withdrawn); with the fix both functions now match byte for byte (D9817). All 71 non-matching functions the hybrid never ran have now been read against the listing.
 
